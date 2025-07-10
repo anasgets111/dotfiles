@@ -6,6 +6,9 @@ import Quickshell.Hyprland
 PanelWindow {
     id: panel
 
+    // Common font family for all bar modules
+    property string fontFamily: "Inter, sans-serif"
+
     screen: Quickshell.screens[0]           // pick output monitor
     mask: Region { item: panelRect }        // mask by Rectangle below
     color: "transparent"                    // make panel area background transparent
@@ -32,6 +35,7 @@ PanelWindow {
         anchors.fill: parent
         color: "#1a1a1a"
         radius: 15
+
         border.color: "#333333"
         border.width: 3
 
@@ -45,6 +49,12 @@ PanelWindow {
                 verticalCenter: parent.verticalCenter
             }
             spacing: 8
+
+            // Idle Inhibitor
+            IdleInhibitor {
+                id: idleInhibitor
+                anchors.verticalCenter: parent.verticalCenter
+            }
 
             // Normal workspaces container with hover behavior
             Item {
@@ -107,7 +117,7 @@ PanelWindow {
                                 text: modelData.id
                                 color: modelData.active ? "#ffffff" : "#cccccc"
                                 font.pixelSize: 12
-                                font.family: "Inter, sans-serif"
+                                font.family: panel.fontFamily
                             }
                         }
                     }
@@ -139,7 +149,7 @@ PanelWindow {
                         text: modelData.name.replace("special:", "")
                         color: modelData.active ? "#ffffff" : "#cccccc"
                         font.pixelSize: 12
-                        font.family: "Inter, sans-serif"
+                        font.family: panel.fontFamily
                     }
                 }
             }
@@ -149,7 +159,7 @@ PanelWindow {
                 text:    "No workspaces"
                 color:   "#cccccc"
                 font.pixelSize: 12
-                font.family: "Inter, sans-serif"
+                font.family: panel.fontFamily
             }
         }
     }
