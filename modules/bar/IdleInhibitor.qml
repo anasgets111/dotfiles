@@ -1,62 +1,57 @@
-import QtQuick
+import QtQuick 2.15
 import Quickshell
 import Quickshell.Io
 
 Rectangle {
-    id: idleInhibitor
+  id: idleInhibitor
+  width: 32; height: 24; radius: 7
 
-    width: 32
-    height: 24
-    radius: 15
-    color: isActive ? "#4a9eff" : "#333333"
-    border.color: "#555555"
-    border.width: 2
+  /* style constants */
+  property color activeBg:   "#4a9eff"
+  property color inactiveBg: "#333333"
+  property color borderCol:  "#555555"
+  property color textActive:   "#1a1a1a"
+  property color textInactive: "#cccccc"
+  property string iconOn:  ""
+  property string iconOff: ""
 
-    property bool isActive: false
+  /* bind state directly to process.running */
+  Process {
+    id: inhibitorProcess
+    command: [
+      "systemd-inhibit",
+      "--what=idle",
+      "--who=quickshell",
+      "--why=User inhibited idle",
+      "sleep", "infinity"
+    ]
+  }
+  property alias isActive: inhibitorProcess.running
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
+  /* lock screen process */
+  Process { id: lockProcess; command: ["hyprlock"] }
 
-        onClicked: function(mouse) {
-            if (mouse.button === Qt.LeftButton) {
-                toggleIdleInhibitor()
-            } else if (mouse.button === Qt.RightButton) {
-                lockScreen()
-            }
-        }
-    }
+  /* dynamic styling */
+  color: isActive ? activeBg : inactiveBg
+  border.color: borderCol; border.width: 2
 
-    Text {
-        anchors.centerIn: parent
-        text: isActive ? "" : ""
-        color: isActive ? "#1a1a1a" : "#cccccc"
-        font.pixelSize: 14
-        font.family: parent.parent.fontFamily
-    }
-
-    Process {
-        id: inhibitorProcess
-        command: ["systemd-inhibit", "--what=idle", "--who=quickshell", "--why=User inhibited idle", "sleep", "infinity"]
-
-        onStarted: isActive = true
-        onExited: isActive = false
-    }
-
-    Process {
-        id: lockProcess
-        command: ["hyprlock"]
-    }
-
-    function toggleIdleInhibitor() {
-        if (isActive) {
-            inhibitorProcess.running = false
-        } else {
-            inhibitorProcess.running = true
-        }
-    }
-
-    function lockScreen() {
+  MouseArea {
+    anchors.fill: parent
+    acceptedButtons: Qt.LeftButton | Qt.RightButton
+    onClicked: {
+      if (mouse.button === Qt.LeftButton) {
+        inhibitorProcess.running = !inhibitorProcess.running
+      } else if (mouse.button === Qt.RightButton) {
         lockProcess.running = true
+      }
     }
+  }
+
+  Text {
+    anchors.centerIn: parent
+    text: isActive ? iconOn : iconOff
+    color: isActive ? textActive : textInactive
+    font.pixelSize: 14
+    font.family: panel.fontFamily
+  }
 }

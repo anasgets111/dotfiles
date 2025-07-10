@@ -7,7 +7,7 @@ PanelWindow {
     id: panel
 
     // Common font family for all bar modules
-    property string fontFamily: "Inter, sans-serif"
+    property string fontFamily: "CaskaydiaCove Nerd Font Propo"
 
     screen: Quickshell.screens[0]           // pick output monitor
     mask: Region { item: panelRect }        // mask by Rectangle below
