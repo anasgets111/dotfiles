@@ -89,7 +89,7 @@ PanelWindow {
                             Behavior on opacity {
                                 NumberAnimation {
                                     duration: 250
-                                    easing.type: Easing.inOutQuart
+                                    easing.type: Easing.InOutQuart
                                 }
                             }
 
