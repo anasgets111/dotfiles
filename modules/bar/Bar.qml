@@ -35,6 +35,8 @@ PanelWindow {
         border.color: "#333333"
         border.width: 3
 
+        property bool normalWorkspacesHovered: false
+
         Row {
             id: workspaceRow
             anchors {
@@ -44,32 +46,70 @@ PanelWindow {
             }
             spacing: 8
 
-            // Normal workspaces (positive IDs)
-            Repeater {
-                model: Hyprland.workspaces
+            // Normal workspaces container with hover behavior
+            Item {
+                id: normalWorkspacesContainer
+                width: normalWorkspacesRow.width
+                height: normalWorkspacesRow.height
 
-                Rectangle {
-                    visible: modelData.id >= 0
-                    width: 32
-                    height: 24
-                    radius: 15
-                    color: modelData.active ? "#4a9eff" : "#333333"
-                    border.color: "#555555"
-                    border.width: 2
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onEntered: panelRect.normalWorkspacesHovered = true
+                    onExited: panelRect.normalWorkspacesHovered = false
+                }
 
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: {
-                            Hyprland.dispatch("workspace " + modelData.id);
+                Row {
+                    id: normalWorkspacesRow
+                    spacing: 8
+
+                    // Normal workspaces (positive IDs)
+                    Repeater {
+                        model: Hyprland.workspaces
+
+                        Rectangle {
+                            property bool shouldShow: (modelData.id >= 0) && (modelData.active || panelRect.normalWorkspacesHovered)
+
+                            width: shouldShow ? 32 : 0
+                            opacity: shouldShow ? 1.0 : 0.0
+                            height: 24
+                            radius: 15
+                            color: modelData.active ? "#4a9eff" : "#333333"
+                            border.color: "#555555"
+                            border.width: 2
+                            // clip: true
+
+                            Behavior on width {
+                                NumberAnimation {
+                                    duration: 250
+                                    easing.type: Easing.InOutQuad
+                                }
+                            }
+
+                            Behavior on opacity {
+                                NumberAnimation {
+                                    duration: 250
+                                    easing.type: Easing.inOutQuart
+                                }
+                            }
+
+
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: shouldShow
+                                onClicked: {
+                                    Hyprland.dispatch("workspace " + modelData.id);
+                                }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.id
+                                color: modelData.active ? "#ffffff" : "#cccccc"
+                                font.pixelSize: 12
+                                font.family: "Inter, sans-serif"
+                            }
                         }
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: modelData.id
-                        color: modelData.active ? "#ffffff" : "#cccccc"
-                        font.pixelSize: 12
-                        font.family: "Inter, sans-serif"
                     }
                 }
             }
