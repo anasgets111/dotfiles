@@ -44,10 +44,12 @@ PanelWindow {
             }
             spacing: 8
 
+            // Normal workspaces (positive IDs)
             Repeater {
                 model: Hyprland.workspaces
 
                 Rectangle {
+                    visible: modelData.id >= 0
                     width: 32
                     height: 24
                     radius: 15
@@ -58,20 +60,43 @@ PanelWindow {
                     MouseArea {
                         anchors.fill: parent
                         onClicked: {
-                            var cmd;
-                            if (modelData.id >= 0) {
-                                cmd = "workspace " + modelData.id;
-                            } else {
-                                cmd = "togglespecialworkspace " + modelData.name.replace("special:", "");
-                            }
-                            Hyprland.dispatch(cmd);
+                            Hyprland.dispatch("workspace " + modelData.id);
                         }
                     }
 
                     Text {
                         anchors.centerIn: parent
-                        // lets remove string 'special:' from name
-                        text: modelData.id >= 0 ? modelData.id : modelData.name.replace("special:", "")
+                        text: modelData.id
+                        color: modelData.active ? "#ffffff" : "#cccccc"
+                        font.pixelSize: 12
+                        font.family: "Inter, sans-serif"
+                    }
+                }
+            }
+
+            // Special workspaces (negative IDs)
+            Repeater {
+                model: Hyprland.workspaces
+
+                Rectangle {
+                    visible: modelData.id < 0
+                    width: 32
+                    height: 24
+                    radius: 15
+                    color: modelData.active ? "#4a9eff" : "#333333"
+                    border.color: "#555555"
+                    border.width: 2
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            Hyprland.dispatch("togglespecialworkspace " + modelData.name.replace("special:", ""));
+                        }
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: modelData.name.replace("special:", "")
                         color: modelData.active ? "#ffffff" : "#cccccc"
                         font.pixelSize: 12
                         font.family: "Inter, sans-serif"
