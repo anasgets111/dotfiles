@@ -43,7 +43,7 @@ Item {
             if (activeWindow.currentTitle) {
                 // Limit title length to prevent excessive width
                 var title = activeWindow.currentTitle
-                return title.length > 74 ? title.substring(0, 71) + "..." : title
+                return title.length > 60 ? title.substring(0, 57) + "..." : title
             } else if (activeWindow.currentClass) {
                 return activeWindow.currentClass
             } else {
