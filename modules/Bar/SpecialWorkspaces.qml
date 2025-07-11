@@ -36,23 +36,35 @@ Row {
         id: specialWorkspaceDelegate
         Rectangle {
             property var ws: modelData
-            property bool isActive: ws.name === specialWorkspaces.activeSpecialWorkspace
+            property bool isActive: ws.name
+                                    === specialWorkspaces.activeSpecialWorkspace
+            // Per-item hover state
+            property bool itemHovered: false
 
             visible: ws.id < 0
             width: Theme.itemWidth
             height: Theme.itemHeight
             radius: Theme.itemRadius
-            color: isActive ? Theme.activeColor : Theme.inactiveColor
+            // Dynamic color: prioritize active, then hover, then inactive
+            color: isActive ? Theme.activeColor
+                            : (itemHovered ? Theme.onHoverColor
+                                           : Theme.inactiveColor)
             opacity: visible ? 1.0 : 0.0
 
             // Smooth color transitions
             Behavior on color {
-                ColorAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
+                ColorAnimation {
+                    duration: Theme.animationDuration
+                    easing.type: Easing.InOutQuad
+                }
             }
 
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
+                hoverEnabled: true
+                onEntered: parent.itemHovered = true
+                onExited: parent.itemHovered = false
                 onClicked: Hyprland.dispatch(
                     "togglespecialworkspace " +
                     ws.name.replace("special:", "")
@@ -62,13 +74,20 @@ Row {
             Text {
                 anchors.centerIn: parent
                 text: ws.name.replace("special:", "")
-                color: isActive ? Theme.textActiveColor : Theme.textInactiveColor
+                // Dynamic text color matching the background logic: prioritize active, then hover, then inactive
+                color: parent.isActive ? Theme.textActiveColor
+                                       : (parent.itemHovered
+                                          ? Theme.textOnHoverColor
+                                          : Theme.textInactiveColor)
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 font.bold: true
                 // Smooth text color transition
                 Behavior on color {
-                    ColorAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
+                    ColorAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.InOutQuad
+                    }
                 }
             }
         }
