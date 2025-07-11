@@ -85,7 +85,9 @@ PanelWindow {
                 Behavior on opacity {
                     NumberAnimation { duration: 250; easing.type: Easing.InOutQuart }
                 }
-
+                Behavior on color {
+                    ColorAnimation { duration: 250; easing.type: Easing.InOutQuad }
+                }
                 MouseArea {
                     anchors.fill: parent
                     enabled: shouldShow
@@ -172,7 +174,6 @@ PanelWindow {
                     onEntered: panelRect.normalWorkspacesHovered = true
                     onExited:  panelRect.normalWorkspacesHovered = false
                 }
-
                 Row {
                     id: normalWorkspacesRow
                     spacing: 8
