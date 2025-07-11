@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell.Hyprland
 
 Item {
+
     id: activeWindow
     width: windowTitle.implicitWidth
     height: windowTitle.implicitHeight
@@ -13,17 +14,11 @@ Item {
     property int animationDuration: parent.animationDuration || 250
     property int fontSize: parent.fontSize || 12
 
-    // Debug fontSize
-    Component.onCompleted: {
-        console.log("ActiveWindow fontSize:", fontSize)
-        console.log("ActiveWindow parent fontSize:", parent.fontSize)
-    }
-
-    // Window state
+    // Window state, at init we should check if there is an active window use that otherwise first title will be "Desktop"
     property string currentTitle: ""
     property string currentClass: ""
 
-    // Track active window changes via raw events
+
     Connections {
         target: Hyprland
         function onRawEvent(event) {
