@@ -57,7 +57,7 @@ Item {
         }
         color: activeWindow.currentTitle ? Theme.textActiveColor : Theme.textInactiveColor
         font.pixelSize: Theme.fontSize
-        font.weight: Theme.fontWeight
+        font.bold: true
         font.family: Theme.fontFamily
         elide: Text.ElideRight
 

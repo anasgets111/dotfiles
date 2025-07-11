@@ -51,7 +51,7 @@ Rectangle {
     text: isActive ? iconOn : iconOff
     color: isActive ? Theme.textActiveColor : Theme.textInactiveColor
     font.pixelSize: Theme.fontSize
-    font.weight: Theme.fontWeight
+    font.bold : true
     font.family: Theme.fontFamily
   }
 }
