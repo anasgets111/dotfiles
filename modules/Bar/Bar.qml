@@ -2,33 +2,18 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import "."
 
 PanelWindow {
-    id: panel
-
-    // Shared styling properties
-    property string fontFamily: "CaskaydiaCove Nerd Font Propo"
-    property int wsWidth: 32
-    property int wsHeight: 24
-    property int wsRadius: 15
-    property color activeColor: "#4a9eff"
-    property color inactiveColor: "#333333"
-    property color borderColor: "#555555"
-    property color bgColor: "#1a1a1a"
-    property color panelBorderColor: "#333333"
-    property color textActiveColor: "#ffffff"
-    property color textInactiveColor: "#cccccc"
-    property int animationDuration: 250
-    property int borderWidth: 2
-    property int fontSize: 14
+    id: panelitemWidth
 
     // Panel placement
     screen: Quickshell.screens[0]
     mask: Region { item: panelRect }
-    color: "transparent"
+    color: Theme.panelWindowColor
     implicitWidth: Screen.width
-    margins { left: 16; right: 16; top: 0 }
-    implicitHeight: 40
+    margins { left: Theme.panelMargin; right: Theme.panelMargin; top: 0 }
+    implicitHeight: Theme.panelHeight
     exclusiveZone: implicitHeight
     WlrLayershell.namespace: "quickshell:bar:blur"
     anchors { top: true; left: true; right: true }
@@ -36,32 +21,17 @@ PanelWindow {
     Rectangle {
         id: panelRect
         anchors.fill: parent
-        color: bgColor
-        radius: 15
-        border.color: panelBorderColor
-        border.width: borderWidth
-
-        // Pass through all styling properties to children
-        property string fontFamily: panel.fontFamily
-        property int wsWidth: panel.wsWidth
-        property int wsHeight: panel.wsHeight
-        property int wsRadius: panel.wsRadius
-        property color activeColor: panel.activeColor
-        property color inactiveColor: panel.inactiveColor
-        property color borderColor: panel.borderColor
-        property color bgColor: panel.bgColor
-        property color textActiveColor: panel.textActiveColor
-        property color textInactiveColor: panel.textInactiveColor
-        property int animationDuration: panel.animationDuration
-        property int borderWidth: panel.borderWidth
-        property int fontSize: panel.fontSize
+        color: Theme.bgColor
+        radius: Theme.panelRadius
+        border.color: Theme.borderColor
+        border.width: Theme.borderWidth
 
         // Left side - workspaces and idle inhibitor
         LeftSide {
             id: leftSide
             anchors {
                 left: parent.left
-                leftMargin: 16
+                leftMargin: Theme.panelMargin
                 verticalCenter: parent.verticalCenter
             }
         }
@@ -79,7 +49,7 @@ PanelWindow {
             id: rightSide
             anchors {
                 right: parent.right
-                rightMargin: 16
+                rightMargin: Theme.panelMargin
                 verticalCenter: parent.verticalCenter
             }
         }

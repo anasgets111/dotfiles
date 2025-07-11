@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Hyprland
+import "."
 
 Item {
 
@@ -7,12 +8,7 @@ Item {
     width: windowTitle.implicitWidth
     height: windowTitle.implicitHeight
 
-    // Shared styling properties (inherited from parent)
-    property string fontFamily: parent.fontFamily || "CaskaydiaCove Nerd Font Propo"
-    property color textActiveColor: parent.textActiveColor || "#ffffff"
-    property color textInactiveColor: parent.textInactiveColor || "#cccccc"
-    property int animationDuration: parent.animationDuration || 250
-    property int fontSize: parent.fontSize || 12
+    // Styling properties are now accessed from Theme singleton
 
     // Window state, at init we should check if there is an active window use that otherwise first title will be "Desktop"
     property string currentTitle: ""
@@ -43,7 +39,7 @@ Item {
 
     // Smooth width animation
     Behavior on width {
-        NumberAnimation { duration: animationDuration; easing.type: Easing.InOutQuad }
+        NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
     }
 
     Text {
@@ -59,14 +55,15 @@ Item {
                 return "Desktop"
             }
         }
-        color: activeWindow.currentTitle ? textActiveColor : textInactiveColor
-        font.pixelSize: fontSize
-        font.family: fontFamily
+        color: activeWindow.currentTitle ? Theme.textActiveColor : Theme.textInactiveColor
+        font.pixelSize: Theme.fontSize
+        font.weight: Theme.fontWeight
+        font.family: Theme.fontFamily
         elide: Text.ElideRight
 
         // Smooth color transition
         Behavior on color {
-            ColorAnimation { duration: animationDuration; easing.type: Easing.InOutQuad }
+            ColorAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
         }
     }
 }

@@ -1,24 +1,11 @@
 import QtQuick
 import Quickshell.Hyprland
+import "."
 
 Item {
     id: normalWorkspaces
     width: normalWorkspacesRow.width
     height: normalWorkspacesRow.height
-
-    // Shared styling properties (inherited from parent)
-    property string fontFamily: parent.fontFamily || "CaskaydiaCove Nerd Font Propo"
-    property int wsWidth: parent.wsWidth || 32
-    property int wsHeight: parent.wsHeight || 24
-    property int wsRadius: parent.wsRadius || 15
-    property color activeColor: parent.activeColor || "#4a9eff"
-    property color inactiveColor: parent.inactiveColor || "#333333"
-    property color borderColor: parent.borderColor || "#555555"
-    property color textActiveColor: parent.textActiveColor || "#ffffff"
-    property color textInactiveColor: parent.textInactiveColor || "#cccccc"
-    property int animationDuration: parent.animationDuration || 250
-    property int borderWidth: parent.borderWidth || 2
-    property int fontSize: parent.fontSize || 12
 
     // State tracking
     property bool normalWorkspacesHovered: false
@@ -30,22 +17,22 @@ Item {
             property var ws: modelData
             property bool shouldShow: ws.id >= 0 && (ws.active || normalWorkspaces.normalWorkspacesHovered)
 
-            width: shouldShow ? wsWidth : 0
-            height: wsHeight
-            radius: wsRadius
-            color: ws.active ? activeColor : inactiveColor
-            border.color: borderColor
-            border.width: borderWidth
+            width: shouldShow ? Theme.itemWidth : 0
+            height: Theme.itemHeight
+            radius: Theme.wsRadius
+            color: ws.active ? Theme.activeColor : Theme.inactiveColor
+            border.color: Theme.borderColor
+            border.width: Theme.borderWidth
             opacity: shouldShow ? 1.0 : 0.0
 
             Behavior on width {
-                NumberAnimation { duration: animationDuration; easing.type: Easing.InOutQuad }
+                NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
             }
             Behavior on opacity {
-                NumberAnimation { duration: animationDuration; easing.type: Easing.InOutQuart }
+                NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuart }
             }
             Behavior on color {
-                ColorAnimation { duration: animationDuration; easing.type: Easing.InOutQuad }
+                ColorAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
             }
             MouseArea {
                 anchors.fill: parent
@@ -56,9 +43,10 @@ Item {
             Text {
                 anchors.centerIn: parent
                 text: ws.id
-                color: ws.active ? textActiveColor : textInactiveColor
-                font.pixelSize: fontSize
-                font.family: fontFamily
+                color: ws.active ? Theme.textActiveColor : Theme.textInactiveColor
+                font.pixelSize: Theme.fontSize
+                font.family: Theme.fontFamily
+                font.weight: Theme.fontWeight
             }
         }
     }
@@ -85,8 +73,8 @@ Item {
     Text {
         visible: Hyprland.workspaces.length === 0
         text:    "No workspaces"
-        color:   textInactiveColor
-        font.pixelSize: fontSize
-        font.family: fontFamily
+        color:   Theme.textInactiveColor
+        font.pixelSize: Theme.fontSize
+        font.family: Theme.fontFamily
     }
 }
