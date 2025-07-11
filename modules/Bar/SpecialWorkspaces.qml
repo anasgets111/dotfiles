@@ -66,7 +66,7 @@ Row {
                 color: isActive ? Theme.textActiveColor : Theme.textInactiveColor
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
-
+                font.bold: true
                 // Smooth text color transition
                 Behavior on color {
                     ColorAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }

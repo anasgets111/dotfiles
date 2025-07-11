@@ -1,4 +1,5 @@
 import QtQuick
+// import "DateTimeDisplay.qml"
 
 
 Row {
@@ -7,12 +8,13 @@ Row {
 
     // Styling properties are now accessed from Theme singleton
 
-    // Placeholder content for right section
-    Text {
-        text: "Right"
-        color: Theme.textInactiveColor
-        font.pixelSize: Theme.fontSize
-        font.family: Theme.fontFamily
+    // DateTimeDisplay module
+    DateTimeDisplay {
+        anchors.verticalCenter: parent.verticalCenter
+    }
+
+    // PowerMenu integration
+    PowerMenu {
         anchors.verticalCenter: parent.verticalCenter
     }
 }
