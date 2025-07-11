@@ -114,15 +114,12 @@ PanelWindow {
                 height: wsHeight
                 radius: wsRadius
                 color: isActive ? activeColor : inactiveColor
-                border.color: borderColor
+                border.color: "#555555"
                 border.width: 2
                 opacity: visible ? 1.0 : 0.0
 
                 // Smooth color transitions
                 Behavior on color {
-                    ColorAnimation { duration: 250; easing.type: Easing.InOutQuad }
-                }
-                Behavior on border.color {
                     ColorAnimation { duration: 250; easing.type: Easing.InOutQuad }
                 }
 
