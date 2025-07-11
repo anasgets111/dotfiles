@@ -1,64 +1,134 @@
 import QtQuick
 import Quickshell
-import Quickshell.Wayland        // added for Wayland layer-shell support
+import Quickshell.Wayland
 import Quickshell.Hyprland
 
 PanelWindow {
     id: panel
 
-    // Common font family for all bar modules
+    // Shared styling properties
     property string fontFamily: "CaskaydiaCove Nerd Font Propo"
+    property int wsWidth: 32
+    property int wsHeight: 24
+    property int wsRadius: 15
+    property color activeColor: "#4a9eff"
+    property color inactiveColor: "#333333"
+    property color borderColor: "#555555"
+    property color bgColor: "#1a1a1a"
+    property color panelBorderColor: "#333333"
+    property color textActiveColor: "#ffffff"
+    property color textInactiveColor: "#cccccc"
 
-    screen: Quickshell.screens[0]           // pick output monitor
-    mask: Region { item: panelRect }        // mask by Rectangle below
-    color: "transparent"                    // make panel area background transparent
-
-    implicitWidth: Screen.width             // span full screen width
-    margins {
-        left: 16                            // reserve space for workspace icons
-        right: 16                           // reserve space for right-side widgets        top: 0                               // no top margin
-    }
-    implicitHeight: 40                      // set bar height
-    exclusiveZone: implicitHeight           // reserve that space in compositor
-
-    WlrLayershell.namespace:                // separate blur layer namespace
-        "quickshell:bar:blur"
-
-    anchors {                               // these are layer-shell anchors
-        top:   true                         // stick to top edge
-        left:  true                         // stick to left edge
-        right: true                         // stick to right edge
-    }
+    // Panel placement
+    screen: Quickshell.screens[0]
+    mask: Region { item: panelRect }
+    color: "transparent"
+    implicitWidth: Screen.width
+    margins { left: 16; right: 16; top: 0 }
+    implicitHeight: 40
+    exclusiveZone: implicitHeight
+    WlrLayershell.namespace: "quickshell:bar:blur"
+    anchors { top: true; left: true; right: true }
 
     Rectangle {
-        id: panelRect                       // needed by mask above
+        id: panelRect
         anchors.fill: parent
-        color: "#1a1a1a"
+        color: bgColor
         radius: 15
-
-        border.color: "#333333"
+        border.color: panelBorderColor
         border.width: 3
 
         property bool normalWorkspacesHovered: false
 
+        // Delegate for normal (positive ID) workspaces
+        Component {
+            id: normalWorkspaceDelegate
+            Rectangle {
+                property var ws: modelData
+                property bool shouldShow: ws.id >= 0 && (ws.active || panelRect.normalWorkspacesHovered)
+
+                // visible removed to allow unhover animation
+                width: shouldShow ? wsWidth : 0
+                height: wsHeight
+                radius: wsRadius
+                color: ws.active ? activeColor : inactiveColor
+                border.color: borderColor
+                border.width: 2
+                opacity: shouldShow ? 1.0 : 0.0
+
+                Behavior on width {
+                    NumberAnimation { duration: 250; easing.type: Easing.InOutQuad }
+                }
+                Behavior on opacity {
+                    NumberAnimation { duration: 250; easing.type: Easing.InOutQuart }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: shouldShow
+                    onClicked: Hyprland.dispatch("workspace " + ws.id)
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: ws.id
+                    color: ws.active ? textActiveColor : textInactiveColor
+                    font.pixelSize: 12
+                    font.family: fontFamily
+                }
+            }
+        }
+
+        // Delegate for special (negative ID) workspaces
+        Component {
+            id: specialWorkspaceDelegate
+            Rectangle {
+                property var ws: modelData
+
+                visible: ws.id < 0
+                width: wsWidth
+                height: wsHeight
+                radius: wsRadius
+                color: ws.active ? activeColor : inactiveColor
+                border.color: borderColor
+                border.width: 2
+                opacity: visible ? 1.0 : 0.0
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: Hyprland.dispatch(
+                        "togglespecialworkspace " +
+                        ws.name.replace("special:", "")
+                    )
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: ws.name.replace("special:", "")
+                    color: ws.active ? textActiveColor : textInactiveColor
+                    font.pixelSize: 12
+                    font.family: fontFamily
+                }
+            }
+        }
+
         Row {
             id: workspaceRow
             anchors {
-                left:           parent.left
-                leftMargin:     16
+                left: parent.left
+                leftMargin: 16
                 verticalCenter: parent.verticalCenter
             }
             spacing: 8
 
-            // Idle Inhibitor
+            // Idle inhibitor for PowerSave
             IdleInhibitor {
                 id: idleInhibitor
                 anchors.verticalCenter: parent.verticalCenter
             }
 
-            // Normal workspaces container with hover behavior
+            // Normal workspaces (hover to expand)
             Item {
-                id: normalWorkspacesContainer
                 width: normalWorkspacesRow.width
                 height: normalWorkspacesRow.height
 
@@ -66,100 +136,32 @@ PanelWindow {
                     anchors.fill: parent
                     hoverEnabled: true
                     onEntered: panelRect.normalWorkspacesHovered = true
-                    onExited: panelRect.normalWorkspacesHovered = false
+                    onExited:  panelRect.normalWorkspacesHovered = false
                 }
 
                 Row {
                     id: normalWorkspacesRow
                     spacing: 8
-
-                    // Normal workspaces (positive IDs)
                     Repeater {
                         model: Hyprland.workspaces
-
-                        Rectangle {
-                            property bool shouldShow: (modelData.id >= 0) && (modelData.active || panelRect.normalWorkspacesHovered)
-
-                            width: shouldShow ? 32 : 0
-                            opacity: shouldShow ? 1.0 : 0.0
-                            height: 24
-                            radius: 15
-                            color: modelData.active ? "#4a9eff" : "#333333"
-                            border.color: "#555555"
-                            border.width: 2
-                            // clip: true
-
-                            Behavior on width {
-                                NumberAnimation {
-                                    duration: 250
-                                    easing.type: Easing.InOutQuad
-                                }
-                            }
-
-                            Behavior on opacity {
-                                NumberAnimation {
-                                    duration: 250
-                                    easing.type: Easing.InOutQuart
-                                }
-                            }
-
-
-                            MouseArea {
-                                anchors.fill: parent
-                                enabled: shouldShow
-                                onClicked: {
-                                    Hyprland.dispatch("workspace " + modelData.id);
-                                }
-                            }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: modelData.id
-                                color: modelData.active ? "#ffffff" : "#cccccc"
-                                font.pixelSize: 12
-                                font.family: panel.fontFamily
-                            }
-                        }
+                        delegate: normalWorkspaceDelegate
                     }
                 }
             }
 
-            // Special workspaces (negative IDs)
+            // Special workspaces
             Repeater {
                 model: Hyprland.workspaces
-
-                Rectangle {
-                    visible: modelData.id < 0
-                    width: 32
-                    height: 24
-                    radius: 15
-                    color: modelData.active ? "#4a9eff" : "#333333"
-                    border.color: "#555555"
-                    border.width: 2
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: {
-                            Hyprland.dispatch("togglespecialworkspace " + modelData.name.replace("special:", ""));
-                        }
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: modelData.name.replace("special:", "")
-                        color: modelData.active ? "#ffffff" : "#cccccc"
-                        font.pixelSize: 12
-                        font.family: panel.fontFamily
-                    }
-                }
+                delegate: specialWorkspaceDelegate
             }
 
+            // Fallback when no workspaces
             Text {
                 visible: Hyprland.workspaces.length === 0
                 text:    "No workspaces"
-                color:   "#cccccc"
+                color:   textInactiveColor
                 font.pixelSize: 12
-                font.family: panel.fontFamily
+                font.family: fontFamily
             }
         }
     }
