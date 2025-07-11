@@ -91,9 +91,9 @@ Rectangle {
                     anchors.centerIn: parent
                     text: buttons[idx].icon
                     color: Theme.textInactiveColor
-                    font.pixelSize: Theme.fontSize+5
+                    font.pixelSize: Theme.fontSize + 5
                     font.family: Theme.fontFamily
-                    font.weight: Theme.fontWeight
+                    font.bold: true
                 }
 
             }
