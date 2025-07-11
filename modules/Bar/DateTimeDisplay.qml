@@ -7,13 +7,13 @@ Item {
     property string formattedDateTime: ""
 
     width: textItem.width + 24
-    height: textItem.height + 12
+    height: Theme.itemHeight
 
     Rectangle {
         anchors.fill: parent
-        radius: height / 2
+        radius: Theme.itemRadius
         color: Theme.inactiveColor
-        border.color: Theme.barBorder
+        border.color: Theme.borderColor
 
     }
 
@@ -23,8 +23,8 @@ Item {
         text: dateTimeDisplay.formattedDateTime
         color: Theme.textInactiveColor
         font.bold: true
-        font.pointSize: Theme.barFontSize
-        font.family: Theme.barFontFamily
+        font.pointSize: Theme.fontSize
+        font.family: Theme.fontFamily
     }
 
     Timer {
