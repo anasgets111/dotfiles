@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import Quickshell.Hyprland
 import "."
 
 Rectangle {
@@ -22,9 +23,9 @@ Rectangle {
     // Button definitions: icon, tooltip, and action name
     // Reverse order so main button is rightmost
     property var buttons: [
-        { icon: "󰍃", tooltip: "Log Out",   action: "Log Out"   },   // nf-fa-sign_out
-        { icon: "", tooltip: "Restart",   action: "Restart"   },   // nf-md-restart
-        { icon: "⏻", tooltip: "Power Off", action: "Power Off" }    // nf-fa-power_off
+        { icon: "󰍃", tooltip: "Log Out",   action: "pkill chromium 2>/dev/null || true; hyprctl dispatch exit" },
+        { icon: "", tooltip: "Restart",   action: "pkill chromium 2>/dev/null || true; systemctl reboot" },
+        { icon: "⏻", tooltip: "Power Off", action: "pkill chromium 2>/dev/null || true; systemctl poweroff" }
     ]
     property int spacing: 8
 
@@ -82,7 +83,10 @@ Rectangle {
                     enabled: shouldShow
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        console.log("PowerMenu action:", buttons[idx].action)
+                      console.log("exec " + buttons[idx].action)
+                      Hyprland.dispatch("exec " + buttons[idx].action)
+                        //@idea If you have a global state for menu open, you can close it here:
+                        // GlobalStates.hyprMenuOpen = false
                     }
                 }
 
