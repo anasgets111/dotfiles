@@ -39,6 +39,27 @@ PanelWindow {
         border.width: 3
 
         property bool normalWorkspacesHovered: false
+        property string activeSpecialWorkspace: ""
+
+        // Track special workspace states via raw events
+        Connections {
+            target: Hyprland
+            function onRawEvent(event) {
+                if (event.name === "activespecial") {
+                    var data = event.data.split(",")
+                    if (data.length >= 2) {
+                        var specialName = data[0]
+                        panelRect.activeSpecialWorkspace = specialName
+                    }
+                } else if (event.name === "workspace") {
+                    // Clear active special when switching to normal workspace
+                    var workspaceId = parseInt(event.data.split(",")[0])
+                    if (workspaceId > 0) {
+                        panelRect.activeSpecialWorkspace = ""
+                    }
+                }
+            }
+        }
 
         // Delegate for normal (positive ID) workspaces
         Component {
@@ -46,6 +67,8 @@ PanelWindow {
             Rectangle {
                 property var ws: modelData
                 property bool shouldShow: ws.id >= 0 && (ws.active || panelRect.normalWorkspacesHovered)
+
+
 
                 // visible removed to allow unhover animation
                 width: shouldShow ? wsWidth : 0
@@ -84,15 +107,24 @@ PanelWindow {
             id: specialWorkspaceDelegate
             Rectangle {
                 property var ws: modelData
+                property bool isActive: ws.name === panelRect.activeSpecialWorkspace
 
                 visible: ws.id < 0
                 width: wsWidth
                 height: wsHeight
                 radius: wsRadius
-                color: ws.active ? activeColor : inactiveColor
+                color: isActive ? activeColor : inactiveColor
                 border.color: borderColor
                 border.width: 2
                 opacity: visible ? 1.0 : 0.0
+
+                // Smooth color transitions
+                Behavior on color {
+                    ColorAnimation { duration: 250; easing.type: Easing.InOutQuad }
+                }
+                Behavior on border.color {
+                    ColorAnimation { duration: 250; easing.type: Easing.InOutQuad }
+                }
 
                 MouseArea {
                     anchors.fill: parent
@@ -105,9 +137,14 @@ PanelWindow {
                 Text {
                     anchors.centerIn: parent
                     text: ws.name.replace("special:", "")
-                    color: ws.active ? textActiveColor : textInactiveColor
+                    color: isActive ? textActiveColor : textInactiveColor
                     font.pixelSize: 12
                     font.family: fontFamily
+
+                    // Smooth text color transition
+                    Behavior on color {
+                        ColorAnimation { duration: 250; easing.type: Easing.InOutQuad }
+                    }
                 }
             }
         }
