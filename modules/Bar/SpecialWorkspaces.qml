@@ -1,23 +1,12 @@
 import QtQuick
 import Quickshell.Hyprland
+import "."
 
 Row {
     id: specialWorkspaces
     spacing: 8
 
-    // Shared styling properties (inherited from parent)
-    property string fontFamily: parent.fontFamily || "CaskaydiaCove Nerd Font Propo"
-    property int wsWidth: parent.wsWidth || 32
-    property int wsHeight: parent.wsHeight || 24
-    property int wsRadius: parent.wsRadius || 15
-    property color activeColor: parent.activeColor || "#4a9eff"
-    property color inactiveColor: parent.inactiveColor || "#333333"
-    property color borderColor: parent.borderColor || "#555555"
-    property color textActiveColor: parent.textActiveColor || "#ffffff"
-    property color textInactiveColor: parent.textInactiveColor || "#cccccc"
-    property int animationDuration: parent.animationDuration || 250
-    property int borderWidth: parent.borderWidth || 2
-    property int fontSize: parent.fontSize || 12
+    // Styling properties are now accessed from Theme singleton
 
     // State tracking
     property string activeSpecialWorkspace: ""
@@ -50,17 +39,17 @@ Row {
             property bool isActive: ws.name === specialWorkspaces.activeSpecialWorkspace
 
             visible: ws.id < 0
-            width: wsWidth
-            height: wsHeight
-            radius: wsRadius
-            color: isActive ? activeColor : inactiveColor
-            border.color: "#555555"
-            border.width: borderWidth
+            width: Theme.itemWidth
+            height: Theme.itemHeight
+            radius: Theme.wsRadius
+            color: isActive ? Theme.activeColor : Theme.inactiveColor
+            border.color: Theme.borderColor
+            border.width: Theme.borderWidth
             opacity: visible ? 1.0 : 0.0
 
             // Smooth color transitions
             Behavior on color {
-                ColorAnimation { duration: animationDuration; easing.type: Easing.InOutQuad }
+                ColorAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
             }
 
             MouseArea {
@@ -74,13 +63,13 @@ Row {
             Text {
                 anchors.centerIn: parent
                 text: ws.name.replace("special:", "")
-                color: isActive ? textActiveColor : textInactiveColor
-                font.pixelSize: fontSize
-                font.family: fontFamily
+                color: isActive ? Theme.textActiveColor : Theme.textInactiveColor
+                font.pixelSize: Theme.fontSize
+                font.family: Theme.fontFamily
 
                 // Smooth text color transition
                 Behavior on color {
-                    ColorAnimation { duration: animationDuration; easing.type: Easing.InOutQuad }
+                    ColorAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
                 }
             }
         }

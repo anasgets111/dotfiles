@@ -1,17 +1,15 @@
 import QtQuick 2.15
 import Quickshell
 import Quickshell.Io
+import "."
 
 Rectangle {
   id: idleInhibitor
-  width: 32; height: 24; radius: 7
+  width: Theme.itemWidth
+  height: Theme.itemHeight
+  radius: Theme.itemRadius
 
   /* style constants */
-  property color activeBg:   "#4a9eff"
-  property color inactiveBg: "#333333"
-  property color borderCol:  "#555555"
-  property color textActive:   "#1a1a1a"
-  property color textInactive: "#cccccc"
   property string iconOn:  ""
   property string iconOff: ""
 
@@ -32,8 +30,9 @@ Rectangle {
   Process { id: lockProcess; command: ["hyprlock"] }
 
   /* dynamic styling */
-  color: isActive ? activeBg : inactiveBg
-  border.color: borderCol; border.width: 2
+  color: isActive ? Theme.activeColor : Theme.inactiveColor
+  border.color: Theme.borderColor
+  border.width: Theme.borderWidth
 
   MouseArea {
     anchors.fill: parent
@@ -50,8 +49,9 @@ Rectangle {
   Text {
     anchors.centerIn: parent
     text: isActive ? iconOn : iconOff
-    color: isActive ? textActive : textInactive
-    font.pixelSize: 14
-    font.family: panel.fontFamily
+    color: isActive ? Theme.textActiveColor : Theme.textInactiveColor
+    font.pixelSize: Theme.fontSize
+    font.weight: Theme.fontWeight
+    font.family: Theme.fontFamily
   }
 }
