@@ -9,7 +9,7 @@ QtObject {
     property string fontFamily:       "CaskaydiaCove Nerd Font Propo"
     property int    itemWidth:        32
     property int    itemHeight:       24
-    property int    wsRadius:         15
+    property int    itemRadius:         15
     property color  activeColor:      "#4a9eff"
     property color  inactiveColor:    "#333333"
     property int    fontWeight:        Font.Bold
