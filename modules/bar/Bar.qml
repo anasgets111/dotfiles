@@ -18,6 +18,7 @@ PanelWindow {
     property color panelBorderColor: "#333333"
     property color textActiveColor: "#ffffff"
     property color textInactiveColor: "#cccccc"
+    property int animationDuration: 250
 
     // Panel placement
     screen: Quickshell.screens[0]
@@ -80,13 +81,13 @@ PanelWindow {
                 opacity: shouldShow ? 1.0 : 0.0
 
                 Behavior on width {
-                    NumberAnimation { duration: 250; easing.type: Easing.InOutQuad }
+                    NumberAnimation { duration: animationDuration; easing.type: Easing.InOutQuad }
                 }
                 Behavior on opacity {
-                    NumberAnimation { duration: 250; easing.type: Easing.InOutQuart }
+                    NumberAnimation { duration: animationDuration; easing.type: Easing.InOutQuart }
                 }
                 Behavior on color {
-                    ColorAnimation { duration: 250; easing.type: Easing.InOutQuad }
+                    ColorAnimation { duration: animationDuration; easing.type: Easing.InOutQuad }
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -122,7 +123,7 @@ PanelWindow {
 
                 // Smooth color transitions
                 Behavior on color {
-                    ColorAnimation { duration: 250; easing.type: Easing.InOutQuad }
+                    ColorAnimation { duration: animationDuration; easing.type: Easing.InOutQuad }
                 }
 
                 MouseArea {
@@ -142,7 +143,7 @@ PanelWindow {
 
                     // Smooth text color transition
                     Behavior on color {
-                        ColorAnimation { duration: 250; easing.type: Easing.InOutQuad }
+                        ColorAnimation { duration: animationDuration; easing.type: Easing.InOutQuad }
                     }
                 }
             }
