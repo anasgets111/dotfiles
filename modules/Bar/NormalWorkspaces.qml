@@ -35,6 +35,7 @@ Item {
             }
             MouseArea {
                 anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
                 enabled: shouldShow
                 onClicked: Hyprland.dispatch("workspace " + ws.id)
             }
