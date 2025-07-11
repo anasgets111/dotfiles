@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import "." as BarTheme
+import "."
 
 Item {
     id: dateTimeDisplay
