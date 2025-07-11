@@ -20,6 +20,7 @@ PanelWindow {
     property color textInactiveColor: "#cccccc"
     property int animationDuration: 250
     property int borderWidth: 2
+    property int fontSize: 14
 
     // Panel placement
     screen: Quickshell.screens[0]
@@ -39,6 +40,21 @@ PanelWindow {
         radius: 15
         border.color: panelBorderColor
         border.width: borderWidth
+
+        // Pass through all styling properties to children
+        property string fontFamily: panel.fontFamily
+        property int wsWidth: panel.wsWidth
+        property int wsHeight: panel.wsHeight
+        property int wsRadius: panel.wsRadius
+        property color activeColor: panel.activeColor
+        property color inactiveColor: panel.inactiveColor
+        property color borderColor: panel.borderColor
+        property color bgColor: panel.bgColor
+        property color textActiveColor: panel.textActiveColor
+        property color textInactiveColor: panel.textInactiveColor
+        property int animationDuration: panel.animationDuration
+        property int borderWidth: panel.borderWidth
+        property int fontSize: panel.fontSize
 
         // Left side - workspaces and idle inhibitor
         LeftSide {
