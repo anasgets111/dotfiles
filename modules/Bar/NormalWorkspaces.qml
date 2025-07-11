@@ -46,7 +46,7 @@ Item {
                 color: ws.active ? Theme.textActiveColor : Theme.textInactiveColor
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
-                font.weight: Theme.fontWeight
+                font.bold: true
             }
         }
     }
@@ -76,5 +76,6 @@ Item {
         color:   Theme.textInactiveColor
         font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
+        font.bold: true
     }
 }
