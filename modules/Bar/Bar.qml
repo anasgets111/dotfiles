@@ -23,8 +23,6 @@ PanelWindow {
         anchors.fill: parent
         color: Theme.bgColor
         radius: Theme.panelRadius
-        border.color: Theme.borderColor
-        border.width: Theme.borderWidth
 
         // Left side - workspaces and idle inhibitor
         LeftSide {

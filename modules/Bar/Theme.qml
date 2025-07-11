@@ -18,8 +18,7 @@ QtObject {
     property color activeColor: "#4a9eff"
     property color inactiveColor: "#333333"
     property color bgColor: "#1a1a1a"
-    property color borderColor: "#555555"
-
+    property color onHoverColor: "#5aafff"
     // Text colors
     property color textActiveColor: "#ffffff"
     property color textInactiveColor: "#cccccc"
@@ -31,8 +30,6 @@ QtObject {
     // Animation
     property int animationDuration: 250
 
-    // Border
-    property int borderWidth: 2
 
     // DateTime format
     property string formatDateTime: "yyyy-MM-dd dddd hh:mm AP"

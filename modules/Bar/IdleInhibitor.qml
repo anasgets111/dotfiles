@@ -31,8 +31,7 @@ Rectangle {
 
   /* dynamic styling */
   color: isActive ? Theme.activeColor : Theme.inactiveColor
-  border.color: Theme.borderColor
-  border.width: Theme.borderWidth
+
 
   MouseArea {
     anchors.fill: parent

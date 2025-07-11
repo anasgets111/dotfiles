@@ -43,8 +43,6 @@ Row {
             height: Theme.itemHeight
             radius: Theme.itemRadius
             color: isActive ? Theme.activeColor : Theme.inactiveColor
-            border.color: Theme.borderColor
-            border.width: Theme.borderWidth
             opacity: visible ? 1.0 : 0.0
 
             // Smooth color transitions

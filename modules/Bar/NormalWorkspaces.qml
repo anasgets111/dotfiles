@@ -21,8 +21,7 @@ Item {
             height: Theme.itemHeight
             radius: Theme.itemRadius
             color: ws.active ? Theme.activeColor : Theme.inactiveColor
-            border.color: Theme.borderColor
-            border.width: Theme.borderWidth
+
             opacity: shouldShow ? 1.0 : 0.0
 
             Behavior on width {
