@@ -52,6 +52,7 @@ Row {
 
             MouseArea {
                 anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
                 onClicked: Hyprland.dispatch(
                     "togglespecialworkspace " +
                     ws.name.replace("special:", "")

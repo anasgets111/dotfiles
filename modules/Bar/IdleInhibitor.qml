@@ -36,6 +36,8 @@ Rectangle {
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.RightButton
+    cursorShape: Qt.PointingHandCursor
+
     onClicked: function(mouse) {
       if (mouse.button === Qt.LeftButton) {
         inhibitorProcess.running = !inhibitorProcess.running
