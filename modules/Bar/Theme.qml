@@ -13,12 +13,15 @@ QtObject {
     property int itemWidth: 32
     property int itemHeight: 24
     property int itemRadius: 15
+    property int borderWidth: 2
 
     // Colors
     property color activeColor: "#4a9eff"
     property color inactiveColor: "#333333"
     property color bgColor: "#1a1a1a"
     property color onHoverColor: "#5aafff"
+    property color borderColor: "#333333"
+
     // Text colors
     property color textActiveColor: "#ffffff"
     property color textInactiveColor: "#cccccc"
