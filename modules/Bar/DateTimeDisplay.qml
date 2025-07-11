@@ -13,7 +13,6 @@ Item {
         anchors.fill: parent
         radius: Theme.itemRadius
         color: Theme.inactiveColor
-        border.color: Theme.borderColor
 
     }
 
