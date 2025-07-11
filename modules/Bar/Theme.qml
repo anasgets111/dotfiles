@@ -31,7 +31,7 @@ QtObject {
     property int fontSize: 14
 
     // Animation
-    property int animationDuration: 250
+    property int animationDuration: 147
 
 
     // DateTime format
