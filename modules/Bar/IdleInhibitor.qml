@@ -1,4 +1,4 @@
-import QtQuick 2.15
+import QtQuick
 import Quickshell
 import Quickshell.Io
 import "."
@@ -10,7 +10,7 @@ Rectangle {
   radius: Theme.itemRadius
 
   /* style constants */
-  property string iconOn:  ""
+  property string iconOn:  ""
   property string iconOff: ""
 
   /* bind state directly to process.running */

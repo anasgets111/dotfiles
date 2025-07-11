@@ -8,12 +8,8 @@ Item {
     width: windowTitle.implicitWidth
     height: windowTitle.implicitHeight
 
-    // Styling properties are now accessed from Theme singleton
-
-    // Window state, at init we should check if there is an active window use that otherwise first title will be "Desktop"
     property string currentTitle: ""
     property string currentClass: ""
-
 
     Connections {
         target: Hyprland
@@ -37,7 +33,6 @@ Item {
         }
     }
 
-    // Smooth width animation
     Behavior on width {
         NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
     }
@@ -55,15 +50,11 @@ Item {
                 return "Desktop"
             }
         }
-        color: activeWindow.currentTitle ? Theme.textActiveColor : Theme.textInactiveColor
+        color: Theme.textActiveColor
         font.pixelSize: Theme.fontSize
         font.bold: true
         font.family: Theme.fontFamily
         elide: Text.ElideRight
 
-        // Smooth color transition
-        Behavior on color {
-            ColorAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
-        }
     }
 }
