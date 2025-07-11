@@ -17,6 +17,7 @@ Row {
     property color textInactiveColor: parent.textInactiveColor || "#cccccc"
     property int animationDuration: parent.animationDuration || 250
     property int borderWidth: parent.borderWidth || 2
+    property int fontSize: parent.fontSize || 12
 
     // State tracking
     property string activeSpecialWorkspace: ""
@@ -74,7 +75,7 @@ Row {
                 anchors.centerIn: parent
                 text: ws.name.replace("special:", "")
                 color: isActive ? textActiveColor : textInactiveColor
-                font.pixelSize: 12
+                font.pixelSize: fontSize
                 font.family: fontFamily
 
                 // Smooth text color transition

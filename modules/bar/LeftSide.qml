@@ -16,6 +16,7 @@ Row {
     property color textInactiveColor: parent.textInactiveColor || "#cccccc"
     property int animationDuration: parent.animationDuration || 250
     property int borderWidth: parent.borderWidth || 2
+    property int fontSize: parent.fontSize || 12
 
     // Idle inhibitor for PowerSave
     IdleInhibitor {

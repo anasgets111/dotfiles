@@ -18,6 +18,7 @@ Item {
     property color textInactiveColor: parent.textInactiveColor || "#cccccc"
     property int animationDuration: parent.animationDuration || 250
     property int borderWidth: parent.borderWidth || 2
+    property int fontSize: parent.fontSize || 12
 
     // State tracking
     property bool normalWorkspacesHovered: false
@@ -56,7 +57,7 @@ Item {
                 anchors.centerIn: parent
                 text: ws.id
                 color: ws.active ? textActiveColor : textInactiveColor
-                font.pixelSize: 12
+                font.pixelSize: fontSize
                 font.family: fontFamily
             }
         }
@@ -85,7 +86,7 @@ Item {
         visible: Hyprland.workspaces.length === 0
         text:    "No workspaces"
         color:   textInactiveColor
-        font.pixelSize: 12
+        font.pixelSize: fontSize
         font.family: fontFamily
     }
 }
