@@ -41,7 +41,7 @@ Row {
             visible: ws.id < 0
             width: Theme.itemWidth
             height: Theme.itemHeight
-            radius: Theme.wsRadius
+            radius: Theme.itemRadius
             color: isActive ? Theme.activeColor : Theme.inactiveColor
             border.color: Theme.borderColor
             border.width: Theme.borderWidth

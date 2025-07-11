@@ -19,7 +19,7 @@ Item {
 
             width: shouldShow ? Theme.itemWidth : 0
             height: Theme.itemHeight
-            radius: Theme.wsRadius
+            radius: Theme.itemRadius
             color: ws.active ? Theme.activeColor : Theme.inactiveColor
             border.color: Theme.borderColor
             border.width: Theme.borderWidth
