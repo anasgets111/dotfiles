@@ -16,16 +16,16 @@ QtObject {
     property int borderWidth: 2
 
     // Colors
-    property color activeColor: "#4a9eff"
-    property color inactiveColor: "#333333"
-    property color bgColor: "#1a1a1a"
-    property color onHoverColor: "#5aafff"
-    property color borderColor: "#333333"
+    property color activeColor: "#CBA6E2"  // Mauve: Vibrant accent for active elements
+    property color inactiveColor: "#494D64"  // Overlay0: Muted grey for inactive states
+    property color bgColor: "#1E1E2E"  // Base: Dark background for overall theme
+    property color onHoverColor: "#F5C2E7"  // Rosewater: Soft highlight for hover, related to Mauve for cohesion
+    property color borderColor: "#313244"  // Surface2: Subtle border color for UI elements
 
     // Text colors
-    property color textActiveColor: "#ffffff"
-    property color textInactiveColor: "#cccccc"
-
+    property color textActiveColor: "#CDD6F4"  // Text: Bright white for active text
+    property color textInactiveColor: "#A6ADC8"  // Subtext: Lighter grey for inactive text
+    property color textOnHoverColor: "#CBA6E2"  // Mauve: Matches activeColor for hover emphasis
     // Font properties
     property string fontFamily: "CaskaydiaCove Nerd Font Propo"
     property int fontSize: 14

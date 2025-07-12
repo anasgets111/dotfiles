@@ -1,6 +1,6 @@
+import "."
 import QtQuick
 import Quickshell.Hyprland
-import "."
 
 Item {
     id: normalWorkspaces
