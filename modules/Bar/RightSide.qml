@@ -6,6 +6,10 @@ Row {
     id: rightSide
     spacing: 8
 
+    KeyboardLayoutIndicator{
+        anchors.verticalCenter: parent.verticalCenter
+    }
+
     BatteryIndicator {
         anchors.verticalCenter: parent.verticalCenter
     }
