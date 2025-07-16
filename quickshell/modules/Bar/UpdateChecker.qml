@@ -34,6 +34,13 @@ Item {
       + 12
   )
 
+  // ── Functions ──────────────────────────────────────────────────────────────
+  function notify(urgency, title, body) {
+    Quickshell.execDetached([
+      "notify-send", "-u", urgency, title, body
+    ])
+  }
+
 
   Process {
     id: pkgProc
@@ -108,11 +115,11 @@ Item {
       Text {
         id: indicator
         // Always visible – switches glyph based on busy/updates
-        text: root.busy
+        text: busy
               ? ""  // Nerd-font gear
-              : (root.updates > 0
-                 ? root.updateIcon
-                 : root.noUpdateIcon)
+              : (updates > 0
+                 ? updateIcon
+                 : noUpdateIcon)
         font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
         color: Theme.textContrast(Theme.inactiveColor)
@@ -126,15 +133,15 @@ Item {
             to:   360
             duration: 800
             loops: Animation.Infinite
-            running: root.busy
+            running: busy
             onStopped: indicator.rotation = 0
         }
       }
 
       Text {
         id: updateCount
-        visible: root.updates > 0
-        text:    root.updates
+        visible: updates > 0
+        text:    updates
         font.pixelSize: Theme.fontSize * 0.9
         font.family:     Theme.fontFamily
         color: Theme.textContrast(Theme.inactiveColor)
@@ -147,8 +154,8 @@ Item {
       anchors.fill: parent
       cursorShape: Qt.PointingHandCursor
       onClicked: {
-        if (root.busy) return;
-        if (root.updates > 0) {
+        if (busy) return;
+        if (updates > 0) {
           Quickshell.execDetached(updateCommand)
         } else {
           // force a full sync and reuse doPoll logic
@@ -162,9 +169,4 @@ Item {
     doPoll()
     pollTimer.start()
   }
-function notify(urgency, title, body) {
-  Quickshell.execDetached([
-    "notify-send", "-u", urgency, title, body
-  ])
-}
 }
