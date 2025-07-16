@@ -1,0 +1,241 @@
+"$schema" = "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json"		# Points to oh-my-posh's schema to validate this config
+version = 3																																													# Defines the config schema version for oh-my-posh
+console_title_template = "{{if .Root}} \u26a1 {{end}}{{.UserName}} \u2794 📁{{.Folder}}"						# Sets the console (terminal) title dynamically (shows a lightning bolt if user is root, otherwise user + current folder)
+final_space = true																																									# Ensures a space at the end of the prompt line, giving breathing room for text input
+
+[palette]
+  c1 = '#C6C3CE'	
+  c2 = '#444859'	
+  c3 = '#E0DEF4'	
+  c4 = '#CBA6F7'	
+  c5 = '#F38BA8'	
+
+  [[blocks]]
+    alignment = "left"																																							# This "block" is aligned to the left side of the terminal
+    type = "prompt"																																									# It's a "prompt" block (the part that appears where you type commands)
+
+  [[blocks.segments]]
+    type = "text"																																										# A simple text segment
+    style = "plain"																																									# "plain" style means no special background/foreground shaping beyond the specified colors
+    foreground = "p:c4"																																							# Uses the palette color c4 (pastel orange) for the text
+    template = "╭─"																																									# The actual text/characters that appear in the prompt (a corner + dash)
+
+  [[blocks.segments]]
+    type = "os"																																											# Detects and displays the operating system icon
+    background = "p:c2"																																							# Dark blue background (from the palette)
+    foreground = "p:c3"																																							# Light foreground to contrast with the dark-blue background
+    leading_diamond = ""																																						# "leading_diamond" draws a powerline-like segment shape on the left
+    style = "diamond"																																								# "diamond" style merges with the leading/trailing powerline shape
+    template = "{{ if .WSL }}WSL at {{ end }}{{.Icon}}"																							# Displays "WSL at [icon]" if running under WSL, otherwise just the OS icon
+    [blocks.segments.properties]
+      linux = ""																																										# Icon shown if OS is Linux
+      macos = ""																																										# Icon shown if OS is macOS
+      windows = ""																																									# Icon shown if OS is Windows
+
+
+
+[[blocks.segments]]
+type = "text"
+style = "diamond"
+# Adds the trailing powerline segment arrow
+background = "p:c2"
+foreground = "p:c3"
+  display_if = '{{ ne .Env.FISH__BIND_MODE "" }}'  # Only show when variable exists
+  template = '''{{ if eq .Env.FISH__BIND_MODE "default" }}<p:c1>[N]</>{{ else if eq .Env.FISH__BIND_MODE "insert" }}<p:c4>[I]</>{{ else if eq .Env.FISH__BIND_MODE "replace_one" }}<p:c5>[R]</>{{ else if eq .Env.FISH__BIND_MODE "visual" }}<p:c6>[V]</>{{ else }}{{ end }}'''
+
+
+  [[blocks.segments]]
+  type = "shell"																																										# Detects the shell in use (bash, zsh, fish, etc.)
+  style = "diamond"																																									# Another powerline-like diamond style
+  trailing_diamond = ""																																					
+  background = "p:c2"																																								# Reuses the same dark blue background
+  foreground = "p:c3"																																								# Keeps text readable
+
+  [blocks.segments.properties]
+  mapped_shell_names.fish = ""																																			# Icon for fish shell
+  mapped_shell_names.bash = ""																																			# Icon for bash shell
+  mapped_shell_names.zsh  = ""																																			# Icon for zsh shell
+  mapped_shell_names.default = ""																																	# Default icon if shell isn't recognized
+
+
+
+
+  [[blocks.segments]]
+  type = "text"
+  style = "diamond"
+  background = "p:c1"																																								# Switches to the lighter c1 background
+  foreground = "p:c2"																																								# Dark blue text to contrast with the c1 background
+  template = " {{.UserName}}:{{.HostName}} "																												# Displays "username:hostname"
+  
+  [[blocks.segments]]
+  type = "path"																																											#  Shows the current directory path
+  background = "p:c3"																																								# Light background
+  foreground = "p:c2"																																								# Dark blue text
+  powerline_symbol = ""																																								# Powerline arrow shape
+  style = "powerline"																																								# True "powerline" style segment
+  template = "  {{ .Path }}"																																			# Displays a folder icon + the path
+  [blocks.segments.properties]
+  folder_icon = " \uf07b "																																					# Custom folder icon
+  home_icon   = ""																																									# Icon used to represent home directory
+  style       = "folder"																																						# "folder" style ensures partial path logic (if set up)
+
+  [[blocks.segments]]
+  type = "git"																																											# Shows Git repo status: branch, changes, etc.
+  background = "p:c3"																																								# Same light background
+  foreground = "p:c2"																																								# Dark blue text
+  powerline_symbol = ""																																						# Powerline arrow shape
+  style = "powerline"																																								# Another powerline segment
+  template = "| {{ .UpstreamIcon }}{{ .HEAD }}{{if .BranchStatus }} {{ .BranchStatus }}{{ end }}{{ if .Working.Changed }}  {{ .Working.String }}{{ end }}{{ if and (.Working.Changed) (.Staging.Changed) }} |{{ end }}{{ if .Staging.Changed }}<#ef5350>  {{ .Staging.String }}</>{{ end }} "		# This template determines how the Git info is displayed:
+  [blocks.segments.properties]
+  branch_icon         = " "																																				# Icon prefix for the Git branch
+  fetch_status        = true																																				# oh-my-posh will fetch Git status to display up-to-date info
+  fetch_upstream_icon = true																																				# Displays upstream icon if available
+
+  [[blocks.segments]]
+  type = "executiontime"																																						# Shows how long the last command took to run
+  style = "diamond"
+  background = "p:c4"																																								# Pastel orange background
+  foreground = "p:c2"																																								# Dark blue text
+  template = "  {{ .FormattedMs }} "# Shows a stopwatch icon + time in milliseconds
+  trailing_diamond = ""																																						# Closes the diamond shape
+  [blocks.segments.properties]
+  style = "roundrock"																																								# Another style choice (though overshadowed by "diamond" above, it's still recognized)
+  threshold = 0																																											# Shows the execution time for all commands (0 means no minimum threshold)
+
+[[blocks]]
+alignment = "right"																																									# This block is aligned to the right side of the terminal
+type = "prompt"																																											# Another "prompt" block, but it appears on the right
+
+  [[blocks.segments]]
+  type = "node"																																											# Detects Node.js version if relevant files (like package.json) exist
+  style = "diamond"
+  background = "p:c4"																																								# Pastel orange
+  foreground = "p:c2"																																								# Dark blue
+  leading_diamond = ""																																							# Start diamond shape
+  trailing_diamond = " "																																						# End diamond shape (note the space helps spacing)
+  template = " {{ if .PackageManagerIcon }}{{ .PackageManagerIcon }} {{ end }}{{ .Major }}.{{ .Minor }}"
+  [blocks.segments.properties]
+    display_mode = "files"																																					# Only show Node version if certain files (package.json) exist
+    files = ["package.json"]																																				# Trigger detection when 'package.json' is found in the folder
+    fetch_package_manager = true																																		# Also detect Yarn vs npm
+    npm_icon  = " <#cc3a3a></> "																																		# Icon to show if npm is in use
+    yarn_icon = " <#348cba></>"																																		# Icon to show if Yarn is in use
+
+  [[blocks.segments]]
+  type = "python"																																										# Detects Python version
+  style = "diamond"
+  background = "p:c3"																																								# Light background
+  foreground = "p:c2"																																								# Dark blue text
+  leading_diamond = ""
+  trailing_diamond = " "
+  template = " {{ if .Error }}{{ .Error }}{{ else }}{{ if .Venv }}{{ .Venv }} {{ end }}{{ .Major }}{{ end }}"
+  display_mode = "context"																																					# Only show this segment if a Python file/folder context is detected
+
+  [[blocks.segments]]
+  type = "java"
+  style = "diamond"
+  background = "p:c3"
+  foreground = "p:c2"
+  leading_diamond = ""
+  trailing_diamond = " "
+  template = " {{ if .Error }}{{ .Error }}{{ else }}{{ .Major }}{{ end }}"
+  [blocks.segments.properties]
+  display_mode = "context"																																					# Only show if Java-related context is found (e.g. .java files)
+
+  [[blocks.segments]]
+  type = "rust"
+  style = "diamond"
+  background = "p:c3"
+  foreground = "p:c2"
+  leading_diamond = ""
+  trailing_diamond = " "
+  template = " {{ if .Error }}{{ .Error }}{{ else }}{{ .Major }}{{ end }}"
+  [blocks.segments.properties]
+  display_mode = "context"																																					# Only show in Rust-related directories
+
+  [[blocks.segments]]
+  type = "dart"
+  style = "diamond"
+  background = "p:c3"
+  foreground = "p:c2"
+  leading_diamond = " "
+  trailing_diamond = " "
+  template = " {{ if .Error }}{{ .Error }}{{ else }}{{ .Major }}{{ end }}"
+  [blocks.segments.properties]
+  display_mode = "context"																																					# Only show if a Dart/Flutter context is detected
+
+  [[blocks.segments]]
+  type = "nx"
+  style = "diamond"
+  background = "p:c3"
+  foreground = "p:c2"
+  leading_diamond = " "
+  trailing_diamond = " "
+  template = "{{ if .Error }}{{ .Error }}{{ else }}Nx {{ .Major }}{{ end }}"
+  [blocks.segments.properties]
+  display_mode = "context"																																					# Only show in an Nx (monorepo) context if Nx files are detected
+
+  [[blocks.segments]]
+  type = "ruby"
+  style = "diamond"
+  background = "p:c3"
+  foreground = "p:c2"
+  leading_diamond = ""
+  trailing_diamond = " "
+  template = " {{ if .Error }}{{ .Error }}{{ else }}{{ .Major }}{{ end }}"
+  [blocks.segments.properties]
+  display_mode = "context"																																					# Ruby environment detection
+
+  [[blocks.segments]]
+  type = "php"
+  style = "diamond"
+  background = "p:c3"
+  foreground = "p:c2"
+  leading_diamond = ""
+  trailing_diamond = " "
+  template = " {{ if .Error }}{{ .Error }}{{ else }}{{ .Major }}.{{ .Minor }}{{ end }}"
+  [blocks.segments.properties]
+  display_mode = "context"																																					# PHP context detection
+
+  [[blocks.segments]]
+  type = "aws"
+  style = "diamond"
+  background = "p:c3"
+  foreground = "p:c2"
+  leading_diamond = ""
+  trailing_diamond = " "
+  template = " {{.Profile}}{{if .Region}}@{{.Region}}{{end}}"
+  [blocks.segments.properties]
+  display_mode = "context"																																					# Only show if AWS-related context is detected (AWS vars or config)
+
+  [[blocks.segments]]
+  type = "time"
+  style = "diamond"
+  background = "p:c1"
+  foreground = "p:c2"
+  leading_diamond = ""
+  trailing_diamond = ""
+  template = "  {{ .CurrentDate | date .Format }} "
+  [blocks.segments.properties]
+  time_format = "03:04 PM"																																					# 12-hour format with minutes
+
+[[blocks]]
+alignment = "left"
+type = "prompt"
+newline = true																																											# Ensures a new line before this block (for multi-line prompts)
+
+  [[blocks.segments]]
+  type = "text"
+  style = "plain"
+  foreground = "p:c4"
+  template = "╰─"																																										# Closing corner line for the prompt
+
+  [[blocks.segments]]
+  type = "status"
+  style = "plain"
+  foreground = "p:c4"
+  foreground_templates = ["{{ if gt .Code 0 }}#ef5350{{ end }}"]
+  template = " "
+  [blocks.segments.properties]
+  always_enabled = true																																							# Always display status code (even if it's zero)
+

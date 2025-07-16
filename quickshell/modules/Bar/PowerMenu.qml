@@ -93,11 +93,11 @@ Rectangle {
                         powerMenu.execAction(buttons[idx].action)
                     }
                 }
-                
+
                 Text {
                     anchors.centerIn: parent
                     text: buttons[idx].icon
-                    color: Theme.textInactiveColor
+                    color: Theme.textContrast(parent.color)
                     font.pixelSize: Theme.fontSize + 5
                     font.family: Theme.fontFamily
                     font.bold: true

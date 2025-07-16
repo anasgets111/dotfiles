@@ -20,7 +20,7 @@ Item {
         id: textItem
         anchors.centerIn: parent
         text: dateTimeDisplay.formattedDateTime
-        color: Theme.textInactiveColor
+        color: Theme.textContrast(Theme.inactiveColor)
         font.bold: true
         font.pointSize: Theme.fontSize
         font.family: Theme.fontFamily

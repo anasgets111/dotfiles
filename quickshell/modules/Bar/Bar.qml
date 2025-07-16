@@ -2,54 +2,87 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
-import "."
+
 
 PanelWindow {
-    id: panelitemWidth
+    id: panelWindow
 
-    // Panel placement
+    // increase height so we can draw below the bar
+    implicitWidth:  Screen.width
+    implicitHeight: Theme.panelHeight + Theme.cornerRadius
+    exclusiveZone:  Theme.panelHeight
+
     screen: Quickshell.screens[0]
-    mask: Region { item: panelRect }
-    color: Theme.panelWindowColor
-    implicitWidth: Screen.width
-    margins { left: Theme.panelMargin; right: Theme.panelMargin; top: 0 }
-    implicitHeight: Theme.panelHeight
-    exclusiveZone: implicitHeight
+    // mask:   Region { item: panelRect }
     WlrLayershell.namespace: "quickshell:bar:blur"
     anchors { top: true; left: true; right: true }
+    color:  Theme.panelWindowColor
 
+    //───────────────────────────────────────────────────────────────────────────
+    // the main bar
+    //───────────────────────────────────────────────────────────────────────────
     Rectangle {
         id: panelRect
-        anchors.fill: parent
-        color: Theme.bgColor
-        radius: Theme.panelRadius
+        width:  parent.width
+        height: Theme.panelHeight
+        color:  Theme.bgColor
+        anchors.top: parent.top
+        anchors.left: parent.left
+    }
 
-        // Left side - workspaces and idle inhibitor
-        LeftSide {
-            id: leftSide
-            anchors {
-                left: parent.left
-                leftMargin: Theme.panelMargin
-                verticalCenter: parent.verticalCenter
-            }
+    LeftSide {
+        anchors {
+            left:        panelRect.left
+            leftMargin:  Theme.panelMargin
+            verticalCenter: panelRect.verticalCenter
+        }
+    }
+    CenterSide {
+        anchors.centerIn: panelRect
+    }
+    RightSide {
+        anchors {
+            right:        panelRect.right
+            rightMargin:  Theme.panelMargin
+            verticalCenter: panelRect.verticalCenter
+        }
+    }
+
+//───────────────────────────────────────────────────────────────────────────
+// bottom corners using RoundCorner component
+//───────────────────────────────────────────────────────────────────────────
+
+
+    //───────────────────────────────────────────────────────────────────────────
+    // place two of them under the bar
+    //───────────────────────────────────────────────────────────────────────────
+    Item {
+        id: bottomCuts
+        width:  parent.width
+        height: Theme.cornerRadius
+        anchors.top:    panelRect.bottom
+        anchors.left:   parent.left
+        anchors.right:  parent.right
+        z: 1
+
+        // bottom-left
+        RoundCorner {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            size: Theme.cornerRadius
+            color: Theme.bgColor
+            corner: 2 // BottomLeft
+            rotation: 90 // 90° clockwise
         }
 
-        // Center side - placeholder for center content
-        CenterSide {
-            id: centerSide
-            anchors {
-                centerIn: parent
-            }
-        }
-
-        // Right side - placeholder for right content
-        RightSide {
-            id: rightSide
-            anchors {
-                right: parent.right
-                rightMargin: Theme.panelMargin
-                verticalCenter: parent.verticalCenter
-            }
+        // bottom-right
+        RoundCorner {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            size: Theme.cornerRadius
+            color: Theme.bgColor
+            corner: 3 // BottomRight
+            rotation: -90 // 90° counterclockwise
         }
     }
 }
