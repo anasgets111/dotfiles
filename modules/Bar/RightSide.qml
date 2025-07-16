@@ -6,6 +6,10 @@ Row {
     id: rightSide
     spacing: 8
 
+    BatteryIndicator {
+        anchors.verticalCenter: parent.verticalCenter
+    }
+
     // Volume control
     Volume {
         anchors.verticalCenter: parent.verticalCenter
