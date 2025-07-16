@@ -7,7 +7,7 @@ import Quickshell.Io
 Item {
   id: root
   implicitHeight: Theme.itemHeight
-  implicitWidth: label.implicitWidth + 12
+  implicitWidth: Math.max(Theme.itemWidth, label.implicitWidth + 12)
   visible: layoutService.available
 
   QtObject {
@@ -81,7 +81,7 @@ Item {
     anchors.fill: parent
     radius: Theme.itemRadius
     color: Theme.inactiveColor
-    implicitWidth: label.implicitWidth + 12
+    implicitWidth: Math.max(Theme.itemWidth, label.implicitWidth + 12)
 
 
 
