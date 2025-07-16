@@ -5,6 +5,16 @@ Row {
     id: leftSide
     spacing: 8
 
+    PowerMenu {
+        anchors.verticalCenter: parent.verticalCenter
+    }
+
+    UpdateChecker {
+        anchors.verticalCenter: parent.verticalCenter
+    }
+
+
+
     IdleInhibitor {
         id: idleInhibitor
         anchors.verticalCenter: parent.verticalCenter

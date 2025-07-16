@@ -64,12 +64,12 @@ Item {
     Text {
       id: icon
       anchors.verticalCenter: parent.verticalCenter
-      text: isCharging ? "\uf1e6" : // nf-fa-plug
-            percentage > 0.8 ? "\uf240" : // nf-fa-battery_full
-            percentage > 0.6 ? "\uf241" : // nf-fa-battery_three_quarters
-            percentage > 0.4 ? "\uf242" : // nf-fa-battery_half
-            percentage > 0.2 ? "\uf243" : // nf-fa-battery_quarter
-                               "\uf244"   // nf-fa-battery_empty
+      text: isCharging ? "" : // nf-fa-plug
+            percentage > 0.8 ? "" : // battery full
+            percentage > 0.6 ? "" : // battery three quarters
+            percentage > 0.4 ? "" : // battery half
+            percentage > 0.2 ? "" : // battery quarter
+                               ""   // battery empty
       font.pointSize: Theme.fontSize
       font.family: Theme.fontFamily
       font.bold: true

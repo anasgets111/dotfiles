@@ -50,5 +50,5 @@ QtObject {
 
 
     // DateTime format
-    property string formatDateTime: "yyyy-MM-dd dddd hh:mm AP"
+    property string formatDateTime: "dddd dd MMMM hh:mm AP"
 }

@@ -1,101 +1,169 @@
 import QtQuick
 import Quickshell.Hyprland
-import "."
 
 Row {
     id: specialWorkspaces
     spacing: 8
 
-    // Styling properties are now accessed from Theme singleton
+    property var workspaces: Hyprland.workspaces
+    property string activeSpecial: ""
 
-    // State tracking
-    property string activeSpecialWorkspace: ""
+    // Helper: extract special workspaces as array
+    function getSpecialWorkspaces() {
+        var specials = [];
+        for (var i = 0; i < workspaces.length; ++i) {
+            var ws = workspaces[i];
+            if (ws.id < 0)
+                specials.push(ws);
+        }
+        return specials;
+    }
 
-    // Track special workspace states via raw events
+    // Helper: get icon/text for a special workspace
+    function getSpecialText(ws) {
+        var nameLower = ws.name.toLowerCase();
+        if (nameLower.includes("telegram")) return "\uF2C6";
+        if (nameLower.includes("slack"))    return "\uF3EF";
+        if (nameLower.includes("discord") ||
+            nameLower.includes("vesktop") ||
+            nameLower.includes("string"))
+            return "\uF392";
+        if (nameLower.includes("term") ||
+            nameLower.includes("magic"))
+            return "\uF120";
+        return ws.name.replace("special:", "");
+    }
+
+    // Dynamic probe for all special workspace icons/names
+    property var specialWorkspacesList: getSpecialWorkspaces()
+
+    Column {
+        id: widthProbe
+        visible: false
+        Repeater {
+            model: specialWorkspacesList
+            delegate: Text {
+                property var ws: modelData
+                text: {
+                    var nameLower = ws.name.toLowerCase()
+                    if (nameLower.includes("telegram")) return "\uF2C6"
+                    if (nameLower.includes("slack"))    return "\uF3EF"
+                    if (nameLower.includes("discord") ||
+                        nameLower.includes("vesktop") ||
+                        nameLower.includes("string"))
+                        return "\uF392"
+                    if (nameLower.includes("term") ||
+                        nameLower.includes("magic"))
+                        return "\uF120"
+                    return ws.name.replace("special:", "")
+                }
+                font.pixelSize: Theme.fontSize
+                font.family: (text.length === 1 ? "Nerd Font" : Theme.fontFamily)
+                font.bold: true
+            }
+        }
+    }
+
+    // binding – auto-recomputes when any probe’s implicitWidth changes
+    property int maxSpecialWidth: {
+        var maxW = Theme.itemWidth
+        for (var i = 0; i < widthProbe.children.length; ++i) {
+            var probeW = widthProbe.children[i].implicitWidth + 12
+            if (probeW > maxW)
+                maxW = probeW
+        }
+        return maxW
+    }
+
     Connections {
         target: Hyprland
         function onRawEvent(event) {
             if (event.name === "activespecial") {
-                var data = event.data.split(",")
-                if (data.length >= 2) {
-                    var specialName = data[0]
-                    specialWorkspaces.activeSpecialWorkspace = specialName
-                }
+                activeSpecial = event.data.split(",")[0]
             } else if (event.name === "workspace") {
-                // Clear active special when switching to normal workspace
-                var workspaceId = parseInt(event.data.split(",")[0])
-                if (workspaceId > 0) {
-                    specialWorkspaces.activeSpecialWorkspace = ""
-                }
+                if (parseInt(event.data.split(",")[0]) > 0)
+                    activeSpecial = ""
             }
         }
     }
 
-    // Delegate for special (negative ID) workspaces
     Component {
-        id: specialWorkspaceDelegate
+        id: specialDelegate
         Rectangle {
             property var ws: modelData
-            property bool isActive: ws.name
-                                    === specialWorkspaces.activeSpecialWorkspace
-            // Per-item hover state
-            property bool itemHovered: false
-
             visible: ws.id < 0
-            width: Theme.itemWidth
+
+            // Find the matching probe for this ws
+            property int probeIndex: {
+                var arr = specialWorkspaces.getSpecialWorkspaces();
+                for (var i = 0; i < arr.length; ++i) {
+                    if (arr[i].name === ws.name)
+                        return i;
+                }
+                return -1;
+            }
+            width: (probeIndex >= 0 && widthProbe.children[probeIndex])
+                ? widthProbe.children[probeIndex].implicitWidth + 12
+                : Theme.itemWidth
             height: Theme.itemHeight
             radius: Theme.itemRadius
-            // Dynamic color: prioritize active, then hover, then inactive
-            color: isActive ? Theme.activeColor
-                            : (itemHovered ? Theme.onHoverColor
-                                           : Theme.inactiveColor)
-            opacity: visible ? 1.0 : 0.0
 
-            // Smooth color transitions
-            Behavior on color {
-                ColorAnimation {
-                    duration: Theme.animationDuration
-                    easing.type: Easing.InOutQuad
-                }
-            }
+            property bool isActive: ws.name === specialWorkspaces.activeSpecial
+            color: isActive
+                ? Theme.activeColor
+                : (mouseArea.hovered
+                   ? Theme.onHoverColor
+                   : Theme.inactiveColor)
+            Behavior on color { ColorAnimation {
+                duration: Theme.animationDuration
+                easing.type: Easing.InOutQuad
+            }}
 
             MouseArea {
+                id: mouseArea
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
-                onEntered: parent.itemHovered = true
-                onExited: parent.itemHovered = false
-                onClicked: Hyprland.dispatch(
-                    "togglespecialworkspace " +
-                    ws.name.replace("special:", "")
-                )
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    var n = ws.name.replace("special:", "")
+                    Hyprland.dispatch("togglespecialworkspace " + n)
+                }
             }
 
             Text {
                 anchors.centerIn: parent
-                text: ws.name.replace("special:", "")
-                // Dynamic text color matching the background logic: prioritize active, then hover, then inactive
-                color: parent.isActive ? Theme.textActiveColor
-                                       : (parent.itemHovered
-                                          ? Theme.textOnHoverColor
-                                          : Theme.textInactiveColor)
-                font.pixelSize: Theme.fontSize
-                font.family: Theme.fontFamily
-                font.bold: true
-                // Smooth text color transition
-                Behavior on color {
-                    ColorAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.InOutQuad
-                    }
+                text: {
+                    var nameLower = ws.name.toLowerCase()
+                    if (nameLower.includes("telegram")) return "\uF2C6"
+                    if (nameLower.includes("slack"))    return "\uF3EF"
+                    if (nameLower.includes("discord") ||
+                        nameLower.includes("vesktop") ||
+                        nameLower.includes("string"))
+                        return "\uF392"
+                    if (nameLower.includes("term") ||
+                        nameLower.includes("magic"))
+                        return "\uF120"
+                    return ws.name.replace("special:", "")
                 }
+                font.pixelSize: Theme.fontSize
+                font.family: (text.length === 1 ? "Nerd Font" : Theme.fontFamily)
+                font.bold: true
+
+                color: isActive
+                    ? Theme.textActiveColor
+                    : (mouseArea.hovered
+                       ? Theme.textOnHoverColor
+                       : Theme.textInactiveColor)
+                Behavior on color { ColorAnimation {
+                    duration: Theme.animationDuration
+                    easing.type: Easing.InOutQuad
+                }}
             }
         }
     }
 
-    // Special workspaces repeater
     Repeater {
-        model: Hyprland.workspaces
-        delegate: specialWorkspaceDelegate
+        model: workspaces
+        delegate: specialDelegate
     }
 }
