@@ -1,0 +1,97 @@
+########################################
+# Font & Text Settings
+########################################
+# Set the primary font and size.
+window-title-font-family = CaskaydiaCove Nerd Font
+font-family = CaskaydiaCove Nerd Font Mono
+font-size = 12
+
+# Option to make bold text render brighter.
+bold-is-bright = true
+
+########################################
+# Window Dimensions & Layout
+########################################
+# Specify the terminal dimensions as number of columns and rows.
+window-width = 133
+window-height = 35
+
+# Define padding around the terminal content (in pixels).
+window-padding-x = 11
+window-padding-y = 7
+
+# Enable native window decorations.
+window-decoration = server
+
+
+
+########################################
+# Background Effects
+########################################
+# Set the terminal background opacity (0 to 1).
+# background-opacity = 0.95
+# Set the blur radius (in pixels) for the background.
+# background-blur-radius = 2
+
+########################################
+# Theme & Appearance
+########################################
+# Choose one of the built-in themes. You can list themes using:
+#   ghostty +list-themes
+theme = ghostty-catppuccin-mocha.conf
+
+########################################
+# Shell Integration
+########################################
+# Enable shell integration features; here we’re enabling support for sudo.
+shell-integration-features = true
+confirm-close-surface = false
+
+########################################
+# (Optional) GTK Specific Settings
+########################################
+# Uncomment these if you want to enable GTK Adwaita styling or single-instance mode.
+# gtk-adwaita = true
+# gtk-single-instance = true
+
+#
+# Keybindings
+#
+# ctrl+shift+key for those keybindings suitable for actions that need to be pressed repeatedly in
+# succession, e.g., page scrolling.
+#
+# ctrl+; as the leader key for other keybindings
+#
+
+keybind = ctrl+shift+,=reload_config
+keybind = ctrl+;>s=write_screen_file:paste
+keybind = ctrl+;>i=inspector:toggle
+
+# Scroll
+keybind = ctrl+shift+d=scroll_page_fractional:0.5
+keybind = ctrl+shift+u=scroll_page_fractional:-0.5
+keybind = ctrl+shift+nine=scroll_to_top
+keybind = ctrl+shift+zero=scroll_to_bottom
+keybind = ctrl+shift+z=jump_to_prompt:-1
+keybind = ctrl+shift+x=jump_to_prompt:1
+
+# Tab
+keybind = cmd+shift+w=close_tab
+keybind = ctrl+shift+[=previous_tab
+keybind = ctrl+shift+]=next_tab
+keybind = ctrl+shift+,=move_tab:-1
+keybind = ctrl+shift+.=move_tab:1
+
+# Split
+keybind = ctrl+;>\=new_split:right
+keybind = ctrl+;>-=new_split:down
+keybind = ctrl+shift+h=goto_split:left
+keybind = ctrl+shift+j=goto_split:down
+keybind = ctrl+shift+k=goto_split:up
+keybind = ctrl+shift+l=goto_split:right
+keybind = ctrl+;>m=toggle_split_zoom
+keybind = ctrl+shift+up=resize_split:up,10
+keybind = ctrl+shift+down=resize_split:down,10
+keybind = ctrl+shift+left=resize_split:left,10
+keybind = ctrl+shift+right=resize_split:right,10
+

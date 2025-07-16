@@ -1,0 +1,6 @@
+/* Icon styling */
+.osd image {
+  color: #cba6f7 ; /* Your Dark Mauve */
+  background: transparent ; /* Ensure no background on the icon widget itself */
+}
+

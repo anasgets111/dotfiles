@@ -1,0 +1,12 @@
+These are my personal dotfiles for quickshell
+currently dependancies the following (on top of my head):
+- quickshell
+- hyprland
+- fish
+- swaync
+- swayosd
+- ghostty
+- zen-browser
+- gpu-screen-recorder
+- pacman-contrib
+- waybar (backed-up but not used)

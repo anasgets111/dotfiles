@@ -1,0 +1,265 @@
+{
+  // ─────────────────────────────────────────────────────────────────────────
+  // Hyprland integration
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "hyprland/window": {
+    "rewrite": {
+      "(.*) - Chromium": "$1",
+      "(.*) — Zen Browser": "$1"
+    },
+    "separate-outputs": true,
+    "max-length": 60
+  },
+
+  "custom/pacman": {
+    "format": "{}{icon}",
+    "return-type": "json",
+    "format-icons": {
+      "has-updates": " ",
+      "updated": "󰂪"
+    },
+    "exec-if": "which waybar-module-pacman-updates",
+    "exec": "waybar-module-pacman-updates --interval-seconds 5 --no-zero-output --network-interval-seconds 300",
+    "on-click": "xdg-terminal-exec --title=\"Global Updates\" -e /home/anas/.config/waybar/update.sh"
+  },
+
+  // // ~/.config/waybar/config
+  // "custom/pacman": {
+  //   "return-type": "json",
+  //   "format": "{} {icon}", // icon comes straight from the JSON
+  //   "interval": 0, // disable polling loop
+  //   "format-icons": {
+  //     "has-updates": " ",
+  //     "updated": "󰂪"
+  //   },
+  //   "exec": "/home/anas/.config/waybar/pacman-updates-notify.sh",
+  //   "signal": 10, //   SIGRTMIN+10  →  we will emit this one
+  //   "on-click": "xdg-terminal-exec -- --class floating_update bash -lc \\\"paru -Syu && composer global update && fnm install lts-latest && cargo-install-update install-update --all && rustup update; echo Press Enter to exit; read; pkill -SIGRTMIN+10 waybar\\\""
+  // },
+
+  // "custom/pacman": {
+  //   "format": "{icon}{0}",
+  //   "return-type": "json",
+  //   "format-icons": {
+  //     "pending-updates": " ",
+  //     "updated": ""
+  //   },
+  //   "exec-if": "which waybar-updates",
+  //   "exec": "waybar-updates --notify --packages-limit 15 -i 600 -c 6",
+  //   "on-click": "xdg-terminal-exec -- --class floating_update zsh -l -c 'paru -Syu && composer global update && fnm install lts-latest && cargo-install-update install-update --all && rustup update; echo Press Enter to exit; read'"
+  // },
+  "hyprland/workspaces": {
+    "on-click": "activate",
+    "on-scroll-up": "hyprctl dispatch workspace -1",
+    "on-scroll-down": "hyprctl dispatch workspace +1",
+    "active-only": false,
+    "all-outputs": true,
+    "sort-by-number": true,
+    "format": "{icon}",
+    "format-icons": {
+      "1": " ",
+      "2": " ",
+      "3": " ",
+      "4": " ",
+      "5": " ",
+      "6": " ",
+      "7": " ",
+      "8": " ",
+      "9": " ",
+      "10": " "
+      // "focused": "",
+      // "default": ""
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Idle‐inhibitor (lock icon)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "",
+      "deactivated": ""
+    },
+    "on-click-right": "hyprlock"
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Custom “power” button
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "custom/exit": {
+    "format": "",
+    "tooltip-format": "Power menu",
+    "on-click": "wlogout -b 4",
+    "tooltip": false
+  },
+
+  "custom/recording_status": {
+    "format": "{}", // The script outputs the full JSON, so format is just {}
+    "exec": "/home/anas/.config/waybar/waybar_gsr_status.sh",
+    "interval": 2, // Check the status file every 2 seconds
+    "return-type": "json",
+    // Optional: only show the module when it has content
+    "format-alt": "{}", // Needs a condition to trigger alt format, not directly applicable here
+    // The script itself handles showing/hiding by outputting empty/non-empty JSON
+    "on-click": "~/.config/hypr/scripts/ScreenCast.sh" // Optional: click to toggle recording
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Audio
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-icons": {
+      "headphone": "",
+      "hands-free": "",
+      "headset": "",
+      "phone": "",
+      "portable": "",
+      "default": ["", "", ""]
+    },
+    "format-muted": " {format_source}",
+    "on-click": "pwvucontrol",
+    "on-scroll-up": "swayosd-client --output-volume raise --monitor \"$(hyprctl monitors -j | jq -r '.[] | select(.focused == true).name')\"",
+    "on-scroll-down": "swayosd-client --output-volume lower --monitor \"$(hyprctl monitors -j | jq -r '.[] | select(.focused == true).name')\"",
+    "on-click-middle": "swayosd-client --output-volume mute-toggle --monitor \"$(hyprctl monitors -j | jq -r '.[] | select(.focused == true).name')\""
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Network
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "network": {
+    "interval": 2,
+    "format-wifi": "  {essid}",
+    "format-ethernet": "󱘖 Ethernet",
+    "format-linked": "󱘖 {ifname} (No IP)",
+    "format-disconnected": "󰖪 Offline",
+    "tooltip-format-wifi": "󱘖 {signalStrength}% 󰩩 {frequency} GHz",
+    "tooltip-format-ethernet": "󰑩 {bandwidthTotalBytes} B/s",
+    "tooltip-format-disconnected": "Nessuna rete",
+
+    "on-click": "nm-connection-editor"
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Bluetooth
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "bluetooth": {
+    // show just the icon whenever …
+    "format-on": " {icon} ", // powered on, no device
+    "format-connected": " {icon} ", // at least one device connected
+    "format-off": " {icon} ", // powered off
+    "format-disabled": " {icon} ", // adapter disabled
+    "format-no-controller": " {icon} ", // no adapter found
+
+    // explicitly define which glyph to use per state (optional)
+    "format-icons": {
+      "on": "",
+      "connected": "",
+      "off": "",
+      "disabled": "",
+      "no-controller": ""
+    },
+
+    "interval": 30,
+    "on-click": "blueman-manager"
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Battery
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "battery": {
+    "states": {
+      "warning": 30,
+      "critical": 15
+    },
+    "format": "{icon} {capacity}%",
+    "format-charging": " {capacity}%",
+    "format-icons": ["", "", "", "", ""],
+    "exec-if": "~/.config/waybar/check_battery.sh"
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Clock (date + time)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // "clock": {
+  //   "tooltip-format": "<span font='Fira Sans 14'><b>{:%Y %B %d}</b></span>\n<span font='Fira Sans 12'>{calendar}</span>",
+  //   "format": "{:%Y-%m-%d %A %I:%M %p}"
+  // },
+
+  "clock": {
+    "format": "{:%Y-%m-%d %A %I:%M %p}",
+    // "locale": "ar_EG.UTF-8",
+    "tooltip-format": "<tt><big>{calendar}</big></tt>",
+    "calendar": {
+      "mode": "month",
+      "weeks-pos": "hidden",
+      "format": {
+        "months": "<span color='#cba6f7'><b>{}</b></span>",
+        "days": "<span color='#f5c2e7'><b>{}</b></span>",
+        "weeks": "<span color='#94e2d5'><b>{}</b></span>",
+        "weekdays": "<span color='#fab387'><b>{}</b></span>",
+        "today": "<span color='#f38ba8'><b><u>{}</u></b></span>"
+      }
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // System tray
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "tray": {
+    "spacing": 10,
+    "icon-size": 16,
+    "show-passive-items": true
+  },
+
+  "hyprland/language": {
+    "keyboard-name": "at-translated-set-2-keyboard",
+    "format-en": "EN",
+    "format-ar": "AR",
+    "on-click": "hyprctl switchxkblayout at-translated-set-2-keyboard next"
+  },
+
+  "custom/language": {
+    "exec": "hyprland-per-window-layout get",
+    "format": "{}",
+    "interval": 1,
+    "tooltip": false,
+    "on-click": "hyprland-per-window-layout switch"
+  },
+
+  "custom/notification": {
+    "tooltip": false,
+    "format": "{icon}",
+    "format-icons": {
+      "notification": "<span foreground='red'><sup></sup></span>",
+      "none": "",
+      "dnd-notification": "<span foreground='red'><sup></sup></span>",
+      "dnd-none": ""
+    },
+    "return-type": "json",
+    "exec-if": "which swaync-client",
+    "exec": "swaync-client -swb",
+    "on-click": "swaync-client -t -sw",
+    "on-click-right": "swaync-client -d -sw",
+    "escape": true
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Group modules
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "group/tray-lang": {
+    "orientation": "horizontal",
+    "modules": ["hyprland/language", "tray"]
+  }
+}
