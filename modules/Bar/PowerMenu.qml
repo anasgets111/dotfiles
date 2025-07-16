@@ -14,24 +14,22 @@ Rectangle {
         NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
     }
 
-    // State tracking for hover
-    property bool hovered: false
+    // State tracking for hover (restored hoverCount logic)
     property int hoverCount: 0
+    property bool hovered: hoverCount > 0
 
-    Binding {
-        target: powerMenu
-        property: "hovered"
-        value: powerMenu.hoverCount > 0
-    }
-
-    // Button definitions: icon, tooltip, action
-    // Order: left-to-right display (main Power Off is rightmost)
+    // Button definitions: icon, tooltip, action (unique part only)
     property var buttons: [
-        { icon: "󰍃", tooltip: "Log Out",   action: "pkill chromium 2>/dev/null || true; hyprctl dispatch exit" },
-        { icon: "", tooltip: "Restart",   action: "pkill chromium 2>/dev/null || true; systemctl reboot" },
-        { icon: "⏻", tooltip: "Power Off", action: "pkill chromium 2>/dev/null || true; systemctl poweroff" }
+        { icon: "󰍃", tooltip: "Log Out",   action: "hyprctl dispatch exit" },
+        { icon: "", tooltip: "Restart",   action: "systemctl reboot" },
+        { icon: "⏻", tooltip: "Power Off", action: "systemctl poweroff" }
     ]
     property int spacing: 8
+
+    // Factor out common action prefix
+    function execAction(cmd) {
+        Hyprland.dispatch("exec pkill chromium 2>/dev/null || true; " + cmd)
+    }
 
     // Precompute min visible index for efficiency
     property int minVisibleIndex: hovered ? 0 : buttons.length - 1
@@ -61,12 +59,14 @@ Rectangle {
                 property bool shouldShow: idx >= powerMenu.minVisibleIndex
                 // Per-button hover state
                 property bool buttonHovered: false
+                // Animate opacity before hiding
+                property bool actuallyVisible: shouldShow || opacity > 0
                 width: shouldShow ? Theme.itemWidth : 0
                 height: Theme.itemHeight
                 radius: Theme.itemRadius
                 // Dynamic color: active on button hover, inactive otherwise
                 color: buttonHovered ? Theme.activeColor : Theme.inactiveColor
-                visible: shouldShow  // Use visible for layout efficiency
+                visible: actuallyVisible
                 opacity: shouldShow ? 1.0 : 0.0
 
                 anchors.verticalCenter: parent.verticalCenter
@@ -79,6 +79,11 @@ Rectangle {
                 }
                 Behavior on color {
                     ColorAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
+                }
+
+                onOpacityChanged: {
+                    if (!shouldShow && opacity === 0) visible = false
+                    if (shouldShow && !visible) visible = true
                 }
 
                 // Button click and hover area
@@ -96,7 +101,7 @@ Rectangle {
                         powerMenu.hoverCount--
                     }
                     onClicked: {
-                        Hyprland.dispatch("exec " + buttons[idx].action)
+                        powerMenu.execAction(buttons[idx].action)
                         // @idea If you have a global state for menu open, you can close it here:
                         // GlobalStates.hyprMenuOpen = false
                     }
