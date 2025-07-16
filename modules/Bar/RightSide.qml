@@ -6,7 +6,10 @@ Row {
     id: rightSide
     spacing: 8
 
-    // Styling properties are now accessed from Theme singleton
+    // Volume control
+    Volume {
+        anchors.verticalCenter: parent.verticalCenter
+    }
 
     // DateTimeDisplay module
     DateTimeDisplay {
