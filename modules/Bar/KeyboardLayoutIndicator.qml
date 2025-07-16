@@ -100,16 +100,7 @@ Item {
     }
   }
 
-  Process {
-    id: setxkbmapProc
-    stderr: StdioCollector {
-      onStreamFinished: {
-        if (text.trim()) {
-          // Optionally handle errors
-        }
-      }
-    }
-  }
+
 
   Component.onCompleted: {
     layoutService.seedInitial()
