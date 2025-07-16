@@ -13,9 +13,7 @@ Item {
     "/home/anas/.config/waybar/update.sh"
   ]
 
-  // Unicode or font-glyphs for your icons
-  property string updateIcon: ""     // FontAwesome: fa-download
-  property string noUpdateIcon: "󰂪"   // FontAwesome: fa-check
+
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(
@@ -27,70 +25,72 @@ Item {
   )
   visible: true
 
-  // Service object to manage state
-  QtObject {
-    id: updateService
-    property bool hasUpdates: false
-    property int updates: 0
+  // Unicode or font-glyphs for your icons
+  property string updateIcon: ""     // FontAwesome: fa-download
+  property string noUpdateIcon: "󰂪"   // FontAwesome: fa-check
 
-    function poll() {
-      checkProc.running = true
-    }
+  // single-process + single-timer approach
+  property bool busy: false
+  property double lastSync: 0
+  property bool hasUpdates: false
+  property int updates: 0
+  property int pollInterval: 5 * 60 * 1000      // 5 minutes
+  property int syncInterval: 60 * 60 * 1000     // 1 hour
 
-    function handle(lines) {
-      var count = (lines && lines[0] !== "") ? lines.length : 0
-      // notify only on transition from 0→>0
+  Process {
+    id: pkgProc
+    // Called after each run (offline or sync)
+    onExited: {
+      busy = false
+      // exitCode 2 → DB stale, re-run full sync once
+      if (exitCode === 2) {
+        if (command.includes("--nosync")) {
+          lastSync = Date.now()
+          busy = true
+          command = ["checkupdates"]
+          running = true
+          return
+        } else {
+          // sync itself failed
+          hasUpdates = false; updates = 0;
+          return
+        }
+      }
+      // parse stdout lines
+      let list = stdout.text.trim()
+        ? stdout.text.trim().split("\n")
+        : []
+      let count = list.length
+      // notify only on 0→>0
       if (count > 0 && !hasUpdates) {
         Quickshell.execDetached([
-          "notify-send", "-u", "normal",
+          "notify-send","-u","normal",
           "Updates Available",
           count + " packages can be upgraded"
         ])
       }
       hasUpdates = (count > 0)
-      updates = count
+      updates    = count
     }
   }
 
-  // Run 'checkupdates' and collect stdout (offline poll)
-  Process {
-    id: checkProc
-    command: ["checkupdates", "--nosync"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        var arr = text.trim()
-          ? text.trim().split("\n")
-          : []
-        updateService.handle(arr)
-      }
-    }
-  }
-
-  // Run 'checkupdates' to sync the temporary database (hourly)
-  Process {
-    id: syncProc
-    command: ["checkupdates"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        // No need to handle output for sync
-      }
-    }
-  }
-
-  // Poll every 5 minutes
   Timer {
-    interval: 5 * 60 * 1000
-    repeat: true
-    running: true
-    onTriggered: updateService.poll()
-  }
-
-  // Sync every hour
-  Timer {
-    interval: 60 * 60 * 1000
-    repeat: true
-    running: true
-    onTriggered: syncProc.running = true
+    id: pollTimer
+    interval: pollInterval; repeat: true; running: true
+    onTriggered: {
+      if (busy) return
+      busy = true
+      let now = Date.now()
+      if (now - lastSync > syncInterval) {
+        // time for a full sync
+        pkgProc.command = ["checkupdates"]
+        lastSync = now
+      } else {
+        // fast offline check
+        pkgProc.command = ["checkupdates", "--nosync"]
+      }
+      pkgProc.running = true
+    }
   }
 
   // Visual indicator + click handler
@@ -106,9 +106,9 @@ Item {
 
       Text {
         id: icon
-        text: updateService.hasUpdates
-              ? updateIcon
-              : noUpdateIcon
+        text: root.hasUpdates
+              ? root.updateIcon
+              : root.noUpdateIcon
         font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
         color: Theme.textContrast(Theme.inactiveColor)
@@ -121,8 +121,8 @@ Item {
       // Show number of updates if available
       Text {
         id: updateCount
-        visible: updateService.hasUpdates
-        text: updateService.updates
+        visible: root.hasUpdates
+        text: root.updates
         font.pixelSize: Theme.fontSize * 0.9
         font.family: Theme.fontFamily
         color: Theme.textContrast(Theme.inactiveColor)
@@ -147,7 +147,5 @@ Item {
     }
   }
 
-  Component.onCompleted: {
-    updateService.poll()
-  }
+  Component.onCompleted: pollTimer.start()
 }
