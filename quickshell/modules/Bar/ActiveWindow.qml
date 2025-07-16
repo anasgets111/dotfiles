@@ -50,7 +50,7 @@ Item {
                 return "Desktop"
             }
         }
-        color: Theme.textActiveColor
+        color: Theme.textContrast(Theme.bgColor)
         font.pixelSize: Theme.fontSize
         font.bold: true
         font.family: Theme.fontFamily

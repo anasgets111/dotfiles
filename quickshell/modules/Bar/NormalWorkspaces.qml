@@ -94,10 +94,16 @@ Item {
                 anchors.centerIn: parent
                 text: ws.id
                 // Dynamic text color matching the background logic: prioritize active, then hover, then inactive
-                color: parent.ws.active ? Theme.textActiveColor
-                                        : (parent.itemHovered
-                                           ? Theme.textOnHoverColor
-                                           : Theme.textInactiveColor)
+                color: Theme.textContrast(
+                    parent.ws.active ? Theme.activeColor
+                    : (parent.itemHovered ? Theme.onHoverColor : Theme.inactiveColor)
+                )
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.InOutQuad
+                    }
+                }
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 font.bold: true
@@ -127,7 +133,7 @@ Item {
     Text {
         visible: Hyprland.workspaces.length === 0
         text: "No workspaces"
-        color: Theme.textInactiveColor
+        color: Theme.textContrast(Theme.bgColor)
         font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
         font.bold: true

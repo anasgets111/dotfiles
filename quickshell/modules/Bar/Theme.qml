@@ -3,17 +3,18 @@ import QtQuick
 
 QtObject {
     // Panel properties
-    property int panelRadius: 15
-    property int panelHeight: 40
-    property int panelMargin: 16
-    property color panelWindowColor: "transparent"
-    property color panelBorderColor: "#333333"
+    readonly property int panelRadius: 15
+    readonly property int panelHeight: 40
+    readonly property int panelMargin: 16
+    readonly property color panelWindowColor: "transparent"
+    readonly property color panelBorderColor: "#333333"
 
     // Item properties
-    property int itemWidth: 32
-    property int itemHeight: 24
-    property int itemRadius: 15
-    property int borderWidth: 2
+    readonly property int itemWidth: 32
+    readonly property int itemHeight: 24
+    readonly property int itemRadius: 12
+    readonly property int borderWidth: 2
+    readonly property int cornerRadius : 12
 
     // Colors
     property color activeColor: "#CBA6E2"  // Mauve: Vibrant accent for active elements
@@ -23,9 +24,9 @@ QtObject {
     property color borderColor: "#313244"  // Surface2: Subtle border color for UI elements
 
     // Text colors
-    property color textActiveColor: "#CDD6F4"  // Text: Bright white for active text
-    property color textInactiveColor: "#A6ADC8"  // Subtext: Lighter grey for inactive text
-    property color textOnHoverColor: "#CBA6E2"  // Mauve: Matches activeColor for hover emphasis
+    readonly property color textActiveColor: "#CDD6F4"  // Text: Bright white for active text
+    readonly property color textInactiveColor: "#A6ADC8"  // Subtext: Lighter grey for inactive text
+    readonly property color textOnHoverColor: "#CBA6E2"  // Mauve: Matches activeColor for hover emphasis
 
     // Catppuccin contrast text color function
     function textContrast(bgColor) {
@@ -42,13 +43,13 @@ QtObject {
     }
 
     // Font properties
-    property string fontFamily: "CaskaydiaCove Nerd Font Propo"
-    property int fontSize: 14
+    readonly property string fontFamily: "CaskaydiaCove Nerd Font Propo"
+    readonly property int fontSize: 14
 
     // Animation
-    property int animationDuration: 147
+    readonly property int animationDuration: 147
 
 
     // DateTime format
-    property string formatDateTime: "dddd dd MMMM hh:mm AP"
+    readonly property string formatDateTime: "dddd dd MMMM hh:mm AP"
 }
