@@ -17,6 +17,41 @@ Rectangle {
         percentageItem.implicitWidth +
         contentRow.spacing * 2
 
+    // map of keywords → font‐icons
+    property var deviceIconMap: {
+      "headphone":   "",
+      "hands-free":  "",
+      "headset":     "",
+      "phone":       "",
+      "portable":    ""
+    }
+    // pick a device icon purely from the sink metadata
+    property string deviceIcon: {
+      if (!serviceSink) return ""
+      var desc = (serviceSink.description || "").toLowerCase()
+      // first try to match by description
+      for (var key in deviceIconMap) {
+        if (desc.indexOf(key) !== -1)
+          return deviceIconMap[key]
+      }
+      // bluetooth‐A2DP fallback
+      if ((serviceSink.name || "").startsWith("bluez_output"))
+        return deviceIconMap["headphone"]
+      return ""
+    }
+    // single property for icon: device icon if available, else volume glyphs
+    property string volumeIcon: {
+        var icon = audioReady
+            ? (deviceIcon
+                || (muted   ? "󰝟"
+                    : volume < 0.01 ? "󰖁"
+                    : volume < 0.33 ? "󰕿"
+                    : volume < 0.66 ? "󰖀"
+                    : "󰕾"))
+            : "--";
+        return icon;
+    }
+
     width: collapsedWidth
     height: contentRow.implicitHeight
     radius: Theme.itemRadius
@@ -61,12 +96,7 @@ Rectangle {
     property real   volume:    0.0
     property bool   muted:     false
 
-    property string volumeIcon: audioReady
-        ? (muted ? "󰝟"
-            : volume < 0.01 ? "󰖁"
-            : volume < 0.33 ? "󰕿"
-            : volume < 0.66 ? "󰖀" : "󰕾")
-        : "--"
+
 
     property bool audioReady:
         Pipewire.ready === true &&
@@ -126,7 +156,6 @@ Rectangle {
     }
 
     // ────────────────────────────────────────────
-    // SLIDER BG: two segments, no divider, no rounding on right
     Item {
         id: sliderBg
         anchors.fill: parent
@@ -192,71 +221,68 @@ Rectangle {
     // ────────────────────────────────────────────
 
     RowLayout {
-        id: contentRow
-        anchors.centerIn: parent
-        spacing: 8
-        clip: true
+      id: contentRow
+      anchors.centerIn: parent
+      spacing: 8
+      clip: true
 
-        Item { width: 10; Layout.preferredWidth: width }
+      Item { width: 10; Layout.preferredWidth: width }
 
-        // ICON
-        Text {
-            id: volumeIconItem
-            text: volumeIcon
-            font.pixelSize: Theme.fontSize + 10
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignHCenter
-            // Use Theme.textContrast for best readability against segment color
-            color: {
-                var leftColor = Theme.activeColor;
-                var bgColor = volumeControl.color;
-                // Use only background color for contrast when collapsed
-                if (volumeControl.width === volumeControl.collapsedWidth) {
-                    return Theme.textContrast(bgColor);
-                }
-                var useColor = sliderBg.sliderValue > 0.5 ? leftColor : bgColor;
-                return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bgColor : useColor);
-            }
-
-
-            MouseArea {
-                anchors.fill: parent
-                acceptedButtons: Qt.MiddleButton
-                cursorShape: Qt.PointingHandCursor
-
-                onClicked: function(event) {
-                    if (!audioReady) return
-                    if (event.button === Qt.MiddleButton) {
-                        muted = !muted
-                        serviceSink.audio.muted = muted
-                    }
-                }
-            }
+      // ─── DEVICE OR VOLUME ICON ───────────────────────────────
+      Text {
+        id: volumeIconItem
+        text: volumeIcon
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize + 10
+        verticalAlignment: Text.AlignVCenter
+        horizontalAlignment: Text.AlignHCenter
+        color: {
+          var leftColor = Theme.activeColor;
+          var bgColor = volumeControl.color;
+          // Use only background color for contrast when collapsed
+          if (volumeControl.width === volumeControl.collapsedWidth) {
+            return Theme.textContrast(bgColor);
+          }
+          var useColor = sliderBg.sliderValue > 0.5 ? leftColor : bgColor;
+          return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bgColor : useColor);
         }
+        MouseArea {
+          anchors.fill: parent
+          acceptedButtons: Qt.MiddleButton
+          cursorShape: Qt.PointingHandCursor
 
-        // PERCENTAGE
-        Text {
-            id: percentageItem
-            text: audioReady
-                  ? Math.round(volume * 100) + "%"
-                  : "--"
-            font.pixelSize: Theme.fontSize + 4
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignHCenter
-            // Use Theme.textContrast for best readability against segment color
-            color: {
-                var leftColor = Theme.activeColor;
-                var bgColor = volumeControl.color;
-                // Use only background color for contrast when collapsed
-                if (volumeControl.width === volumeControl.collapsedWidth) {
-                    return Theme.textContrast(bgColor);
-                }
-                var useColor = sliderBg.sliderValue > 0.5 ? leftColor : bgColor;
-                return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bgColor : useColor);
+          onClicked: function(event) {
+            if (!audioReady) return
+            if (event.button === Qt.MiddleButton) {
+              muted = !muted
+              serviceSink.audio.muted = muted
             }
+          }
         }
+      }
 
-        Item { width: 10; Layout.preferredWidth: width }
+      // ─── PERCENTAGE … etc. ───────────────────────────────────
+      Text {
+        id: percentageItem
+        text: audioReady
+              ? Math.round(volume * 100) + "%"
+              : "--"
+        font.pixelSize: Theme.fontSize + 4
+        verticalAlignment: Text.AlignVCenter
+        horizontalAlignment: Text.AlignHCenter
+        color: {
+          var leftColor = Theme.activeColor;
+          var bgColor = volumeControl.color;
+          // Use only background color for contrast when collapsed
+          if (volumeControl.width === volumeControl.collapsedWidth) {
+            return Theme.textContrast(bgColor);
+          }
+          var useColor = sliderBg.sliderValue > 0.5 ? leftColor : bgColor;
+          return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bgColor : useColor);
+        }
+      }
+
+      Item { width: 10; Layout.preferredWidth: width }
     }
 
     Behavior on width {
