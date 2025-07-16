@@ -18,7 +18,6 @@ Item {
 
   // ── State ───────────────────────────────────────────────────────────────────
   property bool busy: false
-  property bool hasUpdates: false
   property int updates: 0
   property double lastSync: 0
 
@@ -32,7 +31,6 @@ Item {
     Theme.itemWidth,
     indicator.implicitWidth
       + (updateCount.visible ? updateCount.implicitWidth : 0)
-      + row.spacing
       + 12
   )
 
@@ -44,12 +42,7 @@ Item {
       busy = false
 
       if (exitCode !== 0) {
-        Quickshell.execDetached([
-          "notify-send", "-u", "critical",
-          "Update check failed",
-          "Exit code: " + exitCode
-        ])
-        hasUpdates = false
+        notify("critical", "Update check failed", "Exit code: " + exitCode)
         updates = 0
         return
       }
@@ -57,19 +50,14 @@ Item {
       const list = (pkgProc.output || "")
         .trim()
         .split(/\r?\n/)
-        .filter(s => s.length)
+        .filter(Boolean)
       const count = list.length
 
-      if (count > 0 && !hasUpdates) {
-        Quickshell.execDetached([
-          "notify-send", "-u", "normal",
-          "Updates Available",
-          count + " packages can be upgraded"
-        ])
+      if (count > 0 && updates === 0) {
+        notify("normal", "Updates Available", count + " packages can be upgraded")
       }
 
-      hasUpdates = count > 0
-      updates    = count
+      updates = count
     }
   }
 
@@ -99,16 +87,11 @@ Item {
   Timer {
     id: killTimer
     interval: 60000    // 60 seconds
-    repeat: false
     onTriggered: {
       if (pkgProc.running) {
         pkgProc.running = false
         busy = false
-        Quickshell.execDetached([
-          "notify-send", "-u", "critical",
-          "Update check killed",
-          "Process took too long"
-        ])
+        notify("critical", "Update check killed", "Process took too long")
       }
     }
   }
@@ -124,10 +107,10 @@ Item {
 
       Text {
         id: indicator
-        // Always visible – switches glyph based on busy/hasUpdates
+        // Always visible – switches glyph based on busy/updates
         text: root.busy
               ? ""  // Nerd-font gear
-              : (root.hasUpdates
+              : (root.updates > 0
                  ? root.updateIcon
                  : root.noUpdateIcon)
         font.pixelSize: Theme.fontSize
@@ -150,7 +133,7 @@ Item {
 
       Text {
         id: updateCount
-        visible: root.hasUpdates
+        visible: root.updates > 0
         text:    root.updates
         font.pixelSize: Theme.fontSize * 0.9
         font.family:     Theme.fontFamily
@@ -165,7 +148,7 @@ Item {
       cursorShape: Qt.PointingHandCursor
       onClicked: {
         if (root.busy) return;
-        if (root.hasUpdates) {
+        if (root.updates > 0) {
           Quickshell.execDetached(updateCommand)
         } else {
           // force a full sync and reuse doPoll logic
@@ -179,4 +162,9 @@ Item {
     doPoll()
     pollTimer.start()
   }
+function notify(urgency, title, body) {
+  Quickshell.execDetached([
+    "notify-send", "-u", urgency, title, body
+  ])
+}
 }
