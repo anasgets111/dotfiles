@@ -15,19 +15,24 @@ Rectangle {
     property real   collapsedWidth:
         volumeIconItem.implicitWidth +
         percentageItem.implicitWidth +
-        contentRow.spacing * 2
+        2 * 10 +           // left + right margin
+        contentRow.spacing // only one spacing between the two items
 
     // map of keywords → font‐icons
     property var deviceIconMap: {
-      "headphone":   "",
-      "hands-free":  "",
-      "headset":     "",
-      "phone":       "",
-      "portable":    ""
+      "headphone":   "󰋋",
+      "hands-free":  "󰋎",
+      "headset":     "󰋎",
+      "phone":       "󰏲",
+      "portable":    "󰏲"
     }
-    // pick a device icon purely from the sink metadata
+    // pick a device icon from sink metadata, preferring device.icon_name property if present
     property string deviceIcon: {
       if (!serviceSink) return ""
+      // Check for device.icon_name in properties
+      var iconName = serviceSink.properties ? serviceSink.properties["device.icon_name"] : ""
+      if (iconName && deviceIconMap[iconName])
+        return deviceIconMap[iconName]
       var desc = (serviceSink.description || "").toLowerCase()
       // first try to match by description
       for (var key in deviceIconMap) {
@@ -226,8 +231,6 @@ Rectangle {
       spacing: 8
       clip: true
 
-      Item { width: 10; Layout.preferredWidth: width }
-
       // ─── DEVICE OR VOLUME ICON ───────────────────────────────
       Text {
         id: volumeIconItem
@@ -282,7 +285,7 @@ Rectangle {
         }
       }
 
-      Item { width: 10; Layout.preferredWidth: width }
+
     }
 
     Behavior on width {
