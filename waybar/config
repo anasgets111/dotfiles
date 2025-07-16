@@ -1,0 +1,27 @@
+{
+	"output": "eDP-1",
+	"layer": "top",
+	"height": 41,
+	"spacing": 4,
+	"style": "~/.config/waybar/style.css",
+	"include": [
+		"~/.config/waybar/modules.jsonc"
+	],
+	"modules-left": [
+		"idle_inhibitor",
+		"hyprland/workspaces",
+		"custom/notification"
+	],
+	"modules-center": [
+		"hyprland/window"
+	],
+	"modules-right": [
+		"custom/recording_status",
+		"custom/pacman",
+		"pulseaudio",
+		"battery",
+		"group/tray-lang",
+		"clock",
+		"custom/exit"
+	]
+}

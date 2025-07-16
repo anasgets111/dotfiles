@@ -1,0 +1,167 @@
+@define-color workspacesbackground2 #CCCCCC;
+@define-color black #000000;
+@define-color white #FFFFFF;
+@define-color accent #5A4287;
+@define-color accentlight #89B4FA;
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* BASE STYLES                                                              */
+/* ───────────────────────────────────────────────────────────────────────── */
+* {
+  font-family: 'Fira Sans', FontAwesome, Roboto, sans-serif;
+  font-weight: bold;
+  border: none;
+  border-radius: 0;
+}
+
+window#waybar {
+  background-color: rgba(30, 30, 46, 0.47);
+  border-radius: 0 0 20px 20px;
+  transition: background-color 0.5s;
+}
+
+/* Common module styling for right panel */
+#bluetooth,
+#pulseaudio,
+#clock,
+#battery,
+#custom-pacman,
+#custom-notification,
+#tray-lang {
+  margin: 8px 4px;
+  padding: 0px 6px;
+  font-size: 16px;
+  border-radius: 15px;
+  background-color: @accent;
+  color: @white;
+}
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* LEFT PANEL                                                               */
+/* ───────────────────────────────────────────────────────────────────────── */
+#idle_inhibitor {
+  margin: 4px 11px;
+  font-size: 20px;
+  color: @accentlight;
+}
+
+#workspaces {
+  margin: 4px 1px;
+  padding: 0 1px;
+  border-radius: 4px;
+  font-size: 20px;
+  color: @white;
+}
+
+#workspaces button {
+  padding: 0 5px;
+  margin: 4px 3px;
+  border-radius: 15px;
+  transition: all 0.3s;
+}
+
+#workspaces button.active,
+#workspaces button:hover {
+  background: @accent;
+}
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* RIGHT PANEL OVERRIDES                                                   */
+/* ───────────────────────────────────────────────────────────────────────── */
+#language {
+  margin: 2px;
+  /* padding-right: 12px; */
+  margin-right: 8px;
+}
+
+#pulseaudio {
+  font-family: 'FontAwesome', sans-serif;
+}
+
+#pulseaudio.muted {
+  background-color: @accent;
+  color: @white;
+}
+
+#clock {
+  padding: 1px 8px;
+}
+
+#custom-pacman,
+#custom-notification {
+  background-color: @accentlight;
+  color: @black;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+#battery {
+  margin: 8px 8px;
+  padding: 3px 8px;
+}
+
+#battery.charging,
+#battery.plugged {
+  background-color: @accent;
+  color: @white;
+}
+
+#custom-exit {
+  margin: 8px 4px;
+  padding: 0px 6px;
+  font-size: 20px;
+  color: @accentlight;
+  font-weight: bold;
+}
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* ANIMATIONS & SPECIAL STATES                                             */
+/* ───────────────────────────────────────────────────────────────────────── */
+@keyframes blink-update {
+  to {
+    background-color: @accent;
+    color: @white;
+  }
+}
+
+#custom-pacman.has-updates,
+#custom-notification.notification,
+#custom-notification.dnd-notification {
+  animation-name: blink-update;
+  animation-duration: 2s;
+}
+
+#battery.critical:not(.charging) {
+  background-color: @accentlight;
+  color: @white;
+  animation: blink 0.5s linear infinite alternate;
+}
+
+#tray>.needs-attention {
+  background-color: @accent;
+}
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* TOOLTIPS                                                                 */
+/* ───────────────────────────────────────────────────────────────────────── */
+tooltip {
+  border-radius: 10px;
+  background-color: @white;
+  opacity: 0.98;
+  padding: 20px;
+  margin: 15px;
+}
+
+tooltip calendar {
+  font-family: 'Fira Sans', sans-serif;
+  font-size: 5em;
+  padding: 20px;
+  margin: 20px;
+}
+
+tooltip label {
+  color: @black;
+  font-family: 'Fira Sans', sans-serif;
+  font-size: 14px;
+}

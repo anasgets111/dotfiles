@@ -1,0 +1,183 @@
+{
+  // ─────────────────────────────────────────────────────────────────────────
+  // Hyprland integration
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "hyprland/window": {
+    "rewrite": {
+      "(.*) - Brave": "$1",
+      "(.*) - Chromium": "$1",
+      "(.*) — Zen Browser": "$1",
+    },
+    "separate-outputs": true,
+    "max-length": 60,
+  },
+  "custom/pacman": {
+    "format": "{icon}{0}",
+    "return-type": "json",
+    "format-icons": {
+      "pending-updates": " ",
+      "updated": "",
+    },
+    "exec-if": "which waybar-updates",
+    "exec": "waybar-updates --notify --packages-limit 15 -i 600 -c 6",
+    "on-click": "xdg-terminal-exec -- --class floating_update zsh -l -c 'paru -Syu && composer global update && fnm install lts-latest && cargo-install-update install-update --all && rustup update; echo Press Enter to exit; read'",
+  },
+  "hyprland/workspaces": {
+    "on-click": "activate",
+    "on-scroll-up": "hyprctl dispatch workspace -1",
+    "on-scroll-down": "hyprctl dispatch workspace +1",
+    "active-only": false,
+    "all-outputs": true,
+    "sort-by-number": true,
+    "format": "{icon}",
+    "format-icons": {
+      "1": " ",
+      "2": " ",
+      "3": " ",
+      "4": " ",
+      "5": " ",
+      "6": " ",
+      "7": " ",
+      "8": " ",
+      "9": " ",
+      "10": " ",
+      "focused": "",
+      "default": "",
+    },
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Idle‐inhibitor (lock icon)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "",
+      "deactivated": "",
+    },
+    "on-click-right": "hyprlock",
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Custom “power” button
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "custom/exit": {
+    "format": "",
+    "tooltip-format": "Power menu",
+    "on-click": "wlogout -b 4",
+    "tooltip": false,
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Audio
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-icons": {
+      "headphone": "",
+      "hands-free": "",
+      "headset": "",
+      "phone": "",
+      "portable": "",
+      "default": ["", "", ""],
+    },
+    "format-muted": " {format_source}",
+    "on-click": "pavucontrol",
+
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Network
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "network": {
+    "format": "{ifname} {ipaddr?}",
+    "format-wifi": "{icon}",
+    "format-disconnected": "",
+    "on-click": "nm-connection-editor",
+    "tooltip-format-wifi": "Signal Strength: {signalStrength}%",
+    "interval": 1,
+    "format-icons": ["󰤯 ", "󰤟 ", "󰤢 ", "󰤥 ", "󰤨 "],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Bluetooth
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "bluetooth": {
+    "format-disabled": "",
+    "format-off": "",
+    "interval": 30,
+    "on-click": "blueman-manager",
+    "format-no-controller": "nothing",
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Battery
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "battery": {
+    "states": {
+      "warning": 30,
+      "critical": 15,
+    },
+    "format": "{icon} {capacity}%",
+    "format-charging": " {capacity}%",
+    "format-icons": ["", "", "", "", ""],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Clock (date + time)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "clock": {
+    "tooltip-format": "<span font='Fira Sans 14'><b>{:%Y %B %d}</b></span>\n<span font='Fira Sans 12'>{calendar}</span>",
+    "format": "{:%Y-%m-%d %A %I:%M %p}",
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // System tray
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "tray": {
+    "spacing": 10,
+  },
+
+  "hyprland/language": {
+    "interval": 1,
+    "keyboard-name": "semitek-usb-hid-gaming-keyboard",
+    "format": "{}",
+    "format-en": "EN",
+    "format-ar": "AR",
+    "on-click": "hyprctl switchxkblayout semitek-usb-hid-gaming-keyboard next",
+  },
+  "custom/notification": {
+    "tooltip": false,
+    "format": "{icon}",
+    "format-icons": {
+      "notification": "<span foreground='red'><sup></sup></span>",
+      "none": "",
+      "dnd-notification": "<span foreground='red'><sup></sup></span>",
+      "dnd-none": "",
+    },
+    "return-type": "json",
+    "exec-if": "which swaync-client",
+    "exec": "swaync-client -swb",
+    "on-click": "swaync-client -t -sw",
+    "on-click-right": "swaync-client -d -sw",
+    "escape": true,
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Group modules
+  // ─────────────────────────────────────────────────────────────────────────
+
+  "group/tray-lang": {
+    "orientation": "horizontal",
+    "modules": ["tray", "hyprland/language"],
+  },
+}
