@@ -130,7 +130,9 @@ Item {
                  : noUpdateIcon)
         font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
-        color: hovered && !busy ? Theme.textOnHoverColor : Theme.textContrast(Theme.inactiveColor)
+        color: Theme.textContrast(
+          hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor
+        )
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
@@ -151,7 +153,9 @@ Item {
         text:    updates
         font.pixelSize: Theme.fontSize * 0.9
         font.family:     Theme.fontFamily
-        color: hovered && !busy ? Theme.textOnHoverColor : Theme.textContrast(Theme.inactiveColor)
+        color: Theme.textContrast(
+          hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor
+        )
         Layout.alignment:   Qt.AlignVCenter
       }
     }
