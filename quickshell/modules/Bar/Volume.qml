@@ -63,7 +63,7 @@ Rectangle {
       }
       var useColor = sliderBg.sliderValue > 0.5 ? leftColor : bgColor;
       return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bgColor : useColor);
-    }
+ }
 
     states: [
         State {
@@ -155,7 +155,9 @@ Rectangle {
         function onVolumeChanged() {
             volume = averageVolumeFromAudio(serviceSink.audio)
         }
-        function onMutedChanged(m) { muted = m }
+        function onMutedChanged() {
+            muted = serviceSink.audio.muted
+        }
     }
 
     Item {
