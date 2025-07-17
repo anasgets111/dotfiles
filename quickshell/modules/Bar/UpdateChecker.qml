@@ -12,6 +12,7 @@ Item {
     "-e",
     "/home/anas/.config/waybar/update.sh"
   ]
+  property bool hovered: false
   property string updateIcon: ""
   property string noUpdateIcon: "󰂪"
 
@@ -113,7 +114,7 @@ Item {
   Rectangle {
     anchors.fill: parent
     radius: Theme.itemRadius
-    color: Theme.inactiveColor
+    color: hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor
 
     RowLayout {
       id: row
@@ -129,7 +130,7 @@ Item {
                  : noUpdateIcon)
         font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
-        color: Theme.textContrast(Theme.inactiveColor)
+        color: hovered && !busy ? Theme.textOnHoverColor : Theme.textContrast(Theme.inactiveColor)
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
@@ -150,7 +151,7 @@ Item {
         text:    updates
         font.pixelSize: Theme.fontSize * 0.9
         font.family:     Theme.fontFamily
-        color: Theme.textContrast(Theme.inactiveColor)
+        color: hovered && !busy ? Theme.textOnHoverColor : Theme.textContrast(Theme.inactiveColor)
         Layout.alignment:   Qt.AlignVCenter
       }
     }
@@ -158,6 +159,9 @@ Item {
     MouseArea {
       anchors.fill: parent
       cursorShape: Qt.PointingHandCursor
+      hoverEnabled: true
+      onEntered: hovered = true
+      onExited: hovered = false
       onClicked: {
         if (busy) return;
         if (updates > 0) {
