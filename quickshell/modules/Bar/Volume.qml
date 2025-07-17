@@ -51,9 +51,19 @@ Rectangle {
     }
 
     width: collapsedWidth
-    height: contentRow.implicitHeight
+    height: Theme.itemHeight
     radius: Theme.itemRadius
     color: Theme.inactiveColor
+
+    readonly property color contrastColor: {
+      var leftColor = Theme.activeColor;
+      var bgColor = volumeControl.color;
+      if (volumeControl.width === volumeControl.collapsedWidth) {
+        return Theme.textContrast(bgColor);
+      }
+      var useColor = sliderBg.sliderValue > 0.5 ? leftColor : bgColor;
+      return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bgColor : useColor);
+    }
 
     states: [
         State {
@@ -70,7 +80,6 @@ Rectangle {
         id: rootArea
         anchors.fill: parent
         hoverEnabled: true
-        acceptedButtons: Qt.NoButton
 
         onWheel: function(wheelEvent) {
             if (!audioReady) return
@@ -94,11 +103,9 @@ Rectangle {
 
 
 
-    property bool audioReady:
-        Pipewire.ready === true &&
-        serviceSink !== null &&
-        serviceSink.ready === true &&
-        serviceSink.audio !== null
+    property bool audioReady: {
+        Pipewire.ready && serviceSink?.ready && serviceSink.audio
+    }
 
     Component.onCompleted: bindToSink()
     Connections {
@@ -170,14 +177,7 @@ Rectangle {
                      sliderBg.dragging
         }
 
-        Rectangle {
-            anchors.right:  parent.right
-            anchors.top:    parent.top
-            anchors.bottom: parent.bottom
-            width: parent.width * (1 - sliderBg.sliderValue)
-            color: "transparent"
-            radius: 0
-        }
+
 
         MouseArea {
             anchors.fill: parent
@@ -216,7 +216,6 @@ Rectangle {
       id: contentRow
       anchors.centerIn: parent
       spacing: 8
-      clip: true
 
       Text {
         id: volumeIconItem
@@ -225,15 +224,7 @@ Rectangle {
         font.pixelSize: Theme.fontSize
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignHCenter
-        color: {
-          var leftColor = Theme.activeColor;
-          var bgColor = volumeControl.color;
-          if (volumeControl.width === volumeControl.collapsedWidth) {
-            return Theme.textContrast(bgColor);
-          }
-          var useColor = sliderBg.sliderValue > 0.5 ? leftColor : bgColor;
-          return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bgColor : useColor);
-        }
+        color: volumeControl.contrastColor
         MouseArea {
           anchors.fill: parent
           acceptedButtons: Qt.MiddleButton
@@ -257,15 +248,7 @@ Rectangle {
         font.pixelSize: Theme.fontSize
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignHCenter
-        color: {
-          var leftColor = Theme.activeColor;
-          var bgColor = volumeControl.color;
-          if (volumeControl.width === volumeControl.collapsedWidth) {
-            return Theme.textContrast(bgColor);
-          }
-          var useColor = sliderBg.sliderValue > 0.5 ? leftColor : bgColor;
-          return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bgColor : useColor);
-        }
+        color: volumeControl.contrastColor
       }
     }
 

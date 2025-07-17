@@ -6,7 +6,7 @@ Item {
     id: dateTimeDisplay
     property string formattedDateTime: ""
 
-    width: textItem.width + 24
+    width: textItem.width
     height: Theme.itemHeight
 
     Timer {
@@ -34,5 +34,6 @@ Item {
         font.bold: true
         font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
+        padding: 7
     }
 }
