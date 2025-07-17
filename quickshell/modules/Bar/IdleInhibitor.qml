@@ -30,7 +30,10 @@ Rectangle {
   Process { id: lockProcess; command: ["hyprlock"] }
 
   /* dynamic styling */
-  color: isActive ? Theme.activeColor : Theme.inactiveColor
+  property bool hovered: false
+  color: hovered
+    ? Theme.onHoverColor
+    : (isActive ? Theme.activeColor : Theme.inactiveColor)
 
 
   MouseArea {
@@ -45,12 +48,17 @@ Rectangle {
         lockProcess.running = true
       }
     }
+    hoverEnabled: true
+    onEntered: idleInhibitor.hovered = true
+    onExited: idleInhibitor.hovered = false
   }
 
   Text {
     anchors.centerIn: parent
     text: isActive ? iconOn : iconOff
-    color: isActive ? Theme.textActiveColor : Theme.textInactiveColor
+    color: hovered
+      ? Theme.textOnHoverColor
+      : (isActive ? Theme.textActiveColor : Theme.textInactiveColor)
     font.pixelSize: Theme.fontSize
     font.bold : true
     font.family: Theme.fontFamily
