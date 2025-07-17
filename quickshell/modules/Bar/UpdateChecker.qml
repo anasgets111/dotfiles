@@ -13,18 +13,16 @@ Item {
     "/home/anas/.config/waybar/update.sh"
   ]
   property bool hovered: false
-  property string updateIcon: ""
-  property string noUpdateIcon: "󰂪"
-
   property bool busy: false
   property int updates: 0
   property double lastSync: 0
-
+  property bool lastWasFull: false
   property int failureCount: 0
   property int failureThreshold: 3
+  property int minuteMs : 60 * 1000
+  property int pollInterval: 1 * minuteMs
+  property int syncInterval: 5 * minuteMs
 
-  property int pollInterval: 5  * 60 * 1000
-  property int syncInterval: 30 * 60 * 1000
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(
@@ -42,7 +40,11 @@ Item {
   Process {
     id: pkgProc
     stdout: StdioCollector { id: out }
+    stderr: StdioCollector { id: err }
     onExited: function(exitCode) {
+      const stderrText = (err.text || "").trim()
+      if (stderrText) console.warn("[UpdateChecker] stderr:", stderrText)
+
       if (!pkgProc.running && !busy) return;
       killTimer.stop()
       busy = false
@@ -51,8 +53,11 @@ Item {
       const list = raw ? raw.split(/\r?\n/) : []
       const count = list.length
 
+
+
       if (exitCode !== 0 && exitCode !== 2) {
         failureCount++
+
         if (failureCount >= failureThreshold) {
           notify("critical", "Update check failed",
                  "Exit code: " + exitCode + " (failed " + failureCount + " times)")
@@ -69,11 +74,28 @@ Item {
           ? "One package can be upgraded"
           : count + " packages can be upgraded";
 
+
         notify("normal", "Updates Available", msg)
       }
 
       updates = count
+
+      // Only bump lastSync if last run was full and succeeded
+      if (lastWasFull) {
+        lastSync = Date.now()
+
+      }
     }
+  }
+
+
+
+
+
+  function startUpdateProcess(cmd) {
+    pkgProc.command = cmd
+    pkgProc.running = true
+    killTimer.restart()
   }
 
   function doPoll(forceFull = false) {
@@ -82,13 +104,15 @@ Item {
 
     const now = Date.now()
     const full = forceFull || (now - lastSync > syncInterval)
-    pkgProc.command = full
-      ? ["checkupdates", "--nocolor"]
-      : ["checkupdates", "--nosync", "--nocolor"]
-    if (full) lastSync = now
+    lastWasFull = full
 
-    pkgProc.running = true
-    killTimer.restart()
+
+
+    if (full) {
+      startUpdateProcess(["checkupdates", "--nocolor"])
+    } else {
+      startUpdateProcess(["checkupdates", "--nosync", "--nocolor"])
+    }
   }
 
   Timer {
@@ -100,13 +124,15 @@ Item {
 
   Timer {
     id: killTimer
-    interval: 60000
+    interval: minuteMs
     repeat: false
     onTriggered: {
-      if (pkgProc.running && busy) {
-        pkgProc.running = false
+      if (pkgProc.running) {
+        pkgProc.kill()
         busy = false
-        notify("critical", "Update check killed", "Process took too long")
+        notify("critical",
+               qsTr("Update check killed"),
+               qsTr("Process took too long"))
       }
     }
   }
@@ -126,8 +152,8 @@ Item {
         text: busy
               ? ""
               : (updates > 0
-                 ? updateIcon
-                 : noUpdateIcon)
+                 ? ""
+                 : "󰂪" )
         font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
         color: Theme.textContrast(
