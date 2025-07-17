@@ -10,15 +10,13 @@ Rectangle {
     id: volumeControl
     clip: true
 
-    // fully expanded vs exact collapsed width
     property int    expandedWidth: 220
     property real   collapsedWidth:
         volumeIconItem.implicitWidth +
         percentageItem.implicitWidth +
-        2 * 10 +           // left + right margin
-        contentRow.spacing // only one spacing between the two items
+        2 * 10 +
+        contentRow.spacing
 
-    // map of keywords → font‐icons
     property var deviceIconMap: {
       "headphone":   "󰋋",
       "hands-free":  "󰋎",
@@ -26,25 +24,20 @@ Rectangle {
       "phone":       "󰏲",
       "portable":    "󰏲"
     }
-    // pick a device icon from sink metadata, preferring device.icon_name property if present
     property string deviceIcon: {
       if (!serviceSink) return ""
-      // Check for device.icon_name in properties
       var iconName = serviceSink.properties ? serviceSink.properties["device.icon_name"] : ""
       if (iconName && deviceIconMap[iconName])
         return deviceIconMap[iconName]
       var desc = (serviceSink.description || "").toLowerCase()
-      // first try to match by description
       for (var key in deviceIconMap) {
         if (desc.indexOf(key) !== -1)
           return deviceIconMap[key]
       }
-      // bluetooth‐A2DP fallback
       if ((serviceSink.name || "").startsWith("bluez_output"))
         return deviceIconMap["headphone"]
       return ""
     }
-    // single property for icon: device icon if available, else volume glyphs
     property string volumeIcon: {
         var icon = audioReady
             ? (deviceIcon
@@ -79,7 +72,6 @@ Rectangle {
         hoverEnabled: true
         acceptedButtons: Qt.NoButton
 
-        // fix deprecated injection: declare event parameter
         onWheel: function(wheelEvent) {
             if (!audioReady) return
             var step = 0.05
@@ -96,7 +88,6 @@ Rectangle {
         }
     }
 
-    // Audio sink + state
     property PwNode serviceSink: Pipewire.defaultAudioSink
     property real   volume:    0.0
     property bool   muted:     false
@@ -160,7 +151,6 @@ Rectangle {
         function onMutedChanged(m) { muted = m }
     }
 
-    // ────────────────────────────────────────────
     Item {
         id: sliderBg
         anchors.fill: parent
@@ -169,7 +159,6 @@ Rectangle {
         property real sliderValue:
             dragging ? pendingValue : volume
 
-        // active (left) segment—rounded both ends
         Rectangle {
             anchors.left:   parent.left
             anchors.top:    parent.top
@@ -181,7 +170,6 @@ Rectangle {
                      sliderBg.dragging
         }
 
-        // inactive (right) segment—no rounding
         Rectangle {
             anchors.right:  parent.right
             anchors.top:    parent.top
@@ -223,7 +211,6 @@ Rectangle {
             }
         }
     }
-    // ────────────────────────────────────────────
 
     RowLayout {
       id: contentRow
@@ -231,7 +218,6 @@ Rectangle {
       spacing: 8
       clip: true
 
-      // ─── DEVICE OR VOLUME ICON ───────────────────────────────
       Text {
         id: volumeIconItem
         text: volumeIcon
@@ -242,7 +228,6 @@ Rectangle {
         color: {
           var leftColor = Theme.activeColor;
           var bgColor = volumeControl.color;
-          // Use only background color for contrast when collapsed
           if (volumeControl.width === volumeControl.collapsedWidth) {
             return Theme.textContrast(bgColor);
           }
@@ -264,7 +249,6 @@ Rectangle {
         }
       }
 
-      // ─── PERCENTAGE … etc. ───────────────────────────────────
       Text {
         id: percentageItem
         text: audioReady
@@ -276,7 +260,6 @@ Rectangle {
         color: {
           var leftColor = Theme.activeColor;
           var bgColor = volumeControl.color;
-          // Use only background color for contrast when collapsed
           if (volumeControl.width === volumeControl.collapsedWidth) {
             return Theme.textContrast(bgColor);
           }
@@ -284,8 +267,6 @@ Rectangle {
           return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bgColor : useColor);
         }
       }
-
-
     }
 
     Behavior on width {

@@ -9,11 +9,21 @@ Item {
     width: textItem.width + 24
     height: Theme.itemHeight
 
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: {
+            var d = new Date();
+            dateTimeDisplay.formattedDateTime = Qt.formatDateTime(d, Theme.formatDateTime);
+        }
+        Component.onCompleted: triggered()
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: Theme.itemRadius
         color: Theme.inactiveColor
-
     }
 
     Text {
@@ -24,16 +34,5 @@ Item {
         font.bold: true
         font.pointSize: Theme.fontSize
         font.family: Theme.fontFamily
-    }
-
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: {
-            var d = new Date();
-            dateTimeDisplay.formattedDateTime = Qt.formatDateTime(d, Theme.formatDateTime);
-        }
-        Component.onCompleted: triggered()
     }
 }

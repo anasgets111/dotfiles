@@ -28,14 +28,12 @@ Item {
       var full = activeFull
         ? activeFull.trim()
         : (layouts[layouts.length-1] || "")
-      currentLayout = full; // store the full layout name for logic
+      currentLayout = full;
     }
 
     function seedInitial() {
       seedProc.running = true
     }
-
-
   }
 
   Process {
@@ -62,7 +60,6 @@ Item {
     stderr: StdioCollector {
       onStreamFinished: {
         if (text.trim()) {
-          // Optionally handle errors
         }
       }
     }
@@ -83,8 +80,6 @@ Item {
     color: Theme.inactiveColor
     implicitWidth: Math.max(Theme.itemWidth, label.implicitWidth + 12)
 
-
-
     RowLayout {
       anchors.fill: parent
 
@@ -99,8 +94,6 @@ Item {
       }
     }
   }
-
-
 
   Component.onCompleted: {
     layoutService.seedInitial()
