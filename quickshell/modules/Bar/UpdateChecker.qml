@@ -15,6 +15,7 @@ Item {
   property bool hovered: false
   property bool busy: false
   property int updates: 0
+  property var updatePackages: []
   property double lastSync: 0
   property bool lastWasFull: false
   property int failureCount: 0
@@ -44,53 +45,57 @@ Item {
     onExited: function(exitCode) {
       const stderrText = (err.text || "").trim()
       if (stderrText) console.warn("[UpdateChecker] stderr:", stderrText)
-
       if (!pkgProc.running && !busy) return;
       killTimer.stop()
       busy = false
 
       const raw = (out.text || "").trim()
       const list = raw ? raw.split(/\r?\n/) : []
-      const count = list.length
+      updates = list.length
 
-
+      // Parse each line: "pkgname oldver -> newver"
+      var pkgs = []
+      for (var i = 0; i < list.length; ++i) {
+        var m = list[i].match(/^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/)
+        if (m) {
+          pkgs.push({
+            name: m[1],
+            oldVersion: m[2],
+            newVersion: m[3]
+          })
+        }
+      }
+      updatePackages = pkgs
+      console.log("[UpdateChecker] updatePackages:", JSON.stringify(updatePackages))
 
       if (exitCode !== 0 && exitCode !== 2) {
         failureCount++
-
         if (failureCount >= failureThreshold) {
           notify("critical", "Update check failed",
                  "Exit code: " + exitCode + " (failed " + failureCount + " times)")
           failureCount = 0
         }
         updates = 0
+        updatePackages = []
         return
       }
 
       failureCount = 0
 
-      if (count > updates) {
-        const msg = count === 1
+      if (updates > 0 ) {
+        const msg = updates === 1
           ? "One package can be upgraded"
-          : count + " packages can be upgraded";
-
+          : updates + " packages can be upgraded";
 
         notify("normal", "Updates Available", msg)
       }
 
-      updates = count
-
       // Only bump lastSync if last run was full and succeeded
       if (lastWasFull) {
         lastSync = Date.now()
-
       }
     }
   }
-
-
-
-
 
   function startUpdateProcess(cmd) {
     pkgProc.command = cmd
@@ -105,9 +110,6 @@ Item {
     const now = Date.now()
     const full = forceFull || (now - lastSync > syncInterval)
     lastWasFull = full
-
-
-
     if (full) {
       startUpdateProcess(["checkupdates", "--nocolor"])
     } else {
