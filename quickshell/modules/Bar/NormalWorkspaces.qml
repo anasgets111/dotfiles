@@ -69,7 +69,7 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                enabled: shouldShow
+                enabled: shouldShow && !ws.active
                 hoverEnabled: true
                 onEntered: {
                     parent.itemHovered = true
