@@ -70,7 +70,7 @@ Item {
             percentage > 0.4 ? "" : // battery half
             percentage > 0.2 ? "" : // battery quarter
                                ""   // battery empty
-      font.pointSize: Theme.fontSize
+      font.pixelSize: Theme.fontSize
       font.family: Theme.fontFamily
       font.bold: true
       color: Theme.textContrast(
@@ -87,7 +87,7 @@ Item {
     Text {
       id: percentText
       text: Math.round(percentage * 100) + "%"
-      font.pointSize: Theme.fontSize
+      font.pixelSize: Theme.fontSize
       font.family: Theme.fontFamily
       font.bold: true
       color: Theme.textContrast(

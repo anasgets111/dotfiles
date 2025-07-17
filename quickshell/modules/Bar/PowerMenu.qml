@@ -132,7 +132,7 @@ Rectangle {
                     anchors.centerIn: parent
                     text:        buttons[idx].icon
                     color:       Theme.textContrast(parent.color)
-                    font.pixelSize: Theme.fontSize + 5
+                    font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
                     font.bold:   true
                 }
