@@ -151,7 +151,7 @@ Item {
         id: updateCount
         visible: updates > 0
         text:    updates
-        font.pixelSize: Theme.fontSize * 0.9
+        font.pixelSize: Theme.fontSize
         font.family:     Theme.fontFamily
         color: Theme.textContrast(
           hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor

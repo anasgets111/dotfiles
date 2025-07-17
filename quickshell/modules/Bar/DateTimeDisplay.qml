@@ -32,7 +32,7 @@ Item {
         text: dateTimeDisplay.formattedDateTime
         color: Theme.textContrast(Theme.inactiveColor)
         font.bold: true
-        font.pointSize: Theme.fontSize
+        font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
     }
 }

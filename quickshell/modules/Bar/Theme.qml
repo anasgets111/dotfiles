@@ -44,7 +44,7 @@ QtObject {
 
     // Font properties
     readonly property string fontFamily: "CaskaydiaCove Nerd Font Propo"
-    readonly property int fontSize: 14
+    readonly property int fontSize: 17
 
     // Animation
     readonly property int animationDuration: 147

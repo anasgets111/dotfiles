@@ -222,7 +222,7 @@ Rectangle {
         id: volumeIconItem
         text: volumeIcon
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize + 10
+        font.pixelSize: Theme.fontSize
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignHCenter
         color: {
@@ -254,7 +254,7 @@ Rectangle {
         text: audioReady
               ? Math.round(volume * 100) + "%"
               : "--"
-        font.pixelSize: Theme.fontSize + 4
+        font.pixelSize: Theme.fontSize
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignHCenter
         color: {
