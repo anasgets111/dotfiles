@@ -54,9 +54,10 @@ Rectangle {
   Text {
     anchors.centerIn: parent
     text: isActive ? iconOn : iconOff
-    color: hovered
-      ? Theme.textOnHoverColor
-      : (isActive ? Theme.textActiveColor : Theme.textInactiveColor)
+    color: Theme.textContrast(
+      hovered ? Theme.onHoverColor
+      : (isActive ? Theme.activeColor : Theme.inactiveColor)
+    )
     font.pixelSize: Theme.fontSize
     font.bold : true
     font.family: Theme.fontFamily

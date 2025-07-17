@@ -146,11 +146,13 @@ Row {
                 font.family: (text.length === 1 ? "Nerd Font" : Theme.fontFamily)
                 font.bold: true
 
-                color: isActive
-                    ? Theme.textActiveColor
-                    : (parent.isHovered
-                       ? Theme.textOnHoverColor
-                       : Theme.textInactiveColor)
+                color: Theme.textContrast(
+                    isActive
+                        ? Theme.activeColor
+                        : (parent.isHovered
+                            ? Theme.onHoverColor
+                            : Theme.inactiveColor)
+                )
                 Behavior on color { ColorAnimation {
                     duration: Theme.animationDuration
                     easing.type: Easing.InOutQuad
