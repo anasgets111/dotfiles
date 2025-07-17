@@ -109,9 +109,11 @@ Row {
             radius: Theme.itemRadius
 
             property bool isActive: ws.name === specialWorkspaces.activeSpecial
+            property bool isHovered: false
+
             color: isActive
                 ? Theme.activeColor
-                : (mouseArea.hovered
+                : (isHovered
                    ? Theme.onHoverColor
                    : Theme.inactiveColor)
             Behavior on color { ColorAnimation {
@@ -128,6 +130,8 @@ Row {
                     var n = ws.name.replace("special:", "")
                     Hyprland.dispatch("togglespecialworkspace " + n)
                 }
+                onEntered: parent.isHovered = true
+                onExited: parent.isHovered = false
             }
 
             Text {
@@ -151,7 +155,7 @@ Row {
 
                 color: isActive
                     ? Theme.textActiveColor
-                    : (mouseArea.hovered
+                    : (parent.isHovered
                        ? Theme.textOnHoverColor
                        : Theme.textInactiveColor)
                 Behavior on color { ColorAnimation {
