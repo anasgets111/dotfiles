@@ -9,11 +9,10 @@ Rectangle {
   height: Theme.itemHeight
   radius: Theme.itemRadius
 
-  /* style constants */
   property string iconOn:  ""
   property string iconOff: ""
+  property bool hovered: false
 
-  /* bind state directly to process.running */
   Process {
     id: inhibitorProcess
     command: [
@@ -26,20 +25,20 @@ Rectangle {
   }
   property alias isActive: inhibitorProcess.running
 
-  /* lock screen process */
-  Process { id: lockProcess; command: ["hyprlock"] }
+  Process {
+    id: lockProcess
+    command: ["hyprlock"]
+  }
 
-  /* dynamic styling */
-  property bool hovered: false
   color: hovered
     ? Theme.onHoverColor
     : (isActive ? Theme.activeColor : Theme.inactiveColor)
-
 
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     cursorShape: Qt.PointingHandCursor
+    hoverEnabled: true
 
     onClicked: function(mouse) {
       if (mouse.button === Qt.LeftButton) {
@@ -48,7 +47,6 @@ Rectangle {
         lockProcess.running = true
       }
     }
-    hoverEnabled: true
     onEntered: idleInhibitor.hovered = true
     onExited: idleInhibitor.hovered = false
   }

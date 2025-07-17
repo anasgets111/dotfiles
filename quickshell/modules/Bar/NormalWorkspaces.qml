@@ -6,24 +6,22 @@ Item {
     width: normalWorkspacesRow.width
     height: normalWorkspacesRow.height
 
-    // State tracking
     property int hoverCount: 0
     property bool internalHovered: false
+    property bool normalWorkspacesHovered: internalHovered
 
-    // Directly bind for expansion, but delay collapse
     onHoverCountChanged: {
         if (hoverCount > 0) {
             internalHovered = true
-            collapseDelayTimer.stop()  // Cancel any pending collapse
+            collapseDelayTimer.stop()
         } else {
             collapseDelayTimer.restart()
         }
     }
 
-    // Delayed collapse to prevent jank/sluggishness on quick hover-out/in
     Timer {
         id: collapseDelayTimer
-        interval: Theme.animationDuration  // Match animation time to allow smooth completion
+        interval: Theme.animationDuration
         onTriggered: {
             if (normalWorkspaces.hoverCount <= 0) {
                 normalWorkspaces.internalHovered = false
@@ -31,9 +29,6 @@ Item {
         }
     }
 
-    property bool normalWorkspacesHovered: internalHovered
-
-    // Delegate for normal (positive ID) workspaces
     Component {
         id: normalWorkspaceDelegate
         Rectangle {
@@ -41,17 +36,14 @@ Item {
             property bool shouldShow: ws.id >= 0
                                       && (ws.active
                                           || normalWorkspaces.normalWorkspacesHovered)
-            // Per-item hover state
             property bool itemHovered: false
 
             width: shouldShow ? Theme.itemWidth : 0
             height: Theme.itemHeight
             radius: Theme.itemRadius
-            // Dynamic color: prioritize active, then hover, then inactive
             color: ws.active ? Theme.activeColor
                              : (itemHovered ? Theme.onHoverColor
                                             : Theme.inactiveColor)
-            // Always visible while animating; hide only when fully collapsed
             visible: opacity > 0 || width > 0
             opacity: shouldShow ? 1.0 : 0.0
 
@@ -93,7 +85,6 @@ Item {
             Text {
                 anchors.centerIn: parent
                 text: ws.id
-                // Dynamic text color matching the background logic: prioritize active, then hover, then inactive
                 color: Theme.textContrast(
                     parent.ws.active ? Theme.activeColor
                     : (parent.itemHovered ? Theme.onHoverColor : Theme.inactiveColor)
@@ -111,7 +102,6 @@ Item {
         }
     }
 
-    // Hover area for expand/collapse functionality
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true
@@ -119,17 +109,15 @@ Item {
         onExited: normalWorkspaces.hoverCount--
     }
 
-    // Normal workspaces row
     Row {
         id: normalWorkspacesRow
-        spacing: 8  // Consider making this a property for consistency with other modules
+        spacing: 8
         Repeater {
             model: Hyprland.workspaces
             delegate: normalWorkspaceDelegate
         }
     }
 
-    // Fallback when no workspaces
     Text {
         visible: Hyprland.workspaces.length === 0
         text: "No workspaces"

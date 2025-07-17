@@ -7,8 +7,17 @@ Row {
 
     property var workspaces: Hyprland.workspaces
     property string activeSpecial: ""
+    property var specialWorkspacesList: getSpecialWorkspaces()
+    property int maxSpecialWidth: {
+        var maxW = Theme.itemWidth
+        for (var i = 0; i < widthProbe.children.length; ++i) {
+            var probeW = widthProbe.children[i].implicitWidth + 12
+            if (probeW > maxW)
+                maxW = probeW
+        }
+        return maxW
+    }
 
-    // Helper: extract special workspaces as array
     function getSpecialWorkspaces() {
         var specials = [];
         for (var i = 0; i < workspaces.length; ++i) {
@@ -19,7 +28,6 @@ Row {
         return specials;
     }
 
-    // Helper: get icon/text for a special workspace
     function getSpecialText(ws) {
         var nameLower = ws.name.toLowerCase();
         if (nameLower.includes("telegram")) return "\uF2C6";
@@ -33,9 +41,6 @@ Row {
             return "\uF120";
         return ws.name.replace("special:", "");
     }
-
-    // Dynamic probe for all special workspace icons/names
-    property var specialWorkspacesList: getSpecialWorkspaces()
 
     Column {
         id: widthProbe
@@ -64,17 +69,6 @@ Row {
         }
     }
 
-    // binding – auto-recomputes when any probe’s implicitWidth changes
-    property int maxSpecialWidth: {
-        var maxW = Theme.itemWidth
-        for (var i = 0; i < widthProbe.children.length; ++i) {
-            var probeW = widthProbe.children[i].implicitWidth + 12
-            if (probeW > maxW)
-                maxW = probeW
-        }
-        return maxW
-    }
-
     Connections {
         target: Hyprland
         function onRawEvent(event) {
@@ -93,7 +87,6 @@ Row {
             property var ws: modelData
             visible: ws.id < 0
 
-            // Find the matching probe for this ws
             property int probeIndex: {
                 var arr = specialWorkspaces.getSpecialWorkspaces();
                 for (var i = 0; i < arr.length; ++i) {

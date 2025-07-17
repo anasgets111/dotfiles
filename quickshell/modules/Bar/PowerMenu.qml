@@ -6,10 +6,34 @@ Rectangle {
     id: powerMenu
     clip: true
 
-    //—— Hover / collapse-delay logic —————————————————————————————
     property int  hoverCount:        0
     property bool internalHovered:   false
     property bool expanded:          internalHovered
+
+    property int spacing: 8
+    property var buttons: [
+        { icon: "󰍃", tooltip: "Log Out",
+          action: "hyprctl dispatch exit" },
+        { icon: "", tooltip: "Restart",
+          action: "systemctl reboot" },
+        { icon: "⏻", tooltip: "Power Off",
+          action: "systemctl poweroff" }
+    ]
+    property int collapsedWidth: Theme.itemWidth
+    property int expandedWidth:
+        Theme.itemWidth * buttons.length
+        + spacing * (buttons.length - 1)
+
+    width:  expanded ? expandedWidth : collapsedWidth
+    height: Theme.itemHeight
+    radius: Theme.itemRadius
+    color:  "transparent"
+
+    function execAction(cmd) {
+        Hyprland.dispatch(
+          "exec pkill chromium 2>/dev/null || true; " + cmd
+        )
+    }
 
     onHoverCountChanged: {
         if (hoverCount > 0) {
@@ -30,32 +54,6 @@ Rectangle {
         }
     }
 
-    //—— Dimensions & styling ————————————————————————————————
-    property int spacing: 8
-    property var buttons: [
-        { icon: "󰍃", tooltip: "Log Out",
-          action: "hyprctl dispatch exit" },
-        { icon: "", tooltip: "Restart",
-          action: "systemctl reboot" },
-        { icon: "⏻", tooltip: "Power Off",
-          action: "systemctl poweroff" }
-    ]
-    function execAction(cmd) {
-        Hyprland.dispatch(
-          "exec pkill chromium 2>/dev/null || true; " + cmd
-        )
-    }
-
-    property int collapsedWidth: Theme.itemWidth
-    property int expandedWidth:
-        Theme.itemWidth * buttons.length
-        + spacing * (buttons.length - 1)
-
-    width:  expanded ? expandedWidth : collapsedWidth
-    height: Theme.itemHeight
-    radius: Theme.itemRadius
-    color:  "transparent"
-
     Behavior on width {
         NumberAnimation {
             duration:     Theme.animationDuration
@@ -63,7 +61,6 @@ Rectangle {
         }
     }
 
-    //—— Catch all enters/exits over the full (shrinking) parent ——
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true
@@ -71,7 +68,6 @@ Rectangle {
         onExited:   powerMenu.hoverCount--
     }
 
-    //—— Button row ————————————————————————————————————————————
     Row {
         id: buttonRow
         spacing:          8

@@ -7,20 +7,15 @@ import Quickshell.Hyprland
 PanelWindow {
     id: panelWindow
 
-    // increase height so we can draw below the bar
     implicitWidth:  Screen.width
     implicitHeight: Theme.panelHeight + Theme.cornerRadius
     exclusiveZone:  Theme.panelHeight
 
     screen: Quickshell.screens[0]
-    // mask:   Region { item: panelRect }
     WlrLayershell.namespace: "quickshell:bar:blur"
     anchors { top: true; left: true; right: true }
     color:  Theme.panelWindowColor
 
-    //───────────────────────────────────────────────────────────────────────────
-    // the main bar
-    //───────────────────────────────────────────────────────────────────────────
     Rectangle {
         id: panelRect
         width:  parent.width
@@ -48,14 +43,6 @@ PanelWindow {
         }
     }
 
-//───────────────────────────────────────────────────────────────────────────
-// bottom corners using RoundCorner component
-//───────────────────────────────────────────────────────────────────────────
-
-
-    //───────────────────────────────────────────────────────────────────────────
-    // place two of them under the bar
-    //───────────────────────────────────────────────────────────────────────────
     Item {
         id: bottomCuts
         width:  parent.width
@@ -65,24 +52,22 @@ PanelWindow {
         anchors.right:  parent.right
         z: 1
 
-        // bottom-left
         RoundCorner {
             anchors.left: parent.left
             anchors.top: parent.top
             size: Theme.cornerRadius
             color: Theme.bgColor
-            corner: 2 // BottomLeft
-            rotation: 90 // 90° clockwise
+            corner: 2
+            rotation: 90
         }
 
-        // bottom-right
         RoundCorner {
             anchors.right: parent.right
             anchors.top: parent.top
             size: Theme.cornerRadius
             color: Theme.bgColor
-            corner: 3 // BottomRight
-            rotation: -90 // 90° counterclockwise
+            corner: 3
+            rotation: -90
         }
     }
 }
