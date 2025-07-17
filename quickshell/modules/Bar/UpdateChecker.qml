@@ -6,7 +6,6 @@ import Quickshell.Io
 Item {
   id: root
 
-  // ── Commands & icons ─────────────────────────────────────────────────────────
   property var updateCommand: [
     "xdg-terminal-exec",
     "--title=Global Updates",
@@ -16,52 +15,60 @@ Item {
   property string updateIcon: ""
   property string noUpdateIcon: "󰂪"
 
-  // ── State ───────────────────────────────────────────────────────────────────
   property bool busy: false
   property int updates: 0
   property double lastSync: 0
 
-  // ── Timing (ms) ─────────────────────────────────────────────────────────────
+  property int failureCount: 0
+  property int failureThreshold: 3
+
   property int pollInterval: 5  * 60 * 1000
   property int syncInterval: 30 * 60 * 1000
 
-  // ── Size & visibility ──────────────────────────────────────────────────────
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(
     Theme.itemWidth,
     indicator.implicitWidth
       + (updateCount.visible ? updateCount.implicitWidth : 0)
-      + 12
   )
 
-  // ── Functions ──────────────────────────────────────────────────────────────
   function notify(urgency, title, body) {
     Quickshell.execDetached([
       "notify-send", "-u", urgency, title, body
     ])
   }
 
-
   Process {
     id: pkgProc
-
+    stdout: StdioCollector { id: out }
     onExited: function(exitCode) {
+      if (!pkgProc.running && !busy) return;
+      killTimer.stop()
       busy = false
 
-      if (exitCode !== 0) {
-        notify("critical", "Update check failed", "Exit code: " + exitCode)
+      const raw = (out.text || "").trim()
+      const list = raw ? raw.split(/\r?\n/) : []
+      const count = list.length
+
+      if (exitCode !== 0 && exitCode !== 2) {
+        failureCount++
+        if (failureCount >= failureThreshold) {
+          notify("critical", "Update check failed",
+                 "Exit code: " + exitCode + " (failed " + failureCount + " times)")
+          failureCount = 0
+        }
         updates = 0
         return
       }
 
-      const list = (pkgProc.output || "")
-        .trim()
-        .split(/\r?\n/)
-        .filter(Boolean)
-      const count = list.length
+      failureCount = 0
 
-      if (count > 0 && updates === 0) {
-        notify("normal", "Updates Available", count + " packages can be upgraded")
+      if (count > updates) {
+        const msg = count === 1
+          ? "One package can be upgraded"
+          : count + " packages can be upgraded";
+
+        notify("normal", "Updates Available", msg)
       }
 
       updates = count
@@ -90,12 +97,12 @@ Item {
     onTriggered: doPoll()
   }
 
-  // guard against hung pkgProc
   Timer {
     id: killTimer
-    interval: 60000    // 60 seconds
+    interval: 60000
+    repeat: false
     onTriggered: {
-      if (pkgProc.running) {
+      if (pkgProc.running && busy) {
         pkgProc.running = false
         busy = false
         notify("critical", "Update check killed", "Process took too long")
@@ -111,12 +118,12 @@ Item {
     RowLayout {
       id: row
       anchors.centerIn: parent
+      spacing: 4
 
       Text {
         id: indicator
-        // Always visible – switches glyph based on busy/updates
         text: busy
-              ? ""  // Nerd-font gear
+              ? ""
               : (updates > 0
                  ? updateIcon
                  : noUpdateIcon)
@@ -127,7 +134,6 @@ Item {
         verticalAlignment: Text.AlignVCenter
         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
 
-        // spin when busy
         RotationAnimator on rotation {
             from: 0
             to:   360
@@ -146,7 +152,6 @@ Item {
         font.family:     Theme.fontFamily
         color: Theme.textContrast(Theme.inactiveColor)
         Layout.alignment:   Qt.AlignVCenter
-        leftPadding: 4
       }
     }
 
@@ -158,7 +163,6 @@ Item {
         if (updates > 0) {
           Quickshell.execDetached(updateCommand)
         } else {
-          // force a full sync and reuse doPoll logic
           doPoll(true);
         }
       }
