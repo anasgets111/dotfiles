@@ -50,7 +50,6 @@ PanelWindow {
         anchors.top:    panelRect.bottom
         anchors.left:   parent.left
         anchors.right:  parent.right
-        z: 1
 
         RoundCorner {
             anchors.left: parent.left

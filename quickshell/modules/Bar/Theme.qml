@@ -23,6 +23,9 @@ QtObject {
     property color onHoverColor: "#F5C2E7"  // Rosewater: Soft highlight for hover, related to Mauve for cohesion
     property color borderColor: "#313244"  // Surface2: Subtle border color for UI elements
 
+    // Popup vertical offset
+    readonly property int popupOffset: 17
+
     // Text colors
     readonly property color textActiveColor: "#CDD6F4"  // Text: Bright white for active text
     readonly property color textInactiveColor: "#A6ADC8"  // Subtext: Lighter grey for inactive text
