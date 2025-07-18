@@ -3,9 +3,8 @@ import QtQuick 2.9
 Item {
     id: root
 
-    // Enum for selecting which corner to draw
     enum CornerEnum { TopLeft, TopRight, BottomLeft, BottomRight }
-    property int corner: 0 // Default to TopLeft (matches CornerEnum.TopLeft)
+    property int corner: 0
 
     property int size: Theme.cornerRadius
     property color color: Theme.bgColor

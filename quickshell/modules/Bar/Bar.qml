@@ -5,12 +5,11 @@ import Quickshell.Hyprland
 
 
 PanelWindow {
-    id: panelWindow
-
     property bool normalWorkspacesExpanded: false
-
+    id: panelWindow
+    mask: Region { item: panelRect }
     implicitWidth:  Screen.width
-    implicitHeight: Theme.panelHeight + Theme.cornerRadius
+    implicitHeight: Theme.panelHeight + Theme.cornerRadius + Theme.tooltipMaxSpace
     exclusiveZone:  Theme.panelHeight
 
     screen: Quickshell.screens[0]
