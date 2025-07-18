@@ -208,14 +208,12 @@ Item {
     Rectangle {
         id: tooltip
         visible: mouseArea.containsMouse && !busy
-        color: Theme.bgColor
-        border.color: Theme.panelBorderColor
-        border.width: Theme.borderWidth
+        color: Theme.onHoverColor
         radius: Theme.itemRadius
         width: tooltipText.width + 16
         height: tooltipText.height + 8
-        anchors.top: parent.bottom
-        anchors.horizontalCenter: parent.horizontalCenter + 25
+        anchors.top: mouseArea.bottom
+        anchors.left: mouseArea.left
         anchors.bottomMargin: 8
         opacity: mouseArea.containsMouse ? 1 : 0
         Behavior on opacity {
@@ -225,15 +223,40 @@ Item {
             }
         }
 
-        Text {
+        Column {
             id: tooltipText
             anchors.centerIn: parent
-            text: updates === 1
-                ? qsTr("One package can be upgraded")
-                : updates + qsTr(" packages can be upgraded")
-            color: Theme.textActiveColor
-            font.pixelSize: Theme.fontSize
-            font.family: Theme.fontFamily
+            spacing: 4
+
+            Text {
+                text: updates === 0
+                    ? qsTr("No updates available")
+                    : updates === 1
+                        ? qsTr("One package can be upgraded:")
+                        : updates + qsTr(" packages can be upgraded:")
+                color: Theme.textContrast(
+                    hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor
+                )
+                font.pixelSize: Theme.fontSize
+                font.family: Theme.fontFamily
+            }
+
+            Repeater {
+                // Dummy data for testing
+                model: [
+                    { name: "foo", oldVersion: "1.0", newVersion: "1.1" },
+                    { name: "bar", oldVersion: "2.3", newVersion: "2.4" },
+                    { name: "baz", oldVersion: "0.9", newVersion: "1.0" }
+                ]
+                delegate: Text {
+                    text: modelData.name + ": " + model.oldVersion + " → " + model.newVersion
+                    color: Theme.textContrast(
+                        hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor
+                    )
+                    font.pixelSize: Theme.fontSize
+                    font.family: Theme.fontFamily
+                }
+            }
         }
     }
 

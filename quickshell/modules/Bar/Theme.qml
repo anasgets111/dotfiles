@@ -3,6 +3,8 @@ import QtQuick
 
 QtObject {
     // Panel properties
+
+    readonly property int tooltipMaxSpace: 100
     readonly property int panelRadius: 15
     readonly property int panelHeight: 40
     readonly property int panelMargin: 16
