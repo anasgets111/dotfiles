@@ -214,7 +214,7 @@ Item {
         height: tooltipText.height + 8
         anchors.top: mouseArea.bottom
         anchors.left: mouseArea.left
-        anchors.bottomMargin: 8
+        anchors.topMargin : 8
         opacity: mouseArea.containsMouse ? 1 : 0
         Behavior on opacity {
             NumberAnimation {
@@ -242,12 +242,6 @@ Item {
             }
 
             Repeater {
-                // Dummy data for testing
-                model: [
-                    { name: "foo", oldVersion: "1.0", newVersion: "1.1" },
-                    { name: "bar", oldVersion: "2.3", newVersion: "2.4" },
-                    { name: "baz", oldVersion: "0.9", newVersion: "1.0" }
-                ]
                 delegate: Text {
                     text: modelData.name + ": " + modelData.oldVersion + " → " + modelData.newVersion
                     color: Theme.textContrast(
