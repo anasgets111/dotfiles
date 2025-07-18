@@ -8,24 +8,17 @@ Item {
     implicitHeight: Theme.itemHeight
     implicitWidth: row.implicitWidth + 12
 
-    // UPower state
     property var   device:        UPower.displayDevice
     property real  percentage:    device.percentage
     property bool  isCharging:    device.state === UPowerDeviceState.Charging
-
-    // Low/critical thresholds
     property bool  isLowAndNotCharging:
         device.isLaptopBattery && percentage <= 0.20 && !isCharging
     property bool  isCriticalAndNotCharging:
         device.isLaptopBattery && percentage <= 0.10 && !isCharging
     property bool  isSuspendingAndNotCharging:
         device.isLaptopBattery && percentage <= 0.05 && !isCharging
-
-    // ——————————————————————————————————————————
-    // FLASH PHASES
-    // ——————————————————————————————————————————
-
-    // widthPhase pulses the fill from 0→fullWidth→0→fullWidth
+    property real overlayFlashWidth: 2
+    property real overlayFlashX: implicitWidth / 2 - overlayFlashWidth / 2
     property int   widthPhase: 0
     Timer {
         id: widthTimer; interval: 200; repeat: true
@@ -34,7 +27,6 @@ Item {
             else { widthPhase = 0; stop() }
         }
     }
-    // colorPhase drives the overlay‐color pulse
     property int   colorPhase: 0
     Timer {
         id: colorTimer; interval: 200; repeat: true
@@ -44,15 +36,9 @@ Item {
         }
     }
 
-    // on charger connect → pulse the fill
     onIsChargingChanged: if (isCharging) {
         widthPhase = 1; widthTimer.start()
     }
-
-    // on click (below) → pulse the overlay
-    // ——————————————————————————————————————————
-    // NOTIFICATIONS & SUSPEND
-    // ——————————————————————————————————————————
 
     onIsLowAndNotChargingChanged:
         if (isLowAndNotCharging)
@@ -69,26 +55,17 @@ Item {
         if (isSuspendingAndNotCharging)
             Quickshell.execDetached(["systemctl","suspend"])
 
-    // ——————————————————————————————————————————
-    // BACKGROUND
-    // ——————————————————————————————————————————
-
     Rectangle {
         anchors.fill: parent
         color: Theme.inactiveColor
         radius: height/2
     }
 
-    // ——————————————————————————————————————————
-    // ACTIVE FILL (widthPulse + color based on profile & level)
-    // ——————————————————————————————————————————
-
     Rectangle {
         id: fill
         anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
         property real fullW: parent.width * percentage
 
-        // widthPulse on charger: 0⇄fullW twice
         width: widthPhase > 0
                ? (widthPhase % 2 === 1 ? 0 : fullW)
                : fullW
@@ -112,17 +89,12 @@ Item {
         }
     }
 
-    // ——————————————————————————————————————————
-    // MOUSEAREA + TOOLTIP + PROFILE FETCH & TOGGLE
-    // ——————————————————————————————————————————
-
     MouseArea {
         id: batteryArea
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
 
-        // remaining‐time text
         property string remainingTimeText: {
             function fmt(s) {
                 if (s <= 0) return "Calculating…"
@@ -137,7 +109,6 @@ Item {
             return "Calculating…"
         }
 
-        // powerProfile property + fetch
         property string powerProfile: ""
         Component.onCompleted: profileProc.running = true
         Process {
@@ -148,7 +119,6 @@ Item {
                 onStreamFinished: batteryArea.powerProfile = text.trim()
             }
         }
-        // toggle to next profile
         Process {
             id: setProc
             stdout: StdioCollector {}
@@ -160,30 +130,66 @@ Item {
                        ? "power-saver" : "performance"
             setProc.command = ["powerprofilesctl","set",next]
             setProc.running = true
-            // pulse overlay
-            colorPhase = 1; colorTimer.start()
+            if (overlayFadeTimer.running)
+                overlayFadeTimer.stop();
+            if (overlayFlashStartTimer.running)
+                overlayFlashStartTimer.stop();
+            overlayFlash.opacity = 0;
+            root.overlayFlashWidth = 2;
+            root.overlayFlashX = root.implicitWidth / 2 - root.overlayFlashWidth / 2;
+            overlayFlashStartTimer.start();
         }
 
-        // ——————————————————————————————————
-        // FLASH‐OVERLAY (above the fill)
-        // ——————————————————————————————————
         Rectangle {
             anchors.fill: parent
-            color: (colorPhase===1 || colorPhase===3)
-                   ? "#ffe066"
-                   : batteryArea.containsMouse
-                     ? Theme.onHoverColor
-                     : "transparent"
+            color: batteryArea.containsMouse ? Theme.onHoverColor : "transparent"
             radius: height/2
             Behavior on color {
-                ColorAnimation { duration:100
-                                 easing.type: Easing.OutCubic }
+                ColorAnimation { duration:100; easing.type: Easing.OutCubic }
             }
         }
 
-        // ——————————————————————————————————
-        // ICON + PERCENT
-        // ——————————————————————————————————
+        Rectangle {
+            id: overlayFlash
+            y: 0
+            width: root.overlayFlashWidth
+            height: parent.height
+            x: root.overlayFlashX
+            color: "#ffe066"
+            radius: height/2
+            opacity: root.overlayFlashWidth > 2 ? 1 : 0
+            Behavior on width {
+                NumberAnimation { duration: 600; easing.type: Easing.OutCubic }
+            }
+            Behavior on x {
+                NumberAnimation { duration: 600; easing.type: Easing.OutCubic }
+            }
+            Behavior on opacity {
+                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+            }
+        }
+        Timer {
+            id: overlayFadeTimer
+            interval: 600
+            repeat: false
+            onTriggered: {
+                overlayFlash.opacity = 0;
+                root.overlayFlashWidth = 2;
+                root.overlayFlashX = root.implicitWidth / 2 - root.overlayFlashWidth / 2;
+            }
+        }
+        Timer {
+            id: overlayFlashStartTimer
+            interval: 20
+            repeat: false
+            onTriggered: {
+                overlayFlash.opacity = 1;
+                root.overlayFlashWidth = root.implicitWidth;
+                root.overlayFlashX = 0;
+                overlayFadeTimer.start();
+            }
+        }
+
         Row {
             id: row
             anchors.centerIn: parent
@@ -225,9 +231,6 @@ Item {
             }
         }
 
-        // ——————————————————————————————————
-        // TOOLTIP
-        // ——————————————————————————————————
         Rectangle {
             id: tooltip
             visible: batteryArea.containsMouse
