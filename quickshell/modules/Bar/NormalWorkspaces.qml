@@ -31,7 +31,7 @@ Item {
 
         Timer {
             id: collapseTimer
-            interval: Theme.animationDuration + 300
+            interval: Theme.animationDuration + 200
             onTriggered: {
                 expanded = false
                 hoveredIndex = 0
