@@ -25,7 +25,7 @@ QtObject {
     property color onHoverColor: "#F5C2E7"  // Rosewater: Soft highlight for hover, related to Mauve for cohesion
     property color borderColor: "#313244"  // Surface2: Subtle border color for UI elements
     property color disabledColor: "#232634"  // Disabled: Dimmed color for unavailable/unpopulated workspaces
-    property color powerSaveColor: "#a6e3a1"
+    property color powerSaveColor: "#A6E3A1"
 
     // Popup vertical offset
     readonly property int popupOffset: 17
@@ -45,8 +45,13 @@ QtObject {
             return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
         }
         var l = luminance(bgColor);
+
+        // If using powerSaveColor, always use Mocha text for best contrast
+        if (bgColor === Theme.powerSaveColor)
+            return "#CDD6F4";
+
         // Threshold chosen for Catppuccin's dark/light split
-        return l > 0.5 ? "#4C4F69" : "#CDD6F4";
+        return l > 0.6 ? "#4C4F69" : "#CDD6F4";
     }
 
     // Font properties
