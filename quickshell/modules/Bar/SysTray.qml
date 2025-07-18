@@ -1,0 +1,224 @@
+import QtQuick
+import Quickshell
+import Quickshell.Services.SystemTray
+import Quickshell.Io
+
+Item {
+    id: systemTrayWidget
+
+    // Pilled shape container styling
+    width: trayRow.width + iconPadding * 2
+    height: Theme.itemHeight
+
+    Rectangle {
+        id: pillContainer
+        anchors.fill: parent
+        radius: Theme.itemRadius
+        color: Theme.inactiveColor
+    }
+
+    required property var bar
+
+    readonly property int iconSize:    16
+    readonly property int iconSpacing: 8
+    readonly property int iconPadding: 4
+
+    // Fallback order for themes
+    property var fallbackOrder: [
+        "Tela-circle-dracula", "Adwaita", "AdwaitaLegacy",
+        "default",           "breeze",  "hicolor"
+    ]
+    property var availableThemes: []
+    property string preferredIconTheme:
+        Quickshell.env("ICON_THEME")
+        || (availableThemes.length > 0
+            ? availableThemes[0]
+            : "hicolor"
+           )
+
+    // Hardcode availableThemes to fallbackOrder
+    Component.onCompleted: {
+        availableThemes = fallbackOrder;
+    }
+
+    // Where to look inside a theme
+    readonly property var iconDirs: [
+        "scalable/apps/",   "scalable/actions/", "scalable/devices/",
+        "scalable/status/", "scalable/places/",
+        "48x48/apps/",      "48x48/actions/",   "48x48/devices/",
+        "48x48/status/",    "48x48/places/"
+    ]
+    readonly property var iconExts: [".svg", ".png"]
+
+    // Extract the base name from an image:// URL
+    function getThemeIconName(iconUrl) {
+        var m = iconUrl.match(/image:\/\/(?:icon|qspixmap)\/([^\/]+)/)
+        return m ? m[1] : iconUrl
+    }
+
+    // Return "file://…" or empty string
+    // Use Quickshell.iconPath with theme override for icon existence
+    function getIconPath(iconName) {
+        for (var i = 0; i < iconDirs.length; i++) {
+            for (var j = 0; j < iconExts.length; j++) {
+                // Compose candidate name as "dir/icon.ext"
+                var candidate = iconDirs[i] + iconName + iconExts[j];
+                // Quickshell.iconPath allows theme override via QS_ICON_THEME env
+                var path = Quickshell.iconPath(candidate, true);
+                if (path)
+                    return path;
+            }
+        }
+        return "";
+    }
+
+    // width/height moved to top for pill container
+
+    Row {
+        id: trayRow
+        anchors.centerIn: parent
+        spacing: iconSpacing
+
+        Repeater {
+            model: SystemTray.items
+
+            MouseArea {
+                id: trayMouseArea
+                property var trayItem: modelData
+                width:  iconSize
+                height: iconSize
+                acceptedButtons: Qt.LeftButton
+                                  | Qt.RightButton
+                                  | Qt.MiddleButton
+                hoverEnabled: true
+
+                onClicked: function(mouse) {
+                    if (mouse.button === Qt.LeftButton)
+                        trayItem.activate()
+                    else if (mouse.button === Qt.RightButton && trayItem.hasMenu)
+                        menuAnchor.open()
+                    else if (mouse.button === Qt.MiddleButton)
+                        trayItem.secondaryActivate()
+                }
+
+                onWheel: function(wheel) {
+                    trayItem.scroll(wheel.angleDelta.x,
+                                    wheel.angleDelta.y)
+                }
+
+                QsMenuAnchor {
+                    id: menuAnchor
+                    menu: trayItem.menu
+                    anchor.window: systemTrayWidget.bar
+                    anchor.item: iconImage
+                    anchor.edges: Edges.Bottom
+                }
+
+                Rectangle {
+                    width: iconSize + 6
+                    height: iconSize + 6
+                    anchors.centerIn: parent
+                    radius: (iconSize + 6) / 2
+                    color: trayMouseArea.containsMouse
+                        ? Theme.onHoverColor
+                        : "transparent"
+
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: Theme.animationDuration
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+
+                Image {
+                    id: iconImage
+                    anchors.centerIn: parent
+                    width:  iconSize
+                    height: iconSize
+
+                    property string iconName: getThemeIconName(trayItem.icon)
+                    property string themePath: getIconPath(iconName)
+
+                    source: trayItem.icon.startsWith("image://")
+                        ? trayItem.icon
+                        : themePath
+
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    visible:
+                        status !== Image.Error
+                        && status !== Image.Null
+
+                    onStatusChanged: {
+                        if (status === Image.Error
+                            && trayItem.icon.startsWith("image://")) {
+                            var fp = getIconPath(iconName)
+                            if (fp) source = fp
+                        }
+                    }
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: trayItem.title
+                          ? trayItem.title.charAt(0).toUpperCase()
+                          : "?"
+                    color: trayMouseArea.containsMouse
+                        ? Theme.textOnHoverColor
+                        : Theme.textActiveColor
+                    font.pixelSize: Theme.fontSize
+                    font.family: Theme.fontFamily
+                    font.bold: true
+                    visible:
+                        iconImage.status === Image.Error
+                        || iconImage.status === Image.Null
+                }
+
+                Rectangle {
+                    id: tooltip
+                    visible:
+                        trayMouseArea.containsMouse
+                        && trayItem.title
+                    color: Theme.bgColor
+                    border.color: Theme.panelBorderColor
+                    border.width: Theme.borderWidth
+                    radius: Theme.itemRadius
+                    width: tooltipText.width
+                    height: tooltipText.height
+                    anchors.top: parent.bottom
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottomMargin: 8
+                    opacity:
+                        trayMouseArea.containsMouse
+                        ? 1 : 0
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.animationDuration
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+
+                    Text {
+                        id: tooltipText
+                        anchors.centerIn: parent
+                        text: trayItem.title
+                        color: Theme.textActiveColor
+                        font.pixelSize: Theme.fontSize
+                        font.family: Theme.fontFamily
+                    }
+                }
+            }
+        }
+    }
+
+    Text {
+        anchors.centerIn: parent
+        visible: SystemTray.items.count === 0
+        text: "No tray items"
+        color: Theme.panelBorderColor
+        font.pixelSize: 10
+        font.family: "Inter, sans-serif"
+        opacity: 0.7
+    }
+}
