@@ -4,7 +4,6 @@ import Quickshell.Hyprland
 
 Rectangle {
     id: powerMenu
-    clip: true
 
     property int  hoverCount:        0
     property bool internalHovered:   false
@@ -126,6 +125,38 @@ Rectangle {
                         powerMenu.hoverCount--
                     }
                     onClicked: execAction(buttons[idx].action)
+                }
+
+                // Tooltip for button
+                Rectangle {
+                    id: tooltip
+                    visible: btnRect.isHovered
+                    color: Theme.onHoverColor
+                    radius: Theme.itemRadius
+                    width: tooltipText.implicitWidth + 16
+                    height: tooltipText.implicitHeight + 8
+                    anchors.top: parent.bottom
+                    anchors.left: parent.left
+                    anchors.topMargin: 8
+                    opacity: btnRect.isHovered ? 1 : 0
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.animationDuration
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+
+                    Text {
+                        id: tooltipText
+                        anchors.centerIn: parent
+                        text: buttons[idx].tooltip
+                        color: Theme.textContrast(
+                            btnRect.isHovered ? Theme.onHoverColor : Theme.inactiveColor
+                        )
+                        font.pixelSize: Theme.fontSize
+                        font.family: Theme.fontFamily
+                        font.bold: true
+                    }
                 }
 
                 Text {
