@@ -65,10 +65,18 @@ Item {
     anchors.top: parent.top
     anchors.bottom: parent.bottom
     width: parent.width * percentage
-    color: percentage <= 0.10 ? "#f38ba8" :
-           percentage <= 0.20 ? "#fab387" :
-           Theme.activeColor
+    color: batteryMouseArea.powerProfile === "power-saver"
+        ? Theme.powerSaveColor
+        : percentage <= 0.10 ? "#f38ba8"
+        : percentage <= 0.20 ? "#fab387"
+        : Theme.activeColor
     radius: height / 2
+    Behavior on color {
+        ColorAnimation {
+            duration: Theme.animationDuration
+            easing.type: Easing.OutCubic
+        }
+    }
   }
 
   MouseArea {
