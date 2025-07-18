@@ -249,7 +249,7 @@ Item {
                     { name: "baz", oldVersion: "0.9", newVersion: "1.0" }
                 ]
                 delegate: Text {
-                    text: modelData.name + ": " + model.oldVersion + " → " + model.newVersion
+                    text: modelData.name + ": " + modelData.oldVersion + " → " + modelData.newVersion
                     color: Theme.textContrast(
                         hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor
                     )

@@ -177,21 +177,15 @@ Item {
 
                 Rectangle {
                     id: tooltip
-                    visible:
-                        trayMouseArea.containsMouse
-                        && trayItem.title
-                    color: Theme.bgColor
-                    border.color: Theme.panelBorderColor
-                    border.width: Theme.borderWidth
+                    visible: trayMouseArea.containsMouse && trayItem.title
+                    color: Theme.onHoverColor
                     radius: Theme.itemRadius
-                    width: tooltipText.width
-                    height: tooltipText.height
+                    width: tooltipText.width + 16
+                    height: tooltipText.height + 8
                     anchors.top: parent.bottom
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottomMargin: 8
-                    opacity:
-                        trayMouseArea.containsMouse
-                        ? 1 : 0
+                    opacity: trayMouseArea.containsMouse ? 1 : 0
                     Behavior on opacity {
                         NumberAnimation {
                             duration: Theme.animationDuration
@@ -203,7 +197,9 @@ Item {
                         id: tooltipText
                         anchors.centerIn: parent
                         text: trayItem.title
-                        color: Theme.textActiveColor
+                        color: Theme.textContrast(
+                            trayMouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor
+                        )
                         font.pixelSize: Theme.fontSize
                         font.family: Theme.fontFamily
                     }
