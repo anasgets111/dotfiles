@@ -32,7 +32,6 @@ Item {
         interval: Theme.animationDuration
         onTriggered: {
             normalWorkspaces.expanded = false
-            console.log("Timer triggered, expanded set to false")
         }
     }
 
@@ -40,7 +39,7 @@ Item {
         id: normalWorkspaceDelegate
         Rectangle {
             property var ws: modelData
-            property bool itemHovered: containsMouse
+            property bool itemHovered: false
             width: (ws.active || normalWorkspaces.expanded) ? Theme.itemWidth : 0
             height: Theme.itemHeight
             radius: Theme.itemRadius
@@ -69,6 +68,8 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
+                onEntered: parent.itemHovered = true
+                onExited: parent.itemHovered = false
                 onClicked: {
                     Hyprland.dispatch("workspace " + ws.id)
                     console.log("Workspace clicked, id:", ws.id)
@@ -98,11 +99,9 @@ Item {
         onEntered: {
             normalWorkspaces.expanded = true
             collapseDelayTimer.stop()
-            console.log("Expanded set to true (outer)")
         }
         onExited: {
             collapseDelayTimer.restart()
-            console.log("Timer restarted for collapse (outer)")
         }
     }
 
@@ -123,5 +122,4 @@ Item {
         font.family: Theme.fontFamily
         font.bold: true
     }
-
 }
