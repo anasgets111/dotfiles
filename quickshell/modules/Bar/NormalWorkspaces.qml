@@ -82,7 +82,7 @@ Item {
       collapseTimer.stop()
     }
     onExited: collapseTimer.restart()
-    onPositionChanged: {
+    onPositionChanged: function(mouse) {
       var sp   = expanded ? Theme.itemWidth + 8 : Theme.itemWidth
       var idx  = Math.floor(mouse.x / sp) + 1
       hoveredIndex = (idx >= 1 && idx <= workspaceStatusList.length)
