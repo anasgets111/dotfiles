@@ -3,12 +3,10 @@ import Quickshell.Hyprland
 
 Item {
     id: root
-    clip: true                       // ← clip children when width shrinks
-    radius: Theme.itemRadius
+    clip: true
     property bool expanded: false
     property int hoveredIndex: 0
 
-    // slide‐state for workspace switches
     property int currentWorkspace:
         Hyprland.focusedWorkspace
             ? Hyprland.focusedWorkspace.id
@@ -18,13 +16,17 @@ Item {
     property int slideFrom: currentWorkspace
     property int slideTo: currentWorkspace
 
-    // build a static 1…10 status list once
+    function workspaceColor(ws) {
+        if (ws.active)              return Theme.activeColor
+        if (ws.id === hoveredIndex) return Theme.onHoverColor
+        if (ws.populated)           return Theme.inactiveColor
+                                     return Theme.disabledColor
+    }
+
     property var workspaceStatusList: (function() {
         var arr = Hyprland.workspaces.values
-        var map = arr.reduce(function(m, w) {
-            m[w.id] = w; return m
-        }, {})
-        return Array.from({ length: 10 }, function(_, i) {
+        var map = arr.reduce(function(m,w){ m[w.id]=w; return m },{})
+        return Array.from({length:10}, function(_,i){
             var w = map[i+1]
             return {
                 id:        i+1,
@@ -34,16 +36,8 @@ Item {
         })
     })()
 
-    function workspaceColor(ws) {
-        if (ws.active)              return Theme.activeColor
-        if (ws.id === hoveredIndex) return Theme.onHoverColor
-        if (ws.populated)           return Theme.inactiveColor
-                                     return Theme.disabledColor
-    }
-
-    // ───── size & expand/collapse animation ─────
     width: expanded
-           ? workspacesRow.width
+           ? workspacesRow.fullWidth
            : Theme.itemWidth
     Behavior on width {
         NumberAnimation {
@@ -53,13 +47,12 @@ Item {
     }
     height: Theme.itemHeight
 
-    // ───── Hyprland event hookup ─────
     Connections {
         target: Hyprland
         function onRawEvent(evt) {
             if (evt.name === "workspace") {
-                var args   = evt.parse(2)
-                var newId  = parseInt(args[0])
+                var args  = evt.parse(2)
+                var newId = parseInt(args[0])
                 if (newId !== currentWorkspace) {
                     previousWorkspace = currentWorkspace
                     currentWorkspace  = newId
@@ -78,7 +71,6 @@ Item {
         duration: Theme.animationDuration
     }
 
-    // ───── hover & click logic ─────
     Timer {
         id: collapseTimer
         interval: Theme.animationDuration + 200
@@ -113,19 +105,39 @@ Item {
         }
     }
 
-    // ───── the full 1…10 grid, always present behind ─────
-    Row {
+    Item {
         id: workspacesRow
-        spacing: 8
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.left: parent.left
+        property int spacing: 8
+        property int count: workspaceStatusList.length
+        property int fullWidth:
+            count * Theme.itemWidth
+            + Math.max(0, count - 1) * spacing
+
+        width:  fullWidth
+        height: Theme.itemHeight
 
         Repeater {
             model: workspaceStatusList
             delegate: Rectangle {
+                id: wsRect
                 property var ws: modelData
                 width:  Theme.itemWidth
                 height: Theme.itemHeight
                 radius: Theme.itemRadius
                 color:  workspaceColor(ws)
+                opacity: ws.populated ? 1 : 0.5
+
+                property real slotX:
+                    index * (Theme.itemWidth + workspacesRow.spacing)
+                x: expanded ? slotX : 0
+                Behavior on x {
+                    NumberAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.InOutQuad
+                    }
+                }
 
                 Text {
                     anchors.centerIn: parent
@@ -139,10 +151,9 @@ Item {
         }
     }
 
-    // ───── single‐item switcher on top, only when collapsed ─────
     Rectangle {
         id: collapsedWs
-        visible: !expanded             // ← hide when we’re expanded!
+        visible: !expanded
         z: 1
         width:  Theme.itemWidth
         height: Theme.itemHeight
@@ -151,9 +162,12 @@ Item {
         clip:   true
 
         property int slideDirection:
-            slideTo > slideFrom ? -1 : 1
+            slideTo === slideFrom
+                ? -1
+                : slideTo > slideFrom
+                  ? -1
+                  : 1
 
-        // “from” workspace
         Rectangle {
             width:  Theme.itemWidth
             height: Theme.itemHeight
@@ -163,11 +177,9 @@ Item {
                 active:    true,
                 populated: true
             })
-            x: slideProgress
-               * collapsedWs.slideDirection
+            x: slideProgress * collapsedWs.slideDirection
                * Theme.itemWidth
             visible: slideProgress < 1
-
             Text {
                 anchors.centerIn: parent
                 text: slideFrom
@@ -177,8 +189,6 @@ Item {
                 font.bold: true
             }
         }
-
-        // “to” workspace
         Rectangle {
             width:  Theme.itemWidth
             height: Theme.itemHeight
@@ -191,7 +201,6 @@ Item {
             x: (slideProgress - 1)
                * collapsedWs.slideDirection
                * Theme.itemWidth
-
             Text {
                 anchors.centerIn: parent
                 text: slideTo
@@ -203,12 +212,9 @@ Item {
         }
     }
 
-    // ───── fallback if no workspaces exist ─────
     Text {
         anchors.centerIn: parent
-        visible: !workspaceStatusList.some(function(ws) {
-            return ws.populated
-        })
+        visible: !workspaceStatusList.some(function(ws){ return ws.populated })
         text: "No workspaces"
         color: Theme.textContrast(Theme.bgColor)
         font.pixelSize: Theme.fontSize
