@@ -22,6 +22,7 @@ QtObject {
     property color bgColor: "#1E1E2E"  // Base: Dark background for overall theme
     property color onHoverColor: "#F5C2E7"  // Rosewater: Soft highlight for hover, related to Mauve for cohesion
     property color borderColor: "#313244"  // Surface2: Subtle border color for UI elements
+    property color disabledColor: "#232634"  // Disabled: Dimmed color for unavailable/unpopulated workspaces
 
     // Popup vertical offset
     readonly property int popupOffset: 17
