@@ -7,6 +7,8 @@ import Quickshell.Hyprland
 PanelWindow {
     id: panelWindow
 
+    property bool normalWorkspacesExpanded: false
+
     implicitWidth:  Screen.width
     implicitHeight: Theme.panelHeight + Theme.cornerRadius
     exclusiveZone:  Theme.panelHeight
@@ -31,9 +33,12 @@ PanelWindow {
             leftMargin:  Theme.panelMargin
             verticalCenter: panelRect.verticalCenter
         }
+        normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
+        onNormalWorkspacesExpandedChanged: panelWindow.normalWorkspacesExpanded = normalWorkspacesExpanded
     }
     CenterSide {
         anchors.centerIn: panelRect
+        normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
     }
     RightSide {
         anchors {

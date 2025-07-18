@@ -1,9 +1,10 @@
 import QtQuick
 
-
 Row {
     id: leftSide
     spacing: 8
+
+    property bool normalWorkspacesExpanded: false
 
     PowerMenu {
         anchors.verticalCenter: parent.verticalCenter
@@ -12,8 +13,6 @@ Row {
     UpdateChecker {
         anchors.verticalCenter: parent.verticalCenter
     }
-
-
 
     IdleInhibitor {
         id: idleInhibitor
@@ -35,5 +34,7 @@ Row {
     NormalWorkspaces {
         id: normalWorkspaces
         anchors.verticalCenter: parent.verticalCenter
+        expanded: leftSide.normalWorkspacesExpanded
+        onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
     }
 }
