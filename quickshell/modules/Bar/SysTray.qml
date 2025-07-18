@@ -161,9 +161,11 @@ Item {
 
                 Text {
                     anchors.centerIn: parent
-                    text: trayItem.title
-                          ? trayItem.title.charAt(0).toUpperCase()
-                          : "?"
+                    text: trayItem.tooltipTitle
+                          ? trayItem.tooltipTitle
+                          : (trayItem.title
+                              ? trayItem.title.charAt(0).toUpperCase()
+                              : "?")
                     color: trayMouseArea.containsMouse
                         ? Theme.textOnHoverColor
                         : Theme.textActiveColor
@@ -177,7 +179,7 @@ Item {
 
                 Rectangle {
                     id: tooltip
-                    visible: trayMouseArea.containsMouse && trayItem.title
+                    visible: trayMouseArea.containsMouse && (trayItem.tooltipTitle || trayItem.title)
                     color: Theme.onHoverColor
                     radius: Theme.itemRadius
                     width: tooltipText.width + 16
@@ -196,7 +198,9 @@ Item {
                     Text {
                         id: tooltipText
                         anchors.centerIn: parent
-                        text: trayItem.title
+                        text: trayItem.tooltipTitle
+                              ? trayItem.tooltipTitle
+                              : trayItem.title
                         color: Theme.textContrast(
                             trayMouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor
                         )
