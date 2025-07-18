@@ -184,7 +184,7 @@ Item {
                     height: tooltipText.height + 8
                     anchors.top: parent.bottom
                     anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottomMargin: 8
+                    anchors.topMargin: 8
                     opacity: trayMouseArea.containsMouse ? 1 : 0
                     Behavior on opacity {
                         NumberAnimation {
