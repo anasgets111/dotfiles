@@ -7,10 +7,10 @@ import QtQuick.Window
 Item {
   id: root
   property var updateCommand: [
-    "xdg-terminal-exec",
-    "--title=Global Updates",
-    "-e",
-    "/home/anas/.config/waybar/update.sh"
+    "hyprctl",
+    "dispatch",
+    "exec",
+    '[workspace special:magic] xdg-terminal-exec --title="Global Updates" -e /home/anas/.config/waybar/update.sh'
   ]
   property bool hovered: false
   property bool popupHovered: false
