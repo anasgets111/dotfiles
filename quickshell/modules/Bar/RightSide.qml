@@ -9,6 +9,10 @@ Row {
         anchors.verticalCenter: parent.verticalCenter
     }
 
+    SysTray {
+      anchors.verticalCenter: parent.verticalCenter
+      bar: panelWindow
+    }
 
     DateTimeDisplay {
         anchors.verticalCenter: parent.verticalCenter
