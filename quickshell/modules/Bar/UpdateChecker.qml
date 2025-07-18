@@ -154,6 +154,7 @@ Item {
     radius: Theme.itemRadius
     color: hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor
     MouseArea {
+      id: mouseArea
       anchors.fill: parent
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
@@ -204,40 +205,38 @@ Item {
         Layout.alignment:   Qt.AlignVCenter
       }
     }
-    // Popup {
-    //   id: updateTooltip
-    //   anchorItem: indicator
-    //   visible: hovered && !busy
-    //   implicitWidth: Math.min(400, column.implicitWidth + 16)
-    //   implicitHeight: Math.min(300, column.implicitHeight + 16)
-    //   contentItem: Rectangle {
-    //     implicitWidth: column.implicitWidth + 16
-    //     implicitHeight: column.implicitHeight + 16
-    //     color: Theme.bgColor
-    //     radius: Theme.itemRadius
-    //     Column {
-    //       id: column
-    //       anchors.fill: parent
-    //       anchors.margins: 8
-    //       spacing: 4
-    //       Text {
-    //         visible: updates === 0
-    //         color: Theme.textContrast(Theme.bgColor)
-    //         text: busy
-    //           ? qsTr("Checking for updates…")
-    //           : qsTr("No updates available")
-    //       }
-    //       Text {
-    //         visible: updates > 0
-    //         font.family: Theme.fontFamily
-    //         font.pixelSize: Theme.fontSize
-    //         color: Theme.textActiveColor
-    //         textFormat: Text.PlainText
-    //         text: root.rawOutput
-    //       }
-    //     }
-    //   }
-    // }
+    Rectangle {
+        id: tooltip
+        visible: mouseArea.containsMouse && !busy
+        color: Theme.bgColor
+        border.color: Theme.panelBorderColor
+        border.width: Theme.borderWidth
+        radius: Theme.itemRadius
+        width: tooltipText.width + 16
+        height: tooltipText.height + 8
+        anchors.top: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter + 25
+        anchors.bottomMargin: 8
+        opacity: mouseArea.containsMouse ? 1 : 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.animationDuration
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        Text {
+            id: tooltipText
+            anchors.centerIn: parent
+            text: updates === 1
+                ? qsTr("One package can be upgraded")
+                : updates + qsTr(" packages can be upgraded")
+            color: Theme.textActiveColor
+            font.pixelSize: Theme.fontSize
+            font.family: Theme.fontFamily
+        }
+    }
+
   }
   Component.onCompleted: {
     doPoll()
