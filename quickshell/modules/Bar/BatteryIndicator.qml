@@ -13,7 +13,7 @@ Item {
 
   Timer {
     id: flashTimer
-    interval: 200 // ms per phase, adjust for speed
+    interval: 200
     repeat: true
     onTriggered: {
       if (root.flashPhase < 4) {

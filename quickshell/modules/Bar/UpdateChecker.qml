@@ -242,6 +242,7 @@ Item {
             }
 
             Repeater {
+                model: updatePackages
                 delegate: Text {
                     text: modelData.name + ": " + modelData.oldVersion + " → " + modelData.newVersion
                     color: Theme.textContrast(
