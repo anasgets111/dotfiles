@@ -101,4 +101,53 @@ Item {
       padding: 4
     }
   }
+
+  MouseArea {
+      id: batteryMouseArea
+      anchors.fill: parent
+      hoverEnabled: true
+
+      // Tooltip logic
+      property string remainingTimeText: {
+          if (isCharging && device.timeToFull > 0)
+              return "Time to full: " + Qt.formatTime(new Date(device.timeToFull * 1000), "hh:mm");
+          else if (!isCharging && device.timeToEmpty > 0)
+              return "Time remaining: " + Qt.formatTime(new Date(device.timeToEmpty * 1000), "hh:mm");
+          else
+              return "Calculating…";
+      }
+
+      Rectangle {
+          id: tooltip
+          visible: batteryMouseArea.containsMouse
+                   && (device.timeToFull > 0 || device.timeToEmpty > 0)
+          color: Theme.onHoverColor
+          radius: Theme.itemRadius
+          width: tooltipText.width + 16
+          height: tooltipText.height + 8
+          anchors.top: parent.bottom
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.topMargin: 8
+          opacity: batteryMouseArea.containsMouse ? 1 : 0
+          Behavior on opacity {
+              NumberAnimation {
+                  duration: Theme.animationDuration
+                  easing.type: Easing.OutCubic
+              }
+          }
+
+          Text {
+              id: tooltipText
+              anchors.centerIn: parent
+              text: batteryMouseArea.remainingTimeText
+              color: Theme.textContrast(
+                  batteryMouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor
+              )
+              font.pixelSize: Theme.fontSize
+              font.family: Theme.fontFamily
+          }
+      }
+  }
+
+
 }
