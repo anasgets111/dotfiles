@@ -14,7 +14,7 @@ Rectangle {
         {
             icon: "󰍃",
             tooltip: "Log Out",
-            action: "hyprctl dispatch exit"
+            action: "loginctl terminate-user $USER"
         },
         {
             icon: "",
