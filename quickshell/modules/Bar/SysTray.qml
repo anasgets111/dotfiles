@@ -1,3 +1,5 @@
+//@ pragma IconTheme Tela-circle-dracula-dark
+
 import QtQuick
 import Quickshell
 import Quickshell.Services.SystemTray
