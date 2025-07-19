@@ -5,6 +5,7 @@ import Quickshell.Io
 
 Item {
     id: root
+    visible: device.isLaptopBattery
     implicitHeight: Theme.itemHeight
     implicitWidth: row.implicitWidth + 12
 
