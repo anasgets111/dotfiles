@@ -6,34 +6,33 @@ QtObject {
 
     readonly property int tooltipMaxSpace: 100
     readonly property int panelRadius: 15
-    readonly property int panelHeight: 40
+    readonly property int panelHeight: 42
     readonly property int panelMargin: 16
     readonly property color panelWindowColor: "transparent"
-    readonly property color panelBorderColor: "#333333"
+    readonly property color panelBorderColor: "#313244" // Mocha Surface2
 
     // Item properties
-    readonly property int itemWidth: 32
-    readonly property int itemHeight: 24
-    readonly property int itemRadius: 12
-    readonly property int borderWidth: 2
-    readonly property int cornerRadius : 12
+    readonly property int itemWidth: 36
+    readonly property int itemHeight: 36
+    readonly property int itemRadius: 18
+    readonly property int cornerRadius : 12   // for panel cutout
 
     // Colors
-    property color activeColor: "#CBA6E2"  // Mauve: Vibrant accent for active elements
-    property color inactiveColor: "#494D64"  // Overlay0: Muted grey for inactive states
-    property color bgColor: "#1E1E2E"  // Base: Dark background for overall theme
-    property color onHoverColor: "#F5C2E7"  // Rosewater: Soft highlight for hover, related to Mauve for cohesion
-    property color borderColor: "#313244"  // Surface2: Subtle border color for UI elements
-    property color disabledColor: "#232634"  // Disabled: Dimmed color for unavailable/unpopulated workspaces
-    property color powerSaveColor: "#A6E3A1"
+    property color activeColor: "#CBA6F7"  // Mocha Mauve
+    property color inactiveColor: "#494D64"  // Mocha Overlay0
+    property color bgColor: "#1E1E2E"  // Mocha Base: Dark background
+    property color onHoverColor: "#A28DCD"  // Darker Mocha Mauve for hover
+    property color borderColor: "#313244"  // Mocha Surface2
+    property color disabledColor: "#232634"  // Mocha Crust
+    property color powerSaveColor: "#A6E3A1" // Mocha Green
 
     // Popup vertical offset
-    readonly property int popupOffset: 17
+    readonly property int popupOffset: 18
 
     // Text colors
-    readonly property color textActiveColor: "#CDD6F4"  // Text: Bright white for active text
-    readonly property color textInactiveColor: "#A6ADC8"  // Subtext: Lighter grey for inactive text
-    readonly property color textOnHoverColor: "#CBA6E2"  // Mauve: Matches activeColor for hover emphasis
+    readonly property color textActiveColor: "#CDD6F4"  // Mocha Text: Bright for active text
+    readonly property color textInactiveColor: "#A6ADC8"  // Mocha Subtext: Lighter grey for inactive text
+    readonly property color textOnHoverColor: "#CBA6F7"  // Mocha Mauve: Matches activeColor for hover emphasis
 
     // Catppuccin contrast text color function
     function textContrast(bgColor) {
@@ -50,13 +49,17 @@ QtObject {
         if (bgColor === Theme.powerSaveColor)
             return "#CDD6F4";
 
+        // If using onHoverColor (darker mauve), use white for best contrast
+        if (bgColor === Theme.onHoverColor)
+            return "#FFFFFF";
+
         // Threshold chosen for Catppuccin's dark/light split
         return l > 0.6 ? "#4C4F69" : "#CDD6F4";
     }
 
     // Font properties
     readonly property string fontFamily: "CaskaydiaCove Nerd Font Propo"
-    readonly property int fontSize: 17
+    readonly property int fontSize: 18
 
     // Animation
     readonly property int animationDuration: 147
