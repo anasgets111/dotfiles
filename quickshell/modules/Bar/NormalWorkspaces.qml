@@ -7,6 +7,16 @@ Item {
     property bool expanded: false
     property int hoveredIndex: 0
 
+    // Only show if running in Hyprland session
+    property bool isHyprlandSession: (
+        (Quickshell.env && (
+            Quickshell.env("XDG_SESSION_DESKTOP") === "Hyprland" ||
+            Quickshell.env("XDG_CURRENT_DESKTOP") === "Hyprland" ||
+            Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")
+        ))
+    )
+    visible: isHyprlandSession
+
     property int currentWorkspace: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1
     property int previousWorkspace: currentWorkspace
     property real slideProgress: 0.0
