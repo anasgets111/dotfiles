@@ -17,7 +17,7 @@ Item {
     property int slideTo: currentWorkspace
 
     function workspaceColor(ws) {
-        if (ws.active)              return Theme.activeColor
+        if (ws.focused)             return Theme.activeColor
         if (ws.id === hoveredIndex) return Theme.onHoverColor
         if (ws.populated)           return Theme.inactiveColor
                                      return Theme.disabledColor
@@ -30,7 +30,7 @@ Item {
             var w = map[i+1]
             return {
                 id:        i+1,
-                active:    !!(w && w.active),
+                focused:   !!(w && w.focused),
                 populated: !!w
             }
         })
@@ -100,7 +100,7 @@ Item {
                            : 0
         }
         onClicked: {
-            if (hoveredIndex > 0)
+            if (hoveredIndex > 0 && !workspaceStatusList[hoveredIndex - 1].focused)
                 Hyprland.dispatch("workspace " + hoveredIndex)
         }
     }
@@ -174,7 +174,7 @@ Item {
             radius: Theme.itemRadius
             color: workspaceColor({
                 id:        slideFrom,
-                active:    true,
+                focused:   true,
                 populated: true
             })
             x: slideProgress * collapsedWs.slideDirection
@@ -195,7 +195,7 @@ Item {
             radius: Theme.itemRadius
             color: workspaceColor({
                 id:        slideTo,
-                active:    true,
+                focused:   true,
                 populated: true
             })
             x: (slideProgress - 1)
