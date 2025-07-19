@@ -9,13 +9,13 @@ Row {
     property string activeSpecial: ""
     property var specialWorkspacesList: getSpecialWorkspaces()
     property int maxSpecialWidth: {
-        var maxW = Theme.itemWidth
+        var maxW = Theme.itemWidth;
         for (var i = 0; i < widthProbe.children.length; ++i) {
-            var probeW = widthProbe.children[i].implicitWidth + 12
+            var probeW = widthProbe.children[i].implicitWidth + 12;
             if (probeW > maxW)
-                maxW = probeW
+                maxW = probeW;
         }
-        return maxW
+        return maxW;
     }
 
     function getSpecialWorkspaces() {
@@ -30,14 +30,13 @@ Row {
 
     function getSpecialText(ws) {
         var nameLower = ws.name.toLowerCase();
-        if (nameLower.includes("telegram")) return "\uF2C6";
-        if (nameLower.includes("slack"))    return "\uF3EF";
-        if (nameLower.includes("discord") ||
-            nameLower.includes("vesktop") ||
-            nameLower.includes("string"))
+        if (nameLower.includes("telegram"))
+            return "\uF2C6";
+        if (nameLower.includes("slack"))
+            return "\uF3EF";
+        if (nameLower.includes("discord") || nameLower.includes("vesktop") || nameLower.includes("string"))
             return "\uF392";
-        if (nameLower.includes("term") ||
-            nameLower.includes("magic"))
+        if (nameLower.includes("term") || nameLower.includes("magic"))
             return "\uF120";
         return ws.name.replace("special:", "");
     }
@@ -50,17 +49,16 @@ Row {
             delegate: Text {
                 property var ws: modelData
                 text: {
-                    var nameLower = ws.name.toLowerCase()
-                    if (nameLower.includes("telegram")) return "\uF2C6"
-                    if (nameLower.includes("slack"))    return "\uF3EF"
-                    if (nameLower.includes("discord") ||
-                        nameLower.includes("vesktop") ||
-                        nameLower.includes("string"))
-                        return "\uF392"
-                    if (nameLower.includes("term") ||
-                        nameLower.includes("magic"))
-                        return "\uF120"
-                    return ws.name.replace("special:", "")
+                    var nameLower = ws.name.toLowerCase();
+                    if (nameLower.includes("telegram"))
+                        return "\uF2C6";
+                    if (nameLower.includes("slack"))
+                        return "\uF3EF";
+                    if (nameLower.includes("discord") || nameLower.includes("vesktop") || nameLower.includes("string"))
+                        return "\uF392";
+                    if (nameLower.includes("term") || nameLower.includes("magic"))
+                        return "\uF120";
+                    return ws.name.replace("special:", "");
                 }
                 font.pixelSize: Theme.fontSize
                 font.family: (text.length === 1 ? "Nerd Font" : Theme.fontFamily)
@@ -73,10 +71,10 @@ Row {
         target: Hyprland
         function onRawEvent(event) {
             if (event.name === "activespecial") {
-                activeSpecial = event.data.split(",")[0]
+                activeSpecial = event.data.split(",")[0];
             } else if (event.name === "workspace") {
                 if (parseInt(event.data.split(",")[0]) > 0)
-                    activeSpecial = ""
+                    activeSpecial = "";
             }
         }
     }
@@ -95,24 +93,20 @@ Row {
                 }
                 return -1;
             }
-            width: (probeIndex >= 0 && widthProbe.children[probeIndex])
-                ? widthProbe.children[probeIndex].implicitWidth + 12
-                : Theme.itemWidth
+            width: (probeIndex >= 0 && widthProbe.children[probeIndex]) ? widthProbe.children[probeIndex].implicitWidth + 12 : Theme.itemWidth
             height: Theme.itemHeight
             radius: Theme.itemRadius
 
             property bool isActive: ws.name === specialWorkspaces.activeSpecial
             property bool isHovered: false
 
-            color: isActive
-                ? Theme.activeColor
-                : (isHovered
-                   ? Theme.onHoverColor
-                   : Theme.inactiveColor)
-            Behavior on color { ColorAnimation {
-                duration: Theme.animationDuration
-                easing.type: Easing.InOutQuad
-            }}
+            color: isActive ? Theme.activeColor : (isHovered ? Theme.onHoverColor : Theme.inactiveColor)
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.animationDuration
+                    easing.type: Easing.InOutQuad
+                }
+            }
 
             MouseArea {
                 id: mouseArea
@@ -120,8 +114,8 @@ Row {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    var n = ws.name.replace("special:", "")
-                    Hyprland.dispatch("togglespecialworkspace " + n)
+                    var n = ws.name.replace("special:", "");
+                    Hyprland.dispatch("togglespecialworkspace " + n);
                 }
                 onEntered: parent.isHovered = true
                 onExited: parent.isHovered = false
@@ -130,33 +124,28 @@ Row {
             Text {
                 anchors.centerIn: parent
                 text: {
-                    var nameLower = ws.name.toLowerCase()
-                    if (nameLower.includes("telegram")) return "\uF2C6"
-                    if (nameLower.includes("slack"))    return "\uF3EF"
-                    if (nameLower.includes("discord") ||
-                        nameLower.includes("vesktop") ||
-                        nameLower.includes("string"))
-                        return "\uF392"
-                    if (nameLower.includes("term") ||
-                        nameLower.includes("magic"))
-                        return "\uF120"
-                    return ws.name.replace("special:", "")
+                    var nameLower = ws.name.toLowerCase();
+                    if (nameLower.includes("telegram"))
+                        return "\uF2C6";
+                    if (nameLower.includes("slack"))
+                        return "\uF3EF";
+                    if (nameLower.includes("discord") || nameLower.includes("vesktop") || nameLower.includes("string"))
+                        return "\uF392";
+                    if (nameLower.includes("term") || nameLower.includes("magic"))
+                        return "\uF120";
+                    return ws.name.replace("special:", "");
                 }
                 font.pixelSize: Theme.fontSize
                 font.family: (text.length === 1 ? "Nerd Font" : Theme.fontFamily)
                 font.bold: true
 
-                color: Theme.textContrast(
-                    isActive
-                        ? Theme.activeColor
-                        : (parent.isHovered
-                            ? Theme.onHoverColor
-                            : Theme.inactiveColor)
-                )
-                Behavior on color { ColorAnimation {
-                    duration: Theme.animationDuration
-                    easing.type: Easing.InOutQuad
-                }}
+                color: Theme.textContrast(isActive ? Theme.activeColor : (parent.isHovered ? Theme.onHoverColor : Theme.inactiveColor))
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.InOutQuad
+                    }
+                }
             }
         }
     }

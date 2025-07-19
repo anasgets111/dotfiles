@@ -2,7 +2,6 @@ import QtQuick
 import Quickshell.Hyprland
 
 Item {
-
     id: activeWindow
     width: windowTitle.implicitWidth
     height: windowTitle.implicitHeight
@@ -15,25 +14,28 @@ Item {
         function onRawEvent(event) {
             if (event.name === "activewindow") {
                 // Parse event data: "class,title"
-                var data = event.data.split(",")
+                var data = event.data.split(",");
                 if (data.length >= 2) {
-                    activeWindow.currentClass = data[0] || ""
-                    activeWindow.currentTitle = data[1] || ""
+                    activeWindow.currentClass = data[0] || "";
+                    activeWindow.currentTitle = data[1] || "";
                 } else if (data.length === 1 && data[0] === "") {
                     // No active window (desktop)
-                    activeWindow.currentClass = ""
-                    activeWindow.currentTitle = ""
+                    activeWindow.currentClass = "";
+                    activeWindow.currentTitle = "";
                 } else if (data.length === 1) {
                     // Only class available
-                    activeWindow.currentClass = data[0] || ""
-                    activeWindow.currentTitle = ""
+                    activeWindow.currentClass = data[0] || "";
+                    activeWindow.currentTitle = "";
                 }
             }
         }
     }
 
     Behavior on width {
-        NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.InOutQuad }
+        NumberAnimation {
+            duration: Theme.animationDuration
+            easing.type: Easing.InOutQuad
+        }
     }
 
     Text {
@@ -41,12 +43,12 @@ Item {
         text: {
             if (activeWindow.currentTitle) {
                 // Limit title length to prevent excessive width
-                var title = activeWindow.currentTitle
-                return title.length > 60 ? title.substring(0, 57) + "..." : title
+                var title = activeWindow.currentTitle;
+                return title.length > 60 ? title.substring(0, 57) + "..." : title;
             } else if (activeWindow.currentClass) {
-                return activeWindow.currentClass
+                return activeWindow.currentClass;
             } else {
-                return "Desktop"
+                return "Desktop";
             }
         }
         color: Theme.textContrast(Theme.bgColor)
@@ -54,6 +56,5 @@ Item {
         font.bold: true
         font.family: Theme.fontFamily
         elide: Text.ElideRight
-
     }
 }

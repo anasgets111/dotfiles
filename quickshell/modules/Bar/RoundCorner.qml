@@ -3,7 +3,12 @@ import QtQuick 2.9
 Item {
     id: root
 
-    enum CornerEnum { TopLeft, TopRight, BottomLeft, BottomRight }
+    enum CornerEnum {
+        TopLeft,
+        TopRight,
+        BottomLeft,
+        BottomRight
+    }
     property int corner: 0
 
     property int size: Theme.panelRadius
@@ -27,22 +32,22 @@ Item {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
             switch (root.corner) {
-                case 0: // TopLeft
-                    ctx.arc(r, r, r, Math.PI, 1.5 * Math.PI);
-                    ctx.lineTo(0, 0);
-                    break;
-                case 1: // TopRight
-                    ctx.arc(0, r, r, 1.5 * Math.PI, 2 * Math.PI);
-                    ctx.lineTo(r, 0);
-                    break;
-                case 2: // BottomLeft
-                    ctx.arc(r, 0, r, 0.5 * Math.PI, Math.PI);
-                    ctx.lineTo(0, r);
-                    break;
-                case 3: // BottomRight
-                    ctx.arc(0, 0, r, 0, 0.5 * Math.PI);
-                    ctx.lineTo(r, r);
-                    break;
+            case 0: // TopLeft
+                ctx.arc(r, r, r, Math.PI, 1.5 * Math.PI);
+                ctx.lineTo(0, 0);
+                break;
+            case 1: // TopRight
+                ctx.arc(0, r, r, 1.5 * Math.PI, 2 * Math.PI);
+                ctx.lineTo(r, 0);
+                break;
+            case 2: // BottomLeft
+                ctx.arc(r, 0, r, 0.5 * Math.PI, Math.PI);
+                ctx.lineTo(0, r);
+                break;
+            case 3: // BottomRight
+                ctx.arc(0, 0, r, 0, 0.5 * Math.PI);
+                ctx.lineTo(r, r);
+                break;
             }
             ctx.closePath();
             ctx.fillStyle = root.color;

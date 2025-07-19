@@ -22,34 +22,21 @@ Item {
 
     readonly property int iconSpacing: 8
 
-    property var fallbackOrder: [
-        // "Tela-circle-dracula", "Adwaita", "AdwaitaLegacy",
-        // "default",           "breeze",  "hicolor"
-    ]
+    property var fallbackOrder: []
     property var availableThemes: []
-    property string preferredIconTheme:
-        Quickshell.env("ICON_THEME")
-        || (availableThemes.length > 0
-            ? availableThemes[0]
-            : "hicolor"
-           )
+    property string preferredIconTheme: Quickshell.env("ICON_THEME") || (availableThemes.length > 0 ? availableThemes[0] : "hicolor")
 
     Component.onCompleted: {
         availableThemes = fallbackOrder;
     }
 
     // Where to look inside a theme
-    readonly property var iconDirs: [
-        "scalable/apps/",   "scalable/actions/", "scalable/devices/",
-        "scalable/status/", "scalable/places/",
-        "48x48/apps/",      "48x48/actions/",   "48x48/devices/",
-        "48x48/status/",    "48x48/places/"
-    ]
+    readonly property var iconDirs: ["scalable/apps/", "scalable/actions/", "scalable/devices/", "scalable/status/", "scalable/places/", "48x48/apps/", "48x48/actions/", "48x48/devices/", "48x48/status/", "48x48/places/"]
     readonly property var iconExts: [".svg", ".png"]
 
     function getThemeIconName(iconUrl) {
-        var m = iconUrl.match(/image:\/\/(?:icon|qspixmap)\/([^\/]+)/)
-        return m ? m[1] : iconUrl
+        var m = iconUrl.match(/image:\/\/(?:icon|qspixmap)\/([^\/]+)/);
+        return m ? m[1] : iconUrl;
     }
 
     function getIconPath(iconName) {
@@ -80,25 +67,22 @@ Item {
             MouseArea {
                 id: trayMouseArea
                 property var trayItem: modelData
-                width:  Theme.iconSize
+                width: Theme.iconSize
                 height: Theme.iconSize
-                acceptedButtons: Qt.LeftButton
-                                  | Qt.RightButton
-                                  | Qt.MiddleButton
+                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                 hoverEnabled: true
 
-                onClicked: function(mouse) {
+                onClicked: function (mouse) {
                     if (mouse.button === Qt.LeftButton)
-                        trayItem.activate()
+                        trayItem.activate();
                     else if (mouse.button === Qt.RightButton && trayItem.hasMenu)
-                        menuAnchor.open()
+                        menuAnchor.open();
                     else if (mouse.button === Qt.MiddleButton)
-                        trayItem.secondaryActivate()
+                        trayItem.secondaryActivate();
                 }
 
-                onWheel: function(wheel) {
-                    trayItem.scroll(wheel.angleDelta.x,
-                                    wheel.angleDelta.y)
+                onWheel: function (wheel) {
+                    trayItem.scroll(wheel.angleDelta.x, wheel.angleDelta.y);
                 }
 
                 QsMenuAnchor {
@@ -114,9 +98,7 @@ Item {
                     height: Theme.iconSize + 6
                     anchors.centerIn: parent
                     radius: (Theme.iconSize + 6) / 2
-                    color: trayMouseArea.containsMouse
-                        ? Theme.onHoverColor
-                        : "transparent"
+                    color: trayMouseArea.containsMouse ? Theme.onHoverColor : "transparent"
 
                     Behavior on color {
                         ColorAnimation {
@@ -129,47 +111,35 @@ Item {
                 Image {
                     id: iconImage
                     anchors.centerIn: parent
-                    width:  Theme.iconSize
+                    width: Theme.iconSize
                     height: Theme.iconSize
 
                     property string iconName: getThemeIconName(trayItem.icon)
                     property string themePath: getIconPath(iconName)
 
-                    source: trayItem.icon.startsWith("image://")
-                        ? trayItem.icon
-                        : themePath
+                    source: trayItem.icon.startsWith("image://") ? trayItem.icon : themePath
 
                     fillMode: Image.PreserveAspectFit
                     smooth: true
-                    visible:
-                        status !== Image.Error
-                        && status !== Image.Null
+                    visible: status !== Image.Error && status !== Image.Null
 
                     onStatusChanged: {
-                        if (status === Image.Error
-                            && trayItem.icon.startsWith("image://")) {
-                            var fp = getIconPath(iconName)
-                            if (fp) source = fp
+                        if (status === Image.Error && trayItem.icon.startsWith("image://")) {
+                            var fp = getIconPath(iconName);
+                            if (fp)
+                                source = fp;
                         }
                     }
                 }
 
                 Text {
                     anchors.centerIn: parent
-                    text: trayItem.tooltipTitle
-                          ? trayItem.tooltipTitle
-                          : (trayItem.title
-                              ? trayItem.title.charAt(0).toUpperCase()
-                              : "?")
-                    color: trayMouseArea.containsMouse
-                        ? Theme.textOnHoverColor
-                        : Theme.textActiveColor
+                    text: trayItem.tooltipTitle ? trayItem.tooltipTitle : (trayItem.title ? trayItem.title.charAt(0).toUpperCase() : "?")
+                    color: trayMouseArea.containsMouse ? Theme.textOnHoverColor : Theme.textActiveColor
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
                     font.bold: true
-                    visible:
-                        iconImage.status === Image.Error
-                        || iconImage.status === Image.Null
+                    visible: iconImage.status === Image.Error || iconImage.status === Image.Null
                 }
 
                 Rectangle {
@@ -193,12 +163,8 @@ Item {
                     Text {
                         id: tooltipText
                         anchors.centerIn: parent
-                        text: trayItem.tooltipTitle
-                              ? trayItem.tooltipTitle
-                              : trayItem.title
-                        color: Theme.textContrast(
-                            trayMouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor
-                        )
+                        text: trayItem.tooltipTitle ? trayItem.tooltipTitle : trayItem.title
+                        color: Theme.textContrast(trayMouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
                         font.pixelSize: Theme.fontSize
                         font.family: Theme.fontFamily
                     }

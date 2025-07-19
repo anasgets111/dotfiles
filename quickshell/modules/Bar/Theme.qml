@@ -13,9 +13,8 @@ QtObject {
     readonly property color panelWindowColor: "transparent"
     readonly property color panelBorderColor: "#313244" // Mocha Surface2
 
-
     // Item properties
-    readonly property int iconSize:    24
+    readonly property int iconSize: 24
     readonly property int itemWidth: 34
     readonly property int itemHeight: 34
     readonly property int itemRadius: 18
@@ -65,7 +64,6 @@ QtObject {
 
     // Animation
     readonly property int animationDuration: 147
-
 
     // DateTime format
     readonly property string formatDateTime: "dddd dd MMMM hh:mm AP"

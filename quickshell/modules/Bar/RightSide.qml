@@ -1,6 +1,5 @@
 import QtQuick
 
-
 Row {
     id: rightSide
     spacing: 8
@@ -10,12 +9,11 @@ Row {
     }
 
     SysTray {
-      anchors.verticalCenter: parent.verticalCenter
-      bar: panelWindow
+        anchors.verticalCenter: parent.verticalCenter
+        bar: panelWindow
     }
 
     DateTimeDisplay {
         anchors.verticalCenter: parent.verticalCenter
     }
-
 }
