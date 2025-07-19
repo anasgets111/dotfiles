@@ -1,5 +1,7 @@
 import QtQuick
 import QtQuick.Controls
+import Quickshell
+import Quickshell.Io
 
 Item {
     id: dateTimeDisplay
@@ -34,5 +36,19 @@ Item {
         font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
         padding: 7
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: swayncProc.running = true
+    }
+
+    Process {
+        id: swayncProc
+        command: ["swaync-client", "-t"]
+        running: false
+        // Optionally handle output:
+        // stdout: StdioCollector { onStreamFinished: { /* handle output if needed */ } }
     }
 }
