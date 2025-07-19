@@ -35,7 +35,7 @@ Item {
         font.bold: true
         font.pixelSize: Theme.fontSize
         font.family: Theme.fontFamily
-        padding: 7
+        padding: 8
     }
 
     MouseArea {
