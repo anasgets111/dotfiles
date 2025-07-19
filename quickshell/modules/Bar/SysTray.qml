@@ -8,8 +8,7 @@ import Quickshell.Io
 Item {
     id: systemTrayWidget
 
-    // Pilled shape container styling
-    width: trayRow.width + iconPadding * 2
+    width: trayRow.width + iconSpacing
     height: Theme.itemHeight
 
     Rectangle {
@@ -21,14 +20,11 @@ Item {
 
     required property var bar
 
-    readonly property int iconSize:    16
     readonly property int iconSpacing: 8
-    readonly property int iconPadding: 4
 
-    // Fallback order for themes
     property var fallbackOrder: [
-        "Tela-circle-dracula", "Adwaita", "AdwaitaLegacy",
-        "default",           "breeze",  "hicolor"
+        // "Tela-circle-dracula", "Adwaita", "AdwaitaLegacy",
+        // "default",           "breeze",  "hicolor"
     ]
     property var availableThemes: []
     property string preferredIconTheme:
@@ -38,7 +34,6 @@ Item {
             : "hicolor"
            )
 
-    // Hardcode availableThemes to fallbackOrder
     Component.onCompleted: {
         availableThemes = fallbackOrder;
     }
@@ -52,14 +47,11 @@ Item {
     ]
     readonly property var iconExts: [".svg", ".png"]
 
-    // Extract the base name from an image:// URL
     function getThemeIconName(iconUrl) {
         var m = iconUrl.match(/image:\/\/(?:icon|qspixmap)\/([^\/]+)/)
         return m ? m[1] : iconUrl
     }
 
-    // Return "file://…" or empty string
-    // Use Quickshell.iconPath with theme override for icon existence
     function getIconPath(iconName) {
         for (var i = 0; i < iconDirs.length; i++) {
             for (var j = 0; j < iconExts.length; j++) {
@@ -71,7 +63,8 @@ Item {
                     return path;
             }
         }
-        return "";
+        // Fallback to a default missing icon
+        return Quickshell.iconPath("image-missing", true);
     }
 
     // width/height moved to top for pill container
@@ -87,8 +80,8 @@ Item {
             MouseArea {
                 id: trayMouseArea
                 property var trayItem: modelData
-                width:  iconSize
-                height: iconSize
+                width:  Theme.iconSize
+                height: Theme.iconSize
                 acceptedButtons: Qt.LeftButton
                                   | Qt.RightButton
                                   | Qt.MiddleButton
@@ -117,10 +110,10 @@ Item {
                 }
 
                 Rectangle {
-                    width: iconSize + 6
-                    height: iconSize + 6
+                    width: Theme.iconSize + 6
+                    height: Theme.iconSize + 6
                     anchors.centerIn: parent
-                    radius: (iconSize + 6) / 2
+                    radius: (Theme.iconSize + 6) / 2
                     color: trayMouseArea.containsMouse
                         ? Theme.onHoverColor
                         : "transparent"
@@ -136,8 +129,8 @@ Item {
                 Image {
                     id: iconImage
                     anchors.centerIn: parent
-                    width:  iconSize
-                    height: iconSize
+                    width:  Theme.iconSize
+                    height: Theme.iconSize
 
                     property string iconName: getThemeIconName(trayItem.icon)
                     property string themePath: getIconPath(iconName)

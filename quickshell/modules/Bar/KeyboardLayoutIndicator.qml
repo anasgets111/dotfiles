@@ -87,6 +87,8 @@ Item {
         id: label
         text: layoutService.shortName(layoutService.currentLayout)
         font.pixelSize: Theme.fontSize
+        font.family: Theme.fontFamily
+        font.bold: true
         color: Theme.textContrast(Theme.inactiveColor)
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter

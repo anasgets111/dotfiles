@@ -9,7 +9,7 @@ PanelWindow {
     id: panelWindow
     mask: Region { item: panelRect }
     implicitWidth:  Screen.width
-    implicitHeight: Theme.panelHeight + Theme.cornerRadius + Theme.tooltipMaxSpace
+    implicitHeight: Theme.panelHeight + Theme.panelRadius + Theme.tooltipMaxSpace
     exclusiveZone:  Theme.panelHeight
 
     screen: Quickshell.screens[0]
@@ -50,7 +50,7 @@ PanelWindow {
     Item {
         id: bottomCuts
         width:  parent.width
-        height: Theme.cornerRadius
+        height: Theme.panelRadius
         anchors.top:    panelRect.bottom
         anchors.left:   parent.left
         anchors.right:  parent.right
@@ -58,7 +58,7 @@ PanelWindow {
         RoundCorner {
             anchors.left: parent.left
             anchors.top: parent.top
-            size: Theme.cornerRadius
+            size: Theme.panelRadius
             color: Theme.bgColor
             corner: 2
             rotation: 90
@@ -67,7 +67,7 @@ PanelWindow {
         RoundCorner {
             anchors.right: parent.right
             anchors.top: parent.top
-            size: Theme.cornerRadius
+            size: Theme.panelRadius
             color: Theme.bgColor
             corner: 3
             rotation: -90

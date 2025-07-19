@@ -223,7 +223,8 @@ Rectangle {
         id: volumeIconItem
         text: volumeIcon
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
+        font.pixelSize: Theme.fontSize + Theme.fontSize/2
+        font.bold: true
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignHCenter
         color: volumeControl.contrastColor
@@ -248,6 +249,8 @@ Rectangle {
               ? Math.round(volume * 100) + "%"
               : "--"
         font.pixelSize: Theme.fontSize
+        font.family: Theme.fontFamily
+        font.bold: true
         verticalAlignment: Text.AlignVCenter
         horizontalAlignment: Text.AlignHCenter
         color: volumeControl.contrastColor

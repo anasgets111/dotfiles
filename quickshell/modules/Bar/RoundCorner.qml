@@ -6,7 +6,7 @@ Item {
     enum CornerEnum { TopLeft, TopRight, BottomLeft, BottomRight }
     property int corner: 0
 
-    property int size: Theme.cornerRadius
+    property int size: Theme.panelRadius
     property color color: Theme.bgColor
 
     implicitWidth: size
