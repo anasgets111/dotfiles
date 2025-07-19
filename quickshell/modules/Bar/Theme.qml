@@ -5,17 +5,20 @@ QtObject {
     // Panel properties
 
     readonly property int tooltipMaxSpace: 100
-    readonly property int panelRadius: 15
+    readonly property int popupOffset: 18
+
+    readonly property int panelRadius: 16
     readonly property int panelHeight: 42
     readonly property int panelMargin: 16
     readonly property color panelWindowColor: "transparent"
     readonly property color panelBorderColor: "#313244" // Mocha Surface2
 
+
     // Item properties
-    readonly property int itemWidth: 36
-    readonly property int itemHeight: 36
+    readonly property int iconSize:    24
+    readonly property int itemWidth: 34
+    readonly property int itemHeight: 34
     readonly property int itemRadius: 18
-    readonly property int cornerRadius : 12   // for panel cutout
 
     // Colors
     property color activeColor: "#CBA6F7"  // Mocha Mauve
@@ -27,7 +30,6 @@ QtObject {
     property color powerSaveColor: "#A6E3A1" // Mocha Green
 
     // Popup vertical offset
-    readonly property int popupOffset: 18
 
     // Text colors
     readonly property color textActiveColor: "#CDD6F4"  // Mocha Text: Bright for active text
@@ -59,7 +61,7 @@ QtObject {
 
     // Font properties
     readonly property string fontFamily: "CaskaydiaCove Nerd Font Propo"
-    readonly property int fontSize: 18
+    readonly property int fontSize: 16
 
     // Animation
     readonly property int animationDuration: 147
