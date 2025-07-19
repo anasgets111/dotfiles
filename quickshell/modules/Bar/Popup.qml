@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 
-
 PopupWindow {
     id: popupRoot
 
@@ -11,7 +10,7 @@ PopupWindow {
     // Gravity and alignment for popup placement
     property int gravity: Qt.BottomEdge
     property int alignment: Qt.AlignHCenter
-    color : Theme.panelWindowColor
+    color: Theme.panelWindowColor
     // Content for the popup
     default property alias contentItem: popupContent.data
 
@@ -24,7 +23,6 @@ PopupWindow {
         // Vertical offset below anchorItem
         margins.top: Theme.popupOffset
     }
-
 
     // Example styling: rounded rectangle background
     Rectangle {

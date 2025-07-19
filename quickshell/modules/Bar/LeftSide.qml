@@ -19,7 +19,7 @@ Row {
         anchors.verticalCenter: parent.verticalCenter
     }
 
-    KeyboardLayoutIndicator{
+    KeyboardLayoutIndicator {
         anchors.verticalCenter: parent.verticalCenter
     }
     BatteryIndicator {
