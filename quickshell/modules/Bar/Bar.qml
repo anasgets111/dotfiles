@@ -12,7 +12,7 @@ PanelWindow {
     implicitHeight: Theme.panelHeight + Theme.cornerRadius + Theme.tooltipMaxSpace
     exclusiveZone:  Theme.panelHeight
 
-    screen: Quickshell.screens[0]
+    screen: Quickshell.screens.length > 1 ? Quickshell.screens[1] : Quickshell.screens[0]
     WlrLayershell.namespace: "quickshell:bar:blur"
     anchors { top: true; left: true; right: true }
     color:  Theme.panelWindowColor
