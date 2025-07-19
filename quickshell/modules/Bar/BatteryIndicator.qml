@@ -107,6 +107,8 @@ Item {
             }
             if (isCharging && device.timeToFull > 0)
                 return "Time to full: " + fmt(device.timeToFull);
+            if (!isCharging && device.isPresent && Math.round(percentage * 100) === 100)
+                return "Connected";
             if (!isCharging && device.timeToEmpty > 0)
                 return "Time remaining: " + fmt(device.timeToEmpty);
             return "Calculating…";
