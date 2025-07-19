@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import Quickshell.Hyprland
+import Quickshell.Io
 
 Rectangle {
     id: powerMenu
@@ -35,8 +35,14 @@ Rectangle {
     radius: Theme.itemRadius
     color: "transparent"
 
+    Process {
+        id: actionProc
+        running: false
+    }
+
     function execAction(cmd) {
-        Hyprland.dispatch("exec pkill chromium 2>/dev/null || true; " + cmd);
+        actionProc.command = ["sh", "-c", "pkill chromium 2>/dev/null || true; " + cmd];
+        actionProc.running = true;
     }
 
     onHoverCountChanged: {
