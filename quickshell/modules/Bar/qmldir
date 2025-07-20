@@ -1,0 +1,18 @@
+singleton Theme Theme.qml
+Bar Bar.qml
+ActiveWindow ActiveWindow.qml
+BatteryIndicator BatteryIndicator.qml
+CenterSide CenterSide.qml
+DateTimeDisplay DateTimeDisplay.qml
+IdleInhibitor IdleInhibitor.qml
+KeyboardLayoutIndicator KeyboardLayoutIndicator.qml
+LeftSide LeftSide.qml
+NormalWorkspaces NormalWorkspaces.qml
+Popup Popup.qml
+PowerMenu PowerMenu.qml
+RightSide RightSide.qml
+RoundCorner RoundCorner.qml
+SpecialWorkspaces SpecialWorkspaces.qml
+SysTray SysTray.qml
+UpdateChecker UpdateChecker.qml
+Volume Volume.qml

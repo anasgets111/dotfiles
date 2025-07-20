@@ -1,4 +1,4 @@
-import QtQuick 2.0
+import QtQuick
 import Quickshell.Wayland
 import Quickshell
 
@@ -7,7 +7,7 @@ Item {
     width: windowTitle.implicitWidth
     height: windowTitle.implicitHeight
 
-    property int    maxLength: 60
+    property int maxLength: 60
     property string currentTitle: ""
     property string currentClass: ""
     property string appName: ""
@@ -15,49 +15,49 @@ Item {
 
     // Called on any update (new active or title change)
     function updateActive() {
-        var top = ToplevelManager.activeToplevel
+        var top = ToplevelManager.activeToplevel;
         if (top) {
-            currentTitle = top.title || ""
-            currentClass = top.appId || ""
-            var entry = DesktopEntries.byId(currentClass)
-            appName = entry && entry.name ? entry.name : currentClass
+            activeWindow.currentTitle = top.title || "";
+            activeWindow.currentClass = top.appId || "";
+            var entry = DesktopEntries.byId(activeWindow.currentClass);
+            activeWindow.appName = entry && entry.name ? entry.name : activeWindow.currentClass;
         } else {
-            currentTitle = ""
-            currentClass = ""
-            appName = ""
+            activeWindow.currentTitle = "";
+            activeWindow.currentClass = "";
+            activeWindow.appName = "";
         }
-        displayText = computeDisplayText()
+        activeWindow.displayText = activeWindow.computeDisplayText();
     }
 
     // Compose + truncate
     function computeDisplayText() {
-        var txt
-        if (currentTitle && appName) {
-            txt = (appName === "Zen Browser")
-                ? currentTitle
-                : appName + ": " + currentTitle
-        } else if (currentTitle) {
-            txt = currentTitle
-        } else if (appName) {
-            txt = appName
+        var txt;
+        if (activeWindow.currentTitle && activeWindow.appName) {
+            txt = (activeWindow.appName === "Zen Browser") ? activeWindow.currentTitle : activeWindow.appName + ": " + activeWindow.currentTitle;
+        } else if (activeWindow.currentTitle) {
+            txt = activeWindow.currentTitle;
+        } else if (activeWindow.appName) {
+            txt = activeWindow.appName;
         } else {
-            txt = "Desktop"
+            txt = "Desktop";
         }
-        return txt.length > maxLength
-            ? txt.substring(0, maxLength - 3) + "..."
-            : txt
+        return txt.length > activeWindow.maxLength ? txt.substring(0, activeWindow.maxLength - 3) + "..." : txt;
     }
 
     // 1) Active‐window switch
     Connections {
         target: ToplevelManager
-        function onActiveToplevelChanged() { updateActive(); }
+        function onActiveToplevelChanged() {
+            activeWindow.updateActive();
+        }
     }
 
     // 2) Title changes on the *current* toplevel
     Connections {
         target: ToplevelManager.activeToplevel
-        function onTitleChanged() { updateActive(); }
+        function onTitleChanged() {
+            activeWindow.updateActive();
+        }
     }
 
     Component.onCompleted: updateActive()
