@@ -7,7 +7,7 @@ Item {
     id: root
     visible: device.isLaptopBattery
     implicitHeight: Theme.itemHeight
-    implicitWidth: row.implicitWidth + 12
+    implicitWidth: 80
 
     property var device: UPower.displayDevice
     property real percentage: device.percentage
@@ -59,35 +59,64 @@ Item {
         Quickshell.execDetached(["systemctl", "suspend"])
 
     Rectangle {
+        id: container
         anchors.fill: parent
         color: Theme.inactiveColor
         radius: height / 2
     }
 
-    Rectangle {
-        id: fill
-        anchors {
-            left: parent.left
-            top: parent.top
-            bottom: parent.bottom
-        }
-        property real fullW: parent.width * percentage
+    Item {
+        anchors.fill: container
 
-        width: widthPhase > 0 ? (widthPhase % 2 === 1 ? 0 : fullW) : fullW
+        Canvas {
+            id: waterCanvas
+            anchors.fill: parent
 
-        radius: height / 2
-        color: batteryArea.powerProfile === "power-saver" ? Theme.powerSaveColor : (batteryArea.powerProfile === "performance" || batteryArea.powerProfile === "balanced") ? (percentage <= 0.10 ? "#f38ba8" : percentage <= 0.20 ? "#fab387" : Theme.activeColor) : Theme.activeColor
+            property real    fillWidth: width * percentage
+            property color   waterColor:
+                batteryArea.powerProfile === "power-saver"
+                    ? Theme.powerSaveColor
+                    : (batteryArea.powerProfile === "performance"
+                       || batteryArea.powerProfile === "balanced")
+                        ? (percentage <= 0.10 ? "#f38ba8"
+                          : percentage <= 0.20 ? "#fab387"
+                          : Theme.activeColor)
+                        : Theme.activeColor
 
-        Behavior on width {
-            NumberAnimation {
-                duration: Theme.animationDuration
-                easing.type: Easing.OutCubic
+            onFillWidthChanged:  requestPaint()
+            onWaterColorChanged: requestPaint()
+            onWidthChanged:      requestPaint()
+            onHeightChanged:     requestPaint()
+
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.reset()
+                // 1) pill‐shape clipping path
+                var r = height / 2
+                ctx.beginPath()
+                ctx.moveTo(r, 0)
+                ctx.lineTo(width - r, 0)
+                ctx.arc(width - r, r, r, -Math.PI/2, Math.PI/2, false)
+                ctx.lineTo(r, height)
+                ctx.arc(r, r, r, Math.PI/2, 3*Math.PI/2, false)
+                ctx.closePath()
+                ctx.clip()
+                // 2) draw "water" from left to right
+                ctx.fillStyle = waterColor
+                ctx.fillRect(0, 0, fillWidth, height)
             }
-        }
-        Behavior on color {
-            ColorAnimation {
-                duration: Theme.animationDuration
-                easing.type: Easing.OutCubic
+
+            Behavior on fillWidth {
+                NumberAnimation {
+                    duration: Theme.animationDuration
+                    easing.type:   Easing.OutCubic
+                }
+            }
+            Behavior on waterColor {
+                ColorAnimation {
+                    duration: Theme.animationDuration
+                    easing.type:   Easing.OutCubic
+                }
             }
         }
     }
