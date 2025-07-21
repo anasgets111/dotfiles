@@ -72,8 +72,24 @@ Item {
             id: waterCanvas
             anchors.fill: parent
 
-            property real    fillWidth: width * percentage
-            property color   waterColor:
+            // real full‐width for the current percentage
+            property real fullWidth: width * percentage
+            // pick up the root’s widthPhase toggles (1…4) when charging
+            property int  widthPhase: root.widthPhase
+            // if widthPhase>0 we flash: odd→0, even→fullWidth; else steady fullWidth
+            property real drawWidth:
+                widthPhase > 0
+                    ? ((widthPhase % 2 === 1) ? 0 : fullWidth)
+                    : fullWidth
+
+            // repaint whenever drawWidth or color changes or container resizes
+            onDrawWidthChanged:  requestPaint()
+            onWaterColorChanged: requestPaint()
+            onWidthChanged:      requestPaint()
+            onHeightChanged:     requestPaint()
+
+            // your existing waterColor logic
+            property color waterColor:
                 batteryArea.powerProfile === "power-saver"
                     ? Theme.powerSaveColor
                     : (batteryArea.powerProfile === "performance"
@@ -83,30 +99,25 @@ Item {
                           : Theme.activeColor)
                         : Theme.activeColor
 
-            onFillWidthChanged:  requestPaint()
-            onWaterColorChanged: requestPaint()
-            onWidthChanged:      requestPaint()
-            onHeightChanged:     requestPaint()
-
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.reset()
-                // 1) pill‐shape clipping path
-                var r = height / 2
+                // pill‐shaped clip
+                var r = height/2
                 ctx.beginPath()
                 ctx.moveTo(r, 0)
                 ctx.lineTo(width - r, 0)
-                ctx.arc(width - r, r, r, -Math.PI/2, Math.PI/2, false)
+                ctx.arc(width - r, r, r, -Math.PI/2, Math.PI/2)
                 ctx.lineTo(r, height)
-                ctx.arc(r, r, r, Math.PI/2, 3*Math.PI/2, false)
+                ctx.arc(r, r, r, Math.PI/2, 3*Math.PI/2)
                 ctx.closePath()
                 ctx.clip()
-                // 2) draw "water" from left to right
+                // draw using drawWidth, not fullWidth
                 ctx.fillStyle = waterColor
-                ctx.fillRect(0, 0, fillWidth, height)
+                ctx.fillRect(0, 0, drawWidth, height)
             }
 
-            Behavior on fillWidth {
+            Behavior on drawWidth {
                 NumberAnimation {
                     duration: Theme.animationDuration
                     easing.type:   Easing.OutCubic
