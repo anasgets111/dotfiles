@@ -16,3 +16,4 @@ SpecialWorkspaces SpecialWorkspaces.qml
 SysTray SysTray.qml
 UpdateChecker UpdateChecker.qml
 Volume Volume.qml
+RecordingStatus RecordingStatus.qml
