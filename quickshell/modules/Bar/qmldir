@@ -6,6 +6,8 @@ CenterSide CenterSide.qml
 DateTimeDisplay DateTimeDisplay.qml
 IdleInhibitor IdleInhibitor.qml
 KeyboardLayoutIndicator KeyboardLayoutIndicator.qml
+KbHyprService KbHyprService.qml
+KbNiriService KbNiriService.qml
 LeftSide LeftSide.qml
 NormalWorkspaces NormalWorkspaces.qml
 Popup Popup.qml
