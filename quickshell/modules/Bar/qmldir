@@ -14,7 +14,7 @@ RightSide RightSide.qml
 RoundCorner RoundCorner.qml
 SpecialWorkspaces SpecialWorkspaces.qml
 SysTray SysTray.qml
-UpdateChecker UpdateChecker.qml
+ArchChecker ArchChecker.qml
 Volume Volume.qml
 RecordingStatus RecordingStatus.qml
 singleton DetectEnv DetectEnv.qml
