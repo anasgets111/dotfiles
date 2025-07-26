@@ -8,25 +8,16 @@ Item {
 
     property var kbService: null
 
-    Component {
-        id: niriServiceComponent
-        KbNiriService {}
-    }
-    Component {
-        id: hyprServiceComponent
-        KbHyprService {}
-    }
-
     Loader {
         id: serviceLoader
-        sourceComponent: DetectEnv.isNiri ? niriServiceComponent : (DetectEnv.isHyprland ? hyprServiceComponent : null)
+        source: "KbService.qml"
         onLoaded: {
             kbService = serviceLoader.item
-            if (kbService && kbService.seedInitial) {
-                kbService.seedInitial();
-            }
+            // optional: KbService calls seedInitial() itself in onCompleted,
+            // but you can still explicitly call it if you like
+            if (kbService && kbService.seedInitial)
+                kbService.seedInitial()
         }
-
     }
 
     visible: kbService && kbService.available
