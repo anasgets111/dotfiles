@@ -2,6 +2,7 @@ pragma Singleton
 
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.UPower
 import QtQuick
 
 Item {
@@ -18,6 +19,10 @@ Item {
 
   // Distro detection
   property string distroId: ""
+
+  // UPower battery detection
+  property var upowerDevice: UPower.displayDevice
+  readonly property bool isLaptopBattery: upowerDevice && upowerDevice.type === 2 && upowerDevice.isPresent
 
   FileView {
     id: osReleaseFile

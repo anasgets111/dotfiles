@@ -5,16 +5,16 @@ import Quickshell.Io
 
 Item {
     id: root
-    visible: device.isLaptopBattery
+    visible: DetectEnv.isLaptopBattery
     implicitHeight: Theme.itemHeight
     implicitWidth: 80
 
     property var device: UPower.displayDevice
     property real percentage: device.percentage
     property bool isCharging: device.state === UPowerDeviceState.Charging
-    property bool isLowAndNotCharging: device.isLaptopBattery && percentage <= 0.20 && !isCharging
-    property bool isCriticalAndNotCharging: device.isLaptopBattery && percentage <= 0.10 && !isCharging
-    property bool isSuspendingAndNotCharging: device.isLaptopBattery && percentage <= 0.05 && !isCharging
+    property bool isLowAndNotCharging: DetectEnv.isLaptopBattery && percentage <= 0.20 && !isCharging
+    property bool isCriticalAndNotCharging: DetectEnv.isLaptopBattery && percentage <= 0.10 && !isCharging
+    property bool isSuspendingAndNotCharging: DetectEnv.isLaptopBattery && percentage <= 0.05 && !isCharging
     property real overlayFlashWidth: 2
     property real overlayFlashX: implicitWidth / 2 - overlayFlashWidth / 2
     property int widthPhase: 0

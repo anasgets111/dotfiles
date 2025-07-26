@@ -10,8 +10,11 @@ Row {
         anchors.verticalCenter: parent.verticalCenter
     }
 
-    UpdateChecker {
-        anchors.verticalCenter: parent.verticalCenter
+    Loader {
+        active: DetectEnv.distroId === "arch"
+        sourceComponent: ArchChecker {
+            anchors.verticalCenter: parent.verticalCenter
+        }
     }
 
     IdleInhibitor {
@@ -22,19 +25,28 @@ Row {
     KeyboardLayoutIndicator {
         anchors.verticalCenter: parent.verticalCenter
     }
-    BatteryIndicator {
-        anchors.verticalCenter: parent.verticalCenter
+    Loader {
+        active: DetectEnv.isLaptopBattery
+        sourceComponent: BatteryIndicator {
+            anchors.verticalCenter: parent.verticalCenter
+        }
     }
 
-    SpecialWorkspaces {
-        id: specialWorkspaces
-        anchors.verticalCenter: parent.verticalCenter
+    Loader {
+        active: DetectEnv.isHyprland
+        sourceComponent: SpecialWorkspaces {
+            id: specialWorkspaces
+            anchors.verticalCenter: parent.verticalCenter
+        }
     }
 
-    NormalWorkspaces {
-        id: normalWorkspaces
-        anchors.verticalCenter: parent.verticalCenter
-        expanded: leftSide.normalWorkspacesExpanded
-        onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
+    Loader {
+        active: DetectEnv.isHyprland
+        sourceComponent: NormalWorkspaces {
+            id: normalWorkspaces
+            anchors.verticalCenter: parent.verticalCenter
+            expanded: leftSide.normalWorkspacesExpanded
+            onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
+        }
     }
 }
