@@ -17,3 +17,4 @@ SysTray SysTray.qml
 UpdateChecker UpdateChecker.qml
 Volume Volume.qml
 RecordingStatus RecordingStatus.qml
+singleton DetectEnv DetectEnv.qml
