@@ -24,7 +24,6 @@ Item {
     onLoaded: {
       var idMatch = osReleaseFile.text().match(/^ID="?([^"\n]+)"?/m)
       root.distroId = idMatch ? idMatch[1] : ""
-      console.log("Detected distro:", root.distroId)
     }
   }
 
@@ -33,6 +32,5 @@ Item {
               || Quickshell.env("XDG_CURRENT_DESKTOP")
               || Quickshell.env("DESKTOP_SESSION")
               || ""
-    console.log("Detected session:", sessionName)
   }
 }
