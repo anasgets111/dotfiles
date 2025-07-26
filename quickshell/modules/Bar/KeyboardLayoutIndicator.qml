@@ -19,8 +19,14 @@ Item {
 
     Loader {
         id: serviceLoader
-        sourceComponent: DetectEnv.isNiri ? niriServiceComponent : (DetectEnv.isHypr ? hyprServiceComponent : null)
-        onLoaded: kbService = serviceLoader.item
+        sourceComponent: DetectEnv.isNiri ? niriServiceComponent : (DetectEnv.isHyprland ? hyprServiceComponent : null)
+        onLoaded: {
+            kbService = serviceLoader.item
+            if (kbService && kbService.seedInitial) {
+                kbService.seedInitial();
+            }
+        }
+
     }
 
     visible: kbService && kbService.available
@@ -46,9 +52,5 @@ Item {
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             }
         }
-    }
-    Component.onCompleted: {
-        if (kbService && kbService.seedInitial)
-            kbService.seedInitial();
     }
 }
