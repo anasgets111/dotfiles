@@ -6,15 +6,12 @@ Item {
     implicitHeight: Theme.itemHeight
     implicitWidth: Math.max(Theme.itemWidth, label.implicitWidth + 12)
 
-    property var kbService: null
+    property alias kbService: serviceLoader.item
 
     Loader {
         id: serviceLoader
         source: "KbService.qml"
         onLoaded: {
-            kbService = serviceLoader.item
-            // optional: KbService calls seedInitial() itself in onCompleted,
-            // but you can still explicitly call it if you like
             if (kbService && kbService.seedInitial)
                 kbService.seedInitial()
         }
