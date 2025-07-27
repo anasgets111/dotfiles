@@ -19,3 +19,4 @@ ArchChecker ArchChecker.qml
 Volume Volume.qml
 RecordingStatus RecordingStatus.qml
 singleton DetectEnv DetectEnv.qml
+RecordingStatus RecordingStatus.qml
