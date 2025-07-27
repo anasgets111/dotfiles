@@ -31,6 +31,13 @@ Row {
             anchors.verticalCenter: parent.verticalCenter
         }
     }
+    Loader {
+        active: DetectEnv.isNiri
+        sourceComponent: NiriWorkspaces {
+            id: niriWorkspaces
+            anchors.verticalCenter: parent.verticalCenter
+        }
+    }
 
     Loader {
         active: DetectEnv.isHyprland
