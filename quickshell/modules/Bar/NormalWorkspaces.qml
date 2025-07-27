@@ -7,6 +7,7 @@ Item {
     clip: true
     property bool expanded: false
     property int hoveredIndex: 0
+    property bool verticalMode: false
 
     // Only show if running in Hyprland session
     property bool isHyprlandSession: (
@@ -120,6 +121,7 @@ Item {
         id: workspacesRow
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
+        anchors.horizontalCenter: verticalMode ? parent.horizontalCenter : undefined
         property int spacing: 8
         property int count: workspaceStatusList.length
         property int fullWidth: count * Theme.itemWidth + Math.max(0, count - 1) * spacing

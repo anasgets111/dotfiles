@@ -4,11 +4,14 @@
 import QtQuick
 import Quickshell
 import "./modules/Bar"
+import "./modules/DetectEnv"
 
 ShellRoot {
     id: root
     Loader {
         active: true
-        sourceComponent: Bar {}
+        sourceComponent: Bar {
+            verticalMode: !DetectEnv.isNiri
+        }
     }
 }

@@ -6,6 +6,7 @@ import QtQuick.Window
 
 Item {
     id: root
+    property bool verticalMode: false
     property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "/home/anas/.config/waybar/update.sh"]
     property bool hovered: false
     property bool popupHovered: false
@@ -142,6 +143,7 @@ Item {
         anchors.fill: parent
         radius: Theme.itemRadius
         color: hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor
+        anchors.horizontalCenter: verticalMode ? parent.horizontalCenter : undefined
         MouseArea {
             id: mouseArea
             anchors.fill: parent
@@ -165,7 +167,7 @@ Item {
             spacing: 4
             Text {
                 id: indicator
-                text: busy ? "" : updates > 0 ? "" : "󰂪"
+                text: busy ? "\uf085" : updates > 0 ? "\uf019" : "\udb80\udcaa"
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 color: Theme.textContrast(hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor)

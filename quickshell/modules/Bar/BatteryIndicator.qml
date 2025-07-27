@@ -8,6 +8,7 @@ Item {
     visible: DetectEnv.isLaptopBattery
     implicitHeight: Theme.itemHeight
     implicitWidth: 80
+    property bool verticalMode: false
 
     property var device: UPower.displayDevice
     property real percentage: device.percentage
@@ -63,6 +64,7 @@ Item {
         anchors.fill: parent
         color: Theme.inactiveColor
         radius: height / 2
+        anchors.horizontalCenter: verticalMode ? parent.horizontalCenter : undefined
     }
 
     Item {

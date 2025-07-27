@@ -4,6 +4,7 @@ import Quickshell.Hyprland
 Row {
     id: specialWorkspaces
     spacing: 8
+    property bool verticalMode: false
 
     property var workspaces: Hyprland.workspaces
     property string activeSpecial: ""
@@ -84,6 +85,7 @@ Row {
         Rectangle {
             property var ws: modelData
             visible: ws.id < 0
+            anchors.horizontalCenter: specialWorkspaces.verticalMode ? specialWorkspaces.horizontalCenter : undefined
 
             property int probeIndex: {
                 var arr = specialWorkspaces.getSpecialWorkspaces();
