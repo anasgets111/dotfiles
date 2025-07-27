@@ -6,14 +6,14 @@ CenterSide CenterSide.qml
 DateTimeDisplay DateTimeDisplay.qml
 IdleInhibitor IdleInhibitor.qml
 KeyboardLayoutIndicator KeyboardLayoutIndicator.qml
-KbService KbService.qml
 LeftSide LeftSide.qml
 NormalWorkspaces NormalWorkspaces.qml
+SpecialWorkspaces SpecialWorkspaces.qml
+NiriWorkspaces NiriWorkspaces.qml
 Popup Popup.qml
 PowerMenu PowerMenu.qml
 RightSide RightSide.qml
 RoundCorner RoundCorner.qml
-SpecialWorkspaces SpecialWorkspaces.qml
 SysTray SysTray.qml
 ArchChecker ArchChecker.qml
 Volume Volume.qml
