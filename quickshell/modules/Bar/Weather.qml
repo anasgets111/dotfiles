@@ -5,54 +5,52 @@ import QtQuick.Controls
 Item {
     property string currentTemp: "Loading..."
     property int refreshInterval: 3600000 // 1 hour in milliseconds
+    // Each entry: code: { icon: "...", desc: "..." }
     property var weatherIconMap: ({
-           // Severe phenomena
-           "tornado":            "🌪️",
-           "hurricane":          "🌀",
-           "thunderstorm":       "⛈️",
-           "thunder":            "⛈️",
-           // Precipitation
-           "freezing rain":      "🌧️❄️",
-           "rain":               "🌧️",
-           "drizzle":            "🌦️",
-           "sleet":              "🧊",
-           "hail":               "🧊",
-           // Snow
-           "snow shower":        "🌨️",
-           "snow":               "❄️",
-           // Fog / haze
-           "fog":                "🌫️",
-           "mist":               "🌫️",
-           "haze":               "🌫️",
-           // Wind / dust
-           "wind":               "🌬️",
-           "blustery":           "🌬️",
-           "dust":               "🌪️",
-           "sand":               "🌪️",
-           "ash":                "🌋",
-           // Cloudiness / sun
-           "clear":              "☀️",
-           "sunny":              "☀️",
-           "mostly clear":       "🌤️",
-           "partly cloudy":      "⛅",
-           "cloudy":             "☁️",
-           "overcast":           "☁️"
-       })
-       function getWeatherIcon(cond, t) {
-           var lc = cond.toLowerCase()
-           // check condition keywords in order
-           for (var key in weatherIconMap) {
-               if (lc.indexOf(key) !== -1)
-                   return weatherIconMap[key]
-           }
-           // fallback by temperature alone
-           if (t >= 35) return "🥵"   // very hot
-           if (t >= 30) return "☀️"   // hot
-           if (t >= 20) return "🌤️"   // warm
-           if (t >= 10) return "⛅"   // mild
-           if (t >= 0)  return "☁️"   // cool
-           return "🥶"                  // freezing
-       }
+        0:  { icon: "☀️",    desc: "Clear sky" },
+        1:  { icon: "🌤️",    desc: "Mainly clear" },
+        2:  { icon: "⛅",     desc: "Partly cloudy" },
+        3:  { icon: "☁️",    desc: "Overcast" },
+        45: { icon: "🌫️",    desc: "Fog" },
+        48: { icon: "🌫️",    desc: "Depositing rime fog" },
+        51: { icon: "🌦️",    desc: "Drizzle: Light" },
+        53: { icon: "🌦️",    desc: "Drizzle: Moderate" },
+        55: { icon: "🌧️",    desc: "Drizzle: Dense" },
+        56: { icon: "🌧️❄️",  desc: "Freezing Drizzle: Light" },
+        57: { icon: "🌧️❄️",  desc: "Freezing Drizzle: Dense" },
+        61: { icon: "🌦️",    desc: "Rain: Slight" },
+        63: { icon: "🌧️",    desc: "Rain: Moderate" },
+        65: { icon: "🌧️",    desc: "Rain: Heavy" },
+        66: { icon: "🌧️❄️",  desc: "Freezing Rain: Light" },
+        67: { icon: "🌧️❄️",  desc: "Freezing Rain: Heavy" },
+        71: { icon: "🌨️",    desc: "Snow fall: Slight" },
+        73: { icon: "🌨️",    desc: "Snow fall: Moderate" },
+        75: { icon: "❄️",    desc: "Snow fall: Heavy" },
+        77: { icon: "❄️",    desc: "Snow grains" },
+        80: { icon: "🌦️",    desc: "Rain showers: Slight" },
+        81: { icon: "🌧️",    desc: "Rain showers: Moderate" },
+        82: { icon: "⛈️",    desc: "Rain showers: Violent" },
+        85: { icon: "🌨️",    desc: "Snow showers: Slight" },
+        86: { icon: "❄️",    desc: "Snow showers: Heavy" },
+        95: { icon: "⛈️",    desc: "Thunderstorm: Slight or moderate" },
+        96: { icon: "⛈️🧊",  desc: "Thunderstorm with slight hail" },
+        99: { icon: "⛈️🧊",  desc: "Thunderstorm with heavy hail" }
+    })
+    function getWeatherIconFromCode(code) {
+        if (weatherIconMap.hasOwnProperty(code))
+            return weatherIconMap[code].icon
+        return "❓"
+    }
+    function getWeatherDescriptionFromCode(code) {
+        if (weatherIconMap.hasOwnProperty(code))
+            return weatherIconMap[code].desc
+        return "Unknown"
+    }
+    function getWeatherIconAndDesc(code) {
+        if (weatherIconMap.hasOwnProperty(code))
+            return weatherIconMap[code]
+        return { icon: "❓", desc: "Unknown" }
+    }
     Component.onCompleted: {
         updateWeather()
         refreshTimer.start()
@@ -93,9 +91,10 @@ Item {
             if (wxXhr.readyState !== XMLHttpRequest.DONE) return
             if (wxXhr.status === 200) {
                 var data = JSON.parse(wxXhr.responseText)
+                console.log("Weather API response:", JSON.stringify(data))
                 // Use a simple Unicode sun icon as an example. You can enhance this with logic for different weather codes.
-                var icon = "☀️ "
-                currentTemp = icon + Math.round(data.current_weather.temperature) + "°C"
+                var icon = getWeatherIconFromCode(data.current_weather.weathercode)
+                currentTemp = Math.round(data.current_weather.temperature) + "°C" + ' ' + icon
             } else {
                 currentTemp = "Weather error"
             }

@@ -33,7 +33,7 @@ Item {
     Text {
         id: textItem
         anchors.centerIn: parent
-        text: dateTimeDisplay.formattedDateTime + "  " + weatherItem.currentTemp
+        text:   weatherItem.currentTemp + " " + dateTimeDisplay.formattedDateTime
         color: Theme.textContrast(Theme.inactiveColor)
         font.bold: true
         font.pixelSize: Theme.fontSize
