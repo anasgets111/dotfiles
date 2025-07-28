@@ -105,7 +105,6 @@ Item {
             if (wxXhr.readyState !== XMLHttpRequest.DONE) return
             if (wxXhr.status === 200) {
                 var data = JSON.parse(wxXhr.responseText)
-                console.log("Weather API response:", JSON.stringify(data))
                 currentWeatherCode = data.current_weather.weathercode
                 var icon = getWeatherIconFromCode()
                 currentTemp = Math.round(data.current_weather.temperature) + "°C" + ' ' + icon
