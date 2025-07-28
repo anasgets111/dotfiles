@@ -7,7 +7,6 @@ import Quickshell.Io
 
 Item {
     id: systemTrayWidget
-
     width: trayRow.width + iconSpacing
     height: Theme.itemHeight
 
@@ -30,7 +29,6 @@ Item {
         availableThemes = fallbackOrder;
     }
 
-    // Where to look inside a theme
     readonly property var iconDirs: ["scalable/apps/", "scalable/actions/", "scalable/devices/", "scalable/status/", "scalable/places/", "48x48/apps/", "48x48/actions/", "48x48/devices/", "48x48/status/", "48x48/places/"]
     readonly property var iconExts: [".svg", ".png"]
 
@@ -42,7 +40,6 @@ Item {
     function getIconPath(iconName) {
         for (var i = 0; i < iconDirs.length; i++) {
             for (var j = 0; j < iconExts.length; j++) {
-                // Compose candidate name as "dir/icon.ext"
                 var candidate = iconDirs[i] + iconName + iconExts[j];
                 // Quickshell.iconPath allows theme override via QS_ICON_THEME env
                 var path = Quickshell.iconPath(candidate, true);
@@ -50,11 +47,8 @@ Item {
                     return path;
             }
         }
-        // Fallback to a default missing icon
         return Quickshell.iconPath("image-missing", true);
     }
-
-    // width/height moved to top for pill container
 
     Row {
         id: trayRow

@@ -5,6 +5,10 @@ import QtQuick.Controls
 Item {
     property string currentTemp: "Loading..."
     property int refreshInterval: 3600000 // 1 hour in milliseconds
+    property real latitude: NaN
+    property real longitude: NaN
+    property string locationName: ""
+    property int currentWeatherCode: -1
     // Each entry: code: { icon: "...", desc: "..." }
     property var weatherIconMap: ({
         0:  { icon: "☀️",    desc: "Clear sky" },
@@ -36,14 +40,14 @@ Item {
         96: { icon: "⛈️🧊",  desc: "Thunderstorm with slight hail" },
         99: { icon: "⛈️🧊",  desc: "Thunderstorm with heavy hail" }
     })
-    function getWeatherIconFromCode(code) {
-        if (weatherIconMap.hasOwnProperty(code))
-            return weatherIconMap[code].icon
+    function getWeatherIconFromCode() {
+        if (weatherIconMap.hasOwnProperty(currentWeatherCode))
+            return weatherIconMap[currentWeatherCode].icon
         return "❓"
     }
-    function getWeatherDescriptionFromCode(code) {
-        if (weatherIconMap.hasOwnProperty(code))
-            return weatherIconMap[code].desc
+    function getWeatherDescriptionFromCode() {
+        if (weatherIconMap.hasOwnProperty(currentWeatherCode))
+            return weatherIconMap[currentWeatherCode].desc
         return "Unknown"
     }
     function getWeatherIconAndDesc(code) {
@@ -53,25 +57,35 @@ Item {
     }
     Component.onCompleted: {
         updateWeather()
-        refreshTimer.start()
+        weatherTimer.start()
     }
 
     function updateWeather() {
-        var geoXhr = new XMLHttpRequest()
-        geoXhr.open("GET", "https://ipapi.co/json/")
-        geoXhr.onreadystatechange = function() {
-            if (geoXhr.readyState !== XMLHttpRequest.DONE) return
-            if (geoXhr.status === 200) {
-                var ipData = JSON.parse(geoXhr.responseText)
-                fetchCurrentTemp(ipData.latitude, ipData.longitude)
-            } else {
-                currentTemp = "Loc error"
+        if (isNaN(latitude) || isNaN(longitude)) {
+            var geoXhr = new XMLHttpRequest()
+            geoXhr.open("GET", "https://ipapi.co/json/")
+            geoXhr.onreadystatechange = function() {
+                if (geoXhr.readyState !== XMLHttpRequest.DONE) return
+                if (geoXhr.status === 200) {
+                    var ipData = JSON.parse(geoXhr.responseText)
+                    latitude = ipData.latitude
+                    longitude = ipData.longitude
+                    // Compose a readable location string
+                    locationName = ipData.city + ", " + ipData.country_name
+                    fetchCurrentTemp(latitude, longitude)
+                } else {
+                    currentTemp = "Loc error"
+                    locationName = ""
+                }
             }
+            geoXhr.send()
+        } else {
+            // Use cached coordinates
+            fetchCurrentTemp(latitude, longitude)
         }
-        geoXhr.send()
     }
     Timer {
-        id: refreshTimer
+        id: weatherTimer
         interval: refreshInterval
         repeat: true
         running: false
@@ -92,8 +106,8 @@ Item {
             if (wxXhr.status === 200) {
                 var data = JSON.parse(wxXhr.responseText)
                 console.log("Weather API response:", JSON.stringify(data))
-                // Use a simple Unicode sun icon as an example. You can enhance this with logic for different weather codes.
-                var icon = getWeatherIconFromCode(data.current_weather.weathercode)
+                currentWeatherCode = data.current_weather.weathercode
+                var icon = getWeatherIconFromCode()
                 currentTemp = Math.round(data.current_weather.temperature) + "°C" + ' ' + icon
             } else {
                 currentTemp = "Weather error"
