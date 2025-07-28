@@ -78,13 +78,21 @@ Item {
                 delegate: Item {
                     width: calendarGrid.cellWidth
                     height: calendarGrid.cellHeight
+                    Rectangle {
+                        anchors.fill: parent
+                        color: (index - calendarGrid.firstDay + 1) === calendarGrid.today.getDate()
+                            ? (theme ? theme.inactiveColor : "#ffb347")
+                            : "transparent"
+                        radius: width / 2
+                        visible: (index - calendarGrid.firstDay + 1) === calendarGrid.today.getDate()
+                    }
                     Text {
                         anchors.centerIn: parent
                         text: index < calendarGrid.firstDay ? "" : (index - calendarGrid.firstDay + 1)
                         color: {
                             var d = index - calendarGrid.firstDay + 1
                             if (d === calendarGrid.today.getDate())
-                                return "#ffb347" // highlight today
+                                return theme ? theme.textContrast(theme.inactiveColor) : "#fff"
                             return theme ? theme.textContrast(theme.onHoverColor) : "#fff"
                         }
                         font.bold: (index - calendarGrid.firstDay + 1) === calendarGrid.today.getDate()

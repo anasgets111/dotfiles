@@ -171,9 +171,9 @@ Item {
         anchors.centerIn: parent
         visible: SystemTray.items.count === 0
         text: "No tray items"
-        color: Theme.panelBorderColor
+        color: Theme.panelColor
         font.pixelSize: 10
-        font.family: "Inter, sans-serif"
+        font.family: Theme.fontFamily
         opacity: 0.7
     }
 }
