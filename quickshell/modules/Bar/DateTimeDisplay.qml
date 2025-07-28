@@ -4,6 +4,7 @@ import Quickshell.Io
 Item {
     id: dateTimeDisplay
     property string formattedDateTime: ""
+    property string weatherText: ""
 
     width: textItem.width
     height: Theme.itemHeight
@@ -19,6 +20,10 @@ Item {
         Component.onCompleted: triggered()
     }
 
+    Weather {
+        id: weatherItem
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: Theme.itemRadius
@@ -28,7 +33,7 @@ Item {
     Text {
         id: textItem
         anchors.centerIn: parent
-        text: dateTimeDisplay.formattedDateTime
+        text: dateTimeDisplay.formattedDateTime + "  " + weatherItem.currentTemp
         color: Theme.textContrast(Theme.inactiveColor)
         font.bold: true
         font.pixelSize: Theme.fontSize
@@ -39,7 +44,10 @@ Item {
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
-        onClicked: swayncProc.running = true
+        onClicked: {
+          swayncProc.running = true;
+          weatherItem.updateWeather();
+        }
     }
 
     Process {
