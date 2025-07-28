@@ -32,14 +32,12 @@ Item {
         command: ["/home/anas/.local/bin/RecordingStatus.sh"]
         stdout: StdioCollector {
             onStreamFinished: {
-                console.log("RecordingStatus script output:", this.text)
+
                 try {
                     var json = JSON.parse(this.text)
-                    console.log("RecordingStatus parsed JSON:", JSON.stringify(json))
                     root.statusText = json.text || ""
                     root.isRecording = json.isRecording || false
                 } catch (e) {
-                    console.log("RecordingStatus parse error:", e)
                     root.statusText = ""
                     root.isRecording = false
                 }
