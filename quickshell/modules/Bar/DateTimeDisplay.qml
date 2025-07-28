@@ -5,6 +5,7 @@ Item {
     id: dateTimeDisplay
     property string formattedDateTime: ""
     property string weatherText: ""
+    property var currentDate: new Date()
 
     width: textItem.width
     height: Theme.itemHeight
@@ -16,6 +17,7 @@ Item {
         repeat: true
         onTriggered: {
             var d = new Date();
+            dateTimeDisplay.currentDate = d;
             dateTimeDisplay.formattedDateTime = Qt.formatDateTime(d, Theme.formatDateTime);
         }
         Component.onCompleted: triggered()
@@ -119,6 +121,7 @@ Item {
                 id: calendar
                 theme: Theme
                 weekStart: 6
+                today: dateTimeDisplay.currentDate
             }
         }
         Behavior on opacity {
