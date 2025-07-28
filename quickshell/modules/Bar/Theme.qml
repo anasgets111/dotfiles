@@ -11,7 +11,7 @@ QtObject {
     readonly property int panelHeight: 42
     readonly property int panelMargin: 16
     readonly property color panelWindowColor: "transparent"
-    readonly property color panelBorderColor: "#313244" // Mocha Surface2
+    readonly property color panelColor: "#313244"
 
     // Item properties
     readonly property int iconSize: 24
