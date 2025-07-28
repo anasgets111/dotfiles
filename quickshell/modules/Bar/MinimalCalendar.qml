@@ -106,10 +106,6 @@ Item {
                         font.bold: (index - calendarGrid.adjustedFirstDay + 1) === calendarGrid.today.getDate()
                         font.pixelSize: theme ? theme.fontSize - 3 : 11
                     }
-                    Component.onCompleted: {
-                        if (displayedDay > 0)
-                            console.log("MinimalCalendar Debug - Displayed Day Cell:", displayedDay)
-                    }
                 }
             }
         }

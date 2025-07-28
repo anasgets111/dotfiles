@@ -79,19 +79,7 @@ Item {
             spacing: 6
             property real widest: Math.max(firstRow.width, calendar.width)
             width: widest
-            Component.onCompleted: {
-                console.log("DEBUG tooltip firstRow.implicitWidth:", firstRow.implicitWidth)
-                console.log("DEBUG tooltip calendar.implicitWidth:", calendar.implicitWidth)
-                console.log("DEBUG tooltip firstRow.implicitHeight:", firstRow.implicitHeight)
-                console.log("DEBUG tooltip calendar.implicitHeight:", calendar.implicitHeight)
-                console.log("DEBUG tooltipColumn.implicitHeight:", tooltipColumn.implicitHeight)
-            }
-            onWidthChanged: {
-                console.log("DEBUG tooltipColumn.width:", width)
-            }
-            onImplicitHeightChanged: {
-                console.log("DEBUG tooltipColumn.implicitHeight:", implicitHeight)
-            }
+
 
             // First row: description and place
             Row {
