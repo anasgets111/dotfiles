@@ -20,3 +20,4 @@ Volume Volume.qml
 RecordingStatus RecordingStatus.qml
 singleton DetectEnv DetectEnv.qml
 RecordingStatus RecordingStatus.qml
+Weather Weather.qml
