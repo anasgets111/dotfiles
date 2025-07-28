@@ -10,6 +10,7 @@ Item {
     height: Theme.itemHeight
 
     Timer {
+        id: clockTimer
         interval: 1000
         running: true
         repeat: true
@@ -42,11 +43,54 @@ Item {
     }
 
     MouseArea {
+        id: dateTimeMouseArea
         anchors.fill: parent
+        hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: {
           swayncProc.running = true;
-          weatherItem.updateWeather();
+        }
+    }
+
+    Rectangle {
+        id: tooltip
+        visible: dateTimeMouseArea.containsMouse
+        color: Theme.onHoverColor
+        radius: Theme.itemRadius
+        width: tooltipColumn.implicitWidth + 16
+        height: tooltipColumn.implicitHeight + 8
+        anchors.top: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: 8
+        opacity: dateTimeMouseArea.containsMouse ? 1 : 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.animationDuration
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        Column {
+            id: tooltipColumn
+            anchors.centerIn: parent
+            spacing: 2
+
+            Text {
+                id: tooltipText
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: weatherItem.getWeatherDescriptionFromCode()
+                color: Theme.textContrast(Theme.onHoverColor)
+                font.pixelSize: Theme.fontSize
+                font.family: Theme.fontFamily
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: weatherItem.locationName
+                color: Theme.textContrast(Theme.onHoverColor)
+                font.pixelSize: Theme.fontSize - 2
+                font.family: Theme.fontFamily
+                visible: weatherItem.locationName.length > 0
+            }
         }
     }
 
@@ -54,7 +98,5 @@ Item {
         id: swayncProc
         command: ["swaync-client", "-t"]
         running: false
-        // Optionally handle output:
-        // stdout: StdioCollector { onStreamFinished: { /* handle output if needed */ } }
     }
 }
