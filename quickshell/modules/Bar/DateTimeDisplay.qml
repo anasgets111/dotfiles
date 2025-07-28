@@ -52,44 +52,79 @@ Item {
         }
     }
 
-    Rectangle {
+    // Tooltip background and content: Rectangle is now parent of Column
+    Item {
         id: tooltip
         visible: dateTimeMouseArea.containsMouse
-        color: Theme.onHoverColor
-        radius: Theme.itemRadius
-        width: tooltipColumn.implicitWidth + 16
-        height: tooltipColumn.implicitHeight + 8
         anchors.top: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.topMargin: 8
         opacity: dateTimeMouseArea.containsMouse ? 1 : 0
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.animationDuration
-                easing.type: Easing.OutCubic
-            }
+
+        width: tooltipColumn.width + 16
+        height: tooltipColumn.implicitHeight + 8
+
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.onHoverColor
+            radius: Theme.itemRadius
+            z: -1
         }
 
         Column {
             id: tooltipColumn
             anchors.centerIn: parent
-            spacing: 2
-
-            Text {
-                id: tooltipText
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: weatherItem.getWeatherDescriptionFromCode()
-                color: Theme.textContrast(Theme.onHoverColor)
-                font.pixelSize: Theme.fontSize
-                font.family: Theme.fontFamily
+            spacing: 6
+            property real widest: Math.max(firstRow.width, calendar.width)
+            width: widest
+            Component.onCompleted: {
+                console.log("DEBUG tooltip firstRow.implicitWidth:", firstRow.implicitWidth)
+                console.log("DEBUG tooltip calendar.implicitWidth:", calendar.implicitWidth)
+                console.log("DEBUG tooltip firstRow.implicitHeight:", firstRow.implicitHeight)
+                console.log("DEBUG tooltip calendar.implicitHeight:", calendar.implicitHeight)
+                console.log("DEBUG tooltipColumn.implicitHeight:", tooltipColumn.implicitHeight)
             }
-            Text {
+            onWidthChanged: {
+                console.log("DEBUG tooltipColumn.width:", width)
+            }
+            onImplicitHeightChanged: {
+                console.log("DEBUG tooltipColumn.implicitHeight:", implicitHeight)
+            }
+
+            // First row: description and place
+            Row {
+                id: firstRow
+                spacing: 8
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: weatherItem.locationName
-                color: Theme.textContrast(Theme.onHoverColor)
-                font.pixelSize: Theme.fontSize - 2
-                font.family: Theme.fontFamily
-                visible: weatherItem.locationName.length > 0
+                width: implicitWidth
+
+                Text {
+                    id: tooltipText
+                    text: weatherItem.getWeatherDescriptionFromCode()
+                    color: Theme.textContrast(Theme.onHoverColor)
+                    font.pixelSize: Theme.fontSize
+                    font.family: Theme.fontFamily
+                }
+                Text {
+                    text: "in " + weatherItem.locationName
+                    color: Theme.textContrast(Theme.onHoverColor)
+                    font.pixelSize: Theme.fontSize - 2
+                    font.family: Theme.fontFamily
+                    visible: weatherItem.locationName.length > 0
+                }
+            }
+
+            // Second row: extracted MinimalCalendar component
+            MinimalCalendar {
+                id: calendar
+                theme: Theme
+                weekStart: 6
+            }
+        }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.animationDuration
+                easing.type: Easing.OutCubic
             }
         }
     }

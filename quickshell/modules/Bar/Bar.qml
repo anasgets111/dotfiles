@@ -9,7 +9,7 @@ PanelWindow {
         item: panelRect
     }
     implicitWidth: Screen.width
-    implicitHeight: Theme.panelHeight + Theme.panelRadius + Theme.tooltipMaxSpace
+    implicitHeight: Screen.height
     exclusiveZone: Theme.panelHeight
 
     screen: Quickshell.screens.length > 1 ? Quickshell.screens[1] : Quickshell.screens[0]
