@@ -22,3 +22,4 @@ singleton DetectEnv DetectEnv.qml
 RecordingStatus RecordingStatus.qml
 Weather Weather.qml
 MinimalCalendar MinimalCalendar.qml
+singleton Cava  Cava.qml
