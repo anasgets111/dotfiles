@@ -1,8 +1,8 @@
+pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
-pragma Singleton
 
 Item {
     id: root
@@ -30,5 +30,4 @@ Item {
             root.distroId = idMatch ? idMatch[1] : "";
         }
     }
-
 }

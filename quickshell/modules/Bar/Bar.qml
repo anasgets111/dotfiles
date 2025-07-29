@@ -39,7 +39,6 @@ PanelWindow {
             leftMargin: Theme.panelMargin
             verticalCenter: panelRect.verticalCenter
         }
-
     }
 
     CenterSide {
@@ -53,7 +52,6 @@ PanelWindow {
             rightMargin: Theme.panelMargin
             verticalCenter: panelRect.verticalCenter
         }
-
     }
 
     Item {
@@ -82,11 +80,9 @@ PanelWindow {
             corner: 3
             rotation: -90
         }
-
     }
 
     mask: Region {
         item: panelRect
     }
-
 }

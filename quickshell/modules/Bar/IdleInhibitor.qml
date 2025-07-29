@@ -33,7 +33,7 @@ Rectangle {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
         hoverEnabled: true
-        onClicked: function(mouse) {
+        onClicked: function (mouse) {
             if (mouse.button === Qt.LeftButton)
                 inhibitorProcess.running = !inhibitorProcess.running;
             else if (mouse.button === Qt.RightButton)
@@ -51,5 +51,4 @@ Rectangle {
         font.bold: true
         font.family: Theme.fontFamily
     }
-
 }

@@ -9,19 +9,23 @@ Rectangle {
     property bool internalHovered: false
     property bool expanded: internalHovered
     property int spacing: 8
-    property var buttons: [{
-        "icon": "󰍃",
-        "tooltip": "Log Out",
-        "action": "loginctl terminate-user $USER"
-    }, {
-        "icon": "",
-        "tooltip": "Restart",
-        "action": "systemctl reboot"
-    }, {
-        "icon": "⏻",
-        "tooltip": "Power Off",
-        "action": "systemctl poweroff"
-    }]
+    property var buttons: [
+        {
+            "icon": "󰍃",
+            "tooltip": "Log Out",
+            "action": "loginctl terminate-user $USER"
+        },
+        {
+            "icon": "",
+            "tooltip": "Restart",
+            "action": "systemctl reboot"
+        },
+        {
+            "icon": "⏻",
+            "tooltip": "Power Off",
+            "action": "systemctl poweroff"
+        }
+    ]
     property int collapsedWidth: Theme.itemWidth
     property int expandedWidth: Theme.itemWidth * buttons.length + spacing * (buttons.length - 1)
 
@@ -57,7 +61,6 @@ Rectangle {
         onTriggered: {
             if (powerMenu.hoverCount <= 0)
                 powerMenu.internalHovered = false;
-
         }
     }
 
@@ -138,9 +141,7 @@ Rectangle {
                             duration: Theme.animationDuration
                             easing.type: Easing.OutCubic
                         }
-
                     }
-
                 }
 
                 Text {
@@ -157,7 +158,6 @@ Rectangle {
                         duration: Theme.animationDuration
                         easing.type: Easing.InOutQuad
                     }
-
                 }
 
                 Behavior on opacity {
@@ -165,7 +165,6 @@ Rectangle {
                         duration: Theme.animationDuration
                         easing.type: Easing.InOutQuart
                     }
-
                 }
 
                 Behavior on color {
@@ -173,13 +172,9 @@ Rectangle {
                         duration: Theme.animationDuration
                         easing.type: Easing.InOutQuad
                     }
-
                 }
-
             }
-
         }
-
     }
 
     Behavior on width {
@@ -187,7 +182,5 @@ Rectangle {
             duration: Theme.animationDuration
             easing.type: Easing.InOutQuad
         }
-
     }
-
 }

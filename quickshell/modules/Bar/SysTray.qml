@@ -29,7 +29,6 @@ Item {
                 var path = Quickshell.iconPath(candidate, true);
                 if (path)
                     return path;
-
             }
         }
         return Quickshell.iconPath("image-missing", true);
@@ -67,7 +66,7 @@ Item {
                 height: Theme.iconSize
                 acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                 hoverEnabled: true
-                onClicked: function(mouse) {
+                onClicked: function (mouse) {
                     if (mouse.button === Qt.LeftButton)
                         trayItem.activate();
                     else if (mouse.button === Qt.RightButton && trayItem.hasMenu)
@@ -75,7 +74,7 @@ Item {
                     else if (mouse.button === Qt.MiddleButton)
                         trayItem.secondaryActivate();
                 }
-                onWheel: function(wheel) {
+                onWheel: function (wheel) {
                     trayItem.scroll(wheel.angleDelta.x, wheel.angleDelta.y);
                 }
 
@@ -100,9 +99,7 @@ Item {
                             duration: Theme.animationDuration
                             easing.type: Easing.OutCubic
                         }
-
                     }
-
                 }
 
                 Image {
@@ -123,7 +120,6 @@ Item {
                             var fp = getIconPath(iconName);
                             if (fp)
                                 source = fp;
-
                         }
                     }
                 }
@@ -166,15 +162,10 @@ Item {
                             duration: Theme.animationDuration
                             easing.type: Easing.OutCubic
                         }
-
                     }
-
                 }
-
             }
-
         }
-
     }
 
     Text {
@@ -186,5 +177,4 @@ Item {
         font.family: Theme.fontFamily
         opacity: 0.7
     }
-
 }

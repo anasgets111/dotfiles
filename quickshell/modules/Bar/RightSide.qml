@@ -21,5 +21,4 @@ Row {
     DateTimeDisplay {
         anchors.verticalCenter: parent.verticalCenter
     }
-
 }

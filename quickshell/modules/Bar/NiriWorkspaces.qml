@@ -21,14 +21,14 @@ Item {
     }
 
     function updateWorkspaces(arr) {
-        arr.forEach(function(w) {
+        arr.forEach(function (w) {
             w.populated = w.active_window_id !== null;
         });
-        arr.sort(function(a, b) {
+        arr.sort(function (a, b) {
             return a.idx - b.idx;
         });
         workspaces = arr;
-        var f = arr.find(function(w) {
+        var f = arr.find(function (w) {
             return w.is_focused;
         });
         if (f && f.idx !== currentWorkspace) {
@@ -45,7 +45,7 @@ Item {
         currentWorkspace = id;
         slideFrom = previousWorkspace;
         slideTo = currentWorkspace;
-        workspaces.forEach(function(w) {
+        workspaces.forEach(function (w) {
             w.is_focused = (w.idx === id);
             w.is_active = (w.idx === id);
         });
@@ -76,7 +76,6 @@ Item {
     Component.onCompleted: {
         if (useNiri)
             seedInitial();
-
     }
     width: expanded ? workspacesRow.fullWidth : Theme.itemWidth
     height: Theme.itemHeight
@@ -91,10 +90,8 @@ Item {
                 var j = JSON.parse(text);
                 if (j.Workspaces)
                     root.updateWorkspaces(j.Workspaces.workspaces);
-
             }
         }
-
     }
 
     Process {
@@ -105,9 +102,9 @@ Item {
 
         stdout: SplitParser {
             splitMarker: "\n"
-            onRead: function(seg) {
+            onRead: function (seg) {
                 if (!seg)
-                    return ;
+                    return;
 
                 var evt = JSON.parse(seg);
                 if (evt.WorkspacesChanged)
@@ -116,7 +113,6 @@ Item {
                     root.updateSingleFocus(evt.WorkspaceActivated.id);
             }
         }
-
     }
 
     Process {
@@ -195,7 +191,6 @@ Item {
                     onClicked: {
                         if (!ws.is_focused)
                             Quickshell.execDetached(["niri", "msg", "action", "focus-workspace", ws.idx.toString()]);
-
                     }
                 }
 
@@ -213,13 +208,9 @@ Item {
                         duration: Theme.animationDuration
                         easing.type: Easing.InOutQuad
                     }
-
                 }
-
             }
-
         }
-
     }
 
     Rectangle {
@@ -256,7 +247,6 @@ Item {
                 font.family: Theme.fontFamily
                 font.bold: true
             }
-
         }
 
         // “to” rect
@@ -279,9 +269,7 @@ Item {
                 font.family: Theme.fontFamily
                 font.bold: true
             }
-
         }
-
     }
 
     Text {
@@ -299,7 +287,5 @@ Item {
             duration: Theme.animationDuration
             easing.type: Easing.InOutQuad
         }
-
     }
-
 }

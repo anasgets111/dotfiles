@@ -13,7 +13,6 @@ Row {
             var probeW = widthProbe.children[i].implicitWidth + 12;
             if (probeW > maxW)
                 maxW = probeW;
-
         }
         return maxW;
     }
@@ -24,7 +23,6 @@ Row {
             var ws = workspaces[i];
             if (ws.id < 0)
                 specials.push(ws);
-
         }
         return specials;
     }
@@ -79,9 +77,7 @@ Row {
                 font.family: (text.length === 1 ? "Nerd Font" : Theme.fontFamily)
                 font.bold: true
             }
-
         }
-
     }
 
     Connections {
@@ -91,7 +87,6 @@ Row {
             } else if (event.name === "workspace") {
                 if (parseInt(event.data.split(",")[0]) > 0)
                     activeSpecial = "";
-
             }
         }
 
@@ -108,7 +103,6 @@ Row {
                 for (var i = 0; i < arr.length; ++i) {
                     if (arr[i].name === ws.name)
                         return i;
-
                 }
                 return -1;
             }
@@ -163,9 +157,7 @@ Row {
                         duration: Theme.animationDuration
                         easing.type: Easing.InOutQuad
                     }
-
                 }
-
             }
 
             Behavior on color {
@@ -173,16 +165,12 @@ Row {
                     duration: Theme.animationDuration
                     easing.type: Easing.InOutQuad
                 }
-
             }
-
         }
-
     }
 
     Repeater {
         model: workspaces
         delegate: specialDelegate
     }
-
 }

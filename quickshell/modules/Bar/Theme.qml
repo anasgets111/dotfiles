@@ -1,5 +1,5 @@
-import QtQuick
 pragma Singleton
+import QtQuick
 
 QtObject {
     readonly property int tooltipMaxSpace: 100
@@ -43,5 +43,4 @@ QtObject {
 
         return l > 0.6 ? "#4C4F69" : "#CDD6F4";
     }
-
 }
