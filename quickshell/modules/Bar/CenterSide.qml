@@ -3,7 +3,7 @@ import QtQuick
 Row {
     id: centerSide
 
-    property bool normalWorkspacesExpanded: false
+    required property bool normalWorkspacesExpanded
 
     spacing: 8
 
@@ -12,7 +12,7 @@ Row {
         id: activeWindowTitle
 
         anchors.verticalCenter: parent.verticalCenter
-        opacity: normalWorkspacesExpanded ? 0 : 1
+        opacity: centerSide.normalWorkspacesExpanded ? 0 : 1
         visible: true
 
         Behavior on opacity {

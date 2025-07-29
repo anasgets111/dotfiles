@@ -43,8 +43,8 @@ Rectangle {
 
     Text {
         anchors.centerIn: parent
-        text: isActive ? iconOn : iconOff
-        color: Theme.textContrast(hovered ? Theme.onHoverColor : (isActive ? Theme.activeColor : Theme.inactiveColor))
+        text: idleInhibitor.isActive ? idleInhibitor.iconOn : idleInhibitor.iconOff
+        color: Theme.textContrast(idleInhibitor.hovered ? Theme.onHoverColor : (idleInhibitor.isActive ? Theme.activeColor : Theme.inactiveColor))
         font.pixelSize: Theme.fontSize
         font.bold: true
         font.family: Theme.fontFamily

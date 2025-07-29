@@ -1,5 +1,6 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import QtQuick.Controls
 import Quickshell.Io
 
 Rectangle {
@@ -34,13 +35,13 @@ Rectangle {
         actionProc.running = true;
     }
 
-    width: expanded ? expandedWidth : collapsedWidth
+    width: powerMenu.expanded ? powerMenu.expandedWidth : powerMenu.collapsedWidth
     height: Theme.itemHeight
     radius: Theme.itemRadius
     color: "transparent"
     onHoverCountChanged: {
-        if (hoverCount > 0) {
-            internalHovered = true;
+        if (powerMenu.hoverCount > 0) {
+            powerMenu.internalHovered = true;
             collapseTimer.stop();
         } else {
             collapseTimer.restart();
@@ -79,36 +80,36 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
 
         Repeater {
-            model: buttons
+            model: powerMenu.buttons
 
             delegate: Rectangle {
                 id: btnRect
-
-                property int idx: index
-                property bool shouldShow: expanded || idx === buttons.length - 1
+                required property int index
+                property int idx: btnRect.index
+                property bool shouldShow: powerMenu.expanded || btnRect.idx === powerMenu.buttons.length - 1
                 property bool isHovered: false
 
-                width: shouldShow ? Theme.itemWidth : 0
+                width: btnRect.shouldShow ? Theme.itemWidth : 0
                 height: Theme.itemHeight
                 radius: Theme.itemRadius
-                color: isHovered ? Theme.activeColor : Theme.inactiveColor
+                color: btnRect.isHovered ? Theme.activeColor : Theme.inactiveColor
                 visible: opacity > 0 || width > 0
-                opacity: shouldShow ? 1 : 0
+                opacity: btnRect.shouldShow ? 1 : 0
 
                 MouseArea {
                     anchors.fill: parent
                     hoverEnabled: true
-                    enabled: shouldShow
+                    enabled: btnRect.shouldShow
                     cursorShape: Qt.PointingHandCursor
                     onEntered: {
-                        isHovered = true;
+                        btnRect.isHovered = true;
                         powerMenu.hoverCount++;
                     }
                     onExited: {
-                        isHovered = false;
+                        btnRect.isHovered = false;
                         powerMenu.hoverCount--;
                     }
-                    onClicked: execAction(buttons[idx].action)
+                    onClicked: powerMenu.execAction(powerMenu.buttons[btnRect.idx].action)
                 }
 
                 // Tooltip for button
@@ -129,7 +130,7 @@ Rectangle {
                         id: tooltipText
 
                         anchors.centerIn: parent
-                        text: buttons[idx].tooltip
+                        text: powerMenu.buttons[btnRect.idx].tooltip
                         color: Theme.textContrast(btnRect.isHovered ? Theme.onHoverColor : Theme.inactiveColor)
                         font.pixelSize: Theme.fontSize
                         font.family: Theme.fontFamily
@@ -146,7 +147,7 @@ Rectangle {
 
                 Text {
                     anchors.centerIn: parent
-                    text: buttons[idx].icon
+                    text: powerMenu.buttons[btnRect.idx].icon
                     color: Theme.textContrast(parent.color)
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily

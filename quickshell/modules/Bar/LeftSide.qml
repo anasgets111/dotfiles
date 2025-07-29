@@ -1,9 +1,11 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 
 Row {
     id: leftSide
 
-    property bool normalWorkspacesExpanded: false
+    required property bool normalWorkspacesExpanded
 
     spacing: 8
 

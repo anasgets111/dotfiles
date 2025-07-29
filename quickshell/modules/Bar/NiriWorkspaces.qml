@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -97,7 +99,7 @@ Item {
     Process {
         id: eventProcNiri
 
-        running: useNiri
+        running: root.useNiri
         command: ["niri", "msg", "--json", "event-stream"]
 
         stdout: SplitParser {
@@ -136,8 +138,8 @@ Item {
 
         interval: Theme.animationDuration + 200
         onTriggered: {
-            expanded = false;
-            hoveredIndex = 0;
+            root.expanded = false;
+            root.hoveredIndex = 0;
         }
     }
 
@@ -146,7 +148,7 @@ Item {
         hoverEnabled: true
         acceptedButtons: Qt.NoButton
         onEntered: {
-            expanded = true;
+            root.expanded = true;
             collapseTimer.stop();
         }
         onExited: collapseTimer.restart()
@@ -156,47 +158,49 @@ Item {
         id: workspacesRow
 
         property int spacing: 8
-        property int count: workspaces.length
+        property int count: root.workspaces.length
         property int fullWidth: count * Theme.itemWidth + Math.max(0, count - 1) * spacing
 
-        visible: expanded
+        visible: root.expanded
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
         width: fullWidth
         height: Theme.itemHeight
 
         Repeater {
-            model: workspaces
+            model: root.workspaces
 
             delegate: Rectangle {
                 id: wsRect
 
-                property var ws: modelData
-                property real slotX: index * (Theme.itemWidth + workspacesRow.spacing)
+                required property int index
+                required property var modelData
+                property var ws: wsRect.modelData
+                property real slotX: wsRect.index * (Theme.itemWidth + workspacesRow.spacing)
 
                 width: Theme.itemWidth
                 height: Theme.itemHeight
                 radius: Theme.itemRadius
-                color: workspaceColor(ws)
-                opacity: ws.populated ? 1 : 0.5
-                x: slotX
+                color: root.workspaceColor(wsRect.ws)
+                opacity: wsRect.ws.populated ? 1 : 0.5
+                x: wsRect.slotX
 
                 MouseArea {
                     anchors.fill: parent
                     hoverEnabled: true
                     acceptedButtons: Qt.LeftButton
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: root.hoveredIndex = ws.idx
+                    onEntered: root.hoveredIndex = wsRect.ws.idx
                     onExited: root.hoveredIndex = 0
                     onClicked: {
-                        if (!ws.is_focused)
-                            Quickshell.execDetached(["niri", "msg", "action", "focus-workspace", ws.idx.toString()]);
+                        if (!wsRect.ws.is_focused)
+                            Quickshell.execDetached(["niri", "msg", "action", "focus-workspace", wsRect.ws.idx.toString()]);
                     }
                 }
 
                 Text {
                     anchors.centerIn: parent
-                    text: ws.idx
+                    text: wsRect.ws.idx
                     color: Theme.textContrast(parent.color)
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
@@ -216,9 +220,9 @@ Item {
     Rectangle {
         id: collapsedWs
 
-        property int slideDirection: slideTo === slideFrom ? -1 : slideTo > slideFrom ? -1 : 1
+        property int slideDirection: root.slideTo === root.slideFrom ? -1 : root.slideTo > root.slideFrom ? -1 : 1
 
-        visible: !expanded
+        visible: !root.expanded
         z: 1
         width: Theme.itemWidth
         height: Theme.itemHeight
@@ -231,17 +235,17 @@ Item {
             width: Theme.itemWidth
             height: Theme.itemHeight
             radius: Theme.itemRadius
-            color: workspaceColor({
-                "idx": slideFrom,
+            color: root.workspaceColor({
+                "idx": root.slideFrom,
                 "is_focused": true,
                 "populated": true
             })
-            x: slideProgress * collapsedWs.slideDirection * Theme.itemWidth
-            visible: slideProgress < 1
+            x: root.slideProgress * collapsedWs.slideDirection * Theme.itemWidth
+            visible: root.slideProgress < 1
 
             Text {
                 anchors.centerIn: parent
-                text: slideFrom
+                text: root.slideFrom
                 color: Theme.textContrast(parent.color)
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
@@ -254,16 +258,16 @@ Item {
             width: Theme.itemWidth
             height: Theme.itemHeight
             radius: Theme.itemRadius
-            color: workspaceColor({
-                "idx": slideTo,
+            color: root.workspaceColor({
+                "idx": root.slideTo,
                 "is_focused": true,
                 "populated": true
             })
-            x: (slideProgress - 1) * collapsedWs.slideDirection * Theme.itemWidth
+            x: (root.slideProgress - 1) * collapsedWs.slideDirection * Theme.itemWidth
 
             Text {
                 anchors.centerIn: parent
-                text: slideTo
+                text: root.slideTo
                 color: Theme.textContrast(parent.color)
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
@@ -274,7 +278,7 @@ Item {
 
     Text {
         anchors.centerIn: parent
-        visible: workspaces.length === 0
+        visible: root.workspaces.length === 0
         text: "No workspaces"
         color: Theme.textContrast(Theme.bgColor)
         font.pixelSize: Theme.fontSize
