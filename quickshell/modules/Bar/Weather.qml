@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 
 Item {
+    id: weatherWidget
     property string currentTemp: "Loading..."
     property int refreshInterval: 3.6e+06 // 1 hour in milliseconds
     property real latitude: NaN
@@ -202,10 +203,10 @@ Item {
     Timer {
         id: weatherTimer
 
-        interval: refreshInterval
+        interval: weatherWidget.refreshInterval
         repeat: true
         running: false
         triggeredOnStart: false
-        onTriggered: updateWeather()
+        onTriggered: weatherWidget.updateWeather()
     }
 }
