@@ -4,25 +4,25 @@ import Quickshell.Wayland
 
 PanelWindow {
     id: panelWindow
+
     property bool normalWorkspacesExpanded: false
-    mask: Region {
-        item: panelRect
-    }
+
     implicitWidth: Screen.width
     implicitHeight: Screen.height
     exclusiveZone: Theme.panelHeight
-
     screen: Quickshell.screens.length > 1 ? Quickshell.screens[1] : Quickshell.screens[0]
     WlrLayershell.namespace: "quickshell:bar:blur"
+    color: Theme.panelWindowColor
+
     anchors {
         top: true
         left: true
         right: true
     }
-    color: Theme.panelWindowColor
 
     Rectangle {
         id: panelRect
+
         width: parent.width
         height: Theme.panelHeight
         color: Theme.bgColor
@@ -31,28 +31,34 @@ PanelWindow {
     }
 
     LeftSide {
+        normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
+        onNormalWorkspacesExpandedChanged: panelWindow.normalWorkspacesExpanded = normalWorkspacesExpanded
+
         anchors {
             left: panelRect.left
             leftMargin: Theme.panelMargin
             verticalCenter: panelRect.verticalCenter
         }
-        normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
-        onNormalWorkspacesExpandedChanged: panelWindow.normalWorkspacesExpanded = normalWorkspacesExpanded
+
     }
+
     CenterSide {
         anchors.centerIn: panelRect
         normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
     }
+
     RightSide {
         anchors {
             right: panelRect.right
             rightMargin: Theme.panelMargin
             verticalCenter: panelRect.verticalCenter
         }
+
     }
 
     Item {
         id: bottomCuts
+
         width: parent.width
         height: Theme.panelRadius
         anchors.top: panelRect.bottom
@@ -76,5 +82,11 @@ PanelWindow {
             corner: 3
             rotation: -90
         }
+
     }
+
+    mask: Region {
+        item: panelRect
+    }
+
 }

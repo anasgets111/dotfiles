@@ -8,43 +8,32 @@ Rectangle {
     property int hoverCount: 0
     property bool internalHovered: false
     property bool expanded: internalHovered
-
     property int spacing: 8
-    property var buttons: [
-        {
-            icon: "󰍃",
-            tooltip: "Log Out",
-            action: "loginctl terminate-user $USER"
-        },
-        {
-            icon: "",
-            tooltip: "Restart",
-            action: "systemctl reboot"
-        },
-        {
-            icon: "⏻",
-            tooltip: "Power Off",
-            action: "systemctl poweroff"
-        }
-    ]
+    property var buttons: [{
+        "icon": "󰍃",
+        "tooltip": "Log Out",
+        "action": "loginctl terminate-user $USER"
+    }, {
+        "icon": "",
+        "tooltip": "Restart",
+        "action": "systemctl reboot"
+    }, {
+        "icon": "⏻",
+        "tooltip": "Power Off",
+        "action": "systemctl poweroff"
+    }]
     property int collapsedWidth: Theme.itemWidth
     property int expandedWidth: Theme.itemWidth * buttons.length + spacing * (buttons.length - 1)
-
-    width: expanded ? expandedWidth : collapsedWidth
-    height: Theme.itemHeight
-    radius: Theme.itemRadius
-    color: "transparent"
-
-    Process {
-        id: actionProc
-        running: false
-    }
 
     function execAction(cmd) {
         actionProc.command = ["sh", "-c", "pkill chromium 2>/dev/null || true; " + cmd];
         actionProc.running = true;
     }
 
+    width: expanded ? expandedWidth : collapsedWidth
+    height: Theme.itemHeight
+    radius: Theme.itemRadius
+    color: "transparent"
     onHoverCountChanged: {
         if (hoverCount > 0) {
             internalHovered = true;
@@ -54,20 +43,21 @@ Rectangle {
         }
     }
 
+    Process {
+        id: actionProc
+
+        running: false
+    }
+
     Timer {
         id: collapseTimer
+
         interval: Theme.animationDuration
         repeat: false
         onTriggered: {
             if (powerMenu.hoverCount <= 0)
                 powerMenu.internalHovered = false;
-        }
-    }
 
-    Behavior on width {
-        NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.InOutQuad
         }
     }
 
@@ -80,14 +70,17 @@ Rectangle {
 
     Row {
         id: buttonRow
+
         spacing: 8
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
 
         Repeater {
             model: buttons
+
             delegate: Rectangle {
                 id: btnRect
+
                 property int idx: index
                 property bool shouldShow: expanded || idx === buttons.length - 1
                 property bool isHovered: false
@@ -95,29 +88,9 @@ Rectangle {
                 width: shouldShow ? Theme.itemWidth : 0
                 height: Theme.itemHeight
                 radius: Theme.itemRadius
-
                 color: isHovered ? Theme.activeColor : Theme.inactiveColor
                 visible: opacity > 0 || width > 0
-                opacity: shouldShow ? 1.0 : 0.0
-
-                Behavior on width {
-                    NumberAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.InOutQuad
-                    }
-                }
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.InOutQuart
-                    }
-                }
-                Behavior on color {
-                    ColorAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.InOutQuad
-                    }
-                }
+                opacity: shouldShow ? 1 : 0
 
                 MouseArea {
                     anchors.fill: parent
@@ -138,6 +111,7 @@ Rectangle {
                 // Tooltip for button
                 Rectangle {
                     id: tooltip
+
                     visible: btnRect.isHovered
                     color: Theme.onHoverColor
                     radius: Theme.itemRadius
@@ -147,15 +121,10 @@ Rectangle {
                     anchors.left: parent.left
                     anchors.topMargin: 8
                     opacity: btnRect.isHovered ? 1 : 0
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Theme.animationDuration
-                            easing.type: Easing.OutCubic
-                        }
-                    }
 
                     Text {
                         id: tooltipText
+
                         anchors.centerIn: parent
                         text: buttons[idx].tooltip
                         color: Theme.textContrast(btnRect.isHovered ? Theme.onHoverColor : Theme.inactiveColor)
@@ -163,6 +132,15 @@ Rectangle {
                         font.family: Theme.fontFamily
                         font.bold: true
                     }
+
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.animationDuration
+                            easing.type: Easing.OutCubic
+                        }
+
+                    }
+
                 }
 
                 Text {
@@ -173,7 +151,43 @@ Rectangle {
                     font.family: Theme.fontFamily
                     font.bold: true
                 }
+
+                Behavior on width {
+                    NumberAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.InOutQuad
+                    }
+
+                }
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.InOutQuart
+                    }
+
+                }
+
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.InOutQuad
+                    }
+
+                }
+
             }
+
         }
+
     }
+
+    Behavior on width {
+        NumberAnimation {
+            duration: Theme.animationDuration
+            easing.type: Easing.InOutQuad
+        }
+
+    }
+
 }
