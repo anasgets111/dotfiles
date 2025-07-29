@@ -66,5 +66,5 @@ QtObject {
     readonly property int animationDuration: 147
 
     // DateTime format
-    readonly property string formatDateTime: "dddd dd MMMM hh:mm AP"
+    readonly property string formatDateTime: " dd dddd hh:mm AP"
 }
