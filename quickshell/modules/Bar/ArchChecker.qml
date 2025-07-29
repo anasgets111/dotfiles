@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Window
@@ -67,10 +69,10 @@ Item {
     Process {
         id: notifyProc
 
-        onExited: {
+        onExited: function (exitCode, exitStatus) {
             var act = (notifyOut.text || "").trim();
             if (act === "update")
-                runUpdate();
+                root.runUpdate();
         }
 
         stdout: StdioCollector {
@@ -81,20 +83,20 @@ Item {
     Process {
         id: pkgProc
 
-        onExited: function (exitCode) {
+        onExited: function (exitCode, exitStatus) {
             const stderrText = (err.text || "").trim();
             if (stderrText)
                 console.warn("[UpdateChecker] stderr:", stderrText);
 
-            if (!pkgProc.running && !busy)
+            if (!pkgProc.running && !root.busy)
                 return;
 
             killTimer.stop();
-            busy = false;
+            root.busy = false;
             const raw = (out.text || "").trim();
-            rawOutput = raw;
+            root.rawOutput = raw;
             const list = raw ? raw.split(/\r?\n/) : [];
-            updates = list.length;
+            root.updates = list.length;
             var pkgs = [];
             for (var i = 0; i < list.length; ++i) {
                 var m = list[i].match(/^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/);
@@ -105,24 +107,24 @@ Item {
                         "newVersion": m[3]
                     });
             }
-            updatePackages = pkgs;
+            root.updatePackages = pkgs;
             if (exitCode !== 0 && exitCode !== 2) {
-                failureCount++;
-                if (failureCount >= failureThreshold) {
-                    notify("critical", "Update check failed", "Exit code: " + exitCode + " (failed " + failureCount + " times)");
-                    failureCount = 0;
+                root.failureCount++;
+                if (root.failureCount >= root.failureThreshold) {
+                    root.notify("critical", "Update check failed", "Exit code: " + exitCode + " (failed " + root.failureCount + " times)");
+                    root.failureCount = 0;
                 }
-                updates = 0;
-                updatePackages = [];
+                root.updates = 0;
+                root.updatePackages = [];
                 return;
             }
-            failureCount = 0;
-            if (updates > 0) {
-                const msg = updates === 1 ? "One package can be upgraded" : updates + " packages can be upgraded";
-                notify("normal", "Updates Available", msg);
+            root.failureCount = 0;
+            if (root.updates > 0) {
+                const msg = root.updates === 1 ? "One package can be upgraded" : root.updates + " packages can be upgraded";
+                root.notify("normal", "Updates Available", msg);
             }
-            if (lastWasFull)
-                lastSync = Date.now();
+            if (root.lastWasFull)
+                root.lastSync = Date.now();
         }
 
         stdout: StdioCollector {
@@ -137,21 +139,21 @@ Item {
     Timer {
         id: pollTimer
 
-        interval: pollInterval
+        interval: root.pollInterval
         repeat: true
-        onTriggered: doPoll()
+        onTriggered: root.doPoll()
     }
 
     Timer {
         id: killTimer
 
-        interval: minuteMs
+        interval: root.minuteMs
         repeat: false
         onTriggered: {
             if (pkgProc.running) {
-                pkgProc.kill();
-                busy = false;
-                notify("critical", qsTr("Update check killed"), qsTr("Process took too long"));
+                // pkgProc.kill(); // Not available on QML Process
+                root.busy = false;
+                root.notify("critical", qsTr("Update check killed"), qsTr("Process took too long"));
             }
         }
     }
@@ -159,7 +161,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.itemRadius
-        color: hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor
+        color: root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor
 
         MouseArea {
             id: mouseArea
@@ -167,16 +169,16 @@ Item {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onEntered: hovered = true
-            onExited: hovered = false
+            onEntered: root.hovered = true
+            onExited: root.hovered = false
             onClicked: {
-                if (busy)
+                if (root.busy)
                     return;
 
-                if (updates > 0)
-                    Quickshell.execDetached(updateCommand);
+                if (root.updates > 0)
+                    Quickshell.execDetached(root.updateCommand);
                 else
-                    doPoll(true);
+                    root.doPoll(true);
             }
         }
 
@@ -189,10 +191,10 @@ Item {
             Text {
                 id: indicator
 
-                text: busy ? "" : updates > 0 ? "" : "󰂪"
+                text: root.busy ? "" : root.updates > 0 ? "" : "󰂪"
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
-                color: Theme.textContrast(hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor)
+                color: Theme.textContrast(root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor)
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
@@ -202,7 +204,7 @@ Item {
                     to: 360
                     duration: 800
                     loops: Animation.Infinite
-                    running: busy
+                    running: root.busy
                     onStopped: indicator.rotation = 0
                 }
             }
@@ -210,11 +212,11 @@ Item {
             Text {
                 id: updateCount
 
-                visible: updates > 0
-                text: updates
+                visible: root.updates > 0
+                text: root.updates
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
-                color: Theme.textContrast(hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor)
+                color: Theme.textContrast(root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor)
                 Layout.alignment: Qt.AlignVCenter
             }
         }
@@ -222,7 +224,7 @@ Item {
         Rectangle {
             id: tooltip
 
-            visible: mouseArea.containsMouse && !busy
+            visible: mouseArea.containsMouse && !root.busy
             color: Theme.onHoverColor
             radius: Theme.itemRadius
             width: tooltipText.width + 16
@@ -239,18 +241,19 @@ Item {
                 spacing: 4
 
                 Text {
-                    text: updates === 0 ? qsTr("No updates available") : updates === 1 ? qsTr("One package can be upgraded:") : updates + qsTr(" packages can be upgraded:")
-                    color: Theme.textContrast(hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor)
+                    text: root.updates === 0 ? qsTr("No updates available") : root.updates === 1 ? qsTr("One package can be upgraded:") : root.updates + qsTr(" packages can be upgraded:")
+                    color: Theme.textContrast(root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor)
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
                 }
 
                 Repeater {
-                    model: updatePackages
+                    model: root.updatePackages
 
                     delegate: Text {
-                        text: modelData.name + ": " + modelData.oldVersion + " → " + modelData.newVersion
-                        color: Theme.textContrast(hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor)
+                        required property var model
+                        text: model.name + ": " + model.oldVersion + " → " + model.newVersion
+                        color: Theme.textContrast(root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor)
                         font.pixelSize: Theme.fontSize
                         font.family: Theme.fontFamily
                     }

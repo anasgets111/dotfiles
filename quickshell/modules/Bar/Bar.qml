@@ -7,8 +7,8 @@ PanelWindow {
 
     property bool normalWorkspacesExpanded: false
 
-    implicitWidth: Screen.width
-    implicitHeight: Screen.height
+    implicitWidth: panelWindow.screen.width
+    implicitHeight: panelWindow.screen.height
     exclusiveZone: Theme.panelHeight
     screen: Quickshell.screens.length > 1 ? Quickshell.screens[1] : Quickshell.screens[0]
     WlrLayershell.namespace: "quickshell:bar:blur"
