@@ -124,7 +124,6 @@ Item {
                     duration: Theme.animationDuration
                     easing.type: Easing.OutCubic
                 }
-
             }
 
             Behavior on waterColor {
@@ -132,11 +131,8 @@ Item {
                     duration: Theme.animationDuration
                     easing.type: Easing.OutCubic
                 }
-
             }
-
         }
-
     }
 
     MouseArea {
@@ -195,7 +191,6 @@ Item {
             stdout: StdioCollector {
                 onStreamFinished: batteryArea.powerProfile = text.trim()
             }
-
         }
 
         Process {
@@ -203,9 +198,7 @@ Item {
 
             onExited: profileProc.running = true
 
-            stdout: StdioCollector {
-            }
-
+            stdout: StdioCollector {}
         }
 
         Rectangle {
@@ -218,9 +211,7 @@ Item {
                     duration: 100
                     easing.type: Easing.OutCubic
                 }
-
             }
-
         }
 
         Rectangle {
@@ -239,7 +230,6 @@ Item {
                     duration: 600
                     easing.type: Easing.OutCubic
                 }
-
             }
 
             Behavior on x {
@@ -247,7 +237,6 @@ Item {
                     duration: 600
                     easing.type: Easing.OutCubic
                 }
-
             }
 
             Behavior on opacity {
@@ -255,9 +244,7 @@ Item {
                     duration: 200
                     easing.type: Easing.OutCubic
                 }
-
             }
-
         }
 
         Timer {
@@ -311,7 +298,6 @@ Item {
                 font.bold: true
                 color: Theme.textContrast(percentage > 0.6 ? (percentage <= 0.1 ? "#f38ba8" : percentage <= 0.2 ? "#fab387" : Theme.activeColor) : Theme.inactiveColor)
             }
-
         }
 
         Rectangle {
@@ -347,7 +333,6 @@ Item {
                     font.pixelSize: Theme.fontSize - 2
                     font.family: Theme.fontFamily
                 }
-
             }
 
             Behavior on opacity {
@@ -355,11 +340,7 @@ Item {
                     duration: Theme.animationDuration
                     easing.type: Easing.OutCubic
                 }
-
             }
-
         }
-
     }
-
 }

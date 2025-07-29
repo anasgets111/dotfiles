@@ -22,7 +22,7 @@ Item {
     }
 
     function update(namesArr, idxOrActive) {
-        var names = namesArr.map(function(n) {
+        var names = namesArr.map(function (n) {
             return n.trim();
         });
         layouts = names;
@@ -54,26 +54,24 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!useHypr)
-                    return ;
+                    return;
 
                 var j = JSON.parse(text);
                 var arr = [], active = "";
-                j.keyboards.forEach(function(k) {
+                j.keyboards.forEach(function (k) {
                     if (!k.main)
-                        return ;
+                        return;
 
-                    k.layout.split(",").forEach(function(l) {
+                    k.layout.split(",").forEach(function (l) {
                         var t = l.trim();
                         if (arr.indexOf(t) === -1)
                             arr.push(t);
-
                     });
                     active = k.active_keymap;
                 });
                 root.update(arr, active);
             }
         }
-
     }
 
     Process {
@@ -87,16 +85,15 @@ Item {
                 root.update(j.names, j.current_idx);
             }
         }
-
     }
 
     Connections {
         function onRawEvent(event) {
             if (!useHypr)
-                return ;
+                return;
 
             if (event.name !== "activelayout")
-                return ;
+                return;
 
             var parts = event.data.split(",");
             root.update(parts, parts[parts.length - 1]);
@@ -114,9 +111,9 @@ Item {
 
         stdout: SplitParser {
             splitMarker: "\n"
-            onRead: function(segment) {
+            onRead: function (segment) {
                 if (!segment)
-                    return ;
+                    return;
 
                 var evt = JSON.parse(segment);
                 if (evt.KeyboardLayoutsChanged) {
@@ -131,7 +128,6 @@ Item {
                 }
             }
         }
-
     }
 
     Rectangle {
@@ -155,9 +151,6 @@ Item {
                 verticalAlignment: Text.AlignVCenter
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
             }
-
         }
-
     }
-
 }

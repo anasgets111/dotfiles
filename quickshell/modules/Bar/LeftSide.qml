@@ -17,7 +17,6 @@ Row {
         sourceComponent: ArchChecker {
             anchors.verticalCenter: parent.verticalCenter
         }
-
     }
 
     IdleInhibitor {
@@ -36,7 +35,6 @@ Row {
         sourceComponent: BatteryIndicator {
             anchors.verticalCenter: parent.verticalCenter
         }
-
     }
 
     Loader {
@@ -47,7 +45,6 @@ Row {
 
             anchors.verticalCenter: parent.verticalCenter
         }
-
     }
 
     Loader {
@@ -58,7 +55,6 @@ Row {
 
             anchors.verticalCenter: parent.verticalCenter
         }
-
     }
 
     Loader {
@@ -71,7 +67,5 @@ Row {
             expanded: leftSide.normalWorkspacesExpanded
             onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
         }
-
     }
-
 }

@@ -110,7 +110,6 @@ Item {
                     font.family: Theme.fontFamily
                     visible: weatherItem.locationName.length > 0
                 }
-
             }
 
             // Second row: extracted MinimalCalendar component
@@ -121,7 +120,6 @@ Item {
                 weekStart: 6
                 today: dateTimeDisplay.currentDate
             }
-
         }
 
         Behavior on opacity {
@@ -129,9 +127,7 @@ Item {
                 duration: Theme.animationDuration
                 easing.type: Easing.OutCubic
             }
-
         }
-
     }
 
     Process {
@@ -140,5 +136,4 @@ Item {
         command: ["swaync-client", "-t"]
         running: false
     }
-
 }

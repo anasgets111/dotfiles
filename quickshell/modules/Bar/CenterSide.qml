@@ -20,9 +20,6 @@ Row {
                 duration: Theme.animationDuration
                 easing.type: Easing.InOutQuad
             }
-
         }
-
     }
-
 }

@@ -1,2 +1,3 @@
 # Ignore sensitive Fish credentials file
 fish/conf.d/credentials.fish
+quickshell/.qmlls.ini

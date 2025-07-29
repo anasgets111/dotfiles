@@ -57,9 +57,7 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
-
             }
-
         }
 
         Grid {
@@ -97,13 +95,8 @@ Item {
                         font.bold: (index - calendarGrid.adjustedFirstDay + 1) === calendarGrid.today.getDate()
                         font.pixelSize: theme ? theme.fontSize - 3 : 11
                     }
-
                 }
-
             }
-
         }
-
     }
-
 }

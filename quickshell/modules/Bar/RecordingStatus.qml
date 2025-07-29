@@ -41,7 +41,6 @@ Item {
                 }
             }
         }
-
     }
 
     MouseArea {
@@ -72,7 +71,5 @@ Item {
             font.pixelSize: Theme.fontSize
             font.family: Theme.fontFamily
         }
-
     }
-
 }

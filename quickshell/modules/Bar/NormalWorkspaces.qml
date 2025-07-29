@@ -13,24 +13,23 @@ Item {
     property real slideProgress: 0
     property int slideFrom: currentWorkspace
     property int slideTo: currentWorkspace
-    property var workspaceStatusList: (function() {
-        var arr = Hyprland.workspaces.values;
-        var map = arr.reduce(function(m, w) {
-            m[w.id] = w;
-            return m;
-        }, {
-        });
-        return Array.from({
-            "length": 10
-        }, function(_, i) {
-            var w = map[i + 1];
-            return {
-                "id": i + 1,
-                "focused": !!(w && w.focused),
-                "populated": !!w
-            };
-        });
-    })()
+    property var workspaceStatusList: (function () {
+            var arr = Hyprland.workspaces.values;
+            var map = arr.reduce(function (m, w) {
+                m[w.id] = w;
+                return m;
+            }, {});
+            return Array.from({
+                "length": 10
+            }, function (_, i) {
+                var w = map[i + 1];
+                return {
+                    "id": i + 1,
+                    "focused": !!(w && w.focused),
+                    "populated": !!w
+                };
+            });
+        })()
 
     function workspaceColor(ws) {
         if (ws.focused)
@@ -98,7 +97,7 @@ Item {
             collapseTimer.stop();
         }
         onExited: collapseTimer.restart()
-        onPositionChanged: function(mouse) {
+        onPositionChanged: function (mouse) {
             var sp = expanded ? Theme.itemWidth + 8 : Theme.itemWidth;
             var idx = Math.floor(mouse.x / sp) + 1;
             hoveredIndex = (idx >= 1 && idx <= workspaceStatusList.length) ? idx : 0;
@@ -106,7 +105,6 @@ Item {
         onClicked: {
             if (hoveredIndex > 0 && !workspaceStatusList[hoveredIndex - 1].focused)
                 Hyprland.dispatch("workspace " + hoveredIndex);
-
         }
     }
 
@@ -152,13 +150,9 @@ Item {
                         duration: Theme.animationDuration
                         easing.type: Easing.InOutQuad
                     }
-
                 }
-
             }
-
         }
-
     }
 
     Rectangle {
@@ -194,7 +188,6 @@ Item {
                 font.family: Theme.fontFamily
                 font.bold: true
             }
-
         }
 
         Rectangle {
@@ -216,14 +209,12 @@ Item {
                 font.family: Theme.fontFamily
                 font.bold: true
             }
-
         }
-
     }
 
     Text {
         anchors.centerIn: parent
-        visible: !workspaceStatusList.some(function(ws) {
+        visible: !workspaceStatusList.some(function (ws) {
             return ws.populated;
         })
         text: "No workspaces"
@@ -238,7 +229,5 @@ Item {
             duration: Theme.animationDuration
             easing.type: Easing.InOutQuad
         }
-
     }
-
 }

@@ -24,7 +24,7 @@ Item {
 
     function runUpdate() {
         if (busy)
-            return ;
+            return;
 
         if (updates > 0)
             Quickshell.execDetached(updateCommand);
@@ -45,7 +45,7 @@ Item {
 
     function doPoll(forceFull = false) {
         if (busy)
-            return ;
+            return;
 
         busy = true;
         const now = Date.now();
@@ -71,25 +71,23 @@ Item {
             var act = (notifyOut.text || "").trim();
             if (act === "update")
                 runUpdate();
-
         }
 
         stdout: StdioCollector {
             id: notifyOut
         }
-
     }
 
     Process {
         id: pkgProc
 
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             const stderrText = (err.text || "").trim();
             if (stderrText)
                 console.warn("[UpdateChecker] stderr:", stderrText);
 
             if (!pkgProc.running && !busy)
-                return ;
+                return;
 
             killTimer.stop();
             busy = false;
@@ -106,7 +104,6 @@ Item {
                         "oldVersion": m[2],
                         "newVersion": m[3]
                     });
-
             }
             updatePackages = pkgs;
             if (exitCode !== 0 && exitCode !== 2) {
@@ -117,7 +114,7 @@ Item {
                 }
                 updates = 0;
                 updatePackages = [];
-                return ;
+                return;
             }
             failureCount = 0;
             if (updates > 0) {
@@ -126,7 +123,6 @@ Item {
             }
             if (lastWasFull)
                 lastSync = Date.now();
-
         }
 
         stdout: StdioCollector {
@@ -136,7 +132,6 @@ Item {
         stderr: StdioCollector {
             id: err
         }
-
     }
 
     Timer {
@@ -176,7 +171,7 @@ Item {
             onExited: hovered = false
             onClicked: {
                 if (busy)
-                    return ;
+                    return;
 
                 if (updates > 0)
                     Quickshell.execDetached(updateCommand);
@@ -210,7 +205,6 @@ Item {
                     running: busy
                     onStopped: indicator.rotation = 0
                 }
-
             }
 
             Text {
@@ -223,7 +217,6 @@ Item {
                 color: Theme.textContrast(hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor)
                 Layout.alignment: Qt.AlignVCenter
             }
-
         }
 
         Rectangle {
@@ -261,9 +254,7 @@ Item {
                         font.pixelSize: Theme.fontSize
                         font.family: Theme.fontFamily
                     }
-
                 }
-
             }
 
             Behavior on opacity {
@@ -271,11 +262,7 @@ Item {
                     duration: Theme.animationDuration
                     easing.type: Easing.OutCubic
                 }
-
             }
-
         }
-
     }
-
 }

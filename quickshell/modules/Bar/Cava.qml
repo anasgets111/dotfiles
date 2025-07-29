@@ -13,28 +13,25 @@ Singleton {
     property bool isRunning: false
 
     // Colors from cava config for visualization
-    property var gradientColors: [
-        "#3b3c59", "#4b4464", "#4b4464", "#6d5276", "#7f597e",
-        "#926184", "#a4688a", "#b6708e", "#c87990", "#d98292"
-    ]
+    property var gradientColors: ["#3b3c59", "#4b4464", "#4b4464", "#6d5276", "#7f597e", "#926184", "#a4688a", "#b6708e", "#c87990", "#d98292"]
 
     // Lighter version of gradient colors for visualization
-    property var lighterGradientColors: gradientColors.map(function(color) {
-        return Qt.lighter(color, 1.4)
+    property var lighterGradientColors: gradientColors.map(function (color) {
+        return Qt.lighter(color, 1.4);
     })
 
     // Start the cava process
     function start() {
         if (!isRunning) {
-            isRunning = true
-            cavaProcess.running = true
+            isRunning = true;
+            cavaProcess.running = true;
         }
     }
 
     // Stop the cava process
     function stop() {
-        isRunning = false
-        cavaProcess.running = false
+        isRunning = false;
+        cavaProcess.running = false;
     }
 
     Process {
@@ -45,31 +42,31 @@ Singleton {
         stdout: SplitParser {
             onRead: data => {
                 if (data.trim()) {
-                    const lines = data.trim().split('\n')
-                    const newValues = []
+                    const lines = data.trim().split('\n');
+                    const newValues = [];
                     for (let line of lines) {
                         if (line.trim()) {
                             // Split the line into numbers (semicolon-separated format)
-                            const parts = line.trim().split(';')
+                            const parts = line.trim().split(';');
                             for (let part of parts) {
-                                const value = parseFloat(part)
+                                const value = parseFloat(part);
                                 if (!isNaN(value)) {
-                                    newValues.push(Math.min(1.0, Math.max(0.0, value / 1000.0)))
+                                    newValues.push(Math.min(1.0, Math.max(0.0, value / 1000.0)));
                                 }
                             }
                         }
                     }
                     if (newValues.length > 0) {
-                        root.values = newValues
+                        root.values = newValues;
                     }
                 }
             }
         }
 
-        onExited: (exitCode) => {
+        onExited: exitCode => {
             if (root.isRunning) {
                 // Restart if it was supposed to be running
-                cavaProcess.running = true
+                cavaProcess.running = true;
             }
         }
     }
@@ -110,17 +107,17 @@ gravity = 100
 #5 = 1 # treble
 EOF
         `]
-        onExited: (exitCode) => {
+        onExited: exitCode => {
             if (exitCode === 0) {
-                root.start()
+                root.start();
             }
         }
     }
 
     Component.onCompleted: {
-        createConfigProcess.running = true
+        createConfigProcess.running = true;
     }
     Component.onDestruction: {
-        root.stop()
+        root.stop();
     }
 }

@@ -57,5 +57,4 @@ Item {
             ctx.fill();
         }
     }
-
 }
