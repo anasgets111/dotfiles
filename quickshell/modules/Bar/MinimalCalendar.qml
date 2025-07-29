@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 
 Item {
@@ -32,8 +34,8 @@ Item {
 
             text: displayedTitle
             font.bold: true
-            font.pixelSize: theme ? theme.fontSize - 1 : 13
-            color: theme ? theme.textContrast(theme.onHoverColor) : "#fff"
+            font.pixelSize: calendarGrid.theme ? calendarGrid.theme.fontSize - 1 : 13
+            color: calendarGrid.theme ? calendarGrid.theme.textContrast(calendarGrid.theme.onHoverColor) : "#fff"
             horizontalAlignment: Text.AlignHCenter
             width: calendarGrid.implicitWidth
             height: calendarGrid.titleHeight
@@ -47,11 +49,14 @@ Item {
             Repeater {
                 model: calendarGrid.displayedWeekDays
 
-                Text {
+                delegate: Text {
+                    required property var modelData
+                    required property int index
+                    property int realWeekday: (index + calendarGrid.weekStart) % 7
                     text: modelData
                     font.bold: true
-                    font.pixelSize: theme ? theme.fontSize - 2 : 12
-                    color: theme ? theme.textContrast(theme.onHoverColor) : "#fff"
+                    font.pixelSize: calendarGrid.theme ? calendarGrid.theme.fontSize - 2 : 12
+                    color: realWeekday === 5 ? (calendarGrid.theme ? calendarGrid.theme.bgColor : "#11111b") : (calendarGrid.theme ? calendarGrid.theme.textContrast(calendarGrid.theme.onHoverColor) : "#fff")
                     width: calendarGrid.cellWidth
                     height: calendarGrid.headerHeight
                     horizontalAlignment: Text.AlignHCenter
@@ -70,30 +75,33 @@ Item {
                 model: calendarGrid.adjustedFirstDay + calendarGrid.daysInMonth
 
                 delegate: Item {
+                    required property int index
                     property int displayedDay: index < calendarGrid.adjustedFirstDay ? 0 : (index - calendarGrid.adjustedFirstDay + 1)
+                    property int col: index % 7
 
                     width: calendarGrid.cellWidth
                     height: calendarGrid.cellHeight
 
                     Rectangle {
                         anchors.fill: parent
-                        color: (index - calendarGrid.adjustedFirstDay + 1) === calendarGrid.today.getDate() ? (theme ? theme.inactiveColor : "#ffb347") : "transparent"
+                        color: parent.col === ((5 + 7 - calendarGrid.weekStart) % 7) ? (calendarGrid.theme ? calendarGrid.theme.bgColor : "#11111b") : "transparent"
                         radius: width / 2
-                        visible: (index - calendarGrid.adjustedFirstDay + 1) === calendarGrid.today.getDate()
+                        visible: calendarGrid.today && (parent.index - calendarGrid.adjustedFirstDay + 1) === calendarGrid.today.getDate()
                     }
 
                     Text {
                         anchors.centerIn: parent
-                        text: index < calendarGrid.adjustedFirstDay ? "" : (index - calendarGrid.adjustedFirstDay + 1)
+                        text: parent.index < calendarGrid.adjustedFirstDay ? "" : (parent.index - calendarGrid.adjustedFirstDay + 1)
                         color: {
-                            var d = index - calendarGrid.adjustedFirstDay + 1;
-                            if (d === calendarGrid.today.getDate())
-                                return theme ? theme.textContrast(theme.inactiveColor) : "#fff";
-
-                            return theme ? theme.textContrast(theme.onHoverColor) : "#fff";
+                            var d = parent.index - calendarGrid.adjustedFirstDay + 1;
+                            if (calendarGrid.today && d === calendarGrid.today.getDate())
+                                return calendarGrid.theme ? calendarGrid.theme.textContrast(calendarGrid.theme.inactiveColor) : "#fff";
+                            if (parent.col === ((5 + 7 - calendarGrid.weekStart) % 7))
+                                return calendarGrid.theme ? calendarGrid.theme.textContrast(calendarGrid.theme.bgColor) : "#fff";
+                            return calendarGrid.theme ? calendarGrid.theme.textContrast(calendarGrid.theme.onHoverColor) : "#fff";
                         }
-                        font.bold: (index - calendarGrid.adjustedFirstDay + 1) === calendarGrid.today.getDate()
-                        font.pixelSize: theme ? theme.fontSize - 3 : 11
+                        font.bold: calendarGrid.today && (parent.index - calendarGrid.adjustedFirstDay + 1) === calendarGrid.today.getDate()
+                        font.pixelSize: calendarGrid.theme ? calendarGrid.theme.fontSize - 3 : 11
                     }
                 }
             }

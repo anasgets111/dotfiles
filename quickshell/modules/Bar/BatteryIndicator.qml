@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -48,10 +50,10 @@ Item {
         interval: 200
         repeat: true
         onTriggered: {
-            if (widthPhase < 4) {
-                widthPhase++;
+            if (root.widthPhase < 4) {
+                root.widthPhase++;
             } else {
-                widthPhase = 0;
+                root.widthPhase = 0;
                 stop();
             }
         }
@@ -63,10 +65,10 @@ Item {
         interval: 200
         repeat: true
         onTriggered: {
-            if (colorPhase < 4) {
-                colorPhase++;
+            if (root.colorPhase < 4) {
+                root.colorPhase++;
             } else {
-                colorPhase = 0;
+                root.colorPhase = 0;
                 stop();
             }
         }
@@ -87,13 +89,13 @@ Item {
             id: waterCanvas
 
             // real full‐width for the current percentage
-            property real fullWidth: width * percentage
+            property real fullWidth: width * root.percentage
             // pick up the root’s widthPhase toggles (1…4) when charging
             property int widthPhase: root.widthPhase
             // if widthPhase>0 we flash: odd→0, even→fullWidth; else steady fullWidth
             property real drawWidth: widthPhase > 0 ? ((widthPhase % 2 === 1) ? 0 : fullWidth) : fullWidth
             // your existing waterColor logic
-            property color waterColor: batteryArea.powerProfile === "power-saver" ? Theme.powerSaveColor : (batteryArea.powerProfile === "performance" || batteryArea.powerProfile === "balanced") ? (percentage <= 0.1 ? "#f38ba8" : percentage <= 0.2 ? "#fab387" : Theme.activeColor) : Theme.activeColor
+            property color waterColor: batteryArea.powerProfile === "power-saver" ? Theme.powerSaveColor : (batteryArea.powerProfile === "performance" || batteryArea.powerProfile === "balanced") ? (root.percentage <= 0.1 ? "#f38ba8" : root.percentage <= 0.2 ? "#fab387" : Theme.activeColor) : Theme.activeColor
 
             anchors.fill: parent
             // repaint whenever drawWidth or color changes or container resizes
@@ -139,15 +141,15 @@ Item {
         id: batteryArea
 
         property string remainingTimeText: {
-            if (isCharging && device.timeToFull > 0)
-                return "Time to full: " + fmt(device.timeToFull);
+            if (root.isCharging && root.device.timeToFull > 0)
+                return "Time to full: " + fmt(root.device.timeToFull);
 
             // Show "Connected" when plugged in, not charging, and battery is 100%
-            if (!isCharging && device.isOnline && Math.round(percentage * 100) === 100)
+            if (!root.isCharging && root.device.isOnline && Math.round(root.percentage * 100) === 100)
                 return "Connected";
 
-            if (!isCharging && device.timeToEmpty > 0)
-                return "Time remaining: " + fmt(device.timeToEmpty);
+            if (!root.isCharging && root.device.timeToEmpty > 0)
+                return "Time remaining: " + fmt(root.device.timeToEmpty);
 
             return "Calculating…";
         }
@@ -281,22 +283,22 @@ Item {
             Text {
                 id: icon
 
-                text: isCharging ? "" : percentage > 0.8 ? "" : percentage > 0.6 ? "" : percentage > 0.4 ? "" : percentage > 0.2 ? "" : ""
+                text: root.isCharging ? "" : root.percentage > 0.8 ? "" : root.percentage > 0.6 ? "" : root.percentage > 0.4 ? "" : root.percentage > 0.2 ? "" : ""
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 font.bold: true
-                color: Theme.textContrast(percentage > 0.6 ? (percentage <= 0.1 ? "#f38ba8" : percentage <= 0.2 ? "#fab387" : Theme.activeColor) : Theme.inactiveColor)
+                color: Theme.textContrast(root.percentage > 0.6 ? (root.percentage <= 0.1 ? "#f38ba8" : root.percentage <= 0.2 ? "#fab387" : Theme.activeColor) : Theme.inactiveColor)
             }
 
             Text {
                 id: percentText
 
                 anchors.verticalCenter: parent.verticalCenter
-                text: Math.round(percentage * 100) + "%"
+                text: Math.round(root.percentage * 100) + "%"
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 font.bold: true
-                color: Theme.textContrast(percentage > 0.6 ? (percentage <= 0.1 ? "#f38ba8" : percentage <= 0.2 ? "#fab387" : Theme.activeColor) : Theme.inactiveColor)
+                color: Theme.textContrast(root.percentage > 0.6 ? (root.percentage <= 0.1 ? "#f38ba8" : root.percentage <= 0.2 ? "#fab387" : Theme.activeColor) : Theme.inactiveColor)
             }
         }
 

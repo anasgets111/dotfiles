@@ -4,9 +4,8 @@ import Quickshell.Hyprland
 import Quickshell.Io
 
 Item {
-    id: root
+    id: keyboardLayoutIndicator
 
-    // --- Begin merged KbService logic ---
     readonly property bool useHypr: DetectEnv.isHyprland
     readonly property bool useNiri: DetectEnv.isNiri
     property var layouts: []
@@ -25,35 +24,35 @@ Item {
         var names = namesArr.map(function (n) {
             return n.trim();
         });
-        layouts = names;
-        available = names.length > 1;
-        if (useHypr)
-            currentLayout = idxOrActive.trim();
+        keyboardLayoutIndicator.layouts = names;
+        keyboardLayoutIndicator.available = names.length > 1;
+        if (keyboardLayoutIndicator.useHypr)
+            keyboardLayoutIndicator.currentLayout = idxOrActive.trim();
         else
-            currentLayout = names[idxOrActive] || "";
+            keyboardLayoutIndicator.currentLayout = names[idxOrActive] || "";
     }
 
     function seedInitial() {
-        if (useHypr)
+        if (keyboardLayoutIndicator.useHypr)
             seedProcHypr.running = true;
-        else if (useNiri)
+        else if (keyboardLayoutIndicator.useNiri)
             seedProcNiri.running = true;
     }
 
     implicitHeight: Theme.itemHeight
     implicitWidth: Math.max(Theme.itemWidth, label.implicitWidth + 12)
-    Component.onCompleted: seedInitial()
-    visible: available
+    Component.onCompleted: keyboardLayoutIndicator.seedInitial()
+    visible: keyboardLayoutIndicator.available
 
     Process {
         id: seedProcHypr
 
-        running: useHypr
+        running: keyboardLayoutIndicator.useHypr
         command: ["hyprctl", "-j", "devices"]
 
         stdout: StdioCollector {
             onStreamFinished: {
-                if (!useHypr)
+                if (!keyboardLayoutIndicator.useHypr)
                     return;
 
                 var j = JSON.parse(text);
@@ -69,7 +68,7 @@ Item {
                     });
                     active = k.active_keymap;
                 });
-                root.update(arr, active);
+                keyboardLayoutIndicator.update(arr, active);
             }
         }
     }
@@ -82,31 +81,31 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 var j = JSON.parse(text);
-                root.update(j.names, j.current_idx);
+                keyboardLayoutIndicator.update(j.names, j.current_idx);
             }
         }
     }
 
     Connections {
         function onRawEvent(event) {
-            if (!useHypr)
+            if (!keyboardLayoutIndicator.useHypr)
                 return;
 
             if (event.name !== "activelayout")
                 return;
 
             var parts = event.data.split(",");
-            root.update(parts, parts[parts.length - 1]);
+            keyboardLayoutIndicator.update(parts, parts[parts.length - 1]);
         }
 
-        target: useHypr ? Hyprland : null
-        enabled: useHypr
+        target: keyboardLayoutIndicator.useHypr ? Hyprland : null
+        enabled: keyboardLayoutIndicator.useHypr
     }
 
     Process {
         id: eventProcNiri
 
-        running: useNiri
+        running: keyboardLayoutIndicator.useNiri
         command: ["niri", "msg", "--json", "event-stream"]
 
         stdout: SplitParser {
@@ -118,13 +117,13 @@ Item {
                 var evt = JSON.parse(segment);
                 if (evt.KeyboardLayoutsChanged) {
                     var kli = evt.KeyboardLayoutsChanged.keyboard_layouts;
-                    root.update(kli.names, kli.current_idx);
+                    keyboardLayoutIndicator.update(kli.names, kli.current_idx);
                 } else if (evt.KeyboardLayoutSwitched) {
                     var idx = evt.KeyboardLayoutSwitched.idx;
-                    if (!root.layouts.length)
-                        root.seedInitial();
+                    if (!keyboardLayoutIndicator.layouts.length)
+                        keyboardLayoutIndicator.seedInitial();
                     else
-                        root.currentLayout = root.layouts[idx] || "";
+                        keyboardLayoutIndicator.currentLayout = keyboardLayoutIndicator.layouts[idx] || "";
                 }
             }
         }
@@ -142,7 +141,7 @@ Item {
             Text {
                 id: label
 
-                text: shortName(currentLayout)
+                text: keyboardLayoutIndicator.shortName(keyboardLayoutIndicator.currentLayout)
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 font.bold: true

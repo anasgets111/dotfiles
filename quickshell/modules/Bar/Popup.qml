@@ -25,7 +25,6 @@ PopupWindow {
         radius: Theme.itemRadius
         color: Theme.bgColor
         border.color: Theme.borderColor
-        border.width: Theme.borderWidth
         opacity: 0.97
     }
 
