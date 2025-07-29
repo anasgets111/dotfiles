@@ -11,7 +11,6 @@ Item {
     property string appName: ""
     property string displayText: ""
 
-    // Called on any update (new active or title change)
     function updateActive() {
         var top = ToplevelManager.activeToplevel;
         if (top) {
@@ -27,7 +26,6 @@ Item {
         activeWindow.displayText = activeWindow.computeDisplayText();
     }
 
-    // Compose + truncate
     function computeDisplayText() {
         var txt;
         if (activeWindow.currentTitle && activeWindow.appName)
@@ -45,7 +43,6 @@ Item {
     height: windowTitle.implicitHeight
     Component.onCompleted: updateActive()
 
-    // 1) Active‐window switch
     Connections {
         function onActiveToplevelChanged() {
             activeWindow.updateActive();
@@ -54,7 +51,6 @@ Item {
         target: ToplevelManager
     }
 
-    // 2) Title changes on the *current* toplevel
     Connections {
         function onTitleChanged() {
             activeWindow.updateActive();
