@@ -1,11 +1,12 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
 import Quickshell
 import Quickshell.Io
-import QtQuick.Window
 
 Item {
     id: root
+
     property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "/home/anas/.config/waybar/update.sh"]
     property bool hovered: false
     property bool popupHovered: false
@@ -20,50 +21,76 @@ Item {
     property int minuteMs: 60 * 1000
     property int pollInterval: 1 * minuteMs
     property int syncInterval: 5 * minuteMs
-    implicitHeight: Theme.itemHeight
-    implicitWidth: Math.max(Theme.itemWidth, indicator.implicitWidth + (updateCount.visible ? updateCount.implicitWidth : 0))
+
     function runUpdate() {
         if (busy)
-            return;
-        if (updates > 0) {
+            return ;
+
+        if (updates > 0)
             Quickshell.execDetached(updateCommand);
-        } else {
+        else
             doPoll(true);
-        }
-    }
-
-    Process {
-        id: notifyProc
-        stdout: StdioCollector {
-            id: notifyOut
-        }
-
-        onExited: {
-            var act = (notifyOut.text || "").trim();
-            if (act === "update") {
-                runUpdate();
-            }
-        }
     }
 
     function notify(urgency, title, body) {
         notifyProc.command = ["notify-send", "-u", urgency, "-A", "update=Update Now", "-w", title, body];
         notifyProc.running = true;
     }
+
+    function startUpdateProcess(cmd) {
+        pkgProc.command = cmd;
+        pkgProc.running = true;
+        killTimer.restart();
+    }
+
+    function doPoll(forceFull = false) {
+        if (busy)
+            return ;
+
+        busy = true;
+        const now = Date.now();
+        const full = forceFull || (now - lastSync > syncInterval);
+        lastWasFull = full;
+        if (full)
+            startUpdateProcess(["checkupdates", "--nocolor"]);
+        else
+            startUpdateProcess(["checkupdates", "--nosync", "--nocolor"]);
+    }
+
+    implicitHeight: Theme.itemHeight
+    implicitWidth: Math.max(Theme.itemWidth, indicator.implicitWidth + (updateCount.visible ? updateCount.implicitWidth : 0))
+    Component.onCompleted: {
+        doPoll();
+        pollTimer.start();
+    }
+
+    Process {
+        id: notifyProc
+
+        onExited: {
+            var act = (notifyOut.text || "").trim();
+            if (act === "update")
+                runUpdate();
+
+        }
+
+        stdout: StdioCollector {
+            id: notifyOut
+        }
+
+    }
+
     Process {
         id: pkgProc
-        stdout: StdioCollector {
-            id: out
-        }
-        stderr: StdioCollector {
-            id: err
-        }
-        onExited: function (exitCode) {
+
+        onExited: function(exitCode) {
             const stderrText = (err.text || "").trim();
             if (stderrText)
                 console.warn("[UpdateChecker] stderr:", stderrText);
+
             if (!pkgProc.running && !busy)
-                return;
+                return ;
+
             killTimer.stop();
             busy = false;
             const raw = (out.text || "").trim();
@@ -73,13 +100,13 @@ Item {
             var pkgs = [];
             for (var i = 0; i < list.length; ++i) {
                 var m = list[i].match(/^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/);
-                if (m) {
+                if (m)
                     pkgs.push({
-                        name: m[1],
-                        oldVersion: m[2],
-                        newVersion: m[3]
+                        "name": m[1],
+                        "oldVersion": m[2],
+                        "newVersion": m[3]
                     });
-                }
+
             }
             updatePackages = pkgs;
             if (exitCode !== 0 && exitCode !== 2) {
@@ -90,44 +117,39 @@ Item {
                 }
                 updates = 0;
                 updatePackages = [];
-                return;
+                return ;
             }
             failureCount = 0;
             if (updates > 0) {
                 const msg = updates === 1 ? "One package can be upgraded" : updates + " packages can be upgraded";
                 notify("normal", "Updates Available", msg);
             }
-            if (lastWasFull) {
+            if (lastWasFull)
                 lastSync = Date.now();
-            }
+
         }
-    }
-    function startUpdateProcess(cmd) {
-        pkgProc.command = cmd;
-        pkgProc.running = true;
-        killTimer.restart();
-    }
-    function doPoll(forceFull = false) {
-        if (busy)
-            return;
-        busy = true;
-        const now = Date.now();
-        const full = forceFull || (now - lastSync > syncInterval);
-        lastWasFull = full;
-        if (full) {
-            startUpdateProcess(["checkupdates", "--nocolor"]);
-        } else {
-            startUpdateProcess(["checkupdates", "--nosync", "--nocolor"]);
+
+        stdout: StdioCollector {
+            id: out
         }
+
+        stderr: StdioCollector {
+            id: err
+        }
+
     }
+
     Timer {
         id: pollTimer
+
         interval: pollInterval
         repeat: true
         onTriggered: doPoll()
     }
+
     Timer {
         id: killTimer
+
         interval: minuteMs
         repeat: false
         onTriggered: {
@@ -138,12 +160,15 @@ Item {
             }
         }
     }
+
     Rectangle {
         anchors.fill: parent
         radius: Theme.itemRadius
         color: hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor
+
         MouseArea {
             id: mouseArea
+
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
@@ -151,20 +176,24 @@ Item {
             onExited: hovered = false
             onClicked: {
                 if (busy)
-                    return;
-                if (updates > 0) {
+                    return ;
+
+                if (updates > 0)
                     Quickshell.execDetached(updateCommand);
-                } else {
+                else
                     doPoll(true);
-                }
             }
         }
+
         RowLayout {
             id: row
+
             anchors.centerIn: parent
             spacing: 4
+
             Text {
                 id: indicator
+
                 text: busy ? "" : updates > 0 ? "" : "󰂪"
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
@@ -172,6 +201,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+
                 RotationAnimator on rotation {
                     from: 0
                     to: 360
@@ -180,9 +210,12 @@ Item {
                     running: busy
                     onStopped: indicator.rotation = 0
                 }
+
             }
+
             Text {
                 id: updateCount
+
                 visible: updates > 0
                 text: updates
                 font.pixelSize: Theme.fontSize
@@ -190,9 +223,12 @@ Item {
                 color: Theme.textContrast(hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor)
                 Layout.alignment: Qt.AlignVCenter
             }
+
         }
+
         Rectangle {
             id: tooltip
+
             visible: mouseArea.containsMouse && !busy
             color: Theme.onHoverColor
             radius: Theme.itemRadius
@@ -202,15 +238,10 @@ Item {
             anchors.left: mouseArea.left
             anchors.topMargin: 8
             opacity: mouseArea.containsMouse ? 1 : 0
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: Theme.animationDuration
-                    easing.type: Easing.OutCubic
-                }
-            }
 
             Column {
                 id: tooltipText
+
                 anchors.centerIn: parent
                 spacing: 4
 
@@ -223,18 +254,28 @@ Item {
 
                 Repeater {
                     model: updatePackages
+
                     delegate: Text {
                         text: modelData.name + ": " + modelData.oldVersion + " → " + modelData.newVersion
                         color: Theme.textContrast(hovered && !busy ? Theme.onHoverColor : Theme.inactiveColor)
                         font.pixelSize: Theme.fontSize
                         font.family: Theme.fontFamily
                     }
+
                 }
+
             }
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.animationDuration
+                    easing.type: Easing.OutCubic
+                }
+
+            }
+
         }
+
     }
-    Component.onCompleted: {
-        doPoll();
-        pollTimer.start();
-    }
+
 }

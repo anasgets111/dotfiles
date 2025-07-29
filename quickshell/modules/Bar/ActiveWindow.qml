@@ -1,11 +1,9 @@
 import QtQuick
-import Quickshell.Wayland
 import Quickshell
+import Quickshell.Wayland
 
 Item {
     id: activeWindow
-    width: windowTitle.implicitWidth
-    height: windowTitle.implicitHeight
 
     property int maxLength: 60
     property string currentTitle: ""
@@ -32,45 +30,42 @@ Item {
     // Compose + truncate
     function computeDisplayText() {
         var txt;
-        if (activeWindow.currentTitle && activeWindow.appName) {
+        if (activeWindow.currentTitle && activeWindow.appName)
             txt = (activeWindow.appName === "Zen Browser") ? activeWindow.currentTitle : activeWindow.appName + ": " + activeWindow.currentTitle;
-        } else if (activeWindow.currentTitle) {
+        else if (activeWindow.currentTitle)
             txt = activeWindow.currentTitle;
-        } else if (activeWindow.appName) {
+        else if (activeWindow.appName)
             txt = activeWindow.appName;
-        } else {
+        else
             txt = "Desktop";
-        }
         return txt.length > activeWindow.maxLength ? txt.substring(0, activeWindow.maxLength - 3) + "..." : txt;
     }
 
+    width: windowTitle.implicitWidth
+    height: windowTitle.implicitHeight
+    Component.onCompleted: updateActive()
+
     // 1) Active‐window switch
     Connections {
-        target: ToplevelManager
         function onActiveToplevelChanged() {
             activeWindow.updateActive();
         }
+
+        target: ToplevelManager
     }
 
     // 2) Title changes on the *current* toplevel
     Connections {
-        target: ToplevelManager.activeToplevel
         function onTitleChanged() {
             activeWindow.updateActive();
         }
-    }
 
-    Component.onCompleted: updateActive()
-
-    Behavior on width {
-        NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.InOutQuad
-        }
+        target: ToplevelManager.activeToplevel
     }
 
     Text {
         id: windowTitle
+
         anchors.fill: parent
         text: activeWindow.displayText
         color: Theme.textContrast(Theme.bgColor)
@@ -79,4 +74,13 @@ Item {
         font.family: Theme.fontFamily
         elide: Text.ElideRight
     }
+
+    Behavior on width {
+        NumberAnimation {
+            duration: Theme.animationDuration
+            easing.type: Easing.InOutQuad
+        }
+
+    }
+
 }
