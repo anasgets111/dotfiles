@@ -44,7 +44,6 @@ hotkey-overlay {
 environment {
     QT_QPA_PLATFORM "wayland"
     DISPLAY ":1"
-    BIN "$HOME/.local/bin"
     INPUT_METHOD "fcitx"
     MOZ_ENABLE_WAYLAND "1"
     EGL_PLATFORM "wayland"
@@ -319,8 +318,7 @@ binds {
     Mod+W { toggle-column-tabbed-display; }
 
 
-Print hotkey-overlay-title="Take Screenshot and Annotate" {
-  spawn "sh" "-c" "niri" "msg" "action" "screenshot" "|" "tee" ">(wl-copy" "--type" "image/png)" "|" "satty" "--filename" "-" "--output-filename" "$HOME/Pictures/$(date" "+%Y-%m-%d_%H-%M-%S).png" ; }
+Print hotkey-overlay-title="Take Screenshot and Annotate" { screenshot; }
 
 
     // Print { screenshot; }

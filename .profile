@@ -16,11 +16,12 @@ export CARGOBIN="$CARGO_HOME/bin"
 export FNM_PATH="$XDG_DATA_HOME/fnm"
 export GNUPGHOME="$XDG_DATA_HOME/gnupg"
 export MYSQL_HOST="127.0.0.1"
+export BIN="$HOME/.local/bin"
 export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc-2.0"
 export LESSHISTFILE="$XDG_CACHE_HOME/less_history"
 
 # ─── PATH ───────────────────────────────────────────────────────────────────────
-export PATH="$CARGOBIN:$HOME/.local/bin:$XDG_CONFIG_HOME/composer/vendor/bin:$PATH"
+export PATH="$CARGOBIN:$BIN:$XDG_CONFIG_HOME/composer/vendor/bin:$PATH"
 
 # ─── FALL INTO FISH ONCE YOUR ENV IS SET ────────────────────────────────────────
 # If this is an interactive login (tty or GUI), and we're not already in fish…
