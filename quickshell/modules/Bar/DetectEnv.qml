@@ -11,7 +11,7 @@ Item {
     readonly property string session: sessionName.toLowerCase().split(":")[0]
     property bool isHyprland: session === "hyprland"
     property bool isNiri: session === "niri"
-    property string distroId: ""
+    property string distroId: "unknown"
     property var upowerDevice: UPower.displayDevice
     readonly property bool isLaptopBattery: upowerDevice && upowerDevice.type === 2 && upowerDevice.isPresent
 
@@ -19,15 +19,18 @@ Item {
         sessionName = Quickshell.env("XDG_SESSION_DESKTOP") || Quickshell.env("XDG_CURRENT_DESKTOP") || Quickshell.env("DESKTOP_SESSION") || "";
     }
 
-    FileView {
-        id: osReleaseFile
-
-        path: "/etc/os-release"
-        blockLoading: true
-        preload: true
-        onLoaded: {
-            var idMatch = osReleaseFile.text().match(/^ID="?([^"\n]+)"?/m);
-            root.distroId = idMatch ? idMatch[1] : "";
+    // Detect arch-based (pacman) or other distro
+    Process {
+        id: detectArch
+        command: ["which", "pacman"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (this.text.trim().length > 0)
+                    root.distroId = "arch";
+                else
+                    root.distroId = "other";
+            }
         }
     }
 }
