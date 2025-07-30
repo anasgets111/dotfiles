@@ -27,13 +27,10 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 console.log("DetectEnv: which pacman output:", this.text);
-                if (this.text.trim().length > 0) {
+                if (this.text.trim().length > 0)
                     root.distroId = "arch";
-                    console.log("Detected distro: arch");
-                } else {
+                else
                     root.distroId = "other";
-                    console.log("Detected distro: other");
-                }
             }
         }
     }
