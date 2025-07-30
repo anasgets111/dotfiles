@@ -107,15 +107,12 @@ layout {
     }
 }
 
-// Note that running niri as a session supports xdg-desktop-autostart,
-spawn-at-startup "/usr/bin/gnome-keyring-daemon --start --components=secrets,ssh,pkcs11,gpg,secrets"
-spawn-at-startup "dbus-update-activation-environment --all --systemd"
-spawn-at-startup "systemctl --user import-environment SSH_AUTH_SOCK GNOME_KEYRING_CONTROL GPG_AGENT_INFO DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
+// Note that running niri as a session supports xdg-desktop-autostart
 spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
 spawn-at-startup "quickshell"
 spawn-at-startup "swayosd-server"
 spawn-at-startup "swaync"
-spawn-at-startup "wl-clip-persist --clipboard regular"
+spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
 spawn-at-startup "swww-daemon"
 spawn-at-startup "kdeconnectd"
 spawn-at-startup "kdeconnect-indicator"
