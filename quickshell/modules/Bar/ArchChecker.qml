@@ -9,7 +9,7 @@ import Quickshell.Io
 Item {
     id: root
 
-    property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "$BIN/update.sh"]
+    property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "sh", "-c", "$BIN/update.sh"]
     property bool hovered: false
     property bool popupHovered: false
     property bool busy: false
