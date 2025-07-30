@@ -120,13 +120,6 @@ spawn-at-startup "xwayland-satellite"
 // spawn-at-startup "openrgb --startminimized --profile "Default""
 
 
-
-
-// screenshot-path "~/Pictures/Screenshot from %Y-%m-%d %H-%M-%S.png"
-
-// You can also set this to null to disable saving screenshots to disk.
-screenshot-path null
-
 animations {
     // off
  screenshot-ui-open {
@@ -193,14 +186,13 @@ binds {
     Super+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock" "--screenshots" "--effect-blur" "7x5" "--effect-vignette" "0.3:0.7" "--clock" "--indicator" "--indicator-radius" "471" "--indicator-thickness" "10" "--ring-color" "89b4fa" "--key-hl-color" "f38ba8" "--line-color" "00000000" "--inside-color" "1e1e2eaa" "--text-color" "cdd6f4" "--inside-ver-color" "a6e3a1aa" "--inside-wrong-color" "f38ba8aa" "--ring-ver-color" "a6e3a1" "--ring-wrong-color" "f38ba8" "--text-ver-color" "1e1e2e" "--text-wrong-color" "1e1e2e" "--grace" "1" "--fade-in" "0.5" "--indicator-image" "/mnt/Work/Personal/profile-pic.png" "--font-size" "20" ;}
 
 
-    // Mod+T { spawn "sh" "-c" "notify-send hello && exec xdg-terminal-exec"; }
-
     // The allow-when-locked=true property makes them work even when the session is locked.
     XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "0.1+"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "0.1-"; }
     XF86AudioMute        allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
     XF86AudioMicMute     allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
 
+XF86Calculator {spawn "gnome-calculator"; }
     // the top-left hot corner, or a four-finger swipe up on a touchpad opens the overview too.
     Mod+O repeat=false { toggle-overview; }
     Mod+Q { close-window; }
@@ -318,7 +310,7 @@ binds {
     Mod+W { toggle-column-tabbed-display; }
 
 
-Print hotkey-overlay-title="Take Screenshot and Annotate" { screenshot; }
+Print hotkey-overlay-title="Take Screenshot and Annotate" { screenshot ; }
 
 
     // Print { screenshot; }
@@ -342,3 +334,9 @@ Print hotkey-overlay-title="Take Screenshot and Annotate" { screenshot; }
     // moving the mouse or pressing any other key.
     Mod+Shift+P { power-off-monitors; }
 }
+
+screenshot-path "~/Pictures/Screenshot from %Y-%m-%d %H-%M-%S.png"
+
+// You can also set this to null to disable saving screenshots to disk.
+// screenshot-path null
+
