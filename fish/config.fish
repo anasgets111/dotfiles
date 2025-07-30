@@ -6,8 +6,6 @@ set -g RED (set_color red)
 set -g YELLOW (set_color yellow)
 set -g RESET (set_color normal)
 
-set -x MYSQL_HOST 127.0.0.1
-
 # set -g fish_key_bindings fish_vi_key_bindings
 
 # Fish Greeting
@@ -29,16 +27,6 @@ else if set -q TERMINAL_EMULATOR
 else
     set -gx fish_history "fish"
 end
-
-
-# Define a list of new paths
-set -l new_paths \
-    "$CARGOBIN/"\
-    "$HOME/.local/bin" \
-    "$XDG_CONFIG_HOME/composer/vendor/bin"
-
-# Prepend the new paths to PATH
-set -gx PATH $new_paths $PATH
 
 
 
