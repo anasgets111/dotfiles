@@ -14,7 +14,7 @@ Row {
     }
 
     Loader {
-        active: ["arch", "cachyos"].indexOf(DetectEnv.distroId) !== -1
+        active: DetectEnv.distroId === "arch"
 
         sourceComponent: ArchChecker {
             anchors.verticalCenter: parent.verticalCenter
