@@ -1,0 +1,28 @@
+screenshots
+effect-blur=7x5
+effect-vignette=0.3:0.7
+clock
+indicator
+indicator-radius=471
+indicator-image=/mnt/Work/Personal/profile-pic.png
+indicator-thickness=10
+ring-color=89b4fa
+line-color=00000000
+inside-color=1e1e2eaa
+text-color=cdd6f4
+inside-ver-color=a6e3a1aa
+ring-ver-color=a6e3a1
+text-ver-color=1e1e2e
+
+inside-wrong-color=f38ba8aa
+ring-wrong-color=f38ba8
+text-wrong-color=1e1e2e
+font-size=47
+
+key-hl-color=f38ba8
+timestr=%I:%M %p
+datestr=%a %d %B %Y
+grace=1
+
+fade-in=0.5
+
