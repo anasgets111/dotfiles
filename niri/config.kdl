@@ -140,76 +140,111 @@ window-rule {
     draw-border-with-background false
 }
 
-// All floating windows
+// ─────────────────────────────────────────────────────────────────────────────
+// WORKSPACE ASSIGNMENTS
+// ─────────────────────────────────────────────────────────────────────────────
 window-rule {
-    match app-id="firefox"
-    match title="Picture-in-Picture"
-    match app-id="org.kde.kdeconnect.handler"
-    match app-id="com.saivert.pwvucontrol"
-    match app-id="gtk-pipe-viewer"
-    match app-id="org.pulseaudio.pavucontrol"
-    match app-id="blueman-manager"
-    match app-id="org.gnome.DiskUtility"
-    match app-id="nm-connection-editor"
-    match title="Global Updates"
-    match app-id="gnome-calculator"
-    match app-id="org.gnome.Calculator"
-    match title="OpenRGB"
-    match title="Network Connections"
-    match title="Do you want to retry your last request?"
-    match app-id="xdg-desktop-portal"
-    match app-id="polkit-gnome-authentication-agent-1"
-    match app-id="zenity"
-    match app-id="pavucontrol"
+    match app-id=r#"^(
+        org\.kde\.kdeconnect\.handler
+      | com\.saivert\.pwvucontrol
+      | gtk-pipe-viewer
+      | org\.pulseaudio\.pavucontrol
+      | blueman-manager
+      | org\.gnome\.DiskUtility
+      | nm-connection-editor
+      | gnome-calculator
+      | org\.gnome\.Calculator
+      | xdg-desktop-portal.*
+      | polkit.*authentication-agent.*
+      | zenity
+      | pavucontrol
+      | waypaper
+      | io\.missioncenter\.MissionCenter
+      | mpv
+    )$"#
+
+    match title=r#"^(
+        Install from VSIX
+      | Open File
+      | Save File
+      | Save As
+      | Open Folder
+      | File Upload
+      | Enter name of file to save to\.\.
+      | Authentication Required
+      | Create or select new Steam library folder
+      | About Zen Browser
+      | imv
+      | mpv
+      | danmufloat
+      | termfloat
+      | nemo
+      | ncmpcpp
+      | Picture[-\s]?In[-\s]?Picture
+      | OpenRGB
+      | Network Connections
+      | Do you want to retry your last request\?
+    )$"#
+
     open-floating true
 }
 
-// // Workspace assignments
-// window-rule {
-//     match app-id="zen-browser"
-//     open-on-workspace "1"
-// }
-// window-rule {
-//     match app-id="chromium"
-//     open-on-workspace "2"
-// }
-// window-rule {
-//     match app-id="code"
-//     match app-id="Code"
-//     open-on-workspace "3"
-// }
-// window-rule {
-//     match app-id="thunderbird"
-//     open-on-workspace "7"
-// }
-// window-rule {
-//     match app-id="vesktop"
-//     open-on-workspace "special:vesktop"
-// }
-// window-rule {
-//     match app-id="org.telegram.desktop"
-//     match app-id="Telegram"
-//     match app-id="telegram-desktop"
-//     open-on-workspace "special:telegram"
-// }
-// window-rule {
-//     match app-id="Slack"
-//     match app-id="slack-desktop"
-//     open-on-workspace "special:slack"
-// }
+// ─────────────────────────────────────────────────────────────────────────────
+// SPECIAL SIZING RULES
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Dialogs and special floating windows with custom sizing
+// Global Updates dialog
 window-rule {
     match title="Global Updates"
-    match title="OpenRGB"
-    match title="Network Connections"
-    match title="Do you want to retry your last request?"
     open-floating true
-    default-column-width { proportion 0.6 ;}
-    default-window-height { fixed 900 ;}
+    default-column-width  { fixed 1600; }
+    default-window-height { fixed 900; }
 }
 
-// ...existing code...
+// Picture-in-Picture
+window-rule {
+    match title=r#"^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$"#
+    open-floating true
+    default-column-width  { fixed 960; }
+    default-window-height { fixed 540; }
+}
+
+// Steam dialogs
+window-rule {
+    match app-id="steam"
+    match title=r#"^(Steam - Self Updater|Steam Settings)$"#
+    open-floating true
+}
+window-rule {
+    match app-id="steam"
+    match title="Create or select new Steam library folder"
+    open-floating true
+    default-column-width  { fixed 1600; }
+    default-window-height { fixed 900; }
+}
+
+// Nautilus CA-certificate chooser
+window-rule {
+    match app-id=r#"^org\.gnome\.Nautilus$"#
+    match title=r#"^Select File containing CA certificate.*$"#
+    open-floating true
+}
+
+// Code/cursor retry prompt
+window-rule {
+    match app-id=r#"^(Code|cursor)$"#
+    match title="Do you want to retry your last request"
+    open-floating true
+}
+
+// Blender initial dialog
+window-rule {
+    match app-id="blender"
+    match title="^Blender$"
+    open-floating true
+}
+
+
 binds {
     // "Mod" Super when running on a TTY, and to Alt when running as a winit window.
     // shows a list of important hotkeys.
