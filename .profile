@@ -23,6 +23,7 @@ export LESSHISTFILE="$XDG_CACHE_HOME/less_history"
 # ─── PATH ───────────────────────────────────────────────────────────────────────
 export PATH="$CARGOBIN:$BIN:$XDG_CONFIG_HOME/composer/vendor/bin:$PATH"
 
+eval "$( fnm env --use-on-cd --version-file-strategy=recursive --resolve-engines )"
 # ─── FALL INTO FISH ONCE YOUR ENV IS SET ────────────────────────────────────────
 # If this is an interactive login (tty or GUI), and we're not already in fish…
 if [ -t 1 ] && [ -z "$FISH_VERSION" ]; then
