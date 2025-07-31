@@ -46,6 +46,7 @@ alias pacinn='sudo pacman -S --needed'
 alias pacre='sudo pacman -R'
 alias pacrem='sudo pacman -Rsn'
 alias gl='git pull'
+alias gp='git push'
 alias hw='hwinfo --short'  # Hardware Info
 alias big="expac -H M '%m\t%n' | sort -h | nl"  # Sort installed packages according to size in MB
 alias ..='cd ..'
@@ -65,6 +66,5 @@ alias cd="z"
 
 # Initialization for Tools
 zoxide init fish | source
-#starship init fish | source
-fnm env --use-on-cd --version-file-strategy=recursive --resolve-engines | source
+# fnm env --use-on-cd --version-file-strategy=recursive --resolve-engines | source
 oh-my-posh init fish --config $HOME/.config/standard.omp.toml | source

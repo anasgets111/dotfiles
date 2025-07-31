@@ -4,3 +4,4 @@
 if [ -t 1 ] && [ -z "$FISH_VERSION" ]; then
   exec fish --login
 fi
+

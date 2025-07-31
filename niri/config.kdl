@@ -143,6 +143,12 @@ animations {
 // Window Rules Section
 // =====================
 
+window-rule {
+    geometry-corner-radius 15 15 0 0
+    clip-to-geometry true
+    draw-border-with-background false
+}
+
 // All floating windows
 window-rule {
     match app-id="firefox"
@@ -155,6 +161,8 @@ window-rule {
     match app-id="org.gnome.DiskUtility"
     match app-id="nm-connection-editor"
     match title="Global Updates"
+    match app-id="gnome-calculator"
+    match app-id="org.gnome.Calculator"
     match title="OpenRGB"
     match title="Network Connections"
     match title="Do you want to retry your last request?"
@@ -163,13 +171,6 @@ window-rule {
     match app-id="zenity"
     match app-id="pavucontrol"
     open-floating true
-}
-
-// Calculator sizing
-window-rule {
-    match app-id="gnome-calculator"
-    match app-id="org.gnome.Calculator"
-    default-column-width { proportion 0.15 ; }
 }
 
 // // Workspace assignments
