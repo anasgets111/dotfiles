@@ -1,5 +1,19 @@
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Introduction
 // Remember to uncomment the node by removing "/-"!
+
+
+workspace "Zen"  {open-on-output "DP-3";}
+workspace "Chromium"  {open-on-output "DP-3";}
+workspace "Code"       {open-on-output "DP-3";}
+workspace "Zed"          {open-on-output "DP-3";}
+workspace "Files"        {open-on-output "DP-3";}
+workspace "Torrent"      {open-on-output "DP-3";}
+workspace "Thunderbird"  {open-on-output "DP-3";}
+workspace "Games"        {open-on-output "DP-3";}
+workspace "Discord" {open-on-output "DP-2";}
+workspace "Slack"   {open-on-output "DP-2";}
+workspace "Telegram" {open-on-output "DP-2";}
+
 input {
     keyboard {
         xkb {
@@ -41,15 +55,6 @@ hotkey-overlay {
     skip-at-startup
 }
 
-environment {
-    QT_QPA_PLATFORM "wayland"
-    DISPLAY ":1"
-    INPUT_METHOD "fcitx"
-    MOZ_ENABLE_WAYLAND "1"
-    EGL_PLATFORM "wayland"
-    ELECTRON_OZONE_PLATFORM_HINT "auto"
-    ELECTRON_ENABLE_FEATURES "UseOzonePlatform,WaylandWindowDecorations,WaylandLinuxDrmSyncobj"
-}
 
 cursor {
     xcursor-theme "Bibata-Modern-Ice"
@@ -57,7 +62,9 @@ cursor {
 }
 
 
-// prefer-no-csd
+prefer-no-csd
+
+
 layout {
     gaps 11
     center-focused-column "never"
@@ -140,108 +147,48 @@ window-rule {
     draw-border-with-background false
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// WORKSPACE ASSIGNMENTS
-// ─────────────────────────────────────────────────────────────────────────────
 window-rule {
-    match app-id=r#"^(
-        org\.kde\.kdeconnect\.handler
-      | com\.saivert\.pwvucontrol
-      | gtk-pipe-viewer
-      | org\.pulseaudio\.pavucontrol
-      | blueman-manager
-      | org\.gnome\.DiskUtility
-      | nm-connection-editor
-      | gnome-calculator
-      | org\.gnome\.Calculator
-      | xdg-desktop-portal.*
-      | polkit.*authentication-agent.*
-      | zenity
-      | pavucontrol
-      | waypaper
-      | io\.missioncenter\.MissionCenter
-      | mpv
-    )$"#
-
-    match title=r#"^(
-        Install from VSIX
-      | Open File
-      | Save File
-      | Save As
-      | Open Folder
-      | File Upload
-      | Enter name of file to save to\.\.
-      | Authentication Required
-      | Create or select new Steam library folder
-      | About Zen Browser
-      | imv
-      | mpv
-      | danmufloat
-      | termfloat
-      | nemo
-      | ncmpcpp
-      | Picture[-\s]?In[-\s]?Picture
-      | OpenRGB
-      | Network Connections
-      | Do you want to retry your last request\?
-    )$"#
-
-    open-floating true
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SPECIAL SIZING RULES
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Global Updates dialog
-window-rule {
-    match title="Global Updates"
-    open-floating true
-    default-column-width  { fixed 1600; }
-    default-window-height { fixed 900; }
-}
-
-// Picture-in-Picture
-window-rule {
-    match title=r#"^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$"#
-    open-floating true
-    default-column-width  { fixed 960; }
-    default-window-height { fixed 540; }
-}
-
-// Steam dialogs
-window-rule {
-    match app-id="steam"
-    match title=r#"^(Steam - Self Updater|Steam Settings)$"#
-    open-floating true
-}
-window-rule {
-    match app-id="steam"
+    match title="Install from VSIX"
+    match title="Open File"
+    match title="Save File"
+    match title="Save As"
+    match title="Open Folder"
+    match title="File Upload"
+    match title="Enter name of file to save to.."
+    match title="Authentication Required"
     match title="Create or select new Steam library folder"
-    open-floating true
-    default-column-width  { fixed 1600; }
-    default-window-height { fixed 900; }
-}
-
-// Nautilus CA-certificate chooser
-window-rule {
-    match app-id=r#"^org\.gnome\.Nautilus$"#
-    match title=r#"^Select File containing CA certificate.*$"#
-    open-floating true
-}
-
-// Code/cursor retry prompt
-window-rule {
-    match app-id=r#"^(Code|cursor)$"#
+    match title="About Zen Browser"
+    match title="imv"
+    match title="ncmpcpp"
+    match title=r#"^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$"#
+    match title="OpenRGB"
+    match title="Network Connections"
     match title="Do you want to retry your last request"
+
+    match app-id="org.kde.kdeconnect.handler"
+    match app-id=r#"^steam$"# title=r#"^(Steam - Self Updater|Steam Settings|Create or select new Steam library folder)$"#
+    match app-id="waypaper"
+    match app-id="mpv"
+    match app-id="io.missioncenter.MissionCenter"
+    match app-id="com.saivert.pwvucontrol"
+    match app-id="gtk-pipe-viewer"
+    match app-id="org.pulseaudio.pavucontrol"
+    match app-id="blueman-manager"
+    match app-id="org.gnome.DiskUtility"
+    match app-id="nm-connection-editor"
+    match app-id="gnome-calculator"
+    match app-id="org.gnome.Calculator"
+    match app-id="xdg-desktop-portal.*"
+    match app-id="polkit.*authentication-agent.*"
+    match app-id="zenity"
+    match app-id="pavucontrol"
     open-floating true
 }
 
-// Blender initial dialog
 window-rule {
-    match app-id="blender"
-    match title="^Blender$"
-    open-floating true
+    match app-id="org.gnome.Calculator"
+    default-column-width { proportion 0.15; }
+    default-window-height { proportion 0.15; }
 }
 
 
@@ -327,25 +274,27 @@ binds {
     Mod+Ctrl+Shift+WheelScrollUp   { move-column-left; }
 
 
-    Mod+1 { focus-workspace 1; }
-    Mod+2 { focus-workspace 2; }
-    Mod+3 { focus-workspace 3; }
-    Mod+4 { focus-workspace 4; }
-    Mod+5 { focus-workspace 5; }
-    Mod+6 { focus-workspace 6; }
-    Mod+7 { focus-workspace 7; }
-    Mod+8 { focus-workspace 8; }
-    Mod+9 { focus-workspace 9; }
-    Mod+Shift+1 { move-window-to-workspace 1; }
-    Mod+Shift+2 { move-window-to-workspace 2; }
-    Mod+Shift+3 { move-window-to-workspace 3; }
-    Mod+Shift+4 { move-window-to-workspace 4; }
-    Mod+Shift+5 { move-window-to-workspace 5; }
-    Mod+Shift+6 { move-window-to-workspace 6; }
-    Mod+Shift+7 { move-window-to-workspace 7; }
-    Mod+Shift+8 { move-window-to-workspace 8; }
-    Mod+Shift+9 { move-window-to-workspace 9; }
-
+    Mod+1 { focus-workspace "Zen"; }
+    Mod+2 { focus-workspace "Chromium"; }
+    Mod+3 { focus-workspace "Code"; }
+    Mod+4 { focus-workspace "Zed"; }
+    Mod+5 { focus-workspace "Files"; }
+    Mod+6 { focus-workspace "Torrent"; }
+    Mod+7 { focus-workspace "Thunderbird"; }
+    Mod+8 { focus-workspace "Games"; }
+    Mod+9 { focus-workspace "Discord"; }
+    Mod+0 { focus-workspace "Slack"; }
+    
+    Mod+Shift+1 { move-window-to-workspace "Zen"; }
+    Mod+Shift+2 { move-window-to-workspace "Chromium"; }
+    Mod+Shift+3 { move-window-to-workspace "Code"; }
+    Mod+Shift+4 { move-window-to-workspace "Zed"; }
+    Mod+Shift+5 { move-window-to-workspace "Files"; }
+    Mod+Shift+6 { move-window-to-workspace "Torrent"; }
+    Mod+Shift+7 { move-window-to-workspace "Games"; }
+    Mod+Shift+8 { move-window-to-workspace "Thunderbird"; }
+    Mod+Shift+9 { move-window-to-workspace "Games"; }
+    Mod+Shift+0 { move-window-to-workspace "Slack"; }
 
 
 
