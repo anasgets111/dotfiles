@@ -14,9 +14,9 @@ input {
         tap
         dwt
         natural-scroll
-        }
+     }
     // warp-mouse-to-focus
-    focus-follows-mouse max-scroll-amount="50%"
+    focus-follows-mouse max-scroll-amount="0%"
     workspace-auto-back-and-forth
 }
 
@@ -57,7 +57,7 @@ cursor {
 }
 
 
-prefer-no-csd
+// prefer-no-csd
 layout {
     gaps 11
     center-focused-column "never"
@@ -77,7 +77,7 @@ layout {
         proportion 0.66667
     }
 
-    default-column-width { }
+    default-column-width {   proportion 0.5; }
 
     focus-ring {
         // off
@@ -96,7 +96,7 @@ layout {
     }
     // You can enable drop shadows for windows.
     shadow {
-        on
+        // on
         // draw-behind-window true
         softness 30
         spread 5
@@ -122,22 +122,13 @@ spawn-at-startup "xwayland-satellite"
 
 animations {
     // off
- screenshot-ui-open {
+    screenshot-ui-open {
         duration-ms 471
         curve "ease-out-quad"
     }
     slowdown 0.74
 }
 
-// Work around WezTerm's initial configure bug
-// by setting an empty default-column-width.
-/- window-rule {
-    // This regular expression is intentionally made as specific as possible,
-    // since this is the default config, and we want no false positives.
-    // You can get away with just app-id="wezterm" if you want.
-    match app-id="org.wezfurlong.wezterm"
-    default-column-width {}
-}
 
 // =====================
 // Window Rules Section
@@ -237,7 +228,7 @@ binds {
     Mod+T { spawn "telegram"; }
     Mod+D { spawn "vesktop"; }
     
-    Super+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock" "--screenshots" "--effect-blur" "7x5" "--effect-vignette" "0.3:0.7" "--clock" "--indicator" "--indicator-radius" "471" "--indicator-thickness" "10" "--ring-color" "89b4fa" "--key-hl-color" "f38ba8" "--line-color" "00000000" "--inside-color" "1e1e2eaa" "--text-color" "cdd6f4" "--inside-ver-color" "a6e3a1aa" "--inside-wrong-color" "f38ba8aa" "--ring-ver-color" "a6e3a1" "--ring-wrong-color" "f38ba8" "--text-ver-color" "1e1e2e" "--text-wrong-color" "1e1e2e" "--grace" "1" "--fade-in" "0.5" "--indicator-image" "/mnt/Work/Personal/profile-pic.png" "--font-size" "20" ;}
+    Super+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock" ;}
 
 
     // The allow-when-locked=true property makes them work even when the session is locked.
