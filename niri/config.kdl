@@ -164,7 +164,7 @@ window-rule {
     match title="OpenRGB"
     match title="Network Connections"
     match title="Do you want to retry your last request"
-
+    match title="Global Updates"
     match app-id="org.kde.kdeconnect.handler"
     match app-id=r#"^steam$"# title=r#"^(Steam - Self Updater|Steam Settings|Create or select new Steam library folder)$"#
     match app-id="waypaper"
