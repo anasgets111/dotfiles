@@ -22,7 +22,7 @@ export LESSHISTFILE="$XDG_CACHE_HOME/less_history"
 
 
 # Display
-export DISPLAY=":1"
+# export DISPLAY=":1"
 # Qt & EGL selection
 if command -v nvidia-smi >/dev/null 2>&1; then
   # NVIDIA drivers
@@ -31,7 +31,7 @@ if command -v nvidia-smi >/dev/null 2>&1; then
   export NVD_BACKEND="direct"
 
   # Use EGLStreams plugin
-  export QT_QPA_PLATFORM="wayland-egl"
+  export QT_QPA_PLATFORM="wayland"
   export EGL_PLATFORM="wayland_egl"
 else
   # Fallback to standard Wayland
