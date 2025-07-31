@@ -84,9 +84,9 @@ Item {
 
                     Rectangle {
                         anchors.fill: parent
-                        color: parent.col === ((5 + 7 - calendarGrid.weekStart) % 7) ? (calendarGrid.theme ? calendarGrid.theme.bgColor : "#11111b") : "transparent"
+                        color: parent.displayedDay > 0 && calendarGrid.today && calendarGrid.month === calendarGrid.today.getMonth() && calendarGrid.year === calendarGrid.today.getFullYear() && parent.displayedDay === calendarGrid.today.getDate() ? (calendarGrid.theme ? calendarGrid.theme.activeColor : "#CBA6F7") : (parent.col === ((5 + 7 - calendarGrid.weekStart) % 7) ? (calendarGrid.theme ? calendarGrid.theme.bgColor : "#11111b") : "transparent")
                         radius: width / 2
-                        visible: calendarGrid.today && (parent.index - calendarGrid.adjustedFirstDay + 1) === calendarGrid.today.getDate()
+                        visible: parent.displayedDay > 0 && calendarGrid.today && calendarGrid.month === calendarGrid.today.getMonth() && calendarGrid.year === calendarGrid.today.getFullYear() && parent.displayedDay === calendarGrid.today.getDate()
                     }
 
                     Text {
@@ -94,13 +94,13 @@ Item {
                         text: parent.index < calendarGrid.adjustedFirstDay ? "" : (parent.index - calendarGrid.adjustedFirstDay + 1)
                         color: {
                             var d = parent.index - calendarGrid.adjustedFirstDay + 1;
-                            if (calendarGrid.today && d === calendarGrid.today.getDate())
-                                return calendarGrid.theme ? calendarGrid.theme.textContrast(calendarGrid.theme.inactiveColor) : "#fff";
+                            if (calendarGrid.today && d > 0 && calendarGrid.month === calendarGrid.today.getMonth() && calendarGrid.year === calendarGrid.today.getFullYear() && d === calendarGrid.today.getDate())
+                                return calendarGrid.theme ? calendarGrid.theme.textContrast(calendarGrid.theme.activeColor) : "#fff";
                             if (parent.col === ((5 + 7 - calendarGrid.weekStart) % 7))
                                 return calendarGrid.theme ? calendarGrid.theme.textContrast(calendarGrid.theme.bgColor) : "#fff";
                             return calendarGrid.theme ? calendarGrid.theme.textContrast(calendarGrid.theme.onHoverColor) : "#fff";
                         }
-                        font.bold: calendarGrid.today && (parent.index - calendarGrid.adjustedFirstDay + 1) === calendarGrid.today.getDate()
+                        font.bold: calendarGrid.today && parent.displayedDay > 0 && calendarGrid.month === calendarGrid.today.getMonth() && calendarGrid.year === calendarGrid.today.getFullYear() && parent.displayedDay === calendarGrid.today.getDate()
                         font.pixelSize: calendarGrid.theme ? calendarGrid.theme.fontSize - 3 : 11
                     }
                 }
