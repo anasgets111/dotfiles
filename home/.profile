@@ -76,8 +76,3 @@ eval "$( fnm env --shell=bash --use-on-cd --version-file-strategy=recursive --re
 if [ -t 1 ] && [ -z "$FISH_VERSION" ]; then
   exec fish --login
 fi
-
-# Set git signingkey from SIGNINGKEY env var if available
-if [ -n "$SIGNINGKEY" ]; then
-  git config --global user.signingkey "$SIGNINGKEY"
-fi
