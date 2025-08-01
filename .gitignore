@@ -1,4 +1,4 @@
 # Ignore sensitive Fish credentials file
-fish/conf.d/credentials.fish
-quickshell/.qmlls.ini
-hypr/config/monitors.conf
+fish/.config/fish/conf.d/credentials.fish
+quickshell/.config/quickshell/.qmlls.ini
+hypr/.config/hypr/monitors.conf
