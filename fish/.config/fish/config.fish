@@ -54,7 +54,7 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
 alias ......='cd ../../../../..'
-alias fastfetchy="fastfetch --load-config $HOME/.config/fastfetchTheme.jsonc"
+alias fastfetchy="fastfetch --load-config $XDG_CONFIG_HOME/fastfetchTheme.jsonc"
 alias gedit="gnome-text-editor"
 alias errors="journalctl -p 3 -xb"
 alias tb='nc termbin.com 9999'
@@ -67,4 +67,4 @@ alias cd="z"
 # Initialization for Tools
 zoxide init fish | source
 # fnm env --use-on-cd --version-file-strategy=recursive --resolve-engines | source
-oh-my-posh init fish --config $HOME/.config/standard.omp.toml | source
+oh-my-posh init fish --config $XDG_CONFIG_HOME/standard.omp.toml | source

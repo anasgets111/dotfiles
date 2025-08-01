@@ -62,6 +62,14 @@ export GLFW_IM_MODULE="ibus"
 # ─── PATH ───────────────────────────────────────────────────────────────────────
 export PATH="$CARGOBIN:$BIN:$XDG_CONFIG_HOME/composer/vendor/bin:$PATH"
 
+# Dotfiles base directory
+export DOTFILES="/mnt/Work/1Progs/Dots"
+
+# Source credentials if present
+CRED_FILE="$DOTFILES/.local_secrets/credentials.sh"
+[ -f "$CRED_FILE" ] && . "$CRED_FILE"
+
+
 eval "$( fnm env --shell=bash --use-on-cd --version-file-strategy=recursive --resolve-engines )"
 # ─── FALL INTO FISH ONCE YOUR ENV IS SET ────────────────────────────────────────
 # If this is an interactive login (tty or GUI), and we're not already in fish…

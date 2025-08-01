@@ -1,0 +1,6 @@
+[user]
+    name = Anas Khalifa
+    email = anasgets111@gmail.com
+    signingkey = ${SIGNINGKEY}
+[commit]
+    gpgsign = true
