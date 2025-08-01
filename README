@@ -1,5 +1,9 @@
-These are my personal dotfiles for quickshell
-currently dependancies the following (on top of my head):
+These are my personal dotfiles for quickshell/hyprland/niri and a modular Linux desktop.
+
+Now organized for GNU Stow: Just use `stow -t ~ <package>` to symlink configs. and `stow -D -t ~ <package>` to remove them.
+
+Main dependencies:
+
 - quickshell
 - hyprland
 - fish
@@ -9,4 +13,10 @@ currently dependancies the following (on top of my head):
 - zen-browser
 - gpu-screen-recorder
 - pacman-contrib
-- waybar (backed-up but not used)
+- swayidle (idle management for Niri)
+- swaylock-effects (lockscreen for Niri)
+- hypridle (idle management for Hyprland)
+- hyprlock (lockscreen for Hyprland)
+- hyprshot (screenshots for Hyprland)
+- satty (screenshot annotation/saving)
+- waybar (backed-up, not used)
