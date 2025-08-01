@@ -17,18 +17,16 @@ end
 
 # if fish is open by vscode terminal then use a different history file
 if set -q ZED_TERM
-    set -gx fish_history "zed"
+    set -gx fish_history zed
 else if set -q VSCODE_INJECTION
 
-    set -gx fish_history "vscode"
+    set -gx fish_history vscode
 else if set -q TERMINAL_EMULATOR
-    set -gx fish_history  "phpstorm"
+    set -gx fish_history phpstorm
 
 else
-    set -gx fish_history "fish"
+    set -gx fish_history fish
 end
-
-
 
 # Aliases
 # Alias to drop caches
@@ -47,8 +45,8 @@ alias pacre='sudo pacman -R'
 alias pacrem='sudo pacman -Rsn'
 alias gl='git pull'
 alias gp='git push'
-alias hw='hwinfo --short'  # Hardware Info
-alias big="expac -H M '%m\t%n' | sort -h | nl"  # Sort installed packages according to size in MB
+alias hw='hwinfo --short' # Hardware Info
+alias big="expac -H M '%m\t%n' | sort -h | nl" # Sort installed packages according to size in MB
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
@@ -63,6 +61,7 @@ alias grep='rg'
 alias ls="eza --icons --hyperlink"
 alias cat="bat"
 alias cd="z"
+alias dots='cd $DOTFILES; and stow '
 
 # Initialization for Tools
 zoxide init fish | source
