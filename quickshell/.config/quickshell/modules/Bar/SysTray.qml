@@ -1,3 +1,4 @@
+// pragma ComponentBehavior: Bound
 //@ pragma IconTheme Tela-circle-dracula-dark
 
 import QtQuick
@@ -51,9 +52,10 @@ Item {
         id: trayRow
 
         anchors.centerIn: parent
-        spacing: iconSpacing
+        spacing: systemTrayWidget.iconSpacing
 
         Repeater {
+            id: trayRepeater
             model: SystemTray.items
 
             MouseArea {
@@ -67,23 +69,22 @@ Item {
                 hoverEnabled: true
                 onClicked: function (mouse) {
                     if (mouse.button === Qt.LeftButton)
-                        trayItem.activate();
-                    else if (mouse.button === Qt.RightButton && trayItem.hasMenu)
+                        trayMouseArea.trayItem.activate();
+                    else if (mouse.button === Qt.RightButton && trayMouseArea.trayItem.hasMenu)
                         menuAnchor.open();
                     else if (mouse.button === Qt.MiddleButton)
-                        trayItem.secondaryActivate();
+                        trayMouseArea.trayItem.secondaryActivate();
                 }
                 onWheel: function (wheel) {
-                    trayItem.scroll(wheel.angleDelta.x, wheel.angleDelta.y);
+                    trayMouseArea.trayItem.scroll(wheel.angleDelta.x, wheel.angleDelta.y);
                 }
 
                 QsMenuAnchor {
                     id: menuAnchor
 
-                    menu: trayItem.menu
+                    menu: trayMouseArea.trayItem.menu
                     anchor.window: systemTrayWidget.bar
                     anchor.item: iconImage
-                    anchor.edges: Edges.Bottom
                 }
 
                 Rectangle {
@@ -104,19 +105,19 @@ Item {
                 Image {
                     id: iconImage
 
-                    property string iconName: getThemeIconName(trayItem.icon)
-                    property string themePath: getIconPath(iconName)
+                    property string iconName: systemTrayWidget.getThemeIconName(trayMouseArea.trayItem.icon)
+                    property string themePath: systemTrayWidget.getIconPath(iconName)
 
                     anchors.centerIn: parent
                     width: Theme.iconSize
                     height: Theme.iconSize
-                    source: trayItem.icon.startsWith("image://") ? trayItem.icon : themePath
+                    source: trayMouseArea.trayItem.icon.startsWith("image://") ? trayMouseArea.trayItem.icon : themePath
                     fillMode: Image.PreserveAspectFit
                     smooth: true
                     visible: status !== Image.Error && status !== Image.Null
                     onStatusChanged: {
-                        if (status === Image.Error && trayItem.icon.startsWith("image://")) {
-                            var fp = getIconPath(iconName);
+                        if (status === Image.Error && trayMouseArea.trayItem.icon.startsWith("image://")) {
+                            var fp = systemTrayWidget.getIconPath(iconName);
                             if (fp)
                                 source = fp;
                         }
@@ -125,7 +126,7 @@ Item {
 
                 Text {
                     anchors.centerIn: parent
-                    text: trayItem.tooltipTitle ? trayItem.tooltipTitle : (trayItem.title ? trayItem.title.charAt(0).toUpperCase() : "?")
+                    text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : (trayMouseArea.trayItem.title ? trayMouseArea.trayItem.title.charAt(0).toUpperCase() : "?")
                     color: trayMouseArea.containsMouse ? Theme.textOnHoverColor : Theme.textActiveColor
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
@@ -136,7 +137,7 @@ Item {
                 Rectangle {
                     id: tooltip
 
-                    visible: trayMouseArea.containsMouse && (trayItem.tooltipTitle || trayItem.title)
+                    visible: trayMouseArea.containsMouse && (trayMouseArea.trayItem.tooltipTitle || trayMouseArea.trayItem.title)
                     color: Theme.onHoverColor
                     radius: Theme.itemRadius
                     width: tooltipText.width + 16
@@ -150,7 +151,7 @@ Item {
                         id: tooltipText
 
                         anchors.centerIn: parent
-                        text: trayItem.tooltipTitle ? trayItem.tooltipTitle : trayItem.title
+                        text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : trayMouseArea.trayItem.title
                         color: Theme.textContrast(trayMouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
                         font.pixelSize: Theme.fontSize
                         font.family: Theme.fontFamily
@@ -169,7 +170,7 @@ Item {
 
     Text {
         anchors.centerIn: parent
-        visible: SystemTray.items.count === 0
+        visible: trayRepeater.count === 0
         text: "No tray items"
         color: Theme.panelColor
         font.pixelSize: 10
