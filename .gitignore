@@ -2,3 +2,5 @@
 fish/.config/fish/conf.d/credentials.fish
 quickshell/.config/quickshell/.qmlls.ini
 hypr/.config/hypr/monitors.conf
+# Secrets directory
+.local_secrets/
