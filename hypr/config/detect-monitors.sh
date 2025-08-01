@@ -16,7 +16,7 @@ case "$HOSTNAME" in
     fi
     ;;
   "Mentalist")
-    if echo "$CONNECTED" | grep -q "HDMI-A-1"; then
+    if echo "$CONNECTED" | grep -q "HDMI-1"; then
       SRC="$HOME/.config/hypr/config/docked.conf"
       DST="$HOME/.config/hypr/config/monitors.conf"
       ln -sf "$SRC" "$DST"
