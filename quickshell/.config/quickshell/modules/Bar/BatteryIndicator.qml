@@ -153,6 +153,9 @@ Item {
             if (root.isCharging && root.device.timeToFull > 0)
                 return "Time to full: " + fmt(root.device.timeToFull);
 
+            if (root.device.state === UPowerDeviceState.PendingCharge)
+                return "Charge Limited";
+
             if (!root.isCharging && root.device.isOnline && Math.round(root.percentage * 100) === 100)
                 return "Connected";
 
@@ -279,7 +282,21 @@ Item {
             Text {
                 id: icon
 
-                text: root.isCharging ? "" : root.percentage > 0.8 ? "" : root.percentage > 0.6 ? "" : root.percentage > 0.4 ? "" : root.percentage > 0.2 ? "" : ""
+                text: {
+                    if (root.isCharging)
+                        return "";
+                    if (root.device.state === UPowerDeviceState.PendingCharge)
+                        return "󰂄";
+                    if (root.percentage > 0.8)
+                        return "";
+                    if (root.percentage > 0.6)
+                        return "";
+                    if (root.percentage > 0.4)
+                        return "";
+                    if (root.percentage > 0.2)
+                        return "";
+                    return "";
+                }
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 font.bold: true
