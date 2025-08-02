@@ -14,7 +14,7 @@ Item {
     property string distroId: "unknown"
     property var upowerDevice: UPower.displayDevice
     readonly property bool isLaptopBattery: upowerDevice && upowerDevice.type === 2 && upowerDevice.isPresent
-    property var batteryManager: null  // "power-profile-daemon", "tlp", or null if none
+    property var batteryManager: null  // "ppd", "tlp", or null if none
 
     Component.onCompleted: {
         sessionName = Quickshell.env("XDG_SESSION_DESKTOP") || Quickshell.env("XDG_CURRENT_DESKTOP") || Quickshell.env("DESKTOP_SESSION") || "";
@@ -42,8 +42,8 @@ Item {
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
+                var result = this.text.trim();
                 if (root.isLaptopBattery) {
-                    var result = this.text.trim();
                     if (result === "ppd") {
                         root.batteryManager = "ppd";
                     } else if (result === "tlp") {
@@ -51,6 +51,9 @@ Item {
                     } else {
                         root.batteryManager = null;
                     }
+                } else {
+                    // Not a laptop, so battery manager is not applicable
+                    root.batteryManager = null;
                 }
             }
         }
