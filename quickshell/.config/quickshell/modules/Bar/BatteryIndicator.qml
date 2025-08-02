@@ -20,6 +20,13 @@ Item {
     property int widthPhase: 0
     property int colorPhase: 0
 
+    // Process for power profile switching
+    Process {
+        id: setProc
+        command: []
+        running: false
+    }
+
     visible: DetectEnv.isLaptopBattery
     implicitHeight: Theme.itemHeight
     implicitWidth: 80
@@ -140,6 +147,9 @@ Item {
         id: batteryArea
 
         property string remainingTimeText: {
+            if (root.device.state === UPowerDeviceState.FullyCharged)
+                return "Fully Charged";
+                
             if (root.isCharging && root.device.timeToFull > 0)
                 return "Time to full: " + fmt(root.device.timeToFull);
 
@@ -165,6 +175,18 @@ Item {
         cursorShape: Qt.PointingHandCursor
 
         onClicked: {
+            if (DetectEnv.batteryManager === "ppd") {
+                // PPD: Cycle between power-saver and performance
+                var currentProfile = PowerMgmt.ppdInfo.replace("PPD: ", "");
+                var next = currentProfile === "performance" ? "power-saver" : "performance";
+                setProc.command = ["powerprofilesctl", "set", next];
+                setProc.running = true;
+                
+                // Refresh immediately - sysfs values update instantly
+                PowerMgmt.refreshPowerInfo();
+            }
+            
+            // Flash animation for both TLP and PPD
             if (overlayFadeTimer.running)
                 overlayFadeTimer.stop();
 
@@ -282,21 +304,47 @@ Item {
             visible: batteryArea.containsMouse
             color: Theme.onHoverColor
             radius: Theme.itemRadius
-            width: tooltipText.width + 16
-            height: tooltipText.height + 8
+            width: tooltipColumn.width + 16
+            height: tooltipColumn.height + 8
             anchors.top: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.topMargin: 8
             opacity: batteryArea.containsMouse ? 1 : 0
 
-            Text {
-                id: tooltipText
+            Column {
+                id: tooltipColumn
 
                 anchors.centerIn: parent
-                text: batteryArea.remainingTimeText
-                color: Theme.textContrast(Theme.onHoverColor)
-                font.pixelSize: Theme.fontSize
-                font.family: Theme.fontFamily
+                spacing: 4
+
+                Text {
+                    id: tooltipText
+
+                    text: batteryArea.remainingTimeText
+                    color: Theme.textContrast(Theme.onHoverColor)
+                    font.pixelSize: Theme.fontSize
+                    font.family: Theme.fontFamily
+                }
+
+                Text {
+                    id: placeholderText
+
+                    text: DetectEnv.batteryManager === "tlp" ? PowerMgmt.tlpInfo : PowerMgmt.ppdInfo
+                    color: Theme.textContrast(Theme.onHoverColor)
+                    font.pixelSize: Theme.fontSize
+                    font.family: Theme.fontFamily
+                    opacity: 0.7
+                }
+
+                Text {
+                    id: thermalText
+
+                    text: "CPU: " + PowerMgmt.cpuGovernor + " + " + PowerMgmt.energyPerformance
+                    color: Theme.textContrast(Theme.onHoverColor)
+                    font.pixelSize: Theme.fontSize
+                    font.family: Theme.fontFamily
+                    opacity: 0.6
+                }
             }
 
             Behavior on opacity {
