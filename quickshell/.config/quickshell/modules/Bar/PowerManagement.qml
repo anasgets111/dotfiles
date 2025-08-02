@@ -33,9 +33,25 @@ Singleton {
 
     onOnBatteryChanged: {
         refreshPowerInfo();
+        adjustBrightness();
     }
 
-    // Reusable file reader component
+    // Brightness control process
+    Process {
+        id: brightnessProcess
+        command: []
+        running: false
+    }
+
+    function adjustBrightness() {
+        if (root.onBattery) {
+            brightnessProcess.command = ["sh", "-c", "brightnessctl set 10% && brightnessctl -d asus::kbd_backlight set 1"];
+        } else {
+            brightnessProcess.command = ["sh", "-c", "brightnessctl set 100% && brightnessctl -d asus::kbd_backlight set 3"];
+        }
+        brightnessProcess.running = true;
+    }
+
     QtObject {
         id: reader
 
@@ -62,7 +78,6 @@ Singleton {
         }
     }
 
-    // PPD process (still needed for specific powerprofilesctl command)
     Process {
         id: ppdProcess
         command: ["powerprofilesctl", "get"]
@@ -75,28 +90,23 @@ Singleton {
         }
     }
 
-    // Function to refresh all power information
     function refreshPowerInfo() {
-        // Read platform profile
         reader.read("/sys/firmware/acpi/platform_profile", function (data) {
             root.platformProfile = data;
             root.platformInfo = "Platform: " + data;
             root.powerInfoUpdated();
         });
 
-        // Read CPU governor
         reader.read("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", function (data) {
             root.cpuGovernor = data;
             root.thermalInfoUpdated();
         });
 
-        // Read energy performance preference
         reader.read("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference", function (data) {
             root.energyPerformance = data;
             root.thermalInfoUpdated();
         });
 
-        // Only fetch PPD info if using PPD
         if (DetectEnv.isLaptopBattery && DetectEnv.batteryManager === "ppd") {
             ppdProcess.running = true;
         }
