@@ -9,32 +9,60 @@ import Quickshell.Services.UPower
 Singleton {
     id: root
 
-    property string tlpInfo: "TLP: Loading..."
+    property string platformInfo: "Platform: Loading..."
     property string ppdInfo: "PPD: Loading..."
     property string platformProfile: "Unknown"
     property string cpuGovernor: "Unknown"
     property string energyPerformance: "Unknown"
-    
+
     property bool onBattery: UPower.onBattery
-    
-    signal powerInfoUpdated()
-    signal thermalInfoUpdated()
-    
+
+    signal powerInfoUpdated
+    signal thermalInfoUpdated
+
     Component.onCompleted: {
-        refreshPowerInfo();
+        root.refreshPowerInfo();
     }
-    
+
     Connections {
         target: DetectEnv
         function onBatteryManagerChanged() {
-            refreshPowerInfo();
+            root.refreshPowerInfo();
         }
     }
-    
+
     onOnBatteryChanged: {
         refreshPowerInfo();
     }
 
+    // Reusable file reader component
+    QtObject {
+        id: reader
+
+        function read(filePath, callback) {
+            var process = processComponent.createObject(root, {
+                "command": ["cat", filePath]
+            });
+
+            process.stdout.streamFinished.connect(function () {
+                var data = process.stdout.text.trim();
+                callback(data);
+                process.destroy();
+            });
+
+            process.running = true;
+        }
+    }
+
+    Component {
+        id: processComponent
+        Process {
+            running: false
+            stdout: StdioCollector {}
+        }
+    }
+
+    // PPD process (still needed for specific powerprofilesctl command)
     Process {
         id: ppdProcess
         command: ["powerprofilesctl", "get"]
@@ -47,50 +75,27 @@ Singleton {
         }
     }
 
-    Process {
-        id: platformProfileProcess
-        command: ["cat", "/sys/firmware/acpi/platform_profile"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.platformProfile = this.text.trim();
-                root.tlpInfo = "Platform: " + root.platformProfile;
-                root.powerInfoUpdated();
-            }
-        }
-    }
-
-    Process {
-        id: cpuGovernorProcess
-        command: ["cat", "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.cpuGovernor = this.text.trim();
-                root.thermalInfoUpdated();
-            }
-        }
-    }
-
-    // Direct sysfs fetch for energy performance preference (first CPU)
-    Process {
-        id: energyPerformanceProcess
-        command: ["cat", "/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.energyPerformance = this.text.trim();
-                root.thermalInfoUpdated();
-            }
-        }
-    }
-
     // Function to refresh all power information
     function refreshPowerInfo() {
-        platformProfileProcess.running = true;
-        cpuGovernorProcess.running = true;
-        energyPerformanceProcess.running = true;
-        
+        // Read platform profile
+        reader.read("/sys/firmware/acpi/platform_profile", function (data) {
+            root.platformProfile = data;
+            root.platformInfo = "Platform: " + data;
+            root.powerInfoUpdated();
+        });
+
+        // Read CPU governor
+        reader.read("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", function (data) {
+            root.cpuGovernor = data;
+            root.thermalInfoUpdated();
+        });
+
+        // Read energy performance preference
+        reader.read("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference", function (data) {
+            root.energyPerformance = data;
+            root.thermalInfoUpdated();
+        });
+
         // Only fetch PPD info if using PPD
         if (DetectEnv.isLaptopBattery && DetectEnv.batteryManager === "ppd") {
             ppdProcess.running = true;

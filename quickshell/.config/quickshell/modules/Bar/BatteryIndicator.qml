@@ -149,7 +149,7 @@ Item {
         property string remainingTimeText: {
             if (root.device.state === UPowerDeviceState.FullyCharged)
                 return "Fully Charged";
-                
+
             if (root.isCharging && root.device.timeToFull > 0)
                 return "Time to full: " + fmt(root.device.timeToFull);
 
@@ -181,11 +181,11 @@ Item {
                 var next = currentProfile === "performance" ? "power-saver" : "performance";
                 setProc.command = ["powerprofilesctl", "set", next];
                 setProc.running = true;
-                
+
                 // Refresh immediately - sysfs values update instantly
                 PowerMgmt.refreshPowerInfo();
             }
-            
+
             // Flash animation for both TLP and PPD
             if (overlayFadeTimer.running)
                 overlayFadeTimer.stop();
@@ -329,7 +329,7 @@ Item {
                 Text {
                     id: placeholderText
 
-                    text: DetectEnv.batteryManager === "tlp" ? PowerMgmt.tlpInfo : PowerMgmt.ppdInfo
+                    text: DetectEnv.batteryManager === "ppd" ? PowerMgmt.ppdInfo : PowerMgmt.platformInfo
                     color: Theme.textContrast(Theme.onHoverColor)
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
