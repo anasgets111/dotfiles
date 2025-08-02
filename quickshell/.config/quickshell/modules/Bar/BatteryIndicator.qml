@@ -14,6 +14,7 @@ Item {
     property bool isLowAndNotCharging: DetectEnv.isLaptopBattery && percentage <= 0.2 && !isCharging
     property bool isCriticalAndNotCharging: DetectEnv.isLaptopBattery && percentage <= 0.1 && !isCharging
     property bool isSuspendingAndNotCharging: DetectEnv.isLaptopBattery && percentage <= 0.05 && !isCharging
+
     property real overlayFlashWidth: 2
     property real overlayFlashX: implicitWidth / 2 - overlayFlashWidth / 2
     property int widthPhase: 0
@@ -22,22 +23,26 @@ Item {
     visible: DetectEnv.isLaptopBattery
     implicitHeight: Theme.itemHeight
     implicitWidth: 80
+
     onIsChargingChanged: {
         if (isCharging) {
             widthPhase = 1;
             widthTimer.start();
         }
     }
+
     onIsLowAndNotChargingChanged: {
         if (isLowAndNotCharging) {
             Quickshell.execDetached(["notify-send", "Low Battery", "Plug in soon!"]);
         }
     }
+
     onIsCriticalAndNotChargingChanged: {
         if (isCriticalAndNotCharging) {
             Quickshell.execDetached(["notify-send", "-u", "critical", "Critical Battery", "Automatic suspend at 5%!"]);
         }
     }
+
     onIsSuspendingAndNotChargingChanged: {
         if (isSuspendingAndNotCharging) {
             Quickshell.execDetached(["systemctl", "suspend"]);
@@ -88,25 +93,20 @@ Item {
         Canvas {
             id: waterCanvas
 
-            // real full‐width for the current percentage
             property real fullWidth: width * root.percentage
-            // pick up the root’s widthPhase toggles (1…4) when charging
             property int widthPhase: root.widthPhase
-            // if widthPhase>0 we flash: odd→0, even→fullWidth; else steady fullWidth
             property real drawWidth: widthPhase > 0 ? ((widthPhase % 2 === 1) ? 0 : fullWidth) : fullWidth
-            // your existing waterColor logic
-            property color waterColor: batteryArea.powerProfile === "power-saver" ? Theme.powerSaveColor : (batteryArea.powerProfile === "performance" || batteryArea.powerProfile === "balanced") ? (root.percentage <= 0.1 ? "#f38ba8" : root.percentage <= 0.2 ? "#fab387" : Theme.activeColor) : Theme.activeColor
+            property color waterColor: root.percentage <= 0.1 ? "#f38ba8" : root.percentage <= 0.2 ? "#fab387" : Theme.activeColor
 
             anchors.fill: parent
-            // repaint whenever drawWidth or color changes or container resizes
             onDrawWidthChanged: requestPaint()
             onWaterColorChanged: requestPaint()
             onWidthChanged: requestPaint()
             onHeightChanged: requestPaint()
+
             onPaint: {
                 var ctx = getContext("2d");
                 ctx.reset();
-                // pill‐shaped clip
                 var r = height / 2;
                 ctx.beginPath();
                 ctx.moveTo(r, 0);
@@ -116,7 +116,6 @@ Item {
                 ctx.arc(r, r, r, Math.PI / 2, 3 * Math.PI / 2);
                 ctx.closePath();
                 ctx.clip();
-                // draw using drawWidth, not fullWidth
                 ctx.fillStyle = waterColor;
                 ctx.fillRect(0, 0, drawWidth, height);
             }
@@ -144,7 +143,6 @@ Item {
             if (root.isCharging && root.device.timeToFull > 0)
                 return "Time to full: " + fmt(root.device.timeToFull);
 
-            // Show "Connected" when plugged in, not charging, and battery is 100%
             if (!root.isCharging && root.device.isOnline && Math.round(root.percentage * 100) === 100)
                 return "Connected";
 
@@ -162,16 +160,11 @@ Item {
             return h > 0 ? h + "h " + m + "m" : m + "m";
         }
 
-        property string powerProfile: ""
-
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        Component.onCompleted: profileProc.running = true
+
         onClicked: {
-            var next = batteryArea.powerProfile === "performance" ? "power-saver" : "performance";
-            setProc.command = ["powerprofilesctl", "set", next];
-            setProc.running = true;
             if (overlayFadeTimer.running)
                 overlayFadeTimer.stop();
 
@@ -182,25 +175,6 @@ Item {
             root.overlayFlashWidth = 2;
             root.overlayFlashX = root.implicitWidth / 2 - root.overlayFlashWidth / 2;
             overlayFlashStartTimer.start();
-        }
-
-        Process {
-            id: profileProc
-
-            command: ["powerprofilesctl", "get"]
-            running: batteryArea.containsMouse || profileProc.running
-
-            stdout: StdioCollector {
-                onStreamFinished: batteryArea.powerProfile = text.trim()
-            }
-        }
-
-        Process {
-            id: setProc
-
-            onExited: profileProc.running = true
-
-            stdout: StdioCollector {}
         }
 
         Rectangle {
@@ -308,33 +282,21 @@ Item {
             visible: batteryArea.containsMouse
             color: Theme.onHoverColor
             radius: Theme.itemRadius
-            width: tooltipColumn.width + 16
-            height: tooltipColumn.height + 8
+            width: tooltipText.width + 16
+            height: tooltipText.height + 8
             anchors.top: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.topMargin: 8
             opacity: batteryArea.containsMouse ? 1 : 0
 
-            Column {
-                id: tooltipColumn
+            Text {
+                id: tooltipText
 
                 anchors.centerIn: parent
-                spacing: 2
-
-                Text {
-                    text: batteryArea.remainingTimeText
-                    color: Theme.textContrast(Theme.onHoverColor)
-                    font.pixelSize: Theme.fontSize
-                    font.family: Theme.fontFamily
-                }
-
-                Text {
-                    visible: batteryArea.powerProfile.length > 0
-                    text: "Profile: " + batteryArea.powerProfile
-                    color: Theme.textContrast(Theme.onHoverColor)
-                    font.pixelSize: Theme.fontSize - 2
-                    font.family: Theme.fontFamily
-                }
+                text: batteryArea.remainingTimeText
+                color: Theme.textContrast(Theme.onHoverColor)
+                font.pixelSize: Theme.fontSize
+                font.family: Theme.fontFamily
             }
 
             Behavior on opacity {
