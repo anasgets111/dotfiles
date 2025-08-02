@@ -27,7 +27,6 @@ Item {
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
-                console.log("DetectEnv: which pacman output:", this.text);
                 if (this.text.trim().length > 0)
                     root.distroId = "arch";
                 else
@@ -36,29 +35,22 @@ Item {
         }
     }
 
-    // Detect power-profiles-daemon availability
+    // Detect power management tools (PPD has priority over TLP)
     Process {
-        id: detectPPD
-        command: ["which", "powerprofilesctl"]
+        id: detectPowerManager
+        command: ["sh", "-c", "if which powerprofilesctl >/dev/null 2>&1; then echo 'ppd'; elif which tlp >/dev/null 2>&1; then echo 'tlp'; else echo 'none'; fi"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
-                if (root.isLaptopBattery && this.text.trim().length > 0) {
-                    root.batteryManager = "ppd";
-                }
-            }
-        }
-    }
-
-    // Detect TLP availability if no power-profiles-daemon found
-    Process {
-        id: detectTLP
-        command: ["which", "tlp"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (root.isLaptopBattery && root.batteryManager === null && this.text.trim().length > 0) {
-                    root.batteryManager = "tlp";
+                if (root.isLaptopBattery) {
+                    var result = this.text.trim();
+                    if (result === "ppd") {
+                        root.batteryManager = "ppd";
+                    } else if (result === "tlp") {
+                        root.batteryManager = "tlp";
+                    } else {
+                        root.batteryManager = null;
+                    }
                 }
             }
         }
