@@ -154,7 +154,7 @@ Item {
                 return "Time to full: " + fmt(root.device.timeToFull);
 
             if (root.device.state === UPowerDeviceState.PendingCharge)
-                return "Charge Limited";
+                return "Charge Limit Reached";
 
             if (!root.isCharging && root.device.isOnline && Math.round(root.percentage * 100) === 100)
                 return "Connected";
