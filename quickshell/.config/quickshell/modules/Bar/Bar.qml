@@ -10,6 +10,20 @@ PanelWindow {
 
     property bool normalWorkspacesExpanded: false
 
+    // Debounce timer to remap when screen may be hidden/unavailable (e.g., after resume)
+    Timer {
+        id: remapDebounce
+        interval: 400
+        repeat: false
+        onTriggered: panelWindow.pickScreen()
+    }
+
+    // Expose a method to trigger remap with debounce
+    function remapIfHidden() {
+        // Start/restart debounce timer
+        remapDebounce.restart();
+    }
+
     // Pick screen: prefer env-named screen, else first available
     function pickScreen() {
         const screens = Quickshell.screens || [];
@@ -27,10 +41,15 @@ PanelWindow {
     color: Theme.panelWindowColor
 
     Component.onCompleted: pickScreen()
+    // If visibility changes (e.g., resume), try to remap shortly after
+    onVisibleChanged: if (visible)
+        remapIfHidden()
+
     Connections {
         target: Quickshell
         function onScreensChanged() {
-            panelWindow.pickScreen();
+            // Screens can flap on resume; debounce remap
+            panelWindow.remapIfHidden();
         }
     }
 
