@@ -10,9 +10,11 @@ PanelWindow {
     implicitWidth: panelWindow.screen.width
     implicitHeight: panelWindow.screen.height
     exclusiveZone: Theme.panelHeight
-    // Use dynamic screen selection: prefer second screen when present
+    // Use dynamic screen selection based on preferred outputs, with fallback
     screen: screenBinder.pickScreen()
-    WlrLayershell.namespace: "quickshell:bar"
+    WlrLayershell.namespace: "quickshell:bar:blur"
+    // Use enum for layer
+    WlrLayershell.layer: WlrLayer.Top
     color: Theme.panelWindowColor
 
     // Window/layershell state debug (only supported signals/properties)
@@ -28,6 +30,8 @@ PanelWindow {
     Item {
         id: screenBinder
         property int debounceRestarts: 0
+        // preferred output names in priority order
+        property var preferred: ["DP-3", "HDMI-A-1"]
 
         // Debounce timer to handle brief flapping during wake/connect
         Timer {
@@ -51,7 +55,7 @@ PanelWindow {
         // short post-assign check to see visibility and sizes
         Timer {
             id: postAssignCheck
-            interval: 120
+            interval: 160
             repeat: false
             onTriggered: {
                 const scr = panelWindow.screen
@@ -61,7 +65,25 @@ PanelWindow {
                     "implicit=", panelWindow.implicitWidth + "x" + panelWindow.implicitHeight,
                     "panelRect=", panelRect.width + "x" + panelRect.height,
                     "exclusiveZone=", Theme.panelHeight,
-                    "namespace=", WlrLayershell.namespace)
+                    "namespace=", WlrLayershell.namespace,
+                    "layer=", WlrLayershell.layer)
+                if (!panelWindow.visible && scr) {
+                    console.log("[Bar] Panel not visible after assign; scheduling remap")
+                    remapIfHidden.start()
+                }
+            }
+        }
+
+        // try to remap if compositor left us hidden after topology change
+        Timer {
+            id: remapIfHidden
+            interval: 350
+            repeat: false
+            onTriggered: {
+                if (!panelWindow.visible && panelWindow.screen) {
+                    console.log("[Bar] forcing remap: toggling visibility true")
+                    panelWindow.visible = true
+                }
             }
         }
 
@@ -77,8 +99,18 @@ PanelWindow {
             const valid = Quickshell.screens.filter(s => (s.width || 0) > 0 && (s.height || 0) > 0)
             const namesAll = Quickshell.screens.map(s => s.name).join(", ")
             const namesValid = valid.map(s => s.name).join(", ")
-            console.log(`[Bar] pickScreen() called. all= [${namesAll}] valid(non-zero)= [${namesValid}]`)
+            console.log(`[Bar] pickScreen() called. all= [${namesAll}] valid(non-zero)= [${namesValid}] preferred= [${screenBinder.preferred.join(', ')}]`)
 
+            // 1) Try preferred names (first present wins)
+            for (let i = 0; i < screenBinder.preferred.length; i++) {
+                const name = screenBinder.preferred[i]
+                const match = valid.find(s => s.name === name)
+                if (match) {
+                    console.log("[Bar] Choosing preferred ->", match.name)
+                    return match
+                }
+            }
+            // 2) Fallback: second valid if exists, else first
             if (valid.length > 1) {
                 console.log("[Bar] Choosing valid[1] ->", valid[1].name)
                 return valid[1]
@@ -95,7 +127,7 @@ PanelWindow {
             console.log("[Bar] screenBinder ready. Initial screen selection...")
             screenBinder.logScreensDetail("[Bar] initial")
             // Do not force assign if binding already evaluates
-            console.log("[Bar] namespace:", WlrLayershell.namespace)
+            console.log("[Bar] namespace:", WlrLayershell.namespace, "layer:", WlrLayershell.layer)
         }
 
         Connections {
