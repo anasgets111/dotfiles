@@ -5,35 +5,30 @@ import Quickshell.Wayland
 PanelWindow {
     id: panelWindow
 
-    property string mainMonitorName: Quickshell.env("MAINMON") || ""
     property bool normalWorkspacesExpanded: false
-
-    // Pick screen: prefer env-named screen, else first available
-    function pickScreen() {
-        const screens = Quickshell.screens || [];
-        const target = mainMonitorName ? screens.find(s => s && (s.name === mainMonitorName || s.model === mainMonitorName)) : null;
-        return target || screens[0];
-    }
-
+    property string mainMonitor: Quickshell.env("MAINMON")
     implicitWidth: panelWindow.screen.width
     implicitHeight: panelWindow.screen.height
     exclusiveZone: Theme.panelHeight
+    screen: Quickshell.screens.length > 1 ? Quickshell.screens[1] : Quickshell.screens[0]
     WlrLayershell.namespace: "quickshell:bar:blur"
-    WlrLayershell.layer: WlrLayer.Top
     color: Theme.panelWindowColor
 
-    // Debounced screen binder to survive sleep/monitor flaps
     Item {
         id: screenBinder
         property int debounceRestarts: 0
-
+        function pickScreen() {
+            const screens = Quickshell.screens || [];
+            const target = panelWindow.mainMonitor ? screens.find(s => s && (s.name === panelWindow.mainMonitor || s.model === panelWindow.mainMonitor)) : null;
+            return target || screens[0];
+        }
         Timer {
             id: screenDebounce
             interval: 500
             repeat: false
             onTriggered: {
-                const sel = panelWindow.pickScreen();
-                if (sel && panelWindow.screen !== sel) {
+                const sel = screenBinder.pickScreen();
+                if (!sel || panelWindow.screen !== sel) {
                     panelWindow.screen = sel;
                 }
                 postAssignCheck.restart();
@@ -68,11 +63,6 @@ PanelWindow {
                 screenDebounce.restart();
             }
         }
-    }
-
-    Component.onCompleted: {
-        // Kick initial selection via debounce to let screens settle
-        screenBinder.children[0].restart ? screenBinder.children[0].restart() : null;
     }
 
     anchors {
