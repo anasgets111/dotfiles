@@ -24,24 +24,44 @@ PanelWindow {
             id: screenDebounce
             interval: 2000
             repeat: false
-            onTriggered: panelWindow.screen = screenBinder.pickScreen()
+            onTriggered: {
+                console.log("[Bar] Debounce triggered. Re-evaluating screen...")
+                const sel = screenBinder.pickScreen()
+                console.log("[Bar] Assigning panelWindow.screen to:", sel ? sel.name : "<none>")
+                panelWindow.screen = sel
+            }
         }
 
         function pickScreen() {
+            const count = Quickshell.screens.length
+            const names = Quickshell.screens.map(s => s.name).join(", ")
+            console.log(`[Bar] pickScreen() called. screens length= ${count} [${names}]`)
             // Prefer second screen (index 1) if present, else first (index 0)
-            if (Quickshell.screens.length > 1) {
-                return Quickshell.screens[1];
+            if (count > 1) {
+                console.log("[Bar] Choosing screens[1] ->", Quickshell.screens[1].name)
+                return Quickshell.screens[1]
             }
-            return Quickshell.screens.length > 0 ? Quickshell.screens[0] : null;
+            if (count > 0) {
+                console.log("[Bar] Falling back to screens[0] ->", Quickshell.screens[0].name)
+                return Quickshell.screens[0]
+            }
+            console.warn("[Bar] No screens available. Returning null.")
+            return null
         }
 
-        Component.onCompleted: panelWindow.screen = pickScreen()
+        Component.onCompleted: {
+            console.log("[Bar] screenBinder ready. Initial screen selection...")
+            panelWindow.screen = pickScreen()
+        }
 
         Connections {
             target: Quickshell
             // Fired when outputs list or their availability changes
             function onScreensChanged() {
-                screenDebounce.restart();
+                const count = Quickshell.screens.length
+                const names = Quickshell.screens.map(s => s.name).join(", ")
+                console.log(`[Bar] onScreensChanged(): screens length= ${count} [${names}] -> restarting debounce (${screenDebounce.interval}ms)`)            
+                screenDebounce.restart()
             }
         }
     }
