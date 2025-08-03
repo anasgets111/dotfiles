@@ -22,7 +22,7 @@ PanelWindow {
         // Debounce timer to handle brief flapping during wake/connect
         Timer {
             id: screenDebounce
-            interval: 350
+            interval: 2000
             repeat: false
             onTriggered: panelWindow.screen = screenBinder.pickScreen()
         }
