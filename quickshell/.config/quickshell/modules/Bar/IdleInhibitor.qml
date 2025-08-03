@@ -4,8 +4,8 @@ import Quickshell.Io
 Rectangle {
     id: idleInhibitor
 
-    property string iconOn: ""
-    property string iconOff: ""
+    property string iconOn: "󰅶"
+    property string iconOff: "󰾪"
     property bool hovered: false
     property alias isActive: inhibitorProcess.running
 
