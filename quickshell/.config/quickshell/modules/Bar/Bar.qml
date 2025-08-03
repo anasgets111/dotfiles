@@ -5,53 +5,32 @@ import Quickshell.Wayland
 PanelWindow {
     id: panelWindow
 
-    // Read target monitor name from environment once (falls back to empty string)
-    property string mainMonitorName: (Quickshell.env && Quickshell.env.MAINMON) ? Quickshell.env.MAINMON : ""
-
-    // Helper to resolve a screen by name from Quickshell.screens
-    function resolveScreenByName(name) {
-        if (!name || !Quickshell.screens || Quickshell.screens.length === 0)
-            return null;
-        for (let i = 0; i < Quickshell.screens.length; i++) {
-            const s = Quickshell.screens[i];
-            if (s && (s.name === name || s.model === name || s.manufacturer + " " + s.model === name))
-                return s;
-        }
-        return null;
-    }
-
-    // Ensure we pick the desired screen when available, else a safe fallback
-    function selectTargetScreen() {
-        console.log("[Bar] MAINMON:", mainMonitorName, "Available screens:", Quickshell.screens.map(s => s.name).join(", "))
-        const desired = resolveScreenByName(mainMonitorName);
-        if (desired) {
-            panelWindow.screen = desired;
-            console.log("[Bar] Selected screen by MAINMON:", desired.name)
-        } else if (Quickshell.screens && Quickshell.screens.length > 0) {
-            panelWindow.screen = Quickshell.screens[0];
-            console.log("[Bar] MAINMON not found, falling back to:", panelWindow.screen.name)
-        } else {
-            console.log("[Bar] No screens available.")
-        }
-    }
+    // MAINMON from env; if empty we’ll fall back to first screen
+    property string mainMonitorName: Quickshell.env("MAINMON") || ""
 
     property bool normalWorkspacesExpanded: false
+
+    // Pick screen: prefer env-named screen, else first available
+    function pickScreen() {
+        const screens = Quickshell.screens || [];
+        const target = mainMonitorName ? screens.find(s => s && (s.name === mainMonitorName || s.model === mainMonitorName)) : null;
+        panelWindow.screen = target || screens[0];
+    }
 
     implicitWidth: panelWindow.screen.width
     implicitHeight: panelWindow.screen.height
     exclusiveZone: Theme.panelHeight
+    // Initial fallback; pickScreen will refine on startup and changes
     screen: Quickshell.screens[0]
     WlrLayershell.namespace: "quickshell:bar:blur"
     WlrLayershell.layer: WlrLayer.Top
     color: Theme.panelWindowColor
 
-    // Re-evaluate on startup and whenever screens list changes
-    Component.onCompleted: selectTargetScreen()
+    Component.onCompleted: pickScreen()
     Connections {
         target: Quickshell
         function onScreensChanged() {
-            console.log("[Bar] Screens changed")
-            panelWindow.selectTargetScreen();
+            panelWindow.pickScreen();
         }
     }
 
