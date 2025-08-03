@@ -1,8 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
-import Quickshell
 import Quickshell.Services.Pipewire
 
 Rectangle {
@@ -59,8 +57,7 @@ Rectangle {
             name: "hovered"
             when: rootArea.containsMouse
             PropertyChanges {
-                target: volumeControl
-                width: expandedWidth
+                volumeControl.width: expandedWidth
             }
         }
     ]
@@ -71,16 +68,16 @@ Rectangle {
         hoverEnabled: true
 
         onWheel: function (wheelEvent) {
-            if (!audioReady)
+            if (!volumeControl.audioReady)
                 return;
             var step = 0.05;
             var delta = wheelEvent.angleDelta.y > 0 ? step : -step;
-            var newVol = Math.max(0, Math.min(1, volume + delta));
-            if (serviceSink && serviceSink.audio) {
-                serviceSink.audio.volume = newVol;
-                var chans = serviceSink.audio.volumes || [];
+            var newVol = Math.max(0, Math.min(1, volumeControl.volume + delta));
+            if (volumeControl.serviceSink && volumeControl.serviceSink.audio) {
+                volumeControl.serviceSink.audio.volume = newVol;
+                var chans = volumeControl.serviceSink.audio.volumes || [];
                 if (chans.length)
-                    serviceSink.audio.volumes = Array(chans.length).fill(newVol);
+                    volumeControl.serviceSink.audio.volumes = Array(chans.length).fill(newVol);
             }
             wheelEvent.accepted = true;
         }
@@ -94,15 +91,15 @@ Rectangle {
         Pipewire.ready && serviceSink?.ready && serviceSink.audio;
     }
 
-    Component.onCompleted: bindToSink()
+    Component.onCompleted: volumeControl.bindToSink()
     Connections {
         target: Pipewire
         ignoreUnknownSignals: true
         function onReadyChanged() {
-            bindToSink();
+            volumeControl.bindToSink();
         }
         function onDefaultAudioSinkChanged() {
-            bindToSink();
+            volumeControl.bindToSink();
         }
     }
 
@@ -127,26 +124,27 @@ Rectangle {
         muted = false;
         if (Pipewire.ready)
             serviceSink = Pipewire.defaultAudioSink;
-        if (serviceSink && serviceSink.audio)
+        if (serviceSink && serviceSink.audio) {
             volume = averageVolumeFromAudio(serviceSink.audio);
+            muted = !!serviceSink.audio.muted;
+        }
     }
 
     PwObjectTracker {
         id: pwTracker
-        objects: serviceSink && serviceSink.audio ? [serviceSink, serviceSink.audio] : (serviceSink ? [serviceSink] : [])
+        objects: volumeControl.serviceSink && volumeControl.serviceSink.audio ? [volumeControl.serviceSink, volumeControl.serviceSink.audio] : (volumeControl.serviceSink ? [volumeControl.serviceSink] : [])
     }
 
     Connections {
         id: audioConnections
-        target: serviceSink && serviceSink.audio ? serviceSink.audio : null
+        target: volumeControl.serviceSink && volumeControl.serviceSink.audio ? volumeControl.serviceSink.audio : null
         ignoreUnknownSignals: true
-        enabled: !!(serviceSink && serviceSink.audio)
-
+        enabled: !!(volumeControl.serviceSink && volumeControl.serviceSink.audio)
         function onVolumeChanged() {
-            volume = averageVolumeFromAudio(serviceSink.audio);
+            volumeControl.volume = volumeControl.averageVolumeFromAudio(volumeControl.serviceSink.audio);
         }
         function onMutedChanged() {
-            muted = serviceSink.audio.muted;
+            volumeControl.muted = volumeControl.serviceSink.audio.muted;
         }
     }
 
@@ -154,8 +152,8 @@ Rectangle {
         id: sliderBg
         anchors.fill: parent
         property bool dragging: false
-        property real pendingValue: volume
-        property real sliderValue: dragging ? pendingValue : volume
+        property real pendingValue: volumeControl.volume
+        property real sliderValue: dragging ? pendingValue : volumeControl.volume
 
         Rectangle {
             anchors.left: parent.left
@@ -190,12 +188,12 @@ Rectangle {
                 sliderBg.pendingValue = Math.min(1, Math.max(0, Math.round(raw * 20) / 20));
             }
             function commitVolume(v) {
-                if (!audioReady)
+                if (!volumeControl.audioReady)
                     return;
-                serviceSink.audio.volume = v;
-                var chans = serviceSink.audio.volumes || [];
+                volumeControl.serviceSink.audio.volume = v;
+                var chans = volumeControl.serviceSink.audio.volumes || [];
                 if (chans.length)
-                    serviceSink.audio.volumes = Array(chans.length).fill(v);
+                    volumeControl.serviceSink.audio.volumes = Array(chans.length).fill(v);
             }
         }
     }
@@ -205,40 +203,79 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 8
 
+        // Hidden measurer to get the width/height of the largest icon with the same font settings
         Text {
-            id: volumeIconItem
-            text: volumeIcon
+            id: maxIconMeasure
+            text: "󰕾"
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize + Theme.fontSize / 2
             font.bold: true
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignHCenter
-            color: volumeControl.contrastColor
-            MouseArea {
-                anchors.fill: parent
-                acceptedButtons: Qt.MiddleButton
-                cursorShape: Qt.PointingHandCursor
+            visible: false
+        }
 
-                onClicked: function (event) {
-                    if (!audioReady)
-                        return;
-                    if (event.button === Qt.MiddleButton) {
-                        muted = !muted;
-                        serviceSink.audio.muted = muted;
+        // Measurer for widest percentage "100%"
+        Text {
+            id: maxPercentMeasure
+            text: "100%"
+            font.pixelSize: Theme.fontSize
+            font.family: Theme.fontFamily
+            font.bold: true
+            visible: false
+        }
+
+        // Fixed-size container using the measured size; centers the dynamic icon inside
+        Item {
+            id: volumeIconItem
+            implicitWidth: maxIconMeasure.paintedWidth
+            implicitHeight: maxIconMeasure.paintedHeight
+            Layout.preferredWidth: implicitWidth
+            Layout.preferredHeight: implicitHeight
+
+            Text {
+                anchors.centerIn: parent
+                text: volumeControl.volumeIcon
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize + Theme.fontSize / 2
+                font.bold: true
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
+                color: volumeControl.contrastColor
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.MiddleButton
+                    cursorShape: Qt.PointingHandCursor
+
+                    onClicked: function (event) {
+                        if (!volumeControl.audioReady)
+                            return;
+                        if (event.button === Qt.MiddleButton) {
+                            volumeControl.muted = !volumeControl.muted;
+                            volumeControl.serviceSink.audio.muted = volumeControl.muted;
+                        }
                     }
                 }
             }
         }
 
-        Text {
+        // Fixed-size container for percentage equal to width of "100%"
+        Item {
             id: percentageItem
-            text: audioReady ? Math.round(volume * 100) + "%" : "--"
-            font.pixelSize: Theme.fontSize
-            font.family: Theme.fontFamily
-            font.bold: true
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignHCenter
-            color: volumeControl.contrastColor
+            implicitWidth: maxPercentMeasure.paintedWidth
+            implicitHeight: maxPercentMeasure.paintedHeight
+            Layout.preferredWidth: implicitWidth
+            Layout.preferredHeight: implicitHeight
+
+            Text {
+                anchors.centerIn: parent
+                text: volumeControl.audioReady ? (volumeControl.muted ? "0%" : Math.round(volumeControl.volume * 100) + "%") : "--"
+                font.pixelSize: Theme.fontSize
+                font.family: Theme.fontFamily
+                font.bold: true
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
+                color: volumeControl.contrastColor
+            }
         }
     }
 

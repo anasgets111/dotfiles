@@ -127,7 +127,8 @@ Item {
                 root.notify("normal", "Updates Available", msg);
                 root.lastNotifiedUpdates = root.updates;
             }
-            if (root.updates === 0 && root.lastWasFull) {
+            // Reset the lastNotifiedUpdates whenever count drops to 0, regardless of sync type
+            if (root.updates === 0) {
                 root.lastNotifiedUpdates = 0;
             }
 
