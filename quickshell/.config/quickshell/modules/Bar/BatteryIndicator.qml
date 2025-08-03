@@ -11,6 +11,7 @@ Item {
     property var device: UPower.displayDevice
     property real percentage: device.percentage
     property bool isCharging: device.state === UPowerDeviceState.Charging
+    property bool isPluggedIn: device.state === UPowerDeviceState.Charging || device.state === UPowerDeviceState.PendingCharge
     property bool isLowAndNotCharging: DetectEnv.isLaptopBattery && percentage <= 0.2 && !isCharging
     property bool isCriticalAndNotCharging: DetectEnv.isLaptopBattery && percentage <= 0.1 && !isCharging
     property bool isSuspendingAndNotCharging: DetectEnv.isLaptopBattery && percentage <= 0.05 && !isCharging
@@ -30,7 +31,6 @@ Item {
         return icons[index];
     }
 
-    // Process for power profile switching
     Process {
         id: setProc
         command: []
@@ -41,8 +41,8 @@ Item {
     implicitHeight: Theme.itemHeight
     implicitWidth: 80
 
-    onIsChargingChanged: {
-        if (isCharging) {
+    onIsPluggedInChanged: {
+        if (isPluggedIn) {
             widthPhase = 1;
             widthTimer.start();
         }
@@ -189,17 +189,14 @@ Item {
 
         onClicked: {
             if (DetectEnv.batteryManager === "ppd") {
-                // PPD: Cycle between power-saver and performance
                 var currentProfile = PowerMgmt.ppdInfo.replace("PPD: ", "");
                 var next = currentProfile === "performance" ? "power-saver" : "performance";
                 setProc.command = ["powerprofilesctl", "set", next];
                 setProc.running = true;
 
-                // Refresh immediately - sysfs values update instantly
                 PowerMgmt.refreshPowerInfo();
             }
 
-            // Flash animation for both TLP and PPD
             if (overlayFadeTimer.running)
                 overlayFadeTimer.stop();
 
