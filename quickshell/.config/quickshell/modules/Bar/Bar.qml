@@ -22,11 +22,16 @@ PanelWindow {
 
     // Ensure we pick the desired screen when available, else a safe fallback
     function selectTargetScreen() {
+        console.log("[Bar] MAINMON:", mainMonitorName, "Available screens:", Quickshell.screens.map(s => s.name).join(", "))
         const desired = resolveScreenByName(mainMonitorName);
         if (desired) {
             panelWindow.screen = desired;
+            console.log("[Bar] Selected screen by MAINMON:", desired.name)
         } else if (Quickshell.screens && Quickshell.screens.length > 0) {
             panelWindow.screen = Quickshell.screens[0];
+            console.log("[Bar] MAINMON not found, falling back to:", panelWindow.screen.name)
+        } else {
+            console.log("[Bar] No screens available.")
         }
     }
 
@@ -44,7 +49,10 @@ PanelWindow {
     Component.onCompleted: selectTargetScreen()
     Connections {
         target: Quickshell
-        function onScreensChanged() { panelWindow.selectTargetScreen(); }
+        function onScreensChanged() {
+            console.log("[Bar] Screens changed")
+            panelWindow.selectTargetScreen();
+        }
     }
 
     anchors {
