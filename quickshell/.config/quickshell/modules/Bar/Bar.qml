@@ -6,29 +6,13 @@ PanelWindow {
     id: panelWindow
 
     property string mainMonitorName: Quickshell.env("MAINMON") || ""
-
     property bool normalWorkspacesExpanded: false
 
-    Timer {
-        id: remapIfHidden
-        interval: 350
-        repeat: false
-        onTriggered: {
-            if (!panelWindow.visible && panelWindow.screen) {
-                panelWindow.visible = true;
-            }
-            panelWindow.pickScreen();
-        }
-    }
-
-    function triggerRemap() {
-        remapIfHidden.restart();
-    }
-
+    // Pick screen: prefer env-named screen, else first available
     function pickScreen() {
         const screens = Quickshell.screens || [];
         const target = mainMonitorName ? screens.find(s => s && (s.name === mainMonitorName || s.model === mainMonitorName)) : null;
-        panelWindow.screen = target || screens[0];
+        return target || screens[0];
     }
 
     implicitWidth: panelWindow.screen.width
@@ -39,16 +23,57 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Top
     color: Theme.panelWindowColor
 
-    Component.onCompleted: pickScreen()
+    // Debounced screen binder to survive sleep/monitor flaps
+    Item {
+        id: screenBinder
+        property int debounceRestarts: 0
 
-    // On visibility toggles, debounce remap
-    onVisibleChanged: triggerRemap()
-
-    Connections {
-        target: Quickshell
-        function onScreensChanged() {
-            panelWindow.triggerRemap();
+        Timer {
+            id: screenDebounce
+            interval: 500
+            repeat: false
+            onTriggered: {
+                const sel = panelWindow.pickScreen();
+                if (sel && panelWindow.screen !== sel) {
+                    panelWindow.screen = sel;
+                }
+                postAssignCheck.restart();
+            }
         }
+
+        Timer {
+            id: postAssignCheck
+            interval: 160
+            repeat: false
+            onTriggered: {
+                if (!panelWindow.visible && panelWindow.screen) {
+                    remapIfHidden.start();
+                }
+            }
+        }
+
+        Timer {
+            id: remapIfHidden
+            interval: 350
+            repeat: false
+            onTriggered: {
+                if (!panelWindow.visible && panelWindow.screen) {
+                    panelWindow.visible = true;
+                }
+            }
+        }
+
+        Connections {
+            target: Quickshell
+            function onScreensChanged() {
+                screenDebounce.restart();
+            }
+        }
+    }
+
+    Component.onCompleted: {
+        // Kick initial selection via debounce to let screens settle
+        screenBinder.children[0].restart ? screenBinder.children[0].restart() : null
     }
 
     anchors {
