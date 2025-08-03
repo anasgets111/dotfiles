@@ -66,6 +66,16 @@ Rectangle {
         id: rootArea
         anchors.fill: parent
         hoverEnabled: true
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+
+        onClicked: function (event) {
+            if (!volumeControl.audioReady)
+                return;
+            if (event.button === Qt.MiddleButton) {
+                volumeControl.muted = !volumeControl.muted;
+                volumeControl.serviceSink.audio.muted = volumeControl.muted;
+            }
+        }
 
         onWheel: function (wheelEvent) {
             if (!volumeControl.audioReady)
@@ -240,21 +250,6 @@ Rectangle {
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignHCenter
                 color: volumeControl.contrastColor
-
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.MiddleButton
-                    cursorShape: Qt.PointingHandCursor
-
-                    onClicked: function (event) {
-                        if (!volumeControl.audioReady)
-                            return;
-                        if (event.button === Qt.MiddleButton) {
-                            volumeControl.muted = !volumeControl.muted;
-                            volumeControl.serviceSink.audio.muted = volumeControl.muted;
-                        }
-                    }
-                }
             }
         }
 
