@@ -5,26 +5,26 @@ import Quickshell.Wayland
 PanelWindow {
     id: panelWindow
 
-    // MAINMON from env; if empty we’ll fall back to first screen
     property string mainMonitorName: Quickshell.env("MAINMON") || ""
 
     property bool normalWorkspacesExpanded: false
 
-    // Debounce timer to remap when screen may be hidden/unavailable (e.g., after resume)
     Timer {
-        id: remapDebounce
-        interval: 400
+        id: remapIfHidden
+        interval: 350
         repeat: false
-        onTriggered: panelWindow.pickScreen()
+        onTriggered: {
+            if (!panelWindow.visible && panelWindow.screen) {
+                panelWindow.visible = true;
+            }
+            panelWindow.pickScreen();
+        }
     }
 
-    // Expose a method to trigger remap with debounce
-    function remapIfHidden() {
-        // Start/restart debounce timer
-        remapDebounce.restart();
+    function triggerRemap() {
+        remapIfHidden.restart();
     }
 
-    // Pick screen: prefer env-named screen, else first available
     function pickScreen() {
         const screens = Quickshell.screens || [];
         const target = mainMonitorName ? screens.find(s => s && (s.name === mainMonitorName || s.model === mainMonitorName)) : null;
@@ -34,22 +34,20 @@ PanelWindow {
     implicitWidth: panelWindow.screen.width
     implicitHeight: panelWindow.screen.height
     exclusiveZone: Theme.panelHeight
-    // Initial fallback; pickScreen will refine on startup and changes
     screen: Quickshell.screens[0]
     WlrLayershell.namespace: "quickshell:bar:blur"
     WlrLayershell.layer: WlrLayer.Top
     color: Theme.panelWindowColor
 
     Component.onCompleted: pickScreen()
-    // If visibility changes (e.g., resume), try to remap shortly after
-    onVisibleChanged: if (visible)
-        remapIfHidden()
+
+    // On visibility toggles, debounce remap
+    onVisibleChanged: triggerRemap()
 
     Connections {
         target: Quickshell
         function onScreensChanged() {
-            // Screens can flap on resume; debounce remap
-            panelWindow.remapIfHidden();
+            panelWindow.triggerRemap();
         }
     }
 
