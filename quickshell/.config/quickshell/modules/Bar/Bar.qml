@@ -5,83 +5,46 @@ import Quickshell.Wayland
 PanelWindow {
     id: panelWindow
 
+    // Read target monitor name from environment once (falls back to empty string)
+    property string mainMonitorName: (Quickshell.env && Quickshell.env.MAINMON) ? Quickshell.env.MAINMON : ""
+
+    // Helper to resolve a screen by name from Quickshell.screens
+    function resolveScreenByName(name) {
+        if (!name || !Quickshell.screens || Quickshell.screens.length === 0)
+            return null;
+        for (let i = 0; i < Quickshell.screens.length; i++) {
+            const s = Quickshell.screens[i];
+            if (s && (s.name === name || s.model === name || s.manufacturer + " " + s.model === name))
+                return s;
+        }
+        return null;
+    }
+
+    // Ensure we pick the desired screen when available, else a safe fallback
+    function selectTargetScreen() {
+        const desired = resolveScreenByName(mainMonitorName);
+        if (desired) {
+            panelWindow.screen = desired;
+        } else if (Quickshell.screens && Quickshell.screens.length > 0) {
+            panelWindow.screen = Quickshell.screens[0];
+        }
+    }
+
     property bool normalWorkspacesExpanded: false
 
     implicitWidth: panelWindow.screen.width
     implicitHeight: panelWindow.screen.height
     exclusiveZone: Theme.panelHeight
-    screen: screenBinder.pickScreen()
+    screen: Quickshell.screens[0]
     WlrLayershell.namespace: "quickshell:bar:blur"
     WlrLayershell.layer: WlrLayer.Top
     color: Theme.panelWindowColor
 
-    Item {
-        id: screenBinder
-        property int debounceRestarts: 0
-        property var preferred: ["DP-3", "HDMI-A-1"]
-
-        Timer {
-            id: screenDebounce
-            interval: 500
-            repeat: false
-            onTriggered: {
-                const sel = screenBinder.pickScreen();
-                if (!sel || panelWindow.screen !== sel) {
-                    panelWindow.screen = sel;
-                }
-                postAssignCheck.restart();
-            }
-        }
-
-        Timer {
-            id: postAssignCheck
-            interval: 160
-            repeat: false
-            onTriggered: {
-                if (!panelWindow.visible && panelWindow.screen) {
-                    remapIfHidden.start();
-                }
-            }
-        }
-
-        Timer {
-            id: remapIfHidden
-            interval: 350
-            repeat: false
-            onTriggered: {
-                if (!panelWindow.visible && panelWindow.screen) {
-                    panelWindow.visible = true;
-                }
-            }
-        }
-
-        function pickScreen() {
-            const valid = Quickshell.screens.filter(s => (s.width || 0) > 0 && (s.height || 0) > 0);
-
-            // 1) Try preferred names (first present wins)
-            for (let i = 0; i < screenBinder.preferred.length; i++) {
-                const name = screenBinder.preferred[i];
-                const match = valid.find(s => s.name === name);
-                if (match) {
-                    return match;
-                }
-            }
-            // 2) Fallback: second valid if exists, else first
-            if (valid.length > 1) {
-                return valid[1];
-            }
-            if (valid.length > 0) {
-                return valid[0];
-            }
-            return null;
-        }
-
-        Connections {
-            target: Quickshell
-            function onScreensChanged() {
-                screenDebounce.restart();
-            }
-        }
+    // Re-evaluate on startup and whenever screens list changes
+    Component.onCompleted: selectTargetScreen()
+    Connections {
+        target: Quickshell
+        function onScreensChanged() { panelWindow.selectTargetScreen(); }
     }
 
     anchors {
