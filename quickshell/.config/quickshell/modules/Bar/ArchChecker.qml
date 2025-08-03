@@ -61,7 +61,9 @@ Item {
     }
 
     implicitHeight: Theme.itemHeight
-    implicitWidth: Math.max(Theme.itemWidth, indicator.implicitWidth + (updateCount.visible ? updateCount.implicitWidth : 0))
+    // Compute width from icon + optional count + spacing + horizontal padding, and ensure a minimum
+    implicitWidth: Math.max(Theme.itemWidth, (row.implicitWidth + (2 * Theme.itemRadius)) // padding equals radius on both sides for nice pill look
+    )
     Component.onCompleted: {
         doPoll();
         pollTimer.start();
@@ -70,7 +72,7 @@ Item {
     Process {
         id: notifyProc
 
-        onExited: function (exitCode) {
+        onExited: function (exitCode, exitStatus) {
             var act = (notifyOut.text || "").trim();
             if (act === "update")
                 root.runUpdate();
@@ -84,7 +86,7 @@ Item {
     Process {
         id: pkgProc
 
-        onExited: function (exitCode) {
+        onExited: function (exitCode, exitStatus) {
             const stderrText = (err.text || "").trim();
             if (stderrText)
                 console.warn("[UpdateChecker] stderr:", stderrText);
@@ -168,9 +170,14 @@ Item {
     }
 
     Rectangle {
-        anchors.fill: parent
+        // Let the pill size itself to content + padding instead of filling parent
+        implicitWidth: row.implicitWidth + (Theme.itemRadius)
+        implicitHeight: Math.max(row.implicitHeight, Theme.itemHeight)
+        width: implicitWidth
+        height: implicitHeight
         radius: Theme.itemRadius
         color: root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor
+        anchors.centerIn: parent
 
         MouseArea {
             id: mouseArea
@@ -207,6 +214,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                elide: Text.ElideNone
 
                 RotationAnimator on rotation {
                     from: 0
@@ -227,6 +235,7 @@ Item {
                 font.family: Theme.fontFamily
                 color: Theme.textContrast(root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor)
                 Layout.alignment: Qt.AlignVCenter
+                elide: Text.ElideNone
             }
         }
 
