@@ -7,6 +7,8 @@ Rectangle {
     id: volumeControl
     clip: true
 
+    property real __wheelAccum: 0
+
     property int expandedWidth: 220
     property real collapsedWidth: volumeIconItem.implicitWidth + percentageItem.implicitWidth + 2 * 10 + contentRow.spacing
 
@@ -80,9 +82,29 @@ Rectangle {
         onWheel: function (wheelEvent) {
             if (!volumeControl.audioReady)
                 return;
-            var step = 0.05;
-            var delta = wheelEvent.angleDelta.y > 0 ? step : -step;
+
+            var eff = (wheelEvent.pixelDelta && wheelEvent.pixelDelta.y) ? wheelEvent.pixelDelta.y : wheelEvent.angleDelta.y;
+            if (!eff || Math.abs(eff) < 1) {
+                wheelEvent.accepted = true;
+                return;
+            }
+
+            var unit = 50.0;
+            volumeControl.__wheelAccum += eff;
+            var whole = Math.trunc(volumeControl.__wheelAccum / unit);
+            if (whole === 0) {
+                wheelEvent.accepted = true;
+                return;
+            }
+            volumeControl.__wheelAccum -= whole * unit;
+
+            var delta = whole * 0.05;
             var newVol = Math.max(0, Math.min(1, volumeControl.volume + delta));
+            if (newVol >= 0.995)
+                newVol = 1.0;
+            if (newVol <= 0.005)
+                newVol = 0.0;
+
             if (volumeControl.serviceSink && volumeControl.serviceSink.audio) {
                 volumeControl.serviceSink.audio.volume = newVol;
                 var chans = volumeControl.serviceSink.audio.volumes || [];
@@ -195,15 +217,18 @@ Rectangle {
 
             function update(x) {
                 var raw = x / parent.width;
-                sliderBg.pendingValue = Math.min(1, Math.max(0, Math.round(raw * 20) / 20));
+                var clampedRaw = Math.min(1, Math.max(0, raw));
+                var stepped = Math.round(clampedRaw * 20) / 20;
+                sliderBg.pendingValue = stepped;
             }
             function commitVolume(v) {
                 if (!volumeControl.audioReady)
                     return;
-                volumeControl.serviceSink.audio.volume = v;
+                var stepped = Math.round(v * 20) / 20;
+                volumeControl.serviceSink.audio.volume = stepped;
                 var chans = volumeControl.serviceSink.audio.volumes || [];
                 if (chans.length)
-                    volumeControl.serviceSink.audio.volumes = Array(chans.length).fill(v);
+                    volumeControl.serviceSink.audio.volumes = Array(chans.length).fill(stepped);
             }
         }
     }
@@ -213,7 +238,6 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 8
 
-        // Hidden measurer to get the width/height of the largest icon with the same font settings
         Text {
             id: maxIconMeasure
             text: "󰕾"
@@ -223,7 +247,6 @@ Rectangle {
             visible: false
         }
 
-        // Measurer for widest percentage "100%"
         Text {
             id: maxPercentMeasure
             text: "100%"
@@ -233,7 +256,6 @@ Rectangle {
             visible: false
         }
 
-        // Fixed-size container using the measured size; centers the dynamic icon inside
         Item {
             id: volumeIconItem
             implicitWidth: maxIconMeasure.paintedWidth
@@ -253,7 +275,6 @@ Rectangle {
             }
         }
 
-        // Fixed-size container for percentage equal to width of "100%"
         Item {
             id: percentageItem
             implicitWidth: maxPercentMeasure.paintedWidth
@@ -263,7 +284,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: volumeControl.audioReady ? (volumeControl.muted ? "0%" : Math.round(volumeControl.volume * 100) + "%") : "--"
+                text: volumeControl.audioReady ? (volumeControl.muted ? "0%" : Math.round(volumeControl.volume * 20) * 5 + "%") : "--"
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 font.bold: true
