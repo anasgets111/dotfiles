@@ -19,6 +19,16 @@ Item {
     property real overlayFlashX: implicitWidth / 2 - overlayFlashWidth / 2
     property int widthPhase: 0
     property int colorPhase: 0
+    property string batteryIcon: {
+        if (root.isCharging)
+            return "";
+        if (root.device.state === UPowerDeviceState.PendingCharge)
+            return "󰂄";
+
+        var icons = ["", "", "", "", ""];
+        var index = Math.min(Math.floor(root.percentage * 5), 4);
+        return icons[index];
+    }
 
     // Process for power profile switching
     Process {
@@ -281,22 +291,7 @@ Item {
 
             Text {
                 id: icon
-
-                text: {
-                    if (root.isCharging)
-                        return "";
-                    if (root.device.state === UPowerDeviceState.PendingCharge)
-                        return "󰂄";
-                    if (root.percentage > 0.8)
-                        return "";
-                    if (root.percentage > 0.6)
-                        return "";
-                    if (root.percentage > 0.4)
-                        return "";
-                    if (root.percentage > 0.2)
-                        return "";
-                    return "";
-                }
+                text: root.batteryIcon
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 font.bold: true
