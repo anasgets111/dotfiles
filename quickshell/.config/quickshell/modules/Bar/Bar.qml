@@ -10,9 +10,41 @@ PanelWindow {
     implicitWidth: panelWindow.screen.width
     implicitHeight: panelWindow.screen.height
     exclusiveZone: Theme.panelHeight
-    screen: Quickshell.screens.length > 1 ? Quickshell.screens[1] : Quickshell.screens[0]
-    WlrLayershell.namespace: "quickshell:bar:blur"
+    // Use dynamic screen selection: prefer second screen when present
+    screen: screenBinder.pickScreen()
+    WlrLayershell.namespace: "quickshell:bar"
     color: Theme.panelWindowColor
+
+    // React to screen topology changes (plug/unplug/wake) with debounce
+    Item {
+        id: screenBinder
+
+        // Debounce timer to handle brief flapping during wake/connect
+        Timer {
+            id: screenDebounce
+            interval: 350
+            repeat: false
+            onTriggered: panelWindow.screen = screenBinder.pickScreen()
+        }
+
+        function pickScreen() {
+            // Prefer second screen (index 1) if present, else first (index 0)
+            if (Quickshell.screens.length > 1) {
+                return Quickshell.screens[1];
+            }
+            return Quickshell.screens.length > 0 ? Quickshell.screens[0] : null;
+        }
+
+        Component.onCompleted: panelWindow.screen = pickScreen()
+
+        Connections {
+            target: Quickshell
+            // Fired when outputs list or their availability changes
+            function onScreensChanged() {
+                screenDebounce.restart();
+            }
+        }
+    }
 
     anchors {
         top: true
