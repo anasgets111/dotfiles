@@ -37,47 +37,64 @@ PanelWindow {
             onTriggered: {
                 console.log("[Bar] Debounce triggered. Re-evaluating screen...")
                 const sel = screenBinder.pickScreen()
-                console.log("[Bar] Assigning panelWindow.screen to:", sel ? `${sel.name} ${sel.width}x${sel.height}` : "<none>")
-                panelWindow.screen = sel
+                console.log("[Bar] Candidate screen:", sel ? `${sel.name} ${sel.width}x${sel.height}` : "<none>")
+                if (sel && panelWindow.screen === sel) {
+                    console.log("[Bar] Skipping reassign; screen unchanged")
+                } else {
+                    console.log("[Bar] Assigning panelWindow.screen")
+                    panelWindow.screen = sel
+                }
                 postAssignCheck.restart()
             }
         }
 
-        // short post-assign check to see visibility
+        // short post-assign check to see visibility and sizes
         Timer {
             id: postAssignCheck
-            interval: 80
+            interval: 120
             repeat: false
-            onTriggered: console.log("[Bar] post-assign visible:", panelWindow.visible, "ns:", WlrLayershell.namespace)
+            onTriggered: {
+                const scr = panelWindow.screen
+                console.log("[Bar] post-assign:",
+                    "visible=", panelWindow.visible,
+                    "scr=", scr ? `${scr.name} ${scr.width}x${scr.height}` : "<none>",
+                    "implicit=", panelWindow.implicitWidth + "x" + panelWindow.implicitHeight,
+                    "panelRect=", panelRect.width + "x" + panelRect.height,
+                    "exclusiveZone=", Theme.panelHeight,
+                    "namespace=", WlrLayershell.namespace)
+            }
         }
 
         function logScreensDetail(prefix) {
+            // Detailed list including zero-sized screens
             const count = Quickshell.screens.length
             console.log(`${prefix} screens length= ${count}`)
             Quickshell.screens.forEach((s, i) => console.log(`[Bar]  - [${i}] name=${s.name} size=${s.width}x${s.height} enabled=${s.enabled} primary=${s.primary}`))
         }
 
         function pickScreen() {
-            const count = Quickshell.screens.length
-            const names = Quickshell.screens.map(s => s.name).join(", ")
-            console.log(`[Bar] pickScreen() called. screens length= ${count} [${names}]`)
-            // Prefer second screen (index 1) if present, else first (index 0)
-            if (count > 1) {
-                console.log("[Bar] Choosing screens[1] ->", Quickshell.screens[1].name)
-                return Quickshell.screens[1]
+            // Filter out transient zero-sized screens to avoid mapping issues
+            const valid = Quickshell.screens.filter(s => (s.width || 0) > 0 && (s.height || 0) > 0)
+            const namesAll = Quickshell.screens.map(s => s.name).join(", ")
+            const namesValid = valid.map(s => s.name).join(", ")
+            console.log(`[Bar] pickScreen() called. all= [${namesAll}] valid(non-zero)= [${namesValid}]`)
+
+            if (valid.length > 1) {
+                console.log("[Bar] Choosing valid[1] ->", valid[1].name)
+                return valid[1]
             }
-            if (count > 0) {
-                console.log("[Bar] Falling back to screens[0] ->", Quickshell.screens[0].name)
-                return Quickshell.screens[0]
+            if (valid.length > 0) {
+                console.log("[Bar] Falling back to valid[0] ->", valid[0].name)
+                return valid[0]
             }
-            console.warn("[Bar] No screens available. Returning null.")
+            console.warn("[Bar] No valid screens (non-zero) available. Returning null.")
             return null
         }
 
         Component.onCompleted: {
             console.log("[Bar] screenBinder ready. Initial screen selection...")
             screenBinder.logScreensDetail("[Bar] initial")
-            panelWindow.screen = screenBinder.pickScreen()
+            // Do not force assign if binding already evaluates
             console.log("[Bar] namespace:", WlrLayershell.namespace)
         }
 
