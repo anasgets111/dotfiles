@@ -18,7 +18,6 @@ PanelWindow {
     implicitWidth: panelWindow.screen.width
     implicitHeight: panelWindow.screen.height
     exclusiveZone: Theme.panelHeight
-    screen: Quickshell.screens[0]
     WlrLayershell.namespace: "quickshell:bar:blur"
     WlrLayershell.layer: WlrLayer.Top
     color: Theme.panelWindowColor
@@ -73,7 +72,7 @@ PanelWindow {
 
     Component.onCompleted: {
         // Kick initial selection via debounce to let screens settle
-        screenBinder.children[0].restart ? screenBinder.children[0].restart() : null
+        screenBinder.children[0].restart ? screenBinder.children[0].restart() : null;
     }
 
     anchors {
