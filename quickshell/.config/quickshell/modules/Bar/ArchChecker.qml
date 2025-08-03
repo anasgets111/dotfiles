@@ -215,15 +215,6 @@ Item {
                 verticalAlignment: Text.AlignVCenter
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
                 elide: Text.ElideNone
-
-                RotationAnimator on rotation {
-                    from: 0
-                    to: 360
-                    duration: 800
-                    loops: Animation.Infinite
-                    running: root.busy
-                    onStopped: indicator.rotation = 0
-                }
             }
 
             Text {
