@@ -15,21 +15,46 @@ PanelWindow {
     WlrLayershell.namespace: "quickshell:bar"
     color: Theme.panelWindowColor
 
+    // Window/layershell state debug (only supported signals/properties)
+    onScreenChanged: console.log("[Bar] panelWindow.screen changed ->", panelWindow.screen ? panelWindow.screen.name : "<none>")
+    onVisibleChanged: console.log("[Bar] visible:", panelWindow.visible)
+    onWidthChanged: console.log("[Bar] width:", panelWindow.width)
+    onHeightChanged: console.log("[Bar] height:", panelWindow.height)
+
+    // Note: WlrLayershell may not expose mapped; log available props
+    onColorChanged: console.log("[Bar] color changed")
+
     // React to screen topology changes (plug/unplug/wake) with debounce
     Item {
         id: screenBinder
+        property int debounceRestarts: 0
 
         // Debounce timer to handle brief flapping during wake/connect
         Timer {
             id: screenDebounce
-            interval: 2000
+            interval: 500
             repeat: false
             onTriggered: {
                 console.log("[Bar] Debounce triggered. Re-evaluating screen...")
                 const sel = screenBinder.pickScreen()
-                console.log("[Bar] Assigning panelWindow.screen to:", sel ? sel.name : "<none>")
+                console.log("[Bar] Assigning panelWindow.screen to:", sel ? `${sel.name} ${sel.width}x${sel.height}` : "<none>")
                 panelWindow.screen = sel
+                postAssignCheck.restart()
             }
+        }
+
+        // short post-assign check to see visibility
+        Timer {
+            id: postAssignCheck
+            interval: 80
+            repeat: false
+            onTriggered: console.log("[Bar] post-assign visible:", panelWindow.visible, "ns:", WlrLayershell.namespace)
+        }
+
+        function logScreensDetail(prefix) {
+            const count = Quickshell.screens.length
+            console.log(`${prefix} screens length= ${count}`)
+            Quickshell.screens.forEach((s, i) => console.log(`[Bar]  - [${i}] name=${s.name} size=${s.width}x${s.height} enabled=${s.enabled} primary=${s.primary}`))
         }
 
         function pickScreen() {
@@ -51,16 +76,18 @@ PanelWindow {
 
         Component.onCompleted: {
             console.log("[Bar] screenBinder ready. Initial screen selection...")
-            panelWindow.screen = pickScreen()
+            screenBinder.logScreensDetail("[Bar] initial")
+            panelWindow.screen = screenBinder.pickScreen()
+            console.log("[Bar] namespace:", WlrLayershell.namespace)
         }
 
         Connections {
             target: Quickshell
             // Fired when outputs list or their availability changes
             function onScreensChanged() {
-                const count = Quickshell.screens.length
-                const names = Quickshell.screens.map(s => s.name).join(", ")
-                console.log(`[Bar] onScreensChanged(): screens length= ${count} [${names}] -> restarting debounce (${screenDebounce.interval}ms)`)            
+                screenBinder.logScreensDetail("[Bar] onScreensChanged():")
+                screenBinder.debounceRestarts += 1
+                console.log(`[Bar] restarting debounce #${screenBinder.debounceRestarts} (${screenDebounce.interval}ms)`)            
                 screenDebounce.restart()
             }
         }
