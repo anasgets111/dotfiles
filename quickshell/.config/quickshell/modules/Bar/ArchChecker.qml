@@ -23,6 +23,7 @@ Item {
     property int minuteMs: 60 * 1000
     property int pollInterval: 1 * minuteMs
     property int syncInterval: 5 * minuteMs
+    property int lastNotifiedUpdates: 0
 
     function runUpdate() {
         if (busy)
@@ -69,7 +70,7 @@ Item {
     Process {
         id: notifyProc
 
-        onExited: function (exitCode, exitStatus) {
+        onExited: function (exitCode) {
             var act = (notifyOut.text || "").trim();
             if (act === "update")
                 root.runUpdate();
@@ -83,7 +84,7 @@ Item {
     Process {
         id: pkgProc
 
-        onExited: function (exitCode, exitStatus) {
+        onExited: function (exitCode) {
             const stderrText = (err.text || "").trim();
             if (stderrText)
                 console.warn("[UpdateChecker] stderr:", stderrText);
@@ -119,10 +120,17 @@ Item {
                 return;
             }
             root.failureCount = 0;
-            if (root.updates > 0) {
-                const msg = root.updates === 1 ? "One package can be upgraded" : root.updates + " packages can be upgraded";
+
+            if (root.updates > root.lastNotifiedUpdates) {
+                const added = root.updates - root.lastNotifiedUpdates;
+                const msg = added === 1 ? "One new package can be upgraded (" + root.updates + " total)" : added + " new packages can be upgraded (" + root.updates + " total)";
                 root.notify("normal", "Updates Available", msg);
+                root.lastNotifiedUpdates = root.updates;
             }
+            if (root.updates === 0 && root.lastWasFull) {
+                root.lastNotifiedUpdates = 0;
+            }
+
             if (root.lastWasFull)
                 root.lastSync = Date.now();
         }

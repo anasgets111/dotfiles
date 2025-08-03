@@ -19,7 +19,6 @@ Item {
     property real overlayFlashWidth: 2
     property real overlayFlashX: implicitWidth / 2 - overlayFlashWidth / 2
     property int widthPhase: 0
-    property int colorPhase: 0
     property string batteryIcon: {
         if (root.isCharging)
             return "";
@@ -76,21 +75,6 @@ Item {
                 root.widthPhase++;
             } else {
                 root.widthPhase = 0;
-                stop();
-            }
-        }
-    }
-
-    Timer {
-        id: colorTimer
-
-        interval: 200
-        repeat: true
-        onTriggered: {
-            if (root.colorPhase < 4) {
-                root.colorPhase++;
-            } else {
-                root.colorPhase = 0;
                 stop();
             }
         }
