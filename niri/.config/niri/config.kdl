@@ -125,7 +125,7 @@ spawn-at-startup "kdeconnectd"
 spawn-at-startup "kdeconnect-indicator"
 spawn-at-startup "speech-dispatcher"
 spawn-at-startup "xwayland-satellite"
-// spawn-at-startup "openrgb --startminimized --profile "Default""
+spawn-at-startup "sh" "-c" "sleep 3 && openrgb --startminimized --profile 'Default'"
 
 
 animations {
