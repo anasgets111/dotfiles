@@ -180,6 +180,7 @@ window-rule {
     match title="Open File"
     match title="Save File"
     match title="Save As"
+    match title="Downloading Certificate"
     match title="Open Folder"
     match title="File Upload"
     match title="Enter name of file to save to.."
