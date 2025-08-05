@@ -50,14 +50,16 @@ export GDK_SCALE="1"
 export QT_SCALE_FACTOR="1"
 export QT_AUTO_SCREEN_SCALE_FACTOR="1"
 # Theming
-export QT_QPA_PLATFORMTHEME="qt6ct"
+
 # Input (fcitx)
-export INPUT_METHOD="fcitx"
-export QT_IM_MODULE="fcitx"
-export XMODIFIERS="@im=fcitx"
-export SDL_IM_MODULE="fcitx"
+#export INPUT_METHOD="fcitx"
+#export GTK_IM_MODULE="fcitx"
+#export QT_QPA_PLATFORMTHEME="qt6ct"
+#export QT_IM_MODULE="fcitx"
+#export XMODIFIERS="@im=fcitx"
+#export SDL_IM_MODULE="fcitx"
 # Input (ibus)
-export GLFW_IM_MODULE="ibus"
+#export GLFW_IM_MODULE="ibus"
 
 # ─── PATH ───────────────────────────────────────────────────────────────────────
 export PATH="$CARGOBIN:$BIN:$XDG_CONFIG_HOME/composer/vendor/bin:$PATH"

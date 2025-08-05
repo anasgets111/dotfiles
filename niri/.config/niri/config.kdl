@@ -137,7 +137,6 @@ animations {
     slowdown 0.74
 }
 
-
 // =====================
 // Window Rules Section
 // =====================
@@ -149,6 +148,34 @@ window-rule {
 }
 
 window-rule {
+    match title="OpenRGB"
+    match title="Network Connections"
+    match title="Do you want to retry your last request"
+    match app-id="org.kde.kdeconnect.handler"
+    match app-id="waypaper"
+    open-floating true
+}
+
+window-rule {
+    match app-id="io.missioncenter.MissionCenter"
+    match app-id="gtk-pipe-viewer"
+    match app-id="org.pulseaudio.pavucontrol"
+    match app-id="blueman-manager"
+    match app-id="org.gnome.DiskUtility"
+    match app-id="nm-connection-editor"
+    match app-id="polkit.*authentication-agent.*"
+    match app-id="xdg-desktop-portal.*"
+    match app-id="zenity"
+    match app-id="pavucontrol"
+    match app-id="mpv"
+    match title="Global Updates"
+    open-floating true
+    default-column-width { proportion 0.74; }
+    default-window-height { proportion 0.74; }
+}
+
+window-rule {
+    match app-id="com.saivert.pwvucontrol"
     match title="Install from VSIX"
     match title="Open File"
     match title="Save File"
@@ -159,39 +186,18 @@ window-rule {
     match title="Authentication Required"
     match title="Create or select new Steam library folder"
     match title="About Zen Browser"
-    match title="imv"
-    match title="ncmpcpp"
     match title=r#"^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$"#
-    match title="OpenRGB"
-    match title="Network Connections"
-    match title="Do you want to retry your last request"
-    match title="Global Updates"
-    match app-id="org.kde.kdeconnect.handler"
-    match app-id=r#"^steam$"# title=r#"^(Steam - Self Updater|Steam Settings|Create or select new Steam library folder)$"#
-    match app-id="waypaper"
-    match app-id="mpv"
-    match app-id="io.missioncenter.MissionCenter"
-    match app-id="com.saivert.pwvucontrol"
-    match app-id="gtk-pipe-viewer"
-    match app-id="org.pulseaudio.pavucontrol"
-    match app-id="blueman-manager"
-    match app-id="org.gnome.DiskUtility"
-    match app-id="nm-connection-editor"
-    match app-id="gnome-calculator"
-    match app-id="org.gnome.Calculator"
-    match app-id="xdg-desktop-portal.*"
-    match app-id="polkit.*authentication-agent.*"
-    match app-id="zenity"
-    match app-id="pavucontrol"
     open-floating true
+    default-column-width { proportion 0.47; }
+    default-window-height { proportion 0.47; }
 }
 
 window-rule {
     match app-id="org.gnome.Calculator"
     default-column-width { proportion 0.15; }
     default-window-height { proportion 0.15; }
+    open-floating true
 }
-
 
 binds {
     // "Mod" Super when running on a TTY, and to Alt when running as a winit window.
@@ -199,7 +205,7 @@ binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
 
     Mod+Return hotkey-overlay-title="Open a Terminal" { spawn "xdg-terminal-exec"; }
-    Mod+KP_Enter hotkey-overlay-title="Open a Terminal" { spawn "xdg-terminal-exec"; }
+    Mod+KP_Enter { spawn "xdg-terminal-exec"; }
     Ctrl+Alt+Delete { spawn "missioncenter"; }
     
     Mod+Z { spawn "zeditor"; }
@@ -222,7 +228,7 @@ binds {
     XF86Calculator {spawn "gnome-calculator"; }
 
     // the top-left hot corner, or a four-finger swipe up on a touchpad opens the overview too.
-    Mod+O repeat=false { toggle-overview; }
+    Mod+Space repeat=false { toggle-overview; }
     Mod+Q { close-window; }
 
     Mod+Left  { focus-column-left; }
