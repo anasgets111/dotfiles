@@ -1,5 +1,4 @@
-// pragma ComponentBehavior: Bound
-//@ pragma IconTheme Tela-circle-dracula-dark
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
@@ -10,11 +9,6 @@ Item {
 
     required property var bar
     readonly property int iconSpacing: 8
-    property var fallbackOrder: []
-    property var availableThemes: []
-    property string preferredIconTheme: Quickshell.env("ICON_THEME") || (availableThemes.length > 0 ? availableThemes[0] : "hicolor")
-    readonly property var iconDirs: ["scalable/apps/", "scalable/actions/", "scalable/devices/", "scalable/status/", "scalable/places/", "48x48/apps/", "48x48/actions/", "48x48/devices/", "48x48/status/", "48x48/places/"]
-    readonly property var iconExts: [".svg", ".png"]
 
     function getThemeIconName(iconUrl) {
         var m = iconUrl.match(/image:\/\/(?:icon|qspixmap)\/([^\/]+)/);
@@ -22,23 +16,12 @@ Item {
     }
 
     function getIconPath(iconName) {
-        for (var i = 0; i < iconDirs.length; i++) {
-            for (var j = 0; j < iconExts.length; j++) {
-                var candidate = iconDirs[i] + iconName + iconExts[j];
-                // Quickshell.iconPath allows theme override via QS_ICON_THEME env
-                var path = Quickshell.iconPath(candidate, true);
-                if (path)
-                    return path;
-            }
-        }
-        return Quickshell.iconPath("image-missing", true);
+        // Let Quickshell resolve from the active icon theme
+        return Quickshell.iconPath(iconName, true) || "";
     }
 
     width: trayRow.width + iconSpacing
     height: Theme.itemHeight
-    Component.onCompleted: {
-        availableThemes = fallbackOrder;
-    }
 
     Rectangle {
         id: pillContainer
@@ -61,6 +44,7 @@ Item {
             MouseArea {
                 id: trayMouseArea
 
+                required property var modelData
                 property var trayItem: modelData
 
                 width: Theme.iconSize
@@ -115,12 +99,10 @@ Item {
                     fillMode: Image.PreserveAspectFit
                     smooth: true
                     visible: status !== Image.Error && status !== Image.Null
-                    onStatusChanged: {
-                        if (status === Image.Error && trayMouseArea.trayItem.icon.startsWith("image://")) {
-                            var fp = systemTrayWidget.getIconPath(iconName);
-                            if (fp)
-                                source = fp;
-                        }
+                    onStatusChanged: if (status === Image.Error && trayMouseArea.trayItem.icon.startsWith("image://")) {
+                        var fp = systemTrayWidget.getIconPath(iconName);
+                        if (fp)
+                            source = fp;
                     }
                 }
 
