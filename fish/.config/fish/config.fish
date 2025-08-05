@@ -37,7 +37,6 @@ alias mirror-aur 'rate-mirrors chaotic-aur | sudo tee /etc/pacman.d/chaotic-mirr
 alias exercism "/mnt/Work/0Coding/exercism-3.5.4-linux-x86_64/exercism"
 alias ola="docker exec -it ollama ollama"
 alias fixpacman="sudo rm /var/lib/pacman/db.lck"
-alias update='paru'
 alias art='php artisan'
 alias pacin='sudo pacman -S'
 alias pacinn='sudo pacman -S --needed'
@@ -53,13 +52,9 @@ alias ....='cd ../../..'
 alias .....='cd ../../../..'
 alias ......='cd ../../../../..'
 alias fastfetchy="fastfetch --load-config $XDG_CONFIG_HOME/fastfetchTheme.jsonc"
-alias gedit="gnome-text-editor"
 alias errors="journalctl -p 3 -xb"
 alias tb='nc termbin.com 9999'
 alias rip="expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
-alias grep='rg'
-alias ls="eza --icons --hyperlink"
-alias cat="bat"
 alias cd="z"
 alias dots='cd $DOTFILES; and stow '
 
