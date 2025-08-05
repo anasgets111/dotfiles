@@ -4,3 +4,4 @@ hypr/.config/hypr/monitors.conf
 # Secrets directory
 .local_secrets/
 home/.gitconfig
+nushell/.config/nushell/history.txt
