@@ -17,4 +17,17 @@
 # options using:
 #     config nu --doc | nu-highlight | less -R
 
+alias fastfetchy = fastfetch --load-config $"($env.XDG_CONFIG_HOME)/fastfetchTheme.jsonc"
+alias errors = journalctl -p 3 -xb
+alias fixpacman = sudo rm /var/lib/pacman/db.lck
+alias exercism = /mnt/Work/0Coding/exercism-3.5.4-linux-x86_64/exercism
+alias ola = docker exec -it ollama ollama
+alias art = php artisan
+alias pacinn = paru -S --needed
+alias pacin = paru -S
+alias pacre = paru -R
+alias pacrem = paru -Rns
+alias gl = git pull
+alias gp = git push
+
 oh-my-posh init nu
