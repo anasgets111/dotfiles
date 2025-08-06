@@ -101,8 +101,12 @@ def native [
     _list-repo ["core", "extra", "multilib"] --explicit --version=$version --columns=$columns 
 }
 
-def pkg-version [
-    ...packages: string
+def nu-complete-pkg-names [] {
+  ^pacman -Ssq | lines
+}
+
+def checkversion [
+    ...packages: string@nu-complete-pkg-names
 ] {
     let installed_data = try {
         ^expac -Q '%n:%v' ...$packages 
@@ -170,6 +174,6 @@ def pkg-version [
             repo: ($repo_ver | default ""),
             status: $status
         }
-    }
+    } | table -i false
 }
 
