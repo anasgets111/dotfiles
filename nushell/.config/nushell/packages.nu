@@ -20,7 +20,7 @@ def _handle-packages [
       }
     }
     1 => {
-      $selected_items
+      $selected_items | table -i false
     }
     _ => {
       let total_items = ($selected_items | length)
@@ -59,7 +59,7 @@ def _handle-packages [
         }
       } | where { |row| 
         ($row | values | any { |val| $val != null })
-      }
+      } | table -i false
     }
   }
 }
@@ -69,5 +69,42 @@ def aur [
   --columns (-c): int = 0
 ] {
   let items = (^pacman -Qm | parse "{name} {version}")
-  _handle-packages $items --version=$version --columns=$columns
+  _handle-packages $items --version=$version --columns=$columns 
+}
+
+def chaotic [
+  --version (-v)
+  --columns (-c): int = 0
+] {
+  # Get all packages from chaotic-aur repository
+  let chaotic_packages = (^paclist chaotic-aur | parse "{name} {version}")
+  
+  # Get all explicitly installed packages
+  let explicit_packages = (^pacman -Qe | parse "{name} {version}")
+  
+  # Find intersection: packages that are both from chaotic-aur AND explicitly installed
+  let items = ($chaotic_packages | join $explicit_packages name name)
+  
+  _handle-packages $items --version=$version --columns=$columns 
+}
+
+def native [
+  --version (-v)
+  --columns (-c): int = 0
+] {
+  # Get all packages from official repositories (core, extra, multilib)
+  let core_packages = (^paclist core | parse "{name} {version}")
+  let extra_packages = (^paclist extra | parse "{name} {version}")
+  let multilib_packages = (^paclist multilib | parse "{name} {version}")
+  
+  # Combine all official repo packages
+  let official_packages = ($core_packages | append $extra_packages | append $multilib_packages)
+  
+  # Get all explicitly installed packages
+  let explicit_packages = (^pacman -Qe | parse "{name} {version}")
+  
+  # Find intersection: packages that are both from official repos AND explicitly installed
+  let items = ($official_packages | join $explicit_packages name name)
+  
+  _handle-packages $items --version=$version --columns=$columns 
 }
