@@ -1,6 +1,19 @@
+def _handle-packages [
+  items: table
+  --version (-v)
+  --columns (-c): int = 1
+] {
+  if $version {
+    $items | select name version
+  } else {
+    $items | select name
+  }
+}
 
-
-# let explicit: list<string> = (^pacman -Qqe | lines);
-# let aur: list<string> = (^pacman -Qm | lines | each {|l| $l | split row ' ' | get 0});
-# let chaotic: list<string> = (if (which paclist | is-not-empty) { ^paclist chaotic-aur | lines | each {|l| $l | split row ' ' | get 0} } else { [] });
-# $explicit | where {|p| not ($p in ($aur ++ $chaotic)) }
+def aur [
+  --version (-v)
+  --columns (-c): int = 1
+] {
+  let items = (^pacman -Qm | parse "{name} {version}")
+  _handle-packages $items --version=$version --columns=$columns
+}
