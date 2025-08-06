@@ -17,6 +17,21 @@
 # options using:
 #     config nu --doc | nu-highlight | less -R
 source ./catppuccin_mocha.nu
+source ./packages.nu
+
+$env.config.buffer_editor = "nvim"
+$env.config.show_banner = false
+
+
+def sail [...argv] {
+  if ("sail" | path exists) {
+    sail ...$argv
+  } else if ("vendor/bin/sail" | path exists) {
+    vendor/bin/sail ...$argv
+  } else {
+    print "no sail found"
+  }
+}
 
 alias fastfetchy = fastfetch --load-config $"($env.XDG_CONFIG_HOME)/fastfetchTheme.jsonc"
 alias errors = journalctl -p 3 -xb
@@ -31,5 +46,6 @@ alias pacrem = paru -Rns
 alias gl = git pull
 alias gp = git push
 
+fastfetchy
 
 oh-my-posh init nu

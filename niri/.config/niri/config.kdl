@@ -7,12 +7,12 @@ workspace "Chromium"  {open-on-output "DP-3";}
 workspace "Code"       {open-on-output "DP-3";}
 workspace "Zed"          {open-on-output "DP-3";}
 workspace "Files"        {open-on-output "DP-3";}
-workspace "Torrent"      {open-on-output "DP-3";}
 workspace "Thunderbird"  {open-on-output "DP-3";}
 workspace "Games"        {open-on-output "DP-3";}
+workspace "Terminal" {open-on-output "DP-3";}
+workspace "Telegram" {open-on-output "DP-2";}
 workspace "Discord" {open-on-output "DP-2";}
 workspace "Slack"   {open-on-output "DP-2";}
-workspace "Telegram" {open-on-output "DP-2";}
 
 input {
     keyboard {
@@ -281,15 +281,14 @@ binds {
     Mod+Ctrl+Shift+WheelScrollDown { move-column-right; }
     Mod+Ctrl+Shift+WheelScrollUp   { move-column-left; }
 
-
     Mod+1 { focus-workspace "Zen"; }
     Mod+2 { focus-workspace "Chromium"; }
     Mod+3 { focus-workspace "Code"; }
     Mod+4 { focus-workspace "Zed"; }
     Mod+5 { focus-workspace "Files"; }
-    Mod+6 { focus-workspace "Torrent"; }
+    Mod+6 { focus-workspace "Games"; }
     Mod+7 { focus-workspace "Thunderbird"; }
-    Mod+8 { focus-workspace "Games"; }
+    Mod+8 { focus-workspace "Telegram"; }
     Mod+9 { focus-workspace "Discord"; }
     Mod+0 { focus-workspace "Slack"; }
     
@@ -299,9 +298,10 @@ binds {
     Mod+Shift+4 { move-window-to-workspace "Zed"; }
     Mod+Shift+5 { move-window-to-workspace "Files"; }
     Mod+Shift+6 { move-window-to-workspace "Torrent"; }
-    Mod+Shift+7 { move-window-to-workspace "Games"; }
-    Mod+Shift+8 { move-window-to-workspace "Thunderbird"; }
     Mod+Shift+9 { move-window-to-workspace "Games"; }
+    Mod+Shift+8 { move-window-to-workspace "Thunderbird"; }
+    Mod+Shift+8 { move-window-to-workspace "Telegram"; }
+    Mod+Shift+7 { move-window-to-workspace "Discord"; }
     Mod+Shift+0 { move-window-to-workspace "Slack"; }
 
 
