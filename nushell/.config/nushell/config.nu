@@ -16,6 +16,7 @@
 # You can also pretty-print and page through the documentation for configuration
 # options using:
 #     config nu --doc | nu-highlight | less -R
+source ./catppuccin_mocha.nu
 
 alias fastfetchy = fastfetch --load-config $"($env.XDG_CONFIG_HOME)/fastfetchTheme.jsonc"
 alias errors = journalctl -p 3 -xb
@@ -29,5 +30,6 @@ alias pacre = paru -R
 alias pacrem = paru -Rns
 alias gl = git pull
 alias gp = git push
+
 
 oh-my-posh init nu
