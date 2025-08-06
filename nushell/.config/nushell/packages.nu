@@ -1,20 +1,16 @@
 def _list-repo [
-  repos: list<string>     # list of repo names
-  --explicit (-e)         # only explicitly installed?
+  repos: list<string>
+  --explicit (-e)
   --version (-v)
   --columns (-c): int = 0
 ] {
-  # Fetch all packages from each repo
   let all_packages = if ($repos | length) == 1 and ($repos | first) == "aur" {
-    # Special case for AUR (foreign packages)
     ^pacman -Qm | parse "{name} {version}"
   } else {
-    # For regular repositories, use paclist
     $repos | par-each { |repo| ^paclist $repo | parse "{name} {version}" } | flatten
   }
 
   let items = if $explicit {
-    # Get explicitly installed packages and find intersection
     let explicit_packages = (^pacman -Qe | parse "{name} {version}")
     $all_packages | join $explicit_packages name name | select name version
   } else {
@@ -51,7 +47,6 @@ def _handle-packages [
       let total_items = ($selected_items | length)
       let items_per_column = (($total_items / $columns) | math ceil)
       
-      # Create a simple table with multiple columns
       0..<$items_per_column | each { |row_idx|
         let row_data = (0..<$columns | each { |col_idx|
           let item_idx = ($col_idx * $items_per_column + $row_idx)
@@ -67,7 +62,6 @@ def _handle-packages [
           let item_info = ($row_data | get -o $col_idx)
           if ($item_info != null) {
             let suffix = if $col_idx == 0 { "" } else { $".($col_idx)" }
-            # Insert id column first, then the other fields
             let acc_with_id = ($acc | insert $"id($suffix)" $item_info.idx)
             $fields | reduce -f $acc_with_id { |field_name, acc_inner|
               let column_name = $"($field_name)($suffix)"
