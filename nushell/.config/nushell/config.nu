@@ -22,6 +22,29 @@ source ./packages.nu
 $env.config.buffer_editor = "nvim"
 $env.config.show_banner = false
 
+$env.config.keybindings ++= [
+  {
+    name: ctrl_delete_kill_line
+    modifier: control
+    keycode: delete
+    mode: [emacs, vi_insert]
+    event: { edit: KillLine }
+  }
+  {
+    name: delete_kill_word
+    modifier: none
+    keycode: delete
+    mode: [emacs, vi_insert]
+    event: { edit: DeleteWord }
+  }
+  {
+    name: alt_delete_kill_word
+    modifier: alt
+    keycode: backspace
+    mode: [emacs, vi_insert]
+    event: { edit: CutFromLineStart }
+  }
+]
 
 def sail [...argv] {
   if ("sail" | path exists) {
