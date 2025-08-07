@@ -111,7 +111,6 @@ def --env --wrapped z [...rest: string@"nu-complete zoxide path"] {
 }
 source ./zoxide.nu
 
-$env.STARSHIP_CONFIG = ($env.XDG_CONFIG_HOME | path join "pastel-powerline.toml")
 mkdir ($nu.data-dir | path join "vendor/autoload")
 starship init nu | save -f ($nu.data-dir | path join "vendor/autoload/starship.nu")
 # oh-my-posh init nu --config $"($env.XDG_CONFIG_HOME)/standard.omp.toml"
