@@ -31,73 +31,76 @@ Windows = ""
 [shell]
 format = "[$indicator](#E0DEF4 bg:#444859)[](fg:#444859 bg:#C6C3CE)"
 disabled = false
-bash_indicator = ""
-zsh_indicator = ""
-nu_indicator = ""
-unknown_indicator = ""
+bash_indicator = " "
+zsh_indicator = " "
+nu_indicator = " "
+unknown_indicator = " "
 
 [username]
 show_always = true
-format = "[ $user](#444859 bg:#C6C3CE)"
-style_user = "#444859"
+format = "[ $user](#1E1E2E bg:#C6C3CE)"
+style_user = "#1E1E2E"
 style_root = "#F38BA8"
 
 [hostname]
 ssh_only = false
-format = "[:$hostname ](#444859 bg:#C6C3CE)[](fg:#C6C3CE bg:#E0DEF4)"
+format = "[:$hostname ](#1E1E2E bg:#C6C3CE)[](fg:#C6C3CE bg:#E0DEF4)"
 
 [directory]
-style = "#444859 bg:#E0DEF4"
+style = "#1E1E2E bg:#E0DEF4"                       # Dark text on light bg for contrast
 truncation_length = 4
 truncate_to_repo = true
 home_symbol = ""
 read_only = " "
-format = "[  $path]($style)[$read_only]($style)[](fg:#E0DEF4 bg:#E0DEF4)"
+format = "[  $path]($style)[$read_only]($style)"
 
 [git_branch]
-format = "[| $symbol$branch](#444859 bg:#E0DEF4)"
+format = "[| $symbol$branch](#1E1E2E bg:#E0DEF4)"
 symbol = " "
-style = "#444859 bg:#E0DEF4"
+style = "#1E1E2E bg:#E0DEF4"                      # Very dark text for branch name
 
 [git_status]
 format = "[$ahead_behind$all_status]($style)"
-modified = "[ $count](#FF5555 bg:#E0DEF4)"
-staged = "[ $count](#FF5555 bg:#E0DEF4)"
-untracked = "[ $count](#FF5555 bg:#E0DEF4)"
-stashed = "[ $count](#4CAF50 bg:#E0DEF4)"
-behind = "[ ⇣$count](#FF5555 bg:#E0DEF4)"
-ahead = "[ ⇡$count](#1E88E5 bg:#E0DEF4)"
-conflicted = "[ $count](#444859 bg:#E0DEF4)"
-deleted = "[ $count](#444859 bg:#E0DEF4)"
-renamed = "[ $count](#444859 bg:#E0DEF4)"
+style = "#1E1E2E bg:#E0DEF4"
+
+# Darker, more saturated colors for visibility
+modified = "[ $count](#D32F2F bg:#E0DEF4)"   # Dark red
+staged = "[ $count](#388E3C bg:#E0DEF4)"     # Dark green
+untracked = "[ $count](#F57C00 bg:#E0DEF4)"  # Dark orange
+stashed = "[ $count](#00897B bg:#E0DEF4)"    # Dark teal
+behind = "[ ⇣$count](#D32F2F bg:#E0DEF4)"     # Dark red
+ahead = "[ ⇡$count](#1976D2 bg:#E0DEF4)"      # Dark blue
+conflicted = "[ $count](#6A1B9A bg:#E0DEF4)" # Dark purple
+deleted = "[ $count](#6A1B9A bg:#E0DEF4)"    # Dark purple
+renamed = "[ $count](#6A1B9A bg:#E0DEF4)"    # Dark purple
 
 [cmd_duration]
 min_time = 0
-format = "[](fg:#E0DEF4 bg:#CBA6F7)[  $duration ](#444859 bg:#CBA6F7)[](#CBA6F7)"
+format = "[](fg:#E0DEF4 bg:#CBA6F7)[  $duration ](#1E1E2E bg:#CBA6F7)[](#CBA6F7)"
 
 [nodejs]
-format = "[](#CBA6F7)[ $version](#444859 bg:#CBA6F7)[](#CBA6F7) "
+format = "[](#CBA6F7)[ $version](#1E1E2E bg:#CBA6F7)[](#CBA6F7) "
 version_format = "${major}.${minor}"
 detect_files = ["package.json"]
 
 [python]
-format = "[](#E0DEF4)[ $virtualenv $version](#444859 bg:#E0DEF4)[](#E0DEF4) "
+format = "[](#E0DEF4)[ $virtualenv $version](#1E1E2E bg:#E0DEF4)[](#E0DEF4) "
 version_format = "${major}"
 
 [php]
-format = "[](#E0DEF4)[ $version](#444859 bg:#E0DEF4)[](#E0DEF4) "
+format = "[](#E0DEF4)[ $version](#1E1E2E bg:#E0DEF4)[](#E0DEF4) "
 version_format = "${major}.${minor}"
 
 [rust]
-format = "[](#E0DEF4)[ $version](#444859 bg:#E0DEF4)[](#E0DEF4) "
+format = "[](#E0DEF4)[ $version](#1E1E2E bg:#E0DEF4)[](#E0DEF4) "
 version_format = "${major}"
 
 [golang]
-format = "[](#E0DEF4)[ $version](#444859 bg:#E0DEF4)[](#E0DEF4) "
+format = "[](#E0DEF4)[ $version](#1E1E2E bg:#E0DEF4)[](#E0DEF4) "
 version_format = "${major}"
 
 [time]
 disabled = false
-format = "[](#C6C3CE)[  $time ](#444859 bg:#C6C3CE)[](#C6C3CE)"
+format = "[](#C6C3CE)[  $time ](#1E1E2E bg:#C6C3CE)[](#C6C3CE)"
 use_12hr = true
 time_format = "%I:%M %p"
