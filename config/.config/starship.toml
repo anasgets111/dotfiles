@@ -60,17 +60,16 @@ symbol = " "
 style = "#444859 bg:#E0DEF4"
 
 [git_status]
-style = "#444859 bg:#E0DEF4"
-format = "[ $ahead_behind$all_status]($style)"
-modified = " $count"
-staged = " $count"
-untracked = " $count"
-stashed = " $count"
-behind = " ⇣$count"
-ahead = " ⇡$count"
-conflicted = " $count"
-deleted = " $count"
-renamed = " $count"
+format = "[$ahead_behind$all_status]($style)"
+modified = "[ $count](#FF5555 bg:#E0DEF4)"
+staged = "[ $count](#FF5555 bg:#E0DEF4)"
+untracked = "[ $count](#FF5555 bg:#E0DEF4)"
+stashed = "[ $count](#4CAF50 bg:#E0DEF4)"
+behind = "[ ⇣$count](#FF5555 bg:#E0DEF4)"
+ahead = "[ ⇡$count](#1E88E5 bg:#E0DEF4)"
+conflicted = "[ $count](#444859 bg:#E0DEF4)"
+deleted = "[ $count](#444859 bg:#E0DEF4)"
+renamed = "[ $count](#444859 bg:#E0DEF4)"
 
 [cmd_duration]
 min_time = 0
