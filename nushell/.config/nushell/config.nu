@@ -22,6 +22,14 @@ source ./packages.nu
 $env.config.buffer_editor = "nvim"
 $env.config.show_banner = false
 
+$env.GREEN = (ansi green)
+$env.BLUE = (ansi blue)
+$env.CYAN = (ansi cyan)
+$env.RED = (ansi red)
+$env.YELLOW = (ansi yellow)
+$env.RESET = (ansi reset)
+
+
 $env.config.keybindings ++= [
   {
     name: ctrl_delete_kill_line
@@ -75,6 +83,15 @@ alias pacrem = paru -Rns
 alias gl = git pull
 alias gp = git push
 
-fastfetchy
+def nushell_greeting [] {
+  if ("ZED_TERM" in $env) or (("TERM_PROGRAM" in $env) and ($env.TERM_PROGRAM == "vscode")) or (("TERMINAL_EMULATOR" in $env) and ($env.TERMINAL_EMULATOR == "JetBrains-JediTerm")) {
+    return
+  }
 
-oh-my-posh init nu
+  if (which fastfetch | is-not-empty) {
+    fastfetchy
+  }
+}
+nushell_greeting
+
+oh-my-posh init nu --config $"($env.XDG_CONFIG_HOME)/standard.omp.toml"
