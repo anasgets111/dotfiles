@@ -1,10 +1,6 @@
 # @schema https://starship.rs/config-schema.json
-# Starship config recreated from oh-my-posh standard.omp.toml (features available in Starship)
-# Colors
-# c1 = #C6C3CE, c2 = #444859, c3 = #E0DEF4, c4 = #CBA6F7, c5 = #F38BA8 c6 = #a3daa8
 add_newline = false
 
-# Root-level format strings
 format = """\
 [╭─](#CBA6F7) \
 $os$shell$username$hostname$directory$git_branch$git_status$cmd_duration\
@@ -15,89 +11,67 @@ right_format = """\
 $nodejs$python$php$rust$golang$time\
 """
 
-# Character and status symbol similar to OMP ()
 [character]
 success_symbol = "[ ](#a3daa8)"
 error_symbol = "[ ](#ef5350)"
-vimcmd_symbol = "[ ](#CBA6F7)"  # unused, but keep consistent
 format = "$symbol"
 
-# Operating System module with custom icons and colors
 [os]
-format = "[](#444859)[$symbol](#E0DEF4 bg:#444859)[](#444859 bg:#444859)"
+format = "[](#444859)[$symbol](#E0DEF4 bg:#444859)[](fg:#444859 bg:#444859)"
 disabled = false
-
 [os.symbols]
-Fedora = ""
-Macos = ""
 Arch = ""
-Ubuntu = ""
-Debian = ""
-Raspbian = ""
-Redhat = ""
-NixOS = ""
-Pop = ""
+Macos = ""
 Windows = ""
 
-# Shell module (mapped icons) in same c2/c3 styling
 [shell]
-format = "[$indicator ](#E0DEF4 bg:#444859)"
+format = "[$indicator](#E0DEF4 bg:#444859)[](fg:#444859 bg:#C6C3CE)"
 disabled = false
 bash_indicator = ""
-fish_indicator = ""
 zsh_indicator = ""
 nu_indicator = ""
 unknown_indicator = ""
 
-# Username and Hostname block with c1 background and c2 foreground
 [username]
 show_always = true
-format = "[](#444859 bg:#C6C3CE)[ $user](#444859 bg:#C6C3CE)"
+format = "[ $user](#444859 bg:#C6C3CE)"
 style_user = "#444859"
 style_root = "#F38BA8"
-disabled = false
 
 [hostname]
 ssh_only = false
-format = "[: ](#444859 bg:#C6C3CE)[$hostname ](#444859 bg:#C6C3CE)[](#C6C3CE bg:#E0DEF4)"
-disabled = false
+format = "[:$hostname ](#444859 bg:#C6C3CE)[](fg:#C6C3CE bg:#E0DEF4)"
 
-# Directory with folder icon and path on c3 background
 [directory]
 style = "#444859 bg:#E0DEF4"
-truncation_length = 0
-truncate_to_repo = false
+truncation_length = 4
+truncate_to_repo = true
 home_symbol = ""
 read_only = " "
-format = "[  $path]($style)[$read_only]($style)[](#E0DEF4 bg:#E0DEF4)"
+format = "[  $path]($style)[$read_only]($style)[](fg:#E0DEF4 bg:#E0DEF4)"
 
-# Git branch and status merged to emulate OMP template
 [git_branch]
 format = "[| $symbol$branch](#444859 bg:#E0DEF4)"
 symbol = " "
 style = "#444859 bg:#E0DEF4"
-disabled = false
 
 [git_status]
 style = "#444859 bg:#E0DEF4"
 format = "[ $ahead_behind$all_status]($style)"
-conflicted = "="
-stashed = ""
 modified = " $count"
-staged = " | $count"
-renamed = " »$count"
-deleted = " $count"
-untracked = " ?$count"
+staged = " $count"
+untracked = " $count"
+stashed = " $count"
 behind = " ⇣$count"
 ahead = " ⇡$count"
+conflicted = " $count"
+deleted = " $count"
+renamed = " $count"
 
-# Command duration similar to executiontime (always show) with c4 background and c2 foreground
 [cmd_duration]
 min_time = 0
-format = "[](#E0DEF4 bg:#CBA6F7)[  $duration ](#444859 bg:#CBA6F7)[](#CBA6F7)"
-style = "#444859 bg:#CBA6F7"
+format = "[](fg:#E0DEF4 bg:#CBA6F7)[  $duration ](#444859 bg:#CBA6F7)[](#CBA6F7)"
 
-# Right prompt modules
 [nodejs]
 format = "[](#CBA6F7)[ $version](#444859 bg:#CBA6F7)[](#CBA6F7) "
 version_format = "${major}.${minor}"
@@ -106,7 +80,6 @@ detect_files = ["package.json"]
 [python]
 format = "[](#E0DEF4)[ $virtualenv $version](#444859 bg:#E0DEF4)[](#E0DEF4) "
 version_format = "${major}"
-python_binary = ["python3", "python"]
 
 [php]
 format = "[](#E0DEF4)[ $version](#444859 bg:#E0DEF4)[](#E0DEF4) "
@@ -120,16 +93,8 @@ version_format = "${major}"
 format = "[](#E0DEF4)[ $version](#444859 bg:#E0DEF4)[](#E0DEF4) "
 version_format = "${major}"
 
-# Time on right with c1 background (12-hour format like OMP)
 [time]
+disabled = false
 format = "[](#C6C3CE)[  $time ](#444859 bg:#C6C3CE)[](#C6C3CE)"
 use_12hr = true
 time_format = "%I:%M %p"
-disabled = false
-
-
-# Tweaks
-[status]
-style = "#CBA6F7"
-format = ""
-disabled = true
