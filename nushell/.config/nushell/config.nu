@@ -94,4 +94,24 @@ def nushell_greeting [] {
 }
 nushell_greeting
 
-oh-my-posh init nu --config $"($env.XDG_CONFIG_HOME)/standard.omp.toml"
+def "nu-complete zoxide path" [context: string] {
+    let parts = $context | split row " " | skip 1
+    {
+      options: {
+        sort: false,
+        completion_algorithm: substring,
+        case_sensitive: false,
+      },
+      completions: (^zoxide query --list --exclude $env.PWD -- ...$parts | lines),
+    }
+  }
+
+def --env --wrapped z [...rest: string@"nu-complete zoxide path"] {
+  __zoxide_z ...$rest
+}
+source ./zoxide.nu
+
+$env.STARSHIP_CONFIG = ($env.XDG_CONFIG_HOME | path join "pastel-powerline.toml")
+mkdir ($nu.data-dir | path join "vendor/autoload")
+starship init nu | save -f ($nu.data-dir | path join "vendor/autoload/starship.nu")
+# oh-my-posh init nu --config $"($env.XDG_CONFIG_HOME)/standard.omp.toml"

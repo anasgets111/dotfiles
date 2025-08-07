@@ -16,3 +16,5 @@
 #
 # You can remove these comments if you want or leave
 # them for future reference.
+
+zoxide init nushell | save -f $"($env.XDG_CONFIG_HOME)/nushell/zoxide.nu"
