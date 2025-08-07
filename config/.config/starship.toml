@@ -21,6 +21,10 @@ format = "[](#444859)[$symbol](#E0DEF4 bg:#444859)[](fg:#444859 bg:#444859
 disabled = false
 [os.symbols]
 Arch = ""
+Fedora = ""
+Debian = ""
+Ubuntu = ""
+NixOS = ""
 Macos = ""
 Windows = ""
 
