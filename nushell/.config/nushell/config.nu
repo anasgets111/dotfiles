@@ -69,6 +69,13 @@ def errors [] {
   | parse "{month} {day} {time} {host} {app}[{pid}]: {message}"
   | select month day time host app pid message
 }
+def mirror [] {
+  rate-mirrors --disable-comments-in-file --protocol=https arch | sudo tee /etc/pacman.d/mirrorlist
+}
+
+def mirror-aur [] {
+  rate-mirrors --disable-comments-in-file --protocol=https chaotic-aur | sudo tee /etc/pacman.d/chaotic-mirrorlist
+}
 
 alias fastfetchy = fastfetch --load-config $"($env.XDG_CONFIG_HOME)/fastfetchTheme.jsonc"
 

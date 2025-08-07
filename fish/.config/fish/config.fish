@@ -33,7 +33,7 @@ end
 alias drop-cache 'sudo paccache -rk3; and paru -Sc --aur --noconfirm'
 alias orphans 'pacman -Qdtq | sudo pacman -Rns -'
 alias mirror 'rate-mirrors  --disable-comments-in-file --protocol=https arch | sudo tee /etc/pacman.d/mirrorlist'
-alias mirror-aur 'rate-mirrors chaotic-aur | sudo tee /etc/pacman.d/chaotic-mirrorlist'
+alias mirror-aur 'rate-mirrors --disable-comments-in-file --protocol=https chaotic-aur | sudo tee /etc/pacman.d/chaotic-mirrorlist'
 alias exercism "/mnt/Work/0Coding/exercism-3.5.4-linux-x86_64/exercism"
 alias ola="docker exec -it ollama ollama"
 alias fixpacman="sudo rm /var/lib/pacman/db.lck"
