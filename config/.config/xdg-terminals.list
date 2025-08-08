@@ -2,9 +2,9 @@
 
 
 
-com.mitchellh.ghostty.desktop
-kitty.desktop
 Alacritty.desktop
+kitty.desktop
+com.mitchellh.ghostty.desktop
 org.wezfurlong.wezterm.desktop
 org.gnome.Ptyxis.desktop
 
