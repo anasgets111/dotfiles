@@ -9,9 +9,12 @@ Item {
 
     property bool useNiri: true
     property var workspaces: []
+    // Maintain a stable, grouped ordering of outputs -> workspaces
+    property var outputsOrder: [] // ["DP-1", "DP-2", ...]
+    property string focusedOutput: ""
     // UI state
     property bool expanded: false
-    property int hoveredIndex: 0
+    property int hoveredId: 0 // use workspace id to avoid duplicates across outputs
     property int currentWorkspace: 1
     property int previousWorkspace: currentWorkspace
     property real slideProgress: 0
@@ -23,16 +26,48 @@ Item {
     }
 
     function updateWorkspaces(arr) {
+        // annotate convenience flags
         arr.forEach(function (w) {
             w.populated = w.active_window_id !== null;
         });
-        arr.sort(function (a, b) {
-            return a.idx - b.idx;
-        });
-        workspaces = arr;
+
+        // track the currently focused output (for highlight correctness)
         var f = arr.find(function (w) {
             return w.is_focused;
         });
+        if (f)
+            focusedOutput = f.output || "";
+
+        // build groups per output
+        var groups = {};
+        arr.forEach(function (w) {
+            var out = w.output || "";
+            if (!groups[out])
+                groups[out] = [];
+            groups[out].push(w);
+        });
+
+        // order outputs: focused first, then alphabetical others
+        var outs = Object.keys(groups).sort(function (a, b) {
+            if (a === focusedOutput)
+                return -1;
+            if (b === focusedOutput)
+                return 1;
+            return a.localeCompare(b);
+        });
+        outputsOrder = outs;
+
+        // sort each group by idx and concatenate
+        var flat = [];
+        outs.forEach(function (out) {
+            groups[out].sort(function (a, b) {
+                return a.idx - b.idx;
+            });
+            flat = flat.concat(groups[out]);
+        });
+        workspaces = flat;
+
+        // animate if focused workspace idx changed
         if (f && f.idx !== currentWorkspace) {
             previousWorkspace = currentWorkspace;
             currentWorkspace = f.idx;
@@ -43,15 +78,25 @@ Item {
     }
 
     function updateSingleFocus(id) {
+        // translate event id -> workspace object (across all outputs)
+        var w = workspaces.find(function (ww) {
+            return ww.id === id;
+        });
+        // If not found in current flat list (e.g., just after seed), do nothing
+        if (!w)
+            return;
+
         previousWorkspace = currentWorkspace;
-        currentWorkspace = id;
+        currentWorkspace = w.idx; // keep UI label by idx
         slideFrom = previousWorkspace;
         slideTo = currentWorkspace;
-        workspaces.forEach(function (w) {
-            w.is_focused = (w.idx === id);
-            w.is_active = (w.idx === id);
+        focusedOutput = w.output || focusedOutput;
+
+        workspaces.forEach(function (ww) {
+            ww.is_focused = (ww.id === id);
+            ww.is_active = (ww.id === id);
         });
-        workspaces = workspaces;
+        workspaces = workspaces; // trigger bindings
         slideAnim.restart();
     }
 
@@ -59,7 +104,7 @@ Item {
         if (ws.is_focused)
             return Theme.activeColor;
 
-        if (ws.idx === hoveredIndex)
+        if (ws.id === hoveredId)
             return Theme.onHoverColor;
 
         if (ws.populated)
@@ -139,7 +184,7 @@ Item {
         interval: Theme.animationDuration + 200
         onTriggered: {
             root.expanded = false;
-            root.hoveredIndex = 0;
+            root.hoveredId = 0;
         }
     }
 
@@ -190,8 +235,8 @@ Item {
                     hoverEnabled: true
                     acceptedButtons: Qt.LeftButton
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: root.hoveredIndex = wsRect.ws.idx
-                    onExited: root.hoveredIndex = 0
+                    onEntered: root.hoveredId = wsRect.ws.id
+                    onExited: root.hoveredId = 0
                     onClicked: {
                         if (!wsRect.ws.is_focused)
                             Quickshell.execDetached(["niri", "msg", "action", "focus-workspace", wsRect.ws.idx.toString()]);
