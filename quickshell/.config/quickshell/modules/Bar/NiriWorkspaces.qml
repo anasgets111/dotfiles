@@ -12,6 +12,8 @@ Item {
     // Maintain a stable, grouped ordering of outputs -> workspaces
     property var outputsOrder: [] // ["DP-1", "DP-2", ...]
     property string focusedOutput: ""
+    // Boundaries between output groups in the flattened list (cumulative counts)
+    property var groupBoundaries: []
     // UI state
     property bool expanded: false
     property int hoveredId: 0 // use workspace id to avoid duplicates across outputs
@@ -59,13 +61,19 @@ Item {
 
         // sort each group by idx and concatenate
         var flat = [];
+        var bounds = [];
+        var acc = 0;
         outs.forEach(function (out) {
             groups[out].sort(function (a, b) {
                 return a.idx - b.idx;
             });
             flat = flat.concat(groups[out]);
+            acc += groups[out].length;
+            if (acc > 0 && acc < arr.length)
+                bounds.push(acc);
         });
         workspaces = flat;
+        groupBoundaries = bounds;
 
         // animate if focused workspace idx changed
         if (f && f.idx !== currentWorkspace) {
@@ -116,6 +124,26 @@ Item {
     function switchWorkspace(idx) {
         switchProc.running = false;
         switchProc.command = ["niri", "msg", "workspace", String(idx)];
+        switchProc.running = true;
+    }
+
+    // Focus a workspace, ensuring the correct output is focused first if needed.
+    function focusWorkspaceByWs(ws) {
+        var out = ws.output || "";
+        var idx = ws.idx;
+        // If the workspace is on a different output, focus that monitor first, then the workspace.
+        if (out && out !== focusedOutput) {
+            // Escape single quotes for bash -lc
+            var outEsc = out.replace(/'/g, "'\"'\"'");
+            var script = "niri msg action focus-monitor '" + outEsc + "' && niri msg action focus-workspace " + idx;
+            switchProc.running = false;
+            switchProc.command = ["bash", "-lc", script];
+            switchProc.running = true;
+            return;
+        }
+        // Same output: just focus by index.
+        switchProc.running = false;
+        switchProc.command = ["niri", "msg", "action", "focus-workspace", String(idx)];
         switchProc.running = true;
     }
 
@@ -239,7 +267,7 @@ Item {
                     onExited: root.hoveredId = 0
                     onClicked: {
                         if (!wsRect.ws.is_focused)
-                            Quickshell.execDetached(["niri", "msg", "action", "focus-workspace", wsRect.ws.idx.toString()]);
+                            root.focusWorkspaceByWs(wsRect.ws);
                     }
                 }
 
@@ -258,6 +286,27 @@ Item {
                         easing.type: Easing.InOutQuad
                     }
                 }
+            }
+        }
+
+        // Tiny separators between output groups
+        Repeater {
+            model: root.groupBoundaries.length
+
+            delegate: Rectangle {
+                required property int index
+                property int boundaryCount: root.groupBoundaries[index]
+
+                width: 2
+                radius: 1
+                height: Math.round(parent.height * 0.6)
+                color: Theme.textContrast(Theme.bgColor)
+                opacity: 0.35
+                anchors.verticalCenter: parent.verticalCenter
+                z: 2
+
+                // Position between two groups
+                x: boundaryCount * (Theme.itemWidth + workspacesRow.spacing) - workspacesRow.spacing / 2 - width / 2
             }
         }
     }
