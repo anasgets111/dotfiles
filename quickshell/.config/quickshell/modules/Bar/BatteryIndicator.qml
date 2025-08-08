@@ -2,14 +2,15 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Services.UPower
+import Quickshell.Widgets
 
 Item {
     id: root
 
     property var device: UPower.displayDevice
-    property real percentage: device.percentage
+    // Clamp to [0, 1] to avoid jitter or invalid values from the service
+    property real percentage: Math.max(0, Math.min(device.percentage, 1))
     property bool isCharging: device.state === UPowerDeviceState.Charging
     property bool isPluggedIn: device.state === UPowerDeviceState.Charging || device.state === UPowerDeviceState.PendingCharge
     property bool isLowAndNotCharging: DetectEnv.isLaptopBattery && percentage <= 0.2 && !isCharging
@@ -30,18 +31,14 @@ Item {
         return icons[index];
     }
 
-    Process {
-        id: setProc
-        command: []
-        running: false
-    }
-
     visible: DetectEnv.isLaptopBattery
     implicitHeight: Theme.itemHeight
     implicitWidth: 80
 
     onIsPluggedInChanged: {
         if (isPluggedIn) {
+            if (widthTimer.running)
+                widthTimer.stop();
             widthPhase = 1;
             widthTimer.start();
         }
@@ -49,13 +46,14 @@ Item {
 
     onIsLowAndNotChargingChanged: {
         if (isLowAndNotCharging) {
-            Quickshell.execDetached(["notify-send", "Low Battery", "Plug in soon!"]);
+            // Optional: use Quickshell.Services.Notifications instead of shell notify-send
+            root.sendNotification("Low Battery", "Plug in soon!" /*critical*/ , false);
         }
     }
 
     onIsCriticalAndNotChargingChanged: {
         if (isCriticalAndNotCharging) {
-            Quickshell.execDetached(["notify-send", "-u", "critical", "Critical Battery", "Automatic suspend at 5%!"]);
+            root.sendNotification("Critical Battery", "Automatic suspend at 5%!" /*critical*/ , true);
         }
     }
 
@@ -63,6 +61,14 @@ Item {
         if (isSuspendingAndNotCharging) {
             Quickshell.execDetached(["systemctl", "suspend"]);
         }
+    }
+
+    // Helper to emit notifications via Quickshell.Services.Notifications (optional)
+    function sendNotification(summary, body, critical) {
+        var s = String(summary === undefined ? "" : summary);
+        var b = String(body === undefined ? "" : body);
+        var qml = 'import Quickshell.Services.Notifications\nNotification { summary: "' + s.replace(/"/g, '\\"') + '"; body: "' + b.replace(/"/g, '\\"') + '"; expireTimeout: 5000; urgency: ' + (critical ? 'NotificationUrgency.Critical' : 'NotificationUrgency.Normal') + '; transient: true }';
+        Qt.createQmlObject(qml, root, "BatteryNotification");
     }
 
     Timer {
@@ -91,47 +97,39 @@ Item {
     Item {
         anchors.fill: container
 
-        Canvas {
-            id: waterCanvas
+        ClippingRectangle {
+            id: waterClip
+            anchors.fill: parent
+            radius: waterClip.height / 2
+            color: "transparent"
 
-            property real fullWidth: width * root.percentage
+            // Mirror previous Canvas properties for width pulse and color
+            property real fullWidth: waterClip.width * root.percentage
             property int widthPhase: root.widthPhase
             property real drawWidth: widthPhase > 0 ? ((widthPhase % 2 === 1) ? 0 : fullWidth) : fullWidth
             property color waterColor: root.percentage <= 0.1 ? "#f38ba8" : root.percentage <= 0.2 ? "#fab387" : Theme.activeColor
 
-            anchors.fill: parent
-            onDrawWidthChanged: requestPaint()
-            onWaterColorChanged: requestPaint()
-            onWidthChanged: requestPaint()
-            onHeightChanged: requestPaint()
-
-            onPaint: {
-                var ctx = getContext("2d");
-                ctx.reset();
-                var r = height / 2;
-                ctx.beginPath();
-                ctx.moveTo(r, 0);
-                ctx.lineTo(width - r, 0);
-                ctx.arc(width - r, r, r, -Math.PI / 2, Math.PI / 2);
-                ctx.lineTo(r, height);
-                ctx.arc(r, r, r, Math.PI / 2, 3 * Math.PI / 2);
-                ctx.closePath();
-                ctx.clip();
-                ctx.fillStyle = waterColor;
-                ctx.fillRect(0, 0, drawWidth, height);
-            }
-
-            Behavior on drawWidth {
-                NumberAnimation {
-                    duration: Theme.animationDuration
-                    easing.type: Easing.OutCubic
+            Rectangle {
+                id: waterFill
+                anchors {
+                    left: parent.left
+                    top: parent.top
+                    bottom: parent.bottom
                 }
-            }
+                width: waterClip.drawWidth
+                color: waterClip.waterColor
 
-            Behavior on waterColor {
-                ColorAnimation {
-                    duration: Theme.animationDuration
-                    easing.type: Easing.OutCubic
+                Behavior on width {
+                    NumberAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.OutCubic
+                    }
+                }
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.OutCubic
+                    }
                 }
             }
         }
@@ -173,11 +171,15 @@ Item {
 
         onClicked: {
             if (DetectEnv.batteryManager === "ppd") {
-                var currentProfile = PowerMgmt.ppdInfo.replace("PPD: ", "");
-                var next = currentProfile === "performance" ? "power-saver" : "performance";
-                setProc.command = ["powerprofilesctl", "set", next];
-                setProc.running = true;
-
+                // Toggle using Quickshell.Services.UPower PowerProfiles (singleton)
+                var canPerf = PowerProfiles.hasPerformanceProfile;
+                var current = PowerProfiles.profile;
+                // Prefer the original behavior: toggle Performance <-> PowerSaver
+                if (current === PowerProfile.Performance) {
+                    PowerProfiles.profile = PowerProfile.PowerSaver;
+                } else {
+                    PowerProfiles.profile = canPerf ? PowerProfile.Performance : PowerProfile.PowerSaver;
+                }
                 PowerMgmt.refreshPowerInfo();
             }
 
