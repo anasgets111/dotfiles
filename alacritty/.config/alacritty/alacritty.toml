@@ -1,4 +1,72 @@
+########################################
+# Imports / Theme
+########################################
 general.import = ["~/.config/alacritty/catppuccin-mocha.toml"]
 
+########################################
+# Environment
+########################################
 [env]
 TERM = "xterm-256color"
+
+########################################
+# Font & Text (from Ghostty translation)
+########################################
+# Ghostty: window-title-font-family / font-family = CaskaydiaCove Nerd Font Mono
+# Alacritty has a single font stack; no separate window title font.
+[font]
+size = 12.0 # Ghostty font-size = 12
+
+[font.normal]
+family = "CaskaydiaCove Nerd Font Mono"
+style = "Regular"
+
+[font.bold]
+family = "CaskaydiaCove Nerd Font Mono"
+style = "Bold"
+
+[font.italic]
+family = "CaskaydiaCove Nerd Font Mono"
+style = "Italic"
+
+[font.bold_italic]
+family = "CaskaydiaCove Nerd Font Mono"
+style = "Bold Italic"
+
+
+########################################
+# Window Dimensions & Layout
+########################################
+[window]
+dimensions = { columns = 133, lines = 35 } # Ghostty: window-width/height
+padding = { x = 11, y = 7 }                # Ghostty: window-padding-x/y
+decorations = "Full"                       # Ghostty: window-decoration = server
+# title = ""   # (Optional) set a static title; Ghostty sets font only
+
+# Background opacity (Ghostty had commented out example 0.95)
+# opacity = 0.95
+###################################
+
+[[keyboard.bindings]]
+# Ghostty: ctrl+shift+d = scroll_page_fractional:0.5
+key = "D"
+mods = "Control|Shift"
+action = "ScrollHalfPageDown"
+
+[[keyboard.bindings]]
+# Ghostty: ctrl+shift+u = scroll_page_fractional:-0.5
+key = "U"
+mods = "Control|Shift"
+action = "ScrollHalfPageUp"
+
+[[keyboard.bindings]]
+# Ghostty: ctrl+shift+nine = scroll_to_top
+key = "Key9"
+mods = "Control|Shift"
+action = "ScrollToTop"
+
+[[keyboard.bindings]]
+# Ghostty: ctrl+shift+zero = scroll_to_bottom
+key = "Key0"
+mods = "Control|Shift"
+action = "ScrollToBottom"
