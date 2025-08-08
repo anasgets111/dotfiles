@@ -61,4 +61,5 @@ alias dots='cd $DOTFILES; and stow '
 # Initialization for Tools
 zoxide init fish | source
 # fnm env --use-on-cd --version-file-strategy=recursive --resolve-engines | source
-oh-my-posh init fish --config $XDG_CONFIG_HOME/standard.omp.toml | source
+# oh-my-posh init fish --config $XDG_CONFIG_HOME/standard.omp.toml | source
+starship init fish | source
