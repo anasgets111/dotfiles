@@ -24,7 +24,16 @@ Item {
     property int syncInterval: 5 * minuteMs
     property int lastNotifiedUpdates: 0
 
-    // Consolidated colors per frame
+    // Persistent cache for packages list and last sync time
+    PersistentProperties {
+        id: cache
+        reloadableId: "ArchCheckerCache"
+
+        // Keep types simple for persistence
+        property var cachedUpdatePackages: []
+        property double cachedLastSync: 0
+    }
+
     property color effectiveBg: (root.hovered && !root.busy) ? Theme.onHoverColor : Theme.inactiveColor
     property color effectiveFg: Theme.textContrast(effectiveBg)
 
@@ -72,17 +81,23 @@ Item {
     implicitHeight: Theme.itemHeight
     implicitWidth: Math.max(Theme.itemWidth, row.implicitWidth + (2 * Theme.itemRadius), busyMeasureRow.implicitWidth + (2 * Theme.itemRadius))
     Component.onCompleted: {
+        // Initialize from cache
+        if (cache.cachedUpdatePackages && cache.cachedUpdatePackages.length) {
+            root.updatePackages = cache.cachedUpdatePackages;
+            root.updates = cache.cachedUpdatePackages.length;
+        }
+        if (cache.cachedLastSync && cache.cachedLastSync > 0) {
+            root.lastSync = cache.cachedLastSync;
+        }
+
         doPoll();
         pollTimer.start();
     }
 
-
     Process {
         id: pkgProc
 
-        onExited: function () {
-            const exitCode = arguments[0];
-            const exitStatus = arguments[1];
+        onExited: function (exitCode, exitStatus) {
             const stderrText = (err.text || "").trim();
             if (stderrText)
                 console.warn("[UpdateChecker] stderr:", stderrText);
@@ -129,8 +144,12 @@ Item {
                 root.lastNotifiedUpdates = 0;
             }
 
-            if (root.lastWasFull)
+            if (root.lastWasFull) {
                 root.lastSync = Date.now();
+            }
+
+            cache.cachedUpdatePackages = root.updatePackages;
+            cache.cachedLastSync = root.lastSync;
         }
 
         stdout: StdioCollector {
@@ -211,17 +230,24 @@ Item {
                 elide: Text.ElideNone
             }
 
-            Text {
-                id: updateCount
+            // Wrap the number to center it vertically within the row
+            Item {
+                id: updateCountWrap
 
                 visible: root.updates > 0
-                text: root.updates
-                font.pixelSize: Theme.fontSize
-                font.family: Theme.fontFamily
-                color: root.effectiveFg
                 Layout.alignment: Qt.AlignVCenter
                 Layout.preferredHeight: Theme.itemHeight
-                elide: Text.ElideNone
+                Layout.preferredWidth: updateCount.implicitWidth
+
+                Text {
+                    id: updateCount
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.updates
+                    font.pixelSize: Theme.fontSize
+                    font.family: Theme.fontFamily
+                    color: root.effectiveFg
+                    elide: Text.ElideNone
+                }
             }
         }
 
