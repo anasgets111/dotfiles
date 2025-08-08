@@ -289,23 +289,18 @@ Item {
             }
         }
 
-        // Tiny separators between output groups
         Repeater {
             model: root.groupBoundaries.length
 
             delegate: Rectangle {
                 required property int index
                 property int boundaryCount: root.groupBoundaries[index]
-
                 width: 2
                 radius: 1
                 height: Math.round(parent.height * 0.6)
                 color: Theme.textContrast(Theme.bgColor)
-                opacity: 0.35
+                opacity: 0.5
                 anchors.verticalCenter: parent.verticalCenter
-                z: 2
-
-                // Position between two groups
                 x: boundaryCount * (Theme.itemWidth + workspacesRow.spacing) - workspacesRow.spacing / 2 - width / 2
             }
         }
@@ -324,7 +319,6 @@ Item {
         color: Theme.bgColor
         clip: true
 
-        // “from” rect
         Rectangle {
             width: Theme.itemWidth
             height: Theme.itemHeight
