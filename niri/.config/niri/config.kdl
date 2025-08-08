@@ -210,6 +210,7 @@ binds {
     Ctrl+Alt+Delete { spawn "missioncenter"; }
     
     Mod+Z { spawn "zeditor"; }
+    Mod+C { spawn "code"; }
     //Mod+SPACE { spawn "pidof rofi && pkill rofi || ~/.config/rofi/launchers/type-6/launcher.sh"; }
     Mod+E { spawn "nautilus"; }
     Mod+B { spawn "zen-browser"; }
@@ -333,7 +334,7 @@ binds {
     // Makes the column "fill the rest of the space".
     Mod+Ctrl+F { expand-column-to-available-width; }
 
-    Mod+C { center-column; }
+    // Mod+C { center-column; }
 
     Mod+Minus { set-column-width "-5%"; }
     Mod+Equal { set-column-width "+5%"; }
