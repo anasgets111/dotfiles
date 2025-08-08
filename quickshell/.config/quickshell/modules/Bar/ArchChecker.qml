@@ -47,14 +47,9 @@ Item {
             doPoll(true);
     }
 
-    function notify(urgency, title, body, withAction) {
-        var s = String(title === undefined ? "" : title).replace(/"/g, '\\"');
-        var b = String(body === undefined ? "" : body).replace(/"/g, '\\"');
-        var u = (urgency === "critical") ? "NotificationUrgency.Critical" : (urgency === "low" ? "NotificationUrgency.Low" : "NotificationUrgency.Normal");
-        var actionLabel = qsTr("Update Now").replace(/"/g, '\\"');
-        var actionBlock = withAction ? (' actions: [ NotificationAction { text: "' + actionLabel + '"; onInvoked: root.runUpdate(); } ];') : '';
-        var qml = 'import Quickshell.Services.Notifications\n' + 'Notification { summary: "' + s + '"; body: "' + b + '"; expireTimeout: 5000; urgency: ' + u + '; transient: true;' + actionBlock + ' }';
-        Qt.createQmlObject(qml, root, "ArchCheckerNotification");
+    function notify(urgency, title, body) {
+        notifyProc.command = ["notify-send", "-u", urgency, "-A", "update=Update Now", "-w", title, body];
+        notifyProc.running = true;
     }
 
     function startUpdateProcess(cmd) {
@@ -92,6 +87,20 @@ Item {
 
         doPoll();
         pollTimer.start();
+    }
+
+    Process {
+        id: notifyProc
+
+        onExited: function (exitCode, exitStatus) {
+            var act = (notifyOut.text || "").trim();
+            if (act === "update")
+                root.runUpdate();
+        }
+
+        stdout: StdioCollector {
+            id: notifyOut
+        }
     }
 
     Process {
@@ -140,6 +149,7 @@ Item {
                 root.notify("normal", "Updates Available", msg, true);
                 root.lastNotifiedUpdates = root.updates;
             }
+            // Reset the lastNotifiedUpdates whenever count drops to 0, regardless of sync type
             if (root.updates === 0) {
                 root.lastNotifiedUpdates = 0;
             }
