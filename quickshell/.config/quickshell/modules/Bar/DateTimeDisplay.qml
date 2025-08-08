@@ -54,6 +54,9 @@ Item {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: {
+            // Refresh weather using existing coordinates only (skip IP geolocation)
+            if (!isNaN(weatherItem.latitude) && !isNaN(weatherItem.longitude))
+                weatherItem.fetchCurrentTemp(weatherItem.latitude, weatherItem.longitude);
             swayncProc.running = true;
         }
     }
