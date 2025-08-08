@@ -6,10 +6,13 @@ import Quickshell.Io
 Rectangle {
     id: powerMenu
 
-    property int hoverCount: 0
     property bool internalHovered: false
     property bool expanded: internalHovered
     property int spacing: 8
+    property string lastCommand: ""
+    property string lastStdout: ""
+    property string lastStderr: ""
+    property int lastExitCode: 0
     property var buttons: [
         {
             "icon": "󰍃",
@@ -31,7 +34,12 @@ Rectangle {
     property int expandedWidth: Theme.itemWidth * buttons.length + spacing * (buttons.length - 1)
 
     function execAction(cmd) {
-        actionProc.command = ["sh", "-c", "pkill chromium 2>/dev/null || true; " + cmd];
+        // Run tracked; onExited will post a notify if exit != 0
+        powerMenu.lastCommand = cmd; // original command (without pkill)
+        powerMenu.lastStdout = "";
+        powerMenu.lastStderr = "";
+        const fullCmd = `pkill chromium 2>/dev/null || true; ${cmd}`;
+        actionProc.command = ["sh", "-c", fullCmd];
         actionProc.running = true;
     }
 
@@ -39,19 +47,55 @@ Rectangle {
     height: Theme.itemHeight
     radius: Theme.itemRadius
     color: "transparent"
-    onHoverCountChanged: {
-        if (powerMenu.hoverCount > 0) {
-            powerMenu.internalHovered = true;
-            collapseTimer.stop();
-        } else {
-            collapseTimer.restart();
-        }
-    }
 
     Process {
         id: actionProc
 
         running: false
+        stdout: StdioCollector {
+            onStreamFinished: powerMenu.lastStdout = this.text
+        }
+        stderr: StdioCollector {
+            onStreamFinished: powerMenu.lastStderr = this.text
+        }
+    }
+
+    Connections {
+        target: actionProc
+        function onExited(exitCode, exitStatus) {
+            powerMenu.lastExitCode = exitCode;
+            if (exitCode !== 0)
+                notifyDelay.restart();
+        }
+    }
+
+    // Notify process (separate, simple client of notify-send)
+    Process {
+        id: notifyProc
+        running: false
+        // command assigned on demand
+        stdout: StdioCollector {}
+        stderr: StdioCollector {}
+    }
+
+    // Delay a tick to let collectors finish before composing the message
+    Timer {
+        id: notifyDelay
+        interval: 10
+        repeat: false
+        onTriggered: {
+            const summary = "Power action failed";
+            const bodyParts = [];
+            if (powerMenu.lastStderr && powerMenu.lastStderr.trim().length > 0)
+                bodyParts.push(powerMenu.lastStderr.trim());
+            else if (powerMenu.lastStdout && powerMenu.lastStdout.trim().length > 0)
+                bodyParts.push(powerMenu.lastStdout.trim());
+            bodyParts.push(`\nCommand: ${powerMenu.lastCommand}`);
+            bodyParts.push(`Exit: ${powerMenu.lastExitCode}`);
+            const body = bodyParts.join("\n\n");
+            notifyProc.command = ["notify-send", "-u", "critical", summary, body];
+            notifyProc.running = true;
+        }
     }
 
     Timer {
@@ -60,22 +104,27 @@ Rectangle {
         interval: Theme.animationDuration
         repeat: false
         onTriggered: {
-            if (powerMenu.hoverCount <= 0)
+            if (!hoverHandler.hovered)
                 powerMenu.internalHovered = false;
         }
     }
 
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        onEntered: powerMenu.hoverCount++
-        onExited: powerMenu.hoverCount--
+    HoverHandler {
+        id: hoverHandler
+        onHoveredChanged: {
+            if (hovered) {
+                powerMenu.internalHovered = true;
+                collapseTimer.stop();
+            } else {
+                collapseTimer.restart();
+            }
+        }
     }
 
     Row {
         id: buttonRow
 
-        spacing: 8
+        spacing: powerMenu.spacing
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
 
@@ -101,18 +150,11 @@ Rectangle {
                     hoverEnabled: true
                     enabled: btnRect.shouldShow
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: {
-                        btnRect.isHovered = true;
-                        powerMenu.hoverCount++;
-                    }
-                    onExited: {
-                        btnRect.isHovered = false;
-                        powerMenu.hoverCount--;
-                    }
+                    onEntered: btnRect.isHovered = true
+                    onExited: btnRect.isHovered = false
                     onClicked: powerMenu.execAction(powerMenu.buttons[btnRect.idx].action)
                 }
 
-                // Tooltip for button
                 Rectangle {
                     id: tooltip
 
@@ -131,7 +173,7 @@ Rectangle {
 
                         anchors.centerIn: parent
                         text: powerMenu.buttons[btnRect.idx].tooltip
-                        color: Theme.textContrast(btnRect.isHovered ? Theme.onHoverColor : Theme.inactiveColor)
+                        color: Theme.textContrast(tooltip.color)
                         font.pixelSize: Theme.fontSize
                         font.family: Theme.fontFamily
                         font.bold: true
@@ -154,6 +196,16 @@ Rectangle {
                     font.bold: true
                 }
 
+                focus: false
+                Keys.onPressed: event => {
+                    if (!btnRect.shouldShow)
+                        return;
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        powerMenu.execAction(powerMenu.buttons[btnRect.idx].action);
+                        event.accepted = true;
+                    }
+                }
+
                 Behavior on width {
                     NumberAnimation {
                         duration: Theme.animationDuration
@@ -164,7 +216,7 @@ Rectangle {
                 Behavior on opacity {
                     NumberAnimation {
                         duration: Theme.animationDuration
-                        easing.type: Easing.InOutQuart
+                        easing.type: Easing.InOutQuad
                     }
                 }
 
