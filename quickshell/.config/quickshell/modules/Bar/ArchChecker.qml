@@ -11,7 +11,6 @@ Item {
 
     property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "sh", "-c", "$BIN/update.sh"]
     property bool hovered: false
-    property bool popupHovered: false
     property bool busy: false
     property int updates: 0
     property var updatePackages: []
@@ -25,24 +24,34 @@ Item {
     property int syncInterval: 5 * minuteMs
     property int lastNotifiedUpdates: 0
 
+    // Consolidated colors per frame
+    property color effectiveBg: (root.hovered && !root.busy) ? Theme.onHoverColor : Theme.inactiveColor
+    property color effectiveFg: Theme.textContrast(effectiveBg)
+
     function runUpdate() {
         if (busy)
             return;
 
         if (updates > 0)
-            Quickshell.execDetached(updateCommand);
+            Quickshell.execDetached(root.updateCommand);
         else
             doPoll(true);
     }
 
-    function notify(urgency, title, body) {
-        notifyProc.command = ["notify-send", "-u", urgency, "-A", "update=Update Now", "-w", title, body];
-        notifyProc.running = true;
+    function notify(urgency, title, body, withAction) {
+        var s = String(title === undefined ? "" : title).replace(/"/g, '\\"');
+        var b = String(body === undefined ? "" : body).replace(/"/g, '\\"');
+        var u = (urgency === "critical") ? "NotificationUrgency.Critical" : (urgency === "low" ? "NotificationUrgency.Low" : "NotificationUrgency.Normal");
+        var actionLabel = qsTr("Update Now").replace(/"/g, '\\"');
+        var actionBlock = withAction ? (' actions: [ NotificationAction { text: "' + actionLabel + '"; onInvoked: root.runUpdate(); } ];') : '';
+        var qml = 'import Quickshell.Services.Notifications\n' + 'Notification { summary: "' + s + '"; body: "' + b + '"; expireTimeout: 5000; urgency: ' + u + '; transient: true;' + actionBlock + ' }';
+        Qt.createQmlObject(qml, root, "ArchCheckerNotification");
     }
 
     function startUpdateProcess(cmd) {
         pkgProc.command = cmd;
         pkgProc.running = true;
+        killTimer.interval = lastWasFull ? 60 * 1000 : minuteMs;
         killTimer.restart();
     }
 
@@ -61,32 +70,19 @@ Item {
     }
 
     implicitHeight: Theme.itemHeight
-    // Compute width from icon + optional count + spacing + horizontal padding, and ensure a minimum
-    implicitWidth: Math.max(Theme.itemWidth, (row.implicitWidth + (2 * Theme.itemRadius)) // padding equals radius on both sides for nice pill look
-    )
+    implicitWidth: Math.max(Theme.itemWidth, row.implicitWidth + (2 * Theme.itemRadius), busyMeasureRow.implicitWidth + (2 * Theme.itemRadius))
     Component.onCompleted: {
         doPoll();
         pollTimer.start();
     }
 
-    Process {
-        id: notifyProc
-
-        onExited: function (exitCode, exitStatus) {
-            var act = (notifyOut.text || "").trim();
-            if (act === "update")
-                root.runUpdate();
-        }
-
-        stdout: StdioCollector {
-            id: notifyOut
-        }
-    }
 
     Process {
         id: pkgProc
 
-        onExited: function (exitCode, exitStatus) {
+        onExited: function () {
+            const exitCode = arguments[0];
+            const exitStatus = arguments[1];
             const stderrText = (err.text || "").trim();
             if (stderrText)
                 console.warn("[UpdateChecker] stderr:", stderrText);
@@ -126,10 +122,9 @@ Item {
             if (root.updates > root.lastNotifiedUpdates) {
                 const added = root.updates - root.lastNotifiedUpdates;
                 const msg = added === 1 ? "One new package can be upgraded (" + root.updates + " total)" : added + " new packages can be upgraded (" + root.updates + " total)";
-                root.notify("normal", "Updates Available", msg);
+                root.notify("normal", "Updates Available", msg, true);
                 root.lastNotifiedUpdates = root.updates;
             }
-            // Reset the lastNotifiedUpdates whenever count drops to 0, regardless of sync type
             if (root.updates === 0) {
                 root.lastNotifiedUpdates = 0;
             }
@@ -162,7 +157,6 @@ Item {
         repeat: false
         onTriggered: {
             if (pkgProc.running) {
-                // pkgProc.kill(); // Not available on QML Process
                 root.busy = false;
                 root.notify("critical", qsTr("Update check killed"), qsTr("Process took too long"));
             }
@@ -170,13 +164,12 @@ Item {
     }
 
     Rectangle {
-        // Let the pill size itself to content + padding instead of filling parent
-        implicitWidth: row.implicitWidth + (Theme.itemRadius)
+        implicitWidth: Math.max(row.implicitWidth, busyMeasureRow.implicitWidth) + (Theme.itemRadius)
         implicitHeight: Math.max(row.implicitHeight, Theme.itemHeight)
         width: implicitWidth
         height: implicitHeight
         radius: Theme.itemRadius
-        color: root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor
+        color: root.effectiveBg
         anchors.centerIn: parent
 
         MouseArea {
@@ -184,7 +177,7 @@ Item {
 
             anchors.fill: parent
             hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
+            cursorShape: root.busy ? Qt.BusyCursor : Qt.PointingHandCursor
             onEntered: root.hovered = true
             onExited: root.hovered = false
             onClicked: {
@@ -210,10 +203,11 @@ Item {
                 text: root.busy ? "" : root.updates > 0 ? "" : "󰂪"
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
-                color: Theme.textContrast(root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor)
+                color: root.effectiveFg
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                Layout.preferredHeight: Theme.itemHeight
                 elide: Text.ElideNone
             }
 
@@ -224,9 +218,24 @@ Item {
                 text: root.updates
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
-                color: Theme.textContrast(root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor)
+                color: root.effectiveFg
                 Layout.alignment: Qt.AlignVCenter
+                Layout.preferredHeight: Theme.itemHeight
                 elide: Text.ElideNone
+            }
+        }
+
+        // Hidden measurer for busy-state width (icon-only) to stabilize minimum width
+        RowLayout {
+            id: busyMeasureRow
+
+            visible: false
+            spacing: 4
+
+            Text {
+                text: ""
+                font.pixelSize: Theme.fontSize
+                font.family: Theme.fontFamily
             }
         }
 
@@ -251,7 +260,7 @@ Item {
 
                 Text {
                     text: root.updates === 0 ? qsTr("No updates available") : root.updates === 1 ? qsTr("One package can be upgraded:") : root.updates + qsTr(" packages can be upgraded:")
-                    color: Theme.textContrast(root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor)
+                    color: Theme.textContrast(Theme.onHoverColor)
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
                 }
@@ -262,7 +271,7 @@ Item {
                     delegate: Text {
                         required property var model
                         text: model.name + ": " + model.oldVersion + " → " + model.newVersion
-                        color: Theme.textContrast(root.hovered && !root.busy ? Theme.onHoverColor : Theme.inactiveColor)
+                        color: Theme.textContrast(Theme.onHoverColor)
                         font.pixelSize: Theme.fontSize
                         font.family: Theme.fontFamily
                     }
