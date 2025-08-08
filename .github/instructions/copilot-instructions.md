@@ -1,3 +1,7 @@
+---
+applyTo: "**"
+---
+
 # Copilot Instructions for Dotfiles & Quickshell Workspace
 
 ## Overview
@@ -10,6 +14,7 @@ This repository manages a modular Linux desktop environment using quickshell (QM
 - **hypr/config/**: Hyprland configs. Monitor layouts: `desktop.conf`, `laptop.conf`, `monitors.conf`. Dynamic selection via `detect-monitors.sh`.
 - **niri/**: Niri compositor config in `niri/config.kdl`. Used as an alternative to Hyprland.
 - **fish/**: Shell config, aliases, and package helpers (`conf.d/packages.fish`).
+- **nu/**: Nushell config and scripts.
 - **bin/**: System scripts (e.g., `update.sh`, `RecordingStatus.sh`).
 
 ## Developer Workflows
