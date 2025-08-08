@@ -298,10 +298,9 @@ binds {
     Mod+Shift+4 { move-window-to-workspace "Zed"; }
     Mod+Shift+5 { move-window-to-workspace "Files"; }
     Mod+Shift+6 { move-window-to-workspace "Torrent"; }
-    Mod+Shift+9 { move-window-to-workspace "Games"; }
-    Mod+Shift+8 { move-window-to-workspace "Thunderbird"; }
+    Mod+Shift+7 { move-window-to-workspace "Thunderbird"; }
     Mod+Shift+8 { move-window-to-workspace "Telegram"; }
-    Mod+Shift+7 { move-window-to-workspace "Discord"; }
+    Mod+Shift+9 { move-window-to-workspace "Discord"; }
     Mod+Shift+0 { move-window-to-workspace "Slack"; }
 
 
