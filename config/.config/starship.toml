@@ -1,9 +1,9 @@
 # @schema https://starship.rs/config-schema.json
 add_newline = false
 
-format = """[╭─](#CBA6F7) $os$shell$username$hostname$directory$git_branch$git_status$cmd_duration$fill\
+format = """[╭─](#CBA6F7)$os$shell$username$hostname$directory$git_branch$git_status$cmd_duration$fill\
 $nodejs$python$php$rust$golang$time$line_break\
-[╰─](#CBA6F7) $character"""
+[╰─](#CBA6F7)$character"""
 
 [character]
 success_symbol = "[ ](#a3daa8)"
