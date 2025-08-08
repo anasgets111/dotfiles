@@ -17,7 +17,7 @@ Rectangle {
     Process {
         id: inhibitorProcess
 
-        command: ["systemd-inhibit", "--what=idle", "--who=quickshell", "--why=User inhibited idle", "sleep", "infinity"]
+        command: ["systemd-inhibit", "--what=idle:sleep", "--who=quickshell", "--why=User inhibited idle", "sleep", "infinity"]
     }
 
     Process {
@@ -26,16 +26,33 @@ Rectangle {
         command: ["hyprlock"]
     }
 
+    Process {
+        id: pauseHypridle
+        command: ["sh", "-c", "pidof hypridle >/dev/null 2>&1 && kill -STOP $(pidof hypridle) || true"]
+    }
+    Process {
+        id: resumeHypridle
+        command: ["sh", "-c", "pidof hypridle >/dev/null 2>&1 && kill -CONT $(pidof hypridle) || true"]
+    }
+
+
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
         hoverEnabled: true
         onClicked: function (mouse) {
-            if (mouse.button === Qt.LeftButton)
-                inhibitorProcess.running = !inhibitorProcess.running;
-            else if (mouse.button === Qt.RightButton)
+            if (mouse.button === Qt.LeftButton) {
+                const activating = !inhibitorProcess.running;
+                inhibitorProcess.running = activating;
+                if (activating) {
+                    pauseHypridle.running = true;
+                } else {
+                    resumeHypridle.running = true;
+                }
+            } else if (mouse.button === Qt.RightButton) {
                 lockProcess.running = true;
+            }
         }
         onEntered: idleInhibitor.hovered = true
         onExited: idleInhibitor.hovered = false
