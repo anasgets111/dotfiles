@@ -1,20 +1,17 @@
 # @schema https://starship.rs/config-schema.json
 add_newline = false
 
-format = """\
-[╭─](#CBA6F7) \
-$os$shell$username$hostname$directory$git_branch$git_status$cmd_duration\
-$line_break\
+format = """[╭─](#CBA6F7) $os$shell$username$hostname$directory$git_branch$git_status$cmd_duration$fill\
+$nodejs$python$php$rust$golang$time$line_break\
 [╰─](#CBA6F7) $character"""
-
-right_format = """\
-$nodejs$python$php$rust$golang$time\
-"""
 
 [character]
 success_symbol = "[ ](#a3daa8)"
 error_symbol = "[ ](#ef5350)"
 format = "$symbol"
+
+[fill]
+symbol = " "
 
 [os]
 format = "[](#444859)[$symbol](#E0DEF4 bg:#444859)[](fg:#444859 bg:#444859)"
@@ -34,6 +31,7 @@ disabled = false
 bash_indicator = " "
 zsh_indicator = " "
 nu_indicator = " "
+fish_indicator = " "
 unknown_indicator = " "
 
 [username]
