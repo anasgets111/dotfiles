@@ -52,6 +52,15 @@ Rectangle {
     radius: Theme.itemRadius
     color: Theme.inactiveColor
 
+    property bool suppressFillAnim: false
+    Timer {
+        id: hoverTransitionTimer
+        interval: Theme.animationDuration
+        repeat: false
+        running: false
+        onTriggered: volumeControl.suppressFillAnim = false
+    }
+
     readonly property color contrastColor: {
         var leftColor = Theme.activeColor;
         var bgColor = volumeControl.color;
@@ -77,6 +86,11 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+
+        onContainsMouseChanged: function () {
+            volumeControl.suppressFillAnim = true;
+            hoverTransitionTimer.restart();
+        }
 
         onClicked: function (event) {
             if (!volumeControl.audioReady)
@@ -245,7 +259,7 @@ Rectangle {
 
                 Behavior on width {
                     NumberAnimation {
-                        duration: (sliderBg.dragging || sliderBg.committing) ? 0 : Theme.animationDuration
+                        duration: (sliderBg.dragging || sliderBg.committing || volumeControl.suppressFillAnim) ? 0 : Theme.animationDuration
                         easing.type: Easing.InOutQuad
                     }
                 }
