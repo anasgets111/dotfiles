@@ -11,6 +11,12 @@ Item {
     readonly property int wxTimeoutMs: 5000
     readonly property int defaultRetryDelayMs: 2000
 
+    // Fallback coordinates (used when IP geolocation fails)
+    readonly property real fallbackLat: 30.0507
+    readonly property real fallbackLon: 31.2489
+    // Optional: name to display for fallback coords; leave empty to show nothing
+    readonly property string fallbackLocationName: ""
+
     // Factor icon map to a constant
     readonly property var weatherIconMap: ({
             "0": {
@@ -135,16 +141,28 @@ Item {
     property string locationName: ""
     property int currentWeatherCode: -1
 
-    // Persistence across reloads
     PersistentProperties {
         id: persist
         reloadableId: "WeatherWidget"
         property real savedLat: NaN
         property real savedLon: NaN
         property string savedLocationName: ""
+
+        function hydrate() {
+            if (!isNaN(persist.savedLat) && !isNaN(persist.savedLon)) {
+                weatherWidget.latitude = persist.savedLat;
+                weatherWidget.longitude = persist.savedLon;
+                weatherWidget.locationName = persist.savedLocationName;
+            }
+            if (!weatherTimer.running)
+                weatherTimer.start();
+            weatherWidget.updateWeather();
+        }
+
+        onLoaded: hydrate()
+        onReloaded: hydrate()
     }
 
-    // Error/health tracking
     property bool hasError: false
     property int consecutiveErrors: 0
     property var lastUpdated: null
@@ -153,12 +171,11 @@ Item {
     property int staleAfterMs: refreshInterval * 2
     readonly property bool isStale: lastUpdated ? (Date.now() - lastUpdated.getTime()) > staleAfterMs : false
 
-    // Retry state
     property int _geoAttempt: 0
     property int _wxAttempt: 0
-    property string _pendingRetry: "" // "geo" | "wx" | ""
+    property string _pendingRetry: ""
+    property bool _fallbackApplied: false
 
-    // Display composition
     property bool includeLocationInDisplay: true
     readonly property string displayText: {
         const parts = [];
@@ -205,7 +222,6 @@ Item {
                 longitude = persist.savedLon;
                 if (persist.savedLocationName)
                     locationName = persist.savedLocationName;
-                // proceed to fetch using cached coords
                 fetchCurrentTemp(latitude, longitude);
                 return;
             }
@@ -225,7 +241,6 @@ Item {
                         // Compose a readable location string
                         locationName = (ipData.city || "") + (ipData.country_name ? ", " + ipData.country_name : "");
 
-                        // persist successful lookup
                         persist.savedLat = latitude;
                         persist.savedLon = longitude;
                         persist.savedLocationName = locationName;
@@ -235,22 +250,36 @@ Item {
                         fetchCurrentTemp(latitude, longitude);
                     } catch (e) {
                         console.warn("Weather: failed to parse IP geo response", e);
-                        scheduleGeoRetry();
+                        applyFallbackCoords();
                     }
                 } else {
                     console.warn("Weather: IP geo failed with status", geoXhr.status);
-                    scheduleGeoRetry();
+                    applyFallbackCoords();
                 }
             };
             geoXhr.ontimeout = function () {
                 console.warn("Weather: IP geo request timed out");
-                scheduleGeoRetry();
+                applyFallbackCoords();
             };
             geoXhr.send();
         } else {
-            // Use cached coordinates
             fetchCurrentTemp(latitude, longitude);
         }
+    }
+
+    function applyFallbackCoords() {
+        if (_fallbackApplied)
+            return;
+        latitude = fallbackLat;
+        longitude = fallbackLon;
+        locationName = fallbackLocationName || (fallbackLat + ", " + fallbackLon);
+        persist.savedLat = latitude;
+        persist.savedLon = longitude;
+        persist.savedLocationName = locationName;
+        _fallbackApplied = true;
+        hasError = false;
+        _geoAttempt = 0;
+        fetchCurrentTemp(latitude, longitude);
     }
 
     function fetchCurrentTemp(lat, lon) {
@@ -315,18 +344,6 @@ Item {
         }
     }
 
-    Component.onCompleted: {
-        // hydrate from persisted state if present
-        if (!isNaN(persist.savedLat) && !isNaN(persist.savedLon)) {
-            latitude = persist.savedLat;
-            longitude = persist.savedLon;
-            locationName = persist.savedLocationName;
-        }
-
-        updateWeather();
-        weatherTimer.start();
-    }
-
     Timer {
         id: weatherTimer
 
@@ -337,7 +354,6 @@ Item {
         onTriggered: weatherWidget.updateWeather()
     }
 
-    // Single-shot retry timer used for geo/weather retries
     Timer {
         id: retryTimer
         interval: 0
