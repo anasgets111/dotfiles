@@ -24,12 +24,10 @@ Item {
     property int syncInterval: 5 * minuteMs
     property int lastNotifiedUpdates: 0
 
-    // Persistent cache for packages list and last sync time
     PersistentProperties {
         id: cache
         reloadableId: "ArchCheckerCache"
 
-        // Keep types simple for persistence
         property var cachedUpdatePackages: []
         property double cachedLastSync: 0
     }
@@ -240,7 +238,6 @@ Item {
                 elide: Text.ElideNone
             }
 
-            // Wrap the number to center it vertically within the row
             Item {
                 id: updateCountWrap
 
@@ -261,7 +258,6 @@ Item {
             }
         }
 
-        // Hidden measurer for busy-state width (icon-only) to stabilize minimum width
         RowLayout {
             id: busyMeasureRow
 
