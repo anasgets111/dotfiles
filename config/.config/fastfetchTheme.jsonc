@@ -1,203 +1,201 @@
 {
-  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
-  "display": {
-    "separator": " "
-  },
-  "modules": [
-    {
-      "type": "custom",
-      "format": "\u001b[32m┌─────────────────────────────────Hardware─────────────────────────────────┐",
-      "keyWidth": 20
-    },
-    {
-      "type": "board",
-      "key": " Motherboard:",
-      "format": "{1}",
-      "keyColor": "green",
-      "keyWidth": 20
-    },
-    {
-      "type": "bios",
-      "key": "│ ├ BIOS:",
-      "keyColor": "green",
-      "keyWidth": 20
-    },
-    {
-      "type": "battery",
-      "key": "│ ├ Battery:",
-      "keyColor": "green",
-      "keyWidth": 20
-    },
-    {
-      "type": "cpu",
-      "key": "│ ├󰻠 CPU:",
-      "showPeCoreCount": true,
-      "keyColor": "green",
-      "keyWidth": 20
-    },
-    {
-      "type": "gpu",
-      "key": "│ ├󰢮 GPU:",
-      "keyColor": "green",
-      "format": "{2} {3}",
-      "keyWidth": 20
-    },
-    {
-      "type": "memory",
-      "key": "│ ├󰑭 RAM:",
-      "keyColor": "green",
-      "keyWidth": 20
-    },
-    {
-      "type": "disk",
-      "key": "│ └󰋊 Disk:",
-      "folders": "/",
-      "keyColor": "green",
-      "keyWidth": 20
-    },
-    {
-      "type": "custom",
-      "format": "\u001b[32m└──────────────────────────────────────────────────────────────────────────┘",
-      "keyWidth": 20
-    },
-    {
-      "type": "custom",
-      "format": "\u001b[33m┌─────────────────────────────────Software─────────────────────────────────┐",
-      "keyWidth": 20
-    },
-    {
-      "type": "os",
-      "key": " OS:",
-      "keyColor": "yellow",
-      "format": "{2} BTW",
-      "keyWidth": 20
-    },
-    {
-      "type": "initsystem",
-      "key": "│ ├ BootLoader:",
-      "format": "{1}",
-      "keyColor": "yellow",
-      "keyWidth": 20
-    },
-    {
-      "type": "kernel",
-      "key": "│ ├ Kernel:",
-      "keyColor": "yellow",
-      "keyWidth": 20
-    },
-    {
-      "type": "shell",
-      "key": "│ ├ Shell:",
-      "keyColor": "yellow",
-      "keyWidth": 20
-    },
-    {
-      "type": "packages",
-      "key": "│ ├󰏖 Packages:",
-      "keyColor": "yellow",
-      "keyWidth": 20
-    },
-    {
-      "type": "processes",
-      "key": "│ └ Processes:",
-      "keyColor": "yellow",
-      "keyWidth": 20
-    },
-    {
-      "type": "custom",
-      "format": "\u001b[33m└──────────────────────────────────────────────────────────────────────────┘",
-      "keyWidth": 20
-    },
-    {
-      "type": "custom",
-      "format": "\u001b[34m┌───────────────────────────Graphical Interface────────────────────────────┐",
-      "keyWidth": 20
-    },
-    {
-      "type": "wm",
-      "key": " WM:",
-      "keyColor": "blue",
-      "keyWidth": 20
-    },
-    {
-      "type": "theme",
-      "key": "│ ├󰉼 Theme:",
-      "keyColor": "blue",
-      "keyWidth": 20
-    },
-    {
-      "type": "icons",
-      "key": "│ ├󰀻 Icons:",
-      "keyColor": "blue",
-      "keyWidth": 20
-    },
-    {
-      "type": "cursor",
-      "key": "│ ├󰀻 Cursor:",
-      "keyColor": "blue",
-      "keyWidth": 20
-    },
-    {
-      "type": "terminal",
-      "key": "│ ├ Terminal:",
-      "keyColor": "blue",
-      "keyWidth": 20
-    },
-    {
-      "type": "terminalfont",
-      "key": "│ ├ Term Font:",
-      "format": "{2}",
-      "keyColor": "blue",
-      "keyWidth": 20
-    },
-    {
-      "type": "font",
-      "key": "│ └ UI Font:",
-      "format": "{2}",
-      "keyColor": "blue",
-      "keyWidth": 20
-    },
-    {
-      "type": "custom",
-      "format": "\u001b[34m└──────────────────────────────────────────────────────────────────────────┘",
-      "keyWidth": 20
-    },
-    {
-      "type": "custom",
-      "format": "\u001b[35m┌───────────────────────────────System Times───────────────────────────────┐",
-      "keyWidth": 20
-    },
-    {
-      "type": "command",
-      "key": " Linux Journey:",
-      "keyColor": "magenta",
-      "text": "echo $(( ( $(date +%s) - $(date -d '2024-02-15' +%s) ) / 2592000 )) months",
-      "keyWidth": 20
-    },
-    {
-      "type": "command",
-      "key": "│ ├Arch Journey:",
-      "keyColor": "magenta",
-      "text": "echo $(( ( $(date +%s) - $(date -d '2024-06-22' +%s) ) / 86400 )) days",
-      "keyWidth": 20
-    },
-    {
-      "type": "command",
-      "key": "│ ├Current OS Age:",
-      "keyColor": "magenta",
-      "text": "echo $(( ( $(date +%s) - $(stat -c %W /) ) / 86400 )) days",
-      "keyWidth": 20
-    },
-    {
-      "type": "uptime",
-      "key": "│ └Uptime:",
-      "keyColor": "magenta",
-      "keyWidth": 20
-    },
-    {
-      "type": "custom",
-      "format": "\u001b[35m└──────────────────────────────────────────────────────────────────────────┘",
-      "keyWidth": 20
-    }
-  ]
+	"$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+	"display": {
+		"separator": " "
+	},
+	"modules": [
+		// ─────────────── Hardware ───────────────
+		{
+			"type": "custom",
+			"format": "\u001b[38;5;40m╭─────────────────────────────── Hardware ───────────────────────────────╮"
+		},
+		{
+			"type": "board",
+			"key": "\u001b[38;5;40m│\u001b[0m    Motherboard:",
+			"keyColor": "green",
+			"keyWidth": 20
+		},
+		{
+			"type": "bios",
+			"key": "\u001b[38;5;40m│\u001b[0m    BIOS:",
+			"keyColor": "green",
+			"keyWidth": 20
+		},
+		{
+			"type": "battery",
+			"key": "\u001b[38;5;40m│\u001b[0m    Battery:",
+			"keyColor": "green",
+			"keyWidth": 20
+		},
+		{
+			"type": "cpu",
+			"key": "\u001b[38;5;40m│\u001b[0m  󰻠  CPU:",
+			"showPeCoreCount": true,
+			"keyColor": "green",
+			"keyWidth": 20
+		},
+		{
+			"type": "gpu",
+			"key": "\u001b[38;5;40m│\u001b[0m  󰢮  GPU:",
+			"keyColor": "green",
+			"format": "{2} {3}",
+			"keyWidth": 20
+		},
+		{
+			"type": "memory",
+			"key": "\u001b[38;5;40m│\u001b[0m  󰑭  RAM:",
+			"keyColor": "green",
+			"keyWidth": 20
+		},
+		{
+			"type": "disk",
+			"key": "\u001b[38;5;40m│\u001b[0m  󰋊  Disk:",
+			"folders": "/",
+			"keyColor": "green",
+			"keyWidth": 20
+		},
+		{
+			"type": "custom",
+			"format": "\u001b[38;5;40m╰────────────────────────────────────────────────────────────────────────╯"
+		},
+
+		// ─────────────── Software ───────────────
+		{
+			"type": "custom",
+			"format": "\u001b[38;5;220m╭─────────────────────────────── Software ───────────────────────────────╮"
+		},
+		{
+			"type": "os",
+			"key": "\u001b[38;5;220m│\u001b[0m    OS:",
+			"keyColor": "yellow",
+			"format": "{2} BTW",
+			"keyWidth": 20
+		},
+		{
+			"type": "initsystem",
+			"key": "\u001b[38;5;220m│\u001b[0m    BootLoader:",
+			"format": "{1}",
+			"keyColor": "yellow",
+			"keyWidth": 20
+		},
+		{
+			"type": "kernel",
+			"key": "\u001b[38;5;220m│\u001b[0m    Kernel:",
+			"keyColor": "yellow",
+			"keyWidth": 20
+		},
+		{
+			"type": "shell",
+			"key": "\u001b[38;5;220m│\u001b[0m    Shell:",
+			"keyColor": "yellow",
+			"keyWidth": 20
+		},
+		{
+			"type": "packages",
+			"key": "\u001b[38;5;220m│\u001b[0m  󰏖  Packages:",
+			"keyColor": "yellow",
+			"keyWidth": 20
+		},
+		{
+			"type": "processes",
+			"key": "\u001b[38;5;220m│\u001b[0m    Processes:",
+			"keyColor": "yellow",
+			"keyWidth": 20
+		},
+		{
+			"type": "custom",
+			"format": "\u001b[38;5;220m╰────────────────────────────────────────────────────────────────────────╯"
+		},
+
+		// ─────────────── Graphical Interface ───────────────
+		{
+			"type": "custom",
+			"format": "\u001b[38;5;33m╭───────────────────────── Graphical Interface ──────────────────────────╮"
+		},
+		{
+			"type": "wm",
+			"key": "\u001b[38;5;33m│\u001b[0m    WM:",
+			"keyColor": "blue",
+			"keyWidth": 20
+		},
+		{
+			"type": "theme",
+			"key": "\u001b[38;5;33m│\u001b[0m  󰉼  Theme:",
+			"keyColor": "blue",
+			"keyWidth": 20
+		},
+		{
+			"type": "icons",
+			"key": "\u001b[38;5;33m│\u001b[0m  󰀻  Icons:",
+			"keyColor": "blue",
+			"keyWidth": 20
+		},
+		{
+			"type": "cursor",
+			"key": "\u001b[38;5;33m│\u001b[0m  󰇀  Cursor:",
+			"keyColor": "blue",
+			"keyWidth": 20
+		},
+		{
+			"type": "terminal",
+			"key": "\u001b[38;5;33m│\u001b[0m    Terminal:",
+			"keyColor": "blue",
+			"keyWidth": 20
+		},
+		{
+			"type": "terminalfont",
+			"key": "\u001b[38;5;33m│\u001b[0m    Term Font:",
+			"format": "{2}",
+			"keyColor": "blue",
+			"keyWidth": 20
+		},
+		{
+			"type": "font",
+			"key": "\u001b[38;5;33m│\u001b[0m    UI Font:",
+			"format": "{2}",
+			"keyColor": "blue",
+			"keyWidth": 20
+		},
+		{
+			"type": "custom",
+			"format": "\u001b[38;5;33m╰────────────────────────────────────────────────────────────────────────╯"
+		},
+
+		// ─────────────── System Times ───────────────
+		{
+			"type": "custom",
+			"format": "\u001b[38;5;135m╭──────────────────────────── System Times ──────────────────────────────╮"
+		},
+		{
+			"type": "command",
+			"key": "\u001b[38;5;135m│\u001b[0m  Linux Journey:",
+			"keyColor": "magenta",
+			"text": "echo $(( ( $(date +%s) - $(date -d '2024-02-15' +%s) ) / 2592000 )) months",
+			"keyWidth": 20
+		},
+		{
+			"type": "command",
+			"key": "\u001b[38;5;135m│\u001b[0m  Arch Journey:",
+			"keyColor": "magenta",
+			"text": "echo $(( ( $(date +%s) - $(date -d '2024-06-22' +%s) ) / 86400 )) days",
+			"keyWidth": 20
+		},
+		{
+			"type": "command",
+			"key": "\u001b[38;5;135m│\u001b[0m  Current OS Age:",
+			"keyColor": "magenta",
+			"text": "echo $(( ( $(date +%s) - $(stat -c %W /) ) / 86400 )) days",
+			"keyWidth": 20
+		},
+		{
+			"type": "uptime",
+			"key": "\u001b[38;5;135m│\u001b[0m  Uptime:",
+			"keyColor": "magenta",
+			"keyWidth": 20
+		},
+		{
+			"type": "custom",
+			"format": "\u001b[38;5;135m╰────────────────────────────────────────────────────────────────────────╯"
+		}
+	]
 }
