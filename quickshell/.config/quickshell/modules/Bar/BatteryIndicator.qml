@@ -315,7 +315,7 @@ Item {
                 Text {
                     id: tooltipText
 
-                    text: batteryArea.remainingTimeText
+                    text: qsTr("%1").arg(batteryArea.remainingTimeText)
                     color: Theme.textContrast(Theme.onHoverColor)
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
@@ -324,7 +324,7 @@ Item {
                 Text {
                     id: placeholderText
 
-                    text: DetectEnv.batteryManager === "ppd" ? PowerMgmt.ppdInfo : PowerMgmt.platformInfo
+                    text: DetectEnv.batteryManager === "ppd" ? (PowerMgmt.ppdText && PowerMgmt.ppdText.length > 0 ? qsTr("PPD: %1").arg(PowerMgmt.ppdText) : PowerMgmt.ppdInfo) : (PowerMgmt.platformProfile && PowerMgmt.platformProfile.length > 0 ? qsTr("Platform: %1").arg(PowerMgmt.platformProfile) : PowerMgmt.platformInfo)
                     color: Theme.textContrast(Theme.onHoverColor)
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
@@ -334,7 +334,7 @@ Item {
                 Text {
                     id: thermalText
 
-                    text: "CPU: " + PowerMgmt.cpuGovernor + " + " + PowerMgmt.energyPerformance
+                    text: qsTr("CPU: %1 + %2").arg(PowerMgmt.cpuGovernor || qsTr("Unknown")).arg(PowerMgmt.energyPerformance || qsTr("Unknown"))
                     color: Theme.textContrast(Theme.onHoverColor)
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily

@@ -9,9 +9,17 @@ import Quickshell.Services.UPower
 Singleton {
     id: root
 
-    property string platformInfo: "Platform: Loading..."
-    property string ppdInfo: "PPD: Loading..."
-    property string platformProfile: "Unknown"
+    // Tunables for brightness behavior
+    property int onBatteryBrightness: 10
+    property int onACBrightness: 100
+    property int kbdOnBattery: 1
+    property int kbdOnAC: 3
+    property string kbdDevice: "asus::kbd_backlight"
+
+    property string platformProfile: "Loading..."
+    readonly property string platformInfo: "Platform: " + platformProfile
+    property string ppdText: "Loading..."
+    readonly property string ppdInfo: "PPD: " + ppdText
     property string cpuGovernor: "Unknown"
     property string energyPerformance: "Unknown"
 
@@ -22,6 +30,18 @@ Singleton {
 
     Component.onCompleted: {
         root.refreshPowerInfo();
+    }
+
+    Component.onDestruction: {
+        try {
+            brightnessDebounce.stop();
+        } catch (e) {}
+        try {
+            brightnessProcess.running = false;
+        } catch (e) {}
+        try {
+            ppdProcess.running = false;
+        } catch (e) {}
     }
 
     Connections {
@@ -43,13 +63,31 @@ Singleton {
         running: false
     }
 
-    function adjustBrightness() {
-        if (root.onBattery) {
-            brightnessProcess.command = ["sh", "-c", "brightnessctl set 10% && brightnessctl -d asus::kbd_backlight set 1"];
-        } else {
-            brightnessProcess.command = ["sh", "-c", "brightnessctl set 100% && brightnessctl -d asus::kbd_backlight set 3"];
+    Timer {
+        id: brightnessDebounce
+        interval: 250
+        repeat: false
+        onTriggered: {
+            if (!DetectEnv.isLaptopBattery)
+                return;
+            brightnessProcess.running = true;
         }
-        brightnessProcess.running = true;
+    }
+
+    function adjustBrightness() {
+        if (!DetectEnv.isLaptopBattery)
+            return;
+
+        const screen = root.onBattery ? onBatteryBrightness : onACBrightness;
+        const kbd = root.onBattery ? kbdOnBattery : kbdOnAC;
+        const cmd = `brightnessctl set ${screen}% && brightnessctl -d ${kbdDevice} set ${kbd}`;
+
+        brightnessProcess.command = ["sh", "-c", cmd];
+        if (brightnessDebounce.running) {
+            brightnessDebounce.restart();
+        } else {
+            brightnessDebounce.start();
+        }
     }
 
     QtObject {
@@ -61,7 +99,7 @@ Singleton {
             });
 
             process.stdout.streamFinished.connect(function () {
-                var data = process.stdout.text.trim();
+                var data = process.stdout.text ? process.stdout.text.trim() : "";
                 callback(data);
                 process.destroy();
             });
@@ -84,7 +122,7 @@ Singleton {
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
-                root.ppdInfo = "PPD: " + (this.text.trim() || "Unknown");
+                root.ppdText = (this.text.trim() || "Unknown");
                 root.powerInfoUpdated();
             }
         }
@@ -93,7 +131,6 @@ Singleton {
     function refreshPowerInfo() {
         reader.read("/sys/firmware/acpi/platform_profile", function (data) {
             root.platformProfile = data;
-            root.platformInfo = "Platform: " + data;
             root.powerInfoUpdated();
         });
 
