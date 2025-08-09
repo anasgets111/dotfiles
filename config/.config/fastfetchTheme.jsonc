@@ -11,47 +11,40 @@
 		},
 		{
 			"type": "board",
-			"key": "\u001b[38;5;40m│\u001b[0m    Motherboard:",
-			"keyColor": "green",
+			"key": "\u001b[38;5;40m│  Motherboard:",
 			"keyWidth": 20
 		},
 		{
 			"type": "bios",
-			"key": "\u001b[38;5;40m│\u001b[0m    BIOS:",
-			"keyColor": "green",
+			"key": "\u001b[38;5;40m│  BIOS:",
 			"keyWidth": 20
 		},
 		{
 			"type": "battery",
-			"key": "\u001b[38;5;40m│\u001b[0m    Battery:",
-			"keyColor": "green",
+			"key": "\u001b[38;5;40m│  Battery:",
 			"keyWidth": 20
 		},
 		{
 			"type": "cpu",
-			"key": "\u001b[38;5;40m│\u001b[0m  󰻠  CPU:",
+			"key": "\u001b[38;5;40m│ 󰻠 CPU:",
 			"showPeCoreCount": true,
-			"keyColor": "green",
 			"keyWidth": 20
 		},
 		{
 			"type": "gpu",
-			"key": "\u001b[38;5;40m│\u001b[0m  󰢮  GPU:",
-			"keyColor": "green",
+			"key": "\u001b[38;5;40m│ 󰢮 GPU:",
 			"format": "{2} {3}",
 			"keyWidth": 20
 		},
 		{
 			"type": "memory",
-			"key": "\u001b[38;5;40m│\u001b[0m  󰑭  RAM:",
-			"keyColor": "green",
+			"key": "\u001b[38;5;40m│ 󰑭 RAM:",
 			"keyWidth": 20
 		},
 		{
 			"type": "disk",
-			"key": "\u001b[38;5;40m│\u001b[0m  󰋊  Disk:",
+			"key": "\u001b[38;5;40m│ 󰋊 Disk:",
 			"folders": "/",
-			"keyColor": "green",
 			"keyWidth": 20
 		},
 		{
@@ -66,40 +59,34 @@
 		},
 		{
 			"type": "os",
-			"key": "\u001b[38;5;220m│\u001b[0m    OS:",
-			"keyColor": "yellow",
+			"key": "\u001b[38;5;220m│  OS:",
 			"format": "{2} BTW",
 			"keyWidth": 20
 		},
 		{
 			"type": "initsystem",
-			"key": "\u001b[38;5;220m│\u001b[0m    BootLoader:",
+			"key": "\u001b[38;5;220m│  BootLoader:",
 			"format": "{1}",
-			"keyColor": "yellow",
 			"keyWidth": 20
 		},
 		{
 			"type": "kernel",
-			"key": "\u001b[38;5;220m│\u001b[0m    Kernel:",
-			"keyColor": "yellow",
+			"key": "\u001b[38;5;220m│  Kernel:",
 			"keyWidth": 20
 		},
 		{
 			"type": "shell",
-			"key": "\u001b[38;5;220m│\u001b[0m    Shell:",
-			"keyColor": "yellow",
+			"key": "\u001b[38;5;220m│  Shell:",
 			"keyWidth": 20
 		},
 		{
 			"type": "packages",
-			"key": "\u001b[38;5;220m│\u001b[0m  󰏖  Packages:",
-			"keyColor": "yellow",
+			"key": "\u001b[38;5;220m│ 󰏖 Packages:",
 			"keyWidth": 20
 		},
 		{
 			"type": "processes",
-			"key": "\u001b[38;5;220m│\u001b[0m    Processes:",
-			"keyColor": "yellow",
+			"key": "\u001b[38;5;220m│  Processes:",
 			"keyWidth": 20
 		},
 		{
@@ -114,46 +101,33 @@
 		},
 		{
 			"type": "wm",
-			"key": "\u001b[38;5;33m│\u001b[0m    WM:",
-			"keyColor": "blue",
+			"key": "\u001b[38;5;33m│  WM:",
 			"keyWidth": 20
 		},
 		{
 			"type": "theme",
-			"key": "\u001b[38;5;33m│\u001b[0m  󰉼  Theme:",
-			"keyColor": "blue",
+			"key": "\u001b[38;5;33m│ 󰉼 Theme:",
 			"keyWidth": 20
 		},
 		{
 			"type": "icons",
-			"key": "\u001b[38;5;33m│\u001b[0m  󰀻  Icons:",
-			"keyColor": "blue",
+			"key": "\u001b[38;5;33m│ 󰀻 Icons:",
 			"keyWidth": 20
 		},
 		{
 			"type": "cursor",
-			"key": "\u001b[38;5;33m│\u001b[0m  󰇀  Cursor:",
-			"keyColor": "blue",
+			"key": "\u001b[38;5;33m│ 󰇀 Cursor:",
 			"keyWidth": 20
 		},
 		{
 			"type": "terminal",
-			"key": "\u001b[38;5;33m│\u001b[0m    Terminal:",
-			"keyColor": "blue",
+			"key": "\u001b[38;5;33m│  Terminal:",
 			"keyWidth": 20
 		},
 		{
 			"type": "terminalfont",
-			"key": "\u001b[38;5;33m│\u001b[0m    Term Font:",
+			"key": "\u001b[38;5;33m│  Term Font:",
 			"format": "{2}",
-			"keyColor": "blue",
-			"keyWidth": 20
-		},
-		{
-			"type": "font",
-			"key": "\u001b[38;5;33m│\u001b[0m    UI Font:",
-			"format": "{2}",
-			"keyColor": "blue",
 			"keyWidth": 20
 		},
 		{
@@ -168,29 +142,25 @@
 		},
 		{
 			"type": "command",
-			"key": "\u001b[38;5;135m│\u001b[0m  Linux Journey:",
-			"keyColor": "magenta",
+			"key": "\u001b[38;5;135m│ Linux Journey:",
 			"text": "echo $(( ( $(date +%s) - $(date -d '2024-02-15' +%s) ) / 2592000 )) months",
 			"keyWidth": 20
 		},
 		{
 			"type": "command",
-			"key": "\u001b[38;5;135m│\u001b[0m  Arch Journey:",
-			"keyColor": "magenta",
+			"key": "\u001b[38;5;135m│ Arch Journey:",
 			"text": "echo $(( ( $(date +%s) - $(date -d '2024-06-22' +%s) ) / 86400 )) days",
 			"keyWidth": 20
 		},
 		{
 			"type": "command",
-			"key": "\u001b[38;5;135m│\u001b[0m  Current OS Age:",
-			"keyColor": "magenta",
+			"key": "\u001b[38;5;135m│ Current OS Age:",
 			"text": "echo $(( ( $(date +%s) - $(stat -c %W /) ) / 86400 )) days",
 			"keyWidth": 20
 		},
 		{
 			"type": "uptime",
-			"key": "\u001b[38;5;135m│\u001b[0m  Uptime:",
-			"keyColor": "magenta",
+			"key": "\u001b[38;5;135m│ Uptime:",
 			"keyWidth": 20
 		},
 		{
