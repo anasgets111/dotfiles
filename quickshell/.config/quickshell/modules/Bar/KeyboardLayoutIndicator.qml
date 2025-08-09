@@ -10,7 +10,6 @@ Item {
     readonly property bool useNiri: DetectEnv.isNiri
     property var layouts: []
     property string currentLayout: ""
-    property bool available: false
 
     function shortName(full) {
         if (!full)
@@ -25,24 +24,15 @@ Item {
             return n.trim();
         });
         keyboardLayoutIndicator.layouts = names;
-        keyboardLayoutIndicator.available = names.length > 1;
         if (keyboardLayoutIndicator.useHypr)
-            keyboardLayoutIndicator.currentLayout = idxOrActive.trim();
+            keyboardLayoutIndicator.currentLayout = String(idxOrActive || "").trim();
         else
             keyboardLayoutIndicator.currentLayout = names[idxOrActive] || "";
     }
 
-    function seedInitial() {
-        if (keyboardLayoutIndicator.useHypr)
-            seedProcHypr.running = true;
-        else if (keyboardLayoutIndicator.useNiri)
-            seedProcNiri.running = true;
-    }
-
     implicitHeight: Theme.itemHeight
     implicitWidth: Math.max(Theme.itemWidth, label.implicitWidth + 12)
-    Component.onCompleted: keyboardLayoutIndicator.seedInitial()
-    visible: keyboardLayoutIndicator.available
+    visible: keyboardLayoutIndicator.layouts.length > 1
 
     Process {
         id: seedProcHypr
@@ -76,6 +66,7 @@ Item {
     Process {
         id: seedProcNiri
 
+        running: keyboardLayoutIndicator.useNiri
         command: ["niri", "msg", "--json", "keyboard-layouts"]
 
         stdout: StdioCollector {
@@ -94,7 +85,9 @@ Item {
             if (event.name !== "activelayout")
                 return;
 
-            var parts = event.data.split(",");
+            var parts = event.data.split(",").map(function (t) {
+                return t.trim();
+            });
             keyboardLayoutIndicator.update(parts, parts[parts.length - 1]);
         }
 
@@ -121,7 +114,7 @@ Item {
                 } else if (evt.KeyboardLayoutSwitched) {
                     var idx = evt.KeyboardLayoutSwitched.idx;
                     if (!keyboardLayoutIndicator.layouts.length)
-                        keyboardLayoutIndicator.seedInitial();
+                        return;
                     else
                         keyboardLayoutIndicator.currentLayout = keyboardLayoutIndicator.layouts[idx] || "";
                 }
@@ -133,7 +126,6 @@ Item {
         anchors.fill: parent
         radius: Theme.itemRadius
         color: Theme.inactiveColor
-        implicitWidth: Math.max(Theme.itemWidth, label.implicitWidth + 12)
 
         RowLayout {
             anchors.fill: parent
