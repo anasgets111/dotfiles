@@ -24,3 +24,5 @@ Weather Weather.qml
 MinimalCalendar MinimalCalendar.qml
 singleton Cava  Cava.qml
 singleton PowerMgmt PowerManagement.qml
+WifiIndicator WifiIndicator.qml
+singleton WifiService WifiService.qml
