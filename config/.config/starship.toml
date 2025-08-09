@@ -43,6 +43,8 @@ style_root = "#F38BA8"
 [hostname]
 ssh_only = false
 format = "[:$hostname ](#1E1E2E bg:#C6C3CE)[](fg:#C6C3CE bg:#E0DEF4)"
+ssh_symbol = ""
+
 
 [directory]
 style = "#1E1E2E bg:#E0DEF4"                       # Dark text on light bg for contrast
