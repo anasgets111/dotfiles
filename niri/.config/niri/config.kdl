@@ -168,7 +168,7 @@ window-rule {
     match app-id="zenity"
     match app-id="pavucontrol"
     match app-id="mpv"
-    match title=r#"Global Updates"#
+    match title=r#".*Global Updates.*"#
     open-floating true
     default-column-width { proportion 0.74; }
     default-window-height { proportion 0.74; }
