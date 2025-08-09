@@ -10,6 +10,7 @@ Item {
     readonly property bool useNiri: DetectEnv.isNiri
     property var layouts: []
     property string currentLayout: ""
+    readonly property bool hasMultipleLayouts: layouts.length > 1
 
     function shortName(full) {
         if (!full)
@@ -32,7 +33,7 @@ Item {
 
     implicitHeight: Theme.itemHeight
     implicitWidth: Math.max(Theme.itemWidth, label.implicitWidth + 12)
-    visible: keyboardLayoutIndicator.layouts.length > 1
+    visible: keyboardLayoutIndicator.hasMultipleLayouts
 
     Process {
         id: seedProcHypr
