@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Widgets
 import Quickshell.Services.SystemTray
 
 Item {
@@ -9,6 +10,9 @@ Item {
 
     required property var bar
     readonly property int iconSpacing: 8
+    readonly property int horizontalPadding: 10
+    readonly property int hoverPadding: 3
+    readonly property int contentInset: 2
 
     function getThemeIconName(iconUrl) {
         var m = iconUrl.match(/image:\/\/(?:icon|qspixmap)\/([^\/]+)/);
@@ -16,11 +20,10 @@ Item {
     }
 
     function getIconPath(iconName) {
-        // Let Quickshell resolve from the active icon theme
         return Quickshell.iconPath(iconName, true) || "";
     }
 
-    width: trayRow.width + iconSpacing
+    width: Math.max(trayRow.implicitWidth + horizontalPadding * 2, Theme.itemHeight)
     height: Theme.itemHeight
 
     Rectangle {
@@ -36,114 +39,124 @@ Item {
 
         anchors.centerIn: parent
         spacing: systemTrayWidget.iconSpacing
-
         Repeater {
             id: trayRepeater
             model: SystemTray.items
+            delegate: trayItemDelegate
+        }
+    }
 
-            MouseArea {
-                id: trayMouseArea
+    Component {
+        id: trayItemDelegate
 
-                required property var modelData
-                property var trayItem: modelData
+        MouseArea {
+            id: trayMouseArea
 
-                width: Theme.iconSize
-                height: Theme.iconSize
-                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                hoverEnabled: true
-                onClicked: function (mouse) {
-                    if (mouse.button === Qt.LeftButton)
-                        trayMouseArea.trayItem.activate();
-                    else if (mouse.button === Qt.RightButton && trayMouseArea.trayItem.hasMenu)
-                        menuAnchor.open();
-                    else if (mouse.button === Qt.MiddleButton)
-                        trayMouseArea.trayItem.secondaryActivate();
-                }
-                onWheel: function (wheel) {
-                    trayMouseArea.trayItem.scroll(wheel.angleDelta.x, wheel.angleDelta.y);
-                }
+            required property var modelData
+            property var trayItem: modelData
 
-                QsMenuAnchor {
-                    id: menuAnchor
+            width: Theme.iconSize
+            height: Theme.iconSize
+            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+            hoverEnabled: true
 
-                    menu: trayMouseArea.trayItem.menu
-                    anchor.window: systemTrayWidget.bar
-                    anchor.item: iconImage
-                }
+            onClicked: function (mouse) {
+                if (mouse.button === Qt.LeftButton)
+                    trayMouseArea.trayItem.activate();
+                else if (mouse.button === Qt.RightButton && trayMouseArea.trayItem.hasMenu)
+                    menuAnchor.open();
+                else if (mouse.button === Qt.MiddleButton)
+                    trayMouseArea.trayItem.secondaryActivate();
+            }
+            onWheel: function (wheel) {
+                trayMouseArea.trayItem.scroll(wheel.angleDelta.x, wheel.angleDelta.y);
+            }
 
-                Rectangle {
-                    width: Theme.iconSize + 6
-                    height: Theme.iconSize + 6
-                    anchors.centerIn: parent
-                    radius: (Theme.iconSize + 6) / 2
-                    color: trayMouseArea.containsMouse ? Theme.onHoverColor : "transparent"
+            QsMenuAnchor {
+                id: menuAnchor
+                menu: trayMouseArea.trayItem.menu
+                anchor.item: trayMouseArea
+                anchor.rect.x: 0
+                anchor.rect.y: trayMouseArea.height - 5
+            }
 
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: Theme.animationDuration
-                            easing.type: Easing.OutCubic
-                        }
+            Rectangle {
+                anchors.centerIn: parent
+                width: Theme.iconSize + systemTrayWidget.hoverPadding * 2
+                height: width
+                radius: width / 2
+                color: Theme.onHoverColor
+                opacity: trayMouseArea.containsMouse ? 1 : 0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.OutCubic
                     }
                 }
+            }
 
-                Image {
-                    id: iconImage
+            IconImage {
+                id: iconImage
 
-                    property string iconName: systemTrayWidget.getThemeIconName(trayMouseArea.trayItem.icon)
-                    property string themePath: systemTrayWidget.getIconPath(iconName)
+                property string iconName: systemTrayWidget.getThemeIconName(trayMouseArea.trayItem.icon)
+                property string themedSymbolicPath: systemTrayWidget.getIconPath(iconName + "-symbolic")
+                property string themedPath: systemTrayWidget.getIconPath(iconName)
+                property string resolvedThemePath: themedSymbolicPath || themedPath
 
-                    anchors.centerIn: parent
-                    width: Theme.iconSize
-                    height: Theme.iconSize
-                    source: trayMouseArea.trayItem.icon.startsWith("image://") ? trayMouseArea.trayItem.icon : themePath
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                    visible: status !== Image.Error && status !== Image.Null
-                    onStatusChanged: if (status === Image.Error && trayMouseArea.trayItem.icon.startsWith("image://")) {
-                        var fp = systemTrayWidget.getIconPath(iconName);
-                        if (fp)
-                            source = fp;
-                    }
+                anchors.centerIn: parent
+                implicitSize: Theme.iconSize - systemTrayWidget.contentInset * 2
+                width: implicitSize
+                height: implicitSize
+                source: trayMouseArea.trayItem.icon.startsWith("image://") ? trayMouseArea.trayItem.icon : resolvedThemePath
+                backer.smooth: true
+                backer.fillMode: Image.PreserveAspectFit
+                backer.sourceSize.width: width
+                backer.sourceSize.height: height
+                visible: status !== Image.Error && status !== Image.Null && source !== ""
+                onStatusChanged: if (status === Image.Error && trayMouseArea.trayItem.icon.startsWith("image://")) {
+                    if (resolvedThemePath)
+                        source = resolvedThemePath;
                 }
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : (trayMouseArea.trayItem.title ? trayMouseArea.trayItem.title.charAt(0).toUpperCase() : "?")
+                color: trayMouseArea.containsMouse ? Theme.textOnHoverColor : Theme.textActiveColor
+                font.pixelSize: Theme.fontSize
+                font.family: Theme.fontFamily
+                font.bold: true
+                visible: iconImage.status === Image.Error || iconImage.status === Image.Null || iconImage.source === ""
+            }
+
+            Rectangle {
+                id: tooltip
+
+                visible: trayMouseArea.containsMouse && (trayMouseArea.trayItem.tooltipTitle || trayMouseArea.trayItem.title)
+                color: Theme.onHoverColor
+                radius: Theme.itemRadius
+                width: tooltipText.width + 16
+                height: tooltipText.height + 8
+                anchors.top: parent.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.topMargin: 8
+                opacity: trayMouseArea.containsMouse ? 1 : 0
 
                 Text {
+                    id: tooltipText
+
                     anchors.centerIn: parent
-                    text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : (trayMouseArea.trayItem.title ? trayMouseArea.trayItem.title.charAt(0).toUpperCase() : "?")
-                    color: trayMouseArea.containsMouse ? Theme.textOnHoverColor : Theme.textActiveColor
+                    text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : trayMouseArea.trayItem.title
+                    color: Theme.textContrast(trayMouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
-                    font.bold: true
-                    visible: iconImage.status === Image.Error || iconImage.status === Image.Null
                 }
 
-                Rectangle {
-                    id: tooltip
-
-                    visible: trayMouseArea.containsMouse && (trayMouseArea.trayItem.tooltipTitle || trayMouseArea.trayItem.title)
-                    color: Theme.onHoverColor
-                    radius: Theme.itemRadius
-                    width: tooltipText.width + 16
-                    height: tooltipText.height + 8
-                    anchors.top: parent.bottom
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.topMargin: 8
-                    opacity: trayMouseArea.containsMouse ? 1 : 0
-
-                    Text {
-                        id: tooltipText
-
-                        anchors.centerIn: parent
-                        text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : trayMouseArea.trayItem.title
-                        color: Theme.textContrast(trayMouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
-                        font.pixelSize: Theme.fontSize
-                        font.family: Theme.fontFamily
-                    }
-
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Theme.animationDuration
-                            easing.type: Easing.OutCubic
-                        }
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Theme.animationDuration
+                        easing.type: Easing.OutCubic
                     }
                 }
             }
