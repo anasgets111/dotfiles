@@ -17,8 +17,7 @@ Rectangle {
     property bool preserveChannelBalance: false // scale channels vs. uniform write
 
     property int expandedWidth: 220
-    property real collapsedWidth: volumeIconItem.implicitWidth + percentageItem.implicitWidth + 2 * padding + contentRow.spacing
-
+    property real collapsedWidth: volumeIconItem.implicitWidth + 2 * padding
     property var deviceIconMap: {
         "headphone": "󰋋",
         "hands-free": "󰋎",
@@ -353,6 +352,7 @@ Rectangle {
             implicitHeight: maxPercentMeasure.paintedHeight
             Layout.preferredWidth: implicitWidth
             Layout.preferredHeight: implicitHeight
+            visible: volumeControl.width > volumeControl.collapsedWidth
 
             Text {
                 anchors.centerIn: parent
