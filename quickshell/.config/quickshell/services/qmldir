@@ -1,27 +1,31 @@
-
 singleton MainService core/MainService.qml
-BatteryService core/BatteryService.qml
-PowerService core/PowerService.qml
-BrightnessService core/BrightnessService.qml
-KeyboardBacklightService core/KeyboardBacklightService.qml
-NetworkService core/NetworkService.qml
-BluetoothService core/BluetoothService.qml
-AudioService core/AudioService.qml
-MediaService core/MediaService.qml
-SystemTrayService core/SystemTrayService.qml
-LockService core/LockService.qml
-ClipboardService core/ClipboardService.qml
-WallpaperService core/WallpaperService.qml
+singleton AudioService core/AudioService.qml
+singleton BatteryService core/BatteryService.qml
+singleton BluetoothService core/BluetoothService.qml
+singleton BrightnessService core/BrightnessService.qml
+singleton ClipboardService core/ClipboardService.qml
+singleton KeyboardBacklightService core/KeyboardBacklightService.qml
+singleton LockService core/LockService.qml
+singleton MediaService core/MediaService.qml
+singleton NetworkService core/NetworkService.qml
+singleton PowerService core/PowerService.qml
+singleton SystemTrayService core/SystemTrayService.qml
+singleton WallpaperService core/WallpaperService.qml
 
-SystemInfoService system-info/SystemInfoService.qml
-UpdateService system-info/UpdateService.qml
-OSDService system-info/OSDService.qml
-NotificationService system-info/NotificationService.qml
-ScreenCaptureService system-info/ScreenCaptureService.qml
-WeatherService system-info/WeatherService.qml
+# System-info services
+singleton NotificationService system-info/NotificationService.qml
+singleton OSDService system-info/OSDService.qml
+singleton ScreenCaptureService system-info/ScreenCaptureService.qml
+singleton SystemInfoService system-info/SystemInfoService.qml
+singleton UpdateService system-info/UpdateService.qml
+singleton WeatherService system-info/WeatherService.qml
 
-HyprlandWorkspaceService hyprland/WorkspaceService.qml
-HyprlandKeyboardLayoutService hyprland/KeyboardLayoutService.qml
+# Abstract WM services (UI should use these)
+singleton WorkspaceService wm/WorkspaceService.qml
+singleton KeyboardLayoutService wm/KeyboardLayoutService.qml
 
-NiriWorkspaceService niri/WorkspaceService.qml
-NiriKeyboardLayoutService niri/KeyboardLayoutService.qml
+# WM-specific implementations (used internally by abstract services)
+singleton HyprWorkspaceService wm/impl/hyprland/WorkspaceImpl.qml
+singleton HyprKeyboardLayoutService wm/impl/hyprland/KeyboardLayoutImpl.qml
+singleton NiriWorkspaceService wm/impl/niri/WorkspaceImpl.qml
+singleton NiriKeyboardLayoutService wm/impl/niri/KeyboardLayoutImpl.qml
