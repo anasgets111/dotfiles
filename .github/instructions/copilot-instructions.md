@@ -2,66 +2,62 @@
 applyTo: "**"
 ---
 
-# Copilot Instructions for Dotfiles & Quickshell Workspace
+# Copilot instructions for Dotfiles & Quickshell Workspace
 
-## Overview
+This repo contains dotfiles for a modular Wayland desktop centered on Quickshell (QML) with Hyprland and Niri, managed with GNU Stow.
 
-This repository manages a modular Linux desktop environment using quickshell (QML), Hyprland, Niri, and Fish shell, with extensive system integration and custom scripts. It is designed for rapid switching between desktop, laptop, and docked setups.
+## Big picture
 
-## Key Components
+- Quickshell is the UI/runtime. Entrypoint: `quickshell/.config/quickshell/shell.qml`.
+  - Services live in `quickshell/.config/quickshell/services/` and are registered via `services/qmldir`.
+- Window managers: both Hyprland and Niri are supported.
+  - Niri autostarts Quickshell via `niri/.config/niri/config.kdl` (spawn-at-startup).
+  - Hyprland is modular under `hypr/.config/hypr/` and sourced by `hyprland.conf` and also autostarts Quickshell (exec-start).
+- Waybar deprecated.
+- current terminal in use is `kitty`, with `alacritty` and `ghostty` configs available.
+- current shell is `fish`, with somewhat working `nushell` config, with basrc running fish when interactive so login shell stays bash.
+- the goal is to get quickshell working instead of relying on things like swayosd, swaync, and lock screens.
 
-- **quickshell/**: QML-based UI shell. Entry: `shell.qml`. Bar widgets in `modules/Bar/` (e.g., `Bar.qml`, `PowerMenu.qml`, `BatteryIndicator.qml`).
-- **hypr/config/**: Hyprland configs. Monitor layouts: `desktop.conf`, `laptop.conf`, `monitors.conf`. Dynamic selection via `detect-monitors.sh`.
-- **niri/**: Niri compositor config in `niri/config.kdl`. Used as an alternative to Hyprland.
-- **fish/**: Shell config, aliases, and package helpers (`conf.d/packages.fish`).
-- **nu/**: Nushell config and scripts.
-- **bin/**: System scripts (e.g., `update.sh`, `RecordingStatus.sh`).
+## Key files
 
-## Developer Workflows
+- `quickshell/.config/quickshell/shell.qml` – ShellRoot; imports `./services` and connects `MainService.detectionFinished` for logging.
+- `quickshell/.config/quickshell/services/qmldir` – registers:
+  - `singleton MainService MainService.qml`
+  - `WM/{Hyprland,Niri}Service.qml`
+  - `System/{Network,Media,Brightness,Keyboard,Power}Service.qml`
+- `quickshell/.config/quickshell/.qmlls.ini` – QML tooling/import paths (e.g., `/usr/lib/qt6/qml`).
+- `waybar/.config/waybar/{config,modules.jsonc}` – Hyprland and custom JSON modules wired to local scripts.
+- Scripts: `bin/.local/bin/{ScreenRecording.sh,RecordingStatus.sh,check_battery.sh}`.
 
-- **Startup**: Hyprland loads `startup.conf` (launches quickshell, swayosd, etc). Niri uses `niri/config.kdl` if selected as compositor.
-- **Monitor Config**: Run `detect-monitors.sh` to auto-link the correct monitor config based on host and connected displays. Do not edit `monitors.conf` directly.
-- **System Updates**: Use `bin/update.sh` (also triggered from quickshell bar via `ArchChecker.qml`).
-- **Fish Shell**: Use aliases/functions for package management. See `conf.d/packages.fish` for `native`, `aur`, `chaotic`, `version`.
+## Conventions and patterns (QML)
 
-## Project-Specific Patterns
+- `property var main: Services.MainService` (as in `shell.qml`).
+- IO: `Quickshell.Io` (`Process`, `File`, `SplitParser`, `StdioCollector`).
+- Services: `Quickshell.Services.{UPower,Pipewire}`.
 
-- **QML**: Each bar widget is a QML file in `modules/Bar/`. Use `Theme.qml` for styling, `DetectEnv.qml` for environment/distro detection.
-- **Process Integration**: QML modules interact with shell/system via `Process` and `Quickshell.execDetached`.
-- **Notifications**: Use `notify-send` from QML and shell scripts.
-- **Dynamic UI**: Bar adapts to environment (e.g., `ArchChecker` for Arch, `BatteryIndicator` for laptops).
-- **Compositor Choice**: Both Hyprland and Niri are supported. Switch by changing the session and relevant configs.
+## Workflows
 
-## Conventions
+- Stow to $HOME from repo root (adapt set):
+  - `stow -t ~ quickshell hypr niri waybar fish ghostty swaync swayosd swayidle swaylock alacritty kitty mpv`
+- Run Quickshell manually for testing:
+  - `quickshell` and watch for `=== MainService System Info ===` logs.
 
-- **QML**: PascalCase for types, camelCase for properties/ids. Use singletons for shared state (`Theme.qml`, `DetectEnv.qml`).
-- **Shell**: Scripts use `bash` or `fish`, with strict error handling (`set -euo pipefail`).
-- **Packages**: List of required packages in `hypr/config/packages` (includes Hyprland, Niri, quickshell, and related tools).
+## Examples in this repo
 
-## Integration Points
+- `MainService.qml` – detects session (Hyprland/Niri), Arch-based distro, UPower/Pipewire devices, monitor count (xrandr); emits `detectionFinished` used by `shell.qml` for logging.
+- `niri/config.kdl` – spawns `quickshell`, `swayidle`, `swayosd-server`, `swaync`, etc.; pins workspaces to outputs.
 
-- **Pipewire**: QML modules can import `Quickshell.Services.Pipewire` for audio.
-- **UPower**: Battery status via `Quickshell.Services.UPower`.
-- **Wayland**: Uses `Quickshell.Wayland` for screen/window management.
-- **Niri**: Configured in `niri/config.kdl` for alternative Wayland session.
+## Gotchas
 
-## Examples
+- Ensure tools used by scripts exist: `hyprctl`, `jq`, `gpu-screen-recorder`, `nmcli`, `xrandr`, `notify-send`.
 
-- Add a bar widget: create QML in `modules/Bar/`, import in `Bar.qml`.
-- Add a system alias: edit `fish/config.fish` or `conf.d/various.fish`.
-- Change monitor layouts: edit `desktop.conf`/`laptop.conf`, run `detect-monitors.sh`.
-- Switch compositor: update session to use Hyprland or Niri, and edit respective configs.
+## Adding a new service or component
 
-## AI Agent Workflow for Tool Usage
+- When you add a new QML file in any folder with a `qmldir` (e.g., `services`, `modules/Bar`), you **must** register it in that `qmldir`.
+  - For a singleton: add a line like `singleton MyService MyService.qml`.
+  - For a regular component: add `MyComponent MyComponent.qml`.
+- If you add a new subfolder, create a `qmldir` there and register all components in that folder.
+- Update your lint/tool import paths (`-I <dir>`) to include the new module root if needed.
+- Example: After adding `WifiService.qml` to `modules/Bar/`, add `WifiService WifiService.qml` to `modules/Bar/qmldir`.
 
-To maximize productivity and accuracy, follow this workflow when making changes or answering questions:
-
-1. **Check the File/Context**: Start by reading the relevant file(s) and gathering workspace context. Use file search, grep, or semantic search as needed.
-2. **Use Sequential Thinking**: Break down the problem using step-by-step reasoning. Formulate hypotheses, question assumptions, and revise your plan as you learn more.
-3. **Fetch Documentation**: When you need details about a library, tool, or API, use the Context7 documentation tools to fetch up-to-date docs before proceeding.
-4. **Ask for User Input**: If requirements are unclear or multiple approaches are possible, ask the user for clarification or preferences before making major changes.
-5. **Form a Plan**: Use your thinking tools to outline a plan of action. Summarize your approach for the user if the task is complex.
-6. **Make Changes**: Edit files, run scripts, or update configs as needed. Use project conventions and reference examples from the codebase.
-7. **Validate and Iterate**: Check for errors, test the workflow, and ask the user for feedback. Iterate as needed to ensure the solution fits the user's intent.
-
-This workflow ensures that changes are well-informed, context-aware, and aligned with user expectations.
+If you have questions or want a recipe for a specific pattern, ask and these notes will be extended.
