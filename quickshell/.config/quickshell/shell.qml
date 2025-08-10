@@ -9,11 +9,13 @@ import "./services" as Services
 
 ShellRoot {
     id: root
+
     property var main: Services.MainService
     property var wallpaper: Services.WallpaperService
 
+    // Render wallpapers only when ready
     Variants {
-        model: root.wallpaper.monitors
+        model: root.wallpaper.ready ? root.wallpaper.wallpapers : []
 
         WlrLayershell {
             id: layerShell
@@ -23,9 +25,6 @@ ShellRoot {
             layer: WlrLayer.Background
             exclusionMode: ExclusionMode.Ignore
 
-            // Fill the entire monitor
-            width: layerShell.modelData.width
-            height: layerShell.modelData.height
             anchors.top: true
             anchors.bottom: true
             anchors.left: true
@@ -51,7 +50,7 @@ ShellRoot {
         }
     }
 
-    // Log once when MainService is ready
+    // Log when MainService is ready
     Connections {
         target: root.main
         function onReadyChanged() {
@@ -65,14 +64,29 @@ ShellRoot {
         }
     }
 
-    // Optional: log immediately if already ready (e.g., hot reload)
+    // Log when WallpaperService is ready
+    Connections {
+        target: root.wallpaper
+        function onReadyChanged() {
+            if (root.wallpaper.ready) {
+                console.log("=== WallpaperService Ready ===");
+                console.log("Wallpapers:", root.wallpaper.wallpapers.length);
+            }
+        }
+    }
+
+    // Optional: log immediately if already ready (hot reload)
     Component.onCompleted: {
-        if (root.main.ready) {
+        if (main.ready) {
             console.log("=== MainService Already Ready ===");
-            console.log("isArchBased:", root.main.isArchBased);
-            console.log("currentWM:", root.main.currentWM);
-            console.log("hasBrightnessControl:", root.main.hasBrightnessControl);
-            console.log("hasKeyboardBacklight:", root.main.hasKeyboardBacklight);
+            console.log("isArchBased:", main.isArchBased);
+            console.log("currentWM:", main.currentWM);
+            console.log("hasBrightnessControl:", main.hasBrightnessControl);
+            console.log("hasKeyboardBacklight:", main.hasKeyboardBacklight);
+        }
+        if (wallpaper.ready) {
+            console.log("=== WallpaperService Already Ready ===");
+            console.log("Wallpapers:", wallpaper.wallpapers.length);
         }
     }
 }

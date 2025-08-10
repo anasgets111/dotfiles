@@ -1,6 +1,7 @@
 pragma Singleton
+import Quickshell
 
-import QtQuick
-
-// TODO: Implement Hyprland WorkspaceService
-QtObject {}
+Singleton {
+    id: workspaceService
+    property var workspaces: []
+}
