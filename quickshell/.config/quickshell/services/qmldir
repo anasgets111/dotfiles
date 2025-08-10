@@ -1,0 +1,27 @@
+
+singleton MainService core/MainService.qml
+BatteryService core/BatteryService.qml
+PowerService core/PowerService.qml
+BrightnessService core/BrightnessService.qml
+KeyboardBacklightService core/KeyboardBacklightService.qml
+NetworkService core/NetworkService.qml
+BluetoothService core/BluetoothService.qml
+AudioService core/AudioService.qml
+MediaService core/MediaService.qml
+SystemTrayService core/SystemTrayService.qml
+LockService core/LockService.qml
+ClipboardService core/ClipboardService.qml
+WallpaperService core/WallpaperService.qml
+
+SystemInfoService system-info/SystemInfoService.qml
+UpdateService system-info/UpdateService.qml
+OSDService system-info/OSDService.qml
+NotificationService system-info/NotificationService.qml
+ScreenCaptureService system-info/ScreenCaptureService.qml
+WeatherService system-info/WeatherService.qml
+
+HyprlandWorkspaceService hyprland/WorkspaceService.qml
+HyprlandKeyboardLayoutService hyprland/KeyboardLayoutService.qml
+
+NiriWorkspaceService niri/WorkspaceService.qml
+NiriKeyboardLayoutService niri/KeyboardLayoutService.qml
