@@ -1,4 +1,4 @@
-singleton MainService core/MainService.qml
+singleton MainService MainService.qml
 singleton AudioService core/AudioService.qml
 singleton BatteryService core/BatteryService.qml
 singleton BluetoothService core/BluetoothService.qml
