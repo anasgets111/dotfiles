@@ -29,7 +29,9 @@ Singleton {
 
     onWallpapersChanged: {
         if (monitorService && monitorService.ready) {
-            ready = wallpapers.length > 0;
+            // Only ready if all monitors have valid width, height, and scale
+            ready = wallpapers.length > 0 && wallpapers.every(w => w.width && w.height && w.scale);
+
             console.log("[WallpaperService] Wallpapers updated:", wallpapers.length);
             wallpapers.forEach(w => {
                 console.log(`  - ${w.name}: ${w.width}x${w.height} @${w.scale}x → ${w.wallpaper}`);
