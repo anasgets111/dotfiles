@@ -1,6 +1,7 @@
 pragma Singleton
+import Quickshell
 
-import QtQuick
-
-// TODO: Implement Niri WorkspaceService
-QtObject {}
+Singleton {
+    id: workspaceService
+    property var workspaces: []
+}

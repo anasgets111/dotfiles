@@ -19,13 +19,13 @@ singleton SystemInfoService system-info/SystemInfoService.qml
 singleton UpdateService system-info/UpdateService.qml
 singleton WeatherService system-info/WeatherService.qml
 
+singleton MonitorService wm/MonitorService.qml
 singleton WorkspaceService wm/WorkspaceService.qml
 singleton KeyboardLayoutService wm/KeyboardLayoutService.qml
-singleton MonitorService wm/MonitorService.qml
 
+singleton HyprMonitorService wm/impl/hyprland/MonitorImpl.qml
 singleton HyprWorkspaceService wm/impl/hyprland/WorkspaceImpl.qml
 singleton HyprKeyboardLayoutService wm/impl/hyprland/KeyboardLayoutImpl.qml
-singleton HyprMonitorService wm/impl/hyprland/MonitorImpl.qml
+singleton NiriMonitorService wm/impl/niri/MonitorImpl.qml
 singleton NiriWorkspaceService wm/impl/niri/WorkspaceImpl.qml
 singleton NiriKeyboardLayoutService wm/impl/niri/KeyboardLayoutImpl.qml
-singleton NiriMonitorService wm/impl/niri/MonitorImpl.qml

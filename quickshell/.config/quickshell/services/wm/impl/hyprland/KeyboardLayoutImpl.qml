@@ -1,6 +1,7 @@
 pragma Singleton
+import Quickshell
 
-import QtQuick
-
-// TODO: Implement Hyprland KeyboardLayoutService
-QtObject {}
+Singleton {
+    id: keyboardLayoutService
+    property var layouts: []
+}
