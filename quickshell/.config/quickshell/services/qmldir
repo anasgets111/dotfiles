@@ -12,7 +12,6 @@ singleton PowerService core/PowerService.qml
 singleton SystemTrayService core/SystemTrayService.qml
 singleton WallpaperService core/WallpaperService.qml
 
-# System-info services
 singleton NotificationService system-info/NotificationService.qml
 singleton OSDService system-info/OSDService.qml
 singleton ScreenCaptureService system-info/ScreenCaptureService.qml
@@ -20,12 +19,13 @@ singleton SystemInfoService system-info/SystemInfoService.qml
 singleton UpdateService system-info/UpdateService.qml
 singleton WeatherService system-info/WeatherService.qml
 
-# Abstract WM services (UI should use these)
 singleton WorkspaceService wm/WorkspaceService.qml
 singleton KeyboardLayoutService wm/KeyboardLayoutService.qml
+singleton MonitorService wm/MonitorService.qml
 
-# WM-specific implementations (used internally by abstract services)
 singleton HyprWorkspaceService wm/impl/hyprland/WorkspaceImpl.qml
 singleton HyprKeyboardLayoutService wm/impl/hyprland/KeyboardLayoutImpl.qml
+singleton HyprMonitorService wm/impl/hyprland/MonitorImpl.qml
 singleton NiriWorkspaceService wm/impl/niri/WorkspaceImpl.qml
 singleton NiriKeyboardLayoutService wm/impl/niri/KeyboardLayoutImpl.qml
+singleton NiriMonitorService wm/impl/niri/MonitorImpl.qml

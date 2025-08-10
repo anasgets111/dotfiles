@@ -4,13 +4,52 @@
 
 import Quickshell
 import QtQuick
+import Quickshell.Wayland
 import "./services" as Services
 
 ShellRoot {
     id: root
-
-    // Force singleton instantiation
     property var main: Services.MainService
+    property var wallpaper: Services.WallpaperService
+
+    Variants {
+        model: root.wallpaper.monitors
+
+        WlrLayershell {
+            id: layerShell
+            required property var modelData
+
+            screen: Quickshell.screens.find(s => s.name === layerShell.modelData.name)
+            layer: WlrLayer.Background
+            exclusionMode: ExclusionMode.Ignore
+
+            // Fill the entire monitor
+            width: layerShell.modelData.width
+            height: layerShell.modelData.height
+            anchors.top: true
+            anchors.bottom: true
+            anchors.left: true
+            anchors.right: true
+            Image {
+                anchors.fill: parent
+                source: layerShell.modelData.wallpaper
+                fillMode: {
+                    switch (layerShell.modelData.mode) {
+                    case "fill":
+                        return Image.PreserveAspectCrop;
+                    case "fit":
+                        return Image.PreserveAspectFit;
+                    case "stretch":
+                        return Image.Stretch;
+                    case "center":
+                        return Image.Pad;
+                    case "tile":
+                        return Image.Tile;
+                    }
+                }
+            }
+        }
+    }
 
     // Log once when MainService is ready
     Connections {
