@@ -21,9 +21,11 @@ Singleton {
                 name: m.name,
                 width: m.width,
                 height: m.height,
-                scale: m.scale,
+                scale: m.devicePixelRatio || 1,
+                fps: m.refreshRate || 60,
+                bitDepth: m.colorDepth || 8,
                 orientation: m.orientation,
-                wallpaper: wallpaperMap[m.name] || "/home/anas/Pictures/default.jpg",
+                wallpaper: wallpaperMap[m.name] || "/home/anas/Pictures/3.jpg",
                 mode: "fill"
             })) : []
 

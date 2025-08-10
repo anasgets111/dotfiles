@@ -12,6 +12,8 @@ ShellRoot {
 
     property var main: Services.MainService
     property var wallpaper: Services.WallpaperService
+    property var dateTime: Services.TimeService
+    property var battery: Services.BatteryService
 
     // Render wallpapers only when ready
     Variants {
@@ -60,11 +62,17 @@ ShellRoot {
                 console.log("currentWM:", root.main.currentWM);
                 console.log("hasBrightnessControl:", root.main.hasBrightnessControl);
                 console.log("hasKeyboardBacklight:", root.main.hasKeyboardBacklight);
+                console.log("userInfo:", JSON.stringify({
+                    username: root.main.username,
+                    fullName: root.main.fullName,
+                    hostname: root.main.hostname,
+                    uptime: root.dateTime.formatDuration(root.main.uptime)
+                }));
             }
         }
     }
 
-    // Log when WallpaperService is ready
+    // === WallpaperService logging ===
     Connections {
         target: root.wallpaper
         function onReadyChanged() {
@@ -75,7 +83,40 @@ ShellRoot {
         }
     }
 
-    // Optional: log immediately if already ready (hot reload)
+    // === DateTimeService logging ===
+    Connections {
+        target: root.dateTime
+        function onReadyChanged() {
+            if (root.dateTime.ready) {
+                console.log("=== DateTimeService Ready ===");
+                console.log("Current Date/Time:", root.dateTime.formattedDateTime);
+                console.log("Time Zone:", root.dateTime.timeZone);
+                console.log("Week Start:", root.dateTime.weekStart);
+                console.log("NTP Enabled:", root.dateTime.ntpEnabled);
+            }
+        }
+    }
+
+    // === BatteryService logging ===
+    Connections {
+        target: root.battery
+        function onReadyChanged() {
+            if (root.battery.ready) {
+                console.log("=== BatteryService Ready ===");
+                console.log("Is Laptop Battery:", root.battery.isLaptopBattery);
+                console.log("Percentage:", Math.round(root.battery.percentage) + "%");
+                console.log("Is Charging:", root.battery.isCharging);
+                console.log("Is Plugged In:", root.battery.isPluggedIn);
+                console.log("Low Battery:", root.battery.isLowAndNotCharging);
+                console.log("Critical Battery:", root.battery.isCriticalAndNotCharging);
+                console.log("Suspending Battery:", root.battery.isSuspendingAndNotCharging);
+                console.log("Time to Full:", root.battery.timeToFullText);
+                console.log("Time to Empty:", root.battery.timeToEmptyText);
+            }
+        }
+    }
+
+    // === Hot reload immediate logs ===
     Component.onCompleted: {
         if (main.ready) {
             console.log("=== MainService Already Ready ===");
@@ -87,6 +128,28 @@ ShellRoot {
         if (wallpaper.ready) {
             console.log("=== WallpaperService Already Ready ===");
             console.log("Wallpapers:", wallpaper.wallpapers.length);
+        }
+        if (dateTime.ready) {
+            console.log("=== DateTimeService Already Ready ===");
+            console.log("Current Date/Time:", dateTime.formattedDateTime);
+            console.log("Time Zone:", dateTime.timeZone);
+            console.log("Week Start:", dateTime.weekStart);
+            console.log("NTP Enabled:", dateTime.ntpEnabled);
+            if (dateTime.isReady && !dateTime.ntpEnabled) {
+                dateTime.setNtpEnabled(true); // enable NTP
+            }
+        }
+        if (battery.ready) {
+            console.log("=== BatteryService Already Ready ===");
+            console.log("Is Laptop Battery:", battery.isLaptopBattery);
+            console.log("Percentage:", Math.round(battery.percentage) + "%");
+            console.log("Is Charging:", battery.isCharging);
+            console.log("Is Plugged In:", battery.isPluggedIn);
+            console.log("Low Battery:", battery.isLowAndNotCharging);
+            console.log("Critical Battery:", battery.isCriticalAndNotCharging);
+            console.log("Suspending Battery:", battery.isSuspendingAndNotCharging);
+            console.log("Time to Full:", battery.timeToFullText);
+            console.log("Time to Empty:", battery.timeToEmptyText);
         }
     }
 }
