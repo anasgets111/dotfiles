@@ -28,31 +28,17 @@ Singleton {
     }
 
     Process {
-        id: tzProc
-        command: ["sh", "-c", "timedatectl show -p Timezone --value"]
-        stdout: StdioCollector {
-            onStreamFinished: dateTimeService.timeZone = text.trim()
-        }
-    }
-
-    Process {
-        id: ntpEnabledProc
-        command: ["sh", "-c", "timedatectl show -p NTP --value"]
+        id: timeInfoProc
+        command: ["sh", "-c", "timedatectl show -p Timezone -p NTP -p NTPSynchronized --value"]
         stdout: StdioCollector {
             onStreamFinished: {
-                dateTimeService.ntpEnabled = (text.trim().toLowerCase() === "yes");
-                console.log("[DateTimeService] NTP Enabled:", dateTimeService.ntpEnabled);
-            }
-        }
-    }
-
-    Process {
-        id: ntpSyncedProc
-        command: ["sh", "-c", "timedatectl show -p NTPSynchronized --value"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                dateTimeService.ntpSynced = (text.trim().toLowerCase() === "yes");
-                console.log("[DateTimeService] NTP Synced:", dateTimeService.ntpSynced);
+                const lines = text.trim().split(/\r?\n/);
+                if (lines.length >= 3) {
+                    dateTimeService.timeZone = lines[0].trim();
+                    dateTimeService.ntpEnabled = lines[1].trim().toLowerCase() === "yes";
+                    dateTimeService.ntpSynced = lines[2].trim().toLowerCase() === "yes";
+                }
+                console.log("[DateTimeService] Timezone:", dateTimeService.timeZone, "| NTP Enabled:", dateTimeService.ntpEnabled, "| NTP Synced:", dateTimeService.ntpSynced);
             }
         }
     }
@@ -60,13 +46,12 @@ Singleton {
     Process {
         id: ntpToggleProc
         stdout: StdioCollector {
-            onStreamFinished: dateTimeService.checkNtpStatus()
+            onStreamFinished: dateTimeService.updateTimeInfo()
         }
     }
 
     Component.onCompleted: {
-        detectTimeZone();
-        checkNtpStatus();
+        dateTimeService.updateTimeInfo();
         ready = true;
         console.log("[DateTimeService] Ready");
     }
@@ -77,13 +62,8 @@ Singleton {
         formattedDateTime = Qt.formatDateTime(d, "yyyy-MM-dd hh:mm:ss");
     }
 
-    function detectTimeZone() {
-        tzProc.running = true;
-    }
-
-    function checkNtpStatus() {
-        ntpEnabledProc.running = true;
-        ntpSyncedProc.running = true;
+    function updateTimeInfo() {
+        timeInfoProc.running = true;
     }
 
     function setNtpEnabled(enable) {

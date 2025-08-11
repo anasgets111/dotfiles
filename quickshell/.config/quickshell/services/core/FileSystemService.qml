@@ -1,93 +1,61 @@
 pragma Singleton
-import Quickshell
 import QtQuick
+import Quickshell
 import Quickshell.Io
 
 Singleton {
-    id: fsService
+    id: fileSystemService
 
-    property bool ready: true // Always ready unless doing init checks
+    property bool ready: false
 
-    // === Private callback storage (JS variables, not QML properties) ===
-    QtObject {
-        id: _cbStore
-        property var jsonRead: null
-        property var jsonWrite: null
-        property var textRead: null
+    // File loader
+    FileView {
+        id: fileReader
     }
 
-    // === JSON Reader ===
+    // === Read text file ===
+    function readFile(path) {
+        fileReader.url = "file://" + path;
+        return fileReader.text || "";
+    }
+
+    // === Read JSON file ===
+    function readJson(path) {
+        const raw = fileSystemService.readFile(path);
+        if (!raw) {
+            console.warn("[FileSystemService] JSON file not found or empty:", path);
+            return {};
+        }
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            console.error("[FileSystemService] Failed to parse JSON:", e);
+            return {};
+        }
+    }
+
+    // === Write file (via Process) ===
     Process {
-        id: jsonReader
-        stdout: StdioCollector {
+        id: writeProc
+        stdout: StdioCollector {}
+        stderr: StdioCollector {
             onStreamFinished: {
-                fsService._handleJsonRead(text);
+                if (text.trim().length > 0) {
+                    console.error("[FileSystemService] Write error:", text.trim());
+                }
             }
         }
     }
 
-    // === JSON Writer ===
-    Process {
-        id: jsonWriter
-        onExited: {
-            fsService._handleJsonWrite(true);
-        }
+    function writeFile(path, data) {
+        const strData = String(data); // ensure it's a string
+        const safeData = strData.replace(/'/g, "'\\''");
+        writeProc.command = ["sh", "-c", "printf '%s' '" + safeData + "' > '" + path + "'"];
+        writeProc.running = true;
     }
 
-    // === Text Reader ===
-    Process {
-        id: textReader
-        stdout: StdioCollector {
-            onStreamFinished: {
-                fsService._handleTextRead(text);
-            }
-        }
-    }
-
-    // === Public API ===
-    function readJson(path, callback) {
-        _cbStore.jsonRead = callback;
-        jsonReader.command = ["sh", "-c", `cat "${path}" 2>/dev/null`];
-        jsonReader.running = true;
-    }
-
-    function writeJson(path, data, callback) {
-        _cbStore.jsonWrite = callback;
-        var jsonString = JSON.stringify(data, null, 2);
-        jsonWriter.command = ["sh", "-c", `echo '${jsonString}' > "${path}"`];
-        jsonWriter.running = true;
-    }
-
-    function readText(path, callback) {
-        _cbStore.textRead = callback;
-        textReader.command = ["sh", "-c", `cat "${path}" 2>/dev/null`];
-        textReader.running = true;
-    }
-
-    // === Internal Handlers ===
-    function _handleJsonRead(rawText) {
-        if (_cbStore.jsonRead) {
-            try {
-                _cbStore.jsonRead(rawText ? JSON.parse(rawText) : null);
-            } catch (e) {
-                console.error("[FileSystemService] JSON parse error:", e);
-                _cbStore.jsonRead(null);
-            }
-            _cbStore.jsonRead = null;
-        }
-    }
-
-    function _handleJsonWrite(success) {
-        if (_cbStore.jsonWrite) {
-            _cbStore.jsonWrite(success);
-            _cbStore.jsonWrite = null;
-        }
-    }
-
-    function _handleTextRead(text) {
-        if (_cbStore.textRead) {
-            _cbStore.textRead(text);
-            _cbStore.textRead = null;
-        }
+    Component.onCompleted: {
+        fileSystemService.ready = true;
+        console.log("[FileSystemService] Ready");
     }
 }

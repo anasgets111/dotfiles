@@ -9,45 +9,63 @@ Singleton {
     property var monitorService: Services.MonitorService
     property bool ready: false
 
-    // Map of monitor name → wallpaper path
-    // You can later load this from a config file
     property var wallpaperMap: ({
             "HDMI-A-1": "/home/anas/Pictures/3.jpg",
             "eDP-1": "/home/anas/Pictures/3.jpg"
         })
 
-    // Wallpapers list is bound to monitorService.monitors when ready
-    property var wallpapers: (monitorService && monitorService.ready) ? monitorService.monitors.map(m => ({
-                name: m.name,
-                width: m.width,
-                height: m.height,
-                scale: m.devicePixelRatio || 1,
-                fps: m.refreshRate || 60,
-                bitDepth: m.colorDepth || 8,
-                orientation: m.orientation,
-                wallpaper: wallpaperMap[m.name] || "/home/anas/Pictures/3.jpg",
-                mode: "fill"
-            })) : []
+    property var wallpapers: []
 
-    onWallpapersChanged: {
-        if (monitorService && monitorService.ready) {
-            // Only ready if all monitors have valid width, height, and scale
-            ready = wallpapers.length > 0 && wallpapers.every(w => w.width && w.height && w.scale);
-
-            console.log("[WallpaperService] Wallpapers updated:", wallpapers.length);
-            wallpapers.forEach(w => {
-                console.log(`  - ${w.name}: ${w.width}x${w.height} @${w.scale}x → ${w.wallpaper}`);
-            });
-        } else {
-            ready = false;
+    Connections {
+        target: monitorService
+        function onReadyChanged() {
+            if (monitorService.ready) {
+                recomputeWallpapers();
+            } else {
+                ready = false;
+            }
         }
     }
 
+    Connections {
+        target: monitorService.monitorsModel
+        function onCountChanged() {
+            if (monitorService.ready) {
+                recomputeWallpapers();
+            }
+        }
+    }
+
+    function recomputeWallpapers() {
+        wallpapers = [];
+        for (let i = 0; i < monitorService.monitorsModel.count; i++) {
+            const m = monitorService.monitorsModel.get(i);
+            wallpapers.push({
+                name: m.name,
+                width: m.width,
+                height: m.height,
+                scale: m.scale,
+                fps: m.fps,
+                bitDepth: m.bitDepth,
+                orientation: m.orientation,
+                wallpaper: wallpaperMap[m.name] || "/home/anas/Pictures/3.jpg",
+                mode: "fill"
+            });
+        }
+
+        ready = wallpapers.length > 0 && wallpapers.every(w => w.width && w.height && w.scale);
+
+        console.log("[WallpaperService] Wallpapers updated:", wallpapers.length);
+        wallpapers.forEach(w => {
+            console.log(`  - ${w.name}: ${w.width}x${w.height} @${w.scale}x → ${w.wallpaper}`);
+        });
+    }
+
     Component.onCompleted: {
-        if (!monitorService.ready) {
-            console.log("[WallpaperService] Waiting for MonitorService to be ready...");
+        if (monitorService.ready) {
+            recomputeWallpapers();
         } else {
-            ready = wallpapers.length > 0;
+            console.log("[WallpaperService] Waiting for MonitorService to be ready...");
         }
     }
 }
