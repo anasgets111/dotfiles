@@ -17,10 +17,7 @@ Singleton {
         length: wallpapersModel.count
     }, (_, i) => wallpapersModel.get(i))
 
-    property var wallpaperMap: ({
-            // "HDMI-A-1": "/home/anas/Pictures/3.jpg",
-            "eDP-1": "/home/anas/Pictures/3.jpg"
-        })
+    property var wallpaperMap: ({})
 
     Connections {
         target: wallpaperService.monitorService
