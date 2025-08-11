@@ -1,11 +1,12 @@
 import QtQuick
 import Quickshell.Services.Pam
 import Quickshell.Wayland
+import Quickshell
 import "../services" as Services
 
 Item {
     id: root
-    required property WlSessionLockSurface lock
+    required property WlSessionLock lock
 
     property string passwordBuffer: ""
 
@@ -26,6 +27,9 @@ Item {
 
     PamContext {
         id: pam
+        user: Services.MainService.username
+
+        config: "login"
 
         onResponseRequiredChanged: {
             if (responseRequired) {
@@ -37,7 +41,14 @@ Item {
         onCompleted: res => {
             if (res === PamResult.Success) {
                 Services.LockService.requestUnlock();
+            } else {
+                console.warn("[LockInput] Authentication failed");
+                // Optionally show an error message
             }
+        }
+
+        onError: err => {
+            console.error("[LockInput] PAM error:", err);
         }
     }
 
