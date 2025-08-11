@@ -29,8 +29,8 @@ Item {
 
         onResponseRequiredChanged: {
             if (responseRequired) {
-                respond(passwordBuffer);
-                passwordBuffer = "";
+                respond(root.passwordBuffer);
+                root.passwordBuffer = "";
             }
         }
 
@@ -46,7 +46,7 @@ Item {
         spacing: 8
 
         Text {
-            text: passwordBuffer.length > 0 ? "*".repeat(passwordBuffer.length) : "Enter password"
+            text: root.passwordBuffer.length > 0 ? "*".repeat(root.passwordBuffer.length) : "Enter password"
             font.pixelSize: 18
             color: "white"
         }
