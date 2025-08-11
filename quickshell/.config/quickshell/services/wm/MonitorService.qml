@@ -115,28 +115,55 @@ Singleton {
         }
     }
 
-    function parseEdidCapabilities(connector, callback) {
-        var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
-        var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
-        proc.stdout = collector;
+    function parseEdidCapabilities(monitorName, callback) {
+        // Step 1: List DRM connectors
+        var listProc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
+        var listCollector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', listProc);
+        listProc.stdout = listCollector;
 
-        collector.onStreamFinished.connect(function () {
-            const text = collector.text;
-            const vrrSupported = /Adaptive-Sync|FreeSync/i.test(text);
-            const hdrSupported = /HDR Static Metadata Data Block/i.test(text) || /SMPTE ST2084/i.test(text) || /\bHLG\b/i.test(text) || /BT2020YCC/i.test(text) || /BT2020RGB/i.test(text);
+        listCollector.onStreamFinished.connect(function () {
+            const connectors = listCollector.text.trim().split(/\r?\n/);
+            // Find connector that ends with monitorName (e.g., DP-3)
+            const connector = connectors.find(c => c.endsWith(monitorName));
+            if (!connector) {
+                console.warn(`[MonitorService] No DRM connector found for ${monitorName}`);
+                callback({
+                    vrr: {
+                        supported: false
+                    },
+                    hdr: {
+                        supported: false
+                    }
+                });
+                return;
+            }
 
-            callback({
-                vrr: {
-                    supported: vrrSupported
-                },
-                hdr: {
-                    supported: hdrSupported
-                }
+            // Step 2: Decode EDID for that connector
+            var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
+            var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
+            proc.stdout = collector;
+
+            collector.onStreamFinished.connect(function () {
+                const text = collector.text;
+                const vrrSupported = /Adaptive-Sync|FreeSync/i.test(text);
+                const hdrSupported = /HDR Static Metadata Data Block/i.test(text) || /SMPTE ST2084/i.test(text) || /\bHLG\b/i.test(text) || /BT2020YCC/i.test(text) || /BT2020RGB/i.test(text);
+
+                callback({
+                    vrr: {
+                        supported: vrrSupported
+                    },
+                    hdr: {
+                        supported: hdrSupported
+                    }
+                });
             });
+
+            proc.command = ["edid-decode", `/sys/class/drm/${connector}/edid`];
+            proc.running = true;
         });
 
-        proc.command = ["edid-decode", `/sys/class/drm/${connector}/edid`];
-        proc.running = true;
+        listProc.command = ["ls", "/sys/class/drm"];
+        listProc.running = true;
     }
 
     function logMonitorFeatures(list) {
