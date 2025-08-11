@@ -50,7 +50,7 @@ Singleton {
 
     // === IPC interface ===
     IpcHandler {
-        target: "lock"
+        target: "session"
 
         function lock() {
             lockService.requestLock();
@@ -63,19 +63,6 @@ Singleton {
         function isLocked() {
             return lockService.locked;
         }
-    }
-
-    // === Keyboard shortcuts ===
-    // Lock shortcut
-    Shortcut {
-        sequence: "Meta+L"
-        onActivated: lockService.requestLock()
-    }
-
-    // Unlock shortcut
-    Shortcut {
-        sequence: "Meta+U"
-        onActivated: lockService.requestUnlock()
     }
 
     Component.onCompleted: {

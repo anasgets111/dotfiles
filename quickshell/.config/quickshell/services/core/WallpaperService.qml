@@ -34,7 +34,14 @@ Singleton {
             }
         }
     }
-
+    function wallpaperFor(name) {
+        for (let i = 0; i < wallpapersModel.count; i++) {
+            const w = wallpapersModel.get(i);
+            if (w.name === name)
+                return w;
+        }
+        return null;
+    }
     function syncWallpapersWithMonitors() {
         const monitorCount = monitorService.monitorsModel.count;
         const wallpaperCount = wallpapersModel.count;
