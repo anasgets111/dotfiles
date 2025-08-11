@@ -17,13 +17,16 @@ ShellRoot {
 
     // Render wallpapers only when ready
     Variants {
-        model: root.wallpaper.ready ? root.wallpaper.wallpapers : []
+        model: root.wallpaper.wallpapersArray
 
         WlrLayershell {
             id: layerShell
             required property var modelData
 
-            screen: Quickshell.screens.find(s => s.name === layerShell.modelData.name)
+            screen: {
+                const scr = Quickshell.screens.find(s => s.name === layerShell.modelData.name);
+                return scr || null;
+            }
             layer: WlrLayer.Background
             exclusionMode: ExclusionMode.Ignore
 
@@ -31,6 +34,7 @@ ShellRoot {
             anchors.bottom: true
             anchors.left: true
             anchors.right: true
+
             Image {
                 anchors.fill: parent
                 source: layerShell.modelData.wallpaper
@@ -46,6 +50,8 @@ ShellRoot {
                         return Image.Pad;
                     case "tile":
                         return Image.Tile;
+                    default:
+                        return Image.PreserveAspectCrop;
                     }
                 }
             }
@@ -78,7 +84,6 @@ ShellRoot {
         function onReadyChanged() {
             if (root.wallpaper.ready) {
                 console.log("=== WallpaperService Ready ===");
-                console.log("Wallpapers:", root.wallpaper.wallpapers.length);
             }
         }
     }
