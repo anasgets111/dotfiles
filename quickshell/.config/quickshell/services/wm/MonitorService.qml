@@ -153,7 +153,7 @@ Singleton {
                 const text = collector.text;
                 console.log(`[MonitorService] [EDID] edid-decode output length: ${text.length} chars`);
 
-                const vrrSupported = /Adaptive-Sync|FreeSync/i.test(text);
+                const vrrSupported = /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text);
                 const hdrSupported = /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text);
 
                 console.log(`[MonitorService] [EDID] VRR supported: ${vrrSupported}`);
