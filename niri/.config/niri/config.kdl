@@ -168,7 +168,7 @@ window-rule {
     match app-id="zenity"
     match app-id="pavucontrol"
     match app-id="mpv"
-    match title=r#".*Global Updates.*"#
+    match title=".*Global Updates"
     open-floating true
     default-column-width { proportion 0.74; }
     default-window-height { proportion 0.74; }
@@ -347,13 +347,10 @@ binds {
     Mod+W { toggle-column-tabbed-display; }
 
 
-Print hotkey-overlay-title="Take Screenshot and Annotate" { screenshot ; }
-
-
-    // Print { screenshot; }
+    Print hotkey-overlay-title="Take Screenshot and Annotate" { screenshot ; }
     Ctrl+Print { screenshot-screen; }
     Alt+Print { screenshot-window; }
-
+    Shift+Print { spawn "ScreenRecording.sh" ;}
     // Applications such as remote-desktop clients and software KVM switches may
     // request that niri stops processing the keyboard shortcuts defined here
     // so they may, for example, forward the key presses as-is to a remote machine.

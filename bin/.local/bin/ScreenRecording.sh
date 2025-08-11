@@ -2,14 +2,14 @@
 
 # --- User Configurable Variables ---
 VIDEO_DIR="$HOME/Videos" # Directory for recordings
-TARGET_MONITOR="eDP-1"               # Monitor to record (e.g., DP-3, eDP-1, or use 'focused' for active monitor)
+TARGET_MONITOR="DP-3"               # Monitor to record (e.g., DP-3, eDP-1, or use 'focused' for active monitor)
 AUDIO_SOURCE=""       # leave empty "" for no audio, or "default_output" for system audio or "default_output|default_input" for both
 CONTAINER_FORMAT="mp4"              # Video container format (mp4, mkv, etc.)
 WAYBAR_ICON=" "                     # Icon to show in Waybar when recording (ensure font supports it)
 
 # SDR Recording Settings
 SDR_FPS="60"
-SDR_CODEC="h264"
+SDR_CODEC="h265"
 SDR_COLOR_RANGE="limited"
 
 # HDR Recording Settings
