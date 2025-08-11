@@ -12,6 +12,21 @@ Singleton {
     property var impl: null
     property bool ready: false
 
+    signal monitorsChanged
+
+    // Always listen to Quickshell.screensChanged for hotplug
+    Connections {
+        target: Quickshell
+        function onScreensChanged() {
+            console.log("[MonitorService] Quickshell.screensChanged detected");
+            const list = monitorService.normalizeScreens(Quickshell.screens);
+            monitorService.updateMonitors(list);
+            if (monitorService.impl) {
+                monitorService.logMonitorFeatures(list);
+            }
+        }
+    }
+
     Connections {
         target: monitorService.mainService
         function onReadyChanged() {
@@ -28,40 +43,174 @@ Singleton {
     }
 
     function setupImpl() {
-        // Start with Quickshell.screens
-        updateMonitors(Quickshell.screens);
+        console.log("[MonitorService] setupImpl() called");
 
-        // Hook WM-specific impl
+        // Always start from Quickshell.screens
+        const list = normalizeScreens(Quickshell.screens);
+        updateMonitors(list);
+
+        // Pick WM-specific impl for control functions
         if (monitorService.mainService.currentWM === "hyprland") {
             monitorService.impl = Services.HyprMonitorService;
         } else if (monitorService.mainService.currentWM === "niri") {
             monitorService.impl = Services.NiriMonitorService;
         }
 
-        // Merge WM-specific info if available
-        if (monitorService.impl && monitorService.impl.monitorsChanged) {
-            monitorService.impl.monitorsChanged.connect(() => {
-                const newList = monitorService.impl.monitors.length ? monitorService.impl.monitors : Quickshell.screens;
-                updateMonitors(newList);
-            });
-        }
+        // Now that impl is set, log features
+        logMonitorFeatures(list);
 
         monitorService.ready = true;
         console.log("[MonitorService] Ready with", monitorsModel.count, "monitors");
     }
 
-    function updateMonitors(newList) {
-        monitorsModel.clear();
-        for (let m of newList) {
-            monitorsModel.append({
-                name: m.name,
-                width: m.width,
-                height: m.height,
-                scale: m.devicePixelRatio || 1,
-                fps: m.refreshRate || 60,
-                bitDepth: m.colorDepth || 8,
-                orientation: m.orientation
+    // Normalize Quickshell.screens into our standard monitor object format
+    function normalizeScreens(screens) {
+        const arr = [];
+        for (let i = 0; i < screens.length; i++) {
+            const s = screens[i];
+            arr.push({
+                name: s.name,
+                width: s.width,
+                height: s.height,
+                scale: s.devicePixelRatio || 1,
+                fps: s.refreshRate || 60,
+                bitDepth: s.colorDepth || 8,
+                orientation: s.orientation,
+                vrr: "off"
             });
+        }
+        return arr;
+    }
+
+    function updateMonitors(newList) {
+        console.log("[MonitorService] updateMonitors() called with", newList.length, "monitors");
+
+        const existingCount = monitorsModel.count;
+        const newCount = newList.length;
+        let setChanged = false;
+
+        // Update existing
+        const minCount = Math.min(existingCount, newCount);
+        for (let i = 0; i < minCount; i++) {
+            const oldItem = monitorsModel.get(i);
+            const m = newList[i];
+
+            if (oldItem.name !== m.name || oldItem.width !== m.width || oldItem.height !== m.height || oldItem.scale !== m.scale || oldItem.fps !== m.fps || oldItem.bitDepth !== m.bitDepth || oldItem.orientation !== m.orientation || oldItem.vrr !== m.vrr) {
+                monitorsModel.set(i, m);
+                setChanged = true;
+            }
+        }
+
+        // Remove extra
+        if (existingCount > newCount) {
+            setChanged = true;
+            for (let i = existingCount - 1; i >= newCount; i--) {
+                monitorsModel.remove(i);
+            }
+        }
+
+        // Add new
+        if (newCount > existingCount) {
+            setChanged = true;
+            for (let i = existingCount; i < newCount; i++) {
+                monitorsModel.append(newList[i]);
+            }
+        }
+
+        if (setChanged) {
+            console.log("[MonitorService] Monitor set changed → emitting monitorsChanged()");
+            monitorsChanged();
+        }
+    }
+
+    // === New: Log available features for each monitor ===
+    function logMonitorFeatures(list) {
+        if (!impl || !impl.getAvailableFeatures) {
+            console.log("[MonitorService] No backend available for feature detection");
+            return;
+        }
+
+        for (let i = 0; i < list.length; i++) {
+            const mon = list[i];
+            impl.getAvailableFeatures(mon.name, function (features) {
+                if (!features) {
+                    console.log(`[MonitorService] No feature info for ${mon.name}`);
+                    return;
+                }
+                console.log(`[MonitorService] Features for ${mon.name}:`);
+                console.log(`  Modes: ${features.modes.map(m => `${m.width}x${m.height}@${m.refreshRate}`).join(", ")}`);
+                console.log(`  VRR supported: ${features.vrr}`);
+                console.log(`  HDR supported: ${features.hdr}`);
+            });
+        }
+    }
+
+    // === Control functions (delegate to impl if available) ===
+    function setMode(name, width, height, refreshRate) {
+        if (impl && impl.setMode)
+            impl.setMode(name, width, height, refreshRate);
+    }
+
+    function setScale(name, scale) {
+        if (impl && impl.setScale)
+            impl.setScale(name, scale);
+    }
+
+    function setTransform(name, transform) {
+        if (impl && impl.setTransform)
+            impl.setTransform(name, transform);
+    }
+
+    function setPosition(name, x, y) {
+        if (impl && impl.setPosition)
+            impl.setPosition(name, x, y);
+    }
+
+    function setVrr(name, mode) {
+        if (impl && impl.setVrr)
+            impl.setVrr(name, mode);
+    }
+
+    function changeMonitorSettings(settings) {
+        if (!impl) {
+            console.warn("[MonitorService] No WM backend available for control");
+            return;
+        }
+
+        const {
+            name,
+            width,
+            height,
+            refreshRate,
+            scale,
+            transform,
+            position,
+            vrr
+        } = settings;
+
+        if (width && height && refreshRate && impl.setMode) {
+            impl.setMode(name, width, height, refreshRate);
+        }
+        if (scale && impl.setScale) {
+            impl.setScale(name, scale);
+        }
+        if (transform && impl.setTransform) {
+            impl.setTransform(name, transform);
+        }
+        if (position && impl.setPosition) {
+            impl.setPosition(name, position.x, position.y);
+        }
+        if (vrr && impl.setVrr) {
+            impl.setVrr(name, vrr);
+        }
+    }
+
+    function getAvailableFeatures(name, callback) {
+        if (impl && impl.getAvailableFeatures) {
+            impl.getAvailableFeatures(name, callback);
+        } else {
+            console.warn("[MonitorService] No backend available for getAvailableFeatures");
+            callback(null);
         }
     }
 }
