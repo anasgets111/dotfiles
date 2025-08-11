@@ -55,35 +55,44 @@ WlSessionLockSurface {
         onTriggered: root.lock.locked = false
     }
 
-    // Source content to be blurred
+    // Pre-blur pipeline (visible but offscreen)
     Item {
-        id: wallpaperContainer
-        anchors.fill: parent
+        id: blurPipeline
+        x: -root.width
+        y: -root.height
+        width: root.width
+        height: root.height
 
-        // Crucial: render this item as a layer and apply the effect there
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            // No source needed when using layer.effect; it's implicit
-            autoPaddingEnabled: false
-            blurEnabled: true
-            blurMax: 64
-            blurMultiplier: 2.0
-            blur: root.locked ? 1.0 : 0.0
-
-            Behavior on blur {
-                NumberAnimation {
-                    duration: 300
-                    easing.type: Easing.InOutQuad
-                }
-            }
-        }
-
+        // The actual image
         Image {
-            id: wallpaperImage
+            id: srcImage
             anchors.fill: parent
             source: root.lastWallpaper
             fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: true
         }
+
+        // Apply blur as a visible effect item
+        MultiEffect {
+            id: blurEffect
+            anchors.fill: parent
+            source: srcImage
+            autoPaddingEnabled: false
+            blurEnabled: true
+            blurMax: 64
+            blurMultiplier: 1.0
+            blur: 1.0
+        }
+    }
+
+    // Display the blurred texture
+    ShaderEffectSource {
+        id: blurredSource
+        anchors.fill: parent
+        sourceItem: blurPipeline
+        live: false
+        hideSource: false
     }
 
     // Lock input stays above
