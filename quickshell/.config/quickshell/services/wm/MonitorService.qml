@@ -116,16 +116,21 @@ Singleton {
     }
 
     function parseEdidCapabilities(connectorName, callback) {
-        // Step 1: Find the correct cardX-<connector> entry
+        console.log(`[MonitorService] [EDID] Looking for DRM entry for connector: ${connectorName}`);
+
+        // Step 1: List /sys/class/drm
         var findProc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
         var findCollector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', findProc);
         findProc.stdout = findCollector;
 
         findCollector.onStreamFinished.connect(function () {
             const entries = findCollector.text.split(/\r?\n/).filter(Boolean);
+            console.log(`[MonitorService] [EDID] DRM entries found: ${entries.join(", ")}`);
+
+            // Step 2: Find matching entry
             const match = entries.find(line => line.endsWith(`-${connectorName}`));
             if (!match) {
-                console.warn(`[MonitorService] No DRM entry found for connector ${connectorName}`);
+                console.warn(`[MonitorService] [EDID] No DRM entry found for connector ${connectorName}`);
                 callback({
                     vrr: {
                         supported: false
@@ -137,15 +142,23 @@ Singleton {
                 return;
             }
 
-            // Step 2: Run edid-decode on the correct path
+            console.log(`[MonitorService] [EDID] Matched DRM entry: ${match}`);
+
+            // Step 3: Run edid-decode on the matched entry
             var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
             var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
             proc.stdout = collector;
 
             collector.onStreamFinished.connect(function () {
                 const text = collector.text;
+                console.log(`[MonitorService] [EDID] edid-decode output length: ${text.length} chars`);
+
                 const vrrSupported = /Adaptive-Sync|FreeSync/i.test(text);
                 const hdrSupported = /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text);
+
+                console.log(`[MonitorService] [EDID] VRR supported: ${vrrSupported}`);
+                console.log(`[MonitorService] [EDID] HDR supported: ${hdrSupported}`);
+
                 callback({
                     vrr: {
                         supported: vrrSupported
@@ -156,7 +169,9 @@ Singleton {
                 });
             });
 
-            proc.command = ["edid-decode", `/sys/class/drm/${match}/edid`];
+            const edidPath = `/sys/class/drm/${match}/edid`;
+            console.log(`[MonitorService] [EDID] Running: edid-decode ${edidPath}`);
+            proc.command = ["edid-decode", edidPath];
             proc.running = true;
         });
 
