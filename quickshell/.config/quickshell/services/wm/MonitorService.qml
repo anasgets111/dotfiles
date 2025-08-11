@@ -123,8 +123,8 @@ Singleton {
 
         listCollector.onStreamFinished.connect(function () {
             const connectors = listCollector.text.trim().split(/\r?\n/);
-            // Find connector that ends with monitorName (e.g., DP-3)
-            const connector = connectors.find(c => c.endsWith(monitorName));
+            // Match any card number, e.g., card0-DP-3, card1-DP-3
+            const connector = connectors.find(c => c.match(new RegExp(`^card\\d+-${monitorName}$`)));
             if (!connector) {
                 console.warn(`[MonitorService] No DRM connector found for ${monitorName}`);
                 callback({
