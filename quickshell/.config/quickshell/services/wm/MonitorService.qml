@@ -122,27 +122,13 @@ Singleton {
 
         listCollector.onStreamFinished.connect(function () {
             const connectors = listCollector.text.trim().split(/\r?\n/);
-            let found = null;
-
-            for (let c of connectors) {
-                // Match suffix after first dash: cardX-DP-3 → DP-3
+            const matches = connectors.filter(c => {
                 const parts = c.split("-");
-                if (parts.length >= 2 && parts.slice(1).join("-") === monitorName) {
-                    // Check if connected
-                    try {
-                        const status = readFile(`/sys/class/drm/${c}/status`);
-                        if (status.trim() === "connected") {
-                            found = c;
-                            break;
-                        }
-                    } catch (e) {
-                        console.warn(`[MonitorService] Failed to read status for ${c}`, e);
-                    }
-                }
-            }
+                return parts.length >= 2 && parts.slice(1).join("-") === monitorName;
+            });
 
-            if (!found) {
-                console.warn(`[MonitorService] No connected DRM connector found for ${monitorName}`);
+            if (matches.length === 0) {
+                console.warn(`[MonitorService] No DRM connector matches ${monitorName}`);
                 callback({
                     vrr: {
                         supported: false
@@ -154,21 +140,43 @@ Singleton {
                 return;
             }
 
-            runEdidDecode(found, callback);
+            // Check each match for "connected" status
+            checkNextConnector(matches, 0, monitorName, callback);
         });
 
         listProc.command = ["ls", "/sys/class/drm"];
         listProc.running = true;
     }
 
-    function readFile(path) {
-        const proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
-        const collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
-        proc.stdout = collector;
-        proc.command = ["cat", path];
-        proc.running = true;
-        // This is async in QML, so for sync you'd need to restructure — here we keep it simple
-        return collector.text || "";
+    function checkNextConnector(matches, index, monitorName, callback) {
+        if (index >= matches.length) {
+            console.warn(`[MonitorService] No connected DRM connector found for ${monitorName}`);
+            callback({
+                vrr: {
+                    supported: false
+                },
+                hdr: {
+                    supported: false
+                }
+            });
+            return;
+        }
+
+        const connector = matches[index];
+        var statusProc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
+        var statusCollector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', statusProc);
+        statusProc.stdout = statusCollector;
+
+        statusCollector.onStreamFinished.connect(function () {
+            if (statusCollector.text.trim() === "connected") {
+                runEdidDecode(connector, callback);
+            } else {
+                checkNextConnector(matches, index + 1, monitorName, callback);
+            }
+        });
+
+        statusProc.command = ["cat", `/sys/class/drm/${connector}/status`];
+        statusProc.running = true;
     }
 
     function runEdidDecode(connector, callback) {
@@ -177,7 +185,7 @@ Singleton {
         proc.stdout = collector;
 
         collector.onStreamFinished.connect(function () {
-            const text = collector.text;
+            /** @type var */ const text = collector.text;
             const vrrSupported = /Adaptive-Sync|FreeSync/i.test(text);
             const hdrSupported = /HDR Static Metadata Data Block/i.test(text) || /SMPTE ST2084/i.test(text) || /\bHLG\b/i.test(text) || /BT2020YCC/i.test(text) || /BT2020RGB/i.test(text);
 
