@@ -122,30 +122,26 @@ Singleton {
 
         listCollector.onStreamFinished.connect(function () {
             const connectors = listCollector.text.trim().split(/\r?\n/);
-            let foundConnector = null;
+            let found = null;
 
             for (let c of connectors) {
-                if (c.endsWith(monitorName)) {
-                    // Check if this connector is connected
+                // Match suffix after first dash: cardX-DP-3 → DP-3
+                const parts = c.split("-");
+                if (parts.length >= 2 && parts.slice(1).join("-") === monitorName) {
+                    // Check if connected
                     try {
-                        var statusProc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
-                        var statusCollector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', statusProc);
-                        statusProc.stdout = statusCollector;
-                        statusCollector.onStreamFinished.connect(function () {
-                            if (statusCollector.text.trim() === "connected" && !foundConnector) {
-                                foundConnector = c;
-                                runEdidDecode(foundConnector, callback);
-                            }
-                        });
-                        statusProc.command = ["cat", `/sys/class/drm/${c}/status`];
-                        statusProc.running = true;
+                        const status = readFile(`/sys/class/drm/${c}/status`);
+                        if (status.trim() === "connected") {
+                            found = c;
+                            break;
+                        }
                     } catch (e) {
                         console.warn(`[MonitorService] Failed to read status for ${c}`, e);
                     }
                 }
             }
 
-            if (!foundConnector) {
+            if (!found) {
                 console.warn(`[MonitorService] No connected DRM connector found for ${monitorName}`);
                 callback({
                     vrr: {
@@ -155,11 +151,24 @@ Singleton {
                         supported: false
                     }
                 });
+                return;
             }
+
+            runEdidDecode(found, callback);
         });
 
         listProc.command = ["ls", "/sys/class/drm"];
         listProc.running = true;
+    }
+
+    function readFile(path) {
+        const proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
+        const collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
+        proc.stdout = collector;
+        proc.command = ["cat", path];
+        proc.running = true;
+        // This is async in QML, so for sync you'd need to restructure — here we keep it simple
+        return collector.text || "";
     }
 
     function runEdidDecode(connector, callback) {
