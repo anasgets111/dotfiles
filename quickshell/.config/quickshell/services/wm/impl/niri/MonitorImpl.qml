@@ -1,3 +1,4 @@
+// NiriMonitorService.qml
 pragma Singleton
 import Quickshell
 import QtQuick
@@ -18,33 +19,81 @@ Singleton {
     }
 
     function getAvailableFeatures(name, callback) {
-        // First get modes
-        runCmd(["niri", "msg", "output", name, "mode", "help"], function (modeOutput) {
-            const modes = [];
-            modeOutput.split(/\r?\n/).forEach(line => {
-                const match = line.trim().match(/^(\d+)x(\d+)@(\d+)/);
-                if (match) {
-                    modes.push({
-                        width: parseInt(match[1]),
-                        height: parseInt(match[2]),
-                        refreshRate: parseInt(match[3])
-                    });
-                }
-            });
+        runCmd(["niri", "msg", "outputs"], function (output) {
+            const lines = output.split(/\r?\n/);
+            let current = null;
+            let result = null;
+            let inModes = false;
 
-            // Then check VRR
-            runCmd(["niri", "msg", "output", name, "vrr", "help"], function (vrrOutput) {
-                const vrrSupported = /on|adaptive/i.test(vrrOutput);
+            for (let line of lines) {
+                line = line.trim();
+                const outMatch = line.match(/^Output\s+"(.+)"\s+\(([^)]+)\)/);
+                if (outMatch) {
+                    if (current && current.name === name) {
+                        result = current;
+                        break;
+                    }
+                    current = {
+                        fullName: outMatch[1],
+                        name: outMatch[2],
+                        modes: [],
+                        vrr: {
+                            active: false
+                        },
+                        hdr: {
+                            active: false
+                        }
+                    };
+                    inModes = false;
+                    continue;
+                }
+                if (!current)
+                    continue;
+                if (line.startsWith("Variable refresh rate:")) {
+                    if (/not supported/i.test(line)) {
+                        current.vrr = {
+                            active: false
+                        };
+                    } else {
+                        current.vrr = {
+                            active: /enabled|on/i.test(line)
+                        };
+                    }
+                }
+                if (line.startsWith("Available modes:")) {
+                    inModes = true;
+                    continue;
+                }
+                if (inModes) {
+                    if (!line.startsWith(" ")) {
+                        inModes = false;
+                    } else {
+                        const modeMatch = line.trim().match(/^(\d+)x(\d+)@([\d.]+)/);
+                        if (modeMatch) {
+                            current.modes.push({
+                                width: parseInt(modeMatch[1]),
+                                height: parseInt(modeMatch[2]),
+                                refreshRate: parseFloat(modeMatch[3])
+                            });
+                        }
+                    }
+                }
+            }
+            if (current && current.name === name) {
+                result = current;
+            }
+            if (result) {
                 callback({
-                    modes: modes,
-                    vrr: vrrSupported,
-                    hdr: false // Niri doesn't expose HDR toggle yet
+                    modes: result.modes,
+                    vrr: result.vrr,
+                    hdr: result.hdr
                 });
-            });
+            } else {
+                callback(null);
+            }
         });
     }
 
-    // Control functions
     function setMode(name, width, height, refreshRate) {
         runCmd(["niri", "msg", "output", name, "mode", `${width}x${height}@${refreshRate}`], () => {});
     }

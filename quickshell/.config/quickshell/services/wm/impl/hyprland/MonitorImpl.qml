@@ -1,3 +1,4 @@
+// HyprMonitorService.qml
 pragma Singleton
 import Quickshell
 import QtQuick
@@ -6,6 +7,10 @@ import Quickshell.Hyprland
 
 Singleton {
     id: hyprMonitorService
+
+    function stripAnsi(str) {
+        return str.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "");
+    }
 
     function runCmd(cmd, onDone) {
         var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', hyprMonitorService);
@@ -16,11 +21,6 @@ Singleton {
         });
         proc.command = cmd;
         proc.running = true;
-    }
-
-    function stripAnsi(str) {
-        // Remove ANSI escape sequences
-        return str.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "");
     }
 
     function getAvailableFeatures(name, callback) {
@@ -46,11 +46,17 @@ Singleton {
                         raw: modeStr
                     };
                 });
-                const hdrCapable = mon.currentFormat && /2101010|P010|PQ/i.test(mon.currentFormat);
+                const hdrActive = mon.currentFormat && /2101010|P010|P012|PQ/i.test(mon.currentFormat);
+                const isMirror = mon.mirrorOf && mon.mirrorOf !== "none";
                 callback({
                     modes: modes,
-                    vrr: mon.vrr || false,
-                    hdr: hdrCapable
+                    vrr: {
+                        active: !!mon.vrr
+                    },
+                    hdr: {
+                        active: hdrActive
+                    },
+                    mirror: isMirror
                 });
             } catch (e) {
                 console.error("[HyprMonitorService] Failed to parse hyprctl output", e, output);
@@ -59,7 +65,6 @@ Singleton {
         });
     }
 
-    // Control functions
     function setMode(name, width, height, refreshRate) {
         Hyprland.dispatch("output", `${name},mode,${width}x${height}@${refreshRate}`);
     }
