@@ -59,23 +59,4 @@ ShellRoot {
             }
         }
     }
-    // Log when MainService is ready
-    Connections {
-        target: root.main
-        function onReadyChanged() {
-            if (root.main.ready) {
-                console.log("=== MainService Ready ===");
-                console.log("isArchBased:", root.main.isArchBased);
-                console.log("currentWM:", root.main.currentWM);
-                console.log("hasBrightnessControl:", root.main.hasBrightnessControl);
-                console.log("hasKeyboardBacklight:", root.main.hasKeyboardBacklight);
-                console.log("userInfo:", JSON.stringify({
-                    username: root.main.username,
-                    fullName: root.main.fullName,
-                    hostname: root.main.hostname,
-                    uptime: root.dateTime.formatDuration(root.main.uptime)
-                }));
-            }
-        }
-    }
 }

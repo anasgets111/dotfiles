@@ -47,11 +47,8 @@ Singleton {
         const wallpaperCount = wallpapersModel.count;
         const defaultWallpaper = "/home/anas/Pictures/3.jpg";
 
-        console.log("[WallpaperService] --- Sync Start ---");
-        console.log(`[WallpaperService] Monitors detected: ${monitorCount}`);
         for (let i = 0; i < monitorCount; i++) {
             const m = monitorService.monitorsModel.get(i);
-            console.log(`  Monitor[${i}]: name=${m.name}, size=${m.width}x${m.height}`);
         }
 
         // Update existing monitors
@@ -60,14 +57,10 @@ Singleton {
             const m = monitorService.monitorsModel.get(i);
 
             if (m.name && !wallpaperMap.hasOwnProperty(m.name)) {
-                console.log(`[WallpaperService] Monitor ${m.name} not in wallpaperMap → adding default`);
                 wallpaperMap[m.name] = defaultWallpaper;
-            } else {
-                console.log(`[WallpaperService] Monitor ${m.name} already in wallpaperMap`);
             }
 
             const newWallpaper = wallpaperMap[m.name] || defaultWallpaper;
-            console.log(`[WallpaperService] Assigning wallpaper to ${m.name}: ${newWallpaper}`);
 
             const w = wallpapersModel.get(i);
             wallpapersModel.set(i, {
@@ -85,7 +78,6 @@ Singleton {
 
         // Remove extra wallpapers
         if (wallpaperCount > monitorCount) {
-            console.log(`[WallpaperService] Removing ${wallpaperCount - monitorCount} extra wallpapers`);
             for (let i = wallpaperCount - 1; i >= monitorCount; i--) {
                 wallpapersModel.remove(i);
             }
@@ -93,19 +85,14 @@ Singleton {
 
         // Add new monitors
         if (monitorCount > wallpaperCount) {
-            console.log(`[WallpaperService] Adding ${monitorCount - wallpaperCount} new wallpapers`);
             for (let i = wallpaperCount; i < monitorCount; i++) {
                 const m = monitorService.monitorsModel.get(i);
 
                 if (m.name && !wallpaperMap.hasOwnProperty(m.name)) {
-                    console.log(`[WallpaperService] Monitor ${m.name} not in wallpaperMap → adding default`);
                     wallpaperMap[m.name] = defaultWallpaper;
-                } else {
-                    console.log(`[WallpaperService] Monitor ${m.name} already in wallpaperMap`);
                 }
 
                 const newWallpaper = wallpaperMap[m.name] || defaultWallpaper;
-                console.log(`[WallpaperService] Assigning wallpaper to ${m.name}: ${newWallpaper}`);
 
                 wallpapersModel.append({
                     name: m.name,
@@ -126,20 +113,14 @@ Singleton {
             length: wallpapersModel.count
         }, (_, i) => wallpapersModel.get(i)).every(w => w.width && w.height && w.scale);
 
-        console.log(`[WallpaperService] Ready: ${ready}`);
-        console.log("[WallpaperService] wallpapersModel after sync:");
         for (let i = 0; i < wallpapersModel.count; i++) {
             const w = wallpapersModel.get(i);
-            console.log(`  - ${w.name}: ${w.wallpaper}`);
         }
-        console.log("[WallpaperService] --- Sync End ---");
     }
 
     Component.onCompleted: {
         if (monitorService.ready) {
             syncWallpapersWithMonitors();
-        } else {
-            console.log("[WallpaperService] Waiting for MonitorService to be ready...");
         }
     }
 }
