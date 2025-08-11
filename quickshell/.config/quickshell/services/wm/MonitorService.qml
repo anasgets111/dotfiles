@@ -116,13 +116,14 @@ Singleton {
     }
 
     function parseEdidCapabilities(connectorName, callback) {
-        // Find the correct cardX-<connector> entry
+        // Step 1: Find the correct cardX-<connector> entry
         var findProc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
         var findCollector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', findProc);
         findProc.stdout = findCollector;
 
         findCollector.onStreamFinished.connect(function () {
-            const match = findCollector.text.split(/\r?\n/).find(line => line.endsWith(`-${connectorName}`));
+            const entries = findCollector.text.split(/\r?\n/).filter(Boolean);
+            const match = entries.find(line => line.endsWith(`-${connectorName}`));
             if (!match) {
                 console.warn(`[MonitorService] No DRM entry found for connector ${connectorName}`);
                 callback({
@@ -136,7 +137,7 @@ Singleton {
                 return;
             }
 
-            // Now run edid-decode on the correct path
+            // Step 2: Run edid-decode on the correct path
             var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
             var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
             proc.stdout = collector;
