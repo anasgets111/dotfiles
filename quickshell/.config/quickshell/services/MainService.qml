@@ -21,7 +21,7 @@ Singleton {
     // Process to get username, full name, and hostname
     Process {
         id: userInfoProc
-        command: ["bash", "-c", "echo \"$USER|$(getent passwd $USER | cut -d: -f5 | cut -d, -f1)|$(hostname)\""]
+        command: ["bash", "-c", "echo \"$USER|$(getent passwd $USER | cut -d: -f5 | cut -d, -f1)|$HOSTNAME\""]
         stdout: StdioCollector {
             onStreamFinished: {
                 // Output: username|fullName|hostname
