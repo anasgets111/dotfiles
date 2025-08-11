@@ -1,7 +1,9 @@
+// MonitorService.qml
 pragma Singleton
 import Quickshell
 import QtQml
 import QtQuick
+import Quickshell.Io
 import "../" as Services
 
 Singleton {
@@ -14,16 +16,14 @@ Singleton {
 
     signal monitorsChanged
 
-    // Always listen to Quickshell.screensChanged for hotplug
     Connections {
         target: Quickshell
         function onScreensChanged() {
             console.log("[MonitorService] Quickshell.screensChanged detected");
             const list = monitorService.normalizeScreens(Quickshell.screens);
             monitorService.updateMonitors(list);
-            if (monitorService.impl) {
+            if (monitorService.impl)
                 monitorService.logMonitorFeatures(list);
-            }
         }
     }
 
@@ -44,26 +44,22 @@ Singleton {
 
     function setupImpl() {
         console.log("[MonitorService] setupImpl() called");
-
-        // Always start from Quickshell.screens
         const list = normalizeScreens(Quickshell.screens);
         updateMonitors(list);
 
-        // Pick WM-specific impl for control functions
         if (monitorService.mainService.currentWM === "hyprland") {
             monitorService.impl = Services.HyprMonitorService;
         } else if (monitorService.mainService.currentWM === "niri") {
             monitorService.impl = Services.NiriMonitorService;
         }
 
-        // Now that impl is set, log features
-        logMonitorFeatures(list);
+        if (impl)
+            logMonitorFeatures(list);
 
         monitorService.ready = true;
         console.log("[MonitorService] Ready with", monitorsModel.count, "monitors");
     }
 
-    // Normalize Quickshell.screens into our standard monitor object format
     function normalizeScreens(screens) {
         const arr = [];
         for (let i = 0; i < screens.length; i++) {
@@ -89,19 +85,16 @@ Singleton {
         const newCount = newList.length;
         let setChanged = false;
 
-        // Update existing
         const minCount = Math.min(existingCount, newCount);
         for (let i = 0; i < minCount; i++) {
             const oldItem = monitorsModel.get(i);
             const m = newList[i];
-
             if (oldItem.name !== m.name || oldItem.width !== m.width || oldItem.height !== m.height || oldItem.scale !== m.scale || oldItem.fps !== m.fps || oldItem.bitDepth !== m.bitDepth || oldItem.orientation !== m.orientation || oldItem.vrr !== m.vrr) {
                 monitorsModel.set(i, m);
                 setChanged = true;
             }
         }
 
-        // Remove extra
         if (existingCount > newCount) {
             setChanged = true;
             for (let i = existingCount - 1; i >= newCount; i--) {
@@ -109,7 +102,6 @@ Singleton {
             }
         }
 
-        // Add new
         if (newCount > existingCount) {
             setChanged = true;
             for (let i = existingCount; i < newCount; i++) {
@@ -123,7 +115,27 @@ Singleton {
         }
     }
 
-    // === New: Log available features for each monitor ===
+    function parseEdidCapabilities(connector, callback) {
+        var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
+        var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
+        proc.stdout = collector;
+        collector.onStreamFinished.connect(function () {
+            const text = collector.text;
+            const vrrSupported = /Adaptive-Sync|FreeSync/i.test(text);
+            const hdrSupported = /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text);
+            callback({
+                vrr: {
+                    supported: vrrSupported
+                },
+                hdr: {
+                    supported: hdrSupported
+                }
+            });
+        });
+        proc.command = ["edid-decode", `/sys/class/drm/${connector}/edid`];
+        proc.running = true;
+    }
+
     function logMonitorFeatures(list) {
         if (!impl || !impl.getAvailableFeatures) {
             console.log("[MonitorService] No backend available for feature detection");
@@ -132,51 +144,49 @@ Singleton {
 
         for (let i = 0; i < list.length; i++) {
             const mon = list[i];
-            impl.getAvailableFeatures(mon.name, function (features) {
-                if (!features) {
-                    console.log(`[MonitorService] No feature info for ${mon.name}`);
-                    return;
-                }
-                console.log(`[MonitorService] Features for ${mon.name}:`);
-                console.log(`  Modes: ${features.modes.map(m => `${m.width}x${m.height}@${m.refreshRate}`).join(", ")}`);
-                console.log(`  VRR supported: ${features.vrr}`);
-                console.log(`  HDR supported: ${features.hdr}`);
+            parseEdidCapabilities(`card0-${mon.name}`, function (caps) {
+                impl.getAvailableFeatures(mon.name, function (features) {
+                    if (!features) {
+                        console.log(`[MonitorService] No feature info for ${mon.name}`);
+                        return;
+                    }
+                    console.log(`[MonitorService] Features for ${mon.name}:`);
+                    console.log(`  Modes: ${features.modes.map(m => `${m.width}x${m.height}@${m.refreshRate}`).join(", ")}`);
+                    console.log(`  VRR supported: ${caps.vrr.supported}, active: ${features.vrr.active}`);
+                    console.log(`  HDR supported: ${caps.hdr.supported}, active: ${features.hdr.active}`);
+                    if (features.mirror !== undefined) {
+                        console.log(`  Mirroring: ${features.mirror}`);
+                    }
+                });
             });
         }
     }
 
-    // === Control functions (delegate to impl if available) ===
     function setMode(name, width, height, refreshRate) {
         if (impl && impl.setMode)
             impl.setMode(name, width, height, refreshRate);
     }
-
     function setScale(name, scale) {
         if (impl && impl.setScale)
             impl.setScale(name, scale);
     }
-
     function setTransform(name, transform) {
         if (impl && impl.setTransform)
             impl.setTransform(name, transform);
     }
-
     function setPosition(name, x, y) {
         if (impl && impl.setPosition)
             impl.setPosition(name, x, y);
     }
-
     function setVrr(name, mode) {
         if (impl && impl.setVrr)
             impl.setVrr(name, mode);
     }
-
     function changeMonitorSettings(settings) {
         if (!impl) {
             console.warn("[MonitorService] No WM backend available for control");
             return;
         }
-
         const {
             name,
             width,
@@ -187,7 +197,6 @@ Singleton {
             position,
             vrr
         } = settings;
-
         if (width && height && refreshRate && impl.setMode) {
             impl.setMode(name, width, height, refreshRate);
         }
@@ -204,7 +213,6 @@ Singleton {
             impl.setVrr(name, vrr);
         }
     }
-
     function getAvailableFeatures(name, callback) {
         if (impl && impl.getAvailableFeatures) {
             impl.getAvailableFeatures(name, callback);
