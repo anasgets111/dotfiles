@@ -119,10 +119,12 @@ Singleton {
         var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
         var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
         proc.stdout = collector;
+
         collector.onStreamFinished.connect(function () {
             const text = collector.text;
             const vrrSupported = /Adaptive-Sync|FreeSync/i.test(text);
-            const hdrSupported = /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text);
+            const hdrSupported = /HDR Static Metadata Data Block/i.test(text) || /SMPTE ST2084/i.test(text) || /\bHLG\b/i.test(text) || /BT2020YCC/i.test(text) || /BT2020RGB/i.test(text);
+
             callback({
                 vrr: {
                     supported: vrrSupported
@@ -132,6 +134,7 @@ Singleton {
                 }
             });
         });
+
         proc.command = ["edid-decode", `/sys/class/drm/${connector}/edid`];
         proc.running = true;
     }
