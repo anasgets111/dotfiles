@@ -187,7 +187,7 @@ Singleton {
 
         for (let i = 0; i < list.length; i++) {
             const mon = list[i];
-            parseEdidCapabilities(`card0-${mon.name}`, function (caps) {
+            parseEdidCapabilities(mon.name, function (caps) {
                 impl.getAvailableFeatures(mon.name, function (features) {
                     if (!features) {
                         console.log(`[MonitorService] No feature info for ${mon.name}`);
