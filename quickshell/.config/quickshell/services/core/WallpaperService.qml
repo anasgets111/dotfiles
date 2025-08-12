@@ -34,7 +34,12 @@ Singleton {
             }
         }
     }
-    function wallpaperFor(name) {
+    function wallpaperFor(nameOrScreen) {
+        const name = typeof nameOrScreen === "string" ? nameOrScreen : (nameOrScreen && nameOrScreen.name) || null;
+
+        if (!name)
+            return null;
+
         for (let i = 0; i < wallpapersModel.count; i++) {
             const w = wallpapersModel.get(i);
             if (w.name === name)

@@ -60,7 +60,7 @@ ShellRoot {
         WlrLayershell {
             id: layerShell
             required property var modelData
-            screen: Quickshell.screens.find(s => s && layerShell.modelData && s === layerShell.modelData.screen) || null
+            screen: Quickshell.screens.find(s => s && s.name === layerShell.modelData.name) || null
             layer: WlrLayer.Background
             exclusionMode: ExclusionMode.Ignore
             anchors.top: true
