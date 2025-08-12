@@ -1,54 +1,57 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import Quickshell.Io
 
 Singleton {
     id: lockService
 
-    // Lifecycle
     property bool ready: false
-
-    // Lock state
     property bool locked: false
-    readonly property bool unlocked: !locked
+    property bool prelockInProgress: false
+    onPrelockInProgressChanged: {
+        const now = new Date().toISOString();
+        console.debug(`[LockService] prelockInProgress changed to: ${lockService.prelockInProgress} at ${now}`);
+    }
 
-    // Reference to WlSessionLock (set by UI)
-    property var sessionLock: null
+    signal preLockRequested
+    signal unlocked
 
-    // === Actions ===
     function requestLock() {
-        if (locked) {
-            console.log("[LockService] Already locked");
+        const now = new Date().toISOString();
+        console.debug(`[LockService] requestLock called. locked: ${locked} prelockInProgress: ${prelockInProgress} at ${now}`);
+        if (locked || prelockInProgress) {
+            console.debug(`[LockService] requestLock: Already locked or prelock in progress, aborting at ${now}.`);
             return;
         }
-        locked = true;
-        console.log("[LockService] Lock requested");
+        prelockInProgress = true;
+        console.debug(`[LockService] Pre-lock started at ${now}`);
+        prelockTimeout.restart();
+        preLockRequested();
+        console.debug(`[LockService] preLockRequested signal emitted at ${now}`);
     }
 
     function requestUnlock() {
-        if (!locked) {
-            console.log("[LockService] Already unlocked");
+        const now = new Date().toISOString();
+        if (!locked)
+            return;
+        locked = false;
+        console.debug(`[LockService] Unlock requested at ${now}`);
+        unlocked();
+    }
+
+    function confirmLock() {
+        const now = new Date().toISOString();
+        console.debug(`[LockService] confirmLock called. locked: ${locked} at ${now}`);
+        if (locked) {
+            console.debug(`[LockService] confirmLock: already locked, aborting at ${now}.`);
             return;
         }
-        locked = false;
-        console.log("[LockService] Unlock requested");
+        prelockInProgress = false;
+        prelockTimeout.stop();
+        locked = true;
+        console.debug(`[LockService] Lock engaged at ${now}`);
     }
-
-    // Called by UI when WlSessionLock is created
-    function registerSessionLock(lockObj) {
-        sessionLock = lockObj;
-        console.log("[LockService] Session lock registered");
-    }
-
-    // Called by UI when WlSessionLock is destroyed
-    function unregisterSessionLock() {
-        sessionLock = null;
-        console.log("[LockService] Session lock unregistered");
-    }
-
-    // === IPC interface ===
     IpcHandler {
         target: "session"
 
@@ -64,9 +67,22 @@ Singleton {
             return lockService.locked;
         }
     }
+    // Give compositors a bit more time to deliver a frame
+    property int prelockTimeoutMs: 200
+    Timer {
+        id: prelockTimeout
+        interval: lockService.prelockTimeoutMs
+        repeat: false
+        onTriggered: {
+            const now = new Date().toISOString();
+            console.warn(`[LockService] Pre-lock timeout; proceeding with available screenshots at ${now}`);
+            lockService.confirmLock();
+        }
+    }
 
     Component.onCompleted: {
         ready = true;
-        console.log("[LockService] Ready");
+        console.debug("[LockService] Component.onCompleted. Screens:", Quickshell.screens);
+        console.debug("[LockService] Ready");
     }
 }
