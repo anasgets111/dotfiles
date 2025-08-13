@@ -356,12 +356,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: volumeControl.audioReady ? (
-                    volumeControl.muted ? "0%" :
-                    (sliderBg.dragging || sliderBg.committing
-                        ? Math.round((sliderBg.pendingValue) * 100) + "%"
-                        : Math.round((volumeControl.volume / volumeControl.maxVolume) * 100) + "%")
-                ) : "--"
+                text: volumeControl.audioReady ? (volumeControl.muted ? "0%" : (sliderBg.dragging || sliderBg.committing ? Math.round((sliderBg.pendingValue) * 100) + "%" : Math.round((volumeControl.volume / volumeControl.maxVolume) * 100) + "%")) : "--"
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 font.bold: true
