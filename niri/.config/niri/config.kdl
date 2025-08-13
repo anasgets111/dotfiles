@@ -209,7 +209,7 @@ binds {
     Ctrl+Alt+Delete { spawn "missioncenter"; }
     
     Mod+Z { spawn "zeditor"; }
-    Mod+C { spawn "code"; }
+    Mod+C { spawn "codium"; }
     //Mod+SPACE { spawn "pidof rofi && pkill rofi || ~/.config/rofi/launchers/type-6/launcher.sh"; }
     Mod+E { spawn "nautilus"; }
     Mod+B { spawn "zen-browser"; }
