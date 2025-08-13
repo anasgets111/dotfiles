@@ -7,7 +7,7 @@ timeout 300 'swaylockl'
 
 # Turn off monitors after 5 minutes and 30 seconds (330 seconds total)
 # Power on monitors and ensure locker is active upon resume.
-timeout 330 'niri msg action power-off-monitors' resume 'niri msg action power-on-monitors && (swaylockl)'
+timeout 330 'niri msg action power-off-monitors' resume 'niri msg action power-on-monitors'
 
 # Execute lock command before the system goes to sleep (e.g., if logind suspends)
 before-sleep 'swaylockl'
