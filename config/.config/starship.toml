@@ -75,6 +75,7 @@ deleted = "[ $count](#6A1B9A bg:#E0DEF4)"    # Dark purple
 renamed = "[ $count](#6A1B9A bg:#E0DEF4)"    # Dark purple
 
 [cmd_duration]
+show_milliseconds = true
 min_time = 0
 format = "[](fg:#E0DEF4 bg:#CBA6F7)[  $duration ](#1E1E2E bg:#CBA6F7)[](#CBA6F7)"
 
