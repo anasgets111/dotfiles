@@ -125,6 +125,14 @@ spawn-at-startup "kdeconnect-indicator"
 spawn-at-startup "speech-dispatcher"
 spawn-at-startup "xwayland-satellite"
 spawn-at-startup "sh" "-c" "sleep 3 && openrgb --startminimized --profile 'Default'"
+spawn-at-startup "code"
+spawn-at-startup "zen-browser"
+spawn-at-startup "slack"
+spawn-at-startup "Telegram"
+spawn-at-startup "vesktop"
+spawn-at-startup "thunderbird"
+spawn-at-startup "xdg-terminal-exec"
+
 
 
 animations {
@@ -139,6 +147,47 @@ animations {
 // =====================
 // Window Rules Section
 // =====================
+
+window-rule {
+    match app-id="code"
+    open-on-workspace "Code"
+}
+window-rule {
+    match app-id="org.gnome.Nautilus"
+    open-on-workspace "Files"
+}
+window-rule {
+    match app-id="kitty"
+    match app-id="alacritty"
+    match app-id="org.gnome.Terminal"
+    open-on-workspace "Terminal"
+}
+window-rule {
+    match app-id="Slack"
+    open-on-workspace "Slack"
+}
+
+window-rule {
+    match app-id="org.telegram.desktop"
+    open-on-workspace "Telegram"
+}
+window-rule {
+    match app-id="vesktop"
+    open-on-workspace "Discord"
+}
+
+window-rule {
+    match app-id="zen"
+    open-on-workspace "Zen"
+}
+window-rule {
+    match app-id="org.chromium.Chromium"
+    open-on-workspace "Chromium"
+}
+window-rule {
+    match app-id="org.mozilla.thunderbird"
+    open-on-workspace "Thunderbird"
+}
 
 window-rule {
     geometry-corner-radius 15 15 0 0
@@ -168,6 +217,7 @@ window-rule {
     match app-id="pavucontrol"
     match app-id="mpv"
     match title=".*Global Updates"
+    match title="Sign in - Google Accounts — Zen Browser"
     open-floating true
     default-column-width { proportion 0.74; }
     default-window-height { proportion 0.74; }
@@ -209,13 +259,13 @@ binds {
     Ctrl+Alt+Delete { spawn "missioncenter"; }
     
     Mod+Z { spawn "zeditor"; }
-    Mod+C { spawn "codium"; }
+    Mod+C { spawn "code"; }
     //Mod+SPACE { spawn "pidof rofi && pkill rofi || ~/.config/rofi/launchers/type-6/launcher.sh"; }
     Mod+E { spawn "nautilus"; }
     Mod+B { spawn "zen-browser"; }
 
     Mod+S { spawn "slack"; }
-    Mod+T { spawn "telegram"; }
+    Mod+T { spawn "Telegram"; }
     Mod+D { spawn "vesktop"; }
 
     Super+L hotkey-overlay-title="Lock the Screen" { spawn "swaylock"; }
