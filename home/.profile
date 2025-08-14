@@ -30,16 +30,14 @@ if command -v nvidia-smi >/dev/null 2>&1; then
   export __GLX_VENDOR_LIBRARY_NAME="nvidia"
   export NVD_BACKEND="direct"
 
-  # Use EGLStreams plugin
-  export QT_QPA_PLATFORM="wayland"
   export EGL_PLATFORM="wayland_egl"
 else
   # Fallback to standard Wayland
-  export QT_QPA_PLATFORM="wayland"
   export EGL_PLATFORM="wayland"
 fi
 
 # Common Wayland & Electron
+export QT_QPA_PLATFORM="wayland"
 export GDK_BACKEND="wayland"
 export CLUTTER_BACKEND="wayland"
 export MOZ_ENABLE_WAYLAND="1"
