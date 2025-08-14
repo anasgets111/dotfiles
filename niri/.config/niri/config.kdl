@@ -185,7 +185,7 @@ window-rule {
     open-on-workspace "Chromium"
 }
 window-rule {
-    match app-id="org.mozilla.thunderbird"
+    match app-id="thunderbird"
     open-on-workspace "Thunderbird"
 }
 
@@ -416,6 +416,10 @@ binds {
     // Powers off the monitors. To turn them back on, do any input like
     // moving the mouse or pressing any other key.
     Mod+Shift+P { power-off-monitors; }
+}
+
+debug {
+    honor-xdg-activation-with-invalid-serial
 }
 
 screenshot-path "~/Pictures/Screenshot from %Y-%m-%d %H-%M-%S.png"
