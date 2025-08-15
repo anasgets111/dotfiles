@@ -118,6 +118,7 @@ spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
 spawn-at-startup "swayidle"
 spawn-at-startup "quickshell"
 // spawn-at-startup "swayosd-server"
+// spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
 // spawn-at-startup "swaync"
 spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
 spawn-at-startup "kdeconnectd"
@@ -421,7 +422,10 @@ binds {
 debug {
     honor-xdg-activation-with-invalid-serial
 }
-
+environment {
+    DISPLAY ":0"
+    ELECTRON_OZONE_PLATFORM_HINT "auto"
+}
 screenshot-path "~/Pictures/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
 // You can also set this to null to disable saving screenshots to disk.

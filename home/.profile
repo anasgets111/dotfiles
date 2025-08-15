@@ -20,9 +20,8 @@ export BIN="$HOME/.local/bin"
 export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc-2.0"
 export LESSHISTFILE="$XDG_CACHE_HOME/less_history"
 
+export DISPLAY=":0"
 
-# Display
-# export DISPLAY=":1"
 # Qt & EGL selection
 if command -v nvidia-smi >/dev/null 2>&1; then
   # NVIDIA drivers
@@ -49,15 +48,6 @@ export QT_SCALE_FACTOR="1"
 export QT_AUTO_SCREEN_SCALE_FACTOR="1"
 # Theming
 
-# Input (fcitx)
-#export INPUT_METHOD="fcitx"
-#export GTK_IM_MODULE="fcitx"
-#export QT_QPA_PLATFORMTHEME="qt6ct"
-#export QT_IM_MODULE="fcitx"
-#export XMODIFIERS="@im=fcitx"
-#export SDL_IM_MODULE="fcitx"
-# Input (ibus)
-#export GLFW_IM_MODULE="ibus"
 
 # ─── PATH ───────────────────────────────────────────────────────────────────────
 export PATH="$CARGOBIN:$BIN:$XDG_CONFIG_HOME/composer/vendor/bin:$PATH"
@@ -67,6 +57,7 @@ export DOTFILES="/mnt/Work/1Progs/Dots"
 
 # Source credentials if present
 CRED_FILE="$DOTFILES/.local_secrets/credentials.sh"
+    
 [ -f "$CRED_FILE" ] && . "$CRED_FILE"
 
 
