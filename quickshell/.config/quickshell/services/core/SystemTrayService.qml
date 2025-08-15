@@ -1,6 +1,6 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
 
-// TODO: Implement SystemTrayService
-QtObject {}
+Singleton {}

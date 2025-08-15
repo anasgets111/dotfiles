@@ -1388,3 +1388,68 @@ See `Quickshell.screens` for an example of using `Variants` to create copies of 
 - `model`: `list<variant>`
 
   The list of sets of properties to create instances with. Each set creates an instance of the component, which are updated when the input sets update.
+
+# Quickshell.Services.SystemTray
+
+## SystemTray (summary)
+
+import Quickshell.Services.SystemTray
+
+Quick reference: referencing the `SystemTray` singleton starts tracking tray icons; use its `items` ObjectModel to iterate icons. Each `SystemTrayItem` exposes:
+
+- `category`: groups like Communications, ApplicationStatus, SystemServices, Hardware — use this to filter by purpose.
+- `status`: Active, NeedsAttention, Passive — use this to decide visibility or prominence (e.g., show NeedsAttention immediately).
+
+Use `items` to show/hide or order icons based on `category` and `status`.
+
+## SystemTrayItem: `QtObject`
+
+import Quickshell.Services.SystemTray
+
+A system tray item. Key properties, functions and signals are listed below.
+
+### Properties
+
+- `id`: `string` `[readonly]`  
+  Unique name for the application.
+
+- `title`: `string` `[readonly]`  
+  Text describing the application.
+
+- `tooltipDescription`: `string` `[readonly]`
+
+- `onlyMenu`: `bool` `[readonly]`  
+  True if activation does nothing and the item only provides a menu.
+
+- `hasMenu`: `bool` `[readonly]`  
+  True if the item has an associated menu accessible via `display()` or `menu`.
+
+- `tooltipTitle`: `string` `[readonly]`
+
+- `icon`: `string` `[readonly]`  
+  Icon source usable as an Image source.
+
+- `menu`: `unknown` `[readonly]`  
+  Handle to the associated menu (if any). Can be shown with `QsMenuAnchor` or `QsMenuOpener`.
+
+- `status`: `Status` `[readonly]`
+
+- `category`: `Category` `[readonly]`
+
+### Functions
+
+- `activate(): void`  
+  Primary activation (left-click).
+
+- `display(parentWindow, relativeX, relativeY): void`  
+  Show the platform menu at the given location.
+
+- `scroll(delta, horizontal): void`  
+  Scroll action (e.g., change volume).
+
+- `secondaryActivate(): void`  
+  Secondary activation (middle-click).
+
+### Signals
+
+- `ready()`
