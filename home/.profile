@@ -55,11 +55,13 @@ export PATH="$CARGOBIN:$BIN:$XDG_CONFIG_HOME/composer/vendor/bin:$PATH"
 # Dotfiles base directory
 export DOTFILES="/mnt/Work/1Progs/Dots"
 
-# Source credentials if present
 CRED_FILE="$DOTFILES/.local_secrets/credentials.sh"
-    
-[ -f "$CRED_FILE" ] && . "$CRED_FILE"
 
+# Source credentials if present and readable (avoid errors if missing)
+if [ -n "$DOTFILES" ] && [ -r "$CRED_FILE" ]; then
+	# shellcheck disable=SC1090
+	. "$CRED_FILE" || printf 'Warning: failed to source %s\n' "$CRED_FILE" >&2
+fi
 
 eval "$( fnm env --shell=bash --use-on-cd --version-file-strategy=recursive --resolve-engines )"
 # ─── FALL INTO FISH ONCE YOUR ENV IS SET ────────────────────────────────────────
