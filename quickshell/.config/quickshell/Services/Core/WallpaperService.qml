@@ -1,7 +1,7 @@
 pragma Singleton
 import Quickshell
 import QtQuick
-import "../" as Services
+import qs.Services as Services
 
 Singleton {
     id: wallpaperService

@@ -3,7 +3,7 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Effects
 import Quickshell.Wayland
-import "../services" as Services
+import qs.Services as Services
 
 WlSessionLockSurface {
     id: root

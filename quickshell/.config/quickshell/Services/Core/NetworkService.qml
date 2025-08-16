@@ -20,8 +20,8 @@ Singleton {
 
     // scanning / monitor state
     property bool scanning: false
-    property int lastWifiScanAt: 0   // epoch ms
-    property int wifiScanCooldownMs: 10000 // 10s default
+    property int lastWifiScanAt: 0
+    property int wifiScanCooldownMs: 10000
 
     // polling fallback settings
     property bool monitorRunning: false

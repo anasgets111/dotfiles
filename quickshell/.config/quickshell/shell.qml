@@ -4,8 +4,8 @@
 import Quickshell
 import QtQuick
 import Quickshell.Wayland
-import "./Services" as Services
-import "./Components" as Components
+import qs.Services as Services
+import qs.Components as Components
 
 ShellRoot {
     id: root

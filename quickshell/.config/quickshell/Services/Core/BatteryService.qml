@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
-import "../" as Services
+import qs.Services as Services
 
 Singleton {
     id: batteryService
