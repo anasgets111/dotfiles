@@ -1,6 +1,6 @@
 import QtQuick
 import Quickshell.Wayland
-import "../services" as Services
+import qs.Services as Services
 
 Item {
     id: root

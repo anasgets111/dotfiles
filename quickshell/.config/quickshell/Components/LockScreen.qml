@@ -1,8 +1,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Wayland
-import "../services" as Services
-import "." as Components
+import qs.Services as Services
+import qs.Components as Components
 
 WlSessionLock {
     id: wlLock

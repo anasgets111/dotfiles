@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../" as Services // adjust path if needed
+import qs.Services as Services // adjust path if needed
 
 Singleton {
     id: configService
