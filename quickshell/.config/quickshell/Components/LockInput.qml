@@ -3,6 +3,7 @@ import Quickshell.Services.Pam
 import Quickshell.Wayland
 import Quickshell
 import qs.Services as Services
+import qs.Services.Core as Core
 
 Item {
     id: root
@@ -40,7 +41,7 @@ Item {
 
         onCompleted: res => {
             if (res === PamResult.Success) {
-                Services.LockService.requestUnlock();
+                Core.LockService.requestUnlock();
             } else {
                 console.warn("[LockInput] Authentication failed");
                 // Optionally show an error message
