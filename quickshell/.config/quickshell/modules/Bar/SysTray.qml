@@ -14,14 +14,7 @@ Item {
     readonly property int hoverPadding: 3
     readonly property int contentInset: 2
 
-    function getThemeIconName(iconUrl) {
-        var m = iconUrl.match(/image:\/\/(?:icon|qspixmap)\/([^\/]+)/);
-        return m ? m[1] : iconUrl;
-    }
-
-    function getIconPath(iconName) {
-        return Quickshell.iconPath(iconName, true) || "";
-    }
+    // (removed helper; using direct heuristic lookup in delegate)
 
     width: Math.max(trayRow.implicitWidth + horizontalPadding * 2, Theme.itemHeight)
     height: Theme.itemHeight
@@ -54,6 +47,10 @@ Item {
 
             required property var modelData
             property var trayItem: modelData
+            // local computed properties to reduce duplication and improve readability
+            property string itemIcon: trayItem.icon
+            property var lastIpc: modelData && modelData.lastIpcObject ? modelData.lastIpcObject : null
+            property var heuristic: lastIpc ? DesktopEntries.heuristicLookup(lastIpc.class) : null
 
             width: Theme.iconSize
             height: Theme.iconSize
@@ -99,25 +96,16 @@ Item {
             IconImage {
                 id: iconImage
 
-                property string iconName: systemTrayWidget.getThemeIconName(trayMouseArea.trayItem.icon)
-                property string themedSymbolicPath: systemTrayWidget.getIconPath(iconName + "-symbolic")
-                property string themedPath: systemTrayWidget.getIconPath(iconName)
-                property string resolvedThemePath: themedSymbolicPath || themedPath
-
                 anchors.centerIn: parent
                 implicitSize: Theme.iconSize - systemTrayWidget.contentInset * 2
                 width: implicitSize
                 height: implicitSize
-                source: trayMouseArea.trayItem.icon.startsWith("image://") ? trayMouseArea.trayItem.icon : resolvedThemePath
+                source: trayMouseArea.itemIcon.startsWith("image://") ? trayMouseArea.itemIcon : (trayMouseArea.heuristic && trayMouseArea.heuristic.icon ? Quickshell.iconPath(trayMouseArea.heuristic.icon) : "")
                 backer.smooth: true
                 backer.fillMode: Image.PreserveAspectFit
                 backer.sourceSize.width: width
                 backer.sourceSize.height: height
                 visible: status !== Image.Error && status !== Image.Null && source !== ""
-                onStatusChanged: if (status === Image.Error && trayMouseArea.trayItem.icon.startsWith("image://")) {
-                    if (resolvedThemePath)
-                        source = resolvedThemePath;
-                }
             }
 
             Text {
