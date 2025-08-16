@@ -112,7 +112,9 @@ layout {
         color "#0007"
     }
 }
-
+clipboard {
+    disable-primary
+}
 // Note that running niri as a session supports xdg-desktop-autostart
 spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
 spawn-at-startup "swayidle"
@@ -248,6 +250,9 @@ window-rule {
     default-column-width { proportion 0.15; }
     default-window-height { proportion 0.15; }
     open-floating true
+}
+window-rule {
+    opacity 0.95
 }
 
 binds {
