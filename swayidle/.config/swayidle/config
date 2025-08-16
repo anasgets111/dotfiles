@@ -1,13 +1,13 @@
 # ~/.config/niri/swayidle.conf
 
-lock 'pidof swaylock || swaylock'
-
+# lock 'quickshell ipc call session lock'
+lock 'swaylock'
 # Lock after 5 minutes (300 seconds)
-timeout 300 'pidof swaylock || swaylock'
+timeout 300 'swaylock'
 
 # Turn off monitors after 5 minutes and 30 seconds (330 seconds total)
 # Power on monitors and ensure locker is active upon resume.
-timeout 330 'niri msg action power-off-monitors' resume 'niri msg action power-on-monitors && (pidof swaylock || swaylock)'
+timeout 330 'niri msg action power-off-monitors' resume 'niri msg action power-on-monitors'
 
 # Execute lock command before the system goes to sleep (e.g., if logind suspends)
-before-sleep 'pidof swaylock || swaylock'
+before-sleep 'swaylock'
