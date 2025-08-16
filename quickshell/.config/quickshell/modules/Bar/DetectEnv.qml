@@ -29,7 +29,6 @@ Item {
             splitMarker: "\n"
             onRead: function (data) {
                 root.hasWifiHardware = (data.trim() === "yes");
-                console.log("WiFi hardware detected:", root.hasWifiHardware);
             }
         }
     }
