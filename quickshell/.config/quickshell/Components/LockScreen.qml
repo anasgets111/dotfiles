@@ -1,12 +1,12 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Wayland
-import qs.Services as Services
+import qs.Services.Core as Core
 import qs.Components as Components
 
 WlSessionLock {
     id: wlLock
-    locked: Services.LockService.locked
+    locked: Core.LockService.locked
 
     surface: Components.LockSurface {
         lock: wlLock

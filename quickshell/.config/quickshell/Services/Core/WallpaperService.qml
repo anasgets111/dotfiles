@@ -1,12 +1,12 @@
 pragma Singleton
 import Quickshell
 import QtQuick
-import qs.Services as Services
+import qs.Services.WM as WM
 
 Singleton {
     id: wallpaperService
 
-    property var monitorService: Services.MonitorService
+    property var monitorService: WM.MonitorService
     property bool ready: false
 
     // Internal model for per-item updates

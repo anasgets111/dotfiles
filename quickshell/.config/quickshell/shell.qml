@@ -1,21 +1,22 @@
-//@ pragma UseQApplication
 //@ pragma Env QS_NO_RELOAD_POPUP=1
 //@ pragma Env QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
 import Quickshell
 import QtQuick
 import Quickshell.Wayland
-import qs.Services as Services
-import qs.Components as Components
+import qs.Services
+import qs.Services.SystemInfo
+import qs.Services.Core as Core
+import qs.Components
 
 ShellRoot {
     id: root
 
-    property var main: Services.MainService
-    property var wallpaper: Services.WallpaperService
-    property var systemTray: Services.SystemTrayService
-    property var network: Services.NetworkService
-    // property var dateTime: Services.TimeService
-    // property var battery: Services.BatteryService
+    // property var main: MainService
+    property var wallpaper: Core.WallpaperService
+    property var systemTray: Core.SystemTrayService
+    property var network: Core.NetworkService
+    // property var dateTime: TimeService
+    // property var battery: BatteryService
 
     // Your wallpapers (unchanged)
     Variants {

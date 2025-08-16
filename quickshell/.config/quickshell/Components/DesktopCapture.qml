@@ -1,6 +1,6 @@
 import QtQuick
 import Quickshell.Wayland
-import qs.Services as Services
+import qs.Services.Core as Core
 
 Item {
     id: root
@@ -30,7 +30,7 @@ Item {
         interval: 200
         repeat: false
         onTriggered: {
-            if (!screencopy.hasContent && Services.LockService.prelockInProgress) {
+            if (!screencopy.hasContent && Core.LockService.prelockInProgress) {
                 console.debug("[DesktopCapture] retry captureFrame()");
                 screencopy.captureFrame();
             }
