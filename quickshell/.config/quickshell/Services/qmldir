@@ -1,0 +1,34 @@
+singleton MainService MainService.qml
+singleton AudioService Core/AudioService.qml
+singleton BatteryService Core/BatteryService.qml
+singleton BluetoothService Core/BluetoothService.qml
+singleton BrightnessService Core/BrightnessService.qml
+singleton ClipboardService Core/ClipboardService.qml
+singleton KeyboardBacklightService Core/KeyboardBacklightService.qml
+singleton LockService Core/LockService.qml
+singleton MediaService Core/MediaService.qml
+singleton NetworkService Core/NetworkService.qml
+singleton PowerService Core/PowerService.qml
+singleton SystemTrayService Core/SystemTrayService.qml
+singleton WallpaperService Core/WallpaperService.qml
+singleton ConfigService Core/ConfigService.qml
+singleton FileSystemService Core/FileSystemService.qml
+
+singleton TimeService SystemInfo/TimeService.qml
+singleton NotificationService SystemInfo/NotificationService.qml
+singleton OSDService SystemInfo/OSDService.qml
+singleton ScreenCaptureService SystemInfo/ScreenCaptureService.qml
+singleton SystemInfoService SystemInfo/SystemInfoService.qml
+singleton UpdateService SystemInfo/UpdateService.qml
+singleton WeatherService SystemInfo/WeatherService.qml
+
+singleton MonitorService WM/MonitorService.qml
+singleton WorkspaceService WM/WorkspaceService.qml
+singleton KeyboardLayoutService WM/KeyboardLayoutService.qml
+
+singleton HyprMonitorService WM/Impl/Hyprland/MonitorImpl.qml
+singleton HyprWorkspaceService WM/Impl/Hyprland/WorkspaceImpl.qml
+singleton HyprKeyboardLayoutService WM/Impl/Hyprland/KeyboardLayoutImpl.qml
+singleton NiriMonitorService WM/Impl/Niri/MonitorImpl.qml
+singleton NiriWorkspaceService WM/Impl/Niri/WorkspaceImpl.qml
+singleton NiriKeyboardLayoutService WM/Impl/Niri/KeyboardLayoutImpl.qml

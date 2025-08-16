@@ -4,55 +4,18 @@
 import Quickshell
 import QtQuick
 import Quickshell.Wayland
-import "./services" as Services
-import "./components" as Components
+import "./Services" as Services
+import "./Components" as Components
 
 ShellRoot {
     id: root
 
     property var main: Services.MainService
     property var wallpaper: Services.WallpaperService
-    property var dateTime: Services.TimeService
-    property var battery: Services.BatteryService
-
-    // Per-screen pre-lock capture (persistent, invisible)
-    Variants {
-        model: Quickshell.screens
-
-        WlrLayershell {
-            id: capWin
-            required property var modelData
-            screen: modelData
-            layer: WlrLayer.Overlay
-            exclusionMode: ExclusionMode.Ignore
-
-            // Keep the window mapped but tiny and transparent
-            implicitWidth: 1
-            implicitHeight: 1
-            anchors.top: true
-            anchors.left: true
-
-            // Ensure there is content in the window
-            Item {
-                anchors.fill: parent
-
-                // Your persistent capture item per screen
-                Components.DesktopCapture {
-                    anchors.fill: parent
-                    screen: capWin.modelData
-                }
-
-                // Fully transparent rectangle to guarantee a draw call
-                Rectangle {
-                    anchors.fill: parent
-                    color: "transparent"
-                }
-            }
-        }
-    }
-
-    // The actual lock implementation
-    Components.LockScreen {}
+    property var systemTray: Services.SystemTrayService
+    property var network: Services.NetworkService
+    // property var dateTime: Services.TimeService
+    // property var battery: Services.BatteryService
 
     // Your wallpapers (unchanged)
     Variants {
@@ -88,6 +51,20 @@ ShellRoot {
                     }
                 }
             }
+        }
+    }
+
+    Component.onCompleted: {
+        // access network service to ensure it is instantiated and log
+        if (root.network) {
+            console.log("[Shell] NetworkService instance present, ready=", root.network.ready);
+            try {
+                root.network.dumpState();
+            } catch (e) {
+                console.log("[Shell] failed to call dumpState:", e);
+            }
+        } else {
+            console.log("[Shell] NetworkService not present (null)");
         }
     }
 }
