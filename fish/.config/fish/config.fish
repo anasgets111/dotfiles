@@ -15,15 +15,13 @@ function fish_greeting
     end
 end
 
-# if fish is open by vscode terminal then use a different history file
+# choose history file per terminal type
 if set -q ZED_TERM
     set -gx fish_history zed
 else if set -q VSCODE_INJECTION
-
     set -gx fish_history vscode
 else if set -q TERMINAL_EMULATOR
     set -gx fish_history phpstorm
-
 else
     set -gx fish_history fish
 end
