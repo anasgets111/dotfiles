@@ -151,108 +151,110 @@ animations {
 // Window Rules Section
 // =====================
 
+// Workspace placement
 window-rule {
-    match app-id="code"
-    open-on-workspace "Code"
+match app-id="code"
+open-on-workspace "Code"
 }
 window-rule {
-    match app-id="org.gnome.Nautilus"
-    open-on-workspace "Files"
+match app-id="org.gnome.Nautilus"
+open-on-workspace "Files"
 }
 window-rule {
-    match app-id="kitty"
-    match app-id="alacritty"
-    match app-id="org.gnome.Terminal"
-    open-on-workspace "Terminal"
+match app-id="kitty"
+match app-id="alacritty"
+match app-id="org.gnome.Terminal"
+open-on-workspace "Terminal"
 }
 window-rule {
-    match app-id="Slack"
-    open-on-workspace "Slack"
-}
-
-window-rule {
-    match app-id="org.telegram.desktop"
-    open-on-workspace "Telegram"
+match app-id="Slack"
+open-on-workspace "Slack"
 }
 window-rule {
-    match app-id="vesktop"
-    open-on-workspace "Discord"
-}
-
-window-rule {
-    match app-id="zen"
-    open-on-workspace "Zen"
+match app-id="org.telegram.desktop"
+open-on-workspace "Telegram"
 }
 window-rule {
-    match app-id="org.chromium.Chromium"
-    open-on-workspace "Chromium"
+match app-id="vesktop"
+open-on-workspace "Discord"
 }
 window-rule {
-    match app-id="thunderbird"
-    open-on-workspace "Thunderbird"
+match app-id="zen"
+open-on-workspace "Zen"
 }
-
 window-rule {
-    geometry-corner-radius 15 15 0 0
-    clip-to-geometry true
-    draw-border-with-background false
+match app-id="org.chromium.Chromium"
+open-on-workspace "Chromium"
+}
+window-rule {
+match app-id="thunderbird"
+open-on-workspace "Thunderbird"
 }
 
+// Floating windows (no explicit size)
 window-rule {
-    match title="OpenRGB"
-    match title="Network Connections"
-    match title="Do you want to retry your last request"
-    match app-id="org.kde.kdeconnect.handler"
-    match app-id="waypaper"
-    open-floating true
+match title="OpenRGB"
+match title="Network Connections"
+match title="Do you want to retry your last request"
+match app-id="org.kde.kdeconnect.handler"
+match app-id="waypaper"
+open-floating true
 }
 
+// Floating windows, medium size (~74%)
 window-rule {
-    match app-id="io.missioncenter.MissionCenter"
-    match app-id="gtk-pipe-viewer"
-    match app-id="org.pulseaudio.pavucontrol"
-    match app-id="blueman-manager"
-    match app-id="org.gnome.DiskUtility"
-    match app-id="nm-connection-editor"
-    match app-id="polkit.*authentication-agent.*"
-    match app-id="xdg-desktop-portal.*"
-    match app-id="zenity"
-    match app-id="pavucontrol"
-    match app-id="mpv"
-    match title=".*Global Updates"
-    match title="Sign in - Google Accounts — Zen Browser"
-    open-floating true
-    default-column-width { proportion 0.74; }
-    default-window-height { proportion 0.74; }
+match app-id="io.missioncenter.MissionCenter"
+match app-id="gtk-pipe-viewer"
+match app-id="org.pulseaudio.pavucontrol"
+match app-id="blueman-manager"
+match app-id="org.gnome.DiskUtility"
+match app-id="nm-connection-editor"
+match app-id="polkit.authentication-agent."
+match app-id="xdg-desktop-portal.*"
+match app-id="zenity"
+match app-id="pavucontrol"
+match app-id="mpv"
+match title=".*Global Updates"
+match title="Sign in - Google Accounts — Zen Browser"
+open-floating true
+default-column-width { proportion 0.74; }
+default-window-height { proportion 0.74; }
 }
 
+// Floating windows, small dialogs (~47%)
 window-rule {
-    match app-id="com.saivert.pwvucontrol"
-    match title="Install from VSIX"
-    match title="Open File"
-    match title="Save File"
-    match title="Save As"
-    match title="Downloading Certificate"
-    match title="Open Folder"
-    match title="File Upload"
-    match title="Enter name of file to save to.."
-    match title="Authentication Required"
-    match title="Create or select new Steam library folder"
-    match title="About Zen Browser"
-    match title=r#"^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$"#
-    open-floating true
-    default-column-width { proportion 0.47; }
-    default-window-height { proportion 0.47; }
+match app-id="com.saivert.pwvucontrol"
+match title="Install from VSIX"
+match title="Open File"
+match title="Save File"
+match title="Save As"
+match title="Downloading Certificate"
+match title="Open Folder"
+match title="File Upload"
+match title="Enter name of file to save to.."
+match title="Authentication Required"
+match title="Create or select new Steam library folder"
+match title="About Zen Browser"
+match title=r#"^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$"#
+open-floating true
+default-column-width { proportion 0.47; }
+default-window-height { proportion 0.47; }
 }
 
+// Calculator: tiny float (~15%)
 window-rule {
-    match app-id="org.gnome.Calculator"
-    default-column-width { proportion 0.15; }
-    default-window-height { proportion 0.15; }
-    open-floating true
+match app-id="org.gnome.Calculator"
+open-floating true
+default-column-width { proportion 0.15; }
+default-window-height { proportion 0.15; }
 }
+
+// Global window defaults
 window-rule {
-    opacity 0.95
+geometry-corner-radius 15 15 0 0
+clip-to-geometry true
+draw-border-with-background false
+opacity 0.95
 }
 
 binds {
