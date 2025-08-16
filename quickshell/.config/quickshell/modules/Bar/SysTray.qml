@@ -14,14 +14,10 @@ Item {
     readonly property int hoverPadding: 3
     readonly property int contentInset: 2
 
-    // (removed helper; using direct heuristic lookup in delegate)
-
     width: Math.max(trayRow.implicitWidth + horizontalPadding * 2, Theme.itemHeight)
     height: Theme.itemHeight
 
     Rectangle {
-        id: pillContainer
-
         anchors.fill: parent
         radius: Theme.itemRadius
         color: Theme.inactiveColor
@@ -48,9 +44,7 @@ Item {
             required property var modelData
             property var trayItem: modelData
             // local computed properties to reduce duplication and improve readability
-            property string itemIcon: trayItem.icon
-            property var lastIpc: modelData && modelData.lastIpcObject ? modelData.lastIpcObject : null
-            property var heuristic: lastIpc ? DesktopEntries.heuristicLookup(lastIpc.class) : null
+            property var heuristic: (modelData && modelData.lastIpcObject) ? DesktopEntries.heuristicLookup(modelData.lastIpcObject.class) : null
 
             width: Theme.iconSize
             height: Theme.iconSize
@@ -73,7 +67,6 @@ Item {
                 id: menuAnchor
                 menu: trayMouseArea.trayItem.menu
                 anchor.item: trayMouseArea
-                anchor.rect.x: 0
                 anchor.rect.y: trayMouseArea.height - 5
             }
 
@@ -100,12 +93,12 @@ Item {
                 implicitSize: Theme.iconSize - systemTrayWidget.contentInset * 2
                 width: implicitSize
                 height: implicitSize
-                source: trayMouseArea.itemIcon.startsWith("image://") ? trayMouseArea.itemIcon : (trayMouseArea.heuristic && trayMouseArea.heuristic.icon ? Quickshell.iconPath(trayMouseArea.heuristic.icon) : "")
+                source: trayMouseArea.trayItem.icon && trayMouseArea.trayItem.icon.startsWith("image://") ? trayMouseArea.trayItem.icon : (trayMouseArea.heuristic && trayMouseArea.heuristic.icon ? Quickshell.iconPath(trayMouseArea.heuristic.icon) : "")
                 backer.smooth: true
                 backer.fillMode: Image.PreserveAspectFit
                 backer.sourceSize.width: width
                 backer.sourceSize.height: height
-                visible: status !== Image.Error && status !== Image.Null && source !== ""
+                visible: status !== Image.Error && status !== Image.Null
             }
 
             Text {
@@ -115,13 +108,13 @@ Item {
                 font.pixelSize: Theme.fontSize
                 font.family: Theme.fontFamily
                 font.bold: true
-                visible: iconImage.status === Image.Error || iconImage.status === Image.Null || iconImage.source === ""
+                visible: iconImage.status === Image.Error || iconImage.status === Image.Null
             }
 
             Rectangle {
-                id: tooltip
-
-                visible: trayMouseArea.containsMouse && (trayMouseArea.trayItem.tooltipTitle || trayMouseArea.trayItem.title)
+                // Tooltip: keep fade animation by driving visibility from opacity
+                // Show when hovered and there is text, or while animating out
+                visible: (opacity > 0) && (trayMouseArea.trayItem.tooltipTitle || trayMouseArea.trayItem.title)
                 color: Theme.onHoverColor
                 radius: Theme.itemRadius
                 width: tooltipText.width + 16
@@ -136,7 +129,7 @@ Item {
 
                     anchors.centerIn: parent
                     text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : trayMouseArea.trayItem.title
-                    color: Theme.textContrast(trayMouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
+                    color: Theme.textContrast(Theme.onHoverColor)
                     font.pixelSize: Theme.fontSize
                     font.family: Theme.fontFamily
                 }
