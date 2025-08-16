@@ -18,6 +18,16 @@ Singleton {
     property var wifiNetworks: []    // last scanned wifi networks
     property var activeDevice: null  // currently active device object
 
+    // derived, simplified state (for consumers)
+    property string networkStatus: "disconnected"   // "ethernet" | "wifi" | "disconnected"
+    property string ethernetInterface: ""
+    property bool ethernetConnected: false
+    property string ethernetIP: ""
+    property string wifiInterface: ""
+    property bool wifiConnected: false
+    property string wifiIP: ""
+    property var savedConnections: []   // array of {ssid}
+
     // scanning / monitor state
     property bool scanning: false
     property int lastWifiScanAt: 0
@@ -33,6 +43,8 @@ Singleton {
 
     // property change signals are auto-provided by QML
     signal error(string message)
+    signal networksUpdated
+    signal connectionChanged
 
     // --- Helpers ---
     function _nowMs() {
@@ -45,56 +57,70 @@ Singleton {
         console.log("[NetworkService] Error:", msg);
     }
 
-    // Parse nmcli device terse lines: DEVICE:TYPE:STATE
-    function _parseDeviceList(text) {
-        var out = [];
-        var lines = text.trim().split(/\n+/);
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim();
-            if (!line)
-                continue;
-            // nmcli -t uses ':' as separator, but fields can contain ':' rarely; we request exactly fields DEVICE,TYPE,STATE
-            var parts = line.split(":");
-            var dev = {
-                interface: parts[0] || "",
-                type: parts[1] || "",
-                state: parts[2] || "",
-                name: parts[0] || "",
-                mac: "",
-                ip4: null,
-                ip6: null,
-                connectionId: null
-            };
-            out.push(dev);
+    // Trim CIDR suffix from IP address (e.g., 192.168.1.7/24 -> 192.168.1.7)
+    function _stripCidr(s) {
+        if (!s)
+            return s;
+        try {
+            var str = String(s);
+            var idx = str.indexOf("/");
+            return idx > 0 ? str.substring(0, idx) : str;
+        } catch (e) {
+            return s;
         }
-        return out;
     }
 
-    // Parse wifi list terse: SSID:BSSID:SIGNAL:SECURITY:FREQ
-    function _parseWifiList(text) {
-        var out = [];
-        var lines = text.trim().split(/\n+/);
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim();
-            if (!line)
-                continue;
-            var parts = line.split(":");
-            var ssid = parts[0] || "";
-            var bssid = parts[1] || "";
-            var signal = parseInt(parts[2] || "0");
-            var security = parts[3] || "";
-            var freq = parts[4] || "";
-            out.push({
-                ssid: ssid,
-                bssid: bssid,
-                signal: signal,
-                security: security,
-                freq: freq,
-                seenAt: net._nowMs()
-            });
-        }
-        return out;
+    // Pick first wifi iface from devices
+    function _firstWifiInterface() {
+        if (!net.devices)
+            return "";
+        for (var i = 0; i < net.devices.length; i++)
+            if (net.devices[i].type === "wifi")
+                return net.devices[i].interface || "";
+        return "";
     }
+
+    // Recompute simplified/derived state from devices
+    function _updateDerivedState() {
+        var wifiIf = "";
+        var ethIf = "";
+        var wifiConn = false;
+        var ethConn = false;
+        var wifiIp = "";
+        var ethIp = "";
+        for (var i = 0; i < net.devices.length; i++) {
+            var d = net.devices[i];
+            var isConnected = (d.state && d.state.indexOf("connected") !== -1);
+            if (d.type === "wifi") {
+                wifiIf = d.interface || wifiIf;
+                wifiConn = wifiConn || isConnected;
+                if (d.ip4)
+                    wifiIp = net._stripCidr(d.ip4);
+            } else if (d.type === "ethernet") {
+                ethIf = d.interface || ethIf;
+                ethConn = ethConn || isConnected;
+                if (d.ip4)
+                    ethIp = net._stripCidr(d.ip4);
+            }
+        }
+        var prevStatus = net.networkStatus;
+        net.wifiInterface = wifiIf;
+        net.wifiConnected = wifiConn;
+        net.wifiIP = wifiIp;
+        net.ethernetInterface = ethIf;
+        net.ethernetConnected = ethConn;
+        net.ethernetIP = ethIp;
+        if (wifiConn)
+            net.networkStatus = "wifi";
+        else if (ethConn)
+            net.networkStatus = "ethernet";
+        else
+            net.networkStatus = "disconnected";
+        if (prevStatus !== net.networkStatus)
+            net.connectionChanged();
+    }
+
+    // (terse parsers removed as unused)
 
     // Parse nmcli multiline device output into array of device objects
     function _parseDeviceListMultiline(text) {
@@ -150,7 +176,7 @@ Singleton {
         return out;
     }
 
-    // Parse nmcli multiline wifi listing: fields like SSID:, BSSID:, SIGNAL:, SECURITY:, FREQ:
+    // Parse nmcli multiline wifi listing: fields like SSID:, BSSID:, SIGNAL:, SECURITY:, FREQ:, IN-USE:
     function _parseWifiListMultiline(text) {
         var out = [];
         var blocks = text.split(/\n\s*\n/);
@@ -165,6 +191,7 @@ Singleton {
                 signal: 0,
                 security: "",
                 freq: "",
+                connected: false,
                 seenAt: net._nowMs()
             };
             for (var i = 0; i < lines.length; i++) {
@@ -184,6 +211,8 @@ Singleton {
                     obj.security = val;
                 else if (key === "FREQ")
                     obj.freq = val;
+                else if (key === "IN-USE")
+                    obj.connected = (val === "*");
             }
             out.push(obj);
         }
@@ -215,12 +244,16 @@ Singleton {
     Process {
         id: monitorProc
         command: ["nmcli", "monitor"]
-        stdout: StdioCollector {
-            onStreamFinished: function () {
-                net.monitorRunning = false;
-                console.log("[NetworkService] nmcli monitor finished");
-                // fallback to polling
-                net.usePollingFallback = true;
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: function (line) {
+                // debounce refresh on monitor changes
+                try {
+                    if (monitorDebounce.running) {
+                        monitorDebounce.stop();
+                    }
+                    monitorDebounce.start();
+                } catch (e) {}
             }
         }
         Component.onCompleted: {
@@ -235,6 +268,22 @@ Singleton {
                 console.log("[NetworkService] Failed to start monitor:", e);
             }
         }
+        onExited: function (exitCode) {
+            net.monitorRunning = false;
+            net.usePollingFallback = true;
+            console.log("[NetworkService] nmcli monitor exited code=", exitCode);
+        }
+    }
+
+    // Debounce timer for monitor-driven refreshes
+    Timer {
+        id: monitorDebounce
+        interval: 500
+        repeat: false
+        running: false
+        onTriggered: {
+            net.refresh();
+        }
     }
 
     // One-off processes
@@ -248,6 +297,7 @@ Singleton {
                     console.log("[NetworkService] Device list (multiline) stdout:\n", text);
                     var parsed = net._parseDeviceListMultiline(text);
                     net.devices = parsed;
+                    net._updateDerivedState();
                     // log parsed devices summary
                     try {
                         var devSummary = "devices=" + net.devices.length + ": ";
@@ -295,6 +345,8 @@ Singleton {
                     var parsed = net._parseWifiListMultiline(text);
                     net.wifiNetworks = parsed;
                     net.wifiNetworksChanged();
+                    // merge saved flags if available
+                    net._applySavedFlags();
                     try {
                         var ncount = net.wifiNetworks ? net.wifiNetworks.length : 0;
                         var top = [];
@@ -307,6 +359,7 @@ Singleton {
                     } catch (e) {
                         console.log("[NetworkService] Failed to log wifi networks:", e);
                     }
+                    net.networksUpdated();
                 } catch (e) {
                     net._setError("Failed parsing wifi list: " + e);
                 }
@@ -338,6 +391,17 @@ Singleton {
         } catch (e) {
             net._setError("Unable to run device list: " + e);
         }
+    }
+
+    // One-shot: refresh devices and, if wifi present, wifi networks
+    function refresh() {
+        net.refreshDevices();
+        var iface = net._firstWifiInterface();
+        if (iface)
+            net.refreshWifiScan(iface);
+        try {
+            procSaved.running = true;
+        } catch (e) {}
     }
 
     function _requestDeviceDetails(iface) {
@@ -375,11 +439,22 @@ Singleton {
                             // normalize type and name: type from GENERAL.TYPE, name prefer connection id/name
                             type: map["GENERAL.TYPE"] || map["TYPE"] || "",
                             name: map["GENERAL.CONNECTION"] || map["CONNECTION"] || map["GENERAL.CON-UUID"] || map["CON-UUID"] || map["GENERAL.TYPE"] || ifc,
-                            ip4: map["IP4.ADDRESS[1]"] || map["IP4.ADDRESS"] || null,
+                            ip4: net._stripCidr(map["IP4.ADDRESS[1]"] || map["IP4.ADDRESS"] || null),
                             ip6: map["IP6.ADDRESS[1]"] || map["IP6.ADDRESS"] || null,
                             connectionId: map["GENERAL.CONNECTION"] || map["CONNECTION"] || map["GENERAL.CON-UUID"] || map["CON-UUID"] || null
                         };
                         net._mergeDeviceDetails(ifc, details);
+                        // also update simplified state with IPs if known
+                        try {
+                            if ((map["GENERAL.TYPE"] || map["TYPE"]) === "wifi") {
+                                net.wifiInterface = ifc;
+                                net.wifiIP = net._stripCidr(details.ip4 || net.wifiIP);
+                            } else if ((map["GENERAL.TYPE"] || map["TYPE"]) === "ethernet") {
+                                net.ethernetInterface = ifc;
+                                net.ethernetIP = net._stripCidr(details.ip4 || net.ethernetIP);
+                            }
+                            net._updateDerivedState();
+                        } catch (e) {}
                         try {
                             console.log("[NetworkService] Merged device details for", ifc, "-> mac=", details.mac, "conn=", details.connectionId, "ip4=", details.ip4);
                         } catch (e) {
@@ -419,10 +494,8 @@ Singleton {
         net.scanning = true;
         net.scanningChanged();
         try {
-            // first request a rescan
-            var cmdRescan = ["nmcli", "device", "wifi", "rescan", "ifname", iface];
-            // run rescan then list; to keep it simple we run list directly - nmcli handles scanning
-            procWifiList.command = ["nmcli", "-m", "multiline", "-f", "SSID,BSSID,SIGNAL,SECURITY,FREQ", "device", "wifi", "list", "ifname", iface];
+            // run list directly - nmcli handles scanning
+            procWifiList.command = ["nmcli", "-m", "multiline", "-f", "IN-USE,SSID,BSSID,SIGNAL,SECURITY,FREQ", "device", "wifi", "list", "ifname", iface];
             procWifiList.running = true;
         } catch (e) {
             net._setError("Unable to run wifi scan");
@@ -431,10 +504,19 @@ Singleton {
         }
     }
 
+    // Convenience: refresh wifi without passing iface
+    function refreshWifi() {
+        var iface = net._firstWifiInterface();
+        if (iface)
+            net.refreshWifiScan(iface);
+    }
+
     function connectWifi(ssid, password, iface, save = false, name) {
         console.log("[NetworkService] connectWifi(ssid=", ssid, ", iface=", iface, ", save=", save, ")");
         // If save true and name provided, attempt to add connection
         try {
+            if (!iface || iface === "")
+                iface = net._firstWifiInterface();
             if (save && name) {
                 console.log("[NetworkService] adding connection con-name=", name, "ssid=", ssid);
                 procConnect.command = ["nmcli", "connection", "add", "type", "wifi", "ifname", iface, "con-name", name, "ssid", ssid];
@@ -471,6 +553,23 @@ Singleton {
             procConnect.running = true;
         } catch (e) {
             net._setError("Unable to disconnect device");
+        }
+    }
+
+    // Convenience: disconnect currently active wifi device
+    function disconnectWifi() {
+        var iface = net._firstWifiInterface();
+        if (iface)
+            net.disconnect(iface);
+    }
+
+    // Forget a saved Wi-Fi connection by SSID (connection id/name)
+    function forgetWifi(ssid) {
+        try {
+            procForget.command = ["nmcli", "connection", "delete", ssid];
+            procForget.running = true;
+        } catch (e) {
+            net._setError("Unable to start forget command");
         }
     }
 
@@ -516,10 +615,73 @@ Singleton {
         }
     }
 
+    // Saved connections fetcher and forgetter
+    Process {
+        id: procSaved
+        command: ["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"]
+        stdout: StdioCollector {
+            onStreamFinished: function () {
+                try {
+                    var list = [];
+                    var lines = text.trim().split(/\n+/);
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i].trim();
+                        if (!line)
+                            continue;
+                        var parts = line.split(":");
+                        if (parts.length >= 2 && parts[1] === "802-11-wireless")
+                            list.push({
+                                ssid: parts[0]
+                            });
+                    }
+                    net.savedConnections = list;
+                    net._applySavedFlags();
+                } catch (e) {
+                    net._setError("Failed parsing saved connections list");
+                }
+            }
+        }
+    }
+
+    Process {
+        id: procForget
+        stdout: StdioCollector {
+            onStreamFinished: function () {
+                console.log("[NetworkService] Forget result:\n", text);
+                net.refresh();
+            }
+        }
+    }
+
     Component.onCompleted: {
         console.log("[NetworkService] Component.onCompleted - initializing, setting ready=true");
         net.ready = true;
         // initial refresh
         net.refreshDevices();
+        try {
+            procSaved.running = true;
+        } catch (e) {}
+    }
+
+    function _applySavedFlags() {
+        if (!net.wifiNetworks)
+            return;
+        var savedSet = {};
+        if (net.savedConnections) {
+            for (var i = 0; i < net.savedConnections.length; i++)
+                savedSet[net.savedConnections[i].ssid] = true;
+        }
+        var activeSsid = null;
+        try {
+            if (net.activeDevice && net.activeDevice.type === "wifi")
+                activeSsid = net.activeDevice && (net.activeDevice.name || "");
+        } catch (e) {}
+        for (var j = 0; j < net.wifiNetworks.length; j++) {
+            var wn = net.wifiNetworks[j];
+            wn.saved = !!savedSet[wn.ssid];
+            if (activeSsid)
+                wn.connected = (wn.ssid === activeSsid);
+        }
+        net.wifiNetworksChanged();
     }
 }
