@@ -21,15 +21,18 @@ Singleton {
     // Config
     property int maxItems: 50
     property int duplicateWindowMs: 60 * 1000 // 1 minute
+    // Persist config (wl-clip-persist style)
+    // - Clipboard only (no primary selection)
+    // - Do not re-offer on startup
+    // - Persist only up to 1 MiB
+    property bool persistEnabled: true
+    property int maxPersistBytes: 1 * 1024 * 1024
 
     // Data
     // Text history only; newest first. Each entry: { type: 'text', content, ts }
     property var history: []
     // Session-only last image entry: { type: 'image', mimeType, dataUrl, ts }
     property var lastImage: null
-
-    // Diagnostics
-    property string lastError: ""
 
     // Persistence: text history only
     PersistentProperties {
@@ -45,6 +48,10 @@ Singleton {
     // Internal flags
     property bool _fetching: false
     property int _restartBackoffMs: 250
+    // Suppress the next watch event triggered by our own re-offer
+    property bool _suppressNextChange: false
+    // Track persist pipeline state
+    property bool _persistInFlight: false
 
     // Debounce change notifications from the watcher
     Timer {
@@ -63,10 +70,16 @@ Singleton {
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: function (_) {
-                if (clip.enabled) {
-                    console.log("[ClipboardService] Watch: change signal");
-                    changeDebounce.restart();
+                if (!clip.enabled)
+                    return;
+                if (clip._suppressNextChange) {
+                    // Event-driven suppression (no timers)
+                    clip._suppressNextChange = false;
+                    console.log("[ClipboardService] Watch: suppressed self-change");
+                    return;
                 }
+                console.log("[ClipboardService] Watch: change signal");
+                changeDebounce.restart();
             }
         }
         onRunningChanged: {
@@ -149,15 +162,20 @@ Singleton {
         onExited: {
             const content = String(textOut.text || "").trim();
             if (content) {
-                clip._addText(content);
+                const added = clip._addText(content);
+                // Persist (re-offer) text only if actually added and within size limit
+                if (added && clip.persistEnabled) {
+                    const sizeBytes = clip._utf8Size(content);
+                    if (sizeBytes <= clip.maxPersistBytes) {
+                        clip._startPersistPipeline("text/plain");
+                    } else {
+                        console.log(`[ClipboardService] Persist skip: text too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+                    }
+                }
             } else {
                 console.log("[ClipboardService] Text fetch: empty/whitespace");
             }
-            clip._fetching = false;
-            if (!clip.ready)
-                clip.ready = true;
-            // Reset watcher backoff on successful cycle
-            clip._restartBackoffMs = 250;
+            clip._finishFetch();
         }
     }
 
@@ -171,13 +189,28 @@ Singleton {
         onExited: {
             const base64 = String(imageOut.text || "").trim();
             if (base64) {
-                clip._setLastImage(imageProc.mimeType, base64);
+                const added = clip._setLastImage(imageProc.mimeType, base64);
                 console.log(`[ClipboardService] Image fetch: ${imageProc.mimeType}, size=${base64.length}`);
+                // Persist (re-offer) image only if actually added and within size limit
+                if (added && clip.persistEnabled) {
+                    const sizeBytes = clip._base64Size(base64);
+                    if (sizeBytes <= clip.maxPersistBytes) {
+                        clip._startPersistPipeline(imageProc.mimeType);
+                    } else {
+                        console.log(`[ClipboardService] Persist skip: image too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+                    }
+                }
             }
-            clip._fetching = false;
-            if (!clip.ready)
-                clip.ready = true;
-            clip._restartBackoffMs = 250;
+            clip._finishFetch();
+        }
+    }
+
+    // Persist pipeline: re-own clipboard via wl-paste | wl-copy
+    Process {
+        id: persistProc
+        onExited: {
+            clip._persistInFlight = false;
+            console.log("[ClipboardService] Persist: done");
         }
     }
 
@@ -205,13 +238,22 @@ Singleton {
         typeProc.running = true;
     }
 
+    // Common tail for a successful fetch cycle
+    function _finishFetch() {
+        clip._fetching = false;
+        if (!clip.ready)
+            clip.ready = true;
+        // Reset watcher backoff on successful cycle
+        clip._restartBackoffMs = 250;
+    }
+
     // Add a text entry with duplicate-window logic
     function _addText(content) {
         const now = Date.now();
         const recentSame = clip.history.find(e => e && e.type === 'text' && e.content === content);
-        if (recentSame && (now - (recentSame.ts || recentSame.timestamp || 0)) <= clip.duplicateWindowMs) {
+        if (recentSame && (now - (recentSame.ts || 0)) <= clip.duplicateWindowMs) {
             console.log(`[ClipboardService] Duplicate suppressed (within ${clip.duplicateWindowMs}ms)`);
-            return; // skip within window
+            return false; // skip within window
         }
 
         const entry = {
@@ -227,6 +269,7 @@ Singleton {
         console.log(`[ClipboardService] Text added: ${preview}`);
         clip.itemAdded(entry);
         clip.changed();
+        return true;
     }
 
     // Maintain only last image in session, with duplicate-window logic
@@ -234,7 +277,7 @@ Singleton {
         const now = Date.now();
         const dataUrl = `data:${mimeType};base64,${base64}`;
         if (clip.lastImage && clip.lastImage.dataUrl === dataUrl && (now - (clip.lastImage.ts || 0)) <= clip.duplicateWindowMs) {
-            return; // skip within window
+            return false; // skip within window
         }
         clip.lastImage = {
             type: 'image',
@@ -243,15 +286,52 @@ Singleton {
             ts: now
         };
         clip.changed();
+        return true;
     }
 
-    // No privacy detection: everything non-empty is stored
-
-    function _setError(msg) {
-        clip.lastError = msg || "";
-        if (msg)
-            console.warn(`[ClipboardService] ${msg}`);
+    // Helpers
+    function _utf8Size(str) {
+        // Approximate UTF-8 byte length
+        try {
+            return unescape(encodeURIComponent(str)).length;
+        } catch (e) {
+            // Fallback worst-case: 3 bytes per code unit
+            return str.length * 3;
+        }
     }
+
+    function _base64Size(b64) {
+        const len = b64.length;
+        const pad = b64.endsWith("==") ? 2 : (b64.endsWith("=") ? 1 : 0);
+        return Math.floor(len * 3 / 4) - pad;
+    }
+
+    function _startPersistPipeline(mimeType) {
+        if (!clip.enabled || !clip.persistEnabled)
+            return;
+        if (clip._persistInFlight)
+            return;
+        // Only handle text/* and image/* types as requested
+        const isText = (mimeType === "text" || mimeType === "text/plain" || (mimeType && mimeType.indexOf("text/") === 0));
+        const isImage = (mimeType && mimeType.indexOf("image/") === 0);
+        if (!isText && !isImage)
+            return;
+
+        let cmd;
+        if (isText) {
+            // Use explicit text/plain for reliability
+            cmd = 'wl-paste -n -t text | wl-copy -t text/plain';
+        } else {
+            cmd = `wl-paste -n -t "${mimeType}" | wl-copy -t "${mimeType}"`;
+        }
+        clip._suppressNextChange = true; // event-driven suppression
+        clip._persistInFlight = true;
+        persistProc.command = ["sh", "-c", cmd];
+        console.log(`[ClipboardService] Persist: ${isText ? 'text/plain' : mimeType}`);
+        persistProc.running = true;
+    }
+
+    // _setError removed (unused)
 
     Component.onCompleted: {
         console.log(`[ClipboardService] Init: enabled=${clip.enabled}`);
