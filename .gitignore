@@ -1,6 +1,6 @@
-# Ignore sensitive Fish credentials file
 quickshell/.config/quickshell/.qmlls.ini
-hypr/.config/hypr/monitors.conf
+# Hypr monitors symlink (host-specific, managed at runtime)
+hypr/.config/hypr/config/monitors.conf
 # Secrets directory
 .local_secrets/
 home/.gitconfig
