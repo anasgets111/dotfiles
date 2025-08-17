@@ -358,7 +358,13 @@ Singleton {
         console.log(`[ClipboardService] Init: enabled=${clip.enabled}`);
         // Restore persisted text history
         if (store.textHistory && store.textHistory.length) {
-            clip.history = store.textHistory;
+            // Clone to current engine to avoid cross-engine JSValue warning
+            try {
+                clip.history = JSON.parse(JSON.stringify(store.textHistory));
+            } catch (e) {
+                // Fallback: shallow copy
+                clip.history = store.textHistory.slice();
+            }
         }
 
         // Start watcher and fetch current content once
