@@ -1,6 +1,6 @@
 pragma Singleton
 
-import QtQuick
+import Quickshell
 
 // TODO: Implement OSDService
-QtObject {}
+Singleton {}
