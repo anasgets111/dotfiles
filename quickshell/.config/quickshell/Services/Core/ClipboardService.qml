@@ -27,6 +27,8 @@ Singleton {
     // - Persist only up to 1 MiB
     property bool persistEnabled: true
     property int maxPersistBytes: 1 * 1024 * 1024
+    // Do not record the initial clipboard content on startup by default
+    property bool captureOnStartup: false
 
     // Data
     // Text history only; newest first. Each entry: { type: 'text', content, ts }
@@ -48,10 +50,16 @@ Singleton {
     // Internal flags
     property bool _fetching: false
     property int _restartBackoffMs: 250
-    // Suppress the next watch event triggered by our own re-offer
-    property bool _suppressNextChange: false
+    // Suppress self-trigger loops after re-offer (time window + event budget)
+    property double _suppressUntilTs: 0
+    property int _suppressBudget: 0
     // Track persist pipeline state
     property bool _persistInFlight: false
+    // Skip persist on first fetch after startup
+    property bool _coldStart: true
+    // Short window to avoid recording initial clipboard content even if a second
+    // fetch is triggered immediately by a watcher event
+    property double _startupSkipUntilTs: 0
 
     // Debounce change notifications from the watcher
     Timer {
@@ -72,9 +80,10 @@ Singleton {
             onRead: function (_) {
                 if (!clip.enabled)
                     return;
-                if (clip._suppressNextChange) {
-                    // Event-driven suppression (no timers)
-                    clip._suppressNextChange = false;
+                const now = Date.now();
+                if (clip._suppressBudget > 0 || now < clip._suppressUntilTs) {
+                    if (clip._suppressBudget > 0)
+                        clip._suppressBudget = Math.max(0, clip._suppressBudget - 1);
                     console.log("[ClipboardService] Watch: suppressed self-change");
                     return;
                 }
@@ -162,14 +171,19 @@ Singleton {
         onExited: {
             const content = String(textOut.text || "").trim();
             if (content) {
-                const added = clip._addText(content);
-                // Persist (re-offer) text only if actually added and within size limit
-                if (added && clip.persistEnabled) {
-                    const sizeBytes = clip._utf8Size(content);
-                    if (sizeBytes <= clip.maxPersistBytes) {
-                        clip._startPersistPipeline("text/plain");
-                    } else {
-                        console.log(`[ClipboardService] Persist skip: text too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+                const now = Date.now();
+                if (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs)) {
+                    console.log("[ClipboardService] Startup: skipping initial clipboard content");
+                } else {
+                    const added = clip._addText(content);
+                    // Persist (re-offer) text only if actually added and within size limit
+                    if (added && clip.persistEnabled && !clip._coldStart) {
+                        const sizeBytes = clip._utf8Size(content);
+                        if (sizeBytes <= clip.maxPersistBytes) {
+                            clip._startPersistPipeline("text/plain");
+                        } else {
+                            console.log(`[ClipboardService] Persist skip: text too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+                        }
                     }
                 }
             } else {
@@ -189,15 +203,20 @@ Singleton {
         onExited: {
             const base64 = String(imageOut.text || "").trim();
             if (base64) {
-                const added = clip._setLastImage(imageProc.mimeType, base64);
-                console.log(`[ClipboardService] Image fetch: ${imageProc.mimeType}, size=${base64.length}`);
-                // Persist (re-offer) image only if actually added and within size limit
-                if (added && clip.persistEnabled) {
-                    const sizeBytes = clip._base64Size(base64);
-                    if (sizeBytes <= clip.maxPersistBytes) {
-                        clip._startPersistPipeline(imageProc.mimeType);
-                    } else {
-                        console.log(`[ClipboardService] Persist skip: image too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+                const now = Date.now();
+                if (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs)) {
+                    console.log("[ClipboardService] Startup: skipping initial image clipboard content");
+                } else {
+                    const added = clip._setLastImage(imageProc.mimeType, base64);
+                    console.log(`[ClipboardService] Image fetch: ${imageProc.mimeType}, size=${base64.length}`);
+                    // Persist (re-offer) image only if actually added and within size limit
+                    if (added && clip.persistEnabled && !clip._coldStart) {
+                        const sizeBytes = clip._base64Size(base64);
+                        if (sizeBytes <= clip.maxPersistBytes) {
+                            clip._startPersistPipeline(imageProc.mimeType);
+                        } else {
+                            console.log(`[ClipboardService] Persist skip: image too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+                        }
                     }
                 }
             }
@@ -245,6 +264,8 @@ Singleton {
             clip.ready = true;
         // Reset watcher backoff on successful cycle
         clip._restartBackoffMs = 250;
+        if (clip._coldStart)
+            clip._coldStart = false;
     }
 
     // Add a text entry with duplicate-window logic
@@ -324,14 +345,14 @@ Singleton {
         } else {
             cmd = `wl-paste -n -t "${mimeType}" | wl-copy -t "${mimeType}"`;
         }
-        clip._suppressNextChange = true; // event-driven suppression
+        // Suppress multiple quick watch events that wl-copy may cause
+        clip._suppressBudget = Math.max(clip._suppressBudget, 2);
+        clip._suppressUntilTs = Date.now() + 500;
         clip._persistInFlight = true;
         persistProc.command = ["sh", "-c", cmd];
         console.log(`[ClipboardService] Persist: ${isText ? 'text/plain' : mimeType}`);
         persistProc.running = true;
     }
-
-    // _setError removed (unused)
 
     Component.onCompleted: {
         console.log(`[ClipboardService] Init: enabled=${clip.enabled}`);
@@ -343,6 +364,9 @@ Singleton {
         // Start watcher and fetch current content once
         if (clip.enabled) {
             watchProc.running = true;
+            // Allow a short grace period to avoid recording initial clipboard content
+            // (covers a second immediate fetch from a watch event)
+            clip._startupSkipUntilTs = Date.now() + 1000;
             _doFetch();
         }
     }
