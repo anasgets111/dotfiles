@@ -1,6 +1,269 @@
 pragma Singleton
 
 import QtQuick
+import QtQml
+import Quickshell
+import Quickshell.Io
 
-// TODO: Implement ClipboardService
-QtObject {}
+// ClipboardService: Wayland clipboard watcher (text + images)
+// - Clipboard only (no primary selection)
+// - Event-driven via wl-paste --watch, with auto-restart on failure
+// - Text history persisted; images are session-only (last image only)
+// - De-dupe: exact match within a time window (default 1 minute)
+// - No privacy filtering: all non-empty text is recorded
+Singleton {
+    id: clip
+
+    // Lifecycle/state
+    property bool ready: false
+    property bool enabled: true
+
+    // Config
+    property int maxItems: 50
+    property int duplicateWindowMs: 60 * 1000 // 1 minute
+
+    // Data
+    // Text history only; newest first. Each entry: { type: 'text', content, ts }
+    property var history: []
+    // Session-only last image entry: { type: 'image', mimeType, dataUrl, ts }
+    property var lastImage: null
+
+    // Diagnostics
+    property string lastError: ""
+
+    // Persistence: text history only
+    PersistentProperties {
+        id: store
+        reloadableId: "ClipboardService"
+        property var textHistory: []
+    }
+
+    // Public signals
+    signal itemAdded(var entry)
+    signal changed
+
+    // Internal flags
+    property bool _fetching: false
+    property int _restartBackoffMs: 250
+
+    // Debounce change notifications from the watcher
+    Timer {
+        id: changeDebounce
+        interval: 100
+        repeat: false
+        onTriggered: clip._doFetch()
+    }
+
+    // Watch clipboard changes (types are not used directly here; we re-query types)
+    Process {
+        id: watchProc
+        // Use wl-paste --watch to emit a marker to stdout on each change
+        // Use the exact working shape: emit a line per change using a shell
+        command: ["wl-paste", "--watch", "sh", "-c", "echo CHANGE"]
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: function (_) {
+                if (clip.enabled) {
+                    console.log("[ClipboardService] Watch: change signal");
+                    changeDebounce.restart();
+                }
+            }
+        }
+        onRunningChanged: {
+            console.log(`[ClipboardService] Watch: running=${watchProc.running}`);
+        }
+        onExited: {
+            console.warn("[ClipboardService] Watch exited; scheduling restart");
+            if (!clip.enabled)
+                return;
+            // Auto-restart with capped backoff
+            restartTimer.interval = clip._restartBackoffMs;
+            clip._restartBackoffMs = Math.min(clip._restartBackoffMs * 2, 2000);
+            restartTimer.start();
+        }
+    }
+
+    Timer {
+        id: restartTimer
+        repeat: false
+        onTriggered: {
+            if (!clip.enabled)
+                return;
+            console.log("[ClipboardService] Watch: restarting process");
+            watchProc.running = true;
+        }
+    }
+
+    // One-shot type lister
+    Process {
+        id: typeProc
+        stdout: StdioCollector {
+            id: typeOut
+        }
+        onExited: {
+            const out = (typeOut.text || "").trim();
+            const types = out ? out.split(/\n+/).filter(t => !!t) : [];
+
+            if (types.length === 0) {
+                // Fallback when type listing fails or is empty: try text
+                textProc.command = ["wl-paste", "-n", "-t", "text"];
+                console.log("[ClipboardService] Types unavailable; attempting text fallback");
+                textProc.running = true;
+                return;
+            }
+
+            console.log(`[ClipboardService] Types: ${types.join(', ')}`);
+
+            // Prefer image/* if present, else any text/*
+            const imageType = types.find(t => /^image\//.test(t));
+            if (imageType) {
+                imageProc.mimeType = imageType;
+                imageProc.command = ["sh", "-c", `wl-paste -n -t "${imageType}" | base64 -w 0`];
+                console.log(`[ClipboardService] Fetching image: ${imageType}`);
+                imageProc.running = true;
+                return;
+            }
+
+            const hasText = types.some(t => t === "text" || /^text\//.test(t));
+            if (hasText) {
+                // Use the generic 'text' alias to avoid charset mismatches (e.g., text/plain;charset=utf-8)
+                textProc.command = ["wl-paste", "-n", "-t", "text"];
+                console.log("[ClipboardService] Fetching text");
+                textProc.running = true;
+                return;
+            }
+
+            // Last-resort: try plain text anyway
+            textProc.command = ["wl-paste", "-n"]; // best-effort
+            console.log("[ClipboardService] No image/text types; best-effort text");
+            textProc.running = true;
+        }
+    }
+
+    // Text fetcher
+    Process {
+        id: textProc
+        stdout: StdioCollector {
+            id: textOut
+        }
+        onExited: {
+            const content = String(textOut.text || "").trim();
+            if (content) {
+                clip._addText(content);
+            } else {
+                console.log("[ClipboardService] Text fetch: empty/whitespace");
+            }
+            clip._fetching = false;
+            if (!clip.ready)
+                clip.ready = true;
+            // Reset watcher backoff on successful cycle
+            clip._restartBackoffMs = 250;
+        }
+    }
+
+    // Image fetcher (session only)
+    Process {
+        id: imageProc
+        property string mimeType: ""
+        stdout: StdioCollector {
+            id: imageOut
+        }
+        onExited: {
+            const base64 = String(imageOut.text || "").trim();
+            if (base64) {
+                clip._setLastImage(imageProc.mimeType, base64);
+                console.log(`[ClipboardService] Image fetch: ${imageProc.mimeType}, size=${base64.length}`);
+            }
+            clip._fetching = false;
+            if (!clip.ready)
+                clip.ready = true;
+            clip._restartBackoffMs = 250;
+        }
+    }
+
+    // Public helpers
+    function clear() {
+        clip.history = [];
+        store.textHistory = clip.history;
+        clip.changed();
+    }
+
+    // Manual refresh (one shot)
+    function refresh() {
+        _doFetch();
+    }
+
+    // Internal: start a fresh fetch cycle
+    function _doFetch() {
+        if (!clip.enabled)
+            return;
+        if (clip._fetching)
+            return;
+        clip._fetching = true;
+        console.log("[ClipboardService] Fetch cycle start");
+        typeProc.command = ["wl-paste", "-l"];
+        typeProc.running = true;
+    }
+
+    // Add a text entry with duplicate-window logic
+    function _addText(content) {
+        const now = Date.now();
+        const recentSame = clip.history.find(e => e && e.type === 'text' && e.content === content);
+        if (recentSame && (now - (recentSame.ts || recentSame.timestamp || 0)) <= clip.duplicateWindowMs) {
+            console.log(`[ClipboardService] Duplicate suppressed (within ${clip.duplicateWindowMs}ms)`);
+            return; // skip within window
+        }
+
+        const entry = {
+            type: 'text',
+            content: content,
+            ts: now
+        };
+        const newHist = [entry, ...clip.history];
+        clip.history = newHist.slice(0, clip.maxItems);
+        store.textHistory = clip.history;
+        // Log newly added text entries (images are not logged)
+        const preview = content.length > 160 ? content.slice(0, 157) + "..." : content;
+        console.log(`[ClipboardService] Text added: ${preview}`);
+        clip.itemAdded(entry);
+        clip.changed();
+    }
+
+    // Maintain only last image in session, with duplicate-window logic
+    function _setLastImage(mimeType, base64) {
+        const now = Date.now();
+        const dataUrl = `data:${mimeType};base64,${base64}`;
+        if (clip.lastImage && clip.lastImage.dataUrl === dataUrl && (now - (clip.lastImage.ts || 0)) <= clip.duplicateWindowMs) {
+            return; // skip within window
+        }
+        clip.lastImage = {
+            type: 'image',
+            mimeType: mimeType,
+            dataUrl: dataUrl,
+            ts: now
+        };
+        clip.changed();
+    }
+
+    // No privacy detection: everything non-empty is stored
+
+    function _setError(msg) {
+        clip.lastError = msg || "";
+        if (msg)
+            console.warn(`[ClipboardService] ${msg}`);
+    }
+
+    Component.onCompleted: {
+        console.log(`[ClipboardService] Init: enabled=${clip.enabled}`);
+        // Restore persisted text history
+        if (store.textHistory && store.textHistory.length) {
+            clip.history = store.textHistory;
+        }
+
+        // Start watcher and fetch current content once
+        if (clip.enabled) {
+            watchProc.running = true;
+            _doFetch();
+        }
+    }
+}
