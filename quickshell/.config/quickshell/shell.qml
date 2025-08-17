@@ -16,7 +16,6 @@ ShellRoot {
     property var wallpaper: Core.WallpaperService
     property var systemTray: Core.SystemTrayService
     property var network: Core.NetworkService
-    property var clipboard: Core.ClipboardService
     // property var dateTime: TimeService
     // property var battery: BatteryService
 
@@ -69,35 +68,12 @@ ShellRoot {
         } else {
             console.log("[Shell] NetworkService not present (null)");
         }
-
-        // access clipboard service to ensure it is instantiated and log
-        if (root.clipboard) {
-            console.log("[Shell] ClipboardService instance present, ready=", root.clipboard.ready, ", history=", (root.clipboard.history ? root.clipboard.history.length : 0));
-            try {
-                // Kick a one-time fetch to verify pipeline on startup
-                root.clipboard.refresh();
-            } catch (e) {
-                console.log("[Shell] failed to trigger clipboard.refresh():", e);
-            }
-        } else {
-            console.log("[Shell] ClipboardService not present (null)");
-        }
     }
 
     // Live log clipboard additions (text only)
     Connections {
-        target: root.clipboard
-        enabled: !!root.clipboard
-        function onItemAdded(entry) {
-            if (!entry || entry.type !== 'text')
-                return;
-            try {
-                const content = String(entry.content || "");
-                const preview = content.length > 160 ? content.slice(0, 157) + "..." : content;
-                console.log(`[Shell] Clipboard text added: ${preview}`);
-            } catch (e)
-            // no-op
-            {}
+        target: Core.ClipboardService
+        function onChanged() {
         }
     }
 }
