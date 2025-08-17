@@ -2,29 +2,26 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../" as Services
 
 Singleton {
     id: dateTimeService
 
     property bool ready: false
-    property date currentDate: new Date()
-    property string formattedDateTime: Qt.formatDateTime(currentDate, "yyyy-MM-dd hh:mm:ss")
+    // Default to Minutes to reduce wakeups if you don't display seconds
+    property int precision: SystemClock.Minutes
+    // Use Quickshell's SystemClock instead of a manual Timer
+    property date currentDate: clock.date
+    property string formattedDateTime: Qt.formatDateTime(clock.date, dateTimeService.precision === SystemClock.Minutes ? "yyyy-MM-dd hh:mm" : "yyyy-MM-dd hh:mm:ss")
     property string timeZone: ""
     property int weekStart: 0
 
     property bool ntpEnabled: false
     property bool ntpSynced: false
 
-    property int updateInterval: 1000
-
-    Timer {
-        id: clockTimer
-        interval: dateTimeService.updateInterval
-        running: true
-        repeat: true
-        onTriggered: dateTimeService.updateDateTime()
-        Component.onCompleted: triggered()
+    SystemClock {
+        id: clock
+        // Bind precision so callers can switch between Minutes/Seconds
+        precision: dateTimeService.precision
     }
 
     Process {
@@ -54,12 +51,6 @@ Singleton {
         dateTimeService.updateTimeInfo();
         ready = true;
         console.log("[DateTimeService] Ready");
-    }
-
-    function updateDateTime() {
-        var d = new Date();
-        currentDate = d;
-        formattedDateTime = Qt.formatDateTime(d, "yyyy-MM-dd hh:mm:ss");
     }
 
     function updateTimeInfo() {
@@ -93,6 +84,10 @@ Singleton {
             return "Calculating…";
         var h = Math.floor(seconds / 3600);
         var m = Math.round((seconds % 3600) / 60);
+        if (m === 60) {
+            h += 1;
+            m = 0;
+        }
         return h > 0 ? h + "h " + m + "m" : m + "m";
     }
 }
