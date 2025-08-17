@@ -70,10 +70,8 @@ ShellRoot {
         }
     }
 
-    // Live log clipboard additions (text only)
+    // Live clipboard
     Connections {
         target: Core.ClipboardService
-        function onChanged() {
-        }
     }
 }
