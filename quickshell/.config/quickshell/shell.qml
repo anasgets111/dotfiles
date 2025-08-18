@@ -24,6 +24,7 @@ ShellRoot {
     property var keyboardLayout: KeyboardLayoutService
     property var dateTime: TimeService
     // property var battery: BatteryService
+    readonly property bool _netInit: Core.NetworkService.ready
 
     // Your wallpapers (unchanged)
     Variants {
