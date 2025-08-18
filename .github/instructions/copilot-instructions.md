@@ -9,7 +9,7 @@ This repo contains dotfiles for a modular Wayland desktop centered on Quickshell
 ## Big picture
 
 - Quickshell is the UI/runtime. Entrypoint: `quickshell/.config/quickshell/shell.qml`.
-  - Services live in `quickshell/.config/quickshell/services/` and are registered via `services/qmldir`.
+  - Services live in `quickshell/.config/quickshell/services/`.
 - Window managers: both Hyprland and Niri are supported.
   - Niri autostarts Quickshell via `niri/.config/niri/config.kdl` (spawn-at-startup).
   - Hyprland is modular under `hypr/.config/hypr/` and sourced by `hyprland.conf` and also autostarts Quickshell (exec-start).
@@ -21,11 +21,7 @@ This repo contains dotfiles for a modular Wayland desktop centered on Quickshell
 ## Key files
 
 - `quickshell/.config/quickshell/shell.qml` – ShellRoot; imports `./services` and connects `MainService.detectionFinished` for logging.
-- `quickshell/.config/quickshell/services/qmldir` – registers:
-  - `singleton MainService MainService.qml`
-  - `WM/{Hyprland,Niri}Service.qml`
-  - `System/{Network,Media,Brightness,Keyboard,Power}Service.qml`
-- `quickshell/.config/quickshell/.qmlls.ini` – QML tooling/import paths (e.g., `/usr/lib/qt6/qml`).
+- `quickshell/.config/quickshell/.qmlls.ini` – QML tooling/import paths (e.g., `/usr/lib/qt6/qml`) we don't edit it.
 - `waybar/.config/waybar/{config,modules.jsonc}` – Hyprland and custom JSON modules wired to local scripts.
 - Scripts: `bin/.local/bin/{ScreenRecording.sh,RecordingStatus.sh,check_battery.sh}`.
 
@@ -50,14 +46,5 @@ This repo contains dotfiles for a modular Wayland desktop centered on Quickshell
 ## Gotchas
 
 - Ensure tools used by scripts exist: `hyprctl`, `jq`, `gpu-screen-recorder`, `nmcli`, `xrandr`, `notify-send`.
-
-## Adding a new service or component
-
-- When you add a new QML file in any folder with a `qmldir` (e.g., `services`, `modules/Bar`), you **must** register it in that `qmldir`.
-  - For a singleton: add a line like `singleton MyService MyService.qml`.
-  - For a regular component: add `MyComponent MyComponent.qml`.
-- If you add a new subfolder, create a `qmldir` there and register all components in that folder.
-- Update your lint/tool import paths (`-I <dir>`) to include the new module root if needed.
-- Example: After adding `WifiService.qml` to `modules/Bar/`, add `WifiService WifiService.qml` to `modules/Bar/qmldir`.
 
 If you have questions or want a recipe for a specific pattern, ask and these notes will be extended.
