@@ -94,15 +94,7 @@ Singleton {
         onRunningChanged: {
             console.log(`[ClipboardService] Watch: running=${watchProc.running}`);
         }
-        onExited: {
-            console.warn("[ClipboardService] Watch exited; scheduling restart");
-            if (!clip.enabled)
-                return;
-            // Auto-restart with capped backoff
-            restartTimer.interval = clip._restartBackoffMs;
-            clip._restartBackoffMs = Math.min(clip._restartBackoffMs * 2, 2000);
-            restartTimer.start();
-        }
+        // Restart logic is triggered externally; onRunningChanged can be used to detect stops if needed
     }
 
     Timer {
@@ -121,44 +113,44 @@ Singleton {
         id: typeProc
         stdout: StdioCollector {
             id: typeOut
-        }
-        onExited: {
-            const out = (typeOut.text || "").trim();
-            const types = out ? out.split(/\n+/).filter(t => !!t) : [];
+            onStreamFinished: {
+                const out = (typeOut.text || "").trim();
+                const types = out ? out.split(/\n+/).filter(t => !!t) : [];
 
-            if (types.length === 0) {
-                // Fallback when type listing fails or is empty: try text
-                textProc.command = ["wl-paste", "-n", "-t", "text"];
-                console.log("[ClipboardService] Types unavailable; attempting text fallback");
+                if (types.length === 0) {
+                    // Fallback when type listing fails or is empty: try text
+                    textProc.command = ["wl-paste", "-n", "-t", "text"];
+                    console.log("[ClipboardService] Types unavailable; attempting text fallback");
+                    textProc.running = true;
+                    return;
+                }
+
+                console.log(`[ClipboardService] Types: ${types.join(', ')}`);
+
+                // Prefer image/* if present, else any text/*
+                const imageType = types.find(t => /^image\//.test(t));
+                if (imageType) {
+                    imageProc.mimeType = imageType;
+                    imageProc.command = ["sh", "-c", `wl-paste -n -t "${imageType}" | base64 -w 0`];
+                    console.log(`[ClipboardService] Fetching image: ${imageType}`);
+                    imageProc.running = true;
+                    return;
+                }
+
+                const hasText = types.some(t => t === "text" || /^text\//.test(t));
+                if (hasText) {
+                    // Use the generic 'text' alias to avoid charset mismatches (e.g., text/plain;charset=utf-8)
+                    textProc.command = ["wl-paste", "-n", "-t", "text"];
+                    console.log("[ClipboardService] Fetching text");
+                    textProc.running = true;
+                    return;
+                }
+
+                // Last-resort: try plain text anyway
+                textProc.command = ["wl-paste", "-n"]; // best-effort
+                console.log("[ClipboardService] No image/text types; best-effort text");
                 textProc.running = true;
-                return;
             }
-
-            console.log(`[ClipboardService] Types: ${types.join(', ')}`);
-
-            // Prefer image/* if present, else any text/*
-            const imageType = types.find(t => /^image\//.test(t));
-            if (imageType) {
-                imageProc.mimeType = imageType;
-                imageProc.command = ["sh", "-c", `wl-paste -n -t "${imageType}" | base64 -w 0`];
-                console.log(`[ClipboardService] Fetching image: ${imageType}`);
-                imageProc.running = true;
-                return;
-            }
-
-            const hasText = types.some(t => t === "text" || /^text\//.test(t));
-            if (hasText) {
-                // Use the generic 'text' alias to avoid charset mismatches (e.g., text/plain;charset=utf-8)
-                textProc.command = ["wl-paste", "-n", "-t", "text"];
-                console.log("[ClipboardService] Fetching text");
-                textProc.running = true;
-                return;
-            }
-
-            // Last-resort: try plain text anyway
-            textProc.command = ["wl-paste", "-n"]; // best-effort
-            console.log("[ClipboardService] No image/text types; best-effort text");
-            textProc.running = true;
         }
     }
 
@@ -167,29 +159,29 @@ Singleton {
         id: textProc
         stdout: StdioCollector {
             id: textOut
-        }
-        onExited: {
-            const content = String(textOut.text || "").trim();
-            if (content) {
-                const now = Date.now();
-                if (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs)) {
-                    console.log("[ClipboardService] Startup: skipping initial clipboard content");
-                } else {
-                    const added = clip._addText(content);
-                    // Persist (re-offer) text only if actually added and within size limit
-                    if (added && clip.persistEnabled && !clip._coldStart) {
-                        const sizeBytes = clip._utf8Size(content);
-                        if (sizeBytes <= clip.maxPersistBytes) {
-                            clip._startPersistPipeline("text/plain");
-                        } else {
-                            console.log(`[ClipboardService] Persist skip: text too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+            onStreamFinished: {
+                const content = String(textOut.text || "").trim();
+                if (content) {
+                    const now = Date.now();
+                    if (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs)) {
+                        console.log("[ClipboardService] Startup: skipping initial clipboard content");
+                    } else {
+                        const added = clip._addText(content);
+                        // Persist (re-offer) text only if actually added and within size limit
+                        if (added && clip.persistEnabled && !clip._coldStart) {
+                            const sizeBytes = clip._utf8Size(content);
+                            if (sizeBytes <= clip.maxPersistBytes) {
+                                clip._startPersistPipeline("text/plain");
+                            } else {
+                                console.log(`[ClipboardService] Persist skip: text too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+                            }
                         }
                     }
+                } else {
+                    console.log("[ClipboardService] Text fetch: empty/whitespace");
                 }
-            } else {
-                console.log("[ClipboardService] Text fetch: empty/whitespace");
+                clip._finishFetch();
             }
-            clip._finishFetch();
         }
     }
 
@@ -199,44 +191,50 @@ Singleton {
         property string mimeType: ""
         stdout: StdioCollector {
             id: imageOut
-        }
-        onExited: {
-            const base64 = String(imageOut.text || "").trim();
-            if (base64) {
-                const now = Date.now();
-                if (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs)) {
-                    console.log("[ClipboardService] Startup: skipping initial image clipboard content");
-                } else {
-                    const added = clip._setLastImage(imageProc.mimeType, base64);
-                    console.log(`[ClipboardService] Image fetch: ${imageProc.mimeType}, size=${base64.length}`);
-                    // Persist (re-offer) image only if actually added and within size limit
-                    if (added && clip.persistEnabled && !clip._coldStart) {
-                        const sizeBytes = clip._base64Size(base64);
-                        if (sizeBytes <= clip.maxPersistBytes) {
-                            clip._startPersistPipeline(imageProc.mimeType);
-                        } else {
-                            console.log(`[ClipboardService] Persist skip: image too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+            onStreamFinished: {
+                const base64 = String(imageOut.text || "").trim();
+                if (base64) {
+                    const now = Date.now();
+                    if (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs)) {
+                        console.log("[ClipboardService] Startup: skipping initial image clipboard content");
+                    } else {
+                        const added = clip._setLastImage(imageProc.mimeType, base64);
+                        console.log(`[ClipboardService] Image fetch: ${imageProc.mimeType}, size=${base64.length}`);
+                        // Persist (re-offer) image only if actually added and within size limit
+                        if (added && clip.persistEnabled && !clip._coldStart) {
+                            const sizeBytes = clip._base64Size(base64);
+                            if (sizeBytes <= clip.maxPersistBytes) {
+                                clip._startPersistPipeline(imageProc.mimeType);
+                            } else {
+                                console.log(`[ClipboardService] Persist skip: image too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+                            }
                         }
                     }
                 }
+                clip._finishFetch();
             }
-            clip._finishFetch();
         }
     }
 
     // Persist pipeline: re-own clipboard via wl-paste | wl-copy
     Process {
         id: persistProc
-        onExited: {
-            clip._persistInFlight = false;
-            console.log("[ClipboardService] Persist: done");
+        onRunningChanged: {
+            if (!persistProc.running) {
+                clip._persistInFlight = false;
+                console.log("[ClipboardService] Persist: done");
+            }
         }
     }
 
     // Public helpers
     function clear() {
         clip.history = [];
-        store.textHistory = clip.history;
+        try {
+            store.textHistory = JSON.parse(JSON.stringify(clip.history));
+        } catch (e) {
+            store.textHistory = clip.history.slice();
+        }
         clip.changed();
     }
 
@@ -284,7 +282,11 @@ Singleton {
         };
         const newHist = [entry, ...clip.history];
         clip.history = newHist.slice(0, clip.maxItems);
-        store.textHistory = clip.history;
+        try {
+            store.textHistory = JSON.parse(JSON.stringify(clip.history));
+        } catch (e) {
+            store.textHistory = clip.history.slice();
+        }
         // Log newly added text entries (images are not logged)
         const preview = content.length > 160 ? content.slice(0, 157) + "..." : content;
         console.log(`[ClipboardService] Text added: ${preview}`);

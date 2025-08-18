@@ -8,6 +8,7 @@ import qs.Services
 import qs.Services.SystemInfo
 import qs.Services.Core as Core
 import qs.Components
+import qs.Services.WM
 
 ShellRoot {
     id: root
@@ -19,7 +20,8 @@ ShellRoot {
     // System info services
     property var notifs: NotificationService
     property var osd: OSDService
-    // property var dateTime: TimeService
+    property var keyboardLayout: KeyboardLayoutService
+    property var dateTime: TimeService
     // property var battery: BatteryService
 
     // Your wallpapers (unchanged)

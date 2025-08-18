@@ -2,7 +2,10 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../" as Services
+import qs.Services
+import qs.Services.Core
+import qs.Services.WM.Impl.Hyprland as Hypr
+import qs.Services.WM.Impl.Niri as Niri
 
 Singleton {
     id: idleService
@@ -57,7 +60,7 @@ Singleton {
 
     function _chooseBackend() {
         // prefer compositor backends if you detect them
-        if (Services.MainService.currentWM === "hyprland") {
+        if (MainService.currentWM === "hyprland") {
             backend = "hyprland";
         } else {
             backend = "auto";
@@ -68,14 +71,9 @@ Singleton {
         if (backend === "hyprland") {
             // subscribe to hyprland events (implement HyprIdleService)
             // Hyprland-specific integration lives in services/wm/impl/hyprland
-            Services.HyprIdleService.start();
-        } else if (backend === "ext-idle") {
-            // if you implement a Wayland ext-idle binding
-            ExtIdle.bind(); // pseudocode — implement in C++/plugin if necessary
+            Hypr.IdleImpl.start();
         } else {
-            // fallback: use systemd/logind triggers (query) and rely on loginctl for lock/suspend
-            // We'll call inhibitors check before each action
-            checkAndAct("lock");
+            Niri.IdleImpl.start();
         }
     }
 
@@ -94,11 +92,11 @@ Singleton {
             // prefer loginctl lock-session so logind / DM can handle
             lockCmd.command = ["sh", "-c", "loginctl lock-session"];
             lockCmd.running = true;
-            Services.LockService.requestLock(); // local state
+            LockService.requestLock(); // local state
             break;
         case "off":
             // compositor DPMS; hyprland uses "hyprctl dispatch dpms off"
-            if (Services.MainService.currentWM === "hyprland") {
+            if (MainService.currentWM === "hyprland") {
                 dpmsCmd.command = ["sh", "-c", "hyprctl dispatch dpms off"];
             } else {
                 dpmsCmd.command = ["sh", "-c", "loginctl lock-session && xset dpms force off"]; // fallback

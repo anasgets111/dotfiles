@@ -4,12 +4,14 @@ import Quickshell
 import QtQml
 import QtQuick
 import Quickshell.Io
-import "../" as Services
+import qs.Services
+import qs.Services.WM.Impl.Hyprland as Hyprland
+import qs.Services.WM.Impl.Niri as Niri
 
 Singleton {
     id: monitorService
 
-    property var mainService: Services.MainService
+    property var mainService: MainService
     property ListModel monitorsModel: ListModel {}
     property var impl: null
     property bool ready: false
@@ -46,9 +48,9 @@ Singleton {
         updateMonitors(list);
 
         if (monitorService.mainService.currentWM === "hyprland") {
-            monitorService.impl = Services.HyprMonitorService;
+            monitorService.impl = Hyprland.MonitorImpl;
         } else if (monitorService.mainService.currentWM === "niri") {
-            monitorService.impl = Services.NiriMonitorService;
+            monitorService.impl = Niri.MonitorImpl;
         }
 
         if (impl)
