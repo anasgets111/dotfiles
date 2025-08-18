@@ -16,6 +16,9 @@ ShellRoot {
     property var wallpaper: Core.WallpaperService
     property var systemTray: Core.SystemTrayService
     property var network: Core.NetworkService
+    // System info services
+    property var notifs: NotificationService
+    property var osd: OSDService
     // property var dateTime: TimeService
     // property var battery: BatteryService
 
@@ -57,19 +60,12 @@ ShellRoot {
     }
 
     Component.onCompleted: {
-        // access network service to ensure it is instantiated and log
-        if (root.network) {
-            console.log("[Shell] NetworkService instance present, ready=", root.network.ready);
-            try {
-                root.network.dumpState();
-            } catch (e) {
-                console.log("[Shell] failed to call dumpState:", e);
-            }
-        } else {
-            console.log("[Shell] NetworkService not present (null)");
-        }
+        // Touch services so they instantiate and log a concise status
+        if (root.osd)
+            console.log("[Shell] OSDService loaded; DND=", root.osd.doNotDisturb);
+        if (root.notifs)
+            console.log("[Shell] NotificationService loaded");
     }
-
     // Live clipboard
     Connections {
         target: Core.ClipboardService
