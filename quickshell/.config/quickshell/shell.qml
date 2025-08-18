@@ -17,6 +17,7 @@ ShellRoot {
     property var wallpaper: Core.WallpaperService
     property var systemTray: Core.SystemTrayService
     property var network: Core.NetworkService
+    property var monitor: MonitorService
     // System info services
     property var notifs: NotificationService
     property var osd: OSDService
