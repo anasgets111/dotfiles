@@ -45,6 +45,15 @@ Singleton {
         }
     }
 
+    // Helper: convert ListModel to plain JS array for logging/inspection
+    function monitorsModelToArray() {
+        var arr = [];
+        for (var i = 0; i < monitorsModel.count; i++) {
+            arr.push(monitorsModel.get(i));
+        }
+        return arr;
+    }
+
     // Small helper to run a command and collect stdout
     function runCmd(cmd, onDone) {
         var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
@@ -85,7 +94,13 @@ Singleton {
                 fps: s.refreshRate || 60,
                 bitDepth: s.colorDepth || 8,
                 orientation: s.orientation,
-                vrr: "off"
+                // Legacy string for UI that expects a simple mode indicator
+                vrr: "off",
+                // New fine-grained capability/state flags
+                vrrSupported: false,
+                hdrSupported: false,
+                vrrActive: false,
+                hdrActive: false
             };
         });
     }
@@ -100,7 +115,9 @@ Singleton {
             const oldItem = monitorsModel.get(i);
             const m = newList[i];
             if (!monitorService.sameMonitor(oldItem, m)) {
-                monitorsModel.set(i, m);
+                // Merge to avoid clobbering capability/state flags updated asynchronously
+                const merged = monitorService.mergeObjects(oldItem, m);
+                monitorsModel.set(i, merged);
                 setChanged = true;
             }
         }
@@ -124,17 +141,35 @@ Singleton {
         }
     }
 
-    // Compare two monitor entries for equality
+    // Compare two monitor entries for equality (only structural fields from Quickshell.screens)
     function sameMonitor(a, b) {
         if (!a || !b)
             return false;
-        const keys = ["name", "width", "height", "scale", "fps", "bitDepth", "orientation", "vrr"];
+        const keys = ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"];
         for (let i = 0; i < keys.length; i++) {
             const k = keys[i];
             if (a[k] !== b[k])
                 return false;
         }
         return true;
+    }
+
+    // Shallow merge helper (b overrides a)
+    function mergeObjects(a, b) {
+        var out = {};
+        for (var k in a)
+            out[k] = a[k];
+        for (var k2 in b)
+            out[k2] = b[k2];
+        return out;
+    }
+
+    function findMonitorIndexByName(name) {
+        for (var i = 0; i < monitorsModel.count; i++) {
+            if (monitorsModel.get(i).name === name)
+                return i;
+        }
+        return -1;
     }
 
     function parseEdidCapabilities(connectorName, callback) {
@@ -183,10 +218,48 @@ Singleton {
         for (let i = 0; i < list.length; i++) {
             const mon = list[i];
             parseEdidCapabilities(mon.name, function (caps) {
+                const idx = monitorService.findMonitorIndexByName(mon.name);
+                if (idx < 0)
+                    return;
+                // Update support flags immediately (only if changed)
+                let dirty = false;
+                const itemNow = monitorsModel.get(idx);
+                const vrrSupported = !!(caps && caps.vrr && caps.vrr.supported);
+                const hdrSupported = !!(caps && caps.hdr && caps.hdr.supported);
+                if (itemNow.vrrSupported !== vrrSupported) {
+                    monitorsModel.setProperty(idx, "vrrSupported", vrrSupported);
+                    dirty = true;
+                }
+                if (itemNow.hdrSupported !== hdrSupported) {
+                    monitorsModel.setProperty(idx, "hdrSupported", hdrSupported);
+                    dirty = true;
+                }
+                if (dirty)
+                    monitorsChanged();
+
                 impl.getAvailableFeatures(mon.name, function (features) {
-                    if (!features) {
+                    if (!features)
                         return;
+                    // Active states from WM impl (only if changed)
+                    const current = monitorsModel.get(idx);
+                    let dirtyActive = false;
+                    const vrrActive = !!(features.vrr && (features.vrr.active || features.vrr.enabled));
+                    const hdrActive = !!(features.hdr && (features.hdr.active || features.hdr.enabled));
+                    if (current.vrrActive !== vrrActive) {
+                        monitorsModel.setProperty(idx, "vrrActive", vrrActive);
+                        dirtyActive = true;
                     }
+                    if (current.hdrActive !== hdrActive) {
+                        monitorsModel.setProperty(idx, "hdrActive", hdrActive);
+                        dirtyActive = true;
+                    }
+                    const legacyVrr = vrrActive ? "on" : "off";
+                    if (current.vrr !== legacyVrr) {
+                        monitorsModel.setProperty(idx, "vrr", legacyVrr);
+                        dirtyActive = true;
+                    }
+                    if (dirtyActive)
+                        monitorsChanged();
                 });
             });
         }
@@ -248,5 +321,10 @@ Singleton {
         } else {
             callback(null);
         }
+    }
+
+    // Log whenever the model changes or capabilities update
+    onMonitorsChanged: {
+        console.log("[MonitorService] current monitors:", JSON.stringify(monitorService.monitorsModelToArray()));
     }
 }

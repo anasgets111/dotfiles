@@ -40,7 +40,6 @@ Singleton {
     property int deviceRefreshCooldownMs: 1000
 
     // polling fallback settings
-    property bool monitorRunning: false
     property bool usePollingFallback: false
     property int devicePollIntervalMs: 5000
     property int wifiPollIntervalMs: 30000
@@ -50,7 +49,6 @@ Singleton {
     // === Signals ===
     // property change signals are auto-provided by QML
     signal error(string message)
-    signal networksUpdated
     signal connectionChanged
     signal wifiRadioChanged
 
@@ -85,26 +83,46 @@ Singleton {
     function _log() {
         if (!net.debug)
             return;
-        try {
-            console.log.apply(console, arguments);
-        } catch (e) {}
+        console.log.apply(console, arguments);
     }
 
     // Trim CIDR suffix from IP address (e.g., 192.168.1.7/24 -> 192.168.1.7)
     function _stripCidr(s) {
         if (!s)
             return s;
-        try {
-            var str = String(s);
-            var idx = str.indexOf("/");
-            return idx > 0 ? str.substring(0, idx) : str;
-        } catch (e) {
-            return s;
-        }
+        var str = String(s);
+        var idx = str.indexOf("/");
+        return idx > 0 ? str.substring(0, idx) : str;
     }
 
     function _isConnected(state) {
         return state && state.indexOf("connected") !== -1;
+    }
+
+    // Simple UUID v4 format checker (36 chars, hyphens at 8,13,18,23, hex digits elsewhere)
+    function _isUuid(s) {
+        var str = String(s);
+        if (str.length !== 36)
+            return false;
+        var hy = {
+            8: true,
+            13: true,
+            18: true,
+            23: true
+        };
+        for (var i = 0; i < 36; i++) {
+            var ch = str[i];
+            if (hy[i]) {
+                if (ch !== '-')
+                    return false;
+                continue;
+            }
+            var code = ch.charCodeAt(0);
+            var isHex = (code >= 48 && code <= 57) || (code >= 65 && code <= 70) || (code >= 97 && code <= 102);
+            if (!isHex)
+                return false;
+        }
+        return true;
     }
 
     // Pick first wifi iface from devices
@@ -182,11 +200,11 @@ Singleton {
                     interface: val,
                     type: "",
                     state: "",
-                    name: "",
                     mac: "",
                     ip4: null,
                     ip6: null,
-                    connectionId: null
+                    connectionName: "",
+                    connectionUuid: ""
                 };
                 continue;
             }
@@ -197,8 +215,10 @@ Singleton {
                 obj.type = val;
             else if (key === "GENERAL.STATE" || key === "STATE")
                 obj.state = val;
-            else if (key === "GENERAL.CONNECTION" || key === "CONNECTION" || key === "GENERAL.CON-UUID" || key === "CON-UUID")
-                obj.connectionId = val;
+            else if (key === "GENERAL.CONNECTION" || key === "CONNECTION")
+                obj.connectionName = val;
+            else if (key === "GENERAL.CON-UUID" || key === "CON-UUID")
+                obj.connectionUuid = val;
             else if (key === "GENERAL.HWADDR" || key === "HWADDR")
                 obj.mac = val;
             else if (key.indexOf("IP4.ADDRESS") === 0 || key === "IP4.ADDRESS")
@@ -219,8 +239,7 @@ Singleton {
             signal: 0,
             security: "",
             freq: "",
-            connected: false,
-            seenAt: net._nowMs()
+            connected: false
         };
     }
 
@@ -328,20 +347,15 @@ Singleton {
         if (net.savedConnections)
             for (var i = 0; i < net.savedConnections.length; i++)
                 savedSet[net.savedConnections[i].ssid] = true;
-        // Prefer active SSID derived from the latest scan (IN-USE field)
+        // Active SSID derived only from the latest scan (IN-USE field)
         var activeSsid = null;
-        try {
-            for (var a = 0; a < net.wifiNetworks.length; a++) {
-                var cand = net.wifiNetworks[a];
-                if (cand && cand.connected && cand.ssid) {
-                    activeSsid = cand.ssid;
-                    break;
-                }
+        for (var a = 0; a < net.wifiNetworks.length; a++) {
+            var cand = net.wifiNetworks[a];
+            if (cand && cand.connected && cand.ssid) {
+                activeSsid = cand.ssid;
+                break;
             }
-            // Fallback: derive from activeDevice only if scan didn't mark any network as connected
-            if (!activeSsid && net.activeDevice && net.activeDevice.type === "wifi")
-                activeSsid = (net.activeDevice.name || "");
-        } catch (e) {}
+        }
         for (var j = 0; j < net.wifiNetworks.length; j++) {
             var wn = net.wifiNetworks[j];
             wn.saved = !!savedSet[wn.ssid];
@@ -355,62 +369,51 @@ Singleton {
     // Request device details (dynamic Process)
     function _requestDeviceDetails(iface) {
         try {
-            var qml = 'import Quickshell.Io; Process { id: p; stdout: StdioCollector { onStreamFinished: function() { /* placeholder */ } } }';
+            var qml = 'import Quickshell.Io; Process { id: p; stdout: StdioCollector {} }';
             var obj = Qt.createQmlObject(qml, net, "dynamicProc_");
             if (!obj) {
                 net._setError("Failed to create dynamic process object");
                 return;
             }
             obj.command = ["nmcli", "-m", "multiline", "-f", "ALL", "device", "show", iface];
-            try {
-                obj.stdout.streamFinished.connect(function () {
-                    try {
-                        var textOut = obj.stdout.text || "";
-                        var map = {};
-                        var lines = textOut.trim().split(/\n+/);
-                        for (var i = 0; i < lines.length; i++) {
-                            var line = lines[i];
-                            var idx = line.indexOf(":");
-                            if (idx > 0) {
-                                var key = line.substring(0, idx).trim();
-                                var val = line.substring(idx + 1).trim();
-                                map[key] = val;
-                            }
-                        }
-                        var ifc = map["GENERAL.DEVICE"] || map["DEVICE"] || iface;
-                        var details = {
-                            mac: map["GENERAL.HWADDR"] || map["HWADDR"] || "",
-                            type: map["GENERAL.TYPE"] || map["TYPE"] || "",
-                            name: map["GENERAL.CONNECTION"] || map["CONNECTION"] || map["GENERAL.CON-UUID"] || map["CON-UUID"] || map["GENERAL.TYPE"] || ifc,
-                            ip4: net._stripCidr(map["IP4.ADDRESS[1]"] || map["IP4.ADDRESS"] || null),
-                            ip6: map["IP6.ADDRESS[1]"] || map["IP6.ADDRESS"] || null,
-                            connectionId: map["GENERAL.CONNECTION"] || map["CONNECTION"] || map["GENERAL.CON-UUID"] || map["CON-UUID"] || null
-                        };
-                        net._mergeDeviceDetails(ifc, details);
-                        try {
-                            if ((map["GENERAL.TYPE"] || map["TYPE"]) === "wifi") {
-                                net.wifiInterface = ifc;
-                                net.wifiIP = net._stripCidr(details.ip4 || net.wifiIP);
-                            } else if ((map["GENERAL.TYPE"] || map["TYPE"]) === "ethernet") {
-                                net.ethernetInterface = ifc;
-                                net.ethernetIP = net._stripCidr(details.ip4 || net.ethernetIP);
-                            }
-                            net._updateDerivedState();
-                        } catch (e) {}
-                        net._log("[NetworkService] Merged device details for", ifc, "-> mac=", details.mac, "conn=", details.connectionId, "ip4=", details.ip4);
-                    } catch (ex) {
-                        net._setError("Failed parsing dynamic device show output: " + ex);
-                    }
-                    try {
-                        obj.destroy();
-                    } catch (ee) {}
-                });
-            } catch (connErr) {
-                net._setError("Unable to attach streamFinished handler: " + connErr);
+            obj.stdout.streamFinished.connect(function () {
                 try {
-                    obj.destroy();
-                } catch (ee) {}
-            }
+                    var textOut = obj.stdout.text || "";
+                    var map = {};
+                    var lines = textOut.trim().split(/\n+/);
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        var idx = line.indexOf(":");
+                        if (idx > 0) {
+                            var key = line.substring(0, idx).trim();
+                            var val = line.substring(idx + 1).trim();
+                            map[key] = val;
+                        }
+                    }
+                    var ifc = map["GENERAL.DEVICE"] || map["DEVICE"] || iface;
+                    var details = {
+                        mac: map["GENERAL.HWADDR"] || map["HWADDR"] || "",
+                        type: map["GENERAL.TYPE"] || map["TYPE"] || "",
+                        ip4: net._stripCidr(map["IP4.ADDRESS[1]"] || map["IP4.ADDRESS"] || null),
+                        ip6: map["IP6.ADDRESS[1]"] || map["IP6.ADDRESS"] || null,
+                        connectionName: map["GENERAL.CONNECTION"] || map["CONNECTION"] || "",
+                        connectionUuid: map["GENERAL.CON-UUID"] || map["CON-UUID"] || ""
+                    };
+                    net._mergeDeviceDetails(ifc, details);
+                    if ((map["GENERAL.TYPE"] || map["TYPE"]) === "wifi") {
+                        net.wifiInterface = ifc;
+                        net.wifiIP = net._stripCidr(details.ip4 || net.wifiIP);
+                    } else if ((map["GENERAL.TYPE"] || map["TYPE"]) === "ethernet") {
+                        net.ethernetInterface = ifc;
+                        net.ethernetIP = net._stripCidr(details.ip4 || net.ethernetIP);
+                    }
+                    net._updateDerivedState();
+                    net._log("[NetworkService] Merged device details for", ifc, "-> mac=", details.mac, "connName=", details.connectionName, "connUuid=", details.connectionUuid, "ip4=", details.ip4);
+                } catch (ex) {
+                    net._setError("Failed parsing dynamic device show output: " + ex);
+                }
+                obj.destroy();
+            });
             obj.running = true;
         } catch (e) {
             net._setError("Unable to request device details: " + e);
@@ -428,21 +431,17 @@ Singleton {
             net._log("[NetworkService] wifi radio disabled; skip scan");
             net.wifiNetworks = [];
             net.wifiNetworksChanged();
-            net.networksUpdated();
             return;
         }
-        try {
-            for (var di = 0; di < net.devices.length; di++) {
-                var d = net.devices[di];
-                if (d.interface === iface && d.state && d.state.indexOf("unavailable") !== -1) {
-                    net._log("[NetworkService] wifi device unavailable; skip scan");
-                    net.wifiNetworks = [];
-                    net.wifiNetworksChanged();
-                    net.networksUpdated();
-                    return;
-                }
+        for (var di = 0; di < net.devices.length; di++) {
+            var d = net.devices[di];
+            if (d.interface === iface && d.state && d.state.indexOf("unavailable") !== -1) {
+                net._log("[NetworkService] wifi device unavailable; skip scan");
+                net.wifiNetworks = [];
+                net.wifiNetworksChanged();
+                return;
             }
-        } catch (e) {}
+        }
         if (now - net.lastWifiScanAt < net.wifiScanCooldownMs) {
             net._log("[NetworkService] wifi scan cooldown active");
             return;
@@ -496,39 +495,27 @@ Singleton {
 
     function connectWifi(ssid, password, iface, save = false, name) {
         net._log("[NetworkService] connectWifi(ssid=", ssid, ", iface=", iface, ", save=", save, ")");
-        try {
-            if (!iface || iface === "")
-                iface = net._firstWifiInterface();
-            if (save && name) {
-                net._log("[NetworkService] adding connection con-name=", name, "ssid=", ssid);
-                net._runProcConnect(["nmcli", "connection", "add", "type", "wifi", "ifname", iface, "con-name", name, "ssid", ssid]);
-                return;
-            }
-            if (password)
-                net._runProcConnect(["nmcli", "device", "wifi", "connect", ssid, "password", password, "ifname", iface]);
-            else
-                net._runProcConnect(["nmcli", "device", "wifi", "connect", ssid, "ifname", iface]);
-        } catch (e) {
-            net._setError("Unable to start connect command: " + e);
+        if (!iface || iface === "")
+            iface = net._firstWifiInterface();
+        if (save && name) {
+            net._log("[NetworkService] adding connection con-name=", name, "ssid=", ssid);
+            net._runProcConnect(["nmcli", "connection", "add", "type", "wifi", "ifname", iface, "con-name", name, "ssid", ssid]);
+            return;
         }
+        if (password)
+            net._runProcConnect(["nmcli", "device", "wifi", "connect", ssid, "password", password, "ifname", iface]);
+        else
+            net._runProcConnect(["nmcli", "device", "wifi", "connect", ssid, "ifname", iface]);
     }
 
     function activateConnection(connId, iface) {
         net._log("[NetworkService] activateConnection(connId=", connId, ", iface=", iface, ")");
-        try {
-            net._runProcConnect(["nmcli", "connection", "up", "id", connId, "ifname", iface]);
-        } catch (e) {
-            net._setError("Unable to activate connection: " + e);
-        }
+        net._runProcConnect(["nmcli", "connection", "up", "id", connId, "ifname", iface]);
     }
 
     function disconnect(iface) {
         net._log("[NetworkService] disconnect(iface=", iface, ")");
-        try {
-            net._runProcConnect(["nmcli", "device", "disconnect", iface]);
-        } catch (e) {
-            net._setError("Unable to disconnect device");
-        }
+        net._runProcConnect(["nmcli", "device", "disconnect", iface]);
     }
 
     // Convenience: disconnect currently active wifi device
@@ -538,13 +525,15 @@ Singleton {
             net.disconnect(iface);
     }
 
-    // Forget a saved Wi-Fi connection by SSID (connection id/name)
-    function forgetWifi(ssid) {
+    // Forget a saved Wi‑Fi connection by name or UUID
+    function forgetWifi(identifier) {
+        // rudimentary UUID detection
+        var isUuid = net._isUuid(identifier);
+        procForget.command = isUuid ? ["nmcli", "connection", "delete", "uuid", identifier] : ["nmcli", "connection", "delete", "id", identifier];
         try {
-            procForget.command = ["nmcli", "connection", "delete", ssid];
             procForget.running = true;
         } catch (e) {
-            net._setError("Unable to start forget command");
+            net._setError("Unable to start forget command: " + e);
         }
     }
 
@@ -563,12 +552,8 @@ Singleton {
 
     // Public API: set and toggle Wi‑Fi radio
     function setWifiRadio(enabled) {
-        try {
-            var arg = enabled ? "on" : "off";
-            net._runProcConnect(["nmcli", "radio", "wifi", arg]);
-        } catch (e) {
-            net._setError("Unable to toggle Wi‑Fi radio: " + e);
-        }
+        var arg = enabled ? "on" : "off";
+        net._runProcConnect(["nmcli", "radio", "wifi", arg]);
     }
 
     function toggleWifiRadio() {
@@ -601,18 +586,7 @@ Singleton {
         interval: net.wifiPollIntervalMs
         repeat: true
         running: net.usePollingFallback
-        onTriggered: {
-            if (net.devices && net.devices.length > 0) {
-                var iface = null;
-                for (var i = 0; i < net.devices.length; i++)
-                    if (net.devices[i].type === "wifi") {
-                        iface = net.devices[i].interface;
-                        break;
-                    }
-                if (iface)
-                    net.refreshWifiScan(iface);
-            }
-        }
+        onTriggered: net.refreshWifi
     }
 
     // === Processes ===
@@ -632,16 +606,13 @@ Singleton {
             try {
                 net._log("[NetworkService] Starting nmcli monitor");
                 monitorProc.running = true;
-                net.monitorRunning = true;
             } catch (e) {
-                net.monitorRunning = false;
                 net.usePollingFallback = true;
                 net._log("[NetworkService] Failed to start monitor:", e);
             }
         }
         onRunningChanged: function () {
             if (!running) {
-                net.monitorRunning = false;
                 net.usePollingFallback = true;
                 net._log("[NetworkService] nmcli monitor stopped");
             }
@@ -691,13 +662,20 @@ Singleton {
                     var chosen = net._chooseActiveDevice(net.devices);
                     if (chosen) {
                         net.activeDevice = chosen;
-                        net._log("[NetworkService] Active device:", net.activeDevice.interface, "type=", net.activeDevice.type, "state=", net.activeDevice.state, "connection=", net.activeDevice.connectionId, "ip4=", net.activeDevice.ip4);
+                        net._log("[NetworkService] Active device:", net.activeDevice.interface, "type=", net.activeDevice.type, "state=", net.activeDevice.state, "connName=", net.activeDevice.connectionName, "ip4=", net.activeDevice.ip4);
                     }
                     // clear last error on successful parse
                     net.lastError = "";
                 } catch (e) {
                     net._setError("Failed parsing device list: " + e);
                 }
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: function () {
+                var msg = (text || "").trim();
+                if (msg.length > 0)
+                    net._setError(msg);
             }
         }
     }
@@ -717,14 +695,20 @@ Singleton {
                         top.push(net.wifiNetworks[k].ssid + "(" + net.wifiNetworks[k].signal + ")");
                     net._log("[NetworkService] Wifi scan results: count=", ncount, " top=", top.join(", "));
                     if (net.activeDevice && net.activeDevice.type === "wifi" && ncount > 0 && net._isConnected(net.activeDevice.state))
-                        net._log("[NetworkService] Active wifi device:", net.activeDevice.interface, "connection=", net.activeDevice.connectionId);
-                    net.networksUpdated();
+                        net._log("[NetworkService] Active wifi device:", net.activeDevice.interface, "connName=", net.activeDevice.connectionName);
                 } catch (e) {
                     net._setError("Failed parsing wifi list: " + e);
                 }
                 net.scanning = false;
                 net.scanningChanged();
                 net.lastWifiScanAt = net._nowMs();
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: function () {
+                var msg = (text || "").trim();
+                if (msg.length > 0)
+                    net._setError(msg);
             }
         }
     }
@@ -740,6 +724,17 @@ Singleton {
                 try {
                     procSaved.running = true;
                 } catch (e) {}
+                // refresh wifi radio state as well
+                try {
+                    procWifiRadio.running = true;
+                } catch (e2) {}
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: function () {
+                var msg = (text || "").trim();
+                if (msg.length > 0)
+                    net._setError(msg);
             }
         }
     }
