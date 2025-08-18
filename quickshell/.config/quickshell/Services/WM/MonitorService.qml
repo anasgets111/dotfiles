@@ -29,6 +29,8 @@ Singleton {
     }
 
     Connections {
+        // Guard against null target until mainService is injected
+        enabled: !!monitorService.mainService
         target: monitorService.mainService
         function onReadyChanged() {
             if (monitorService.mainService.ready) {
@@ -38,9 +40,21 @@ Singleton {
     }
 
     Component.onCompleted: {
-        if (monitorService.mainService.ready) {
+        if (monitorService.mainService && monitorService.mainService.ready) {
             setupImpl();
         }
+    }
+
+    // Small helper to run a command and collect stdout
+    function runCmd(cmd, onDone) {
+        var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
+        var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
+        proc.stdout = collector;
+        collector.onStreamFinished.connect(function () {
+            onDone(collector.text);
+        });
+        proc.command = cmd;
+        proc.running = true;
     }
 
     function setupImpl() {
@@ -60,10 +74,10 @@ Singleton {
     }
 
     function normalizeScreens(screens) {
-        const arr = [];
-        for (let i = 0; i < screens.length; i++) {
-            const s = screens[i];
-            arr.push({
+        // Convert to a plain array to ensure Array.map is available
+        const list = Array.prototype.slice.call(screens);
+        return list.map(function (s) {
+            return {
                 name: s.name,
                 width: s.width,
                 height: s.height,
@@ -72,9 +86,8 @@ Singleton {
                 bitDepth: s.colorDepth || 8,
                 orientation: s.orientation,
                 vrr: "off"
-            });
-        }
-        return arr;
+            };
+        });
     }
 
     function updateMonitors(newList) {
@@ -86,7 +99,7 @@ Singleton {
         for (let i = 0; i < minCount; i++) {
             const oldItem = monitorsModel.get(i);
             const m = newList[i];
-            if (oldItem.name !== m.name || oldItem.width !== m.width || oldItem.height !== m.height || oldItem.scale !== m.scale || oldItem.fps !== m.fps || oldItem.bitDepth !== m.bitDepth || oldItem.orientation !== m.orientation || oldItem.vrr !== m.vrr) {
+            if (!monitorService.sameMonitor(oldItem, m)) {
                 monitorsModel.set(i, m);
                 setChanged = true;
             }
@@ -111,40 +124,45 @@ Singleton {
         }
     }
 
-    function parseEdidCapabilities(connectorName, callback) {
-        // Step 1: List /sys/class/drm
-        var findProc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
-        var findCollector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', findProc);
-        findProc.stdout = findCollector;
+    // Compare two monitor entries for equality
+    function sameMonitor(a, b) {
+        if (!a || !b)
+            return false;
+        const keys = ["name", "width", "height", "scale", "fps", "bitDepth", "orientation", "vrr"];
+        for (let i = 0; i < keys.length; i++) {
+            const k = keys[i];
+            if (a[k] !== b[k])
+                return false;
+        }
+        return true;
+    }
 
-        findCollector.onStreamFinished.connect(function () {
-            const entries = findCollector.text.split(/\r?\n/).filter(Boolean);
+    function parseEdidCapabilities(connectorName, callback) {
+        const unsupported = {
+            vrr: {
+                supported: false
+            },
+            hdr: {
+                supported: false
+            }
+        };
+
+        // Step 1: List /sys/class/drm
+        runCmd(["sh", "-c", "ls /sys/class/drm"], function (stdout) {
+            const entries = stdout.split(/\r?\n/).filter(Boolean);
 
             // Step 2: Find matching entry
             const match = entries.find(line => line.endsWith(`-${connectorName}`));
             if (!match) {
-                callback({
-                    vrr: {
-                        supported: false
-                    },
-                    hdr: {
-                        supported: false
-                    }
-                });
+                callback(unsupported);
                 return;
             }
 
             // Step 3: Run edid-decode on the matched entry
-            var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
-            var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
-            proc.stdout = collector;
-
-            collector.onStreamFinished.connect(function () {
-                const text = collector.text;
-
+            const edidPath = `/sys/class/drm/${match}/edid`;
+            runCmd(["edid-decode", edidPath], function (text) {
                 const vrrSupported = /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text);
                 const hdrSupported = /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text);
-
                 callback({
                     vrr: {
                         supported: vrrSupported
@@ -154,14 +172,7 @@ Singleton {
                     }
                 });
             });
-
-            const edidPath = `/sys/class/drm/${match}/edid`;
-            proc.command = ["edid-decode", edidPath];
-            proc.running = true;
         });
-
-        findProc.command = ["sh", "-c", "ls /sys/class/drm"];
-        findProc.running = true;
     }
 
     function logMonitorFeatures(list) {
