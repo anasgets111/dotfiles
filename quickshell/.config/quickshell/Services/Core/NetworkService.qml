@@ -786,12 +786,9 @@ Singleton {
     Component.onCompleted: {
         net._log("[NetworkService] Component.onCompleted - initializing, setting ready=true");
         net.ready = true;
-        net.refreshDevices();
+        net.refresh();
         try {
             procSaved.running = true;
         } catch (e) {}
-        try {
-            procWifiRadio.running = true;
-        } catch (e2) {}
     }
 }
