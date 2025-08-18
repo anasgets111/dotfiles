@@ -37,8 +37,13 @@ Singleton {
     Component.onCompleted: {
         // Restore from cache
         if (cache.cachedUpdatePackages && cache.cachedUpdatePackages.length) {
-            updateService.updatePackages = cache.cachedUpdatePackages;
-            updateService.updates = cache.cachedUpdatePackages.length;
+            // Clone to current engine to avoid cross-engine JSValue warning
+            try {
+                updateService.updatePackages = JSON.parse(JSON.stringify(cache.cachedUpdatePackages));
+            } catch (e) {
+                updateService.updatePackages = cache.cachedUpdatePackages.slice();
+            }
+            updateService.updates = updateService.updatePackages.length;
         }
         if (cache.cachedLastSync && cache.cachedLastSync > 0) {
             updateService.lastSync = cache.cachedLastSync;
@@ -75,59 +80,53 @@ Singleton {
     Process {
         id: pkgProc
 
-        onExited: function (exitCode, exitStatus) {
-            const stderrText = (err.text || "").trim();
-            if (stderrText)
-                console.warn("[UpdateService] stderr:", stderrText);
-
-            if (!pkgProc.running && !updateService.busy)
-                return;
-
-            killTimer.stop();
-            updateService.busy = false;
-
-            const raw = (out.text || "").trim();
-            updateService.rawOutput = raw;
-            const list = raw ? raw.split(/\r?\n/) : [];
-            updateService.updates = list.length;
-
-            var pkgs = [];
-            for (var i = 0; i < list.length; ++i) {
-                var m = list[i].match(/^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/);
-                if (m)
-                    pkgs.push({
-                        "name": m[1],
-                        "oldVersion": m[2],
-                        "newVersion": m[3]
-                    });
-            }
-            updateService.updatePackages = pkgs;
-
-            if (exitCode !== 0 && exitCode !== 2) {
-                updateService.failureCount++;
-                if (updateService.failureCount >= updateService.failureThreshold) {
-                    console.error("[UpdateService] Update check failed", exitCode);
-                    updateService.failureCount = 0;
-                }
-                updateService.updates = 0;
-                updateService.updatePackages = [];
-                return;
-            }
-            updateService.failureCount = 0;
-
-            if (updateService.lastWasFull) {
-                updateService.lastSync = Date.now();
-            }
-
-            cache.cachedUpdatePackages = updateService.updatePackages;
-            cache.cachedLastSync = updateService.lastSync;
-        }
-
         stdout: StdioCollector {
             id: out
+            onStreamFinished: {
+                // stderr is handled below
+                if (!pkgProc.running && !updateService.busy)
+                    return;
+
+                killTimer.stop();
+                updateService.busy = false;
+
+                const raw = (out.text || "").trim();
+                updateService.rawOutput = raw;
+                const list = raw ? raw.split(/\r?\n/) : [];
+                updateService.updates = list.length;
+
+                var pkgs = [];
+                for (var i = 0; i < list.length; ++i) {
+                    var m = list[i].match(/^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/);
+                    if (m)
+                        pkgs.push({
+                            "name": m[1],
+                            "oldVersion": m[2],
+                            "newVersion": m[3]
+                        });
+                }
+                updateService.updatePackages = pkgs;
+
+                if (updateService.lastWasFull) {
+                    updateService.lastSync = Date.now();
+                }
+
+                // Store a cloned copy to decouple references
+                try {
+                    cache.cachedUpdatePackages = JSON.parse(JSON.stringify(updateService.updatePackages));
+                } catch (e) {
+                    cache.cachedUpdatePackages = updateService.updatePackages.slice();
+                }
+                cache.cachedLastSync = updateService.lastSync;
+            }
         }
         stderr: StdioCollector {
             id: err
+            onStreamFinished: {
+                const stderrText = (err.text || "").trim();
+                if (stderrText)
+                    console.warn("[UpdateService] stderr:", stderrText);
+            }
         }
     }
 
