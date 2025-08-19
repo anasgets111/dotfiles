@@ -3,6 +3,7 @@ import Quickshell
 import QtQuick
 import Quickshell.Io
 import qs.Services
+import qs.Services.SystemInfo
 
 Singleton {
     id: sys
@@ -15,7 +16,8 @@ Singleton {
 
     property bool ready: false
     property int _pendingChecks: 0
-    property bool debug: MainService.debug
+    property var logger: LoggerService
+    property bool debug: logger.debug
 
     property string username: ""
     property string fullName: ""
@@ -35,13 +37,6 @@ Singleton {
                 sys._checkDone();
             }
         }
-    }
-
-    // Logging helper: respects the debug flag
-    function _log() {
-        if (!sys.debug)
-            return;
-        console.log.apply(console, arguments);
     }
 
     // Process to get uptime (in seconds)
@@ -133,7 +128,7 @@ Singleton {
         sys._pendingChecks--;
         if (sys._pendingChecks <= 0) {
             sys.ready = true;
-            sys._log("[MainService] All checks complete, ready = true");
+            logger.log("[MainService] All checks complete, ready = true");
         }
     }
 }
