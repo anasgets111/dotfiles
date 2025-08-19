@@ -10,6 +10,7 @@ Singleton {
     property string currentWM: "other"
     property bool hasBrightnessControl: false
     property bool hasKeyboardBacklight: false
+    property bool isLaptop: false
 
     property bool ready: false
     property int _pendingChecks: 0
@@ -80,6 +81,19 @@ Singleton {
         }
     }
 
+    // Detect if the machine has a lid switch (laptop)
+    Process {
+        id: lidCheck
+        // Prefer ACPI lid path; fallback to checking SW_LID capability in input devices
+        command: ["sh", "-c", "if ( [ -d /proc/acpi/button/lid ] && ls /proc/acpi/button/lid/*/state >/dev/null 2>&1 ) || grep -q 'SW_LID' /proc/bus/input/devices; then echo yes; else echo no; fi"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                sys.isLaptop = (text.trim() === "yes");
+                sys._checkDone();
+            }
+        }
+    }
+
     function registerCheck(process) {
         sys._pendingChecks++;
         process.running = true;
@@ -92,6 +106,7 @@ Singleton {
         registerCheck(pacmanCheck);
         registerCheck(brightnessCheck);
         registerCheck(kbdBacklightCheck);
+        registerCheck(lidCheck);
         registerCheck(userInfoProc);
         registerCheck(uptimeProc);
     }

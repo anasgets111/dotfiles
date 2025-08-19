@@ -12,7 +12,7 @@ Singleton {
     property bool ready: false
 
     // debug logging (set true to see verbose logs)
-    property bool debug: true
+    property bool debug: false
 
     // backend info
 

@@ -6,9 +6,8 @@ import QtQml
 import Quickshell.Wayland
 import qs.Services
 import qs.Services.SystemInfo
-import qs.Services.Core as Core
 import qs.Components
-import qs.Services.WM
+import qs.Services.WM as WM
 import qs.Services.Core as Core
 
 ShellRoot {
@@ -18,11 +17,11 @@ ShellRoot {
     property var wallpaper: Core.WallpaperService
     property var systemTray: Core.SystemTrayService
     property var network: Core.NetworkService
-    property var monitor: MonitorService
+    property var monitor: WM.MonitorService
     // System info services
     property var notifs: NotificationService
     property var osd: OSDService
-    property var keyboardLayout: KeyboardLayoutService
+    property var keyboardLayout: WM.KeyboardLayoutService
     property var dateTime: TimeService
     // property var battery: BatteryService
     readonly property bool _netInit: Core.NetworkService.ready
@@ -75,7 +74,9 @@ ShellRoot {
     Connections {
         target: Core.ClipboardService
     }
-
+    Connections {
+        target: Core.IdleService
+    }
     // Instantiate lock service and lock screen component
     property var lock: Core.LockService
     LockScreen {}
