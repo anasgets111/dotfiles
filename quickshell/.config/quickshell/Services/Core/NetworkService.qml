@@ -15,6 +15,8 @@ Singleton {
 
     // debug logging (set true to see verbose logs)
     property var logger: LoggerService
+    // Ensure notification server is initialized
+    property var notifications: NotificationService
 
     // backend info
 
@@ -48,6 +50,21 @@ Singleton {
 
     property string lastError: ""
 
+    // --- Notification & suppression helpers ---
+    // Track last-known connectivity to detect transitions
+    property bool _lastWifiConnected: false
+    property bool _lastEthernetConnected: false
+    // Boot suppression to avoid startup spam (ms)
+    property int _bootSuppressMs: 8000
+    property double _bootStartedAt: 0
+    // Suppress windows for user-initiated actions (epoch ms per type/iface)
+    property double _wifiSuppressUntil: 0
+    property double _ethSuppressUntil: 0
+    property var _ifaceSuppressUntil: ({})
+    // Simple debounce to avoid repeated toasts (ms)
+    property int _notifyDebounceMs: 4000
+    property double _lastNotifyAt: 0
+
     // === Signals ===
     // property change signals are auto-provided by QML
     signal error(string message)
@@ -79,6 +96,47 @@ Singleton {
         net.lastError = msg;
         net.error(msg);
         logger.error("NetworkService", "Error:", msg);
+    }
+
+    // ---- Notify helpers ----
+    function _notify(urgency, title, body) {
+        var now = net._nowMs();
+        if (now - net._lastNotifyAt < net._notifyDebounceMs)
+            return;
+        net._lastNotifyAt = now;
+        try {
+            notifyProc.command = ["notify-send", "-u", String(urgency || "normal"), String(title || ""), String(body || "")];
+            notifyProc.running = true;
+        } catch (e) {
+            logger.warn("NetworkService", "notify failed:", e);
+        }
+    }
+
+    function _markSuppression(type, iface, ms) {
+        var until = net._nowMs() + (ms || 10000);
+        if (type === "wifi")
+            net._wifiSuppressUntil = Math.max(net._wifiSuppressUntil, until);
+        if (type === "ethernet")
+            net._ethSuppressUntil = Math.max(net._ethSuppressUntil, until);
+        var ifaceStr = String(iface || "");
+        if (ifaceStr.length > 0) {
+            var m = net._ifaceSuppressUntil;
+            m[ifaceStr] = Math.max(m[ifaceStr] || 0, until);
+            net._ifaceSuppressUntil = m; // reassign for change notify
+        }
+    }
+
+    function _isSuppressed(type, iface) {
+        var now = net._nowMs();
+        if (now - net._bootStartedAt < net._bootSuppressMs)
+            return true;
+        if (type === "wifi" && now < net._wifiSuppressUntil)
+            return true;
+        if (type === "ethernet" && now < net._ethSuppressUntil)
+            return true;
+        if (iface && net._ifaceSuppressUntil && now < (net._ifaceSuppressUntil[iface] || 0))
+            return true;
+        return false;
     }
 
     // Trim CIDR suffix from IP address (e.g., 192.168.1.7/24 -> 192.168.1.7)
@@ -138,6 +196,8 @@ Singleton {
         var ethConn = false;
         var wifiIp = "";
         var ethIp = "";
+        var wifiName = ""; // SSID / connection name
+        var ethName = "";  // connection name
         for (var i = 0; i < net.devices.length; i++) {
             var d = net.devices[i];
             var isConnected = net._isConnected(d.state);
@@ -146,14 +206,20 @@ Singleton {
                 wifiConn = wifiConn || isConnected;
                 if (d.ip4)
                     wifiIp = net._stripCidr(d.ip4);
+                if (isConnected && d.connectionName)
+                    wifiName = d.connectionName;
             } else if (d.type === "ethernet") {
                 ethIf = d.interface || ethIf;
                 ethConn = ethConn || isConnected;
                 if (d.ip4)
                     ethIp = net._stripCidr(d.ip4);
+                if (isConnected && d.connectionName)
+                    ethName = d.connectionName;
             }
         }
         var prevStatus = net.networkStatus;
+        var prevWifi = net._lastWifiConnected;
+        var prevEth = net._lastEthernetConnected;
         net.wifiInterface = wifiIf;
         net.wifiConnected = wifiConn;
         net.wifiIP = wifiIp;
@@ -168,6 +234,35 @@ Singleton {
             net.networkStatus = "disconnected";
         if (prevStatus !== net.networkStatus)
             net.connectionChanged();
+
+        // Notify on unintended disconnects (only on falling edge, not suppressed)
+        if (prevWifi && !wifiConn && !net._isSuppressed("wifi", wifiIf)) {
+            var wifiTitle = qsTr("Wi‑Fi disconnected");
+            var wifiBody = wifiIf ? (qsTr("Interface ") + wifiIf) : "";
+            net._notify((ethConn ? "low" : "normal"), wifiTitle, wifiBody);
+        }
+        if (prevEth && !ethConn && !net._isSuppressed("ethernet", ethIf)) {
+            var ethTitle = qsTr("Ethernet disconnected");
+            var ethBody = ethIf ? (qsTr("Interface ") + ethIf) : "";
+            net._notify((wifiConn ? "low" : "normal"), ethTitle, ethBody);
+        }
+
+        // Notify on successful connections (rising edge). Avoid boot spam.
+        var bootDelta = net._nowMs() - net._bootStartedAt;
+        if (!prevWifi && wifiConn && bootDelta >= net._bootSuppressMs) {
+            var ssid = wifiName && wifiName.length ? wifiName : wifiIf;
+            var body = (ssid ? (qsTr("SSID ") + ssid) : "") + (wifiIp ? (ssid ? ", IP " : qsTr("IP ")) + wifiIp : "");
+            net._notify("low", qsTr("Wi‑Fi connected"), body);
+        }
+        if (!prevEth && ethConn && bootDelta >= net._bootSuppressMs) {
+            var iname = ethName && ethName.length ? ethName : ethIf;
+            var ebody = (iname ? (qsTr("Interface ") + iname) : "") + (ethIp ? (iname ? ", IP " : qsTr("IP ")) + ethIp : "");
+            net._notify("low", qsTr("Ethernet connected"), ebody);
+        }
+
+        // Update last-known flags after evaluation
+        net._lastWifiConnected = wifiConn;
+        net._lastEthernetConnected = ethConn;
     }
 
     // Parse nmcli multiline device output into array of device objects
@@ -492,6 +587,8 @@ Singleton {
         logger.log("NetworkService", "connectWifi(ssid=", ssid, ", iface=", iface, ", save=", save, ")");
         if (!iface || iface === "")
             iface = net._firstWifiInterface();
+        // Suppress transient disconnects from switching networks
+        net._markWifiSwitchSuppression(iface);
         if (save && name) {
             logger.log("NetworkService", "adding connection con-name=", name, "ssid=", ssid);
             net._runProcConnect(["nmcli", "connection", "add", "type", "wifi", "ifname", iface, "con-name", name, "ssid", ssid]);
@@ -505,19 +602,31 @@ Singleton {
 
     function activateConnection(connId, iface) {
         logger.log("NetworkService", "activateConnection(connId=", connId, ", iface=", iface, ")");
+        net._markWifiSwitchSuppression(iface);
         net._runProcConnect(["nmcli", "connection", "up", "id", connId, "ifname", iface]);
     }
 
     function disconnect(iface) {
         logger.log("NetworkService", "disconnect(iface=", iface, ")");
+        // Mark suppression for this interface and type to avoid self-inflicted notifications
+        var dtype = "";
+        for (var i = 0; i < net.devices.length; i++)
+            if (net.devices[i].interface === iface) {
+                dtype = net.devices[i].type;
+                break;
+            }
+        if (dtype)
+            net._markSuppression(dtype, iface, 15000);
         net._runProcConnect(["nmcli", "device", "disconnect", iface]);
     }
 
     // Convenience: disconnect currently active wifi device
     function disconnectWifi() {
         var iface = net._firstWifiInterface();
-        if (iface)
+        if (iface) {
+            net._markSuppression("wifi", iface, 15000);
             net.disconnect(iface);
+        }
     }
 
     // Forget a saved Wi‑Fi connection by name or UUID
@@ -548,11 +657,18 @@ Singleton {
     // Public API: set and toggle Wi‑Fi radio
     function setWifiRadio(enabled) {
         var arg = enabled ? "on" : "off";
+        if (!enabled) // disabling wifi will disconnect
+            net._markSuppression("wifi", net._firstWifiInterface(), 15000);
         net._runProcConnect(["nmcli", "radio", "wifi", arg]);
     }
 
     function toggleWifiRadio() {
         net.setWifiRadio(!net.wifiRadioEnabled);
+    }
+
+    // Connect helpers may briefly cause disconnects when switching networks
+    function _markWifiSwitchSuppression(iface) {
+        net._markSuppression("wifi", iface || net._firstWifiInterface(), 20000);
     }
 
     // === Timers ===
@@ -798,10 +914,18 @@ Singleton {
     // === Lifecycle ===
     Component.onCompleted: {
         logger.log("NetworkService", "Component.onCompleted - initializing, setting ready=true");
+        net._bootStartedAt = Date.now();
+        net._lastWifiConnected = false;
+        net._lastEthernetConnected = false;
         net.ready = true;
         net.refresh();
         try {
             procSaved.running = true;
         } catch (e) {}
+    }
+
+    // Notification process used by _notify()
+    Process {
+        id: notifyProc
     }
 }

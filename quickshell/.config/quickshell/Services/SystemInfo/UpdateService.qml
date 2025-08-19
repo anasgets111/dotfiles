@@ -7,6 +7,8 @@ import qs.Services.SystemInfo
 Singleton {
     id: updateService
     property var logger: LoggerService
+    // Ensure our notification server is instantiated
+    property var notifications: NotificationService
 
     // Lifecycle
     property bool ready: false
@@ -20,6 +22,11 @@ Singleton {
     property bool lastWasFull: false
     property int failureCount: 0
     property int failureThreshold: 3
+    // Track last notified count to avoid duplicate notices
+    property int lastNotifiedUpdates: 0
+
+    // Command to run updates when user clicks action
+    property var updateCommand: ["xdg-terminal-exec", "--title='Global Updates'", "-e", "sh", "-c", "$BIN/update.sh"]
 
     // Timing
     property int minuteMs: 60 * 1000
@@ -53,6 +60,19 @@ Singleton {
         pollTimer.start();
         ready = true;
         updateService.logger.log("UpdateService", "Ready");
+    }
+
+    // Launch updater in a terminal
+    function runUpdate() {
+        if (busy)
+            return;
+        Quickshell.execDetached(updateService.updateCommand);
+    }
+
+    // Send a desktop notification via our server with an actionable button
+    function notify(urgency, title, body) {
+        notifyProc.command = ["notify-send", "-u", String(urgency || "normal"), "-A", "update=Update Now", "-w", String(title || ""), String(body || "")];
+        notifyProc.running = true;
     }
 
     function startUpdateProcess(cmd) {
@@ -125,11 +145,20 @@ Singleton {
                 updateService.logger.log("UpdateService", "Update check finished:", count, "packages");
                 if (count === 0) {
                     updateService.logger.log("UpdateService", "System is up to date");
+                    // Reset notification baseline when up-to-date
+                    updateService.lastNotifiedUpdates = 0;
                 } else {
                     var preview = pkgs.slice(0, Math.min(3, pkgs.length)).map(function (p) {
                         return p.name + " " + p.oldVersion + "->" + p.newVersion;
                     }).join(", ");
                     updateService.logger.log("UpdateService", "Packages:", preview + (count > 3 ? " …" : ""));
+                    // Notify only when the count increases
+                    if (count > updateService.lastNotifiedUpdates) {
+                        const added = count - updateService.lastNotifiedUpdates;
+                        const msg = added === 1 ? qsTr("One new package can be upgraded (") + count + qsTr(")") : added + qsTr(" new packages can be upgraded (") + count + qsTr(")");
+                        updateService.notify("normal", qsTr("Updates Available"), msg);
+                        updateService.lastNotifiedUpdates = count;
+                    }
                 }
             }
         }
@@ -137,8 +166,31 @@ Singleton {
             id: err
             onStreamFinished: {
                 const stderrText = (err.text || "").trim();
-                if (stderrText)
+                if (stderrText) {
                     updateService.logger.warn("UpdateService", "stderr:", stderrText);
+                    // Treat non-empty stderr as a failure indication
+                    updateService.failureCount++;
+                    if (updateService.failureCount >= updateService.failureThreshold) {
+                        updateService.notify("critical", qsTr("Update check failed"), stderrText);
+                        updateService.failureCount = 0;
+                    }
+                } else {
+                    // Clear failure streak on clean stderr
+                    updateService.failureCount = 0;
+                }
+            }
+        }
+    }
+
+    // Notification process to capture action responses
+    Process {
+        id: notifyProc
+        stdout: StdioCollector {
+            id: notifyOut
+            onStreamFinished: {
+                var act = (notifyOut.text || "").trim();
+                if (act === "update")
+                    updateService.runUpdate();
             }
         }
     }
@@ -177,6 +229,7 @@ Singleton {
             if (pkgProc.running) {
                 updateService.busy = false;
                 updateService.logger.error("UpdateService", "Update check killed (timeout)");
+                updateService.notify("critical", qsTr("Update check killed"), qsTr("Process took too long"));
             }
         }
     }
