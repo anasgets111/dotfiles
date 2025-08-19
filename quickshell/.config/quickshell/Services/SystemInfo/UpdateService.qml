@@ -46,9 +46,11 @@ Singleton {
                 updateService.updatePackages = cache.cachedUpdatePackages.slice();
             }
             updateService.updates = updateService.updatePackages.length;
+            updateService.logger.log("UpdateService", "Restored", updateService.updates, "packages from cache");
         }
         if (cache.cachedLastSync && cache.cachedLastSync > 0) {
             updateService.lastSync = cache.cachedLastSync;
+            updateService.logger.log("UpdateService", "Restored lastSync from cache:", updateService.lastSync);
         }
 
         doPoll();
@@ -61,17 +63,22 @@ Singleton {
         pkgProc.command = cmd;
         pkgProc.running = true;
         killTimer.interval = lastWasFull ? 60 * 1000 : minuteMs;
+        updateService.logger.log("UpdateService", "Starting checkupdates:", cmd.join(" "), "timeoutMs:", killTimer.interval);
         killTimer.restart();
     }
 
     function doPoll(forceFull = false) {
-        if (busy)
+        if (busy) {
+            updateService.logger.log("UpdateService", "Poll skipped: busy");
             return;
+        }
 
         busy = true;
         const now = Date.now();
         const full = forceFull || (now - lastSync > syncInterval);
         lastWasFull = full;
+
+        updateService.logger.log("UpdateService", "Poll start", full ? "full" : "nosync", "lastSyncDeltaMs:", (lastSync ? (now - lastSync) : -1));
 
         if (full)
             startUpdateProcess(["checkupdates", "--nocolor"]);
@@ -111,6 +118,7 @@ Singleton {
 
                 if (updateService.lastWasFull) {
                     updateService.lastSync = Date.now();
+                    updateService.logger.log("UpdateService", "Full sync complete; lastSync:", updateService.lastSync);
                 }
 
                 // Store a cloned copy to decouple references
@@ -120,6 +128,18 @@ Singleton {
                     cache.cachedUpdatePackages = updateService.updatePackages.slice();
                 }
                 cache.cachedLastSync = updateService.lastSync;
+
+                // Summary logs
+                const count = updateService.updates;
+                updateService.logger.log("UpdateService", "Update check finished:", count, "packages");
+                if (count === 0) {
+                    updateService.logger.log("UpdateService", "System is up to date");
+                } else {
+                    var preview = pkgs.slice(0, Math.min(3, pkgs.length)).map(function (p) {
+                        return p.name + " " + p.oldVersion + "->" + p.newVersion;
+                    }).join(", ");
+                    updateService.logger.log("UpdateService", "Packages:", preview + (count > 3 ? " …" : ""));
+                }
             }
         }
         stderr: StdioCollector {
@@ -136,7 +156,10 @@ Singleton {
         id: pollTimer
         interval: updateService.pollInterval
         repeat: true
-        onTriggered: updateService.doPoll()
+        onTriggered: {
+            updateService.logger.log("UpdateService", "Poll timer triggered");
+            updateService.doPoll();
+        }
     }
 
     Timer {

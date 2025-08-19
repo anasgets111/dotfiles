@@ -1,14 +1,16 @@
 pragma Singleton
-
+import QtQml
 import QtQuick
 import Quickshell
+import qs.Services.SystemInfo
 
 /* global XMLHttpRequest */
 
 // Self-contained weather service using ipapi.co and open-meteo.com
-// Minimal guards, XMLHttpRequest-based, with simple persistence and retries
+// Minimal guards, curl-based via Process, with simple persistence and retries
 Singleton {
     id: weatherService
+    property var logger: LoggerService
 
     // --- Constants -------------------------------------------------------
     readonly property string openMeteoUrlBase: "https://api.open-meteo.com/v1/forecast"
@@ -215,6 +217,7 @@ Singleton {
 
     // --- Core logic ------------------------------------------------------
     function updateWeather() {
+        weatherService.logger && weatherService.logger.log("WeatherService", "updateWeather: hasPersist=", !isNaN(persist.savedLat) && !isNaN(persist.savedLon), "lat=", latitude, "lon=", longitude);
         if (isNaN(latitude) || isNaN(longitude)) {
             // Prefer persisted coordinates if available
             if (!isNaN(persist.savedLat) && !isNaN(persist.savedLon)) {
@@ -222,6 +225,7 @@ Singleton {
                 longitude = persist.savedLon;
                 if (persist.savedLocationName)
                     locationName = persist.savedLocationName;
+                weatherService.logger && weatherService.logger.log("WeatherService", "Using persisted coords:", latitude + "," + longitude, "name=", locationName);
                 fetchCurrentTemp(latitude, longitude);
                 return;
             }
@@ -230,6 +234,7 @@ Singleton {
             var DONE = 4;
             geoXhr.open("GET", ipGeoUrl);
             geoXhr.timeout = geoTimeoutMs;
+            weatherService.logger && weatherService.logger.log("WeatherService", "IP geo request start:", ipGeoUrl, "timeout=", geoTimeoutMs, "ms");
             geoXhr.onreadystatechange = function () {
                 if (geoXhr.readyState !== DONE)
                     return;
@@ -246,22 +251,24 @@ Singleton {
                         persist.savedLocationName = locationName;
 
                         hasError = false;
+                        weatherService.logger && weatherService.logger.log("WeatherService", "IP geo success:", latitude + "," + longitude, "name=", locationName);
                         fetchCurrentTemp(latitude, longitude);
                     } catch (e) {
-                        console.warn("Weather: failed to parse IP geo response");
+                        weatherService.logger && weatherService.logger.warn("WeatherService", "failed to parse IP geo response");
                         applyFallbackCoords();
                     }
                 } else {
-                    console.warn("Weather: IP geo failed with status", geoXhr.status);
+                    weatherService.logger && weatherService.logger.warn("WeatherService", "IP geo failed with status", geoXhr.status);
                     applyFallbackCoords();
                 }
             };
             geoXhr.ontimeout = function () {
-                console.warn("Weather: IP geo request timed out");
+                weatherService.logger && weatherService.logger.warn("WeatherService", "IP geo request timed out");
                 applyFallbackCoords();
             };
             geoXhr.send();
         } else {
+            weatherService.logger && weatherService.logger.log("WeatherService", "Using existing coords:", latitude + "," + longitude, "name=", locationName);
             fetchCurrentTemp(latitude, longitude);
         }
     }
@@ -277,6 +284,7 @@ Singleton {
         persist.savedLocationName = locationName;
         _fallbackApplied = true;
         hasError = false;
+        weatherService.logger && weatherService.logger.warn("WeatherService", "Applying fallback coords:", latitude + "," + longitude, "name=", locationName);
         fetchCurrentTemp(latitude, longitude);
     }
 
@@ -286,6 +294,7 @@ Singleton {
         var url = openMeteoUrlBase + "?latitude=" + lat + "&longitude=" + lon + "&current_weather=true&timezone=auto";
         wxXhr.open("GET", url);
         wxXhr.timeout = wxTimeoutMs;
+        weatherService.logger && weatherService.logger.log("WeatherService", "Weather request start:", url, "timeout=", wxTimeoutMs, "ms");
         wxXhr.onreadystatechange = function () {
             if (wxXhr.readyState !== DONE2)
                 return;
@@ -301,21 +310,22 @@ Singleton {
                         hasError = false;
                         consecutiveErrors = 0;
                         _wxAttempt = 0;
+                        weatherService.logger && weatherService.logger.log("WeatherService", "Weather success: temp=", currentTemp, "code=", currentWeatherCode);
                     } else {
-                        console.warn("Weather: response missing current_weather");
+                        weatherService.logger && weatherService.logger.warn("WeatherService", "response missing current_weather");
                         scheduleWxRetry();
                     }
                 } catch (e) {
-                    console.warn("Weather: failed to parse weather response");
+                    weatherService.logger && weatherService.logger.warn("WeatherService", "failed to parse weather response");
                     scheduleWxRetry();
                 }
             } else {
-                console.warn("Weather: fetch failed with status", wxXhr.status);
+                weatherService.logger && weatherService.logger.warn("WeatherService", "fetch failed with status", wxXhr.status);
                 scheduleWxRetry();
             }
         };
         wxXhr.ontimeout = function () {
-            console.warn("Weather: fetch timed out");
+            weatherService.logger && weatherService.logger.warn("WeatherService", "fetch timed out");
             scheduleWxRetry();
         };
         wxXhr.send();
@@ -328,6 +338,7 @@ Singleton {
             _wxAttempt++;
             _pendingRetry = "wx";
             retryTimer.interval = retryDelayMs * _wxAttempt;
+            weatherService.logger && weatherService.logger.warn("WeatherService", "Scheduling retry:", _wxAttempt, "in", retryTimer.interval, "ms");
             retryTimer.start();
         }
     }
@@ -349,6 +360,7 @@ Singleton {
         running: false
         triggeredOnStart: false
         onTriggered: {
+            weatherService.logger && weatherService.logger.log("WeatherService", "Retry timer triggered; pending=", weatherService._pendingRetry);
             if (weatherService._pendingRetry === "wx") {
                 if (!isNaN(weatherService.latitude) && !isNaN(weatherService.longitude))
                     weatherService.fetchCurrentTemp(weatherService.latitude, weatherService.longitude);
@@ -363,6 +375,7 @@ Singleton {
     function startServiceOnce() {
         if (!weatherTimer.running) {
             weatherTimer.start();
+            weatherService.logger && weatherService.logger.log("WeatherService", "Service started; interval=", weatherService.refreshInterval, "ms");
             updateWeather();
         }
     }
