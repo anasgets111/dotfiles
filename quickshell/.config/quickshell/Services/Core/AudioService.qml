@@ -11,6 +11,8 @@ Singleton {
 
     // Properties — lists of sinks/sources (exclude streams)
     readonly property var logger: LoggerService
+    // OSD/Toast service reference
+    readonly property var osd: OSDService
     // Defaults and lists
     readonly property PwNode sink: Pipewire.defaultAudioSink
     readonly property PwNode source: Pipewire.defaultAudioSource
@@ -30,9 +32,22 @@ Singleton {
     // Signals
     signal micMuteChanged
 
+    // Device tracking caches for connect/disconnect toasts
+    property var _sinkMap: ({}) // key -> display name
+    property var _sourceMap: ({}) // key -> display name
+
+    // Suppress OSDs during startup/initial discovery
+    property bool _suppressStartupToasts: true
+    readonly property int startupQuietPeriodMs: 1500
+
     // Lifecycle
     Component.onCompleted: {
         logger.log("AudioService", "ready; default sink=", root.displayName(root.sink), "muted=", !!(root.sink && root.sink.audio && root.sink.audio.muted), "volume=", Math.round((root.sink && root.sink.audio ? root.sink.audio.volume : 0) * 100) + "%", "default source=", root.displayName(root.source));
+        // Initialize device caches without toasting to avoid startup spam
+        root._sinkMap = root._listToMap(root.sinks);
+        root._sourceMap = root._listToMap(root.sources);
+        // Start quiet period after component completes
+        startupSilence.restart();
     }
 
     // Functions — Human-friendly device naming
@@ -94,6 +109,53 @@ Singleton {
         }
 
         return "";
+    }
+
+    // Internal: stable key for a node and helpers to map/diff
+    function _nodeKey(node) {
+        if (!node)
+            return "";
+        // Prefer explicit id if available, fallback to name
+        if (node.id !== undefined && node.id !== null)
+            return String(node.id);
+        if (node.name)
+            return String(node.name);
+        const props = node.properties || {};
+        if (props["node.name"])
+            return String(props["node.name"]);
+        return String(root.displayName(node));
+    }
+    function _listToMap(list) {
+        const m = {};
+        for (let i = 0; i < list.length; i++) {
+            const n = list[i];
+            m[root._nodeKey(n)] = root.displayName(n);
+        }
+        return m;
+    }
+    function _diffMaps(oldMap, newList) {
+        const list = newList || [];
+        const added = [];
+        const removed = [];
+        const seen = {};
+        for (let i = 0; i < list.length; i++) {
+            const n = list[i];
+            const k = root._nodeKey(n);
+            seen[k] = true;
+            if (!oldMap.hasOwnProperty(k))
+                added.push(n);
+        }
+        for (const k in oldMap) {
+            if (!seen[k])
+                removed.push({
+                    key: k,
+                    name: oldMap[k]
+                });
+        }
+        return {
+            added: added,
+            removed: removed
+        };
     }
 
     // Volume control helpers (percentage-based API retained for IPC)
@@ -269,10 +331,18 @@ Singleton {
                 vol = 0;
             root._volume = vol;
             root.logger.log("AudioService", "sink volume changed ->", Math.round(vol * 100) + "%");
+            if (!root._muted && !root._suppressStartupToasts)
+                root.osd.showInfo("Volume", Math.round(vol * 100) + "%");
         }
         function onMutedChanged() {
             root._muted = !!(root.sink && root.sink.audio && root.sink.audio.muted);
             root.logger.log("AudioService", "sink muted changed ->", root._muted);
+            if (!root._suppressStartupToasts) {
+                if (root._muted)
+                    root.osd.showInfo("Muted");
+                else
+                    root.osd.showInfo("Unmuted", Math.round(root._volume * 100) + "%");
+            }
         }
     }
     Connections {
@@ -280,10 +350,18 @@ Singleton {
         function onVolumeChanged() {
             root.logger.log("AudioService", "mic volume changed ->", Math.round(root.source.audio.volume * 100) + "%");
             root.micMuteChanged();
+            if (!(root.source && root.source.audio && root.source.audio.muted) && !root._suppressStartupToasts)
+                root.osd.showInfo("Mic volume", Math.round(root.source.audio.volume * 100) + "%");
         }
         function onMutedChanged() {
             root.logger.log("AudioService", "mic muted changed ->", !!(root.source && root.source.audio && root.source.audio.muted));
             root.micMuteChanged();
+            if (root.source && root.source.audio && !root._suppressStartupToasts) {
+                if (root.source.audio.muted)
+                    root.osd.showInfo("Mic muted");
+                else
+                    root.osd.showInfo("Mic unmuted", Math.round(root.source.audio.volume * 100) + "%");
+            }
         }
     }
 
@@ -292,9 +370,64 @@ Singleton {
         root._volume = (root.sink && root.sink.audio ? root.sink.audio.volume : 0);
         root._muted = !!(root.sink && root.sink.audio && root.sink.audio.muted);
         logger.log("AudioService", "default sink changed ->", root.displayName(root.sink), "muted=", root._muted, "volume=", Math.round(root._volume * 100) + "%");
+        if (root.sink && !root._suppressStartupToasts) {
+            const name = root.displayName(root.sink);
+            if (name)
+                root.osd.showInfo("Output device", name);
+        }
     }
     onSourceChanged: {
         logger.log("AudioService", "default source changed ->", root.displayName(root.source));
         root.micMuteChanged();
+        if (root.source && !root._suppressStartupToasts) {
+            const name = root.displayName(root.source);
+            if (name)
+                root.osd.showInfo("Input device", name);
+        }
+    }
+
+    // React to device list changes (connect/disconnect toasts)
+    onSinksChanged: {
+        const diff = root._diffMaps(root._sinkMap, root.sinks);
+        if (!root._suppressStartupToasts) {
+            for (let i = 0; i < diff.added.length; i++) {
+                const n = diff.added[i];
+                const name = root.displayName(n);
+                if (name)
+                    root.osd.showInfo("Output connected", name);
+            }
+            for (let j = 0; j < diff.removed.length; j++) {
+                const r = diff.removed[j];
+                if (r && r.name)
+                    root.osd.showInfo("Output removed", r.name);
+            }
+        }
+        root._sinkMap = root._listToMap(root.sinks);
+    }
+    onSourcesChanged: {
+        const diff = root._diffMaps(root._sourceMap, root.sources);
+        if (!root._suppressStartupToasts) {
+            for (let i = 0; i < diff.added.length; i++) {
+                const n = diff.added[i];
+                const name = root.displayName(n);
+                if (name)
+                    root.osd.showInfo("Input connected", name);
+            }
+            for (let j = 0; j < diff.removed.length; j++) {
+                const r = diff.removed[j];
+                if (r && r.name)
+                    root.osd.showInfo("Input removed", r.name);
+            }
+        }
+        root._sourceMap = root._listToMap(root.sources);
+    }
+
+    // Quiet period timer to avoid startup OSD spam
+    Timer {
+        id: startupSilence
+        interval: root.startupQuietPeriodMs
+        running: false
+        repeat: false
+        onTriggered: root._suppressStartupToasts = false
     }
 }

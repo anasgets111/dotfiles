@@ -8,7 +8,7 @@ Singleton {
     id: loggerService
 
     // Toggle global debug logging on/off
-    property bool debug: false
+    property bool debug: true
     function _formatMessage(...args) {
         var time = TimeService.getFormattedTimestamp();
         const timePart = `\x1b[36m[${time}]\x1b[0m`;

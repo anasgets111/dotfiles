@@ -149,7 +149,12 @@ Singleton {
     }
 
     function _isConnected(state) {
-        return state && state.indexOf("connected") !== -1;
+        if (!state)
+            return false;
+        var s = String(state).toLowerCase().trim();
+        // Only treat states that START with "connected" as connected.
+        // This avoids false positives for "disconnected" and "connecting ...".
+        return s.indexOf("connected") === 0;
     }
 
     // Simple UUID v4 format checker (36 chars, hyphens at 8,13,18,23, hex digits elsewhere)
