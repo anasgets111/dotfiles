@@ -3,9 +3,11 @@ import Quickshell
 import QtQuick
 import Quickshell.Io
 import "../" as Services
+import qs.Services.SystemInfo
 
 Singleton {
     id: updateService
+    property var logger: LoggerService
 
     // Lifecycle
     property bool ready: false
@@ -52,7 +54,7 @@ Singleton {
         doPoll();
         pollTimer.start();
         ready = true;
-        console.log("[UpdateService] Ready");
+        updateService.logger.log("UpdateService", "Ready");
     }
 
     function startUpdateProcess(cmd) {
@@ -125,7 +127,7 @@ Singleton {
             onStreamFinished: {
                 const stderrText = (err.text || "").trim();
                 if (stderrText)
-                    console.warn("[UpdateService] stderr:", stderrText);
+                    updateService.logger.warn("UpdateService", "stderr:", stderrText);
             }
         }
     }
@@ -144,7 +146,7 @@ Singleton {
         onTriggered: {
             if (pkgProc.running) {
                 updateService.busy = false;
-                console.error("[UpdateService] Update check killed (timeout)");
+                updateService.logger.error("UpdateService", "Update check killed (timeout)");
             }
         }
     }

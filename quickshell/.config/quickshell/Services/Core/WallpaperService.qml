@@ -2,6 +2,7 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import qs.Services.WM as WM
+import qs.Services.SystemInfo
 
 // WallpaperService keeps only wallpaper-related preferences per monitor.
 // Monitor geometry and state are sourced directly from MonitorService.
@@ -9,7 +10,8 @@ Singleton {
     id: wallpaperService
 
     property var monitorService: WM.MonitorService
-    property bool ready: false
+    readonly property bool ready: !!(monitorService && monitorService.ready && monitorService.monitorsModel.count > 0)
+    property var logger: LoggerService
 
     // Default wallpaper and default mode applied when no preference exists
     property string defaultWallpaper: "/home/anas/Pictures/3.jpg"
@@ -83,9 +85,11 @@ Singleton {
     // Sync prefs and timers with current monitors
     function syncWithMonitors() {
         if (!monitorService || !monitorService.ready) {
-            ready = false;
+            logger.log("WallpaperService", "sync: monitorService not ready; skipping");
             return;
         }
+
+        logger.log("WallpaperService", "sync: begin");
 
         // Add defaults for new monitors and ensure timers
         for (let i = 0; i < monitorService.monitorsModel.count; i++) {
@@ -103,6 +107,7 @@ Singleton {
                 delete prefsByName[name];
                 destroyTimer(name);
                 delete filesByName[name];
+                logger.log("WallpaperService", `Removed stale monitor prefs/timer: ${name}`);
             }
         }
 
@@ -112,7 +117,7 @@ Singleton {
             applyRandomState(m.name);
         }
 
-        ready = monitorService.monitorsModel.count > 0;
+        logger.log("WallpaperService", `sync: done; monitors=${monitorService.monitorsModel.count}, prefs=${Object.keys(prefsByName).length}`);
     }
 
     // Timers
@@ -122,6 +127,7 @@ Singleton {
         const t = Qt.createQmlObject('import QtQuick; Timer { repeat: true; running: false; property string nameKey: ""; onTriggered: wallpaperService.rotateRandom(nameKey) }', wallpaperService);
         t.nameKey = name;
         timersByName[name] = t;
+        logger.log("WallpaperService", `Timer created for monitor: ${name}`);
         return t;
     }
     function destroyTimer(name) {
@@ -131,6 +137,7 @@ Singleton {
                 t.running = false;
             } catch (e) {}
             t.destroy();
+            logger.log("WallpaperService", `Timer destroyed for monitor: ${name}`);
         }
         delete timersByName[name];
     }
@@ -139,6 +146,7 @@ Singleton {
         const t = ensureTimer(name);
         t.interval = Math.max(1, (p.interval || 300)) * 1000;
         t.running = !!p.random;
+        logger.log("WallpaperService", `Random ${t.running ? 'enabled' : 'disabled'} for ${name}; interval=${t.interval}ms`);
     }
 
     // API: set wallpaper/mode for a monitor
@@ -148,6 +156,7 @@ Singleton {
             return;
         const p = ensurePrefs(name);
         p.wallpaper = path || defaultWallpaper;
+        logger.log("WallpaperService", `Set wallpaper: name=${name}, path=${p.wallpaper}`);
         // Optional: restart random timer when manual change occurs
         const t = timersByName[name];
         if (t && t.running) {
@@ -157,6 +166,7 @@ Singleton {
     function setModePref(name, mode) {
         const p = ensurePrefs(name);
         p.mode = mode || defaultMode;
+        logger.log("WallpaperService", `Set mode: name=${name}, mode=${p.mode}`);
     }
 
     // API: random rotation controls (per monitor)
@@ -175,13 +185,16 @@ Singleton {
         p.dir = dir || "";
         // Caller provides files discovered for dir (no swww). You can also scan here if desired.
         filesByName[name] = Array.isArray(files) ? files : [];
+        logger.log("WallpaperService", `Set random dir: name=${name}, dir=${p.dir}, files=${filesByName[name].length}`);
     }
     function rotateRandom(name) {
         const list = filesByName[name] || [];
         if (!list.length)
             return;
         const idx = Math.floor(Math.random() * list.length);
-        setWallpaper(name, list[idx]);
+        const chosen = list[idx];
+        logger.log("WallpaperService", `Rotate random: name=${name}, chosen=${chosen}`);
+        setWallpaper(name, chosen);
     }
 
     // Forward monitor-related changes to MonitorService (do not mirror geometry here)
@@ -215,13 +228,15 @@ Singleton {
         target: wallpaperService.monitorService
         function onReadyChanged() {
             if (wallpaperService.monitorService.ready) {
+                wallpaperService.logger.log("WallpaperService", "MonitorService ready");
                 wallpaperService.syncWithMonitors();
             } else {
-                wallpaperService.ready = false;
+                wallpaperService.logger.log("WallpaperService", "MonitorService not ready");
             }
         }
         function onMonitorsChanged() {
             if (wallpaperService.monitorService.ready) {
+                wallpaperService.logger.log("WallpaperService", "Monitors changed; syncing");
                 wallpaperService.syncWithMonitors();
             }
         }
@@ -229,7 +244,10 @@ Singleton {
 
     Component.onCompleted: {
         if (monitorService && monitorService.ready) {
+            logger.log("WallpaperService", "Init: monitorService ready; syncing");
             syncWithMonitors();
+        } else {
+            logger.log("WallpaperService", "Init: monitorService not ready yet");
         }
     }
 }

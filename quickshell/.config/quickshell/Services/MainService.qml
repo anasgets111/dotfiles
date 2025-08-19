@@ -128,7 +128,7 @@ Singleton {
         sys._pendingChecks--;
         if (sys._pendingChecks <= 0) {
             sys.ready = true;
-            logger.log("[MainService] All checks complete, ready = true");
+            logger.log("MainService", "All checks complete, ready = true");
         }
     }
 }

@@ -38,7 +38,7 @@ Singleton {
                     dateTimeService.ntpEnabled = lines[1].trim().toLowerCase() === "yes";
                     dateTimeService.ntpSynced = lines[2].trim().toLowerCase() === "yes";
                 }
-                dateTimeService.logger.log("[DateTimeService] Timezone:", dateTimeService.timeZone, "| NTP Enabled:", dateTimeService.ntpEnabled, "| NTP Synced:", dateTimeService.ntpSynced);
+                dateTimeService.logger.log("DateTimeService", "Timezone:", dateTimeService.timeZone, "| NTP Enabled:", dateTimeService.ntpEnabled, "| NTP Synced:", dateTimeService.ntpSynced);
             }
         }
     }
@@ -53,7 +53,7 @@ Singleton {
     Component.onCompleted: {
         dateTimeService.updateTimeInfo();
         ready = true;
-        logger.log("[DateTimeService] Ready");
+        logger.log("DateTimeService", "Ready");
     }
 
     function updateTimeInfo() {

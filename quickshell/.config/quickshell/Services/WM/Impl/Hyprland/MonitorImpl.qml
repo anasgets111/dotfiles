@@ -4,9 +4,11 @@ import Quickshell
 import QtQuick
 import Quickshell.Io
 import Quickshell.Hyprland
+import qs.Services.SystemInfo
 
 Singleton {
     id: hyprMonitorService
+    property var logger: LoggerService
 
     function stripAnsi(str) {
         return str.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "");
@@ -59,7 +61,7 @@ Singleton {
                     mirror: isMirror
                 });
             } catch (e) {
-                console.error("[HyprMonitorService] Failed to parse hyprctl output", e, output);
+                hyprMonitorService.logger.error("HyprMonitorService", "Failed to parse hyprctl output", e, output);
                 callback(null);
             }
         });

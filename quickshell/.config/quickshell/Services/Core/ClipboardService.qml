@@ -17,10 +17,9 @@ Singleton {
     id: clip
 
     // Lifecycle/state
-    property bool ready: false
+    readonly property bool ready: !clip._coldStart
     property bool enabled: true
     property var logger: LoggerService
-    property bool debug: logger.debug
 
     // Config
     property int maxItems: 50
@@ -85,15 +84,15 @@ Singleton {
                 if (clip._suppressBudget > 0 || now < clip._suppressUntilTs) {
                     if (clip._suppressBudget > 0)
                         clip._suppressBudget = Math.max(0, clip._suppressBudget - 1);
-                    clip.logger.log("[ClipboardService] Watch: suppressed self-change");
+                    clip.logger.log("ClipboardService", "Watch: suppressed self-change");
                     return;
                 }
-                clip.logger.log("[ClipboardService] Watch: change signal");
+                clip.logger.log("ClipboardService", "Watch: change signal");
                 changeDebounce.restart();
             }
         }
         onRunningChanged: {
-            clip.logger.log(`[ClipboardService] Watch: running=${watchProc.running}`);
+            clip.logger.log("ClipboardService", `Watch: running=${watchProc.running}`);
         }
     }
 
@@ -103,7 +102,7 @@ Singleton {
         onTriggered: {
             if (!clip.enabled)
                 return;
-            clip.logger.log("[ClipboardService] Watch: restarting process");
+            clip.logger.log("ClipboardService", "Watch: restarting process");
             watchProc.running = true;
         }
     }
@@ -120,19 +119,19 @@ Singleton {
                 if (types.length === 0) {
                     // Fallback when type listing fails or is empty: try text
                     textProc.command = ["wl-paste", "-n", "-t", "text"];
-                    clip.logger.log("[ClipboardService] Types unavailable; attempting text fallback");
+                    clip.logger.log("ClipboardService", "Types unavailable; attempting text fallback");
                     textProc.running = true;
                     return;
                 }
 
-                clip.logger.log(`[ClipboardService] Types: ${types.join(', ')}`);
+                clip.logger.log("ClipboardService", `Types: ${types.join(', ')}`);
 
                 // Prefer image/* if present, else any text/*
                 const imageType = types.find(t => /^image\//.test(t));
                 if (imageType) {
                     imageProc.mimeType = imageType;
                     imageProc.command = ["sh", "-c", `wl-paste -n -t "${imageType}" | base64 -w 0`];
-                    clip.logger.log(`[ClipboardService] Fetching image: ${imageType}`);
+                    clip.logger.log("ClipboardService", `Fetching image: ${imageType}`);
                     imageProc.running = true;
                     return;
                 }
@@ -141,14 +140,14 @@ Singleton {
                 if (hasText) {
                     // Use the generic 'text' alias to avoid charset mismatches (e.g., text/plain;charset=utf-8)
                     textProc.command = ["wl-paste", "-n", "-t", "text"];
-                    clip.logger.log("[ClipboardService] Fetching text");
+                    clip.logger.log("ClipboardService", "Fetching text");
                     textProc.running = true;
                     return;
                 }
 
                 // Last-resort: try plain text anyway
                 textProc.command = ["wl-paste", "-n"]; // best-effort
-                clip.logger.log("[ClipboardService] No image/text types; best-effort text");
+                clip.logger.log("ClipboardService", "No image/text types; best-effort text");
                 textProc.running = true;
             }
         }
@@ -164,7 +163,7 @@ Singleton {
                 if (content) {
                     const now = Date.now();
                     if (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs)) {
-                        clip.logger.log("[ClipboardService] Startup: skipping initial clipboard content");
+                        clip.logger.log("ClipboardService", "Startup: skipping initial clipboard content");
                     } else {
                         const added = clip._addText(content);
                         // Persist (re-offer) text only if actually added and within size limit
@@ -173,12 +172,12 @@ Singleton {
                             if (sizeBytes <= clip.maxPersistBytes) {
                                 clip._startPersistPipeline("text/plain");
                             } else {
-                                clip.logger.log(`[ClipboardService] Persist skip: text too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+                                clip.logger.log("ClipboardService", `Persist skip: text too large (${sizeBytes} > ${clip.maxPersistBytes})`);
                             }
                         }
                     }
                 } else {
-                    clip.logger.log("[ClipboardService] Text fetch: empty/whitespace");
+                    clip.logger.log("ClipboardService", "Text fetch: empty/whitespace");
                 }
                 clip._finishFetch();
             }
@@ -196,17 +195,17 @@ Singleton {
                 if (base64) {
                     const now = Date.now();
                     if (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs)) {
-                        clip.logger.log("[ClipboardService] Startup: skipping initial image clipboard content");
+                        clip.logger.log("ClipboardService", "Startup: skipping initial image clipboard content");
                     } else {
                         const added = clip._setLastImage(imageProc.mimeType, base64);
-                        clip.logger.log(`[ClipboardService] Image fetch: ${imageProc.mimeType}, size=${base64.length}`);
+                        clip.logger.log("ClipboardService", `Image fetch: ${imageProc.mimeType}, size=${base64.length}`);
                         // Persist (re-offer) image only if actually added and within size limit
                         if (added && clip.persistEnabled && !clip._coldStart) {
                             const sizeBytes = clip._base64Size(base64);
                             if (sizeBytes <= clip.maxPersistBytes) {
                                 clip._startPersistPipeline(imageProc.mimeType);
                             } else {
-                                clip.logger.log(`[ClipboardService] Persist skip: image too large (${sizeBytes} > ${clip.maxPersistBytes})`);
+                                clip.logger.log("ClipboardService", `Persist skip: image too large (${sizeBytes} > ${clip.maxPersistBytes})`);
                             }
                         }
                     }
@@ -222,7 +221,7 @@ Singleton {
         onRunningChanged: {
             if (!persistProc.running) {
                 clip._persistInFlight = false;
-                clip.logger.log("[ClipboardService] Persist: done");
+                clip.logger.log("ClipboardService", "Persist: done");
             }
         }
     }
@@ -250,7 +249,7 @@ Singleton {
         if (clip._fetching)
             return;
         clip._fetching = true;
-        clip.logger.log("[ClipboardService] Fetch cycle start");
+        clip.logger.log("ClipboardService", "Fetch cycle start");
         typeProc.command = ["wl-paste", "-l"];
         typeProc.running = true;
     }
@@ -258,8 +257,6 @@ Singleton {
     // Common tail for a successful fetch cycle
     function _finishFetch() {
         clip._fetching = false;
-        if (!clip.ready)
-            clip.ready = true;
         // Reset watcher backoff on successful cycle
         clip._restartBackoffMs = 250;
         if (clip._coldStart)
@@ -271,7 +268,7 @@ Singleton {
         const now = Date.now();
         const recentSame = clip.history.find(e => e && e.type === 'text' && e.content === content);
         if (recentSame && (now - (recentSame.ts || 0)) <= clip.duplicateWindowMs) {
-            clip.logger.log(`[ClipboardService] Duplicate suppressed (within ${clip.duplicateWindowMs}ms)`);
+            clip.logger.log("ClipboardService", `Duplicate suppressed (within ${clip.duplicateWindowMs}ms)`);
             return false; // skip within window
         }
 
@@ -289,7 +286,7 @@ Singleton {
         }
         // Log newly added text entries (images are not logged)
         const preview = content.length > 160 ? content.slice(0, 157) + "..." : content;
-        clip.logger.log(`[ClipboardService] Text added: ${preview}`);
+        clip.logger.log("ClipboardService", `Text added: ${preview}`);
         clip.itemAdded(entry);
         clip.changed();
         return true;
@@ -352,12 +349,12 @@ Singleton {
         clip._suppressUntilTs = Date.now() + 500;
         clip._persistInFlight = true;
         persistProc.command = ["sh", "-c", cmd];
-        clip.logger.log(`[ClipboardService] Persist: ${isText ? 'text/plain' : mimeType}`);
+        clip.logger.log("ClipboardService", `Persist: ${isText ? 'text/plain' : mimeType}`);
         persistProc.running = true;
     }
 
     Component.onCompleted: {
-        clip.logger.log(`[ClipboardService] Init: enabled=${clip.enabled}`);
+        clip.logger.log("ClipboardService", `Init: enabled=${clip.enabled}`);
         // Restore persisted text history
         if (store.textHistory && store.textHistory.length) {
             // Clone to current engine to avoid cross-engine JSValue warning
