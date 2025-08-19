@@ -12,11 +12,11 @@ Singleton {
 // PowerManagement — Tasks Checklist
 //
 // Core
-// [x] ready flag: expose readonly `ready` (mirrors MainService.ready)
-// [x] lid switch presence: expose readonly `hasLidSwitch` (via MainService.isLaptop)
+// [ ] ready flag: expose readonly `ready` (mirrors MainService.ready)
+// [ ] lid switch presence: expose readonly `hasLidSwitch` (via MainService.isLaptop)
 // [ ] lid open/close state: expose readonly `lidClosed` and update from backend (logind/UPower or /proc)
 // [ ] inhibited flag: `property bool inhibited`; emit `inhibitedChanged`
-// [x] idle thresholds: `idleBeforeLockMs`, `idleBeforeDisplayOffMs`, `idleBeforeSleepMs`
+// [ ] idle thresholds: `idleBeforeLockMs`, `idleBeforeDisplayOffMs`, `idleBeforeSleepMs`
 //
 // Signals & Actions
 // [ ] signals: `idleReached(phase)`, `lidChanged(closed: bool)`, `inhibitedChanged(enabled: bool)`

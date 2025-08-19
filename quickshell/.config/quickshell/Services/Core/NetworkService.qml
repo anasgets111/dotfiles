@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Services
 
 Singleton {
     id: net
@@ -12,7 +13,7 @@ Singleton {
     property bool ready: false
 
     // debug logging (set true to see verbose logs)
-    property bool debug: false
+    property bool debug: MainService.debug
 
     // backend info
 
