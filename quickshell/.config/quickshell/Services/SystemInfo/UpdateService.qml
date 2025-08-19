@@ -2,7 +2,6 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import Quickshell.Io
-import "../" as Services
 import qs.Services.SystemInfo
 
 Singleton {

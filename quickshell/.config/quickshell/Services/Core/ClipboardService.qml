@@ -4,7 +4,6 @@ import QtQuick
 import QtQml
 import Quickshell
 import Quickshell.Io
-import qs.Services
 import qs.Services.SystemInfo
 
 // ClipboardService: Wayland clipboard watcher (text + images)
