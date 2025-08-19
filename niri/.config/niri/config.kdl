@@ -48,7 +48,7 @@ output "DP-3" {
     mode "2560x1440@120"
     position x=0 y=0
     focus-at-startup
-    variable-refresh-rate on-demand=true
+    // variable-refresh-rate on-demand=true
 }
 
 hotkey-overlay {
