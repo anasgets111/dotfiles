@@ -39,11 +39,12 @@ Singleton {
     // Session-only last image entry: { type: 'image', mimeType, dataUrl, ts }
     property var lastImage: null
 
-    // Persistence: text history only
+    // Persistence: text history only, stored as JSON string
     PersistentProperties {
         id: store
         reloadableId: "ClipboardService"
-        property var textHistory: []
+        // JSON string to avoid cross-engine JSValue reassignment
+        property string textHistoryJson: "[]"
     }
 
     // Public signals
@@ -229,11 +230,7 @@ Singleton {
     // Public helpers
     function clear() {
         clip.history = [];
-        try {
-            store.textHistory = JSON.parse(JSON.stringify(clip.history));
-        } catch (e) {
-            store.textHistory = clip.history.slice();
-        }
+        store.textHistoryJson = JSON.stringify(_cloneTextHistory(clip.history));
         clip.changed();
     }
 
@@ -279,11 +276,7 @@ Singleton {
         };
         const newHist = [entry, ...clip.history];
         clip.history = newHist.slice(0, clip.maxItems);
-        try {
-            store.textHistory = JSON.parse(JSON.stringify(clip.history));
-        } catch (e) {
-            store.textHistory = clip.history.slice();
-        }
+        store.textHistoryJson = JSON.stringify(_cloneTextHistory(clip.history));
         // Log newly added text entries (images are not logged)
         const preview = content.length > 160 ? content.slice(0, 157) + "..." : content;
         clip.logger.log("ClipboardService", `Text added: ${preview}`);
@@ -355,16 +348,13 @@ Singleton {
 
     Component.onCompleted: {
         clip.logger.log("ClipboardService", `Init: enabled=${clip.enabled}`);
-        // Restore persisted text history
-        if (store.textHistory && store.textHistory.length) {
-            // Clone to current engine to avoid cross-engine JSValue warning
-            try {
-                clip.history = JSON.parse(JSON.stringify(store.textHistory));
-            } catch (e) {
-                // Fallback: shallow copy
-                clip.history = store.textHistory.slice();
-            }
-        }
+        // Diagnostics: show JSON snapshot
+        clip.logger.log("ClipboardService", "store.textHistory JSON:", store.textHistoryJson);
+        // Restore persisted text history from JSON string
+
+        const persisted = JSON.parse(store.textHistoryJson || "[]");
+        if (persisted && persisted.length)
+            clip.history = _cloneTextHistory(persisted);
 
         // Start watcher and fetch current content once
         if (clip.enabled) {
@@ -374,5 +364,27 @@ Singleton {
             clip._startupSkipUntilTs = Date.now() + 1000;
             _doFetch();
         }
+    }
+
+    // Ensure we never shuttle foreign-engine objects: produce plain JSONable entries
+    function _cloneTextHistory(arr) {
+        const out = [];
+        if (!arr || typeof arr.length !== 'number')
+            return out;
+        for (let i = 0; i < arr.length; i++) {
+            const e = arr[i] || {};
+            const type = (e.type === 'image' || e.type === 'text') ? e.type : 'text';
+            if (type === 'text') {
+                out.push({
+                    type: 'text',
+                    content: String(e.content || ''),
+                    ts: Number(e.ts || Date.now())
+                });
+            } else
+            // We do not persist images; keep only session entries out of store
+            // If someone persisted by mistake, drop it to avoid cross-engine objects
+            {}
+        }
+        return out;
     }
 }

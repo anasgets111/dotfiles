@@ -150,20 +150,28 @@ Singleton {
     property string locationName: ""
     property int currentWeatherCode: -1
 
-    // Persistence for last known location
+    // Persistence for last known location (JSON string, versioned)
     PersistentProperties {
         id: persist
         reloadableId: "WeatherService"
-        property real savedLat: NaN
-        property real savedLon: NaN
-        property string savedLocationName: ""
+        // JSON string with shape: { lat: number, lon: number, name: string }
+        property string savedLocationJson: "{}"
 
         function hydrate() {
-            if (!isNaN(persist.savedLat) && !isNaN(persist.savedLon)) {
-                weatherService.latitude = persist.savedLat;
-                weatherService.longitude = persist.savedLon;
-                weatherService.locationName = persist.savedLocationName;
+            // Log JSON snapshot
+            weatherService.logger && weatherService.logger.log("WeatherService", "persist snapshot:", persist.savedLocationJson);
+
+            // Hydrate from JSON string only
+            const obj = JSON.parse(persist.savedLocationJson || "{}");
+            const lat = Number(obj.lat);
+            const lon = Number(obj.lon);
+            const name = (obj.name === undefined || obj.name === null) ? "" : String(obj.name);
+            if (!isNaN(lat) && !isNaN(lon)) {
+                weatherService.latitude = lat;
+                weatherService.longitude = lon;
+                weatherService.locationName = name;
             }
+
             weatherService.startServiceOnce();
         }
 
@@ -217,14 +225,25 @@ Singleton {
 
     // --- Core logic ------------------------------------------------------
     function updateWeather() {
-        weatherService.logger && weatherService.logger.log("WeatherService", "updateWeather: hasPersist=", !isNaN(persist.savedLat) && !isNaN(persist.savedLon), "lat=", latitude, "lon=", longitude);
+        var hasPersist = false;
+        try {
+            const obj0 = JSON.parse(persist.savedLocationJson || "{}");
+            hasPersist = (obj0 && !isNaN(Number(obj0.lat)) && !isNaN(Number(obj0.lon)));
+        } catch (e) {
+            hasPersist = false;
+        }
+        weatherService.logger && weatherService.logger.log("WeatherService", "updateWeather: hasPersist=", hasPersist, "lat=", latitude, "lon=", longitude);
         if (isNaN(latitude) || isNaN(longitude)) {
             // Prefer persisted coordinates if available
-            if (!isNaN(persist.savedLat) && !isNaN(persist.savedLon)) {
-                latitude = persist.savedLat;
-                longitude = persist.savedLon;
-                if (persist.savedLocationName)
-                    locationName = persist.savedLocationName;
+            // Prefer persisted JSON if available
+            const obj = JSON.parse(persist.savedLocationJson || "{}");
+            const lat = Number(obj.lat);
+            const lon = Number(obj.lon);
+            const name = (obj.name === undefined || obj.name === null) ? "" : String(obj.name);
+            if (!isNaN(lat) && !isNaN(lon)) {
+                latitude = lat;
+                longitude = lon;
+                locationName = name;
                 weatherService.logger && weatherService.logger.log("WeatherService", "Using persisted coords:", latitude + "," + longitude, "name=", locationName);
                 fetchCurrentTemp(latitude, longitude);
                 return;
@@ -246,9 +265,11 @@ Singleton {
                         longitude = ipData.longitude;
                         locationName = (ipData.city || "") + (ipData.country_name ? ", " + ipData.country_name : "");
 
-                        persist.savedLat = latitude;
-                        persist.savedLon = longitude;
-                        persist.savedLocationName = locationName;
+                        persist.savedLocationJson = JSON.stringify({
+                            lat: latitude,
+                            lon: longitude,
+                            name: locationName
+                        });
 
                         hasError = false;
                         weatherService.logger && weatherService.logger.log("WeatherService", "IP geo success:", latitude + "," + longitude, "name=", locationName);
@@ -279,9 +300,11 @@ Singleton {
         latitude = fallbackLat;
         longitude = fallbackLon;
         locationName = fallbackLocationName || (fallbackLat + ", " + fallbackLon);
-        persist.savedLat = latitude;
-        persist.savedLon = longitude;
-        persist.savedLocationName = locationName;
+        persist.savedLocationJson = JSON.stringify({
+            lat: latitude,
+            lon: longitude,
+            name: locationName
+        });
         _fallbackApplied = true;
         hasError = false;
         weatherService.logger && weatherService.logger.warn("WeatherService", "Applying fallback coords:", latitude + "," + longitude, "name=", locationName);

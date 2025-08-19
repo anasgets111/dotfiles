@@ -32,19 +32,16 @@ Singleton {
         id: cache
         reloadableId: "ArchCheckerCache"
 
-        property var cachedUpdatePackages: []
+        property string cachedUpdatePackagesJson: "[]"
         property double cachedLastSync: 0
     }
 
     Component.onCompleted: {
         // Restore from cache
-        if (cache.cachedUpdatePackages && cache.cachedUpdatePackages.length) {
-            // Clone to current engine to avoid cross-engine JSValue warning
-            try {
-                updateService.updatePackages = JSON.parse(JSON.stringify(cache.cachedUpdatePackages));
-            } catch (e) {
-                updateService.updatePackages = cache.cachedUpdatePackages.slice();
-            }
+        updateService.logger.log("UpdateService", "cache.cachedUpdatePackagesJson:", cache.cachedUpdatePackagesJson);
+        const persisted = JSON.parse(cache.cachedUpdatePackagesJson || "[]");
+        if (persisted && persisted.length) {
+            updateService.updatePackages = _clonePackageList(persisted);
             updateService.updates = updateService.updatePackages.length;
             updateService.logger.log("UpdateService", "Restored", updateService.updates, "packages from cache");
         }
@@ -121,12 +118,7 @@ Singleton {
                     updateService.logger.log("UpdateService", "Full sync complete; lastSync:", updateService.lastSync);
                 }
 
-                // Store a cloned copy to decouple references
-                try {
-                    cache.cachedUpdatePackages = JSON.parse(JSON.stringify(updateService.updatePackages));
-                } catch (e) {
-                    cache.cachedUpdatePackages = updateService.updatePackages.slice();
-                }
+                cache.cachedUpdatePackagesJson = JSON.stringify(updateService._clonePackageList(updateService.updatePackages));
                 cache.cachedLastSync = updateService.lastSync;
 
                 // Summary logs
@@ -150,6 +142,22 @@ Singleton {
                     updateService.logger.warn("UpdateService", "stderr:", stderrText);
             }
         }
+    }
+
+    // Ensure cached packages are plain objects with expected fields only
+    function _clonePackageList(list) {
+        const out = [];
+        if (!list || typeof list.length !== 'number')
+            return out;
+        for (let i = 0; i < list.length; i++) {
+            const p = list[i] || {};
+            out.push({
+                name: String(p.name || ""),
+                oldVersion: String(p.oldVersion || ""),
+                newVersion: String(p.newVersion || "")
+            });
+        }
+        return out;
     }
 
     Timer {

@@ -73,7 +73,7 @@ Scope {
     }
     Timer {
         id: authStateResetTimer
-        interval: 4000
+        interval: 1000
         onTriggered: root.authState = ""
     }
 

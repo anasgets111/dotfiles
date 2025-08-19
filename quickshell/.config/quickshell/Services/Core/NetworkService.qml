@@ -641,6 +641,12 @@ Singleton {
                 try {
                     var parsed = net._parseDeviceListMultiline(text);
                     net.devices = parsed;
+                    // Diagnostics: ensure devices is JSON-serialisable
+                    try {
+                        net.logger.log("NetworkService", "devices JSON:", JSON.stringify(net.devices));
+                    } catch (eDiagDev) {
+                        net.logger.warn("NetworkService", "devices not JSON-serialisable", eDiagDev);
+                    }
                     net._updateDerivedState();
                     var devSummary = "devices=" + net.devices.length + ": ";
                     for (var d = 0; d < net.devices.length; d++) {
@@ -684,6 +690,12 @@ Singleton {
                     var parsed = net._parseWifiListMultiline(text);
                     net.wifiNetworks = parsed;
                     net._applySavedFlags();
+                    // Diagnostics: ensure wifiNetworks is JSON-serialisable
+                    try {
+                        net.logger.log("NetworkService", "wifiNetworks JSON:", JSON.stringify(net.wifiNetworks));
+                    } catch (eDiagWifi) {
+                        net.logger.warn("NetworkService", "wifiNetworks not JSON-serialisable", eDiagWifi);
+                    }
                     var ncount = net.wifiNetworks ? net.wifiNetworks.length : 0;
                     var top = [];
                     for (var k = 0; k < Math.min(5, ncount); k++)
@@ -755,6 +767,12 @@ Singleton {
                     }
                     net.savedConnections = list;
                     net._applySavedFlags();
+                    // Diagnostics: ensure savedConnections is JSON-serialisable
+                    try {
+                        net.logger.log("NetworkService", "savedConnections JSON:", JSON.stringify(net.savedConnections));
+                    } catch (eDiagSav) {
+                        net.logger.error("NetworkService", "savedConnections not JSON-serialisable", eDiagSav);
+                    }
                 } catch (e) {
                     net.logger.error("NetworkService", "Failed parsing saved connections list");
                 }

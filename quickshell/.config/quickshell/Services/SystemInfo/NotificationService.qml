@@ -71,7 +71,8 @@ Singleton {
     PersistentProperties {
         id: store
         reloadableId: "NotificationService"
-        property var historyStore: []
+        // Store as JSON string to avoid cross-engine JSValue reassignment
+        property string historyStoreJson: "[]"
     }
 
     // ----- Server -----
@@ -167,9 +168,12 @@ Singleton {
         }
 
         // Cleanup when the underlying notification is dropped/destroyed
-        readonly property Connections conn: Connections {
-            target: w.notification.Retainable
-            function onDropped(): void {
+        // Use RetainableLock to receive rebroadcasted signals instead of
+        // targeting the attached Retainable object directly, which can cause
+        // cross-engine JSValue warnings during reloads.
+        readonly property RetainableLock retainLock: RetainableLock {
+            object: w.notification
+            onDropped: {
                 const idx = root.all.indexOf(w);
                 if (idx !== -1) {
                     const newAll = root.all.slice();
@@ -178,9 +182,7 @@ Singleton {
                 }
                 root._release(w);
             }
-            function onAboutToDestroy(): void {
-                w.destroy();
-            }
+            onAboutToDestroy: w.destroy()
         }
 
         onPopupChanged: if (!popup)
@@ -247,41 +249,41 @@ Singleton {
 
     // ----- History helpers -----
     function _loadHistory() {
+        historyModel.clear();
+        let items = [];
         try {
-            historyModel.clear();
-            const items = store.historyStore || [];
-            for (let i = 0; i < items.length; i++) {
-                const it = items[i];
-                historyModel.append({
-                    summary: it.summary || "",
-                    body: it.body || "",
-                    appName: it.appName || "",
-                    urgency: it.urgency,
-                    timestamp: it.timestamp ? new Date(it.timestamp) : new Date()
-                });
-            }
+            items = JSON.parse(store.historyStoreJson || "[]");
+            if (!Array.isArray(items))
+                items = [];
         } catch (e) {
-            root.logger.warn("NotificationService", "Failed to load history:", e);
+            items = [];
         }
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            historyModel.append({
+                summary: String(it.summary || ""),
+                body: String(it.body || ""),
+                appName: String(it.appName || ""),
+                urgency: Number(it.urgency),
+                timestamp: it.timestamp ? new Date(Number(it.timestamp)) : new Date()
+            });
+        }
+        root._historyHydrated = true;
     }
 
     function _saveHistory() {
-        try {
-            const arr = [];
-            for (let i = 0; i < historyModel.count; i++) {
-                const n = historyModel.get(i);
-                arr.push({
-                    summary: n.summary,
-                    body: n.body,
-                    appName: n.appName,
-                    urgency: n.urgency,
-                    timestamp: (n.timestamp instanceof Date) ? n.timestamp.getTime() : n.timestamp
-                });
-            }
-            store.historyStore = arr;
-        } catch (e) {
-            root.logger.warn("NotificationService", "Failed to save history:", e);
+        const arr = [];
+        for (let i = 0; i < historyModel.count; i++) {
+            const n = historyModel.get(i);
+            arr.push({
+                summary: n.summary,
+                body: n.body,
+                appName: n.appName,
+                urgency: n.urgency,
+                timestamp: (n.timestamp instanceof Date) ? n.timestamp.getTime() : n.timestamp
+            });
         }
+        store.historyStoreJson = JSON.stringify(arr);
     }
 
     function _addToHistory(notification) {
@@ -316,9 +318,7 @@ Singleton {
         if (!wrapper || !wrapper.notification)
             return;
         wrapper.popup = false;
-        try {
-            wrapper.notification.dismiss();
-        } catch (e) {}
+        wrapper.notification.dismiss();
     }
 
     function setDoNotDisturb(enabled) {
