@@ -4,68 +4,50 @@ import QtQuick
 import Quickshell.Io
 import Quickshell.Hyprland
 
-// Hyprland backend for keyboard layouts
 Singleton {
-    id: hyprKeyboardLayoutImpl
+    id: root
 
-    // Toggle to start/stop processes and connections
     property bool enabled: false
-
-    // Public API mirrored by the service
     property var layouts: []
     property string currentLayout: ""
 
-    // Helpers
-    function update(namesArr, idxOrActive) {
-        var names = (namesArr || []).map(function (n) {
-            return String(n || "").trim();
-        });
-        hyprKeyboardLayoutImpl.layouts = names;
-        // On Hyprland current is the active keymap name (string)
-        hyprKeyboardLayoutImpl.currentLayout = String(idxOrActive || "").trim();
-    }
-
-    // Seed from hyprctl when enabled
     Process {
-        id: seedProcHypr
-        running: hyprKeyboardLayoutImpl.enabled
+        id: layoutSeedProcess
+        running: root.enabled
         command: ["hyprctl", "-j", "devices"]
         stdout: StdioCollector {
             onStreamFinished: {
-                if (!hyprKeyboardLayoutImpl.enabled)
+                if (!root.enabled)
                     return;
-                try {
-                    var j = JSON.parse(text);
-                    var arr = [], active = "";
-                    j.keyboards.forEach(function (k) {
-                        if (!k.main)
-                            return;
-                        (k.layout || "").split(",").forEach(function (l) {
-                            var t = String(l).trim();
-                            if (t && arr.indexOf(t) === -1)
-                                arr.push(t);
-                        });
-                        active = k.active_keymap;
+                var data = JSON.parse(text);
+                var layoutArray = [], activeLayout = "";
+                data.keyboards.forEach(function (keyboard) {
+                    if (!keyboard.main)
+                        return;
+                    (keyboard.layout || "").split(",").forEach(function (layout) {
+                        var trimmedLayout = layout.trim();
+                        if (trimmedLayout && layoutArray.indexOf(trimmedLayout) === -1)
+                            layoutArray.push(trimmedLayout);
                     });
-                    hyprKeyboardLayoutImpl.update(arr, active);
-                } catch (e) {
-                    console.error("[HyprKeyboardLayoutImpl] parse error:", e);
-                }
+                    activeLayout = keyboard.active_keymap;
+                });
+                root.layouts = layoutArray;
+                root.currentLayout = activeLayout || "";
             }
         }
     }
 
-    // Listen to hyprland raw events
     Connections {
-        target: hyprKeyboardLayoutImpl.enabled ? Hyprland : null
-        enabled: hyprKeyboardLayoutImpl.enabled
+        target: root.enabled ? Hyprland : null
+        enabled: root.enabled
         function onRawEvent(event) {
             if (event.name !== "activelayout")
                 return;
-            var parts = String(event.data || "").split(",").map(function (t) {
-                return t.trim();
+            var layoutParts = (event.data || "").split(",").map(function (part) {
+                return part.trim();
             });
-            hyprKeyboardLayoutImpl.update(parts, parts[parts.length - 1]);
+            root.layouts = layoutParts;
+            root.currentLayout = layoutParts[layoutParts.length - 1] || "";
         }
     }
 }
