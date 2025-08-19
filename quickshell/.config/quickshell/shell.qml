@@ -30,6 +30,7 @@ ShellRoot {
     readonly property var keyboardLayout: KeyboardLayoutService
     readonly property var dateTime: TimeService
     readonly property var battery: BatteryService
+    readonly property var updater: UpdateService
     readonly property bool _netInit: NetworkService.ready
 
     // Your wallpapers (unchanged)

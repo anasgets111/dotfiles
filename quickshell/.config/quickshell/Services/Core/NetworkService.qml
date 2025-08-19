@@ -70,7 +70,7 @@ Singleton {
             procConnect.running = true;
             return true;
         } catch (e) {
-            logger.error("Unable to start command: " + e);
+            logger.error("NetworkService", "Unable to start command:", e);
             return false;
         }
     }
@@ -367,7 +367,7 @@ Singleton {
             var qml = 'import Quickshell.Io; Process { id: p; stdout: StdioCollector {} }';
             var obj = Qt.createQmlObject(qml, net, "dynamicProc_");
             if (!obj) {
-                logger.error("Failed to create dynamic process object");
+                logger.error("NetworkService", "Failed to create dynamic process object");
                 return;
             }
             obj.command = ["nmcli", "-m", "multiline", "-f", "ALL", "device", "show", iface];
@@ -405,13 +405,13 @@ Singleton {
                     net._updateDerivedState();
                     logger.log("NetworkService", "Merged device details for", ifc, "-> mac=", details.mac, "connName=", details.connectionName, "connUuid=", details.connectionUuid, "ip4=", details.ip4);
                 } catch (ex) {
-                    logger.error("Failed parsing dynamic device show output: " + ex);
+                    logger.error("NetworkService", "Failed parsing dynamic device show output:", ex);
                 }
                 obj.destroy();
             });
             obj.running = true;
         } catch (e) {
-            logger.error("Unable to request device details: " + e);
+            logger.error("NetworkService", "Unable to request device details:", e);
         }
     }
 
@@ -447,7 +447,7 @@ Singleton {
             procWifiList.command = ["nmcli", "-m", "multiline", "-f", "IN-USE,SSID,BSSID,SIGNAL,SECURITY,FREQ", "device", "wifi", "list", "ifname", iface];
             procWifiList.running = true;
         } catch (e) {
-            logger.error("Unable to run wifi scan");
+            logger.error("NetworkService", "Unable to run wifi scan");
             net.scanning = false;
             net.scanningChanged();
         }
@@ -463,7 +463,7 @@ Singleton {
         try {
             procListDevices.running = true;
         } catch (e) {
-            logger.error("Unable to run device list: " + e);
+            logger.error("NetworkService", "Unable to run device list:", e);
         }
     }
 
@@ -528,7 +528,7 @@ Singleton {
         try {
             procForget.running = true;
         } catch (e) {
-            logger.error("Unable to start forget command: " + e);
+            logger.error("NetworkService", "Unable to start forget command:", e);
         }
     }
 
@@ -662,7 +662,7 @@ Singleton {
                     // clear last error on successful parse
                     net.lastError = "";
                 } catch (e) {
-                    net.logger.error("Failed parsing device list: " + e);
+                    net.logger.error("NetworkService", "Failed parsing device list:", e);
                 }
             }
         }
@@ -670,7 +670,7 @@ Singleton {
             onStreamFinished: function () {
                 var msg = (text || "").trim();
                 if (msg.length > 0)
-                    net.logger.error(msg);
+                    net.logger.error("NetworkService", msg);
             }
         }
     }
@@ -692,7 +692,7 @@ Singleton {
                     if (net.activeDevice && net.activeDevice.type === "wifi" && ncount > 0 && net._isConnected(net.activeDevice.state))
                         net.logger.log("NetworkService", "Active wifi device:", net.activeDevice.interface, "connName=", net.activeDevice.connectionName);
                 } catch (e) {
-                    net.logger.error("Failed parsing wifi list: " + e);
+                    net.logger.error("NetworkService", "Failed parsing wifi list:", e);
                 }
                 net.scanning = false;
                 net.scanningChanged();
@@ -703,7 +703,7 @@ Singleton {
             onStreamFinished: function () {
                 var msg = (text || "").trim();
                 if (msg.length > 0)
-                    net.logger.error(msg);
+                    net.logger.error("NetworkService", msg);
             }
         }
     }
@@ -729,7 +729,7 @@ Singleton {
             onStreamFinished: function () {
                 var msg = (text || "").trim();
                 if (msg.length > 0)
-                    net.logger.error(msg);
+                    net.logger.error("NetworkService", msg);
             }
         }
     }
@@ -756,7 +756,7 @@ Singleton {
                     net.savedConnections = list;
                     net._applySavedFlags();
                 } catch (e) {
-                    net.logger.error("Failed parsing saved connections list");
+                    net.logger.error("NetworkService", "Failed parsing saved connections list");
                 }
             }
         }
