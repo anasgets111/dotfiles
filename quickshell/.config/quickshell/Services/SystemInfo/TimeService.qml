@@ -2,13 +2,16 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Services.SystemInfo
 
 Singleton {
     id: dateTimeService
+    property var logger: LoggerService
+    property bool debug: logger.debug
 
     property bool ready: false
     // Default to Minutes to reduce wakeups if you don't display seconds
-    property int precision: SystemClock.Minutes
+    property int precision: SystemClock.Seconds
     // Use Quickshell's SystemClock instead of a manual Timer
     property date currentDate: clock.date
     property string formattedDateTime: Qt.formatDateTime(clock.date, dateTimeService.precision === SystemClock.Minutes ? "yyyy-MM-dd hh:mm" : "yyyy-MM-dd hh:mm:ss")
@@ -35,7 +38,7 @@ Singleton {
                     dateTimeService.ntpEnabled = lines[1].trim().toLowerCase() === "yes";
                     dateTimeService.ntpSynced = lines[2].trim().toLowerCase() === "yes";
                 }
-                console.log("[DateTimeService] Timezone:", dateTimeService.timeZone, "| NTP Enabled:", dateTimeService.ntpEnabled, "| NTP Synced:", dateTimeService.ntpSynced);
+                dateTimeService.logger.log("[DateTimeService] Timezone:", dateTimeService.timeZone, "| NTP Enabled:", dateTimeService.ntpEnabled, "| NTP Synced:", dateTimeService.ntpSynced);
             }
         }
     }
@@ -50,7 +53,7 @@ Singleton {
     Component.onCompleted: {
         dateTimeService.updateTimeInfo();
         ready = true;
-        console.log("[DateTimeService] Ready");
+        logger.log("[DateTimeService] Ready");
     }
 
     function updateTimeInfo() {
@@ -89,5 +92,9 @@ Singleton {
             m = 0;
         }
         return h > 0 ? h + "h " + m + "m" : m + "m";
+    }
+    function getFormattedTimestamp() {
+        // Return local wall-clock time, e.g. "11:09:08"
+        return Qt.formatDateTime(clock.date, "hh:mm:ss");
     }
 }
