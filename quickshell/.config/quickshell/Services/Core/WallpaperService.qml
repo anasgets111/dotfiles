@@ -14,7 +14,7 @@ Singleton {
     property var logger: LoggerService
 
     // Default wallpaper and default mode applied when no preference exists
-    property string defaultWallpaper: "/home/anas/Pictures/3.jpg"
+    property string defaultWallpaper: "/mnt/Work/1Wallpapers/Main/samurai.jpg"
     property string defaultMode: "fill" // fill | fit | center, etc.
 
     // Preferences keyed by monitor name
