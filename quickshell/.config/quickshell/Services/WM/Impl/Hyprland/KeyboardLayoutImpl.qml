@@ -3,17 +3,19 @@ import Quickshell
 import QtQuick
 import Quickshell.Io
 import Quickshell.Hyprland
+import qs.Services as Services
 
 Singleton {
     id: root
 
     property bool enabled: false
+    readonly property bool active: (Services.MainService.currentWM === "hyprland")
     property var layouts: []
     property string currentLayout: ""
 
     Process {
         id: layoutSeedProcess
-        running: root.enabled
+        running: root.enabled && root.active
         command: ["hyprctl", "-j", "devices"]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -38,8 +40,8 @@ Singleton {
     }
 
     Connections {
-        target: root.enabled ? Hyprland : null
-        enabled: root.enabled
+        target: (root.enabled && root.active) ? Hyprland : null
+        enabled: root.enabled && root.active
         function onRawEvent(event) {
             if (event.name !== "activelayout")
                 return;

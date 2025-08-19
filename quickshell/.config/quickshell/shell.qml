@@ -32,6 +32,7 @@ ShellRoot {
     readonly property var battery: BatteryService
     readonly property var updater: UpdateService
     readonly property bool _netInit: NetworkService.ready
+    readonly property var workspaces: WorkspaceService
 
     // Your wallpapers (unchanged)
     Variants {
