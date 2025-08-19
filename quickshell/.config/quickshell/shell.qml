@@ -9,6 +9,7 @@ import qs.Services.SystemInfo
 import qs.Services.Core as Core
 import qs.Components
 import qs.Services.WM
+import qs.Services.Core as Core
 
 ShellRoot {
     id: root
@@ -74,4 +75,8 @@ ShellRoot {
     Connections {
         target: Core.ClipboardService
     }
+
+    // Instantiate lock service and lock screen component
+    property var lock: Core.LockService
+    LockScreen {}
 }
