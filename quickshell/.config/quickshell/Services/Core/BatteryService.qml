@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
-import qs.Services.SystemInfo as Services
+import qs.Services.SystemInfo
 
 Singleton {
     id: batteryService
@@ -10,20 +10,20 @@ Singleton {
     // Tracks whether this service has detected a usable laptop battery.
     // Other components can check `isReady` to know when battery-derived
     // properties (like `percentage`) are valid.
-    property bool isReady: false
-
+    readonly property bool isReady: isLaptopBattery
+    readonly property var logger: LoggerService
     // Live reference to the UPower display device object.
-    property var displayDevice: UPower.displayDevice
+    readonly property var displayDevice: UPower.displayDevice
 
-    Component.onCompleted: {
-        // Ensure we reflect the current device on startup
-        displayDevice = UPower.displayDevice;
-        console.log("[BatteryService] Initial device object present");
-        updateReadyState();
+    // Log readiness transitions
+    onIsReadyChanged: {
+        if (isReady) {
+            logger.log("BatteryService", "Battery device ready:", displayDevice && (displayDevice.nativePath || "(no nativePath)"));
+            logger.log("BatteryService", "Initial percentage:", percentage + "%");
+        } else {
+            logger.log("BatteryService", "Battery device lost or not present anymore");
+        }
     }
-
-    // Re-evaluate readiness any time UPower reports a new device object.
-    onDisplayDeviceChanged: updateReadyState()
 
     // Derived, read-only properties that present the battery status in
     // easy-to-consume forms.
@@ -54,7 +54,7 @@ Singleton {
         if (displayDevice.state === UPowerDeviceState.FullyCharged)
             return "Fully Charged";
         if (isCharging && displayDevice.timeToFull > 0)
-            return "Time to full: " + Services.TimeService.formatHM(displayDevice.timeToFull);
+            return "Time to full: " + TimeService.formatHM(displayDevice.timeToFull);
         if (displayDevice.state === UPowerDeviceState.PendingCharge)
             return "Charge Limit Reached";
         return "Calculating…";
@@ -64,19 +64,7 @@ Singleton {
         if (!displayDevice)
             return "Unknown";
         if (!isCharging && displayDevice.timeToEmpty > 0)
-            return "Time remaining: " + Services.TimeService.formatHM(displayDevice.timeToEmpty);
+            return "Time remaining: " + TimeService.formatHM(displayDevice.timeToEmpty);
         return "Calculating…";
-    }
-
-    // Update `isReady` based on whether a valid laptop battery is present.
-    function updateReadyState() {
-        if (isLaptopBattery && !isReady) {
-            console.log("[BatteryService] Battery device ready:", displayDevice && (displayDevice.nativePath || "(no nativePath)"));
-            console.log("[BatteryService] Initial percentage:", percentage + "%");
-            isReady = true;
-        } else if (!isLaptopBattery && isReady) {
-            console.log("[BatteryService] Battery device lost or not present anymore");
-            isReady = false;
-        }
     }
 }

@@ -7,10 +7,11 @@ import QtQuick.Effects
 import Quickshell.Services.Pam
 import qs.Services.Core as Core
 import qs.Services.WM as WM
-import qs.Services.SystemInfo as SystemInfo
+import qs.Services.SystemInfo
 
 Scope {
     id: root
+    property var logger: LoggerService
     readonly property var theme: ({
             base: "#1e1e2e",
             mantle: "#181825",
@@ -52,7 +53,7 @@ Scope {
             if (responseRequired) {
                 respond(root.passwordBuffer);
                 root.passwordBuffer = "";
-                console.log("[LockScreen] PAM response sent; buffer cleared");
+                root.logger.log("LockScreen", "PAM response sent; buffer cleared");
             }
         }
         onCompleted: res => {
@@ -257,13 +258,13 @@ Scope {
                         Layout.alignment: Qt.AlignHCenter
                         spacing: 10
                         Text {
-                            text: Qt.formatTime(SystemInfo.TimeService.currentDate, "hh:mm")
+                            text: Qt.formatTime(TimeService.currentDate, "hh:mm")
                             color: root.theme.text
                             font.pixelSize: 52
                             font.bold: true
                         }
                         Text {
-                            text: Qt.formatTime(SystemInfo.TimeService.currentDate, "AP")
+                            text: Qt.formatTime(TimeService.currentDate, "AP")
                             visible: text !== ""
                             color: root.theme.subtext1
                             font.pixelSize: 22
@@ -272,7 +273,7 @@ Scope {
                     }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: Qt.formatDate(SystemInfo.TimeService.currentDate, "dddd, d MMMM yyyy")
+                        text: Qt.formatDate(TimeService.currentDate, "dddd, d MMMM yyyy")
                         color: root.theme.subtext0
                         font.pixelSize: 16
                     }

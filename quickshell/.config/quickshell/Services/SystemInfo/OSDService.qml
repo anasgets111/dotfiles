@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Services.SystemInfo
 
 // Minimal, robust OSD/toast service for transient in-shell messages.
 // Features:
@@ -14,6 +15,7 @@ import Quickshell.Io
 // - IPC for show/info/warn/error/hide/clear/dnd/status
 Singleton {
     id: root
+    readonly property var logger: LoggerService
 
     // ----- Levels -----
     readonly property int levelInfo: 0
@@ -24,7 +26,7 @@ Singleton {
     property string currentMessage: ""
     property int currentLevel: levelInfo
     property string currentDetails: ""
-    property bool hasDetails: false
+    readonly property bool hasDetails: root.currentDetails.length > 0
     property int currentRepeatCount: 0
 
     property bool toastVisible: false
@@ -51,6 +53,7 @@ Singleton {
             return;
         const msg = String(message);
         const det = details === undefined || details === null ? "" : String(details);
+        root.logger.log("OSDService", `showToast: level=${level}, msg='${msg}'`);
 
         // If the current toast matches and dedupe is on, bump the counter and refresh timer
         if (root.toastVisible && root.dedupe && msg === root.currentMessage && level === root.currentLevel) {
@@ -63,22 +66,36 @@ Singleton {
         if (root.dedupe && root.toastQueue.length > 0) {
             const last = root.toastQueue[root.toastQueue.length - 1];
             if (last && last.message === msg && last.level === level) {
-                last.repeat = (last.repeat || 0) + 1;
+                const q = root.toastQueue.slice();
+                q[q.length - 1] = {
+                    message: last.message,
+                    level: last.level,
+                    details: last.details,
+                    repeat: (last.repeat || 0) + 1
+                };
+                root.toastQueue = q;
+                root.logger.log("OSDService", `dedupe: bumped repeat to ${q[q.length - 1].repeat}`);
             } else {
-                root.toastQueue.push({
+                root.toastQueue = root.toastQueue.concat([
+                    {
+                        message: msg,
+                        level: level,
+                        details: det,
+                        repeat: 0
+                    }
+                ]);
+                root.logger.log("OSDService", `enqueued: level=${level}`);
+            }
+        } else {
+            root.toastQueue = root.toastQueue.concat([
+                {
                     message: msg,
                     level: level,
                     details: det,
                     repeat: 0
-                });
-            }
-        } else {
-            root.toastQueue.push({
-                message: msg,
-                level: level,
-                details: det,
-                repeat: 0
-            });
+                }
+            ]);
+            root.logger.log("OSDService", `enqueued: level=${level}`);
         }
 
         if (!root.toastVisible && !root.doNotDisturb)
@@ -99,13 +116,13 @@ Singleton {
         root.toastVisible = false;
         root.currentMessage = "";
         root.currentDetails = "";
-        root.hasDetails = false;
         root.currentLevel = levelInfo;
         root.currentRepeatCount = 0;
         toastTimer.stop();
         root.resetToastState();
         if (!root.doNotDisturb)
             root._processQueue();
+        root.logger.log("OSDService", "hideToast");
     }
 
     function clearQueue() {
@@ -133,6 +150,7 @@ Singleton {
         } else {
             root._processQueue();
         }
+        root.logger.log("OSDService", `DND=${root.doNotDisturb}`);
     }
 
     // Optional external status (e.g., wallpaper failure)
@@ -149,15 +167,17 @@ Singleton {
             return;
         if (root.toastQueue.length === 0)
             return;
-        const toast = root.toastQueue.shift();
+        const q = root.toastQueue.slice();
+        const toast = q.shift();
+        root.toastQueue = q;
         root.currentMessage = toast.message;
         root.currentLevel = toast.level;
         root.currentDetails = toast.details || "";
-        root.hasDetails = root.currentDetails.length > 0;
         root.currentRepeatCount = toast.repeat || 0;
         root.toastVisible = true;
         root.resetToastState();
         root._applyTimerFor(toast.level, root.hasDetails);
+        root.logger.log("OSDService", `show: level=${root.currentLevel}, repeats=${root.currentRepeatCount}`);
     }
 
     function _applyTimerFor(level, hasDetails) {

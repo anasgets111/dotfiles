@@ -7,24 +7,30 @@ import Quickshell.Wayland
 import qs.Services
 import qs.Services.SystemInfo
 import qs.Components
-import qs.Services.WM as WM
-import qs.Services.Core as Core
+import qs.Services.WM
+import qs.Services.Core
+import qs.Services.SystemInfo
 
 ShellRoot {
     id: root
+    property var logger: LoggerService
 
     // property var main: MainService
-    property var wallpaper: Core.WallpaperService
-    property var systemTray: Core.SystemTrayService
-    property var network: Core.NetworkService
-    property var monitor: WM.MonitorService
+    readonly property var wallpaper: WallpaperService
+    readonly property var systemTray: SystemTrayService
+    readonly property var network: NetworkService
+    readonly property var monitor: MonitorService
+    readonly property var bluetooth: BluetoothService
+    readonly property var audio: AudioService
+    readonly property var weather: WeatherService
+
     // System info services
-    property var notifs: NotificationService
-    property var osd: OSDService
-    property var keyboardLayout: WM.KeyboardLayoutService
-    property var dateTime: TimeService
-    // property var battery: BatteryService
-    readonly property bool _netInit: Core.NetworkService.ready
+    readonly property var notifs: NotificationService
+    readonly property var osd: OSDService
+    readonly property var keyboardLayout: KeyboardLayoutService
+    readonly property var dateTime: TimeService
+    readonly property var battery: BatteryService
+    readonly property bool _netInit: NetworkService.ready
 
     // Your wallpapers (unchanged)
     Variants {
@@ -66,18 +72,18 @@ ShellRoot {
     Component.onCompleted: {
         // Touch services so they instantiate and log a concise status
         if (root.osd)
-            console.log("[Shell] OSDService loaded; DND=", root.osd.doNotDisturb);
+            root.logger.log("Shell", "OSDService loaded; DND=", root.osd.doNotDisturb);
         if (root.notifs)
-            console.log("[Shell] NotificationService loaded");
+            root.logger.log("Shell", "NotificationService loaded");
     }
     // Live clipboard
     Connections {
-        target: Core.ClipboardService
+        target: ClipboardService
     }
     Connections {
-        target: Core.IdleService
+        target: IdleService
     }
     // Instantiate lock service and lock screen component
-    property var lock: Core.LockService
+    readonly property var lock: LockService
     LockScreen {}
 }

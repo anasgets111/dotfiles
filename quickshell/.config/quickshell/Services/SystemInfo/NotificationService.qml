@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
+import qs.Services.SystemInfo
 
 // Minimal, robust notification service usable across the project.
 // Features:
@@ -18,6 +19,7 @@ Singleton {
     id: root
 
     // ----- Configuration -----
+    property var logger: LoggerService
     // Maximum concurrent popups
     property int maxVisible: 3
     // Auto-dismiss behavior
@@ -34,13 +36,13 @@ Singleton {
     // Use JS arrays for dynamic collections
     property var all: []
     // Convenience view (note: only updates when 'all' identity changes)
-    property var popups: all.filter(n => n.popup)
+    readonly property var popups: all.filter(n => n.popup)
     property var visible: []
     property var queue: []
 
     // Gate to sequence popup enter animations
     property bool _addGateBusy: false
-    property int _enterAnimMs: 300
+    readonly property int _enterAnimMs: 300
 
     Timer {
         id: addGate
@@ -54,22 +56,26 @@ Singleton {
     }
 
     // Simple heartbeat to refresh relative time strings
-    property bool _tick: false
+    property bool _timePulse: false
     Timer {
         interval: 30000
         repeat: true
         running: true
-        onTriggered: root._tick = !root._tick
+        onTriggered: root._timePulse = !root._timePulse
     }
 
     // ----- History (persistent) -----
-    property ListModel historyModel: ListModel {}
+    readonly property ListModel historyModel: ListModel {}
     property int maxHistory: 100
-    // In-memory persistent store (can be wired to disk later)
-    property var _historyStore: []
+    // Persistent store across reloads
+    PersistentProperties {
+        id: store
+        reloadableId: "NotificationService"
+        property var historyStore: []
+    }
 
     // ----- Server -----
-    property NotificationServer server: NotificationServer {
+    readonly property NotificationServer server: NotificationServer {
         id: notificationServer
 
         keepOnReload: false
@@ -113,7 +119,7 @@ Singleton {
         readonly property date time: new Date()
         // Human-friendly relative time string
         readonly property string timeStr: {
-            root._tick; // dependency
+            root._timePulse; // dependency
             const now = Date.now();
             const diff = now - time.getTime();
             const m = Math.floor(diff / 60000);
@@ -198,7 +204,9 @@ Singleton {
         // Respect maxVisible concurrent popups
         if (root.visible.length >= root.maxVisible)
             return;
-        const next = root.queue.shift();
+        const q = root.queue.slice();
+        const next = q.shift();
+        root.queue = q;
         if (!next)
             return;
         root.visible = [...root.visible, next];
@@ -241,7 +249,7 @@ Singleton {
     function _loadHistory() {
         try {
             historyModel.clear();
-            const items = root._historyStore || [];
+            const items = store.historyStore || [];
             for (let i = 0; i < items.length; i++) {
                 const it = items[i];
                 historyModel.append({
@@ -253,7 +261,7 @@ Singleton {
                 });
             }
         } catch (e) {
-            console.log("[NotificationService] Failed to load history:", e);
+            root.logger.warn("NotificationService", "Failed to load history:", e);
         }
     }
 
@@ -270,9 +278,9 @@ Singleton {
                     timestamp: (n.timestamp instanceof Date) ? n.timestamp.getTime() : n.timestamp
                 });
             }
-            root._historyStore = arr;
+            store.historyStore = arr;
         } catch (e) {
-            console.log("[NotificationService] Failed to save history:", e);
+            root.logger.warn("NotificationService", "Failed to save history:", e);
         }
     }
 

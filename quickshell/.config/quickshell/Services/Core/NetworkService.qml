@@ -15,7 +15,6 @@ Singleton {
 
     // debug logging (set true to see verbose logs)
     property var logger: LoggerService
-    property bool debug: logger.debug
 
     // backend info
 
@@ -63,7 +62,7 @@ Singleton {
     // Centralized runner for procConnect to avoid overlapping runs
     function _runProcConnect(cmdArray) {
         if (procConnect.running) {
-            logger.log("[NetworkService] procConnect busy; skipping command", JSON.stringify(cmdArray));
+            logger.log("NetworkService", "procConnect busy; skipping command", JSON.stringify(cmdArray));
             return false;
         }
         try {
@@ -79,7 +78,7 @@ Singleton {
     function _setError(msg) {
         net.lastError = msg;
         net.error(msg);
-        console.log("[NetworkService] Error:", msg);
+        logger.error("NetworkService", "Error:", msg);
     }
 
     // Trim CIDR suffix from IP address (e.g., 192.168.1.7/24 -> 192.168.1.7)
@@ -404,7 +403,7 @@ Singleton {
                         net.ethernetIP = net._stripCidr(details.ip4 || net.ethernetIP);
                     }
                     net._updateDerivedState();
-                    logger.log("[NetworkService] Merged device details for", ifc, "-> mac=", details.mac, "connName=", details.connectionName, "connUuid=", details.connectionUuid, "ip4=", details.ip4);
+                    logger.log("NetworkService", "Merged device details for", ifc, "-> mac=", details.mac, "connName=", details.connectionName, "connUuid=", details.connectionUuid, "ip4=", details.ip4);
                 } catch (ex) {
                     logger.error("Failed parsing dynamic device show output: " + ex);
                 }
@@ -419,12 +418,12 @@ Singleton {
     // === Public API ===
     // Run nmcli scan for wifi
     function refreshWifiScan(iface) {
-        logger.log("[NetworkService] refreshWifiScan(iface=", iface, ")");
+        logger.log("NetworkService", "refreshWifiScan(iface=", iface, ")");
         var now = net._nowMs();
         if (net.scanning)
             return;
         if (!net.wifiRadioEnabled) {
-            logger.log("[NetworkService] wifi radio disabled; skip scan");
+            logger.log("NetworkService", "wifi radio disabled; skip scan");
             net.wifiNetworks = [];
             net.wifiNetworksChanged();
             return;
@@ -432,14 +431,14 @@ Singleton {
         for (var di = 0; di < net.devices.length; di++) {
             var d = net.devices[di];
             if (d.interface === iface && d.state && d.state.indexOf("unavailable") !== -1) {
-                logger.log("[NetworkService] wifi device unavailable; skip scan");
+                logger.log("NetworkService", "wifi device unavailable; skip scan");
                 net.wifiNetworks = [];
                 net.wifiNetworksChanged();
                 return;
             }
         }
         if (now - net.lastWifiScanAt < net.wifiScanCooldownMs) {
-            logger.log("[NetworkService] wifi scan cooldown active");
+            logger.log("NetworkService", "wifi scan cooldown active");
             return;
         }
         net.scanning = true;
@@ -454,10 +453,10 @@ Singleton {
         }
     }
     function refreshDevices() {
-        logger.log("[NetworkService] refreshDevices()");
+        logger.log("NetworkService", "refreshDevices()");
         var now = net._nowMs();
         if (now - net.lastDevicesRefreshAt < net.deviceRefreshCooldownMs) {
-            logger.log("[NetworkService] device refresh cooldown active");
+            logger.log("NetworkService", "device refresh cooldown active");
             return;
         }
         net.lastDevicesRefreshAt = now;
@@ -490,11 +489,11 @@ Singleton {
     }
 
     function connectWifi(ssid, password, iface, save = false, name) {
-        logger.log("[NetworkService] connectWifi(ssid=", ssid, ", iface=", iface, ", save=", save, ")");
+        logger.log("NetworkService", "connectWifi(ssid=", ssid, ", iface=", iface, ", save=", save, ")");
         if (!iface || iface === "")
             iface = net._firstWifiInterface();
         if (save && name) {
-            logger.log("[NetworkService] adding connection con-name=", name, "ssid=", ssid);
+            logger.log("NetworkService", "adding connection con-name=", name, "ssid=", ssid);
             net._runProcConnect(["nmcli", "connection", "add", "type", "wifi", "ifname", iface, "con-name", name, "ssid", ssid]);
             return;
         }
@@ -505,12 +504,12 @@ Singleton {
     }
 
     function activateConnection(connId, iface) {
-        logger.log("[NetworkService] activateConnection(connId=", connId, ", iface=", iface, ")");
+        logger.log("NetworkService", "activateConnection(connId=", connId, ", iface=", iface, ")");
         net._runProcConnect(["nmcli", "connection", "up", "id", connId, "ifname", iface]);
     }
 
     function disconnect(iface) {
-        logger.log("[NetworkService] disconnect(iface=", iface, ")");
+        logger.log("NetworkService", "disconnect(iface=", iface, ")");
         net._runProcConnect(["nmcli", "device", "disconnect", iface]);
     }
 
@@ -535,14 +534,14 @@ Singleton {
 
     function dumpState() {
         try {
-            logger.log("[NetworkService] DUMP STATE: devices=", JSON.stringify(net.devices));
+            logger.log("NetworkService", "DUMP STATE: devices=", JSON.stringify(net.devices));
         } catch (e) {
-            logger.log("[NetworkService] dumpState devices stringify failed:", e);
+            logger.log("NetworkService", "dumpState devices stringify failed:", e);
         }
         try {
-            logger.log("[NetworkService] DUMP STATE: wifiNetworks=", JSON.stringify(net.wifiNetworks));
+            logger.log("NetworkService", "DUMP STATE: wifiNetworks=", JSON.stringify(net.wifiNetworks));
         } catch (e) {
-            logger.log("[NetworkService] dumpState wifi stringify failed:", e);
+            logger.log("NetworkService", "dumpState wifi stringify failed:", e);
         }
     }
 
@@ -600,17 +599,17 @@ Singleton {
         }
         Component.onCompleted: {
             try {
-                net.logger.log("[NetworkService] Starting nmcli monitor");
+                net.logger.log("NetworkService", "Starting nmcli monitor");
                 monitorProc.running = true;
             } catch (e) {
                 net.usePollingFallback = true;
-                net.logger.log("[NetworkService] Failed to start monitor:", e);
+                net.logger.log("NetworkService", "Failed to start monitor:", e);
             }
         }
         onRunningChanged: function () {
             if (!running) {
                 net.usePollingFallback = true;
-                net.logger.log("[NetworkService] nmcli monitor stopped");
+                net.logger.log("NetworkService", "nmcli monitor stopped");
             }
         }
     }
@@ -648,7 +647,7 @@ Singleton {
                         var dv = net.devices[d];
                         devSummary += dv.interface + "(" + dv.type + "," + dv.state + ") ";
                     }
-                    net.logger.log("[NetworkService] Parsed devices:", devSummary);
+                    net.logger.log("NetworkService", "Parsed devices:", devSummary);
                     for (var i = 0; i < net.devices.length; i++) {
                         var dv = net.devices[i];
                         if (dv.type === "loopback" || dv.type === "wifi-p2p")
@@ -658,7 +657,7 @@ Singleton {
                     var chosen = net._chooseActiveDevice(net.devices);
                     if (chosen) {
                         net.activeDevice = chosen;
-                        net.logger.log("[NetworkService] Active device:", net.activeDevice.interface, "type=", net.activeDevice.type, "state=", net.activeDevice.state, "connName=", net.activeDevice.connectionName, "ip4=", net.activeDevice.ip4);
+                        net.logger.log("NetworkService", "Active device:", net.activeDevice.interface, "type=", net.activeDevice.type, "state=", net.activeDevice.state, "connName=", net.activeDevice.connectionName, "ip4=", net.activeDevice.ip4);
                     }
                     // clear last error on successful parse
                     net.lastError = "";
@@ -689,9 +688,9 @@ Singleton {
                     var top = [];
                     for (var k = 0; k < Math.min(5, ncount); k++)
                         top.push(net.wifiNetworks[k].ssid + "(" + net.wifiNetworks[k].signal + ")");
-                    net.logger.log("[NetworkService] Wifi scan results: count=", ncount, " top=", top.join(", "));
+                    net.logger.log("NetworkService", "Wifi scan results: count=", ncount, " top=", top.join(", "));
                     if (net.activeDevice && net.activeDevice.type === "wifi" && ncount > 0 && net._isConnected(net.activeDevice.state))
-                        net.logger.log("[NetworkService] Active wifi device:", net.activeDevice.interface, "connName=", net.activeDevice.connectionName);
+                        net.logger.log("NetworkService", "Active wifi device:", net.activeDevice.interface, "connName=", net.activeDevice.connectionName);
                 } catch (e) {
                     net.logger.error("Failed parsing wifi list: " + e);
                 }
@@ -714,7 +713,7 @@ Singleton {
         id: procConnect
         stdout: StdioCollector {
             onStreamFinished: function () {
-                net.logger.log("[NetworkService] Connect finished");
+                net.logger.log("NetworkService", "Connect finished");
                 net.refreshDevices();
                 // saved connections may have changed
                 try {
@@ -768,7 +767,7 @@ Singleton {
         id: procForget
         stdout: StdioCollector {
             onStreamFinished: function () {
-                net.logger.log("[NetworkService] Forget finished");
+                net.logger.log("NetworkService", "Forget finished");
                 net.refresh();
                 // update saved list after deletion
                 try {
@@ -780,7 +779,7 @@ Singleton {
 
     // === Lifecycle ===
     Component.onCompleted: {
-        logger.log("[NetworkService] Component.onCompleted - initializing, setting ready=true");
+        logger.log("NetworkService", "Component.onCompleted - initializing, setting ready=true");
         net.ready = true;
         net.refresh();
         try {
