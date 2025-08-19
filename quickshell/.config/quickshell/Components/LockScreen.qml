@@ -6,6 +6,8 @@ import Quickshell.Wayland
 import QtQuick.Effects
 import Quickshell.Services.Pam
 import qs.Services.Core as Core
+import qs.Services.WM as WM
+import qs.Services.SystemInfo as SystemInfo
 
 Scope {
     id: root
@@ -25,81 +27,80 @@ Scope {
             love: "#f38ba8",
             mauve: "#cba6f7"
         })
-    property var screensSnapshotNames: []
-    property date now: new Date()
-    property string buffer: ""
-    property string state: ""
-    function screensArray() {
-        return Array.prototype.slice.call(Quickshell.screens);
-    }
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: root.now = new Date()
+    property var snapshotMonitorNames: []
+    // Use SystemInfo.TimeService for date/time
+    property string passwordBuffer: ""
+    property string authState: ""
+    function currentMonitorNames() {
+        const monitors = WM.MonitorService;
+        if (!(monitors && monitors.ready))
+            return [];
+        const arr = monitors.monitorsModelToArray ? monitors.monitorsModelToArray() : [];
+        return arr.map(m => m && m.name).filter(n => !!n);
     }
     Connections {
         target: Core.LockService
         function onLockedChanged() {
-            const names = root.screensArray().map(s => s ? s.name : null).filter(n => !!n);
-            root.screensSnapshotNames = Core.LockService.locked ? names : [];
+            const names = root.currentMonitorNames();
+            root.snapshotMonitorNames = Core.LockService.locked ? names : [];
         }
     }
 
     PamContext {
-        id: pam
+        id: pamAuth
         onResponseRequiredChanged: {
             if (responseRequired) {
-                respond(root.buffer);
-                root.buffer = "";
+                respond(root.passwordBuffer);
+                root.passwordBuffer = "";
                 console.log("[LockScreen] PAM response sent; buffer cleared");
             }
         }
         onCompleted: res => {
             if (res === PamResult.Success) {
-                root.buffer = "";
-                if (Core.LockService.locked)
-                    Core.LockService.locked = false;
+                root.passwordBuffer = "";
+                Core.LockService.locked = false;
                 return;
             }
             if (res === PamResult.Error)
-                root.state = "error";
+                root.authState = "error";
             else if (res === PamResult.MaxTries)
-                root.state = "max";
+                root.authState = "max";
             else if (res === PamResult.Failed)
-                root.state = "fail";
-            stateReset.restart();
+                root.authState = "fail";
+            authStateResetTimer.restart();
         }
     }
     Timer {
-        id: stateReset
+        id: authStateResetTimer
         interval: 4000
-        onTriggered: root.state = ""
+        onTriggered: root.authState = ""
     }
 
     WlSessionLock {
-        id: lock
+        id: sessionLock
         locked: Core.LockService.locked
 
         WlSessionLockSurface {
-            id: surface
+            id: lockSurface
             color: "transparent"
-            readonly property var wallpaperEntry: Core.WallpaperService ? Core.WallpaperService.wallpaperFor(surface.screen) : null
-            readonly property bool disableBlur: Quickshell.env("QS_DISABLE_LOCK_BLUR") === "0"
-            readonly property bool screenReady: surface.screen !== null && surface.screen !== undefined
-            readonly property bool isLastScreen: {
-                const s = surface.screen;
+            readonly property var screenWallpaper: Core.WallpaperService ? Core.WallpaperService.wallpaperFor(lockSurface.screen) : null
+            readonly property bool blurDisabled: Quickshell.env("QS_DISABLE_LOCK_BLUR") === "1"
+            readonly property bool hasScreen: !!lockSurface.screen
+            readonly property bool isLastMonitorBySnapshot: {
+                const s = lockSurface.screen;
                 if (!s)
                     return false;
-                const names = (root.screensSnapshotNames && root.screensSnapshotNames.length) ? root.screensSnapshotNames : root.screensArray().map(x => x ? x.name : null).filter(n => !!n);
+                const names = (root.snapshotMonitorNames && root.snapshotMonitorNames.length) ? root.snapshotMonitorNames : root.currentMonitorNames();
+                if (!names || names.length === 0)
+                    return true;
                 const idx = names.indexOf(s.name);
                 return idx >= 0 && idx === names.length - 1;
             }
             Image {
                 anchors.fill: parent
-                source: Core.WallpaperService && Core.WallpaperService.ready && surface.wallpaperEntry && surface.wallpaperEntry.wallpaper ? surface.wallpaperEntry.wallpaper : ""
+                source: Core.WallpaperService && Core.WallpaperService.ready && lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper ? lockSurface.screenWallpaper.wallpaper : ""
                 fillMode: {
-                    const mode = surface.wallpaperEntry ? surface.wallpaperEntry.mode : "fill";
+                    const mode = lockSurface.screenWallpaper ? lockSurface.screenWallpaper.mode : "fill";
                     switch (mode) {
                     case "fill":
                         return Image.PreserveAspectCrop;
@@ -115,8 +116,8 @@ Scope {
                         return Image.PreserveAspectCrop;
                     }
                 }
-                visible: surface.screenReady
-                layer.enabled: true
+                visible: lockSurface.hasScreen
+                layer.enabled: !lockSurface.blurDisabled
                 layer.effect: MultiEffect {
                     autoPaddingEnabled: false
                     blurEnabled: true
@@ -145,9 +146,9 @@ Scope {
                 anchors.centerIn: parent
                 width: Math.min(parent.width, 560)
                 height: column.implicitHeight + 32
-                visible: surface.screenReady
-                opacity: surface.screenReady ? 1 : 0
-                scale: surface.screenReady ? 1 : 0.98
+                visible: lockSurface.hasScreen
+                opacity: lockSurface.hasScreen ? 1 : 0
+                scale: lockSurface.hasScreen ? 1 : 0.98
                 property color accent: root.theme.mauve
                 function shake() {
                     shakeAnim.restart();
@@ -210,8 +211,8 @@ Scope {
                 }
                 Connections {
                     target: root
-                    function onStateChanged() {
-                        if (root.state === "error" || root.state === "fail")
+                    function onAuthStateChanged() {
+                        if (root.authState === "error" || root.authState === "fail")
                             panel.shake();
                     }
                 }
@@ -256,13 +257,13 @@ Scope {
                         Layout.alignment: Qt.AlignHCenter
                         spacing: 10
                         Text {
-                            text: Qt.formatTime(root.now, "hh:mm")
+                            text: Qt.formatTime(SystemInfo.TimeService.currentDate, "hh:mm")
                             color: root.theme.text
                             font.pixelSize: 52
                             font.bold: true
                         }
                         Text {
-                            text: Qt.formatTime(root.now, "AP")
+                            text: Qt.formatTime(SystemInfo.TimeService.currentDate, "AP")
                             visible: text !== ""
                             color: root.theme.subtext1
                             font.pixelSize: 22
@@ -271,7 +272,7 @@ Scope {
                     }
                     Text {
                         Layout.alignment: Qt.AlignHCenter
-                        text: Qt.formatDate(root.now, "dddd, d MMMM yyyy")
+                        text: Qt.formatDate(SystemInfo.TimeService.currentDate, "dddd, d MMMM yyyy")
                         color: root.theme.subtext0
                         font.pixelSize: 16
                     }
@@ -282,9 +283,9 @@ Scope {
                         radius: 12
                         color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.45)
                         border.width: 1
-                        border.color: root.state ? root.theme.love : Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
-                        visible: surface.isLastScreen
-                        enabled: surface.screenReady && surface.isLastScreen
+                        border.color: root.authState ? root.theme.love : Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
+                        visible: lockSurface.isLastMonitorBySnapshot
+                        enabled: lockSurface.hasScreen && lockSurface.isLastMonitorBySnapshot
                         focus: enabled
                         Rectangle {
                             anchors.fill: parent
@@ -309,31 +310,31 @@ Scope {
                             onTriggered: parent.forceActiveFocus()
                         }
                         Keys.onPressed: event => {
-                            if (pam.active)
+                            if (pamAuth.active)
                                 return;
                             if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
-                                pam.start();
+                                pamAuth.start();
                             } else if (event.key === Qt.Key_Backspace) {
-                                root.buffer = event.modifiers & Qt.ControlModifier ? "" : root.buffer.slice(0, -1);
+                                root.passwordBuffer = event.modifiers & Qt.ControlModifier ? "" : root.passwordBuffer.slice(0, -1);
                             } else if (event.key === Qt.Key_Escape) {
-                                root.buffer = "";
+                                root.passwordBuffer = "";
                             } else if (event.text && event.text.length === 1) {
                                 const t = event.text;
                                 const c = t.charCodeAt(0);
                                 if (c >= 0x20 && c <= 0x7E)
-                                    root.buffer += t;
+                                    root.passwordBuffer += t;
                             }
                         }
                         Row {
                             anchors.centerIn: parent
                             spacing: 7
                             Repeater {
-                                model: root.buffer.length
+                                model: root.passwordBuffer.length
                                 delegate: Rectangle {
                                     implicitWidth: 10
                                     implicitHeight: 10
                                     radius: 5
-                                    color: pam.active ? root.theme.mauve : root.theme.overlay2
+                                    color: pamAuth.active ? root.theme.mauve : root.theme.overlay2
                                     scale: 0.8
                                     SequentialAnimation on opacity {
                                         loops: 1
@@ -357,10 +358,10 @@ Scope {
                         }
                         Text {
                             anchors.centerIn: parent
-                            text: pam.active ? "Authenticating…" : root.state === "error" ? "Error" : root.state === "max" ? "Too many tries" : root.state === "fail" ? "Incorrect password" : root.buffer.length ? "" : "Enter password"
-                            color: pam.active ? panel.accent : root.state ? root.theme.love : root.theme.overlay1
+                            text: pamAuth.active ? "Authenticating…" : root.authState === "error" ? "Error" : root.authState === "max" ? "Too many tries" : root.authState === "fail" ? "Incorrect password" : root.passwordBuffer.length ? "" : "Enter password"
+                            color: pamAuth.active ? panel.accent : root.authState ? root.theme.love : root.theme.overlay1
                             font.pixelSize: 14
-                            opacity: root.buffer.length ? 0 : 1
+                            opacity: root.passwordBuffer.length ? 0 : 1
                             Behavior on color {
                                 ColorAnimation {
                                     duration: 140
