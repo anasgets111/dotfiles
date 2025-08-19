@@ -5,9 +5,10 @@ import QtQuick.Effects
 import Quickshell
 import qs.Services as Services
 import qs.Services.SystemInfo
+import qs.Services.WM as WM
 
 // Extracted lock screen content panel
-Item {
+FocusScope {
     id: panel
 
     // Inputs from parent
@@ -29,6 +30,50 @@ Item {
 
     function shake() {
         shakeAnim.restart();
+    }
+
+    // Fallback focus policy: if the snapshot primary monitor is absent (e.g., DPMS off
+    // or hotplug during lock), allow one-time focus on the last currently available
+    // monitor, then naturally reassert focus to the snapshot primary once it returns.
+    readonly property string _snapshotPrimaryName: (ctx && ctx.snapshotMonitorNames && ctx.snapshotMonitorNames.length) ? ctx.snapshotMonitorNames[ctx.snapshotMonitorNames.length - 1] : ""
+    function _currentMonitorNames() {
+        try {
+            return ctx && ctx.currentMonitorNames ? ctx.currentMonitorNames() : [];
+        } catch (e) {
+            return [];
+        }
+    }
+    function _maybeRequestFocusOnce(reason) {
+        if (!lockSurface || !lockSurface.hasScreen)
+            return;
+        const isPrimary = lockSurface.isLastMonitorBySnapshot;
+        let isFallbackLeader = false;
+        if (!isPrimary && lockSurface && lockSurface.screen) {
+            const currentNames = panel._currentMonitorNames();
+            const primaryAbsent = panel._snapshotPrimaryName && currentNames.indexOf(panel._snapshotPrimaryName) === -1;
+            isFallbackLeader = primaryAbsent && (currentNames.length > 0 ? lockSurface.screen.name === currentNames[currentNames.length - 1] : false);
+        }
+        if (isPrimary || isFallbackLeader) {
+            panel.forceActiveFocus();
+            if (panel.ctx && panel.ctx.logger) {
+                const mode = isPrimary ? "primary" : "fallback";
+                panel.ctx.logger.log("LockContent", "single-shot focus request (" + mode + "): " + reason);
+            }
+        }
+    }
+
+    Component.onCompleted: {
+        // Single-shot attempt at startup
+        _maybeRequestFocusOnce("component completed");
+    }
+    Connections {
+        target: panel.lockSurface
+        function onHasScreenChanged() {
+            if (!panel.lockSurface)
+                return;
+            if (panel.lockSurface.hasScreen)
+                panel._maybeRequestFocusOnce("hasScreen changed -> true");
+        }
     }
 
     transform: Translate {
@@ -378,7 +423,6 @@ Item {
             border.color: panel.ctx.authState ? panel.ctx.theme.love : Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
             visible: panel.lockSurface.isLastMonitorBySnapshot
             enabled: panel.lockSurface.hasScreen && panel.lockSurface.isLastMonitorBySnapshot
-            focus: enabled
 
             // Left lock icon
             Text {
@@ -406,40 +450,15 @@ Item {
                 color: "transparent"
                 border.width: 2
                 border.color: panel.accent
-                opacity: parent.focus ? 0.55 : 0.0
+                // Use panel.activeFocus rather than local focus, since key handling now lives at the panel level
+                opacity: panel.activeFocus ? 0.55 : 0.0
                 Behavior on opacity {
                     NumberAnimation {
                         duration: 160
                     }
                 }
             }
-
-            onEnabledChanged: if (enabled)
-                focusDelay.restart()
-            Timer {
-                id: focusDelay
-                interval: 50
-                running: false
-                repeat: false
-                onTriggered: parent.forceActiveFocus()
-            }
-
-            Keys.onPressed: event => {
-                if (panel.pamAuth.active)
-                    return;
-                if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
-                    panel.pamAuth.start();
-                } else if (event.key === Qt.Key_Backspace) {
-                    panel.ctx.passwordBuffer = event.modifiers & Qt.ControlModifier ? "" : panel.ctx.passwordBuffer.slice(0, -1);
-                } else if (event.key === Qt.Key_Escape) {
-                    panel.ctx.passwordBuffer = "";
-                } else if (event.text && event.text.length === 1) {
-                    const t = event.text;
-                    const c = t.charCodeAt(0);
-                    if (c >= 0x20 && c <= 0x7E)
-                        panel.ctx.passwordBuffer += t;
-                }
-            }
+            // Key handling moved to panel-level FocusScope
 
             Row {
                 anchors.centerIn: passContent
@@ -512,6 +531,51 @@ Item {
                 text: "Esc clears input"
                 color: panel.ctx.theme.overlay1
                 font.pixelSize: 16
+            }
+            // Keyboard layout indicator
+            Rectangle {
+                id: layoutIndicator
+                visible: (WM.KeyboardLayoutService.currentLayout.length > 0)
+                color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+                border.width: 1
+                border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
+                radius: 8
+                implicitHeight: layoutText.height + 7
+                implicitWidth: layoutText.width + 12
+
+                Text {
+                    id: layoutText
+                    text: WM.KeyboardLayoutService.currentLayout
+                    color: panel.ctx.theme.overlay1
+                    font.pixelSize: 14
+                    anchors.verticalCenter: layoutIndicator.verticalCenter
+                    anchors.horizontalCenter: layoutIndicator.horizontalCenter
+                }
+            }
+        }
+    }
+
+    // Panel-level key handling so whichever lock surface the compositor focuses can accept input immediately.
+    Keys.onPressed: event => {
+        if (!panel.lockSurface || !panel.lockSurface.hasScreen)
+            return;
+        if (panel.pamAuth.active)
+            return;
+        if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
+            panel.pamAuth.start();
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Backspace) {
+            panel.ctx.passwordBuffer = event.modifiers & Qt.ControlModifier ? "" : panel.ctx.passwordBuffer.slice(0, -1);
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Escape) {
+            panel.ctx.passwordBuffer = "";
+            event.accepted = true;
+        } else if (event.text && event.text.length === 1) {
+            const t = event.text;
+            const c = t.charCodeAt(0);
+            if (c >= 0x20 && c <= 0x7E) {
+                panel.ctx.passwordBuffer += t;
+                event.accepted = true;
             }
         }
     }
