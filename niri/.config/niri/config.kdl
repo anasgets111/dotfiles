@@ -276,7 +276,7 @@ binds {
     Mod+T { spawn "Telegram"; }
     Mod+D { spawn "vesktop"; }
 
-    Super+L hotkey-overlay-title="Lock the Screen" { spawn "swaylock"; }
+    Super+L hotkey-overlay-title="Lock the Screen" { spawn "quickshell" "ipc" "call" "lock" "lock"; }
 
 
     // The allow-when-locked=true property makes them work even when the session is locked.
