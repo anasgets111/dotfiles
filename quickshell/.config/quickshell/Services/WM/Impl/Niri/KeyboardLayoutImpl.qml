@@ -2,12 +2,14 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import Quickshell.Io
+import qs.Services as Services
 
 Singleton {
     id: root
 
     // Toggle to start/stop processes
     property bool enabled: false
+    readonly property bool active: (Services.MainService.currentWM === "niri")
 
     // Public API mirrored by the service
     property var layouts: []
@@ -19,7 +21,7 @@ Singleton {
 
     Process {
         id: layoutSeedProcess
-        running: root.enabled
+        running: root.enabled && root.active
         command: ["niri", "msg", "--json", "keyboard-layouts"]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -32,7 +34,7 @@ Singleton {
 
     Process {
         id: eventStreamProcess
-        running: root.enabled
+        running: root.enabled && root.active
         command: ["niri", "msg", "--json", "event-stream"]
         stdout: SplitParser {
             splitMarker: "\n"

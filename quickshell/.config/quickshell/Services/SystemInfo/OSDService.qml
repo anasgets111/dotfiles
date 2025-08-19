@@ -35,6 +35,14 @@ Singleton {
     // Suppress showing new toasts; queue is retained
     property bool doNotDisturb: false
 
+    // When enabled, if a new toast arrives while one is visible and the level matches,
+    // the current toast content is replaced and the timer restarts instead of queueing/hide-show cycling.
+    property bool replaceWhileVisible: true
+
+    // Max time a toast can remain visible even if it keeps being replaced/reset (ms)
+    property int maxVisibleMs: 5000
+    property double _currentStartAt: 0
+
     // Durations (ms)
     property int durationInfo: 3000
     property int durationWarn: 4000
@@ -58,6 +66,16 @@ Singleton {
         // If the current toast matches and dedupe is on, bump the counter and refresh timer
         if (root.toastVisible && root.dedupe && msg === root.currentMessage && level === root.currentLevel) {
             root.currentRepeatCount += 1;
+            root._restartTimerForCurrent();
+            return;
+        }
+
+        // Live replace with escalation: update if visible and new level >= current level
+        if (root.toastVisible && root.replaceWhileVisible && level >= root.currentLevel) {
+            root.currentMessage = msg;
+            root.currentDetails = det;
+            root.currentLevel = level;
+            // Keep repeat count as-is; this is a replacement, not a duplicate
             root._restartTimerForCurrent();
             return;
         }
@@ -118,6 +136,7 @@ Singleton {
         root.currentDetails = "";
         root.currentLevel = levelInfo;
         root.currentRepeatCount = 0;
+        root._currentStartAt = 0;
         toastTimer.stop();
         root.resetToastState();
         if (!root.doNotDisturb)
@@ -175,21 +194,30 @@ Singleton {
         root.currentDetails = toast.details || "";
         root.currentRepeatCount = toast.repeat || 0;
         root.toastVisible = true;
+        root._currentStartAt = Date.now ? Date.now() : new Date().getTime();
         root.resetToastState();
         root._applyTimerFor(toast.level, root.hasDetails);
         root.logger.log("OSDService", `show: level=${root.currentLevel}, repeats=${root.currentRepeatCount}`);
     }
 
     function _applyTimerFor(level, hasDetails) {
+        var baseInterval = 0;
         if (level === levelError && hasDetails) {
-            toastTimer.interval = root.durationErrorWithDetails;
+            baseInterval = root.durationErrorWithDetails;
         } else if (level === levelError) {
-            toastTimer.interval = root.durationError;
+            baseInterval = root.durationError;
         } else if (level === levelWarn) {
-            toastTimer.interval = root.durationWarn;
+            baseInterval = root.durationWarn;
         } else {
-            toastTimer.interval = root.durationInfo;
+            baseInterval = root.durationInfo;
         }
+        var now = Date.now ? Date.now() : new Date().getTime();
+        var remainingCap = (root.toastVisible && root._currentStartAt > 0) ? Math.max(0, root.maxVisibleMs - (now - root._currentStartAt)) : -1;
+        if (remainingCap === 0) {
+            root.hideToast();
+            return;
+        }
+        toastTimer.interval = remainingCap > 0 ? Math.min(baseInterval, remainingCap) : baseInterval;
         toastTimer.restart();
     }
 
