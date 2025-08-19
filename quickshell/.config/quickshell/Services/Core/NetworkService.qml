@@ -334,6 +334,7 @@ Singleton {
             signal: 0,
             security: "",
             freq: "",
+            band: "",
             connected: false
         };
     }
@@ -345,7 +346,8 @@ Singleton {
         function pushIfValid(o) {
             if (!o)
                 return;
-            if ((o.ssid && o.ssid.length > 0) || (o.bssid && o.bssid.length > 0))
+            // Skip empty/placeholder networks unless they carry useful identifiers
+            if (((o.ssid && o.ssid.length > 0) || (o.bssid && o.bssid.length > 0)))
                 out.push(o);
         }
         for (var i = 0; i < lines.length; i++) {
@@ -358,11 +360,17 @@ Singleton {
             var key = line.substring(0, idx).trim();
             var val = line.substring(idx + 1).trim();
 
-            if (key === "IN-USE" || key === "SSID") {
+            // Start a new entry only when a new row begins; IN-USE appears first per network in multiline format.
+            if (key === "IN-USE") {
+                // The presence of IN-USE indicates the start of a new AP row.
                 if (obj)
                     pushIfValid(obj);
                 obj = net._newWifiEntry();
+                obj.connected = (val === "*");
+                continue;
             }
+
+            // Some nmcli variants may start the row with SSID (e.g., hidden IN-USE). If there is no current obj, start one.
             if (!obj)
                 obj = net._newWifiEntry();
 
@@ -374,9 +382,10 @@ Singleton {
                 obj.signal = parseInt(val) || 0;
             else if (key === "SECURITY")
                 obj.security = val;
-            else if (key === "FREQ")
+            else if (key === "FREQ") {
                 obj.freq = val;
-            else if (key === "IN-USE")
+                // band inferred later during dedupe where strongest wins
+            } else if (key === "IN-USE") // fallback if seen mid-row in odd outputs
                 obj.connected = (val === "*");
         }
         pushIfValid(obj);
@@ -442,7 +451,7 @@ Singleton {
         if (net.savedConnections)
             for (var i = 0; i < net.savedConnections.length; i++)
                 savedSet[net.savedConnections[i].ssid] = true;
-        // Active SSID derived only from the latest scan (IN-USE field)
+        // Active SSID: prefer scan's IN-USE mark; if none, fall back to active device connName when Wi‑Fi connected
         var activeSsid = null;
         for (var a = 0; a < net.wifiNetworks.length; a++) {
             var cand = net.wifiNetworks[a];
@@ -451,6 +460,8 @@ Singleton {
                 break;
             }
         }
+        if (!activeSsid && net.activeDevice && net.activeDevice.type === "wifi" && net._isConnected(net.activeDevice.state))
+            activeSsid = net.activeDevice.connectionName || null;
         for (var j = 0; j < net.wifiNetworks.length; j++) {
             var wn = net.wifiNetworks[j];
             wn.saved = !!savedSet[wn.ssid];
@@ -458,7 +469,85 @@ Singleton {
             if (activeSsid && !wn.connected)
                 wn.connected = (wn.ssid === activeSsid);
         }
+        // Pin connected entries first, then by signal desc
+        try {
+            net.wifiNetworks.sort(function (a, b) {
+                var ca = a && a.connected ? 1 : 0;
+                var cb = b && b.connected ? 1 : 0;
+                if (cb !== ca)
+                    return cb - ca; // connected first
+                var sa = a && a.signal ? a.signal : 0;
+                var sb = b && b.signal ? b.signal : 0;
+                return sb - sa;
+            });
+        } catch (e) {}
         net.wifiNetworksChanged();
+    }
+
+    // Infer band label from frequency string like "5180 MHz"
+    function _inferBandLabel(freqStr) {
+        if (!freqStr)
+            return "";
+        var mhz = parseInt(String(freqStr));
+        if (!mhz || mhz <= 0)
+            return "";
+        if (mhz >= 2400 && mhz <= 2500)
+            return "2.4";
+        if (mhz >= 4900 && mhz <= 5900)
+            return "5";
+        if (mhz >= 5925 && mhz <= 7125)
+            return "6";
+        return "";
+    }
+
+    // Filter placeholders and collapse multiple BSSIDs per SSID; keep strongest and propagate connected
+    function _dedupeWifiNetworks(arr) {
+        if (!arr || arr.length === 0)
+            return [];
+        var map = {};
+        for (var i = 0; i < arr.length; i++) {
+            var e = arr[i] || {};
+            var ssid = (e.ssid || "").trim();
+            // Drop placeholders or empty SSIDs
+            if (!ssid || ssid === "--")
+                continue;
+            var bandLbl = net._inferBandLabel(e.freq || "");
+            if (!map[ssid]) {
+                // Shallow copy to avoid mutating original entries unexpectedly
+                map[ssid] = {
+                    ssid: ssid,
+                    bssid: e.bssid || "",
+                    signal: e.signal || 0,
+                    security: e.security || "",
+                    freq: e.freq || "",
+                    band: bandLbl,
+                    connected: !!e.connected,
+                    saved: !!e.saved
+                };
+            } else {
+                var cur = map[ssid];
+                // Propagate connected and saved flags if any entry has them
+                cur.connected = cur.connected || !!e.connected;
+                cur.saved = cur.saved || !!e.saved;
+                // Prefer the strongest signal for display attributes (bssid, freq, security)
+                var sig = e.signal || 0;
+                if (sig > cur.signal) {
+                    cur.signal = sig;
+                    cur.bssid = e.bssid || cur.bssid;
+                    cur.freq = e.freq || cur.freq;
+                    cur.band = bandLbl || cur.band;
+                    cur.security = e.security || cur.security;
+                }
+            }
+        }
+        // Convert to array and sort by signal desc (final ordering pinned later)
+        var out = [];
+        for (var k in map)
+            out.push(map[k]);
+        out.sort(function (a, b) {
+            return (b.signal || 0) - (a.signal || 0);
+        });
+        return out;
     }
 
     // Request device details (dynamic Process)
@@ -809,7 +898,8 @@ Singleton {
             onStreamFinished: function () {
                 try {
                     var parsed = net._parseWifiListMultiline(text);
-                    net.wifiNetworks = parsed;
+                    // Dedupe and filter before applying flags
+                    net.wifiNetworks = net._dedupeWifiNetworks(parsed);
                     net._applySavedFlags();
                     // Diagnostics: ensure wifiNetworks is JSON-serialisable
                     try {
