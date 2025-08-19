@@ -34,6 +34,12 @@ Singleton {
             return findById(item.id);
         items.push(item);
         itemAdded(item);
+        // Diagnostics: ensure items array is JSON-serialisable
+        try {
+            console.log("SystemTrayService items JSON:", JSON.stringify(items));
+        } catch (e) {
+            console.warn("SystemTrayService items not JSON-serialisable", e);
+        }
         return item;
     }
 
@@ -42,6 +48,11 @@ Singleton {
             if (items[i].id === id) {
                 var removed = items.splice(i, 1)[0];
                 itemRemoved(id);
+                try {
+                    console.log("SystemTrayService items JSON:", JSON.stringify(items));
+                } catch (e) {
+                    console.warn("SystemTrayService items not JSON-serialisable", e);
+                }
                 return removed;
             }
         }
