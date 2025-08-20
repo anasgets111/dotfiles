@@ -5,6 +5,7 @@ import QtQml
 import Quickshell
 import Quickshell.Io
 import qs.Services.SystemInfo
+import qs.Services.Utils
 
 Singleton {
     id: clip
@@ -50,9 +51,8 @@ Singleton {
     }
 
     function _sanitizeMimeType(m) {
-        const s = String(m || "");
-        // Strict RFC-ish token pattern; only allow "type/subtype"
-        return s.match(/^[a-z0-9][a-z0-9+.-]*\/[a-z0-9][a-z0-9+.-]*$/i) ? s : "";
+        // Use Utils implementation for consistency across services
+        return Utils.sanitizeMimeType(m);
     }
 
     function _scheduleWatchRestart() {
@@ -134,7 +134,7 @@ Singleton {
                 if (imageType) {
                     imageProc.mimeType = imageType;
                     // Use positional parameter to avoid injection (no direct interpolation)
-                    imageProc.command = ["sh", "-c", 'mime="$1"; wl-paste -n -t "$mime" | base64 -w 0', "x", imageType];
+                    imageProc.command = Utils.shCommand('mime="$1"; wl-paste -n -t "$mime" | base64 -w 0', [imageType]);
                     clip.logger.log("ClipboardService", `Fetching image: ${imageType}`);
                     imageProc.running = true;
                     return;
@@ -170,7 +170,7 @@ Singleton {
                     } else {
                         const added = clip._addText(content);
                         if (added && clip.persistEnabled) {
-                            const sizeBytes = clip._utf8Size(content);
+                            const sizeBytes = Utils.utf8Size(content);
                             if (sizeBytes <= clip.maxPersistBytes) {
                                 clip._startPersistPipeline("text/plain");
                             } else {
@@ -202,7 +202,7 @@ Singleton {
                         const added = safeMime ? clip._setLastImage(safeMime, base64) : false;
                         clip.logger.log("ClipboardService", `Image fetch: ${safeMime || "invalid-mime"}, size=${base64.length}`);
                         if (added && clip.persistEnabled && !clip._coldStart) {
-                            const sizeBytes = clip._base64Size(base64);
+                            const sizeBytes = Utils.base64Size(base64);
                             if (sizeBytes <= clip.maxPersistBytes) {
                                 clip._startPersistPipeline(safeMime);
                             } else {
@@ -295,19 +295,7 @@ Singleton {
     }
 
     // Helpers
-    function _utf8Size(str) {
-        try {
-            return unescape(encodeURIComponent(str)).length;
-        } catch (e) {
-            return str.length * 3;
-        }
-    }
-
-    function _base64Size(b64) {
-        const len = b64.length;
-        const pad = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
-        return Math.floor((len * 3) / 4) - pad;
-    }
+    // Size helpers moved to Utils
 
     function _startPersistPipeline(mimeType) {
         if (!clip.enabled || !clip.persistEnabled)
@@ -315,29 +303,29 @@ Singleton {
         if (clip._persistInFlight)
             return;
 
-        const isText = mimeType === "text" || mimeType === "text/plain" || (mimeType && mimeType.indexOf("text/") === 0);
-        const isImage = mimeType && mimeType.indexOf("image/") === 0;
+        const safeMime = clip._sanitizeMimeType(mimeType);
+        const isText = Utils.isTextMime(safeMime);
+        const isImage = Utils.isImageMime(safeMime);
         if (!isText && !isImage)
             return;
 
         // Build safe command: wl-paste -n -t <mime> | wl-copy -t <mime>
         // We can’t avoid the shell completely because Process doesn’t support pipes.
-        const safeMime = clip._sanitizeMimeType(mimeType);
         if (!safeMime)
             return;
 
-        let cmd;
+        let cmdArr;
         if (isText) {
-            cmd = 'wl-paste -n -t text | wl-copy -t text/plain';
+            cmdArr = Utils.shCommand('wl-paste -n -t text | wl-copy -t text/plain');
         } else {
-            cmd = `wl-paste -n -t "${safeMime}" | wl-copy -t "${safeMime}"`;
+            cmdArr = Utils.shCommand('mime="$1"; wl-paste -n -t "$mime" | wl-copy -t "$mime"', [safeMime]);
         }
 
         clip._suppressBudget = Math.max(clip._suppressBudget, 2);
         clip._suppressUntilTs = Date.now() + 500;
         clip._persistInFlight = true;
 
-        persistProc.command = ["sh", "-c", cmd];
+        persistProc.command = cmdArr;
         clip.logger.log("ClipboardService", `Persist: ${safeMime}`);
         persistProc.running = true;
     }
@@ -346,12 +334,11 @@ Singleton {
         clip.logger.log("ClipboardService", `Init: enabled=${clip.enabled}`);
 
         // Restore persisted text history from JSON string
-        try {
-            const persisted = JSON.parse(store.textHistoryJson || "[]");
-            if (persisted && persisted.length) {
-                clip.history = _cloneTextHistory(persisted);
-            }
-        } catch (e) {
+        const persisted = Utils.safeJsonParse(store.textHistoryJson, []);
+        if (Array.isArray(persisted) && persisted.length) {
+            clip.history = _cloneTextHistory(persisted);
+        } else if (!Array.isArray(persisted)) {
+            // Reset invalid data to a sane default
             clip.history = [];
             store.textHistoryJson = "[]";
         }

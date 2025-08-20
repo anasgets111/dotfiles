@@ -2,6 +2,7 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import Quickshell.Io
+import qs.Services.Utils
 import qs.Services
 
 Singleton {
@@ -36,7 +37,9 @@ Singleton {
             onRead: function (segment) {
                 if (!segment)
                     return;
-                const event = JSON.parse(segment);
+                const event = Utils.safeJsonParse(segment, null);
+                if (!event)
+                    return;
                 if (event && event.KeyboardLayoutsChanged) {
                     const layoutInfo = event.KeyboardLayoutsChanged.keyboard_layouts || {};
                     root.layouts = layoutInfo.names || [];
