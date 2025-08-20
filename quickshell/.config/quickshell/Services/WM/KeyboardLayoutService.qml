@@ -16,7 +16,7 @@ Singleton {
     readonly property var osd: OSDService
     readonly property var mainService: MainService
     readonly property var wmImplementation: mainService.currentWM === "hyprland" ? Hypr.KeyboardLayoutImpl : mainService.currentWM === "niri" ? Niri.KeyboardLayoutImpl : null
-    readonly property var layouts: wmImplementation ? wmImplementation.layouts.slice(0) : []
+    readonly property var layouts: wmImplementation ? (wmImplementation.layouts || []) : []
     readonly property string currentLayout: wmImplementation ? (wmImplementation.currentLayout || "") : ""
     readonly property bool hasMultipleLayouts: layouts.length > 1
 
@@ -41,18 +41,7 @@ Singleton {
     property var _scrollPaths: []
 
     // Discover LED brightness files for each lock key (once at startup)
-    Process {
-        id: listCapsProc
-        running: false
-    }
-    Process {
-        id: listNumProc
-        running: false
-    }
-    Process {
-        id: listScrollProc
-        running: false
-    }
+    // Note: we use FileSystemService helpers; no per-key Process objects are needed here.
 
     Component.onCompleted: {
         // Kick off discovery via FileSystemService
@@ -111,15 +100,5 @@ Singleton {
         }
     }
 
-    // Declarative enablement of backend impls
-    Binding {
-        target: Hypr.KeyboardLayoutImpl
-        property: "enabled"
-        value: root.mainService.currentWM === "hyprland"
-    }
-    Binding {
-        target: Niri.KeyboardLayoutImpl
-        property: "enabled"
-        value: root.mainService.currentWM === "niri"
-    }
+    // Backend impls manage their own enablement via their `active` property.
 }

@@ -15,8 +15,9 @@ Singleton {
 
     property var mainService: MainService
     property ListModel monitorsModel: ListModel {}
-    property var impl: null
-    property bool ready: false
+    // Select backend implementation declaratively based on current WM
+    property var impl: (monitorService.mainService && monitorService.mainService.currentWM === "hyprland") ? Hyprland.MonitorImpl : (monitorService.mainService && monitorService.mainService.currentWM === "niri") ? Niri.MonitorImpl : null
+    readonly property bool ready: impl !== null
 
     signal monitorsChanged
 
@@ -30,21 +31,12 @@ Singleton {
         }
     }
 
-    Connections {
-        // Guard against null target until mainService is injected
-        enabled: !!monitorService.mainService
-        target: monitorService.mainService
-        function onReadyChanged() {
-            if (monitorService.mainService.ready) {
-                monitorService.setupImpl();
-            }
-        }
-    }
-
+    // Initialize model with current screens at startup
     Component.onCompleted: {
-        if (monitorService.mainService && monitorService.mainService.ready) {
-            setupImpl();
-        }
+        const list = normalizeScreens(Quickshell.screens);
+        updateMonitors(list);
+        if (impl)
+            logMonitorFeatures(list);
     }
 
     // Helper: convert ListModel to plain JS array for logging/inspection
@@ -68,20 +60,11 @@ Singleton {
         proc.running = true;
     }
 
-    function setupImpl() {
-        const list = normalizeScreens(Quickshell.screens);
-        updateMonitors(list);
-
-        if (monitorService.mainService.currentWM === "hyprland") {
-            monitorService.impl = Hyprland.MonitorImpl;
-        } else if (monitorService.mainService.currentWM === "niri") {
-            monitorService.impl = Niri.MonitorImpl;
+    // When backend impl becomes available or changes, refresh feature info
+    onImplChanged: {
+        if (impl) {
+            logMonitorFeatures(monitorsModelToArray());
         }
-
-        if (impl)
-            logMonitorFeatures(list);
-
-        monitorService.ready = true;
     }
 
     function normalizeScreens(screens) {

@@ -2,53 +2,62 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import Quickshell.Io
-import qs.Services as Services
+import qs.Services
 
 Singleton {
     id: root
 
-    // Toggle to start/stop processes
-    property bool enabled: false
-    readonly property bool active: (Services.MainService.currentWM === "niri")
+    readonly property bool active: MainService.ready && MainService.currentWM === "niri"
+    property bool enabled: root.active
 
-    // Public API mirrored by the service
     property var layouts: []
     property string currentLayout: ""
 
     function setLayoutByIndex(layoutIndex) {
-        root.currentLayout = root.layouts[layoutIndex] || "";
+        root.currentLayout = root.layouts && layoutIndex >= 0 && layoutIndex < root.layouts.length ? (root.layouts[layoutIndex] || "") : "";
     }
 
     Process {
         id: layoutSeedProcess
-        running: root.enabled && root.active
+        running: root.enabled
         command: ["niri", "msg", "--json", "keyboard-layouts"]
         stdout: StdioCollector {
             onStreamFinished: {
-                var data = JSON.parse(text);
-                root.layouts = data.names || [];
-                root.setLayoutByIndex(data.current_idx);
+                try {
+                    const data = JSON.parse(text || "{}");
+                    root.layouts = (data && data.names) ? data.names : [];
+                    const idx = (data && typeof data.current_idx === "number") ? data.current_idx : -1;
+                    root.setLayoutByIndex(idx);
+                } catch (e) {
+                    MainService.logger.log("KeyboardLayoutImpl(Niri)", "Failed to parse keyboard-layouts JSON:", e.toString());
+                }
             }
         }
     }
 
     Process {
         id: eventStreamProcess
-        running: root.enabled && root.active
+        running: root.enabled
         command: ["niri", "msg", "--json", "event-stream"]
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: function (segment) {
                 if (!segment)
                     return;
-                var event = JSON.parse(segment);
-                if (event.KeyboardLayoutsChanged) {
-                    var layoutInfo = event.KeyboardLayoutsChanged.keyboard_layouts;
-                    root.layouts = layoutInfo.names || [];
-                    root.setLayoutByIndex(layoutInfo.current_idx);
-                } else if (event.KeyboardLayoutSwitched) {
-                    var layoutIndex = event.KeyboardLayoutSwitched.idx;
-                    root.setLayoutByIndex(layoutIndex);
+                try {
+                    const event = JSON.parse(segment);
+                    if (event && event.KeyboardLayoutsChanged) {
+                        const layoutInfo = event.KeyboardLayoutsChanged.keyboard_layouts || {};
+                        root.layouts = layoutInfo.names || [];
+                        const idx = typeof layoutInfo.current_idx === "number" ? layoutInfo.current_idx : -1;
+                        root.setLayoutByIndex(idx);
+                    } else if (event && event.KeyboardLayoutSwitched) {
+                        const layoutIndex = event.KeyboardLayoutSwitched.idx;
+                        if (typeof layoutIndex === "number")
+                            root.setLayoutByIndex(layoutIndex);
+                    }
+                } catch (e) {
+                    MainService.logger.log("KeyboardLayoutImpl(Niri)", "Failed to parse event-stream JSON:", e.toString());
                 }
             }
         }

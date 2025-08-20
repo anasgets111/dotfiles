@@ -3,38 +3,16 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.Services.SystemInfo
-import qs.Services as Services
+import qs.Services
 
 // Niri Workspace Backend (logic only)
 Singleton {
     id: niriWs
-    // Services
-    readonly property var logger: LoggerService
-    readonly property var osd: OSDService
-    // Only active when MainService says Niri is the WM
-    readonly property bool active: (Services.MainService.currentWM === "niri")
+    readonly property bool active: MainService.ready && MainService.currentWM === "niri"
 
-    // Debounce for event-driven toasts
-    property int _announceDebounceMs: 400
-    property int _lastIdx: -1
-    property double _lastAt: 0
-    function _announce(idx) {
-        if (!osd)
-            return;
-        var now = Date.now ? Date.now() : new Date().getTime();
-        if (idx === _lastIdx && (now - _lastAt) < _announceDebounceMs)
-            return;
-        var outMsg = focusedOutput ? (focusedOutput + ": ") : "";
-        osd.showInfo(outMsg + "Workspace " + idx);
-        _lastIdx = idx;
-        _lastAt = now;
-    }
+    property bool enabled: niriWs.active
 
-    // Enable/disable this backend (controlled by aggregator)
-    property bool enabled: false
-
-    // Unified surface properties
+    // Announce/logging handled by abstract WorkspaceService
     property var workspaces: []
     property var outputsOrder: [] // [output names]
     property string focusedOutput: ""
@@ -42,44 +20,41 @@ Singleton {
     property int currentWorkspace: 1
     property int previousWorkspace: 1
 
-    // Hyprland-only no-ops for API parity
     property var specialWorkspaces: []
     property string activeSpecial: ""
 
     // Update helpers
     function updateWorkspaces(arr) {
-        var oldIdx = currentWorkspace;
         // annotate
         arr.forEach(function (w) {
             w.populated = w.active_window_id !== null;
         });
 
-        var f = arr.find(function (w) {
+        const f = arr.find(function (w) {
             return w.is_focused;
         });
         if (f)
-            focusedOutput = f.output || "";
+            niriWs.focusedOutput = f.output || "";
 
-        var groups = {};
+        const groups = {};
         arr.forEach(function (w) {
-            var out = w.output || "";
+            const out = w.output || "";
             if (!groups[out])
                 groups[out] = [];
             groups[out].push(w);
         });
 
-        var outs = Object.keys(groups).sort(function (a, b) {
+        const outs = Object.keys(groups).sort(function (a, b) {
             if (a === focusedOutput)
                 return -1;
             if (b === focusedOutput)
                 return 1;
             return a.localeCompare(b);
         });
-        outputsOrder = outs;
-
-        var flat = [];
-        var bounds = [];
-        var acc = 0;
+        niriWs.outputsOrder = outs;
+        let flat = [];
+        const bounds = [];
+        let acc = 0;
         outs.forEach(function (out) {
             groups[out].sort(function (a, b) {
                 return a.idx - b.idx;
@@ -89,40 +64,35 @@ Singleton {
             if (acc > 0 && acc < arr.length)
                 bounds.push(acc);
         });
-        workspaces = flat;
-        groupBoundaries = bounds;
+        niriWs.workspaces = flat;
+        niriWs.groupBoundaries = bounds;
 
-        if (f && f.idx !== currentWorkspace) {
-            previousWorkspace = currentWorkspace;
-            currentWorkspace = f.idx;
-            if (logger)
-                logger.log("NiriWorkspace", `focus -> output='${focusedOutput}', idx=${currentWorkspace}`);
-            _announce(currentWorkspace);
+        if (f && f.idx !== niriWs.currentWorkspace) {
+            niriWs.previousWorkspace = niriWs.currentWorkspace;
+            niriWs.currentWorkspace = f.idx;
+            // Logging + OSD handled in abstract service
         }
     }
 
     function updateSingleFocus(id) {
-        var w = workspaces.find(function (ww) {
+        const w = workspaces.find(function (ww) {
             return ww.id === id;
         });
         if (!w)
             return;
-        previousWorkspace = currentWorkspace;
-        currentWorkspace = w.idx;
-        focusedOutput = w.output || focusedOutput;
+        niriWs.previousWorkspace = niriWs.currentWorkspace;
+        niriWs.currentWorkspace = w.idx;
+        niriWs.focusedOutput = w.output || focusedOutput;
         workspaces.forEach(function (ww) {
             ww.is_focused = (ww.id === id);
             ww.is_active = (ww.id === id);
         });
-        workspaces = workspaces; // trigger
-        if (logger)
-            logger.log("NiriWorkspace", `activate -> output='${focusedOutput}', idx=${currentWorkspace}`);
-        _announce(currentWorkspace);
+        niriWs.workspaces = workspaces; // trigger
     }
 
     // Control methods
     function focusWorkspaceByIndex(idx) {
-        if (!enabled || !active)
+        if (!enabled)
             return;
         switchProc.running = false;
         switchProc.command = ["niri", "msg", "action", "focus-workspace", String(idx)];
@@ -130,13 +100,13 @@ Singleton {
     }
 
     function focusWorkspaceByWs(ws) {
-        if (!enabled || !active || !ws)
+        if (!enabled || !ws)
             return;
-        var out = ws.output || "";
-        var idx = ws.idx;
+        const out = ws.output || "";
+        const idx = ws.idx;
         if (out && out !== focusedOutput) {
-            var outEsc = out.replace(/'/g, "'\"'\"'");
-            var script = "niri msg action focus-monitor '" + outEsc + "' && niri msg action focus-workspace " + idx;
+            const outEsc = out.replace(/'/g, "'\"'\"'");
+            const script = "niri msg action focus-monitor '" + outEsc + "' && niri msg action focus-workspace " + idx;
             switchProc.running = false;
             switchProc.command = ["bash", "-lc", script];
             switchProc.running = true;
@@ -150,7 +120,7 @@ Singleton {
     }
 
     function refresh() {
-        if (!enabled || !active)
+        if (!enabled)
             return;
         seedProcWorkspaces.running = true;
     }
@@ -163,7 +133,7 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    var j = JSON.parse(text);
+                    const j = JSON.parse(text);
                     if (j.Workspaces)
                         niriWs.updateWorkspaces(j.Workspaces.workspaces);
                 } catch (e) {}
@@ -173,7 +143,7 @@ Singleton {
 
     Process {
         id: eventProcNiri
-        running: niriWs.enabled && niriWs.active
+        running: niriWs.enabled
         command: ["niri", "msg", "--json", "event-stream"]
         stdout: SplitParser {
             splitMarker: "\n"
@@ -181,7 +151,7 @@ Singleton {
                 if (!seg)
                     return;
                 try {
-                    var evt = JSON.parse(seg);
+                    const evt = JSON.parse(seg);
                     if (evt.WorkspacesChanged)
                         niriWs.updateWorkspaces(evt.WorkspacesChanged.workspaces);
                     else if (evt.WorkspaceActivated)
@@ -196,7 +166,7 @@ Singleton {
         command: ["niri", "msg", "workspace", "1"]
     }
 
-    onEnabledChanged: if (enabled && active)
+    onEnabledChanged: if (enabled)
         refresh()
     else {
         seedProcWorkspaces.running = false;

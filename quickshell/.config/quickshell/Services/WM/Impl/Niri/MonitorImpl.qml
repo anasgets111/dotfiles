@@ -3,13 +3,18 @@ pragma Singleton
 import Quickshell
 import QtQuick
 import Quickshell.Io
+import qs.Services
+import qs.Services.SystemInfo
 
 Singleton {
     id: niriMonitorService
+    property var logger: LoggerService
+    readonly property bool active: MainService.ready && MainService.currentWM === "niri"
+    readonly property bool enabled: niriMonitorService.active
 
     function runCmd(cmd, onDone) {
-        var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', niriMonitorService);
-        var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
+        const proc = Qt.createQmlObject('import Quickshell.Io; Process { }', niriMonitorService);
+        const collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
         proc.stdout = collector;
         collector.onStreamFinished.connect(function () {
             onDone(collector.text);

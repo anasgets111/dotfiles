@@ -2,20 +2,14 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import qs.Services.SystemInfo
 import qs.Services as Services
 
 // Hyprland Workspace Backend (logic only)
 Singleton {
     id: hyprWs
 
-    // Services
-    readonly property var logger: LoggerService
-    readonly property var osd: OSDService
-    readonly property bool active: (Services.MainService.currentWM === "hyprland")
-
-    // Enable/disable this backend (controlled by aggregator)
-    property bool enabled: false
+    readonly property bool active: Services.MainService.ready && Services.MainService.currentWM === "hyprland"
+    property bool enabled: hyprWs.active
 
     // Normalized properties (match WorkspaceService API)
     // 1..10 fixed list for normal workspaces
@@ -39,39 +33,39 @@ Singleton {
             if (!arr)
                 arr = [];
 
-            var map = arr.reduce(function (m, w) {
+            const map = arr.reduce(function (m, w) {
                 m[w.id] = w;
                 return m;
             }, {});
 
-            var normal = Array.from({
+            const normal = Array.from({
                 "length": 10
             }, function (_unused, i) {
-                var id = i + 1;
-                var w = map[id];
+                const id = i + 1;
+                const w = map[id];
                 return {
                     "id": id,
                     "focused": !!(w && w.focused),
                     "populated": !!w
                 };
             });
-            workspaces = normal;
+            hyprWs.workspaces = normal;
 
-            var specials = [];
-            for (var i = 0; i < arr.length; ++i) {
-                var ws = arr[i];
+            const specials = [];
+            for (let i = 0; i < arr.length; ++i) {
+                const ws = arr[i];
                 if (ws.id < 0)
                     specials.push(ws);
             }
-            specialWorkspaces = specials;
+            hyprWs.specialWorkspaces = specials;
 
             // set current workspace from focused entry if present
-            var f = arr.find(function (w) {
+            const f = arr.find(function (w) {
                 return !!w.focused && w.id > 0;
             });
-            if (f && f.id !== currentWorkspace) {
-                previousWorkspace = currentWorkspace;
-                currentWorkspace = f.id;
+            if (f && f.id !== hyprWs.currentWorkspace) {
+                hyprWs.previousWorkspace = hyprWs.currentWorkspace;
+                hyprWs.currentWorkspace = f.id;
             }
         } catch (e)
         // keep state as-is on parse errors
@@ -107,37 +101,31 @@ Singleton {
 
     // Track raw Hyprland events
     Connections {
-        target: Hyprland
-        enabled: hyprWs.enabled && hyprWs.active
+        // Only attach to Hyprland signals when this backend is both enabled and active.
+        // This prevents handling events from other WMs when currentWM changes.
+        target: hyprWs.enabled ? Hyprland : null
+        enabled: hyprWs.enabled
         function onRawEvent(evt) {
-            if (!hyprWs.enabled || !hyprWs.active)
+            if (!hyprWs.enabled)
                 return;
 
             if (!evt || !evt.name)
                 return;
 
             if (evt.name === "workspace") {
-                var args = evt.parse ? evt.parse(2) : (evt.data ? evt.data.split(",") : []);
-                var newId = parseInt(args && args[0]);
+                const args = evt.parse ? evt.parse(2) : (evt.data ? evt.data.split(",") : []);
+                const newId = parseInt(args && args[0]);
                 if (newId && newId !== hyprWs.currentWorkspace) {
                     hyprWs.previousWorkspace = hyprWs.currentWorkspace;
                     hyprWs.currentWorkspace = newId;
-                    if (hyprWs.logger)
-                        hyprWs.logger.log("HyprWorkspace", `focus -> id=${newId}`);
-                    if (hyprWs.osd && newId > 0)
-                        hyprWs.osd.showInfo("Workspace " + newId);
                 }
                 // If switching to a normal workspace, clear active special indicator
                 if (newId && newId > 0)
                     hyprWs.activeSpecial = "";
                 hyprWs.recompute();
             } else if (evt.name === "activespecial") {
-                var sp = evt.data ? evt.data.split(",")[0] : "";
+                const sp = evt.data ? evt.data.split(",")[0] : "";
                 hyprWs.activeSpecial = sp;
-                if (hyprWs.logger)
-                    hyprWs.logger.log("HyprWorkspace", `special -> name='${sp}'`);
-                if (hyprWs.osd && sp)
-                    hyprWs.osd.showInfo("Special " + sp);
                 // specials might have changed focus state labels too
                 hyprWs.recompute();
             } else if (evt.name === "destroyworkspace" || evt.name === "createworkspace") {
@@ -147,6 +135,21 @@ Singleton {
     }
 
     // Initialize with current state when enabled flips on
-    onEnabledChanged: if (enabled && active)
+    onEnabledChanged: if (enabled)
         recompute()
+
+    // If `active` changes (MainService.currentWM changed), recompute and ensure
+    // connections are detached when not active.
+    onActiveChanged: {
+        if (active) {
+            recompute();
+        } else {
+            // Clear state when not active to avoid stale data shown by other backends
+            hyprWs.workspaces = [];
+            hyprWs.specialWorkspaces = [];
+            hyprWs.activeSpecial = "";
+            hyprWs.currentWorkspace = 1;
+            hyprWs.previousWorkspace = 1;
+        }
+    }
 }
