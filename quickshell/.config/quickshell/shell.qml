@@ -4,16 +4,16 @@ import Quickshell
 import QtQuick
 import QtQml
 import Quickshell.Wayland
-import qs.Services
+import qs.Services.Utils
 import qs.Services.SystemInfo
 import qs.Components
 import qs.Services.WM
 import qs.Services.Core
 import qs.Services.SystemInfo
+import qs.Modules.Bar
 
 ShellRoot {
     id: root
-    property var logger: LoggerService
 
     // property var main: MainService
     readonly property var wallpaper: WallpaperService
@@ -35,6 +35,9 @@ ShellRoot {
     readonly property var workspaces: WorkspaceService
     readonly property var sysInfo: SystemInfoService
     readonly property var media: MediaService
+    Bar {
+        id: bar
+    }
 
     // Your wallpapers (unchanged)
     Variants {
@@ -76,9 +79,9 @@ ShellRoot {
     Component.onCompleted: {
         // Touch services so they instantiate and log a concise status
         if (root.osd)
-            root.logger.log("Shell", "OSDService loaded; DND=", root.osd.doNotDisturb);
+            Logger.log("Shell", "OSDService loaded; DND=", root.osd.doNotDisturb);
         if (root.notifs)
-            root.logger.log("Shell", "NotificationService loaded");
+            Logger.log("Shell", "NotificationService loaded");
     }
     // Live clipboard
     Connections {
