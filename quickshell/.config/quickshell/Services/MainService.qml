@@ -116,9 +116,9 @@ Singleton {
     }
 
     function detectWM() {
-        if (Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE"))
+        if (Quickshell.env("XDG_CURRENT_DESKTOP") == "hyprland")
             sys.currentWM = "hyprland";
-        else if (Quickshell.env("NIRI_SOCKET"))
+        else if (Quickshell.env("XDG_CURRENT_DESKTOP") == "niri")
             sys.currentWM = "niri";
         else
             sys.currentWM = "other";

@@ -5,18 +5,22 @@ import QtQuick
 import Quickshell.Io
 import Quickshell.Hyprland
 import qs.Services.SystemInfo
+import qs.Services
 
 Singleton {
     id: hyprMonitorService
     property var logger: LoggerService
+    readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
 
+    // Enable/disable this backend (controlled by aggregator)
+    readonly property bool enabled: hyprMonitorService.active
     function stripAnsi(str) {
         return str.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "");
     }
 
     function runCmd(cmd, onDone) {
-        var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', hyprMonitorService);
-        var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
+        const proc = Qt.createQmlObject('import Quickshell.Io; Process { }', hyprMonitorService);
+        const collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
         proc.stdout = collector;
         collector.onStreamFinished.connect(function () {
             onDone(collector.text);
