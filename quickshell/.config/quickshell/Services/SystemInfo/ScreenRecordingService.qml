@@ -2,14 +2,13 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
-import qs.Services.SystemInfo
 import qs.Services.Utils
+import qs.Services.SystemInfo
+import qs.Services.WM
 
 Singleton {
     id: root
-
-    property QtObject settings: QtObject {
+    readonly property var settings: QtObject {
         property string directory: "~/Videos"
         property int frameRate: 60
         property string audioCodec: "opus"
@@ -18,10 +17,10 @@ Singleton {
         property string colorRange: "limited"
         property bool showCursor: true
         property string audioSource: "default_output"
+        property string monitor: WorkspaceService.focusedOutput
     }
     property bool isRecording: false
     property string outputPath: ""
-
     // Start or Stop recording
     function toggleRecording() {
         isRecording ? stopRecording() : startRecording();
@@ -34,14 +33,14 @@ Singleton {
         }
         isRecording = true;
 
-        var filename = TimeService.getFormattedTimestamp() + ".mp4";
+        var filename = Qt.formatDateTime(TimeService.currentDate, "yyyyMMdd_HHmmss") + ".mp4";
         var videoDir = settings.directory;
         if (videoDir && !videoDir.endsWith("/")) {
             videoDir += "/";
         }
         outputPath = videoDir + filename;
-        var command = "gpu-screen-recorder -w portal" + " -f " + settings.frameRate + " -ac " + settings.audioCodec + " -k " + settings.videoCodec + " -a " + settings.audioSource + " -q " + settings.quality + " -cursor " + (settings.showCursor ? "yes" : "no") + " -cr " + settings.colorRange + " -o " + outputPath;
-        //Logger.log("ScreenRecorder", command)
+        var command = "gpu-screen-recorder -w " + settings.monitor + " -f " + settings.frameRate + " -ac " + settings.audioCodec + " -k " + settings.videoCodec + " -a " + settings.audioSource + " -q " + settings.quality + " -cursor " + (settings.showCursor ? "yes" : "no") + " -cr " + settings.colorRange + " -o " + outputPath;
+
         Quickshell.execDetached(["sh", "-c", command]);
         Logger.log("ScreenRecorder", "Started recording");
     }
@@ -52,7 +51,7 @@ Singleton {
             return;
         }
 
-        Quickshell.execDetached(["sh", "-c", "pkill -SIGINT -f 'gpu-screen-recor'"]);
+        Quickshell.execDetached(["sh", "-c", "pkill -SIGINT -f 'gpu-screen-reco'"]);
         Logger.log("ScreenRecorder", "Finished recording:", outputPath);
 
         // Just in case, force kill after 3 seconds

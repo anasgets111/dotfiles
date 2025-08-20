@@ -15,10 +15,18 @@ Singleton {
     // Detect session
     readonly property bool isHyprland: (MainService.currentWM === "hyprland")
     readonly property bool isNiri: (MainService.currentWM === "niri")
-
     // Single backend selector for simpler forwarding
     readonly property var backend: isHyprland ? Hypr.WorkspaceImpl : (isNiri ? Niri.WorkspaceImpl : null)
 
+    // Exposed unified properties (forward to the active backend; keep defaults)
+    property var workspaces: backend ? backend.workspaces : []
+    property var specialWorkspaces: backend ? backend.specialWorkspaces : []
+    property string activeSpecial: backend ? backend.activeSpecial : ""
+    property int currentWorkspace: backend ? backend.currentWorkspace : -1
+    property int previousWorkspace: backend ? backend.previousWorkspace : -1
+    property var outputsOrder: backend ? backend.outputsOrder : []
+    property var groupBoundaries: backend ? backend.groupBoundaries : []
+    property string focusedOutput: backend ? backend.focusedOutput : ""
     // Common services for OSD
     readonly property var osd: OSDService
 
@@ -90,16 +98,6 @@ Singleton {
         property: "enabled"
         value: ws.isNiri
     }
-
-    // Exposed unified properties (forward to the active backend; keep defaults)
-    property var workspaces: backend ? backend.workspaces : []
-    property var specialWorkspaces: backend ? backend.specialWorkspaces : []
-    property string activeSpecial: backend ? backend.activeSpecial : ""
-    property int currentWorkspace: backend ? backend.currentWorkspace : -1
-    property int previousWorkspace: backend ? backend.previousWorkspace : -1
-    property var outputsOrder: backend ? backend.outputsOrder : []
-    property var groupBoundaries: backend ? backend.groupBoundaries : []
-    property string focusedOutput: backend ? backend.focusedOutput : ""
 
     // Methods
     function focusWorkspaceByIndex(idx) {
