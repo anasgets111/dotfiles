@@ -33,6 +33,8 @@ ShellRoot {
     readonly property var updater: UpdateService
     readonly property bool _netInit: NetworkService.ready
     readonly property var workspaces: WorkspaceService
+    readonly property var sysInfo: SystemInfoService
+    readonly property var media: MediaService
 
     // Your wallpapers (unchanged)
     Variants {
