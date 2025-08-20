@@ -3,6 +3,7 @@ import Quickshell
 import QtQuick
 import Quickshell.Io
 import Quickshell.Hyprland
+import qs.Services.Utils
 import qs.Services
 
 Singleton {
@@ -22,7 +23,8 @@ Singleton {
                 if (!root.enabled)
                     return;
                 try {
-                    const data = JSON.parse(text || "{}");
+                    const clean = Utils.stripAnsi(text || "").trim();
+                    const data = Utils.safeJsonParse(clean, {});
                     const layoutArray = [];
                     let activeLayout = "";
                     const keyboards = (data && data.keyboards) ? data.keyboards : [];
