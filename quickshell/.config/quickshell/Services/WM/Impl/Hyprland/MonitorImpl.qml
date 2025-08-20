@@ -3,12 +3,11 @@ pragma Singleton
 import Quickshell
 import qs.Services.Utils
 import Quickshell.Hyprland
-import qs.Services.SystemInfo
+import qs.Services.Utils
 import qs.Services
 
 Singleton {
     id: hyprMonitorService
-    property var logger: LoggerService
     readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
 
     // Enable/disable this backend (controlled by aggregator)
@@ -50,7 +49,7 @@ Singleton {
                     mirror: isMirror
                 });
             } catch (e) {
-                hyprMonitorService.logger.error("HyprMonitorService", "Failed to parse hyprctl output", e, output);
+                Logger.error("HyprMonitorService", "Failed to parse hyprctl output", e, output);
                 callback(null);
             }
         });

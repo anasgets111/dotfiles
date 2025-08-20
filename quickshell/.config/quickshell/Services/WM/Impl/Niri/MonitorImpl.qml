@@ -3,7 +3,6 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import qs.Services
-import qs.Services.SystemInfo
 
 Singleton {
     id: niriMonitorService

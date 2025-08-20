@@ -2,6 +2,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Services.UPower
 import qs.Services.SystemInfo
+import qs.Services.Utils
 
 Singleton {
     id: batteryService
@@ -10,17 +11,16 @@ Singleton {
     // Other components can check `isReady` to know when battery-derived
     // properties (like `percentage`) are valid.
     readonly property bool isReady: isLaptopBattery
-    readonly property var logger: LoggerService
     // Live reference to the UPower display device object.
     readonly property var displayDevice: UPower.displayDevice
 
     // Log readiness transitions
     onIsReadyChanged: {
         if (isReady) {
-            logger.log("BatteryService", "Battery device ready:", displayDevice && (displayDevice.nativePath || "(no nativePath)"));
-            logger.log("BatteryService", "Initial percentage:", percentage + "%");
+            Logger.log("BatteryService", "Battery device ready:", displayDevice && (displayDevice.nativePath || "(no nativePath)"));
+            Logger.log("BatteryService", "Initial percentage:", percentage + "%");
         } else {
-            logger.log("BatteryService", "Battery device lost or not present anymore");
+            Logger.log("BatteryService", "Battery device lost or not present anymore");
         }
     }
 

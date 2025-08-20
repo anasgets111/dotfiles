@@ -5,7 +5,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
-import qs.Services.SystemInfo
 
 // Minimal, robust notification service usable across the project.
 // Features:
@@ -19,7 +18,6 @@ Singleton {
     id: root
 
     // ----- Configuration -----
-    property var logger: LoggerService
     // Maximum concurrent popups
     property int maxVisible: 3
     // Auto-dismiss behavior

@@ -3,7 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.Services
+import qs.Services.Utils
 import qs.Services.SystemInfo
 
 Singleton {
@@ -23,7 +23,6 @@ Singleton {
     property bool ready: false
 
     // debug logging (set true to see verbose logs)
-    property var logger: LoggerService
     // In-shell toast/OSD and Notifications (instantiated via properties)
     readonly property var osd: OSDService
     readonly property var notifs: NotificationService
@@ -134,7 +133,7 @@ Singleton {
     // Centralized runner for procConnect to avoid overlapping runs
     function _runProcConnect(cmdArray) {
         if (procConnect.running) {
-            logger.log("NetworkService", "procConnect busy; skipping command", JSON.stringify(cmdArray));
+            Logger.log("NetworkService", "procConnect busy; skipping command", JSON.stringify(cmdArray));
             return false;
         }
         try {
@@ -142,7 +141,7 @@ Singleton {
             procConnect.running = true;
             return true;
         } catch (e) {
-            logger.error("NetworkService", "Unable to start command:", e);
+            Logger.error("NetworkService", "Unable to start command:", e);
             return false;
         }
     }
@@ -150,7 +149,7 @@ Singleton {
     function _setError(msg) {
         net.lastError = msg;
         net.error(msg);
-        logger.error("NetworkService", "Error:", msg);
+        Logger.error("NetworkService", "Error:", msg);
     }
 
     // ---- Notify helpers ----
@@ -175,7 +174,7 @@ Singleton {
             if (net.osd)
                 net.osd.showToast(msg, level);
         } catch (e) {
-            logger.warn("NetworkService", "OSD notify failed:", e);
+            Logger.warn("NetworkService", "OSD notify failed:", e);
         }
     }
 
@@ -189,7 +188,7 @@ Singleton {
             notifySendProc.command = ["notify-send", "-u", String(urgency || "normal"), String(title || ""), String(body || "")];
             notifySendProc.running = true;
         } catch (e) {
-            logger.warn("NetworkService", "notify-send failed:", e);
+            Logger.warn("NetworkService", "notify-send failed:", e);
         }
     }
 
@@ -623,7 +622,7 @@ Singleton {
             var qml = 'import Quickshell.Io; Process { id: p; stdout: StdioCollector {} }';
             var obj = Qt.createQmlObject(qml, net, "dynamicProc_");
             if (!obj) {
-                logger.error("NetworkService", "Failed to create dynamic process object");
+                Logger.error("NetworkService", "Failed to create dynamic process object");
                 return;
             }
             obj.command = ["nmcli", "-m", "multiline", "-f", "ALL", "device", "show", iface];
@@ -659,41 +658,41 @@ Singleton {
                         net.ethernetIP = net._stripCidr(details.ip4 || net.ethernetIP);
                     }
                     net._updateDerivedState();
-                    logger.log("NetworkService", "Merged device details for", ifc, "-> mac=", details.mac, "connName=", details.connectionName, "connUuid=", details.connectionUuid, "ip4=", details.ip4);
+                    Logger.log("NetworkService", "Merged device details for", ifc, "-> mac=", details.mac, "connName=", details.connectionName, "connUuid=", details.connectionUuid, "ip4=", details.ip4);
                 } catch (ex) {
-                    logger.error("NetworkService", "Failed parsing dynamic device show output:", ex);
+                    Logger.error("NetworkService", "Failed parsing dynamic device show output:", ex);
                 }
                 obj.destroy();
             });
             obj.running = true;
         } catch (e) {
-            logger.error("NetworkService", "Unable to request device details:", e);
+            Logger.error("NetworkService", "Unable to request device details:", e);
         }
     }
 
     // === Public API ===
     // Run nmcli scan for wifi
     function refreshWifiScan(iface) {
-        logger.log("NetworkService", "refreshWifiScan(iface=", iface, ")");
+        Logger.log("NetworkService", "refreshWifiScan(iface=", iface, ")");
         var now = net._nowMs();
         if (net.scanning)
             return;
         if (!net.wifiRadioEnabled) {
-            logger.log("NetworkService", "wifi radio disabled; skip scan");
+            Logger.log("NetworkService", "wifi radio disabled; skip scan");
             net.wifiNetworks = [];
             return;
         }
         for (var di = 0; di < net.devices.length; di++) {
             var d = net.devices[di];
             if (d.interface === iface && d.state && d.state.indexOf("unavailable") !== -1) {
-                logger.log("NetworkService", "wifi device unavailable; skip scan");
+                Logger.log("NetworkService", "wifi device unavailable; skip scan");
                 net.wifiNetworks = [];
                 net.wifiNetworksChanged();
                 return;
             }
         }
         if (net._cooldownActive(net.lastWifiScanAt, net.wifiScanCooldownMs, now)) {
-            logger.log("NetworkService", "wifi scan cooldown active");
+            Logger.log("NetworkService", "wifi scan cooldown active");
             return;
         }
         net.scanning = true;
@@ -702,23 +701,23 @@ Singleton {
             procWifiList.command = ["nmcli", "-m", "multiline", "-f", "IN-USE,SSID,BSSID,SIGNAL,SECURITY,FREQ", "device", "wifi", "list", "ifname", iface];
             procWifiList.running = true;
         } catch (e) {
-            logger.error("NetworkService", "Unable to run wifi scan");
+            Logger.error("NetworkService", "Unable to run wifi scan");
             net.scanning = false;
             net.scanningChanged();
         }
     }
     function refreshDevices() {
-        logger.log("NetworkService", "refreshDevices()");
+        Logger.log("NetworkService", "refreshDevices()");
         var now = net._nowMs();
         if (net._cooldownActive(net.lastDevicesRefreshAt, net.deviceRefreshCooldownMs, now)) {
-            logger.log("NetworkService", "device refresh cooldown active");
+            Logger.log("NetworkService", "device refresh cooldown active");
             return;
         }
         net.lastDevicesRefreshAt = now;
         try {
             procListDevices.running = true;
         } catch (e) {
-            logger.error("NetworkService", "Unable to run device list:", e);
+            Logger.error("NetworkService", "Unable to run device list:", e);
         }
     }
 
@@ -744,13 +743,13 @@ Singleton {
     }
 
     function connectWifi(ssid, password, iface, save = false, name) {
-        logger.log("NetworkService", "connectWifi(ssid=", ssid, ", iface=", iface, ", save=", save, ")");
+        Logger.log("NetworkService", "connectWifi(ssid=", ssid, ", iface=", iface, ", save=", save, ")");
         if (!iface || iface === "")
             iface = net._firstWifiInterface();
         // Suppress transient disconnects from switching networks
         net._markWifiSwitchSuppression(iface);
         if (save && name) {
-            logger.log("NetworkService", "adding connection con-name=", name, "ssid=", ssid);
+            Logger.log("NetworkService", "adding connection con-name=", name, "ssid=", ssid);
             net._runProcConnect(["nmcli", "connection", "add", "type", "wifi", "ifname", iface, "con-name", name, "ssid", ssid]);
             return;
         }
@@ -761,13 +760,13 @@ Singleton {
     }
 
     function activateConnection(connId, iface) {
-        logger.log("NetworkService", "activateConnection(connId=", connId, ", iface=", iface, ")");
+        Logger.log("NetworkService", "activateConnection(connId=", connId, ", iface=", iface, ")");
         net._markWifiSwitchSuppression(iface);
         net._runProcConnect(["nmcli", "connection", "up", "id", connId, "ifname", iface]);
     }
 
     function disconnect(iface) {
-        logger.log("NetworkService", "disconnect(iface=", iface, ")");
+        Logger.log("NetworkService", "disconnect(iface=", iface, ")");
         // Mark suppression for this interface and type to avoid self-inflicted notifications
         var dtype = "";
         for (var i = 0; i < net.devices.length; i++)
@@ -800,20 +799,20 @@ Singleton {
         try {
             procForget.running = true;
         } catch (e) {
-            logger.error("NetworkService", "Unable to start forget command:", e);
+            Logger.error("NetworkService", "Unable to start forget command:", e);
         }
     }
 
     function dumpState() {
         try {
-            logger.log("NetworkService", "DUMP STATE: devices=", JSON.stringify(net.devices));
+            Logger.log("NetworkService", "DUMP STATE: devices=", JSON.stringify(net.devices));
         } catch (e) {
-            logger.log("NetworkService", "dumpState devices stringify failed:", e);
+            Logger.log("NetworkService", "dumpState devices stringify failed:", e);
         }
         try {
-            logger.log("NetworkService", "DUMP STATE: wifiNetworks=", JSON.stringify(net.wifiNetworks));
+            Logger.log("NetworkService", "DUMP STATE: wifiNetworks=", JSON.stringify(net.wifiNetworks));
         } catch (e) {
-            logger.log("NetworkService", "dumpState wifi stringify failed:", e);
+            Logger.log("NetworkService", "dumpState wifi stringify failed:", e);
         }
     }
 
@@ -883,17 +882,17 @@ Singleton {
         }
         Component.onCompleted: {
             try {
-                net.logger.log("NetworkService", "Starting nmcli monitor");
+                Logger.log("NetworkService", "Starting nmcli monitor");
                 monitorProc.running = true;
             } catch (e) {
                 net.usePollingFallback = true;
-                net.logger.log("NetworkService", "Failed to start monitor:", e);
+                Logger.log("NetworkService", "Failed to start monitor:", e);
             }
         }
         onRunningChanged: function () {
             if (!running) {
                 net.usePollingFallback = true;
-                net.logger.log("NetworkService", "nmcli monitor stopped");
+                Logger.log("NetworkService", "nmcli monitor stopped");
             }
         }
     }
@@ -927,9 +926,9 @@ Singleton {
                     net.devices = parsed;
                     // Diagnostics: ensure devices is JSON-serialisable
                     try {
-                        net.logger.log("NetworkService", "devices JSON:", JSON.stringify(net.devices));
+                        Logger.log("NetworkService", "devices JSON:", JSON.stringify(net.devices));
                     } catch (eDiagDev) {
-                        net.logger.warn("NetworkService", "devices not JSON-serialisable", eDiagDev);
+                        Logger.warn("NetworkService", "devices not JSON-serialisable", eDiagDev);
                     }
                     net._updateDerivedState();
                     var devSummary = "devices=" + net.devices.length + ": ";
@@ -937,7 +936,7 @@ Singleton {
                         var dv = net.devices[d];
                         devSummary += dv.interface + "(" + dv.type + "," + dv.state + ") ";
                     }
-                    net.logger.log("NetworkService", "Parsed devices:", devSummary);
+                    Logger.log("NetworkService", "Parsed devices:", devSummary);
                     for (var i = 0; i < net.devices.length; i++) {
                         var dv = net.devices[i];
                         if (dv.type === "loopback" || dv.type === "wifi-p2p")
@@ -947,12 +946,12 @@ Singleton {
                     var chosen = net._chooseActiveDevice(net.devices);
                     if (chosen) {
                         net.activeDevice = chosen;
-                        net.logger.log("NetworkService", "Active device:", net.activeDevice.interface, "type=", net.activeDevice.type, "state=", net.activeDevice.state, "connName=", net.activeDevice.connectionName, "ip4=", net.activeDevice.ip4);
+                        Logger.log("NetworkService", "Active device:", net.activeDevice.interface, "type=", net.activeDevice.type, "state=", net.activeDevice.state, "connName=", net.activeDevice.connectionName, "ip4=", net.activeDevice.ip4);
                     }
                     // clear last error on successful parse
                     net.lastError = "";
                 } catch (e) {
-                    net.logger.error("NetworkService", "Failed parsing device list:", e);
+                    Logger.error("NetworkService", "Failed parsing device list:", e);
                 }
             }
         }
@@ -960,7 +959,7 @@ Singleton {
             onStreamFinished: function () {
                 var msg = (text || "").trim();
                 if (msg.length > 0)
-                    net.logger.error("NetworkService", msg);
+                    Logger.error("NetworkService", msg);
             }
         }
     }
@@ -977,19 +976,19 @@ Singleton {
                     net._applySavedFlags();
                     // Diagnostics: ensure wifiNetworks is JSON-serialisable
                     try {
-                        net.logger.log("NetworkService", "wifiNetworks JSON:", JSON.stringify(net.wifiNetworks));
+                        Logger.log("NetworkService", "wifiNetworks JSON:", JSON.stringify(net.wifiNetworks));
                     } catch (eDiagWifi) {
-                        net.logger.warn("NetworkService", "wifiNetworks not JSON-serialisable", eDiagWifi);
+                        Logger.warn("NetworkService", "wifiNetworks not JSON-serialisable", eDiagWifi);
                     }
                     var ncount = net.wifiNetworks ? net.wifiNetworks.length : 0;
                     var top = [];
                     for (var k = 0; k < Math.min(5, ncount); k++)
                         top.push(net.wifiNetworks[k].ssid + "(" + net.wifiNetworks[k].signal + ")");
-                    net.logger.log("NetworkService", "Wifi scan results: count=", ncount, " top=", top.join(", "));
+                    Logger.log("NetworkService", "Wifi scan results: count=", ncount, " top=", top.join(", "));
                     if (net.activeDevice && net.activeDevice.type === "wifi" && ncount > 0 && net._isConnected(net.activeDevice.state))
-                        net.logger.log("NetworkService", "Active wifi device:", net.activeDevice.interface, "connName=", net.activeDevice.connectionName);
+                        Logger.log("NetworkService", "Active wifi device:", net.activeDevice.interface, "connName=", net.activeDevice.connectionName);
                 } catch (e) {
-                    net.logger.error("NetworkService", "Failed parsing wifi list:", e);
+                    Logger.error("NetworkService", "Failed parsing wifi list:", e);
                 }
                 net.scanning = false;
                 net.scanningChanged();
@@ -1000,7 +999,7 @@ Singleton {
             onStreamFinished: function () {
                 var msg = (text || "").trim();
                 if (msg.length > 0)
-                    net.logger.error("NetworkService", msg);
+                    Logger.error("NetworkService", msg);
             }
         }
     }
@@ -1010,7 +1009,7 @@ Singleton {
         id: procConnect
         stdout: StdioCollector {
             onStreamFinished: function () {
-                net.logger.log("NetworkService", "Connect finished");
+                Logger.log("NetworkService", "Connect finished");
                 net.refreshDevices();
                 // saved connections may have changed
                 try {
@@ -1026,7 +1025,7 @@ Singleton {
             onStreamFinished: function () {
                 var msg = (text || "").trim();
                 if (msg.length > 0)
-                    net.logger.error("NetworkService", msg);
+                    Logger.error("NetworkService", msg);
             }
         }
     }
@@ -1054,12 +1053,12 @@ Singleton {
                     net._applySavedFlags();
                     // Diagnostics: ensure savedConnections is JSON-serialisable
                     try {
-                        net.logger.log("NetworkService", "savedConnections JSON:", JSON.stringify(net.savedConnections));
+                        Logger.log("NetworkService", "savedConnections JSON:", JSON.stringify(net.savedConnections));
                     } catch (eDiagSav) {
-                        net.logger.error("NetworkService", "savedConnections not JSON-serialisable", eDiagSav);
+                        Logger.error("NetworkService", "savedConnections not JSON-serialisable", eDiagSav);
                     }
                 } catch (e) {
-                    net.logger.error("NetworkService", "Failed parsing saved connections list");
+                    Logger.error("NetworkService", "Failed parsing saved connections list");
                 }
             }
         }
@@ -1070,7 +1069,7 @@ Singleton {
         id: procForget
         stdout: StdioCollector {
             onStreamFinished: function () {
-                net.logger.log("NetworkService", "Forget finished");
+                Logger.log("NetworkService", "Forget finished");
                 net.refresh();
                 // update saved list after deletion
                 try {
@@ -1082,7 +1081,7 @@ Singleton {
 
     // === Lifecycle ===
     Component.onCompleted: {
-        logger.log("NetworkService", "Component.onCompleted - initializing, setting ready=true");
+        Logger.log("NetworkService", "Component.onCompleted - initializing, setting ready=true");
         net._bootStartedAt = Date.now();
         net._lastWifiConnected = false;
         net._lastEthernetConnected = false;

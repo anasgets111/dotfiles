@@ -3,13 +3,12 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Bluetooth
-import qs.Services.SystemInfo
+import qs.Services.Utils
 
 Singleton {
     id: root
     // Adapter is set at runtime to avoid qml-ls unresolved-type errors
     property var adapter: null
-    property var logger: LoggerService
     readonly property bool available: !!adapter
     readonly property bool enabled: !!(adapter && adapter.enabled)
     readonly property bool discovering: !!(adapter && adapter.discovering)
@@ -34,29 +33,29 @@ Singleton {
     // Lifecycle and state-change logs
     Component.onCompleted: {
         const count = devices ? devices.length : 0;
-        logger.log("BluetoothService", `Init: available=${available}, enabled=${enabled}, discovering=${discovering}, devices=${count}`);
+        Logger.log("BluetoothService", `Init: available=${available}, enabled=${enabled}, discovering=${discovering}, devices=${count}`);
     }
 
     onAvailableChanged: {
-        logger.log("BluetoothService", `Adapter available=${available}`);
+        Logger.log("BluetoothService", `Adapter available=${available}`);
     }
     onEnabledChanged: {
-        logger.log("BluetoothService", `Adapter enabled=${enabled}`);
+        Logger.log("BluetoothService", `Adapter enabled=${enabled}`);
     }
     onDiscoveringChanged: {
-        logger.log("BluetoothService", `Discovering=${discovering}`);
+        Logger.log("BluetoothService", `Discovering=${discovering}`);
     }
     onDevicesChanged: {
         const count = devices ? devices.length : 0;
-        logger.log("BluetoothService", `Devices updated: count=${count}`);
+        Logger.log("BluetoothService", `Devices updated: count=${count}`);
     }
     onPairedDevicesChanged: {
         const count = pairedDevices ? pairedDevices.length : 0;
-        logger.log("BluetoothService", `Paired devices: count=${count}`);
+        Logger.log("BluetoothService", `Paired devices: count=${count}`);
     }
     onAllDevicesWithBatteryChanged: {
         const count = allDevicesWithBattery ? allDevicesWithBattery.length : 0;
-        logger.log("BluetoothService", `Devices with battery: count=${count}`);
+        Logger.log("BluetoothService", `Devices with battery: count=${count}`);
     }
 
     function sortDevices(devices) {
@@ -142,16 +141,16 @@ Singleton {
 
     function connectDeviceWithTrust(device) {
         if (!device) {
-            logger.error("BluetoothService", "connectDeviceWithTrust called with null/undefined device");
+            Logger.error("BluetoothService", "connectDeviceWithTrust called with null/undefined device");
             return;
         }
         const name = (device.name || device.deviceName || "");
         const address = (device.address || "");
         if (!canConnect(device)) {
-            logger.warn("BluetoothService", `Cannot connect: name='${name}', address='${address}', paired=${device.paired}, pairing=${device.pairing}, blocked=${device.blocked}, state=${device.state}`);
+            Logger.warn("BluetoothService", `Cannot connect: name='${name}', address='${address}', paired=${device.paired}, pairing=${device.pairing}, blocked=${device.blocked}, state=${device.state}`);
             return;
         }
-        logger.log("BluetoothService", `Connecting (trust first): name='${name}', address='${address}'`);
+        Logger.log("BluetoothService", `Connecting (trust first): name='${name}', address='${address}'`);
         device.trusted = true;
         device.connect();
     }
@@ -160,11 +159,11 @@ Singleton {
     // Bluetooth.defaultAdapter here (avoids qml-ls unresolved-type warnings).
     function setAdapter(a) {
         if (!a) {
-            logger.warn("BluetoothService", "Adapter cleared (setAdapter(null))");
+            Logger.warn("BluetoothService", "Adapter cleared (setAdapter(null))");
         } else {
             const name = (a.name || a.adapterName || "");
             const address = (a.address || "");
-            logger.log("BluetoothService", `Adapter set: name='${name}', address='${address}'`);
+            Logger.log("BluetoothService", `Adapter set: name='${name}', address='${address}'`);
         }
         adapter = a;
     }

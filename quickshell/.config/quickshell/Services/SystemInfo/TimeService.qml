@@ -2,12 +2,10 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.Services.SystemInfo
+import qs.Services.Utils
 
 Singleton {
     id: dateTimeService
-    property var logger: LoggerService
-    property bool debug: logger.debug
 
     property bool ready: false
     // Default to Minutes to reduce wakeups if you don't display seconds
@@ -38,7 +36,7 @@ Singleton {
                     dateTimeService.ntpEnabled = lines[1].trim().toLowerCase() === "yes";
                     dateTimeService.ntpSynced = lines[2].trim().toLowerCase() === "yes";
                 }
-                dateTimeService.logger.log("DateTimeService", "Timezone:", dateTimeService.timeZone, "| NTP Enabled:", dateTimeService.ntpEnabled, "| NTP Synced:", dateTimeService.ntpSynced);
+                Logger.log("DateTimeService", "Timezone:", dateTimeService.timeZone, "| NTP Enabled:", dateTimeService.ntpEnabled, "| NTP Synced:", dateTimeService.ntpSynced);
             }
         }
     }
@@ -53,7 +51,7 @@ Singleton {
     Component.onCompleted: {
         dateTimeService.updateTimeInfo();
         ready = true;
-        logger.log("DateTimeService", "Ready");
+        Logger.log("DateTimeService", "Ready");
     }
 
     function updateTimeInfo() {

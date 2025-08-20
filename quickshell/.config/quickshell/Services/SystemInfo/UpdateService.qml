@@ -3,10 +3,10 @@ import Quickshell
 import QtQuick
 import Quickshell.Io
 import qs.Services.SystemInfo
+import qs.Services.Utils
 
 Singleton {
     id: updateService
-    property var logger: LoggerService
     // Ensure our notification server is instantiated
     property var notifications: NotificationService
 
@@ -44,22 +44,22 @@ Singleton {
 
     Component.onCompleted: {
         // Restore from cache
-        updateService.logger.log("UpdateService", "cache.cachedUpdatePackagesJson:", cache.cachedUpdatePackagesJson);
+        Logger.log("UpdateService", "cache.cachedUpdatePackagesJson:", cache.cachedUpdatePackagesJson);
         const persisted = JSON.parse(cache.cachedUpdatePackagesJson || "[]");
         if (persisted && persisted.length) {
             updateService.updatePackages = _clonePackageList(persisted);
             updateService.updates = updateService.updatePackages.length;
-            updateService.logger.log("UpdateService", "Restored", updateService.updates, "packages from cache");
+            Logger.log("UpdateService", "Restored", updateService.updates, "packages from cache");
         }
         if (cache.cachedLastSync && cache.cachedLastSync > 0) {
             updateService.lastSync = cache.cachedLastSync;
-            updateService.logger.log("UpdateService", "Restored lastSync from cache:", updateService.lastSync);
+            Logger.log("UpdateService", "Restored lastSync from cache:", updateService.lastSync);
         }
 
         doPoll();
         pollTimer.start();
         ready = true;
-        updateService.logger.log("UpdateService", "Ready");
+        Logger.log("UpdateService", "Ready");
     }
 
     // Launch updater in a terminal
@@ -79,13 +79,13 @@ Singleton {
         pkgProc.command = cmd;
         pkgProc.running = true;
         killTimer.interval = lastWasFull ? 60 * 1000 : minuteMs;
-        updateService.logger.log("UpdateService", "Starting checkupdates:", cmd.join(" "), "timeoutMs:", killTimer.interval);
+        Logger.log("UpdateService", "Starting checkupdates:", cmd.join(" "), "timeoutMs:", killTimer.interval);
         killTimer.restart();
     }
 
     function doPoll(forceFull = false) {
         if (busy) {
-            updateService.logger.log("UpdateService", "Poll skipped: busy");
+            Logger.log("UpdateService", "Poll skipped: busy");
             return;
         }
 
@@ -94,7 +94,7 @@ Singleton {
         const full = forceFull || (now - lastSync > syncInterval);
         lastWasFull = full;
 
-        updateService.logger.log("UpdateService", "Poll start", full ? "full" : "nosync", "lastSyncDeltaMs:", (lastSync ? (now - lastSync) : -1));
+        Logger.log("UpdateService", "Poll start", full ? "full" : "nosync", "lastSyncDeltaMs:", (lastSync ? (now - lastSync) : -1));
 
         if (full)
             startUpdateProcess(["checkupdates", "--nocolor"]);
@@ -134,7 +134,7 @@ Singleton {
 
                 if (updateService.lastWasFull) {
                     updateService.lastSync = Date.now();
-                    updateService.logger.log("UpdateService", "Full sync complete; lastSync:", updateService.lastSync);
+                    Logger.log("UpdateService", "Full sync complete; lastSync:", updateService.lastSync);
                 }
 
                 cache.cachedUpdatePackagesJson = JSON.stringify(updateService._clonePackageList(updateService.updatePackages));
@@ -142,16 +142,16 @@ Singleton {
 
                 // Summary logs
                 const count = updateService.updates;
-                updateService.logger.log("UpdateService", "Update check finished:", count, "packages");
+                Logger.log("UpdateService", "Update check finished:", count, "packages");
                 if (count === 0) {
-                    updateService.logger.log("UpdateService", "System is up to date");
+                    Logger.log("UpdateService", "System is up to date");
                     // Reset notification baseline when up-to-date
                     updateService.lastNotifiedUpdates = 0;
                 } else {
                     var preview = pkgs.slice(0, Math.min(3, pkgs.length)).map(function (p) {
                         return p.name + " " + p.oldVersion + "->" + p.newVersion;
                     }).join(", ");
-                    updateService.logger.log("UpdateService", "Packages:", preview + (count > 3 ? " …" : ""));
+                    Logger.log("UpdateService", "Packages:", preview + (count > 3 ? " …" : ""));
                     // Notify only when the count increases
                     if (count > updateService.lastNotifiedUpdates) {
                         const added = count - updateService.lastNotifiedUpdates;
@@ -167,7 +167,7 @@ Singleton {
             onStreamFinished: {
                 const stderrText = (err.text || "").trim();
                 if (stderrText) {
-                    updateService.logger.warn("UpdateService", "stderr:", stderrText);
+                    Logger.warn("UpdateService", "stderr:", stderrText);
                     // Treat non-empty stderr as a failure indication
                     updateService.failureCount++;
                     if (updateService.failureCount >= updateService.failureThreshold) {
@@ -216,7 +216,7 @@ Singleton {
         interval: updateService.pollInterval
         repeat: true
         onTriggered: {
-            updateService.logger.log("UpdateService", "Poll timer triggered");
+            Logger.log("UpdateService", "Poll timer triggered");
             updateService.doPoll();
         }
     }
@@ -228,7 +228,7 @@ Singleton {
         onTriggered: {
             if (pkgProc.running) {
                 updateService.busy = false;
-                updateService.logger.error("UpdateService", "Update check killed (timeout)");
+                Logger.error("UpdateService", "Update check killed (timeout)");
                 updateService.notify("critical", qsTr("Update check killed"), qsTr("Process took too long"));
             }
         }

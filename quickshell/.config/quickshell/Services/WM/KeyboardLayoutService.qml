@@ -9,7 +9,6 @@ import qs.Services.Utils
 
 Singleton {
     id: root
-    readonly property var logger: LoggerService
     // OSD for user feedback on layout changes
     readonly property var osd: OSDService
     readonly property var mainService: MainService
@@ -22,7 +21,7 @@ Singleton {
     onCurrentLayoutChanged: {
         if (!root.wmImplementation || !root.currentLayout)
             return;
-        root.logger.log("KeyboardLayoutService", "layout changed:", root.currentLayout);
+        Logger.log("KeyboardLayoutService", "layout changed:", root.currentLayout);
         // Show the layout as the primary message for better visibility
         root.osd.showInfo(root.currentLayout);
     }
@@ -59,17 +58,17 @@ Singleton {
         if (caps !== root.capsOn) {
             root.capsOn = caps;
             root.osd.showInfo("Caps Lock " + (caps ? "On" : "Off"));
-            root.logger.log("KeyboardLayoutService", "Caps Lock " + (caps ? "On" : "Off"));
+            Logger.log("KeyboardLayoutService", "Caps Lock " + (caps ? "On" : "Off"));
         }
         if (num !== root.numOn) {
             root.numOn = num;
             root.osd.showInfo("Num Lock " + (num ? "On" : "Off"));
-            root.logger.log("KeyboardLayoutService", "Num Lock " + (num ? "On" : "Off"));
+            Logger.log("KeyboardLayoutService", "Num Lock " + (num ? "On" : "Off"));
         }
         if (scr !== root.scrollOn) {
             root.scrollOn = scr;
             root.osd.showInfo("Scroll Lock " + (scr ? "On" : "Off"));
-            root.logger.log("KeyboardLayoutService", "Scroll Lock " + (scr ? "On" : "Off"));
+            Logger.log("KeyboardLayoutService", "Scroll Lock " + (scr ? "On" : "Off"));
         }
     }
 
