@@ -1,13 +1,9 @@
 pragma Singleton
-import QtQuick
 import Quickshell
-import Quickshell.Io
-import qs.Services.SystemInfo
 
 // FileSystemService: small helpers for file discovery and polling
 Singleton {
     id: fs
-    readonly property var logger: LoggerService
 
     function _newProc() {
         var p = Qt.createQmlObject('import Quickshell.Io; Process { }', fs);
@@ -24,15 +20,24 @@ Singleton {
         try {
             var h = fs._newProc();
             h.collector.onStreamFinished.connect(function () {
-                var text = h.collector.text || "";
-                var lines = text.trim().length > 0 ? text.trim().split(/\r?\n/) : [];
-                if (cb)
-                    cb(lines);
+                try {
+                    var text = h.collector.text || "";
+                    var lines = text.trim().length > 0 ? text.trim().split(/\r?\n/) : [];
+                    if (cb)
+                        cb(lines);
+                } finally {
+                    // cleanup transient objects
+                    try {
+                        h.collector.destroy();
+                    } catch (e) {}
+                    try {
+                        h.proc.destroy();
+                    } catch (e2) {}
+                }
             });
             h.proc.command = ["bash", "-lc", "ls -1 " + String(pattern) + " 2>/dev/null || true"]; // safe: caller controls pattern
             h.proc.running = true;
         } catch (e) {
-            fs.logger.warn && fs.logger.warn("FileSystemService", "listByGlob failed", pattern, e);
             if (cb)
                 cb([]);
         }
@@ -73,17 +78,25 @@ Singleton {
         try {
             var h2 = fs._newProc();
             h2.collector.onStreamFinished.connect(function () {
-                var parts = (h2.collector.text || "").trim().split(/\s+/);
-                var out = [];
-                for (var i2 = 0; i2 < parts.length; i2++)
-                    out.push(parts[i2] === "1");
-                if (cb)
-                    cb(out);
+                try {
+                    var parts = (h2.collector.text || "").trim().split(/\s+/);
+                    var out = [];
+                    for (var i2 = 0; i2 < parts.length; i2++)
+                        out.push(parts[i2] === "1");
+                    if (cb)
+                        cb(out);
+                } finally {
+                    try {
+                        h2.collector.destroy();
+                    } catch (e) {}
+                    try {
+                        h2.proc.destroy();
+                    } catch (e2) {}
+                }
             });
             h2.proc.command = ["bash", "-lc", script];
             h2.proc.running = true;
         } catch (e2) {
-            fs.logger.warn && fs.logger.warn("FileSystemService", "pollGroupsAnyNonzero failed", e2);
             if (cb)
                 cb([]);
         }

@@ -1,10 +1,5 @@
 pragma Singleton
-import QtQuick
 import Quickshell
-import Quickshell.Io
-import qs.Services
-import qs.Services.WM.Impl.Hyprland as Hypr
-import qs.Services.WM.Impl.Niri as Niri
 
 Singleton {
     id: root
