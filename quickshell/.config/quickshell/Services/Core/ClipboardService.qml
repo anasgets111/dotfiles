@@ -6,12 +6,6 @@ import Quickshell
 import Quickshell.Io
 import qs.Services.SystemInfo
 
-// ClipboardService: Wayland clipboard watcher (text + images)
-// - Clipboard only (no primary selection)
-// - Event-driven via wl-paste --watch, with auto-restart on failure
-// - Text history persisted; images are session-only (last image only)
-// - De-dupe: exact match within a time window (default 1 minute)
-// - No privacy filtering: all non-empty text is recorded
 Singleton {
     id: clip
 
@@ -21,48 +15,51 @@ Singleton {
     property var logger: LoggerService
 
     // Config
-    property int maxItems: 50
+    property int maxItems: 10
     property int duplicateWindowMs: 60 * 1000 // 1 minute
-    // Persist config (wl-clip-persist style)
-    // - Clipboard only (no primary selection)
-    // - Do not re-offer on startup
-    // - Persist only up to 1 MiB
     property bool persistEnabled: true
     property int maxPersistBytes: 1 * 1024 * 1024
-    // Do not record the initial clipboard content on startup by default
     property bool captureOnStartup: false
 
     // Data
-    // Text history only; newest first. Each entry: { type: 'text', content, ts }
     property var history: []
-    // Session-only last image entry: { type: 'image', mimeType, dataUrl, ts }
     property var lastImage: null
 
-    // Persistence: text history only, stored as JSON string
     PersistentProperties {
         id: store
         reloadableId: "ClipboardService"
-        // JSON string to avoid cross-engine JSValue reassignment
         property string textHistoryJson: "[]"
     }
 
-    // Public signals
     signal itemAdded(var entry)
     signal changed
 
     // Internal flags
     property bool _fetching: false
     property int _restartBackoffMs: 250
-    // Suppress self-trigger loops after re-offer (time window + event budget)
     property double _suppressUntilTs: 0
     property int _suppressBudget: 0
-    // Track persist pipeline state
     property bool _persistInFlight: false
-    // Skip persist on first fetch after startup
     property bool _coldStart: true
-    // Short window to avoid recording initial clipboard content even if a second
-    // fetch is triggered immediately by a watcher event
     property double _startupSkipUntilTs: 0
+
+    // Helpers (centralize small decisions)
+    function _shouldSkipStartup() {
+        const now = Date.now();
+        return (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs));
+    }
+
+    function _sanitizeMimeType(m) {
+        const s = String(m || "");
+        // Strict RFC-ish token pattern; only allow "type/subtype"
+        return s.match(/^[a-z0-9][a-z0-9+.-]*\/[a-z0-9][a-z0-9+.-]*$/i) ? s : "";
+    }
+
+    function _scheduleWatchRestart() {
+        restartTimer.interval = clip._restartBackoffMs;
+        restartTimer.start();
+        clip._restartBackoffMs = Math.min(30000, clip._restartBackoffMs * 2);
+    }
 
     // Debounce change notifications from the watcher
     Timer {
@@ -74,7 +71,8 @@ Singleton {
 
     Process {
         id: watchProc
-        command: ["wl-paste", "--watch", "sh", "-c", "echo CHANGE"]
+        // Avoid shell here; wl-paste --watch execs argv directly
+        command: ["wl-paste", "--watch", "printf", "CHANGE\n"]
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: function (_) {
@@ -82,8 +80,9 @@ Singleton {
                     return;
                 const now = Date.now();
                 if (clip._suppressBudget > 0 || now < clip._suppressUntilTs) {
-                    if (clip._suppressBudget > 0)
+                    if (clip._suppressBudget > 0) {
                         clip._suppressBudget = Math.max(0, clip._suppressBudget - 1);
+                    }
                     clip.logger.log("ClipboardService", "Watch: suppressed self-change");
                     return;
                 }
@@ -93,6 +92,9 @@ Singleton {
         }
         onRunningChanged: {
             clip.logger.log("ClipboardService", `Watch: running=${watchProc.running}`);
+            if (!watchProc.running && clip.enabled) {
+                clip._scheduleWatchRestart();
+            }
         }
     }
 
@@ -124,21 +126,22 @@ Singleton {
                     return;
                 }
 
-                clip.logger.log("ClipboardService", `Types: ${types.join(', ')}`);
+                clip.logger.log("ClipboardService", `Types: ${types.join(", ")}`);
 
                 // Prefer image/* if present, else any text/*
-                const imageType = types.find(t => /^image\//.test(t));
+                let imageType = types.find(t => /^image\//.test(t));
+                imageType = clip._sanitizeMimeType(imageType);
                 if (imageType) {
                     imageProc.mimeType = imageType;
-                    imageProc.command = ["sh", "-c", `wl-paste -n -t "${imageType}" | base64 -w 0`];
+                    // Use positional parameter to avoid injection (no direct interpolation)
+                    imageProc.command = ["sh", "-c", 'mime="$1"; wl-paste -n -t "$mime" | base64 -w 0', "x", imageType];
                     clip.logger.log("ClipboardService", `Fetching image: ${imageType}`);
                     imageProc.running = true;
                     return;
                 }
 
-                const hasText = types.some(t => t === "text" || /^text\//.test(t));
+                const hasText = types.some(t => t === "text" || /^text\//.test(t)) || false;
                 if (hasText) {
-                    // Use the generic 'text' alias to avoid charset mismatches (e.g., text/plain;charset=utf-8)
                     textProc.command = ["wl-paste", "-n", "-t", "text"];
                     clip.logger.log("ClipboardService", "Fetching text");
                     textProc.running = true;
@@ -146,7 +149,7 @@ Singleton {
                 }
 
                 // Last-resort: try plain text anyway
-                textProc.command = ["wl-paste", "-n"]; // best-effort
+                textProc.command = ["wl-paste", "-n"];
                 clip.logger.log("ClipboardService", "No image/text types; best-effort text");
                 textProc.running = true;
             }
@@ -159,15 +162,14 @@ Singleton {
         stdout: StdioCollector {
             id: textOut
             onStreamFinished: {
-                const content = String(textOut.text || "").trim();
-                if (content) {
-                    const now = Date.now();
-                    if (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs)) {
-                        clip.logger.log("ClipboardService", "Startup: skipping initial clipboard content");
+                // Do not trim payload; preserve exact content
+                const content = String(textOut.text || "");
+                if (content.length) {
+                    if (clip._shouldSkipStartup()) {
+                        clip.logger.log("ClipboardService", "Startup: skipping initial clipboard text");
                     } else {
                         const added = clip._addText(content);
-                        // Persist (re-offer) text only if actually added and within size limit
-                        if (added && clip.persistEnabled && !clip._coldStart) {
+                        if (added && clip.persistEnabled) {
                             const sizeBytes = clip._utf8Size(content);
                             if (sizeBytes <= clip.maxPersistBytes) {
                                 clip._startPersistPipeline("text/plain");
@@ -177,7 +179,7 @@ Singleton {
                         }
                     }
                 } else {
-                    clip.logger.log("ClipboardService", "Text fetch: empty/whitespace");
+                    clip.logger.log("ClipboardService", "Text fetch: empty");
                 }
                 clip._finishFetch();
             }
@@ -193,17 +195,16 @@ Singleton {
             onStreamFinished: {
                 const base64 = String(imageOut.text || "").trim();
                 if (base64) {
-                    const now = Date.now();
-                    if (!clip.captureOnStartup && (clip._coldStart || now < clip._startupSkipUntilTs)) {
+                    if (clip._shouldSkipStartup()) {
                         clip.logger.log("ClipboardService", "Startup: skipping initial image clipboard content");
                     } else {
-                        const added = clip._setLastImage(imageProc.mimeType, base64);
-                        clip.logger.log("ClipboardService", `Image fetch: ${imageProc.mimeType}, size=${base64.length}`);
-                        // Persist (re-offer) image only if actually added and within size limit
+                        const safeMime = clip._sanitizeMimeType(imageProc.mimeType);
+                        const added = safeMime ? clip._setLastImage(safeMime, base64) : false;
+                        clip.logger.log("ClipboardService", `Image fetch: ${safeMime || "invalid-mime"}, size=${base64.length}`);
                         if (added && clip.persistEnabled && !clip._coldStart) {
                             const sizeBytes = clip._base64Size(base64);
                             if (sizeBytes <= clip.maxPersistBytes) {
-                                clip._startPersistPipeline(imageProc.mimeType);
+                                clip._startPersistPipeline(safeMime);
                             } else {
                                 clip.logger.log("ClipboardService", `Persist skip: image too large (${sizeBytes} > ${clip.maxPersistBytes})`);
                             }
@@ -233,16 +234,12 @@ Singleton {
         clip.changed();
     }
 
-    // Manual refresh (one shot)
     function refresh() {
         _doFetch();
     }
 
-    // Internal: start a fresh fetch cycle
     function _doFetch() {
-        if (!clip.enabled)
-            return;
-        if (clip._fetching)
+        if (!clip.enabled || clip._fetching)
             return;
         clip._fetching = true;
         clip.logger.log("ClipboardService", "Fetch cycle start");
@@ -250,49 +247,45 @@ Singleton {
         typeProc.running = true;
     }
 
-    // Common tail for a successful fetch cycle
     function _finishFetch() {
         clip._fetching = false;
-        // Reset watcher backoff on successful cycle
         clip._restartBackoffMs = 250;
         if (clip._coldStart)
             clip._coldStart = false;
     }
 
-    // Add a text entry with duplicate-window logic
+    // Add a text entry with duplicate-window logic (check only newest)
     function _addText(content) {
         const now = Date.now();
-        const recentSame = clip.history.find(e => e && e.type === 'text' && e.content === content);
-        if (recentSame && (now - (recentSame.ts || 0)) <= clip.duplicateWindowMs) {
+        const head = clip.history.length ? clip.history[0] : null;
+        if (head && head.type === "text" && head.content === content && now - (head.ts || 0) <= clip.duplicateWindowMs) {
             clip.logger.log("ClipboardService", `Duplicate suppressed (within ${clip.duplicateWindowMs}ms)`);
-            return false; // skip within window
+            return false;
         }
 
         const entry = {
-            type: 'text',
+            type: "text",
             content: content,
             ts: now
         };
-        const newHist = [entry, ...clip.history];
-        clip.history = newHist.slice(0, clip.maxItems);
+        clip.history = [entry, ...clip.history].slice(0, clip.maxItems);
         store.textHistoryJson = JSON.stringify(_cloneTextHistory(clip.history));
-        // Log newly added text entries (images are not logged)
-        const preview = content.length > 160 ? content.slice(0, 157) + "..." : content;
-        clip.logger.log("ClipboardService", `Text added: ${preview}`);
+
+        // Privacy-friendly log
+        clip.logger.log("ClipboardService", `Text added: len=${content.length}`);
         clip.itemAdded(entry);
         clip.changed();
         return true;
     }
 
-    // Maintain only last image in session, with duplicate-window logic
     function _setLastImage(mimeType, base64) {
         const now = Date.now();
         const dataUrl = `data:${mimeType};base64,${base64}`;
-        if (clip.lastImage && clip.lastImage.dataUrl === dataUrl && (now - (clip.lastImage.ts || 0)) <= clip.duplicateWindowMs) {
-            return false; // skip within window
+        if (clip.lastImage && clip.lastImage.dataUrl === dataUrl && now - (clip.lastImage.ts || 0) <= clip.duplicateWindowMs) {
+            return false;
         }
         clip.lastImage = {
-            type: 'image',
+            type: "image",
             mimeType: mimeType,
             dataUrl: dataUrl,
             ts: now
@@ -303,19 +296,17 @@ Singleton {
 
     // Helpers
     function _utf8Size(str) {
-        // Approximate UTF-8 byte length
         try {
             return unescape(encodeURIComponent(str)).length;
         } catch (e) {
-            // Fallback worst-case: 3 bytes per code unit
             return str.length * 3;
         }
     }
 
     function _base64Size(b64) {
         const len = b64.length;
-        const pad = b64.endsWith("==") ? 2 : (b64.endsWith("=") ? 1 : 0);
-        return Math.floor(len * 3 / 4) - pad;
+        const pad = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
+        return Math.floor((len * 3) / 4) - pad;
     }
 
     function _startPersistPipeline(mimeType) {
@@ -323,66 +314,78 @@ Singleton {
             return;
         if (clip._persistInFlight)
             return;
-        // Only handle text/* and image/* types as requested
-        const isText = (mimeType === "text" || mimeType === "text/plain" || (mimeType && mimeType.indexOf("text/") === 0));
-        const isImage = (mimeType && mimeType.indexOf("image/") === 0);
+
+        const isText = mimeType === "text" || mimeType === "text/plain" || (mimeType && mimeType.indexOf("text/") === 0);
+        const isImage = mimeType && mimeType.indexOf("image/") === 0;
         if (!isText && !isImage)
+            return;
+
+        // Build safe command: wl-paste -n -t <mime> | wl-copy -t <mime>
+        // We can’t avoid the shell completely because Process doesn’t support pipes.
+        const safeMime = clip._sanitizeMimeType(mimeType);
+        if (!safeMime)
             return;
 
         let cmd;
         if (isText) {
-            // Use explicit text/plain for reliability
             cmd = 'wl-paste -n -t text | wl-copy -t text/plain';
         } else {
-            cmd = `wl-paste -n -t "${mimeType}" | wl-copy -t "${mimeType}"`;
+            cmd = `wl-paste -n -t "${safeMime}" | wl-copy -t "${safeMime}"`;
         }
-        // Suppress multiple quick watch events that wl-copy may cause
+
         clip._suppressBudget = Math.max(clip._suppressBudget, 2);
         clip._suppressUntilTs = Date.now() + 500;
         clip._persistInFlight = true;
+
         persistProc.command = ["sh", "-c", cmd];
-        clip.logger.log("ClipboardService", `Persist: ${isText ? 'text/plain' : mimeType}`);
+        clip.logger.log("ClipboardService", `Persist: ${safeMime}`);
         persistProc.running = true;
     }
 
     Component.onCompleted: {
         clip.logger.log("ClipboardService", `Init: enabled=${clip.enabled}`);
-        // Diagnostics: show JSON snapshot
-        clip.logger.log("ClipboardService", "store.textHistory JSON:", store.textHistoryJson);
+
         // Restore persisted text history from JSON string
+        try {
+            const persisted = JSON.parse(store.textHistoryJson || "[]");
+            if (persisted && persisted.length) {
+                clip.history = _cloneTextHistory(persisted);
+            }
+        } catch (e) {
+            clip.history = [];
+            store.textHistoryJson = "[]";
+        }
 
-        const persisted = JSON.parse(store.textHistoryJson || "[]");
-        if (persisted && persisted.length)
-            clip.history = _cloneTextHistory(persisted);
-
-        // Start watcher and fetch current content once
         if (clip.enabled) {
             watchProc.running = true;
-            // Allow a short grace period to avoid recording initial clipboard content
-            // (covers a second immediate fetch from a watch event)
             clip._startupSkipUntilTs = Date.now() + 1000;
             _doFetch();
         }
     }
 
-    // Ensure we never shuttle foreign-engine objects: produce plain JSONable entries
+    onEnabledChanged: {
+        if (clip.enabled) {
+            watchProc.running = true;
+            clip._startupSkipUntilTs = Date.now() + 1000;
+            _doFetch();
+        } else {
+            watchProc.running = false;
+        }
+    }
+
     function _cloneTextHistory(arr) {
         const out = [];
-        if (!arr || typeof arr.length !== 'number')
+        if (!arr || typeof arr.length !== "number")
             return out;
         for (let i = 0; i < arr.length; i++) {
             const e = arr[i] || {};
-            const type = (e.type === 'image' || e.type === 'text') ? e.type : 'text';
-            if (type === 'text') {
+            if (e.type === "text") {
                 out.push({
-                    type: 'text',
-                    content: String(e.content || ''),
+                    type: "text",
+                    content: String(e.content || ""),
                     ts: Number(e.ts || Date.now())
                 });
-            } else
-            // We do not persist images; keep only session entries out of store
-            // If someone persisted by mistake, drop it to avoid cross-engine objects
-            {}
+            }
         }
         return out;
     }
