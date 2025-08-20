@@ -4,23 +4,26 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
+import qs.Services.SystemInfo
 
 // Unified MediaService: combines manual/auto player selection, metadata/capabilities,
 // position tracking, keyboard shortcuts, and IPC control.
 Singleton {
     id: root
 
-    // Players
+    // === Players ===
     readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values : []
     readonly property list<MprisPlayer> players: allPlayers.filter(p => p && p.canControl)
     // Back-compat alias used by some consumers
     readonly property list<MprisPlayer> list: players
+    readonly property var logger: LoggerService
 
-    // Selection overrides
+    // === Selection overrides ===
     property MprisPlayer manualActive: null            // If set, takes precedence
     property int selectedPlayerIndex: -1               // If >=0 and valid, selects that player
 
-    // Active player resolution: manual -> selected index -> playing -> Spotify -> controllable playable -> first
+    // === Active player resolution ===
+    // Order: manual -> selected index -> playing -> Spotify -> controllable playable -> first
     readonly property MprisPlayer active: {
         var chosen = null;
         if (manualActive) {
@@ -33,7 +36,9 @@ Singleton {
         chosen;
     }
 
-    // Metadata and capabilities (mirrors active player where possible)
+    // === Metadata (mirror active player) ===
+    readonly property bool hasPlayers: players.length > 0
+    readonly property bool hasActive: active !== null
     property bool isPlaying: active ? active.isPlaying : false
     property string trackTitle: active ? (active.trackTitle || "") : ""
     property string trackArtist: active ? (active.trackArtist || "") : ""
@@ -42,6 +47,7 @@ Singleton {
     property real infiniteTrackLength: 922337203685
     property real trackLength: active ? ((active.length < infiniteTrackLength) ? active.length : 0) : 0
 
+    // === Playback capabilities ===
     property bool canPlay: active ? active.canPlay : false
     property bool canPause: active ? active.canPause : false
     property bool canGoNext: active ? active.canGoNext : false
@@ -49,28 +55,92 @@ Singleton {
     property bool canToggle: active ? active.canTogglePlaying : false
     property bool canSeek: active ? active.canSeek : false
 
-    // Position tracking (updated while playing)
+    // === Convenience (UI helpers) ===
+    // Map player identity/desktop entry to a themed icon name with minimal rules.
+    function iconNameForPlayer(a) {
+        if (!a)
+            return "audio-x-generic";
+
+        function normalize(name) {
+            try {
+                return String(name).toLowerCase().replace(/[^a-z0-9+.-]/g, "-");
+            } catch (e) {
+                return "";
+            }
+        }
+        function canonical(name) {
+            var l = String(name).toLowerCase();
+            if (l.indexOf("google chrome") !== -1 || l === "chrome")
+                return "google-chrome";
+            if (l.indexOf("microsoft edge") !== -1 || l === "edge")
+                return "microsoft-edge";
+            if (l.indexOf("firefox") !== -1)
+                return "firefox";
+            if (l.indexOf("zen") !== -1)
+                return "zen";
+            if (l.indexOf("brave") !== -1)
+                return "brave-browser";
+            if (l.indexOf("youtube music") !== -1 || l.indexOf("youtubemusic") !== -1)
+                return "youtube-music";
+            return name;
+        }
+
+        // Prefer desktop entry when available; most icon themes ship by that name
+        var de = a.desktopEntry || "";
+        if (de) {
+            var cde = canonical(de);
+            var nde = normalize(cde);
+            return nde || "audio-x-generic";
+        }
+
+        // Fallback: identity-based guess, canonicalized and normalized
+        var id = a.identity || "";
+        var cid = canonical(id);
+        var nid = normalize(cid);
+        return nid || "audio-x-generic";
+    }
+
+    // Best-effort themed icon name for the active player
+    readonly property string activeIconName: iconNameForPlayer(active)
+    readonly property string activeAlbumName: trackAlbum
+    readonly property string activeAlbumArtUrl: trackArtUrl
+    readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
+
+    // === Position tracking (updated while playing) ===
     property real currentPosition: 0
+
+    // (no-op) icon name changes are reflected where bound; no extra logging
 
     onActiveChanged: {
         // Reset or sync position when active player changes
         currentPosition = active ? (active.isPlaying ? active.position : 0) : 0;
+        if (active)
+            root.logger && root.logger.log("MediaService", "active ->", active.identity, "playing=", active.isPlaying);
+        else
+            root.logger && root.logger.log("MediaService", "active -> none; players=", root.players.length);
     }
 
+    // Track selection overrides: no extra logs
+
+    // === Player list changes ===
     // Keep selected index sane as players appear/disappear
     Connections {
         target: Mpris.players
         function onValuesChanged() {
-            if (root.selectedPlayerIndex >= root.players.length)
+            if (root.selectedPlayerIndex >= root.players.length) {
+                root.logger && root.logger.warn("MediaService", "resetting selected index (", root.selectedPlayerIndex, ") due to players shrink");
                 root.selectedPlayerIndex = -1;
+            }
         }
     }
 
+    // === Position timer ===
     Timer {
         id: positionTimer
         interval: 1000
         repeat: true
         running: root.active && root.isPlaying && root.trackLength > 0 && root.active.playbackState === MprisPlaybackState.Playing
+        // onRunningChanged: no logging
         onTriggered: {
             if (root.active && root.isPlaying && root.active.playbackState === MprisPlaybackState.Playing)
                 root.currentPosition = root.active.position;
@@ -79,98 +149,150 @@ Singleton {
         }
     }
 
-    // Controls API (callable from QML/IPC)
+    // === Controls API (callable from QML/IPC) ===
     function playPause() {
-        if (active) {
-            if (active.isPlaying && canPause)
-                active.pause();
-            else if (!active.isPlaying && canPlay)
-                active.play();
+        if (!active) {
+            root.logger && root.logger.warn("MediaService", "playPause requested but no active player");
+            return;
+        }
+        if (active.isPlaying && canPause) {
+            active.pause();
+        } else if (!active.isPlaying && canPlay) {
+            active.play();
+        } else {
+            root.logger && root.logger.warn("MediaService", "playPause requested but unsupported: playing=", active.isPlaying, "canPlay=", canPlay, "canPause=", canPause);
         }
     }
 
     function play() {
-        if (active && canPlay)
+        if (!active) {
+            root.logger && root.logger.warn("MediaService", "play requested but no active player");
+            return;
+        }
+        if (canPlay) {
             active.play();
+            root.logger && root.logger.log("MediaService", "play()");
+        } else {
+            root.logger && root.logger.warn("MediaService", "play unsupported for", active.identity);
+        }
     }
     function pause() {
-        if (active && canPause)
+        if (!active) {
+            root.logger && root.logger.warn("MediaService", "pause requested but no active player");
+            return;
+        }
+        if (canPause) {
             active.pause();
+            root.logger && root.logger.log("MediaService", "pause()");
+        } else {
+            root.logger && root.logger.warn("MediaService", "pause unsupported for", active.identity);
+        }
     }
     function next() {
-        if (active && canGoNext)
+        if (!active) {
+            root.logger && root.logger.warn("MediaService", "next requested but no active player");
+            return;
+        }
+        if (canGoNext) {
             active.next();
+        } else {
+            root.logger && root.logger.warn("MediaService", "next unsupported for", active.identity);
+        }
     }
     function previous() {
-        if (active && canGoPrevious)
+        if (!active) {
+            root.logger && root.logger.warn("MediaService", "previous requested but no active player");
+            return;
+        }
+        if (canGoPrevious) {
             active.previous();
+        } else {
+            root.logger && root.logger.warn("MediaService", "previous unsupported for", active.identity);
+        }
     }
     function stop() {
-        if (active)
-            active.stop();
+        if (!active) {
+            root.logger && root.logger.warn("MediaService", "stop requested but no active player");
+            return;
+        }
+        active.stop();
     }
 
     function seek(position) {
-        if (active && canSeek) {
+        if (!active) {
+            root.logger && root.logger.warn("MediaService", "seek requested but no active player");
+            return;
+        }
+        if (canSeek) {
             active.position = position;
             currentPosition = position;
+            // position updated
+        } else {
+            root.logger && root.logger.warn("MediaService", "seek unsupported for", active.identity);
         }
     }
 
     function seekByRatio(ratio) {
-        if (active && canSeek && trackLength > 0) {
+        if (!active) {
+            root.logger && root.logger.warn("MediaService", "seekByRatio requested but no active player");
+            return;
+        }
+        if (canSeek && trackLength > 0) {
             const seekPosition = ratio * trackLength;
             active.position = seekPosition;
             currentPosition = seekPosition;
+            // position updated by ratio
+        } else {
+            root.logger && root.logger.warn("MediaService", "seekByRatio unsupported: canSeek=", canSeek, "length=", trackLength);
         }
     }
 
     // Keyboard shortcuts can be wired by the shell/WM; IPC methods below provide control hooks.
 
-    // IPC interface for external control
+    // === IPC interface for external control ===
     IpcHandler {
         target: "mpris"
 
-        function getActive(prop) {
+        function getActive(prop: string): string {
             const a = root.active;
             if (!a)
                 return "No active player";
             const v = a[prop];
-            return (v === undefined) ? "Invalid property" : v;
+            return (v === undefined) ? "Invalid property" : String(v);
         }
 
-        function list() {
+        function list(): string {
             return root.players.map(p => p.identity).join("\n");
         }
 
-        function play() {
+        function play(): void {
             if (root.active && root.active.canPlay)
                 root.active.play();
         }
-        function pause() {
+        function pause(): void {
             if (root.active && root.active.canPause)
                 root.active.pause();
         }
-        function playPause() {
+        function playPause(): void {
             if (root.active && root.active.canTogglePlaying)
                 root.active.togglePlaying();
         }
-        function previous() {
+        function previous(): void {
             if (root.active && root.active.canGoPrevious)
                 root.active.previous();
         }
-        function next() {
+        function next(): void {
             if (root.active && root.active.canGoNext)
                 root.active.next();
         }
-        function stop() {
+        function stop(): void {
             if (root.active)
                 root.active.stop();
         }
-        function seek(position) {
+        function seek(position: real): void {
             root.seek(position);
         }
-        function seekByRatio(ratio) {
+        function seekByRatio(ratio: real): void {
             root.seekByRatio(ratio);
         }
     }

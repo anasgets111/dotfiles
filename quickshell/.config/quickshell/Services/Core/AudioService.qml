@@ -19,7 +19,11 @@ Singleton {
     readonly property list<PwNode> sinks: Pipewire.nodes.values.filter(n => !n.isStream && n.isSink)
     readonly property list<PwNode> sources: Pipewire.nodes.values.filter(n => !n.isStream && !n.isSink && n.audio)
 
-    // Reactive exposed state (0..1) with private mirrors
+    // Volume policy
+    readonly property real maxVolume: 1.5            // absolute max (1.0 == 100%)
+    readonly property int maxVolumePercent: 150      // display/IPC cap in percent
+
+    // Reactive exposed state (0..maxVolume) with private mirrors
     readonly property alias volume: root._volume
     property real _volume: (root.sink && root.sink.audio ? root.sink.audio.volume : 0)
 
@@ -164,7 +168,7 @@ Singleton {
         if (Number.isNaN(n))
             return "Invalid percentage";
         if (root.sink && root.sink.audio) {
-            const clamped = Math.max(0, Math.min(100, n));
+            const clamped = Math.max(0, Math.min(root.maxVolumePercent, n));
             logger.log("AudioService", "setVolume request:", clamped + "%");
             setVolumeReal(clamped / 100);
             return "Volume set to " + clamped + "%";
@@ -175,9 +179,10 @@ Singleton {
     // Real volume setter (0..1)
     function setVolumeReal(newVolume) {
         if (root.sink && root.sink.audio && root.sink.ready) {
-            logger.log("AudioService", "setVolumeReal:", Math.round(newVolume * 100) + "%");
+            const clamped = Math.max(0, Math.min(root.maxVolume, newVolume));
+            logger.log("AudioService", "setVolumeReal:", Math.round(clamped * 100) + "%");
             root.sink.audio.muted = false;
-            root.sink.audio.volume = Math.max(0, Math.min(1, newVolume));
+            root.sink.audio.volume = clamped;
             // _volume is updated via Connections
         }
     }
@@ -262,7 +267,7 @@ Singleton {
                 const currentVolume = Math.round(root.sink.audio.volume * 100);
                 const parsed = Number.parseInt(step ?? "5", 10);
                 const delta = Number.isNaN(parsed) ? 5 : parsed;
-                const newVolume = Math.max(0, Math.min(100, currentVolume + delta));
+                const newVolume = Math.max(0, Math.min(root.maxVolumePercent, currentVolume + delta));
                 root.sink.audio.volume = newVolume / 100;
                 root.logger.log("AudioService:IPC", "increment", delta, "->", newVolume + "%");
                 return "Volume increased to " + newVolume + "%";
@@ -278,7 +283,7 @@ Singleton {
                 const currentVolume = Math.round(root.sink.audio.volume * 100);
                 const parsed = Number.parseInt(step ?? "5", 10);
                 const delta = Number.isNaN(parsed) ? 5 : parsed;
-                const newVolume = Math.max(0, Math.min(100, currentVolume - delta));
+                const newVolume = Math.max(0, Math.min(root.maxVolumePercent, currentVolume - delta));
                 root.sink.audio.volume = newVolume / 100;
                 root.logger.log("AudioService:IPC", "decrement", delta, "->", newVolume + "%");
                 return "Volume decreased to " + newVolume + "%";
@@ -329,6 +334,12 @@ Singleton {
             var vol = (root.sink && root.sink.audio ? root.sink.audio.volume : 0);
             if (isNaN(vol))
                 vol = 0;
+            // Clamp externally-set volumes to policy
+            if (vol > root.maxVolume && root.sink && root.sink.audio && root.sink.ready) {
+                root.logger.log("AudioService", "volume above policy (", Math.round(vol * 100), "%) -> clamping to", Math.round(root.maxVolume * 100), "%");
+                root.sink.audio.volume = root.maxVolume;
+                vol = root.maxVolume;
+            }
             root._volume = vol;
             root.logger.log("AudioService", "sink volume changed ->", Math.round(vol * 100) + "%");
             if (!root._muted && !root._suppressStartupToasts)

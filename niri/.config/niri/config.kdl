@@ -280,10 +280,10 @@ binds {
 
 
     // The allow-when-locked=true property makes them work even when the session is locked.
-    XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "0.1+"; }
-    XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "0.1-"; }
-    XF86AudioMute        allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle"; }
-    XF86AudioMicMute     allow-when-locked=true { spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "quickshell" "ipc" "call" "audio" "increment" "5"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "quickshell" "ipc" "call" "audio" "decrement" "5"; }
+    XF86AudioMute        allow-when-locked=true { spawn "quickshell" "ipc" "call" "audio" "mute"; }
+    XF86AudioMicMute     allow-when-locked=true { spawn "quickshell" "ipc" "call" "audio" "micmute"; }
     XF86Calculator {spawn "gnome-calculator"; }
 
     // the top-left hot corner, or a four-finger swipe up on a touchpad opens the overview too.
