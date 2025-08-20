@@ -3,8 +3,8 @@ pragma Singleton
 import Quickshell
 import QtQml
 import QtQuick
-import Quickshell.Io
 import qs.Services
+import qs.Services.Utils
 import qs.Services.SystemInfo
 import qs.Services.WM.Impl.Hyprland as Hyprland
 import qs.Services.WM.Impl.Niri as Niri
@@ -50,20 +50,21 @@ Singleton {
 
     // Small helper to run a command and collect stdout
     function runCmd(cmd, onDone) {
-        var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', monitorService);
-        var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
-        proc.stdout = collector;
-        collector.onStreamFinished.connect(function () {
-            onDone(collector.text);
-        });
-        proc.command = cmd;
-        proc.running = true;
+        Utils.runCmd(cmd, onDone, monitorService);
     }
 
     // When backend impl becomes available or changes, refresh feature info
     onImplChanged: {
         if (impl) {
             logMonitorFeatures(monitorsModelToArray());
+        }
+    }
+
+    // Live updates from Niri backend: refresh features when notified
+    Connections {
+        target: (monitorService.impl && monitorService.mainService && monitorService.mainService.currentWM === "niri") ? monitorService.impl : null
+        function onFeaturesMayHaveChanged() {
+            monitorService.logMonitorFeatures(monitorService.monitorsModelToArray());
         }
     }
 
@@ -101,7 +102,7 @@ Singleton {
             const m = newList[i];
             if (!monitorService.sameMonitor(oldItem, m)) {
                 // Merge to avoid clobbering capability/state flags updated asynchronously
-                const merged = monitorService.mergeObjects(oldItem, m);
+                const merged = Utils.mergeObjects(oldItem, m);
                 monitorsModel.set(i, merged);
                 setChanged = true;
             }
@@ -139,15 +140,7 @@ Singleton {
         return true;
     }
 
-    // Shallow merge helper (b overrides a)
-    function mergeObjects(a, b) {
-        var out = {};
-        for (var k in a)
-            out[k] = a[k];
-        for (var k2 in b)
-            out[k2] = b[k2];
-        return out;
-    }
+    // mergeObjects moved to Utils
 
     function findMonitorIndexByName(name) {
         for (var i = 0; i < monitorsModel.count; i++) {

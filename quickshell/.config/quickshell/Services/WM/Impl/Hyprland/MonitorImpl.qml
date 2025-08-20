@@ -1,8 +1,7 @@
 // HyprMonitorService.qml
 pragma Singleton
 import Quickshell
-import QtQuick
-import Quickshell.Io
+import qs.Services.Utils
 import Quickshell.Hyprland
 import qs.Services.SystemInfo
 import qs.Services
@@ -14,25 +13,11 @@ Singleton {
 
     // Enable/disable this backend (controlled by aggregator)
     readonly property bool enabled: hyprMonitorService.active
-    function stripAnsi(str) {
-        return str.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "");
-    }
-
-    function runCmd(cmd, onDone) {
-        const proc = Qt.createQmlObject('import Quickshell.Io; Process { }', hyprMonitorService);
-        const collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
-        proc.stdout = collector;
-        collector.onStreamFinished.connect(function () {
-            onDone(collector.text);
-        });
-        proc.command = cmd;
-        proc.running = true;
-    }
 
     function getAvailableFeatures(name, callback) {
-        runCmd(["hyprctl", "monitors", "-j"], function (output) {
+        Utils.runCmd(["hyprctl", "monitors", "-j"], function (output) {
             try {
-                const clean = stripAnsi(output).trim();
+                const clean = Utils.stripAnsi(output).trim();
                 const data = JSON.parse(clean);
                 const mon = data.find(m => m.name === name);
                 if (!mon) {

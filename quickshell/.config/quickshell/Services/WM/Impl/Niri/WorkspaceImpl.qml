@@ -12,6 +12,9 @@ Singleton {
 
     property bool enabled: niriWs.active
 
+    // Niri IPC socket
+    readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
+
     // Announce/logging handled by abstract WorkspaceService
     property var workspaces: []
     property var outputsOrder: [] // [output names]
@@ -22,6 +25,13 @@ Singleton {
 
     property var specialWorkspaces: []
     property string activeSpecial: ""
+
+    // --- IPC helpers ---
+    function send(request) {
+        if (!enabled || !requestSocket.connected)
+            return;
+        requestSocket.write(JSON.stringify(request) + "\n");
+    }
 
     // Update helpers
     function updateWorkspaces(arr) {
@@ -91,12 +101,28 @@ Singleton {
     }
 
     // Control methods
+    function focusWorkspaceById(id) {
+        if (!enabled)
+            return;
+        send({
+            Action: {
+                FocusWorkspace: {
+                    reference: {
+                        Id: id
+                    }
+                }
+            }
+        });
+    }
+
     function focusWorkspaceByIndex(idx) {
         if (!enabled)
             return;
-        switchProc.running = false;
-        switchProc.command = ["niri", "msg", "action", "focus-workspace", String(idx)];
-        switchProc.running = true;
+        const w = workspaces.find(function (ww) {
+            return ww.idx === idx;
+        });
+        if (w)
+            focusWorkspaceById(w.id);
     }
 
     function focusWorkspaceByWs(ws) {
@@ -104,15 +130,19 @@ Singleton {
             return;
         const out = ws.output || "";
         const idx = ws.idx;
+        // If workspace lives on a different output, focus that monitor first, then workspace
         if (out && out !== focusedOutput) {
-            const outEsc = out.replace(/'/g, "'\"'\"'");
-            const script = "niri msg action focus-monitor '" + outEsc + "' && niri msg action focus-workspace " + idx;
-            switchProc.running = false;
-            switchProc.command = ["bash", "-lc", script];
-            switchProc.running = true;
-            return;
+            send({
+                Action: {
+                    FocusMonitor: {
+                        reference: {
+                            Name: out
+                        }
+                    }
+                }
+            });
         }
-        focusWorkspaceByIndex(idx);
+        focusWorkspaceById(ws.id);
     }
 
     function toggleSpecial(_name) {
@@ -120,55 +150,57 @@ Singleton {
     }
 
     function refresh() {
-        if (!enabled)
+        // Reconnect event stream if needed; server will emit a snapshot
+        if (!enabled || !socketPath)
             return;
-        seedProcWorkspaces.running = true;
+        eventStreamSocket.connected = false;
+        requestSocket.connected = false;
+        eventStreamSocket.connected = true;
+        requestSocket.connected = true;
     }
 
-    // Processes
-    Process {
-        id: seedProcWorkspaces
-        running: false
-        command: ["niri", "msg", "--json", "workspaces"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const j = JSON.parse(text);
-                    if (j.Workspaces)
-                        niriWs.updateWorkspaces(j.Workspaces.workspaces);
-                } catch (e) {}
+    // --- Sockets ---
+    Socket {
+        id: eventStreamSocket
+        path: niriWs.socketPath
+        connected: niriWs.enabled && !!niriWs.socketPath
+
+        onConnectionStateChanged: {
+            if (connected) {
+                // Subscribe to event stream
+                write('"EventStream"\n');
             }
         }
-    }
 
-    Process {
-        id: eventProcNiri
-        running: niriWs.enabled
-        command: ["niri", "msg", "--json", "event-stream"]
-        stdout: SplitParser {
+        parser: SplitParser {
             splitMarker: "\n"
-            onRead: function (seg) {
-                if (!seg)
+            onRead: function (line) {
+                if (!line)
                     return;
-                try {
-                    const evt = JSON.parse(seg);
-                    if (evt.WorkspacesChanged)
-                        niriWs.updateWorkspaces(evt.WorkspacesChanged.workspaces);
-                    else if (evt.WorkspaceActivated)
-                        niriWs.updateSingleFocus(evt.WorkspaceActivated.id);
-                } catch (e) {}
+                const evt = JSON.parse(line);
+                if (evt.WorkspacesChanged) {
+                    niriWs.updateWorkspaces(evt.WorkspacesChanged.workspaces);
+                } else if (evt.WorkspaceActivated) {
+                    // evt.WorkspaceActivated may include { id, focused }
+                    niriWs.updateSingleFocus(evt.WorkspaceActivated.id);
+                }
             }
         }
     }
 
-    Process {
-        id: switchProc
-        command: ["niri", "msg", "workspace", "1"]
+    Socket {
+        id: requestSocket
+        path: niriWs.socketPath
+        connected: niriWs.enabled && !!niriWs.socketPath
     }
 
-    onEnabledChanged: if (enabled)
-        refresh()
-    else {
-        seedProcWorkspaces.running = false;
+    onEnabledChanged: {
+        if (enabled && socketPath) {
+            eventStreamSocket.connected = true;
+            requestSocket.connected = true;
+        } else {
+            eventStreamSocket.connected = false;
+            requestSocket.connected = false;
+        }
     }
 }
