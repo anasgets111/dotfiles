@@ -14,7 +14,18 @@ Singleton {
         var c = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', p);
         p.stdout = c;
         c.onStreamFinished.connect(function () {
-            onDone(c.text);
+            try {
+                if (onDone)
+                    onDone(c.text);
+            } finally {
+                // Clean up transient objects to avoid leaks
+                try {
+                    c.destroy();
+                } catch (e) {}
+                try {
+                    p.destroy();
+                } catch (e2) {}
+            }
         });
         p.command = cmd;
         p.running = true;
@@ -209,7 +220,7 @@ Singleton {
     // Backend management
     function _ensureLedBackend() {
         // Prefer udev event stream; fallback to polling
-        if (!udevDebounce.running)
+        if (udevDebounce.running)
             udevDebounce.stop();
         // Start udev monitor; on failure, _udevProc.running will be false and we switch to polling.
         if (!_udevProc.running) {

@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import QtQuick.Effects
@@ -8,7 +7,6 @@ import Quickshell.Services.Pam
 import qs.Services.Core as Core
 import qs.Services.WM as WM
 import qs.Services.SystemInfo
-import qs.Services as Services
 
 // SystemInfo already imported without alias for TimeService/WeatherService
 

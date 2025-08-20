@@ -1,11 +1,8 @@
 pragma Singleton
-import Quickshell
 import QtQuick
-import QtQml
-import Quickshell.Io
+import Quickshell
 import qs.Services
 import qs.Services.SystemInfo
-import qs.Services.Core as Core
 import qs.Services.WM.Impl.Hyprland as Hypr
 import qs.Services.WM.Impl.Niri as Niri
 import qs.Services.Utils
