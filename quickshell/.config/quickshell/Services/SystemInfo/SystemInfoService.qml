@@ -3,11 +3,10 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
-import qs.Services.SystemInfo
+import qs.Services.Utils
 
 Singleton {
     id: root
-    readonly property var logger: LoggerService
 
     // ===== Configuration =====
     // Enable/disable periodic snapshot logging in addition to change-driven logs
@@ -83,31 +82,31 @@ Singleton {
     function logMemory() {
         if (!root.memReady || !root.memTotal)
             return;
-        root.logger.log("SystemInfo", `Memory ${fmtKib(root.memUsed)} / ${fmtKib(root.memTotal)} (${fmtPerc(root.memPerc)})`);
+        Logger.log("SystemInfo", `Memory ${fmtKib(root.memUsed)} / ${fmtKib(root.memTotal)} (${fmtPerc(root.memPerc)})`);
     }
 
     function logStorage() {
         if (!root.storageReady || !root.storageTotal)
             return;
         const perc = root.storageTotal > 0 ? root.storageUsed / root.storageTotal : 0;
-        root.logger.log("SystemInfo", `Storage ${fmtKib(root.storageUsed)} / ${fmtKib(root.storageTotal)} (${fmtPerc(perc)})`);
+        Logger.log("SystemInfo", `Storage ${fmtKib(root.storageUsed)} / ${fmtKib(root.storageTotal)} (${fmtPerc(perc)})`);
     }
 
     function logSnapshot() {
         // CPU
         if (root.cpuPercReady && root.isFiniteNumber(cpuPerc))
-            logger.log("SystemInfo", `CPU usage ${fmtPerc(cpuPerc)}`);
+            Logger.log("SystemInfo", `CPU usage ${fmtPerc(cpuPerc)}`);
         if (root.cpuTempReady && root.isFiniteNumber(cpuTemp))
-            logger.log("SystemInfo", `CPU temp ${cpuTemp.toFixed(1)} °C`);
+            Logger.log("SystemInfo", `CPU temp ${cpuTemp.toFixed(1)} °C`);
 
         // Memory
         logMemory();
 
         // GPU
         if (root.gpuPercReady && root.isFiniteNumber(gpuPerc))
-            logger.log("SystemInfo", `GPU usage ${fmtPerc(gpuPerc)}`);
+            Logger.log("SystemInfo", `GPU usage ${fmtPerc(gpuPerc)}`);
         if (root.gpuTempReady && root.isFiniteNumber(gpuTemp))
-            logger.log("SystemInfo", `GPU temp ${gpuTemp.toFixed(1)} °C`);
+            Logger.log("SystemInfo", `GPU temp ${gpuTemp.toFixed(1)} °C`);
     }
 
     // ===== Poll timers =====
@@ -139,14 +138,14 @@ Singleton {
 
     // Property change logging
     onCpuPercChanged: if (root.cpuPercReady && root.isFiniteNumber(cpuPerc))
-        logger.log("SystemInfo", `CPU usage ${fmtPerc(cpuPerc)}`)
+        Logger.log("SystemInfo", `CPU usage ${fmtPerc(cpuPerc)}`)
     onCpuTempChanged: if (root.cpuTempReady && root.isFiniteNumber(cpuTemp))
-        logger.log("SystemInfo", `CPU temp ${cpuTemp.toFixed(1)} °C`)
-    onGpuTypeChanged: logger.log("SystemInfo", `GPU type ${gpuType}`)
+        Logger.log("SystemInfo", `CPU temp ${cpuTemp.toFixed(1)} °C`)
+    onGpuTypeChanged: Logger.log("SystemInfo", `GPU type ${gpuType}`)
     onGpuPercChanged: if (root.gpuPercReady && root.isFiniteNumber(gpuPerc))
-        logger.log("SystemInfo", `GPU usage ${fmtPerc(gpuPerc)}`)
+        Logger.log("SystemInfo", `GPU usage ${fmtPerc(gpuPerc)}`)
     onGpuTempChanged: if (root.gpuTempReady && root.isFiniteNumber(gpuTemp))
-        logger.log("SystemInfo", `GPU temp ${gpuTemp.toFixed(1)} °C`)
+        Logger.log("SystemInfo", `GPU temp ${gpuTemp.toFixed(1)} °C`)
     onMemUsedChanged: logMemory()
     onMemTotalChanged: logMemory()
     onStorageUsedChanged: logStorage()

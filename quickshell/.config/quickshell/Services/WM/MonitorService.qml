@@ -5,13 +5,12 @@ import QtQml
 import QtQuick
 import qs.Services
 import qs.Services.Utils
-import qs.Services.SystemInfo
+import qs.Services.Utils
 import qs.Services.WM.Impl.Hyprland as Hyprland
 import qs.Services.WM.Impl.Niri as Niri
 
 Singleton {
     id: monitorService
-    property var logger: LoggerService
 
     property var mainService: MainService
     property ListModel monitorsModel: ListModel {}
@@ -303,6 +302,6 @@ Singleton {
 
     // Log whenever the model changes or capabilities update
     onMonitorsChanged: {
-        monitorService.logger.log("MonitorService", "current monitors:", JSON.stringify(monitorService.monitorsModelToArray()));
+        Logger.log("MonitorService", "current monitors:", JSON.stringify(monitorService.monitorsModelToArray()));
     }
 }

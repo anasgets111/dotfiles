@@ -4,7 +4,6 @@ import QtQuick
 import QtQml
 import Quickshell
 import Quickshell.Io
-import qs.Services.SystemInfo
 import qs.Services.Utils
 
 Singleton {
@@ -13,7 +12,6 @@ Singleton {
     // Lifecycle/state
     readonly property bool ready: !clipboard._isColdStart
     property bool enabled: true
-    property var logger: LoggerService
 
     // Config
     property int maxItems: 10
@@ -101,7 +99,7 @@ Singleton {
         }
 
         persistProcess.command = cmdArr;
-        clipboard.logger.log("ClipboardService", `Persist: ${safeMime}`);
+        Logger.log("ClipboardService", `Persist: ${safeMime}`);
         persistProcess.running = true;
     }
 
@@ -111,7 +109,7 @@ Singleton {
         const head = clipboard.history.length ? clipboard.history[0] : null;
 
         if (head && head.type === "text" && head.content === content && now - (head.ts || 0) <= clipboard.duplicateWindowMs) {
-            clipboard.logger.log("ClipboardService", `Duplicate suppressed (within ${clipboard.duplicateWindowMs}ms)`);
+            Logger.log("ClipboardService", `Duplicate suppressed (within ${clipboard.duplicateWindowMs}ms)`);
             return false;
         }
 
@@ -124,7 +122,7 @@ Singleton {
         clipboard.history = [entry, ...clipboard.history].slice(0, clipboard.maxItems);
         clipboard._saveTextHistory();
 
-        clipboard.logger.log("ClipboardService", `Text added: len=${content.length}`);
+        Logger.log("ClipboardService", `Text added: len=${content.length}`);
         clipboard.itemAdded(entry);
         clipboard.changed();
         return true;
@@ -187,7 +185,7 @@ Singleton {
             return;
 
         clipboard._isFetching = true;
-        clipboard.logger.log("ClipboardService", "Fetch cycle start");
+        Logger.log("ClipboardService", "Fetch cycle start");
         _startMimeTypeDetection();
     }
 
@@ -222,15 +220,15 @@ Singleton {
                     if (clipboard._suppressEventBudget > 0) {
                         clipboard._suppressEventBudget = Math.max(0, clipboard._suppressEventBudget - 1);
                     }
-                    clipboard.logger.log("ClipboardService", "Watch: suppressed self-change");
+                    Logger.log("ClipboardService", "Watch: suppressed self-change");
                     return;
                 }
-                clipboard.logger.log("ClipboardService", "Watch: change signal");
+                Logger.log("ClipboardService", "Watch: change signal");
                 changeDebounceTimer.restart();
             }
         }
         onRunningChanged: {
-            clipboard.logger.log("ClipboardService", `Watch: running=${watcherProcess.running}`);
+            Logger.log("ClipboardService", `Watch: running=${watcherProcess.running}`);
             if (!watcherProcess.running && clipboard.enabled) {
                 clipboard._scheduleWatcherRestart();
             }
@@ -243,7 +241,7 @@ Singleton {
         onTriggered: {
             if (!clipboard.enabled)
                 return;
-            clipboard.logger.log("ClipboardService", "Watch: restarting process");
+            Logger.log("ClipboardService", "Watch: restarting process");
             watcherProcess.running = true;
         }
     }
@@ -258,12 +256,12 @@ Singleton {
                 const types = out ? out.split(/\n+/).filter(t => !!t) : [];
 
                 if (types.length === 0) {
-                    clipboard.logger.log("ClipboardService", "Types unavailable; attempting text fallback");
+                    Logger.log("ClipboardService", "Types unavailable; attempting text fallback");
                     clipboard._startTextRead();
                     return;
                 }
 
-                clipboard.logger.log("ClipboardService", `Types: ${types.join(", ")}`);
+                Logger.log("ClipboardService", `Types: ${types.join(", ")}`);
 
                 let imageType = types.find(t => /^image\//.test(t));
                 imageType = clipboard._sanitizeMimeType(imageType);
@@ -279,7 +277,7 @@ Singleton {
                     return;
                 }
 
-                clipboard.logger.log("ClipboardService", "No image/text types; best-effort text");
+                Logger.log("ClipboardService", "No image/text types; best-effort text");
                 clipboard._startTextRead();
             }
         }
@@ -294,7 +292,7 @@ Singleton {
                 const content = String(textStdout.text || "");
                 if (content.length) {
                     if (clipboard._shouldIgnoreStartupClipboard()) {
-                        clipboard.logger.log("ClipboardService", "Startup: skipping initial clipboard text");
+                        Logger.log("ClipboardService", "Startup: skipping initial clipboard text");
                     } else {
                         const added = clipboard._appendTextToHistory(content);
                         if (added && clipboard.persistEnabled) {
@@ -302,12 +300,12 @@ Singleton {
                             if (sizeBytes <= clipboard.maxPersistBytes) {
                                 clipboard._startPersistClipboardPipeline("text/plain");
                             } else {
-                                clipboard.logger.log("ClipboardService", `Persist skip: text too large (${sizeBytes} > ${clipboard.maxPersistBytes})`);
+                                Logger.log("ClipboardService", `Persist skip: text too large (${sizeBytes} > ${clipboard.maxPersistBytes})`);
                             }
                         }
                     }
                 } else {
-                    clipboard.logger.log("ClipboardService", "Text fetch: empty");
+                    Logger.log("ClipboardService", "Text fetch: empty");
                 }
                 clipboard._finishFetchCycle();
             }
@@ -324,17 +322,17 @@ Singleton {
                 const base64 = String(imageStdout.text || "").trim();
                 if (base64) {
                     if (clipboard._shouldIgnoreStartupClipboard()) {
-                        clipboard.logger.log("ClipboardService", "Startup: skipping initial image clipboard content");
+                        Logger.log("ClipboardService", "Startup: skipping initial image clipboard content");
                     } else {
                         const safeMime = clipboard._sanitizeMimeType(imageFetchProcess.mimeType);
                         const added = safeMime ? clipboard._updateLastImageFromBase64(safeMime, base64) : false;
-                        clipboard.logger.log("ClipboardService", `Image fetch: ${safeMime || "invalid-mime"}, size=${base64.length}`);
+                        Logger.log("ClipboardService", `Image fetch: ${safeMime || "invalid-mime"}, size=${base64.length}`);
                         if (added && clipboard.persistEnabled && !clipboard._isColdStart) {
                             const sizeBytes = Utils.base64Size(base64);
                             if (sizeBytes <= clipboard.maxPersistBytes) {
                                 clipboard._startPersistClipboardPipeline(safeMime);
                             } else {
-                                clipboard.logger.log("ClipboardService", `Persist skip: image too large (${sizeBytes} > ${clipboard.maxPersistBytes})`);
+                                Logger.log("ClipboardService", `Persist skip: image too large (${sizeBytes} > ${clipboard.maxPersistBytes})`);
                             }
                         }
                     }
@@ -350,7 +348,7 @@ Singleton {
         onRunningChanged: {
             if (!persistProcess.running) {
                 clipboard._persistOperationInFlight = false;
-                clipboard.logger.log("ClipboardService", "Persist: done");
+                Logger.log("ClipboardService", "Persist: done");
             }
         }
     }
@@ -368,7 +366,7 @@ Singleton {
 
     // Initialization
     Component.onCompleted: {
-        clipboard.logger.log("ClipboardService", `Init: enabled=${clipboard.enabled}`);
+        Logger.log("ClipboardService", `Init: enabled=${clipboard.enabled}`);
         _loadTextHistory();
 
         if (clipboard.enabled) {

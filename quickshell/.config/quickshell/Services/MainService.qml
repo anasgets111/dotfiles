@@ -3,7 +3,7 @@ import Quickshell
 import QtQuick
 import Quickshell.Io
 import qs.Services
-import qs.Services.SystemInfo
+import qs.Services.Utils
 
 Singleton {
     id: sys
@@ -16,8 +16,6 @@ Singleton {
 
     property bool ready: false
     property int _pendingChecks: 0
-    property var logger: LoggerService
-    property bool debug: logger.debug
 
     property string username: ""
     property string fullName: ""
@@ -128,7 +126,7 @@ Singleton {
         sys._pendingChecks--;
         if (sys._pendingChecks <= 0) {
             sys.ready = true;
-            logger.log("MainService", "All checks complete, ready = true");
+            Logger.log("MainService", "All checks complete, ready = true");
         }
     }
 }

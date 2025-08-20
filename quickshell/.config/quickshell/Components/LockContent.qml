@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import Quickshell
+import qs.Services.Utils
 import qs.Services as Services
 import qs.Services.SystemInfo
 import qs.Services.WM as WM
@@ -55,9 +56,9 @@ FocusScope {
         }
         if (isPrimary || isFallbackLeader) {
             panel.forceActiveFocus();
-            if (panel.ctx && panel.ctx.logger) {
+            if (panel.ctx) {
                 const mode = isPrimary ? "primary" : "fallback";
-                panel.ctx.logger.log("LockContent", "single-shot focus request (" + mode + "): " + reason);
+                Logger.log("LockContent", "single-shot focus request (" + mode + "): " + reason);
             }
         }
     }

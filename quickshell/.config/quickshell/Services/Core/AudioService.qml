@@ -5,12 +5,12 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 import qs.Services.SystemInfo
+import qs.Services.Utils
 
 Singleton {
     id: root
 
     // Properties — lists of sinks/sources (exclude streams)
-    readonly property var logger: LoggerService
     // OSD/Toast service reference
     readonly property var osd: OSDService
     // Defaults and lists
@@ -46,7 +46,7 @@ Singleton {
 
     // Lifecycle
     Component.onCompleted: {
-        logger.log("AudioService", "ready; default sink=", root.displayName(root.sink), "muted=", !!(root.sink && root.sink.audio && root.sink.audio.muted), "volume=", Math.round((root.sink && root.sink.audio ? root.sink.audio.volume : 0) * 100) + "%", "default source=", root.displayName(root.source));
+        Logger.log("AudioService", "ready; default sink=", root.displayName(root.sink), "muted=", !!(root.sink && root.sink.audio && root.sink.audio.muted), "volume=", Math.round((root.sink && root.sink.audio ? root.sink.audio.volume : 0) * 100) + "%", "default source=", root.displayName(root.source));
         // Initialize device caches without toasting to avoid startup spam
         root._sinkMap = root._listToMap(root.sinks);
         root._sourceMap = root._listToMap(root.sources);
@@ -169,7 +169,7 @@ Singleton {
             return "Invalid percentage";
         if (root.sink && root.sink.audio) {
             const clamped = Math.max(0, Math.min(root.maxVolumePercent, n));
-            logger.log("AudioService", "setVolume request:", clamped + "%");
+            Logger.log("AudioService", "setVolume request:", clamped + "%");
             setVolumeReal(clamped / 100);
             return "Volume set to " + clamped + "%";
         }
@@ -180,7 +180,7 @@ Singleton {
     function setVolumeReal(newVolume) {
         if (root.sink && root.sink.audio && root.sink.ready) {
             const clamped = Math.max(0, Math.min(root.maxVolume, newVolume));
-            logger.log("AudioService", "setVolumeReal:", Math.round(clamped * 100) + "%");
+            Logger.log("AudioService", "setVolumeReal:", Math.round(clamped * 100) + "%");
             root.sink.audio.muted = false;
             root.sink.audio.volume = clamped;
             // _volume is updated via Connections
@@ -190,7 +190,7 @@ Singleton {
     function toggleMute() {
         if (root.sink && root.sink.audio) {
             const next = !root.sink.audio.muted;
-            logger.log("AudioService", "toggleMute ->", next ? "muted" : "unmuted");
+            Logger.log("AudioService", "toggleMute ->", next ? "muted" : "unmuted");
             setMuted(next);
             return next ? "Audio muted" : "Audio unmuted";
         }
@@ -199,7 +199,7 @@ Singleton {
 
     function setMuted(muted) {
         if (root.sink && root.sink.audio && root.sink.ready) {
-            logger.log("AudioService", "setMuted:", !!muted);
+            Logger.log("AudioService", "setMuted:", !!muted);
             root.sink.audio.muted = !!muted;
         }
     }
@@ -217,7 +217,7 @@ Singleton {
             return "Invalid percentage";
         if (root.source && root.source.audio) {
             const clamped = Math.max(0, Math.min(100, n));
-            logger.log("AudioService", "setMicVolume:", clamped + "%");
+            Logger.log("AudioService", "setMicVolume:", clamped + "%");
             root.source.audio.volume = clamped / 100;
             root.micMuteChanged();
             return "Microphone volume set to " + clamped + "%";
@@ -228,7 +228,7 @@ Singleton {
     function toggleMicMute() {
         if (root.source && root.source.audio) {
             root.source.audio.muted = !root.source.audio.muted;
-            logger.log("AudioService", "toggleMicMute ->", root.source.audio.muted ? "muted" : "unmuted");
+            Logger.log("AudioService", "toggleMicMute ->", root.source.audio.muted ? "muted" : "unmuted");
             root.micMuteChanged();
             return root.source.audio.muted ? "Microphone muted" : "Microphone unmuted";
         }
@@ -237,11 +237,11 @@ Singleton {
 
     // Default device switching
     function setAudioSink(newSink) {
-        logger.log("AudioService", "setAudioSink:", root.displayName(newSink));
+        Logger.log("AudioService", "setAudioSink:", root.displayName(newSink));
         Pipewire.preferredDefaultAudioSink = newSink;
     }
     function setAudioSource(newSource) {
-        logger.log("AudioService", "setAudioSource:", root.displayName(newSource));
+        Logger.log("AudioService", "setAudioSource:", root.displayName(newSource));
         Pipewire.preferredDefaultAudioSource = newSource;
     }
 
@@ -255,7 +255,7 @@ Singleton {
         target: "audio"
 
         function setvolume(percentage: string): string {
-            root.logger.log("AudioService:IPC", "setvolume", percentage);
+            Logger.log("AudioService:IPC", "setvolume", percentage);
             return root.setVolume(percentage);
         }
 
@@ -269,7 +269,7 @@ Singleton {
                 const delta = Number.isNaN(parsed) ? 5 : parsed;
                 const newVolume = Math.max(0, Math.min(root.maxVolumePercent, currentVolume + delta));
                 root.sink.audio.volume = newVolume / 100;
-                root.logger.log("AudioService:IPC", "increment", delta, "->", newVolume + "%");
+                Logger.log("AudioService:IPC", "increment", delta, "->", newVolume + "%");
                 return "Volume increased to " + newVolume + "%";
             }
             return "No audio sink available";
@@ -285,29 +285,29 @@ Singleton {
                 const delta = Number.isNaN(parsed) ? 5 : parsed;
                 const newVolume = Math.max(0, Math.min(root.maxVolumePercent, currentVolume - delta));
                 root.sink.audio.volume = newVolume / 100;
-                root.logger.log("AudioService:IPC", "decrement", delta, "->", newVolume + "%");
+                Logger.log("AudioService:IPC", "decrement", delta, "->", newVolume + "%");
                 return "Volume decreased to " + newVolume + "%";
             }
             return "No audio sink available";
         }
 
         function mute(): string {
-            root.logger.log("AudioService:IPC", "mute");
+            Logger.log("AudioService:IPC", "mute");
             return root.toggleMute();
         }
 
         function setmic(percentage: string): string {
-            root.logger.log("AudioService:IPC", "setmic", percentage);
+            Logger.log("AudioService:IPC", "setmic", percentage);
             return root.setMicVolume(percentage);
         }
 
         function micmute(): string {
-            root.logger.log("AudioService:IPC", "micmute");
+            Logger.log("AudioService:IPC", "micmute");
             return root.toggleMicMute();
         }
 
         function status(): string {
-            root.logger.log("AudioService:IPC", "status");
+            Logger.log("AudioService:IPC", "status");
             let result = "Audio Status:\n";
             if (root.sink && root.sink.audio) {
                 const volume = Math.round(root.sink.audio.volume * 100);
@@ -336,18 +336,18 @@ Singleton {
                 vol = 0;
             // Clamp externally-set volumes to policy
             if (vol > root.maxVolume && root.sink && root.sink.audio && root.sink.ready) {
-                root.logger.log("AudioService", "volume above policy (", Math.round(vol * 100), "%) -> clamping to", Math.round(root.maxVolume * 100), "%");
+                Logger.log("AudioService", "volume above policy (", Math.round(vol * 100), "%) -> clamping to", Math.round(root.maxVolume * 100), "%");
                 root.sink.audio.volume = root.maxVolume;
                 vol = root.maxVolume;
             }
             root._volume = vol;
-            root.logger.log("AudioService", "sink volume changed ->", Math.round(vol * 100) + "%");
+            Logger.log("AudioService", "sink volume changed ->", Math.round(vol * 100) + "%");
             if (!root._muted && !root._suppressStartupToasts)
                 root.osd.showInfo("Volume", Math.round(vol * 100) + "%");
         }
         function onMutedChanged() {
             root._muted = !!(root.sink && root.sink.audio && root.sink.audio.muted);
-            root.logger.log("AudioService", "sink muted changed ->", root._muted);
+            Logger.log("AudioService", "sink muted changed ->", root._muted);
             if (!root._suppressStartupToasts) {
                 if (root._muted)
                     root.osd.showInfo("Muted");
@@ -359,13 +359,13 @@ Singleton {
     Connections {
         target: root.source && root.source.audio ? root.source.audio : null
         function onVolumeChanged() {
-            root.logger.log("AudioService", "mic volume changed ->", Math.round(root.source.audio.volume * 100) + "%");
+            Logger.log("AudioService", "mic volume changed ->", Math.round(root.source.audio.volume * 100) + "%");
             root.micMuteChanged();
             if (!(root.source && root.source.audio && root.source.audio.muted) && !root._suppressStartupToasts)
                 root.osd.showInfo("Mic volume", Math.round(root.source.audio.volume * 100) + "%");
         }
         function onMutedChanged() {
-            root.logger.log("AudioService", "mic muted changed ->", !!(root.source && root.source.audio && root.source.audio.muted));
+            Logger.log("AudioService", "mic muted changed ->", !!(root.source && root.source.audio && root.source.audio.muted));
             root.micMuteChanged();
             if (root.source && root.source.audio && !root._suppressStartupToasts) {
                 if (root.source.audio.muted)
@@ -380,7 +380,7 @@ Singleton {
     onSinkChanged: {
         root._volume = (root.sink && root.sink.audio ? root.sink.audio.volume : 0);
         root._muted = !!(root.sink && root.sink.audio && root.sink.audio.muted);
-        logger.log("AudioService", "default sink changed ->", root.displayName(root.sink), "muted=", root._muted, "volume=", Math.round(root._volume * 100) + "%");
+        Logger.log("AudioService", "default sink changed ->", root.displayName(root.sink), "muted=", root._muted, "volume=", Math.round(root._volume * 100) + "%");
         if (root.sink && !root._suppressStartupToasts) {
             const name = root.displayName(root.sink);
             if (name)
@@ -388,7 +388,7 @@ Singleton {
         }
     }
     onSourceChanged: {
-        logger.log("AudioService", "default source changed ->", root.displayName(root.source));
+        Logger.log("AudioService", "default source changed ->", root.displayName(root.source));
         root.micMuteChanged();
         if (root.source && !root._suppressStartupToasts) {
             const name = root.displayName(root.source);

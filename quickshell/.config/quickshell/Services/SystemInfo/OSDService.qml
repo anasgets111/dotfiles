@@ -4,7 +4,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.Services.SystemInfo
+import qs.Services.Utils
 
 // Minimal, robust OSD/toast service for transient in-shell messages.
 // Features:
@@ -15,7 +15,6 @@ import qs.Services.SystemInfo
 // - IPC for show/info/warn/error/hide/clear/dnd/status
 Singleton {
     id: root
-    readonly property var logger: LoggerService
 
     // ----- Levels -----
     readonly property int levelInfo: 0
@@ -61,7 +60,7 @@ Singleton {
             return;
         const msg = String(message);
         const det = details === undefined || details === null ? "" : String(details);
-        root.logger.log("OSDService", `showToast: level=${level}, msg='${msg}'`);
+        Logger.log("OSDService", `showToast: level=${level}, msg='${msg}'`);
 
         // If the current toast matches and dedupe is on, bump the counter and refresh timer
         if (root.toastVisible && root.dedupe && msg === root.currentMessage && level === root.currentLevel) {
@@ -92,7 +91,7 @@ Singleton {
                     repeat: (last.repeat || 0) + 1
                 };
                 root.toastQueue = q;
-                root.logger.log("OSDService", `dedupe: bumped repeat to ${q[q.length - 1].repeat}`);
+                Logger.log("OSDService", `dedupe: bumped repeat to ${q[q.length - 1].repeat}`);
             } else {
                 root.toastQueue = root.toastQueue.concat([
                     {
@@ -102,7 +101,7 @@ Singleton {
                         repeat: 0
                     }
                 ]);
-                root.logger.log("OSDService", `enqueued: level=${level}`);
+                Logger.log("OSDService", `enqueued: level=${level}`);
             }
         } else {
             root.toastQueue = root.toastQueue.concat([
@@ -113,7 +112,7 @@ Singleton {
                     repeat: 0
                 }
             ]);
-            root.logger.log("OSDService", `enqueued: level=${level}`);
+            Logger.log("OSDService", `enqueued: level=${level}`);
         }
 
         if (!root.toastVisible && !root.doNotDisturb)
@@ -141,7 +140,7 @@ Singleton {
         root.resetToastState();
         if (!root.doNotDisturb)
             root._processQueue();
-        root.logger.log("OSDService", "hideToast");
+        Logger.log("OSDService", "hideToast");
     }
 
     function clearQueue() {
@@ -169,7 +168,7 @@ Singleton {
         } else {
             root._processQueue();
         }
-        root.logger.log("OSDService", `DND=${root.doNotDisturb}`);
+        Logger.log("OSDService", `DND=${root.doNotDisturb}`);
     }
 
     // Optional external status (e.g., wallpaper failure)
@@ -197,7 +196,7 @@ Singleton {
         root._currentStartAt = Date.now ? Date.now() : new Date().getTime();
         root.resetToastState();
         root._applyTimerFor(toast.level, root.hasDetails);
-        root.logger.log("OSDService", `show: level=${root.currentLevel}, repeats=${root.currentRepeatCount}`);
+        Logger.log("OSDService", `show: level=${root.currentLevel}, repeats=${root.currentRepeatCount}`);
     }
 
     function _applyTimerFor(level, hasDetails) {

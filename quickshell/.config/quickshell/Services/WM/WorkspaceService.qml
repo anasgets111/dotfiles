@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import QtQml
 import qs.Services
+import qs.Services.Utils
 import qs.Services.SystemInfo
 import qs.Services.WM.Impl.Hyprland as Hypr
 import qs.Services.WM.Impl.Niri as Niri
@@ -18,8 +19,7 @@ Singleton {
     // Single backend selector for simpler forwarding
     readonly property var backend: isHyprland ? Hypr.WorkspaceImpl : (isNiri ? Niri.WorkspaceImpl : null)
 
-    // Common services for logging and OSD
-    readonly property var logger: LoggerService
+    // Common services for OSD
     readonly property var osd: OSDService
 
     // Unified announce helper with coalescing + distinct-until-changed (keyed by output#index)
@@ -70,8 +70,7 @@ Singleton {
                         _announceTimer.restart();
                         return;
                     }
-                    if (ws.logger)
-                        ws.logger.log("Workspace", "focus -> output='" + (out || "") + "', idx=" + idx);
+                    Logger.log("Workspace", "focus -> output='" + (out || "") + "', idx=" + idx);
                     ws._announce(idx, out);
                     // restore default coalesce interval
                     _announceTimer.interval = ws._announceCoalesceMs;
@@ -136,10 +135,8 @@ Singleton {
         const sp = ws.activeSpecial || "";
         if (sp && sp !== ws._lastSpecial) {
             ws._lastSpecial = sp;
-            if (ws.logger)
-                ws.logger.log("Workspace", "special -> name='" + sp + "'");
-            if (ws.osd)
-                ws.osd.showInfo("Special " + sp);
+            Logger.log("Workspace", "special -> name='" + sp + "'");
+            ws.osd.showInfo("Special " + sp);
         } else if (!sp) {
             // reset so next activation of same special is announced again
             ws._lastSpecial = "";

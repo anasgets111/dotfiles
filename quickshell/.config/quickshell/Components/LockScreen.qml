@@ -7,12 +7,12 @@ import Quickshell.Services.Pam
 import qs.Services.Core as Core
 import qs.Services.WM as WM
 import qs.Services.SystemInfo
+import qs.Services.Utils
 
 // SystemInfo already imported without alias for TimeService/WeatherService
 
 Scope {
     id: root
-    property var logger: LoggerService
     readonly property var theme: ({
             base: "#1e1e2e",
             mantle: "#181825",
@@ -54,7 +54,7 @@ Scope {
             if (responseRequired) {
                 respond(root.passwordBuffer);
                 root.passwordBuffer = "";
-                root.logger.log("LockScreen", "PAM response sent; buffer cleared");
+                Logger.log("LockScreen", "PAM response sent; buffer cleared");
             }
         }
         onCompleted: res => {
@@ -76,15 +76,6 @@ Scope {
         id: authStateResetTimer
         interval: 1000
         onTriggered: root.authState = ""
-    }
-
-    // Pass logger to WeatherService for unified logs
-    Component.onCompleted: {
-        try {
-            if (root.logger && WeatherService) {
-                WeatherService.logger = root.logger;
-            }
-        } catch (e) {}
     }
 
     WlSessionLock {

@@ -2,12 +2,14 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Services.SystemInfo
+import qs.Services.Utils
 
 Singleton {
     id: root
-    property var logger: LoggerService
-    readonly property var settings: QtObject {
+
+    property QtObject settings: QtObject {
         property string directory: "~/Videos"
         property int frameRate: 60
         property string audioCodec: "opus"
@@ -32,16 +34,16 @@ Singleton {
         }
         isRecording = true;
 
-        var filename = Qt.formatDateTime(TimeService.currentDate, "yyyyMMdd_HHmmss") + ".mp4";
+        var filename = TimeService.getFormattedTimestamp() + ".mp4";
         var videoDir = settings.directory;
         if (videoDir && !videoDir.endsWith("/")) {
             videoDir += "/";
         }
         outputPath = videoDir + filename;
         var command = "gpu-screen-recorder -w portal" + " -f " + settings.frameRate + " -ac " + settings.audioCodec + " -k " + settings.videoCodec + " -a " + settings.audioSource + " -q " + settings.quality + " -cursor " + (settings.showCursor ? "yes" : "no") + " -cr " + settings.colorRange + " -o " + outputPath;
-
+        //Logger.log("ScreenRecorder", command)
         Quickshell.execDetached(["sh", "-c", command]);
-        logger.log("ScreenRecorder", "Started recording");
+        Logger.log("ScreenRecorder", "Started recording");
     }
 
     // Stop recording using Quickshell.execDetached
@@ -50,8 +52,8 @@ Singleton {
             return;
         }
 
-        Quickshell.execDetached(["sh", "-c", "pkill -SIGINT -f 'gpu-screen-recorder.*portal'"]);
-        logger.log("ScreenRecorder", "Finished recording:", outputPath);
+        Quickshell.execDetached(["sh", "-c", "pkill -SIGINT -f 'gpu-screen-recor'"]);
+        Logger.log("ScreenRecorder", "Finished recording:", outputPath);
 
         // Just in case, force kill after 3 seconds
         killTimer.running = true;
@@ -64,7 +66,7 @@ Singleton {
         running: false
         repeat: false
         onTriggered: {
-            Quickshell.execDetached(["sh", "-c", "pkill -9 -f 'gpu-screen-recorder.*portal' 2>/dev/null || true"]);
+            Quickshell.execDetached(["sh", "-c", "pkill -9 -f 'gpu-screen-recor' 2>/dev/null || true"]);
         }
     }
 }

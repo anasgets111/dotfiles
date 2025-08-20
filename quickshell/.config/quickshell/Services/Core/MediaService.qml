@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
-import qs.Services.SystemInfo
+import qs.Services.Utils
 
 // Unified MediaService: combines manual/auto player selection, metadata/capabilities,
 // position tracking, keyboard shortcuts, and IPC control.
@@ -16,7 +16,6 @@ Singleton {
     readonly property list<MprisPlayer> players: allPlayers.filter(p => p && p.canControl)
     // Back-compat alias used by some consumers
     readonly property list<MprisPlayer> list: players
-    readonly property var logger: LoggerService
 
     // === Selection overrides ===
     property MprisPlayer manualActive: null            // If set, takes precedence
@@ -115,9 +114,9 @@ Singleton {
         // Reset or sync position when active player changes
         currentPosition = active ? (active.isPlaying ? active.position : 0) : 0;
         if (active)
-            root.logger && root.logger.log("MediaService", "active ->", active.identity, "playing=", active.isPlaying);
+            Logger.log("MediaService", "active ->", active.identity, "playing=", active.isPlaying);
         else
-            root.logger && root.logger.log("MediaService", "active -> none; players=", root.players.length);
+            Logger.log("MediaService", "active -> none; players=", root.players.length);
     }
 
     // Track selection overrides: no extra logs
@@ -128,7 +127,7 @@ Singleton {
         target: Mpris.players
         function onValuesChanged() {
             if (root.selectedPlayerIndex >= root.players.length) {
-                root.logger && root.logger.warn("MediaService", "resetting selected index (", root.selectedPlayerIndex, ") due to players shrink");
+                Logger.warn("MediaService", "resetting selected index (", root.selectedPlayerIndex, ") due to players shrink");
                 root.selectedPlayerIndex = -1;
             }
         }
@@ -152,7 +151,7 @@ Singleton {
     // === Controls API (callable from QML/IPC) ===
     function playPause() {
         if (!active) {
-            root.logger && root.logger.warn("MediaService", "playPause requested but no active player");
+            Logger.warn("MediaService", "playPause requested but no active player");
             return;
         }
         if (active.isPlaying && canPause) {
@@ -160,59 +159,59 @@ Singleton {
         } else if (!active.isPlaying && canPlay) {
             active.play();
         } else {
-            root.logger && root.logger.warn("MediaService", "playPause requested but unsupported: playing=", active.isPlaying, "canPlay=", canPlay, "canPause=", canPause);
+            Logger.warn("MediaService", "playPause requested but unsupported: playing=", active.isPlaying, "canPlay=", canPlay, "canPause=", canPause);
         }
     }
 
     function play() {
         if (!active) {
-            root.logger && root.logger.warn("MediaService", "play requested but no active player");
+            Logger.warn("MediaService", "play requested but no active player");
             return;
         }
         if (canPlay) {
             active.play();
-            root.logger && root.logger.log("MediaService", "play()");
+            Logger.log("MediaService", "play()");
         } else {
-            root.logger && root.logger.warn("MediaService", "play unsupported for", active.identity);
+            Logger.warn("MediaService", "play unsupported for", active.identity);
         }
     }
     function pause() {
         if (!active) {
-            root.logger && root.logger.warn("MediaService", "pause requested but no active player");
+            Logger.warn("MediaService", "pause requested but no active player");
             return;
         }
         if (canPause) {
             active.pause();
-            root.logger && root.logger.log("MediaService", "pause()");
+            Logger.log("MediaService", "pause()");
         } else {
-            root.logger && root.logger.warn("MediaService", "pause unsupported for", active.identity);
+            Logger.warn("MediaService", "pause unsupported for", active.identity);
         }
     }
     function next() {
         if (!active) {
-            root.logger && root.logger.warn("MediaService", "next requested but no active player");
+            Logger.warn("MediaService", "next requested but no active player");
             return;
         }
         if (canGoNext) {
             active.next();
         } else {
-            root.logger && root.logger.warn("MediaService", "next unsupported for", active.identity);
+            Logger.warn("MediaService", "next unsupported for", active.identity);
         }
     }
     function previous() {
         if (!active) {
-            root.logger && root.logger.warn("MediaService", "previous requested but no active player");
+            Logger.warn("MediaService", "previous requested but no active player");
             return;
         }
         if (canGoPrevious) {
             active.previous();
         } else {
-            root.logger && root.logger.warn("MediaService", "previous unsupported for", active.identity);
+            Logger.warn("MediaService", "previous unsupported for", active.identity);
         }
     }
     function stop() {
         if (!active) {
-            root.logger && root.logger.warn("MediaService", "stop requested but no active player");
+            Logger.warn("MediaService", "stop requested but no active player");
             return;
         }
         active.stop();
@@ -220,7 +219,7 @@ Singleton {
 
     function seek(position) {
         if (!active) {
-            root.logger && root.logger.warn("MediaService", "seek requested but no active player");
+            Logger.warn("MediaService", "seek requested but no active player");
             return;
         }
         if (canSeek) {
@@ -228,13 +227,13 @@ Singleton {
             currentPosition = position;
             // position updated
         } else {
-            root.logger && root.logger.warn("MediaService", "seek unsupported for", active.identity);
+            Logger.warn("MediaService", "seek unsupported for", active.identity);
         }
     }
 
     function seekByRatio(ratio) {
         if (!active) {
-            root.logger && root.logger.warn("MediaService", "seekByRatio requested but no active player");
+            Logger.warn("MediaService", "seekByRatio requested but no active player");
             return;
         }
         if (canSeek && trackLength > 0) {
@@ -243,7 +242,7 @@ Singleton {
             currentPosition = seekPosition;
             // position updated by ratio
         } else {
-            root.logger && root.logger.warn("MediaService", "seekByRatio unsupported: canSeek=", canSeek, "length=", trackLength);
+            Logger.warn("MediaService", "seekByRatio unsupported: canSeek=", canSeek, "length=", trackLength);
         }
     }
 
