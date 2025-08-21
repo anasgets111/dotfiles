@@ -10,6 +10,16 @@ Singleton {
     // Ensure our notification server is instantiated
     property var notifications: NotificationService
 
+    Connections {
+        target: NotificationService
+        function onActionInvoked(summary, appName, actionId, body) {
+            const id = String(actionId || "").toLowerCase();
+            Logger.log("UpdateService", "Notification action:", id, "summary:", summary, "app:", appName, "body:", body);
+            if (id === "update" || (!id && String(summary || "") === qsTr("Updates Available")))
+                updateService.runUpdate();
+        }
+    }
+
     // Lifecycle
     property bool ready: false
 
@@ -26,7 +36,8 @@ Singleton {
     property int lastNotifiedUpdates: 0
 
     // Command to run updates when user clicks action
-    property var updateCommand: ["xdg-terminal-exec", "--title='Global Updates'", "-e", "sh", "-c", "$BIN/update.sh"]
+    // Avoid shell-style quotes in argv; pass a single arg with spaces
+    property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "sh", "-c", "$BIN/update.sh"]
 
     // Timing
     property int minuteMs: 60 * 1000
@@ -64,15 +75,28 @@ Singleton {
 
     // Launch updater in a terminal
     function runUpdate() {
-        if (busy)
-            return;
+        Logger.log("UpdateService", "runUpdate(): exec", JSON.stringify(updateService.updateCommand));
         Quickshell.execDetached(updateService.updateCommand);
     }
 
-    // Send a desktop notification via our server with an actionable button
+    // Send a notification via our NotificationService with actions/images/icons
     function notify(urgency, title, body) {
-        notifyProc.command = ["notify-send", "-u", String(urgency || "normal"), "-A", "update=Update Now", "-w", String(title || ""), String(body || "")];
-        notifyProc.running = true;
+        const u = String(urgency || "normal").toLowerCase();
+        const isCritical = (u === "critical");
+        const opts = {
+            appName: "UpdateService",
+            appIcon: "system-software-update",
+            urgency: u,
+            expireTimeout: -1,
+            actions: isCritical ? [] : [
+                {
+                    id: "update",
+                    title: qsTr("Update Now"),
+                    icon: "system-software-update"
+                }
+            ]
+        };
+        NotificationService.send(String(title || ""), String(body || ""), opts);
     }
 
     function startUpdateProcess(cmd) {
@@ -182,19 +206,7 @@ Singleton {
         }
     }
 
-    // Notification process to capture action responses
-    Process {
-        id: notifyProc
-        stdout: StdioCollector {
-            id: notifyOut
-            onStreamFinished: {
-                var act = (notifyOut.text || "").trim();
-                var key = String(act || "").toLowerCase();
-                if (key === "update")
-                    updateService.runUpdate();
-            }
-        }
-    }
+    // No external notify-send process needed; actions handled via NotificationService
 
     // Ensure cached packages are plain objects with expected fields only
     function _clonePackageList(list) {

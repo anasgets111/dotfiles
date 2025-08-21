@@ -168,8 +168,19 @@ Singleton {
         target: "notifs"
 
         function clear(): string {
-            NotificationService.clearPopups();
+            NotificationService.clearAll();
             return "cleared";
+        }
+        function send(summary: string, body: string, optionsJson: string): string {
+            let opts = {};
+            try {
+                if (optionsJson)
+                    opts = JSON.parse(String(optionsJson));
+            } catch (e) {
+                opts = {};
+            }
+            const id = NotificationService.send(summary ?? "", body ?? "", opts ?? {});
+            return id || "";
         }
         function dnd(state: string): string {
             if (typeof state === "string")
