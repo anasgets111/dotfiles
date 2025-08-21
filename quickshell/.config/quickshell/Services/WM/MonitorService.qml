@@ -53,11 +53,6 @@ Singleton {
         return arr;
     }
 
-    // Small helper to run a command and collect stdout
-    function runCmd(cmd, onDone) {
-        Utils.runCmd(cmd, onDone, monitorService);
-    }
-
     // When backend impl becomes available or changes, refresh feature info
     onImplChanged: {
         if (impl) {
@@ -166,7 +161,7 @@ Singleton {
         };
 
         // Step 1: List /sys/class/drm
-        runCmd(["sh", "-c", "ls /sys/class/drm"], function (stdout) {
+        Utils.runCmd(["sh", "-c", "ls /sys/class/drm"], function (stdout) {
             const entries = stdout.split(/\r?\n/).filter(Boolean);
 
             // Step 2: Find matching entry
@@ -178,7 +173,7 @@ Singleton {
 
             // Step 3: Run edid-decode on the matched entry
             const edidPath = `/sys/class/drm/${match}/edid`;
-            runCmd(["edid-decode", edidPath], function (text) {
+            Utils.runCmd(["edid-decode", edidPath], function (text) {
                 const vrrSupported = /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text);
                 const hdrSupported = /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text);
                 callback({
@@ -189,8 +184,8 @@ Singleton {
                         supported: hdrSupported
                     }
                 });
-            });
-        });
+            }, monitorService);
+        }, monitorService);
     }
 
     function logMonitorFeatures(list) {

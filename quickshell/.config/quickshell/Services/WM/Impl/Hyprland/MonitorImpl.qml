@@ -3,7 +3,6 @@ pragma Singleton
 import Quickshell
 import qs.Services.Utils
 import Quickshell.Hyprland
-import qs.Services.Utils
 import qs.Services
 
 Singleton {

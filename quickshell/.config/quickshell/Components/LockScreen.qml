@@ -6,7 +6,6 @@ import QtQuick.Effects
 import Quickshell.Services.Pam
 import qs.Services.Core
 import qs.Services.WM
-import qs.Services.SystemInfo
 import qs.Services.Utils
 
 // SystemInfo already imported without alias for TimeService/WeatherService

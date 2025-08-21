@@ -1,7 +1,7 @@
 pragma Singleton
 import Quickshell
 import QtQuick
-import qs.Services.WM as WM
+import qs.Services.WM
 import qs.Services.Utils
 
 // WallpaperService keeps only wallpaper-related preferences per monitor.
@@ -9,7 +9,7 @@ import qs.Services.Utils
 Singleton {
     id: wallpaperService
 
-    property var monitorService: WM.MonitorService
+    property var monitorService: MonitorService
     readonly property bool ready: !!(monitorService && monitorService.ready && monitorService.monitorsModel.count > 0)
 
     // Default wallpaper and default mode applied when no preference exists

@@ -12,7 +12,7 @@ Singleton {
     function _formatMessage(...args) {
         var time = TimeService.getFormattedTimestamp();
         const timePart = `\x1b[36m[${time}]\x1b[0m`;
-        const maxLength = 17;
+        const maxLength = 16;
 
         function colorModule(moduleRaw) {
             var name = String(moduleRaw);

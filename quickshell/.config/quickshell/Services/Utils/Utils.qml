@@ -3,7 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.Services.Core as Core
+import qs.Services.Core
 
 Singleton {
     id: utils
@@ -167,15 +167,15 @@ Singleton {
                 utils._refreshLedState();
             }
         }
-        Core.FileSystemService.listByGlob("/sys/class/leds/*::capslock/brightness", function (lines) {
+        FileSystemService.listByGlob("/sys/class/leds/*::capslock/brightness", function (lines) {
             utils._ledCapsPaths = lines || [];
             doneOne();
         });
-        Core.FileSystemService.listByGlob("/sys/class/leds/*::numlock/brightness", function (lines) {
+        FileSystemService.listByGlob("/sys/class/leds/*::numlock/brightness", function (lines) {
             utils._ledNumPaths = lines || [];
             doneOne();
         });
-        Core.FileSystemService.listByGlob("/sys/class/leds/*::scrolllock/brightness", function (lines) {
+        FileSystemService.listByGlob("/sys/class/leds/*::scrolllock/brightness", function (lines) {
             utils._ledScrollPaths = lines || [];
             doneOne();
         });
@@ -187,7 +187,7 @@ Singleton {
             // Nothing to read; keep defaults
             return;
         }
-        Core.FileSystemService.pollGroupsAnyNonzero(groups, function (states) {
+        FileSystemService.pollGroupsAnyNonzero(groups, function (states) {
             if (!states || states.length < 3)
                 return;
             const next = {

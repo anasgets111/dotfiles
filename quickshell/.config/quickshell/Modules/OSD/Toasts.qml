@@ -5,7 +5,6 @@ import Quickshell.Wayland
 import qs.Services.SystemInfo
 import QtQuick.Controls
 import QtQuick.Effects
-import qs.Services
 
 // ToastManager overlay hooked to OSDService
 PanelWindow {

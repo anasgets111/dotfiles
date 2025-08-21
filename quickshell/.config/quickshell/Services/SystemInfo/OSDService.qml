@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Services.Utils
 
 // Minimal, robust OSD/toast service for transient in-shell messages.
