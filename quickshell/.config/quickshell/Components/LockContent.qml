@@ -4,9 +4,9 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import Quickshell
 import qs.Services.Utils
-import qs.Services as Services
+import qs.Services
 import qs.Services.SystemInfo
-import qs.Services.WM as WM
+import qs.Services.WM
 
 // Extracted lock screen content panel
 FocusScope {
@@ -47,18 +47,11 @@ FocusScope {
     function _maybeRequestFocusOnce(reason) {
         if (!lockSurface || !lockSurface.hasScreen)
             return;
-        const isPrimary = lockSurface.isLastMonitorBySnapshot;
-        let isFallbackLeader = false;
-        if (!isPrimary && lockSurface && lockSurface.screen) {
-            const currentNames = panel._currentMonitorNames();
-            const primaryAbsent = panel._snapshotPrimaryName && currentNames.indexOf(panel._snapshotPrimaryName) === -1;
-            isFallbackLeader = primaryAbsent && (currentNames.length > 0 ? lockSurface.screen.name === currentNames[currentNames.length - 1] : false);
-        }
-        if (isPrimary || isFallbackLeader) {
+        const isPrimary = lockSurface.isMainMonitor;
+        if (isPrimary) {
             panel.forceActiveFocus();
             if (panel.ctx) {
-                const mode = isPrimary ? "primary" : "fallback";
-                Logger.log("LockContent", "single-shot focus request (" + mode + "): " + reason);
+                Logger.log("LockContent", "single-shot focus request (primary): " + reason);
             }
         }
     }
@@ -219,7 +212,7 @@ FocusScope {
         // Identity
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: Services.MainService && Services.MainService.fullName ? Services.MainService.fullName : ""
+            text: MainService.fullName ? MainService.fullName : ""
             visible: panel.lockSurface.hasScreen && text.length > 0
             color: panel.ctx.theme.subtext1
             font.pixelSize: 24
@@ -367,7 +360,8 @@ FocusScope {
                 color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
                 border.width: 1
                 border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
-                visible: Services.MainService && Services.MainService.hostname.length > 0
+                // Keep host pill visible when the lock surface is present, even if hostname is temporarily unavailable
+                visible: panel.lockSurface.hasScreen
                 opacity: visible ? 1 : 0
                 Behavior on opacity {
                     NumberAnimation {
@@ -394,7 +388,8 @@ FocusScope {
                         id: hostText
                         Layout.alignment: Qt.AlignVCenter
                         Layout.fillWidth: true
-                        text: Services.MainService ? Services.MainService.hostname : ""
+                        // Safe fallback when hostname is empty or not yet populated
+                        text: (MainService && typeof MainService.hostname === "string" && MainService.hostname.length > 0) ? MainService.hostname : "localhost"
                         color: panel.ctx.theme.subtext0
                         font.pixelSize: 21
                         elide: Text.ElideRight
@@ -407,7 +402,7 @@ FocusScope {
         Rectangle {
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: 4
-            visible: panel.lockSurface.isLastMonitorBySnapshot
+            visible: panel.lockSurface.isMainMonitor
             Layout.preferredWidth: Math.min(panel.width - 64, 420)
             Layout.preferredHeight: 1
             radius: 1
@@ -422,8 +417,8 @@ FocusScope {
             color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.45)
             border.width: 1
             border.color: panel.ctx.authState ? panel.ctx.theme.love : Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
-            visible: panel.lockSurface.isLastMonitorBySnapshot
-            enabled: panel.lockSurface.hasScreen && panel.lockSurface.isLastMonitorBySnapshot
+            visible: panel.lockSurface.isMainMonitor
+            enabled: panel.lockSurface.hasScreen && panel.lockSurface.isMainMonitor
 
             // Left lock icon
             Text {
@@ -516,7 +511,7 @@ FocusScope {
             Layout.alignment: Qt.AlignHCenter
             spacing: 12
             opacity: 0.9
-            visible: panel.lockSurface.isLastMonitorBySnapshot
+            visible: panel.lockSurface.isMainMonitor
             Text {
                 text: "Press Enter to unlock"
                 color: panel.ctx.theme.overlay1
@@ -536,7 +531,7 @@ FocusScope {
             // Keyboard layout indicator
             Rectangle {
                 id: layoutIndicator
-                visible: (WM.KeyboardLayoutService.currentLayout.length > 0)
+                visible: (KeyboardLayoutService.currentLayout.length > 0)
                 color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
                 border.width: 1
                 border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
@@ -546,7 +541,7 @@ FocusScope {
 
                 Text {
                     id: layoutText
-                    text: WM.KeyboardLayoutService.currentLayout
+                    text: KeyboardLayoutService.currentLayout
                     color: panel.ctx.theme.overlay1
                     font.pixelSize: 14
                     anchors.verticalCenter: layoutIndicator.verticalCenter

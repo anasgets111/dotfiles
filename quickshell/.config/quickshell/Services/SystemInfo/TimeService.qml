@@ -65,6 +65,8 @@ Singleton {
 
     function formatDuration(seconds) {
         seconds = Math.floor(seconds);
+        if (seconds <= 0)
+            return "";
         var d = Math.floor(seconds / 86400);
         var h = Math.floor((seconds % 86400) / 3600);
         var m = Math.floor((seconds % 3600) / 60);

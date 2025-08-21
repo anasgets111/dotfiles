@@ -189,7 +189,8 @@ Singleton {
             id: notifyOut
             onStreamFinished: {
                 var act = (notifyOut.text || "").trim();
-                if (act === "update")
+                var key = String(act || "").toLowerCase();
+                if (key === "update")
                     updateService.runUpdate();
             }
         }

@@ -4,8 +4,8 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick.Effects
 import Quickshell.Services.Pam
-import qs.Services.Core as Core
-import qs.Services.WM as WM
+import qs.Services.Core
+import qs.Services.WM
 import qs.Services.SystemInfo
 import qs.Services.Utils
 
@@ -34,17 +34,16 @@ Scope {
     property string passwordBuffer: ""
     property string authState: ""
     function currentMonitorNames() {
-        const monitors = WM.MonitorService;
-        if (!(monitors && monitors.ready))
+        if (!(MonitorService.ready))
             return [];
-        const arr = monitors.monitorsModelToArray ? monitors.monitorsModelToArray() : [];
+        const arr = MonitorService.monitorsModelToArray ? MonitorService.monitorsModelToArray() : [];
         return arr.map(m => m && m.name).filter(n => !!n);
     }
     Connections {
-        target: Core.LockService
+        target: LockService
         function onLockedChanged() {
             const names = root.currentMonitorNames();
-            root.snapshotMonitorNames = Core.LockService.locked ? names : [];
+            root.snapshotMonitorNames = LockService.locked ? names : [];
         }
     }
 
@@ -60,7 +59,7 @@ Scope {
         onCompleted: res => {
             if (res === PamResult.Success) {
                 root.passwordBuffer = "";
-                Core.LockService.locked = false;
+                LockService.locked = false;
                 return;
             }
             if (res === PamResult.Error)
@@ -80,27 +79,19 @@ Scope {
 
     WlSessionLock {
         id: sessionLock
-        locked: Core.LockService.locked
+        locked: LockService.locked
 
         WlSessionLockSurface {
             id: lockSurface
             color: "transparent"
-            readonly property var screenWallpaper: Core.WallpaperService ? Core.WallpaperService.wallpaperFor(lockSurface.screen) : null
+            readonly property var screenWallpaper: WallpaperService ? WallpaperService.wallpaperFor(lockSurface.screen) : null
             readonly property bool blurDisabled: Quickshell.env("QS_DISABLE_LOCK_BLUR") === "1"
             readonly property bool hasScreen: !!lockSurface.screen
-            readonly property bool isLastMonitorBySnapshot: {
-                const s = lockSurface.screen;
-                if (!s)
-                    return false;
-                const names = (root.snapshotMonitorNames && root.snapshotMonitorNames.length) ? root.snapshotMonitorNames : root.currentMonitorNames();
-                if (!names || names.length === 0)
-                    return true;
-                const idx = names.indexOf(s.name);
-                return idx >= 0 && idx === names.length - 1;
-            }
+            // Use MonitorService.mainMonitor (with service-side fallback) to decide primary
+            readonly property bool isMainMonitor: !!(lockSurface.screen && MonitorService && MonitorService.mainMonitor === lockSurface.screen.name)
             Image {
                 anchors.fill: parent
-                source: Core.WallpaperService && Core.WallpaperService.ready && lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper ? lockSurface.screenWallpaper.wallpaper : ""
+                source: WallpaperService.ready && lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper ? lockSurface.screenWallpaper.wallpaper : ""
                 fillMode: {
                     const mode = lockSurface.screenWallpaper ? lockSurface.screenWallpaper.mode : "fill";
                     switch (mode) {

@@ -3,6 +3,8 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick
 import qs.Services.SystemInfo
+import qs.Services
+import qs.Components
 
 // Minimal top bar scaffold: one layer-surface per screen, top-anchored with reserved space.
 Scope {
@@ -57,6 +59,17 @@ Scope {
                     onClicked: ScreenRecordingService.toggleRecording()
                     cursorShape: Qt.PointingHandCursor
                 }
+            }
+            WindowTitle {
+                anchors.centerIn: parent
+            }
+            Text {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: TimeService.formattedDateTime + " - " + MainService.username + " - " + TimeService.formatDuration(SystemInfoService.uptime)
+                color: "#FFFFFF"
+                padding: 12
+                font.bold: true
             }
         }
     }
