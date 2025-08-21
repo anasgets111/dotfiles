@@ -41,8 +41,8 @@ Singleton {
     property bool _persistOperationInFlight: false
     property bool _isColdStart: true
     property double _startupIgnoreUntilTimestamp: 0
+    property string _currentTextMime: ""
 
-    // === REFACTORED: Smaller, focused functions ===
 
     // Lifecycle management
     function _shouldIgnoreStartupClipboard() {
@@ -52,6 +52,23 @@ Singleton {
 
     function _sanitizeMimeType(m) {
         return Utils.sanitizeMimeType(m);
+    }
+
+    function _pickPreferredTextMime(types) {
+        // Prefer richer formats when available; fall back to plain text
+        const priorities = ["text/html", "text/rtf", "text/markdown", "text/md", "text/plain;charset=utf-8", "text/plain", "text"];
+        for (let i = 0; i < priorities.length; i++) {
+            const p = priorities[i];
+            if (types.indexOf(p) !== -1)
+                return p;
+        }
+        // If any text/* exists, use the first one
+        for (let j = 0; j < types.length; j++) {
+            const t = String(types[j] || "");
+            if (t.indexOf("text/") === 0)
+                return t;
+        }
+        return "";
     }
 
     function _scheduleWatcherRestart() {
@@ -93,7 +110,7 @@ Singleton {
 
         let cmdArr;
         if (isText) {
-            cmdArr = Utils.shCommand('wl-paste -n -t text | wl-copy -t text/plain');
+            cmdArr = Utils.shCommand('mime="$1"; wl-paste -n -t "$mime" | wl-copy -t "$mime"', [safeMime]);
         } else {
             cmdArr = Utils.shCommand('mime="$1"; wl-paste -n -t "$mime" | wl-copy -t "$mime"', [safeMime]);
         }
@@ -185,6 +202,7 @@ Singleton {
             return;
 
         clipboard._isFetching = true;
+        clipboard._currentTextMime = "";
         Logger.log("ClipboardService", "Fetch cycle start");
         _startMimeTypeDetection();
     }
@@ -267,12 +285,14 @@ Singleton {
                 imageType = clipboard._sanitizeMimeType(imageType);
 
                 if (imageType) {
+                    clipboard._currentTextMime = "";
                     clipboard._startImageRead(imageType);
                     return;
                 }
 
-                const hasText = types.some(t => t === "text" || /^text\//.test(t));
-                if (hasText) {
+                const preferredText = clipboard._pickPreferredTextMime(types);
+                if (preferredText) {
+                    clipboard._currentTextMime = clipboard._sanitizeMimeType(preferredText);
                     clipboard._startTextRead();
                     return;
                 }
@@ -298,7 +318,8 @@ Singleton {
                         if (added && clipboard.persistEnabled) {
                             const sizeBytes = Utils.utf8Size(content);
                             if (sizeBytes <= clipboard.maxPersistBytes) {
-                                clipboard._startPersistClipboardPipeline("text/plain");
+                                const persistMime = clipboard._currentTextMime || "text/plain";
+                                clipboard._startPersistClipboardPipeline(persistMime);
                             } else {
                                 Logger.log("ClipboardService", `Persist skip: text too large (${sizeBytes} > ${clipboard.maxPersistBytes})`);
                             }
