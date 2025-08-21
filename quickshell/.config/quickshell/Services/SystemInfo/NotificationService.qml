@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Services.Notifications
 
 // Minimal, robust notification service usable across the project.
@@ -139,6 +138,78 @@ Singleton {
         readonly property string image: notification.image
         readonly property int urgency: notification.urgency
         // Access actions via w.notification.actions when needed
+
+        // ----- Backend normalization for UI consumption -----
+        // Resolve an icon source for the app using desktop entries when possible,
+        // then fall back to the notification-provided icon name/path, and finally a generic icon.
+        readonly property string iconSource: {
+            let src = "";
+            try {
+                if (typeof DesktopEntries !== "undefined" && w.appName) {
+                    const entry = DesktopEntries.heuristicLookup(String(w.appName));
+                    if (entry && entry.icon)
+                        src = Quickshell.iconPath(entry.icon, true);
+                }
+            } catch (e)
+            // ignore
+            {}
+            if (!src && w.appIcon) {
+                const s = String(w.appIcon);
+                if (s.startsWith("file:") || s.startsWith("/") || s.startsWith("data:"))
+                    src = s;
+                else
+                    src = Quickshell.iconPath(s, true);
+            }
+            if (!src)
+                src = Quickshell.iconPath("dialog-information", true);
+            return src;
+        }
+
+        // Inline/body image source if provided by the server
+        readonly property string imageSource: (w.image || "")
+
+        function _mkActionEntry(n, id, title, iconName) {
+            const iconSource = iconName ? Quickshell.iconPath(String(iconName), true) : "";
+            return {
+                id: id,
+                title: title,
+                iconName: iconName || "",
+                iconSource: iconSource,
+                trigger: function () {
+                    if (!n)
+                        return;
+                    if (typeof n.invokeAction === 'function')
+                        n.invokeAction(String(id));
+                    else if (typeof n.activateAction === 'function')
+                        n.activateAction(String(id));
+                }
+            };
+        }
+
+        // Normalized actions list suitable for direct binding in UI
+        readonly property var actionsModel: {
+            const n = w.notification;
+            const a = (n && n.actions) ? n.actions : [];
+            if (!a || a.length === 0)
+                return [];
+            // Flat pair array: [id, title, id, title, ...]
+            if (typeof a[0] === 'string') {
+                const out = [];
+                for (var i = 0; i + 1 < a.length; i += 2) {
+                    const _id = String(a[i]);
+                    const _title = String(a[i + 1]);
+                    out.push(_mkActionEntry(n, _id, _title, ""));
+                }
+                return out;
+            }
+            // Object array; attempt to read common fields and optional icon
+            return a.map(function (x) {
+                const _id = String(x.id || x.action || x.key || x.name || "");
+                const _title = String(x.title || x.label || x.text || _id);
+                const _iconName = x.icon || x.iconName || x.icon_id || "";
+                return _mkActionEntry(n, _id, _title, _iconName);
+            });
+        }
 
         // Auto-hide timer, urgency-aware, honors expireTimeout (> 0)
         readonly property Timer timer: Timer {
