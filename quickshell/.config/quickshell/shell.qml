@@ -10,6 +10,10 @@ import qs.Components
 import qs.Services.WM
 import qs.Services.Core
 import qs.Services.SystemInfo
+import qs.Config
+import qs.Themes
+import qs.Styles
+import qs.Animations
 import qs.Modules.Bar
 import qs.Modules.OSD
 import qs.Modules.Notification
@@ -81,7 +85,7 @@ ShellRoot {
                         return Image.Tile;
                     default:
                         return Image.PreserveAspectCrop;
-                    }
+                }
                 }
             }
         }
@@ -96,7 +100,7 @@ ShellRoot {
     }
     // Live clipboard
     Connections {
-        target: ClipboardService
+        target: ClipboardLiteService
     }
     Connections {
         target: IdleService
