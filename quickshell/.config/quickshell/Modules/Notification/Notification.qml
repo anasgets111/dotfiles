@@ -212,7 +212,7 @@ Variants {
                                 border.color: "#434a59"
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "×"
+                                    text: "x"
                                     color: mouse.containsMouse ? "#eef2f8" : "#c8ccd4"
                                     font.pixelSize: 14
                                 }

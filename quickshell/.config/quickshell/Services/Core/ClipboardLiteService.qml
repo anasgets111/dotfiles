@@ -121,7 +121,8 @@ Singleton {
         }
         const raw = String(line || "");
         Logger.log("ClipboardLiteService", "deleteFromLine start; preview=", Utils.stripAnsi(raw).slice(0, 120));
-        const cmd = Utils.shCommand('line="$1"; id=$(printf "%s\n" "$line" | sed -E "s/^([0-9]+).*/\\1/"); echo "DEL_ID=$id"; if [ -n "$id" ]; then cliphist delete "$id" && echo OK || echo FAIL; else printf "%s\n" "$line" | cliphist delete && echo OK || echo FAIL; fi', [raw]);
+        // Prefer deleting by piping the exact list line. If that fails, fall back to anchored delete-query by id and tab.
+        const cmd = Utils.shCommand('line="$1"; id=$(printf "%s\n" "$line" | sed -E "s/^([0-9]+).*/\\1/"); echo "DEL_ID=$id"; if printf "%s\n" "$line" | cliphist delete; then echo OK; elif [ -n "$id" ] && cliphist delete-query "^${id}\\t"; then echo OK; else echo FAIL; fi', [raw]);
         Utils.runCmd(cmd, function (text) {
             const out = String(text || "").trim();
             const ok = out.indexOf("OK") !== -1;
@@ -143,7 +144,7 @@ Singleton {
             return;
         }
         Logger.log("ClipboardLiteService", "deleteById start; id=", String(id || ""));
-        const cmd = Utils.shCommand('id="$1"; cliphist delete "$id" && echo OK || echo FAIL', [String(id || "")]);
+        const cmd = Utils.shCommand('id="$1"; if [ -n "$id" ] && cliphist delete-query "^${id}\\t"; then echo OK; else echo FAIL; fi', [String(id || "")]);
         Utils.runCmd(cmd, function (text) {
             const ok = String(text || "").indexOf("OK") !== -1;
             Logger.log("ClipboardLiteService", "deleteById ->", ok);
@@ -231,7 +232,8 @@ Singleton {
 
     // Internal: paste using wtype (Ctrl+V). cb(successBool)
     function _pasteFocused(cb) {
-        Utils.runCmd(["sh", "-c", "(wtype -M ctrl -k v -M ctrl && echo OK) || echo FAIL"], function (out) {
+        // Press Ctrl+V and release Ctrl: -M ctrl (press), -k v (key), -m ctrl (release)
+        Utils.runCmd(["sh", "-c", "(wtype -M ctrl -k v -m ctrl && echo OK) || echo FAIL"], function (out) {
             Logger.log("ClipboardLiteService", "paste result:", String(out || "").trim());
             if (cb)
                 try {
