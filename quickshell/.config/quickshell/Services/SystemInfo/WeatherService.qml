@@ -332,22 +332,22 @@ Singleton {
                         hasError = false;
                         consecutiveErrors = 0;
                         _wxAttempt = 0;
-                        weatherService.logger && weatherService.logger.log("WeatherService", "Weather success: temp=", currentTemp, "code=", currentWeatherCode);
+                        Logger.log("WeatherService", "Weather success: temp=", currentTemp, "code=", currentWeatherCode);
                     } else {
-                        weatherService.logger && weatherService.logger.warn("WeatherService", "response missing current_weather");
+                        Logger.warn("WeatherService", "response missing current_weather");
                         scheduleWxRetry();
                     }
                 } catch (e) {
-                    weatherService.logger && weatherService.logger.warn("WeatherService", "failed to parse weather response");
+                    Logger.warn("WeatherService", "failed to parse weather response");
                     scheduleWxRetry();
                 }
             } else {
-                weatherService.logger && weatherService.logger.warn("WeatherService", "fetch failed with status", wxXhr.status);
+                Logger.warn("WeatherService", "fetch failed with status", wxXhr.status);
                 scheduleWxRetry();
             }
         };
         wxXhr.ontimeout = function () {
-            weatherService.logger && weatherService.logger.warn("WeatherService", "fetch timed out");
+            Logger.warn("WeatherService", "fetch timed out");
             scheduleWxRetry();
         };
         wxXhr.send();

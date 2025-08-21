@@ -2,13 +2,13 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import qs.Services as Services
+import qs.Services
 
 // Hyprland Workspace Backend (logic only)
 Singleton {
     id: hyprWs
 
-    readonly property bool active: Services.MainService.ready && Services.MainService.currentWM === "hyprland"
+    readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
     property bool enabled: hyprWs.active
 
     // Normalized properties (match WorkspaceService API)

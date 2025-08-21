@@ -44,7 +44,7 @@ Singleton {
                     root.currentLayout = activeLayout || "";
                 } catch (e) {
                     // Avoid crashing on bad hyprctl output; leave previous state
-                    MainService.logger.log("KeyboardLayoutImpl(Hypr)", "Failed to parse devices JSON:", e.toString());
+                    Logger.log("KeyboardLayoutImpl(Hypr)", "Failed to parse devices JSON:", e.toString());
                 }
             }
         }

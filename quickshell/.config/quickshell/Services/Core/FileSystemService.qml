@@ -1,7 +1,6 @@
 pragma Singleton
 import Quickshell
 
-// FileSystemService: small helpers for file discovery and polling
 Singleton {
     id: fs
 
