@@ -32,7 +32,7 @@ Variants {
             anchors.right: parent.right
             anchors.margins: 12
             spacing: 8
-            width: 320
+            width: 470
 
             Repeater {
                 model: NotificationService.visible
