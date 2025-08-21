@@ -5,17 +5,23 @@ import QtQml
 import QtQuick
 import qs.Services
 import qs.Services.Utils
-import qs.Services.Utils
 import qs.Services.WM.Impl.Hyprland as Hyprland
 import qs.Services.WM.Impl.Niri as Niri
 
 Singleton {
     id: monitorService
-
-    property var mainService: MainService
+    // Preferred main monitor from MainService, may be empty
+    property string configuredMainMonitor: MainService.mainMon ? MainService.mainMon : ""
+    // Computed main monitor with fallback to first available monitor in the model
+    readonly property string mainMonitor: {
+        if (configuredMainMonitor && configuredMainMonitor.length)
+            return configuredMainMonitor;
+        // Fallback: first monitor in the current model
+        return monitorsModel && monitorsModel.count > 0 ? monitorsModel.get(0).name : "";
+    }
     property ListModel monitorsModel: ListModel {}
     // Select backend implementation declaratively based on current WM
-    property var impl: (monitorService.mainService && monitorService.mainService.currentWM === "hyprland") ? Hyprland.MonitorImpl : (monitorService.mainService && monitorService.mainService.currentWM === "niri") ? Niri.MonitorImpl : null
+    property var impl: (MainService.currentWM === "hyprland") ? Hyprland.MonitorImpl : (MainService.currentWM === "niri") ? Niri.MonitorImpl : null
     readonly property bool ready: impl !== null
 
     signal monitorsChanged
@@ -61,7 +67,7 @@ Singleton {
 
     // Live updates from Niri backend: refresh features when notified
     Connections {
-        target: (monitorService.impl && monitorService.mainService && monitorService.mainService.currentWM === "niri") ? monitorService.impl : null
+        target: (monitorService.impl && MainService.currentWM === "niri") ? monitorService.impl : null
         function onFeaturesMayHaveChanged() {
             monitorService.logMonitorFeatures(monitorService.monitorsModelToArray());
         }

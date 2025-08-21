@@ -330,32 +330,4 @@ Singleton {
             _processQueue();
         }
     }
-
-    // ----- IPC -----
-    IpcHandler {
-        target: "notifs"
-
-        function clear(): string {
-            root.clearPopups();
-            return "cleared";
-        }
-
-        function dnd(state: string): string {
-            // Accept: "on"/"off"/boolean
-            if (typeof state === "string")
-                root.setDoNotDisturb(state.toLowerCase() === "on" || state.toLowerCase() === "true");
-            else
-                root.setDoNotDisturb(!!state);
-            return "DND=" + root.doNotDisturb;
-        }
-
-        function clearhistory(): string {
-            root.clearHistory();
-            return "History cleared";
-        }
-
-        function status(): string {
-            return `Notifications: total=${root.all.length}, visible=${root.visible.length}, queued=${root.queue.length}, DND=${root.doNotDisturb}`;
-        }
-    }
 }

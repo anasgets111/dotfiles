@@ -39,6 +39,27 @@ Singleton {
     property bool gpuTempReady: false
     property bool memReady: false
     property bool storageReady: false
+    property string uptime: ""
+
+    Process {
+        id: uptimeProc
+        command: ["sh", "-c", "cat /proc/uptime"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var parts = text.trim().split(" ");
+                root.uptime = parts[0] || "";
+            }
+        }
+    }
+    Timer {
+        id: uptimeTimer
+        interval: 1000 // Update every second
+        repeat: true
+        running: true
+        onTriggered: {
+            uptimeProc.running = true;
+        }
+    }
 
     function formatKib(kib: real): var {
         const mib = 1024;

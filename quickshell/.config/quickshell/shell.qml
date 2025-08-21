@@ -11,6 +11,8 @@ import qs.Services.WM
 import qs.Services.Core
 import qs.Services.SystemInfo
 import qs.Modules.Bar
+import qs.Modules.OSD
+import qs.Modules.Notification
 
 ShellRoot {
     id: root
@@ -35,10 +37,19 @@ ShellRoot {
     readonly property var workspaces: WorkspaceService
     readonly property var sysInfo: SystemInfoService
     readonly property var media: MediaService
+    readonly property var ipc: IPC
     Bar {
         id: bar
     }
+    Variants {
+        model: Quickshell.screens
 
+        delegate: Toasts {
+            modelData: modelData
+            visible: OSDService.toastVisible
+        }
+    }
+    Notification {}
     // Your wallpapers (unchanged)
     Variants {
         model: root.wallpaper.wallpapersArray
