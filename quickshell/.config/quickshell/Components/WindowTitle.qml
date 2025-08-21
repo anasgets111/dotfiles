@@ -9,6 +9,17 @@ Item {
     property string currentTitle: ""
     property string currentClass: ""
     property string appName: ""
+    // Resolve app icon from desktop entry when possible
+    readonly property string appIconSource: {
+        if (!activeWindow.currentClass)
+            return "";
+        var entry = DesktopEntries.heuristicLookup(activeWindow.currentClass) || DesktopEntries.byId(activeWindow.currentClass);
+        var iconName = entry && entry.icon ? entry.icon : "";
+        var src = iconName ? Quickshell.iconPath(iconName, true) : "";
+        if (!src)
+            src = Quickshell.iconPath("application-default-icon", true);
+        return src;
+    }
     property string displayText: ""
 
     function updateActive() {
@@ -39,8 +50,8 @@ Item {
         return txt.length > activeWindow.maxLength ? txt.substring(0, activeWindow.maxLength - 3) + "..." : txt;
     }
 
-    width: windowTitle.implicitWidth
-    height: windowTitle.implicitHeight
+    width: titleRow.implicitWidth
+    height: titleRow.implicitHeight
     Component.onCompleted: updateActive()
 
     Connections {
@@ -59,16 +70,30 @@ Item {
         target: ToplevelManager.activeToplevel
     }
 
-    Text {
-        id: windowTitle
-
+    Row {
+        id: titleRow
         anchors.fill: parent
-        text: activeWindow.displayText
-        color: "#FFFFFF"
-        font.pixelSize: 16
-        font.bold: true
-        font.family: "Roboto"
-        elide: Text.ElideRight
+        spacing: 6
+        // App icon (hidden when missing)
+        Image {
+            id: appIcon
+            source: activeWindow.appIconSource
+            visible: !!source && source !== ""
+            width: 24
+            height: 24
+            sourceSize.width: width
+            sourceSize.height: height
+            fillMode: Image.PreserveAspectFit
+        }
+        Text {
+            id: windowTitle
+            text: activeWindow.displayText
+            color: "#FFFFFF"
+            font.pixelSize: 16
+            font.bold: true
+            font.family: "Roboto"
+            elide: Text.ElideRight
+        }
     }
 
     Behavior on width {

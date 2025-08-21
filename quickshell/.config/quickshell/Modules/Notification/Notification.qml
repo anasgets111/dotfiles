@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import Quickshell.Widgets
 import qs.Services.SystemInfo
 
 // Minimal notifications popup using SystemInfo.NotificationService
@@ -81,7 +80,17 @@ Variants {
                         spacing: 8
 
                         Row {
-                            spacing: 6
+                            spacing: 8
+                            // App icon
+                            Image {
+                                source: notif.w.iconSource
+                                width: 20
+                                height: 20
+                                sourceSize.width: width
+                                sourceSize.height: height
+                                fillMode: Image.PreserveAspectFit
+                                visible: !!source
+                            }
                             Text {
                                 text: (notif.w.appName || "App")
                                 color: "#b7c0cc"
@@ -90,7 +99,7 @@ Variants {
                                 maximumLineCount: 1
                             }
                             Item {
-                                width: 1
+                                width: 6
                                 height: 1
                             }
                             Text {
@@ -111,6 +120,7 @@ Variants {
                             maximumLineCount: 3
                         }
 
+                        // Body with links enabled
                         Text {
                             text: notif.w.body || ""
                             color: "#c2c7d0"
@@ -119,6 +129,21 @@ Variants {
                             elide: Text.ElideRight
                             width: parent.width
                             maximumLineCount: 6
+                            textFormat: Text.RichText
+                            onLinkActivated: function (url) {
+                                Qt.openUrlExternally(url);
+                            }
+                        }
+
+                        // Inline image if provided
+                        Image {
+                            source: notif.w.imageSource
+                            visible: !!source
+                            width: parent.width
+                            fillMode: Image.PreserveAspectFit
+                            sourceSize.width: width
+                            // Let height adapt to image aspect; constrain to avoid huge popups
+                            // Use implicitHeight based on image, and clip the parent rectangle
                         }
 
                         // Actions row (if any)
@@ -126,66 +151,14 @@ Variants {
                             id: actionsBlock
                             width: parent.width
                             height: actionsFlow.implicitHeight
-                            visible: actionsModel.length > 0
-
-                            // Normalize actions from different possible shapes
-                            property var actionsModel: {
-                                const n = notif.w && notif.w.notification ? notif.w.notification : null;
-                                const a = n && n.actions ? n.actions : [];
-                                if (!a || a.length === 0)
-                                    return [];
-                                // Flat pair array: [id, title, id, title, ...]
-                                if (typeof a[0] === 'string') {
-                                    const out = [];
-                                    for (var i = 0; i + 1 < a.length; i += 2) {
-                                        const id = a[i];
-                                        const title = a[i + 1];
-                                        out.push({
-                                            id,
-                                            title,
-                                            trigger: function () {
-                                                if (!n)
-                                                    return;
-                                                if (typeof n.invokeAction === 'function')
-                                                    n.invokeAction(String(id));
-                                                else if (typeof n.activateAction === 'function')
-                                                    n.activateAction(String(id));
-                                            }
-                                        });
-                                    }
-                                    return out;
-                                }
-                                // Array of objects with common keys: normalize to consistent shape
-                                return a.map(function (x) {
-                                    const id = x.id || x.action || x.key || x.name || "";
-                                    const title = x.title || x.label || x.text || String(id);
-                                    const hasInvoke = typeof x.invoke === 'function';
-                                    const hasActivate = typeof x.activate === 'function';
-                                    return {
-                                        id,
-                                        title,
-                                        trigger: function () {
-                                            if (hasInvoke)
-                                                x.invoke();
-                                            else if (hasActivate)
-                                                x.activate();
-                                            else if (n) {
-                                                if (typeof n.invokeAction === 'function')
-                                                    n.invokeAction(String(id));
-                                                else if (typeof n.activateAction === 'function')
-                                                    n.activateAction(String(id));
-                                            }
-                                        }
-                                    };
-                                });
-                            }
+                            visible: (notif.w && notif.w.actionsModel && notif.w.actionsModel.length > 0)
 
                             Flow {
                                 id: actionsFlow
                                 width: parent.width
                                 spacing: 6
                                 Repeater {
-                                    model: actionsBlock.actionsModel
+                                    model: notif.w.actionsModel
                                     delegate: Rectangle {
                                         id: actionBtn
                                         required property var modelData
@@ -193,13 +166,26 @@ Variants {
                                         color: mouseAct.containsMouse ? "#384054" : "#2e3443"
                                         border.color: "#455069"
                                         height: 26
-                                        implicitWidth: label.implicitWidth + 16
-                                        Text {
-                                            id: label
+                                        implicitWidth: (icon.implicitWidth + label.implicitWidth + 18)
+                                        Row {
                                             anchors.centerIn: parent
-                                            text: (actionBtn.modelData.title || actionBtn.modelData.label || actionBtn.modelData.text || String(actionBtn.modelData.id || actionBtn.modelData.action || actionBtn.modelData.key || actionBtn.modelData.name || ""))
-                                            color: mouseAct.containsMouse ? "#eef2f8" : "#cbd2dc"
-                                            font.pixelSize: 12
+                                            spacing: 6
+                                            Image {
+                                                id: icon
+                                                source: actionBtn.modelData.iconSource || ""
+                                                visible: !!source
+                                                width: 14
+                                                height: 14
+                                                sourceSize.width: width
+                                                sourceSize.height: height
+                                                fillMode: Image.PreserveAspectFit
+                                            }
+                                            Text {
+                                                id: label
+                                                text: (actionBtn.modelData.title || actionBtn.modelData.label || actionBtn.modelData.text || String(actionBtn.modelData.id || actionBtn.modelData.action || actionBtn.modelData.key || actionBtn.modelData.name || ""))
+                                                color: mouseAct.containsMouse ? "#eef2f8" : "#cbd2dc"
+                                                font.pixelSize: 12
+                                            }
                                         }
                                         MouseArea {
                                             id: mouseAct
