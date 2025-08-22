@@ -438,7 +438,27 @@ FocusScope {
                 anchors.leftMargin: lockIcon.anchors.leftMargin + lockIcon.width + 8
                 anchors.rightMargin: anchors.leftMargin
             }
+            Rectangle {
+                id: capsIndicator
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.right: parent.right
+                anchors.rightMargin: 14
+                visible: KeyboardLayoutService.capsOn
+                color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+                border.width: 1
+                border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
+                radius: 8
+                implicitHeight: capsText.height + 7
+                implicitWidth: capsText.width + 12
 
+                Text {
+                    id: capsText
+                    anchors.centerIn: parent
+                    text: "Caps Lock"
+                    color: panel.ctx.theme.love
+                    font.pixelSize: 14
+                }
+            }
             Rectangle {
                 anchors.fill: parent
                 radius: parent.radius
@@ -455,7 +475,7 @@ FocusScope {
             }
             // Key handling moved to panel-level FocusScope
 
-            Row {
+            RowLayout {
                 anchors.centerIn: passContent
                 spacing: 7
                 Repeater {

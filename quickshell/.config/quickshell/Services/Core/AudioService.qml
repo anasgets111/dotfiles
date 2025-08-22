@@ -9,19 +9,19 @@ import qs.Services.Utils
 Singleton {
     id: root
 
+    // Step amount for increase/decrease helpers (0..1)
+    readonly property real stepVolume: 0.05
+    // Device tracking caches for connect/disconnect toasts
+    property var _sinkMap: ({}) // key -> display name
+    property var _sourceMap: ({}) // key -> display name
     // Properties — lists of sinks/sources (exclude streams)
-    // OSD/Toast service reference
-    readonly property var osd: OSDService
-    // Defaults and lists
     readonly property PwNode sink: Pipewire.defaultAudioSink
     readonly property PwNode source: Pipewire.defaultAudioSource
     readonly property list<PwNode> sinks: Pipewire.nodes.values.filter(n => !n.isStream && n.isSink)
     readonly property list<PwNode> sources: Pipewire.nodes.values.filter(n => !n.isStream && !n.isSink && n.audio)
-
     // Volume policy
     readonly property real maxVolume: 1.5            // absolute max (1.0 == 100%)
-    readonly property int maxVolumePercent: 150      // display/IPC cap in percent
-
+    readonly property int maxVolumePercent: Math.round(maxVolume * 100)      // display/IPC cap in percent
     // Reactive exposed state (0..maxVolume) with private mirrors
     readonly property alias volume: root._volume
     property real _volume: (root.sink && root.sink.audio ? root.sink.audio.volume : 0)
@@ -29,15 +29,8 @@ Singleton {
     readonly property alias muted: root._muted
     property bool _muted: !!(root.sink && root.sink.audio && root.sink.audio.muted)
 
-    // Step amount for increase/decrease helpers (0..1)
-    readonly property real stepVolume: 0.05
-
     // Signals
     signal micMuteChanged
-
-    // Device tracking caches for connect/disconnect toasts
-    property var _sinkMap: ({}) // key -> display name
-    property var _sourceMap: ({}) // key -> display name
 
     // Suppress OSDs during startup/initial discovery
     property bool _suppressStartupToasts: true
@@ -265,16 +258,16 @@ Singleton {
             root._volume = vol;
             Logger.log("AudioService", "sink volume changed ->", Math.round(vol * 100) + "%");
             if (!root._muted && !root._suppressStartupToasts)
-                root.osd.showInfo("Volume", Math.round(vol * 100) + "%");
+                OSDService.showInfo("Volume", Math.round(vol * 100) + "%");
         }
         function onMutedChanged() {
             root._muted = !!(root.sink && root.sink.audio && root.sink.audio.muted);
             Logger.log("AudioService", "sink muted changed ->", root._muted);
             if (!root._suppressStartupToasts) {
                 if (root._muted)
-                    root.osd.showInfo("Muted");
+                    OSDService.showInfo("Muted");
                 else
-                    root.osd.showInfo("Unmuted", Math.round(root._volume * 100) + "%");
+                    OSDService.showInfo("Unmuted", Math.round(root._volume * 100) + "%");
             }
         }
     }
@@ -284,16 +277,16 @@ Singleton {
             Logger.log("AudioService", "mic volume changed ->", Math.round(root.source.audio.volume * 100) + "%");
             root.micMuteChanged();
             if (!(root.source && root.source.audio && root.source.audio.muted) && !root._suppressStartupToasts)
-                root.osd.showInfo("Mic volume", Math.round(root.source.audio.volume * 100) + "%");
+                OSDService.showInfo("Mic volume", Math.round(root.source.audio.volume * 100) + "%");
         }
         function onMutedChanged() {
             Logger.log("AudioService", "mic muted changed ->", !!(root.source && root.source.audio && root.source.audio.muted));
             root.micMuteChanged();
             if (root.source && root.source.audio && !root._suppressStartupToasts) {
                 if (root.source.audio.muted)
-                    root.osd.showInfo("Mic muted");
+                    OSDService.showInfo("Mic muted");
                 else
-                    root.osd.showInfo("Mic unmuted", Math.round(root.source.audio.volume * 100) + "%");
+                    OSDService.showInfo("Mic unmuted", Math.round(root.source.audio.volume * 100) + "%");
             }
         }
     }
@@ -306,7 +299,7 @@ Singleton {
         if (root.sink && !root._suppressStartupToasts) {
             const name = root.displayName(root.sink);
             if (name)
-                root.osd.showInfo("Output device", name);
+                OSDService.showInfo("Output device", name);
         }
     }
     onSourceChanged: {
@@ -315,7 +308,7 @@ Singleton {
         if (root.source && !root._suppressStartupToasts) {
             const name = root.displayName(root.source);
             if (name)
-                root.osd.showInfo("Input device", name);
+                OSDService.showInfo("Input device", name);
         }
     }
 
@@ -327,12 +320,12 @@ Singleton {
                 const n = diff.added[i];
                 const name = root.displayName(n);
                 if (name)
-                    root.osd.showInfo("Output connected", name);
+                    OSDService.showInfo("Output connected", name);
             }
             for (let j = 0; j < diff.removed.length; j++) {
                 const r = diff.removed[j];
                 if (r && r.name)
-                    root.osd.showInfo("Output removed", r.name);
+                    OSDService.showInfo("Output removed", r.name);
             }
         }
         root._sinkMap = root._listToMap(root.sinks);
@@ -344,12 +337,12 @@ Singleton {
                 const n = diff.added[i];
                 const name = root.displayName(n);
                 if (name)
-                    root.osd.showInfo("Input connected", name);
+                    OSDService.showInfo("Input connected", name);
             }
             for (let j = 0; j < diff.removed.length; j++) {
                 const r = diff.removed[j];
                 if (r && r.name)
-                    root.osd.showInfo("Input removed", r.name);
+                    OSDService.showInfo("Input removed", r.name);
             }
         }
         root._sourceMap = root._listToMap(root.sources);
