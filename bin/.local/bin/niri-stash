@@ -6,15 +6,15 @@ if [[ -z "$1" ]]; then
 fi
 
 STASH_WIN_NAME="$1"
-STASH_WSP_NAME="stash"
+STASH_WSP_NAME="terminal"
 
 # identifiers for window app_id or title
 declare -A NAME
-NAME["s-term"]="s-term"
+NAME["term"]="^(kitty|ghostty|Alacritty)$"
 
 # commands to run for a given identifier
 declare -A CMD
-CMD["s-term"]="kitty -T s-term"
+CMD["term"]="xdg-terminal-exec"
 
 
 main() {
@@ -82,7 +82,13 @@ wait_until_win_exists() {
 get_win_info() {
   # matches identifier against title or app_id
   # get first if multiple exists, useful for windows that cannot set title ie. nautilus
-  niri msg -j windows | jq -c --arg id "$1" 'map(select(.title==$id or .app_id==$id)) | first'
+  niri msg -j windows | jq -c --arg id "$1" '
+    map(
+      select(
+        ((.title  // "") | test($id; "i")) or
+        ((.app_id // "") | test($id; "i"))
+      )
+    ) | first'
 }
 
 get_stash_win_info() {
