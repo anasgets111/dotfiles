@@ -13,7 +13,6 @@ workspace "Terminal" {open-on-output "DP-3";}
 workspace "Telegram" {open-on-output "DP-2";}
 workspace "Discord" {open-on-output "DP-2";}
 workspace "Slack"   {open-on-output "DP-2";}
-workspace "stash" { open-on-output "DP-3"; }
 
 input {
     keyboard {
@@ -253,19 +252,21 @@ draw-border-with-background false
 opacity 0.9
 }
 window-rule {
-    match title="s-"
-    open-on-workspace "stash"
+    match app-id="kitty"
+    match app-id="alacritty"
+    match app-id="com.mitchellh.ghostty"
+    open-on-workspace "terminal"
     open-floating true
-    default-column-width  { proportion 0.74; }
-    default-window-height { proportion 0.74; }
+    default-column-width  { proportion 0.8; }
+    default-window-height { proportion 0.8; }
 }
 binds {
     // "Mod" Super when running on a TTY, and to Alt when running as a winit window.
     // shows a list of important hotkeys.
     Mod+Shift+Slash { show-hotkey-overlay; }
 
-    Mod+Return hotkey-overlay-title="Open a Terminal" { spawn "niri-stash" "s-term"; }
-    Mod+KP_Enter { spawn "niri-stash.sh" "s-term"; }
+    Mod+Return hotkey-overlay-title="Open a Terminal" { spawn "niri-stash" "term"; }
+    Mod+KP_Enter { spawn "niri-stash.sh" "term"; }
     Ctrl+Alt+Delete { spawn "missioncenter"; }
     
     Mod+Z { spawn "zeditor"; }
@@ -351,6 +352,17 @@ binds {
     Mod+8 { focus-workspace "Telegram"; }
     Mod+9 { focus-workspace "Discord"; }
     Mod+0 { focus-workspace "Slack"; }
+
+    Mod+KP_End { focus-workspace "Zen"; }
+    Mod+KP_Down { focus-workspace "Chromium"; }
+    Mod+KP_Next { focus-workspace "Code"; }
+    Mod+KP_Left { focus-workspace "Zed"; }
+    Mod+KP_Begin { focus-workspace "Files"; }
+    Mod+KP_Right { focus-workspace "Games"; }
+    Mod+KP_Home { focus-workspace "Thunderbird"; }
+    Mod+KP_Up { focus-workspace "Telegram"; }
+    Mod+KP_Prior { focus-workspace "Discord"; }
+    Mod+KP_Insert { focus-workspace "Slack"; }
     
     Mod+Shift+1 { move-window-to-workspace "Zen"; }
     Mod+Shift+2 { move-window-to-workspace "Chromium"; }
