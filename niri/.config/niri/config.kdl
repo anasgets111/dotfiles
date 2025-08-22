@@ -13,6 +13,7 @@ workspace "Terminal" {open-on-output "DP-3";}
 workspace "Telegram" {open-on-output "DP-2";}
 workspace "Discord" {open-on-output "DP-2";}
 workspace "Slack"   {open-on-output "DP-2";}
+workspace "stash" { open-on-output "DP-3"; }
 
 input {
     keyboard {
@@ -160,12 +161,7 @@ window-rule {
 match app-id="org.gnome.Nautilus"
 open-on-workspace "Files"
 }
-window-rule {
-match app-id="kitty"
-match app-id="alacritty"
-match app-id="org.gnome.Terminal"
-open-on-workspace "Terminal"
-}
+
 window-rule {
 match app-id="Slack"
 open-on-workspace "Slack"
@@ -256,14 +252,20 @@ clip-to-geometry true
 draw-border-with-background false
 opacity 0.9
 }
-
+window-rule {
+    match title="s-"
+    open-on-workspace "stash"
+    open-floating true
+    default-column-width  { proportion 0.74; }
+    default-window-height { proportion 0.74; }
+}
 binds {
     // "Mod" Super when running on a TTY, and to Alt when running as a winit window.
     // shows a list of important hotkeys.
     Mod+Shift+Slash { show-hotkey-overlay; }
 
-    Mod+Return hotkey-overlay-title="Open a Terminal" { spawn "xdg-terminal-exec"; }
-    Mod+KP_Enter { spawn "xdg-terminal-exec"; }
+    Mod+Return hotkey-overlay-title="Open a Terminal" { spawn "niri-stash" "s-term"; }
+    Mod+KP_Enter { spawn "niri-stash.sh" "s-term"; }
     Ctrl+Alt+Delete { spawn "missioncenter"; }
     
     Mod+Z { spawn "zeditor"; }

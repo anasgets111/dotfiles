@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+if [[ -z "$1" ]]; then
+  echo "no argument provided"
+  exit 1
+fi
+
+STASH_WIN_NAME="$1"
+STASH_WSP_NAME="stash"
+
+# identifiers for window app_id or title
+declare -A NAME
+NAME["s-term"]="s-term"
+
+# commands to run for a given identifier
+declare -A CMD
+CMD["s-term"]="kitty -T s-term"
+
+
+main() {
+
+  create_stash_win_if_none "$1"
+
+  # fetch once to avoid repeated niri/jq calls
+  local STASH_WIN_INFO
+  STASH_WIN_INFO=$(get_stash_win_info)
+  local STASH_WIN_ID
+  STASH_WIN_ID=$(jq '.id' <<<"$STASH_WIN_INFO")
+  local STASH_WIN_IS_FOCUSED
+  STASH_WIN_IS_FOCUSED=$(jq '.is_focused' <<<"$STASH_WIN_INFO")
+
+  local ACTIVE_WSP_NAME
+  ACTIVE_WSP_NAME=$(get_active_wsp_name)
+
+  if [[ "$STASH_WIN_IS_FOCUSED" == "false" ]]; then
+    niri msg action move-window-to-workspace --window-id "$STASH_WIN_ID" "$ACTIVE_WSP_NAME"
+    niri msg action focus-window --id "$STASH_WIN_ID"
+  else
+    # --focus=false supposedly doesnt work yet, but PR is there
+    # https://github.com/YaLTeR/niri/pull/1820
+    niri msg action move-window-to-workspace --window-id "$STASH_WIN_ID" "$STASH_WSP_NAME" --focus=false
+
+    # niri workspace reference includes double quotes for some reason?
+    niri msg action focus-workspace "\"$ACTIVE_WSP_NAME\""
+  fi
+}
+
+create_stash_win() {
+  local cmd="${CMD["$1"]}"
+  niri msg action spawn -- "sh" "-c" "$cmd"
+  wait_until_win_exists "$(map_name_to_identifier "$1")"
+}
+
+map_name_to_identifier() {
+  echo "${NAME["$1"]}"
+}
+
+create_stash_win_if_none() {
+  [[ $(get_stash_win_info) == "null" ]] && create_stash_win "$1"
+}
+
+wait_until_win_exists() {
+  local ident="$1"
+  local max_tries=100   # ~10s at 0.1s interval
+  local delay=0.1
+  local i=0
+  while [[ $(get_win_info "$ident") == "null" && $i -lt $max_tries ]]; do
+    echo "waiting for window: $ident"
+    sleep "$delay"
+    ((i++))
+  done
+
+  if [[ $(get_win_info "$ident") == "null" ]]; then
+    echo "timeout waiting for window: $ident" >&2
+    exit 1
+  fi
+
+  # small extra settle delay
+  sleep "$delay"
+}
+
+get_win_info() {
+  # matches identifier against title or app_id
+  # get first if multiple exists, useful for windows that cannot set title ie. nautilus
+  niri msg -j windows | jq -c --arg id "$1" 'map(select(.title==$id or .app_id==$id)) | first'
+}
+
+get_stash_win_info() {
+  get_win_info "$(map_name_to_identifier "$STASH_WIN_NAME")"
+}
+
+get_active_wsp_name() {
+  niri msg -j workspaces | jq -r '.[] | select(.is_focused==true).name'
+}
+
+main "$@"
