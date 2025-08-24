@@ -41,14 +41,14 @@ ShellRoot {
     Bar {
         id: bar
     }
-    Variants {
-        model: Quickshell.screens
+    // Variants {
+    //     model: Quickshell.screens
 
-        delegate: Toasts {
-            modelData: modelData
-            visible: OSDService.toastVisible
-        }
-    }
+    //     delegate: Toasts {
+    //         modelData: modelData
+    //         visible: OSDService.toastVisible
+    //     }
+    // }
     Notification {}
     // Your wallpapers (unchanged)
     Variants {
