@@ -444,11 +444,11 @@ binds {
 }
 
 debug {
-    honor-xdg-activation-with-invalid-serial
-    wait-for-frame-completion-before-queueing
+    // honor-xdg-activation-with-invalid-serial
+    // wait-for-frame-completion-before-queueing
 }
 environment {
-    DISPLAY ":0"
+    // DISPLAY ":0"
     ELECTRON_OZONE_PLATFORM_HINT "auto"
 }
 screenshot-path "~/Pictures/Screenshot from %Y-%m-%d %H-%M-%S.png"
