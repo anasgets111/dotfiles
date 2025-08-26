@@ -268,6 +268,16 @@ Scope {
                     onClicked: ScreenRecordingService.toggleRecording()
                     cursorShape: Qt.PointingHandCursor
                 }
+
+                Connections {
+                    target: ScreenRecordingService
+                    function onRecordingStarted(path) {
+                        console.log("Recording started:", path);
+                    }
+                    function onRecordingStopped(path) {
+                        console.log("Recording stopped:", path);
+                    }
+                }
             }
             WindowTitle {
                 anchors.centerIn: parent
@@ -275,7 +285,7 @@ Scope {
             Text {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                text: TimeService.formattedDateTime + " - " + MainService.username + " - " + TimeService.formatDuration(SystemInfoService.uptime)
+                text: TimeService.currentTime + " - " + TimeService.currentDate + " - " + MainService.username + " - " + TimeService.formatDuration(SystemInfoService.uptime)
                 color: "#FFFFFF"
                 padding: 12
                 font.bold: true

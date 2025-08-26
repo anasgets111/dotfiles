@@ -10,32 +10,32 @@ Singleton {
     // Toggle global debug logging on/off
     property bool debug: true
     function _formatMessage(...args) {
-        var time = TimeService.getFormattedTimestamp();
-        const timePart = `\x1b[36m[${time}]\x1b[0m`;
+        const timeNow = TimeService.timestamp();
+        const timePart = `\x1b[36m[${timeNow}]\x1b[0m`;
         const maxLength = 16;
 
         function colorModule(moduleRaw) {
-            var name = String(moduleRaw);
-            var clipped = name.substring(0, maxLength);
-            var totalPad = maxLength - clipped.length;
-            var left = Math.floor(totalPad / 2);
-            var right = totalPad - left;
-            var moduleClean = " ".repeat(left) + clipped + " ".repeat(right);
+            const name = String(moduleRaw);
+            const clipped = name.substring(0, maxLength);
+            const totalPadding = maxLength - clipped.length;
+            const padLeft = Math.floor(totalPadding / 2);
+            const padRight = totalPadding - padLeft;
+            const moduleClean = " ".repeat(padLeft) + clipped + " ".repeat(padRight);
             return `\x1b[35m[${moduleClean}]\x1b[0m`;
         }
 
-        var moduleRaw = null;
-        var text = "";
+        let moduleRaw = null;
+        let messageText = "";
 
         if (args.length > 1) {
             moduleRaw = args[0];
-            text = args.slice(1).join(" ");
+            messageText = args.slice(1).join(" ");
         } else {
-            text = String(args.length ? args[0] : "");
+            messageText = String(args.length ? args[0] : "");
         }
 
-        var modulePart = moduleRaw ? colorModule(moduleRaw) + " " : "";
-        return `${timePart} ${modulePart}${text}`;
+        const modulePart = moduleRaw ? colorModule(moduleRaw) + " " : "";
+        return `${timePart} ${modulePart}${messageText}`;
     }
 
     function log(...args) {
