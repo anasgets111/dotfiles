@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Services
 import qs.Services.Utils
+import qs.Services.SystemInfo
 
 Singleton {
     id: updateService
@@ -45,14 +46,23 @@ Singleton {
 
     function runUpdate() {
         if (updates > 0) {
-            Quickshell.execDetached(updateCommand);
+            updateRunner.command = updateCommand;
+            updateRunner.running = true;
         } else {
             doPoll(true);
         }
     }
 
-    function notify(title, body) {
-        Quickshell.execDetached(["notify-send", "-a", notifyApp, "-i", notifyIcon, title || "", body || ""]);
+    Connections {
+        target: NotificationService
+        function onActionInvoked(summary, appName, actionId, body) {
+            if (String(appName) !== updateService.notifyApp)
+                return;
+            if (String(actionId) === "run-updates") {
+                updateRunner.command = updateService.updateCommand;
+                updateRunner.running = true;
+            }
+        }
     }
 
     function startUpdateProcess(cmd) {
@@ -68,6 +78,15 @@ Singleton {
         const full = forceFull || (Date.now() > lastSync + syncInterval);
         lastWasFull = full;
         startUpdateProcess(full ? ["checkupdates", "--nocolor"] : ["checkupdates", "--nosync", "--nocolor"]);
+    }
+
+    Process {
+        id: updateRunner
+        /* qmllint disable */
+        onExited: function (exitCode, exitStatus) {
+            updateService.doPoll(false);
+        }
+        /* qmllint enable */
     }
 
     Process {
@@ -94,7 +113,11 @@ Singleton {
                 updateService.failureCount++;
                 Logger.warn("UpdateService", `checkupdates failed (code: ${exitCode}, status: ${exitStatus})`);
                 if (updateService.failureCount >= updateService.failureThreshold) {
-                    updateService.notify(qsTr("Update check failed"), qsTr(`Exit code: ${exitCode} (failed ${updateService.failureCount} times)`));
+                    NotificationService.send(qsTr("Update check failed"), qsTr(`Exit code: ${exitCode} (failed ${updateService.failureCount} times)`), {
+                        appName: updateService.notifyApp,
+                        appIcon: updateService.notifyIcon,
+                        summaryKey: "update-check-failed"
+                    });
                     updateService.failureCount = 0;
                 }
                 updateService.updatePackages = [];
@@ -115,7 +138,25 @@ Singleton {
                     updateService.lastSync = Date.now();
                 }
 
-                updateService._summarizeAndNotify();
+                if (updateService.updates === 0) {
+                    updateService.lastNotifiedUpdates = 0;
+                } else if (updateService.updates > updateService.lastNotifiedUpdates) {
+                    const added = updateService.updates - updateService.lastNotifiedUpdates;
+                    const msg = added === 1 ? qsTr("One new package can be upgraded (") + updateService.updates + qsTr(")") : `${added} ${qsTr("new packages can be upgraded (")} ${updateService.updates} ${qsTr(")")}`;
+                    NotificationService.send(qsTr("Updates Available"), msg, {
+                        appName: updateService.notifyApp,
+                        appIcon: updateService.notifyIcon,
+                        summaryKey: "updates-available",
+                        actions: [
+                            {
+                                id: "run-updates",
+                                title: qsTr("Run updates"),
+                                iconName: updateService.notifyIcon
+                            }
+                        ]
+                    });
+                    updateService.lastNotifiedUpdates = updateService.updates;
+                }
             }
         }
         stderr: StdioCollector {
@@ -125,20 +166,18 @@ Singleton {
                 if (stderrText) {
                     Logger.warn("UpdateService", "stderr:", stderrText);
                     updateService.failureCount++;
-                    updateService._notifyOnFailureThreshold(stderrText);
+                    if (updateService.failureCount >= updateService.failureThreshold) {
+                        NotificationService.send(qsTr("Update check failed"), stderrText, {
+                            appName: updateService.notifyApp,
+                            appIcon: updateService.notifyIcon,
+                            summaryKey: "update-check-failed"
+                        });
+                        updateService.failureCount = 0;
+                    }
                 } else
                     updateService.failureCount = 0;
             }
         }
-    }
-
-    function _notifyOnFailureThreshold(body) {
-        if (failureCount >= failureThreshold) {
-            notify(qsTr("Update check failed"), body || "");
-            failureCount = 0;
-            return true;
-        }
-        return false;
     }
 
     function _clonePackageList(list) {
@@ -168,19 +207,6 @@ Singleton {
         };
     }
 
-    function _summarizeAndNotify() {
-        if (updates === 0) {
-            lastNotifiedUpdates = 0;
-            return;
-        }
-        if (updates <= lastNotifiedUpdates)
-            return;
-        const added = updates - lastNotifiedUpdates;
-        const msg = added === 1 ? qsTr("One new package can be upgraded (") + updates + qsTr(")") : `${added} ${qsTr("new packages can be upgraded (")} ${updates} ${qsTr(")")}`;
-        notify(qsTr("Updates Available"), msg);
-        lastNotifiedUpdates = updates;
-    }
-
     Timer {
         id: pollTimer
         interval: updateService.pollInterval
@@ -196,7 +222,11 @@ Singleton {
         onTriggered: {
             if (pkgProc.running && updateService.lastWasFull) {
                 Logger.error("UpdateService", "Full update check killed (timeout)");
-                updateService.notify(qsTr("Update check killed"), qsTr("Full sync took too long; terminated"));
+                NotificationService.send(qsTr("Update check killed"), qsTr("Full sync took too long; terminated"), {
+                    appName: updateService.notifyApp,
+                    appIcon: updateService.notifyIcon,
+                    summaryKey: "update-check-killed"
+                });
                 pkgProc.running = false;
             }
         }
