@@ -429,13 +429,13 @@ Singleton {
                 trigger: function () {
                     if (!n)
                         return;
-                    root._logAction(w.id || n.id || "", String(id));
+                    root._logAction(wrapper.id || n.id || "", String(id));
                     if (n.__local === true) {
                         root.actionInvoked(String(n.summary || ""), String(n.appName || ""), String(id), String(n.body || ""));
                         if (typeof n.dismiss === "function")
                             n.dismiss();
                         else
-                            w.popup = false;
+                            wrapper.popup = false;
                     } else {
                         if (typeof n.invokeAction === "function")
                             n.invokeAction(String(id));
@@ -444,7 +444,7 @@ Singleton {
                         if (typeof n.dismiss === "function")
                             n.dismiss();
                         else
-                            w.popup = false;
+                            wrapper.popup = false;
                     }
                 }
             };
