@@ -109,12 +109,12 @@ Singleton {
     }
 
     function send(summary, body, options) {
-        const o = options || {};
+        const optionsObj = options || {};
         const genId = "local-" + root._localIdSeq++;
         const urgency = (() => {
-                const u = o.urgency !== undefined ? o.urgency : NotificationUrgency.Normal;
-                if (typeof u === "string") {
-                    switch (u.toLowerCase()) {
+                const urgencyInput = optionsObj.urgency !== undefined ? optionsObj.urgency : NotificationUrgency.Normal;
+                if (typeof urgencyInput === "string") {
+                    switch (urgencyInput.toLowerCase()) {
                     case "low":
                         return NotificationUrgency.Low;
                     case "critical":
@@ -123,117 +123,117 @@ Singleton {
                         return NotificationUrgency.Normal;
                     }
                 }
-                return Number(u);
+                return Number(urgencyInput);
             })();
         const reply = (() => {
-                const r = o.reply || {};
-                if (!r.enabled)
+                const replyOptions = optionsObj.reply || {};
+                if (!replyOptions.enabled)
                     return null;
                 return {
                     enabled: true,
-                    placeholder: String(r.placeholder || ""),
-                    minLength: Number(r.minLength || 0),
-                    maxLength: Number(r.maxLength || 0),
+                    placeholder: String(replyOptions.placeholder || ""),
+                    minLength: Number(replyOptions.minLength || 0),
+                    maxLength: Number(replyOptions.maxLength || 0),
                     submitted: null
                 };
             })();
-        const n = localNotifComp.createObject(root, {
+        const localNotification = localNotifComp.createObject(root, {
             id: genId,
             summary: String(summary || ""),
             body: String(body || ""),
-            bodyFormat: String(o.bodyFormat || "plain"),
-            appName: String(o.appName || "notify-send"),
-            appIcon: String(o.appIcon || ""),
-            image: String(o.image || ""),
-            summaryKey: String(o.summaryKey || ""),
+            bodyFormat: String(optionsObj.bodyFormat || "plain"),
+            appName: String(optionsObj.appName || "notify-send"),
+            appIcon: String(optionsObj.appIcon || ""),
+            image: String(optionsObj.image || ""),
+            summaryKey: String(optionsObj.summaryKey || ""),
             urgency,
-            expireTimeout: typeof o.expireTimeout === "number" ? o.expireTimeout : -1,
-            actions: Array.isArray(o.actions) ? o.actions : [],
+            expireTimeout: typeof optionsObj.expireTimeout === "number" ? optionsObj.expireTimeout : -1,
+            actions: Array.isArray(optionsObj.actions) ? optionsObj.actions : [],
             reply
         });
-        if (!n)
+        if (!localNotification)
             return "";
-        _present(n);
+        _present(localNotification);
         return genId;
     }
 
     function _timeInRange(nowH, nowM, startStr, endStr) {
-        const toHM = s => {
-            const [h, m] = String(s || "0:0").split(":");
-            const hh = Math.max(0, Math.min(23, Number(h || 0)));
-            const mm = Math.max(0, Math.min(59, Number(m || 0)));
-            return [hh, mm];
+        const toHM = timeString => {
+            const [hoursRaw, minutesRaw] = String(timeString || "0:0").split(":");
+            const hours = Math.max(0, Math.min(23, Number(hoursRaw || 0)));
+            const minutes = Math.max(0, Math.min(59, Number(minutesRaw || 0)));
+            return [hours, minutes];
         };
-        const [sh, sm] = toHM(startStr);
-        const [eh, em] = toHM(endStr);
-        const start = sh * 60 + sm;
-        const end = eh * 60 + em;
-        const now = nowH * 60 + nowM;
-        if (start === end)
+        const [startHours, startMinutes] = toHM(startStr);
+        const [endHours, endMinutes] = toHM(endStr);
+        const startTotal = startHours * 60 + startMinutes;
+        const endTotal = endHours * 60 + endMinutes;
+        const nowTotal = nowH * 60 + nowM;
+        if (startTotal === endTotal)
             return false;
-        if (start < end)
-            return now >= start && now < end;
-        return now >= start || now < end; // overnight
+        if (startTotal < endTotal)
+            return nowTotal >= startTotal && nowTotal < endTotal;
+        return nowTotal >= startTotal || nowTotal < endTotal; // overnight
     }
 
     function _evalDnd(notification) {
-        const p = root.dndPolicy || {};
-        if (!p.enabled)
+        const policy = root.dndPolicy || {};
+        if (!policy.enabled)
             return "bypass";
 
-        const urg = notification && notification.urgency !== undefined ? Number(notification.urgency) : NotificationUrgency.Normal;
+        const urgency = notification && notification.urgency !== undefined ? Number(notification.urgency) : NotificationUrgency.Normal;
 
-        if (p.urgency?.bypassCritical && urg === NotificationUrgency.Critical)
+        if (policy.urgency?.bypassCritical && urgency === NotificationUrgency.Critical)
             return "bypass";
 
-        if (p.appRules) {
-            const name = String(notification?.appName || "");
-            const allow = Array.isArray(p.appRules.allow) ? p.appRules.allow : [];
-            const deny = Array.isArray(p.appRules.deny) ? p.appRules.deny : [];
-            if (allow.length && !allow.includes(name))
-                return p.behavior === "suppress" ? "suppress" : "queue";
-            if (deny.includes(name))
-                return p.behavior === "suppress" ? "suppress" : "queue";
+        if (policy.appRules) {
+            const appName = String(notification?.appName || "");
+            const allow = Array.isArray(policy.appRules.allow) ? policy.appRules.allow : [];
+            const deny = Array.isArray(policy.appRules.deny) ? policy.appRules.deny : [];
+            if (allow.length && !allow.includes(appName))
+                return policy.behavior === "suppress" ? "suppress" : "queue";
+            if (deny.includes(appName))
+                return policy.behavior === "suppress" ? "suppress" : "queue";
         }
 
-        if (Array.isArray(p.schedule) && p.schedule.length) {
-            const now = new Date();
-            const dow = now.getDay();
-            const h = now.getHours();
-            const m = now.getMinutes();
-            for (let i = 0; i < p.schedule.length; i++) {
-                const s = p.schedule[i] || {};
-                const days = Array.isArray(s.days) ? s.days : [];
-                if (days.length && !days.includes(dow))
+        if (Array.isArray(policy.schedule) && policy.schedule.length) {
+            const nowDate = new Date();
+            const dayOfWeek = nowDate.getDay();
+            const currentHour = nowDate.getHours();
+            const currentMinute = nowDate.getMinutes();
+            for (let index = 0; index < policy.schedule.length; index++) {
+                const scheduleItem = policy.schedule[index] || {};
+                const days = Array.isArray(scheduleItem.days) ? scheduleItem.days : [];
+                if (days.length && !days.includes(dayOfWeek))
                     continue;
-                if (root._timeInRange(h, m, s.start, s.end))
-                    return p.behavior === "suppress" ? "suppress" : "queue";
+                if (root._timeInRange(currentHour, currentMinute, scheduleItem.start, scheduleItem.end))
+                    return policy.behavior === "suppress" ? "suppress" : "queue";
             }
         }
 
-        if (p.urgency?.suppressLow && urg === NotificationUrgency.Low)
+        if (policy.urgency?.suppressLow && urgency === NotificationUrgency.Low)
             return "suppress";
 
-        if (!(Array.isArray(p.schedule) && p.schedule.length))
-            return p.behavior === "suppress" ? "suppress" : "queue";
+        if (!(Array.isArray(policy.schedule) && policy.schedule.length))
+            return policy.behavior === "suppress" ? "suppress" : "queue";
         return "bypass";
     }
 
     function setDndPolicy(patch) {
-        function merge(a, b) {
-            const out = {};
-            for (const k in a) {
-                if (Object.prototype.hasOwnProperty.call(a, k))
-                    out[k] = a[k];
+        function merge(base, patchObj) {
+            const merged = {};
+            for (const key in base) {
+                if (Object.prototype.hasOwnProperty.call(base, key))
+                    merged[key] = base[key];
             }
-            for (const k in b) {
-                if (!Object.prototype.hasOwnProperty.call(b, k))
+            for (const key in patchObj) {
+                if (!Object.prototype.hasOwnProperty.call(patchObj, key))
                     continue;
-                const va = a[k];
-                const vb = b[k];
-                out[k] = vb && typeof vb === "object" && !Array.isArray(vb) ? merge(va || {}, vb) : vb;
+                const baseValue = base[key];
+                const patchValue = patchObj[key];
+                merged[key] = patchValue && typeof patchValue === "object" && !Array.isArray(patchValue) ? merge(baseValue || {}, patchValue) : patchValue;
             }
-            return out;
+            return merged;
         }
         root.dndPolicy = merge({
             enabled: false,
@@ -255,65 +255,76 @@ Singleton {
 
     // ----- Groups -----
     function _touchGroup(notification) {
-        const app = String(notification?.appName || "");
-        const key = String(notification?.summaryKey || notification?.summary || "");
-        if (!app || !key)
+        const appName = String(notification?.appName || "");
+        const summaryKey = String(notification?.summaryKey || notification?.summary || "");
+        if (!appName || !summaryKey)
             return "";
-        const gid = app + ":" + key;
-        const now = Date.now();
-        const nid = String(notification?.id || notification?.dbusId) || "gen-" + now + "-" + Math.floor(Math.random() * 100000);
-        const g = root.groupsMap[gid] || {
-            id: gid,
-            title: key,
+        const groupId = appName + ":" + summaryKey;
+        const nowTimestamp = Date.now();
+        const notificationId = String(notification?.id || notification?.dbusId) || "gen-" + nowTimestamp + "-" + Math.floor(Math.random() * 100000);
+        const groupEntry = root.groupsMap[groupId] || {
+            id: groupId,
+            title: summaryKey,
             children: [],
             expanded: false,
-            updatedAt: now,
-            appName: app
+            updatedAt: nowTimestamp,
+            appName: appName
         };
-        g.children = [nid].concat(g.children || []);
-        g.updatedAt = now;
-        root.groupsMap[gid] = g;
+        groupEntry.children = [notificationId].concat(groupEntry.children || []);
+        groupEntry.updatedAt = nowTimestamp;
+        root.groupsMap[groupId] = groupEntry;
         _saveGroups();
-        return gid;
+        return groupId;
     }
 
     function groups() {
-        const arr = [];
-        const m = root.groupsMap || {};
-        for (const k in m)
-            arr.push(m[k]);
-        arr.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-        return arr;
+        const groupsArray = [];
+        const groupsMapRef = root.groupsMap || {};
+        for (const groupKey in groupsMapRef)
+            groupsArray.push(groupsMapRef[groupKey]);
+        groupsArray.sort((groupA, groupB) => (groupB.updatedAt || 0) - (groupA.updatedAt || 0));
+        return groupsArray;
     }
 
     function toggleGroup(groupId, expanded) {
-        const g = root.groupsMap[groupId];
-        if (!g)
+        const groupEntry = root.groupsMap[groupId];
+        if (!groupEntry)
             return;
-        g.expanded = expanded === undefined ? !g.expanded : !!expanded;
-        g.updatedAt = Date.now();
-        root.groupsMap[groupId] = g;
+        groupEntry.expanded = expanded === undefined ? !groupEntry.expanded : !!expanded;
+        groupEntry.updatedAt = Date.now();
+        root.groupsMap[groupId] = groupEntry;
         _saveGroups();
     }
 
     // ----- Sanitizer -----
     function _sanitizeHtml(input) {
         try {
-            let s = String(input || "");
-            s = s.replace(/<\/(?:script|style)>/gi, "");
-            s = s.replace(/<(?:script|style)[\s\S]*?>[\s\S]*?<\/(?:script|style)>/gi, "");
-            s = s.replace(/<([^>]+)>/g, function (m, p1) {
-                const tag = String(p1).trim().split(/\s+/)[0].toLowerCase();
-                const allowed = ["b", "strong", "i", "em", "u", "a", "br", "p", "span"];
-                if (!allowed.includes(tag) && !allowed.includes(tag.replace(/^\//, "")))
+            let sanitized = String(input || "");
+            sanitized = sanitized.replace(/<\/(?:script|style)>/gi, "");
+            sanitized = sanitized.replace(/<(?:script|style)[\s\S]*?>[\s\S]*?<\/(?:script|style)>/gi, "");
+            sanitized = sanitized.replace(/<([^>]+)>/g, function (match, tagContent) {
+                const tag = String(tagContent).trim().split(/\s+/)[0].toLowerCase();
+                const allowedTags = ["b", "strong", "i", "em", "u", "a", "br", "p", "span"];
+                if (!allowedTags.includes(tag) && !allowedTags.includes(tag.replace(/^\//, "")))
                     return "";
                 if (tag === "a" || tag === "/a")
-                    return m.replace(/javascript:/gi, "");
-                return m;
+                    return match.replace(/javascript:/gi, "");
+                return match;
             });
-            return s;
+            return sanitized;
         } catch (e) {
             return String(input || "");
+        }
+    }
+
+    function _urgencyToString(urgency) {
+        switch (Number(urgency)) {
+        case NotificationUrgency.Low:
+            return "low";
+        case NotificationUrgency.Critical:
+            return "critical";
+        default:
+            return "normal";
         }
     }
 
@@ -406,7 +417,7 @@ Singleton {
             return fmt === "markup" ? root._sanitizeHtml(String(wrapper.body || "")) : wrapper.body;
         }
 
-        function _mkActionEntry(n, id, title, iconName) {
+        function _mkActionEntry(notification, id, title, iconName) {
             const iconSource = iconName ? Quickshell.iconPath(String(iconName), true) : "";
             return {
                 id,
@@ -414,22 +425,22 @@ Singleton {
                 iconName: iconName || "",
                 iconSource,
                 trigger: function () {
-                    if (!n)
+                    if (!notification)
                         return;
-                    root._logAction(wrapper.id || n.id || "", String(id));
-                    if (n.__local === true) {
-                        root.actionInvoked(String(n.summary || ""), String(n.appName || ""), String(id), String(n.body || ""));
-                        if (typeof n.dismiss === "function")
-                            n.dismiss();
+                    root._logAction(wrapper.id || notification.id || "", String(id));
+                    if (notification.__local === true) {
+                        root.actionInvoked(String(notification.summary || ""), String(notification.appName || ""), String(id), String(notification.body || ""));
+                        if (typeof notification.dismiss === "function")
+                            notification.dismiss();
                         else
                             wrapper.popup = false;
                     } else {
-                        if (typeof n.invokeAction === "function")
-                            n.invokeAction(String(id));
-                        else if (typeof n.activateAction === "function")
-                            n.activateAction(String(id));
-                        if (typeof n.dismiss === "function")
-                            n.dismiss();
+                        if (typeof notification.invokeAction === "function")
+                            notification.invokeAction(String(id));
+                        else if (typeof notification.activateAction === "function")
+                            notification.activateAction(String(id));
+                        if (typeof notification.dismiss === "function")
+                            notification.dismiss();
                         else
                             wrapper.popup = false;
                     }
@@ -438,23 +449,23 @@ Singleton {
         }
 
         readonly property var actionsModel: {
-            const a = wrapper.notification?.actions || [];
-            if (!a.length)
+            const rawActions = wrapper.notification?.actions || [];
+            if (!rawActions.length)
                 return [];
-            if (typeof a[0] === "string") {
-                const out = [];
-                for (let i = 0; i + 1 < a.length; i += 2)
-                    out.push(_mkActionEntry(wrapper.notification, String(a[i]), String(a[i + 1]), ""));
-                return out;
+            if (typeof rawActions[0] === "string") {
+                const actions = [];
+                for (let index = 0; index + 1 < rawActions.length; index += 2)
+                    actions.push(_mkActionEntry(wrapper.notification, String(rawActions[index]), String(rawActions[index + 1]), ""));
+                return actions;
             }
-            return a.map(x => _mkActionEntry(wrapper.notification, String(x?.id || x?.action || x?.key || x?.name || ""), String(x?.title || x?.label || x?.text || ""), x ? x.icon || x.iconName || x.icon_id || "" : ""));
+            return rawActions.map(action => _mkActionEntry(wrapper.notification, String(action?.id || action?.action || action?.key || action?.name || ""), String(action?.title || action?.label || action?.text || ""), action ? action.icon || action.iconName || action.icon_id || "" : ""));
         }
 
         readonly property Timer timer: Timer {
             interval: {
-                const t = wrapper.expireTimeout;
-                if (typeof t === "number" && t > 0)
-                    return t;
+                const configuredTimeout = wrapper.expireTimeout;
+                if (typeof configuredTimeout === "number" && configuredTimeout > 0)
+                    return configuredTimeout;
                 switch (wrapper.urgency) {
                 case NotificationUrgency.Critical:
                     return root.timeoutCritical;
@@ -475,11 +486,11 @@ Singleton {
         readonly property RetainableLock retainLock: RetainableLock {
             object: wrapper.notification?.__local === true ? null : wrapper.notification
             onDropped: {
-                const idx = root.all.indexOf(wrapper);
-                if (idx !== -1) {
-                    const arr = root.all.slice();
-                    arr.splice(idx, 1);
-                    root.all = arr;
+                const wrapperIndex = root.all.indexOf(wrapper);
+                if (wrapperIndex !== -1) {
+                    const allCopy = root.all.slice();
+                    allCopy.splice(wrapperIndex, 1);
+                    root.all = allCopy;
                 }
                 root._release(wrapper);
             }
@@ -504,9 +515,9 @@ Singleton {
             return null;
 
         // DND at arrival
-        const dnd = _evalDnd(notification); // "bypass" | "queue" | "suppress"
-        const showNow = dnd === "bypass";
-        const allowQueue = dnd !== "suppress";
+        const dndDecision = _evalDnd(notification); // "bypass" | "queue" | "suppress"
+        const showNow = dndDecision === "bypass";
+        const allowQueue = dndDecision !== "suppress";
 
         const wrapper = notifComp.createObject(root, {
             popup: showNow,
@@ -534,112 +545,102 @@ Singleton {
             return;
         if (root.visible.length >= root.maxVisible)
             return;
-        const q = root.queue.slice();
-        const next = q.shift();
-        root.queue = q;
-        if (!next)
+        const queueCopy = root.queue.slice();
+        const nextWrapper = queueCopy.shift();
+        root.queue = queueCopy;
+        if (!nextWrapper)
             return;
 
         // Re-check DND at display time
-        const eff = _evalDnd(next.notification);
-        if (eff === "queue" || eff === "suppress") {
-            root.queue = [next].concat(root.queue);
+        const effectiveDnd = _evalDnd(nextWrapper.notification);
+        if (effectiveDnd === "queue" || effectiveDnd === "suppress") {
+            root.queue = [nextWrapper].concat(root.queue);
             return;
         }
 
-        root.visible = root.visible.concat([next]);
-        next.popup = true;
-        next.status = "visible";
+        root.visible = root.visible.concat([nextWrapper]);
+        nextWrapper.popup = true;
+        nextWrapper.status = "visible";
 
-        if (next.timer.interval > 0)
-            next.timer.start();
+        if (nextWrapper.timer.interval > 0)
+            nextWrapper.timer.start();
 
         root._addGateBusy = true;
         addGate.restart();
     }
 
-    function _onHidden(w) {
-        const i = root.visible.indexOf(w);
-        if (i !== -1) {
-            const v = root.visible.slice();
-            v.splice(i, 1);
-            root.visible = v;
+    function _onHidden(notifWrapper) {
+        const visibleIndex = root.visible.indexOf(notifWrapper);
+        if (visibleIndex !== -1) {
+            const visibleCopy = root.visible.slice();
+            visibleCopy.splice(visibleIndex, 1);
+            root.visible = visibleCopy;
         }
-        if (w.status === "visible")
-            w.status = "hidden";
+        if (notifWrapper.status === "visible")
+            notifWrapper.status = "hidden";
 
         // Remove local notifications after hiding
-        if (w.notification?.__local === true) {
-            const ai = root.all.indexOf(w);
-            if (ai !== -1) {
-                const a = root.all.slice();
-                a.splice(ai, 1);
-                root.all = a;
+        if (notifWrapper.notification?.__local === true) {
+            const allIndex = root.all.indexOf(notifWrapper);
+            if (allIndex !== -1) {
+                const allCopy = root.all.slice();
+                allCopy.splice(allIndex, 1);
+                root.all = allCopy;
             }
         }
         _processQueue();
     }
 
-    function _release(w) {
-        const v = root.visible.slice();
-        const vi = v.indexOf(w);
-        if (vi !== -1) {
-            v.splice(vi, 1);
-            root.visible = v;
+    function _release(notifWrapper) {
+        const visibleCopy = root.visible.slice();
+        const visibleIndex = visibleCopy.indexOf(notifWrapper);
+        if (visibleIndex !== -1) {
+            visibleCopy.splice(visibleIndex, 1);
+            root.visible = visibleCopy;
         }
-        const q = root.queue.slice();
-        const qi = q.indexOf(w);
-        if (qi !== -1) {
-            q.splice(qi, 1);
-            root.queue = q;
+        const queueCopy = root.queue.slice();
+        const queueIndex = queueCopy.indexOf(notifWrapper);
+        if (queueIndex !== -1) {
+            queueCopy.splice(queueIndex, 1);
+            root.queue = queueCopy;
         }
     }
 
     function list(filters) {
-        const f = filters || {};
-        const inSet = (val, set) => !set ? true : Array.isArray(set) ? set.includes(val) : set === val;
-        const urgStr = u => {
-            switch (Number(u)) {
-            case NotificationUrgency.Low:
-                return "low";
-            case NotificationUrgency.Critical:
-                return "critical";
-            default:
-                return "normal";
-            }
-        };
-        const out = [];
-        for (let i = 0; i < root.all.length; i++) {
-            const w = root.all[i];
-            if (!w)
+        const filtersObj = filters || {};
+        const isInSet = (value, set) => !set ? true : Array.isArray(set) ? set.includes(value) : set === value;
+        const results = [];
+        for (let index = 0; index < root.all.length; index++) {
+            const wrapper = root.all[index];
+            if (!wrapper)
                 continue;
-            const n = w.notification;
-            const app = String(n?.appName || "");
-            const us = urgStr(n ? n.urgency : NotificationUrgency.Normal);
-            const ts = w.time ? w.time.getTime() : Date.now();
-            if (f.status && !inSet(String(w.status || ""), f.status))
+            const notification = wrapper.notification;
+            const appName = String(notification?.appName || "");
+            const urgencyString = _urgencyToString(notification ? notification.urgency : NotificationUrgency.Normal);
+            const timestamp = wrapper.time ? wrapper.time.getTime() : Date.now();
+            if (filtersObj.status && !isInSet(String(wrapper.status || ""), filtersObj.status))
                 continue;
-            if (f.urgency && !inSet(us, f.urgency))
+            if (filtersObj.urgency && !isInSet(urgencyString, filtersObj.urgency))
                 continue;
-            if (f.app && !inSet(app, f.app))
+            if (filtersObj.app && !isInSet(appName, filtersObj.app))
                 continue;
-            if (f.from && ts < f.from)
+            if (filtersObj.from && timestamp < filtersObj.from)
                 continue;
-            if (f.to && ts > f.to)
+            if (filtersObj.to && timestamp > filtersObj.to)
                 continue;
-            out.push(w);
+            results.push(wrapper);
         }
-        return out;
+        return results;
     }
 
     function acknowledge(id) {
-        const s = String(id || "");
-        for (let i = 0; i < root.all.length; i++) {
-            const w = root.all[i];
-            const wid = String(w?.id || w?.notification?.id || "");
-            if (wid === s) {
-                w.popup = false;
-                w.status = "hidden";
+        const searchId = String(id || "");
+        for (let index = 0; index < root.all.length; index++) {
+            const wrapper = root.all[index];
+            const wrapperId = String(wrapper?.id || wrapper?.notification?.id || "");
+            if (wrapperId === searchId) {
+                wrapper.popup = false;
+                wrapper.status = "hidden";
                 return {
                     ok: true
                 };
@@ -660,47 +661,47 @@ Singleton {
     }
 
     function clearPopups() {
-        const vis = root.visible.slice();
-        for (let i = 0; i < vis.length; i++)
-            vis[i].popup = false;
+        const visibleCopy = root.visible.slice();
+        for (let index = 0; index < visibleCopy.length; index++)
+            visibleCopy[index].popup = false;
         root.queue = [];
     }
 
     function clearAll() {
         const items = root.all.slice();
-        for (let i = 0; i < items.length; i++) {
-            const w = items[i];
-            if (!w)
+        for (let index = 0; index < items.length; index++) {
+            const wrapper = items[index];
+            if (!wrapper)
                 continue;
-            if (typeof w.notification?.dismiss === "function")
-                w.notification.dismiss();
-            if (w.notification?.__local === true) {
-                const ai = root.all.indexOf(w);
-                if (ai !== -1) {
-                    const a = root.all.slice();
-                    a.splice(ai, 1);
-                    root.all = a;
+            if (typeof wrapper.notification?.dismiss === "function")
+                wrapper.notification.dismiss();
+            if (wrapper.notification?.__local === true) {
+                const allIndex = root.all.indexOf(wrapper);
+                if (allIndex !== -1) {
+                    const allCopy = root.all.slice();
+                    allCopy.splice(allIndex, 1);
+                    root.all = allCopy;
                 }
             }
         }
         root.queue = [];
-        const vis = root.visible.slice();
-        for (let i = 0; i < vis.length; i++)
-            vis[i].popup = false;
+        const visibleCopy = root.visible.slice();
+        for (let index = 0; index < visibleCopy.length; index++)
+            visibleCopy[index].popup = false;
     }
 
     function executeAction(id, actionId) {
-        const s = String(id || "");
-        const a = String(actionId || "");
-        for (let i = 0; i < root.all.length; i++) {
-            const w = root.all[i];
-            const wid = String(w?.id || w?.notification?.id || "");
-            if (wid === s) {
-                const actions = w.actionsModel || [];
-                for (let j = 0; j < actions.length; j++) {
-                    if (String(actions[j].id) === a) {
-                        root._logAction(wid, a);
-                        actions[j].trigger();
+        const searchId = String(id || "");
+        const searchActionId = String(actionId || "");
+        for (let index = 0; index < root.all.length; index++) {
+            const wrapper = root.all[index];
+            const wrapperId = String(wrapper?.id || wrapper?.notification?.id || "");
+            if (wrapperId === searchId) {
+                const actions = wrapper.actionsModel || [];
+                for (let actionIndex = 0; actionIndex < actions.length; actionIndex++) {
+                    if (String(actions[actionIndex].id) === searchActionId) {
+                        root._logAction(wrapperId, searchActionId);
+                        actions[actionIndex].trigger();
                         return {
                             ok: true
                         };
@@ -719,12 +720,12 @@ Singleton {
     }
 
     function reply(id, text) {
-        const s = String(id || "");
-        for (let i = 0; i < root.all.length; i++) {
-            const w = root.all[i];
-            const wid = String(w?.id || w?.notification?.id || "");
-            if (wid === s)
-                return w.submitReply(text);
+        const searchId = String(id || "");
+        for (let index = 0; index < root.all.length; index++) {
+            const wrapper = root.all[index];
+            const wrapperId = String(wrapper?.id || wrapper?.notification?.id || "");
+            if (wrapperId === searchId)
+                return wrapper.submitReply(text);
         }
         return {
             ok: false,
@@ -751,30 +752,30 @@ Singleton {
         root.replyLog = (root.replyLog || []).concat([rec]);
         _saveLogs();
 
-        let app = "";
-        let sum = "";
-        for (let i = 0; i < root.all.length; i++) {
-            const w = root.all[i];
-            const wid = String(w?.id || w?.notification?.id || "");
-            if (wid === String(id)) {
-                app = String(w.notification?.appName || "");
-                sum = String(w.notification?.summary || "");
+        let appName = "";
+        let summary = "";
+        for (let index = 0; index < root.all.length; index++) {
+            const wrapper = root.all[index];
+            const wrapperId = String(wrapper?.id || wrapper?.notification?.id || "");
+            if (wrapperId === String(id)) {
+                appName = String(wrapper.notification?.appName || "");
+                summary = String(wrapper.notification?.summary || "");
                 break;
             }
         }
-        root.replySubmitted(String(id), String(text), app, sum);
+        root.replySubmitted(String(id), String(text), appName, summary);
     }
 
     function _loadLogs() {
         try {
-            const a = JSON.parse(store.actionLogJson || "[]");
-            root.actionLog = Array.isArray(a) ? a : [];
+            const actionArray = JSON.parse(store.actionLogJson || "[]");
+            root.actionLog = Array.isArray(actionArray) ? actionArray : [];
         } catch (e) {
             root.actionLog = [];
         }
         try {
-            const r = JSON.parse(store.replyLogJson || "[]");
-            root.replyLog = Array.isArray(r) ? r : [];
+            const replyArray = JSON.parse(store.replyLogJson || "[]");
+            root.replyLog = Array.isArray(replyArray) ? replyArray : [];
         } catch (e) {
             root.replyLog = [];
         }
@@ -799,53 +800,53 @@ Singleton {
         } catch (e) {
             items = [];
         }
-        for (let i = 0; i < items.length; i++) {
-            const it = items[i];
+        for (let index = 0; index < items.length; index++) {
+            const item = items[index];
             historyModel.append({
-                id: String(it.id || ""),
-                summary: String(it.summary || ""),
-                body: String(it.body || ""),
-                bodyFormat: String(it.bodyFormat || "plain"),
-                image: String(it.image || ""),
-                appName: String(it.appName || ""),
-                urgency: Number(it.urgency),
-                groupId: String(it.groupId || ""),
-                timestamp: it.timestamp ? new Date(Number(it.timestamp)) : new Date()
+                id: String(item.id || ""),
+                summary: String(item.summary || ""),
+                body: String(item.body || ""),
+                bodyFormat: String(item.bodyFormat || "plain"),
+                image: String(item.image || ""),
+                appName: String(item.appName || ""),
+                urgency: Number(item.urgency),
+                groupId: String(item.groupId || ""),
+                timestamp: item.timestamp ? new Date(Number(item.timestamp)) : new Date()
             });
         }
     }
 
     function _saveHistory() {
         const arr = [];
-        for (let i = 0; i < historyModel.count; i++) {
-            const n = historyModel.get(i);
+        for (let index = 0; index < historyModel.count; index++) {
+            const item = historyModel.get(index);
             arr.push({
-                id: n.id || "",
-                summary: n.summary,
-                body: n.body,
-                bodyFormat: n.bodyFormat || "plain",
-                image: n.image || "",
-                appName: n.appName,
-                urgency: n.urgency,
-                groupId: n.groupId || "",
-                timestamp: n.timestamp instanceof Date ? n.timestamp.getTime() : n.timestamp
+                id: item.id || "",
+                summary: item.summary,
+                body: item.body,
+                bodyFormat: item.bodyFormat || "plain",
+                image: item.image || "",
+                appName: item.appName,
+                urgency: item.urgency,
+                groupId: item.groupId || "",
+                timestamp: item.timestamp instanceof Date ? item.timestamp.getTime() : item.timestamp
             });
         }
         store.historyStoreJson = JSON.stringify(arr);
     }
 
     function _addToHistory(obj) {
-        const n = obj?.notification ? obj.notification : obj;
-        const idVal = obj?.id || n?.id || "";
+        const notification = obj?.notification ? obj.notification : obj;
+        const idVal = obj?.id || notification?.id || "";
         historyModel.insert(0, {
             id: String(idVal || ""),
-            summary: String(n?.summary || ""),
-            body: String(n?.body || ""),
-            bodyFormat: String(n?.bodyFormat || "plain"),
-            image: String(n?.image || ""),
-            appName: String(n?.appName || ""),
-            urgency: Number(n?.urgency ?? NotificationUrgency.Normal),
-            groupId: String(obj?.groupId || n?.groupId || ""),
+            summary: String(notification?.summary || ""),
+            body: String(notification?.body || ""),
+            bodyFormat: String(notification?.bodyFormat || "plain"),
+            image: String(notification?.image || ""),
+            appName: String(notification?.appName || ""),
+            urgency: Number(notification?.urgency ?? NotificationUrgency.Normal),
+            groupId: String(obj?.groupId || notification?.groupId || ""),
             timestamp: new Date()
         });
         while (historyModel.count > maxHistory)
@@ -860,8 +861,8 @@ Singleton {
 
     function _loadGroups() {
         try {
-            const g = JSON.parse(store.groupsJson || "{}");
-            root.groupsMap = g && typeof g === "object" ? g : {};
+            const parsedGroups = JSON.parse(store.groupsJson || "{}");
+            root.groupsMap = parsedGroups && typeof parsedGroups === "object" ? parsedGroups : {};
         } catch (e) {
             root.groupsMap = {};
         }
