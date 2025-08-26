@@ -5,38 +5,20 @@ import Quickshell
 import Quickshell.Services.Mpris
 import qs.Services.Utils
 
-// Unified MediaService: combines manual/auto player selection, metadata/capabilities,
-// position tracking, keyboard shortcuts, and IPC control.
 Singleton {
     id: root
 
-    // === Players ===
     readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values : []
-    readonly property list<MprisPlayer> players: allPlayers.filter(p => p && p.canControl)
-    // Back-compat alias used by some consumers
+    readonly property list<MprisPlayer> players: allPlayers.filter(player => player && player.canControl)
     readonly property list<MprisPlayer> list: players
-
-    // === Selection overrides ===
+    readonly property bool hasPlayers: players.length > 0
+    readonly property bool hasActive: !!active
+    readonly property string activeIconName: iconNameForPlayer(active)
+    readonly property string activeAlbumName: trackAlbum
+    readonly property string activeAlbumArtUrl: trackArtUrl
+    readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
     property MprisPlayer manualActive: null            // If set, takes precedence
     property int selectedPlayerIndex: -1               // If >=0 and valid, selects that player
-
-    // === Active player resolution ===
-    // Order: manual -> selected index -> playing -> Spotify -> controllable playable -> first
-    readonly property MprisPlayer active: {
-        var chosen = null;
-        if (manualActive) {
-            chosen = manualActive;
-        } else if (selectedPlayerIndex >= 0 && selectedPlayerIndex < players.length) {
-            chosen = players[selectedPlayerIndex];
-        } else {
-            chosen = players.find(p => p.isPlaying) || allPlayers.find(p => p.identity === "Spotify") || players.find(p => p.canControl && p.canPlay) || players[0] || null;
-        }
-        chosen;
-    }
-
-    // === Metadata (mirror active player) ===
-    readonly property bool hasPlayers: players.length > 0
-    readonly property bool hasActive: active !== null
     property bool isPlaying: active ? active.isPlaying : false
     property string trackTitle: active ? (active.trackTitle || "") : ""
     property string trackArtist: active ? (active.trackArtist || "") : ""
@@ -44,19 +26,27 @@ Singleton {
     property string trackArtUrl: active ? (active.trackArtUrl || "") : ""
     property real infiniteTrackLength: 922337203685
     property real trackLength: active ? ((active.length < infiniteTrackLength) ? active.length : 0) : 0
-
-    // === Playback capabilities ===
     property bool canPlay: active ? active.canPlay : false
     property bool canPause: active ? active.canPause : false
     property bool canGoNext: active ? active.canGoNext : false
     property bool canGoPrevious: active ? active.canGoPrevious : false
     property bool canToggle: active ? active.canTogglePlaying : false
     property bool canSeek: active ? active.canSeek : false
+    property real currentPosition: 0
 
-    // === Convenience (UI helpers) ===
-    // Map player identity/desktop entry to a themed icon name with minimal rules.
-    function iconNameForPlayer(a) {
-        if (!a)
+    // Order: manual -> selected index -> playing -> Spotify -> controllable playable -> first
+    readonly property MprisPlayer active: (
+        manualActive
+        || (selectedPlayerIndex >= 0 && selectedPlayerIndex < players.length ? players[selectedPlayerIndex] : null)
+        || players.find(player => player.isPlaying)
+        || allPlayers.find(player => player.identity === "Spotify")
+        || players.find(player => player.canControl && player.canPlay)
+        || players[0]
+        || null
+    )
+
+    function iconNameForPlayer(player) {
+        if (!player)
             return "audio-x-generic";
 
         function normalize(name) {
@@ -67,47 +57,34 @@ Singleton {
             }
         }
         function canonical(name) {
-            var l = String(name).toLowerCase();
-            if (l.indexOf("google chrome") !== -1 || l === "chrome")
+            var lowerName = String(name).toLowerCase();
+            if (lowerName.indexOf("google chrome") !== -1 || lowerName === "chrome")
                 return "google-chrome";
-            if (l.indexOf("microsoft edge") !== -1 || l === "edge")
+            if (lowerName.indexOf("microsoft edge") !== -1 || lowerName === "edge")
                 return "microsoft-edge";
-            if (l.indexOf("firefox") !== -1)
+            if (lowerName.indexOf("firefox") !== -1)
                 return "firefox";
-            if (l.indexOf("zen") !== -1)
+            if (lowerName.indexOf("zen") !== -1)
                 return "zen";
-            if (l.indexOf("brave") !== -1)
+            if (lowerName.indexOf("brave") !== -1)
                 return "brave-browser";
-            if (l.indexOf("youtube music") !== -1 || l.indexOf("youtubemusic") !== -1)
+            if (lowerName.indexOf("youtube music") !== -1 || lowerName.indexOf("youtubemusic") !== -1)
                 return "youtube-music";
             return name;
         }
 
-        // Prefer desktop entry when available; most icon themes ship by that name
-        var de = a.desktopEntry || "";
-        if (de) {
-            var cde = canonical(de);
-            var nde = normalize(cde);
-            return nde || "audio-x-generic";
+        var desktopEntry = player.desktopEntry || "";
+        if (desktopEntry) {
+            var canonicalDesktopEntry = canonical(desktopEntry);
+            var normalizedDesktopEntry = normalize(canonicalDesktopEntry);
+            return normalizedDesktopEntry || "audio-x-generic";
         }
 
-        // Fallback: identity-based guess, canonicalized and normalized
-        var id = a.identity || "";
-        var cid = canonical(id);
-        var nid = normalize(cid);
-        return nid || "audio-x-generic";
+        var identityString = player.identity || "";
+        var canonicalIdentity = canonical(identityString);
+        var normalizedIdentity = normalize(canonicalIdentity);
+        return normalizedIdentity || "audio-x-generic";
     }
-
-    // Best-effort themed icon name for the active player
-    readonly property string activeIconName: iconNameForPlayer(active)
-    readonly property string activeAlbumName: trackAlbum
-    readonly property string activeAlbumArtUrl: trackArtUrl
-    readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
-
-    // === Position tracking (updated while playing) ===
-    property real currentPosition: 0
-
-    // (no-op) icon name changes are reflected where bound; no extra logging
 
     onActiveChanged: {
         // Reset or sync position when active player changes
@@ -118,10 +95,6 @@ Singleton {
             Logger.log("MediaService", "active -> none; players=", root.players.length);
     }
 
-    // Track selection overrides: no extra logs
-
-    // === Player list changes ===
-    // Keep selected index sane as players appear/disappear
     Connections {
         target: Mpris.players
         function onValuesChanged() {
@@ -132,7 +105,6 @@ Singleton {
         }
     }
 
-    // === Position timer ===
     Timer {
         id: positionTimer
         interval: 1000
@@ -147,7 +119,6 @@ Singleton {
         }
     }
 
-    // === Controls API (callable from QML/IPC) ===
     function playPause() {
         if (!active) {
             Logger.warn("MediaService", "playPause requested but no active player");
@@ -244,7 +215,4 @@ Singleton {
             Logger.warn("MediaService", "seekByRatio unsupported: canSeek=", canSeek, "length=", trackLength);
         }
     }
-
-    // Keyboard shortcuts can be wired by the shell/WM; IPC methods below provide control hooks.
-
 }
