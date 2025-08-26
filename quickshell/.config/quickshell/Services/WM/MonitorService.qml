@@ -11,13 +11,13 @@ import qs.Services.WM.Impl.Niri as Niri
 Singleton {
     id: monitorService
     // Preferred main monitor from MainService, may be empty
-    property string configuredMainMonitor: MainService.mainMon ? MainService.mainMon : ""
-    // Computed main monitor with fallback to first available monitor in the model
+    property string configuredMainMonitor: MainService.mainMon || ""
+
+    // Computed main monitor with fallback to first available monitor
     readonly property string mainMonitor: {
-        if (configuredMainMonitor && configuredMainMonitor.length)
+        if (configuredMainMonitor.length > 0)
             return configuredMainMonitor;
-        // Fallback: first monitor in the current model
-        return monitorsModel && monitorsModel.count > 0 ? monitorsModel.get(0).name : "";
+        return monitorsModel.count > 0 ? monitorsModel.get(0).name : "";
     }
     property ListModel monitorsModel: ListModel {}
     // Select backend implementation declaratively based on current WM
@@ -29,38 +29,34 @@ Singleton {
     Connections {
         target: Quickshell
         function onScreensChanged() {
-            const list = monitorService.normalizeScreens(Quickshell.screens);
-            monitorService.updateMonitors(list);
+            const normalizedScreens = monitorService.normalizeScreens(Quickshell.screens);
+            monitorService.updateMonitors(normalizedScreens);
             if (monitorService.impl)
-                monitorService.logMonitorFeatures(list);
+                monitorService.logMonitorFeatures(normalizedScreens);
         }
     }
 
-    // Initialize model with current screens at startup
     Component.onCompleted: {
-        const list = normalizeScreens(Quickshell.screens);
-        updateMonitors(list);
+        const normalizedScreens = normalizeScreens(Quickshell.screens);
+        updateMonitors(normalizedScreens);
         if (impl)
-            logMonitorFeatures(list);
+            logMonitorFeatures(normalizedScreens);
     }
 
-    // Helper: convert ListModel to plain JS array for logging/inspection
     function monitorsModelToArray() {
-        var arr = [];
-        for (var i = 0; i < monitorsModel.count; i++) {
-            arr.push(monitorsModel.get(i));
+        const result = [];
+        for (let i = 0; i < monitorsModel.count; i++) {
+            result.push(monitorsModel.get(i));
         }
-        return arr;
+        return result;
     }
 
-    // When backend impl becomes available or changes, refresh feature info
     onImplChanged: {
         if (impl) {
             logMonitorFeatures(monitorsModelToArray());
         }
     }
 
-    // Live updates from Niri backend: refresh features when notified
     Connections {
         target: (monitorService.impl && MainService.currentWM === "niri") ? monitorService.impl : null
         function onFeaturesMayHaveChanged() {
@@ -69,81 +65,67 @@ Singleton {
     }
 
     function normalizeScreens(screens) {
-        // Convert to a plain array to ensure Array.map is available
-        const list = Array.prototype.slice.call(screens);
-        return list.map(function (s) {
-            return {
-                name: s.name,
-                width: s.width,
-                height: s.height,
-                scale: s.devicePixelRatio || 1,
-                fps: s.refreshRate || 60,
-                bitDepth: s.colorDepth || 8,
-                orientation: s.orientation,
-                // Legacy string for UI that expects a simple mode indicator
-                vrr: "off",
-                // New fine-grained capability/state flags
-                vrrSupported: false,
-                hdrSupported: false,
-                vrrActive: false,
-                hdrActive: false
-            };
-        });
+        return Array.prototype.slice.call(screens).map(screen => ({
+                    name: screen.name,
+                    width: screen.width,
+                    height: screen.height,
+                    scale: screen.devicePixelRatio || 1,
+                    fps: screen.refreshRate || 60,
+                    bitDepth: screen.colorDepth || 8,
+                    orientation: screen.orientation,
+                    vrr: "off" // legacy
+                    ,
+                    vrrSupported: false,
+                    hdrSupported: false,
+                    vrrActive: false,
+                    hdrActive: false
+                }));
     }
 
-    function updateMonitors(newList) {
-        const existingCount = monitorsModel.count;
-        const newCount = newList.length;
-        let setChanged = false;
+    function updateMonitors(newScreens) {
+        const oldCount = monitorsModel.count;
+        const newCount = newScreens.length;
+        let modelChanged = false;
 
-        const minCount = Math.min(existingCount, newCount);
+        const minCount = Math.min(oldCount, newCount);
         for (let i = 0; i < minCount; i++) {
-            const oldItem = monitorsModel.get(i);
-            const m = newList[i];
-            if (!monitorService.sameMonitor(oldItem, m)) {
-                // Merge to avoid clobbering capability/state flags updated asynchronously
-                const merged = Utils.mergeObjects(oldItem, m);
+            const oldMonitor = monitorsModel.get(i);
+            const newMonitor = newScreens[i];
+            if (!monitorService.sameMonitor(oldMonitor, newMonitor)) {
+                const merged = Utils.mergeObjects(oldMonitor, newMonitor);
                 monitorsModel.set(i, merged);
-                setChanged = true;
+                modelChanged = true;
             }
         }
 
-        if (existingCount > newCount) {
-            setChanged = true;
-            for (let i = existingCount - 1; i >= newCount; i--) {
+        if (oldCount > newCount) {
+            modelChanged = true;
+            for (let i = oldCount - 1; i >= newCount; i--) {
                 monitorsModel.remove(i);
             }
         }
 
-        if (newCount > existingCount) {
-            setChanged = true;
-            for (let i = existingCount; i < newCount; i++) {
-                monitorsModel.append(newList[i]);
+        if (newCount > oldCount) {
+            modelChanged = true;
+            for (let i = oldCount; i < newCount; i++) {
+                monitorsModel.append(newScreens[i]);
             }
         }
 
-        if (setChanged) {
+        if (modelChanged) {
             monitorsChanged();
         }
     }
 
-    // Compare two monitor entries for equality (only structural fields from Quickshell.screens)
-    function sameMonitor(a, b) {
-        if (!a || !b)
+    function sameMonitor(monitorA, monitorB) {
+        if (!monitorA || !monitorB)
             return false;
         const keys = ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"];
-        for (let i = 0; i < keys.length; i++) {
-            const k = keys[i];
-            if (a[k] !== b[k])
-                return false;
-        }
-        return true;
+        return keys.every(key => monitorA[key] === monitorB[key]);
     }
 
-    // mergeObjects moved to Utils
-
     function findMonitorIndexByName(name) {
-        for (var i = 0; i < monitorsModel.count; i++) {
+        for (let i = 0; i < monitorsModel.count; i++) {
             if (monitorsModel.get(i).name === name)
                 return i;
         }
@@ -151,7 +133,7 @@ Singleton {
     }
 
     function parseEdidCapabilities(connectorName, callback) {
-        const unsupported = {
+        const defaultCaps = {
             vrr: {
                 supported: false
             },
@@ -160,20 +142,16 @@ Singleton {
             }
         };
 
-        // Step 1: List /sys/class/drm
-        Utils.runCmd(["sh", "-c", "ls /sys/class/drm"], function (stdout) {
+        Utils.runCmd(["sh", "-c", "ls /sys/class/drm"], stdout => {
             const entries = stdout.split(/\r?\n/).filter(Boolean);
-
-            // Step 2: Find matching entry
             const match = entries.find(line => line.endsWith(`-${connectorName}`));
             if (!match) {
-                callback(unsupported);
+                callback(defaultCaps);
                 return;
             }
 
-            // Step 3: Run edid-decode on the matched entry
             const edidPath = `/sys/class/drm/${match}/edid`;
-            Utils.runCmd(["edid-decode", edidPath], function (text) {
+            Utils.runCmd(["edid-decode", edidPath], text => {
                 const vrrSupported = /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text);
                 const hdrSupported = /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text);
                 callback({
@@ -188,38 +166,33 @@ Singleton {
         }, monitorService);
     }
 
-    function logMonitorFeatures(list) {
-        if (!impl || !impl.getAvailableFeatures) {
+    function logMonitorFeatures(monitors) {
+        if (!impl || !impl.getAvailableFeatures)
             return;
-        }
 
-        for (let i = 0; i < list.length; i++) {
-            const mon = list[i];
-            parseEdidCapabilities(mon.name, function (caps) {
-                const idx = monitorService.findMonitorIndexByName(mon.name);
+        for (const monitor of monitors) {
+            parseEdidCapabilities(monitor.name, caps => {
+                const idx = monitorService.findMonitorIndexByName(monitor.name);
                 if (idx < 0)
                     return;
-                // Update support flags immediately (only if changed)
                 let dirty = false;
-                const itemNow = monitorsModel.get(idx);
-                const vrrSupported = !!(caps && caps.vrr && caps.vrr.supported);
-                const hdrSupported = !!(caps && caps.hdr && caps.hdr.supported);
-                if (itemNow.vrrSupported !== vrrSupported) {
+                const current = monitorsModel.get(idx);
+                const vrrSupported = !!(caps?.vrr?.supported);
+                const hdrSupported = !!(caps?.hdr?.supported);
+                if (current.vrrSupported !== vrrSupported) {
                     monitorsModel.setProperty(idx, "vrrSupported", vrrSupported);
                     dirty = true;
                 }
-                if (itemNow.hdrSupported !== hdrSupported) {
+                if (current.hdrSupported !== hdrSupported) {
                     monitorsModel.setProperty(idx, "hdrSupported", hdrSupported);
                     dirty = true;
                 }
                 if (dirty)
                     monitorsChanged();
 
-                impl.getAvailableFeatures(mon.name, function (features) {
+                impl.getAvailableFeatures(monitor.name, features => {
                     if (!features)
                         return;
-                    // Active states from WM impl (only if changed)
-                    const current = monitorsModel.get(idx);
                     let dirtyActive = false;
                     const vrrActive = !!(features.vrr && (features.vrr.active || features.vrr.enabled));
                     const hdrActive = !!(features.hdr && (features.hdr.active || features.hdr.enabled));
@@ -244,29 +217,23 @@ Singleton {
     }
 
     function setMode(name, width, height, refreshRate) {
-        if (impl && impl.setMode)
-            impl.setMode(name, width, height, refreshRate);
+        impl?.setMode(name, width, height, refreshRate);
     }
     function setScale(name, scale) {
-        if (impl && impl.setScale)
-            impl.setScale(name, scale);
+        impl?.setScale(name, scale);
     }
     function setTransform(name, transform) {
-        if (impl && impl.setTransform)
-            impl.setTransform(name, transform);
+        impl?.setTransform(name, transform);
     }
     function setPosition(name, x, y) {
-        if (impl && impl.setPosition)
-            impl.setPosition(name, x, y);
+        impl?.setPosition(name, x, y);
     }
     function setVrr(name, mode) {
-        if (impl && impl.setVrr)
-            impl.setVrr(name, mode);
+        impl?.setVrr(name, mode);
     }
     function changeMonitorSettings(settings) {
-        if (!impl) {
+        if (!impl)
             return;
-        }
         const {
             name,
             width,
@@ -277,32 +244,22 @@ Singleton {
             position,
             vrr
         } = settings;
-        if (width && height && refreshRate && impl.setMode) {
+        if (width && height && refreshRate)
             impl.setMode(name, width, height, refreshRate);
-        }
-        if (scale && impl.setScale) {
+        if (scale)
             impl.setScale(name, scale);
-        }
-        if (transform && impl.setTransform) {
+        if (transform)
             impl.setTransform(name, transform);
-        }
-        if (position && impl.setPosition) {
+        if (position)
             impl.setPosition(name, position.x, position.y);
-        }
-        if (vrr && impl.setVrr) {
+        if (vrr)
             impl.setVrr(name, vrr);
-        }
     }
     function getAvailableFeatures(name, callback) {
-        if (impl && impl.getAvailableFeatures) {
-            impl.getAvailableFeatures(name, callback);
-        } else {
-            callback(null);
-        }
+        impl?.getAvailableFeatures(name, callback) ?? callback(null);
     }
 
-    // Log whenever the model changes or capabilities update
     onMonitorsChanged: {
-        Logger.log("MonitorService", "current monitors:", JSON.stringify(monitorService.monitorsModelToArray()));
+        Logger.log("MonitorService", "current monitors:", JSON.stringify(monitorsModelToArray()));
     }
 }

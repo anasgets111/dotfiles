@@ -7,26 +7,22 @@ import qs.Services
 Singleton {
     id: niriMonitorService
     readonly property bool active: MainService.ready && MainService.currentWM === "niri"
-    readonly property bool enabled: niriMonitorService.active
     readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
 
-    // Simple request socket with FIFO reply handlers
     property var _replyQueue: []
-    // Emitted when output-related features may have changed (e.g., after a set*, or config reload)
+
     signal featuresMayHaveChanged
 
     Socket {
         id: requestSocket
         path: niriMonitorService.socketPath
-        connected: niriMonitorService.enabled && !!niriMonitorService.socketPath
+        connected: niriMonitorService.active && !!niriMonitorService.socketPath
 
         onConnectionStateChanged: {
             if (!connected) {
-                // Flush pending callbacks on disconnect
                 while (niriMonitorService._replyQueue.length > 0) {
-                    const cb = niriMonitorService._replyQueue.shift();
-                    if (cb)
-                        cb(null);
+                    const callback = niriMonitorService._replyQueue.shift();
+                    callback(null);
                 }
             }
         }
@@ -36,55 +32,47 @@ Singleton {
             onRead: function (segment) {
                 if (!segment)
                     return;
-                let resp = null;
-                try {
-                    resp = JSON.parse(segment);
-                } catch (e) {
-                    resp = null;
-                }
-                const cb = niriMonitorService._replyQueue.shift();
-                if (cb)
-                    cb(resp);
+                let response = null;
+                response = JSON.parse(segment);
+                const callback = niriMonitorService._replyQueue.shift();
+                callback(response);
             }
         }
     }
 
-    function _sendRaw(raw, cb) {
+    function _sendRaw(raw, callback) {
         if (!requestSocket.connected) {
-            cb(null);
+            callback(null);
             return;
         }
-        niriMonitorService._replyQueue.push(cb || function () {});
+        _replyQueue.push(callback || function () {});
         requestSocket.write(raw.endsWith("\n") ? raw : raw + "\n");
     }
 
-    function _send(obj, cb) {
-        _sendRaw(JSON.stringify(obj), cb);
+    function _send(obj, callback) {
+        _sendRaw(JSON.stringify(obj), callback);
     }
 
     function getAvailableFeatures(name, callback) {
-        // Query outputs and map to the legacy shape
-        _sendRaw('"Outputs"', function (resp) {
-            if (!resp || !resp.Ok || !Array.isArray(resp.Ok)) {
+        _sendRaw('"Outputs"', response => {
+            if (!response?.Ok || !Array.isArray(response.Ok)) {
                 callback(null);
                 return;
             }
-            const outputs = resp.Ok;
-            const out = outputs.find(o => o && o.name === name);
-            if (!out) {
+            const output = response.Ok.find(o => o?.name === name);
+            if (!output) {
                 callback(null);
                 return;
             }
-            const modes = (out.modes || []).map(m => ({
+            const modes = (output.modes || []).map(m => ({
                         width: m.width,
                         height: m.height,
-                        // convert mHz to Hz float
-                        refreshRate: typeof m.refresh_rate === "number" ? (m.refresh_rate / 1000.0) : null
+                        refreshRate: typeof m.refresh_rate === "number" ? m.refresh_rate / 1000.0 : null
                     }));
             callback({
-                modes: modes,
+                modes,
                 vrr: {
-                    active: !!out.vrr_enabled
+                    active: !!output.vrr_enabled
                 },
                 hdr: {
                     active: false
@@ -94,28 +82,26 @@ Singleton {
     }
 
     function setMode(name, width, height, refreshRate) {
-        const req = {
+        _send({
             Output: {
                 output: name,
                 action: {
                     Mode: {
                         mode: {
                             Specific: {
-                                width: width,
-                                height: height,
+                                width,
+                                height,
                                 refresh: refreshRate
                             }
                         }
                     }
                 }
             }
-        };
-        _send(req, function (resp) {
-            niriMonitorService.featuresMayHaveChanged();
-        });
+        }, () => featuresMayHaveChanged());
     }
+
     function setScale(name, scale) {
-        const req = {
+        _send({
             Output: {
                 output: name,
                 action: {
@@ -126,93 +112,77 @@ Singleton {
                     }
                 }
             }
-        };
-        _send(req, function (resp) {
-            niriMonitorService.featuresMayHaveChanged();
-        });
+        }, () => featuresMayHaveChanged());
     }
+
     function setTransform(name, transform) {
-        const req = {
+        _send({
             Output: {
                 output: name,
                 action: {
                     Transform: {
-                        transform: transform
+                        transform
                     }
                 }
             }
-        };
-        _send(req, function (resp) {
-            niriMonitorService.featuresMayHaveChanged();
-        });
+        }, () => featuresMayHaveChanged());
     }
+
     function setPosition(name, x, y) {
-        const req = {
+        _send({
             Output: {
                 output: name,
                 action: {
                     Position: {
                         position: {
                             Specific: {
-                                x: x,
-                                y: y
+                                x,
+                                y
                             }
                         }
                     }
                 }
             }
-        };
-        _send(req, function (resp) {
-            niriMonitorService.featuresMayHaveChanged();
-        });
+        }, () => featuresMayHaveChanged());
     }
+
     function setVrr(name, mode) {
         const lower = String(mode || "").toLowerCase();
         let vrr = {
             vrr: false,
             on_demand: false
         };
-        if (lower === "off") {
-            vrr = {
-                vrr: false,
-                on_demand: false
-            };
-        } else if (lower === "on-demand" || lower === "ondemand") {
+        if (lower === "on-demand" || lower === "ondemand")
             vrr = {
                 vrr: true,
                 on_demand: true
             };
-        } else if (lower === "on" || lower === "enabled") {
+        else if (lower === "on" || lower === "enabled")
             vrr = {
                 vrr: true,
                 on_demand: false
             };
-        }
-        const req = {
+
+        _send({
             Output: {
                 output: name,
                 action: {
                     Vrr: {
-                        vrr: vrr
+                        vrr
                     }
                 }
             }
-        };
-        _send(req, function (resp) {
-            niriMonitorService.featuresMayHaveChanged();
-        });
+        }, () => featuresMayHaveChanged());
     }
 
-    // Event stream: listen for config reloads and refresh features
     Socket {
         id: eventStreamSocket
         path: niriMonitorService.socketPath
-        connected: niriMonitorService.enabled && !!niriMonitorService.socketPath
+        connected: niriMonitorService.active && !!niriMonitorService.socketPath
 
         onConnectionStateChanged: {
-            if (connected) {
+            if (connected)
                 write('"EventStream"\n');
-            }
         }
 
         parser: SplitParser {
@@ -221,9 +191,8 @@ Singleton {
                 if (!segment)
                     return;
                 const event = JSON.parse(segment);
-                if (event && event.ConfigLoaded) {
+                if (event?.ConfigLoaded)
                     niriMonitorService.featuresMayHaveChanged();
-                }
             }
         }
     }
