@@ -179,7 +179,8 @@ run_step() {
         sed -e 's/^/    │ /' "$step_log" || true
         echo
       fi
-      return $rc
+  # Do not abort the whole script; record failure and continue
+  return 0
     fi
   else
     print_line "$desc" "$INFO_TAG"
@@ -242,7 +243,8 @@ run_step() {
     else
       print_line "$desc" "$FAIL_TAG"
       : $(( FAIL_COUNT++ ))
-      return $rc
+  # Do not abort the whole script; record failure and continue
+  return 0
     fi
   fi
 }
