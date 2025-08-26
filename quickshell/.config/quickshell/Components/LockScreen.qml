@@ -50,7 +50,7 @@ Scope {
             readonly property var screenWallpaper: WallpaperService ? WallpaperService.wallpaperFor(lockSurface.screen) : null
             readonly property bool blurDisabled: Quickshell.env("QS_DISABLE_LOCK_BLUR") === "1"
             readonly property bool hasScreen: !!lockSurface.screen
-            readonly property bool isMainMonitor: !!(lockSurface.screen && MonitorService && MonitorService.mainMonitor === lockSurface.screen.name)
+            readonly property bool isMainMonitor: !!(lockSurface.screen && MonitorService && MonitorService.activeMain === lockSurface.screen.name)
             Image {
                 anchors.fill: parent
                 source: WallpaperService.ready && lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper ? lockSurface.screenWallpaper.wallpaper : ""
