@@ -1,4 +1,3 @@
-// MonitorService.qml
 pragma Singleton
 import Quickshell
 import QtQml
