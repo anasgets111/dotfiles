@@ -106,6 +106,60 @@ Singleton {
     }
 
     // =====================
+    // Desktop entry helpers
+    // =====================
+    /**
+     * Resolve a desktop entry by app id/name.
+     * Tries heuristicLookup (when available), then byId.
+     * Returns the entry object or null on failure.
+     */
+    function resolveDesktopEntry(appIdOrName) {
+        const lookupKey = String(appIdOrName || "");
+        if (!lookupKey || typeof DesktopEntries === "undefined")
+            return null;
+        try {
+            return (DesktopEntries.heuristicLookup ? DesktopEntries.heuristicLookup(lookupKey) : null) || DesktopEntries.byId(lookupKey) || null;
+        } catch (exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolve an icon source with a single, flexible API.
+     * Forms:
+     *   resolveIconSource(appIdOrName, fallbackIconName)
+     *   resolveIconSource(appIdOrName, providedIcon, fallbackIconName)
+     * Order:
+     *   1) Desktop entry icon for appIdOrName
+     *   2) providedIcon (if 3-arg form): file:/data:/absolute used as-is; otherwise themed via Quickshell.iconPath
+     *   3) fallbackIconName:
+     *      - undefined/null -> defaults to "application-default-icon"
+     *      - ""            -> no fallback (returns "" if 1 & 2 miss)
+     */
+    function resolveIconSource(appIdOrName, providedOrFallback, maybeFallback) {
+        // Detect 2-arg vs 3-arg form
+        const providedIconCandidate = arguments.length >= 3 ? providedOrFallback : null;
+        const fallbackNameCandidate = arguments.length >= 3 ? maybeFallback : providedOrFallback;
+        // 1) Desktop entry themed icon
+        const entry = utils.resolveDesktopEntry(appIdOrName);
+        const iconName = entry && entry.icon ? String(entry.icon) : "";
+        const themedSource = iconName ? Quickshell.iconPath(iconName, true) : "";
+        if (themedSource)
+            return themedSource;
+        // 2) Provided icon (3-arg form only)
+        if (providedIconCandidate) {
+            const rawProvidedIcon = String(providedIconCandidate);
+            const fromProvided = (rawProvidedIcon.startsWith("file:") || rawProvidedIcon.startsWith("/") || rawProvidedIcon.startsWith("data:")) ? rawProvidedIcon : Quickshell.iconPath(rawProvidedIcon, true);
+            if (fromProvided)
+                return fromProvided;
+        }
+        // 3) Fallback handling
+        const useDefaultFallback = fallbackNameCandidate === undefined || fallbackNameCandidate === null;
+        const fallbackName = useDefaultFallback ? "application-default-icon" : String(fallbackNameCandidate);
+        return fallbackName ? (Quickshell.iconPath(fallbackName, true) || "") : "";
+    }
+
+    // =====================
     // Lock LED Watcher API
     // =====================
     // Public:

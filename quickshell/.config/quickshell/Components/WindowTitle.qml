@@ -1,6 +1,6 @@
 import QtQuick
-import Quickshell
 import Quickshell.Wayland
+import qs.Services.Utils
 
 Item {
     id: activeWindow
@@ -10,16 +10,7 @@ Item {
     property string currentClass: ""
     property string appName: ""
     // Resolve app icon from desktop entry when possible
-    readonly property string appIconSource: {
-        if (!activeWindow.currentClass)
-            return "";
-        var entry = DesktopEntries.heuristicLookup(activeWindow.currentClass) || DesktopEntries.byId(activeWindow.currentClass);
-        var iconName = entry && entry.icon ? entry.icon : "";
-        var src = iconName ? Quickshell.iconPath(iconName, true) : "";
-        if (!src)
-            src = Quickshell.iconPath("application-default-icon", true);
-        return src;
-    }
+    readonly property string appIconSource: Utils.resolveIconSource(activeWindow.currentClass, "application-default-icon")
     property string displayText: ""
 
     function updateActive() {
@@ -27,7 +18,7 @@ Item {
         if (top) {
             activeWindow.currentTitle = top.title || "";
             activeWindow.currentClass = top.appId || "";
-            var entry = DesktopEntries.byId(activeWindow.currentClass);
+            var entry = Utils.resolveDesktopEntry(activeWindow.currentClass);
             activeWindow.appName = entry && entry.name ? entry.name : activeWindow.currentClass;
         } else {
             activeWindow.currentTitle = "";
