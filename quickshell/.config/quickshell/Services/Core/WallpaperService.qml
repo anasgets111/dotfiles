@@ -4,105 +4,89 @@ import QtQuick
 import qs.Services.WM
 import qs.Services.Utils
 
-// WallpaperService keeps only wallpaper-related preferences per monitor.
-// Monitor geometry and state are sourced directly from MonitorService.
 Singleton {
     id: wallpaperService
 
-    property var monitorService: MonitorService
-    readonly property bool ready: !!(monitorService && monitorService.ready && monitorService.monitorsModel.count > 0)
+    readonly property bool ready: !!(MonitorService.ready && MonitorService.monitorsModel.count > 0)
 
-    // Default wallpaper and default mode applied when no preference exists
     property string defaultWallpaper: "/mnt/Work/1Wallpapers/Main/samurai.jpg"
     property string defaultMode: "fill" // fill | fit | center, etc.
 
-    // Preferences keyed by monitor name
     // { [name]: { wallpaper: string, mode: string, dir?: string, random?: bool, interval?: int } }
     property var prefsByName: ({})
-
-    // Per-monitor cached file lists for random rotation (dir -> files)
     property var filesByName: ({})
-
-    // Per-monitor timers for random rotation
     property var timersByName: ({})
 
-    // Derived view for UI: combine MonitorService geometry with wallpaper prefs
     readonly property var wallpapersArray: Array.from({
-        length: monitorService && monitorService.ready ? monitorService.monitorsModel.count : 0
-    }, (_, i) => {
-        const m = monitorService.monitorsModel.get(i);
-        const p = prefsByName[m.name] || {};
+        length: MonitorService.ready ? MonitorService.monitorsModel.count : 0
+    }, (unusedValue, monitorIndex) => {
+        const monitor = MonitorService.monitorsModel.get(monitorIndex);
+        const prefs = prefsByName[monitor.name] || {};
         return {
-            name: m.name,
-            width: m.width,
-            height: m.height,
-            scale: m.scale,
-            fps: m.fps,
-            bitDepth: m.bitDepth,
-            orientation: m.orientation,
-            wallpaper: p.wallpaper || defaultWallpaper,
-            mode: p.mode || defaultMode
+            name: monitor.name,
+            width: monitor.width,
+            height: monitor.height,
+            scale: monitor.scale,
+            fps: monitor.fps,
+            bitDepth: monitor.bitDepth,
+            orientation: monitor.orientation,
+            wallpaper: prefs.wallpaper || defaultWallpaper,
+            mode: prefs.mode || defaultMode
         };
     })
 
-    // Helper: get or create prefs for a monitor name
     function ensurePrefs(name) {
         if (!prefsByName.hasOwnProperty(name)) {
             prefsByName[name] = {
                 wallpaper: defaultWallpaper,
                 mode: defaultMode,
                 random: false,
-                interval: 300 // seconds
+                interval: 300
             };
         }
         return prefsByName[name];
     }
 
-    // Helper: get wallpapers entry for name or screen object
     function wallpaperFor(nameOrScreen) {
         const name = typeof nameOrScreen === "string" ? nameOrScreen : (nameOrScreen && nameOrScreen.name) || null;
         if (!name)
             return null;
-        const idx = monitorService ? monitorService.findMonitorIndexByName(name) : -1;
-        if (idx < 0)
+        const monitorIndex = MonitorService ? MonitorService.findMonitorIndexByName(name) : -1;
+        if (monitorIndex < 0)
             return null;
-        const m = monitorService.monitorsModel.get(idx);
-        const p = prefsByName[name] || {};
+        const monitor = MonitorService.monitorsModel.get(monitorIndex);
+        const prefs = prefsByName[name] || {};
         return {
             name: name,
-            width: m.width,
-            height: m.height,
-            scale: m.scale,
-            fps: m.fps,
-            bitDepth: m.bitDepth,
-            orientation: m.orientation,
-            wallpaper: p.wallpaper || defaultWallpaper,
-            mode: p.mode || defaultMode
+            width: monitor.width,
+            height: monitor.height,
+            scale: monitor.scale,
+            fps: monitor.fps,
+            bitDepth: monitor.bitDepth,
+            orientation: monitor.orientation,
+            wallpaper: prefs.wallpaper || defaultWallpaper,
+            mode: prefs.mode || defaultMode
         };
     }
 
-    // Sync prefs and timers with current monitors
     function syncWithMonitors() {
-        if (!monitorService || !monitorService.ready) {
+        if (!MonitorService || !MonitorService.ready) {
             Logger.log("WallpaperService", "sync: monitorService not ready; skipping");
             return;
         }
-
         Logger.log("WallpaperService", "sync: begin");
 
-        // Add defaults for new monitors and ensure timers
-        for (let i = 0; i < monitorService.monitorsModel.count; i++) {
-            const m = monitorService.monitorsModel.get(i);
-            ensurePrefs(m.name);
-            ensureTimer(m.name);
+        for (let monitorIndex = 0; monitorIndex < MonitorService.monitorsModel.count; monitorIndex++) {
+            const monitor = MonitorService.monitorsModel.get(monitorIndex);
+            ensurePrefs(monitor.name);
+            ensureTimer(monitor.name);
         }
 
-        // Remove prefs/timers for monitors that no longer exist
         const existingNames = Object.keys(prefsByName);
-        for (let j = 0; j < existingNames.length; j++) {
-            const name = existingNames[j];
-            const idx = monitorService.findMonitorIndexByName(name);
-            if (idx < 0) {
+        for (let nameIndex = 0; nameIndex < existingNames.length; nameIndex++) {
+            const name = existingNames[nameIndex];
+            const monitorIndex = MonitorService.findMonitorIndexByName(name);
+            if (monitorIndex < 0) {
                 delete prefsByName[name];
                 destroyTimer(name);
                 delete filesByName[name];
@@ -110,123 +94,115 @@ Singleton {
             }
         }
 
-        // Apply timer state from prefs
-        for (let k = 0; k < monitorService.monitorsModel.count; k++) {
-            const m = monitorService.monitorsModel.get(k);
-            applyRandomState(m.name);
+        for (let monitorIndex = 0; monitorIndex < MonitorService.monitorsModel.count; monitorIndex++) {
+            const monitor = MonitorService.monitorsModel.get(monitorIndex);
+            applyRandomState(monitor.name);
         }
 
-        Logger.log("WallpaperService", `sync: done; monitors=${monitorService.monitorsModel.count}, prefs=${Object.keys(prefsByName).length}`);
+        Logger.log("WallpaperService", `sync: done; monitors=${MonitorService.monitorsModel.count}, prefs=${Object.keys(prefsByName).length}`);
     }
 
-    // Timers
     function ensureTimer(name) {
         if (timersByName[name])
             return timersByName[name];
-        const t = Qt.createQmlObject('import QtQuick; Timer { repeat: true; running: false; property string nameKey: ""; onTriggered: wallpaperService.rotateRandom(nameKey) }', wallpaperService);
-        t.nameKey = name;
-        timersByName[name] = t;
+        const timer = Qt.createQmlObject('import QtQuick; Timer { repeat: true; running: false; property string nameKey: ""; onTriggered: wallpaperService.rotateRandom(nameKey) }', wallpaperService);
+        timer.nameKey = name;
+        timersByName[name] = timer;
         Logger.log("WallpaperService", `Timer created for monitor: ${name}`);
-        return t;
+        return timer;
     }
     function destroyTimer(name) {
-        const t = timersByName[name];
-        if (t) {
+        const timer = timersByName[name];
+        if (timer) {
             try {
-                t.running = false;
-            } catch (e) {}
-            t.destroy();
+                timer.running = false;
+            } catch (error) {}
+            timer.destroy();
             Logger.log("WallpaperService", `Timer destroyed for monitor: ${name}`);
         }
         delete timersByName[name];
     }
     function applyRandomState(name) {
-        const p = ensurePrefs(name);
-        const t = ensureTimer(name);
-        t.interval = Math.max(1, (p.interval || 300)) * 1000;
-        t.running = !!p.random;
-        Logger.log("WallpaperService", `Random ${t.running ? 'enabled' : 'disabled'} for ${name}; interval=${t.interval}ms`);
+        const prefs = ensurePrefs(name);
+        const timer = ensureTimer(name);
+        timer.interval = Math.max(1, (prefs.interval || 300)) * 1000;
+        timer.running = !!prefs.random;
+        Logger.log("WallpaperService", `Random ${timer.running ? 'enabled' : 'disabled'} for ${name}; interval=${timer.interval}ms`);
     }
 
-    // API: set wallpaper/mode for a monitor
     function setWallpaper(nameOrScreen, path) {
         const name = typeof nameOrScreen === "string" ? nameOrScreen : (nameOrScreen && nameOrScreen.name) || null;
         if (!name)
             return;
-        const p = ensurePrefs(name);
-        p.wallpaper = path || defaultWallpaper;
-        Logger.log("WallpaperService", `Set wallpaper: name=${name}, path=${p.wallpaper}`);
-        // Optional: restart random timer when manual change occurs
-        const t = timersByName[name];
-        if (t && t.running) {
-            t.restart();
+        const prefs = ensurePrefs(name);
+        prefs.wallpaper = path || defaultWallpaper;
+        Logger.log("WallpaperService", `Set wallpaper: name=${name}, path=${prefs.wallpaper}`);
+        const timer = timersByName[name];
+        if (timer && timer.running) {
+            timer.restart();
         }
     }
     function setModePref(name, mode) {
-        const p = ensurePrefs(name);
-        p.mode = mode || defaultMode;
-        Logger.log("WallpaperService", `Set mode: name=${name}, mode=${p.mode}`);
+        const prefs = ensurePrefs(name);
+        prefs.mode = mode || defaultMode;
+        Logger.log("WallpaperService", `Set mode: name=${name}, mode=${prefs.mode}`);
     }
 
-    // API: random rotation controls (per monitor)
     function setRandomEnabled(name, enabled) {
-        const p = ensurePrefs(name);
-        p.random = !!enabled;
+        const prefs = ensurePrefs(name);
+        prefs.random = !!enabled;
         applyRandomState(name);
     }
     function setRandomInterval(name, seconds) {
-        const p = ensurePrefs(name);
-        p.interval = seconds > 0 ? seconds : 300;
+        const prefs = ensurePrefs(name);
+        prefs.interval = seconds > 0 ? seconds : 300;
         applyRandomState(name);
     }
-    function setRandomDirectory(name, dir, files) {
-        const p = ensurePrefs(name);
-        p.dir = dir || "";
-        // Caller provides files discovered for dir (no swww). You can also scan here if desired.
+    function setRandomDirectory(name, directory, files) {
+        const prefs = ensurePrefs(name);
+        prefs.dir = directory || "";
         filesByName[name] = Array.isArray(files) ? files : [];
-        Logger.log("WallpaperService", `Set random dir: name=${name}, dir=${p.dir}, files=${filesByName[name].length}`);
+        Logger.log("WallpaperService", `Set random dir: name=${name}, dir=${prefs.dir}, files=${filesByName[name].length}`);
     }
     function rotateRandom(name) {
-        const list = filesByName[name] || [];
-        if (!list.length)
+        const filesForMonitor = filesByName[name] || [];
+        if (!filesForMonitor.length)
             return;
-        const idx = Math.floor(Math.random() * list.length);
-        const chosen = list[idx];
-        Logger.log("WallpaperService", `Rotate random: name=${name}, chosen=${chosen}`);
-        setWallpaper(name, chosen);
+        const randomIndex = Math.floor(Math.random() * filesForMonitor.length);
+        const chosenFile = filesForMonitor[randomIndex];
+        Logger.log("WallpaperService", `Rotate random: name=${name}, chosen=${chosenFile}`);
+        setWallpaper(name, chosenFile);
     }
 
-    // Forward monitor-related changes to MonitorService (do not mirror geometry here)
     function changeMonitorSettings(settings) {
-        if (monitorService && monitorService.changeMonitorSettings)
-            monitorService.changeMonitorSettings(settings);
+        if (MonitorService && MonitorService.changeMonitorSettings)
+            MonitorService.changeMonitorSettings(settings);
     }
     function setScale(name, scale) {
-        if (monitorService && monitorService.setScale)
-            monitorService.setScale(name, scale);
+        if (MonitorService && MonitorService.setScale)
+            MonitorService.setScale(name, scale);
     }
-    function setMode(name, w, h, rr) {
-        if (monitorService && monitorService.setMode)
-            monitorService.setMode(name, w, h, rr);
+    function setMode(name, width, height, refreshRate) {
+        if (MonitorService && MonitorService.setMode)
+            MonitorService.setMode(name, width, height, refreshRate);
     }
     function setTransform(name, transform) {
-        if (monitorService && monitorService.setTransform)
-            monitorService.setTransform(name, transform);
+        if (MonitorService && MonitorService.setTransform)
+            MonitorService.setTransform(name, transform);
     }
-    function setPosition(name, x, y) {
-        if (monitorService && monitorService.setPosition)
-            monitorService.setPosition(name, x, y);
+    function setPosition(name, positionX, positionY) {
+        if (MonitorService && MonitorService.setPosition)
+            MonitorService.setPosition(name, positionX, positionY);
     }
     function setVrr(name, mode) {
-        if (monitorService && monitorService.setVrr)
-            monitorService.setVrr(name, mode);
+        if (MonitorService && MonitorService.setVrr)
+            MonitorService.setVrr(name, mode);
     }
 
-    // React to monitor service readiness and changes
     Connections {
-        target: wallpaperService.monitorService
+        target: MonitorService
         function onReadyChanged() {
-            if (wallpaperService.monitorService.ready) {
+            if (MonitorService.ready) {
                 Logger.log("WallpaperService", "MonitorService ready");
                 wallpaperService.syncWithMonitors();
             } else {
@@ -234,7 +210,7 @@ Singleton {
             }
         }
         function onMonitorsChanged() {
-            if (wallpaperService.monitorService.ready) {
+            if (MonitorService.ready) {
                 Logger.log("WallpaperService", "Monitors changed; syncing");
                 wallpaperService.syncWithMonitors();
             }
@@ -242,11 +218,11 @@ Singleton {
     }
 
     Component.onCompleted: {
-        if (monitorService && monitorService.ready) {
-            Logger.log("WallpaperService", "Init: monitorService ready; syncing");
+        if (MonitorService.ready) {
+            Logger.log("WallpaperService", "Init: MonitorService ready; syncing");
             syncWithMonitors();
         } else {
-            Logger.log("WallpaperService", "Init: monitorService not ready yet");
+            Logger.log("WallpaperService", "Init: MonitorService not ready yet");
         }
     }
 }
