@@ -8,17 +8,11 @@ import qs.Services.SystemInfo
 import qs.Services.WM.Impl.Hyprland as Hypr
 import qs.Services.WM.Impl.Niri as Niri
 
-// Unified Workspace Service that forwards to Hyprland or Niri implementation
 Singleton {
     id: ws
 
-    // Detect session
-    readonly property bool isHyprland: (MainService.currentWM === "hyprland")
-    readonly property bool isNiri: (MainService.currentWM === "niri")
-    // Single backend selector for simpler forwarding
-    readonly property var backend: isHyprland ? Hypr.WorkspaceImpl : (isNiri ? Niri.WorkspaceImpl : null)
+    readonly property var backend: (MainService.currentWM === "hyprland" ? Hypr.WorkspaceImpl : (MainService.currentWM === "niri" ? Niri.WorkspaceImpl : null))
 
-    // Exposed unified properties (forward to the active backend; keep defaults)
     property var workspaces: backend ? backend.workspaces : []
     property var specialWorkspaces: backend ? backend.specialWorkspaces : []
     property string activeSpecial: backend ? backend.activeSpecial : ""
@@ -27,16 +21,13 @@ Singleton {
     property var outputsOrder: backend ? backend.outputsOrder : []
     property var groupBoundaries: backend ? backend.groupBoundaries : []
     property string focusedOutput: backend ? backend.focusedOutput : ""
-    // Common services for OSD
-    readonly property var osd: OSDService
 
-    // Unified announce helper with coalescing + distinct-until-changed (keyed by output#index)
     property int _announceCoalesceMs: 200
     property int _globalMinIntervalMs: 800
     property string _lastKey: ""
     property double _lastToastAt: 0
     function _announce(idx, out) {
-        if (!osd || !idx || idx < 1)
+        if (!OSDService || !idx || idx < 1)
             return;
         const now = Date.now ? Date.now() : new Date().getTime();
         const outName = (out !== undefined) ? out : ws.focusedOutput;
@@ -44,12 +35,11 @@ Singleton {
         if (key === _lastKey)
             return; // no repeat announcements for same state
         const prefix = (outName && outName.length > 0) ? (outName + ": ") : "";
-        osd.showInfo(prefix + "Workspace " + idx);
+        OSDService.showInfo(prefix + "Workspace " + idx);
         _lastKey = key;
         _lastToastAt = now;
     }
 
-    // Coalescer state
     property int _pendingIdx: -1
     property string _pendingOutput: ""
     function _scheduleAnnounce() {
@@ -73,33 +63,29 @@ Singleton {
                     const now = Date.now ? Date.now() : new Date().getTime();
                     const since = now - ws._lastToastAt;
                     if (since < ws._globalMinIntervalMs) {
-                        // rate-limit: try again after remaining time
                         _announceTimer.interval = Math.max(50, ws._globalMinIntervalMs - since);
                         _announceTimer.restart();
                         return;
                     }
                     Logger.log("Workspace", "focus -> output='" + (out || "") + "', idx=" + idx);
                     ws._announce(idx, out);
-                    // restore default coalesce interval
                     _announceTimer.interval = ws._announceCoalesceMs;
                 }
             }
         }
     }
 
-    // Enable the right backend (declarative)
     Binding {
         target: Hypr.WorkspaceImpl
         property: "enabled"
-        value: ws.isHyprland
+        value: MainService.ready && (ws.backend === Hypr.WorkspaceImpl)
     }
     Binding {
         target: Niri.WorkspaceImpl
         property: "enabled"
-        value: ws.isNiri
+        value: MainService.ready && (ws.backend === Niri.WorkspaceImpl)
     }
 
-    // Methods
     function focusWorkspaceByIndex(idx) {
         if (backend && backend.focusWorkspaceByIndex)
             backend.focusWorkspaceByIndex(idx);
@@ -117,15 +103,12 @@ Singleton {
             backend.refresh();
     }
 
-    // Centralized, WM-agnostic logs + OSD announcements
     onCurrentWorkspaceChanged: if (ws.backend)
         ws._scheduleAnnounce()
 
-    // If output changes during a cross-output switch, update and re-coalesce
     onFocusedOutputChanged: if (ws.backend)
         ws._scheduleAnnounce()
 
-    // Prevent duplicate special announcements
     property string _lastSpecial: ""
     onActiveSpecialChanged: {
         if (!ws.backend)
@@ -134,20 +117,10 @@ Singleton {
         if (sp && sp !== ws._lastSpecial) {
             ws._lastSpecial = sp;
             Logger.log("Workspace", "special -> name='" + sp + "'");
-            ws.osd.showInfo("Special " + sp);
+            OSDService.showInfo("Special " + sp);
         } else if (!sp) {
             // reset so next activation of same special is announced again
             ws._lastSpecial = "";
         }
-    }
-
-    // Reset dedupe/coalesce state when backend switches (e.g., WM changed)
-    onBackendChanged: {
-        ws._lastKey = "";
-        ws._lastToastAt = 0;
-        ws._pendingIdx = -1;
-        ws._pendingOutput = "";
-        ws._lastSpecial = "";
-        _announceTimer.stop();
     }
 }
