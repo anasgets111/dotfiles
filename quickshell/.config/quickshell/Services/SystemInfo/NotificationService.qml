@@ -1,5 +1,6 @@
 pragma Singleton
 pragma ComponentBehavior: Bound
+import qs.Services.Utils
 
 import QtQuick
 import Quickshell
@@ -396,21 +397,7 @@ Singleton {
             };
         }
 
-        readonly property string iconSource: {
-            let src = "";
-            try {
-                if (typeof DesktopEntries !== "undefined" && wrapper.appName) {
-                    const entry = DesktopEntries.heuristicLookup(String(wrapper.appName));
-                    if (entry?.icon)
-                        src = Quickshell.iconPath(entry.icon, true);
-                }
-            } catch (e) {}
-            if (!src && wrapper.appIcon) {
-                const s = String(wrapper.appIcon);
-                src = s.startsWith("file:") || s.startsWith("/") || s.startsWith("data:") ? s : Quickshell.iconPath(s, true);
-            }
-            return src || Quickshell.iconPath("dialog-information", true);
-        }
+        readonly property string iconSource: Utils.resolveIconSource(String(wrapper.appName || ""), String(wrapper.appIcon || ""), "dialog-information")
 
         readonly property string imageSource: wrapper.image || ""
 
