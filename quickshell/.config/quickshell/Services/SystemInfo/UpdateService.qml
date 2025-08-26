@@ -2,12 +2,12 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.Services.SystemInfo
+import qs.Services
 import qs.Services.Utils
 
 Singleton {
     id: updateService
-    property bool isArchBased: false
+    property bool isArchBased: MainService.isArchBased
     property bool checkupdatesAvailable: false
     readonly property bool ready: isArchBased && checkupdatesAvailable
     readonly property bool busy: pkgProc.running
@@ -24,6 +24,9 @@ Singleton {
     property int lastNotifiedUpdates: 0
 
     readonly property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "sh", "-c", "$BIN/update.sh"]
+    readonly property string notifyApp: "UpdateService"
+    readonly property string notifyIcon: "system-software-update"
+    readonly property var updateLineRe: /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/
 
     PersistentProperties {
         id: cache
@@ -50,24 +53,20 @@ Singleton {
     }
 
     function notify(title, body) {
-        const app = "UpdateService";
-        const icon = "system-software-update";
-        Quickshell.execDetached(["notify-send", "-a", app, "-i", icon, String(title || ""), String(body || "")]);
+        Quickshell.execDetached(["notify-send", "-a", notifyApp, "-i", notifyIcon, title || "", body || ""]);
     }
 
     function startUpdateProcess(cmd) {
         pkgProc.command = cmd;
         pkgProc.running = true;
-        killTimer.interval = lastWasFull ? 60 * 1000 : minuteMs;
         killTimer.restart();
     }
 
     function doPoll(forceFull = false) {
         if (busy)
             return;
-        const full = forceFull || (Date.now() - lastSync > syncInterval);
+        const full = forceFull || (Date.now() > lastSync + syncInterval);
         lastWasFull = full;
-
         pkgProc.command = full ? ["checkupdates", "--nocolor"] : ["checkupdates", "--nosync", "--nocolor"];
         pkgProc.running = true;
         killTimer.restart();
@@ -76,12 +75,11 @@ Singleton {
     Process {
         id: pacmanCheck
         running: true
-        command: ["sh", "-c", "p=$(command -v pacman >/dev/null && echo yes || echo no); c=$(command -v checkupdates >/dev/null && echo yes || echo no); echo \"$p $c\""]
+        command: ["sh", "-c", "command -v checkupdates >/dev/null && echo yes || echo no"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const parts = (text || "").trim().split(/\s+/);
-                updateService.isArchBased = (parts[0] === "yes");
-                updateService.checkupdatesAvailable = (parts[1] === "yes");
+                const available = (text || "").trim() === "yes";
+                updateService.checkupdatesAvailable = available;
                 if (updateService.ready) {
                     updateService.doPoll();
                     pollTimer.start();
@@ -110,7 +108,7 @@ Singleton {
         stdout: StdioCollector {
             id: out
             onStreamFinished: {
-                if (!pkgProc.running || updateService.busy)
+                if (pkgProc.running)
                     return;
                 killTimer.stop();
 
@@ -121,9 +119,7 @@ Singleton {
                     updateService.lastSync = Date.now();
                 }
 
-                cache.cachedUpdatePackagesJson = JSON.stringify(updateService._clonePackageList(updateService.updatePackages));
-                cache.cachedLastSync = updateService.lastSync;
-                updateService._summarizeAndNotify(parsed.pkgs, updateService.updates);
+                updateService._summarizeAndNotify();
             }
         }
         stderr: StdioCollector {
@@ -143,7 +139,7 @@ Singleton {
 
     function _notifyOnFailureThreshold(body) {
         if (failureCount >= failureThreshold) {
-            notify(qsTr("Update check failed"), String(body || ""));
+            notify(qsTr("Update check failed"), body || "");
             failureCount = 0;
             return true;
         }
@@ -164,7 +160,7 @@ Singleton {
         const lines = raw ? raw.split(/\r?\n/) : [];
         const pkgs = [];
         for (let i = 0; i < lines.length; ++i) {
-            const m = lines[i].match(/^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/);
+            const m = lines[i].match(updateService.updateLineRe);
             if (m) {
                 pkgs.push({
                     name: m[1],
@@ -205,10 +201,10 @@ Singleton {
 
     Timer {
         id: killTimer
-        interval: updateService.lastWasFull ? updateService.minuteMs : updateService.quickTimeoutMs
+        interval: Qt.binding(() => updateService.lastWasFull ? updateService.minuteMs : updateService.quickTimeoutMs)
         repeat: false
         onTriggered: {
-            if (pkgProc.running) {
+            if (pkgProc.running && updateService.lastSync > 0) {
                 Logger.error("UpdateService", "Update check killed (timeout)");
                 updateService.notify(qsTr("Update check killed"), qsTr("Process took too long"));
             }

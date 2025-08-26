@@ -182,19 +182,17 @@ Singleton {
             const id = NotificationService.send(summary ?? "", body ?? "", opts ?? {});
             return id || "";
         }
-        function dnd(state: string): string {
-            if (typeof state === "string")
-                NotificationService.setDoNotDisturb(state.toLowerCase() === "on" || state.toLowerCase() === "true");
-            else
-                NotificationService.setDoNotDisturb(!!state);
-            return "DND=" + NotificationService.doNotDisturb;
-        }
+
         function clearhistory(): string {
             NotificationService.clearHistory();
             return "History cleared";
         }
         function status(): string {
-            return `Notifications: total=${NotificationService.all.length}, visible=${NotificationService.visible.length}, queued=${NotificationService.queue.length}, DND=${NotificationService.doNotDisturb}`;
+            const dnd = NotificationService.dndPolicy ? (NotificationService.dndPolicy.enabled ? "on" : "off") : "off";
+            const behavior = NotificationService.dndPolicy && NotificationService.dndPolicy.behavior ? NotificationService.dndPolicy.behavior : "queue";
+            const groupsCount = (NotificationService.groups && typeof NotificationService.groups === "function") ? NotificationService.groups().length : 0;
+            const historyCount = NotificationService.historyModel ? NotificationService.historyModel.count : 0;
+            return `Notifications: total=${NotificationService.all.length}, visible=${NotificationService.visible.length}, queued=${NotificationService.queue.length}, history=${historyCount}, groups=${groupsCount}, dnd=${dnd}(${behavior}), maxVisible=${NotificationService.maxVisible}, expire=${NotificationService.expirePopups}`;
         }
     }
 
