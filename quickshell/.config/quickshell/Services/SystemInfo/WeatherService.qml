@@ -4,14 +4,9 @@ import QtQuick
 import Quickshell
 import qs.Services.Utils
 
-/* global XMLHttpRequest */
-
-// Self-contained weather service using ipapi.co and open-meteo.com
-// Minimal guards, curl-based via Process, with simple persistence and retries
 Singleton {
     id: weatherService
 
-    // --- Constants -------------------------------------------------------
     readonly property string openMeteoUrlBase: "https://api.open-meteo.com/v1/forecast"
     readonly property string ipGeoUrl: "https://ipapi.co/json/"
     readonly property int defaultRefreshMs: 3600000 // 1 hour
@@ -19,13 +14,30 @@ Singleton {
     readonly property int wxTimeoutMs: 5000
     readonly property int defaultRetryDelayMs: 2000
 
-    // Fallback coordinates (used when IP geolocation fails)
     readonly property real fallbackLat: 30.0507
     readonly property real fallbackLon: 31.2489
-    // Optional: name to display for fallback coords; leave empty to show nothing
     readonly property string fallbackLocationName: ""
 
-    // Map weather code -> { icon, desc }
+    readonly property bool isStale: lastUpdated ? (Date.now() - lastUpdated.getTime()) > staleAfterMs : false
+    readonly property int staleAfterMs: refreshInterval * 2
+    property int maxRetries: 2
+    property int retryDelayMs: defaultRetryDelayMs
+    property bool hasError: false
+    property int consecutiveErrors: 0
+    property var lastUpdated: null
+
+    property int _wxAttempt: 0
+    property string _pendingRetry: ""
+    property bool _fallbackApplied: false
+    property bool includeLocationInDisplay: true
+    readonly property string displayText: currentTemp + (includeLocationInDisplay && locationName ? " — " + locationName : "") + (isStale ? " (stale)" : "")
+    property string currentTemp: "Loading..."
+    property int refreshInterval: defaultRefreshMs
+    property real latitude: NaN
+    property real longitude: NaN
+    property string locationName: ""
+    property int currentWeatherCode: -1
+
     readonly property var weatherIconMap: ({
             "0": {
                 "icon": "☀️",
@@ -141,67 +153,31 @@ Singleton {
             }
         })
 
-    // --- State -----------------------------------------------------------
-    property string currentTemp: "Loading..."
-    property int refreshInterval: defaultRefreshMs
-    property real latitude: NaN
-    property real longitude: NaN
-    property string locationName: ""
-    property int currentWeatherCode: -1
-
-    // Persistence for last known location (JSON string, versioned)
     PersistentProperties {
         id: persist
         reloadableId: "WeatherService"
-        // JSON string with shape: { lat: number, lon: number, name: string }
         property string savedLocationJson: "{}"
 
         function hydrate() {
-            // Log JSON snapshot
             Logger.log("WeatherService", "persist snapshot:", persist.savedLocationJson);
 
-            // Hydrate from JSON string only
-            const obj = JSON.parse(persist.savedLocationJson || "{}");
-            const lat = Number(obj.lat);
-            const lon = Number(obj.lon);
-            const name = (obj.name === undefined || obj.name === null) ? "" : String(obj.name);
-            if (!isNaN(lat) && !isNaN(lon)) {
-                weatherService.latitude = lat;
-                weatherService.longitude = lon;
-                weatherService.locationName = name;
-            }
+            try {
+                const obj = JSON.parse(persist.savedLocationJson || "{}");
+                const lat = Number(obj.lat);
+                const lon = Number(obj.lon);
+                const name = (obj.name === undefined || obj.name === null) ? "" : String(obj.name);
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    weatherService.latitude = lat;
+                    weatherService.longitude = lon;
+                    weatherService.locationName = name;
+                }
+            } catch (e) {}
 
             weatherService.startServiceOnce();
         }
 
         onLoaded: hydrate()
         onReloaded: hydrate()
-    }
-
-    // Error/refresh bookkeeping
-    property bool hasError: false
-    property int consecutiveErrors: 0
-    property var lastUpdated: null
-    property int maxRetries: 2
-    property int retryDelayMs: defaultRetryDelayMs
-    property int staleAfterMs: refreshInterval * 2
-    readonly property bool isStale: lastUpdated ? (Date.now() - lastUpdated.getTime()) > staleAfterMs : false
-
-    // Internal retry state
-    property int _wxAttempt: 0
-    property string _pendingRetry: ""
-    property bool _fallbackApplied: false
-
-    // Display helpers
-    property bool includeLocationInDisplay: true
-    readonly property string displayText: {
-        const parts = [];
-        parts.push(currentTemp);
-        if (includeLocationInDisplay && locationName)
-            parts.push("— " + locationName);
-        if (isStale)
-            parts.push("(stale)");
-        return parts.join(' ');
     }
 
     function getWeatherIconFromCode() {
@@ -222,39 +198,34 @@ Singleton {
         };
     }
 
-    // --- Core logic ------------------------------------------------------
     function updateWeather() {
         var hasPersist = false;
+        var savedLat = NaN, savedLon = NaN, savedName = "";
         try {
             const obj0 = JSON.parse(persist.savedLocationJson || "{}");
-            hasPersist = (obj0 && !isNaN(Number(obj0.lat)) && !isNaN(Number(obj0.lon)));
-        } catch (e) {
-            hasPersist = false;
-        }
+            savedLat = Number(obj0.lat);
+            savedLon = Number(obj0.lon);
+            savedName = (obj0.name === undefined || obj0.name === null) ? "" : String(obj0.name);
+            hasPersist = (!isNaN(savedLat) && !isNaN(savedLon));
+        } catch (e) {}
         Logger.log("WeatherService", "updateWeather: hasPersist=", hasPersist, "lat=", latitude, "lon=", longitude);
         if (isNaN(latitude) || isNaN(longitude)) {
             // Prefer persisted coordinates if available
-            // Prefer persisted JSON if available
-            const obj = JSON.parse(persist.savedLocationJson || "{}");
-            const lat = Number(obj.lat);
-            const lon = Number(obj.lon);
-            const name = (obj.name === undefined || obj.name === null) ? "" : String(obj.name);
-            if (!isNaN(lat) && !isNaN(lon)) {
-                latitude = lat;
-                longitude = lon;
-                locationName = name;
+            if (hasPersist) {
+                latitude = savedLat;
+                longitude = savedLon;
+                locationName = savedName;
                 Logger.log("WeatherService", "Using persisted coords:", latitude + "," + longitude, "name=", locationName);
                 fetchCurrentTemp(latitude, longitude);
                 return;
             }
 
             var geoXhr = new XMLHttpRequest();
-            var DONE = 4;
             geoXhr.open("GET", ipGeoUrl);
             geoXhr.timeout = geoTimeoutMs;
             Logger.log("WeatherService", "IP geo request start:", ipGeoUrl, "timeout=", geoTimeoutMs, "ms");
             geoXhr.onreadystatechange = function () {
-                if (geoXhr.readyState !== DONE)
+                if (geoXhr.readyState !== 4)
                     return;
 
                 if (geoXhr.status === 200) {
@@ -263,7 +234,6 @@ Singleton {
                         latitude = ipData.latitude;
                         longitude = ipData.longitude;
                         locationName = (ipData.city || "") + (ipData.country_name ? ", " + ipData.country_name : "");
-
                         persist.savedLocationJson = JSON.stringify({
                             lat: latitude,
                             lon: longitude,
@@ -312,13 +282,12 @@ Singleton {
 
     function fetchCurrentTemp(lat, lon) {
         var wxXhr = new XMLHttpRequest();
-        var DONE2 = 4;
         var url = openMeteoUrlBase + "?latitude=" + lat + "&longitude=" + lon + "&current_weather=true&timezone=auto";
         wxXhr.open("GET", url);
         wxXhr.timeout = wxTimeoutMs;
         Logger.log("WeatherService", "Weather request start:", url, "timeout=", wxTimeoutMs, "ms");
         wxXhr.onreadystatechange = function () {
-            if (wxXhr.readyState !== DONE2)
+            if (wxXhr.readyState !== 4)
                 return;
 
             if (wxXhr.status === 200) {
@@ -326,8 +295,7 @@ Singleton {
                     var data = JSON.parse(wxXhr.responseText);
                     if (data && data.current_weather) {
                         currentWeatherCode = data.current_weather.weathercode;
-                        var icon = getWeatherIconFromCode();
-                        currentTemp = Math.round(data.current_weather.temperature) + "°C" + ' ' + icon;
+                        currentTemp = Math.round(data.current_weather.temperature) + "°C" + ' ' + getWeatherIconFromCode();
                         lastUpdated = new Date();
                         hasError = false;
                         consecutiveErrors = 0;
@@ -393,7 +361,6 @@ Singleton {
         }
     }
 
-    // Ensure service starts if persistence doesn't trigger yet
     function startServiceOnce() {
         if (!weatherTimer.running) {
             weatherTimer.start();
