@@ -1,6 +1,6 @@
 pragma Singleton
-import QtQuick
 import Quickshell
+import Qt.labs.platform
 import qs.Services.Utils
 import qs.Services.SystemInfo
 import qs.Services.WM
@@ -10,21 +10,23 @@ Singleton {
 
     signal recordingStarted(string path)
     signal recordingStopped(string path)
+    signal recordingPaused(string path)
+    signal recordingResumed(string path)
 
-    readonly property var settings: QtObject {
-        // Expand ~ properly
-        property string directory: "~/Videos"
-        property int frameRate: 60
-        property string audioCodec: "opus"
-        property string videoCodec: "h264"
-        property string quality: "very_high"
-        property string colorRange: "limited"
-        property bool showCursor: true
-        property string audioSource: "default_output"
-        property string monitor: WorkspaceService.focusedOutput
-    }
+    property string directory: StandardPaths.writableLocation(StandardPaths.MoviesLocation)
+    property int frameRate: 60
+    property string audioCodec: "opus"
+    property string videoCodec: "h264"
+    property string quality: "very_high"
+    property string colorRange: "limited"
+    property bool showCursor: true
+    property string audioSource: "default_output"
+    property string monitor: WorkspaceService.focusedOutput
+
     property bool isRecording: false
+    property bool isPaused: false
     property string outputPath: ""
+
     function toggleRecording() {
         isRecording ? stopRecording() : startRecording();
     }
@@ -32,43 +34,52 @@ Singleton {
     function startRecording() {
         if (isRecording)
             return;
-        Logger.log("ScreenRecorder", "Current Monitor:", settings.monitor);
         const filename = TimeService.format("datetime", "yyyyMMdd_HHmmss") + ".mp4";
-        const dir = settings.directory.endsWith("/") ? settings.directory : settings.directory + "/";
+        const dir = directory.endsWith("/") ? directory : directory + "/";
         outputPath = dir + filename;
 
-        const args = ["gpu-screen-recorder", "-w", settings.monitor, "-f", settings.frameRate, "-ac", settings.audioCodec, "-k", settings.videoCodec, "-a", settings.audioSource, "-q", settings.quality, "-cursor", settings.showCursor ? "yes" : "no", "-cr", settings.colorRange, "-o", outputPath];
+        const args = ["gpu-screen-recorder"];
+        args.push("-w", monitor);
+        args.push("-f", String(frameRate), "-a", audioSource, "-o", outputPath);
+        args.push("-k", videoCodec);
+        args.push("-ac", audioCodec);
+        args.push("-q", quality);
+        args.push("-cursor", "no");
+        args.push("-cr", colorRange);
+
+        Logger.log("ScreenRecorder", "Exec:", args.join(" "));
 
         Quickshell.execDetached(args);
 
         isRecording = true;
-        Logger.log("ScreenRecorder", "Started recording:", outputPath);
+        isPaused = false;
         recordingStarted(outputPath);
     }
 
     function stopRecording() {
         if (!isRecording)
             return;
-
-        Quickshell.execDetached(["pkill", "-SIGINT", "-f", "gpu-screen-recorder"]);
         Logger.log("ScreenRecorder", "Stopping recording");
-        isRecording = false;
-        recordingStopped(outputPath);
+        Quickshell.execDetached(["pkill", "-SIGINT", "-f", "gpu-screen-recorder"]);
 
-        // Just in case, force kill after 3s
-        killTimer.running = true;
+        isRecording = false;
+        isPaused = false;
+        recordingStopped(outputPath);
     }
 
-    Timer {
-        id: killTimer
-        interval: 3000
-        running: false
-        repeat: false
-        onTriggered: {
-            Quickshell.execDetached(["pkill", "-9", "-f", "gpu-screen-recorder"]);
-            Logger.log("ScreenRecorder", "Force killed (fallback pkill)");
-            if (!screenRecorder.isRecording)
-                screenRecorder.recordingStopped(screenRecorder.outputPath);
+    function togglePause() {
+        if (!isRecording)
+            return;
+        Quickshell.execDetached(["pkill", "-SIGUSR2", "-f", "gpu-screen-recorder"]);
+
+        if (isPaused) {
+            Logger.log("ScreenRecorder", "Resumed recording");
+            isPaused = false;
+            recordingResumed(outputPath);
+        } else {
+            Logger.log("ScreenRecorder", "Paused recording");
+            isPaused = true;
+            recordingPaused(outputPath);
         }
     }
 }
