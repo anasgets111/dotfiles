@@ -8,69 +8,60 @@ import qs.Services.WM.Impl.Niri as Niri
 import qs.Services.Utils
 
 Singleton {
-    id: root
-    // OSD for user feedback on layout changes
-    readonly property var osd: OSDService
-    readonly property var mainService: MainService
-    readonly property var wmImplementation: mainService.currentWM === "hyprland" ? Hypr.KeyboardLayoutImpl : mainService.currentWM === "niri" ? Niri.KeyboardLayoutImpl : null
-    readonly property var layouts: wmImplementation ? (wmImplementation.layouts || []) : []
-    readonly property string currentLayout: wmImplementation ? (wmImplementation.currentLayout || "") : ""
+    id: service
+
+    readonly property var backend: MainService.currentWM === "hyprland" ? Hypr.KeyboardLayoutImpl : MainService.currentWM === "niri" ? Niri.KeyboardLayoutImpl : null
+    readonly property var layouts: backend ? (backend.layouts || []) : []
+    readonly property string currentLayout: backend ? (backend.currentLayout || "") : ""
     readonly property bool hasMultipleLayouts: layouts.length > 1
-
-    // Notify on layout change
-    onCurrentLayoutChanged: {
-        if (!root.wmImplementation || !root.currentLayout)
-            return;
-        Logger.log("KeyboardLayoutService", "layout changed:", root.currentLayout);
-        // Show the layout as the primary message for better visibility
-        root.osd.showInfo(root.currentLayout);
-    }
-
-    // ----- Lock LEDs (Caps/Num/Scroll) monitoring -----
-    // State surfaced publicly for consumers (e.g., UI elements)
     property bool capsOn: false
     property bool numOn: false
     property bool scrollOn: false
+    property var ledUnsub: null
 
-    // Subscription handle
-    property var _ledUnsub: null
+    onCurrentLayoutChanged: {
+        if (!service.backend || !service.currentLayout)
+            return;
+        Logger.log("KeyboardLayoutService", "layout changed:", service.currentLayout);
+        OSDService.showInfo(service.currentLayout);
+    }
 
     Component.onCompleted: {
-        // Subscribe to Utils watcher; immediate callback will sync initial state
-        root._ledUnsub = Utils.startLockLedWatcher({
+        service.ledUnsub = Utils.startLockLedWatcher({
             onChange: function (state) {
-                root._applyLedStates(!!state.caps, !!state.num, !!state.scroll);
+                service.applyLedStates(!!state.caps, !!state.num, !!state.scroll);
             }
         });
     }
 
     Component.onDestruction: {
-        var unsub = root._ledUnsub;
-        if (unsub && typeof unsub === 'function') {
+        const unsub = service.ledUnsub;
+        if (typeof unsub === "function") {
             try {
                 unsub();
-            } catch (e) {}
+            } catch (_) {}
         }
-        root._ledUnsub = null;
+        service.ledUnsub = null;
     }
 
-    function _applyLedStates(caps, num, scr) {
-        if (caps !== root.capsOn) {
-            root.capsOn = caps;
-            root.osd.showInfo("Caps Lock " + (caps ? "On" : "Off"));
-            Logger.log("KeyboardLayoutService", "Caps Lock " + (caps ? "On" : "Off"));
-        }
-        if (num !== root.numOn) {
-            root.numOn = num;
-            root.osd.showInfo("Num Lock " + (num ? "On" : "Off"));
-            Logger.log("KeyboardLayoutService", "Num Lock " + (num ? "On" : "Off"));
-        }
-        if (scr !== root.scrollOn) {
-            root.scrollOn = scr;
-            root.osd.showInfo("Scroll Lock " + (scr ? "On" : "Off"));
-            Logger.log("KeyboardLayoutService", "Scroll Lock " + (scr ? "On" : "Off"));
-        }
+    function showToggle(label, on) {
+        const msg = label + " " + (on ? "On" : "Off");
+        OSDService.showInfo(msg);
+        Logger.log("KeyboardLayoutService", msg);
     }
 
-    // Backend impls manage their own enablement via their `active` property.
+    function applyLedStates(caps, num, scroll) {
+        if (caps !== service.capsOn) {
+            service.capsOn = caps;
+            service.showToggle("Caps Lock", caps);
+        }
+        if (num !== service.numOn) {
+            service.numOn = num;
+            service.showToggle("Num Lock", num);
+        }
+        if (scroll !== service.scrollOn) {
+            service.scrollOn = scroll;
+            service.showToggle("Scroll Lock", scroll);
+        }
+    }
 }
