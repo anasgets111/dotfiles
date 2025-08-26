@@ -33,7 +33,7 @@ ShellRoot {
     readonly property var dateTime: TimeService
     readonly property var battery: BatteryService
     readonly property var updater: UpdateService
-    readonly property bool _netInit: NetworkService.ready
+    readonly property bool _netInit: NetworkService.isReady
     readonly property var workspaces: WorkspaceService
     readonly property var sysInfo: SystemInfoService
     readonly property var media: MediaService
