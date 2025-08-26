@@ -3,12 +3,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import QtQuick.Effects
-import Quickshell.Services.Pam
 import qs.Services.Core
 import qs.Services.WM
-import qs.Services.Utils
-
-// SystemInfo already imported without alias for TimeService/WeatherService
 
 Scope {
     id: root
@@ -28,52 +24,20 @@ Scope {
             love: "#f38ba8",
             mauve: "#cba6f7"
         })
-    property var snapshotMonitorNames: []
-    // Use SystemInfo.TimeService for date/time
-    property string passwordBuffer: ""
-    property string authState: ""
-    function currentMonitorNames() {
-        if (!(MonitorService.ready))
-            return [];
-        const arr = MonitorService.monitorsModelToArray ? MonitorService.monitorsModelToArray() : [];
-        return arr.map(m => m && m.name).filter(n => !!n);
-    }
-    Connections {
-        target: LockService
-        function onLockedChanged() {
-            const names = root.currentMonitorNames();
-            root.snapshotMonitorNames = LockService.locked ? names : [];
-        }
-    }
 
-    PamContext {
-        id: pamAuth
-        onResponseRequiredChanged: {
-            if (responseRequired) {
-                respond(root.passwordBuffer);
-                root.passwordBuffer = "";
-                Logger.log("LockScreen", "PAM response sent; buffer cleared");
-            }
+    QtObject {
+        id: lockContextProxy
+        property var theme: root.theme
+        // forward LockService observable state via bindings; mutators provided below
+        property string passwordBuffer: LockService.passwordBuffer
+        property string authState: LockService.authState
+        property bool authenticating: LockService.authenticating
+        function setPasswordBuffer(v) {
+            LockService.passwordBuffer = v;
         }
-        onCompleted: res => {
-            if (res === PamResult.Success) {
-                root.passwordBuffer = "";
-                LockService.locked = false;
-                return;
-            }
-            if (res === PamResult.Error)
-                root.authState = "error";
-            else if (res === PamResult.MaxTries)
-                root.authState = "max";
-            else if (res === PamResult.Failed)
-                root.authState = "fail";
-            authStateResetTimer.restart();
+        function submitOrStart() {
+            LockService.submitOrStart();
         }
-    }
-    Timer {
-        id: authStateResetTimer
-        interval: 1000
-        onTriggered: root.authState = ""
     }
 
     WlSessionLock {
@@ -86,7 +50,6 @@ Scope {
             readonly property var screenWallpaper: WallpaperService ? WallpaperService.wallpaperFor(lockSurface.screen) : null
             readonly property bool blurDisabled: Quickshell.env("QS_DISABLE_LOCK_BLUR") === "1"
             readonly property bool hasScreen: !!lockSurface.screen
-            // Use MonitorService.mainMonitor (with service-side fallback) to decide primary
             readonly property bool isMainMonitor: !!(lockSurface.screen && MonitorService && MonitorService.mainMonitor === lockSurface.screen.name)
             Image {
                 anchors.fill: parent
@@ -118,6 +81,14 @@ Scope {
                     blurMultiplier: 1
                 }
             }
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.NoButton
+                propagateComposedEvents: true
+                onEntered: lockContent.forceActiveFocus()
+            }
             // one day :D
             // ScreencopyView {
             //     id: background
@@ -134,10 +105,10 @@ Scope {
             // }
 
             LockContent {
-                id: panel
-                ctx: root
+                id: lockContent
+                // Provide theme + LockService auth state/methods
+                lockContext: lockContextProxy
                 lockSurface: lockSurface
-                pamAuth: pamAuth
             }
         }
     }
