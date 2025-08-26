@@ -10,13 +10,13 @@ Singleton {
 
     readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values : []
     readonly property list<MprisPlayer> players: allPlayers.filter(player => player && player.canControl)
-    readonly property list<MprisPlayer> list: players
     readonly property bool hasPlayers: players.length > 0
     readonly property bool hasActive: !!active
     readonly property string activeIconName: iconNameForPlayer(active)
     readonly property string activeAlbumName: trackAlbum
     readonly property string activeAlbumArtUrl: trackArtUrl
     readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
+    readonly property real infiniteTrackLength: 922337203685
     property MprisPlayer manualActive: null            // If set, takes precedence
     property int selectedPlayerIndex: -1               // If >=0 and valid, selects that player
     property bool isPlaying: active ? active.isPlaying : false
@@ -24,7 +24,6 @@ Singleton {
     property string trackArtist: active ? (active.trackArtist || "") : ""
     property string trackAlbum: active ? (active.trackAlbum || "") : ""
     property string trackArtUrl: active ? (active.trackArtUrl || "") : ""
-    property real infiniteTrackLength: 922337203685
     property real trackLength: active ? ((active.length < infiniteTrackLength) ? active.length : 0) : 0
     property bool canPlay: active ? active.canPlay : false
     property bool canPause: active ? active.canPause : false
@@ -57,7 +56,7 @@ Singleton {
             }
         }
         function canonical(name) {
-            var lowerName = String(name).toLowerCase();
+            const lowerName = String(name).toLowerCase();
             if (lowerName.indexOf("google chrome") !== -1 || lowerName === "chrome")
                 return "google-chrome";
             if (lowerName.indexOf("microsoft edge") !== -1 || lowerName === "edge")
@@ -73,16 +72,16 @@ Singleton {
             return name;
         }
 
-        var desktopEntry = player.desktopEntry || "";
+        const desktopEntry = player.desktopEntry || "";
         if (desktopEntry) {
-            var canonicalDesktopEntry = canonical(desktopEntry);
-            var normalizedDesktopEntry = normalize(canonicalDesktopEntry);
+            const canonicalDesktopEntry = canonical(desktopEntry);
+            const normalizedDesktopEntry = normalize(canonicalDesktopEntry);
             return normalizedDesktopEntry || "audio-x-generic";
         }
 
-        var identityString = player.identity || "";
-        var canonicalIdentity = canonical(identityString);
-        var normalizedIdentity = normalize(canonicalIdentity);
+        const identityString = player.identity || "";
+        const canonicalIdentity = canonical(identityString);
+        const normalizedIdentity = normalize(canonicalIdentity);
         return normalizedIdentity || "audio-x-generic";
     }
 
