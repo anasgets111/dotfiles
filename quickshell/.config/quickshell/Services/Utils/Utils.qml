@@ -105,58 +105,90 @@ Singleton {
         return cmd;
     }
 
+
+
     // =====================
     // Desktop entry helpers
     // =====================
-    /**
-     * Resolve a desktop entry by app id/name.
-     * Tries heuristicLookup (when available), then byId.
-     * Returns the entry object or null on failure.
-     */
-    function resolveDesktopEntry(appIdOrName) {
-        const lookupKey = String(appIdOrName || "");
-        if (!lookupKey || typeof DesktopEntries === "undefined")
+
+    function isRawSource(s) {
+        if (!s)
+            return false;
+        const v = String(s);
+        return (v.startsWith("file:") || v.startsWith("data:") || v.startsWith("/") || v.startsWith("qrc:"));
+    }
+
+    function safeIconPath(name) {
+        if (!name || typeof Quickshell === "undefined" || !Quickshell.iconPath)
+            return "";
+        try {
+            return Quickshell.iconPath(String(name), true) || "";
+        } catch (e) {
+            return "";
+        }
+    }
+
+    function resolveDesktopEntry(idOrName) {
+        const key = String(idOrName || "");
+        if (!key || typeof DesktopEntries === "undefined")
             return null;
         try {
-            return (DesktopEntries.heuristicLookup ? DesktopEntries.heuristicLookup(lookupKey) : null) || DesktopEntries.byId(lookupKey) || null;
-        } catch (exception) {
+            return ((DesktopEntries.heuristicLookup ? DesktopEntries.heuristicLookup(key) : null) || (DesktopEntries.byId ? DesktopEntries.byId(key) : null) || null);
+        } catch (e) {
             return null;
         }
     }
 
+    // Raw passthrough if URI/path; otherwise theme lookup
+    function themedOrRaw(source) {
+        const v = String(source || "");
+        if (!v)
+            return "";
+        return isRawSource(v) ? v : safeIconPath(v);
+    }
+
     /**
-     * Resolve an icon source with a single, flexible API.
-     * Forms:
-     *   resolveIconSource(appIdOrName, fallbackIconName)
-     *   resolveIconSource(appIdOrName, providedIcon, fallbackIconName)
-     * Order:
-     *   1) Desktop entry icon for appIdOrName
-     *   2) providedIcon (if 3-arg form): file:/data:/absolute used as-is; otherwise themed via Quickshell.iconPath
-     *   3) fallbackIconName:
-     *      - undefined/null -> defaults to "application-default-icon"
-     *      - ""            -> no fallback (returns "" if 1 & 2 miss)
-     */
-    function resolveIconSource(appIdOrName, providedOrFallback, maybeFallback) {
-        // Detect 2-arg vs 3-arg form
-        const providedIconCandidate = arguments.length >= 3 ? providedOrFallback : null;
-        const fallbackNameCandidate = arguments.length >= 3 ? maybeFallback : providedOrFallback;
-        // 1) Desktop entry themed icon
-        const entry = utils.resolveDesktopEntry(appIdOrName);
-        const iconName = entry && entry.icon ? String(entry.icon) : "";
-        const themedSource = iconName ? Quickshell.iconPath(iconName, true) : "";
-        if (themedSource)
-            return themedSource;
-        // 2) Provided icon (3-arg form only)
-        if (providedIconCandidate) {
-            const rawProvidedIcon = String(providedIconCandidate);
-            const fromProvided = (rawProvidedIcon.startsWith("file:") || rawProvidedIcon.startsWith("/") || rawProvidedIcon.startsWith("data:")) ? rawProvidedIcon : Quickshell.iconPath(rawProvidedIcon, true);
+ * Resolve an icon source with a single, flexible API.
+ *
+ * Forms:
+ *   resolveIconSource(appIdOrNameOrIcon, fallbackIconName?)
+ *   resolveIconSource(appIdOrNameOrIcon, providedIcon, fallbackIconName)
+ *
+ * Order:
+ *   1) Desktop Entry icon (themed)
+ *   2) key as raw or themed icon
+ *   3) providedIcon (3-arg form): raw or themed
+ *   4) fallback:
+ *        - undefined/null -> "application-x-executable"
+ *        - "" -> no fallback (returns "")
+ *        - otherwise -> themed fallback name
+ */
+    function resolveIconSource(key, providedOrFallback, maybeFallback) {
+        const hasProvided = arguments.length >= 3;
+        const providedIcon = hasProvided ? providedOrFallback : null;
+        const fallbackCandidate = hasProvided ? maybeFallback : providedOrFallback;
+
+        // 1) Desktop entry icon
+        const entry = resolveDesktopEntry(key);
+        const fromEntry = entry && entry.icon ? safeIconPath(entry.icon) : "";
+        if (fromEntry)
+            return fromEntry;
+
+        // 2) key as raw/themed
+        const fromKey = themedOrRaw(key);
+        if (fromKey)
+            return fromKey;
+
+        // 3) provided icon (3-arg form)
+        if (providedIcon) {
+            const fromProvided = themedOrRaw(providedIcon);
             if (fromProvided)
                 return fromProvided;
         }
-        // 3) Fallback handling
-        const useDefaultFallback = fallbackNameCandidate === undefined || fallbackNameCandidate === null;
-        const fallbackName = useDefaultFallback ? "application-default-icon" : String(fallbackNameCandidate);
-        return fallbackName ? (Quickshell.iconPath(fallbackName, true) || "") : "";
+
+        // 4) fallback
+        const fallbackName = fallbackCandidate == null ? "application-x-executable" : String(fallbackCandidate);
+        return fallbackName ? safeIconPath(fallbackName) : "";
     }
 
     // =====================

@@ -164,7 +164,7 @@ FocusScope {
             Layout.alignment: Qt.AlignHCenter
             spacing: 10
             Text {
-                text: Qt.formatTime(TimeService.currentDate, "HH:mm")
+                text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "hh:mm")
                 color: lockPanel.lockContext.theme.text
                 font.pixelSize: 74
                 font.bold: true
@@ -172,8 +172,8 @@ FocusScope {
                 Layout.alignment: Qt.AlignVCenter
             }
             Text {
-                text: Qt.formatTime(TimeService.currentDate, "AP")
-                visible: text !== ""
+                text: TimeService.format("time", "AP")
+                visible: !TimeService.use24Hour && text !== ""
                 color: lockPanel.lockContext.theme.subtext1
                 font.pixelSize: 30
                 font.bold: true
@@ -184,7 +184,7 @@ FocusScope {
 
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: Qt.formatDate(TimeService.currentDate, "dddd, d MMMM yyyy")
+            text: TimeService.format("date", "dddd, d MMMM yyyy")
             color: lockPanel.lockContext.theme.subtext0
             font.pixelSize: 21
             horizontalAlignment: Text.AlignHCenter

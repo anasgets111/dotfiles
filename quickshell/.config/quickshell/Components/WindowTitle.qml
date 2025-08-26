@@ -9,8 +9,8 @@ Item {
     property string currentTitle: ""
     property string currentClass: ""
     property string appName: ""
-    // Resolve app icon from desktop entry when possible
-    readonly property string appIconSource: Utils.resolveIconSource(activeWindow.currentClass, "application-default-icon")
+    // Resolve app icon from desktop entry when possible (use Utils default fallback)
+    readonly property string appIconSource: Utils.resolveIconSource(activeWindow.currentClass)
     property string displayText: ""
 
     function updateActive() {
