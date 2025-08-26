@@ -7,14 +7,14 @@ import qs.Services
 import qs.Services.SystemInfo
 import qs.Services.WM
 
-// Extracted lock screen content panel
 FocusScope {
-    id: panel
+    id: lockPanel
 
-    // Inputs from parent
-    required property var ctx         // parent scope/root providing theme, authState, passwordBuffer
-    required property var lockSurface // WlSessionLockSurface instance
-    required property var pamAuth     // PamContext instance
+    required property var lockContext
+    required property var lockSurface
+    property color accent: lockContext && lockContext.theme ? lockContext.theme.mauve : "#cba6f7"
+    property bool compact: width < 440
+    property int pillPadV: compact ? 6 : 8
 
     anchors.centerIn: parent
     width: parent.width * 0.47
@@ -22,55 +22,38 @@ FocusScope {
     visible: lockSurface && lockSurface.hasScreen
     opacity: lockSurface && lockSurface.hasScreen ? 1 : 0
     scale: lockSurface && lockSurface.hasScreen ? 1 : 0.98
-    property color accent: ctx && ctx.theme ? ctx.theme.mauve : "#cba6f7"
-    // compact mode for smaller widths to avoid pill overflow
-    property bool compact: width < 440
-    // vertical padding for info pills
-    property int pillPadV: compact ? 6 : 8
 
     function shake() {
         shakeAnim.restart();
     }
 
-    // Fallback focus policy: if the snapshot primary monitor is absent (e.g., DPMS off
-    // or hotplug during lock), allow one-time focus on the last currently available
-    // monitor, then naturally reassert focus to the snapshot primary once it returns.
-    readonly property string _snapshotPrimaryName: (ctx && ctx.snapshotMonitorNames && ctx.snapshotMonitorNames.length) ? ctx.snapshotMonitorNames[ctx.snapshotMonitorNames.length - 1] : ""
-    function _currentMonitorNames() {
-        try {
-            return ctx && ctx.currentMonitorNames ? ctx.currentMonitorNames() : [];
-        } catch (e) {
-            return [];
-        }
-    }
     function _maybeRequestFocusOnce(reason) {
         if (!lockSurface || !lockSurface.hasScreen)
             return;
         const isPrimary = lockSurface.isMainMonitor;
         if (isPrimary) {
-            panel.forceActiveFocus();
-            if (panel.ctx) {
+            lockPanel.forceActiveFocus();
+            if (lockPanel.lockContext) {
                 Logger.log("LockContent", "single-shot focus request (primary): " + reason);
             }
         }
     }
 
     Component.onCompleted: {
-        // Single-shot attempt at startup
         _maybeRequestFocusOnce("component completed");
     }
     Connections {
-        target: panel.lockSurface
+        target: lockPanel.lockSurface
         function onHasScreenChanged() {
-            if (!panel.lockSurface)
+            if (!lockPanel.lockSurface)
                 return;
-            if (panel.lockSurface.hasScreen)
-                panel._maybeRequestFocusOnce("hasScreen changed -> true");
+            if (lockPanel.lockSurface.hasScreen)
+                lockPanel._maybeRequestFocusOnce("hasScreen changed -> true");
         }
     }
 
     transform: Translate {
-        id: panelShake
+        id: lockPanelShake
         x: 0
     }
 
@@ -91,7 +74,7 @@ FocusScope {
         id: shakeAnim
         running: false
         NumberAnimation {
-            target: panelShake
+            target: lockPanelShake
             property: "x"
             from: 0
             to: 10
@@ -99,28 +82,28 @@ FocusScope {
             easing.type: Easing.OutCubic
         }
         NumberAnimation {
-            target: panelShake
+            target: lockPanelShake
             property: "x"
             from: 10
             to: -10
             duration: 70
         }
         NumberAnimation {
-            target: panelShake
+            target: lockPanelShake
             property: "x"
             from: -10
             to: 6
             duration: 60
         }
         NumberAnimation {
-            target: panelShake
+            target: lockPanelShake
             property: "x"
             from: 6
             to: -4
             duration: 50
         }
         NumberAnimation {
-            target: panelShake
+            target: lockPanelShake
             property: "x"
             from: -4
             to: 0
@@ -129,10 +112,10 @@ FocusScope {
     }
 
     Connections {
-        target: panel.ctx
+        target: lockPanel.lockContext
         function onAuthStateChanged() {
-            if (panel.ctx.authState === "error" || panel.ctx.authState === "fail")
-                panel.shake();
+            if (lockPanel.lockContext.authState === "error" || lockPanel.lockContext.authState === "fail")
+                lockPanel.shake();
         }
     }
 
@@ -182,7 +165,7 @@ FocusScope {
             spacing: 10
             Text {
                 text: Qt.formatTime(TimeService.currentDate, "HH:mm")
-                color: panel.ctx.theme.text
+                color: lockPanel.lockContext.theme.text
                 font.pixelSize: 74
                 font.bold: true
                 horizontalAlignment: Text.AlignHCenter
@@ -191,7 +174,7 @@ FocusScope {
             Text {
                 text: Qt.formatTime(TimeService.currentDate, "AP")
                 visible: text !== ""
-                color: panel.ctx.theme.subtext1
+                color: lockPanel.lockContext.theme.subtext1
                 font.pixelSize: 30
                 font.bold: true
                 horizontalAlignment: Text.AlignHCenter
@@ -202,51 +185,46 @@ FocusScope {
         Text {
             Layout.alignment: Qt.AlignHCenter
             text: Qt.formatDate(TimeService.currentDate, "dddd, d MMMM yyyy")
-            color: panel.ctx.theme.subtext0
+            color: lockPanel.lockContext.theme.subtext0
             font.pixelSize: 21
             horizontalAlignment: Text.AlignHCenter
-            Layout.preferredWidth: panel.width - 64
+            Layout.preferredWidth: lockPanel.width - 64
         }
 
-        // Identity
         Text {
             Layout.alignment: Qt.AlignHCenter
             text: MainService.fullName ? MainService.fullName : ""
-            visible: panel.lockSurface.hasScreen && text.length > 0
-            color: panel.ctx.theme.subtext1
+            visible: lockPanel.lockSurface.hasScreen && text.length > 0
+            color: lockPanel.lockContext.theme.subtext1
             font.pixelSize: 24
             font.bold: true
             elide: Text.ElideRight
-            Layout.preferredWidth: panel.width - 64
+            Layout.preferredWidth: lockPanel.width - 64
             Layout.topMargin: 2
             horizontalAlignment: Text.AlignHCenter
         }
 
-        // Info pills row (weather, host)
         RowLayout {
-            id: pillsRow
+            id: infoPillsRow
             Layout.alignment: Qt.AlignHCenter
             spacing: 10
-            Layout.preferredWidth: panel.width - 64
-            visible: panel.lockSurface.hasScreen
-            // Shared height so both pills match visually
-            // Weather pill may wrap location into its own line; account for that height.
+            Layout.preferredWidth: lockPanel.width - 64
+            visible: lockPanel.lockSurface.hasScreen
             property int hostLineHeight: Math.max(hostIcon.font.pixelSize, hostText.font.pixelSize)
-            property int pillHeight: Math.max(hostLineHeight, wxPill.contentHeight) + panel.pillPadV * 2
+            property int pillHeight: Math.max(hostLineHeight, weatherPill.contentHeight) + lockPanel.pillPadV * 2
 
-            // Weather pill
             Rectangle {
-                id: wxPill
+                id: weatherPill
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: true
                 Layout.minimumWidth: 120
-                Layout.maximumWidth: Math.floor((panel.width - 64 - pillsRow.spacing) / 2)
-                Layout.preferredHeight: pillsRow.pillHeight
+                Layout.maximumWidth: Math.floor((lockPanel.width - 64 - infoPillsRow.spacing) / 2)
+                Layout.preferredHeight: infoPillsRow.pillHeight
                 radius: 10
                 color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
                 border.width: 1
                 border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
-                visible: panel.lockSurface.hasScreen && WeatherService
+                visible: lockPanel.lockSurface.hasScreen && WeatherService
                 opacity: visible ? 1 : 0
                 Behavior on opacity {
                     NumberAnimation {
@@ -254,77 +232,69 @@ FocusScope {
                         easing.type: Easing.OutCubic
                     }
                 }
-                // Expose computed content height for pillsRow
-                property int contentHeight: wxCol.contentHeight
+                property int contentHeight: weatherColumn.contentHeight
 
-                // Content with optional wrapping of location to a new line
                 ColumnLayout {
-                    id: wxCol
+                    id: weatherColumn
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    anchors.margins: panel.compact ? 8 : 10
+                    anchors.margins: lockPanel.compact ? 8 : 10
                     spacing: 2
 
-                    // Weather data
                     property string icon: WeatherService ? WeatherService.getWeatherIconFromCode() : ""
                     property string temp: WeatherService ? WeatherService.currentTemp : ""
                     property string place: WeatherService && WeatherService.locationName ? WeatherService.locationName : ""
                     property bool stale: WeatherService ? WeatherService.isStale : false
 
-                    // Whether location fits inline alongside icon/temp/stale
-                    // Computed against the actual available width of this column
-                    readonly property bool fitsInline: (wxIcon.implicitWidth + topRow.spacing + wxTemp.implicitWidth + (wxCol.place.length > 0 ? topRow.spacing + wxPlaceInline.implicitWidth : 0) + (wxCol.stale ? topRow.spacing + staleBadge.implicitWidth : 0)) <= wxCol.width
+                    readonly property bool fitsInline: (weatherIcon.implicitWidth + weatherTopRow.spacing + weatherTemp.implicitWidth + (weatherColumn.place.length > 0 ? weatherTopRow.spacing + weatherPlaceInline.implicitWidth : 0) + (weatherColumn.stale ? weatherTopRow.spacing + weatherStaleBadge.implicitWidth : 0)) <= weatherColumn.width
 
-                    // Effective content height for pill height calculation
-                    // Single-line when fitsInline; two lines when wrapped
-                    readonly property int contentHeight: fitsInline ? Math.max(wxIcon.font.pixelSize, wxTemp.font.pixelSize, wxPlaceInline.font.pixelSize) : Math.max(wxIcon.font.pixelSize, wxTemp.font.pixelSize) + wxCol.spacing + (wxPlace.visible ? wxPlace.font.pixelSize : 0)
+                    readonly property int contentHeight: fitsInline ? Math.max(weatherIcon.font.pixelSize, weatherTemp.font.pixelSize, weatherPlaceInline.font.pixelSize) : Math.max(weatherIcon.font.pixelSize, weatherTemp.font.pixelSize) + weatherColumn.spacing + (weatherPlace.visible ? weatherPlace.font.pixelSize : 0)
 
                     RowLayout {
-                        id: topRow
+                        id: weatherTopRow
                         Layout.fillWidth: true
                         spacing: 8
 
                         Text {
-                            id: wxIcon
+                            id: weatherIcon
                             Layout.alignment: Qt.AlignVCenter
-                            text: wxCol.icon
-                            color: panel.ctx.theme.text
+                            text: weatherColumn.icon
+                            color: lockPanel.lockContext.theme.text
                             font.pixelSize: 27
                         }
                         Text {
-                            id: wxTemp
+                            id: weatherTemp
                             Layout.alignment: Qt.AlignVCenter
-                            text: WeatherService ? Math.max(0, wxCol.temp.indexOf("°")) >= 0 ? wxCol.temp.split(" ")[0] : wxCol.temp : ""
-                            color: panel.ctx.theme.text
+                            text: WeatherService ? Math.max(0, weatherColumn.temp.indexOf("°")) >= 0 ? weatherColumn.temp.split(" ")[0] : weatherColumn.temp : ""
+                            color: lockPanel.lockContext.theme.text
                             font.pixelSize: 21
                             font.bold: true
                         }
 
-                        // Inline location (only when it fits)
                         Text {
-                            id: wxPlaceInline
+                            id: weatherPlaceInline
                             Layout.alignment: Qt.AlignVCenter
-                            text: wxCol.place
-                            visible: !panel.compact && text.length > 0 && wxCol.fitsInline
-                            color: panel.ctx.theme.subtext0
+                            text: weatherColumn.place
+                            visible: !lockPanel.compact && text.length > 0 && weatherColumn.fitsInline
+                            color: lockPanel.lockContext.theme.subtext0
                             font.pixelSize: 16
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
 
                         Rectangle {
-                            id: staleBadge
+                            id: weatherStaleBadge
                             Layout.alignment: Qt.AlignVCenter
-                            visible: wxCol.stale
+                            visible: weatherColumn.stale
                             radius: 6
                             color: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 0.18)
                             border.width: 1
                             border.color: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 0.36)
                             implicitHeight: 18
-                            implicitWidth: staleText.implicitWidth + 10
+                            implicitWidth: weatherStaleText.implicitWidth + 10
                             Text {
-                                id: staleText
+                                id: weatherStaleText
                                 anchors.centerIn: parent
                                 text: "stale"
                                 color: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 1.0)
@@ -334,33 +304,30 @@ FocusScope {
                         }
                     }
 
-                    // Wrapped location (shown on its own line when not fitting inline)
                     Text {
-                        id: wxPlace
+                        id: weatherPlace
                         Layout.alignment: Qt.AlignVCenter
                         Layout.fillWidth: true
-                        text: wxCol.place
-                        visible: !panel.compact && text.length > 0 && !wxCol.fitsInline
-                        color: panel.ctx.theme.subtext0
+                        text: weatherColumn.place
+                        visible: !lockPanel.compact && text.length > 0 && !weatherColumn.fitsInline
+                        color: lockPanel.lockContext.theme.subtext0
                         font.pixelSize: 16
                         elide: Text.ElideRight
                     }
                 }
             }
 
-            // Host pill
             Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: true
                 Layout.minimumWidth: 120
-                Layout.maximumWidth: Math.floor((panel.width - 64 - pillsRow.spacing) / 2)
-                Layout.preferredHeight: pillsRow.pillHeight
+                Layout.maximumWidth: Math.floor((lockPanel.width - 64 - infoPillsRow.spacing) / 2)
+                Layout.preferredHeight: infoPillsRow.pillHeight
                 radius: 10
                 color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
                 border.width: 1
                 border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
-                // Keep host pill visible when the lock surface is present, even if hostname is temporarily unavailable
-                visible: panel.lockSurface.hasScreen
+                visible: lockPanel.lockSurface.hasScreen
                 opacity: visible ? 1 : 0
                 Behavior on opacity {
                     NumberAnimation {
@@ -374,22 +341,21 @@ FocusScope {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    anchors.margins: panel.compact ? 8 : 10
+                    anchors.margins: lockPanel.compact ? 8 : 10
                     spacing: 8
                     Text {
                         id: hostIcon
                         Layout.alignment: Qt.AlignVCenter
                         text: "💻"
-                        color: panel.ctx.theme.text
+                        color: lockPanel.lockContext.theme.text
                         font.pixelSize: 21
                     }
                     Text {
                         id: hostText
                         Layout.alignment: Qt.AlignVCenter
                         Layout.fillWidth: true
-                        // Safe fallback when hostname is empty or not yet populated
                         text: (MainService && typeof MainService.hostname === "string" && MainService.hostname.length > 0) ? MainService.hostname : "localhost"
-                        color: panel.ctx.theme.subtext0
+                        color: lockPanel.lockContext.theme.subtext0
                         font.pixelSize: 21
                         elide: Text.ElideRight
                     }
@@ -397,12 +363,11 @@ FocusScope {
             }
         }
 
-        // Soft divider before password (primary only)
         Rectangle {
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: 4
-            visible: panel.lockSurface.isMainMonitor
-            Layout.preferredWidth: Math.min(panel.width - 64, 420)
+            visible: lockPanel.lockSurface.isMainMonitor
+            Layout.preferredWidth: Math.min(lockPanel.width - 64, 420)
             Layout.preferredHeight: 1
             radius: 1
             color: Qt.rgba(124 / 255, 124 / 255, 148 / 255, 0.25)
@@ -410,28 +375,26 @@ FocusScope {
 
         Rectangle {
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: Math.min(panel.width - 32, 440)
+            Layout.preferredWidth: Math.min(lockPanel.width - 32, 440)
             Layout.preferredHeight: 46
             radius: 12
             color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.45)
             border.width: 1
-            border.color: panel.ctx.authState ? panel.ctx.theme.love : Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
-            visible: panel.lockSurface.isMainMonitor
-            enabled: panel.lockSurface.hasScreen && panel.lockSurface.isMainMonitor
+            border.color: lockPanel.lockContext.authState ? lockPanel.lockContext.theme.love : Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
+            visible: lockPanel.lockSurface.isMainMonitor
+            enabled: lockPanel.lockSurface.hasScreen && lockPanel.lockSurface.isMainMonitor
 
-            // Left lock icon
             Text {
                 id: lockIcon
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 anchors.leftMargin: 14
                 text: "🔒"
-                color: panel.ctx.theme.overlay1
+                color: lockPanel.lockContext.theme.overlay1
                 font.pixelSize: 21
                 opacity: 0.9
             }
 
-            // Symmetric content area
             Item {
                 id: passContent
                 anchors.fill: parent
@@ -455,7 +418,7 @@ FocusScope {
                     id: capsText
                     anchors.centerIn: parent
                     text: "Caps Lock"
-                    color: panel.ctx.theme.love
+                    color: lockPanel.lockContext.theme.love
                     font.pixelSize: 14
                 }
             }
@@ -464,27 +427,25 @@ FocusScope {
                 radius: parent.radius
                 color: "transparent"
                 border.width: 2
-                border.color: panel.accent
-                // Use panel.activeFocus rather than local focus, since key handling now lives at the panel level
-                opacity: panel.activeFocus ? 0.55 : 0.0
+                border.color: lockPanel.accent
+                opacity: lockPanel.activeFocus ? 0.55 : 0.0
                 Behavior on opacity {
                     NumberAnimation {
                         duration: 160
                     }
                 }
             }
-            // Key handling moved to panel-level FocusScope
 
             RowLayout {
                 anchors.centerIn: passContent
                 spacing: 7
                 Repeater {
-                    model: panel.ctx.passwordBuffer.length
+                    model: lockPanel.lockContext.passwordBuffer.length
                     delegate: Rectangle {
                         implicitWidth: 10
                         implicitHeight: 10
                         radius: 5
-                        color: panel.pamAuth.active ? panel.ctx.theme.mauve : panel.ctx.theme.overlay2
+                        color: lockPanel.lockContext.authenticating ? lockPanel.lockContext.theme.mauve : lockPanel.lockContext.theme.overlay2
                         scale: 0.8
                         SequentialAnimation on opacity {
                             loops: 1
@@ -509,10 +470,10 @@ FocusScope {
 
             Text {
                 anchors.centerIn: passContent
-                text: panel.pamAuth.active ? "Authenticating…" : panel.ctx.authState === "error" ? "Error" : panel.ctx.authState === "max" ? "Too many tries" : panel.ctx.authState === "fail" ? "Incorrect password" : panel.ctx.passwordBuffer.length ? "" : "Enter password"
-                color: panel.pamAuth.active ? panel.accent : panel.ctx.authState ? panel.ctx.theme.love : panel.ctx.theme.overlay1
+                text: lockPanel.lockContext.authenticating ? "Authenticating…" : lockPanel.lockContext.authState === "error" ? "Error" : lockPanel.lockContext.authState === "max" ? "Too many tries" : lockPanel.lockContext.authState === "fail" ? "Incorrect password" : lockPanel.lockContext.passwordBuffer.length ? "" : "Enter password"
+                color: lockPanel.lockContext.authenticating ? lockPanel.accent : lockPanel.lockContext.authState ? lockPanel.lockContext.theme.love : lockPanel.lockContext.theme.overlay1
                 font.pixelSize: 21
-                opacity: panel.ctx.passwordBuffer.length ? 0 : 1
+                opacity: lockPanel.lockContext.passwordBuffer.length ? 0 : 1
                 Behavior on color {
                     ColorAnimation {
                         duration: 140
@@ -530,24 +491,23 @@ FocusScope {
             Layout.alignment: Qt.AlignHCenter
             spacing: 12
             opacity: 0.9
-            visible: panel.lockSurface.isMainMonitor
+            visible: lockPanel.lockSurface.isMainMonitor
             Text {
                 text: "Press Enter to unlock"
-                color: panel.ctx.theme.overlay1
+                color: lockPanel.lockContext.theme.overlay1
                 font.pixelSize: 16
             }
             Rectangle {
                 implicitWidth: 4
                 implicitHeight: 4
                 radius: 2
-                color: panel.ctx.theme.overlay0
+                color: lockPanel.lockContext.theme.overlay0
             }
             Text {
                 text: "Esc clears input"
-                color: panel.ctx.theme.overlay1
+                color: lockPanel.lockContext.theme.overlay1
                 font.pixelSize: 16
             }
-            // Keyboard layout indicator
             Rectangle {
                 id: layoutIndicator
                 visible: (KeyboardLayoutService.currentLayout.length > 0)
@@ -561,7 +521,7 @@ FocusScope {
                 Text {
                     id: layoutText
                     text: KeyboardLayoutService.currentLayout
-                    color: panel.ctx.theme.overlay1
+                    color: lockPanel.lockContext.theme.overlay1
                     font.pixelSize: 14
                     anchors.verticalCenter: layoutIndicator.verticalCenter
                     anchors.horizontalCenter: layoutIndicator.horizontalCenter
@@ -570,26 +530,25 @@ FocusScope {
         }
     }
 
-    // Panel-level key handling so whichever lock surface the compositor focuses can accept input immediately.
     Keys.onPressed: event => {
-        if (!panel.lockSurface || !panel.lockSurface.hasScreen)
+        if (!lockPanel.lockSurface || !lockPanel.lockSurface.hasScreen)
             return;
-        if (panel.pamAuth.active)
+        if (lockPanel.lockContext.authenticating)
             return;
         if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
-            panel.pamAuth.start();
+            lockPanel.lockContext.submitOrStart();
             event.accepted = true;
         } else if (event.key === Qt.Key_Backspace) {
-            panel.ctx.passwordBuffer = event.modifiers & Qt.ControlModifier ? "" : panel.ctx.passwordBuffer.slice(0, -1);
+            lockPanel.lockContext.setPasswordBuffer(event.modifiers & Qt.ControlModifier ? "" : lockPanel.lockContext.passwordBuffer.slice(0, -1));
             event.accepted = true;
         } else if (event.key === Qt.Key_Escape) {
-            panel.ctx.passwordBuffer = "";
+            lockPanel.lockContext.setPasswordBuffer("");
             event.accepted = true;
         } else if (event.text && event.text.length === 1) {
             const t = event.text;
             const c = t.charCodeAt(0);
             if (c >= 0x20 && c <= 0x7E) {
-                panel.ctx.passwordBuffer += t;
+                lockPanel.lockContext.setPasswordBuffer(lockPanel.lockContext.passwordBuffer + t);
                 event.accepted = true;
             }
         }
