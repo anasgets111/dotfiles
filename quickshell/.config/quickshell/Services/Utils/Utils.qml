@@ -1,4 +1,3 @@
-// Utils.qml
 pragma Singleton
 import QtQuick
 import Quickshell
@@ -8,114 +7,106 @@ import qs.Services.Core
 Singleton {
     id: utils
 
-    // Run a command and collect stdout; optionally parent the Process
     function runCmd(cmd, onDone, parent) {
-        var p = Qt.createQmlObject('import Quickshell.Io; Process { }', parent || utils);
-        var c = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', p);
-        p.stdout = c;
-        c.onStreamFinished.connect(function () {
+        if (!cmd || !Array.isArray(cmd) || cmd.length === 0) {
+            if (onDone)
+                onDone("");
+            return;
+        }
+        const host = parent || utils;
+        const proc = Qt.createQmlObject('import Quickshell.Io; Process {}', host);
+        const stdio = Qt.createQmlObject('import Quickshell.Io; StdioCollector {}', proc);
+        proc.stdout = stdio;
+        stdio.onStreamFinished.connect(function () {
             try {
                 if (onDone)
-                    onDone(c.text);
+                    onDone(stdio.text);
             } finally {
-                // Clean up transient objects to avoid leaks
                 try {
-                    c.destroy();
-                } catch (e) {}
+                    stdio.destroy();
+                } catch (err) {}
                 try {
-                    p.destroy();
-                } catch (e2) {}
+                    proc.destroy();
+                } catch (err) {}
             }
         });
-        p.command = cmd;
-        p.running = true;
+        proc.command = cmd;
+        proc.running = true;
     }
 
-    // Remove ANSI escape sequences
-    function stripAnsi(str) {
-        return String(str).replace(/\x1B\[[0-9;]*[A-Za-z]/g, "");
+    function stripAnsi(input) {
+        const value = String(input);
+        const ansiPattern = new RegExp("\\x1B(?:[@-Z\\\\-_]|\\[[0-\\?]*[ -/]*[@-~]|\\][^\\x07]*(\\x07|\\x1B\\\\))", "g");
+        return value.replace(ansiPattern, "");
     }
 
-    // Shallow merge (b overrides a)
-    function mergeObjects(a, b) {
-        var out = {};
-        for (var k in a)
-            out[k] = a[k];
-        for (var k2 in b)
-            out[k2] = b[k2];
+    function mergeObjects(objA, objB) {
+        const out = {};
+        for (const prop in objA)
+            if (Object.prototype.hasOwnProperty.call(objA, prop))
+                out[prop] = objA[prop];
+        for (const prop in objB)
+            if (Object.prototype.hasOwnProperty.call(objB, prop))
+                out[prop] = objB[prop];
         return out;
     }
 
-    // Validate and sanitize a MIME type string; returns "" if invalid
-    function sanitizeMimeType(m) {
-        var s = String(m || "");
-        return s.match(/^[a-z0-9][a-z0-9+.-]*\/[a-z0-9][a-z0-9+.-]*$/i) ? s : "";
+    function sanitizeMimeType(input) {
+        const value = String(input || "");
+        const mimePattern = new RegExp("^[a-z0-9](?:[a-z0-9.+-])*/[a-z0-9](?:[a-z0-9.+-])*$", "i");
+        return mimePattern.test(value) ? value : "";
     }
 
-    // Predicate helpers for common MIME families
-    function isTextMime(m) {
-        var s = sanitizeMimeType(m);
-        return s === "text" || s === "text/plain" || s.indexOf("text/") === 0;
+    function isTextMime(mime) {
+        const sanitized = sanitizeMimeType(mime);
+        return sanitized === "text" || sanitized === "text/plain" || sanitized.indexOf("text/") === 0;
     }
 
-    function isImageMime(m) {
-        var s = sanitizeMimeType(m);
-        return s.indexOf("image/") === 0;
+    function isImageMime(mime) {
+        const sanitized = sanitizeMimeType(mime);
+        return sanitized.indexOf("image/") === 0;
     }
 
-    // Compute UTF-8 byte length of a JS string
-    function utf8Size(str) {
+    function utf8Size(input) {
         try {
-            return unescape(encodeURIComponent(String(str))).length;
-        } catch (e) {
-            var s = String(str);
-            return s.length * 3;
+            return unescape(encodeURIComponent(String(input))).length;
+        } catch (_) {
+            const str = String(input || "");
+            return str.length * 3;
         }
     }
 
-    // Compute decoded size in bytes from base64 text
     function base64Size(b64) {
-        var len = String(b64 || "").length;
-        var pad = (len >= 2 && b64.endsWith("==")) ? 2 : (len >= 1 && b64.endsWith("=")) ? 1 : 0;
+        const str = String(b64 || "");
+        const len = str.length;
+        const pad = str.endsWith("==") ? 2 : str.endsWith("=") ? 1 : 0;
         return Math.floor((len * 3) / 4) - pad;
     }
 
-    // Safe JSON.parse with fallback on error
     function safeJsonParse(str, fallback) {
         try {
-            var s = (str === undefined || str === null) ? "" : String(str);
-            return JSON.parse(s);
-        } catch (e) {
+            const jsonStr = str === undefined || str === null ? "" : String(str);
+            return JSON.parse(jsonStr);
+        } catch (err) {
             return fallback;
         }
     }
 
-    // Build a safe ["sh", "-c", script, "$0", ...args] array
-    // Use $1..$N inside 'script' to reference provided args.
     function shCommand(script, args) {
-        var cmd = ["sh", "-c", String(script), "x"]; // $0 placeholder
-        if (args) {
-            var list = args;
-            if (list instanceof Array === false) {
-                list = [args];
-            }
-            for (var i = 0; i < list.length; i++)
-                cmd.push(String(list[i]));
+        const cmd = ["sh", "-c", String(script), "x"];
+        if (args !== undefined && args !== null) {
+            const list = Array.isArray(args) ? args : [args];
+            for (let idx = 0; idx < list.length; idx++)
+                cmd.push(String(list[idx]));
         }
         return cmd;
     }
 
-
-
-    // =====================
-    // Desktop entry helpers
-    // =====================
-
-    function isRawSource(s) {
-        if (!s)
+    function isRawSource(source) {
+        if (!source)
             return false;
-        const v = String(s);
-        return (v.startsWith("file:") || v.startsWith("data:") || v.startsWith("/") || v.startsWith("qrc:"));
+        const value = String(source);
+        return value.startsWith("file:") || value.startsWith("data:") || value.startsWith("/") || value.startsWith("qrc:");
     }
 
     function safeIconPath(name) {
@@ -123,7 +114,7 @@ Singleton {
             return "";
         try {
             return Quickshell.iconPath(String(name), true) || "";
-        } catch (e) {
+        } catch (_) {
             return "";
         }
     }
@@ -133,72 +124,43 @@ Singleton {
         if (!key || typeof DesktopEntries === "undefined")
             return null;
         try {
-            return ((DesktopEntries.heuristicLookup ? DesktopEntries.heuristicLookup(key) : null) || (DesktopEntries.byId ? DesktopEntries.byId(key) : null) || null);
-        } catch (e) {
+            return (DesktopEntries.heuristicLookup ? DesktopEntries.heuristicLookup(key) : null) || (DesktopEntries.byId ? DesktopEntries.byId(key) : null) || null;
+        } catch (_) {
             return null;
         }
     }
 
-    // Raw passthrough if URI/path; otherwise theme lookup
     function themedOrRaw(source) {
-        const v = String(source || "");
-        if (!v)
+        const value = String(source || "");
+        if (!value)
             return "";
-        return isRawSource(v) ? v : safeIconPath(v);
+        return isRawSource(value) ? value : safeIconPath(value);
     }
 
-    /**
- * Resolve an icon source with a single, flexible API.
- *
- * Forms:
- *   resolveIconSource(appIdOrNameOrIcon, fallbackIconName?)
- *   resolveIconSource(appIdOrNameOrIcon, providedIcon, fallbackIconName)
- *
- * Order:
- *   1) Desktop Entry icon (themed)
- *   2) key as raw or themed icon
- *   3) providedIcon (3-arg form): raw or themed
- *   4) fallback:
- *        - undefined/null -> "application-x-executable"
- *        - "" -> no fallback (returns "")
- *        - otherwise -> themed fallback name
- */
     function resolveIconSource(key, providedOrFallback, maybeFallback) {
-        const hasProvided = arguments.length >= 3;
-        const providedIcon = hasProvided ? providedOrFallback : null;
-        const fallbackCandidate = hasProvided ? maybeFallback : providedOrFallback;
+        const haveProvided = arguments.length >= 3;
+        const providedIcon = haveProvided ? providedOrFallback : null;
+        const fallbackCandidate = haveProvided ? maybeFallback : providedOrFallback;
 
-        // 1) Desktop entry icon
         const entry = resolveDesktopEntry(key);
         const fromEntry = entry && entry.icon ? safeIconPath(entry.icon) : "";
         if (fromEntry)
             return fromEntry;
 
-        // 2) key as raw/themed
         const fromKey = themedOrRaw(key);
         if (fromKey)
             return fromKey;
 
-        // 3) provided icon (3-arg form)
         if (providedIcon) {
             const fromProvided = themedOrRaw(providedIcon);
             if (fromProvided)
                 return fromProvided;
         }
 
-        // 4) fallback
         const fallbackName = fallbackCandidate == null ? "application-x-executable" : String(fallbackCandidate);
         return fallbackName ? safeIconPath(fallbackName) : "";
     }
 
-    // =====================
-    // Lock LED Watcher API
-    // =====================
-    // Public:
-    // - startLockLedWatcher({ onChange: fn }) -> function unsubscribe()
-    // - getLockLedState() -> { caps: bool, num: bool, scroll: bool }
-
-    // Internal state
     property var _ledCapsPaths: []
     property var _ledNumPaths: []
     property var _ledScrollPaths: []
@@ -208,12 +170,11 @@ Singleton {
             num: false,
             scroll: false
         })
-    property var _ledWatchers: [] // array of functions
-    property bool _ledUdevActive: false
-    property int _ledRestartBackoffMs: 250
+    property var _ledWatchers: []
+    property int _pollIntervalNormalMs: 120
+    property int _pollIntervalFastMs: 40
 
     function getLockLedState() {
-        // Return a shallow copy to avoid accidental mutation by callers
         return {
             caps: !!utils._ledState.caps,
             num: !!utils._ledState.num,
@@ -221,36 +182,33 @@ Singleton {
         };
     }
 
-    function startLockLedWatcher(opts) {
-        var cb = opts && opts.onChange ? opts.onChange : null;
-        if (cb)
-            utils._ledWatchers.push(cb);
-        // Ensure discovery and backend running
+    function startLockLedWatcher(options) {
+        const onChange = options && options.onChange ? options.onChange : null;
+        if (onChange)
+            utils._ledWatchers.push(onChange);
         if (!utils._ledDiscovered)
-            utils._ledDiscover();
-        utils._ensureLedBackend();
-        // Fire immediately with current state so UI can sync
-        if (cb)
+            _discoverLedPaths();
+        _ensurePolling();
+        if (onChange) {
             try {
-                cb(utils.getLockLedState());
-            } catch (e) {}
-        // Return unsubscribe function
-        return function () {
-            var idx = utils._ledWatchers.indexOf(cb);
+                onChange(utils.getLockLedState());
+            } catch (_) {}
+        }
+        return function unsubscribe() {
+            const idx = utils._ledWatchers.indexOf(onChange);
             if (idx >= 0)
                 utils._ledWatchers.splice(idx, 1);
-            // Stop backends if no watchers
-            utils._maybeStopLedBackend();
+            _maybeStopPolling();
         };
     }
 
-    function _ledDiscover() {
-        var pending = 3;
+    function _discoverLedPaths() {
+        let pending = 3;
         function doneOne() {
             pending -= 1;
             if (pending <= 0) {
                 utils._ledDiscovered = true;
-                utils._refreshLedState();
+                _refreshLedState();
             }
         }
         FileSystemService.listByGlob("/sys/class/leds/*::capslock/brightness", function (lines) {
@@ -269,10 +227,10 @@ Singleton {
 
     function _refreshLedState() {
         const groups = [utils._ledCapsPaths, utils._ledNumPaths, utils._ledScrollPaths];
-        if (!groups[0].length && !groups[1].length && !groups[2].length) {
-            // Nothing to read; keep defaults
+        const haveAny = (groups[0] && groups[0].length) || (groups[1] && groups[1].length) || (groups[2] && groups[2].length);
+        if (!haveAny)
             return;
-        }
+
         FileSystemService.pollGroupsAnyNonzero(groups, function (states) {
             if (!states || states.length < 3)
                 return;
@@ -281,115 +239,63 @@ Singleton {
                 num: !!states[1],
                 scroll: !!states[2]
             };
-            utils._emitLedIfChanged(next);
+            _emitLedIfChanged(next);
         });
     }
 
     function _emitLedIfChanged(next) {
-        const cur = utils._ledState || {
+        const current = utils._ledState || {
             caps: false,
             num: false,
             scroll: false
         };
-        if (cur.caps === next.caps && cur.num === next.num && cur.scroll === next.scroll)
+        if (current.caps === next.caps && current.num === next.num && current.scroll === next.scroll)
             return;
+
         utils._ledState = next;
-        // Notify all watchers; guard each callback
-        for (var i = 0; i < utils._ledWatchers.length; i++) {
-            var fn = utils._ledWatchers[i];
+        // burst faster briefly to capture rapid toggles
+        _fastBurstTimer.restart();
+
+        for (let idx = 0; idx < utils._ledWatchers.length; idx++) {
+            const watcher = utils._ledWatchers[idx];
             try {
-                fn(utils.getLockLedState());
-            } catch (e) {}
+                watcher(utils.getLockLedState());
+            } catch (_) {}
         }
     }
 
-    // Backend management
-    function _ensureLedBackend() {
-        // Prefer udev event stream; fallback to polling
-        if (udevDebounce.running)
-            udevDebounce.stop();
-        // Start udev monitor; on failure, _udevProc.running will be false and we switch to polling.
-        if (!_udevProc.running) {
-            _udevProc.running = true;
-        }
-        // Start a safety poll at a low cadence until we confirm udev events (first line)
-        _pollTimer.interval = 500;
-        _pollTimer.start();
+    function _ensurePolling() {
+        _pollTimer.interval = utils._pollIntervalNormalMs;
+        if (!_pollTimer.running)
+            _pollTimer.start();
     }
 
-    function _maybeStopLedBackend() {
+    function _maybeStopPolling() {
         if (utils._ledWatchers.length > 0)
             return;
-        // No watchers: stop processes/timers
-        if (_udevProc.running)
-            _udevProc.running = false;
         _pollTimer.stop();
-        udevDebounce.stop();
-        utils._ledRestartBackoffMs = 250;
+        _fastBurstTimer.stop();
+        _pollTimer.interval = utils._pollIntervalNormalMs;
     }
 
-    Timer {
-        id: udevDebounce
-        interval: 75
-        repeat: false
-        onTriggered: utils._refreshLedState()
-    }
-
-    // Polling fallback (also initial safety poll)
     Timer {
         id: _pollTimer
-        interval: 250
+        interval: 100
         repeat: true
         running: false
         onTriggered: utils._refreshLedState()
     }
 
-    Process {
-        id: _udevProc
-        // Use both --kernel and --udev to catch all change events on LED subsystem
-        command: ["udevadm", "monitor", "--kernel", "--udev", "--subsystem-match=leds"]
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: function (line) {
-                var s = String(line || "").trim();
-                if (!s)
-                    return;
-                // Only treat actual event lines as a signal. udevadm prints a banner at startup.
-                if (!(/^KERNEL\[/i.test(s) || /^UDEV\[/i.test(s)))
-                    return;
-                if (!utils._ledUdevActive) {
-                    utils._ledUdevActive = true;
-                    _pollTimer.stop();
-                }
-                udevDebounce.restart();
-            }
-        }
-        onRunningChanged: {
-            // If udev monitor exits unexpectedly and we still have watchers, fallback and schedule restart
-            if (!_udevProc.running) {
-                utils._ledUdevActive = false;
-                if (utils._ledWatchers.length > 0) {
-                    // Ensure polling is running
-                    _pollTimer.interval = 300;
-                    _pollTimer.start();
-                    // Attempt restart with backoff
-                    _udevRestartTimer.interval = utils._ledRestartBackoffMs;
-                    _udevRestartTimer.start();
-                    utils._ledRestartBackoffMs = Math.min(30000, Math.max(250, utils._ledRestartBackoffMs * 2));
-                }
-            } else {
-                // Reset backoff when successfully running
-                utils._ledRestartBackoffMs = 250;
-            }
-        }
-    }
-
     Timer {
-        id: _udevRestartTimer
+        id: _fastBurstTimer
+        interval: 500
         repeat: false
         onTriggered: {
-            if (utils._ledWatchers.length > 0 && !_udevProc.running) {
-                _udevProc.running = true;
+            _pollTimer.interval = utils._pollIntervalNormalMs;
+        }
+        onRunningChanged: {
+            if (_fastBurstTimer.running) {
+                _pollTimer.interval = utils._pollIntervalFastMs;
             }
         }
     }

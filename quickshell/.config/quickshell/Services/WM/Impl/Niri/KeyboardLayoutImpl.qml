@@ -5,32 +5,48 @@ import qs.Services.Utils
 import qs.Services
 
 Singleton {
-    id: root
+    id: impl
 
     readonly property bool active: MainService.ready && MainService.currentWM === "niri"
-    property bool enabled: root.active
-
     readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
 
     property var layouts: []
     property string currentLayout: ""
 
     function setLayoutByIndex(layoutIndex) {
-        root.currentLayout = root.layouts && layoutIndex >= 0 && layoutIndex < root.layouts.length ? (root.layouts[layoutIndex] || "") : "";
+        if (!Array.isArray(impl.layouts)) {
+            impl.currentLayout = "";
+            return;
+        }
+        const idx = Number.isInteger(layoutIndex) ? layoutIndex : -1;
+        impl.currentLayout = idx >= 0 && idx < impl.layouts.length ? (impl.layouts[idx] || "") : "";
     }
 
-    // Event stream via IPC socket (no CLI fallback)
+    function parseKeyboardLayouts(event) {
+        const info = event && event.KeyboardLayoutsChanged && event.KeyboardLayoutsChanged.keyboard_layouts;
+        if (info) {
+            impl.layouts = Array.isArray(info.names) ? info.names : [];
+            const idx = typeof info.current_idx === "number" ? info.current_idx : -1;
+            impl.setLayoutByIndex(idx);
+            return true;
+        }
+        const switchedIdx = event && event.KeyboardLayoutSwitched && event.KeyboardLayoutSwitched.idx;
+        if (typeof switchedIdx === "number") {
+            impl.setLayoutByIndex(switchedIdx);
+            return true;
+        }
+        return false;
+    }
+
     Socket {
         id: eventStreamSocket
-        path: root.socketPath
-        connected: root.enabled && !!root.socketPath
+        path: impl.socketPath
+        connected: impl.active && !!impl.socketPath
 
         onConnectionStateChanged: {
-            if (connected) {
+            if (connected)
                 write('"EventStream"\n');
-            }
         }
-
         parser: SplitParser {
             splitMarker: "\n"
             onRead: function (segment) {
@@ -39,16 +55,7 @@ Singleton {
                 const event = Utils.safeJsonParse(segment, null);
                 if (!event)
                     return;
-                if (event && event.KeyboardLayoutsChanged) {
-                    const layoutInfo = event.KeyboardLayoutsChanged.keyboard_layouts || {};
-                    root.layouts = layoutInfo.names || [];
-                    const idx = typeof layoutInfo.current_idx === "number" ? layoutInfo.current_idx : -1;
-                    root.setLayoutByIndex(idx);
-                } else if (event && event.KeyboardLayoutSwitched) {
-                    const layoutIndex = event.KeyboardLayoutSwitched.idx;
-                    if (typeof layoutIndex === "number")
-                        root.setLayoutByIndex(layoutIndex);
-                }
+                impl.parseKeyboardLayouts(event);
             }
         }
     }
