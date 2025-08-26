@@ -7,50 +7,47 @@ import qs.Services
 
 Singleton {
     id: hyprMonitorService
+
     readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
 
-    // Enable/disable this backend (controlled by aggregator)
-    readonly property bool enabled: hyprMonitorService.active
-
     function getAvailableFeatures(name, callback) {
-        Utils.runCmd(["hyprctl", "monitors", "-j"], function (output) {
-            try {
-                const clean = Utils.stripAnsi(output).trim();
-                const data = JSON.parse(clean);
-                const mon = data.find(m => m.name === name);
-                if (!mon) {
-                    callback(null);
-                    return;
-                }
-                const modes = (mon.availableModes || []).map(modeStr => {
-                    const match = modeStr.match(/^(\d+)x(\d+)@([\d.]+)Hz$/);
-                    if (match) {
-                        return {
-                            width: parseInt(match[1]),
-                            height: parseInt(match[2]),
-                            refreshRate: parseFloat(match[3])
-                        };
-                    }
-                    return {
-                        raw: modeStr
-                    };
-                });
-                const hdrActive = mon.currentFormat && /2101010|P010|P012|PQ/i.test(mon.currentFormat);
-                const isMirror = mon.mirrorOf && mon.mirrorOf !== "none";
-                callback({
-                    modes: modes,
-                    vrr: {
-                        active: !!mon.vrr
-                    },
-                    hdr: {
-                        active: hdrActive
-                    },
-                    mirror: isMirror
-                });
-            } catch (e) {
-                Logger.error("HyprMonitorService", "Failed to parse hyprctl output", e, output);
-                callback(null);
-            }
+        const monitorsRaw = Hyprland.monitors?.values || Hyprland.monitors || [];
+        const monitors = Array.isArray(monitorsRaw) ? monitorsRaw : Object.values(monitorsRaw || {});
+        function matches(candidate) {
+            if (!candidate)
+                return false;
+            return candidate.name === name || candidate.id === name || candidate.identifier === name || candidate.outputName === name;
+        }
+
+        const monitor = monitors.find(matches);
+        if (!monitor) {
+            callback(null);
+            return;
+        }
+
+        const modes = monitor.availableModes.map(modeStr => {
+            const match = modeStr.match(/^(\d+)x(\d+)@([\d.]+)Hz$/);
+            return match ? {
+                width: parseInt(match[1]),
+                height: parseInt(match[2]),
+                refreshRate: parseFloat(match[3])
+            } : {
+                raw: modeStr
+            };
+        });
+
+        const hdrActive = monitor.currentFormat && /2101010|P010|P012|PQ/i.test(monitor.currentFormat);
+        const isMirror = monitor.mirrorOf && monitor.mirrorOf !== "none";
+
+        callback({
+            modes,
+            vrr: {
+                active: !!monitor.vrr
+            },
+            hdr: {
+                active: hdrActive
+            },
+            mirror: isMirror
         });
     }
 
