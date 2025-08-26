@@ -7,7 +7,7 @@ import qs.Services.Utils
 Singleton {
     id: wallpaperService
 
-    readonly property bool ready: !!(MonitorService.ready && MonitorService.monitorsModel.count > 0)
+    readonly property bool ready: !!(MonitorService.ready && MonitorService.monitors.count > 0)
 
     property string defaultWallpaper: "/mnt/Work/1Wallpapers/Main/samurai.jpg"
     property string defaultMode: "fill" // fill | fit | center, etc.
@@ -18,9 +18,9 @@ Singleton {
     property var timersByName: ({})
 
     readonly property var wallpapersArray: Array.from({
-        length: MonitorService.ready ? MonitorService.monitorsModel.count : 0
+        length: MonitorService.ready ? MonitorService.monitors.count : 0
     }, (unusedValue, monitorIndex) => {
-        const monitor = MonitorService.monitorsModel.get(monitorIndex);
+        const monitor = MonitorService.monitors.get(monitorIndex);
         const prefs = prefsByName[monitor.name] || {};
         return {
             name: monitor.name,
@@ -54,7 +54,7 @@ Singleton {
         const monitorIndex = MonitorService ? MonitorService.findMonitorIndexByName(name) : -1;
         if (monitorIndex < 0)
             return null;
-        const monitor = MonitorService.monitorsModel.get(monitorIndex);
+        const monitor = MonitorService.monitors.get(monitorIndex);
         const prefs = prefsByName[name] || {};
         return {
             name: name,
@@ -76,8 +76,8 @@ Singleton {
         }
         Logger.log("WallpaperService", "sync: begin");
 
-        for (let monitorIndex = 0; monitorIndex < MonitorService.monitorsModel.count; monitorIndex++) {
-            const monitor = MonitorService.monitorsModel.get(monitorIndex);
+        for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
+            const monitor = MonitorService.monitors.get(monitorIndex);
             ensurePrefs(monitor.name);
             ensureTimer(monitor.name);
         }
@@ -94,12 +94,12 @@ Singleton {
             }
         }
 
-        for (let monitorIndex = 0; monitorIndex < MonitorService.monitorsModel.count; monitorIndex++) {
-            const monitor = MonitorService.monitorsModel.get(monitorIndex);
+        for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
+            const monitor = MonitorService.monitors.get(monitorIndex);
             applyRandomState(monitor.name);
         }
 
-        Logger.log("WallpaperService", `sync: done; monitors=${MonitorService.monitorsModel.count}, prefs=${Object.keys(prefsByName).length}`);
+        Logger.log("WallpaperService", `sync: done; monitors=${MonitorService.monitors.count}, prefs=${Object.keys(prefsByName).length}`);
     }
 
     function ensureTimer(name) {
@@ -175,8 +175,8 @@ Singleton {
     }
 
     function changeMonitorSettings(settings) {
-        if (MonitorService && MonitorService.changeMonitorSettings)
-            MonitorService.changeMonitorSettings(settings);
+        if (MonitorService && MonitorService.applySettings)
+            MonitorService.applySettings(settings);
     }
     function setScale(name, scale) {
         if (MonitorService && MonitorService.setScale)
@@ -209,7 +209,7 @@ Singleton {
                 Logger.log("WallpaperService", "MonitorService not ready");
             }
         }
-        function onMonitorsChanged() {
+        function onMonitorsUpdated() {
             if (MonitorService.ready) {
                 Logger.log("WallpaperService", "Monitors changed; syncing");
                 wallpaperService.syncWithMonitors();

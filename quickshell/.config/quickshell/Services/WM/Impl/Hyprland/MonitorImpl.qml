@@ -1,7 +1,5 @@
-// HyprMonitorService.qml
 pragma Singleton
 import Quickshell
-import qs.Services.Utils
 import Quickshell.Hyprland
 import qs.Services
 
@@ -10,22 +8,16 @@ Singleton {
 
     readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
 
-    function getAvailableFeatures(name, callback) {
-        const monitorsRaw = Hyprland.monitors?.values || Hyprland.monitors || [];
-        const monitors = Array.isArray(monitorsRaw) ? monitorsRaw : Object.values(monitorsRaw || {});
-        function matches(candidate) {
-            if (!candidate)
-                return false;
-            return candidate.name === name || candidate.id === name || candidate.identifier === name || candidate.outputName === name;
-        }
+    function fetchFeatures(name, callback) {
+        const monitors = (Hyprland.monitors && Hyprland.monitors.values) || [];
+        const monitor = monitors.find(m => m && (m.name === name || m.id === name || m.identifier === name || m.outputName === name));
 
-        const monitor = monitors.find(matches);
         if (!monitor) {
             callback(null);
             return;
         }
 
-        const modes = monitor.availableModes.map(modeStr => {
+        const modes = (monitor.availableModes || []).map(modeStr => {
             const match = modeStr.match(/^(\d+)x(\d+)@([\d.]+)Hz$/);
             return match ? {
                 width: parseInt(match[1]),
