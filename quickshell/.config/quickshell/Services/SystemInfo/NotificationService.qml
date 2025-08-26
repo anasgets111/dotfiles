@@ -5,157 +5,66 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Notifications
 
-// Minimal, robust notification service usable across the project.
-// Features:
-// - NotificationServer with common capabilities
-// - Popup queue with max visible and per-notification auto-dismiss
-// - Urgency-aware/default timeouts and honor expireTimeout when provided
-// - Do Not Disturb (DND) toggle to suppress popups (still logs history)
-// - Simple persistent history saved to cache file
-// - IPC for basic controls (clear, dnd, clearhistory, status)
 Singleton {
     id: root
 
-    // Emitted when a user clicks an action on any notification handled by this server.
-    // Consumers can listen and react (e.g., UpdateService running an updater).
     signal actionInvoked(string summary, string appName, string actionId, string body)
+    signal replySubmitted(string id, string text, string appName, string summary)
+    signal dndChanged(bool enabled, var policy)
 
-    // ----- Local notification support -----
-    // Create an internal notification (no external DBus) and show it using the same pipeline
-    // as remote notifications. Supports: summary, body (rich text links), appName, appIcon,
-    // image (inline), urgency, expireTimeout, actions (flat pairs or objects with icon).
-    // Returns a simple string id.
-    property int _localIdSeq: 1
-    component LocalNotification: QtObject {
-        id: ln
-        // Core fields
-        property string summary: ""
-        property string body: ""
-        property string appIcon: ""
-        property string appName: ""
-        property string image: ""
-        property int urgency: NotificationUrgency.Normal
-        property int expireTimeout: -1
-        // Actions: can be flat pair array or array of objects
-        property var actions: []
-        // Back-reference to wrapper to enable dismiss()
-        property QtObject wrapperRef
-        // Marker to identify locally-created notifications
-        readonly property bool __local: true
-        function invokeAction(actionId) {
-            const id = String(actionId || "");
-            try {
-                root.actionInvoked(String(ln.summary || ""), String(ln.appName || ""), id, String(ln.body || ""));
-            } catch (e) {}
-        }
-        function activateAction(actionId) {
-            invokeAction(actionId);
-        }
-        function dismiss() {
-            if (ln.wrapperRef) {
-                try {
-                    ln.wrapperRef.popup = false;
-                } catch (e) {}
-            }
-        }
-    }
-
-    // Present a notification (remote or local) through wrappers/queues/history
-    function _presentNotification(notification) {
-        if (!notification)
-            return null;
-        const wrapper = notifComp.createObject(root, {
-            popup: !root.doNotDisturb,
-            notification: notification
-        });
-        if (!wrapper)
-            return null;
-        if (notification && notification.__local === true)
-            notification.wrapperRef = wrapper;
-        root.all = root.all.concat([wrapper]);
-        root._addToHistory(notification);
-        if (!root.doNotDisturb) {
-            root.queue = root.queue.concat([wrapper]);
-            root._processQueue();
-        }
-        return wrapper;
-    }
-
-    // Public API: create and show a local notification
-    function send(summary, body, options) {
-        const o = options || {};
-        const n = localNotifComp.createObject(root, {
-            summary: String(summary || ""),
-            body: String(body || ""),
-            appName: String(o.appName || "notify-send"),
-            appIcon: String(o.appIcon || ""),
-            image: String(o.image || ""),
-            urgency: (function () {
-                    const u = (o.urgency !== undefined) ? o.urgency : NotificationUrgency.Normal;
-                    if (typeof u === 'string') {
-                        const s = u.toLowerCase();
-                        if (s === 'low')
-                            return NotificationUrgency.Low;
-                        if (s === 'critical')
-                            return NotificationUrgency.Critical;
-                        return NotificationUrgency.Normal;
-                    }
-                    return Number(u);
-                })(),
-            expireTimeout: (typeof o.expireTimeout === 'number') ? o.expireTimeout : -1,
-            actions: (function () {
-                    const a = o.actions;
-                    if (!a)
-                        return [];
-                    // Accept flat pairs or array of objects; pass through
-                    return a;
-                })()
-        });
-        if (!n)
-            return "";
-        const w = _presentNotification(n);
-        const id = "local-" + (root._localIdSeq++);
-        return id;
-    }
-
-    // ----- Configuration -----
-    // Maximum concurrent popups
     property int maxVisible: 3
-    // Auto-dismiss behavior
     property bool expirePopups: true
-    // Default timeouts (ms) by urgency when expireTimeout <= 0
     property int timeoutLow: 5000
     property int timeoutNormal: 8000
-    // Critical defaults to sticky (0 = don't auto-dismiss)
     property int timeoutCritical: 0
-    // Suppress showing popups (still logs to history)
-    property bool doNotDisturb: false
 
-    // ----- Live state -----
-    // Use JS arrays for dynamic collections
-    property var all: []
-    // Convenience view (note: only updates when 'all' identity changes)
-    readonly property var popups: all.filter(n => n.popup)
-    property var visible: []
-    property var queue: []
+    property var dndPolicy: ({
+            enabled: false,
+            schedule: [] // [{ days:[0-6], start:"22:00", end:"07:00" }]
+            ,
+            appRules: ({
+                    allow: [],
+                    deny: []
+                }),
+            urgency: ({
+                    bypassCritical: true,
+                    suppressLow: false
+                }),
+            behavior: "queue" // "suppress" | "queue"
+        })
 
-    // Gate to sequence popup enter animations
-    property bool _addGateBusy: false
+    property var all: [] // wrappers (active + hidden locals)
+    property var visible: [] // wrappers shown as popups
+    property var queue: [] // wrappers waiting to show
+
     readonly property int _enterAnimMs: 300
+    property bool _addGateBusy: false
+    property bool _timePulse: false
+    property int _localIdSeq: 1
+    readonly property ListModel historyModel: ListModel {}
+    property int maxHistory: 100
+    property var actionLog: [] // [{notificationId, actionId, at}]
+    property var replyLog: [] // [{notificationId, text, at}]
+    property var groupsMap: ({}) // groupId -> { id, title, children, expanded, updatedAt }
+
+    PersistentProperties {
+        id: store
+        reloadableId: "NotificationService"
+        property string historyStoreJson: "[]"
+        property string actionLogJson: "[]"
+        property string replyLogJson: "[]"
+        property string groupsJson: "{}"
+    }
 
     Timer {
         id: addGate
         interval: root._enterAnimMs + 40
-        running: false
         repeat: false
         onTriggered: {
             root._addGateBusy = false;
             root._processQueue();
         }
     }
-
-    // Simple heartbeat to refresh relative time strings
-    property bool _timePulse: false
     Timer {
         interval: 30000
         repeat: true
@@ -163,21 +72,253 @@ Singleton {
         onTriggered: root._timePulse = !root._timePulse
     }
 
-    // ----- History (persistent) -----
-    readonly property ListModel historyModel: ListModel {}
-    property int maxHistory: 100
-    // Persistent store across reloads
-    PersistentProperties {
-        id: store
-        reloadableId: "NotificationService"
-        // Store as JSON string to avoid cross-engine JSValue reassignment
-        property string historyStoreJson: "[]"
+    Component.onCompleted: {
+        _loadHistory();
+        _loadLogs();
+        _loadGroups();
+    }
+
+    component LocalNotification: QtObject {
+        id: ln
+        property string id: ""
+        property string summary: ""
+        property string body: ""
+        property string bodyFormat: "plain" // "plain" | "markup" (sanitized)
+        property string appIcon: ""
+        property string appName: ""
+        property string image: ""
+        property string summaryKey: ""
+        property int urgency: NotificationUrgency.Normal
+        property int expireTimeout: -1
+        property var actions: []
+        property var reply: null
+        property QtObject wrapperRef
+        readonly property bool __local: true
+
+        function invokeAction(actionId) {
+            root.actionInvoked(String(ln.summary || ""), String(ln.appName || ""), String(actionId || ""), String(ln.body || ""));
+        }
+        function activateAction(actionId) {
+            invokeAction(actionId);
+        }
+        function dismiss() {
+            if (ln.wrapperRef)
+                ln.wrapperRef.popup = false;
+        }
+    }
+
+    function send(summary, body, options) {
+        const o = options || {};
+        const genId = "local-" + root._localIdSeq++;
+        const urgency = (() => {
+                const u = o.urgency !== undefined ? o.urgency : NotificationUrgency.Normal;
+                if (typeof u === "string") {
+                    switch (u.toLowerCase()) {
+                    case "low":
+                        return NotificationUrgency.Low;
+                    case "critical":
+                        return NotificationUrgency.Critical;
+                    default:
+                        return NotificationUrgency.Normal;
+                    }
+                }
+                return Number(u);
+            })();
+        const reply = (() => {
+                const r = o.reply || {};
+                if (!r.enabled)
+                    return null;
+                return {
+                    enabled: true,
+                    placeholder: String(r.placeholder || ""),
+                    minLength: Number(r.minLength || 0),
+                    maxLength: Number(r.maxLength || 0),
+                    submitted: null
+                };
+            })();
+        const n = localNotifComp.createObject(root, {
+            id: genId,
+            summary: String(summary || ""),
+            body: String(body || ""),
+            bodyFormat: String(o.bodyFormat || "plain"),
+            appName: String(o.appName || "notify-send"),
+            appIcon: String(o.appIcon || ""),
+            image: String(o.image || ""),
+            summaryKey: String(o.summaryKey || ""),
+            urgency,
+            expireTimeout: typeof o.expireTimeout === "number" ? o.expireTimeout : -1,
+            actions: Array.isArray(o.actions) ? o.actions : [],
+            reply
+        });
+        if (!n)
+            return "";
+        _present(n);
+        return genId;
+    }
+
+    function _timeInRange(nowH, nowM, startStr, endStr) {
+        const toHM = s => {
+            const [h, m] = String(s || "0:0").split(":");
+            const hh = Math.max(0, Math.min(23, Number(h || 0)));
+            const mm = Math.max(0, Math.min(59, Number(m || 0)));
+            return [hh, mm];
+        };
+        const [sh, sm] = toHM(startStr);
+        const [eh, em] = toHM(endStr);
+        const start = sh * 60 + sm;
+        const end = eh * 60 + em;
+        const now = nowH * 60 + nowM;
+        if (start === end)
+            return false;
+        if (start < end)
+            return now >= start && now < end;
+        return now >= start || now < end; // overnight
+    }
+
+    function _evalDnd(notification) {
+        const p = root.dndPolicy || {};
+        if (!p.enabled)
+            return "bypass";
+
+        const urg = notification && notification.urgency !== undefined ? Number(notification.urgency) : NotificationUrgency.Normal;
+
+        if (p.urgency?.bypassCritical && urg === NotificationUrgency.Critical)
+            return "bypass";
+
+        if (p.appRules) {
+            const name = String(notification?.appName || "");
+            const allow = Array.isArray(p.appRules.allow) ? p.appRules.allow : [];
+            const deny = Array.isArray(p.appRules.deny) ? p.appRules.deny : [];
+            if (allow.length && !allow.includes(name))
+                return p.behavior === "suppress" ? "suppress" : "queue";
+            if (deny.includes(name))
+                return p.behavior === "suppress" ? "suppress" : "queue";
+        }
+
+        if (Array.isArray(p.schedule) && p.schedule.length) {
+            const now = new Date();
+            const dow = now.getDay();
+            const h = now.getHours();
+            const m = now.getMinutes();
+            for (let i = 0; i < p.schedule.length; i++) {
+                const s = p.schedule[i] || {};
+                const days = Array.isArray(s.days) ? s.days : [];
+                if (days.length && !days.includes(dow))
+                    continue;
+                if (root._timeInRange(h, m, s.start, s.end))
+                    return p.behavior === "suppress" ? "suppress" : "queue";
+            }
+        }
+
+        if (p.urgency?.suppressLow && urg === NotificationUrgency.Low)
+            return "suppress";
+
+        if (!(Array.isArray(p.schedule) && p.schedule.length))
+            return p.behavior === "suppress" ? "suppress" : "queue";
+        return "bypass";
+    }
+
+    function setDndPolicy(patch) {
+        function merge(a, b) {
+            const out = {};
+            for (const k in a) {
+                if (Object.prototype.hasOwnProperty.call(a, k))
+                    out[k] = a[k];
+            }
+            for (const k in b) {
+                if (!Object.prototype.hasOwnProperty.call(b, k))
+                    continue;
+                const va = a[k];
+                const vb = b[k];
+                out[k] = vb && typeof vb === "object" && !Array.isArray(vb) ? merge(va || {}, vb) : vb;
+            }
+            return out;
+        }
+        root.dndPolicy = merge({
+            enabled: false,
+            schedule: [],
+            appRules: {
+                allow: [],
+                deny: []
+            },
+            urgency: {
+                bypassCritical: true,
+                suppressLow: false
+            },
+            behavior: "queue"
+        }, patch || {});
+        root.dndChanged(!!root.dndPolicy.enabled, root.dndPolicy);
+        if (!root.dndPolicy.enabled)
+            _processQueue();
+    }
+
+    // ----- Groups -----
+    function _touchGroup(notification) {
+        const app = String(notification?.appName || "");
+        const key = String(notification?.summaryKey || notification?.summary || "");
+        if (!app || !key)
+            return "";
+        const gid = app + ":" + key;
+        const now = Date.now();
+        const nid = String(notification?.id || notification?.dbusId) || "gen-" + now + "-" + Math.floor(Math.random() * 100000);
+        const g = root.groupsMap[gid] || {
+            id: gid,
+            title: key,
+            children: [],
+            expanded: false,
+            updatedAt: now,
+            appName: app
+        };
+        g.children = [nid].concat(g.children || []);
+        g.updatedAt = now;
+        root.groupsMap[gid] = g;
+        _saveGroups();
+        return gid;
+    }
+
+    function groups() {
+        const arr = [];
+        const m = root.groupsMap || {};
+        for (const k in m)
+            arr.push(m[k]);
+        arr.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        return arr;
+    }
+
+    function toggleGroup(groupId, expanded) {
+        const g = root.groupsMap[groupId];
+        if (!g)
+            return;
+        g.expanded = expanded === undefined ? !g.expanded : !!expanded;
+        g.updatedAt = Date.now();
+        root.groupsMap[groupId] = g;
+        _saveGroups();
+    }
+
+    // ----- Sanitizer -----
+    function _sanitizeHtml(input) {
+        try {
+            let s = String(input || "");
+            s = s.replace(/<\/(?:script|style)>/gi, "");
+            s = s.replace(/<(?:script|style)[\s\S]*?>[\s\S]*?<\/(?:script|style)>/gi, "");
+            s = s.replace(/<([^>]+)>/g, function (m, p1) {
+                const tag = String(p1).trim().split(/\s+/)[0].toLowerCase();
+                const allowed = ["b", "strong", "i", "em", "u", "a", "br", "p", "span"];
+                if (!allowed.includes(tag) && !allowed.includes(tag.replace(/^\//, "")))
+                    return "";
+                if (tag === "a" || tag === "/a")
+                    return m.replace(/javascript:/gi, "");
+                return m;
+            });
+            return s;
+        } catch (e) {
+            return String(input || "");
+        }
     }
 
     // ----- Server -----
     readonly property NotificationServer server: NotificationServer {
         id: notificationServer
-
         keepOnReload: false
         imageSupported: true
         actionsSupported: true
@@ -188,25 +329,26 @@ Singleton {
         inlineReplySupported: true
         bodyHyperlinksSupported: true
         bodyImagesSupported: true
-
         onNotification: function (notification) {
-            root._presentNotification(notification);
+            root._present(notification);
         }
     }
 
-    // ----- Wrapper component -----
     component NotifWrapper: QtObject {
-        id: w
+        id: wrapper
 
-        // Whether a popup is currently visible for this notification
         property bool popup: false
-        // Creation time
+        property string status: "queued"
+        // grouping id for this notification (app:summaryKey)
+        property string groupId: ""
+
+        required property var notification
+
+        readonly property string id: String(wrapper.notification?.id || wrapper.notification?.dbusId || "")
         readonly property date time: new Date()
-        // Human-friendly relative time string
         readonly property string timeStr: {
-            root._timePulse; // dependency
-            const now = Date.now();
-            const diff = now - time.getTime();
+            root._timePulse;
+            const diff = Date.now() - time.getTime();
             const m = Math.floor(diff / 60000);
             const h = Math.floor(m / 60);
             if (h < 1 && m < 1)
@@ -216,76 +358,90 @@ Singleton {
             return `${h}h`;
         }
 
-        // Bound to the underlying notification (remote or local)
-        required property var notification
-        readonly property string summary: (notification && notification.summary) ? String(notification.summary) : ""
-        readonly property string body: (notification && notification.body) ? String(notification.body) : ""
-        readonly property string appIcon: (notification && notification.appIcon) ? String(notification.appIcon) : ""
-        readonly property string appName: (notification && notification.appName) ? String(notification.appName) : ""
-        readonly property string image: (notification && notification.image) ? String(notification.image) : ""
-        readonly property int urgency: (notification && notification.urgency !== undefined) ? Number(notification.urgency) : NotificationUrgency.Normal
-        readonly property int expireTimeout: (notification && typeof notification.expireTimeout === 'number') ? notification.expireTimeout : -1
-        // Access actions via w.notification.actions when needed
+        readonly property string summary: String(wrapper.notification?.summary || "")
+        readonly property string body: String(wrapper.notification?.body || "")
+        readonly property string bodyFormat: String(wrapper.notification?.bodyFormat || "plain")
+        readonly property string appIcon: String(wrapper.notification?.appIcon || "")
+        readonly property string appName: String(wrapper.notification?.appName || "")
+        readonly property string image: String(wrapper.notification?.image || "")
+        readonly property int urgency: Number(wrapper.notification?.urgency ?? NotificationUrgency.Normal)
+        readonly property int expireTimeout: Number(typeof wrapper.notification?.expireTimeout === "number" ? wrapper.notification?.expireTimeout : -1)
+        readonly property var replyModel: wrapper.notification?.reply || null
 
-        // ----- Backend normalization for UI consumption -----
-        // Resolve an icon source for the app using desktop entries when possible,
-        // then fall back to the notification-provided icon name/path, and finally a generic icon.
+        function submitReply(text) {
+            const r = replyModel;
+            if (!r?.enabled)
+                return {
+                    ok: false,
+                    error: "reply-not-enabled"
+                };
+            const t = String(text || "");
+            if (r.minLength > 0 && t.length < r.minLength)
+                return {
+                    ok: false,
+                    error: "too-short"
+                };
+            if (r.maxLength > 0 && t.length > r.maxLength)
+                return {
+                    ok: false,
+                    error: "too-long"
+                };
+            r.submitted = {
+                text: t,
+                at: Date.now()
+            };
+            root._logReply(wrapper.id, t);
+            return {
+                ok: true
+            };
+        }
+
         readonly property string iconSource: {
             let src = "";
             try {
-                if (typeof DesktopEntries !== "undefined" && w.appName) {
-                    const entry = DesktopEntries.heuristicLookup(String(w.appName));
-                    if (entry && entry.icon)
+                if (typeof DesktopEntries !== "undefined" && wrapper.appName) {
+                    const entry = DesktopEntries.heuristicLookup(String(wrapper.appName));
+                    if (entry?.icon)
                         src = Quickshell.iconPath(entry.icon, true);
                 }
-            } catch (e)
-            // ignore
-            {}
-            if (!src && w.appIcon) {
-                const s = String(w.appIcon);
-                if (s.startsWith("file:") || s.startsWith("/") || s.startsWith("data:"))
-                    src = s;
-                else
-                    src = Quickshell.iconPath(s, true);
+            } catch (e) {}
+            if (!src && wrapper.appIcon) {
+                const s = String(wrapper.appIcon);
+                src = s.startsWith("file:") || s.startsWith("/") || s.startsWith("data:") ? s : Quickshell.iconPath(s, true);
             }
-            if (!src)
-                src = Quickshell.iconPath("dialog-information", true);
-            return src;
+            return src || Quickshell.iconPath("dialog-information", true);
         }
 
-        // Inline/body image source if provided by the server
-        readonly property string imageSource: (w.image || "")
+        readonly property string imageSource: wrapper.image || ""
+
+        readonly property string bodySafe: {
+            const fmt = String(wrapper.bodyFormat || "plain");
+            return fmt === "markup" ? root._sanitizeHtml(String(wrapper.body || "")) : wrapper.body;
+        }
 
         function _mkActionEntry(n, id, title, iconName) {
             const iconSource = iconName ? Quickshell.iconPath(String(iconName), true) : "";
             return {
-                id: id,
-                title: title,
+                id,
+                title,
                 iconName: iconName || "",
-                iconSource: iconSource,
+                iconSource,
                 trigger: function () {
                     if (!n)
                         return;
-                    try {
-                        Logger.log("NotificationService", "action trigger:", String(id), "for", String(n.summary || ""));
-                    } catch (e) {}
-                    if (n && n.__local === true) {
-                        // For local notifications, emit our signal and dismiss; don't reinvoke, to avoid double emit.
-                        try {
-                            root.actionInvoked(String(n.summary || ""), String(n.appName || ""), String(id), String(n.body || ""));
-                        } catch (e) {}
-                        if (typeof n.dismiss === 'function')
+                    root._logAction(w.id || n.id || "", String(id));
+                    if (n.__local === true) {
+                        root.actionInvoked(String(n.summary || ""), String(n.appName || ""), String(id), String(n.body || ""));
+                        if (typeof n.dismiss === "function")
                             n.dismiss();
                         else
                             w.popup = false;
                     } else {
-                        // Remote/DBus notifications: invoke backend action
-                        if (typeof n.invokeAction === 'function')
+                        if (typeof n.invokeAction === "function")
                             n.invokeAction(String(id));
-                        else if (typeof n.activateAction === 'function')
+                        else if (typeof n.activateAction === "function")
                             n.activateAction(String(id));
-                        // Try to dismiss if supported
-                        if (typeof n.dismiss === 'function')
+                        if (typeof n.dismiss === "function")
                             n.dismiss();
                         else
                             w.popup = false;
@@ -294,40 +450,25 @@ Singleton {
             };
         }
 
-        // Normalized actions list suitable for direct binding in UI
         readonly property var actionsModel: {
-            const n = w.notification;
-            const a = (n && n.actions) ? n.actions : [];
-            if (!a || a.length === 0)
+            const a = wrapper.notification?.actions || [];
+            if (!a.length)
                 return [];
-            // Flat pair array: [id, title, id, title, ...]
-            if (typeof a[0] === 'string') {
+            if (typeof a[0] === "string") {
                 const out = [];
-                for (var i = 0; i + 1 < a.length; i += 2) {
-                    const _id = String(a[i]);
-                    const _title = String(a[i + 1]);
-                    out.push(_mkActionEntry(n, _id, _title, ""));
-                }
+                for (let i = 0; i + 1 < a.length; i += 2)
+                    out.push(_mkActionEntry(wrapper.notification, String(a[i]), String(a[i + 1]), ""));
                 return out;
             }
-            // Object array; attempt to read common fields and optional icon
-            return a.map(function (x) {
-                const _id = String((x && (x.id || x.action || x.key || x.name)) || "");
-                const _title = String((x && (x.title || x.label || x.text)) || _id);
-                const _iconName = x ? (x.icon || x.iconName || x.icon_id || "") : "";
-                return _mkActionEntry(n, _id, _title, _iconName);
-            });
+            return a.map(x => _mkActionEntry(wrapper.notification, String(x?.id || x?.action || x?.key || x?.name || ""), String(x?.title || x?.label || x?.text || ""), x ? x.icon || x.iconName || x.icon_id || "" : ""));
         }
 
-        // Auto-hide timer, urgency-aware, honors expireTimeout (> 0)
         readonly property Timer timer: Timer {
             interval: {
-                // If server specified a positive expireTimeout, honor it
-                const t = w.expireTimeout;
+                const t = wrapper.expireTimeout;
                 if (typeof t === "number" && t > 0)
                     return t;
-                // Otherwise fallback to configured defaults by urgency
-                switch (w.urgency) {
+                switch (wrapper.urgency) {
                 case NotificationUrgency.Critical:
                     return root.timeoutCritical;
                 case NotificationUrgency.Low:
@@ -340,31 +481,26 @@ Singleton {
             running: false
             onTriggered: {
                 if (root.expirePopups && interval > 0)
-                    w.popup = false;
+                    wrapper.popup = false;
             }
         }
 
-        // Cleanup when the underlying notification is dropped/destroyed
-        // Use RetainableLock to receive rebroadcasted signals instead of
-        // targeting the attached Retainable object directly, which can cause
-        // cross-engine JSValue warnings during reloads.
         readonly property RetainableLock retainLock: RetainableLock {
-            // Local notifications are plain QtObjects; skip locking for them
-            object: (w.notification && w.notification.__local === true) ? null : w.notification
+            object: wrapper.notification?.__local === true ? null : wrapper.notification
             onDropped: {
-                const idx = root.all.indexOf(w);
+                const idx = root.all.indexOf(wrapper);
                 if (idx !== -1) {
-                    const newAll = root.all.slice();
-                    newAll.splice(idx, 1);
-                    root.all = newAll;
+                    const arr = root.all.slice();
+                    arr.splice(idx, 1);
+                    root.all = arr;
                 }
-                root._release(w);
+                root._release(wrapper);
             }
-            onAboutToDestroy: w.destroy()
+            onAboutToDestroy: wrapper.destroy()
         }
 
         onPopupChanged: if (!popup)
-            root._onHidden(w)
+            root._onHidden(wrapper)
     }
 
     Component {
@@ -376,16 +512,39 @@ Singleton {
         LocalNotification {}
     }
 
-    // ----- Queue management -----
-    function _processQueue() {
-        if (root._addGateBusy)
-            return;
-        if (root.doNotDisturb)
-            return;
-        if (root.queue.length === 0)
-            return;
+    function _present(notification) {
+        if (!notification)
+            return null;
 
-        // Respect maxVisible concurrent popups
+        // DND at arrival
+        const dnd = _evalDnd(notification); // "bypass" | "queue" | "suppress"
+        const showNow = dnd === "bypass";
+        const allowQueue = dnd !== "suppress";
+
+        const wrapper = notifComp.createObject(root, {
+            popup: showNow,
+            notification
+        });
+        if (!wrapper)
+            return null;
+
+        if (notification.__local === true)
+            notification.wrapperRef = wrapper;
+
+        wrapper.groupId = _touchGroup(notification);
+        root.all = root.all.concat([wrapper]);
+        _addToHistory(wrapper);
+
+        if (allowQueue) {
+            root.queue = root.queue.concat([wrapper]);
+            _processQueue();
+        }
+        return wrapper;
+    }
+
+    function _processQueue() {
+        if (root._addGateBusy || root.queue.length === 0)
+            return;
         if (root.visible.length >= root.maxVisible)
             return;
         const q = root.queue.slice();
@@ -393,8 +552,18 @@ Singleton {
         root.queue = q;
         if (!next)
             return;
-        root.visible = [...root.visible, next];
+
+        // Re-check DND at display time
+        const eff = _evalDnd(next.notification);
+        if (eff === "queue" || eff === "suppress") {
+            root.queue = [next].concat(root.queue);
+            return;
+        }
+
+        root.visible = root.visible.concat([next]);
         next.popup = true;
+        next.status = "visible";
+
         if (next.timer.interval > 0)
             next.timer.start();
 
@@ -403,15 +572,17 @@ Singleton {
     }
 
     function _onHidden(w) {
-        // Remove from visible and continue queue
         const i = root.visible.indexOf(w);
         if (i !== -1) {
             const v = root.visible.slice();
             v.splice(i, 1);
             root.visible = v;
         }
-        // For local notifications, also remove from 'all' when no longer visible
-        if (w && w.notification && w.notification.__local === true) {
+        if (w.status === "visible")
+            w.status = "hidden";
+
+        // Remove local notifications after hiding
+        if (w.notification?.__local === true) {
             const ai = root.all.indexOf(w);
             if (ai !== -1) {
                 const a = root.all.slice();
@@ -419,18 +590,17 @@ Singleton {
                 root.all = a;
             }
         }
-        root._processQueue();
+        _processQueue();
     }
 
     function _release(w) {
-        // Remove from visible and queue
-        let v = root.visible.slice();
+        const v = root.visible.slice();
         const vi = v.indexOf(w);
         if (vi !== -1) {
             v.splice(vi, 1);
             root.visible = v;
         }
-        let q = root.queue.slice();
+        const q = root.queue.slice();
         const qi = q.indexOf(w);
         if (qi !== -1) {
             q.splice(qi, 1);
@@ -438,7 +608,200 @@ Singleton {
         }
     }
 
-    // ----- History helpers -----
+    function list(filters) {
+        const f = filters || {};
+        const inSet = (val, set) => !set ? true : Array.isArray(set) ? set.includes(val) : set === val;
+        const urgStr = u => {
+            switch (Number(u)) {
+            case NotificationUrgency.Low:
+                return "low";
+            case NotificationUrgency.Critical:
+                return "critical";
+            default:
+                return "normal";
+            }
+        };
+        const out = [];
+        for (let i = 0; i < root.all.length; i++) {
+            const w = root.all[i];
+            if (!w)
+                continue;
+            const n = w.notification;
+            const app = String(n?.appName || "");
+            const us = urgStr(n ? n.urgency : NotificationUrgency.Normal);
+            const ts = w.time ? w.time.getTime() : Date.now();
+            if (f.status && !inSet(String(w.status || ""), f.status))
+                continue;
+            if (f.urgency && !inSet(us, f.urgency))
+                continue;
+            if (f.app && !inSet(app, f.app))
+                continue;
+            if (f.from && ts < f.from)
+                continue;
+            if (f.to && ts > f.to)
+                continue;
+            out.push(w);
+        }
+        return out;
+    }
+
+    function acknowledge(id) {
+        const s = String(id || "");
+        for (let i = 0; i < root.all.length; i++) {
+            const w = root.all[i];
+            const wid = String(w?.id || w?.notification?.id || "");
+            if (wid === s) {
+                w.popup = false;
+                w.status = "hidden";
+                return {
+                    ok: true
+                };
+            }
+        }
+        return {
+            ok: false,
+            error: "not-found"
+        };
+    }
+
+    function dismissNotification(wrapper) {
+        if (!wrapper?.notification)
+            return;
+        wrapper.popup = false;
+        if (typeof wrapper.notification.dismiss === "function")
+            wrapper.notification.dismiss();
+    }
+
+    function clearPopups() {
+        const vis = root.visible.slice();
+        for (let i = 0; i < vis.length; i++)
+            vis[i].popup = false;
+        root.queue = [];
+    }
+
+    function clearAll() {
+        const items = root.all.slice();
+        for (let i = 0; i < items.length; i++) {
+            const w = items[i];
+            if (!w)
+                continue;
+            if (typeof w.notification?.dismiss === "function")
+                w.notification.dismiss();
+            if (w.notification?.__local === true) {
+                const ai = root.all.indexOf(w);
+                if (ai !== -1) {
+                    const a = root.all.slice();
+                    a.splice(ai, 1);
+                    root.all = a;
+                }
+            }
+        }
+        root.queue = [];
+        const vis = root.visible.slice();
+        for (let i = 0; i < vis.length; i++)
+            vis[i].popup = false;
+    }
+
+    function executeAction(id, actionId) {
+        const s = String(id || "");
+        const a = String(actionId || "");
+        for (let i = 0; i < root.all.length; i++) {
+            const w = root.all[i];
+            const wid = String(w?.id || w?.notification?.id || "");
+            if (wid === s) {
+                const actions = w.actionsModel || [];
+                for (let j = 0; j < actions.length; j++) {
+                    if (String(actions[j].id) === a) {
+                        root._logAction(wid, a);
+                        actions[j].trigger();
+                        return {
+                            ok: true
+                        };
+                    }
+                }
+                return {
+                    ok: false,
+                    error: "action-not-found"
+                };
+            }
+        }
+        return {
+            ok: false,
+            error: "not-found"
+        };
+    }
+
+    function reply(id, text) {
+        const s = String(id || "");
+        for (let i = 0; i < root.all.length; i++) {
+            const w = root.all[i];
+            const wid = String(w?.id || w?.notification?.id || "");
+            if (wid === s)
+                return w.submitReply(text);
+        }
+        return {
+            ok: false,
+            error: "not-found"
+        };
+    }
+
+    function _logAction(id, actionId) {
+        const rec = {
+            notificationId: String(id || ""),
+            actionId: String(actionId || ""),
+            at: Date.now()
+        };
+        root.actionLog = (root.actionLog || []).concat([rec]);
+        _saveLogs();
+    }
+
+    function _logReply(id, text) {
+        const rec = {
+            notificationId: String(id || ""),
+            text: String(text || ""),
+            at: Date.now()
+        };
+        root.replyLog = (root.replyLog || []).concat([rec]);
+        _saveLogs();
+
+        let app = "";
+        let sum = "";
+        for (let i = 0; i < root.all.length; i++) {
+            const w = root.all[i];
+            const wid = String(w?.id || w?.notification?.id || "");
+            if (wid === String(id)) {
+                app = String(w.notification?.appName || "");
+                sum = String(w.notification?.summary || "");
+                break;
+            }
+        }
+        root.replySubmitted(String(id), String(text), app, sum);
+    }
+
+    function _loadLogs() {
+        try {
+            const a = JSON.parse(store.actionLogJson || "[]");
+            root.actionLog = Array.isArray(a) ? a : [];
+        } catch (e) {
+            root.actionLog = [];
+        }
+        try {
+            const r = JSON.parse(store.replyLogJson || "[]");
+            root.replyLog = Array.isArray(r) ? r : [];
+        } catch (e) {
+            root.replyLog = [];
+        }
+    }
+
+    function _saveLogs() {
+        try {
+            store.actionLogJson = JSON.stringify(root.actionLog || []);
+        } catch (e) {}
+        try {
+            store.replyLogJson = JSON.stringify(root.replyLog || []);
+        } catch (e) {}
+    }
+
     function _loadHistory() {
         historyModel.clear();
         let items = [];
@@ -452,14 +815,17 @@ Singleton {
         for (let i = 0; i < items.length; i++) {
             const it = items[i];
             historyModel.append({
+                id: String(it.id || ""),
                 summary: String(it.summary || ""),
                 body: String(it.body || ""),
+                bodyFormat: String(it.bodyFormat || "plain"),
+                image: String(it.image || ""),
                 appName: String(it.appName || ""),
                 urgency: Number(it.urgency),
+                groupId: String(it.groupId || ""),
                 timestamp: it.timestamp ? new Date(Number(it.timestamp)) : new Date()
             });
         }
-        root._historyHydrated = true;
     }
 
     function _saveHistory() {
@@ -467,22 +833,32 @@ Singleton {
         for (let i = 0; i < historyModel.count; i++) {
             const n = historyModel.get(i);
             arr.push({
+                id: n.id || "",
                 summary: n.summary,
                 body: n.body,
+                bodyFormat: n.bodyFormat || "plain",
+                image: n.image || "",
                 appName: n.appName,
                 urgency: n.urgency,
-                timestamp: (n.timestamp instanceof Date) ? n.timestamp.getTime() : n.timestamp
+                groupId: n.groupId || "",
+                timestamp: n.timestamp instanceof Date ? n.timestamp.getTime() : n.timestamp
             });
         }
         store.historyStoreJson = JSON.stringify(arr);
     }
 
-    function _addToHistory(notification) {
+    function _addToHistory(obj) {
+        const n = obj?.notification ? obj.notification : obj;
+        const idVal = obj?.id || n?.id || "";
         historyModel.insert(0, {
-            summary: notification.summary,
-            body: notification.body,
-            appName: notification.appName,
-            urgency: notification.urgency,
+            id: String(idVal || ""),
+            summary: String(n?.summary || ""),
+            body: String(n?.body || ""),
+            bodyFormat: String(n?.bodyFormat || "plain"),
+            image: String(n?.image || ""),
+            appName: String(n?.appName || ""),
+            urgency: Number(n?.urgency ?? NotificationUrgency.Normal),
+            groupId: String(obj?.groupId || n?.groupId || ""),
             timestamp: new Date()
         });
         while (historyModel.count > maxHistory)
@@ -490,65 +866,22 @@ Singleton {
         _saveHistory();
     }
 
-    // Public history APIs
     function clearHistory() {
         historyModel.clear();
         _saveHistory();
     }
 
-    // ----- Public convenience APIs -----
-    function clearPopups() {
-        // Hide all currently visible popups (legacy behavior)
-        const vis = root.visible.slice();
-        for (let i = 0; i < vis.length; i++)
-            vis[i].popup = false;
-        root.queue = [];
-    }
-
-    function clearAll() {
-        // Dismiss and remove all active notifications
-        const items = root.all.slice();
-        for (let i = 0; i < items.length; i++) {
-            const w = items[i];
-            if (!w)
-                continue;
-            try {
-                if (w.notification && typeof w.notification.dismiss === 'function')
-                    w.notification.dismiss();
-            } catch (e) {}
-            // For locals, remove immediately; remote ones will drop via RetainableLock
-            if (w.notification && w.notification.__local === true) {
-                const ai = root.all.indexOf(w);
-                if (ai !== -1) {
-                    const a = root.all.slice();
-                    a.splice(ai, 1);
-                    root.all = a;
-                }
-            }
+    function _loadGroups() {
+        try {
+            const g = JSON.parse(store.groupsJson || "{}");
+            root.groupsMap = g && typeof g === "object" ? g : {};
+        } catch (e) {
+            root.groupsMap = {};
         }
-        root.queue = [];
-        // Also hide any remaining popups
-        const vis = root.visible.slice();
-        for (let i = 0; i < vis.length; i++)
-            vis[i].popup = false;
     }
-
-    function dismissNotification(wrapper) {
-        if (!wrapper || !wrapper.notification)
-            return;
-        wrapper.popup = false;
-        wrapper.notification.dismiss();
-    }
-
-    function setDoNotDisturb(enabled) {
-        if (root.doNotDisturb === !!enabled)
-            return;
-        root.doNotDisturb = !!enabled;
-        if (root.doNotDisturb) {
-            // Immediately hide popups and stop queue
-            clearPopups();
-        } else {
-            _processQueue();
-        }
+    function _saveGroups() {
+        try {
+            store.groupsJson = JSON.stringify(root.groupsMap || {});
+        } catch (e) {}
     }
 }
