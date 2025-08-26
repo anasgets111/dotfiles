@@ -20,14 +20,15 @@ export BIN="$HOME/.local/bin"
 export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc-2.0"
 export LESSHISTFILE="$XDG_CACHE_HOME/less_history"
 
-export DISPLAY=":0"
+# export DISPLAY=":0"
 
 # Qt & EGL selection
 if command -v nvidia-smi >/dev/null 2>&1; then
   # NVIDIA drivers
   export LIBVA_DRIVER_NAME="nvidia"
-  export __GLX_VENDOR_LIBRARY_NAME="nvidia"
   export NVD_BACKEND="direct"
+  export GBM_BACKEND="nvidia-drm"
+  export __GL_GSYNC_ALLOWED="1" # Adaptive VSync
 
   export EGL_PLATFORM="wayland_egl"
 else
