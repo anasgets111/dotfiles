@@ -17,7 +17,6 @@ Singleton {
     property bool lastWasFull: false
     property int failureCount: 0
     readonly property int failureThreshold: 5
-    readonly property int quickTimeoutMs: 12 * 1000
     readonly property int minuteMs: 60 * 1000
     readonly property int pollInterval: 1 * minuteMs
     readonly property int syncInterval: 15 * minuteMs
@@ -58,8 +57,9 @@ Singleton {
 
     function startUpdateProcess(cmd) {
         pkgProc.command = cmd;
+        if (updateService.lastWasFull)
+            killTimer.restart();
         pkgProc.running = true;
-        killTimer.restart();
     }
 
     function doPoll(forceFull = false) {
@@ -67,9 +67,7 @@ Singleton {
             return;
         const full = forceFull || (Date.now() > lastSync + syncInterval);
         lastWasFull = full;
-        pkgProc.command = full ? ["checkupdates", "--nocolor"] : ["checkupdates", "--nosync", "--nocolor"];
-        pkgProc.running = true;
-        killTimer.restart();
+        startUpdateProcess(full ? ["checkupdates", "--nocolor"] : ["checkupdates", "--nosync", "--nocolor"]);
     }
 
     Process {
@@ -78,8 +76,7 @@ Singleton {
         command: ["sh", "-c", "command -v checkupdates >/dev/null && echo yes || echo no"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const available = (text || "").trim() === "yes";
-                updateService.checkupdatesAvailable = available;
+                updateService.checkupdatesAvailable = (text || "").trim() === "yes";
                 if (updateService.ready) {
                     updateService.doPoll();
                     pollTimer.start();
@@ -110,7 +107,6 @@ Singleton {
             onStreamFinished: {
                 if (pkgProc.running)
                     return;
-                killTimer.stop();
 
                 const parsed = updateService._parseUpdateOutput(out.text);
                 updateService.updatePackages = parsed.pkgs;
@@ -130,9 +126,8 @@ Singleton {
                     Logger.warn("UpdateService", "stderr:", stderrText);
                     updateService.failureCount++;
                     updateService._notifyOnFailureThreshold(stderrText);
-                } else {
+                } else
                     updateService.failureCount = 0;
-                }
             }
         }
     }
@@ -147,8 +142,7 @@ Singleton {
     }
 
     function _clonePackageList(list) {
-        const src = Array.isArray(list) ? list : [];
-        return src.map(p => ({
+        return (Array.isArray(list) ? list : []).map(p => ({
                     name: String(p.name || ""),
                     oldVersion: String(p.oldVersion || ""),
                     newVersion: String(p.newVersion || "")
@@ -159,15 +153,14 @@ Singleton {
         const raw = (rawText || "").trim();
         const lines = raw ? raw.split(/\r?\n/) : [];
         const pkgs = [];
-        for (let i = 0; i < lines.length; ++i) {
-            const m = lines[i].match(updateService.updateLineRe);
-            if (m) {
+        for (const line of lines) {
+            const m = line.match(updateService.updateLineRe);
+            if (m)
                 pkgs.push({
                     name: m[1],
                     oldVersion: m[2],
                     newVersion: m[3]
                 });
-            }
         }
         return {
             raw,
@@ -192,21 +185,19 @@ Singleton {
         id: pollTimer
         interval: updateService.pollInterval
         repeat: true
-        onTriggered: {
-            if (!updateService.ready)
-                return;
-            updateService.doPoll();
-        }
+        onTriggered: if (updateService.ready)
+            updateService.doPoll()
     }
 
     Timer {
         id: killTimer
-        interval: Qt.binding(() => updateService.lastWasFull ? updateService.minuteMs : updateService.quickTimeoutMs)
+        interval: updateService.minuteMs
         repeat: false
         onTriggered: {
-            if (pkgProc.running && updateService.lastSync > 0) {
-                Logger.error("UpdateService", "Update check killed (timeout)");
-                updateService.notify(qsTr("Update check killed"), qsTr("Process took too long"));
+            if (pkgProc.running && updateService.lastWasFull) {
+                Logger.error("UpdateService", "Full update check killed (timeout)");
+                updateService.notify(qsTr("Update check killed"), qsTr("Full sync took too long; terminated"));
+                pkgProc.running = false;
             }
         }
     }
