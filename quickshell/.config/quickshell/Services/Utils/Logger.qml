@@ -5,88 +5,92 @@ import Quickshell
 import qs.Services.SystemInfo
 
 Singleton {
-    id: loggerService
+    id: logger
 
-    property bool debug: true
-    // Module names must match the first argument passed to log/warn/error.
-    // If non-empty, only modules listed here will be logged. Example: ["MainService","NetworkService"]
-    property var allowedModules: [
-        "Shell",
-        "LockContent",
-        "NetworkService",
-        "MainService",
-        "AudioService",
-        "BatteryService",
-        "BrightnessService",
-        "ClipboardService",
-        "ClipboardLiteService",
-        "FileSystemService",
-        "IdleService",
-        "KeyboardBacklightService",
-        "KeyboardLayoutService",
-        "LockService",
-        "MainService",
-        "MediaService",
-        "MonitorService",
-        "NetworkService",
-        "NotificationService",
-        "OSDService",
-        "ScreenRecordingService",
-        "SystemInfoService",
-        "SystemTrayService",
-        "TimeService",
-        "UpdateService",
-        "WallpaperService",
-        "WeatherService"
-    ]
+    property bool enabled: true
+    // If non-empty, only these modules are logged (exact match, case-sensitive)
+    property var includeModules: [
+                                "Shell",
+                                "LockContent",
+                                "IPC",
+                                "NetworkService",
+                                "MainService",
+                                "AudioService",
+                                "BatteryService",
+                                "BrightnessService",
+                                "ClipboardService",
+                                "ClipboardLiteService",
+                                "FileSystemService",
+                                "IdleService",
+                                "KeyboardBacklightService",
+                                "KeyboardLayoutService",
+                                "LockService",
+                                "MediaService",
+                                "MonitorService",
+                                "NotificationService",
+                                "OSDService",
+                                "ScreenRecordingService",
+                                "SystemInfoService",
+                                "SystemTrayService",
+                                "TimeService",
+                                "UpdateService",
+                                "WallpaperService",
+                                "WeatherService"
+                                ].filter((v, i, a) => a.indexOf(v) === i)
 
-    function setAllowedModules(list) {
+    // Public API: set the allowed/whitelisted module names
+    function setIncludeModules(list) {
         if (!list) {
-            loggerService.allowedModules = [];
+            logger.includeModules = [];
             return;
         }
-        try {
-            // Ensure we store simple strings
-            loggerService.allowedModules = list.map(function (x) {
-                return String(x);
-            });
-        } catch (e) {
-            loggerService.allowedModules = [];
-        }
+            const norm = list.map(x => String(x).trim()).filter(x => x.length > 0);
+            const uniq = [];
+            for (let i = 0; i < norm.length; i++) {
+                const n = norm[i];
+                if (uniq.indexOf(n) === -1)
+                    uniq.push(n);
+            }
+            logger.includeModules = uniq;
     }
 
     function shouldLog(moduleName) {
-        if (!loggerService.debug)
+        if (!logger.enabled)
             return false;
-        if (!loggerService.allowedModules || loggerService.allowedModules.length === 0)
+        const list = logger.includeModules;
+        if (!list || list.length === 0)
             return true;
         if (!moduleName)
             return false;
         try {
-            var name = String(moduleName).trim();
-            for (var i = 0; i < loggerService.allowedModules.length; ++i) {
-                if (loggerService.allowedModules[i] === name)
+            const name = String(moduleName).trim();
+            // exact match
+            for (let i = 0; i < list.length; i++) {
+                if (list[i] === name)
                     return true;
             }
-        } catch (e) {
-            return false;
-        }
+        } catch (e)
+        // fallthrough
+        {}
         return false;
     }
-    function _formatMessage(...args) {
+
+    readonly property int moduleLabelWidth: 16
+
+    function formatModuleLabel(moduleRaw) {
+        const width = logger.moduleLabelWidth;
+        const name = String(moduleRaw);
+        const clipped = name.substring(0, width);
+        const totalPad = width - clipped.length;
+        const left = Math.floor(totalPad / 2);
+        const right = totalPad - left;
+        const padded = " ".repeat(left) + clipped + " ".repeat(right);
+        return `\x1b[35m[${padded}]\x1b[0m`;
+    }
+
+    function formatMessage(args) {
         const timeNow = TimeService.timestamp();
         const timePart = `\x1b[36m[${timeNow}]\x1b[0m`;
-        const maxLength = 16;
-
-        function colorModule(moduleRaw) {
-            const name = String(moduleRaw);
-            const clipped = name.substring(0, maxLength);
-            const totalPadding = maxLength - clipped.length;
-            const padLeft = Math.floor(totalPadding / 2);
-            const padRight = totalPadding - padLeft;
-            const moduleClean = " ".repeat(padLeft) + clipped + " ".repeat(padRight);
-            return `\x1b[35m[${moduleClean}]\x1b[0m`;
-        }
 
         let moduleRaw = null;
         let messageText = "";
@@ -98,37 +102,39 @@ Singleton {
             messageText = String(args.length ? args[0] : "");
         }
 
-        const modulePart = moduleRaw ? colorModule(moduleRaw) + " " : "";
+        const modulePart = moduleRaw ? (formatModuleLabel(moduleRaw) + " ") : "";
         return `${timePart} ${modulePart}${messageText}`;
     }
 
-    function log(...args) {
-        var moduleRaw = null;
-        if (args.length > 1) {
-            moduleRaw = args[0];
-        }
-        if (!loggerService.shouldLog(moduleRaw))
-            return;
-        console.log(loggerService._formatMessage(...args));
+    function extractModule(args) {
+        if (!args || args.length <= 1)
+            return null;
+        return args[0];
     }
 
-    function warn(...args) {
-        var moduleRaw = null;
-        if (args.length > 1) {
-            moduleRaw = args[0];
-        }
-        if (!loggerService.shouldLog(moduleRaw))
+    function emit(kind, args) {
+        const moduleRaw = extractModule(args);
+        if (!logger.shouldLog(moduleRaw))
             return;
-        console.warn(loggerService._formatMessage(...args));
+        const msg = logger.formatMessage(args);
+        if (kind === "warn")
+            console.warn(msg);
+        else if (kind === "error")
+            console.error(msg);
+        else
+            console.log(msg);
     }
 
-    function error(...args) {
-        var moduleRaw = null;
-        if (args.length > 1) {
-            moduleRaw = args[0];
-        }
-        if (!loggerService.shouldLog(moduleRaw))
-            return;
-        console.error(loggerService._formatMessage(...args));
+    // Public API
+    function log() {
+        logger.emit("log", Array.prototype.slice.call(arguments));
+    }
+
+    function warn() {
+        logger.emit("warn", Array.prototype.slice.call(arguments));
+    }
+
+    function error() {
+        logger.emit("error", Array.prototype.slice.call(arguments));
     }
 }
