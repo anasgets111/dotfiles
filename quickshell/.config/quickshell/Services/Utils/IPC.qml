@@ -16,23 +16,23 @@ Singleton {
         target: "lock"
 
         function lock(): string {
-            Logger.log("IPC:lock", "lock");
+            Logger.log("IPC", "lock");
             LockService.locked = true;
             return "locked";
         }
         function unlock(): string {
-            Logger.log("IPC:lock", "unlock");
+            Logger.log("IPC", "unlock");
             LockService.locked = false;
             return "unlocked";
         }
         function toggle(): string {
-            Logger.log("IPC:lock", "toggle");
+            Logger.log("IPC", "toggle");
             LockService.locked = !LockService.locked;
             return LockService.locked ? "locked" : "unlocked";
         }
         function status(): string {
             const s = LockService.locked ? "locked" : "unlocked";
-            Logger.log("IPC:lock", `status -> ${s}`);
+            Logger.log("IPC", `status -> ${s}`);
             return s;
         }
         function islocked(): string {
@@ -45,7 +45,7 @@ Singleton {
         target: "audio"
 
         function setvolume(percentage: string): string {
-            Logger.log("IPC:audio", "setvolume", percentage);
+            Logger.log("IPC", "setvolume", percentage);
             return AudioService.setVolume(percentage);
         }
         function increment(step: string): string {
@@ -58,7 +58,7 @@ Singleton {
                 const delta = Number.isNaN(parsed) ? 5 : parsed;
                 const newVolume = Math.max(0, Math.min(AudioService.maxVolumePercent, current + delta));
                 AudioService.sink.audio.volume = newVolume / 100;
-                Logger.log("IPC:audio", "increment", delta, "->", newVolume + "%");
+                Logger.log("IPC", "increment", delta, "->", newVolume + "%");
                 return "Volume increased to " + newVolume + "%";
             }
             return "No audio sink available";
@@ -72,21 +72,21 @@ Singleton {
                 const delta = Number.isNaN(parsed) ? 5 : parsed;
                 const newVolume = Math.max(0, Math.min(AudioService.maxVolumePercent, current - delta));
                 AudioService.sink.audio.volume = newVolume / 100;
-                Logger.log("IPC:audio", "decrement", delta, "->", newVolume + "%");
+                Logger.log("IPC", "decrement", delta, "->", newVolume + "%");
                 return "Volume decreased to " + newVolume + "%";
             }
             return "No audio sink available";
         }
         function mute(): string {
-            Logger.log("IPC:audio", "mute");
+            Logger.log("IPC", "mute");
             return AudioService.toggleMute();
         }
         function setmic(percentage: string): string {
-            Logger.log("IPC:audio", "setmic", percentage);
+            Logger.log("IPC", "setmic", percentage);
             return AudioService.setMicVolume(percentage);
         }
         function micmute(): string {
-            Logger.log("IPC:audio", "micmute");
+            Logger.log("IPC", "micmute");
             return AudioService.toggleMicMute();
         }
         function status(): string {
