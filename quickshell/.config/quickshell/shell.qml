@@ -49,7 +49,12 @@ ShellRoot {
     //         visible: OSDService.toastVisible
     //     }
     // }
-    Notification {}
+    Variants {
+        model: Quickshell.screens
+        NotificationPopup {
+            modelData: modelData
+        }
+    }
     // Your wallpapers (unchanged)
     Variants {
         model: root.wallpaper.wallpapersArray
