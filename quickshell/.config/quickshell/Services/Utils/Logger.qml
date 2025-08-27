@@ -7,8 +7,72 @@ import qs.Services.SystemInfo
 Singleton {
     id: loggerService
 
-    // Toggle global debug logging on/off
     property bool debug: true
+    // Module names must match the first argument passed to log/warn/error.
+    // If non-empty, only modules listed here will be logged. Example: ["MainService","NetworkService"]
+    property var allowedModules: [
+        "Shell",
+        "LockContent",
+        "NetworkService",
+        "MainService",
+        "AudioService",
+        "BatteryService",
+        "BrightnessService",
+        "ClipboardService",
+        "ClipboardLiteService",
+        "FileSystemService",
+        "IdleService",
+        "KeyboardBacklightService",
+        "KeyboardLayoutService",
+        "LockService",
+        "MainService",
+        "MediaService",
+        "MonitorService",
+        "NetworkService",
+        "NotificationService",
+        "OSDService",
+        "ScreenRecordingService",
+        "SystemInfoService",
+        "SystemTrayService",
+        "TimeService",
+        "UpdateService",
+        "WallpaperService",
+        "WeatherService"
+    ]
+
+    function setAllowedModules(list) {
+        if (!list) {
+            loggerService.allowedModules = [];
+            return;
+        }
+        try {
+            // Ensure we store simple strings
+            loggerService.allowedModules = list.map(function (x) {
+                return String(x);
+            });
+        } catch (e) {
+            loggerService.allowedModules = [];
+        }
+    }
+
+    function shouldLog(moduleName) {
+        if (!loggerService.debug)
+            return false;
+        if (!loggerService.allowedModules || loggerService.allowedModules.length === 0)
+            return true;
+        if (!moduleName)
+            return false;
+        try {
+            var name = String(moduleName).trim();
+            for (var i = 0; i < loggerService.allowedModules.length; ++i) {
+                if (loggerService.allowedModules[i] === name)
+                    return true;
+            }
+        } catch (e) {
+            return false;
+        }
+        return false;
+    }
     function _formatMessage(...args) {
         const timeNow = TimeService.timestamp();
         const timePart = `\x1b[36m[${timeNow}]\x1b[0m`;
@@ -39,19 +103,31 @@ Singleton {
     }
 
     function log(...args) {
-        if (!loggerService.debug)
+        var moduleRaw = null;
+        if (args.length > 1) {
+            moduleRaw = args[0];
+        }
+        if (!loggerService.shouldLog(moduleRaw))
             return;
         console.log(loggerService._formatMessage(...args));
     }
 
     function warn(...args) {
-        if (!loggerService.debug)
+        var moduleRaw = null;
+        if (args.length > 1) {
+            moduleRaw = args[0];
+        }
+        if (!loggerService.shouldLog(moduleRaw))
             return;
         console.warn(loggerService._formatMessage(...args));
     }
 
     function error(...args) {
-        if (!loggerService.debug)
+        var moduleRaw = null;
+        if (args.length > 1) {
+            moduleRaw = args[0];
+        }
+        if (!loggerService.shouldLog(moduleRaw))
             return;
         console.error(loggerService._formatMessage(...args));
     }
