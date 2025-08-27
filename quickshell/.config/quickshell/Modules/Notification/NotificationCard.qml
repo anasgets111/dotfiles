@@ -42,14 +42,14 @@ Control {
             spacing: 8
 
             Image {
-                source: card.wrapper.iconSource
+                source: card.wrapper?.iconSource || ""
                 fillMode: Image.PreserveAspectFit
                 Layout.preferredWidth: 32
                 Layout.preferredHeight: 32
                 sourceSize.width: 64
                 sourceSize.height: 64
                 smooth: true
-                visible: !!source
+                visible: !!(card.wrapper?.iconSource)
             }
 
             ColumnLayout {
@@ -60,14 +60,14 @@ Control {
                     Layout.fillWidth: true
                     spacing: 6
                     Text {
-                        text: card.wrapper.summary || "(No title)"
+                        text: (card.wrapper?.summary || "(No title)")
                         color: "white"
                         font.bold: true
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
                     Text {
-                        text: card.wrapper.timeStr
+                        text: card.wrapper?.timeStr || ""
                         color: "#bbbbbb"
                         font.pixelSize: 11
                         horizontalAlignment: Text.AlignRight
@@ -76,10 +76,10 @@ Control {
 
                 Text {
                     Layout.fillWidth: true
-                    text: card.wrapper.bodySafe
+                    text: card.wrapper?.bodySafe || ""
                     color: "#dddddd"
                     wrapMode: Text.Wrap
-                    textFormat: card.wrapper.bodyFormat === "markup" ? Text.RichText : Text.PlainText
+                    textFormat: card.wrapper?.bodyFormat === "markup" ? Text.RichText : Text.PlainText
                     maximumLineCount: 6
                     elide: Text.ElideRight
                     onLinkActivated: url => Qt.openUrlExternally(url)
@@ -88,15 +88,15 @@ Control {
 
             ToolButton {
                 icon.name: "window-close"
-                text: "×"
+                text: "x"
                 onClicked: card.dismiss()
             }
         }
 
         Image {
             Layout.fillWidth: true
-            visible: !!card.wrapper.imageSource
-            source: card.wrapper.imageSource
+            visible: !!(card.wrapper?.imageSource)
+            source: card.wrapper?.imageSource || ""
             fillMode: Image.PreserveAspectFit
             sourceSize.width: 512
             sourceSize.height: 256
@@ -108,18 +108,18 @@ Control {
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
-            visible: !!card.wrapper.replyModel?.enabled && !card.wrapper.replyModel?.submitted
+            visible: !!(card.wrapper?.replyModel?.enabled) && !(card.wrapper?.replyModel?.submitted)
 
             TextField {
                 id: replyField
                 Layout.fillWidth: true
-                placeholderText: card.wrapper.replyModel?.placeholder || "Reply..."
-                maximumLength: Math.max(0, Number(card.wrapper.replyModel?.maxLength || 0))
+                placeholderText: (card.wrapper?.replyModel?.placeholder || "Reply...")
+                maximumLength: Math.max(0, Number(card.wrapper?.replyModel?.maxLength || 0))
             }
             Button {
                 text: "Send"
                 enabled: {
-                    const min = Math.max(0, Number(card.wrapper.replyModel?.minLength || 0));
+                    const min = Math.max(0, Number(card.wrapper?.replyModel?.minLength || 0));
                     return replyField.text.length >= min;
                 }
                 onClicked: card.replySubmitted(replyField.text)
@@ -130,7 +130,7 @@ Control {
             Layout.fillWidth: true
             spacing: 6
             Repeater {
-                model: card.wrapper.actionsModel
+                model: card.wrapper?.actionsModel || []
                 delegate: Button {
                     required property var modelData
                     text: modelData.title || modelData.id
@@ -138,7 +138,7 @@ Control {
                     onClicked: card.actionTriggered(String(modelData.id))
                 }
             }
-            visible: (card.wrapper.actionsModel || []).length > 0
+            visible: (card.wrapper?.actionsModel || []).length > 0
         }
 
         Rectangle {
@@ -147,7 +147,7 @@ Control {
             Layout.preferredHeight: 3
             radius: 2
             color: "#333333"
-            property real cardTimeout: card.wrapper.timer.interval
+            property real cardTimeout: Number(card.wrapper?.timer?.interval || 0)
             Rectangle {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
@@ -160,8 +160,8 @@ Control {
                     id: anim
                     from: 1.0
                     to: 0.0
-                    duration: card.wrapper.timer.interval
-                    running: card.wrapper.timer.interval > 0
+                    duration: Number(card.wrapper?.timer?.interval || 0)
+                    running: (card.wrapper?.timer?.interval || 0) > 0
                     easing.type: Easing.Linear
                 }
             }
@@ -174,14 +174,14 @@ Control {
         }
     }
     // Drive opacity directly instead of states for simpler parsing
-    opacity: card.wrapper.popup ? 1.0 : 0.0
+    opacity: card.wrapper?.popup ? 1.0 : 0.0
 
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true
-        onEntered: if (card.wrapper.timer.running)
+        onEntered: if (card.wrapper?.timer?.running)
             card.wrapper.timer.stop()
-        onExited: if (card.wrapper.timer.interval > 0 && !card.wrapper.timer.running)
+        onExited: if ((card.wrapper?.timer?.interval || 0) > 0 && !(card.wrapper?.timer?.running))
             card.wrapper.timer.start()
         acceptedButtons: Qt.NoButton
         propagateComposedEvents: true
