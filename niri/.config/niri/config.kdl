@@ -272,7 +272,7 @@ binds {
     Mod+KP_Enter { spawn "niri-stash.sh" "term"; }
     Ctrl+Alt+Delete { spawn "missioncenter"; }
     
-    Mod+Z { spawn "zeditor"; }
+    Mod+Z { spawn "WAYLAND_DISPLAY=''" "zeditor"; }
     Mod+C { spawn "code"; }
     //Mod+SPACE { spawn "pidof rofi && pkill rofi || ~/.config/rofi/launchers/type-6/launcher.sh"; }
     Mod+E { spawn "nautilus"; }
