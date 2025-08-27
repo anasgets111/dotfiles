@@ -10,8 +10,7 @@ PanelWindow {
     id: layer
     visible: NotificationService.visible.length > 0
     required property var modelData
-    // Guard against undefined to avoid assignment warnings; null is acceptable
-    screen: layer.modelData || null
+    screen: layer.modelData
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.exclusiveZone: -1
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
@@ -23,37 +22,127 @@ PanelWindow {
         bottom: true
     }
     mask: Region {
-        item: popupColumn
+        item: popupScroll
     }
     property int margin: 12
     property int barOffset: 36
     // property int shadowPad: 16
-    Column {
-        id: popupColumn
-        anchors {
-            top: parent.top
-            right: parent.right
-            topMargin: layer.margin + layer.barOffset
-            rightMargin: layer.margin
-        }
-        spacing: 8
-        Repeater {
-            model: NotificationService.visible
-            delegate: Item {
-                id: del
-                required property var modelData
-                implicitWidth: card.implicitWidth
-                width: implicitWidth
-                height: card.implicitHeight
-                NotificationCard {
-                    id: card
-                    wrapper: del.modelData
-                    onDismiss: NotificationService.dismissNotification(del.modelData)
-                    onActionTriggered: actionId => NotificationService.executeAction(del.modelData.id, actionId)
-                    onReplySubmitted: text => {
-                        const r = NotificationService.reply(del.modelData.id, text);
-                        if (r?.ok)
-                            del.modelData.popup = false;
+    // Scrollable stack to avoid growing off-screen; still stacks vertically
+    ScrollView {
+        id: popupScroll
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        anchors.topMargin: layer.margin + layer.barOffset
+        anchors.rightMargin: layer.margin
+        anchors.bottomMargin: layer.margin
+        clip: true
+        // Size viewport to content width
+        width: popupColumn.implicitWidth
+        contentWidth: popupColumn.implicitWidth
+        contentHeight: popupColumn.implicitHeight
+
+        Column {
+            id: popupColumn
+            // local handle to the service to avoid unqualified access inside delegates
+            readonly property var svc: NotificationService
+            // Build entries from currently visible wrappers, honoring svc.maxVisible.
+            // Coalesce by group so you get at most one entry per group id.
+            property var entries: (function () {
+                    const svc = popupColumn.svc;
+                    const max = Math.max(1, Number(svc?.maxVisible || 1));
+                    const result = [];
+                    const seenGroups = new Set();
+                    const vis = svc?.visible || [];
+                    // Iterate visible wrappers in order, collect up to 'max' distinct entries
+                    for (let i = 0; i < vis.length && result.length < max; ++i) {
+                        const w = vis[i];
+                        if (!w)
+                            continue;
+                        const gid = String(w.groupId || "");
+                        if (gid) {
+                            if (seenGroups.has(gid))
+                                continue;
+                            const g = (svc?.groupsMap && svc.groupsMap[gid]) || null;
+                            if (g) {
+                                result.push({
+                                    kind: "group",
+                                    group: g
+                                });
+                                seenGroups.add(gid);
+                            } else {
+                                result.push({
+                                    kind: "single",
+                                    wrapper: w
+                                });
+                            }
+                        } else {
+                            result.push({
+                                kind: "single",
+                                wrapper: w
+                            });
+                        }
+                    }
+                    // If grouping compressed entries below max, try to fill from the rest
+                    for (let i = 0; i < vis.length && result.length < max; ++i) {
+                        const w = vis[i];
+                        if (!w)
+                            continue;
+                        const gid = String(w.groupId || "");
+                        if (gid) {
+                            if (!seenGroups.has(gid)) {
+                                const g = (svc?.groupsMap && svc.groupsMap[gid]) || null;
+                                if (g) {
+                                    result.push({
+                                        kind: "group",
+                                        group: g
+                                    });
+                                    seenGroups.add(gid);
+                                }
+                            }
+                        } else {
+                            // ensure we don't duplicate singles already included
+                            if (!result.some(e => e.kind === "single" && e.wrapper === w))
+                                result.push({
+                                    kind: "single",
+                                    wrapper: w
+                                });
+                        }
+                    }
+                    return result;
+                })()
+            spacing: 8
+            Repeater {
+                model: popupColumn.entries
+                delegate: Item {
+                    id: del
+                    required property var modelData
+                    width: col.width
+                    implicitWidth: col.implicitWidth
+                    implicitHeight: col.implicitHeight
+                    Column {
+                        id: col
+                        // Only create cards when inputs are present to avoid undefined access
+                        Loader {
+                            active: del.modelData.kind === "single" && !!del.modelData.wrapper
+                            sourceComponent: NotificationCard {
+                                wrapper: del.modelData.wrapper
+                                onDismiss: popupColumn.svc.dismissNotification(wrapper)
+                                onActionTriggered: id => popupColumn.svc.executeAction(wrapper.id, id)
+                                onReplySubmitted: text => {
+                                    const r = popupColumn.svc.reply(wrapper.id, text);
+                                    if (r?.ok)
+                                        wrapper.popup = false;
+                                }
+                            }
+                        }
+                        Loader {
+                            active: del.modelData.kind === "group" && !!del.modelData.group
+                            sourceComponent: GroupCard {
+                                svc: popupColumn.svc
+                                group: del.modelData.group
+                            }
+                        }
                     }
                 }
             }
