@@ -6,151 +6,171 @@ import Quickshell.Widgets
 import Quickshell.Services.SystemTray
 
 Item {
-    id: systemTrayWidget
+  id: systemTrayWidget
 
-    required property var bar
-    readonly property int iconSpacing: 8
-    readonly property int horizontalPadding: 10
-    readonly property int hoverPadding: 3
-    readonly property int contentInset: 2
+  required property var bar
+  readonly property int contentInset: 2
+  readonly property int horizontalPadding: 10
+  readonly property int hoverPadding: 3
+  readonly property int iconSpacing: 8
 
-    width: Math.max(trayRow.implicitWidth + horizontalPadding * 2, Theme.itemHeight)
-    height: Theme.itemHeight
+  height: Theme.itemHeight
+  width: Math.max(trayRow.implicitWidth + systemTrayWidget.horizontalPadding * 2, Theme.itemHeight)
 
-    Rectangle {
-        anchors.fill: parent
-        radius: Theme.itemRadius
-        color: Theme.inactiveColor
+  Rectangle {
+    id: trayBg
+
+    anchors.fill: parent
+    color: Theme.inactiveColor
+    radius: Theme.itemRadius
+  }
+
+  Row {
+    id: trayRow
+
+    anchors.centerIn: parent
+    spacing: systemTrayWidget.iconSpacing
+
+    Repeater {
+      id: trayRepeater
+
+      delegate: trayItemDelegate
+      model: SystemTray.items
     }
+  }
 
-    Row {
-        id: trayRow
+  Component {
+    id: trayItemDelegate
+
+    MouseArea {
+      id: trayMouseArea
+
+      // Heuristic lookup once per item
+      property var heuristic: (trayMouseArea.trayItem && trayMouseArea.trayItem.lastIpcObject) ? DesktopEntries.heuristicLookup(trayMouseArea.trayItem.lastIpcObject.class) : null
+      required property var modelData
+      property var trayItem: trayMouseArea.modelData
+
+      acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+      cursorShape: Qt.PointingHandCursor
+      height: Theme.iconSize
+      hoverEnabled: true
+      trayItem: trayMouseArea.modelData
+      width: Theme.iconSize
+
+      onClicked: function (mouse) {
+        if (mouse.button === Qt.LeftButton) {
+          trayMouseArea.trayItem.activate();
+        } else if (mouse.button === Qt.RightButton && trayMouseArea.trayItem.hasMenu) {
+          menuAnchor.open();
+        } else if (mouse.button === Qt.MiddleButton) {
+          trayMouseArea.trayItem.secondaryActivate();
+        }
+      }
+      onWheel: function (wheel) {
+        trayMouseArea.trayItem.scroll(wheel.angleDelta.x, wheel.angleDelta.y);
+      }
+
+      QsMenuAnchor {
+        id: menuAnchor
+
+        anchor.item: trayMouseArea
+        anchor.rect.y: trayMouseArea.height - 5
+        menu: trayMouseArea.trayItem.menu
+      }
+
+      // Hover halo
+      Rectangle {
+        id: hoverHalo
 
         anchors.centerIn: parent
-        spacing: systemTrayWidget.iconSpacing
-        Repeater {
-            id: trayRepeater
-            model: SystemTray.items
-            delegate: trayItemDelegate
+        color: Theme.onHoverColor
+        height: hoverHalo.width
+        opacity: trayMouseArea.containsMouse ? 1 : 0
+        radius: hoverHalo.width / 2
+        width: Theme.iconSize + systemTrayWidget.hoverPadding * 2
+
+        Behavior on opacity {
+          NumberAnimation {
+            duration: Theme.animationDuration
+            easing.type: Easing.OutCubic
+          }
         }
-    }
+      }
 
-    Component {
-        id: trayItemDelegate
+      // Icon path: prefer image:// from tray, else heuristic icon
+      IconImage {
+        id: iconImage
 
-        MouseArea {
-            id: trayMouseArea
-
-            required property var modelData
-            property var trayItem: modelData
-            // local computed properties to reduce duplication and improve readability
-            property var heuristic: (modelData && modelData.lastIpcObject) ? DesktopEntries.heuristicLookup(modelData.lastIpcObject.class) : null
-
-            width: Theme.iconSize
-            height: Theme.iconSize
-            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-            hoverEnabled: true
-
-            onClicked: function (mouse) {
-                if (mouse.button === Qt.LeftButton)
-                    trayMouseArea.trayItem.activate();
-                else if (mouse.button === Qt.RightButton && trayMouseArea.trayItem.hasMenu)
-                    menuAnchor.open();
-                else if (mouse.button === Qt.MiddleButton)
-                    trayMouseArea.trayItem.secondaryActivate();
-            }
-            onWheel: function (wheel) {
-                trayMouseArea.trayItem.scroll(wheel.angleDelta.x, wheel.angleDelta.y);
-            }
-
-            QsMenuAnchor {
-                id: menuAnchor
-                menu: trayMouseArea.trayItem.menu
-                anchor.item: trayMouseArea
-                anchor.rect.y: trayMouseArea.height - 5
-            }
-
-            Rectangle {
-                anchors.centerIn: parent
-                width: Theme.iconSize + systemTrayWidget.hoverPadding * 2
-                height: width
-                radius: width / 2
-                color: Theme.onHoverColor
-                opacity: trayMouseArea.containsMouse ? 1 : 0
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.OutCubic
-                    }
-                }
-            }
-
-            IconImage {
-                id: iconImage
-
-                anchors.centerIn: parent
-                implicitSize: Theme.iconSize - systemTrayWidget.contentInset * 2
-                width: implicitSize
-                height: implicitSize
-                source: trayMouseArea.trayItem.icon && trayMouseArea.trayItem.icon.startsWith("image://") ? trayMouseArea.trayItem.icon : (trayMouseArea.heuristic && trayMouseArea.heuristic.icon ? Quickshell.iconPath(trayMouseArea.heuristic.icon) : "")
-                backer.smooth: true
-                backer.fillMode: Image.PreserveAspectFit
-                backer.sourceSize.width: width
-                backer.sourceSize.height: height
-                visible: status !== Image.Error && status !== Image.Null
-            }
-
-            Text {
-                anchors.centerIn: parent
-                text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : (trayMouseArea.trayItem.title ? trayMouseArea.trayItem.title.charAt(0).toUpperCase() : "?")
-                color: trayMouseArea.containsMouse ? Theme.textOnHoverColor : Theme.textActiveColor
-                font.pixelSize: Theme.fontSize
-                font.family: Theme.fontFamily
-                font.bold: true
-                visible: iconImage.status === Image.Error || iconImage.status === Image.Null
-            }
-
-            Rectangle {
-                // Tooltip: keep fade animation by driving visibility from opacity
-                // Show when hovered and there is text, or while animating out
-                visible: (opacity > 0) && (trayMouseArea.trayItem.tooltipTitle || trayMouseArea.trayItem.title)
-                color: Theme.onHoverColor
-                radius: Theme.itemRadius
-                width: tooltipText.width + 16
-                height: tooltipText.height + 8
-                anchors.top: parent.bottom
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.topMargin: 8
-                opacity: trayMouseArea.containsMouse ? 1 : 0
-
-                Text {
-                    id: tooltipText
-
-                    anchors.centerIn: parent
-                    text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : trayMouseArea.trayItem.title
-                    color: Theme.textContrast(Theme.onHoverColor)
-                    font.pixelSize: Theme.fontSize
-                    font.family: Theme.fontFamily
-                }
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.OutCubic
-                    }
-                }
-            }
-        }
-    }
-
-    Text {
         anchors.centerIn: parent
-        visible: trayRepeater.count === 0
-        text: "No tray items"
-        color: Theme.panelColor
-        font.pixelSize: 10
+        backer.fillMode: Image.PreserveAspectFit
+        backer.smooth: true
+        backer.sourceSize.height: iconImage.height
+        backer.sourceSize.width: iconImage.width
+        height: iconImage.implicitSize
+        implicitSize: Theme.iconSize - systemTrayWidget.contentInset * 2
+        source: (trayMouseArea.trayItem.icon && trayMouseArea.trayItem.icon.startsWith("image://")) ? trayMouseArea.trayItem.icon : ((trayMouseArea.heuristic && trayMouseArea.heuristic.icon) ? Quickshell.iconPath(trayMouseArea.heuristic.icon) : "")
+        visible: iconImage.status !== Image.Error && iconImage.status !== Image.Null
+        width: iconImage.implicitSize
+      }
+
+      // Fallback letter/mark when icon missing
+      Text {
+        id: fallbackGlyph
+
+        anchors.centerIn: parent
+        color: trayMouseArea.containsMouse ? Theme.textOnHoverColor : Theme.textActiveColor
+        font.bold: true
         font.family: Theme.fontFamily
-        opacity: 0.7
+        font.pixelSize: Theme.fontSize
+        text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : (trayMouseArea.trayItem.title ? trayMouseArea.trayItem.title.charAt(0).toUpperCase() : "?")
+        visible: iconImage.status === Image.Error || iconImage.status === Image.Null
+      }
+
+      // Tooltip
+      Rectangle {
+        id: tooltip
+
+        anchors.horizontalCenter: trayMouseArea.horizontalCenter
+        anchors.top: trayMouseArea.bottom
+        anchors.topMargin: 8
+        color: Theme.onHoverColor
+        height: tooltipText.height + 8
+        opacity: trayMouseArea.containsMouse ? 1 : 0
+        radius: Theme.itemRadius
+        // Show when hovered and there is text, or while fading out
+        visible: (tooltip.opacity > 0) && (trayMouseArea.trayItem.tooltipTitle || trayMouseArea.trayItem.title)
+        width: tooltipText.width + 16
+
+        Behavior on opacity {
+          NumberAnimation {
+            duration: Theme.animationDuration
+            easing.type: Easing.OutCubic
+          }
+        }
+
+        Text {
+          id: tooltipText
+
+          anchors.centerIn: parent
+          color: Theme.textContrast(Theme.onHoverColor)
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize
+          text: trayMouseArea.trayItem.tooltipTitle ? trayMouseArea.trayItem.tooltipTitle : trayMouseArea.trayItem.title
+        }
+      }
     }
+  }
+
+  // Empty state
+  Text {
+    id: emptyHint
+
+    anchors.centerIn: parent
+    color: Theme.panelColor
+    font.family: Theme.fontFamily
+    font.pixelSize: 10
+    opacity: 0.7
+    text: "No tray items"
+    visible: trayRepeater.count === 0
+  }
 }

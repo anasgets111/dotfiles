@@ -7,145 +7,142 @@ import Quickshell.Io
 import Quickshell.Services.UPower
 
 Singleton {
-    id: root
+  id: root
 
-    // Tunables for brightness behavior
-    property int onBatteryBrightness: 10
-    property int onACBrightness: 100
-    property int kbdOnBattery: 1
-    property int kbdOnAC: 3
-    property string kbdDevice: "asus::kbd_backlight"
+  property string cpuGovernor: "Unknown"
+  property string energyPerformance: "Unknown"
+  property string kbdDevice: "asus::kbd_backlight"
+  property int kbdOnAC: 3
+  property int kbdOnBattery: 1
+  property int onACBrightness: 100
+  property bool onBattery: UPower.onBattery
 
-    property string platformProfile: "Loading..."
-    readonly property string platformInfo: "Platform: " + platformProfile
-    property string ppdText: "Loading..."
-    readonly property string ppdInfo: "PPD: " + ppdText
-    property string cpuGovernor: "Unknown"
-    property string energyPerformance: "Unknown"
+  // Tunables
+  property int onBatteryBrightness: 10
+  readonly property string platformInfo: "Platform: " + root.platformProfile
+  property string platformProfile: "Loading..."
+  readonly property string ppdInfo: "PPD: " + root.ppdText
+  property string ppdText: "Loading..."
 
-    property bool onBattery: UPower.onBattery
+  signal powerInfoUpdated
+  signal thermalInfoUpdated
 
-    signal powerInfoUpdated
-    signal thermalInfoUpdated
+  function adjustBrightness() {
+    if (!DetectEnv.isLaptopBattery)
+      return;
 
-    Component.onCompleted: {
-        root.refreshPowerInfo();
+    const screen = root.onBattery ? root.onBatteryBrightness : root.onACBrightness;
+    const kbd = root.onBattery ? root.kbdOnBattery : root.kbdOnAC;
+    const cmd = "brightnessctl set " + screen + "% && brightnessctl -d " + root.kbdDevice + " set " + kbd;
+
+    brightnessProcess.command = ["sh", "-c", cmd];
+    if (brightnessDebounce.running)
+      brightnessDebounce.restart();
+    else
+      brightnessDebounce.start();
+  }
+
+  // Minimal one-shot reader utility (avoids implicit this/try/catch)
+  function readFile(path, cb) {
+    const p = readProcessComponent.createObject(root, {
+      command: ["cat", path]
+    });
+    p.stdout.streamFinished.connect(function () {
+      const data = p.stdout.text ? p.stdout.text.trim() : "";
+      cb(data);
+      p.destroy();
+    });
+    p.running = true;
+  }
+
+  function refreshPowerInfo() {
+    // Platform profile
+    root.readFile("/sys/firmware/acpi/platform_profile", function (data) {
+      root.platformProfile = data;
+      root.powerInfoUpdated();
+    });
+
+    // CPU governor
+    root.readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", function (data) {
+      root.cpuGovernor = data;
+      root.thermalInfoUpdated();
+    });
+
+    // EPP
+    root.readFile("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference", function (data) {
+      root.energyPerformance = data;
+      root.thermalInfoUpdated();
+    });
+
+    if (DetectEnv.isLaptopBattery && DetectEnv.batteryManager === "ppd") {
+      ppdProcess.running = true;
+    }
+  }
+
+  Component.onCompleted: root.refreshPowerInfo()
+  Component.onDestruction: {
+    brightnessDebounce.stop();
+    brightnessProcess.running = false;
+    ppdProcess.running = false;
+  }
+  onOnBatteryChanged: {
+    root.refreshPowerInfo();
+    root.adjustBrightness();
+  }
+
+  Connections {
+    function onBatteryManagerChanged() {
+      root.refreshPowerInfo();
     }
 
-    Component.onDestruction: {
-        try {
-            brightnessDebounce.stop();
-        } catch (e) {}
-        try {
-            brightnessProcess.running = false;
-        } catch (e) {}
-        try {
-            ppdProcess.running = false;
-        } catch (e) {}
-    }
+    target: DetectEnv
+  }
 
-    Connections {
-        target: DetectEnv
-        function onBatteryManagerChanged() {
-            root.refreshPowerInfo();
-        }
-    }
+  // Brightness control process + debounce
+  Process {
+    id: brightnessProcess
 
-    onOnBatteryChanged: {
-        refreshPowerInfo();
-        adjustBrightness();
-    }
+    command: []
+    running: false
+  }
 
-    // Brightness control process
+  Timer {
+    id: brightnessDebounce
+
+    interval: 250
+    repeat: false
+
+    onTriggered: {
+      if (!DetectEnv.isLaptopBattery)
+        return;
+      brightnessProcess.running = true;
+    }
+  }
+
+  Component {
+    id: readProcessComponent
+
     Process {
-        id: brightnessProcess
-        command: []
-        running: false
+      running: false
+
+      stdout: StdioCollector {
+      }
     }
+  }
 
-    Timer {
-        id: brightnessDebounce
-        interval: 250
-        repeat: false
-        onTriggered: {
-            if (!DetectEnv.isLaptopBattery)
-                return;
-            brightnessProcess.running = true;
-        }
+  Process {
+    id: ppdProcess
+
+    command: ["powerprofilesctl", "get"]
+    running: false
+
+    stdout: StdioCollector {
+      id: ppdStdout
+
+      onStreamFinished: {
+        root.ppdText = (ppdStdout.text ? ppdStdout.text.trim() : "") || "Unknown";
+        root.powerInfoUpdated();
+      }
     }
-
-    function adjustBrightness() {
-        if (!DetectEnv.isLaptopBattery)
-            return;
-
-        const screen = root.onBattery ? onBatteryBrightness : onACBrightness;
-        const kbd = root.onBattery ? kbdOnBattery : kbdOnAC;
-        const cmd = `brightnessctl set ${screen}% && brightnessctl -d ${kbdDevice} set ${kbd}`;
-
-        brightnessProcess.command = ["sh", "-c", cmd];
-        if (brightnessDebounce.running) {
-            brightnessDebounce.restart();
-        } else {
-            brightnessDebounce.start();
-        }
-    }
-
-    QtObject {
-        id: reader
-
-        function read(filePath, callback) {
-            var process = processComponent.createObject(root, {
-                "command": ["cat", filePath]
-            });
-
-            process.stdout.streamFinished.connect(function () {
-                var data = process.stdout.text ? process.stdout.text.trim() : "";
-                callback(data);
-                process.destroy();
-            });
-
-            process.running = true;
-        }
-    }
-
-    Component {
-        id: processComponent
-        Process {
-            running: false
-            stdout: StdioCollector {}
-        }
-    }
-
-    Process {
-        id: ppdProcess
-        command: ["powerprofilesctl", "get"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.ppdText = (this.text.trim() || "Unknown");
-                root.powerInfoUpdated();
-            }
-        }
-    }
-
-    function refreshPowerInfo() {
-        reader.read("/sys/firmware/acpi/platform_profile", function (data) {
-            root.platformProfile = data;
-            root.powerInfoUpdated();
-        });
-
-        reader.read("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", function (data) {
-            root.cpuGovernor = data;
-            root.thermalInfoUpdated();
-        });
-
-        reader.read("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference", function (data) {
-            root.energyPerformance = data;
-            root.thermalInfoUpdated();
-        });
-
-        if (DetectEnv.isLaptopBattery && DetectEnv.batteryManager === "ppd") {
-            ppdProcess.running = true;
-        }
-    }
+  }
 }
