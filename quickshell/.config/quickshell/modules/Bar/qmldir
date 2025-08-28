@@ -10,7 +10,6 @@ LeftSide LeftSide.qml
 NormalWorkspaces NormalWorkspaces.qml
 SpecialWorkspaces SpecialWorkspaces.qml
 NiriWorkspaces NiriWorkspaces.qml
-Popup Popup.qml
 PowerMenu PowerMenu.qml
 RightSide RightSide.qml
 RoundCorner RoundCorner.qml
@@ -24,5 +23,3 @@ Weather Weather.qml
 MinimalCalendar MinimalCalendar.qml
 singleton Cava  Cava.qml
 singleton PowerMgmt PowerManagement.qml
-# WifiIndicator WifiIndicator.qml
-# singleton WifiService WifiService.qml

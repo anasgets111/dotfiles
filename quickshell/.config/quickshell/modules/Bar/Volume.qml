@@ -65,7 +65,8 @@ Rectangle {
   property bool suppressFillAnim: false
   property real volume: 0.0
   readonly property string volumeIcon: {
-    const ratio = maxVolume > 0 ? (volume / maxVolume) : 0;
+    const displayNorm = (sliderBg && typeof sliderBg.sliderValue === 'number') ? sliderBg.sliderValue : (maxVolume > 0 ? (volume / maxVolume) : 0);
+    const ratio = maxVolume > 0 ? (displayNorm) : 0;
     return audioReady ? (deviceIcon || (muted ? "󰝟" : ratio < 0.01 ? "󰖁" : ratio < 0.33 ? "󰕿" : ratio < 0.66 ? "󰖀" : "󰕾")) : "--";
   }
 

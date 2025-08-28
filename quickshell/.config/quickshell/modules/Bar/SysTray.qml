@@ -52,7 +52,6 @@ Item {
       cursorShape: Qt.PointingHandCursor
       height: Theme.iconSize
       hoverEnabled: true
-      trayItem: trayMouseArea.modelData
       width: Theme.iconSize
 
       onClicked: function (mouse) {
