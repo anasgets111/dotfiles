@@ -1,9 +1,8 @@
-pragma Singleton
-
 import QtQuick
 import Quickshell
 import Quickshell.Services.SystemTray
 import qs.Services.Utils
+pragma Singleton
 
 Singleton {
     id: systemTrayService
@@ -20,34 +19,43 @@ Singleton {
     function getModelCount(model) {
         if (!model)
             return 0;
+
         if (model.count !== undefined)
             return Number(model.count) || 0;
+
         if (model.length !== undefined)
             return Number(model.length) || 0;
+
         return 0;
     }
 
     function itemAtIndex(index) {
         if (!items || index < 0 || index >= count)
             return null;
+
         if (typeof items.get === "function")
             return items.get(index);
+
         return items[index] !== undefined ? items[index] : null;
     }
 
     function getItemFromRef(itemRef) {
         if (!itemRef)
             return null;
+
         if (typeof itemRef === "object" && typeof itemRef.activate === "function")
             return itemRef;
+
         if (typeof itemRef === "number")
             return itemAtIndex(itemRef);
+
         return null;
     }
 
     function getNormalizedIconSource(icon) {
         if (icon === undefined || icon === null)
             return "";
+
         const source = icon.toString();
         const pathMarker = "?path=";
         const markerPosition = source.indexOf(pathMarker);
@@ -59,7 +67,8 @@ Singleton {
         const lastSlashIndex = Math.max(namePart.lastIndexOf("/"), namePart.lastIndexOf("\\"));
         const iconFileName = lastSlashIndex >= 0 ? namePart.substring(lastSlashIndex + 1) : namePart;
         if (!iconDirectoryPath || !iconFileName)
-            return source; // fallback to original if malformed
+            return source;
+ // fallback to original if malformed
         return `file://${iconDirectoryPath}/${iconFileName}`;
     }
 
@@ -67,16 +76,19 @@ Singleton {
         const trayItem = getItemFromRef(itemRef);
         if (!trayItem)
             return "";
+
         // Prefer tray-provided icon
         const direct = trayItem.icon !== undefined ? getNormalizedIconSource(trayItem.icon) : "";
         if (direct)
             return direct;
+
         // Fallback: attempt to resolve via desktop entry from common identifiers
         const appIdentifier = trayItem.appId || trayItem.id || trayItem.title || trayItem.name || "";
         if (appIdentifier) {
             const resolved = Utils.resolveIconSource(String(appIdentifier), "");
             if (resolved)
                 return resolved;
+
         }
         return "";
     }
@@ -120,6 +132,7 @@ Singleton {
     function handleItemClick(itemRef, mouseButton) {
         if (mouseButton === Qt.LeftButton)
             return activateItem(itemRef);
+
         return secondaryActivateItem(itemRef);
     }
 
@@ -127,10 +140,13 @@ Singleton {
         const trayItem = getItemFromRef(itemRef);
         if (!trayItem)
             return null;
+
         if (trayItem.menu !== undefined)
             return trayItem.menu;
+
         if (trayItem.contextMenu !== undefined)
             return trayItem.contextMenu;
+
         return null;
     }
 
@@ -167,11 +183,14 @@ Singleton {
         const menuModel = menuModelForItem(itemRef);
         if (!menuModel || typeof index !== "number")
             return null;
+
         const entryCount = getModelCount(menuModel);
         if (index < 0 || index >= entryCount)
             return null;
+
         if (typeof menuModel.get === "function")
             return menuModel.get(index);
+
         return menuModel[index] !== undefined ? menuModel[index] : null;
     }
 
@@ -182,7 +201,6 @@ Singleton {
             systemTrayService.error("triggerMenuItem: no menu or invalid item");
             return false;
         }
-
         let entry = null;
         if (typeof key === "number") {
             entry = menuItemAtIndex(trayItem, key);
@@ -192,6 +210,7 @@ Singleton {
                 const candidateEntry = typeof menuModel.get === "function" ? menuModel.get(index) : (menuModel[index] !== undefined ? menuModel[index] : null);
                 if (!candidateEntry)
                     continue;
+
                 const candidateName = candidateEntry.id || candidateEntry.key || candidateEntry.name || candidateEntry.text || candidateEntry.title;
                 if (candidateName === key) {
                     entry = candidateEntry;
@@ -201,12 +220,10 @@ Singleton {
         } else {
             entry = key;
         }
-
         if (!entry) {
             systemTrayService.error("triggerMenuItem: entry not found");
             return false;
         }
-
         try {
             if (typeof entry.trigger === "function") {
                 entry.trigger();
@@ -231,4 +248,5 @@ Singleton {
         systemTrayService.error("triggerMenuItem: no trigger method on entry");
         return false;
     }
+
 }
