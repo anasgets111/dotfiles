@@ -1,22 +1,21 @@
-pragma Singleton
 import Quickshell
 import Quickshell.Io
-import qs.Services.Utils
 import qs.Services
+import qs.Services.Utils
+pragma Singleton
 
 Singleton {
     id: impl
 
     readonly property bool active: MainService.ready && MainService.currentWM === "niri"
     readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
-
     property var layouts: []
     property string currentLayout: ""
 
     function setLayoutByIndex(layoutIndex) {
         if (!Array.isArray(impl.layouts)) {
             impl.currentLayout = "";
-            return;
+            return ;
         }
         const idx = Number.isInteger(layoutIndex) ? layoutIndex : -1;
         impl.currentLayout = idx >= 0 && idx < impl.layouts.length ? (impl.layouts[idx] || "") : "";
@@ -40,23 +39,29 @@ Singleton {
 
     Socket {
         id: eventStreamSocket
+
         path: impl.socketPath
         connected: impl.active && !!impl.socketPath
-
         onConnectionStateChanged: {
             if (connected)
                 write('"EventStream"\n');
+
         }
+
         parser: SplitParser {
             splitMarker: "\n"
-            onRead: function (segment) {
+            onRead: function(segment) {
                 if (!segment)
-                    return;
+                    return ;
+
                 const event = Utils.safeJsonParse(segment, null);
                 if (!event)
-                    return;
+                    return ;
+
                 impl.parseKeyboardLayouts(event);
             }
         }
+
     }
+
 }
