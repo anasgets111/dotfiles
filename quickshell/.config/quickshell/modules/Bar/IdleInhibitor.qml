@@ -4,64 +4,42 @@ import Quickshell.Io
 Rectangle {
   id: idleInhibitor
 
+  readonly property color bgColor: hovered ? Theme.onHoverColor : (isActive ? Theme.activeColor : Theme.inactiveColor)
+  property bool enabled: false
+  readonly property color fgColor: Theme.textContrast(bgColor)
+  readonly property string glyph: isActive ? iconOn : iconOff
   property bool hovered: false
   property string iconOff: "󰾪"
   property string iconOn: "󰅶"
-  property alias isActive: inhibitorProcess.running
+  readonly property bool isActive: process.running
 
-  color: hovered ? Theme.onHoverColor : (isActive ? Theme.activeColor : Theme.inactiveColor)
+  color: bgColor
   height: Theme.itemHeight
   radius: Theme.itemRadius
   width: Theme.itemWidth
 
   Process {
-    id: inhibitorProcess
+    id: process
 
-    command: ["systemd-inhibit", "--what=idle:sleep", "--who=quickshell", "--why=User inhibited idle", "sleep", "infinity"]
-  }
-  Process {
-    id: lockProcess
-
-    command: ["hyprlock"]
-  }
-  Process {
-    id: pauseHypridle
-
-    command: ["sh", "-c", "pidof hypridle >/dev/null 2>&1 && kill -STOP $(pidof hypridle) || true"]
-  }
-  Process {
-    id: resumeHypridle
-
-    command: ["sh", "-c", "pidof hypridle >/dev/null 2>&1 && kill -CONT $(pidof hypridle) || true"]
+    command: ["sh", "-c", "systemd-inhibit --what=idle --who=Caffeine " + "--why='Caffeine module is active' --mode=block sleep inf"]
+    running: idleInhibitor.enabled
   }
   MouseArea {
-    acceptedButtons: Qt.LeftButton | Qt.RightButton
+    acceptedButtons: Qt.LeftButton
     anchors.fill: parent
     cursorShape: Qt.PointingHandCursor
     hoverEnabled: true
 
-    onClicked: function (mouse) {
-      if (mouse.button === Qt.LeftButton) {
-        const activating = !inhibitorProcess.running;
-        inhibitorProcess.running = activating;
-        if (activating) {
-          pauseHypridle.running = true;
-        } else {
-          resumeHypridle.running = true;
-        }
-      } else if (mouse.button === Qt.RightButton) {
-        lockProcess.running = true;
-      }
-    }
+    onClicked: enabled = !enabled
     onEntered: idleInhibitor.hovered = true
     onExited: idleInhibitor.hovered = false
   }
   Text {
     anchors.centerIn: parent
-    color: Theme.textContrast(idleInhibitor.hovered ? Theme.onHoverColor : (idleInhibitor.isActive ? Theme.activeColor : Theme.inactiveColor))
+    color: idleInhibitor.fgColor
     font.bold: true
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fontSize
-    text: idleInhibitor.isActive ? idleInhibitor.iconOn : idleInhibitor.iconOff
+    text: idleInhibitor.glyph
   }
 }
