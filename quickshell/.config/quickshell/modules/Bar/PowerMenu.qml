@@ -4,236 +4,254 @@ import QtQuick
 import Quickshell.Io
 
 Rectangle {
-    id: powerMenu
+  id: powerMenu
 
-    property bool internalHovered: false
-    property bool expanded: internalHovered
-    property int spacing: 8
-    property string lastCommand: ""
-    property string lastStdout: ""
-    property string lastStderr: ""
-    property int lastExitCode: 0
-    property var buttons: [
-        {
-            "icon": "󰍃",
-            "tooltip": "Log Out",
-            "action": "loginctl terminate-user $USER"
-        },
-        {
-            "icon": "",
-            "tooltip": "Restart",
-            "action": "systemctl reboot"
-        },
-        {
-            "icon": "⏻",
-            "tooltip": "Power Off",
-            "action": "systemctl poweroff"
-        }
-    ]
-    property int collapsedWidth: Theme.itemWidth
-    property int expandedWidth: Theme.itemWidth * buttons.length + spacing * (buttons.length - 1)
+  // Helpers
+  readonly property int animMs: Theme.animationDuration
+  property var buttons: [
+    {
+      icon: "󰍃",
+      tooltip: "Log Out",
+      action: "loginctl terminate-user $USER"
+    },
+    {
+      icon: "",
+      tooltip: "Restart",
+      action: "systemctl reboot"
+    },
+    {
+      icon: "⏻",
+      tooltip: "Power Off",
+      action: "systemctl poweroff"
+    }
+  ]
+  property int collapsedWidth: Theme.itemWidth
+  property bool expanded: hovered
+  readonly property int expandedWidth: Theme.itemWidth * buttons.length + spacing * (buttons.length - 1)
 
-    function execAction(cmd) {
-        // Run tracked; onExited will post a notify if exit != 0
-        powerMenu.lastCommand = cmd; // original command (without pkill)
-        powerMenu.lastStdout = "";
-        powerMenu.lastStderr = "";
-        const fullCmd = `pkill chromium 2>/dev/null || true; ${cmd}`;
-        actionProc.command = ["sh", "-c", fullCmd];
-        actionProc.running = true;
+  // State
+  property bool hovered: false
+
+  // Last process result for notify
+  property string lastCommand: ""
+  property int lastExitCode: 0
+  property string lastStderr: ""
+  property string lastStdout: ""
+
+  // Config
+  property int spacing: 8
+
+  function notifyFailure() {
+    const summary = "Power action failed";
+    const parts = [];
+    const err = lastStderr && lastStderr.trim();
+    const out = lastStdout && lastStdout.trim();
+    if (err)
+      parts.push(err);
+    else if (out)
+      parts.push(out);
+    parts.push(`\nCommand: ${lastCommand}`);
+    parts.push(`Exit: ${lastExitCode}`);
+    const body = parts.join("\n\n");
+    notifyProc.command = ["notify-send", "-u", "critical", summary, body];
+    notifyProc.running = true;
+  }
+
+  function runCommand(cmd) {
+    lastCommand = cmd;
+    lastStdout = "";
+    lastStderr = "";
+    const fullCmd = `pkill chromium 2>/dev/null || true; ${cmd}`;
+    actionProc.command = ["sh", "-c", fullCmd];
+    actionProc.running = true;
+  }
+
+  color: "transparent"
+  height: Theme.itemHeight
+  radius: Theme.itemRadius
+  width: expanded ? expandedWidth : collapsedWidth
+
+  Behavior on width {
+    NumberAnimation {
+      duration: powerMenu.animMs
+      easing.type: Easing.InOutQuad
+    }
+  }
+
+  Process {
+    id: actionProc
+
+    stderr: StdioCollector {
+      onStreamFinished: powerMenu.lastStderr = text
+    }
+    stdout: StdioCollector {
+      onStreamFinished: powerMenu.lastStdout = text
     }
 
-    width: powerMenu.expanded ? powerMenu.expandedWidth : powerMenu.collapsedWidth
-    height: Theme.itemHeight
-    radius: Theme.itemRadius
-    color: "transparent"
-
-    Process {
-        id: actionProc
-
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: powerMenu.lastStdout = this.text
-        }
-        stderr: StdioCollector {
-            onStreamFinished: powerMenu.lastStderr = this.text
-        }
+    onExited: (exitCode, exitStatus) => {
+      powerMenu.lastExitCode = exitCode;
+      if (exitCode !== 0)
+        notifyDelay.restart();
     }
+  }
 
-    Connections {
-        target: actionProc
-        function onExited(exitCode, exitStatus) {
-            powerMenu.lastExitCode = exitCode;
-            if (exitCode !== 0)
-                notifyDelay.restart();
-        }
+  Process {
+    id: notifyProc
+
+    stderr: StdioCollector {
     }
-
-    // Notify process (separate, simple client of notify-send)
-    Process {
-        id: notifyProc
-        running: false
-        // command assigned on demand
-        stdout: StdioCollector {}
-        stderr: StdioCollector {}
+    stdout: StdioCollector {
     }
+  }
 
-    // Delay a tick to let collectors finish before composing the message
-    Timer {
-        id: notifyDelay
-        interval: 10
-        repeat: false
-        onTriggered: {
-            const summary = "Power action failed";
-            const bodyParts = [];
-            if (powerMenu.lastStderr && powerMenu.lastStderr.trim().length > 0)
-                bodyParts.push(powerMenu.lastStderr.trim());
-            else if (powerMenu.lastStdout && powerMenu.lastStdout.trim().length > 0)
-                bodyParts.push(powerMenu.lastStdout.trim());
-            bodyParts.push(`\nCommand: ${powerMenu.lastCommand}`);
-            bodyParts.push(`Exit: ${powerMenu.lastExitCode}`);
-            const body = bodyParts.join("\n\n");
-            notifyProc.command = ["notify-send", "-u", "critical", summary, body];
-            notifyProc.running = true;
-        }
+  // Delay to ensure collectors finalized before notify composition
+  Timer {
+    id: notifyDelay
+
+    interval: 10
+    repeat: false
+
+    onTriggered: powerMenu.notifyFailure()
+  }
+
+  // Hover handling with delayed collapse
+  Timer {
+    id: collapseTimer
+
+    interval: powerMenu.animMs
+    repeat: false
+
+    onTriggered: {
+      if (!hoverHandler.hovered)
+        powerMenu.hovered = false;
     }
+  }
 
-    Timer {
-        id: collapseTimer
+  HoverHandler {
+    id: hoverHandler
 
-        interval: Theme.animationDuration
-        repeat: false
-        onTriggered: {
-            if (!hoverHandler.hovered)
-                powerMenu.internalHovered = false;
-        }
+    onHoveredChanged: {
+      if (hovered) {
+        powerMenu.hovered = true;
+        collapseTimer.stop();
+      } else {
+        collapseTimer.restart();
+      }
     }
+  }
 
-    HoverHandler {
-        id: hoverHandler
-        onHoveredChanged: {
-            if (hovered) {
-                powerMenu.internalHovered = true;
-                collapseTimer.stop();
-            } else {
-                collapseTimer.restart();
-            }
-        }
-    }
+  Row {
+    id: buttonRow
 
-    Row {
-        id: buttonRow
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    spacing: powerMenu.spacing
 
-        spacing: powerMenu.spacing
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
+    Repeater {
+      model: powerMenu.buttons.length
 
-        Repeater {
-            model: powerMenu.buttons
+      delegate: Rectangle {
+        id: btn
 
-            delegate: Rectangle {
-                id: btnRect
-                required property int index
-                property int idx: btnRect.index
-                property bool shouldShow: powerMenu.expanded || btnRect.idx === powerMenu.buttons.length - 1
-                property bool isHovered: false
+        readonly property string action: powerMenu.buttons[index].action
 
-                width: btnRect.shouldShow ? Theme.itemWidth : 0
-                height: Theme.itemHeight
-                radius: Theme.itemRadius
-                color: btnRect.isHovered ? Theme.activeColor : Theme.inactiveColor
-                visible: opacity > 0 || width > 0
-                opacity: btnRect.shouldShow ? 1 : 0
+        // Cache model fields
+        readonly property string icon: powerMenu.buttons[index].icon
+        required property int index
+        property bool isHovered: false
+        readonly property bool isLast: index === (powerMenu.buttons.length - 1)
+        readonly property bool show: powerMenu.expanded || isLast
+        readonly property string tooltipText: powerMenu.buttons[index].tooltip
 
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    enabled: btnRect.shouldShow
-                    cursorShape: Qt.PointingHandCursor
-                    onEntered: btnRect.isHovered = true
-                    onExited: btnRect.isHovered = false
-                    onClicked: powerMenu.execAction(powerMenu.buttons[btnRect.idx].action)
-                }
+        color: isHovered ? Theme.activeColor : Theme.inactiveColor
+        focus: false
+        height: Theme.itemHeight
+        opacity: show ? 1 : 0
+        radius: Theme.itemRadius
+        visible: opacity > 0 || width > 0
+        width: show ? Theme.itemWidth : 0
 
-                Rectangle {
-                    id: tooltip
-
-                    visible: btnRect.isHovered
-                    color: Theme.onHoverColor
-                    radius: Theme.itemRadius
-                    width: tooltipText.implicitWidth + 16
-                    height: tooltipText.implicitHeight + 8
-                    anchors.top: parent.bottom
-                    anchors.left: parent.left
-                    anchors.topMargin: 8
-                    opacity: btnRect.isHovered ? 1 : 0
-
-                    Text {
-                        id: tooltipText
-
-                        anchors.centerIn: parent
-                        text: powerMenu.buttons[btnRect.idx].tooltip
-                        color: Theme.textContrast(tooltip.color)
-                        font.pixelSize: Theme.fontSize
-                        font.family: Theme.fontFamily
-                        font.bold: true
-                    }
-
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Theme.animationDuration
-                            easing.type: Easing.OutCubic
-                        }
-                    }
-                }
-
-                Text {
-                    anchors.centerIn: parent
-                    text: powerMenu.buttons[btnRect.idx].icon
-                    color: Theme.textContrast(parent.color)
-                    font.pixelSize: Theme.fontSize
-                    font.family: Theme.fontFamily
-                    font.bold: true
-                }
-
-                focus: false
-                Keys.onPressed: event => {
-                    if (!btnRect.shouldShow)
-                        return;
-                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                        powerMenu.execAction(powerMenu.buttons[btnRect.idx].action);
-                        event.accepted = true;
-                    }
-                }
-
-                Behavior on width {
-                    NumberAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.InOutQuad
-                    }
-                }
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.InOutQuad
-                    }
-                }
-
-                Behavior on color {
-                    ColorAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.InOutQuad
-                    }
-                }
-            }
-        }
-    }
-
-    Behavior on width {
-        NumberAnimation {
-            duration: Theme.animationDuration
+        Behavior on color {
+          ColorAnimation {
+            duration: powerMenu.animMs
             easing.type: Easing.InOutQuad
+          }
         }
+        Behavior on opacity {
+          NumberAnimation {
+            duration: powerMenu.animMs
+            easing.type: Easing.InOutQuad
+          }
+        }
+        Behavior on width {
+          NumberAnimation {
+            duration: powerMenu.animMs
+            easing.type: Easing.InOutQuad
+          }
+        }
+
+        Keys.onPressed: event => {
+          if (!btn.show)
+            return;
+          const k = event.key;
+          if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) {
+            powerMenu.runCommand(btn.action);
+            event.accepted = true;
+          }
+        }
+
+        MouseArea {
+          anchors.fill: parent
+          cursorShape: Qt.PointingHandCursor
+          enabled: btn.show
+          hoverEnabled: true
+
+          onClicked: powerMenu.runCommand(btn.action)
+          onEntered: btn.isHovered = true
+          onExited: btn.isHovered = false
+        }
+
+        Rectangle {
+          id: tooltip
+
+          anchors.left: parent.left
+          anchors.top: parent.bottom
+          anchors.topMargin: 8
+          color: Theme.onHoverColor
+          height: tipText.implicitHeight + 8
+          opacity: btn.isHovered ? 1 : 0
+          radius: Theme.itemRadius
+          visible: btn.isHovered
+          width: tipText.implicitWidth + 16
+
+          Behavior on opacity {
+            NumberAnimation {
+              duration: powerMenu.animMs
+              easing.type: Easing.OutCubic
+            }
+          }
+
+          Text {
+            id: tipText
+
+            anchors.centerIn: parent
+            color: Theme.textContrast(tooltip.color)
+            font.bold: true
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize
+            text: btn.tooltipText
+          }
+        }
+
+        Text {
+          anchors.centerIn: parent
+          color: Theme.textContrast(parent.color)
+          font.bold: true
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize
+          text: btn.icon
+        }
+      }
     }
+  }
 }
