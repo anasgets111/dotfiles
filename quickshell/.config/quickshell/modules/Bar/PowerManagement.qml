@@ -54,7 +54,6 @@ Singleton {
     });
     p.running = true;
   }
-
   function refreshPowerInfo() {
     // Platform profile
     root.readFile("/sys/firmware/acpi/platform_profile", function (data) {
@@ -105,7 +104,6 @@ Singleton {
     command: []
     running: false
   }
-
   Timer {
     id: brightnessDebounce
 
@@ -118,7 +116,6 @@ Singleton {
       brightnessProcess.running = true;
     }
   }
-
   Component {
     id: readProcessComponent
 
@@ -129,7 +126,6 @@ Singleton {
       }
     }
   }
-
   Process {
     id: ppdProcess
 

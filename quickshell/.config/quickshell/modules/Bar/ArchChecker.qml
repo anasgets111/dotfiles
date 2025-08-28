@@ -7,315 +7,310 @@ import Quickshell
 import Quickshell.Io
 
 Item {
-    id: root
+  id: root
 
-    property var updateCommand: ["xdg-terminal-exec", "--title='Global Updates'", "-e", "sh", "-c", "$BIN/update.sh"]
-    property bool hovered: false
-    property bool busy: false
-    property int updates: 0
-    property var updatePackages: []
-    property string rawOutput: ""
-    property double lastSync: 0
-    property bool lastWasFull: false
-    property int failureCount: 0
-    property int failureThreshold: 3
-    property int minuteMs: 60 * 1000
-    property int pollInterval: 1 * minuteMs
-    property int syncInterval: 5 * minuteMs
-    property int lastNotifiedUpdates: 0
+  property bool busy: false
+  property color effectiveBg: (root.hovered && !root.busy) ? Theme.onHoverColor : Theme.inactiveColor
+  property color effectiveFg: Theme.textContrast(effectiveBg)
+  property int failureCount: 0
+  property int failureThreshold: 3
+  property bool hovered: false
+  property int lastNotifiedUpdates: 0
+  property double lastSync: 0
+  property bool lastWasFull: false
+  property int minuteMs: 60 * 1000
+  property int pollInterval: 1 * minuteMs
+  property string rawOutput: ""
+  property int syncInterval: 5 * minuteMs
+  property var updateCommand: ["xdg-terminal-exec", "--title='Global Updates'", "-e", "sh", "-c", "$BIN/update.sh"]
+  property var updatePackages: []
+  property int updates: 0
 
-    PersistentProperties {
-        id: cache
-        reloadableId: "ArchCheckerCache"
+  function doPoll(forceFull = false) {
+    if (busy)
+      return;
 
-        property var cachedUpdatePackages: []
-        property double cachedLastSync: 0
+    busy = true;
+    const now = Date.now();
+    const full = forceFull || (now - lastSync > syncInterval);
+    lastWasFull = full;
+    if (full)
+      startUpdateProcess(["checkupdates", "--nocolor"]);
+    else
+      startUpdateProcess(["checkupdates", "--nosync", "--nocolor"]);
+  }
+  function notify(urgency, title, body) {
+    notifyProc.command = ["notify-send", "-u", urgency, "-A", "update=Update Now", "-w", title, body];
+    notifyProc.running = true;
+  }
+  function runUpdate() {
+    if (busy)
+      return;
+
+    if (updates > 0)
+      Quickshell.execDetached(root.updateCommand);
+    else
+      doPoll(true);
+  }
+  function startUpdateProcess(cmd) {
+    pkgProc.command = cmd;
+    pkgProc.running = true;
+    killTimer.interval = lastWasFull ? 60 * 1000 : minuteMs;
+    killTimer.restart();
+  }
+
+  implicitHeight: Theme.itemHeight
+  implicitWidth: Math.max(Theme.itemWidth, row.implicitWidth + (2 * Theme.itemRadius), busyMeasureRow.implicitWidth + (2 * Theme.itemRadius))
+
+  Component.onCompleted: {
+    // Initialize from cache
+    if (cache.cachedUpdatePackages && cache.cachedUpdatePackages.length) {
+      root.updatePackages = cache.cachedUpdatePackages;
+      root.updates = cache.cachedUpdatePackages.length;
+    }
+    if (cache.cachedLastSync && cache.cachedLastSync > 0) {
+      root.lastSync = cache.cachedLastSync;
     }
 
-    property color effectiveBg: (root.hovered && !root.busy) ? Theme.onHoverColor : Theme.inactiveColor
-    property color effectiveFg: Theme.textContrast(effectiveBg)
+    doPoll();
+    pollTimer.start();
+  }
 
-    function runUpdate() {
-        if (busy)
-            return;
+  PersistentProperties {
+    id: cache
 
-        if (updates > 0)
-            Quickshell.execDetached(root.updateCommand);
+    property double cachedLastSync: 0
+    property var cachedUpdatePackages: []
+
+    reloadableId: "ArchCheckerCache"
+  }
+  Process {
+    id: notifyProc
+
+    stdout: StdioCollector {
+      id: notifyOut
+
+    }
+
+    onExited: function (exitCode, exitStatus) {
+      var act = (notifyOut.text || "").trim();
+      if (act === "update")
+        root.runUpdate();
+    }
+  }
+  Process {
+    id: pkgProc
+
+    stderr: StdioCollector {
+      id: err
+
+    }
+    stdout: StdioCollector {
+      id: out
+
+    }
+
+    onExited: function (exitCode, exitStatus) {
+      const stderrText = (err.text || "").trim();
+      if (stderrText)
+        console.warn("[UpdateChecker] stderr:", stderrText);
+
+      if (!pkgProc.running && !root.busy)
+        return;
+
+      killTimer.stop();
+      root.busy = false;
+      const raw = (out.text || "").trim();
+      root.rawOutput = raw;
+      const list = raw ? raw.split(/\r?\n/) : [];
+      root.updates = list.length;
+      var pkgs = [];
+      for (var i = 0; i < list.length; ++i) {
+        var m = list[i].match(/^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/);
+        if (m)
+          pkgs.push({
+            "name": m[1],
+            "oldVersion": m[2],
+            "newVersion": m[3]
+          });
+      }
+      root.updatePackages = pkgs;
+      if (exitCode !== 0 && exitCode !== 2) {
+        root.failureCount++;
+        if (root.failureCount >= root.failureThreshold) {
+          root.notify("critical", "Update check failed", "Exit code: " + exitCode + " (failed " + root.failureCount + " times)");
+          root.failureCount = 0;
+        }
+        root.updates = 0;
+        root.updatePackages = [];
+        return;
+      }
+      root.failureCount = 0;
+
+      if (root.updates > root.lastNotifiedUpdates) {
+        const added = root.updates - root.lastNotifiedUpdates;
+        const msg = added === 1 ? "One new package can be upgraded (" + root.updates + " total)" : added + " new packages can be upgraded (" + root.updates + " total)";
+        root.notify("normal", "Updates Available", msg, true);
+        root.lastNotifiedUpdates = root.updates;
+      }
+      // Reset the lastNotifiedUpdates whenever count drops to 0, regardless of sync type
+      if (root.updates === 0) {
+        root.lastNotifiedUpdates = 0;
+      }
+
+      if (root.lastWasFull) {
+        root.lastSync = Date.now();
+      }
+
+      cache.cachedUpdatePackages = root.updatePackages;
+      cache.cachedLastSync = root.lastSync;
+    }
+  }
+  Timer {
+    id: pollTimer
+
+    interval: root.pollInterval
+    repeat: true
+
+    onTriggered: root.doPoll()
+  }
+  Timer {
+    id: killTimer
+
+    interval: root.minuteMs
+    repeat: false
+
+    onTriggered: {
+      if (pkgProc.running) {
+        root.busy = false;
+        root.notify("critical", qsTr("Update check killed"), qsTr("Process took too long"));
+      }
+    }
+  }
+  Rectangle {
+    anchors.centerIn: parent
+    color: root.effectiveBg
+    height: implicitHeight
+    implicitHeight: Math.max(row.implicitHeight, Theme.itemHeight)
+    implicitWidth: Math.max(row.implicitWidth, busyMeasureRow.implicitWidth) + (Theme.itemRadius)
+    radius: Theme.itemRadius
+    width: implicitWidth
+
+    MouseArea {
+      id: mouseArea
+
+      anchors.fill: parent
+      cursorShape: root.busy ? Qt.BusyCursor : Qt.PointingHandCursor
+      hoverEnabled: true
+
+      onClicked: {
+        if (root.busy)
+          return;
+
+        if (root.updates > 0)
+          Quickshell.execDetached(root.updateCommand);
         else
-            doPoll(true);
+          root.doPoll(true);
+      }
+      onEntered: root.hovered = true
+      onExited: root.hovered = false
     }
+    RowLayout {
+      id: row
 
-    function notify(urgency, title, body) {
-        notifyProc.command = ["notify-send", "-u", urgency, "-A", "update=Update Now", "-w", title, body];
-        notifyProc.running = true;
-    }
+      anchors.centerIn: parent
+      spacing: 4
 
-    function startUpdateProcess(cmd) {
-        pkgProc.command = cmd;
-        pkgProc.running = true;
-        killTimer.interval = lastWasFull ? 60 * 1000 : minuteMs;
-        killTimer.restart();
-    }
+      Text {
+        id: indicator
 
-    function doPoll(forceFull = false) {
-        if (busy)
-            return;
+        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+        Layout.preferredHeight: Theme.itemHeight
+        color: root.effectiveFg
+        elide: Text.ElideNone
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize
+        horizontalAlignment: Text.AlignHCenter
+        text: root.busy ? "" : root.updates > 0 ? "" : "󰂪"
+        verticalAlignment: Text.AlignVCenter
+      }
+      Item {
+        id: updateCountWrap
 
-        busy = true;
-        const now = Date.now();
-        const full = forceFull || (now - lastSync > syncInterval);
-        lastWasFull = full;
-        if (full)
-            startUpdateProcess(["checkupdates", "--nocolor"]);
-        else
-            startUpdateProcess(["checkupdates", "--nosync", "--nocolor"]);
-    }
+        Layout.alignment: Qt.AlignVCenter
+        Layout.preferredHeight: Theme.itemHeight
+        Layout.preferredWidth: updateCount.implicitWidth
+        visible: root.updates > 0
 
-    implicitHeight: Theme.itemHeight
-    implicitWidth: Math.max(Theme.itemWidth, row.implicitWidth + (2 * Theme.itemRadius), busyMeasureRow.implicitWidth + (2 * Theme.itemRadius))
-    Component.onCompleted: {
-        // Initialize from cache
-        if (cache.cachedUpdatePackages && cache.cachedUpdatePackages.length) {
-            root.updatePackages = cache.cachedUpdatePackages;
-            root.updates = cache.cachedUpdatePackages.length;
+        Text {
+          id: updateCount
+
+          anchors.verticalCenter: parent.verticalCenter
+          color: root.effectiveFg
+          elide: Text.ElideNone
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize
+          text: root.updates
         }
-        if (cache.cachedLastSync && cache.cachedLastSync > 0) {
-            root.lastSync = cache.cachedLastSync;
-        }
-
-        doPoll();
-        pollTimer.start();
+      }
     }
+    RowLayout {
+      id: busyMeasureRow
 
-    Process {
-        id: notifyProc
+      spacing: 4
+      visible: false
 
-        onExited: function (exitCode, exitStatus) {
-            var act = (notifyOut.text || "").trim();
-            if (act === "update")
-                root.runUpdate();
-        }
-
-        stdout: StdioCollector {
-            id: notifyOut
-        }
+      Text {
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize
+        text: ""
+      }
     }
-
-    Process {
-        id: pkgProc
-
-        onExited: function (exitCode, exitStatus) {
-            const stderrText = (err.text || "").trim();
-            if (stderrText)
-                console.warn("[UpdateChecker] stderr:", stderrText);
-
-            if (!pkgProc.running && !root.busy)
-                return;
-
-            killTimer.stop();
-            root.busy = false;
-            const raw = (out.text || "").trim();
-            root.rawOutput = raw;
-            const list = raw ? raw.split(/\r?\n/) : [];
-            root.updates = list.length;
-            var pkgs = [];
-            for (var i = 0; i < list.length; ++i) {
-                var m = list[i].match(/^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/);
-                if (m)
-                    pkgs.push({
-                        "name": m[1],
-                        "oldVersion": m[2],
-                        "newVersion": m[3]
-                    });
-            }
-            root.updatePackages = pkgs;
-            if (exitCode !== 0 && exitCode !== 2) {
-                root.failureCount++;
-                if (root.failureCount >= root.failureThreshold) {
-                    root.notify("critical", "Update check failed", "Exit code: " + exitCode + " (failed " + root.failureCount + " times)");
-                    root.failureCount = 0;
-                }
-                root.updates = 0;
-                root.updatePackages = [];
-                return;
-            }
-            root.failureCount = 0;
-
-            if (root.updates > root.lastNotifiedUpdates) {
-                const added = root.updates - root.lastNotifiedUpdates;
-                const msg = added === 1 ? "One new package can be upgraded (" + root.updates + " total)" : added + " new packages can be upgraded (" + root.updates + " total)";
-                root.notify("normal", "Updates Available", msg, true);
-                root.lastNotifiedUpdates = root.updates;
-            }
-            // Reset the lastNotifiedUpdates whenever count drops to 0, regardless of sync type
-            if (root.updates === 0) {
-                root.lastNotifiedUpdates = 0;
-            }
-
-            if (root.lastWasFull) {
-                root.lastSync = Date.now();
-            }
-
-            cache.cachedUpdatePackages = root.updatePackages;
-            cache.cachedLastSync = root.lastSync;
-        }
-
-        stdout: StdioCollector {
-            id: out
-        }
-
-        stderr: StdioCollector {
-            id: err
-        }
-    }
-
-    Timer {
-        id: pollTimer
-
-        interval: root.pollInterval
-        repeat: true
-        onTriggered: root.doPoll()
-    }
-
-    Timer {
-        id: killTimer
-
-        interval: root.minuteMs
-        repeat: false
-        onTriggered: {
-            if (pkgProc.running) {
-                root.busy = false;
-                root.notify("critical", qsTr("Update check killed"), qsTr("Process took too long"));
-            }
-        }
-    }
-
     Rectangle {
-        implicitWidth: Math.max(row.implicitWidth, busyMeasureRow.implicitWidth) + (Theme.itemRadius)
-        implicitHeight: Math.max(row.implicitHeight, Theme.itemHeight)
-        width: implicitWidth
-        height: implicitHeight
-        radius: Theme.itemRadius
-        color: root.effectiveBg
+      id: tooltip
+
+      anchors.left: mouseArea.left
+      anchors.top: mouseArea.bottom
+      anchors.topMargin: 8
+      color: Theme.onHoverColor
+      height: tooltipText.height + 8
+      opacity: mouseArea.containsMouse ? 1 : 0
+      radius: Theme.itemRadius
+      visible: mouseArea.containsMouse && !root.busy
+      width: tooltipText.width + 16
+
+      Behavior on opacity {
+        NumberAnimation {
+          duration: Theme.animationDuration
+          easing.type: Easing.OutCubic
+        }
+      }
+
+      Column {
+        id: tooltipText
+
         anchors.centerIn: parent
+        spacing: 4
 
-        MouseArea {
-            id: mouseArea
-
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: root.busy ? Qt.BusyCursor : Qt.PointingHandCursor
-            onEntered: root.hovered = true
-            onExited: root.hovered = false
-            onClicked: {
-                if (root.busy)
-                    return;
-
-                if (root.updates > 0)
-                    Quickshell.execDetached(root.updateCommand);
-                else
-                    root.doPoll(true);
-            }
+        Text {
+          color: Theme.textContrast(Theme.onHoverColor)
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize
+          text: root.updates === 0 ? qsTr("No updates available") : root.updates === 1 ? qsTr("One package can be upgraded:") : root.updates + qsTr(" packages can be upgraded:")
         }
+        Repeater {
+          model: root.updatePackages
 
-        RowLayout {
-            id: row
+          delegate: Text {
+            required property var model
 
-            anchors.centerIn: parent
-            spacing: 4
-
-            Text {
-                id: indicator
-
-                text: root.busy ? "" : root.updates > 0 ? "" : "󰂪"
-                font.pixelSize: Theme.fontSize
-                font.family: Theme.fontFamily
-                color: root.effectiveFg
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-                Layout.preferredHeight: Theme.itemHeight
-                elide: Text.ElideNone
-            }
-
-            Item {
-                id: updateCountWrap
-
-                visible: root.updates > 0
-                Layout.alignment: Qt.AlignVCenter
-                Layout.preferredHeight: Theme.itemHeight
-                Layout.preferredWidth: updateCount.implicitWidth
-
-                Text {
-                    id: updateCount
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: root.updates
-                    font.pixelSize: Theme.fontSize
-                    font.family: Theme.fontFamily
-                    color: root.effectiveFg
-                    elide: Text.ElideNone
-                }
-            }
+            color: Theme.textContrast(Theme.onHoverColor)
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize
+            text: model.name + ": " + model.oldVersion + " → " + model.newVersion
+          }
         }
-
-        RowLayout {
-            id: busyMeasureRow
-
-            visible: false
-            spacing: 4
-
-            Text {
-                text: ""
-                font.pixelSize: Theme.fontSize
-                font.family: Theme.fontFamily
-            }
-        }
-
-        Rectangle {
-            id: tooltip
-
-            visible: mouseArea.containsMouse && !root.busy
-            color: Theme.onHoverColor
-            radius: Theme.itemRadius
-            width: tooltipText.width + 16
-            height: tooltipText.height + 8
-            anchors.top: mouseArea.bottom
-            anchors.left: mouseArea.left
-            anchors.topMargin: 8
-            opacity: mouseArea.containsMouse ? 1 : 0
-
-            Column {
-                id: tooltipText
-
-                anchors.centerIn: parent
-                spacing: 4
-
-                Text {
-                    text: root.updates === 0 ? qsTr("No updates available") : root.updates === 1 ? qsTr("One package can be upgraded:") : root.updates + qsTr(" packages can be upgraded:")
-                    color: Theme.textContrast(Theme.onHoverColor)
-                    font.pixelSize: Theme.fontSize
-                    font.family: Theme.fontFamily
-                }
-
-                Repeater {
-                    model: root.updatePackages
-
-                    delegate: Text {
-                        required property var model
-                        text: model.name + ": " + model.oldVersion + " → " + model.newVersion
-                        color: Theme.textContrast(Theme.onHoverColor)
-                        font.pixelSize: Theme.fontSize
-                        font.family: Theme.fontFamily
-                    }
-                }
-            }
-
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: Theme.animationDuration
-                    easing.type: Easing.OutCubic
-                }
-            }
-        }
+      }
     }
+  }
 }

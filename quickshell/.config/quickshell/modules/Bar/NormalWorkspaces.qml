@@ -78,7 +78,6 @@ Item {
 
     target: Hyprland
   }
-
   NumberAnimation {
     id: slideAnim
 
@@ -88,7 +87,6 @@ Item {
     target: normalWorkspaces
     to: 1
   }
-
   Timer {
     id: collapseTimer
 
@@ -99,7 +97,6 @@ Item {
       normalWorkspaces.hoveredIndex = 0;
     }
   }
-
   MouseArea {
     acceptedButtons: Qt.LeftButton
     anchors.fill: parent
@@ -125,7 +122,6 @@ Item {
       normalWorkspaces.hoveredIndex = (idx >= 1 && idx <= len) ? idx : 0;
     }
   }
-
   Item {
     id: workspacesRow
 
@@ -174,7 +170,6 @@ Item {
       }
     }
   }
-
   Rectangle {
     id: collapsedWs
 
@@ -233,7 +228,6 @@ Item {
       }
     }
   }
-
   Text {
     anchors.centerIn: parent
     color: Theme.textContrast(Theme.bgColor)

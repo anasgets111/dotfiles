@@ -3,73 +3,68 @@ pragma ComponentBehavior: Bound
 import QtQuick
 
 Row {
-    id: leftSide
+  id: leftSide
 
-    required property bool normalWorkspacesExpanded
+  required property bool normalWorkspacesExpanded
 
-    spacing: 8
+  spacing: 8
 
-    PowerMenu {
-        anchors.verticalCenter: parent.verticalCenter
+  PowerMenu {
+    anchors.verticalCenter: parent.verticalCenter
+  }
+  Loader {
+    active: DetectEnv.distroId === "arch"
+
+    sourceComponent: ArchChecker {
+      anchors.verticalCenter: parent.verticalCenter
     }
+  }
+  IdleInhibitor {
+    id: idleInhibitor
 
-    Loader {
-        active: DetectEnv.distroId === "arch"
+    anchors.verticalCenter: parent.verticalCenter
+  }
+  KeyboardLayoutIndicator {
+    anchors.verticalCenter: parent.verticalCenter
+  }
+  Loader {
+    active: DetectEnv.isLaptopBattery
 
-        sourceComponent: ArchChecker {
-            anchors.verticalCenter: parent.verticalCenter
-        }
+    sourceComponent: BatteryIndicator {
+      anchors.verticalCenter: parent.verticalCenter
     }
+  }
+  Loader {
+    active: DetectEnv.isNiri
 
-    IdleInhibitor {
-        id: idleInhibitor
+    sourceComponent: NiriWorkspaces {
+      id: niriWorkspaces
 
-        anchors.verticalCenter: parent.verticalCenter
+      anchors.verticalCenter: parent.verticalCenter
+      expanded: leftSide.normalWorkspacesExpanded
+
+      onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
     }
+  }
+  Loader {
+    active: DetectEnv.isHyprland
 
-    KeyboardLayoutIndicator {
-        anchors.verticalCenter: parent.verticalCenter
+    sourceComponent: SpecialWorkspaces {
+      id: specialWorkspaces
+
+      anchors.verticalCenter: parent.verticalCenter
     }
+  }
+  Loader {
+    active: DetectEnv.isHyprland
 
-    Loader {
-        active: DetectEnv.isLaptopBattery
+    sourceComponent: NormalWorkspaces {
+      id: normalWorkspaces
 
-        sourceComponent: BatteryIndicator {
-            anchors.verticalCenter: parent.verticalCenter
-        }
+      anchors.verticalCenter: parent.verticalCenter
+      expanded: leftSide.normalWorkspacesExpanded
+
+      onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
     }
-
-    Loader {
-        active: DetectEnv.isNiri
-
-        sourceComponent: NiriWorkspaces {
-            id: niriWorkspaces
-
-            anchors.verticalCenter: parent.verticalCenter
-            expanded: leftSide.normalWorkspacesExpanded
-            onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
-        }
-    }
-
-    Loader {
-        active: DetectEnv.isHyprland
-
-        sourceComponent: SpecialWorkspaces {
-            id: specialWorkspaces
-
-            anchors.verticalCenter: parent.verticalCenter
-        }
-    }
-
-    Loader {
-        active: DetectEnv.isHyprland
-
-        sourceComponent: NormalWorkspaces {
-            id: normalWorkspaces
-
-            anchors.verticalCenter: parent.verticalCenter
-            expanded: leftSide.normalWorkspacesExpanded
-            onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
-        }
-    }
+  }
 }

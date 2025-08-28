@@ -24,7 +24,6 @@ Item {
     color: Theme.inactiveColor
     radius: Theme.itemRadius
   }
-
   Row {
     id: trayRow
 
@@ -38,7 +37,6 @@ Item {
       model: SystemTray.items
     }
   }
-
   Component {
     id: trayItemDelegate
 

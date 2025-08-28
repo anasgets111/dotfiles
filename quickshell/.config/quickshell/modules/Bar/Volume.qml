@@ -78,7 +78,6 @@ Rectangle {
     const arr = audio.volumes || [];
     return arr.length ? arr.reduce((a, x) => a + x, 0) / arr.length : 0.0;
   }
-
   function bindToSink() {
     volume = 0.0;
     muted = false;
@@ -172,7 +171,6 @@ Rectangle {
 
     onTriggered: volumeControl.suppressFillAnim = false
   }
-
   MouseArea {
     id: rootArea
 
@@ -219,12 +217,10 @@ Rectangle {
       e.accepted = true;
     }
   }
-
   Connections {
     function onDefaultAudioSinkChanged() {
       volumeControl.bindToSink();
     }
-
     function onReadyChanged() {
       volumeControl.bindToSink();
     }
@@ -232,7 +228,6 @@ Rectangle {
     ignoreUnknownSignals: true
     target: Pipewire
   }
-
   Connections {
     function onAudioChanged() {
       volumeControl.bindToSink();
@@ -242,16 +237,13 @@ Rectangle {
     ignoreUnknownSignals: true
     target: volumeControl.serviceSink
   }
-
   PwObjectTracker {
     objects: volumeControl.serviceSink && volumeControl.serviceSink.audio ? [volumeControl.serviceSink, volumeControl.serviceSink.audio] : (volumeControl.serviceSink ? [volumeControl.serviceSink] : [])
   }
-
   Connections {
     function onMutedChanged() {
       volumeControl.muted = volumeControl.serviceSink.audio.muted;
     }
-
     function onVolumeChanged() {
       volumeControl.volume = volumeControl.averageVolumeFromAudio(volumeControl.serviceSink.audio);
       sliderBg.committing = false;
@@ -261,7 +253,6 @@ Rectangle {
     ignoreUnknownSignals: true
     target: volumeControl.serviceSink && volumeControl.serviceSink.audio ? volumeControl.serviceSink.audio : null
   }
-
   Item {
     id: sliderBg
 
@@ -294,7 +285,6 @@ Rectangle {
         }
       }
     }
-
     MouseArea {
       function commitVolume(v) {
         if (!volumeControl.audioReady)
@@ -303,7 +293,6 @@ Rectangle {
         const stepped = Math.round(v * steps) / steps;
         volumeControl.setVolumeValue(stepped * volumeControl.maxVolume);
       }
-
       function update(x) {
         const raw = Math.min(1, Math.max(0, x / parent.width));
         const steps = Math.max(1, volumeControl.sliderSteps);
@@ -328,7 +317,6 @@ Rectangle {
       }
     }
   }
-
   RowLayout {
     anchors.centerIn: parent
     anchors.margins: volumeControl.padding
@@ -344,7 +332,6 @@ Rectangle {
       text: "󰕾"
       visible: false
     }
-
     Text {
       id: maxPercentMeasure
 
@@ -354,7 +341,6 @@ Rectangle {
       text: "100%"
       visible: false
     }
-
     Item {
       id: volumeIconItem
 
@@ -375,7 +361,6 @@ Rectangle {
         verticalAlignment: Text.AlignVCenter
       }
     }
-
     Item {
       id: percentItem
 

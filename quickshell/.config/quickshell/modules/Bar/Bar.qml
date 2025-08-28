@@ -3,137 +3,139 @@ import Quickshell
 import Quickshell.Wayland
 
 PanelWindow {
-    id: panelWindow
+  id: panelWindow
 
-    property bool normalWorkspacesExpanded: false
-    property string mainMonitor: Quickshell.env("MAINMON")
-    implicitWidth: panelWindow.screen.width
-    implicitHeight: panelWindow.screen.height
-    exclusiveZone: Theme.panelHeight
-    screen: Quickshell.screens.length > 1 ? Quickshell.screens[1] : Quickshell.screens[0]
-    WlrLayershell.namespace: "quickshell:bar:blur"
-    color: Theme.panelWindowColor
+  property string mainMonitor: Quickshell.env("MAINMON")
+  property bool normalWorkspacesExpanded: false
 
-    Item {
-        id: screenBinder
-        property int debounceRestarts: 0
-        function pickScreen() {
-            const screens = Quickshell.screens || [];
-            const target = panelWindow.mainMonitor ? screens.find(s => s && (s.name === panelWindow.mainMonitor || s.model === panelWindow.mainMonitor)) : null;
-            return target || screens[0];
-        }
-        Timer {
-            id: screenDebounce
-            interval: 500
-            repeat: false
-            onTriggered: {
-                const sel = screenBinder.pickScreen();
-                if (!sel || panelWindow.screen !== sel) {
-                    panelWindow.screen = sel;
-                }
-                postAssignCheck.restart();
-            }
-        }
+  WlrLayershell.namespace: "quickshell:bar:blur"
+  color: Theme.panelWindowColor
+  exclusiveZone: Theme.panelHeight
+  implicitHeight: panelWindow.screen.height
+  implicitWidth: panelWindow.screen.width
+  screen: Quickshell.screens.length > 1 ? Quickshell.screens[1] : Quickshell.screens[0]
 
-        Timer {
-            id: postAssignCheck
-            interval: 160
-            repeat: false
-            onTriggered: {
-                if (!panelWindow.visible && panelWindow.screen) {
-                    remapIfHidden.start();
-                }
-            }
-        }
+  mask: Region {
+    item: panelRect
+  }
 
-        Timer {
-            id: remapIfHidden
-            interval: 350
-            repeat: false
-            onTriggered: {
-                if (!panelWindow.visible && panelWindow.screen) {
-                    panelWindow.visible = true;
-                }
-            }
-        }
+  Item {
+    id: screenBinder
 
-        Connections {
-            target: Quickshell
-            function onScreensChanged() {
-                screenDebounce.restart();
-            }
-        }
+    property int debounceRestarts: 0
+
+    function pickScreen() {
+      const screens = Quickshell.screens || [];
+      const target = panelWindow.mainMonitor ? screens.find(s => s && (s.name === panelWindow.mainMonitor || s.model === panelWindow.mainMonitor)) : null;
+      return target || screens[0];
     }
+
+    Timer {
+      id: screenDebounce
+
+      interval: 500
+      repeat: false
+
+      onTriggered: {
+        const sel = screenBinder.pickScreen();
+        if (!sel || panelWindow.screen !== sel) {
+          panelWindow.screen = sel;
+        }
+        postAssignCheck.restart();
+      }
+    }
+    Timer {
+      id: postAssignCheck
+
+      interval: 160
+      repeat: false
+
+      onTriggered: {
+        if (!panelWindow.visible && panelWindow.screen) {
+          remapIfHidden.start();
+        }
+      }
+    }
+    Timer {
+      id: remapIfHidden
+
+      interval: 350
+      repeat: false
+
+      onTriggered: {
+        if (!panelWindow.visible && panelWindow.screen) {
+          panelWindow.visible = true;
+        }
+      }
+    }
+    Connections {
+      function onScreensChanged() {
+        screenDebounce.restart();
+      }
+
+      target: Quickshell
+    }
+  }
+  anchors {
+    left: true
+    right: true
+    top: true
+  }
+  Rectangle {
+    id: panelRect
+
+    anchors.left: parent.left
+    anchors.top: parent.top
+    color: Theme.bgColor
+    height: Theme.panelHeight
+    width: parent.width
+  }
+  LeftSide {
+    normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
+
+    onNormalWorkspacesExpandedChanged: panelWindow.normalWorkspacesExpanded = normalWorkspacesExpanded
 
     anchors {
-        top: true
-        left: true
-        right: true
+      left: panelRect.left
+      leftMargin: Theme.panelMargin
+      verticalCenter: panelRect.verticalCenter
     }
-
-    Rectangle {
-        id: panelRect
-
-        width: parent.width
-        height: Theme.panelHeight
-        color: Theme.bgColor
-        anchors.top: parent.top
-        anchors.left: parent.left
+  }
+  CenterSide {
+    anchors.centerIn: panelRect
+    normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
+  }
+  RightSide {
+    anchors {
+      right: panelRect.right
+      rightMargin: Theme.panelMargin
+      verticalCenter: panelRect.verticalCenter
     }
+  }
+  Item {
+    id: bottomCuts
 
-    LeftSide {
-        normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
-        onNormalWorkspacesExpandedChanged: panelWindow.normalWorkspacesExpanded = normalWorkspacesExpanded
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: panelRect.bottom
+    height: Theme.panelRadius
+    width: parent.width
 
-        anchors {
-            left: panelRect.left
-            leftMargin: Theme.panelMargin
-            verticalCenter: panelRect.verticalCenter
-        }
+    RoundCorner {
+      anchors.left: parent.left
+      anchors.top: parent.top
+      color: Theme.bgColor
+      corner: 2
+      rotation: 90
+      size: Theme.panelRadius
     }
-
-    CenterSide {
-        anchors.centerIn: panelRect
-        normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
+    RoundCorner {
+      anchors.right: parent.right
+      anchors.top: parent.top
+      color: Theme.bgColor
+      corner: 3
+      rotation: -90
+      size: Theme.panelRadius
     }
-
-    RightSide {
-        anchors {
-            right: panelRect.right
-            rightMargin: Theme.panelMargin
-            verticalCenter: panelRect.verticalCenter
-        }
-    }
-
-    Item {
-        id: bottomCuts
-
-        width: parent.width
-        height: Theme.panelRadius
-        anchors.top: panelRect.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-
-        RoundCorner {
-            anchors.left: parent.left
-            anchors.top: parent.top
-            size: Theme.panelRadius
-            color: Theme.bgColor
-            corner: 2
-            rotation: 90
-        }
-
-        RoundCorner {
-            anchors.right: parent.right
-            anchors.top: parent.top
-            size: Theme.panelRadius
-            color: Theme.bgColor
-            corner: 3
-            rotation: -90
-        }
-    }
-
-    mask: Region {
-        item: panelRect
-    }
+  }
 }

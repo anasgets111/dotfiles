@@ -81,7 +81,6 @@ Row {
       }
     }
   }
-
   Connections {
     function onRawEvent(event) {
       if (event.name === "activespecial") {
@@ -94,7 +93,6 @@ Row {
 
     target: Hyprland
   }
-
   Component {
     id: specialDelegate
 
@@ -140,7 +138,6 @@ Row {
         onEntered: cell.isHovered = true
         onExited: cell.isHovered = false
       }
-
       Text {
         id: label
 
@@ -160,7 +157,6 @@ Row {
       }
     }
   }
-
   Repeater {
     delegate: specialDelegate
     model: specialWorkspaces.workspaces

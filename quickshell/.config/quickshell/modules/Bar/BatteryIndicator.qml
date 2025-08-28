@@ -68,7 +68,6 @@ Item {
         stop();
     }
   }
-
   Rectangle {
     anchors.fill: parent
     color: root.bgColor
@@ -111,7 +110,6 @@ Item {
       }
     }
   }
-
   MouseArea {
     id: batteryArea
 
@@ -170,7 +168,6 @@ Item {
         }
       }
     }
-
     Rectangle {
       id: overlayFlash
 
@@ -201,7 +198,6 @@ Item {
         }
       }
     }
-
     Timer {
       id: overlayFadeTimer
 
@@ -213,7 +209,6 @@ Item {
         root.overlayFlashX = root.implicitWidth / 2 - root.overlayFlashWidth / 2;
       }
     }
-
     Timer {
       id: overlayFlashStartTimer
 
@@ -226,7 +221,6 @@ Item {
         overlayFadeTimer.start();
       }
     }
-
     Row {
       anchors.centerIn: parent
       spacing: 4
@@ -238,7 +232,6 @@ Item {
         font.pixelSize: Theme.fontSize
         text: root.batteryIcon
       }
-
       Text {
         anchors.verticalCenter: parent.verticalCenter
         color: root.textColor
@@ -248,7 +241,6 @@ Item {
         text: Math.round(root.percentage * 100) + "%"
       }
     }
-
     Rectangle {
       anchors.horizontalCenter: parent.horizontalCenter
       anchors.top: parent.bottom
@@ -279,7 +271,6 @@ Item {
           font.pixelSize: Theme.fontSize
           text: qsTr("%1").arg(batteryArea.remainingTimeText)
         }
-
         Text {
           color: Theme.textContrast(Theme.onHoverColor)
           font.family: Theme.fontFamily
@@ -287,7 +278,6 @@ Item {
           opacity: 0.7
           text: DetectEnv.batteryManager === "ppd" ? (PowerMgmt.ppdText && PowerMgmt.ppdText.length > 0 ? qsTr("PPD: %1").arg(PowerMgmt.ppdText) : PowerMgmt.ppdInfo) : (PowerMgmt.platformProfile && PowerMgmt.platformProfile.length > 0 ? qsTr("Platform: %1").arg(PowerMgmt.platformProfile) : PowerMgmt.platformInfo)
         }
-
         Text {
           color: Theme.textContrast(Theme.onHoverColor)
           font.family: Theme.fontFamily

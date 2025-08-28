@@ -2,37 +2,37 @@ import QtQuick
 import Quickshell
 
 PopupWindow {
-    id: popupRoot
+  id: popupRoot
 
-    property Item anchorItem
+  property int alignment: Qt.AlignHCenter
+  property Item anchorItem
+  default property alias contentItem: popupContent.data
+  property int gravity: Qt.BottomEdge
 
-    property int gravity: Qt.BottomEdge
-    property int alignment: Qt.AlignHCenter
-    color: Theme.panelWindowColor
-    default property alias contentItem: popupContent.data
+  color: Theme.panelWindowColor
 
-    anchor {
-        item: anchorItem
-        gravity: gravity
-        rect.x: anchorItem ? (anchorItem.width - implicitWidth) / 2 : 0
-        margins.top: Theme.popupOffset
-    }
+  anchor {
+    gravity: gravity
+    item: anchorItem
+    margins.top: Theme.popupOffset
+    rect.x: anchorItem ? (anchorItem.width - implicitWidth) / 2 : 0
+  }
+  Rectangle {
+    id: popupContent
 
-    Rectangle {
-        id: popupContent
-        anchors.fill: parent
-        anchors.topMargin: Theme.popupOffset
-        radius: Theme.itemRadius
-        color: Theme.bgColor
-        border.color: Theme.borderColor
-        opacity: 0.97
-    }
+    anchors.fill: parent
+    anchors.topMargin: Theme.popupOffset
+    border.color: Theme.borderColor
+    color: Theme.bgColor
+    opacity: 0.97
+    radius: Theme.itemRadius
+  }
+  MouseArea {
+    acceptedButtons: Qt.RightButton
+    anchors.fill: parent
+    hoverEnabled: false
+    propagateComposedEvents: true
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.RightButton
-        onClicked: popupRoot.visible = false
-        propagateComposedEvents: true
-        hoverEnabled: false
-    }
+    onClicked: popupRoot.visible = false
+  }
 }

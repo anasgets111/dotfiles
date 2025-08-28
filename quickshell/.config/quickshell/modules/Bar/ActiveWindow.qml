@@ -29,7 +29,6 @@ Item {
     }
     return txt.length > activeWindow.maxLength ? txt.substring(0, activeWindow.maxLength - 3) + "..." : txt;
   }
-
   function resolveIconSource(key) {
     // Very simple, themed-first resolution with a basic fallback
     if (!key)
@@ -53,7 +52,6 @@ Item {
     // 3) Fallback
     return "image://icon/application-x-executable";
   }
-
   function themedOrRaw(nameOrPath) {
     if (!nameOrPath)
       return "";
@@ -65,7 +63,6 @@ Item {
     // otherwise, treat as themed icon name
     return "image://icon/" + s;
   }
-
   function updateActive() {
     var top = ToplevelManager.activeToplevel;
     if (top) {
@@ -117,14 +114,12 @@ Item {
     function onAppIdChanged() {
       activeWindow.updateActive();
     }
-
     function onTitleChanged() {
       activeWindow.updateActive();
     }
 
     target: ToplevelManager.activeToplevel
   }
-
   Row {
     id: titleRow
 
@@ -143,7 +138,6 @@ Item {
       visible: !!source && source !== ""
       width: 24
     }
-
     Text {
       id: windowTitle
 

@@ -35,17 +35,14 @@ Item {
     switchProc.command = ["niri", "msg", "action", "focus-workspace", String(idx)];
     switchProc.running = true;
   }
-
   function seedInitial() {
     seedProcWorkspaces.running = true;
   }
-
   function switchWorkspace(idx) {
     switchProc.running = false;
     switchProc.command = ["niri", "msg", "workspace", String(idx)];
     switchProc.running = true;
   }
-
   function updateSingleFocus(id) {
     var w = root.workspaces.find(function (ww) {
       return ww.id === id;
@@ -67,7 +64,6 @@ Item {
     root.workspaces = root.workspaces;
     slideAnim.restart();
   }
-
   function updateWorkspaces(arr) {
     arr.forEach(function (w) {
       w.populated = w.active_window_id !== null;
@@ -119,7 +115,6 @@ Item {
       slideAnim.restart();
     }
   }
-
   function workspaceColor(ws) {
     if (ws.is_focused)
       return Theme.activeColor;
@@ -159,7 +154,6 @@ Item {
       }
     }
   }
-
   Process {
     id: eventProcNiri
 
@@ -180,13 +174,11 @@ Item {
       }
     }
   }
-
   Process {
     id: switchProc
 
     command: ["niri", "msg", "workspace", "1"]
   }
-
   NumberAnimation {
     id: slideAnim
 
@@ -196,7 +188,6 @@ Item {
     target: root
     to: 1
   }
-
   Timer {
     id: collapseTimer
 
@@ -207,7 +198,6 @@ Item {
       root.hoveredId = 0;
     }
   }
-
   MouseArea {
     acceptedButtons: Qt.NoButton
     anchors.fill: parent
@@ -219,7 +209,6 @@ Item {
     }
     onExited: collapseTimer.restart()
   }
-
   Item {
     id: workspacesRow
 
@@ -271,7 +260,6 @@ Item {
           onEntered: root.hoveredId = wsRect.ws.id
           onExited: root.hoveredId = 0
         }
-
         Text {
           anchors.centerIn: parent
           color: Theme.textContrast(wsRect.color)
@@ -282,7 +270,6 @@ Item {
         }
       }
     }
-
     Repeater {
       model: root.groupBoundaries.length
 
@@ -302,7 +289,6 @@ Item {
       }
     }
   }
-
   Rectangle {
     id: collapsedWs
 
@@ -339,7 +325,6 @@ Item {
         text: root.slideFrom
       }
     }
-
     Rectangle {
       id: toRect
 
@@ -363,7 +348,6 @@ Item {
       }
     }
   }
-
   Text {
     id: emptyLabel
 
