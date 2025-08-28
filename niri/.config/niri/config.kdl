@@ -272,7 +272,7 @@ binds {
     Mod+KP_Enter { spawn "niri-stash.sh" "term"; }
     Ctrl+Alt+Delete { spawn "missioncenter"; }
     
-    Mod+Z { spawn "WAYLAND_DISPLAY=''" "zeditor"; }
+    Mod+Z { spawn "zeditor"; }
     Mod+C { spawn "code"; }
     //Mod+SPACE { spawn "pidof rofi && pkill rofi || ~/.config/rofi/launchers/type-6/launcher.sh"; }
     Mod+E { spawn "nautilus"; }
@@ -445,7 +445,7 @@ binds {
 
 debug {
     // honor-xdg-activation-with-invalid-serial
-    // wait-for-frame-completion-before-queueing
+    wait-for-frame-completion-before-queueing
 }
 environment {
     // DISPLAY ":0"
