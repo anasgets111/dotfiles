@@ -48,10 +48,10 @@ ShellRoot {
       Logger.log("Shell", "NotificationService loaded");
   }
 
-  Bar {
-    id: bar
+  // Bar {
+  //   id: bar
 
-  }
+  // }
 
   // Variants {
 
