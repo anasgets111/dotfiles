@@ -15,7 +15,6 @@ Item {
   IconButton {
     id: iconButton
 
-    anchors.centerIn: parent
     disabled: true
     iconText: KeyboardLayoutService.layoutShort
   }

@@ -9,8 +9,7 @@ Item {
   id: tooltip
 
   property color bgColor: Theme.onHoverColor
-  property Component contentComponent: null   // new: preferred custom content slot
-
+  property Component contentComponent: null
   property int edge: Qt.BottomEdge
   property int fadeDuration: Theme.animationDuration
   readonly property color fgColor: Theme.textContrast(bgColor)
