@@ -40,8 +40,6 @@ Item {
   signal released(var mouse)
   signal rightClicked
 
-  height: implicitHeight
-
   // Fixed sizing
   implicitHeight: Theme.itemHeight
   implicitWidth: Theme.itemWidth
