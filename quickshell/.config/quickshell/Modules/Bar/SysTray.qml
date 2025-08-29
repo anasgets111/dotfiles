@@ -1,21 +1,22 @@
+// SystemTrayWidget.qml
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Widgets
 import qs.Config
 import qs.Services.Core
+import qs.Widgets   // for IconButton + Tooltip
 
 Item {
-  id: systemTrayWidget
+  id: tray
 
   required property var bar
   readonly property int contentInset: 2
   readonly property int horizontalPadding: 10
-  readonly property int hoverPadding: 3
-  readonly property int iconSpacing: 8
+  readonly property int iconSpacing: 2
 
   height: Theme.itemHeight
-  width: Math.max(trayRow.implicitWidth + systemTrayWidget.horizontalPadding * 2, Theme.itemHeight)
+  width: Math.max(trayRow.implicitWidth + horizontalPadding * 2, Theme.itemHeight)
 
   Rectangle {
     id: backgroundRect
@@ -28,7 +29,7 @@ Item {
     id: trayRow
 
     anchors.centerIn: parent
-    spacing: systemTrayWidget.iconSpacing
+    spacing: tray.iconSpacing
 
     Repeater {
       id: trayRepeater
@@ -40,107 +41,80 @@ Item {
   Component {
     id: trayItemDelegate
 
-    MouseArea {
-      id: trayMouseArea
+    Item {
+      id: slot
 
       required property var modelData
-      property var trayItem: trayMouseArea.modelData
+      property var trayItem: slot.modelData
 
-      acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-      cursorShape: Qt.PointingHandCursor
-      height: Theme.iconSize
-      hoverEnabled: true
-      width: Theme.iconSize
+      implicitHeight: Theme.itemHeight
+      implicitWidth: Theme.itemWidth
 
-      onClicked: function (mouseEvent) {
-        if (mouseEvent.button === Qt.RightButton && SystemTrayService.hasMenuForItem(trayMouseArea.trayItem)) {
-          menuAnchor.open();
-          return;
+      IconButton {
+        id: btn
+
+        anchors.fill: parent
+
+        contentItem: Item {
+          height: Theme.itemHeight
+          width: Theme.itemWidth
+
+          IconImage {
+            id: iconImage
+
+            anchors.centerIn: parent
+            backer.fillMode: Image.PreserveAspectFit
+            backer.smooth: true
+            backer.sourceSize.height: implicitSize
+            backer.sourceSize.width: implicitSize
+            height: implicitSize
+            implicitSize: Theme.iconSize - tray.contentInset * 2
+            source: SystemTrayService.normalizedIconFor(slot.trayItem)
+            visible: status !== Image.Error && status !== Image.Null
+            width: implicitSize
+          }
+          Text {
+            anchors.centerIn: parent
+            color: Theme.textContrast(btn.effectiveBg)
+            font.bold: true
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize
+            text: SystemTrayService.fallbackGlyphFor(slot.trayItem)
+            visible: !iconImage.visible
+          }
         }
-        SystemTrayService.handleItemClick(trayMouseArea.trayItem, mouseEvent.button);
-      }
-      onWheel: function (wheelEvent) {
-        SystemTrayService.scrollItem(trayMouseArea.trayItem, wheelEvent.angleDelta.x, wheelEvent.angleDelta.y);
+
+        // Forward wheel scrolling
+        area.onWheel: function (wheelEvent) {
+          SystemTrayService.scrollItem(slot.trayItem, wheelEvent.angleDelta.x, wheelEvent.angleDelta.y);
+        }
+        onClicked: function (mouse) {
+          if (!mouse)
+            return;
+          if (mouse.button === Qt.RightButton && SystemTrayService.hasMenuForItem(slot.trayItem)) {
+            menuAnchor.open();
+            return;
+          }
+          SystemTrayService.handleItemClick(slot.trayItem, mouse.button);
+        }
       }
 
+      // Menu anchor
       QsMenuAnchor {
         id: menuAnchor
 
-        anchor.item: trayMouseArea
-        anchor.rect.y: trayMouseArea.height - 5
-        menu: trayMouseArea.trayItem ? trayMouseArea.trayItem.menu : null
+        anchor.item: btn.area
+        anchor.rect.y: btn.height - 5
+        menu: slot.trayItem ? slot.trayItem.menu : null
       }
-      Rectangle {
-        id: hoverHalo
 
-        anchors.centerIn: parent
-        color: Theme.onHoverColor
-        height: hoverHalo.width
-        opacity: trayMouseArea.containsMouse ? 1 : 0
-        radius: hoverHalo.width / 2
-        width: Theme.iconSize + systemTrayWidget.hoverPadding * 2
-
-        Behavior on opacity {
-          NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.OutCubic
-          }
-        }
-      }
-      IconImage {
-        id: iconImage
-
-        anchors.centerIn: parent
-        backer.fillMode: Image.PreserveAspectFit
-        backer.smooth: true
-        backer.sourceSize.height: iconImage.height
-        backer.sourceSize.width: iconImage.width
-        height: iconImage.implicitSize
-        implicitSize: Theme.iconSize - systemTrayWidget.contentInset * 2
-        source: SystemTrayService.normalizedIconFor(trayMouseArea.trayItem)
-        visible: iconImage.status !== Image.Error && iconImage.status !== Image.Null
-        width: iconImage.implicitSize
-      }
-      Text {
-        id: glyphFallback
-
-        anchors.centerIn: parent
-        color: trayMouseArea.containsMouse ? Theme.textOnHoverColor : Theme.textActiveColor
-        font.bold: true
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        text: SystemTrayService.fallbackGlyphFor(trayMouseArea.trayItem)
-        visible: iconImage.status === Image.Error || iconImage.status === Image.Null
-      }
-      Rectangle {
-        id: tooltip
-
-        anchors.horizontalCenter: trayMouseArea.horizontalCenter
-        anchors.top: trayMouseArea.bottom
-        anchors.topMargin: 8
-        color: Theme.onHoverColor
-        height: tooltipText.height + 8
-        opacity: trayMouseArea.containsMouse ? 1 : 0
-        radius: Theme.itemRadius
-        visible: (tooltip.opacity > 0) && !!SystemTrayService.displayTitleFor(trayMouseArea.trayItem)
-        width: tooltipText.width + 16
-
-        Behavior on opacity {
-          NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.OutCubic
-          }
-        }
-
-        Text {
-          id: tooltipText
-
-          anchors.centerIn: parent
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          text: SystemTrayService.tooltipTitleFor(trayMouseArea.trayItem)
-        }
+      // Tooltip using shared component
+      Tooltip {
+        edge: Qt.BottomEdge
+        hoverSource: btn.area
+        target: btn
+        text: SystemTrayService.tooltipTitleFor(slot.trayItem)
+        visibleWhenTargetHovered: !!SystemTrayService.displayTitleFor(slot.trayItem)
       }
     }
   }

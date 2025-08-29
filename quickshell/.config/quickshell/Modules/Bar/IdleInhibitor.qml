@@ -6,8 +6,6 @@ import qs.Widgets
 Item {
   id: idleInhibitor
 
-  property string iconOff: "󰾪"
-  property string iconOn: "󰅶"
   property alias isActive: inhibitorProcess.running
 
   implicitHeight: Theme.itemHeight
@@ -19,18 +17,18 @@ Item {
     command: ["sh", "-c", "systemd-inhibit --what=idle --who=Caffeine --why='Caffeine module is active' --mode=block sleep infinity"]
   }
   IconButton {
-    id: iconButton
+    id: button
 
-    anchors.centerIn: parent
-    iconText: idleInhibitor.isActive ? idleInhibitor.iconOn : idleInhibitor.iconOff
+    anchors.fill: parent
+    bgColor: inhibitorProcess.running ? Theme.activeColor : Theme.inactiveColor
+    iconText: inhibitorProcess.running ? "󰅶" : "󰾪"
 
-    onClicked: {
-      inhibitorProcess.running = !inhibitorProcess.running;
-    }
+    onLeftClicked: inhibitorProcess.running = !inhibitorProcess.running
   }
   Tooltip {
-    hoverSource: iconButton.area
-    target: iconButton
-    text: idleInhibitor.isActive ? "Idle inhibitor: Active" : "Idle inhibitor: Inactive"
+    edge: Qt.BottomEdge
+    hoverSource: button.area
+    target: button
+    text: inhibitorProcess.running ? qsTr("Idle inhibition active") : qsTr("Click to prevent idle")
   }
 }

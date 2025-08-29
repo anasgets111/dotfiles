@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts
 import QtQuick.Window
 import qs.Services.SystemInfo
 import qs.Config
@@ -11,65 +10,57 @@ Item {
   id: root
 
   implicitHeight: Theme.itemHeight
-  implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
+  implicitWidth: Math.max(Theme.itemWidth, button.implicitWidth)
 
   IconButton {
-    id: iconButton
+    id: button
 
-    anchors.centerIn: parent
-    disabled: UpdateService.busy
+    anchors.fill: parent
+    bgColor: UpdateService.busy ? Theme.inactiveColor : (UpdateService.totalUpdates > 0 ? Theme.activeColor : Theme.inactiveColor)
+    busy: UpdateService.busy
+    iconText: UpdateService.busy ? "" : (UpdateService.totalUpdates > 0 ? "" : "󰂪")
 
-    contentItem: RowLayout {
-      spacing: 4
-
-      Text {
-        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-        Layout.preferredHeight: Theme.itemHeight
-        color: iconButton.fgColor
-        elide: Text.ElideNone
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        horizontalAlignment: Text.AlignHCenter
-        text: UpdateService.busy ? "" : UpdateService.totalUpdates > 0 ? "" : "󰂪"
-        verticalAlignment: Text.AlignVCenter
-      }
-    }
-
-    onClicked: {
+    onLeftClicked: {
+      if (UpdateService.busy)
+        return;
       if (UpdateService.totalUpdates > 0)
         UpdateService.runUpdate();
       else
         UpdateService.doPoll(true);
     }
   }
-  Tooltip {
-    hoverSource: iconButton.area
-    target: iconButton
-    visibleWhenTargetHovered: !UpdateService.busy
+  Component {
+    id: updatesWithHeading
 
-    contentComponent: Component {
-      Column {
-        spacing: 4
+    Column {
+      spacing: 4
 
-        Text {
+      Text {
+        color: Theme.textContrast(Theme.onHoverColor)
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize
+        text: UpdateService.totalUpdates === 1 ? qsTr("One package can be upgraded:") : UpdateService.totalUpdates + " " + qsTr("packages can be upgraded:")
+      }
+      Repeater {
+        model: UpdateService.allPackages
+
+        delegate: Text {
+          required property var model
+
           color: Theme.textContrast(Theme.onHoverColor)
           font.family: Theme.fontFamily
           font.pixelSize: Theme.fontSize
-          text: UpdateService.totalUpdates === 0 ? qsTr("No updates available") : UpdateService.totalUpdates === 1 ? qsTr("One package can be upgraded:") : UpdateService.totalUpdates + qsTr(" packages can be upgraded:")
-        }
-        Repeater {
-          model: UpdateService.allPackages
-
-          delegate: Text {
-            required property var model
-
-            color: Theme.textContrast(Theme.onHoverColor)
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            text: model.name + ": " + model.oldVersion + " → " + model.newVersion
-          }
+          text: model.name + ": " + model.oldVersion + " → " + model.newVersion
         }
       }
     }
+  }
+  Tooltip {
+    contentComponent: UpdateService.totalUpdates > 0 ? updatesWithHeading : null
+    edge: Qt.BottomEdge
+    hoverSource: button.area
+    target: button
+    text: UpdateService.totalUpdates === 0 ? qsTr("No updates available") : ""
+    visibleWhenTargetHovered: !UpdateService.busy
   }
 }
