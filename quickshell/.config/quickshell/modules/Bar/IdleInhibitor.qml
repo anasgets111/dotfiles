@@ -4,8 +4,9 @@ import Quickshell.Io
 Rectangle {
   id: idleInhibitor
 
+  property bool active: false
+  // Prefer active state, then hover, then inactive (consistent with other widgets)
   readonly property color bgColor: hovered ? Theme.onHoverColor : (isActive ? Theme.activeColor : Theme.inactiveColor)
-  property bool enabled: false
   readonly property color fgColor: Theme.textContrast(bgColor)
   readonly property string glyph: isActive ? iconOn : iconOff
   property bool hovered: false
@@ -22,7 +23,7 @@ Rectangle {
     id: process
 
     command: ["sh", "-c", "systemd-inhibit --what=idle --who=Caffeine " + "--why='Caffeine module is active' --mode=block sleep inf"]
-    running: idleInhibitor.enabled
+    running: idleInhibitor.active
   }
   MouseArea {
     acceptedButtons: Qt.LeftButton
@@ -30,7 +31,7 @@ Rectangle {
     cursorShape: Qt.PointingHandCursor
     hoverEnabled: true
 
-    onClicked: enabled = !enabled
+    onClicked: idleInhibitor.active = !idleInhibitor.active
     onEntered: idleInhibitor.hovered = true
     onExited: idleInhibitor.hovered = false
   }
