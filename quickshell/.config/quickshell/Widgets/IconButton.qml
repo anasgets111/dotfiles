@@ -1,4 +1,3 @@
-// IconButton.qml
 pragma ComponentBehavior: Bound
 
 import QtQuick
