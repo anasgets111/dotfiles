@@ -312,12 +312,37 @@ Scope {
       }
 
       Text {
+        id: statusText
+
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         color: "#FFFFFF"
         font.bold: true
         padding: 12
         text: TimeService.currentTime + " - " + TimeService.currentDate + " - " + MainService.username + " - " + TimeService.formatDuration(SystemInfoService.uptime)
+      }
+
+      Rectangle {
+        id: idleToggleRect
+
+        anchors.left: statusText.right
+        anchors.leftMargin: 10
+        anchors.verticalCenter: parent.verticalCenter
+        color: IdleService.enabled ? "#FF5722" : "#4CAF50"  // Orange when inhibited, green when not
+        height: 20
+        radius: 4
+        width: 30
+
+        // on clicked it should report idle status
+        MouseArea {
+          anchors.fill: parent
+          cursorShape: Qt.PointingHandCursor
+
+          onClicked: {
+            IdleService.toggle();
+            Logger.log("Bar", "Idle status changed:", IdleService.enabled);
+          }
+        }
       }
     }
   }
