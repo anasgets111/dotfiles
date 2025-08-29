@@ -25,7 +25,6 @@ Item {
     bold: false
   })
   property string iconText: ""
-  property real radius: Theme.itemRadius
 
   // Signals
   signal clicked(var mouse)
@@ -36,8 +35,10 @@ Item {
   signal released(var mouse)
   signal rightClicked
 
+  height: implicitHeight
   implicitHeight: Theme.itemHeight
-  implicitWidth: Theme.itemWidth
+  implicitWidth: Theme.itemHeight
+  width: implicitWidth
 
   Keys.onReleased: event => {
     if (!focusable || disabled || busy)
@@ -53,8 +54,16 @@ Item {
     id: bgRect
 
     anchors.fill: parent
+    antialiasing: true
     color: root.effectiveBg
-    radius: root.radius
+    radius: Math.min(width, height) / 2
+
+    Behavior on color {
+      ColorAnimation {
+        duration: Theme.animationDuration
+        easing.type: Easing.InOutQuad
+      }
+    }
 
     MouseArea {
       id: mouseArea
