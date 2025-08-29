@@ -59,6 +59,36 @@ Singleton {
     return qsTr("Calculating…");
   }
 
+  function handleCriticalState() {
+    if (isCriticalAndNotCharging) {
+      sendNotification(qsTr("Critical Battery"), qsTr("Automatic suspend at 5%!"), true);
+    }
+  }
+
+  // Handle low/critical/suspend conditions centrally in the service
+  function handleLowState() {
+    if (isLowAndNotCharging) {
+      sendNotification(qsTr("Low Battery"), qsTr("Plug in soon!"), false);
+    }
+  }
+  function handleSuspendingState() {
+    if (isSuspendingAndNotCharging) {
+      Quickshell.execDetached(["systemctl", "suspend"]);
+    }
+  }
+
+  // Helper to create notifications via Quickshell.Services.Notifications
+  function sendNotification(summary, body, critical) {
+    var s = String(summary === undefined ? "" : summary);
+    var b = String(body === undefined ? "" : body);
+    var qml = 'import Quickshell.Services.Notifications\nNotification { summary: "' + s.replace(/"/g, '\\"') + '"; body: "' + b.replace(/"/g, '\\"') + '"; expireTimeout: 5000; urgency: ' + (critical ? 'NotificationUrgency.Critical' : 'NotificationUrgency.Normal') + '; transient: true }';
+    Qt.createQmlObject(qml, batteryService, "BatteryNotification");
+  }
+
+  onIsCriticalAndNotChargingChanged: handleCriticalState()
+
+  // Watchers to call handlers when computed properties change
+  onIsLowAndNotChargingChanged: handleLowState()
   onIsReadyChanged: {
     if (isReady) {
       Logger.log("BatteryService", "Battery device ready:", displayDevice && (displayDevice.nativePath || "(no nativePath)"));
@@ -67,4 +97,5 @@ Singleton {
       Logger.log("BatteryService", "Battery device lost or not present anymore");
     }
   }
+  onIsSuspendingAndNotChargingChanged: handleSuspendingState()
 }

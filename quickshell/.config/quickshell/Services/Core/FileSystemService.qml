@@ -13,7 +13,6 @@ Singleton {
       collector: c
     };
   }
-
   function _quotePaths(paths) {
     if (!paths || !paths.length)
       return "";

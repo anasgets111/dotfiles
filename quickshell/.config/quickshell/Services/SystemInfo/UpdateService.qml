@@ -43,7 +43,6 @@ Singleton {
         });
     });
   }
-
   function _notifyTotalsIfIncreased() {
     if (!ready)
       return;
@@ -70,7 +69,6 @@ Singleton {
       lastNotifiedTotal = totalUpdates;
     }
   }
-
   function _parseStandardOutput(rawText) {
     const raw = (rawText || "").trim();
     if (!raw)
@@ -95,7 +93,6 @@ Singleton {
       "pkgs": pkgs
     };
   }
-
   function doAurPoll() {
     if (aurBusy)
       return;
@@ -103,7 +100,6 @@ Singleton {
     aurProc.command = ["sh", "-c", "if command -v yay >/dev/null 2>&1; then yay -Qua --color=never;" + "elif command -v paru >/dev/null 2>&1; then paru -Qua --color=never;" + "else exit 3; fi"];
     aurProc.running = true;
   }
-
   function doPoll(forceFull = false) {
     if (busy)
       return;
@@ -114,7 +110,6 @@ Singleton {
     if (full)
       doAurPoll();
   }
-
   function runUpdate() {
     if (updates > 0) {
       updateRunner.command = updateCommand;
@@ -123,7 +118,6 @@ Singleton {
       doPoll(true);
     }
   }
-
   function startUpdateProcess(cmd) {
     pkgProc.command = cmd;
     if (lastWasFull)
@@ -162,7 +156,6 @@ Singleton {
 
     reloadableId: "ArchCheckerCache"
   }
-
   Connections {
     function onActionInvoked(summary, appName, actionId, body) {
       if (String(appName) !== updateService.notifyApp)
@@ -176,7 +169,6 @@ Singleton {
 
     target: NotificationService
   }
-
   Process {
     id: updateRunner
 
@@ -184,7 +176,6 @@ Singleton {
       updateService.doPoll(false);
     }
   }
-
   Process {
     id: pacmanCheck
 
@@ -201,7 +192,6 @@ Singleton {
       }
     }
   }
-
   Process {
     id: pkgProc
 
@@ -259,7 +249,6 @@ Singleton {
       }
     }
   }
-
   Process {
     id: aurProc
 
@@ -297,7 +286,6 @@ Singleton {
       updateService.aurPackages = [];
     }
   }
-
   Timer {
     id: pollTimer
 
@@ -310,7 +298,6 @@ Singleton {
       }
     }
   }
-
   Timer {
     id: killTimer
 

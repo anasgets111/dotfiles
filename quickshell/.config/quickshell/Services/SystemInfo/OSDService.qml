@@ -51,7 +51,6 @@ Singleton {
     toastTimer.interval = remainingVisibleCap > 0 ? Math.min(baseInterval, remainingVisibleCap) : baseInterval;
     toastTimer.restart();
   }
-
   function _processQueue() {
     if (root.toastVisible)
       return;
@@ -72,19 +71,15 @@ Singleton {
     root._applyTimerFor(nextToast.level, root.hasDetails);
     Logger.log("OSDService", `show: level=${root.currentLevel}, repeats=${root.currentRepeatCount}`);
   }
-
   function _restartTimerForCurrent() {
     root._applyTimerFor(root.currentLevel, root.hasDetails);
   }
-
   function clearQueue() {
     root.toastQueue = [];
   }
-
   function clearWallpaperError() {
     root.wallpaperErrorStatus = "";
   }
-
   function hideToast() {
     root.toastVisible = false;
     root.currentMessage = "";
@@ -98,11 +93,9 @@ Singleton {
       root._processQueue();
     Logger.log("OSDService", "hideToast");
   }
-
   function restartTimer() {
     root._restartTimerForCurrent();
   }
-
   function setDoNotDisturb(enabled) {
     const enabledBool = !!enabled;
     if (root.doNotDisturb === enabledBool)
@@ -118,11 +111,9 @@ Singleton {
     }
     Logger.log("OSDService", `DND=${root.doNotDisturb}`);
   }
-
   function showError(message, details = "") {
     showToast(message, levelError, details);
   }
-
   function showInfo(message, details = "") {
     showToast(message, levelInfo, details);
   }
@@ -181,11 +172,9 @@ Singleton {
     if (!root.toastVisible && !root.doNotDisturb)
       root._processQueue();
   }
-
   function showWarning(message, details = "") {
     showToast(message, levelWarn, details);
   }
-
   function stopTimer() {
     toastTimer.stop();
   }

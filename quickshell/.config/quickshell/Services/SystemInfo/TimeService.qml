@@ -11,6 +11,8 @@ Singleton {
   readonly property string currentTime: Qt.formatTime(clock.date, timePattern)
   property string dateFormat: "yyyy-MM-dd"
   property bool localeDateLong: false
+  // Expose the underlying Date object for widgets to bind to
+  readonly property var now: clock.date
   property bool ntpEnabled: false
   property bool ntpSynced: false
   property int precision: SystemClock.Minutes
@@ -25,7 +27,6 @@ Singleton {
     const n = day === 0 ? 7 : day, fmt = longForm ? Locale.LongFormat : Locale.ShortFormat;
     return standalone ? Qt.locale().standaloneDayName(n, fmt) : Qt.locale().dayName(n, fmt);
   }
-
   function format(kind, pattern) {
     if (kind === "time")
       return Qt.formatTime(clock.date, pattern || timePattern);
@@ -35,7 +36,6 @@ Singleton {
 
     return pattern ? Qt.formatDateTime(clock.date, pattern) : currentDate + " " + currentTime;
   }
-
   function formatDuration(sec) {
     sec = Math.floor(sec);
     if (sec <= 0)
@@ -56,7 +56,6 @@ Singleton {
 
     return parts.join(" ");
   }
-
   function formatHM(sec) {
     if (sec <= 0)
       return "Calculating…";
@@ -68,42 +67,33 @@ Singleton {
     }
     return h > 0 ? h + "h " + m + "m" : m + "m";
   }
-
   function ntpSync() {
     ntpEnabled ? timeInfoProc.running = true : setNtpEnabled(true);
   }
-
   function setDateFormat(pattern) {
     useLocaleDate = false;
     dateFormat = pattern;
   }
-
   function setNtpEnabled(enable) {
     ntpToggleProc.command = ["sh", "-c", "timedatectl set-ntp " + (enable ? "true" : "false")];
     ntpToggleProc.running = true;
   }
-
   function setWeekStart(day) {
     weekStart = Math.max(1, Math.min(7, day === 0 ? 7 : day));
     Logger.log("TimeService", "WeekStart:", weekStart, Qt.locale().dayName(weekStart, Locale.LongFormat));
   }
-
   function timestamp() {
     return Qt.formatTime(clock.date, "h:mm:ss AP");
   }
-
   function toggle24Hour() {
     use24Hour = !use24Hour;
   }
-
   function toggleNtp() {
     setNtpEnabled(!ntpEnabled);
   }
-
   function toggleSeconds() {
     precision = (precision === SystemClock.Seconds) ? SystemClock.Minutes : SystemClock.Seconds;
   }
-
   function useLocaleFormat(shortForm) {
     useLocaleDate = true;
     localeDateLong = !shortForm;
@@ -123,7 +113,6 @@ Singleton {
 
     precision: dateTime.precision
   }
-
   Process {
     id: timeInfoProc
 
@@ -143,7 +132,6 @@ Singleton {
       }
     }
   }
-
   Process {
     id: ntpToggleProc
 

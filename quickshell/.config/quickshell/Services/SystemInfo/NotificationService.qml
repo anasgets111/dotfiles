@@ -86,7 +86,6 @@ Singleton {
       historyModel.remove(historyModel.count - 1);
     _saveHistory();
   }
-
   function _evalDnd(notification) {
     const policy = root.dndPolicy || {};
     if (!policy.enabled)
@@ -129,7 +128,6 @@ Singleton {
       return policy.behavior === "suppress" ? "suppress" : "queue";
     return "bypass";
   }
-
   function _loadGroups() {
     try {
       const parsedGroups = JSON.parse(store.groupsJson || "{}");
@@ -138,7 +136,6 @@ Singleton {
       root.groupsMap = {};
     }
   }
-
   function _loadHistory() {
     historyModel.clear();
     let items = [];
@@ -164,7 +161,6 @@ Singleton {
       });
     }
   }
-
   function _loadLogs() {
     try {
       const actionArray = JSON.parse(store.actionLogJson || "[]");
@@ -179,7 +175,6 @@ Singleton {
       root.replyLog = [];
     }
   }
-
   function _logAction(id, actionId) {
     const rec = {
       notificationId: String(id || ""),
@@ -189,7 +184,6 @@ Singleton {
     root.actionLog = (root.actionLog || []).concat([rec]);
     _saveLogs();
   }
-
   function _logReply(id, text) {
     const rec = {
       notificationId: String(id || ""),
@@ -212,7 +206,6 @@ Singleton {
     }
     root.replySubmitted(String(id), String(text), appName, summary);
   }
-
   function _onHidden(notifWrapper) {
     const visibleIndex = root.visible.indexOf(notifWrapper);
     if (visibleIndex !== -1) {
@@ -234,7 +227,6 @@ Singleton {
     }
     _processQueue();
   }
-
   function _present(notification) {
     if (!notification)
       return null;
@@ -264,7 +256,6 @@ Singleton {
     }
     return wrapper;
   }
-
   function _processQueue() {
     if (root._addGateBusy || root.queue.length === 0)
       return;
@@ -293,7 +284,6 @@ Singleton {
     root._addGateBusy = true;
     addGate.restart();
   }
-
   function _release(notifWrapper) {
     const visibleCopy = root.visible.slice();
     const visibleIndex = visibleCopy.indexOf(notifWrapper);
@@ -329,13 +319,11 @@ Singleton {
       return String(input || "");
     }
   }
-
   function _saveGroups() {
     try {
       store.groupsJson = JSON.stringify(root.groupsMap || {});
     } catch (e) {}
   }
-
   function _saveHistory() {
     const arr = [];
     for (let index = 0; index < historyModel.count; index++) {
@@ -354,7 +342,6 @@ Singleton {
     }
     store.historyStoreJson = JSON.stringify(arr);
   }
-
   function _saveLogs() {
     try {
       store.actionLogJson = JSON.stringify(root.actionLog || []);
@@ -363,7 +350,6 @@ Singleton {
       store.replyLogJson = JSON.stringify(root.replyLog || []);
     } catch (e) {}
   }
-
   function _timeInRange(nowH, nowM, startStr, endStr) {
     const toHM = timeString => {
       const [hoursRaw, minutesRaw] = String(timeString || "0:0").split(":");
@@ -406,7 +392,6 @@ Singleton {
     _saveGroups();
     return groupId;
   }
-
   function _urgencyToString(urgency) {
     switch (Number(urgency)) {
     case NotificationUrgency.Low:
@@ -417,7 +402,6 @@ Singleton {
       return "normal";
     }
   }
-
   function acknowledge(id) {
     const searchId = String(id || "");
     for (let index = 0; index < root.all.length; index++) {
@@ -436,7 +420,6 @@ Singleton {
       error: "not-found"
     };
   }
-
   function clearAll() {
     const items = root.all.slice();
     for (let index = 0; index < items.length; index++) {
@@ -459,19 +442,16 @@ Singleton {
     for (let index = 0; index < visibleCopy.length; index++)
       visibleCopy[index].popup = false;
   }
-
   function clearHistory() {
     historyModel.clear();
     _saveHistory();
   }
-
   function clearPopups() {
     const visibleCopy = root.visible.slice();
     for (let index = 0; index < visibleCopy.length; index++)
       visibleCopy[index].popup = false;
     root.queue = [];
   }
-
   function dismissNotification(wrapper) {
     if (!wrapper?.notification)
       return;
@@ -479,7 +459,6 @@ Singleton {
     if (typeof wrapper.notification.dismiss === "function")
       wrapper.notification.dismiss();
   }
-
   function executeAction(id, actionId) {
     const searchId = String(id || "");
     const searchActionId = String(actionId || "");
@@ -508,7 +487,6 @@ Singleton {
       error: "not-found"
     };
   }
-
   function groups() {
     const groupsArray = [];
     const groupsMapRef = root.groupsMap || {};
@@ -517,7 +495,6 @@ Singleton {
     groupsArray.sort((groupA, groupB) => (groupB.updatedAt || 0) - (groupA.updatedAt || 0));
     return groupsArray;
   }
-
   function list(filters) {
     const filtersObj = filters || {};
     const isInSet = (value, set) => !set ? true : Array.isArray(set) ? set.includes(value) : set === value;
@@ -544,7 +521,6 @@ Singleton {
     }
     return results;
   }
-
   function reply(id, text) {
     const searchId = String(id || "");
     for (let index = 0; index < root.all.length; index++) {
@@ -558,7 +534,6 @@ Singleton {
       error: "not-found"
     };
   }
-
   function send(summary, body, options) {
     const optionsObj = options || {};
     const genId = "local-" + root._localIdSeq++;
@@ -607,7 +582,6 @@ Singleton {
     _present(localNotification);
     return genId;
   }
-
   function setDndPolicy(patch) {
     function merge(base, patchObj) {
       const merged = {};
@@ -641,7 +615,6 @@ Singleton {
     if (!root.dndPolicy.enabled)
       _processQueue();
   }
-
   function toggleGroup(groupId, expanded) {
     const groupEntry = root.groupsMap[groupId];
     if (!groupEntry)
@@ -668,7 +641,6 @@ Singleton {
 
     reloadableId: "NotificationService"
   }
-
   Timer {
     id: addGate
 
@@ -680,7 +652,6 @@ Singleton {
       root._processQueue();
     }
   }
-
   Timer {
     interval: 30000
     repeat: true
@@ -688,14 +659,12 @@ Singleton {
 
     onTriggered: root._timePulse = !root._timePulse
   }
-
   Component {
     id: notifComp
 
     NotifWrapper {
     }
   }
-
   Component {
     id: localNotifComp
 
@@ -724,12 +693,10 @@ Singleton {
     function activateAction(actionId) {
       invokeAction(actionId);
     }
-
     function dismiss() {
       if (ln.wrapperRef)
         ln.wrapperRef.popup = false;
     }
-
     function invokeAction(actionId) {
       root.actionInvoked(String(ln.summary || ""), String(ln.appName || ""), String(actionId || ""), String(ln.body || ""));
     }
@@ -849,7 +816,6 @@ Singleton {
         }
       };
     }
-
     function submitReply(text) {
       const r = replyModel;
       if (!r?.enabled)

@@ -9,6 +9,14 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  // Icon mapping for devices
+  readonly property var _deviceIconMap: ({
+      "headphone": "󰋋",
+      "hands-free": "󰋎",
+      "headset": "󰋎",
+      "phone": "󰏲",
+      "portable": "󰏲"
+    })
   property bool _muted: !!(root.sink && root.sink.audio && root.sink.audio.muted)
   // Device tracking caches for connect/disconnect toasts
   property var _sinkMap: ({}) // key -> display name
@@ -23,6 +31,9 @@ Singleton {
   readonly property alias muted: root._muted
   // Properties — lists of sinks/sources (exclude streams)
   readonly property PwNode sink: Pipewire.defaultAudioSink
+
+  // Expose the current sink icon for UI widgets
+  readonly property string sinkIcon: deviceIconFor(root.sink)
   readonly property list<PwNode> sinks: Pipewire.nodes.values.filter(n => !n.isStream && n.isSink)
   readonly property PwNode source: Pipewire.defaultAudioSource
   readonly property list<PwNode> sources: Pipewire.nodes.values.filter(n => !n.isStream && !n.isSink && n.audio)
@@ -60,7 +71,6 @@ Singleton {
       removed: removed
     };
   }
-
   function _listToMap(list) {
     const m = {};
     for (let i = 0; i < list.length; i++) {
@@ -84,9 +94,23 @@ Singleton {
       return String(props["node.name"]);
     return String(root.displayName(node));
   }
-
   function decreaseVolume() {
     setVolumeReal(root.volume - root.stepVolume);
+  }
+  function deviceIconFor(node) {
+    if (!node)
+      return "";
+    const props = node.properties || {};
+    const iconName = props["device.icon_name"] || "";
+    if (root._deviceIconMap[iconName])
+      return root._deviceIconMap[iconName];
+
+    const desc = (node.description || "").toLowerCase();
+    for (var key in root._deviceIconMap)
+      if (desc.indexOf(key) !== -1)
+        return root._deviceIconMap[key];
+
+    return (node.name || "").startsWith("bluez_output") ? root._deviceIconMap["headphone"] : "";
   }
 
   // Functions — Human-friendly device naming
@@ -120,7 +144,6 @@ Singleton {
 
     return name;
   }
-
   function increaseVolume() {
     setVolumeReal(root.volume + root.stepVolume);
   }
@@ -130,12 +153,10 @@ Singleton {
     Logger.log("AudioService", "setAudioSink:", root.displayName(newSink));
     Pipewire.preferredDefaultAudioSink = newSink;
   }
-
   function setAudioSource(newSource) {
     Logger.log("AudioService", "setAudioSource:", root.displayName(newSource));
     Pipewire.preferredDefaultAudioSource = newSource;
   }
-
   function setMicVolume(percentage) {
     const n = Number.parseInt(percentage, 10);
     if (Number.isNaN(n))
@@ -149,7 +170,6 @@ Singleton {
     }
     return "No audio source available";
   }
-
   function setMuted(muted) {
     if (root.sink && root.sink.audio && root.sink.ready) {
       Logger.log("AudioService", "setMuted:", !!muted);
@@ -181,7 +201,6 @@ Singleton {
       // _volume is updated via Connections
     }
   }
-
   function subtitle(name) {
     if (!name)
       return "";
@@ -210,7 +229,6 @@ Singleton {
 
     return "";
   }
-
   function toggleMicMute() {
     if (root.source && root.source.audio) {
       root.source.audio.muted = !root.source.audio.muted;
@@ -220,7 +238,6 @@ Singleton {
     }
     return "No audio source available";
   }
-
   function toggleMute() {
     if (root.sink && root.sink.audio) {
       const next = !root.sink.audio.muted;
@@ -315,7 +332,6 @@ Singleton {
           OSDService.showInfo("Unmuted", Math.round(root._volume * 100) + "%");
       }
     }
-
     function onVolumeChanged() {
       var vol = (root.sink && root.sink.audio ? root.sink.audio.volume : 0);
       if (isNaN(vol))
@@ -334,7 +350,6 @@ Singleton {
 
     target: root.sink && root.sink.audio ? root.sink.audio : null
   }
-
   Connections {
     function onMutedChanged() {
       Logger.log("AudioService", "mic muted changed ->", !!(root.source && root.source.audio && root.source.audio.muted));
@@ -346,7 +361,6 @@ Singleton {
           OSDService.showInfo("Mic unmuted", Math.round(root.source.audio.volume * 100) + "%");
       }
     }
-
     function onVolumeChanged() {
       Logger.log("AudioService", "mic volume changed ->", Math.round(root.source.audio.volume * 100) + "%");
       root.micMuteChanged();

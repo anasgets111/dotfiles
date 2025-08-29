@@ -16,25 +16,21 @@ Singleton {
     function islocked(): string {
       return LockService.locked ? "true" : "false";
     }
-
     function lock(): string {
       Logger.log("IPC", "lock");
       LockService.locked = true;
       return "locked";
     }
-
     function status(): string {
       const s = LockService.locked ? "locked" : "unlocked";
       Logger.log("IPC", `status -> ${s}`);
       return s;
     }
-
     function toggle(): string {
       Logger.log("IPC", "toggle");
       LockService.locked = !LockService.locked;
       return LockService.locked ? "locked" : "unlocked";
     }
-
     function unlock(): string {
       Logger.log("IPC", "unlock");
       LockService.locked = false;
@@ -60,7 +56,6 @@ Singleton {
       }
       return "No audio sink available";
     }
-
     function increment(step: string): string {
       // emulate previous behavior using AudioService API
       if (AudioService.sink && AudioService.sink.audio) {
@@ -76,27 +71,22 @@ Singleton {
       }
       return "No audio sink available";
     }
-
     function micmute(): string {
       Logger.log("IPC", "micmute");
       return AudioService.toggleMicMute();
     }
-
     function mute(): string {
       Logger.log("IPC", "mute");
       return AudioService.toggleMute();
     }
-
     function setmic(percentage: string): string {
       Logger.log("IPC", "setmic", percentage);
       return AudioService.setMicVolume(percentage);
     }
-
     function setvolume(percentage: string): string {
       Logger.log("IPC", "setvolume", percentage);
       return AudioService.setVolume(percentage);
     }
-
     function status(): string {
       let result = "Audio Status:\n";
       if (AudioService.sink && AudioService.sink.audio) {
@@ -123,7 +113,6 @@ Singleton {
       OSDService.clearQueue();
       return "cleared";
     }
-
     function dnd(state: string): string {
       if (typeof state === "string")
         OSDService.setDoNotDisturb(state.toLowerCase() === "on" || state.toLowerCase() === "true");
@@ -131,51 +120,41 @@ Singleton {
         OSDService.setDoNotDisturb(!!state);
       return "DND=" + OSDService.doNotDisturb;
     }
-
     function error(message: string): string {
       OSDService.showError(message, "");
       return "ok";
     }
-
     function errord(message: string, details: string): string {
       OSDService.showError(message, details);
       return "ok";
     }
-
     function hide(): string {
       OSDService.hideToast();
       return "hidden";
     }
-
     function info(message: string): string {
       OSDService.showInfo(message, "");
       return "ok";
     }
-
     function infod(message: string, details: string): string {
       OSDService.showInfo(message, details);
       return "ok";
     }
-
     function showlvl(message: string, level: int): string {
       OSDService.showToast(message, level, "");
       return "ok";
     }
-
     function showlvld(message: string, level: int, details: string): string {
       OSDService.showToast(message, level, details);
       return "ok";
     }
-
     function status(): string {
       return `OSD: visible=${OSDService.toastVisible}, queued=${OSDService.toastQueue.length}, level=${OSDService.currentLevel}, repeats=${OSDService.currentRepeatCount}, DND=${OSDService.doNotDisturb}`;
     }
-
     function warn(message: string): string {
       OSDService.showWarning(message, "");
       return "ok";
     }
-
     function warnd(message: string, details: string): string {
       OSDService.showWarning(message, details);
       return "ok";
@@ -190,12 +169,10 @@ Singleton {
       NotificationService.clearAll();
       return "cleared";
     }
-
     function clearhistory(): string {
       NotificationService.clearHistory();
       return "History cleared";
     }
-
     function send(summary: string, body: string, optionsJson: string): string {
       let opts = {};
       try {
@@ -207,7 +184,6 @@ Singleton {
       const id = NotificationService.send(summary ?? "", body ?? "", opts ?? {});
       return id || "";
     }
-
     function status(): string {
       const dnd = NotificationService.dndPolicy ? (NotificationService.dndPolicy.enabled ? "on" : "off") : "off";
       const behavior = NotificationService.dndPolicy && NotificationService.dndPolicy.behavior ? NotificationService.dndPolicy.behavior : "queue";
@@ -228,49 +204,51 @@ Singleton {
       const v = a[prop];
       return (v === undefined) ? "Invalid property" : String(v);
     }
-
     function list(): string {
       return MediaService.players.map(p => p.identity).join("\n");
     }
-
     function next(): void {
       if (MediaService.active && MediaService.active.canGoNext)
         MediaService.active.next();
     }
-
     function pause(): void {
       if (MediaService.active && MediaService.active.canPause)
         MediaService.active.pause();
     }
-
     function play(): void {
       if (MediaService.active && MediaService.active.canPlay)
         MediaService.active.play();
     }
-
     function playPause(): void {
       if (MediaService.active && MediaService.active.canTogglePlaying)
         MediaService.active.togglePlaying();
     }
-
     function previous(): void {
       if (MediaService.active && MediaService.active.canGoPrevious)
         MediaService.active.previous();
     }
-
     function seek(position: real): void {
       MediaService.seek(position);
     }
-
     function seekByRatio(ratio: real): void {
       MediaService.seekByRatio(ratio);
     }
-
     function stop(): void {
       if (MediaService.active)
         MediaService.active.stop();
     }
 
     target: "mpris"
+  }
+
+  // ----- Screen Recording -----
+  IpcHandler {
+    function toggle(): string {
+      Logger.log("IPC", "rec.toggle");
+      ScreenRecordingService.toggleRecording();
+      return ScreenRecordingService.isRecording ? "recording" : "stopped";
+    }
+
+    target: "rec"
   }
 }

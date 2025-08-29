@@ -423,7 +423,7 @@ binds {
     Print hotkey-overlay-title="Take Screenshot and Annotate" { screenshot ; }
     Ctrl+Print { screenshot-screen; }
     Alt+Print { screenshot-window; }
-    Shift+Print { spawn "ScreenRecording.sh" ;}
+    Shift+Print { spawn "quickshell" "ipc" "call" "rec" "toggle" ;}
     // Applications such as remote-desktop clients and software KVM switches may
     // request that niri stops processing the keyboard shortcuts defined here
     // so they may, for example, forward the key presses as-is to a remote machine.

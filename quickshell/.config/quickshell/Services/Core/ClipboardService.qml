@@ -44,13 +44,11 @@ Singleton {
     clipLite.textItemAdded(entry);
     clipLite.changed();
   }
-
   function _finishFetchCycle() {
     clipLite._isFetching = false;
     if (clipLite._isColdStart)
       clipLite._isColdStart = false;
   }
-
   function _loadTextHistory() {
     try {
       const arr = JSON.parse(store.textHistoryJson || "[]");
@@ -64,7 +62,6 @@ Singleton {
       store.textHistoryJson = "[]";
     }
   }
-
   function _pickPersistMime(types) {
     // Persist any image/* as-is; otherwise use preferred text; else first available
     for (let i = 0; i < types.length; i++) {
@@ -93,7 +90,6 @@ Singleton {
     }
     return "";
   }
-
   function _saveTextHistory() {
     try {
       store.textHistoryJson = JSON.stringify(clipLite.history);
@@ -101,7 +97,6 @@ Singleton {
     // ignore
     {}
   }
-
   function _startFetchCycle() {
     if (!clipLite.enabled || clipLite._isFetching)
       return;
@@ -111,7 +106,6 @@ Singleton {
     typeDetectionProcess.command = ["wl-paste", "-l"];
     typeDetectionProcess.running = true;
   }
-
   function _startPersist(mime) {
     if (!mime)
       return;
@@ -128,7 +122,6 @@ Singleton {
     _saveTextHistory();
     clipLite.changed();
   }
-
   function refresh() {
     clipLite._startFetchCycle();
   }
