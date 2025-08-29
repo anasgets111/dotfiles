@@ -3,39 +3,35 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Config
 import qs.Services.WM
+import qs.Widgets
 
 Item {
   id: root
 
   property int currentWorkspace: WorkspaceService.currentWorkspace > 0 ? WorkspaceService.currentWorkspace : 1
+
+  // UI state
   property bool expanded: false
-  property string focusedOutput: WorkspaceService.focusedOutput || ""
   property var groupBoundaries: WorkspaceService.groupBoundaries
   property int hoveredId: 0
-  property var outputsOrder: WorkspaceService.outputsOrder
-  property int previousWorkspace: currentWorkspace
   property int slideFrom: currentWorkspace
   property real slideProgress: 0
   property int slideTo: currentWorkspace
+
+  // Service-driven state
   property var workspaces: WorkspaceService.workspaces
 
-  // All control/state comes from service for both Niri and Hyprland
-  function focusWorkspaceByWs(ws) {
-    WorkspaceService.focusWorkspaceByWs(ws);
-  }
-  function workspaceColor(ws) {
+  function wsColor(ws) {
     if (ws.is_focused)
       return Theme.activeColor;
-    if (ws.id === root.hoveredId)
+    if (ws.id === hoveredId)
       return Theme.onHoverColor;
-    if (ws.populated)
-      return Theme.inactiveColor;
-    return Theme.disabledColor;
+    return ws.populated ? Theme.inactiveColor : Theme.disabledColor;
   }
 
   clip: true
   height: Theme.itemHeight
-  width: root.expanded ? workspacesRow.fullWidth : Theme.itemWidth
+  width: expanded ? workspacesRow.fullWidth : Theme.itemWidth
 
   Behavior on width {
     NumberAnimation {
@@ -44,7 +40,7 @@ Item {
     }
   }
 
-  // Drive slide animation when service changes current workspace
+  // Drive slide animation on current workspace change
   Connections {
     function onCurrentWorkspaceChanged() {
       root.slideFrom = root.currentWorkspace;
@@ -55,7 +51,6 @@ Item {
 
     target: WorkspaceService
   }
-  // No direct Niri processes here; handled by WorkspaceService backend
   NumberAnimation {
     id: slideAnim
 
@@ -78,46 +73,40 @@ Item {
   HoverHandler {
     id: rootHover
 
-    onHoveredChanged: {
-      if (hovered) {
-        root.expanded = true;
-        collapseTimer.stop();
-      } else {
-        collapseTimer.restart();
-      }
-    }
+    onHoveredChanged: hovered ? (root.expanded = true, collapseTimer.stop()) : collapseTimer.restart()
   }
   Item {
     id: workspacesRow
 
     property int count: root.workspaces.length
-    property int fullWidth: workspacesRow.count * Theme.itemWidth + Math.max(0, workspacesRow.count - 1) * workspacesRow.spacing
+    readonly property int fullWidth: count * Theme.itemWidth + Math.max(0, count - 1) * spacing
     property int spacing: 8
 
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     height: Theme.itemHeight
     visible: root.expanded
-    width: workspacesRow.fullWidth
+    width: fullWidth
 
     Repeater {
       model: root.workspaces
 
-      delegate: Rectangle {
-        id: wsRect
+      delegate: IconButton {
+        id: wsBtn
 
         required property int index
         required property var modelData
-        property real slotX: wsRect.index * (Theme.itemWidth + workspacesRow.spacing)
-        property var ws: wsRect.modelData
+        readonly property real slotX: index * (Theme.itemWidth + workspacesRow.spacing)
+        readonly property var ws: modelData
 
-        color: root.workspaceColor(wsRect.ws)
+        bgColor: root.wsColor(ws)
         height: Theme.itemHeight
-        opacity: wsRect.ws.populated ? 1 : 0.5
-        radius: Theme.itemRadius
+        iconText: "" + ws.idx
+        opacity: ws.populated ? 1 : 0.5
         width: Theme.itemWidth
-        x: wsRect.slotX
+        x: slotX
 
+        // Animate reflow when spacing or order changes
         Behavior on x {
           NumberAnimation {
             duration: Theme.animationDuration
@@ -125,36 +114,29 @@ Item {
           }
         }
 
-        MouseArea {
-          acceptedButtons: Qt.LeftButton
-          anchors.fill: parent
-          cursorShape: Qt.PointingHandCursor
-          hoverEnabled: true
-
-          onClicked: {
-            if (!wsRect.ws.is_focused)
-              root.focusWorkspaceByWs(wsRect.ws);
-          }
-          onEntered: root.hoveredId = wsRect.ws.id
-          onExited: root.hoveredId = 0
+        onEntered: {
+          root.expanded = true;
+          collapseTimer.stop();
+          root.hoveredId = ws.id;
         }
-        Text {
-          anchors.centerIn: parent
-          color: Theme.textContrast(wsRect.color)
-          font.bold: true
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          text: wsRect.ws.idx
+        onExited: {
+          if (root.hoveredId === ws.id)
+            root.hoveredId = 0;
+          collapseTimer.restart();
+        }
+        onLeftClicked: {
+          if (!ws.is_focused)
+            WorkspaceService.focusWorkspaceByWs(ws);
         }
       }
     }
+
+    // Group boundaries
     Repeater {
       model: root.groupBoundaries.length
 
       delegate: Rectangle {
-        id: boundary
-
-        property int boundaryCount: root.groupBoundaries[boundary.index]
+        property int boundaryCount: root.groupBoundaries[index]
         required property int index
 
         anchors.verticalCenter: workspacesRow.verticalCenter
@@ -163,14 +145,16 @@ Item {
         opacity: 0.5
         radius: 1
         width: 2
-        x: boundary.boundaryCount * (Theme.itemWidth + workspacesRow.spacing) - workspacesRow.spacing / 2 - boundary.width / 2
+        x: boundaryCount * (Theme.itemWidth + workspacesRow.spacing) - workspacesRow.spacing / 2 - width / 2
       }
     }
   }
+
+  // Collapsed single slot slide animation
   Rectangle {
     id: collapsedWs
 
-    property int slideDirection: root.slideTo === root.slideFrom ? -1 : (root.slideTo > root.slideFrom ? -1 : 1)
+    readonly property int slideDirection: root.slideTo === root.slideFrom ? -1 : (root.slideTo > root.slideFrom ? -1 : 1)
 
     clip: true
     color: Theme.bgColor
@@ -182,10 +166,11 @@ Item {
     Rectangle {
       id: fromRect
 
-      color: root.workspaceColor({
-        "idx": root.slideFrom,
-        "is_focused": true,
-        "populated": true
+      color: root.wsColor({
+        id: root.slideFrom,
+        idx: root.slideFrom,
+        is_focused: true,
+        populated: true
       })
       height: Theme.itemHeight
       radius: Theme.itemRadius
@@ -205,10 +190,11 @@ Item {
     Rectangle {
       id: toRect
 
-      color: root.workspaceColor({
-        "idx": root.slideTo,
-        "is_focused": true,
-        "populated": true
+      color: root.wsColor({
+        id: root.slideTo,
+        idx: root.slideTo,
+        is_focused: true,
+        populated: true
       })
       height: Theme.itemHeight
       radius: Theme.itemRadius
