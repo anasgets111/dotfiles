@@ -8,6 +8,8 @@ import qs.Services.WM
 Item {
   id: normalWorkspaces
 
+  readonly property var backingWorkspaces: WorkspaceService.workspaces
+
   // Workspace animation state
   property int currentWorkspace: WorkspaceService.currentWorkspace > 0 ? WorkspaceService.currentWorkspace : 1
 
@@ -19,9 +21,20 @@ Item {
   property real slideProgress: 0
   property int slideTo: normalWorkspaces.currentWorkspace
 
-  // Data source from unified service (Hyprland provides fixed [1..10])
-  readonly property var workspaceStatusList: WorkspaceService.workspaces
+  // Precompute fixed 10 slots
+  readonly property var slots: Array(10).fill(0).map((_, idx) => idx + 1)
 
+  // Build a fixed 1..10 array view
+  function slotView(i) {
+    const ws = backingWorkspaces.find(w => w.id === i);
+    return {
+      id: i,
+      focused: WorkspaceService.currentWorkspace === i,
+      populated: !!ws // exists in Hypr -> populated
+      ,
+      output: ws ? (ws.output || "") : ""
+    };
+  }
   function workspaceColor(ws) {
     if (ws.focused)
       return Theme.activeColor;
@@ -83,9 +96,9 @@ Item {
     onClicked: {
       if (normalWorkspaces.hoveredIndex <= 0)
         return;
-      const ws = normalWorkspaces.workspaceStatusList[normalWorkspaces.hoveredIndex - 1];
-      if (!ws.focused)
-        WorkspaceService.focusWorkspaceByIndex(normalWorkspaces.hoveredIndex);
+      const idx = normalWorkspaces.hoveredIndex;
+      if (idx !== normalWorkspaces.currentWorkspace)
+        WorkspaceService.focusWorkspaceByIndex(idx);
     }
     onEntered: {
       normalWorkspaces.expanded = true;
@@ -95,14 +108,14 @@ Item {
     onPositionChanged: function (mouse) {
       const slotWidth = normalWorkspaces.expanded ? (Theme.itemWidth + workspacesRow.spacing) : Theme.itemWidth;
       const idx = Math.floor(mouse.x / slotWidth) + 1;
-      const len = normalWorkspaces.workspaceStatusList.length;
+      const len = 10;
       normalWorkspaces.hoveredIndex = (idx >= 1 && idx <= len) ? idx : 0;
     }
   }
   Item {
     id: workspacesRow
 
-    readonly property int count: normalWorkspaces.workspaceStatusList.length
+    readonly property int count: 10
     readonly property int fullWidth: workspacesRow.count * Theme.itemWidth + Math.max(0, workspacesRow.count - 1) * workspacesRow.spacing
     property int spacing: 8
 
@@ -112,22 +125,22 @@ Item {
     width: workspacesRow.fullWidth
 
     Repeater {
-      model: normalWorkspaces.workspaceStatusList
+      model: normalWorkspaces.slots
 
       delegate: Rectangle {
         id: wsRect
 
         required property int index
-        required property var modelData
-        readonly property real slotX: wsRect.index * (Theme.itemWidth + workspacesRow.spacing)
-        property var ws: wsRect.modelData
+        required property int modelData // 1..10
+        readonly property real slotX: (wsRect.index) * (Theme.itemWidth + workspacesRow.spacing)
+        property var ws: normalWorkspaces.slotView(wsRect.modelData)
 
-        color: normalWorkspaces.workspaceColor(wsRect.ws)
+        color: normalWorkspaces.workspaceColor(ws)
         height: Theme.itemHeight
-        opacity: wsRect.ws.populated ? 1 : 0.5
+        opacity: ws.populated ? 1 : 0.5
         radius: Theme.itemRadius
         width: Theme.itemWidth
-        x: normalWorkspaces.expanded ? wsRect.slotX : 0
+        x: normalWorkspaces.expanded ? slotX : 0
 
         Behavior on x {
           NumberAnimation {
@@ -204,16 +217,5 @@ Item {
         text: normalWorkspaces.slideTo
       }
     }
-  }
-  Text {
-    anchors.centerIn: parent
-    color: Theme.textContrast(Theme.bgColor)
-    font.bold: true
-    font.family: Theme.fontFamily
-    font.pixelSize: Theme.fontSize
-    text: "No workspaces"
-    visible: !normalWorkspaces.workspaceStatusList.some(function (ws) {
-      return ws.populated;
-    })
   }
 }

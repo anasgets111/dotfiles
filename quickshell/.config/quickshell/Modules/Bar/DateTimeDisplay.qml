@@ -64,7 +64,6 @@ Item {
       anchors.fill: parent
       color: Theme.onHoverColor
       radius: Theme.itemRadius
-      z: -1
     }
     Column {
       id: tooltipColumn

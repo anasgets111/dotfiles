@@ -55,8 +55,12 @@ Singleton {
       backend.focusWorkspaceByIndex(idx);
   }
   function focusWorkspaceByWs(wsObj) {
-    if (backend && backend.focusWorkspaceByWs)
+    if (!backend)
+      return;
+    if (backend.focusWorkspaceByWs)
       backend.focusWorkspaceByWs(wsObj);
+    else if (backend.focusWorkspaceByObject)
+      backend.focusWorkspaceByObject(wsObj);
   }
   function refresh() {
     if (backend && backend.refresh)

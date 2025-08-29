@@ -178,7 +178,6 @@ Item {
     radius: Theme.itemRadius
     visible: !root.expanded
     width: Theme.itemWidth
-    z: 1
 
     Rectangle {
       id: fromRect

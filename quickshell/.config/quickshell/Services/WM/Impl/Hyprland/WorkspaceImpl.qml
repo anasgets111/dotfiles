@@ -19,77 +19,94 @@ Singleton {
   property var outputsOrder: []
   property int previousWorkspace: 1
   property var specialWorkspaces: []
-  property var workspaces: []
+  property var workspaces: [] // [{ id, focused, populated, output }], id > 0 only
 
   function focusWorkspaceByIndex(index) {
-    if (enabled)
+    if (enabled && index)
       Hyprland.dispatch("workspace " + index);
   }
   function focusWorkspaceByObject(ws) {
-    if (ws)
+    if (enabled && ws && ws.id)
       focusWorkspaceByIndex(ws.id);
   }
   function recompute() {
     try {
-      const workspaceList = Hyprland.workspaces?.values || Hyprland.workspaces || [];
-      const monitorList = Hyprland.monitors?.values || Hyprland.monitors || [];
+      const wsList = Hyprland.workspaces?.values || Hyprland.workspaces || [];
+      const monList = Hyprland.monitors?.values || Hyprland.monitors || [];
 
-      hyprWs.monitors = monitorList;
+      hyprWs.monitors = monList;
 
-      const focusedMonitor = Hyprland.focusedMonitor || monitorList.find(monitor => monitor.focused);
-      hyprWs.focusedOutput = focusedMonitor ? focusedMonitor.name : "";
+      const focusedMon = Hyprland.focusedMonitor || monList.find(m => m.focused);
+      const newFocusedOutput = focusedMon ? focusedMon.name : "";
+      if (newFocusedOutput !== hyprWs.focusedOutput)
+        hyprWs.focusedOutput = newFocusedOutput;
 
-      if (monitorList.length > 0) {
-        hyprWs.outputsOrder = monitorList.slice().sort((left, right) => {
-          if (focusedMonitor && left.name === focusedMonitor.name)
+      if (monList.length > 0) {
+        const prevOrder = hyprWs.outputsOrder.join("|");
+        const newOrder = monList.slice().sort((l, r) => {
+          if (focusedMon && l.name === focusedMon.name)
             return -1;
-          if (focusedMonitor && right.name === focusedMonitor.name)
+          if (focusedMon && r.name === focusedMon.name)
             return 1;
-          return left.name.localeCompare(right.name);
-        }).map(monitor => monitor.name);
+          return l.name.localeCompare(r.name);
+        }).map(m => m.name);
+        if (newOrder.join("|") !== prevOrder)
+          hyprWs.outputsOrder = newOrder;
+      } else {
+        hyprWs.outputsOrder = [];
       }
 
-      const workspaceMap = workspaceList.reduce((map, ws) => {
-        map[ws.id] = ws;
-        return map;
-      }, {});
+      // Only real (positive) workspaces; include output and focused flags
+      const positive = wsList.filter(w => typeof w.id === "number" && w.id > 0);
+      const specials = wsList.filter(w => typeof w.id === "number" && w.id < 0);
+      hyprWs.specialWorkspaces = specials;
 
-      hyprWs.workspaces = Array.from({
-        length: 10
-      }, (_unused, index) => {
-        const workspaceId = index + 1;
-        const workspaceEntry = workspaceMap[workspaceId];
-        return {
-          id: workspaceId,
-          focused: !!workspaceEntry?.focused,
-          populated: !!workspaceEntry,
-          output: workspaceEntry ? workspaceEntry.monitor : ""
-        };
+      // Hypr workspace objects typically: { id, name, monitor, windows, hasfullscreen, ... , focused }
+      const newWorkspaces = positive.map(w => ({
+            id: w.id,
+            focused: !!w.focused,
+            populated: true // listed => exists
+            ,
+            output: w.monitor || ""
+          })).sort((a, b) => a.id - b.id);
+
+      hyprWs.workspaces = newWorkspaces;
+
+      const focusedWs = positive.find(w => w.focused);
+      if (focusedWs) {
+        const newId = focusedWs.id;
+        if (newId && newId !== hyprWs.currentWorkspace) {
+          hyprWs.previousWorkspace = hyprWs.currentWorkspace;
+          hyprWs.currentWorkspace = newId;
+          // leaving special if we go to positive
+          if (hyprWs.activeSpecial && newId > 0)
+            hyprWs.activeSpecial = "";
+        }
+      } else
+      // No focused positive workspace reported; if activeSpecial exists, keep it, else keep current
+      {}
+
+      // Compute group boundaries based on outputsOrder and actual workspaces
+      let acc = 0;
+      const total = newWorkspaces.length;
+      const bounds = [];
+      hyprWs.outputsOrder.forEach(out => {
+        const count = newWorkspaces.filter(w => w.output === out).length;
+        acc += count;
+        if (acc > 0 && acc < total)
+          bounds.push(acc);
       });
-
-      hyprWs.specialWorkspaces = workspaceList.filter(ws => ws.id < 0);
-
-      const focusedWorkspace = workspaceList.find(ws => ws.focused && ws.id > 0);
-      if (focusedWorkspace && focusedWorkspace.id !== hyprWs.currentWorkspace) {
-        hyprWs.previousWorkspace = hyprWs.currentWorkspace;
-        hyprWs.currentWorkspace = focusedWorkspace.id;
-      }
-
-      let accumulated = 0;
-      hyprWs.groupBoundaries = hyprWs.outputsOrder.reduce((bounds, output) => {
-        const count = hyprWs.workspaces.filter(ws => ws.output === output).length;
-        accumulated += count;
-        if (accumulated > 0 && accumulated < hyprWs.workspaces.length)
-          bounds.push(accumulated);
-        return bounds;
-      }, []);
+      hyprWs.groupBoundaries = bounds;
     } catch (e) {
       Logger.log("HyprWs", "Recompute error: " + e);
     }
   }
   function refresh() {
-    if (enabled)
-      recompute();
+    if (!enabled)
+      return;
+    Hyprland.refreshMonitors();
+    Hyprland.refreshWorkspaces();
+    Qt.callLater(recompute);
   }
   function toggleSpecial(name) {
     if (enabled && name)
@@ -97,17 +114,12 @@ Singleton {
   }
 
   Component.onCompleted: {
-    if (enabled) {
-      Hyprland.refreshMonitors();
-      Hyprland.refreshWorkspaces();
-      Qt.callLater(recompute);
-    }
+    if (enabled)
+      refresh();
   }
   onActiveChanged: {
     if (active) {
-      Hyprland.refreshMonitors();
-      Hyprland.refreshWorkspaces();
-      Qt.callLater(recompute);
+      refresh();
     } else {
       workspaces = [];
       specialWorkspaces = [];
@@ -120,11 +132,8 @@ Singleton {
       monitors = [];
     }
   }
-  onEnabledChanged: if (enabled) {
-    Hyprland.refreshMonitors();
-    Hyprland.refreshWorkspaces();
-    Qt.callLater(recompute);
-  }
+  onEnabledChanged: if (enabled)
+    refresh()
 
   Connections {
     function onFocusedMonitorChanged() {
@@ -136,21 +145,43 @@ Singleton {
     function onRawEvent(evt) {
       if (!enabled || !evt?.name)
         return;
-      if (evt.name === "activespecial") {
-        hyprWs.activeSpecial = evt.data?.split(",")[0] || "";
-        hyprWs.recompute();
-      } else if (["workspace", "destroyworkspace", "createworkspace"].includes(evt.name)) {
-        if (evt.name === "workspace") {
-          const args = evt.parse(2) || evt.data?.split(",") || [];
-          const newId = parseInt(args[0]);
-          if (newId && newId !== hyprWs.currentWorkspace) {
-            hyprWs.previousWorkspace = hyprWs.currentWorkspace;
-            hyprWs.currentWorkspace = newId;
-          }
-          if (newId > 0)
-            hyprWs.activeSpecial = "";
+
+      // Known Hyprland events: workspace, createworkspace, destroyworkspace,
+      // activespecial, closespecial, focusedmon, monitorremoved, monitoradded...
+      switch (evt.name) {
+      case "activespecial":
+        {
+          const name = evt.data?.split(",")[0] || "";
+          hyprWs.activeSpecial = name;
+          // focus may have changed; recompute to sync outputs/workspaces
+          hyprWs.recompute();
+          break;
         }
-        hyprWs.recompute();
+      case "closespecial":
+      case "specialworkspace":
+        {
+          // depending on compositor version
+          hyprWs.activeSpecial = "";
+          hyprWs.recompute();
+          break;
+        }
+      case "workspace":
+      case "createworkspace":
+      case "destroyworkspace":
+        {
+          // Instead of trusting evt payload, refresh and recompute for correctness
+          Hyprland.refreshWorkspaces();
+          Qt.callLater(hyprWs.recompute);
+          break;
+        }
+      case "focusedmon":
+      case "monitoradded":
+      case "monitorremoved":
+        {
+          Hyprland.refreshMonitors();
+          Qt.callLater(hyprWs.recompute);
+          break;
+        }
       }
     }
 
