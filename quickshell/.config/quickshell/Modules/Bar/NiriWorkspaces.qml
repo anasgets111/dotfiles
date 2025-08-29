@@ -8,18 +8,34 @@ import qs.Widgets
 Item {
   id: root
 
-  property int currentWorkspace: WorkspaceService.currentWorkspace > 0 ? WorkspaceService.currentWorkspace : 1
+  readonly property int currentWs: Math.max(1, WorkspaceService.currentWorkspace)
 
   // UI state
   property bool expanded: false
-  property var groupBoundaries: WorkspaceService.groupBoundaries
+  readonly property int focusedIndex: {
+    // find index by ws.id or idx matching currentWs
+    for (let i = 0; i < workspaces.length; i++) {
+      const ws = workspaces[i];
+      if (ws.id === currentWs || ws.idx === currentWs)
+        return i;
+    }
+    return Math.max(0, Math.min(currentWs - 1, workspaces.length - 1));
+  }
+  readonly property int fullWidth: workspaces.length * slotW + Math.max(0, workspaces.length - 1) * spacing
+  readonly property var groupBoundaries: WorkspaceService.groupBoundaries
   property int hoveredId: 0
-  property int slideFrom: currentWorkspace
-  property real slideProgress: 0
-  property int slideTo: currentWorkspace
+  readonly property int slotH: Theme.itemHeight
+  readonly property int slotW: Theme.itemWidth
 
-  // Service-driven state
-  property var workspaces: WorkspaceService.workspaces
+  // Layout
+  readonly property int spacing: 8
+
+  // Slide the row so the focused slot is visible when collapsed
+  // and aligned left when expanded
+  readonly property int targetRowX: expanded ? 0 : -(focusedIndex * (slotW + spacing))
+
+  // Service state
+  readonly property var workspaces: WorkspaceService.workspaces
 
   function wsColor(ws) {
     if (ws.is_focused)
@@ -30,8 +46,8 @@ Item {
   }
 
   clip: true
-  height: Theme.itemHeight
-  width: expanded ? workspacesRow.fullWidth : Theme.itemWidth
+  height: slotH
+  width: expanded ? fullWidth : slotW
 
   Behavior on width {
     NumberAnimation {
@@ -40,26 +56,7 @@ Item {
     }
   }
 
-  // Drive slide animation on current workspace change
-  Connections {
-    function onCurrentWorkspaceChanged() {
-      root.slideFrom = root.currentWorkspace;
-      root.currentWorkspace = WorkspaceService.currentWorkspace > 0 ? WorkspaceService.currentWorkspace : 1;
-      root.slideTo = root.currentWorkspace;
-      slideAnim.restart();
-    }
-
-    target: WorkspaceService
-  }
-  NumberAnimation {
-    id: slideAnim
-
-    duration: Theme.animationDuration
-    from: 0
-    property: "slideProgress"
-    target: root
-    to: 1
-  }
+  // Hover expand/collapse
   Timer {
     id: collapseTimer
 
@@ -71,149 +68,90 @@ Item {
     }
   }
   HoverHandler {
-    id: rootHover
-
     onHoveredChanged: hovered ? (root.expanded = true, collapseTimer.stop()) : collapseTimer.restart()
   }
   Item {
-    id: workspacesRow
+    id: rowViewport
 
-    property int count: root.workspaces.length
-    readonly property int fullWidth: count * Theme.itemWidth + Math.max(0, count - 1) * spacing
-    property int spacing: 8
+    anchors.fill: parent
+    clip: true
 
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    height: Theme.itemHeight
-    visible: root.expanded
-    width: fullWidth
+    Item {
+      id: workspacesRow
 
-    Repeater {
-      model: root.workspaces
+      height: root.slotH
+      width: root.fullWidth
+      x: root.targetRowX
 
-      delegate: IconButton {
-        id: wsBtn
+      Behavior on x {
+        NumberAnimation {
+          duration: Theme.animationDuration
+          easing.type: Easing.InOutQuad
+        }
+      }
 
-        required property int index
-        required property var modelData
-        readonly property real slotX: index * (Theme.itemWidth + workspacesRow.spacing)
-        readonly property var ws: modelData
+      Repeater {
+        model: root.workspaces
 
-        bgColor: root.wsColor(ws)
-        height: Theme.itemHeight
-        iconText: "" + ws.idx
-        opacity: ws.populated ? 1 : 0.5
-        width: Theme.itemWidth
-        x: slotX
+        delegate: IconButton {
+          required property int index
+          required property var modelData
+          readonly property var ws: modelData
 
-        // Animate reflow when spacing or order changes
-        Behavior on x {
-          NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.InOutQuad
+          bgColor: root.wsColor(ws)
+          height: root.slotH
+          iconText: "" + ws.idx
+          opacity: ws.populated ? 1 : 0.5
+          width: root.slotW
+          x: index * (root.slotW + root.spacing)
+
+          // Optionally fade in other items when expanding
+          Behavior on opacity {
+            NumberAnimation {
+              duration: Theme.animationDuration
+              easing.type: Easing.InOutQuad
+            }
+          }
+
+          onEntered: {
+            root.expanded = true;
+            collapseTimer.stop();
+            root.hoveredId = ws.id;
+          }
+          onExited: {
+            if (root.hoveredId === ws.id)
+              root.hoveredId = 0;
+            collapseTimer.restart();
+          }
+          onLeftClicked: {
+            if (!ws.is_focused)
+              WorkspaceService.focusWorkspaceByWs(ws);
           }
         }
-
-        onEntered: {
-          root.expanded = true;
-          collapseTimer.stop();
-          root.hoveredId = ws.id;
-        }
-        onExited: {
-          if (root.hoveredId === ws.id)
-            root.hoveredId = 0;
-          collapseTimer.restart();
-        }
-        onLeftClicked: {
-          if (!ws.is_focused)
-            WorkspaceService.focusWorkspaceByWs(ws);
-        }
       }
-    }
 
-    // Group boundaries
-    Repeater {
-      model: root.groupBoundaries.length
+      // Group boundaries
+      Repeater {
+        model: root.groupBoundaries.length
 
-      delegate: Rectangle {
-        property int boundaryCount: root.groupBoundaries[index]
-        required property int index
+        delegate: Rectangle {
+          readonly property int boundaryCount: root.groupBoundaries[index]
+          required property int index
 
-        anchors.verticalCenter: workspacesRow.verticalCenter
-        color: Theme.textContrast(Theme.bgColor)
-        height: Math.round(workspacesRow.height * 0.6)
-        opacity: 0.5
-        radius: 1
-        width: 2
-        x: boundaryCount * (Theme.itemWidth + workspacesRow.spacing) - workspacesRow.spacing / 2 - width / 2
+          anchors.verticalCenter: parent.verticalCenter
+          color: Theme.textContrast(Theme.bgColor)
+          height: Math.round(root.slotH * 0.6)
+          opacity: 0.5
+          radius: 1
+          width: 2
+          x: boundaryCount * (root.slotW + root.spacing) - root.spacing / 2 - width / 2
+        }
       }
     }
   }
 
-  // Collapsed single slot slide animation
-  Rectangle {
-    id: collapsedWs
-
-    readonly property int slideDirection: root.slideTo === root.slideFrom ? -1 : (root.slideTo > root.slideFrom ? -1 : 1)
-
-    clip: true
-    color: Theme.bgColor
-    height: Theme.itemHeight
-    radius: Theme.itemRadius
-    visible: !root.expanded
-    width: Theme.itemWidth
-
-    Rectangle {
-      id: fromRect
-
-      color: root.wsColor({
-        id: root.slideFrom,
-        idx: root.slideFrom,
-        is_focused: true,
-        populated: true
-      })
-      height: Theme.itemHeight
-      radius: Theme.itemRadius
-      visible: root.slideProgress < 1
-      width: Theme.itemWidth
-      x: root.slideProgress * collapsedWs.slideDirection * Theme.itemWidth
-
-      Text {
-        anchors.centerIn: parent
-        color: Theme.textContrast(fromRect.color)
-        font.bold: true
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        text: root.slideFrom
-      }
-    }
-    Rectangle {
-      id: toRect
-
-      color: root.wsColor({
-        id: root.slideTo,
-        idx: root.slideTo,
-        is_focused: true,
-        populated: true
-      })
-      height: Theme.itemHeight
-      radius: Theme.itemRadius
-      width: Theme.itemWidth
-      x: (root.slideProgress - 1) * collapsedWs.slideDirection * Theme.itemWidth
-
-      Text {
-        anchors.centerIn: parent
-        color: Theme.textContrast(toRect.color)
-        font.bold: true
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        text: root.slideTo
-      }
-    }
-  }
+  // Empty state
   Text {
-    id: emptyLabel
-
     anchors.centerIn: parent
     color: Theme.textContrast(Theme.bgColor)
     font.bold: true
@@ -221,5 +159,15 @@ Item {
     font.pixelSize: Theme.fontSize
     text: "No workspaces"
     visible: root.workspaces.length === 0
+  }
+
+  // Keep slide alignment in sync with service changes
+  Connections {
+    function onCurrentWorkspaceChanged() {
+    // Behavior on workspacesRow.x will animate to new targetRowX
+    // width Behavior handles expand/collapse transitions
+    }
+
+    target: WorkspaceService
   }
 }
