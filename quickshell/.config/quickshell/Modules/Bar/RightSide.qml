@@ -1,24 +1,21 @@
 import QtQuick
 
 Row {
-    id: rightSide
+  id: rightSide
 
-    spacing: 8
+  spacing: 8
 
-    Volume {
-        anchors.verticalCenter: parent.verticalCenter
-    }
-
-    RecordingStatus {
-        anchors.verticalCenter: parent.verticalCenter
-    }
-
-    SysTray {
-        anchors.verticalCenter: parent.verticalCenter
-        bar: panelWindow
-    }
-
-    DateTimeDisplay {
-        anchors.verticalCenter: parent.verticalCenter
-    }
+  Volume {
+    anchors.verticalCenter: parent.verticalCenter
+  }
+  ScreenRecorder {
+    anchors.verticalCenter: parent.verticalCenter
+  }
+  SysTray {
+    anchors.verticalCenter: parent.verticalCenter
+    bar: panelWindow
+  }
+  DateTimeDisplay {
+    anchors.verticalCenter: parent.verticalCenter
+  }
 }
