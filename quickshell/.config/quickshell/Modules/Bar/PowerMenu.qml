@@ -3,12 +3,15 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Io
 import qs.Config
+import qs.Widgets
 
-Rectangle {
+Item {
   id: powerMenu
 
-  // Helpers
+  // Timings and sizing
   readonly property int animMs: Theme.animationDuration
+
+  // Buttons model
   property var buttons: [
     {
       icon: "󰍃",
@@ -26,24 +29,27 @@ Rectangle {
       action: "systemctl poweroff"
     }
   ]
-  property int collapsedWidth: Theme.itemWidth
-  property bool expanded: hovered
-  readonly property int expandedWidth: Theme.itemWidth * buttons.length + spacing * (buttons.length - 1)
+  readonly property int collapsedWidth: slotW
+
+  // Layout
+  readonly property int count: buttons.length
+  readonly property bool expanded: hovered
+  readonly property int expandedWidth: count * slotW + Math.max(0, count - 1) * spacing
 
   // State
   property bool hovered: false
+  readonly property int slotH: Theme.itemHeight
+  readonly property int slotW: Theme.itemWidth
+  readonly property int spacing: 8
 
-  // Config
-  property int spacing: 8
-
+  // Runner
   function runCommand(cmd) {
     actionProc.command = ["sh", "-c", cmd];
     actionProc.running = true;
   }
 
-  color: "transparent"
-  height: Theme.itemHeight
-  radius: Theme.itemRadius
+  clip: false
+  height: slotH
   width: expanded ? expandedWidth : collapsedWidth
 
   Behavior on width {
@@ -58,17 +64,14 @@ Rectangle {
 
   }
 
-  // Hover handling with delayed collapse
+  // Hover with delayed collapse
   Timer {
     id: collapseTimer
 
     interval: powerMenu.animMs
-    repeat: false
 
-    onTriggered: {
-      if (!hoverHandler.hovered)
-        powerMenu.hovered = false;
-    }
+    onTriggered: if (!hoverHandler.hovered)
+      powerMenu.hovered = false
   }
   HoverHandler {
     id: hoverHandler
@@ -82,114 +85,86 @@ Rectangle {
       }
     }
   }
-  Row {
-    id: buttonRow
+
+  // Overlay for tooltips (unclipped)
+  Item {
+    id: overlay
+
+    anchors.fill: parent
+    clip: false
+    // Passive container
+    visible: true
+    z: 1000
+  }
+
+  // Content row (clipped so hidden buttons don’t leak)
+  Item {
+    id: rowViewport
 
     anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
-    spacing: powerMenu.spacing
+    clip: true
+    height: powerMenu.slotH
+    width: powerMenu.width
 
-    Repeater {
-      model: powerMenu.buttons.length
+    Item {
+      id: row
 
-      delegate: Rectangle {
-        id: btn
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      height: powerMenu.slotH
+      width: powerMenu.expandedWidth
 
-        readonly property string action: powerMenu.buttons[index].action
+      Repeater {
+        model: powerMenu.count
 
-        // Cache model fields
-        readonly property string icon: powerMenu.buttons[index].icon
-        required property int index
-        property bool isHovered: false
-        readonly property bool isLast: index === (powerMenu.buttons.length - 1)
-        readonly property bool show: powerMenu.expanded || isLast
-        readonly property string tooltipText: powerMenu.buttons[index].tooltip
+        delegate: Item {
+          id: cell
 
-        color: isHovered ? Theme.activeColor : Theme.inactiveColor
-        focus: false
-        height: Theme.itemHeight
-        opacity: show ? 1 : 0
-        radius: Theme.itemRadius
-        visible: opacity > 0 || width > 0
-        width: show ? Theme.itemWidth : 0
+          required property int index
+          readonly property bool isLast: index === (powerMenu.count - 1)
+          readonly property bool show: powerMenu.expanded || isLast
 
-        Behavior on color {
-          ColorAnimation {
-            duration: powerMenu.animMs
-            easing.type: Easing.InOutQuad
-          }
-        }
-        Behavior on opacity {
-          NumberAnimation {
-            duration: powerMenu.animMs
-            easing.type: Easing.InOutQuad
-          }
-        }
-        Behavior on width {
-          NumberAnimation {
-            duration: powerMenu.animMs
-            easing.type: Easing.InOutQuad
-          }
-        }
+          height: powerMenu.slotH
+          width: show ? powerMenu.slotW : 0
+          // Fixed positions; row is right-anchored so last cell hits the right edge
+          x: index * (powerMenu.slotW + powerMenu.spacing)
 
-        Keys.onPressed: event => {
-          if (!btn.show)
-            return;
-          const k = event.key;
-          if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) {
-            powerMenu.runCommand(btn.action);
-            event.accepted = true;
-          }
-        }
-
-        MouseArea {
-          anchors.fill: parent
-          cursorShape: Qt.PointingHandCursor
-          enabled: btn.show
-          hoverEnabled: true
-
-          onClicked: powerMenu.runCommand(btn.action)
-          onEntered: btn.isHovered = true
-          onExited: btn.isHovered = false
-        }
-        Rectangle {
-          id: tooltip
-
-          anchors.left: parent.left
-          anchors.top: parent.bottom
-          anchors.topMargin: 8
-          color: Theme.onHoverColor
-          height: tipText.implicitHeight + 8
-          opacity: btn.isHovered ? 1 : 0
-          radius: Theme.itemRadius
-          visible: btn.isHovered
-          width: tipText.implicitWidth + 16
-
-          Behavior on opacity {
+          Behavior on width {
             NumberAnimation {
               duration: powerMenu.animMs
-              easing.type: Easing.OutCubic
+              easing.type: Easing.InOutQuad
             }
           }
 
-          Text {
-            id: tipText
+          IconButton {
+            id: btn
 
-            anchors.centerIn: parent
-            color: Theme.textContrast(tooltip.color)
-            font.bold: true
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            text: btn.tooltipText
+            anchors.fill: parent
+            bgColor: Theme.inactiveColor
+            hoverBgColor: Theme.onHoverColor
+            iconText: powerMenu.buttons[cell.index].icon
+            opacity: cell.show ? 1 : 0
+
+            Behavior on opacity {
+              NumberAnimation {
+                duration: powerMenu.animMs
+                easing.type: Easing.InOutQuad
+              }
+            }
+
+            onLeftClicked: powerMenu.runCommand(powerMenu.buttons[cell.index].action)
           }
-        }
-        Text {
-          anchors.centerIn: parent
-          color: Theme.textContrast(parent.color)
-          font.bold: true
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          text: btn.icon
+
+          // Tooltip anchored to overlay; Tooltip handles positioning via mapToItem internally
+          Tooltip {
+            edge: Qt.BottomEdge
+            hoverSource: btn.area
+            parent: overlay
+            target: btn
+            text: powerMenu.buttons[cell.index].tooltip
+            visibleWhenTargetHovered: true
+          }
         }
       }
     }
