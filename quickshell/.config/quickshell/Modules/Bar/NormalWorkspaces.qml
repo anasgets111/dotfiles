@@ -10,28 +10,32 @@ Item {
   id: normalWorkspaces
 
   readonly property var backingWorkspaces: WorkspaceService.workspaces
-  property int currentWorkspace: WorkspaceService.currentWorkspace > 0 ? WorkspaceService.currentWorkspace : 1
+  readonly property int count: 10
+  readonly property int currentWorkspace: Math.max(1, WorkspaceService.currentWorkspace)
   property bool expanded: false
+  readonly property int focusedIndex: Math.max(0, Math.min(currentWorkspace - 1, count - 1))
+  readonly property int fullWidth: count * slotW + Math.max(0, count - 1) * spacing
   property int hoveredIndex: 0
   readonly property bool isHyprlandSession: (Quickshell.env && (Quickshell.env("XDG_SESSION_DESKTOP") === "Hyprland" || Quickshell.env("XDG_CURRENT_DESKTOP") === "Hyprland" || Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")))
-  property int slideFrom: normalWorkspaces.currentWorkspace
-  property real slideProgress: 0
-  property int slideTo: normalWorkspaces.currentWorkspace
+  readonly property int slotH: Theme.itemHeight
+  readonly property int slotW: Theme.itemWidth
   readonly property var slots: Array(10).fill(0).map((_, i) => i + 1)
+  readonly property int spacing: 8
+  readonly property int targetRowX: expanded ? 0 : -(focusedIndex * (slotW + spacing))
 
   function wsColor(id) {
     if (id === currentWorkspace)
       return Theme.activeColor;
-    const exists = !!backingWorkspaces.find(w => w.id === id);
     if (id === hoveredIndex)
       return Theme.onHoverColor;
+    const exists = !!backingWorkspaces.find(w => w.id === id);
     return exists ? Theme.inactiveColor : Theme.disabledColor;
   }
 
   clip: true
-  height: Theme.itemHeight
+  height: slotH
   visible: isHyprlandSession
-  width: expanded ? workspacesRow.fullWidth : Theme.itemWidth
+  width: expanded ? fullWidth : slotW
 
   Behavior on width {
     NumberAnimation {
@@ -40,25 +44,6 @@ Item {
     }
   }
 
-  Connections {
-    function onCurrentWorkspaceChanged() {
-      normalWorkspaces.slideFrom = normalWorkspaces.currentWorkspace;
-      normalWorkspaces.currentWorkspace = WorkspaceService.currentWorkspace > 0 ? WorkspaceService.currentWorkspace : 1;
-      normalWorkspaces.slideTo = normalWorkspaces.currentWorkspace;
-      slideAnim.restart();
-    }
-
-    target: WorkspaceService
-  }
-  NumberAnimation {
-    id: slideAnim
-
-    duration: Theme.animationDuration
-    from: 0
-    property: "slideProgress"
-    target: normalWorkspaces
-    to: 1
-  }
   Timer {
     id: collapseTimer
 
@@ -69,125 +54,77 @@ Item {
       normalWorkspaces.hoveredIndex = 0;
     }
   }
+  HoverHandler {
+    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
 
-  // Hover fence only when collapsed to trigger expansion
-  MouseArea {
-    acceptedButtons: Qt.NoButton
-    anchors.fill: parent
-    hoverEnabled: true
-    visible: !normalWorkspaces.expanded
-
-    onEntered: {
-      normalWorkspaces.expanded = true;
-      collapseTimer.stop();
-    }
-    onExited: collapseTimer.restart()
+    onHoveredChanged: hovered ? (normalWorkspaces.expanded = true, collapseTimer.stop()) : collapseTimer.restart()
   }
   Item {
-    id: workspacesRow
+    id: rowViewport
 
-    readonly property int count: 10
-    readonly property int fullWidth: count * Theme.itemWidth + Math.max(0, count - 1) * spacing
-    property int spacing: 8
+    anchors.fill: parent
+    clip: true
 
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    height: Theme.itemHeight
-    width: fullWidth
+    Item {
+      id: workspacesRow
 
-    Repeater {
-      model: normalWorkspaces.slots
+      height: normalWorkspaces.slotH
+      width: normalWorkspaces.fullWidth
+      x: normalWorkspaces.targetRowX
 
-      delegate: IconButton {
-        id: wsBtn
+      Behavior on x {
+        NumberAnimation {
+          duration: Theme.animationDuration
+          easing.type: Easing.InOutQuad
+        }
+      }
 
-        readonly property int idNum: modelData
-        required property int index     // 0-based
-        required property int modelData // 1..10
+      Repeater {
+        model: normalWorkspaces.slots
 
-        readonly property real slotX: (index) * (Theme.itemWidth + workspacesRow.spacing)
+        delegate: IconButton {
+          readonly property int idNum: modelData
+          required property int index   // 0..9
+          required property int modelData // 1..10
 
-        bgColor: normalWorkspaces.wsColor(idNum)
-        height: Theme.itemHeight
-        iconText: "" + idNum
-        opacity: (!!normalWorkspaces.backingWorkspaces.find(w => w.id === idNum)) ? 1 : 0.5
-        width: Theme.itemWidth
+          bgColor: normalWorkspaces.wsColor(idNum)
+          height: normalWorkspaces.slotH
+          iconText: "" + idNum
 
-        // stacked when collapsed; spread when expanded
-        x: normalWorkspaces.expanded ? slotX : 0
+          // dim slots that don't exist in backingWorkspaces
+          opacity: !!normalWorkspaces.backingWorkspaces.find(w => w.id === idNum) ? 1 : 0.5
+          width: normalWorkspaces.slotW
+          x: index * (normalWorkspaces.slotW + normalWorkspaces.spacing)
 
-        Behavior on x {
-          NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.InOutQuad
+          Behavior on opacity {
+            NumberAnimation {
+              duration: Theme.animationDuration
+              easing.type: Easing.InOutQuad
+            }
           }
-        }
 
-        onEntered: {
-          normalWorkspaces.expanded = true;
-          collapseTimer.stop();
-          normalWorkspaces.hoveredIndex = wsBtn.idNum;
-        }
-        onExited: {
-          if (normalWorkspaces.hoveredIndex === idNum)
-            normalWorkspaces.hoveredIndex = 0;
-          collapseTimer.restart();
-        }
-        onLeftClicked: {
-          if (idNum !== normalWorkspaces.currentWorkspace)
-            WorkspaceService.focusWorkspaceByIndex(idNum);
+          onEntered: {
+            normalWorkspaces.expanded = true;
+            collapseTimer.stop();
+            normalWorkspaces.hoveredIndex = idNum;
+          }
+          onExited: {
+            if (normalWorkspaces.hoveredIndex === idNum)
+              normalWorkspaces.hoveredIndex = 0;
+            collapseTimer.restart();
+          }
+          onLeftClicked: {
+            if (idNum !== normalWorkspaces.currentWorkspace)
+              WorkspaceService.focusWorkspaceByIndex(idNum);
+          }
         }
       }
     }
   }
-  Rectangle {
-    id: collapsedWs
-
-    readonly property int slideDirection: normalWorkspaces.slideTo === normalWorkspaces.slideFrom ? -1 : (normalWorkspaces.slideTo > normalWorkspaces.slideFrom ? -1 : 1)
-
-    clip: true
-    color: Theme.bgColor
-    height: Theme.itemHeight
-    radius: Theme.itemRadius
-    visible: !normalWorkspaces.expanded
-    width: Theme.itemWidth
-    z: 1
-
-    // From
-    Rectangle {
-      color: normalWorkspaces.wsColor(normalWorkspaces.slideFrom)
-      height: Theme.itemHeight
-      radius: Theme.itemRadius
-      visible: normalWorkspaces.slideProgress < 1
-      width: Theme.itemWidth
-      x: normalWorkspaces.slideProgress * collapsedWs.slideDirection * Theme.itemWidth
-
-      Text {
-        anchors.centerIn: parent
-        color: Theme.textContrast(parent.color)
-        font.bold: true
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        text: normalWorkspaces.slideFrom
-      }
+  Connections {
+    function onCurrentWorkspaceChanged() {
     }
 
-    // To
-    Rectangle {
-      color: normalWorkspaces.wsColor(normalWorkspaces.slideTo)
-      height: Theme.itemHeight
-      radius: Theme.itemRadius
-      width: Theme.itemWidth
-      x: (normalWorkspaces.slideProgress - 1) * collapsedWs.slideDirection * Theme.itemWidth
-
-      Text {
-        anchors.centerIn: parent
-        color: Theme.textContrast(parent.color)
-        font.bold: true
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        text: normalWorkspaces.slideTo
-      }
-    }
+    target: WorkspaceService
   }
 }
