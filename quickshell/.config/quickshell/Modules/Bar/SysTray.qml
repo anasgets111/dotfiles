@@ -10,7 +10,6 @@ import qs.Widgets
 Item {
   id: tray
 
-  required property var bar
   readonly property int contentInset: 0
   readonly property int horizontalPadding: 0
 
