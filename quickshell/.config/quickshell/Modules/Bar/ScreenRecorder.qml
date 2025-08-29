@@ -1,63 +1,46 @@
 import QtQuick
-import QtQuick.Controls
 import qs.Config
+import qs.Widgets
 import qs.Services.SystemInfo
 
 Item {
   id: root
 
-  property bool hovered: false
-
-  // Nerd Font icons (override if your font differs)
-  // idle: nf-oct-primitive_dot, recording: nf-fa-circle (red expected), paused: nf-fa-pause, stopped: nf-fa-stop
+  readonly property color baseColor: isRecording ? (isPaused ? Theme.inactiveColor : Theme.activeColor) : Theme.inactiveColor
   property string iconIdle: "󰞡"
   property string iconPaused: "󰏧"
   property string iconRecording: ""
-  property bool isPaused: ScreenRecordingService.isPaused
-  // Bind to ScreenRecordingService singleton
-  property bool isRecording: ScreenRecordingService.isRecording
-  // Optional override label
-  property string statusText: ""
+  readonly property bool isPaused: ScreenRecordingService.isPaused
+  readonly property bool isRecording: ScreenRecordingService.isRecording
+  readonly property string tipText: isRecording ? (isPaused ? qsTr("Right-click to resume, left to stop") : qsTr("Right-click to pause, left to stop")) : qsTr("Left-click to start recording")
 
-  ToolTip.delay: 300
-  ToolTip.text: isRecording ? (isPaused ? "Right-click to resume, left to stop" : "Right-click to pause, left to stop") : "Left-click to start recording"
-  // Optional hover hint
-  ToolTip.visible: hovered
-  height: Theme.itemHeight
-  width: Theme.itemWidth
+  implicitHeight: Theme.itemHeight
+  implicitWidth: Theme.itemWidth
 
-  MouseArea {
-    acceptedButtons: Qt.LeftButton | Qt.RightButton
+  IconButton {
+    id: button
+
     anchors.fill: parent
-    cursorShape: Qt.PointingHandCursor
-    hoverEnabled: true
+    bgColor: root.baseColor
+    disabledBgColor: Theme.inactiveColor
+    hoverBgColor: Theme.onHoverColor
+    iconFont: Qt.font({
+      family: Theme.fontFamily,
+      pixelSize: Theme.fontSize,
+      bold: root.isRecording
+    })
+    iconText: root.isRecording ? (root.isPaused ? root.iconPaused : root.iconRecording) : root.iconIdle
+    implicitHeight: Theme.itemHeight
+    implicitWidth: Theme.itemWidth
 
-    onClicked: mouse => {
-      if (mouse.button === Qt.LeftButton) {
-        ScreenRecordingService.toggleRecording();
-      } else if (mouse.button === Qt.RightButton) {
-        // Only toggles pause if currently recording
-        if (root.isRecording)
-          ScreenRecordingService.togglePause();
-      }
-    }
-    onEntered: root.hovered = true
-    onExited: root.hovered = false
+    onLeftClicked: ScreenRecordingService.toggleRecording()
+    onRightClicked: if (root.isRecording)
+      ScreenRecordingService.togglePause()
   }
-  Rectangle {
-    anchors.fill: parent
-    border.color: Theme.borderColor
-    border.width: 1
-    color: root.isRecording ? (root.isPaused ? Theme.inactiveColor : Theme.activeColor) : (root.hovered ? Theme.onHoverColor : Theme.inactiveColor)
-    radius: Theme.itemRadius
-
-    Text {
-      anchors.centerIn: parent
-      color: Theme.textContrast(root.isRecording ? (root.isPaused ? Theme.inactiveColor : Theme.activeColor) : (root.hovered ? Theme.onHoverColor : Theme.inactiveColor))
-      font.bold: root.isRecording
-      font.family: Theme.fontFamily
-      font.pixelSize: Theme.fontSize
-      text: root.isRecording ? (root.isPaused ? root.iconPaused : root.iconRecording) : root.iconIdle
-    }
+  Tooltip {
+    edge: Qt.BottomEdge
+    hoverSource: button.area
+    target: button
+    text: root.tipText
   }
 }
