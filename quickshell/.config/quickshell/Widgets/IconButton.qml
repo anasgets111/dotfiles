@@ -21,7 +21,7 @@ Item {
   property font iconFont: Qt.font({
     family: Theme.fontFamily,
     pixelSize: Theme.fontSize,
-    bold: false
+    bold: true
   })
   property string iconText: ""
 
