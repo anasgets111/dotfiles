@@ -40,14 +40,18 @@ Singleton {
     if (!s || typeof s !== "string")
       return "";
 
-    // Prefer a two-letter code inside parentheses, e.g., (US), (UK), (DE)
-    const m = s.match(/\(([A-Za-z]{2})\)/);
-    if (m && m[1])
-      return m[1].toUpperCase();
+    // Prefer the first two letters from inside parentheses, e.g., (US)->US, (Egypt)->EG
+    const paren = s.match(/\(([^)]+)\)/);
+    if (paren && paren[1]) {
+      const innerLetters = paren[1].replace(/[^A-Za-z]/g, "");
+      if (innerLetters.length >= 2)
+        return innerLetters.slice(0, 2).toUpperCase();
+      if (innerLetters.length > 0)
+        return innerLetters.toUpperCase();
+    }
 
-    // Fallback: take the first two letters of the leading word (before any parentheses)
-    const name = s.split("(")[0].trim();
-    const letters = name.replace(/[^A-Za-z]/g, "");
+    // Fallback: take the first two letters from the whole string
+    const letters = s.replace(/[^A-Za-z]/g, "");
     return letters.slice(0, 2).toUpperCase();
   }
   function showToggle(label, on) {
