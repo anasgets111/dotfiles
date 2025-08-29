@@ -166,7 +166,6 @@ Singleton {
     Logger.warn("WeatherService", "Applying fallback coords:", latitude + "," + longitude, "name=", locationName);
     fetchCurrentTemp(latitude, longitude);
   }
-
   function fetchCurrentTemp(lat, lon) {
     var wxXhr = new XMLHttpRequest();
     var url = openMeteoUrlBase + "?latitude=" + lat + "&longitude=" + lon + "&current_weather=true&timezone=auto";
@@ -207,11 +206,9 @@ Singleton {
     };
     wxXhr.send();
   }
-
   function getWeatherDescriptionFromCode() {
     return getWeatherIconAndDesc(currentWeatherCode).desc;
   }
-
   function getWeatherIconAndDesc(code) {
     const key = String(code);
     if (weatherIconMap.hasOwnProperty(key))
@@ -222,11 +219,9 @@ Singleton {
       "desc": "Unknown"
     };
   }
-
   function getWeatherIconFromCode() {
     return getWeatherIconAndDesc(currentWeatherCode).icon;
   }
-
   function scheduleWxRetry() {
     hasError = true;
     consecutiveErrors++;
@@ -238,7 +233,6 @@ Singleton {
       retryTimer.start();
     }
   }
-
   function startServiceOnce() {
     if (!weatherTimer.running) {
       weatherTimer.start();
@@ -246,7 +240,6 @@ Singleton {
       updateWeather();
     }
   }
-
   function updateWeather() {
     var hasPersist = false;
     var savedLat = NaN, savedLon = NaN, savedName = "";
@@ -350,7 +343,6 @@ Singleton {
 
     onTriggered: weatherService.updateWeather()
   }
-
   Timer {
     id: retryTimer
 

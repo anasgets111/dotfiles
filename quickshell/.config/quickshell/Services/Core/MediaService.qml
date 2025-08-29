@@ -75,7 +75,6 @@ Singleton {
     const normalizedIdentity = normalize(canonicalIdentity);
     return normalizedIdentity || "audio-x-generic";
   }
-
   function next() {
     if (!active) {
       Logger.warn("MediaService", "next requested but no active player");
@@ -87,7 +86,6 @@ Singleton {
       Logger.warn("MediaService", "next unsupported for", active.identity);
     }
   }
-
   function pause() {
     if (!active) {
       Logger.warn("MediaService", "pause requested but no active player");
@@ -100,7 +98,6 @@ Singleton {
       Logger.warn("MediaService", "pause unsupported for", active.identity);
     }
   }
-
   function play() {
     if (!active) {
       Logger.warn("MediaService", "play requested but no active player");
@@ -113,7 +110,6 @@ Singleton {
       Logger.warn("MediaService", "play unsupported for", active.identity);
     }
   }
-
   function playPause() {
     if (!active) {
       Logger.warn("MediaService", "playPause requested but no active player");
@@ -127,7 +123,6 @@ Singleton {
       Logger.warn("MediaService", "playPause requested but unsupported: playing=", active.isPlaying, "canPlay=", canPlay, "canPause=", canPause);
     }
   }
-
   function previous() {
     if (!active) {
       Logger.warn("MediaService", "previous requested but no active player");
@@ -139,7 +134,6 @@ Singleton {
       Logger.warn("MediaService", "previous unsupported for", active.identity);
     }
   }
-
   function seek(position) {
     if (!active) {
       Logger.warn("MediaService", "seek requested but no active player");
@@ -153,7 +147,6 @@ Singleton {
       Logger.warn("MediaService", "seek unsupported for", active.identity);
     }
   }
-
   function seekByRatio(ratio) {
     if (!active) {
       Logger.warn("MediaService", "seekByRatio requested but no active player");
@@ -168,7 +161,6 @@ Singleton {
       Logger.warn("MediaService", "seekByRatio unsupported: canSeek=", canSeek, "length=", trackLength);
     }
   }
-
   function stop() {
     if (!active) {
       Logger.warn("MediaService", "stop requested but no active player");
@@ -196,7 +188,6 @@ Singleton {
 
     target: Mpris.players
   }
-
   Timer {
     id: positionTimer
 

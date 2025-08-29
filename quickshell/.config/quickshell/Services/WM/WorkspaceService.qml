@@ -43,7 +43,6 @@ Singleton {
     _lastKey = key;
     _lastToastAt = now;
   }
-
   function _scheduleAnnounce() {
     if (ws.currentWorkspace && ws.currentWorkspace > 0) {
       ws._pendingIdx = ws.currentWorkspace;
@@ -51,22 +50,18 @@ Singleton {
       _announceTimer.restart();
     }
   }
-
   function focusWorkspaceByIndex(idx) {
     if (backend && backend.focusWorkspaceByIndex)
       backend.focusWorkspaceByIndex(idx);
   }
-
   function focusWorkspaceByWs(wsObj) {
     if (backend && backend.focusWorkspaceByWs)
       backend.focusWorkspaceByWs(wsObj);
   }
-
   function refresh() {
     if (backend && backend.refresh)
       backend.refresh();
   }
-
   function toggleSpecial(name) {
     if (backend && backend.toggleSpecial)
       backend.toggleSpecial(name);
@@ -124,13 +119,11 @@ Singleton {
       }
     }
   }
-
   Binding {
     property: "enabled"
     target: Hypr.WorkspaceImpl
     value: MainService.ready && (ws.backend === Hypr.WorkspaceImpl)
   }
-
   Binding {
     property: "enabled"
     target: Niri.WorkspaceImpl

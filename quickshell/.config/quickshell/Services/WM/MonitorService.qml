@@ -51,11 +51,9 @@ Singleton {
     if (vrr !== undefined)
       backend.setVrr(name, vrr);
   }
-
   function emitChangedDebounced() {
     changeDebounce.restart();
   }
-
   function findMonitorIndexByName(name) {
     for (let idx = 0; idx < monitors.count; idx++) {
       if (monitors.get(idx).name === name)
@@ -63,18 +61,15 @@ Singleton {
     }
     return -1;
   }
-
   function getAvailableFeatures(name, callback) {
     const fn = backend?.fetchFeatures || backend?.getAvailableFeatures;
     fn ? fn(name, callback) : callback(null);
   }
-
   function isSameMonitor(monA, monB) {
     if (!monA || !monB)
       return false;
     return monitorKeyFields.every(key => monA[key] === monB[key]);
   }
-
   function normalizeScreens(screens) {
     return Array.prototype.slice.call(screens).map(screen => ({
           name: screen.name,
@@ -92,7 +87,6 @@ Singleton {
           hdrActive: false
         }));
   }
-
   function readEdidCaps(connectorName, callback) {
     const defaultCaps = {
       vrr: {
@@ -125,7 +119,6 @@ Singleton {
       }, monitorService);
     }, monitorService);
   }
-
   function refreshFeatures(monitorsList) {
     if (!backend || !backend.fetchFeatures && !backend.getAvailableFeatures)
       return;
@@ -176,27 +169,21 @@ Singleton {
       });
     }
   }
-
   function setMode(name, width, height, refreshRate) {
     backend?.setMode(name, width, height, refreshRate);
   }
-
   function setPosition(name, x, y) {
     backend?.setPosition(name, x, y);
   }
-
   function setScale(name, scale) {
     backend?.setScale(name, scale);
   }
-
   function setTransform(name, transform) {
     backend?.setTransform(name, transform);
   }
-
   function setVrr(name, mode) {
     backend?.setVrr(name, mode);
   }
-
   function toArray() {
     const result = [];
     for (let idx = 0; idx < monitors.count; idx++) {
@@ -204,7 +191,6 @@ Singleton {
     }
     return result;
   }
-
   function updateMonitors(newScreens) {
     const oldCount = monitors.count;
     const newCount = newScreens.length;
@@ -263,7 +249,6 @@ Singleton {
 
     onTriggered: monitorService.monitorsUpdated()
   }
-
   Connections {
     function onScreensChanged() {
       const normalizedScreens = monitorService.normalizeScreens(Quickshell.screens);
@@ -274,7 +259,6 @@ Singleton {
 
     target: Quickshell
   }
-
   Connections {
     function onFeaturesChanged() {
       monitorService.refreshFeatures(monitorService.toArray());

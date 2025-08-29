@@ -47,7 +47,6 @@ Singleton {
     isPaused = false;
     recordingStarted(outputPath);
   }
-
   function stopRecording() {
     if (!isRecording)
       return;
@@ -58,7 +57,6 @@ Singleton {
     isPaused = false;
     recordingStopped(outputPath);
   }
-
   function togglePause() {
     if (!isRecording)
       return;
@@ -74,7 +72,6 @@ Singleton {
       recordingPaused(outputPath);
     }
   }
-
   function toggleRecording() {
     isRecording ? stopRecording() : startRecording();
   }

@@ -14,6 +14,9 @@ Singleton {
   property bool capsOn: false
   readonly property string currentLayout: backend ? (backend.currentLayout || "") : ""
   readonly property bool hasMultipleLayouts: layouts.length > 1
+
+  // Two-letter uppercase code for UI (e.g., "US" for "English (US)", "AR" for "Arabic (Egypt)")
+  readonly property string layoutShort: service.computeLayoutShort(service.currentLayout)
   readonly property var layouts: backend ? (backend.layouts || []) : []
   property var ledUnsub: null
   property bool numOn: false
@@ -33,7 +36,20 @@ Singleton {
       service.showToggle("Scroll Lock", scroll);
     }
   }
+  function computeLayoutShort(s) {
+    if (!s || typeof s !== "string")
+      return "";
 
+    // Prefer a two-letter code inside parentheses, e.g., (US), (UK), (DE)
+    const m = s.match(/\(([A-Za-z]{2})\)/);
+    if (m && m[1])
+      return m[1].toUpperCase();
+
+    // Fallback: take the first two letters of the leading word (before any parentheses)
+    const name = s.split("(")[0].trim();
+    const letters = name.replace(/[^A-Za-z]/g, "");
+    return letters.slice(0, 2).toUpperCase();
+  }
   function showToggle(label, on) {
     const msg = label + " " + (on ? "On" : "Off");
     OSDService.showInfo(msg);

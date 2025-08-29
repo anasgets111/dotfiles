@@ -42,7 +42,6 @@ Singleton {
       doneOne();
     });
   }
-
   function _emitLedIfChanged(next) {
     const current = utils._ledState || {
       caps: false,
@@ -63,13 +62,11 @@ Singleton {
       } catch (_) {}
     }
   }
-
   function _ensurePolling() {
     _pollTimer.interval = utils._pollIntervalNormalMs;
     if (!_pollTimer.running)
       _pollTimer.start();
   }
-
   function _maybeStopPolling() {
     if (utils._ledWatchers.length > 0)
       return;
@@ -77,7 +74,6 @@ Singleton {
     _fastBurstTimer.stop();
     _pollTimer.interval = utils._pollIntervalNormalMs;
   }
-
   function _refreshLedState() {
     const groups = [utils._ledCapsPaths, utils._ledNumPaths, utils._ledScrollPaths];
     const haveAny = (groups[0] && groups[0].length) || (groups[1] && groups[1].length) || (groups[2] && groups[2].length);
@@ -95,14 +91,12 @@ Singleton {
       _emitLedIfChanged(next);
     });
   }
-
   function base64Size(b64) {
     const str = String(b64 || "");
     const len = str.length;
     const pad = str.endsWith("==") ? 2 : str.endsWith("=") ? 1 : 0;
     return Math.floor((len * 3) / 4) - pad;
   }
-
   function getLockLedState() {
     return {
       caps: !!utils._ledState.caps,
@@ -110,24 +104,20 @@ Singleton {
       scroll: !!utils._ledState.scroll
     };
   }
-
   function isImageMime(mime) {
     const sanitized = sanitizeMimeType(mime);
     return sanitized.indexOf("image/") === 0;
   }
-
   function isRawSource(source) {
     if (!source)
       return false;
     const value = String(source);
     return value.startsWith("file:") || value.startsWith("data:") || value.startsWith("/") || value.startsWith("qrc:");
   }
-
   function isTextMime(mime) {
     const sanitized = sanitizeMimeType(mime);
     return sanitized === "text" || sanitized === "text/plain" || sanitized.indexOf("text/") === 0;
   }
-
   function mergeObjects(objA, objB) {
     const out = {};
     for (const prop in objA)
@@ -138,7 +128,6 @@ Singleton {
         out[prop] = objB[prop];
     return out;
   }
-
   function resolveDesktopEntry(idOrName) {
     const key = String(idOrName || "");
     if (!key || typeof DesktopEntries === "undefined")
@@ -149,7 +138,6 @@ Singleton {
       return null;
     }
   }
-
   function resolveIconSource(key, providedOrFallback, maybeFallback) {
     const haveProvided = arguments.length >= 3;
     const providedIcon = haveProvided ? providedOrFallback : null;
@@ -173,7 +161,6 @@ Singleton {
     const fallbackName = fallbackCandidate == null ? "application-x-executable" : String(fallbackCandidate);
     return fallbackName ? safeIconPath(fallbackName) : "";
   }
-
   function runCmd(cmd, onDone, parent) {
     if (!cmd || !Array.isArray(cmd) || cmd.length === 0) {
       if (onDone)
@@ -200,7 +187,6 @@ Singleton {
     proc.command = cmd;
     proc.running = true;
   }
-
   function safeIconPath(name) {
     if (!name || typeof Quickshell === "undefined" || !Quickshell.iconPath)
       return "";
@@ -210,7 +196,6 @@ Singleton {
       return "";
     }
   }
-
   function safeJsonParse(str, fallback) {
     try {
       const jsonStr = str === undefined || str === null ? "" : String(str);
@@ -219,13 +204,11 @@ Singleton {
       return fallback;
     }
   }
-
   function sanitizeMimeType(input) {
     const value = String(input || "");
     const mimePattern = new RegExp("^[a-z0-9](?:[a-z0-9.+-])*/[a-z0-9](?:[a-z0-9.+-])*$", "i");
     return mimePattern.test(value) ? value : "";
   }
-
   function shCommand(script, args) {
     const cmd = ["sh", "-c", String(script), "x"];
     if (args !== undefined && args !== null) {
@@ -235,7 +218,6 @@ Singleton {
     }
     return cmd;
   }
-
   function startLockLedWatcher(options) {
     const onChange = options && options.onChange ? options.onChange : null;
     if (onChange)
@@ -255,20 +237,17 @@ Singleton {
       _maybeStopPolling();
     };
   }
-
   function stripAnsi(input) {
     const value = String(input);
     const ansiPattern = new RegExp("\\x1B(?:[@-Z\\\\-_]|\\[[0-\\?]*[ -/]*[@-~]|\\][^\\x07]*(\\x07|\\x1B\\\\))", "g");
     return value.replace(ansiPattern, "");
   }
-
   function themedOrRaw(source) {
     const value = String(source || "");
     if (!value)
       return "";
     return isRawSource(value) ? value : safeIconPath(value);
   }
-
   function utf8Size(input) {
     try {
       return unescape(encodeURIComponent(String(input))).length;
@@ -287,7 +266,6 @@ Singleton {
 
     onTriggered: utils._refreshLedState()
   }
-
   Timer {
     id: _fastBurstTimer
 

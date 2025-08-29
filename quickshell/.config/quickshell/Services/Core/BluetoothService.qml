@@ -37,7 +37,6 @@ Singleton {
 
     return !device.paired && !device.pairing && !device.blocked;
   }
-
   function connectDeviceWithTrust(device) {
     if (!device) {
       Logger.error("BluetoothService", "connectDeviceWithTrust called with null/undefined device");
@@ -53,7 +52,6 @@ Singleton {
     device.trusted = true;
     device.connect();
   }
-
   function getDeviceIcon(device) {
     if (!device)
       return "bluetooth";
@@ -83,7 +81,6 @@ Singleton {
 
     return "bluetooth";
   }
-
   function getSignalIcon(device) {
     if (!device || device.signalStrength === undefined || device.signalStrength <= 0)
       return "signal_cellular_null";
@@ -103,7 +100,6 @@ Singleton {
 
     return "signal_cellular_0_bar";
   }
-
   function getSignalStrength(device) {
     if (!device || device.signalStrength === undefined || device.signalStrength <= 0)
       return "Unknown";
@@ -123,7 +119,6 @@ Singleton {
 
     return "Very Poor";
   }
-
   function isDeviceBusy(device) {
     if (!device)
       return false;
@@ -143,7 +138,6 @@ Singleton {
     }
     adapter = a;
   }
-
   function sortDevices(devices) {
     return devices.slice().sort((a, b) => {
       var aName = a.name || a.deviceName || "";

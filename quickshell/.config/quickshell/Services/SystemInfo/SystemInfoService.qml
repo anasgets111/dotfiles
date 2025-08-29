@@ -43,11 +43,9 @@ Singleton {
     const f = formatKib(v || 0);
     return f.value.toFixed(1) + " " + f.unit;
   }
-
   function fmtPerc(v) {
     return root.isFiniteNumber(v) ? (v * 100).toFixed(1) + "%" : "-";
   }
-
   function formatKib(kib: real): var {
     const mib = 1024;
     const gib = 1024 ** 2;
@@ -78,13 +76,11 @@ Singleton {
   function isFiniteNumber(v) {
     return typeof v === "number" && isFinite(v);
   }
-
   function logMemory() {
     if (!root.memReady || !root.memTotal)
       return;
     Logger.log("SystemInfo", `Memory ${fmtKib(root.memUsed)} / ${fmtKib(root.memTotal)} (${fmtPerc(root.memPerc)})`);
   }
-
   function logSnapshot() {
     // CPU
     if (root.cpuPercReady && root.isFiniteNumber(cpuPerc))
@@ -101,7 +97,6 @@ Singleton {
     if (root.gpuTempReady && root.isFiniteNumber(gpuTemp))
       Logger.log("SystemInfo", `GPU temp ${gpuTemp.toFixed(1)} °C`);
   }
-
   function logStorage() {
     if (!root.storageReady || !root.storageTotal)
       return;
@@ -136,7 +131,6 @@ Singleton {
       }
     }
   }
-
   Timer {
     id: uptimeTimer
 
@@ -177,7 +171,6 @@ Singleton {
       storage.running = true;
     }
   }
-
   FileView {
     id: stat
 
@@ -203,7 +196,6 @@ Singleton {
       }
     }
   }
-
   FileView {
     id: meminfo
 
@@ -227,7 +219,6 @@ Singleton {
       }
     }
   }
-
   Process {
     id: storage
 
@@ -281,7 +272,6 @@ Singleton {
       }
     }
   }
-
   Process {
     id: gpuTypeCheck
 
@@ -292,7 +282,6 @@ Singleton {
       onStreamFinished: root.gpuType = text.trim()
     }
   }
-
   Process {
     id: gpuUsage
 
@@ -329,7 +318,6 @@ Singleton {
       }
     }
   }
-
   Process {
     id: sensors
 

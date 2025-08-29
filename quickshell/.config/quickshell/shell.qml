@@ -1,5 +1,7 @@
 //@ pragma Env QS_NO_RELOAD_POPUP=1
 //@ pragma Env QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
+//@ pragma UseQApplication
+
 import QtQml
 import QtQuick
 import Quickshell
@@ -48,10 +50,10 @@ ShellRoot {
       Logger.log("Shell", "NotificationService loaded");
   }
 
-  // Bar {
-  //   id: bar
+  Bar {
+    id: bar
 
-  // }
+  }
 
   // Variants {
 
@@ -114,11 +116,9 @@ ShellRoot {
   Connections {
     target: ClipboardLiteService
   }
-
   Connections {
     target: IdleService
   }
-
   LockScreen {
   }
 }

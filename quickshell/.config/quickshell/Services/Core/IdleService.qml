@@ -1,32 +1,30 @@
+pragma Singleton
 import Quickshell
 import Quickshell.Io
-pragma Singleton
 
 Singleton {
-    property alias enabled: properties.enabled
+  property alias enabled: properties.enabled
 
-    function toggle() {
-        if (properties.enabled) {
-            process.signal(888);
-            properties.enabled = false;
-        } else {
-            properties.enabled = true;
-        }
+  function toggle() {
+    if (properties.enabled) {
+      process.signal(888);
+      properties.enabled = false;
+    } else {
+      properties.enabled = true;
     }
+  }
 
-    PersistentProperties {
-        id: properties
+  PersistentProperties {
+    id: properties
 
-        property bool enabled: false
+    property bool enabled: false
 
-        reloadableId: "Caffeine"
-    }
+    reloadableId: "Caffeine"
+  }
+  Process {
+    id: process
 
-    Process {
-        id: process
-
-        command: ["sh", "-c", "systemd-inhibit --what=idle --who=Caffeine --why='Caffeine module is active' --mode=block sleep inf"]
-        running: properties.enabled
-    }
-
+    command: ["sh", "-c", "systemd-inhibit --what=idle --who=Caffeine --why='Caffeine module is active' --mode=block sleep inf"]
+    running: properties.enabled
+  }
 }

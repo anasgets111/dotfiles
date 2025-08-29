@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell.Wayland
 import qs.Services.Utils
+import qs.Config
 
 Item {
   id: activeWindow
@@ -25,7 +26,6 @@ Item {
       txt = "Desktop";
     return txt.length > activeWindow.maxLength ? txt.substring(0, activeWindow.maxLength - 3) + "..." : txt;
   }
-
   function updateActive() {
     var top = ToplevelManager.activeToplevel;
     if (top) {
@@ -46,7 +46,7 @@ Item {
 
   Behavior on width {
     NumberAnimation {
-      duration: 300
+      duration: Theme.animationDuration
       easing.type: Easing.InOutQuad
     }
   }
@@ -60,7 +60,6 @@ Item {
 
     target: ToplevelManager
   }
-
   Connections {
     function onTitleChanged() {
       activeWindow.updateActive();
@@ -68,7 +67,6 @@ Item {
 
     target: ToplevelManager.activeToplevel
   }
-
   Row {
     id: titleRow
 
@@ -87,15 +85,14 @@ Item {
       visible: !!source && source !== ""
       width: 24
     }
-
     Text {
       id: windowTitle
 
-      color: "#FFFFFF"
+      color: Theme.textContrast(Theme.bgColor)
       elide: Text.ElideRight
       font.bold: true
-      font.family: "Roboto"
-      font.pixelSize: 16
+      font.family: Theme.fontFamily
+      font.pixelSize: Theme.fontSize
       text: activeWindow.displayText
     }
   }
