@@ -5,15 +5,14 @@ import Quickshell
 import Quickshell.Widgets
 import qs.Config
 import qs.Services.Core
-import qs.Widgets   // for IconButton + Tooltip
+import qs.Widgets
 
 Item {
   id: tray
 
   required property var bar
   readonly property int contentInset: 2
-  readonly property int horizontalPadding: 10
-  readonly property int iconSpacing: 2
+  readonly property int horizontalPadding: 8
 
   height: Theme.itemHeight
   width: Math.max(trayRow.implicitWidth + horizontalPadding * 2, Theme.itemHeight)
@@ -29,7 +28,6 @@ Item {
     id: trayRow
 
     anchors.centerIn: parent
-    spacing: tray.iconSpacing
 
     Repeater {
       id: trayRepeater
@@ -84,7 +82,6 @@ Item {
           }
         }
 
-        // Forward wheel scrolling
         area.onWheel: function (wheelEvent) {
           SystemTrayService.scrollItem(slot.trayItem, wheelEvent.angleDelta.x, wheelEvent.angleDelta.y);
         }
@@ -98,8 +95,6 @@ Item {
           SystemTrayService.handleItemClick(slot.trayItem, mouse.button);
         }
       }
-
-      // Menu anchor
       QsMenuAnchor {
         id: menuAnchor
 
@@ -107,8 +102,6 @@ Item {
         anchor.rect.y: btn.height - 5
         menu: slot.trayItem ? slot.trayItem.menu : null
       }
-
-      // Tooltip using shared component
       Tooltip {
         edge: Qt.BottomEdge
         hoverSource: btn.area
