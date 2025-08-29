@@ -25,10 +25,17 @@ Item {
   property real yOffset: 8
 
   height: bg.implicitHeight
+
+  // Let it render only when it should show (via bg opacity)
   visible: bg.opacity > 0
+
+  // Size derived from content
   width: bg.implicitWidth
-  x: target ? target.x : 0
-  y: target ? (edge === Qt.BottomEdge ? target.y + target.height + yOffset : target.y - height - yOffset) : 0
+
+  // Position robustly relative to current parent using mapToItem
+  // If target is null, stay at 0,0
+  x: target ? target.mapToItem(parent, 0, 0).x : 0
+  y: target ? (edge === Qt.BottomEdge ? target.mapToItem(parent, 0, target.height).y + yOffset : target.mapToItem(parent, 0, 0).y - height - yOffset) : 0
 
   Rectangle {
     id: bg
