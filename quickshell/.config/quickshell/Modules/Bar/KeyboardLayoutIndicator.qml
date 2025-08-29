@@ -1,7 +1,7 @@
 import QtQuick
-import QtQuick.Layouts
 import qs.Services.WM
 import qs.Config
+import qs.Widgets
 
 Item {
   id: keyboardLayoutIndicator
@@ -9,29 +9,19 @@ Item {
   // Use KeyboardLayoutService singleton for all state and events
 
   implicitHeight: Theme.itemHeight
-  implicitWidth: Math.max(Theme.itemWidth, label.implicitWidth + 12)
+  implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
   visible: KeyboardLayoutService.hasMultipleLayouts
 
-  Rectangle {
-    anchors.fill: parent
-    color: Theme.inactiveColor
-    radius: Theme.itemRadius
+  IconButton {
+    id: iconButton
 
-    RowLayout {
-      anchors.fill: parent
-
-      Text {
-        id: label
-
-        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-        color: Theme.textContrast(Theme.inactiveColor)
-        font.bold: true
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        horizontalAlignment: Text.AlignHCenter
-        text: KeyboardLayoutService.layoutShort
-        verticalAlignment: Text.AlignVCenter
-      }
-    }
+    anchors.centerIn: parent
+    disabled: true
+    iconText: KeyboardLayoutService.layoutShort
+  }
+  Tooltip {
+    hoverSource: iconButton.area
+    target: iconButton
+    text: KeyboardLayoutService.currentLayout
   }
 }

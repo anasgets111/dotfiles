@@ -5,54 +5,27 @@ import QtQuick.Layouts
 import QtQuick.Window
 import qs.Services.SystemInfo
 import qs.Config
+import qs.Widgets
 
 Item {
   id: root
 
-  readonly property color effectiveBg: (root.hovered && !UpdateService.busy) ? Theme.onHoverColor : Theme.inactiveColor
-  readonly property color effectiveFg: Theme.textContrast(effectiveBg)
-  property bool hovered: false
-
   implicitHeight: Theme.itemHeight
-  implicitWidth: Math.max(Theme.itemWidth, row.implicitWidth + (2 * Theme.itemRadius), busyMeasureRow.implicitWidth + (2 * Theme.itemRadius))
+  implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
 
-  Rectangle {
+  IconButton {
+    id: iconButton
+
     anchors.centerIn: parent
-    color: root.effectiveBg
-    height: implicitHeight
-    implicitHeight: Math.max(row.implicitHeight, Theme.itemHeight)
-    implicitWidth: Math.max(row.implicitWidth, busyMeasureRow.implicitWidth) + (Theme.itemRadius)
-    radius: Theme.itemRadius
-    width: implicitWidth
+    disabled: UpdateService.busy
 
-    MouseArea {
-      id: mouseArea
-
-      anchors.fill: parent
-      cursorShape: UpdateService.busy ? Qt.BusyCursor : Qt.PointingHandCursor
-      hoverEnabled: true
-
-      onClicked: {
-        if (UpdateService.busy)
-          return;
-        if (UpdateService.totalUpdates > 0)
-          UpdateService.runUpdate();
-        else
-          UpdateService.doPoll(true);
-      }
-      onEntered: root.hovered = true
-      onExited: root.hovered = false
-    }
-    RowLayout {
-      id: row
-
-      anchors.centerIn: parent
+    contentItem: RowLayout {
       spacing: 4
 
       Text {
         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
         Layout.preferredHeight: Theme.itemHeight
-        color: root.effectiveFg
+        color: iconButton.fgColor
         elide: Text.ElideNone
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize
@@ -60,58 +33,22 @@ Item {
         text: UpdateService.busy ? "" : UpdateService.totalUpdates > 0 ? "" : "󰂪"
         verticalAlignment: Text.AlignVCenter
       }
-      Item {
-        Layout.alignment: Qt.AlignVCenter
-        Layout.preferredHeight: Theme.itemHeight
-        Layout.preferredWidth: updateCount.implicitWidth
-        visible: UpdateService.totalUpdates > 0
-
-        Text {
-          id: updateCount
-
-          anchors.verticalCenter: parent.verticalCenter
-          color: root.effectiveFg
-          elide: Text.ElideNone
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          text: UpdateService.totalUpdates
-        }
-      }
     }
-    RowLayout {
-      id: busyMeasureRow
 
-      spacing: 4
-      visible: false
-
-      Text {
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        text: ""
-      }
+    onClicked: {
+      if (UpdateService.totalUpdates > 0)
+        UpdateService.runUpdate();
+      else
+        UpdateService.doPoll(true);
     }
-    Rectangle {
-      anchors.left: mouseArea.left
-      anchors.top: mouseArea.bottom
-      anchors.topMargin: 8
-      color: Theme.onHoverColor
-      height: tooltipText.height + 8
-      opacity: mouseArea.containsMouse ? 1 : 0
-      radius: Theme.itemRadius
-      visible: mouseArea.containsMouse && !UpdateService.busy
-      width: tooltipText.width + 16
+  }
+  Tooltip {
+    hoverSource: iconButton.area
+    target: iconButton
+    visibleWhenTargetHovered: !UpdateService.busy
 
-      Behavior on opacity {
-        NumberAnimation {
-          duration: Theme.animationDuration
-          easing.type: Easing.OutCubic
-        }
-      }
-
+    contentComponent: Component {
       Column {
-        id: tooltipText
-
-        anchors.centerIn: parent
         spacing: 4
 
         Text {
