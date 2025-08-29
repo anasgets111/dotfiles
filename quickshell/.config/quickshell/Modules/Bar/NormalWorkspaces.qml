@@ -4,51 +4,34 @@ import QtQuick
 import Quickshell
 import qs.Config
 import qs.Services.WM
+import qs.Widgets
 
 Item {
   id: normalWorkspaces
 
   readonly property var backingWorkspaces: WorkspaceService.workspaces
-
-  // Workspace animation state
   property int currentWorkspace: WorkspaceService.currentWorkspace > 0 ? WorkspaceService.currentWorkspace : 1
-
-  // State
   property bool expanded: false
   property int hoveredIndex: 0
   readonly property bool isHyprlandSession: (Quickshell.env && (Quickshell.env("XDG_SESSION_DESKTOP") === "Hyprland" || Quickshell.env("XDG_CURRENT_DESKTOP") === "Hyprland" || Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")))
   property int slideFrom: normalWorkspaces.currentWorkspace
   property real slideProgress: 0
   property int slideTo: normalWorkspaces.currentWorkspace
+  readonly property var slots: Array(10).fill(0).map((_, i) => i + 1)
 
-  // Precompute fixed 10 slots
-  readonly property var slots: Array(10).fill(0).map((_, idx) => idx + 1)
-
-  // Build a fixed 1..10 array view
-  function slotView(i) {
-    const ws = backingWorkspaces.find(w => w.id === i);
-    return {
-      id: i,
-      focused: WorkspaceService.currentWorkspace === i,
-      populated: !!ws // exists in Hypr -> populated
-      ,
-      output: ws ? (ws.output || "") : ""
-    };
-  }
-  function workspaceColor(ws) {
-    if (ws.focused)
+  function wsColor(id) {
+    if (id === currentWorkspace)
       return Theme.activeColor;
-    if (ws.id === normalWorkspaces.hoveredIndex)
+    const exists = !!backingWorkspaces.find(w => w.id === id);
+    if (id === hoveredIndex)
       return Theme.onHoverColor;
-    if (ws.populated)
-      return Theme.inactiveColor;
-    return Theme.disabledColor;
+    return exists ? Theme.inactiveColor : Theme.disabledColor;
   }
 
   clip: true
   height: Theme.itemHeight
-  visible: normalWorkspaces.isHyprlandSession
-  width: normalWorkspaces.expanded ? workspacesRow.fullWidth : Theme.itemWidth
+  visible: isHyprlandSession
+  width: expanded ? workspacesRow.fullWidth : Theme.itemWidth
 
   Behavior on width {
     NumberAnimation {
@@ -57,7 +40,6 @@ Item {
     }
   }
 
-  // React to service changes to drive the slide animation
   Connections {
     function onCurrentWorkspaceChanged() {
       normalWorkspaces.slideFrom = normalWorkspaces.currentWorkspace;
@@ -87,59 +69,51 @@ Item {
       normalWorkspaces.hoveredIndex = 0;
     }
   }
-  MouseArea {
-    acceptedButtons: Qt.LeftButton
-    anchors.fill: parent
-    cursorShape: Qt.PointingHandCursor
-    hoverEnabled: true
 
-    onClicked: {
-      if (normalWorkspaces.hoveredIndex <= 0)
-        return;
-      const idx = normalWorkspaces.hoveredIndex;
-      if (idx !== normalWorkspaces.currentWorkspace)
-        WorkspaceService.focusWorkspaceByIndex(idx);
-    }
+  // Hover fence only when collapsed to trigger expansion
+  MouseArea {
+    acceptedButtons: Qt.NoButton
+    anchors.fill: parent
+    hoverEnabled: true
+    visible: !normalWorkspaces.expanded
+
     onEntered: {
       normalWorkspaces.expanded = true;
       collapseTimer.stop();
     }
     onExited: collapseTimer.restart()
-    onPositionChanged: function (mouse) {
-      const slotWidth = normalWorkspaces.expanded ? (Theme.itemWidth + workspacesRow.spacing) : Theme.itemWidth;
-      const idx = Math.floor(mouse.x / slotWidth) + 1;
-      const len = 10;
-      normalWorkspaces.hoveredIndex = (idx >= 1 && idx <= len) ? idx : 0;
-    }
   }
   Item {
     id: workspacesRow
 
     readonly property int count: 10
-    readonly property int fullWidth: workspacesRow.count * Theme.itemWidth + Math.max(0, workspacesRow.count - 1) * workspacesRow.spacing
+    readonly property int fullWidth: count * Theme.itemWidth + Math.max(0, count - 1) * spacing
     property int spacing: 8
 
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     height: Theme.itemHeight
-    width: workspacesRow.fullWidth
+    width: fullWidth
 
     Repeater {
       model: normalWorkspaces.slots
 
-      delegate: Rectangle {
-        id: wsRect
+      delegate: IconButton {
+        id: wsBtn
 
-        required property int index
+        readonly property int idNum: modelData
+        required property int index     // 0-based
         required property int modelData // 1..10
-        readonly property real slotX: (wsRect.index) * (Theme.itemWidth + workspacesRow.spacing)
-        property var ws: normalWorkspaces.slotView(wsRect.modelData)
 
-        color: normalWorkspaces.workspaceColor(ws)
+        readonly property real slotX: (index) * (Theme.itemWidth + workspacesRow.spacing)
+
+        bgColor: normalWorkspaces.wsColor(idNum)
         height: Theme.itemHeight
-        opacity: ws.populated ? 1 : 0.5
-        radius: Theme.itemRadius
+        iconText: "" + idNum
+        opacity: (!!normalWorkspaces.backingWorkspaces.find(w => w.id === idNum)) ? 1 : 0.5
         width: Theme.itemWidth
+
+        // stacked when collapsed; spread when expanded
         x: normalWorkspaces.expanded ? slotX : 0
 
         Behavior on x {
@@ -149,13 +123,19 @@ Item {
           }
         }
 
-        Text {
-          anchors.centerIn: parent
-          color: Theme.textContrast(wsRect.color)
-          font.bold: true
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          text: wsRect.ws.id
+        onEntered: {
+          normalWorkspaces.expanded = true;
+          collapseTimer.stop();
+          normalWorkspaces.hoveredIndex = wsBtn.idNum;
+        }
+        onExited: {
+          if (normalWorkspaces.hoveredIndex === idNum)
+            normalWorkspaces.hoveredIndex = 0;
+          collapseTimer.restart();
+        }
+        onLeftClicked: {
+          if (idNum !== normalWorkspaces.currentWorkspace)
+            WorkspaceService.focusWorkspaceByIndex(idNum);
         }
       }
     }
@@ -175,11 +155,7 @@ Item {
 
     // From
     Rectangle {
-      color: normalWorkspaces.workspaceColor({
-        "id": normalWorkspaces.slideFrom,
-        "focused": true,
-        "populated": true
-      })
+      color: normalWorkspaces.wsColor(normalWorkspaces.slideFrom)
       height: Theme.itemHeight
       radius: Theme.itemRadius
       visible: normalWorkspaces.slideProgress < 1
@@ -198,11 +174,7 @@ Item {
 
     // To
     Rectangle {
-      color: normalWorkspaces.workspaceColor({
-        "id": normalWorkspaces.slideTo,
-        "focused": true,
-        "populated": true
-      })
+      color: normalWorkspaces.wsColor(normalWorkspaces.slideTo)
       height: Theme.itemHeight
       radius: Theme.itemRadius
       width: Theme.itemWidth
