@@ -11,11 +11,11 @@ Item {
   id: tray
 
   required property var bar
-  readonly property int contentInset: 2
-  readonly property int horizontalPadding: 8
+  readonly property int contentInset: 0
+  readonly property int horizontalPadding: 0
 
   height: Theme.itemHeight
-  width: Math.max(trayRow.implicitWidth + horizontalPadding * 2, Theme.itemHeight)
+  width: Math.max(trayRow.implicitWidth)
 
   Rectangle {
     id: backgroundRect

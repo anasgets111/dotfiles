@@ -12,7 +12,7 @@ Item {
   property string currentClass: ""
   property string currentTitle: ""
   property string displayText: ""
-  property int maxLength: 60
+  property int maxLength: 47
 
   function computeDisplayText() {
     var txt;
@@ -77,17 +77,20 @@ Item {
     Image {
       id: appIcon
 
+      anchors.verticalCenter: parent.verticalCenter
       fillMode: Image.PreserveAspectFit
-      height: 24
+      height: 28
       source: activeWindow.appIconSource
       sourceSize.height: height
       sourceSize.width: width
       visible: !!source && source !== ""
-      width: 24
+      width: 28
     }
     Text {
       id: windowTitle
 
+      // centered vertically
+      anchors.verticalCenter: parent.verticalCenter
       color: Theme.textContrast(Theme.bgColor)
       elide: Text.ElideRight
       font.bold: true
