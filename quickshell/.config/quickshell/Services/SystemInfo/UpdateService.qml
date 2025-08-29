@@ -11,9 +11,10 @@ Singleton {
 
   readonly property var allPackages: updatePackages.concat(aurPackages)
   readonly property bool aurBusy: aurProc.running
+  property int aurDoneGeneration: -1
   property var aurPackages: []
   readonly property int aurUpdates: aurPackages.length
-  readonly property bool busy: pkgProc.running
+  readonly property bool busy: pkgProc.running || aurProc.running
   property bool checkupdatesAvailable: false
   property int failureCount: 0
   readonly property int failureThreshold: 5
@@ -21,13 +22,17 @@ Singleton {
   property bool isArchBased: MainService.isArchBased
   property int lastNotifiedTotal: 0
   property double lastSync: 0
-  property bool lastWasFull: false
   readonly property int minuteMs: 60 * 1000
   readonly property string notifyApp: "UpdateService"
   readonly property string notifyIcon: "system-software-update"
-  readonly property int pollInterval: 1 * minuteMs
+  property var pendingAurPackages: []
+  property var pendingRepoPackages: []
+
+  // Poll-cycle aggregation: commit once when both repo and AUR finish
+  property int pollGeneration: 0
+  readonly property int pollInterval: 15 * minuteMs
   readonly property bool ready: isArchBased && checkupdatesAvailable
-  readonly property int syncInterval: 15 * minuteMs
+  property int repoDoneGeneration: -1
   readonly property int totalUpdates: updates + aurUpdates
   readonly property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "sh", "-c", "$BIN/update.sh"]
   readonly property var updateLineRe: /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/
@@ -93,6 +98,17 @@ Singleton {
       "pkgs": pkgs
     };
   }
+  function _tryCommitEndOfPoll() {
+    if (!ready)
+      return;
+    if (repoDoneGeneration === pollGeneration && aurDoneGeneration === pollGeneration) {
+      // Commit results atomically for UI and cache
+      updatePackages = _clonePackageList(pendingRepoPackages);
+      aurPackages = _clonePackageList(pendingAurPackages);
+      lastSync = Date.now();
+      _notifyTotalsIfIncreased();
+    }
+  }
   function doAurPoll() {
     if (aurBusy)
       return;
@@ -100,30 +116,27 @@ Singleton {
     aurProc.command = ["sh", "-c", "if command -v yay >/dev/null 2>&1; then yay -Qua --color=never;" + "elif command -v paru >/dev/null 2>&1; then paru -Qua --color=never;" + "else exit 3; fi"];
     aurProc.running = true;
   }
-  function doPoll(forceFull = false) {
+  function doPoll() {
     if (busy)
       return;
 
-    const full = forceFull || Date.now() > lastSync + syncInterval;
-    lastWasFull = full;
-    startUpdateProcess(full ? ["checkupdates", "--nocolor"] : ["checkupdates", "--nosync", "--nocolor"]);
-    if (full)
-      doAurPoll();
+    // New cycle
+    pollGeneration++;
+    repoDoneGeneration = -1;
+    aurDoneGeneration = -1;
+    pendingRepoPackages = [];
+    pendingAurPackages = [];
+    pkgProc.command = ["checkupdates", "--nocolor"];
+    pkgProc.running = true;
+    doAurPoll();
   }
   function runUpdate() {
-    if (updates > 0) {
+    if (totalUpdates > 0) {
       updateRunner.command = updateCommand;
       updateRunner.running = true;
     } else {
-      doPoll(true);
+      doPoll();
     }
-  }
-  function startUpdateProcess(cmd) {
-    pkgProc.command = cmd;
-    if (lastWasFull)
-      killTimer.restart();
-
-    pkgProc.running = true;
   }
 
   Component.onCompleted: {
@@ -138,14 +151,9 @@ Singleton {
     if (persistedAur.length)
       aurPackages = _clonePackageList(persistedAur);
   }
-  onAurPackagesChanged: {
-    cache.cachedAurPackagesJson = JSON.stringify(_clonePackageList(aurPackages));
-    _notifyTotalsIfIncreased();
-  }
+  onAurPackagesChanged: cache.cachedAurPackagesJson = JSON.stringify(_clonePackageList(aurPackages))
   onLastSyncChanged: cache.cachedLastSync = lastSync
-  onUpdatePackagesChanged: {
-    cache.cachedUpdatePackagesJson = JSON.stringify(_clonePackageList(updatePackages));
-  }
+  onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(_clonePackageList(updatePackages))
 
   PersistentProperties {
     id: cache
@@ -173,7 +181,7 @@ Singleton {
     id: updateRunner
 
     onExited: function (exitCode, exitStatus) {
-      updateService.doPoll(false);
+      updateService.doPoll();
     }
   }
   Process {
@@ -224,16 +232,13 @@ Singleton {
           return;
 
         const parsed = updateService._parseStandardOutput(repoStdout.text);
-        updateService.updatePackages = parsed.pkgs;
-        if (updateService.lastWasFull)
-          updateService.lastSync = Date.now();
-
-        updateService._notifyTotalsIfIncreased();
+        updateService.pendingRepoPackages = parsed.pkgs;
+        updateService.repoDoneGeneration = updateService.pollGeneration;
+        updateService._tryCommitEndOfPoll();
       }
     }
 
     onExited: function (exitCode, exitStatus) {
-      killTimer.stop();
       if (exitCode !== 0 && exitCode !== 2) {
         updateService.failureCount++;
         Logger.warn("UpdateService", `checkupdates failed (code: ${exitCode}, status: ${exitStatus})`);
@@ -245,7 +250,9 @@ Singleton {
           });
           updateService.failureCount = 0;
         }
-        updateService.updatePackages = [];
+        updateService.pendingRepoPackages = [];
+        updateService.repoDoneGeneration = updateService.pollGeneration;
+        updateService._tryCommitEndOfPoll();
       }
     }
   }
@@ -269,21 +276,22 @@ Singleton {
           return;
 
         const parsed = updateService._parseStandardOutput(aurStdout.text);
-        updateService.aurPackages = parsed.pkgs;
-        updateService._notifyTotalsIfIncreased();
+        updateService.pendingAurPackages = parsed.pkgs;
+        updateService.aurDoneGeneration = updateService.pollGeneration;
+        updateService._tryCommitEndOfPoll();
       }
     }
 
     onExited: function (exitCode, exitStatus) {
-      if (exitCode === 0 || exitCode === 1)
-        return;
-
       if (exitCode === 3) {
         Logger.log("UpdateService", "AUR helpers not found (yay/paru). AUR polling disabled.");
-        return;
+        updateService.pendingAurPackages = [];
+      } else if (exitCode !== 0 && exitCode !== 1) {
+        Logger.warn("UpdateService", `AUR check failed (code: ${exitCode}, status: ${exitStatus})`);
+        updateService.pendingAurPackages = [];
       }
-      Logger.warn("UpdateService", `AUR check failed (code: ${exitCode}, status: ${exitStatus})`);
-      updateService.aurPackages = [];
+      updateService.aurDoneGeneration = updateService.pollGeneration;
+      updateService._tryCommitEndOfPoll();
     }
   }
   Timer {
@@ -295,24 +303,6 @@ Singleton {
     onTriggered: {
       if (updateService.ready) {
         updateService.doPoll();
-      }
-    }
-  }
-  Timer {
-    id: killTimer
-
-    interval: updateService.minuteMs
-    repeat: false
-
-    onTriggered: {
-      if (pkgProc.running && updateService.lastWasFull) {
-        Logger.error("UpdateService", "Full update check killed (timeout)");
-        NotificationService.send(qsTr("Update check killed"), qsTr("Full sync took too long; terminated"), {
-          "appName": updateService.notifyApp,
-          "appIcon": updateService.notifyIcon,
-          "summaryKey": "update-check-killed"
-        });
-        pkgProc.running = false;
       }
     }
   }

@@ -8,6 +8,8 @@ import qs.Config
 Item {
   id: root
 
+  property alias area: mouseArea
+
   // Colors and behavior
   property color bgColor: Theme.inactiveColor
   property bool busy: false
@@ -27,19 +29,20 @@ Item {
     bold: false
   })
   property string iconText: ""
-  property alias mouseArea: mouseArea
   property real radius: Theme.itemRadius
 
   // Signals
-  signal clicked(QtObject mouse)
+  signal clicked(var mouse)
   signal entered
   signal exited
-  signal pressed(QtObject mouse)
-  signal released(QtObject mouse)
+  signal leftClicked
+  signal pressed(var mouse)
+  signal released(var mouse)
+  signal rightClicked
 
   height: implicitHeight
 
-  // Fixed sizing per request
+  // Fixed sizing
   implicitHeight: Theme.itemHeight
   implicitWidth: Theme.itemWidth
 
@@ -49,6 +52,7 @@ Item {
       return;
     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
       root.clicked(null);
+      root.leftClicked(); // treat keyboard activation as left click
       event.accepted = true;
     }
   }
@@ -65,7 +69,7 @@ Item {
     MouseArea {
       id: mouseArea
 
-      acceptedButtons: Qt.LeftButton
+      acceptedButtons: Qt.LeftButton | Qt.RightButton
       anchors.fill: parent
       cursorShape: (root.busy ? Qt.BusyCursor : (root.disabled ? Qt.ArrowCursor : Qt.PointingHandCursor))
       hoverEnabled: true
@@ -74,6 +78,11 @@ Item {
         if (root.busy || root.disabled)
           return;
         root.clicked(mouse);
+        if (mouse.button === Qt.LeftButton) {
+          root.leftClicked();
+        } else if (mouse.button === Qt.RightButton) {
+          root.rightClicked();
+        }
       }
       onEntered: {
         if (!root.disabled)
@@ -107,8 +116,6 @@ Item {
 
         anchors.centerIn: parent
       }
-
-      // Fallback icon
       Text {
         id: iconLabel
 
