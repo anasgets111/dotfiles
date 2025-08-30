@@ -153,10 +153,15 @@ Singleton {
     }
   }
 
+  Component.onCompleted: {
+    if (enabled)
+      _startupKick.start();
+  }
   onEnabledChanged: {
     if (enabled && socketPath) {
       eventStreamSocket.connected = true;
       requestSocket.connected = true;
+      _startupKick.start();
     } else {
       eventStreamSocket.connected = false;
       requestSocket.connected = false;
@@ -198,5 +203,16 @@ Singleton {
 
     connected: niriWs.enabled && !!niriWs.socketPath
     path: niriWs.socketPath
+  }
+
+  Timer {
+    id: _startupKick
+
+    interval: 200
+    repeat: false
+    running: false
+
+    onTriggered: if (niriWs.enabled)
+      niriWs.refresh()
   }
 }

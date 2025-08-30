@@ -38,7 +38,9 @@ Item {
   readonly property var workspaces: WorkspaceService.workspaces
 
   function wsColor(ws) {
-    if (ws.is_focused)
+    if (!ws)
+      return Theme.disabledColor;
+    if (ws.is_focused || ws.idx === currentWs)
       return Theme.activeColor;
     if (ws.id === hoveredId)
       return Theme.onHoverColor;
@@ -96,12 +98,14 @@ Item {
 
         delegate: IconButton {
           required property var modelData
-          readonly property var ws: modelData
+          // modelData may be transiently null; default to {} to avoid TypeErrors
+          readonly property var ws: (modelData || ({}))
 
           bgColor: root.wsColor(ws)
           height: root.slotH
           iconText: "" + ws.idx
-          opacity: ws.populated ? 1 : 0.5
+          // All listed Niri workspaces exist; do not dim by populated to match Hyprland NormalWorkspaces
+          opacity: 1
           width: root.slotW
 
           Behavior on opacity {
@@ -127,7 +131,6 @@ Item {
           }
         }
       }
-
       Repeater {
         model: root.groupBoundaries.length
 
