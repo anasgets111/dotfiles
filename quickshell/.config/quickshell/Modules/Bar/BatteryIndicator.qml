@@ -4,7 +4,6 @@ import QtQuick
 import Quickshell.Widgets
 import qs.Config
 import qs.Services.Core
-import qs.Services.SystemInfo
 
 Item {
   id: root
