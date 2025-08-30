@@ -1,4 +1,4 @@
-<h1 align="center">Quickshell Wayland Shell</h1>
+<h1 align="center">Obelisk Shell</h1>
 
 <p align="center">
 	<img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/anasgets111/dotfiles?style=for-the-badge&labelColor=101418&color=9ccbfb" />
@@ -11,97 +11,90 @@ Modular Wayland desktop dotfiles centered on Quickshell with Hyprland and Niri, 
 ## Quick start
 
 - Symlink into $HOME with Stow:
-  - Install one package: `stow -t ~ quickshell`
-  - Recommended core set:
-    - `stow -t ~ home config quickshell hypr niri fish nvim kitty mpv swayidle ghostty alacritty nushell`
-  - Optional backups (when not using Quickshell UI/lock):
-    - `stow -t ~ swaylock swaync swayosd waybar`
-- Remove a package: `stow -D -t ~ <package>`
-- Launch Quickshell for testing: `quickshell` (check logs for `=== MainService System Info ===`).
-- Sessions:
-  - Hyprland autostarts Quickshell (exec-start in `hypr/hyprland.conf`).
-  - Niri autostarts Quickshell (spawn-at-startup in `niri/config.kdl`).
+  - Core: `stow -t ~ home config quickshell hypr niri fish nvim kitty mpv swayidle ghostty alacritty nushell`
+  - Optional: `stow -t ~ swaylock swaync swayosd waybar`
+- Remove: `stow -D -t ~ <package>`
+- Test Quickshell: `quickshell` (check logs for `=== MainService System Info ===`).
+- Sessions: Hyprland and Niri autostart Quickshell.
 
-## Modules in repo
+## Backed-up configs
 
-Core & window managers:
-
-- quickshell (primary UI/runtime)
-- hypr, niri
-
-Shells:
-
-- fish (primary), nushell (basic), bash (login; spawns fish when interactive)
-
-Terminals:
-
-- kitty (primary), ghostty, alacritty
-- Default terminal switching handled via xdg-terminal-exec
-
-UI components provided by Quickshell:
-
-- Shell, notifications, on-screen-display (OSD), and lockscreen live in Quickshell
-
-Backups kept around (replaced with Quickshell):
-
-- swaync (notifications)
-- swayosd (OSD)
-- swaylock-effects (lockscreen for Niri)
-- waybar (panel; legacy/backup)
-
-Idle/lock by WM:
-
-- Niri: swayidle + swaylock-effects (backup path if not using Quickshell lock)
-- Hyprland: hypridle + hyprlock (backup path if not using Quickshell lock)
-
-Screenshots:
-
-- Hyprland: hyprshot
-- Niri: native screenshot tool currently used
-- satty for annotation/saving
-
-Media/tools:
-
-- mpv
+- **Core**: quickshell, hypr, niri, fish, kitty
+- **Shells**: fish (primary), nushell, bash
+- **Terminals**: kitty (primary), ghostty, alacritty
+- **UI**: Quickshell handles shell, notifications, OSD, lockscreen
+- **Backups**: swaync, swayosd, swaylock-effects, waybar (for fallback)
+- **Idle/Lock**: hypridle/hyprlock (Hyprland), swayidle/swaylock-effects (Niri)
+- **Media**: mpv
 
 ## Dependencies
 
-Main (required):
+- **Required**: quickshell, hyprland or niri, fish, kitty, xdg-terminal-exec, pacman-contrib, gpu-screen-recorder, jq, nmcli, xrandr, libnotify
+- **Optional**: hypridle, hyprlock, swayidle, swaylock-effects, swayosd, swaync, waybar, hyprshot, satty, ghostty, alacritty, nvim, mpv, zen-browser
 
-- quickshell
-- hyprland or niri
-- fish
-- kitty (or your preferred terminal)
-- xdg-terminal-exec (default terminal switcher)
-- pacman-contrib
-- gpu-screen-recorder, jq, nmcli, xrandr, libnotify (notify-send)
+Adjust package names for your distro.
 
-Optional (used by configs or as backups):
+## Goals
 
-- hypridle, hyprlock (Hyprland idle/lock)
-- swayidle, swaylock-effects (Niri idle/lock)
-- swayosd (OSD), swaync (notifications), waybar (panel)
-- hyprshot (Hyprland screenshots), satty (annotation)
-- ghostty, alacritty, nvim, mpv, zen-browser
+### TODO
 
-Note: Package names above follow Arch/Arch-based naming; adjust for your distro as needed.
+- Current state of back-end services
+  - [x] Battery
+  - [x] Sound
+  - [x] Media controls
+  - [x] Notifications
+  - [x] OSD (Toast)
+  - [x] Lockscreen
+  - [x] Screen Recording
+  - [x] System Info and Monitor (CPU, Memory, Disk)
+  - [x] Workspaces (Hyprland/niri)
+  - [x] Idle Inhibit
+  - [x] Power Menu
+  - [x] Arch Updater
+  - [x] Monitor handling (hotplug, layout, resolution,hdr,vrr)
+  - [x] Keyboard Layout Indicator
+  - [x] Wallpaper Management with multiple screens
+  - [x] Clipboard Management
+  - [ ] App Launcher
+  - [x] Time and Calendar
+  - [x] Weather
+  - [x] Bluetooth
+  - [ ] Brightness for monitors and keyboards
+  - [x] IPC
+- and for the front-end
+  - [x] IconButton
+  - [x] Tooltip
+  - [/] Theme
+  - [ ] Menu
+  - [ ] OSD Slider
+  - [ ] OSD Messages
+  - [/] Notification Popup
+    - [ ] Actions
+    - [ ] Images
+    - [ ] Icons
+    - [ ] Inline replies
+    - [ ] Urgency
+    - [ ] Rich content
+    - [ ] Grouping
+  - [ ] Notification Center
+  - [/] Lockscreen
+  - [ ] Sound Panel
+  - [x] Sound Widget
+  - [ ] Wifi Panel
+  - [ ] Wifi Widget
+  - [ ] Bluetooth Panel
+  - [ ] Bluetooth Widget
 
-## Key files and layout
+## Notes
 
-- `quickshell/.config/quickshell/shell.qml` – ShellRoot; imports services and logs when detection finishes.
-- `quickshell/.config/quickshell/services/` – Quickshell services (UPower, Pipewire, etc.).
-- `hypr/.config/hypr/` – Modular Hyprland config; sourced by `hyprland.conf` and autostarts Quickshell.
-- `niri/.config/niri/config.kdl` – Spawns Quickshell and session helpers; pins workspaces.
-- `bin/.local/bin/` – Local scripts like `update.sh`, `RecordingStatus.sh`, `check_battery.sh`.
-- `waybar/.config/waybar/` – Legacy Waybar config (not used by default).
+- Waybar, swaync, swayosd, hyprlock, swaylock are all deprecated; Quickshell provides UI.
+- Default terminal via `xdg-terminal-exec` is easier for me to swap in all the system.
 
-## Notes and gotchas
+## Credits
 
-- Waybar is deprecated here; Quickshell provides the UI.
-- Ensure tools referenced by scripts are installed (`hyprctl`, `jq`, `gpu-screen-recorder`, `nmcli`, `xrandr`, `notify-send`).
-- Default terminal switching is handled via `xdg-terminal-exec`.
-- Backups (swaync, swayosd, swaylock-effects, waybar) are kept for fallback and are not the default when Quickshell UI is active.
+Grateful for Linux/Hyprland/Niri/Quickshell projects and rest of community, learned alot from various existing shells, including:
 
----
-
-Stow-friendly and minimal by design. Tweak modules to taste and reload your session.
+- [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell/)
+- [noctalia](https://github.com/noctalia-dev/noctalia-shell)
+- [caelestia](https://github.com/caelestia-dots/shell)
+- [HyprlandDE](https://github.com/ryzendew/HyprlandDE-Quickshell)
