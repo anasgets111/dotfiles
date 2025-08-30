@@ -62,13 +62,22 @@ Singleton {
       hyprWs.specialWorkspaces = specials;
 
       // Hypr workspace objects typically: { id, name, monitor, windows, hasfullscreen, ... , focused }
-      const newWorkspaces = positive.map(w => ({
-            id: w.id,
-            focused: !!w.focused,
-            populated: true // listed => exists
-            ,
-            output: w.monitor || ""
-          })).sort((a, b) => a.id - b.id);
+      // Map monitor object to name; compute populated from windows count if available.
+      const newWorkspaces = positive.map(w => {
+            let windowsCount = undefined;
+            try {
+              windowsCount = w.lastIpcObject?.windows;
+            } catch (_) {
+              // lastIpcObject may be undefined until a refresh cycles in
+            }
+            const outputName = (w.monitor && w.monitor.name) ? w.monitor.name : (typeof w.monitor === "string" ? w.monitor : "");
+            return {
+              id: w.id,
+              focused: !!w.focused,
+              populated: (typeof windowsCount === "number") ? (windowsCount > 0) : (!!w.hasFullscreen || !!w.focused),
+              output: outputName
+            };
+          }).sort((a, b) => a.id - b.id);
 
       hyprWs.workspaces = newWorkspaces;
 
@@ -116,6 +125,8 @@ Singleton {
   Component.onCompleted: {
     if (enabled)
       refresh();
+    // Perform a second, delayed refresh to ensure windows count and monitors settle after startup
+    _startupKick.start();
   }
   onActiveChanged: {
     if (active) {
@@ -187,5 +198,14 @@ Singleton {
 
     enabled: hyprWs.enabled
     target: enabled ? Hyprland : null
+  }
+
+  // One-shot kick to stabilize initial state after load
+  Timer {
+    id: _startupKick
+    interval: 200
+    running: false
+    repeat: false
+    onTriggered: if (hyprWs.enabled) hyprWs.refresh()
   }
 }
