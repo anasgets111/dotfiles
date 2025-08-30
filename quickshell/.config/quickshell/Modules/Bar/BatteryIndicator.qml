@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell
 import Quickshell.Widgets
 import qs.Config
 import qs.Services.Core
@@ -256,14 +255,14 @@ Item {
           font.family: Theme.fontFamily
           font.pixelSize: Theme.fontSize
           opacity: 0.7
-          text: (BatteryService.isACPowered ? qsTr("Power: AC") : qsTr("Power: Battery")) + (root.power && root.power.isReady ? qsTr(" · Profile: %1").arg(root.power.currentProfile) : "")
+          text: (BatteryService.isACPowered ? qsTr("Power: AC") : qsTr("Power: Battery")) + (root.power && root.power.isReady ? qsTr(" · Profile: %1").arg(root.power.currentProfile) : "") + (root.power && root.power.hasPPD ? (" · " + (root.power.ppdText && root.power.ppdText.length > 0 ? qsTr("PPD: %1").arg(root.power.ppdText) : root.power.ppdInfo)) : (root.power && root.power.platformProfile && root.power.platformProfile.length > 0 ? (" · " + qsTr("Platform: %1").arg(root.power.platformProfile)) : (root.power ? (" · " + root.power.platformInfo) : "")))
         }
         Text {
           color: Theme.textContrast(Theme.onHoverColor)
           font.family: Theme.fontFamily
           font.pixelSize: Theme.fontSize
           opacity: 0.6
-          text: SystemInfoService.cpuPercReady ? qsTr("CPU: %1").arg((SystemInfoService.cpuPerc * 100).toFixed(1) + "%") : qsTr("CPU: -")
+          text: qsTr("CPU: %1 + %2").arg(root.power && root.power.cpuGovernor ? root.power.cpuGovernor : qsTr("Unknown")).arg(root.power && root.power.energyPerformance ? root.power.energyPerformance : qsTr("Unknown"))
         }
       }
     }

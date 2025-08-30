@@ -2,116 +2,172 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.Services
-import qs.Services.Utils
+import qs.Services.Core
 
-// Unifies power profile backends (power-profiles-daemon, TLP) and later brightness control
 Singleton {
   id: pms
 
-  // For future: brightness passthrough to dedicated services
-  // property alias screenBrightness: BrightnessService.level
-  // property alias keyboardBrightness: KeyboardBacklightService.level
+  property string cpuGovernor: "Unknown"
+  property string energyPerformance: "Unknown"
+  // whether powerprofilesctl (ppd) is available on this host
+  property bool hasPPD: false
+  property string kbdDevice: "asus::kbd_backlight"
+  property int kbdOnAC: 3
+  property int kbdOnBattery: 1
+  property int onACBrightness: 100
+  // reflect whether the system is currently running on battery power
+  property bool onBattery: BatteryService.isOnBattery
 
-  // Private
-  property string _detectedBackend: "none"
+  // Tunables
+  property int onBatteryBrightness: 10
+  readonly property string platformInfo: "Platform: " + pms.platformProfile
+  property string platformProfile: "Loading..."
+  readonly property string ppdInfo: "PPD: " + pms.ppdText
+  property string ppdText: "Loading..."
 
-  // Backend detection
-  readonly property string backend: pms._detectedBackend
+  signal powerInfoUpdated
+  signal thermalInfoUpdated
 
-  // Normalized profile: "performance" | "balanced" | "powersave"
-  property string currentProfile: "balanced"
-  readonly property bool hasPerformance: backend === "ppd" || backend === "tlp"
-  readonly property bool isReady: backend !== "none"
+  function adjustBrightness() {
+    // only attempt to adjust if this is a laptop
+    if (!BatteryService.isLaptopBattery)
+      return;
 
-  // Map backend string to normalized profile string
-  function _normalizeProfile(b, raw) {
-    const v = String(raw || "").toLowerCase();
-    if (b === "ppd") {
-      if (v.indexOf("performance") !== -1)
-        return "performance";
-      if (v.indexOf("power-saver") !== -1)
-        return "powersave";
-      return "balanced";
-    } else if (b === "tlp") {
-      if (v.indexOf("performance") !== -1)
-        return "performance";
-      if (v.indexOf("powersave") !== -1)
-        return "powersave";
-      return "balanced";
+    const screen = pms.onBattery ? pms.onBatteryBrightness : pms.onACBrightness;
+    const kbd = pms.onBattery ? pms.kbdOnBattery : pms.kbdOnAC;
+    const cmd = "brightnessctl set " + screen + "% && brightnessctl -d " + pms.kbdDevice + " set " + kbd;
+
+    brightnessProcess.command = ["sh", "-c", cmd];
+    if (brightnessDebounce.running)
+      brightnessDebounce.restart();
+    else
+      brightnessDebounce.start();
+  }
+
+  // Minimal one-shot reader utility (avoids implicit this/try/catch)
+  function readFile(path, cb) {
+    const p = readProcessComponent.createObject(pms, {
+      command: ["cat", path]
+    });
+    p.stdout.streamFinished.connect(function () {
+      const data = p.stdout.text ? p.stdout.text.trim() : "";
+      cb(data);
+      p.destroy();
+    });
+    p.running = true;
+  }
+  function refreshPowerInfo() {
+    // Platform profile
+    pms.readFile("/sys/firmware/acpi/platform_profile", function (data) {
+      pms.platformProfile = data;
+      pms.powerInfoUpdated();
+    });
+
+    // CPU governor
+    pms.readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", function (data) {
+      pms.cpuGovernor = data;
+      pms.thermalInfoUpdated();
+    });
+
+    // EPP
+    pms.readFile("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference", function (data) {
+      pms.energyPerformance = data;
+      pms.thermalInfoUpdated();
+    });
+
+    // if this is a laptop and ppd is available, start the ppd process
+    if (BatteryService.isLaptopBattery && pms.hasPPD) {
+      ppdProcess.running = true;
     }
-    return "balanced";
-  }
-  function refresh() {
-    detectProc.running = true;
   }
 
-  // Normalized setter; maps to backend-specific commands
-  function setProfile(mode) {
-    var m = String(mode || "").toLowerCase();
-    if (["performance", "balanced", "powersave"].indexOf(m) === -1)
-      m = "balanced";
+  Component.onCompleted: pms.refreshPowerInfo()
+  Component.onDestruction: {
+    brightnessDebounce.stop();
+    brightnessProcess.running = false;
+    ppdProcess.running = false;
+  }
+  onOnBatteryChanged: {
+    pms.refreshPowerInfo();
+    pms.adjustBrightness();
+  }
 
-    if (backend === "ppd") {
-      // powerprofilesctl set perf|balanced|power-saver
-      const arg = (m === "performance") ? "performance" : (m === "powersave" ? "power-saver" : "balanced");
-      setProc.command = ["sh", "-lc", `powerprofilesctl set ${arg}`];
-      setProc.running = true;
-    } else if (backend === "tlp") {
-      // sudo tlp setprofile PERFORMANCE|BALANCED|POWERSAVE (may require sudoers without password)
-      const arg = (m === "performance") ? "PERFORMANCE" : (m === "powersave" ? "POWERSAVE" : "BALANCED");
-      setProc.command = ["sh", "-lc", `tlp setprofile ${arg}`];
-      setProc.running = true;
+  // Listen to BatteryService property changes to refresh power info when battery state changes
+  Connections {
+    function onDisplayDeviceChanged() {
+      pms.refreshPowerInfo();
     }
+    function onIsLaptopBatteryChanged() {
+      pms.refreshPowerInfo();
+    }
+    function onIsOnBatteryChanged() {
+      pms.refreshPowerInfo();
+    }
+
+    target: BatteryService
   }
 
-  // === Detection and querying ===
+  // Brightness control process + debounce
   Process {
-    id: detectProc
+    id: brightnessProcess
 
-    command: ["sh", "-lc", "if command -v powerprofilesctl >/dev/null 2>&1; then echo ppd; elif command -v tlp >/dev/null 2>&1; then echo tlp; else echo none; fi"]
-    running: true
+    command: []
+    running: false
+  }
+  Timer {
+    id: brightnessDebounce
 
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const b = text.trim();
-        pms._detectedBackend = (b === "ppd" || b === "tlp") ? b : "none";
-        if (pms._detectedBackend === "ppd") {
-          queryProc.command = ["sh", "-lc", "powerprofilesctl get || true"];
-          queryProc.running = true;
-        } else if (pms._detectedBackend === "tlp") {
-          // tlp-stat -b prints Active profile: performance/balanced/powersave etc.
-          queryProc.command = ["sh", "-lc", "tlp-stat -b 2>/dev/null | sed -n 's/^\s*Active profile:\s*//p' | head -n1"];
-          queryProc.running = true;
-        } else {
-          pms.currentProfile = "balanced";
-        }
+    interval: 250
+    repeat: false
+
+    onTriggered: {
+      if (!BatteryService.isLaptopBattery)
+        return;
+      brightnessProcess.running = true;
+    }
+  }
+  Component {
+    id: readProcessComponent
+
+    Process {
+      running: false
+
+      stdout: StdioCollector {
       }
     }
   }
   Process {
-    id: queryProc
+    id: ppdProcess
 
-    command: ["sh", "-lc", "echo balanced"]
+    command: ["powerprofilesctl", "get"]
+    running: false
 
     stdout: StdioCollector {
-      onStreamFinished: pms.currentProfile = pms._normalizeProfile(pms.backend, text.trim())
+      id: ppdStdout
+
+      onStreamFinished: {
+        pms.ppdText = (ppdStdout.text ? ppdStdout.text.trim() : "") || "Unknown";
+        pms.powerInfoUpdated();
+      }
     }
   }
-  Process {
-    id: setProc
 
-    command: ["sh", "-lc", "true"]
+  // Small check to detect if powerprofilesctl exists on the system
+  Process {
+    id: ppdCheck
+
+    command: ["sh", "-c", "if command -v powerprofilesctl >/dev/null 2>&1; then echo yes; else echo no; fi"]
+    running: true
 
     stdout: StdioCollector {
+      id: ppdCheckStdout
+
       onStreamFinished: {
-        // Re-query after setting
-        if (pms.backend === "ppd") {
-          queryProc.command = ["sh", "-lc", "powerprofilesctl get || true"];
-        } else if (pms.backend === "tlp") {
-          queryProc.command = ["sh", "-lc", "tlp-stat -b 2>/dev/null | sed -n 's/^\s*Active profile:\s*//p' | head -n1"];
-        }
-        queryProc.running = true;
+        const text = (ppdCheckStdout.text || "").trim();
+        pms.hasPPD = (text === "yes");
+        // re-evaluate whether we should start ppdProcess
+        if (pms.hasPPD && BatteryService.isLaptopBattery)
+          ppdProcess.running = true;
       }
     }
   }
