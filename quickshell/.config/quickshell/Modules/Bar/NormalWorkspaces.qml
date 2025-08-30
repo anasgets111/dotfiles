@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
-
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
 import qs.Config
 import qs.Services.WM
@@ -21,7 +21,9 @@ Item {
   readonly property int slotW: Theme.itemWidth
   readonly property var slots: Array(10).fill(0).map((_, i) => i + 1)
   readonly property int spacing: 8
-  readonly property int targetRowX: expanded ? 0 : -(focusedIndex * (slotW + spacing))
+
+  // Where we want the viewport to scroll to when collapsed:
+  readonly property int targetContentX: expanded ? 0 : Math.max(0, Math.min(Math.round(focusedIndex * (slotW + spacing)), Math.max(0, fullWidth - width)))
 
   function wsColor(id) {
     if (id === currentWorkspace)
@@ -44,6 +46,12 @@ Item {
     }
   }
 
+  // react to state changes by adjusting the scroll target
+  onExpandedChanged: viewport.contentX = targetContentX
+  onFocusedIndexChanged: if (!expanded)
+    viewport.contentX = targetContentX
+  onFullWidthChanged: viewport.contentX = targetContentX
+
   Timer {
     id: collapseTimer
 
@@ -57,65 +65,92 @@ Item {
   HoverHandler {
     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
 
-    onHoveredChanged: hovered ? (normalWorkspaces.expanded = true, collapseTimer.stop()) : collapseTimer.restart()
+    onHoveredChanged: {
+      if (hovered) {
+        normalWorkspaces.expanded = true;
+        collapseTimer.stop();
+      } else
+        collapseTimer.restart();
+    }
   }
-  Item {
-    id: rowViewport
+
+  // Flickable serves as horizontal viewport for the RowLayout content
+  Flickable {
+    id: viewport
 
     anchors.fill: parent
     clip: true
+    contentHeight: rowWrapper.implicitHeight
+    contentWidth: rowWrapper.implicitWidth
+    interactive: false  // UX is hover-driven, not finger scroll
+
+    // animate contentX to mimic the old Behavior on x
+    Behavior on contentX {
+      NumberAnimation {
+        duration: Theme.animationDuration
+        easing.type: Easing.InOutQuad
+      }
+    }
+
+    Component.onCompleted: contentX = normalWorkspaces.targetContentX
+
+    // Keep content aligned with desired target whenever these change
+    onWidthChanged: contentX = normalWorkspaces.targetContentX
 
     Item {
-      id: workspacesRow
+      id: rowWrapper
 
-      height: normalWorkspaces.slotH
-      width: normalWorkspaces.fullWidth
-      x: normalWorkspaces.targetRowX
+      // implicit size is driven by RowLayout content
+      implicitHeight: normalWorkspaces.slotH
+      implicitWidth: normalWorkspaces.fullWidth
 
-      Behavior on x {
-        NumberAnimation {
-          duration: Theme.animationDuration
-          easing.type: Easing.InOutQuad
-        }
-      }
+      RowLayout {
+        id: rowLayout
 
-      Repeater {
-        model: normalWorkspaces.slots
+        anchors.fill: parent
+        spacing: normalWorkspaces.spacing
 
-        delegate: IconButton {
-          readonly property int idNum: modelData
-          required property int index   // 0..9
-          required property int modelData // 1..10
+        Repeater {
+          model: normalWorkspaces.slots
 
-          bgColor: normalWorkspaces.wsColor(idNum)
-          height: normalWorkspaces.slotH
-          iconText: "" + idNum
+          delegate: IconButton {
+            readonly property int idNum: modelData
+            required property int index
+            required property int modelData
 
-          // dim slots that don't exist in backingWorkspaces
-          opacity: !!normalWorkspaces.backingWorkspaces.find(w => w.id === idNum) ? 1 : 0.5
-          width: normalWorkspaces.slotW
-          x: index * (normalWorkspaces.slotW + normalWorkspaces.spacing)
+            Layout.preferredHeight: normalWorkspaces.slotH
 
-          Behavior on opacity {
-            NumberAnimation {
-              duration: Theme.animationDuration
-              easing.type: Easing.InOutQuad
+            // place via layout, not x
+            Layout.preferredWidth: normalWorkspaces.slotW
+            bgColor: normalWorkspaces.wsColor(idNum)
+            height: normalWorkspaces.slotH
+            iconText: "" + idNum
+
+            // dim if not in backingWorkspaces
+            opacity: !!normalWorkspaces.backingWorkspaces.find(w => w.id === idNum) ? 1 : 0.5
+            width: normalWorkspaces.slotW
+
+            Behavior on opacity {
+              NumberAnimation {
+                duration: Theme.animationDuration
+                easing.type: Easing.InOutQuad
+              }
             }
-          }
 
-          onEntered: {
-            normalWorkspaces.expanded = true;
-            collapseTimer.stop();
-            normalWorkspaces.hoveredIndex = idNum;
-          }
-          onExited: {
-            if (normalWorkspaces.hoveredIndex === idNum)
-              normalWorkspaces.hoveredIndex = 0;
-            collapseTimer.restart();
-          }
-          onLeftClicked: {
-            if (idNum !== normalWorkspaces.currentWorkspace)
-              WorkspaceService.focusWorkspaceByIndex(idNum);
+            onEntered: {
+              normalWorkspaces.expanded = true;
+              collapseTimer.stop();
+              normalWorkspaces.hoveredIndex = idNum;
+            }
+            onExited: {
+              if (normalWorkspaces.hoveredIndex === idNum)
+                normalWorkspaces.hoveredIndex = 0;
+              collapseTimer.restart();
+            }
+            onLeftClicked: {
+              if (idNum !== normalWorkspaces.currentWorkspace)
+                WorkspaceService.focusWorkspaceByIndex(idNum);
+            }
           }
         }
       }
@@ -123,6 +158,9 @@ Item {
   }
   Connections {
     function onCurrentWorkspaceChanged() {
+      // keep centering on the new workspace when collapsed
+      if (!normalWorkspaces.expanded)
+        viewport.contentX = normalWorkspaces.targetContentX;
     }
 
     target: WorkspaceService

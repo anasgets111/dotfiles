@@ -1,12 +1,19 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Layouts
 import qs.Config
 import qs.Services.WM
 import qs.Widgets
 
-Row {
+RowLayout {
   id: specialWorkspaces
 
+  // New helper: capitalize only the first letter of a string
+  function capitalizeFirstLetter(s) {
+    if (!s)
+      return "";
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
   function getSpecialLabelByName(wsName) {
     const nameLower = (wsName || "").toLowerCase();
     if (nameLower.indexOf("telegram") !== -1)
@@ -35,6 +42,9 @@ Row {
       required property var modelData
       property var workspace: cell.modelData
 
+      Layout.alignment: Qt.AlignVCenter
+      Layout.preferredHeight: implicitHeight
+      Layout.preferredWidth: implicitWidth
       implicitHeight: Theme.itemHeight
       implicitWidth: Theme.itemHeight
       visible: workspace.id < 0
@@ -61,7 +71,7 @@ Row {
         edge: Qt.BottomEdge
         hoverSource: button.area
         target: button
-        text: (cell.workspace.name || "").replace("special:", "")
+        text: specialWorkspaces.capitalizeFirstLetter((cell.workspace.name || "").replace("special:", ""))
       }
     }
   }
