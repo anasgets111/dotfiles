@@ -76,10 +76,11 @@ Item {
     anchors.fill: parent
     clip: true
 
-    Item {
+    Row {
       id: workspacesRow
 
       height: root.slotH
+      spacing: root.spacing
       width: root.fullWidth
       x: root.targetRowX
 
@@ -94,7 +95,6 @@ Item {
         model: root.workspaces
 
         delegate: IconButton {
-          required property int index
           required property var modelData
           readonly property var ws: modelData
 
@@ -103,9 +103,7 @@ Item {
           iconText: "" + ws.idx
           opacity: ws.populated ? 1 : 0.5
           width: root.slotW
-          x: index * (root.slotW + root.spacing)
 
-          // Optionally fade in other items when expanding
           Behavior on opacity {
             NumberAnimation {
               duration: Theme.animationDuration
@@ -130,7 +128,6 @@ Item {
         }
       }
 
-      // Group boundaries
       Repeater {
         model: root.groupBoundaries.length
 
