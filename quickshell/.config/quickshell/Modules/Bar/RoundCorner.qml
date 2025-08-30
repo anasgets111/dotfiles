@@ -1,63 +1,83 @@
 import QtQuick
-import qs.Config
 
 Item {
-  id: root
+  id: cornerShape
 
-  enum CornerEnum {
-    TopLeft,
-    TopRight,
-    BottomLeft,
-    BottomRight
-  }
+  property color color: "black"
+  property bool invertH: false
+  property bool invertV: false
+  property int orientation: 0 // 0=TOP_LEFT, 1=TOP_RIGHT, 2=BOTTOM_LEFT, 3=BOTTOM_RIGHT
+  property int radius: 16
 
-  property color color: Theme.bgColor
-  property int corner: 0
-  property int size: Theme.panelRadius
-
-  implicitHeight: size
-  implicitWidth: size
-
-  onColorChanged: canvas.requestPaint()
-  onCornerChanged: canvas.requestPaint()
-  onSizeChanged: canvas.requestPaint()
+  height: 48
+  width: 48
 
   Canvas {
-    id: canvas
-
     anchors.fill: parent
-    antialiasing: true
 
+    Component.onCompleted: requestPaint()
+    onHeightChanged: requestPaint()
     onPaint: {
-      var ctx = getContext("2d");
-      var r = root.size;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const ctx = getContext("2d");
+      const w = width;
+      const h = height;
+      const r = Math.max(0, Math.min(cornerShape.radius, Math.min(w, h)));
+      const k = 0.55228475;
+
+      ctx.reset();
+      ctx.save();
+
+      ctx.translate(cornerShape.invertH ? w : 0, cornerShape.invertV ? h : 0);
+      ctx.scale(cornerShape.invertH ? -1 : 1, cornerShape.invertV ? -1 : 1);
+
+      // draw full rect
       ctx.beginPath();
-      switch (root.corner) {
-      case 0:
-        // TopLeft
-        ctx.arc(r, r, r, Math.PI, 1.5 * Math.PI);
+      ctx.rect(0, 0, w, h);
+      ctx.closePath();
+
+      // draw quarter-circle as negative cutout
+      ctx.beginPath();
+
+      switch (cornerShape.orientation) {
+      case 0 // TOP_LEFT
+      :
+        ctx.moveTo(0, r);
         ctx.lineTo(0, 0);
-        break;
-      case 1:
-        // TopRight
-        ctx.arc(0, r, r, 1.5 * Math.PI, 2 * Math.PI);
         ctx.lineTo(r, 0);
+        ctx.bezierCurveTo(r * (1 - k), 0, 0, r * (1 - k), 0, r);
         break;
-      case 2:
-        // BottomLeft
-        ctx.arc(r, 0, r, 0.5 * Math.PI, Math.PI);
-        ctx.lineTo(0, r);
+      case 1 // TOP_RIGHT
+      :
+        ctx.moveTo(w - r, 0);
+        ctx.lineTo(w, 0);
+        ctx.lineTo(w, r);
+        ctx.bezierCurveTo(w, r * (1 - k), w - r * (1 - k), 0, w - r, 0);
         break;
-      case 3:
-        // BottomRight
-        ctx.arc(0, 0, r, 0, 0.5 * Math.PI);
-        ctx.lineTo(r, r);
+      case 2 // BOTTOM_LEFT
+      :
+        ctx.moveTo(0, h - r);
+        ctx.lineTo(0, h);
+        ctx.lineTo(r, h);
+        ctx.bezierCurveTo(r * (1 - k), h, 0, h - r * (1 - k), 0, h - r);
+        break;
+      case 3 // BOTTOM_RIGHT
+      :
+        ctx.moveTo(w - r, h);
+        ctx.lineTo(w, h);
+        ctx.lineTo(w, h - r);
+        ctx.bezierCurveTo(w, h - r * (1 - k), w - r * (1 - k), h, w - r, h);
         break;
       }
+
       ctx.closePath();
-      ctx.fillStyle = root.color;
-      ctx.fill();
+      ctx.clip("evenodd"); // <-- subtracts the corner curve from the rectangle
+
+      // fill remaining shape
+      ctx.fillStyle = cornerShape.color;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.restore();
     }
+    onWidthChanged: requestPaint()
   }
 }
