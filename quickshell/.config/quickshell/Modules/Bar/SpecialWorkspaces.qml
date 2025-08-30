@@ -39,15 +39,18 @@ RowLayout {
 
       readonly property bool isActive: workspace.name === WorkspaceService.activeSpecial
       readonly property string labelText: specialWorkspaces.getSpecialLabelByName(workspace.name)
+
+      // modelData can be null briefly during Hyprland workspace updates. Default to {} to avoid TypeErrors.
       required property var modelData
-      property var workspace: cell.modelData
+      property var workspace: (cell.modelData || ({}))
 
       Layout.alignment: Qt.AlignVCenter
       Layout.preferredHeight: implicitHeight
       Layout.preferredWidth: implicitWidth
       implicitHeight: Theme.itemHeight
       implicitWidth: Theme.itemHeight
-      visible: workspace.id < 0
+      // Extra guard: ensure we only show valid special entries
+      visible: (workspace && typeof workspace.id === "number" && workspace.id < 0)
 
       IconButton {
         id: button
