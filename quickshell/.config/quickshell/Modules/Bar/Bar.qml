@@ -20,6 +20,12 @@ PanelWindow {
     item: panelRect
   }
 
+  onScreenChanged: {
+    if (!panelWindow.visible) {
+      panelWindow.visible = true;
+    }
+  }
+
   anchors {
     left: true
     right: true
