@@ -16,6 +16,19 @@ Singleton {
       return preferredMain;
     return monitors.count > 0 ? monitors.get(0).name : "";
   }
+  // Quickshell ShellScreen object for the active main monitor (or first screen)
+  readonly property var activeMainScreen: {
+    const screens = Quickshell.screens;
+    // If a preferred/active name exists, try to resolve to a ShellScreen
+    if (activeMain && activeMain.length > 0) {
+      for (let i = 0; i < screens.length; i++) {
+        if (screens[i] && screens[i].name === activeMain)
+          return screens[i];
+      }
+    }
+    // Fallback to first available screen
+    return screens.length > 0 ? screens[0] : null;
+  }
   // Select backend implementation declaratively based on current WM
   property var backend: (MainService.currentWM === "hyprland") ? Hyprland.MonitorImpl : (MainService.currentWM === "niri") ? Niri.MonitorImpl : null
   readonly property var monitorKeyFields: ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"]
@@ -168,6 +181,15 @@ Singleton {
         });
       });
     }
+  }
+  // Helper: resolve a ShellScreen by connector name (e.g. DP-1)
+  function screenByName(name) {
+    const screens = Quickshell.screens;
+    for (let i = 0; i < screens.length; i++) {
+      if (screens[i] && screens[i].name === name)
+        return screens[i];
+    }
+    return screens.length > 0 ? screens[0] : null;
   }
   function setMode(name, width, height, refreshRate) {
     backend?.setMode(name, width, height, refreshRate);
