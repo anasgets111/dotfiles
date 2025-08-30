@@ -8,6 +8,7 @@ PanelWindow {
   id: panelWindow
 
   property bool normalWorkspacesExpanded: false
+  property bool screenChanging: false
 
   WlrLayershell.namespace: "quickshell:bar:blur"
   color: Theme.panelWindowColor
@@ -21,9 +22,15 @@ PanelWindow {
   }
 
   onScreenChanged: {
+    if (panelWindow.screenChanging)
+      return;
+    panelWindow.screenChanging = true;
+
     if (!panelWindow.visible) {
       panelWindow.visible = true;
     }
+
+    panelWindow.screenChanging = false;
   }
 
   anchors {

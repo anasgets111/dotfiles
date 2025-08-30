@@ -13,6 +13,7 @@ Item {
   property string currentTitle: ""
   property string displayText: ""
   property int maxLength: 47
+  property bool updating: false
 
   function computeDisplayText() {
     var txt;
@@ -27,6 +28,10 @@ Item {
     return txt.length > activeWindow.maxLength ? txt.substring(0, activeWindow.maxLength - 3) + "..." : txt;
   }
   function updateActive() {
+    if (activeWindow.updating)
+      return;
+    activeWindow.updating = true;
+
     var top = ToplevelManager.activeToplevel;
     if (top) {
       activeWindow.currentTitle = top.title || "";
@@ -39,6 +44,8 @@ Item {
       activeWindow.appName = "";
     }
     activeWindow.displayText = activeWindow.computeDisplayText();
+
+    activeWindow.updating = false;
   }
 
   height: titleRow.implicitHeight
