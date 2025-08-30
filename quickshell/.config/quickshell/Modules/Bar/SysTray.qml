@@ -1,6 +1,6 @@
-// SystemTrayWidget.qml
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
 import Quickshell.Widgets
 import qs.Config
@@ -14,7 +14,7 @@ Item {
   readonly property int horizontalPadding: 0
 
   height: Theme.itemHeight
-  width: Math.max(trayRow.implicitWidth)
+  width: Math.max(layoutWrapper.implicitWidth, 0)
 
   Rectangle {
     id: backgroundRect
@@ -23,90 +23,102 @@ Item {
     color: Theme.inactiveColor
     radius: Theme.itemRadius
   }
-  Row {
-    id: trayRow
+
+  // Wrapper item so RowLayout can define implicit size cleanly
+  Item {
+    id: layoutWrapper
 
     anchors.centerIn: parent
+    implicitHeight: Theme.itemHeight
+    implicitWidth: trayRow.implicitWidth
 
-    Repeater {
-      id: trayRepeater
+    RowLayout {
+      id: trayRow
 
-      delegate: trayItemDelegate
-      model: SystemTrayService.items
-    }
-  }
-  Component {
-    id: trayItemDelegate
+      anchors.fill: parent
+      spacing: 0
 
-    Item {
-      id: slot
+      Repeater {
+        id: trayRepeater
 
-      required property var modelData
-      property var trayItem: slot.modelData
+        model: SystemTrayService.items
 
-      implicitHeight: Theme.itemHeight
-      implicitWidth: Theme.itemWidth
+        delegate: Component {
+          Item {
+            id: slot
 
-      IconButton {
-        id: btn
+            required property var modelData
+            property var trayItem: slot.modelData
 
-        anchors.fill: parent
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredHeight: implicitHeight
+            Layout.preferredWidth: implicitWidth
+            implicitHeight: Theme.itemHeight
+            implicitWidth: Theme.itemWidth
 
-        contentItem: Item {
-          height: Theme.itemHeight
-          width: Theme.itemWidth
+            IconButton {
+              id: btn
 
-          IconImage {
-            id: iconImage
+              anchors.fill: parent
 
-            anchors.centerIn: parent
-            backer.fillMode: Image.PreserveAspectFit
-            backer.smooth: true
-            backer.sourceSize.height: implicitSize
-            backer.sourceSize.width: implicitSize
-            height: implicitSize
-            implicitSize: Theme.iconSize - tray.contentInset * 2
-            source: SystemTrayService.normalizedIconFor(slot.trayItem)
-            visible: status !== Image.Error && status !== Image.Null
-            width: implicitSize
-          }
-          Text {
-            anchors.centerIn: parent
-            color: Theme.textContrast(btn.effectiveBg)
-            font.bold: true
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            text: SystemTrayService.fallbackGlyphFor(slot.trayItem)
-            visible: !iconImage.visible
+              contentItem: Item {
+                height: Theme.itemHeight
+                width: Theme.itemWidth
+
+                IconImage {
+                  id: iconImage
+
+                  anchors.centerIn: parent
+                  backer.fillMode: Image.PreserveAspectFit
+                  backer.smooth: true
+                  backer.sourceSize.height: implicitSize
+                  backer.sourceSize.width: implicitSize
+                  height: implicitSize
+                  implicitSize: Theme.iconSize - tray.contentInset * 2
+                  source: SystemTrayService.normalizedIconFor(slot.trayItem)
+                  visible: status !== Image.Error && status !== Image.Null
+                  width: implicitSize
+                }
+                Text {
+                  anchors.centerIn: parent
+                  color: Theme.textContrast(btn.effectiveBg)
+                  font.bold: true
+                  font.family: Theme.fontFamily
+                  font.pixelSize: Theme.fontSize
+                  text: SystemTrayService.fallbackGlyphFor(slot.trayItem)
+                  visible: !iconImage.visible
+                }
+              }
+
+              area.onWheel: function (wheelEvent) {
+                SystemTrayService.scrollItem(slot.trayItem, wheelEvent.angleDelta.x, wheelEvent.angleDelta.y);
+              }
+              onClicked: function (mouse) {
+                if (!mouse)
+                  return;
+                if (mouse.button === Qt.RightButton && SystemTrayService.hasMenuForItem(slot.trayItem)) {
+                  menuAnchor.open();
+                  return;
+                }
+                SystemTrayService.handleItemClick(slot.trayItem, mouse.button);
+              }
+            }
+            QsMenuAnchor {
+              id: menuAnchor
+
+              anchor.item: btn.area
+              anchor.rect.y: btn.height - 5
+              menu: slot.trayItem ? slot.trayItem.menu : null
+            }
+            Tooltip {
+              edge: Qt.BottomEdge
+              hoverSource: btn.area
+              target: btn
+              text: SystemTrayService.tooltipTitleFor(slot.trayItem)
+              visibleWhenTargetHovered: !!SystemTrayService.displayTitleFor(slot.trayItem)
+            }
           }
         }
-
-        area.onWheel: function (wheelEvent) {
-          SystemTrayService.scrollItem(slot.trayItem, wheelEvent.angleDelta.x, wheelEvent.angleDelta.y);
-        }
-        onClicked: function (mouse) {
-          if (!mouse)
-            return;
-          if (mouse.button === Qt.RightButton && SystemTrayService.hasMenuForItem(slot.trayItem)) {
-            menuAnchor.open();
-            return;
-          }
-          SystemTrayService.handleItemClick(slot.trayItem, mouse.button);
-        }
-      }
-      QsMenuAnchor {
-        id: menuAnchor
-
-        anchor.item: btn.area
-        anchor.rect.y: btn.height - 5
-        menu: slot.trayItem ? slot.trayItem.menu : null
-      }
-      Tooltip {
-        edge: Qt.BottomEdge
-        hoverSource: btn.area
-        target: btn
-        text: SystemTrayService.tooltipTitleFor(slot.trayItem)
-        visibleWhenTargetHovered: !!SystemTrayService.displayTitleFor(slot.trayItem)
       }
     }
   }
