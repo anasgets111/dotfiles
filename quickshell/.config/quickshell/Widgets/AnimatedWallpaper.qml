@@ -61,6 +61,9 @@ WlrLayershell {
 
     anchors.fill: parent
     fillMode: layerShell._fillModeFor(layerShell.modelData.mode)
+    layer.enabled: true
+    layer.mipmap: true
+    layer.smooth: true
     mipmap: true
     smooth: true
     source: layerShell._currentSource
@@ -74,8 +77,8 @@ WlrLayershell {
     height: width
     radius: width / 2
     width: 0
-    x: layerShell.width * layerShell._centerRelX - revealClip.width / 2
-    y: layerShell.height * layerShell._centerRelY - revealClip.width / 2
+    x: Math.round(layerShell.width * layerShell._centerRelX - revealClip.width / 2)
+    y: Math.round(layerShell.height * layerShell._centerRelY - revealClip.width / 2)
 
     // Overlay aligned with output via negative offset against the clip's position
     Image {
@@ -83,18 +86,21 @@ WlrLayershell {
 
       fillMode: layerShell._fillModeFor(layerShell.modelData.mode)
       height: layerShell.height
+      layer.enabled: true
+      layer.mipmap: true
+      layer.smooth: true
       mipmap: true
       smooth: true
       source: layerShell._overlaySource
       width: layerShell.width
-      x: -revealClip.x
-      y: -revealClip.y
+      x: -Math.round(revealClip.x)
+      y: -Math.round(revealClip.y)
     }
     NumberAnimation {
       id: walAnimation
 
       duration: 650
-      easing.type: Easing.InOutQuad
+      easing.type: Easing.OutCubic
       from: 0
       property: "width"
       target: revealClip
