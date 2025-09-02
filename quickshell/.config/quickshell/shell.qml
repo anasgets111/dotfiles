@@ -5,8 +5,8 @@
 import QtQml
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import qs.Components
+import qs.Widgets
 import qs.Modules.Bar
 import qs.Modules.Notification
 import qs.Services.Core
@@ -74,41 +74,8 @@ ShellRoot {
   Variants {
     model: root.wallpaper.wallpapersArray
 
-    WlrLayershell {
-      id: layerShell
-
-      required property var modelData
-
-      anchors.bottom: true
-      anchors.left: true
-      anchors.right: true
-      anchors.top: true
-      exclusionMode: ExclusionMode.Ignore
-      layer: WlrLayer.Background
-      screen: Quickshell.screens.find(s => {
-        return s && s.name === layerShell.modelData.name;
-      }) || null
-
-      Image {
-        anchors.fill: parent
-        fillMode: {
-          switch (layerShell.modelData.mode) {
-          case "fill":
-            return Image.PreserveAspectCrop;
-          case "fit":
-            return Image.PreserveAspectFit;
-          case "stretch":
-            return Image.Stretch;
-          case "center":
-            return Image.Pad;
-          case "tile":
-            return Image.Tile;
-          default:
-            return Image.PreserveAspectCrop;
-          }
-        }
-        source: layerShell.modelData.wallpaper
-      }
+    AnimatedWallpaper {
+      modelData: modelData
     }
   }
 
