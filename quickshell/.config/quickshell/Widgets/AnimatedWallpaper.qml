@@ -61,6 +61,8 @@ WlrLayershell {
 
     anchors.fill: parent
     fillMode: layerShell._fillModeFor(layerShell.modelData.mode)
+    mipmap: true
+    smooth: true
     source: layerShell._currentSource
   }
 
@@ -70,7 +72,7 @@ WlrLayershell {
 
     color: "transparent"
     height: width
-    radius: width
+    radius: width / 2
     width: 0
     x: layerShell.width * layerShell._centerRelX - revealClip.width / 2
     y: layerShell.height * layerShell._centerRelY - revealClip.width / 2
@@ -81,6 +83,8 @@ WlrLayershell {
 
       fillMode: layerShell._fillModeFor(layerShell.modelData.mode)
       height: layerShell.height
+      mipmap: true
+      smooth: true
       source: layerShell._overlaySource
       width: layerShell.width
       x: -revealClip.x
@@ -94,7 +98,8 @@ WlrLayershell {
       from: 0
       property: "width"
       target: revealClip
-      to: Math.hypot(layerShell.width, layerShell.height)
+      // width is diameter; need 2x the farthest corner distance from centerX/centerY to ensure full cover
+      to: 2 * Math.max(Math.hypot(layerShell.width * layerShell._centerRelX, layerShell.height * layerShell._centerRelY), Math.hypot(layerShell.width * (1 - layerShell._centerRelX), layerShell.height * layerShell._centerRelY), Math.hypot(layerShell.width * layerShell._centerRelX, layerShell.height * (1 - layerShell._centerRelY)), Math.hypot(layerShell.width * (1 - layerShell._centerRelX), layerShell.height * (1 - layerShell._centerRelY)))
 
       onFinished: {
         if (layerShell._overlaySource && layerShell._overlaySource.length > 0) {
