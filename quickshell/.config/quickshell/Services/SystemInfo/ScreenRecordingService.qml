@@ -35,9 +35,11 @@ Singleton {
     outputPath = dir + filename;
     const args = ["gpu-screen-recorder"];
     args.push("-w", monitor);
-    args.push("-f", String(frameRate), "-a", audioSource, "-o", outputPath);
+    args.push("-f", String(frameRate));
+    args.push("-o", outputPath);
     args.push("-k", videoCodec);
-    args.push("-ac", audioCodec);
+    // args.push("-a", audioSource);
+    // args.push("-ac", audioCodec);
     args.push("-q", quality);
     args.push("-cursor", "no");
     args.push("-cr", colorRange);
