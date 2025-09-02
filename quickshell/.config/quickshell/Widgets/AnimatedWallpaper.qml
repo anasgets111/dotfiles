@@ -96,16 +96,18 @@ WlrLayershell {
       x: -Math.round(revealClip.x)
       y: -Math.round(revealClip.y)
     }
-    NumberAnimation {
+    // Two-phase animation with a brief pause in the middle for a pronounced hold
+    // and a strong acceleration to the end.
+    SequentialAnimation {
       id: walAnimation
 
-      duration: 650
-      easing.type: Easing.OutCubic
-      from: 0
-      property: "width"
-      target: revealClip
-      // width is diameter; need 2x the farthest corner distance from centerX/centerY to ensure full cover
-      to: 2 * Math.max(Math.hypot(layerShell.width * layerShell._centerRelX, layerShell.height * layerShell._centerRelY), Math.hypot(layerShell.width * (1 - layerShell._centerRelX), layerShell.height * layerShell._centerRelY), Math.hypot(layerShell.width * layerShell._centerRelX, layerShell.height * (1 - layerShell._centerRelY)), Math.hypot(layerShell.width * (1 - layerShell._centerRelX), layerShell.height * (1 - layerShell._centerRelY)))
+      // Total duration budget
+      property int totalDuration: 2000
+
+      // Helper: compute full target diameter at start time
+      function targetDiameter() {
+        return 2 * Math.max(Math.hypot(layerShell.width * layerShell._centerRelX, layerShell.height * layerShell._centerRelY), Math.hypot(layerShell.width * (1 - layerShell._centerRelX), layerShell.height * layerShell._centerRelY), Math.hypot(layerShell.width * layerShell._centerRelX, layerShell.height * (1 - layerShell._centerRelY)), Math.hypot(layerShell.width * (1 - layerShell._centerRelX), layerShell.height * (1 - layerShell._centerRelY)));
+      }
 
       onFinished: {
         if (layerShell._overlaySource && layerShell._overlaySource.length > 0) {
@@ -113,6 +115,31 @@ WlrLayershell {
           layerShell._overlaySource = "";
         }
         revealClip.width = 0;
+      }
+
+      // Phase 1: decelerate into the midpoint (longer)
+      NumberAnimation {
+        duration: Math.round(walAnimation.totalDuration * 0.65)
+        easing.type: Easing.OutCubic
+        from: 0
+        property: "width"
+        target: revealClip
+        to: walAnimation.targetDiameter() * 0.5
+      }
+
+      // Mid pause (cut in half)
+      PauseAnimation {
+        duration: Math.round(walAnimation.totalDuration * 0.05)
+      }
+
+      // Phase 2: aggressive acceleration to completion (1.5x faster -> shorter duration)
+      NumberAnimation {
+        duration: Math.round(walAnimation.totalDuration * 0.30)
+        easing.type: Easing.InQuint
+        from: walAnimation.targetDiameter() * 0.5
+        property: "width"
+        target: revealClip
+        to: walAnimation.targetDiameter()
       }
     }
   }
@@ -123,12 +150,19 @@ WlrLayershell {
       if (!name || name !== layerShell.modelData.name)
         return;
 
-      layerShell._centerRelX = Math.max(0, Math.min(1, cx));
-      layerShell._centerRelY = Math.max(0, Math.min(1, cy));
-      layerShell._overlaySource = path || layerShell._currentSource;
-
+      // Finalize any running animation FIRST so its onFinished applies to the previous state
+      // and does not consume the new overlay/center intended for this change.
       if (walAnimation.running)
         walAnimation.complete();
+
+      // Safely update center: if cx/cy are undefined or not numbers, keep previous values.
+      if (typeof cx === "number" && isFinite(cx))
+        layerShell._centerRelX = Math.max(0, Math.min(1, cx));
+      if (typeof cy === "number" && isFinite(cy))
+        layerShell._centerRelY = Math.max(0, Math.min(1, cy));
+
+      layerShell._overlaySource = path || layerShell._currentSource;
+
       revealClip.width = 0;
       walAnimation.start();
     }
