@@ -7,6 +7,9 @@ import qs.Services.WM
 Singleton {
   id: wallpaperService
 
+  // Normalized animation centers per monitor (0..1 in each dimension)
+  // { [name]: { x: real, y: real } }
+  property var animationCentersByName: ({})
   property string defaultMode: "fill" // fill | fit | center, etc.
   property string defaultWallpaper: "/mnt/Work/1Wallpapers/Main/samurai.jpg"
   property var filesByName: ({})
@@ -32,6 +35,10 @@ Singleton {
     };
   })
 
+  // Emitted whenever a wallpaper changes for a monitor.
+  // centerRelX/centerRelY are normalized [0..1] coordinates within that monitor.
+  signal wallpaperChanged(string name, string path, real centerRelX, real centerRelY)
+
   function applyRandomState(name) {
     const prefs = ensurePrefs(name);
     const timer = ensureTimer(name);
@@ -54,6 +61,14 @@ Singleton {
     }
     delete timersByName[name];
   }
+  function ensureAnimCenter(name) {
+    if (!animationCentersByName.hasOwnProperty(name))
+      animationCentersByName[name] = {
+        "x": 0.5,
+        "y": 0.5
+      };
+    return animationCentersByName[name];
+  }
   function ensurePrefs(name) {
     if (!prefsByName.hasOwnProperty(name))
       prefsByName[name] = {
@@ -74,6 +89,16 @@ Singleton {
     timersByName[name] = timer;
     Logger.log("WallpaperService", `Timer created for monitor: ${name}`);
     return timer;
+  }
+  function randomCenterForMonitor(name) {
+    // Return normalized coordinates within [margin, 1 - margin] to avoid starting exactly on edges
+    const margin = 0.07; // 7% inset
+    const rx = margin + Math.random() * (1 - 2 * margin);
+    const ry = margin + Math.random() * (1 - 2 * margin);
+    return {
+      "x": rx,
+      "y": ry
+    };
   }
   function rotateRandom(name) {
     const filesForMonitor = filesByName[name] || [];
@@ -134,6 +159,11 @@ Singleton {
     const prefs = ensurePrefs(name);
     prefs.wallpaper = path || defaultWallpaper;
     Logger.log("WallpaperService", `Set wallpaper: name=${name}, path=${prefs.wallpaper}`);
+    // Pick a fresh random animation center for this monitor
+    const center = randomCenterForMonitor(name);
+    animationCentersByName[name] = center;
+    // Notify listeners with normalized coordinates
+    wallpaperService.wallpaperChanged(name, prefs.wallpaper, center.x, center.y);
     const timer = timersByName[name];
     if (timer && timer.running)
       timer.restart();
@@ -177,6 +207,10 @@ Singleton {
 
     const monitor = MonitorService.monitors.get(monitorIndex);
     const prefs = prefsByName[name] || {};
+    const center = animationCentersByName[name] || {
+      x: 0.5,
+      y: 0.5
+    };
     return {
       "name": name,
       "width": monitor.width,
@@ -186,7 +220,9 @@ Singleton {
       "bitDepth": monitor.bitDepth,
       "orientation": monitor.orientation,
       "wallpaper": prefs.wallpaper || defaultWallpaper,
-      "mode": prefs.mode || defaultMode
+      "mode": prefs.mode || defaultMode,
+      "animCenterX": center.x,
+      "animCenterY": center.y
     };
   }
 
