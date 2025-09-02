@@ -117,7 +117,7 @@ clipboard {
 }
 // Note that running niri as a session supports xdg-desktop-autostart
 spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
-spawn-at-startup "swayidle"
+// spawn-at-startup "swayidle"
 spawn-at-startup "quickshell"
 // spawn-at-startup "swayosd-server"
 // spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
@@ -270,7 +270,7 @@ binds {
     Mod+Return hotkey-overlay-title="Open a Terminal" { spawn "niri-stash" "term"; }
     Mod+KP_Enter { spawn "niri-stash.sh" "term"; }
     Ctrl+Alt+Delete { spawn "missioncenter"; }
-    
+
     Mod+Z { spawn "zeditor"; }
     Mod+C { spawn "code"; }
     //Mod+SPACE { spawn "pidof rofi && pkill rofi || ~/.config/rofi/launchers/type-6/launcher.sh"; }
@@ -290,7 +290,7 @@ binds {
     XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%-"; }
     XF86AudioMute        allow-when-locked=true { spawn "wpctl" "set-mute"   "@DEFAULT_AUDIO_SINK@" "toggle"; }
     XF86AudioMicMute     allow-when-locked=true { spawn "wpctl" "set-mute"   "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
-    
+
     // Brightness controls (brightnessctl)
     XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "-q" "set" "5%+"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "-q" "set" "5%-"; }
@@ -319,10 +319,10 @@ binds {
     Mod+Shift+Down  { focus-monitor-down; }
     Mod+Shift+Up    { focus-monitor-up; }
     Mod+Shift+Right { focus-monitor-right; }
-    
+
     Mod+Shift+Ctrl+Left  { move-window-to-monitor-left; }
     Mod+Shift+Ctrl+Down  { move-window-to-monitor-down; }
-    
+
 
     Mod+Page_Down      { focus-workspace-down; }
     Mod+Page_Up        { focus-workspace-up; }
@@ -370,7 +370,7 @@ binds {
     Mod+KP_Up { focus-workspace "Telegram"; }
     Mod+KP_Prior { focus-workspace "Discord"; }
     Mod+KP_Insert { focus-workspace "Slack"; }
-    
+
     Mod+Shift+1 { move-window-to-workspace "Zen"; }
     Mod+Shift+2 { move-window-to-workspace "Chromium"; }
     Mod+Shift+3 { move-window-to-workspace "Code"; }
@@ -403,7 +403,7 @@ binds {
     Mod+R { switch-preset-column-width; }
     Mod+Shift+R { switch-preset-window-height; }
     Mod+Ctrl+R { reset-window-height; }
-    
+
     Mod+V       { toggle-window-floating; }
     Mod+F { maximize-column; }
     Mod+Shift+F { fullscreen-window; }
@@ -459,4 +459,3 @@ screenshot-path "~/Pictures/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
 // You can also set this to null to disable saving screenshots to disk.
 // screenshot-path null
-
