@@ -201,34 +201,6 @@ Singleton {
       // _volume is updated via Connections
     }
   }
-  function subtitle(name) {
-    if (!name)
-      return "";
-
-    const lname = String(name).toLowerCase();
-
-    if (lname.includes('usb-')) {
-      if (lname.includes('steelseries')) {
-        return "USB Gaming Headset";
-      } else if (lname.includes('generic')) {
-        return "USB Audio Device";
-      }
-      return "USB Audio";
-    } else if (lname.includes('pci-')) {
-      if (lname.includes('01_00.1') || lname.includes('01:00.1')) {
-        return "NVIDIA GPU Audio";
-      }
-      return "PCI Audio";
-    } else if (lname.includes('bluez')) {
-      return "Bluetooth Audio";
-    } else if (lname.includes('analog')) {
-      return "Built-in Audio";
-    } else if (lname.includes('hdmi')) {
-      return "HDMI Audio";
-    }
-
-    return "";
-  }
   function toggleMicMute() {
     if (root.source && root.source.audio) {
       root.source.audio.muted = !root.source.audio.muted;
