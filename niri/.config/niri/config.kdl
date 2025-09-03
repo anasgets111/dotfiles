@@ -117,7 +117,7 @@ clipboard {
 }
 // Note that running niri as a session supports xdg-desktop-autostart
 spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
-// spawn-at-startup "swayidle"
+spawn-at-startup "swayidle"
 spawn-at-startup "quickshell"
 // spawn-at-startup "swayosd-server"
 // spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
