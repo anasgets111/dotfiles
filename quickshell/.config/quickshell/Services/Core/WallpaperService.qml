@@ -118,6 +118,7 @@ Singleton {
     const prefs = ensurePrefs(name);
     prefs.mode = mode || defaultMode;
     Logger.log("WallpaperService", `Set mode: name=${name}, mode=${prefs.mode}`);
+  _savePersist();
   }
   function setPosition(name, positionX, positionY) {
     if (MonitorService && MonitorService.setPosition)
@@ -167,6 +168,19 @@ Singleton {
     const timer = timersByName[name];
     if (timer && timer.running)
       timer.restart();
+
+    // Persist current state
+    _savePersist();
+  }
+  // Convenience: set the same wallpaper on all connected monitors.
+  // If Quickshell is still initializing, this will be a no-op until MonitorService is ready.
+  function setCurrentWallpaper(path, /*unused*/fromSettings) {
+    if (!MonitorService || !MonitorService.ready)
+      return;
+    for (let i = 0; i < MonitorService.monitors.count; i++) {
+      const mon = MonitorService.monitors.get(i);
+      setWallpaper(mon.name, path);
+    }
   }
   function syncWithMonitors() {
     if (!MonitorService || !MonitorService.ready) {
@@ -194,7 +208,9 @@ Singleton {
       const monitor = MonitorService.monitors.get(monitorIndex);
       applyRandomState(monitor.name);
     }
-    Logger.log("WallpaperService", `sync: done; monitors=${MonitorService.monitors.count}, prefs=${Object.keys(prefsByName).length}`);
+  // Save after syncing (removes stale entries and persists timers' prefs)
+  _savePersist();
+  Logger.log("WallpaperService", `sync: done; monitors=${MonitorService.monitors.count}, prefs=${Object.keys(prefsByName).length}`);
   }
   function wallpaperFor(nameOrScreen) {
     const name = typeof nameOrScreen === "string" ? nameOrScreen : (nameOrScreen && nameOrScreen.name) || null;
@@ -233,6 +249,65 @@ Singleton {
     } else {
       Logger.log("WallpaperService", "Init: MonitorService not ready yet");
     }
+  }
+
+  // --- Persistence (avoids deprecated Qt.labs.settings) ---
+  function _hydratePersist() {
+    try {
+      const obj = JSON.parse(persist.savedWallpapersJson || "{}");
+      // Apply saved wallpapers per monitor name
+      for (const key in obj) {
+        if (!obj.hasOwnProperty(key))
+          continue;
+        const saved = obj[key] || {};
+        const prefs = ensurePrefs(key);
+        if (saved.wallpaper && typeof saved.wallpaper === "string")
+          prefs.wallpaper = saved.wallpaper;
+        if (saved.mode && typeof saved.mode === "string")
+          prefs.mode = saved.mode;
+      }
+      Logger.log("WallpaperService", `Hydrated ${Object.keys(obj).length} persisted wallpaper entries`);
+    } catch (e) {
+      Logger.warn("WallpaperService", "Failed to parse persisted wallpapers; resetting store");
+      persist.savedWallpapersJson = "{}";
+    }
+  }
+  function _savePersist() {
+    // Build a minimal map of { [name]: { wallpaper, mode } }
+    const out = {};
+    const names = Object.keys(prefsByName || {});
+    for (let i = 0; i < names.length; i++) {
+      const n = names[i];
+      const p = prefsByName[n] || {};
+      out[n] = {
+        wallpaper: p.wallpaper || defaultWallpaper,
+        mode: p.mode || defaultMode
+      };
+    }
+    try {
+      persist.savedWallpapersJson = JSON.stringify(out);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  PersistentProperties {
+    id: persist
+
+    // JSON object: { [monitorName]: { wallpaper: string, mode: string } }
+    property string savedWallpapersJson: "{}"
+
+    function hydrate() {
+      wallpaperService._hydratePersist();
+      // After hydration, if monitors are ready, ensure timers exist and states applied
+      if (MonitorService && MonitorService.ready)
+        wallpaperService.syncWithMonitors();
+    }
+
+    reloadableId: "WallpaperService"
+
+    onLoaded: hydrate()
+    onReloaded: hydrate()
   }
 
   Connections {

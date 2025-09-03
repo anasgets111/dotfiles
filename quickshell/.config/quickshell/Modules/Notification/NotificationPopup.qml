@@ -21,7 +21,7 @@ PanelWindow {
   visible: NotificationService.visible.length > 0
 
   mask: Region {
-    item: popupScroll
+    item: popupColumn
   }
 
   anchors {
@@ -152,7 +152,6 @@ PanelWindow {
                 }
               }
             }
-
             Loader {
               active: del.modelData.kind === "group" && !!del.modelData.group
 
@@ -166,7 +165,6 @@ PanelWindow {
       }
     }
   }
-
   Rectangle {
     id: dndBanner
 
