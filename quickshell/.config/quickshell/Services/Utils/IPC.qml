@@ -208,24 +208,19 @@ Singleton {
       return MediaService.players.map(p => p.identity).join("\n");
     }
     function next(): void {
-      if (MediaService.active && MediaService.active.canGoNext)
-        MediaService.active.next();
+      MediaService.next();
     }
     function pause(): void {
-      if (MediaService.active && MediaService.active.canPause)
-        MediaService.active.pause();
+      MediaService.pause();
     }
     function play(): void {
-      if (MediaService.active && MediaService.active.canPlay)
-        MediaService.active.play();
+      MediaService.play();
     }
     function playPause(): void {
-      if (MediaService.active && MediaService.active.canTogglePlaying)
-        MediaService.active.togglePlaying();
+      MediaService.playPause();
     }
     function previous(): void {
-      if (MediaService.active && MediaService.active.canGoPrevious)
-        MediaService.active.previous();
+      MediaService.previous();
     }
     function seek(position: real): void {
       MediaService.seek(position);
@@ -234,8 +229,7 @@ Singleton {
       MediaService.seekByRatio(ratio);
     }
     function stop(): void {
-      if (MediaService.active)
-        MediaService.active.stop();
+      MediaService.stop();
     }
 
     target: "mpris"
