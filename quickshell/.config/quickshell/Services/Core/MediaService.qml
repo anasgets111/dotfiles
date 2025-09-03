@@ -27,13 +27,12 @@ Singleton {
   // Centralized inhibitor via IdleService
   property var _videoToken: null
 
-  // Order: manual -> selected index -> playing -> Spotify -> controllable playable -> first
-  // New order: manual -> selected index -> playing -> last active -> controllable playable -> first
-  readonly property MprisPlayer active: ((manualActive && isValidPlayer(manualActive)) ? manualActive : ((selectedPlayerIndex >= 0 && selectedPlayerIndex < players.length ? players[selectedPlayerIndex] : null) || players.find(player => player.isPlaying) || (lastActiveKey ? allPlayers.find(p => playerKey(p) === lastActiveKey) : null) || players.find(player => player.canControl && player.canPlay) || players[0] || null))
+  // Order: manual -> selected index -> playing -> controllable playable -> first
+  readonly property MprisPlayer active: ((manualActive && isValidPlayer(manualActive)) ? manualActive : ((selectedPlayerIndex >= 0 && selectedPlayerIndex < players.length ? players[selectedPlayerIndex] : null) || players.find(player => player && player.playbackState === MprisPlaybackState.Playing) || players.find(player => player.canControl && player.canPlay) || players[0] || null))
   readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
   readonly property string activeIconName: iconNameForPlayer(active)
   readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values : []
-  readonly property bool anyVideoPlaying: enableVideoIdleInhibit && (allPlayers.some(p => p && p.isPlaying && _isVideoApp(p)) || allPlayers.some(p => p && p.isPlaying && _isBrowserApp(p) && (_pipewireVideoRoleActive || _urlLooksVideo(_metadataUrl(p)))))
+  readonly property bool anyVideoPlaying: enableVideoIdleInhibit && (allPlayers.some(p => p && p.playbackState === MprisPlaybackState.Playing && _isVideoApp(p)) || allPlayers.some(p => p && p.playbackState === MprisPlaybackState.Playing && _isBrowserApp(p) && (_pipewireVideoRoleActive || _urlLooksVideo(_metadataUrl(p)))))
   property bool canGoNext: active ? active.canGoNext : false
   property bool canGoPrevious: active ? active.canGoPrevious : false
   property bool canPause: active ? active.canPause : false
@@ -50,7 +49,7 @@ Singleton {
   readonly property real infiniteTrackLength: 922337203685
   property bool isPlaying: active ? active.isPlaying : false
 
-  // Track last active player to prefer when nothing else is obviously active
+  // Track last active player (currently informational only)
   property string lastActiveKey: ""
   property MprisPlayer manualActive: null            // If set, takes precedence
   readonly property list<MprisPlayer> players: allPlayers.filter(player => player && player.canControl)
@@ -286,8 +285,10 @@ Singleton {
     }
     currentPosition = active.isPlaying ? active.position : 0;
     Logger.log("MediaService", "active ->", active.identity, "playing=", active.isPlaying);
-    // Remember last active choice
-    lastActiveKey = playerKey(active);
+    // Keep informational only; avoid feeding back into selection
+    const k = playerKey(active);
+    if (k && k !== lastActiveKey)
+      lastActiveKey = k;
   }
   onAnyVideoPlayingChanged: {
     if (anyVideoPlaying) {
