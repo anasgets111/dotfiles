@@ -237,17 +237,14 @@ Singleton {
       const name = existingNames[nameIndex];
       const monitorIndex = MonitorService.findMonitorIndexByName(name);
       if (monitorIndex < 0) {
-        delete prefsByName[name];
         destroyTimer(name);
-        delete filesByName[name];
-        Logger.log("WallpaperService", `Removed stale monitor prefs/timer: ${name}`);
+        Logger.log("WallpaperService", `Monitor '${name}' not present; preserving prefs and stopping timer`);
       }
     }
     for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
       const monitor = MonitorService.monitors.get(monitorIndex);
       applyRandomState(monitor.name);
     }
-    // Save after syncing (removes stale entries and persists timers' prefs)
     _savePersist();
     Logger.log("WallpaperService", `sync: done; monitors=${MonitorService.monitors.count}, prefs=${Object.keys(prefsByName).length}`);
   }
