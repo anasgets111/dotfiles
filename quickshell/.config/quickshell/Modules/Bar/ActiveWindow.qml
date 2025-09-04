@@ -6,12 +6,17 @@ import qs.Config
 Item {
   id: activeWindow
 
-  // Resolve app icon from desktop entry when possible (use Utils default fallback)
-  readonly property string appIconSource: Utils.resolveIconSource(activeWindow.currentClass)
+  readonly property string appIconSource: activeWindow.hasActive ? Utils.resolveIconSource(activeWindow.currentClass) : Utils.resolveIconSource("", "", activeWindow.desktopIconName)
   property string appName: ""
   property string currentClass: ""
   property string currentTitle: ""
+
+  // Resolve app icon from desktop entry when possible (use Utils default fallback)
+  // When there's no active window, show a generic Desktop icon (customizable)
+  property string desktopIconName: "applications-system"
   property string displayText: ""
+  // True when there is an actually activated toplevel; used to decide Desktop state and icon visibility
+  property bool hasActive: false
   property int maxLength: 47
   property bool updating: false
 
@@ -33,7 +38,8 @@ Item {
     activeWindow.updating = true;
 
     var top = ToplevelManager.activeToplevel;
-    if (top) {
+    // Treat non-activated toplevel as "no active window" (e.g., empty workspace)
+    if (top && top.activated) {
       activeWindow.currentTitle = top.title || "";
       activeWindow.currentClass = top.appId || "";
       var entry = Utils.resolveDesktopEntry(activeWindow.currentClass);
@@ -44,6 +50,7 @@ Item {
       activeWindow.appName = "";
     }
     activeWindow.displayText = activeWindow.computeDisplayText();
+    activeWindow.hasActive = !!(top && top.activated);
 
     activeWindow.updating = false;
   }
@@ -68,6 +75,9 @@ Item {
     target: ToplevelManager
   }
   Connections {
+    function onActivatedChanged() {
+      activeWindow.updateActive();
+    }
     function onTitleChanged() {
       activeWindow.updateActive();
     }
@@ -90,6 +100,7 @@ Item {
       source: activeWindow.appIconSource
       sourceSize.height: height
       sourceSize.width: width
+      // Always show an icon; when Desktop, appIconSource resolves to desktopIconName
       visible: !!source && source !== ""
       width: 28
     }
