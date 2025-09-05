@@ -126,7 +126,7 @@ Item {
     id: emptyHint
 
     anchors.centerIn: parent
-    color: Theme.panelColor
+    color: Theme.bgColor
     font.family: Theme.fontFamily
     font.pixelSize: 10
     opacity: 0.7
