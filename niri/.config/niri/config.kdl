@@ -275,6 +275,7 @@ binds {
     Mod+C { spawn "code"; }
     //Mod+SPACE { spawn "pidof rofi && pkill rofi || ~/.config/rofi/launchers/type-6/launcher.sh"; }
     Mod+E { spawn "nautilus"; }
+    Mod+H { spawn "heroic"; }
     Mod+B { spawn "zen-browser"; }
 
     Mod+S { spawn "slack"; }
