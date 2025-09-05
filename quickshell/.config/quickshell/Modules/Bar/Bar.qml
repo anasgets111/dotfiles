@@ -7,26 +7,30 @@ import qs.Services.WM
 PanelWindow {
   id: panelWindow
 
-  property int _commitNudge: 0
-  property bool _hadScreen: screen !== null
   property bool normalWorkspacesExpanded: false
+  property bool screenChanging: false
 
-  WlrLayershell.namespace: "quickshell:bar"
-  color: "transparent"
+  WlrLayershell.namespace: "quickshell:bar:blur"
+  color: Theme.panelWindowColor
   exclusiveZone: Theme.panelHeight
+  implicitHeight: panelWindow.screen.height
+  implicitWidth: panelWindow.screen.width
   screen: MonitorService.activeMainScreen
-  visible: screen !== null
 
   mask: Region {
     item: panelRect
   }
 
   onScreenChanged: {
-    const nowHasScreen = screen !== null;
-    if (nowHasScreen && !_hadScreen) {
-      _commitNudge = _commitNudge + 1;
+    if (panelWindow.screenChanging)
+      return;
+    panelWindow.screenChanging = true;
+
+    if (!panelWindow.visible) {
+      panelWindow.visible = true;
     }
-    _hadScreen = nowHasScreen;
+
+    panelWindow.screenChanging = false;
   }
 
   anchors {
@@ -37,14 +41,11 @@ PanelWindow {
   Rectangle {
     id: panelRect
 
+    anchors.left: parent.left
+    anchors.top: parent.top
     color: Theme.bgColor
     height: Theme.panelHeight
-
-    anchors {
-      left: parent.left
-      right: parent.right
-      top: parent.top
-    }
+    width: parent.width
   }
   LeftSide {
     normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
@@ -57,10 +58,6 @@ PanelWindow {
       verticalCenter: panelRect.verticalCenter
     }
   }
-  CenterSide {
-    anchors.centerIn: panelRect
-    normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
-  }
   RightSide {
     anchors {
       right: panelRect.right
@@ -68,39 +65,37 @@ PanelWindow {
       verticalCenter: panelRect.verticalCenter
     }
   }
+  CenterSide {
+    anchors.centerIn: panelRect
+    normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
+  }
   Item {
     id: bottomCuts
 
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: panelRect.bottom
     height: Theme.panelRadius
+    width: parent.width
 
-    anchors {
-      left: parent.left
-      right: parent.right
-      top: panelRect.bottom
-    }
+    // Round corners to cut into the panel background on the left/right
     RoundCorner {
       id: bottomLeftCut
 
+      anchors.left: parent.left
+      anchors.top: parent.top
       color: Theme.bgColor
       orientation: 0 // TOP_LEFT
       radius: Theme.panelRadius
-
-      anchors {
-        left: parent.left
-        top: parent.top
-      }
     }
     RoundCorner {
       id: bottomRightCut
 
+      anchors.right: parent.right
+      anchors.top: parent.top
       color: Theme.bgColor
       orientation: 1 // TOP_RIGHT
       radius: Theme.panelRadius
-
-      anchors {
-        right: parent.right
-        top: parent.top
-      }
     }
   }
 }

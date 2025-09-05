@@ -14,7 +14,7 @@ PanelWindow {
   required property var modelData
 
   WlrLayershell.exclusiveZone: -1
-  WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+  WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
   WlrLayershell.layer: WlrLayer.Overlay
   color: "transparent"
   screen: layer.modelData
@@ -50,6 +50,8 @@ PanelWindow {
 
     Column {
       id: popupColumn
+      // Whether user has explicitly requested to interact (e.g. clicked a card)
+      property bool interactionActive: false
 
       // Build entries from currently visible wrappers, honoring svc.maxVisible.
       // Coalesce by group so you get at most one entry per group id.
@@ -135,6 +137,24 @@ PanelWindow {
 
           Column {
             id: col
+
+            // Global pointer handler to activate focus only after an explicit click
+            // This avoids stealing focus when notifications appear, but allows
+            // reply input to work once the user engages.
+            TapHandler {
+              acceptedButtons: Qt.LeftButton
+              onTapped: {
+                if (!popupColumn.interactionActive) {
+                  popupColumn.interactionActive = true;
+                  // Switch to on-demand focus so text fields (reply) can take input.
+                  // We change the layershell focus mode dynamically.
+                  if (layer.WlrLayershell) {
+                    layer.WlrLayershell.keyboardFocus = WlrKeyboardFocus.OnDemand;
+                  }
+                  // No direct activation API; compositor will route focus on-demand now.
+                }
+              }
+            }
 
             // Only create cards when inputs are present to avoid undefined access
             Loader {

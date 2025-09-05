@@ -8,7 +8,8 @@ Singleton {
 
   property bool enabled: true
   // If non-empty, only these modules are logged (exact match, case-sensitive)
-  property var includeModules: ["Shell", "LockContent", "IPC", "NetworkService", "MainService", "AudioService", "BatteryService", "BrightnessService", "ClipboardService", "ClipboardLiteService", "FileSystemService", "IdleService", "KeyboardBacklightService", "KeyboardLayoutService", "LockService", "MediaService", "MonitorService", "NotificationService", "OSDService", "ScreenRecordingService", "SystemInfoService", "SystemTrayService", "TimeService", "UpdateService", "WallpaperService", "WeatherService"].filter((v, i, a) => {
+  // "Shell", "LockContent", "Bar", "IPC", "NetworkService", "MainService", "AudioService", "BatteryService", "BrightnessService", "ClipboardService", "ClipboardLiteService", "FileSystemService", "IdleService", "KeyboardBacklightService", "KeyboardLayoutService", "LockService", "MediaService", "MonitorService", "NotificationService", "OSDService", "ScreenRecordingService", "SystemInfoService", "SystemTrayService", "TimeService", "UpdateService", "WallpaperService", "WeatherService"
+  property var includeModules: [].filter((v, i, a) => {
     return a.indexOf(v) === i;
   })
   readonly property int moduleLabelWidth: 16
