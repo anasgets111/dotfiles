@@ -7,7 +7,7 @@ Singleton {
 
   property color activeColor: "#CBA6F7"
   readonly property int animationDuration: 147
-  property color bgColor: "#1E1E2E"
+  property color bgColor: "#CC1E1E2E" // ~80% opaque
   property color borderColor: "#313244"
   property color disabledColor: "#232634"
   readonly property string fontFamily: "CaskaydiaCove Nerd Font Propo"
@@ -19,7 +19,6 @@ Singleton {
   readonly property int itemRadius: 18
   readonly property int itemWidth: 34
   property color onHoverColor: "#A28DCD"
-  readonly property color panelColor: "#313244"
   readonly property int panelHeight: 42
   readonly property int panelMargin: 16
   readonly property int panelRadius: 16
