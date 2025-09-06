@@ -29,11 +29,24 @@ Singleton {
     // Fallback to first available screen
     return screens.length > 0 ? screens[0] : null;
   }
+  // Persist last known-good main monitor name to ride out transient nulls during hotplug/DPMS
+  property string lastKnownGoodMainName: ""
+  // Effective ShellScreen that never returns null when any screen exists
+  readonly property var effectiveMainScreen: {
+    const current = monitorService.activeMainScreen;
+    if (current)
+      return current;
+    // try last known-good by name
+    if (monitorService.lastKnownGoodMainName && monitorService.lastKnownGoodMainName.length > 0)
+      return monitorService.screenByName(monitorService.lastKnownGoodMainName);
+    // final fallback to first screen if present
+    const screens = Quickshell.screens;
+    return screens.length > 0 ? screens[0] : null;
+  }
   // Select backend implementation declaratively based on current WM
   property var backend: (MainService.currentWM === "hyprland") ? Hyprland.MonitorImpl : (MainService.currentWM === "niri") ? Niri.MonitorImpl : null
   readonly property var monitorKeyFields: ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"]
-  property ListModel monitors: ListModel {
-  }
+  property ListModel monitors: ListModel {}
   // Preferred main monitor from MainService, may be empty
   property string preferredMain: MainService.mainMon || ""
   readonly property bool ready: backend !== null
@@ -270,6 +283,10 @@ Singleton {
     repeat: false
 
     onTriggered: monitorService.monitorsUpdated()
+  }
+  onActiveMainScreenChanged: {
+    if (monitorService.activeMainScreen)
+      monitorService.lastKnownGoodMainName = monitorService.activeMain;
   }
   Connections {
     function onScreensChanged() {

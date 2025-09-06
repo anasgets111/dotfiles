@@ -13,24 +13,12 @@ PanelWindow {
   WlrLayershell.namespace: "quickshell:bar:blur"
   color: Theme.panelWindowColor
   exclusiveZone: Theme.panelHeight
-  implicitHeight: panelWindow.screen.height
-  implicitWidth: panelWindow.screen.width
-  screen: MonitorService.activeMainScreen
+  implicitHeight: panelWindow.screen ? panelWindow.screen.height : Theme.panelHeight
+  screen: MonitorService.effectiveMainScreen
+  visible: true
 
   mask: Region {
     item: panelRect
-  }
-
-  onScreenChanged: {
-    if (panelWindow.screenChanging)
-      return;
-    panelWindow.screenChanging = true;
-
-    if (!panelWindow.visible) {
-      panelWindow.visible = true;
-    }
-
-    panelWindow.screenChanging = false;
   }
 
   anchors {
