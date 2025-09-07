@@ -14,7 +14,7 @@ PanelWindow {
   color: Theme.panelWindowColor
   exclusiveZone: Theme.panelHeight
   implicitHeight: panelWindow.screen ? panelWindow.screen.height : Theme.panelHeight
-  screen: MonitorService.activeMain
+  screen: MonitorService.effectiveMainScreen
   onScreenChanged: {
     if (panelWindow.screenChanging)
       return;
