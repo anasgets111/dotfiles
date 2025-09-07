@@ -14,22 +14,15 @@ PanelWindow {
   color: Theme.panelWindowColor
   exclusiveZone: Theme.panelHeight
   implicitHeight: panelWindow.screen ? panelWindow.screen.height : Theme.panelHeight
-  screen: MonitorService.effectiveMainScreen
+  screen: MonitorService.activeMain
   onScreenChanged: {
     if (panelWindow.screenChanging)
       return;
     panelWindow.screenChanging = true;
-    if (!panelWindow.visible)
+    if (!panelWindow.visible) {
       panelWindow.visible = true;
-    panelWindow.screenChanging = false;
-  }
-
-  Connections {
-    target: MonitorService
-    function onEffectiveMainScreenChanged() {
-      if (MonitorService && MonitorService.effectiveMainScreen)
-        panelWindow.lastValidScreen = MonitorService.effectiveMainScreen;
     }
+    panelWindow.screenChanging = false;
   }
 
   mask: Region {
@@ -81,7 +74,6 @@ PanelWindow {
     height: Theme.panelRadius
     width: parent.width
 
-    // Round corners to cut into the panel background on the left/right
     RoundCorner {
       id: bottomLeftCut
 
