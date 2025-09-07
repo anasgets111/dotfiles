@@ -27,7 +27,7 @@ Rectangle {
 
   // Explicit expanded flag to avoid width-dependent logic races
   readonly property bool expanded: rootArea.containsMouse
-  property int expandedWidth: 220
+  property int expandedWidth: Theme.volumeExpandedWidth
   // Pull policy from AudioService
   readonly property real maxVolume: (AudioService ? AudioService.maxVolume : 1.0)
   readonly property bool muted: (AudioService ? AudioService.muted : false)
