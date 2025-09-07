@@ -16,25 +16,41 @@ Singleton {
   readonly property int _msw: _mainScreen ? _mainScreen.width : 1920
   readonly property int _msh: _mainScreen ? _mainScreen.height : 1080
   readonly property real _mss: _mainScreen ? (_mainScreen.devicePixelRatio || _mainScreen.scale || 1.0) : 1.0
-  // Step scale by width; simple buckets for now
-  function _resBucketScale(w, h) {
-    if (w <= 1920)
-      return 1.00;
-    if (w <= 2560)
-      return 1.12; // 1440p typical
-    if (w <= 3440)
-      return 1.20; // ultrawide 1440p
-    if (w <= 3840)
-      return 1.32; // 4K
-    return 1.42; // >4K
-  }
-  // Combine bucket with device scale but dampen device scale so HiDPI doesn't double-inflate
+  // Compute a diagonal-based scale using pixel diagonal and device pixel ratio (DPR).
+  // This produces a smooth, monotonic scale so smaller physical/low-res screens get
+  // a smaller UI and larger/high-DPI screens scale up. We dampen DPR so HiDPI
+  // doesn't double-inflate sizes.
+  readonly property real _screenWidthPx: _msw
+  readonly property real _screenHeightPx: _msh
+  readonly property real _devicePixelRatio: _mss
+
+  // Diagonal in physical pixels (approx): sqrt(w^2 + h^2) * DPR
+  readonly property real _diagonalPixels: Math.sqrt(_screenWidthPx * _screenWidthPx + _screenHeightPx * _screenHeightPx) * _devicePixelRatio
+
+  // Map diagonalPixels to a scale value using linear mapping + clamps.
+  // Tunable breakpoints: small laptops -> ~0.86, common 1080/1440 monitors -> ~0.95..1.12, 4K -> ~1.28
   readonly property real baseScale: {
-    const bucket = _resBucketScale(_msw, _msh);
-    const dpr = _mss; // usually 1 or 2
-    const dprFactor = 1 + (dpr - 1) * 0.35; // only take 35% of extra DPR
-    const combined = bucket * dprFactor;
-    return Math.min(1.6, Math.max(1.0, combined));
+    const diag = _diagonalPixels;
+    // Target calibration points (approx):
+    // - 1920x1080 -> diagonal ~2203 px -> prefer scale ~= 0.90
+    // - 2560x1440 -> diagonal ~2938 px -> prefer scale ~= 1.00
+    const diag1080 = 2203.0;
+    const diag1440 = 2938.0;
+    const scaleAt1080 = 0.90;
+    const scaleAt1440 = 1.00;
+
+    // Linear mapping coefficients: scale = a * diag + b
+    const a = (scaleAt1440 - scaleAt1080) / (diag1440 - diag1080);
+    const b = scaleAt1080 - (a * diag1080);
+
+    let mappedScale = a * diag + b;
+
+    // Damp additional DPR influence so very high DPRs don't over-scale
+    const dampenedDprFactor = 1.0 + (_devicePixelRatio - 1.0) * 0.25;
+    const combined = mappedScale * dampenedDprFactor;
+
+    // Final clamp to reasonable bounds
+    return Math.max(0.75, Math.min(1.4, combined));
   }
 
   readonly property int animationDuration: 147
@@ -51,16 +67,34 @@ Singleton {
   readonly property color panelWindowColor: "transparent"
   readonly property string fontFamily: "CaskaydiaCove Nerd Font Propo"
   readonly property string formatDateTime: " dd dddd hh:mm AP"
-  readonly property int fontSize: 16
-  readonly property int iconSize: 24
-  readonly property int itemHeight: 34
-  readonly property int itemRadius: 18
-  readonly property int itemWidth: 34
-  readonly property int panelHeight: 42
+
+  // Base (unscaled) token values — used to compute scaled tokens below.
+  readonly property int baseFontSize: 16
+  readonly property int baseIconSize: 24
+  readonly property int baseItemHeight: 34
+  readonly property int baseItemRadius: 18
+  readonly property int baseItemWidth: 34
+  readonly property int basePanelHeight: 42
+
+  // Public tokens (scaled automatically). Widgets can keep using Theme.fontSize etc.
+  readonly property int fontSize: Math.max(10, Math.round(baseFontSize * baseScale))
+  readonly property int iconSize: Math.max(12, Math.round(baseIconSize * baseScale))
+  readonly property int itemHeight: Math.max(20, Math.round(baseItemHeight * baseScale))
+  readonly property int itemRadius: Math.max(6, Math.round(baseItemRadius * baseScale))
+  readonly property int itemWidth: Math.max(20, Math.round(baseItemWidth * baseScale))
+  readonly property int panelHeight: Math.max(28, Math.round(basePanelHeight * baseScale))
   readonly property int panelMargin: 16
   readonly property int panelRadius: 16
   readonly property int popupOffset: 18
   readonly property int tooltipMaxSpace: 100
+
+  // Backwards-compatible aliases (some widgets may reference these names)
+  readonly property int fontSizeScaled: fontSize
+  readonly property int iconSizeScaled: iconSize
+  readonly property int itemHeightScaled: itemHeight
+  readonly property int itemRadiusScaled: itemRadius
+  readonly property int itemWidthScaled: itemWidth
+  readonly property int panelHeightScaled: panelHeight
 
   function textContrast(bgColor) {
     function luminance(c) {
