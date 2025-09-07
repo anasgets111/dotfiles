@@ -39,7 +39,7 @@ Singleton {
 
   readonly property int animationDuration: 147
   readonly property color activeColor: "#CBA6F7"
-  readonly property color bgColor: "#CC1E1E2E" // ~80% opaque
+  readonly property color bgColor: "#F31E1E2E" // ~80% opaque
   readonly property color borderColor: "#313244"
   readonly property color disabledColor: "#232634"
   readonly property color inactiveColor: "#494D64"

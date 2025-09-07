@@ -112,11 +112,11 @@ Singleton {
       else if (device.type === "loopback" && !loopbackDevice)
         loopbackDevice = device;
     }
-    if (wifiDevice)
-      return wifiDevice;
-
     if (ethernetDevice)
       return ethernetDevice;
+
+    if (wifiDevice)
+      return wifiDevice;
 
     if (otherDevice)
       return otherDevice;
@@ -149,7 +149,7 @@ Singleton {
           ethIp = net.stripCidr(device.ip4);
       }
     }
-    const status = wifiConn ? "wifi" : ethConn ? "ethernet" : "disconnected";
+    const status = ethConn ? "ethernet" : (wifiConn ? "wifi" : "disconnected");
     return {
       "wifiIf": wifiIf,
       "ethIf": ethIf,
