@@ -15,7 +15,22 @@ PanelWindow {
   exclusiveZone: Theme.panelHeight
   implicitHeight: panelWindow.screen ? panelWindow.screen.height : Theme.panelHeight
   screen: MonitorService.effectiveMainScreen
-  visible: true
+  onScreenChanged: {
+    if (panelWindow.screenChanging)
+      return;
+    panelWindow.screenChanging = true;
+    if (!panelWindow.visible)
+      panelWindow.visible = true;
+    panelWindow.screenChanging = false;
+  }
+
+  Connections {
+    target: MonitorService
+    function onEffectiveMainScreenChanged() {
+      if (MonitorService && MonitorService.effectiveMainScreen)
+        panelWindow.lastValidScreen = MonitorService.effectiveMainScreen;
+    }
+  }
 
   mask: Region {
     item: panelRect
