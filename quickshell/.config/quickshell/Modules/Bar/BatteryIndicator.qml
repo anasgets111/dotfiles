@@ -33,7 +33,7 @@ Item {
   property int widthPhase: 0
 
   implicitHeight: Theme.itemHeight
-  implicitWidth: 80
+  implicitWidth: Theme.batteryPillWidth
   visible: BatteryService.isReady
 
   onIsPluggedInChanged: if (isPluggedIn) {

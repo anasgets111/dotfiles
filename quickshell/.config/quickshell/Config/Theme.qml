@@ -75,6 +75,9 @@ Singleton {
   readonly property int baseItemRadius: 18
   readonly property int baseItemWidth: 34
   readonly property int basePanelHeight: 42
+  // New: base widths for widgets that were previously hardcoded
+  readonly property int baseBatteryPillWidth: 80
+  readonly property int baseVolumeExpandedWidth: 220
 
   // Public tokens (scaled automatically). Widgets can keep using Theme.fontSize etc.
   readonly property int fontSize: Math.max(10, Math.round(baseFontSize * baseScale))
@@ -83,6 +86,9 @@ Singleton {
   readonly property int itemRadius: Math.max(6, Math.round(baseItemRadius * baseScale))
   readonly property int itemWidth: Math.max(20, Math.round(baseItemWidth * baseScale))
   readonly property int panelHeight: Math.max(28, Math.round(basePanelHeight * baseScale))
+  // New: centralized widths
+  readonly property int batteryPillWidth: Math.max(60, Math.round(baseBatteryPillWidth * baseScale))
+  readonly property int volumeExpandedWidth: Math.max(140, Math.round(baseVolumeExpandedWidth * baseScale))
   readonly property int panelMargin: 16
   readonly property int panelRadius: 16
   readonly property int popupOffset: 18
