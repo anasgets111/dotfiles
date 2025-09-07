@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell.Bluetooth
 import qs.Config
 import qs.Widgets
 import qs.Services.Core
@@ -120,6 +121,25 @@ Item {
           visible: text.length > 0
         }
       }
+    }
+  }
+
+  // Wire the service to the system's default adapter (simple and local)
+  function refreshAdapter() {
+    var maybe = null;
+    if (typeof Bluetooth !== 'undefined') {
+      var prop = "default" + "Adapter";
+      maybe = Bluetooth[prop];
+    }
+    if (bt && bt.setAdapter)
+      bt.setAdapter(maybe);
+  }
+
+  Component.onCompleted: refreshAdapter()
+  Connections {
+    target: (typeof Bluetooth !== 'undefined') ? Bluetooth : null
+    function onDefaultAdapterChanged() {
+      root.refreshAdapter();
     }
   }
 }
