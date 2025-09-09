@@ -131,6 +131,7 @@ Item {
 
   Tooltip {
     hoverSource: iconButton.area
+    hAlign: Qt.AlignCenter
     target: iconButton
     contentComponent: Component {
       Column {

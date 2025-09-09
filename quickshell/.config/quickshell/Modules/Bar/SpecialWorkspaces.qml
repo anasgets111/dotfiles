@@ -71,7 +71,7 @@ RowLayout {
         }
       }
       Tooltip {
-        edge: Qt.BottomEdge
+        hAlign: Qt.AlignCenter
         hoverSource: button.area
         target: button
         text: specialWorkspaces.capitalizeFirstLetter((cell.workspace.name || "").replace("special:", ""))
