@@ -26,7 +26,7 @@ Item {
     onLeftClicked: inhibitorProcess.running = !inhibitorProcess.running
   }
   Tooltip {
-    edge: Qt.BottomEdge
+    hAlign: Qt.AlignCenter
     hoverSource: button.area
     target: button
     text: inhibitorProcess.running ? qsTr("Idle inhibition active") : qsTr("Click to prevent idle")

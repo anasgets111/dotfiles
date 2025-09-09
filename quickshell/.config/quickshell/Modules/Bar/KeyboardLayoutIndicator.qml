@@ -19,6 +19,7 @@ Item {
     iconText: KeyboardLayoutService.layoutShort
   }
   Tooltip {
+    hAlign: Qt.AlignCenter
     hoverSource: iconButton.area
     target: iconButton
     text: KeyboardLayoutService.currentLayout

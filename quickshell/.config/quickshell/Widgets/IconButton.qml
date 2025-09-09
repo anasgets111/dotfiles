@@ -11,6 +11,7 @@ Item {
   property color bgColor: Theme.inactiveColor
   property bool busy: false
   property alias contentItem: contentLoader.sourceComponent
+  property bool contentFills: false
   property bool disabled: false
   property color disabledBgColor: Theme.inactiveColor
   readonly property color effectiveBg: disabled ? disabledBgColor : (hovered && !busy ? hoverBgColor : bgColor)
@@ -106,8 +107,8 @@ Item {
 
       Loader {
         id: contentLoader
-
-        anchors.centerIn: parent
+        anchors.fill: root.contentFills ? parent : undefined
+        anchors.centerIn: root.contentFills ? undefined : parent
       }
       Text {
         anchors.centerIn: parent

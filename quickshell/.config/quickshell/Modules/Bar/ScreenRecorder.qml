@@ -21,7 +21,7 @@ Item {
       ScreenRecordingService.togglePause()
   }
   Tooltip {
-    edge: Qt.BottomEdge
+    hAlign: Qt.AlignCenter
     hoverSource: button.area
     target: button
     text: ScreenRecordingService.isRecording ? (ScreenRecordingService.isPaused ? qsTr("Right-click to resume, left to stop") : qsTr("Right-click to pause, left to stop")) : qsTr("Left-click to start recording")
