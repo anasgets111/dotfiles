@@ -49,6 +49,7 @@ Item {
     progress: slider.dragging ? slider.pending : slider.value
     fillColor: Theme.activeColor
     radius: Theme.itemRadius
+    animMs: slider.animMs
   }
 
   MouseArea {

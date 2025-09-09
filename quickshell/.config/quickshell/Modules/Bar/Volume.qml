@@ -1,9 +1,9 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import Quickshell.Widgets
 import qs.Config
 import qs.Services.Core
+import qs.Components
 
 Rectangle {
   id: volumeControl
@@ -18,15 +18,16 @@ Rectangle {
     if (!expanded)
       return Theme.textContrast(bg);
     const leftColor = Theme.activeColor;
-    const useColor = sliderBg.sliderValue > 0.5 ? leftColor : bg;
+    const norm = volSlider ? (volSlider.dragging ? volSlider.pending : volSlider.value) : 0;
+    const useColor = norm > 0.5 ? leftColor : bg;
     return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bg : useColor);
   }
   readonly property string deviceIcon: (AudioService ? AudioService.sinkIcon : "")
 
   // Icon mapping moved to AudioService
 
-  // Explicit expanded flag to avoid width-dependent logic races
-  readonly property bool expanded: rootArea.containsMouse
+  // Explicit hover-expanded flag (tracked manually for better control)
+  property bool expanded: false
   property int expandedWidth: Theme.volumeExpandedWidth
   // Pull policy from AudioService
   readonly property real maxVolume: (AudioService ? AudioService.maxVolume : 1.0)
@@ -46,11 +47,16 @@ Rectangle {
 
   // Hover animation suppression
   property bool suppressFillAnim: false
+  // Track if width is currently animating (0..animationDuration)
+  property bool widthAnimating: false
   // Bind to service volume (0..maxVolume)
   readonly property real volume: (AudioService ? AudioService.volume : 0.0)
+  // Keep slider in sync with external volume changes (avoid binding break on commit)
+  onVolumeChanged: if (!volSlider.dragging)
+    volSlider.value = (displayMaxVolume > 0 ? (volume / displayMaxVolume) : 0)
   readonly property string volumeIcon: {
     // Determine ratio relative to 100% base for icon stages
-    const norm = (sliderBg && typeof sliderBg.sliderValue === 'number') ? sliderBg.sliderValue : (displayMaxVolume > 0 ? (volume / displayMaxVolume) : 0);
+    const norm = (volSlider ? (volSlider.dragging ? volSlider.pending : volSlider.value) : (displayMaxVolume > 0 ? (volume / displayMaxVolume) : 0));
     const valueAbs = norm * displayMaxVolume;                // 0..1.5
     const ratioBase = baseVolume > 0 ? Math.min(valueAbs / baseVolume, 1.0) : 0; // 0..1.0
     return audioReady ? (deviceIcon || (muted ? "󰝟" : ratioBase < 0.01 ? "󰖁" : ratioBase < 0.33 ? "󰕿" : ratioBase < 0.66 ? "󰖀" : "󰕾")) : "--";
@@ -90,6 +96,10 @@ Rectangle {
     NumberAnimation {
       duration: Theme.animationDuration
       easing.type: Easing.InOutQuad
+      onRunningChanged: if (running)
+        volumeControl.widthAnimating = true
+      else
+        volumeControl.widthAnimating = false
     }
   }
 
@@ -112,131 +122,52 @@ Rectangle {
   }
   Timer {
     id: hoverTransitionTimer
-
     interval: Theme.animationDuration
-
     onTriggered: volumeControl.suppressFillAnim = false
+  }
+  // Hover tracking (non-invasive)
+  HoverHandler {
+    id: hoverHandler
+    onHoveredChanged: {
+      volumeControl.suppressFillAnim = true;
+      hoverTransitionTimer.restart();
+      volumeControl.expanded = hovered;
+    }
   }
   MouseArea {
     id: rootArea
-
-    // Accumulate wheel deltas to snap to stepSize
-    property real __wheelAccum: 0
-
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton
     anchors.fill: parent
     hoverEnabled: true
-
     onClicked: function (event) {
       if (!volumeControl.audioReady)
         return;
-      if (event.button === Qt.MiddleButton) {
-        if (AudioService)
-          AudioService.toggleMute();
-      }
+      if (event.button === Qt.MiddleButton && AudioService)
+        AudioService.toggleMute();
     }
-    onContainsMouseChanged: {
-      volumeControl.suppressFillAnim = true;
-      hoverTransitionTimer.restart();
-    }
-    onWheel: function (e) {
+  }
+  // Reusable normalized slider (0..1) scaled to displayMaxVolume (e.g. 0..1.5 absolute)
+  Slider {
+    id: volSlider
+    anchors.fill: parent
+    // Represent current volume in normalized headroom space
+    // Initial value set on component completion & updated in onVolumeChanged
+    steps: volumeControl.sliderSteps // 30 => 5% base increments across 150%
+    wheelStep: 1 / steps
+    // Animate fill during expansion (remove suppression flag)
+    animMs: (volSlider.dragging || volumeControl.widthAnimating) ? 0 : Theme.animationDuration
+    interactive: volumeControl.audioReady
+    // Hide visual fill when collapsed (still allow wheel for quick adjust)
+    opacity: (volumeControl.expanded || volSlider.dragging) ? 1 : 0
+    onChanging: function (v) {}
+    onCommitted: function (v) {
       if (!volumeControl.audioReady)
         return;
-
-      // Use pixelDelta for high-precision touchpads; fall back to angleDelta for mouse wheels.
-      // Qt angleDelta is in 1/8 degree units; one wheel notch is 15deg -> 120 units.
-      const hasPixel = !!(e.pixelDelta && e.pixelDelta.y);
-      const eff = hasPixel ? e.pixelDelta.y : e.angleDelta.y;
-      if (!eff || Math.abs(eff) < 1) {
-        e.accepted = true;
-        return;
-      }
-
-      // Accumulate until we cross a unit threshold:
-      // - touchpads: ~50px per step feels right (smooth)
-      // - mouse wheels: 120 angle units per notch (exact)
-      const unit = hasPixel ? 50.0 : 120.0;
-      __wheelAccum += eff;
-      const whole = Math.trunc(__wheelAccum / unit);
-      if (whole === 0) {
-        e.accepted = true;
-        return;
-      }
-      __wheelAccum -= whole * unit;
-
-      // Wheel steps should follow 5% of the 100% base, not of the 150% headroom
-      const delta = whole * volumeControl.stepSize * volumeControl.baseVolume;
-      volumeControl.setVolumeValue(volumeControl.volume + delta);
-      e.accepted = true;
+      // Map normalized (0..1 over headroom) back to absolute volume
+      volumeControl.setVolumeValue(v * volumeControl.displayMaxVolume);
     }
   }
-  Item {
-    id: sliderBg
-
-    property bool committing: false
-    // Normalize fill to 150% range so the bar fills fully at 150%
-    readonly property real currentNorm: (volumeControl.displayMaxVolume > 0 ? (volumeControl.volume / volumeControl.displayMaxVolume) : 0)
-    property bool dragging: false
-    property real pendingValue: currentNorm
-    readonly property real sliderValue: (dragging || committing) ? pendingValue : currentNorm
-
-    anchors.fill: parent
-
-    ClippingRectangle {
-      anchors.fill: parent
-      color: "transparent"
-      radius: volumeControl.radius
-      visible: rootArea.containsMouse || sliderBg.dragging
-
-      Rectangle {
-        anchors.bottom: parent.bottom
-        anchors.left: parent.left
-        anchors.top: parent.top
-        color: Theme.activeColor
-        width: parent.width * sliderBg.sliderValue
-
-        Behavior on width {
-          NumberAnimation {
-            duration: (sliderBg.dragging || sliderBg.committing || volumeControl.suppressFillAnim) ? 0 : Theme.animationDuration
-            easing.type: Easing.InOutQuad
-          }
-        }
-      }
-    }
-    MouseArea {
-      function commitVolume(v) {
-        if (!volumeControl.audioReady)
-          return;
-        const steps = Math.max(1, volumeControl.sliderSteps);
-        const stepped = Math.round(v * steps) / steps;
-        // Map normalized (0..1 over 0..150%) back to absolute volume
-        volumeControl.setVolumeValue(stepped * volumeControl.displayMaxVolume);
-        sliderBg.committing = false;
-      }
-      function update(x) {
-        const raw = Math.min(1, Math.max(0, x / parent.width));
-        const steps = Math.max(1, volumeControl.sliderSteps);
-        sliderBg.pendingValue = Math.round(raw * steps) / steps;
-      }
-
-      anchors.fill: parent
-      cursorShape: Qt.PointingHandCursor
-
-      onPositionChanged: function (e) {
-        if (sliderBg.dragging)
-          update(e.x);
-      }
-      onPressed: function (e) {
-        sliderBg.dragging = true;
-        update(e.x);
-      }
-      onReleased: function () {
-        sliderBg.committing = true;
-        sliderBg.dragging = false;
-        commitVolume(sliderBg.pendingValue);
-      }
-    }
-  }
+  Component.onCompleted: volSlider.value = (displayMaxVolume > 0 ? (volume / displayMaxVolume) : 0)
   RowLayout {
     anchors.centerIn: parent
     anchors.margins: volumeControl.padding
@@ -283,9 +214,7 @@ Rectangle {
     }
     Item {
       id: percentItem
-
       Layout.preferredHeight: volumeControl.expanded ? implicitHeight : 0
-      // Do not take space when collapsed
       Layout.preferredWidth: volumeControl.expanded ? implicitWidth : 0
       implicitHeight: maxPercentMeasure.paintedHeight
       implicitWidth: maxPercentMeasure.paintedWidth
@@ -300,7 +229,7 @@ Rectangle {
         font.pixelSize: Theme.fontSize
         horizontalAlignment: Text.AlignHCenter
         // Show percent relative to 100% base; allow up to 150%
-        text: volumeControl.audioReady ? (volumeControl.muted ? "0%" : (sliderBg.dragging || sliderBg.committing ? Math.round(Math.min(sliderBg.pendingValue * volumeControl.displayMaxVolume / volumeControl.baseVolume, 1.5) * 100) + "%" : Math.round(Math.min(volumeControl.volume / volumeControl.baseVolume, 1.5) * 100) + "%")) : "--"
+        text: volumeControl.audioReady ? (volumeControl.muted ? "0%" : (volSlider.dragging ? Math.round(Math.min(volSlider.pending * volumeControl.displayMaxVolume / volumeControl.baseVolume, 1.5) * 100) + "%" : Math.round(Math.min(volumeControl.volume / volumeControl.baseVolume, 1.5) * 100) + "%")) : "--"
         verticalAlignment: Text.AlignVCenter
       }
     }
