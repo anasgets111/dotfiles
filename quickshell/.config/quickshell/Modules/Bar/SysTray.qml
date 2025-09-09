@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Widgets
 import qs.Config
 import qs.Services.Core
-import qs.Widgets
+import qs.Components
 
 Item {
   id: tray

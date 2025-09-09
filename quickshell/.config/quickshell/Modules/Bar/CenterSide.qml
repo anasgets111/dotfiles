@@ -2,7 +2,7 @@ import QtQuick
 import qs.Config
 import qs.Services.Core as Core
 import qs.Services.WM as WM
-import qs.Widgets
+import qs.Components
 
 Row {
   id: centerSide

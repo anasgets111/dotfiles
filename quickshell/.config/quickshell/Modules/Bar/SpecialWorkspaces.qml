@@ -3,7 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Config
 import qs.Services.WM
-import qs.Widgets
+import qs.Components
 
 RowLayout {
   id: specialWorkspaces

@@ -3,7 +3,7 @@ import QtQuick
 import Quickshell
 import qs.Config
 import qs.Services.WM
-import qs.Widgets
+import qs.Components
 
 Item {
   id: normalWorkspaces

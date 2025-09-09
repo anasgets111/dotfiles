@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Io
 import qs.Config
-import qs.Widgets
+import qs.Components
 
 Item {
   id: powerMenu

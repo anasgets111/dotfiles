@@ -4,7 +4,7 @@ import QtQuick
 import QtQuick.Window
 import qs.Services.SystemInfo
 import qs.Config
-import qs.Widgets
+import qs.Components
 
 Item {
   id: root

@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Config
-import qs.Widgets
+import qs.Components
 import qs.Services.Core
 
 Item {
