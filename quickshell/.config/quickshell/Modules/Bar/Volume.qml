@@ -31,12 +31,14 @@ Rectangle {
   // Pull policy from AudioService
   readonly property real maxVolume: (AudioService ? AudioService.maxVolume : 1.0)
   readonly property bool muted: (AudioService ? AudioService.muted : false)
+  // 100% base (1.0) with headroom to 150% (1.5)
+  readonly property real baseVolume: 1.0
+  readonly property real displayMaxVolume: 1.5
 
   // Layout
   property int padding: 10
   property bool preserveChannelBalance: false
-  // No direct PipeWire state here; AudioService owns it
-  property int sliderSteps: 20          // snapping steps
+  property int sliderSteps: 30          // snapping steps (30 => 5% of base across 150%)
 
   // Behavior/config
   // Respect AudioService default if present
@@ -47,9 +49,11 @@ Rectangle {
   // Bind to service volume (0..maxVolume)
   readonly property real volume: (AudioService ? AudioService.volume : 0.0)
   readonly property string volumeIcon: {
-    const displayNorm = (sliderBg && typeof sliderBg.sliderValue === 'number') ? sliderBg.sliderValue : (maxVolume > 0 ? (volume / maxVolume) : 0);
-    const ratio = maxVolume > 0 ? (displayNorm) : 0;
-    return audioReady ? (deviceIcon || (muted ? "󰝟" : ratio < 0.01 ? "󰖁" : ratio < 0.33 ? "󰕿" : ratio < 0.66 ? "󰖀" : "󰕾")) : "--";
+    // Determine ratio relative to 100% base for icon stages
+    const norm = (sliderBg && typeof sliderBg.sliderValue === 'number') ? sliderBg.sliderValue : (displayMaxVolume > 0 ? (volume / displayMaxVolume) : 0);
+    const valueAbs = norm * displayMaxVolume;                // 0..1.5
+    const ratioBase = baseVolume > 0 ? Math.min(valueAbs / baseVolume, 1.0) : 0; // 0..1.0
+    return audioReady ? (deviceIcon || (muted ? "󰝟" : ratioBase < 0.01 ? "󰖁" : ratioBase < 0.33 ? "󰕿" : ratioBase < 0.66 ? "󰖀" : "󰕾")) : "--";
   }
 
   // Centralized volume setter with optional channel balance preservation
@@ -106,7 +110,6 @@ Rectangle {
       e.accepted = true;
     }
   }
-// GLORIOUS
   Timer {
     id: hoverTransitionTimer
 
@@ -161,7 +164,8 @@ Rectangle {
       }
       __wheelAccum -= whole * unit;
 
-      const delta = whole * volumeControl.stepSize * volumeControl.maxVolume;
+      // Wheel steps should follow 5% of the 100% base, not of the 150% headroom
+      const delta = whole * volumeControl.stepSize * volumeControl.baseVolume;
       volumeControl.setVolumeValue(volumeControl.volume + delta);
       e.accepted = true;
     }
@@ -170,7 +174,8 @@ Rectangle {
     id: sliderBg
 
     property bool committing: false
-    readonly property real currentNorm: (volumeControl.maxVolume > 0 ? (volumeControl.volume / volumeControl.maxVolume) : 0)
+    // Normalize fill to 150% range so the bar fills fully at 150%
+    readonly property real currentNorm: (volumeControl.displayMaxVolume > 0 ? (volumeControl.volume / volumeControl.displayMaxVolume) : 0)
     property bool dragging: false
     property real pendingValue: currentNorm
     readonly property real sliderValue: (dragging || committing) ? pendingValue : currentNorm
@@ -204,7 +209,8 @@ Rectangle {
           return;
         const steps = Math.max(1, volumeControl.sliderSteps);
         const stepped = Math.round(v * steps) / steps;
-        volumeControl.setVolumeValue(stepped * volumeControl.maxVolume);
+        // Map normalized (0..1 over 0..150%) back to absolute volume
+        volumeControl.setVolumeValue(stepped * volumeControl.displayMaxVolume);
         sliderBg.committing = false;
       }
       function update(x) {
@@ -293,7 +299,8 @@ Rectangle {
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize
         horizontalAlignment: Text.AlignHCenter
-        text: volumeControl.audioReady ? (volumeControl.muted ? "0%" : (sliderBg.dragging || sliderBg.committing ? Math.round(sliderBg.pendingValue * 100) + "%" : Math.round(sliderBg.currentNorm * 100) + "%")) : "--"
+        // Show percent relative to 100% base; allow up to 150%
+        text: volumeControl.audioReady ? (volumeControl.muted ? "0%" : (sliderBg.dragging || sliderBg.committing ? Math.round(Math.min(sliderBg.pendingValue * volumeControl.displayMaxVolume / volumeControl.baseVolume, 1.5) * 100) + "%" : Math.round(Math.min(volumeControl.volume / volumeControl.baseVolume, 1.5) * 100) + "%")) : "--"
         verticalAlignment: Text.AlignVCenter
       }
     }
