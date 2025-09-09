@@ -1,7 +1,7 @@
 import QtQuick
 import qs.Services.WM
 import qs.Config
-import qs.Widgets
+import qs.Components
 
 Item {
   id: keyboardLayoutIndicator

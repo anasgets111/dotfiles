@@ -1,6 +1,6 @@
 import QtQuick
 import qs.Config
-import qs.Widgets
+import qs.Components
 import qs.Services.SystemInfo
 
 Item {

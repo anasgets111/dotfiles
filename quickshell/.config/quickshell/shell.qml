@@ -6,7 +6,7 @@ import QtQml
 import QtQuick
 import Quickshell
 import qs.Components
-import qs.Widgets
+import qs.Components
 import qs.Modules.Bar
 import qs.Modules.Notification
 import qs.Services.Core

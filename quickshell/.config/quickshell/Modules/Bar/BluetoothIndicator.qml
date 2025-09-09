@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Bluetooth
 import qs.Config
-import qs.Widgets
+import qs.Components
 import qs.Services.Core
 
 Item {
