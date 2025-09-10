@@ -30,7 +30,9 @@ Control {
     }
   }
 
-  Component.onCompleted: Qt.callLater(function () { _animReady = true; })
+  Component.onCompleted: Qt.callLater(function () {
+    _animReady = true;
+  })
 
   // Background + shadow container
   Rectangle {
@@ -38,7 +40,7 @@ Control {
     anchors.fill: parent
     radius: base.radius
     color: Theme.bgColor
-  border.width: 2
+    border.width: 2
     // Fallback flat border color (right / bottom edges) – left edge emphasized by gradient stroke below
     border.color: Theme.borderColor
     layer.enabled: true
@@ -88,13 +90,18 @@ Control {
       grad.addColorStop(0.28, Theme.borderColor);
       grad.addColorStop(1.0, Theme.borderColor);
 
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = grad;
-  // Inset by 1px to keep 2px stroke fully inside bounds
-  roundRect(1, 1, w - 2, h - 2, r);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = grad;
+      // Inset by 1px to keep 2px stroke fully inside bounds
+      roundRect(1, 1, w - 2, h - 2, r);
       ctx.stroke();
     }
-    Connections { target: base; function onAccentColorChanged() { gradientBorder.requestPaint(); } }
+    Connections {
+      target: base
+      function onAccentColorChanged() {
+        gradientBorder.requestPaint();
+      }
+    }
     onWidthChanged: requestPaint()
     onHeightChanged: requestPaint()
     Component.onCompleted: requestPaint()
