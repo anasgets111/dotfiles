@@ -5,6 +5,7 @@ import QtQuick.Controls
 import Quickshell.Wayland
 import qs.Services.SystemInfo
 import QtQuick.Window
+import qs.Config
 
 PanelWindow {
   id: layer

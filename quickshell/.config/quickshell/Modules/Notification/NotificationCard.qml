@@ -4,9 +4,10 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import qs.Services.SystemInfo
-import Qt5Compat.GraphicalEffects
+import qs.Config
+import "./"
 
-Control {
+CardBase {
   id: card
 
   // Use a generic type to avoid static analysis errors when reading fields
@@ -17,48 +18,15 @@ Control {
   signal replySubmitted(string text)
 
   implicitWidth: 360
-  // Drive opacity directly instead of states
-  opacity: card.wrapper?.popup ? 1.0 : 0.0
-  // Tiny scale-in for polish
-  scale: opacity > 0 ? 1.0 : 0.96
-  padding: 10
+  shown: !!(card.wrapper?.popup)
 
   // Urgency -> accent color
   readonly property string _urgency: NotificationService._urgencyToString(wrapper?.urgency)
-  readonly property color accentColor: _urgency === "critical" ? "#ff4d4f" : _urgency === "low" ? "#3a3f4a" : "#3b82f6"
+  accentColor: _urgency === "critical" ? "#ff4d4f" : _urgency === "low" ? Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9) : Theme.activeColor
 
-  background: Rectangle {
-    id: bg
-    radius: 12
-    color: Qt.rgba(0.10, 0.10, 0.11, 0.78)
-    border.width: 1
-    border.color: Qt.rgba(1, 1, 1, 0.06)
-    layer.enabled: true
-    layer.smooth: true
-    layer.effect: DropShadow {
-      horizontalOffset: 0
-      verticalOffset: 3
-      radius: 24
-      samples: 32
-      color: Qt.rgba(0, 0, 0, 0.55)
-      transparentBorder: true
-    }
-
-    // Urgency accent bar
-    Rectangle {
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
-      anchors.left: parent.left
-      width: 4
-      radius: 2
-      color: card.accentColor
-    }
-  }
-
-  contentItem: ColumnLayout {
+  ColumnLayout {
     id: content
     spacing: 6
-    anchors.margins: 10
 
     RowLayout {
       Layout.fillWidth: true
@@ -239,18 +207,6 @@ Control {
     }
   }
 
-  Behavior on opacity {
-    NumberAnimation {
-      duration: 150
-    }
-  }
-  Behavior on scale {
-    NumberAnimation {
-      duration: 160
-      easing.type: Easing.OutCubic
-    }
-  }
-
   // Slim top progress bar
   Rectangle {
     id: progressBar
@@ -263,7 +219,7 @@ Control {
     width: parent.width * (card.wrapper?.timer && card.wrapper.timer.interval > 0 ? Math.max(0, Math.min(1, card.wrapper.timer.remainingTime / card.wrapper.timer.interval)) : 0)
     Behavior on width {
       NumberAnimation {
-        duration: 180
+        duration: Theme.animationDuration
         easing.type: Easing.OutCubic
       }
     }
@@ -281,7 +237,6 @@ Control {
     anchors.fill: parent
     hoverEnabled: true
     propagateComposedEvents: true
-
     onEntered: if (card.wrapper?.timer?.running)
       card.wrapper.timer.stop()
     onExited: if ((card.wrapper?.timer?.interval || 0) > 0 && !(card.wrapper?.timer?.running))
@@ -291,9 +246,6 @@ Control {
   MouseArea {
     acceptedButtons: Qt.MiddleButton
     anchors.fill: parent
-    hoverEnabled: false
-    propagateComposedEvents: true
-
     onClicked: card.dismiss()
   }
 }

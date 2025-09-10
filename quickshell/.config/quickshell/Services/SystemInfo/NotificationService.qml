@@ -1,6 +1,7 @@
 pragma Singleton
 pragma ComponentBehavior: Bound
 import qs.Services.Utils
+import qs.Config
 
 import QtQuick
 import Quickshell
@@ -10,7 +11,8 @@ Singleton {
   id: root
 
   property bool _addGateBusy: false
-  readonly property int _enterAnimMs: 300
+  // Match CardBase NumberAnimation duration (Theme.animationDuration * 1.4)
+  readonly property int _enterAnimMs: Math.round(Theme.animationDuration * 1.4)
   property int _localIdSeq: 1
   property bool _timePulse: false
 
@@ -215,6 +217,26 @@ Singleton {
   }
 
   // ----- Groups -----
+  // helper: prune empty groups
+  function _pruneGroup(groupId) {
+    const gid = String(groupId || "");
+    if (!gid || !root.groupsMap[gid])
+      return;
+    const entry = root.groupsMap[gid];
+    entry.children = (entry.children || []).filter(id => !!id && root.all.some(w => String(w.id) === String(id)));
+    if (!entry.children.length) {
+      delete root.groupsMap[gid];
+    }
+    _saveGroups();
+  }
+
+  function toggleGroup(groupId, expanded) {
+    const gid = String(groupId || "");
+    if (!gid || !root.groupsMap[gid])
+      return;
+    root.groupsMap[gid].expanded = !!expanded;
+    _saveGroups();
+  }
   function _saveGroups() {
     try {
       store.groupsJson = JSON.stringify(root.groupsMap || {});
@@ -336,6 +358,9 @@ Singleton {
         root.all = a;
       }
     }
+    // prune group membership
+    if (w.groupId)
+      _pruneGroup(w.groupId);
     _processQueue();
   }
 
@@ -367,17 +392,13 @@ Singleton {
   }
 
   function acknowledge(id) {
-    const searchId = String(id || "");
-    for (let i = 0; i < root.all.length; i++) {
-      const w = root.all[i];
-      const wid = String(w?.id || w?.notification?.id || "");
-      if (wid === searchId) {
-        w.popup = false;
-        w.status = "hidden";
-        return {
-          ok: true
-        };
-      }
+    const w = _findWrapper(id);
+    if (w) {
+      w.popup = false;
+      w.status = "hidden";
+      return {
+        ok: true
+      };
     }
     return {
       ok: false,
@@ -394,42 +415,32 @@ Singleton {
   }
 
   function executeAction(id, actionId) {
-    const searchId = String(id || "");
+    const w = _findWrapper(id);
+    if (!w)
+      return {
+        ok: false,
+        error: "not-found"
+      };
+    const actions = w.actionsModel || [];
     const searchActionId = String(actionId || "");
-    for (let i = 0; i < root.all.length; i++) {
-      const w = root.all[i];
-      const wid = String(w?.id || w?.notification?.id || "");
-      if (wid === searchId) {
-        const actions = w.actionsModel || [];
-        for (let ai = 0; ai < actions.length; ai++) {
-          if (String(actions[ai].id) === searchActionId) {
-            // _logAction happens inside trigger()
-            actions[ai].trigger();
-            return {
-              ok: true
-            };
-          }
-        }
+    for (let ai = 0; ai < actions.length; ai++) {
+      if (String(actions[ai].id) === searchActionId) {
+        actions[ai].trigger();
         return {
-          ok: false,
-          error: "action-not-found"
+          ok: true
         };
       }
     }
     return {
       ok: false,
-      error: "not-found"
+      error: "action-not-found"
     };
   }
 
   function reply(id, text) {
-    const searchId = String(id || "");
-    for (let i = 0; i < root.all.length; i++) {
-      const w = root.all[i];
-      const wid = String(w?.id || w?.notification?.id || "");
-      if (wid === searchId)
-        return w.submitReply(text);
-    }
+    const w = _findWrapper(id);
+    if (w)
+      return w.submitReply(text);
     return {
       ok: false,
       error: "not-found"
@@ -600,19 +611,23 @@ Singleton {
     };
     root.replyLog = (root.replyLog || []).concat([rec]);
     _saveLogs();
+    const w = _findWrapper(id);
+    const appName = w ? String(w.notification?.appName || "") : "";
+    const summary = w ? String(w.notification?.summary || "") : "";
+    root.replySubmitted(String(id), String(text), appName, summary);
+  }
 
-    let appName = "";
-    let summary = "";
+  // Wrapper lookup helper
+  function _findWrapper(id) {
+    const searchId = String(id || "");
+    if (!searchId)
+      return null;
     for (let i = 0; i < root.all.length; i++) {
       const w = root.all[i];
-      const wid = String(w?.id || w?.notification?.id || "");
-      if (wid === String(id)) {
-        appName = String(w.notification?.appName || "");
-        summary = String(w.notification?.summary || "");
-        break;
-      }
+      if (String(w?.id || w?.notification?.id || "") === searchId)
+        return w;
     }
-    root.replySubmitted(String(id), String(text), appName, summary);
+    return null;
   }
 
   // ----- Persistence -----
@@ -774,6 +789,13 @@ Singleton {
       }
     }
 
+    // Delay hide so UI can animate slide-out before removal from visible list
+    readonly property Timer hideDelay: Timer {
+      interval: root._enterAnimMs + 120
+      repeat: false
+      onTriggered: if (!wrapper.popup) root._onHidden(wrapper)
+    }
+
     function _mkActionEntry(notification, id, title, iconName) {
       const iconSource = iconName ? Quickshell.iconPath(String(iconName), true) : "";
       return {
@@ -833,8 +855,15 @@ Singleton {
       };
     }
 
-    onPopupChanged: if (!popup)
-      root._onHidden(wrapper)
+    onPopupChanged: if (!popup) {
+      // start hide delay; actual removal after animation
+      if (!hideDelay.running)
+        hideDelay.start();
+    } else {
+      // cancel pending hide if popup re-shown
+      if (hideDelay.running)
+        hideDelay.stop();
+    }
   }
 
   // ----- Sanitizer -----
