@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import qs.Services.SystemInfo
+// Utils singleton may not expose resolveIconSource at runtime in this context; avoid hard dependency
 import Qt5Compat.GraphicalEffects
 
 Control {
@@ -54,6 +55,25 @@ Control {
         sourceSize.height: 64
         sourceSize.width: 64
         visible: !!(card.wrapper?.iconSource)
+
+        // Hide or fallback if the dynamic provider handle becomes invalid
+        onStatusChanged: function () {
+          if (status !== Image.Error)
+            return;
+          if (String(source).startsWith("image://qsimage/")) {
+            // Attempt themed fallback via Quickshell.iconPath if available
+            try {
+              if (typeof Quickshell !== "undefined" && Quickshell.iconPath) {
+                const fb = Quickshell.iconPath("dialog-information", true);
+                if (fb && fb !== source) {
+                  source = fb;
+                  return;
+                }
+              }
+            } catch (_) {}
+          }
+          visible = false;
+        }
       }
 
       ColumnLayout {
@@ -94,10 +114,11 @@ Control {
       }
 
       ToolButton {
-        icon.name: "window-close"
-        text: "x"
-
-        onClicked: card.dismiss()
+  icon.name: "window-close"
+  display: AbstractButton.IconOnly
+  // Accessible label without showing duplicate text
+  Accessible.name: "Dismiss notification"
+  onClicked: card.dismiss()
       }
     }
 
@@ -111,6 +132,11 @@ Control {
       sourceSize.height: 256
       sourceSize.width: 512
       visible: !!(card.wrapper?.imageSource)
+
+      onStatusChanged: function () {
+        if (status === Image.Error)
+          visible = false;
+      }
     }
 
     RowLayout {
