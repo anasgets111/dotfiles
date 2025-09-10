@@ -793,7 +793,8 @@ Singleton {
     readonly property Timer hideDelay: Timer {
       interval: root._enterAnimMs + 120
       repeat: false
-      onTriggered: if (!wrapper.popup) root._onHidden(wrapper)
+      onTriggered: if (!wrapper.popup)
+        root._onHidden(wrapper)
     }
 
     function _mkActionEntry(notification, id, title, iconName) {
