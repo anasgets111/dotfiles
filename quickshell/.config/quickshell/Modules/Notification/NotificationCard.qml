@@ -4,16 +4,12 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import qs.Services.SystemInfo
-// Utils singleton may not expose resolveIconSource at runtime in this context; avoid hard dependency
 import Qt5Compat.GraphicalEffects
 
 Control {
   id: card
 
-  // Use project service to resolve urgency to avoid importing backend enums
-  readonly property bool critical: NotificationService._urgencyToString(wrapper?.urgency) === "critical"
-  readonly property bool low: NotificationService._urgencyToString(wrapper?.urgency) === "low"
-  // Use a generic type to avoid static analysis errors when reading custom fields
+  // Use a generic type to avoid static analysis errors when reading fields
   required property var wrapper
 
   signal actionTriggered(string id)
@@ -21,58 +17,92 @@ Control {
   signal replySubmitted(string text)
 
   implicitWidth: 360
-  // Drive opacity directly instead of states for simpler parsing
+  // Drive opacity directly instead of states
   opacity: card.wrapper?.popup ? 1.0 : 0.0
+  // Tiny scale-in for polish
+  scale: opacity > 0 ? 1.0 : 0.96
   padding: 10
 
-  background: Rectangle {
-    border.color: card.critical ? "#ff5555" : "#2a2a2a"
-    border.width: 1
-    color: card.critical ? Qt.rgba(0.35, 0.05, 0.05, 0.96) : card.low ? Qt.rgba(0.12, 0.12, 0.12, 0.96) : Qt.rgba(0.16, 0.16, 0.16, 0.96)
-    layer.enabled: true
-    radius: 8
+  // Urgency -> accent color
+  readonly property string _urgency: NotificationService._urgencyToString(wrapper?.urgency)
+  readonly property color accentColor: _urgency === "critical" ? "#ff4d4f" : _urgency === "low" ? "#3a3f4a" : "#3b82f6"
 
+  background: Rectangle {
+    id: bg
+    radius: 12
+    color: Qt.rgba(0.10, 0.10, 0.11, 0.78)
+    border.width: 1
+    border.color: Qt.rgba(1, 1, 1, 0.06)
+    layer.enabled: true
+    layer.smooth: true
     layer.effect: DropShadow {
-      color: Qt.rgba(0, 0, 0, 0.5)
-      radius: 16
-      samples: 25
+      horizontalOffset: 0
+      verticalOffset: 3
+      radius: 24
+      samples: 32
+      color: Qt.rgba(0, 0, 0, 0.55)
       transparentBorder: true
     }
+
+    // Urgency accent bar
+    Rectangle {
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.left: parent.left
+      width: 4
+      radius: 2
+      color: card.accentColor
+    }
   }
+
   contentItem: ColumnLayout {
-    spacing: 8
+    id: content
+    spacing: 6
+    anchors.margins: 10
 
     RowLayout {
       Layout.fillWidth: true
-      spacing: 8
+      spacing: 10
 
-      Image {
-        Layout.preferredHeight: 32
-        Layout.preferredWidth: 32
-        fillMode: Image.PreserveAspectFit
-        smooth: true
-        source: card.wrapper?.iconSource || ""
-        sourceSize.height: 64
-        sourceSize.width: 64
+      Rectangle {
+        // Icon container
+        Layout.preferredWidth: 40
+        Layout.preferredHeight: 40
+        implicitWidth: 40
+        implicitHeight: 40
+        radius: 8
+        color: Qt.rgba(1, 1, 1, 0.07)
+        border.width: 1
+        border.color: Qt.rgba(255, 255, 255, 0.05)
         visible: !!(card.wrapper?.iconSource)
 
-        // Hide or fallback if the dynamic provider handle becomes invalid
-        onStatusChanged: function () {
-          if (status !== Image.Error)
-            return;
-          if (String(source).startsWith("image://qsimage/")) {
-            // Attempt themed fallback via Quickshell.iconPath if available
-            try {
-              if (typeof Quickshell !== "undefined" && Quickshell.iconPath) {
-                const fb = Quickshell.iconPath("dialog-information", true);
-                if (fb && fb !== source) {
-                  source = fb;
-                  return;
+        Image {
+          anchors.centerIn: parent
+          width: 30
+          height: 30
+          fillMode: Image.PreserveAspectFit
+          smooth: true
+          source: card.wrapper?.iconSource || ""
+          sourceSize.height: 64
+          sourceSize.width: 64
+          visible: !!(card.wrapper?.iconSource)
+
+          onStatusChanged: function () {
+            if (status !== Image.Error)
+              return;
+            if (String(source).startsWith("image://qsimage/")) {
+              try {
+                if (typeof Quickshell !== "undefined" && Quickshell.iconPath) {
+                  const fb = Quickshell.iconPath("dialog-information", true);
+                  if (fb && fb !== source) {
+                    source = fb;
+                    return;
+                  }
                 }
-              }
-            } catch (_) {}
+              } catch (_) {}
+            }
+            parent.visible = false;
           }
-          visible = false;
         }
       }
 
@@ -89,7 +119,7 @@ Control {
             color: "white"
             elide: Text.ElideRight
             font.bold: true
-            text: (card.wrapper?.summary || "(No title)")
+            text: card.wrapper?.summary || "(No title)"
           }
 
           Text {
@@ -113,12 +143,20 @@ Control {
         }
       }
 
+      // Keep space; toggle via opacity only
       ToolButton {
-  icon.name: "window-close"
-  display: AbstractButton.IconOnly
-  // Accessible label without showing duplicate text
-  Accessible.name: "Dismiss notification"
-  onClicked: card.dismiss()
+        id: closeBtn
+        icon.name: "window-close"
+        display: AbstractButton.IconOnly
+        Accessible.name: "Dismiss notification"
+        opacity: (hoverArea.hovered || closeBtn.hovered) ? 1 : 0.0
+        Behavior on opacity {
+          NumberAnimation {
+            duration: 120
+            easing.type: Easing.OutCubic
+          }
+        }
+        onClicked: card.dismiss()
       }
     }
 
@@ -144,12 +182,16 @@ Control {
       spacing: 6
       visible: !!(card.wrapper?.replyModel?.enabled) && !(card.wrapper?.replyModel?.submitted)
 
+      function sendReply() {
+        card.replySubmitted(replyField.text);
+      }
+
       TextField {
         id: replyField
-
         Layout.fillWidth: true
         maximumLength: Math.max(0, Number(card.wrapper?.replyModel?.maxLength || 0))
-        placeholderText: (card.wrapper?.replyModel?.placeholder || "Reply...")
+        placeholderText: card.wrapper?.replyModel?.placeholder || "Reply..."
+        onAccepted: parent.sendReply()
       }
 
       Button {
@@ -158,8 +200,8 @@ Control {
           return replyField.text.length >= min;
         }
         text: "Send"
-
-        onClicked: card.replySubmitted(replyField.text)
+        Accessible.name: "Send reply"
+        onClicked: parent.sendReply()
       }
     }
 
@@ -172,51 +214,64 @@ Control {
         model: card.wrapper?.actionsModel || []
 
         delegate: Button {
+          id: actionBtn
           required property var modelData
-
           icon.source: modelData.iconSource || ""
           text: modelData.title || modelData.id
-
+          padding: 6
+          leftPadding: 12
+          rightPadding: 12
+          background: Rectangle {
+            radius: 14
+            color: actionBtn.hovered ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.08)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.07)
+          }
+          contentItem: Text {
+            text: actionBtn.text
+            color: "#e0e0e0"
+            font.pixelSize: 12
+            elide: Text.ElideRight
+          }
           onClicked: card.actionTriggered(String(modelData.id))
         }
       }
     }
-
-    Rectangle {
-      property real cardTimeout: Number(card.wrapper?.timer?.interval || 0)
-
-      Layout.fillWidth: true
-      Layout.preferredHeight: 3
-      color: "#333333"
-      radius: 2
-      visible: cardTimeout > 0
-
-      Rectangle {
-        property real progress
-
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        color: card.critical ? "#ff5555" : "#5aa0ff"
-        height: parent.height
-        radius: parent.radius
-        width: (progress === undefined ? parent.width : progress * parent.width)
-
-        NumberAnimation on progress {
-          id: anim
-
-          duration: Number(card.wrapper?.timer?.interval || 0)
-          easing.type: Easing.Linear
-          from: 1.0
-          running: (card.wrapper?.timer?.interval || 0) > 0
-          to: 0.0
-        }
-      }
-    }
   }
+
   Behavior on opacity {
     NumberAnimation {
       duration: 150
     }
+  }
+  Behavior on scale {
+    NumberAnimation {
+      duration: 160
+      easing.type: Easing.OutCubic
+    }
+  }
+
+  // Slim top progress bar
+  Rectangle {
+    id: progressBar
+    visible: (card.wrapper?.timer?.interval || 0) > 0 && !!(card.wrapper?.timer?.running)
+    height: 2
+    radius: 1
+    color: card.accentColor
+    anchors.top: parent.top
+    anchors.left: parent.left
+    width: parent.width * (card.wrapper?.timer && card.wrapper.timer.interval > 0 ? Math.max(0, Math.min(1, card.wrapper.timer.remainingTime / card.wrapper.timer.interval)) : 0)
+    Behavior on width {
+      NumberAnimation {
+        duration: 180
+        easing.type: Easing.OutCubic
+      }
+    }
+  }
+
+  HoverHandler {
+    id: hoverArea
+    acceptedDevices: PointerDevice.Mouse
   }
 
   Keys.onEscapePressed: card.dismiss()
