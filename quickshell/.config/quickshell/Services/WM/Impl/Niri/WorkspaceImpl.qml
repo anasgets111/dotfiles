@@ -12,6 +12,7 @@ Singleton {
   readonly property bool active: MainService.ready && MainService.currentWM === "niri"
   property string activeSpecial: ""
   property int currentWorkspace: 1
+  property int currentWorkspaceId: -1
   property bool enabled: niriWs.active
   property string focusedOutput: ""
   property var groupBoundaries: []
@@ -94,6 +95,7 @@ Singleton {
       return;
     niriWs.previousWorkspace = niriWs.currentWorkspace;
     niriWs.currentWorkspace = w.idx;
+    niriWs.currentWorkspaceId = w.id;
     niriWs.focusedOutput = w.output || focusedOutput;
     workspaces.forEach(function (ww) {
       ww.is_focused = (ww.id === id);
@@ -149,6 +151,7 @@ Singleton {
     if (f && f.idx !== niriWs.currentWorkspace) {
       niriWs.previousWorkspace = niriWs.currentWorkspace;
       niriWs.currentWorkspace = f.idx;
+      niriWs.currentWorkspaceId = f.id;
       // Logging + OSD handled in abstract service
     }
   }

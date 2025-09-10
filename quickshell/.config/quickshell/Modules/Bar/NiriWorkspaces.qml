@@ -9,6 +9,7 @@ Item {
   id: root
 
   readonly property int currentWs: Math.max(1, WorkspaceService.currentWorkspace)
+  readonly property int currentWsId: WorkspaceService.currentWorkspaceId
 
   // UI state
   property bool expanded: false
@@ -40,7 +41,7 @@ Item {
   function wsColor(ws) {
     if (!ws)
       return Theme.disabledColor;
-    if (ws.is_focused || ws.idx === currentWs)
+    if (ws.is_focused || (currentWsId > 0 && ws.id === currentWsId))
       return Theme.activeColor;
     if (ws.id === hoveredId)
       return Theme.onHoverColor;

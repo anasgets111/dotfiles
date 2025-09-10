@@ -12,6 +12,7 @@ Singleton {
   readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
   property string activeSpecial: ""
   property int currentWorkspace: 1
+  property int currentWorkspaceId: 1
   property bool enabled: active
   property string focusedOutput: ""
   property var groupBoundaries: []
@@ -64,20 +65,20 @@ Singleton {
       // Hypr workspace objects typically: { id, name, monitor, windows, hasfullscreen, ... , focused }
       // Map monitor object to name; compute populated from windows count if available.
       const newWorkspaces = positive.map(w => {
-            let windowsCount = undefined;
-            try {
-              windowsCount = w.lastIpcObject?.windows;
-            } catch (_) {
-              // lastIpcObject may be undefined until a refresh cycles in
-            }
-            const outputName = (w.monitor && w.monitor.name) ? w.monitor.name : (typeof w.monitor === "string" ? w.monitor : "");
-            return {
-              id: w.id,
-              focused: !!w.focused,
-              populated: (typeof windowsCount === "number") ? (windowsCount > 0) : (!!w.hasFullscreen || !!w.focused),
-              output: outputName
-            };
-          }).sort((a, b) => a.id - b.id);
+        let windowsCount = undefined;
+        try {
+          windowsCount = w.lastIpcObject?.windows;
+        } catch (_)
+        // lastIpcObject may be undefined until a refresh cycles in
+        {}
+        const outputName = (w.monitor && w.monitor.name) ? w.monitor.name : (typeof w.monitor === "string" ? w.monitor : "");
+        return {
+          id: w.id,
+          focused: !!w.focused,
+          populated: (typeof windowsCount === "number") ? (windowsCount > 0) : (!!w.hasFullscreen || !!w.focused),
+          output: outputName
+        };
+      }).sort((a, b) => a.id - b.id);
 
       hyprWs.workspaces = newWorkspaces;
 
@@ -87,6 +88,7 @@ Singleton {
         if (newId && newId !== hyprWs.currentWorkspace) {
           hyprWs.previousWorkspace = hyprWs.currentWorkspace;
           hyprWs.currentWorkspace = newId;
+          hyprWs.currentWorkspaceId = newId;
           // leaving special if we go to positive
           if (hyprWs.activeSpecial && newId > 0)
             hyprWs.activeSpecial = "";
@@ -206,6 +208,7 @@ Singleton {
     interval: 200
     running: false
     repeat: false
-    onTriggered: if (hyprWs.enabled) hyprWs.refresh()
+    onTriggered: if (hyprWs.enabled)
+      hyprWs.refresh()
   }
 }
