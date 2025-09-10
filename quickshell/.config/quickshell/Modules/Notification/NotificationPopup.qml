@@ -31,7 +31,6 @@ PanelWindow {
     top: true
   }
 
-  // property int shadowPad: 16
   // Scrollable stack to avoid growing off-screen; still stacks vertically
   ScrollView {
     id: popupScroll
@@ -50,78 +49,51 @@ PanelWindow {
 
     Column {
       id: popupColumn
-      // Whether user has explicitly requested to interact (e.g. clicked a card)
+      spacing: 8
+
+      // Local handle to the service
+      readonly property var svc: NotificationService
+      // Whether user explicitly interacted (for keyboard focus)
       property bool interactionActive: false
 
-      // Build entries from currently visible wrappers, honoring svc.maxVisible.
-      // Coalesce by group so you get at most one entry per group id.
+      // Entries from visible wrappers, coalescing by group, up to maxVisible
       property var entries: (function () {
           const svc = popupColumn.svc;
-          const max = Math.max(1, Number(svc?.maxVisible || 1));
-          const result = [];
-          const seenGroups = new Set();
           const vis = svc?.visible || [];
-          // Iterate visible wrappers in order, collect up to 'max' distinct entries
-          for (let i = 0; i < vis.length && result.length < max; ++i) {
+          const max = Math.max(1, Number(svc?.maxVisible || 1));
+          const counts = {};
+          for (let i = 0; i < vis.length; i++) {
+            const gid = String(vis[i]?.groupId || "");
+            counts[gid] = (counts[gid] || 0) + 1;
+          }
+          const seen = new Set();
+          const out = [];
+          for (let i = 0; i < vis.length && out.length < max; i++) {
             const w = vis[i];
             if (!w)
               continue;
             const gid = String(w.groupId || "");
             if (gid) {
-              if (seenGroups.has(gid))
+              if (seen.has(gid))
                 continue;
-              const g = (svc?.groupsMap && svc.groupsMap[gid]) || null;
-              if (g) {
-                result.push({
-                  kind: "group",
-                  group: g
-                });
-                seenGroups.add(gid);
-              } else {
-                result.push({
-                  kind: "single",
-                  wrapper: w
-                });
-              }
+              seen.add(gid);
+              const g = svc?.groupsMap ? svc.groupsMap[gid] : null;
+              out.push((counts[gid] || 0) >= 2 && g ? {
+                kind: "group",
+                group: g
+              } : {
+                kind: "single",
+                wrapper: w
+              });
             } else {
-              result.push({
+              out.push({
                 kind: "single",
                 wrapper: w
               });
             }
           }
-          // If grouping compressed entries below max, try to fill from the rest
-          for (let i = 0; i < vis.length && result.length < max; ++i) {
-            const w = vis[i];
-            if (!w)
-              continue;
-            const gid = String(w.groupId || "");
-            if (gid) {
-              if (!seenGroups.has(gid)) {
-                const g = (svc?.groupsMap && svc.groupsMap[gid]) || null;
-                if (g) {
-                  result.push({
-                    kind: "group",
-                    group: g
-                  });
-                  seenGroups.add(gid);
-                }
-              }
-            } else {
-              // ensure we don't duplicate singles already included
-              if (!result.some(e => e.kind === "single" && e.wrapper === w))
-                result.push({
-                  kind: "single",
-                  wrapper: w
-                });
-            }
-          }
-          return result;
+          return out;
         })()
-      // local handle to the service to avoid unqualified access inside delegates
-      readonly property var svc: NotificationService
-
-      spacing: 8
 
       Repeater {
         model: popupColumn.entries
@@ -138,28 +110,21 @@ PanelWindow {
           Column {
             id: col
 
-            // Global pointer handler to activate focus only after an explicit click
-            // This avoids stealing focus when notifications appear, but allows
-            // reply input to work once the user engages.
+            // Enable OnDemand focus on first click to allow replies
             TapHandler {
               acceptedButtons: Qt.LeftButton
               onTapped: {
                 if (!popupColumn.interactionActive) {
                   popupColumn.interactionActive = true;
-                  // Switch to on-demand focus so text fields (reply) can take input.
-                  // We change the layershell focus mode dynamically.
                   if (layer.WlrLayershell) {
                     layer.WlrLayershell.keyboardFocus = WlrKeyboardFocus.OnDemand;
                   }
-                  // No direct activation API; compositor will route focus on-demand now.
                 }
               }
             }
 
-            // Only create cards when inputs are present to avoid undefined access
             Loader {
               active: del.modelData.kind === "single" && !!del.modelData.wrapper
-
               sourceComponent: NotificationCard {
                 wrapper: del.modelData.wrapper
 
@@ -172,9 +137,9 @@ PanelWindow {
                 }
               }
             }
+
             Loader {
               active: del.modelData.kind === "group" && !!del.modelData.group
-
               sourceComponent: GroupCard {
                 group: del.modelData.group
                 svc: popupColumn.svc
@@ -185,6 +150,7 @@ PanelWindow {
       }
     }
   }
+
   Rectangle {
     id: dndBanner
 
@@ -198,7 +164,6 @@ PanelWindow {
 
     Text {
       id: txt
-
       anchors.centerIn: parent
       color: "black"
       text: "Do Not Disturb: " + (NotificationService.dndPolicy?.behavior === "suppress" ? "Suppress" : "Queue")
