@@ -371,18 +371,19 @@ Singleton {
     if (!pDeviceShow.running)
       start(pDeviceShow);
   }
-  function scanWifi(iface) {
+  function scanWifi(iface, force) {
     const interfaceName = (iface && iface.length) ? iface : (_wifiIf || firstWifiInterface());
     if (!interfaceName || _isScanning || !_isWifiRadioEnabled)
       return;
     const device = deviceByInterface(interfaceName);
     if (device && device.state && device.state.indexOf("unavailable") !== -1)
       return;
-    if (isCooldownActive(_lastWifiScanMs, wifiScanCooldownMs))
+    if (!force && isCooldownActive(_lastWifiScanMs, wifiScanCooldownMs))
       return;
-    Logger.log("NetworkService", "Starting Wi-Fi list on:", interfaceName);
+    Logger.log("NetworkService", "Starting Wi-Fi list on:", interfaceName, force ? "(forced)" : "");
     _isScanning = true;
-    pWifiList.command = prepareCommand(["nmcli", "-m", "multiline", "-f", "IN-USE,SSID,BSSID,SIGNAL,BARS,SECURITY,FREQ", "device", "wifi", "list", "ifname", interfaceName, "--rescan", "auto"], true);
+    const rescanArg = force ? "yes" : "auto";
+    pWifiList.command = prepareCommand(["nmcli", "-m", "multiline", "-f", "IN-USE,SSID,BSSID,SIGNAL,BARS,SECURITY,FREQ", "device", "wifi", "list", "ifname", interfaceName, "--rescan", rescanArg], true);
     start(pWifiList);
   }
   function setWifiRadioEnabled(enabled) {
@@ -463,6 +464,11 @@ Singleton {
   onConnectionStateChanged: {
     Logger.log("NetworkService", "Connection state:", _linkType, "wifiIf=", _wifiIf || "-", "ethIf=", _ethernetIf || "-");
     applySavedFlags();
+    if (_linkType === "wifi") {
+      const interfaceName = _wifiIf || firstWifiInterface();
+      if (interfaceName)
+        scanWifi(interfaceName, true);
+    }
   }
   onWifiRadioStateChanged: Logger.log("NetworkService", "Wi-Fi radio:", _isWifiRadioEnabled ? "enabled" : "disabled")
 
