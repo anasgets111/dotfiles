@@ -64,7 +64,7 @@ Item {
     if (preferredLink === "wifi") {
       const ssid = wifiSsid && wifiSsid.length ? wifiSsid : qsTr("Wi-Fi");
       const pct = wifiSignal > 0 ? `${wifiSignal}%` : "--";
-      const band = wifiBand && wifiBand.length ? (qsTr(" • %1 GHz").arg(wifiBand)) : "";
+      const band = wifiBand && wifiBand.length ? (qsTr(" • %1 GHz").arg(wifiBand)) : "";
       return `${ssid} (${pct})${band}`;
     }
     // disconnected
