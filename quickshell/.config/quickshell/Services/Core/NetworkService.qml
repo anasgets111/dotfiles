@@ -34,6 +34,8 @@ Singleton {
   signal connectionStateChanged
   signal wifiRadioStateChanged
 
+  onWifiRadioStateChanged: Logger.log("NetworkService", "Wi-Fi radio state changed:", networkService.isWifiRadioEnabled ? "enabled" : "disabled")
+
   function activateConnection(connId, iface) {
     const connectionId = String(connId || "").trim();
     Logger.log("NetworkService", "activateConnection(connId=", connectionId, ")");
@@ -179,6 +181,7 @@ Singleton {
     const deviceType = (networkService.deviceByInterface(iface) || {}).type || "";
     if (deviceType === "ethernet")
       OSDService.showInfo(qsTr("Ethernet turned off"));
+    Logger.log("NetworkService", "Disconnecting interface:", iface, "type:", deviceType || "unknown");
     networkService.startConnectCommand(["nmcli", "device", "disconnect", iface]);
   }
 
@@ -198,6 +201,8 @@ Singleton {
 
   function forgetWifiConnection(connectionId) {
     pForget.command = networkService.isUuid(connectionId) ? ["nmcli", "connection", "delete", "uuid", connectionId] : ["nmcli", "connection", "delete", "id", connectionId];
+    pForget.connectionId = String(connectionId || "");
+    Logger.log("NetworkService", "Forgetting Wi-Fi connection:", pForget.connectionId);
     networkService.start(pForget);
   }
 
@@ -419,6 +424,7 @@ Singleton {
       return;
     if (networkService.isCooldownActive(networkService.lastWifiScanMs, networkService.wifiScanCooldownMs))
       return;
+    Logger.log("NetworkService", "Starting Wi-Fi scan on:", interfaceName);
     networkService.isScanning = true;
     try {
       networkService.lastWifiScanIf = interfaceName;
@@ -433,6 +439,7 @@ Singleton {
 
   function setWifiRadioEnabled(enabled) {
     OSDService.showInfo(enabled ? qsTr("Wi-Fi turned on") : qsTr("Wi-Fi turned off"));
+    Logger.log("NetworkService", "Setting Wi-Fi radio:", enabled ? "on" : "off");
     networkService.startConnectCommand(["nmcli", "radio", "wifi", enabled ? "on" : "off"]);
   }
 
@@ -505,7 +512,10 @@ Singleton {
     networkService.start(pSaved);
   }
   onActiveDeviceChanged: networkService.applySavedFlags()
-  onConnectionStateChanged: networkService.applySavedFlags()
+  onConnectionStateChanged: {
+    Logger.log("NetworkService", "Connection state changed:", networkService.linkType, "wifiIf=", networkService.wifiIf || "-", "ethIf=", networkService.ethernetIf || "-");
+    networkService.applySavedFlags();
+  }
 
   Timer {
     id: tMonitorDebounce
@@ -566,6 +576,8 @@ Singleton {
           networkService.requestDeviceDetails(device.interface);
         }
         networkService.activeDevice = networkService.chooseActiveDevice(networkService.deviceList) || null;
+        const active = networkService.activeDevice ? (networkService.activeDevice.interface + "/" + networkService.activeDevice.type) : "none";
+        Logger.log("NetworkService", "Devices refreshed:", (networkService.deviceList || []).length, "active=", active, "link=", networkService.linkType);
       }
     }
   }
@@ -581,6 +593,16 @@ Singleton {
         if ((networkService.wifiAps || []).length > 0)
           networkService.lastWifiScanMs = Date.now();
         networkService.refreshDeviceList(true);
+        let activeSsid = null, activeSig = null;
+        for (let i = 0; i < (networkService.wifiAps || []).length; i++) {
+          const ap = networkService.wifiAps[i];
+          if (ap && ap.connected) {
+            activeSsid = ap.ssid;
+            activeSig = ap.signal;
+            break;
+          }
+        }
+        Logger.log("NetworkService", "Wi-Fi scan complete:", (networkService.wifiAps || []).length, activeSsid ? ("active=" + activeSsid + " (" + (activeSig || 0) + "%)") : "no active connection");
       }
     }
   }
@@ -605,6 +627,8 @@ Singleton {
     stderr: StdioCollector {
       onStreamFinished: function () {
         pWifiRescan.hadError = ((text || "").trim().length > 0);
+        if (pWifiRescan.hadError)
+          Logger.log("NetworkService", "[WARN] Wi-Fi rescan stderr:", (text || "").trim());
       }
     }
   }
@@ -657,8 +681,10 @@ Singleton {
 
   Process {
     id: pForget
+    property string connectionId: ""
     stdout: StdioCollector {
       onStreamFinished: function () {
+        Logger.log("NetworkService", "Forgot Wi-Fi connection:", pForget.connectionId || "<unknown>");
         networkService.refreshAll();
         networkService.start(pSaved);
       }
