@@ -685,11 +685,11 @@ Singleton {
 
           net.requestDeviceDetails(device.interface);
         }
-          const active = net.chooseActiveDevice(net.deviceList);
-          if (active)
-            net.activeDevice = active;
-          else
-            net.activeDevice = null;
+        const active = net.chooseActiveDevice(net.deviceList);
+        if (active)
+          net.activeDevice = active;
+        else
+          net.activeDevice = null;
 
         const total = net.deviceList ? net.deviceList.length : 0;
         const wifiCount = (net.deviceList || []).filter(d => {
