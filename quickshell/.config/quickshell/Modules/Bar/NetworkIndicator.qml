@@ -21,12 +21,16 @@ Item {
   }
 
   // Find currently connected AP in the service’s wifiAps
-  readonly property var connectedAp: (NetworkService.wifiAps) ? (NetworkService.wifiAps.find(ap => ap && ap.connected) || null) : null
+  // Prefer AP list, but after resume it may be stale; fall back to active device
+  readonly property var connectedAp: (NetworkService.wifiAps && NetworkService.wifiAps.length) ? (NetworkService.wifiAps.find(ap => ap && ap.connected) || null) : null
 
   // SSID from the connected AP list, or fall back to active device connection name
   readonly property string wifiSsid: connectedAp && connectedAp.ssid && connectedAp.ssid.length > 0 ? connectedAp.ssid : ((activeDev && activeDev.type === "wifi") ? (activeDev.connectionName || "") : "")
 
   // Signal strength and band from AP list
+  // If AP scan hasn't populated yet (e.g., immediately after unlock), show 0
+  // rather than a stale value. A forced rescan is triggered when the service
+  // enters Wi‑Fi state.
   readonly property int wifiSignal: connectedAp && typeof connectedAp.signal === "number" ? connectedAp.signal : 0 // 0..100
   readonly property string wifiBand: connectedAp && connectedAp.band ? connectedAp.band : ""
 
@@ -125,8 +129,15 @@ Item {
 
   IconButton {
     id: iconButton
-    disabled: true
+    disabled: false
     iconText: root.netIcon
+    onClicked: {
+      if (NetworkService && NetworkService.isReady) {
+        const iface = NetworkService.wifiIf || (NetworkService.deviceList && NetworkService.firstWifiInterface ? NetworkService.firstWifiInterface() : "");
+        if (iface && NetworkService.scanWifi)
+          NetworkService.scanWifi(iface, true);
+      }
+    }
   }
 
   Tooltip {
