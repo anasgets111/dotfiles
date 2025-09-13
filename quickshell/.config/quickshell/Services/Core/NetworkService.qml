@@ -29,7 +29,6 @@ Singleton {
   property bool wifiOnline: false
   property int wifiScanCooldownMs: defaultWifiScanCooldownMs
   property string lastWifiScanIf: ""
-  property bool wifiRescanRetryPending: false
 
   signal connectionStateChanged
   signal wifiRadioStateChanged
@@ -39,11 +38,13 @@ Singleton {
   function activateConnection(connId, iface) {
     const connectionId = String(connId || "").trim();
     Logger.log("NetworkService", "activateConnection(connId=", connectionId, ")");
-
     if (!connectionId)
       return;
-    const ifname = String(iface || "") || networkService.firstWifiInterface();
-    networkService.startConnectCommand(["nmcli", "connection", "up", "id", connectionId, "ifname", ifname]);
+    const ifname = String(iface || "").trim();
+    const cmd = ["nmcli", "connection", "up", "id", connectionId];
+    if (ifname)
+      cmd.push("ifname", ifname);
+    networkService.startConnectCommand(cmd);
   }
 
   function applySavedFlags() {
@@ -367,8 +368,9 @@ Singleton {
     return result;
   }
 
-  function refreshAll() {
-    networkService.refreshDeviceList(false);
+  function refreshAll(force) {
+    const doForce = !!force;
+    networkService.refreshDeviceList(doForce);
     const wifiIface = networkService.firstWifiInterface();
     if (wifiIface && networkService.isWifiRadioEnabled)
       networkService.scanWifi(wifiIface);
@@ -522,11 +524,7 @@ Singleton {
     repeat: false
     running: false
     onTriggered: {
-      networkService.refreshDeviceList(true);
-      const wifiInterface = networkService.firstWifiInterface();
-      if (wifiInterface && networkService.isWifiRadioEnabled && !networkService.isScanning)
-        networkService.scanWifi(wifiInterface);
-      networkService.start(pWifiRadio);
+      networkService.refreshAll(true);
     }
   }
 
@@ -616,10 +614,8 @@ Singleton {
           networkService.start(pWifiList);
         else {
           networkService.isScanning = false;
-          if (!networkService.wifiRescanRetryPending && networkService.lastWifiScanIf) {
-            networkService.wifiRescanRetryPending = true;
+          if (!tWifiScanRetry.running && networkService.lastWifiScanIf)
             tWifiScanRetry.start();
-          }
         }
       }
     }
@@ -638,7 +634,6 @@ Singleton {
     repeat: false
     running: false
     onTriggered: {
-      networkService.wifiRescanRetryPending = false;
       if (!networkService.isScanning && networkService.isWifiRadioEnabled && networkService.lastWifiScanIf)
         networkService.scanWifi(networkService.lastWifiScanIf);
     }
@@ -669,6 +664,7 @@ Singleton {
           const parts = line.split(":");
           if (parts.length >= 2 && parts[1] === "802-11-wireless")
             list.push({
+              name: parts[0],
               ssid: parts[0]
             });
         }
