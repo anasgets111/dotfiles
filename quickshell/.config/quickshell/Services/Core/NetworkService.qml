@@ -8,10 +8,10 @@ import qs.Services.Utils
 Singleton {
   id: networkService
 
-  property var activeDevice: null
   readonly property int defaultDeviceRefreshCooldownMs: 1000
   readonly property int defaultWifiScanCooldownMs: 10000
   property var deviceList: []
+  readonly property var uuidRegex: new RegExp("^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$")
   property int deviceRefreshCooldownMs: defaultDeviceRefreshCooldownMs
   property string ethernetIf: ""
   property string ethernetIp: ""
@@ -50,7 +50,13 @@ Singleton {
     if (!networkService.wifiAps)
       return;
     const saved = {};
-    (networkService.savedWifiConnections || []).forEach(savedConnection => saved[savedConnection.ssid] = true);
+    (networkService.savedWifiConnections || []).forEach(savedConnection => {
+      // Name may equal SSID, tolerate both
+      if (savedConnection.ssid)
+        saved[savedConnection.ssid] = true;
+      if (savedConnection.name)
+        saved[savedConnection.name] = true;
+    });
     let active = null;
     for (let index = 0; index < (networkService.wifiAps || []).length; index++) {
       const accessPoint = networkService.wifiAps[index];
@@ -59,8 +65,11 @@ Singleton {
         break;
       }
     }
-    if (!active && networkService.activeDevice && networkService.activeDevice.type === "wifi" && networkService.isConnectedState(networkService.activeDevice.state))
-      active = networkService.activeDevice.connectionName || null;
+    if (!active) {
+      const activeDev = networkService.chooseActiveDevice(networkService.deviceList || []);
+      if (activeDev && activeDev.type === "wifi" && networkService.isConnectedState(activeDev.state))
+        active = activeDev.connectionName || null;
+    }
     networkService.wifiAps = (networkService.wifiAps || []).map(accessPoint => {
       const updatedAp = Object.assign({}, accessPoint || {});
       updatedAp.saved = !!saved[updatedAp.ssid];
@@ -240,8 +249,7 @@ Singleton {
     return nowMs - lastAt < cooldownMs;
   }
   function isUuid(value) {
-    const uuidRegex = new RegExp("^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$");
-    return uuidRegex.test(String(value || ""));
+    return networkService.uuidRegex.test(String(value || ""));
   }
 
   function parseDeviceListMultiline(text) {
@@ -399,14 +407,6 @@ Singleton {
         connectionUuid: fieldMap["GENERAL.CON-UUID"] || fieldMap["CON-UUID"] || ""
       };
       networkService.upsertDeviceDetails(interfaceName, details);
-      const deviceType = fieldMap["GENERAL.TYPE"] || fieldMap["TYPE"];
-      if (deviceType === "wifi") {
-        networkService.wifiIf = interfaceName;
-        networkService.wifiIp = networkService.stripCidr(details.ip4 || networkService.wifiIp);
-      } else if (deviceType === "ethernet") {
-        networkService.ethernetIf = interfaceName;
-        networkService.ethernetIp = networkService.stripCidr(details.ip4 || networkService.ethernetIp);
-      }
       networkService.updateDerivedState();
       proc.destroy();
     });
@@ -511,7 +511,6 @@ Singleton {
     networkService.refreshAll();
     networkService.start(pSaved);
   }
-  onActiveDeviceChanged: networkService.applySavedFlags()
   onConnectionStateChanged: {
     Logger.log("NetworkService", "Connection state changed:", networkService.linkType, "wifiIf=", networkService.wifiIf || "-", "ethIf=", networkService.ethernetIf || "-");
     networkService.applySavedFlags();
@@ -575,9 +574,10 @@ Singleton {
             continue;
           networkService.requestDeviceDetails(device.interface);
         }
-        networkService.activeDevice = networkService.chooseActiveDevice(networkService.deviceList) || null;
-        const active = networkService.activeDevice ? (networkService.activeDevice.interface + "/" + networkService.activeDevice.type) : "none";
-        Logger.log("NetworkService", "Devices refreshed:", (networkService.deviceList || []).length, "active=", active, "link=", networkService.linkType);
+        const activeDev = networkService.chooseActiveDevice(networkService.deviceList);
+        const activeStr = activeDev ? (activeDev.interface + "/" + activeDev.type) : "none";
+        Logger.log("NetworkService", "Devices refreshed:", (networkService.deviceList || []).length, "active=", activeStr, "link=", networkService.linkType);
+        networkService.applySavedFlags();
       }
     }
   }
@@ -590,8 +590,7 @@ Singleton {
         const parsed = networkService.parseWifiListMultiline(text);
         networkService.wifiAps = networkService.dedupeWifiNetworks(parsed);
         networkService.applySavedFlags();
-        if ((networkService.wifiAps || []).length > 0)
-          networkService.lastWifiScanMs = Date.now();
+        networkService.lastWifiScanMs = Date.now();
         networkService.refreshDeviceList(true);
         let activeSsid = null, activeSig = null;
         for (let i = 0; i < (networkService.wifiAps || []).length; i++) {
