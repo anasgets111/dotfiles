@@ -34,11 +34,11 @@ Item {
 
   function wifiIconForSignal(signal) {
     const s = Math.max(0, Math.min(100, signal | 0));
-    if (s >= 75)
+    if (s >= 80)
       return "󰤨";     // strong
-    if (s >= 50)
+    if (s >= 60)
       return "󰤥";     // good
-    if (s >= 25)
+    if (s >= 35)
       return "󰤢";     // fair
     return "󰤟";                  // weak
   }
