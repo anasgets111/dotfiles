@@ -93,41 +93,23 @@ Singleton {
   function chooseActiveDevice(devices) {
     if (!devices || devices.length === 0)
       return null;
-
-    let wifiDevice = null, ethernetDevice = null, otherDevice = null, loopbackDevice = null;
+    // Prefer only real uplinks; ignore virtual/bridge/tunnel devices like docker0
+    let wifiDevice = null, ethernetDevice = null;
     for (let idx = 0; idx < devices.length; idx++) {
       const device = devices[idx];
-      if (!net.isConnectedState(device.state)) {
-        if (device.type === "loopback")
-          loopbackDevice = device;
-
+      if (!net.isConnectedState(device.state))
         continue;
-      }
       if (device.type === "wifi" && !wifiDevice)
         wifiDevice = device;
       else if (device.type === "ethernet" && !ethernetDevice)
         ethernetDevice = device;
-      else if (device.type !== "loopback" && !otherDevice)
-        otherDevice = device;
-      else if (device.type === "loopback" && !loopbackDevice)
-        loopbackDevice = device;
     }
+    // Only report ethernet/wifi as active; otherwise none
     if (ethernetDevice)
       return ethernetDevice;
-
     if (wifiDevice)
       return wifiDevice;
-
-    if (otherDevice)
-      return otherDevice;
-
-    let hasNonLoop = false;
-    for (let idx2 = 0; idx2 < devices.length; idx2++)
-      if (devices[idx2].type !== "loopback") {
-        hasNonLoop = true;
-        break;
-      }
-    return hasNonLoop ? null : loopbackDevice;
+    return null;
   }
 
   function computeDerivedState(devices) {
@@ -703,9 +685,11 @@ Singleton {
 
           net.requestDeviceDetails(device.interface);
         }
-        const active = net.chooseActiveDevice(net.deviceList);
-        if (active)
-          net.activeDevice = active;
+          const active = net.chooseActiveDevice(net.deviceList);
+          if (active)
+            net.activeDevice = active;
+          else
+            net.activeDevice = null;
 
         const total = net.deviceList ? net.deviceList.length : 0;
         const wifiCount = (net.deviceList || []).filter(d => {

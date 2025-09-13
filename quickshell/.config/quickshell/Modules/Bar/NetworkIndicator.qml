@@ -91,7 +91,8 @@ Item {
     const dev = net.activeDevice || null;
     const name = dev && dev.connectionName ? dev.connectionName : "";
     const type = dev && dev.type ? dev.type : "";
-    const show = name && name.length > 0;
+    // Only show when actually connected to wifi/ethernet
+    const show = (root.preferredLink === "wifi" || root.preferredLink === "ethernet") && name && name.length > 0;
     return show ? qsTr("Conn: %1 (%2)").arg(name).arg(type) : "";
   }
   // Optional secondary line showing the non-preferred link when both are up
