@@ -6,115 +6,119 @@ import qs.Services.SystemInfo
 import qs.Services.Utils
 
 Singleton {
-  id: networkService
+  id: network
 
+  property var _deviceList: []
+  property string _ethernetIf: ""
+  property string _ethernetIp: ""
+  property bool _ethernetOnline: false
+  property bool _isReady: false
+  property bool _isScanning: false
+  property bool _isWifiRadioEnabled: true
+  property double _lastDeviceRefreshMs: 0
+  property double _lastWifiScanMs: 0
+  property string _linkType: "disconnected"
+  property var _savedWifiConnections: []
+  property var _wifiAps: []
+  property string _wifiIf: ""
+  property string _wifiIp: ""
+  property bool _wifiOnline: false
   readonly property int defaultDeviceRefreshCooldownMs: 1000
   readonly property int defaultWifiScanCooldownMs: 10000
-  property var deviceList: []
-  readonly property var uuidRegex: new RegExp("^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$")
+  readonly property var deviceList: _deviceList
   property int deviceRefreshCooldownMs: defaultDeviceRefreshCooldownMs
-  property string ethernetIf: ""
-  property string ethernetIp: ""
-  property bool ethernetOnline: false
-  property bool isReady: false
-  property bool isScanning: false
-  property bool isWifiRadioEnabled: true
-  property double lastDeviceRefreshMs: 0
-  property double lastWifiScanMs: 0
-  property string linkType: "disconnected"
-  property var savedWifiConnections: []
-  property var wifiAps: []
-  property string wifiIf: ""
-  property string wifiIp: ""
-  property bool wifiOnline: false
+  readonly property string ethernetIf: _ethernetIf
+  readonly property string ethernetIp: _ethernetIp
+  readonly property bool ethernetOnline: _ethernetOnline
+  readonly property bool isReady: _isReady
+  readonly property bool isScanning: _isScanning
+  readonly property bool isWifiRadioEnabled: _isWifiRadioEnabled
+  readonly property string linkType: _linkType
+  readonly property var savedWifiConnections: _savedWifiConnections
+  readonly property var uuidRegex: new RegExp("^[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}$")
+  readonly property var wifiAps: _wifiAps
+  readonly property string wifiIf: _wifiIf
+  readonly property string wifiIp: _wifiIp
+  readonly property bool wifiOnline: _wifiOnline
   property int wifiScanCooldownMs: defaultWifiScanCooldownMs
-  property string lastWifiScanIf: ""
 
   signal connectionStateChanged
   signal wifiRadioStateChanged
 
-  onWifiRadioStateChanged: Logger.log("NetworkService", "Wi-Fi radio state changed:", networkService.isWifiRadioEnabled ? "enabled" : "disabled")
-
   function activateConnection(connId, iface) {
-    const connectionId = String(connId || "").trim();
-    Logger.log("NetworkService", "activateConnection(connId=", connectionId, ")");
-    if (!connectionId)
+    const id = String(connId || "").trim();
+    Logger.log("NetworkService", "activateConnection(connId=", id, ")");
+    if (!id)
       return;
-    const ifname = String(iface || "").trim();
-    const cmd = ["nmcli", "connection", "up", "id", connectionId];
-    if (ifname)
-      cmd.push("ifname", ifname);
-    networkService.startConnectCommand(cmd);
+    const ifname = String(iface || "") || firstWifiInterface();
+    startConnectCommand(["nmcli", "connection", "up", "id", id, "ifname", ifname]);
   }
-
   function applySavedFlags() {
-    if (!networkService.wifiAps)
+    if (!_wifiAps)
       return;
-    const saved = {};
-    (networkService.savedWifiConnections || []).forEach(savedConnection => {
-      // Name may equal SSID, tolerate both
-      if (savedConnection.ssid)
-        saved[savedConnection.ssid] = true;
-      if (savedConnection.name)
-        saved[savedConnection.name] = true;
+    const savedLookup = {};
+    (_savedWifiConnections || []).forEach(savedItem => {
+      if (savedItem.ssid)
+        savedLookup[savedItem.ssid] = true;
+      if (savedItem.name)
+        savedLookup[savedItem.name] = true;
     });
-    let active = null;
-    for (let index = 0; index < (networkService.wifiAps || []).length; index++) {
-      const accessPoint = networkService.wifiAps[index];
+    let activeSsid = null;
+    for (let idx = 0; idx < (_wifiAps || []).length; idx++) {
+      const accessPoint = _wifiAps[idx];
       if (accessPoint && accessPoint.connected && accessPoint.ssid) {
-        active = accessPoint.ssid;
+        activeSsid = accessPoint.ssid;
         break;
       }
     }
-    if (!active) {
-      const activeDev = networkService.chooseActiveDevice(networkService.deviceList || []);
-      if (activeDev && activeDev.type === "wifi" && networkService.isConnectedState(activeDev.state))
-        active = activeDev.connectionName || null;
+    if (!activeSsid) {
+      const activeDevice = chooseActiveDevice(_deviceList || []);
+      if (activeDevice && activeDevice.type === "wifi" && isConnectedState(activeDevice.state))
+        activeSsid = activeDevice.connectionName || null;
     }
-    networkService.wifiAps = (networkService.wifiAps || []).map(accessPoint => {
+    _wifiAps = (_wifiAps || []).map(accessPoint => {
       const updatedAp = Object.assign({}, accessPoint || {});
-      updatedAp.saved = !!saved[updatedAp.ssid];
-      if (active && !updatedAp.connected)
-        updatedAp.connected = updatedAp.ssid === active;
+      updatedAp.saved = !!savedLookup[updatedAp.ssid];
+      if (activeSsid && !updatedAp.connected)
+        updatedAp.connected = updatedAp.ssid === activeSsid;
       return updatedAp;
     }).sort((left, right) => ((right.connected ? 1 : 0) - (left.connected ? 1 : 0)) || ((right.signal || 0) - (left.signal || 0)));
   }
-
   function chooseActiveDevice(devices) {
     if (!devices || !devices.length)
       return null;
-    let wifi = null, ethernet = null;
-    for (let index = 0; index < devices.length; index++) {
-      const device = devices[index];
-      if (!networkService.isConnectedState(device.state))
+    let wifi = null, eth = null;
+    for (let idx = 0; idx < devices.length; idx++) {
+      const device = devices[idx];
+      if (!isConnectedState(device.state))
         continue;
-      if (!ethernet && device.type === "ethernet")
-        ethernet = device;
+      if (!eth && device.type === "ethernet")
+        eth = device;
       else if (!wifi && device.type === "wifi")
         wifi = device;
     }
-    return ethernet || wifi || null;
+    return eth || wifi || null;
   }
-
   function computeDerivedState(devices) {
-    let wifiIf = "", ethIf = "", wifiConn = false, ethConn = false, wifiIp = "", ethIp = "";
-    for (let index = 0; index < devices.length; index++) {
-      const device = devices[index], isConnected = networkService.isConnectedState(device.state);
+    let wifiIfName = "", ethIfName = "", wifiConn = false, ethConn = false, wifiIp = "", ethIp = "";
+    for (let idx = 0; idx < devices.length; idx++) {
+      const device = devices[idx];
+      const isOn = isConnectedState(device.state);
       if (device.type === "wifi") {
-        wifiIf = device.interface || wifiIf;
-        wifiConn = wifiConn || isConnected;
+        wifiIfName = device.interface || wifiIfName;
+        wifiConn = wifiConn || isOn;
         if (device.ip4)
-          wifiIp = networkService.stripCidr(device.ip4);
+          wifiIp = stripCidr(device.ip4);
       } else if (device.type === "ethernet") {
-        ethIf = device.interface || ethIf;
-        ethConn = ethConn || isConnected;
+        ethIfName = device.interface || ethIfName;
+        ethConn = ethConn || isOn;
         if (device.ip4)
-          ethIp = networkService.stripCidr(device.ip4);
+          ethIp = stripCidr(device.ip4);
       }
     }
     return {
-      wifiIf: wifiIf,
-      ethIf: ethIf,
+      wifiIf: wifiIfName,
+      ethIf: ethIfName,
       wifiConn: wifiConn,
       ethConn: ethConn,
       wifiIp: wifiIp,
@@ -122,49 +126,48 @@ Singleton {
       status: ethConn ? "ethernet" : (wifiConn ? "wifi" : "disconnected")
     };
   }
-
   function connectToWifi(ssid, password, iface, save, name) {
-    const interfaceName = String(iface || "") || networkService.firstWifiInterface();
-    const ssidTrimmed = (typeof ssid === "string" ? ssid : String(ssid || "")).trim();
-    Logger.log("NetworkService", "connectToWifi(ssid=", ssidTrimmed, ", iface=", interfaceName, ", save=", !!save, ")");
-
-    if (!ssidTrimmed)
+    const ifname = String(iface || "") || firstWifiInterface();
+    const cleanSsid = (typeof ssid === "string" ? ssid : String(ssid || "")).trim();
+    Logger.log("NetworkService", "connectToWifi(ssid=", cleanSsid, ", iface=", ifname, ", save=", !!save, ")");
+    if (!cleanSsid)
       return;
-    const connectionName = String(name || "");
-    if (save && connectionName) {
-      networkService.startConnectCommand(["nmcli", "connection", "add", "type", "wifi", "ifname", interfaceName, "con-name", connectionName, "ssid", ssidTrimmed]);
+    if (save && String(name || "")) {
+      startConnectCommand(["nmcli", "connection", "add", "type", "wifi", "ifname", ifname, "con-name", String(name), "ssid", cleanSsid]);
       return;
     }
-    const passwordString = String(password || "");
-    networkService.startConnectCommand(passwordString ? ["nmcli", "device", "wifi", "connect", ssidTrimmed, "password", passwordString, "ifname", interfaceName] : ["nmcli", "device", "wifi", "connect", ssidTrimmed, "ifname", interfaceName]);
+    const passwordArg = String(password || "");
+    const commandArgs = passwordArg ? ["nmcli", "device", "wifi", "connect", cleanSsid, "password", passwordArg, "ifname", ifname] : ["nmcli", "device", "wifi", "connect", cleanSsid, "ifname", ifname];
+    startConnectCommand(commandArgs);
   }
-
   function dedupeWifiNetworks(entries) {
     if (!entries || !entries.length)
       return [];
-    const networksBySsid = {};
-    for (let index = 0; index < entries.length; index++) {
-      const entry = entries[index] || {}, ssid = (entry.ssid || "").trim();
+    const bySsid = {};
+    for (let idx = 0; idx < entries.length; idx++) {
+      const entry = entries[idx] || {};
+      const ssid = (entry.ssid || "").trim();
       if (!ssid || ssid === "--")
         continue;
-      const band = networkService.inferBandLabel(entry.freq || ""), signalValue = entry.signal || (entry.bars ? networkService.signalFromBars(entry.bars) : 0) || (entry.connected ? 60 : 0);
-      if (!networksBySsid[ssid])
-        networksBySsid[ssid] = {
-          ssid: ssid,
+      const band = inferBandLabel(entry.freq || "");
+      const sig = entry.signal || (entry.bars ? signalFromBars(entry.bars) : 0) || (entry.connected ? 60 : 0);
+      if (!bySsid[ssid]) {
+        bySsid[ssid] = {
+          ssid,
           bssid: entry.bssid || "",
-          signal: signalValue,
+          signal: sig,
           security: entry.security || "",
           freq: entry.freq || "",
-          band: band,
+          band,
           connected: !!entry.connected,
           saved: !!entry.saved
         };
-      else {
-        const existing = networksBySsid[ssid];
+      } else {
+        const existing = bySsid[ssid];
         existing.connected = existing.connected || !!entry.connected;
         existing.saved = existing.saved || !!entry.saved;
-        if (signalValue > existing.signal) {
-          existing.signal = signalValue;
+        if (sig > existing.signal) {
+          existing.signal = sig;
           existing.bssid = entry.bssid || existing.bssid;
           existing.freq = entry.freq || existing.freq;
           existing.band = band || existing.band;
@@ -173,89 +176,74 @@ Singleton {
       }
     }
     const result = [];
-    for (var ssidKey in networksBySsid)
-      result.push(networksBySsid[ssidKey]);
+    for (var ssidKey in bySsid)
+      result.push(bySsid[ssidKey]);
     result.sort((left, right) => (right.signal || 0) - (left.signal || 0));
     return result;
   }
-
   function deviceByInterface(iface) {
-    const list = networkService.deviceList || [];
-    for (let index = 0; index < list.length; index++)
-      if (list[index].interface === iface)
-        return list[index];
+    for (let idx = 0; idx < _deviceList.length; idx++)
+      if (_deviceList[idx].interface === iface)
+        return _deviceList[idx];
     return null;
   }
-
   function disconnectInterface(iface) {
-    const deviceType = (networkService.deviceByInterface(iface) || {}).type || "";
-    if (deviceType === "ethernet")
+    const typeName = (deviceByInterface(iface) || {}).type || "";
+    if (typeName === "ethernet")
       OSDService.showInfo(qsTr("Ethernet turned off"));
-    Logger.log("NetworkService", "Disconnecting interface:", iface, "type:", deviceType || "unknown");
-    networkService.startConnectCommand(["nmcli", "device", "disconnect", iface]);
+    Logger.log("NetworkService", "Disconnecting interface:", iface, "type:", typeName || "unknown");
+    startConnectCommand(["nmcli", "device", "disconnect", iface]);
   }
-
   function disconnectWifi() {
-    const ifname = networkService.firstWifiInterface();
+    const ifname = firstWifiInterface();
     if (ifname)
-      networkService.disconnectInterface(ifname);
+      disconnectInterface(ifname);
   }
-
   function firstWifiInterface() {
-    const list = networkService.deviceList || [];
-    for (let index = 0; index < list.length; index++)
-      if (list[index].type === "wifi")
-        return list[index].interface || "";
+    for (let idx = 0; idx < _deviceList.length; idx++)
+      if (_deviceList[idx].type === "wifi")
+        return _deviceList[idx].interface || "";
     return "";
   }
-
   function forgetWifiConnection(connectionId) {
-    pForget.command = networkService.isUuid(connectionId) ? ["nmcli", "connection", "delete", "uuid", connectionId] : ["nmcli", "connection", "delete", "id", connectionId];
-    pForget.connectionId = String(connectionId || "");
-    Logger.log("NetworkService", "Forgetting Wi-Fi connection:", pForget.connectionId);
-    networkService.start(pForget);
+    const id = String(connectionId || "");
+    const cmd = isUuid(id) ? ["nmcli", "connection", "delete", "uuid", id] : ["nmcli", "connection", "delete", "id", id];
+    pForget.command = cmd;
+    pForget.connectionId = id;
+    Logger.log("NetworkService", "Forgetting Wi-Fi connection:", id);
+    network.startProcess(pForget);
   }
-
   function inferBandLabel(freqStr) {
-    const mhzValue = parseInt(String(freqStr || ""));
-    if (!mhzValue || mhzValue <= 0)
+    const mhz = parseInt(String(freqStr || ""));
+    if (!mhz || mhz <= 0)
       return "";
-    if (mhzValue >= 2400 && mhzValue <= 2500)
+    if (mhz >= 2400 && mhz <= 2500)
       return "2.4";
-    if (mhzValue >= 4900 && mhzValue <= 5900)
+    if (mhz >= 4900 && mhz <= 5900)
       return "5";
-    if (mhzValue >= 5925 && mhzValue <= 7125)
+    if (mhz >= 5925 && mhz <= 7125)
       return "6";
     return "";
   }
-
-  function signalFromBars(bars) {
-    if (!bars)
-      return 0;
-    try {
-      const count = (String(bars).match(/[▂▄▆█]/g) || []).length;
-      return Math.max(0, Math.min(100, count * 25));
-    } catch (err) {
-      return 0;
-    }
-  }
-
   function isConnectedState(state) {
-    const stateText = String(state || "").toLowerCase().trim();
-    return !!stateText && stateText.indexOf("connected") !== -1 && stateText.indexOf("disconnected") === -1 && stateText.indexOf("connecting") === -1;
+    const stateString = String(state || "");
+    const match = stateString.match(/^(\d+)/);
+    if (match)
+      return parseInt(match[1], 10) >= 100;
+    const lowerState = stateString.toLowerCase().trim();
+    return !!lowerState && lowerState.indexOf("connected") !== -1 && lowerState.indexOf("disconnected") === -1 && lowerState.indexOf("connecting") === -1;
   }
-
-  function isCooldownActive(lastAt, cooldownMs, currentTimeMs) {
-    const nowMs = currentTimeMs !== undefined ? currentTimeMs : Date.now();
-    return nowMs - lastAt < cooldownMs;
+  function isCooldownActive(lastAt, cooldownMs, nowMs) {
+    const currentMs = nowMs !== undefined ? nowMs : Date.now();
+    return currentMs - lastAt < cooldownMs;
   }
-  function isUuid(value) {
-    return networkService.uuidRegex.test(String(value || ""));
+  function isUuid(v) {
+    return uuidRegex.test(String(v || ""));
   }
-
   function parseDeviceListMultiline(text) {
-    const lines = (text || "").split(/\n+/), list = [];
-    let current = {
+    const lines = (text || "").split(/\n+/);
+    const list = [];
+    let currentDevice = {
       interface: "",
       type: "",
       state: "",
@@ -265,18 +253,20 @@ Singleton {
       connectionName: "",
       connectionUuid: ""
     };
-    for (let index = 0; index < lines.length; index++) {
-      const line = (lines[index] || "").trim();
+    for (let idx = 0; idx < lines.length; idx++) {
+      const line = (lines[idx] || "").trim();
       if (!line)
         continue;
-      const colonIndex = line.indexOf(":"), key = line.substring(0, colonIndex).trim(), val = line.substring(colonIndex + 1).trim();
-      if (colonIndex <= 0)
+      const keyPos = line.indexOf(":");
+      if (keyPos <= 0)
         continue;
+      const key = line.substring(0, keyPos).trim();
+      const value = line.substring(keyPos + 1).trim();
       if (key === "GENERAL.DEVICE" || key === "DEVICE") {
-        if (current.interface)
-          list.push(current);
-        current = {
-          interface: val,
+        if (currentDevice.interface)
+          list.push(currentDevice);
+        currentDevice = {
+          interface: value,
           type: "",
           state: "",
           mac: "",
@@ -287,54 +277,58 @@ Singleton {
         };
       } else {
         if (key === "GENERAL.TYPE" || key === "TYPE")
-          current.type = val;
+          currentDevice.type = value;
         else if (key === "GENERAL.STATE" || key === "STATE")
-          current.state = val;
+          currentDevice.state = value;
         else if (key === "GENERAL.CONNECTION" || key === "CONNECTION")
-          current.connectionName = val;
+          currentDevice.connectionName = value;
         else if (key === "GENERAL.CON-UUID" || key === "CON-UUID")
-          current.connectionUuid = val;
+          currentDevice.connectionUuid = value;
         else if (key === "GENERAL.HWADDR" || key === "HWADDR")
-          current.mac = val;
+          currentDevice.mac = value;
         else if (key.indexOf("IP4.ADDRESS") === 0 || key === "IP4.ADDRESS")
-          current.ip4 = val;
+          currentDevice.ip4 = value;
         else if (key.indexOf("IP6.ADDRESS") === 0 || key === "IP6.ADDRESS")
-          current.ip6 = val;
+          currentDevice.ip6 = value;
       }
     }
-    if (current.interface)
-      list.push(current);
+    if (currentDevice.interface)
+      list.push(currentDevice);
     return list;
   }
-
   function parseWifiListMultiline(text) {
-    const lines = (text || "").split(/\n+/), result = [];
-    let accessPoint = null;
-    for (let index = 0; index < lines.length; index++) {
-      const line = lines[index];
+    const lines = (text || "").split(/\n+/);
+    const accessPoints = [];
+    let currentAp = null;
+    for (let idx = 0; idx < lines.length; idx++) {
+      const line = lines[idx];
       if (!line || !line.trim())
         continue;
-      const colonIndex = line.indexOf(":"), key = line.substring(0, colonIndex).trim(), val = line.substring(colonIndex + 1).trim();
-      if (colonIndex <= 0)
+      const keyPos = line.indexOf(":");
+      if (keyPos <= 0)
         continue;
+      const key = line.substring(0, keyPos).trim();
+      const value = line.substring(keyPos + 1).trim();
       if (key === "IN-USE") {
-        if (accessPoint) {
-          const apObj = accessPoint || {};
-          if ((apObj.ssid && apObj.ssid.length) || (apObj.bssid && apObj.bssid.length))
-            result.push(accessPoint);
+        var hasIdentifiers = false;
+        if (currentAp) {
+          var candidate = currentAp || {};
+          hasIdentifiers = !!((candidate.ssid && candidate.ssid.length) || (candidate.bssid && candidate.bssid.length));
         }
-        accessPoint = {
+        if (hasIdentifiers)
+          accessPoints.push(currentAp);
+        currentAp = {
           ssid: "",
           bssid: "",
           signal: 0,
           security: "",
           freq: "",
           band: "",
-          connected: val === "*"
+          connected: value === "*"
         };
       } else {
-        if (!accessPoint)
-          accessPoint = {
+        if (!currentAp)
+          currentAp = {
             ssid: "",
             bssid: "",
             signal: 0,
@@ -344,344 +338,281 @@ Singleton {
             connected: false
           };
         if (key === "SSID")
-          accessPoint.ssid = val;
+          currentAp.ssid = value;
         else if (key === "BSSID")
-          accessPoint.bssid = val;
+          currentAp.bssid = value;
         else if (key === "SIGNAL")
-          accessPoint.signal = parseInt(val) || 0;
+          currentAp.signal = parseInt(value) || 0;
         else if (key === "BARS")
-          accessPoint.bars = val;
+          currentAp.bars = value;
         else if (key === "SECURITY")
-          accessPoint.security = val;
+          currentAp.security = value;
         else if (key === "FREQ")
-          accessPoint.freq = val;
+          currentAp.freq = value;
       }
     }
-    if (accessPoint) {
-      const apObj = accessPoint || {};
-      if ((apObj.ssid && apObj.ssid.length) || (apObj.bssid && apObj.bssid.length))
-        result.push(accessPoint);
+    var hasTailIdentifiers = false;
+    if (currentAp) {
+      var tail = currentAp || {};
+      hasTailIdentifiers = !!((tail.ssid && tail.ssid.length) || (tail.bssid && tail.bssid.length));
     }
-    for (let index = 0; index < result.length; index++)
-      if (((result[index].signal | 0) === 0) && result[index].bars)
-        result[index].signal = networkService.signalFromBars(result[index].bars);
-    return result;
+    if (hasTailIdentifiers)
+      accessPoints.push(currentAp);
+    for (let idx = 0; idx < accessPoints.length; idx++)
+      if (((accessPoints[idx].signal | 0) === 0) && accessPoints[idx].bars)
+        accessPoints[idx].signal = signalFromBars(accessPoints[idx].bars);
+    return accessPoints;
   }
-
-  function refreshAll(force) {
-    const doForce = !!force;
-    networkService.refreshDeviceList(doForce);
-    const wifiIface = networkService.firstWifiInterface();
-    if (wifiIface && networkService.isWifiRadioEnabled)
-      networkService.scanWifi(wifiIface);
-    networkService.start(pWifiRadio);
+  function refreshAll() {
+    refreshDeviceList(false);
+    if (_wifiIf && _isWifiRadioEnabled)
+      scanWifi(_wifiIf);
+    network.startProcess(pWifiRadio);
   }
-
   function refreshDeviceList(force) {
     const nowMs = Date.now();
-    if (!force && networkService.isCooldownActive(networkService.lastDeviceRefreshMs, networkService.deviceRefreshCooldownMs, nowMs))
+    if (!force && isCooldownActive(_lastDeviceRefreshMs, deviceRefreshCooldownMs, nowMs))
       return;
-    networkService.lastDeviceRefreshMs = nowMs;
-    if (pListDevices.running)
-      return;
-    networkService.start(pListDevices);
+    _lastDeviceRefreshMs = nowMs;
+    if (!pDeviceShow.running)
+      network.startProcess(pDeviceShow);
   }
-
-  function requestDeviceDetails(iface) {
-    const qmlSource = "import Quickshell.Io; Process { id: detailProcess; stdout: StdioCollector {} }";
-    const proc = Qt.createQmlObject(qmlSource, networkService, "dynProc_" + iface);
-    if (!proc)
-      return;
-    proc.command = ["nmcli", "-m", "multiline", "-f", "ALL", "device", "show", iface];
-    proc.stdout.streamFinished.connect(function () {
-      const fieldMap = {}, linesArray = (proc.stdout.text || "").trim().split(/\n+/);
-      for (let index = 0; index < linesArray.length; index++) {
-        const line = linesArray[index], colonIndex = line.indexOf(":");
-        if (colonIndex > 0)
-          fieldMap[line.substring(0, colonIndex).trim()] = line.substring(colonIndex + 1).trim();
-      }
-      const interfaceName = fieldMap["GENERAL.DEVICE"] || fieldMap["DEVICE"] || iface, details = {
-        mac: fieldMap["GENERAL.HWADDR"] || fieldMap["HWADDR"] || "",
-        type: fieldMap["GENERAL.TYPE"] || fieldMap["TYPE"] || "",
-        ip4: networkService.stripCidr(fieldMap["IP4.ADDRESS[1]"] || fieldMap["IP4.ADDRESS"] || null),
-        ip6: fieldMap["IP6.ADDRESS[1]"] || fieldMap["IP6.ADDRESS"] || null,
-        connectionName: fieldMap["GENERAL.CONNECTION"] || fieldMap["CONNECTION"] || "",
-        connectionUuid: fieldMap["GENERAL.CON-UUID"] || fieldMap["CON-UUID"] || ""
-      };
-      networkService.upsertDeviceDetails(interfaceName, details);
-      networkService.updateDerivedState();
-      proc.destroy();
-    });
-    proc.running = true;
-  }
-
   function scanWifi(iface) {
-    const interfaceName = (iface && iface.length) ? iface : networkService.firstWifiInterface();
-    if (networkService.isScanning)
+    const ifname = (iface && iface.length) ? iface : (_wifiIf || firstWifiInterface());
+    if (!ifname || _isScanning || !_isWifiRadioEnabled)
       return;
-    if (!networkService.isWifiRadioEnabled)
-      return;
-    const device = networkService.deviceByInterface(interfaceName);
+    const device = deviceByInterface(ifname);
     if (device && device.state && device.state.indexOf("unavailable") !== -1)
       return;
-    if (networkService.isCooldownActive(networkService.lastWifiScanMs, networkService.wifiScanCooldownMs))
+    if (isCooldownActive(_lastWifiScanMs, wifiScanCooldownMs))
       return;
-    Logger.log("NetworkService", "Starting Wi-Fi scan on:", interfaceName);
-    networkService.isScanning = true;
-    try {
-      networkService.lastWifiScanIf = interfaceName;
-      pWifiRescan.hadError = false;
-      pWifiRescan.command = ["nmcli", "device", "wifi", "rescan", "ifname", interfaceName];
-      pWifiList.command = ["nmcli", "-m", "multiline", "-f", "IN-USE,SSID,BSSID,SIGNAL,BARS,SECURITY,FREQ", "device", "wifi", "list", "ifname", interfaceName];
-      networkService.start(pWifiRescan);
-    } catch (err) {
-      networkService.isScanning = false;
-    }
+    Logger.log("NetworkService", "Starting Wi-Fi list on:", ifname);
+    _isScanning = true;
+    pWifiList.command = ["env", "LC_ALL=C", "nmcli", "-m", "multiline", "-f", "IN-USE,SSID,BSSID,SIGNAL,BARS,SECURITY,FREQ", "device", "wifi", "list", "ifname", ifname, "--rescan", "auto"];
+    network.startProcess(pWifiList);
   }
-
   function setWifiRadioEnabled(enabled) {
     OSDService.showInfo(enabled ? qsTr("Wi-Fi turned on") : qsTr("Wi-Fi turned off"));
     Logger.log("NetworkService", "Setting Wi-Fi radio:", enabled ? "on" : "off");
-    networkService.startConnectCommand(["nmcli", "radio", "wifi", enabled ? "on" : "off"]);
+    startConnectCommand(["nmcli", "radio", "wifi", enabled ? "on" : "off"]);
   }
-
-  function start(proc) {
-    if (!proc || proc.running)
-      return false;
+  function signalFromBars(bars) {
+    if (!bars)
+      return 0;
     try {
-      proc.running = true;
-      return true;
-    } catch (err) {
-      return false;
+      const symbolCount = (String(bars).match(/[▂▄▆█]/g) || []).length;
+      return Math.max(0, Math.min(100, symbolCount * 25));
+    } catch (e) {
+      return 0;
     }
   }
-  function startConnectCommand(commandArray) {
+  function startConnectCommand(commandArgs) {
     if (pConnect.running)
       return false;
     try {
-      pConnect.command = commandArray;
+      pConnect.command = commandArgs;
       pConnect.running = true;
       return true;
-    } catch (err) {
+    } catch (e) {
+      return false;
+    }
+  }
+  function startProcess(processRef) {
+    if (!processRef || processRef.running)
+      return false;
+    try {
+      processRef.running = true;
+      return true;
+    } catch (e) {
       return false;
     }
   }
   function stripCidr(addr) {
     if (!addr)
       return addr;
-    const text = String(addr), slashIndex = text.indexOf("/");
-    return slashIndex > 0 ? text.substring(0, slashIndex) : text;
+    const addrStr = String(addr);
+    const slashPos = addrStr.indexOf("/");
+    return slashPos > 0 ? addrStr.substring(0, slashPos) : addrStr;
   }
   function toggleWifiRadio() {
-    networkService.setWifiRadioEnabled(!networkService.isWifiRadioEnabled);
+    setWifiRadioEnabled(!_isWifiRadioEnabled);
   }
-
   function updateDerivedState() {
-    const previousLinkType = networkService.linkType, derived = networkService.computeDerivedState(networkService.deviceList || []);
-    networkService.wifiIf = derived.wifiIf;
-    networkService.wifiOnline = derived.wifiConn;
-    networkService.wifiIp = derived.wifiIp;
-    networkService.ethernetIf = derived.ethIf;
-    networkService.ethernetOnline = derived.ethConn;
-    networkService.ethernetIp = derived.ethIp;
-    networkService.linkType = derived.status;
-    if (previousLinkType !== networkService.linkType)
-      networkService.connectionStateChanged();
-    if (networkService.linkType === "wifi" && networkService.wifiIf && networkService.isWifiRadioEnabled && !networkService.isScanning)
-      networkService.scanWifi(networkService.wifiIf);
+    const previousLinkType = _linkType;
+    const derived = computeDerivedState(_deviceList || []);
+    _wifiIf = derived.wifiIf;
+    _wifiOnline = derived.wifiConn;
+    _wifiIp = derived.wifiIp;
+    _ethernetIf = derived.ethIf;
+    _ethernetOnline = derived.ethConn;
+    _ethernetIp = derived.ethIp;
+    _linkType = derived.status;
+    if (previousLinkType !== _linkType)
+      connectionStateChanged();
   }
-
   function upsertDeviceDetails(iface, details) {
-    const devicesArray = (networkService.deviceList ? networkService.deviceList.slice() : []);
-    let foundIndex = -1;
-    for (let index = 0; index < devicesArray.length; index++)
-      if (devicesArray[index].interface === iface) {
-        foundIndex = index;
+    const devicesCopy = _deviceList ? _deviceList.slice() : [];
+    let idx = -1;
+    for (let i = 0; i < devicesCopy.length; i++)
+      if (devicesCopy[i].interface === iface) {
+        idx = i;
         break;
       }
-    if (foundIndex >= 0)
-      devicesArray[foundIndex] = Object.assign({}, devicesArray[foundIndex], details);
+    if (idx >= 0)
+      devicesCopy[idx] = Object.assign({}, devicesCopy[idx], details);
     else
-      devicesArray.push(Object.assign({
+      devicesCopy.push(Object.assign({
         interface: iface
       }, details));
-    networkService.deviceList = devicesArray;
+    _deviceList = devicesCopy;
   }
 
   Component.onCompleted: {
-    networkService.isReady = true;
-    networkService.refreshAll();
-    networkService.start(pSaved);
+    _isReady = true;
+    refreshAll();
+    network.startProcess(pSaved);
   }
   onConnectionStateChanged: {
-    Logger.log("NetworkService", "Connection state changed:", networkService.linkType, "wifiIf=", networkService.wifiIf || "-", "ethIf=", networkService.ethernetIf || "-");
-    networkService.applySavedFlags();
+    Logger.log("NetworkService", "Connection state:", _linkType, "wifiIf=", _wifiIf || "-", "ethIf=", _ethernetIf || "-");
+    applySavedFlags();
   }
+  onWifiRadioStateChanged: Logger.log("NetworkService", "Wi-Fi radio:", _isWifiRadioEnabled ? "enabled" : "disabled")
 
   Timer {
     id: tMonitorDebounce
+
     interval: 500
     repeat: false
     running: false
+
     onTriggered: {
-      networkService.refreshAll(true);
+      network.refreshDeviceList(true);
+      const wifiInterface = network._wifiIf || network.firstWifiInterface();
+      if (wifiInterface && network._isWifiRadioEnabled && !network._isScanning)
+        network.scanWifi(wifiInterface);
     }
   }
-
   Process {
     id: pMonitor
+
     command: ["nmcli", "monitor"]
+
     stdout: SplitParser {
       splitMarker: "\n"
+
       onRead: function () {
         if (tMonitorDebounce.running)
           tMonitorDebounce.stop();
         tMonitorDebounce.start();
       }
     }
-    Component.onCompleted: {
-      networkService.start(pMonitor);
-    }
-  }
 
+    Component.onCompleted: network.startProcess(pMonitor)
+  }
   Process {
-    id: pWifiRadio
-    command: ["nmcli", "-t", "-f", "WIFI", "general"]
+    id: pDeviceShow
+
+    command: ["nmcli", "-m", "multiline", "-f", "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.STATE,GENERAL.CONNECTION,GENERAL.CON-UUID,GENERAL.HWADDR,IP4.ADDRESS,IP6.ADDRESS", "device", "show"]
+
     stdout: StdioCollector {
       onStreamFinished: function () {
-        const textNormalized = (text || "").trim().toLowerCase();
-        const enabled = textNormalized.indexOf("enabled") !== -1 || textNormalized === "yes" || textNormalized === "on";
-        if (networkService.isWifiRadioEnabled !== enabled) {
-          networkService.isWifiRadioEnabled = enabled;
-          networkService.wifiRadioStateChanged();
-        }
-      }
-    }
-  }
-
-  Process {
-    id: pListDevices
-    command: ["nmcli", "-m", "multiline", "-f", "DEVICE,TYPE,STATE,CONNECTION,CON-UUID", "device"]
-    stdout: StdioCollector {
-      onStreamFinished: function () {
-        networkService.deviceList = networkService.parseDeviceListMultiline(text);
-        networkService.updateDerivedState();
-        for (let index = 0; index < networkService.deviceList.length; index++) {
-          const device = networkService.deviceList[index];
-          if (device.type === "loopback" || device.type === "wifi-p2p")
-            continue;
-          networkService.requestDeviceDetails(device.interface);
-        }
-        const activeDev = networkService.chooseActiveDevice(networkService.deviceList);
+        network._deviceList = network.parseDeviceListMultiline(text);
+        network.updateDerivedState();
+        const activeDev = network.chooseActiveDevice(network._deviceList);
         const activeStr = activeDev ? (activeDev.interface + "/" + activeDev.type) : "none";
-        Logger.log("NetworkService", "Devices refreshed:", (networkService.deviceList || []).length, "active=", activeStr, "link=", networkService.linkType);
-        networkService.applySavedFlags();
+        Logger.log("NetworkService", "Devices:", (network._deviceList || []).length, "active=", activeStr, "link=", network._linkType);
+        network.applySavedFlags();
       }
     }
   }
-
   Process {
     id: pWifiList
+
     stdout: StdioCollector {
       onStreamFinished: function () {
-        networkService.isScanning = false;
-        const parsed = networkService.parseWifiListMultiline(text);
-        networkService.wifiAps = networkService.dedupeWifiNetworks(parsed);
-        networkService.applySavedFlags();
-        networkService.lastWifiScanMs = Date.now();
-        networkService.refreshDeviceList(true);
-        let activeSsid = null, activeSig = null;
-        for (let i = 0; i < (networkService.wifiAps || []).length; i++) {
-          const ap = networkService.wifiAps[i];
-          if (ap && ap.connected) {
-            activeSsid = ap.ssid;
-            activeSig = ap.signal;
+        network._isScanning = false;
+        const parsedWifiList = network.parseWifiListMultiline(text);
+        network._wifiAps = network.dedupeWifiNetworks(parsedWifiList);
+        network.applySavedFlags();
+        network._lastWifiScanMs = Date.now();
+        network.refreshDeviceList(true);
+        let activeSsid = null, activeSignal = null;
+        for (let idx = 0; idx < (network._wifiAps || []).length; idx++) {
+          const accessPoint = network._wifiAps[idx];
+          if (accessPoint && accessPoint.connected) {
+            activeSsid = accessPoint.ssid;
+            activeSignal = accessPoint.signal;
             break;
           }
         }
-        Logger.log("NetworkService", "Wi-Fi scan complete:", (networkService.wifiAps || []).length, activeSsid ? ("active=" + activeSsid + " (" + (activeSig || 0) + "%)") : "no active connection");
+        Logger.log("NetworkService", "Wi-Fi:", (network._wifiAps || []).length, activeSsid ? ("active=" + activeSsid + " (" + (activeSignal || 0) + "%)") : "no active");
       }
     }
   }
-
   Process {
-    id: pWifiRescan
-    command: ["nmcli", "device", "wifi", "rescan"]
-    property bool hadError: false
-    onRunningChanged: function () {
-      if (!running) {
-        if (!pWifiRescan.hadError)
-          networkService.start(pWifiList);
-        else {
-          networkService.isScanning = false;
-          if (!tWifiScanRetry.running && networkService.lastWifiScanIf)
-            tWifiScanRetry.start();
+    id: pWifiRadio
+
+    command: ["nmcli", "-t", "-f", "WIFI", "general"]
+
+    stdout: StdioCollector {
+      onStreamFinished: function () {
+        const statusText = (text || "").trim().toLowerCase();
+        const enabled = statusText.indexOf("enabled") !== -1 || statusText === "yes" || statusText === "on";
+        if (network._isWifiRadioEnabled !== enabled) {
+          network._isWifiRadioEnabled = enabled;
+          network.wifiRadioStateChanged();
         }
       }
     }
-    stderr: StdioCollector {
-      onStreamFinished: function () {
-        pWifiRescan.hadError = ((text || "").trim().length > 0);
-        if (pWifiRescan.hadError)
-          Logger.log("NetworkService", "[WARN] Wi-Fi rescan stderr:", (text || "").trim());
-      }
-    }
   }
-
-  Timer {
-    id: tWifiScanRetry
-    interval: 400
-    repeat: false
-    running: false
-    onTriggered: {
-      if (!networkService.isScanning && networkService.isWifiRadioEnabled && networkService.lastWifiScanIf)
-        networkService.scanWifi(networkService.lastWifiScanIf);
-    }
-  }
-
   Process {
     id: pConnect
+
     stdout: StdioCollector {
       onStreamFinished: function () {
-        networkService.refreshDeviceList();
-        networkService.start(pSaved);
-        networkService.start(pWifiRadio);
+        network.refreshDeviceList(true);
+        network.startProcess(pSaved);
+        network.startProcess(pWifiRadio);
       }
     }
   }
-
   Process {
     id: pSaved
+
     command: ["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"]
+
     stdout: StdioCollector {
       onStreamFinished: function () {
         const list = [];
         const lines = (text || "").trim().split(/\n+/);
-        for (let index = 0; index < lines.length; index++) {
-          const line = lines[index].trim();
+        for (let idx = 0; idx < lines.length; idx++) {
+          const line = lines[idx].trim();
           if (!line)
             continue;
           const parts = line.split(":");
-          if (parts.length >= 2 && parts[1] === "802-11-wireless")
+          if (parts.length >= 2 && parts[1] === "802-11-wireless") {
+            const name = parts[0];
             list.push({
-              name: parts[0],
-              ssid: parts[0]
+              ssid: name,
+              name: name
             });
+          }
         }
-        networkService.savedWifiConnections = list;
-        networkService.applySavedFlags();
+        network._savedWifiConnections = list;
+        network.applySavedFlags();
       }
     }
   }
-
   Process {
     id: pForget
+
     property string connectionId: ""
+
     stdout: StdioCollector {
       onStreamFinished: function () {
         Logger.log("NetworkService", "Forgot Wi-Fi connection:", pForget.connectionId || "<unknown>");
-        networkService.refreshAll();
-        networkService.start(pSaved);
+        network.refreshAll();
+        network.startProcess(pSaved);
       }
     }
   }

@@ -1,5 +1,4 @@
 pragma ComponentBehavior: Bound
-
 import QtQuick
 import qs.Config
 import qs.Components
@@ -8,27 +7,26 @@ import qs.Services.Core
 Item {
   id: root
 
-  // Convenience alias
-  readonly property var net: NetworkService
-
   // Sizing like other small indicators
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
-  visible: net && net.isReady
+  visible: NetworkService && NetworkService.isReady
 
-  // Derivations for icon + tooltip
-  // Prefer Ethernet if both are connected
+  readonly property var activeDev: (NetworkService.deviceList) ? NetworkService.chooseActiveDevice(NetworkService.deviceList || []) : null
+
   readonly property string preferredLink: {
-    if (!net || !net.isReady)
+    if (!NetworkService.isReady)
       return "disconnected";
-    if (net.ethernetOnline)
-      return "ethernet";
-    if (net.wifiOnline)
-      return "wifi";
-    return "disconnected";
+    return NetworkService.linkType || "disconnected";
   }
-  readonly property var connectedAp: (net && net.wifiAps) ? (net.wifiAps.find(ap => ap && ap.connected) || null) : null
-  readonly property string wifiSsid: connectedAp && connectedAp.ssid && connectedAp.ssid.length > 0 ? connectedAp.ssid : (net && net.activeDevice && net.activeDevice.type === "wifi" ? (net.activeDevice.connectionName || "") : "")
+
+  // Find currently connected AP in the service’s wifiAps
+  readonly property var connectedAp: (NetworkService.wifiAps) ? (NetworkService.wifiAps.find(ap => ap && ap.connected) || null) : null
+
+  // SSID from the connected AP list, or fall back to active device connection name
+  readonly property string wifiSsid: connectedAp && connectedAp.ssid && connectedAp.ssid.length > 0 ? connectedAp.ssid : ((activeDev && activeDev.type === "wifi") ? (activeDev.connectionName || "") : "")
+
+  // Signal strength and band from AP list
   readonly property int wifiSignal: connectedAp && typeof connectedAp.signal === "number" ? connectedAp.signal : 0 // 0..100
   readonly property string wifiBand: connectedAp && connectedAp.band ? connectedAp.band : ""
 
@@ -45,19 +43,19 @@ Item {
 
   // Pick an icon for the current link state
   readonly property string netIcon: {
-    if (!net || !net.isReady)
+    if (!NetworkService || !NetworkService.isReady)
       return "󰤭"; // unknown/offline
     if (preferredLink === "ethernet")
       return "󰈀"; // network-wired
     if (preferredLink === "wifi")
       return wifiIconForSignal(wifiSignal);
     // disconnected
-    return net.isWifiRadioEnabled ? "󰤭" : "󰤮"; // wifi-off if radio disabled
+    return NetworkService.isWifiRadioEnabled ? "󰤭" : "󰤮"; // wifi-off if radio disabled
   }
 
   // Tooltip content pieces
   readonly property string titleText: {
-    if (!net || !net.isReady)
+    if (!NetworkService || !NetworkService.isReady)
       return qsTr("Network: initializing…");
     if (preferredLink === "ethernet")
       return qsTr("Ethernet");
@@ -68,42 +66,44 @@ Item {
       return `${ssid} (${pct})${band}`;
     }
     // disconnected
-    return net.isWifiRadioEnabled ? qsTr("Disconnected") : qsTr("Wi-Fi radio: off");
+    return NetworkService.isWifiRadioEnabled ? qsTr("Disconnected") : qsTr("Wi-Fi radio: off");
   }
+
   readonly property string detailText1: {
-    if (!net || !net.isReady)
+    if (!NetworkService || !NetworkService.isReady)
       return "";
     if (preferredLink === "ethernet") {
-      const ip = net.ethernetIp || "--";
-      const iface = net.ethernetIf || "eth";
+      const ip = NetworkService.ethernetIp || "--";
+      const iface = NetworkService.ethernetIf || "eth";
       return qsTr("IP: %1 · IF: %2").arg(ip).arg(iface);
     }
     if (preferredLink === "wifi") {
-      const ip = net.wifiIp || "--";
-      const iface = net.wifiIf || "wlan";
+      const ip = NetworkService.wifiIp || "--";
+      const iface = NetworkService.wifiIf || "wlan";
       return qsTr("IP: %1 · IF: %2").arg(ip).arg(iface);
     }
     return qsTr("No network connection");
   }
+
   readonly property string detailText2: {
-    if (!net || !net.isReady)
+    if (!NetworkService || !NetworkService.isReady)
       return "";
-    const dev = net.activeDevice || null;
-    const name = dev && dev.connectionName ? dev.connectionName : "";
-    const type = dev && dev.type ? dev.type : "";
+    const name = activeDev && activeDev.connectionName ? activeDev.connectionName : "";
+    const type = activeDev && activeDev.type ? activeDev.type : "";
     // Only show when actually connected to wifi/ethernet
     const show = (root.preferredLink === "wifi" || root.preferredLink === "ethernet") && name && name.length > 0;
     return show ? qsTr("Conn: %1 (%2)").arg(name).arg(type) : "";
   }
+
   // Optional secondary line showing the non-preferred link when both are up
   readonly property string secondaryText: {
-    if (!net || !net.isReady)
+    if (!NetworkService || !NetworkService.isReady)
       return "";
-    if (preferredLink === "ethernet" && net.wifiOnline) {
+    if (preferredLink === "ethernet" && NetworkService.wifiOnline) {
       const ssid = wifiSsid && wifiSsid.length ? wifiSsid : "";
       const pct = wifiSignal > 0 ? (wifiSignal + "%") : "";
-      const ip = net.wifiIp || "--";
-      const iface = net.wifiIf || "wlan";
+      const ip = NetworkService.wifiIp || "--";
+      const iface = NetworkService.wifiIf || "wlan";
       let head = qsTr("Wi‑Fi");
       if (ssid || pct) {
         head += ": ";
@@ -115,9 +115,9 @@ Item {
       const tail = qsTr("IP: %1 · IF: %2").arg(ip).arg(iface);
       return head.length > 0 ? (head + " · " + tail) : (qsTr("Wi‑Fi: ") + tail);
     }
-    if (preferredLink === "wifi" && net.ethernetOnline) {
-      const ip = net.ethernetIp || "--";
-      const iface = net.ethernetIf || "eth";
+    if (preferredLink === "wifi" && NetworkService.ethernetOnline) {
+      const ip = NetworkService.ethernetIp || "--";
+      const iface = NetworkService.ethernetIf || "eth";
       return qsTr("Ethernet: IP: %1 · IF: %2").arg(ip).arg(iface);
     }
     return "";
@@ -125,7 +125,6 @@ Item {
 
   IconButton {
     id: iconButton
-
     disabled: true
     iconText: root.netIcon
   }
