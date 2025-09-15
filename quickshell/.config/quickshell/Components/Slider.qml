@@ -2,6 +2,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell.Widgets
 import qs.Config
 
 Item {
@@ -13,6 +14,11 @@ Item {
   property bool interactive: true
   property real wheelStep: 0.05
   property int animMs: Theme.animationDuration
+  // Visual customization
+  property color fillColor: Theme.activeColor        // base fill color (0..splitAt)
+  property color headroomColor: Theme.onHoverColor   // color for segment beyond splitAt
+  property real splitAt: 1.0                         // normalized split (0..1). 1.0 => single color
+  property real radius: Theme.itemRadius
 
   signal changing(real v)      // while dragging
   signal committed(real v)     // on release or wheel
@@ -44,12 +50,48 @@ Item {
     slider.committed(vv);
   }
 
-  // Optional visual: show the same FillBar as a track
-  FillBar {
-    progress: slider.dragging ? slider.pending : slider.value
-    fillColor: Theme.activeColor
-    radius: Theme.itemRadius
-    animMs: slider.animMs
+  // Visual track: two-tone fill (0..splitAt) and (splitAt..1)
+  Item {
+    id: track
+    anchors.fill: parent
+
+    readonly property real eff: Math.max(0, Math.min(1, slider.dragging ? slider.pending : slider.value))
+    readonly property real s: Math.max(0, Math.min(1, slider.splitAt))
+    readonly property real basePart: Math.min(eff, s)
+
+    // Base segment (0 .. eff). We overlay headroom on top to avoid a seam.
+    FillBar {
+      anchors.fill: parent
+      progress: track.eff
+      fillColor: slider.fillColor
+      radius: slider.radius
+      animMs: slider.animMs
+    }
+
+    // Excess segment (s .. eff) drawn as an overlay within a full-width clipping rect
+    // to avoid rounding at the internal split boundary
+    ClippingRectangle {
+      anchors.fill: parent
+      color: "transparent"
+      radius: slider.radius
+
+      Rectangle {
+        anchors {
+          top: parent.top
+          bottom: parent.bottom
+        }
+        x: parent.width * track.s
+        width: parent.width * Math.max(0, track.eff - track.s)
+        color: slider.headroomColor
+
+        Behavior on width {
+          NumberAnimation {
+            duration: slider.animMs
+            easing.type: Easing.InOutQuad
+          }
+        }
+      }
+    }
   }
 
   MouseArea {

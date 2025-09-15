@@ -12,6 +12,7 @@ PanelWindow {
 
   WlrLayershell.namespace: "quickshell:bar:blur"
   color: Theme.panelWindowColor
+  surfaceFormat.opaque: false
   exclusiveZone: Theme.panelHeight
   implicitHeight: panelWindow.screen ? panelWindow.screen.height : Theme.panelHeight
   screen: MonitorService.effectiveMainScreen

@@ -9,7 +9,7 @@ Item {
   id: root
 
   // Colors/icons derived from BatteryService state
-  readonly property color batteryColor: percentage <= 0.1 ? "#f38ba8" : percentage <= 0.2 ? "#fab387" : Theme.activeColor
+  readonly property color batteryColor: percentage <= 0.1 ? Theme.critical : percentage <= 0.2 ? Theme.warning : Theme.activeColor
   readonly property string batteryIcon: {
     if (BatteryService.isCharging)
       return "";

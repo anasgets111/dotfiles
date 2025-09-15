@@ -156,6 +156,11 @@ Rectangle {
     wheelStep: 1 / steps
     // Animate fill during expansion (remove suppression flag)
     animMs: (volSlider.dragging || volumeControl.widthAnimating) ? 0 : Theme.animationDuration
+    // Two-tone fill: base up to 100% (splitAt), headroom (100-150%) in a different color
+    splitAt: (volumeControl.displayMaxVolume > 0) ? Math.min(1, volumeControl.baseVolume / volumeControl.displayMaxVolume) : 1.0
+    fillColor: Theme.activeColor
+    headroomColor: Theme.critical
+    radius: volumeControl.radius
     interactive: volumeControl.audioReady
     // Hide visual fill when collapsed (still allow wheel for quick adjust)
     opacity: (volumeControl.expanded || volSlider.dragging) ? 1 : 0
