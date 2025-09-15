@@ -24,26 +24,18 @@ Singleton {
     "osnplus.com", "watch.osn.com", "osn.com", "shahid.mbc.net", "shahid.net", "paramountplus.com", "peacocktv.com", "mubi.com"]
   readonly property var _videoFileExts: ["mp4", "mkv", "webm", "avi", "mov", "m4v", "mpeg", "mpg", "wmv", "flv"]
 
-  // Centralized inhibitor via IdleService
-  property var _videoToken: null
-
   // Order: manual -> selected index -> playing -> controllable playable -> first
   readonly property MprisPlayer active: ((manualActive && isValidPlayer(manualActive)) ? manualActive : ((selectedPlayerIndex >= 0 && selectedPlayerIndex < players.length ? players[selectedPlayerIndex] : null) || players.find(player => player && player.playbackState === MprisPlaybackState.Playing) || players.find(player => player.canControl && player.canPlay) || players[0] || null))
   readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
   readonly property string activeIconName: iconNameForPlayer(active)
   readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values : []
-  readonly property bool anyVideoPlaying: enableVideoIdleInhibit && (allPlayers.some(p => p && p.playbackState === MprisPlaybackState.Playing && _isVideoApp(p)) || allPlayers.some(p => p && p.playbackState === MprisPlaybackState.Playing && _isBrowserApp(p) && (_pipewireVideoRoleActive || _urlLooksVideo(_metadataUrl(p)))))
+  readonly property bool anyVideoPlaying: (allPlayers.some(p => p && p.playbackState === MprisPlaybackState.Playing && _isVideoApp(p)) || allPlayers.some(p => p && p.playbackState === MprisPlaybackState.Playing && _isBrowserApp(p) && (_pipewireVideoRoleActive || _urlLooksVideo(_metadataUrl(p)))))
   property bool canGoNext: active ? active.canGoNext : false
   property bool canGoPrevious: active ? active.canGoPrevious : false
   property bool canPause: active ? active.canPause : false
   property bool canPlay: active ? active.canPlay : false
   property bool canSeek: active ? active.canSeek : false
   property real currentPosition: 0
-
-  // Auto idle-inhibit only for video players
-  // This runs a dedicated inhibitor separate from manual toggles/buttons
-  // so it won’t interfere with user-controlled inhibition.
-  property bool enableVideoIdleInhibit: true
   readonly property bool hasActive: !!active
   readonly property bool hasPlayers: players.length > 0
   readonly property real infiniteTrackLength: 922337203685
@@ -59,7 +51,6 @@ Singleton {
   property string trackArtist: active ? (active.trackArtist || "") : ""
   property real trackLength: active ? ((active.length < infiniteTrackLength) ? active.length : 0) : 0
   property string trackTitle: active ? (active.trackTitle || "") : ""
-  property string videoInhibitReason: "Video playback"
 
   function _isBrowserApp(player) {
     if (!player)
@@ -290,18 +281,7 @@ Singleton {
     if (k && k !== lastActiveKey)
       lastActiveKey = k;
   }
-  onAnyVideoPlayingChanged: {
-    if (anyVideoPlaying) {
-      if (!_videoToken) {
-        _videoToken = IdleService.acquire(videoInhibitReason);
-        Logger.log("MediaService", "Video detected -> enabling idle inhibitor (browserRole=", _pipewireVideoRoleActive, ")");
-      }
-    } else if (_videoToken) {
-      IdleService.release(_videoToken);
-      _videoToken = null;
-      Logger.log("MediaService", "No video -> disabling idle inhibitor");
-    }
-  }
+  // IdleService owns inhibition now; we only signal via anyVideoPlaying
 
   Connections {
     function onValuesChanged() {
