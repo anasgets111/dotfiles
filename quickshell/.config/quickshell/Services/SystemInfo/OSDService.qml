@@ -26,6 +26,7 @@ Singleton {
   property int maxVisibleMs: 5000
   property bool replaceWhileVisible: true
   property var toastQueue: []
+  property int toastQueueMax: 200
   property bool toastVisible: false
   property string wallpaperErrorStatus: ""
 
@@ -161,11 +162,17 @@ Singleton {
         root.toastQueue = updatedQueue;
         Logger.log("OSDService", `dedupe: bumped repeat to ${updatedQueue[updatedQueue.length - 1].repeat}`);
       } else {
-        root.toastQueue = root.toastQueue.concat([queuedItem]);
+        let q = root.toastQueue.concat([queuedItem]);
+        if (q.length > root.toastQueueMax)
+          q = q.slice(q.length - root.toastQueueMax);
+        root.toastQueue = q;
         Logger.log("OSDService", `enqueued: level=${level}`);
       }
     } else {
-      root.toastQueue = root.toastQueue.concat([queuedItem]);
+      let q = root.toastQueue.concat([queuedItem]);
+      if (q.length > root.toastQueueMax)
+        q = q.slice(q.length - root.toastQueueMax);
+      root.toastQueue = q;
       Logger.log("OSDService", `enqueued: level=${level}`);
     }
 

@@ -62,6 +62,7 @@ WlrLayershell {
     layer.enabled: false
     layer.mipmap: false
     layer.smooth: true
+    sourceSize: Qt.size(layerShell.width, layerShell.height)
     cache: false
     mipmap: false
     smooth: true
@@ -89,6 +90,7 @@ WlrLayershell {
       layer.mipmap: false
       layer.smooth: true
       asynchronous: true
+      sourceSize: Qt.size(layerShell.width, layerShell.height)
       cache: false
       mipmap: false
       smooth: true

@@ -70,6 +70,7 @@ Item {
         id: slotLoader
 
         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+        active: tooltip.shouldShow && !!tooltip.contentComponent
         sourceComponent: tooltip.contentComponent
         visible: status === Loader.Ready
       }

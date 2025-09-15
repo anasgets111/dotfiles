@@ -60,6 +60,8 @@ Singleton {
   readonly property color disabledColor: "#232634"
   readonly property color inactiveColor: "#494D64"
   readonly property color onHoverColor: "#A28DCD"
+  readonly property color critical: "#f38ba8"
+  readonly property color warning: "#fab387"
   readonly property color powerSaveColor: "#A6E3A1"
   readonly property color textActiveColor: "#CDD6F4"
   readonly property color textInactiveColor: "#A6ADC8"
