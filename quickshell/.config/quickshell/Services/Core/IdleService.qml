@@ -1,6 +1,8 @@
 pragma Singleton
+import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Services.Core
 
 Singleton {
   id: root
@@ -9,6 +11,9 @@ Singleton {
   property int _holdCount: 0
   property var _reasons: ({})
   property alias enabled: properties.enabled
+  property alias videoAutoEnabled: properties.videoAutoEnabled
+  property alias videoInhibitReason: properties.videoInhibitReason
+  property var _videoToken: null
 
   function acquire(reason) {
     const r = String(reason || "");
@@ -39,6 +44,10 @@ Singleton {
     id: properties
 
     property bool enabled: false
+    // When true, automatically inhibit idle while video is detected playing
+    property bool videoAutoEnabled: true
+    // Reason string for systemd-inhibit when auto video is active
+    property string videoInhibitReason: "Video playback"
 
     reloadableId: "Caffeine"
   }
@@ -47,5 +56,25 @@ Singleton {
 
     command: ["sh", "-c", "systemd-inhibit --what=idle --who=Quickshell --why='Idle inhibited' --mode=block sleep infinity"]
     running: properties.enabled || (root._holdCount > 0)
+  }
+
+  Connections {
+    target: MediaService
+
+    function onAnyVideoPlayingChanged() {
+      if (properties.videoAutoEnabled && MediaService.anyVideoPlaying) {
+        if (!root._videoToken)
+          root._videoToken = root.acquire(properties.videoInhibitReason);
+      } else if (root._videoToken) {
+        root.release(root._videoToken);
+        root._videoToken = null;
+      }
+    }
+  }
+
+  // Ensure correct initial state on startup
+  Component.onCompleted: {
+    if (properties.videoAutoEnabled && MediaService.anyVideoPlaying && !root._videoToken)
+      root._videoToken = root.acquire(properties.videoInhibitReason);
   }
 }
