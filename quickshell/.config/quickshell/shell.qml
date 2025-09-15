@@ -52,7 +52,6 @@ ShellRoot {
 
   Bar {
     id: bar
-
   }
 
   // Variants {
@@ -62,12 +61,9 @@ ShellRoot {
   //         visible: OSDService.toastVisible
   //     }
   // }
-  Variants {
-    model: Quickshell.screens
-
-    NotificationPopup {
-      modelData: modelData
-    }
+  Loader {
+    active: NotificationService.visible && NotificationService.visible.length > 0
+    sourceComponent: NotificationPopup {}
   }
 
   // Your wallpapers (unchanged)
@@ -86,6 +82,5 @@ ShellRoot {
   Connections {
     target: IdleService
   }
-  LockScreen {
-  }
+  LockScreen {}
 }
