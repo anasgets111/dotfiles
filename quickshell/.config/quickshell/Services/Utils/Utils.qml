@@ -171,11 +171,36 @@ Singleton {
     const proc = Qt.createQmlObject('import Quickshell.Io; Process {}', host);
     const stdio = Qt.createQmlObject('import Quickshell.Io; StdioCollector {}', proc);
     proc.stdout = stdio;
+    // Simple watchdog to prevent leaked processes if streamFinished never fires
+    const watchdog = Qt.createQmlObject('import QtQuick; Timer { interval: 10000; repeat: false }', proc);
+    watchdog.triggered.connect(function () {
+      try {
+        proc.running = false;
+      } catch (_) {}
+      try {
+        if (onDone)
+          onDone(stdio.text || "");
+      } catch (_) {}
+      try {
+        stdio.destroy();
+      } catch (_) {}
+      try {
+        watchdog.destroy();
+      } catch (_) {}
+      try {
+        proc.destroy();
+      } catch (_) {}
+    });
+    watchdog.start();
     stdio.onStreamFinished.connect(function () {
       try {
         if (onDone)
           onDone(stdio.text);
       } finally {
+        try {
+          watchdog.stop();
+          watchdog.destroy();
+        } catch (_) {}
         try {
           stdio.destroy();
         } catch (err) {}

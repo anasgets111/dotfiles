@@ -99,6 +99,8 @@ Singleton {
       Logger.log("WallpaperService", `Timer destroyed for monitor: ${name}`);
     }
     delete timersByName[name];
+    if (animationCentersByName.hasOwnProperty(name))
+      delete animationCentersByName[name];
   }
   function ensureAnimCenter(name) {
     if (!animationCentersByName.hasOwnProperty(name))
