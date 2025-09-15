@@ -59,10 +59,11 @@ WlrLayershell {
 
     anchors.fill: parent
     fillMode: layerShell._fillModeFor(layerShell.modelData.mode)
-    layer.enabled: true
-    layer.mipmap: true
+    layer.enabled: false
+    layer.mipmap: false
     layer.smooth: true
-    mipmap: true
+    cache: false
+    mipmap: false
     smooth: true
     source: layerShell._currentSource
   }
@@ -84,15 +85,22 @@ WlrLayershell {
 
       fillMode: layerShell._fillModeFor(layerShell.modelData.mode)
       height: layerShell.height
-      layer.enabled: true
-      layer.mipmap: true
+      layer.enabled: false
+      layer.mipmap: false
       layer.smooth: true
-      mipmap: true
+      asynchronous: true
+      cache: false
+      mipmap: false
       smooth: true
       source: layerShell._overlaySource
       width: layerShell.width
       x: -Math.round(revealClip.x)
       y: -Math.round(revealClip.y)
+
+      onStatusChanged: {
+        if (status === Image.Ready && revealClip.width === 0)
+          walAnimation.start();
+      }
     }
   }
   NumberAnimation {
@@ -127,7 +135,8 @@ WlrLayershell {
         layerShell._centerRelY = Math.max(0, Math.min(1, cy));
       layerShell._overlaySource = path || layerShell._currentSource;
       revealClip.width = 0;
-      walAnimation.start();
+      if (overlayWal.status === Image.Ready)
+        walAnimation.start();
     }
 
     target: WallpaperService
