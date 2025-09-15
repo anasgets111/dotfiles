@@ -8,6 +8,7 @@ import qs.Services.Utils
 Singleton {
   id: batteryService
 
+  property var __lastNotifTimes: ({})
   readonly property int deviceState: displayDevice ? displayDevice.state : UPowerDeviceState.Unknown
   readonly property var displayDevice: UPower.displayDevice
   readonly property bool isACPowered: isCharging || isFullyCharged || isPendingCharge
@@ -79,7 +80,15 @@ Singleton {
 
   // Helper to create notifications via Quickshell.Services.Notifications
   function sendNotification(summary, body, critical) {
+    if (!batteryService.__lastNotifTimes)
+      batteryService.__lastNotifTimes = {};
     var s = String(summary === undefined ? "" : summary);
+    var key = s + '|' + (critical ? '1' : '0');
+    var now = Date.now();
+    var last = batteryService.__lastNotifTimes[key] || 0;
+    if (now - last < 15000)
+      return;
+    batteryService.__lastNotifTimes[key] = now;
     var b = String(body === undefined ? "" : body);
     var qml = 'import Quickshell.Services.Notifications\nNotification { summary: "' + s.replace(/"/g, '\\"') + '"; body: "' + b.replace(/"/g, '\\"') + '"; expireTimeout: 5000; urgency: ' + (critical ? 'NotificationUrgency.Critical' : 'NotificationUrgency.Normal') + '; transient: true }';
     Qt.createQmlObject(qml, batteryService, "BatteryNotification");

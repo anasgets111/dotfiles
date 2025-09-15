@@ -57,28 +57,30 @@ Singleton {
     p.running = true;
   }
   function refreshPowerInfo() {
+    // Debounced entry point: schedule actual work to coalesce bursts
+    if (_refreshDebounce.running)
+      _refreshDebounce.restart();
+    else
+      _refreshDebounce.start();
+  }
+  function _doRefreshPowerInfo() {
     // Platform profile
     pms.readFile("/sys/firmware/acpi/platform_profile", function (data) {
       pms.platformProfile = data;
       pms.powerInfoUpdated();
     });
-
     // CPU governor
     pms.readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", function (data) {
       pms.cpuGovernor = data;
       pms.thermalInfoUpdated();
     });
-
     // EPP
     pms.readFile("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference", function (data) {
       pms.energyPerformance = data;
       pms.thermalInfoUpdated();
     });
-
-    // if this is a laptop and ppd is available, start the ppd process
-    if (BatteryService.isLaptopBattery && pms.hasPPD) {
+    if (BatteryService.isLaptopBattery && pms.hasPPD)
       ppdProcess.running = true;
-    }
   }
 
   Component.onCompleted: pms.refreshPowerInfo()
@@ -86,6 +88,15 @@ Singleton {
     brightnessDebounce.stop();
     brightnessProcess.running = false;
     ppdProcess.running = false;
+    try {
+      brightnessProcess.destroy();
+    } catch (_) {}
+    try {
+      ppdProcess.destroy();
+    } catch (_) {}
+    try {
+      ppdCheck.destroy();
+    } catch (_) {}
   }
   onOnBatteryChanged: {
     pms.refreshPowerInfo();
@@ -126,14 +137,21 @@ Singleton {
       brightnessProcess.running = true;
     }
   }
+  // Debounce timer for refreshPowerInfo to avoid rapid repeated spawns
+  Timer {
+    id: _refreshDebounce
+    interval: 80
+    repeat: false
+    onTriggered: _doRefreshPowerInfo()
+    onTriggered: pms._doRefreshPowerInfo()
+  }
   Component {
     id: readProcessComponent
 
     Process {
       running: false
 
-      stdout: StdioCollector {
-      }
+      stdout: StdioCollector {}
     }
   }
   Process {

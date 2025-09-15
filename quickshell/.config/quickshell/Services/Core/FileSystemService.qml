@@ -44,6 +44,27 @@ Singleton {
           } catch (e2) {}
         }
       });
+      // Watchdog timeout: destroy process if it hangs >10s
+      var timer1 = Qt.createQmlObject('import QtQuick; Timer { interval: 10000; repeat: false }', h.proc);
+      timer1.triggered.connect(function () {
+        try {
+          h.proc.running = false;
+        } catch (_) {}
+        try {
+          if (cb)
+            cb([]);
+        } catch (_) {}
+        try {
+          h.collector.destroy();
+        } catch (_) {}
+        try {
+          h.proc.destroy();
+        } catch (_) {}
+        try {
+          timer1.destroy();
+        } catch (_) {}
+      });
+      timer1.start();
       h.proc.command = ["bash", "-lc", "ls -1 " + String(pattern) + " 2>/dev/null || true"]; // safe: caller controls pattern
       h.proc.running = true;
     } catch (e) {
@@ -92,6 +113,27 @@ Singleton {
           } catch (e2) {}
         }
       });
+      // Watchdog timeout for poll script
+      var timer2 = Qt.createQmlObject('import QtQuick; Timer { interval: 10000; repeat: false }', h2.proc);
+      timer2.triggered.connect(function () {
+        try {
+          h2.proc.running = false;
+        } catch (_) {}
+        try {
+          if (cb)
+            cb([]);
+        } catch (_) {}
+        try {
+          h2.collector.destroy();
+        } catch (_) {}
+        try {
+          h2.proc.destroy();
+        } catch (_) {}
+        try {
+          timer2.destroy();
+        } catch (_) {}
+      });
+      timer2.start();
       h2.proc.command = ["bash", "-lc", script];
       h2.proc.running = true;
     } catch (e2) {
