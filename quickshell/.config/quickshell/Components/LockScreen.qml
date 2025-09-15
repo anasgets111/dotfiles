@@ -79,6 +79,11 @@ Scope {
           }
         }
         layer.enabled: !lockSurface.blurDisabled
+        layer.mipmap: false
+        // Avoid retaining decoded images globally
+        cache: false
+        // Avoid extra texture levels
+        mipmap: false
         source: WallpaperService.ready && lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper ? lockSurface.screenWallpaper.wallpaper : ""
         visible: lockSurface.hasScreen
 

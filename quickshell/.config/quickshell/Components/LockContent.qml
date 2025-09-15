@@ -35,6 +35,7 @@ FocusScope {
   anchors.centerIn: parent
   height: column.implicitHeight + 32
   layer.enabled: true
+  layer.mipmap: false
   opacity: lockSurface && lockSurface.hasScreen ? 1 : 0
   scale: lockSurface && lockSurface.hasScreen ? 1 : 0.98
   visible: lockSurface && lockSurface.hasScreen
