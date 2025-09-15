@@ -142,7 +142,6 @@ Singleton {
     id: _refreshDebounce
     interval: 80
     repeat: false
-    onTriggered: _doRefreshPowerInfo()
     onTriggered: pms._doRefreshPowerInfo()
   }
   Component {
