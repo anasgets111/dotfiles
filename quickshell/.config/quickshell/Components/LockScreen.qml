@@ -59,41 +59,46 @@ Scope {
 
       color: "transparent"
 
-      Image {
+      Loader {
+        id: wallpaperLoader
         anchors.fill: parent
-        fillMode: {
-          const mode = lockSurface.screenWallpaper ? lockSurface.screenWallpaper.mode : "fill";
-          switch (mode) {
-          case "fill":
-            return Image.PreserveAspectCrop;
-          case "fit":
-            return Image.PreserveAspectFit;
-          case "stretch":
-            return Image.Stretch;
-          case "center":
-            return Image.Pad;
-          case "tile":
-            return Image.Tile;
-          default:
-            return Image.PreserveAspectCrop;
+        active: lockSurface.hasScreen
+        sourceComponent: Image {
+          anchors.fill: parent
+          fillMode: {
+            const mode = lockSurface.screenWallpaper ? lockSurface.screenWallpaper.mode : "fill";
+            switch (mode) {
+            case "fill":
+              return Image.PreserveAspectCrop;
+            case "fit":
+              return Image.PreserveAspectFit;
+            case "stretch":
+              return Image.Stretch;
+            case "center":
+              return Image.Pad;
+            case "tile":
+              return Image.Tile;
+            default:
+              return Image.PreserveAspectCrop;
+            }
           }
-        }
-        layer.enabled: lockSurface.hasScreen && !lockSurface.blurDisabled
-        layer.mipmap: false
-        // Avoid retaining decoded images globally
-        cache: false
-        // Avoid extra texture levels
-        mipmap: false
-        sourceSize: Qt.size(width, height)
-        source: WallpaperService.ready && lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper ? lockSurface.screenWallpaper.wallpaper : ""
-        visible: lockSurface.hasScreen
+          layer.enabled: lockSurface.hasScreen && !lockSurface.blurDisabled
+          layer.mipmap: false
+          // Avoid retaining decoded images globally
+          cache: false
+          // Avoid extra texture levels
+          mipmap: false
+          sourceSize: Qt.size(width, height)
+          source: WallpaperService.ready && lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper ? lockSurface.screenWallpaper.wallpaper : ""
+          visible: lockSurface.hasScreen
 
-        layer.effect: MultiEffect {
-          autoPaddingEnabled: false
-          blur: 0.75
-          blurEnabled: true
-          blurMax: 48
-          blurMultiplier: 1
+          layer.effect: MultiEffect {
+            autoPaddingEnabled: false
+            blur: 0.9
+            blurEnabled: true
+            blurMax: 64
+            blurMultiplier: 1
+          }
         }
       }
 
