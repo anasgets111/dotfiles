@@ -181,7 +181,7 @@ match app-id="zen"
 open-on-workspace "Zen"
 }
 window-rule {
-match app-id="org.chromium.Chromium"
+match app-id="chromium"
 open-on-workspace "Chromium"
 }
 window-rule {
