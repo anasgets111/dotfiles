@@ -9,7 +9,22 @@ import qs.Services
 // IdleDaemon: lock -> dpms-off -> suspend with wake coalescing.
 Singleton {
   id: idleDaemon
+  // ========= Settings =========
+  PersistentProperties {
+    id: settings
 
+    property bool dpmsEnabled: true
+    property int dpmsTimeoutSec: 30
+    property bool enabled: true
+    property bool lockEnabled: true
+    property int lockTimeoutSec: 300
+    property bool respectInhibitors: true
+    property bool suspendEnabled: false
+    property int suspendTimeoutSec: 120
+    property bool videoAutoInhibit: true
+
+    reloadableId: "IdleDaemon"
+  }
   property bool _dpmsOffInSession: false
   property bool _dpmsOnSinceLastOff: false
   property double _dpmsSettleUntilMs: 0
@@ -196,23 +211,6 @@ Singleton {
       console.log("[IdleService] idle-inhibit OFF");
     if (effectiveInhibited && !LockService.locked)
       _cancelPipeline("inhibited");
-  }
-
-  // ========= Settings =========
-  PersistentProperties {
-    id: settings
-
-    property bool dpmsEnabled: true
-    property int dpmsTimeoutSec: 30
-    property bool enabled: true
-    property bool lockEnabled: true
-    property int lockTimeoutSec: 300
-    property bool respectInhibitors: true
-    property bool suspendEnabled: false
-    property int suspendTimeoutSec: 120
-    property bool videoAutoInhibit: true
-
-    reloadableId: "IdleDaemon"
   }
 
   // Inhibit compositor idle (timers remain separate)
