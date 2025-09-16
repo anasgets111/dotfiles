@@ -68,10 +68,9 @@ ShellRoot {
   //     }
   // }
   Loader {
-    active: NotificationService.visible && NotificationService.visible.length > 0
-    sourceComponent: NotificationPopup {}
+    active: NotificationService.visibleModel && NotificationService.visibleModel.count > 0
+    sourceComponent: NotifPanel {}
   }
-
   // Your wallpapers (unchanged)
   Variants {
     model: root.wallpaper.wallpapersArray
