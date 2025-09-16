@@ -69,14 +69,19 @@ ShellRoot {
   // }
   Loader {
     active: NotificationService.visibleModel && NotificationService.visibleModel.count > 0
-    sourceComponent: NotifPanel {}
+    sourceComponent: NotifPanel {
+      screen: MonitorService.activeMainScreen ? MonitorService.activeMainScreen : MonitorService.effectiveMainScreen
+    }
   }
-  // Your wallpapers (unchanged)
-  Variants {
-    model: root.wallpaper.wallpapersArray
+  // Wallpapers via Loader to delay until Monitor/Wallpaper services are ready
+  Loader {
+    active: WallpaperService && WallpaperService.ready && WallpaperService.wallpapersArray && WallpaperService.wallpapersArray.length > 0
+    sourceComponent: Variants {
+      model: WallpaperService.wallpapersArray
 
-    AnimatedWallpaper {
-      modelData: modelData
+      AnimatedWallpaper {
+        modelData: modelData
+      }
     }
   }
 
