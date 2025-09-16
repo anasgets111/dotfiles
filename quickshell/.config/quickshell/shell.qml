@@ -54,6 +54,12 @@ ShellRoot {
     id: bar
   }
 
+  Binding {
+    target: IdleService
+    property: "window"
+    value: bar
+  }
+
   // Variants {
 
   //     delegate: Toasts {
