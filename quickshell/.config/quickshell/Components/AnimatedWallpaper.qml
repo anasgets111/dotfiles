@@ -120,6 +120,7 @@ WlrLayershell {
       if (layerShell._overlaySource && layerShell._overlaySource.length > 0) {
         layerShell._currentSource = layerShell._overlaySource;
         layerShell._overlaySource = "";
+        overlayWal.source = "";
       }
       revealClip.width = 0;
     }

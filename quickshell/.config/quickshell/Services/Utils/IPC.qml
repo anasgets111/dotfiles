@@ -166,30 +166,38 @@ Singleton {
   // ----- Notifications -----
   IpcHandler {
     function clear(): string {
-      NotificationService.clearAll();
-      return "cleared";
+      NotificationService.dismissAllActive();
+      return "Active notifications dismissed";
     }
     function clearhistory(): string {
       NotificationService.clearHistory();
       return "History cleared";
     }
     function send(summary: string, body: string, optionsJson: string): string {
-      let opts = {};
-      try {
-        if (optionsJson)
-          opts = JSON.parse(String(optionsJson));
-      } catch (e) {
-        opts = {};
-      }
-      const id = NotificationService.send(summary ?? "", body ?? "", opts ?? {});
-      return id || "";
+      // Sending via IPC is not wired directly to NotificationServer in this build.
+      // Use: notify-send 'summary' 'body' from shell, or integrate a small bridge if needed.
+      return "send-not-implemented";
     }
     function status(): string {
       const dnd = NotificationService.dndPolicy ? (NotificationService.dndPolicy.enabled ? "on" : "off") : "off";
       const behavior = NotificationService.dndPolicy && NotificationService.dndPolicy.behavior ? NotificationService.dndPolicy.behavior : "queue";
       const groupsCount = (NotificationService.groups && typeof NotificationService.groups === "function") ? NotificationService.groups().length : 0;
       const historyCount = NotificationService.historyModel ? NotificationService.historyModel.count : 0;
-      return `Notifications: total=${NotificationService.all.length}, visible=${NotificationService.visible.length}, queued=${NotificationService.queue.length}, history=${historyCount}, groups=${groupsCount}, dnd=${dnd}(${behavior}), maxVisible=${NotificationService.maxVisible}, expire=${NotificationService.expirePopups}`;
+      const activeCount = (NotificationService.activeCount !== undefined) ? NotificationService.activeCount : 0;
+      const visibleCount = NotificationService.visibleModel ? NotificationService.visibleModel.count : 0;
+      const maxVisible = (NotificationService.maxVisibleNotifications !== undefined) ? NotificationService.maxVisibleNotifications : 0;
+      return `Notifications: active=${activeCount}, visible=${visibleCount}, history=${historyCount}, groups=${groupsCount}, dnd=${dnd}(${behavior}), maxVisible=${maxVisible}`;
+    }
+    function debug(): string {
+      // Compact snapshot of potentially growing structures for triage
+      const hist = NotificationService.historyModel ? NotificationService.historyModel.count : 0;
+      const vis = NotificationService.visibleModel ? NotificationService.visibleModel.count : 0;
+      const groupsCount = (NotificationService.groups && typeof NotificationService.groups === "function") ? NotificationService.groups().length : 0;
+      const wpNames = WallpaperService && WallpaperService.prefsByName ? Object.keys(WallpaperService.prefsByName) : [];
+      const wpTimers = WallpaperService && WallpaperService.timersByName ? Object.keys(WallpaperService.timersByName) : [];
+      const netIfs = NetworkService && NetworkService.deviceList ? (NetworkService.deviceList || []).length : 0;
+      const wifiAps = NetworkService && NetworkService.wifiAps ? (NetworkService.wifiAps || []).length : 0;
+      return [`notif{hist=${hist}, vis=${vis}, groups=${groupsCount}}`, `wp{names=${wpNames.length}, timers=${wpTimers.length}}`, `net{dev=${netIfs}, aps=${wifiAps}}`].join(" ");
     }
 
     target: "notifs"
