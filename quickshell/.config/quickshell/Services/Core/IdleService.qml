@@ -203,13 +203,13 @@ Singleton {
     id: settings
 
     property bool dpmsEnabled: true
-    property int dpmsTimeoutSec: 5
+    property int dpmsTimeoutSec: 30
     property bool enabled: true
     property bool lockEnabled: true
-    property int lockTimeoutSec: 10
+    property int lockTimeoutSec: 300
     property bool respectInhibitors: true
     property bool suspendEnabled: false
-    property int suspendTimeoutSec: 5
+    property int suspendTimeoutSec: 120
     property bool videoAutoInhibit: true
 
     reloadableId: "IdleDaemon"
