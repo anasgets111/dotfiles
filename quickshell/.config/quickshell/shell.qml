@@ -69,7 +69,9 @@ ShellRoot {
   // }
   Loader {
     active: NotificationService.visible && NotificationService.visible.length > 0
-    sourceComponent: NotificationPopup {}
+    sourceComponent: NotificationPopup {
+      modelData: MonitorService ? MonitorService.effectiveMainScreen : null
+    }
   }
 
   // Your wallpapers (unchanged)
