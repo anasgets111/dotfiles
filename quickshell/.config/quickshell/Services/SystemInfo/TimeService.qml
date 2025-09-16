@@ -15,7 +15,7 @@ Singleton {
   readonly property var now: clock.date
   property bool ntpEnabled: false
   property bool ntpSynced: false
-  property int precision: SystemClock.Minutes
+  property int precision: SystemClock.Seconds
   property bool ready: false
   readonly property string timePattern: use24Hour ? (precision === SystemClock.Seconds ? "HH:mm:ss" : "HH:mm") : (precision === SystemClock.Seconds ? "hh:mm:ss AP" : "hh:mm AP")
   property string timeZone: ""
