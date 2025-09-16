@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import qs.Services.Utils
 import qs.Services
+import qs.Services.Core
 import qs.Services.SystemInfo
 import qs.Services.WM
 
@@ -32,49 +33,18 @@ FocusScope {
     shakeAnim.restart();
   }
 
-  anchors.centerIn: parent
-  height: column.implicitHeight + 32
-  layer.enabled: lockSurface && lockSurface.hasScreen
-  layer.mipmap: false
-  opacity: lockSurface && lockSurface.hasScreen ? 1 : 0
-  scale: lockSurface && lockSurface.hasScreen ? 1 : 0.98
-  visible: lockSurface && lockSurface.hasScreen
-  width: parent.width * 0.47
-
-  layer.effect: MultiEffect {
-    blurEnabled: false
-    shadowBlur: 0.9
-    shadowColor: Qt.rgba(0, 0, 0, 0.35)
-    shadowEnabled: true
-    shadowHorizontalOffset: 0
-    shadowVerticalOffset: 10
-  }
-  Behavior on opacity {
-    NumberAnimation {
-      duration: 220
-      easing.type: Easing.OutCubic
-    }
-  }
-  Behavior on scale {
-    NumberAnimation {
-      duration: 220
-      easing.type: Easing.OutCubic
-    }
-  }
-  transform: Translate {
-    id: lockPanelShake
-
-    x: 0
-  }
-
-  Component.onCompleted: {
-    _maybeRequestFocusOnce("component completed");
-  }
+  // NEW: Always accept focus and request it when surface appears
+  focus: true
   Keys.onPressed: event => {
+    // Restrict explicit wake to main monitor surface to avoid duplication
+    if (lockPanel.lockSurface && lockPanel.lockSurface.isMainMonitor) {
+      IdleService.wake("key-press", lockPanel.lockSurface.screen ? lockPanel.lockSurface.screen.name : "no-screen");
+    }
     if (!lockPanel.lockSurface || !lockPanel.lockSurface.hasScreen)
       return;
     if (lockPanel.lockContext.authenticating)
       return;
+
     if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
       lockPanel.lockContext.submitOrStart();
       event.accepted = true;
@@ -94,6 +64,68 @@ FocusScope {
     }
   }
 
+  anchors.centerIn: parent
+  height: column.implicitHeight + 32
+  layer.enabled: lockSurface && lockSurface.hasScreen
+  layer.mipmap: false
+  opacity: lockSurface && lockSurface.hasScreen ? 1 : 0
+  scale: lockSurface && lockSurface.hasScreen ? 1 : 0.98
+  visible: lockSurface && lockSurface.hasScreen
+  width: parent.width * 0.47
+
+  layer.effect: MultiEffect {
+    blurEnabled: false
+    shadowBlur: 0.9
+    shadowColor: Qt.rgba(0, 0, 0, 0.35)
+    shadowHorizontalOffset: 0
+    shadowVerticalOffset: 10
+  }
+
+  Behavior on opacity {
+    NumberAnimation {
+      duration: 220
+      easing.type: Easing.OutCubic
+    }
+  }
+  Behavior on scale {
+    NumberAnimation {
+      duration: 220
+      easing.type: Easing.OutCubic
+    }
+  }
+
+  transform: Translate {
+    id: lockPanelShake
+    x: 0
+  }
+
+  Component.onCompleted: {
+    _maybeRequestFocusOnce("component completed");
+  }
+
+  // NEW: Wake on mouse interactions even before focus is restored
+  MouseArea {
+    anchors.fill: parent
+    hoverEnabled: true
+    acceptedButtons: Qt.AllButtons
+    propagateComposedEvents: true
+    onEntered: {
+      if (lockPanel.lockSurface && lockPanel.lockSurface.isMainMonitor)
+        IdleService.wake("pointer-enter", lockPanel.lockSurface.screen ? lockPanel.lockSurface.screen.name : "no-screen");
+      lockPanel.forceActiveFocus();
+    }
+    onPressed: {
+      if (lockPanel.lockSurface && lockPanel.lockSurface.isMainMonitor)
+        IdleService.wake("pointer-press", lockPanel.lockSurface.screen ? lockPanel.lockSurface.screen.name : "no-screen");
+      lockPanel.forceActiveFocus();
+    }
+    onWheel: {
+      if (lockPanel.lockSurface && lockPanel.lockSurface.isMainMonitor)
+        IdleService.wake("pointer-wheel", lockPanel.lockSurface.screen ? lockPanel.lockSurface.screen.name : "no-screen");
+      lockPanel.forceActiveFocus();
+    }
+  }
+
   Connections {
     function onHasScreenChanged() {
       if (!lockPanel.lockSurface)
@@ -101,15 +133,12 @@ FocusScope {
       if (lockPanel.lockSurface.hasScreen)
         lockPanel._maybeRequestFocusOnce("hasScreen changed -> true");
     }
-
     target: lockPanel.lockSurface
   }
 
   SequentialAnimation {
     id: shakeAnim
-
     running: false
-
     NumberAnimation {
       duration: 40
       easing.type: Easing.OutCubic
@@ -118,7 +147,6 @@ FocusScope {
       target: lockPanelShake
       to: 10
     }
-
     NumberAnimation {
       duration: 70
       from: 10
@@ -126,7 +154,6 @@ FocusScope {
       target: lockPanelShake
       to: -10
     }
-
     NumberAnimation {
       duration: 60
       from: -10
@@ -134,7 +161,6 @@ FocusScope {
       target: lockPanelShake
       to: 6
     }
-
     NumberAnimation {
       duration: 50
       from: 6
@@ -142,7 +168,6 @@ FocusScope {
       target: lockPanelShake
       to: -4
     }
-
     NumberAnimation {
       duration: 40
       from: -4
@@ -157,7 +182,6 @@ FocusScope {
       if (lockPanel.lockContext.authState === "error" || lockPanel.lockContext.authState === "fail")
         lockPanel.shake();
     }
-
     target: lockPanel.lockContext
   }
 
@@ -166,13 +190,11 @@ FocusScope {
     border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.20)
     border.width: 1
     radius: 16
-
     gradient: Gradient {
       GradientStop {
         color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.70)
         position: 0.0
       }
-
       GradientStop {
         color: Qt.rgba(24 / 255, 24 / 255, 37 / 255, 0.66)
         position: 1.0
@@ -190,7 +212,6 @@ FocusScope {
 
   ColumnLayout {
     id: column
-
     anchors.fill: parent
     anchors.margins: 16
     spacing: 14
@@ -198,7 +219,6 @@ FocusScope {
     RowLayout {
       Layout.alignment: Qt.AlignHCenter
       spacing: 10
-
       Text {
         Layout.alignment: Qt.AlignVCenter
         color: lockPanel.lockContext.theme.text
@@ -207,7 +227,6 @@ FocusScope {
         horizontalAlignment: Text.AlignHCenter
         text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "hh:mm")
       }
-
       Text {
         Layout.alignment: Qt.AlignVCenter
         color: lockPanel.lockContext.theme.subtext1
