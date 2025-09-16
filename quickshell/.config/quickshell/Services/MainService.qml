@@ -25,21 +25,27 @@ Singleton {
     return (text || "").trim() === "yes";
   }
 
+  function buildSystemInfoCommand() {
+    // Shell helper: "yn <cmd>" returns yes/no based on <cmd> exit code
+    const shLines = ['yn(){ "$@" >/dev/null 2>&1 && echo yes || echo no; }',
+      // Checks (booleans rendered as yes/no)
+      'isArchBased=$(yn command -v pacman)', 'hasBrightnessControl=$(yn [ -d /sys/class/backlight ])', "hasKeyboardBacklight=$(yn sh -c 'ls -1 /sys/class/leds 2>/dev/null | grep -q kbd_backlight')", "isLaptop=$(yn sh -c '[ -d /proc/acpi/button/lid ] && ls /proc/acpi/button/lid/*/state >/dev/null 2>&1 || grep -q SW_LID /proc/bus/input/devices')",
+      // User info
+      'username=$USER', 'fullName="$(getent passwd "$USER" | cut -d: -f5 | cut -d, -f1)"', 'hostname=$HOSTNAME',
+      // Emit key=value pairs expected by this service's properties
+      "printf '%s=%s\\n' " + "isArchBased \"$isArchBased\" " + "hasBrightnessControl \"$hasBrightnessControl\" " + "hasKeyboardBacklight \"$hasKeyboardBacklight\" " + "isLaptop \"$isLaptop\" " + "username \"$username\" " + "fullName \"$fullName\" " + "hostname \"$hostname\"",];
+    return ["sh", "-c", shLines.join("; ")];
+  }
+
   Component.onCompleted: {
     sys.ready = false;
     systemInfoProc.running = true;
   }
 
   Process {
-    // helper to turn command success into yes/no
-    // checks
-    // user info
-    // single printf of all key-value pairs
-
     id: systemInfoProc
 
-    command: ["sh", "-c", ["yn(){ \"$@\" >/dev/null 2>&1 && echo yes || echo no; }", "arch=$(yn command -v pacman)", "bright=$(yn [ -d /sys/class/backlight ])", "kbd=$(yn sh -c 'ls -1 /sys/class/leds 2>/dev/null | grep -q kbd_backlight')", "lid=$(yn sh -c '[ -d /proc/acpi/button/lid ] && ls /proc/acpi/button/lid/*/state >/dev/null 2>&1 || grep -q SW_LID /proc/bus/input/devices')", "user=$USER", "full=\"$(getent passwd \"$USER\" | cut -d: -f5 | cut -d, -f1)\"", "host=$HOSTNAME", "printf '%s=%s\\n' isArchBased \"$arch\" hasBrightnessControl \"$bright\" hasKeyboardBacklight \"$kbd\" isLaptop \"$lid\" username \"$user\" fullName \"$full\" hostname \"$host\""].join("; ")]
-
+    command: sys.buildSystemInfoCommand()
     stdout: StdioCollector {
       onStreamFinished: {
         const output = (text || "").trim();
