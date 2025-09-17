@@ -105,7 +105,7 @@ Singleton {
 
   // Listen to BatteryService property changes to refresh power info when battery state changes
   Connections {
-    function onDisplayDeviceChanged() {
+    function onDeviceStateChanged() {
       pms.refreshPowerInfo();
     }
     function onIsLaptopBatteryChanged() {
