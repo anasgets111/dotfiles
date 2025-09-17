@@ -19,7 +19,7 @@ Item {
     return icons[Math.min(Math.floor(percentage * 5), 4)];
   }
   readonly property color bgColor: Theme.inactiveColor
-  readonly property bool isPluggedIn: BatteryService.isPluggedIn
+  readonly property bool isPluggedIn: BatteryService.isACPowered
 
   // flash animation state
   property real overlayFlashWidth: 2
