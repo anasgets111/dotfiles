@@ -154,8 +154,12 @@ Item {
       fillMode: Image.PreserveAspectFit
       source: String(popupRoot.notification?.image || "")
       visible: source.toString().length > 0
-      // height bound to painted size for aspect fit
-      height: visible ? Math.min(width * 0.75, paintedHeight > 0 ? paintedHeight : width * 0.56) : 0
+      // Avoid binding loop: derive height from intrinsic aspect ratio, not paintedHeight
+      // Use intrinsic dimensions when available; fall back to 16:9-ish
+      readonly property int __intrW: implicitWidth
+      readonly property int __intrH: implicitHeight
+      readonly property real __aspect: __intrW > 0 && __intrH > 0 ? (__intrH / __intrW) : 0.5625
+      height: visible ? Math.min(width * 0.75, width * __aspect) : 0
       cache: false
       sourceSize: Qt.size(width, Math.round(width * 0.75))
     }

@@ -42,61 +42,19 @@ Singleton {
 
   // ----- Audio -----
   IpcHandler {
-    function decrement(step: string): string {
-      if (AudioService.sink && AudioService.sink.audio) {
-        if (AudioService.sink.audio.muted)
-          AudioService.sink.audio.muted = false;
-        const current = Math.round(AudioService.sink.audio.volume * 100);
-        const parsed = Number.parseInt(step ?? "5", 10);
-        const delta = Number.isNaN(parsed) ? 5 : parsed;
-        const newVolume = Math.max(0, Math.min(AudioService.maxVolumePercent, current - delta));
-        AudioService.sink.audio.volume = newVolume / 100;
-        Logger.log("IPC", "decrement", delta, "->", newVolume + "%");
-        return "Volume decreased to " + newVolume + "%";
-      }
-      return "No audio sink available";
-    }
-    function increment(step: string): string {
-      // emulate previous behavior using AudioService API
-      if (AudioService.sink && AudioService.sink.audio) {
-        if (AudioService.sink.audio.muted)
-          AudioService.sink.audio.muted = false;
-        const current = Math.round(AudioService.sink.audio.volume * 100);
-        const parsed = Number.parseInt(step ?? "5", 10);
-        const delta = Number.isNaN(parsed) ? 5 : parsed;
-        const newVolume = Math.max(0, Math.min(AudioService.maxVolumePercent, current + delta));
-        AudioService.sink.audio.volume = newVolume / 100;
-        Logger.log("IPC", "increment", delta, "->", newVolume + "%");
-        return "Volume increased to " + newVolume + "%";
-      }
-      return "No audio sink available";
-    }
-    function micmute(): string {
-      Logger.log("IPC", "micmute");
-      return AudioService.toggleMicMute();
-    }
-    function mute(): string {
-      Logger.log("IPC", "mute");
-      return AudioService.toggleMute();
-    }
-    function setmic(percentage: string): string {
-      Logger.log("IPC", "setmic", percentage);
-      return AudioService.setMicVolume(percentage);
-    }
-    function setvolume(percentage: string): string {
-      Logger.log("IPC", "setvolume", percentage);
-      return AudioService.setVolume(percentage);
-    }
+    
     function status(): string {
       let result = "Audio Status:\n";
       if (AudioService.sink && AudioService.sink.audio) {
-        const volume = Math.round(AudioService.sink.audio.volume * 100);
+        const raw = AudioService.sink.audio.volume;
+        const volume = Number.isFinite(raw) && raw >= 0 ? Math.round(raw * 100) : 0;
         result += "Output: " + volume + "%" + (AudioService.sink.audio.muted ? " (muted)" : "") + "\n";
       } else {
         result += "Output: No sink available\n";
       }
       if (AudioService.source && AudioService.source.audio) {
-        const micVolume = Math.round(AudioService.source.audio.volume * 100);
+        const mraw = AudioService.source.audio.volume;
+        const micVolume = Number.isFinite(mraw) && mraw >= 0 ? Math.round(mraw * 100) : 0;
         result += "Input: " + micVolume + "%" + (AudioService.source.audio.muted ? " (muted)" : "");
       } else {
         result += "Input: No source available";

@@ -59,6 +59,7 @@ WlrLayershell {
 
     anchors.fill: parent
     fillMode: layerShell._fillModeFor(layerShell.modelData.mode)
+    asynchronous: true
     layer.enabled: false
     layer.mipmap: false
     layer.smooth: true
@@ -100,7 +101,7 @@ WlrLayershell {
       y: -Math.round(revealClip.y)
 
       onStatusChanged: {
-        if (status === Image.Ready && revealClip.width === 0)
+        if (status === Image.Ready && revealClip.width === 0 && layerShell._overlaySource && layerShell._overlaySource.length > 0)
           walAnimation.start();
       }
     }
@@ -120,7 +121,6 @@ WlrLayershell {
       if (layerShell._overlaySource && layerShell._overlaySource.length > 0) {
         layerShell._currentSource = layerShell._overlaySource;
         layerShell._overlaySource = "";
-        overlayWal.source = "";
       }
       revealClip.width = 0;
     }
@@ -136,10 +136,16 @@ WlrLayershell {
         layerShell._centerRelX = Math.max(0, Math.min(1, cx));
       if (typeof cy === "number" && isFinite(cy))
         layerShell._centerRelY = Math.max(0, Math.min(1, cy));
-      layerShell._overlaySource = path || layerShell._currentSource;
+      const newSrc = path || layerShell._currentSource;
+      layerShell._overlaySource = newSrc;
       revealClip.width = 0;
-      if (overlayWal.status === Image.Ready)
+      if (overlayWal.status === Image.Ready) {
+        if (overlayWal.source === newSrc) {
+          layerShell._overlaySource = "";
+          layerShell._overlaySource = newSrc;
+        }
         walAnimation.start();
+      }
     }
 
     target: WallpaperService

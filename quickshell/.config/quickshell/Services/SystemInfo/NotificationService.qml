@@ -166,6 +166,7 @@ Singleton {
   function __appendHistory(notificationObject, closedReason) {
     __historyModel.append(snapshot(notificationObject, closedReason));
     __saveHistory();
+    __scheduleGcHint();
   }
   function __enforceHistoryLimit() {
     while (__historyModel.count > maxHistoryItems) {
@@ -288,11 +289,13 @@ Singleton {
         notification: notificationObject
       });
     }
+    __scheduleGcHint();
   }
   function __removeFromOrder(notificationObject) {
     const indexInOrder = __orderedActive.indexOf(notificationObject);
     if (indexInOrder >= 0)
       __orderedActive.splice(indexInOrder, 1);
+    __scheduleGcHint();
   }
   function __saveHistory() {
     const outputArray = [];
@@ -343,6 +346,7 @@ Singleton {
       store.replyLogJson = __pendingReplyLogJson;
     } catch (_) {}
     __persistDirty = false;
+    __scheduleGcHint();
   }
   function __timeInRange(nowHour, nowMinute, startString, endString) {
     const toHourMinute = inputString => {
@@ -611,6 +615,24 @@ Singleton {
     onTriggered: notificationsService.__flushPersist()
   }
 
+  // ————— Memory pressure hint —————
+  // Debounced GC nudge after heavy updates; harmless on Qt builds that ignore gc().
+  Timer {
+    id: __gcDebounce
+    interval: 500
+    repeat: false
+    onTriggered: {
+      try {
+        if (typeof gc === "function")
+          gc();
+      } catch (_) {}
+    }
+  }
+  function __scheduleGcHint() {
+    // Trigger only when the panel is not animating new items heavily
+    __gcDebounce.restart();
+  }
+
   // ————— Animation Components —————
   // Factory: enter animation (component-based to allow runtime creation)
   Component {
@@ -643,6 +665,7 @@ Singleton {
         duration: notificationsService.exitAnimationDurationMs
         easing.type: Easing.InCubic
       }
+      onFinished: destroy()
     }
   }
 }
