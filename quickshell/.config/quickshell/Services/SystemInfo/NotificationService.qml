@@ -13,11 +13,17 @@ Singleton {
   // Internal ordered list of active notifications in arrival order.
   // The server owns lifetime for tracked notifications; we just keep references.
   property var __orderedActive: []            // Array<Notification>
+  property string __pendingActionLogJson: "[]"
+  property string __pendingHistoryJson: "[]"
+  property string __pendingReplyLogJson: "[]"
+  property bool __persistDirty: false
   // Tracks items hidden by policy: id -> "queue" | "suppress"
   property var __queuedOrSuppressed: ({})
 
   // Logs
   property var actionLog: [] // [{notificationId, actionId, at}]
+  // Memory caps / persistence helpers
+  property int actionLogCap: 500
   readonly property int activeCount: __orderedActive.length
 
   // Default timeouts and animation settings for consumers to use.
@@ -43,21 +49,15 @@ Singleton {
   readonly property int enterAnimationDurationMs: 160
   readonly property int exitAnimationDurationMs: 120
   readonly property int fadeAnimationDurationMs: 140
+  property int groupChildrenCap: 50
 
   // Lightweight grouping
   property var groupsMap: ({})  // groupId -> { id, title, appName, children, updatedAt }
-  // Memory caps / persistence helpers
-  property int actionLogCap: 500
-  property int replyLogCap: 300
-  property int groupChildrenCap: 50
-  property bool __persistDirty: false
-  property string __pendingHistoryJson: "[]"
-  property string __pendingActionLogJson: "[]"
-  property string __pendingReplyLogJson: "[]"
 
   // Local history snapshot model; each entry is a plain object snapshot to avoid dangling pointers.
   readonly property ListModel historyModel: ListModel {
     id: __historyModel
+
   }
   property int maxHistoryItems: 200
 
@@ -65,6 +65,8 @@ Singleton {
   property int maxVisibleNotifications: 4
   readonly property int rearrangeAnimationDurationMs: 120
   property var replyLog: []  // [{notificationId, text, at}]
+
+  property int replyLogCap: 300
 
   // ————— Capabilities advertised to clients (Desktop Notifications Spec) —————
   // These flags inform apps what the server can do; they are hints and do not prevent content.
@@ -155,6 +157,7 @@ Singleton {
     })
   readonly property ListModel visibleModel: ListModel {
     id: __visibleModel
+
   }
 
   // ————— Signals —————
@@ -210,6 +213,19 @@ Singleton {
     if (policy.urgency?.suppressLow && urgencyValue === NotificationUrgency.Low)
       return "suppress";
     return "bypass";
+  }
+  function __flushPersist() {
+    try {
+      store.historyStoreJson = __pendingHistoryJson;
+    } catch (_) {}
+    try {
+      store.actionLogJson = __pendingActionLogJson;
+    } catch (_) {}
+    try {
+      store.replyLogJson = __pendingReplyLogJson;
+    } catch (_) {}
+    __persistDirty = false;
+    __scheduleGcHint();
   }
 
   // ————— Grouping —————
@@ -327,6 +343,10 @@ Singleton {
     }
     __schedulePersist();
   }
+  function __scheduleGcHint() {
+    // Trigger only when the panel is not animating new items heavily
+    __gcDebounce.restart();
+  }
   function __schedulePersist() {
     if (__persistDirty) {
       __persistDebounce.restart();
@@ -334,19 +354,6 @@ Singleton {
     }
     __persistDirty = true;
     __persistDebounce.start();
-  }
-  function __flushPersist() {
-    try {
-      store.historyStoreJson = __pendingHistoryJson;
-    } catch (_) {}
-    try {
-      store.actionLogJson = __pendingActionLogJson;
-    } catch (_) {}
-    try {
-      store.replyLogJson = __pendingReplyLogJson;
-    } catch (_) {}
-    __persistDirty = false;
-    __scheduleGcHint();
   }
   function __timeInRange(nowHour, nowMinute, startString, endString) {
     const toHourMinute = inputString => {
@@ -451,7 +458,6 @@ Singleton {
     anim.running = true;
     return anim;
   }
-
   function exitAnimation(targetItem) {
     if (!targetItem)
       return null;
@@ -610,8 +616,10 @@ Singleton {
   // Debounce persistence writes
   Timer {
     id: __persistDebounce
+
     interval: 250
     repeat: false
+
     onTriggered: notificationsService.__flushPersist()
   }
 
@@ -619,8 +627,10 @@ Singleton {
   // Debounced GC nudge after heavy updates; harmless on Qt builds that ignore gc().
   Timer {
     id: __gcDebounce
+
     interval: 500
     repeat: false
+
     onTriggered: {
       try {
         if (typeof gc === "function")
@@ -628,44 +638,47 @@ Singleton {
       } catch (_) {}
     }
   }
-  function __scheduleGcHint() {
-    // Trigger only when the panel is not animating new items heavily
-    __gcDebounce.restart();
-  }
 
   // ————— Animation Components —————
   // Factory: enter animation (component-based to allow runtime creation)
   Component {
     id: __enterAnimationComponent
+
     SequentialAnimation {
       id: __enterAnim
+
       property Item targetItem
       property real toX
+
+      onFinished: destroy()
+
       PropertyAnimation {
-        target: __enterAnim.targetItem
-        property: "x"
-        to: __enterAnim.toX
         duration: notificationsService.enterAnimationDurationMs
         easing.type: Easing.OutCubic
+        property: "x"
+        target: __enterAnim.targetItem
+        to: __enterAnim.toX
       }
-      onFinished: destroy()
     }
   }
-
   Component {
     id: __exitAnimationComponent
+
     SequentialAnimation {
       id: __exitAnim
+
       property Item targetItem
       property real toX
+
+      onFinished: destroy()
+
       PropertyAnimation {
-        target: __exitAnim.targetItem
-        property: "x"
-        to: __exitAnim.toX
         duration: notificationsService.exitAnimationDurationMs
         easing.type: Easing.InCubic
+        property: "x"
+        target: __exitAnim.targetItem
+        to: __exitAnim.toX
       }
-      onFinished: destroy()
     }
   }
 }
