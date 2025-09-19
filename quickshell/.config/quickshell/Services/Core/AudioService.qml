@@ -24,7 +24,12 @@ Singleton {
 
   // Suppress OSDs during startup/initial discovery
   property bool _suppressStartupToasts: true
-  property real _volume: (root.sink && root.sink.audio ? root.sink.audio.volume : 0)
+  property real _volume: {
+    var vol = (root.sink && root.sink.audio ? root.sink.audio.volume : 0);
+    if (!Number.isFinite(vol) || vol < 0)
+      vol = 0;
+    return vol;
+  }
   // Volume policy
   readonly property real maxVolume: 1.5            // absolute max (1.0 == 100%)
   readonly property int maxVolumePercent: Math.round(maxVolume * 100)      // display/IPC cap in percent
@@ -46,6 +51,16 @@ Singleton {
 
   // Signals
   signal micMuteChanged
+
+  // Helper: sanitize a raw volume value from backend into [0..maxVolume]
+  function _sanitizeVolume(v) {
+    var out = Number.isFinite(v) ? v : 0;
+    if (out < 0)
+      out = 0;
+    if (out > root.maxVolume)
+      out = root.maxVolume;
+    return out;
+  }
 
   function _diffMaps(oldMap, newList) {
     const list = newList || [];
@@ -194,7 +209,8 @@ Singleton {
   // Real volume setter (0..1)
   function setVolumeReal(newVolume) {
     if (root.sink && root.sink.audio && root.sink.ready) {
-      const clamped = Math.max(0, Math.min(root.maxVolume, newVolume));
+      const nv = Number.isFinite(newVolume) ? newVolume : 0;
+      const clamped = Math.max(0, Math.min(root.maxVolume, nv));
       Logger.log("AudioService", "setVolumeReal:", Math.round(clamped * 100) + "%");
       root.sink.audio.muted = false;
       root.sink.audio.volume = clamped;
@@ -222,7 +238,8 @@ Singleton {
 
   // Lifecycle
   Component.onCompleted: {
-    Logger.log("AudioService", "ready; default sink=", root.displayName(root.sink), "muted=", !!(root.sink && root.sink.audio && root.sink.audio.muted), "volume=", Math.round((root.sink && root.sink.audio ? root.sink.audio.volume : 0) * 100) + "%", "default source=", root.displayName(root.source));
+    const initVol = _sanitizeVolume(root.sink && root.sink.audio ? root.sink.audio.volume : 0);
+    Logger.log("AudioService", "ready; default sink=", root.displayName(root.sink), "muted=", !!(root.sink && root.sink.audio && root.sink.audio.muted), "volume=", Math.round(initVol * 100) + "%", "default source=", root.displayName(root.source));
     // Initialize device caches without toasting to avoid startup spam
     root._sinkMap = root._listToMap(root.sinks);
     root._sourceMap = root._listToMap(root.sources);
@@ -232,7 +249,16 @@ Singleton {
 
   // Also update/emit when default devices flip
   onSinkChanged: {
-    root._volume = (root.sink && root.sink.audio ? root.sink.audio.volume : 0);
+    var vol = (root.sink && root.sink.audio ? root.sink.audio.volume : 0);
+    if (!Number.isFinite(vol) || vol < 0)
+      vol = 0;
+    // Clamp to policy immediately on sink switch as well
+    if (vol > root.maxVolume && root.sink && root.sink.audio && root.sink.ready) {
+      Logger.log("AudioService", "volume above policy (", Math.round(vol * 100), "%) on sink change -> clamping to", Math.round(root.maxVolume * 100), "%");
+      root.sink.audio.volume = root.maxVolume;
+      vol = root.maxVolume;
+    }
+    root._volume = vol;
     root._muted = !!(root.sink && root.sink.audio && root.sink.audio.muted);
     Logger.log("AudioService", "default sink changed ->", root.displayName(root.sink), "muted=", root._muted, "volume=", Math.round(root._volume * 100) + "%");
     if (root.sink && !root._suppressStartupToasts) {
@@ -306,7 +332,7 @@ Singleton {
     }
     function onVolumeChanged() {
       var vol = (root.sink && root.sink.audio ? root.sink.audio.volume : 0);
-      if (isNaN(vol))
+      if (!Number.isFinite(vol) || vol < 0)
         vol = 0;
       // Clamp externally-set volumes to policy
       if (vol > root.maxVolume && root.sink && root.sink.audio && root.sink.ready) {
@@ -334,10 +360,13 @@ Singleton {
       }
     }
     function onVolumeChanged() {
-      Logger.log("AudioService", "mic volume changed ->", Math.round(root.source.audio.volume * 100) + "%");
+      var mv = (root.source && root.source.audio ? root.source.audio.volume : 0);
+      if (!Number.isFinite(mv) || mv < 0)
+        mv = 0;
+      Logger.log("AudioService", "mic volume changed ->", Math.round(mv * 100) + "%");
       root.micMuteChanged();
       if (!(root.source && root.source.audio && root.source.audio.muted) && !root._suppressStartupToasts)
-        OSDService.showInfo("Mic volume", Math.round(root.source.audio.volume * 100) + "%");
+        OSDService.showInfo("Mic volume", Math.round(mv * 100) + "%");
     }
 
     target: root.source && root.source.audio ? root.source.audio : null

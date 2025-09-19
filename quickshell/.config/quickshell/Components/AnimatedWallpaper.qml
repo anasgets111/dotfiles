@@ -8,139 +8,140 @@ import qs.Services.Core
 WlrLayershell {
   id: layerShell
 
-  property int _animDuration: 3000
+  // --- readonly computed values and helpers ---
+  readonly property var _fillModeMap: ({
+      "fill": Image.PreserveAspectCrop,
+      "fit": Image.PreserveAspectFit,
+      "stretch": Image.Stretch,
+      "center": Image.Pad,
+      "tile": Image.Tile
+    })
+  readonly property int _fillMode: _fillModeMap[modelData.mode] ?? Image.PreserveAspectCrop
 
-  // Normalized [0..1] center from service signal
-  property real _centerRelX: 0.5
-  property real _centerRelY: 0.5
-  property string _currentSource: layerShell.modelData.wallpaper
-  property real _finalDiameter: 2 * Math.max(Math.hypot(layerShell.width * layerShell._centerRelX, layerShell.height * layerShell._centerRelY), Math.hypot(layerShell.width * (1 - layerShell._centerRelX), layerShell.height * layerShell._centerRelY), Math.hypot(layerShell.width * layerShell._centerRelX, layerShell.height * (1 - layerShell._centerRelY)), Math.hypot(layerShell.width * (1 - layerShell._centerRelX), layerShell.height * (1 - layerShell._centerRelY)))
-  property string _overlaySource: ""
+  readonly property real _centerPxX: width * _centerRelX
+  readonly property real _centerPxY: height * _centerRelY
+  readonly property real _maxDx: Math.max(_centerPxX, width - _centerPxX)
+  readonly property real _maxDy: Math.max(_centerPxY, height - _centerPxY)
+  readonly property real _finalDiameterPx: 2 * Math.hypot(_maxDx, _maxDy)
+
+  function _clamp01(v) {
+    return Math.max(0, Math.min(1, v));
+  }
+
+  // --- state ---
+  // Normalized [0..1] animation center, hydrated from modelData
+  property real _centerRelX: modelData.animCenterX ?? 0.5
+  property real _centerRelY: modelData.animCenterY ?? 0.5
+
+  // active wallpaper and pending overlay during animation
+  property string _currentSource: modelData.wallpaper
+  property string _pendingSource: ""
+
+  readonly property int _animDurationMs: 3000
 
   // Externally provided wallpaper record from WallpaperService.wallpapersArray
   required property var modelData
 
-  function _fillModeFor(mode) {
-    switch (mode) {
-    case "fill":
-      return Image.PreserveAspectCrop;
-    case "fit":
-      return Image.PreserveAspectFit;
-    case "stretch":
-      return Image.Stretch;
-    case "center":
-      return Image.Pad;
-    case "tile":
-      return Image.Tile;
-    default:
-      return Image.PreserveAspectCrop;
-    }
-  }
-
+  // window placement
   anchors.bottom: true
   anchors.left: true
   anchors.right: true
   anchors.top: true
   exclusionMode: ExclusionMode.Ignore
   layer: WlrLayer.Background
-  screen: Quickshell.screens.find(s => s && s.name === layerShell.modelData.name) || null
-
-  Component.onCompleted: {
-    layerShell._currentSource = layerShell.modelData.wallpaper;
-    if (layerShell.modelData.animCenterX !== undefined)
-      layerShell._centerRelX = layerShell.modelData.animCenterX;
-    if (layerShell.modelData.animCenterY !== undefined)
-      layerShell._centerRelY = layerShell.modelData.animCenterY;
-  }
+  screen: Quickshell.screens.find(s => s && s.name === modelData.name) || null
 
   // Base wallpaper (currently visible)
   Image {
     id: baseWal
-
     anchors.fill: parent
-    fillMode: layerShell._fillModeFor(layerShell.modelData.mode)
-    layer.enabled: false
-    layer.mipmap: false
-    layer.smooth: true
+    fillMode: layerShell._fillMode
     sourceSize: Qt.size(layerShell.width, layerShell.height)
+    source: layerShell._currentSource
     cache: false
     mipmap: false
     smooth: true
-    source: layerShell._currentSource
+    layer.enabled: false
   }
 
   // Circular reveal clip for animated overlay
   ClippingRectangle {
-    id: revealClip
-
+    id: reveal
     color: "transparent"
+    width: 0
     height: width
     radius: width / 2
-    width: 0
-    x: Math.round(layerShell.width * layerShell._centerRelX - revealClip.width / 2)
-    y: Math.round(layerShell.height * layerShell._centerRelY - revealClip.width / 2)
+    x: Math.round(layerShell.width * layerShell._centerRelX - width / 2)
+    y: Math.round(layerShell.height * layerShell._centerRelY - height / 2)
 
     // Overlay aligned with output via negative offset against the clip's position
     Image {
       id: overlayWal
-
-      fillMode: layerShell._fillModeFor(layerShell.modelData.mode)
+      width: layerShell.width
       height: layerShell.height
-      layer.enabled: false
-      layer.mipmap: false
-      layer.smooth: true
-      asynchronous: true
+      x: -Math.round(reveal.x)
+      y: -Math.round(reveal.y)
+
+      fillMode: layerShell._fillMode
       sourceSize: Qt.size(layerShell.width, layerShell.height)
+      source: layerShell._pendingSource
+      asynchronous: true
       cache: false
       mipmap: false
       smooth: true
-      source: layerShell._overlaySource
-      width: layerShell.width
-      x: -Math.round(revealClip.x)
-      y: -Math.round(revealClip.y)
+      layer.enabled: false
 
       onStatusChanged: {
-        if (status === Image.Ready && revealClip.width === 0)
-          walAnimation.start();
+        if (status === Image.Ready && reveal.width === 0 && layerShell._pendingSource && layerShell._pendingSource.length > 0)
+          revealAnim.start();
       }
     }
   }
+
   NumberAnimation {
-    id: walAnimation
-
-    duration: layerShell._animDuration
-    easing.bezierCurve: [0.54, 0.00, 0.20, 1.00]
-    easing.type: Easing.Bezier
-    from: 0
+    id: revealAnim
+    target: reveal
     property: "width"
-    target: revealClip
-    to: layerShell._finalDiameter
-
+    from: 0
+    to: layerShell._finalDiameterPx
+    duration: layerShell._animDurationMs
+    easing.type: Easing.Bezier
+    easing.bezierCurve: [0.54, 0.00, 0.20, 1.00]
     onFinished: {
-      if (layerShell._overlaySource && layerShell._overlaySource.length > 0) {
-        layerShell._currentSource = layerShell._overlaySource;
-        layerShell._overlaySource = "";
+      if (layerShell._pendingSource && layerShell._pendingSource.length > 0) {
+        layerShell._currentSource = layerShell._pendingSource;
+        layerShell._pendingSource = "";
       }
-      revealClip.width = 0;
+      reveal.width = 0;
     }
   }
+
   Connections {
+    target: WallpaperService
     function onWallpaperChanged(name, path, cx, cy) {
       if (!name || name !== layerShell.modelData.name)
         return;
 
-      if (walAnimation.running)
-        walAnimation.complete();
-      if (typeof cx === "number" && isFinite(cx))
-        layerShell._centerRelX = Math.max(0, Math.min(1, cx));
-      if (typeof cy === "number" && isFinite(cy))
-        layerShell._centerRelY = Math.max(0, Math.min(1, cy));
-      layerShell._overlaySource = path || layerShell._currentSource;
-      revealClip.width = 0;
-      if (overlayWal.status === Image.Ready)
-        walAnimation.start();
-    }
+      if (revealAnim.running)
+        revealAnim.complete();
 
-    target: WallpaperService
+      if (Number.isFinite(cx))
+        layerShell._centerRelX = layerShell._clamp01(cx);
+      if (Number.isFinite(cy))
+        layerShell._centerRelY = layerShell._clamp01(cy);
+
+      const newSrc = path || layerShell._currentSource;
+      layerShell._pendingSource = newSrc;
+      reveal.width = 0;
+
+      if (overlayWal.status === Image.Ready) {
+        // Rebind to force reload if the same URL instance is reused by the image cache
+        if (overlayWal.source === newSrc) {
+          layerShell._pendingSource = "";
+          layerShell._pendingSource = newSrc;
+        }
+        revealAnim.start();
+      }
+    }
   }
 }

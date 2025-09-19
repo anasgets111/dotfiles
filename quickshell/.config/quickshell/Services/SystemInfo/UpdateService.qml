@@ -59,17 +59,13 @@ Singleton {
     if (totalUpdates > lastNotifiedTotal) {
       const added = totalUpdates - lastNotifiedTotal;
       const msg = added === 1 ? qsTr("One new package can be upgraded (") + totalUpdates + qsTr(")") : `${added} ${qsTr("new packages can be upgraded (")} ${totalUpdates} ${qsTr(")")}`;
-      NotificationService.send(qsTr("Updates Available"), msg, {
-        "appName": notifyApp,
-        "appIcon": notifyIcon,
-        "summaryKey": "updates-available",
-        "actions": [
-          {
-            "id": "run-updates",
-            "title": qsTr("Run updates"),
-            "iconName": notifyIcon
-          }
-        ]
+      // Send notification via notify-send with an action to run updates
+      Utils.runCmd(["notify-send", "-a", updateService.notifyApp, "-i", updateService.notifyIcon, "-A", "run-updates=" + qsTr("Run updates"), qsTr("Updates Available"), msg], function (out) {
+        const chosen = String(out || "").trim();
+        if (chosen === "run-updates") {
+          updateRunner.command = updateService.updateCommand;
+          updateRunner.running = true;
+        }
       });
       lastNotifiedTotal = totalUpdates;
     }
@@ -164,19 +160,6 @@ Singleton {
 
     reloadableId: "ArchCheckerCache"
   }
-  Connections {
-    function onActionInvoked(summary, appName, actionId, body) {
-      if (String(appName) !== updateService.notifyApp)
-        return;
-
-      if (String(actionId) === "run-updates") {
-        updateRunner.command = updateService.updateCommand;
-        updateRunner.running = true;
-      }
-    }
-
-    target: NotificationService
-  }
   Process {
     id: updateRunner
 
@@ -212,11 +195,7 @@ Singleton {
           Logger.warn("UpdateService", "stderr:", stderrText);
           updateService.failureCount++;
           if (updateService.failureCount >= updateService.failureThreshold) {
-            NotificationService.send(qsTr("Update check failed"), stderrText, {
-              "appName": updateService.notifyApp,
-              "appIcon": updateService.notifyIcon,
-              "summaryKey": "update-check-failed"
-            });
+            Utils.runCmd(["notify-send", "-a", updateService.notifyApp, "-i", updateService.notifyIcon, qsTr("Update check failed"), stderrText]);
             updateService.failureCount = 0;
           }
         } else {
@@ -243,11 +222,7 @@ Singleton {
         updateService.failureCount++;
         Logger.warn("UpdateService", `checkupdates failed (code: ${exitCode}, status: ${exitStatus})`);
         if (updateService.failureCount >= updateService.failureThreshold) {
-          NotificationService.send(qsTr("Update check failed"), qsTr(`Exit code: ${exitCode} (failed ${updateService.failureCount} times)`), {
-            "appName": updateService.notifyApp,
-            "appIcon": updateService.notifyIcon,
-            "summaryKey": "update-check-failed"
-          });
+          Utils.runCmd(["notify-send", "-a", updateService.notifyApp, "-i", updateService.notifyIcon, qsTr("Update check failed"), qsTr(`Exit code: ${exitCode} (failed ${updateService.failureCount} times)`)]);
           updateService.failureCount = 0;
         }
         updateService.pendingRepoPackages = [];

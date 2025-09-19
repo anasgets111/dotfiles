@@ -91,9 +91,9 @@ Singleton {
   // New: centralized widths
   readonly property int batteryPillWidth: Math.max(60, Math.round(baseBatteryPillWidth * baseScale))
   readonly property int volumeExpandedWidth: Math.max(140, Math.round(baseVolumeExpandedWidth * baseScale))
-  readonly property int panelMargin: 16
-  readonly property int panelRadius: 16
-  readonly property int popupOffset: 18
+  readonly property int panelMargin: 12
+  readonly property int panelRadius: 12
+  readonly property int popupOffset: 12
   readonly property int tooltipMaxSpace: 100
 
   // Backwards-compatible aliases (some widgets may reference these names)
