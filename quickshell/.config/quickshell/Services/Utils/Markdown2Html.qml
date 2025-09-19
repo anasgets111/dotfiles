@@ -1,3 +1,7 @@
+// Markdown to HTML converter
+// Copied from https://github.com/anasgets111/DankMaterialShell/blob/master/Common/markdown2html.js
+// This exists only beacause I haven't been able to get linkColor to work with MarkdownText
+// May not be necessary if that's possible tbh.
 pragma Singleton
 import QtQuick
 
