@@ -160,19 +160,6 @@ Singleton {
 
     reloadableId: "ArchCheckerCache"
   }
-  Connections {
-    function onActionInvoked(summary, appName, actionId, body) {
-      if (String(appName) !== updateService.notifyApp)
-        return;
-
-      if (String(actionId) === "run-updates") {
-        updateRunner.command = updateService.updateCommand;
-        updateRunner.running = true;
-      }
-    }
-
-    target: NotificationService
-  }
   Process {
     id: updateRunner
 

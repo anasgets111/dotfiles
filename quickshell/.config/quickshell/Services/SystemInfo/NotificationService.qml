@@ -3,682 +3,522 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Services.Notifications
-import qs.Config
-
-// Notifications.qml — Singleton notification service
+import qs.Services.Utils
 Singleton {
-  id: notificationsService
-
-  // ————— Runtime state —————
-  // Internal ordered list of active notifications in arrival order.
-  // The server owns lifetime for tracked notifications; we just keep references.
-  property var __orderedActive: []            // Array<Notification>
-  property string __pendingActionLogJson: "[]"
-  property string __pendingHistoryJson: "[]"
-  property string __pendingReplyLogJson: "[]"
-  property bool __persistDirty: false
-  // Tracks items hidden by policy: id -> "queue" | "suppress"
-  property var __queuedOrSuppressed: ({})
-
-  // Logs
-  property var actionLog: [] // [{notificationId, actionId, at}]
-  // Memory caps / persistence helpers
-  property int actionLogCap: 500
-  readonly property int activeCount: __orderedActive.length
-
-  // Default timeouts and animation settings for consumers to use.
-  readonly property real defaultExpireSecondsCritical: -1.0   // -1 means don't auto-dismiss
-  readonly property real defaultExpireSecondsLow: 4.0
-  readonly property real defaultExpireSecondsNormal: 6.0
-
-  // DND and lightweight queue/suppress flags
-  property var dndPolicy: ({
-      enabled: false,
-      schedule: [] // [{ days:[0-6], start:"22:00", end:"07:00" }]
-      ,
-      appRules: ({
-          allow: [],
-          deny: []
-        }),
-      urgency: ({
-          bypassCritical: true,
-          suppressLow: false
-        }),
-      behavior: "queue" // "suppress" | "queue"
-    })
-  readonly property int enterAnimationDurationMs: 160
-  readonly property int exitAnimationDurationMs: 120
-  readonly property int fadeAnimationDurationMs: 140
-  property int groupChildrenCap: 50
-
-  // Lightweight grouping
-  property var groupsMap: ({})  // groupId -> { id, title, appName, children, updatedAt }
-
-  // Local history snapshot model; each entry is a plain object snapshot to avoid dangling pointers.
-  readonly property ListModel historyModel: ListModel {
-    id: __historyModel
-
-  }
-  property int maxHistoryItems: 200
-
-  // Visibility limit and model for popups.
-  property int maxVisibleNotifications: 4
-  readonly property int rearrangeAnimationDurationMs: 120
-  property var replyLog: []  // [{notificationId, text, at}]
-
-  property int replyLogCap: 300
-
-  // ————— Capabilities advertised to clients (Desktop Notifications Spec) —————
-  // These flags inform apps what the server can do; they are hints and do not prevent content.
-  // See NotificationServer docs; by default most are false and should be enabled explicitly.
-  readonly property NotificationServer server: NotificationServer {
-    id: notificationServer
-
-    actionIconsSupported: true
-    actionsSupported: true
-    bodyHyperlinksSupported: true
-    bodyImagesSupported: true
-    bodyMarkupSupported: true
-
-    // Capability hints
-    bodySupported: true
-
-    // Optional extra hints (can be extended by the user if needed)
-    extraHints: []
-    imageSupported: true
-    inlineReplySupported: true
-
-    // Persistence across reloads and notification re-emission.
-    keepOnReload: true
-    persistenceSupported: true
-
-    onNotification: function (receivedNotification) {
-      // Always track; then let service manage visibility and DND/queueing.
-      receivedNotification.tracked = true;
-      notificationsService.__wireNotificationLifecycle(receivedNotification);
-
-      // Grouping touch
-      notificationsService.__touchGroup(receivedNotification);
-
-      // Evaluate DND and mark if needed
-      const dndDecision = notificationsService.__evalDnd(receivedNotification);
-      const notificationIdString = String(receivedNotification.id || "");
-      if (dndDecision === "queue" || dndDecision === "suppress") {
-        notificationsService.__queuedOrSuppressed[notificationIdString] = dndDecision;
-      }
-      if (dndDecision !== "suppress")
-        notificationsService.__enqueueNotificationOrder(receivedNotification);
-      notificationsService.__processQueue();
-      notificationsService.__rebuildVisibleModel();
-      notificationsService.notificationShown(receivedNotification);
+    id: root
+    property var notifications: []
+    property var allWrappers: []
+    readonly property var popups: allWrappers.filter(n => n && n.popup)
+    property var notificationQueue: []
+    property var visibleNotifications: []
+    property int maxVisibleNotifications: 3
+    property bool addGateBusy: false
+    property int enterAnimMs: 400
+    property int seqCounter: 0
+    property bool bulkDismissing: false
+    property int maxQueueSize: 32
+    property int maxIngressPerSecond: 20
+    property double _lastIngressSec: 0
+    property int _ingressCountThisSec: 0
+    property int maxStoredNotifications: 300
+    property var _dismissQueue: []
+    property int _dismissBatchSize: 8
+    property int _dismissTickMs: 8
+    property bool _suspendGrouping: false
+    property var _groupCache: ({
+            "notifications": [],
+            "popups": []
+        })
+    property bool _groupsDirty: false
+    Component.onCompleted: {
+        root._recomputeGroups();
     }
-  }
-  readonly property int slideDistancePx: 16
-
-  // ————— Styling knobs for consumers —————
-  // These are not enforced by the service; the UI should read them.
-  property var style: ({
-      cornerRadius: Theme.itemRadius                   // radius token from Theme
-      ,
-      borderWidth: 1                                   // keep simple width; Theme has colors
-      ,
-      spacing: Theme.panelMargin / 2                   // derive spacing from panel margin
-      ,
-      padding: Theme.panelMargin                       // align paddings with project margin
-      ,
-      fontFamily: Theme.fontFamily                     // unified font family
-      ,
-      summaryPointSize: Theme.fontSize                 // summary matches Theme.fontSize
-      ,
-      bodyPointSize: Math.max(10, Theme.fontSize - 1)  // body slightly smaller
-      ,
-      iconSize: Theme.iconSize                         // unified icon size
-      ,
-      actionHeight: Theme.itemHeight                   // control height aligns with items
-      ,
-      actionPadding: Math.max(8, Math.round(Theme.panelMargin * 0.6)),
-      actionRadius: Theme.itemRadius                   // consistent radius
-      ,
-      // Colors from Theme to ensure visual consistency
-      background: Theme.bgColor,
-      border: Theme.borderColor,
-      summary: Theme.textActiveColor,
-      body: Theme.textInactiveColor,
-      muted: Theme.inactiveColor,
-      accent: Theme.onHoverColor,
-      danger: Theme.activeColor // fallback to theme accent; adjust if a red tone is added to Theme
-      ,
-      actionBg: Theme.panelWindowColor === "transparent" ? Theme.bgColor : Theme.panelWindowColor,
-      actionFg: Theme.textActiveColor,
-      actionHoverBg: Theme.onHoverColor,
-      actionBorder: Theme.borderColor,
-      // Collapsed line count for bodies
-      bodyCollapsedLines: 2
-    })
-  readonly property ListModel visibleModel: ListModel {
-    id: __visibleModel
-
-  }
-
-  // ————— Signals —————
-  signal actionInvoked(var notification, string actionIdentifier)
-  signal notificationDismissed(var notification, int reason)
-  signal notificationShown(var notification)
-
-  // ————— Internal: history —————
-  function __appendHistory(notificationObject, closedReason) {
-    __historyModel.append(snapshot(notificationObject, closedReason));
-    __saveHistory();
-    __scheduleGcHint();
-  }
-  function __enforceHistoryLimit() {
-    while (__historyModel.count > maxHistoryItems) {
-      __historyModel.remove(0);
+    property bool timeUpdateTick: false
+    property bool clockFormatChanged: false
+    readonly property var groupedNotifications: _groupCache.notifications
+    readonly property var groupedPopups: _groupCache.popups
+    property var expandedGroups: ({})
+    property var expandedMessages: ({})
+    property bool popupsDisabled: false
+    function _nowSec() {
+        return Date.now() / 1000.0;
     }
-  }
-
-  // ————— Internal: order + visible management —————
-  function __enqueueNotificationOrder(notificationObject) {
-    __orderedActive.push(notificationObject);
-  }
-  function __evalDnd(notificationObject) {
-    const policy = dndPolicy || {};
-    if (!policy.enabled)
-      return "bypass";
-    const behavior = policy.behavior === "suppress" ? "suppress" : "queue";
-    const urgencyValue = (notificationObject && notificationObject.urgency !== undefined) ? Number(notificationObject.urgency) : NotificationUrgency.Normal;
-    if (policy.urgency?.bypassCritical && urgencyValue === NotificationUrgency.Critical)
-      return "bypass";
-    const applicationName = String(notificationObject?.appName || "");
-    const allowList = Array.isArray(policy.appRules?.allow) ? policy.appRules.allow : [];
-    const denyList = Array.isArray(policy.appRules?.deny) ? policy.appRules.deny : [];
-    if (allowList.length && !allowList.includes(applicationName))
-      return behavior;
-    if (denyList.includes(applicationName))
-      return behavior;
-    if (Array.isArray(policy.schedule) && policy.schedule.length) {
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const hour = now.getHours();
-      const minute = now.getMinutes();
-      for (let scheduleIndex = 0; scheduleIndex < policy.schedule.length; scheduleIndex++) {
-        const scheduleEntry = policy.schedule[scheduleIndex] || {};
-        const daysArray = Array.isArray(scheduleEntry.days) ? scheduleEntry.days : [];
-        if (daysArray.length && !daysArray.includes(dayOfWeek))
-          continue;
-        if (__timeInRange(hour, minute, scheduleEntry.start, scheduleEntry.end))
-          return behavior;
-      }
+    function _ingressAllowed(notif) {
+        const t = root._nowSec();
+        if (t - root._lastIngressSec >= 1.0) {
+            root._lastIngressSec = t;
+            root._ingressCountThisSec = 0;
+        }
+        root._ingressCountThisSec += 1;
+        if (notif.urgency === NotificationUrgency.Critical)
+            return true;
+        return root._ingressCountThisSec <= root.maxIngressPerSecond;
     }
-    if (policy.urgency?.suppressLow && urgencyValue === NotificationUrgency.Low)
-      return "suppress";
-    return "bypass";
-  }
-  function __flushPersist() {
-    try {
-      store.historyStoreJson = __pendingHistoryJson;
-    } catch (_) {}
-    try {
-      store.actionLogJson = __pendingActionLogJson;
-    } catch (_) {}
-    try {
-      store.replyLogJson = __pendingReplyLogJson;
-    } catch (_) {}
-    __persistDirty = false;
-    __scheduleGcHint();
-  }
-
-  // ————— Grouping —————
-  function __groupIdFor(notificationObject) {
-    const applicationName = String(notificationObject?.appName || "");
-    const summaryKey = String(notificationObject?.summaryKey || notificationObject?.summary || "");
-    if (!applicationName || !summaryKey)
-      return "";
-    return applicationName + ":" + summaryKey;
-  }
-  function __isHiddenByDnd(notificationObject) {
-    const notificationIdString = String(notificationObject?.id || "");
-    return !!__queuedOrSuppressed[notificationIdString];
-  }
-  function __loadHistory() {
-    __historyModel.clear();
-    let parsedArray = [];
-    try {
-      parsedArray = JSON.parse(store.historyStoreJson || "[]");
-    } catch (_) {
-      parsedArray = [];
+    function _enqueuePopup(wrapper) {
+        if (root.notificationQueue.length >= root.maxQueueSize) {
+            const gk = root.getGroupKey(wrapper);
+            let idx = root.notificationQueue.findIndex(w => w && root.getGroupKey(w) === gk && w.urgency !== NotificationUrgency.Critical);
+            if (idx === -1)
+                idx = root.notificationQueue.findIndex(w => w && w.urgency !== NotificationUrgency.Critical);
+            if (idx === -1)
+                idx = 0;
+            const victim = root.notificationQueue[idx];
+            if (victim)
+                victim.popup = false;
+            root.notificationQueue.splice(idx, 1);
+        }
+        root.notificationQueue = [...root.notificationQueue, wrapper];
     }
-    for (let index = 0; index < parsedArray.length; index++) {
-      const item = parsedArray[index] || {};
-      __historyModel.append({
-        id: String(item.id || ""),
-        summary: String(item.summary || ""),
-        body: String(item.body || ""),
-        appName: String(item.appName || ""),
-        urgency: Number(item.urgency || 0),
-        closedReason: Number(item.closedReason ?? -1),
-        closedAtMs: Number(item.closedAtMs || Date.now())
-      });
+    function _initWrapperPersistence(wrapper) {
+        const timeoutMs = wrapper.timer ? wrapper.timer.interval : 5000;
+        const isCritical = wrapper.notification && wrapper.notification.urgency === NotificationUrgency.Critical;
+        wrapper.isPersistent = isCritical || (timeoutMs === 0);
     }
-  }
-  function __loadLogs() {
-    try {
-      actionLog = JSON.parse(store.actionLogJson || "[]");
-    } catch (_) {
-      actionLog = [];
+    function _trimStored() {
+        if (root.notifications.length > root.maxStoredNotifications) {
+            const overflow = root.notifications.length - root.maxStoredNotifications;
+            const toDrop = [];
+            for (let i = root.notifications.length - 1; i >= 0 && toDrop.length < overflow; --i) {
+                const w = root.notifications[i];
+                if (w && w.notification && w.urgency !== NotificationUrgency.Critical)
+                    toDrop.push(w);
+            }
+            for (let i = root.notifications.length - 1; i >= 0 && toDrop.length < overflow; --i) {
+                const w = root.notifications[i];
+                if (w && w.notification && toDrop.indexOf(w) === -1)
+                    toDrop.push(w);
+            }
+            for (const w of toDrop) {
+                try {
+                    w.notification.dismiss();
+                } catch (e) {}
+            }
+        }
     }
-    try {
-      replyLog = JSON.parse(store.replyLogJson || "[]");
-    } catch (_) {
-      replyLog = [];
+    function onOverlayOpen() {
+        root.popupsDisabled = true;
+        addGate.stop();
+        root.addGateBusy = false;
+        root.notificationQueue = [];
+        for (const w of root.visibleNotifications)
+            if (w)
+                w.popup = false;
+        root.visibleNotifications = [];
+        root._recomputeGroupsLater();
     }
-  }
-  function __processQueue() {
-    // Promote queued notifications when policy allows
-    for (let index = 0; index < __orderedActive.length; index++) {
-      const notificationObject = __orderedActive[index];
-      if (!notificationObject || !notificationObject.tracked)
-        continue;
-      const notificationIdString = String(notificationObject.id || "");
-      const mark = __queuedOrSuppressed[notificationIdString];
-      if (mark === "queue" && __evalDnd(notificationObject) === "bypass") {
-        delete __queuedOrSuppressed[notificationIdString];
-      }
-      // "suppress" remains hidden until policy changes
+    function onOverlayClose() {
+        root.popupsDisabled = false;
+        root.processQueue();
     }
-  }
-  function __rebuildVisibleModel() {
-    __visibleModel.clear();
-    // Keep only still-tracked notifications and not hidden by DND,
-    // newest last in order list -> visible are the last N.
-    const filteredActiveNotifications = [];
-    for (let index = 0; index < __orderedActive.length; index++) {
-      const notificationObject = __orderedActive[index];
-      if (notificationObject && notificationObject.tracked && !__isHiddenByDnd(notificationObject)) {
-        filteredActiveNotifications.push(notificationObject);
-      }
+    Timer {
+        id: addGate
+        interval: root.enterAnimMs + 50
+        running: false
+        repeat: false
+        onTriggered: {
+            root.addGateBusy = false;
+            root.processQueue();
+        }
     }
-    const startIndex = Math.max(0, filteredActiveNotifications.length - maxVisibleNotifications);
-    for (let index = startIndex; index < filteredActiveNotifications.length; index++) {
-      const notificationObject = filteredActiveNotifications[index];
-      __visibleModel.append({
-        notification: notificationObject
-      });
+    Timer {
+        id: timeUpdateTimer
+        interval: 30000
+        repeat: true
+        running: root.allWrappers.length > 0 || root.visibleNotifications.length > 0
+        triggeredOnStart: false
+        onTriggered: {
+            root.timeUpdateTick = !root.timeUpdateTick;
+        }
     }
-    __scheduleGcHint();
-  }
-  function __removeFromOrder(notificationObject) {
-    const indexInOrder = __orderedActive.indexOf(notificationObject);
-    if (indexInOrder >= 0)
-      __orderedActive.splice(indexInOrder, 1);
-    __scheduleGcHint();
-  }
-  function __saveHistory() {
-    const outputArray = [];
-    for (let index = 0; index < __historyModel.count; index++) {
-      const entry = __historyModel.get(index);
-      outputArray.push({
-        id: String(entry.id || ""),
-        summary: String(entry.summary || ""),
-        body: String(entry.body || ""),
-        appName: String(entry.appName || ""),
-        urgency: Number(entry.urgency || 0),
-        closedReason: Number(entry.closedReason ?? -1),
-        closedAtMs: Number(entry.closedAtMs || 0)
-      });
+    Timer {
+        id: dismissPump
+        interval: root._dismissTickMs
+        repeat: true
+        running: false
+        onTriggered: {
+            const n = Math.min(root._dismissBatchSize, root._dismissQueue.length);
+            for (let i = 0; i < n; ++i) {
+                const w = root._dismissQueue.pop();
+                try {
+                    if (w && w.notification)
+                        w.notification.dismiss();
+                } catch (e) {}
+            }
+            if (root._dismissQueue.length === 0) {
+                dismissPump.stop();
+                root._suspendGrouping = false;
+                root.bulkDismissing = false;
+                root.popupsDisabled = false;
+                root._recomputeGroupsLater();
+            }
+        }
     }
-    __pendingHistoryJson = JSON.stringify(outputArray);
-    __schedulePersist();
-  }
-  function __saveLogs() {
-    try {
-      __pendingActionLogJson = JSON.stringify(actionLog || []);
-    } catch (_) {
-      __pendingActionLogJson = "[]";
+    Timer {
+        id: groupsDebounce
+        interval: 16
+        repeat: false
+        onTriggered: root._recomputeGroups()
     }
-    try {
-      __pendingReplyLogJson = JSON.stringify(replyLog || []);
-    } catch (_) {
-      __pendingReplyLogJson = "[]";
+    NotificationServer {
+        id: server
+        keepOnReload: false
+        actionsSupported: true
+        actionIconsSupported: true
+        bodyHyperlinksSupported: true
+        bodyImagesSupported: true
+        bodyMarkupSupported: true
+        imageSupported: true
+        inlineReplySupported: true
+        persistenceSupported: true
+        onNotification: notif => {
+            notif.tracked = true;
+            if (!root._ingressAllowed(notif)) {
+                if (notif.urgency !== NotificationUrgency.Critical) {
+                    try {
+                        notif.dismiss();
+                    } catch (e) {}
+                    return;
+                }
+            }
+            const shouldShowPopup = !root.popupsDisabled && !SessionData.doNotDisturb;
+            const wrapper = notifComponent.createObject(root, {
+                "popup": shouldShowPopup,
+                "notification": notif
+            });
+            if (wrapper) {
+                root.allWrappers.push(wrapper);
+                root.notifications.push(wrapper);
+                root._trimStored();
+                Qt.callLater(() => {
+                    root._initWrapperPersistence(wrapper);
+                });
+                if (shouldShowPopup) {
+                    root._enqueuePopup(wrapper);
+                    root.processQueue();
+                }
+            }
+            root._recomputeGroupsLater();
+        }
     }
-    __schedulePersist();
-  }
-  function __scheduleGcHint() {
-    // Trigger only when the panel is not animating new items heavily
-    __gcDebounce.restart();
-  }
-  function __schedulePersist() {
-    if (__persistDirty) {
-      __persistDebounce.restart();
-      return;
+    component NotifWrapper: QtObject {
+        id: wrapper
+        property bool popup: false
+        property bool removedByLimit: false
+        property bool isPersistent: true
+        property int seq: 0
+        onPopupChanged: {
+            if (!popup)
+                root.removeFromVisibleNotifications(wrapper);
+        }
+        readonly property Timer timer: Timer {
+            interval: {
+                if (!wrapper.notification)
+                    return 5000;
+                switch (wrapper.notification.urgency) {
+                case NotificationUrgency.Low:
+                    return SettingsData.notificationTimeoutLow;
+                case NotificationUrgency.Critical:
+                    return SettingsData.notificationTimeoutCritical;
+                default:
+                    return SettingsData.notificationTimeoutNormal;
+                }
+            }
+            repeat: false
+            running: false
+            onTriggered: {
+                if (interval > 0)
+                    wrapper.popup = false;
+            }
+        }
+        readonly property date time: new Date()
+        readonly property string timeStr: {
+            root.timeUpdateTick;
+            root.clockFormatChanged;
+            const now = new Date();
+            const diff = now.getTime() - time.getTime();
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(minutes / 60);
+            if (hours < 1) {
+                if (minutes < 1)
+                    return "now";
+                return `${minutes}m ago`;
+            }
+            const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const timeDate = new Date(time.getFullYear(), time.getMonth(), time.getDate());
+            const daysDiff = Math.floor((nowDate - timeDate) / (1000 * 60 * 60 * 24));
+            if (daysDiff === 0)
+                return formatTime(time);
+            if (daysDiff === 1)
+                return `yesterday, ${formatTime(time)}`;
+            return `${daysDiff} days ago`;
+        }
+        function formatTime(date) {
+            let use24Hour = true;
+            try {
+                if (typeof SettingsData !== "undefined" && SettingsData.use24HourClock !== undefined)
+                    use24Hour = SettingsData.use24HourClock;
+            } catch (e) {
+                use24Hour = true;
+            }
+            return use24Hour ? date.toLocaleTimeString(Qt.locale(), "HH:mm") : date.toLocaleTimeString(Qt.locale(), "h:mm AP");
+        }
+        required property Notification notification
+        readonly property string summary: notification.summary
+        readonly property string body: notification.body
+        readonly property string htmlBody: {
+            if (body && (body.includes("<") && body.includes(">")))
+                return body;
+            return Markdown2Html.markdownToHtml(body);
+        }
+        readonly property string appIcon: notification.appIcon
+        readonly property string appName: {
+            if (notification.appName == "") {
+                const entry = DesktopEntries.heuristicLookup(notification.desktopEntry);
+                if (entry && entry.name)
+                    return entry.name.toLowerCase();
+            }
+            return notification.appName || "app";
+        }
+        readonly property string desktopEntry: notification.desktopEntry
+        readonly property string image: notification.image
+        readonly property string cleanImage: image ? Paths.strip(image) : ""
+        readonly property int urgency: notification.urgency
+        readonly property list<NotificationAction> actions: notification.actions
+        readonly property Connections conn: Connections {
+            target: wrapper.notification.Retainable
+            function onDropped(): void {
+                root.allWrappers = root.allWrappers.filter(w => w !== wrapper);
+                root.notifications = root.notifications.filter(w => w !== wrapper);
+                if (root.bulkDismissing)
+                    return;
+                const gk = root.getGroupKey(wrapper);
+                let remaining = 0;
+                for (let k = 0; k < root.notifications.length; ++k)
+                    if (root.getGroupKey(root.notifications[k]) === gk)
+                        remaining++;
+                if (remaining <= 1)
+                    root.clearGroupExpansionState(gk);
+                root.cleanupExpansionStates();
+                root._recomputeGroupsLater();
+            }
+            function onAboutToDestroy(): void {
+                wrapper.destroy();
+            }
+        }
     }
-    __persistDirty = true;
-    __persistDebounce.start();
-  }
-  function __timeInRange(nowHour, nowMinute, startString, endString) {
-    const toHourMinute = inputString => {
-      const segments = String(inputString || "0:0").split(":");
-      const parsedHour = Math.max(0, Math.min(23, Number(segments[0] || 0)));
-      const parsedMinute = Math.max(0, Math.min(59, Number(segments[1] || 0)));
-      return [parsedHour, parsedMinute];
-    };
-    const [startHour, startMinute] = toHourMinute(startString);
-    const [endHour, endMinute] = toHourMinute(endString);
-    const startTotal = startHour * 60 + startMinute;
-    const endTotal = endHour * 60 + endMinute;
-    const nowTotal = nowHour * 60 + nowMinute;
-    if (startTotal === endTotal)
-      return false;
-    return startTotal < endTotal ? (nowTotal >= startTotal && nowTotal < endTotal) : (nowTotal >= startTotal || nowTotal < endTotal); // overnight
-  }
-  function __touchGroup(notificationObject) {
-    const groupId = __groupIdFor(notificationObject);
-    if (!groupId)
-      return "";
-    const nowTimestamp = Date.now();
-    const notificationIdString = String(notificationObject?.id || "");
-    const currentEntry = groupsMap[groupId] || {
-      id: groupId,
-      title: String(notificationObject?.summary || ""),
-      appName: String(notificationObject?.appName || ""),
-      children: [],
-      updatedAt: nowTimestamp
-    };
-    if (!currentEntry.children.includes(notificationIdString)) {
-      currentEntry.children = [notificationIdString].concat(currentEntry.children);
-      if (currentEntry.children.length > groupChildrenCap)
-        currentEntry.children = currentEntry.children.slice(0, groupChildrenCap);
+    Component {
+        id: notifComponent
+        NotifWrapper {}
     }
-    currentEntry.updatedAt = nowTimestamp;
-    groupsMap[groupId] = currentEntry;
-    return groupId;
-  }
-
-  // ————— Internal: lifecycle wiring —————
-  function __wireNotificationLifecycle(notificationObject) {
-    // When a notification closes, capture it into local history and update visibility.
-    // The 'closed(reason)' signal comes from Quickshell.Services.Notifications Notification type.
-    if (!notificationObject)
-      return;
-
-    // Guard to not double-connect on reloads
-    if (notificationObject.__wired)
-      return;
-    notificationObject.__wired = true;
-
-    notificationObject.closed.connect(function (reason) {
-      const notificationIdString = String(notificationObject.id || "");
-      delete notificationsService.__queuedOrSuppressed[notificationIdString];
-      notificationsService.__removeFromOrder(notificationObject);
-      notificationsService.__rebuildVisibleModel();
-      notificationsService.__appendHistory(notificationObject, reason);
-      notificationsService.notificationDismissed(notificationObject, reason);
-      notificationsService.__enforceHistoryLimit();
-      const gId = notificationsService.__groupIdFor(notificationObject);
-      if (gId && notificationsService.groupsMap[gId]) {
-        const entry = notificationsService.groupsMap[gId];
-        entry.children = entry.children.filter(idStr => idStr !== notificationIdString);
-        if (!entry.children.length)
-          delete notificationsService.groupsMap[gId];
-      }
-    });
-  }
-
-  // ————— Public API: clear/dismiss —————
-  function clearHistory() {
-    __historyModel.clear();
-    __saveHistory();
-  }
-  function dismissAllActive() {
-    for (let index = 0; index < __orderedActive.length; index++) {
-      const notificationObject = __orderedActive[index];
-      if (notificationObject && notificationObject.tracked)
-        notificationObject.tracked = false;
+    function clearAllNotifications() {
+        root.bulkDismissing = true;
+        root.popupsDisabled = true;
+        addGate.stop();
+        root.addGateBusy = false;
+        root.notificationQueue = [];
+        for (const w of root.allWrappers)
+            w.popup = false;
+        root.visibleNotifications = [];
+        root._dismissQueue = root.notifications.slice();
+        if (root.notifications.length)
+            root.notifications = [];
+        root.expandedGroups = {};
+        root.expandedMessages = {};
+        root._suspendGrouping = true;
+        if (!dismissPump.running && root._dismissQueue.length)
+            dismissPump.start();
     }
-  }
-  function dismissNotification(notificationObject) {
-    if (!notificationObject || !notificationObject.tracked)
-      return;
-    notificationObject.tracked = false;
-  }
-
-  // ————— Convenience: UI animation recipes (Component factories) —————
-  function enterAnimation(targetItem) {
-    if (!targetItem)
-      return null;
-    const startX = targetItem.x + Theme.popupOffset;  // slide in from right
-    const endX = targetItem.x;
-    targetItem.x = startX;
-    // keep opacity at 1 for mechanical slide; remove if prior code set it
-    targetItem.opacity = 1.0;
-    const anim = __enterAnimationComponent.createObject(targetItem, {
-      targetItem: targetItem,
-      toX: endX
-    });
-    anim.running = true;
-    return anim;
-  }
-  function exitAnimation(targetItem) {
-    if (!targetItem)
-      return null;
-    const endX = targetItem.x + Theme.popupOffset;
-    const anim = __exitAnimationComponent.createObject(targetItem, {
-      targetItem: targetItem,
-      toX: endX
-    });
-    anim.running = true;
-    return anim;
-  }
-  function groups() {
-    const groupsArray = Object.values(groupsMap || {});
-    groupsArray.sort((a, b) => (b?.updatedAt || 0) - (a?.updatedAt || 0));
-    return groupsArray;
-  }
-
-  // ————— Public API: actions/replies —————
-  function invokeAction(notificationObject, actionIdentifier) {
-    if (!notificationObject)
-      return;
-    const actionsArray = notificationObject.actions || [];
-    for (let actionIndex = 0; actionIndex < actionsArray.length; actionIndex++) {
-      const actionEntry = actionsArray[actionIndex];
-      if (actionEntry.identifier === actionIdentifier) {
-        actionEntry.invoke();
-        actionInvoked(notificationObject, actionIdentifier);
-        actionLog = (actionLog || []).concat([
-          {
-            notificationId: String(notificationObject.id || ""),
-            actionId: String(actionIdentifier || ""),
-            at: Date.now()
-          }
-        ]);
-        if (actionLog.length > actionLogCap)
-          actionLog = actionLog.slice(actionLog.length - actionLogCap);
-        __saveLogs();
-        return;
-      }
+    function dismissNotification(wrapper) {
+        if (!wrapper || !wrapper.notification)
+            return;
+        wrapper.popup = false;
+        wrapper.notification.dismiss();
     }
-  }
-
-  // ————— Convenience: recommended timeout per urgency —————
-  function recommendedExpireSeconds(notificationObject) {
-    if (!notificationObject)
-      return defaultExpireSecondsNormal;
-    switch (notificationObject.urgency) {
-    case NotificationUrgency.Low:
-      return defaultExpireSecondsLow;
-    case NotificationUrgency.Critical:
-      return defaultExpireSecondsCritical;
-    default:
-      return defaultExpireSecondsNormal;
+    function disablePopups(disable) {
+        root.popupsDisabled = disable;
+        if (disable) {
+            root.notificationQueue = [];
+            for (const notif of root.visibleNotifications)
+                notif.popup = false;
+            root.visibleNotifications = [];
+        }
     }
-  }
-  function sendInlineReply(notificationObject, text) {
-    const replyText = String(text || "");
-    // Requires server.inlineReplySupported and notification.hasInlineReply, per docs.
-    if (!notificationObject || typeof notificationObject.sendInlineReply !== "function") {
-      return {
-        ok: false,
-        error: "no-inline-reply"
-      };
+    function processQueue() {
+        if (root.addGateBusy)
+            return;
+        if (root.popupsDisabled)
+            return;
+        if (SessionData.doNotDisturb)
+            return;
+        if (root.notificationQueue.length === 0)
+            return;
+        const activePopupCount = root.visibleNotifications.filter(n => n && n.popup).length;
+        if (activePopupCount >= root.maxVisibleNotifications)
+            return;
+        const next = root.notificationQueue.shift();
+        next.seq = ++root.seqCounter;
+        root.visibleNotifications = [...root.visibleNotifications, next];
+        next.popup = true;
+        if (next.timer.interval > 0)
+            next.timer.start();
+        root.addGateBusy = true;
+        addGate.restart();
     }
-    if (!server.inlineReplySupported || !notificationObject.hasInlineReply) {
-      return {
-        ok: false,
-        error: "unsupported"
-      };
+    function removeFromVisibleNotifications(wrapper) {
+        root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
+        root.processQueue();
     }
-    notificationObject.sendInlineReply(replyText);
-    replyLog = (replyLog || []).concat([
-      {
-        notificationId: String(notificationObject.id || ""),
-        text: replyText,
-        at: Date.now()
-      }
-    ]);
-    if (replyLog.length > replyLogCap)
-      replyLog = replyLog.slice(replyLog.length - replyLogCap);
-    __saveLogs();
-    return {
-      ok: true
-    };
-  }
-
-  // ————— DND helpers —————
-  function setDndPolicy(patch) {
-    function deepMerge(baseObject, patchObject) {
-      const merged = {};
-      for (const key in baseObject) {
-        if (Object.prototype.hasOwnProperty.call(baseObject, key))
-          merged[key] = baseObject[key];
-      }
-      for (const key in patchObject) {
-        if (!Object.prototype.hasOwnProperty.call(patchObject, key))
-          continue;
-        const baseValue = baseObject[key];
-        const patchValue = patchObject[key];
-        merged[key] = (patchValue && typeof patchValue === "object" && !Array.isArray(patchValue)) ? deepMerge(baseValue || {}, patchValue) : patchValue;
-      }
-      return merged;
+    function releaseWrapper(w) {
+        root.visibleNotifications = root.visibleNotifications.filter(n => n !== w);
+        root.notificationQueue = root.notificationQueue.filter(n => n !== w);
+        if (w && w.destroy && !w.isPersistent && root.notifications.indexOf(w) === -1) {
+            Qt.callLater(() => {
+                try {
+                    w.destroy();
+                } catch (e) {}
+            });
+        }
     }
-    dndPolicy = deepMerge({
-      enabled: false,
-      schedule: [],
-      appRules: {
-        allow: [],
-        deny: []
-      },
-      urgency: {
-        bypassCritical: true,
-        suppressLow: false
-      },
-      behavior: "queue"
-    }, patch || {});
-    __processQueue();
-    __rebuildVisibleModel();
-  }
-
-  // Build a friendly snapshot object for history entries.
-  function snapshot(notificationObject, closedReason) {
-    return {
-      id: notificationObject ? notificationObject.id : 0,
-      appName: notificationObject ? notificationObject.appName : "",
-      appIcon: notificationObject ? notificationObject.appIcon : "",
-      desktopEntry: notificationObject ? notificationObject.desktopEntry : "",
-      summary: notificationObject ? notificationObject.summary : "",
-      body: notificationObject ? notificationObject.body : "",
-      urgency: notificationObject ? notificationObject.urgency : 1,
-      hasActionIcons: notificationObject ? notificationObject.hasActionIcons : false,
-      resident: notificationObject ? notificationObject.resident : false,
-      image: notificationObject ? notificationObject.image : "",
-      expireTimeout: notificationObject ? notificationObject.expireTimeout : 0,
-      lastGeneration: notificationObject ? notificationObject.lastGeneration : false,
-      closedReason: closedReason ?? -1,
-      closedAtMs: Date.now()
-    };
-  }
-
-  Component.onCompleted: {
-    __loadHistory();
-    __loadLogs();
-  }
-
-  // ————— Persistence: history + logs —————
-  PersistentProperties {
-    id: store
-
-    property string actionLogJson: "[]"
-    property string historyStoreJson: "[]"
-    property string replyLogJson: "[]"
-
-    reloadableId: "NotificationService"
-  }
-  // Debounce persistence writes
-  Timer {
-    id: __persistDebounce
-
-    interval: 250
-    repeat: false
-
-    onTriggered: notificationsService.__flushPersist()
-  }
-
-  // ————— Memory pressure hint —————
-  // Debounced GC nudge after heavy updates; harmless on Qt builds that ignore gc().
-  Timer {
-    id: __gcDebounce
-
-    interval: 500
-    repeat: false
-
-    onTriggered: {
-      try {
-        if (typeof gc === "function")
-          gc();
-      } catch (_) {}
+    function getGroupKey(wrapper) {
+        if (wrapper.desktopEntry && wrapper.desktopEntry !== "")
+            return wrapper.desktopEntry.toLowerCase();
+        return wrapper.appName.toLowerCase();
     }
-  }
-
-  // ————— Animation Components —————
-  // Factory: enter animation (component-based to allow runtime creation)
-  Component {
-    id: __enterAnimationComponent
-
-    SequentialAnimation {
-      id: __enterAnim
-
-      property Item targetItem
-      property real toX
-
-      onFinished: destroy()
-
-      PropertyAnimation {
-        duration: notificationsService.enterAnimationDurationMs
-        easing.type: Easing.OutCubic
-        property: "x"
-        target: __enterAnim.targetItem
-        to: __enterAnim.toX
-      }
+    function _recomputeGroups() {
+        if (root._suspendGrouping) {
+            root._groupsDirty = true;
+            return;
+        }
+        root._groupCache = {
+            "notifications": root._calcGroupedNotifications(),
+            "popups": root._calcGroupedPopups()
+        };
+        root._groupsDirty = false;
     }
-  }
-  Component {
-    id: __exitAnimationComponent
-
-    SequentialAnimation {
-      id: __exitAnim
-
-      property Item targetItem
-      property real toX
-
-      onFinished: destroy()
-
-      PropertyAnimation {
-        duration: notificationsService.exitAnimationDurationMs
-        easing.type: Easing.InCubic
-        property: "x"
-        target: __exitAnim.targetItem
-        to: __exitAnim.toX
-      }
+    function _recomputeGroupsLater() {
+        root._groupsDirty = true;
+        if (!groupsDebounce.running)
+            groupsDebounce.start();
     }
-  }
+    function _calcGroupedNotifications() {
+        const groups = {};
+        for (const notif of root.notifications) {
+            const groupKey = root.getGroupKey(notif);
+            if (!groups[groupKey]) {
+                groups[groupKey] = {
+                    "key": groupKey,
+                    "appName": notif.appName,
+                    "notifications": [],
+                    "latestNotification": null,
+                    "count": 0,
+                    "hasInlineReply": false
+                };
+            }
+            groups[groupKey].notifications.unshift(notif);
+            groups[groupKey].latestNotification = groups[groupKey].notifications[0];
+            groups[groupKey].count = groups[groupKey].notifications.length;
+            if (notif.notification.hasInlineReply)
+                groups[groupKey].hasInlineReply = true;
+        }
+        return Object.values(groups).sort((a, b) => {
+            const aUrgency = a.latestNotification.urgency || NotificationUrgency.Low;
+            const bUrgency = b.latestNotification.urgency || NotificationUrgency.Low;
+            if (aUrgency !== bUrgency)
+                return bUrgency - aUrgency;
+            return b.latestNotification.time.getTime() - a.latestNotification.time.getTime();
+        });
+    }
+    function _calcGroupedPopups() {
+        const groups = {};
+        for (const notif of root.popups) {
+            const groupKey = root.getGroupKey(notif);
+            if (!groups[groupKey]) {
+                groups[groupKey] = {
+                    "key": groupKey,
+                    "appName": notif.appName,
+                    "notifications": [],
+                    "latestNotification": null,
+                    "count": 0,
+                    "hasInlineReply": false
+                };
+            }
+            groups[groupKey].notifications.unshift(notif);
+            groups[groupKey].latestNotification = groups[groupKey].notifications[0];
+            groups[groupKey].count = groups[groupKey].notifications.length;
+            if (notif.notification.hasInlineReply)
+                groups[groupKey].hasInlineReply = true;
+        }
+        return Object.values(groups).sort((a, b) => {
+            return b.latestNotification.time.getTime() - a.latestNotification.time.getTime();
+        });
+    }
+    function toggleGroupExpansion(groupKey) {
+        const next = {};
+        for (const key in root.expandedGroups)
+            next[key] = root.expandedGroups[key];
+        next[groupKey] = !next[groupKey];
+        root.expandedGroups = next;
+    }
+    function dismissGroup(groupKey) {
+        const group = root.groupedNotifications.find(g => g.key === groupKey);
+        if (group) {
+            for (const notif of group.notifications)
+                if (notif && notif.notification)
+                    notif.notification.dismiss();
+        } else {
+            for (const notif of root.allWrappers)
+                if (notif && notif.notification && root.getGroupKey(notif) === groupKey)
+                    notif.notification.dismiss();
+        }
+    }
+    function clearGroupExpansionState(groupKey) {
+        const next = {};
+        for (const key in root.expandedGroups)
+            if (key !== groupKey && root.expandedGroups[key])
+                next[key] = true;
+        root.expandedGroups = next;
+    }
+    function cleanupExpansionStates() {
+        const currentGroupKeys = new Set(root.groupedNotifications.map(g => g.key));
+        const currentMessageIds = new Set();
+        for (const group of root.groupedNotifications)
+            for (const notif of group.notifications)
+                currentMessageIds.add(notif.notification.id);
+        const nextGroups = {};
+        for (const key in root.expandedGroups)
+            if (currentGroupKeys.has(key) && root.expandedGroups[key])
+                nextGroups[key] = true;
+        root.expandedGroups = nextGroups;
+        const nextMessages = {};
+        for (const messageId in root.expandedMessages)
+            if (currentMessageIds.has(messageId) && root.expandedMessages[messageId])
+                nextMessages[messageId] = true;
+        root.expandedMessages = nextMessages;
+    }
+    function toggleMessageExpansion(messageId) {
+        const next = {};
+        for (const key in root.expandedMessages)
+            next[key] = root.expandedMessages[key];
+        next[messageId] = !next[messageId];
+        root.expandedMessages = next;
+    }
+    Connections {
+        target: SessionData
+        function onDoNotDisturbChanged() {
+            if (SessionData.doNotDisturb) {
+                for (const notif of root.visibleNotifications)
+                    notif.popup = false;
+                root.visibleNotifications = [];
+                root.notificationQueue = [];
+            } else {
+                root.processQueue();
+            }
+        }
+    }
+    Connections {
+        target: typeof SettingsData !== "undefined" ? SettingsData : null
+        function onUse24HourClockChanged() {
+            root.clockFormatChanged = !root.clockFormatChanged;
+        }
+    }
 }
