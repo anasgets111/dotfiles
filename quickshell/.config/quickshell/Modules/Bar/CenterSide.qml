@@ -44,9 +44,9 @@ Row {
         const list = Array.isArray(files) ? files.filter(f => !!f && f.length > 0) : [];
         if (!list.length)
           return;
-        const chosen = list[Math.floor(Math.random() * list.length)];
         for (let i = 0; i < WM.MonitorService.monitors.count; i++) {
           const mon = WM.MonitorService.monitors.get(i);
+          const chosen = list[Math.floor(Math.random() * list.length)];
           Core.WallpaperService.setWallpaper(mon.name, chosen);
         }
       });

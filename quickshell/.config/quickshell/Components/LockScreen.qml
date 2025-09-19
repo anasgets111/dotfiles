@@ -63,6 +63,7 @@ Scope {
         id: wallpaperLoader
         anchors.fill: parent
         active: lockSurface.hasScreen
+        asynchronous: true
         sourceComponent: Image {
           anchors.fill: parent
           fillMode: {
@@ -84,11 +85,8 @@ Scope {
           }
           layer.enabled: lockSurface.hasScreen && !lockSurface.blurDisabled
           layer.mipmap: false
-          // Avoid retaining decoded images globally
           cache: false
-          // Avoid extra texture levels
           mipmap: false
-          sourceSize: Qt.size(width, height)
           source: WallpaperService.ready && lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper ? lockSurface.screenWallpaper.wallpaper : ""
           visible: lockSurface.hasScreen
 
@@ -128,7 +126,6 @@ Scope {
 
       LockContent {
         id: lockContent
-
         // Provide theme + LockService auth state/methods
         lockContext: lockContextProxy
         lockSurface: lockSurface

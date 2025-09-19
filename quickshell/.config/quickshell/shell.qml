@@ -1,6 +1,7 @@
 //@ pragma Env QS_NO_RELOAD_POPUP=1
 //@ pragma Env QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
 //@ pragma UseQApplication
+pragma ComponentBehavior: Bound
 
 import QtQml
 import QtQuick
@@ -40,19 +41,24 @@ ShellRoot {
   //         visible: OSDService.toastVisible
   //     }
   // }
-  Loader {
+  LazyLoader {
     active: NotificationService.visible && NotificationService.visible.length > 0
-    sourceComponent: NotificationPopup {
+    component: NotificationPopup {
       modelData: MonitorService ? MonitorService.effectiveMainScreen : null
     }
   }
 
-  // Your wallpapers (unchanged)
   Variants {
-    model: WallpaperService.wallpapersArray
+    model: WallpaperService.monitors
 
-    AnimatedWallpaper {
-      modelData: modelData
+    LazyLoader {
+      id: walLoader
+      property var modelData
+
+      active: WallpaperService.ready
+      component: AnimatedWallpaper {
+        modelData: walLoader.modelData
+      }
     }
   }
 
