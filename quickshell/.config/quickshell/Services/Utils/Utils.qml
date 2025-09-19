@@ -17,7 +17,7 @@ Singleton {
       scroll: false
     })
   property var _ledWatchers: []
-  readonly property string _ledIntervalSec: "0.05"
+  readonly property string _ledIntervalSec: "0.04"
 
   // Reusable LED monitoring components
   property Process _ledStreamProc: Process {
@@ -301,7 +301,7 @@ Singleton {
 
   function sanitizeMimeType(input) {
     const value = String(input || "");
-    const mimePattern = /^[a-z0-9](?:[a-z0-9.+-])*\/[a-z0-9](?:[a-z0-9.+-])*$/i;
+    const mimePattern = new RegExp('^[a-z0-9](?:[a-z0-9.+\\-])*/[a-z0-9](?:[a-z0-9.+\\-])*$', 'i');
     return mimePattern.test(value) ? value : "";
   }
 
