@@ -48,31 +48,25 @@ Singleton {
     running: false
 
     stdout: SplitParser {
+      splitMarker: "\n"
       onRead: data => {
-        if (data.trim()) {
-          const lines = data.trim().split('\n');
-          const newValues = [];
-          for (let line of lines) {
-            if (line.trim()) {
-              // Split the line into numbers (semicolon-separated format)
-              const parts = line.trim().split(';');
-              for (let part of parts) {
-                const value = parseFloat(part);
-                if (!isNaN(value)) {
-                  newValues.push(Math.min(1.0, Math.max(0.0, value / 1000.0)));
-                }
-              }
-            }
-          }
-          if (newValues.length > 0) {
-            root.values = newValues;
-          }
+        const line = data.trim();
+        if (!line)
+          return;
+        const parts = line.split(';');
+        const newValues = [];
+        for (let i = 0; i < parts.length; i++) {
+          const value = parseFloat(parts[i]);
+          if (!Number.isNaN(value))
+            newValues.push(Math.min(1.0, Math.max(0.0, value / 1000.0)));
         }
+        if (newValues.length > 0)
+          root.values = newValues;
       }
     }
 
-    onExited: exitCode => {
-      if (root.isRunning) {
+    onRunningChanged: {
+      if (!cavaProcess.running && root.isRunning) {
         // Restart if it was supposed to be running
         cavaProcess.running = true;
       }
@@ -117,8 +111,8 @@ EOF
         `]
     running: false
 
-    onExited: exitCode => {
-      if (exitCode === 0) {
+    onRunningChanged: {
+      if (!createConfigProcess.running) {
         root.start();
       }
     }
