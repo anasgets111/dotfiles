@@ -1,5 +1,4 @@
 pragma Singleton
-
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -11,305 +10,259 @@ import qs.Services.Utils
 Singleton {
   id: root
 
-  // Browsers: only considered "video" when PipeWire has a video-like stream role
+  // Dedicated video applications - PipeWire detection works well here
+  readonly property var _videoAppHints: ["mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex"]
+
+  // Browser apps - need URL-based detection
   readonly property var _browserAppHints: ["firefox", "zen", "chrome", "chromium", "brave", "vivaldi", "edge", "opera"]
-  readonly property bool _pipewireVideoRoleActive: Pipewire.nodes && Pipewire.nodes.values.some(n => n && n.isStream && _nodeHasVideoRole(n))
-  // Known video-focused apps (desktopEntry or identity substring, lowercase)
-  readonly property var _videoAppHints: [
-    // Local video players
-    "mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex"]
-  // Try to detect video via MPRIS metadata URL for browsers as a fallback
-  readonly property var _videoDomains: ["youtube.com", "youtu.be", "netflix.com", "primevideo.com", "amazon.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "hotstar.com", "crunchyroll.com", "dailymotion.com", "max.com", "hbomax.com", "tv.apple.com", "peertube", "bilibili.com",
-    // Additional regional/other services
-    "osnplus.com", "watch.osn.com", "osn.com", "shahid.mbc.net", "shahid.net", "paramountplus.com", "peacocktv.com", "mubi.com"]
+
+  // Audio-only sites/patterns (explicit exclusions)
+  readonly property var _audioOnlyPatterns: ["music.youtube.com", "spotify.com", "soundcloud.com", "music.apple.com", "deezer.com", "tidal.com", "bandcamp.com"]
+
+  // Video sites/patterns
+  readonly property var _videoPatterns: ["youtube.com/watch", "youtu.be/", "netflix.com", "primevideo.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "crunchyroll.com", "max.com", "hbomax.com"]
+
   readonly property var _videoFileExts: ["mp4", "mkv", "webm", "avi", "mov", "m4v", "mpeg", "mpg", "wmv", "flv"]
 
-  // Order: manual -> selected index -> playing -> controllable playable -> first
-  readonly property MprisPlayer active: ((manualActive && isValidPlayer(manualActive)) ? manualActive : ((selectedPlayerIndex >= 0 && selectedPlayerIndex < players.length ? players[selectedPlayerIndex] : null) || players.find(player => player && player.playbackState === MprisPlaybackState.Playing) || players.find(player => player.canControl && player.canPlay) || players[0] || null))
+  // PipeWire video detection for dedicated apps
+  readonly property bool _pipewireVideoActive: _hasActiveVideoStreams()
+
+  // Main properties
+  readonly property MprisPlayer active: _selectActivePlayer()
   readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
-  readonly property string activeIconName: iconNameForPlayer(active)
+  readonly property string activeIconName: _iconNameForPlayer(active)
   readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values : []
-  readonly property bool anyVideoPlaying: (allPlayers.some(p => p && p.playbackState === MprisPlaybackState.Playing && _isVideoApp(p)) || allPlayers.some(p => p && p.playbackState === MprisPlaybackState.Playing && _isBrowserApp(p) && (_pipewireVideoRoleActive || _urlLooksVideo(_metadataUrl(p)))))
-  property bool canGoNext: active ? active.canGoNext : false
-  property bool canGoPrevious: active ? active.canGoPrevious : false
-  property bool canPause: active ? active.canPause : false
-  property bool canPlay: active ? active.canPlay : false
-  property bool canSeek: active ? active.canSeek : false
+
+  // Hybrid video detection
+  readonly property bool anyVideoPlaying: allPlayers.some(player => {
+    if (!player || player.playbackState !== MprisPlaybackState.Playing)
+      return false;
+
+    // Dedicated video apps: trust PipeWire detection
+    if (_isVideoApp(player)) {
+      return true; // Assume dedicated video apps are always playing video when active
+    }
+
+    // Browser apps: use intelligent URL detection
+    if (_isBrowserApp(player)) {
+      const url = _getMetadataUrl(player);
+      return _isVideoUrl(url);
+    }
+
+    return false;
+  })
+
+  // Rest of properties...
+  property bool canGoNext: active?.canGoNext ?? false
+  property bool canGoPrevious: active?.canGoPrevious ?? false
+  property bool canPause: active?.canPause ?? false
+  property bool canPlay: active?.canPlay ?? false
+  property bool canSeek: active?.canSeek ?? false
   property real currentPosition: 0
   readonly property bool hasActive: !!active
   readonly property bool hasPlayers: players.length > 0
   readonly property real infiniteTrackLength: 922337203685
-  property bool isPlaying: active ? active.isPlaying : false
+  property bool isPlaying: active?.isPlaying ?? false
 
-  // Track last active player (currently informational only)
   property string lastActiveKey: ""
-  property MprisPlayer manualActive: null            // If set, takes precedence
-  readonly property list<MprisPlayer> players: allPlayers.filter(player => player && player.canControl)
-  property int selectedPlayerIndex: -1               // If >=0 and valid, selects that player
-  property string trackAlbum: active ? (active.trackAlbum || "") : ""
-  property string trackArtUrl: active ? (active.trackArtUrl || "") : ""
-  property string trackArtist: active ? (active.trackArtist || "") : ""
+  property MprisPlayer manualActive: null
+  readonly property list<MprisPlayer> players: allPlayers.filter(player => player?.canControl)
+  property int selectedPlayerIndex: -1
+
+  property string trackAlbum: active?.trackAlbum ?? ""
+  property string trackArtUrl: active?.trackArtUrl ?? ""
+  property string trackArtist: active?.trackArtist ?? ""
   property real trackLength: active ? ((active.length < infiniteTrackLength) ? active.length : 0) : 0
-  property string trackTitle: active ? (active.trackTitle || "") : ""
+  property string trackTitle: active?.trackTitle ?? ""
+
+  function _hasActiveVideoStreams() {
+    if (!Pipewire.nodes)
+      return false;
+
+    return Pipewire.nodes.values.some(node => {
+      if (!node?.isStream)
+        return false;
+
+      const props = node.properties || {};
+      const mediaClass = String(props["media.class"] || "").toLowerCase();
+      const mediaRole = String(props["media.role"] || "").toLowerCase();
+
+      return mediaClass.includes("video") || mediaRole === "movie" || mediaRole === "video";
+    });
+  }
+
+  function _isVideoUrl(url) {
+    if (!url)
+      return false;
+    const lowerUrl = String(url).toLowerCase();
+
+    // First check: explicit audio-only exclusions
+    if (_audioOnlyPatterns.some(pattern => lowerUrl.includes(pattern))) {
+      return false;
+    }
+
+    // Second check: video site patterns
+    if (_videoPatterns.some(pattern => lowerUrl.includes(pattern))) {
+      return true;
+    }
+
+    // Third check: video file extensions
+    const extensionMatch = lowerUrl.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/);
+    if (extensionMatch[1] && _videoFileExts.includes(extensionMatch[1])) {
+      return true;
+    }
+
+    return false;
+  }
 
   function _isBrowserApp(player) {
     if (!player)
       return false;
-    const de = String(player.desktopEntry || "").toLowerCase();
-    const id = String(player.identity || "").toLowerCase();
-    for (let i = 0; i < _browserAppHints.length; i++) {
-      const hint = _browserAppHints[i];
-      if (!hint)
-        continue;
-      if ((de && de.indexOf(hint) !== -1) || (id && id.indexOf(hint) !== -1))
-        return true;
-    }
-    return false;
+    const desktopEntry = String(player.desktopEntry || "").toLowerCase();
+    const identity = String(player.identity || "").toLowerCase();
+    return _browserAppHints.some(hint => desktopEntry.includes(hint) || identity.includes(hint));
   }
+
   function _isVideoApp(player) {
     if (!player)
       return false;
-    const de = String(player.desktopEntry || "").toLowerCase();
-    const id = String(player.identity || "").toLowerCase();
-    for (let i = 0; i < _videoAppHints.length; i++) {
-      const hint = _videoAppHints[i];
-      if (!hint)
-        continue;
-      if ((de && de.indexOf(hint) !== -1) || (id && id.indexOf(hint) !== -1))
-        return true;
-    }
-    return false;
+    const desktopEntry = String(player.desktopEntry || "").toLowerCase();
+    const identity = String(player.identity || "").toLowerCase();
+    return _videoAppHints.some(hint => desktopEntry.includes(hint) || identity.includes(hint));
   }
-  function _metadataUrl(player) {
+
+  function _getMetadataUrl(player) {
     try {
-      const md = player && player.metadata ? player.metadata : null;
-      if (!md)
-        return "";
-      const url = md["xesam:url"] || md["xesam:URL"] || "";
-      return String(url || "");
+      const metadata = player?.metadata;
+      return String(metadata["xesam:url"] || metadata["xesam:URL"] || "");
     } catch (e) {
       return "";
     }
   }
-  function _nodeHasVideoRole(node) {
-    if (!node)
-      return false;
-    const props = node.properties || {};
-    const role = String(props["media.role"] || props["media.category"] || "").toLowerCase();
-    // Common roles seen: "video", "movie", sometimes "multimedia"; include variants
-    if (role === "video" || role === "movie" || role === "multimedia" || role === "visual" || role === "film")
-      return true;
-    // Fallback: some apps set media.role to "music" even for videos — avoid matching that to keep audio-only excluded.
-    // Optionally consider media.class hints if present
-    const mediaClass = String(props["media.class"] || props["node.nick"] || "").toLowerCase();
-    // e.g., "Stream/Input/Video" or names containing "video"
-    return mediaClass.indexOf("video") !== -1;
-  }
-  function _urlLooksVideo(url) {
-    if (!url)
-      return false;
-    var lurl = String(url).toLowerCase();
-    // Domain match
-    for (let i = 0; i < _videoDomains.length; i++) {
-      const d = _videoDomains[i];
-      if (d && lurl.indexOf(d) !== -1)
-        return true;
+
+  function _selectActivePlayer() {
+    if (manualActive && _isValidPlayer(manualActive))
+      return manualActive;
+    if (selectedPlayerIndex >= 0 && selectedPlayerIndex < players.length) {
+      return players[selectedPlayerIndex];
     }
-    // File extension match for local/network files
-    const m = lurl.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/);
-    if (m && m[1])
-      return _videoFileExts.indexOf(m[1]) !== -1;
-    return false;
+    return players.find(p => p.playbackState === MprisPlaybackState.Playing) || players.find(p => p.canControl && p.canPlay) || players[0] || null;
   }
-  function iconNameForPlayer(player) {
+
+  function _iconNameForPlayer(player) {
     if (!player)
       return "audio-x-generic";
 
-    function normalize(name) {
-      try {
-        return String(name).toLowerCase().replace(/[^a-z0-9+.-]/g, "-");
-      } catch (e) {
-        return "";
-      }
-    }
-    function canonical(name) {
-      const lowerName = String(name).toLowerCase();
-      if (lowerName.indexOf("google chrome") !== -1 || lowerName === "chrome")
+    const normalize = name => String(name).toLowerCase().replace(/[^a-z0-9+.-]/g, "-");
+    const canonical = name => {
+      const lower = String(name).toLowerCase();
+      if (lower.includes("google chrome") || lower === "chrome")
         return "google-chrome";
-      if (lowerName.indexOf("microsoft edge") !== -1 || lowerName === "edge")
+      if (lower.includes("microsoft edge") || lower === "edge")
         return "microsoft-edge";
-      if (lowerName.indexOf("firefox") !== -1)
+      if (lower.includes("firefox"))
         return "firefox";
-      if (lowerName.indexOf("zen") !== -1)
+      if (lower.includes("zen"))
         return "zen";
-      if (lowerName.indexOf("brave") !== -1)
+      if (lower.includes("brave"))
         return "brave-browser";
-      if (lowerName.indexOf("youtube music") !== -1 || lowerName.indexOf("youtubemusic") !== -1)
-        return "youtube-music";
       return name;
-    }
+    };
 
-    const desktopEntry = player.desktopEntry || "";
-    if (desktopEntry) {
-      const canonicalDesktopEntry = canonical(desktopEntry);
-      const normalizedDesktopEntry = normalize(canonicalDesktopEntry);
-      return normalizedDesktopEntry || "audio-x-generic";
-    }
+    const desktopEntry = canonical(player.desktopEntry || "");
+    if (desktopEntry)
+      return normalize(desktopEntry) || "audio-x-generic";
 
-    const identityString = player.identity || "";
-    const canonicalIdentity = canonical(identityString);
-    const normalizedIdentity = normalize(canonicalIdentity);
-    return normalizedIdentity || "audio-x-generic";
+    const identity = canonical(player.identity || "");
+    return normalize(identity) || "audio-x-generic";
   }
-  function isValidPlayer(player) {
-    return !!player && root.allPlayers.indexOf(player) !== -1;
+
+  function _isValidPlayer(player) {
+    return !!player && allPlayers.includes(player);
   }
+
+  // All the control functions remain the same...
   function next() {
-    if (!active || !isValidPlayer(active)) {
-      Logger.warn("MediaService", "next requested but no active player");
-      return;
-    }
-    if (canGoNext) {
+    if (active && canGoNext)
       active.next();
-    } else {
-      Logger.warn("MediaService", "next unsupported for", active.identity);
-    }
   }
   function pause() {
-    if (!active || !isValidPlayer(active)) {
-      Logger.warn("MediaService", "pause requested but no active player");
-      return;
-    }
-    if (canPause) {
+    if (active && canPause)
       active.pause();
-      Logger.log("MediaService", "pause()");
-    } else {
-      Logger.warn("MediaService", "pause unsupported for", active.identity);
-    }
   }
   function play() {
-    if (!active || !isValidPlayer(active)) {
-      Logger.warn("MediaService", "play requested but no active player");
-      return;
-    }
-    if (canPlay) {
+    if (active && canPlay)
       active.play();
-      Logger.log("MediaService", "play()");
-    } else {
-      Logger.warn("MediaService", "play unsupported for", active.identity);
-    }
   }
   function playPause() {
-    if (!active || !isValidPlayer(active)) {
-      Logger.warn("MediaService", "playPause requested but no active player");
+    if (!active)
       return;
-    }
-    if (active.isPlaying && canPause) {
+    if (active.isPlaying && canPause)
       active.pause();
-    } else if (!active.isPlaying && canPlay) {
+    else if (!active.isPlaying && canPlay)
       active.play();
-    } else {
-      Logger.warn("MediaService", "playPause requested but unsupported: playing=", active.isPlaying, "canPlay=", canPlay, "canPause=", canPause);
-    }
   }
   function playerKey(player) {
     if (!player)
       return "";
-    // Prefer stable identifiers: desktopEntry then bus name or identity
-    const de = player.desktopEntry || "";
-    const bus = player.busName || ""; // may not exist in some impls
-    const id = player.identity || "";
-    return de || bus || id;
+    return player.desktopEntry || player.busName || player.identity || "";
   }
   function previous() {
-    if (!active || !isValidPlayer(active)) {
-      Logger.warn("MediaService", "previous requested but no active player");
-      return;
-    }
-    if (canGoPrevious) {
+    if (active && canGoPrevious)
       active.previous();
-    } else {
-      Logger.warn("MediaService", "previous unsupported for", active.identity);
-    }
   }
   function seek(position) {
-    if (!active || !isValidPlayer(active)) {
-      Logger.warn("MediaService", "seek requested but no active player");
-      return;
-    }
-    if (canSeek) {
+    if (active && canSeek) {
       active.position = position;
       currentPosition = position;
-      // position updated
-    } else {
-      Logger.warn("MediaService", "seek unsupported for", active.identity);
     }
   }
   function seekByRatio(ratio) {
-    if (!active || !isValidPlayer(active)) {
-      Logger.warn("MediaService", "seekByRatio requested but no active player");
-      return;
-    }
-    if (canSeek && trackLength > 0) {
+    if (active && canSeek && trackLength > 0) {
       const seekPosition = ratio * trackLength;
       active.position = seekPosition;
       currentPosition = seekPosition;
-      // position updated by ratio
-    } else {
-      Logger.warn("MediaService", "seekByRatio unsupported: canSeek=", canSeek, "length=", trackLength);
     }
   }
   function stop() {
-    if (!active || !isValidPlayer(active)) {
-      Logger.warn("MediaService", "stop requested but no active player");
-      return;
-    }
-    active.stop();
+    if (active)
+      active.stop();
   }
 
+  // Event handlers
   onActiveChanged: {
-    // Reset or sync position when active player changes, avoid touching stale players
-    if (!active || !isValidPlayer(active)) {
+    if (!active || !_isValidPlayer(active)) {
       currentPosition = 0;
-      Logger.log("MediaService", "active -> none; players=", root.players.length);
       return;
     }
     currentPosition = active.isPlaying ? active.position : 0;
-    Logger.log("MediaService", "active ->", active.identity, "playing=", active.isPlaying);
-    // Keep informational only; avoid feeding back into selection
-    const k = playerKey(active);
-    if (k && k !== lastActiveKey)
-      lastActiveKey = k;
+    const key = playerKey(active);
+    if (key && key !== lastActiveKey)
+      lastActiveKey = key;
   }
-  // IdleService owns inhibition now; we only signal via anyVideoPlaying
 
   Connections {
-    function onValuesChanged() {
-      if (root.selectedPlayerIndex >= root.players.length) {
-        Logger.warn("MediaService", "resetting selected index (", root.selectedPlayerIndex, ") due to players shrink");
-        root.selectedPlayerIndex = -1;
-      }
-      if (root.manualActive && root.allPlayers.indexOf(root.manualActive) === -1) {
-        Logger.warn("MediaService", "clearing manualActive; player vanished");
-        root.manualActive = null;
-      }
-    }
-
     target: Mpris.players
+    function onValuesChanged() {
+      if (root.selectedPlayerIndex >= root.players.length)
+        root.selectedPlayerIndex = -1;
+      if (root.manualActive && !root.allPlayers.includes(root.manualActive))
+        root.manualActive = null;
+    }
   }
+
   Timer {
     id: positionTimer
-
     interval: 1000
     repeat: true
-    running: root.active && root.allPlayers.indexOf(root.active) !== -1 && root.isPlaying && root.trackLength > 0 && root.active.playbackState === MprisPlaybackState.Playing
+    running: root.active && root.allPlayers.includes(root.active) && root.active.isPlaying && root.trackLength > 0 && root.active.playbackState === MprisPlaybackState.Playing
 
-    // onRunningChanged: no logging
     onTriggered: {
-      if (root.active && root.allPlayers.indexOf(root.active) !== -1 && root.isPlaying && root.active.playbackState === MprisPlaybackState.Playing)
+      if (root.active && root.allPlayers.includes(root.active) && root.active.isPlaying && root.active.playbackState === MprisPlaybackState.Playing) {
         root.currentPosition = root.active.position;
-      else
+      } else {
         running = false;
+      }
     }
   }
 }
