@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import qs.Services.Core
 import qs.Services.Utils
 import qs.Services
+import qs.Config
 
 // IdleDaemon: Manages idle pipeline (lock -> dpms-off -> suspend) with wake coalescing.
 // Flow: Unlocked idle → lock (0s) → dpms (dpmsTimeoutSec) → suspend (suspendTimeoutSec).
@@ -12,21 +13,18 @@ import qs.Services
 Singleton {
   id: idleDaemon
 
-  PersistentProperties {
-    id: settings
-
-    property bool dpmsEnabled: true
-    property int dpmsTimeoutSec: 30
-    property bool enabled: true
-    property bool lockEnabled: true
-    property int lockTimeoutSec: 300
-    property bool respectInhibitors: true
-    property bool suspendEnabled: false
-    property int suspendTimeoutSec: 120
-    property bool videoAutoInhibit: true
-
-    reloadableId: "IdleDaemon"
-  }
+  // Use persisted Settings; fall back to previous hardcoded defaults if missing
+  readonly property var settings: (Settings && Settings.data && Settings.data.idleService) || ({
+      enabled: true,
+      lockEnabled: true,
+      lockTimeoutSec: 300,
+      dpmsEnabled: true,
+      dpmsTimeoutSec: 30,
+      suspendEnabled: false,
+      suspendTimeoutSec: 120,
+      respectInhibitors: true,
+      videoAutoInhibit: true
+    })
   readonly property int wakeDebounceMs: 250
   readonly property int dpmsSettleMs: 1800
   readonly property int rearmDelayMs: 10
@@ -283,8 +281,8 @@ Singleton {
   }
 
   IdleMonitor {
-    enabled: state.rearmGate && settings.enabled && (settings.lockEnabled || settings.dpmsEnabled || settings.suspendEnabled) && !state.unlockGraceActive
-    respectInhibitors: settings.respectInhibitors && !LockService.locked
+    enabled: state.rearmGate && idleDaemon.settings.enabled && (idleDaemon.settings.lockEnabled || idleDaemon.settings.dpmsEnabled || idleDaemon.settings.suspendEnabled) && !state.unlockGraceActive
+    respectInhibitors: idleDaemon.settings.respectInhibitors && !LockService.locked
     timeout: idleDaemon.initialTimeoutSec
 
     onIsIdleChanged: {
