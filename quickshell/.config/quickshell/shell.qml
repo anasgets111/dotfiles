@@ -31,6 +31,7 @@ ShellRoot {
     property: "window"
     value: bar
   }
+  LockScreen {}
 
   // Variants {
 
@@ -59,5 +60,4 @@ ShellRoot {
   Connections {
     target: ClipboardLiteService
   }
-  LockScreen {}
 }
