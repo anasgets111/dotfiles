@@ -6,7 +6,7 @@ import QtQml
 import QtQuick
 import Quickshell
 import qs.Components
-import qs.Components
+import qs.Modules.OSD
 import qs.Modules.Bar
 import qs.Modules.Notification
 import qs.Services.Core
@@ -40,14 +40,11 @@ ShellRoot {
   //         visible: OSDService.toastVisible
   //     }
   // }
-  Loader {
-    active: NotificationService.visible && NotificationService.visible.length > 0
-    sourceComponent: NotificationPopup {
-      modelData: MonitorService ? MonitorService.effectiveMainScreen : null
-    }
+  NotifPanel {
+    visible: NotificationService.visibleModel && NotificationService.visibleModel.count > 0
+    screen: MonitorService.activeMainScreen ? MonitorService.activeMainScreen : MonitorService.effectiveMainScreen
   }
 
-  // Your wallpapers (unchanged)
   Variants {
     model: WallpaperService.wallpapersArray
 

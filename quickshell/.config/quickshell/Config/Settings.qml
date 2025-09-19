@@ -211,6 +211,12 @@ Singleton {
         property list<string> monitors: []
       }
 
+      // osd
+      property JsonObject osd: JsonObject {
+        // Global toggle to disable on-screen display regardless of callers
+        property bool enabled: true
+      }
+
       // screen recorder
       property JsonObject screenRecorder: JsonObject {
         property string audioCodec: "opus"
