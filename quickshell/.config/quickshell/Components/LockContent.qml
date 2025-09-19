@@ -9,77 +9,38 @@ import qs.Services.SystemInfo
 import qs.Services.WM
 
 FocusScope {
-  id: lockPanel
+  id: root
 
-  property color accent: lockContext && lockContext.theme ? lockContext.theme.mauve : "#cba6f7"
-  property bool compact: width < 440
+  // Public API - Required properties
   required property var lockContext
   required property var lockSurface
-  property int pillPadV: compact ? 6 : 8
 
-  function _maybeRequestFocusOnce(reason) {
-    if (!lockSurface || !lockSurface.hasScreen)
-      return;
-    const isPrimary = lockSurface.isMainMonitor;
-    if (isPrimary) {
-      lockPanel.forceActiveFocus();
-      if (lockPanel.lockContext) {
-        Logger.log("LockContent", "single-shot focus request (primary): " + reason);
-      }
-    }
-  }
+  // Public API - Configuration
+  readonly property color accentColor: lockContext?.theme?.mauve ?? "#cba6f7"
+  readonly property bool isCompact: width < 440
+  readonly property bool hasScreen: lockSurface?.hasScreen ?? false
+  readonly property bool isPrimaryMonitor: lockSurface?.isMainMonitor ?? false
 
-  function shake() {
-    shakeAnim.restart();
-  }
+  // Private constants
+  readonly property int pillPaddingVertical: isCompact ? 6 : 8
+  readonly property int panelMargin: 16
+  readonly property int contentSpacing: 14
 
-  // NEW: Always accept focus and request it when surface appears
+  // Computed properties
+  readonly property bool shouldShowContent: hasScreen
+  readonly property bool shouldAcceptInput: shouldShowContent && isPrimaryMonitor
+  readonly property string screenName: lockSurface?.screen?.name ?? "no-screen"
+
+  // Configuration
   focus: true
-  Keys.onPressed: event => {
-    // Restrict explicit wake to main monitor surface to avoid duplication
-    if (lockPanel.lockSurface && lockPanel.lockSurface.isMainMonitor) {
-      IdleService.wake("key-press", lockPanel.lockSurface.screen ? lockPanel.lockSurface.screen.name : "no-screen");
-    }
-    if (!lockPanel.lockSurface || !lockPanel.lockSurface.hasScreen)
-      return;
-    if (lockPanel.lockContext.authenticating)
-      return;
-
-    if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
-      lockPanel.lockContext.submitOrStart();
-      event.accepted = true;
-    } else if (event.key === Qt.Key_Backspace) {
-      lockPanel.lockContext.setPasswordBuffer(event.modifiers & Qt.ControlModifier ? "" : lockPanel.lockContext.passwordBuffer.slice(0, -1));
-      event.accepted = true;
-    } else if (event.key === Qt.Key_Escape) {
-      lockPanel.lockContext.setPasswordBuffer("");
-      event.accepted = true;
-    } else if (event.text && event.text.length === 1) {
-      const t = event.text;
-      const c = t.charCodeAt(0);
-      if (c >= 0x20 && c <= 0x7E) {
-        lockPanel.lockContext.setPasswordBuffer(lockPanel.lockContext.passwordBuffer + t);
-        event.accepted = true;
-      }
-    }
-  }
-
   anchors.centerIn: parent
-  height: column.implicitHeight + 32
-  layer.enabled: lockSurface && lockSurface.hasScreen
-  layer.mipmap: false
-  opacity: lockSurface && lockSurface.hasScreen ? 1 : 0
-  scale: lockSurface && lockSurface.hasScreen ? 1 : 0.98
-  visible: lockSurface && lockSurface.hasScreen
   width: parent.width * 0.47
+  height: contentColumn.implicitHeight + panelMargin * 2
 
-  layer.effect: MultiEffect {
-    blurEnabled: false
-    shadowBlur: 0.9
-    shadowColor: Qt.rgba(0, 0, 0, 0.35)
-    shadowHorizontalOffset: 0
-    shadowVerticalOffset: 10
-  }
+  // Visibility and animations
+  visible: shouldShowContent
+  opacity: shouldShowContent ? 1 : 0
+  scale: shouldShowContent ? 1 : 0.98
 
   Behavior on opacity {
     NumberAnimation {
@@ -94,199 +55,259 @@ FocusScope {
     }
   }
 
+  // Visual effects
+  layer.enabled: shouldShowContent
+  layer.mipmap: false
+  layer.effect: MultiEffect {
+    blurEnabled: false
+    shadowBlur: 0.9
+    shadowColor: Qt.rgba(0, 0, 0, 0.35)
+    shadowHorizontalOffset: 0
+    shadowVerticalOffset: 10
+  }
+
+  // Shake animation transform
   transform: Translate {
-    id: lockPanelShake
+    id: shakeTransform
     x: 0
   }
 
-  Component.onCompleted: {
-    _maybeRequestFocusOnce("component completed");
+  // Public methods
+  function shake() {
+    shakeAnimation.restart();
   }
 
-  // NEW: Wake on mouse interactions even before focus is restored
+  // Private methods
+  function requestFocusIfNeeded(reason) {
+    if (!shouldShowContent || !isPrimaryMonitor)
+      return;
+    root.forceActiveFocus();
+    if (lockContext) {
+      Logger.log("LockContent", "single-shot focus request (primary): " + reason);
+    }
+  }
+
+  function wakeSystem(action) {
+    if (isPrimaryMonitor) {
+      IdleService.wake(action);
+    }
+  }
+
+  // Input handling
+  Keys.onPressed: event => {
+    wakeSystem("key-press");
+
+    if (!shouldShowContent || lockContext.authenticating)
+      return;
+    if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
+      lockContext.submitOrStart();
+      event.accepted = true;
+    } else if (event.key === Qt.Key_Backspace) {
+      const newBuffer = event.modifiers & Qt.ControlModifier ? "" : lockContext.passwordBuffer.slice(0, -1);
+      lockContext.setPasswordBuffer(newBuffer);
+      event.accepted = true;
+    } else if (event.key === Qt.Key_Escape) {
+      lockContext.setPasswordBuffer("");
+      event.accepted = true;
+    } else if (event.text?.length === 1) {
+      const charCode = event.text.charCodeAt(0);
+      if (charCode >= 0x20 && charCode <= 0x7E) {
+        lockContext.setPasswordBuffer(lockContext.passwordBuffer + event.text);
+        event.accepted = true;
+      }
+    }
+  }
+
+  // Wake system on mouse interactions
   MouseArea {
     anchors.fill: parent
     hoverEnabled: true
     acceptedButtons: Qt.AllButtons
     propagateComposedEvents: true
+
     onEntered: {
-      if (lockPanel.lockSurface && lockPanel.lockSurface.isMainMonitor)
-        IdleService.wake("pointer-enter", lockPanel.lockSurface.screen ? lockPanel.lockSurface.screen.name : "no-screen");
-      lockPanel.forceActiveFocus();
+      root.wakeSystem("pointer-enter");
+      root.forceActiveFocus();
     }
     onPressed: {
-      if (lockPanel.lockSurface && lockPanel.lockSurface.isMainMonitor)
-        IdleService.wake("pointer-press", lockPanel.lockSurface.screen ? lockPanel.lockSurface.screen.name : "no-screen");
-      lockPanel.forceActiveFocus();
+      root.wakeSystem("pointer-press");
+      root.forceActiveFocus();
     }
     onWheel: {
-      if (lockPanel.lockSurface && lockPanel.lockSurface.isMainMonitor)
-        IdleService.wake("pointer-wheel", lockPanel.lockSurface.screen ? lockPanel.lockSurface.screen.name : "no-screen");
-      lockPanel.forceActiveFocus();
+      root.wakeSystem("pointer-wheel");
+      root.forceActiveFocus();
+    }
+  }
+
+  // Connections
+  Connections {
+    target: root.lockSurface
+    function onHasScreenChanged() {
+      if (root.lockSurface?.hasScreen) {
+        root.requestFocusIfNeeded("hasScreen changed -> true");
+      }
     }
   }
 
   Connections {
-    function onHasScreenChanged() {
-      if (!lockPanel.lockSurface)
-        return;
-      if (lockPanel.lockSurface.hasScreen)
-        lockPanel._maybeRequestFocusOnce("hasScreen changed -> true");
+    target: root.lockContext
+    function onAuthStateChanged() {
+      const state = root.lockContext.authState;
+      if (state === "error" || state === "fail") {
+        root.shake();
+      }
     }
-    target: lockPanel.lockSurface
   }
 
+  Component.onCompleted: {
+    requestFocusIfNeeded("component completed");
+  }
+
+  // Shake animation
   SequentialAnimation {
-    id: shakeAnim
-    running: false
+    id: shakeAnimation
     NumberAnimation {
+      target: shakeTransform
+      property: "x"
+      to: 10
       duration: 40
       easing.type: Easing.OutCubic
-      from: 0
-      property: "x"
-      target: lockPanelShake
-      to: 10
     }
     NumberAnimation {
-      duration: 70
-      from: 10
+      target: shakeTransform
       property: "x"
-      target: lockPanelShake
       to: -10
+      duration: 70
     }
     NumberAnimation {
-      duration: 60
-      from: -10
+      target: shakeTransform
       property: "x"
-      target: lockPanelShake
       to: 6
+      duration: 60
     }
     NumberAnimation {
-      duration: 50
-      from: 6
+      target: shakeTransform
       property: "x"
-      target: lockPanelShake
       to: -4
+      duration: 50
     }
     NumberAnimation {
-      duration: 40
-      from: -4
+      target: shakeTransform
       property: "x"
-      target: lockPanelShake
       to: 0
+      duration: 40
     }
   }
 
-  Connections {
-    function onAuthStateChanged() {
-      if (lockPanel.lockContext.authState === "error" || lockPanel.lockContext.authState === "fail")
-        lockPanel.shake();
-    }
-    target: lockPanel.lockContext
-  }
-
+  // Background
   Rectangle {
     anchors.fill: parent
-    border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.20)
-    border.width: 1
     radius: 16
     gradient: Gradient {
       GradientStop {
-        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.70)
         position: 0.0
+        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.70)
       }
       GradientStop {
-        color: Qt.rgba(24 / 255, 24 / 255, 37 / 255, 0.66)
         position: 1.0
+        color: Qt.rgba(24 / 255, 24 / 255, 37 / 255, 0.66)
       }
+    }
+    border.width: 1
+    border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.20)
+
+    Rectangle {
+      anchors.fill: parent
+      radius: 16
+      color: "transparent"
+      border.width: 1
+      border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.08)
     }
   }
 
-  Rectangle {
-    anchors.fill: parent
-    border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.08)
-    border.width: 1
-    color: "transparent"
-    radius: 16
-  }
-
+  // Main content
   ColumnLayout {
-    id: column
+    id: contentColumn
     anchors.fill: parent
-    anchors.margins: 16
-    spacing: 14
+    anchors.margins: root.panelMargin
+    spacing: root.contentSpacing
 
+    // Time display
     RowLayout {
       Layout.alignment: Qt.AlignHCenter
       spacing: 10
+
       Text {
         Layout.alignment: Qt.AlignVCenter
-        color: lockPanel.lockContext.theme.text
+        horizontalAlignment: Text.AlignHCenter
+        color: root.lockContext.theme.text
         font.bold: true
         font.pixelSize: 74
-        horizontalAlignment: Text.AlignHCenter
         text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "hh:mm")
       }
+
       Text {
         Layout.alignment: Qt.AlignVCenter
-        color: lockPanel.lockContext.theme.subtext1
+        visible: !TimeService.use24Hour && text !== ""
+        horizontalAlignment: Text.AlignHCenter
+        color: root.lockContext.theme.subtext1
         font.bold: true
         font.pixelSize: 30
-        horizontalAlignment: Text.AlignHCenter
         text: TimeService.format("time", "AP")
-        visible: !TimeService.use24Hour && text !== ""
       }
     }
 
+    // Date display
     Text {
       Layout.alignment: Qt.AlignHCenter
-      Layout.preferredWidth: lockPanel.width - 64
-      color: lockPanel.lockContext.theme.subtext0
-      font.pixelSize: 21
+      Layout.preferredWidth: root.width - 64
       horizontalAlignment: Text.AlignHCenter
+      color: root.lockContext.theme.subtext0
+      font.pixelSize: 21
       text: TimeService.format("date", "dddd, d MMMM yyyy")
     }
 
+    // User name
     Text {
       Layout.alignment: Qt.AlignHCenter
-      Layout.preferredWidth: lockPanel.width - 64
+      Layout.preferredWidth: root.width - 64
       Layout.topMargin: 2
-      color: lockPanel.lockContext.theme.subtext1
+      visible: root.shouldShowContent && text.length > 0
+      horizontalAlignment: Text.AlignHCenter
       elide: Text.ElideRight
+      color: root.lockContext.theme.subtext1
       font.bold: true
       font.pixelSize: 24
-      horizontalAlignment: Text.AlignHCenter
-      text: MainService.fullName ? MainService.fullName : ""
-      visible: lockPanel.lockSurface.hasScreen && text.length > 0
+      text: MainService.fullName ?? ""
     }
 
+    // Info pills row
     RowLayout {
       id: infoPillsRow
-
-      property int hostLineHeight: Math.max(hostIcon.font.pixelSize, hostText.font.pixelSize)
-      property int pillHeight: Math.max(hostLineHeight, weatherPill.contentHeight) + lockPanel.pillPadV * 2
+      readonly property int lineHeight: Math.max(hostIcon.font.pixelSize, hostText.font.pixelSize)
+      readonly property int pillHeight: Math.max(lineHeight, weatherPill.contentHeight) + root.pillPaddingVertical * 2
 
       Layout.alignment: Qt.AlignHCenter
-      Layout.preferredWidth: lockPanel.width - 64
+      Layout.preferredWidth: root.width - 64
+      visible: root.shouldShowContent
       spacing: 10
-      visible: lockPanel.lockSurface.hasScreen
 
+      // Weather pill
       Rectangle {
         id: weatherPill
-
-        property int contentHeight: weatherColumn.contentHeight
+        property int contentHeight: weatherContent.contentHeight
 
         Layout.alignment: Qt.AlignVCenter
         Layout.fillWidth: true
-        Layout.maximumWidth: Math.floor((lockPanel.width - 64 - infoPillsRow.spacing) / 2)
+        Layout.maximumWidth: Math.floor((root.width - 64 - parent.spacing) / 2)
         Layout.minimumWidth: 120
         Layout.preferredHeight: infoPillsRow.pillHeight
-        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
-        border.width: 1
-        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+        visible: WeatherService
         opacity: visible ? 1 : 0
         radius: 10
-        visible: lockPanel.lockSurface.hasScreen && WeatherService
+        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+        border.width: 1
+        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
 
         Behavior on opacity {
           NumberAnimation {
@@ -296,73 +317,71 @@ FocusScope {
         }
 
         ColumnLayout {
-          id: weatherColumn
+          id: weatherContent
+          readonly property string icon: WeatherService?.getWeatherIconFromCode() ?? ""
+          readonly property string temp: WeatherService?.currentTemp ?? ""
+          readonly property string place: WeatherService?.locationName ?? ""
+          readonly property bool isStale: WeatherService?.isStale ?? false
+          readonly property int contentHeight: fitsInline ? Math.max(weatherIcon.font.pixelSize, weatherTemp.font.pixelSize, weatherPlaceInline.font.pixelSize) : Math.max(weatherIcon.font.pixelSize, weatherTemp.font.pixelSize) + spacing + (weatherPlace.visible ? weatherPlace.font.pixelSize : 0)
+          readonly property bool fitsInline: {
+            const requiredWidth = weatherIcon.implicitWidth + topRow.spacing + weatherTemp.implicitWidth + (place.length > 0 ? topRow.spacing + weatherPlaceInline.implicitWidth : 0) + (isStale ? topRow.spacing + staleBadge.implicitWidth : 0);
+            return requiredWidth <= width;
+          }
 
-          readonly property int contentHeight: fitsInline ? Math.max(weatherIcon.font.pixelSize, weatherTemp.font.pixelSize, weatherPlaceInline.font.pixelSize) : Math.max(weatherIcon.font.pixelSize, weatherTemp.font.pixelSize) + weatherColumn.spacing + (weatherPlace.visible ? weatherPlace.font.pixelSize : 0)
-          readonly property bool fitsInline: (weatherIcon.implicitWidth + weatherTopRow.spacing + weatherTemp.implicitWidth + (weatherColumn.place.length > 0 ? weatherTopRow.spacing + weatherPlaceInline.implicitWidth : 0) + (weatherColumn.stale ? weatherTopRow.spacing + weatherStaleBadge.implicitWidth : 0)) <= weatherColumn.width
-          property string icon: WeatherService ? WeatherService.getWeatherIconFromCode() : ""
-          property string place: WeatherService && WeatherService.locationName ? WeatherService.locationName : ""
-          property bool stale: WeatherService ? WeatherService.isStale : false
-          property string temp: WeatherService ? WeatherService.currentTemp : ""
-
-          anchors.left: parent.left
-          anchors.margins: lockPanel.compact ? 8 : 10
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
+          anchors.fill: parent
+          anchors.margins: root.isCompact ? 8 : 10
           spacing: 2
 
           RowLayout {
-            id: weatherTopRow
-
+            id: topRow
             Layout.fillWidth: true
             spacing: 8
 
             Text {
               id: weatherIcon
-
               Layout.alignment: Qt.AlignVCenter
-              color: lockPanel.lockContext.theme.text
+              color: root.lockContext.theme.text
               font.pixelSize: 27
-              text: weatherColumn.icon
+              text: weatherContent.icon
             }
 
             Text {
               id: weatherTemp
-
               Layout.alignment: Qt.AlignVCenter
-              color: lockPanel.lockContext.theme.text
+              color: root.lockContext.theme.text
               font.bold: true
               font.pixelSize: 21
-              text: WeatherService ? Math.max(0, weatherColumn.temp.indexOf("°")) >= 0 ? weatherColumn.temp.split(" ")[0] : weatherColumn.temp : ""
+              text: {
+                const tempStr = weatherContent.temp;
+                const degreeIndex = tempStr.indexOf("°");
+                return degreeIndex >= 0 ? tempStr.split(" ")[0] : tempStr;
+              }
             }
 
             Text {
               id: weatherPlaceInline
-
               Layout.alignment: Qt.AlignVCenter
               Layout.fillWidth: true
-              color: lockPanel.lockContext.theme.subtext0
+              visible: !root.isCompact && text.length > 0 && weatherContent.fitsInline
               elide: Text.ElideRight
+              color: root.lockContext.theme.subtext0
               font.pixelSize: 16
-              text: weatherColumn.place
-              visible: !lockPanel.compact && text.length > 0 && weatherColumn.fitsInline
+              text: weatherContent.place
             }
 
             Rectangle {
-              id: weatherStaleBadge
-
+              id: staleBadge
               Layout.alignment: Qt.AlignVCenter
-              border.color: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 0.36)
-              border.width: 1
-              color: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 0.18)
+              visible: weatherContent.isStale
               implicitHeight: 18
-              implicitWidth: weatherStaleText.implicitWidth + 10
+              implicitWidth: staleText.implicitWidth + 10
               radius: 6
-              visible: weatherColumn.stale
+              color: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 0.18)
+              border.width: 1
+              border.color: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 0.36)
 
               Text {
-                id: weatherStaleText
-
+                id: staleText
                 anchors.centerIn: parent
                 color: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 1.0)
                 font.bold: true
@@ -374,143 +393,87 @@ FocusScope {
 
           Text {
             id: weatherPlace
-
             Layout.alignment: Qt.AlignVCenter
             Layout.fillWidth: true
-            color: lockPanel.lockContext.theme.subtext0
+            visible: !root.isCompact && text.length > 0 && !weatherContent.fitsInline
             elide: Text.ElideRight
+            color: root.lockContext.theme.subtext0
             font.pixelSize: 16
-            text: weatherColumn.place
-            visible: !lockPanel.compact && text.length > 0 && !weatherColumn.fitsInline
+            text: weatherContent.place
           }
         }
       }
 
+      // Hostname pill
       Rectangle {
         Layout.alignment: Qt.AlignVCenter
         Layout.fillWidth: true
-        Layout.maximumWidth: Math.floor((lockPanel.width - 64 - infoPillsRow.spacing) / 2)
+        Layout.maximumWidth: Math.floor((root.width - 64 - parent.spacing) / 2)
         Layout.minimumWidth: 120
         Layout.preferredHeight: infoPillsRow.pillHeight
-        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
-        border.width: 1
-        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
-        opacity: visible ? 1 : 0
+        opacity: 1
         radius: 10
-        visible: lockPanel.lockSurface.hasScreen
-
-        Behavior on opacity {
-          NumberAnimation {
-            duration: 160
-            easing.type: Easing.OutCubic
-          }
-        }
+        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+        border.width: 1
+        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
 
         RowLayout {
-          id: hostRow
-
-          anchors.left: parent.left
-          anchors.margins: lockPanel.compact ? 8 : 10
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
+          anchors.fill: parent
+          anchors.margins: root.isCompact ? 8 : 10
           spacing: 8
 
           Text {
             id: hostIcon
-
             Layout.alignment: Qt.AlignVCenter
-            color: lockPanel.lockContext.theme.text
+            color: root.lockContext.theme.text
             font.pixelSize: 21
             text: "💻"
           }
 
           Text {
             id: hostText
-
             Layout.alignment: Qt.AlignVCenter
             Layout.fillWidth: true
-            color: lockPanel.lockContext.theme.subtext0
             elide: Text.ElideRight
+            color: root.lockContext.theme.subtext0
             font.pixelSize: 21
-            text: (MainService && typeof MainService.hostname === "string" && MainService.hostname.length > 0) ? MainService.hostname : "localhost"
+            text: MainService?.hostname?.length > 0 ? MainService.hostname : "localhost"
           }
         }
       }
     }
 
+    // Separator
     Rectangle {
       Layout.alignment: Qt.AlignHCenter
       Layout.preferredHeight: 1
-      Layout.preferredWidth: Math.min(lockPanel.width - 64, 420)
+      Layout.preferredWidth: Math.min(root.width - 64, 420)
       Layout.topMargin: 4
-      color: Qt.rgba(124 / 255, 124 / 255, 148 / 255, 0.25)
+      visible: root.isPrimaryMonitor
       radius: 1
-      visible: lockPanel.lockSurface.isMainMonitor
+      color: Qt.rgba(124 / 255, 124 / 255, 148 / 255, 0.25)
     }
 
+    // Password field
     Rectangle {
       Layout.alignment: Qt.AlignHCenter
       Layout.preferredHeight: 46
-      Layout.preferredWidth: Math.min(lockPanel.width - 32, 440)
-      border.color: lockPanel.lockContext.authState ? lockPanel.lockContext.theme.love : Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
-      border.width: 1
-      color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.45)
-      enabled: lockPanel.lockSurface.hasScreen && lockPanel.lockSurface.isMainMonitor
+      Layout.preferredWidth: Math.min(root.width - 32, 440)
+      visible: root.isPrimaryMonitor
+      enabled: root.shouldAcceptInput
       radius: 12
-      visible: lockPanel.lockSurface.isMainMonitor
+      color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.45)
+      border.width: 1
+      border.color: root.lockContext.authState ? root.lockContext.theme.love : Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
 
-      Text {
-        id: lockIcon
-
-        anchors.left: parent.left
-        anchors.leftMargin: 14
-        anchors.verticalCenter: parent.verticalCenter
-        color: lockPanel.lockContext.theme.overlay1
-        font.pixelSize: 21
-        opacity: 0.9
-        text: "🔒"
-      }
-
-      Item {
-        id: passContent
-
-        anchors.fill: parent
-        anchors.leftMargin: lockIcon.anchors.leftMargin + lockIcon.width + 8
-        anchors.rightMargin: anchors.leftMargin
-      }
-
-      Rectangle {
-        id: capsIndicator
-
-        anchors.right: parent.right
-        anchors.rightMargin: 14
-        anchors.verticalCenter: parent.verticalCenter
-        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
-        border.width: 1
-        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
-        implicitHeight: capsText.height + 7
-        implicitWidth: capsText.width + 12
-        radius: 8
-        visible: KeyboardLayoutService.capsOn
-
-        Text {
-          id: capsText
-
-          anchors.centerIn: parent
-          color: lockPanel.lockContext.theme.love
-          font.pixelSize: 14
-          text: "Caps Lock"
-        }
-      }
-
+      // Focus indicator
       Rectangle {
         anchors.fill: parent
-        border.color: lockPanel.accent
-        border.width: 2
-        color: "transparent"
-        opacity: lockPanel.activeFocus ? 0.55 : 0.0
         radius: parent.radius
-
+        color: "transparent"
+        opacity: root.activeFocus ? 0.55 : 0.0
+        border.width: 2
+        border.color: root.accentColor
         Behavior on opacity {
           NumberAnimation {
             duration: 160
@@ -518,31 +481,33 @@ FocusScope {
         }
       }
 
+      // Lock icon
+      Text {
+        id: lockIcon
+        anchors.left: parent.left
+        anchors.leftMargin: 14
+        anchors.verticalCenter: parent.verticalCenter
+        color: root.lockContext.theme.overlay1
+        font.pixelSize: 21
+        opacity: 0.9
+        text: "🔒"
+      }
+
+      // Password dots
       RowLayout {
-        anchors.centerIn: passContent
+        anchors.centerIn: parent
         spacing: 7
 
         Repeater {
-          model: lockPanel.lockContext.passwordBuffer.length
-
+          model: root.lockContext.passwordBuffer.length
           delegate: Rectangle {
-            color: lockPanel.lockContext.authenticating ? lockPanel.lockContext.theme.mauve : lockPanel.lockContext.theme.overlay2
             implicitHeight: 10
             implicitWidth: 10
             radius: 5
             scale: 0.8
+            color: root.lockContext.authenticating ? root.lockContext.theme.mauve : root.lockContext.theme.overlay2
 
-            SequentialAnimation on opacity {
-              loops: 1
-              running: true
-
-              NumberAnimation {
-                duration: 90
-                easing.type: Easing.OutCubic
-                from: 0
-                to: 1
-              }
-            }
+            Component.onCompleted: scale = 1.0
             Behavior on scale {
               NumberAnimation {
                 duration: 90
@@ -550,17 +515,45 @@ FocusScope {
               }
             }
 
-            Component.onCompleted: scale = 1.0
+            SequentialAnimation on opacity {
+              running: true
+              NumberAnimation {
+                from: 0
+                to: 1
+                duration: 90
+                easing.type: Easing.OutCubic
+              }
+            }
           }
         }
       }
 
+      // Status text
       Text {
-        anchors.centerIn: passContent
-        color: lockPanel.lockContext.authenticating ? lockPanel.accent : lockPanel.lockContext.authState ? lockPanel.lockContext.theme.love : lockPanel.lockContext.theme.overlay1
+        anchors.centerIn: parent
+        opacity: root.lockContext.passwordBuffer.length ? 0 : 1
         font.pixelSize: 21
-        opacity: lockPanel.lockContext.passwordBuffer.length ? 0 : 1
-        text: lockPanel.lockContext.authenticating ? "Authenticating…" : lockPanel.lockContext.authState === "error" ? "Error" : lockPanel.lockContext.authState === "max" ? "Too many tries" : lockPanel.lockContext.authState === "fail" ? "Incorrect password" : lockPanel.lockContext.passwordBuffer.length ? "" : "Enter password"
+        color: {
+          if (root.lockContext.authenticating)
+            return root.accentColor;
+          if (root.lockContext.authState)
+            return root.lockContext.theme.love;
+          return root.lockContext.theme.overlay1;
+        }
+        text: {
+          if (root.lockContext.authenticating)
+            return "Authenticating…";
+          switch (root.lockContext.authState) {
+          case "error":
+            return "Error";
+          case "max":
+            return "Too many tries";
+          case "fail":
+            return "Incorrect password";
+          default:
+            return "Enter password";
+          }
+        }
 
         Behavior on color {
           ColorAnimation {
@@ -573,50 +566,69 @@ FocusScope {
           }
         }
       }
+
+      // Caps Lock indicator
+      Rectangle {
+        anchors.right: parent.right
+        anchors.rightMargin: 14
+        anchors.verticalCenter: parent.verticalCenter
+        visible: KeyboardLayoutService.capsOn
+        implicitHeight: capsText.height + 7
+        implicitWidth: capsText.width + 12
+        radius: 8
+        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+        border.width: 1
+        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
+
+        Text {
+          id: capsText
+          anchors.centerIn: parent
+          color: root.lockContext.theme.love
+          font.pixelSize: 14
+          text: "Caps Lock"
+        }
+      }
     }
 
+    // Help text and indicators
     RowLayout {
       Layout.alignment: Qt.AlignHCenter
+      visible: root.isPrimaryMonitor
       opacity: 0.9
       spacing: 12
-      visible: lockPanel.lockSurface.isMainMonitor
 
       Text {
-        color: lockPanel.lockContext.theme.overlay1
+        color: root.lockContext.theme.overlay1
         font.pixelSize: 16
         text: "Press Enter to unlock"
       }
 
       Rectangle {
-        color: lockPanel.lockContext.theme.overlay0
         implicitHeight: 4
         implicitWidth: 4
         radius: 2
+        color: root.lockContext.theme.overlay0
       }
 
       Text {
-        color: lockPanel.lockContext.theme.overlay1
+        color: root.lockContext.theme.overlay1
         font.pixelSize: 16
         text: "Esc clears input"
       }
 
       Rectangle {
-        id: layoutIndicator
-
-        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
-        border.width: 1
-        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+        visible: KeyboardLayoutService.currentLayout.length > 0
         implicitHeight: layoutText.height + 7
         implicitWidth: layoutText.width + 12
         radius: 8
-        visible: (KeyboardLayoutService.currentLayout.length > 0)
+        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+        border.width: 1
+        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
 
         Text {
           id: layoutText
-
-          anchors.horizontalCenter: layoutIndicator.horizontalCenter
-          anchors.verticalCenter: layoutIndicator.verticalCenter
-          color: lockPanel.lockContext.theme.overlay1
+          anchors.centerIn: parent
+          color: root.lockContext.theme.overlay1
           font.pixelSize: 14
           text: KeyboardLayoutService.currentLayout
         }
