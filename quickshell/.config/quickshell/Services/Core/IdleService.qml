@@ -13,29 +13,15 @@ import qs.Config
 Singleton {
   id: idleDaemon
 
-  // Use persisted Settings; fall back to previous hardcoded defaults if missing
-  readonly property var settings: (Settings && Settings.data && Settings.data.idleService) || ({
-      enabled: true,
-      lockEnabled: true,
-      lockTimeoutSec: 300,
-      dpmsEnabled: true,
-      dpmsTimeoutSec: 30,
-      suspendEnabled: false,
-      suspendTimeoutSec: 120,
-      respectInhibitors: true,
-      videoAutoInhibit: true
-    })
+  readonly property var settings: Settings.data.idleService
   readonly property int wakeDebounceMs: 250
-  readonly property int dpmsSettleMs: 1800
   readonly property int rearmDelayMs: 10
   readonly property int unlockGraceMs: 2500
   readonly property int dpmsOnDebounceMs: 400
+
   QtObject {
     id: state
-    // Idle pipeline & DPMS bookkeeping (internal only)
     property bool dpmsOffInSession: false
-    property bool dpmsAlreadyTurnedOn: false
-    property double dpmsSettleUntilMs: 0
     property bool rearmGate: true
     property int holdCount: 0
     property var holdTokens: ({})
@@ -71,128 +57,101 @@ Singleton {
   function resetPipelineState(): void {
     state.currentStageIndex = -1;
     state.dpmsOffInSession = false;
-    state.dpmsAlreadyTurnedOn = false;
+  }
+
+  // Build the linear pipeline based on settings and current lock state
+  function buildStages(): var {
+    const stages = [];
+    if (settings.lockEnabled && !LockService.locked)
+      stages.push({
+        name: "lock",
+        delaySec: 0
+      });
+
+    if (settings.dpmsEnabled) {
+      const dpmsDelay = LockService.locked ? 0 : settings.dpmsTimeoutSec;
+      stages.push({
+        name: "dpms-off",
+        delaySec: dpmsDelay
+      });
+    }
+
+    if (settings.suspendEnabled)
+      stages.push({
+        name: "suspend",
+        delaySec: settings.suspendTimeoutSec
+      });
+
+    return stages;
   }
 
   function armNextStage(): void {
     state.currentStageIndex += 1;
-    if (state.currentStageIndex >= state.stages.length) {
+    if (state.currentStageIndex >= state.stages.length)
       return;
-    }
 
     const stage = state.stages[state.currentStageIndex];
-    const stageDelayMs = (stage.delaySec || 0) * 1000;
-
-    if (stageDelayMs > 0) {
-      stageTimer.interval = stageDelayMs;
+    const ms = (stage.delaySec || 0) * 1000;
+    if (ms > 0) {
+      stageTimer.interval = ms;
       stageTimer.restart();
     } else {
       Qt.callLater(idleDaemon.runCurrentStage);
     }
   }
 
-  // Build stages: Sequential actions based on settings and lock state.
-  // - Unlocked: lock (0s) -> dpms (full delay) -> suspend (full delay).
-  // - Locked: Skip lock; dpms (0s delay for immediate on idle detect) -> suspend (full delay).
-  function buildStages(): var {
-    const stages = [];
-    if (settings.lockEnabled && !LockService.locked) {
-      stages.push({
-        "name": "lock",
-        "delaySec": 0
-      });
-    }
-
-    // DPMS stage: If enabled; delay=0 if locked (avoids double-wait post-interact).
-    if (settings.dpmsEnabled) {
-      const dpmsDelay = LockService.locked ? 0 : settings.dpmsTimeoutSec;
-      stages.push({
-        "name": "dpms-off",
-        "delaySec": dpmsDelay
-      });
-    }
-
-    // Suspend stage: If enabled (always full delay from prior).
-    if (settings.suspendEnabled) {
-      stages.push({
-        "name": "suspend",
-        "delaySec": settings.suspendTimeoutSec
-      });
-    }
-
-    return stages;
-  }
-
   function cancelPipeline(reason: string): void {
     if (state.currentStageIndex === -1) {
-      if (reason === "wake") {
+      if (reason === "wake")
         maybeDpmsOn("wake-ended");
-      }
       return;
     }
     stageTimer.stop();
     const explicitWake = (reason === "wake");
-    if (state.dpmsOffInSession) {
-      actionFired("dpms-on");
-      if (explicitWake) {
-        maybeDpmsOn("wake-after-dpms-off");
-      }
-    } else if (explicitWake) {
-      maybeDpmsOn("wake-no-prior-off");
-    }
+    if (state.dpmsOffInSession || explicitWake)
+      maybeDpmsOn("cancel/" + reason);
     resetPipelineState();
-    if (state.rearmGate) {
-      state.rearmGate = false;
-      rearmTimer.restart();
-    }
+    rearm();
   }
 
-  // Execute DPMS off (idempotent).
-  function doDpmsOff(): void {
-    if (state.dpmsOffInSession) {
+  function rearm(): void {
+    if (!state.rearmGate)
       return;
-    }
-    state.dpmsOffInSession = true;
-    state.dpmsAlreadyTurnedOn = false;
-    state.dpmsSettleUntilMs = Date.now() + dpmsSettleMs;
-
-    actionFired("dpms-off");
-    if (dpmsCommandsEnabled) {
-      dpms(false);
-    }
+    state.rearmGate = false;
+    rearmTimer.restart();
   }
 
   function dpms(turnOn: bool): void {
-    if (!dpmsCommandsEnabled) {
+    if (!dpmsCommandsEnabled)
       return;
-    }
+
     const wm = String(MainService.currentWM || "");
     const cmds = wmCommandMap[wm];
-    if (!cmds) {
+    if (!cmds)
       return;
-    }
-    if (turnOn && state.dpmsAlreadyTurnedOn) {
-      return;
-    }
-    const args = turnOn ? cmds.on : cmds.off;
-    Utils.runCmd(args, function () {}, idleDaemon);
-    state.dpmsAlreadyTurnedOn = !!turnOn;
+
+    Utils.runCmd(turnOn ? cmds.on : cmds.off, function () {}, idleDaemon);
   }
 
-  // Conditional DPMS on (debounced).
+  function doDpmsOff(): void {
+    if (state.dpmsOffInSession)
+      return;
+    state.dpmsOffInSession = true;
+    actionFired("dpms-off");
+    dpms(false);
+  }
+
   function maybeDpmsOn(reason: string): void {
-    if (!dpmsCommandsEnabled) {
+    if (!dpmsCommandsEnabled)
       return;
-    }
     const now = Date.now();
-    if (now - state.lastDpmsOnMs < dpmsOnDebounceMs) {
+    if (now - state.lastDpmsOnMs < dpmsOnDebounceMs)
       return;
-    }
     state.lastDpmsOnMs = now;
+    actionFired("dpms-on");
     dpms(true);
   }
 
-  // Run current stage action.
   function runCurrentStage(): void {
     if (state.currentStageIndex < 0 || state.currentStageIndex >= state.stages.length)
       return;
@@ -230,12 +189,12 @@ Singleton {
     const token = Math.random().toString(36).slice(2);
     state.holdTokens[token] = true;
     return {
-      "token": token,
-      "reason": String(reason || "")
+      token: token,
+      reason: String(reason || "")
     };
   }
 
-  function release(tokenOrObj: var) {
+  function release(tokenOrObj: var): void {
     const token = tokenOrObj && tokenOrObj.token ? tokenOrObj.token : tokenOrObj;
     if (token && state.holdTokens[token]) {
       delete state.holdTokens[token];
@@ -250,9 +209,8 @@ Singleton {
 
   function wake(reason: string): void {
     const now = Date.now();
-    if (state.lastWakeMs && (now - state.lastWakeMs) < wakeDebounceMs) {
+    if (state.lastWakeMs && (now - state.lastWakeMs) < wakeDebounceMs)
       return;
-    }
     state.lastWakeMs = now;
     if (state.currentStageIndex !== -1)
       cancelPipeline("wake");
@@ -261,16 +219,6 @@ Singleton {
   }
 
   onEffectiveInhibitedChanged: {
-    if (effectiveInhibited) {
-      const parts = [];
-      if (state.holdCount > 0)
-        parts.push("manual-hold(" + state.holdCount + ")");
-      if (settings.videoAutoInhibit && MediaService.anyVideoPlaying)
-        parts.push("video-playing");
-      Logger.log("IdleService", "idle-inhibit ON", "reason=", parts.join("+"));
-    } else
-      Logger.log("IdleService", "idle-inhibit OFF");
-
     if (effectiveInhibited && !LockService.locked)
       cancelPipeline("inhibited");
   }
@@ -284,14 +232,13 @@ Singleton {
     enabled: state.rearmGate && idleDaemon.settings.enabled && (idleDaemon.settings.lockEnabled || idleDaemon.settings.dpmsEnabled || idleDaemon.settings.suspendEnabled) && !state.unlockGraceActive
     respectInhibitors: idleDaemon.settings.respectInhibitors && !LockService.locked
     timeout: idleDaemon.initialTimeoutSec
-
     onIsIdleChanged: {
       if (isIdle) {
         Qt.callLater(idleDaemon.startPipeline);
         Logger.log("IdleService", "system idle detected, starting pipeline");
-      } else if (Date.now() >= state.dpmsSettleUntilMs) {
+      } else {
         Qt.callLater(function () {
-          idleDaemon.cancelPipeline("resume");
+          idleDaemon.wake("input");
         });
       }
     }
@@ -301,13 +248,11 @@ Singleton {
     id: stageTimer
     onTriggered: idleDaemon.runCurrentStage()
   }
-
   Timer {
     id: rearmTimer
     interval: idleDaemon.rearmDelayMs
     onTriggered: state.rearmGate = true
   }
-
   Timer {
     id: unlockGraceTimer
     interval: idleDaemon.unlockGraceMs
@@ -316,15 +261,13 @@ Singleton {
 
   Connections {
     target: LockService
-
     function onLockedChanged() {
       if (!LockService.locked) {
         state.unlockGraceActive = true;
         unlockGraceTimer.restart();
         idleDaemon.cancelPipeline("unlocked");
       }
-      state.rearmGate = false;
-      rearmTimer.restart();
+      idleDaemon.rearm();
     }
   }
 }
