@@ -16,15 +16,7 @@ Row {
     id: activeWindowTitle
 
     anchors.verticalCenter: parent.verticalCenter
-    opacity: centerSide.normalWorkspacesExpanded ? 0 : 1
     visible: true
-
-    Behavior on opacity {
-      NumberAnimation {
-        duration: Theme.animationDuration
-        easing.type: Easing.InOutQuad
-      }
-    }
   }
 
   // Test button: set all monitors to a specific wallpaper to exercise the reveal animation

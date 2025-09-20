@@ -7,7 +7,10 @@ import qs.Services.WM
 PanelWindow {
   id: panelWindow
 
-  property bool normalWorkspacesExpanded: false
+  // Track expansion sources separately
+  property bool workspacesExpanded: false        // from LeftSide (Normal/Niri workspaces)
+  property bool rightSideExpanded: false         // from RightSide (e.g., Volume hover)
+  readonly property bool centerShouldHide: workspacesExpanded || rightSideExpanded
   property bool screenChanging: false
 
   WlrLayershell.namespace: "quickshell:bar:blur"
@@ -45,9 +48,9 @@ PanelWindow {
     width: parent.width
   }
   LeftSide {
-    normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
+    normalWorkspacesExpanded: panelWindow.workspacesExpanded
 
-    onNormalWorkspacesExpandedChanged: panelWindow.normalWorkspacesExpanded = normalWorkspacesExpanded
+    onNormalWorkspacesExpandedChanged: panelWindow.workspacesExpanded = normalWorkspacesExpanded
 
     anchors {
       left: panelRect.left
@@ -56,6 +59,9 @@ PanelWindow {
     }
   }
   RightSide {
+    normalWorkspacesExpanded: panelWindow.rightSideExpanded
+
+    onNormalWorkspacesExpandedChanged: panelWindow.rightSideExpanded = normalWorkspacesExpanded
     anchors {
       right: panelRect.right
       rightMargin: Theme.panelMargin
@@ -64,7 +70,17 @@ PanelWindow {
   }
   CenterSide {
     anchors.centerIn: panelRect
-    normalWorkspacesExpanded: panelWindow.normalWorkspacesExpanded
+    normalWorkspacesExpanded: panelWindow.centerShouldHide
+    // When workspaces (or volume) are expanded, hide center via opacity
+    opacity: panelWindow.centerShouldHide ? 0 : 1
+    visible: true
+
+    Behavior on opacity {
+      NumberAnimation {
+        duration: Theme.animationDuration
+        easing.type: Easing.InOutQuad
+      }
+    }
   }
   Item {
     id: bottomCuts

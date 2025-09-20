@@ -6,236 +6,162 @@ import qs.Services.Core
 import qs.Components
 
 Rectangle {
-  id: volumeControl
+  id: root
 
-  // Backed by AudioService singleton
-  readonly property bool audioReady: AudioService && AudioService.sink && AudioService.sink.audio
-  readonly property real collapsedWidth: volumeIconItem.implicitWidth + 2 * padding
+  // Derived state
+  readonly property bool isAudioReady: AudioService && AudioService.sink && AudioService.sink.audio
+  readonly property real maxVolume: AudioService ? AudioService.maxVolume : 1.0
+  readonly property bool isMuted: AudioService ? AudioService.muted : false
+  readonly property real baseVolume: 1.0
+  readonly property real displayMaxVolume: 1.5
+  readonly property real currentVolume: AudioService ? AudioService.volume : 0.0
+  readonly property string currentDeviceIcon: AudioService ? AudioService.sinkIcon : ""
 
-  // Contrast for icon/percent
-  readonly property color contrastColor: {
+  // UI state
+  property bool expanded: hoverHandler.hovered
+  property int expandedWidth: Theme.volumeExpandedWidth
+  property int contentPadding: 10
+  property int sliderStepCount: 30
+  property bool isWidthAnimating: false
+
+  // Metrics (replace hidden Text probes)
+  TextMetrics {
+    id: iconMetrics
+    font.family: Theme.fontFamily
+    font.pixelSize: Theme.fontSize + Theme.fontSize / 2
+    text: "󰕾"
+  }
+  TextMetrics {
+    id: percentMetrics
+    font.family: Theme.fontFamily
+    font.pixelSize: Theme.fontSize
+    text: "100%"
+  }
+
+  // Layout and visuals
+  readonly property real collapsedWidth: iconMetrics.width + 2 * contentPadding
+  readonly property color textContrastColor: {
     const bg = color;
     if (!expanded)
       return Theme.textContrast(bg);
-    const leftColor = Theme.activeColor;
-    const norm = volSlider ? (volSlider.dragging ? volSlider.pending : volSlider.value) : 0;
-    const useColor = norm > 0.5 ? leftColor : bg;
-    return Theme.textContrast(Qt.colorEqual(useColor, "transparent") ? bg : useColor);
+    const active = Theme.activeColor;
+    const norm = volumeSlider ? (volumeSlider.dragging ? volumeSlider.pending : volumeSlider.value) : 0;
+    const ref = norm > 0.5 ? active : bg;
+    return Theme.textContrast(Qt.colorEqual(ref, "transparent") ? bg : ref);
   }
-  readonly property string deviceIcon: (AudioService ? AudioService.sinkIcon : "")
-
-  // Icon mapping moved to AudioService
-
-  // Explicit hover-expanded flag (tracked manually for better control)
-  property bool expanded: false
-  property int expandedWidth: Theme.volumeExpandedWidth
-  // Pull policy from AudioService
-  readonly property real maxVolume: (AudioService ? AudioService.maxVolume : 1.0)
-  readonly property bool muted: (AudioService ? AudioService.muted : false)
-  // 100% base (1.0) with headroom to 150% (1.5)
-  readonly property real baseVolume: 1.0
-  readonly property real displayMaxVolume: 1.5
-
-  // Layout
-  property int padding: 10
-  property bool preserveChannelBalance: false
-  property int sliderSteps: 30          // snapping steps (30 => 5% of base across 150%)
-
-  // Behavior/config
-  // Respect AudioService default if present
-  readonly property real stepSize: (AudioService ? AudioService.stepVolume : 0.05)
-
-  // Hover animation suppression
-  property bool suppressFillAnim: false
-  // Track if width is currently animating (0..animationDuration)
-  property bool widthAnimating: false
-  // Bind to service volume (0..maxVolume)
-  readonly property real volume: (AudioService ? AudioService.volume : 0.0)
-  // Keep slider in sync with external volume changes (avoid binding break on commit)
-  onVolumeChanged: if (!volSlider.dragging)
-    volSlider.value = (displayMaxVolume > 0 ? (volume / displayMaxVolume) : 0)
-  readonly property string volumeIcon: {
-    // Determine ratio relative to 100% base for icon stages
-    const norm = (volSlider ? (volSlider.dragging ? volSlider.pending : volSlider.value) : (displayMaxVolume > 0 ? (volume / displayMaxVolume) : 0));
-    const valueAbs = norm * displayMaxVolume;                // 0..1.5
-    const ratioBase = baseVolume > 0 ? Math.min(valueAbs / baseVolume, 1.0) : 0; // 0..1.0
-    return audioReady ? (deviceIcon || (muted ? "󰝟" : ratioBase < 0.01 ? "󰖁" : ratioBase < 0.33 ? "󰕿" : ratioBase < 0.66 ? "󰖀" : "󰕾")) : "--";
+  readonly property string currentIcon: {
+    const norm = volumeSlider ? (volumeSlider.dragging ? volumeSlider.pending : (displayMaxVolume > 0 ? currentVolume / displayMaxVolume : 0)) : 0;
+    const valueAbs = norm * displayMaxVolume;
+    const ratioBase = baseVolume > 0 ? Math.min(valueAbs / baseVolume, 1.0) : 0;
+    return isAudioReady ? (currentDeviceIcon || (isMuted ? "󰝟" : ratioBase < 0.01 ? "󰖁" : ratioBase < 0.33 ? "󰕿" : ratioBase < 0.66 ? "󰖀" : "󰕾")) : "--";
+  }
+  readonly property string percentageText: {
+    if (!isAudioReady)
+      return "--";
+    if (isMuted)
+      return "0%";
+    const vol = volumeSlider.dragging ? volumeSlider.pending * displayMaxVolume : currentVolume;
+    return Math.round(Math.min(vol / baseVolume, 1.5) * 100) + "%";
   }
 
-  // Centralized volume setter with optional channel balance preservation
-  function setVolumeValue(v) {
-    if (!audioReady || !AudioService)
+  function setAbsoluteVolume(absoluteVolume) {
+    if (!isAudioReady || !AudioService)
       return;
-    const clamped = Math.max(0, Math.min(maxVolume, v));
+    const clamped = Math.max(0, Math.min(maxVolume, absoluteVolume));
     AudioService.setVolumeReal(clamped);
   }
 
-  Accessible.name: "Volume"
-
-  // Accessibility & keyboard controls
-  Accessible.role: Accessible.Slider
   activeFocusOnTab: true
   clip: true
   color: Theme.inactiveColor
-  focus: true
   height: Theme.itemHeight
   radius: Theme.itemRadius
-  width: collapsedWidth
+  width: expanded ? expandedWidth : collapsedWidth
 
-  states: [
-    State {
-      name: "hovered"
-      when: volumeControl.expanded
-
-      PropertyChanges {
-        volumeControl.width: expandedWidth
-      }
-    }
-  ]
   Behavior on width {
     NumberAnimation {
       duration: Theme.animationDuration
       easing.type: Easing.InOutQuad
-      onRunningChanged: if (running)
-        volumeControl.widthAnimating = true
-      else
-        volumeControl.widthAnimating = false
+      onRunningChanged: root.isWidthAnimating = running
     }
   }
 
-  Keys.onPressed: function (e) {
-    if (!audioReady)
-      return;
-    if (e.key === Qt.Key_Left) {
-      if (AudioService)
-        AudioService.decreaseVolume();
-      e.accepted = true;
-    } else if (e.key === Qt.Key_Right) {
-      if (AudioService)
-        AudioService.increaseVolume();
-      e.accepted = true;
-    } else if (e.key === Qt.Key_M) {
-      if (AudioService)
-        AudioService.toggleMute();
-      e.accepted = true;
-    }
-  }
-  Timer {
-    id: hoverTransitionTimer
-    interval: Theme.animationDuration
-    onTriggered: volumeControl.suppressFillAnim = false
-  }
-  // Hover tracking (non-invasive)
   HoverHandler {
     id: hoverHandler
-    onHoveredChanged: {
-      volumeControl.suppressFillAnim = true;
-      hoverTransitionTimer.restart();
-      volumeControl.expanded = hovered;
-    }
   }
+
   MouseArea {
-    id: rootArea
-    acceptedButtons: Qt.LeftButton | Qt.MiddleButton
     anchors.fill: parent
-    hoverEnabled: true
-    onClicked: function (event) {
-      if (!volumeControl.audioReady)
-        return;
-      if (event.button === Qt.MiddleButton && AudioService)
-        AudioService.toggleMute();
-    }
+    acceptedButtons: Qt.MiddleButton
+    onClicked: if (root.isAudioReady && AudioService)
+      AudioService.toggleMute()
   }
-  // Reusable normalized slider (0..1) scaled to displayMaxVolume (e.g. 0..1.5 absolute)
+
   Slider {
-    id: volSlider
+    id: volumeSlider
     anchors.fill: parent
-    // Represent current volume in normalized headroom space
-    // Initial value set on component completion & updated in onVolumeChanged
-    steps: volumeControl.sliderSteps // 30 => 5% base increments across 150%
+    steps: root.sliderStepCount
     wheelStep: 1 / steps
-    // Animate fill during expansion (remove suppression flag)
-    animMs: (volSlider.dragging || volumeControl.widthAnimating) ? 0 : Theme.animationDuration
-    // Two-tone fill: base up to 100% (splitAt), headroom (100-150%) in a different color
-    splitAt: (volumeControl.displayMaxVolume > 0) ? Math.min(1, volumeControl.baseVolume / volumeControl.displayMaxVolume) : 1.0
+    animMs: (volumeSlider.dragging || root.isWidthAnimating) ? 0 : Theme.animationDuration
+    splitAt: root.displayMaxVolume > 0 ? Math.min(1, root.baseVolume / root.displayMaxVolume) : 1
     fillColor: Theme.activeColor
     headroomColor: Theme.critical
-    radius: volumeControl.radius
-    interactive: volumeControl.audioReady
-    // Hide visual fill when collapsed (still allow wheel for quick adjust)
-    opacity: (volumeControl.expanded || volSlider.dragging) ? 1 : 0
-    onChanging: function (v) {}
-    onCommitted: function (v) {
-      if (!volumeControl.audioReady)
-        return;
-      // Map normalized (0..1 over headroom) back to absolute volume
-      volumeControl.setVolumeValue(v * volumeControl.displayMaxVolume);
+    radius: root.radius
+    interactive: root.isAudioReady
+    opacity: (root.expanded || volumeSlider.dragging) ? 1 : 0
+    onCommitted: function (normalized) {
+      if (root.isAudioReady)
+        root.setAbsoluteVolume(normalized * root.displayMaxVolume);
     }
   }
-  Component.onCompleted: volSlider.value = (displayMaxVolume > 0 ? (volume / displayMaxVolume) : 0)
+
+  onCurrentVolumeChanged: if (!volumeSlider.dragging)
+    volumeSlider.value = root.displayMaxVolume > 0 ? (currentVolume / root.displayMaxVolume) : 0
+
+  Component.onCompleted: volumeSlider.value = root.displayMaxVolume > 0 ? (currentVolume / root.displayMaxVolume) : 0
+
   RowLayout {
     anchors.centerIn: parent
-    anchors.margins: volumeControl.padding
+    anchors.margins: root.contentPadding
     spacing: 8
 
-    // measurement helpers
-    Text {
-      id: maxIconMeasure
-
-      font.bold: true
-      font.family: Theme.fontFamily
-      font.pixelSize: Theme.fontSize + Theme.fontSize / 2
-      text: "󰕾"
-      visible: false
-    }
-    Text {
-      id: maxPercentMeasure
-
-      font.bold: true
-      font.family: Theme.fontFamily
-      font.pixelSize: Theme.fontSize
-      text: "100%"
-      visible: false
-    }
+    // Icon box sized by TextMetrics
     Item {
       id: volumeIconItem
-
-      Layout.preferredHeight: implicitHeight
-      Layout.preferredWidth: implicitWidth
+      Layout.preferredHeight: Theme.itemHeight
+      Layout.preferredWidth: iconMetrics.width
       clip: true
-      implicitHeight: maxIconMeasure.paintedHeight
-      implicitWidth: maxIconMeasure.paintedWidth
-
+      implicitHeight: Theme.itemHeight
+      implicitWidth: iconMetrics.width
       Text {
         anchors.centerIn: parent
-        color: volumeControl.contrastColor
+        color: root.textContrastColor
         font.bold: true
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize + Theme.fontSize / 2
         horizontalAlignment: Text.AlignHCenter
-        text: volumeControl.volumeIcon
         verticalAlignment: Text.AlignVCenter
+        text: root.currentIcon
       }
     }
+
+    // Percent text box sized by TextMetrics
     Item {
       id: percentItem
-      Layout.preferredHeight: volumeControl.expanded ? implicitHeight : 0
-      Layout.preferredWidth: volumeControl.expanded ? implicitWidth : 0
-      implicitHeight: maxPercentMeasure.paintedHeight
-      implicitWidth: maxPercentMeasure.paintedWidth
-      visible: volumeControl.expanded
-
+      visible: root.expanded
+      Layout.preferredHeight: root.expanded ? percentMetrics.height : 0
+      Layout.preferredWidth: root.expanded ? percentMetrics.width : 0
+      implicitHeight: percentMetrics.height
+      implicitWidth: percentMetrics.width
       Text {
         anchors.centerIn: parent
-        color: volumeControl.contrastColor
-        elide: Text.ElideRight
+        color: root.textContrastColor
         font.bold: true
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize
         horizontalAlignment: Text.AlignHCenter
-        // Show percent relative to 100% base; allow up to 150%
-        text: volumeControl.audioReady ? (volumeControl.muted ? "0%" : (volSlider.dragging ? Math.round(Math.min(volSlider.pending * volumeControl.displayMaxVolume / volumeControl.baseVolume, 1.5) * 100) + "%" : Math.round(Math.min(volumeControl.volume / volumeControl.baseVolume, 1.5) * 100) + "%")) : "--"
         verticalAlignment: Text.AlignVCenter
+        text: root.percentageText
       }
     }
   }
