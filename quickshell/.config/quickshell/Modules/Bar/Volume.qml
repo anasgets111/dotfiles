@@ -8,7 +8,6 @@ import qs.Components
 Rectangle {
   id: root
 
-  // Derived state
   readonly property bool isAudioReady: AudioService && AudioService.sink && AudioService.sink.audio
   readonly property real maxVolume: AudioService ? AudioService.maxVolume : 1.0
   readonly property bool isMuted: AudioService ? AudioService.muted : false
@@ -17,14 +16,12 @@ Rectangle {
   readonly property real currentVolume: AudioService ? AudioService.volume : 0.0
   readonly property string currentDeviceIcon: AudioService ? AudioService.sinkIcon : ""
 
-  // UI state
   property bool expanded: hoverHandler.hovered
   property int expandedWidth: Theme.volumeExpandedWidth
   property int contentPadding: 10
   property int sliderStepCount: 30
   property bool isWidthAnimating: false
 
-  // Metrics (replace hidden Text probes)
   TextMetrics {
     id: iconMetrics
     font.family: Theme.fontFamily
@@ -38,7 +35,6 @@ Rectangle {
     text: "100%"
   }
 
-  // Layout and visuals
   readonly property real collapsedWidth: iconMetrics.width + 2 * contentPadding
   readonly property color textContrastColor: {
     const bg = color;
@@ -102,13 +98,13 @@ Rectangle {
     anchors.fill: parent
     steps: root.sliderStepCount
     wheelStep: 1 / steps
-    animMs: (volumeSlider.dragging || root.isWidthAnimating) ? 0 : Theme.animationDuration
+    animMs: (dragging || root.isWidthAnimating) ? 0 : Theme.animationDuration
     splitAt: root.displayMaxVolume > 0 ? Math.min(1, root.baseVolume / root.displayMaxVolume) : 1
     fillColor: Theme.activeColor
     headroomColor: Theme.critical
     radius: root.radius
     interactive: root.isAudioReady
-    opacity: (root.expanded || volumeSlider.dragging) ? 1 : 0
+    opacity: (root.expanded || dragging) ? 1 : 0
     onCommitted: function (normalized) {
       if (root.isAudioReady)
         root.setAbsoluteVolume(normalized * root.displayMaxVolume);
@@ -116,23 +112,20 @@ Rectangle {
   }
 
   onCurrentVolumeChanged: if (!volumeSlider.dragging)
-    volumeSlider.value = root.displayMaxVolume > 0 ? (currentVolume / root.displayMaxVolume) : 0
+    volumeSlider.value = root.displayMaxVolume > 0 ? currentVolume / root.displayMaxVolume : 0
 
-  Component.onCompleted: volumeSlider.value = root.displayMaxVolume > 0 ? (currentVolume / root.displayMaxVolume) : 0
+  Component.onCompleted: volumeSlider.value = root.displayMaxVolume > 0 ? currentVolume / root.displayMaxVolume : 0
 
   RowLayout {
     anchors.centerIn: parent
     anchors.margins: root.contentPadding
     spacing: 8
 
-    // Icon box sized by TextMetrics
     Item {
       id: volumeIconItem
       Layout.preferredHeight: Theme.itemHeight
       Layout.preferredWidth: iconMetrics.width
       clip: true
-      implicitHeight: Theme.itemHeight
-      implicitWidth: iconMetrics.width
       Text {
         anchors.centerIn: parent
         color: root.textContrastColor
@@ -145,14 +138,11 @@ Rectangle {
       }
     }
 
-    // Percent text box sized by TextMetrics
     Item {
       id: percentItem
       visible: root.expanded
       Layout.preferredHeight: root.expanded ? percentMetrics.height : 0
       Layout.preferredWidth: root.expanded ? percentMetrics.width : 0
-      implicitHeight: percentMetrics.height
-      implicitWidth: percentMetrics.width
       Text {
         anchors.centerIn: parent
         color: root.textContrastColor
