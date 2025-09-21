@@ -87,7 +87,7 @@ Scope {
           layer.mipmap: false
           cache: false
           mipmap: false
-          source: WallpaperService.ready && lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper ? lockSurface.screenWallpaper.wallpaper : ""
+          source: (lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper) ? lockSurface.screenWallpaper.wallpaper : ((WallpaperService && WallpaperService.defaultWallpaper) ? WallpaperService.defaultWallpaper : "")
           visible: lockSurface.hasScreen
 
           layer.effect: MultiEffect {
