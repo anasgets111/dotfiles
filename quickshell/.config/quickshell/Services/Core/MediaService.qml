@@ -20,7 +20,7 @@ Singleton {
   readonly property var _audioOnlyPatterns: ["music.youtube.com", "spotify.com", "soundcloud.com", "music.apple.com", "deezer.com", "tidal.com", "bandcamp.com"]
 
   // Video sites/patterns
-  readonly property var _videoPatterns: ["youtube.com/watch", "youtu.be/", "netflix.com", "primevideo.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "crunchyroll.com", "max.com", "hbomax.com"]
+  readonly property var _videoPatterns: ["youtube.com/watch", "youtu.be/", "netflix.com", "primevideo.com", "osnplus.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "crunchyroll.com", "max.com", "hbomax.com"]
 
   readonly property var _videoFileExts: ["mp4", "mkv", "webm", "avi", "mov", "m4v", "mpeg", "mpg", "wmv", "flv"]
 
