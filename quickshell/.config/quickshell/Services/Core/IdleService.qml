@@ -10,7 +10,7 @@ import qs.Config
 Singleton {
   id: idleDaemon
 
-  property var window
+  property QsWindow window
   readonly property var settings: Settings.data.idleService
   property bool dpmsOffInSession: false
   readonly property bool monitorsEnabled: Settings.isLoaded && settings.enabled && (settings.lockEnabled || settings.dpmsEnabled || settings.suspendEnabled)
@@ -38,7 +38,7 @@ Singleton {
   property bool rearmToken: true
   function rearmMonitors(): void {
     rearmToken = false;
-    Qt.callLater(function () {
+    Qt.callLater(() => {
       rearmToken = true;
     });
   }
@@ -72,7 +72,14 @@ Singleton {
     enabled: idleDaemon.baseEnabled && idleDaemon.settings.lockEnabled && !LockService.locked
     respectInhibitors: idleDaemon.monitorRespectInhibitors
     timeout: idleDaemon.lockStageTimeoutSec
-    onIsIdleChanged: (isIdle && !LockService.locked) ? (LockService.locked = true, idleDaemon.actionFired("lock")) : idleDaemon.wake()
+    onIsIdleChanged: {
+      if (isIdle && !LockService.locked) {
+        LockService.locked = true;
+        idleDaemon.actionFired("lock");
+      } else {
+        idleDaemon.wake();
+      }
+    }
   }
 
   IdleMonitor {
@@ -95,7 +102,7 @@ Singleton {
     target: LockService
     function onLockedChanged() {
       if (!LockService.locked)
-        idleDaemon.setDpms(true);
+        idleDaemon.wake();
     }
   }
 }
