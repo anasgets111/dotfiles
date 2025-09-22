@@ -52,10 +52,13 @@ Scope {
     WlSessionLockSurface {
       id: lockSurface
 
-      readonly property bool blurDisabled: Quickshell.env("QS_DISABLE_LOCK_BLUR") === "1"
+      readonly property string screenName: (lockSurface.screen && lockSurface.screen.name) ? lockSurface.screen.name : ""
       readonly property bool hasScreen: !!lockSurface.screen
-      readonly property bool isMainMonitor: !!(lockSurface.screen && MonitorService && MonitorService.activeMain === lockSurface.screen.name)
-      readonly property var screenWallpaper: (lockSurface.hasScreen && WallpaperService) ? WallpaperService.wallpaperFor(lockSurface.screen.name) : null
+      readonly property bool isMainMonitor: !!(lockSurface.hasScreen && lockSurface.screenName && MonitorService && MonitorService.activeMain === lockSurface.screenName)
+      readonly property var screenWallpaper: (lockSurface.hasScreen && WallpaperService) ? (lockSurface.screenName ? WallpaperService.wallpaperFor(lockSurface.screenName) : ({
+            wallpaper: WallpaperService.defaultWallpaper,
+            mode: WallpaperService.defaultMode
+          })) : null
 
       color: "transparent"
 
@@ -63,7 +66,6 @@ Scope {
         id: wallpaperLoader
         anchors.fill: parent
         active: lockSurface.hasScreen
-        asynchronous: true
         sourceComponent: Image {
           anchors.fill: parent
           fillMode: {
@@ -83,7 +85,7 @@ Scope {
               return Image.PreserveAspectCrop;
             }
           }
-          layer.enabled: lockSurface.hasScreen && !lockSurface.blurDisabled
+          layer.enabled: lockSurface.hasScreen
           layer.mipmap: false
           cache: true
           mipmap: false
