@@ -139,7 +139,9 @@ spawn-at-startup "vesktop"
 spawn-at-startup "thunderbird"
 spawn-at-startup "xdg-terminal-exec"
 
-
+switch-events {
+    lid-close { spawn "quickshell" "ipc" "call" "lock" "lock" ; }
+}
 
 animations {
     // off
