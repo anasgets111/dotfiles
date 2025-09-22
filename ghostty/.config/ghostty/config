@@ -38,12 +38,12 @@ window-decoration = server
 ########################################
 # Choose one of the built-in themes. You can list themes using:
 #   ghostty +list-themes
-theme = ghostty-catppuccin-mocha.conf
+theme = Catppuccin Mocha
 
 ########################################
 # Shell Integration
 ########################################
-# Enable shell integration features; here we’re enabling support for sudo.
+# Enable shell integration features; here we are enabling support for sudo.
 shell-integration-features = true
 confirm-close-surface = false
 
