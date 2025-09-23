@@ -11,33 +11,39 @@ import qs.Services.WM
 FocusScope {
   id: root
 
-  // Public API - Required properties
   required property var lockContext
   required property var lockSurface
+  required property var theme
 
-  // Public API - Configuration
-  readonly property color accentColor: lockContext?.theme?.mauve ?? "#cba6f7"
+  // Theme and tokens
+  readonly property color accentColor: theme?.mauve ?? "#cba6f7"
+  readonly property color panelGradTop: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.70)
+  readonly property color panelGradBottom: Qt.rgba(24 / 255, 24 / 255, 37 / 255, 0.66)
+  readonly property color borderStrong: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.20)
+  readonly property color borderSoft: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.08)
+  readonly property color pillBg: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+  readonly property color pillBorder: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
+  readonly property color warnBg: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 0.18)
+  readonly property color warnBorder: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 0.36)
+  readonly property color dividerColor: Qt.rgba(124 / 255, 124 / 255, 148 / 255, 0.25)
+  readonly property color inputBg: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.45)
+  readonly property color inputBorderDefault: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
+
+  // Derived flags and metrics
   readonly property bool isCompact: width < 440
   readonly property bool hasScreen: lockSurface?.hasScreen ?? false
   readonly property bool isPrimaryMonitor: lockSurface?.isMainMonitor ?? false
-
-  // Private constants
+  readonly property string screenName: lockSurface?.screen?.name ?? "no-screen"
+  readonly property bool shouldShowContent: hasScreen
+  readonly property bool shouldAcceptInput: shouldShowContent && isPrimaryMonitor
   readonly property int pillPaddingVertical: isCompact ? 6 : 8
   readonly property int panelMargin: 16
   readonly property int contentSpacing: 14
 
-  // Computed properties
-  readonly property bool shouldShowContent: hasScreen
-  readonly property bool shouldAcceptInput: shouldShowContent && isPrimaryMonitor
-  readonly property string screenName: lockSurface?.screen?.name ?? "no-screen"
-
-  // Configuration
-  focus: true
   anchors.centerIn: parent
   width: parent.width * 0.47
   height: contentColumn.implicitHeight + panelMargin * 2
-
-  // Visibility and animations
+  focus: true
   visible: shouldShowContent
   opacity: shouldShowContent ? 1 : 0
   scale: shouldShowContent ? 1 : 0.98
@@ -55,7 +61,6 @@ FocusScope {
     }
   }
 
-  // Visual effects
   layer.enabled: shouldShowContent
   layer.mipmap: false
   layer.effect: MultiEffect {
@@ -66,104 +71,86 @@ FocusScope {
     shadowVerticalOffset: 10
   }
 
-  // Shake animation transform
   transform: Translate {
     id: shakeTransform
     x: 0
   }
 
-  // Public methods
   function shake() {
     shakeAnimation.restart();
   }
-
-  // Private methods
   function requestFocusIfNeeded(reason) {
-    if (!shouldShowContent || !isPrimaryMonitor)
-      return;
-    root.forceActiveFocus();
-    if (lockContext) {
-      Logger.log("LockContent", "single-shot focus request (primary): " + reason);
-    }
+    if (shouldShowContent && isPrimaryMonitor)
+      forceActiveFocus();
   }
-
   function wakeSystem(action) {
-    if (isPrimaryMonitor) {
+    if (isPrimaryMonitor)
       IdleService.wake(action);
-    }
+  }
+  function focusAndWake(action) {
+    wakeSystem(action);
+    forceActiveFocus();
   }
 
-  // Input handling
   Keys.onPressed: event => {
     wakeSystem("key-press");
-
     if (!shouldShowContent || lockContext.authenticating)
       return;
-    if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
+    const k = event.key;
+    if (k === Qt.Key_Enter || k === Qt.Key_Return) {
       lockContext.submitOrStart();
       event.accepted = true;
-    } else if (event.key === Qt.Key_Backspace) {
-      const newBuffer = event.modifiers & Qt.ControlModifier ? "" : lockContext.passwordBuffer.slice(0, -1);
-      lockContext.setPasswordBuffer(newBuffer);
+      return;
+    }
+    if (k === Qt.Key_Backspace) {
+      const next = (event.modifiers & Qt.ControlModifier) ? "" : lockContext.passwordBuffer.slice(0, -1);
+      lockContext.passwordBuffer = next;
       event.accepted = true;
-    } else if (event.key === Qt.Key_Escape) {
-      lockContext.setPasswordBuffer("");
+      return;
+    }
+    if (k === Qt.Key_Escape) {
+      lockContext.passwordBuffer = "";
       event.accepted = true;
-    } else if (event.text?.length === 1) {
-      const charCode = event.text.charCodeAt(0);
-      if (charCode >= 0x20 && charCode <= 0x7E) {
-        lockContext.setPasswordBuffer(lockContext.passwordBuffer + event.text);
+      return;
+    }
+    if (event.text && event.text.length === 1) {
+      const code = event.text.charCodeAt(0);
+      if (code >= 0x20 && code <= 0x7E) {
+        lockContext.passwordBuffer = (lockContext.passwordBuffer + event.text);
         event.accepted = true;
       }
     }
   }
 
-  // Wake system on mouse interactions
   MouseArea {
     anchors.fill: parent
     hoverEnabled: true
     acceptedButtons: Qt.AllButtons
     propagateComposedEvents: true
-
-    onEntered: {
-      root.wakeSystem("pointer-enter");
-      root.forceActiveFocus();
-    }
-    onPressed: {
-      root.wakeSystem("pointer-press");
-      root.forceActiveFocus();
-    }
-    onWheel: {
-      root.wakeSystem("pointer-wheel");
-      root.forceActiveFocus();
-    }
+    onEntered: root.focusAndWake("pointer-enter")
+    onPressed: root.focusAndWake("pointer-press")
+    onWheel: root.focusAndWake("pointer-wheel")
   }
 
-  // Connections
   Connections {
     target: root.lockSurface
     function onHasScreenChanged() {
-      if (root.lockSurface?.hasScreen) {
-        root.requestFocusIfNeeded("hasScreen changed -> true");
-      }
+      if (root.lockSurface?.hasScreen)
+        root.requestFocusIfNeeded("hasScreen true");
     }
   }
 
   Connections {
     target: root.lockContext
     function onAuthStateChanged() {
-      const state = root.lockContext.authState;
-      if (state === "error" || state === "fail") {
+      const s = root.lockContext.authState;
+      if (s === "error" || s === "fail")
         root.shake();
-      }
     }
   }
 
-  Component.onCompleted: {
-    requestFocusIfNeeded("component completed");
-  }
+  Component.onCompleted: requestFocusIfNeeded("component completed")
 
-  // Shake animation
   SequentialAnimation {
     id: shakeAnimation
     NumberAnimation {
@@ -199,40 +186,37 @@ FocusScope {
     }
   }
 
-  // Background
   Rectangle {
     anchors.fill: parent
     radius: 16
     gradient: Gradient {
       GradientStop {
         position: 0.0
-        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.70)
+        color: root.panelGradTop
       }
       GradientStop {
         position: 1.0
-        color: Qt.rgba(24 / 255, 24 / 255, 37 / 255, 0.66)
+        color: root.panelGradBottom
       }
     }
     border.width: 1
-    border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.20)
+    border.color: root.borderStrong
 
     Rectangle {
       anchors.fill: parent
       radius: 16
       color: "transparent"
       border.width: 1
-      border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.08)
+      border.color: root.borderSoft
     }
   }
 
-  // Main content
   ColumnLayout {
     id: contentColumn
     anchors.fill: parent
     anchors.margins: root.panelMargin
     spacing: root.contentSpacing
 
-    // Time display
     RowLayout {
       Layout.alignment: Qt.AlignHCenter
       spacing: 10
@@ -240,7 +224,7 @@ FocusScope {
       Text {
         Layout.alignment: Qt.AlignVCenter
         horizontalAlignment: Text.AlignHCenter
-        color: root.lockContext.theme.text
+        color: root.theme.text
         font.bold: true
         font.pixelSize: 74
         text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "hh:mm")
@@ -250,24 +234,22 @@ FocusScope {
         Layout.alignment: Qt.AlignVCenter
         visible: !TimeService.use24Hour && text !== ""
         horizontalAlignment: Text.AlignHCenter
-        color: root.lockContext.theme.subtext1
+        color: root.theme.subtext1
         font.bold: true
         font.pixelSize: 30
         text: TimeService.format("time", "AP")
       }
     }
 
-    // Date display
     Text {
       Layout.alignment: Qt.AlignHCenter
       Layout.preferredWidth: root.width - 64
       horizontalAlignment: Text.AlignHCenter
-      color: root.lockContext.theme.subtext0
+      color: root.theme.subtext0
       font.pixelSize: 21
       text: TimeService.format("date", "dddd, d MMMM yyyy")
     }
 
-    // User name
     Text {
       Layout.alignment: Qt.AlignHCenter
       Layout.preferredWidth: root.width - 64
@@ -275,13 +257,12 @@ FocusScope {
       visible: root.shouldShowContent && text.length > 0
       horizontalAlignment: Text.AlignHCenter
       elide: Text.ElideRight
-      color: root.lockContext.theme.subtext1
+      color: root.theme.subtext1
       font.bold: true
       font.pixelSize: 24
       text: MainService.fullName ?? ""
     }
 
-    // Info pills row
     RowLayout {
       id: infoPillsRow
       readonly property int lineHeight: Math.max(hostIcon.font.pixelSize, hostText.font.pixelSize)
@@ -292,7 +273,6 @@ FocusScope {
       visible: root.shouldShowContent
       spacing: 10
 
-      // Weather pill
       Rectangle {
         id: weatherPill
         property int contentHeight: weatherContent.contentHeight
@@ -305,9 +285,9 @@ FocusScope {
         visible: WeatherService
         opacity: visible ? 1 : 0
         radius: 10
-        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+        color: root.pillBg
         border.width: 1
-        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
+        border.color: root.pillBorder
 
         Behavior on opacity {
           NumberAnimation {
@@ -324,8 +304,8 @@ FocusScope {
           readonly property bool isStale: WeatherService?.isStale ?? false
           readonly property int contentHeight: fitsInline ? Math.max(weatherIcon.font.pixelSize, weatherTemp.font.pixelSize, weatherPlaceInline.font.pixelSize) : Math.max(weatherIcon.font.pixelSize, weatherTemp.font.pixelSize) + spacing + (weatherPlace.visible ? weatherPlace.font.pixelSize : 0)
           readonly property bool fitsInline: {
-            const requiredWidth = weatherIcon.implicitWidth + topRow.spacing + weatherTemp.implicitWidth + (place.length > 0 ? topRow.spacing + weatherPlaceInline.implicitWidth : 0) + (isStale ? topRow.spacing + staleBadge.implicitWidth : 0);
-            return requiredWidth <= width;
+            const needed = weatherIcon.implicitWidth + topRow.spacing + weatherTemp.implicitWidth + (place.length > 0 ? topRow.spacing + weatherPlaceInline.implicitWidth : 0) + (isStale ? topRow.spacing + staleText.implicitWidth + 10 : 0);
+            return needed <= width;
           }
 
           anchors.fill: parent
@@ -340,7 +320,7 @@ FocusScope {
             Text {
               id: weatherIcon
               Layout.alignment: Qt.AlignVCenter
-              color: root.lockContext.theme.text
+              color: root.theme.text
               font.pixelSize: 27
               text: weatherContent.icon
             }
@@ -348,13 +328,13 @@ FocusScope {
             Text {
               id: weatherTemp
               Layout.alignment: Qt.AlignVCenter
-              color: root.lockContext.theme.text
+              color: root.theme.text
               font.bold: true
               font.pixelSize: 21
               text: {
-                const tempStr = weatherContent.temp;
-                const degreeIndex = tempStr.indexOf("°");
-                return degreeIndex >= 0 ? tempStr.split(" ")[0] : tempStr;
+                const t = weatherContent.temp;
+                const i = t.indexOf("°");
+                return i >= 0 ? t.split(" ")[0] : t;
               }
             }
 
@@ -364,21 +344,20 @@ FocusScope {
               Layout.fillWidth: true
               visible: !root.isCompact && text.length > 0 && weatherContent.fitsInline
               elide: Text.ElideRight
-              color: root.lockContext.theme.subtext0
+              color: root.theme.subtext0
               font.pixelSize: 16
               text: weatherContent.place
             }
 
             Rectangle {
-              id: staleBadge
               Layout.alignment: Qt.AlignVCenter
               visible: weatherContent.isStale
               implicitHeight: 18
               implicitWidth: staleText.implicitWidth + 10
               radius: 6
-              color: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 0.18)
+              color: root.warnBg
               border.width: 1
-              border.color: Qt.rgba(250 / 255, 179 / 255, 135 / 255, 0.36)
+              border.color: root.warnBorder
 
               Text {
                 id: staleText
@@ -397,14 +376,13 @@ FocusScope {
             Layout.fillWidth: true
             visible: !root.isCompact && text.length > 0 && !weatherContent.fitsInline
             elide: Text.ElideRight
-            color: root.lockContext.theme.subtext0
+            color: root.theme.subtext0
             font.pixelSize: 16
             text: weatherContent.place
           }
         }
       }
 
-      // Hostname pill
       Rectangle {
         Layout.alignment: Qt.AlignVCenter
         Layout.fillWidth: true
@@ -413,9 +391,9 @@ FocusScope {
         Layout.preferredHeight: infoPillsRow.pillHeight
         opacity: 1
         radius: 10
-        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+        color: root.pillBg
         border.width: 1
-        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
+        border.color: root.pillBorder
 
         RowLayout {
           anchors.fill: parent
@@ -425,7 +403,7 @@ FocusScope {
           Text {
             id: hostIcon
             Layout.alignment: Qt.AlignVCenter
-            color: root.lockContext.theme.text
+            color: root.theme.text
             font.pixelSize: 21
             text: "💻"
           }
@@ -435,7 +413,7 @@ FocusScope {
             Layout.alignment: Qt.AlignVCenter
             Layout.fillWidth: true
             elide: Text.ElideRight
-            color: root.lockContext.theme.subtext0
+            color: root.theme.subtext0
             font.pixelSize: 21
             text: MainService?.hostname?.length > 0 ? MainService.hostname : "localhost"
           }
@@ -443,7 +421,6 @@ FocusScope {
       }
     }
 
-    // Separator
     Rectangle {
       Layout.alignment: Qt.AlignHCenter
       Layout.preferredHeight: 1
@@ -451,10 +428,9 @@ FocusScope {
       Layout.topMargin: 4
       visible: root.isPrimaryMonitor
       radius: 1
-      color: Qt.rgba(124 / 255, 124 / 255, 148 / 255, 0.25)
+      color: root.dividerColor
     }
 
-    // Password field
     Rectangle {
       Layout.alignment: Qt.AlignHCenter
       Layout.preferredHeight: 46
@@ -462,11 +438,10 @@ FocusScope {
       visible: root.isPrimaryMonitor
       enabled: root.shouldAcceptInput
       radius: 12
-      color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.45)
+      color: root.inputBg
       border.width: 1
-      border.color: root.lockContext.authState ? root.lockContext.theme.love : Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
+      border.color: root.lockContext.authState ? root.theme.love : root.inputBorderDefault
 
-      // Focus indicator
       Rectangle {
         anchors.fill: parent
         radius: parent.radius
@@ -481,19 +456,16 @@ FocusScope {
         }
       }
 
-      // Lock icon
       Text {
-        id: lockIcon
         anchors.left: parent.left
         anchors.leftMargin: 14
         anchors.verticalCenter: parent.verticalCenter
-        color: root.lockContext.theme.overlay1
+        color: root.theme.overlay1
         font.pixelSize: 21
         opacity: 0.9
         text: "🔒"
       }
 
-      // Password dots
       RowLayout {
         anchors.centerIn: parent
         spacing: 7
@@ -505,8 +477,8 @@ FocusScope {
             implicitWidth: 10
             radius: 5
             scale: 0.8
-            color: root.lockContext.authenticating ? root.lockContext.theme.mauve : root.lockContext.theme.overlay2
-
+            // Use theme colors for dots when typing
+            color: root.lockContext.authenticating ? root.theme.mauve : root.theme.overlay2
             Component.onCompleted: scale = 1.0
             Behavior on scale {
               NumberAnimation {
@@ -514,7 +486,6 @@ FocusScope {
                 easing.type: Easing.OutCubic
               }
             }
-
             SequentialAnimation on opacity {
               running: true
               NumberAnimation {
@@ -528,33 +499,12 @@ FocusScope {
         }
       }
 
-      // Status text
       Text {
         anchors.centerIn: parent
         opacity: root.lockContext.passwordBuffer.length ? 0 : 1
         font.pixelSize: 21
-        color: {
-          if (root.lockContext.authenticating)
-            return root.accentColor;
-          if (root.lockContext.authState)
-            return root.lockContext.theme.love;
-          return root.lockContext.theme.overlay1;
-        }
-        text: {
-          if (root.lockContext.authenticating)
-            return "Authenticating…";
-          switch (root.lockContext.authState) {
-          case "error":
-            return "Error";
-          case "max":
-            return "Too many tries";
-          case "fail":
-            return "Incorrect password";
-          default:
-            return "Enter password";
-          }
-        }
-
+        color: root.lockContext.authenticating ? root.accentColor : root.lockContext.authState ? root.theme.love : root.theme.overlay1
+        text: root.lockContext.authenticating ? "Authenticating…" : root.lockContext.authState === "error" ? "Error" : root.lockContext.authState === "max" ? "Too many tries" : root.lockContext.authState === "fail" ? "Incorrect password" : "Enter password"
         Behavior on color {
           ColorAnimation {
             duration: 140
@@ -567,7 +517,6 @@ FocusScope {
         }
       }
 
-      // Caps Lock indicator
       Rectangle {
         anchors.right: parent.right
         anchors.rightMargin: 14
@@ -576,21 +525,20 @@ FocusScope {
         implicitHeight: capsText.height + 7
         implicitWidth: capsText.width + 12
         radius: 8
-        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+        color: root.pillBg
         border.width: 1
-        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
+        border.color: root.pillBorder
 
         Text {
           id: capsText
           anchors.centerIn: parent
-          color: root.lockContext.theme.love
+          color: root.theme.love
           font.pixelSize: 14
           text: "Caps Lock"
         }
       }
     }
 
-    // Help text and indicators
     RowLayout {
       Layout.alignment: Qt.AlignHCenter
       visible: root.isPrimaryMonitor
@@ -598,20 +546,18 @@ FocusScope {
       spacing: 12
 
       Text {
-        color: root.lockContext.theme.overlay1
+        color: root.theme.overlay1
         font.pixelSize: 16
         text: "Press Enter to unlock"
       }
-
       Rectangle {
         implicitHeight: 4
         implicitWidth: 4
         radius: 2
-        color: root.lockContext.theme.overlay0
+        color: root.theme.overlay0
       }
-
       Text {
-        color: root.lockContext.theme.overlay1
+        color: root.theme.overlay1
         font.pixelSize: 16
         text: "Esc clears input"
       }
@@ -621,14 +567,14 @@ FocusScope {
         implicitHeight: layoutText.height + 7
         implicitWidth: layoutText.width + 12
         radius: 8
-        color: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.40)
+        color: root.pillBg
         border.width: 1
-        border.color: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.14)
+        border.color: root.pillBorder
 
         Text {
           id: layoutText
           anchors.centerIn: parent
-          color: root.lockContext.theme.overlay1
+          color: root.theme.overlay1
           font.pixelSize: 14
           text: KeyboardLayoutService.currentLayout
         }

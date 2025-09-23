@@ -26,72 +26,49 @@ Scope {
       mauve: "#cba6f7"
     })
 
-  QtObject {
-    id: lockContextProxy
-
-    property string authState: LockService.authState
-    property bool authenticating: LockService.authenticating
-    // forward LockService observable state via bindings; mutators provided below
-    property string passwordBuffer: LockService.passwordBuffer
-    property var theme: root.theme
-
-    function setPasswordBuffer(v) {
-      LockService.passwordBuffer = v;
-    }
-
-    function submitOrStart() {
-      LockService.submitOrStart();
-    }
-  }
-
   WlSessionLock {
     id: sessionLock
-
     locked: LockService.locked
 
     WlSessionLockSurface {
       id: lockSurface
 
-      readonly property string screenName: (lockSurface.screen && lockSurface.screen.name) ? lockSurface.screen.name : ""
-      readonly property bool hasScreen: !!lockSurface.screen
-      readonly property bool isMainMonitor: !!(lockSurface.hasScreen && lockSurface.screenName && MonitorService && MonitorService.activeMain === lockSurface.screenName)
-      readonly property var screenWallpaper: (lockSurface.hasScreen && WallpaperService) ? (lockSurface.screenName ? WallpaperService.wallpaperFor(lockSurface.screenName) : ({
+      readonly property var screenRef: screen
+      readonly property string screenName: screenRef && screenRef.name ? screenRef.name : ""
+      readonly property bool hasScreen: !!screenRef
+      readonly property bool isMainMonitor: hasScreen && MonitorService && MonitorService.activeMain === screenName
+      readonly property var wallpaperData: hasScreen && WallpaperService ? (screenName ? WallpaperService.wallpaperFor(screenName) : ({
             wallpaper: WallpaperService.defaultWallpaper,
             mode: WallpaperService.defaultMode
           })) : null
+      readonly property int wallpaperFillMode: ({
+          fill: Image.PreserveAspectCrop,
+          fit: Image.PreserveAspectFit,
+          stretch: Image.Stretch,
+          center: Image.Pad,
+          tile: Image.Tile
+        }[(wallpaperData && wallpaperData.mode) ? wallpaperData.mode : "fill"]) || Image.PreserveAspectCrop
 
       color: "transparent"
 
+      Connections {
+        target: LockService
+        function onLock() {
+          lockContent.forceActiveFocus();
+        }
+      }
       Loader {
-        id: wallpaperLoader
         anchors.fill: parent
         active: lockSurface.hasScreen
         sourceComponent: Image {
           anchors.fill: parent
-          fillMode: {
-            const mode = lockSurface.screenWallpaper ? lockSurface.screenWallpaper.mode : "fill";
-            switch (mode) {
-            case "fill":
-              return Image.PreserveAspectCrop;
-            case "fit":
-              return Image.PreserveAspectFit;
-            case "stretch":
-              return Image.Stretch;
-            case "center":
-              return Image.Pad;
-            case "tile":
-              return Image.Tile;
-            default:
-              return Image.PreserveAspectCrop;
-            }
-          }
+          fillMode: lockSurface.wallpaperFillMode
           layer.enabled: lockSurface.hasScreen
           layer.mipmap: false
           cache: false
           mipmap: false
-          source: (lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper) ? lockSurface.screenWallpaper.wallpaper : ((WallpaperService && WallpaperService.defaultWallpaper) ? WallpaperService.defaultWallpaper : "")
+          source: (lockSurface.wallpaperData && lockSurface.wallpaperData.wallpaper) ? lockSurface.wallpaperData.wallpaper : ((WallpaperService && WallpaperService.defaultWallpaper) ? WallpaperService.defaultWallpaper : "")
           visible: lockSurface.hasScreen
-
           layer.effect: MultiEffect {
             autoPaddingEnabled: false
             blur: 0.9
@@ -101,14 +78,13 @@ Scope {
           }
         }
       }
-
       MouseArea {
         acceptedButtons: Qt.NoButton
         anchors.fill: parent
         hoverEnabled: true
         propagateComposedEvents: true
-
         onEntered: lockContent.forceActiveFocus()
+        onPressed: lockContent.forceActiveFocus()
       }
 
       // one day :D
@@ -128,9 +104,9 @@ Scope {
 
       LockContent {
         id: lockContent
-        // Provide theme + LockService auth state/methods
-        lockContext: lockContextProxy
+        lockContext: LockService
         lockSurface: lockSurface
+        theme: root.theme
       }
     }
   }
