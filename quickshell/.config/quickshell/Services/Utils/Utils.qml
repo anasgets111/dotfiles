@@ -246,8 +246,9 @@ Singleton {
   }
 
   function runCmd(cmd, onDone, parent) {
+    const onComplete = (typeof onDone === "function") ? onDone : function () {};
     if (!cmd || !Array.isArray(cmd) || cmd.length === 0) {
-      onDone("");
+      onComplete("");
       return;
     }
 
@@ -267,12 +268,12 @@ Singleton {
 
     watchdog.triggered.connect(() => {
       _stopProc(proc);
-      onDone(stdio.text || "");
+      onComplete(stdio.text || "");
       cleanup();
     });
 
     stdio.onStreamFinished.connect(() => {
-      onDone(stdio.text);
+      onComplete(stdio.text);
       cleanup();
     });
 
