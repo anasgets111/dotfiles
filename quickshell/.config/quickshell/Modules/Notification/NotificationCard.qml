@@ -16,6 +16,7 @@ CardBase {
   required property var wrapper
 
   signal actionTriggered(string id)
+  signal actionTriggeredEx(string id, var actionObject)
   signal dismiss
   // signal replySubmitted(string text)  // Omitted; not implemented in new API
 
@@ -53,13 +54,15 @@ CardBase {
         // Alternating id/title strings
         for (let i = 0; i < raw.length; i += 2) {
           if (i + 1 < raw.length) {
+            const _id = String(raw[i]);
+            const _title = String(raw[i + 1]);
             out.push({
-              id: String(raw[i]),
-              title: String(raw[i + 1]),
-              iconSource: ""  // No icons in string mode
+              id: _id,
+              title: _title,
+              iconSource: "" // No icons in string mode
               ,
               trigger: function () {
-                card.actionTriggered(String(raw[i]));
+                card.actionTriggered(_id);
               }
             });
           }
@@ -68,7 +71,7 @@ CardBase {
         // Object array
         raw.forEach(a => {
           if (a) {
-            const id = String(a.id || a.key || a.name || a.action || "");
+            const id = String(a.id || a.identifier || a.key || a.name || a.action || a.actionId || a.action_key || "");
             const title = String(a.title || a.label || a.text || "");
             const icon = String(a.icon || a.iconName || a.icon_id || "");
             out.push({
@@ -77,7 +80,9 @@ CardBase {
               iconSource: icon ? Quickshell.iconPath(icon, true) : "",
               _actionObj: a,
               trigger: function () {
+                // Emit both for compatibility; parents can pick the Ex version
                 card.actionTriggered(id);
+                card.actionTriggeredEx(id, a);
               }
             });
           }
@@ -161,20 +166,23 @@ CardBase {
         }
       }
 
-      // Keep space; toggle via opacity only
+      // Always-visible close button (no icon theme dependency)
       ToolButton {
         id: closeBtn
-        icon.name: "window-close"
-        display: AbstractButton.IconOnly
+        text: "X"
+        display: AbstractButton.TextOnly
         Accessible.name: "Dismiss notification"
-        opacity: (hoverArea.hovered || closeBtn.hovered) ? 1 : 0.0
-        Behavior on opacity {
-          NumberAnimation {
-            duration: 120
-            easing.type: Easing.OutCubic
-          }
-        }
+        font.pixelSize: 14
         onClicked: card.dismiss()
+        background: Rectangle {
+          radius: 10
+          color: closeBtn.hovered ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.10)
+          border.width: 1
+          border.color: Qt.rgba(255, 255, 255, 0.08)
+        }
+        padding: 4
+        leftPadding: 8
+        rightPadding: 8
       }
     }
 

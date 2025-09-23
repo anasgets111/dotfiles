@@ -125,6 +125,8 @@ PanelWindow {
                 wrapper: del.modelData.wrapper
 
                 onActionTriggered: id => popupColumn.svc && popupColumn.svc.executeAction(del.modelData.wrapper, id)
+                // Prefer extended signal with action object when available
+                onActionTriggeredEx: (id, actionObj) => popupColumn.svc && popupColumn.svc.executeAction(del.modelData.wrapper, id, actionObj)
                 onDismiss: popupColumn.svc.dismissNotification(del.modelData.wrapper)
                 // Reply omitted in refactor; add back if notification.replySupported etc. is implemented
                 // e.g., onReplySubmitted: text => { del.modelData.wrapper.notification.sendReply(text); popupColumn.svc.dismissNotification(del.modelData.wrapper); }

@@ -343,6 +343,12 @@ Singleton {
     readonly property Connections conn: Connections {
       target: wrapper.notification.Retainable
       function onDropped(): void {
+        // Ensure this wrapper is no longer displayed as a popup or stuck in the queue
+        root.visibleNotifications = root.visibleNotifications.filter(w => w !== wrapper);
+        root.notificationQueue = root.notificationQueue.filter(w => w !== wrapper);
+        try {
+          Logger.log("NotificationService", `dropped: id=${wrapper && wrapper.notification ? wrapper.notification.id : "?"}`);
+        } catch (e) {}
         root.allWrappers = root.allWrappers.filter(w => w !== wrapper);
         root.notifications = root.notifications.filter(w => w !== wrapper);
         if (root.bulkDismissing)
@@ -387,8 +393,12 @@ Singleton {
   function dismissNotification(wrapper) {
     if (!wrapper || !wrapper.notification)
       return;
+    // Remove immediately from popup list and queue so UI updates even if backend is slow
+    root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
+    root.notificationQueue = root.notificationQueue.filter(n => n !== wrapper);
     wrapper.popup = false;
     wrapper.notification.dismiss();
+    root._recomputeGroupsLater();
   }
   // Centralized action executor to avoid UI components touching notification objects directly
   function executeAction(wrapper, actionId, actionObj) {
@@ -494,6 +504,11 @@ Singleton {
       root._groupsDirty = true;
       return;
     }
+    // Prune any zombies left behind (wrapper without notification or summary)
+    root.visibleNotifications = root.visibleNotifications.filter(w => w && w.notification && (w.summary !== undefined));
+    root.notificationQueue = root.notificationQueue.filter(w => w && w.notification);
+    root.allWrappers = root.allWrappers.filter(w => w && w.notification);
+    root.notifications = root.notifications.filter(w => w && w.notification);
     root._groupCache = {
       "notifications": root._calcGroupedNotifications(),
       "popups": root._calcGroupedPopups()
@@ -522,15 +537,19 @@ Singleton {
       groups[groupKey].notifications.unshift(notif);
       groups[groupKey].latestNotification = groups[groupKey].notifications[0];
       groups[groupKey].count = groups[groupKey].notifications.length;
-      if (notif.notification.hasInlineReply)
+      if (notif && notif.notification && notif.notification.hasInlineReply)
         groups[groupKey].hasInlineReply = true;
     }
     return Object.values(groups).sort((a, b) => {
-      const aUrgency = a.latestNotification.urgency || NotificationUrgency.Low;
-      const bUrgency = b.latestNotification.urgency || NotificationUrgency.Low;
+      const aLn = a && a.latestNotification ? a.latestNotification : null;
+      const bLn = b && b.latestNotification ? b.latestNotification : null;
+      const aUrgency = (aLn && aLn.urgency !== undefined) ? aLn.urgency : NotificationUrgency.Low;
+      const bUrgency = (bLn && bLn.urgency !== undefined) ? bLn.urgency : NotificationUrgency.Low;
       if (aUrgency !== bUrgency)
         return bUrgency - aUrgency;
-      return b.latestNotification.time.getTime() - a.latestNotification.time.getTime();
+      const at = (aLn && aLn.time && aLn.time.getTime) ? aLn.time.getTime() : 0;
+      const bt = (bLn && bLn.time && bLn.time.getTime) ? bLn.time.getTime() : 0;
+      return bt - at;
     });
   }
   function _calcGroupedPopups() {
@@ -550,11 +569,15 @@ Singleton {
       groups[groupKey].notifications.unshift(notif);
       groups[groupKey].latestNotification = groups[groupKey].notifications[0];
       groups[groupKey].count = groups[groupKey].notifications.length;
-      if (notif.notification.hasInlineReply)
+      if (notif && notif.notification && notif.notification.hasInlineReply)
         groups[groupKey].hasInlineReply = true;
     }
     return Object.values(groups).sort((a, b) => {
-      return b.latestNotification.time.getTime() - a.latestNotification.time.getTime();
+      const aLn = a && a.latestNotification ? a.latestNotification : null;
+      const bLn = b && b.latestNotification ? b.latestNotification : null;
+      const at = (aLn && aLn.time && aLn.time.getTime) ? aLn.time.getTime() : 0;
+      const bt = (bLn && bLn.time && bLn.time.getTime) ? bLn.time.getTime() : 0;
+      return bt - at;
     });
   }
   function toggleGroupExpansion(groupKey) {
@@ -568,12 +591,17 @@ Singleton {
     const group = root.groupedNotifications.find(g => g.key === groupKey);
     if (group) {
       for (const notif of group.notifications)
-        if (notif && notif.notification)
+        if (notif && notif.notification) {
+          // Hide popup immediately; onDropped will remove from arrays
+          notif.popup = false;
           notif.notification.dismiss();
+        }
     } else {
       for (const notif of root.allWrappers)
-        if (notif && notif.notification && root.getGroupKey(notif) === groupKey)
+        if (notif && notif.notification && root.getGroupKey(notif) === groupKey) {
+          notif.popup = false;
           notif.notification.dismiss();
+        }
     }
   }
   function clearGroupExpansionState(groupKey) {
