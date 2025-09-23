@@ -87,7 +87,7 @@ Scope {
           }
           layer.enabled: lockSurface.hasScreen
           layer.mipmap: false
-          cache: true
+          cache: false
           mipmap: false
           source: (lockSurface.screenWallpaper && lockSurface.screenWallpaper.wallpaper) ? lockSurface.screenWallpaper.wallpaper : ((WallpaperService && WallpaperService.defaultWallpaper) ? WallpaperService.defaultWallpaper : "")
           visible: lockSurface.hasScreen
