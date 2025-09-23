@@ -42,7 +42,7 @@ ShellRoot {
   //     }
   // }
   LazyLoader {
-    active: NotificationService.visible && NotificationService.visible.length > 0
+    active: NotificationService && NotificationService.visibleNotifications && NotificationService.visibleNotifications.length > 0
     component: NotificationPopup {
       modelData: MonitorService ? MonitorService.effectiveMainScreen : null
     }

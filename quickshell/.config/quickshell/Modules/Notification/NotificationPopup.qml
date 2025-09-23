@@ -3,9 +3,9 @@ import QtQuick
 import Quickshell
 import QtQuick.Controls
 import Quickshell.Wayland
+import qs.Components
 import qs.Services.SystemInfo
 import QtQuick.Window
-import qs.Config
 
 PanelWindow {
   id: layer
@@ -19,7 +19,7 @@ PanelWindow {
   WlrLayershell.layer: WlrLayer.Overlay
   color: "transparent"
   screen: layer.modelData
-  visible: NotificationService.visible.length > 0
+  visible: NotificationService.visibleNotifications.length > 0
 
   mask: Region {
     item: popupColumn
@@ -57,44 +57,39 @@ PanelWindow {
       // Whether user explicitly interacted (for keyboard focus)
       property bool interactionActive: false
 
-      // Entries from visible wrappers, coalescing by group, up to maxVisible
-      property var entries: (function () {
-          const svc = popupColumn.svc;
-          const vis = svc?.visible || [];
-          const max = Math.max(1, Number(svc?.maxVisible || 1));
-          const counts = {};
-          for (let i = 0; i < vis.length; i++) {
-            const gid = String(vis[i]?.groupId || "");
-            counts[gid] = (counts[gid] || 0) + 1;
+      // Entries from grouped popups, up to maxVisible.
+      // Coalesce: if group.count == 1, show as single; else show a group entry.
+      property var entries: {
+        const svc = popupColumn.svc;
+        const groups = (svc && svc.groupedPopups) ? svc.groupedPopups : [];
+        const max = Math.max(1, Number((svc && svc.maxVisibleNotifications) ? svc.maxVisibleNotifications : 1));
+        const out = [];
+        for (let i = 0; i < groups.length && out.length < max; i++) {
+          const g = groups[i];
+          if (!g || !g.notifications || g.notifications.length === 0)
+            continue;
+          if (g.count <= 1) {
+            out.push({
+              kind: "single",
+              wrapper: g.notifications[0]
+            });
+          } else {
+            out.push({
+              kind: "group",
+              group: {
+                key: g.key,
+                appName: g.appName,
+                notifications: g.notifications,
+                latestNotification: g.latestNotification,
+                count: g.count,
+                hasInlineReply: g.hasInlineReply,
+                expanded: svc && svc.expandedGroups ? (svc.expandedGroups[g.key] || false) : false
+              }
+            });
           }
-          const seen = new Set();
-          const out = [];
-          for (let i = 0; i < vis.length && out.length < max; i++) {
-            const w = vis[i];
-            if (!w)
-              continue;
-            const gid = String(w.groupId || "");
-            if (gid) {
-              if (seen.has(gid))
-                continue;
-              seen.add(gid);
-              const g = svc?.groupsMap ? svc.groupsMap[gid] : null;
-              out.push((counts[gid] || 0) >= 2 && g ? {
-                kind: "group",
-                group: g
-              } : {
-                kind: "single",
-                wrapper: w
-              });
-            } else {
-              out.push({
-                kind: "single",
-                wrapper: w
-              });
-            }
-          }
-          return out;
-        })()
+        }
+        return out;
+      }
 
       Repeater {
         model: popupColumn.entries
@@ -111,7 +106,7 @@ PanelWindow {
           Column {
             id: col
 
-            // Enable OnDemand focus on first click to allow replies
+            // Enable OnDemand focus on first click to allow replies/interactions
             TapHandler {
               acceptedButtons: Qt.LeftButton
               onTapped: {
@@ -129,13 +124,12 @@ PanelWindow {
               sourceComponent: NotificationCard {
                 wrapper: del.modelData.wrapper
 
-                onActionTriggered: id => popupColumn.svc.executeAction(wrapper.id, id)
-                onDismiss: popupColumn.svc.dismissNotification(wrapper)
-                onReplySubmitted: text => {
-                  const r = popupColumn.svc.reply(wrapper.id, text);
-                  if (r?.ok)
-                    wrapper.popup = false;
-                }
+                onActionTriggered: id => popupColumn.svc && popupColumn.svc.executeAction(del.modelData.wrapper, id)
+                // Prefer extended signal with action object when available
+                onActionTriggeredEx: (id, actionObj) => popupColumn.svc && popupColumn.svc.executeAction(del.modelData.wrapper, id, actionObj)
+                onDismiss: popupColumn.svc.dismissNotification(del.modelData.wrapper)
+                // Reply omitted in refactor; add back if notification.replySupported etc. is implemented
+                // e.g., onReplySubmitted: text => { del.modelData.wrapper.notification.sendReply(text); popupColumn.svc.dismissNotification(del.modelData.wrapper); }
               }
             }
 
@@ -160,14 +154,14 @@ PanelWindow {
     color: Qt.rgba(0.95, 0.55, 0.10, 0.9)
     height: 28
     radius: 6
-    visible: NotificationService.dndPolicy?.enabled
+    visible: (typeof OSDService !== "undefined" && OSDService.doNotDisturb) ? true : false  // Guarded access
     width: txt.implicitWidth + 24
 
     Text {
       id: txt
       anchors.centerIn: parent
       color: "black"
-      text: "Do Not Disturb: " + (NotificationService.dndPolicy?.behavior === "suppress" ? "Suppress" : "Queue")
+      text: "Do Not Disturb Enabled"  // Simplified; no behavior distinction in new API
     }
   }
 }
