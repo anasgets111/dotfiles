@@ -90,19 +90,39 @@ CardBase {
       }
 
       ToolButton {
-        icon.name: groupCard.expanded ? "pan-up" : "pan-down"
-        display: AbstractButton.IconOnly
+        id: expandBtn
+        text: groupCard.expanded ? "▴" : "▾"
+        display: AbstractButton.TextOnly
         Accessible.name: groupCard.expanded ? "Collapse" : "Expand"
         visible: !!groupCard.group
         onClicked: groupCard.toggleExpand()
+        background: Rectangle {
+          radius: 10
+          color: expandBtn.hovered ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.08)
+          border.width: 1
+          border.color: Qt.rgba(255, 255, 255, 0.07)
+        }
+        padding: 4
+        leftPadding: 8
+        rightPadding: 8
       }
 
       ToolButton {
-        icon.name: "edit-clear"
-        display: AbstractButton.IconOnly
+        id: clearBtn
+        text: "×"
+        display: AbstractButton.TextOnly
         Accessible.name: "Clear group"
         visible: !!groupCard.group && groupCard.items.length > 0
         onClicked: groupCard.clearGroup()
+        background: Rectangle {
+          radius: 10
+          color: clearBtn.hovered ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.08)
+          border.width: 1
+          border.color: Qt.rgba(255, 255, 255, 0.07)
+        }
+        padding: 4
+        leftPadding: 8
+        rightPadding: 8
       }
     }
 
@@ -118,6 +138,7 @@ CardBase {
         Layout.fillWidth: true
 
         onActionTriggered: id => groupCard.svc && groupCard.svc.executeAction(previewCard.wrapper, id)
+        onActionTriggeredEx: (id, actionObj) => groupCard.svc && groupCard.svc.executeAction(previewCard.wrapper, id, actionObj)
         onDismiss: groupCard.svc.dismissNotification(previewCard.wrapper)
         // Reply omitted
       }
@@ -137,6 +158,7 @@ CardBase {
           Layout.fillWidth: true
 
           onActionTriggered: id => groupCard.svc && groupCard.svc.executeAction(modelData, id)
+          onActionTriggeredEx: (id, actionObj) => groupCard.svc && groupCard.svc.executeAction(modelData, id, actionObj)
           onDismiss: groupCard.svc.dismissNotification(modelData)
           // Reply omitted
         }
