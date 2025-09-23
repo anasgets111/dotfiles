@@ -7,7 +7,6 @@ import Quickshell.Services.Notifications
 import qs.Services.SystemInfo
 import qs.Services.Utils  // For resolveIconSource
 import qs.Config
-import "./"
 
 CardBase {
   id: card
