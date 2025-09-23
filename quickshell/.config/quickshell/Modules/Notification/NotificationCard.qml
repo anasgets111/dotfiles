@@ -3,7 +3,9 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Services.Notifications
 import qs.Services.SystemInfo
+import qs.Services.Utils  // For resolveIconSource
 import qs.Config
 import "./"
 
@@ -15,14 +17,74 @@ CardBase {
 
   signal actionTriggered(string id)
   signal dismiss
-  signal replySubmitted(string text)
+  // signal replySubmitted(string text)  // Omitted; not implemented in new API
 
   implicitWidth: 360
   shown: !!(card.wrapper?.popup)
 
-  // Urgency -> accent color
-  readonly property string _urgency: NotificationService._urgencyToString(wrapper?.urgency)
+  // Local urgency string (old service._urgencyToString removed)
+  readonly property string _urgency: (function () {
+      const u = card.wrapper?.urgency ?? 0;
+      switch (u) {
+      case NotificationUrgency.Low:
+        return "low";
+      case NotificationUrgency.Critical:
+        return "critical";
+      default:
+        return "normal";
+      }
+    })()
   accentColor: _urgency === "critical" ? "#ff4d4f" : _urgency === "low" ? Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9) : Theme.activeColor
+
+  // Computed actionsModel from notification.actions (fallback to wrapper.actions)
+  readonly property var actionsModel: (function () {
+      let raw = [];
+      try {
+        const a = card.wrapper && card.wrapper.notification && card.wrapper.notification.actions;
+        if (a && a.length !== undefined)
+          raw = a;
+      } catch (e) {}
+      if (!raw || raw.length === undefined)
+        raw = card.wrapper?.actions || [];
+      if (!raw.length)
+        return [];
+      const out = [];
+      if (typeof raw[0] === "string") {
+        // Alternating id/title strings
+        for (let i = 0; i < raw.length; i += 2) {
+          if (i + 1 < raw.length) {
+            out.push({
+              id: String(raw[i]),
+              title: String(raw[i + 1]),
+              iconSource: ""  // No icons in string mode
+              ,
+              trigger: function () {
+                card.actionTriggered(String(raw[i]));
+              }
+            });
+          }
+        }
+      } else {
+        // Object array
+        raw.forEach(a => {
+          if (a) {
+            const id = String(a.id || a.key || a.name || a.action || "");
+            const title = String(a.title || a.label || a.text || "");
+            const icon = String(a.icon || a.iconName || a.icon_id || "");
+            out.push({
+              id: id,
+              title: title,
+              iconSource: icon ? Quickshell.iconPath(icon, true) : "",
+              _actionObj: a,
+              trigger: function () {
+                card.actionTriggered(id);
+              }
+            });
+          }
+        });
+      }
+      return out;
+    })()
 
   ColumnLayout {
     id: content
@@ -42,7 +104,7 @@ CardBase {
         color: Qt.rgba(1, 1, 1, 0.07)
         border.width: 1
         border.color: Qt.rgba(255, 255, 255, 0.05)
-        visible: !!(card.wrapper?.iconSource)
+        visible: !!(card.wrapper?.appIcon || card.wrapper?.appName)
 
         Image {
           anchors.centerIn: parent
@@ -50,25 +112,13 @@ CardBase {
           height: 30
           fillMode: Image.PreserveAspectFit
           smooth: true
-          source: card.wrapper?.iconSource || ""
+          source: Utils.resolveIconSource(card.wrapper?.appName || "", card.wrapper?.appIcon || "", "dialog-information")
           sourceSize.height: 64
           sourceSize.width: 64
-          visible: !!(card.wrapper?.iconSource)
 
           onStatusChanged: function () {
             if (status !== Image.Error)
               return;
-            if (String(source).startsWith("image://qsimage/")) {
-              try {
-                if (typeof Quickshell !== "undefined" && Quickshell.iconPath) {
-                  const fb = Quickshell.iconPath("dialog-information", true);
-                  if (fb && fb !== source) {
-                    source = fb;
-                    return;
-                  }
-                }
-              } catch (_) {}
-            }
             parent.visible = false;
           }
         }
@@ -103,8 +153,8 @@ CardBase {
           color: "#dddddd"
           elide: Text.ElideRight
           maximumLineCount: 6
-          text: card.wrapper?.bodySafe || ""
-          textFormat: card.wrapper?.bodyFormat === "markup" ? Text.RichText : Text.PlainText
+          text: card.wrapper?.htmlBody || ""  // Adapted to new htmlBody (Markdown/HTML)
+          textFormat: Text.RichText  // Always RichText for htmlBody
           wrapMode: Text.Wrap
 
           onLinkActivated: url => Qt.openUrlExternally(url)
@@ -134,10 +184,10 @@ CardBase {
       antialiasing: true
       fillMode: Image.PreserveAspectFit
       smooth: true
-      source: card.wrapper?.imageSource || ""
+      source: card.wrapper?.cleanImage || ""  // Adapted to new cleanImage
       sourceSize.height: 256
       sourceSize.width: 512
-      visible: !!(card.wrapper?.imageSource)
+      visible: !!(card.wrapper?.cleanImage)
 
       onStatusChanged: function () {
         if (status === Image.Error)
@@ -145,47 +195,28 @@ CardBase {
       }
     }
 
+    // Reply omitted; add back if reply API is restored (e.g., wrapper.notification.hasInlineReply, etc.)
+    /*
     RowLayout {
-      Layout.fillWidth: true
-      spacing: 6
-      visible: !!(card.wrapper?.replyModel?.enabled) && !(card.wrapper?.replyModel?.submitted)
-
-      function sendReply() {
-        card.replySubmitted(replyField.text);
-      }
-
-      TextField {
-        id: replyField
-        Layout.fillWidth: true
-        maximumLength: Math.max(0, Number(card.wrapper?.replyModel?.maxLength || 0))
-        placeholderText: card.wrapper?.replyModel?.placeholder || "Reply..."
-        onAccepted: parent.sendReply()
-      }
-
-      Button {
-        enabled: {
-          const min = Math.max(0, Number(card.wrapper?.replyModel?.minLength || 0));
-          return replyField.text.length >= min;
-        }
-        text: "Send"
-        Accessible.name: "Send reply"
-        onClicked: parent.sendReply()
-      }
+      // ... (similar to old, but use wrapper.notification.hasInlineReply for visible,
+      // placeholder: wrapper.notification.replyPlaceholder || "",
+      // on send: wrapper.notification.sendReply(replyField.text); card.dismiss()
     }
+    */
 
     Flow {
       Layout.fillWidth: true
       spacing: 6
-      visible: (card.wrapper?.actionsModel || []).length > 0
+      visible: (card.actionsModel || []).length > 0
 
       Repeater {
-        model: card.wrapper?.actionsModel || []
+        model: card.actionsModel
 
         delegate: Button {
           id: actionBtn
           required property var modelData
           icon.source: modelData.iconSource || ""
-          text: modelData.title || modelData.id
+          text: modelData.title || modelData.id || ""
           padding: 6
           leftPadding: 12
           rightPadding: 12
@@ -201,7 +232,9 @@ CardBase {
             font.pixelSize: 12
             elide: Text.ElideRight
           }
-          onClicked: card.actionTriggered(String(modelData.id))
+          onClicked: (modelData.trigger || function () {
+              card.actionTriggered(modelData.id);
+            })()
         }
       }
     }

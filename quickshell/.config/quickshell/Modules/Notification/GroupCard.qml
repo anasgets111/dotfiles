@@ -2,56 +2,57 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Quickshell.Services.Notifications
 import qs.Services.SystemInfo
 import qs.Config
-import "./"
 
 CardBase {
   id: groupCard
 
-  required property var group // { id, title, children, expanded, updatedAt, appName }
+  required property var group // New structure: { key, appName, notifications, latestNotification, count, hasInlineReply, expanded }
   // Provide access to service
   property var svc: NotificationService
 
   implicitWidth: 380
-  shown: groupCard.items.length > 0 && groupCard.items.some(w => w.popup)
+  shown: groupCard.items.length > 0  // All items are popups by construction of groupedPopups
 
-  // Visible wrappers in this group (sorted by group.children order)
-  readonly property var items: {
-    const svc = groupCard.svc;
-    const gid = String(groupCard.group?.id || "");
-    const ids = groupCard.group?.children || [];
-    return (svc?.visible || []).filter(w => String(w?.groupId || "") === gid).sort((a, b) => ids.indexOf(String(a?.id)) - ids.indexOf(String(b?.id)));
-  }
-  readonly property var latest: items && items.length ? items[0] : null
-  // Local reactive expanded state
-  property bool expanded: (groupCard.group && groupCard.group.expanded) === true
+  // Visible wrappers in this group (already filtered/sorted in groupedPopups)
+  readonly property var items: groupCard.group?.notifications || []
+  readonly property var latest: groupCard.items.length > 0 ? groupCard.items[0] : null
+  // Reactive expanded state from service
+  property bool expanded: NotificationService.expandedGroups[group.key] || false
 
-  readonly property int maxShow: Math.max(1, Number(groupCard.svc?.maxVisible || 1))
+  readonly property int maxShow: Math.max(1, Number(groupCard.svc?.maxVisibleNotifications || 1))
   readonly property var limitedItems: groupCard.items.slice(0, groupCard.maxShow)
 
-  // Urgency -> accent color
-  readonly property string _urgency: NotificationService._urgencyToString(latest?.urgency)
+  // Local urgency string for latest
+  readonly property string _urgency: (function () {
+      const u = groupCard.latest?.urgency ?? 0;
+      switch (u) {
+      case NotificationUrgency.Low:
+        return "low";
+      case NotificationUrgency.Critical:
+        return "critical";
+      default:
+        return "normal";
+      }
+    })()
   accentColor: _urgency === "critical" ? "#ff4d4f" : _urgency === "low" ? Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9) : Theme.activeColor
 
   function toggleExpand() {
-    if (!groupCard.group)
-      return;
-    groupCard.expanded = !groupCard.expanded;
-    if (groupCard.svc)
-      groupCard.svc.toggleGroup(groupCard.group.id, groupCard.expanded);
+    groupCard.svc.toggleGroupExpansion(groupCard.group.key);
   }
 
   function clearGroup() {
     if (!groupCard.svc)
       return;
-    groupCard.items.slice().forEach(w => groupCard.svc.dismissNotification(w));
+    groupCard.svc.dismissGroup(groupCard.group.key);
   }
 
   ColumnLayout {
     spacing: 6
 
-    // Header row: title, app, count, expand/collapse, clear
+    // Header row: appName, count, expand/collapse, clear
     RowLayout {
       Layout.fillWidth: true
       spacing: 8
@@ -61,7 +62,7 @@ CardBase {
         color: "white"
         elide: Text.ElideRight
         font.bold: true
-        text: (groupCard.group?.title || "(Group)") + " — " + (groupCard.group?.appName || "")
+        text: (groupCard.group?.appName || "(Group)") + ` (${groupCard.items.length})`  // No title; use appName + count
       }
 
       Rectangle {
@@ -116,13 +117,9 @@ CardBase {
         wrapper: groupCard.latest
         Layout.fillWidth: true
 
-        onActionTriggered: id => groupCard.svc.executeAction(wrapper.id, id)
-        onDismiss: groupCard.svc.dismissNotification(wrapper)
-        onReplySubmitted: text => {
-          const r = groupCard.svc.reply(wrapper.id, text);
-          if (r?.ok)
-            wrapper.popup = false;
-        }
+        onActionTriggered: id => groupCard.svc && groupCard.svc.executeAction(previewCard.wrapper, id)
+        onDismiss: groupCard.svc.dismissNotification(previewCard.wrapper)
+        // Reply omitted
       }
     }
 
@@ -135,17 +132,13 @@ CardBase {
         model: groupCard.limitedItems
 
         delegate: NotificationCard {
-          required property var modelData
+          required property var modelData  // Wrapper
           wrapper: modelData
           Layout.fillWidth: true
 
-          onActionTriggered: id => groupCard.svc.executeAction(modelData.id, id)
+          onActionTriggered: id => groupCard.svc && groupCard.svc.executeAction(modelData, id)
           onDismiss: groupCard.svc.dismissNotification(modelData)
-          onReplySubmitted: text => {
-            const r = groupCard.svc.reply(modelData.id, text);
-            if (r?.ok)
-              modelData.popup = false;
-          }
+          // Reply omitted
         }
       }
     }
