@@ -19,7 +19,7 @@ WlrLayershell {
     })
   property string mode: (modelData && modelData.mode) ? modelData.mode : "fill"
   readonly property int fillMode: fillModeMap[mode] ?? Image.PreserveAspectCrop
-
+  readonly property bool hasRealSize: width > 0 && height > 0
   property real centerX: (modelData && Number.isFinite(modelData.animCenterX)) ? Math.max(0, Math.min(1, modelData.animCenterX)) : 0.5
   property real centerY: (modelData && Number.isFinite(modelData.animCenterY)) ? Math.max(0, Math.min(1, modelData.animCenterY)) : 0.5
 
@@ -64,9 +64,10 @@ WlrLayershell {
     id: baseImg
     anchors.fill: parent
     fillMode: layerShell.fillMode
-    sourceSize: Qt.size(layerShell.width, layerShell.height)
-    source: layerShell.currentSrc
-    cache: false
+    source: layerShell.hasRealSize ? layerShell.currentSrc : ""
+    sourceSize: layerShell.hasRealSize ? Qt.size(layerShell.width, layerShell.height) : Qt.size(0, 0)
+    cache: true
+    asynchronous: true
     mipmap: false
     smooth: true
     layer.enabled: false
@@ -91,7 +92,7 @@ WlrLayershell {
       sourceSize: Qt.size(layerShell.width, layerShell.height)
       source: layerShell.pendingSrc
       asynchronous: true
-      cache: false
+      cache: true                  // + share decoded pixmap
       mipmap: false
       smooth: true
       layer.enabled: false
@@ -127,13 +128,16 @@ WlrLayershell {
 
   function _setPending(src) {
     const validated = (typeof src === "string" && src) ? src : currentSrc;
-    if (overlay.source === validated) {
-      // micro-jitter to force reload when identical
-      layerShell.pendingSrc = "";
-      layerShell.pendingSrc = validated + ((validated.indexOf("?") >= 0) ? "&" : "?") + "ts=" + Date.now();
-    } else {
+    if (validated === currentSrc || overlay.source === validated) {
+      // Same image → no reload; just animate transition again
       layerShell.pendingSrc = validated;
+      if (overlay.status === Image.Ready) {
+        clip.width = 0;
+        revealAnim.restart();
+      }
+      return;
     }
+    layerShell.pendingSrc = validated;
   }
 
   Component.onCompleted: applyModelData(modelData)
@@ -145,24 +149,25 @@ WlrLayershell {
     function onWallpaperChanged(name, path, cx, cy) {
       if (!name || !layerShell.modelData || name !== layerShell.modelData.name)
         return;
+
       if (revealAnim.running)
         revealAnim.complete();
+
       if (Number.isFinite(cx))
         layerShell.centerX = layerShell._clamp01(cx);
       if (Number.isFinite(cy))
         layerShell.centerY = layerShell._clamp01(cy);
+
       const newSrc = (typeof path === "string" && path) ? path : layerShell.currentSrc;
+
+      // Skip overlay if nothing actually changed (startup hydrate)
+      if (newSrc === layerShell.currentSrc)
+        return;
+
       layerShell._setPending(newSrc);
       clip.width = 0;
       if (overlay.status === Image.Ready)
         revealAnim.start();
-    }
-
-    function onModeChanged(name, mode) {
-      if (!name || !layerShell.modelData || name !== layerShell.modelData.name)
-        return;
-      if (typeof mode === "string" && mode)
-        layerShell.mode = mode;
     }
   }
 }

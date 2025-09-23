@@ -46,39 +46,40 @@ PanelWindow {
     color: Theme.bgColor
     height: Theme.panelHeight
     width: parent.width
-  }
-  LeftSide {
-    normalWorkspacesExpanded: panelWindow.workspacesExpanded
 
-    onNormalWorkspacesExpandedChanged: panelWindow.workspacesExpanded = normalWorkspacesExpanded
+    LeftSide {
+      normalWorkspacesExpanded: panelWindow.workspacesExpanded
 
-    anchors {
-      left: panelRect.left
-      leftMargin: Theme.panelMargin
-      verticalCenter: panelRect.verticalCenter
+      onNormalWorkspacesExpandedChanged: panelWindow.workspacesExpanded = normalWorkspacesExpanded
+
+      anchors {
+        left: panelRect.left
+        leftMargin: Theme.panelMargin
+        verticalCenter: panelRect.verticalCenter
+      }
     }
-  }
-  RightSide {
-    normalWorkspacesExpanded: panelWindow.rightSideExpanded
+    RightSide {
+      normalWorkspacesExpanded: panelWindow.rightSideExpanded
 
-    onNormalWorkspacesExpandedChanged: panelWindow.rightSideExpanded = normalWorkspacesExpanded
-    anchors {
-      right: panelRect.right
-      rightMargin: Theme.panelMargin
-      verticalCenter: panelRect.verticalCenter
+      onNormalWorkspacesExpandedChanged: panelWindow.rightSideExpanded = normalWorkspacesExpanded
+      anchors {
+        right: panelRect.right
+        rightMargin: Theme.panelMargin
+        verticalCenter: panelRect.verticalCenter
+      }
     }
-  }
-  CenterSide {
-    anchors.centerIn: panelRect
-    normalWorkspacesExpanded: panelWindow.centerShouldHide
-    // When workspaces (or volume) are expanded, hide center via opacity
-    opacity: panelWindow.centerShouldHide ? 0 : 1
-    visible: true
+    CenterSide {
+      anchors.centerIn: panelRect
+      normalWorkspacesExpanded: panelWindow.centerShouldHide
+      // When workspaces (or volume) are expanded, hide center via opacity
+      opacity: panelWindow.centerShouldHide ? 0 : 1
+      visible: true
 
-    Behavior on opacity {
-      NumberAnimation {
-        duration: Theme.animationDuration
-        easing.type: Easing.InOutQuad
+      Behavior on opacity {
+        NumberAnimation {
+          duration: Theme.animationDuration
+          easing.type: Easing.InOutQuad
+        }
       }
     }
   }
