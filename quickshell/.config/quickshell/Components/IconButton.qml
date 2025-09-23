@@ -34,28 +34,19 @@ Item {
   signal pressed(var mouse)
   signal released(var mouse)
   signal rightClicked
+  signal middleClicked
 
   height: implicitHeight
   implicitHeight: Theme.itemHeight
   implicitWidth: Theme.itemHeight
   width: implicitWidth
 
-  Keys.onReleased: event => {
-    if (!focusable || disabled || busy)
-      return;
-    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-      root.clicked(null);
-      root.leftClicked();
-      event.accepted = true;
-    }
-  }
-
   Rectangle {
     id: bgRect
 
     anchors.fill: parent
     antialiasing: true
-    color: root.effectiveBg
+    color: mouseArea.containsPress ? root.hoverBgColor : root.effectiveBg
     radius: Math.min(width, height) / 2
 
     Behavior on color {
@@ -68,23 +59,23 @@ Item {
     MouseArea {
       id: mouseArea
 
-      acceptedButtons: Qt.LeftButton | Qt.RightButton
+      acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       anchors.fill: parent
       cursorShape: (root.busy ? Qt.BusyCursor : (root.disabled ? Qt.ArrowCursor : Qt.PointingHandCursor))
       hoverEnabled: true
+      enabled: !root.disabled && !root.busy
 
       onClicked: function (mouse) {
-        if (root.busy || root.disabled)
-          return;
         root.clicked(mouse);
         if (mouse.button === Qt.LeftButton)
           root.leftClicked();
         else if (mouse.button === Qt.RightButton)
           root.rightClicked();
+        else if (mouse.button === Qt.MiddleButton)
+          root.middleClicked();
       }
       onEntered: {
-        if (!root.disabled)
-          root.hovered = true;
+        root.hovered = true;
         root.entered();
       }
       onExited: {
@@ -92,13 +83,9 @@ Item {
         root.exited();
       }
       onPressed: function (mouse) {
-        if (root.busy || root.disabled)
-          return;
         root.pressed(mouse);
       }
       onReleased: function (mouse) {
-        if (root.busy || root.disabled)
-          return;
         root.released(mouse);
       }
     }

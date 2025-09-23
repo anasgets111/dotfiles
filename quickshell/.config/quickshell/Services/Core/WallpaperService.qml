@@ -9,44 +9,61 @@ Singleton {
   id: wallpaperService
 
   // Defaults
-  readonly property string defaultMode: "fill"          // fill | fit | center | stretch | tile
+  readonly property string defaultMode: "fill"  // fill | fit | center | stretch | tile
   readonly property string defaultWallpaper: Settings.defaultWallpaper
 
   // State
   property bool hydrated: false
-  property var prefsByName: ({})                        // { [name]: { wallpaper: string, mode: string } }
-  property var animationCentersByName: ({})            // { [name]: { x: real, y: real } }
+  property var prefsByName: ({})  // { [monitorName]: { wallpaper: string, mode: string } }
+  property var animationCentersByName: ({})  // { [monitorName]: { x: real, y: real } }
 
   // Live flags
-  readonly property bool ready: !!(MonitorService.ready && MonitorService.monitors.count > 0)
+  readonly property bool ready: hydrated && MonitorService?.ready && MonitorService.monitors?.count > 0
 
-  // Derived model for UI
-  readonly property var monitors: Array.from({
-    length: (hydrated && MonitorService.ready) ? MonitorService.monitors.count : 0
-  }, (unused, i) => {
-    const m = MonitorService.monitors.get(i);
-    const p = prefsByName[m.name] || {};
-    const c = animationCentersByName[m.name] || {
+  // Derived model for UI (reactive; rebuilds on state/monitor changes)
+  readonly property var monitors: {
+    if (!ready)
+      return [];
+    const monitorsArray = [];
+    const defaultPreferences = {
+      wallpaper: defaultWallpaper,
+      mode: defaultMode
+    };
+    const defaultAnimationCenter = {
       x: 0.5,
       y: 0.5
     };
-    return {
-      name: m.name,
-      width: m.width,
-      height: m.height,
-      scale: m.scale,
-      fps: m.fps,
-      bitDepth: m.bitDepth,
-      orientation: m.orientation,
-      wallpaper: p.wallpaper || defaultWallpaper,
-      mode: p.mode || defaultMode,
-      animCenterX: c.x,
-      animCenterY: c.y
-    };
-  })
+    for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
+      const monitor = MonitorService.monitors.get(monitorIndex);
+      let preferences = prefsByName[monitor.name];
+      if (!preferences) {
+        preferences = defaultPreferences;
+        prefsByName[monitor.name] = preferences;  // Seed proactively.
+      }
+      let animationCenter = animationCentersByName[monitor.name];
+      if (!animationCenter) {
+        animationCenter = defaultAnimationCenter;
+        animationCentersByName[monitor.name] = animationCenter;  // Seed if missing.
+      }
+      monitorsArray.push({
+        name: monitor.name,
+        width: monitor.width,
+        height: monitor.height,
+        scale: monitor.scale,
+        fps: monitor.fps,
+        bitDepth: monitor.bitDepth,
+        orientation: monitor.orientation,
+        wallpaper: preferences.wallpaper,
+        mode: preferences.mode,
+        animCenterX: animationCenter.x,
+        animCenterY: animationCenter.y
+      });
+    }
+    return monitorsArray;
+  }
 
-  signal wallpaperChanged(string name, string path, real centerRelX, real centerRelY)
-  signal modeChanged(string name, string mode)
+  signal wallpaperChanged(string monitorName, string wallpaperPath, real centerRelX, real centerRelY)
+  signal modeChanged(string monitorName, string mode)
 
   // Internal helpers
   function _randomCenter() {
@@ -57,138 +74,140 @@ Singleton {
     };
   }
 
-  function _ensurePrefs(name) {
-    if (!prefsByName.hasOwnProperty(name)) {
-      prefsByName[name] = {
+  function _ensurePrefs(monitorName) {
+    if (!prefsByName[monitorName]) {
+      prefsByName[monitorName] = {
         wallpaper: defaultWallpaper,
         mode: defaultMode
       };
     }
-    return prefsByName[name];
-  }
-
-  function _persistMonitors() {
-    if (!hydrated || !(Settings && Settings.data))
-      return;
-    const out = {};
-    if (MonitorService && MonitorService.ready) {
-      for (let i = 0; i < MonitorService.monitors.count; i++) {
-        const n = MonitorService.monitors.get(i).name;
-        const p = prefsByName[n] || {};
-        out[n] = {
-          wallpaper: p.wallpaper || defaultWallpaper,
-          mode: p.mode || defaultMode
-        };
-      }
-    }
-    try {
-      Logger.log("WallpaperService", "Saving monitors JSON: " + JSON.stringify(out));
-    } catch (e) {
-      Logger.log("WallpaperService", "Saving monitors JSON: [stringify failed]");
-    }
-    try {
-      Settings.data["monitors"] = out;
-    } catch (e) {}
+    return prefsByName[monitorName];
   }
 
   function _announceAll() {
-    if (!hydrated || !MonitorService || !MonitorService.ready)
+    if (!hydrated || !MonitorService?.ready || !MonitorService.monitors?.count)
       return;
-    for (let i = 0; i < MonitorService.monitors.count; i++) {
-      const m = MonitorService.monitors.get(i);
-      if (!animationCentersByName.hasOwnProperty(m.name))
-        animationCentersByName[m.name] = _randomCenter();
-      const p = prefsByName[m.name] || {};
-      const c = animationCentersByName[m.name];
-      wallpaperService.wallpaperChanged(m.name, p.wallpaper || defaultWallpaper, c.x, c.y);
+    for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
+      const monitor = MonitorService.monitors.get(monitorIndex);
+      _ensurePrefs(monitor.name);  // Ensure prefs seeded.
+      let animationCenter = animationCentersByName[monitor.name];
+      if (!animationCenter) {
+        animationCenter = _randomCenter();  // Random for new/updated monitors.
+        animationCentersByName[monitor.name] = animationCenter;
+      }
+      const preferences = prefsByName[monitor.name];
+      wallpaperService.wallpaperChanged(monitor.name, preferences.wallpaper, animationCenter.x, animationCenter.y);
     }
   }
 
+  function _persistMonitors() {
+    if (!hydrated || !Settings?.data || !MonitorService?.ready || !MonitorService.monitors?.count)
+      return;
+    const wallpaperPreferences = {};
+    for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
+      const monitorName = MonitorService.monitors.get(monitorIndex).name;
+      const preferences = prefsByName[monitorName] || {};
+      wallpaperPreferences[monitorName] = {
+        wallpaper: preferences.wallpaper || defaultWallpaper,
+        mode: preferences.mode || defaultMode
+      };
+    }
+    try {
+      Settings.data.wallpapers = wallpaperPreferences;
+    } catch (error) {
+      Logger.log("WallpaperService", "Persist failed: " + error.message);
+    }
+    Logger.log("WallpaperService", `Saved wallpapers: ${Object.keys(wallpaperPreferences).length}`);
+  }
+
   // Public API
-  function setModePref(name, mode) {
-    if (!name)
+  function setModePref(monitorName, mode) {
+    if (!monitorName)
       return;
-    const p = _ensurePrefs(name);
-    p.mode = (typeof mode === "string" && !!mode) ? mode : defaultMode;
-    Logger.log("WallpaperService", `mode set: ${name} -> ${p.mode}`);
-    wallpaperService.modeChanged(name, p.mode);
+    const preferences = _ensurePrefs(monitorName);
+    preferences.mode = (typeof mode === "string" && mode) ? mode : defaultMode;
+    wallpaperService.modeChanged(monitorName, preferences.mode);
     _persistMonitors();
+    Logger.log("WallpaperService", `Mode set for ${monitorName}: ${preferences.mode}`);
   }
 
-  function setWallpaper(name, path) {
-    if (!name)
+  function setWallpaper(monitorName, wallpaperPath) {
+    if (!monitorName)
       return;
-    const p = _ensurePrefs(name);
-    p.wallpaper = (typeof path === "string" && !!path) ? path : defaultWallpaper;
-    const c = _randomCenter();
-    animationCentersByName[name] = c;
-    Logger.log("WallpaperService", `wallpaper set: ${name} -> ${p.wallpaper}`);
-    wallpaperService.wallpaperChanged(name, p.wallpaper, c.x, c.y);
+    const preferences = _ensurePrefs(monitorName);
+    preferences.wallpaper = (typeof wallpaperPath === "string" && wallpaperPath) ? wallpaperPath : defaultWallpaper;
+    const animationCenter = _randomCenter();
+    animationCentersByName[monitorName] = animationCenter;
+    wallpaperService.wallpaperChanged(monitorName, preferences.wallpaper, animationCenter.x, animationCenter.y);
     _persistMonitors();
+    Logger.log("WallpaperService", `Wallpaper set for ${monitorName}: ${preferences.wallpaper}`);
   }
 
-  function wallpaperFor(name) {
-    if (!name || !hydrated || !MonitorService || !MonitorService.ready)
+  function wallpaperFor(monitorName) {
+    if (!monitorName || !ready)
       return null;
-    const idx = MonitorService.findMonitorIndexByName(name);
-    if (idx < 0)
+    const monitorIndex = MonitorService.findMonitorIndexByName(monitorName);
+    if (monitorIndex < 0)
       return null;
-    const m = MonitorService.monitors.get(idx);
-    const p = prefsByName[name] || {};
-    const c = animationCentersByName[name] || {
-      x: 0.5,
-      y: 0.5
-    };
+    const monitor = MonitorService.monitors.get(monitorIndex);
+    _ensurePrefs(monitorName);  // Ensure seeded for this query.
+    let animationCenter = animationCentersByName[monitorName];
+    if (!animationCenter) {
+      animationCenter = {
+        x: 0.5,
+        y: 0.5
+      };
+      animationCentersByName[monitorName] = animationCenter;
+    }
+    const preferences = prefsByName[monitorName];
     return {
-      name,
-      width: m.width,
-      height: m.height,
-      scale: m.scale,
-      fps: m.fps,
-      bitDepth: m.bitDepth,
-      orientation: m.orientation,
-      wallpaper: p.wallpaper || defaultWallpaper,
-      mode: p.mode || defaultMode,
-      animCenterX: c.x,
-      animCenterY: c.y
+      name: monitor.name,
+      width: monitor.width,
+      height: monitor.height,
+      scale: monitor.scale,
+      fps: monitor.fps,
+      bitDepth: monitor.bitDepth,
+      orientation: monitor.orientation,
+      wallpaper: preferences.wallpaper,
+      mode: preferences.mode,
+      animCenterX: animationCenter.x,
+      animCenterY: animationCenter.y
     };
   }
 
   function hydrateFromSettings() {
-    if (!(Settings && Settings.data))
+    if (!Settings?.data || hydrated)
       return;
-    let map = {};
-    try {
-      map = Settings.data["monitors"] || {};
-    } catch (e) {}
-    try {
-      Logger.log("WallpaperService", "Loaded monitors JSON: " + JSON.stringify(map));
-    } catch (e) {
-      Logger.log("WallpaperService", "Loaded monitors JSON: [stringify failed]");
-    }
-    // Copy persisted prefs, ignore junk keys
-    for (const k in map) {
-      if (!map.hasOwnProperty(k))
-        continue;
-      const v = map[k] || {};
-      prefsByName[k] = {
-        wallpaper: (typeof v.wallpaper === "string" && v.wallpaper) ? v.wallpaper : defaultWallpaper,
-        mode: (typeof v.mode === "string" && v.mode) ? v.mode : defaultMode
+    const savedWallpapers = Settings.data.wallpapers || {};
+    for (const savedMonitorName in savedWallpapers) {
+      const savedPreferences = savedWallpapers[savedMonitorName] || {};
+      prefsByName[savedMonitorName] = {
+        wallpaper: (typeof savedPreferences.wallpaper === "string" && savedPreferences.wallpaper) ? savedPreferences.wallpaper : defaultWallpaper,
+        mode: (typeof savedPreferences.mode === "string" && savedPreferences.mode) ? savedPreferences.mode : defaultMode
       };
     }
-    // Seed current monitors if empty
-    if (Object.keys(prefsByName).length === 0 && MonitorService && MonitorService.ready) {
-      for (let i = 0; i < MonitorService.monitors.count; i++) {
-        _ensurePrefs(MonitorService.monitors.get(i).name);
+    // Seed current monitors if persisted was empty (initial setup), but defer if monitors not ready.
+    if (Object.keys(prefsByName).length === 0) {
+      if (MonitorService.ready) {
+        for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
+          _ensurePrefs(MonitorService.monitors.get(monitorIndex).name);
+        }
       }
+      // Else: Defer to onReadyChanged/onMonitorsUpdated.
     }
     hydrated = true;
-    _announceAll();
-    _persistMonitors();
-    Logger.log("WallpaperService", `hydrated monitors prefs: ${Object.keys(prefsByName).length}`);
+    if (MonitorService.ready)
+      wallpaperService._announceAll();
+    _persistMonitors();  // Save loaded/seeded state.
+    Logger.log("WallpaperService", `Hydrated wallpapers for ${Object.keys(prefsByName).length} monitors`);
   }
 
-  // Lifecycle wiring
+  // Lifecycle wiring (guards ensure precise sequencing on load/reopen)
+  Component.onCompleted: {
+    if (Settings && Settings.isLoaded && !hydrated)
+      hydrateFromSettings();
+  }
+
   Connections {
     target: Settings
     function onIsLoadedChanged() {
@@ -197,20 +216,26 @@ Singleton {
     }
   }
 
-  Component.onCompleted: {
-    if (Settings && Settings.isLoaded && !hydrated)
-      hydrateFromSettings();
-  }
-
   Connections {
     target: MonitorService
-    function onMonitorsUpdated() {
-      if (MonitorService.ready)
-        wallpaperService._announceAll();
-    }
     function onReadyChanged() {
-      if (MonitorService.ready)
+      if (MonitorService.ready && wallpaperService.hydrated) {
+        // Seed new monitors if not already (post-hydrate race).
+        for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
+          wallpaperService._ensurePrefs(MonitorService.monitors.get(monitorIndex).name);
+        }
         wallpaperService._announceAll();
+      }
+    }
+    function onMonitorsUpdated() {
+      if (MonitorService.ready && wallpaperService.hydrated) {
+        // Seed any new/updated monitors.
+        for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
+          wallpaperService._ensurePrefs(MonitorService.monitors.get(monitorIndex).name);
+        }
+        wallpaperService._announceAll();
+        wallpaperService._persistMonitors();  // Persist after update (includes new seeds).
+      }
     }
   }
 }
