@@ -16,6 +16,16 @@ Singleton {
   property bool hydrated: false
   property var prefsByName: ({})  // { [monitorName]: { wallpaper: string, mode: string } }
   property var animationCentersByName: ({})  // { [monitorName]: { x: real, y: real } }
+  // + add a cache for last emission
+  property var lastAnnouncedByName: ({})
+
+  // + tiny coalescing timer
+  Timer {
+    id: announceDebounce
+    interval: 50
+    repeat: false
+    onTriggered: wallpaperService._announceAll()
+  }
 
   // Live flags
   readonly property bool ready: hydrated && MonitorService?.ready && MonitorService.monitors?.count > 0
@@ -87,15 +97,28 @@ Singleton {
   function _announceAll() {
     if (!hydrated || !MonitorService?.ready || !MonitorService.monitors?.count)
       return;
-    for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
-      const monitor = MonitorService.monitors.get(monitorIndex);
-      _ensurePrefs(monitor.name);  // Ensure prefs seeded.
+    for (let i = 0; i < MonitorService.monitors.count; i++) {
+      const monitor = MonitorService.monitors.get(i);
+      _ensurePrefs(monitor.name);
+
       let animationCenter = animationCentersByName[monitor.name];
       if (!animationCenter) {
-        animationCenter = _randomCenter();  // Random for new/updated monitors.
+        animationCenter = _randomCenter();
         animationCentersByName[monitor.name] = animationCenter;
       }
+
       const preferences = prefsByName[monitor.name];
+      const prev = lastAnnouncedByName[monitor.name];
+      if (prev && prev.wallpaper === preferences.wallpaper && prev.mode === preferences.mode && prev.centerX === animationCenter.x && prev.centerY === animationCenter.y) {
+        continue; // unchanged → skip
+      }
+
+      lastAnnouncedByName[monitor.name] = {
+        wallpaper: preferences.wallpaper,
+        mode: preferences.mode,
+        centerX: animationCenter.x,
+        centerY: animationCenter.y
+      };
       wallpaperService.wallpaperChanged(monitor.name, preferences.wallpaper, animationCenter.x, animationCenter.y);
     }
   }
@@ -221,19 +244,17 @@ Singleton {
     function onReadyChanged() {
       if (MonitorService.ready && wallpaperService.hydrated) {
         // Seed new monitors if not already (post-hydrate race).
-        for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
-          wallpaperService._ensurePrefs(MonitorService.monitors.get(monitorIndex).name);
-        }
-        wallpaperService._announceAll();
+        for (let i = 0; i < MonitorService.monitors.count; i++)
+          wallpaperService._ensurePrefs(MonitorService.monitors.get(i).name);
+        announceDebounce.restart();
       }
     }
     function onMonitorsUpdated() {
       if (MonitorService.ready && wallpaperService.hydrated) {
         // Seed any new/updated monitors.
-        for (let monitorIndex = 0; monitorIndex < MonitorService.monitors.count; monitorIndex++) {
-          wallpaperService._ensurePrefs(MonitorService.monitors.get(monitorIndex).name);
-        }
-        wallpaperService._announceAll();
+        for (let i = 0; i < MonitorService.monitors.count; i++)
+          wallpaperService._ensurePrefs(MonitorService.monitors.get(i).name);
+        announceDebounce.restart();
         wallpaperService._persistMonitors();  // Persist after update (includes new seeds).
       }
     }

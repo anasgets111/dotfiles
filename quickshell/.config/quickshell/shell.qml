@@ -20,7 +20,6 @@ ShellRoot {
   id: root
 
   readonly property var ipc: IPC
-  readonly property var osd: OSDService
   readonly property var sysInfo: SystemInfoService
 
   Bar {
@@ -54,16 +53,19 @@ ShellRoot {
     LazyLoader {
       id: walLoader
       property var modelData
+      loading: WallpaperService.ready && !!modelData && !!modelData.name
+      active: WallpaperService.ready && !!modelData && !!modelData.name
 
-      active: WallpaperService.ready
       component: AnimatedWallpaper {
         modelData: walLoader.modelData
+        // inside AnimatedWallpaper, ensure:
+        // Image { asynchronous: true; cache: true; source: hasRealSize ? currentSrc : "" }
       }
     }
   }
 
   // Live clipboard
-  Connections {
-    target: ClipboardLiteService
-  }
+  // Connections {
+  //   target: ClipboardLiteService
+  // }
 }
