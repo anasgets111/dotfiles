@@ -111,7 +111,6 @@ Item {
               menu: slot.trayItem ? slot.trayItem.menu : null
             }
             Tooltip {
-              edge: Qt.BottomEdge
               hoverSource: btn.area
               target: btn
               text: SystemTrayService.tooltipTitleFor(slot.trayItem)

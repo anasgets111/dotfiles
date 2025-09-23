@@ -178,13 +178,9 @@ Item {
           powerMenu.cancelCountdown()
 
         Tooltip {
-          edge: Qt.BottomEdge
-          hAlign: Qt.AlignRight
-          xOffset: 80
           hoverSource: btn.area
           parent: powerMenu
           target: btn
-          visibleWhenTargetHovered: true
           text: powerMenu.counting ? (btn.isSelectedCounting ? `${btn.rec.tooltip} — ${powerMenu.countdown}s\nLeft click to execute now • Right click to cancel` : `${btn.rec.tooltip}\nRight click to cancel`) : btn.rec.tooltip
         }
       }
