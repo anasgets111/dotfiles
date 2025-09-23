@@ -80,9 +80,9 @@ Singleton {
       // applauncher
       property JsonObject appLauncher: JsonObject {}
 
-      // Per-monitor preferences map (dynamic keys)
-      // monitors: { "MONITOR_NAME": { wallpaper: string, mode: string } }
-      property var monitors: ({})
+      // Per-monitor wallpaper preferences map (dynamic keys)
+      // wallpapers: { "MONITOR_NAME": { wallpaper: string, mode: string } }
+      property var wallpapers: ({})
 
       // Idle Service settings (persisted)
       // These defaults act as fallbacks if not present in the user's settings file

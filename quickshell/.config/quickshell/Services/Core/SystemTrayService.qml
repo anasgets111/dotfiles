@@ -8,8 +8,8 @@ import qs.Services.Utils
 Singleton {
   id: systemTrayService
 
-  readonly property int count: systemTrayService.getModelCount(systemTrayService.items)
   readonly property var items: SystemTray.items
+  readonly property int count: (!items ? 0 : (items.count !== undefined ? Number(items.count) || 0 : (items.length !== undefined ? Number(items.length) || 0 : 0)))
 
   signal activated(var item)
   signal error(string message)
@@ -17,232 +17,177 @@ Singleton {
   signal menuTriggered(var item, var entry)
   signal secondaryActivated(var item)
 
-  function activateItem(itemRef) {
-    const trayItem = systemTrayService.getItemFromRef(itemRef);
-    if (!trayItem) {
-      systemTrayService.error("activate: invalid item");
-      return false;
-    }
-    try {
-      trayItem.activate();
-      systemTrayService.activated(trayItem);
-      return true;
-    } catch (exceptionObject) {
-      systemTrayService.error("activate: " + exceptionObject);
-      return false;
-    }
+  function modelCount(model) {
+    return !model ? 0 : (model.count !== undefined ? Number(model.count) || 0 : (model.length !== undefined ? Number(model.length) || 0 : 0));
   }
+  function getItemFromRef(itemRef) {
+    return !itemRef ? null : (typeof itemRef === "object" && typeof itemRef.activate === "function" ? itemRef : (typeof itemRef === "number" ? systemTrayService.itemAtIndex(itemRef) : null));
+  }
+  function itemAtIndex(index) {
+    const model = systemTrayService.items, total = systemTrayService.modelCount(model);
+    return (model && index >= 0 && index < total) ? (typeof model.get === "function" ? model.get(index) : (model[index] !== undefined ? model[index] : null)) : null;
+  }
+
+  function menuModelForItem(itemRef) {
+    const item = systemTrayService.getItemFromRef(itemRef);
+    return item ? (item.menu !== undefined ? item.menu : (item.contextMenu !== undefined ? item.contextMenu : null)) : null;
+  }
+  function hasMenuForItem(itemRef) {
+    return !!systemTrayService.menuModelForItem(itemRef);
+  }
+  function menuItemAtIndex(itemRef, index) {
+    const model = systemTrayService.menuModelForItem(itemRef), total = systemTrayService.modelCount(model);
+    return (model && index >= 0 && index < total) ? (typeof model.get === "function" ? model.get(index) : (model[index] !== undefined ? model[index] : null)) : null;
+  }
+
   function displayTitleFor(itemRef) {
-    const trayItem = systemTrayService.getItemFromRef(itemRef);
-    if (!trayItem)
-      return "";
-    return trayItem.title || trayItem.name || trayItem.appId || trayItem.id || "";
+    const item = systemTrayService.getItemFromRef(itemRef);
+    return item ? (item.title || item.name || item.appId || item.id || "") : "";
+  }
+  function tooltipTitleFor(itemRef) {
+    const item = systemTrayService.getItemFromRef(itemRef);
+    return item ? (item.tooltipTitle || systemTrayService.displayTitleFor(item)) : "";
   }
   function fallbackGlyphFor(itemRef) {
     const title = systemTrayService.tooltipTitleFor(itemRef) || systemTrayService.displayTitleFor(itemRef) || "?";
     return String(title).charAt(0).toUpperCase();
   }
-  function getItemFromRef(itemRef) {
-    if (!itemRef)
-      return null;
-    if (typeof itemRef === "object" && typeof itemRef.activate === "function")
-      return itemRef;
-    if (typeof itemRef === "number")
-      return systemTrayService.itemAtIndex(itemRef);
-    return null;
-  }
-  function getModelCount(model) {
-    if (!model)
-      return 0;
-    if (model.count !== undefined)
-      return Number(model.count) || 0;
-    if (model.length !== undefined)
-      return Number(model.length) || 0;
-    return 0;
-  }
+
   function getNormalizedIconSource(icon) {
     if (icon === undefined || icon === null)
       return "";
-    const iconSource = icon.toString();
-    const pathMarker = "?path=";
-    const markerIndex = iconSource.indexOf(pathMarker);
-    if (markerIndex === -1)
-      return iconSource;
-
-    const namePart = iconSource.substring(0, markerIndex);
-    const iconDirectoryPath = iconSource.substring(markerIndex + pathMarker.length);
-    const lastSlashIndex = Math.max(namePart.lastIndexOf("/"), namePart.lastIndexOf("\\"));
-    const iconFileName = lastSlashIndex >= 0 ? namePart.substring(lastSlashIndex + 1) : namePart;
-    if (!iconDirectoryPath || !iconFileName)
-      return iconSource;
-    return "file://" + iconDirectoryPath + "/" + iconFileName;
-  }
-  function handleItemClick(itemRef, mouseButton) {
-    if (mouseButton === Qt.LeftButton)
-      return systemTrayService.activateItem(itemRef);
-    return systemTrayService.secondaryActivateItem(itemRef);
-  }
-  function hasMenuForItem(itemRef) {
-    return !!systemTrayService.menuModelForItem(itemRef);
-  }
-  function itemAtIndex(index) {
-    const modelRef = systemTrayService.items;
-    if (!modelRef || index < 0 || index >= systemTrayService.count)
-      return null;
-    if (typeof modelRef.get === "function")
-      return modelRef.get(index);
-    return modelRef[index] !== undefined ? modelRef[index] : null;
-  }
-  function menuItemAtIndex(itemRef, index) {
-    const menuModel = systemTrayService.menuModelForItem(itemRef);
-    if (!menuModel || typeof index !== "number")
-      return null;
-
-    const entryCount = systemTrayService.getModelCount(menuModel);
-    if (index < 0 || index >= entryCount)
-      return null;
-
-    if (typeof menuModel.get === "function")
-      return menuModel.get(index);
-    return menuModel[index] !== undefined ? menuModel[index] : null;
-  }
-  function menuModelForItem(itemRef) {
-    const trayItem = systemTrayService.getItemFromRef(itemRef);
-    if (!trayItem)
-      return null;
-    if (trayItem.menu !== undefined)
-      return trayItem.menu;
-    if (trayItem.contextMenu !== undefined)
-      return trayItem.contextMenu;
-    return null;
+    const src = icon.toString(), mark = "?path=", at = src.indexOf(mark);
+    if (at === -1)
+      return src;
+    const namePart = src.substring(0, at), dir = src.substring(at + mark.length);
+    const lastSlash = Math.max(namePart.lastIndexOf("/"), namePart.lastIndexOf("\\"));
+    const file = lastSlash >= 0 ? namePart.substring(lastSlash + 1) : namePart;
+    return (!dir || !file) ? src : ("file://" + dir + "/" + file);
   }
   function normalizedIconFor(itemRef) {
-    const trayItem = systemTrayService.getItemFromRef(itemRef);
-    if (!trayItem)
+    const item = systemTrayService.getItemFromRef(itemRef);
+    if (!item)
       return "";
-
-    const directIcon = trayItem.icon !== undefined ? systemTrayService.getNormalizedIconSource(trayItem.icon) : "";
-    if (directIcon)
-      return directIcon;
-
-    const appIdentifier = trayItem.appId || trayItem.id || trayItem.title || trayItem.name || "";
-    if (appIdentifier) {
-      const resolvedIcon = Utils.resolveIconSource(String(appIdentifier), "");
-      if (resolvedIcon)
-        return resolvedIcon;
-    }
-    return "";
+    const direct = (item.icon !== undefined) ? systemTrayService.getNormalizedIconSource(item.icon) : "";
+    if (direct)
+      return direct;
+    const app = item.appId || item.id || item.title || item.name || "";
+    const resolved = app ? Utils.resolveIconSource(String(app), "") : "";
+    return resolved || "";
   }
-  function openMenuForItem(itemRef, posX, posY) {
-    const trayItem = systemTrayService.getItemFromRef(itemRef);
-    if (!trayItem) {
-      systemTrayService.error("openMenu: invalid item");
-      return false;
-    }
 
-    const positionArgs = (typeof posX === "number" && typeof posY === "number") ? [posX, posY] : [];
-    try {
-      const methodNames = ["showMenu", "openMenu", "popup", "openContextMenu"];
-      for (var methodIndex = 0; methodIndex < methodNames.length; methodIndex++) {
-        const methodName = methodNames[methodIndex];
-        if (typeof trayItem[methodName] === "function") {
-          trayItem[methodName].apply(trayItem, positionArgs);
-          systemTrayService.menuOpened(trayItem);
-          return true;
-        }
-      }
-    } catch (exceptionObject) {
-      systemTrayService.error("openMenu: " + exceptionObject);
-      return false;
-    }
-    return systemTrayService.secondaryActivateItem(trayItem);
-  }
-  function scrollItem(itemRef, deltaX, deltaY) {
-    const trayItem = systemTrayService.getItemFromRef(itemRef);
-    if (!trayItem)
-      return false;
-    try {
-      if (typeof trayItem.scroll === "function") {
-        trayItem.scroll(deltaX || 0, deltaY || 0);
+  function _callFirst(target, names, args) {
+    for (const name of names) {
+      const f = target[name];
+      if (typeof f === "function") {
+        f.apply(target, args);
         return true;
       }
-    } catch (exceptionObject) {
-      systemTrayService.error("scroll: " + exceptionObject);
-      return false;
     }
     return false;
   }
+
+  function activateItem(itemRef) {
+    const item = systemTrayService.getItemFromRef(itemRef);
+    if (!item) {
+      systemTrayService.error("activate: invalid item");
+      return false;
+    }
+    try {
+      item.activate();
+      systemTrayService.activated(item);
+      return true;
+    } catch (e) {
+      systemTrayService.error("activate: " + e);
+      return false;
+    }
+  }
   function secondaryActivateItem(itemRef) {
-    const trayItem = systemTrayService.getItemFromRef(itemRef);
-    if (!trayItem) {
+    const item = systemTrayService.getItemFromRef(itemRef);
+    if (!item) {
       systemTrayService.error("secondaryActivate: invalid item");
       return false;
     }
     try {
-      trayItem.secondaryActivate();
-      systemTrayService.secondaryActivated(trayItem);
+      item.secondaryActivate();
+      systemTrayService.secondaryActivated(item);
       return true;
-    } catch (exceptionObject) {
-      systemTrayService.error("secondaryActivate: " + exceptionObject);
+    } catch (e) {
+      systemTrayService.error("secondaryActivate: " + e);
       return false;
     }
   }
-  function tooltipTitleFor(itemRef) {
-    const trayItem = systemTrayService.getItemFromRef(itemRef);
-    if (!trayItem)
-      return "";
-    return trayItem.tooltipTitle || systemTrayService.displayTitleFor(trayItem);
+  function handleItemClick(itemRef, button) {
+    return button === Qt.LeftButton ? systemTrayService.activateItem(itemRef) : systemTrayService.secondaryActivateItem(itemRef);
   }
+
+  function openMenuForItem(itemRef, x, y) {
+    const item = systemTrayService.getItemFromRef(itemRef);
+    if (!item) {
+      systemTrayService.error("openMenu: invalid item");
+      return false;
+    }
+    const args = (typeof x === "number" && typeof y === "number") ? [x, y] : [];
+    try {
+      if (systemTrayService._callFirst(item, ["showMenu", "openMenu", "popup", "openContextMenu"], args)) {
+        systemTrayService.menuOpened(item);
+        return true;
+      }
+    } catch (e) {
+      systemTrayService.error("openMenu: " + e);
+      return false;
+    }
+    return systemTrayService.secondaryActivateItem(item);
+  }
+
+  function scrollItem(itemRef, dx, dy) {
+    const item = systemTrayService.getItemFromRef(itemRef);
+    if (!item)
+      return false;
+    try {
+      if (typeof item.scroll === "function") {
+        item.scroll(dx || 0, dy || 0);
+        return true;
+      }
+    } catch (e) {
+      systemTrayService.error("scroll: " + e);
+      return false;
+    }
+    return false;
+  }
+
   function triggerMenuItem(itemRef, key) {
-    const trayItem = systemTrayService.getItemFromRef(itemRef);
-    const menuModel = systemTrayService.menuModelForItem(itemRef);
-    if (!trayItem || !menuModel) {
+    const item = systemTrayService.getItemFromRef(itemRef), model = systemTrayService.menuModelForItem(itemRef);
+    if (!item || !model) {
       systemTrayService.error("triggerMenuItem: no menu or invalid item");
       return false;
     }
-
-    var chosenEntry = null;
-    if (typeof key === "number") {
-      chosenEntry = systemTrayService.menuItemAtIndex(trayItem, key);
-    } else if (typeof key === "string") {
-      const entryCount = systemTrayService.getModelCount(menuModel);
-      for (var indexIter = 0; indexIter < entryCount; indexIter++) {
-        const candidate = (typeof menuModel.get === "function") ? menuModel.get(indexIter) : (menuModel[indexIter] !== undefined ? menuModel[indexIter] : null);
-        if (!candidate)
-          continue;
-        const candidateName = candidate.id || candidate.key || candidate.name || candidate.text || candidate.title;
-        if (candidateName === key) {
-          chosenEntry = candidate;
+    let entry = null;
+    if (typeof key === "number")
+      entry = systemTrayService.menuItemAtIndex(item, key);
+    else if (typeof key === "string") {
+      const total = systemTrayService.modelCount(model);
+      for (let i = 0; i < total; i++) {
+        const c = (typeof model.get === "function") ? model.get(i) : (model[i] !== undefined ? model[i] : null);
+        const name = c && (c.id || c.key || c.name || c.text || c.title);
+        if (name === key) {
+          entry = c;
           break;
         }
       }
-    } else {
-      chosenEntry = key;
-    }
-
-    if (!chosenEntry) {
+    } else
+      entry = key;
+    if (!entry) {
       systemTrayService.error("triggerMenuItem: entry not found");
       return false;
     }
-
     try {
-      if (typeof chosenEntry.trigger === "function") {
-        chosenEntry.trigger();
-        systemTrayService.menuTriggered(trayItem, chosenEntry);
+      if (systemTrayService._callFirst(entry, ["trigger", "activate", "click"], [])) {
+        systemTrayService.menuTriggered(item, entry);
         return true;
       }
-      if (typeof chosenEntry.activate === "function") {
-        chosenEntry.activate();
-        systemTrayService.menuTriggered(trayItem, chosenEntry);
-        return true;
-      }
-      if (typeof chosenEntry.click === "function") {
-        chosenEntry.click();
-        systemTrayService.menuTriggered(trayItem, chosenEntry);
-        return true;
-      }
-    } catch (exceptionObject) {
-      systemTrayService.error("triggerMenuItem: " + exceptionObject);
+    } catch (e) {
+      systemTrayService.error("triggerMenuItem: " + e);
       return false;
     }
     systemTrayService.error("triggerMenuItem: no trigger method on entry");
