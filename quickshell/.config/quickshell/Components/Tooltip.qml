@@ -106,7 +106,7 @@ Item {
         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
         active: !!tooltip.contentComponent  // Always load for stable sizing
         sourceComponent: tooltip.contentComponent
-        visible: tooltip.shouldShow && status === Loader.Ready
+        visible: backgroundRect.opacity > 0 && status === Loader.Ready
       }
 
       Text {
@@ -119,7 +119,7 @@ Item {
         verticalAlignment: Text.AlignVCenter
         wrapMode: Text.NoWrap
         elide: Text.ElideNone
-        visible: tooltip.text.length > 0 && (contentLoader.status !== Loader.Ready || !tooltip.contentComponent)
+        visible: backgroundRect.opacity > 0 && tooltip.text.length > 0 && (contentLoader.status !== Loader.Ready || !tooltip.contentComponent)
       }
     }
   }
