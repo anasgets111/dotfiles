@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
-import Qt5Compat.GraphicalEffects
+import QtQuick.Effects
 import qs.Config
 
 Control {
@@ -34,6 +34,16 @@ Control {
   })
 
   // Background + shadow container
+  RectangularShadow {
+    id: cardShadow
+    anchors.fill: parent
+    radius: base.radius
+    color: Qt.rgba(0, 0, 0, 0.55)
+    offset: Qt.vector2d(0, 3)
+    blur: 24
+    spread: 0
+    antialiasing: true
+  }
   Rectangle {
     id: bg
     anchors.fill: parent
@@ -42,16 +52,6 @@ Control {
     border.width: 2
     // Fallback flat border color (right / bottom edges) – left edge emphasized by gradient stroke below
     border.color: Theme.borderColor
-    layer.enabled: true
-    layer.smooth: true
-    layer.effect: DropShadow {
-      horizontalOffset: 0
-      verticalOffset: 3
-      radius: 24
-      samples: 32
-      color: Qt.rgba(0, 0, 0, 0.55)
-      transparentBorder: true
-    }
   }
 
   // Gradient border overlay (accent on left fading to normal border color)
