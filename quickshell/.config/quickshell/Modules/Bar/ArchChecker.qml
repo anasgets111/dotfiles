@@ -57,7 +57,6 @@ Item {
   }
   Tooltip {
     contentComponent: UpdateService.totalUpdates > 0 ? updatesWithHeading : null
-    edge: Qt.BottomEdge
     hoverSource: button.area
     target: button
     text: UpdateService.totalUpdates === 0 ? qsTr("No updates available") : ""
