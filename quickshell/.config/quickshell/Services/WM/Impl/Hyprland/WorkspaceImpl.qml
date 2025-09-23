@@ -10,10 +10,13 @@ Singleton {
   id: hyprWs
 
   readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
+  // kept writable so facade Binding can override
+  property bool enabled: active
+
+  // live state
   property string activeSpecial: ""
   property int currentWorkspace: 1
   property int currentWorkspaceId: 1
-  property bool enabled: active
   property string focusedOutput: ""
   property var groupBoundaries: []
   property var monitors: []
@@ -27,14 +30,14 @@ Singleton {
       Hyprland.dispatch("workspace " + index);
   }
   function focusWorkspaceByObject(ws) {
-    if (enabled && ws && ws.id)
+    if (enabled && ws?.id)
       focusWorkspaceByIndex(ws.id);
   }
+
   function recompute() {
     try {
       const wsList = Hyprland.workspaces?.values || Hyprland.workspaces || [];
       const monList = Hyprland.monitors?.values || Hyprland.monitors || [];
-
       hyprWs.monitors = monList;
 
       const focusedMon = Hyprland.focusedMonitor || monList.find(m => m.focused);
@@ -57,20 +60,15 @@ Singleton {
         hyprWs.outputsOrder = [];
       }
 
-      // Only real (positive) workspaces; include output and focused flags
       const positive = wsList.filter(w => typeof w.id === "number" && w.id > 0);
       const specials = wsList.filter(w => typeof w.id === "number" && w.id < 0);
       hyprWs.specialWorkspaces = specials;
 
-      // Hypr workspace objects typically: { id, name, monitor, windows, hasfullscreen, ... , focused }
-      // Map monitor object to name; compute populated from windows count if available.
       const newWorkspaces = positive.map(w => {
-        let windowsCount = undefined;
+        let windowsCount;
         try {
           windowsCount = w.lastIpcObject?.windows;
-        } catch (_)
-        // lastIpcObject may be undefined until a refresh cycles in
-        {}
+        } catch (_) {}
         const outputName = (w.monitor && w.monitor.name) ? w.monitor.name : (typeof w.monitor === "string" ? w.monitor : "");
         return {
           id: w.id,
@@ -89,15 +87,11 @@ Singleton {
           hyprWs.previousWorkspace = hyprWs.currentWorkspace;
           hyprWs.currentWorkspace = newId;
           hyprWs.currentWorkspaceId = newId;
-          // leaving special if we go to positive
           if (hyprWs.activeSpecial && newId > 0)
             hyprWs.activeSpecial = "";
         }
-      } else
-      // No focused positive workspace reported; if activeSpecial exists, keep it, else keep current
-      {}
+      }
 
-      // Compute group boundaries based on outputsOrder and actual workspaces
       let acc = 0;
       const total = newWorkspaces.length;
       const bounds = [];
@@ -112,6 +106,7 @@ Singleton {
       Logger.log("HyprWs", "Recompute error: " + e);
     }
   }
+
   function refresh() {
     if (!enabled)
       return;
@@ -119,6 +114,7 @@ Singleton {
     Hyprland.refreshWorkspaces();
     Qt.callLater(recompute);
   }
+
   function toggleSpecial(name) {
     if (enabled && name)
       Hyprland.dispatch("togglespecialworkspace " + name);
@@ -127,7 +123,6 @@ Singleton {
   Component.onCompleted: {
     if (enabled)
       refresh();
-    // Perform a second, delayed refresh to ensure windows count and monitors settle after startup
     _startupKick.start();
   }
   onActiveChanged: {
@@ -149,6 +144,9 @@ Singleton {
     refresh()
 
   Connections {
+    enabled: hyprWs.enabled
+    target: enabled ? Hyprland : null
+
     function onFocusedMonitorChanged() {
       if (!enabled)
         return;
@@ -158,22 +156,17 @@ Singleton {
     function onRawEvent(evt) {
       if (!enabled || !evt?.name)
         return;
-
-      // Known Hyprland events: workspace, createworkspace, destroyworkspace,
-      // activespecial, closespecial, focusedmon, monitorremoved, monitoradded...
       switch (evt.name) {
       case "activespecial":
         {
           const name = evt.data?.split(",")[0] || "";
           hyprWs.activeSpecial = name;
-          // focus may have changed; recompute to sync outputs/workspaces
           hyprWs.recompute();
           break;
         }
       case "closespecial":
       case "specialworkspace":
         {
-          // depending on compositor version
           hyprWs.activeSpecial = "";
           hyprWs.recompute();
           break;
@@ -182,7 +175,6 @@ Singleton {
       case "createworkspace":
       case "destroyworkspace":
         {
-          // Instead of trusting evt payload, refresh and recompute for correctness
           Hyprland.refreshWorkspaces();
           Qt.callLater(hyprWs.recompute);
           break;
@@ -195,18 +187,30 @@ Singleton {
           Qt.callLater(hyprWs.recompute);
           break;
         }
+      case "closespecial":
+      case "specialworkspace":
+        {
+          hyprWs.activeSpecial = "";
+          Hyprland.refreshWorkspaces();
+          Qt.callLater(function () {
+            hyprWs.recompute();
+            Hyprland.dispatch("focuscurrentorlast"); // ensure focus returns to a real client
+          });
+          break;
+        }
       }
     }
-
-    enabled: hyprWs.enabled
-    target: enabled ? Hyprland : null
   }
-
-  // One-shot kick to stabilize initial state after load
+  Timer {
+    id: _specialDefocus
+    interval: 80
+    repeat: false
+    onTriggered: if (hyprWs.enabled)
+      Hyprland.dispatch("workspace " + (hyprWs.currentWorkspace || 1))
+  }
   Timer {
     id: _startupKick
     interval: 200
-    running: false
     repeat: false
     onTriggered: if (hyprWs.enabled)
       hyprWs.refresh()

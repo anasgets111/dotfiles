@@ -37,8 +37,8 @@ RowLayout {
     Item {
       id: cell
 
-      readonly property bool isActive: workspace.name === WorkspaceService.activeSpecial
-      readonly property string labelText: specialWorkspaces.getSpecialLabelByName(workspace.name)
+      readonly property bool isActive: (cell.workspace?.name || "") === WorkspaceService.activeSpecial
+      readonly property string labelText: specialWorkspaces.getSpecialLabelByName(cell.workspace?.name)
 
       // modelData can be null briefly during Hyprland workspace updates. Default to {} to avoid TypeErrors.
       required property var modelData
@@ -66,7 +66,7 @@ RowLayout {
         }
 
         onLeftClicked: {
-          const n = (cell.workspace.name || "").replace("special:", "");
+          const n = (cell.workspace?.name || "").replace("special:", "");
           WorkspaceService.toggleSpecial(n);
         }
       }
@@ -74,7 +74,7 @@ RowLayout {
         hAlign: Qt.AlignCenter
         hoverSource: button.area
         target: button
-        text: specialWorkspaces.capitalizeFirstLetter((cell.workspace.name || "").replace("special:", ""))
+        text: specialWorkspaces.capitalizeFirstLetter((cell.workspace?.name || "").replace("special:", ""))
       }
     }
   }

@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import qs.Config
+import qs.Services
 import qs.Services.WM
 import qs.Components
 
@@ -15,7 +15,7 @@ Item {
   property int hoveredIndex: 0
   // Compatibility: expose expanded for parents listening to onExpandedChanged
   property bool expanded: pill ? pill.expanded : false
-  readonly property bool isHyprlandSession: (Quickshell.env && (Quickshell.env("XDG_SESSION_DESKTOP") === "Hyprland" || Quickshell.env("XDG_CURRENT_DESKTOP") === "Hyprland" || Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")))
+  readonly property bool isHyprlandSession: MainService.currentWM === "hyprland"
   readonly property int slotH: Theme.itemHeight
   readonly property int slotW: Theme.itemWidth
   readonly property var slots: Array(10).fill(0).map((_, i) => i + 1)
