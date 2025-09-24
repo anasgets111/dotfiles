@@ -99,23 +99,19 @@ Item {
 
         delegate: IconButton {
           required property var modelData
-          // modelData may be transiently null; default to {} to avoid TypeErrors
           readonly property var ws: (modelData || ({}))
-
-          bgColor: root.wsColor(ws)
+          colorBg: root.wsColor(ws)
           height: root.slotH
-          iconText: "" + ws.idx
-          // All listed Niri workspaces exist; do not dim by populated to match Hyprland NormalWorkspaces
+          icon: "" + ws.idx
           opacity: 1
           width: root.slotW
-
+          tooltipText: qsTr("Workspace %1").arg(ws.idx)
           Behavior on opacity {
             NumberAnimation {
               duration: Theme.animationDuration
               easing.type: Easing.InOutQuad
             }
           }
-
           onEntered: {
             root.expanded = true;
             collapseTimer.stop();
@@ -126,10 +122,8 @@ Item {
               root.hoveredId = 0;
             collapseTimer.restart();
           }
-          onLeftClicked: {
-            if (!ws.is_focused)
-              WorkspaceService.focusWorkspaceByWs(ws);
-          }
+          onLeftClicked: if (!ws.is_focused)
+            WorkspaceService.focusWorkspaceByWs(ws)
         }
       }
       Repeater {

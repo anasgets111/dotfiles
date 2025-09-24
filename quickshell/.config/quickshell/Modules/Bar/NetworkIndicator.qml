@@ -74,56 +74,15 @@ Item {
 
   IconButton {
     id: iconButton
-    iconText: root.netIcon
+    icon: root.netIcon
+    // Combine key lines for tooltip (simple newline separated)
+    tooltipText: [root.title, root.detail1, root.detail2, root.secondary].filter(t => t && t.length > 0).join("\n")
     onClicked: {
       if (!root.ready)
         return;
       const iface = NetworkService.wifiInterface || (NetworkService.deviceList && NetworkService.firstWifiInterface ? NetworkService.firstWifiInterface() : "");
       if (iface && NetworkService.scanWifi)
         NetworkService.scanWifi(iface, true);
-    }
-  }
-
-  Tooltip {
-    hoverSource: iconButton.area
-    hAlign: Qt.AlignCenter
-    target: iconButton
-    contentComponent: Component {
-      Column {
-        spacing: 2
-
-        Text {
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          font.bold: true
-          text: root.title
-        }
-        Text {
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          opacity: 0.85
-          text: root.detail1
-          visible: text.length > 0
-        }
-        Text {
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          opacity: 0.65
-          text: root.detail2
-          visible: text.length > 0
-        }
-        Text {
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          opacity: 0.55
-          text: root.secondary
-          visible: text.length > 0
-        }
-      }
     }
   }
 }

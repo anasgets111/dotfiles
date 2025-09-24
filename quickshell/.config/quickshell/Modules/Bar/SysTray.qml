@@ -58,16 +58,36 @@ Item {
 
             IconButton {
               id: btn
-
               anchors.fill: parent
+              // We still need a custom visual because IconButton only displays text.
+              // Embed icon + fallback glyph as overlay children.
+              icon: ""  // leave empty so internal Text stays hidden; we'll manage visuals below
+              tooltipText: SystemTrayService.tooltipTitleFor(slot.trayItem)
 
-              contentItem: Item {
-                height: Theme.itemHeight
-                width: Theme.itemWidth
+              // Additional MouseArea just for wheel events (IconButton's own MouseArea consumes hover/click)
+              MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.NoButton
+                hoverEnabled: false
+                onWheel: function (w) {
+                  SystemTrayService.scrollItem(slot.trayItem, w.angleDelta.x, w.angleDelta.y);
+                }
+              }
+              onClicked: function (mouse) {
+                if (!mouse)
+                  return;
+                if (mouse.button === Qt.RightButton && SystemTrayService.hasMenuForItem(slot.trayItem)) {
+                  menuAnchor.open();
+                  return;
+                }
+                SystemTrayService.handleItemClick(slot.trayItem, mouse.button);
+              }
 
+              // Visual layer
+              Item {
+                anchors.fill: parent
                 IconImage {
                   id: iconImage
-
                   anchors.centerIn: parent
                   backer.fillMode: Image.PreserveAspectFit
                   backer.smooth: true
@@ -89,33 +109,17 @@ Item {
                   visible: !iconImage.visible
                 }
               }
-
-              area.onWheel: function (wheelEvent) {
-                SystemTrayService.scrollItem(slot.trayItem, wheelEvent.angleDelta.x, wheelEvent.angleDelta.y);
-              }
-              onClicked: function (mouse) {
-                if (!mouse)
-                  return;
-                if (mouse.button === Qt.RightButton && SystemTrayService.hasMenuForItem(slot.trayItem)) {
-                  menuAnchor.open();
-                  return;
-                }
-                SystemTrayService.handleItemClick(slot.trayItem, mouse.button);
-              }
             }
             QsMenuAnchor {
               id: menuAnchor
-
-              anchor.item: btn.area
+              // Anchor to the button itself (IconButton no longer exposes 'area')
+              anchor.item: btn
               anchor.rect.y: btn.height - 5
               menu: slot.trayItem ? slot.trayItem.menu : null
             }
-            Tooltip {
-              hoverSource: btn.area
-              target: btn
-              text: SystemTrayService.tooltipTitleFor(slot.trayItem)
-              visibleWhenTargetHovered: !!SystemTrayService.displayTitleFor(slot.trayItem)
-            }
+            // Gate tooltip visibility after creation
+            Component.onCompleted: if (!SystemTrayService.displayTitleFor(slot.trayItem))
+              btn.tooltipText = ""
           }
         }
       }

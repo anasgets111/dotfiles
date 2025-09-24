@@ -7,49 +7,55 @@ import qs.Config
 Item {
   id: root
 
-  property alias area: mouseArea
-  property color bgColor: Theme.inactiveColor
-  property bool busy: false
-  property alias contentItem: contentLoader.sourceComponent
-  property bool contentFills: false
-  property bool disabled: false
-  property color disabledBgColor: Theme.inactiveColor
-  readonly property color effectiveBg: disabled ? disabledBgColor : (hovered && !busy ? hoverBgColor : bgColor)
-  readonly property color fgColor: Theme.textContrast(effectiveBg)
-  property bool focusable: false
-  property color hoverBgColor: Theme.onHoverColor
-  property bool hovered: false
-  property font iconFont: Qt.font({
-    family: Theme.fontFamily,
-    pixelSize: Theme.fontSize,
-    bold: true
-  })
-  property string iconText: ""
+  // Public API ------------------------------------------------------
+  property string icon: ""
+  property string tooltipText: ""
+  property bool enabled: true
+  property bool allowClickWhenDisabled: false
+  property bool hovered: mouseArea.containsMouse && root.enabled
+
+  signal leftClicked
+
+  // Theming
+  property color colorBg: Theme.inactiveColor
+  property color colorBgHover: Theme.onHoverColor
+  property color colorFg: Theme.textContrast(colorBg)
+  property color colorFgHover: Theme.textContrast(colorBgHover)
+  property color colorBorder: Theme.inactiveColor
+  property color colorBorderHover: Theme.onHoverColor
+
+  // Derived
+  readonly property color effectiveBg: !enabled ? colorBg : (hovered ? colorBgHover : colorBg)
+  readonly property color effectiveFg: !enabled ? Theme.textContrast(colorBg) : (hovered ? colorFgHover : colorFg)
+
+  // Geometry
+  implicitWidth: Theme.itemHeight
+  implicitHeight: Theme.itemHeight
 
   // Signals
   signal clicked(var mouse)
-  signal entered
-  signal exited
-  signal leftClicked
-  signal pressed(var mouse)
-  signal released(var mouse)
   signal rightClicked
   signal middleClicked
-
-  height: implicitHeight
-  implicitHeight: Theme.itemHeight
-  implicitWidth: Theme.itemHeight
-  width: implicitWidth
+  signal entered
+  signal exited
+  signal pressed(var mouse)
+  signal released(var mouse)
 
   Rectangle {
     id: bgRect
-
     anchors.fill: parent
-    antialiasing: true
-    color: mouseArea.containsPress ? root.hoverBgColor : root.effectiveBg
     radius: Math.min(width, height) / 2
+    color: mouseArea.containsPress ? root.colorBgHover : root.effectiveBg
+    border.color: root.hovered ? root.colorBorderHover : root.colorBorder
+    border.width: 1
 
     Behavior on color {
+      ColorAnimation {
+        duration: Theme.animationDuration
+        easing.type: Easing.InOutQuad
+      }
+    }
+    Behavior on border.color {
       ColorAnimation {
         duration: Theme.animationDuration
         easing.type: Easing.InOutQuad
@@ -58,14 +64,31 @@ Item {
 
     MouseArea {
       id: mouseArea
-
-      acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       anchors.fill: parent
-      cursorShape: (root.busy ? Qt.BusyCursor : (root.disabled ? Qt.ArrowCursor : Qt.PointingHandCursor))
       hoverEnabled: true
-      enabled: !root.disabled && !root.busy
+      acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+      enabled: root.allowClickWhenDisabled || root.enabled
+      cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+
+      onEntered: function () {
+        root.entered();
+        if (root.tooltipText.length)
+          tooltip.isVisible = true;
+      }
+      onExited: function () {
+        root.exited();
+        if (root.tooltipText.length)
+          tooltip.isVisible = false;
+      }
+      onPressed: mouse => root.pressed(mouse)
+
+      onReleased: mouse => root.released(mouse)
 
       onClicked: function (mouse) {
+        if (root.tooltipText.length)
+          tooltip.isVisible = false;
+        if (!root.enabled && !root.allowClickWhenDisabled)
+          return;
         root.clicked(mouse);
         if (mouse.button === Qt.LeftButton)
           root.leftClicked();
@@ -74,39 +97,31 @@ Item {
         else if (mouse.button === Qt.MiddleButton)
           root.middleClicked();
       }
-      onEntered: {
-        root.hovered = true;
-        root.entered();
-      }
-      onExited: {
-        root.hovered = false;
-        root.exited();
-      }
-      onPressed: function (mouse) {
-        root.pressed(mouse);
-      }
-      onReleased: function (mouse) {
-        root.released(mouse);
-      }
     }
-    Item {
-      anchors.fill: parent
 
-      Loader {
-        id: contentLoader
-        anchors.fill: root.contentFills ? parent : undefined
-        anchors.centerIn: root.contentFills ? undefined : parent
-      }
-      Text {
-        anchors.centerIn: parent
-        color: root.fgColor
-        elide: Text.ElideNone
-        font: root.iconFont
-        horizontalAlignment: Text.AlignHCenter
-        text: root.iconText
-        verticalAlignment: Text.AlignVCenter
-        visible: contentLoader.status !== Loader.Ready && root.iconText.length > 0
+    Text {
+      id: iconLabel
+      anchors.centerIn: parent
+      text: root.icon
+      visible: root.icon.length > 0
+      color: root.effectiveFg
+      horizontalAlignment: Text.AlignHCenter
+      verticalAlignment: Text.AlignVCenter
+      font.family: Theme.fontFamily
+      font.pixelSize: Theme.fontSize
+      font.bold: true
+      Behavior on color {
+        ColorAnimation {
+          duration: Theme.animationDuration
+          easing.type: Easing.InOutQuad
+        }
       }
     }
+  }
+
+  Tooltip {
+    id: tooltip
+    text: root.tooltipText
+    target: root
   }
 }

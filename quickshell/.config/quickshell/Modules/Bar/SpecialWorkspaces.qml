@@ -54,27 +54,14 @@ RowLayout {
 
       IconButton {
         id: button
-
         anchors.fill: parent
-        bgColor: cell.isActive ? Theme.activeColor : Theme.inactiveColor
-
-        contentItem: Text {
-          anchors.centerIn: parent
-          color: Theme.textContrast(button.effectiveBg)
-          font.pixelSize: Theme.fontSize
-          text: cell.labelText
-        }
-
+        colorBg: cell.isActive ? Theme.activeColor : Theme.inactiveColor
+        icon: cell.labelText
+        tooltipText: specialWorkspaces.capitalizeFirstLetter((cell.workspace?.name || "").replace("special:", ""))
         onLeftClicked: {
           const n = (cell.workspace?.name || "").replace("special:", "");
           WorkspaceService.toggleSpecial(n);
         }
-      }
-      Tooltip {
-        hAlign: Qt.AlignCenter
-        hoverSource: button.area
-        target: button
-        text: specialWorkspaces.capitalizeFirstLetter((cell.workspace?.name || "").replace("special:", ""))
       }
     }
   }

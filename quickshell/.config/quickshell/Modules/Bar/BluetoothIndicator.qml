@@ -84,45 +84,9 @@ Item {
 
   IconButton {
     id: iconButton
-
-    disabled: true
-    iconText: root.btIcon
-  }
-  Tooltip {
-    hoverSource: iconButton.area
-    hAlign: Qt.AlignCenter
-    target: iconButton
-    contentComponent: Component {
-      Column {
-        spacing: 2
-        // Title
-        Text {
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          font.bold: true
-          text: root.titleText
-        }
-        // Detail 1
-        Text {
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          opacity: 0.85
-          text: root.detailText1
-          visible: text.length > 0
-        }
-        // Detail 2
-        Text {
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          opacity: 0.65
-          text: root.detailText2
-          visible: text.length > 0
-        }
-      }
-    }
+    enabled: false
+    icon: root.btIcon
+    tooltipText: [root.titleText, root.detailText1, root.detailText2].filter(t => t && t.length > 0).join("\n")
   }
 
   // Wire the service to the system's default adapter (simple and local)
