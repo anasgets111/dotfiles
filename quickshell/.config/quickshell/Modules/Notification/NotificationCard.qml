@@ -36,6 +36,11 @@ CardBase {
     })()
   accentColor: _urgency === "critical" ? "#ff4d4f" : _urgency === "low" ? Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9) : Theme.activeColor
 
+  // Horizontal inset for secondary content (body image, actions) so they align
+  // with the text column instead of starting under the app icon rectangle.
+  // Icon block = 40px + spacing(10) in the RowLayout above.
+  readonly property int leadingInset: (card.wrapper?.appIcon || card.wrapper?.appName) ? 50 : 0
+
   // Computed actionsModel from notification.actions (fallback to wrapper.actions)
   readonly property var actionsModel: (function () {
       let raw = [];
@@ -187,6 +192,8 @@ CardBase {
 
     Image {
       Layout.fillWidth: true
+      // Align with text column when an app icon is present
+      Layout.leftMargin: card.leadingInset
       Layout.preferredHeight: visible ? implicitHeight : 0
       antialiasing: true
       fillMode: Image.PreserveAspectFit
@@ -213,6 +220,8 @@ CardBase {
 
     Flow {
       Layout.fillWidth: true
+      // Maintain alignment with body text when icon present
+      Layout.leftMargin: card.leadingInset
       spacing: 6
       visible: (card.actionsModel || []).length > 0
 
