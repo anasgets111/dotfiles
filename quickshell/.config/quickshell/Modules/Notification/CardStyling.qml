@@ -8,7 +8,7 @@ Item {
   property color accentColor: Theme.activeColor
   property real radius: Theme.panelRadius
 
-  // Shadow
+  // Shadow (fast rectangular shadow)
   RectangularShadow {
     anchors.fill: parent
     radius: base.radius
@@ -28,7 +28,7 @@ Item {
     border.color: Theme.borderColor
   }
 
-  // Gradient border
+  // Gradient border stroke
   Canvas {
     id: borderCanvas
     anchors.fill: parent

@@ -12,11 +12,11 @@ Item {
   required property var wrapper
   property string mode: "card" // "card" or "list"
 
-  signal actionTriggered(string id)
   signal actionTriggeredEx(string id, var actionObject)
   signal dismiss
+  signal inputFocusRequested // Signal when text input needs focus
 
-  // Common properties
+  // Normalized accessors
   readonly property var notification: item.wrapper?.notification ?? item.wrapper
   readonly property string appName: notification?.appName || item.wrapper?.appName || ""
   readonly property string appIcon: notification?.appIcon || item.wrapper?.appIcon || ""
@@ -24,41 +24,40 @@ Item {
   readonly property string bodyText: notification?.body || item.wrapper?.body || ""
   readonly property bool hasInlineReply: !!notification?.hasInlineReply
   readonly property bool hasBodyText: bodyText && bodyText.trim() !== "" && bodyText.trim() !== summaryText.trim()
+  readonly property url contentImageSource: item.wrapper?.cleanImage || item.notification?.image || ""
 
   property bool bodyExpanded: false
-  property bool canExpandBody: hasBodyText && bodyText.length > 100 // Simple heuristic instead of hidden text
+  readonly property bool canExpandBody: hasBodyText && bodyText.length > 100
 
-  // Common urgency and styling
-  function urgencyToColor(urgency) {
-    switch (urgency) {
-    case NotificationUrgency.Critical:
-      return "#ff4d4f";
-    case NotificationUrgency.Low:
-      return Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9);
-    default:
-      return Theme.activeColor;
-    }
-  }
+  // Urgency styling
+  readonly property string urgency: (function () {
+      const u = notification?.urgency ?? NotificationUrgency.Normal;
+      switch (u) {
+      case NotificationUrgency.Low:
+        return "low";
+      case NotificationUrgency.Critical:
+        return "critical";
+      default:
+        return "normal";
+      }
+    })()
+  readonly property color accentColor: urgency === "critical" ? "#ff4d4f" : urgency === "low" ? Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9) : Theme.activeColor
 
-  readonly property color accentColor: urgencyToColor(notification?.urgency ?? NotificationUrgency.Normal)
-
-  // Common actions model
+  // Actions model (flat, stable id/title)
   readonly property var actionsModel: (function () {
       const list = notification?.actions || item.wrapper?.actions || [];
-      if (!list || !list.length)
-        return [];
-      return list.map(a => ({
+      return (list && list.length) ? list.map(a => ({
             id: String(a.identifier || a.id || a.name || ""),
             title: String(a.text || a.title || ""),
-            iconSource: (notification?.hasActionIcons && (a.identifier || "") ? Quickshell.iconPath(String(a.identifier), true) : ""),
+            iconSource: (notification?.hasActionIcons && (a.identifier || "")) ? Utils.resolveIconSource(String(a.identifier)) : "",
             _obj: a
-          }));
+          })) : [];
     })()
 
   implicitWidth: mode === "card" ? 380 : parent?.width ?? 380
   implicitHeight: content.implicitHeight + (mode === "card" ? 20 : 0)
 
-  // Card mode: Use CardBase-like styling with animation
+  // Card shell + slide-in
   Loader {
     active: item.mode === "card"
     anchors.fill: parent
@@ -72,8 +71,6 @@ Item {
         }
       }
       Component.onCompleted: Qt.callLater(() => _animReady = true)
-
-      // Card styling
       CardStyling {
         anchors.fill: parent
         accentColor: item.accentColor
@@ -81,7 +78,7 @@ Item {
     }
   }
 
-  // List mode: Simple hover background
+  // Hover highlight for list
   Rectangle {
     anchors.fill: parent
     radius: 6
@@ -91,17 +88,16 @@ Item {
 
   ColumnLayout {
     id: content
-    width: parent.width - (item.mode === "card" ? 20 : 0) // Account for CardBase padding
+    width: parent.width - (item.mode === "card" ? 20 : 0)
     x: item.mode === "card" ? 10 : 0
     y: item.mode === "card" ? 10 : 0
     spacing: item.mode === "card" ? 6 : 4
 
-    // Row 1: Icons and controls (different layout for card vs list)
     RowLayout {
       Layout.fillWidth: true
       spacing: 8
 
-      // Card mode: App icon on left
+      // App icon (card)
       Rectangle {
         Layout.preferredWidth: visible ? 40 : 0
         Layout.preferredHeight: visible ? 40 : 0
@@ -110,7 +106,6 @@ Item {
         color: Qt.rgba(1, 1, 1, 0.07)
         border.width: 1
         border.color: Qt.rgba(255, 255, 255, 0.05)
-
         Image {
           anchors.centerIn: parent
           width: 30
@@ -124,24 +119,23 @@ Item {
         }
       }
 
-      // List mode: Small content icon on left
+      // Content icon (list, small)
       Image {
         Layout.preferredWidth: visible ? 16 : 0
         Layout.preferredHeight: visible ? 16 : 0
-        visible: item.mode === "list" && !!(item.wrapper?.cleanImage || item.notification?.image)
+        visible: item.mode === "list" && !!item.contentImageSource
         fillMode: Image.PreserveAspectFit
         smooth: true
-        source: item.wrapper?.cleanImage || item.notification?.image || ""
+        source: item.contentImageSource
         onStatusChanged: if (status === Image.Error)
           visible = false
       }
 
-      // Card mode: Large content icon (in row 2 content area)
-      // List mode: Summary text
+      // Summary (list)
       Text {
         Layout.fillWidth: true
         visible: item.mode === "list"
-        color: Theme.textActiveColor
+        color: "#dddddd"
         font.pixelSize: 13
         elide: Text.ElideRight
         text: item.summaryText
@@ -149,76 +143,70 @@ Item {
         maximumLineCount: 2
       }
 
-      // Spacer for card mode
+      // Spacer (card)
       Item {
         Layout.fillWidth: true
         visible: item.mode === "card"
       }
 
-      // Expand button
+      // Expand toggle
       StandardButton {
         buttonType: "control"
         visible: item.canExpandBody
         text: item.bodyExpanded ? "▴" : "▾"
         Accessible.name: item.bodyExpanded ? "Collapse" : "Expand"
         onClicked: item.bodyExpanded = !item.bodyExpanded
-
-        // Smaller for list mode
         padding: item.mode === "list" ? 2 : 4
         leftPadding: item.mode === "list" ? 4 : 8
         rightPadding: item.mode === "list" ? 4 : 8
         font.pixelSize: item.mode === "list" ? 10 : 12
       }
 
-      // Dismiss button
+      // Dismiss
       StandardButton {
         buttonType: "control"
         text: "×"
         Accessible.name: "Dismiss notification"
         onClicked: item.dismiss()
-
-        // Smaller for list mode
         padding: item.mode === "list" ? 2 : 4
         leftPadding: item.mode === "list" ? 6 : 8
         rightPadding: item.mode === "list" ? 6 : 8
       }
     }
 
-    // Row 2: Card mode content (content icon + summary + expand arrow)
+    // Summary (card)
     RowLayout {
       Layout.fillWidth: true
       visible: item.mode === "card"
       spacing: 8
 
-      // Content icon for card mode
       Image {
         Layout.preferredWidth: visible ? 32 : 0
         Layout.preferredHeight: visible ? 32 : 0
-        visible: !!(item.wrapper?.cleanImage || item.notification?.image)
+        visible: !!item.contentImageSource
         fillMode: Image.PreserveAspectFit
         smooth: true
-        source: item.wrapper?.cleanImage || item.notification?.image || ""
+        source: item.contentImageSource
         onStatusChanged: if (status === Image.Error)
           visible = false
       }
 
-      // Summary text for card mode
       Text {
         Layout.fillWidth: true
-        color: Theme.textActiveColor
+        color: "white"
         font.bold: true
         elide: Text.ElideRight
         text: item.summaryText
       }
     }
 
-    // Body text (both modes)
+    // Body
     Text {
       Layout.fillWidth: true
-      Layout.preferredWidth: parent.width - (item.mode === "list" ? 24 : 0) // List mode left margin
+      Layout.preferredWidth: parent.width - (item.mode === "list" ? 24 : 0)
       Layout.leftMargin: item.mode === "list" ? 24 : 0
       visible: item.hasBodyText
-      color: Theme.textInactiveColor
+      color: "#bbbbbb"
       font.pixelSize: 12
       wrapMode: Text.WrapAnywhere
       textFormat: Text.PlainText
@@ -228,7 +216,7 @@ Item {
       onLinkActivated: url => Qt.openUrlExternally(url)
     }
 
-    // Actions row
+    // Actions
     RowLayout {
       Layout.fillWidth: true
       Layout.leftMargin: item.mode === "list" ? 24 : 0
@@ -246,9 +234,9 @@ Item {
             text: modelData.title || modelData.id || ""
             onClicked: {
               item.actionTriggeredEx(modelData.id, modelData._obj);
+              if (item.mode === "card")
+                item.dismiss();
             }
-
-            // Smaller for list mode
             padding: item.mode === "list" ? 4 : 6
             leftPadding: item.mode === "list" ? 8 : 12
             rightPadding: item.mode === "list" ? 8 : 12
@@ -258,7 +246,7 @@ Item {
       }
     }
 
-    // Inline reply row
+    // Inline reply
     RowLayout {
       Layout.fillWidth: true
       Layout.leftMargin: item.mode === "list" ? 24 : 0
@@ -273,13 +261,13 @@ Item {
         activeFocusOnPress: true
         font.pixelSize: item.mode === "list" ? 12 : 14
         padding: item.mode === "list" ? 6 : 8
-
         Keys.onReturnPressed: sendBtn.clicked()
         Keys.onEnterPressed: sendBtn.clicked()
 
-        MouseArea {
-          anchors.fill: parent
-          onClicked: parent.forceActiveFocus()
+        onActiveFocusChanged: {
+          if (activeFocus) {
+            item.inputFocusRequested();
+          }
         }
       }
 
@@ -292,7 +280,7 @@ Item {
         onClicked: {
           const replyText = String(replyField.text || "");
           try {
-            if (item.notification && item.notification.hasInlineReply && item.notification.sendInlineReply) {
+            if (item.notification?.hasInlineReply && item.notification.sendInlineReply) {
               item.notification.sendInlineReply(replyText);
             }
           } catch (e) {
@@ -304,17 +292,15 @@ Item {
     }
   }
 
-  // Common interaction handling
+  // Interaction and hover timer pause
   Keys.onEscapePressed: item.dismiss()
-
   MouseArea {
     id: mouseArea
     anchors.fill: parent
     acceptedButtons: Qt.MiddleButton
     hoverEnabled: true
     propagateComposedEvents: true
-
-    onClicked: item.dismiss() // Middle-click dismiss
+    onClicked: item.dismiss()
     onEntered: if (item.wrapper?.timer?.running)
       item.wrapper.timer.stop()
     onExited: if ((item.wrapper?.timer?.interval || 0) > 0 && !(item.wrapper?.timer?.running))

@@ -3,8 +3,8 @@ import QtQuick
 import Quickshell
 import QtQuick.Controls
 import Quickshell.Wayland
+import Quickshell.Services.Notifications
 import qs.Services.SystemInfo
-import qs.Config
 
 PanelWindow {
   id: layer
@@ -18,7 +18,7 @@ PanelWindow {
   visible: NotificationService.visibleNotifications.length > 0
 
   WlrLayershell.layer: WlrLayer.Overlay
-  WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+  WlrLayershell.keyboardFocus: popupColumn.interactionActive ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
   WlrLayershell.exclusiveZone: -1
 
   anchors {
@@ -53,37 +53,37 @@ PanelWindow {
       readonly property var svc: NotificationService
       property bool interactionActive: false
 
-      property var entries: {
-        const svc = popupColumn.svc;
-        const groups = (svc && svc.groupedPopups) ? svc.groupedPopups : [];
-        const max = Math.max(1, Number((svc && svc.maxVisibleNotifications) ? svc.maxVisibleNotifications : 1));
-        const out = [];
-        for (let i = 0; i < groups.length && out.length < max; i++) {
-          const g = groups[i];
-          if (!g || !g.notifications || g.notifications.length === 0)
-            continue;
-          if (g.count <= 1) {
-            out.push({
-              kind: "single",
-              wrapper: g.notifications[0]
-            });
-          } else {
-            out.push({
-              kind: "group",
-              group: {
-                key: g.key,
-                appName: g.appName,
-                notifications: g.notifications,
-                latestNotification: g.latestNotification,
-                count: g.count,
-                hasInlineReply: g.hasInlineReply,
-                expanded: svc && svc.expandedGroups ? (svc.expandedGroups[g.key] || false) : false
-              }
-            });
+      readonly property var entries: (function () {
+          const svc = popupColumn.svc;
+          const groups = svc?.groupedPopups ?? [];
+          const max = Math.max(1, Number(svc?.maxVisibleNotifications ?? 1));
+          const out = [];
+          for (let i = 0; i < groups.length && out.length < max; i++) {
+            const g = groups[i];
+            if (!g?.notifications?.length)
+              continue;
+            if (g.count <= 1) {
+              out.push({
+                kind: "single",
+                wrapper: g.notifications[0]
+              });
+            } else {
+              out.push({
+                kind: "group",
+                group: {
+                  key: g.key,
+                  appName: g.appName,
+                  notifications: g.notifications,
+                  latestNotification: g.latestNotification,
+                  count: g.count,
+                  hasInlineReply: g.hasInlineReply,
+                  expanded: svc?.expandedGroups ? (svc.expandedGroups[g.key] || false) : false
+                }
+              });
+            }
           }
-        }
-        return out;
-      }
+          return out;
+        })()
 
       Repeater {
         model: popupColumn.entries
@@ -102,8 +102,6 @@ PanelWindow {
               onTapped: {
                 if (!popupColumn.interactionActive) {
                   popupColumn.interactionActive = true;
-                  if (layer.WlrLayershell)
-                    layer.WlrLayershell.keyboardFocus = WlrKeyboardFocus.OnDemand;
                 }
               }
             }
@@ -115,6 +113,7 @@ PanelWindow {
                 mode: "card"
                 onActionTriggeredEx: (id, actionObj) => popupColumn.svc && popupColumn.svc.executeAction(del.modelData.wrapper, id, actionObj)
                 onDismiss: popupColumn.svc.dismissNotification(del.modelData.wrapper)
+                onInputFocusRequested: popupColumn.interactionActive = true
               }
             }
 
@@ -123,6 +122,7 @@ PanelWindow {
               sourceComponent: GroupCard {
                 group: del.modelData.group
                 svc: popupColumn.svc
+                onInputFocusRequested: popupColumn.interactionActive = true
               }
             }
           }
@@ -135,7 +135,7 @@ PanelWindow {
     id: dndBanner
     anchors.horizontalCenter: parent.horizontalCenter
     anchors.top: parent.top
-    color: Theme.warning
+    color: Qt.rgba(0.95, 0.55, 0.10, 0.9)
     height: 28
     radius: 6
     width: txt.implicitWidth + 24
@@ -144,7 +144,7 @@ PanelWindow {
     Text {
       id: txt
       anchors.centerIn: parent
-      color: Theme.textContrast(Theme.warning)
+      color: "black"
       text: "Do Not Disturb Enabled"
     }
   }
