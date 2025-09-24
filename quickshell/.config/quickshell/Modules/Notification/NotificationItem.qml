@@ -29,19 +29,18 @@ Item {
   property bool canExpandBody: hasBodyText && bodyText.length > 100 // Simple heuristic instead of hidden text
 
   // Common urgency and styling
-  readonly property string urgency: (function () {
-      const u = notification?.urgency ?? NotificationUrgency.Normal;
-      switch (u) {
-      case NotificationUrgency.Low:
-        return "low";
-      case NotificationUrgency.Critical:
-        return "critical";
-      default:
-        return "normal";
-      }
-    })()
+  function urgencyToColor(urgency) {
+    switch (urgency) {
+    case NotificationUrgency.Critical:
+      return "#ff4d4f";
+    case NotificationUrgency.Low:
+      return Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9);
+    default:
+      return Theme.activeColor;
+    }
+  }
 
-  readonly property color accentColor: urgency === "critical" ? "#ff4d4f" : urgency === "low" ? Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9) : Theme.activeColor
+  readonly property color accentColor: urgencyToColor(notification?.urgency ?? NotificationUrgency.Normal)
 
   // Common actions model
   readonly property var actionsModel: (function () {
@@ -142,7 +141,7 @@ Item {
       Text {
         Layout.fillWidth: true
         visible: item.mode === "list"
-        color: "#dddddd"
+        color: Theme.textActiveColor
         font.pixelSize: 13
         elide: Text.ElideRight
         text: item.summaryText
@@ -206,7 +205,7 @@ Item {
       // Summary text for card mode
       Text {
         Layout.fillWidth: true
-        color: "white"
+        color: Theme.textActiveColor
         font.bold: true
         elide: Text.ElideRight
         text: item.summaryText
@@ -219,7 +218,7 @@ Item {
       Layout.preferredWidth: parent.width - (item.mode === "list" ? 24 : 0) // List mode left margin
       Layout.leftMargin: item.mode === "list" ? 24 : 0
       visible: item.hasBodyText
-      color: "#bbbbbb"
+      color: Theme.textInactiveColor
       font.pixelSize: 12
       wrapMode: Text.WrapAnywhere
       textFormat: Text.PlainText
@@ -246,10 +245,7 @@ Item {
             buttonType: "action"
             text: modelData.title || modelData.id || ""
             onClicked: {
-              item.actionTriggered(modelData.id);
               item.actionTriggeredEx(modelData.id, modelData._obj);
-              if (item.mode === "card")
-                item.dismiss();
             }
 
             // Smaller for list mode
