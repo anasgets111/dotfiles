@@ -62,9 +62,6 @@ Item {
 
         colorBg: normalWorkspaces.wsColor(idNum)
         icon: "" + idNum
-        tooltipText: qsTr("Workspace %1").arg(idNum)
-
-        // Dim if the workspace doesn't exist in the backing list
         opacity: !!normalWorkspaces.backingWorkspaces.find(w => w.id === idNum) ? 1 : 0.5
 
         Behavior on opacity {

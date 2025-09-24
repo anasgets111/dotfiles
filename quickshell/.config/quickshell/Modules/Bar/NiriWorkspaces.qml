@@ -105,7 +105,6 @@ Item {
           icon: "" + ws.idx
           opacity: 1
           width: root.slotW
-          tooltipText: qsTr("Workspace %1").arg(ws.idx)
           Behavior on opacity {
             NumberAnimation {
               duration: Theme.animationDuration
