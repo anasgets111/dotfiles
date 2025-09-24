@@ -3,7 +3,6 @@ import QtQuick
 import Quickshell
 import QtQuick.Controls
 import Quickshell.Wayland
-import qs.Components
 import qs.Services.SystemInfo
 
 PanelWindow {
