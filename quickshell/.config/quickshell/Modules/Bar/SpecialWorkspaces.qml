@@ -58,7 +58,7 @@ RowLayout {
         colorBg: cell.isActive ? Theme.activeColor : Theme.inactiveColor
         icon: cell.labelText
         tooltipText: specialWorkspaces.capitalizeFirstLetter((cell.workspace?.name || "").replace("special:", ""))
-        onLeftClicked: {
+        onClicked: {
           const n = (cell.workspace?.name || "").replace("special:", "");
           WorkspaceService.toggleSpecial(n);
         }

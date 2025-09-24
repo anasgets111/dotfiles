@@ -77,7 +77,7 @@ Item {
         onEntered: normalWorkspaces.hoveredIndex = idNum
         onExited: if (normalWorkspaces.hoveredIndex === idNum)
           normalWorkspaces.hoveredIndex = 0
-        onLeftClicked: if (idNum !== normalWorkspaces.currentWorkspace)
+        onClicked: if (idNum !== normalWorkspaces.currentWorkspace)
           WorkspaceService.focusWorkspaceByIndex(idNum)
       }
     }

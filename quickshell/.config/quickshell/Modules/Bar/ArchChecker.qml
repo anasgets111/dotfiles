@@ -27,7 +27,7 @@ Item {
             lines.push(qsTr("…and %1 more").arg(pkgs.length - maxLines));
           return [header].concat(lines).join("\n");
         })())
-    onLeftClicked: {
+    onClicked: {
       if (UpdateService.busy)
         return;
       if (UpdateService.totalUpdates > 0)
