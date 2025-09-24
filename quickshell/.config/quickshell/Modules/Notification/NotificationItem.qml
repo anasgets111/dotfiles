@@ -247,6 +247,7 @@ Item {
 
     // Inline reply
     Loader {
+      Layout.fillWidth: true
       active: item.hasInlineReply
       sourceComponent: RowLayout {
         Layout.fillWidth: true
@@ -256,6 +257,8 @@ Item {
         TextField {
           id: replyField
           Layout.fillWidth: true
+          Layout.minimumWidth: 0
+          Layout.preferredWidth: 200
           placeholderText: item.notification?.inlineReplyPlaceholder || "Reply"
           selectByMouse: true
           activeFocusOnPress: true
@@ -268,6 +271,14 @@ Item {
             if (activeFocus) {
               item.inputFocusRequested();
             }
+          }
+
+          background: Rectangle {
+            anchors.fill: parent
+            radius: Theme.itemRadius
+            color: Theme.bgColor
+            border.width: 1
+            border.color: replyField.activeFocus ? Theme.activeColor : Theme.borderColor
           }
         }
 
