@@ -174,5 +174,4 @@ Singleton {
         root.manualActive = null;
     }
   }
-
 }
