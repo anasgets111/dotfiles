@@ -68,11 +68,9 @@ Item {
     Column {
       id: tooltipColumn
 
-      property real widest: Math.max(firstRow.width, calendar.width)
-
       anchors.centerIn: parent
       spacing: 6
-      width: widest
+      width: implicitWidth
 
       // First row: description and place
       Row {
@@ -99,13 +97,19 @@ Item {
         }
       }
 
-      // Second row: extracted MinimalCalendar component
-      MinimalCalendar {
-        id: calendar
-
-        theme: Theme
-        today: TimeService.now
-        weekStart: 6
+      // Load the calendar immediately (simple Loader vs LazyLoader to avoid hover teardown issues)
+      Loader {
+        id: calendarLoader
+        // Always load the calendar so it is ready instantly when tooltip appears
+        asynchronous: false
+        active: true
+        sourceComponent: MinimalCalendar {
+          id: calendar
+          theme: Theme
+          // Ensure 'today' is a Date object for MinimalCalendar
+          today: TimeService.now
+          weekStart: 6
+        }
       }
     }
   }
