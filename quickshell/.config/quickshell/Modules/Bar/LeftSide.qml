@@ -11,23 +11,26 @@ Row {
 
   spacing: 8
 
-  PowerMenu {
-    anchors.verticalCenter: parent.verticalCenter
+  Loader {
+    active: true
+    sourceComponent: PowerMenu {
+      anchors.verticalCenter: leftSide.verticalCenter
+    }
   }
   Loader {
     active: MainService.isArchBased
 
     sourceComponent: ArchChecker {
-      anchors.verticalCenter: parent.verticalCenter
+      anchors.verticalCenter: leftSide.verticalCenter
     }
   }
   IdleInhibitor {
     id: idleInhibitor
 
-    anchors.verticalCenter: parent.verticalCenter
+    anchors.verticalCenter: leftSide.verticalCenter
   }
   KeyboardLayoutIndicator {
-    anchors.verticalCenter: parent.verticalCenter
+    anchors.verticalCenter: leftSide.verticalCenter
   }
   Loader {
     active: BatteryService.isLaptopBattery
