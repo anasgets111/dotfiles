@@ -101,8 +101,9 @@ Item {
       Loader {
         id: calendarLoader
         // Always load the calendar so it is ready instantly when tooltip appears
-        asynchronous: false
-        active: true
+        asynchronous: true
+        active: dateTimeMouseArea.containsMouse
+        visible: dateTimeMouseArea.containsMouse
         sourceComponent: MinimalCalendar {
           id: calendar
           theme: Theme
