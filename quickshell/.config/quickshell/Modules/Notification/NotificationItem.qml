@@ -196,10 +196,10 @@ Item {
 
     // Body
     Loader {
+      Layout.fillWidth: true
       active: item.hasBodyText
       sourceComponent: Text {
         Layout.fillWidth: true
-        Layout.preferredWidth: parent.parent.parent.width - (item.mode === "list" ? 24 : 0)
         Layout.leftMargin: item.mode === "list" ? 24 : 0
         color: "#bbbbbb"
         font.pixelSize: 12
