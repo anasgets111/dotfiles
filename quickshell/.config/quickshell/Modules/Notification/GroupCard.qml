@@ -1,33 +1,25 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Services.Notifications
 import qs.Services.SystemInfo
 import qs.Config
 
-CardBase {
+Item {
   id: groupCard
-
-  required property var group // New structure: { key, appName, notifications, latestNotification, count, hasInlineReply, expanded }
-  // Provide access to service
-  property var svc: NotificationService
+  required property var group
+  property var svc
 
   implicitWidth: 380
-  shown: groupCard.items.length > 0  // All items are popups by construction of groupedPopups
+  implicitHeight: cardContent.implicitHeight + 20
 
-  // Visible wrappers in this group (already filtered/sorted in groupedPopups)
   readonly property var items: groupCard.group?.notifications || []
   readonly property var latest: groupCard.items.length > 0 ? groupCard.items[0] : null
-  // Reactive expanded state from service
   property bool expanded: NotificationService.expandedGroups[group.key] || false
 
-  readonly property int maxShow: Math.max(1, Number(groupCard.svc?.maxVisibleNotifications || 1))
-  readonly property var limitedItems: groupCard.items.slice(0, groupCard.maxShow)
-
-  // Local urgency string for latest
   readonly property string _urgency: (function () {
-      const u = groupCard.latest?.urgency ?? 0;
+      const u = latest?.urgency ?? NotificationUrgency.Normal;
       switch (u) {
       case NotificationUrgency.Low:
         return "low";
@@ -37,130 +29,131 @@ CardBase {
         return "normal";
       }
     })()
-  accentColor: _urgency === "critical" ? "#ff4d4f" : _urgency === "low" ? Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9) : Theme.activeColor
+  readonly property color accentColor: _urgency === "critical" ? "#ff4d4f" : _urgency === "low" ? Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9) : Theme.activeColor
 
   function toggleExpand() {
-    groupCard.svc.toggleGroupExpansion(groupCard.group.key);
+    groupCard.svc && groupCard.svc.toggleGroupExpansion(groupCard.group.key);
+  }
+  function clearGroup() {
+    if (groupCard.svc)
+      groupCard.svc.dismissGroup(groupCard.group.key);
   }
 
-  function clearGroup() {
-    if (!groupCard.svc)
-      return;
-    groupCard.svc.dismissGroup(groupCard.group.key);
+  // Animation
+  property bool _animReady: false
+  x: !_animReady ? width + (Theme.popupOffset || 12) : 0
+  Behavior on x {
+    NumberAnimation {
+      duration: (Theme.animationDuration || 200) * 1.4
+      easing.type: Easing.OutCubic
+    }
+  }
+  Component.onCompleted: Qt.callLater(() => _animReady = true)
+
+  // Card styling
+  CardStyling {
+    anchors.fill: parent
+    accentColor: groupCard.accentColor
   }
 
   ColumnLayout {
+    id: cardContent
+    anchors.fill: parent
+    anchors.margins: 10
     spacing: 6
 
-    // Header row: appName, count, expand/collapse, clear
+    // Row 1: Control Row - App icon LEFT, Expand + Clear buttons RIGHT
     RowLayout {
       Layout.fillWidth: true
       spacing: 8
 
-      Text {
-        Layout.fillWidth: true
-        color: "white"
-        elide: Text.ElideRight
-        font.bold: true
-        text: (groupCard.group?.appName || "(Group)") + ` (${groupCard.items.length})`  // No title; use appName + count
+      // Left: App icon (simplified inline version)
+      Rectangle {
+        Layout.preferredWidth: 40
+        Layout.preferredHeight: 40
+        radius: 8
+        color: Qt.rgba(1, 1, 1, 0.07)
+        border.width: 1
+        border.color: Qt.rgba(255, 255, 255, 0.05)
+        visible: !!(groupCard.group?.appName)
+        Image {
+          anchors.centerIn: parent
+          width: 30
+          height: 30
+          fillMode: Image.PreserveAspectFit
+          smooth: true
+          source: Quickshell.iconPath(groupCard.group?.appName || "", true)
+          sourceSize.width: 64
+          sourceSize.height: 64
+          onStatusChanged: if (status === Image.Error)
+            parent.visible = false
+        }
       }
 
-      Rectangle {
-        Layout.preferredWidth: implicitWidth
-        implicitHeight: 20
-        implicitWidth: Math.max(22, countText.implicitWidth + 12)
-        radius: 10
-        color: Qt.rgba(1, 1, 1, 0.08)
-        border.width: 1
-        border.color: Qt.rgba(255, 255, 255, 0.07)
+      // Center spacer
+      Item {
+        Layout.fillWidth: true
+      }
 
-        MouseArea {
-          anchors.fill: parent
-          cursorShape: Qt.PointingHandCursor
+      // Right: Control buttons
+      RowLayout {
+        spacing: 6
+
+        StandardButton {
+          buttonType: "control"
+          text: groupCard.expanded ? "▴" : "▾"
+          Accessible.name: groupCard.expanded ? "Collapse" : "Expand"
           onClicked: groupCard.toggleExpand()
         }
 
-        Text {
-          id: countText
-          anchors.centerIn: parent
-          color: "#e0e0e0"
-          font.pixelSize: 11
-          text: String(groupCard.items.length)
+        StandardButton {
+          buttonType: "control"
+          text: "×"
+          Accessible.name: "Clear group"
+          visible: groupCard.items.length > 0
+          onClicked: groupCard.clearGroup()
         }
-      }
-
-      ToolButton {
-        id: expandBtn
-        text: groupCard.expanded ? "▴" : "▾"
-        display: AbstractButton.TextOnly
-        Accessible.name: groupCard.expanded ? "Collapse" : "Expand"
-        visible: !!groupCard.group
-        onClicked: groupCard.toggleExpand()
-        background: Rectangle {
-          radius: 10
-          color: expandBtn.hovered ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.08)
-          border.width: 1
-          border.color: Qt.rgba(255, 255, 255, 0.07)
-        }
-        padding: 4
-        leftPadding: 8
-        rightPadding: 8
-      }
-
-      ToolButton {
-        id: clearBtn
-        text: "×"
-        display: AbstractButton.TextOnly
-        Accessible.name: "Clear group"
-        visible: !!groupCard.group && groupCard.items.length > 0
-        onClicked: groupCard.clearGroup()
-        background: Rectangle {
-          radius: 10
-          color: clearBtn.hovered ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.08)
-          border.width: 1
-          border.color: Qt.rgba(255, 255, 255, 0.07)
-        }
-        padding: 4
-        leftPadding: 8
-        rightPadding: 8
       }
     }
 
-    // Collapsed: preview latest
-    Item {
-      implicitHeight: previewCard.implicitHeight
-      implicitWidth: previewCard.implicitWidth
-      visible: !!groupCard.group && !groupCard.expanded && !!groupCard.latest
-
-      NotificationCard {
-        id: previewCard
-        wrapper: groupCard.latest
-        Layout.fillWidth: true
-
-        onActionTriggered: id => groupCard.svc && groupCard.svc.executeAction(previewCard.wrapper, id)
-        onActionTriggeredEx: (id, actionObj) => groupCard.svc && groupCard.svc.executeAction(previewCard.wrapper, id, actionObj)
-        onDismiss: groupCard.svc.dismissNotification(previewCard.wrapper)
-        // Reply omitted
-      }
-    }
-
-    // Expanded: list all items
-    ColumnLayout {
+    // Row 2: Content Row - Group title + count center
+    RowLayout {
+      Layout.fillWidth: true
       spacing: 6
-      visible: !!groupCard.group && groupCard.expanded
 
+      Text {
+        Layout.fillWidth: true
+        color: "white"
+        font.bold: true
+        elide: Text.ElideRight
+        text: (groupCard.group?.appName || "(Group)") + ` (${groupCard.items.length})`
+      }
+    }
+
+    // Collapsed preview - shows simplified latest notification
+    NotificationItem {
+      id: preview
+      visible: !!groupCard.latest && !groupCard.expanded
+      wrapper: groupCard.latest
+      mode: "list"
+      onActionTriggered: id => groupCard.svc && groupCard.svc.executeAction(preview.wrapper, id)
+      onActionTriggeredEx: (id, obj) => groupCard.svc && groupCard.svc.executeAction(preview.wrapper, id, obj)
+      onDismiss: groupCard.svc.dismissNotification(preview.wrapper)
+    }
+
+    // Expanded list - shows all notifications as list items
+    ColumnLayout {
+      spacing: 4
+      visible: groupCard.expanded
       Repeater {
-        model: groupCard.limitedItems
-
-        delegate: NotificationCard {
-          required property var modelData  // Wrapper
+        model: groupCard.items
+        delegate: NotificationItem {
+          required property var modelData
           wrapper: modelData
-          Layout.fillWidth: true
-
+          mode: "list"
           onActionTriggered: id => groupCard.svc && groupCard.svc.executeAction(modelData, id)
-          onActionTriggeredEx: (id, actionObj) => groupCard.svc && groupCard.svc.executeAction(modelData, id, actionObj)
+          onActionTriggeredEx: (id, obj) => groupCard.svc && groupCard.svc.executeAction(modelData, id, obj)
           onDismiss: groupCard.svc.dismissNotification(modelData)
-          // Reply omitted
         }
       }
     }
