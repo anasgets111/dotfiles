@@ -159,17 +159,25 @@ Item {
         onIsSelectedCountingChanged: if (!btn.isSelectedCounting)
           btn.opacity = 1.0
 
-        // Behavior: left to select/confirm, right to cancel
-        onLeftClicked: {
-          if (!powerMenu.counting)
-            powerMenu.startCountdown(index);
-          else if (powerMenu.selectedIndex === index)
-            powerMenu.commitSelected();
-          else
-            powerMenu.startCountdown(index);
+        onClicked: point => {
+          switch (point.button) {
+          case Qt.RightButton:
+            if (powerMenu.counting)
+              powerMenu.cancelCountdown();
+            return;
+          case Qt.LeftButton:
+            {
+              const isSelected = powerMenu.selectedIndex === index;
+              if (!powerMenu.counting || !isSelected)
+                powerMenu.startCountdown(index);
+              else
+                powerMenu.commitSelected();
+              return;
+            }
+          default:
+            return; // ignore middle/other buttons for now
+          }
         }
-        onRightClicked: if (powerMenu.counting)
-          powerMenu.cancelCountdown()
       }
     }
   }

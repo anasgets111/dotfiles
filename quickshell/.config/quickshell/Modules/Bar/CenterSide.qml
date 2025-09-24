@@ -26,7 +26,7 @@ Row {
     colorBg: Theme.inactiveColor
     icon: "" // image icon (Nerd Font)
     tooltipText: qsTr("Randomize wallpapers on all monitors")
-    onLeftClicked: {
+    onClicked: {
       if (!WM.MonitorService || !WM.MonitorService.ready)
         return;
       const pattern = "/mnt/Work/1Wallpapers/Main/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}";

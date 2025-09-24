@@ -7,39 +7,26 @@ import qs.Config
 Item {
   id: root
 
-  // Public API ------------------------------------------------------
   property string icon: ""
   property string tooltipText: ""
   property bool enabled: true
   property bool allowClickWhenDisabled: false
   property bool hovered: mouseArea.containsMouse && root.enabled
-
-  signal leftClicked
-
-  // Theming
   property color colorBg: Theme.inactiveColor
-  property color colorBgHover: Theme.onHoverColor
-  property color colorFg: Theme.textContrast(colorBg)
-  property color colorFgHover: Theme.textContrast(colorBgHover)
-  property color colorBorder: Theme.inactiveColor
-  property color colorBorderHover: Theme.onHoverColor
-
-  // Derived
+  readonly property color colorBgHover: Theme.onHoverColor
+  readonly property color colorFg: Theme.textContrast(colorBg)
+  readonly property color colorFgHover: Theme.textContrast(colorBgHover)
+  readonly property color colorBorder: Theme.inactiveColor
+  readonly property color colorBorderHover: Theme.onHoverColor
   readonly property color effectiveBg: !enabled ? colorBg : (hovered ? colorBgHover : colorBg)
   readonly property color effectiveFg: !enabled ? Theme.textContrast(colorBg) : (hovered ? colorFgHover : colorFg)
 
-  // Geometry
   implicitWidth: Theme.itemHeight
   implicitHeight: Theme.itemHeight
 
-  // Signals
-  signal clicked(var mouse)
-  signal rightClicked
-  signal middleClicked
+  signal clicked(var point)
   signal entered
   signal exited
-  signal pressed(var mouse)
-  signal released(var mouse)
 
   Rectangle {
     id: bgRect
@@ -69,33 +56,20 @@ Item {
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       enabled: root.allowClickWhenDisabled || root.enabled
       cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-
-      onEntered: function () {
+      onEntered: {
         root.entered();
         if (root.tooltipText.length)
           tooltip.isVisible = true;
       }
-      onExited: function () {
+      onExited: {
         root.exited();
-        if (root.tooltipText.length)
+        if (tooltip.isVisible)
           tooltip.isVisible = false;
       }
-      onPressed: mouse => root.pressed(mouse)
-
-      onReleased: mouse => root.released(mouse)
-
       onClicked: function (mouse) {
-        if (root.tooltipText.length)
-          tooltip.isVisible = false;
         if (!root.enabled && !root.allowClickWhenDisabled)
           return;
         root.clicked(mouse);
-        if (mouse.button === Qt.LeftButton)
-          root.leftClicked();
-        else if (mouse.button === Qt.RightButton)
-          root.rightClicked();
-        else if (mouse.button === Qt.MiddleButton)
-          root.middleClicked();
       }
     }
 
@@ -124,4 +98,7 @@ Item {
     text: root.tooltipText
     target: root
   }
+
+  onTooltipTextChanged: if (mouseArea.containsMouse && root.tooltipText.length)
+    tooltip.isVisible = true
 }

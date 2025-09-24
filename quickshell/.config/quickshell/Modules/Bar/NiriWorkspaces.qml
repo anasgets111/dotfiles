@@ -122,7 +122,7 @@ Item {
               root.hoveredId = 0;
             collapseTimer.restart();
           }
-          onLeftClicked: if (!ws.is_focused)
+          onClicked: if (!ws.is_focused)
             WorkspaceService.focusWorkspaceByWs(ws)
         }
       }
