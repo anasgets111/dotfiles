@@ -131,22 +131,17 @@ Item {
           visible = false
       }
 
-      // Summary (list)
+      // Summary text (both card and list mode)
       Text {
         Layout.fillWidth: true
-        visible: item.mode === "list"
-        color: "#dddddd"
-        font.pixelSize: 13
+        color: item.mode === "card" ? "white" : "#dddddd"
+        font.bold: item.mode === "card"
+        font.pixelSize: item.mode === "card" ? 14 : 13
         elide: Text.ElideRight
         text: item.summaryText
         wrapMode: Text.Wrap
-        maximumLineCount: 2
-      }
-
-      // Spacer (card)
-      Item {
-        Layout.fillWidth: true
-        visible: item.mode === "card"
+        maximumLineCount: item.mode === "card" ? 1 : 2
+        horizontalAlignment: item.mode === "card" ? Text.AlignHCenter : Text.AlignLeft
       }
 
       // Expand toggle
@@ -174,30 +169,17 @@ Item {
       }
     }
 
-    // Summary (card)
-    RowLayout {
-      Layout.fillWidth: true
-      visible: item.mode === "card"
-      spacing: 8
-
-      Image {
-        Layout.preferredWidth: visible ? 32 : 0
-        Layout.preferredHeight: visible ? 32 : 0
-        visible: !!item.contentImageSource
-        fillMode: Image.PreserveAspectFit
-        smooth: true
-        source: item.contentImageSource
-        onStatusChanged: if (status === Image.Error)
-          visible = false
-      }
-
-      Text {
-        Layout.fillWidth: true
-        color: "white"
-        font.bold: true
-        elide: Text.ElideRight
-        text: item.summaryText
-      }
+    // Content image (card mode only, if present)
+    Image {
+      Layout.preferredWidth: visible ? 32 : 0
+      Layout.preferredHeight: visible ? 32 : 0
+      Layout.alignment: Qt.AlignHCenter
+      visible: item.mode === "card" && !!item.contentImageSource
+      fillMode: Image.PreserveAspectFit
+      smooth: true
+      source: item.contentImageSource
+      onStatusChanged: if (status === Image.Error)
+        visible = false
     }
 
     // Body
