@@ -159,7 +159,7 @@ Singleton {
   }
 
   onActiveChanged: {
-    currentPosition = (!active || !isValidPlayer(active)) ? 0 : (active.isPlaying ? active.position : 0);
+    currentPosition = 0;
     const key = playerKey(active);
     if (key && key !== lastActiveKey)
       lastActiveKey = key;
@@ -175,16 +175,4 @@ Singleton {
     }
   }
 
-  Timer {
-    id: positionTimer
-    interval: 1000
-    repeat: true
-    running: !!(root.active && root.allPlayers.includes(root.active) && root.active.isPlaying && root.trackLength > 0 && root.active.playbackState === MprisPlaybackState.Playing)
-    onTriggered: {
-      if (root.active && root.allPlayers.includes(root.active) && root.active.isPlaying && root.active.playbackState === MprisPlaybackState.Playing)
-        root.currentPosition = root.active.position;
-      else
-        running = false;
-    }
-  }
 }
