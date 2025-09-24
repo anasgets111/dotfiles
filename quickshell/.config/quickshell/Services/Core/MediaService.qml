@@ -7,6 +7,10 @@ import Quickshell.Services.Mpris
 Singleton {
   id: root
 
+  function isAlivePlayer(playerObj) {
+    return !!playerObj && typeof playerObj.isValid === "function" && playerObj.isValid();
+  }
+
   readonly property var videoAppHints: ["mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex"]
   readonly property var browserAppHints: ["firefox", "zen", "chrome", "chromium", "brave", "vivaldi", "edge", "opera"]
   readonly property var audioOnlyPatterns: ["music.youtube.com", "spotify.com", "soundcloud.com", "music.apple.com", "deezer.com", "tidal.com", "bandcamp.com"]
@@ -15,7 +19,7 @@ Singleton {
 
   readonly property bool pipewireVideoActive: hasActiveVideoStreams()
 
-  readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values : []
+  readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values.filter(playerObj => root.isAlivePlayer(playerObj)) : []
   readonly property list<MprisPlayer> players: allPlayers.filter(playerObj => playerObj?.canControl)
   readonly property MprisPlayer active: selectActivePlayer()
   readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
@@ -110,7 +114,7 @@ Singleton {
   }
 
   function isValidPlayer(playerObj) {
-    return !!playerObj && allPlayers.includes(playerObj);
+    return root.isAlivePlayer(playerObj) && allPlayers.includes(playerObj);
   }
 
   function next() {
