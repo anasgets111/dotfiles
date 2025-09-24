@@ -18,18 +18,18 @@ Item {
   readonly property var latest: groupCard.items.length > 0 ? groupCard.items[0] : null
   property bool expanded: NotificationService.expandedGroups[group.key] || false
 
-  readonly property string _urgency: (function () {
-      const u = latest?.urgency ?? NotificationUrgency.Normal;
-      switch (u) {
-      case NotificationUrgency.Low:
-        return "low";
-      case NotificationUrgency.Critical:
-        return "critical";
-      default:
-        return "normal";
-      }
-    })()
-  readonly property color accentColor: _urgency === "critical" ? "#ff4d4f" : _urgency === "low" ? Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9) : Theme.activeColor
+  function urgencyToColor(urgency) {
+    switch (urgency) {
+    case NotificationUrgency.Critical:
+      return "#ff4d4f";
+    case NotificationUrgency.Low:
+      return Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9);
+    default:
+      return Theme.activeColor;
+    }
+  }
+
+  readonly property color accentColor: urgencyToColor(latest?.urgency ?? NotificationUrgency.Normal)
 
   function toggleExpand() {
     groupCard.svc && groupCard.svc.toggleGroupExpansion(groupCard.group.key);
@@ -72,9 +72,9 @@ Item {
         Layout.preferredWidth: 40
         Layout.preferredHeight: 40
         radius: 8
-        color: Qt.rgba(1, 1, 1, 0.07)
+        color: Qt.rgba(Theme.textActiveColor.r, Theme.textActiveColor.g, Theme.textActiveColor.b, 0.07)
         border.width: 1
-        border.color: Qt.rgba(255, 255, 255, 0.05)
+        border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.05)
         visible: !!(groupCard.group?.appName)
         Image {
           anchors.centerIn: parent
@@ -123,7 +123,7 @@ Item {
 
       Text {
         Layout.fillWidth: true
-        color: "white"
+        color: Theme.textActiveColor
         font.bold: true
         elide: Text.ElideRight
         text: (groupCard.group?.appName || "(Group)") + ` (${groupCard.items.length})`
@@ -136,9 +136,8 @@ Item {
       visible: !!groupCard.latest && !groupCard.expanded
       wrapper: groupCard.latest
       mode: "list"
-      onActionTriggered: id => groupCard.svc && groupCard.svc.executeAction(preview.wrapper, id)
       onActionTriggeredEx: (id, obj) => groupCard.svc && groupCard.svc.executeAction(preview.wrapper, id, obj)
-      onDismiss: groupCard.svc.dismissNotification(preview.wrapper)
+      onDismiss: groupCard.svc && groupCard.svc.dismissNotification(preview.wrapper)
     }
 
     // Expanded list - shows all notifications as list items
@@ -151,9 +150,8 @@ Item {
           required property var modelData
           wrapper: modelData
           mode: "list"
-          onActionTriggered: id => groupCard.svc && groupCard.svc.executeAction(modelData, id)
           onActionTriggeredEx: (id, obj) => groupCard.svc && groupCard.svc.executeAction(modelData, id, obj)
-          onDismiss: groupCard.svc.dismissNotification(modelData)
+          onDismiss: groupCard.svc && groupCard.svc.dismissNotification(modelData)
         }
       }
     }

@@ -4,6 +4,7 @@ import Quickshell
 import QtQuick.Controls
 import Quickshell.Wayland
 import qs.Services.SystemInfo
+import qs.Config
 
 PanelWindow {
   id: layer
@@ -112,7 +113,6 @@ PanelWindow {
               sourceComponent: NotificationItem {
                 wrapper: del.modelData.wrapper
                 mode: "card"
-                onActionTriggered: id => popupColumn.svc && popupColumn.svc.executeAction(del.modelData.wrapper, id)
                 onActionTriggeredEx: (id, actionObj) => popupColumn.svc && popupColumn.svc.executeAction(del.modelData.wrapper, id, actionObj)
                 onDismiss: popupColumn.svc.dismissNotification(del.modelData.wrapper)
               }
@@ -135,7 +135,7 @@ PanelWindow {
     id: dndBanner
     anchors.horizontalCenter: parent.horizontalCenter
     anchors.top: parent.top
-    color: Qt.rgba(0.95, 0.55, 0.10, 0.9)
+    color: Theme.warning
     height: 28
     radius: 6
     width: txt.implicitWidth + 24
@@ -144,7 +144,7 @@ PanelWindow {
     Text {
       id: txt
       anchors.centerIn: parent
-      color: "black"
+      color: Theme.textContrast(Theme.warning)
       text: "Do Not Disturb Enabled"
     }
   }
