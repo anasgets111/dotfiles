@@ -155,7 +155,13 @@ animations {
 // =====================
 // Window Rules Section
 // =====================
-
+// Global window defaults
+window-rule {
+geometry-corner-radius 15 15 0 0
+clip-to-geometry true
+draw-border-with-background false
+opacity 0.95
+}
 // Workspace placement
 window-rule {
 match app-id="code"
@@ -200,7 +206,10 @@ match app-id="org.kde.kdeconnect.handler"
 match app-id="waypaper"
 open-floating true
 }
-
+window-rule {
+    match app-id="mpv"
+    opacity 1.0
+}
 // Floating windows, medium size (~74%)
 window-rule {
 match app-id="io.missioncenter.MissionCenter"
@@ -220,6 +229,7 @@ open-floating true
 default-column-width { proportion 0.74; }
 default-window-height { proportion 0.74; }
 }
+
 
 // Floating windows, small dialogs (~47%)
 window-rule {
@@ -249,13 +259,6 @@ default-column-width { proportion 0.15; }
 default-window-height { proportion 0.15; }
 }
 
-// Global window defaults
-window-rule {
-geometry-corner-radius 15 15 0 0
-clip-to-geometry true
-draw-border-with-background false
-opacity 0.9
-}
 window-rule {
     match app-id="kitty"
     match app-id="alacritty"
