@@ -88,47 +88,55 @@ Item {
 
   ColumnLayout {
     id: content
-    width: parent.width - (item.mode === "card" ? 20 : 0)
-    x: item.mode === "card" ? 10 : 0
-    y: item.mode === "card" ? 10 : 0
+    width: parent.width - (item.mode === "card" ? 24 : 0)
+    x: item.mode === "card" ? 12 : 0
+    y: item.mode === "card" ? 12 : 0
     spacing: item.mode === "card" ? 6 : 4
 
     RowLayout {
       Layout.fillWidth: true
-      spacing: 8
+      spacing: 10
 
       // App icon (card)
-      Rectangle {
-        Layout.preferredWidth: visible ? 40 : 0
-        Layout.preferredHeight: visible ? 40 : 0
-        visible: item.mode === "card" && !!(item.appIcon || item.appName)
-        radius: 8
-        color: Qt.rgba(1, 1, 1, 0.07)
-        border.width: 1
-        border.color: Qt.rgba(255, 255, 255, 0.05)
-        Image {
-          anchors.centerIn: parent
-          width: 30
-          height: 30
-          fillMode: Image.PreserveAspectFit
-          smooth: true
-          source: Utils.resolveIconSource(item.appName, item.appIcon, "dialog-information")
-          sourceSize: Qt.size(64, 64)
-          onStatusChanged: if (status === Image.Error)
-            parent.visible = false
+      Loader {
+        Layout.preferredWidth: active ? 40 : 0
+        Layout.preferredHeight: active ? 40 : 0
+        active: item.mode === "card" && !!(item.appIcon || item.appName)
+        sourceComponent: Rectangle {
+          width: 40
+          height: 40
+          radius: 8
+          color: Qt.rgba(1, 1, 1, 0.07)
+          border.width: 1
+          border.color: Qt.rgba(255, 255, 255, 0.05)
+          Image {
+            anchors.centerIn: parent
+            width: 30
+            height: 30
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            source: Utils.resolveIconSource(item.appName, item.appIcon, "dialog-information")
+            sourceSize: Qt.size(64, 64)
+            onStatusChanged: if (status === Image.Error)
+              parent.parent.parent.active = false
+          }
         }
       }
 
       // Content icon (list, small)
-      Image {
-        Layout.preferredWidth: visible ? 16 : 0
-        Layout.preferredHeight: visible ? 16 : 0
-        visible: item.mode === "list" && !!item.contentImageSource
-        fillMode: Image.PreserveAspectFit
-        smooth: true
-        source: item.contentImageSource
-        onStatusChanged: if (status === Image.Error)
-          visible = false
+      Loader {
+        Layout.preferredWidth: active ? 16 : 0
+        Layout.preferredHeight: active ? 16 : 0
+        active: item.mode === "list" && !!item.contentImageSource
+        sourceComponent: Image {
+          width: 16
+          height: 16
+          fillMode: Image.PreserveAspectFit
+          smooth: true
+          source: item.contentImageSource
+          onStatusChanged: if (status === Image.Error)
+            parent.parent.active = false
+        }
       }
 
       // Summary text (both card and list mode)
@@ -145,16 +153,18 @@ Item {
       }
 
       // Expand toggle
-      StandardButton {
-        buttonType: "control"
-        visible: item.canExpandBody
-        text: item.bodyExpanded ? "▴" : "▾"
-        Accessible.name: item.bodyExpanded ? "Collapse" : "Expand"
-        onClicked: item.bodyExpanded = !item.bodyExpanded
-        padding: item.mode === "list" ? 2 : 4
-        leftPadding: item.mode === "list" ? 4 : 8
-        rightPadding: item.mode === "list" ? 4 : 8
-        font.pixelSize: item.mode === "list" ? 10 : 12
+      Loader {
+        active: item.canExpandBody
+        sourceComponent: StandardButton {
+          buttonType: "control"
+          text: item.bodyExpanded ? "▴" : "▾"
+          Accessible.name: item.bodyExpanded ? "Collapse" : "Expand"
+          onClicked: item.bodyExpanded = !item.bodyExpanded
+          padding: item.mode === "list" ? 2 : 4
+          leftPadding: item.mode === "list" ? 4 : 8
+          rightPadding: item.mode === "list" ? 4 : 8
+          font.pixelSize: item.mode === "list" ? 10 : 12
+        }
       }
 
       // Dismiss
@@ -170,105 +180,114 @@ Item {
     }
 
     // Content image (card mode only, if present)
-    Image {
-      Layout.preferredWidth: visible ? 32 : 0
-      Layout.preferredHeight: visible ? 32 : 0
-      Layout.alignment: Qt.AlignHCenter
-      visible: item.mode === "card" && !!item.contentImageSource
-      fillMode: Image.PreserveAspectFit
-      smooth: true
-      source: item.contentImageSource
-      onStatusChanged: if (status === Image.Error)
-        visible = false
+    Loader {
+      active: item.mode === "card" && !!item.contentImageSource
+      sourceComponent: Image {
+        Layout.preferredWidth: 32
+        Layout.preferredHeight: 32
+        Layout.alignment: Qt.AlignHCenter
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        source: item.contentImageSource
+        onStatusChanged: if (status === Image.Error)
+          parent.parent.active = false
+      }
     }
 
     // Body
-    Text {
-      Layout.fillWidth: true
-      Layout.preferredWidth: parent.width - (item.mode === "list" ? 24 : 0)
-      Layout.leftMargin: item.mode === "list" ? 24 : 0
-      visible: item.hasBodyText
-      color: "#bbbbbb"
-      font.pixelSize: 12
-      wrapMode: Text.WrapAnywhere
-      textFormat: Text.PlainText
-      text: item.bodyText
-      maximumLineCount: item.bodyExpanded ? 0 : 2
-      elide: Text.ElideRight
-      onLinkActivated: url => Qt.openUrlExternally(url)
+    Loader {
+      active: item.hasBodyText
+      sourceComponent: Text {
+        Layout.fillWidth: true
+        Layout.preferredWidth: parent.parent.parent.width - (item.mode === "list" ? 24 : 0)
+        Layout.leftMargin: item.mode === "list" ? 24 : 0
+        color: "#bbbbbb"
+        font.pixelSize: 12
+        wrapMode: Text.WrapAnywhere
+        textFormat: Text.PlainText
+        text: item.bodyText
+        maximumLineCount: item.bodyExpanded ? 0 : 2
+        elide: Text.ElideRight
+        onLinkActivated: url => Qt.openUrlExternally(url)
+      }
     }
 
     // Actions
-    RowLayout {
-      Layout.fillWidth: true
-      Layout.leftMargin: item.mode === "list" ? 24 : 0
-      Layout.alignment: item.mode === "card" ? Qt.AlignHCenter : Qt.AlignLeft
-      visible: item.actionsModel.length > 0
-      spacing: item.mode === "card" ? 6 : 4
+    Loader {
+      active: item.actionsModel.length > 0
+      sourceComponent: RowLayout {
+        Layout.fillWidth: true
+        Layout.leftMargin: item.mode === "list" ? 24 : 0
+        Layout.topMargin: item.hasBodyText && item.mode === "card" ? -2 : 0
+        Layout.alignment: item.mode === "card" ? Qt.AlignHCenter : Qt.AlignLeft
+        spacing: item.mode === "card" ? 6 : 4
 
-      Flow {
-        spacing: 4
-        Repeater {
-          model: item.actionsModel
-          delegate: StandardButton {
-            required property var modelData
-            buttonType: "action"
-            text: modelData.title || modelData.id || ""
-            onClicked: {
-              item.actionTriggeredEx(modelData.id, modelData._obj);
-              if (item.mode === "card")
-                item.dismiss();
+        Flow {
+          spacing: 4
+          Repeater {
+            model: item.actionsModel
+            delegate: StandardButton {
+              required property var modelData
+              buttonType: "action"
+              text: modelData.title || modelData.id || ""
+              onClicked: {
+                item.actionTriggeredEx(modelData.id, modelData._obj);
+                if (item.mode === "card")
+                  item.dismiss();
+              }
+              padding: item.mode === "list" ? 4 : 6
+              leftPadding: item.mode === "list" ? 8 : 12
+              rightPadding: item.mode === "list" ? 8 : 12
+              font.pixelSize: item.mode === "list" ? 11 : 12
             }
-            padding: item.mode === "list" ? 4 : 6
-            leftPadding: item.mode === "list" ? 8 : 12
-            rightPadding: item.mode === "list" ? 8 : 12
-            font.pixelSize: item.mode === "list" ? 11 : 12
           }
         }
       }
     }
 
     // Inline reply
-    RowLayout {
-      Layout.fillWidth: true
-      Layout.leftMargin: item.mode === "list" ? 24 : 0
-      visible: item.hasInlineReply
-      spacing: 6
-
-      TextField {
-        id: replyField
+    Loader {
+      active: item.hasInlineReply
+      sourceComponent: RowLayout {
         Layout.fillWidth: true
-        placeholderText: item.notification?.inlineReplyPlaceholder || "Reply"
-        selectByMouse: true
-        activeFocusOnPress: true
-        font.pixelSize: item.mode === "list" ? 12 : 14
-        padding: item.mode === "list" ? 6 : 8
-        Keys.onReturnPressed: sendBtn.clicked()
-        Keys.onEnterPressed: sendBtn.clicked()
+        Layout.leftMargin: item.mode === "list" ? 24 : 0
+        spacing: 6
 
-        onActiveFocusChanged: {
-          if (activeFocus) {
-            item.inputFocusRequested();
+        TextField {
+          id: replyField
+          Layout.fillWidth: true
+          placeholderText: item.notification?.inlineReplyPlaceholder || "Reply"
+          selectByMouse: true
+          activeFocusOnPress: true
+          font.pixelSize: item.mode === "list" ? 12 : 14
+          padding: item.mode === "list" ? 6 : 8
+          Keys.onReturnPressed: sendBtn.clicked()
+          Keys.onEnterPressed: sendBtn.clicked()
+
+          onActiveFocusChanged: {
+            if (activeFocus) {
+              item.inputFocusRequested();
+            }
           }
         }
-      }
 
-      StandardButton {
-        id: sendBtn
-        buttonType: "action"
-        text: "Send"
-        font.pixelSize: item.mode === "list" ? 11 : 12
-        padding: item.mode === "list" ? 4 : 6
-        onClicked: {
-          const replyText = String(replyField.text || "");
-          try {
-            if (item.notification?.hasInlineReply && item.notification.sendInlineReply) {
-              item.notification.sendInlineReply(replyText);
+        StandardButton {
+          id: sendBtn
+          buttonType: "action"
+          text: "Send"
+          font.pixelSize: item.mode === "list" ? 11 : 12
+          padding: item.mode === "list" ? 4 : 6
+          onClicked: {
+            const replyText = String(replyField.text || "");
+            try {
+              if (item.notification?.hasInlineReply && item.notification.sendInlineReply) {
+                item.notification.sendInlineReply(replyText);
+              }
+            } catch (e) {
+              console.log("Error sending reply:", e);
             }
-          } catch (e) {
-            console.log("Error sending reply:", e);
+            replyField.text = "";
           }
-          replyField.text = "";
         }
       }
     }
