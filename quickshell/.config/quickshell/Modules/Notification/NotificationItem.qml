@@ -232,8 +232,6 @@ Item {
               text: modelData.title || modelData.id || ""
               onClicked: {
                 item.actionTriggeredEx(modelData.id, modelData._obj);
-                if (item.mode === "card")
-                  item.dismiss();
               }
               padding: item.mode === "list" ? 4 : 6
               leftPadding: item.mode === "list" ? 8 : 12
