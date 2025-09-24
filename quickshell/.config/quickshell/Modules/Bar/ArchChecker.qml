@@ -14,12 +14,19 @@ Item {
 
   IconButton {
     id: button
-
     anchors.fill: parent
-    bgColor: UpdateService.busy ? Theme.inactiveColor : (UpdateService.totalUpdates > 0 ? Theme.activeColor : Theme.inactiveColor)
-    busy: UpdateService.busy
-    iconText: UpdateService.busy ? "" : (UpdateService.totalUpdates > 0 ? "" : "󰂪")
-
+    colorBg: UpdateService.busy ? Theme.inactiveColor : (UpdateService.totalUpdates > 0 ? Theme.activeColor : Theme.inactiveColor)
+    icon: UpdateService.busy ? "" : (UpdateService.totalUpdates > 0 ? "" : "󰂪")
+    tooltipText: UpdateService.busy ? qsTr("Checking for updates…") : (UpdateService.totalUpdates === 0 ? qsTr("No updates available") : (() => {
+          const pkgs = UpdateService.allPackages || [];
+          const header = UpdateService.totalUpdates === 1 ? qsTr("One package can be upgraded:") : (UpdateService.totalUpdates + " " + qsTr("packages can be upgraded:"));
+          // Limit list length to avoid overly tall tooltip
+          const maxLines = 10;
+          const lines = pkgs.slice(0, maxLines).map(p => `${p.name}: ${p.oldVersion} → ${p.newVersion}`);
+          if (pkgs.length > maxLines)
+            lines.push(qsTr("…and %1 more").arg(pkgs.length - maxLines));
+          return [header].concat(lines).join("\n");
+        })())
     onLeftClicked: {
       if (UpdateService.busy)
         return;
@@ -28,38 +35,5 @@ Item {
       else
         UpdateService.doPoll(true);
     }
-  }
-  Component {
-    id: updatesWithHeading
-
-    Column {
-      spacing: 4
-
-      Text {
-        color: Theme.textContrast(Theme.onHoverColor)
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        text: UpdateService.totalUpdates === 1 ? qsTr("One package can be upgraded:") : UpdateService.totalUpdates + " " + qsTr("packages can be upgraded:")
-      }
-      Repeater {
-        model: UpdateService.allPackages
-
-        delegate: Text {
-          required property var model
-
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          text: model.name + ": " + model.oldVersion + " → " + model.newVersion
-        }
-      }
-    }
-  }
-  Tooltip {
-    contentComponent: UpdateService.totalUpdates > 0 ? updatesWithHeading : null
-    hoverSource: button.area
-    target: button
-    text: UpdateService.totalUpdates === 0 ? qsTr("No updates available") : ""
-    visibleWhenTargetHovered: !UpdateService.busy
   }
 }

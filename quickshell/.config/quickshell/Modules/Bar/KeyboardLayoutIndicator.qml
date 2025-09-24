@@ -14,14 +14,8 @@ Item {
 
   IconButton {
     id: iconButton
-
-    disabled: true
-    iconText: KeyboardLayoutService.layoutShort
-  }
-  Tooltip {
-    hAlign: Qt.AlignCenter
-    hoverSource: iconButton.area
-    target: iconButton
-    text: KeyboardLayoutService.currentLayout
+    enabled: false
+    icon: KeyboardLayoutService.layoutShort
+    tooltipText: KeyboardLayoutService.currentLayout
   }
 }

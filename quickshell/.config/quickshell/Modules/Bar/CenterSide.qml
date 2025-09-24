@@ -22,12 +22,10 @@ Row {
   // Test button: set all monitors to a specific wallpaper to exercise the reveal animation
   IconButton {
     id: testWalButton
-
     anchors.verticalCenter: parent.verticalCenter
-    bgColor: Theme.inactiveColor
-    hoverBgColor: Theme.onHoverColor
-    iconText: "" // image icon (Nerd Font)
-
+    colorBg: Theme.inactiveColor
+    icon: "" // image icon (Nerd Font)
+    tooltipText: qsTr("Randomize wallpapers on all monitors")
     onLeftClicked: {
       if (!WM.MonitorService || !WM.MonitorService.ready)
         return;

@@ -78,7 +78,6 @@ Item {
       }
     }
   }
-
   // Countdown timer
   Timer {
     id: tickTimer
@@ -118,30 +117,26 @@ Item {
         readonly property bool isSelectedCounting: powerMenu.counting && powerMenu.selectedIndex === index
 
         anchors.fill: parent
-        contentFills: true
+        tooltipText: powerMenu.counting ? (isSelectedCounting ? `${rec.tooltip} — ${powerMenu.countdown}s\nLeft click to execute now • Right click to cancel` : `${rec.tooltip}\nRight click to cancel`) : rec.tooltip
+        icon: ""
 
-        // Inline content: fill + centered glyph/counter
-        contentItem: Component {
-          Item {
-            anchors.fill: parent
-
-            // Progress sweep when counting selected
-            FillBar {
-              anchors.fill: parent
-              progress: btn.isSelectedCounting ? (powerMenu.initialCountdown - powerMenu.countdown) / powerMenu.initialCountdown : 0
-              fillColor: Theme.onHoverColor
-              radius: Theme.itemHeight / 2
-            }
-
-            Text {
-              anchors.centerIn: parent
-              color: btn.fgColor
-              font: btn.iconFont
-              text: btn.isSelectedCounting ? ("" + powerMenu.countdown) : btn.rec.icon
-              horizontalAlignment: Text.AlignHCenter
-              verticalAlignment: Text.AlignVCenter
-            }
-          }
+        // Progress sweep when counting selected (uses shared FillBar component)
+        FillBar {
+          anchors.fill: parent
+          progress: btn.isSelectedCounting ? (powerMenu.initialCountdown - powerMenu.countdown) / powerMenu.initialCountdown : 0
+          fillColor: Theme.onHoverColor
+          radius: Theme.itemHeight / 2
+        }
+        // Centered glyph or countdown number
+        Text {
+          anchors.centerIn: parent
+          color: btn.effectiveFg !== undefined ? btn.effectiveFg : Theme.textContrast(Theme.inactiveColor)
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize
+          font.bold: true
+          text: btn.isSelectedCounting ? ("" + powerMenu.countdown) : btn.rec.icon
+          horizontalAlignment: Text.AlignHCenter
+          verticalAlignment: Text.AlignVCenter
         }
 
         // Flash while counting (selected only)
@@ -161,7 +156,6 @@ Item {
             to: 1.0
           }
         }
-        // Ensure opacity is 1 when not in flashing state
         onIsSelectedCountingChanged: if (!btn.isSelectedCounting)
           btn.opacity = 1.0
 
@@ -176,13 +170,6 @@ Item {
         }
         onRightClicked: if (powerMenu.counting)
           powerMenu.cancelCountdown()
-
-        Tooltip {
-          hoverSource: btn.area
-          parent: powerMenu
-          target: btn
-          text: powerMenu.counting ? (btn.isSelectedCounting ? `${btn.rec.tooltip} — ${powerMenu.countdown}s\nLeft click to execute now • Right click to cancel` : `${btn.rec.tooltip}\nRight click to cancel`) : btn.rec.tooltip
-        }
       }
     }
   }
