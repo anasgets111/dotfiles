@@ -125,6 +125,7 @@ Item {
 
     NotificationItem {
       id: preview
+      Layout.fillWidth: true
       visible: !!groupCard.latest && !groupCard.expanded
       wrapper: groupCard.latest
       mode: "list"
@@ -134,12 +135,14 @@ Item {
     }
 
     ColumnLayout {
+      Layout.fillWidth: true
       spacing: 4
       visible: groupCard.expanded
       Repeater {
         model: groupCard.items
         delegate: NotificationItem {
           required property var modelData
+          Layout.fillWidth: true
           wrapper: modelData
           mode: "list"
           onActionTriggeredEx: (id, obj) => groupCard.svc && groupCard.svc.executeAction(modelData, id, obj)
