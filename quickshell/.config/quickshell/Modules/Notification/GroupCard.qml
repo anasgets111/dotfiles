@@ -89,8 +89,13 @@ Item {
         }
       }
 
-      Item {
+      Text {
         Layout.fillWidth: true
+        color: "white"
+        font.bold: true
+        elide: Text.ElideRight
+        text: (groupCard.group?.appName || "(Group)") + ` (${groupCard.items.length})`
+        horizontalAlignment: Text.AlignHCenter
       }
 
       RowLayout {
@@ -108,18 +113,6 @@ Item {
           visible: groupCard.items.length > 0
           onClicked: groupCard.clearGroup()
         }
-      }
-    }
-
-    RowLayout {
-      Layout.fillWidth: true
-      spacing: 6
-      Text {
-        Layout.fillWidth: true
-        color: "white"
-        font.bold: true
-        elide: Text.ElideRight
-        text: (groupCard.group?.appName || "(Group)") + ` (${groupCard.items.length})`
       }
     }
 
