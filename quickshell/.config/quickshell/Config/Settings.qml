@@ -48,10 +48,6 @@ Singleton {
   FileView {
     id: settingsFileView
 
-    // Function to validate monitor configurations
-    function validateMonitorConfigurations() {
-    }
-
     path: root.settingsFile
     watchChanges: true
 
@@ -83,6 +79,8 @@ Singleton {
       // Per-monitor wallpaper preferences map (dynamic keys)
       // wallpapers: { "MONITOR_NAME": { wallpaper: string, mode: string } }
       property var wallpapers: ({})
+      // Allowed values: "fade", "wipe", "disc", "stripes"
+      property string wallpaperTransition: "disc"
 
       // Idle Service settings (persisted)
       // These defaults act as fallbacks if not present in the user's settings file
