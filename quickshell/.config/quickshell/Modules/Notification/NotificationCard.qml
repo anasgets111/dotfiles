@@ -127,7 +127,7 @@ Item {
 
           StandardButton {
             buttonType: "control"
-            text: "×"
+            text: "x"
             Accessible.name: root.isGroup ? "Dismiss group" : "Dismiss notification"
             onClicked: {
               if (root.isGroup)
@@ -147,151 +147,192 @@ Item {
 
         Repeater {
           model: cardContent.renderedItems
-          delegate: ColumnLayout {
-            id: messageColumn
+          delegate: Item {
+            id: messageItem
             required property var modelData
-            readonly property string summary: modelData?.summary || "(No title)"
-            readonly property string body: modelData?.body || ""
-            readonly property string messageId: modelData?.id || String(modelData?.notification ? modelData.notification.id || "" : "")
-            readonly property url contentImage: modelData?.cleanImage || ""
-            readonly property bool hasBody: modelData?.hasBody === true ? true : (body && body.trim() !== "" && body.trim() !== summary.trim())
-            readonly property bool expanded: root.messageExpanded(messageColumn.messageId)
-            readonly property bool hasInlineReply: modelData?.hasInlineReply === true
-            readonly property string inlineReplyPlaceholder: modelData?.inlineReplyPlaceholder || "Reply"
-            readonly property var actionsModel: modelData?.actions || []
-            property bool summaryTruncated: false
-            property bool bodyTruncated: false
+            required property int index
 
             Layout.fillWidth: true
-            spacing: 6
+            implicitHeight: messageColumn.implicitHeight
 
-            RowLayout {
-              Layout.fillWidth: true
-              spacing: 8
+            readonly property bool isMultipleItems: cardContent.renderedItems.length > 1
+            readonly property bool isHovered: mouseArea.containsMouse
 
-              Loader {
-                Layout.preferredWidth: active ? 24 : 0
-                Layout.preferredHeight: active ? 24 : 0
-                active: !!messageColumn.contentImage
-                sourceComponent: Image {
-                  width: 24
-                  height: 24
-                  fillMode: Image.PreserveAspectFit
-                  smooth: true
-                  source: messageColumn.contentImage
-                  onStatusChanged: if (status === Image.Error)
-                    parent.parent.active = false
+            Rectangle {
+              id: messageBackground
+              anchors.fill: parent
+              radius: 6
+              color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03)) : "transparent"
+              border.width: messageItem.isMultipleItems ? 1 : 0
+              border.color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.4) : Qt.rgba(1, 1, 1, 0.1)) : "transparent"
+
+              Behavior on color {
+                ColorAnimation {
+                  duration: 150
                 }
               }
-
-              Text {
-                id: summaryText
-                Layout.fillWidth: true
-                text: messageColumn.summary
-                color: "#dddddd"
-                font.pixelSize: 14
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-                wrapMode: Text.WordWrap
-                maximumLineCount: messageColumn.expanded ? 0 : 2
-                Component.onCompleted: messageColumn.summaryTruncated = truncated
-                onTruncatedChanged: messageColumn.summaryTruncated = truncated
-              }
-
-              Loader {
-                active: messageColumn.summaryTruncated || messageColumn.bodyTruncated || messageColumn.expanded
-                sourceComponent: StandardButton {
-                  buttonType: "control"
-                  text: messageColumn.expanded ? "▴" : "▾"
-                  Accessible.name: messageColumn.expanded ? "Collapse message" : "Expand message"
-                  onClicked: root.toggleMessageExpansion(messageColumn.messageId)
+              Behavior on border.color {
+                ColorAnimation {
+                  duration: 150
                 }
               }
             }
 
-            Loader {
-              id: bodyLoader
-              Layout.fillWidth: true
-              active: messageColumn.hasBody
-              onActiveChanged: if (!active)
-                messageColumn.bodyTruncated = false
-              sourceComponent: Text {
-                id: bodyText
-                Layout.fillWidth: true
-                color: "#bbbbbb"
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-                textFormat: Text.PlainText
-                text: messageColumn.body
-                maximumLineCount: messageColumn.expanded ? 0 : 2
-                elide: Text.ElideRight
-                Component.onCompleted: messageColumn.bodyTruncated = truncated
-                onTruncatedChanged: messageColumn.bodyTruncated = truncated
-                onLinkActivated: url => Qt.openUrlExternally(url)
-              }
-            }
+            ColumnLayout {
+              id: messageColumn
+              anchors.fill: parent
+              anchors.margins: messageItem.isMultipleItems ? 8 : 0
 
-            Loader {
-              Layout.fillWidth: true
-              active: messageColumn.hasInlineReply
-              sourceComponent: RowLayout {
-                Layout.fillWidth: true
-                spacing: 6
+              readonly property string summary: messageItem.modelData?.summary || "(No title)"
+              readonly property string body: messageItem.modelData?.body || ""
+              readonly property string messageId: messageItem.modelData?.id || String(messageItem.modelData?.notification ? messageItem.modelData.notification.id || "" : "")
+              readonly property url contentImage: messageItem.modelData?.cleanImage || ""
+              readonly property bool hasBody: messageItem.modelData?.hasBody === true ? true : (body && body.trim() !== "" && body.trim() !== summary.trim())
+              readonly property bool expanded: root.messageExpanded(messageColumn.messageId)
+              readonly property bool hasInlineReply: messageItem.modelData?.hasInlineReply === true
+              readonly property string inlineReplyPlaceholder: messageItem.modelData?.inlineReplyPlaceholder || "Reply"
+              readonly property var actionsModel: messageItem.modelData?.actions || []
+              property bool summaryTruncated: false
+              property bool bodyTruncated: false
 
-                TextField {
-                  id: replyField
+              spacing: 6
+
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Loader {
+                  Layout.preferredWidth: active ? 24 : 0
+                  Layout.preferredHeight: active ? 24 : 0
+                  active: !!messageColumn.contentImage
+                  sourceComponent: Image {
+                    width: 24
+                    height: 24
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    source: messageColumn.contentImage
+                    onStatusChanged: if (status === Image.Error)
+                      parent.parent.active = false
+                  }
+                }
+
+                Text {
+                  id: summaryText
                   Layout.fillWidth: true
-                  placeholderText: messageColumn.inlineReplyPlaceholder
-                  selectByMouse: true
-                  activeFocusOnPress: true
-                  font.pixelSize: 13
-                  padding: 6
-                  Keys.onReturnPressed: sendBtn.clicked()
-                  Keys.onEnterPressed: sendBtn.clicked()
-                  onActiveFocusChanged: if (activeFocus)
-                    root.inputFocusRequested()
-                  background: Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.itemRadius
-                    color: Theme.bgColor
-                    border.width: 1
-                    border.color: replyField.activeFocus ? Theme.activeColor : Theme.borderColor
-                  }
+                  text: messageColumn.summary
+                  color: "#dddddd"
+                  font.pixelSize: 14
+                  horizontalAlignment: Text.AlignHCenter
+                  elide: Text.ElideRight
+                  wrapMode: Text.WordWrap
+                  maximumLineCount: messageColumn.expanded ? 0 : 2
+                  Component.onCompleted: messageColumn.summaryTruncated = truncated
+                  onTruncatedChanged: messageColumn.summaryTruncated = truncated
                 }
 
-                StandardButton {
-                  id: sendBtn
-                  buttonType: "action"
-                  text: "Send"
-                  onClicked: {
-                    const replyText = String(replyField.text || "");
-                    if (replyText.length === 0)
-                      return;
-                    const success = messageColumn.modelData && messageColumn.modelData.sendInlineReply ? messageColumn.modelData.sendInlineReply(replyText) : false;
-                    if (success !== false)
-                      replyField.text = "";
+                Loader {
+                  active: messageColumn.summaryTruncated || messageColumn.bodyTruncated || messageColumn.expanded
+                  sourceComponent: StandardButton {
+                    buttonType: "control"
+                    text: messageColumn.expanded ? "▴" : "▾"
+                    Accessible.name: messageColumn.expanded ? "Collapse message" : "Expand message"
+                    onClicked: root.toggleMessageExpansion(messageColumn.messageId)
+                  }
+                }
+              }
+
+              Loader {
+                id: bodyLoader
+                Layout.fillWidth: true
+                active: messageColumn.hasBody
+                onActiveChanged: if (!active)
+                  messageColumn.bodyTruncated = false
+                sourceComponent: Text {
+                  id: bodyText
+                  Layout.fillWidth: true
+                  color: "#bbbbbb"
+                  font.pixelSize: 12
+                  wrapMode: Text.WordWrap
+                  textFormat: Text.PlainText
+                  text: messageColumn.body
+                  maximumLineCount: messageColumn.expanded ? 0 : 2
+                  elide: Text.ElideRight
+                  Component.onCompleted: messageColumn.bodyTruncated = truncated
+                  onTruncatedChanged: messageColumn.bodyTruncated = truncated
+                  onLinkActivated: url => Qt.openUrlExternally(url)
+                }
+              }
+
+              Loader {
+                Layout.fillWidth: true
+                active: messageColumn.hasInlineReply
+                sourceComponent: RowLayout {
+                  Layout.fillWidth: true
+                  spacing: 6
+
+                  TextField {
+                    id: replyField
+                    Layout.fillWidth: true
+                    placeholderText: messageColumn.inlineReplyPlaceholder
+                    selectByMouse: true
+                    activeFocusOnPress: true
+                    font.pixelSize: 13
+                    padding: 6
+                    Keys.onReturnPressed: sendBtn.clicked()
+                    Keys.onEnterPressed: sendBtn.clicked()
+                    onActiveFocusChanged: if (activeFocus)
+                      root.inputFocusRequested()
+                    background: Rectangle {
+                      anchors.fill: parent
+                      radius: Theme.itemRadius
+                      color: Theme.bgColor
+                      border.width: 1
+                      border.color: replyField.activeFocus ? Theme.activeColor : Theme.borderColor
+                    }
+                  }
+
+                  StandardButton {
+                    id: sendBtn
+                    buttonType: "action"
+                    text: "Send"
+                    onClicked: {
+                      const replyText = String(replyField.text || "");
+                      if (replyText.length === 0)
+                        return;
+                      const success = messageItem.modelData && messageItem.modelData.sendInlineReply ? messageItem.modelData.sendInlineReply(replyText) : false;
+                      if (success !== false)
+                        replyField.text = "";
+                    }
+                  }
+                }
+              }
+
+              Loader {
+                Layout.fillWidth: true
+                active: messageColumn.actionsModel.length > 0
+                sourceComponent: RowLayout {
+                  Layout.fillWidth: true
+                  Layout.alignment: Qt.AlignHCenter
+                  spacing: 6
+                  Repeater {
+                    model: messageColumn.actionsModel
+                    delegate: StandardButton {
+                      required property var modelData
+                      buttonType: "action"
+                      text: modelData.title || modelData.id || ""
+                      onClicked: root.svc?.executeAction(messageItem.modelData, modelData.id, modelData._obj)
+                    }
                   }
                 }
               }
             }
 
-            Loader {
-              Layout.fillWidth: true
-              active: messageColumn.actionsModel.length > 0
-              sourceComponent: RowLayout {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignHCenter
-                spacing: 6
-                Repeater {
-                  model: messageColumn.actionsModel
-                  delegate: StandardButton {
-                    required property var modelData
-                    buttonType: "action"
-                    text: modelData.title || modelData.id || ""
-                    onClicked: root.svc?.executeAction(messageColumn.modelData, modelData.id, modelData._obj)
-                  }
-                }
-              }
+            MouseArea {
+              id: mouseArea
+              anchors.fill: parent
+              hoverEnabled: messageItem.isMultipleItems
+              acceptedButtons: Qt.NoButton
+              z: -1  // Put behind the content
             }
           }
         }
