@@ -25,7 +25,7 @@ WlrLayershell {
     const cx = width * centerXRatio, cy = height * centerYRatio;
     return 2 * Math.hypot(Math.max(cx, width - cx), Math.max(cy, height - cy));
   }
-
+  readonly property size pixelSize: hasRealSize ? Qt.size(Math.round(width * pixelRatio), Math.round(height * pixelRatio)) : Qt.size(0, 0)
   anchors {
     bottom: true
     left: true
@@ -41,7 +41,7 @@ WlrLayershell {
     anchors.fill: parent
     fillMode: root.fillMode
     source: root.hasRealSize ? root.currentUrl : ""
-    sourceSize: root.hasRealSize ? Qt.size(Math.round(root.width * root.pixelRatio), Math.round(root.height * root.pixelRatio)) : Qt.size(0, 0)
+    sourceSize: root.pixelSize
     asynchronous: true
     cache: false
     retainWhileLoading: true
@@ -62,7 +62,7 @@ WlrLayershell {
       x: -Math.round(revealMask.x)
       y: -Math.round(revealMask.y)
       fillMode: root.fillMode
-      sourceSize: root.hasRealSize ? Qt.size(Math.round(root.width * root.pixelRatio), Math.round(root.height * root.pixelRatio)) : Qt.size(0, 0)
+      sourceSize: root.pixelSize
       source: root.pendingUrl
       asynchronous: true
       cache: false
