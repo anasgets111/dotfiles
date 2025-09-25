@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
 import Quickshell.Services.Mpris
+import qs.Services.Utils
 
 Singleton {
   id: root
@@ -138,23 +139,29 @@ Singleton {
       active.play();
   }
   function playerKey(playerObj) {
-    return playerObj ? (playerObj.desktopEntry || playerObj.busName || playerObj.identity || "") : "";
+    return playerObj ? (playerObj.desktopEntry || playerObj.dbusName || playerObj.identity || "") : "";
   }
   function previous() {
     if (active && canGoPrevious)
       active.previous();
   }
   function seek(position) {
-    if (active && canSeek) {
-      active.position = position;
+    const p = active;
+    if (root.isAlivePlayer(p) && p?.canSeek) {
+      const delta = position - p.position; // seconds
+      if (Math.abs(delta) > 0.005)
+        p.seek(delta);
       currentPosition = position;
     }
   }
   function seekByRatio(ratio) {
-    if (active && canSeek && trackLength > 0) {
-      const pos = ratio * trackLength;
-      active.position = pos;
-      currentPosition = pos;
+    const p = active;
+    if (root.isAlivePlayer(p) && p?.canSeek && trackLength > 0) {
+      const target = ratio * trackLength;
+      const delta = target - p.position; // seconds
+      if (Math.abs(delta) > 0.005)
+        p.seek(delta);
+      currentPosition = target;
     }
   }
   function stop() {
