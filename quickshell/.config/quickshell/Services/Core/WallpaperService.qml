@@ -16,11 +16,19 @@ Singleton {
   property var lastAnnounced: ({})       // name -> { wallpaper, mode }
   // Global transition setting for wallpaper changes
   property string wallpaperTransition: defaultTransition
+  property string _persistKey: ""
+
   Timer {
     id: announceDebounce
     interval: 50
     repeat: false
     onTriggered: self.announceAll()
+  }
+  Timer {
+    id: persistDebounce
+    interval: 80
+    repeat: false
+    onTriggered: self.persistMonitors()
   }
 
   readonly property bool ready: hydrated && MonitorService?.ready && MonitorService.monitors?.count > 0
@@ -126,26 +134,37 @@ Singleton {
         mode: validMode(p.mode)
       };
     }
+    const t = validTransition(wallpaperTransition);
+    const key = JSON.stringify([out, t]);
+    if (key === _persistKey)
+      return;
+    _persistKey = key;
     Settings.data.wallpapers = out;
-    Settings.data.wallpaperTransition = validTransition(wallpaperTransition);
+    Settings.data.wallpaperTransition = t;
   }
 
   function setModePref(name, mode) {
     if (!name)
       return;
     const p = ensurePrefs(name);
-    p.mode = validMode(mode);
+    const v = validMode(mode);
+    if (p.mode === v)
+      return;
+    p.mode = v;
     modeChanged(name, p.mode);
-    persistMonitors();
+    persistDebounce.restart();
   }
 
   function setWallpaper(name, path) {
     if (!name)
       return;
     const p = ensurePrefs(name);
-    p.wallpaper = (typeof path === "string" && path) ? path : defaultWallpaper;
+    const v = (typeof path === "string" && path) ? path : defaultWallpaper;
+    if (p.wallpaper === v)
+      return;
+    p.wallpaper = v;
     wallpaperChanged(name, p.wallpaper);
-    persistMonitors();
+    persistDebounce.restart();
   }
 
   function setWallpaperTransition(transition) {
