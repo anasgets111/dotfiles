@@ -11,64 +11,17 @@ Singleton {
   readonly property string defaultWallpaper: Settings.defaultWallpaper
 
   property bool hydrated: false
-  property var monitorPrefs: ({})
-  property var monitorCenters: ({})
-  property var lastAnnounced: ({})
-
+  property var monitorPrefs: ({})        // name -> { wallpaper, mode }
+  property var monitorCenters: ({})      // name -> { x, y }
+  property var lastAnnounced: ({})       // name -> { wallpaper, mode, centerX, centerY }
   Timer {
     id: announceDebounce
     interval: 50
     repeat: false
-    onTriggered: self._announceAll()
+    onTriggered: self.announceAll()
   }
 
   readonly property bool ready: hydrated && MonitorService?.ready && MonitorService.monitors?.count > 0
-
-  function _validModeOrDefault(mode) {
-    switch (mode) {
-    case "fill":
-    case "fit":
-    case "center":
-    case "stretch":
-    case "tile":
-      return mode;
-    default:
-      return defaultMode;
-    }
-  }
-  function _randomCenter() {
-    const m = 0.07;
-    return {
-      x: m + Math.random() * (1 - 2 * m),
-      y: m + Math.random() * (1 - 2 * m)
-    };
-  }
-
-  function _ensurePrefs(name) {
-    let p = monitorPrefs[name];
-    if (!p)
-      p = monitorPrefs[name] = {
-        wallpaper: defaultWallpaper,
-        mode: defaultMode
-      };
-    return p;
-  }
-  function _ensureCenter(name) {
-    let c = monitorCenters[name];
-    if (!c)
-      c = monitorCenters[name] = {
-        x: 0.5,
-        y: 0.5
-      };
-    return c;
-  }
-  function _seedCurrentMonitors() {
-    if (!MonitorService?.ready)
-      return;
-    const n = MonitorService.monitors.count;
-    for (let i = 0; i < n; i++)
-      _ensurePrefs(MonitorService.monitors.get(i).name);
-  }
 
   readonly property var monitors: {
     if (!ready)
@@ -77,8 +30,8 @@ Singleton {
     const n = MonitorService.monitors.count;
     for (let i = 0; i < n; i++) {
       const m = MonitorService.monitors.get(i);
-      const prefs = _ensurePrefs(m.name);
-      const center = _ensureCenter(m.name);
+      const prefs = ensurePrefs(m.name);
+      const center = ensureCenter(m.name);
       out.push({
         name: m.name,
         width: m.width,
@@ -99,16 +52,61 @@ Singleton {
   signal wallpaperChanged(string monitorName, string wallpaperPath, real centerRelX, real centerRelY)
   signal modeChanged(string monitorName, string mode)
 
-  function _announceAll() {
+  function validMode(mode) {
+    switch (mode) {
+    case "fill":
+    case "fit":
+    case "center":
+    case "stretch":
+    case "tile":
+      return mode;
+    default:
+      return defaultMode;
+    }
+  }
+  function randomCenter() {
+    const margin = 0.07;
+    return {
+      x: margin + Math.random() * (1 - 2 * margin),
+      y: margin + Math.random() * (1 - 2 * margin)
+    };
+  }
+  function ensurePrefs(name) {
+    let p = monitorPrefs[name];
+    if (!p)
+      p = monitorPrefs[name] = {
+        wallpaper: defaultWallpaper,
+        mode: defaultMode
+      };
+    return p;
+  }
+  function ensureCenter(name) {
+    let c = monitorCenters[name];
+    if (!c)
+      c = monitorCenters[name] = {
+        x: 0.5,
+        y: 0.5
+      };
+    return c;
+  }
+  function seedCurrentMonitors() {
+    if (!MonitorService?.ready)
+      return;
+    const n = MonitorService.monitors.count;
+    for (let i = 0; i < n; i++)
+      ensurePrefs(MonitorService.monitors.get(i).name);
+  }
+
+  function announceAll() {
     if (!hydrated || !MonitorService?.ready || !MonitorService.monitors?.count)
       return;
     const n = MonitorService.monitors.count;
     for (let i = 0; i < n; i++) {
       const name = MonitorService.monitors.get(i).name;
-      const prefs = _ensurePrefs(name);
+      const prefs = ensurePrefs(name);
       let center = monitorCenters[name];
       if (!center)
-        center = monitorCenters[name] = _randomCenter();
+        center = monitorCenters[name] = randomCenter();
 
       const prev = lastAnnounced[name];
       if (prev && prev.wallpaper === prefs.wallpaper && prev.mode === prefs.mode && prev.centerX === center.x && prev.centerY === center.y)
@@ -120,11 +118,11 @@ Singleton {
         centerX: center.x,
         centerY: center.y
       };
-      self.wallpaperChanged(name, prefs.wallpaper, center.x, center.y);
+      wallpaperChanged(name, prefs.wallpaper, center.x, center.y);
     }
   }
 
-  function _persistMonitors() {
+  function persistMonitors() {
     if (!hydrated || !Settings?.data || !MonitorService?.ready || !MonitorService.monitors?.count)
       return;
     const out = {};
@@ -134,7 +132,7 @@ Singleton {
       const p = monitorPrefs[name] || {};
       out[name] = {
         wallpaper: (typeof p.wallpaper === "string" && p.wallpaper) ? p.wallpaper : defaultWallpaper,
-        mode: _validModeOrDefault(p.mode)
+        mode: validMode(p.mode)
       };
     }
     Settings.data.wallpapers = out;
@@ -143,21 +141,21 @@ Singleton {
   function setModePref(name, mode) {
     if (!name)
       return;
-    const p = _ensurePrefs(name);
-    p.mode = _validModeOrDefault(mode);
-    self.modeChanged(name, p.mode);
-    _persistMonitors();
+    const p = ensurePrefs(name);
+    p.mode = validMode(mode);
+    modeChanged(name, p.mode);
+    persistMonitors();
   }
 
   function setWallpaper(name, path) {
     if (!name)
       return;
-    const p = _ensurePrefs(name);
+    const p = ensurePrefs(name);
     p.wallpaper = (typeof path === "string" && path) ? path : defaultWallpaper;
-    const c = _randomCenter();
+    const c = randomCenter();
     monitorCenters[name] = c;
-    self.wallpaperChanged(name, p.wallpaper, c.x, c.y);
-    _persistMonitors();
+    wallpaperChanged(name, p.wallpaper, c.x, c.y);
+    persistMonitors();
   }
 
   function wallpaperFor(name) {
@@ -167,8 +165,8 @@ Singleton {
     if (idx < 0)
       return null;
     const m = MonitorService.monitors.get(idx);
-    const p = _ensurePrefs(name);
-    const c = _ensureCenter(name);
+    const p = ensurePrefs(name);
+    const c = ensureCenter(name);
     return {
       name: m.name,
       width: m.width,
@@ -192,15 +190,15 @@ Singleton {
       const sp = saved[name] || {};
       monitorPrefs[name] = {
         wallpaper: (typeof sp.wallpaper === "string" && sp.wallpaper) ? sp.wallpaper : defaultWallpaper,
-        mode: _validModeOrDefault(sp.mode)
+        mode: validMode(sp.mode)
       };
     }
     if (Object.keys(monitorPrefs).length === 0 && MonitorService.ready)
-      _seedCurrentMonitors();
+      seedCurrentMonitors();
     hydrated = true;
     if (MonitorService.ready)
-      self._announceAll();
-    _persistMonitors();
+      announceAll();
+    persistMonitors();
   }
 
   Component.onCompleted: {
@@ -219,15 +217,15 @@ Singleton {
     target: MonitorService
     function onReadyChanged() {
       if (MonitorService.ready && self.hydrated) {
-        self._seedCurrentMonitors();
+        self.seedCurrentMonitors();
         announceDebounce.restart();
       }
     }
     function onMonitorsUpdated() {
       if (MonitorService.ready && self.hydrated) {
-        self._seedCurrentMonitors();
+        self.seedCurrentMonitors();
         announceDebounce.restart();
-        self._persistMonitors();
+        self.persistMonitors();
       }
     }
   }
