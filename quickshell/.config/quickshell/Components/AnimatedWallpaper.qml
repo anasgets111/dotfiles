@@ -23,6 +23,9 @@ WlrLayershell {
   property real discCenterY: 0.5
   property real stripesCount: 16
   property real stripesAngle: 0
+  property bool waitingForCurrentReady: false
+  property bool pendingProgressReset: false
+  property string pendingWallpaperUrl: ""
 
   // Sources
   readonly property bool hasCurrent: currentWallpaper.status === Image.Ready && !!currentWallpaper.source
@@ -52,6 +55,15 @@ WlrLayershell {
     live: false
   }
 
+  // Portrait/HiDPI helpers (physical pixels)
+  readonly property real deviceScale: (modelData && modelData.scale) ? modelData.scale : 1.0
+  readonly property real screenPixelWidth: width * deviceScale
+  readonly property real screenPixelHeight: height * deviceScale
+  readonly property real currentPaintedWidthPx: Math.max(1, Math.round(currentWallpaper.paintedWidth * deviceScale))
+  readonly property real currentPaintedHeightPx: Math.max(1, Math.round(currentWallpaper.paintedHeight * deviceScale))
+  readonly property real nextPaintedWidthPx: Math.max(1, Math.round(nextWallpaper.paintedWidth * deviceScale))
+  readonly property real nextPaintedHeightPx: Math.max(1, Math.round(nextWallpaper.paintedHeight * deviceScale))
+
   // Actual image layers
   Image {
     id: currentWallpaper
@@ -61,8 +73,13 @@ WlrLayershell {
     layer.enabled: true
     asynchronous: true
     smooth: true
-    cache: true
+    cache: false
     fillMode: root.imageFillMode
+
+    onStatusChanged: {
+      if (status === Image.Ready || status === Image.Error)
+        root.handleCurrentStatus(status);
+    }
   }
 
   Image {
@@ -73,142 +90,53 @@ WlrLayershell {
     layer.enabled: true
     asynchronous: true
     smooth: true
-    cache: true
+    cache: false
     fillMode: root.imageFillMode
 
     onStatusChanged: {
+      if (status === Image.Error) {
+        nextWallpaper.source = "";
+        return;
+      }
       if (status !== Image.Ready)
         return;
       if (!currentWallpaper.source || root.transitionType === "none") {
-        currentWallpaper.source = source;
-        nextWallpaper.source = "";
-        root.transitionProgress = 0.0;
+        root.transitionProgress = 1.0;
+        root.commitNextWallpaper(true);
         return;
       }
       if (!transitionAnim.running)
         transitionAnim.start();
     }
   }
-
-  // Fade
+  // Unified transition shader
   ShaderEffect {
-    id: fadeShader
+    id: transitionShader
     anchors.fill: parent
-    visible: (root.transitionType === "fade" || root.transitionType === "none") && (root.hasCurrent || root.booting)
+    readonly property url shaderUrl: root.shaderUrlForTransition(root.transitionType)
+    readonly property bool hasSources: root.hasCurrent || root.booting
+    visible: hasSources && shaderUrl !== ""
 
-    property var source1: root.hasCurrent ? currentWallpaper : transparentSource
-    property var source2: nextWallpaper
-    property real progress: root.transitionProgress
-    // Optional tuning params compatible with shader snippets
-    property real fillMode: 1.0
-    property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
-    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
-    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
-    property real imageWidth2: Math.max(1, source2.sourceSize.width)
-    property real imageHeight2: Math.max(1, source2.sourceSize.height)
-    property real screenWidth: width
-    property real screenHeight: height
-
-    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_fade.frag.qsb")
-  }
-
-  // Wipe
-  ShaderEffect {
-    id: wipeShader
-    anchors.fill: parent
-    visible: root.transitionType === "wipe" && (root.hasCurrent || root.booting)
-
-    property var source1: root.hasCurrent ? currentWallpaper : transparentSource
-    property var source2: nextWallpaper
+    property var source1: visible ? (root.hasCurrent ? currentWallpaper : transparentSource) : null
+    property var source2: visible ? nextWallpaper : null
     property real progress: root.transitionProgress
     property real smoothness: root.edgeSmoothness
+    property real aspectRatio: root.screenPixelWidth / Math.max(1.0, root.screenPixelHeight)
     property real direction: root.wipeDirection
-    property real fillMode: 1.0
-    property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
-    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
-    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
-    property real imageWidth2: Math.max(1, source2.sourceSize.width)
-    property real imageHeight2: Math.max(1, source2.sourceSize.height)
-    property real screenWidth: width
-    property real screenHeight: height
-
-    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_wipe.frag.qsb")
-  }
-
-  // Disc
-  ShaderEffect {
-    id: discShader
-    anchors.fill: parent
-    visible: root.transitionType === "disc" && (root.hasCurrent || root.booting)
-
-    property var source1: root.hasCurrent ? currentWallpaper : transparentSource
-    property var source2: nextWallpaper
-    property real progress: root.transitionProgress
-    property real smoothness: root.edgeSmoothness
-    property real aspectRatio: root.width / Math.max(1.0, root.height)
-    property real centerX: root.discCenterX
-    property real centerY: root.discCenterY
-    property real fillMode: 1.0
-    property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
-    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
-    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
-    property real imageWidth2: Math.max(1, source2.sourceSize.width)
-    property real imageHeight2: Math.max(1, source2.sourceSize.height)
-    property real screenWidth: width
-    property real screenHeight: height
-
-    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_disc.frag.qsb")
-  }
-
-  // Stripes
-  ShaderEffect {
-    id: stripesShader
-    anchors.fill: parent
-    visible: root.transitionType === "stripes" && (root.hasCurrent || root.booting)
-
-    property var source1: root.hasCurrent ? currentWallpaper : transparentSource
-    property var source2: nextWallpaper
-    property real progress: root.transitionProgress
-    property real smoothness: root.edgeSmoothness
-    property real aspectRatio: root.width / Math.max(1.0, root.height)
     property real stripeCount: root.stripesCount
     property real angle: root.stripesAngle
+    property real centerX: root.transitionType === "disc" ? root.discCenterX : 0.5
+    property real centerY: root.transitionType === "disc" ? root.discCenterY : 0.5
     property real fillMode: 1.0
     property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
-    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
-    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
-    property real imageWidth2: Math.max(1, source2.sourceSize.width)
-    property real imageHeight2: Math.max(1, source2.sourceSize.height)
-    property real screenWidth: width
-    property real screenHeight: height
+    property real imageWidth1: root.hasCurrent ? root.currentPaintedWidthPx : root.screenPixelWidth
+    property real imageHeight1: root.hasCurrent ? root.currentPaintedHeightPx : root.screenPixelHeight
+    property real imageWidth2: root.nextPaintedWidthPx
+    property real imageHeight2: root.nextPaintedHeightPx
+    property real screenWidth: root.screenPixelWidth
+    property real screenHeight: root.screenPixelHeight
 
-    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_stripes.frag.qsb")
-  }
-
-  // Portal
-  ShaderEffect {
-    id: portalShader
-    anchors.fill: parent
-    visible: root.transitionType === "portal" && (root.hasCurrent || root.booting)
-
-    property var source1: root.hasCurrent ? currentWallpaper : transparentSource
-    property var source2: nextWallpaper
-    property real progress: root.transitionProgress
-    // Provide same common uniforms many shaders expect
-    property real smoothness: root.edgeSmoothness
-    property real aspectRatio: root.width / Math.max(1.0, root.height)
-    property real centerX: 0.5
-    property real centerY: 0.5
-    property real fillMode: 1.0
-    property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
-    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
-    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
-    property real imageWidth2: Math.max(1, source2.sourceSize.width)
-    property real imageHeight2: Math.max(1, source2.sourceSize.height)
-    property real screenWidth: width
-    property real screenHeight: height
-
-    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_portal.frag.qsb")
+    fragmentShader: shaderUrl
   }
 
   NumberAnimation {
@@ -221,12 +149,71 @@ WlrLayershell {
     easing.type: Easing.InOutCubic
     onFinished: {
       Qt.callLater(() => {
-        if (nextWallpaper.source && nextWallpaper.status === Image.Ready) {
-          currentWallpaper.source = nextWallpaper.source;
-        }
-        nextWallpaper.source = "";
-        root.transitionProgress = 0.0;
+        if (!nextWallpaper.source || nextWallpaper.status !== Image.Ready)
+          return;
+        root.commitNextWallpaper(true);
       });
+    }
+  }
+
+  function sourceToString(src) {
+    return src && src.toString ? src.toString() : src;
+  }
+
+  function commitNextWallpaper(resetProgress) {
+    if (!nextWallpaper.source) {
+      root.pendingProgressReset = false;
+      root.waitingForCurrentReady = false;
+      return;
+    }
+    if (currentWallpaper.source !== nextWallpaper.source)
+      currentWallpaper.source = nextWallpaper.source;
+    root.pendingProgressReset = resetProgress;
+    root.waitingForCurrentReady = true;
+    if (currentWallpaper.status === Image.Ready)
+      root.handleCurrentStatus(Image.Ready);
+  }
+
+  function handleCurrentStatus(status) {
+    if (!root.waitingForCurrentReady)
+      return;
+    if (status === Image.Ready) {
+      if (root.pendingProgressReset)
+        root.transitionProgress = 0.0;
+      root.pendingProgressReset = false;
+      if (sourceToString(nextWallpaper.source) === sourceToString(currentWallpaper.source))
+        nextWallpaper.source = "";
+      root.waitingForCurrentReady = false;
+      Qt.callLater(root.processPendingWallpaper);
+    } else if (status === Image.Error) {
+      root.pendingProgressReset = false;
+      root.waitingForCurrentReady = false;
+      Qt.callLater(root.processPendingWallpaper);
+    }
+  }
+
+  function processPendingWallpaper() {
+    if (!root.pendingWallpaperUrl)
+      return;
+    const pending = root.pendingWallpaperUrl;
+    root.pendingWallpaperUrl = "";
+    root.changeWallpaper(pending);
+  }
+
+  function shaderUrlForTransition(t) {
+    switch (t) {
+    case "wipe":
+      return Qt.resolvedUrl("../Shaders/qsb/wp_wipe.frag.qsb");
+    case "disc":
+      return Qt.resolvedUrl("../Shaders/qsb/wp_disc.frag.qsb");
+    case "stripes":
+      return Qt.resolvedUrl("../Shaders/qsb/wp_stripes.frag.qsb");
+    case "portal":
+      return Qt.resolvedUrl("../Shaders/qsb/wp_portal.frag.qsb");
+    case "fade":
+    case "none":
+    default:
+      return Qt.resolvedUrl("../Shaders/qsb/wp_fade.frag.qsb");
     }
   }
 
@@ -241,17 +228,19 @@ WlrLayershell {
 
   function changeWallpaper(newPath) {
     const newUrl = normalizeUrl(newPath);
-    if (!newUrl || newUrl === currentWallpaper.source)
+    const currentSource = sourceToString(currentWallpaper.source);
+    const nextSource = sourceToString(nextWallpaper.source);
+    if (!newUrl || newUrl === currentSource || newUrl === nextSource)
       return;
 
-    // If an animation is running, fast-forward and commit
-    if (transitionAnim.running) {
-      transitionAnim.stop();
-      root.transitionProgress = 0.0;
-      if (nextWallpaper.source)
-        currentWallpaper.source = nextWallpaper.source;
-      nextWallpaper.source = "";
+    if (transitionAnim.running || root.waitingForCurrentReady) {
+      root.pendingWallpaperUrl = newUrl;
+      return;
     }
+
+    // Clear any stale pending request we're about to fulfill immediately
+    if (root.pendingWallpaperUrl === newUrl)
+      root.pendingWallpaperUrl = "";
 
     // Randomize per-transition parameters
     if (root.transitionType === "wipe") {
@@ -269,8 +258,8 @@ WlrLayershell {
       if (currentWallpaper.source && root.transitionType !== "none")
         transitionAnim.start();
       else {
-        currentWallpaper.source = nextWallpaper.source;
-        nextWallpaper.source = "";
+        root.transitionProgress = 1.0;
+        root.commitNextWallpaper(true);
       }
     }
   }
