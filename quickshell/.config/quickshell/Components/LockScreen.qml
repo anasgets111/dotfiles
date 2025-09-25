@@ -33,9 +33,8 @@ Scope {
     WlSessionLockSurface {
       id: lockSurface
 
-      readonly property var screenRef: screen
-      readonly property string screenName: screenRef && screenRef.name ? screenRef.name : ""
-      readonly property bool hasScreen: !!screenRef
+      readonly property string screenName: screen && screen.name ? screen.name : ""
+      readonly property bool hasScreen: !!screen
       readonly property bool isMainMonitor: hasScreen && MonitorService && MonitorService.activeMain === screenName
       readonly property var wallpaperData: hasScreen && WallpaperService ? (screenName ? WallpaperService.wallpaperFor(screenName) : ({
             wallpaper: WallpaperService.defaultWallpaper,
@@ -64,7 +63,6 @@ Scope {
           anchors.fill: parent
           fillMode: lockSurface.wallpaperFillMode
           layer.enabled: lockSurface.hasScreen
-          layer.mipmap: false
           cache: true
           mipmap: false
           source: (lockSurface.wallpaperData && lockSurface.wallpaperData.wallpaper) ? lockSurface.wallpaperData.wallpaper : ((WallpaperService && WallpaperService.defaultWallpaper) ? WallpaperService.defaultWallpaper : "")
@@ -79,9 +77,9 @@ Scope {
         }
       }
       MouseArea {
-        acceptedButtons: Qt.NoButton
         anchors.fill: parent
         hoverEnabled: true
+        acceptedButtons: Qt.AllButtons
         propagateComposedEvents: true
         onEntered: lockContent.forceActiveFocus()
         onPressed: lockContent.forceActiveFocus()
@@ -89,17 +87,17 @@ Scope {
 
       // one day :D
       // ScreencopyView {
-      //     id: background
-      //     anchors.fill: parent
-      //     captureSource: surface.screen
-      //     layer.enabled: true
-      //     layer.effect: MultiEffect {
-      //         autoPaddingEnabled: false
-      //         blurEnabled: true
-      //         blur: 0.75
-      //         blurMax: 48
-      //         blurMultiplier: 1
-      //     }
+      //   id: background
+      //   anchors.fill: parent
+      //   captureSource: lockSurface.screen
+      //   layer.enabled: true
+      //   layer.effect: MultiEffect {
+      //     autoPaddingEnabled: false
+      //     blurEnabled: true
+      //     blur: 0.9
+      //     blurMax: 64
+      //     blurMultiplier: 1
+      //   }
       // }
 
       LockContent {

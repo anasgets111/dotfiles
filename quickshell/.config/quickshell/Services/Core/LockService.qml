@@ -6,7 +6,7 @@ import Quickshell.Services.Pam
 Singleton {
   id: lockService
 
-  property string authState: ""            // "", "error", "max", "fail"
+  property string authState: ""
   property bool authenticating: false
   property bool locked: false
   property string passwordBuffer: ""
@@ -14,18 +14,25 @@ Singleton {
   signal lock
   signal unlock
 
-  function cancelAuth() {
-    authenticating = false;
-  }
-  function clearInput() {
-    passwordBuffer = "";
-  }
   function submitOrStart() {
     if (!authenticating && passwordBuffer.length > 0)
       pamContext.start();
   }
   function toggle() {
     locked = !locked;
+  }
+
+  function mapPamResultToState(result) {
+    switch (result) {
+    case PamResult.Error:
+      return "error";
+    case PamResult.MaxTries:
+      return "max";
+    case PamResult.Failed:
+      return "fail";
+    default:
+      return "";
+    }
   }
 
   onLockedChanged: {
@@ -47,8 +54,9 @@ Singleton {
         lockService.passwordBuffer = "";
         lockService.locked = false;
       } else {
-        lockService.authState = result === PamResult.Error ? "error" : result === PamResult.MaxTries ? "max" : result === PamResult.Failed ? "fail" : "";
-        authStateResetTimer.restart();
+        lockService.authState = lockService.mapPamResultToState(result);
+        if (lockService.authState)
+          authStateResetTimer.restart();
       }
     }
     onResponseRequiredChanged: if (responseRequired) {

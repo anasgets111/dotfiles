@@ -78,7 +78,7 @@ FocusScope {
   function shake() {
     shakeAnimation.restart();
   }
-  function requestFocusIfNeeded(reason) {
+  function requestFocusIfNeeded() {
     if (shouldShowContent && isPrimaryMonitor)
       forceActiveFocus();
   }
@@ -95,19 +95,19 @@ FocusScope {
     wakeSystem("key-press");
     if (!shouldShowContent || lockContext.authenticating)
       return;
-    const k = event.key;
-    if (k === Qt.Key_Enter || k === Qt.Key_Return) {
+    const key = event.key;
+    if (key === Qt.Key_Enter || key === Qt.Key_Return) {
       lockContext.submitOrStart();
       event.accepted = true;
       return;
     }
-    if (k === Qt.Key_Backspace) {
+    if (key === Qt.Key_Backspace) {
       const next = (event.modifiers & Qt.ControlModifier) ? "" : lockContext.passwordBuffer.slice(0, -1);
       lockContext.passwordBuffer = next;
       event.accepted = true;
       return;
     }
-    if (k === Qt.Key_Escape) {
+    if (key === Qt.Key_Escape) {
       lockContext.passwordBuffer = "";
       event.accepted = true;
       return;
@@ -135,20 +135,20 @@ FocusScope {
     target: root.lockSurface
     function onHasScreenChanged() {
       if (root.lockSurface?.hasScreen)
-        root.requestFocusIfNeeded("hasScreen true");
+        root.requestFocusIfNeeded();
     }
   }
 
   Connections {
     target: root.lockContext
     function onAuthStateChanged() {
-      const s = root.lockContext.authState;
-      if (s === "error" || s === "fail")
+      const state = root.lockContext.authState;
+      if (state === "error" || state === "fail")
         root.shake();
     }
   }
 
-  Component.onCompleted: requestFocusIfNeeded("component completed")
+  Component.onCompleted: requestFocusIfNeeded()
 
   SequentialAnimation {
     id: shakeAnimation
@@ -476,7 +476,6 @@ FocusScope {
             implicitWidth: 10
             radius: 5
             scale: 0.8
-            // Use theme colors for dots when typing
             color: root.lockContext.authenticating ? root.theme.mauve : root.theme.overlay2
             Component.onCompleted: scale = 1.0
             Behavior on scale {
