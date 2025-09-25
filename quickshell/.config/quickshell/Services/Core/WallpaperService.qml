@@ -9,11 +9,13 @@ Singleton {
 
   readonly property string defaultMode: "fill"
   readonly property string defaultWallpaper: Settings.defaultWallpaper
+  readonly property string defaultTransition: "disc"
 
   property bool hydrated: false
   property var monitorPrefs: ({})        // name -> { wallpaper, mode }
-  property var monitorCenters: ({})      // name -> { x, y }
-  property var lastAnnounced: ({})       // name -> { wallpaper, mode, centerX, centerY }
+  property var lastAnnounced: ({})       // name -> { wallpaper, mode }
+  // Global transition setting for wallpaper changes
+  property string wallpaperTransition: defaultTransition
   Timer {
     id: announceDebounce
     interval: 50
@@ -31,7 +33,6 @@ Singleton {
     for (let i = 0; i < n; i++) {
       const m = MonitorService.monitors.get(i);
       const prefs = ensurePrefs(m.name);
-      const center = ensureCenter(m.name);
       out.push({
         name: m.name,
         width: m.width,
@@ -41,16 +42,15 @@ Singleton {
         bitDepth: m.bitDepth,
         orientation: m.orientation,
         wallpaper: prefs.wallpaper,
-        mode: prefs.mode,
-        animCenterX: center.x,
-        animCenterY: center.y
+        mode: prefs.mode
       });
     }
     return out;
   }
 
-  signal wallpaperChanged(string monitorName, string wallpaperPath, real centerRelX, real centerRelY)
+  signal wallpaperChanged(string monitorName, string wallpaperPath)
   signal modeChanged(string monitorName, string mode)
+  signal transitionChanged(string transition)
 
   function validMode(mode) {
     switch (mode) {
@@ -64,12 +64,17 @@ Singleton {
       return defaultMode;
     }
   }
-  function randomCenter() {
-    const margin = 0.07;
-    return {
-      x: margin + Math.random() * (1 - 2 * margin),
-      y: margin + Math.random() * (1 - 2 * margin)
-    };
+  function validTransition(t) {
+    switch ((t || "").toString().toLowerCase()) {
+    case "fade":
+    case "wipe":
+    case "disc":
+    case "stripes":
+    case "portal":
+      return t.toLowerCase();
+    default:
+      return defaultTransition;
+    }
   }
   function ensurePrefs(name) {
     let p = monitorPrefs[name];
@@ -79,15 +84,6 @@ Singleton {
         mode: defaultMode
       };
     return p;
-  }
-  function ensureCenter(name) {
-    let c = monitorCenters[name];
-    if (!c)
-      c = monitorCenters[name] = {
-        x: 0.5,
-        y: 0.5
-      };
-    return c;
   }
   function seedCurrentMonitors() {
     if (!MonitorService?.ready)
@@ -104,21 +100,16 @@ Singleton {
     for (let i = 0; i < n; i++) {
       const name = MonitorService.monitors.get(i).name;
       const prefs = ensurePrefs(name);
-      let center = monitorCenters[name];
-      if (!center)
-        center = monitorCenters[name] = randomCenter();
 
       const prev = lastAnnounced[name];
-      if (prev && prev.wallpaper === prefs.wallpaper && prev.mode === prefs.mode && prev.centerX === center.x && prev.centerY === center.y)
+      if (prev && prev.wallpaper === prefs.wallpaper && prev.mode === prefs.mode)
         continue;
 
       lastAnnounced[name] = {
         wallpaper: prefs.wallpaper,
-        mode: prefs.mode,
-        centerX: center.x,
-        centerY: center.y
+        mode: prefs.mode
       };
-      wallpaperChanged(name, prefs.wallpaper, center.x, center.y);
+      wallpaperChanged(name, prefs.wallpaper);
     }
   }
 
@@ -136,6 +127,7 @@ Singleton {
       };
     }
     Settings.data.wallpapers = out;
+    Settings.data.wallpaperTransition = validTransition(wallpaperTransition);
   }
 
   function setModePref(name, mode) {
@@ -152,10 +144,18 @@ Singleton {
       return;
     const p = ensurePrefs(name);
     p.wallpaper = (typeof path === "string" && path) ? path : defaultWallpaper;
-    const c = randomCenter();
-    monitorCenters[name] = c;
-    wallpaperChanged(name, p.wallpaper, c.x, c.y);
+    wallpaperChanged(name, p.wallpaper);
     persistMonitors();
+  }
+
+  function setWallpaperTransition(transition) {
+    const v = validTransition(transition);
+    if (wallpaperTransition === v)
+      return;
+    wallpaperTransition = v;
+    transitionChanged(wallpaperTransition);
+    if (Settings?.data)
+      Settings.data.wallpaperTransition = wallpaperTransition;
   }
 
   function wallpaperFor(name) {
@@ -166,7 +166,6 @@ Singleton {
       return null;
     const m = MonitorService.monitors.get(idx);
     const p = ensurePrefs(name);
-    const c = ensureCenter(name);
     return {
       name: m.name,
       width: m.width,
@@ -177,8 +176,7 @@ Singleton {
       orientation: m.orientation,
       wallpaper: p.wallpaper,
       mode: p.mode,
-      animCenterX: c.x,
-      animCenterY: c.y
+      transition: wallpaperTransition
     };
   }
 
@@ -193,6 +191,8 @@ Singleton {
         mode: validMode(sp.mode)
       };
     }
+    if (typeof Settings.data.wallpaperTransition === "string")
+      wallpaperTransition = validTransition(Settings.data.wallpaperTransition);
     if (Object.keys(monitorPrefs).length === 0 && MonitorService.ready)
       seedCurrentMonitors();
     hydrated = true;
