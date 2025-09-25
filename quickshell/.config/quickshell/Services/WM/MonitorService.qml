@@ -10,46 +10,21 @@ import qs.Services.WM.Impl.Niri as Niri
 Singleton {
   id: monitorService
 
-  // Computed main monitor with fallback to first available monitor
-  readonly property string activeMain: {
-    if (preferredMain.length > 0)
-      return preferredMain;
-    return monitors.count > 0 ? monitors.get(0).name : "";
-  }
-  // Quickshell ShellScreen object for the active main monitor (or first screen)
-  readonly property var activeMainScreen: {
-    const screens = Quickshell.screens;
-    // If a preferred/active name exists, try to resolve to a ShellScreen
-    if (activeMain && activeMain.length > 0) {
-      for (let i = 0; i < screens.length; i++) {
-        if (screens[i] && screens[i].name === activeMain)
-          return screens[i];
-      }
-    }
-    // Fallback to first available screen
-    return screens.length > 0 ? screens[0] : null;
-  }
-  // Persist last known-good main monitor name to ride out transient nulls during hotplug/DPMS
-  property string lastKnownGoodMainName: ""
-  // Effective ShellScreen that never returns null when any screen exists
-  readonly property var effectiveMainScreen: {
-    const current = monitorService.activeMainScreen;
-    if (current)
-      return current;
-    // try last known-good by name
-    if (monitorService.lastKnownGoodMainName && monitorService.lastKnownGoodMainName.length > 0)
-      return monitorService.screenByName(monitorService.lastKnownGoodMainName);
-    // final fallback to first screen if present
-    const screens = Quickshell.screens;
-    return screens.length > 0 ? screens[0] : null;
-  }
-  // Select backend implementation declaratively based on current WM
+  property int _featuresRunId: 0
+  property var _drmEntries: null
+  property var _capsCache: ({})  // name -> { vrr: {supported}, hdr: {supported} }
   property var backend: (MainService.currentWM === "hyprland") ? Hyprland.MonitorImpl : (MainService.currentWM === "niri") ? Niri.MonitorImpl : null
-  readonly property var monitorKeyFields: ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"]
-  property ListModel monitors: ListModel {}
-  // Preferred main monitor from MainService, may be empty
-  property string preferredMain: MainService.mainMon || ""
   readonly property bool ready: backend !== null
+  property ListModel monitors: ListModel {}
+  property string preferredMain: MainService.mainMon || ""
+  property string lastKnownGoodMainName: ""
+  readonly property var monitorKeyFields: ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"]
+  readonly property string activeMain: preferredMain.length > 0 ? preferredMain : (monitors.count > 0 ? monitors.get(0).name : "")
+  readonly property var activeMainScreen: (() => {
+      const s = Quickshell.screens;
+      return activeMain ? (s.find(x => x && x.name === activeMain) || (s.length > 0 ? s[0] : null)) : (s.length > 0 ? s[0] : null);
+    })()
+  readonly property var effectiveMainScreen: (() => activeMainScreen || screenByName(lastKnownGoodMainName) || (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null))()
 
   signal monitorsUpdated
 
@@ -81,10 +56,9 @@ Singleton {
     changeDebounce.restart();
   }
   function findMonitorIndexByName(name) {
-    for (let idx = 0; idx < monitors.count; idx++) {
+    for (let idx = 0; idx < monitors.count; idx++)
       if (monitors.get(idx).name === name)
         return idx;
-    }
     return -1;
   }
   function getAvailableFeatures(name, callback) {
@@ -105,16 +79,26 @@ Singleton {
           fps: screen.refreshRate || 60,
           bitDepth: screen.colorDepth || 8,
           orientation: screen.orientation,
-          vrr: "off" // legacy
-          ,
+          vrr: "off",
           vrrSupported: false,
           hdrSupported: false,
           vrrActive: false,
           hdrActive: false
         }));
   }
+  function readDrmEntries(cb) {
+    if (_drmEntries) {
+      cb(_drmEntries);
+      return;
+    }
+    Utils.runCmd(["sh", "-c", "ls /sys/class/drm"], stdout => {
+      _drmEntries = stdout.split(/\r?\n/).filter(Boolean);
+      cb(_drmEntries);
+    }, monitorService);
+  }
+
   function readEdidCaps(connectorName, callback) {
-    const defaultCaps = {
+    const def = {
       vrr: {
         supported: false
       },
@@ -122,15 +106,13 @@ Singleton {
         supported: false
       }
     };
-    Utils.runCmd(["sh", "-c", "ls /sys/class/drm"], stdout => {
-      const entries = stdout.split(/\r?\n/).filter(Boolean);
-      const matchedEntry = entries.find(line => line.endsWith(`-${connectorName}`));
-      if (!matchedEntry) {
-        callback(defaultCaps);
+    readDrmEntries(entries => {
+      const match = entries.find(line => line.endsWith(`-${connectorName}`));
+      if (!match) {
+        callback(def);
         return;
       }
-
-      const edidPath = `/sys/class/drm/${matchedEntry}/edid`;
+      const edidPath = `/sys/class/drm/${match}/edid`;
       Utils.runCmd(["edid-decode", edidPath], text => {
         const vrrSupported = /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text);
         const hdrSupported = /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text);
@@ -143,66 +125,78 @@ Singleton {
           }
         });
       }, monitorService);
-    }, monitorService);
+    });
   }
   function refreshFeatures(monitorsList) {
-    if (!backend || !backend.fetchFeatures && !backend.getAvailableFeatures)
+    if (!backend || (!backend.fetchFeatures && !backend.getAvailableFeatures))
       return;
     const fetchFn = backend.fetchFeatures || backend.getAvailableFeatures;
+    const runId = ++_featuresRunId;
 
-    for (const monitorObj of monitorsList) {
-      readEdidCaps(monitorObj.name, caps => {
-        const idx = monitorService.findMonitorIndexByName(monitorObj.name);
-        if (idx < 0)
+    for (const m of monitorsList) {
+      const name = m.name;
+      const cached = _capsCache[name];
+      const afterCaps = caps => {
+        if (runId !== _featuresRunId)
+          return;                // drop stale batch
+        const idx1 = findMonitorIndexByName(name);
+        if (idx1 < 0)
           return;
-        let metaDirty = false;
-        const current = monitors.get(idx);
         const vrrSupported = !!(caps?.vrr?.supported);
         const hdrSupported = !!(caps?.hdr?.supported);
-        if (current.vrrSupported !== vrrSupported) {
-          monitors.setProperty(idx, "vrrSupported", vrrSupported);
-          metaDirty = true;
+        let dirtyMeta = false;
+        if (monitors.get(idx1).vrrSupported !== vrrSupported) {
+          monitors.setProperty(idx1, "vrrSupported", vrrSupported);
+          dirtyMeta = true;
         }
-        if (current.hdrSupported !== hdrSupported) {
-          monitors.setProperty(idx, "hdrSupported", hdrSupported);
-          metaDirty = true;
+        if (monitors.get(idx1).hdrSupported !== hdrSupported) {
+          monitors.setProperty(idx1, "hdrSupported", hdrSupported);
+          dirtyMeta = true;
         }
-        if (metaDirty)
+        if (dirtyMeta)
           emitChangedDebounced();
 
-        fetchFn(monitorObj.name, features => {
-          if (!features)
+        fetchFn(name, features => {
+          if (runId !== _featuresRunId || !features)
             return;
-          let activeDirty = false;
+          const idx2 = findMonitorIndexByName(name);
+          if (idx2 < 0)
+            return;
+          const cur = monitors.get(idx2);
+          let dirty = false;
           const vrrActive = !!(features.vrr && (features.vrr.active || features.vrr.enabled));
           const hdrActive = !!(features.hdr && (features.hdr.active || features.hdr.enabled));
-          if (current.vrrActive !== vrrActive) {
-            monitors.setProperty(idx, "vrrActive", vrrActive);
-            activeDirty = true;
+          if (cur.vrrActive !== vrrActive) {
+            monitors.setProperty(idx2, "vrrActive", vrrActive);
+            dirty = true;
           }
-          if (current.hdrActive !== hdrActive) {
-            monitors.setProperty(idx, "hdrActive", hdrActive);
-            activeDirty = true;
+          if (cur.hdrActive !== hdrActive) {
+            monitors.setProperty(idx2, "hdrActive", hdrActive);
+            dirty = true;
           }
-          const legacyVrr = vrrActive ? "on" : "off";
-          if (current.vrr !== legacyVrr) {
-            monitors.setProperty(idx, "vrr", legacyVrr);
-            activeDirty = true;
+          const legacy = vrrActive ? "on" : "off";
+          if (cur.vrr !== legacy) {
+            monitors.setProperty(idx2, "vrr", legacy);
+            dirty = true;
           }
-          if (activeDirty)
+          if (dirty)
             emitChangedDebounced();
         });
-      });
+      };
+
+      if (cached) {
+        afterCaps(cached);
+      } else {
+        readEdidCaps(name, caps => {
+          _capsCache[name] = caps;
+          afterCaps(caps);
+        });
+      }
     }
   }
-  // Helper: resolve a ShellScreen by connector name (e.g. DP-1)
   function screenByName(name) {
     const screens = Quickshell.screens;
-    for (let i = 0; i < screens.length; i++) {
-      if (screens[i] && screens[i].name === name)
-        return screens[i];
-    }
-    return screens.length > 0 ? screens[0] : null;
+    return screens.find(x => x && x.name === name) || (screens.length > 0 ? screens[0] : null);
   }
   function setMode(name, width, height, refreshRate) {
     backend?.setMode(name, width, height, refreshRate);
@@ -221,88 +215,73 @@ Singleton {
   }
   function toArray() {
     const result = [];
-    for (let idx = 0; idx < monitors.count; idx++) {
+    for (let idx = 0; idx < monitors.count; idx++)
       result.push(monitors.get(idx));
-    }
     return result;
   }
   function updateMonitors(newScreens) {
-    const oldCount = monitors.count;
-    const newCount = newScreens.length;
-    let modelChanged = false;
+    const oldCount = monitors.count, newCount = newScreens.length;
+    let changed = false;
 
-    const minCount = Math.min(oldCount, newCount);
-    for (let idx = 0; idx < minCount; idx++) {
-      const existingMonitor = monitors.get(idx);
-      const incomingMonitor = newScreens[idx];
-      if (!monitorService.isSameMonitor(existingMonitor, incomingMonitor)) {
-        const merged = Utils.mergeObjects(existingMonitor, incomingMonitor);
-        monitors.set(idx, merged);
-        modelChanged = true;
+    const min = Math.min(oldCount, newCount);
+    for (let idx = 0; idx < min; idx++) {
+      const cur = monitors.get(idx), inc = newScreens[idx];
+      if (!isSameMonitor(cur, inc)) {
+        monitors.set(idx, Object.assign({}, cur, inc));
+        changed = true;
       }
     }
-
     if (oldCount > newCount) {
-      modelChanged = true;
+      changed = true;
       for (let remIdx = oldCount - 1; remIdx >= newCount; remIdx--) {
         monitors.remove(remIdx);
       }
     }
-
     if (newCount > oldCount) {
-      modelChanged = true;
-      for (let addIdx = oldCount; addIdx < newCount; addIdx++) {
+      changed = true;
+      for (let addIdx = oldCount; addIdx < newCount; addIdx++)
         monitors.append(newScreens[addIdx]);
-      }
     }
-
-    if (modelChanged) {
+    if (changed)
       emitChangedDebounced();
-    }
   }
 
   Component.onCompleted: {
-    const normalizedScreens = normalizeScreens(Quickshell.screens);
-    updateMonitors(normalizedScreens);
+    const norm = normalizeScreens(Quickshell.screens);
+    updateMonitors(norm);
     if (backend)
-      refreshFeatures(normalizedScreens);
+      refreshFeatures(norm);
   }
   onBackendChanged: {
-    if (backend) {
+    if (backend)
       refreshFeatures(toArray());
-    }
-  }
-  onMonitorsUpdated: {
-    Logger.log("MonitorService", "current monitors:", JSON.stringify(toArray()));
   }
 
   Timer {
     id: changeDebounce
-
     interval: 0
     repeat: false
-
     onTriggered: monitorService.monitorsUpdated()
   }
+
   onActiveMainScreenChanged: {
     if (monitorService.activeMainScreen)
       monitorService.lastKnownGoodMainName = monitorService.activeMain;
   }
-  Connections {
-    function onScreensChanged() {
-      const normalizedScreens = monitorService.normalizeScreens(Quickshell.screens);
-      monitorService.updateMonitors(normalizedScreens);
-      if (monitorService.backend)
-        monitorService.refreshFeatures(normalizedScreens);
-    }
 
+  Connections {
     target: Quickshell
+    function onScreensChanged() {
+      const norm = monitorService.normalizeScreens(Quickshell.screens);
+      monitorService.updateMonitors(norm);
+      if (monitorService.backend)
+        monitorService.refreshFeatures(norm);
+    }
   }
   Connections {
+    target: (monitorService.backend && MainService.currentWM === "niri") ? monitorService.backend : null
     function onFeaturesChanged() {
       monitorService.refreshFeatures(monitorService.toArray());
     }
-
-    target: (monitorService.backend && MainService.currentWM === "niri") ? monitorService.backend : null
   }
 }

@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
-import qs.Services.Utils
 import qs.Services
 import qs.Services.Core
 import qs.Services.SystemInfo
