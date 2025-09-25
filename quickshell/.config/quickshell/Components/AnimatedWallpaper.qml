@@ -6,103 +6,73 @@ import Quickshell.Widgets
 import qs.Services.Core
 
 WlrLayershell {
-  id: layerShell
+  id: root
 
   required property var modelData
 
-  readonly property var fillModeMap: ({
-      "fill": Image.PreserveAspectCrop,
-      "fit": Image.PreserveAspectFit,
-      "stretch": Image.Stretch,
-      "center": Image.Pad,
-      "tile": Image.Tile
-    })
-  property string mode: (modelData && modelData.mode) ? modelData.mode : "fill"
-  readonly property int fillMode: fillModeMap[mode] ?? Image.PreserveAspectCrop
+  property string displayMode: (modelData && typeof modelData.mode === "string") ? modelData.mode : "fill"
+  readonly property int fillMode: displayMode === "fit" ? Image.PreserveAspectFit : displayMode === "stretch" ? Image.Stretch : displayMode === "center" ? Image.Pad : displayMode === "tile" ? Image.Tile : Image.PreserveAspectCrop
+
+  property real centerXRatio: (modelData && Number.isFinite(modelData.animCenterX)) ? Math.max(0, Math.min(1, modelData.animCenterX)) : 0.5
+  property real centerYRatio: (modelData && Number.isFinite(modelData.animCenterY)) ? Math.max(0, Math.min(1, modelData.animCenterY)) : 0.5
+
+  property url currentUrl: (modelData && typeof modelData.wallpaper === "string") ? modelData.wallpaper : ""
+  property url pendingUrl: ""
+
   readonly property bool hasRealSize: width > 0 && height > 0
-  property real centerX: (modelData && Number.isFinite(modelData.animCenterX)) ? Math.max(0, Math.min(1, modelData.animCenterX)) : 0.5
-  property real centerY: (modelData && Number.isFinite(modelData.animCenterY)) ? Math.max(0, Math.min(1, modelData.animCenterY)) : 0.5
-
-  property string currentSrc: (modelData && typeof modelData.wallpaper === "string") ? modelData.wallpaper : ""
-  property string pendingSrc: ""
-
-  readonly property real centerPxX: width * centerX
-  readonly property real centerPxY: height * centerY
-  readonly property real finalDiameter: 2 * Math.hypot(Math.max(centerPxX, width - centerPxX), Math.max(centerPxY, height - centerPxY))
-  readonly property int animMs: 741
-
-  function _clamp01(v) {
-    return Math.max(0, Math.min(1, Number(v) || 0));
-  }
-
-  function applyModelData(md) {
-    if (!md)
-      return;
-    if (typeof md.mode === "string")
-      mode = md.mode;
-    if (Number.isFinite(md.animCenterX))
-      centerX = _clamp01(md.animCenterX);
-    if (Number.isFinite(md.animCenterY))
-      centerY = _clamp01(md.animCenterY);
-    if (typeof md.wallpaper === "string")
-      currentSrc = md.wallpaper;
+  readonly property real pixelRatio: screen ? screen.devicePixelRatio : 1
+  readonly property real revealDiameter: {
+    const cx = width * centerXRatio, cy = height * centerYRatio;
+    return 2 * Math.hypot(Math.max(cx, width - cx), Math.max(cy, height - cy));
   }
 
   anchors {
-    top: true
     bottom: true
     left: true
     right: true
+    top: true
   }
   exclusionMode: ExclusionMode.Ignore
   layer: WlrLayer.Background
-  screen: (modelData && modelData.name) ? (Quickshell.screens.find(function (s) {
-      return s && s.name === modelData.name;
-    }) || null) : null
+  screen: (modelData && modelData.name) ? (Quickshell.screens.find(s => s && s.name === modelData.name) || null) : null
 
   Image {
-    id: baseImg
+    id: baseImage
     anchors.fill: parent
-    fillMode: layerShell.fillMode
-    source: layerShell.hasRealSize ? layerShell.currentSrc : ""
-    sourceSize: layerShell.hasRealSize ? Qt.size(layerShell.width, layerShell.height) : Qt.size(0, 0)
-    cache: true
+    fillMode: root.fillMode
+    source: root.hasRealSize ? root.currentUrl : ""
+    sourceSize: root.hasRealSize ? Qt.size(Math.round(root.width * root.pixelRatio), Math.round(root.height * root.pixelRatio)) : Qt.size(0, 0)
     asynchronous: true
-    mipmap: false
-    smooth: true
-    layer.enabled: false
+    cache: false
+    retainWhileLoading: true
   }
 
   ClippingRectangle {
-    id: clip
-    color: "transparent"
+    id: revealMask
     width: 0
     height: width
     radius: width / 2
-    x: Math.round(layerShell.width * layerShell.centerX - width / 2)
-    y: Math.round(layerShell.height * layerShell.centerY - height / 2)
+    x: Math.round(root.width * root.centerXRatio - width / 2)
+    y: Math.round(root.height * root.centerYRatio - height / 2)
 
     Image {
-      id: overlay
-      width: layerShell.width
-      height: layerShell.height
-      x: -Math.round(clip.x)
-      y: -Math.round(clip.y)
-      fillMode: layerShell.fillMode
-      sourceSize: Qt.size(layerShell.width, layerShell.height)
-      source: layerShell.pendingSrc
+      id: overlayImage
+      width: root.width
+      height: root.height
+      x: -Math.round(revealMask.x)
+      y: -Math.round(revealMask.y)
+      fillMode: root.fillMode
+      sourceSize: root.hasRealSize ? Qt.size(Math.round(root.width * root.pixelRatio), Math.round(root.height * root.pixelRatio)) : Qt.size(0, 0)
+      source: root.pendingUrl
       asynchronous: true
-      cache: true                  // + share decoded pixmap
-      mipmap: false
-      smooth: true
-      layer.enabled: false
+      cache: false
 
       onStatusChanged: {
-        if (status === Image.Ready && clip.width === 0 && layerShell.pendingSrc) {
+        if (status === Image.Ready && revealMask.width === 0 && root.pendingUrl) {
           revealAnim.start();
         } else if (status === Image.Error) {
-          layerShell.pendingSrc = "";
-          clip.width = 0;
+          root.pendingUrl = "";
+          revealMask.width = 0;
         }
       }
     }
@@ -110,63 +80,83 @@ WlrLayershell {
 
   NumberAnimation {
     id: revealAnim
-    target: clip
+    target: revealMask
     property: "width"
     from: 0
-    to: layerShell.finalDiameter
-    duration: layerShell.animMs
+    to: root.revealDiameter
+    duration: 741
     easing.type: Easing.Bezier
-    easing.bezierCurve: [0.54, 0.00, 0.20, 1.00]
+    easing.bezierCurve: [0.54, 0.0, 0.20, 1.0]
     onFinished: {
-      if (layerShell.pendingSrc) {
-        layerShell.currentSrc = layerShell.pendingSrc;
-        layerShell.pendingSrc = "";
+      if (!root.pendingUrl)
+        return;
+      baseImage.source = root.pendingUrl;
+      function finishSwap() {
+        if (baseImage.status !== Image.Ready)
+          return;
+        baseImage.statusChanged.disconnect(finishSwap);
+        root.currentUrl = root.pendingUrl;
+        root.pendingUrl = "";
+        revealMask.width = 0;
       }
-      clip.width = 0;
+      if (baseImage.status === Image.Ready)
+        finishSwap();
+      else
+        baseImage.statusChanged.connect(finishSwap);
     }
   }
 
-  function _setPending(src) {
-    const validated = (typeof src === "string" && src) ? src : currentSrc;
-    if (validated === currentSrc || overlay.source === validated) {
-      // Same image → no reload; just animate transition again
-      layerShell.pendingSrc = validated;
-      if (overlay.status === Image.Ready) {
-        clip.width = 0;
+  function clampToUnit(v) {
+    const n = Number(v);
+    return Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
+  }
+
+  function applyModel(md) {
+    if (!md)
+      return;
+    if (typeof md.mode === "string")
+      displayMode = md.mode;
+    if (Number.isFinite(md.animCenterX))
+      centerXRatio = clampToUnit(md.animCenterX);
+    if (Number.isFinite(md.animCenterY))
+      centerYRatio = clampToUnit(md.animCenterY);
+    if (typeof md.wallpaper === "string")
+      currentUrl = md.wallpaper;
+  }
+
+  function setPendingUrl(src) {
+    const v = (typeof src === "string" && src) ? src : currentUrl;
+    if (v === currentUrl || overlayImage.source === v) {
+      pendingUrl = v;
+      if (overlayImage.status === Image.Ready) {
+        revealMask.width = 0;
         revealAnim.restart();
       }
       return;
     }
-    layerShell.pendingSrc = validated;
+    pendingUrl = v;
   }
 
-  Component.onCompleted: applyModelData(modelData)
-  onModelDataChanged: applyModelData(modelData)
+  Component.onCompleted: applyModel(modelData)
+  onModelDataChanged: applyModel(modelData)
 
   Connections {
     target: WallpaperService
-
     function onWallpaperChanged(name, path, cx, cy) {
-      if (!name || !layerShell.modelData || name !== layerShell.modelData.name)
+      if (!name || !root.modelData || name !== root.modelData.name)
         return;
-
       if (revealAnim.running)
         revealAnim.complete();
-
       if (Number.isFinite(cx))
-        layerShell.centerX = layerShell._clamp01(cx);
+        root.centerXRatio = root.clampToUnit(cx);
       if (Number.isFinite(cy))
-        layerShell.centerY = layerShell._clamp01(cy);
-
-      const newSrc = (typeof path === "string" && path) ? path : layerShell.currentSrc;
-
-      // Skip overlay if nothing actually changed (startup hydrate)
-      if (newSrc === layerShell.currentSrc)
+        root.centerYRatio = root.clampToUnit(cy);
+      const newSrc = (typeof path === "string" && path) ? path : root.currentUrl;
+      if (newSrc === root.currentUrl)
         return;
-
-      layerShell._setPending(newSrc);
-      clip.width = 0;
-      if (overlay.status === Image.Ready)
+      root.setPendingUrl(newSrc);
+      revealMask.width = 0;
+      if (overlayImage.status === Image.Ready)
         revealAnim.start();
     }
   }
