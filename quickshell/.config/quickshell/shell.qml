@@ -58,8 +58,6 @@ ShellRoot {
 
       component: AnimatedWallpaper {
         modelData: walLoader.modelData
-        // inside AnimatedWallpaper, ensure:
-        // Image { asynchronous: true; cache: true; source: hasRealSize ? currentSrc : "" }
       }
     }
   }
