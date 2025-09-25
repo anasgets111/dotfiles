@@ -12,17 +12,15 @@ Row {
   spacing: 8
 
   Loader {
+    anchors.verticalCenter: parent.verticalCenter
     active: true
-    sourceComponent: PowerMenu {
-      anchors.verticalCenter: leftSide.verticalCenter
-    }
+    sourceComponent: PowerMenu {}
   }
   Loader {
+    anchors.verticalCenter: parent.verticalCenter
     active: MainService.isArchBased
 
-    sourceComponent: ArchChecker {
-      anchors.verticalCenter: leftSide.verticalCenter
-    }
+    sourceComponent: ArchChecker {}
   }
   IdleInhibitor {
     id: idleInhibitor

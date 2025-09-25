@@ -3,7 +3,6 @@ import QtQuick
 import Quickshell
 import QtQuick.Controls
 import Quickshell.Wayland
-import Quickshell.Services.Notifications
 import qs.Services.SystemInfo
 
 PanelWindow {
@@ -107,21 +106,11 @@ PanelWindow {
             }
 
             Loader {
-              active: del.modelData.kind === "single" && !!del.modelData.wrapper
-              sourceComponent: NotificationItem {
-                wrapper: del.modelData.wrapper
-                mode: "card"
-                onActionTriggeredEx: (id, actionObj) => popupColumn.svc && popupColumn.svc.executeAction(del.modelData.wrapper, id, actionObj)
-                onDismiss: popupColumn.svc.dismissNotification(del.modelData.wrapper)
-                onInputFocusRequested: popupColumn.interactionActive = true
-              }
-            }
-
-            Loader {
-              active: del.modelData.kind === "group" && !!del.modelData.group
-              sourceComponent: GroupCard {
-                group: del.modelData.group
+              active: !!popupColumn.svc && !!del.modelData
+              sourceComponent: NotificationCard {
                 svc: popupColumn.svc
+                wrapper: del.modelData.kind === "single" ? del.modelData.wrapper : null
+                group: del.modelData.kind === "group" ? del.modelData.group : null
                 onInputFocusRequested: popupColumn.interactionActive = true
               }
             }

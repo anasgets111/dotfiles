@@ -25,6 +25,60 @@ Singleton {
       return root.notificationTimeoutNormal;
     }
   }
+  function _accentColorForUrgency(urgency) {
+    switch (urgency) {
+    case NotificationUrgency.Critical:
+      return "#ff4d4f";
+    case NotificationUrgency.Low:
+      return Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.9);
+    default:
+      return Theme.activeColor;
+    }
+  }
+  function _normalizeActions(actions) {
+    if (!actions)
+      return [];
+    const count = Array.isArray(actions) ? actions.length : (typeof actions.length === "number" ? actions.length : 0);
+    if (!count)
+      return [];
+    const normalized = [];
+    for (let i = 0; i < count; ++i) {
+      const action = actions[i];
+      if (!action)
+        continue;
+      const id = String(action.identifier || action.id || action.name || "");
+      const titleSource = action.text || action.title || action.label || id;
+      normalized.push({
+        "id": id,
+        "title": String(titleSource),
+        "_obj": action
+      });
+    }
+    return normalized;
+  }
+  function _sendInlineReply(notification, text) {
+    if (!notification || typeof text === "undefined")
+      return false;
+    const reply = String(text || "");
+    if (!reply.length)
+      return false;
+    try {
+      if (notification.hasInlineReply && notification.sendInlineReply) {
+        notification.sendInlineReply(reply);
+        return true;
+      }
+    } catch (e) {
+      try {
+        Logger.log("NotificationService", `inline reply failed: ${e}`);
+      } catch (e2) {}
+    }
+    return false;
+  }
+  function _hydrateWrapper(wrapper) {
+    if (!wrapper || !wrapper.notification)
+      return;
+    wrapper.actions = root._normalizeActions(wrapper.notification.actions);
+  }
   function safeUse24Hour() {
     try {
       return typeof TimeService !== "undefined" ? TimeService.use24Hour : true;
@@ -251,11 +305,13 @@ Singleton {
         "notification": notif
       });
       if (wrapper) {
+        root._hydrateWrapper(wrapper);
         root.allWrappers.push(wrapper);
         root.notifications.push(wrapper);
         root._trimStored();
         Qt.callLater(() => {
           root._initWrapperPersistence(wrapper);
+          root._hydrateWrapper(wrapper);
         });
         if (shouldShowPopup) {
           root._enqueuePopup(wrapper);
@@ -318,6 +374,7 @@ Singleton {
       return use24Hour ? date.toLocaleTimeString(Qt.locale(), "HH:mm") : date.toLocaleTimeString(Qt.locale(), "h:mm AP");
     }
     required property Notification notification
+    readonly property string id: String(notification.id)
     readonly property string summary: notification.summary
     readonly property string body: notification.body
     readonly property string htmlBody: {
@@ -338,8 +395,21 @@ Singleton {
     readonly property string image: notification.image
     readonly property string cleanImage: image ? root.safeStripPath(image) : ""
     readonly property int urgency: notification.urgency
-    // Actions not wired yet; keep empty to avoid unresolved types during bootstrap
+    readonly property color accentColor: root._accentColorForUrgency(wrapper.urgency)
+    readonly property string inlineReplyPlaceholder: notification.inlineReplyPlaceholder || "Reply"
+    readonly property bool hasInlineReply: !!notification.hasInlineReply
+    readonly property bool hasBody: {
+      const bodyText = (wrapper.body || "").trim();
+      if (!bodyText)
+        return false;
+      const summaryText = (wrapper.summary || "").trim();
+      return bodyText !== summaryText;
+    }
+    readonly property bool canExpandBody: hasBody
     property var actions: []
+    function sendInlineReply(text) {
+      return root._sendInlineReply(wrapper.notification, text);
+    }
     readonly property Connections conn: Connections {
       target: wrapper.notification.Retainable
       function onDropped(): void {
