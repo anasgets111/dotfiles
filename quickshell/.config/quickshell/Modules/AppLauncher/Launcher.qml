@@ -39,11 +39,10 @@ PanelWindow {
     right: true
   }
 
-  // ---- helpers ----
+  // helpers
   function clamp(v, lo, hi) {
     return Math.min(Math.max(v, lo), hi);
   }
-  // No manual positioning scheduler needed when using anchor-based centering
   function arraysEqual(a, b) {
     a = Array.isArray(a) ? a : [];
     b = Array.isArray(b) ? b : [];
@@ -62,10 +61,10 @@ PanelWindow {
       return null;
     try {
       return new Fzf.finder(list, {
-        selector: e => {
-          const n = e?.name || "";
-          const c = e?.comment || "";
-          return c && c.length ? `${n} ${c}` : n;
+        selector: entry => {
+          const name = entry?.name || "";
+          const comment = entry?.comment || "";
+          return comment && comment.length ? `${name} ${comment}` : name;
         },
         limit: launcherWindow.maxResults,
         fuzzy: "v2",
@@ -197,7 +196,7 @@ PanelWindow {
     } else {
       const lower = text.toLowerCase();
       const base = launcherWindow.allEntries;
-      const filtered = lower.length ? base.filter(e => String(e?.name || "").toLowerCase().includes(lower)) : base.slice();
+      const filtered = lower.length ? base.filter(entry => String(entry?.name || "").toLowerCase().includes(lower)) : base.slice();
       launcherWindow.filteredEntries = filtered.slice(0, launcherWindow.maxResults);
     }
     launcherWindow.selectDefaultIndex();
@@ -263,15 +262,12 @@ PanelWindow {
       launcherWindow.close();
   }
 
-  // No manual updatePosition function needed; anchors handle centering
-
   onActiveChanged: {
-    if (launcherWindow.active) {
+    if (launcherWindow.active)
       launcherWindow.resetAndFocus();
-    } else
+    else
       launcherWindow.dismiss();
   }
-  // No repositioning needed on size changes
 
   function isPointInsidePopup(item, x, y) {
     if (!item)
