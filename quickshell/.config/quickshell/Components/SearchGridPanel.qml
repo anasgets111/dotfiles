@@ -246,6 +246,13 @@ PanelWindow {
     }
   }
 
+  function releaseFocus() {
+    if (root.showSearchField && searchField && searchField.activeFocus)
+      searchField.focus = false;
+    if (popupRect)
+      popupRect.forceActiveFocus();
+  }
+
   function handleKeyEvent(event) {
     switch (event.key) {
     case Qt.Key_Escape:
@@ -279,6 +286,8 @@ PanelWindow {
   onActiveChanged: {
     if (root.active)
       root.resetAndFocus();
+    else
+      root.releaseFocus();
   }
 
   onItemsChanged: {
