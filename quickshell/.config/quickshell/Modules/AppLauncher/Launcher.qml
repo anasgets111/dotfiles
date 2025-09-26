@@ -53,7 +53,7 @@ PanelWindow {
     return true;
   }
   function getApplicationsModel() {
-    return (typeof DesktopEntries !== "undefined" && DesktopEntries.applications && DesktopEntries.applications.values) ? DesktopEntries.applications.values : [];
+    return DesktopEntries?.applications?.values ?? [];
   }
   function buildFinder(list) {
     if (typeof Fzf === "undefined" || typeof Fzf.finder !== "function")
@@ -102,10 +102,7 @@ PanelWindow {
     }
   }
   function gridStride() {
-    if (!appGrid)
-      return 1;
-    const cols = appGrid.gridColumns || 0;
-    return cols > 0 ? cols : 1;
+    return appGrid ? appGrid.gridColumns : 1;
   }
   function selectDefaultIndex() {
     const len = launcherWindow.filteredEntries.length;
@@ -136,11 +133,6 @@ PanelWindow {
       search.forceActiveFocus();
     });
   }
-  function dismiss() {
-    if (search && search.activeFocus)
-      search.focus = false;
-  }
-
   function moveSelection(step) {
     const entries = launcherWindow.filteredEntries;
     if (!entries.length)
@@ -173,10 +165,19 @@ PanelWindow {
 
   function ensureFinder(forceRebuild) {
     const apps = launcherWindow.getApplicationsModel();
-    const needs = forceRebuild || !launcherWindow.finder || !launcherWindow.arraysEqual(launcherWindow.allEntries, apps);
+    const normalized = (() => {
+        if (!apps)
+          return [];
+        if (Array.isArray(apps))
+          return apps;
+        if (typeof apps.length === "number")
+          return Array.from(apps);
+        return [];
+      })();
+    const needs = forceRebuild || !launcherWindow.finder || !launcherWindow.arraysEqual(launcherWindow.allEntries, normalized);
     if (!needs)
       return;
-    launcherWindow.allEntries = apps.slice();
+    launcherWindow.allEntries = normalized.slice();
     launcherWindow.finder = launcherWindow.buildFinder(launcherWindow.allEntries);
     if (!launcherWindow.finder)
       console.warn("Launcher: FZF unavailable, using substring filter");
@@ -222,8 +223,6 @@ PanelWindow {
   onActiveChanged: {
     if (launcherWindow.active)
       launcherWindow.resetAndFocus();
-    else
-      launcherWindow.dismiss();
   }
 
   function isPointInsidePopup(item, x, y) {
@@ -236,15 +235,12 @@ PanelWindow {
   MouseArea {
     id: dismissArea
     anchors.fill: parent
-    hoverEnabled: true
     acceptedButtons: Qt.LeftButton | Qt.RightButton
-    propagateComposedEvents: true
     onPressed: function (mouse) {
       if (launcherWindow.isPointInsidePopup(popupRect, mouse.x, mouse.y)) {
         mouse.accepted = false;
         return;
       }
-      mouse.accepted = true;
       launcherWindow.close();
     }
   }
@@ -294,14 +290,10 @@ PanelWindow {
           readonly property int cellPadding: 32
           readonly property real maxWidth: gridContainer.width
           readonly property real maxHeight: gridContainer.height
-          readonly property int modelCount: Array.isArray(model) ? model.length : (model && typeof model.length === "number" ? model.length : (typeof model.count === "number" ? model.count : 0))
-          readonly property int gridColumns: {
-            const availableColumns = Math.max(1, Math.floor(maxWidth / cellWidth));
-            if (!modelCount)
-              return availableColumns;
-            return Math.max(1, Math.min(modelCount, availableColumns));
-          }
-          readonly property int gridRows: gridColumns > 0 ? Math.max(1, Math.ceil((modelCount || 1) / gridColumns)) : 1
+          readonly property int modelCount: launcherWindow.filteredEntries ? launcherWindow.filteredEntries.length : 0
+          readonly property int availableColumns: Math.max(1, Math.floor(maxWidth / cellWidth))
+          readonly property int gridColumns: Math.max(1, Math.min(modelCount || 1, availableColumns))
+          readonly property int gridRows: Math.max(1, Math.ceil((modelCount || 1) / gridColumns))
           width: Math.min(maxWidth, Math.max(cellWidth, gridColumns * cellWidth))
           height: Math.min(maxHeight, Math.max(cellHeight, gridRows * cellHeight))
           cellWidth: 150
@@ -360,7 +352,8 @@ PanelWindow {
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
                 elide: Text.ElideRight
-                wrapMode: Text.WordWrap
+                wrapMode: Text.NoWrap
+                maximumLineCount: 1
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 width: parent.width
