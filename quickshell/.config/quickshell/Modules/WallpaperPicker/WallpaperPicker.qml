@@ -33,7 +33,6 @@ SearchGridPanel {
         }))).filter(entry => typeof entry.value === "string" && entry.value.length > 0);
   }
   property string selectedMonitor: "all"
-  property string committedMonitor: "all"
   onMonitorOptionsChanged: if (!monitorOptions.some(option => option.value === selectedMonitor))
     selectedMonitor = "all"
   property var stagedModes: ({})
@@ -43,7 +42,6 @@ SearchGridPanel {
   property string globalPendingWallpaper: ""
   property bool loadingFromService: false
   onSelectedMonitorChanged: {
-    committedMonitor = selectedMonitor;
     if (loadingFromService)
       return;
     if (selectedMonitor !== "all" && typeof globalPendingWallpaper === "string" && globalPendingWallpaper.length > 0) {
@@ -157,7 +155,7 @@ SearchGridPanel {
     }
   }
 
-  function loadFromService() {
+  function loadFromService(preferredMonitor) {
     loadingFromService = true;
     const monitors = currentMonitors();
     const modes = {};
@@ -185,12 +183,14 @@ SearchGridPanel {
     globalPendingWallpaper = "";
 
     const availableMonitorNames = monitors.map(m => (typeof m?.name === "string" && m.name.length > 0) ? m.name : null).filter(name => !!name);
-    const fallbackMonitor = (committedMonitor !== "all" && availableMonitorNames.includes(committedMonitor)) ? committedMonitor : "all";
+    const requestedMonitor = typeof preferredMonitor === "string" && preferredMonitor.length > 0 ? preferredMonitor : selectedMonitor;
+    const fallbackMonitor = (requestedMonitor !== "all" && availableMonitorNames.includes(requestedMonitor)) ? requestedMonitor : "all";
 
-    committedMonitor = fallbackMonitor;
-    selectedMonitor = fallbackMonitor;
+    if (selectedMonitor !== fallbackMonitor)
+      selectedMonitor = fallbackMonitor;
     updateCurrentWallpaperSelection();
     loadingFromService = false;
+    return fallbackMonitor;
   }
 
   function stageWallpaper(entry) {
@@ -276,9 +276,7 @@ SearchGridPanel {
     if (typeof WallpaperService.setWallpaperTransition === "function" && transition)
       WallpaperService.setWallpaperTransition(transition);
 
-    committedMonitor = previousSelection;
-    loadFromService();
-    selectedMonitor = committedMonitor;
+    loadFromService(previousSelection);
     applyRequested();
   }
 
@@ -349,6 +347,8 @@ SearchGridPanel {
             fillMode: Image.PreserveAspectCrop
             source: wallpaperItem.resolvedIcon
             asynchronous: true
+            sourceSize.width: Math.max(1, Math.round(width))
+            sourceSize.height: Math.max(1, Math.round(height))
             visible: source !== ""
             smooth: true
           }
