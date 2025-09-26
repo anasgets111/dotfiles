@@ -31,19 +31,19 @@ ShellRoot {
   }
 
   // Global App Launcher loader controlled by IPC
-  Loader {
+  LazyLoader {
     id: launcherLoader
     active: root.ipc.launcherActive && !bar.centerShouldHide
-    sourceComponent: Launcher {
+    component: Launcher {
       onDismissed: root.ipc.launcherActive = false
       Component.onCompleted: open()
     }
   }
 
-  Loader {
+  LazyLoader {
     id: wallpaperPickerLoader
     active: root.wallpaperPickerActive
-    sourceComponent: WallpaperPicker {
+    component: WallpaperPicker {
       onDismissed: root.wallpaperPickerActive = false
       onCancelRequested: root.wallpaperPickerActive = false
       Component.onCompleted: open()
