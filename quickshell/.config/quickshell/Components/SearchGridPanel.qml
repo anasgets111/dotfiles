@@ -52,6 +52,7 @@ PanelWindow {
   property alias gridView: itemGrid
   property alias headerContent: headerSlot.data
   property alias footerContent: footerSlot.data
+  property Component delegateComponent: null
 
   color: "transparent"
   visible: active
@@ -139,8 +140,9 @@ PanelWindow {
     if (!needs)
       return;
     root.allItems = normalized.slice();
-    root.finder = root.buildFinder(root.allItems);
-    if (!root.finder)
+    const hasBuilder = typeof root.finderBuilder === "function";
+    root.finder = hasBuilder ? root.buildFinder(root.allItems) : null;
+    if (hasBuilder && !root.finder)
       console.warn("SearchGridPanel: FZF unavailable, using substring filter");
   }
 
@@ -362,29 +364,10 @@ PanelWindow {
         Layout.fillHeight: true
         clip: true
 
-        GridView {
-          id: itemGrid
-          anchors.horizontalCenter: parent.horizontalCenter
-          anchors.verticalCenter: parent.verticalCenter
-          clip: true
-          model: root.filteredItems
-          currentIndex: root.currentIndex
-          readonly property int modelCount: root.filteredItems ? root.filteredItems.length : 0
-          readonly property real maxWidth: gridContainer.width
-          readonly property real maxHeight: gridContainer.height
-          readonly property int availableColumns: Math.max(1, Math.floor(maxWidth / root.cellWidth))
-          readonly property int gridColumns: Math.max(1, Math.min(modelCount || 1, availableColumns))
-          readonly property int gridRows: Math.max(1, Math.ceil((modelCount || 1) / gridColumns))
-          width: Math.min(maxWidth, Math.max(root.cellWidth, gridColumns * root.cellWidth))
-          height: Math.min(maxHeight, Math.max(root.cellHeight, gridRows * root.cellHeight))
-          cellWidth: root.cellWidth
-          cellHeight: root.cellHeight
-          flow: GridView.FlowLeftToRight
-          interactive: true
-          snapMode: GridView.SnapToRow
-          highlightMoveDuration: Theme.animationDuration
+        Component {
+          id: defaultItemDelegate
 
-          delegate: Item {
+          Item {
             id: itemDelegate
             required property var modelData
             required property int index
@@ -449,6 +432,30 @@ PanelWindow {
               onEntered: root.currentIndex = itemDelegate.index
             }
           }
+        }
+
+        GridView {
+          id: itemGrid
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.verticalCenter: parent.verticalCenter
+          clip: true
+          model: root.filteredItems
+          currentIndex: root.currentIndex
+          readonly property int modelCount: root.filteredItems ? root.filteredItems.length : 0
+          readonly property real maxWidth: gridContainer.width
+          readonly property real maxHeight: gridContainer.height
+          readonly property int availableColumns: Math.max(1, Math.floor(maxWidth / root.cellWidth))
+          readonly property int gridColumns: Math.max(1, Math.min(modelCount || 1, availableColumns))
+          readonly property int gridRows: Math.max(1, Math.ceil((modelCount || 1) / gridColumns))
+          width: Math.min(maxWidth, Math.max(root.cellWidth, gridColumns * root.cellWidth))
+          height: Math.min(maxHeight, Math.max(root.cellHeight, gridRows * root.cellHeight))
+          cellWidth: root.cellWidth
+          cellHeight: root.cellHeight
+          flow: GridView.FlowLeftToRight
+          interactive: true
+          snapMode: GridView.SnapToRow
+          highlightMoveDuration: Theme.animationDuration
+          delegate: root.delegateComponent ? root.delegateComponent : defaultItemDelegate
         }
       }
       Item {
