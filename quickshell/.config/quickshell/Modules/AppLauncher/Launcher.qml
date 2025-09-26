@@ -11,7 +11,6 @@ import qs.Services.WM
 PanelWindow {
   id: launcherWindow
 
-  signal opened
   signal dismissed
 
   property bool active: false
@@ -64,12 +63,9 @@ PanelWindow {
         selector: entry => {
           const name = entry?.name || "";
           const comment = entry?.comment || "";
-          return comment && comment.length ? `${name} ${comment}` : name;
+          return comment ? `${name} ${comment}` : name;
         },
-        limit: launcherWindow.maxResults,
-        fuzzy: "v2",
-        normalize: true,
-        casing: "smart-case"
+        limit: launcherWindow.maxResults
       });
     } catch (e) {
       console.warn("Launcher FZF init failed:", e);
@@ -109,32 +105,21 @@ PanelWindow {
     if (launcherWindow.active)
       return;
     launcherWindow.active = true;
-    launcherWindow.opened();
   }
   function close() {
     if (!launcherWindow.active)
       return;
-    launcherWindow.releaseSearchFocus();
-    launcherWindow.dismiss();
     launcherWindow.active = false;
     launcherWindow.currentIndex = -1;
     launcherWindow.dismissed();
   }
-  function toggle() {
-    launcherWindow.active ? launcherWindow.close() : launcherWindow.open();
-  }
 
-  function releaseSearchFocus() {
-    if (search && search.activeFocus)
-      popupRect.forceActiveFocus();
-  }
   function resetAndFocus() {
     launcherWindow.ensureFinder(true);
     search.text = "";
     launcherWindow.updateFilter("", true);
     Qt.callLater(() => {
       search.forceActiveFocus();
-      search.selectAll();
     });
   }
   function dismiss() {
@@ -278,7 +263,6 @@ PanelWindow {
           selectAll()
         onTextChanged: launcherWindow.updateFilter(search.text)
         Keys.onPressed: event => launcherWindow.handleKeyEvent(event)
-        onAccepted: launcherWindow.activateCurrent()
       }
 
       ListView {
