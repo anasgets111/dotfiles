@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.Services.SystemInfo
 import qs.Services.Utils
 
 Singleton {
@@ -98,8 +97,6 @@ Singleton {
   function disconnectInterface(interfaceName) {
     const device = deviceByInterface(interfaceName);
     const deviceType = (device || {}).type || "";
-    if (deviceType === "ethernet")
-      OSDService.showInfo(qsTr("Ethernet turned off"));
     Logger.log("NetworkService", `disconnecting ${interfaceName} (type: ${deviceType})`);
     startConnectCommand(["nmcli", "device", "disconnect", interfaceName]);
   }
@@ -120,7 +117,6 @@ Singleton {
   }
 
   function setWifiRadioEnabled(enabled) {
-    OSDService.showInfo(enabled ? qsTr("Wi-Fi turned on") : qsTr("Wi-Fi turned off"));
     Logger.log("NetworkService", `setting Wi-Fi radio: ${enabled ? "on" : "off"}`);
     startConnectCommand(["nmcli", "radio", "wifi", enabled ? "on" : "off"]);
   }
