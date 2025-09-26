@@ -10,6 +10,7 @@ import qs.Components
 import qs.Components
 import qs.Modules.Bar
 import qs.Modules.AppLauncher
+import qs.Modules.WallpaperPicker
 import qs.Modules.Notification
 import qs.Services.Core
 import qs.Services.SystemInfo
@@ -22,9 +23,11 @@ ShellRoot {
 
   readonly property var ipc: IPC
   readonly property var sysInfo: SystemInfoService
+  property bool wallpaperPickerActive: false
 
   Bar {
     id: bar
+    onWallpaperPickerRequested: root.wallpaperPickerActive = true
   }
 
   // Global App Launcher loader controlled by IPC
@@ -33,6 +36,16 @@ ShellRoot {
     active: root.ipc.launcherActive && !bar.centerShouldHide
     sourceComponent: Launcher {
       onDismissed: root.ipc.launcherActive = false
+      Component.onCompleted: open()
+    }
+  }
+
+  Loader {
+    id: wallpaperPickerLoader
+    active: root.wallpaperPickerActive
+    sourceComponent: WallpaperPicker {
+      onDismissed: root.wallpaperPickerActive = false
+      onCancelRequested: root.wallpaperPickerActive = false
       Component.onCompleted: open()
     }
   }
