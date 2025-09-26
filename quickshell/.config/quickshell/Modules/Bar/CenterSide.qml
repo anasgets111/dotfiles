@@ -1,8 +1,11 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import qs.Config
 import qs.Services.Core as Core
 import qs.Services.WM as WM
 import qs.Components
+import qs.Services.Utils as Utils
 
 Row {
   id: centerSide
@@ -10,6 +13,17 @@ Row {
   required property bool normalWorkspacesExpanded
 
   spacing: 8
+
+  IconButton {
+    id: launcherButton
+
+    anchors.verticalCenter: parent.verticalCenter
+    colorBg: Theme.inactiveColor
+    icon: "󰍉"
+    tooltipText: qsTr("Open application launcher")
+
+    onClicked: Utils.IPC.launcherActive = !Utils.IPC.launcherActive
+  }
 
   // Active window title display
   ActiveWindow {
@@ -19,7 +33,6 @@ Row {
     visible: true
   }
 
-  // Test button: set all monitors to a specific wallpaper to exercise the reveal animation
   IconButton {
     id: testWalButton
     anchors.verticalCenter: parent.verticalCenter

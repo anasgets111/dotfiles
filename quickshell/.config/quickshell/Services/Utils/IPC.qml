@@ -11,6 +11,8 @@ import qs.Services.SystemInfo
 Singleton {
   id: ipc
 
+  property bool launcherActive: false
+
   // ----- Lock -----
   IpcHandler {
     function islocked(): string {
@@ -89,5 +91,16 @@ Singleton {
     }
 
     target: "rec"
+  }
+
+  // ----- Application Launcher -----
+  IpcHandler {
+    function toggle(): string {
+      Logger.log("IPC", "launcher.toggle");
+      ipc.launcherActive = !ipc.launcherActive;
+      return ipc.launcherActive ? "open" : "closed";
+    }
+
+    target: "launcher"
   }
 }
