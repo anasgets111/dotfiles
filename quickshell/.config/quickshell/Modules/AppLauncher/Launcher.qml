@@ -205,61 +205,19 @@ PanelWindow {
   function activateEntry(entry) {
     if (!entry)
       return;
-    let launched = false;
-    const entryId = String(entry.id || entry.desktopId || entry.desktopFile || entry.appId || entry.name || "").trim();
+    const sanitized = String(entry.exec || entry.command || "").replace(/%[fFuUdDnNickvm]/g, "").replace(/\s+/g, " ").trim();
+
+    if (!sanitized) {
+      console.warn("Launcher: entry missing exec command", entry);
+      return;
+    }
 
     try {
-      if (typeof entry.launch === "function") {
-        entry.launch();
-        launched = true;
-      }
-    } catch (e) {
-      console.warn("Launcher: entry.launch failed", e);
-    }
-
-    if (!launched && typeof DesktopEntries !== "undefined") {
-      try {
-        const launchFn = Reflect?.get(DesktopEntries, "launch");
-        const launchById = Reflect?.get(DesktopEntries, "launchById");
-        const launchDesktopEntry = Reflect?.get(DesktopEntries, "launchDesktopEntry");
-        if (typeof launchFn === "function") {
-          launchFn.call(DesktopEntries, entry);
-          launched = true;
-        } else if (typeof launchById === "function" && entryId) {
-          launchById.call(DesktopEntries, entryId);
-          launched = true;
-        } else if (typeof launchDesktopEntry === "function" && entryId) {
-          launchDesktopEntry.call(DesktopEntries, entryId);
-          launched = true;
-        }
-      } catch (e) {
-        console.warn("Launcher: DesktopEntries launch failed", e);
-      }
-    }
-
-    if (!launched && entryId) {
-      try {
-        Utils.runCmd(["gtk-launch", entryId], function () {}, launcherWindow);
-        launched = true;
-      } catch (e) {
-        console.warn("Launcher: gtk-launch fallback failed", e);
-      }
-    }
-
-    if (!launched && entry?.exec) {
-      const sanitized = String(entry.exec).replace(/%[fFuUdDnNickvm]/g, "").replace(/\s+/g, " ").trim();
-      if (sanitized) {
-        try {
-          Utils.runCmd(Utils.shCommand(sanitized), function () {}, launcherWindow);
-          launched = true;
-        } catch (e) {
-          console.warn("Launcher: exec fallback failed", e);
-        }
-      }
-    }
-
-    if (launched)
+      Quickshell.execDetached(Utils.shCommand(sanitized));
       launcherWindow.close();
+    } catch (e) {
+      console.warn("Launcher: execDetached failed", e);
+    }
   }
 
   onActiveChanged: {
