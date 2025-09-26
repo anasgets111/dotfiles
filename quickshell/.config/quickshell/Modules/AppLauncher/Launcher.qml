@@ -14,8 +14,8 @@ PanelWindow {
   signal dismissed
 
   property bool active: false
-  readonly property int contentWidth: 320
-  readonly property int contentHeight: 500
+  readonly property int contentWidth: 741
+  readonly property int contentHeight: 471
   readonly property int maxResults: 200
 
   property var finder: null
@@ -79,11 +79,19 @@ PanelWindow {
       event.accepted = true;
       break;
     case Qt.Key_Down:
-      launcherWindow.moveSelection(1);
+      launcherWindow.moveSelection(launcherWindow.gridStride());
       event.accepted = true;
       break;
     case Qt.Key_Up:
+      launcherWindow.moveSelection(-launcherWindow.gridStride());
+      event.accepted = true;
+      break;
+    case Qt.Key_Left:
       launcherWindow.moveSelection(-1);
+      event.accepted = true;
+      break;
+    case Qt.Key_Right:
+      launcherWindow.moveSelection(1);
       event.accepted = true;
       break;
     case Qt.Key_Return:
@@ -92,6 +100,12 @@ PanelWindow {
       event.accepted = true;
       break;
     }
+  }
+  function gridStride() {
+    if (!appGrid)
+      return 1;
+    const cols = appGrid.gridColumns || 0;
+    return cols > 0 ? cols : 1;
   }
   function selectDefaultIndex() {
     const len = launcherWindow.filteredEntries.length;
@@ -143,8 +157,8 @@ PanelWindow {
     if (launcherWindow.currentIndex < 0)
       return;
     Qt.callLater(() => {
-      if (appList)
-        appList.positionViewAtIndex(launcherWindow.currentIndex, ListView.Center);
+      if (appGrid)
+        appGrid.positionViewAtIndex(launcherWindow.currentIndex, GridView.Center);
     });
   }
   function activateCurrent() {
@@ -265,79 +279,105 @@ PanelWindow {
         Keys.onPressed: event => launcherWindow.handleKeyEvent(event)
       }
 
-      ListView {
-        id: appList
+      Item {
+        id: gridContainer
         width: parent.width
         height: parent.height - search.height - contentColumn.spacing
         clip: true
-        model: launcherWindow.filteredEntries
-        currentIndex: launcherWindow.currentIndex
-        highlightMoveDuration: Theme.animationDuration
 
-        delegate: Item {
-          id: appDelegate
-          required property var modelData
-          required property int index
-
-          height: 40
-          width: ListView.view ? ListView.view.width : (parent ? parent.width : 0)
-          property bool hovered: mouseArea.containsMouse
-          readonly property bool selected: ListView.isCurrentItem
-          readonly property string resolvedName: appDelegate.modelData?.name || ""
-          readonly property string resolvedIcon: Utils.resolveIconSource(appDelegate.modelData?.id || appDelegate.resolvedName, appDelegate.modelData?.icon, "application-x-executable")
-
-          Rectangle {
-            anchors.fill: parent
-            radius: Theme.itemRadius
-            visible: appDelegate.hovered || appDelegate.selected
-            color: appDelegate.selected ? Theme.activeColor : Theme.onHoverColor
-            opacity: appDelegate.selected ? 0.3 : 0.18
+        GridView {
+          id: appGrid
+          anchors.centerIn: parent
+          clip: true
+          model: launcherWindow.filteredEntries
+          currentIndex: launcherWindow.currentIndex
+          readonly property int cellPadding: 32
+          readonly property real maxWidth: gridContainer.width
+          readonly property real maxHeight: gridContainer.height
+          readonly property int modelCount: Array.isArray(model) ? model.length : (model && typeof model.length === "number" ? model.length : (typeof model.count === "number" ? model.count : 0))
+          readonly property int gridColumns: {
+            const availableColumns = Math.max(1, Math.floor(maxWidth / cellWidth));
+            if (!modelCount)
+              return availableColumns;
+            return Math.max(1, Math.min(modelCount, availableColumns));
           }
+          readonly property int gridRows: gridColumns > 0 ? Math.max(1, Math.ceil((modelCount || 1) / gridColumns)) : 1
+          width: Math.min(maxWidth, Math.max(cellWidth, gridColumns * cellWidth))
+          height: Math.min(maxHeight, Math.max(cellHeight, gridRows * cellHeight))
+          cellWidth: 150
+          cellHeight: 150
+          flow: GridView.FlowLeftToRight
+          interactive: true
+          snapMode: GridView.SnapToRow
+          highlightMoveDuration: Theme.animationDuration
 
-          Row {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.margins: 8
-            spacing: 10
-            height: parent.height
+          delegate: Item {
+            id: appDelegate
+            required property var modelData
+            required property int index
 
-            Image {
-              id: appIcon
-              width: 26
-              height: 26
-              anchors.verticalCenter: parent.verticalCenter
-              fillMode: Image.PreserveAspectFit
-              source: appDelegate.resolvedIcon
-              sourceSize.width: width
-              sourceSize.height: height
-              visible: source !== ""
+            width: GridView.view ? GridView.view.cellWidth : (parent ? parent.width : 0)
+            height: GridView.view ? GridView.view.cellHeight : 0
+            property bool hovered: mouseArea.containsMouse
+            readonly property bool selected: GridView.isCurrentItem
+            readonly property string resolvedName: appDelegate.modelData?.name || ""
+            readonly property string resolvedIcon: Utils.resolveIconSource(appDelegate.modelData?.id || appDelegate.resolvedName, appDelegate.modelData?.icon, "application-x-executable")
+
+            Rectangle {
+              id: selectionBackground
+              anchors.centerIn: parent
+              width: Math.max(0, parent.width - appGrid.cellPadding)
+              height: Math.max(0, parent.height - appGrid.cellPadding)
+              radius: Theme.itemRadius
+              visible: appDelegate.hovered || appDelegate.selected
+              color: appDelegate.selected ? Theme.activeColor : Theme.onHoverColor
+              opacity: appDelegate.selected ? 0.3 : 0.18
             }
 
-            Text {
-              id: appLabel
-              anchors.verticalCenter: parent.verticalCenter
-              text: appDelegate.resolvedName
-              color: Theme.textContrast(Theme.bgColor)
-              font.family: Theme.fontFamily
-              font.pixelSize: Theme.fontSize
-              elide: Text.ElideRight
-              horizontalAlignment: Text.AlignLeft
-              verticalAlignment: Text.AlignVCenter
-              width: parent.width - (appIcon.visible ? appIcon.width + parent.spacing : 0)
-            }
-          }
+            Column {
+              id: entryContent
+              anchors.centerIn: parent
+              spacing: 10
+              width: Math.max(0, parent.width - appGrid.cellPadding)
 
-          MouseArea {
-            id: mouseArea
-            anchors.fill: parent
-            hoverEnabled: true
-            acceptedButtons: Qt.LeftButton
-            onClicked: function () {
-              launcherWindow.currentIndex = appDelegate.index;
-              launcherWindow.activateEntry(appDelegate.modelData);
+              Image {
+                id: appIcon
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 72
+                height: 72
+                fillMode: Image.PreserveAspectFit
+                source: appDelegate.resolvedIcon
+                sourceSize.width: width
+                sourceSize.height: height
+                visible: source !== ""
+              }
+
+              Text {
+                id: appLabel
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: appDelegate.resolvedName
+                color: Theme.textContrast(Theme.bgColor)
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                elide: Text.ElideRight
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                width: parent.width
+              }
             }
-            onEntered: launcherWindow.currentIndex = appDelegate.index
+
+            MouseArea {
+              id: mouseArea
+              anchors.fill: parent
+              hoverEnabled: true
+              acceptedButtons: Qt.LeftButton
+              onClicked: function () {
+                launcherWindow.currentIndex = appDelegate.index;
+                launcherWindow.activateEntry(appDelegate.modelData);
+              }
+              onEntered: launcherWindow.currentIndex = appDelegate.index
+            }
           }
         }
       }
