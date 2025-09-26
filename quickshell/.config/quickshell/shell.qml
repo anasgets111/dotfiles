@@ -9,6 +9,7 @@ import Quickshell
 import qs.Components
 import qs.Components
 import qs.Modules.Bar
+import qs.Modules.AppLauncher
 import qs.Modules.Notification
 import qs.Services.Core
 import qs.Services.SystemInfo
@@ -24,6 +25,16 @@ ShellRoot {
 
   Bar {
     id: bar
+  }
+
+  // Global App Launcher loader controlled by IPC
+  Loader {
+    id: launcherLoader
+    active: root.ipc.launcherActive && !bar.centerShouldHide
+    sourceComponent: Launcher {
+      onDismissed: root.ipc.launcherActive = false
+      Component.onCompleted: open()
+    }
   }
 
   Binding {

@@ -304,7 +304,7 @@ binds {
     XF86Calculator {spawn "gnome-calculator"; }
 
     // the top-left hot corner, or a four-finger swipe up on a touchpad opens the overview too.
-    Mod+Space repeat=false { toggle-overview; }
+    Mod+Space repeat=false { spawn "quickshell" "ipc" "call" "launcher" "toggle"; }
     Mod+Q { close-window; }
 
     Mod+Left  { focus-column-left; }
