@@ -10,6 +10,8 @@ Singleton {
   readonly property string defaultMode: "fill"
   readonly property string defaultWallpaper: Settings.defaultWallpaper
   readonly property string defaultTransition: "disc"
+  readonly property var availableModes: ["fill", "fit", "center", "stretch", "tile"]
+  readonly property var availableTransitions: ["fade", "wipe", "disc", "stripes", "portal"]
 
   property bool hydrated: false
   property var monitorPrefs: ({})        // name -> { wallpaper, mode }
@@ -61,28 +63,12 @@ Singleton {
   signal transitionChanged(string transition)
 
   function validMode(mode) {
-    switch (mode) {
-    case "fill":
-    case "fit":
-    case "center":
-    case "stretch":
-    case "tile":
-      return mode;
-    default:
-      return defaultMode;
-    }
+    const normalized = (mode || "").toString().toLowerCase();
+    return availableModes.indexOf(normalized) >= 0 ? normalized : defaultMode;
   }
   function validTransition(t) {
-    switch ((t || "").toString().toLowerCase()) {
-    case "fade":
-    case "wipe":
-    case "disc":
-    case "stripes":
-    case "portal":
-      return t.toLowerCase();
-    default:
-      return defaultTransition;
-    }
+    const normalized = (t || "").toString().toLowerCase();
+    return availableTransitions.indexOf(normalized) >= 0 ? normalized : defaultTransition;
   }
   function ensurePrefs(name) {
     let p = monitorPrefs[name];
