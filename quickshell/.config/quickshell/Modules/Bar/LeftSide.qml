@@ -63,7 +63,6 @@ Row {
       id: niriWorkspaces
 
       anchors.verticalCenter: parent.verticalCenter
-      expanded: leftSide.normalWorkspacesExpanded
 
       onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
     }
@@ -84,7 +83,6 @@ Row {
       id: normalWorkspaces
 
       anchors.verticalCenter: parent.verticalCenter
-      expanded: leftSide.normalWorkspacesExpanded
 
       onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
     }
