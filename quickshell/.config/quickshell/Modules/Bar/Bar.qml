@@ -52,6 +52,7 @@ PanelWindow {
       normalWorkspacesExpanded: panelWindow.workspacesExpanded
 
       onNormalWorkspacesExpandedChanged: panelWindow.workspacesExpanded = normalWorkspacesExpanded
+      onWallpaperPickerRequested: panelWindow.wallpaperPickerRequested()
 
       anchors {
         left: panelRect.left
@@ -75,8 +76,6 @@ PanelWindow {
       // When workspaces (or volume) are expanded, hide center via opacity
       opacity: panelWindow.centerShouldHide ? 0 : 1
       visible: true
-
-      onWallpaperPickerRequested: panelWindow.wallpaperPickerRequested()
 
       Behavior on opacity {
         NumberAnimation {
