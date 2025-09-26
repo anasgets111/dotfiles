@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
 import QtQuick.Controls
 import QtQuick.Window
@@ -27,7 +28,12 @@ PanelWindow {
   property int cellHeight: 150
   property int cellPadding: 32
   property int itemImageSize: 72
+  property int contentSpacing: 8
+  property int contentMargin: 12
+  property int headerSpacing: 8
+  property int footerSpacing: 8
   property bool closeOnActivate: true
+  property bool showSearchField: true
   property string placeholderText: qsTr("Type to search")
   property var finderBuilder: null
   property var searchSelector: function (item) {
@@ -42,6 +48,10 @@ PanelWindow {
     return item?.icon || "";
   }
   property var screenTarget: MonitorService ? MonitorService.effectiveMainScreen : null
+  property alias searchInput: searchField
+  property alias gridView: itemGrid
+  property alias headerContent: headerSlot.data
+  property alias footerContent: footerSlot.data
 
   color: "transparent"
   visible: active
@@ -227,9 +237,11 @@ PanelWindow {
     ensureFinder(true);
     searchField.text = "";
     updateFilter("", true);
-    Qt.callLater(() => {
-      searchField.forceActiveFocus();
-    });
+    if (root.showSearchField) {
+      Qt.callLater(() => {
+        searchField.forceActiveFocus();
+      });
+    }
   }
 
   function handleKeyEvent(event) {
@@ -305,32 +317,55 @@ PanelWindow {
 
     Keys.onPressed: event => root.handleKeyEvent(event)
 
-    Column {
+    ColumnLayout {
       id: contentColumn
-      spacing: 8
+      spacing: root.contentSpacing
       anchors.fill: parent
-      anchors.margins: 12
+      anchors.margins: root.contentMargin
 
-      TextField {
-        id: searchField
-        width: parent.width
-        implicitHeight: 30
-        placeholderText: root.placeholderText
-        onActiveFocusChanged: if (activeFocus)
-          selectAll()
-        onTextChanged: root.updateFilter(searchField.text)
-        Keys.onPressed: event => root.handleKeyEvent(event)
+      Item {
+        id: headerWrapper
+        Layout.fillWidth: true
+        Layout.preferredHeight: headerSlot.implicitHeight
+        visible: headerSlot.children.length > 0
+        implicitHeight: headerSlot.implicitHeight
+
+        Column {
+          id: headerSlot
+          anchors.fill: parent
+          spacing: root.headerSpacing
+        }
+      }
+
+      Item {
+        id: searchWrapper
+        Layout.fillWidth: true
+        Layout.preferredHeight: root.showSearchField ? searchField.implicitHeight : 0
+        visible: root.showSearchField
+        implicitHeight: root.showSearchField ? searchField.implicitHeight : 0
+
+        TextField {
+          id: searchField
+          anchors.fill: parent
+          implicitHeight: 30
+          placeholderText: root.placeholderText
+          onActiveFocusChanged: if (activeFocus)
+            selectAll()
+          onTextChanged: root.updateFilter(searchField.text)
+          Keys.onPressed: event => root.handleKeyEvent(event)
+        }
       }
 
       Item {
         id: gridContainer
-        width: parent.width
-        height: parent.height - searchField.height - contentColumn.spacing
+        Layout.fillWidth: true
+        Layout.fillHeight: true
         clip: true
 
         GridView {
           id: itemGrid
-          anchors.centerIn: parent
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.verticalCenter: parent.verticalCenter
           clip: true
           model: root.filteredItems
           currentIndex: root.currentIndex
@@ -414,6 +449,19 @@ PanelWindow {
               onEntered: root.currentIndex = itemDelegate.index
             }
           }
+        }
+      }
+      Item {
+        id: footerWrapper
+        Layout.fillWidth: true
+        Layout.preferredHeight: footerSlot.implicitHeight
+        visible: footerSlot.children.length > 0
+        implicitHeight: footerSlot.implicitHeight
+
+        Column {
+          id: footerSlot
+          anchors.fill: parent
+          spacing: root.footerSpacing
         }
       }
     }

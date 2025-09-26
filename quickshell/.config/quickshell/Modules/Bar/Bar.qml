@@ -12,6 +12,7 @@ PanelWindow {
   property bool rightSideExpanded: false         // from RightSide (e.g., Volume hover)
   readonly property bool centerShouldHide: workspacesExpanded || rightSideExpanded
   property bool screenChanging: false
+  signal wallpaperPickerRequested
 
   WlrLayershell.namespace: "quickshell:bar:blur"
   color: Theme.panelWindowColor
@@ -74,6 +75,8 @@ PanelWindow {
       // When workspaces (or volume) are expanded, hide center via opacity
       opacity: panelWindow.centerShouldHide ? 0 : 1
       visible: true
+
+      onWallpaperPickerRequested: panelWindow.wallpaperPickerRequested()
 
       Behavior on opacity {
         NumberAnimation {
