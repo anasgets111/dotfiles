@@ -9,7 +9,11 @@ Singleton {
   id: root
 
   function isAlivePlayer(playerObj) {
-    return !!playerObj && typeof playerObj.isValid === "function" && playerObj.isValid();
+    if (!playerObj)
+      return false;
+    if (typeof playerObj.isValid === "function")
+      return playerObj.isValid();
+    return true;
   }
 
   readonly property var videoAppHints: ["mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex"]
