@@ -34,14 +34,14 @@ Singleton {
   Component.onCompleted: _detectLedPathsOnce(_startLedMonitoring)
 
   function _handleLedLine(rawLine) {
-    const [c, n, s] = String(rawLine).trim().split(/\s+/);
-    if (c === undefined || n === undefined || s === undefined)
+    const parts = String(rawLine).trim().split(/\s+/, 3);
+    if (parts.length !== 3)
       return;
 
     const next = {
-      caps: c === "1",
-      num: n === "1",
-      scroll: s === "1"
+      caps: parts[0] === "1",
+      num: parts[1] === "1",
+      scroll: parts[2] === "1"
     };
     if (next.caps === _ledState.caps && next.num === _ledState.num && next.scroll === _ledState.scroll)
       return;
@@ -68,17 +68,17 @@ Singleton {
       return;
     }
 
-    let pending = _ledKeys.length;
-    for (const k of _ledKeys) {
+    let done = 0;
+    _ledKeys.forEach(k => {
       FileSystemService.listByGlob(`/sys/class/leds/*::${k}lock/brightness`, lines => {
         _ledPaths[k] = lines || [];
-        if (--pending === 0) {
+        if (++done === _ledKeys.length) {
           _ledDiscovered = true;
           if (readyCb)
             readyCb();
         }
       });
-    }
+    });
   }
 
   function _composeLedScript() {
@@ -87,11 +87,12 @@ Singleton {
       return quoted && quoted.length ? quoted : ":"; // ":" is a no-op list
     };
 
+    const blocks = ["caps", "num", "scroll"].map((k, i) => `
+    g${i}=0; for p in ${toList(_ledPaths[k])}; do v=$(cat "$p" 2>/dev/null || echo 0); [ "$v" -gt 0 ] && { g${i}=1; break; }; done;`).join("");
+
     return `while true; do
-    g0=0; for p in ${toList(_ledPaths.caps)}; do v=$(cat "$p" 2>/dev/null || echo 0); [ "$v" -gt 0 ] && { g0=1; break; }; done;
-    g1=0; for p in ${toList(_ledPaths.num)}; do v=$(cat "$p" 2>/dev/null || echo 0); [ "$v" -gt 0 ] && { g1=1; break; }; done;
-    g2=0; for p in ${toList(_ledPaths.scroll)}; do v=$(cat "$p" 2>/dev/null || echo 0); [ "$v" -gt 0 ] && { g2=1; break; }; done;
-    printf "%s %s %s\\n" "$g0" "$g1" "$g2";
+    ${blocks}
+    printf "%s %s %s\n" "$g0" "$g1" "$g2";
     sleep ${_ledIntervalSec};
   done`;
   }
@@ -99,7 +100,7 @@ Singleton {
   function _startLedMonitoring() {
     if (!_ledDiscovered || _ledStreamProc.running)
       return;
-    if (!(_ledPaths.caps.length || _ledPaths.num.length || _ledPaths.scroll.length))
+    if (!_ledKeys.some(k => (_ledPaths[k] || []).length))
       return;
     _ledStreamProc.command = ["sh", "-lc", _composeLedScript()];
     _ledStreamProc.running = true;
@@ -198,41 +199,35 @@ Singleton {
     const stdio = Qt.createQmlObject('import Quickshell.Io; StdioCollector {}', proc);
     const watchdog = Qt.createQmlObject('import QtQuick; Timer { interval: 10000; repeat: false }', proc);
 
-    const cleanup = () => {
+    const destroyAll = list => list.forEach(o => {
+        try {
+          o.destroy();
+        } catch (_) {}
+      });
+    const finish = text => {
+      onComplete(text);
       watchdog.stop();
-      try {
-        watchdog.destroy();
-      } catch (_) {}
-      try {
-        stdio.destroy();
-      } catch (_) {}
-      try {
-        proc.destroy();
-      } catch (_) {}
+      destroyAll([watchdog, stdio, proc]);
     };
 
     watchdog.triggered.connect(() => {
       try {
         proc.running = false;
       } catch (_) {}
-      onComplete(stdio.text || "");
-      cleanup();
+      ;
+      finish(stdio.text || "");
     });
+    stdio.onStreamFinished.connect(() => finish(stdio.text));
 
-    stdio.onStreamFinished.connect(() => {
-      onComplete(stdio.text);
-      cleanup();
-    });
-
-    watchdog.start();
     proc.stdout = stdio;
     proc.command = cmd;
+    watchdog.start();
     proc.running = true;
   }
 
   function safeJsonParse(str, fallback) {
     try {
-      return JSON.parse(str === undefined || str === null ? "" : String(str));
+      return JSON.parse(String(str ?? ""));
     } catch (_) {
       return fallback;
     }
@@ -249,7 +244,7 @@ Singleton {
 
   function stripAnsi(input) {
     const value = String(input || "");
-    const ansiPattern = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(\x07|\x1B\\))/g;
+    const ansiPattern = /\x1B(?:[@-Z\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(\x07|\x1B\))/g;
     return value.replace(ansiPattern, "");
   }
 }
