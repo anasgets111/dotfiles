@@ -21,7 +21,6 @@ Singleton {
   property var ledUnsub: null
   property bool numOn: false
   property bool scrollOn: false
-
   function applyLedStates(caps, num, scroll) {
     if (caps !== service.capsOn) {
       service.capsOn = caps;

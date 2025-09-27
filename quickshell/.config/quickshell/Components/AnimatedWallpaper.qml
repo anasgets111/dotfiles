@@ -158,45 +158,6 @@ WlrLayershell {
       });
     }
   }
-  Item {
-    id: timeDisplay
-    anchors {
-      horizontalCenter: parent.horizontalCenter
-      top: parent.top
-      topMargin: 100
-    }
-    implicitWidth: timeBackdrop.implicitWidth
-    implicitHeight: timeBackdrop.implicitHeight
-    layer.enabled: true
-    layer.mipmap: false
-
-    Rectangle {
-      id: timeBackdrop
-      anchors.centerIn: parent
-      implicitWidth: timeText.implicitWidth + 80
-      implicitHeight: timeText.implicitHeight + 48
-      radius: 24
-      color: Theme.textActiveColor
-      opacity: 0.25
-      border.width: 2
-      border.color: Qt.lighter(Theme.disabledColor, 1.8)
-    }
-
-    Text {
-      id: timeText
-      antialiasing: true
-      anchors.horizontalCenter: timeBackdrop.horizontalCenter
-      anchors.verticalCenter: timeBackdrop.verticalCenter
-      renderType: Text.NativeRendering
-      font.hintingPreference: Font.PreferFullHinting
-      font.family: "Comic Sans MS"
-      font.pointSize: 100
-      style: Text.Outline
-      styleColor: Qt.lighter(Theme.disabledColor, 1.8)
-      color: Theme.disabledColor
-      text: TimeService.timestamp()
-    }
-  }
   function sourceToString(src) {
     return src && src.toString ? src.toString() : src;
   }
