@@ -32,6 +32,10 @@ Singleton {
   }
 
   Component.onCompleted: _detectLedPathsOnce(_startLedMonitoring)
+  Component.onDestruction: {
+    _stopLedMonitoring();
+    _ledWatchers.splice(0, _ledWatchers.length);
+  }
 
   function _handleLedLine(rawLine) {
     const parts = String(rawLine).trim().split(/\s+/, 3);
@@ -104,6 +108,16 @@ Singleton {
       return;
     _ledStreamProc.command = ["sh", "-lc", _composeLedScript()];
     _ledStreamProc.running = true;
+  }
+
+  function _stopLedMonitoring() {
+    if (!_ledStreamProc)
+      return;
+    try {
+      if (_ledStreamProc.running)
+        _ledStreamProc.running = false;
+    } catch (_) {}
+    _ledStreamProc.command = [];
   }
 
   function getLockLedState() {
