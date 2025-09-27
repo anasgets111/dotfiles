@@ -9,6 +9,9 @@ Row {
 
   spacing: 8
 
+  PrivacyIndicator {
+    anchors.verticalCenter: parent.verticalCenter
+  }
   Volume {
     id: volume
     anchors.verticalCenter: parent.verticalCenter
