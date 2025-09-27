@@ -18,12 +18,6 @@ Singleton {
       "portable": "󰏲"
     })
   property bool _muted: !!(root.sink && root.sink.audio && root.sink.audio.muted)
-  // Device tracking caches for connect/disconnect toasts
-  property var _sinkMap: ({}) // key -> display name
-  property var _sourceMap: ({}) // key -> display name
-
-  // Suppress OSDs during startup/initial discovery
-  property bool _suppressStartupToasts: true
   property real _volume: {
     var vol = (root.sink && root.sink.audio ? root.sink.audio.volume : 0);
     if (!Number.isFinite(vol) || vol < 0)
@@ -42,7 +36,6 @@ Singleton {
   readonly property list<PwNode> sinks: Pipewire.nodes.values.filter(n => !n.isStream && n.isSink)
   readonly property PwNode source: Pipewire.defaultAudioSource
   readonly property list<PwNode> sources: Pipewire.nodes.values.filter(n => !n.isStream && !n.isSink && n.audio)
-  readonly property int startupQuietPeriodMs: 1500
 
   // Step amount for increase/decrease helpers (0..1)
   readonly property real stepVolume: 0.05
@@ -60,39 +53,6 @@ Singleton {
     if (out > root.maxVolume)
       out = root.maxVolume;
     return out;
-  }
-
-  function _diffMaps(oldMap, newList) {
-    const list = newList || [];
-    const added = [];
-    const removed = [];
-    const seen = {};
-    for (let i = 0; i < list.length; i++) {
-      const n = list[i];
-      const k = root._nodeKey(n);
-      seen[k] = true;
-      if (!oldMap.hasOwnProperty(k))
-        added.push(n);
-    }
-    for (const k in oldMap) {
-      if (!seen[k])
-        removed.push({
-          key: k,
-          name: oldMap[k]
-        });
-    }
-    return {
-      added: added,
-      removed: removed
-    };
-  }
-  function _listToMap(list) {
-    const m = {};
-    for (let i = 0; i < list.length; i++) {
-      const n = list[i];
-      m[root._nodeKey(n)] = root.displayName(n);
-    }
-    return m;
   }
 
   // Internal: stable key for a node and helpers to map/diff
@@ -240,11 +200,6 @@ Singleton {
   Component.onCompleted: {
     const initVol = _sanitizeVolume(root.sink && root.sink.audio ? root.sink.audio.volume : 0);
     Logger.log("AudioService", "ready; default sink=", root.displayName(root.sink), "muted=", !!(root.sink && root.sink.audio && root.sink.audio.muted), "volume=", Math.round(initVol * 100) + "%", "default source=", root.displayName(root.source));
-    // Initialize device caches without toasting to avoid startup spam
-    root._sinkMap = root._listToMap(root.sinks);
-    root._sourceMap = root._listToMap(root.sources);
-    // Start quiet period after component completes
-    startupSilence.restart();
   }
 
   // Also update/emit when default devices flip
@@ -261,56 +216,11 @@ Singleton {
     root._volume = vol;
     root._muted = !!(root.sink && root.sink.audio && root.sink.audio.muted);
     Logger.log("AudioService", "default sink changed ->", root.displayName(root.sink), "muted=", root._muted, "volume=", Math.round(root._volume * 100) + "%");
-    if (root.sink && !root._suppressStartupToasts) {
-      const name = root.displayName(root.sink);
-      if (name)
-        OSDService.showInfo("Output device", name);
-    }
   }
 
-  // React to device list changes (connect/disconnect toasts)
-  onSinksChanged: {
-    const diff = root._diffMaps(root._sinkMap, root.sinks);
-    if (!root._suppressStartupToasts) {
-      for (let i = 0; i < diff.added.length; i++) {
-        const n = diff.added[i];
-        const name = root.displayName(n);
-        if (name)
-          OSDService.showInfo("Output connected", name);
-      }
-      for (let j = 0; j < diff.removed.length; j++) {
-        const r = diff.removed[j];
-        if (r && r.name)
-          OSDService.showInfo("Output removed", r.name);
-      }
-    }
-    root._sinkMap = root._listToMap(root.sinks);
-  }
   onSourceChanged: {
     Logger.log("AudioService", "default source changed ->", root.displayName(root.source));
     root.micMuteChanged();
-    if (root.source && !root._suppressStartupToasts) {
-      const name = root.displayName(root.source);
-      if (name)
-        OSDService.showInfo("Input device", name);
-    }
-  }
-  onSourcesChanged: {
-    const diff = root._diffMaps(root._sourceMap, root.sources);
-    if (!root._suppressStartupToasts) {
-      for (let i = 0; i < diff.added.length; i++) {
-        const n = diff.added[i];
-        const name = root.displayName(n);
-        if (name)
-          OSDService.showInfo("Input connected", name);
-      }
-      for (let j = 0; j < diff.removed.length; j++) {
-        const r = diff.removed[j];
-        if (r && r.name)
-          OSDService.showInfo("Input removed", r.name);
-      }
-    }
-    root._sourceMap = root._listToMap(root.sources);
   }
 
   // Objects — trackers, IPC, connections
@@ -323,12 +233,6 @@ Singleton {
     function onMutedChanged() {
       root._muted = !!(root.sink && root.sink.audio && root.sink.audio.muted);
       Logger.log("AudioService", "sink muted changed ->", root._muted);
-      if (!root._suppressStartupToasts) {
-        if (root._muted)
-          OSDService.showInfo("Muted");
-        else
-          OSDService.showInfo("Unmuted", Math.round(root._volume * 100) + "%");
-      }
     }
     function onVolumeChanged() {
       var vol = (root.sink && root.sink.audio ? root.sink.audio.volume : 0);
@@ -342,8 +246,6 @@ Singleton {
       }
       root._volume = vol;
       Logger.log("AudioService", "sink volume changed ->", Math.round(vol * 100) + "%");
-      if (!root._muted && !root._suppressStartupToasts)
-        OSDService.showInfo("Volume", Math.round(vol * 100) + "%");
     }
 
     target: root.sink && root.sink.audio ? root.sink.audio : null
@@ -352,12 +254,6 @@ Singleton {
     function onMutedChanged() {
       Logger.log("AudioService", "mic muted changed ->", !!(root.source && root.source.audio && root.source.audio.muted));
       root.micMuteChanged();
-      if (root.source && root.source.audio && !root._suppressStartupToasts) {
-        if (root.source.audio.muted)
-          OSDService.showInfo("Mic muted");
-        else
-          OSDService.showInfo("Mic unmuted", Math.round(root.source.audio.volume * 100) + "%");
-      }
     }
     function onVolumeChanged() {
       var mv = (root.source && root.source.audio ? root.source.audio.volume : 0);
@@ -365,21 +261,8 @@ Singleton {
         mv = 0;
       Logger.log("AudioService", "mic volume changed ->", Math.round(mv * 100) + "%");
       root.micMuteChanged();
-      if (!(root.source && root.source.audio && root.source.audio.muted) && !root._suppressStartupToasts)
-        OSDService.showInfo("Mic volume", Math.round(mv * 100) + "%");
     }
 
     target: root.source && root.source.audio ? root.source.audio : null
-  }
-
-  // Quiet period timer to avoid startup OSD spam
-  Timer {
-    id: startupSilence
-
-    interval: root.startupQuietPeriodMs
-    repeat: false
-    running: false
-
-    onTriggered: root._suppressStartupToasts = false
   }
 }

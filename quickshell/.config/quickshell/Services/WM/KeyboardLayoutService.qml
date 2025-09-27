@@ -56,7 +56,6 @@ Singleton {
   }
   function showToggle(label, on) {
     const msg = label + " " + (on ? "On" : "Off");
-    OSDService.showInfo(msg);
     Logger.log("KeyboardLayoutService", msg);
   }
 
@@ -81,6 +80,5 @@ Singleton {
       return;
 
     Logger.log("KeyboardLayoutService", "layout changed:", service.currentLayout);
-    OSDService.showInfo(service.currentLayout);
   }
 }
