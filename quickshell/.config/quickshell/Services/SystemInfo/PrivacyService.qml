@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import qs.Services.Utils
 import Quickshell.Services.Pipewire
+import qs.Services.Core
 
 Singleton {
   id: root
@@ -42,6 +43,10 @@ Singleton {
 
   // New: show if any real mic stream is muted
   readonly property bool microphoneMuted: {
+    const sourceAudio = AudioService && AudioService.source && AudioService.source.audio ? AudioService.source.audio : null;
+    if (sourceAudio)
+      return !!sourceAudio.muted;
+
     const nodes = Pipewire.nodes?.values || [];
     return nodes.some(n => n && (n.type & PwNodeType.AudioInStream) === PwNodeType.AudioInStream && !isSystemVirtualMic(n) && !!(n.audio && n.audio.muted));
   }
