@@ -10,15 +10,18 @@ RowLayout {
 
   spacing: 8
 
-  readonly property var activeIndicators: [PrivacyService.microphoneActive && {
-      icon: "\uF130",
-      tooltip: qsTr("Microphone in use")
+  readonly property var activeIndicators: [(PrivacyService.microphoneActive || PrivacyService.microphoneMuted) && {
+      icon: PrivacyService.microphoneMuted ? "\uF131" : "\uF130",
+      tooltip: PrivacyService.microphoneMuted ? qsTr("Microphone muted") : qsTr("Microphone in use"),
+      color: PrivacyService.microphoneMuted ? Theme.warning : Theme.critical
     }, PrivacyService.cameraActive && {
       icon: "\uF030",
-      tooltip: qsTr("Camera in use")
+      tooltip: qsTr("Camera in use"),
+      color: Theme.critical
     }, PrivacyService.screensharingActive && {
       icon: "\uF108",
-      tooltip: qsTr("Screen sharing in progress")
+      tooltip: qsTr("Screen sharing in progress"),
+      color: Theme.critical
     }].filter(Boolean)
 
   Component {
@@ -38,7 +41,7 @@ RowLayout {
 
       IconButton {
         id: button
-        colorBg: Theme.critical
+        colorBg: cell.indicator.color ?? Theme.critical
         anchors.fill: parent
         icon: cell.indicator.icon
         tooltipText: cell.indicator.tooltip
