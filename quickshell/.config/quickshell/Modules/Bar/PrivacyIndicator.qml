@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Config
 import qs.Services.SystemInfo
+import qs.Services.Core
 import qs.Components
 
 RowLayout {
@@ -13,7 +14,10 @@ RowLayout {
   readonly property var activeIndicators: [(PrivacyService.microphoneActive || PrivacyService.microphoneMuted) && {
       icon: PrivacyService.microphoneMuted ? "\uF131" : "\uF130",
       tooltip: PrivacyService.microphoneMuted ? qsTr("Microphone muted") : qsTr("Microphone in use"),
-      color: PrivacyService.microphoneMuted ? Theme.warning : Theme.critical
+      color: PrivacyService.microphoneMuted ? Theme.warning : Theme.critical,
+      onClick: AudioService && AudioService.source && AudioService.source.audio ? function () {
+        AudioService.toggleMicMute();
+      } : null
     }, PrivacyService.cameraActive && {
       icon: "\uF030",
       tooltip: qsTr("Camera in use"),
@@ -45,7 +49,11 @@ RowLayout {
         anchors.fill: parent
         icon: cell.indicator.icon
         tooltipText: cell.indicator.tooltip
-        onClicked: {}
+        enabled: typeof cell.indicator.onClick === "function"
+        onClicked: {
+          if (typeof cell.indicator.onClick === "function")
+            cell.indicator.onClick();
+        }
       }
     }
   }
