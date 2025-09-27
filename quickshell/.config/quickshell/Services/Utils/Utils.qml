@@ -34,7 +34,7 @@ Singleton {
   Component.onCompleted: _detectLedPathsOnce(_startLedMonitoring)
   Component.onDestruction: {
     _stopLedMonitoring();
-    _ledWatchers.splice(0, _ledWatchers.length);
+    _ledWatchers.length = 0;
   }
 
   function _handleLedLine(rawLine) {
@@ -72,11 +72,11 @@ Singleton {
       return;
     }
 
-    let done = 0;
-    _ledKeys.forEach(k => {
-      FileSystemService.listByGlob(`/sys/class/leds/*::${k}lock/brightness`, lines => {
-        _ledPaths[k] = lines || [];
-        if (++done === _ledKeys.length) {
+    let remaining = _ledKeys.length;
+    _ledKeys.forEach(key => {
+      FileSystemService.listByGlob(`/sys/class/leds/*::${key}lock/brightness`, lines => {
+        _ledPaths[key] = lines || [];
+        if (--remaining === 0) {
           _ledDiscovered = true;
           if (readyCb)
             readyCb();
@@ -91,8 +91,8 @@ Singleton {
       return quoted && quoted.length ? quoted : ":"; // ":" is a no-op list
     };
 
-    const blocks = ["caps", "num", "scroll"].map((k, i) => `
-    g${i}=0; for p in ${toList(_ledPaths[k])}; do v=$(cat "$p" 2>/dev/null || echo 0); [ "$v" -gt 0 ] && { g${i}=1; break; }; done;`).join("");
+    const blocks = _ledKeys.map((key, index) => `
+    g${index}=0; for p in ${toList(_ledPaths[key])}; do v=$(cat "$p" 2>/dev/null || echo 0); [ "$v" -gt 0 ] && { g${index}=1; break; }; done;`).join("");
 
     return `while true; do
     ${blocks}
@@ -102,9 +102,7 @@ Singleton {
   }
 
   function _startLedMonitoring() {
-    if (!_ledDiscovered || _ledStreamProc.running)
-      return;
-    if (!_ledKeys.some(k => (_ledPaths[k] || []).length))
+    if (!_ledDiscovered || _ledStreamProc.running || !_ledKeys.some(key => (_ledPaths[key] || []).length))
       return;
     _ledStreamProc.command = ["sh", "-lc", _composeLedScript()];
     _ledStreamProc.running = true;
@@ -114,8 +112,7 @@ Singleton {
     if (!_ledStreamProc)
       return;
     try {
-      if (_ledStreamProc.running)
-        _ledStreamProc.running = false;
+      _ledStreamProc.running = false;
     } catch (_) {}
     _ledStreamProc.command = [];
   }
@@ -129,22 +126,22 @@ Singleton {
   }
 
   function startLockLedWatcher(options) {
-    const onChange = options?.onChange;
-    if (typeof onChange === "function" && _ledWatchers.indexOf(onChange) === -1)
-      _ledWatchers.push(onChange);
+    const handler = typeof options?.onChange === "function" ? options.onChange : null;
+    if (handler && _ledWatchers.indexOf(handler) === -1)
+      _ledWatchers.push(handler);
 
     _detectLedPathsOnce(_startLedMonitoring);
 
-    if (typeof onChange === "function") {
+    if (handler) {
       try {
-        onChange(getLockLedState());
+        handler(getLockLedState());
       } catch (_) {}
     }
 
     return () => {
-      if (typeof onChange !== "function")
+      if (!handler)
         return;
-      const idx = _ledWatchers.indexOf(onChange);
+      const idx = _ledWatchers.indexOf(handler);
       if (idx >= 0)
         _ledWatchers.splice(idx, 1);
     };
@@ -179,31 +176,21 @@ Singleton {
       }
     };
 
-    const explicitProvided = arguments.length >= 3 ? providedOrFallback : null;
-    const fallbackCandidate = arguments.length >= 3 ? maybeFallback : providedOrFallback;
+    const hasFallback = arguments.length >= 3;
+    const explicitProvided = hasFallback ? providedOrFallback : null;
+    const fallbackCandidate = hasFallback ? maybeFallback : providedOrFallback;
 
     const entry = resolveDesktopEntry(key);
-    const entryIcon = entry?.icon ? toIcon(entry.icon) : "";
-    if (entryIcon)
-      return entryIcon;
+    const resolved = toIcon(entry?.icon) || toIcon(key) || toIcon(explicitProvided);
+    if (resolved)
+      return resolved;
 
-    const keyIcon = toIcon(key);
-    if (keyIcon)
-      return keyIcon;
-
-    if (explicitProvided) {
-      const providedIcon = toIcon(explicitProvided);
-      if (providedIcon)
-        return providedIcon;
-    }
-
-    const fallbackName = fallbackCandidate ?? "application-x-executable";
-    return toIcon(fallbackName);
+    return toIcon(fallbackCandidate ?? "application-x-executable");
   }
 
   function runCmd(cmd, onDone, parent) {
     const onComplete = typeof onDone === "function" ? onDone : () => {};
-    if (!cmd || !Array.isArray(cmd) || cmd.length === 0) {
+    if (!Array.isArray(cmd) || cmd.length === 0) {
       onComplete("");
       return;
     }
@@ -213,22 +200,23 @@ Singleton {
     const stdio = Qt.createQmlObject('import Quickshell.Io; StdioCollector {}', proc);
     const watchdog = Qt.createQmlObject('import QtQuick; Timer { interval: 10000; repeat: false }', proc);
 
-    const destroyAll = list => list.forEach(o => {
-        try {
-          o.destroy();
-        } catch (_) {}
-      });
+    const safeDestroy = obj => {
+      if (!obj)
+        return;
+      try {
+        obj.destroy();
+      } catch (_) {}
+    };
     const finish = text => {
       onComplete(text);
       watchdog.stop();
-      destroyAll([watchdog, stdio, proc]);
+      [watchdog, stdio, proc].forEach(safeDestroy);
     };
 
     watchdog.triggered.connect(() => {
       try {
         proc.running = false;
       } catch (_) {}
-      ;
       finish(stdio.text || "");
     });
     stdio.onStreamFinished.connect(() => finish(stdio.text));
@@ -248,12 +236,8 @@ Singleton {
   }
 
   function shCommand(script, args) {
-    const cmd = ["sh", "-c", String(script), "x"];
-    if (args !== undefined && args !== null) {
-      const list = Array.isArray(args) ? args : [args];
-      cmd.push(...list.map(String));
-    }
-    return cmd;
+    const extras = args == null ? [] : (Array.isArray(args) ? args : [args]);
+    return ["sh", "-c", String(script), "x", ...extras.map(String)];
   }
 
   function stripAnsi(input) {
