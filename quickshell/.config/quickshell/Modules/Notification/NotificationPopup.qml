@@ -128,7 +128,7 @@ PanelWindow {
     height: 28
     radius: 6
     width: txt.implicitWidth + 24
-    visible: (typeof OSDService !== "undefined" && OSDService.doNotDisturb) ? true : false
+    visible: NotificationService ? NotificationService.isDndEnabled() : false
 
     Text {
       id: txt
