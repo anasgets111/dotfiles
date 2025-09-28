@@ -195,6 +195,30 @@ Item {
               property bool summaryTruncated: false
               property bool bodyTruncated: false
 
+              function prepareBody(raw) {
+                if (typeof raw !== "string" || raw.length === 0)
+                  return ({
+                      text: "",
+                      format: Qt.PlainText
+                    });
+                const mdUtil = typeof Markdown2Html !== "undefined" && typeof Markdown2Html.toDisplay === "function" ? Markdown2Html : null;
+                if (mdUtil) {
+                  const meta = mdUtil.toDisplay(raw);
+                  if (meta && typeof meta === "object" && meta.text !== undefined && meta.format !== undefined)
+                    return meta;
+                }
+                if (raw.search(/<\s*\/?\s*[a-zA-Z!][^>]*>/) !== -1)
+                  return ({
+                      text: raw,
+                      format: Qt.RichText
+                    });
+                return ({
+                    text: raw,
+                    format: Qt.PlainText
+                  });
+              }
+              readonly property var renderedBodyMeta: prepareBody(body)
+
               spacing: 6
 
               RowLayout {
@@ -253,10 +277,11 @@ Item {
                   color: "#bbbbbb"
                   font.pixelSize: 12
                   wrapMode: Text.WordWrap
-                  textFormat: Text.PlainText
-                  text: messageColumn.body
+                  textFormat: messageColumn.renderedBodyMeta.format
+                  text: messageColumn.renderedBodyMeta.text
                   maximumLineCount: messageColumn.expanded ? 0 : 2
                   elide: Text.ElideRight
+                  linkColor: root.accentColor
                   Component.onCompleted: messageColumn.bodyTruncated = truncated
                   onTruncatedChanged: messageColumn.bodyTruncated = truncated
                   onLinkActivated: url => Qt.openUrlExternally(url)

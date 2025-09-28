@@ -6,6 +6,23 @@ pragma Singleton
 import QtQuick
 
 QtObject {
+  function looksLikeHtml(text) {
+    if (typeof text !== "string")
+      return false;
+    return text.search(/<\s*\/?\s*[a-zA-Z!][^>]*>/) !== -1;
+  }
+
+  function looksLikeMarkdown(text) {
+    if (typeof text !== "string")
+      return false;
+    const trimmed = text.trim();
+    if (trimmed.length === 0)
+      return false;
+    if (looksLikeHtml(trimmed))
+      return false;
+    return trimmed.search(/(\*\*|__|~~|`|\[[^\]]+\]\([^ )]+\)|^\s{0,3}[-*+]\s|^\s{0,3}\d+\.\s|^>\s|\n>\s)/m) !== -1;
+  }
+
   function markdownToHtml(text) {
     // paste the fixed JS body here, return html string
     return (function (text) {
@@ -57,5 +74,32 @@ QtObject {
         html = html.replace(/<br\/>\s*<pre>/g, '<pre>').replace(/<br\/>\s*<ul>/g, '<ul>').replace(/<br\/>\s*<(h[1-6])>/g, '<$1>').replace(/<p>\s*<\/p>/g, '').replace(/<p>\s*<br\/>\s*<\/p>/g, '').replace(/(<br\/>){3,}/g, '<br/><br/>').replace(/(<\/p>)\s*(<p>)/g, '$1$2');
         return html.trim();
       })(text);
+  }
+
+  function toDisplay(raw) {
+    if (typeof raw !== "string" || raw.length === 0)
+      return ({
+          text: "",
+          format: Qt.PlainText
+        });
+    if (looksLikeHtml(raw))
+      return ({
+          text: raw,
+          format: Qt.RichText
+        });
+    if (looksLikeMarkdown(raw)) {
+      try {
+        return ({
+            text: markdownToHtml(raw),
+            format: Qt.RichText
+          });
+      } catch (err) {
+        console.warn("Markdown2Html", "markdownToHtml failed", err);
+      }
+    }
+    return ({
+        text: raw,
+        format: Qt.PlainText
+      });
   }
 }
