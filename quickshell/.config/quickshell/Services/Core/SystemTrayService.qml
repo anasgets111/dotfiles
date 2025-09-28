@@ -9,6 +9,8 @@ Singleton {
 
   readonly property var items: SystemTray.items
   readonly property int count: (!items ? 0 : (items.count !== undefined ? Number(items.count) || 0 : (items.length !== undefined ? Number(items.length) || 0 : 0)))
+  property var _iconCache: new Map()
+  property var _iconCleanup: new Map()
 
   signal activated(var item)
   signal error(string message)
@@ -51,6 +53,25 @@ Singleton {
     return String(t).charAt(0).toUpperCase();
   }
 
+  function _rememberIcon(it, value) {
+    if (!it || !value)
+      return;
+    systemTrayService._iconCache.set(it, value);
+    if (!systemTrayService._iconCleanup.has(it) && it.destroyed && typeof it.destroyed.connect === "function") {
+      const cleanup = () => {
+        systemTrayService._iconCache.delete(it);
+        systemTrayService._iconCleanup.delete(it);
+      };
+      systemTrayService._iconCleanup.set(it, cleanup);
+      try {
+        it.destroyed.connect(cleanup);
+      } catch (_) {}
+    }
+  }
+  function _cachedIcon(it) {
+    return (it && systemTrayService._iconCache.has(it)) ? systemTrayService._iconCache.get(it) : "";
+  }
+
   function getNormalizedIconSource(icon) {
     if (icon === undefined || icon === null)
       return "";
@@ -66,11 +87,20 @@ Singleton {
     if (!it)
       return "";
     const direct = (it.icon !== undefined) ? systemTrayService.getNormalizedIconSource(it.icon) : "";
-    if (direct)
+    if (direct) {
+      systemTrayService._rememberIcon(it, direct);
       return direct;
+    }
+    const cached = systemTrayService._cachedIcon(it);
+    if (cached)
+      return cached;
     const app = it.appId || it.id || it.title || it.name || "";
     const resolved = app ? Utils.resolveIconSource(String(app), "") : "";
-    return resolved || "";
+    if (resolved) {
+      systemTrayService._rememberIcon(it, resolved);
+      return resolved;
+    }
+    return "";
   }
 
   function _callFirst(target, names, args) {
