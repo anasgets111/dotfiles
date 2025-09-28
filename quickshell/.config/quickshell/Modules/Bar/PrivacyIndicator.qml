@@ -49,7 +49,7 @@ RowLayout {
         anchors.fill: parent
         icon: cell.indicator.icon
         tooltipText: cell.indicator.tooltip
-        enabled: typeof cell.indicator.onClick === "function"
+        enabled: true
         onClicked: {
           if (typeof cell.indicator.onClick === "function")
             cell.indicator.onClick();
