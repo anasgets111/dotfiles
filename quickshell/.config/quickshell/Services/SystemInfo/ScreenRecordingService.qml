@@ -13,15 +13,15 @@ Singleton {
   property string audioSource: "default_output"
   property string colorRange: "limited"
   property string directory: StandardPaths.writableLocation(StandardPaths.MoviesLocation)
-  property int frameRate: 60
+  property int frameRate: 30
   property bool isPaused: false
   property bool isRecording: false
   readonly property string lockPath: Quickshell.statePath("screen-recording.lock")
   property string monitor: WorkspaceService.focusedOutput
   property string outputPath: ""
-  property string quality: "very_high"
+  property string quality: "high"
   property bool showCursor: true
-  property string videoCodec: "h264"
+  property string videoCodec: "hevc"
 
   signal recordingPaused(string path)
   signal recordingResumed(string path)
