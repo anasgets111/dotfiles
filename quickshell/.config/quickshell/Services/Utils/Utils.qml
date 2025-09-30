@@ -33,7 +33,9 @@ Singleton {
 
   Component.onCompleted: _detectLedPathsOnce(_startLedMonitoring)
   Component.onDestruction: {
-    _stopLedMonitoring();
+    if (_ledStreamProc) {
+      _stopLedMonitoring();
+    }
     _ledWatchers.length = 0;
   }
 
@@ -204,12 +206,13 @@ Singleton {
       if (!obj)
         return;
       try {
-        obj.destroy();
+        if (obj && typeof obj.destroy === 'function')
+          obj.destroy();
       } catch (_) {}
     };
     const finish = text => {
       onComplete(text);
-      watchdog.stop();
+      if (watchdog) watchdog.stop();
       [watchdog, stdio, proc].forEach(safeDestroy);
     };
 
