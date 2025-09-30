@@ -28,44 +28,66 @@ Singleton {
 
   // List files matching a glob. Calls cb(arrayOfPaths)
   function listByGlob(pattern, cb) {
+    let proc = null;
+    let collector = null;
+    let timer = null;
+    let finished = false;
+
+    const cleanup = () => {
+      _safeDestroy(timer);
+      _safeDestroy(collector);
+      _safeDestroy(proc);
+      timer = null;
+      collector = null;
+      proc = null;
+    };
+
+    const complete = lines => {
+      if (finished)
+        return;
+      finished = true;
+      if (cb)
+        cb(lines);
+      cleanup();
+    };
+
     try {
-      const {
-        proc,
-        collector
-      } = fs._newProc();
-      let finished = false;
-      let timer = null;
-      const cleanup = () => {
-        _safeDestroy(timer);
-        _safeDestroy(collector);
-        _safeDestroy(proc);
-      };
-      const complete = lines => {
-        if (finished)
-          return;
-        finished = true;
-        if (cb)
-          cb(lines);
-        cleanup();
-      };
+      const created = fs._newProc();
+      proc = created?.proc || null;
+      collector = created?.collector || null;
+
+      if (!proc || !collector) {
+        complete([]);
+        return;
+      }
 
       collector.onStreamFinished.connect(function () {
         const text = (collector.text || "").trim();
         complete(text ? text.split(/\r?\n/) : []);
       });
 
+      if (proc.exited) {
+        proc.exited.connect(function () {
+          const text = collector ? (collector.text || "").trim() : "";
+          complete(text ? text.split(/\r?\n/) : []);
+        });
+      }
+
       timer = Qt.createQmlObject('import QtQuick; Timer { interval: 10000; repeat: false }', proc);
       timer.triggered.connect(function () {
-        try {
-          proc.running = false;
-        } catch (_) {}
+        if (proc && proc.running) {
+          try {
+            proc.running = false;
+          } catch (_) {}
+        }
         complete([]);
       });
       timer.start();
 
-      proc.command = ["bash", "-lc", "ls -1 " + String(pattern) + " 2>/dev/null || true"]; // safe: caller controls pattern
+      proc.command = ["bash", "--noprofile", "--norc", "-c", "ls -1 " + String(pattern) + " 2>/dev/null || true"]; // safe: caller controls pattern
       proc.running = true;
     } catch (e) {
+      cleanup();
       if (cb)
         cb([]);
     }

@@ -58,15 +58,15 @@ PanelWindow {
   visible: active
 
   WlrLayershell.layer: WlrLayer.Overlay
-  WlrLayershell.keyboardFocus: active ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+  focusable: active
   WlrLayershell.exclusiveZone: -1
   screen: screenTarget
 
   anchors {
     top: true
-    bottom: true
     left: true
     right: true
+    bottom: true
   }
 
   function clamp(v, lo, hi) {
@@ -222,11 +222,9 @@ PanelWindow {
   }
 
   function open() {
-    if (root.active)
-      return;
-    root.active = true;
+    if (!root.active)
+      root.active = true;
   }
-
   function close() {
     if (!root.active)
       return;
@@ -239,11 +237,6 @@ PanelWindow {
     ensureFinder(true);
     searchField.text = "";
     updateFilter("", true);
-    if (root.showSearchField) {
-      Qt.callLater(() => {
-        searchField.forceActiveFocus();
-      });
-    }
   }
 
   function releaseFocus() {
@@ -289,7 +282,6 @@ PanelWindow {
     else
       root.releaseFocus();
   }
-
   onItemsChanged: {
     ensureFinder(true);
     updateFilter(searchField.text, true);
@@ -326,7 +318,28 @@ PanelWindow {
     anchors.centerIn: parent
     focus: true
 
-    Keys.onPressed: event => root.handleKeyEvent(event)
+    Keys.onPressed: event => {
+      if (root.handleKeyEvent) {
+        switch (event.key) {
+        case Qt.Key_Escape:
+        case Qt.Key_Down:
+        case Qt.Key_Up:
+        case Qt.Key_Left:
+        case Qt.Key_Right:
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+          root.handleKeyEvent(event);
+          if (event.accepted)
+            return;
+        }
+      }
+      if (root.showSearchField && event.text && event.text.length > 0 && !(event.modifiers & ~Qt.ShiftModifier)) {
+        searchField.forceActiveFocus();
+        searchField.text += event.text;
+        searchField.cursorPosition = searchField.text.length;
+        event.accepted = true;
+      }
+    }
 
     ColumnLayout {
       id: contentColumn
@@ -340,7 +353,6 @@ PanelWindow {
         Layout.preferredHeight: headerSlot.implicitHeight
         visible: headerSlot.children.length > 0
         implicitHeight: headerSlot.implicitHeight
-
         Column {
           id: headerSlot
           anchors.fill: parent
@@ -375,7 +387,6 @@ PanelWindow {
 
         Component {
           id: defaultItemDelegate
-
           Item {
             id: itemDelegate
             required property var modelData
@@ -467,13 +478,13 @@ PanelWindow {
           delegate: root.delegateComponent ? root.delegateComponent : defaultItemDelegate
         }
       }
+
       Item {
         id: footerWrapper
         Layout.fillWidth: true
         Layout.preferredHeight: footerSlot.implicitHeight
         visible: footerSlot.children.length > 0
         implicitHeight: footerSlot.implicitHeight
-
         Column {
           id: footerSlot
           anchors.fill: parent
