@@ -96,8 +96,8 @@ Singleton {
   // ----- Application Launcher -----
   IpcHandler {
     function toggle(): string {
-      Logger.log("IPC", "launcher.toggle");
       ipc.launcherActive = !ipc.launcherActive;
+      Logger.log("IPC", `launcher.toggle -> ${ipc.launcherActive ? "open" : "closed"}`);
       return ipc.launcherActive ? "open" : "closed";
     }
 
