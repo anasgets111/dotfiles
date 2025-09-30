@@ -62,12 +62,10 @@ Singleton {
         writeAdapter();
     }
     onLoaded: function () {
-      Qt.callLater(function () {
-        if (!isLoaded) {
-          Logger.log("Settings", "JSON completed loading");
-          isLoaded = true;
-        }
-      });
+      if (!isLoaded) {
+        Logger.log("Settings", "JSON completed loading");
+        isLoaded = true;
+      }
     }
 
     JsonAdapter {

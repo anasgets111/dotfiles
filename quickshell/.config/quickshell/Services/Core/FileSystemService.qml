@@ -18,7 +18,8 @@ Singleton {
     if (!obj)
       return;
     try {
-      obj.destroy();
+      if (obj && typeof obj.destroy === 'function')
+        obj.destroy();
     } catch (_) {}
   }
 
@@ -34,9 +35,9 @@ Singleton {
     let finished = false;
 
     const cleanup = () => {
-      _safeDestroy(timer);
-      _safeDestroy(collector);
-      _safeDestroy(proc);
+      if (timer) _safeDestroy(timer);
+      if (collector) _safeDestroy(collector);
+      if (proc) _safeDestroy(proc);
       timer = null;
       collector = null;
       proc = null;
