@@ -54,8 +54,9 @@ Adjust package names for your distro.
   - [x] Monitor handling (hotplug, layout, resolution,hdr,vrr)
   - [x] Keyboard Layout Indicator
   - [x] Wallpaper Management with multiple screens
+    - [x] Wallpaper widget and picker
   - [x] Clipboard Management
-  - [ ] App Launcher
+  - [x] App Launcher
   - [x] Time and Calendar
   - [x] Weather
   - [x] Bluetooth
@@ -69,21 +70,21 @@ Adjust package names for your distro.
   - [ ] OSD Slider
   - [ ] OSD Messages
   - [/] Notification Popup
-    - [ ] Actions
-    - [ ] Images
-    - [ ] Icons
-    - [ ] Inline replies
-    - [ ] Urgency
-    - [ ] Rich content
-    - [ ] Grouping
+    - [x] Actions
+    - [x] Images
+    - [x] Icons
+    - [x] Inline replies
+    - [x] Urgency
+    - [x] Rich content
+    - [x] Grouping
   - [ ] Notification Center
   - [/] Lockscreen
   - [ ] Sound Panel
   - [x] Sound Widget
   - [ ] Wifi Panel
-  - [ ] Wifi Widget
+  - [x] Wifi Widget
   - [ ] Bluetooth Panel
-  - [ ] Bluetooth Widget
+  - [x] Bluetooth Widget
 
 ## Notes
 
