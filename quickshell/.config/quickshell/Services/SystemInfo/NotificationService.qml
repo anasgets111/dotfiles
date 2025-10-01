@@ -5,7 +5,6 @@ import qs.Config
 import QtQuick
 import Quickshell
 import Quickshell.Services.Notifications
-import qs.Services.Utils
 import qs.Services.SystemInfo
 
 Singleton {
@@ -496,7 +495,14 @@ Singleton {
         return;
     }
 
-    tryCall(notif, "invokeAction", actionId) || tryCall(notif, "activateAction", actionId) || tryCall(notif, "triggerAction", actionId) || tryCall(notif, "action", actionId);
+    if (tryCall(notif, "invokeAction", actionId))
+      return;
+    if (tryCall(notif, "activateAction", actionId))
+      return;
+    if (tryCall(notif, "triggerAction", actionId))
+      return;
+    if (tryCall(notif, "action", actionId))
+      return;
   }
 
   function onOverlayOpen() {
