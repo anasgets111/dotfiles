@@ -182,7 +182,8 @@ Singleton {
     root.processQueue();
   }
 
-  function _normalizeActions(actions) {
+  function _normalizeActions(notification) {
+    const actions = notification?.actions;
     if (!actions)
       return [];
 
@@ -191,11 +192,20 @@ Singleton {
       return [];
 
     const normalized = [];
+    const seenIds = new Set();
+    const inlineReplyIds = notification?.hasInlineReply ? ["inline-reply", "inline_reply", "reply"] : [];
     for (let i = 0; i < count; i++) {
       const action = actions[i];
       if (!action)
         continue;
       const id = String(action.identifier || action.id || action.name || "");
+      if (!id)
+        continue;
+      const idKey = id.toLowerCase();
+      if (seenIds.has(idKey))
+        continue;
+      if (inlineReplyIds.includes(idKey) || action.isInlineReply === true)
+        continue;
       const title = String(action.text || action.title || action.label || id);
 
       normalized.push({
@@ -203,6 +213,7 @@ Singleton {
         title: title,
         _obj: action
       });
+      seenIds.add(idKey);
     }
     return normalized;
   }
@@ -299,7 +310,7 @@ Singleton {
     Component.onCompleted: {
       if (wrapper.notification && wrapper.notification.actions) {
         try {
-          wrapper.actions = root._normalizeActions(wrapper.notification.actions);
+          wrapper.actions = root._normalizeActions(wrapper.notification);
         } catch (e) {
           wrapper.actions = [];
         }
