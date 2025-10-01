@@ -307,12 +307,10 @@ Singleton {
     property var actions: []
 
     Component.onCompleted: {
-      if (wrapper.notification && wrapper.notification.actions) {
-        try {
-          wrapper.actions = root._normalizeActions(wrapper.notification);
-        } catch (e) {
-          wrapper.actions = [];
-        }
+      try {
+        wrapper.actions = root._normalizeActions(wrapper.notification);
+      } catch (e) {
+        wrapper.actions = [];
       }
     }
 
