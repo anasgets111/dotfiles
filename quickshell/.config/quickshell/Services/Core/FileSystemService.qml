@@ -1,4 +1,5 @@
 pragma Singleton
+import QtQml
 import Quickshell
 
 Singleton {
@@ -35,9 +36,12 @@ Singleton {
     let finished = false;
 
     const cleanup = () => {
-      if (timer) _safeDestroy(timer);
-      if (collector) _safeDestroy(collector);
-      if (proc) _safeDestroy(proc);
+      if (timer)
+        _safeDestroy(timer);
+      if (collector)
+        _safeDestroy(collector);
+      if (proc)
+        _safeDestroy(proc);
       timer = null;
       collector = null;
       proc = null;

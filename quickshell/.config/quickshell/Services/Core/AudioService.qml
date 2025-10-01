@@ -3,7 +3,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
-import qs.Services.SystemInfo
 import qs.Services.Utils
 
 Singleton {

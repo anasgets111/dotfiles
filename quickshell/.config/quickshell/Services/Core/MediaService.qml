@@ -3,7 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
 import Quickshell.Services.Mpris
-import qs.Services.Utils
 
 Singleton {
   id: root
@@ -51,7 +50,11 @@ Singleton {
   property string trackTitle: active?.trackTitle ?? ""
 
   function hasActiveVideoStreams() {
-    return Pipewire.nodes?.values?.some(nodeObj => nodeObj?.isStream && (String(nodeObj.properties["media.class"] || "").toLowerCase().includes("video") || ["movie", "video"].includes(String(nodeObj.properties["media.role"] || "").toLowerCase()))) || false;
+    const nodes = Pipewire.nodes;
+    const nodeValues = nodes && nodes.values ? nodes.values : null;
+    if (!nodeValues)
+      return false;
+    return nodeValues.some(nodeObj => nodeObj && nodeObj.isStream && (String(nodeObj.properties["media.class"] || "").toLowerCase().includes("video") || ["movie", "video"].includes(String(nodeObj.properties["media.role"] || "").toLowerCase())));
   }
 
   function isVideoUrl(urlString) {

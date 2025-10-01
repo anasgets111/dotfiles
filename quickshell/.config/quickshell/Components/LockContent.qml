@@ -414,7 +414,11 @@ FocusScope {
             elide: Text.ElideRight
             color: root.theme.subtext0
             font.pixelSize: 21
-            text: MainService?.hostname?.length > 0 ? MainService.hostname : "localhost"
+            text: {
+              const service = MainService;
+              const host = service && service.hostname ? String(service.hostname) : "";
+              return host.length > 0 ? host : "localhost";
+            }
           }
         }
       }
