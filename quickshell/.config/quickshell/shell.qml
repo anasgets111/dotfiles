@@ -7,13 +7,11 @@ import QtQml
 import QtQuick
 import Quickshell
 import qs.Components
-import qs.Components
 import qs.Modules.Bar
 import qs.Modules.AppLauncher
 import qs.Modules.WallpaperPicker
 import qs.Modules.Notification
 import qs.Services.Core
-import qs.Services.SystemInfo
 import qs.Services.SystemInfo
 import qs.Services.Utils
 import qs.Services.WM

@@ -64,7 +64,8 @@ Singleton {
   }
   function sendRaw(raw, callback) {
     if (!requestSocket.connected) {
-      callback && callback(null);
+      if (callback)
+        callback(null);
       return;
     }
     _replyQueue.push(callback || function () {});
@@ -154,7 +155,8 @@ Singleton {
           return;
 
         const callback = niriMonitorService._replyQueue.shift();
-        callback && callback(niriMonitorService.json(message));
+        if (callback)
+          callback(niriMonitorService.json(message));
       }
     }
 
@@ -162,7 +164,8 @@ Singleton {
       if (!connected) {
         while (niriMonitorService._replyQueue.length) {
           const cb = niriMonitorService._replyQueue.shift();
-          cb && cb(null);
+          if (cb)
+            cb(null);
         }
       }
     }

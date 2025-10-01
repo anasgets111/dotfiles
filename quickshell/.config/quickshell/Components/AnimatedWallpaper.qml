@@ -1,10 +1,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import qs.Config
 import Quickshell.Wayland
 import qs.Services.Core
-import qs.Services.SystemInfo
 
 WlrLayershell {
   id: root

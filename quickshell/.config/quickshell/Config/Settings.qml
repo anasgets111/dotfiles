@@ -62,9 +62,9 @@ Singleton {
         writeAdapter();
     }
     onLoaded: function () {
-      if (!isLoaded) {
+      if (!root.isLoaded) {
         Logger.log("Settings", "JSON completed loading");
-        isLoaded = true;
+        root.isLoaded = true;
       }
     }
 

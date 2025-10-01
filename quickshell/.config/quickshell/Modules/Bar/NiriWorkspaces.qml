@@ -71,7 +71,14 @@ Item {
     }
   }
   HoverHandler {
-    onHoveredChanged: hovered ? (root.expanded = true, collapseTimer.stop()) : collapseTimer.restart()
+    onHoveredChanged: {
+      if (hovered) {
+        root.expanded = true;
+        collapseTimer.stop();
+      } else {
+        collapseTimer.restart();
+      }
+    }
   }
   Item {
     id: rowViewport

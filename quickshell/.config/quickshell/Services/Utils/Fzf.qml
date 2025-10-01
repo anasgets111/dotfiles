@@ -1013,7 +1013,9 @@ QtObject {
     [offset16, C0] = alloc16(offset16, slab2, N);
     [offset16, B] = alloc16(offset16, slab2, N);
     [offset32, F] = alloc32(offset32, slab2, M);
-    const [, T] = alloc32(offset32, slab2, N);
+    const allocT = alloc32(offset32, slab2, N);
+    offset32 = allocT[0];
+    const T = allocT[1];
     for (let i = 0; i < T.length; i++)
       T[i] = input[i];
 
@@ -1108,7 +1110,9 @@ QtObject {
         H[i] = v;
     }
 
-    let [, C] = alloc16(offset16, slab2, width * M);
+    const allocC = alloc16(offset16, slab2, width * M);
+    offset16 = allocC[0];
+    let C = allocC[1];
     {
       const toCopy = C0.subarray(f0, lastIdx + 1);
       for (const [i, v] of toCopy.entries())
