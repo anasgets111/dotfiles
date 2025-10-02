@@ -23,7 +23,8 @@ SearchGridPanel {
       return null;
     return new Fzf.finder(params.list, {
       selector: params.selector,
-      limit: params.limit
+      limit: params.limit,
+      tiebreakers: [Fzf.by_start_asc, Fzf.by_length_asc]
     });
   }
 
