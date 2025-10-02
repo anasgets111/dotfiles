@@ -616,8 +616,8 @@ QtObject {
     let isLetter = false;
     try {
       // Construct at runtime to avoid parse-time errors on engines without \p{} support
-      const numRe = new RegExp("\\\\p{Number}", "u");
-      const letRe = new RegExp("\\\\p{Letter}", "u");
+      const numRe = new RegExp("\\p{Number}", "u");
+      const letRe = new RegExp("\\p{Letter}", "u");
       isNumber = numRe.test(ch);
       isLetter = letRe.test(ch);
     } catch (e) {
@@ -1328,12 +1328,15 @@ QtObject {
     if (opts.sort) {
       const selector = opts.selector;
       result.sort((a, b) => {
-        if (a.score === b.score) {
-          for (const tiebreaker of opts.tiebreakers) {
-            const diff = tiebreaker(a, b, selector);
-            if (diff !== 0)
-              return diff;
-          }
+        // First, sort by score (descending - higher scores first)
+        if (a.score !== b.score) {
+          return b.score - a.score;
+        }
+        // Then apply tiebreakers for equal scores
+        for (const tiebreaker of opts.tiebreakers) {
+          const diff = tiebreaker(a, b, selector);
+          if (diff !== 0)
+            return diff;
         }
         return 0;
       });
@@ -1395,7 +1398,16 @@ QtObject {
     return runes.map(r => String.fromCodePoint(r)).join("");
   }
   function str_to_runes(str) {
-    return str.split("").map(s => s.codePointAt(0));
+    // Properly handle Unicode surrogate pairs
+    const runes = [];
+    for (let i = 0; i < str.length; i++) {
+      const code = str.codePointAt(i);
+      runes.push(code);
+      // Skip the next code unit if this was a surrogate pair
+      if (code > 0xFFFF)
+        i++;
+    }
+    return runes;
   }
   function suffix_match(caseSensitive, normalize, forward, text, pattern, withPos, slab2) {
     text = Array.isArray(text) ? text : [];
