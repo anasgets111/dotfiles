@@ -5,361 +5,363 @@ import Quickshell
 import qs.Services.Utils
 
 Singleton {
-  id: weatherService
+  id: root
 
-  property bool _fallbackApplied: false
-  property string _pendingRetry: ""
-  property int _wxAttempt: 0
-  property int consecutiveErrors: 0
+  // Public API
   property string currentTemp: "Loading..."
   property int currentWeatherCode: -1
-  readonly property int defaultRefreshMs: 3.6e+06 // 1 hour
-  readonly property int defaultRetryDelayMs: 2000
-  readonly property string displayText: currentTemp + (includeLocationInDisplay && locationName ? " — " + locationName : "") + (isStale ? " (stale)" : "")
-  readonly property real fallbackLat: 30.0507
-  readonly property string fallbackLocationName: ""
-  readonly property real fallbackLon: 31.2489
-  readonly property int geoTimeoutMs: 4000
+  property string locationName: ""
   property bool hasError: false
   property bool includeLocationInDisplay: true
-  readonly property string ipGeoUrl: "https://ipapi.co/json/"
-  readonly property bool isStale: lastUpdated ? (Date.now() - lastUpdated.getTime()) > staleAfterMs : false
-  property var lastUpdated: null
-  property real latitude: NaN
-  property string locationName: ""
-  property real longitude: NaN
+  property int refreshInterval: 3.6e+06 // 1 hour
   property int maxRetries: 2
-  readonly property string openMeteoUrlBase: "https://api.open-meteo.com/v1/forecast"
-  property int refreshInterval: defaultRefreshMs
-  property int retryDelayMs: defaultRetryDelayMs
-  readonly property int staleAfterMs: refreshInterval * 2
-  readonly property var weatherIconMap: ({
-      "0": {
-        "icon": "☀️",
-        "desc": "Clear sky"
+
+  readonly property string displayText: currentTemp + (includeLocationInDisplay && locationName ? " — " + locationName : "") + (isStale ? " (stale)" : "")
+
+  readonly property bool isStale: lastUpdated ? (Date.now() - lastUpdated.getTime()) > refreshInterval * 2 : false
+
+  // Private state
+  property real _lat: NaN
+  property real _lon: NaN
+  property var lastUpdated: null
+  property int _retryCount: 0
+  property int _consecutiveErrors: 0
+
+  // Constants
+  readonly property var _config: ({
+      fallback: {
+        lat: 30.0507,
+        lon: 31.2489,
+        name: ""
       },
-      "1": {
-        "icon": "🌤️",
-        "desc": "Mainly clear"
+      timeout: {
+        geo: 4000,
+        weather: 5000
       },
-      "2": {
-        "icon": "⛅",
-        "desc": "Partly cloudy"
-      },
-      "3": {
-        "icon": "☁️",
-        "desc": "Overcast"
-      },
-      "45": {
-        "icon": "🌫️",
-        "desc": "Fog"
-      },
-      "48": {
-        "icon": "🌫️",
-        "desc": "Depositing rime fog"
-      },
-      "51": {
-        "icon": "🌦️",
-        "desc": "Drizzle: Light"
-      },
-      "53": {
-        "icon": "🌦️",
-        "desc": "Drizzle: Moderate"
-      },
-      "55": {
-        "icon": "🌧️",
-        "desc": "Drizzle: Dense"
-      },
-      "56": {
-        "icon": "🌧️❄️",
-        "desc": "Freezing Drizzle: Light"
-      },
-      "57": {
-        "icon": "🌧️❄️",
-        "desc": "Freezing Drizzle: Dense"
-      },
-      "61": {
-        "icon": "🌦️",
-        "desc": "Rain: Slight"
-      },
-      "63": {
-        "icon": "🌧️",
-        "desc": "Rain: Moderate"
-      },
-      "65": {
-        "icon": "🌧️",
-        "desc": "Rain: Heavy"
-      },
-      "66": {
-        "icon": "🌧️❄️",
-        "desc": "Freezing Rain: Light"
-      },
-      "67": {
-        "icon": "🌧️❄️",
-        "desc": "Freezing Rain: Heavy"
-      },
-      "71": {
-        "icon": "🌨️",
-        "desc": "Snow fall: Slight"
-      },
-      "73": {
-        "icon": "🌨️",
-        "desc": "Snow fall: Moderate"
-      },
-      "75": {
-        "icon": "❄️",
-        "desc": "Snow fall: Heavy"
-      },
-      "77": {
-        "icon": "❄️",
-        "desc": "Snow grains"
-      },
-      "80": {
-        "icon": "🌦️",
-        "desc": "Rain showers: Slight"
-      },
-      "81": {
-        "icon": "🌧️",
-        "desc": "Rain showers: Moderate"
-      },
-      "82": {
-        "icon": "⛈️",
-        "desc": "Rain showers: Violent"
-      },
-      "85": {
-        "icon": "🌨️",
-        "desc": "Snow showers: Slight"
-      },
-      "86": {
-        "icon": "❄️",
-        "desc": "Snow showers: Heavy"
-      },
-      "95": {
-        "icon": "⛈️",
-        "desc": "Thunderstorm: Slight or moderate"
-      },
-      "96": {
-        "icon": "⛈️🧊",
-        "desc": "Thunderstorm with slight hail"
-      },
-      "99": {
-        "icon": "⛈️🧊",
-        "desc": "Thunderstorm with heavy hail"
+      retryDelay: 2000,
+      api: {
+        geo: "https://ipapi.co/json/",
+        weather: "https://api.open-meteo.com/v1/forecast"
       }
     })
-  readonly property int wxTimeoutMs: 5000
 
-  function applyFallbackCoords() {
-    if (_fallbackApplied)
-      return;
+  readonly property var _weatherCodes: ({
+      "0": {
+        icon: "☀️",
+        desc: "Clear sky"
+      },
+      "1": {
+        icon: "🌤️",
+        desc: "Mainly clear"
+      },
+      "2": {
+        icon: "⛅",
+        desc: "Partly cloudy"
+      },
+      "3": {
+        icon: "☁️",
+        desc: "Overcast"
+      },
+      "45": {
+        icon: "🌫️",
+        desc: "Fog"
+      },
+      "48": {
+        icon: "🌫️",
+        desc: "Depositing rime fog"
+      },
+      "51": {
+        icon: "🌦️",
+        desc: "Drizzle: Light"
+      },
+      "53": {
+        icon: "🌦️",
+        desc: "Drizzle: Moderate"
+      },
+      "55": {
+        icon: "🌧️",
+        desc: "Drizzle: Dense"
+      },
+      "56": {
+        icon: "🌧️❄️",
+        desc: "Freezing Drizzle: Light"
+      },
+      "57": {
+        icon: "🌧️❄️",
+        desc: "Freezing Drizzle: Dense"
+      },
+      "61": {
+        icon: "🌦️",
+        desc: "Rain: Slight"
+      },
+      "63": {
+        icon: "🌧️",
+        desc: "Rain: Moderate"
+      },
+      "65": {
+        icon: "🌧️",
+        desc: "Rain: Heavy"
+      },
+      "66": {
+        icon: "🌧️❄️",
+        desc: "Freezing Rain: Light"
+      },
+      "67": {
+        icon: "🌧️❄️",
+        desc: "Freezing Rain: Heavy"
+      },
+      "71": {
+        icon: "🌨️",
+        desc: "Snow fall: Slight"
+      },
+      "73": {
+        icon: "🌨️",
+        desc: "Snow fall: Moderate"
+      },
+      "75": {
+        icon: "❄️",
+        desc: "Snow fall: Heavy"
+      },
+      "77": {
+        icon: "❄️",
+        desc: "Snow grains"
+      },
+      "80": {
+        icon: "🌦️",
+        desc: "Rain showers: Slight"
+      },
+      "81": {
+        icon: "🌧️",
+        desc: "Rain showers: Moderate"
+      },
+      "82": {
+        icon: "⛈️",
+        desc: "Rain showers: Violent"
+      },
+      "85": {
+        icon: "🌨️",
+        desc: "Snow showers: Slight"
+      },
+      "86": {
+        icon: "❄️",
+        desc: "Snow showers: Heavy"
+      },
+      "95": {
+        icon: "⛈️",
+        desc: "Thunderstorm: Slight or moderate"
+      },
+      "96": {
+        icon: "⛈️🧊",
+        desc: "Thunderstorm with slight hail"
+      },
+      "99": {
+        icon: "⛈️🧊",
+        desc: "Thunderstorm with heavy hail"
+      }
+    })
 
-    latitude = fallbackLat;
-    longitude = fallbackLon;
-    locationName = fallbackLocationName || (fallbackLat + ", " + fallbackLon);
-    persist.savedLocationJson = JSON.stringify({
-      "lat": latitude,
-      "lon": longitude,
-      "name": locationName
-    });
-    _fallbackApplied = true;
-    hasError = false;
-    Logger.warn("WeatherService", "Applying fallback coords:", latitude + "," + longitude, "name=", locationName);
-    fetchCurrentTemp(latitude, longitude);
+  // Public methods
+  function getWeatherIconFromCode() {
+    return _getWeatherData(currentWeatherCode).icon;
   }
-  function fetchCurrentTemp(lat, lon) {
-    var wxXhr = new XMLHttpRequest();
-    var url = openMeteoUrlBase + "?latitude=" + lat + "&longitude=" + lon + "&current_weather=true&timezone=auto";
-    wxXhr.open("GET", url);
-    wxXhr.timeout = wxTimeoutMs;
-    Logger.log("WeatherService", "Weather request start:", url, "timeout=", wxTimeoutMs, "ms");
-    wxXhr.onreadystatechange = function () {
-      if (wxXhr.readyState !== 4)
-        return;
 
-      if (wxXhr.status === 200) {
-        try {
-          var data = JSON.parse(wxXhr.responseText);
-          if (data && data.current_weather) {
-            currentWeatherCode = data.current_weather.weathercode;
-            currentTemp = Math.round(data.current_weather.temperature) + "°C" + ' ' + getWeatherIconFromCode();
-            lastUpdated = new Date();
-            hasError = false;
-            consecutiveErrors = 0;
-            _wxAttempt = 0;
-            Logger.log("WeatherService", "Weather success: temp=", currentTemp, "code=", currentWeatherCode);
-          } else {
-            Logger.warn("WeatherService", "response missing current_weather");
-            scheduleWxRetry();
+  function getWeatherDescriptionFromCode() {
+    return _getWeatherData(currentWeatherCode).desc;
+  }
+
+  // Core logic
+  function updateWeather() {
+    const saved = _loadSavedLocation();
+
+    if (!isNaN(_lat) && !isNaN(_lon)) {
+      Logger.log("WeatherService", "Using existing coords:", `${_lat},${_lon}`);
+      _fetchWeather(_lat, _lon);
+    } else if (saved) {
+      _lat = saved.lat;
+      _lon = saved.lon;
+      locationName = saved.name;
+      Logger.log("WeatherService", "Using persisted coords:", `${_lat},${_lon}`);
+      _fetchWeather(_lat, _lon);
+    } else {
+      _fetchGeoLocation();
+    }
+  }
+
+  // Private methods
+  function _getWeatherData(code) {
+    const key = String(code);
+    return _weatherCodes[key] || {
+      icon: "❓",
+      desc: "Unknown"
+    };
+  }
+
+  function _loadSavedLocation() {
+    try {
+      const data = JSON.parse(persist.savedLocationJson || "{}");
+      const lat = Number(data.lat);
+      const lon = Number(data.lon);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        return {
+          lat,
+          lon,
+          name: String(data.name || "")
+        };
+      }
+    } catch (e) {
+      Logger.warn("WeatherService", "Failed to parse saved location");
+    }
+    return null;
+  }
+
+  function _saveLocation(lat, lon, name) {
+    persist.savedLocationJson = JSON.stringify({
+      lat,
+      lon,
+      name
+    });
+  }
+
+  function _setLocation(lat, lon, name) {
+    _lat = lat;
+    _lon = lon;
+    locationName = name;
+    _saveLocation(lat, lon, name);
+  }
+
+  function _useFallback() {
+    const fb = _config.fallback;
+    const name = fb.name || `${fb.lat}, ${fb.lon}`;
+    Logger.warn("WeatherService", "Applying fallback:", `${fb.lat},${fb.lon}`);
+    _setLocation(fb.lat, fb.lon, name);
+    _fetchWeather(fb.lat, fb.lon);
+  }
+
+  function _fetchGeoLocation() {
+    _httpGet(_config.api.geo, _config.timeout.geo, function (data) {
+      const name = `${data.city || ""}${data.country_name ? ", " + data.country_name : ""}`;
+      Logger.log("WeatherService", "IP geo success:", `${data.latitude},${data.longitude}`);
+      _setLocation(data.latitude, data.longitude, name);
+      _fetchWeather(data.latitude, data.longitude);
+    }, function () {
+      Logger.warn("WeatherService", "IP geo failed");
+      _useFallback();
+    });
+  }
+
+  function _fetchWeather(lat, lon) {
+    const url = `${_config.api.weather}?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
+
+    _httpGet(url, _config.timeout.weather, function (data) {
+      if (!data.current_weather)
+        throw new Error("Missing current_weather");
+
+      currentWeatherCode = data.current_weather.weathercode;
+      currentTemp = `${Math.round(data.current_weather.temperature)}°C ${getWeatherIconFromCode()}`;
+      lastUpdated = new Date();
+      hasError = false;
+      _consecutiveErrors = 0;
+      _retryCount = 0;
+      Logger.log("WeatherService", "Weather success:", currentTemp, "code:", currentWeatherCode);
+    }, function () {
+      Logger.warn("WeatherService", "Weather fetch failed");
+      _scheduleRetry();
+    });
+  }
+
+  function _httpGet(url, timeout, onSuccess, onError) {
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", url);
+    xhr.timeout = timeout;
+
+    Logger.log("WeatherService", "Request:", url, "timeout:", timeout, "ms");
+
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4)
+        return;
+      try {
+        if (xhr.status === 200) {
+          try {
+            onSuccess(JSON.parse(xhr.responseText));
+          } catch (e) {
+            Logger.warn("WeatherService", "Parse error:", e.message);
+            onError();
           }
-        } catch (e) {
-          Logger.warn("WeatherService", "failed to parse weather response");
-          scheduleWxRetry();
+        } else {
+          Logger.warn("WeatherService", "HTTP error:", xhr.status);
+          onError();
         }
-      } else {
-        Logger.warn("WeatherService", "fetch failed with status", wxXhr.status);
-        scheduleWxRetry();
+      } finally {
+        try {
+          xhr.abort();
+        } catch (_) {}
       }
     };
-    wxXhr.ontimeout = function () {
-      Logger.warn("WeatherService", "fetch timed out");
-      scheduleWxRetry();
-    };
-    wxXhr.send();
-  }
-  function getWeatherDescriptionFromCode() {
-    return getWeatherIconAndDesc(currentWeatherCode).desc;
-  }
-  function getWeatherIconAndDesc(code) {
-    const key = String(code);
-    if (weatherIconMap.hasOwnProperty(key))
-      return weatherIconMap[key];
 
-    return {
-      "icon": "❓",
-      "desc": "Unknown"
+    xhr.ontimeout = function () {
+      Logger.warn("WeatherService", "Request timed out");
+      onError();
+      try {
+        xhr.abort();
+      } catch (_) {}
     };
+
+    xhr.send();
   }
-  function getWeatherIconFromCode() {
-    return getWeatherIconAndDesc(currentWeatherCode).icon;
-  }
-  function scheduleWxRetry() {
+
+  function _scheduleRetry() {
     hasError = true;
-    consecutiveErrors++;
-    if (_wxAttempt < maxRetries) {
-      _wxAttempt++;
-      _pendingRetry = "wx";
-      retryTimer.interval = retryDelayMs * _wxAttempt;
-      Logger.warn("WeatherService", "Scheduling retry:", _wxAttempt, "in", retryTimer.interval, "ms");
+    _consecutiveErrors++;
+
+    if (_retryCount < maxRetries) {
+      _retryCount++;
+      retryTimer.interval = _config.retryDelay * _retryCount;
+      Logger.warn("WeatherService", "Retry", _retryCount, "in", retryTimer.interval, "ms");
       retryTimer.start();
     }
   }
-  function startServiceOnce() {
-    if (!weatherTimer.running) {
-      weatherTimer.start();
-      Logger.log("WeatherService", "Service started; interval=", weatherService.refreshInterval, "ms");
-      updateWeather();
-    }
-  }
-  function updateWeather() {
-    var hasPersist = false;
-    var savedLat = NaN, savedLon = NaN, savedName = "";
-    try {
-      const obj0 = JSON.parse(persist.savedLocationJson || "{}");
-      savedLat = Number(obj0.lat);
-      savedLon = Number(obj0.lon);
-      savedName = (obj0.name === undefined || obj0.name === null) ? "" : String(obj0.name);
-      hasPersist = (!isNaN(savedLat) && !isNaN(savedLon));
-    } catch (e) {}
-    Logger.log("WeatherService", "updateWeather: hasPersist=", hasPersist, "lat=", latitude, "lon=", longitude);
-    if (isNaN(latitude) || isNaN(longitude)) {
-      // Prefer persisted coordinates if available
-      if (hasPersist) {
-        latitude = savedLat;
-        longitude = savedLon;
-        locationName = savedName;
-        Logger.log("WeatherService", "Using persisted coords:", latitude + "," + longitude, "name=", locationName);
-        fetchCurrentTemp(latitude, longitude);
-        return;
-      }
-      var geoXhr = new XMLHttpRequest();
-      geoXhr.open("GET", ipGeoUrl);
-      geoXhr.timeout = geoTimeoutMs;
-      Logger.log("WeatherService", "IP geo request start:", ipGeoUrl, "timeout=", geoTimeoutMs, "ms");
-      geoXhr.onreadystatechange = function () {
-        if (geoXhr.readyState !== 4)
-          return;
 
-        if (geoXhr.status === 200) {
-          try {
-            var ipData = JSON.parse(geoXhr.responseText);
-            latitude = ipData.latitude;
-            longitude = ipData.longitude;
-            locationName = (ipData.city || "") + (ipData.country_name ? ", " + ipData.country_name : "");
-            persist.savedLocationJson = JSON.stringify({
-              "lat": latitude,
-              "lon": longitude,
-              "name": locationName
-            });
-            hasError = false;
-            Logger.log("WeatherService", "IP geo success:", latitude + "," + longitude, "name=", locationName);
-            fetchCurrentTemp(latitude, longitude);
-          } catch (e) {
-            Logger.warn("WeatherService", "failed to parse IP geo response");
-            applyFallbackCoords();
-          }
-        } else {
-          Logger.warn("WeatherService", "IP geo failed with status", geoXhr.status);
-          applyFallbackCoords();
-        }
-      };
-      geoXhr.ontimeout = function () {
-        Logger.warn("WeatherService", "IP geo request timed out");
-        applyFallbackCoords();
-      };
-      geoXhr.send();
-    } else {
-      Logger.log("WeatherService", "Using existing coords:", latitude + "," + longitude, "name=", locationName);
-      fetchCurrentTemp(latitude, longitude);
-    }
+  Component.onCompleted: {
+    weatherTimer.start();
+    Logger.log("WeatherService", "Started; interval:", refreshInterval, "ms");
+    updateWeather();
   }
-
-  Component.onCompleted: startServiceOnce()
 
   PersistentProperties {
     id: persist
-
+    reloadableId: "WeatherService"
     property string savedLocationJson: "{}"
 
     function hydrate() {
-      Logger.log("WeatherService", "persist snapshot:", persist.savedLocationJson);
-      try {
-        const obj = JSON.parse(persist.savedLocationJson || "{}");
-        const lat = Number(obj.lat);
-        const lon = Number(obj.lon);
-        const name = (obj.name === undefined || obj.name === null) ? "" : String(obj.name);
-        if (!isNaN(lat) && !isNaN(lon)) {
-          weatherService.latitude = lat;
-          weatherService.longitude = lon;
-          weatherService.locationName = name;
-        }
-      } catch (e) {}
-      weatherService.startServiceOnce();
+      const saved = root._loadSavedLocation();
+      if (saved) {
+        root._lat = saved.lat;
+        root._lon = saved.lon;
+        root.locationName = saved.name;
+      }
+      root.updateWeather();
     }
-
-    reloadableId: "WeatherService"
 
     onLoaded: hydrate()
     onReloaded: hydrate()
   }
 
-  // --- Timers ----------------------------------------------------------
   Timer {
     id: weatherTimer
-
-    interval: weatherService.refreshInterval
+    interval: root.refreshInterval
     repeat: true
-    running: false
-    triggeredOnStart: false
-
-    onTriggered: weatherService.updateWeather()
+    onTriggered: root.updateWeather()
   }
+
   Timer {
     id: retryTimer
-
-    interval: 0
     repeat: false
-    running: false
-    triggeredOnStart: false
-
     onTriggered: {
-      Logger.log("WeatherService", "Retry timer triggered; pending=", weatherService._pendingRetry);
-      if (weatherService._pendingRetry === "wx") {
-        if (!isNaN(weatherService.latitude) && !isNaN(weatherService.longitude))
-          weatherService.fetchCurrentTemp(weatherService.latitude, weatherService.longitude);
-        else
-          weatherService.updateWeather();
-      }
-      weatherService._pendingRetry = "";
+      Logger.log("WeatherService", "Retrying...");
+      if (!isNaN(root._lat) && !isNaN(root._lon))
+        root._fetchWeather(root._lat, root._lon);
+      else
+        root.updateWeather();
     }
   }
 }

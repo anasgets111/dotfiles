@@ -708,4 +708,34 @@ Singleton {
       }
     }
   }
+
+  Component.onDestruction: {
+    try {
+      monitorDebounceTimer.stop();
+    } catch (_) {}
+    try {
+      monitorRestartTimer.stop();
+    } catch (_) {}
+    try {
+      monitorProcess.running = false;
+    } catch (_) {}
+    try {
+      deviceShowProcess.running = false;
+    } catch (_) {}
+    try {
+      wifiListProcess.running = false;
+    } catch (_) {}
+    try {
+      wifiRadioProcess.running = false;
+    } catch (_) {}
+    try {
+      connectProcess.running = false;
+    } catch (_) {}
+    try {
+      savedConnectionsProcess.running = false;
+    } catch (_) {}
+    try {
+      forgetProcess.running = false;
+    } catch (_) {}
+  }
 }

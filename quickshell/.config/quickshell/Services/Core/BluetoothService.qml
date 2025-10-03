@@ -443,4 +443,16 @@ Singleton {
       }
     }
   }
+
+  Component.onDestruction: {
+    try {
+      _codecQuery.running = false;
+    } catch (_) {}
+    try {
+      _codecFull.running = false;
+    } catch (_) {}
+    try {
+      _codecSwitch.running = false;
+    } catch (_) {}
+  }
 }
