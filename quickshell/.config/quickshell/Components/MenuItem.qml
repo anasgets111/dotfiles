@@ -130,40 +130,39 @@ Item {
         Layout.leftMargin: menuItem.itemPadding
         Layout.alignment: Qt.AlignVCenter
 
-        Column {
-          id: contentCol
+        // Main icon (centered)
+        Text {
+          id: menuIcon
+          text: menuItem.modelData.icon || ""
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize
+          color: menuItem.modelData.bandColor || menuItem.textColor
           anchors.centerIn: parent
-          spacing: -2
 
-          Text {
-            text: menuItem.modelData.icon || ""
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            color: menuItem.modelData.bandColor || menuItem.textColor
-            horizontalAlignment: Text.AlignHCenter
-            anchors.horizontalCenter: parent.horizontalCenter
-
-            Behavior on color {
-              ColorAnimation {
-                duration: Theme.animationDuration
-              }
+          Behavior on color {
+            ColorAnimation {
+              duration: Theme.animationDuration
             }
           }
+        }
 
-          Text {
-            text: menuItem.modelData.band ? (menuItem.modelData.band === "2.4" ? "2.4" : menuItem.modelData.band) : ""
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize * 0.45
-            font.bold: true
-            color: menuItem.modelData.bandColor || menuItem.textColor
-            horizontalAlignment: Text.AlignHCenter
-            anchors.horizontalCenter: parent.horizontalCenter
-            visible: menuItem.modelData.band !== undefined && menuItem.modelData.band !== ""
+        // Band indicator (bottom-right of icon)
+        Text {
+          text: menuItem.modelData.band ? (menuItem.modelData.band === "2.4" ? "2.4" : menuItem.modelData.band) : ""
+          font.family: "Roboto Condensed"
+          font.pixelSize: Theme.fontSize * 0.5
+          font.bold: true
+          font.letterSpacing: -0.5
+          color: menuItem.modelData.bandColor || menuItem.textColor
+          anchors.left: menuIcon.right
+          anchors.leftMargin: -2
+          anchors.bottom: menuIcon.bottom
+          anchors.bottomMargin: 0
+          visible: menuItem.modelData.band !== undefined && menuItem.modelData.band !== ""
 
-            Behavior on color {
-              ColorAnimation {
-                duration: Theme.animationDuration
-              }
+          Behavior on color {
+            ColorAnimation {
+              duration: Theme.animationDuration
             }
           }
         }
