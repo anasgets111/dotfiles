@@ -12,7 +12,12 @@ Singleton {
       return false;
     if (typeof playerObj.isValid === "function")
       return playerObj.isValid();
-    return true;
+    // Check if the player's D-Bus properties are accessible
+    try {
+      return playerObj.canControl !== undefined;
+    } catch (e) {
+      return false;
+    }
   }
 
   readonly property var videoAppHints: ["mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex"]
@@ -24,7 +29,7 @@ Singleton {
   readonly property bool pipewireVideoActive: hasActiveVideoStreams()
 
   readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values.filter(playerObj => root.isAlivePlayer(playerObj)) : []
-  readonly property list<MprisPlayer> players: allPlayers.filter(playerObj => playerObj?.canControl)
+  readonly property list<MprisPlayer> players: allPlayers.filter(playerObj => playerObj?.canControl ?? false)
   readonly property MprisPlayer active: selectActivePlayer()
   readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
   readonly property string activeIconName: iconNameForPlayer(active)

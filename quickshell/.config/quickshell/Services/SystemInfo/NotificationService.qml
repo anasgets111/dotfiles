@@ -378,17 +378,26 @@ Singleton {
     readonly property Connections conn: Connections {
       target: wrapper.notification?.Retainable
       function onDropped() {
-        root.notifications = root.notifications.filter(n => n !== wrapper);
-        root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
-        root.notificationQueue = root.notificationQueue.filter(n => n !== wrapper);
+        // Remove from arrays by index to avoid creating new arrays
+        let idx = root.notifications.indexOf(wrapper);
+        if (idx >= 0)
+          root.notifications.splice(idx, 1);
+
+        idx = root.visibleNotifications.indexOf(wrapper);
+        if (idx >= 0)
+          root.visibleNotifications.splice(idx, 1);
+
+        idx = root.notificationQueue.indexOf(wrapper);
+        if (idx >= 0)
+          root.notificationQueue.splice(idx, 1);
 
         try {
           Logger.log("NotificationService", `dropped: id=${wrapper.id}`);
         } catch (e) {}
-
         root.cleanupExpansionStates();
       }
       function onAboutToDestroy() {
+        wrapper.timer.stop();
         wrapper.destroy();
       }
     }
@@ -414,7 +423,9 @@ Singleton {
     if (!next)
       return;
     next.seq = ++root.seqCounter;
-    root.visibleNotifications = [...root.visibleNotifications, next];
+    // Mutate in place instead of creating new array
+    root.visibleNotifications.push(next);
+    root.visibleNotificationsChanged();
     next.popup = true;
 
     if (next.timer.interval > 0) {
@@ -430,7 +441,11 @@ Singleton {
   }
 
   function removeFromVisibleNotifications(wrapper) {
-    root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
+    const idx = root.visibleNotifications.indexOf(wrapper);
+    if (idx >= 0) {
+      root.visibleNotifications.splice(idx, 1);
+      root.visibleNotificationsChanged();
+    }
     try {
       Logger.log("NotificationService", `hide popup: id=${wrapper?.id || "?"}`);
     } catch (e) {}
@@ -440,8 +455,15 @@ Singleton {
   function dismissNotification(wrapper) {
     if (!wrapper?.notification)
       return;
-    root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
-    root.notificationQueue = root.notificationQueue.filter(n => n !== wrapper);
+
+    let idx = root.visibleNotifications.indexOf(wrapper);
+    if (idx >= 0)
+      root.visibleNotifications.splice(idx, 1);
+
+    idx = root.notificationQueue.indexOf(wrapper);
+    if (idx >= 0)
+      root.notificationQueue.splice(idx, 1);
+
     wrapper.popup = false;
     wrapper.notification.dismiss();
   }
@@ -459,13 +481,14 @@ Singleton {
         } catch (e) {}
       }
     }
-    root.notificationQueue = [];
+    root.notificationQueue.length = 0; // Clear in place
 
     for (const wrapper of root.visibleNotifications) {
       if (wrapper)
         wrapper.popup = false;
     }
-    root.visibleNotifications = [];
+    root.visibleNotifications.length = 0; // Clear in place
+    root.visibleNotificationsChanged();
 
     for (const wrapper of root.notifications) {
       try {
@@ -532,13 +555,14 @@ Singleton {
         } catch (e) {}
       }
     }
-    root.notificationQueue = [];
+    root.notificationQueue.length = 0; // Clear in place
 
     for (const notif of root.visibleNotifications) {
       if (notif)
         notif.popup = false;
     }
-    root.visibleNotifications = [];
+    root.visibleNotifications.length = 0; // Clear in place
+    root.visibleNotificationsChanged();
   }
 
   function onOverlayClose() {
@@ -610,8 +634,9 @@ Singleton {
           if (notif)
             notif.popup = false;
         }
-        root.visibleNotifications = [];
-        root.notificationQueue = [];
+        root.visibleNotifications.length = 0; // Clear in place
+        root.notificationQueue.length = 0; // Clear in place
+        root.visibleNotificationsChanged();
       } else {
         root.processQueue();
       }

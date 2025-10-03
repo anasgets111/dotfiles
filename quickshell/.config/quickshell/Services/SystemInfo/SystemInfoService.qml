@@ -147,8 +147,8 @@ Singleton {
     onTriggered: {
       if (root.logEveryTick)
         root.logSnapshot();
-      stat.reload();
-      meminfo.reload();
+      cpuStatProc.running = true;
+      meminfoProc.running = true;
       gpuUsage.running = true;
       sensors.running = true;
     }
@@ -165,54 +165,65 @@ Singleton {
       storage.running = true;
     }
   }
-  FileView {
-    id: stat
 
-    path: "/proc/stat"
+  // Use persistent Process instead of FileView to avoid caching
+  Process {
+    id: cpuStatProc
 
-    onLoaded: {
-      const data = text().match(/^cpu\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/);
-      if (data) {
-        const stats = data.slice(1).map(n => parseInt(n, 10));
-        const total = stats.reduce((a, b) => a + b, 0);
-        const idle = stats[3] + (stats[4] ?? 0);
+    command: ["cat", "/proc/stat"]
 
-        const totalDiff = total - root.lastCpuTotal;
-        const idleDiff = idle - root.lastCpuIdle;
-        const nextCpuPerc = totalDiff > 0 ? (1 - idleDiff / totalDiff) : undefined;
-        if (nextCpuPerc !== undefined && nextCpuPerc >= 0 && nextCpuPerc <= 1) {
-          root.cpuPerc = nextCpuPerc;
-          root.cpuPercReady = true;
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const data = text.match(/^cpu\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/);
+        if (data) {
+          const stats = data.slice(1).map(n => parseInt(n, 10));
+          const total = stats.reduce((a, b) => a + b, 0);
+          const idle = stats[3] + (stats[4] ?? 0);
+
+          const totalDiff = total - root.lastCpuTotal;
+          const idleDiff = idle - root.lastCpuIdle;
+          const nextCpuPerc = totalDiff > 0 ? (1 - idleDiff / totalDiff) : undefined;
+          if (nextCpuPerc !== undefined && nextCpuPerc >= 0 && nextCpuPerc <= 1) {
+            root.cpuPerc = nextCpuPerc;
+            root.cpuPercReady = true;
+          }
+
+          root.lastCpuTotal = total;
+          root.lastCpuIdle = idle;
         }
-
-        root.lastCpuTotal = total;
-        root.lastCpuIdle = idle;
       }
     }
   }
-  FileView {
-    id: meminfo
 
-    path: "/proc/meminfo"
+  Process {
+    id: meminfoProc
 
-    onLoaded: {
-      const data = text();
-      const totalMatch = data.match(/MemTotal: *(\d+)/);
-      const availMatch = data.match(/MemAvailable: *(\d+)/);
-      if (totalMatch && availMatch) {
-        const total = parseInt(totalMatch[1], 10);
-        const avail = parseInt(availMatch[1], 10);
-        if (root.isFiniteNumber(total) && total > 0 && root.isFiniteNumber(avail)) {
-          root.memTotal = total;
-          const used = total - avail;
-          if (root.isFiniteNumber(used) && used >= 0) {
-            root.memUsed = used;
-            root.memReady = true;
+    command: ["cat", "/proc/meminfo"]
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const data = text;
+        const totalMatch = data.match(/MemTotal: *(\d+)/);
+        const availMatch = data.match(/MemAvailable: *(\d+)/);
+        if (totalMatch && availMatch) {
+          const total = parseInt(totalMatch[1], 10);
+          const avail = parseInt(availMatch[1], 10);
+          if (root.isFiniteNumber(total) && total > 0 && root.isFiniteNumber(avail)) {
+            root.memTotal = total;
+            const used = total - avail;
+            if (root.isFiniteNumber(used) && used >= 0) {
+              root.memUsed = used;
+              root.memReady = true;
+            }
           }
         }
       }
     }
   }
+
+  // Reusable storage for df parsing
+  property var _storageDevices: ({})
+
   Process {
     id: storage
 
@@ -222,10 +233,14 @@ Singleton {
       onStreamFinished: {
         const prevUsed = root.storageUsed;
         const prevTotal = root.storageTotal;
-        const deviceMap = new Map();
+
+        // Reuse object instead of creating new Map
+        const deviceMap = root._storageDevices;
+        for (const key in deviceMap)
+          delete deviceMap[key];
 
         for (const line of text.trim().split("\n")) {
-          if (line.trim() === "")
+          if (!line.trim())
             continue;
 
           const parts = line.trim().split(/\s+/);
@@ -235,11 +250,12 @@ Singleton {
             const avail = parseInt(parts[2], 10) || 0;
 
             // Only keep the entry with the largest total space for each device
-            if (!deviceMap.has(device) || (used + avail) > (deviceMap.get(device).used + deviceMap.get(device).avail)) {
-              deviceMap.set(device, {
-                used: used,
-                avail: avail
-              });
+            const existing = deviceMap[device];
+            if (!existing || (used + avail) > (existing.used + existing.avail)) {
+              deviceMap[device] = {
+                used,
+                avail
+              };
             }
           }
         }
@@ -247,7 +263,8 @@ Singleton {
         let totalUsed = 0;
         let totalAvail = 0;
 
-        for (const [device, stats] of deviceMap) {
+        for (const device in deviceMap) {
+          const stats = deviceMap[device];
           totalUsed += stats.used;
           totalAvail += stats.avail;
         }
