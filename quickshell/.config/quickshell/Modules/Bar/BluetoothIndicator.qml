@@ -30,7 +30,7 @@ Item {
   readonly property var connectedDevices: bt?.devices ? bt.devices.filter(d => isConnectedDevice(d)) : []
   readonly property var pairedDevices: bt?.pairedDevices ?? []
   readonly property var sortedConnected: (bt && connectedDevices?.length > 1) ? bt.sortDevices(connectedDevices) : connectedDevices
-  readonly property var topDevice: sortedConnected?.[0] ?? null
+  readonly property var topDevice: sortedConnected[0] ?? null
 
   // Icons (Nerd Font / MDI)
   // - On, connected: 󰂱  (bluetooth-connected)
