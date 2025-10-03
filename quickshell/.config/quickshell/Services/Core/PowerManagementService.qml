@@ -51,8 +51,11 @@ Singleton {
     });
     p.stdout.streamFinished.connect(function () {
       const data = p.stdout.text ? p.stdout.text.trim() : "";
-      cb(data);
-      p.destroy();
+      try {
+        cb(data);
+      } finally {
+        p.destroy();
+      }
     });
     p.running = true;
   }

@@ -186,6 +186,10 @@ Singleton {
     toastTimer.stop();
   }
 
+  Component.onDestruction: {
+    toastTimer.stop();
+  }
+
   Timer {
     id: toastTimer
 

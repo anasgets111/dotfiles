@@ -371,4 +371,8 @@ Singleton {
       }
     }
   }
+
+  Component.onDestruction: {
+    uptimeTimer.stop();
+  }
 }
