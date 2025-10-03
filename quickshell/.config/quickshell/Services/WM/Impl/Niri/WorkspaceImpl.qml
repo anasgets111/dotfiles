@@ -167,11 +167,19 @@ Singleton {
       onRead: function (line) {
         if (!line)
           return;
-        const evt = JSON.parse(line);
-        if (evt.WorkspacesChanged) {
-          niriWs.updateWorkspaces(evt.WorkspacesChanged.workspaces);
-        } else if (evt.WorkspaceActivated) {
-          niriWs.updateSingleFocus(evt.WorkspaceActivated.id);
+        try {
+          const evt = JSON.parse(line);
+          if (evt.WorkspacesChanged) {
+            niriWs.updateWorkspaces(evt.WorkspacesChanged.workspaces);
+          } else if (evt.WorkspaceActivated) {
+            niriWs.updateSingleFocus(evt.WorkspaceActivated.id);
+          }
+        } catch (e) {
+          // Reset connection on parse error to clear buffer
+          eventStreamSocket.connected = false;
+          Qt.callLater(() => {
+            eventStreamSocket.connected = niriWs.enabled && !!niriWs.socketPath;
+          });
         }
       }
     }
@@ -196,5 +204,11 @@ Singleton {
     repeat: false
     onTriggered: if (niriWs.enabled)
       niriWs.refresh()
+  }
+
+  Component.onDestruction: {
+    _startupKick.stop();
+    eventStreamSocket.connected = false;
+    requestSocket.connected = false;
   }
 }

@@ -392,6 +392,8 @@ Singleton {
         wrapper.destroy();
       }
     }
+
+    Component.onDestruction: wrapper.timer.stop()
   }
 
   Component {

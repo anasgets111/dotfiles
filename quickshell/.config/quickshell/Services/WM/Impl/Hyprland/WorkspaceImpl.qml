@@ -215,4 +215,9 @@ Singleton {
     onTriggered: if (hyprWs.enabled)
       hyprWs.refresh()
   }
+
+  Component.onDestruction: {
+    _specialDefocus.stop();
+    _startupKick.stop();
+  }
 }

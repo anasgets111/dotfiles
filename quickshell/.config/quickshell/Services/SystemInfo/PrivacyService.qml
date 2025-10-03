@@ -96,10 +96,17 @@ Singleton {
 
   // PipeWire binding to expose full properties (e.g., audio.muted)
   PwObjectTracker {
+    id: nodeTracker
     objects: Pipewire.nodes?.values || []
   }
   PwObjectTracker {
+    id: linkTracker
     objects: Pipewire.links?.values || []
+  }
+
+  Component.onDestruction: {
+    nodeTracker.objects = [];
+    linkTracker.objects = [];
   }
 
   // Helpers
