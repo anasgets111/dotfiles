@@ -268,6 +268,10 @@ Singleton {
       updateService._tryCommitEndOfPoll();
     }
   }
+  Component.onDestruction: {
+    pollTimer.stop();
+  }
+
   Timer {
     id: pollTimer
 
