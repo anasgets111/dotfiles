@@ -52,6 +52,7 @@ Item {
       color: mouseArea.containsPress ? Theme.onHoverColor : iconButton.bgColor
       border.color: iconButton.hovered ? Theme.onHoverColor : Theme.inactiveColor
       border.width: 1
+      clip: true
 
       Behavior on color {
         ColorAnimation {
@@ -66,40 +67,40 @@ Item {
         }
       }
 
-      Column {
+      // Main icon (centered)
+      Text {
+        id: mainIcon
+        text: root.netIcon
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize
+        font.bold: true
+        color: root.link === "wifi" && root.band ? NetworkService.getBandColor(root.band) : iconButton.fgColor
         anchors.centerIn: parent
-        spacing: -2
-
-        Text {
-          text: root.netIcon
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          font.bold: true
-          color: root.link === "wifi" && root.band ? NetworkService.getBandColor(root.band) : iconButton.fgColor
-          horizontalAlignment: Text.AlignHCenter
-          anchors.horizontalCenter: parent.horizontalCenter
-          Behavior on color {
-            ColorAnimation {
-              duration: Theme.animationDuration
-              easing.type: Easing.InOutQuad
-            }
+        Behavior on color {
+          ColorAnimation {
+            duration: Theme.animationDuration
+            easing.type: Easing.InOutQuad
           }
         }
+      }
 
-        Text {
-          text: root.band ? (root.band === "2.4" ? "2.4G" : `${root.band}G`) : ""
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize * 0.5
-          font.bold: true
-          color: NetworkService.getBandColor(root.band)
-          horizontalAlignment: Text.AlignHCenter
-          anchors.horizontalCenter: parent.horizontalCenter
-          visible: root.link === "wifi" && root.band
-          Behavior on color {
-            ColorAnimation {
-              duration: Theme.animationDuration
-              easing.type: Easing.InOutQuad
-            }
+      // Band indicator (bottom-right of icon)
+      Text {
+        text: root.band ? (root.band === "2.4" ? "2.4" : root.band) : ""
+        font.family: "Roboto Condensed"
+        font.pixelSize: Theme.fontSize * 0.5
+        font.bold: true
+        font.letterSpacing: -1
+        color: NetworkService.getBandColor(root.band)
+        anchors.left: mainIcon.right
+        anchors.leftMargin: -2
+        anchors.bottom: mainIcon.bottom
+        anchors.bottomMargin: 0
+        visible: root.link === "wifi" && root.band
+        Behavior on color {
+          ColorAnimation {
+            duration: Theme.animationDuration
+            easing.type: Easing.InOutQuad
           }
         }
       }
@@ -125,7 +126,7 @@ Item {
         if (mouse.button === Qt.LeftButton) {
           if (!root.ready)
             return;
-          const iface = NetworkService.wifiInterface || NetworkService.firstWifiInterface?.() || "";
+          const iface = NetworkService.wifiInterface || NetworkService.firstWifiInterface() || "";
           if (iface && NetworkService.scanWifi)
             NetworkService.scanWifi(iface, true);
         } else if (mouse.button === Qt.RightButton) {
