@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import qs.Services.Utils
+import qs.Services.SystemInfo
 
 Singleton {
   id: root
@@ -37,7 +38,10 @@ Singleton {
   property bool storageReady: false
   property real storageTotal
   property real storageUsed
-  property string uptime: ""
+
+  // Uptime: computed from boot time, updates with TimeService clock
+  property real bootTimeMs: 0
+  readonly property string uptime: bootTimeMs > 0 ? (TimeService.now, ((Date.now() - bootTimeMs) / 1000).toFixed(2)) : ""
 
   function fmtKib(v) {
     const f = formatKib(v || 0);
@@ -120,26 +124,16 @@ Singleton {
   onStorageUsedChanged: logStorage()
 
   Process {
-    id: uptimeProc
-
+    id: bootTimeProc
     command: ["sh", "-c", "cat /proc/uptime"]
+    running: true
 
     stdout: StdioCollector {
       onStreamFinished: {
-        var parts = text.trim().split(" ");
-        root.uptime = parts[0] || "";
+        const parts = text.trim().split(" ");
+        const uptimeSec = parseFloat(parts[0] || "0");
+        root.bootTimeMs = Date.now() - (uptimeSec * 1000);
       }
-    }
-  }
-  Timer {
-    id: uptimeTimer
-
-    interval: 1000 // Update every second
-    repeat: true
-    running: true
-
-    onTriggered: {
-      uptimeProc.running = true;
     }
   }
 
@@ -370,9 +364,5 @@ Singleton {
         }
       }
     }
-  }
-
-  Component.onDestruction: {
-    uptimeTimer.stop();
   }
 }
