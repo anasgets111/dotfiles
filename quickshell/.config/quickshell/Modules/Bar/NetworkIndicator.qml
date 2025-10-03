@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import Quickshell.Io
 import qs.Config
 import qs.Components
 import qs.Services.Core
@@ -11,78 +12,141 @@ Item {
   implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
   visible: !!NetworkService && NetworkService.ready
 
-  // Short helpers
-  function first(arr, pred) {
-    if (!arr || !arr.length)
-      return null;
-    for (let i = 0; i < arr.length; i++)
-      if (pred(arr[i]))
-        return arr[i];
-    return null;
-  }
-  function wifiIcon(signal) {
-    const s = Math.max(0, Math.min(100, signal | 0));
-    return s >= 95 ? "󰤨" : s >= 80 ? "󰤥" : s >= 50 ? "󰤢" : "󰤟";
-  }
-
-  // Cached references
+  // State properties
   readonly property bool ready: NetworkService && NetworkService.ready
   readonly property string link: ready ? (NetworkService.linkType || "disconnected") : "disconnected"
-  readonly property var devs: ready ? (NetworkService.deviceList || []) : []
-  readonly property var active: ready ? NetworkService.chooseActiveDevice(devs) : null
   readonly property var aps: ready ? (NetworkService.wifiAps || []) : []
-
-  // Connected AP and derived fields
-  readonly property var ap: first(aps, ap => ap && ap.connected) || null
-  readonly property string ssid: ap?.ssid || ((active && active.type === "wifi") ? (active.connectionName || "") : "")
-  readonly property int strength: (typeof ap?.signal === "number") ? ap.signal : 0
+  readonly property var ap: aps.find(ap => ap?.connected) || null
+  readonly property var active: ready ? NetworkService.chooseActiveDevice(NetworkService.deviceList || []) : null
+  readonly property string ssid: ap?.ssid || (active?.type === "wifi" ? active.connectionName || "" : "")
+  readonly property int strength: ap?.signal ?? 0
   readonly property string band: ap?.band || ""
+  readonly property string netIcon: !ready ? "󰤭" : link === "ethernet" ? "󰈀" : link === "wifi" ? NetworkService.getWifiIcon(band, strength) : NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮"
 
-  // Icon
-  readonly property string netIcon: !ready ? "󰤭" : link === "ethernet" ? "󰈀" : link === "wifi" ? wifiIcon(strength) : (NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮")
+  // Tooltip content
+  readonly property string title: !ready ? qsTr("Network: initializing…") : link === "ethernet" ? qsTr("Ethernet") : link === "wifi" ? `${ssid || qsTr("Wi-Fi")} (${strength > 0 ? strength + "%" : "--"})${band ? qsTr(" • %1 GHz").arg(band) : ""}` : NetworkService.wifiRadioEnabled ? qsTr("Disconnected") : qsTr("Wi-Fi radio: off")
 
-  // Title
-  readonly property string title: !ready ? qsTr("Network: initializing…") : link === "ethernet" ? qsTr("Ethernet") : link === "wifi" ? `${(ssid || qsTr("Wi‑Fi"))} (${strength > 0 ? strength + "%" : "--"})${band ? qsTr(" • %1 GHz").arg(band) : ""}` : (NetworkService.wifiRadioEnabled ? qsTr("Disconnected") : qsTr("Wi‑Fi radio: off"))
-
-  // Detail line 1 (IP/IF)
   readonly property string detail1: !ready ? "" : link === "ethernet" ? qsTr("IP: %1 · IF: %2").arg(NetworkService.ethernetIpAddress || "--").arg(NetworkService.ethernetInterface || "eth") : link === "wifi" ? qsTr("IP: %1 · IF: %2").arg(NetworkService.wifiIpAddress || "--").arg(NetworkService.wifiInterface || "wlan") : qsTr("No network connection")
 
-  // Detail line 2 (Conn)
-  readonly property string detail2: {
-    if (!ready)
-      return "";
-    const name = active?.connectionName || "";
-    const type = active?.type || "";
-    return (link === "wifi" || link === "ethernet") && name ? qsTr("Conn: %1 (%2)").arg(name).arg(type) : "";
-  }
+  readonly property string detail2: (!ready || !link || link === "disconnected") ? "" : active?.connectionName ? qsTr("Conn: %1 (%2)").arg(active.connectionName).arg(active?.type || "") : ""
 
-  // Secondary line (other link)
-  readonly property string secondary: {
-    if (!ready)
-      return "";
-    if (link === "ethernet" && NetworkService.wifiOnline) {
-      const ip = NetworkService.wifiIpAddress || "--";
-      const iface = NetworkService.wifiInterface || "wlan";
-      const head = [qsTr("Wi‑Fi"), ssid ? (": " + ssid) : "", strength ? (" (" + strength + "%)") : ""].join("");
-      return `${head} · ${qsTr("IP: %1 · IF: %2").arg(ip).arg(iface)}`;
-    }
-    if (link === "wifi" && NetworkService.ethernetOnline) {
-      return qsTr("Ethernet: IP: %1 · IF: %2").arg(NetworkService.ethernetIpAddress || "--").arg(NetworkService.ethernetInterface || "eth");
-    }
-    return "";
-  }
+  readonly property string secondary: !ready ? "" : link === "ethernet" && NetworkService.wifiOnline ? `${qsTr("WiFi")}: ${ssid || "--"} ${strength ? `(${strength}%)` : ""} · ${qsTr("IP: %1 · IF: %2").arg(NetworkService.wifiIpAddress || "--").arg(NetworkService.wifiInterface || "wlan")}` : link === "wifi" && NetworkService.ethernetOnline ? qsTr("Ethernet: IP: %1 · IF: %2").arg(NetworkService.ethernetIpAddress || "--").arg(NetworkService.ethernetInterface || "eth") : ""
 
-  IconButton {
+  // Custom network icon with band indicator
+  Item {
     id: iconButton
-    icon: root.netIcon
-    // Combine key lines for tooltip (simple newline separated)
-    tooltipText: [root.title, root.detail1, root.detail2, root.secondary].filter(t => t && t.length > 0).join("\n")
-    onClicked: {
-      if (!root.ready)
-        return;
-      const iface = NetworkService.wifiInterface || (NetworkService.deviceList && NetworkService.firstWifiInterface ? NetworkService.firstWifiInterface() : "");
-      if (iface && NetworkService.scanWifi)
-        NetworkService.scanWifi(iface, true);
+    implicitWidth: Theme.itemHeight
+    implicitHeight: Theme.itemHeight
+
+    readonly property string tooltipText: [root.title, root.detail1, root.detail2, root.secondary].filter(t => t).join("\n")
+    readonly property bool hovered: mouseArea.containsMouse
+    readonly property color bgColor: hovered ? Theme.onHoverColor : Theme.inactiveColor
+    readonly property color fgColor: Theme.textContrast(bgColor)
+
+    signal clicked(var point)
+
+    Rectangle {
+      id: bgRect
+      anchors.fill: parent
+      radius: Math.min(width, height) / 2
+      color: mouseArea.containsPress ? Theme.onHoverColor : iconButton.bgColor
+      border.color: iconButton.hovered ? Theme.onHoverColor : Theme.inactiveColor
+      border.width: 1
+
+      Behavior on color {
+        ColorAnimation {
+          duration: Theme.animationDuration
+          easing.type: Easing.InOutQuad
+        }
+      }
+      Behavior on border.color {
+        ColorAnimation {
+          duration: Theme.animationDuration
+          easing.type: Easing.InOutQuad
+        }
+      }
+
+      Column {
+        anchors.centerIn: parent
+        spacing: -2
+
+        Text {
+          text: root.netIcon
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize
+          font.bold: true
+          color: root.link === "wifi" && root.band ? NetworkService.getBandColor(root.band) : iconButton.fgColor
+          horizontalAlignment: Text.AlignHCenter
+          anchors.horizontalCenter: parent.horizontalCenter
+          Behavior on color {
+            ColorAnimation {
+              duration: Theme.animationDuration
+              easing.type: Easing.InOutQuad
+            }
+          }
+        }
+
+        Text {
+          text: root.band ? (root.band === "2.4" ? "2.4G" : `${root.band}G`) : ""
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize * 0.5
+          font.bold: true
+          color: NetworkService.getBandColor(root.band)
+          horizontalAlignment: Text.AlignHCenter
+          anchors.horizontalCenter: parent.horizontalCenter
+          visible: root.link === "wifi" && root.band
+          Behavior on color {
+            ColorAnimation {
+              duration: Theme.animationDuration
+              easing.type: Easing.InOutQuad
+            }
+          }
+        }
+      }
     }
+
+    MouseArea {
+      id: mouseArea
+      anchors.fill: parent
+      hoverEnabled: true
+      acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+      cursorShape: Qt.PointingHandCursor
+
+      onEntered: {
+        if (iconButton.tooltipText.length)
+          tooltip.isVisible = true;
+      }
+
+      onExited: {
+        tooltip.isVisible = false;
+      }
+
+      onClicked: function (mouse) {
+        if (mouse.button === Qt.LeftButton) {
+          if (!root.ready)
+            return;
+          const iface = NetworkService.wifiInterface || NetworkService.firstWifiInterface?.() || "";
+          if (iface && NetworkService.scanWifi)
+            NetworkService.scanWifi(iface, true);
+        } else if (mouse.button === Qt.RightButton) {
+          networkPanel.openAtItem(iconButton, mouse.x, mouse.y);
+        }
+
+        iconButton.clicked(mouse);
+      }
+    }
+
+    Tooltip {
+      id: tooltip
+      text: iconButton.tooltipText
+      target: iconButton
+    }
+  }
+
+  NetworkPanel {
+    id: networkPanel
+    ready: root.ready
+    link: root.link
+    ap: root.ap
   }
 }
