@@ -13,13 +13,13 @@ Singleton {
   property string audioSource: "default_output"
   property string colorRange: "limited"
   property string directory: StandardPaths.writableLocation(StandardPaths.MoviesLocation)
-  property int frameRate: 30
+  property int frameRate: 24
   property bool isPaused: false
   property bool isRecording: false
   readonly property string lockPath: Quickshell.statePath("screen-recording.lock")
   property string monitor: WorkspaceService.focusedOutput
   property string outputPath: ""
-  property string quality: "high"
+  property string quality: "medium"
   property bool showCursor: true
   property string videoCodec: "hevc"
 
@@ -48,7 +48,7 @@ Singleton {
     // args.push("-a", audioSource);
     // args.push("-ac", audioCodec);
     args.push("-q", quality);
-    args.push("-cursor", "no");
+    args.push("-cursor", "yes");
     args.push("-cr", colorRange);
     Logger.log("ScreenRecorder", "Exec:", args.join(" "));
     Quickshell.execDetached(args);
