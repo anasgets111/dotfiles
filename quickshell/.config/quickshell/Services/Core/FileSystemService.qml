@@ -51,9 +51,12 @@ Singleton {
       if (finished)
         return;
       finished = true;
-      if (cb)
-        cb(lines);
-      cleanup();
+      try {
+        if (cb)
+          cb(lines);
+      } finally {
+        cleanup();
+      }
     };
 
     try {

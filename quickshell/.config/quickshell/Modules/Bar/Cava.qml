@@ -13,6 +13,8 @@ Singleton {
   // Colors from cava config for visualization
   property var gradientColors: ["#3b3c59", "#4b4464", "#4b4464", "#6d5276", "#7f597e", "#926184", "#a4688a", "#b6708e", "#c87990", "#d98292"]
   property bool isRunning: false
+  property int restartCount: 0
+  readonly property int maxRestarts: 5
 
   // Lighter version of gradient colors for visualization
   property var lighterGradientColors: gradientColors.map(function (color) {
@@ -24,6 +26,7 @@ Singleton {
   function start() {
     if (!isRunning) {
       isRunning = true;
+      restartCount = 0;
       cavaProcess.running = true;
     }
   }
@@ -31,6 +34,7 @@ Singleton {
   // Stop the cava process
   function stop() {
     isRunning = false;
+    restartCount = 0;
     cavaProcess.running = false;
   }
 
@@ -67,7 +71,23 @@ Singleton {
 
     onRunningChanged: {
       if (!cavaProcess.running && root.isRunning) {
-        // Restart if it was supposed to be running
+        if (root.restartCount < root.maxRestarts) {
+          root.restartCount++;
+          const delay = Math.min(5000, 100 * Math.pow(2, root.restartCount - 1));
+          restartTimer.interval = delay;
+          restartTimer.start();
+        } else {
+          root.isRunning = false;
+        }
+      }
+    }
+  }
+
+  Timer {
+    id: restartTimer
+    repeat: false
+    onTriggered: {
+      if (root.isRunning) {
         cavaProcess.running = true;
       }
     }

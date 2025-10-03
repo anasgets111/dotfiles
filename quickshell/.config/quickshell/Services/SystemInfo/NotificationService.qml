@@ -173,8 +173,13 @@ Singleton {
   function _enqueuePopup(wrapper) {
     if (root.notificationQueue.length >= 10) {
       const oldest = root.notificationQueue.pop();
-      if (oldest)
+      if (oldest) {
         oldest.popup = false;
+        // Properly cleanup evicted notification
+        try {
+          oldest.notification?.dismiss();
+        } catch (e) {}
+      }
     }
 
     root.notificationQueue.unshift(wrapper);
@@ -443,6 +448,15 @@ Singleton {
     root.popupsDisabled = true;
     addGate.stop();
     root.addGateBusy = false;
+
+    // Dismiss queued notifications before clearing
+    for (const wrapper of root.notificationQueue) {
+      if (wrapper) {
+        try {
+          wrapper.notification?.dismiss();
+        } catch (e) {}
+      }
+    }
     root.notificationQueue = [];
 
     for (const wrapper of root.visibleNotifications) {
@@ -507,6 +521,15 @@ Singleton {
     root.popupsDisabled = true;
     addGate.stop();
     root.addGateBusy = false;
+
+    // Dismiss queued notifications before clearing
+    for (const wrapper of root.notificationQueue) {
+      if (wrapper) {
+        try {
+          wrapper.notification?.dismiss();
+        } catch (e) {}
+      }
+    }
     root.notificationQueue = [];
 
     for (const notif of root.visibleNotifications) {

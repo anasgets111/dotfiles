@@ -211,9 +211,13 @@ Singleton {
       } catch (_) {}
     };
     const finish = text => {
-      onComplete(text);
-      if (watchdog) watchdog.stop();
-      [watchdog, stdio, proc].forEach(safeDestroy);
+      try {
+        onComplete(text);
+      } finally {
+        if (watchdog)
+          watchdog.stop();
+        [watchdog, stdio, proc].forEach(safeDestroy);
+      }
     };
 
     watchdog.triggered.connect(() => {

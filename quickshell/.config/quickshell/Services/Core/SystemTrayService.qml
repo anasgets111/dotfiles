@@ -12,6 +12,7 @@ Singleton {
   readonly property int count: (!items ? 0 : (items.count !== undefined ? Number(items.count) || 0 : (items.length !== undefined ? Number(items.length) || 0 : 0)))
   property var _iconCache: new Map()
   property var _iconCleanup: new Map()
+  readonly property int maxCacheSize: 25
 
   signal activated(var item)
   signal error(string message)
@@ -57,6 +58,19 @@ Singleton {
   function _rememberIcon(it, value) {
     if (!it || !value)
       return;
+
+    // Evict oldest if at capacity
+    if (systemTrayService._iconCache.size >= systemTrayService.maxCacheSize) {
+      const firstKey = systemTrayService._iconCache.keys().next().value;
+      if (firstKey !== undefined) {
+        systemTrayService._iconCache.delete(firstKey);
+        const cleanup = systemTrayService._iconCleanup.get(firstKey);
+        if (cleanup) {
+          systemTrayService._iconCleanup.delete(firstKey);
+        }
+      }
+    }
+
     systemTrayService._iconCache.set(it, value);
     if (!systemTrayService._iconCleanup.has(it) && it.destroyed && typeof it.destroyed.connect === "function") {
       const cleanup = () => {
