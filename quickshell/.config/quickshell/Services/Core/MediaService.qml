@@ -51,7 +51,7 @@ Singleton {
 
   function hasActiveVideoStreams() {
     const nodes = Pipewire.nodes;
-    const nodeValues = nodes && nodes.values ? nodes.values : null;
+    const nodeValues = nodes?.values || null;
     if (!nodeValues)
       return false;
     return nodeValues.some(nodeObj => nodeObj && nodeObj.isStream && (String(nodeObj.properties["media.class"] || "").toLowerCase().includes("video") || ["movie", "video"].includes(String(nodeObj.properties["media.role"] || "").toLowerCase())));

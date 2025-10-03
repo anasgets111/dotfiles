@@ -42,7 +42,7 @@ Singleton {
 
   // New: show if any real mic stream is muted
   readonly property bool microphoneMuted: {
-    const sourceAudio = AudioService && AudioService.source && AudioService.source.audio ? AudioService.source.audio : null;
+    const sourceAudio = AudioService?.source?.audio || null;
     if (sourceAudio)
       return !!sourceAudio.muted;
 

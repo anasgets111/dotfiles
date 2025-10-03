@@ -33,9 +33,9 @@ Scope {
     WlSessionLockSurface {
       id: lockSurface
 
-      readonly property string screenName: screen && screen.name ? screen.name : ""
+      readonly property string screenName: screen?.name || ""
       readonly property bool hasScreen: !!screen
-      readonly property bool isMainMonitor: hasScreen && MonitorService && MonitorService.activeMain === screenName
+      readonly property bool isMainMonitor: hasScreen && MonitorService?.activeMain === screenName
       readonly property var wallpaperData: hasScreen && WallpaperService ? (screenName ? WallpaperService.wallpaperFor(screenName) : ({
             wallpaper: WallpaperService.defaultWallpaper,
             mode: WallpaperService.defaultMode
@@ -46,7 +46,7 @@ Scope {
           stretch: Image.Stretch,
           center: Image.Pad,
           tile: Image.Tile
-        }[(wallpaperData && wallpaperData.mode) ? wallpaperData.mode : "fill"]) || Image.PreserveAspectCrop
+        }[wallpaperData?.mode ?? "fill"]) || Image.PreserveAspectCrop
 
       color: "transparent"
 
@@ -65,7 +65,7 @@ Scope {
           layer.enabled: lockSurface.hasScreen
           cache: true
           mipmap: false
-          source: (lockSurface.wallpaperData && lockSurface.wallpaperData.wallpaper) ? lockSurface.wallpaperData.wallpaper : ((WallpaperService && WallpaperService.defaultWallpaper) ? WallpaperService.defaultWallpaper : "")
+          source: lockSurface.wallpaperData?.wallpaper || WallpaperService?.defaultWallpaper || ""
           visible: lockSurface.hasScreen
           layer.effect: MultiEffect {
             autoPaddingEnabled: false

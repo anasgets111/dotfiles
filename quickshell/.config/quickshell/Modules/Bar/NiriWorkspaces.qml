@@ -109,7 +109,7 @@ Item {
           readonly property var ws: (modelData || ({}))
           colorBg: root.wsColor(ws)
           height: root.slotH
-          icon: "" + ws.idx
+          icon: String(ws.idx)
           opacity: 1
           width: root.slotW
           Behavior on opacity {

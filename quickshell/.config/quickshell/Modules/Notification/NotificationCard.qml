@@ -187,7 +187,7 @@ Item {
               readonly property string body: messageItem.modelData?.body || ""
               readonly property string messageId: messageItem.modelData?.id || String(messageItem.modelData?.notification ? messageItem.modelData.notification.id || "" : "")
               readonly property url contentImage: messageItem.modelData?.cleanImage || ""
-              readonly property bool hasBody: messageItem.modelData?.hasBody === true ? true : (body && body.trim() !== "" && body.trim() !== summary.trim())
+              readonly property bool hasBody: messageItem.modelData?.hasBody === true || (body && body.trim() !== "" && body.trim() !== summary.trim())
               readonly property bool expanded: root.messageExpanded(messageColumn.messageId)
               readonly property bool hasInlineReply: messageItem.modelData?.hasInlineReply === true
               readonly property string inlineReplyPlaceholder: messageItem.modelData?.inlineReplyPlaceholder || "Reply"

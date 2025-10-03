@@ -130,11 +130,11 @@ Item {
         // Centered glyph or countdown number
         Text {
           anchors.centerIn: parent
-          color: btn.effectiveFg !== undefined ? btn.effectiveFg : Theme.textContrast(Theme.inactiveColor)
+          color: btn.effectiveFg ?? Theme.textContrast(Theme.inactiveColor)
           font.family: Theme.fontFamily
           font.pixelSize: Theme.fontSize
           font.bold: true
-          text: btn.isSelectedCounting ? ("" + powerMenu.countdown) : btn.rec.icon
+          text: btn.isSelectedCounting ? String(powerMenu.countdown) : btn.rec.icon
           horizontalAlignment: Text.AlignHCenter
           verticalAlignment: Text.AlignVCenter
         }

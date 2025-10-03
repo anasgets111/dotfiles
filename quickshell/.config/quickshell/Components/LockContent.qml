@@ -416,7 +416,7 @@ FocusScope {
             font.pixelSize: 21
             text: {
               const service = MainService;
-              const host = service && service.hostname ? String(service.hostname) : "";
+              const host = service?.hostname ? String(service.hostname) : "";
               return host.length > 0 ? host : "localhost";
             }
           }

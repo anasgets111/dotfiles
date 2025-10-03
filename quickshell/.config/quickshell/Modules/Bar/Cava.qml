@@ -17,9 +17,7 @@ Singleton {
   readonly property int maxRestarts: 5
 
   // Lighter version of gradient colors for visualization
-  property var lighterGradientColors: gradientColors.map(function (color) {
-    return Qt.lighter(color, 1.4);
-  })
+  property var lighterGradientColors: gradientColors.map(color => Qt.lighter(color, 1.4))
   property var values: []
 
   // Start the cava process

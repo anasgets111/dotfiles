@@ -176,7 +176,7 @@ Item {
         verticalAlignment: Text.AlignVCenter
         Layout.fillWidth: true
         Layout.alignment: Qt.AlignVCenter
-        Layout.leftMargin: menuItem.modelData.icon === undefined ? menuItem.itemPadding : 0
+        Layout.leftMargin: menuItem.modelData.icon ? 0 : menuItem.itemPadding
 
         Behavior on color {
           ColorAnimation {
