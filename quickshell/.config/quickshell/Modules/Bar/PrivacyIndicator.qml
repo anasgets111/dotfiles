@@ -15,7 +15,7 @@ RowLayout {
       icon: PrivacyService.microphoneMuted ? "\uF131" : "\uF130",
       tooltip: PrivacyService.microphoneMuted ? qsTr("Microphone muted") : qsTr("Microphone in use"),
       color: PrivacyService.microphoneMuted ? Theme.warning : Theme.critical,
-      onClick: AudioService && AudioService.source && AudioService.source.audio ? function () {
+      onClick: AudioService?.source?.audio ? function () {
         AudioService.toggleMicMute();
       } : null
     }, PrivacyService.cameraActive && {

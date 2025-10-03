@@ -8,7 +8,7 @@ import qs.Components
 Rectangle {
   id: root
 
-  readonly property bool isAudioReady: AudioService && AudioService.sink && AudioService.sink.audio
+  readonly property bool isAudioReady: AudioService?.sink?.audio
   readonly property real maxVolume: AudioService ? AudioService.maxVolume : 1.0
   readonly property bool isMuted: AudioService ? AudioService.muted : false
   readonly property real baseVolume: 1.0

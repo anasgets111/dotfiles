@@ -12,8 +12,8 @@ Item {
 
   // live wayland handle (reactive)
   readonly property var activeToplevel: ToplevelManager.activeToplevel
-  readonly property bool toplevelVisible: !!(activeToplevel && activeToplevel.screens && activeToplevel.screens.length > 0)
-  readonly property bool hasActive: !!(activeToplevel && activeToplevel.activated && toplevelVisible)
+  readonly property bool toplevelVisible: !!(activeToplevel?.screens?.length > 0)
+  readonly property bool hasActive: !!(activeToplevel?.activated && toplevelVisible)
   // derived fields from the active toplevel
   readonly property string currentTitle: hasActive ? (activeToplevel.title || "") : ""
   readonly property string currentClass: hasActive ? (activeToplevel.appId || "") : ""

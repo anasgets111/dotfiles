@@ -207,7 +207,7 @@ Singleton {
     if (!Number.isFinite(vol) || vol < 0)
       vol = 0;
     // Clamp to policy immediately on sink switch as well
-    if (vol > root.maxVolume && root.sink && root.sink.audio && root.sink.ready) {
+    if (vol > root.maxVolume && root.sink?.ready && root.sink?.audio) {
       Logger.log("AudioService", "volume above policy (", Math.round(vol * 100), "%) on sink change -> clamping to", Math.round(root.maxVolume * 100), "%");
       root.sink.audio.volume = root.maxVolume;
       vol = root.maxVolume;
@@ -238,7 +238,7 @@ Singleton {
       if (!Number.isFinite(vol) || vol < 0)
         vol = 0;
       // Clamp externally-set volumes to policy
-      if (vol > root.maxVolume && root.sink && root.sink.audio && root.sink.ready) {
+      if (vol > root.maxVolume && root.sink?.ready && root.sink?.audio) {
         Logger.log("AudioService", "volume above policy (", Math.round(vol * 100), "%) -> clamping to", Math.round(root.maxVolume * 100), "%");
         root.sink.audio.volume = root.maxVolume;
         vol = root.maxVolume;

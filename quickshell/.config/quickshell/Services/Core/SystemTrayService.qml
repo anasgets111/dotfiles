@@ -9,7 +9,7 @@ Singleton {
   id: systemTrayService
 
   readonly property var items: SystemTray.items
-  readonly property int count: (!items ? 0 : (items.count !== undefined ? Number(items.count) || 0 : (items.length !== undefined ? Number(items.length) || 0 : 0)))
+  readonly property int count: items?.count ?? items?.length ?? 0
   property var _iconCache: new Map()
   property var _iconCleanup: new Map()
   readonly property int maxCacheSize: 25
@@ -21,11 +21,11 @@ Singleton {
   signal secondaryActivated(var item)
 
   function _modelCount(m) {
-    return !m ? 0 : (m.count !== undefined ? Number(m.count) || 0 : (m.length !== undefined ? Number(m.length) || 0 : 0));
+    return m?.count ?? m?.length ?? 0;
   }
   function _get(model, index) {
     const n = systemTrayService._modelCount(model);
-    return (model && index >= 0 && index < n) ? (typeof model.get === "function" ? model.get(index) : (model[index] !== undefined ? model[index] : null)) : null;
+    return (model && index >= 0 && index < n) ? (typeof model.get === "function" ? model.get(index) : model[index]) : null;
   }
   function getItemFromRef(ref) {
     return !ref ? null : (typeof ref === "object" && typeof ref.activate === "function" ? ref : (typeof ref === "number" ? systemTrayService._get(systemTrayService.items, ref) : null));
@@ -33,7 +33,7 @@ Singleton {
 
   function menuModelForItem(ref) {
     const it = systemTrayService.getItemFromRef(ref);
-    return it ? (it.menu !== undefined ? it.menu : (it.contextMenu !== undefined ? it.contextMenu : null)) : null;
+    return it?.menu ?? it?.contextMenu ?? null;
   }
   function hasMenuForItem(ref) {
     return !!systemTrayService.menuModelForItem(ref);
@@ -202,7 +202,7 @@ Singleton {
     else if (typeof key === "string") {
       const n = systemTrayService._modelCount(model);
       for (let i = 0; i < n; i++) {
-        const c = (typeof model.get === "function") ? model.get(i) : (model[i] !== undefined ? model[i] : null);
+        const c = typeof model.get === "function" ? model.get(i) : model[i];
         const name = c && (c.id || c.key || c.name || c.text || c.title);
         if (name === key) {
           entry = c;

@@ -39,7 +39,7 @@ WlrLayershell {
   }
   exclusionMode: ExclusionMode.Ignore
   layer: WlrLayer.Background
-  screen: (modelData && modelData.name) ? (Quickshell.screens.find(s => s && s.name === modelData.name) || null) : null
+  screen: modelData?.name ? (Quickshell.screens.find(s => s?.name === modelData.name) || null) : null
 
   // Transparent source for fade-in when no current wallpaper
   Rectangle {
@@ -56,7 +56,7 @@ WlrLayershell {
   }
 
   // Portrait/HiDPI helpers (physical pixels)
-  readonly property real deviceScale: (modelData && modelData.scale) ? modelData.scale : 1.0
+  readonly property real deviceScale: modelData?.scale ?? 1.0
   readonly property real screenPixelWidth: width * deviceScale
   readonly property real screenPixelHeight: height * deviceScale
   readonly property real currentPaintedWidthPx: Math.max(1, Math.round(currentWallpaper.paintedWidth * deviceScale))

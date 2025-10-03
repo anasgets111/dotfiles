@@ -61,7 +61,7 @@ Item {
         readonly property int idNum: normalWorkspaces.slots[index]
 
         colorBg: normalWorkspaces.wsColor(idNum)
-        icon: "" + idNum
+        icon: String(idNum)
         opacity: !!normalWorkspaces.backingWorkspaces.find(w => w.id === idNum) ? 1 : 0.5
 
         Behavior on opacity {

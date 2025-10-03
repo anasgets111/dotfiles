@@ -10,10 +10,10 @@ Item {
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
-  visible: !!NetworkService && NetworkService.ready
+  visible: NetworkService?.ready ?? false
 
   // State properties
-  readonly property bool ready: NetworkService && NetworkService.ready
+  readonly property bool ready: NetworkService?.ready ?? false
   readonly property string link: ready ? (NetworkService.linkType || "disconnected") : "disconnected"
   readonly property var aps: ready ? (NetworkService.wifiAps || []) : []
   readonly property var ap: aps.find(ap => ap?.connected) || null

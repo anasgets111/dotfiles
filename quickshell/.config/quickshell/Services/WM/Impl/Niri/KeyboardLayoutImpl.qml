@@ -13,14 +13,14 @@ Singleton {
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
 
   function parseKeyboardLayouts(event) {
-    const info = event && event.KeyboardLayoutsChanged && event.KeyboardLayoutsChanged.keyboard_layouts;
+    const info = event?.KeyboardLayoutsChanged?.keyboard_layouts;
     if (info) {
       impl.layouts = Array.isArray(info.names) ? info.names : [];
       const idx = typeof info.current_idx === "number" ? info.current_idx : -1;
       impl.setLayoutByIndex(idx);
       return true;
     }
-    const switchedIdx = event && event.KeyboardLayoutSwitched && event.KeyboardLayoutSwitched.idx;
+    const switchedIdx = event?.KeyboardLayoutSwitched?.idx;
     if (typeof switchedIdx === "number") {
       impl.setLayoutByIndex(switchedIdx);
       return true;

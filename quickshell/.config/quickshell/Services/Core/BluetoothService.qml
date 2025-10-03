@@ -14,10 +14,10 @@ Singleton {
   // adapter stored as var; set via Connections to avoid type resolution warnings
   property var adapter: null
   readonly property bool available: adapter !== null
-  readonly property bool enabled: (adapter && adapter.enabled) ?? false
-  readonly property bool discovering: (adapter && adapter.discovering) ?? false
+  readonly property bool enabled: adapter?.enabled ?? false
+  readonly property bool discovering: adapter?.discovering ?? false
   // always expose an array for consumers
-  readonly property var devices: (adapter && adapter.devices && adapter.devices.values) ? adapter.devices.values : []
+  readonly property var devices: adapter?.devices?.values ?? []
   // allow external wiring
   function setAdapter(a) {
     adapter = a;
