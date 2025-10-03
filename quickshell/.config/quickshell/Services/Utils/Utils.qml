@@ -7,6 +7,11 @@ import qs.Services.Core
 Singleton {
   id: utils
 
+  // Process pool for runCmd to avoid creating/destroying objects repeatedly
+  property int _poolSize: 3
+  property var _processPool: []
+  property int _poolIndex: 0
+
   // Slim LED monitor (same outcome, smaller surface)
   readonly property string _ledIntervalSec: "0.04"
   readonly property var _ledKeys: ["caps", "num", "scroll"]
@@ -31,7 +36,21 @@ Singleton {
     onRead: line => utils._handleLedLine(line)
   }
 
-  Component.onCompleted: _detectLedPathsOnce(_startLedMonitoring)
+  Component.onCompleted: {
+    // Initialize process pool
+    for (let i = 0; i < _poolSize; i++) {
+      _processPool.push({
+        proc: null,
+        stdio: null,
+        watchdog: null,
+        busy: false
+      });
+    }
+
+    // Defer LED monitoring to allow FileSystemService to initialize
+    Qt.callLater(() => _detectLedPathsOnce(_startLedMonitoring));
+  }
+
   Component.onDestruction: {
     if (_ledStreamProc) {
       _stopLedMonitoring();
@@ -197,41 +216,66 @@ Singleton {
       return;
     }
 
-    const host = parent || utils;
-    const proc = Qt.createQmlObject('import Quickshell.Io; Process {}', host);
-    const stdio = Qt.createQmlObject('import Quickshell.Io; StdioCollector {}', proc);
-    const watchdog = Qt.createQmlObject('import QtQuick; Timer { interval: 10000; repeat: false }', proc);
+    // Find available process slot (circular)
+    let slot = null;
+    for (let i = 0; i < _poolSize; i++) {
+      const idx = (_poolIndex + i) % _poolSize;
+      if (!_processPool[idx].busy) {
+        slot = _processPool[idx];
+        _poolIndex = (idx + 1) % _poolSize;
+        break;
+      }
+    }
 
-    const safeDestroy = obj => {
-      if (!obj)
-        return;
-      try {
-        if (obj && typeof obj.destroy === 'function')
-          obj.destroy();
-      } catch (_) {}
-    };
+    // If all busy, queue or wait for oldest (shouldn't happen with pool size 3)
+    if (!slot) {
+      slot = _processPool[_poolIndex];
+      _poolIndex = (_poolIndex + 1) % _poolSize;
+      if (slot.proc?.running) {
+        try {
+          slot.proc.running = false;
+        } catch (_) {}
+      }
+    }
+
+    slot.busy = true;
+
+    // Lazy init pooled objects
+    if (!slot.proc) {
+      slot.proc = Qt.createQmlObject('import Quickshell.Io; Process {}', parent || utils);
+      slot.stdio = Qt.createQmlObject('import Quickshell.Io; StdioCollector {}', slot.proc);
+      slot.watchdog = Qt.createQmlObject('import QtQuick; Timer { interval: 10000; repeat: false }', slot.proc);
+      slot.proc.stdout = slot.stdio;
+    }
+
     const finish = text => {
+      slot.busy = false;
+      slot.watchdog.stop();
       try {
         onComplete(text);
-      } finally {
-        if (watchdog)
-          watchdog.stop();
-        [watchdog, stdio, proc].forEach(safeDestroy);
-      }
+      } catch (_) {}
     };
 
-    watchdog.triggered.connect(() => {
-      try {
-        proc.running = false;
-      } catch (_) {}
-      finish(stdio.text || "");
-    });
-    stdio.onStreamFinished.connect(() => finish(stdio.text));
+    // Disconnect old handlers to prevent leaks
+    try {
+      slot.watchdog.triggered.disconnect();
+    } catch (_) {}
+    try {
+      slot.stdio.onStreamFinished.disconnect();
+    } catch (_) {}
 
-    proc.stdout = stdio;
-    proc.command = cmd;
-    watchdog.start();
-    proc.running = true;
+    // Connect new handlers
+    slot.watchdog.triggered.connect(() => {
+      try {
+        slot.proc.running = false;
+      } catch (_) {}
+      finish(slot.stdio.text || "");
+    });
+    slot.stdio.onStreamFinished.connect(() => finish(slot.stdio.text));
+
+    slot.proc.command = cmd;
+    slot.watchdog.start();
+    slot.proc.running = true;
   }
 
   function safeJsonParse(str, fallback) {
