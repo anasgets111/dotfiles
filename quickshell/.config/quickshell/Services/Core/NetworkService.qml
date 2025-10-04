@@ -6,117 +6,103 @@ import Quickshell.Io
 import qs.Services.Utils
 
 Singleton {
-  id: network
+  id: root
 
   // Internal state (mutable)
-  property var internalDeviceList: []
-  property string internalEthernetInterface: ""
-  property string internalEthernetIpAddress: ""
-  property bool internalEthernetOnline: false
-  property bool internalReady: false
-  property bool internalScanning: false
-  property bool internalWifiRadioEnabled: true
-  property real lastDeviceRefreshTimeMs: 0
-  property real lastWifiScanTimeMs: 0
+  property var _deviceList: []
+  property string _ethernetInterface: ""
+  property string _ethernetIp: ""
+  property bool _ethernetOnline: false
+  property bool _ready: false
+  property bool _scanning: false
+  property bool _wifiRadioEnabled: true
+  property real _lastDeviceRefreshMs: 0
+  property real _lastWifiScanMs: 0
   property string linkType: "disconnected"
-  property var internalSavedWifiConnections: []
-  property var internalWifiAccessPoints: []
-  property string internalWifiInterface: ""
-  property string internalWifiIpAddress: ""
-  property bool internalWifiOnline: false
-  property string connectingSsid: ""  // Track SSID currently being connected
+  property var _savedWifiConns: []
+  property var _wifiAps: []
+  property string _wifiInterface: ""
+  property string _wifiIp: ""
+  property bool _wifiOnline: false
+  property string connectingSsid: ""
 
-  // Exposed API (readonly views or configs)
   readonly property int defaultDeviceRefreshCooldownMs: 1000
   readonly property int defaultWifiScanCooldownMs: 10000
-  readonly property var deviceList: internalDeviceList
+  readonly property var deviceList: _deviceList
   property int deviceRefreshCooldownMs: defaultDeviceRefreshCooldownMs
-  readonly property string ethernetInterface: internalEthernetInterface
-  readonly property string ethernetIpAddress: internalEthernetIpAddress
-  readonly property bool ethernetOnline: internalEthernetOnline
-  readonly property bool ready: internalReady
-  readonly property bool scanning: internalScanning
-  readonly property bool wifiRadioEnabled: internalWifiRadioEnabled
+  readonly property string ethernetInterface: _ethernetInterface
+  readonly property string ethernetIpAddress: _ethernetIp
+  readonly property bool ethernetOnline: _ethernetOnline
+  readonly property bool ready: _ready
+  readonly property bool scanning: _scanning
+  readonly property bool wifiRadioEnabled: _wifiRadioEnabled
   readonly property var lowPriorityCommand: ["nice", "-n", "19", "ionice", "-c3"]
-  readonly property var uuidRegex: new RegExp("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
-  readonly property var wifiAps: internalWifiAccessPoints
-  readonly property var savedWifiAps: internalSavedWifiConnections
-  readonly property string wifiInterface: internalWifiInterface
-  readonly property string wifiIpAddress: internalWifiIpAddress
-  readonly property bool wifiOnline: internalWifiOnline
+  readonly property var uuidRegex: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+  readonly property var wifiAps: _wifiAps
+  readonly property var savedWifiAps: _savedWifiConns
+  readonly property string wifiInterface: _wifiInterface
+  readonly property string wifiIpAddress: _wifiIp
+  readonly property bool wifiOnline: _wifiOnline
   property int wifiScanCooldownMs: defaultWifiScanCooldownMs
 
   signal connectionStateChanged
   signal wifiRadioStateChanged
   signal connectionError(string ssid, string errorMessage)
 
-  // Command helpers
   function prepareCommand(args, useLowPriority) {
-    const baseCommand = ["env", "LC_ALL=C"].concat(args || []);
-    return useLowPriority ? lowPriorityCommand.concat(baseCommand) : baseCommand;
+    const base = ["env", "LC_ALL=C"].concat(args || []);
+    return useLowPriority ? lowPriorityCommand.concat(base) : base;
   }
 
   function trim(value) {
     return String(value || "").trim();
   }
 
-  function startProcess(processRef) {
-    if (!processRef || processRef.running)
+  function startProcess(proc) {
+    if (!proc || proc.running)
       return false;
-    processRef.running = true;
+    proc.running = true;
     return true;
   }
 
-  function startConnectCommand(commandArguments) {
+  function startConnectCommand(args) {
     if (connectProcess.running)
       return false;
-    const cmd = prepareCommand(commandArguments, false);
-    Logger.log("NetworkService", `Starting connect command: ${cmd.join(" ")}`);
-    connectProcess.command = cmd;
+    connectProcess.command = prepareCommand(args, false);
     connectProcess.running = true;
     return true;
   }
 
-  // Connection operations
   function activateConnection(connectionId, interfaceName) {
-    const validId = trim(connectionId);
-    const validIface = trim(interfaceName) || firstWifiInterface();
-    Logger.log("NetworkService", `activateConnection(id=${validId}, iface=${validIface})`);
-    if (!validId)
+    const id = trim(connectionId);
+    const iface = trim(interfaceName) || firstWifiInterface();
+    if (!id)
       return;
-    startConnectCommand(["nmcli", "connection", "up", "uuid", validId, "ifname", validIface]);
+    startConnectCommand(["nmcli", "connection", "up", "uuid", id, "ifname", iface]);
   }
 
   function connectToWifi(ssid, password, interfaceName, saveConnection, connectionName) {
-    const validIface = trim(interfaceName) || firstWifiInterface();
+    const iface = trim(interfaceName) || firstWifiInterface();
     const cleanSsid = trim(ssid);
-    Logger.log("NetworkService", `connectToWifi(ssid=${cleanSsid}, iface=${validIface})`);
     if (!cleanSsid)
       return;
-    network.connectingSsid = cleanSsid;
+
+    root.connectingSsid = cleanSsid;
     const pwd = String(password || "");
 
     if (pwd) {
       const esc = s => s.replace(/'/g, "'\\''");
+      const tempConns = (root._savedWifiConns || []).filter(c => c?.ssid?.startsWith(`temp_${cleanSsid}_`) || c?.name?.startsWith(`temp_${cleanSsid}_`));
 
-      // First, delete any old temp connections for this SSID to avoid conflicts
-      const tempConnections = (network.savedWifiAps || []).filter(conn => conn?.ssid?.startsWith(`temp_${cleanSsid}_`) || conn?.name?.startsWith(`temp_${cleanSsid}_`));
-
-      let cleanupCmd = "";
-      if (tempConnections.length > 0) {
-        const deleteCommands = tempConnections.map(conn => `nmcli connection delete uuid '${esc(conn.connectionId)}'`).join(" 2>/dev/null; ");
-        cleanupCmd = deleteCommands + " 2>/dev/null; ";
-        Logger.log("NetworkService", `Cleaning up ${tempConnections.length} old temp connection(s)`);
+      let cleanup = "";
+      if (tempConns.length > 0) {
+        cleanup = tempConns.map(c => `nmcli connection delete uuid '${esc(c.connectionId)}'`).join(" 2>/dev/null; ") + " 2>/dev/null; ";
       }
 
-      // Use nmcli dev wifi connect with proper escaping
-      const connectCmd = `nmcli dev wifi connect '${esc(cleanSsid)}' password '${esc(pwd)}'`;
-      const shellCmd = cleanupCmd + connectCmd;
-
-      Logger.log("NetworkService", `Connecting with password (length: ${pwd.length}) via dev wifi connect`);
-      startConnectCommand(["sh", "-c", shellCmd]);
+      const connect = `nmcli dev wifi connect '${esc(cleanSsid)}' password '${esc(pwd)}'`;
+      startConnectCommand(["sh", "-c", cleanup + connect]);
     } else {
-      startConnectCommand(["nmcli", "device", "wifi", "connect", cleanSsid, "ifname", validIface]);
+      startConnectCommand(["nmcli", "device", "wifi", "connect", cleanSsid, "ifname", iface]);
     }
   }
 
@@ -148,16 +134,16 @@ Singleton {
   }
 
   function toggleWifiRadio() {
-    setWifiRadioEnabled(!internalWifiRadioEnabled);
+    setWifiRadioEnabled(!_wifiRadioEnabled);
   }
 
   // Query helpers
   function deviceByInterface(interfaceName) {
-    return internalDeviceList.find(device => device.interface === interfaceName) || null;
+    return _deviceList.find(device => device.interface === interfaceName) || null;
   }
 
   function firstWifiInterface() {
-    const wifiDevice = internalDeviceList.find(device => device.type === "wifi");
+    const wifiDevice = _deviceList.find(device => device.type === "wifi");
     return wifiDevice?.interface || "";
   }
 
@@ -408,7 +394,7 @@ Singleton {
   function updateDerivedState() {
     const previousLinkType = linkType;
     let wifiInterface = "", ethernetInterface = "", wifiConnected = false, ethernetConnected = false, wifiIpAddress = "", ethernetIpAddress = "";
-    for (const device of internalDeviceList) {
+    for (const device of _deviceList) {
       const isDeviceConnected = isConnectedDevice(device);
       if (device.type === "wifi") {
         wifiInterface = device.interface || wifiInterface;
@@ -422,25 +408,25 @@ Singleton {
           ethernetIpAddress = stripCidr(device.ip4);
       }
     }
-    internalWifiInterface = wifiInterface;
-    internalWifiOnline = wifiConnected;
-    internalWifiIpAddress = wifiIpAddress;
-    internalEthernetInterface = ethernetInterface;
-    internalEthernetOnline = ethernetConnected;
-    internalEthernetIpAddress = ethernetIpAddress;
+    _wifiInterface = wifiInterface;
+    _wifiOnline = wifiConnected;
+    _wifiIp = wifiIpAddress;
+    _ethernetInterface = ethernetInterface;
+    _ethernetOnline = ethernetConnected;
+    _ethernetIp = ethernetIpAddress;
     linkType = ethernetConnected ? "ethernet" : (wifiConnected ? "wifi" : "disconnected");
     if (previousLinkType !== linkType)
       connectionStateChanged();
   }
 
   function applySavedFlags() {
-    const savedSsidsSet = new Set((internalSavedWifiConnections || []).map(saved => saved.ssid || saved.name).filter(Boolean));
-    const activeSsid = internalWifiAccessPoints.find(ap => ap?.connected)?.ssid || ((() => {
-          const activeDevice = chooseActiveDevice(internalDeviceList);
+    const savedSsidsSet = new Set((_savedWifiConns || []).map(saved => saved.ssid || saved.name).filter(Boolean));
+    const activeSsid = _wifiAps.find(ap => ap?.connected)?.ssid || ((() => {
+          const activeDevice = chooseActiveDevice(_deviceList);
           return (activeDevice?.type === "wifi" && isConnectedState(activeDevice.state)) ? activeDevice.connectionName : null;
         })());
 
-    internalWifiAccessPoints = (internalWifiAccessPoints || []).map(ap => {
+    _wifiAps = (_wifiAps || []).map(ap => {
       const updated = Object.assign({}, ap);
       updated.saved = savedSsidsSet.has(ap.ssid);
       updated.connected = ap.connected || (activeSsid && ap.ssid === activeSsid);
@@ -451,24 +437,24 @@ Singleton {
   // Refresh/scan
   function refreshAll() {
     refreshDeviceList(false);
-    const wifiIface = internalWifiInterface || firstWifiInterface();
-    if (wifiIface && internalWifiRadioEnabled)
+    const wifiIface = _wifiInterface || firstWifiInterface();
+    if (wifiIface && _wifiRadioEnabled)
       scanWifi(wifiIface);
     startProcess(wifiRadioProcess);
   }
 
   function refreshDeviceList(forceRefresh) {
     const currentTimeMs = Date.now();
-    if (!forceRefresh && isCooldownActive(lastDeviceRefreshTimeMs, deviceRefreshCooldownMs, currentTimeMs))
+    if (!forceRefresh && isCooldownActive(_lastDeviceRefreshMs, deviceRefreshCooldownMs, currentTimeMs))
       return;
-    lastDeviceRefreshTimeMs = currentTimeMs;
+    _lastDeviceRefreshMs = currentTimeMs;
     if (!deviceShowProcess.running)
       startProcess(deviceShowProcess);
   }
 
   function scanWifi(wifiInterface, forceScan) {
-    const validatedInterface = wifiInterface || internalWifiInterface || firstWifiInterface();
-    if (!validatedInterface || internalScanning || !internalWifiRadioEnabled)
+    const validatedInterface = wifiInterface || _wifiInterface || firstWifiInterface();
+    if (!validatedInterface || _scanning || !_wifiRadioEnabled)
       return;
 
     const device = deviceByInterface(validatedInterface);
@@ -476,11 +462,11 @@ Singleton {
       return;
 
     const currentTimeMs = Date.now();
-    if (!forceScan && isCooldownActive(lastWifiScanTimeMs, wifiScanCooldownMs, currentTimeMs))
+    if (!forceScan && isCooldownActive(_lastWifiScanMs, wifiScanCooldownMs, currentTimeMs))
       return;
 
     Logger.log("NetworkService", `scanning Wi-Fi on ${validatedInterface}${forceScan ? " (forced)" : ""}`);
-    internalScanning = true;
+    _scanning = true;
     const rescanOption = forceScan ? "yes" : "auto";
     wifiListProcess.command = prepareCommand(["nmcli", "-m", "multiline", "-f", "IN-USE,SSID,BSSID,SIGNAL,BARS,SECURITY,FREQ", "device", "wifi", "list", "ifname", validatedInterface, "--rescan", rescanOption], true);
     startProcess(wifiListProcess);
@@ -488,23 +474,23 @@ Singleton {
 
   // Lifecycle
   Component.onCompleted: {
-    internalReady = true;
+    _ready = true;
     refreshAll();
     startProcess(savedConnectionsProcess);
   }
 
   onConnectionStateChanged: {
-    Logger.log("NetworkService", `link: ${linkType} (wifiIf: ${internalWifiInterface || "-"}, ethIf: ${internalEthernetInterface || "-"})`);
+    Logger.log("NetworkService", `link: ${linkType} (wifiIf: ${_wifiInterface || "-"}, ethIf: ${_ethernetInterface || "-"})`);
     applySavedFlags();
     if (linkType === "wifi") {
-      const interfaceName = internalWifiInterface || firstWifiInterface();
+      const interfaceName = _wifiInterface || firstWifiInterface();
       if (interfaceName)
         scanWifi(interfaceName, true);
     }
   }
 
   onWifiRadioStateChanged: {
-    Logger.log("NetworkService", `Wi-Fi radio: ${internalWifiRadioEnabled ? "enabled" : "disabled"}`);
+    Logger.log("NetworkService", `Wi-Fi radio: ${_wifiRadioEnabled ? "enabled" : "disabled"}`);
   }
 
   // Timers for debouncing/restart
@@ -514,10 +500,10 @@ Singleton {
     repeat: false
     running: false
     onTriggered: {
-      network.refreshDeviceList(true);
-      const interfaceName = network.internalWifiInterface || network.firstWifiInterface();
-      if (interfaceName && network.internalWifiRadioEnabled && !network.internalScanning) {
-        network.scanWifi(interfaceName);
+      root.refreshDeviceList(true);
+      const interfaceName = root._wifiInterface || root.firstWifiInterface();
+      if (interfaceName && root._wifiRadioEnabled && !root._scanning) {
+        root.scanWifi(interfaceName);
       }
     }
   }
@@ -528,14 +514,14 @@ Singleton {
     repeat: false
     running: false
     onTriggered: {
-      network.startProcess(monitorProcess);
+      root.startProcess(monitorProcess);
     }
   }
 
   // Processes
   Process {
     id: monitorProcess
-    command: network.prepareCommand(["nmcli", "monitor"], true)
+    command: root.prepareCommand(["nmcli", "monitor"], true)
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: {
@@ -545,7 +531,7 @@ Singleton {
       }
     }
     Component.onCompleted: {
-      network.startProcess(monitorProcess);
+      root.startProcess(monitorProcess);
     }
     onRunningChanged: {
       if (!running && !monitorRestartTimer.running)
@@ -555,15 +541,15 @@ Singleton {
 
   Process {
     id: deviceShowProcess
-    command: network.prepareCommand(["nmcli", "-m", "multiline", "-f", "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.STATE,GENERAL.CONNECTION,GENERAL.CON-UUID,GENERAL.HWADDR,IP4.ADDRESS,IP6.ADDRESS", "device", "show"], true)
+    command: root.prepareCommand(["nmcli", "-m", "multiline", "-f", "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.STATE,GENERAL.CONNECTION,GENERAL.CON-UUID,GENERAL.HWADDR,IP4.ADDRESS,IP6.ADDRESS", "device", "show"], true)
     stdout: StdioCollector {
       onStreamFinished: {
-        network.internalDeviceList = network.parseDeviceListMultiline(text);
-        network.updateDerivedState();
-        const activeDevice = network.chooseActiveDevice(network.internalDeviceList);
+        root._deviceList = root.parseDeviceListMultiline(text);
+        root.updateDerivedState();
+        const activeDevice = root.chooseActiveDevice(root._deviceList);
         const summary = activeDevice ? `${activeDevice.interface}/${activeDevice.type}` : "none";
-        Logger.log("NetworkService", `devices: ${network.internalDeviceList.length}, active: ${summary}, link: ${network.linkType}`);
-        network.applySavedFlags();
+        Logger.log("NetworkService", `devices: ${root._deviceList.length}, active: ${summary}, link: ${root.linkType}`);
+        root.applySavedFlags();
       }
     }
   }
@@ -572,36 +558,36 @@ Singleton {
     id: wifiListProcess
     stdout: StdioCollector {
       onStreamFinished: {
-        network.internalScanning = false;
-        const parsedAccessPoints = network.parseWifiListMultiline(text);
-        network.internalWifiAccessPoints = network.dedupeWifiNetworks(parsedAccessPoints);
-        network.applySavedFlags();
-        network.lastWifiScanTimeMs = Date.now();
-        network.refreshDeviceList(true);
+        root._scanning = false;
+        const parsedAccessPoints = root.parseWifiListMultiline(text);
+        root._wifiAps = root.dedupeWifiNetworks(parsedAccessPoints);
+        root.applySavedFlags();
+        root._lastWifiScanMs = Date.now();
+        root.refreshDeviceList(true);
         let activeSsid = null;
         let activeSignal = null;
-        for (const accessPoint of network.internalWifiAccessPoints) {
+        for (const accessPoint of root._wifiAps) {
           if (accessPoint?.connected && accessPoint.ssid) {
             activeSsid = accessPoint.ssid;
             activeSignal = accessPoint.signal;
             break;
           }
         }
-        Logger.log("NetworkService", `Wi-Fi: ${network.internalWifiAccessPoints.length}${activeSsid ? `, active: ${activeSsid} (${activeSignal || 0}%)` : " (no active)"}`);
+        Logger.log("NetworkService", `Wi-Fi: ${root._wifiAps.length}${activeSsid ? `, active: ${activeSsid} (${activeSignal || 0}%)` : " (no active)"}`);
       }
     }
   }
 
   Process {
     id: wifiRadioProcess
-    command: network.prepareCommand(["nmcli", "-t", "-f", "WIFI", "general"], false)
+    command: root.prepareCommand(["nmcli", "-t", "-f", "WIFI", "general"], false)
     stdout: StdioCollector {
       onStreamFinished: {
         const statusString = String(text || "").trim().toLowerCase();
         const radioEnabled = statusString.includes("enabled") || statusString === "yes" || statusString === "on";
-        if (network.internalWifiRadioEnabled !== radioEnabled) {
-          network.internalWifiRadioEnabled = radioEnabled;
-          network.wifiRadioStateChanged();
+        if (root._wifiRadioEnabled !== radioEnabled) {
+          root._wifiRadioEnabled = radioEnabled;
+          root.wifiRadioStateChanged();
         }
       }
     }
@@ -631,15 +617,15 @@ Singleton {
         } else {
           Logger.log("NetworkService", "Connect stdout: (empty)");
         }
-        network.refreshDeviceList(true);
-        network.startProcess(savedConnectionsProcess);
-        network.startProcess(wifiRadioProcess);
+        root.refreshDeviceList(true);
+        root.startProcess(savedConnectionsProcess);
+        root.startProcess(wifiRadioProcess);
 
         // Force WiFi scan after connection to update active network immediately
-        const wifiIface = network.wifiInterface || network.firstWifiInterface();
+        const wifiIface = root.wifiInterface || root.firstWifiInterface();
         if (wifiIface) {
           Logger.log("NetworkService", "Forcing WiFi scan after connection");
-          network.scanWifi(wifiIface, true);
+          root.scanWifi(wifiIface, true);
         }
       }
     }
@@ -662,7 +648,7 @@ Singleton {
           }
 
           // Emit error signal with SSID
-          network.connectionError(network.connectingSsid, errorMessage);
+          root.connectionError(root.connectingSsid, errorMessage);
         }
       }
     }
@@ -670,7 +656,7 @@ Singleton {
 
   Process {
     id: savedConnectionsProcess
-    command: network.prepareCommand(["nmcli", "-t", "-e", "yes", "-f", "NAME,TYPE,UUID", "connection", "show"], false)
+    command: root.prepareCommand(["nmcli", "-t", "-e", "yes", "-f", "NAME,TYPE,UUID", "connection", "show"], false)
     stdout: StdioCollector {
       onStreamFinished: {
         const connectionsList = [];
@@ -679,10 +665,10 @@ Singleton {
           const trimmedLine = line.trim();
           if (!trimmedLine)
             continue;
-          const fields = network.splitNmcliLine(trimmedLine);
+          const fields = root.splitNmcliLine(trimmedLine);
           if (fields.length >= 3 && fields[1] === "802-11-wireless") {
-            const name = network.unescapeNmcli(fields[0]);
-            const uuid = network.unescapeNmcli(fields[2]);
+            const name = root.unescapeNmcli(fields[0]);
+            const uuid = root.unescapeNmcli(fields[2]);
             connectionsList.push({
               ssid: name,
               name: name,
@@ -691,8 +677,8 @@ Singleton {
           }
         }
         Logger.log("NetworkService", `Saved WiFi connections: ${JSON.stringify(connectionsList)}`);
-        network.internalSavedWifiConnections = connectionsList;
-        network.applySavedFlags();
+        root._savedWifiConns = connectionsList;
+        root.applySavedFlags();
       }
     }
   }
@@ -703,8 +689,8 @@ Singleton {
     stdout: StdioCollector {
       onStreamFinished: {
         Logger.log("NetworkService", `forgot connection: ${forgetProcess.connectionId || "<unknown>"}`);
-        network.refreshAll();
-        network.startProcess(savedConnectionsProcess);
+        root.refreshAll();
+        root.startProcess(savedConnectionsProcess);
       }
     }
   }
