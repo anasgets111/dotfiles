@@ -14,7 +14,6 @@ Item {
   // UI state
   property bool expanded: false
   readonly property int focusedIndex: {
-    // find index by ws.id or idx matching currentWs
     for (let i = 0; i < workspaces.length; i++) {
       const ws = workspaces[i];
       if (ws.id === currentWs || ws.idx === currentWs)
@@ -27,15 +26,8 @@ Item {
   property int hoveredId: 0
   readonly property int slotH: Theme.itemHeight
   readonly property int slotW: Theme.itemWidth
-
-  // Layout
   readonly property int spacing: 8
-
-  // Slide the row so the focused slot is visible when collapsed
-  // and aligned left when expanded
   readonly property int targetRowX: expanded ? 0 : -(focusedIndex * (slotW + spacing))
-
-  // Service state
   readonly property var workspaces: WorkspaceService.workspaces
 
   function wsColor(ws) {
@@ -62,9 +54,7 @@ Item {
   // Hover expand/collapse
   Timer {
     id: collapseTimer
-
     interval: Theme.animationDuration + 200
-
     onTriggered: {
       root.expanded = false;
       root.hoveredId = 0;
@@ -82,13 +72,11 @@ Item {
   }
   Item {
     id: rowViewport
-
     anchors.fill: parent
     clip: true
 
     Row {
       id: workspacesRow
-
       height: root.slotH
       spacing: root.spacing
       width: root.fullWidth
@@ -106,7 +94,8 @@ Item {
 
         delegate: IconButton {
           required property var modelData
-          readonly property var ws: (modelData || ({}))
+          readonly property var ws: modelData || {}
+
           colorBg: root.wsColor(ws)
           height: root.slotH
           icon: String(ws.idx)
@@ -164,11 +153,9 @@ Item {
 
   // Keep slide alignment in sync with service changes
   Connections {
+    target: WorkspaceService
     function onCurrentWorkspaceChanged() {
     // Behavior on workspacesRow.x will animate to new targetRowX
-    // width Behavior handles expand/collapse transitions
     }
-
-    target: WorkspaceService
   }
 }

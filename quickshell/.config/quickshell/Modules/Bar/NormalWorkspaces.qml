@@ -6,15 +6,14 @@ import qs.Services.WM
 import qs.Components
 
 Item {
-  id: normalWorkspaces
+  id: root
 
   readonly property var backingWorkspaces: WorkspaceService.workspaces
   readonly property int count: 10
   readonly property int currentWorkspace: Math.max(1, WorkspaceService.currentWorkspace)
   readonly property int focusedIndex: Math.max(0, Math.min(currentWorkspace - 1, count - 1))
   property int hoveredIndex: 0
-  // Compatibility: expose expanded for parents listening to onExpandedChanged
-  property bool expanded: pill ? pill.expanded : false
+  property bool expanded: pill?.expanded || false
   readonly property bool isHyprlandSession: MainService.currentWM === "hyprland"
   readonly property int slotH: Theme.itemHeight
   readonly property int slotW: Theme.itemWidth
@@ -31,38 +30,29 @@ Item {
   }
 
   clip: true
-  // Size follows the ExpandingPill, like in PowerMenu
   height: pill.height
   visible: isHyprlandSession
   width: pill.width
 
-  // Use the shared ExpandingPill to handle expand/collapse behavior
   ExpandingPill {
     id: pill
-
-    // Keep the same sizing/spacing
-    slotW: normalWorkspaces.slotW
-    slotH: normalWorkspaces.slotH
-    spacing: normalWorkspaces.spacing
-    count: normalWorkspaces.count
-    // Show the current workspace when collapsed
-    collapsedIndex: normalWorkspaces.focusedIndex
-    // Match previous collapse delay feel
+    slotW: root.slotW
+    slotH: root.slotH
+    spacing: root.spacing
+    count: root.count
+    collapsedIndex: root.focusedIndex
     collapseDelayMs: Theme.animationDuration + 200
-    // Original layout listed items left-to-right with left anchoring
     rightAligned: false
 
-    // Build each workspace button
     delegate: Component {
       IconButton {
         id: btn
-
         required property int index
-        readonly property int idNum: normalWorkspaces.slots[index]
+        readonly property int idNum: root.slots[index]
 
-        colorBg: normalWorkspaces.wsColor(idNum)
+        colorBg: root.wsColor(idNum)
         icon: String(idNum)
-        opacity: !!normalWorkspaces.backingWorkspaces.find(w => w.id === idNum) ? 1 : 0.5
+        opacity: !!root.backingWorkspaces.find(w => w.id === idNum) ? 1 : 0.5
 
         Behavior on opacity {
           NumberAnimation {
@@ -71,10 +61,10 @@ Item {
           }
         }
 
-        onEntered: normalWorkspaces.hoveredIndex = idNum
-        onExited: if (normalWorkspaces.hoveredIndex === idNum)
-          normalWorkspaces.hoveredIndex = 0
-        onClicked: if (idNum !== normalWorkspaces.currentWorkspace)
+        onEntered: root.hoveredIndex = idNum
+        onExited: if (root.hoveredIndex === idNum)
+          root.hoveredIndex = 0
+        onClicked: if (idNum !== root.currentWorkspace)
           WorkspaceService.focusWorkspaceByIndex(idNum)
       }
     }

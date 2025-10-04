@@ -4,9 +4,7 @@ import Quickshell.Io
 import qs.Services
 
 Singleton {
-  // --- tiny helpers
-
-  id: niriMonitorService
+  id: root
 
   property var _replyQueue: []
   readonly property bool active: MainService.ready && MainService.currentWM === "niri"
@@ -16,42 +14,41 @@ Singleton {
 
   function act(name, action, callback) {
     send({
-      "Output": {
-        "output": name,
-        "action": action
+      Output: {
+        output: name,
+        action
       }
     }, callback);
   }
+
   function fetchFeatures(name, callback) {
     sendRaw('"Outputs"', resp => {
-      const list = resp && Array.isArray(resp.Ok) ? resp.Ok : null;
+      const list = resp?.Ok && Array.isArray(resp.Ok) ? resp.Ok : null;
       if (!list)
         return callback(null);
 
-      const out = list.find(outputObj => {
-        return outputObj && outputObj.name === name;
-      });
+      const out = list.find(obj => obj?.name === name);
       if (!out)
         return callback(null);
 
-      const modes = (out.modes || []).map(modeObj => {
-        return ({
-            "width": modeObj.width,
-            "height": modeObj.height,
-            "refreshRate": typeof modeObj.refresh_rate === "number" ? modeObj.refresh_rate / 1000 : null
-          });
-      });
+      const modes = (out.modes || []).map(modeObj => ({
+            width: modeObj.width,
+            height: modeObj.height,
+            refreshRate: typeof modeObj.refresh_rate === "number" ? modeObj.refresh_rate / 1000 : null
+          }));
+
       callback({
-        "modes": modes,
-        "vrr": {
-          "active": !!out.vrr_enabled
+        modes,
+        vrr: {
+          active: !!out.vrr_enabled
         },
-        "hdr": {
-          "active": false
+        hdr: {
+          active: false
         }
       });
     });
   }
+
   function json(str) {
     try {
       return JSON.parse(str);
@@ -59,130 +56,124 @@ Singleton {
       return null;
     }
   }
+
   function send(obj, callback) {
     sendRaw(JSON.stringify(obj), callback);
   }
+
   function sendRaw(raw, callback) {
     if (!requestSocket.connected) {
       if (callback)
         callback(null);
       return;
     }
-    _replyQueue.push(callback || function () {});
-    requestSocket.write(raw.endsWith("\n") ? raw : raw + "\n");
+    _replyQueue.push(callback || (() => {}));
+    requestSocket.write(raw.endsWith("\n") ? raw : `${raw}\n`);
   }
+
   function setMode(name, width, height, refreshRate) {
     act(name, {
-      "Mode": {
-        "mode": {
-          "Specific": {
-            "width": width,
-            "height": height,
-            "refresh": refreshRate
+      Mode: {
+        mode: {
+          Specific: {
+            width,
+            height,
+            refresh: refreshRate
           }
         }
       }
-    }, () => {
-      return featuresMayHaveChanged();
-    });
+    }, () => featuresChanged());
   }
+
   function setPosition(name, x, y) {
     act(name, {
-      "Position": {
-        "position": {
-          "Specific": {
-            "x": x,
-            "y": y
+      Position: {
+        position: {
+          Specific: {
+            x,
+            y
           }
         }
       }
-    }, () => {
-      return featuresMayHaveChanged();
-    });
+    }, () => featuresChanged());
   }
+
   function setScale(name, scale) {
     act(name, {
-      "Scale": {
-        "scale": {
-          "Specific": scale
+      Scale: {
+        scale: {
+          Specific: scale
         }
       }
-    }, () => {
-      return featuresMayHaveChanged();
-    });
+    }, () => featuresChanged());
   }
+
   function setTransform(name, transform) {
     act(name, {
-      "Transform": {
-        "transform": transform
+      Transform: {
+        transform
       }
-    }, () => {
-      return featuresMayHaveChanged();
-    });
+    }, () => featuresChanged());
   }
+
   function setVrr(name, mode) {
     const lower = String(mode || "").toLowerCase();
-    const vrr = (lower === "on-demand" || lower === "ondemand") ? {
-      "vrr": true,
-      "on_demand": true
-    } : (lower === "on" || lower === "enabled") ? {
-      "vrr": true,
-      "on_demand": false
+    const vrr = lower === "on-demand" || lower === "ondemand" ? {
+      vrr: true,
+      on_demand: true
+    } : lower === "on" || lower === "enabled" ? {
+      vrr: true,
+      on_demand: false
     } : {
-      "vrr": false,
-      "on_demand": false
+      vrr: false,
+      on_demand: false
     };
+
     act(name, {
-      "Vrr": {
-        "vrr": vrr
+      Vrr: {
+        vrr
       }
-    }, () => {
-      return featuresChanged();
-    });
+    }, () => featuresChanged());
   }
 
   Socket {
     id: requestSocket
-
-    connected: niriMonitorService.active && !!niriMonitorService.socketPath
-    path: niriMonitorService.socketPath
+    connected: root.active && !!root.socketPath
+    path: root.socketPath
 
     parser: SplitParser {
       splitMarker: "\n"
-
-      onRead: function (message) {
+      onRead: message => {
         if (!message)
           return;
-
-        const callback = niriMonitorService._replyQueue.shift();
+        const callback = root._replyQueue.shift();
         if (callback)
-          callback(niriMonitorService.json(message));
+          callback(root.json(message));
       }
     }
 
     onConnectionStateChanged: {
       if (!connected) {
-        while (niriMonitorService._replyQueue.length) {
-          const cb = niriMonitorService._replyQueue.shift();
+        while (root._replyQueue.length) {
+          const cb = root._replyQueue.shift();
           if (cb)
             cb(null);
         }
       }
     }
   }
+
   Socket {
     id: eventStreamSocket
-
-    connected: niriMonitorService.active && !!niriMonitorService.socketPath
-    path: niriMonitorService.socketPath
+    connected: root.active && !!root.socketPath
+    path: root.socketPath
 
     parser: SplitParser {
       splitMarker: "\n"
-
-      onRead: function (message) {
-        const evt = message && niriMonitorService.json(message);
-        if (evt && evt.ConfigLoaded)
-          niriMonitorService.featuresChanged();
+      onRead: message => {
+        const evt = message && root.json(message);
+        if (evt?.ConfigLoaded)
+          root.featuresChanged();
       }
     }
 

@@ -6,13 +6,11 @@ import Quickshell.Io
 import qs.Services
 
 Singleton {
-  id: niriWs
+  id: root
 
   readonly property bool active: MainService.ready && MainService.currentWM === "niri"
-  // kept writable so facade Binding can override
-  property bool enabled: niriWs.active
+  property bool enabled: root.active
 
-  // live state
   property string activeSpecial: ""
   property int currentWorkspace: 1
   property int currentWorkspaceId: -1
@@ -24,7 +22,13 @@ Singleton {
   property var specialWorkspaces: []
   property var workspaces: []
 
-  // control
+  function send(request) {
+    if (enabled && requestSocket.connected)
+      requestSocket.write(JSON.stringify(request) + "\n");
+  }
+  function toggleSpecial(_name) {
+  } // Niri: no-op
+
   function focusWorkspaceById(id) {
     if (!enabled)
       return;
@@ -38,18 +42,20 @@ Singleton {
       }
     });
   }
+
   function focusWorkspaceByIndex(idx) {
     if (!enabled)
       return;
-    const w = workspaces.find(ww => ww.idx === idx);
+    const w = workspaces.find(ws => ws.idx === idx);
     if (w)
       focusWorkspaceById(w.id);
   }
+
   function focusWorkspaceByWs(ws) {
     if (!enabled || !ws)
       return;
     const out = ws.output || "";
-    if (out && out !== focusedOutput) {
+    if (out && out !== focusedOutput)
       send({
         Action: {
           FocusMonitor: {
@@ -59,9 +65,9 @@ Singleton {
           }
         }
       });
-    }
     focusWorkspaceById(ws.id);
   }
+
   function refresh() {
     if (!enabled || !socketPath)
       return;
@@ -71,28 +77,19 @@ Singleton {
     requestSocket.connected = true;
   }
 
-  // IPC helpers
-  function send(request) {
-    if (!enabled || !requestSocket.connected)
-      return;
-    requestSocket.write(JSON.stringify(request) + "\n");
-  }
-  function toggleSpecial(_name) { /* Niri: no-op */
-  }
-
   function updateSingleFocus(id) {
-    const w = workspaces.find(ww => ww.id === id);
+    const w = workspaces.find(ws => ws.id === id);
     if (!w)
       return;
-    niriWs.previousWorkspace = niriWs.currentWorkspace;
-    niriWs.currentWorkspace = w.idx;
-    niriWs.currentWorkspaceId = w.id;
-    niriWs.focusedOutput = w.output || focusedOutput;
-    workspaces.forEach(ww => {
-      ww.is_focused = (ww.id === id);
-      ww.is_active = (ww.id === id);
+    root.previousWorkspace = root.currentWorkspace;
+    root.currentWorkspace = w.idx;
+    root.currentWorkspaceId = w.id;
+    root.focusedOutput = w.output || focusedOutput;
+    workspaces.forEach(ws => {
+      ws.is_focused = (ws.id === id);
+      ws.is_active = (ws.id === id);
     });
-    niriWs.workspaces = workspaces;
+    root.workspaces = workspaces;
   }
 
   function updateWorkspaces(arr) {
@@ -102,7 +99,7 @@ Singleton {
 
     const f = arr.find(w => w.is_focused);
     if (f)
-      niriWs.focusedOutput = f.output || "";
+      root.focusedOutput = f.output || "";
 
     const groups = {};
     arr.forEach(w => {
@@ -119,7 +116,7 @@ Singleton {
         return 1;
       return a.localeCompare(b);
     });
-    niriWs.outputsOrder = outs;
+    root.outputsOrder = outs;
 
     let flat = [];
     const bounds = [];
@@ -131,13 +128,13 @@ Singleton {
       if (acc > 0 && acc < arr.length)
         bounds.push(acc);
     });
-    niriWs.workspaces = flat;
-    niriWs.groupBoundaries = bounds;
+    root.workspaces = flat;
+    root.groupBoundaries = bounds;
 
-    if (f && f.idx !== niriWs.currentWorkspace) {
-      niriWs.previousWorkspace = niriWs.currentWorkspace;
-      niriWs.currentWorkspace = f.idx;
-      niriWs.currentWorkspaceId = f.id;
+    if (f && f.idx !== root.currentWorkspace) {
+      root.previousWorkspace = root.currentWorkspace;
+      root.currentWorkspace = f.idx;
+      root.currentWorkspaceId = f.id;
     }
   }
 
@@ -145,6 +142,7 @@ Singleton {
     if (enabled)
       _startupKick.start();
   }
+
   onEnabledChanged: {
     if (enabled && socketPath) {
       eventStreamSocket.connected = true;
@@ -156,54 +154,50 @@ Singleton {
     }
   }
 
-  // event stream
   Socket {
     id: eventStreamSocket
-    connected: niriWs.enabled && !!niriWs.socketPath
-    path: niriWs.socketPath
+    connected: root.enabled && !!root.socketPath
+    path: root.socketPath
 
     parser: SplitParser {
       splitMarker: "\n"
-      onRead: function (line) {
+      onRead: line => {
         if (!line)
           return;
         try {
           const evt = JSON.parse(line);
           if (evt.WorkspacesChanged) {
-            niriWs.updateWorkspaces(evt.WorkspacesChanged.workspaces);
+            root.updateWorkspaces(evt.WorkspacesChanged.workspaces);
           } else if (evt.WorkspaceActivated) {
-            niriWs.updateSingleFocus(evt.WorkspaceActivated.id);
+            root.updateSingleFocus(evt.WorkspaceActivated.id);
           }
         } catch (e) {
-          // Reset connection on parse error to clear buffer
           eventStreamSocket.connected = false;
           Qt.callLater(() => {
-            eventStreamSocket.connected = niriWs.enabled && !!niriWs.socketPath;
+            eventStreamSocket.connected = root.enabled && !!root.socketPath;
           });
         }
       }
     }
 
     onConnectionStateChanged: {
-      if (connected) {
+      if (connected)
         write('"EventStream"\n');
-      }
     }
   }
 
-  // request channel
   Socket {
     id: requestSocket
-    connected: niriWs.enabled && !!niriWs.socketPath
-    path: niriWs.socketPath
+    connected: root.enabled && !!root.socketPath
+    path: root.socketPath
   }
 
   Timer {
     id: _startupKick
     interval: 200
     repeat: false
-    onTriggered: if (niriWs.enabled)
-      niriWs.refresh()
+    onTriggered: if (root.enabled)
+      root.refresh()
   }
 
   Component.onDestruction: {
