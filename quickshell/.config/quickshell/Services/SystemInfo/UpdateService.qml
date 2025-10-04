@@ -8,104 +8,95 @@ import qs.Services.Utils
 Singleton {
   id: updateService
 
-  readonly property var allPackages: updatePackages.concat(aurPackages)
-  readonly property bool aurBusy: aurProc.running
-  property int aurDoneGeneration: -1
+  // Core state
+  property var updatePackages: []
   property var aurPackages: []
-  readonly property int aurUpdates: aurPackages.length
-  readonly property bool busy: pkgProc.running || aurProc.running
+  property double lastSync: 0
+  property int lastNotifiedTotal: 0
   property bool checkupdatesAvailable: false
   property int failureCount: 0
-  readonly property int failureThreshold: 5
-  // Core state
-  property bool isArchBased: MainService.isArchBased
-  property int lastNotifiedTotal: 0
-  property double lastSync: 0
-  readonly property int minuteMs: 60 * 1000
-  readonly property string notifyApp: "UpdateService"
-  readonly property string notifyIcon: "system-software-update"
-  property var pendingAurPackages: []
-  property var pendingRepoPackages: []
 
-  // Poll-cycle aggregation: commit once when both repo and AUR finish
-  property int pollGeneration: 0
-  readonly property int pollInterval: 15 * minuteMs
-  readonly property bool ready: isArchBased && checkupdatesAvailable
-  property int repoDoneGeneration: -1
+  // Poll cycle tracking
+  property bool repoComplete: false
+  property bool aurComplete: false
+  property var tempRepoPackages: []
+  property var tempAurPackages: []
+
+  // Computed properties
+  readonly property var allPackages: updatePackages.concat(aurPackages)
+  readonly property int updates: updatePackages.length
+  readonly property int aurUpdates: aurPackages.length
   readonly property int totalUpdates: updates + aurUpdates
+  readonly property bool busy: pkgProc.running || aurProc.running
+  readonly property bool ready: MainService.isArchBased && checkupdatesAvailable
+
+  // Constants
+  readonly property int pollInterval: 15 * 60 * 1000
+  readonly property int failureThreshold: 5
   readonly property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "sh", "-c", "$BIN/update.sh"]
   readonly property var updateLineRe: /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/
-  property var updatePackages: []
-  readonly property int updates: updatePackages.length
 
   function _clonePackageList(list) {
-    return (Array.isArray(list) ? list : []).map(p => {
-      return ({
-          "name": String(p.name || ""),
-          "oldVersion": String(p.oldVersion || ""),
-          "newVersion": String(p.newVersion || "")
-        });
+    return list.map(p => ({
+          name: p.name || "",
+          oldVersion: p.oldVersion || "",
+          newVersion: p.newVersion || ""
+        }));
+  }
+
+  function _notify(title, message, action) {
+    Utils.runCmd(["notify-send", "-a", "UpdateService", "-i", "system-software-update", "-A", `${action}=${qsTr("Run updates")}`, title, message], out => {
+      if (String(out || "").trim() === action) {
+        updateRunner.command = updateCommand;
+        updateRunner.running = true;
+      }
     });
   }
-  function _notifyTotalsIfIncreased() {
-    if (!ready)
-      return;
 
-    if (totalUpdates === 0) {
+  function _handleError(source, message, code) {
+    Logger.warn("UpdateService", `${source} error (code: ${code}): ${message}`);
+    if (++failureCount >= failureThreshold) {
+      _notify(qsTr("Update check failed"), message, "dismiss");
+      failureCount = 0;
+    }
+  }
+
+  function _notifyIfIncreased() {
+    if (!ready || totalUpdates === 0) {
       lastNotifiedTotal = 0;
       return;
     }
     if (totalUpdates > lastNotifiedTotal) {
       const added = totalUpdates - lastNotifiedTotal;
-      const msg = added === 1 ? qsTr("One new package can be upgraded (") + totalUpdates + qsTr(")") : `${added} ${qsTr("new packages can be upgraded (")} ${totalUpdates} ${qsTr(")")}`;
-      // Send notification via notify-send with an action to run updates
-      Utils.runCmd(["notify-send", "-a", updateService.notifyApp, "-i", updateService.notifyIcon, "-A", "run-updates=" + qsTr("Run updates"), qsTr("Updates Available"), msg], function (out) {
-        const chosen = String(out || "").trim();
-        if (chosen === "run-updates") {
-          updateRunner.command = updateService.updateCommand;
-          updateRunner.running = true;
-        }
-      });
+      const msg = added === 1 ? `${qsTr("One new package can be upgraded")} (${totalUpdates})` : `${added} ${qsTr("new packages can be upgraded")} (${totalUpdates})`;
+      _notify(qsTr("Updates Available"), msg, "run-updates");
       lastNotifiedTotal = totalUpdates;
     }
   }
-  function _parseStandardOutput(rawText) {
-    const raw = (rawText || "").trim();
-    if (!raw)
-      return {
-        "raw": raw,
-        "pkgs": []
-      };
 
-    const lines = raw.split(/\r?\n/);
-    const pkgs = [];
-    for (const line of lines) {
+  function _parseOutput(text) {
+    const lines = (text || "").trim().split(/\r?\n/).filter(l => l);
+    return lines.map(line => {
       const m = line.match(updateLineRe);
-      if (m)
-        pkgs.push({
-          "name": m[1],
-          "oldVersion": m[2],
-          "newVersion": m[3]
-        });
-    }
-    return {
-      "raw": raw,
-      "pkgs": pkgs
-    };
+      return m ? {
+        name: m[1],
+        oldVersion: m[2],
+        newVersion: m[3]
+      } : null;
+    }).filter(p => p);
   }
-  function _tryCommitEndOfPoll() {
-    if (!ready)
+
+  function _commitResults() {
+    if (!ready || !repoComplete || !aurComplete)
       return;
-    if (repoDoneGeneration === pollGeneration && aurDoneGeneration === pollGeneration) {
-      // Commit results atomically for UI and cache
-      updatePackages = _clonePackageList(pendingRepoPackages);
-      aurPackages = _clonePackageList(pendingAurPackages);
-      lastSync = Date.now();
-      _notifyTotalsIfIncreased();
-    }
+
+    updatePackages = _clonePackageList(tempRepoPackages);
+    aurPackages = _clonePackageList(tempAurPackages);
+    lastSync = Date.now();
+    _notifyIfIncreased();
   }
   function doAurPoll() {
-    if (aurBusy)
+    if (busy)
       return;
 
     aurProc.command = ["sh", "-c", "if command -v yay >/dev/null 2>&1; then yay -Qua --color=never;" + "elif command -v paru >/dev/null 2>&1; then paru -Qua --color=never;" + "else exit 3; fi"];
@@ -115,12 +106,10 @@ Singleton {
     if (busy)
       return;
 
-    // New cycle
-    pollGeneration++;
-    repoDoneGeneration = -1;
-    aurDoneGeneration = -1;
-    pendingRepoPackages = [];
-    pendingAurPackages = [];
+    repoComplete = false;
+    aurComplete = false;
+    tempRepoPackages = [];
+    tempAurPackages = [];
     pkgProc.command = ["checkupdates", "--nocolor"];
     pkgProc.running = true;
     doAurPoll();
@@ -135,20 +124,14 @@ Singleton {
   }
 
   Component.onCompleted: {
-    const persisted = JSON.parse(cache.cachedUpdatePackagesJson || "[]");
-    if (persisted.length)
-      updatePackages = _clonePackageList(persisted);
-
+    updatePackages = _clonePackageList(JSON.parse(cache.cachedUpdatePackagesJson || "[]"));
+    aurPackages = _clonePackageList(JSON.parse(cache.cachedAurPackagesJson || "[]"));
     if (cache.cachedLastSync > 0)
       lastSync = cache.cachedLastSync;
-
-    const persistedAur = JSON.parse(cache.cachedAurPackagesJson || "[]");
-    if (persistedAur.length)
-      aurPackages = _clonePackageList(persistedAur);
   }
+  onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(_clonePackageList(updatePackages))
   onAurPackagesChanged: cache.cachedAurPackagesJson = JSON.stringify(_clonePackageList(aurPackages))
   onLastSyncChanged: cache.cachedLastSync = lastSync
-  onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(_clonePackageList(updatePackages))
 
   PersistentProperties {
     id: cache
@@ -162,7 +145,7 @@ Singleton {
   Process {
     id: updateRunner
 
-    onExited: function (exitCode, exitStatus) {
+    onExited: (exitCode, exitStatus) => {
       updateService.doPoll();
     }
   }
@@ -186,86 +169,64 @@ Singleton {
     id: pkgProc
 
     stderr: StdioCollector {
-      id: repoStderr
-
       onStreamFinished: {
-        const stderrText = (repoStderr.text || "").trim();
-        if (stderrText) {
-          Logger.warn("UpdateService", "stderr:", stderrText);
-          updateService.failureCount++;
-          if (updateService.failureCount >= updateService.failureThreshold) {
-            Utils.runCmd(["notify-send", "-a", updateService.notifyApp, "-i", updateService.notifyIcon, qsTr("Update check failed"), stderrText]);
-            updateService.failureCount = 0;
-          }
-        } else {
+        const msg = (text || "").trim();
+        if (msg)
+          updateService._handleError("checkupdates", msg, -1);
+        else
           updateService.failureCount = 0;
-        }
       }
     }
-    stdout: StdioCollector {
-      id: repoStdout
 
+    stdout: StdioCollector {
       onStreamFinished: {
         if (pkgProc.running)
           return;
-
-        const parsed = updateService._parseStandardOutput(repoStdout.text);
-        updateService.pendingRepoPackages = parsed.pkgs;
-        updateService.repoDoneGeneration = updateService.pollGeneration;
-        updateService._tryCommitEndOfPoll();
+        updateService.tempRepoPackages = updateService._parseOutput(text);
+        updateService.repoComplete = true;
+        updateService._commitResults();
       }
     }
 
-    onExited: function (exitCode, exitStatus) {
+    onExited: (exitCode, exitStatus) => {
       if (exitCode !== 0 && exitCode !== 2) {
-        updateService.failureCount++;
-        Logger.warn("UpdateService", `checkupdates failed (code: ${exitCode}, status: ${exitStatus})`);
-        if (updateService.failureCount >= updateService.failureThreshold) {
-          Utils.runCmd(["notify-send", "-a", updateService.notifyApp, "-i", updateService.notifyIcon, qsTr("Update check failed"), qsTr(`Exit code: ${exitCode} (failed ${updateService.failureCount} times)`)]);
-          updateService.failureCount = 0;
-        }
-        updateService.pendingRepoPackages = [];
-        updateService.repoDoneGeneration = updateService.pollGeneration;
-        updateService._tryCommitEndOfPoll();
+        updateService._handleError("checkupdates", `Exit code: ${exitCode}`, exitCode);
+        updateService.tempRepoPackages = [];
       }
+      updateService.repoComplete = true;
+      updateService._commitResults();
     }
   }
   Process {
     id: aurProc
 
     stderr: StdioCollector {
-      id: aurStderr
-
       onStreamFinished: {
-        const t = (aurStderr.text || "").trim();
-        if (t)
-          Logger.warn("UpdateService", "AUR stderr:", t);
+        const msg = (text || "").trim();
+        if (msg)
+          Logger.warn("UpdateService", "AUR stderr:", msg);
       }
     }
-    stdout: StdioCollector {
-      id: aurStdout
 
+    stdout: StdioCollector {
       onStreamFinished: {
         if (aurProc.running)
           return;
-
-        const parsed = updateService._parseStandardOutput(aurStdout.text);
-        updateService.pendingAurPackages = parsed.pkgs;
-        updateService.aurDoneGeneration = updateService.pollGeneration;
-        updateService._tryCommitEndOfPoll();
+        updateService.tempAurPackages = updateService._parseOutput(text);
+        updateService.aurComplete = true;
+        updateService._commitResults();
       }
     }
 
-    onExited: function (exitCode, exitStatus) {
+    onExited: (exitCode, exitStatus) => {
       if (exitCode === 3) {
         Logger.log("UpdateService", "AUR helpers not found (yay/paru). AUR polling disabled.");
-        updateService.pendingAurPackages = [];
       } else if (exitCode !== 0 && exitCode !== 1) {
-        Logger.warn("UpdateService", `AUR check failed (code: ${exitCode}, status: ${exitStatus})`);
-        updateService.pendingAurPackages = [];
+        Logger.warn("UpdateService", `AUR check failed (code: ${exitCode})`);
       }
-      updateService.aurDoneGeneration = updateService.pollGeneration;
-      updateService._tryCommitEndOfPoll();
+      updateService.tempAurPackages = [];
+      updateService.aurComplete = true;
+      updateService._commitResults();
     }
   }
   Component.onDestruction: {
