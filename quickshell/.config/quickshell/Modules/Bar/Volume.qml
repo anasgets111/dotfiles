@@ -8,13 +8,13 @@ import qs.Components
 Rectangle {
   id: root
 
-  readonly property bool isAudioReady: !!(AudioService?.sink?.audio)
-  readonly property real maxVolume: AudioService ? AudioService.maxVolume : 1.0
-  readonly property bool isMuted: AudioService ? AudioService.muted : false
+  readonly property bool isAudioReady: AudioService?.sink?.audio ?? false
+  readonly property real maxVolume: AudioService?.maxVolume ?? 1.0
+  readonly property bool isMuted: AudioService?.muted ?? false
   readonly property real baseVolume: 1.0
   readonly property real displayMaxVolume: 1.5
-  readonly property real currentVolume: AudioService ? AudioService.volume : 0.0
-  readonly property string currentDeviceIcon: AudioService ? AudioService.sinkIcon : ""
+  readonly property real currentVolume: AudioService?.volume ?? 0.0
+  readonly property string currentDeviceIcon: AudioService?.sinkIcon ?? ""
 
   property bool expanded: hoverHandler.hovered
   property int expandedWidth: Theme.volumeExpandedWidth
@@ -22,34 +22,35 @@ Rectangle {
   property int sliderStepCount: 30
   property bool isWidthAnimating: false
 
-  TextMetrics {
-    id: iconMetrics
-    font.family: Theme.fontFamily
-    font.pixelSize: Theme.fontSize + Theme.fontSize / 2
-    text: "󰕾"
-  }
-  TextMetrics {
-    id: percentMetrics
-    font.family: Theme.fontFamily
-    font.pixelSize: Theme.fontSize
-    text: "100%"
-  }
-
   readonly property real collapsedWidth: iconMetrics.width + 2 * contentPadding
   readonly property color textContrastColor: {
     const bg = color;
     if (!expanded)
       return Theme.textContrast(bg);
-    const active = Theme.activeColor;
+
     const norm = volumeSlider ? (volumeSlider.dragging ? volumeSlider.pending : volumeSlider.value) : 0;
-    const ref = norm > 0.5 ? active : bg;
+    const ref = norm > 0.5 ? Theme.activeColor : bg;
     return Theme.textContrast(Qt.colorEqual(ref, "transparent") ? bg : ref);
   }
   readonly property string currentIcon: {
+    if (!isAudioReady)
+      return "--";
+
     const norm = volumeSlider ? (volumeSlider.dragging ? volumeSlider.pending : (displayMaxVolume > 0 ? currentVolume / displayMaxVolume : 0)) : 0;
     const valueAbs = norm * displayMaxVolume;
     const ratioBase = baseVolume > 0 ? Math.min(valueAbs / baseVolume, 1.0) : 0;
-    return isAudioReady ? (currentDeviceIcon || (isMuted ? "󰝟" : ratioBase < 0.01 ? "󰖁" : ratioBase < 0.33 ? "󰕿" : ratioBase < 0.66 ? "󰖀" : "󰕾")) : "--";
+
+    if (currentDeviceIcon)
+      return currentDeviceIcon;
+    if (isMuted)
+      return "󰝟";
+    if (ratioBase < 0.01)
+      return "󰖁";
+    if (ratioBase < 0.33)
+      return "󰕿";
+    if (ratioBase < 0.66)
+      return "󰖀";
+    return "󰕾";
   }
   readonly property string percentageText: {
     if (!isAudioReady)
@@ -105,16 +106,34 @@ Rectangle {
     radius: root.radius
     interactive: root.isAudioReady
     opacity: (root.expanded || dragging) ? 1 : 0
-    onCommitted: function (normalized) {
+    onCommitted: normalized => {
       if (root.isAudioReady)
         root.setAbsoluteVolume(normalized * root.displayMaxVolume);
     }
   }
 
-  onCurrentVolumeChanged: if (!volumeSlider.dragging)
-    volumeSlider.value = root.displayMaxVolume > 0 ? currentVolume / root.displayMaxVolume : 0
+  onCurrentVolumeChanged: {
+    if (!volumeSlider.dragging)
+      volumeSlider.value = root.displayMaxVolume > 0 ? currentVolume / root.displayMaxVolume : 0;
+  }
 
-  Component.onCompleted: volumeSlider.value = root.displayMaxVolume > 0 ? currentVolume / root.displayMaxVolume : 0
+  Component.onCompleted: {
+    volumeSlider.value = root.displayMaxVolume > 0 ? currentVolume / root.displayMaxVolume : 0;
+  }
+
+  TextMetrics {
+    id: iconMetrics
+    font.family: Theme.fontFamily
+    font.pixelSize: Theme.fontSize + Theme.fontSize / 2
+    text: "󰕾"
+  }
+
+  TextMetrics {
+    id: percentMetrics
+    font.family: Theme.fontFamily
+    font.pixelSize: Theme.fontSize
+    text: "100%"
+  }
 
   RowLayout {
     anchors.centerIn: parent
@@ -126,6 +145,7 @@ Rectangle {
       Layout.preferredHeight: Theme.itemHeight
       Layout.preferredWidth: iconMetrics.width
       clip: true
+
       Text {
         anchors.centerIn: parent
         color: root.textContrastColor
@@ -143,6 +163,7 @@ Rectangle {
       visible: root.expanded
       Layout.preferredHeight: root.expanded ? percentMetrics.height : 0
       Layout.preferredWidth: root.expanded ? percentMetrics.width : 0
+
       Text {
         anchors.centerIn: parent
         color: root.textContrastColor
