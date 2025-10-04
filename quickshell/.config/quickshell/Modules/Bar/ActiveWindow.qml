@@ -1,43 +1,27 @@
 import QtQuick
 import Quickshell.Wayland
 import qs.Services.Utils
+import qs.Services.WM
 import qs.Config
 
 Item {
-  id: activeWindow
+  id: root
 
-  // configurable
   property string desktopIconName: "applications-system"
   property int maxLength: 47
 
-  // live wayland handle (reactive)
-  readonly property var activeToplevel: ToplevelManager.activeToplevel
-  readonly property bool toplevelVisible: !!(activeToplevel?.screens?.length > 0)
-  readonly property bool hasActive: !!(activeToplevel?.activated && toplevelVisible)
-  // derived fields from the active toplevel
-  readonly property string currentTitle: hasActive ? (activeToplevel.title || "") : ""
-  readonly property string currentClass: hasActive ? (activeToplevel.appId || "") : ""
+  readonly property var toplevel: ToplevelManager.activeToplevel
+  readonly property string appId: toplevel?.appId || ""
+  readonly property string title: toplevel?.title || ""
 
-  // resolve app name via desktop entry when present
-  readonly property string appName: hasActive ? ((Utils.resolveDesktopEntry(currentClass)?.name) || currentClass) : ""
+  readonly property bool hasActive: !!(toplevel?.activated && toplevel?.screens?.length && (appId || title) && (WorkspaceService.workspaces.find(w => w.id === WorkspaceService.currentWorkspace)?.populated || WorkspaceService.activeSpecial))
 
-  // icon: app when active, otherwise desktop fallback
-  readonly property string appIconSource: hasActive ? Utils.resolveIconSource(currentClass) : Utils.resolveIconSource("", "", desktopIconName)
+  readonly property string appName: hasActive ? (Utils.resolveDesktopEntry(appId)?.name || appId) : ""
+  readonly property string displayText: !hasActive ? "Desktop" : !title ? (appName || "Desktop") : !appName ? title : (appName === "Zen Browser" ? title : appName + ": " + title)
+  readonly property string text: displayText.length > maxLength ? displayText.substring(0, maxLength - 3) + "..." : displayText
 
-  // display text, elided to maxLength; keep Zen Browser special-case
-  readonly property string displayText: (function () {
-      let txt = "Desktop";
-      if (currentTitle && appName)
-        txt = (appName === "Zen Browser") ? currentTitle : (appName + ": " + currentTitle);
-      else if (currentTitle)
-        txt = currentTitle;
-      else if (appName)
-        txt = appName;
-      return txt.length > maxLength ? txt.substring(0, maxLength - 3) + "..." : txt;
-    })()
-
-  width: titleRow.implicitWidth
-  height: titleRow.implicitHeight
+  width: row.implicitWidth
+  height: row.implicitHeight
 
   Behavior on width {
     NumberAnimation {
@@ -47,31 +31,29 @@ Item {
   }
 
   Row {
-    id: titleRow
+    id: row
     anchors.fill: parent
     spacing: 6
 
     Image {
-      id: appIcon
       anchors.verticalCenter: parent.verticalCenter
       width: 28
       height: 28
       fillMode: Image.PreserveAspectFit
-      source: activeWindow.appIconSource
-      sourceSize.width: width
-      sourceSize.height: height
+      source: root.hasActive ? Utils.resolveIconSource(root.appId) : Utils.resolveIconSource("", "", root.desktopIconName)
+      sourceSize: Qt.size(width, height)
       visible: source !== ""
     }
 
     Text {
-      id: windowTitle
       anchors.verticalCenter: parent.verticalCenter
-      text: activeWindow.displayText
+      text: root.text
       color: Theme.textContrast(Theme.bgColor)
-      font.family: Theme.fontFamily
-      font.pixelSize: Theme.fontSize
-      font.bold: true
-      elide: Text.ElideRight
+      font {
+        family: Theme.fontFamily
+        pixelSize: Theme.fontSize
+        bold: true
+      }
     }
   }
 }
