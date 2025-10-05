@@ -34,7 +34,6 @@ Item {
 
   parent: overlayParent
   visible: false
-  z: 10000
 
   readonly property real _minWidth: 50
   readonly property real _minHeight: 40

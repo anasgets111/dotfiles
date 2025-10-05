@@ -173,13 +173,8 @@ Singleton {
   function _enqueuePopup(wrapper) {
     if (root.notificationQueue.length >= 10) {
       const oldest = root.notificationQueue.pop();
-      if (oldest) {
+      if (oldest)
         oldest.popup = false;
-        // Properly cleanup evicted notification
-        try {
-          oldest.notification?.dismiss();
-        } catch (e) {}
-      }
     }
 
     root.notificationQueue.unshift(wrapper);
@@ -378,31 +373,20 @@ Singleton {
     readonly property Connections conn: Connections {
       target: wrapper.notification?.Retainable
       function onDropped() {
-        // Remove from arrays by index to avoid creating new arrays
-        let idx = root.notifications.indexOf(wrapper);
-        if (idx >= 0)
-          root.notifications.splice(idx, 1);
-
-        idx = root.visibleNotifications.indexOf(wrapper);
-        if (idx >= 0)
-          root.visibleNotifications.splice(idx, 1);
-
-        idx = root.notificationQueue.indexOf(wrapper);
-        if (idx >= 0)
-          root.notificationQueue.splice(idx, 1);
+        root.notifications = root.notifications.filter(n => n !== wrapper);
+        root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
+        root.notificationQueue = root.notificationQueue.filter(n => n !== wrapper);
 
         try {
           Logger.log("NotificationService", `dropped: id=${wrapper.id}`);
         } catch (e) {}
+
         root.cleanupExpansionStates();
       }
       function onAboutToDestroy() {
-        wrapper.timer.stop();
         wrapper.destroy();
       }
     }
-
-    Component.onDestruction: wrapper.timer.stop()
   }
 
   Component {
@@ -423,9 +407,7 @@ Singleton {
     if (!next)
       return;
     next.seq = ++root.seqCounter;
-    // Mutate in place instead of creating new array
-    root.visibleNotifications.push(next);
-    root.visibleNotificationsChanged();
+    root.visibleNotifications = [...root.visibleNotifications, next];
     next.popup = true;
 
     if (next.timer.interval > 0) {
@@ -441,11 +423,7 @@ Singleton {
   }
 
   function removeFromVisibleNotifications(wrapper) {
-    const idx = root.visibleNotifications.indexOf(wrapper);
-    if (idx >= 0) {
-      root.visibleNotifications.splice(idx, 1);
-      root.visibleNotificationsChanged();
-    }
+    root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
     try {
       Logger.log("NotificationService", `hide popup: id=${wrapper?.id || "?"}`);
     } catch (e) {}
@@ -456,14 +434,8 @@ Singleton {
     if (!wrapper?.notification)
       return;
 
-    let idx = root.visibleNotifications.indexOf(wrapper);
-    if (idx >= 0)
-      root.visibleNotifications.splice(idx, 1);
-
-    idx = root.notificationQueue.indexOf(wrapper);
-    if (idx >= 0)
-      root.notificationQueue.splice(idx, 1);
-
+    root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
+    root.notificationQueue = root.notificationQueue.filter(n => n !== wrapper);
     wrapper.popup = false;
     wrapper.notification.dismiss();
   }
@@ -472,23 +444,13 @@ Singleton {
     root.popupsDisabled = true;
     addGate.stop();
     root.addGateBusy = false;
-
-    // Dismiss queued notifications before clearing
-    for (const wrapper of root.notificationQueue) {
-      if (wrapper) {
-        try {
-          wrapper.notification?.dismiss();
-        } catch (e) {}
-      }
-    }
-    root.notificationQueue.length = 0; // Clear in place
+    root.notificationQueue = [];
 
     for (const wrapper of root.visibleNotifications) {
       if (wrapper)
         wrapper.popup = false;
     }
-    root.visibleNotifications.length = 0; // Clear in place
-    root.visibleNotificationsChanged();
+    root.visibleNotifications = [];
 
     for (const wrapper of root.notifications) {
       try {
@@ -532,37 +494,20 @@ Singleton {
         return;
     }
 
-    if (tryCall(notif, "invokeAction", actionId))
-      return;
-    if (tryCall(notif, "activateAction", actionId))
-      return;
-    if (tryCall(notif, "triggerAction", actionId))
-      return;
-    if (tryCall(notif, "action", actionId))
-      return;
+    tryCall(notif, "invokeAction", actionId) || tryCall(notif, "activateAction", actionId) || tryCall(notif, "triggerAction", actionId) || tryCall(notif, "action", actionId);
   }
 
   function onOverlayOpen() {
     root.popupsDisabled = true;
     addGate.stop();
     root.addGateBusy = false;
-
-    // Dismiss queued notifications before clearing
-    for (const wrapper of root.notificationQueue) {
-      if (wrapper) {
-        try {
-          wrapper.notification?.dismiss();
-        } catch (e) {}
-      }
-    }
-    root.notificationQueue.length = 0; // Clear in place
+    root.notificationQueue = [];
 
     for (const notif of root.visibleNotifications) {
       if (notif)
         notif.popup = false;
     }
-    root.visibleNotifications.length = 0; // Clear in place
-    root.visibleNotificationsChanged();
+    root.visibleNotifications = [];
   }
 
   function onOverlayClose() {
@@ -634,9 +579,8 @@ Singleton {
           if (notif)
             notif.popup = false;
         }
-        root.visibleNotifications.length = 0; // Clear in place
-        root.notificationQueue.length = 0; // Clear in place
-        root.visibleNotificationsChanged();
+        root.visibleNotifications = [];
+        root.notificationQueue = [];
       } else {
         root.processQueue();
       }

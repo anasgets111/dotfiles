@@ -121,9 +121,6 @@ Item {
           }
         }
 
-        // Ensure selected stays visually on top during transitions
-        z: (cell.index === pill.effectiveCollapsedIndex) ? 1 : 0
-
         // Instantiate the delegate manually so we can pass 'index' at creation time
         property var __child
         Component.onCompleted: {
