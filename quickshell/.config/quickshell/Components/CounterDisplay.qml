@@ -123,11 +123,15 @@ PanelWindow {
         border.color: counterProcess.running ? Theme.activeColor : Theme.borderColor
 
         Behavior on color {
-          ColorAnimation { duration: Theme.animationDuration }
+          ColorAnimation {
+            duration: Theme.animationDuration
+          }
         }
 
         Behavior on border.color {
-          ColorAnimation { duration: Theme.animationDuration }
+          ColorAnimation {
+            duration: Theme.animationDuration
+          }
         }
 
         Text {
@@ -142,7 +146,7 @@ PanelWindow {
         MouseArea {
           anchors.fill: parent
           cursorShape: Qt.PointingHandCursor
-          
+
           onClicked: {
             if (counterProcess.running) {
               counterProcess.running = false;

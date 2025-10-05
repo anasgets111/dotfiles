@@ -31,31 +31,31 @@ LazyLoader {
   loading: true
 
   function openAt(x, y) {
-    buttonPosition = Qt.point(x, y)
-    buttonWidth = 0
-    buttonHeight = 0
-    open()
+    buttonPosition = Qt.point(x, y);
+    buttonWidth = 0;
+    buttonHeight = 0;
+    open();
   }
 
   function openAtItem(item, mouseX, mouseY) {
     if (!item)
-      return
-    buttonPosition = item.mapToItem(null, mouseX || 0, mouseY || 0)
-    buttonWidth = item.width
-    buttonHeight = item.height
-    open()
+      return;
+    buttonPosition = item.mapToItem(null, mouseX || 0, mouseY || 0);
+    buttonWidth = item.width;
+    buttonHeight = item.height;
+    open();
   }
 
   function open() {
-    useButtonPosition = true
-    isOpen = true
+    useButtonPosition = true;
+    isOpen = true;
   }
 
   function close() {
     if (!isOpen)
-      return
-    isOpen = false
-    panelClosed()
+      return;
+    isOpen = false;
+    panelClosed();
   }
 
   PanelWindow {
@@ -105,11 +105,13 @@ LazyLoader {
 
       stdout: SplitParser {
         onRead: data => {
-          const line = data.trim()
+          const line = data.trim();
           if (line !== "") {
-            linesModel.append({ lineText: line })
+            linesModel.append({
+              lineText: line
+            });
             if (!panel.userScrolledUp) {
-              listView.positionViewAtEnd()
+              listView.positionViewAtEnd();
             }
           }
         }
@@ -117,32 +119,32 @@ LazyLoader {
 
       onRunningChanged: {
         if (!running) {
-          console.log("Counter process stopped")
+          console.log("Counter process stopped");
         }
       }
     }
 
     function calculateX() {
       if (!root.useButtonPosition)
-        return 0
-      const centerX = root.buttonPosition.x + root.buttonWidth / 2 - panelBackground.width / 2
-      const minX = 8
-      const maxX = panel.width - panelBackground.width - 8
-      return Math.max(minX, Math.min(centerX, maxX))
+        return 0;
+      const centerX = root.buttonPosition.x + root.buttonWidth / 2 - panelBackground.width / 2;
+      const minX = 8;
+      const maxX = panel.width - panelBackground.width - 8;
+      return Math.max(minX, Math.min(centerX, maxX));
     }
 
     function calculateY() {
       if (!root.useButtonPosition)
-        return Math.round((panel.height - panelBackground.height) / 2)
-      const belowY = Theme.panelHeight
-      const aboveY = root.buttonPosition.y - panelBackground.height - 4
-      const maxY = panel.height - panelBackground.height - 8
+        return Math.round((panel.height - panelBackground.height) / 2);
+      const belowY = Theme.panelHeight;
+      const aboveY = root.buttonPosition.y - panelBackground.height - 4;
+      const maxY = panel.height - panelBackground.height - 8;
 
       if (belowY + panelBackground.height <= panel.height - 8)
-        return Math.round(belowY)
+        return Math.round(belowY);
       if (aboveY >= 8)
-        return Math.round(aboveY)
-      return Math.round(Math.min(belowY, maxY))
+        return Math.round(aboveY);
+      return Math.round(Math.min(belowY, maxY));
     }
 
     Shortcut {
@@ -161,16 +163,16 @@ LazyLoader {
 
       onPressed: function (mouse) {
         if (!panelBackground)
-          return
-        const local = panelBackground.mapFromItem(dismissArea, mouse.x, mouse.y)
-        const inside = local.x >= 0 && local.y >= 0 && local.x <= panelBackground.width && local.y <= panelBackground.height
+          return;
+        const local = panelBackground.mapFromItem(dismissArea, mouse.x, mouse.y);
+        const inside = local.x >= 0 && local.y >= 0 && local.x <= panelBackground.width && local.y <= panelBackground.height;
 
         if (inside) {
-          mouse.accepted = false
-          return
+          mouse.accepted = false;
+          return;
         }
 
-        root.close()
+        root.close();
       }
     }
 
@@ -217,8 +219,8 @@ LazyLoader {
             spacing: Theme.baseScale * 4
 
             onContentYChanged: {
-              const atBottom = listView.atYEnd || (listView.contentHeight - listView.contentY - listView.height) < 10
-              panel.userScrolledUp = !atBottom
+              const atBottom = listView.atYEnd || (listView.contentHeight - listView.contentY - listView.height) < 10;
+              panel.userScrolledUp = !atBottom;
             }
 
             ScrollBar.vertical: ScrollBar {
@@ -257,11 +259,15 @@ LazyLoader {
             border.color: counterProcess.running ? Theme.activeColor : Theme.borderColor
 
             Behavior on color {
-              ColorAnimation { duration: Theme.animationDuration }
+              ColorAnimation {
+                duration: Theme.animationDuration
+              }
             }
 
             Behavior on border.color {
-              ColorAnimation { duration: Theme.animationDuration }
+              ColorAnimation {
+                duration: Theme.animationDuration
+              }
             }
 
             Text {
@@ -276,14 +282,14 @@ LazyLoader {
             MouseArea {
               anchors.fill: parent
               cursorShape: Qt.PointingHandCursor
-              
+
               onClicked: {
                 if (counterProcess.running) {
-                  counterProcess.running = false
+                  counterProcess.running = false;
                 } else {
-                  linesModel.clear()
-                  panel.userScrolledUp = false
-                  counterProcess.running = true
+                  linesModel.clear();
+                  panel.userScrolledUp = false;
+                  counterProcess.running = true;
                 }
               }
             }
