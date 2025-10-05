@@ -357,7 +357,6 @@ Item {
               anchors.fill: parent
               hoverEnabled: messageItem.isMultipleItems
               acceptedButtons: Qt.NoButton
-              z: -1  // Put behind the content
             }
           }
         }

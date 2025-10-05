@@ -40,7 +40,8 @@ Singleton {
     return list.map(p => ({
           name: p.name || "",
           oldVersion: p.oldVersion || "",
-          newVersion: p.newVersion || ""
+          newVersion: p.newVersion || "",
+          source: p.source || "repo"
         }));
   }
 
@@ -74,14 +75,15 @@ Singleton {
     }
   }
 
-  function _parseOutput(text) {
+  function _parseOutput(text, source) {
     const lines = (text || "").trim().split(/\r?\n/).filter(l => l);
     return lines.map(line => {
       const m = line.match(updateLineRe);
       return m ? {
         name: m[1],
         oldVersion: m[2],
-        newVersion: m[3]
+        newVersion: m[3],
+        source: source || "repo"
       } : null;
     }).filter(p => p);
   }
@@ -182,7 +184,7 @@ Singleton {
       onStreamFinished: {
         if (pkgProc.running)
           return;
-        updateService.tempRepoPackages = updateService._parseOutput(text);
+        updateService.tempRepoPackages = updateService._parseOutput(text, "repo");
         updateService.repoComplete = true;
         updateService._commitResults();
       }
@@ -212,7 +214,7 @@ Singleton {
       onStreamFinished: {
         if (aurProc.running)
           return;
-        updateService.tempAurPackages = updateService._parseOutput(text);
+        updateService.tempAurPackages = updateService._parseOutput(text, "aur");
         updateService.aurComplete = true;
         updateService._commitResults();
       }
