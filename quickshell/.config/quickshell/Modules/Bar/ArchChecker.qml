@@ -21,7 +21,7 @@ Item {
     onClicked: mouse => {
       if (mouse.button === Qt.RightButton) {
         if (UpdateService.totalUpdates > 0) {
-          updatePanel.openAtItem(button, mouse.x, mouse.y);
+          counterPanel.openAtItem(button, mouse.x, mouse.y);
         }
         return;
       }
@@ -35,9 +35,9 @@ Item {
     }
   }
 
-  UpdatePanel {
-    id: updatePanel
-    maxVisibleItems: 10
+  CounterPanel {
+    id: counterPanel
     panelWidth: 500
+    panelHeight: 400
   }
 }
