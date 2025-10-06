@@ -525,7 +525,15 @@ Singleton {
   }
 
   function dismissGroup(groupKey) {
-    const group = root.groupedNotifications.find(g => g.key === groupKey);
+    if (!groupKey)
+      return;
+
+    // Try to find in both grouped lists (popups and stored notifications)
+    let group = root.groupedPopups.find(g => g.key === groupKey);
+    if (!group) {
+      group = root.groupedNotifications.find(g => g.key === groupKey);
+    }
+
     if (group) {
       for (const notif of group.notifications) {
         try {
