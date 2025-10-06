@@ -16,7 +16,6 @@ LazyLoader {
   property real itemHeight: Theme.itemHeight
   property real itemPadding: 8
   property int panelWidth: 500
-  property int screenMargin: 8
   property bool useButtonPosition: false
   property point buttonPosition: Qt.point(0, 0)
   property int buttonWidth: 0
@@ -30,11 +29,6 @@ LazyLoader {
   active: true
   loading: true
 
-  function open() {
-    useButtonPosition = true;
-    isOpen = true;
-  }
-
   function close() {
     if (!isOpen)
       return;
@@ -46,12 +40,11 @@ LazyLoader {
     id: panel
 
     readonly property bool isClosing: !root.isOpen && visible
-    readonly property real headerHeight: headerRow.height
-    readonly property real footerHeight: footerRow.height
+    readonly property real headerHeight: root.itemHeight
+    readonly property real footerHeight: root.itemHeight
     readonly property real downloadSizeHeight: root.itemHeight * 0.6
     readonly property real contentHeight: Math.min(updatesList.contentHeight, root.maxVisibleItems * root.itemHeight)
-    readonly property real columnSpacing: 4
-    readonly property real spacingTotal: columnSpacing * 3 // 3 gaps between 4 items
+    readonly property real spacingTotal: 12 // 4px * 3 gaps
     readonly property real totalContentHeight: headerHeight + contentHeight + downloadSizeHeight + footerHeight + spacingTotal + root.itemPadding * 2
     readonly property int currentViewIndex: {
       switch (UpdateService.updateState) {
@@ -99,9 +92,7 @@ LazyLoader {
         return 0;
       const cornerWidth = 48;
       const centerX = root.buttonPosition.x + root.buttonWidth / 2 - panelBackground.width / 2;
-      const minX = cornerWidth;
-      const maxX = panel.width - panelBackground.width - cornerWidth;
-      return Math.max(minX, Math.min(centerX, maxX));
+      return Math.max(cornerWidth, Math.min(centerX, panel.width - panelBackground.width - cornerWidth));
     }
 
     function calculateY() {
@@ -131,8 +122,6 @@ LazyLoader {
       enabled: root.isOpen
 
       onPressed: mouse => {
-        if (!panelBackground)
-          return;
         const local = panelBackground.mapFromItem(dismissArea, mouse.x, mouse.y);
         const inside = local.x >= 0 && local.y >= 0 && local.x <= panelBackground.width && local.y <= panelBackground.height;
         if (inside) {
@@ -161,8 +150,6 @@ LazyLoader {
         radius: Theme.itemRadius
         topLeftRadius: 0
         topRightRadius: 0
-        bottomLeftRadius: Theme.itemRadius
-        bottomRightRadius: Theme.itemRadius
         x: panel.calculateX()
         y: root.isOpen ? targetY : hiddenY
 
@@ -185,7 +172,6 @@ LazyLoader {
             spacing: 4
 
             Rectangle {
-              id: headerRow
               Layout.fillWidth: true
               Layout.preferredHeight: root.itemHeight
               color: root.headerColor
@@ -197,28 +183,9 @@ LazyLoader {
                 anchors.rightMargin: root.itemPadding
                 spacing: 8
 
-                Rectangle {
-                  Layout.preferredWidth: root.itemHeight * 0.6
-                  Layout.preferredHeight: root.itemHeight * 0.6
-                  color: "transparent"
-                  border.color: Theme.textContrast(root.headerColor)
-                  border.width: 2
-                  radius: 4
-
-                  Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width * 0.6
-                    height: parent.height * 0.6
-                    color: Theme.activeColor
-                    radius: 2
-                    visible: UpdateService.selectAll
-                  }
-
-                  MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: UpdateService.toggleSelectAll()
-                  }
+                Checkbox {
+                  checked: UpdateService.selectAll
+                  onClicked: UpdateService.toggleSelectAll()
                 }
 
                 StyledText {
@@ -296,22 +263,9 @@ LazyLoader {
                   anchors.rightMargin: root.itemPadding
                   spacing: 8
 
-                  Rectangle {
-                    Layout.preferredWidth: root.itemHeight * 0.6
-                    Layout.preferredHeight: root.itemHeight * 0.6
-                    color: "transparent"
-                    border.color: Theme.textActiveColor
-                    border.width: 2
-                    radius: 4
-
-                    Rectangle {
-                      anchors.centerIn: parent
-                      width: parent.width * 0.6
-                      height: parent.height * 0.6
-                      color: Theme.activeColor
-                      radius: 2
-                      visible: UpdateService.selectedPackages[updateRow.packageName] || false
-                    }
+                  Checkbox {
+                    checked: UpdateService.selectedPackages[updateRow.packageName] || false
+                    onClicked: UpdateService.togglePackage(updateRow.packageName)
                   }
 
                   StyledText {
@@ -362,13 +316,12 @@ LazyLoader {
             }
 
             RowLayout {
-              id: footerRow
               Layout.fillWidth: true
               Layout.preferredHeight: root.itemHeight
               spacing: 8
 
               ClickableRect {
-                id: selectBtn
+                id: updateSelectedBtn
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.itemHeight
                 readonly property bool btnEnabled: UpdateService.selectedCount > 0
@@ -381,7 +334,7 @@ LazyLoader {
                   anchors.centerIn: parent
                   text: UpdateService.selectedCount > 0 ? qsTr("Update Selected (%1)").arg(UpdateService.selectedCount) : qsTr("Select packages")
                   font.bold: true
-                  color: Theme.textContrast(selectBtn.color)
+                  color: Theme.textContrast(updateSelectedBtn.color)
                 }
               }
 
@@ -513,30 +466,23 @@ LazyLoader {
                     Qt.callLater(() => positionViewAtEnd());
                 }
 
-                delegate: Item {
-                  id: outputDelegate
-                  required property string modelData
+                delegate: Text {
+                  required property var modelData
                   width: ListView.view.width
-                  height: lineText.height
-
-                  Text {
-                    id: lineText
-                    width: parent.width
-                    text: outputDelegate.modelData
-                    font.family: "Monospace"
-                    font.pixelSize: Theme.fontSize * 0.9
-                    color: {
-                      const line = outputDelegate.modelData.toLowerCase();
-                      if (line.includes("error") || line.includes("failed"))
-                        return Theme.critical;
-                      if (line.includes("warning"))
-                        return Theme.warning;
-                      if (line.includes("installing") || line.includes("upgrading"))
-                        return Theme.activeColor;
-                      return Theme.textInactiveColor;
-                    }
-                    wrapMode: Text.Wrap
+                  text: modelData.text || modelData
+                  font.family: "Monospace"
+                  font.pixelSize: Theme.fontSize * 0.9
+                  color: {
+                    const line = text.toLowerCase();
+                    if (line.includes("error") || line.includes("failed"))
+                      return Theme.critical;
+                    if (line.includes("warning"))
+                      return Theme.warning;
+                    if (line.includes("installing") || line.includes("upgrading"))
+                      return Theme.activeColor;
+                    return Theme.textInactiveColor;
                   }
+                  wrapMode: Text.Wrap
                 }
               }
             }
@@ -564,7 +510,7 @@ LazyLoader {
             }
           }
 
-          // View 2: Completion/Error (condensed - removed duplicate code)
+          // View 2: Completion/Error
           Item {
             ColumnLayout {
               anchors.centerIn: parent
@@ -624,28 +570,21 @@ LazyLoader {
                     model: UpdateService.outputLines.slice(-20)
                     spacing: 2
 
-                    delegate: Item {
-                      id: errorDelegate
-                      required property string modelData
+                    delegate: Text {
+                      required property var modelData
                       width: ListView.view.width
-                      height: errorLineText.height
-
-                      Text {
-                        id: errorLineText
-                        width: parent.width
-                        text: errorDelegate.modelData
-                        font.family: "Monospace"
-                        font.pixelSize: Theme.fontSize * 0.85
-                        color: {
-                          const line = errorDelegate.modelData.toLowerCase();
-                          if (line.includes("error") || line.includes("failed"))
-                            return Theme.critical;
-                          if (line.includes("warning"))
-                            return Theme.warning;
-                          return Theme.textInactiveColor;
-                        }
-                        wrapMode: Text.Wrap
+                      text: modelData.text || modelData
+                      font.family: "Monospace"
+                      font.pixelSize: Theme.fontSize * 0.85
+                      color: {
+                        const line = text.toLowerCase();
+                        if (line.includes("error") || line.includes("failed"))
+                          return Theme.critical;
+                        if (line.includes("warning"))
+                          return Theme.warning;
+                        return Theme.textInactiveColor;
                       }
+                      wrapMode: Text.Wrap
                     }
                   }
                 }
@@ -655,65 +594,43 @@ LazyLoader {
                 Layout.fillWidth: true
                 spacing: 8
 
-                Rectangle {
+                ClickableRect {
+                  id: retryBtn
                   Layout.fillWidth: true
                   Layout.preferredHeight: root.itemHeight
-                  color: retryMouse.containsMouse ? Qt.lighter(Theme.warning, 1.2) : Theme.warning
+                  color: hovered ? Qt.lighter(Theme.warning, 1.2) : Theme.warning
                   radius: Theme.itemRadius
                   visible: UpdateService.updateState === UpdateService.status.Error
-                  Behavior on color {
-                    ColorAnimation {
-                      duration: Theme.animationDuration
-                    }
+                  onClicked: {
+                    UpdateService.updateState = UpdateService.status.Idle;
+                    UpdateService.executeUpdate();
                   }
 
                   StyledText {
                     anchors.centerIn: parent
                     text: qsTr("Retry")
                     font.bold: true
-                    color: Theme.textContrast(parent.color)
-                  }
-
-                  MouseArea {
-                    id: retryMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                      UpdateService.updateState = UpdateService.status.Idle;
-                      UpdateService.executeUpdate();
-                    }
+                    color: Theme.textContrast(retryBtn.color)
                   }
                 }
 
-                Rectangle {
+                ClickableRect {
+                  id: closeBtn
                   Layout.fillWidth: true
                   Layout.preferredHeight: root.itemHeight
-                  color: closeMouse.containsMouse ? Theme.onHoverColor : Theme.activeColor
+                  color: hovered ? Theme.onHoverColor : Theme.activeColor
                   radius: Theme.itemRadius
-                  Behavior on color {
-                    ColorAnimation {
-                      duration: Theme.animationDuration
-                    }
+                  onClicked: {
+                    UpdateService.updateState = UpdateService.status.Idle;
+                    UpdateService.resetSelection();
+                    root.close();
                   }
 
                   StyledText {
                     anchors.centerIn: parent
                     text: qsTr("Close")
                     font.bold: true
-                    color: Theme.textContrast(parent.color)
-                  }
-
-                  MouseArea {
-                    id: closeMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                      UpdateService.updateState = UpdateService.status.Idle;
-                      UpdateService.resetSelection();
-                      root.close();
-                    }
+                    color: Theme.textContrast(closeBtn.color)
                   }
                 }
               }
@@ -746,9 +663,8 @@ LazyLoader {
     Connections {
       target: UpdateService
       function onUpdateStateChanged() {
-        if (UpdateService.updateState === UpdateService.status.Completed) {
+        if (UpdateService.updateState === UpdateService.status.Completed)
           root.close();
-        }
       }
     }
   }
@@ -775,6 +691,33 @@ LazyLoader {
       ColorAnimation {
         duration: Theme.animationDuration
       }
+    }
+  }
+
+  component Checkbox: Rectangle {
+    id: checkboxRoot
+    property bool checked: false
+    signal clicked
+    Layout.preferredWidth: root.itemHeight * 0.6
+    Layout.preferredHeight: root.itemHeight * 0.6
+    color: "transparent"
+    border.color: Theme.textActiveColor
+    border.width: 2
+    radius: 4
+
+    Rectangle {
+      anchors.centerIn: parent
+      width: parent.width * 0.6
+      height: parent.height * 0.6
+      color: Theme.activeColor
+      radius: 2
+      visible: checkboxRoot.checked
+    }
+
+    MouseArea {
+      anchors.fill: parent
+      cursorShape: Qt.PointingHandCursor
+      onClicked: parent.clicked()
     }
   }
 }

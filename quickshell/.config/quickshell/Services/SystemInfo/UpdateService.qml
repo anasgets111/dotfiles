@@ -26,36 +26,26 @@ Singleton {
   property var failedPackages: []
   property var selectedPackages: ({})
   property bool selectAll: false
-  readonly property var selectedPackageNames: Object.keys(selectedPackages).filter(k => selectedPackages[k])
   property var updatePackages: []
   property double lastSync: 0
   property int lastNotifiedTotal: 0
   property bool checkupdatesAvailable: false
   property int failureCount: 0
-  property bool repoComplete: false
-  property var tempRepoPackages: []
   property var packageSizes: ({})
 
+  readonly property var selectedPackageNames: Object.keys(selectedPackages).filter(k => selectedPackages[k])
   readonly property int totalUpdates: updatePackages.length
-  readonly property int selectedCount: Object.values(selectedPackages).filter(v => v).length
+  readonly property int selectedCount: selectedPackageNames.length
   readonly property bool busy: pkgProc.running
   readonly property bool ready: MainService.isArchBased && checkupdatesAvailable
   readonly property int totalDownloadSize: {
-    const pkgs = selectedPackageNames.length > 0 ? updatePackages.filter(pkg => selectedPackageNames.includes(pkg.name)) : updatePackages;
-    return pkgs.reduce((total, pkg) => total + (packageSizes[pkg.name] || 0), 0);
+    const pkgs = selectedCount > 0 ? updatePackages.filter(p => selectedPackages[p.name] === true) : updatePackages;
+    return pkgs.reduce((sum, p) => sum + (packageSizes[p.name] || 0), 0);
   }
   readonly property int pollInterval: 15 * 60 * 1000
   readonly property int failureThreshold: 5
   readonly property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "sh", "-c", "$BIN/update.sh"]
   readonly property var updateLineRe: /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/
-
-  function _clonePackageList(list) {
-    return list.map(p => ({
-          name: p.name || "",
-          oldVersion: p.oldVersion || "",
-          newVersion: p.newVersion || ""
-        }));
-  }
 
   function _notify(title, message, urgency = "normal", action = null) {
     const args = ["-u", urgency, "-a", "UpdateService", "-i", "system-software-update"];
@@ -74,7 +64,7 @@ Singleton {
   function _handleError(source, message, code) {
     Logger.warn("UpdateService", `${source} error (code: ${code}): ${message}`);
     if (++failureCount >= failureThreshold) {
-      _notify(qsTr("Update check failed"), message, "critical", "dismiss");
+      _notify(qsTr("Update check failed"), message, "critical");
       failureCount = 0;
     }
   }
@@ -103,38 +93,31 @@ Singleton {
     }).filter(p => p);
   }
 
-  function _commitResults() {
-    if (!ready || !repoComplete)
-      return;
-    updatePackages = _clonePackageList(tempRepoPackages);
-    lastSync = Date.now();
-    _notifyIfIncreased();
-    if (updatePackages.length > 0)
-      fetchPackageSizes();
-  }
-
   function fetchPackageSizes() {
     if (updatePackages.length === 0)
       return;
-    sizeFetchProcess.command = ["expac", "-S", "%k\t%n", ...updatePackages.map(pkg => pkg.name)];
+    sizeFetchProcess.command = ["expac", "-S", "%k\t%n", ...updatePackages.map(p => p.name)];
     sizeFetchProcess.running = true;
   }
 
   function doPoll() {
     if (busy)
       return;
-    repoComplete = false;
-    tempRepoPackages = [];
     pkgProc.command = ["checkupdates", "--nocolor"];
     pkgProc.running = true;
   }
 
   function runUpdate() {
-    totalUpdates > 0 ? (updateRunner.command = updateCommand, updateRunner.running = true) : doPoll();
+    if (totalUpdates > 0) {
+      updateRunner.command = updateCommand;
+      updateRunner.running = true;
+    } else {
+      doPoll();
+    }
   }
 
   function executeUpdate() {
-    const packages = selectedPackageNames.length > 0 ? selectedPackageNames : updatePackages.map(pkg => pkg.name);
+    const packages = selectedCount > 0 ? selectedPackageNames : updatePackages.map(p => p.name);
     if (packages.length === 0) {
       Logger.warn("UpdateService", "No packages to update");
       return;
@@ -168,16 +151,16 @@ Singleton {
 
   function toggleSelectAll() {
     selectAll = !selectAll;
-    const newSelected = {};
-    updatePackages.forEach(pkg => newSelected[pkg.name] = selectAll);
-    selectedPackages = newSelected;
+    selectedPackages = updatePackages.reduce((acc, pkg) => Object.assign({}, acc, {
+        [pkg.name]: selectAll
+      }), {});
   }
 
   function togglePackage(packageName) {
-    const newSelected = Object.assign({}, selectedPackages);
-    newSelected[packageName] = !newSelected[packageName];
-    selectedPackages = newSelected;
-    selectAll = updatePackages.every(pkg => selectedPackages[pkg.name]);
+    selectedPackages = Object.assign({}, selectedPackages, {
+      [packageName]: !selectedPackages[packageName]
+    });
+    selectAll = updatePackages.every(p => selectedPackages[p.name]);
   }
 
   function resetSelection() {
@@ -186,12 +169,12 @@ Singleton {
   }
 
   Component.onCompleted: {
-    updatePackages = _clonePackageList(JSON.parse(cache.cachedUpdatePackagesJson || "[]"));
+    updatePackages = JSON.parse(cache.cachedUpdatePackagesJson || "[]");
     if (cache.cachedLastSync > 0)
       lastSync = cache.cachedLastSync;
   }
 
-  onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(_clonePackageList(updatePackages))
+  onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
   onLastSyncChanged: cache.cachedLastSync = lastSync
 
   PersistentProperties {
@@ -226,20 +209,20 @@ Singleton {
     stdout: SplitParser {
       onRead: line => {
         const parts = line.trim().split('\t');
-        if (parts.length === 2) {
-          const sizeBytes = parseFloat(parts[0]);
-          const packageName = parts[1];
-          if (!isNaN(sizeBytes) && packageName) {
-            const newSizes = Object.assign({}, root.packageSizes);
-            newSizes[packageName] = Math.round(sizeBytes);
-            root.packageSizes = newSizes;
-          }
+        if (parts.length !== 2)
+          return;
+        const sizeBytes = parseFloat(parts[0]);
+        const packageName = parts[1];
+        if (!isNaN(sizeBytes) && packageName) {
+          // expac %k returns bytes, convert to KiB for consistency
+          root.packageSizes = Object.assign({}, root.packageSizes, {
+            [packageName]: Math.round(sizeBytes / 1024)
+          });
         }
       }
     }
     onExited: {
       Logger.log("UpdateService", `Fetched sizes for ${Object.keys(root.packageSizes).length} packages`);
-      root.totalDownloadSizeChanged();
     }
   }
 
@@ -253,20 +236,18 @@ Singleton {
     }
     stdout: StdioCollector {
       onStreamFinished: {
-        if (!pkgProc.running) {
-          root.tempRepoPackages = root._parseOutput(text);
-          root.repoComplete = true;
-          root._commitResults();
-        }
+        const parsed = root._parseOutput(text);
+        root.updatePackages = parsed;
+        root.lastSync = Date.now();
+        root._notifyIfIncreased();
+        if (parsed.length > 0)
+          root.fetchPackageSizes();
       }
     }
     onExited: (exitCode, exitStatus) => {
       if (exitCode !== 0 && exitCode !== 2) {
         root._handleError("checkupdates", `Exit code: ${exitCode}`, exitCode);
-        root.tempRepoPackages = [];
       }
-      root.repoComplete = true;
-      root._commitResults();
     }
   }
 
@@ -274,7 +255,7 @@ Singleton {
     id: updateProcess
 
     function addOutput(line, type) {
-      if (line.trim() === "")
+      if (!line.trim())
         return;
       root.outputLines.push({
         text: line,
@@ -299,7 +280,7 @@ Singleton {
     stderr: SplitParser {
       onRead: data => {
         const line = data.trim();
-        if (line === "")
+        if (!line)
           return;
         updateProcess.addOutput(line, "error");
 
@@ -336,10 +317,8 @@ Singleton {
     id: pollTimer
     interval: root.pollInterval
     repeat: true
-    onTriggered: {
-      if (root.ready)
-        root.doPoll();
-    }
+    onTriggered: if (root.ready)
+      root.doPoll()
   }
 
   Component.onDestruction: pollTimer.stop()

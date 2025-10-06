@@ -76,7 +76,7 @@ Item {
       }
       if (UpdateService.busy)
         return;
-      UpdateService.totalUpdates > 0 ? UpdateService.runUpdate() : UpdateService.doPoll(true);
+      UpdateService.totalUpdates > 0 ? UpdateService.runUpdate() : UpdateService.doPoll();
     }
   }
 
