@@ -22,6 +22,7 @@ LazyLoader {
   property int buttonWidth: 0
   property int buttonHeight: 0
   property bool isOpen: false
+  property bool isClosing: false
 
   readonly property color headerColor: Qt.lighter(Theme.bgColor, 1.74)
 
@@ -40,6 +41,9 @@ LazyLoader {
   }
 
   function open() {
+    if (isClosing) {
+      root.isClosing = false;
+    }
     useButtonPosition = true;
     isOpen = true;
   }
@@ -47,15 +51,25 @@ LazyLoader {
   function close() {
     if (!isOpen)
       return;
+    isClosing = true;
     isOpen = false;
-    useButtonPosition = false;
-    panelClosed();
   }
 
   PanelWindow {
     id: panel
 
-    readonly property bool isClosing: !root.isOpen && visible
+    Timer {
+      id: closeTimer
+      interval: Theme.animationDuration
+      repeat: false
+      running: root.isClosing
+      onTriggered: {
+        root.isClosing = false;
+        root.useButtonPosition = false;
+        root.panelClosed();
+      }
+    }
+
     readonly property real headerHeight: root.itemHeight
     readonly property real footerHeight: root.itemHeight
     readonly property real downloadSizeHeight: root.itemHeight * 0.6
@@ -81,17 +95,7 @@ LazyLoader {
 
     screen: MonitorService.effectiveMainScreen
     color: "transparent"
-    visible: root.isOpen || isClosing
-
-    mask: Region {
-      item: maskItem
-      intersection: root.isOpen ? Intersection.Combine : Intersection.Xor
-    }
-
-    Item {
-      id: maskItem
-      anchors.fill: parent
-    }
+    visible: root.isOpen || root.isClosing
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
@@ -131,7 +135,7 @@ LazyLoader {
 
     Shortcut {
       sequences: ["Escape"]
-      enabled: root.isOpen
+      enabled: root.isOpen && !root.isClosing
       onActivated: root.close()
       context: Qt.WindowShortcut
     }
@@ -140,7 +144,8 @@ LazyLoader {
       id: dismissArea
       anchors.fill: parent
       acceptedButtons: Qt.LeftButton | Qt.RightButton
-      enabled: root.isOpen
+      hoverEnabled: false
+      enabled: root.isOpen && !root.isClosing
 
       onPressed: mouse => {
         const local = panelBackground.mapFromItem(dismissArea, mouse.x, mouse.y);
