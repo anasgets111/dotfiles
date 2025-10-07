@@ -16,6 +16,7 @@ Singleton {
   property bool _ready: false
   property bool _scanning: false
   property bool _wifiRadioEnabled: true
+  property bool _networkingEnabled: true
   property real _lastDeviceRefreshMs: 0
   property real _lastWifiScanMs: 0
   property string linkType: "disconnected"
@@ -36,6 +37,7 @@ Singleton {
   readonly property bool ready: _ready
   readonly property bool scanning: _scanning
   readonly property bool wifiRadioEnabled: _wifiRadioEnabled
+  readonly property bool networkingEnabled: _networkingEnabled
   readonly property var lowPriorityCommand: ["nice", "-n", "19", "ionice", "-c3"]
   readonly property var uuidRegex: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
   readonly property var wifiAps: _wifiAps
@@ -135,6 +137,15 @@ Singleton {
 
   function toggleWifiRadio() {
     setWifiRadioEnabled(!_wifiRadioEnabled);
+  }
+
+  function setNetworkingEnabled(enabled) {
+    Logger.log("NetworkService", `setting networking: ${enabled ? "on" : "off"}`);
+    startConnectCommand(["nmcli", "networking", enabled ? "on" : "off"]);
+  }
+
+  function toggleNetworking() {
+    setNetworkingEnabled(!_networkingEnabled);
   }
 
   // Query helpers
@@ -441,6 +452,7 @@ Singleton {
     if (wifiIface && _wifiRadioEnabled)
       scanWifi(wifiIface);
     startProcess(wifiRadioProcess);
+    startProcess(networkingProcess);
   }
 
   function refreshDeviceList(forceRefresh) {
@@ -594,6 +606,21 @@ Singleton {
   }
 
   Process {
+    id: networkingProcess
+    command: root.prepareCommand(["nmcli", "networking"], false)
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const statusString = String(text || "").trim().toLowerCase();
+        const enabled = statusString.includes("enabled") || statusString === "on" || statusString === "yes";
+        if (root._networkingEnabled !== enabled) {
+          root._networkingEnabled = enabled;
+          Logger.log("NetworkService", `Networking state: ${enabled ? "enabled" : "disabled"}`);
+        }
+      }
+    }
+  }
+
+  Process {
     id: connectProcess
 
     onRunningChanged: {
@@ -620,6 +647,7 @@ Singleton {
         root.refreshDeviceList(true);
         root.startProcess(savedConnectionsProcess);
         root.startProcess(wifiRadioProcess);
+        root.startProcess(networkingProcess);
 
         // Force WiFi scan after connection to update active network immediately
         const wifiIface = root.wifiInterface || root.firstWifiInterface();
