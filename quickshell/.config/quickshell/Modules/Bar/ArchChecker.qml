@@ -66,11 +66,7 @@ Item {
     onClicked: mouse => {
       if (mouse.button === Qt.RightButton) {
         if (UpdateService.totalUpdates > 0 || UpdateService.updateState !== UpdateService.status.Idle) {
-          updatePanel.useButtonPosition = true;
-          updatePanel.buttonPosition = button.mapToGlobal(0, 0);
-          updatePanel.buttonWidth = button.width;
-          updatePanel.buttonHeight = button.height;
-          updatePanel.isOpen = true;
+          updatePanel.openAtItem(button, mouse.x, mouse.y);
         }
         return;
       }

@@ -16,6 +16,7 @@ LazyLoader {
   property real itemHeight: Theme.itemHeight
   property real itemPadding: 8
   property int panelWidth: 500
+  property int screenMargin: 8
   property bool useButtonPosition: false
   property point buttonPosition: Qt.point(0, 0)
   property int buttonWidth: 0
@@ -29,10 +30,25 @@ LazyLoader {
   active: true
   loading: true
 
+  function openAtItem(item, mouseX, mouseY) {
+    if (!item)
+      return;
+    buttonPosition = item.mapToItem(null, mouseX || 0, mouseY || 0);
+    buttonWidth = item.width;
+    buttonHeight = item.height;
+    open();
+  }
+
+  function open() {
+    useButtonPosition = true;
+    isOpen = true;
+  }
+
   function close() {
     if (!isOpen)
       return;
     isOpen = false;
+    useButtonPosition = false;
     panelClosed();
   }
 
@@ -60,6 +76,9 @@ LazyLoader {
       }
     }
 
+    // Determine if we need keyboard focus based on current view
+    readonly property bool needsInteraction: currentViewIndex === 0 || currentViewIndex === 2
+
     screen: MonitorService.effectiveMainScreen
     color: "transparent"
     visible: root.isOpen || isClosing
@@ -77,7 +96,7 @@ LazyLoader {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "update-panel"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: needsInteraction ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     WlrLayershell.exclusiveZone: -1
 
     anchors {
@@ -90,9 +109,11 @@ LazyLoader {
     function calculateX() {
       if (!root.useButtonPosition)
         return 0;
-      const cornerWidth = 48;
+      const cornerRadius = Theme.panelRadius * 3;
       const centerX = root.buttonPosition.x + root.buttonWidth / 2 - panelBackground.width / 2;
-      return Math.max(cornerWidth, Math.min(centerX, panel.width - panelBackground.width - cornerWidth));
+      const minX = root.screenMargin + cornerRadius; // Reserve space for left corner
+      const maxX = panel.width - panelBackground.width - root.screenMargin - cornerRadius; // Reserve space for right corner
+      return Math.max(minX, Math.min(centerX, maxX));
     }
 
     function calculateY() {
@@ -162,100 +183,24 @@ LazyLoader {
 
         clip: true
 
-        StackLayout {
+        FocusScope {
           anchors.fill: parent
-          anchors.margins: root.itemPadding
-          currentIndex: panel.currentViewIndex
+          focus: root.isOpen
 
-          // View 0: Package List
-          ColumnLayout {
-            spacing: 4
+          StackLayout {
+            anchors.fill: parent
+            anchors.margins: root.itemPadding
+            currentIndex: panel.currentViewIndex
 
-            Rectangle {
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.itemHeight
-              color: root.headerColor
-              radius: Theme.itemRadius
+            // View 0: Package List
+            ColumnLayout {
+              spacing: 4
 
-              RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: root.itemPadding
-                anchors.rightMargin: root.itemPadding
-                spacing: 8
-
-                Checkbox {
-                  checked: UpdateService.selectAll
-                  onClicked: UpdateService.toggleSelectAll()
-                }
-
-                StyledText {
-                  Layout.fillWidth: true
-                  Layout.preferredWidth: parent.width * 0.35
-                  text: qsTr("Package")
-                  font.bold: true
-                  color: Theme.textContrast(root.headerColor)
-                }
-
-                StyledText {
-                  Layout.fillWidth: true
-                  Layout.preferredWidth: parent.width * 0.3
-                  text: qsTr("Old Version")
-                  font.bold: true
-                  color: Theme.textContrast(root.headerColor)
-                }
-
-                StyledText {
-                  Layout.fillWidth: true
-                  Layout.preferredWidth: parent.width * 0.3
-                  text: qsTr("New Version")
-                  font.bold: true
-                  color: Theme.textContrast(root.headerColor)
-                }
-              }
-            }
-
-            ListView {
-              id: updatesList
-              Layout.fillWidth: true
-              Layout.preferredHeight: Math.min(contentHeight, root.maxVisibleItems * root.itemHeight)
-              spacing: 2
-              interactive: contentHeight > height
-              clip: true
-              model: UpdateService.updatePackages
-
-              ScrollBar.vertical: ScrollBar {
-                policy: updatesList.contentHeight > updatesList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-                width: 8
-              }
-
-              delegate: Rectangle {
-                id: updateRow
-                required property var modelData
-                required property int index
-
-                readonly property string packageName: modelData.name || ""
-                readonly property string oldVersion: modelData.oldVersion || ""
-                readonly property string newVersion: modelData.newVersion || ""
-
-                width: updatesList.width
-                height: root.itemHeight
-                color: rowHover.containsMouse ? Qt.lighter(Theme.bgColor, 1.47) : Theme.bgColor
-                radius: Theme.itemRadius * 0.5
-
-                Behavior on color {
-                  ColorAnimation {
-                    duration: Theme.animationDuration * 0.7
-                    easing.type: Easing.OutQuad
-                  }
-                }
-
-                MouseArea {
-                  id: rowHover
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: UpdateService.togglePackage(updateRow.packageName)
-                }
+              Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: root.itemHeight
+                color: root.headerColor
+                radius: Theme.itemRadius
 
                 RowLayout {
                   anchors.fill: parent
@@ -264,373 +209,454 @@ LazyLoader {
                   spacing: 8
 
                   Checkbox {
-                    checked: UpdateService.selectedPackages[updateRow.packageName] || false
-                    onClicked: UpdateService.togglePackage(updateRow.packageName)
+                    checked: UpdateService.selectAll
+                    onClicked: UpdateService.toggleSelectAll()
                   }
 
                   StyledText {
                     Layout.fillWidth: true
                     Layout.preferredWidth: parent.width * 0.35
-                    text: updateRow.packageName
+                    text: qsTr("Package")
+                    font.bold: true
+                    color: Theme.textContrast(root.headerColor)
                   }
 
                   StyledText {
                     Layout.fillWidth: true
                     Layout.preferredWidth: parent.width * 0.3
-                    text: updateRow.oldVersion
-                    color: Theme.textInactiveColor
+                    text: qsTr("Old Version")
+                    font.bold: true
+                    color: Theme.textContrast(root.headerColor)
                   }
 
                   StyledText {
                     Layout.fillWidth: true
                     Layout.preferredWidth: parent.width * 0.3
-                    text: updateRow.newVersion
-                    color: Theme.activeColor
+                    text: qsTr("New Version")
+                    font.bold: true
+                    color: Theme.textContrast(root.headerColor)
                   }
                 }
               }
-            }
-
-            Rectangle {
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.itemHeight * 0.6
-              color: "transparent"
-
-              RowLayout {
-                anchors.centerIn: parent
-                spacing: 4
-
-                StyledText {
-                  text: "󰇚"
-                  color: Theme.textInactiveColor
-                  opacity: 0.7
-                }
-
-                StyledText {
-                  text: qsTr("Total download: %1").arg(SystemInfoService.fmtKib(UpdateService.totalDownloadSize))
-                  font.pixelSize: Theme.fontSize * 0.9
-                  color: Theme.textInactiveColor
-                  opacity: 0.8
-                }
-              }
-            }
-
-            RowLayout {
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.itemHeight
-              spacing: 8
-
-              ClickableRect {
-                id: updateSelectedBtn
-                Layout.fillWidth: true
-                Layout.preferredHeight: root.itemHeight
-                readonly property bool btnEnabled: UpdateService.selectedCount > 0
-                color: btnEnabled ? Theme.activeColor : Theme.disabledColor
-                radius: Theme.itemRadius
-                onClicked: if (btnEnabled)
-                  UpdateService.executeUpdate()
-
-                StyledText {
-                  anchors.centerIn: parent
-                  text: UpdateService.selectedCount > 0 ? qsTr("Update Selected (%1)").arg(UpdateService.selectedCount) : qsTr("Select packages")
-                  font.bold: true
-                  color: Theme.textContrast(updateSelectedBtn.color)
-                }
-              }
-
-              ClickableRect {
-                id: updateAllBtn
-                Layout.fillWidth: true
-                Layout.preferredHeight: root.itemHeight
-                color: Theme.activeColor
-                radius: Theme.itemRadius
-                onClicked: {
-                  UpdateService.resetSelection();
-                  UpdateService.executeUpdate();
-                }
-
-                StyledText {
-                  anchors.centerIn: parent
-                  text: qsTr("Update All")
-                  font.bold: true
-                  color: Theme.textContrast(updateAllBtn.color)
-                }
-              }
-
-              ClickableRect {
-                id: cancelBtn
-                Layout.fillWidth: true
-                Layout.preferredHeight: root.itemHeight
-                color: Theme.inactiveColor
-                radius: Theme.itemRadius
-                onClicked: {
-                  UpdateService.resetSelection();
-                  root.close();
-                }
-
-                StyledText {
-                  anchors.centerIn: parent
-                  text: qsTr("Cancel")
-                  font.bold: true
-                  color: Theme.textContrast(cancelBtn.color)
-                }
-              }
-            }
-          }
-
-          // View 1: Live Output
-          ColumnLayout {
-            spacing: 0
-
-            Rectangle {
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.itemHeight * 2
-              color: Theme.bgColor
-
-              ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 8
-                spacing: 4
-
-                StyledText {
-                  Layout.fillWidth: true
-                  text: {
-                    const current = UpdateService.currentPackageIndex;
-                    const total = UpdateService.totalPackagesToUpdate;
-                    return total > 0 ? qsTr("Installing %1 of %2 packages...").arg(current).arg(total) : qsTr("Updating packages...");
-                  }
-                  font.bold: true
-                }
-
-                Rectangle {
-                  Layout.fillWidth: true
-                  Layout.preferredHeight: 6
-                  color: Theme.borderColor
-                  radius: 3
-
-                  Rectangle {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    width: {
-                      const total = UpdateService.totalPackagesToUpdate;
-                      return total > 0 ? parent.width * (UpdateService.currentPackageIndex / total) : 0;
-                    }
-                    color: Theme.activeColor
-                    radius: parent.radius
-                    Behavior on width {
-                      NumberAnimation {
-                        duration: Theme.animationDuration
-                        easing.type: Easing.OutQuad
-                      }
-                    }
-                  }
-                }
-              }
-            }
-
-            Rectangle {
-              Layout.fillWidth: true
-              Layout.preferredHeight: 1
-              color: Theme.borderColor
-            }
-
-            Rectangle {
-              Layout.fillWidth: true
-              Layout.fillHeight: true
-              color: Qt.darker(Theme.bgColor, 1.05)
 
               ListView {
-                id: outputListView
-                anchors.fill: parent
-                anchors.margins: 8
-                clip: true
+                id: updatesList
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(contentHeight, root.maxVisibleItems * root.itemHeight)
                 spacing: 2
-                model: UpdateService.outputLines
-                property bool userScrolledUp: false
+                interactive: contentHeight > height
+                clip: true
+                model: UpdateService.updatePackages
 
                 ScrollBar.vertical: ScrollBar {
-                  policy: ScrollBar.AsNeeded
-                  minimumSize: 0.1
+                  policy: updatesList.contentHeight > updatesList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                  width: 8
                 }
 
-                onContentYChanged: {
-                  if (!moving && !flicking)
-                    return;
-                  const atBottom = atYEnd || (contentHeight - contentY - height) < 10;
-                  userScrolledUp = !atBottom;
-                }
-
-                onCountChanged: {
-                  if (!userScrolledUp)
-                    Qt.callLater(() => positionViewAtEnd());
-                }
-
-                delegate: Text {
+                delegate: Rectangle {
+                  id: updateRow
                   required property var modelData
-                  width: ListView.view.width
-                  text: modelData.text || modelData
-                  font.family: "Monospace"
-                  font.pixelSize: Theme.fontSize * 0.9
-                  color: {
-                    const line = text.toLowerCase();
-                    if (line.includes("error") || line.includes("failed"))
-                      return Theme.critical;
-                    if (line.includes("warning"))
-                      return Theme.warning;
-                    if (line.includes("installing") || line.includes("upgrading"))
-                      return Theme.activeColor;
-                    return Theme.textInactiveColor;
-                  }
-                  wrapMode: Text.Wrap
-                }
-              }
-            }
+                  required property int index
 
-            Rectangle {
-              Layout.fillWidth: true
-              Layout.preferredHeight: 1
-              color: Theme.borderColor
-            }
+                  readonly property string packageName: modelData.name || ""
+                  readonly property string oldVersion: modelData.oldVersion || ""
+                  readonly property string newVersion: modelData.newVersion || ""
 
-            ClickableRect {
-              id: cancelUpdateBtn
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.itemHeight
-              color: hovered ? Theme.onHoverColor : Theme.inactiveColor
-              radius: 0
-              onClicked: UpdateService.cancelUpdate()
+                  width: updatesList.width
+                  height: root.itemHeight
+                  color: rowHover.containsMouse ? Qt.lighter(Theme.bgColor, 1.47) : Theme.bgColor
+                  radius: Theme.itemRadius * 0.5
 
-              StyledText {
-                anchors.centerIn: parent
-                text: qsTr("Cancel Update")
-                font.bold: true
-                color: Theme.textContrast(cancelUpdateBtn.color)
-              }
-            }
-          }
-
-          // View 2: Completion/Error
-          Item {
-            ColumnLayout {
-              anchors.centerIn: parent
-              spacing: 16
-              width: parent.width * 0.8
-
-              ColumnLayout {
-                Layout.alignment: Qt.AlignHCenter
-                spacing: 8
-
-                Text {
-                  Layout.alignment: Qt.AlignHCenter
-                  text: UpdateService.updateState === UpdateService.status.Completed ? "✓" : "❌"
-                  font.pixelSize: Theme.fontSize * 4
-                  color: UpdateService.updateState === UpdateService.status.Completed ? Theme.activeColor : Theme.critical
-                }
-
-                StyledText {
-                  Layout.alignment: Qt.AlignHCenter
-                  text: {
-                    if (UpdateService.updateState === UpdateService.status.Completed) {
-                      const count = UpdateService.completedPackages.length;
-                      return qsTr("%1 Package%2 Updated Successfully").arg(count).arg(count !== 1 ? "s" : "");
+                  Behavior on color {
+                    ColorAnimation {
+                      duration: Theme.animationDuration * 0.7
+                      easing.type: Easing.OutQuad
                     }
-                    return qsTr("Update Failed");
                   }
-                  font.pixelSize: Theme.fontSize * 1.5
-                  font.bold: true
-                }
 
-                StyledText {
-                  Layout.alignment: Qt.AlignHCenter
-                  text: UpdateService.updateState === UpdateService.status.Error ? UpdateService.errorMessage : qsTr("All updates have been installed")
-                  color: Theme.textInactiveColor
-                  opacity: 0.8
-                  horizontalAlignment: Text.AlignHCenter
-                  wrapMode: Text.Wrap
-                  Layout.preferredWidth: parent.width
+                  MouseArea {
+                    id: rowHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: UpdateService.togglePackage(updateRow.packageName)
+                  }
+
+                  RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: root.itemPadding
+                    anchors.rightMargin: root.itemPadding
+                    spacing: 8
+
+                    Checkbox {
+                      checked: UpdateService.selectedPackages[updateRow.packageName] || false
+                      onClicked: UpdateService.togglePackage(updateRow.packageName)
+                    }
+
+                    StyledText {
+                      Layout.fillWidth: true
+                      Layout.preferredWidth: parent.width * 0.35
+                      text: updateRow.packageName
+                    }
+
+                    StyledText {
+                      Layout.fillWidth: true
+                      Layout.preferredWidth: parent.width * 0.3
+                      text: updateRow.oldVersion
+                      color: Theme.textInactiveColor
+                    }
+
+                    StyledText {
+                      Layout.fillWidth: true
+                      Layout.preferredWidth: parent.width * 0.3
+                      text: updateRow.newVersion
+                      color: Theme.activeColor
+                    }
+                  }
                 }
               }
 
               Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 150
-                color: Qt.darker(Theme.bgColor, 1.05)
-                radius: Theme.itemRadius
-                border.color: Theme.borderColor
-                border.width: 1
-                visible: UpdateService.updateState === UpdateService.status.Error
+                Layout.preferredHeight: root.itemHeight * 0.6
+                color: "transparent"
 
-                ScrollView {
-                  anchors.fill: parent
-                  anchors.margins: 8
-                  clip: true
+                RowLayout {
+                  anchors.centerIn: parent
+                  spacing: 4
 
-                  ListView {
-                    model: UpdateService.outputLines.slice(-20)
-                    spacing: 2
+                  StyledText {
+                    text: "󰇚"
+                    color: Theme.textInactiveColor
+                    opacity: 0.7
+                  }
 
-                    delegate: Text {
-                      required property var modelData
-                      width: ListView.view.width
-                      text: modelData.text || modelData
-                      font.family: "Monospace"
-                      font.pixelSize: Theme.fontSize * 0.85
-                      color: {
-                        const line = text.toLowerCase();
-                        if (line.includes("error") || line.includes("failed"))
-                          return Theme.critical;
-                        if (line.includes("warning"))
-                          return Theme.warning;
-                        return Theme.textInactiveColor;
-                      }
-                      wrapMode: Text.Wrap
-                    }
+                  StyledText {
+                    text: qsTr("Total download: %1").arg(SystemInfoService.fmtKib(UpdateService.totalDownloadSize))
+                    font.pixelSize: Theme.fontSize * 0.9
+                    color: Theme.textInactiveColor
+                    opacity: 0.8
                   }
                 }
               }
 
               RowLayout {
                 Layout.fillWidth: true
+                Layout.preferredHeight: root.itemHeight
                 spacing: 8
 
                 ClickableRect {
-                  id: retryBtn
+                  id: updateSelectedBtn
                   Layout.fillWidth: true
                   Layout.preferredHeight: root.itemHeight
-                  color: hovered ? Qt.lighter(Theme.warning, 1.2) : Theme.warning
+                  readonly property bool btnEnabled: UpdateService.selectedCount > 0
+                  color: btnEnabled ? Theme.activeColor : Theme.disabledColor
                   radius: Theme.itemRadius
-                  visible: UpdateService.updateState === UpdateService.status.Error
+                  onClicked: if (btnEnabled)
+                    UpdateService.executeUpdate()
+
+                  StyledText {
+                    anchors.centerIn: parent
+                    text: UpdateService.selectedCount > 0 ? qsTr("Update Selected (%1)").arg(UpdateService.selectedCount) : qsTr("Select packages")
+                    font.bold: true
+                    color: Theme.textContrast(updateSelectedBtn.color)
+                  }
+                }
+
+                ClickableRect {
+                  id: updateAllBtn
+                  Layout.fillWidth: true
+                  Layout.preferredHeight: root.itemHeight
+                  color: Theme.activeColor
+                  radius: Theme.itemRadius
                   onClicked: {
-                    UpdateService.updateState = UpdateService.status.Idle;
+                    UpdateService.resetSelection();
                     UpdateService.executeUpdate();
                   }
 
                   StyledText {
                     anchors.centerIn: parent
-                    text: qsTr("Retry")
+                    text: qsTr("Update All")
                     font.bold: true
-                    color: Theme.textContrast(retryBtn.color)
+                    color: Theme.textContrast(updateAllBtn.color)
                   }
                 }
 
                 ClickableRect {
-                  id: closeBtn
+                  id: cancelBtn
                   Layout.fillWidth: true
                   Layout.preferredHeight: root.itemHeight
-                  color: hovered ? Theme.onHoverColor : Theme.activeColor
+                  color: Theme.inactiveColor
                   radius: Theme.itemRadius
                   onClicked: {
-                    UpdateService.updateState = UpdateService.status.Idle;
                     UpdateService.resetSelection();
                     root.close();
                   }
 
                   StyledText {
                     anchors.centerIn: parent
-                    text: qsTr("Close")
+                    text: qsTr("Cancel")
                     font.bold: true
-                    color: Theme.textContrast(closeBtn.color)
+                    color: Theme.textContrast(cancelBtn.color)
+                  }
+                }
+              }
+            }
+
+            // View 1: Live Output
+            ColumnLayout {
+              spacing: 0
+
+              Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: root.itemHeight * 2
+                color: Theme.bgColor
+
+                ColumnLayout {
+                  anchors.fill: parent
+                  anchors.margins: 8
+                  spacing: 4
+
+                  StyledText {
+                    Layout.fillWidth: true
+                    text: {
+                      const current = UpdateService.currentPackageIndex;
+                      const total = UpdateService.totalPackagesToUpdate;
+                      return total > 0 ? qsTr("Installing %1 of %2 packages...").arg(current).arg(total) : qsTr("Updating packages...");
+                    }
+                    font.bold: true
+                  }
+
+                  Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 6
+                    color: Theme.borderColor
+                    radius: 3
+
+                    Rectangle {
+                      anchors.left: parent.left
+                      anchors.top: parent.top
+                      anchors.bottom: parent.bottom
+                      width: {
+                        const total = UpdateService.totalPackagesToUpdate;
+                        return total > 0 ? parent.width * (UpdateService.currentPackageIndex / total) : 0;
+                      }
+                      color: Theme.activeColor
+                      radius: parent.radius
+                      Behavior on width {
+                        NumberAnimation {
+                          duration: Theme.animationDuration
+                          easing.type: Easing.OutQuad
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+              Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Theme.borderColor
+              }
+
+              Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: Qt.darker(Theme.bgColor, 1.05)
+
+                ListView {
+                  id: outputListView
+                  anchors.fill: parent
+                  anchors.margins: 8
+                  clip: true
+                  spacing: 2
+                  model: UpdateService.outputLines
+                  property bool userScrolledUp: false
+
+                  ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AsNeeded
+                    minimumSize: 0.1
+                  }
+
+                  onContentYChanged: {
+                    if (!moving && !flicking)
+                      return;
+                    const atBottom = atYEnd || (contentHeight - contentY - height) < 10;
+                    userScrolledUp = !atBottom;
+                  }
+
+                  onCountChanged: {
+                    if (!userScrolledUp)
+                      Qt.callLater(() => positionViewAtEnd());
+                  }
+
+                  delegate: Text {
+                    required property var modelData
+                    width: ListView.view.width
+                    text: modelData.text || modelData
+                    font.family: "Monospace"
+                    font.pixelSize: Theme.fontSize * 0.9
+                    color: {
+                      const line = text.toLowerCase();
+                      if (line.includes("error") || line.includes("failed"))
+                        return Theme.critical;
+                      if (line.includes("warning"))
+                        return Theme.warning;
+                      if (line.includes("installing") || line.includes("upgrading"))
+                        return Theme.activeColor;
+                      return Theme.textInactiveColor;
+                    }
+                    wrapMode: Text.Wrap
+                  }
+                }
+              }
+
+              Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Theme.borderColor
+              }
+
+              ClickableRect {
+                id: cancelUpdateBtn
+                Layout.fillWidth: true
+                Layout.preferredHeight: root.itemHeight
+                color: hovered ? Theme.onHoverColor : Theme.inactiveColor
+                radius: 0
+                onClicked: UpdateService.cancelUpdate()
+
+                StyledText {
+                  anchors.centerIn: parent
+                  text: qsTr("Cancel Update")
+                  font.bold: true
+                  color: Theme.textContrast(cancelUpdateBtn.color)
+                }
+              }
+            }
+
+            // View 2: Completion/Error
+            Item {
+              ColumnLayout {
+                anchors.centerIn: parent
+                spacing: 16
+                width: parent.width * 0.8
+
+                ColumnLayout {
+                  Layout.alignment: Qt.AlignHCenter
+                  spacing: 8
+
+                  Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: UpdateService.updateState === UpdateService.status.Completed ? "✓" : "❌"
+                    font.pixelSize: Theme.fontSize * 4
+                    color: UpdateService.updateState === UpdateService.status.Completed ? Theme.activeColor : Theme.critical
+                  }
+
+                  StyledText {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: {
+                      if (UpdateService.updateState === UpdateService.status.Completed) {
+                        const count = UpdateService.completedPackages.length;
+                        return qsTr("%1 Package%2 Updated Successfully").arg(count).arg(count !== 1 ? "s" : "");
+                      }
+                      return qsTr("Update Failed");
+                    }
+                    font.pixelSize: Theme.fontSize * 1.5
+                    font.bold: true
+                  }
+
+                  StyledText {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: UpdateService.updateState === UpdateService.status.Error ? UpdateService.errorMessage : qsTr("All updates have been installed")
+                    color: Theme.textInactiveColor
+                    opacity: 0.8
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
+                    Layout.preferredWidth: parent.width
+                  }
+                }
+
+                Rectangle {
+                  Layout.fillWidth: true
+                  Layout.preferredHeight: 150
+                  color: Qt.darker(Theme.bgColor, 1.05)
+                  radius: Theme.itemRadius
+                  border.color: Theme.borderColor
+                  border.width: 1
+                  visible: UpdateService.updateState === UpdateService.status.Error
+
+                  ScrollView {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    clip: true
+
+                    ListView {
+                      model: UpdateService.outputLines.slice(-20)
+                      spacing: 2
+
+                      delegate: Text {
+                        required property var modelData
+                        width: ListView.view.width
+                        text: modelData.text || modelData
+                        font.family: "Monospace"
+                        font.pixelSize: Theme.fontSize * 0.85
+                        color: {
+                          const line = text.toLowerCase();
+                          if (line.includes("error") || line.includes("failed"))
+                            return Theme.critical;
+                          if (line.includes("warning"))
+                            return Theme.warning;
+                          return Theme.textInactiveColor;
+                        }
+                        wrapMode: Text.Wrap
+                      }
+                    }
+                  }
+                }
+
+                RowLayout {
+                  Layout.fillWidth: true
+                  spacing: 8
+
+                  ClickableRect {
+                    id: retryBtn
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: root.itemHeight
+                    color: hovered ? Qt.lighter(Theme.warning, 1.2) : Theme.warning
+                    radius: Theme.itemRadius
+                    visible: UpdateService.updateState === UpdateService.status.Error
+                    onClicked: {
+                      UpdateService.updateState = UpdateService.status.Idle;
+                      UpdateService.executeUpdate();
+                    }
+
+                    StyledText {
+                      anchors.centerIn: parent
+                      text: qsTr("Retry")
+                      font.bold: true
+                      color: Theme.textContrast(retryBtn.color)
+                    }
+                  }
+
+                  ClickableRect {
+                    id: closeBtn
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: root.itemHeight
+                    color: hovered ? Theme.onHoverColor : Theme.activeColor
+                    radius: Theme.itemRadius
+                    onClicked: {
+                      UpdateService.updateState = UpdateService.status.Idle;
+                      UpdateService.resetSelection();
+                      root.close();
+                    }
+
+                    StyledText {
+                      anchors.centerIn: parent
+                      text: qsTr("Close")
+                      font.bold: true
+                      color: Theme.textContrast(closeBtn.color)
+                    }
                   }
                 }
               }
@@ -647,6 +673,7 @@ LazyLoader {
         color: Theme.bgColor
         orientation: 1
         radius: Theme.panelRadius * 3
+        visible: panelBackground.x >= (root.screenMargin + radius)
       }
 
       // Right inverse corner
@@ -657,6 +684,7 @@ LazyLoader {
         color: Theme.bgColor
         orientation: 0
         radius: Theme.panelRadius * 3
+        visible: (panelBackground.x + panelBackground.width + radius) <= (panel.width - root.screenMargin)
       }
     }
 
