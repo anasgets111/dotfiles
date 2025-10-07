@@ -162,8 +162,5 @@ Item {
 
   NetworkPanel {
     id: networkPanel
-    ready: root.ready
-    link: root.link
-    ap: root.ap
   }
 }

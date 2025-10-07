@@ -17,8 +17,9 @@ Singleton {
   property int maxRetries: 2
 
   readonly property string displayText: currentTemp + (includeLocationInDisplay && locationName ? " — " + locationName : "") + (isStale ? " (stale)" : "")
-
   readonly property bool isStale: lastUpdated ? (Date.now() - lastUpdated.getTime()) > refreshInterval * 2 : false
+  readonly property real latitude: _lat
+  readonly property real longitude: _lon
 
   // Private state
   property real _lat: NaN
@@ -167,6 +168,15 @@ Singleton {
 
   function getWeatherDescriptionFromCode() {
     return _getWeatherData(currentWeatherCode).desc;
+  }
+
+  function refresh() {
+    if (!isNaN(_lat) && !isNaN(_lon)) {
+      Logger.log("WeatherService", "Manual refresh using existing coords:", `${_lat},${_lon}`);
+      _fetchWeather(_lat, _lon);
+    } else {
+      Logger.warn("WeatherService", "Cannot refresh: no coordinates available");
+    }
   }
 
   // Core logic
