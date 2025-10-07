@@ -14,7 +14,7 @@ Singleton {
   property var ledWatchers: []
 
   readonly property Process ledMonitor: Process {
-    command: ["sh", "-c", "set -- /sys/class/leds/*capslock/brightness;caps=$1;set -- /sys/class/leds/*numlock/brightness;num=$1;set -- /sys/class/leds/*scrolllock/brightness;scroll=$1;while :;do c=$(cat \"$caps\" 2>/dev/null||echo 0);n=$(cat \"$num\" 2>/dev/null||echo 0);s=$(cat \"$scroll\" 2>/dev/null||echo 0);printf '%s %s %s\\n' \"$c\" \"$n\" \"$s\";sleep 0.04;done"]
+    command: ["sh", "-c", "set -- /sys/class/leds/*capslock/brightness;caps=$1;set -- /sys/class/leds/*numlock/brightness;num=$1;set -- /sys/class/leds/*scrolllock/brightness;scroll=$1;while :;do read c < \"$caps\" 2>/dev/null||c=0;read n < \"$num\" 2>/dev/null||n=0;read s < \"$scroll\" 2>/dev/null||s=0;printf '%s %s %s\\n' \"$c\" \"$n\" \"$s\";sleep 0.04;done"]
     running: true
     stdout: SplitParser {
       splitMarker: "\n"
