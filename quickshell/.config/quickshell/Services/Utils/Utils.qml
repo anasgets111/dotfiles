@@ -12,41 +12,102 @@ Singleton {
   property bool numLock: false
   property bool scrollLock: false
   property var ledWatchers: []
+  property var _cachedState: ({
+      caps: false,
+      num: false,
+      scroll: false
+    })
 
-  readonly property Process ledMonitor: Process {
-    command: ["sh", "-c", "caps=/sys/class/leds/*capslock/brightness;num=/sys/class/leds/*numlock/brightness;scroll=/sys/class/leds/*scrolllock/brightness;while :;do for f in $caps;do [ -f \"$f\" ] && c=$(cat \"$f\" 2>/dev/null||echo 0) && [ \"$c\" -gt 0 ] && break;c=0;done;for f in $num;do [ -f \"$f\" ] && n=$(cat \"$f\" 2>/dev/null||echo 0) && [ \"$n\" -gt 0 ] && break;n=0;done;for f in $scroll;do [ -f \"$f\" ] && s=$(cat \"$f\" 2>/dev/null||echo 0) && [ \"$s\" -gt 0 ] && break;s=0;done;printf '%s %s %s\\n' \"$c\" \"$n\" \"$s\";sleep 0.04;done"]
-    running: true
+  property string capsPath: ""
+  property string numPath: ""
+  property string scrollPath: ""
+
+  readonly property Process capsReader: Process {
+    running: false
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: line => {
-        const parts = line.trim().split(/\s+/);
-        if (parts.length !== 3)
-          return;
-
-        const capsState = parts[0] !== "0";
-        const numState = parts[1] !== "0";
-        const scrollState = parts[2] !== "0";
-
-        if (capsState === utils.capsLock && numState === utils.numLock && scrollState === utils.scrollLock)
-          return;
-
-        utils.capsLock = capsState;
-        utils.numLock = numState;
-        utils.scrollLock = scrollState;
-
-        const state = {
-          caps: utils.capsLock,
-          num: utils.numLock,
-          scroll: utils.scrollLock
-        };
-        for (let i = utils.ledWatchers.length - 1; i >= 0; i--) {
-          try {
-            utils.ledWatchers[i](state);
-          } catch (err) {
-            console.warn("LED watcher error:", err);
-            utils.ledWatchers.splice(i, 1);
-          }
+        const newState = parseInt(line.trim() || "0") > 0;
+        if (newState !== utils.capsLock) {
+          utils.capsLock = newState;
+          utils.notifyWatchers();
         }
+      }
+    }
+  }
+
+  readonly property Process numReader: Process {
+    running: false
+    stdout: SplitParser {
+      splitMarker: "\n"
+      onRead: line => {
+        const newState = parseInt(line.trim() || "0") > 0;
+        if (newState !== utils.numLock) {
+          utils.numLock = newState;
+          utils.notifyWatchers();
+        }
+      }
+    }
+  }
+
+  readonly property Process scrollReader: Process {
+    running: false
+    stdout: SplitParser {
+      splitMarker: "\n"
+      onRead: line => {
+        const newState = parseInt(line.trim() || "0") > 0;
+        if (newState !== utils.scrollLock) {
+          utils.scrollLock = newState;
+          utils.notifyWatchers();
+        }
+      }
+    }
+  }
+
+  readonly property Timer ledMonitor: Timer {
+    interval: 40
+    running: false
+    repeat: true
+    onTriggered: {
+      if (utils.capsPath && !utils.capsReader.running)
+        utils.capsReader.running = true;
+      if (utils.numPath && !utils.numReader.running)
+        utils.numReader.running = true;
+      if (utils.scrollPath && !utils.scrollReader.running)
+        utils.scrollReader.running = true;
+    }
+  }
+
+  Component.onCompleted: {
+    runCmd(["sh", "-c", "ls /sys/class/leds/*capslock/brightness 2>/dev/null | head -1"], path => {
+      capsPath = path.trim();
+      if (capsPath)
+        capsReader.command = ["cat", capsPath];
+    });
+    runCmd(["sh", "-c", "ls /sys/class/leds/*numlock/brightness 2>/dev/null | head -1"], path => {
+      numPath = path.trim();
+      if (numPath)
+        numReader.command = ["cat", numPath];
+    });
+    runCmd(["sh", "-c", "ls /sys/class/leds/*scrolllock/brightness 2>/dev/null | head -1"], path => {
+      scrollPath = path.trim();
+      if (scrollPath)
+        scrollReader.command = ["cat", scrollPath];
+      ledMonitor.running = true;
+    });
+  }
+
+  function notifyWatchers() {
+    _cachedState.caps = capsLock;
+    _cachedState.num = numLock;
+    _cachedState.scroll = scrollLock;
+
+    for (let i = ledWatchers.length - 1; i >= 0; i--) {
+      try {
+        ledWatchers[i](_cachedState);
+      } catch (err) {
+        console.warn("LED watcher error:", err);
+        ledWatchers.splice(i, 1);
       }
     }
   }
@@ -84,6 +145,10 @@ Singleton {
 
   Component.onDestruction: {
     ledWatchers.length = 0;
+    ledMonitor.running = false;
+    capsReader.running = false;
+    numReader.running = false;
+    scrollReader.running = false;
     commandSlots.forEach(slot => {
       if (slot.process.running)
         slot.process.running = false;

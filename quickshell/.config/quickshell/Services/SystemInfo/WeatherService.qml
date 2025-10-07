@@ -27,6 +27,10 @@ Singleton {
   property var lastUpdated: null
   property int _retryCount: 0
   property int _consecutiveErrors: 0
+  property var _currentRequest: null
+
+  // Reusable XHR object
+  property var _xhr: new XMLHttpRequest()
 
   // Constants
   readonly property var _config: ({
@@ -280,43 +284,52 @@ Singleton {
   }
 
   function _httpGet(url, timeout, onSuccess, onError) {
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", url);
-    xhr.timeout = timeout;
+    if (_xhr.readyState !== XMLHttpRequest.UNSENT && _xhr.readyState !== XMLHttpRequest.DONE) {
+      try {
+        _xhr.abort();
+      } catch (_) {}
+    }
 
+    _xhr.timeout = timeout;
     Logger.log("WeatherService", "Request:", url, "timeout:", timeout, "ms");
 
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState !== 4)
+    const successCallback = onSuccess;
+    const errorCallback = onError;
+
+    _xhr.onreadystatechange = function () {
+      if (_xhr.readyState !== XMLHttpRequest.DONE)
         return;
+
+      const status = _xhr.status;
+      const responseText = _xhr.responseText;
+
+      _xhr.onreadystatechange = null;
+      _xhr.ontimeout = null;
+
       try {
-        if (xhr.status === 200) {
+        if (status === 200) {
           try {
-            onSuccess(JSON.parse(xhr.responseText));
+            successCallback(JSON.parse(responseText));
           } catch (e) {
             Logger.warn("WeatherService", "Parse error:", e.message);
-            onError();
+            errorCallback();
           }
         } else {
-          Logger.warn("WeatherService", "HTTP error:", xhr.status);
-          onError();
+          Logger.warn("WeatherService", "HTTP error:", status);
+          errorCallback();
         }
-      } finally {
-        try {
-          xhr.abort();
-        } catch (_) {}
-      }
-    };
-
-    xhr.ontimeout = function () {
-      Logger.warn("WeatherService", "Request timed out");
-      onError();
-      try {
-        xhr.abort();
       } catch (_) {}
     };
 
-    xhr.send();
+    _xhr.ontimeout = function () {
+      _xhr.onreadystatechange = null;
+      _xhr.ontimeout = null;
+      Logger.warn("WeatherService", "Request timed out");
+      errorCallback();
+    };
+
+    _xhr.open("GET", url);
+    _xhr.send();
   }
 
   function _scheduleRetry() {
