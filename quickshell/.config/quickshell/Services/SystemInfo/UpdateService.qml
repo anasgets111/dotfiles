@@ -131,7 +131,7 @@ Singleton {
     failedPackages = [];
     updateState = status.Updating;
 
-    updateProcess.command = ["bash", "-c", `pkexec pacman -S --noconfirm ${packages.join(' ')}`];
+    updateProcess.command = ["bash", "-c", `pkexec pacman -Sy --noconfirm ${packages.join(' ')}`];
     updateProcess.running = true;
     Logger.log("UpdateService", `Starting update of ${packages.length} packages`);
   }
