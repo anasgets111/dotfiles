@@ -4,554 +4,447 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
-import Quickshell.Wayland
 import qs.Config
-import qs.Modules.Bar
+import qs.Components
 import qs.Services.SystemInfo
 
-/**
- * UpdatePanel - Displays available package updates in a table format
- *
- * Shows package updates from UpdateService with:
- * - Three columns: Package, Old Version, New Version
- * - Different row colors for repo vs AUR packages
- * - Scrollable list when updates exceed maxVisibleItems
- */
-LazyLoader {
+OPanel {
   id: root
 
-  property int maxVisibleItems: 10
-  property real itemHeight: Theme.itemHeight
-  property real itemPadding: 8
-  property int panelWidth: 500
-  property int screenMargin: 8
-
-  property bool useButtonPosition: false
-  property point buttonPosition: Qt.point(0, 0)
-  property int buttonWidth: 0
-  property int buttonHeight: 0
-
-  property bool isOpen: false
-  property var selectedPackages: ({}) // Map of package names to selection state
-  property bool selectAll: false
-
-  readonly property color repoRowColor: Theme.bgColor
-  readonly property color aurRowColor: Qt.darker(Theme.bgColor, 1.15)
+  readonly property int maxItems: 10
+  readonly property int itemHeight: Theme.itemHeight
+  readonly property int padding: 8
   readonly property color headerColor: Qt.lighter(Theme.bgColor, 1.74)
-  readonly property int selectedCount: Object.values(selectedPackages).filter(v => v).length
-
-  signal panelClosed
-
-  active: isOpen
-
-  function toggleSelectAll() {
-    const newState = !selectAll;
-    selectAll = newState;
-    const newSelected = {};
-    UpdateService.allPackages.forEach(pkg => {
-      newSelected[pkg.name] = newState;
-    });
-    selectedPackages = newSelected;
+  readonly property int viewIndex: {
+    const s = UpdateService.updateState;
+    return s === UpdateService.status.Idle ? 0 : s === UpdateService.status.Updating ? 1 : 2;
   }
 
-  function togglePackage(packageName) {
-    const newSelected = Object.assign({}, selectedPackages);
-    newSelected[packageName] = !newSelected[packageName];
-    selectedPackages = newSelected;
+  panelWidth: 500
+  needsKeyboardFocus: root.viewIndex === 0 || root.viewIndex === 2
 
-    // Update selectAll state based on whether all packages are selected
-    selectAll = UpdateService.allPackages.every(pkg => selectedPackages[pkg.name]);
-  }
-
-  function openAt(x, y) {
-    buttonPosition = Qt.point(x, y);
-    buttonWidth = 0;
-    buttonHeight = 0;
-    open();
-  }
-
-  function openAtItem(item, mouseX, mouseY) {
-    if (!item)
-      return;
-    buttonPosition = item.mapToItem(null, mouseX || 0, mouseY || 0);
-    buttonWidth = item.width;
-    buttonHeight = item.height;
-    open();
-  }
-
-  function open() {
-    useButtonPosition = true;
-    isOpen = true;
-  }
-
-  function close() {
-    if (!isOpen)
-      return;
-    isOpen = false;
-    panelClosed();
-  }
-
-  PanelWindow {
-    id: panel
-
-    readonly property bool isClosing: !root.isOpen && visible
-    readonly property real headerHeight: headerRow.height
-    readonly property real footerHeight: footerRow.height
-    readonly property real contentHeight: Math.min(updatesList.contentHeight, root.maxVisibleItems * root.itemHeight)
-    readonly property real totalContentHeight: headerHeight + contentHeight + footerHeight + root.itemPadding * 4
-
-    color: "transparent"
-    visible: root.isOpen || isClosing
-
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "update-panel"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-    WlrLayershell.exclusiveZone: -1
-
-    anchors {
-      top: true
-      left: true
-      right: true
-      bottom: true
-    }
-
-    function calculateX() {
-      if (!root.useButtonPosition)
-        return 0;
-      const cornerWidth = 48; // RoundCorner width
-      const centerX = root.buttonPosition.x + root.buttonWidth / 2 - panelBackground.width / 2;
-      const minX = cornerWidth; // Account for left corner
-      const maxX = panel.width - panelBackground.width - cornerWidth; // Account for right corner
-      return Math.max(minX, Math.min(centerX, maxX));
-    }
-
-    function calculateY() {
-      if (!root.useButtonPosition)
-        return Math.round((panel.height - panelBackground.height) / 2);
-      const belowY = Theme.panelHeight;
-      const aboveY = root.buttonPosition.y - panelBackground.height - 4;
-      const maxY = panel.height - panelBackground.height - 8;
-
-      if (belowY + panelBackground.height <= panel.height - 8)
-        return Math.round(belowY);
-      if (aboveY >= 8)
-        return Math.round(aboveY);
-      return Math.round(Math.min(belowY, maxY));
-    }
-
-    Shortcut {
-      sequences: ["Escape"]
-      enabled: root.isOpen
-      onActivated: root.close()
-      context: Qt.WindowShortcut
-    }
-
-    MouseArea {
-      id: dismissArea
-      anchors.fill: parent
-      acceptedButtons: Qt.LeftButton | Qt.RightButton
-      hoverEnabled: false
-      enabled: root.isOpen
-
-      onPressed: function (mouse) {
-        if (!panelBackground)
-          return;
-        const local = panelBackground.mapFromItem(dismissArea, mouse.x, mouse.y);
-        const inside = local.x >= 0 && local.y >= 0 && local.x <= panelBackground.width && local.y <= panelBackground.height;
-
-        if (inside) {
-          mouse.accepted = false;
-          return;
-        }
-
+  Connections {
+    target: UpdateService
+    function onUpdateStateChanged() {
+      if (UpdateService.updateState === UpdateService.status.Completed)
         root.close();
-      }
     }
+  }
 
-    // Clip container to prevent panel from appearing above the bar
-    Item {
-      id: clipContainer
-      anchors.fill: parent
-      anchors.topMargin: Theme.panelHeight
-      clip: true
+  FocusScope {
+    width: parent.width
+    implicitHeight: stack.implicitHeight + root.padding * 2
+    focus: root.isOpen
 
-      Rectangle {
-        id: panelBackground
+    StackLayout {
+      id: stack
+      width: parent.width - root.padding * 2
+      x: root.padding
+      y: root.padding
+      currentIndex: root.viewIndex
 
-        readonly property real targetY: panel.calculateY() - Theme.panelHeight
-        readonly property real hiddenY: -panel.totalContentHeight
+      // View 0: Package List
+      ColumnLayout {
+        spacing: 4
 
-        width: root.panelWidth
-        height: panel.totalContentHeight
+        Rectangle {
+          Layout.fillWidth: true
+          Layout.preferredHeight: root.itemHeight
+          color: root.headerColor
+          radius: Theme.itemRadius
 
-        color: Theme.bgColor
-        radius: Theme.itemRadius
+          RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: root.padding
+            anchors.rightMargin: root.padding
+            spacing: 8
 
-        // Only round bottom corners
-        topLeftRadius: 0
-        topRightRadius: 0
-        bottomLeftRadius: Theme.itemRadius
-        bottomRightRadius: Theme.itemRadius
+            OCheckbox {
+              Layout.preferredWidth: root.itemHeight * 0.6
+              Layout.preferredHeight: root.itemHeight * 0.6
+              checked: UpdateService.selectAll
+              onClicked: UpdateService.toggleSelectAll()
+            }
 
-        x: panel.calculateX()
-        y: root.isOpen ? targetY : hiddenY
-
-        Behavior on y {
-          PanelAnimation {}
+            OText {
+              Layout.preferredWidth: 160
+              text: qsTr("Package")
+              font.bold: true
+              color: Theme.textContrast(root.headerColor)
+            }
+            OText {
+              Layout.preferredWidth: 120
+              text: qsTr("Old Version")
+              font.bold: true
+              color: Theme.textContrast(root.headerColor)
+            }
+            OText {
+              Layout.preferredWidth: 120
+              text: qsTr("New Version")
+              font.bold: true
+              color: Theme.textContrast(root.headerColor)
+            }
+          }
         }
 
-        clip: true
+        ListView {
+          id: packageList
+          Layout.fillWidth: true
+          Layout.preferredHeight: Math.min(contentHeight, root.maxItems * root.itemHeight)
+          spacing: 2
+          interactive: contentHeight > height
+          clip: true
+          model: UpdateService.updatePackages
 
-        ColumnLayout {
-          anchors.fill: parent
-          anchors.margins: root.itemPadding
-          spacing: 4
+          ScrollBar.vertical: ScrollBar {
+            policy: packageList.contentHeight > packageList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+            width: 8
+          }
 
-          // Header row with column titles
-          Rectangle {
-            id: headerRow
-            Layout.fillWidth: true
-            Layout.preferredHeight: root.itemHeight
-            color: root.headerColor
-            radius: Theme.itemRadius
+          delegate: Rectangle {
+            id: packageRow
+            required property var modelData
+
+            readonly property string pkgName: packageRow.modelData.name || ""
+            readonly property string oldVer: packageRow.modelData.oldVersion || ""
+            readonly property string newVer: packageRow.modelData.newVersion || ""
+
+            width: ListView.view.width
+            height: root.itemHeight
+            color: packageHover.containsMouse ? Qt.lighter(Theme.bgColor, 1.47) : Theme.bgColor
+            radius: Theme.itemRadius * 0.5
+
+            Behavior on color {
+              ColorAnimation {
+                duration: Theme.animationDuration * 0.7
+              }
+            }
+
+            MouseArea {
+              id: packageHover
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: UpdateService.togglePackage(packageRow.pkgName)
+            }
 
             RowLayout {
               anchors.fill: parent
-              anchors.leftMargin: root.itemPadding
-              anchors.rightMargin: root.itemPadding
+              anchors.leftMargin: root.padding
+              anchors.rightMargin: root.padding
               spacing: 8
 
-              // Select All checkbox
-              Rectangle {
+              OCheckbox {
                 Layout.preferredWidth: root.itemHeight * 0.6
                 Layout.preferredHeight: root.itemHeight * 0.6
-                color: "transparent"
-                border.color: Theme.textContrast(root.headerColor)
-                border.width: 2
-                radius: 4
-
-                Rectangle {
-                  anchors.centerIn: parent
-                  width: parent.width * 0.6
-                  height: parent.height * 0.6
-                  color: Theme.activeColor
-                  radius: 2
-                  visible: root.selectAll
-                }
-
-                MouseArea {
-                  anchors.fill: parent
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: root.toggleSelectAll()
-                }
+                checked: UpdateService.selectedPackages[packageRow.pkgName] || false
+                onClicked: UpdateService.togglePackage(packageRow.pkgName)
               }
 
-              Text {
-                Layout.fillWidth: true
-                Layout.preferredWidth: parent.width * 0.35
-                text: qsTr("Package")
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                font.bold: true
-                color: Theme.textContrast(root.headerColor)
+              OText {
+                Layout.preferredWidth: 160
+                text: packageRow.pkgName
                 elide: Text.ElideRight
-                verticalAlignment: Text.AlignVCenter
               }
 
-              Text {
-                Layout.fillWidth: true
-                Layout.preferredWidth: parent.width * 0.3
-                text: qsTr("Old Version")
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                font.bold: true
-                color: Theme.textContrast(root.headerColor)
+              OText {
+                Layout.preferredWidth: 120
+                text: packageRow.oldVer
+                color: Theme.textInactiveColor
                 elide: Text.ElideRight
-                verticalAlignment: Text.AlignVCenter
               }
 
-              Text {
-                Layout.fillWidth: true
-                Layout.preferredWidth: parent.width * 0.3
-                text: qsTr("New Version")
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                font.bold: true
-                color: Theme.textContrast(root.headerColor)
+              OText {
+                Layout.preferredWidth: 120
+                text: packageRow.newVer
+                color: Theme.activeColor
                 elide: Text.ElideRight
-                verticalAlignment: Text.AlignVCenter
               }
             }
           }
+        }
 
-          // Updates list
-          ListView {
-            id: updatesList
-            Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(contentHeight, root.maxVisibleItems * root.itemHeight)
-            spacing: 2
-            interactive: contentHeight > height
-            clip: true
-            model: UpdateService.allPackages
+        Rectangle {
+          Layout.fillWidth: true
+          Layout.preferredHeight: root.itemHeight * 0.6
+          color: "transparent"
 
-            ScrollBar.vertical: ScrollBar {
-              policy: updatesList.contentHeight > updatesList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-              width: 8
-            }
-
-            delegate: Rectangle {
-              id: updateRow
-
-              required property var modelData
-              required property int index
-
-              readonly property bool isAur: modelData.source === "aur"
-              readonly property string packageName: modelData.name || ""
-              readonly property string oldVersion: modelData.oldVersion || ""
-              readonly property string newVersion: modelData.newVersion || ""
-              readonly property color baseColor: isAur ? root.aurRowColor : root.repoRowColor
-              readonly property color hoverColor: Qt.lighter(baseColor, 1.47)
-
-              width: updatesList.width
-              height: root.itemHeight
-              color: rowHover.containsMouse ? hoverColor : baseColor
-              radius: Theme.itemRadius * 0.5
-
-              Behavior on color {
-                ColorAnimation {
-                  duration: Theme.animationDuration * 0.7
-                  easing.type: Easing.OutQuad
-                }
-              }
-
-              MouseArea {
-                id: rowHover
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.togglePackage(updateRow.packageName)
-              }
-
-              RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: root.itemPadding
-                anchors.rightMargin: root.itemPadding
-                spacing: 8
-
-                // Package checkbox
-                Rectangle {
-                  Layout.preferredWidth: root.itemHeight * 0.6
-                  Layout.preferredHeight: root.itemHeight * 0.6
-                  color: "transparent"
-                  border.color: Theme.textActiveColor
-                  border.width: 2
-                  radius: 4
-
-                  Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width * 0.6
-                    height: parent.height * 0.6
-                    color: Theme.activeColor
-                    radius: 2
-                    visible: root.selectedPackages[updateRow.packageName] || false
-                  }
-
-                  MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.togglePackage(updateRow.packageName)
-                  }
-                }
-
-                Text {
-                  Layout.fillWidth: true
-                  Layout.preferredWidth: parent.width * 0.35
-                  text: updateRow.packageName
-                  font.family: Theme.fontFamily
-                  font.pixelSize: Theme.fontSize
-                  color: Theme.textActiveColor
-                  elide: Text.ElideRight
-                  verticalAlignment: Text.AlignVCenter
-                }
-
-                Text {
-                  Layout.fillWidth: true
-                  Layout.preferredWidth: parent.width * 0.3
-                  text: updateRow.oldVersion
-                  font.family: Theme.fontFamily
-                  font.pixelSize: Theme.fontSize
-                  color: Theme.textInactiveColor
-                  elide: Text.ElideRight
-                  verticalAlignment: Text.AlignVCenter
-                }
-
-                Text {
-                  Layout.fillWidth: true
-                  Layout.preferredWidth: parent.width * 0.3
-                  text: updateRow.newVersion
-                  font.family: Theme.fontFamily
-                  font.pixelSize: Theme.fontSize
-                  color: Theme.activeColor
-                  elide: Text.ElideRight
-                  verticalAlignment: Text.AlignVCenter
-                }
-              }
-            }
-          }
-
-          // Footer with action buttons
           RowLayout {
-            id: footerRow
+            anchors.centerIn: parent
+            spacing: 4
+
+            OText {
+              text: "󰇚"
+              color: Theme.textInactiveColor
+              opacity: 0.7
+            }
+            OText {
+              text: qsTr("Total download: %1").arg(SystemInfoService.fmtKib(UpdateService.totalDownloadSize))
+              sizeMultiplier: 0.9
+              useActiveColor: false
+              opacity: 0.8
+            }
+          }
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: 8
+
+          OButton {
             Layout.fillWidth: true
-            Layout.preferredHeight: root.itemHeight
-            spacing: 8
+            readonly property bool hasSelection: UpdateService.selectedCount > 0
+            bgColor: hasSelection ? Theme.activeColor : Theme.disabledColor
+            isEnabled: hasSelection
+            text: hasSelection ? qsTr("Update Selected (%1)").arg(UpdateService.selectedCount) : qsTr("Select packages")
+            onClicked: UpdateService.executeUpdate()
+          }
 
-            Rectangle {
-              id: updateSelectedBtn
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.itemHeight
-              color: updateSelectedMouse.enabled ? (updateSelectedMouse.containsMouse ? Theme.onHoverColor : Theme.activeColor) : Theme.disabledColor
-              radius: Theme.itemRadius
-
-              Behavior on color {
-                ColorAnimation {
-                  duration: Theme.animationDuration
-                }
-              }
-
-              RowLayout {
-                anchors.centerIn: parent
-                spacing: 4
-
-                Text {
-                  text: "󰚰"
-                  font.family: Theme.fontFamily
-                  font.pixelSize: Theme.fontSize
-                  color: Theme.textContrast(updateSelectedBtn.color)
-                  visible: root.selectedCount > 0
-                }
-
-                Text {
-                  text: root.selectedCount > 0 ? `Selected (${root.selectedCount})` : qsTr("Select packages")
-                  font.family: Theme.fontFamily
-                  font.pixelSize: Theme.fontSize
-                  font.bold: true
-                  color: Theme.textContrast(updateSelectedBtn.color)
-                }
-              }
-
-              MouseArea {
-                id: updateSelectedMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                enabled: root.selectedCount > 0
-                onClicked: {
-                  // TODO: Implement update selected packages
-                  // For now, just show which packages would be updated
-                  const selected = Object.keys(root.selectedPackages).filter(k => root.selectedPackages[k]);
-                  console.log("Would update:", selected.join(", "));
-                  root.close();
-                }
-              }
+          OButton {
+            Layout.fillWidth: true
+            bgColor: Theme.activeColor
+            text: qsTr("Update All")
+            onClicked: {
+              UpdateService.resetSelection();
+              UpdateService.executeUpdate();
             }
+          }
 
-            Rectangle {
-              id: updateAllBtn
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.itemHeight
-              color: updateAllMouse.containsMouse ? Theme.onHoverColor : Theme.activeColor
-              radius: Theme.itemRadius
-
-              Behavior on color {
-                ColorAnimation {
-                  duration: Theme.animationDuration
-                }
-              }
-
-              Text {
-                anchors.centerIn: parent
-                text: qsTr("Update All")
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                font.bold: true
-                color: Theme.textContrast(updateAllBtn.color)
-              }
-
-              MouseArea {
-                id: updateAllMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                  UpdateService.runUpdate();
-                  root.close();
-                }
-              }
-            }
-
-            Rectangle {
-              id: cancelBtn
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.itemHeight
-              color: cancelMouse.enabled ? (cancelMouse.containsMouse ? Theme.onHoverColor : Theme.inactiveColor) : Theme.disabledColor
-              radius: Theme.itemRadius
-
-              Behavior on color {
-                ColorAnimation {
-                  duration: Theme.animationDuration
-                }
-              }
-
-              Text {
-                anchors.centerIn: parent
-                text: qsTr("Cancel")
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                font.bold: true
-                color: Theme.textContrast(cancelBtn.color)
-              }
-
-              MouseArea {
-                id: cancelMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                enabled: false // Disabled for now
-                onClicked:
-                // TODO: Implement cancel
-                {}
-              }
+          OButton {
+            Layout.fillWidth: true
+            bgColor: Theme.inactiveColor
+            text: qsTr("Cancel")
+            onClicked: {
+              UpdateService.resetSelection();
+              root.close();
             }
           }
         }
       }
 
-      // Left inverse corner
-      RoundCorner {
-        anchors.right: panelBackground.left
-        anchors.rightMargin: -1
-        y: panelBackground.y
-        color: Theme.bgColor
-        orientation: 1 // TOP_RIGHT
-        radius: Theme.panelRadius * 3
+      // View 1: Live Output
+      ColumnLayout {
+        spacing: 0
+
+        Rectangle {
+          Layout.fillWidth: true
+          Layout.preferredHeight: root.itemHeight * 2
+          color: Theme.bgColor
+
+          ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 8
+            spacing: 4
+
+            OText {
+              text: {
+                const cur = UpdateService.currentPackageIndex;
+                const tot = UpdateService.totalPackagesToUpdate;
+                return tot > 0 ? qsTr("Installing %1 of %2 packages...").arg(cur).arg(tot) : qsTr("Updating packages...");
+              }
+              font.bold: true
+            }
+
+            Rectangle {
+              Layout.fillWidth: true
+              Layout.preferredHeight: 6
+              color: Theme.borderColor
+              radius: 3
+
+              Rectangle {
+                width: {
+                  const tot = UpdateService.totalPackagesToUpdate;
+                  return tot > 0 ? parent.width * (UpdateService.currentPackageIndex / tot) : 0;
+                }
+                height: parent.height
+                color: Theme.activeColor
+                radius: parent.radius
+                Behavior on width {
+                  NumberAnimation {
+                    duration: Theme.animationDuration
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        Rectangle {
+          Layout.fillWidth: true
+          Layout.preferredHeight: 1
+          color: Theme.borderColor
+        }
+
+        Rectangle {
+          Layout.fillWidth: true
+          Layout.fillHeight: true
+          color: Qt.darker(Theme.bgColor, 1.05)
+
+          ListView {
+            id: outputView
+            anchors.fill: parent
+            anchors.margins: 8
+            clip: true
+            spacing: 2
+            model: UpdateService.outputLines
+            property bool userScrolled: false
+
+            ScrollBar.vertical: ScrollBar {
+              policy: ScrollBar.AsNeeded
+              minimumSize: 0.1
+            }
+
+            onContentYChanged: {
+              if (outputView.moving || outputView.flicking) {
+                const atBottom = outputView.atYEnd || (outputView.contentHeight - outputView.contentY - outputView.height) < 10;
+                outputView.userScrolled = !atBottom;
+              }
+            }
+
+            onCountChanged: {
+              if (!outputView.userScrolled)
+                Qt.callLater(() => outputView.positionViewAtEnd());
+            }
+
+            delegate: Text {
+              id: outputLine
+              required property var modelData
+
+              width: ListView.view.width
+              text: outputLine.modelData.text || outputLine.modelData
+              font.family: "Monospace"
+              font.pixelSize: Theme.fontSize * 0.9
+              color: {
+                const line = outputLine.text.toLowerCase();
+                return line.includes("error") || line.includes("failed") ? Theme.critical : line.includes("warning") ? Theme.warning : line.includes("installing") || line.includes("upgrading") ? Theme.activeColor : Theme.textInactiveColor;
+              }
+              wrapMode: Text.Wrap
+            }
+          }
+        }
+
+        Rectangle {
+          Layout.fillWidth: true
+          Layout.preferredHeight: 1
+          color: Theme.borderColor
+        }
+
+        OButton {
+          Layout.fillWidth: true
+          bgColor: Theme.inactiveColor
+          hoverColor: Theme.onHoverColor
+          text: qsTr("Cancel Update")
+          onClicked: UpdateService.cancelUpdate()
+        }
       }
 
-      // Right inverse corner
-      RoundCorner {
-        anchors.left: panelBackground.right
-        anchors.leftMargin: -1
-        y: panelBackground.y
-        color: Theme.bgColor
-        orientation: 0 // TOP_LEFT
-        radius: Theme.panelRadius * 3
+      // View 2: Completion/Error
+      Item {
+        ColumnLayout {
+          anchors.centerIn: parent
+          spacing: 16
+          width: parent.width * 0.8
+
+          ColumnLayout {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 8
+
+            Text {
+              Layout.alignment: Qt.AlignHCenter
+              text: UpdateService.updateState === UpdateService.status.Completed ? "✓" : "❌"
+              font.pixelSize: Theme.fontSize * 4
+              color: UpdateService.updateState === UpdateService.status.Completed ? Theme.activeColor : Theme.critical
+            }
+
+            OText {
+              Layout.alignment: Qt.AlignHCenter
+              text: {
+                if (UpdateService.updateState === UpdateService.status.Completed) {
+                  const cnt = UpdateService.completedPackages.length;
+                  return qsTr("%1 Package%2 Updated Successfully").arg(cnt).arg(cnt !== 1 ? "s" : "");
+                }
+                return qsTr("Update Failed");
+              }
+              sizeMultiplier: 1.5
+              font.bold: true
+            }
+
+            OText {
+              Layout.alignment: Qt.AlignHCenter
+              text: UpdateService.updateState === UpdateService.status.Error ? UpdateService.errorMessage : qsTr("All updates have been installed")
+              useActiveColor: false
+              opacity: 0.8
+              horizontalAlignment: Text.AlignHCenter
+              wrapMode: Text.Wrap
+              Layout.preferredWidth: parent.width
+            }
+          }
+
+          Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 150
+            color: Qt.darker(Theme.bgColor, 1.05)
+            radius: Theme.itemRadius
+            border.color: Theme.borderColor
+            border.width: 1
+            visible: UpdateService.updateState === UpdateService.status.Error
+
+            ScrollView {
+              anchors.fill: parent
+              anchors.margins: 8
+              clip: true
+
+              ListView {
+                model: UpdateService.outputLines.slice(-20)
+                spacing: 2
+
+                delegate: Text {
+                  id: errorLine
+                  required property var modelData
+
+                  width: ListView.view.width
+                  text: errorLine.modelData.text || errorLine.modelData
+                  font.family: "Monospace"
+                  font.pixelSize: Theme.fontSize * 0.85
+                  color: {
+                    const line = errorLine.text.toLowerCase();
+                    return line.includes("error") || line.includes("failed") ? Theme.critical : line.includes("warning") ? Theme.warning : Theme.textInactiveColor;
+                  }
+                  wrapMode: Text.Wrap
+                }
+              }
+            }
+          }
+
+          RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            OButton {
+              Layout.fillWidth: true
+              bgColor: Theme.warning
+              hoverColor: Qt.lighter(Theme.warning, 1.2)
+              visible: UpdateService.updateState === UpdateService.status.Error
+              text: qsTr("Retry")
+              onClicked: {
+                UpdateService.updateState = UpdateService.status.Idle;
+                UpdateService.executeUpdate();
+              }
+            }
+
+            OButton {
+              Layout.fillWidth: true
+              bgColor: Theme.activeColor
+              text: qsTr("Close")
+              onClicked: {
+                UpdateService.updateState = UpdateService.status.Idle;
+                UpdateService.resetSelection();
+                root.close();
+              }
+            }
+          }
+        }
       }
     }
-  }
-
-  component PanelAnimation: NumberAnimation {
-    duration: Theme.animationDuration
-    easing.type: Easing.OutQuad
   }
 }

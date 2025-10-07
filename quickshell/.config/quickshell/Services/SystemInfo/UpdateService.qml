@@ -6,48 +6,55 @@ import qs.Services
 import qs.Services.Utils
 
 Singleton {
-  id: updateService
+  id: root
 
-  // Core state
+  readonly property var status: ({
+      Idle: 0,
+      Updating: 1,
+      Completed: 2,
+      Error: 3
+    })
+
+  property int updateState: status.Idle
+  property string errorMessage: ""
+  property string errorType: ""
+  property int currentPackageIndex: 0
+  property int totalPackagesToUpdate: 0
+  property string currentPackageName: ""
+  property var outputLines: []
+  property var completedPackages: []
+  property var failedPackages: []
+  property var selectedPackages: ({})
+  property bool selectAll: false
   property var updatePackages: []
-  property var aurPackages: []
   property double lastSync: 0
   property int lastNotifiedTotal: 0
   property bool checkupdatesAvailable: false
   property int failureCount: 0
+  property var packageSizes: ({})
 
-  // Poll cycle tracking
-  property bool repoComplete: false
-  property bool aurComplete: false
-  property var tempRepoPackages: []
-  property var tempAurPackages: []
-
-  // Computed properties
-  readonly property var allPackages: updatePackages.concat(aurPackages)
-  readonly property int updates: updatePackages.length
-  readonly property int aurUpdates: aurPackages.length
-  readonly property int totalUpdates: updates + aurUpdates
-  readonly property bool busy: pkgProc.running || aurProc.running
+  readonly property var selectedPackageNames: Object.keys(selectedPackages).filter(k => selectedPackages[k])
+  readonly property int totalUpdates: updatePackages.length
+  readonly property int selectedCount: selectedPackageNames.length
+  readonly property bool busy: pkgProc.running
   readonly property bool ready: MainService.isArchBased && checkupdatesAvailable
-
-  // Constants
+  readonly property int totalDownloadSize: {
+    const pkgs = selectedCount > 0 ? updatePackages.filter(p => selectedPackages[p.name] === true) : updatePackages;
+    return pkgs.reduce((sum, p) => sum + (packageSizes[p.name] || 0), 0);
+  }
   readonly property int pollInterval: 15 * 60 * 1000
   readonly property int failureThreshold: 5
   readonly property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "sh", "-c", "$BIN/update.sh"]
   readonly property var updateLineRe: /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/
 
-  function _clonePackageList(list) {
-    return list.map(p => ({
-          name: p.name || "",
-          oldVersion: p.oldVersion || "",
-          newVersion: p.newVersion || "",
-          source: p.source || "repo"
-        }));
-  }
+  function _notify(title, message, urgency = "normal", action = null) {
+    const args = ["-u", urgency, "-a", "UpdateService", "-i", "system-software-update"];
+    if (action)
+      args.push("-A", `${action}=${qsTr("Run updates")}`);
+    args.push(title, message);
 
-  function _notify(title, message, action) {
-    Utils.runCmd(["notify-send", "-a", "UpdateService", "-i", "system-software-update", "-A", `${action}=${qsTr("Run updates")}`, title, message], out => {
-      if (String(out || "").trim() === action) {
+    Utils.runCmd(["notify-send", ...args], out => {
+      if (action && String(out || "").trim() === action) {
         updateRunner.command = updateCommand;
         updateRunner.running = true;
       }
@@ -57,7 +64,7 @@ Singleton {
   function _handleError(source, message, code) {
     Logger.warn("UpdateService", `${source} error (code: ${code}): ${message}`);
     if (++failureCount >= failureThreshold) {
-      _notify(qsTr("Update check failed"), message, "dismiss");
+      _notify(qsTr("Update check failed"), message, "critical");
       failureCount = 0;
     }
   }
@@ -70,52 +77,36 @@ Singleton {
     if (totalUpdates > lastNotifiedTotal) {
       const added = totalUpdates - lastNotifiedTotal;
       const msg = added === 1 ? `${qsTr("One new package can be upgraded")} (${totalUpdates})` : `${added} ${qsTr("new packages can be upgraded")} (${totalUpdates})`;
-      _notify(qsTr("Updates Available"), msg, "run-updates");
+      _notify(qsTr("Updates Available"), msg, "normal", "run-updates");
       lastNotifiedTotal = totalUpdates;
     }
   }
 
-  function _parseOutput(text, source) {
-    const lines = (text || "").trim().split(/\r?\n/).filter(l => l);
-    return lines.map(line => {
+  function _parseOutput(text) {
+    return (text || "").trim().split(/\r?\n/).filter(l => l).map(line => {
       const m = line.match(updateLineRe);
       return m ? {
         name: m[1],
         oldVersion: m[2],
-        newVersion: m[3],
-        source: source || "repo"
+        newVersion: m[3]
       } : null;
     }).filter(p => p);
   }
 
-  function _commitResults() {
-    if (!ready || !repoComplete || !aurComplete)
+  function fetchPackageSizes() {
+    if (updatePackages.length === 0)
       return;
-
-    updatePackages = _clonePackageList(tempRepoPackages);
-    aurPackages = _clonePackageList(tempAurPackages);
-    lastSync = Date.now();
-    _notifyIfIncreased();
+    sizeFetchProcess.command = ["expac", "-S", "%k\t%n", ...updatePackages.map(p => p.name)];
+    sizeFetchProcess.running = true;
   }
-  function doAurPoll() {
-    if (busy)
-      return;
 
-    aurProc.command = ["sh", "-c", "if command -v yay >/dev/null 2>&1; then yay -Qua --color=never;" + "elif command -v paru >/dev/null 2>&1; then paru -Qua --color=never;" + "else exit 3; fi"];
-    aurProc.running = true;
-  }
   function doPoll() {
     if (busy)
       return;
-
-    repoComplete = false;
-    aurComplete = false;
-    tempRepoPackages = [];
-    tempAurPackages = [];
     pkgProc.command = ["checkupdates", "--nocolor"];
     pkgProc.running = true;
-    doAurPoll();
   }
+
   function runUpdate() {
     if (totalUpdates > 0) {
       updateRunner.command = updateCommand;
@@ -125,126 +116,210 @@ Singleton {
     }
   }
 
+  function executeUpdate() {
+    const packages = selectedCount > 0 ? selectedPackageNames : updatePackages.map(p => p.name);
+    if (packages.length === 0) {
+      Logger.warn("UpdateService", "No packages to update");
+      return;
+    }
+
+    totalPackagesToUpdate = packages.length;
+    currentPackageIndex = 0;
+    currentPackageName = "";
+    outputLines = [];
+    completedPackages = [];
+    failedPackages = [];
+    updateState = status.Updating;
+
+    updateProcess.command = ["bash", "-c", `pkexec pacman -Sy --noconfirm ${packages.join(' ')}`];
+    updateProcess.running = true;
+    Logger.log("UpdateService", `Starting update of ${packages.length} packages`);
+  }
+
+  function cancelUpdate() {
+    if (updateProcess.running)
+      updateProcess.running = false;
+    updateState = status.Idle;
+    outputLines = [];
+  }
+
+  function retryUpdate() {
+    errorMessage = "";
+    errorType = "";
+    executeUpdate();
+  }
+
+  function toggleSelectAll() {
+    selectAll = !selectAll;
+    selectedPackages = updatePackages.reduce((acc, pkg) => Object.assign({}, acc, {
+        [pkg.name]: selectAll
+      }), {});
+  }
+
+  function togglePackage(packageName) {
+    selectedPackages = Object.assign({}, selectedPackages, {
+      [packageName]: !selectedPackages[packageName]
+    });
+    selectAll = updatePackages.every(p => selectedPackages[p.name]);
+  }
+
+  function resetSelection() {
+    selectedPackages = {};
+    selectAll = false;
+  }
+
   Component.onCompleted: {
-    updatePackages = _clonePackageList(JSON.parse(cache.cachedUpdatePackagesJson || "[]"));
-    aurPackages = _clonePackageList(JSON.parse(cache.cachedAurPackagesJson || "[]"));
+    updatePackages = JSON.parse(cache.cachedUpdatePackagesJson || "[]");
     if (cache.cachedLastSync > 0)
       lastSync = cache.cachedLastSync;
   }
-  onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(_clonePackageList(updatePackages))
-  onAurPackagesChanged: cache.cachedAurPackagesJson = JSON.stringify(_clonePackageList(aurPackages))
+
+  onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
   onLastSyncChanged: cache.cachedLastSync = lastSync
 
   PersistentProperties {
     id: cache
-
-    property string cachedAurPackagesJson: "[]"
-    property double cachedLastSync: 0
     property string cachedUpdatePackagesJson: "[]"
-
+    property double cachedLastSync: 0
     reloadableId: "ArchCheckerCache"
   }
+
   Process {
     id: updateRunner
-
-    onExited: (exitCode, exitStatus) => {
-      updateService.doPoll();
-    }
+    onExited: (exitCode, exitStatus) => root.doPoll()
   }
+
   Process {
     id: pacmanCheck
-
     command: ["sh", "-c", "command -v checkupdates >/dev/null && echo yes || echo no"]
     running: true
-
     stdout: StdioCollector {
       onStreamFinished: {
-        updateService.checkupdatesAvailable = (text || "").trim() === "yes";
-        if (updateService.ready) {
-          updateService.doPoll();
+        root.checkupdatesAvailable = (text || "").trim() === "yes";
+        if (root.ready) {
+          root.doPoll();
           pollTimer.start();
         }
       }
     }
   }
+
+  Process {
+    id: sizeFetchProcess
+    stdout: SplitParser {
+      onRead: line => {
+        const parts = line.trim().split('\t');
+        if (parts.length !== 2)
+          return;
+        const sizeBytes = parseFloat(parts[0]);
+        const packageName = parts[1];
+        if (!isNaN(sizeBytes) && packageName) {
+          // expac %k returns bytes, convert to KiB for consistency
+          root.packageSizes = Object.assign({}, root.packageSizes, {
+            [packageName]: Math.round(sizeBytes / 1024)
+          });
+        }
+      }
+    }
+    onExited: {
+      Logger.log("UpdateService", `Fetched sizes for ${Object.keys(root.packageSizes).length} packages`);
+    }
+  }
+
   Process {
     id: pkgProc
-
     stderr: StdioCollector {
       onStreamFinished: {
         const msg = (text || "").trim();
-        if (msg)
-          updateService._handleError("checkupdates", msg, -1);
-        else
-          updateService.failureCount = 0;
+        msg ? root._handleError("checkupdates", msg, -1) : (root.failureCount = 0);
       }
     }
-
     stdout: StdioCollector {
       onStreamFinished: {
-        if (pkgProc.running)
-          return;
-        updateService.tempRepoPackages = updateService._parseOutput(text, "repo");
-        updateService.repoComplete = true;
-        updateService._commitResults();
+        const parsed = root._parseOutput(text);
+        root.updatePackages = parsed;
+        root.lastSync = Date.now();
+        root._notifyIfIncreased();
+        if (parsed.length > 0)
+          root.fetchPackageSizes();
       }
     }
-
     onExited: (exitCode, exitStatus) => {
       if (exitCode !== 0 && exitCode !== 2) {
-        updateService._handleError("checkupdates", `Exit code: ${exitCode}`, exitCode);
-        updateService.tempRepoPackages = [];
+        root._handleError("checkupdates", `Exit code: ${exitCode}`, exitCode);
       }
-      updateService.repoComplete = true;
-      updateService._commitResults();
     }
   }
-  Process {
-    id: aurProc
 
-    stderr: StdioCollector {
-      onStreamFinished: {
-        const msg = (text || "").trim();
-        if (msg)
-          Logger.warn("UpdateService", "AUR stderr:", msg);
+  Process {
+    id: updateProcess
+
+    function addOutput(line, type) {
+      if (!line.trim())
+        return;
+      root.outputLines.push({
+        text: line,
+        type: type
+      });
+      const match = line.match(/(?:installing|upgrading)\s+(\S+)/);
+      if (match) {
+        root.currentPackageIndex++;
+        root.currentPackageName = match[1];
+        root.completedPackages.push(match[1]);
       }
     }
 
-    stdout: StdioCollector {
-      onStreamFinished: {
-        if (aurProc.running)
+    stdout: SplitParser {
+      onRead: data => {
+        const line = data.trim();
+        const isError = line.toLowerCase().includes("error:") || line.includes("failed");
+        updateProcess.addOutput(line, isError ? "error" : "info");
+      }
+    }
+
+    stderr: SplitParser {
+      onRead: data => {
+        const line = data.trim();
+        if (!line)
           return;
-        updateService.tempAurPackages = updateService._parseOutput(text, "aur");
-        updateService.aurComplete = true;
-        updateService._commitResults();
+        updateProcess.addOutput(line, "error");
+
+        if (line.includes("failed retrieving") || line.includes("download timeout") || line.includes("connection refused") || line.includes("could not resolve host")) {
+          root.errorType = "network";
+          root.errorMessage = "Network error: Failed to download packages";
+        } else if (line.includes("not enough free disk space")) {
+          root.errorType = "disk";
+          root.errorMessage = "Insufficient disk space";
+        } else if (line.includes("authentication failure") || line.includes("incorrect password")) {
+          root.errorType = "auth";
+          root.errorMessage = "Authentication failed";
+        }
       }
     }
 
     onExited: (exitCode, exitStatus) => {
-      if (exitCode === 3) {
-        Logger.log("UpdateService", "AUR helpers not found (yay/paru). AUR polling disabled.");
-      } else if (exitCode !== 0 && exitCode !== 1) {
-        Logger.warn("UpdateService", `AUR check failed (code: ${exitCode})`);
+      root.updateState = exitCode === 0 ? root.status.Completed : root.status.Error;
+      if (exitCode === 0) {
+        root._notify("Update Complete", `${root.completedPackages.length} packages updated successfully`);
+        root.resetSelection();
+        root.doPoll();
+      } else {
+        if (!root.errorType) {
+          root.errorType = "unknown";
+          root.errorMessage = `Update failed with code ${exitCode}`;
+        }
+        root._notify("Update Failed", root.errorMessage, "critical");
       }
-      updateService.tempAurPackages = [];
-      updateService.aurComplete = true;
-      updateService._commitResults();
     }
-  }
-  Component.onDestruction: {
-    pollTimer.stop();
   }
 
   Timer {
     id: pollTimer
-
-    interval: updateService.pollInterval
+    interval: root.pollInterval
     repeat: true
-
-    onTriggered: {
-      if (updateService.ready) {
-        updateService.doPoll();
-      }
-    }
+    onTriggered: if (root.ready)
+      root.doPoll()
   }
+
+  Component.onDestruction: pollTimer.stop()
 }
