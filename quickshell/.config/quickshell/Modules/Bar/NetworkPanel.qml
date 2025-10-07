@@ -4,464 +4,375 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Wayland
 import qs.Config
 import qs.Components
-import qs.Modules.Bar
 import qs.Services.Core
 import qs.Services.Utils
 
-PanelWindow {
+OPanel {
   id: root
 
-  // Network state properties
-  property bool ready: false
-  property string link: "disconnected"
-  property var ap: null
+  readonly property bool ready: NetworkService.ready
+  readonly property bool networkingEnabled: NetworkService.networkingEnabled
+  readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
+  readonly property var wifiAps: NetworkService.wifiAps || []
+  readonly property var savedConnections: NetworkService.savedWifiAps || []
 
-  // Password input state
-  property string passwordInputSsid: ""
-  property string passwordInputError: ""
+  property string passwordSsid: ""
+  property string passwordError: ""
 
-  // Menu configuration
-  property int maxScrollableItems: 7
-  property real itemHeight: Theme.itemHeight
-  property real itemPadding: 8
-  property int menuWidth: 350
-  property int textInputMenuWidth: 350
-  property int screenMargin: 8
+  readonly property int maxItems: 7
+  readonly property int itemHeight: Theme.itemHeight
+  readonly property int padding: 8
 
-  property bool useButtonPosition: false
-  property point buttonPosition: Qt.point(0, 0)
-  property int buttonWidth: 0
-  property int buttonHeight: 0
+  panelWidth: passwordSsid ? 350 : 350
+  needsKeyboardFocus: passwordSsid !== ""
 
-  property bool isClosing: false
-  property bool isOpen: false
-
-  // Calculate if keyboard focus is needed
-  readonly property bool needsKeyboardFocus: passwordInputSsid !== ""
-
-  // Calculate effective menu width
-  readonly property int effectiveMenuWidth: needsKeyboardFocus ? textInputMenuWidth : menuWidth
-
-  color: "transparent"
-  visible: isOpen || isClosing
-
-  WlrLayershell.layer: WlrLayer.Overlay
-  WlrLayershell.exclusionMode: ExclusionMode.Ignore
-  WlrLayershell.namespace: "context-menu"
-  WlrLayershell.keyboardFocus: needsKeyboardFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-  WlrLayershell.exclusiveZone: -1
-
-  anchors {
-    top: true
-    left: true
-    right: true
-    bottom: true
-  }
-
-  // Check for successful connection whenever WiFi APs update
-  onApChanged: {
-    if (!passwordInputSsid || !ap)
-      return;
-    if (ap.ssid === passwordInputSsid && ap.connected) {
-      Logger.log("NetworkPanel", `Successfully connected to ${ap.ssid}, closing menu`);
-      passwordInputSsid = "";
-      passwordInputError = "";
-      close();
-    }
-  }
+  onClosed: resetPasswordState()
 
   Connections {
     target: NetworkService
 
     function onConnectionError(ssid, errorMessage) {
-      if (ssid === root.passwordInputSsid)
-        root.passwordInputError = errorMessage;
+      if (ssid === root.passwordSsid)
+        root.passwordError = errorMessage;
     }
 
     function onConnectionStateChanged() {
-      if (!root.passwordInputSsid)
-        return;
-      const aps = NetworkService.wifiAps || [];
-      const connectedAp = aps.find(ap => ap?.ssid === root.passwordInputSsid && ap.connected);
-      if (connectedAp) {
-        Logger.log("NetworkPanel", `Connection state changed, connected to ${connectedAp.ssid}, closing menu`);
-        root.passwordInputSsid = "";
-        root.passwordInputError = "";
+      const ap = root.wifiAps.find(a => a?.ssid === root.passwordSsid && a.connected);
+      if (ap) {
+        root.resetPasswordState();
         root.close();
       }
     }
-  }
 
-  component MenuAnimation: NumberAnimation {
-    duration: Theme.animationDuration
-    easing.type: Easing.OutQuad
-  }
-
-  Timer {
-    id: hideTimer
-    interval: Theme.animationDuration
-    repeat: false
-    onTriggered: {
-      root.closeCompleted();
+    function onWifiRadioStateChanged() {
+      root.syncToggles();
+    }
+    function onNetworkingEnabledChanged() {
+      root.syncToggles();
     }
   }
 
-  function openAt(x, y) {
-    buttonPosition = Qt.point(x, y);
-    buttonWidth = 0;
-    buttonHeight = 0;
-    open();
+  Component.onCompleted: syncToggles()
+
+  function syncToggles() {
+    networkToggle.checked = NetworkService.networkingEnabled;
+    wifiToggle.checked = NetworkService.wifiRadioEnabled;
   }
 
-  function openAtItem(item, mouseX, mouseY) {
-    if (!item)
-      return;
-    buttonPosition = item.mapToItem(null, mouseX || 0, mouseY || 0);
-    buttonWidth = item.width;
-    buttonHeight = item.height;
-    open();
+  function resetPasswordState() {
+    passwordSsid = "";
+    passwordError = "";
   }
 
-  function open() {
-    if (isClosing) {
-      hideTimer.stop();
-      isClosing = false;
-    }
-    useButtonPosition = true;
-    isOpen = true;
+  function findSavedConn(ssid) {
+    return savedConnections.find(c => c?.ssid === ssid);
   }
 
-  function close() {
-    if (!isOpen)
-      return;
-    isClosing = true;
-    isOpen = false;
-    hideTimer.start();
-  }
+  function buildNetworkList() {
+    if (!ready || !networkingEnabled || !wifiEnabled)
+      return [];
 
-  function closeCompleted() {
-    isClosing = false;
-    useButtonPosition = false;
-    passwordInputSsid = "";
-    passwordInputError = "";
-  }
+    const networks = [];
+    for (const ap of wifiAps) {
+      if (!ap?.ssid)
+        continue;
 
-  function calculateX() {
-    if (!useButtonPosition)
-      return 0;
-    const centerX = buttonPosition.x + buttonWidth / 2 - menuBackground.width / 2;
-    const maxX = root.width - menuBackground.width - screenMargin;
-    return Math.max(screenMargin, Math.min(centerX, maxX));
-  }
-
-  function calculateY() {
-    if (!useButtonPosition)
-      return Math.round((root.height - menuBackground.height) / 2);
-    const belowY = Theme.panelHeight;
-    const aboveY = buttonPosition.y - menuBackground.height - 4;
-    const maxY = root.height - menuBackground.height - 8;
-
-    if (belowY + menuBackground.height <= root.height - 8)
-      return Math.round(belowY);
-    if (aboveY >= 8)
-      return Math.round(aboveY);
-    return Math.round(Math.min(belowY, maxY));
-  }
-
-  function handleAction(action, data) {
-    const saved = NetworkService.savedWifiAps || [];
-    const findSaved = ssid => saved.find(conn => conn?.ssid === ssid);
-
-    if (action === "toggle-radio") {
-      NetworkService.toggleWifiRadio();
-    } else if (action.startsWith("password-submit-")) {
-      const ssid = action.substring(16);
-      const dataObj = data || {};
-      const password = dataObj.value || "";
-      if (NetworkService.wifiInterface && ssid && password) {
-        root.passwordInputError = "";
-        NetworkService.connectToWifi(ssid, password, NetworkService.wifiInterface, false, "");
+      if (ap.ssid === passwordSsid) {
+        networks.push({
+          type: "input",
+          icon: "󰌾",
+          placeholder: qsTr("Password for %1").arg(passwordSsid),
+          hasError: passwordError !== "",
+          errorMessage: passwordError,
+          action: `submit-${passwordSsid}`,
+          ssid: passwordSsid
+        });
+        continue;
       }
-    } else if (action.startsWith("forget-")) {
+
+      const saved = findSavedConn(ap.ssid);
+      networks.push({
+        type: "action",
+        icon: NetworkService.getWifiIcon(ap.band || "", ap.signal || 0),
+        label: ap.ssid,
+        action: ap.connected ? `disconnect-${ap.ssid}` : `connect-${ap.ssid}`,
+        actionIcon: ap.connected ? "󱘖" : "󰌘",
+        forgetIcon: saved ? "󰩺" : undefined,
+        band: ap.band || "",
+        bandColor: NetworkService.getBandColor(ap.band || ""),
+        ssid: ap.ssid,
+        connected: ap.connected,
+        connectionId: saved?.connectionId,
+        isSaved: !!saved
+      });
+    }
+    return networks;
+  }
+
+  function handleAction(action: string, data: var) {
+    const wifiIface = NetworkService.wifiInterface;
+
+    if (action.startsWith("submit-")) {
       const ssid = action.substring(7);
-      const connId = findSaved(ssid)?.connectionId;
+      const password = (data && "value" in data) ? String(data.value).trim() : "";
+      if (wifiIface && ssid && password) {
+        passwordError = "";
+        NetworkService.connectToWifi(ssid, password, wifiIface, false, "");
+      }
+      return;
+    }
+
+    if (action.startsWith("forget-")) {
+      const ssid = action.substring(7);
+      const connId = findSavedConn(ssid)?.connectionId;
       if (connId)
         NetworkService.forgetWifiConnection(connId);
-    } else if (action.startsWith("disconnect-")) {
-      const ssid = action.substring(11);
-      const aps = NetworkService.wifiAps || [];
-      const connectedAp = aps.find(ap => ap?.ssid === ssid && ap.connected);
-      if (connectedAp && NetworkService.wifiInterface) {
-        NetworkService.disconnectInterface(NetworkService.wifiInterface);
-      }
-    } else if (action.startsWith("connect-")) {
+      return;
+    }
+
+    if (action === "cancel") {
+      resetPasswordState();
+      return;
+    }
+
+    if (action.startsWith("disconnect-")) {
+      if (wifiIface)
+        NetworkService.disconnectInterface(wifiIface);
+      return;
+    }
+
+    if (action.startsWith("connect-")) {
       const ssid = action.substring(8);
-      const aps = NetworkService.wifiAps || [];
-      const selectedAp = aps.find(ap => ap?.ssid === ssid);
-      if (!selectedAp || selectedAp.connected)
+      const ap = wifiAps.find(a => a?.ssid === ssid);
+      if (!ap || ap.connected)
         return;
 
-      const savedConn = findSaved(ssid);
-      if (savedConn?.connectionId) {
-        NetworkService.activateConnection(savedConn.connectionId, NetworkService.wifiInterface);
+      const saved = findSavedConn(ssid);
+      if (saved?.connectionId) {
+        NetworkService.activateConnection(saved.connectionId, wifiIface);
         root.close();
       } else {
-        root.passwordInputSsid = ssid;
+        passwordSsid = ssid;
+        passwordError = "";
       }
     }
   }
 
-  Shortcut {
-    sequences: ["Escape"]
-    enabled: root.isOpen && !root.isClosing
-    onActivated: root.close()
-    context: Qt.WindowShortcut
-  }
+  ColumnLayout {
+    width: parent.width - root.padding * 2
+    x: root.padding
+    y: root.padding
+    spacing: 4
 
-  MouseArea {
-    id: dismissArea
-    anchors.fill: parent
-    acceptedButtons: Qt.LeftButton | Qt.RightButton
-    hoverEnabled: false
-    enabled: root.isOpen && !root.isClosing
+    // Toggle Cards Row
+    RowLayout {
+      Layout.fillWidth: true
+      spacing: root.padding * 1.25
 
-    onPressed: function (mouse) {
-      if (!menuBackground)
-        return;
-      const local = menuBackground.mapFromItem(dismissArea, mouse.x, mouse.y);
-      const inside = local.x >= 0 && local.y >= 0 && local.x <= menuBackground.width && local.y <= menuBackground.height;
+      // Networking Toggle Card
+      Rectangle {
+        Layout.fillWidth: true
+        Layout.preferredHeight: networkCol.implicitHeight + root.padding * 1.2
+        radius: Theme.itemRadius
+        color: Qt.lighter(Theme.bgColor, 1.35)
+        border.width: 1
+        border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+        opacity: root.ready ? 1 : 0.5
 
-      if (inside) {
-        mouse.accepted = false;
-        return;
-      }
+        Behavior on opacity {
+          NumberAnimation {
+            duration: 150
+          }
+        }
 
-      root.close();
-    }
-  }
+        ColumnLayout {
+          id: networkCol
+          anchors.fill: parent
+          anchors.margins: root.padding * 0.9
+          spacing: root.padding * 0.4
 
-  // Clip container to prevent menu from appearing above the bar
-  Item {
-    id: clipContainer
-    anchors.fill: parent
-    anchors.topMargin: Theme.panelHeight
-    clip: true
+          OText {
+            text: qsTr("Networking")
+            font.bold: true
+            color: root.ready ? Theme.textActiveColor : Theme.textInactiveColor
+          }
 
-    Rectangle {
-      id: menuBackground
+          RowLayout {
+            spacing: root.padding * 0.9
 
-      readonly property real fixedHeight: fixedList.contentHeight + (scrollableList.count > 0 ? 4 : 0)
-      readonly property real scrollableHeight: Math.min(scrollableList.contentHeight, root.maxScrollableItems * root.itemHeight + (root.maxScrollableItems - 1) * 4)
-      readonly property real totalContentHeight: fixedHeight + scrollableHeight + root.itemPadding * 2
-      readonly property real targetY: root.calculateY() - Theme.panelHeight
-      readonly property real hiddenY: -totalContentHeight
+            Rectangle {
+              implicitWidth: Theme.itemHeight * 0.9
+              implicitHeight: implicitWidth
+              radius: height / 2
+              color: root.ready ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
+              border.width: 1
+              border.color: Qt.rgba(0, 0, 0, 0.12)
 
-      width: root.effectiveMenuWidth
-      height: totalContentHeight
+              Behavior on color {
+                ColorAnimation {
+                  duration: 150
+                }
+              }
 
-      color: Theme.bgColor
-      radius: Theme.itemRadius
-
-      topLeftRadius: 0
-      topRightRadius: 0
-      bottomLeftRadius: Theme.itemRadius
-      bottomRightRadius: Theme.itemRadius
-
-      x: root.calculateX()
-      y: root.isOpen ? targetY : hiddenY
-
-      Behavior on y {
-        MenuAnimation {}
-      }
-
-      clip: true
-
-      ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: root.itemPadding
-        spacing: 4
-
-        // Fixed items (Toggle Wi-Fi Radio)
-        ListView {
-          id: fixedList
-          Layout.fillWidth: true
-          Layout.preferredHeight: contentHeight
-          spacing: 4
-          interactive: false
-          clip: true
-          model: [
-            {
-              itemType: "action",
-              icon: "󰒓",
-              label: "Toggle Wi-Fi Radio",
-              action: "toggle-radio"
+              Text {
+                text: "󰤨"
+                anchors.centerIn: parent
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize * 0.95
+                color: root.ready ? Theme.textContrast(parent.color) : Theme.textInactiveColor
+              }
             }
-          ]
 
-          delegate: NetworkMenuItem {
-            itemHeight: root.itemHeight
-            itemPadding: root.itemPadding
-            parentListView: fixedList
-            isEnabled: root.ready
+            Item {
+              Layout.fillWidth: true
+            }
 
-            onTriggered: (action, data) => {
-              root.handleAction(action, data);
+            OToggle {
+              id: networkToggle
+              Layout.preferredWidth: Theme.itemHeight * 2.6
+              Layout.preferredHeight: Theme.itemHeight * 0.72
+              disabled: !root.ready
+              onToggled: checked => NetworkService.setNetworkingEnabled(checked)
+            }
+          }
+        }
+      }
+
+      // Wi-Fi Toggle Card
+      Rectangle {
+        Layout.fillWidth: true
+        Layout.preferredHeight: wifiCol.implicitHeight + root.padding * 1.2
+        radius: Theme.itemRadius
+        color: Qt.lighter(Theme.bgColor, 1.35)
+        border.width: 1
+        border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+        opacity: root.ready && root.networkingEnabled ? 1 : 0.5
+
+        Behavior on opacity {
+          NumberAnimation {
+            duration: 150
+          }
+        }
+
+        ColumnLayout {
+          id: wifiCol
+          anchors.fill: parent
+          anchors.margins: root.padding * 0.9
+          spacing: root.padding * 0.4
+
+          OText {
+            text: qsTr("Wi-Fi")
+            font.bold: true
+            color: root.ready && root.networkingEnabled ? Theme.textActiveColor : Theme.textInactiveColor
+          }
+
+          RowLayout {
+            spacing: root.padding * 0.9
+
+            Rectangle {
+              implicitWidth: Theme.itemHeight * 0.9
+              implicitHeight: implicitWidth
+              radius: height / 2
+              color: root.ready && root.networkingEnabled ? Qt.lighter(Theme.onHoverColor, 1.25) : Qt.darker(Theme.inactiveColor, 1.1)
+              border.width: 1
+              border.color: Qt.rgba(0, 0, 0, 0.12)
+
+              Behavior on color {
+                ColorAnimation {
+                  duration: 150
+                }
+              }
+
+              Text {
+                text: "󰒓"
+                anchors.centerIn: parent
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize * 0.95
+                color: root.ready && root.networkingEnabled ? Theme.textContrast(parent.color) : Theme.textInactiveColor
+              }
+            }
+
+            Item {
+              Layout.fillWidth: true
+            }
+
+            OToggle {
+              id: wifiToggle
+              Layout.preferredWidth: Theme.itemHeight * 2.6
+              Layout.preferredHeight: Theme.itemHeight * 0.72
+              disabled: !root.ready || !root.networkingEnabled
+              onToggled: checked => NetworkService.setWifiRadioEnabled(checked)
+            }
+          }
+        }
+      }
+    }
+
+    // Network List
+    Rectangle {
+      Layout.fillWidth: true
+      Layout.topMargin: root.padding
+      Layout.bottomMargin: root.padding * 2
+      radius: Theme.itemRadius
+      color: Qt.lighter(Theme.bgColor, 1.25)
+      border.width: 1
+      border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+      visible: root.ready && root.networkingEnabled && root.wifiEnabled && networkList.count > 0
+      clip: true
+      implicitHeight: visible ? networkList.implicitHeight + root.padding * 1.4 : 0
+
+      ListView {
+        id: networkList
+        anchors.fill: parent
+        anchors.margins: root.padding * 0.8
+        spacing: 4
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        implicitHeight: Math.min(contentHeight, root.maxItems * root.itemHeight + (root.maxItems - 1) * 4)
+        interactive: contentHeight > height
+        model: root.buildNetworkList()
+
+        ScrollBar.vertical: ScrollBar {
+          policy: networkList.contentHeight > networkList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+          width: 8
+        }
+
+        delegate: NetworkItem {
+          id: delegateItem
+          width: ListView.view.width
+          onTriggered: (action, data) => {
+            root.handleAction(action, data);
+            if (!action.startsWith("connect-") || delegateItem.modelData.connected || delegateItem.modelData.isSaved) {
               root.close();
             }
           }
-        }
-
-        // Scrollable section (networks)
-        ListView {
-          id: scrollableList
-          Layout.fillWidth: true
-          Layout.preferredHeight: Math.min(contentHeight, root.maxScrollableItems * root.itemHeight + (root.maxScrollableItems - 1) * 4)
-          visible: count > 0
-          spacing: 4
-          interactive: contentHeight > height
-          clip: true
-          model: {
-            const networks = [];
-            if (!NetworkService.wifiRadioEnabled || !NetworkService.wifiAps)
-              return networks;
-
-            const saved = NetworkService.savedWifiAps || [];
-            const findSaved = ssid => saved.find(conn => conn?.ssid === ssid);
-
-            for (const ap of NetworkService.wifiAps) {
-              if (!ap?.ssid)
-                continue;
-
-              // Password input mode for this network
-              if (ap.ssid === root.passwordInputSsid) {
-                networks.push({
-                  itemType: "textInput",
-                  icon: "󰌾",
-                  placeholder: qsTr("Password for %1").arg(root.passwordInputSsid),
-                  echoMode: TextInput.Password,
-                  hasError: root.passwordInputError !== "",
-                  errorMessage: root.passwordInputError,
-                  action: `password-submit-${root.passwordInputSsid}`,
-                  actionIcon: "󰌘"
-                });
-                continue;
-              }
-
-              const signal = typeof ap.signal === "number" ? ap.signal : 0;
-              const band = ap.band || "";
-              const savedConn = findSaved(ap.ssid);
-
-              networks.push({
-                itemType: "action",
-                icon: NetworkService.getWifiIcon(band, signal),
-                label: ap.ssid,
-                action: ap.connected ? `disconnect-${ap.ssid}` : `connect-${ap.ssid}`,
-                actionIcon: ap.connected ? "󱘖" : "󰌘",
-                forgetIcon: savedConn ? "󰩺" : undefined,
-                band,
-                bandColor: NetworkService.getBandColor(band),
-                ssid: ap.ssid,
-                signal,
-                connected: ap.connected,
-                connectionId: savedConn?.connectionId,
-                isSaved: !!savedConn
-              });
-            }
-            return networks;
-          }
-
-          ScrollBar.vertical: ScrollBar {
-            policy: scrollableList.contentHeight > scrollableList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-            width: 8
-          }
-
-          delegate: NetworkMenuItem {
-            itemHeight: root.itemHeight
-            itemPadding: root.itemPadding
-            parentListView: scrollableList
-            isEnabled: root.ready
-            passwordError: root.passwordInputError
-
-            onTriggered: (action, data) => {
-              const shouldClose = modelData.itemType !== "textInput" && !action.startsWith("connect-") || (action.startsWith("connect-") && (modelData.connected || modelData.isSaved));
-              root.handleAction(action, data);
-              if (shouldClose) {
-                root.close();
-              }
-            }
-
-            onPasswordCleared: {
-              root.passwordInputError = "";
-            }
-          }
+          onPasswordCleared: root.passwordError = ""
         }
       }
     }
-
-    // Left inverse corner
-    RoundCorner {
-      anchors.right: menuBackground.left
-      anchors.rightMargin: -1
-      y: menuBackground.y
-      color: Theme.bgColor
-      orientation: 1
-      radius: Theme.panelRadius * 3
-    }
-
-    // Right inverse corner
-    RoundCorner {
-      anchors.left: menuBackground.right
-      anchors.leftMargin: -1
-      y: menuBackground.y
-      color: Theme.bgColor
-      orientation: 0
-      radius: Theme.panelRadius * 3
-    }
   }
 
-  // Inlined MenuItem Component
-  component NetworkMenuItem: Item {
-    id: menuItem
-
+  component NetworkItem: Item {
+    id: networkItem
     required property var modelData
-    required property int index
 
-    property real itemHeight: Theme.itemHeight
-    property real itemPadding: 8
-    property var parentListView: null
-    property bool isEnabled: true
-    property string passwordError: ""
-
-    readonly property string itemType: modelData.itemType || "action"
-    readonly property bool isTextInput: itemType === "textInput"
-    readonly property bool hasError: isTextInput && (modelData.hasError ?? false)
-    readonly property color textColor: hovered && isEnabled ? Theme.textOnHoverColor : Theme.textActiveColor
+    readonly property bool isInput: networkItem.modelData.type === "input"
+    readonly property color textColor: networkItem.hovered ? Theme.textOnHoverColor : Theme.textActiveColor
 
     property bool hovered: false
 
     signal triggered(string action, var data)
     signal passwordCleared
 
-    width: parentListView.width
-    height: {
-      if (itemType === "textInput") {
-        const baseHeight = itemHeight * 0.8 + itemPadding * 2;
-        return hasError ? baseHeight + itemHeight * 0.6 : baseHeight;
-      }
-      return itemHeight;
-    }
-    opacity: isEnabled ? 1.0 : 0.5
+    height: networkItem.isInput ? (networkItem.modelData.hasError ? Theme.itemHeight * 1.6 : Theme.itemHeight * 0.8) : Theme.itemHeight
 
-    // Background for action items
     Rectangle {
       anchors.fill: parent
-      visible: menuItem.itemType === "action"
-      color: menuItem.hovered && menuItem.isEnabled ? Theme.onHoverColor : "transparent"
+      visible: !networkItem.isInput
+      color: networkItem.hovered ? Theme.onHoverColor : "transparent"
       radius: Theme.itemRadius
-
       Behavior on color {
         ColorAnimation {
           duration: Theme.animationDuration
@@ -469,35 +380,28 @@ PanelWindow {
       }
     }
 
-    // Content loader
     Loader {
       anchors.fill: parent
-      sourceComponent: menuItem.itemType === "action" ? actionItemComponent : textInputItemComponent
+      sourceComponent: networkItem.isInput ? inputComp : actionComp
     }
 
-    // Action item
     Component {
-      id: actionItemComponent
-
+      id: actionComp
       RowLayout {
         spacing: 8
 
-        // Icon with band indicator
         Item {
-          visible: menuItem.modelData.icon !== undefined
           Layout.preferredWidth: Theme.fontSize * 1.5
-          Layout.preferredHeight: menuItem.itemHeight
-          Layout.leftMargin: menuItem.itemPadding
-          Layout.alignment: Qt.AlignVCenter
+          Layout.preferredHeight: Theme.itemHeight
+          Layout.leftMargin: root.padding
 
           Text {
-            id: menuIcon
-            text: menuItem.modelData.icon || ""
+            id: networkIcon
+            text: networkItem.modelData.icon || ""
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
-            color: menuItem.modelData.bandColor || menuItem.textColor
+            color: networkItem.modelData.bandColor || networkItem.textColor
             anchors.centerIn: parent
-
             Behavior on color {
               ColorAnimation {
                 duration: Theme.animationDuration
@@ -506,18 +410,15 @@ PanelWindow {
           }
 
           Text {
-            text: menuItem.modelData.band ? (menuItem.modelData.band === "2.4" ? "2.4" : menuItem.modelData.band) : ""
+            text: networkItem.modelData.band === "2.4" ? "2.4" : networkItem.modelData.band
             font.family: "Roboto Condensed"
             font.pixelSize: Theme.fontSize * 0.5
             font.bold: true
-            font.letterSpacing: -0.5
-            color: menuItem.modelData.bandColor || menuItem.textColor
-            anchors.left: menuIcon.right
+            color: networkItem.modelData.bandColor || networkItem.textColor
+            anchors.left: networkIcon.right
             anchors.leftMargin: -2
-            anchors.bottom: menuIcon.bottom
-            anchors.bottomMargin: 0
-            visible: menuItem.modelData.band !== undefined && menuItem.modelData.band !== ""
-
+            anchors.bottom: networkIcon.bottom
+            visible: networkItem.modelData.band !== ""
             Behavior on color {
               ColorAnimation {
                 duration: Theme.animationDuration
@@ -527,15 +428,11 @@ PanelWindow {
         }
 
         Text {
-          text: menuItem.modelData.label || menuItem.modelData.text || ""
+          text: networkItem.modelData.label || ""
           font.family: Theme.fontFamily
           font.pixelSize: Theme.fontSize
-          color: menuItem.textColor
-          verticalAlignment: Text.AlignVCenter
+          color: networkItem.textColor
           Layout.fillWidth: true
-          Layout.alignment: Qt.AlignVCenter
-          Layout.leftMargin: menuItem.modelData.icon ? 0 : menuItem.itemPadding
-
           Behavior on color {
             ColorAnimation {
               duration: Theme.animationDuration
@@ -546,121 +443,64 @@ PanelWindow {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             hoverEnabled: true
-
-            onEntered: menuItem.hovered = true
-            onExited: menuItem.hovered = false
-
-            onClicked: {
-              if (menuItem.isEnabled) {
-                menuItem.triggered(menuItem.modelData.action || menuItem.index.toString(), {});
-              }
-            }
+            onEntered: networkItem.hovered = true
+            onExited: networkItem.hovered = false
+            onClicked: networkItem.triggered(networkItem.modelData.action || "", {})
           }
         }
 
-        // Forget button
         IconButton {
-          visible: menuItem.modelData.forgetIcon !== undefined
-          Layout.preferredWidth: menuItem.itemHeight * 0.8
-          Layout.preferredHeight: menuItem.itemHeight * 0.8
-          Layout.alignment: Qt.AlignVCenter
+          visible: networkItem.modelData.forgetIcon !== undefined
+          Layout.preferredWidth: Theme.itemHeight * 0.8
+          Layout.preferredHeight: Theme.itemHeight * 0.8
           Layout.rightMargin: 4
-
-          icon: menuItem.modelData.forgetIcon || ""
+          icon: networkItem.modelData.forgetIcon || ""
           colorBg: "#F38BA8"
           tooltipText: qsTr("Forget Network")
-
-          onClicked: {
-            menuItem.triggered("forget-" + (menuItem.modelData.ssid || ""), {});
-          }
+          onClicked: networkItem.triggered("forget-" + networkItem.modelData.ssid, {})
         }
 
-        // Action button
         IconButton {
-          visible: menuItem.modelData.actionIcon !== undefined
-          Layout.preferredWidth: menuItem.itemHeight * 0.8
-          Layout.preferredHeight: menuItem.itemHeight * 0.8
-          Layout.alignment: Qt.AlignVCenter
-          Layout.rightMargin: menuItem.itemPadding
-
-          icon: menuItem.modelData.actionIcon || ""
+          visible: networkItem.modelData.actionIcon !== undefined
+          Layout.preferredWidth: Theme.itemHeight * 0.8
+          Layout.preferredHeight: Theme.itemHeight * 0.8
+          Layout.rightMargin: root.padding
+          icon: networkItem.modelData.actionIcon || ""
           colorBg: Theme.activeColor
-          tooltipText: menuItem.modelData.connected ? qsTr("Disconnect") : qsTr("Connect")
-
-          onClicked: {
-            menuItem.triggered(menuItem.modelData.action || "", {});
-          }
+          tooltipText: networkItem.modelData.connected ? qsTr("Disconnect") : qsTr("Connect")
+          onClicked: networkItem.triggered(networkItem.modelData.action || "", {})
         }
       }
     }
 
-    // Text input item
     Component {
-      id: textInputItemComponent
-
+      id: inputComp
       RowLayout {
         spacing: 8
 
-        Item {
-          visible: menuItem.modelData.icon !== undefined
-          Layout.preferredWidth: Theme.fontSize * 1.5
-          Layout.preferredHeight: menuItem.itemHeight
-          Layout.leftMargin: menuItem.itemPadding
-          Layout.alignment: Qt.AlignVCenter
-
-          Text {
-            text: menuItem.modelData.icon || ""
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            color: menuItem.textColor
-            anchors.centerIn: parent
-
-            Behavior on color {
-              ColorAnimation {
-                duration: Theme.animationDuration
-              }
-            }
-          }
+        Text {
+          text: networkItem.modelData.icon || ""
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize
+          color: networkItem.textColor
+          Layout.leftMargin: root.padding
         }
 
-        // Inlined TextAction
         ColumnLayout {
-          id: textInputContainer
           Layout.fillWidth: true
-          Layout.rightMargin: menuItem.itemPadding
+          Layout.rightMargin: root.padding
           spacing: 4
-
-          Timer {
-            id: focusTimer
-            interval: 100
-            repeat: true
-            running: false
-            property int attempts: 0
-            onTriggered: {
-              if (textField) {
-                textField.forceActiveFocus();
-                attempts++;
-                if (textField.activeFocus || attempts >= 5) {
-                  stop();
-                  attempts = 0;
-                }
-              }
-            }
-          }
 
           RowLayout {
             Layout.fillWidth: true
             spacing: 8
 
-            readonly property real buttonSize: Theme.itemHeight * 0.8
-            readonly property real inputHeight: Theme.itemHeight * 0.8
-
             Rectangle {
               Layout.fillWidth: true
-              Layout.preferredHeight: parent.inputHeight
+              Layout.preferredHeight: Theme.itemHeight * 0.8
               color: Theme.bgColor
-              border.color: menuItem.hasError ? "#F38BA8" : textField.activeFocus ? Theme.activeColor : Theme.borderColor
-              border.width: menuItem.hasError ? 2 : 1
+              border.color: networkItem.modelData.hasError ? Theme.critical : (passwordField.activeFocus ? Theme.activeColor : Theme.borderColor)
+              border.width: networkItem.modelData.hasError ? 2 : 1
               radius: Theme.itemRadius
 
               Behavior on border.color {
@@ -670,16 +510,13 @@ PanelWindow {
               }
 
               TextField {
-                id: textField
+                id: passwordField
                 anchors.fill: parent
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
-                anchors.topMargin: 2
-                anchors.bottomMargin: 2
 
-                placeholderText: menuItem.modelData.placeholder || ""
-                echoMode: menuItem.modelData.echoMode ?? TextInput.Normal
-
+                placeholderText: networkItem.modelData.placeholder || ""
+                echoMode: TextInput.Password
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
                 color: Theme.textActiveColor
@@ -690,41 +527,46 @@ PanelWindow {
                   color: "transparent"
                 }
 
-                onTextChanged: {
-                  menuItem.passwordCleared();
-                }
+                onTextChanged: networkItem.passwordCleared()
 
                 Keys.onPressed: event => {
-                  if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                    if (text !== "") {
+                  if (event.key === Qt.Key_Escape) {
+                    event.accepted = true;
+                    networkItem.triggered("cancel", {});
+                  } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    if (passwordField.text !== "") {
                       event.accepted = true;
-                      menuItem.triggered(menuItem.modelData.action || "", {
-                        value: text
+                      networkItem.triggered(networkItem.modelData.action || "", {
+                        value: passwordField.text
                       });
                     }
                   }
                 }
 
-                Component.onCompleted: {
-                  focusTimer.start();
-                }
+                Component.onCompleted: Qt.callLater(() => passwordField.forceActiveFocus())
               }
             }
 
             IconButton {
-              Layout.preferredWidth: parent.buttonSize
-              Layout.preferredHeight: parent.buttonSize
-              Layout.alignment: Qt.AlignVCenter
+              Layout.preferredWidth: Theme.itemHeight * 0.8
+              Layout.preferredHeight: Theme.itemHeight * 0.8
+              icon: "󰅖"
+              colorBg: Theme.inactiveColor
+              tooltipText: qsTr("Cancel")
+              onClicked: networkItem.triggered("cancel", {})
+            }
 
-              icon: menuItem.hasError ? "󰀦" : (menuItem.modelData.actionIcon || "")
-              colorBg: menuItem.hasError ? "#F38BA8" : Theme.activeColor
-              enabled: textField.text !== ""
-              tooltipText: menuItem.hasError ? qsTr("Retry") : qsTr("Submit")
-
+            IconButton {
+              Layout.preferredWidth: Theme.itemHeight * 0.8
+              Layout.preferredHeight: Theme.itemHeight * 0.8
+              icon: networkItem.modelData.hasError ? "󰀦" : "󰌘"
+              colorBg: networkItem.modelData.hasError ? "#F38BA8" : Theme.activeColor
+              enabled: passwordField.text !== ""
+              tooltipText: networkItem.modelData.hasError ? qsTr("Retry") : qsTr("Submit")
               onClicked: {
-                if (textField.text !== "") {
-                  menuItem.triggered(menuItem.modelData.action || "", {
-                    value: textField.text
+                if (passwordField.text !== "") {
+                  networkItem.triggered(networkItem.modelData.action || "", {
+                    value: passwordField.text
                   });
                 }
               }
@@ -732,14 +574,13 @@ PanelWindow {
           }
 
           Text {
-            visible: menuItem.hasError && menuItem.modelData.errorMessage !== ""
-            text: "⚠ " + (menuItem.modelData.errorMessage || "")
+            visible: networkItem.modelData.hasError && networkItem.modelData.errorMessage !== ""
+            text: "⚠ " + (networkItem.modelData.errorMessage || "")
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize * 0.85
             color: "#F38BA8"
             Layout.fillWidth: true
             opacity: visible ? 1 : 0
-
             Behavior on opacity {
               NumberAnimation {
                 duration: Theme.animationDuration
