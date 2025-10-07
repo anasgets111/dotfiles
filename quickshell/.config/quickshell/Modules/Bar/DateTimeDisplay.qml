@@ -34,11 +34,7 @@ Item {
     cursorShape: Qt.PointingHandCursor
     hoverEnabled: true
 
-    onClicked: {
-      // Refresh weather using existing coordinates only (skip IP geolocation)
-      if (!isNaN(WeatherService.latitude) && !isNaN(WeatherService.longitude))
-        WeatherService.fetchCurrentTemp(WeatherService.latitude, WeatherService.longitude);
-    }
+    onClicked: WeatherService.refresh()
   }
 
   // Tooltip background and content: Rectangle is now parent of Column
@@ -98,20 +94,20 @@ Item {
       }
 
       // Load the calendar immediately (simple Loader vs LazyLoader to avoid hover teardown issues)
-      // Loader {
-      //   id: calendarLoader
-      //   // Always load the calendar so it is ready instantly when tooltip appears
-      //   asynchronous: true
-      //   active: dateTimeMouseArea.containsMouse
-      //   visible: dateTimeMouseArea.containsMouse
-      //   sourceComponent: MinimalCalendar {
-      //     id: calendar
-      //     theme: Theme
-      //     // Ensure 'today' is a Date object for MinimalCalendar
-      //     today: TimeService.now
-      //     weekStart: 6
-      //   }
-      // }
+      Loader {
+        id: calendarLoader
+        // Always load the calendar so it is ready instantly when tooltip appears
+        asynchronous: true
+        active: dateTimeMouseArea.containsMouse
+        visible: dateTimeMouseArea.containsMouse
+        sourceComponent: MinimalCalendar {
+          id: calendar
+          theme: Theme
+          // Ensure 'today' is a Date object for MinimalCalendar
+          today: TimeService.now
+          weekStart: 6
+        }
+      }
     }
   }
 }
