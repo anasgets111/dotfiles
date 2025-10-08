@@ -60,7 +60,7 @@ Item {
   Item {
     id: frame
     width: root.cardWidth
-    implicitHeight: cardColumn.implicitHeight + 24
+    implicitHeight: cardColumn.implicitHeight + cardColumn.anchors.topMargin + cardColumn.anchors.bottomMargin
 
     CardStyling {
       anchors.fill: parent
@@ -70,7 +70,10 @@ Item {
     ColumnLayout {
       id: cardColumn
       anchors.fill: parent
-      anchors.margins: 12
+      anchors.leftMargin: 12
+      anchors.topMargin: 12
+      anchors.rightMargin: 16
+      anchors.bottomMargin: 16
       spacing: 10
 
       RowLayout {
@@ -180,8 +183,17 @@ Item {
 
             ColumnLayout {
               id: messageColumn
-              anchors.fill: parent
-              anchors.margins: messageItem.isMultipleItems ? 8 : 0
+              readonly property int horizontalPadding: messageItem.isMultipleItems ? 8 : 0
+              readonly property int topPadding: messageItem.isMultipleItems ? 8 : 0
+              readonly property int bottomPadding: messageItem.isMultipleItems ? 8 : 0
+
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              anchors.leftMargin: horizontalPadding
+              anchors.rightMargin: horizontalPadding
+              anchors.topMargin: topPadding
+              implicitHeight: childrenRect.height + topPadding + bottomPadding
 
               readonly property string summary: messageItem.modelData?.summary || "(No title)"
               readonly property string body: messageItem.modelData?.body || ""
@@ -350,14 +362,21 @@ Item {
                 }
               }
 
-              Loader {
+              ColumnLayout {
                 Layout.fillWidth: true
                 Layout.topMargin: 8
-                active: messageColumn.actionsModel.length > 0
-                sourceComponent: RowLayout {
+                Layout.bottomMargin: 16
+                spacing: 0
+                visible: messageColumn.actionsModel.length > 0
+                Layout.preferredHeight: visible ? implicitHeight : 0
+                implicitHeight: actionsRow.implicitHeight
+
+                RowLayout {
+                  id: actionsRow
                   Layout.fillWidth: true
                   Layout.alignment: Qt.AlignHCenter
                   spacing: 8
+                  implicitHeight: childrenRect.height
                   Repeater {
                     model: messageColumn.actionsModel
                     delegate: StandardButton {
