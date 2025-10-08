@@ -21,7 +21,7 @@ Singleton {
   property string outputPath: ""
   property string quality: "medium"
   property bool showCursor: true
-  property string videoCodec: "hevc"
+  property string videoCodec: "h264"
 
   signal recordingPaused(string path)
   signal recordingResumed(string path)
