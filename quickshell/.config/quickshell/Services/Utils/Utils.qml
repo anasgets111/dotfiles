@@ -12,6 +12,11 @@ Singleton {
   property bool numLock: false
   property bool scrollLock: false
   property var ledWatchers: []
+  readonly property var _ledState: ({
+      caps: false,
+      num: false,
+      scroll: false
+    })
 
   readonly property Process ledMonitor: Process {
     command: ["sh", "-c", "set -- /sys/class/leds/*capslock/brightness;caps=$1;set -- /sys/class/leds/*numlock/brightness;num=$1;set -- /sys/class/leds/*scrolllock/brightness;scroll=$1;while :;do read c < \"$caps\" 2>/dev/null||c=0;read n < \"$num\" 2>/dev/null||n=0;read s < \"$scroll\" 2>/dev/null||s=0;printf '%s %s %s\\n' \"$c\" \"$n\" \"$s\";sleep 0.04;done"]
@@ -19,13 +24,12 @@ Singleton {
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: line => {
-        const parts = line.trim().split(/\s+/);
-        if (parts.length !== 3)
+        if (line.length < 5)
           return;
 
-        const capsState = parts[0] !== "0";
-        const numState = parts[1] !== "0";
-        const scrollState = parts[2] !== "0";
+        const capsState = line[0] !== "0";
+        const numState = line[2] !== "0";
+        const scrollState = line[4] !== "0";
 
         if (capsState === utils.capsLock && numState === utils.numLock && scrollState === utils.scrollLock)
           return;
@@ -34,14 +38,21 @@ Singleton {
         utils.numLock = numState;
         utils.scrollLock = scrollState;
 
-        const state = {
-          caps: utils.capsLock,
-          num: utils.numLock,
-          scroll: utils.scrollLock
-        };
+        if (utils.ledWatchers.length === 0)
+          return;
+
+        utils._ledState.caps = utils.capsLock;
+        utils._ledState.num = utils.numLock;
+        utils._ledState.scroll = utils.scrollLock;
+
         for (let i = utils.ledWatchers.length - 1; i >= 0; i--) {
+          const watcher = utils.ledWatchers[i];
+          if (typeof watcher !== "function") {
+            utils.ledWatchers.splice(i, 1);
+            continue;
+          }
           try {
-            utils.ledWatchers[i](state);
+            watcher(utils._ledState);
           } catch (err) {
             console.warn("LED watcher error:", err);
             utils.ledWatchers.splice(i, 1);
@@ -52,7 +63,6 @@ Singleton {
   }
 
   // ==================== Command Execution ====================
-
   readonly property var commandSlots: Array.from({
     length: 3
   }, () => {
@@ -73,7 +83,7 @@ Singleton {
       const callback = slot.callback;
       slot.busy = false;
       slot.callback = null;
-      if (callback)
+      if (typeof callback === "function")
         try {
           callback(output);
         } catch (_) {}
@@ -83,6 +93,8 @@ Singleton {
   })
 
   Component.onDestruction: {
+    if (ledMonitor.running)
+      ledMonitor.running = false;
     ledWatchers.length = 0;
     commandSlots.forEach(slot => {
       if (slot.process.running)
@@ -91,27 +103,23 @@ Singleton {
   }
 
   // ==================== Public API ====================
-
   function getLockLedState() {
-    return {
-      caps: capsLock,
-      num: numLock,
-      scroll: scrollLock
-    };
+    _ledState.caps = capsLock;
+    _ledState.num = numLock;
+    _ledState.scroll = scrollLock;
+    return _ledState;
   }
 
   function startLockLedWatcher(options) {
     const handler = options?.onChange;
     if (typeof handler !== "function")
       return () => {};
-
     if (!ledWatchers.includes(handler)) {
       ledWatchers.push(handler);
       try {
         handler(getLockLedState());
       } catch (_) {}
     }
-
     return () => {
       const idx = ledWatchers.indexOf(handler);
       if (idx >= 0)
@@ -125,11 +133,9 @@ Singleton {
         onDone("");
       return;
     }
-
     const slot = commandSlots.find(s => !s.busy) || commandSlots[0];
     if (slot.process.running)
       slot.process.running = false;
-
     slot.busy = true;
     slot.callback = typeof onDone === "function" ? onDone : null;
     slot.process.command = cmd;
@@ -144,7 +150,6 @@ Singleton {
     const key = String(idOrName || "");
     if (!key || typeof DesktopEntries === "undefined")
       return null;
-
     try {
       return DesktopEntries.heuristicLookup(key) || DesktopEntries.byId(key) || null;
     } catch (_) {
@@ -159,7 +164,6 @@ Singleton {
       const value = String(candidate);
       if (value.startsWith("file:") || value.startsWith("data:") || value.startsWith("/") || value.startsWith("qrc:"))
         return value;
-
       if (typeof Quickshell === "undefined" || !Quickshell.iconPath)
         return "";
       try {
