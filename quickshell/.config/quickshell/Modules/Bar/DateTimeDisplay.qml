@@ -37,13 +37,12 @@ Item {
     Text {
       id: notifIndicator
       anchors.verticalCenter: parent.verticalCenter
-      color: Theme.textContrast(mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
+      color: dateTimeDisplay.hasNotifications ? Theme.activeColor : Theme.textContrast(mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
       verticalAlignment: Text.AlignVCenter
       leftPadding: 8
-      text: dateTimeDisplay.hasNotifications ? "󰂚 " + dateTimeDisplay.notificationCount : "󰂚"
-
+      text: dateTimeDisplay.hasNotifications ? "󱅫 " + dateTimeDisplay.notificationCount : ""
       Behavior on color {
         ColorAnimation {
           duration: Theme.animationDuration
