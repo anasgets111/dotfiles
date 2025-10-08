@@ -59,6 +59,7 @@ Item {
             IconButton {
               id: btn
               anchors.fill: parent
+              showBorder: false
               // We still need a custom visual because IconButton only displays text.
               // Embed icon + fallback glyph as overlay children.
               icon: ""  // leave empty so internal Text stays hidden; we'll manage visuals below

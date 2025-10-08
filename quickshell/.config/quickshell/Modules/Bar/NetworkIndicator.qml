@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell.Io
 import qs.Config
 import qs.Components
 import qs.Services.Core
@@ -10,13 +9,13 @@ Item {
 
   readonly property bool ready: NetworkService.ready
   readonly property string link: ready ? (NetworkService.linkType || "disconnected") : "disconnected"
-  readonly property var aps: ready ? NetworkService.wifiAps : []
-  readonly property var ap: aps.find(ap => ap?.connected) || null
+  readonly property var ap: ready ? (NetworkService.wifiAps.find(ap => ap?.connected) || null) : null
   readonly property var active: ready ? NetworkService.chooseActiveDevice(NetworkService.deviceList) : null
   readonly property string ssid: ap?.ssid || (active?.type === "wifi" ? active.connectionName || "" : "")
   readonly property int strength: ap?.signal ?? 0
   readonly property string band: ap?.band || ""
   readonly property string netIcon: !ready ? "󰤭" : link === "ethernet" ? "󰈀" : link === "wifi" ? NetworkService.getWifiIcon(band, strength) : NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮"
+  readonly property string tooltipText: [title, detail1, detail2, secondary].filter(t => t).join("\n")
 
   readonly property string title: {
     if (!ready)
@@ -39,7 +38,7 @@ Item {
     return (link === "ethernet" || link === "wifi") ? qsTr("IP: %1 · IF: %2").arg(ip).arg(iface) : qsTr("No network connection");
   }
 
-  readonly property string detail2: (!ready || !link || link === "disconnected") ? "" : active?.connectionName ? qsTr("Conn: %1 (%2)").arg(active.connectionName).arg(active?.type || "") : ""
+  readonly property string detail2: ready && link !== "disconnected" && active?.connectionName ? qsTr("Conn: %1 (%2)").arg(active.connectionName).arg(active?.type || "") : ""
 
   readonly property string secondary: {
     if (!ready)
@@ -57,26 +56,32 @@ Item {
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
   visible: ready
-  Item {
+  signal clicked(var point)
+
+  IconButton {
     id: iconButton
-    implicitWidth: Theme.itemHeight
-    implicitHeight: Theme.itemHeight
+    tooltipText: root.tooltipText
+    enabled: root.ready
 
-    readonly property string tooltipText: [root.title, root.detail1, root.detail2, root.secondary].filter(t => t).join("\n")
-    readonly property bool hovered: mouseArea.containsMouse
-    readonly property color bgColor: hovered ? Theme.onHoverColor : Theme.inactiveColor
-    readonly property color fgColor: Theme.textContrast(bgColor)
+    onClicked: function (mouse) {
+      if (mouse.button === Qt.LeftButton) {
+        const iface = NetworkService.wifiInterface || NetworkService.firstWifiInterface() || "";
+        if (iface && NetworkService.scanWifi)
+          NetworkService.scanWifi(iface, true);
+      } else if (mouse.button === Qt.RightButton) {
+        networkPanel.openAtItem(iconButton, mouse.x, mouse.y);
+      }
+      root.clicked(mouse);
+    }
 
-    signal clicked(var point)
-
-    Rectangle {
-      id: bgRect
-      anchors.fill: parent
-      radius: Math.min(width, height) / 2
-      color: mouseArea.containsPress ? Theme.onHoverColor : iconButton.bgColor
-      border.color: iconButton.hovered ? Theme.onHoverColor : Theme.inactiveColor
-      border.width: 1
-      clip: true
+    Text {
+      id: mainIcon
+      anchors.centerIn: parent
+      text: root.netIcon
+      font.family: Theme.fontFamily
+      font.pixelSize: Theme.fontSize
+      font.bold: true
+      color: root.link === "wifi" && root.band ? NetworkService.getBandColor(root.band) : (iconButton.hovered ? Theme.textContrast(iconButton.colorBgHover) : Theme.textContrast(iconButton.colorBg))
 
       Behavior on color {
         ColorAnimation {
@@ -84,79 +89,26 @@ Item {
           easing.type: Easing.InOutQuad
         }
       }
-
-      Text {
-        id: mainIcon
-        text: root.netIcon
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        font.bold: true
-        color: root.link === "wifi" && root.band ? NetworkService.getBandColor(root.band) : iconButton.fgColor
-        anchors.centerIn: parent
-
-        Behavior on color {
-          ColorAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.InOutQuad
-          }
-        }
-      }
-
-      Text {
-        text: root.band ? (root.band === "2.4" ? "2.4" : root.band) : ""
-        font.family: "Roboto Condensed"
-        font.pixelSize: Theme.fontSize * 0.5
-        font.bold: true
-        font.letterSpacing: -1
-        color: NetworkService.getBandColor(root.band)
-        anchors.left: mainIcon.right
-        anchors.leftMargin: -2
-        anchors.bottom: mainIcon.bottom
-        visible: root.link === "wifi" && root.band
-
-        Behavior on color {
-          ColorAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.InOutQuad
-          }
-        }
-      }
     }
 
-    MouseArea {
-      id: mouseArea
-      anchors.fill: parent
-      hoverEnabled: true
-      acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-      cursorShape: Qt.PointingHandCursor
+    Text {
+      text: root.band || ""
+      font.family: "Roboto Condensed"
+      font.pixelSize: Theme.fontSize * 0.5
+      font.bold: true
+      font.letterSpacing: -1
+      color: NetworkService.getBandColor(root.band)
+      anchors.left: mainIcon.right
+      anchors.leftMargin: -2
+      anchors.bottom: mainIcon.bottom
+      visible: root.link === "wifi" && root.band
 
-      onEntered: {
-        if (iconButton.tooltipText.length)
-          tooltip.isVisible = true;
-      }
-
-      onExited: {
-        tooltip.isVisible = false;
-      }
-
-      onClicked: mouse => {
-        if (mouse.button === Qt.LeftButton) {
-          if (!root.ready)
-            return;
-          const iface = NetworkService.wifiInterface || NetworkService.firstWifiInterface() || "";
-          if (iface && NetworkService.scanWifi)
-            NetworkService.scanWifi(iface, true);
-        } else if (mouse.button === Qt.RightButton) {
-          networkPanel.openAtItem(iconButton, mouse.x, mouse.y);
+      Behavior on color {
+        ColorAnimation {
+          duration: Theme.animationDuration
+          easing.type: Easing.InOutQuad
         }
-        iconButton.clicked(mouse);
       }
-    }
-
-    Tooltip {
-      id: tooltip
-      text: iconButton.tooltipText
-      target: iconButton
     }
   }
 

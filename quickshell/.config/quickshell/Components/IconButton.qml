@@ -10,15 +10,17 @@ Item {
   property string tooltipText: ""
   property bool enabled: true
   property bool allowClickWhenDisabled: false
+  property bool showBorder: true
   property bool hovered: mouseArea.containsMouse && root.enabled
   property color colorBg: Theme.inactiveColor
   readonly property color colorBgHover: Theme.onHoverColor
   readonly property color colorFg: Theme.textContrast(colorBg)
   readonly property color colorFgHover: Theme.textContrast(colorBgHover)
-  readonly property color colorBorder: Theme.inactiveColor
+  readonly property color colorBorder: Theme.onHoverColor
   readonly property color colorBorderHover: Theme.onHoverColor
   readonly property color effectiveBg: !enabled ? colorBg : (hovered ? colorBgHover : colorBg)
   readonly property color effectiveFg: !enabled ? Theme.textContrast(colorBg) : (hovered ? colorFgHover : colorFg)
+  readonly property color effectiveBorderColor: showBorder ? (hovered ? colorBorderHover : colorBorder) : "transparent"
 
   implicitWidth: Theme.itemHeight
   implicitHeight: Theme.itemHeight
@@ -32,8 +34,8 @@ Item {
     anchors.fill: parent
     radius: Math.min(width, height) / 2
     color: mouseArea.containsPress ? root.colorBgHover : root.effectiveBg
-    border.color: root.hovered ? root.colorBorderHover : root.colorBorder
-    border.width: 1
+    border.color: root.effectiveBorderColor
+    border.width: root.showBorder ? 1 : 0
 
     Behavior on color {
       ColorAnimation {
