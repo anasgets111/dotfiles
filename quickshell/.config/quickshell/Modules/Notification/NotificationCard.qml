@@ -246,7 +246,7 @@ Item {
                   text: messageColumn.summary
                   color: "#dddddd"
                   font.pixelSize: 14
-                  horizontalAlignment: Text.AlignHCenter
+                  horizontalAlignment: messageItem.isMultipleItems ? Text.AlignLeft : Text.AlignHCenter
                   elide: Text.ElideRight
                   wrapMode: Text.WordWrap
                   maximumLineCount: messageColumn.expanded ? 0 : 2
@@ -254,13 +254,30 @@ Item {
                   onTruncatedChanged: messageColumn.summaryTruncated = truncated
                 }
 
-                Loader {
-                  active: messageColumn.summaryTruncated || messageColumn.bodyTruncated || messageColumn.expanded
-                  sourceComponent: StandardButton {
-                    buttonType: "control"
-                    text: messageColumn.expanded ? "▴" : "▾"
-                    Accessible.name: messageColumn.expanded ? "Collapse message" : "Expand message"
-                    onClicked: root.toggleMessageExpansion(messageColumn.messageId)
+                RowLayout {
+                  spacing: 6
+
+                  Loader {
+                    active: messageColumn.summaryTruncated || messageColumn.bodyTruncated || messageColumn.expanded
+                    sourceComponent: StandardButton {
+                      buttonType: "control"
+                      text: messageColumn.expanded ? "▴" : "▾"
+                      Accessible.name: messageColumn.expanded ? "Collapse message" : "Expand message"
+                      onClicked: root.toggleMessageExpansion(messageColumn.messageId)
+                    }
+                  }
+
+                  Loader {
+                    active: messageItem.isMultipleItems
+                    sourceComponent: StandardButton {
+                      buttonType: "control"
+                      text: "x"
+                      Accessible.name: "Dismiss notification"
+                      onClicked: {
+                        if (messageItem.modelData)
+                          root.svc?.dismissNotification(messageItem.modelData);
+                      }
+                    }
                   }
                 }
               }
@@ -290,10 +307,11 @@ Item {
 
               Loader {
                 Layout.fillWidth: true
+                Layout.topMargin: 8
+                Layout.bottomMargin: 6
                 active: messageColumn.hasInlineReply
                 sourceComponent: RowLayout {
-                  Layout.fillWidth: true
-                  spacing: 6
+                  spacing: 8
 
                   TextField {
                     id: replyField
@@ -302,7 +320,7 @@ Item {
                     selectByMouse: true
                     activeFocusOnPress: true
                     font.pixelSize: 13
-                    padding: 6
+                    padding: 8
                     Keys.onReturnPressed: sendBtn.clicked()
                     Keys.onEnterPressed: sendBtn.clicked()
                     onActiveFocusChanged: if (activeFocus)
@@ -334,11 +352,12 @@ Item {
 
               Loader {
                 Layout.fillWidth: true
+                Layout.topMargin: 8
                 active: messageColumn.actionsModel.length > 0
                 sourceComponent: RowLayout {
                   Layout.fillWidth: true
                   Layout.alignment: Qt.AlignHCenter
-                  spacing: 6
+                  spacing: 8
                   Repeater {
                     model: messageColumn.actionsModel
                     delegate: StandardButton {

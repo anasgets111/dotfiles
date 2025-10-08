@@ -82,9 +82,13 @@ Singleton {
 
   function _computeGroups(notificationList) {
     const groups = {};
+    let skipped = 0;
     for (const notif of notificationList) {
-      if (!notif?.notification)
+      if (!notif) {
+        skipped++;
         continue;
+      }
+
       const groupKey = root.getGroupKey(notif);
       if (!groups[groupKey]) {
         groups[groupKey] = {
@@ -106,7 +110,7 @@ Singleton {
       }
     }
 
-    return Object.values(groups).sort((a, b) => {
+    const result = Object.values(groups).sort((a, b) => {
       const aUrgency = a.latestNotification?.urgency || NotificationUrgency.Low;
       const bUrgency = b.latestNotification?.urgency || NotificationUrgency.Low;
       if (aUrgency !== bUrgency)
@@ -116,6 +120,8 @@ Singleton {
       const bTime = b.latestNotification?.time?.getTime() || 0;
       return bTime - aTime;
     });
+
+    return result;
   }
 
   function _limitNotificationsPerApp() {
@@ -124,12 +130,13 @@ Singleton {
 
     for (let i = 0; i < root.notifications.length; i++) {
       const notif = root.notifications[i];
-      if (!notif?.notification)
+      if (!notif)
         continue;
       const appKey = root.getGroupKey(notif);
       appCounts[appKey] = (appCounts[appKey] || 0) + 1;
 
-      if (appCounts[appKey] > root.maxNotificationsPerApp && notif.urgency !== NotificationUrgency.Critical) {
+      // Only remove if over limit, not critical, and still has notification object to dismiss
+      if (appCounts[appKey] > root.maxNotificationsPerApp && notif.urgency !== NotificationUrgency.Critical && notif.notification) {
         toRemove.push(notif);
       }
     }
@@ -147,18 +154,18 @@ Singleton {
     const overflow = root.notifications.length - root.maxStoredNotifications;
     const toDrop = [];
 
-    // Remove oldest non-critical first
+    // Remove oldest non-critical first (only those with notification objects)
     for (let i = root.notifications.length - 1; i >= 0 && toDrop.length < overflow; i--) {
       const notif = root.notifications[i];
-      if (notif?.notification && notif.urgency !== NotificationUrgency.Critical) {
+      if (notif && notif.notification && notif.urgency !== NotificationUrgency.Critical) {
         toDrop.push(notif);
       }
     }
 
-    // Remove oldest critical if needed
+    // Remove oldest critical if needed (only those with notification objects)
     for (let i = root.notifications.length - 1; i >= 0 && toDrop.length < overflow; i--) {
       const notif = root.notifications[i];
-      if (notif?.notification && !toDrop.includes(notif)) {
+      if (notif && notif.notification && !toDrop.includes(notif)) {
         toDrop.push(notif);
       }
     }
@@ -254,10 +261,6 @@ Singleton {
     onNotification: notif => {
       notif.tracked = true;
 
-      try {
-        Logger.log("NotificationService", `received: id=${notif.id}, app='${notif.appName}', summary='${notif.summary}'`);
-      } catch (e) {}
-
       const shouldShowPopup = !root.popupsDisabled && !root.isDndEnabled();
       const wrapper = notifComponent.createObject(root, {
         popup: shouldShowPopup,
@@ -265,14 +268,11 @@ Singleton {
       });
 
       if (wrapper) {
-        root.notifications.unshift(wrapper);
+        root.notifications = [wrapper, ...root.notifications];
         root._trimStoredNotifications();
 
         if (shouldShowPopup) {
           root._enqueuePopup(wrapper);
-          try {
-            Logger.log("NotificationService", `enqueued popup: id=${notif.id}`);
-          } catch (e) {}
         }
       }
     }
@@ -285,19 +285,22 @@ Singleton {
     property bool popup: false
     property bool isPersistent: notification?.urgency === NotificationUrgency.Critical || timer.interval === 0
     property int seq: 0
+    property bool isDismissing: false  // Flag to prevent onDropped() during explicit dismiss
 
+    // Snapshot data so it persists after notification is dropped
+    // Initialize directly from notification to avoid race conditions
     readonly property date time: new Date()
-    readonly property string id: String(notification?.id || "")
-    readonly property string summary: notification?.summary || ""
-    readonly property string body: notification?.body || ""
-    readonly property string appIcon: notification?.appIcon || ""
-    readonly property string appName: notification?.appName || "app"
-    readonly property string desktopEntry: notification?.desktopEntry || ""
-    readonly property string image: notification?.image || ""
-    readonly property int urgency: notification?.urgency || NotificationUrgency.Normal
+    property string id: String(notification?.id || "")
+    property string summary: notification?.summary || ""
+    property string body: notification?.body || ""
+    property string appIcon: notification?.appIcon || ""
+    property string appName: notification?.appName || "app"
+    property string desktopEntry: notification?.desktopEntry || ""
+    property string image: notification?.image || ""
+    property int urgency: notification?.urgency || NotificationUrgency.Normal
     readonly property color accentColor: root.getAccentColor(wrapper.urgency)
-    readonly property string inlineReplyPlaceholder: notification?.inlineReplyPlaceholder || "Reply"
-    readonly property bool hasInlineReply: notification?.hasInlineReply || false
+    property string inlineReplyPlaceholder: notification?.inlineReplyPlaceholder || "Reply"
+    property bool hasInlineReply: notification?.hasInlineReply || false
     readonly property bool hasBody: {
       const bodyText = (wrapper.body || "").trim();
       const summaryText = (wrapper.summary || "").trim();
@@ -307,6 +310,7 @@ Singleton {
     property var actions: []
 
     Component.onCompleted: {
+      // Normalize actions - can't be done in property initializer
       try {
         wrapper.actions = root._normalizeActions(wrapper.notification);
       } catch (e) {
@@ -348,16 +352,15 @@ Singleton {
           return true;
         }
       } catch (e) {
-        try {
-          Logger.log("NotificationService", `inline reply failed: ${e}`);
-        } catch (e2) {}
+        return false;
       }
       return false;
     }
 
     onPopupChanged: {
-      if (!wrapper.popup)
+      if (!wrapper.popup) {
         root.removeFromVisibleNotifications(wrapper);
+      }
     }
 
     readonly property Timer timer: Timer {
@@ -371,20 +374,20 @@ Singleton {
     }
 
     readonly property Connections conn: Connections {
-      target: wrapper.notification?.Retainable
+      target: wrapper.notification?.Retainable || null
+      enabled: !wrapper.isDismissing && !!target  // Disable during explicit dismiss or if no target
       function onDropped() {
-        root.notifications = root.notifications.filter(n => n !== wrapper);
+        // Don't remove from storage - only remove from active popups
+        // This allows notifications to persist in history even after being dropped by daemon
         root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
         root.notificationQueue = root.notificationQueue.filter(n => n !== wrapper);
-
-        try {
-          Logger.log("NotificationService", `dropped: id=${wrapper.id}`);
-        } catch (e) {}
+        wrapper.popup = false;
 
         root.cleanupExpansionStates();
       }
       function onAboutToDestroy() {
-        wrapper.destroy();
+      // Notification object is being destroyed
+      // No need to set to null - wrapper will be destroyed anyway
       }
     }
   }
@@ -414,30 +417,39 @@ Singleton {
       next.timer.start();
     }
 
-    try {
-      Logger.log("NotificationService", `show popup: id=${next.id}, timeout=${next.timer.interval}`);
-    } catch (e) {}
-
     root.addGateBusy = true;
     addGate.restart();
   }
 
   function removeFromVisibleNotifications(wrapper) {
     root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
-    try {
-      Logger.log("NotificationService", `hide popup: id=${wrapper?.id || "?"}`);
-    } catch (e) {}
     Qt.callLater(() => root.processQueue());
   }
 
   function dismissNotification(wrapper) {
-    if (!wrapper?.notification)
+    if (!wrapper)
       return;
 
+    // Set flag to prevent onDropped() from running during this dismiss
+    wrapper.isDismissing = true;
+
+    // Remove from all lists
     root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
     root.notificationQueue = root.notificationQueue.filter(n => n !== wrapper);
+    root.notifications = root.notifications.filter(n => n !== wrapper);
     wrapper.popup = false;
-    wrapper.notification.dismiss();
+
+    // Dismiss the notification if it still exists
+    if (wrapper.notification) {
+      try {
+        wrapper.notification.dismiss();
+      } catch (e) {}
+    }
+
+    // Destroy the wrapper since it's been removed from storage
+    try {
+      wrapper.destroy();
+    } catch (e) {}
   }
 
   function clearAllNotifications() {
@@ -452,11 +464,18 @@ Singleton {
     }
     root.visibleNotifications = [];
 
+    // Dismiss and destroy all notifications
     for (const wrapper of root.notifications) {
+      if (wrapper.notification) {
+        try {
+          wrapper.notification.dismiss();
+        } catch (e) {}
+      }
       try {
-        wrapper?.notification?.dismiss();
+        wrapper.destroy();
       } catch (e) {}
     }
+    root.notifications = [];
 
     root.expandedGroups = {};
     root.expandedMessages = {};
@@ -465,10 +484,6 @@ Singleton {
   }
 
   function executeAction(wrapper, actionId, actionObj) {
-    try {
-      Logger.log("NotificationService", `executeAction: id=${actionId}`);
-    } catch (e) {}
-
     const notif = wrapper?.notification;
     if (!notif)
       return;
@@ -536,9 +551,8 @@ Singleton {
 
     if (group) {
       for (const notif of group.notifications) {
-        try {
-          notif?.notification?.dismiss();
-        } catch (e) {}
+        // Use dismissNotification to properly remove from storage
+        root.dismissNotification(notif);
       }
     }
   }
