@@ -6,35 +6,86 @@ Item {
   id: dateTimeDisplay
 
   property string formattedDateTime: TimeService.format("datetime")
+  property string weatherIcon: WeatherService.getWeatherIconFromCode()
   property string weatherText: WeatherService.currentTemp
+  readonly property int notificationCount: NotificationService.notifications?.length || 0
+  readonly property bool hasNotifications: notificationCount > 0
 
   height: Theme.itemHeight
-  width: textItem.width
+  width: mainRow.width
 
   Rectangle {
     anchors.fill: parent
-    color: Theme.inactiveColor
+    color: mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor
     radius: Theme.itemRadius
-  }
-  Text {
-    id: textItem
 
-    anchors.centerIn: parent
-    color: Theme.textContrast(Theme.inactiveColor)
-    font.bold: true
-    font.family: Theme.fontFamily
-    font.pixelSize: Theme.fontSize
-    padding: 8
-    text: WeatherService.currentTemp + " " + dateTimeDisplay.formattedDateTime
+    Behavior on color {
+      ColorAnimation {
+        duration: Theme.animationDuration
+      }
+    }
   }
+
+  Row {
+    id: mainRow
+    anchors.centerIn: parent
+    anchors.verticalCenterOffset: 0
+    spacing: 6
+    height: parent.height
+
+    // Notification indicator
+    Text {
+      id: notifIndicator
+      anchors.verticalCenter: parent.verticalCenter
+      color: Theme.textContrast(mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
+      font.family: Theme.fontFamily
+      font.pixelSize: Theme.fontSize
+      verticalAlignment: Text.AlignVCenter
+      leftPadding: 8
+      text: dateTimeDisplay.hasNotifications ? "󰂚 " + dateTimeDisplay.notificationCount : "󰂚"
+
+      Behavior on color {
+        ColorAnimation {
+          duration: Theme.animationDuration
+        }
+      }
+    }
+
+    Text {
+      id: textItem
+      anchors.verticalCenter: parent.verticalCenter
+      color: Theme.textContrast(mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
+      font.bold: true
+      font.family: Theme.fontFamily
+      font.pixelSize: Theme.fontSize
+      verticalAlignment: Text.AlignVCenter
+      leftPadding: 0
+      rightPadding: 8
+      text: dateTimeDisplay.weatherIcon + " " + dateTimeDisplay.weatherText + " " + dateTimeDisplay.formattedDateTime
+
+      Behavior on color {
+        ColorAnimation {
+          duration: Theme.animationDuration
+        }
+      }
+    }
+  }
+
   MouseArea {
-    id: dateTimeMouseArea
+    id: mouseArea
 
     anchors.fill: parent
     cursorShape: Qt.PointingHandCursor
     hoverEnabled: true
 
-    onClicked: WeatherService.refresh()
+    onClicked: function (mouse) {
+      WeatherService.refresh();
+      if (notificationPanel.isOpen) {
+        notificationPanel.close();
+      } else {
+        notificationPanel.openAtItem(dateTimeDisplay, mouse.x, mouse.y);
+      }
+    }
   }
 
   // Tooltip background and content: Rectangle is now parent of Column
@@ -45,8 +96,8 @@ Item {
     anchors.top: parent.bottom
     anchors.topMargin: 8
     height: tooltipColumn.implicitHeight + 8
-    opacity: dateTimeMouseArea.containsMouse ? 1 : 0
-    visible: dateTimeMouseArea.containsMouse
+    opacity: mouseArea.containsMouse && !notificationPanel.isOpen ? 1 : 0
+    visible: mouseArea.containsMouse && !notificationPanel.isOpen
     width: tooltipColumn.width + 16
 
     Behavior on opacity {
@@ -98,8 +149,8 @@ Item {
         id: calendarLoader
         // Always load the calendar so it is ready instantly when tooltip appears
         asynchronous: true
-        active: dateTimeMouseArea.containsMouse
-        visible: dateTimeMouseArea.containsMouse
+        active: mouseArea.containsMouse
+        visible: mouseArea.containsMouse
         sourceComponent: MinimalCalendar {
           id: calendar
           theme: Theme
@@ -109,5 +160,9 @@ Item {
         }
       }
     }
+  }
+
+  NotificationHistoryPanel {
+    id: notificationPanel
   }
 }
