@@ -1,5 +1,4 @@
 pragma ComponentBehavior: Bound
-
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
@@ -16,7 +15,7 @@ OPanel {
   readonly property int padding: 16
   readonly property var notificationGroups: NotificationService.groupedNotifications || []
   readonly property int notificationCount: NotificationService.notifications?.length || 0
-  readonly property bool hasNotifications: notificationCount > 0
+  readonly property bool hasNotifications: root.notificationCount > 0
 
   panelWidth: 420
   needsKeyboardFocus: true
@@ -26,7 +25,7 @@ OPanel {
 
   FocusScope {
     width: parent.width
-    implicitHeight: contentColumn.implicitHeight
+    height: contentColumn.implicitHeight
     focus: root.isOpen
 
     ColumnLayout {
@@ -34,7 +33,6 @@ OPanel {
       width: parent.width
       spacing: 0
 
-      // Header with Clear All button
       Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.itemHeight * 1.2
@@ -44,9 +42,11 @@ OPanel {
         visible: root.hasNotifications
 
         RowLayout {
-          anchors.fill: parent
-          anchors.leftMargin: root.padding
-          anchors.rightMargin: root.padding
+          anchors {
+            fill: parent
+            leftMargin: root.padding
+            rightMargin: root.padding
+          }
           spacing: root.padding
 
           OText {
@@ -80,61 +80,47 @@ OPanel {
         }
       }
 
-      // Notification List
-      Item {
+      ListView {
+        id: notificationList
         Layout.fillWidth: true
         Layout.topMargin: root.hasNotifications ? 4 : 0
         Layout.bottomMargin: root.hasNotifications ? root.padding : 0
+        Layout.leftMargin: root.padding
+        Layout.rightMargin: root.padding
+        Layout.preferredHeight: Math.min(contentHeight, root.maxVisibleGroups * (Theme.itemHeight * 5))
+
         visible: root.hasNotifications
-        implicitHeight: notificationList.implicitHeight
+        clip: true
+        spacing: 8
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
+        model: root.notificationGroups
 
-        ListView {
-          id: notificationList
-          anchors.fill: parent
-          anchors.leftMargin: root.padding
-          anchors.rightMargin: root.padding
-          clip: true
-          spacing: 8
-          boundsBehavior: Flickable.StopAtBounds
-          implicitHeight: Math.min(contentHeight, root.maxVisibleGroups * (Theme.itemHeight * 5))
-          interactive: contentHeight > height
+        ScrollBar.vertical: ScrollBar {
+          policy: notificationList.contentHeight > notificationList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+          width: 8
+        }
 
-          model: root.notificationGroups
+        delegate: Loader {
+          id: delegateLoader
+          required property var modelData
+          required property int index
 
-          ScrollBar.vertical: ScrollBar {
-            policy: notificationList.contentHeight > notificationList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-            width: 8
-          }
-
-          delegate: Item {
-            id: delegateItem
-            required property var modelData
-            required property int index
-
-            width: ListView.view.width
-            height: cardLoader.height
-
-            Loader {
-              id: cardLoader
-              width: parent.width
-              active: !!delegateItem.modelData
-              sourceComponent: NotificationCard {
-                svc: NotificationService
-                wrapper: delegateItem.modelData.count === 1 ? (delegateItem.modelData.notifications[0] || null) : null
-                group: delegateItem.modelData.count > 1 ? delegateItem.modelData : null
-                onInputFocusRequested:
-                // Panel already has keyboard focus
-                {}
-              }
-            }
+          width: ListView.view.width
+          active: !!delegateLoader.modelData
+          sourceComponent: NotificationCard {
+            svc: NotificationService
+            wrapper: delegateLoader.modelData.count === 1 ? (delegateLoader.modelData.notifications[0] || null) : null
+            group: delegateLoader.modelData.count > 1 ? delegateLoader.modelData : null
+            onInputFocusRequested: {}
           }
         }
       }
 
-      // Empty State
       Item {
         Layout.fillWidth: true
-        Layout.preferredHeight: 300
+        Layout.fillHeight: true
+        Layout.minimumHeight: 300
         visible: !root.hasNotifications
 
         ColumnLayout {
