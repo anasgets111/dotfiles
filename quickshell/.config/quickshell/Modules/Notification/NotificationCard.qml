@@ -190,8 +190,8 @@ Item {
               leftMargin: horizontalPadding
               rightMargin: horizontalPadding
               topMargin: topPadding
+              bottomMargin: bottomPadding
             }
-            implicitHeight: childrenRect.height + topPadding + bottomPadding
 
             readonly property string summary: messageItem.modelData?.summary || "(No title)"
             readonly property string body: messageItem.modelData?.body || ""
