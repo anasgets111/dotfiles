@@ -27,10 +27,7 @@ Singleton {
   property var lastUpdated: null
   property int _retryCount: 0
   property int _consecutiveErrors: 0
-  property var _currentRequest: null
-
-  // Reusable XHR object
-  property var _xhr: new XMLHttpRequest()
+  property bool _isRequesting: false
 
   // Constants
   readonly property var _config: ({
@@ -175,11 +172,14 @@ Singleton {
   }
 
   function refresh() {
+    retryTimer.stop();
+    _retryCount = 0;
+
     if (!isNaN(_lat) && !isNaN(_lon)) {
-      Logger.log("WeatherService", "Manual refresh using existing coords:", `${_lat},${_lon}`);
+      Logger.log("WeatherService", "Manual refresh:", `${_lat},${_lon}`);
       _fetchWeather(_lat, _lon);
     } else {
-      Logger.warn("WeatherService", "Cannot refresh: no coordinates available");
+      Logger.warn("WeatherService", "No coordinates available");
     }
   }
 
@@ -284,53 +284,51 @@ Singleton {
   }
 
   function _httpGet(url, timeout, onSuccess, onError) {
-    if (_xhr.readyState !== XMLHttpRequest.UNSENT && _xhr.readyState !== XMLHttpRequest.DONE) {
-      try {
-        _xhr.abort();
-      } catch (_) {}
+    if (_isRequesting) {
+      Logger.warn("WeatherService", "Request in progress, ignoring");
+      return;
     }
 
-    _xhr.timeout = timeout;
+    _isRequesting = true;
+    const xhr = new XMLHttpRequest();
+    xhr.timeout = timeout;
+
     Logger.log("WeatherService", "Request:", url, "timeout:", timeout, "ms");
 
-    const successCallback = onSuccess;
-    const errorCallback = onError;
-
-    _xhr.onreadystatechange = function () {
-      if (_xhr.readyState !== XMLHttpRequest.DONE)
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== XMLHttpRequest.DONE)
         return;
 
-      const status = _xhr.status;
-      const responseText = _xhr.responseText;
+      const status = xhr.status;
+      const text = xhr.responseText;
 
-      _xhr.onreadystatechange = null;
-      _xhr.ontimeout = null;
+      xhr.onreadystatechange = null;
+      xhr.ontimeout = null;
+      _isRequesting = false;
 
-      try {
-        if (status === 200) {
-          try {
-            successCallback(JSON.parse(responseText));
-          } catch (e) {
-            Logger.warn("WeatherService", "Parse error:", e.message);
-            errorCallback();
-          }
-        } else {
-          Logger.warn("WeatherService", "Unexpected HTTP status:", status);
-          errorCallback();
+      if (status === 200) {
+        try {
+          onSuccess(JSON.parse(text));
+        } catch (e) {
+          Logger.warn("WeatherService", "Parse error:", e.message);
+          onError();
         }
-      } catch (_) {}
+      } else {
+        Logger.warn("WeatherService", "HTTP status:", status);
+        onError();
+      }
     };
 
-    _xhr.ontimeout = function () {
-      _xhr.onreadystatechange = null;
-      _xhr.ontimeout = null;
-      Logger.warn("WeatherService", "Request timed out after", timeout, "ms");
-      Logger.warn("WeatherService", "Test with: curl -v --max-time", Math.floor(timeout / 1000), "'" + url + "'");
-      errorCallback();
+    xhr.ontimeout = function () {
+      xhr.onreadystatechange = null;
+      xhr.ontimeout = null;
+      _isRequesting = false;
+      Logger.warn("WeatherService", "Timeout after", timeout, "ms");
+      onError();
     };
 
-    _xhr.open("GET", url);
-    _xhr.send();
+    xhr.open("GET", url);
+    xhr.send();
   }
 
   function _scheduleRetry() {
@@ -339,13 +337,12 @@ Singleton {
 
     if (_retryCount < maxRetries) {
       _retryCount++;
-      // Exponential backoff: 2s, 4s, 8s, 16s, etc.
       retryTimer.interval = _config.retryDelay * Math.pow(2, _retryCount - 1);
-      Logger.warn("WeatherService", "Retry", _retryCount, "of", maxRetries, "in", retryTimer.interval, "ms");
+      Logger.warn("WeatherService", "Retry", _retryCount, "in", retryTimer.interval, "ms");
       retryTimer.start();
     } else {
-      Logger.warn("WeatherService", "Max retries reached. Giving up until next refresh cycle.");
-      _retryCount = 0; // Reset for next refresh cycle
+      Logger.warn("WeatherService", "Max retries reached");
+      _retryCount = 0;
     }
   }
 
@@ -386,6 +383,10 @@ Singleton {
     repeat: false
     onTriggered: {
       Logger.log("WeatherService", "Retrying...");
+      if (root._isRequesting) {
+        Logger.warn("WeatherService", "Request already in progress, skipping retry");
+        return;
+      }
       if (!isNaN(root._lat) && !isNaN(root._lon))
         root._fetchWeather(root._lat, root._lon);
       else
