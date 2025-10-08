@@ -42,7 +42,7 @@ Item {
       font.pixelSize: Theme.fontSize
       verticalAlignment: Text.AlignVCenter
       leftPadding: 8
-      text: dateTimeDisplay.hasNotifications ? "󱅫 " + dateTimeDisplay.notificationCount : ""
+      text: dateTimeDisplay.hasNotifications ? "󱅫 " + dateTimeDisplay.notificationCount : " "
       Behavior on color {
         ColorAnimation {
           duration: Theme.animationDuration
@@ -60,7 +60,7 @@ Item {
       verticalAlignment: Text.AlignVCenter
       leftPadding: 0
       rightPadding: 8
-      text: dateTimeDisplay.weatherIcon + " " + dateTimeDisplay.weatherText + " " + dateTimeDisplay.formattedDateTime
+      text: WeatherService.currentTemp + " " + dateTimeDisplay.formattedDateTime
 
       Behavior on color {
         ColorAnimation {
