@@ -315,7 +315,7 @@ Singleton {
             errorCallback();
           }
         } else {
-          Logger.warn("WeatherService", "HTTP error:", status);
+          Logger.warn("WeatherService", "Unexpected HTTP status:", status);
           errorCallback();
         }
       } catch (_) {}
@@ -324,7 +324,8 @@ Singleton {
     _xhr.ontimeout = function () {
       _xhr.onreadystatechange = null;
       _xhr.ontimeout = null;
-      Logger.warn("WeatherService", "Request timed out");
+      Logger.warn("WeatherService", "Request timed out after", timeout, "ms");
+      Logger.warn("WeatherService", "Test with: curl -v --max-time", Math.floor(timeout / 1000), "'" + url + "'");
       errorCallback();
     };
 
@@ -338,9 +339,13 @@ Singleton {
 
     if (_retryCount < maxRetries) {
       _retryCount++;
-      retryTimer.interval = _config.retryDelay * _retryCount;
-      Logger.warn("WeatherService", "Retry", _retryCount, "in", retryTimer.interval, "ms");
+      // Exponential backoff: 2s, 4s, 8s, 16s, etc.
+      retryTimer.interval = _config.retryDelay * Math.pow(2, _retryCount - 1);
+      Logger.warn("WeatherService", "Retry", _retryCount, "of", maxRetries, "in", retryTimer.interval, "ms");
       retryTimer.start();
+    } else {
+      Logger.warn("WeatherService", "Max retries reached. Giving up until next refresh cycle.");
+      _retryCount = 0; // Reset for next refresh cycle
     }
   }
 
