@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import Quickshell
 import qs.Config
 import qs.Components
 import qs.Services.SystemInfo
@@ -339,27 +338,47 @@ OPanel {
       }
 
       // View 2: Completion/Error
-      Item {
-        ColumnLayout {
-          anchors.centerIn: parent
-          spacing: 16
-          width: parent.width * 0.8
+      ColumnLayout {
+        id: completionView
+        readonly property bool isSuccess: UpdateService.updateState === UpdateService.status.Completed
+        readonly property bool isError: UpdateService.updateState === UpdateService.status.Error
+        readonly property color accentColor: isSuccess ? Theme.activeColor : Theme.critical
 
-          ColumnLayout {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: 8
+        Layout.fillWidth: true
+        Layout.margins: root.padding
+        spacing: 20
+
+        RowLayout {
+          Layout.fillWidth: true
+          Layout.alignment: Qt.AlignHCenter
+          Layout.maximumWidth: Math.min(root.panelWidth - root.padding * 2, 460)
+          spacing: 16
+
+          Rectangle {
+            Layout.preferredWidth: Theme.itemHeight * 1.6
+            Layout.preferredHeight: Layout.preferredWidth
+            radius: width / 2
+            color: Qt.rgba(completionView.accentColor.r, completionView.accentColor.g, completionView.accentColor.b, 0.12)
+            border.color: completionView.accentColor
+            border.width: 1
 
             Text {
-              Layout.alignment: Qt.AlignHCenter
-              text: UpdateService.updateState === UpdateService.status.Completed ? "✓" : "❌"
-              font.pixelSize: Theme.fontSize * 4
-              color: UpdateService.updateState === UpdateService.status.Completed ? Theme.activeColor : Theme.critical
+              anchors.centerIn: parent
+              text: completionView.isSuccess ? "✓" : "❌"
+              font.pixelSize: Theme.fontSize * 3.2
+              color: completionView.accentColor
             }
+          }
+
+          ColumnLayout {
+            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignVCenter
+            spacing: 6
 
             OText {
-              Layout.alignment: Qt.AlignHCenter
+              Layout.fillWidth: true
               text: {
-                if (UpdateService.updateState === UpdateService.status.Completed) {
+                if (completionView.isSuccess) {
                   const cnt = UpdateService.completedPackages.length;
                   return qsTr("%1 Package%2 Updated Successfully").arg(cnt).arg(cnt !== 1 ? "s" : "");
                 }
@@ -367,80 +386,84 @@ OPanel {
               }
               sizeMultiplier: 1.5
               font.bold: true
+              horizontalAlignment: Text.AlignLeft
             }
 
             OText {
-              Layout.alignment: Qt.AlignHCenter
-              text: UpdateService.updateState === UpdateService.status.Error ? UpdateService.errorMessage : qsTr("All updates have been installed")
+              Layout.fillWidth: true
+              text: completionView.isError ? UpdateService.errorMessage : qsTr("All updates have been installed")
               useActiveColor: false
-              opacity: 0.8
-              horizontalAlignment: Text.AlignHCenter
+              opacity: 0.85
+              horizontalAlignment: Text.AlignLeft
               wrapMode: Text.Wrap
-              Layout.preferredWidth: parent.width
             }
           }
+        }
 
-          Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 150
-            color: Qt.darker(Theme.bgColor, 1.05)
-            radius: Theme.itemRadius
-            border.color: Theme.borderColor
-            border.width: 1
-            visible: UpdateService.updateState === UpdateService.status.Error
+        Rectangle {
+          Layout.fillWidth: true
+          Layout.alignment: Qt.AlignHCenter
+          Layout.maximumWidth: Math.min(root.panelWidth - root.padding * 2, 520)
+          Layout.preferredHeight: 160
+          visible: completionView.isError
+          color: Qt.darker(Theme.bgColor, 1.05)
+          radius: Theme.itemRadius
+          border.color: Theme.borderColor
+          border.width: 1
 
-            ScrollView {
-              anchors.fill: parent
-              anchors.margins: 8
-              clip: true
+          ScrollView {
+            anchors.fill: parent
+            anchors.margins: 8
+            clip: true
 
-              ListView {
-                model: UpdateService.outputLines.slice(-20)
-                spacing: 2
+            ListView {
+              model: UpdateService.outputLines.slice(-20)
+              spacing: 2
 
-                delegate: Text {
-                  id: errorLine
-                  required property var modelData
+              delegate: Text {
+                id: errorLine
+                required property var modelData
 
-                  width: ListView.view.width
-                  text: errorLine.modelData.text || errorLine.modelData
-                  font.family: "Monospace"
-                  font.pixelSize: Theme.fontSize * 0.85
-                  color: {
-                    const line = errorLine.text.toLowerCase();
-                    return line.includes("error") || line.includes("failed") ? Theme.critical : line.includes("warning") ? Theme.warning : Theme.textInactiveColor;
-                  }
-                  wrapMode: Text.Wrap
+                width: ListView.view.width
+                text: errorLine.modelData.text || errorLine.modelData
+                font.family: "Monospace"
+                font.pixelSize: Theme.fontSize * 0.85
+                color: {
+                  const line = errorLine.text.toLowerCase();
+                  return line.includes("error") || line.includes("failed") ? Theme.critical : line.includes("warning") ? Theme.warning : Theme.textInactiveColor;
                 }
+                wrapMode: Text.Wrap
               }
             }
           }
+        }
 
-          RowLayout {
+        RowLayout {
+          Layout.fillWidth: true
+          Layout.alignment: Qt.AlignHCenter
+          Layout.maximumWidth: Math.min(root.panelWidth - root.padding * 2, 460)
+          spacing: 8
+
+          OButton {
             Layout.fillWidth: true
-            spacing: 8
-
-            OButton {
-              Layout.fillWidth: true
-              bgColor: Theme.warning
-              hoverColor: Qt.lighter(Theme.warning, 1.2)
-              visible: UpdateService.updateState === UpdateService.status.Error
-              text: qsTr("Retry")
-              onClicked: {
-                UpdateService.updateState = UpdateService.status.Idle;
-                UpdateService.executeUpdate();
-              }
+            bgColor: Theme.warning
+            hoverColor: Qt.lighter(Theme.warning, 1.2)
+            visible: completionView.isError
+            text: qsTr("Retry")
+            onClicked: {
+              UpdateService.updateState = UpdateService.status.Idle;
+              UpdateService.executeUpdate();
             }
+          }
 
-            OButton {
-              Layout.fillWidth: true
-              bgColor: Theme.activeColor
-              text: qsTr("Close")
-              onClicked: {
-                UpdateService.updateState = UpdateService.status.Idle;
-                UpdateService.resetSelection();
-                root.close();
-              }
+          OButton {
+            Layout.fillWidth: true
+            bgColor: Theme.activeColor
+            text: qsTr("Close")
+            onClicked: {
+              UpdateService.updateState = UpdateService.status.Idle;
+              UpdateService.resetSelection();
+              root.close();
             }
           }
         }
