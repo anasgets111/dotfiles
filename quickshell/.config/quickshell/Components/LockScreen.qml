@@ -52,7 +52,7 @@ Scope {
           Image {
             anchors.fill: parent
             fillMode: lockSurface.wallpaperFillMode
-            layer.enabled: lockSurface.hasScreen
+            layer.enabled: lockSurface.hasScreen && LockService.locked  // Only enable when locked
             cache: false
             mipmap: false
             source: lockSurface.wallpaperData?.wallpaper || ""
@@ -82,8 +82,11 @@ Scope {
             theme: root.theme
           }
 
-          Component.onCompleted: {
-            LockService.lock.connect(() => lockContent.forceActiveFocus());
+          Connections {
+            target: LockService
+            function onLock() {
+              lockContent.forceActiveFocus();
+            }
           }
         }
       }

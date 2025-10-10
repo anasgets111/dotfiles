@@ -278,6 +278,20 @@ WlrLayershell {
   Component.onCompleted: applyModel(modelData)
   onModelDataChanged: applyModel(modelData)
 
+  Component.onDestruction: {
+    // Stop any running animations
+    if (transitionAnim.running)
+      transitionAnim.stop();
+
+    // Clear image sources to free GPU memory
+    currentWallpaper.source = "";
+    nextWallpaper.source = "";
+
+    // Disable layers to free framebuffer objects
+    currentWallpaper.layer.enabled = false;
+    nextWallpaper.layer.enabled = false;
+  }
+
   Connections {
     target: WallpaperService
     function onWallpaperChanged(name, path) {
