@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import qs.Config
 import qs.Services.Core
 import qs.Components
+import qs.Modules.Bar
 
 Rectangle {
   id: root
@@ -89,9 +90,14 @@ Rectangle {
 
   MouseArea {
     anchors.fill: parent
-    acceptedButtons: Qt.MiddleButton
-    onClicked: if (root.isAudioReady && AudioService)
-      AudioService.toggleMute()
+    acceptedButtons: Qt.MiddleButton | Qt.RightButton
+    onClicked: function (mouse) {
+      if (mouse.button === Qt.MiddleButton && root.isAudioReady && AudioService) {
+        AudioService.toggleMute();
+      } else if (mouse.button === Qt.RightButton) {
+        audioPanel.openAtItem(root, mouse.x, mouse.y);
+      }
+    }
   }
 
   Slider {
@@ -175,5 +181,9 @@ Rectangle {
         text: root.percentageText
       }
     }
+  }
+
+  AudioPanel {
+    id: audioPanel
   }
 }

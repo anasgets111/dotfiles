@@ -25,6 +25,7 @@ OPanel {
   readonly property int maxItems: 4
   readonly property int itemHeight: Theme.itemHeight
   readonly property int padding: 8
+  readonly property color borderColor: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
 
   panelWidth: 400
   needsKeyboardFocus: false
@@ -139,7 +140,7 @@ OPanel {
         radius: Theme.itemRadius
         color: Qt.lighter(Theme.bgColor, 1.35)
         border.width: 1
-        border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+        border.color: root.borderColor
         opacity: root.ready ? 1 : 0.5
 
         Behavior on opacity {
@@ -208,7 +209,7 @@ OPanel {
         radius: Theme.itemRadius
         color: Qt.lighter(Theme.bgColor, 1.35)
         border.width: 1
-        border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+        border.color: root.borderColor
         opacity: root.ready && root.bluetoothEnabled ? 1 : 0.5
 
         Behavior on opacity {
@@ -279,7 +280,7 @@ OPanel {
       radius: Theme.itemRadius
       color: Qt.lighter(Theme.bgColor, 1.35)
       border.width: 1
-      border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+      border.color: root.borderColor
       opacity: root.ready && root.bluetoothEnabled ? 1 : 0.5
 
       Behavior on opacity {
@@ -358,7 +359,7 @@ OPanel {
       radius: Theme.itemRadius
       color: Qt.lighter(Theme.bgColor, 1.25)
       border.width: 1
-      border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+      border.color: root.borderColor
       visible: root.ready && root.bluetoothEnabled && deviceList.count > 0
       clip: true
       implicitHeight: visible ? deviceList.implicitHeight + root.padding * 1.4 : 0

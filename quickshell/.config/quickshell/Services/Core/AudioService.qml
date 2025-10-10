@@ -20,6 +20,7 @@ Singleton {
   readonly property PwNode source: Pipewire.defaultAudioSource
   readonly property list<PwNode> sinks: Pipewire.nodes.values.filter(n => !n.isStream && n.isSink)
   readonly property list<PwNode> sources: Pipewire.nodes.values.filter(n => !n.isStream && !n.isSink && n.audio)
+  readonly property list<PwNode> streams: Pipewire.nodes.values.filter(n => n.isStream && n.audio)
 
   readonly property real maxVolume: 1.5
   readonly property int maxVolumePercent: Math.round(maxVolume * 100)
