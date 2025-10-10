@@ -15,11 +15,9 @@ Item {
   readonly property string title: ToplevelManager.activeToplevel?.title || ""
 
   readonly property bool hasActive: (() => {
-    const tl = ToplevelManager.activeToplevel;
-    return !!(tl?.activated && tl?.screens?.length && (tl.appId || tl.title) && 
-              (WorkspaceService.workspaces.find(w => w.id === WorkspaceService.currentWorkspace)?.populated || 
-               WorkspaceService.activeSpecial));
-  })()
+      const tl = ToplevelManager.activeToplevel;
+      return !!(tl?.activated && tl?.screens?.length && (tl.appId || tl.title) && (WorkspaceService.workspaces.find(w => w.id === WorkspaceService.currentWorkspace)?.populated || WorkspaceService.activeSpecial));
+    })()
 
   readonly property string appName: hasActive ? (Utils.resolveDesktopEntry(appId)?.name || appId) : ""
   readonly property string displayText: !hasActive ? "Desktop" : !title ? (appName || "Desktop") : !appName ? title : (appName === "Zen Browser" ? title : appName + ": " + title)
