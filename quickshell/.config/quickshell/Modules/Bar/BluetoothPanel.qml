@@ -3,11 +3,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Quickshell
 import qs.Config
 import qs.Components
 import qs.Services.Core
-import qs.Services.Utils
 
 OPanel {
   id: root
@@ -16,16 +14,16 @@ OPanel {
   readonly property bool bluetoothEnabled: BluetoothService.enabled
   readonly property bool discovering: BluetoothService.discovering
   readonly property bool discoverable: BluetoothService.discoverable
-  readonly property var devices: BluetoothService.devices || []
-  readonly property var sortedDevices: BluetoothService.sortDevices(devices)
 
   property string showCodecFor: ""
 
-  readonly property int minItems: 4
-  readonly property int maxItems: 4
-  readonly property int itemHeight: Theme.itemHeight
   readonly property int padding: 8
+  readonly property int itemHeight: Theme.itemHeight
   readonly property color borderColor: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+  readonly property int cardPadding: padding * 0.9
+  readonly property int cardSpacing: padding * 0.4
+  readonly property int iconSize: itemHeight * 0.9
+  readonly property int actionButtonSize: itemHeight * 0.8
 
   panelWidth: 400
   needsKeyboardFocus: false
@@ -64,50 +62,44 @@ OPanel {
     if (!ready)
       return [];
 
-    const deviceList = [];
-    for (const device of sortedDevices) {
-      if (!device)
-        continue;
-
+    const sortedDevices = BluetoothService.sortDevices(BluetoothService.devices);
+    return sortedDevices.map(device => {
       const addr = device.address || "";
-      const isBusy = BluetoothService.isDeviceBusy(device);
-      const canConnect = BluetoothService.canConnect(device);
-      const canDisconnect = BluetoothService.canDisconnect(device);
       const isAudio = BluetoothService.isAudioDevice(device);
-      const currentCodec = BluetoothService.deviceCodecs[addr] || "";
-      const availableCodecs = BluetoothService.deviceAvailableCodecs[addr] || [];
-      const showCodec = showCodecFor === addr;
 
-      deviceList.push({
+      return {
         device: device,
         address: addr,
-        name: device.name || device.deviceName || qsTr("Unknown Device"),
+        name: BluetoothService.getDeviceName(device) || qsTr("Unknown Device"),
         icon: BluetoothService.getDeviceIcon(device),
         connected: device.connected || false,
         paired: device.paired || false,
         trusted: device.trusted || false,
         battery: device.batteryAvailable && device.battery > 0 ? device.battery : -1,
         statusText: BluetoothService.getStatusString(device),
-        isBusy: isBusy,
-        canConnect: canConnect,
-        canDisconnect: canDisconnect,
+        isBusy: BluetoothService.isDeviceBusy(device),
+        canConnect: BluetoothService.canConnect(device),
+        canDisconnect: BluetoothService.canDisconnect(device),
         isAudio: isAudio,
-        currentCodec: currentCodec,
-        availableCodecs: availableCodecs,
-        showCodecSelector: showCodec
-      });
-    }
-    return deviceList;
+        currentCodec: BluetoothService.deviceCodecs[addr] || "",
+        availableCodecs: BluetoothService.deviceAvailableCodecs[addr] || [],
+        showCodecSelector: showCodecFor === addr
+      };
+    });
   }
 
   function handleAction(action: string, device: var) {
-    if (action === "connect") {
+    switch (action) {
+    case "connect":
       BluetoothService.connectDeviceWithTrust(device);
-    } else if (action === "disconnect") {
+      break;
+    case "disconnect":
       BluetoothService.disconnectDevice(device);
-    } else if (action === "forget") {
+      break;
+    case "forget":
       BluetoothService.forgetDevice(device);
-    } else if (action === "toggle-codec") {
+      break;
+    case "toggle-codec":
       const addr = device?.address || "";
       if (showCodecFor === addr) {
         showCodecFor = "";
@@ -115,10 +107,14 @@ OPanel {
         showCodecFor = addr;
         BluetoothService.getAvailableCodecs(device);
       }
-    } else if (action.startsWith("switch-codec-")) {
-      const profile = action.substring(13);
-      BluetoothService.switchCodec(device, profile);
-      showCodecFor = "";
+      break;
+    default:
+      if (action.startsWith("switch-codec-")) {
+        const profile = action.substring(13);
+        BluetoothService.switchCodec(device, profile);
+        showCodecFor = "";
+      }
+      break;
     }
   }
 
@@ -131,12 +127,12 @@ OPanel {
     // Toggle Cards Row
     RowLayout {
       Layout.fillWidth: true
+      Layout.bottomMargin: root.bluetoothEnabled ? 0 : root.padding * 2
       spacing: root.padding * 1.25
 
-      // Bluetooth Toggle Card
       Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: btCol.implicitHeight + root.padding * 1.2
+        Layout.preferredHeight: btCol.implicitHeight + root.cardPadding * 1.3
         radius: Theme.itemRadius
         color: Qt.lighter(Theme.bgColor, 1.35)
         border.width: 1
@@ -145,15 +141,15 @@ OPanel {
 
         Behavior on opacity {
           NumberAnimation {
-            duration: 150
+            duration: Theme.animationDuration
           }
         }
 
         ColumnLayout {
           id: btCol
           anchors.fill: parent
-          anchors.margins: root.padding * 0.9
-          spacing: root.padding * 0.4
+          anchors.margins: root.cardPadding
+          spacing: root.cardSpacing
 
           OText {
             text: qsTr("Bluetooth")
@@ -162,19 +158,19 @@ OPanel {
           }
 
           RowLayout {
-            spacing: root.padding * 0.9
+            spacing: root.cardPadding
 
             Rectangle {
-              implicitWidth: Theme.itemHeight * 0.9
-              implicitHeight: implicitWidth
+              implicitWidth: root.iconSize
+              implicitHeight: root.iconSize
               radius: height / 2
-              color: root.ready && root.bluetoothEnabled ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
+              color: root.ready && root.bluetoothEnabled ? Theme.activeColor : Theme.inactiveColor
               border.width: 1
               border.color: Qt.rgba(0, 0, 0, 0.12)
 
               Behavior on color {
                 ColorAnimation {
-                  duration: 150
+                  duration: Theme.animationDuration
                 }
               }
 
@@ -183,7 +179,7 @@ OPanel {
                 anchors.centerIn: parent
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize * 0.95
-                color: root.ready && root.bluetoothEnabled ? Theme.textContrast(parent.color) : Theme.textInactiveColor
+                color: root.ready && root.bluetoothEnabled ? "#FFFFFF" : Theme.textInactiveColor
               }
             }
 
@@ -202,27 +198,26 @@ OPanel {
         }
       }
 
-      // Discoverable Toggle Card
       Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: discoverableCol.implicitHeight + root.padding * 1.2
+        Layout.preferredHeight: discoverableCol.implicitHeight + root.cardPadding * 1.3
         radius: Theme.itemRadius
         color: Qt.lighter(Theme.bgColor, 1.35)
         border.width: 1
         border.color: root.borderColor
-        opacity: root.ready && root.bluetoothEnabled ? 1 : 0.5
+        visible: root.ready && root.bluetoothEnabled
 
         Behavior on opacity {
           NumberAnimation {
-            duration: 150
+            duration: Theme.animationDuration
           }
         }
 
         ColumnLayout {
           id: discoverableCol
           anchors.fill: parent
-          anchors.margins: root.padding * 0.9
-          spacing: root.padding * 0.4
+          anchors.margins: root.cardPadding
+          spacing: root.cardSpacing
 
           OText {
             text: qsTr("Discoverable")
@@ -231,11 +226,11 @@ OPanel {
           }
 
           RowLayout {
-            spacing: root.padding * 0.9
+            spacing: root.cardPadding
 
             Rectangle {
-              implicitWidth: Theme.itemHeight * 0.9
-              implicitHeight: implicitWidth
+              implicitWidth: root.iconSize
+              implicitHeight: root.iconSize
               radius: height / 2
               color: root.ready && root.bluetoothEnabled && root.discoverable ? Qt.lighter(Theme.onHoverColor, 1.25) : Qt.darker(Theme.inactiveColor, 1.1)
               border.width: 1
@@ -243,7 +238,7 @@ OPanel {
 
               Behavior on color {
                 ColorAnimation {
-                  duration: 150
+                  duration: Theme.animationDuration
                 }
               }
 
@@ -272,36 +267,35 @@ OPanel {
       }
     }
 
-    // Discovery Toggle Card (Full Width)
     Rectangle {
       Layout.fillWidth: true
       Layout.topMargin: root.padding * 0.5
-      Layout.preferredHeight: discoveryCol.implicitHeight + root.padding * 1.2
+      Layout.preferredHeight: discoveryCol.implicitHeight + root.cardPadding * 1.3
       radius: Theme.itemRadius
       color: Qt.lighter(Theme.bgColor, 1.35)
       border.width: 1
       border.color: root.borderColor
-      opacity: root.ready && root.bluetoothEnabled ? 1 : 0.5
+      visible: root.ready && root.bluetoothEnabled
 
       Behavior on opacity {
         NumberAnimation {
-          duration: 150
+          duration: Theme.animationDuration
         }
       }
 
       ColumnLayout {
         id: discoveryCol
         anchors.fill: parent
-        anchors.margins: root.padding * 0.9
-        spacing: root.padding * 0.4
+        anchors.margins: root.cardPadding
+        spacing: root.cardSpacing
 
         RowLayout {
           Layout.fillWidth: true
-          spacing: root.padding * 0.9
+          spacing: root.cardPadding
 
           Rectangle {
-            implicitWidth: Theme.itemHeight * 0.9
-            implicitHeight: implicitWidth
+            implicitWidth: root.iconSize
+            implicitHeight: root.iconSize
             radius: height / 2
             color: root.ready && root.bluetoothEnabled && root.discovering ? Qt.lighter("#A6E3A1", 1.15) : Qt.darker(Theme.inactiveColor, 1.1)
             border.width: 1
@@ -309,7 +303,7 @@ OPanel {
 
             Behavior on color {
               ColorAnimation {
-                duration: 150
+                duration: Theme.animationDuration
               }
             }
 
@@ -373,7 +367,7 @@ OPanel {
         boundsBehavior: Flickable.StopAtBounds
         implicitHeight: {
           const itemCount = deviceList.count;
-          const displayCount = Math.max(root.minItems, Math.min(itemCount, root.maxItems));
+          const displayCount = Math.min(itemCount, 4);
           return displayCount * root.itemHeight * 1.5 + (displayCount - 1) * 4;
         }
         interactive: contentHeight > height
@@ -533,8 +527,8 @@ OPanel {
           // Codec button (for audio devices when connected)
           IconButton {
             visible: deviceItem.modelData.isAudio && deviceItem.modelData.connected
-            Layout.preferredWidth: Theme.itemHeight * 0.8
-            Layout.preferredHeight: Theme.itemHeight * 0.8
+            Layout.preferredWidth: root.actionButtonSize
+            Layout.preferredHeight: root.actionButtonSize
             icon: "󰓃"
             colorBg: deviceItem.modelData.showCodecSelector ? Theme.activeColor : Theme.onHoverColor
             tooltipText: deviceItem.modelData.currentCodec ? qsTr("Codec: %1").arg(deviceItem.modelData.currentCodec) : qsTr("Select Codec")
@@ -544,8 +538,8 @@ OPanel {
           // Forget button
           IconButton {
             visible: deviceItem.modelData.paired || deviceItem.modelData.trusted
-            Layout.preferredWidth: Theme.itemHeight * 0.8
-            Layout.preferredHeight: Theme.itemHeight * 0.8
+            Layout.preferredWidth: root.actionButtonSize
+            Layout.preferredHeight: root.actionButtonSize
             icon: "󰩺"
             colorBg: "#F38BA8"
             tooltipText: qsTr("Forget Device")
@@ -556,8 +550,8 @@ OPanel {
           IconButton {
             visible: !deviceItem.modelData.isBusy
             enabled: deviceItem.modelData.canConnect || deviceItem.modelData.canDisconnect
-            Layout.preferredWidth: Theme.itemHeight * 0.8
-            Layout.preferredHeight: Theme.itemHeight * 0.8
+            Layout.preferredWidth: root.actionButtonSize
+            Layout.preferredHeight: root.actionButtonSize
             Layout.rightMargin: root.padding
             icon: deviceItem.modelData.connected ? "󱘖" : "󰌘"
             colorBg: deviceItem.modelData.connected ? "#F9E2AF" : Theme.activeColor

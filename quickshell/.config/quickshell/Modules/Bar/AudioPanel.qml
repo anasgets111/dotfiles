@@ -11,21 +11,28 @@ import qs.Services.Utils
 OPanel {
   id: root
 
-  readonly property var audioService: AudioService
-  readonly property var currentSink: audioService.sink
-  readonly property var currentSource: audioService.source
-  readonly property var sinks: audioService.sinks || []
-  readonly property var sources: audioService.sources || []
+  readonly property var currentSink: AudioService.sink
+  readonly property var currentSource: AudioService.source
+  readonly property var sinks: AudioService.sinks
+  readonly property var sources: AudioService.sources
 
-  readonly property bool outputMuted: audioService.muted
-  readonly property real outputVolume: audioService.volume
+  readonly property bool outputMuted: AudioService.muted
+  readonly property real outputVolume: AudioService.volume
   readonly property bool inputMuted: currentSource?.audio?.muted ?? false
   readonly property real inputVolume: currentSource?.audio?.volume ?? 0
 
   readonly property int padding: 8
   readonly property int sliderHeight: Theme.itemHeight * 0.6
-  readonly property var streams: audioService.streams || []
+  readonly property var streams: AudioService.streams
   readonly property color borderColor: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+  readonly property int cardPadding: padding
+  readonly property int cardSpacing: padding * 0.8
+  readonly property int actionButtonSize: Theme.itemHeight * 0.7
+
+  readonly property string outputIcon: outputMuted ? "󰝟" : "󰕾"
+  readonly property color outputIconColor: outputMuted ? Theme.textInactiveColor : Theme.activeColor
+  readonly property string inputIcon: inputMuted ? "󰍭" : "󰍬"
+  readonly property color inputIconColor: inputMuted ? Theme.textInactiveColor : Theme.activeColor
 
   property bool mixerExpanded: false
 
@@ -34,7 +41,7 @@ OPanel {
 
   onOutputVolumeChanged: {
     if (!outputVolumeSlider.dragging) {
-      outputVolumeSlider.value = root.outputVolume / root.audioService.maxVolume;
+      outputVolumeSlider.value = root.outputVolume / AudioService.maxVolume;
     }
   }
 
@@ -44,36 +51,17 @@ OPanel {
     }
   }
 
-  function buildSinkList() {
-    const list = [];
-    for (const node of sinks) {
-      if (!node)
-        continue;
-      const isActive = node === currentSink;
-      list.push({
-        node: node,
-        name: audioService.displayName(node),
-        icon: audioService.deviceIconFor(node) || "󰓃",
-        isActive: isActive
-      });
-    }
-    return list;
+  function formatPercentage(value) {
+    return Math.round(value * 100) + "%";
   }
 
-  function buildSourceList() {
-    const list = [];
-    for (const node of sources) {
-      if (!node)
-        continue;
-      const isActive = node === currentSource;
-      list.push({
-        node: node,
-        name: audioService.displayName(node),
-        icon: "󰍬",
-        isActive: isActive
-      });
-    }
-    return list;
+  function buildDeviceList(devices, currentDevice, defaultIcon) {
+    return devices.map(node => ({
+          node: node,
+          name: AudioService.displayName(node),
+          icon: AudioService.deviceIconFor(node) || defaultIcon,
+          isActive: node === currentDevice
+        }));
   }
 
   ColumnLayout {
@@ -85,7 +73,7 @@ OPanel {
     // Output Volume Section
     Rectangle {
       Layout.fillWidth: true
-      Layout.preferredHeight: outputCol.implicitHeight + root.padding * 1.5
+      Layout.preferredHeight: outputCol.implicitHeight + root.cardPadding * 1.5
       radius: Theme.itemRadius
       color: Qt.lighter(Theme.bgColor, 1.35)
       border.width: 1
@@ -94,18 +82,18 @@ OPanel {
       ColumnLayout {
         id: outputCol
         anchors.fill: parent
-        anchors.margins: root.padding
-        spacing: root.padding * 0.8
+        anchors.margins: root.cardPadding
+        spacing: root.cardSpacing
 
         RowLayout {
           Layout.fillWidth: true
           spacing: root.padding
 
           Text {
-            text: root.outputMuted ? "󰝟" : "󰕾"
+            text: root.outputIcon
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize * 1.2
-            color: root.outputMuted ? Theme.textInactiveColor : Theme.activeColor
+            color: root.outputIconColor
           }
 
           OText {
@@ -115,7 +103,7 @@ OPanel {
           }
 
           Text {
-            text: Math.round(root.outputVolume * 100) + "%"
+            text: root.formatPercentage(root.outputVolume)
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
             font.bold: true
@@ -123,12 +111,12 @@ OPanel {
           }
 
           IconButton {
-            Layout.preferredWidth: Theme.itemHeight * 0.7
-            Layout.preferredHeight: Theme.itemHeight * 0.7
-            icon: root.outputMuted ? "󰝟" : "󰕾"
+            Layout.preferredWidth: root.actionButtonSize
+            Layout.preferredHeight: root.actionButtonSize
+            icon: root.outputIcon
             colorBg: root.outputMuted ? Theme.inactiveColor : Theme.activeColor
             tooltipText: root.outputMuted ? qsTr("Unmute") : qsTr("Mute")
-            onClicked: root.audioService.toggleMute()
+            onClicked: AudioService.toggleMute()
           }
         }
 
@@ -140,13 +128,13 @@ OPanel {
             id: outputVolumeSlider
             steps: 30
             wheelStep: 1 / steps
-            splitAt: 1.0 / root.audioService.maxVolume
+            splitAt: 1.0 / AudioService.maxVolume
             fillColor: Theme.activeColor
             headroomColor: Theme.critical
             radius: Theme.itemRadius
             interactive: true
             onCommitted: normalized => {
-              root.audioService.setVolumeReal(normalized * root.audioService.maxVolume);
+              AudioService.setVolumeReal(normalized * AudioService.maxVolume);
             }
           }
         }
@@ -248,7 +236,7 @@ OPanel {
                   }
 
                   Text {
-                    text: Math.round((streamItem.modelData.audio?.volume ?? 0) * 100) + "%"
+                    text: root.formatPercentage(streamItem.modelData.audio?.volume ?? 0)
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize * 0.8
                     color: Theme.textInactiveColor
@@ -283,7 +271,7 @@ OPanel {
     // Input Volume Section
     Rectangle {
       Layout.fillWidth: true
-      Layout.preferredHeight: inputCol.implicitHeight + root.padding * 1.5
+      Layout.preferredHeight: inputCol.implicitHeight + root.cardPadding * 1.5
       radius: Theme.itemRadius
       color: Qt.lighter(Theme.bgColor, 1.35)
       border.width: 1
@@ -293,18 +281,18 @@ OPanel {
       ColumnLayout {
         id: inputCol
         anchors.fill: parent
-        anchors.margins: root.padding
-        spacing: root.padding * 0.8
+        anchors.margins: root.cardPadding
+        spacing: root.cardSpacing
 
         RowLayout {
           Layout.fillWidth: true
           spacing: root.padding
 
           Text {
-            text: root.inputMuted ? "󰍭" : "󰍬"
+            text: root.inputIcon
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize * 1.2
-            color: root.inputMuted ? Theme.textInactiveColor : Theme.activeColor
+            color: root.inputIconColor
           }
 
           OText {
@@ -314,7 +302,7 @@ OPanel {
           }
 
           Text {
-            text: Math.round(root.inputVolume * 100) + "%"
+            text: root.formatPercentage(root.inputVolume)
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
             font.bold: true
@@ -322,12 +310,12 @@ OPanel {
           }
 
           IconButton {
-            Layout.preferredWidth: Theme.itemHeight * 0.7
-            Layout.preferredHeight: Theme.itemHeight * 0.7
-            icon: root.inputMuted ? "󰍭" : "󰍬"
+            Layout.preferredWidth: root.actionButtonSize
+            Layout.preferredHeight: root.actionButtonSize
+            icon: root.inputIcon
             colorBg: root.inputMuted ? Theme.inactiveColor : Theme.activeColor
             tooltipText: root.inputMuted ? qsTr("Unmute Mic") : qsTr("Mute Mic")
-            onClicked: root.audioService.toggleMicMute()
+            onClicked: AudioService.toggleMicMute()
           }
         }
 
@@ -381,7 +369,7 @@ OPanel {
           boundsBehavior: Flickable.StopAtBounds
           implicitHeight: Math.min(contentHeight, Theme.itemHeight * 4)
           interactive: contentHeight > height
-          model: root.buildSinkList()
+          model: root.buildDeviceList(root.sinks, root.currentSink, "󰓃")
 
           ScrollBar.vertical: ScrollBar {
             policy: sinkList.contentHeight > sinkList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
@@ -391,7 +379,7 @@ OPanel {
           delegate: DeviceItem {
             width: ListView.view.width
             onClicked: node => {
-              root.audioService.setAudioSink(node);
+              AudioService.setAudioSink(node);
             }
           }
         }
@@ -429,7 +417,7 @@ OPanel {
           boundsBehavior: Flickable.StopAtBounds
           implicitHeight: Math.min(contentHeight, Theme.itemHeight * 4)
           interactive: contentHeight > height
-          model: root.buildSourceList()
+          model: root.buildDeviceList(root.sources, root.currentSource, "󰍬")
 
           ScrollBar.vertical: ScrollBar {
             policy: sourceList.contentHeight > sourceList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
@@ -439,7 +427,7 @@ OPanel {
           delegate: DeviceItem {
             width: ListView.view.width
             onClicked: node => {
-              root.audioService.setAudioSource(node);
+              AudioService.setAudioSource(node);
             }
           }
         }
