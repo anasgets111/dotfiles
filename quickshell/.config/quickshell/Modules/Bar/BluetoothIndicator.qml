@@ -5,6 +5,7 @@ import Quickshell.Bluetooth
 import qs.Config
 import qs.Components
 import qs.Services.Core
+import qs.Modules.Bar
 
 Item {
   id: root
@@ -37,10 +38,9 @@ Item {
     const d = topDevice;
     if (bt.enabled && d) {
       const name = d.name || d.deviceName || qsTr("Unknown device");
-      const sig = bt.getSignalStrength(d) ?? "";
       const hasBatt = d.batteryAvailable && d.battery > 0;
-      const battStr = hasBatt ? qsTr(" · Battery: %1% ").arg(d.battery) : "";
-      return qsTr("Top: %1 · Signal: %2%3").arg(name).arg(sig).arg(battStr);
+      const battStr = hasBatt ? qsTr(" · Battery: %1%").arg(Math.round(d.battery * 100)) : "";
+      return qsTr("Top: %1%2").arg(name).arg(battStr);
     }
 
     if (bt.enabled) {
@@ -65,9 +65,19 @@ Item {
 
   IconButton {
     id: iconButton
-    enabled: false
+    enabled: true
     icon: root.btIcon
     tooltipText: [root.titleText, root.detailText1, root.detailText2].filter(t => t?.length > 0).join("\n")
+
+    onClicked: function (mouse) {
+      if (mouse.button === Qt.RightButton) {
+        bluetoothPanel.openAtItem(iconButton, mouse.x, mouse.y);
+      }
+    }
+  }
+
+  BluetoothPanel {
+    id: bluetoothPanel
   }
 
   function refreshAdapter() {

@@ -12,6 +12,7 @@ Singleton {
   readonly property bool available: adapter !== null
   readonly property bool enabled: adapter?.enabled ?? false
   readonly property bool discovering: adapter?.discovering ?? false
+  readonly property bool discoverable: adapter?.discoverable ?? false
   readonly property var devices: adapter?.devices?.values ?? []
   readonly property var pairedDevices: devices.filter(d => d?.paired || d?.trusted)
   readonly property var allDevicesWithBattery: devices.filter(d => d?.batteryAvailable && d.battery > 0)
@@ -91,61 +92,26 @@ Singleton {
 
   function getDeviceIcon(device) {
     if (!device)
-      return "bluetooth";
+      return "󰂯";
     const name = (device.name || device.deviceName || "").toLowerCase();
     const icon = (device.icon || "").toLowerCase();
 
-    if (audioKeywords.some(k => icon.includes(k) || name.includes(k)))
-      return "headset";
-    if (icon.includes("mouse") || name.includes("mouse"))
-      return "mouse";
-    if (icon.includes("keyboard") || name.includes("keyboard"))
-      return "keyboard";
-    if (phoneKeywords.some(k => icon.includes(k) || name.includes(k)))
-      return "smartphone";
+    // Check specific device types first (more specific to less specific)
+    if (icon.includes("display") || icon.includes("tv") || name.includes("[tv]") || name.includes("television"))
+      return "󰔂";
     if (icon.includes("watch") || name.includes("watch"))
-      return "watch";
+      return "󰥔";
+    if (icon.includes("mouse") || name.includes("mouse"))
+      return "󰍽";
+    if (icon.includes("keyboard") || name.includes("keyboard"))
+      return "󰌌";
+    if (phoneKeywords.some(k => icon.includes(k) || name.includes(k)))
+      return "󰄜";
     if (icon.includes("speaker") || name.includes("speaker"))
-      return "speaker";
-    if (icon.includes("display") || name.includes("tv"))
-      return "tv";
-    return "bluetooth";
-  }
-
-  function getSignalIcon(device) {
-    const s = device?.signalStrength ?? -1;
-    if (s <= 0)
-      return "signal_cellular_null";
-    if (s >= 80)
-      return "signal_cellular_4_bar";
-    if (s >= 60)
-      return "signal_cellular_3_bar";
-    if (s >= 40)
-      return "signal_cellular_2_bar";
-    if (s >= 20)
-      return "signal_cellular_1_bar";
-    return "signal_cellular_0_bar";
-  }
-
-  function getSignalStrength(device) {
-    const s = device?.signalStrength ?? -1;
-    if (s <= 0)
-      return "Unknown";
-    if (s >= 80)
-      return "Excellent";
-    if (s >= 60)
-      return "Good";
-    if (s >= 40)
-      return "Fair";
-    if (s >= 20)
-      return "Poor";
-    return "Very Poor";
-  }
-
-  function getBattery(device) {
-    if (!device?.battery)
-      return "Battery: Unknown";
-    return `Battery: ${Math.round(device.battery * 100)}%`;
+      return "󰓃";
+    if (audioKeywords.some(k => icon.includes(k) || name.includes(k)))
+      return "󰋋";
+    return "󰂯";
   }
 
   function isDeviceBusy(device) {
@@ -193,6 +159,21 @@ Singleton {
   function setBluetoothEnabled(enabled) {
     if (adapter)
       adapter.enabled = enabled;
+  }
+
+  function setDiscoverable(discoverable) {
+    if (adapter)
+      adapter.discoverable = discoverable;
+  }
+
+  function startDiscovery() {
+    if (adapter && adapter.enabled)
+      adapter.discovering = true;
+  }
+
+  function stopDiscovery() {
+    if (adapter)
+      adapter.discovering = false;
   }
 
   function getCardName(d) {
