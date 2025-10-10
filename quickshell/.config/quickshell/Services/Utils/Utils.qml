@@ -60,6 +60,17 @@ Singleton {
         }
       }
     }
+    onRunningChanged: {
+      if (!running) {
+        // Process stopped unexpectedly, restart it
+        console.warn("LED monitor stopped, restarting...");
+        Qt.callLater(() => {
+          if (utils.ledMonitor) {
+            utils.ledMonitor.running = true;
+          }
+        });
+      }
+    }
   }
 
   // ==================== Command Execution ====================
