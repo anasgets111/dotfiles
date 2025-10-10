@@ -46,46 +46,46 @@ Scope {
         anchors.fill: parent
         active: lockSurface.hasScreen
         asynchronous: true
-        sourceComponent: Item {
+        sourceComponent: FocusScope {
           anchors.fill: parent
+          focus: true
 
-          Image {
-            anchors.fill: parent
-            fillMode: lockSurface.wallpaperFillMode
-            layer.enabled: lockSurface.hasScreen && LockService.locked  // Only enable when locked
-            cache: false
-            mipmap: false
-            source: lockSurface.wallpaperData?.wallpaper || ""
-            visible: lockSurface.hasScreen
-            layer.effect: MultiEffect {
-              autoPaddingEnabled: false
-              blur: 0.9
-              blurEnabled: true
-              blurMax: 64
-              blurMultiplier: 1
+          // Global keyboard event handler - always active when lock screen is visible
+          Keys.onPressed: event => {
+            if (LockService && LockService.handleGlobalKeyPress(event)) {
+              event.accepted = true;
             }
           }
 
-          MouseArea {
+          Component.onCompleted: {
+            forceActiveFocus();
+          }
+
+          Item {
             anchors.fill: parent
-            hoverEnabled: true
-            acceptedButtons: Qt.AllButtons
-            propagateComposedEvents: true
-            onEntered: lockContent.forceActiveFocus()
-            onPressed: lockContent.forceActiveFocus()
-          }
 
-          LockContent {
-            id: lockContent
-            lockContext: LockService
-            lockSurface: lockSurface
-            theme: root.theme
-          }
+            Image {
+              anchors.fill: parent
+              fillMode: lockSurface.wallpaperFillMode
+              layer.enabled: lockSurface.hasScreen
+              cache: false
+              mipmap: false
+              source: lockSurface.wallpaperData?.wallpaper || ""
+              visible: lockSurface.hasScreen
+              layer.effect: MultiEffect {
+                autoPaddingEnabled: false
+                blur: 0.9
+                blurEnabled: true
+                blurMax: 64
+                blurMultiplier: 1
+              }
+            }
 
-          Connections {
-            target: LockService
-            function onLock() {
-              lockContent.forceActiveFocus();
+            LockContent {
+              id: lockContent
+              lockContext: LockService
+              lockSurface: lockSurface
+              theme: root.theme
             }
           }
         }
