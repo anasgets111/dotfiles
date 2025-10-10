@@ -429,182 +429,89 @@ OPanel {
       }
     }
 
-    ColumnLayout {
+    MouseArea {
       anchors.fill: parent
-      spacing: 4
-
-      // Main device row
-      RowLayout {
-        Layout.fillWidth: true
-        Layout.preferredHeight: Theme.itemHeight
-        spacing: 8
-
-        // Device icon
-        Text {
-          text: deviceItem.modelData.icon || "󰂯"
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          color: deviceItem.modelData.connected ? Theme.activeColor : deviceItem.textColor
-          Layout.leftMargin: root.padding
-          Layout.alignment: Qt.AlignVCenter
-
-          Behavior on color {
-            ColorAnimation {
-              duration: Theme.animationDuration
-            }
-          }
-        }
-
-        // Device name + status
-        ColumnLayout {
-          Layout.fillWidth: true
-          spacing: 0
-
-          Text {
-            text: deviceItem.modelData.name || ""
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            color: deviceItem.textColor
-            elide: Text.ElideRight
-            Layout.fillWidth: true
-
-            Behavior on color {
-              ColorAnimation {
-                duration: Theme.animationDuration
-              }
-            }
-          }
-
-          Text {
-            text: deviceItem.modelData.statusText || ""
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize * 0.75
-            color: Theme.textInactiveColor
-            visible: text !== ""
-          }
-        }
-
-        // Battery pill (only for connected devices with battery)
-        Rectangle {
-          visible: deviceItem.modelData.battery >= 0
-          Layout.preferredWidth: Theme.itemHeight * 2
-          Layout.preferredHeight: Theme.itemHeight * 0.6
-          radius: height / 2
-          color: {
-            const level = deviceItem.modelData.battery;
-            if (level <= 0.1)
-              return Theme.critical;
-            if (level <= 0.2)
-              return Theme.warning;
-            return Theme.activeColor;
-          }
-
-          Behavior on color {
-            ColorAnimation {
-              duration: Theme.animationDuration
-            }
-          }
-
-          Text {
-            anchors.centerIn: parent
-            text: Math.round(deviceItem.modelData.battery * 100) + "%"
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize * 0.7
-            font.bold: true
-            color: Theme.textContrast(parent.color)
-          }
-        }
-
-        // Codec button (for audio devices when connected)
-        IconButton {
-          visible: deviceItem.modelData.isAudio && deviceItem.modelData.connected
-          Layout.preferredWidth: Theme.itemHeight * 0.8
-          Layout.preferredHeight: Theme.itemHeight * 0.8
-          icon: "󰓃"
-          colorBg: deviceItem.modelData.showCodecSelector ? Theme.activeColor : Theme.onHoverColor
-          tooltipText: deviceItem.modelData.currentCodec ? qsTr("Codec: %1").arg(deviceItem.modelData.currentCodec) : qsTr("Select Codec")
-          onClicked: deviceItem.triggered("toggle-codec", deviceItem.device)
-        }
-
-        // Forget button
-        IconButton {
-          visible: deviceItem.modelData.paired || deviceItem.modelData.trusted
-          Layout.preferredWidth: Theme.itemHeight * 0.8
-          Layout.preferredHeight: Theme.itemHeight * 0.8
-          icon: "󰩺"
-          colorBg: "#F38BA8"
-          tooltipText: qsTr("Forget Device")
-          onClicked: deviceItem.triggered("forget", deviceItem.device)
-        }
-
-        // Connect/Disconnect button
-        IconButton {
-          visible: !deviceItem.modelData.isBusy
-          enabled: deviceItem.modelData.canConnect || deviceItem.modelData.canDisconnect
-          Layout.preferredWidth: Theme.itemHeight * 0.8
-          Layout.preferredHeight: Theme.itemHeight * 0.8
-          Layout.rightMargin: root.padding
-          icon: deviceItem.modelData.connected ? "󱘖" : "󰌘"
-          colorBg: deviceItem.modelData.connected ? "#F9E2AF" : Theme.activeColor
-          tooltipText: deviceItem.modelData.connected ? qsTr("Disconnect") : qsTr("Connect")
-          onClicked: deviceItem.triggered(deviceItem.modelData.connected ? "disconnect" : "connect", deviceItem.device)
-        }
-
-        // Busy indicator
-        Text {
-          visible: deviceItem.modelData.isBusy
-          text: "󰇙"
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
-          color: Theme.activeColor
-          Layout.rightMargin: root.padding
-
-          RotationAnimation on rotation {
-            running: deviceItem.modelData.isBusy
-            loops: Animation.Infinite
-            from: 0
-            to: 360
-            duration: 1000
-          }
-        }
-
-        MouseArea {
-          anchors.fill: parent
-          z: -1
-          cursorShape: Qt.PointingHandCursor
-          hoverEnabled: true
-          onEntered: deviceItem.hovered = true
-          onExited: deviceItem.hovered = false
-          onClicked: {
-            if (deviceItem.modelData.canConnect) {
-              deviceItem.triggered("connect", deviceItem.device);
-            } else if (deviceItem.modelData.canDisconnect) {
-              deviceItem.triggered("disconnect", deviceItem.device);
-            }
-          }
+      cursorShape: Qt.PointingHandCursor
+      hoverEnabled: true
+      onEntered: deviceItem.hovered = true
+      onExited: deviceItem.hovered = false
+      onClicked: {
+        if (deviceItem.modelData.canConnect) {
+          deviceItem.triggered("connect", deviceItem.device);
+        } else if (deviceItem.modelData.canDisconnect) {
+          deviceItem.triggered("disconnect", deviceItem.device);
         }
       }
 
-      // Codec selector (expanded)
       ColumnLayout {
-        Layout.fillWidth: true
-        Layout.leftMargin: root.padding * 2
-        Layout.rightMargin: root.padding
-        spacing: 2
-        visible: deviceItem.modelData.showCodecSelector && deviceItem.modelData.availableCodecs.length > 0
+        anchors.fill: parent
+        spacing: 4
 
-        Repeater {
-          model: deviceItem.modelData.availableCodecs
+        // Main device row
+        RowLayout {
+          Layout.fillWidth: true
+          Layout.preferredHeight: Theme.itemHeight
+          spacing: 8
 
-          delegate: Rectangle {
-            id: codecDelegate
-            required property var modelData
-            required property int index
+          // Device icon
+          Text {
+            text: deviceItem.modelData.icon || "󰂯"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize
+            color: deviceItem.modelData.connected ? Theme.activeColor : deviceItem.textColor
+            Layout.leftMargin: root.padding
+            Layout.alignment: Qt.AlignVCenter
 
+            Behavior on color {
+              ColorAnimation {
+                duration: Theme.animationDuration
+              }
+            }
+          }
+
+          // Device name + status
+          ColumnLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: Theme.itemHeight * 0.8
-            radius: Theme.itemRadius
-            color: codecMouseArea.containsMouse ? Theme.onHoverColor : "transparent"
+            spacing: 0
+
+            Text {
+              text: deviceItem.modelData.name || ""
+              font.family: Theme.fontFamily
+              font.pixelSize: Theme.fontSize
+              color: deviceItem.textColor
+              elide: Text.ElideRight
+              Layout.fillWidth: true
+
+              Behavior on color {
+                ColorAnimation {
+                  duration: Theme.animationDuration
+                }
+              }
+            }
+
+            Text {
+              text: deviceItem.modelData.statusText || ""
+              font.family: Theme.fontFamily
+              font.pixelSize: Theme.fontSize * 0.75
+              color: Theme.textInactiveColor
+              visible: text !== ""
+            }
+          }
+
+          // Battery pill (only for connected devices with battery)
+          Rectangle {
+            visible: deviceItem.modelData.battery >= 0
+            Layout.preferredWidth: Theme.itemHeight * 2
+            Layout.preferredHeight: Theme.itemHeight * 0.6
+            radius: height / 2
+            color: {
+              const level = deviceItem.modelData.battery;
+              if (level <= 0.1)
+                return Theme.critical;
+              if (level <= 0.2)
+                return Theme.warning;
+              return Theme.activeColor;
+            }
 
             Behavior on color {
               ColorAnimation {
@@ -612,52 +519,144 @@ OPanel {
               }
             }
 
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: root.padding
-              anchors.rightMargin: root.padding
-              spacing: 8
-
-              Rectangle {
-                implicitWidth: 8
-                implicitHeight: 8
-                radius: 4
-                color: codecDelegate.modelData.qualityColor || Theme.inactiveColor
-              }
-
-              Text {
-                text: codecDelegate.modelData.name || ""
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize * 0.85
-                font.bold: codecDelegate.modelData.name === deviceItem.modelData.currentCodec
-                color: codecMouseArea.containsMouse ? Theme.textOnHoverColor : Theme.textActiveColor
-                Layout.fillWidth: true
-              }
-
-              Text {
-                text: codecDelegate.modelData.description || ""
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize * 0.75
-                color: Theme.textInactiveColor
-              }
-
-              Text {
-                visible: codecDelegate.modelData.name === deviceItem.modelData.currentCodec
-                text: "󰄬"
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize * 0.8
-                color: Theme.activeColor
-              }
+            Text {
+              anchors.centerIn: parent
+              text: Math.round(deviceItem.modelData.battery * 100) + "%"
+              font.family: Theme.fontFamily
+              font.pixelSize: Theme.fontSize * 0.7
+              font.bold: true
+              color: Theme.textContrast(parent.color)
             }
+          }
 
-            MouseArea {
-              id: codecMouseArea
-              anchors.fill: parent
-              cursorShape: Qt.PointingHandCursor
-              hoverEnabled: true
-              onClicked: {
-                if (codecDelegate.modelData.name !== deviceItem.modelData.currentCodec) {
-                  deviceItem.triggered("switch-codec-" + codecDelegate.modelData.profile, deviceItem.device);
+          // Codec button (for audio devices when connected)
+          IconButton {
+            visible: deviceItem.modelData.isAudio && deviceItem.modelData.connected
+            Layout.preferredWidth: Theme.itemHeight * 0.8
+            Layout.preferredHeight: Theme.itemHeight * 0.8
+            icon: "󰓃"
+            colorBg: deviceItem.modelData.showCodecSelector ? Theme.activeColor : Theme.onHoverColor
+            tooltipText: deviceItem.modelData.currentCodec ? qsTr("Codec: %1").arg(deviceItem.modelData.currentCodec) : qsTr("Select Codec")
+            onClicked: deviceItem.triggered("toggle-codec", deviceItem.device)
+          }
+
+          // Forget button
+          IconButton {
+            visible: deviceItem.modelData.paired || deviceItem.modelData.trusted
+            Layout.preferredWidth: Theme.itemHeight * 0.8
+            Layout.preferredHeight: Theme.itemHeight * 0.8
+            icon: "󰩺"
+            colorBg: "#F38BA8"
+            tooltipText: qsTr("Forget Device")
+            onClicked: deviceItem.triggered("forget", deviceItem.device)
+          }
+
+          // Connect/Disconnect button
+          IconButton {
+            visible: !deviceItem.modelData.isBusy
+            enabled: deviceItem.modelData.canConnect || deviceItem.modelData.canDisconnect
+            Layout.preferredWidth: Theme.itemHeight * 0.8
+            Layout.preferredHeight: Theme.itemHeight * 0.8
+            Layout.rightMargin: root.padding
+            icon: deviceItem.modelData.connected ? "󱘖" : "󰌘"
+            colorBg: deviceItem.modelData.connected ? "#F9E2AF" : Theme.activeColor
+            tooltipText: deviceItem.modelData.connected ? qsTr("Disconnect") : qsTr("Connect")
+            onClicked: deviceItem.triggered(deviceItem.modelData.connected ? "disconnect" : "connect", deviceItem.device)
+          }
+
+          // Busy indicator
+          Text {
+            visible: deviceItem.modelData.isBusy
+            text: "󰇙"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize
+            color: Theme.activeColor
+            Layout.rightMargin: root.padding
+
+            RotationAnimation on rotation {
+              running: deviceItem.modelData.isBusy
+              loops: Animation.Infinite
+              from: 0
+              to: 360
+              duration: 1000
+            }
+          }
+        }
+
+        // Codec selector (expanded)
+        ColumnLayout {
+          Layout.fillWidth: true
+          Layout.leftMargin: root.padding * 2
+          Layout.rightMargin: root.padding
+          spacing: 2
+          visible: deviceItem.modelData.showCodecSelector && deviceItem.modelData.availableCodecs.length > 0
+
+          Repeater {
+            model: deviceItem.modelData.availableCodecs
+
+            delegate: Rectangle {
+              id: codecDelegate
+              required property var modelData
+              required property int index
+
+              Layout.fillWidth: true
+              Layout.preferredHeight: Theme.itemHeight * 0.8
+              radius: Theme.itemRadius
+              color: codecMouseArea.containsMouse ? Theme.onHoverColor : "transparent"
+
+              Behavior on color {
+                ColorAnimation {
+                  duration: Theme.animationDuration
+                }
+              }
+
+              RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: root.padding
+                anchors.rightMargin: root.padding
+                spacing: 8
+
+                Rectangle {
+                  implicitWidth: 8
+                  implicitHeight: 8
+                  radius: 4
+                  color: codecDelegate.modelData.qualityColor || Theme.inactiveColor
+                }
+
+                Text {
+                  text: codecDelegate.modelData.name || ""
+                  font.family: Theme.fontFamily
+                  font.pixelSize: Theme.fontSize * 0.85
+                  font.bold: codecDelegate.modelData.name === deviceItem.modelData.currentCodec
+                  color: codecMouseArea.containsMouse ? Theme.textOnHoverColor : Theme.textActiveColor
+                  Layout.fillWidth: true
+                }
+
+                Text {
+                  text: codecDelegate.modelData.description || ""
+                  font.family: Theme.fontFamily
+                  font.pixelSize: Theme.fontSize * 0.75
+                  color: Theme.textInactiveColor
+                }
+
+                Text {
+                  visible: codecDelegate.modelData.name === deviceItem.modelData.currentCodec
+                  text: "󰄬"
+                  font.family: Theme.fontFamily
+                  font.pixelSize: Theme.fontSize * 0.8
+                  color: Theme.activeColor
+                }
+              }
+
+              MouseArea {
+                id: codecMouseArea
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                hoverEnabled: true
+                onClicked: {
+                  if (codecDelegate.modelData.name !== deviceItem.modelData.currentCodec) {
+                    deviceItem.triggered("switch-codec-" + codecDelegate.modelData.profile, deviceItem.device);
+                  }
                 }
               }
             }
