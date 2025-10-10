@@ -10,11 +10,16 @@ Item {
   property string desktopIconName: "applications-system"
   property int maxLength: 47
 
-  readonly property var toplevel: ToplevelManager.activeToplevel
-  readonly property string appId: toplevel?.appId || ""
-  readonly property string title: toplevel?.title || ""
+  // Derive everything directly from ToplevelManager.activeToplevel without storing reference
+  readonly property string appId: ToplevelManager.activeToplevel?.appId || ""
+  readonly property string title: ToplevelManager.activeToplevel?.title || ""
 
-  readonly property bool hasActive: !!(toplevel?.activated && toplevel?.screens?.length && (appId || title) && (WorkspaceService.workspaces.find(w => w.id === WorkspaceService.currentWorkspace)?.populated || WorkspaceService.activeSpecial))
+  readonly property bool hasActive: (() => {
+    const tl = ToplevelManager.activeToplevel;
+    return !!(tl?.activated && tl?.screens?.length && (tl.appId || tl.title) && 
+              (WorkspaceService.workspaces.find(w => w.id === WorkspaceService.currentWorkspace)?.populated || 
+               WorkspaceService.activeSpecial));
+  })()
 
   readonly property string appName: hasActive ? (Utils.resolveDesktopEntry(appId)?.name || appId) : ""
   readonly property string displayText: !hasActive ? "Desktop" : !title ? (appName || "Desktop") : !appName ? title : (appName === "Zen Browser" ? title : appName + ": " + title)
@@ -40,7 +45,10 @@ Item {
       width: 28
       height: 28
       fillMode: Image.PreserveAspectFit
-      source: root.hasActive ? Utils.resolveIconSource(root.appId) : Utils.resolveIconSource("", "", root.desktopIconName)
+      source: {
+        const id = ToplevelManager.activeToplevel?.appId || "";
+        return root.hasActive ? Utils.resolveIconSource(id) : Utils.resolveIconSource("", "", root.desktopIconName);
+      }
       sourceSize: Qt.size(width, height)
       visible: source !== ""
     }
