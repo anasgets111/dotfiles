@@ -7,83 +7,96 @@ import qs.Services.Core
 Singleton {
   id: lockService
 
+  readonly property var theme: ({
+      base: "#1e1e2e",
+      mantle: "#181825",
+      crust: "#11111b",
+      surface0: "#313244",
+      surface1: "#45475a",
+      surface2: "#585b70",
+      overlay0: "#6c7086",
+      overlay1: "#7f849c",
+      overlay2: "#9399b2",
+      subtext0: "#a6adc8",
+      subtext1: "#bac2de",
+      text: "#cdd6f4",
+      love: "#f38ba8",
+      mauve: "#cba6f7"
+    })
+
+  readonly property real blurAmount: 0.9
+  readonly property int blurMax: 64
+  readonly property real blurMultiplier: 1.0
+  readonly property int panelMargin: 16
+  readonly property int contentSpacing: 14
+  readonly property int compactWidthThreshold: 440
+  readonly property real panelWidthRatio: 0.47
+
   property string authState: ""
   property bool authenticating: false
   property bool locked: false
   property string passwordBuffer: ""
 
+  // Computed status message for UI
+  readonly property string statusMessage: {
+    if (authenticating)
+      return "Authenticating…";
+    switch (authState) {
+    case "error":
+      return "Error";
+    case "max":
+      return "Too many tries";
+    case "fail":
+      return "Incorrect password";
+    default:
+      return "Enter password";
+    }
+  }
+
   function submitOrStart() {
     if (!authenticating && passwordBuffer.length > 0)
       pamContext.start();
   }
-  function toggle() {
-    locked = !locked;
-  }
-
-  function mapPamResultToState(result) {
-    switch (result) {
-    case PamResult.Error:
-      return "error";
-    case PamResult.MaxTries:
-      return "max";
-    case PamResult.Failed:
-      return "fail";
-    default:
-      return "";
-    }
-  }
 
   function handleGlobalKeyPress(event) {
-    // Only handle keyboard events when locked and not authenticating
-    if (!locked || authenticating) {
+    if (!locked)
       return false;
-    }
 
-    // Wake monitors on any keyboard input
-    if (IdleService.dpmsOffInSession) {
+    if (IdleService.dpmsOffInSession)
       IdleService.wake();
-    }
 
     const key = event.key;
-
     if (key === Qt.Key_Enter || key === Qt.Key_Return) {
-      submitOrStart();
+      if (!authenticating && passwordBuffer.length > 0)
+        submitOrStart();
       return true;
     }
-
     if (key === Qt.Key_Backspace) {
-      const next = (event.modifiers & Qt.ControlModifier) ? "" : passwordBuffer.slice(0, -1);
-      passwordBuffer = next;
+      passwordBuffer = (event.modifiers & Qt.ControlModifier) ? "" : passwordBuffer.slice(0, -1);
       return true;
     }
-
     if (key === Qt.Key_Escape) {
       passwordBuffer = "";
       return true;
     }
-
     if (event.text && event.text.length === 1) {
       const code = event.text.charCodeAt(0);
       if (code >= 0x20 && code <= 0x7E) {
-        passwordBuffer = (passwordBuffer + event.text);
+        passwordBuffer += event.text;
         return true;
       }
     }
-
     return false;
   }
 
-  onLockedChanged: {
-    if (!locked) {
-      passwordBuffer = "";
-      authState = "";
-      authenticating = false;
-    }
+  onLockedChanged: if (!locked) {
+    passwordBuffer = "";
+    authState = "";
+    authenticating = false;
   }
 
   PamContext {
     id: pamContext
-
     onActiveChanged: lockService.authenticating = active
     onCompleted: result => {
       lockService.authenticating = false;
@@ -91,7 +104,7 @@ Singleton {
         lockService.passwordBuffer = "";
         lockService.locked = false;
       } else {
-        lockService.authState = lockService.mapPamResultToState(result);
+        lockService.authState = result === PamResult.Error ? "error" : result === PamResult.MaxTries ? "max" : result === PamResult.Failed ? "fail" : "";
         if (lockService.authState)
           authStateResetTimer.restart();
       }
