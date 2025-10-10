@@ -15,7 +15,6 @@ PanelWindow {
   color: "transparent"
   screen: layer.modelData
   visible: NotificationService.visibleNotifications.length > 0
-
   WlrLayershell.layer: WlrLayer.Overlay
   WlrLayershell.keyboardFocus: popupColumn.interactionActive ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
   WlrLayershell.exclusiveZone: -1
@@ -52,7 +51,7 @@ PanelWindow {
       readonly property var svc: NotificationService
       property bool interactionActive: false
 
-      readonly property var entries: (function () {
+      readonly property var entries: layer.visible ? (function () {
           const svc = popupColumn.svc;
           const groups = svc?.groupedPopups ?? [];
           const max = Math.max(1, Number(svc?.maxVisibleNotifications ?? 1));
@@ -82,7 +81,7 @@ PanelWindow {
             }
           }
           return out;
-        })()
+        })() : []
 
       Repeater {
         model: popupColumn.entries

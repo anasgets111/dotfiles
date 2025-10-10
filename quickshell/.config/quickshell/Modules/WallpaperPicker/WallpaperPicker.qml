@@ -347,6 +347,7 @@ SearchGridPanel {
             fillMode: Image.PreserveAspectCrop
             source: wallpaperItem.resolvedIcon
             asynchronous: true
+            cache: false
             sourceSize.width: Math.max(1, Math.round(width))
             sourceSize.height: Math.max(1, Math.round(height))
             visible: source !== ""
