@@ -34,7 +34,6 @@ FocusScope {
   readonly property bool isPrimaryMonitor: lockSurface?.isMainMonitor ?? false
   readonly property string screenName: lockSurface?.screen?.name ?? "no-screen"
   readonly property bool shouldShowContent: hasScreen
-  readonly property bool shouldAcceptInput: shouldShowContent && isPrimaryMonitor
   readonly property int pillPaddingVertical: isCompact ? 6 : 8
   readonly property int panelMargin: 16
   readonly property int contentSpacing: 14
@@ -42,7 +41,6 @@ FocusScope {
   anchors.centerIn: parent
   width: parent.width * 0.47
   height: contentColumn.implicitHeight + panelMargin * 2
-  focus: true
   visible: shouldShowContent
   opacity: shouldShowContent ? 1 : 0
   scale: shouldShowContent ? 1 : 0.98
@@ -78,66 +76,9 @@ FocusScope {
   function shake() {
     shakeAnimation.restart();
   }
-  function requestFocusIfNeeded() {
-    if (shouldShowContent && isPrimaryMonitor)
-      forceActiveFocus();
-  }
-  function wakeSystem(action) {
-    if (isPrimaryMonitor)
-      IdleService.wake(action);
-  }
-  function focusAndWake(action) {
-    wakeSystem(action);
-    forceActiveFocus();
-  }
 
-  Keys.onPressed: event => {
-    wakeSystem("key-press");
-    if (!shouldShowContent || lockContext.authenticating)
-      return;
-    const key = event.key;
-    if (key === Qt.Key_Enter || key === Qt.Key_Return) {
-      lockContext.submitOrStart();
-      event.accepted = true;
-      return;
-    }
-    if (key === Qt.Key_Backspace) {
-      const next = (event.modifiers & Qt.ControlModifier) ? "" : lockContext.passwordBuffer.slice(0, -1);
-      lockContext.passwordBuffer = next;
-      event.accepted = true;
-      return;
-    }
-    if (key === Qt.Key_Escape) {
-      lockContext.passwordBuffer = "";
-      event.accepted = true;
-      return;
-    }
-    if (event.text && event.text.length === 1) {
-      const code = event.text.charCodeAt(0);
-      if (code >= 0x20 && code <= 0x7E) {
-        lockContext.passwordBuffer = (lockContext.passwordBuffer + event.text);
-        event.accepted = true;
-      }
-    }
-  }
-
-  MouseArea {
-    anchors.fill: parent
-    hoverEnabled: true
-    acceptedButtons: Qt.AllButtons
-    propagateComposedEvents: true
-    onEntered: root.focusAndWake("pointer-enter")
-    onPressed: root.focusAndWake("pointer-press")
-    onWheel: root.focusAndWake("pointer-wheel")
-  }
-
-  Connections {
-    target: root.lockSurface
-    function onHasScreenChanged() {
-      if (root.lockSurface?.hasScreen)
-        root.requestFocusIfNeeded();
-    }
-  }
+  // Keyboard handling is now done at the LockScreen level via LockService.handleGlobalKeyPress
+  // The outer FocusScope guarantees input reaches the handler regardless of focus state
 
   Connections {
     target: root.lockContext
@@ -147,8 +88,6 @@ FocusScope {
         root.shake();
     }
   }
-
-  Component.onCompleted: requestFocusIfNeeded()
 
   SequentialAnimation {
     id: shakeAnimation
@@ -439,25 +378,10 @@ FocusScope {
       Layout.preferredHeight: 46
       Layout.preferredWidth: Math.min(root.width - 32, 440)
       visible: root.isPrimaryMonitor
-      enabled: root.shouldAcceptInput
       radius: 12
       color: root.inputBg
       border.width: 1
       border.color: root.lockContext.authState ? root.theme.love : root.inputBorderDefault
-
-      Rectangle {
-        anchors.fill: parent
-        radius: parent.radius
-        color: "transparent"
-        opacity: root.activeFocus ? 0.55 : 0.0
-        border.width: 2
-        border.color: root.accentColor
-        Behavior on opacity {
-          NumberAnimation {
-            duration: 160
-          }
-        }
-      }
 
       Text {
         anchors.left: parent.left
