@@ -11,7 +11,7 @@ WlrLayershell {
 
   // Display and sizing
   property string displayMode: (modelData && typeof modelData.mode === "string") ? modelData.mode : "fill"
-  readonly property int imageFillMode: displayMode === "fit" ? Image.PreserveAspectFit : displayMode === "stretch" ? Image.Stretch : displayMode === "center" ? Image.Pad : displayMode === "tile" ? Image.Tile : Image.PreserveAspectCrop
+  readonly property int imageFillMode: WallpaperService.modeToFillMode(displayMode)
 
   // Transition state
   property string transitionType: (modelData && typeof modelData.transition === "string") ? modelData.transition : WallpaperService.wallpaperTransition

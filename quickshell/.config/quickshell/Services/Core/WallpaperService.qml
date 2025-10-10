@@ -70,6 +70,20 @@ Singleton {
     const normalized = (t || "").toString().toLowerCase();
     return availableTransitions.indexOf(normalized) >= 0 ? normalized : defaultTransition;
   }
+  function modeToFillMode(mode) {
+    const m = validMode(mode);
+    return {
+      fill: 2    // Image.PreserveAspectCrop
+      ,
+      fit: 1     // Image.PreserveAspectFit
+      ,
+      stretch: 3 // Image.Stretch
+      ,
+      center: 6  // Image.Pad
+      ,
+      tile: 4     // Image.Tile
+    }[m] || 2;    // Default to PreserveAspectCrop
+  }
   function ensurePrefs(name) {
     let p = monitorPrefs[name];
     if (!p)

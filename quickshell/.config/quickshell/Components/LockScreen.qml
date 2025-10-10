@@ -36,53 +36,56 @@ Scope {
       readonly property string screenName: screen?.name || ""
       readonly property bool hasScreen: !!screen
       readonly property bool isMainMonitor: hasScreen && MonitorService?.activeMain === screenName
-      readonly property var wallpaperData: hasScreen && WallpaperService ? (screenName ? WallpaperService.wallpaperFor(screenName) : ({
-            wallpaper: WallpaperService.defaultWallpaper,
-            mode: WallpaperService.defaultMode
-          })) : null
-      readonly property int wallpaperFillMode: ({
-          fill: Image.PreserveAspectCrop,
-          fit: Image.PreserveAspectFit,
-          stretch: Image.Stretch,
-          center: Image.Pad,
-          tile: Image.Tile
-        }[wallpaperData?.mode ?? "fill"]) || Image.PreserveAspectCrop
+      readonly property var wallpaperData: hasScreen && screenName ? WallpaperService.wallpaperFor(screenName) : null
+      readonly property int wallpaperFillMode: WallpaperService.modeToFillMode(wallpaperData?.mode)
 
       color: "transparent"
 
-      Connections {
-        target: LockService
-        function onLock() {
-          lockContent.forceActiveFocus();
-        }
-      }
       Loader {
+        id: contentLoader
         anchors.fill: parent
         active: lockSurface.hasScreen
-        sourceComponent: Image {
+        asynchronous: true
+        sourceComponent: Item {
           anchors.fill: parent
-          fillMode: lockSurface.wallpaperFillMode
-          layer.enabled: lockSurface.hasScreen
-          cache: true
-          mipmap: false
-          source: lockSurface.wallpaperData?.wallpaper || WallpaperService?.defaultWallpaper || ""
-          visible: lockSurface.hasScreen
-          layer.effect: MultiEffect {
-            autoPaddingEnabled: false
-            blur: 0.9
-            blurEnabled: true
-            blurMax: 64
-            blurMultiplier: 1
+
+          Image {
+            anchors.fill: parent
+            fillMode: lockSurface.wallpaperFillMode
+            layer.enabled: lockSurface.hasScreen
+            cache: false
+            mipmap: false
+            source: lockSurface.wallpaperData?.wallpaper || ""
+            visible: lockSurface.hasScreen
+            layer.effect: MultiEffect {
+              autoPaddingEnabled: false
+              blur: 0.9
+              blurEnabled: true
+              blurMax: 64
+              blurMultiplier: 1
+            }
+          }
+
+          MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            acceptedButtons: Qt.AllButtons
+            propagateComposedEvents: true
+            onEntered: lockContent.forceActiveFocus()
+            onPressed: lockContent.forceActiveFocus()
+          }
+
+          LockContent {
+            id: lockContent
+            lockContext: LockService
+            lockSurface: lockSurface
+            theme: root.theme
+          }
+
+          Component.onCompleted: {
+            LockService.lock.connect(() => lockContent.forceActiveFocus());
           }
         }
-      }
-      MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.AllButtons
-        propagateComposedEvents: true
-        onEntered: lockContent.forceActiveFocus()
-        onPressed: lockContent.forceActiveFocus()
       }
 
       // one day :D
@@ -99,13 +102,6 @@ Scope {
       //     blurMultiplier: 1
       //   }
       // }
-
-      LockContent {
-        id: lockContent
-        lockContext: LockService
-        lockSurface: lockSurface
-        theme: root.theme
-      }
     }
   }
 }
