@@ -393,4 +393,9 @@ Singleton {
         root.updateWeather();
     }
   }
+
+  Component.onDestruction: {
+    weatherTimer.stop();
+    retryTimer.stop();
+  }
 }

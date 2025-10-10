@@ -41,7 +41,7 @@ Singleton {
 
   // Uptime: computed from boot time, updates with TimeService clock
   property real bootTimeMs: 0
-  readonly property string uptime: bootTimeMs > 0 ? (TimeService.now, ((Date.now() - bootTimeMs) / 1000).toFixed(2)) : ""
+  readonly property string uptime: bootTimeMs > 0 ? (((Date.now() + 0 * TimeService.now) - bootTimeMs) / 1000).toFixed(2) : ""
 
   function fmtKib(v) {
     const f = formatKib(v || 0);

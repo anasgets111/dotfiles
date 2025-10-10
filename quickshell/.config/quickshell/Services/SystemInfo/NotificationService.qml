@@ -14,7 +14,7 @@ Singleton {
   readonly property int timeoutNormal: 5000
   readonly property int timeoutCritical: 0
   readonly property int maxVisibleNotifications: 3
-  readonly property int maxStoredNotifications: 300
+  readonly property int maxStoredNotifications: 100
   readonly property int maxNotificationsPerApp: 10
   readonly property int animationDuration: 400
 
@@ -214,6 +214,11 @@ Singleton {
     onTriggered: {
       root.timeUpdateTick = !root.timeUpdateTick;
       root._limitNotificationsPerApp();
+
+      // Aggressive cleanup to prevent memory bloat
+      if (root.notifications.length > root.maxStoredNotifications) {
+        root._trimStoredNotifications();
+      }
     }
   }
 
@@ -226,6 +231,11 @@ Singleton {
       root.addGateBusy = false;
       root.processQueue();
     }
+  }
+
+  Component.onDestruction: {
+    updateTimer.stop();
+    addGate.stop();
   }
 
   NotificationServer {
