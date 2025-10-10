@@ -9,23 +9,6 @@ import qs.Services.WM
 Scope {
   id: root
 
-  readonly property var theme: ({
-      base: "#1e1e2e",
-      mantle: "#181825",
-      crust: "#11111b",
-      surface0: "#313244",
-      surface1: "#45475a",
-      surface2: "#585b70",
-      overlay0: "#6c7086",
-      overlay1: "#7f849c",
-      overlay2: "#9399b2",
-      subtext0: "#a6adc8",
-      subtext1: "#bac2de",
-      text: "#cdd6f4",
-      love: "#f38ba8",
-      mauve: "#cba6f7"
-    })
-
   WlSessionLock {
     id: sessionLock
     locked: LockService.locked
@@ -52,7 +35,7 @@ Scope {
 
           // Global keyboard event handler - always active when lock screen is visible
           Keys.onPressed: event => {
-            if (LockService && LockService.handleGlobalKeyPress(event)) {
+            if (LockService.handleGlobalKeyPress(event)) {
               event.accepted = true;
             }
           }
@@ -67,17 +50,16 @@ Scope {
             Image {
               anchors.fill: parent
               fillMode: lockSurface.wallpaperFillMode
-              layer.enabled: lockSurface.hasScreen
+              layer.enabled: true
               cache: false
               mipmap: false
               source: lockSurface.wallpaperData?.wallpaper || ""
-              visible: lockSurface.hasScreen
               layer.effect: MultiEffect {
                 autoPaddingEnabled: false
-                blur: 0.9
+                blur: LockService.blurAmount
                 blurEnabled: true
-                blurMax: 64
-                blurMultiplier: 1
+                blurMax: LockService.blurMax
+                blurMultiplier: LockService.blurMultiplier
               }
             }
 
@@ -85,7 +67,6 @@ Scope {
               id: lockContent
               lockContext: LockService
               lockSurface: lockSurface
-              theme: root.theme
             }
           }
         }

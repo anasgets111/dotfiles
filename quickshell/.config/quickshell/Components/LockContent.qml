@@ -12,10 +12,12 @@ FocusScope {
 
   required property var lockContext
   required property var lockSurface
-  required property var theme
+
+  // Use theme from LockService singleton
+  readonly property var theme: LockService.theme
 
   // Theme and tokens
-  readonly property color accentColor: theme?.mauve ?? "#cba6f7"
+  readonly property color accentColor: theme.mauve
   readonly property color panelGradTop: Qt.rgba(49 / 255, 50 / 255, 68 / 255, 0.70)
   readonly property color panelGradBottom: Qt.rgba(24 / 255, 24 / 255, 37 / 255, 0.66)
   readonly property color borderStrong: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.20)
@@ -29,21 +31,19 @@ FocusScope {
   readonly property color inputBorderDefault: Qt.rgba(203 / 255, 166 / 255, 247 / 255, 0.18)
 
   // Derived flags and metrics
-  readonly property bool isCompact: width < 440
+  readonly property bool isCompact: width < LockService.compactWidthThreshold
   readonly property bool hasScreen: lockSurface?.hasScreen ?? false
   readonly property bool isPrimaryMonitor: lockSurface?.isMainMonitor ?? false
-  readonly property string screenName: lockSurface?.screen?.name ?? "no-screen"
-  readonly property bool shouldShowContent: hasScreen
   readonly property int pillPaddingVertical: isCompact ? 6 : 8
-  readonly property int panelMargin: 16
-  readonly property int contentSpacing: 14
+  readonly property int panelMargin: LockService.panelMargin
+  readonly property int contentSpacing: LockService.contentSpacing
 
   anchors.centerIn: parent
-  width: parent.width * 0.47
+  width: parent.width * LockService.panelWidthRatio
   height: contentColumn.implicitHeight + panelMargin * 2
-  visible: shouldShowContent
-  opacity: shouldShowContent ? 1 : 0
-  scale: shouldShowContent ? 1 : 0.98
+  visible: hasScreen
+  opacity: hasScreen ? 1 : 0
+  scale: hasScreen ? 1 : 0.98
 
   Behavior on opacity {
     NumberAnimation {
@@ -58,7 +58,7 @@ FocusScope {
     }
   }
 
-  layer.enabled: shouldShowContent
+  layer.enabled: hasScreen
   layer.mipmap: false
   layer.effect: MultiEffect {
     blurEnabled: false
@@ -192,7 +192,7 @@ FocusScope {
       Layout.alignment: Qt.AlignHCenter
       Layout.preferredWidth: root.width - 64
       Layout.topMargin: 2
-      visible: root.shouldShowContent && text.length > 0
+      visible: root.hasScreen && text.length > 0
       horizontalAlignment: Text.AlignHCenter
       elide: Text.ElideRight
       color: root.theme.subtext1
@@ -208,7 +208,7 @@ FocusScope {
 
       Layout.alignment: Qt.AlignHCenter
       Layout.preferredWidth: root.width - 64
-      visible: root.shouldShowContent
+      visible: root.hasScreen
       spacing: 10
 
       Rectangle {
@@ -430,7 +430,7 @@ FocusScope {
         opacity: root.lockContext.passwordBuffer.length ? 0 : 1
         font.pixelSize: 21
         color: root.lockContext.authenticating ? root.accentColor : root.lockContext.authState ? root.theme.love : root.theme.overlay1
-        text: root.lockContext.authenticating ? "Authenticating…" : root.lockContext.authState === "error" ? "Error" : root.lockContext.authState === "max" ? "Too many tries" : root.lockContext.authState === "fail" ? "Incorrect password" : "Enter password"
+        text: root.lockContext.statusMessage
         Behavior on color {
           ColorAnimation {
             duration: 140
