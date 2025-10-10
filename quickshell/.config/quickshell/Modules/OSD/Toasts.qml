@@ -62,7 +62,7 @@ PanelWindow {
     clip: true
     color: "transparent"
     height: contentCol.implicitHeight + (padding * 2)
-    layer.enabled: true
+    layer.enabled: OSDService.toastVisible  // Only enable when visible
     opacity: OSDService.toastVisible ? 1 : 0
     radius: 12
     scale: OSDService.toastVisible ? 1 : 0.98

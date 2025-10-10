@@ -70,7 +70,7 @@ WlrLayershell {
     anchors.fill: parent
     visible: true
     opacity: 0
-    layer.enabled: true
+    layer.enabled: false  // Shader reads texture directly, no FBO needed
     asynchronous: true
     smooth: true
     cache: false
@@ -87,7 +87,7 @@ WlrLayershell {
     anchors.fill: parent
     visible: true
     opacity: 0
-    layer.enabled: true
+    layer.enabled: false  // Shader reads texture directly, no FBO needed
     asynchronous: true
     smooth: true
     cache: false
@@ -279,17 +279,20 @@ WlrLayershell {
   onModelDataChanged: applyModel(modelData)
 
   Component.onDestruction: {
-    // Stop any running animations
+    // Stop any running animation
     if (transitionAnim.running)
       transitionAnim.stop();
 
-    // Clear image sources to free GPU memory
+    // Clear shader sources FIRST to release GPU textures
+    transitionShader.source1 = null;
+    transitionShader.source2 = null;
+
+    // Clear image sources to release textures
     currentWallpaper.source = "";
     nextWallpaper.source = "";
 
-    // Disable layers to free framebuffer objects
-    currentWallpaper.layer.enabled = false;
-    nextWallpaper.layer.enabled = false;
+    // Force shader unload
+    transitionShader.visible = false;
   }
 
   Connections {
