@@ -19,7 +19,28 @@ Singleton {
     })
 
   readonly property Process ledMonitor: Process {
-    command: ["sh", "-c", "set -- /sys/class/leds/*capslock/brightness;caps=$1;set -- /sys/class/leds/*numlock/brightness;num=$1;set -- /sys/class/leds/*scrolllock/brightness;scroll=$1;while :;do c=$(cat \"$caps\" 2>/dev/null||echo 0);n=$(cat \"$num\" 2>/dev/null||echo 0);s=$(cat \"$scroll\" 2>/dev/null||echo 0);printf '%s %s %s\\n' \"$c\" \"$n\" \"$s\";sleep 0.04;done"]
+    command: ["sh", "-c", `
+      caps_glob=/sys/class/leds/*capslock/brightness
+      num_glob=/sys/class/leds/*numlock/brightness
+      scroll_glob=/sys/class/leds/*scrolllock/brightness
+      set -- $caps_glob; caps=$1
+      set -- $num_glob; num=$1
+      set -- $scroll_glob; scroll=$1
+      while :; do
+        c=$(cat "$caps" 2>/dev/null || echo 0)
+        n=$(cat "$num" 2>/dev/null || echo 0)
+        s=$(cat "$scroll" 2>/dev/null || echo 0)
+        printf '%s %s %s\\n' "$c" "$n" "$s"
+
+        # Re-expand globs if files disappeared
+        if [ ! -e "$caps" ] || [ ! -e "$num" ] || [ ! -e "$scroll" ]; then
+          set -- $caps_glob; caps=$1
+          set -- $num_glob; num=$1
+          set -- $scroll_glob; scroll=$1
+        fi
+        sleep 0.04
+      done
+    `]
     running: true
     stdout: SplitParser {
       splitMarker: "\n"
