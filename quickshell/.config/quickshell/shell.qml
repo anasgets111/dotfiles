@@ -55,13 +55,6 @@ ShellRoot {
   }
   LockScreen {}
 
-  // Variants {
-
-  //     delegate: Toasts {
-  //         modelData: modelData
-  //         visible: OSDService.toastVisible
-  //     }
-  // }
   LazyLoader {
     active: NotificationService?.visibleNotifications?.length > 0
     activeAsync: true
