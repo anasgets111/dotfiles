@@ -282,19 +282,17 @@ WlrLayershell {
     // Stop any running animation
     if (transitionAnim.running)
       transitionAnim.stop();
-
     // Clear shader sources FIRST to release GPU textures
     transitionShader.source1 = null;
     transitionShader.source2 = null;
-
+    // Clear ShaderEffectSource
+    transparentSource.sourceItem = null;
     // Clear image sources to release textures
     currentWallpaper.source = "";
     nextWallpaper.source = "";
-
     // Force shader unload
     transitionShader.visible = false;
   }
-
   Connections {
     target: WallpaperService
     function onWallpaperChanged(name, path) {
