@@ -364,7 +364,6 @@ Item {
             ColumnLayout {
               Layout.fillWidth: true
               Layout.topMargin: 8
-              Layout.bottomMargin: 16
               spacing: 0
               visible: messageColumn.actionsModel.length > 0
               Layout.preferredHeight: visible ? implicitHeight : 0
