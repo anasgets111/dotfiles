@@ -17,14 +17,17 @@ Singleton {
   property var osdValue: null
   property string osdIcon: ""
   property string osdLabel: ""
+  property bool suppressVolumeOSD: false
 
   // Configuration
   property int timeout: 2000
+  property int debounceTimeout: 150
   property bool initialized: false
 
   // OSD Type Constants
   readonly property string typeVolumeOutput: "volume-output"
   readonly property string typeVolumeInput: "volume-input"
+  readonly property string typeAudioDevice: "audio-device"
   readonly property string typeWifi: "wifi"
   readonly property string typeNetworking: "networking"
   readonly property string typeBluetooth: "bluetooth"
@@ -43,6 +46,22 @@ Singleton {
     onTriggered: root.hideOSD()
   }
 
+  // Debounce timer for volume/brightness changes
+  Timer {
+    id: debounceTimer
+    interval: root.debounceTimeout
+    repeat: false
+    running: false
+    property var pendingOSD: null
+
+    onTriggered: {
+      if (pendingOSD) {
+        root.showOSD(pendingOSD.type, pendingOSD.value, pendingOSD.icon, pendingOSD.label);
+        pendingOSD = null;
+      }
+    }
+  }
+
   // Initialization delay timer
   Timer {
     id: initTimer
@@ -55,10 +74,32 @@ Singleton {
     }
   }
 
+  // Suppress timer to prevent volume OSD after device change
+  Timer {
+    id: suppressTimer
+    interval: 500
+    repeat: false
+    running: false
+    onTriggered: {
+      root.suppressVolumeOSD = false;
+    }
+  }
+
   // Core Functions
-  function showOSD(type, value, icon, label) {
+  function showOSD(type, value, icon, label, debounce = false) {
     if (!root.initialized)
       return;
+
+    if (debounce) {
+      debounceTimer.pendingOSD = {
+        type: type,
+        value: value,
+        icon: icon,
+        label: label
+      };
+      debounceTimer.restart();
+      return;
+    }
 
     root.osdType = type || "";
     root.osdValue = value !== undefined ? value : null;
@@ -80,15 +121,23 @@ Singleton {
     target: typeof AudioService !== "undefined" ? AudioService : null
 
     function onVolumeChanged() {
+      if (root.suppressVolumeOSD)
+        return;
       const volume = Math.round(AudioService.volume * 100);
       const icon = AudioService.muted ? "󰖁" : (volume >= 70 ? "󰕾" : volume >= 30 ? "󰖀" : "󰕿");
-      root.showOSD(root.typeVolumeOutput, volume, icon, `${volume}%`);
+      root.showOSD(root.typeVolumeOutput, volume, icon, `${volume}%`, true);
     }
 
     function onMutedChanged() {
       const volume = Math.round(AudioService.volume * 100);
       const icon = AudioService.muted ? "󰖁" : (volume >= 70 ? "󰕾" : volume >= 30 ? "󰖀" : "󰕿");
       root.showOSD(root.typeVolumeOutput, AudioService.muted ? 0 : volume, icon, AudioService.muted ? "Muted" : `${volume}%`);
+    }
+
+    function onSinkDeviceChanged(deviceName, icon) {
+      root.suppressVolumeOSD = true;
+      root.showOSD(root.typeAudioDevice, null, icon || "󰓃", deviceName);
+      suppressTimer.restart();
     }
   }
 
