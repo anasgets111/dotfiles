@@ -56,6 +56,11 @@ Singleton {
     const msg = label + " " + (on ? "On" : "Off");
     Logger.log("KeyboardLayoutService", msg);
   }
+  function cycleLayout() {
+    if (service.backend && typeof service.backend.cycleLayout === "function") {
+      service.backend.cycleLayout();
+    }
+  }
 
   Component.onCompleted: {
     service.ledUnsub = Utils.startLockLedWatcher({

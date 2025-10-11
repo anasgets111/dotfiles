@@ -1,4 +1,3 @@
-// PulseFlash.qml
 pragma ComponentBehavior: Bound
 
 import QtQuick

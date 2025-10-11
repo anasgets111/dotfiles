@@ -12,6 +12,7 @@ Singleton {
   readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
   property string currentLayout: ""
   property var layouts: []
+  property string mainKeyboardName: ""
 
   function buildLayoutsFromDevices(jsonText) {
     const clean = Utils.stripAnsi(jsonText || "").trim();
@@ -19,10 +20,16 @@ Singleton {
     const keyboards = (data && data.keyboards) || [];
     const unique = [];
     let active = "";
+    let mainKbName = "";
     for (let i = 0; i < keyboards.length; i++) {
       const kb = keyboards[i];
       if (!kb || !kb.main)
         continue;
+
+      // Store the main keyboard name for layout switching
+      if (kb.name && !mainKbName) {
+        mainKbName = kb.name;
+      }
 
       const layoutStr = kb.layout || "";
       if (layoutStr) {
@@ -40,8 +47,13 @@ Singleton {
     }
     return {
       "unique": unique,
-      "active": active
+      "active": active,
+      "mainKeyboard": mainKbName
     };
+  }
+  function cycleLayout() {
+    const kbName = impl.mainKeyboardName || "at-translated-set-2-keyboard";
+    Quickshell.execDetached(["hyprctl", "switchxkblayout", kbName, "next"]);
   }
 
   Process {
@@ -58,10 +70,12 @@ Singleton {
         try {
           const {
             "unique": unique,
-            "active": active
+            "active": active,
+            "mainKeyboard": mainKeyboard
           } = impl.buildLayoutsFromDevices(text);
           impl.layouts = unique;
           impl.currentLayout = active || "";
+          impl.mainKeyboardName = mainKeyboard || "";
         } catch (e) {
           Logger.log("KeyboardLayoutImpl(Hypr)", "Failed to parse devices JSON:", String(e));
         }

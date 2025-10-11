@@ -35,6 +35,9 @@ Singleton {
     const idx = Number.isInteger(layoutIndex) ? layoutIndex : -1;
     impl.currentLayout = idx >= 0 && idx < impl.layouts.length ? (impl.layouts[idx] || "") : "";
   }
+  function cycleLayout() {
+    Quickshell.execDetached(["niri", "msg", "action", "switch-layout", "next"]);
+  }
 
   Socket {
     id: eventStreamSocket
