@@ -38,6 +38,53 @@ OPanel {
         Layout.margins: root.padding
         color: Qt.lighter(Theme.bgColor, 1.2)
         radius: Theme.itemRadius
+
+        RowLayout {
+          anchors {
+            fill: parent
+            leftMargin: root.padding
+            rightMargin: root.padding
+          }
+          spacing: root.padding
+
+          OText {
+            text: qsTr("Notifications")
+            font.bold: true
+            sizeMultiplier: 1.1
+          }
+
+          Item {
+            Layout.fillWidth: true
+          }
+
+          RowLayout {
+            spacing: 8
+
+            OText {
+              text: qsTr("Do Not Disturb")
+              useActiveColor: NotificationService.doNotDisturb
+              opacity: NotificationService.doNotDisturb ? 1.0 : 0.6
+              sizeMultiplier: 0.9
+            }
+
+            OToggle {
+              Layout.preferredWidth: Theme.itemHeight * 1.3
+              Layout.preferredHeight: Theme.itemHeight * 0.6
+              checked: NotificationService.doNotDisturb
+              onToggled: checked => NotificationService.toggleDnd()
+            }
+          }
+        }
+      }
+
+      Rectangle {
+        Layout.fillWidth: true
+        Layout.preferredHeight: Theme.itemHeight * 1.0
+        Layout.topMargin: 4
+        Layout.leftMargin: root.padding
+        Layout.rightMargin: root.padding
+        color: Qt.lighter(Theme.bgColor, 1.15)
+        radius: Theme.itemRadius
         visible: root.hasNotifications
 
         RowLayout {
@@ -51,7 +98,7 @@ OPanel {
           OText {
             text: qsTr("History")
             font.bold: true
-            sizeMultiplier: 1.1
+            sizeMultiplier: 1.0
           }
 
           OText {
