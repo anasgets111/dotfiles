@@ -34,57 +34,103 @@ Modular Wayland desktop dotfiles centered on Quickshell with Hyprland and Niri, 
 
 Adjust package names for your distro.
 
-## Goals
+## Features
 
-### TODO
+### Core Services
 
-- Current state of back-end services
-  - [x] Battery
-  - [x] Sound
-  - [x] Media controls
-  - [x] Notifications
-  - [x] OSD (Toast)
-  - [x] Lockscreen
-  - [x] Screen Recording
-  - [x] System Info and Monitor (CPU, Memory, Disk)
-  - [x] Workspaces (Hyprland/niri)
-  - [x] Idle Inhibit
-  - [x] Power Menu
-  - [x] Arch Updater
-  - [x] Monitor handling (hotplug, layout, resolution,hdr,vrr)
-  - [x] Keyboard Layout Indicator
-  - [x] Wallpaper Management with multiple screens
-    - [x] Wallpaper widget and picker
-  - [x] Clipboard Management
-  - [x] App Launcher
-  - [x] Time and Calendar
-  - [x] Weather
-  - [x] Bluetooth
-  - [ ] Brightness for monitors and keyboards
-  - [x] IPC
-- and for the front-end
-  - [x] IconButton
-  - [x] Tooltip
-  - [/] Theme
-  - [ ] Menu
-  - [ ] OSD Slider
-  - [ ] OSD Messages
-  - [/] Notification Popup
-    - [x] Actions
-    - [x] Images
-    - [x] Icons
-    - [x] Inline replies
-    - [x] Urgency
-    - [x] Rich content
-    - [x] Grouping
-  - [ ] Notification Center
-  - [/] Lockscreen
-  - [ ] Sound Panel
-  - [x] Sound Widget
-  - [ ] Wifi Panel
-  - [x] Wifi Widget
-  - [ ] Bluetooth Panel
-  - [x] Bluetooth Widget
+#### System & Hardware
+
+- [x] Battery monitoring & indicator
+- [x] Audio (input/output control)
+- [x] Media player controls (MPRIS)
+- [x] System info monitoring (CPU, Memory, Disk)
+- [x] Monitor management (hotplug, layout, resolution, HDR, VRR)
+- [x] Keyboard layout switching & indicator
+- [ ] Display brightness control
+- [ ] Keyboard backlight control
+
+#### Window Management
+
+- [x] Workspace management (Hyprland/Niri support)
+- [x] Active window tracking & display
+- [x] Multi-monitor support
+
+#### Desktop Integration
+
+- [x] Notification system (FreeDesktop spec)
+- [x] System tray (StatusNotifier protocol)
+- [x] App launcher
+- [/] Clipboard management
+- [x] IPC command system
+
+#### Security & Privacy
+
+- [x] Lock screen (WlSessionLock)
+- [x] Idle management & inhibit
+- [x] Privacy indicators (mic/camera/screenshare)
+
+#### Connectivity
+
+- [x] Network manager (WiFi/Ethernet)
+- [x] Bluetooth manager
+
+#### Visual & Media
+
+- [x] Wallpaper management (per-monitor, animated transitions)
+- [x] Screen recording (gpu-screen-recorder)
+- [x] OSD (on-screen display) system
+
+#### System
+
+- [x] Power menu
+- [x] Package updates (Arch/pacman)
+- [x] Time & date display
+- [x] Weather information
+
+### UI Components
+
+#### Bar Widgets
+
+- [x] Power menu button
+- [x] Update checker (Arch)
+- [x] Idle inhibitor toggle
+- [x] Keyboard layout indicator
+- [x] Battery indicator (laptop)
+- [x] App launcher button
+- [x] Wallpaper picker button
+- [x] Workspace indicators (Normal & Special)
+- [x] Active window title
+- [x] Privacy indicators
+- [x] Volume control with panel
+- [x] Screen recorder controls
+- [x] Network indicator with panel
+- [x] Bluetooth indicator with panel
+- [x] System tray
+- [x] Date & time with calendar
+- [ ] Weather Panel
+- [ ] Media controls (MPRIS)
+- [ ] System info (CPU, Memory, Disk)
+
+#### Overlays & Panels
+
+- [x] Notification popup (actions, images, inline reply, grouping)
+- [x] Notification center (DND, history)
+- [x] OSD overlay (volume, brightness, etc.)
+- [x] Audio panel (devices, streams)
+- [x] Network panel (WiFi networks, connections)
+- [x] Bluetooth panel (devices, pairing)
+- [x] Lock screen (per-monitor wallpapers)
+- [x] App launcher (grid view, search)
+- [x] Wallpaper picker (per-monitor, transitions)
+
+#### Design System
+
+- [/] Theme (responsive scaling, colors)
+- [x] IconButton component
+- [x] Tooltip system
+- [x] Panel framework
+- [x] Input components
+- [x] Toggle components
 
 ## Notes
 
