@@ -70,12 +70,31 @@ Item {
     tooltipText: [root.titleText, root.detailText1, root.detailText2].filter(t => t?.length > 0).join("\n")
 
     onClicked: function (mouse) {
-      bluetoothPanel.openAtItem(iconButton, mouse.x, mouse.y);
+      bluetoothPanelLoader.active = true;
     }
   }
 
-  BluetoothPanel {
-    id: bluetoothPanel
+  // Component definition for BluetoothPanel (better isolation)
+  Component {
+    id: bluetoothPanelComponent
+
+    BluetoothPanel {
+      property var loaderRef
+
+      onPanelClosed: loaderRef.active = false
+    }
+  }
+
+  // Loader for lazy-loading the panel
+  Loader {
+    id: bluetoothPanelLoader
+    active: false
+    sourceComponent: bluetoothPanelComponent
+
+    onLoaded: {
+      item.loaderRef = bluetoothPanelLoader;
+      item.openAtItem(iconButton, 0, 0);
+    }
   }
 
   function refreshAdapter() {

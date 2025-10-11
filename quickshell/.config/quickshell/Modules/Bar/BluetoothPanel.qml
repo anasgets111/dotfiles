@@ -9,6 +9,7 @@ import qs.Services.Core
 
 OPanel {
   id: root
+  panelNamespace: "obelisk-bluetooth-panel"
 
   readonly property bool ready: BluetoothService.available
   readonly property bool bluetoothEnabled: BluetoothService.enabled

@@ -68,7 +68,7 @@ Item {
         const iface = NetworkService.wifiInterface || NetworkService.firstWifiInterface() || "";
         if (iface && NetworkService.scanWifi)
           NetworkService.scanWifi(iface, true);
-        networkPanel.openAtItem(iconButton, mouse.x, mouse.y);
+        networkPanelLoader.active = true;
       }
       root.clicked(mouse);
     }
@@ -111,7 +111,26 @@ Item {
     }
   }
 
-  NetworkPanel {
-    id: networkPanel
+  // Component definition for NetworkPanel (better isolation)
+  Component {
+    id: networkPanelComponent
+
+    NetworkPanel {
+      property var loaderRef
+
+      onPanelClosed: loaderRef.active = false
+    }
+  }
+
+  // Loader for lazy-loading the panel
+  Loader {
+    id: networkPanelLoader
+    active: false
+    sourceComponent: networkPanelComponent
+
+    onLoaded: {
+      item.loaderRef = networkPanelLoader;
+      item.openAtItem(iconButton, 0, 0);
+    }
   }
 }

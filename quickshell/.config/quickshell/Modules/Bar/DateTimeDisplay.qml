@@ -79,10 +79,10 @@ Item {
 
     onClicked: function (mouse) {
       WeatherService.refresh();
-      if (notificationPanel.isOpen) {
-        notificationPanel.close();
+      if (notificationPanelLoader.active) {
+        notificationPanelLoader.active = false;
       } else {
-        notificationPanel.openAtItem(dateTimeDisplay, mouse.x, mouse.y);
+        notificationPanelLoader.active = true;
       }
     }
   }
@@ -95,8 +95,8 @@ Item {
     anchors.top: parent.bottom
     anchors.topMargin: 8
     height: tooltipColumn.implicitHeight + 8
-    opacity: mouseArea.containsMouse && !notificationPanel.isOpen ? 1 : 0
-    visible: mouseArea.containsMouse && !notificationPanel.isOpen
+    opacity: mouseArea.containsMouse && !notificationPanelLoader.active ? 1 : 0
+    visible: mouseArea.containsMouse && !notificationPanelLoader.active
     width: tooltipColumn.width + 16
 
     Behavior on opacity {
@@ -161,7 +161,26 @@ Item {
     }
   }
 
-  NotificationHistoryPanel {
-    id: notificationPanel
+  // Component definition for NotificationHistoryPanel (better isolation)
+  Component {
+    id: notificationPanelComponent
+
+    NotificationHistoryPanel {
+      property var loaderRef
+
+      onPanelClosed: loaderRef.active = false
+    }
+  }
+
+  // Loader for lazy-loading the panel
+  Loader {
+    id: notificationPanelLoader
+    active: false
+    sourceComponent: notificationPanelComponent
+
+    onLoaded: {
+      item.loaderRef = notificationPanelLoader;
+      item.openAtItem(dateTimeDisplay, 0, 0);
+    }
   }
 }

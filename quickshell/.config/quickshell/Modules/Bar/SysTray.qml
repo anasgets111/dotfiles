@@ -101,6 +101,7 @@ Item {
 
   OPanel {
     id: trayMenuPanel
+    panelNamespace: "obelisk-systray-panel"
     panelWidth: 300
     panelHeight: menuContent.implicitHeight + 16
     onPanelClosed: tray.currentMenuItem = null

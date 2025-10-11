@@ -9,6 +9,7 @@ import qs.Services.SystemInfo
 
 OPanel {
   id: root
+  panelNamespace: "obelisk-update-panel"
 
   readonly property int maxItems: 10
   readonly property int itemHeight: Theme.itemHeight

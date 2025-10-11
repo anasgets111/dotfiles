@@ -12,9 +12,32 @@ import qs.Modules.Bar
  * A reusable panel container with positioning, animations, and dismiss logic.
  * Provides a consistent foundation for all context menus and dropdown panels.
  *
- * Usage:
+ * IMPORTANT: Each panel MUST have a unique panelNamespace to avoid Qt window conflicts.
+ *
+ * RECOMMENDED USAGE (Component + Loader pattern for independent instances):
+ *   Component {
+ *     id: myPanelComponent
+ *     OPanel {
+ *       panelNamespace: "obelisk-my-unique-panel"
+ *       panelWidth: 350
+ *       needsKeyboardFocus: true
+ *
+ *       ColumnLayout {
+ *         // Your content here
+ *       }
+ *     }
+ *   }
+ *
+ *   Loader {
+ *     id: myPanelLoader
+ *     active: false  // Load on demand
+ *     sourceComponent: myPanelComponent
+ *   }
+ *
+ * ALTERNATIVE (Direct instantiation - ensure unique namespace):
  *   OPanel {
  *     id: myPanel
+ *     panelNamespace: "obelisk-my-unique-panel"  // REQUIRED: Must be unique!
  *     panelWidth: 350
  *     needsKeyboardFocus: true
  *
@@ -22,6 +45,10 @@ import qs.Modules.Bar
  *       // Your content here
  *     }
  *   }
+ *
+ * DON'T do this (creates shared/conflicting instances):
+ *   OPanel { panelNamespace: "audio" }
+ *   OPanel { panelNamespace: "audio" }  // ❌ Duplicate namespace!
  */
 PanelWindow {
   id: root
@@ -31,7 +58,7 @@ PanelWindow {
   property int panelHeight: 0  // Auto-calculated if 0
   property int maxHeight: 600
   property int screenMargin: 8
-  property string panelNamespace: "obelisk-panel"
+  required property string panelNamespace  // MUST be unique per panel instance
 
   // Position tracking
   property bool useButtonPosition: false
@@ -223,25 +250,65 @@ PanelWindow {
     }
 
     // Left inverse corner
-    RoundCorner {
-      visible: root.showInverseCorners
+    Loader {
+      active: root.showInverseCorners && root.visible
+      sourceComponent: RoundCorner {
+        color: Theme.bgColor
+        orientation: 1 // TOP_RIGHT
+        radius: Theme.panelRadius * 3
+      }
       anchors.right: panelBackground.left
       anchors.rightMargin: -1
       y: panelBackground.y
-      color: Theme.bgColor
-      orientation: 1 // TOP_RIGHT
-      radius: Theme.panelRadius * 3
     }
 
     // Right inverse corner
-    RoundCorner {
-      visible: root.showInverseCorners
+    Loader {
+      active: root.showInverseCorners && root.visible
+      sourceComponent: RoundCorner {
+        color: Theme.bgColor
+        orientation: 0 // TOP_LEFT
+        radius: Theme.panelRadius * 3
+      }
       anchors.left: panelBackground.right
       anchors.leftMargin: -1
       y: panelBackground.y
-      color: Theme.bgColor
-      orientation: 0 // TOP_LEFT
-      radius: Theme.panelRadius * 3
     }
   }
 }
+
+/*
+ * BEST PRACTICES FOR PANEL INSTANTIATION
+ * ========================================
+ *
+ * While direct instantiation works with unique namespaces, the Component + Loader
+ * pattern is recommended for better performance and guaranteed instance isolation:
+ *
+ * Component {
+ *   id: myPanelComponent
+ *   OPanel {
+ *     panelNamespace: "obelisk-my-panel"
+ *     panelWidth: 350
+ *     // ... content
+ *   }
+ * }
+ *
+ * Loader {
+ *   id: myPanelLoader
+ *   active: false
+ *   sourceComponent: myPanelComponent
+ *   onLoaded: item.openAtItem(button, mouseX, mouseY)
+ * }
+ *
+ * // To open:
+ * myPanelLoader.active = true
+ *
+ * // To close (in panel's onPanelClosed handler):
+ * myPanelLoader.active = false
+ *
+ * Benefits:
+ * - Lazy loading: Panel is only created when needed
+ * - Complete isolation: Each Loader creates independent instances
+ * - Better memory management: Panel is destroyed when Loader.active = false
+ * - No Qt window conflicts: Guaranteed unique PanelWindow instances
+ */

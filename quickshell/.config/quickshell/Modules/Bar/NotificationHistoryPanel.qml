@@ -9,6 +9,7 @@ import qs.Modules.Notification
 
 OPanel {
   id: root
+  panelNamespace: "obelisk-notification-panel"
 
   readonly property int maxVisibleGroups: 5
   readonly property int padding: 16
