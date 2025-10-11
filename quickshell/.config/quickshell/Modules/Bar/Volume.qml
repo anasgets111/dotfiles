@@ -95,7 +95,7 @@ Rectangle {
       if (mouse.button === Qt.MiddleButton && root.isAudioReady && AudioService) {
         AudioService.toggleMute();
       } else if (mouse.button === Qt.RightButton) {
-        audioPanel.openAtItem(root, mouse.x, mouse.y);
+        audioPanelLoader.active = true;
       }
     }
   }
@@ -183,7 +183,26 @@ Rectangle {
     }
   }
 
-  AudioPanel {
-    id: audioPanel
+  // Component definition for AudioPanel (better isolation)
+  Component {
+    id: audioPanelComponent
+
+    AudioPanel {
+      property var loaderRef
+
+      onPanelClosed: loaderRef.active = false
+    }
+  }
+
+  // Loader for lazy-loading the panel
+  Loader {
+    id: audioPanelLoader
+    active: false
+    sourceComponent: audioPanelComponent
+
+    onLoaded: {
+      item.loaderRef = audioPanelLoader;
+      item.openAtItem(root, 0, 0);
+    }
   }
 }

@@ -10,6 +10,7 @@ import qs.Services.Utils
 
 OPanel {
   id: root
+  panelNamespace: "obelisk-audio-panel"
 
   readonly property var currentSink: AudioService.sink
   readonly property var currentSource: AudioService.source

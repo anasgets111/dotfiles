@@ -11,6 +11,7 @@ import qs.Services.Utils
 
 OPanel {
   id: root
+  panelNamespace: "obelisk-network-panel"
 
   readonly property bool ready: NetworkService.ready
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
