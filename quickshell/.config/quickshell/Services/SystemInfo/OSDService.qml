@@ -28,6 +28,8 @@ Singleton {
   readonly property string typeVolumeOutput: "volume-output"
   readonly property string typeVolumeInput: "volume-input"
   readonly property string typeAudioDevice: "audio-device"
+  readonly property string typeBrightness: "brightness"
+  readonly property string typeKeyboardBacklight: "keyboard-backlight"
   readonly property string typeWifi: "wifi"
   readonly property string typeNetworking: "networking"
   readonly property string typeBluetooth: "bluetooth"
@@ -160,6 +162,34 @@ Singleton {
 
     function onEnabledChanged() {
       root.showOSD(root.typeBluetooth, BluetoothService.enabled, BluetoothService.enabled ? "󰂯" : "󰂲", BluetoothService.enabled ? "Bluetooth On" : "Bluetooth Off");
+    }
+  }
+
+  // Monitor BrightnessService
+  Connections {
+    target: typeof BrightnessService !== "undefined" ? BrightnessService : null
+
+    function onPercentageChanged() {
+      if (!BrightnessService.ready)
+        return;
+      const percent = BrightnessService.percentage;
+      const icon = percent >= 70 ? "󰃠" : percent >= 30 ? "󰃟" : "󰃞";
+      root.showOSD(root.typeBrightness, percent, icon, `${percent}%`, true);
+    }
+  }
+
+  // Monitor KeyboardBacklightService
+  Connections {
+    target: typeof KeyboardBacklightService !== "undefined" ? KeyboardBacklightService : null
+
+    function onBrightnessChanged() {
+      if (!KeyboardBacklightService.ready)
+        return;
+      const level = KeyboardBacklightService.brightness;
+      const levelName = KeyboardBacklightService.levelName;
+      // Use simple text indicators since icon encoding has issues
+      const icon = level === 0 ? "⌨" : level === 1 ? "⌨" : level === 2 ? "⌨" : "⌨";
+      root.showOSD(root.typeKeyboardBacklight, null, icon, `Backlight: ${levelName}`, false);
     }
   }
 
