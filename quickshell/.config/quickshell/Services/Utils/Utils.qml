@@ -38,7 +38,7 @@ Singleton {
           set -- $num_glob; num=$1
           set -- $scroll_glob; scroll=$1
         fi
-        sleep 0.04
+        sleep 0.1
       done
     `]
     running: true
