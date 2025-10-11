@@ -179,8 +179,9 @@ Item {
     sourceComponent: notificationPanelComponent
 
     onLoaded: {
-      item.loaderRef = notificationPanelLoader;
-      item.openAtItem(dateTimeDisplay, 0, 0);
+      const panel = item as NotificationHistoryPanel;
+      panel.loaderRef = notificationPanelLoader;
+      panel.openAtItem(dateTimeDisplay, 0, 0);
     }
   }
 }

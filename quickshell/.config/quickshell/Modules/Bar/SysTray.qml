@@ -176,7 +176,7 @@ Item {
       }
 
       Text {
-        visible: menuOpener.children?.values?.length === 0
+        visible: menuOpener.children.values.length === 0
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.itemHeight
         text: "No menu items"
