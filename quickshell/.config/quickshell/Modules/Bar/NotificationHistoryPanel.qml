@@ -18,7 +18,7 @@ OPanel {
   readonly property bool hasNotifications: root.notificationCount > 0
 
   panelWidth: 420
-  needsKeyboardFocus: true
+  needsKeyboardFocus: false
 
   onPanelOpened: NotificationService.onOverlayOpen()
   onPanelClosed: NotificationService.onOverlayClose()
