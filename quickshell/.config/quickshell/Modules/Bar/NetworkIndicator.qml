@@ -129,8 +129,9 @@ Item {
     sourceComponent: networkPanelComponent
 
     onLoaded: {
-      item.loaderRef = networkPanelLoader;
-      item.openAtItem(iconButton, 0, 0);
+      const panel = item as NetworkPanel;
+      panel.loaderRef = networkPanelLoader;
+      panel.openAtItem(iconButton, 0, 0);
     }
   }
 }

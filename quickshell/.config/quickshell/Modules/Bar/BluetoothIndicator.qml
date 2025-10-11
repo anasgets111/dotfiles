@@ -92,8 +92,9 @@ Item {
     sourceComponent: bluetoothPanelComponent
 
     onLoaded: {
-      item.loaderRef = bluetoothPanelLoader;
-      item.openAtItem(iconButton, 0, 0);
+      const panel = item as BluetoothPanel;
+      panel.loaderRef = bluetoothPanelLoader;
+      panel.openAtItem(iconButton, 0, 0);
     }
   }
 

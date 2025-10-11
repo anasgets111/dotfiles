@@ -201,8 +201,9 @@ Rectangle {
     sourceComponent: audioPanelComponent
 
     onLoaded: {
-      item.loaderRef = audioPanelLoader;
-      item.openAtItem(root, 0, 0);
+      const panel = item as AudioPanel;
+      panel.loaderRef = audioPanelLoader;
+      panel.openAtItem(root, 0, 0);
     }
   }
 }
