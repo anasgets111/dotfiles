@@ -26,11 +26,16 @@ Singleton {
       set -- $caps_glob; caps=$1
       set -- $num_glob; num=$1
       set -- $scroll_glob; scroll=$1
+      last=""
       while :; do
         c=$(cat "$caps" 2>/dev/null || echo 0)
         n=$(cat "$num" 2>/dev/null || echo 0)
         s=$(cat "$scroll" 2>/dev/null || echo 0)
-        printf '%s %s %s\\n' "$c" "$n" "$s"
+        cur="$c $n $s"
+        if [ "$cur" != "$last" ]; then
+          printf '%s\\n' "$cur"
+          last="$cur"
+        fi
 
         # Re-expand globs if files disappeared
         if [ ! -e "$caps" ] || [ ! -e "$num" ] || [ ! -e "$scroll" ]; then
