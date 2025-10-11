@@ -15,7 +15,7 @@ Item {
   readonly property bool hasActive: {
     const tl = ToplevelManager.activeToplevel;
     const ws = WorkspaceService.workspaces.find(w => w.id === WorkspaceService.currentWorkspace);
-    return tl?.activated && (tl.appId || tl.title) && (ws?.populated || WorkspaceService.activeSpecial);
+    return !!(tl?.activated && (tl.appId || tl.title) && (ws?.populated || WorkspaceService.activeSpecial));
   }
 
   readonly property string text: {
