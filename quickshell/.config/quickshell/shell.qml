@@ -8,6 +8,7 @@ import QtQuick
 import Quickshell
 import qs.Components
 import qs.Modules.Bar
+import qs.Modules.OSD
 import qs.Modules.AppLauncher
 import qs.Modules.WallpaperPicker
 import qs.Modules.Notification
@@ -26,6 +27,13 @@ ShellRoot {
   Bar {
     id: bar
     onWallpaperPickerRequested: root.wallpaperPickerActive = true
+  }
+  LazyLoader {
+    id: osdLoader
+    active: OSDService.visible
+    component: OSDOverlay {
+      modelData: MonitorService ? MonitorService.effectiveMainScreen : null
+    }
   }
 
   // Global App Launcher loader controlled by IPC

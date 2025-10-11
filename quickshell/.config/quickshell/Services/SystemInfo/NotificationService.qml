@@ -25,8 +25,8 @@ Singleton {
   property var expandedGroups: ({})
   property bool popupsDisabled: false
   property bool addGateBusy: false
-  property int seqCounter: 0
   property bool timeUpdateTick: false
+  property bool doNotDisturb: false
 
   // Readonly computed properties
   readonly property var groupedNotifications: root._computeGroups(root.notifications)
@@ -57,10 +57,6 @@ Singleton {
   function getGroupKey(wrapper) {
     const de = wrapper?.desktopEntry || "";
     return de ? de.toLowerCase() : (wrapper?.appName || "app").toLowerCase();
-  }
-
-  function isDndEnabled() {
-    return typeof OSDService !== "undefined" && OSDService.doNotDisturb;
   }
 
   function use24Hour() {
@@ -181,7 +177,6 @@ Singleton {
 
     const normalized = [];
     const seenIds = new Set();
-    const inlineReplyIds = notification?.hasInlineReply ? ["inline-reply", "inline_reply", "reply"] : [];
 
     for (let i = 0; i < count; i++) {
       const action = actions[i];
@@ -193,7 +188,11 @@ Singleton {
         continue;
 
       const idKey = id.toLowerCase();
-      if (seenIds.has(idKey) || inlineReplyIds.includes(idKey) || action.isInlineReply === true)
+      if (seenIds.has(idKey))
+        continue;
+
+      // Skip inline reply actions
+      if (action.isInlineReply === true || (notification?.hasInlineReply && ["inline-reply", "inline_reply", "reply"].includes(idKey)))
         continue;
 
       normalized.push({
@@ -233,11 +232,6 @@ Singleton {
     }
   }
 
-  Component.onDestruction: {
-    updateTimer.stop();
-    addGate.stop();
-  }
-
   NotificationServer {
     id: server
     keepOnReload: false
@@ -253,7 +247,7 @@ Singleton {
     onNotification: notif => {
       notif.tracked = true;
 
-      const shouldShowPopup = !root.popupsDisabled && !root.isDndEnabled();
+      const shouldShowPopup = !root.popupsDisabled && !root.doNotDisturb;
       const wrapper = notifComponent.createObject(root, {
         popup: shouldShowPopup,
         notification: notif
@@ -275,7 +269,6 @@ Singleton {
     required property Notification notification
     property bool popup: false
     property bool isDismissing: false
-    property int seq: 0
 
     readonly property bool isPersistent: notification?.urgency === NotificationUrgency.Critical || timer.interval === 0
     readonly property date time: new Date()
@@ -311,16 +304,15 @@ Singleton {
       const hours = Math.floor(minutes / 60);
       const daysDiff = Math.floor((now - new Date(now.getFullYear(), now.getMonth(), now.getDate()) - (wrapper.time - new Date(wrapper.time.getFullYear(), wrapper.time.getMonth(), wrapper.time.getDate()))) / 86400000);
 
-      if (daysDiff === 0)
-        return wrapper.formatTime(wrapper.time);
-      if (daysDiff === 1)
-        return `yesterday, ${wrapper.formatTime(wrapper.time)}`;
+      if (daysDiff === 0) {
+        const format = root.use24Hour() ? "HH:mm" : "h:mm AP";
+        return wrapper.time.toLocaleTimeString(Qt.locale(), format);
+      }
+      if (daysDiff === 1) {
+        const format = root.use24Hour() ? "HH:mm" : "h:mm AP";
+        return `yesterday, ${wrapper.time.toLocaleTimeString(Qt.locale(), format)}`;
+      }
       return `${daysDiff} days ago`;
-    }
-
-    function formatTime(date) {
-      const format = root.use24Hour() ? "HH:mm" : "h:mm AP";
-      return date.toLocaleTimeString(Qt.locale(), format);
     }
 
     function sendInlineReply(text) {
@@ -371,7 +363,7 @@ Singleton {
   }
 
   function processQueue() {
-    if (root.addGateBusy || root.popupsDisabled || root.isDndEnabled() || root.notificationQueue.length === 0)
+    if (root.addGateBusy || root.popupsDisabled || root.doNotDisturb || root.notificationQueue.length === 0)
       return;
 
     const activeCount = root.visibleNotifications.filter(n => n?.popup).length;
@@ -382,7 +374,6 @@ Singleton {
     if (!next)
       return;
 
-    next.seq = ++root.seqCounter;
     root.visibleNotifications = [...root.visibleNotifications, next];
     next.popup = true;
 
@@ -504,20 +495,26 @@ Singleton {
     root.expandedGroups = nextGroups;
   }
 
-  Connections {
-    target: typeof OSDService !== "undefined" ? OSDService : null
-    function onDoNotDisturbChanged() {
-      if (root.isDndEnabled()) {
-        for (const notif of root.visibleNotifications) {
-          if (notif)
-            notif.popup = false;
-        }
-        root.visibleNotifications = [];
-        root.notificationQueue = [];
-      } else {
-        root.processQueue();
+  function toggleDnd() {
+    root.doNotDisturb = !root.doNotDisturb;
+
+    // Hide all visible popups when DND is enabled
+    if (root.doNotDisturb) {
+      for (const notif of root.visibleNotifications) {
+        if (notif)
+          notif.popup = false;
       }
+      root.visibleNotifications = [];
+      root.notificationQueue = [];
+    } else {
+      // Process queue when DND is disabled
+      root.processQueue();
     }
+  }
+
+  // Monitor DND changes to trigger OSD feedback
+  onDoNotDisturbChanged: {
+    // This property change will be picked up by OSDService
   }
 
   Connections {
@@ -525,5 +522,24 @@ Singleton {
     function onUse24HourChanged() {
       root.timeUpdateTick = !root.timeUpdateTick;
     }
+  }
+
+  Component.onDestruction: {
+    // Stop timers to prevent callbacks on destroyed singleton
+    updateTimer.stop();
+    addGate.stop();
+
+    // Destroy all notification wrappers
+    // Required because singleton never gets destroyed, so child wrappers
+    // would accumulate indefinitely without explicit cleanup
+    for (const wrapper of root.notifications) {
+      if (wrapper)
+        wrapper.destroy();  // Calls deleteLater() internally
+    }
+
+    // Clear arrays to release JavaScript references
+    root.notifications = [];
+    root.visibleNotifications = [];
+    root.notificationQueue = [];
   }
 }

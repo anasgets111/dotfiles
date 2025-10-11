@@ -3,184 +3,150 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import qs.Services.Core
+import qs.Services.SystemInfo
 import qs.Services.Utils
+import qs.Services.WM
 
 Singleton {
   id: root
 
-  property double _currentStartAt: 0
-  property string currentDetails: ""
-  property int currentLevel: levelInfo
-  property string currentMessage: ""
-  property int currentRepeatCount: 0
-  property bool dedupe: true
-  property bool doNotDisturb: false
-  property int durationError: 5000
-  property int durationErrorWithDetails: 8000
-  property int durationInfo: 3000
-  property int durationWarn: 4000
-  readonly property bool hasDetails: root.currentDetails.length > 0
-  readonly property int levelError: 2
-  readonly property int levelInfo: 0
-  readonly property int levelWarn: 1
-  property int maxVisibleMs: 5000
-  property bool replaceWhileVisible: true
-  property var toastQueue: []
-  property int toastQueueMax: 200
-  property bool toastVisible: false
-  property string wallpaperErrorStatus: ""
+  // OSD State
+  property bool visible: false
+  property string osdType: ""
+  property var osdValue: null
+  property string osdIcon: ""
+  property string osdLabel: ""
 
-  signal resetToastState
+  // Configuration
+  property int timeout: 2000
+  property bool initialized: false
 
-  function _applyTimerFor(level, hasDetails) {
-    const baseInterval = (level === levelError && hasDetails) ? root.durationErrorWithDetails : (level === levelError) ? root.durationError : (level === levelWarn) ? root.durationWarn : root.durationInfo;
+  // OSD Type Constants
+  readonly property string typeVolumeOutput: "volume-output"
+  readonly property string typeVolumeInput: "volume-input"
+  readonly property string typeWifi: "wifi"
+  readonly property string typeNetworking: "networking"
+  readonly property string typeBluetooth: "bluetooth"
+  readonly property string typeDnd: "dnd"
+  readonly property string typeKeyboardLayout: "keyboard-layout"
+  readonly property string typeCapsLock: "caps-lock"
+  readonly property string typeNumLock: "num-lock"
+  readonly property string typeScrollLock: "scroll-lock"
 
-    const currentTime = Date.now();
-    const remainingVisibleCap = (root.toastVisible && root._currentStartAt > 0) ? Math.max(0, root.maxVisibleMs - (currentTime - root._currentStartAt)) : -1;
-
-    if (remainingVisibleCap === 0) {
-      root.hideToast();
-      return;
-    }
-    toastTimer.interval = remainingVisibleCap > 0 ? Math.min(baseInterval, remainingVisibleCap) : baseInterval;
-    toastTimer.restart();
-  }
-
-  function _processQueue() {
-    if (root.toastVisible || root.doNotDisturb || root.toastQueue.length === 0)
-      return;
-
-    const nextToast = root.toastQueue.shift();
-    root.currentMessage = nextToast.message;
-    root.currentLevel = nextToast.level;
-    root.currentDetails = nextToast.details || "";
-    root.currentRepeatCount = nextToast.repeat || 0;
-    root.toastVisible = true;
-    root._currentStartAt = Date.now();
-    root.resetToastState();
-    root._applyTimerFor(nextToast.level, root.hasDetails);
-    Logger.log("OSDService", `show: level=${root.currentLevel}, repeats=${root.currentRepeatCount}`);
-  }
-
-  function _restartTimerForCurrent() {
-    root._applyTimerFor(root.currentLevel, root.hasDetails);
-  }
-  function clearQueue() {
-    root.toastQueue.length = 0;
-  }
-
-  function clearWallpaperError() {
-    root.wallpaperErrorStatus = "";
-  }
-
-  function hideToast() {
-    root.toastVisible = false;
-    root.currentMessage = "";
-    root.currentDetails = "";
-    root.currentLevel = levelInfo;
-    root.currentRepeatCount = 0;
-    root._currentStartAt = 0;
-    toastTimer.stop();
-    root.resetToastState();
-    if (!root.doNotDisturb)
-      root._processQueue();
-    Logger.log("OSDService", "hideToast");
-  }
-
-  function restartTimer() {
-    root._restartTimerForCurrent();
-  }
-
-  function setDoNotDisturb(enabled) {
-    const enabledBool = !!enabled;
-    if (root.doNotDisturb === enabledBool)
-      return;
-
-    root.doNotDisturb = enabledBool;
-    if (enabledBool) {
-      toastTimer.stop();
-      root.toastVisible = false;
-      root.resetToastState();
-    } else {
-      root._processQueue();
-    }
-    Logger.log("OSDService", `DND=${root.doNotDisturb}`);
-  }
-
-  function showError(message, details = "") {
-    showToast(message, levelError, details);
-  }
-
-  function showInfo(message, details = "") {
-    showToast(message, levelInfo, details);
-  }
-
-  function showWarning(message, details = "") {
-    showToast(message, levelWarn, details);
-  }
-
-  // TimeService provides wall-clock time; prefer it over ad-hoc Date.now
-
-  function showToast(message, level = levelInfo, details = "") {
-    if (message === null || message === undefined)
-      return;
-
-    const messageText = String(message);
-    const detailText = (details === undefined || details === null) ? "" : String(details);
-    Logger.log("OSDService", `showToast: level=${level}, msg='${messageText}'`);
-
-    // If currently visible and same message, just bump repeat count
-    if (root.toastVisible && root.dedupe && messageText === root.currentMessage && level === root.currentLevel) {
-      root.currentRepeatCount += 1;
-      root._restartTimerForCurrent();
-      return;
-    }
-
-    // If currently visible and higher/equal priority, replace immediately
-    if (root.toastVisible && root.replaceWhileVisible && level >= root.currentLevel) {
-      root.currentMessage = messageText;
-      root.currentDetails = detailText;
-      root.currentLevel = level;
-      root._restartTimerForCurrent();
-      return;
-    }
-
-    // Queue the toast
-    const queuedItem = {
-      message: messageText,
-      level,
-      details: detailText,
-      repeat: 0
-    };
-
-    if (root.dedupe && root.toastQueue.length > 0) {
-      const lastQueued = root.toastQueue[root.toastQueue.length - 1];
-      if (lastQueued?.message === messageText && lastQueued.level === level) {
-        lastQueued.repeat = (lastQueued.repeat || 0) + 1;
-        Logger.log("OSDService", `dedupe: bumped repeat to ${lastQueued.repeat}`);
-        return;
-      }
-    }
-
-    root.toastQueue.push(queuedItem);
-    if (root.toastQueue.length > root.toastQueueMax)
-      root.toastQueue.shift();
-    Logger.log("OSDService", `enqueued: level=${level}`);
-
-    if (!root.toastVisible && !root.doNotDisturb)
-      root._processQueue();
-  }
-  function stopTimer() {
-    toastTimer.stop();
-  }
-
-  Component.onDestruction: toastTimer.stop()
-
+  // Auto-hide timer
   Timer {
-    id: toastTimer
-    interval: 5000
+    id: hideTimer
+    interval: root.timeout
     repeat: false
     running: false
-    onTriggered: root.hideToast()
+    onTriggered: root.hideOSD()
+  }
+
+  // Initialization delay timer
+  Timer {
+    id: initTimer
+    interval: 1000
+    repeat: false
+    running: false
+    onTriggered: {
+      root.initialized = true;
+      Logger.log("OSDService", "Service initialized and ready");
+    }
+  }
+
+  // Core Functions
+  function showOSD(type, value, icon, label) {
+    if (!root.initialized)
+      return;
+
+    root.osdType = type || "";
+    root.osdValue = value !== undefined ? value : null;
+    root.osdIcon = icon || "";
+    root.osdLabel = label || "";
+    root.visible = true;
+
+    hideTimer.restart();
+    Logger.log("OSDService", `Show OSD: ${type} = ${value}`);
+  }
+
+  function hideOSD() {
+    root.visible = false;
+    hideTimer.stop();
+  }
+
+  // Monitor AudioService
+  Connections {
+    target: typeof AudioService !== "undefined" ? AudioService : null
+
+    function onVolumeChanged() {
+      const volume = Math.round(AudioService.volume * 100);
+      const icon = AudioService.muted ? "󰖁" : (volume >= 70 ? "󰕾" : volume >= 30 ? "󰖀" : "󰕿");
+      root.showOSD(root.typeVolumeOutput, volume, icon, `${volume}%`);
+    }
+
+    function onMutedChanged() {
+      const volume = Math.round(AudioService.volume * 100);
+      const icon = AudioService.muted ? "󰖁" : (volume >= 70 ? "󰕾" : volume >= 30 ? "󰖀" : "󰕿");
+      root.showOSD(root.typeVolumeOutput, AudioService.muted ? 0 : volume, icon, AudioService.muted ? "Muted" : `${volume}%`);
+    }
+  }
+
+  // Monitor NetworkService
+  Connections {
+    target: typeof NetworkService !== "undefined" ? NetworkService : null
+
+    function onWifiRadioEnabledChanged() {
+      root.showOSD(root.typeWifi, NetworkService.wifiRadioEnabled, NetworkService.wifiRadioEnabled ? "󰖩" : "󰖪", NetworkService.wifiRadioEnabled ? "WiFi On" : "WiFi Off");
+    }
+
+    function onNetworkingEnabledChanged() {
+      root.showOSD(root.typeNetworking, NetworkService.networkingEnabled, NetworkService.networkingEnabled ? "󰈀" : "󰪎", NetworkService.networkingEnabled ? "Networking On" : "Networking Off");
+    }
+  }
+
+  // Monitor BluetoothService
+  Connections {
+    target: typeof BluetoothService !== "undefined" ? BluetoothService : null
+
+    function onEnabledChanged() {
+      root.showOSD(root.typeBluetooth, BluetoothService.enabled, BluetoothService.enabled ? "󰂯" : "󰂲", BluetoothService.enabled ? "Bluetooth On" : "Bluetooth Off");
+    }
+  }
+
+  // Monitor NotificationService for DND changes
+  Connections {
+    target: typeof NotificationService !== "undefined" ? NotificationService : null
+
+    function onDoNotDisturbChanged() {
+      root.showOSD(root.typeDnd, NotificationService.doNotDisturb, NotificationService.doNotDisturb ? "󰂛" : "󰂚", NotificationService.doNotDisturb ? "Do Not Disturb On" : "Do Not Disturb Off");
+    }
+  }
+
+  // Monitor KeyboardLayoutService for layout and lock key changes
+  Connections {
+    target: typeof KeyboardLayoutService !== "undefined" ? KeyboardLayoutService : null
+
+    function onCurrentLayoutChanged() {
+      const layoutCode = KeyboardLayoutService.currentLayout || "??";
+      root.showOSD(root.typeKeyboardLayout, layoutCode, "󰌌", `Layout: ${layoutCode}`);
+    }
+
+    function onCapsOnChanged() {
+      root.showOSD(root.typeCapsLock, KeyboardLayoutService.capsOn, "󰘲", KeyboardLayoutService.capsOn ? "Caps Lock On" : "Caps Lock Off");
+    }
+
+    function onNumOnChanged() {
+      root.showOSD(root.typeNumLock, KeyboardLayoutService.numOn, "󰎠", KeyboardLayoutService.numOn ? "Num Lock On" : "Num Lock Off");
+    }
+
+    function onScrollOnChanged() {
+      root.showOSD(root.typeScrollLock, KeyboardLayoutService.scrollOn, "󰌐", KeyboardLayoutService.scrollOn ? "Scroll Lock On" : "Scroll Lock Off");
+    }
+  }
+
+  Component.onCompleted: {
+    initTimer.start();
+    Logger.log("OSDService", "Service created, waiting 1s before showing OSDs");
   }
 }
