@@ -10,7 +10,7 @@ import qs.Config
 Text {
   id: root
 
-  property real sizeMultiplier: 1.0
+  property real sizeMultiplier: 1
   property bool useActiveColor: true
 
   font.family: Theme.fontFamily

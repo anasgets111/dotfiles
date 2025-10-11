@@ -23,12 +23,6 @@ Rectangle {
   border.width: 2
   radius: 4
 
-  Behavior on border.color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
-  }
-
   Rectangle {
     anchors.centerIn: parent
     width: parent.width * 0.6
@@ -53,6 +47,12 @@ Rectangle {
       root.checked = !root.checked;
       root.toggled(root.checked);
       root.clicked();
+    }
+  }
+
+  Behavior on border.color {
+    ColorAnimation {
+      duration: Theme.animationDuration
     }
   }
 }

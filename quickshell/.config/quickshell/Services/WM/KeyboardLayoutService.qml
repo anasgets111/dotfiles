@@ -13,13 +13,13 @@ Singleton {
   property bool capsOn: false
   readonly property string currentLayout: backend ? (backend.currentLayout || "") : ""
   readonly property bool hasMultipleLayouts: layouts.length > 1
-
   // Two-letter uppercase code for UI (e.g., "US" for "English (US)", "AR" for "Arabic (Egypt)")
   readonly property string layoutShort: service.computeLayoutShort(service.currentLayout)
   readonly property var layouts: backend ? (backend.layouts || []) : []
   property var ledUnsub: null
   property bool numOn: false
   property bool scrollOn: false
+
   function applyLedStates(caps, num, scroll) {
     if (caps !== service.capsOn) {
       service.capsOn = caps;
@@ -34,6 +34,7 @@ Singleton {
       service.showToggle("Scroll Lock", scroll);
     }
   }
+
   function computeLayoutShort(s) {
     if (!s || typeof s !== "string")
       return "";
@@ -44,22 +45,23 @@ Singleton {
       const innerLetters = paren[1].replace(/[^A-Za-z]/g, "");
       if (innerLetters.length >= 2)
         return innerLetters.slice(0, 2).toUpperCase();
+
       if (innerLetters.length > 0)
         return innerLetters.toUpperCase();
     }
-
     // Fallback: take the first two letters from the whole string
     const letters = s.replace(/[^A-Za-z]/g, "");
     return letters.slice(0, 2).toUpperCase();
   }
+
   function showToggle(label, on) {
     const msg = label + " " + (on ? "On" : "Off");
     Logger.log("KeyboardLayoutService", msg);
   }
+
   function cycleLayout() {
-    if (service.backend && typeof service.backend.cycleLayout === "function") {
+    if (service.backend && typeof service.backend.cycleLayout === "function")
       service.backend.cycleLayout();
-    }
   }
 
   Component.onCompleted: {

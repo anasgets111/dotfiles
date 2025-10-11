@@ -1,7 +1,7 @@
 import QtQuick
-import qs.Services.WM
-import qs.Config
 import qs.Components
+import qs.Config
+import qs.Services.WM
 
 Item {
   id: keyboardLayoutIndicator
@@ -12,6 +12,7 @@ Item {
 
   IconButton {
     id: iconButton
+
     anchors.fill: parent
     icon: KeyboardLayoutService.layoutShort
     tooltipText: KeyboardLayoutService.currentLayout

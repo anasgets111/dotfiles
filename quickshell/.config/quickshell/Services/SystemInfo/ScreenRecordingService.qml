@@ -1,6 +1,6 @@
 pragma Singleton
-import QtQuick
 import Qt.labs.platform
+import QtQuick
 import Quickshell
 import qs.Services.SystemInfo
 import qs.Services.Utils
@@ -33,6 +33,7 @@ Singleton {
     persist.wasPaused = isPaused;
     persist.lastOutputPath = outputPath;
   }
+
   function startRecording() {
     if (isRecording)
       return;
@@ -58,6 +59,7 @@ Singleton {
     _syncPersist();
     recordingStarted(outputPath);
   }
+
   function stopRecording() {
     if (!isRecording)
       return;
@@ -69,6 +71,7 @@ Singleton {
     _syncPersist();
     recordingStopped(outputPath);
   }
+
   function togglePause() {
     if (!isRecording)
       return;
@@ -84,6 +87,7 @@ Singleton {
       recordingPaused(outputPath);
     }
   }
+
   function toggleRecording() {
     isRecording ? stopRecording() : startRecording();
   }
@@ -93,12 +97,10 @@ Singleton {
 
     property string lastOutputPath: ""
     property bool wasPaused: false
-
     // Properties saved/restored across reloads
     property bool wasRecording: false
 
     reloadableId: "ScreenRecordingServiceState"
-
     onLoaded: {
       const script = `([ -e "${screenRecorder.lockPath}" ] && echo lock=yes || echo lock=no); (pgrep -f '^gpu-screen-recorder( |$)' >/dev/null && echo proc=yes || echo proc=no)`;
       Utils.runCmd(["sh", "-c", script], function (out) {

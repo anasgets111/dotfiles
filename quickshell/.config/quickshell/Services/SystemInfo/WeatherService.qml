@@ -15,12 +15,10 @@ Singleton {
   property bool includeLocationInDisplay: true
   property int refreshInterval: 3.6e+06 // 1 hour
   property int maxRetries: 2
-
   readonly property string displayText: currentTemp + (includeLocationInDisplay && locationName ? " — " + locationName : "") + (isStale ? " (stale)" : "")
   readonly property bool isStale: lastUpdated ? (Date.now() - lastUpdated.getTime()) > refreshInterval * 2 : false
   readonly property real latitude: _lat
   readonly property real longitude: _lon
-
   // Private state
   property real _lat: NaN
   property real _lon: NaN
@@ -28,137 +26,135 @@ Singleton {
   property int _retryCount: 0
   property int _consecutiveErrors: 0
   property bool _isRequesting: false
-
   // Constants
   readonly property var _config: ({
-      fallback: {
-        lat: 30.0507,
-        lon: 31.2489,
-        name: ""
+      "fallback": {
+        "lat": 30.0507,
+        "lon": 31.2489,
+        "name": ""
       },
-      timeout: {
-        geo: 4000,
-        weather: 5000
+      "timeout": {
+        "geo": 4000,
+        "weather": 5000
       },
-      retryDelay: 2000,
-      api: {
-        geo: "https://ipapi.co/json/",
-        weather: "https://api.open-meteo.com/v1/forecast"
+      "retryDelay": 2000,
+      "api": {
+        "geo": "https://ipapi.co/json/",
+        "weather": "https://api.open-meteo.com/v1/forecast"
       }
     })
-
   readonly property var _weatherCodes: ({
       "0": {
-        icon: "☀️",
-        desc: "Clear sky"
+        "icon": "☀️",
+        "desc": "Clear sky"
       },
       "1": {
-        icon: "🌤️",
-        desc: "Mainly clear"
+        "icon": "🌤️",
+        "desc": "Mainly clear"
       },
       "2": {
-        icon: "⛅",
-        desc: "Partly cloudy"
+        "icon": "⛅",
+        "desc": "Partly cloudy"
       },
       "3": {
-        icon: "☁️",
-        desc: "Overcast"
+        "icon": "☁️",
+        "desc": "Overcast"
       },
       "45": {
-        icon: "🌫️",
-        desc: "Fog"
+        "icon": "🌫️",
+        "desc": "Fog"
       },
       "48": {
-        icon: "🌫️",
-        desc: "Depositing rime fog"
+        "icon": "🌫️",
+        "desc": "Depositing rime fog"
       },
       "51": {
-        icon: "🌦️",
-        desc: "Drizzle: Light"
+        "icon": "🌦️",
+        "desc": "Drizzle: Light"
       },
       "53": {
-        icon: "🌦️",
-        desc: "Drizzle: Moderate"
+        "icon": "🌦️",
+        "desc": "Drizzle: Moderate"
       },
       "55": {
-        icon: "🌧️",
-        desc: "Drizzle: Dense"
+        "icon": "🌧️",
+        "desc": "Drizzle: Dense"
       },
       "56": {
-        icon: "🌧️❄️",
-        desc: "Freezing Drizzle: Light"
+        "icon": "🌧️❄️",
+        "desc": "Freezing Drizzle: Light"
       },
       "57": {
-        icon: "🌧️❄️",
-        desc: "Freezing Drizzle: Dense"
+        "icon": "🌧️❄️",
+        "desc": "Freezing Drizzle: Dense"
       },
       "61": {
-        icon: "🌦️",
-        desc: "Rain: Slight"
+        "icon": "🌦️",
+        "desc": "Rain: Slight"
       },
       "63": {
-        icon: "🌧️",
-        desc: "Rain: Moderate"
+        "icon": "🌧️",
+        "desc": "Rain: Moderate"
       },
       "65": {
-        icon: "🌧️",
-        desc: "Rain: Heavy"
+        "icon": "🌧️",
+        "desc": "Rain: Heavy"
       },
       "66": {
-        icon: "🌧️❄️",
-        desc: "Freezing Rain: Light"
+        "icon": "🌧️❄️",
+        "desc": "Freezing Rain: Light"
       },
       "67": {
-        icon: "🌧️❄️",
-        desc: "Freezing Rain: Heavy"
+        "icon": "🌧️❄️",
+        "desc": "Freezing Rain: Heavy"
       },
       "71": {
-        icon: "🌨️",
-        desc: "Snow fall: Slight"
+        "icon": "🌨️",
+        "desc": "Snow fall: Slight"
       },
       "73": {
-        icon: "🌨️",
-        desc: "Snow fall: Moderate"
+        "icon": "🌨️",
+        "desc": "Snow fall: Moderate"
       },
       "75": {
-        icon: "❄️",
-        desc: "Snow fall: Heavy"
+        "icon": "❄️",
+        "desc": "Snow fall: Heavy"
       },
       "77": {
-        icon: "❄️",
-        desc: "Snow grains"
+        "icon": "❄️",
+        "desc": "Snow grains"
       },
       "80": {
-        icon: "🌦️",
-        desc: "Rain showers: Slight"
+        "icon": "🌦️",
+        "desc": "Rain showers: Slight"
       },
       "81": {
-        icon: "🌧️",
-        desc: "Rain showers: Moderate"
+        "icon": "🌧️",
+        "desc": "Rain showers: Moderate"
       },
       "82": {
-        icon: "⛈️",
-        desc: "Rain showers: Violent"
+        "icon": "⛈️",
+        "desc": "Rain showers: Violent"
       },
       "85": {
-        icon: "🌨️",
-        desc: "Snow showers: Slight"
+        "icon": "🌨️",
+        "desc": "Snow showers: Slight"
       },
       "86": {
-        icon: "❄️",
-        desc: "Snow showers: Heavy"
+        "icon": "❄️",
+        "desc": "Snow showers: Heavy"
       },
       "95": {
-        icon: "⛈️",
-        desc: "Thunderstorm: Slight or moderate"
+        "icon": "⛈️",
+        "desc": "Thunderstorm: Slight or moderate"
       },
       "96": {
-        icon: "⛈️🧊",
-        desc: "Thunderstorm with slight hail"
+        "icon": "⛈️🧊",
+        "desc": "Thunderstorm with slight hail"
       },
       "99": {
-        icon: "⛈️🧊",
-        desc: "Thunderstorm with heavy hail"
+        "icon": "⛈️🧊",
+        "desc": "Thunderstorm with heavy hail"
       }
     })
 
@@ -174,7 +170,6 @@ Singleton {
   function refresh() {
     retryTimer.stop();
     _retryCount = 0;
-
     if (!isNaN(_lat) && !isNaN(_lon)) {
       Logger.log("WeatherService", "Manual refresh:", `${_lat},${_lon}`);
       _fetchWeather(_lat, _lon);
@@ -186,7 +181,6 @@ Singleton {
   // Core logic
   function updateWeather() {
     const saved = _loadSavedLocation();
-
     if (!isNaN(_lat) && !isNaN(_lon)) {
       Logger.log("WeatherService", "Using existing coords:", `${_lat},${_lon}`);
       _fetchWeather(_lat, _lon);
@@ -205,8 +199,8 @@ Singleton {
   function _getWeatherData(code) {
     const key = String(code);
     return _weatherCodes[key] || {
-      icon: "❓",
-      desc: "Unknown"
+      "icon": "❓",
+      "desc": "Unknown"
     };
   }
 
@@ -215,13 +209,12 @@ Singleton {
       const data = JSON.parse(persist.savedLocationJson || "{}");
       const lat = Number(data.lat);
       const lon = Number(data.lon);
-      if (!isNaN(lat) && !isNaN(lon)) {
+      if (!isNaN(lat) && !isNaN(lon))
         return {
-          lat,
-          lon,
-          name: String(data.name || "")
+          "lat": lat,
+          "lon": lon,
+          "name": String(data.name || "")
         };
-      }
     } catch (e) {
       Logger.warn("WeatherService", "Failed to parse saved location");
     }
@@ -230,9 +223,9 @@ Singleton {
 
   function _saveLocation(lat, lon, name) {
     persist.savedLocationJson = JSON.stringify({
-      lat,
-      lon,
-      name
+      "lat": lat,
+      "lon": lon,
+      "name": name
     });
   }
 
@@ -265,7 +258,6 @@ Singleton {
 
   function _fetchWeather(lat, lon) {
     const url = `${_config.api.weather}?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
-
     _httpGet(url, _config.timeout.weather, function (data) {
       if (!data.current_weather)
         throw new Error("Missing current_weather");
@@ -288,24 +280,19 @@ Singleton {
       Logger.warn("WeatherService", "Request in progress, ignoring");
       return;
     }
-
     _isRequesting = true;
     const xhr = new XMLHttpRequest();
     xhr.timeout = timeout;
-
     Logger.log("WeatherService", "Request:", url, "timeout:", timeout, "ms");
-
     xhr.onreadystatechange = function () {
       if (xhr.readyState !== XMLHttpRequest.DONE)
         return;
 
       const status = xhr.status;
       const text = xhr.responseText;
-
       xhr.onreadystatechange = null;
       xhr.ontimeout = null;
       _isRequesting = false;
-
       if (status === 200) {
         try {
           onSuccess(JSON.parse(text));
@@ -318,7 +305,6 @@ Singleton {
         onError();
       }
     };
-
     xhr.ontimeout = function () {
       xhr.onreadystatechange = null;
       xhr.ontimeout = null;
@@ -326,7 +312,6 @@ Singleton {
       Logger.warn("WeatherService", "Timeout after", timeout, "ms");
       onError();
     };
-
     xhr.open("GET", url);
     xhr.send();
   }
@@ -334,7 +319,6 @@ Singleton {
   function _scheduleRetry() {
     hasError = true;
     _consecutiveErrors++;
-
     if (_retryCount < maxRetries) {
       _retryCount++;
       retryTimer.interval = _config.retryDelay * Math.pow(2, _retryCount - 1);
@@ -351,10 +335,14 @@ Singleton {
     Logger.log("WeatherService", "Started; interval:", refreshInterval, "ms");
     updateWeather();
   }
+  Component.onDestruction: {
+    weatherTimer.stop();
+    retryTimer.stop();
+  }
 
   PersistentProperties {
     id: persist
-    reloadableId: "WeatherService"
+
     property string savedLocationJson: "{}"
 
     function hydrate() {
@@ -367,12 +355,14 @@ Singleton {
       root.updateWeather();
     }
 
+    reloadableId: "WeatherService"
     onLoaded: hydrate()
     onReloaded: hydrate()
   }
 
   Timer {
     id: weatherTimer
+
     interval: root.refreshInterval
     repeat: true
     onTriggered: root.updateWeather()
@@ -380,6 +370,7 @@ Singleton {
 
   Timer {
     id: retryTimer
+
     repeat: false
     onTriggered: {
       Logger.log("WeatherService", "Retrying...");
@@ -392,10 +383,5 @@ Singleton {
       else
         root.updateWeather();
     }
-  }
-
-  Component.onDestruction: {
-    weatherTimer.stop();
-    retryTimer.stop();
   }
 }

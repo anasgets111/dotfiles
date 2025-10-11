@@ -46,6 +46,7 @@ Singleton {
     id: systemInfoProc
 
     command: sys.buildSystemInfoCommand()
+
     stdout: StdioCollector {
       onStreamFinished: {
         const output = (text || "").trim();

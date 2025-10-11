@@ -8,10 +8,13 @@ PanelWindow {
   id: panelWindow
 
   // Track expansion sources separately
-  property bool workspacesExpanded: false        // from LeftSide (Normal/Niri workspaces)
-  property bool rightSideExpanded: false         // from RightSide (e.g., Volume hover)
+  property bool workspacesExpanded: false
+  // from LeftSide (Normal/Niri workspaces)
+  property bool rightSideExpanded: false
+  // from RightSide (e.g., Volume hover)
   readonly property bool centerShouldHide: workspacesExpanded || rightSideExpanded
   property bool screenChanging: false
+
   signal wallpaperPickerRequested
 
   WlrLayershell.namespace: "quickshell:bar:blur"
@@ -23,15 +26,12 @@ PanelWindow {
   onScreenChanged: {
     if (panelWindow.screenChanging)
       return;
-    panelWindow.screenChanging = true;
-    if (!panelWindow.visible) {
-      panelWindow.visible = true;
-    }
-    panelWindow.screenChanging = false;
-  }
 
-  mask: Region {
-    item: panelRect
+    panelWindow.screenChanging = true;
+    if (!panelWindow.visible)
+      panelWindow.visible = true;
+
+    panelWindow.screenChanging = false;
   }
 
   anchors {
@@ -39,6 +39,7 @@ PanelWindow {
     right: true
     top: true
   }
+
   Rectangle {
     id: panelRect
 
@@ -50,7 +51,6 @@ PanelWindow {
 
     LeftSide {
       normalWorkspacesExpanded: panelWindow.workspacesExpanded
-
       onNormalWorkspacesExpandedChanged: panelWindow.workspacesExpanded = normalWorkspacesExpanded
       onWallpaperPickerRequested: panelWindow.wallpaperPickerRequested()
 
@@ -60,16 +60,18 @@ PanelWindow {
         verticalCenter: panelRect.verticalCenter
       }
     }
+
     RightSide {
       normalWorkspacesExpanded: panelWindow.rightSideExpanded
-
       onNormalWorkspacesExpandedChanged: panelWindow.rightSideExpanded = normalWorkspacesExpanded
+
       anchors {
         right: panelRect.right
         rightMargin: Theme.panelMargin
         verticalCenter: panelRect.verticalCenter
       }
     }
+
     CenterSide {
       anchors.centerIn: panelRect
       normalWorkspacesExpanded: panelWindow.centerShouldHide
@@ -85,6 +87,7 @@ PanelWindow {
       }
     }
   }
+
   Item {
     id: bottomCuts
 
@@ -103,6 +106,7 @@ PanelWindow {
       orientation: 0 // TOP_LEFT
       radius: Theme.panelRadius
     }
+
     RoundCorner {
       id: bottomRightCut
 
@@ -112,5 +116,9 @@ PanelWindow {
       orientation: 1 // TOP_RIGHT
       radius: Theme.panelRadius
     }
+  }
+
+  mask: Region {
+    item: panelRect
   }
 }
