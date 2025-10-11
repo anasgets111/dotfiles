@@ -7,7 +7,7 @@ import qs.Services.Core
 import qs.Services.SystemInfo
 import qs.Services.WM
 
-FocusScope {
+Item {
   id: root
 
   required property var lockContext
