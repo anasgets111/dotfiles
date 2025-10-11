@@ -64,11 +64,10 @@ Item {
     enabled: root.ready
 
     onClicked: function (mouse) {
-      if (mouse.button === Qt.LeftButton) {
+      if (mouse.button === Qt.LeftButton || mouse.button === Qt.RightButton) {
         const iface = NetworkService.wifiInterface || NetworkService.firstWifiInterface() || "";
         if (iface && NetworkService.scanWifi)
           NetworkService.scanWifi(iface, true);
-      } else if (mouse.button === Qt.RightButton) {
         networkPanel.openAtItem(iconButton, mouse.x, mouse.y);
       }
       root.clicked(mouse);

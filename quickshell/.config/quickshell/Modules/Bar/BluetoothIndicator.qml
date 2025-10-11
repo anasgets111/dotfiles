@@ -70,9 +70,7 @@ Item {
     tooltipText: [root.titleText, root.detailText1, root.detailText2].filter(t => t?.length > 0).join("\n")
 
     onClicked: function (mouse) {
-      if (mouse.button === Qt.RightButton) {
-        bluetoothPanel.openAtItem(iconButton, mouse.x, mouse.y);
-      }
+      bluetoothPanel.openAtItem(iconButton, mouse.x, mouse.y);
     }
   }
 
