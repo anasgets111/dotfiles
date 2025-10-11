@@ -74,7 +74,7 @@ Item {
       text: root.icon || "󰕾"
       color: Theme.activeColor
       font.pixelSize: 32
-      font.family: "Symbols Nerd Font"
+      font.family: "JetBrainsMono Nerd Font Mono"
     }
 
     Rectangle {
@@ -96,6 +96,13 @@ Item {
           }
         }
       }
+    }
+
+    Text {
+      text: `${Math.round(root.value)}%`
+      color: "#eeeeee"
+      font.pixelSize: 16
+      font.bold: true
     }
   }
 
@@ -119,7 +126,7 @@ Item {
         text: root.icon || "󰋽"
         color: Theme.activeColor
         font.pixelSize: 28
-        font.family: "Symbols Nerd Font"
+        font.family: "JetBrainsMono Nerd Font Mono"
       }
     }
 
