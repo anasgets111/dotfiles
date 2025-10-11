@@ -34,6 +34,7 @@ Singleton {
   readonly property string sinkIcon: deviceIconFor(sink)
 
   signal micMuteChanged
+  signal sinkDeviceChanged(string deviceName, string icon)
 
   function clampVolume(vol) {
     return Math.max(0, Math.min(maxVolume, Number.isFinite(vol) ? vol : 0));
@@ -161,11 +162,18 @@ Singleton {
   }
 
   onSinkChanged: {
-    const vol = clampVolume(root.sink?.audio?.volume ?? 0);
-    if (vol > root.maxVolume && root.sink?.audio) {
+    if (!root.sink?.audio) {
+      Logger.log("AudioService", `sink changed: ${displayName(root.sink)} (no audio)`);
+      return;
+    }
+    const vol = clampVolume(root.sink.audio.volume ?? 0);
+    if (vol > root.maxVolume) {
       root.sink.audio.volume = root.maxVolume;
     }
-    Logger.log("AudioService", `sink changed: ${displayName(root.sink)}`);
+    const deviceName = displayName(root.sink);
+    const icon = deviceIconFor(root.sink);
+    Logger.log("AudioService", `sink changed: ${deviceName}`);
+    root.sinkDeviceChanged(deviceName, icon);
   }
 
   onSourceChanged: {
@@ -181,8 +189,10 @@ Singleton {
     target: root.sink?.audio ?? null
 
     function onVolumeChanged() {
-      const vol = root.clampVolume(root.sink?.audio?.volume ?? 0);
-      if (vol > root.maxVolume && root.sink?.audio) {
+      if (!root.sink?.audio)
+        return;
+      const vol = root.clampVolume(root.sink.audio.volume ?? 0);
+      if (vol > root.maxVolume) {
         root.sink.audio.volume = root.maxVolume;
       }
     }
