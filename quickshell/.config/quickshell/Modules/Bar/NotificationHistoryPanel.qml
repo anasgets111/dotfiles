@@ -45,82 +45,66 @@ OPanel {
             leftMargin: root.padding
             rightMargin: root.padding
           }
-          spacing: root.padding
+          spacing: 16
 
-          OText {
-            text: qsTr("Notifications")
-            font.bold: true
-            sizeMultiplier: 1.1
+          RowLayout {
+            spacing: 6
+
+            OText {
+              text: qsTr("Notifications")
+              font.bold: true
+              sizeMultiplier: 1.15
+            }
+
+            OText {
+              text: root.hasNotifications ? `(${root.notificationCount})` : ""
+              useActiveColor: true
+              opacity: 0.8
+              sizeMultiplier: 0.95
+              font.bold: true
+              visible: root.hasNotifications
+            }
           }
 
           Item {
             Layout.fillWidth: true
+          }
+
+          IconButton {
+            Layout.preferredWidth: Theme.itemHeight * 0.9
+            Layout.preferredHeight: Theme.itemHeight * 0.9
+            icon: "󰩹"
+            tooltipText: qsTr("Clear All")
+            visible: root.hasNotifications
+            onClicked: {
+              NotificationService.clearAllNotifications();
+              root.close();
+            }
+          }
+
+          Rectangle {
+            Layout.preferredWidth: 1
+            Layout.preferredHeight: Theme.itemHeight * 0.6
+            color: Theme.textInactiveColor
+            opacity: 0.2
+            visible: root.hasNotifications
           }
 
           RowLayout {
             spacing: 8
 
             OText {
-              text: qsTr("Do Not Disturb")
+              text: qsTr("DND")
               useActiveColor: NotificationService.doNotDisturb
-              opacity: NotificationService.doNotDisturb ? 1.0 : 0.6
+              opacity: NotificationService.doNotDisturb ? 1.0 : 0.5
               sizeMultiplier: 0.9
             }
 
             OToggle {
-              Layout.preferredWidth: Theme.itemHeight * 1.3
-              Layout.preferredHeight: Theme.itemHeight * 0.6
+              Layout.preferredWidth: Theme.itemHeight * 1.2
+              Layout.preferredHeight: Theme.itemHeight * 0.55
               checked: NotificationService.doNotDisturb
               onToggled: checked => NotificationService.toggleDnd()
-            }
-          }
-        }
-      }
-
-      Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: Theme.itemHeight * 1.0
-        Layout.topMargin: 4
-        Layout.leftMargin: root.padding
-        Layout.rightMargin: root.padding
-        color: Qt.lighter(Theme.bgColor, 1.15)
-        radius: Theme.itemRadius
-        visible: root.hasNotifications
-
-        RowLayout {
-          anchors {
-            fill: parent
-            leftMargin: root.padding
-            rightMargin: root.padding
-          }
-          spacing: root.padding
-
-          OText {
-            text: qsTr("History")
-            font.bold: true
-            sizeMultiplier: 1.0
-          }
-
-          OText {
-            text: `(${root.notificationCount})`
-            useActiveColor: false
-            opacity: 0.6
-            sizeMultiplier: 0.9
-          }
-
-          Item {
-            Layout.fillWidth: true
-          }
-
-          OButton {
-            Layout.preferredWidth: Theme.itemHeight * 2.8
-            Layout.preferredHeight: Theme.itemHeight * 0.75
-            bgColor: Theme.critical
-            hoverColor: Qt.lighter(Theme.critical, 1.2)
-            text: qsTr("Clear All")
-            onClicked: {
-              NotificationService.clearAllNotifications();
-              root.close();
             }
           }
         }
@@ -129,8 +113,8 @@ OPanel {
       ListView {
         id: notificationList
         Layout.fillWidth: true
-        Layout.topMargin: root.hasNotifications ? 4 : 0
-        Layout.bottomMargin: root.hasNotifications ? root.padding : 0
+        Layout.topMargin: 8
+        Layout.bottomMargin: root.padding
         Layout.leftMargin: root.padding
         Layout.rightMargin: root.padding
         Layout.preferredHeight: Math.min(contentHeight, root.maxVisibleGroups * (Theme.itemHeight * 5))
