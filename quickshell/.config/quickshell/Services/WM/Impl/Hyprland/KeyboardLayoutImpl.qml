@@ -27,9 +27,8 @@ Singleton {
         continue;
 
       // Store the main keyboard name for layout switching
-      if (kb.name && !mainKbName) {
+      if (kb.name && !mainKbName)
         mainKbName = kb.name;
-      }
 
       const layoutStr = kb.layout || "";
       if (layoutStr) {
@@ -51,6 +50,7 @@ Singleton {
       "mainKeyboard": mainKbName
     };
   }
+
   function cycleLayout() {
     const kbName = impl.mainKeyboardName || "at-translated-set-2-keyboard";
     Quickshell.execDetached(["hyprctl", "switchxkblayout", kbName, "next"]);
@@ -82,6 +82,7 @@ Singleton {
       }
     }
   }
+
   Connections {
     function onRawEvent(event) {
       if (!event || event.name !== "activelayout")

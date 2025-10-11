@@ -38,7 +38,6 @@ Singleton {
         try {
           cb(String(out || "").indexOf("OK") !== -1);
         } catch (e) {}
-        ;
       }
     }, cliphistSvc);
   }
@@ -54,7 +53,6 @@ Singleton {
         try {
           cb(ok);
         } catch (e) {}
-        ;
       }
     }, cliphistSvc);
   }
@@ -72,7 +70,6 @@ Singleton {
           try {
             cb(false);
           } catch (e) {}
-          ;
         }
         return;
       }
@@ -110,7 +107,6 @@ Singleton {
             try {
               cb(true);
             } catch (e) {}
-            ;
           }
         }, cliphistSvc);
       } else {
@@ -119,7 +115,6 @@ Singleton {
           try {
             cb(true);
           } catch (e2) {}
-          ;
         }
       }
     }, cliphistSvc);
@@ -139,7 +134,6 @@ Singleton {
         try {
           cb(String(text || "").trim());
         } catch (e) {}
-        ;
       }
     }, cliphistSvc);
   }
@@ -158,7 +152,6 @@ Singleton {
         try {
           cb(String(text || ""));
         } catch (e) {}
-        ;
       }
     }, cliphistSvc);
   }
@@ -178,7 +171,6 @@ Singleton {
         try {
           cb(String(text || ""));
         } catch (e) {}
-        ;
       }
     }, cliphistSvc);
   }
@@ -203,7 +195,6 @@ Singleton {
         try {
           cb(ok);
         } catch (e) {}
-        ;
       }
     }, cliphistSvc);
   }
@@ -231,7 +222,6 @@ Singleton {
         try {
           cb(ok);
         } catch (e) {}
-        ;
       }
     }, cliphistSvc);
   }
@@ -251,7 +241,6 @@ Singleton {
         try {
           cb(ok);
         } catch (e) {}
-        ;
       }
     }, cliphistSvc);
   }
@@ -274,7 +263,6 @@ Singleton {
         try {
           cb(lines);
         } catch (e) {}
-        ;
       }
     }, cliphistSvc);
   }
@@ -295,7 +283,6 @@ Singleton {
         try {
           cb(true);
         } catch (e) {}
-        ;
       }
     }, cliphistSvc);
   }
@@ -313,7 +300,6 @@ Singleton {
 
     interval: 200
     repeat: false
-
     onTriggered: {
       cliphistSvc._pasteFocused(function (ok) {
         var fn = _pasteTimer._cb;
@@ -322,7 +308,6 @@ Singleton {
           try {
             fn(ok);
           } catch (e) {}
-          ;
         }
       });
     }

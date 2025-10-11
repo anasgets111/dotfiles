@@ -1,19 +1,23 @@
 import QtQuick
 import Quickshell.Wayland
-import qs.Config
 import qs.Components
+import qs.Config
 import qs.Services.Core
 
 Item {
   id: caffeineWidget
 
+  property bool _caffeineActive: false
+
   implicitHeight: Theme.itemHeight
   implicitWidth: Theme.itemWidth
-
-  property bool _caffeineActive: false
+  Component.onDestruction: {
+    caffeineWidget._caffeineActive = false;
+  }
 
   IconButton {
     id: button
+
     anchors.fill: parent
     colorBg: (caffeineWidget._caffeineActive || IdleService.effectiveInhibited) ? Theme.activeColor : Theme.inactiveColor
     icon: caffeineWidget._caffeineActive ? "󰅶" : "󰾪"
@@ -24,9 +28,5 @@ Item {
   IdleInhibitor {
     enabled: caffeineWidget._caffeineActive
     window: IdleService.window
-  }
-
-  Component.onDestruction: {
-    caffeineWidget._caffeineActive = false;
   }
 }

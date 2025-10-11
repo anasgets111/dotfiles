@@ -8,39 +8,37 @@ Singleton {
   id: lockService
 
   readonly property var theme: ({
-      base: "#1e1e2e",
-      mantle: "#181825",
-      crust: "#11111b",
-      surface0: "#313244",
-      surface1: "#45475a",
-      surface2: "#585b70",
-      overlay0: "#6c7086",
-      overlay1: "#7f849c",
-      overlay2: "#9399b2",
-      subtext0: "#a6adc8",
-      subtext1: "#bac2de",
-      text: "#cdd6f4",
-      love: "#f38ba8",
-      mauve: "#cba6f7"
+      "base": "#1e1e2e",
+      "mantle": "#181825",
+      "crust": "#11111b",
+      "surface0": "#313244",
+      "surface1": "#45475a",
+      "surface2": "#585b70",
+      "overlay0": "#6c7086",
+      "overlay1": "#7f849c",
+      "overlay2": "#9399b2",
+      "subtext0": "#a6adc8",
+      "subtext1": "#bac2de",
+      "text": "#cdd6f4",
+      "love": "#f38ba8",
+      "mauve": "#cba6f7"
     })
-
   readonly property real blurAmount: 0.9
   readonly property int blurMax: 64
-  readonly property real blurMultiplier: 1.0
+  readonly property real blurMultiplier: 1
   readonly property int panelMargin: 16
   readonly property int contentSpacing: 14
   readonly property int compactWidthThreshold: 440
   readonly property real panelWidthRatio: 0.47
-
   property string authState: ""
   property bool authenticating: false
   property bool locked: false
   property string passwordBuffer: ""
-
   // Computed status message for UI
   readonly property string statusMessage: {
     if (authenticating)
       return "Authenticating…";
+
     switch (authState) {
     case "error":
       return "Error";
@@ -69,6 +67,7 @@ Singleton {
     if (key === Qt.Key_Enter || key === Qt.Key_Return) {
       if (!authenticating && passwordBuffer.length > 0)
         submitOrStart();
+
       return true;
     }
     if (key === Qt.Key_Backspace) {
@@ -81,7 +80,7 @@ Singleton {
     }
     if (event.text && event.text.length === 1) {
       const code = event.text.charCodeAt(0);
-      if (code >= 0x20 && code <= 0x7E) {
+      if (code >= 32 && code <= 126) {
         passwordBuffer += event.text;
         return true;
       }
@@ -89,14 +88,17 @@ Singleton {
     return false;
   }
 
-  onLockedChanged: if (!locked) {
-    passwordBuffer = "";
-    authState = "";
-    authenticating = false;
+  onLockedChanged: {
+    if (!locked) {
+      passwordBuffer = "";
+      authState = "";
+      authenticating = false;
+    }
   }
 
   PamContext {
     id: pamContext
+
     onActiveChanged: lockService.authenticating = active
     onCompleted: result => {
       lockService.authenticating = false;
@@ -109,14 +111,17 @@ Singleton {
           authStateResetTimer.restart();
       }
     }
-    onResponseRequiredChanged: if (responseRequired) {
-      respond(lockService.passwordBuffer);
-      lockService.passwordBuffer = "";
+    onResponseRequiredChanged: {
+      if (responseRequired) {
+        respond(lockService.passwordBuffer);
+        lockService.passwordBuffer = "";
+      }
     }
   }
 
   Timer {
     id: authStateResetTimer
+
     interval: 1000
     onTriggered: lockService.authState = ""
   }

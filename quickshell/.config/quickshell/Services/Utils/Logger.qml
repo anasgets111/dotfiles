@@ -27,15 +27,18 @@ Singleton {
     else
       console.log(msg);
   }
+
   function error() {
     logger.emit("error", Array.prototype.slice.call(arguments));
   }
+
   function extractModule(args) {
     if (!args || args.length <= 1)
       return null;
 
     return args[0];
   }
+
   function formatMessage(args) {
     const timeNow = TimeService.timestamp();
     const timePart = `\x1b[36m[${timeNow}]\x1b[0m`;
@@ -50,6 +53,7 @@ Singleton {
     const modulePart = moduleRaw ? (formatModuleLabel(moduleRaw) + " ") : "";
     return `${timePart} ${modulePart}${messageText}`;
   }
+
   function formatModuleLabel(moduleRaw) {
     const width = logger.moduleLabelWidth;
     const name = String(moduleRaw);
@@ -85,9 +89,8 @@ Singleton {
     }
     logger.includeModules = uniq;
   }
-  function shouldLog(moduleName) {
-    // fallthrough
 
+  function shouldLog(moduleName) {
     if (!logger.enabled)
       return false;
 
@@ -108,6 +111,7 @@ Singleton {
     } catch (e) {}
     return false;
   }
+
   function warn() {
     logger.emit("warn", Array.prototype.slice.call(arguments));
   }

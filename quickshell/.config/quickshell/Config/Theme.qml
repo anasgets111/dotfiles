@@ -1,6 +1,6 @@
 pragma Singleton
-import Quickshell
 import QtQuick
+import Quickshell
 import qs.Services.WM as WM
 
 Singleton {
@@ -15,7 +15,7 @@ Singleton {
   readonly property var _mainScreen: (WM.MonitorService && WM.MonitorService.activeMainScreen) ? WM.MonitorService.activeMainScreen : null
   readonly property int _msw: _mainScreen ? _mainScreen.width : 1920
   readonly property int _msh: _mainScreen ? _mainScreen.height : 1080
-  readonly property real _mss: _mainScreen ? (_mainScreen.devicePixelRatio || _mainScreen.scale || 1.0) : 1.0
+  readonly property real _mss: _mainScreen ? (_mainScreen.devicePixelRatio || _mainScreen.scale || 1) : 1
   // Compute a diagonal-based scale using pixel diagonal and device pixel ratio (DPR).
   // This produces a smooth, monotonic scale so smaller physical/low-res screens get
   // a smaller UI and larger/high-DPI screens scale up. We dampen DPR so HiDPI
@@ -23,10 +23,8 @@ Singleton {
   readonly property real _screenWidthPx: _msw
   readonly property real _screenHeightPx: _msh
   readonly property real _devicePixelRatio: _mss
-
   // Diagonal in physical pixels (approx): sqrt(w^2 + h^2) * DPR
   readonly property real _diagonalPixels: Math.sqrt(_screenWidthPx * _screenWidthPx + _screenHeightPx * _screenHeightPx) * _devicePixelRatio
-
   // Map diagonalPixels to a scale value using linear mapping + clamps.
   // Tunable breakpoints: small laptops -> ~0.86, common 1080/1440 monitors -> ~0.95..1.12, 4K -> ~1.28
   readonly property real baseScale: {
@@ -34,25 +32,20 @@ Singleton {
     // Target calibration points (approx):
     // - 1920x1080 -> diagonal ~2203 px -> prefer scale ~= 0.90
     // - 2560x1440 -> diagonal ~2938 px -> prefer scale ~= 1.00
-    const diag1080 = 2203.0;
-    const diag1440 = 2938.0;
-    const scaleAt1080 = 0.90;
-    const scaleAt1440 = 1.00;
-
+    const diag1080 = 2203;
+    const diag1440 = 2938;
+    const scaleAt1080 = 0.9;
+    const scaleAt1440 = 1;
     // Linear mapping coefficients: scale = a * diag + b
     const a = (scaleAt1440 - scaleAt1080) / (diag1440 - diag1080);
     const b = scaleAt1080 - (a * diag1080);
-
     let mappedScale = a * diag + b;
-
     // Damp additional DPR influence so very high DPRs don't over-scale
-    const dampenedDprFactor = 1.0 + (_devicePixelRatio - 1.0) * 0.25;
+    const dampenedDprFactor = 1 + (_devicePixelRatio - 1) * 0.25;
     const combined = mappedScale * dampenedDprFactor;
-
     // Final clamp to reasonable bounds
     return Math.max(0.75, Math.min(1.4, combined));
   }
-
   readonly property int animationDuration: 147
   readonly property color activeColor: "#CBA6F7"
   readonly property color bgColor: "#1E1E2E"
@@ -69,7 +62,6 @@ Singleton {
   readonly property color panelWindowColor: "transparent"
   readonly property string fontFamily: "CaskaydiaCove Nerd Font Propo"
   readonly property string formatDateTime: " dd dddd hh:mm AP"
-
   // Base (unscaled) token values — used to compute scaled tokens below.
   readonly property int baseFontSize: 16
   readonly property int baseIconSize: 24
@@ -80,7 +72,6 @@ Singleton {
   // New: base widths for widgets that were previously hardcoded
   readonly property int baseBatteryPillWidth: 80
   readonly property int baseVolumeExpandedWidth: 220
-
   // Public tokens (scaled automatically). Widgets can keep using Theme.fontSize etc.
   readonly property int fontSize: Math.max(10, Math.round(baseFontSize * baseScale))
   readonly property int iconSize: Math.max(12, Math.round(baseIconSize * baseScale))
@@ -95,7 +86,6 @@ Singleton {
   readonly property int panelRadius: 12
   readonly property int popupOffset: 12
   readonly property int tooltipMaxSpace: 100
-
   // Backwards-compatible aliases (some widgets may reference these names)
   readonly property int fontSizeScaled: fontSize
   readonly property int iconSizeScaled: iconSize

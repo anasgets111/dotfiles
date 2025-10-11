@@ -33,8 +33,10 @@ Singleton {
   readonly property string timeToEmptyText: {
     if (!UPower.displayDevice)
       return qsTr("Unknown");
+
     if (!isCharging && UPower.displayDevice.timeToEmpty > 0)
       return qsTr("Time remaining: %1").arg(TimeService.formatHM(UPower.displayDevice.timeToEmpty));
+
     return qsTr("Calculating…");
   }
   readonly property string timeToFullText: {
@@ -56,23 +58,25 @@ Singleton {
   }
 
   function handleCriticalState() {
-    if (batteryService.isCriticalAndNotCharging) {
+    if (batteryService.isCriticalAndNotCharging)
       batteryService.sendNotification(qsTr("Critical Battery"), qsTr("Automatic suspend at 5%!"), true);
-    }
   }
+
   function handleLowState() {
-    if (batteryService.isLowAndNotCharging) {
+    if (batteryService.isLowAndNotCharging)
       batteryService.sendNotification(qsTr("Low Battery"), qsTr("Plug in soon!"), false);
-    }
   }
+
   function handleSuspendingState() {
-    if (batteryService.isSuspendingAndNotCharging) {
+    if (batteryService.isSuspendingAndNotCharging)
       Quickshell.execDetached(["systemctl", "suspend"]); // detached, non-blocking
-    }
+
   }
+
   function sendNotification(summary, body, isCritical) {
     if (!batteryService.lastNotificationTimestamps)
       batteryService.lastNotificationTimestamps = {};
+
     const summaryText = String(summary == null ? "" : summary);
     const bodyText = String(body == null ? "" : body);
     const key = summaryText + "|" + (isCritical ? "1" : "0");
@@ -80,8 +84,8 @@ Singleton {
     const last = batteryService.lastNotificationTimestamps[key] || 0;
     if (now - last < 15000)
       return;
-    batteryService.lastNotificationTimestamps[key] = now;
 
+    batteryService.lastNotificationTimestamps[key] = now;
     const urgency = isCritical ? "critical" : "normal";
     const args = ["notify-send", "-a", "Battery", "-u", urgency, "-t", "5000", "-e", summaryText, bodyText];
     Utils.runCmd(args, function () {}, batteryService);
