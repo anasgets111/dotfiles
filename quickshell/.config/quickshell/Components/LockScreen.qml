@@ -24,50 +24,44 @@ Scope {
 
       color: "transparent"
 
-      Loader {
-        id: contentLoader
+      FocusScope {
         anchors.fill: parent
-        active: lockSurface.hasScreen
-        asynchronous: true
-        sourceComponent: FocusScope {
+        focus: true
+
+        // Global keyboard event handler - always active when lock screen is visible
+        Keys.onPressed: event => {
+          if (LockService.handleGlobalKeyPress(event)) {
+            event.accepted = true;
+          }
+        }
+
+        Component.onCompleted: {
+          forceActiveFocus();
+        }
+
+        Item {
           anchors.fill: parent
-          focus: true
 
-          // Global keyboard event handler - always active when lock screen is visible
-          Keys.onPressed: event => {
-            if (LockService.handleGlobalKeyPress(event)) {
-              event.accepted = true;
-            }
-          }
-
-          Component.onCompleted: {
-            forceActiveFocus();
-          }
-
-          Item {
+          Image {
             anchors.fill: parent
-
-            Image {
-              anchors.fill: parent
-              fillMode: lockSurface.wallpaperFillMode
-              layer.enabled: true
-              cache: false
-              mipmap: false
-              source: lockSurface.wallpaperData?.wallpaper || ""
-              layer.effect: MultiEffect {
-                autoPaddingEnabled: false
-                blur: LockService.blurAmount
-                blurEnabled: true
-                blurMax: LockService.blurMax
-                blurMultiplier: LockService.blurMultiplier
-              }
+            fillMode: lockSurface.wallpaperFillMode
+            layer.enabled: LockService.locked
+            cache: false
+            mipmap: false
+            source: lockSurface.wallpaperData?.wallpaper || ""
+            layer.effect: MultiEffect {
+              autoPaddingEnabled: false
+              blur: LockService.blurAmount
+              blurEnabled: true
+              blurMax: LockService.blurMax
+              blurMultiplier: LockService.blurMultiplier
             }
+          }
 
-            LockContent {
-              id: lockContent
-              lockContext: LockService
-              lockSurface: lockSurface
-            }
+          LockContent {
+            id: lockContent
+            lockContext: LockService
+            lockSurface: lockSurface
           }
         }
       }
