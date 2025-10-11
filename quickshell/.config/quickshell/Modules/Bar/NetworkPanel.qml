@@ -3,11 +3,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Quickshell
 import qs.Config
 import qs.Components
 import qs.Services.Core
-import qs.Services.Utils
 
 OPanel {
   id: root
