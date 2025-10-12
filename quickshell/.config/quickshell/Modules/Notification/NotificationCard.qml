@@ -92,7 +92,6 @@ Item {
 
           Image {
             anchors.centerIn: parent
-            cache: false
             fillMode: Image.PreserveAspectFit
             height: 30
             smooth: true

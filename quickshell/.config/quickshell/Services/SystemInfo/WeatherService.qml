@@ -366,9 +366,6 @@ Singleton {
   Component.onDestruction: {
     updateTimer.stop();
     retryTimer.stop();
-    // Clear references for cleanup
-    lastUpdated = null;
-    _isRequesting = false;
   }
 
   Connections {

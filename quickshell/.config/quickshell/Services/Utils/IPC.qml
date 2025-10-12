@@ -116,4 +116,15 @@ Singleton {
 
     target: "launcher"
   }
+
+  // ----- Notifications -----
+  IpcHandler {
+    function clear(): string {
+      Logger.log("IPC", "notifications.clear");
+      NotificationService.clearAllNotifications();
+      return "cleared";
+    }
+
+    target: "notifis"
+  }
 }

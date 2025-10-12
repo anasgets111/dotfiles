@@ -12,10 +12,6 @@ Item {
   implicitHeight: Theme.itemHeight
   implicitWidth: Theme.itemWidth
 
-  Component.onDestruction: {
-    caffeineWidget._caffeineActive = false;
-  }
-
   IconButton {
     id: button
 

@@ -47,43 +47,47 @@ PanelWindow {
     Column {
       id: popupColumn
 
-      readonly property var entries: layer.visible ? (function () {
-          const svc = popupColumn.svc;
-          const groups = svc?.groupedPopups ?? [];
-          const max = Math.max(1, Number(svc?.maxVisibleNotifications ?? 1));
-          const out = [];
-          for (let i = 0; i < groups.length && out.length < max; i++) {
-            const g = groups[i];
-            if (!g?.notifications?.length)
-              continue;
-            if (g.count <= 1) {
-              out.push({
-                kind: "single",
-                wrapper: g.notifications[0]
-              });
-            } else {
-              out.push({
-                kind: "group",
-                group: {
-                  key: g.key,
-                  appName: g.appName,
-                  notifications: g.notifications,
-                  latestNotification: g.latestNotification,
-                  count: g.count,
-                  hasInlineReply: g.hasInlineReply,
-                  expanded: svc?.expandedGroups ? (svc.expandedGroups[g.key] || false) : false
-                }
-              });
-            }
-          }
-          return out;
-        })() : []
+      readonly property var entries: layer.visible ? computeEntries() : []
       property bool interactionActive: false
       readonly property var svc: NotificationService
+
+      function computeEntries() {
+        const svc = popupColumn.svc;
+        const groups = svc?.groupedPopups ?? [];
+        const max = Math.max(1, Number(svc?.maxVisibleNotifications ?? 1));
+        const out = [];
+        for (let i = 0; i < groups.length && out.length < max; i++) {
+          const g = groups[i];
+          if (!g?.notifications?.length)
+            continue;
+          if (g.count <= 1) {
+            out.push({
+              kind: "single",
+              wrapper: g.notifications[0]
+            });
+          } else {
+            out.push({
+              kind: "group",
+              group: {
+                key: g.key,
+                appName: g.appName,
+                notifications: g.notifications,
+                latestNotification: g.latestNotification,
+                count: g.count,
+                hasInlineReply: g.hasInlineReply,
+                expanded: svc?.expandedGroups ? (svc.expandedGroups[g.key] || false) : false
+              }
+            });
+          }
+        }
+        return out;
+      }
 
       spacing: 8
 
       Repeater {
+        id: notifRepeater
+
         model: popupColumn.entries
 
         delegate: Item {
@@ -109,14 +113,19 @@ PanelWindow {
             }
 
             Loader {
+              id: cardLoader
+
               active: !!popupColumn.svc && !!del.modelData
+              asynchronous: false
 
-              sourceComponent: NotificationCard {
-                group: del.modelData.kind === "group" ? del.modelData.group : null
-                svc: popupColumn.svc
-                wrapper: del.modelData.kind === "single" ? del.modelData.wrapper : null
+              sourceComponent: Component {
+                NotificationCard {
+                  group: del.modelData.kind === "group" ? del.modelData.group : null
+                  svc: popupColumn.svc
+                  wrapper: del.modelData.kind === "single" ? del.modelData.wrapper : null
 
-                onInputFocusRequested: popupColumn.interactionActive = true
+                  onInputFocusRequested: popupColumn.interactionActive = true
+                }
               }
             }
           }
