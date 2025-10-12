@@ -24,7 +24,7 @@ QtObject {
     if (looksLikeHtml(trimmed))
       return false;
 
-    return trimmed.search(/(\*\*|__|~~|`|\[[^\]]+\]\([^ )]+\)|^\s{0,3}[-*+]\s|^\s{0,3}\d+\.\s|^>\s|\n>\s)/m) !== -1;
+    return trimmed.search(/(\*\*|__|~~|`|\[[^\]]+\]\([^ )]+\)|^\s{0,3}[-*+]\s|^\s{0,3}\d+\.\s|^>\s|\n>\s|^\s{0,3}#{1,6}\s)/m) !== -1;
   }
 
   function markdownToHtml(text) {
