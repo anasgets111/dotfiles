@@ -161,12 +161,18 @@ Item {
           id: messageItem
 
           required property int index
-          readonly property bool isHovered: mouseArea.containsMouse
+          readonly property bool isHovered: hoverHandler.hovered
           readonly property bool isMultipleItems: messagesLayout.renderedItems.length > 1
           required property var modelData
 
           Layout.fillWidth: true
           implicitHeight: messageColumn.implicitHeight
+
+          HoverHandler {
+            id: hoverHandler
+
+            enabled: messageItem.isMultipleItems
+          }
 
           Rectangle {
             anchors.fill: parent
@@ -192,6 +198,7 @@ Item {
 
             readonly property var actionsModel: messageItem.modelData?.actions || []
             readonly property string body: messageItem.modelData?.body || ""
+            readonly property bool bodyHasMultipleLines: (body.match(/\n/g) || []).length > 0
             property bool bodyTruncated: false
             readonly property int bottomPadding: messageItem.isMultipleItems ? 8 : 0
             readonly property url contentImage: messageItem.modelData?.cleanImage || ""
@@ -201,7 +208,10 @@ Item {
             readonly property int horizontalPadding: messageItem.isMultipleItems ? 8 : 0
             readonly property string inlineReplyPlaceholder: messageItem.modelData?.inlineReplyPlaceholder || "Reply"
             readonly property string messageId: messageItem.modelData?.id || String(messageItem.modelData?.notification ? messageItem.modelData.notification.id || "" : "")
-            readonly property var renderedBodyMeta: prepareBody(body)
+            readonly property var renderedBodyMeta: messageColumn.hasBody ? prepareBody(body) : {
+              text: "",
+              format: Qt.PlainText
+            }
             readonly property string summary: messageItem.modelData?.summary || "(No title)"
             property bool summaryTruncated: false
             readonly property int topPadding: messageItem.isMultipleItems ? 8 : 0
@@ -213,23 +223,40 @@ Item {
                   format: Qt.PlainText
                 };
 
-              const mdUtil = typeof Markdown2Html !== "undefined" && typeof Markdown2Html.toDisplay === "function" ? Markdown2Html : null;
-              if (mdUtil) {
-                const meta = mdUtil.toDisplay(raw);
-                if (meta && typeof meta === "object" && meta.text !== undefined && meta.format !== undefined)
-                  return meta;
-              }
+              // Try Markdown2Html first
+              try {
+                if (typeof Markdown2Html !== "undefined" && typeof Markdown2Html.toDisplay === "function") {
+                  const result = Markdown2Html.toDisplay(raw);
+                  if (result?.format === Qt.RichText)
+                    return {
+                      text: result.text,
+                      format: result.format
+                    };
+                }
+              } catch (e) {}
 
-              if (raw.search(/<\s*\/?\s*[a-zA-Z!][^>]*>/) !== -1)
+              // Fallback: linkify URLs
+              try {
+                const escapeHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;");
+                const escaped = escapeHtml(raw);
+                const urlRegex = /((https?:\/\/|www\.)[\w\-@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([\w\-@:%_\+.~#?&//=;:,]*)?)/gi;
+                const html = escaped.replace(urlRegex, m => {
+                  const href = m.startsWith('http') ? m : 'https://' + m;
+                  return `<a href="${href}">${m}</a>`;
+                });
+                return urlRegex.test(raw) ? {
+                  text: html,
+                  format: Qt.RichText
+                } : {
+                  text: raw,
+                  format: Qt.PlainText
+                };
+              } catch (e) {
                 return {
                   text: raw,
-                  format: Qt.RichText
+                  format: Qt.PlainText
                 };
-
-              return {
-                text: raw,
-                format: Qt.PlainText
-              };
+              }
             }
 
             spacing: 6
@@ -277,8 +304,11 @@ Item {
                 text: messageColumn.summary
                 wrapMode: Text.WordWrap
 
-                Component.onCompleted: messageColumn.summaryTruncated = truncated
-                onTruncatedChanged: messageColumn.summaryTruncated = truncated
+                Component.onCompleted: Qt.callLater(() => {
+                  messageColumn.summaryTruncated = truncated || lineCount > 2;
+                })
+                onLineCountChanged: messageColumn.summaryTruncated = truncated || lineCount > 2
+                onTruncatedChanged: messageColumn.summaryTruncated = truncated || lineCount > 2
               }
 
               RowLayout {
@@ -317,20 +347,50 @@ Item {
               Layout.fillWidth: true
               active: messageColumn.hasBody
 
-              sourceComponent: Text {
+              sourceComponent: Item {
                 Layout.fillWidth: true
-                color: "#bbbbbb"
-                elide: Text.ElideRight
-                font.pixelSize: 12
-                linkColor: root.accentColor
-                maximumLineCount: messageColumn.expanded ? 0 : 2
-                text: messageColumn.renderedBodyMeta.text
-                textFormat: messageColumn.renderedBodyMeta.format
-                wrapMode: Text.WordWrap
+                clip: !messageColumn.expanded
+                implicitHeight: messageColumn.expanded ? bodyText.implicitHeight : Math.min(bodyText.implicitHeight, bodyText.font.pixelSize * 2 * 1.5)
 
-                Component.onCompleted: messageColumn.bodyTruncated = truncated
-                onLinkActivated: url => Qt.openUrlExternally(url)
-                onTruncatedChanged: messageColumn.bodyTruncated = truncated
+                Text {
+                  id: bodyText
+
+                  color: "#bbbbbb"
+                  font.pixelSize: 12
+                  linkColor: root.accentColor
+                  text: messageColumn.renderedBodyMeta.text
+                  textFormat: messageColumn.renderedBodyMeta.format
+                  width: parent.width
+                  wrapMode: Text.WordWrap
+
+                  Component.onCompleted: Qt.callLater(() => {
+                    messageColumn.bodyTruncated = truncated || lineCount > 2 || messageColumn.bodyHasMultipleLines || implicitHeight > font.pixelSize * 2 * 1.5;
+                  })
+                  onLineCountChanged: {
+                    messageColumn.bodyTruncated = truncated || lineCount > 2 || messageColumn.bodyHasMultipleLines || implicitHeight > font.pixelSize * 2 * 1.5;
+                  }
+                  onLinkActivated: url => Qt.openUrlExternally(url)
+                  onTruncatedChanged: {
+                    messageColumn.bodyTruncated = truncated || lineCount > 2 || messageColumn.bodyHasMultipleLines || implicitHeight > font.pixelSize * 2 * 1.5;
+                  }
+                }
+
+                HoverHandler {
+                  id: linkHover
+
+                  cursorShape: bodyText.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                }
+
+                TapHandler {
+                  acceptedButtons: Qt.LeftButton
+
+                  onTapped: function (eventPoint) {
+                    const link = bodyText.linkAt(eventPoint.position.x, eventPoint.position.y);
+                    if (link) {
+                      Qt.openUrlExternally(link);
+                    }
+                  }
+                }
               }
 
               onActiveChanged: if (!active)
@@ -419,34 +479,23 @@ Item {
               }
             }
           }
-
-          MouseArea {
-            id: mouseArea
-
-            acceptedButtons: Qt.NoButton
-            anchors.fill: parent
-            hoverEnabled: messageItem.isMultipleItems
-          }
         }
       }
     }
   }
 
-  MouseArea {
-    acceptedButtons: Qt.NoButton
-    anchors.fill: parent
-    hoverEnabled: true
-
-    onEntered: {
-      for (const w of root.items)
-        if (w?.timer?.running)
-          w.timer.stop();
-    }
-    onExited: {
-      for (const w of root.items) {
-        const t = w?.timer;
-        if (t && (t.interval || 0) > 0 && !t.running)
-          t.start();
+  HoverHandler {
+    onHoveredChanged: {
+      if (hovered) {
+        for (const w of root.items)
+          if (w?.timer?.running)
+            w.timer.stop();
+      } else {
+        for (const w of root.items) {
+          const t = w?.timer;
+          if (t && (t.interval || 0) > 0 && !t.running)
+            t.start();
+        }
       }
     }
   }
