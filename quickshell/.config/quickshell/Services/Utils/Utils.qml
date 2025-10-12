@@ -12,11 +12,6 @@ Singleton {
   property bool numLock: false
   property bool scrollLock: false
   property var ledWatchers: []
-  readonly property var _ledState: ({
-      caps: false,
-      num: false,
-      scroll: false
-    })
 
   readonly property Process ledMonitor: Process {
     command: ["sh", "-c", `
@@ -36,13 +31,6 @@ Singleton {
           printf '%s\\n' "$cur"
           last="$cur"
         fi
-
-        # Re-expand globs if files disappeared
-        if [ ! -e "$caps" ] || [ ! -e "$num" ] || [ ! -e "$scroll" ]; then
-          set -- $caps_glob; caps=$1
-          set -- $num_glob; num=$1
-          set -- $scroll_glob; scroll=$1
-        fi
         sleep 0.1
       done
     `]
@@ -50,9 +38,6 @@ Singleton {
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: line => {
-        if (line.length < 5)
-          return;
-
         const capsState = line[0] !== "0";
         const numState = line[2] !== "0";
         const scrollState = line[4] !== "0";
@@ -67,9 +52,11 @@ Singleton {
         if (utils.ledWatchers.length === 0)
           return;
 
-        utils._ledState.caps = utils.capsLock;
-        utils._ledState.num = utils.numLock;
-        utils._ledState.scroll = utils.scrollLock;
+        const state = {
+          caps: capsState,
+          num: numState,
+          scroll: scrollState
+        };
 
         for (let i = utils.ledWatchers.length - 1; i >= 0; i--) {
           const watcher = utils.ledWatchers[i];
@@ -78,7 +65,7 @@ Singleton {
             continue;
           }
           try {
-            watcher(utils._ledState);
+            watcher(state);
           } catch (err) {
             console.warn("LED watcher error:", err);
             utils.ledWatchers.splice(i, 1);
@@ -136,15 +123,17 @@ Singleton {
     commandSlots.forEach(slot => {
       if (slot.process.running)
         slot.process.running = false;
+      slot.process.destroy();
     });
   }
 
   // ==================== Public API ====================
   function getLockLedState() {
-    _ledState.caps = capsLock;
-    _ledState.num = numLock;
-    _ledState.scroll = scrollLock;
-    return _ledState;
+    return {
+      caps: capsLock,
+      num: numLock,
+      scroll: scrollLock
+    };
   }
 
   function startLockLedWatcher(options) {
