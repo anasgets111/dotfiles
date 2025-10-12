@@ -25,6 +25,13 @@ Scope {
 
       color: "transparent"
 
+      Component.onDestruction: {
+        // Clear image source and disable layer effects to free GPU/memory resources
+        wallpaperImage.source = "";
+        if (typeof gc === "function")
+          gc();
+      }
+
       FocusScope {
         anchors.fill: parent
         focus: true
@@ -44,14 +51,20 @@ Scope {
           anchors.fill: parent
 
           Image {
+            id: wallpaperImage
+
             anchors.fill: parent
             cache: false
             fillMode: lockSurface.wallpaperFillMode
-            layer.enabled: LockService.locked
-            mipmap: false
-            source: lockSurface.wallpaperData?.wallpaper || ""
+            layer.effect: LockService.locked ? multiEffectComponent : null
+            layer.enabled: LockService.locked && source !== ""
+            source: LockService.locked ? (lockSurface.wallpaperData?.wallpaper || "") : ""
+          }
 
-            layer.effect: MultiEffect {
+          Component {
+            id: multiEffectComponent
+
+            MultiEffect {
               autoPaddingEnabled: false
               blur: LockService.blurAmount
               blurEnabled: true

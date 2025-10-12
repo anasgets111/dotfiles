@@ -34,14 +34,23 @@ Singleton {
   function formatMessage(args) {
     if (!args || args.length === 0)
       return "";
+
+    const timestamp = "\x1b[36m[" + TimeService.timestamp() + "]\x1b[0m";
+
     if (args.length === 1) {
-      return `\x1b[36m[${TimeService.timestamp()}]\x1b[0m ${args[0]}`;
+      return timestamp + " " + args[0];
     }
+
     const modulePart = root.formatModuleLabel(args[0]);
-    const messageParts = [];
-    for (let i = 1; i < args.length; i++)
-      messageParts.push(args[i]);
-    return `\x1b[36m[${TimeService.timestamp()}]\x1b[0m ${modulePart} ${messageParts.join(" ")}`;
+    // Pre-allocate array for better memory performance
+    const messageCount = args.length - 1;
+    const messageParts = new Array(messageCount);
+
+    for (let i = 0; i < messageCount; i++) {
+      messageParts[i] = args[i + 1];
+    }
+
+    return timestamp + " " + modulePart + " " + messageParts.join(" ");
   }
 
   function formatModuleLabel(moduleRaw) {

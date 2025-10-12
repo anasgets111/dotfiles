@@ -13,32 +13,16 @@ Singleton {
   readonly property string defaultMode: "fill"
   readonly property string defaultTransition: "disc"
   readonly property string defaultWallpaper: Settings.defaultWallpaper
+  readonly property var fillModeMap: ({
+      fill: 2,
+      fit: 1,
+      stretch: 3,
+      center: 6,
+      tile: 4
+    })
   property bool hydrated: false
-  property var lastAnnounced: ({})
   property var monitorPrefs: ({})
-  readonly property list<var> monitors: {
-    if (!ready)
-      return [];
-    const out = [];
-    const count = MonitorService.monitors.count;
-    for (let i = 0; i < count; i++) {
-      const m = MonitorService.monitors.get(i);
-      const prefs = root.ensurePrefs(m.name);
-      out.push({
-        name: m.name,
-        width: m.width,
-        height: m.height,
-        scale: m.scale,
-        fps: m.fps,
-        bitDepth: m.bitDepth,
-        orientation: m.orientation,
-        wallpaper: prefs.wallpaper,
-        mode: prefs.mode
-      });
-    }
-    return out;
-  }
-  property string persistKey: ""
+  property list<var> monitors: []
   readonly property bool ready: hydrated && MonitorService?.ready && (MonitorService.monitors?.count ?? 0) > 0
   property list<var> wallpaperFiles: []
   readonly property bool wallpaperFilesReady: wallpaperFolderModel.status === FolderListModel.Ready
@@ -56,30 +40,7 @@ Singleton {
     for (let i = 0; i < count; i++) {
       const name = MonitorService.monitors.get(i).name;
       const prefs = root.ensurePrefs(name);
-      const prev = lastAnnounced[name];
-      if (prev?.wallpaper === prefs.wallpaper && prev?.mode === prefs.mode)
-        continue;
-      lastAnnounced[name] = {
-        wallpaper: prefs.wallpaper,
-        mode: prefs.mode
-      };
       wallpaperChanged(name, prefs.wallpaper);
-    }
-  }
-
-  function cleanupDisconnectedMonitors() {
-    if (!MonitorService?.ready)
-      return;
-    const currentNames = new Set();
-    const count = MonitorService.monitors?.count ?? 0;
-    for (let i = 0; i < count; i++) {
-      currentNames.add(MonitorService.monitors.get(i).name);
-    }
-    for (const name in monitorPrefs) {
-      if (!currentNames.has(name)) {
-        delete monitorPrefs[name];
-        delete lastAnnounced[name];
-      }
     }
   }
 
@@ -110,24 +71,16 @@ Singleton {
     if (Settings.data.wallpaperFolder) {
       wallpaperFolder = String(Settings.data.wallpaperFolder);
     }
-    if (Object.keys(monitorPrefs).length === 0 && MonitorService.ready) {
-      root.seedCurrentMonitors();
-    }
     hydrated = true;
-    if (MonitorService.ready)
+    if (MonitorService.ready) {
+      root.rebuildMonitors();
       root.announceAll();
+    }
     root.persistMonitors();
   }
 
   function modeToFillMode(mode) {
-    const modes = {
-      fill: 2,
-      fit: 1,
-      stretch: 3,
-      center: 6,
-      tile: 4
-    };
-    return modes[root.validMode(mode)] ?? 2;
+    return fillModeMap[root.validMode(mode)] ?? 2;
   }
 
   function persistMonitors() {
@@ -143,10 +96,6 @@ Singleton {
         mode: root.validMode(p.mode)
       };
     }
-    const key = JSON.stringify([out, root.validTransition(wallpaperTransition)]);
-    if (key === persistKey)
-      return;
-    persistKey = key;
     Settings.data.wallpapers = out;
     Settings.data.wallpaperTransition = root.validTransition(wallpaperTransition);
   }
@@ -155,8 +104,7 @@ Singleton {
     if (!MonitorService?.ready || !wallpaperFilesReady)
       return;
 
-    const files = wallpaperFiles.map(entry => entry.path).filter(p => !!p);
-    if (!files.length) {
+    if (!wallpaperFiles.length) {
       console.warn("WallpaperService: no wallpaper files available in", wallpaperFolder);
       return;
     }
@@ -164,18 +112,34 @@ Singleton {
     const count = MonitorService.monitors.count;
     for (let i = 0; i < count; i++) {
       const mon = MonitorService.monitors.get(i);
-      const chosen = files[Math.floor(Math.random() * files.length)];
+      const chosen = wallpaperFiles[Math.floor(Math.random() * wallpaperFiles.length)].path;
       root.setWallpaper(mon.name, chosen);
     }
   }
 
-  function seedCurrentMonitors() {
-    if (!MonitorService?.ready)
+  function rebuildMonitors() {
+    if (!ready) {
+      monitors = [];
       return;
+    }
+    const out = [];
     const count = MonitorService.monitors.count;
     for (let i = 0; i < count; i++) {
-      root.ensurePrefs(MonitorService.monitors.get(i).name);
+      const m = MonitorService.monitors.get(i);
+      const prefs = root.ensurePrefs(m.name);
+      out.push({
+        name: m.name,
+        width: m.width,
+        height: m.height,
+        scale: m.scale,
+        fps: m.fps,
+        bitDepth: m.bitDepth,
+        orientation: m.orientation,
+        wallpaper: prefs.wallpaper,
+        mode: prefs.mode
+      });
     }
+    monitors = out;
   }
 
   function setModePref(name, mode) {
@@ -187,6 +151,7 @@ Singleton {
       return;
     p.mode = v;
     modeChanged(name, p.mode);
+    root.rebuildMonitors();
     persistDebounce.restart();
   }
 
@@ -268,19 +233,28 @@ Singleton {
 
     onStatusChanged: {
       if (status === FolderListModel.Ready) {
-        const list = [];
+        // Pre-allocate array for better memory performance
+        const list = new Array(count);
+        let validCount = 0;
+
         for (let i = 0; i < count; i++) {
           const filePath = get(i, "filePath").toString().replace("file://", "");
           if (filePath) {
             const resolvedPath = filePath.startsWith("file:") ? filePath : `file://${filePath}`;
             const nameMatch = filePath.split("/").pop() || filePath;
-            list.push({
+            list[validCount++] = {
               path: filePath,
               displayName: nameMatch,
               previewSource: resolvedPath
-            });
+            };
           }
         }
+
+        // Trim array to actual valid count if needed
+        if (validCount < count) {
+          list.length = validCount;
+        }
+
         root.wallpaperFiles = list;
       }
     }
@@ -316,17 +290,14 @@ Singleton {
   Connections {
     function onMonitorsUpdated() {
       if (MonitorService.ready && root.hydrated) {
-        root.cleanupDisconnectedMonitors();
-        root.seedCurrentMonitors();
-        announceDebounce.restart();
+        root.rebuildMonitors();
         root.persistMonitors();
       }
     }
 
     function onReadyChanged() {
       if (MonitorService.ready && root.hydrated) {
-        root.seedCurrentMonitors();
-        announceDebounce.restart();
+        root.rebuildMonitors();
       }
     }
 

@@ -17,13 +17,16 @@ WlrLayershell {
   property real edgeSmoothness: 0.1
   readonly property bool hasCurrent: currentWallpaper.status === Image.Ready && !!currentWallpaper.source
   readonly property int imageFillMode: WallpaperService.modeToFillMode(displayMode)
+  property bool isDestroyed: false
   required property var modelData
   readonly property real nextPaintedHeightPx: Math.max(1, Math.round(nextWallpaper.paintedHeight * deviceScale))
   readonly property real nextPaintedWidthPx: Math.max(1, Math.round(nextWallpaper.paintedWidth * deviceScale))
   property bool pendingProgressReset: false
   property string pendingWallpaperUrl: ""
+  readonly property var screenObject: modelData?.name ? Quickshell.screens.find(s => s?.name === modelData.name) ?? null : null
   readonly property real screenPixelHeight: height * deviceScale
   readonly property real screenPixelWidth: width * deviceScale
+  readonly property bool screenValid: screenObject !== null
   property real stripesAngle: 0
   property real stripesCount: 16
   property real transitionProgress: 0.0
@@ -31,95 +34,92 @@ WlrLayershell {
   property bool waitingForCurrentReady: false
   property real wipeDirection: 0
 
-  function applyModel(md) {
-    if (!md)
-      return;
-    if (md.mode)
-      displayMode = md.mode;
-    if (md.transition)
-      transitionType = md.transition;
-    if (md.wallpaper)
-      currentWallpaper.source = root.normalizeUrl(md.wallpaper);
-  }
-
   function changeWallpaper(newPath) {
-    const newUrl = root.normalizeUrl(newPath);
+    if (isDestroyed)
+      return;
+    const newUrl = normalizeUrl(newPath);
     if (!newUrl || newUrl === String(currentWallpaper.source) || newUrl === String(nextWallpaper.source))
       return;
-    if (transitionAnim.running || root.waitingForCurrentReady) {
-      root.pendingWallpaperUrl = newUrl;
+    if (transitionAnim.running || waitingForCurrentReady) {
+      pendingWallpaperUrl = newUrl;
       return;
     }
-    if (root.pendingWallpaperUrl === newUrl)
-      root.pendingWallpaperUrl = "";
+    if (pendingWallpaperUrl === newUrl)
+      pendingWallpaperUrl = "";
 
-    if (root.transitionType === "wipe")
-      root.wipeDirection = Math.random() * 4;
-    else if (root.transitionType === "disc") {
-      root.discCenterX = Math.random();
-      root.discCenterY = Math.random();
-    } else if (root.transitionType === "stripes") {
-      root.stripesCount = Math.round(Math.random() * 20 + 4);
-      root.stripesAngle = Math.random() * 360;
-    }
+    setupTransition(transitionType);
 
     if (nextWallpaper.source && nextWallpaper.source !== newUrl) {
       nextWallpaper.source = "";
-      Qt.callLater(() => nextWallpaper.source = newUrl);
+      Qt.callLater(() => {
+        if (!isDestroyed)
+          nextWallpaper.source = newUrl;
+      });
       return;
     }
 
     nextWallpaper.source = newUrl;
     if (nextWallpaper.status === Image.Ready) {
-      if (currentWallpaper.source && root.transitionType !== "none") {
+      if (currentWallpaper.source && transitionType !== "none")
         transitionAnim.start();
-      } else {
-        root.transitionProgress = 1.0;
-        root.commitNextWallpaper(true);
+      else {
+        transitionProgress = 1.0;
+        commitNextWallpaper(true);
       }
     }
   }
 
   function commitNextWallpaper(resetProgress) {
+    if (isDestroyed)
+      return;
     if (!nextWallpaper.source) {
-      root.pendingProgressReset = false;
-      root.waitingForCurrentReady = false;
+      pendingProgressReset = false;
+      waitingForCurrentReady = false;
       return;
     }
     if (currentWallpaper.source !== nextWallpaper.source) {
       if (currentWallpaper.source) {
-        // Has old wallpaper - clear first to release GPU texture, then load new
         const tempSource = nextWallpaper.source;
-        currentWallpaper.source = "";
-        Qt.callLater(() => currentWallpaper.source = tempSource);
+        currentWallpaper.source = tempSource;
+        Qt.callLater(() => {
+          if (typeof gc === "function")
+            gc();
+        });
       } else {
-        // No old wallpaper (first boot) - direct load
         currentWallpaper.source = nextWallpaper.source;
       }
     }
 
-    root.pendingProgressReset = resetProgress;
-    root.waitingForCurrentReady = true;
+    pendingProgressReset = resetProgress;
+    waitingForCurrentReady = true;
     if (currentWallpaper.status === Image.Ready)
-      root.handleCurrentStatus(Image.Ready);
+      handleCurrentStatus(Image.Ready);
   }
 
   function handleCurrentStatus(status) {
-    if (!root.waitingForCurrentReady)
+    if (isDestroyed || !waitingForCurrentReady)
       return;
     if (status === Image.Ready) {
-      if (root.pendingProgressReset)
-        root.transitionProgress = 0.0;
-      root.pendingProgressReset = false;
+      if (pendingProgressReset)
+        transitionProgress = 0.0;
+      pendingProgressReset = false;
       if (String(nextWallpaper.source) === String(currentWallpaper.source)) {
         nextWallpaper.source = "";
+        if (typeof gc === "function")
+          gc();
       }
-      root.waitingForCurrentReady = false;
-      Qt.callLater(root.processPendingWallpaper);
+      waitingForCurrentReady = false;
+      Qt.callLater(() => {
+        if (!isDestroyed)
+          processPendingWallpaper();
+      });
     } else if (status === Image.Error) {
-      root.pendingProgressReset = false;
-      root.waitingForCurrentReady = false;
-      Qt.callLater(root.processPendingWallpaper);
+      pendingProgressReset = false;
+      waitingForCurrentReady = false;
+      Qt.callLater(() => {
+        if (!isDestroyed)
+          processPendingWallpaper();
+      });
     }
   }
 
@@ -133,61 +133,74 @@ WlrLayershell {
   }
 
   function processPendingWallpaper() {
-    if (!root.pendingWallpaperUrl)
+    if (isDestroyed || !pendingWallpaperUrl)
       return;
-    const pending = root.pendingWallpaperUrl;
-    root.pendingWallpaperUrl = "";
-    root.changeWallpaper(pending);
+    const pending = pendingWallpaperUrl;
+    pendingWallpaperUrl = "";
+    changeWallpaper(pending);
   }
 
-  function shaderUrlForTransition(t) {
-    const shaders = {
-      wipe: "../Shaders/qsb/wp_wipe.frag.qsb",
-      disc: "../Shaders/qsb/wp_disc.frag.qsb",
-      stripes: "../Shaders/qsb/wp_stripes.frag.qsb",
-      portal: "../Shaders/qsb/wp_portal.frag.qsb"
-    };
-    return Qt.resolvedUrl(shaders[t] ?? "../Shaders/qsb/wp_fade.frag.qsb");
+  function setupTransition(type) {
+    if (type === "wipe") {
+      wipeDirection = Math.random() * 4;
+    } else if (type === "disc") {
+      discCenterX = Math.random();
+      discCenterY = Math.random();
+    } else if (type === "stripes") {
+      stripesCount = Math.round(Math.random() * 20 + 4);
+      stripesAngle = Math.random() * 360;
+    }
   }
 
   exclusionMode: ExclusionMode.Ignore
   layer: WlrLayer.Background
-  screen: modelData?.name ? Quickshell.screens.find(s => s?.name === modelData.name) ?? null : null
+  screen: screenObject
 
-  Component.onCompleted: root.applyModel(modelData)
-  Component.onDestruction: {
-    transitionAnim.stop();
-    transitionShader.source1 = null;
-    transitionShader.source2 = null;
-    transparentSource.sourceItem = null;
-    currentWallpaper.source = "";
-    currentWallpaper.sourceSize = Qt.size(0, 0);
-    nextWallpaper.source = "";
-    nextWallpaper.sourceSize = Qt.size(0, 0);
+  Component.onCompleted: {
+    if (modelData?.mode)
+      displayMode = modelData.mode;
+    if (modelData?.transition)
+      transitionType = modelData.transition;
+    if (modelData?.wallpaper)
+      currentWallpaper.source = normalizeUrl(modelData.wallpaper);
   }
-  onModelDataChanged: root.applyModel(modelData)
+  Component.onDestruction: {
+    isDestroyed = true;
+    transitionAnim.stop();
+    wallpaperConnections.enabled = false;
+    transitionShader.visible = false;
+    currentWallpaper.sourceSize = Qt.size(0, 0);
+    nextWallpaper.sourceSize = Qt.size(0, 0);
+    currentWallpaper.source = "";
+    nextWallpaper.source = "";
+    Qt.callLater(() => {
+      if (typeof gc === "function")
+        gc();
+    });
+  }
+  onModelDataChanged: {
+    if (modelData?.mode)
+      displayMode = modelData.mode;
+    if (modelData?.transition)
+      transitionType = modelData.transition;
+  }
+  onScreenValidChanged: {
+    if (!screenValid && !isDestroyed) {
+      // Screen disconnected - immediately clear images to free memory
+      transitionAnim.stop();
+      currentWallpaper.source = "";
+      nextWallpaper.source = "";
+      pendingWallpaperUrl = "";
+      if (typeof gc === "function")
+        gc();
+    }
+  }
 
   anchors {
     bottom: true
     left: true
     right: true
     top: true
-  }
-
-  Rectangle {
-    id: transparentRect
-
-    anchors.fill: parent
-    color: "transparent"
-    visible: false
-  }
-
-  ShaderEffectSource {
-    id: transparentSource
-
-    hideSource: true
-    live: false
-    sourceItem: transparentRect
   }
 
   Image {
@@ -197,16 +210,16 @@ WlrLayershell {
     asynchronous: true
     cache: false
     fillMode: root.imageFillMode
-    layer.enabled: false
     opacity: 0
     smooth: true
-    sourceSize: Qt.size(root.screenPixelWidth, root.screenPixelHeight)
+    sourceSize: Qt.size(Math.min(root.screenPixelWidth, 3840), Math.min(root.screenPixelHeight, 2160))
     visible: true
 
     onStatusChanged: {
-      if (status === Image.Ready || status === Image.Error) {
+      if (root.isDestroyed)
+        return;
+      if (status === Image.Ready || status === Image.Error)
         root.handleCurrentStatus(status);
-      }
     }
   }
 
@@ -217,13 +230,14 @@ WlrLayershell {
     asynchronous: true
     cache: false
     fillMode: root.imageFillMode
-    layer.enabled: false
     opacity: 0
     smooth: true
-    sourceSize: Qt.size(root.screenPixelWidth, root.screenPixelHeight)
+    sourceSize: Qt.size(Math.min(root.screenPixelWidth, 3840), Math.min(root.screenPixelHeight, 2160))
     visible: true
 
     onStatusChanged: {
+      if (root.isDestroyed)
+        return;
       if (status === Image.Error) {
         nextWallpaper.source = "";
         return;
@@ -258,15 +272,20 @@ WlrLayershell {
     property real progress: root.transitionProgress
     property real screenHeight: root.screenPixelHeight
     property real screenWidth: root.screenPixelWidth
-    readonly property url shaderUrl: root.shaderUrlForTransition(root.transitionType)
+    readonly property url shaderUrl: Qt.resolvedUrl({
+      wipe: "../Shaders/qsb/wp_wipe.frag.qsb",
+      disc: "../Shaders/qsb/wp_disc.frag.qsb",
+      stripes: "../Shaders/qsb/wp_stripes.frag.qsb",
+      portal: "../Shaders/qsb/wp_portal.frag.qsb"
+    }[root.transitionType] ?? "../Shaders/qsb/wp_fade.frag.qsb")
     property real smoothness: root.edgeSmoothness
-    property var source1: visible ? (root.hasCurrent ? currentWallpaper : transparentSource) : null
-    property var source2: visible ? nextWallpaper : null
+    readonly property var source1: currentWallpaper
+    readonly property var source2: nextWallpaper
     property real stripeCount: root.stripesCount
 
     anchors.fill: parent
     fragmentShader: shaderUrl
-    visible: hasSources && shaderUrl !== ""
+    visible: (root.hasCurrent || root.booting) && shaderUrl !== ""
   }
 
   NumberAnimation {
@@ -281,14 +300,15 @@ WlrLayershell {
 
     onFinished: {
       Qt.callLater(() => {
-        if (nextWallpaper.source && nextWallpaper.status === Image.Ready) {
+        if (!root.isDestroyed && nextWallpaper.source && nextWallpaper.status === Image.Ready)
           root.commitNextWallpaper(true);
-        }
       });
     }
   }
 
   Connections {
+    id: wallpaperConnections
+
     function onModeChanged(name, mode) {
       if (name && root.modelData?.name === name)
         root.displayMode = mode;
