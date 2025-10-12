@@ -8,7 +8,7 @@ Item {
   property string formattedDateTime: TimeService.format("datetime")
   readonly property bool hasNotifications: notificationCount > 0
   readonly property int notificationCount: NotificationService.notifications?.length || 0
-  property string weatherIcon: WeatherService.getWeatherIconFromCode()
+  property string weatherIcon: WeatherService.weatherInfo().icon
   property string weatherText: WeatherService.currentTemp
 
   height: Theme.itemHeight
@@ -137,7 +137,7 @@ Item {
           color: Theme.textContrast(Theme.onHoverColor)
           font.family: Theme.fontFamily
           font.pixelSize: Theme.fontSize
-          text: WeatherService.getWeatherDescriptionFromCode()
+          text: WeatherService.weatherInfo().desc
         }
 
         Text {
@@ -156,8 +156,11 @@ Item {
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize - 2
         opacity: 0.7
-        text: WeatherService.timeAgoText ? "Last updated " + WeatherService.timeAgoText : ""
-        visible: WeatherService.timeAgoText.length > 0
+        text: {
+          const timeAgo = WeatherService.getTimeAgo();
+          return timeAgo ? "Last updated " + timeAgo : "";
+        }
+        visible: WeatherService.getTimeAgo().length > 0
       }
 
       // Load the calendar immediately (simple Loader vs LazyLoader to avoid hover teardown issues)
