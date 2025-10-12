@@ -123,6 +123,7 @@ Singleton {
     commandSlots.forEach(slot => {
       if (slot.process.running)
         slot.process.running = false;
+      slot.collector.destroy();
       slot.process.destroy();
     });
   }
