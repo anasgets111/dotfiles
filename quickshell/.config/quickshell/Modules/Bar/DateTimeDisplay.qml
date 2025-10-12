@@ -149,6 +149,17 @@ Item {
         }
       }
 
+      // Last updated row
+      Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        color: Theme.textContrast(Theme.onHoverColor)
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize - 2
+        opacity: 0.7
+        text: WeatherService.timeAgoText ? "Last updated " + WeatherService.timeAgoText : ""
+        visible: WeatherService.timeAgoText.length > 0
+      }
+
       // Load the calendar immediately (simple Loader vs LazyLoader to avoid hover teardown issues)
       Loader {
         id: calendarLoader

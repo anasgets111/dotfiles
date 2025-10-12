@@ -101,6 +101,16 @@ Singleton {
       // Per-monitor wallpaper preferences map (dynamic keys)
       // wallpapers: { "MONITOR_NAME": { wallpaper: string, mode: string } }
       property var wallpapers: ({})
+
+      // Weather location and last poll data
+      property JsonObject weatherLocation: JsonObject {
+        property string lastPollTimestamp: ""  // ISO 8601 format
+        property real latitude: 30.0507
+        property real longitude: 31.2489
+        property string placeName: "Cairo, Egypt"
+        property string temperature: ""
+        property int weatherCode: -1
+      }
     }
   }
 }
