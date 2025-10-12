@@ -496,13 +496,6 @@ SearchGridPanel {
             sourceSize.height: 150
             sourceSize.width: 240
             visible: source !== ""
-
-            Component.onDestruction: {
-              // Properly release image memory
-              wallpaperPreview.sourceSize = Qt.size(0, 0);
-              // Clear source immediately (no Qt.callLater needed during destruction)
-              wallpaperPreview.source = "";
-            }
           }
 
           Rectangle {

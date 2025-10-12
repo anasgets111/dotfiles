@@ -73,14 +73,6 @@ WlrLayershell {
     isDestroyed = true;
     transitionAnim.stop();
     wallpaperConnections.enabled = false;
-    currentWallpaper.source = "";
-    nextWallpaper.source = "";
-    currentWallpaper.sourceSize = Qt.size(0, 0);
-    nextWallpaper.sourceSize = Qt.size(0, 0);
-    pendingWallpaperUrl = "";
-    waitingForCurrentReady = false;
-    pendingProgressReset = false;
-    Qt.callLater(tryGarbageCollect);
   }
 
   function commitNextWallpaper(resetProgress) {
@@ -95,7 +87,6 @@ WlrLayershell {
       if (currentWallpaper.source) {
         const tempSource = nextWallpaper.source;
         currentWallpaper.source = tempSource;
-        Qt.callLater(tryGarbageCollect);
       } else {
         currentWallpaper.source = nextWallpaper.source;
       }
@@ -115,7 +106,6 @@ WlrLayershell {
       pendingProgressReset = false;
       if (String(nextWallpaper.source) === String(currentWallpaper.source)) {
         nextWallpaper.source = "";
-        tryGarbageCollect();
       }
       waitingForCurrentReady = false;
       Qt.callLater(processPendingWallpaper);
@@ -156,11 +146,6 @@ WlrLayershell {
       stripesAngle = Math.random() * 360;
       break;
     }
-  }
-
-  function tryGarbageCollect() {
-    if (typeof gc === "function")
-      gc();
   }
 
   exclusionMode: ExclusionMode.Ignore

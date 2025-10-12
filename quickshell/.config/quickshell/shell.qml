@@ -75,7 +75,6 @@ ShellRoot {
 
   LazyLoader {
     active: NotificationService?.visibleNotifications?.length > 0
-    activeAsync: true
 
     component: NotificationPopup {
       modelData: MonitorService ? MonitorService.effectiveMainScreen : null

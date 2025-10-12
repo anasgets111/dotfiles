@@ -115,10 +115,6 @@ Singleton {
       root.startFetchCycle();
     }
   }
-  Component.onDestruction: {
-    root.history = [];
-    store.textHistoryJson = "[]";
-  }
   onEnabledChanged: {
     watcher.running = root.enabled;
     if (root.enabled)

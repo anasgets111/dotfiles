@@ -25,13 +25,6 @@ Scope {
 
       color: "transparent"
 
-      Component.onDestruction: {
-        // Clear image source and disable layer effects to free GPU/memory resources
-        wallpaperImage.source = "";
-        if (typeof gc === "function")
-          gc();
-      }
-
       FocusScope {
         anchors.fill: parent
         focus: true

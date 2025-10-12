@@ -61,7 +61,6 @@ Item {
 
   Component.onDestruction: {
     tickTimer.stop();
-    counting = false;
   }
 
   Process {

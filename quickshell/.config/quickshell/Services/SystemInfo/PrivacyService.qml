@@ -160,11 +160,6 @@ Singleton {
     return s === "true" || s === "1";
   }
 
-  Component.onDestruction: {
-    nodeTracker.objects = [];
-    linkTracker.objects = [];
-  }
-
   // PipeWire binding to expose full properties (e.g., audio.muted)
   PwObjectTracker {
     id: nodeTracker

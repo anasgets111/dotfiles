@@ -18,7 +18,7 @@ Item {
   readonly property string text: {
     if (!hasActive)
       return "Desktop";
-    const name = Utils.resolveDesktopEntry(appId)?.name || appId;
+    const name = appId;
     const display = name === "Zen Browser" ? title : !title ? (name || "Desktop") : !name ? title : `${name}: ${title}`;
     return display.length > maxLength ? display.slice(0, maxLength - 3) + "..." : display;
   }

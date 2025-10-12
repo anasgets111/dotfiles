@@ -93,11 +93,6 @@ Singleton {
       passwordBuffer = "";
       authState = "";
       authenticating = false;
-      // Trigger GC after unlock to clean up layer textures
-      Qt.callLater(() => {
-        if (typeof gc === "function")
-          gc();
-      });
     }
   }
 

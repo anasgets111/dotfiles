@@ -1,7 +1,6 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import Quickshell.Io
 
 Singleton {
   id: root
@@ -125,18 +124,11 @@ Singleton {
     `, root);
   }
 
-  function resolveDesktopEntry(idOrName) {
-    const key = String(idOrName ?? "");
-    if (!key || typeof DesktopEntries === "undefined")
-      return null;
-    try {
-      return DesktopEntries.heuristicLookup(key) ?? DesktopEntries.byId(key) ?? null;
-    } catch (_) {
-      return null;
-    }
-  }
-
   function resolveIconSource(key, providedOrFallback, maybeFallback) {
+    const hasFallback = arguments.length >= 3;
+    const explicitProvided = hasFallback ? providedOrFallback : null;
+    const fallbackCandidate = hasFallback ? maybeFallback : providedOrFallback;
+
     const toIcon = candidate => {
       if (!candidate)
         return "";
@@ -152,13 +144,7 @@ Singleton {
       }
     };
 
-    const hasFallback = arguments.length >= 3;
-    const explicitProvided = hasFallback ? providedOrFallback : null;
-    const fallbackCandidate = hasFallback ? maybeFallback : providedOrFallback;
-
-    const entry = root.resolveDesktopEntry(key);
-    const resolved = toIcon(entry?.icon) || toIcon(key) || toIcon(explicitProvided);
-    return resolved || toIcon(fallbackCandidate ?? "application-x-executable");
+    return toIcon(explicitProvided) || toIcon(key) || toIcon(fallbackCandidate ?? "application-x-executable");
   }
 
   function runCmd(cmd, onDone) {
@@ -236,21 +222,15 @@ Singleton {
         if (slot.process)
           slot.process.destroy();
       });
-      slot.callback = null;
     };
 
     if (root.ledMonitor?.running)
       root.ledMonitor.running = false;
-    root.ledWatchers.length = 0;
 
     if (root.commandSlots)
       root.commandSlots.forEach(cleanupSlot);
 
     if (root.ledMonitor)
       Qt.callLater(() => root.ledMonitor?.destroy());
-    Qt.callLater(() => {
-      if (typeof gc === "function")
-        gc();
-    });
   }
 }
