@@ -6,10 +6,10 @@ Item {
   id: dateTimeDisplay
 
   property string formattedDateTime: TimeService.format("datetime")
+  readonly property bool hasNotifications: notificationCount > 0
+  readonly property int notificationCount: NotificationService.notifications?.length || 0
   property string weatherIcon: WeatherService.getWeatherIconFromCode()
   property string weatherText: WeatherService.currentTemp
-  readonly property int notificationCount: NotificationService.notifications?.length || 0
-  readonly property bool hasNotifications: notificationCount > 0
 
   height: Theme.itemHeight
   width: mainRow.width
@@ -28,21 +28,24 @@ Item {
 
   Row {
     id: mainRow
+
     anchors.centerIn: parent
     anchors.verticalCenterOffset: 0
-    spacing: 6
     height: parent.height
+    spacing: 6
 
     // Notification indicator
     Text {
       id: notifIndicator
+
       anchors.verticalCenter: parent.verticalCenter
       color: dateTimeDisplay.hasNotifications ? Theme.activeColor : Theme.textContrast(mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
-      verticalAlignment: Text.AlignVCenter
       leftPadding: 8
       text: dateTimeDisplay.hasNotifications ? "󱅫 " + dateTimeDisplay.notificationCount : " "
+      verticalAlignment: Text.AlignVCenter
+
       Behavior on color {
         ColorAnimation {
           duration: Theme.animationDuration
@@ -52,15 +55,16 @@ Item {
 
     Text {
       id: textItem
+
       anchors.verticalCenter: parent.verticalCenter
       color: Theme.textContrast(mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
       font.bold: true
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
-      verticalAlignment: Text.AlignVCenter
       leftPadding: 0
       rightPadding: 8
       text: WeatherService.currentTemp + " " + dateTimeDisplay.formattedDateTime
+      verticalAlignment: Text.AlignVCenter
 
       Behavior on color {
         ColorAnimation {
@@ -111,6 +115,7 @@ Item {
       color: Theme.onHoverColor
       radius: Theme.itemRadius
     }
+
     Column {
       id: tooltipColumn
 
@@ -134,6 +139,7 @@ Item {
           font.pixelSize: Theme.fontSize
           text: WeatherService.getWeatherDescriptionFromCode()
         }
+
         Text {
           color: Theme.textContrast(Theme.onHoverColor)
           font.family: Theme.fontFamily
@@ -146,12 +152,15 @@ Item {
       // Load the calendar immediately (simple Loader vs LazyLoader to avoid hover teardown issues)
       Loader {
         id: calendarLoader
+
+        active: mouseArea.containsMouse
         // Always load the calendar so it is ready instantly when tooltip appears
         asynchronous: true
-        active: mouseArea.containsMouse
         visible: mouseArea.containsMouse
+
         sourceComponent: MinimalCalendar {
           id: calendar
+
           theme: Theme
           // Ensure 'today' is a Date object for MinimalCalendar
           today: TimeService.now
@@ -175,6 +184,7 @@ Item {
   // Loader for lazy-loading the panel
   Loader {
     id: notificationPanelLoader
+
     active: false
     sourceComponent: notificationPanelComponent
 

@@ -11,26 +11,12 @@ Item {
   id: root
 
   readonly property var bt: BluetoothService
-  readonly property var connectedDevices: bt?.devices.filter(d => d?.connected) ?? []
-  readonly property var pairedDevices: bt?.pairedDevices ?? []
-  readonly property var sortedConnected: connectedDevices.length > 1 ? bt?.sortDevices(connectedDevices) ?? [] : connectedDevices
-  readonly property var topDevice: sortedConnected[0] ?? null
-
   readonly property string btIcon: {
     if (!bt?.available || !bt.enabled)
       return "󰂲";
     return connectedDevices.length > 0 ? "󰂱" : "󰂯";
   }
-
-  readonly property string titleText: {
-    if (!bt?.available)
-      return qsTr("Bluetooth: unavailable");
-    if (!bt.enabled)
-      return qsTr("Bluetooth: off");
-    const n = connectedDevices.length;
-    return n > 0 ? qsTr("Bluetooth: connected (%1)").arg(n) : qsTr("Bluetooth: on");
-  }
-
+  readonly property var connectedDevices: bt?.devices.filter(d => d?.connected) ?? []
   readonly property string detailText1: {
     if (!bt?.available)
       return "";
@@ -48,7 +34,6 @@ Item {
     }
     return "";
   }
-
   readonly property string detailText2: {
     if (!bt?.available)
       return "";
@@ -59,12 +44,33 @@ Item {
       return bt.discovering ? qsTr("Scanning is active") : "";
     return "";
   }
+  readonly property var pairedDevices: bt?.pairedDevices ?? []
+  readonly property var sortedConnected: connectedDevices.length > 1 ? bt?.sortDevices(connectedDevices) ?? [] : connectedDevices
+  readonly property string titleText: {
+    if (!bt?.available)
+      return qsTr("Bluetooth: unavailable");
+    if (!bt.enabled)
+      return qsTr("Bluetooth: off");
+    const n = connectedDevices.length;
+    return n > 0 ? qsTr("Bluetooth: connected (%1)").arg(n) : qsTr("Bluetooth: on");
+  }
+  readonly property var topDevice: sortedConnected[0] ?? null
+
+  function refreshAdapter() {
+    if (!bt || typeof Bluetooth === 'undefined')
+      return;
+    const prop = "default" + "Adapter";
+    bt.setAdapter(Bluetooth[prop]);
+  }
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
 
+  Component.onCompleted: refreshAdapter()
+
   IconButton {
     id: iconButton
+
     enabled: true
     icon: root.btIcon
     tooltipText: [root.titleText, root.detailText1, root.detailText2].filter(t => t?.length > 0).join("\n")
@@ -88,6 +94,7 @@ Item {
   // Loader for lazy-loading the panel
   Loader {
     id: bluetoothPanelLoader
+
     active: false
     sourceComponent: bluetoothPanelComponent
 
@@ -98,19 +105,11 @@ Item {
     }
   }
 
-  function refreshAdapter() {
-    if (!bt || typeof Bluetooth === 'undefined')
-      return;
-    const prop = "default" + "Adapter";
-    bt.setAdapter(Bluetooth[prop]);
-  }
-
-  Component.onCompleted: refreshAdapter()
-
   Connections {
-    target: typeof Bluetooth !== 'undefined' ? Bluetooth : null
     function onDefaultAdapterChanged() {
       root.refreshAdapter();
     }
+
+    target: typeof Bluetooth !== 'undefined' ? Bluetooth : null
   }
 }

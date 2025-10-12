@@ -10,11 +10,10 @@ Singleton {
   id: root
 
   readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
-  property bool enabled: active
-
   property string activeSpecial: ""
   property int currentWorkspace: 1
   property int currentWorkspaceId: 1
+  property bool enabled: active
   property string focusedOutput: ""
   property var groupBoundaries: []
   property var monitors: []
@@ -27,20 +26,10 @@ Singleton {
     if (enabled && index)
       Hyprland.dispatch("workspace " + index);
   }
+
   function focusWorkspaceByObject(ws) {
     if (enabled && ws?.id)
       focusWorkspaceByIndex(ws.id);
-  }
-  function refresh() {
-    if (enabled) {
-      Hyprland.refreshMonitors();
-      Hyprland.refreshWorkspaces();
-      Qt.callLater(recompute);
-    }
-  }
-  function toggleSpecial(name) {
-    if (enabled && name)
-      Hyprland.dispatch("togglespecialworkspace " + name);
   }
 
   function recompute() {
@@ -114,10 +103,26 @@ Singleton {
     }
   }
 
+  function refresh() {
+    if (enabled) {
+      Hyprland.refreshMonitors();
+      Hyprland.refreshWorkspaces();
+      Qt.callLater(recompute);
+    }
+  }
+
+  function toggleSpecial(name) {
+    if (enabled && name)
+      Hyprland.dispatch("togglespecialworkspace " + name);
+  }
+
   Component.onCompleted: {
     if (enabled)
       refresh();
     _startupKick.start();
+  }
+  Component.onDestruction: {
+    _startupKick.stop();
   }
   onActiveChanged: {
     if (active) {
@@ -138,15 +143,13 @@ Singleton {
     refresh()
 
   Connections {
-    enabled: root.enabled
-    target: enabled ? Hyprland : null
-
     function onFocusedMonitorChanged() {
       if (!enabled)
         return;
       root.focusedOutput = Hyprland.focusedMonitor?.name || "";
       root.recompute();
     }
+
     function onRawEvent(evt) {
       if (!enabled || !evt?.name)
         return;
@@ -175,17 +178,18 @@ Singleton {
         break;
       }
     }
+
+    enabled: root.enabled
+    target: enabled ? Hyprland : null
   }
 
   Timer {
     id: _startupKick
+
     interval: 200
     repeat: false
+
     onTriggered: if (root.enabled)
       root.refresh()
-  }
-
-  Component.onDestruction: {
-    _startupKick.stop();
   }
 }

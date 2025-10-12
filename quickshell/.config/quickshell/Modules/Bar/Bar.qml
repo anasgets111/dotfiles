@@ -7,22 +7,28 @@ import qs.Services.WM
 PanelWindow {
   id: panelWindow
 
-  // Track expansion sources separately
-  property bool workspacesExpanded: false
-  // from LeftSide (Normal/Niri workspaces)
-  property bool rightSideExpanded: false
   // from RightSide (e.g., Volume hover)
   readonly property bool centerShouldHide: workspacesExpanded || rightSideExpanded
+  // from LeftSide (Normal/Niri workspaces)
+  property bool rightSideExpanded: false
   property bool screenChanging: false
+
+  // Track expansion sources separately
+  property bool workspacesExpanded: false
 
   signal wallpaperPickerRequested
 
   WlrLayershell.namespace: "quickshell:bar:blur"
   color: Theme.panelWindowColor
-  surfaceFormat.opaque: false
   exclusiveZone: Theme.panelHeight
   implicitHeight: panelWindow.screen.height
   screen: MonitorService.effectiveMainScreen
+  surfaceFormat.opaque: false
+
+  mask: Region {
+    item: panelRect
+  }
+
   onScreenChanged: {
     if (panelWindow.screenChanging)
       return;
@@ -51,6 +57,7 @@ PanelWindow {
 
     LeftSide {
       normalWorkspacesExpanded: panelWindow.workspacesExpanded
+
       onNormalWorkspacesExpandedChanged: panelWindow.workspacesExpanded = normalWorkspacesExpanded
       onWallpaperPickerRequested: panelWindow.wallpaperPickerRequested()
 
@@ -63,6 +70,7 @@ PanelWindow {
 
     RightSide {
       normalWorkspacesExpanded: panelWindow.rightSideExpanded
+
       onNormalWorkspacesExpandedChanged: panelWindow.rightSideExpanded = normalWorkspacesExpanded
 
       anchors {
@@ -116,9 +124,5 @@ PanelWindow {
       orientation: 1 // TOP_RIGHT
       radius: Theme.panelRadius
     }
-  }
-
-  mask: Region {
-    item: panelRect
   }
 }

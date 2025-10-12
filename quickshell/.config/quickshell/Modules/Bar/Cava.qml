@@ -13,11 +13,11 @@ Singleton {
   // Colors from cava config for visualization
   property var gradientColors: ["#3b3c59", "#4b4464", "#4b4464", "#6d5276", "#7f597e", "#926184", "#a4688a", "#b6708e", "#c87990", "#d98292"]
   property bool isRunning: false
-  property int restartCount: 0
-  readonly property int maxRestarts: 5
 
   // Lighter version of gradient colors for visualization
   property var lighterGradientColors: gradientColors.map(color => Qt.lighter(color, 1.4))
+  readonly property int maxRestarts: 5
+  property int restartCount: 0
   property var values: []
 
   // Start the cava process
@@ -51,6 +51,7 @@ Singleton {
 
     stdout: SplitParser {
       splitMarker: "\n"
+
       onRead: data => {
         const line = data.trim();
         if (!line)
@@ -83,7 +84,9 @@ Singleton {
 
   Timer {
     id: restartTimer
+
     repeat: false
+
     onTriggered: {
       if (root.isRunning) {
         cavaProcess.running = true;

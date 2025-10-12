@@ -138,11 +138,13 @@ Singleton {
 
   Socket {
     id: requestSocket
+
     connected: root.active && !!root.socketPath
     path: root.socketPath
 
     parser: SplitParser {
       splitMarker: "\n"
+
       onRead: message => {
         if (!message)
           return;
@@ -165,11 +167,13 @@ Singleton {
 
   Socket {
     id: eventStreamSocket
+
     connected: root.active && !!root.socketPath
     path: root.socketPath
 
     parser: SplitParser {
       splitMarker: "\n"
+
       onRead: message => {
         const evt = message && root.json(message);
         if (evt?.ConfigLoaded)

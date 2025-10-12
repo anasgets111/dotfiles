@@ -9,65 +9,17 @@ import qs.Services.Core
 
 OPanel {
   id: root
-  panelNamespace: "obelisk-network-panel"
 
-  readonly property bool ready: NetworkService.ready
-  readonly property bool networkingEnabled: NetworkService.networkingEnabled
-  readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
-  readonly property var wifiAps: NetworkService.wifiAps || []
-  readonly property var savedConnections: NetworkService.savedWifiAps || []
-
-  property string passwordSsid: ""
-  property string passwordError: ""
-
-  readonly property int maxItems: 7
   readonly property int itemHeight: Theme.itemHeight
+  readonly property int maxItems: 7
+  readonly property bool networkingEnabled: NetworkService.networkingEnabled
   readonly property int padding: 8
-
-  panelWidth: passwordSsid ? 350 : 350
-  needsKeyboardFocus: passwordSsid !== ""
-
-  onClosed: resetPasswordState()
-
-  Connections {
-    target: NetworkService
-
-    function onConnectionError(ssid, errorMessage) {
-      if (ssid === root.passwordSsid)
-        root.passwordError = errorMessage;
-    }
-
-    function onConnectionStateChanged() {
-      const ap = root.wifiAps.find(a => a?.ssid === root.passwordSsid && a.connected);
-      if (ap) {
-        root.resetPasswordState();
-        root.close();
-      }
-    }
-
-    function onWifiRadioStateChanged() {
-      root.syncToggles();
-    }
-    function onNetworkingEnabledChanged() {
-      root.syncToggles();
-    }
-  }
-
-  Component.onCompleted: syncToggles()
-
-  function syncToggles() {
-    networkToggle.checked = NetworkService.networkingEnabled;
-    wifiToggle.checked = NetworkService.wifiRadioEnabled;
-  }
-
-  function resetPasswordState() {
-    passwordSsid = "";
-    passwordError = "";
-  }
-
-  function findSavedConn(ssid) {
-    return savedConnections.find(c => c?.ssid === ssid);
-  }
+  property string passwordError: ""
+  property string passwordSsid: ""
+  readonly property bool ready: NetworkService.ready
+  readonly property var savedConnections: NetworkService.savedWifiAps || []
+  readonly property var wifiAps: NetworkService.wifiAps || []
+  readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
 
   function buildNetworkList() {
     if (!ready || !networkingEnabled || !wifiEnabled)
@@ -108,6 +60,10 @@ OPanel {
       });
     }
     return networks;
+  }
+
+  function findSavedConn(ssid) {
+    return savedConnections.find(c => c?.ssid === ssid);
   }
 
   function handleAction(action: string, data: var) {
@@ -159,11 +115,53 @@ OPanel {
     }
   }
 
+  function resetPasswordState() {
+    passwordSsid = "";
+    passwordError = "";
+  }
+
+  function syncToggles() {
+    networkToggle.checked = NetworkService.networkingEnabled;
+    wifiToggle.checked = NetworkService.wifiRadioEnabled;
+  }
+
+  needsKeyboardFocus: passwordSsid !== ""
+  panelNamespace: "obelisk-network-panel"
+  panelWidth: passwordSsid ? 350 : 350
+
+  Component.onCompleted: syncToggles()
+  onClosed: resetPasswordState()
+
+  Connections {
+    function onConnectionError(ssid, errorMessage) {
+      if (ssid === root.passwordSsid)
+        root.passwordError = errorMessage;
+    }
+
+    function onConnectionStateChanged() {
+      const ap = root.wifiAps.find(a => a?.ssid === root.passwordSsid && a.connected);
+      if (ap) {
+        root.resetPasswordState();
+        root.close();
+      }
+    }
+
+    function onNetworkingEnabledChanged() {
+      root.syncToggles();
+    }
+
+    function onWifiRadioStateChanged() {
+      root.syncToggles();
+    }
+
+    target: NetworkService
+  }
+
   ColumnLayout {
+    spacing: 4
     width: parent.width - root.padding * 2
     x: root.padding
     y: root.padding
-    spacing: 4
 
     // Toggle Cards Row
     RowLayout {
@@ -174,11 +172,11 @@ OPanel {
       Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: networkCol.implicitHeight + root.padding * 1.2
-        radius: Theme.itemRadius
-        color: Qt.lighter(Theme.bgColor, 1.35)
-        border.width: 1
         border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+        border.width: 1
+        color: Qt.lighter(Theme.bgColor, 1.35)
         opacity: root.ready ? 1 : 0.5
+        radius: Theme.itemRadius
 
         Behavior on opacity {
           NumberAnimation {
@@ -188,26 +186,27 @@ OPanel {
 
         ColumnLayout {
           id: networkCol
+
           anchors.fill: parent
           anchors.margins: root.padding * 0.9
           spacing: root.padding * 0.4
 
           OText {
-            text: qsTr("Networking")
-            font.bold: true
             color: root.ready ? Theme.textActiveColor : Theme.textInactiveColor
+            font.bold: true
+            text: qsTr("Networking")
           }
 
           RowLayout {
             spacing: root.padding * 0.9
 
             Rectangle {
-              implicitWidth: Theme.itemHeight * 0.9
-              implicitHeight: implicitWidth
-              radius: height / 2
-              color: root.ready ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
-              border.width: 1
               border.color: Qt.rgba(0, 0, 0, 0.12)
+              border.width: 1
+              color: root.ready ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
+              implicitHeight: implicitWidth
+              implicitWidth: Theme.itemHeight * 0.9
+              radius: height / 2
 
               Behavior on color {
                 ColorAnimation {
@@ -216,11 +215,11 @@ OPanel {
               }
 
               Text {
-                text: "󰤨"
                 anchors.centerIn: parent
+                color: root.ready ? Theme.textContrast(parent.color) : Theme.textInactiveColor
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize * 0.95
-                color: root.ready ? Theme.textContrast(parent.color) : Theme.textInactiveColor
+                text: "󰤨"
               }
             }
 
@@ -230,9 +229,11 @@ OPanel {
 
             OToggle {
               id: networkToggle
-              Layout.preferredWidth: Theme.itemHeight * 2.6
+
               Layout.preferredHeight: Theme.itemHeight * 0.72
+              Layout.preferredWidth: Theme.itemHeight * 2.6
               disabled: !root.ready
+
               onToggled: checked => NetworkService.setNetworkingEnabled(checked)
             }
           }
@@ -243,11 +244,11 @@ OPanel {
       Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: wifiCol.implicitHeight + root.padding * 1.2
-        radius: Theme.itemRadius
-        color: Qt.lighter(Theme.bgColor, 1.35)
-        border.width: 1
         border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+        border.width: 1
+        color: Qt.lighter(Theme.bgColor, 1.35)
         opacity: root.ready && root.networkingEnabled ? 1 : 0.5
+        radius: Theme.itemRadius
 
         Behavior on opacity {
           NumberAnimation {
@@ -257,26 +258,27 @@ OPanel {
 
         ColumnLayout {
           id: wifiCol
+
           anchors.fill: parent
           anchors.margins: root.padding * 0.9
           spacing: root.padding * 0.4
 
           OText {
-            text: qsTr("Wi-Fi")
-            font.bold: true
             color: root.ready && root.networkingEnabled ? Theme.textActiveColor : Theme.textInactiveColor
+            font.bold: true
+            text: qsTr("Wi-Fi")
           }
 
           RowLayout {
             spacing: root.padding * 0.9
 
             Rectangle {
-              implicitWidth: Theme.itemHeight * 0.9
-              implicitHeight: implicitWidth
-              radius: height / 2
-              color: root.ready && root.networkingEnabled ? Qt.lighter(Theme.onHoverColor, 1.25) : Qt.darker(Theme.inactiveColor, 1.1)
-              border.width: 1
               border.color: Qt.rgba(0, 0, 0, 0.12)
+              border.width: 1
+              color: root.ready && root.networkingEnabled ? Qt.lighter(Theme.onHoverColor, 1.25) : Qt.darker(Theme.inactiveColor, 1.1)
+              implicitHeight: implicitWidth
+              implicitWidth: Theme.itemHeight * 0.9
+              radius: height / 2
 
               Behavior on color {
                 ColorAnimation {
@@ -285,11 +287,11 @@ OPanel {
               }
 
               Text {
-                text: "󰒓"
                 anchors.centerIn: parent
+                color: root.ready && root.networkingEnabled ? Theme.textContrast(parent.color) : Theme.textInactiveColor
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize * 0.95
-                color: root.ready && root.networkingEnabled ? Theme.textContrast(parent.color) : Theme.textInactiveColor
+                text: "󰒓"
               }
             }
 
@@ -299,9 +301,11 @@ OPanel {
 
             OToggle {
               id: wifiToggle
-              Layout.preferredWidth: Theme.itemHeight * 2.6
+
               Layout.preferredHeight: Theme.itemHeight * 0.72
+              Layout.preferredWidth: Theme.itemHeight * 2.6
               disabled: !root.ready || !root.networkingEnabled
+
               onToggled: checked => NetworkService.setWifiRadioEnabled(checked)
             }
           }
@@ -311,43 +315,45 @@ OPanel {
 
     // Network List
     Rectangle {
+      Layout.bottomMargin: root.padding * 2
       Layout.fillWidth: true
       Layout.topMargin: root.padding
-      Layout.bottomMargin: root.padding * 2
-      radius: Theme.itemRadius
-      color: Qt.lighter(Theme.bgColor, 1.25)
-      border.width: 1
       border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
-      visible: root.ready && root.networkingEnabled && root.wifiEnabled && networkList.count > 0
+      border.width: 1
       clip: true
+      color: Qt.lighter(Theme.bgColor, 1.25)
       implicitHeight: visible ? networkList.implicitHeight + root.padding * 1.4 : 0
+      radius: Theme.itemRadius
+      visible: root.ready && root.networkingEnabled && root.wifiEnabled && networkList.count > 0
 
       ListView {
         id: networkList
+
         anchors.fill: parent
         anchors.margins: root.padding * 0.8
-        spacing: 4
-        clip: true
         boundsBehavior: Flickable.StopAtBounds
+        clip: true
         implicitHeight: Math.min(contentHeight, root.maxItems * root.itemHeight + (root.maxItems - 1) * 4)
         interactive: contentHeight > height
         model: root.buildNetworkList()
+        spacing: 4
 
         ScrollBar.vertical: ScrollBar {
           policy: networkList.contentHeight > networkList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
           width: 8
         }
-
         delegate: NetworkItem {
           id: delegateItem
+
           width: ListView.view.width
+
+          onPasswordCleared: root.passwordError = ""
           onTriggered: (action, data) => {
             root.handleAction(action, data);
             if (!action.startsWith("connect-") || delegateItem.modelData.connected || delegateItem.modelData.isSaved) {
               root.close();
             }
           }
-          onPasswordCleared: root.passwordError = ""
         }
       }
     }
@@ -355,23 +361,23 @@ OPanel {
 
   component NetworkItem: Item {
     id: networkItem
-    required property var modelData
-
-    readonly property bool isInput: networkItem.modelData.type === "input"
-    readonly property color textColor: networkItem.hovered ? Theme.textOnHoverColor : Theme.textActiveColor
 
     property bool hovered: false
+    readonly property bool isInput: networkItem.modelData.type === "input"
+    required property var modelData
+    readonly property color textColor: networkItem.hovered ? Theme.textOnHoverColor : Theme.textActiveColor
 
-    signal triggered(string action, var data)
     signal passwordCleared
+    signal triggered(string action, var data)
 
     height: networkItem.isInput ? (networkItem.modelData.hasError ? Theme.itemHeight * 1.6 : Theme.itemHeight * 0.8) : Theme.itemHeight
 
     Rectangle {
       anchors.fill: parent
-      visible: !networkItem.isInput
       color: networkItem.hovered ? Theme.onHoverColor : "transparent"
       radius: Theme.itemRadius
+      visible: !networkItem.isInput
+
       Behavior on color {
         ColorAnimation {
           duration: Theme.animationDuration
@@ -386,21 +392,24 @@ OPanel {
 
     Component {
       id: actionComp
+
       RowLayout {
         spacing: 8
 
         Item {
-          Layout.preferredWidth: Theme.fontSize * 1.5
-          Layout.preferredHeight: Theme.itemHeight
           Layout.leftMargin: root.padding
+          Layout.preferredHeight: Theme.itemHeight
+          Layout.preferredWidth: Theme.fontSize * 1.5
 
           Text {
             id: networkIcon
-            text: networkItem.modelData.icon || ""
+
+            anchors.centerIn: parent
+            color: networkItem.modelData.bandColor || networkItem.textColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
-            color: networkItem.modelData.bandColor || networkItem.textColor
-            anchors.centerIn: parent
+            text: networkItem.modelData.icon || ""
+
             Behavior on color {
               ColorAnimation {
                 duration: Theme.animationDuration
@@ -409,15 +418,16 @@ OPanel {
           }
 
           Text {
-            text: networkItem.modelData.band === "2.4" ? "2.4" : networkItem.modelData.band
-            font.family: "Roboto Condensed"
-            font.pixelSize: Theme.fontSize * 0.5
-            font.bold: true
-            color: networkItem.modelData.bandColor || networkItem.textColor
+            anchors.bottom: networkIcon.bottom
             anchors.left: networkIcon.right
             anchors.leftMargin: -2
-            anchors.bottom: networkIcon.bottom
+            color: networkItem.modelData.bandColor || networkItem.textColor
+            font.bold: true
+            font.family: "Roboto Condensed"
+            font.pixelSize: Theme.fontSize * 0.5
+            text: networkItem.modelData.band === "2.4" ? "2.4" : networkItem.modelData.band
             visible: networkItem.modelData.band !== ""
+
             Behavior on color {
               ColorAnimation {
                 duration: Theme.animationDuration
@@ -427,11 +437,12 @@ OPanel {
         }
 
         Text {
-          text: networkItem.modelData.label || ""
+          Layout.fillWidth: true
+          color: networkItem.textColor
           font.family: Theme.fontFamily
           font.pixelSize: Theme.fontSize
-          color: networkItem.textColor
-          Layout.fillWidth: true
+          text: networkItem.modelData.label || ""
+
           Behavior on color {
             ColorAnimation {
               duration: Theme.animationDuration
@@ -442,31 +453,34 @@ OPanel {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             hoverEnabled: true
+
+            onClicked: networkItem.triggered(networkItem.modelData.action || "", {})
             onEntered: networkItem.hovered = true
             onExited: networkItem.hovered = false
-            onClicked: networkItem.triggered(networkItem.modelData.action || "", {})
           }
         }
 
         IconButton {
-          visible: networkItem.modelData.forgetIcon !== undefined
-          Layout.preferredWidth: Theme.itemHeight * 0.8
           Layout.preferredHeight: Theme.itemHeight * 0.8
+          Layout.preferredWidth: Theme.itemHeight * 0.8
           Layout.rightMargin: 4
-          icon: networkItem.modelData.forgetIcon || ""
           colorBg: "#F38BA8"
+          icon: networkItem.modelData.forgetIcon || ""
           tooltipText: qsTr("Forget Network")
+          visible: networkItem.modelData.forgetIcon !== undefined
+
           onClicked: networkItem.triggered("forget-" + networkItem.modelData.ssid, {})
         }
 
         IconButton {
-          visible: networkItem.modelData.actionIcon !== undefined
-          Layout.preferredWidth: Theme.itemHeight * 0.8
           Layout.preferredHeight: Theme.itemHeight * 0.8
+          Layout.preferredWidth: Theme.itemHeight * 0.8
           Layout.rightMargin: root.padding
-          icon: networkItem.modelData.actionIcon || ""
           colorBg: Theme.activeColor
+          icon: networkItem.modelData.actionIcon || ""
           tooltipText: networkItem.modelData.connected ? qsTr("Disconnect") : qsTr("Connect")
+          visible: networkItem.modelData.actionIcon !== undefined
+
           onClicked: networkItem.triggered(networkItem.modelData.action || "", {})
         }
       }
@@ -474,15 +488,16 @@ OPanel {
 
     Component {
       id: inputComp
+
       RowLayout {
         spacing: 8
 
         Text {
-          text: networkItem.modelData.icon || ""
+          Layout.leftMargin: root.padding
+          color: networkItem.textColor
           font.family: Theme.fontFamily
           font.pixelSize: Theme.fontSize
-          color: networkItem.textColor
-          Layout.leftMargin: root.padding
+          text: networkItem.modelData.icon || ""
         }
 
         ColumnLayout {
@@ -497,9 +512,9 @@ OPanel {
             Rectangle {
               Layout.fillWidth: true
               Layout.preferredHeight: Theme.itemHeight * 0.8
-              color: Theme.bgColor
               border.color: networkItem.modelData.hasError ? Theme.critical : (passwordField.activeFocus ? Theme.activeColor : Theme.borderColor)
               border.width: networkItem.modelData.hasError ? 2 : 1
+              color: Theme.bgColor
               radius: Theme.itemRadius
 
               Behavior on border.color {
@@ -510,24 +525,23 @@ OPanel {
 
               TextField {
                 id: passwordField
+
                 anchors.fill: parent
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
-
-                placeholderText: networkItem.modelData.placeholder || ""
+                color: Theme.textActiveColor
                 echoMode: TextInput.Password
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
-                color: Theme.textActiveColor
-                selectionColor: Theme.activeColor
+                placeholderText: networkItem.modelData.placeholder || ""
                 selectedTextColor: Theme.textContrast(Theme.activeColor)
+                selectionColor: Theme.activeColor
 
                 background: Rectangle {
                   color: "transparent"
                 }
 
-                onTextChanged: networkItem.passwordCleared()
-
+                Component.onCompleted: Qt.callLater(() => passwordField.forceActiveFocus())
                 Keys.onPressed: event => {
                   if (event.key === Qt.Key_Escape) {
                     event.accepted = true;
@@ -541,27 +555,28 @@ OPanel {
                     }
                   }
                 }
-
-                Component.onCompleted: Qt.callLater(() => passwordField.forceActiveFocus())
+                onTextChanged: networkItem.passwordCleared()
               }
             }
 
             IconButton {
-              Layout.preferredWidth: Theme.itemHeight * 0.8
               Layout.preferredHeight: Theme.itemHeight * 0.8
-              icon: "󰅖"
+              Layout.preferredWidth: Theme.itemHeight * 0.8
               colorBg: Theme.inactiveColor
+              icon: "󰅖"
               tooltipText: qsTr("Cancel")
+
               onClicked: networkItem.triggered("cancel", {})
             }
 
             IconButton {
-              Layout.preferredWidth: Theme.itemHeight * 0.8
               Layout.preferredHeight: Theme.itemHeight * 0.8
-              icon: networkItem.modelData.hasError ? "󰀦" : "󰌘"
+              Layout.preferredWidth: Theme.itemHeight * 0.8
               colorBg: networkItem.modelData.hasError ? "#F38BA8" : Theme.activeColor
               enabled: passwordField.text !== ""
+              icon: networkItem.modelData.hasError ? "󰀦" : "󰌘"
               tooltipText: networkItem.modelData.hasError ? qsTr("Retry") : qsTr("Submit")
+
               onClicked: {
                 if (passwordField.text !== "") {
                   networkItem.triggered(networkItem.modelData.action || "", {
@@ -573,13 +588,14 @@ OPanel {
           }
 
           Text {
-            visible: networkItem.modelData.hasError && networkItem.modelData.errorMessage !== ""
-            text: "⚠ " + (networkItem.modelData.errorMessage || "")
+            Layout.fillWidth: true
+            color: "#F38BA8"
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize * 0.85
-            color: "#F38BA8"
-            Layout.fillWidth: true
             opacity: visible ? 1 : 0
+            text: "⚠ " + (networkItem.modelData.errorMessage || "")
+            visible: networkItem.modelData.hasError && networkItem.modelData.errorMessage !== ""
+
             Behavior on opacity {
               NumberAnimation {
                 duration: Theme.animationDuration

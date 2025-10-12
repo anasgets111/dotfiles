@@ -11,27 +11,37 @@ Row {
   id: leftSide
 
   required property bool normalWorkspacesExpanded
-  signal wallpaperPickerRequested
-  spacing: 8
-  Loader {
-    anchors.verticalCenter: parent.verticalCenter
-    active: true
-    sourceComponent: PowerMenu {}
-  }
-  Loader {
-    anchors.verticalCenter: parent.verticalCenter
-    active: MainService.isArchBased
 
-    sourceComponent: ArchChecker {}
+  signal wallpaperPickerRequested
+
+  spacing: 8
+
+  Loader {
+    active: true
+    anchors.verticalCenter: parent.verticalCenter
+
+    sourceComponent: PowerMenu {
+    }
   }
+
+  Loader {
+    active: MainService.isArchBased
+    anchors.verticalCenter: parent.verticalCenter
+
+    sourceComponent: ArchChecker {
+    }
+  }
+
   IdleInhibitor {
     id: idleInhibitor
 
     anchors.verticalCenter: leftSide.verticalCenter
   }
+
   KeyboardLayoutIndicator {
     anchors.verticalCenter: leftSide.verticalCenter
   }
+
   Loader {
     active: BatteryService.isLaptopBattery
 
@@ -39,6 +49,7 @@ Row {
       anchors.verticalCenter: parent.verticalCenter
     }
   }
+
   IconButton {
     id: launcherButton
 
@@ -52,10 +63,13 @@ Row {
 
   WallpaperButton {
     id: wallpaperButton
+
     anchors.verticalCenter: parent.verticalCenter
     tooltipText: qsTr("Open wallpaper picker / right-click randomize")
+
     onPickerRequested: leftSide.wallpaperPickerRequested()
   }
+
   Loader {
     active: MainService.currentWM === "niri"
 
@@ -67,6 +81,7 @@ Row {
       onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
     }
   }
+
   Loader {
     active: MainService.currentWM === "hyprland"
 
@@ -76,6 +91,7 @@ Row {
       anchors.verticalCenter: parent.verticalCenter
     }
   }
+
   Loader {
     active: MainService.currentWM === "hyprland"
 

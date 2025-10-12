@@ -101,6 +101,7 @@ Singleton {
     property bool wasRecording: false
 
     reloadableId: "ScreenRecordingServiceState"
+
     onLoaded: {
       const script = `([ -e "${screenRecorder.lockPath}" ] && echo lock=yes || echo lock=no); (pgrep -f '^gpu-screen-recorder( |$)' >/dev/null && echo proc=yes || echo proc=no)`;
       Utils.runCmd(["sh", "-c", script], function (out) {

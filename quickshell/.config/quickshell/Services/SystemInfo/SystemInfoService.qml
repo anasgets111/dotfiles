@@ -9,6 +9,11 @@ import qs.Services.SystemInfo
 Singleton {
   id: root
 
+  // Reusable storage for df parsing
+  property var _storageDevices: ({})
+
+  // Uptime: computed from boot time, updates with TimeService clock
+  property real bootTimeMs: 0
   property real cpuPerc
   // ===== Readiness flags (avoid initial zeros) =====
   property bool cpuPercReady: false
@@ -38,18 +43,17 @@ Singleton {
   property bool storageReady: false
   property real storageTotal
   property real storageUsed
-
-  // Uptime: computed from boot time, updates with TimeService clock
-  property real bootTimeMs: 0
   readonly property string uptime: bootTimeMs > 0 ? (((Date.now() + 0 * TimeService.now) - bootTimeMs) / 1000).toFixed(2) : ""
 
   function fmtKib(v) {
     const f = formatKib(v || 0);
     return f.value.toFixed(1) + " " + f.unit;
   }
+
   function fmtPerc(v) {
     return root.isFiniteNumber(v) ? (v * 100).toFixed(1) + "%" : "-";
   }
+
   function formatKib(kib: real): var {
     const mib = 1024;
     const gib = 1024 ** 2;
@@ -80,11 +84,13 @@ Singleton {
   function isFiniteNumber(v) {
     return typeof v === "number" && isFinite(v);
   }
+
   function logMemory() {
     if (!root.memReady || !root.memTotal)
       return;
     Logger.log("SystemInfo", `Memory ${fmtKib(root.memUsed)} / ${fmtKib(root.memTotal)} (${fmtPerc(root.memPerc)})`);
   }
+
   function logSnapshot() {
     // CPU
     if (root.cpuPercReady && root.isFiniteNumber(cpuPerc))
@@ -101,6 +107,7 @@ Singleton {
     if (root.gpuTempReady && root.isFiniteNumber(gpuTemp))
       Logger.log("SystemInfo", `GPU temp ${gpuTemp.toFixed(1)} °C`);
   }
+
   function logStorage() {
     if (!root.storageReady || !root.storageTotal)
       return;
@@ -125,6 +132,7 @@ Singleton {
 
   Process {
     id: bootTimeProc
+
     command: ["sh", "-c", "cat /proc/uptime"]
     running: true
 
@@ -221,9 +229,6 @@ Singleton {
     }
   }
 
-  // Reusable storage for df parsing
-  property var _storageDevices: ({})
-
   Process {
     id: storage
 
@@ -283,6 +288,7 @@ Singleton {
       }
     }
   }
+
   Process {
     id: gpuTypeCheck
 
@@ -293,6 +299,7 @@ Singleton {
       onStreamFinished: root.gpuType = text.trim()
     }
   }
+
   Process {
     id: gpuUsage
 
@@ -329,6 +336,7 @@ Singleton {
       }
     }
   }
+
   Process {
     id: sensors
 

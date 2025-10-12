@@ -12,6 +12,10 @@ Singleton {
   property var layouts: []
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
 
+  function cycleLayout() {
+    Quickshell.execDetached(["niri", "msg", "action", "switch-layout", "next"]);
+  }
+
   function parseKeyboardLayouts(event) {
     const info = event?.KeyboardLayoutsChanged?.keyboard_layouts;
     if (info) {
@@ -27,6 +31,7 @@ Singleton {
     }
     return false;
   }
+
   function setLayoutByIndex(layoutIndex) {
     if (!Array.isArray(impl.layouts)) {
       impl.currentLayout = "";
@@ -34,9 +39,6 @@ Singleton {
     }
     const idx = Number.isInteger(layoutIndex) ? layoutIndex : -1;
     impl.currentLayout = idx >= 0 && idx < impl.layouts.length ? (impl.layouts[idx] || "") : "";
-  }
-  function cycleLayout() {
-    Quickshell.execDetached(["niri", "msg", "action", "switch-layout", "next"]);
   }
 
   Socket {

@@ -18,21 +18,25 @@ Singleton {
     function islocked(): string {
       return LockService.locked ? "true" : "false";
     }
+
     function lock(): string {
       Logger.log("IPC", "lock");
       LockService.locked = true;
       return "locked";
     }
+
     function status(): string {
       const s = LockService.locked ? "locked" : "unlocked";
       Logger.log("IPC", `status -> ${s}`);
       return s;
     }
+
     function toggle(): string {
       Logger.log("IPC", "toggle");
       LockService.locked = !LockService.locked;
       return LockService.locked ? "locked" : "unlocked";
     }
+
     function unlock(): string {
       Logger.log("IPC", "unlock");
       LockService.locked = false;
@@ -51,30 +55,39 @@ Singleton {
       const v = a[prop];
       return (v === undefined) ? "Invalid property" : String(v);
     }
+
     function list(): string {
       return MediaService.players.map(p => p.identity).join("\n");
     }
+
     function next(): void {
       MediaService.next();
     }
+
     function pause(): void {
       MediaService.pause();
     }
+
     function play(): void {
       MediaService.play();
     }
+
     function playPause(): void {
       MediaService.playPause();
     }
+
     function previous(): void {
       MediaService.previous();
     }
+
     function seek(position: real): void {
       MediaService.seek(position);
     }
+
     function seekByRatio(ratio: real): void {
       MediaService.seekByRatio(ratio);
     }
+
     function stop(): void {
       MediaService.stop();
     }

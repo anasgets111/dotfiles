@@ -8,48 +8,7 @@ import qs.Services.Core
 Singleton {
   id: root
 
-  // Small helpers
-  function lower(v) {
-    return String(v || "").toLowerCase();
-  }
-  function truthy(v) {
-    const s = lower(v);
-    return s === "true" || s === "1";
-  }
-  function prop(node, key) {
-    if (!node)
-      return "<unset>";
-    const p = node.properties || {};
-    if (p[key] !== undefined && p[key] !== null && p[key] !== "")
-      return p[key];
-    const g = node.globalProperties || {};
-    if (g[key] !== undefined && g[key] !== null && g[key] !== "")
-      return g[key];
-    const info = node.info && (node.info.properties || node.info.props || node.info.propertiesMap);
-    if (info && info[key] !== undefined && info[key] !== null && info[key] !== "")
-      return info[key];
-    const meta = node.metadata || {};
-    if (meta[key] !== undefined && meta[key] !== null && meta[key] !== "")
-      return meta[key];
-    return "<unset>";
-  }
-
-  // Core booleans
-  readonly property bool microphoneActive: {
-    const nodes = Pipewire.nodes?.values || [];
-    return nodes.some(n => n && (n.type & PwNodeType.AudioInStream) === PwNodeType.AudioInStream && !isSystemVirtualMic(n) && !(n.audio && n.audio.muted));
-  }
-
-  // New: show if any real mic stream is muted
-  readonly property bool microphoneMuted: {
-    const sourceAudio = AudioService?.source?.audio || null;
-    if (sourceAudio)
-      return !!sourceAudio.muted;
-
-    const nodes = Pipewire.nodes?.values || [];
-    return nodes.some(n => n && (n.type & PwNodeType.AudioInStream) === PwNodeType.AudioInStream && !isSystemVirtualMic(n) && !!(n.audio && n.audio.muted));
-  }
-
+  readonly property bool anyPrivacyActive: microphoneActive || cameraActive || screensharingActive
   readonly property bool cameraActive: {
     const nodes = Pipewire.nodes?.values || [];
     const links = Pipewire.links?.values || [];
@@ -69,6 +28,21 @@ Singleton {
     return nodes.some(n => isVideoNode(n) && !isScreencast(n) && activeState(n) && isCameraNode(n));
   }
 
+  // Core booleans
+  readonly property bool microphoneActive: {
+    const nodes = Pipewire.nodes?.values || [];
+    return nodes.some(n => n && (n.type & PwNodeType.AudioInStream) === PwNodeType.AudioInStream && !isSystemVirtualMic(n) && !(n.audio && n.audio.muted));
+  }
+
+  // New: show if any real mic stream is muted
+  readonly property bool microphoneMuted: {
+    const sourceAudio = AudioService?.source?.audio || null;
+    if (sourceAudio)
+      return !!sourceAudio.muted;
+
+    const nodes = Pipewire.nodes?.values || [];
+    return nodes.some(n => n && (n.type & PwNodeType.AudioInStream) === PwNodeType.AudioInStream && !isSystemVirtualMic(n) && !!(n.audio && n.audio.muted));
+  }
   readonly property bool screensharingActive: {
     const nodes = Pipewire.nodes?.values || [];
     if (nodes.some(n => isVideoNode(n) && isScreencast(n)))
@@ -90,51 +64,6 @@ Singleton {
       const looksLikeDesktop = mediaName.includes("desktop") || appName.includes("screen") || appName === "obs" || role.includes("screen") || role.includes("desktop") || role.includes("share");
       return live && looksLikeDesktop && !muted;
     });
-  }
-
-  readonly property bool anyPrivacyActive: microphoneActive || cameraActive || screensharingActive
-
-  // PipeWire binding to expose full properties (e.g., audio.muted)
-  PwObjectTracker {
-    id: nodeTracker
-    objects: Pipewire.nodes?.values || []
-  }
-  PwObjectTracker {
-    id: linkTracker
-    objects: Pipewire.links?.values || []
-  }
-
-  Component.onDestruction: {
-    nodeTracker.objects = [];
-    linkTracker.objects = [];
-  }
-
-  // Helpers
-  function nodeDescription(node) {
-    return lower(prop(node, "node.description") || node?.description);
-  }
-  function mediaRole(node) {
-    return lower(prop(node, "media.role") || prop(node, "stream.capture.category") || prop(node, "capture.category"));
-  }
-  function mediaClass(node) {
-    return lower(prop(node, "media.class") || prop(node, "node.media.class"));
-  }
-
-  function isSystemVirtualMic(node) {
-    if (!node)
-      return false;
-    const text = [lower(node.name), lower(prop(node, "media.name")), lower(prop(node, "application.name"))].join(" ");
-    return text.search(/cava|monitor|system/) !== -1;
-  }
-
-  function isVideoNode(node) {
-    if (!node)
-      return false;
-    if ((node.type & PwNodeType.VideoSource) === PwNodeType.VideoSource)
-      return true;
-    const klass = mediaClass(node);
-    const role = mediaRole(node);
-    return klass.includes("video") || klass.includes("camera") || role.includes("camera") || role.includes("video");
   }
 
   function isCameraNode(node) {
@@ -171,5 +100,81 @@ Singleton {
       return true;
 
     return camText.search(/xdg-desktop-portal|xdpw|screencast|screen-record|screen cast|gnome shell|kwin|obs|niri-screen-cast/) !== -1;
+  }
+
+  function isSystemVirtualMic(node) {
+    if (!node)
+      return false;
+    const text = [lower(node.name), lower(prop(node, "media.name")), lower(prop(node, "application.name"))].join(" ");
+    return text.search(/cava|monitor|system/) !== -1;
+  }
+
+  function isVideoNode(node) {
+    if (!node)
+      return false;
+    if ((node.type & PwNodeType.VideoSource) === PwNodeType.VideoSource)
+      return true;
+    const klass = mediaClass(node);
+    const role = mediaRole(node);
+    return klass.includes("video") || klass.includes("camera") || role.includes("camera") || role.includes("video");
+  }
+
+  // Small helpers
+  function lower(v) {
+    return String(v || "").toLowerCase();
+  }
+
+  function mediaClass(node) {
+    return lower(prop(node, "media.class") || prop(node, "node.media.class"));
+  }
+
+  function mediaRole(node) {
+    return lower(prop(node, "media.role") || prop(node, "stream.capture.category") || prop(node, "capture.category"));
+  }
+
+  // Helpers
+  function nodeDescription(node) {
+    return lower(prop(node, "node.description") || node?.description);
+  }
+
+  function prop(node, key) {
+    if (!node)
+      return "<unset>";
+    const p = node.properties || {};
+    if (p[key] !== undefined && p[key] !== null && p[key] !== "")
+      return p[key];
+    const g = node.globalProperties || {};
+    if (g[key] !== undefined && g[key] !== null && g[key] !== "")
+      return g[key];
+    const info = node.info && (node.info.properties || node.info.props || node.info.propertiesMap);
+    if (info && info[key] !== undefined && info[key] !== null && info[key] !== "")
+      return info[key];
+    const meta = node.metadata || {};
+    if (meta[key] !== undefined && meta[key] !== null && meta[key] !== "")
+      return meta[key];
+    return "<unset>";
+  }
+
+  function truthy(v) {
+    const s = lower(v);
+    return s === "true" || s === "1";
+  }
+
+  Component.onDestruction: {
+    nodeTracker.objects = [];
+    linkTracker.objects = [];
+  }
+
+  // PipeWire binding to expose full properties (e.g., audio.muted)
+  PwObjectTracker {
+    id: nodeTracker
+
+    objects: Pipewire.nodes?.values || []
+  }
+
+  PwObjectTracker {
+    id: linkTracker
+
+    objects: Pipewire.links?.values || []
   }
 }

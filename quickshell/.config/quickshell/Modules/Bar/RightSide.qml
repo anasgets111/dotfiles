@@ -17,6 +17,7 @@ Row {
     id: volume
 
     anchors.verticalCenter: parent.verticalCenter
+
     onExpandedChanged: rightSide.normalWorkspacesExpanded = expanded
   }
 

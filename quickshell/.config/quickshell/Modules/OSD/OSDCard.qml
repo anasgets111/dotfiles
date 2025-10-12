@@ -7,13 +7,6 @@ import qs.Config
 Item {
   id: root
 
-  property string icon: ""
-  property string label: ""
-  property var value: null
-  property bool showing: false
-
-  readonly property bool isPercentage: typeof root.value === "number" && root.value >= 0 && root.value <= 100
-
   // Calculate width: fixed for percentage, dynamic for toggle based on text + icon + padding
   readonly property int calculatedWidth: {
     if (root.isPercentage)
@@ -23,19 +16,16 @@ Item {
     const textWidth = labelText.implicitWidth;
     return Math.max(220, 48 + 16 + textWidth + 48);
   }
+  property string icon: ""
+  readonly property bool isPercentage: typeof root.value === "number" && root.value >= 0 && root.value <= 100
+  property string label: ""
+  property bool showing: false
+  property var value: null
 
-  implicitWidth: calculatedWidth
   implicitHeight: 80
-
-  y: root.showing ? 0 : 60
+  implicitWidth: calculatedWidth
   opacity: root.showing ? 1 : 0
-
-  Behavior on y {
-    NumberAnimation {
-      duration: 260
-      easing.type: Easing.OutCubic
-    }
-  }
+  y: root.showing ? 0 : 60
 
   Behavior on opacity {
     NumberAnimation {
@@ -43,51 +33,58 @@ Item {
       easing.type: Easing.InOutQuad
     }
   }
+  Behavior on y {
+    NumberAnimation {
+      duration: 260
+      easing.type: Easing.OutCubic
+    }
+  }
 
   // Shadow
   RectangularShadow {
     anchors.fill: bg
-    radius: 40
+    blur: 20
     color: Qt.rgba(0, 0, 0, 0.5)
     offset: Qt.vector2d(0, 2)
-    blur: 20
+    radius: 40
   }
 
   // Background
   Rectangle {
     id: bg
+
     anchors.fill: parent
-    radius: 40
-    color: Theme.bgColor
-    border.width: 1
     border.color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.3)
+    border.width: 1
+    color: Theme.bgColor
+    radius: 40
   }
 
   // Percentage layout (volume, brightness)
   RowLayout {
     anchors.centerIn: parent
-    width: parent.width - 48
     spacing: 16
     visible: root.isPercentage
+    width: parent.width - 48
 
     Text {
-      text: root.icon || "󰕾"
       color: Theme.activeColor
-      font.pixelSize: 32
       font.family: "JetBrainsMono Nerd Font Mono"
+      font.pixelSize: 32
+      text: root.icon || "󰕾"
     }
 
     Rectangle {
       Layout.fillWidth: true
       Layout.preferredHeight: 12
-      radius: 6
       color: Qt.rgba(1, 1, 1, 0.25)
+      radius: 6
 
       Rectangle {
-        width: parent.width * (root.value / 100)
+        color: Theme.activeColor
         height: parent.height
         radius: parent.radius
-        color: Theme.activeColor
+        width: parent.width * (root.value / 100)
 
         Behavior on width {
           NumberAnimation {
@@ -99,43 +96,45 @@ Item {
     }
 
     Text {
-      text: `${Math.round(root.value)}%`
       color: "#eeeeee"
-      font.pixelSize: 16
       font.bold: true
+      font.pixelSize: 16
+      text: `${Math.round(root.value)}%`
     }
   }
 
   // Toggle layout (wifi, bluetooth, etc.)
   RowLayout {
     id: toggleLayout
+
     anchors.centerIn: parent
     spacing: 16
     visible: !root.isPercentage
 
     Rectangle {
-      Layout.preferredWidth: 48
       Layout.preferredHeight: 48
-      radius: 14
-      color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.25)
-      border.width: 1.5
+      Layout.preferredWidth: 48
       border.color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.4)
+      border.width: 1.5
+      color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.25)
+      radius: 14
 
       Text {
         anchors.centerIn: parent
-        text: root.icon || "󰋽"
         color: Theme.activeColor
-        font.pixelSize: 28
         font.family: "JetBrainsMono Nerd Font Mono"
+        font.pixelSize: 28
+        text: root.icon || "󰋽"
       }
     }
 
     Text {
       id: labelText
-      text: root.label || ""
+
       color: "#eeeeee"
-      font.pixelSize: 16
       font.bold: true
+      font.pixelSize: 16
+      text: root.label || ""
       visible: text.length > 0
     }
   }

@@ -10,20 +10,36 @@ Singleton {
   property string cpuGovernor: "Unknown"
   property string energyPerformance: "Unknown"
   property bool hasPPD: false
-
-  // Brightness settings
-  property int onACBrightness: 100
-  property int onBatteryBrightness: 10
   property int kbdOnAC: 3
   property int kbdOnBattery: 1
 
+  // Brightness settings
+  property int onACBrightness: 100
+
   // Reflect whether the system is currently running on battery power
   property bool onBattery: BatteryService.isOnBattery
-
+  property int onBatteryBrightness: 10
   readonly property string platformInfo: "Platform: " + pms.platformProfile
   property string platformProfile: "Loading..."
   readonly property string ppdInfo: "PPD: " + pms.ppdText
   property string ppdText: "Loading..."
+
+  function _doRefreshPowerInfo() {
+    // Platform profile
+    pms.readFile("/sys/firmware/acpi/platform_profile", function (data) {
+      pms.platformProfile = data;
+    });
+    // CPU governor
+    pms.readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", function (data) {
+      pms.cpuGovernor = data;
+    });
+    // EPP
+    pms.readFile("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference", function (data) {
+      pms.energyPerformance = data;
+    });
+    if (BatteryService.isLaptopBattery && pms.hasPPD)
+      ppdProcess.running = true;
+  }
 
   function adjustBrightness() {
     if (!BatteryService.isLaptopBattery)
@@ -62,25 +78,7 @@ Singleton {
     _refreshDebounce.restart();
   }
 
-  function _doRefreshPowerInfo() {
-    // Platform profile
-    pms.readFile("/sys/firmware/acpi/platform_profile", function (data) {
-      pms.platformProfile = data;
-    });
-    // CPU governor
-    pms.readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", function (data) {
-      pms.cpuGovernor = data;
-    });
-    // EPP
-    pms.readFile("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference", function (data) {
-      pms.energyPerformance = data;
-    });
-    if (BatteryService.isLaptopBattery && pms.hasPPD)
-      ppdProcess.running = true;
-  }
-
   Component.onCompleted: pms.refreshPowerInfo()
-
   Component.onDestruction: {
     ppdProcess.running = false;
     try {
@@ -90,7 +88,6 @@ Singleton {
       ppdCheck.destroy();
     } catch (_) {}
   }
-
   onOnBatteryChanged: {
     pms.refreshPowerInfo();
     pms.adjustBrightness();
@@ -98,29 +95,34 @@ Singleton {
 
   // Listen to BatteryService for laptop detection changes
   Connections {
-    target: BatteryService
-
     function onIsLaptopBatteryChanged() {
       pms.refreshPowerInfo();
     }
+
+    target: BatteryService
   }
 
   // Debounce timer for refreshPowerInfo to avoid rapid repeated spawns
   Timer {
     id: _refreshDebounce
+
     interval: 80
     repeat: false
+
     onTriggered: pms._doRefreshPowerInfo()
   }
+
   Component {
     id: readProcessComponent
 
     Process {
       running: false
 
-      stdout: StdioCollector {}
+      stdout: StdioCollector {
+      }
     }
   }
+
   Process {
     id: ppdProcess
 

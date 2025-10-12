@@ -8,25 +8,25 @@ import qs.Config
 Item {
   id: root
 
-  required property var svc
-  property var wrapper: null
+  property bool _animReady: false
+  property var _messageExpansion: ({})
+  readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
+  readonly property real cardWidth: 380
   property var group: null
-
-  signal inputFocusRequested
-
-  readonly property bool isGroup: !!root.group
-  readonly property var items: root.isGroup ? (root.group?.notifications || []) : (root.wrapper ? [root.wrapper] : [])
-  readonly property var primaryWrapper: root.items.length > 0 ? root.items[0] : null
   readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group.key] || false) : false)
   readonly property bool headerHasExpand: root.isGroup && root.items.length > 1
   readonly property string headerTitle: root.isGroup ? `${root.group?.appName || "app"} (${root.group?.count || root.items.length})` : (root.primaryWrapper?.appName || "app")
-  readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
+  readonly property bool isGroup: !!root.group
+  readonly property var items: root.isGroup ? (root.group?.notifications || []) : (root.wrapper ? [root.wrapper] : [])
+  readonly property var primaryWrapper: root.items.length > 0 ? root.items[0] : null
+  required property var svc
+  property var wrapper: null
 
-  readonly property real cardWidth: 380
-  implicitWidth: root.cardWidth
-  implicitHeight: cardColumn.implicitHeight + 28
+  signal inputFocusRequested
 
-  property var _messageExpansion: ({})
+  function messageExpanded(id) {
+    return !!root._messageExpansion[id];
+  }
 
   function toggleMessageExpansion(id) {
     if (!id)
@@ -36,10 +36,18 @@ Item {
     root._messageExpansion = next;
   }
 
-  function messageExpanded(id) {
-    return !!root._messageExpansion[id];
+  implicitHeight: cardColumn.implicitHeight + 28
+  implicitWidth: root.cardWidth
+  x: !root._animReady ? root.width + (Theme.popupOffset || 12) : 0
+
+  Behavior on x {
+    NumberAnimation {
+      duration: (Theme.animationDuration || 200) * 1.4
+      easing.type: Easing.OutCubic
+    }
   }
 
+  Component.onCompleted: Qt.callLater(() => root._animReady = true)
   Keys.onEscapePressed: {
     if (root.isGroup)
       root.svc?.dismissGroup(root.group?.key);
@@ -47,55 +55,51 @@ Item {
       root.svc?.dismissNotification(root.primaryWrapper);
   }
 
-  property bool _animReady: false
-  x: !root._animReady ? root.width + (Theme.popupOffset || 12) : 0
-  Behavior on x {
-    NumberAnimation {
-      duration: (Theme.animationDuration || 200) * 1.4
-      easing.type: Easing.OutCubic
-    }
-  }
-  Component.onCompleted: Qt.callLater(() => root._animReady = true)
-
   CardStyling {
-    anchors.fill: parent
     accentColor: root.accentColor
+    anchors.fill: parent
   }
 
   ColumnLayout {
     id: cardColumn
+
+    spacing: 10
+
     anchors {
+      bottomMargin: 16
       fill: parent
       leftMargin: 12
-      topMargin: 12
       rightMargin: 16
-      bottomMargin: 16
+      topMargin: 12
     }
-    spacing: 10
 
     RowLayout {
       Layout.fillWidth: true
       spacing: 10
 
       Loader {
-        Layout.preferredWidth: active ? 40 : 0
         Layout.preferredHeight: active ? 40 : 0
+        Layout.preferredWidth: active ? 40 : 0
         active: !!root.primaryWrapper
+
         sourceComponent: Rectangle {
-          width: 40
+          border.color: Qt.rgba(255, 255, 255, 0.05)
+          border.width: 1
+          color: Qt.rgba(1, 1, 1, 0.07)
           height: 40
           radius: 8
-          color: Qt.rgba(1, 1, 1, 0.07)
-          border.width: 1
-          border.color: Qt.rgba(255, 255, 255, 0.05)
+          width: 40
+
           Image {
             anchors.centerIn: parent
-            width: 30
-            height: 30
+            cache: false
             fillMode: Image.PreserveAspectFit
+            height: 30
             smooth: true
             source: Utils.resolveIconSource(root.primaryWrapper?.appName || "app", root.primaryWrapper?.appIcon, "dialog-information")
-            sourceSize: Qt.size(64, 64)
+            sourceSize: Qt.size(30, 30)
+            width: 30
+
             onStatusChanged: if (status === Image.Error)
               parent.parent.active = false
           }
@@ -104,12 +108,12 @@ Item {
 
       Text {
         Layout.fillWidth: true
-        text: root.headerTitle
         color: "white"
+        elide: Text.ElideRight
         font.bold: true
         font.pixelSize: 15
         horizontalAlignment: Text.AlignHCenter
-        elide: Text.ElideRight
+        text: root.headerTitle
       }
 
       RowLayout {
@@ -117,18 +121,21 @@ Item {
 
         Loader {
           active: root.headerHasExpand
+
           sourceComponent: StandardButton {
+            Accessible.name: root.groupExpanded ? "Collapse group" : "Expand group"
             buttonType: "control"
             text: root.groupExpanded ? "▴" : "▾"
-            Accessible.name: root.groupExpanded ? "Collapse group" : "Expand group"
+
             onClicked: root.svc?.toggleGroupExpansion(root.group?.key)
           }
         }
 
         StandardButton {
+          Accessible.name: root.isGroup ? "Dismiss group" : "Dismiss notification"
           buttonType: "control"
           text: "x"
-          Accessible.name: root.isGroup ? "Dismiss group" : "Dismiss notification"
+
           onClicked: {
             if (root.isGroup)
               root.svc?.dismissGroup(root.group?.key);
@@ -141,36 +148,39 @@ Item {
 
     ColumnLayout {
       id: messagesLayout
+
+      readonly property var renderedItems: root.isGroup && !root.groupExpanded ? (root.items.length > 0 ? [root.items[0]] : []) : root.items
+
       Layout.fillWidth: true
       spacing: 12
-      readonly property var renderedItems: root.isGroup && !root.groupExpanded ? (root.items.length > 0 ? [root.items[0]] : []) : root.items
 
       Repeater {
         model: parent.renderedItems
+
         delegate: Item {
           id: messageItem
-          required property var modelData
+
           required property int index
+          readonly property bool isHovered: mouseArea.containsMouse
+          readonly property bool isMultipleItems: messagesLayout.renderedItems.length > 1
+          required property var modelData
 
           Layout.fillWidth: true
           implicitHeight: messageColumn.implicitHeight
 
-          readonly property bool isMultipleItems: messagesLayout.renderedItems.length > 1
-          readonly property bool isHovered: mouseArea.containsMouse
-
           Rectangle {
             anchors.fill: parent
-            radius: 6
-            color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03)) : "transparent"
-            border.width: messageItem.isMultipleItems ? 1 : 0
             border.color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.4) : Qt.rgba(1, 1, 1, 0.1)) : "transparent"
+            border.width: messageItem.isMultipleItems ? 1 : 0
+            color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03)) : "transparent"
+            radius: 6
 
-            Behavior on color {
+            Behavior on border.color {
               ColorAnimation {
                 duration: 150
               }
             }
-            Behavior on border.color {
+            Behavior on color {
               ColorAnimation {
                 duration: 150
               }
@@ -179,31 +189,22 @@ Item {
 
           ColumnLayout {
             id: messageColumn
-            readonly property int horizontalPadding: messageItem.isMultipleItems ? 8 : 0
-            readonly property int topPadding: messageItem.isMultipleItems ? 8 : 0
-            readonly property int bottomPadding: messageItem.isMultipleItems ? 8 : 0
 
-            anchors {
-              left: parent.left
-              right: parent.right
-              top: parent.top
-              leftMargin: horizontalPadding
-              rightMargin: horizontalPadding
-              topMargin: topPadding
-              bottomMargin: bottomPadding
-            }
-
-            readonly property string summary: messageItem.modelData?.summary || "(No title)"
-            readonly property string body: messageItem.modelData?.body || ""
-            readonly property string messageId: messageItem.modelData?.id || String(messageItem.modelData?.notification ? messageItem.modelData.notification.id || "" : "")
-            readonly property url contentImage: messageItem.modelData?.cleanImage || ""
-            readonly property bool hasBody: messageItem.modelData?.hasBody === true || (body && body.trim() !== "" && body.trim() !== summary.trim())
-            readonly property bool expanded: root.messageExpanded(messageColumn.messageId)
-            readonly property bool hasInlineReply: messageItem.modelData?.hasInlineReply === true
-            readonly property string inlineReplyPlaceholder: messageItem.modelData?.inlineReplyPlaceholder || "Reply"
             readonly property var actionsModel: messageItem.modelData?.actions || []
-            property bool summaryTruncated: false
+            readonly property string body: messageItem.modelData?.body || ""
             property bool bodyTruncated: false
+            readonly property int bottomPadding: messageItem.isMultipleItems ? 8 : 0
+            readonly property url contentImage: messageItem.modelData?.cleanImage || ""
+            readonly property bool expanded: root.messageExpanded(messageColumn.messageId)
+            readonly property bool hasBody: messageItem.modelData?.hasBody === true || (body && body.trim() !== "" && body.trim() !== summary.trim())
+            readonly property bool hasInlineReply: messageItem.modelData?.hasInlineReply === true
+            readonly property int horizontalPadding: messageItem.isMultipleItems ? 8 : 0
+            readonly property string inlineReplyPlaceholder: messageItem.modelData?.inlineReplyPlaceholder || "Reply"
+            readonly property string messageId: messageItem.modelData?.id || String(messageItem.modelData?.notification ? messageItem.modelData.notification.id || "" : "")
+            readonly property var renderedBodyMeta: prepareBody(body)
+            readonly property string summary: messageItem.modelData?.summary || "(No title)"
+            property bool summaryTruncated: false
+            readonly property int topPadding: messageItem.isMultipleItems ? 8 : 0
 
             function prepareBody(raw) {
               if (typeof raw !== "string" || raw.length === 0)
@@ -230,24 +231,35 @@ Item {
                 format: Qt.PlainText
               };
             }
-            readonly property var renderedBodyMeta: prepareBody(body)
 
             spacing: 6
+
+            anchors {
+              bottomMargin: bottomPadding
+              left: parent.left
+              leftMargin: horizontalPadding
+              right: parent.right
+              rightMargin: horizontalPadding
+              top: parent.top
+              topMargin: topPadding
+            }
 
             RowLayout {
               Layout.fillWidth: true
               spacing: 8
 
               Loader {
-                Layout.preferredWidth: active ? 24 : 0
                 Layout.preferredHeight: active ? 24 : 0
+                Layout.preferredWidth: active ? 24 : 0
                 active: !!messageColumn.contentImage
+
                 sourceComponent: Image {
-                  width: 24
-                  height: 24
                   fillMode: Image.PreserveAspectFit
+                  height: 24
                   smooth: true
                   source: messageColumn.contentImage
+                  width: 24
+
                   onStatusChanged: if (status === Image.Error)
                     parent.parent.active = false
                 }
@@ -255,14 +267,16 @@ Item {
 
               Text {
                 id: summaryText
+
                 Layout.fillWidth: true
-                text: messageColumn.summary
                 color: "#dddddd"
+                elide: Text.ElideRight
                 font.pixelSize: 14
                 horizontalAlignment: messageItem.isMultipleItems ? Text.AlignLeft : Text.AlignHCenter
-                elide: Text.ElideRight
-                wrapMode: Text.WordWrap
                 maximumLineCount: messageColumn.expanded ? 0 : 2
+                text: messageColumn.summary
+                wrapMode: Text.WordWrap
+
                 Component.onCompleted: messageColumn.summaryTruncated = truncated
                 onTruncatedChanged: messageColumn.summaryTruncated = truncated
               }
@@ -272,20 +286,24 @@ Item {
 
                 Loader {
                   active: messageColumn.summaryTruncated || messageColumn.bodyTruncated || messageColumn.expanded
+
                   sourceComponent: StandardButton {
+                    Accessible.name: messageColumn.expanded ? "Collapse message" : "Expand message"
                     buttonType: "control"
                     text: messageColumn.expanded ? "▴" : "▾"
-                    Accessible.name: messageColumn.expanded ? "Collapse message" : "Expand message"
+
                     onClicked: root.toggleMessageExpansion(messageColumn.messageId)
                   }
                 }
 
                 Loader {
                   active: messageItem.isMultipleItems
+
                   sourceComponent: StandardButton {
+                    Accessible.name: "Dismiss notification"
                     buttonType: "control"
                     text: "x"
-                    Accessible.name: "Dismiss notification"
+
                     onClicked: {
                       if (messageItem.modelData)
                         root.svc?.dismissNotification(messageItem.modelData);
@@ -298,57 +316,66 @@ Item {
             Loader {
               Layout.fillWidth: true
               active: messageColumn.hasBody
-              onActiveChanged: if (!active)
-                messageColumn.bodyTruncated = false
+
               sourceComponent: Text {
                 Layout.fillWidth: true
                 color: "#bbbbbb"
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-                textFormat: messageColumn.renderedBodyMeta.format
-                text: messageColumn.renderedBodyMeta.text
-                maximumLineCount: messageColumn.expanded ? 0 : 2
                 elide: Text.ElideRight
+                font.pixelSize: 12
                 linkColor: root.accentColor
+                maximumLineCount: messageColumn.expanded ? 0 : 2
+                text: messageColumn.renderedBodyMeta.text
+                textFormat: messageColumn.renderedBodyMeta.format
+                wrapMode: Text.WordWrap
+
                 Component.onCompleted: messageColumn.bodyTruncated = truncated
-                onTruncatedChanged: messageColumn.bodyTruncated = truncated
                 onLinkActivated: url => Qt.openUrlExternally(url)
+                onTruncatedChanged: messageColumn.bodyTruncated = truncated
               }
+
+              onActiveChanged: if (!active)
+                messageColumn.bodyTruncated = false
             }
 
             Loader {
+              Layout.bottomMargin: 6
               Layout.fillWidth: true
               Layout.topMargin: 8
-              Layout.bottomMargin: 6
               active: messageColumn.hasInlineReply
+
               sourceComponent: RowLayout {
                 spacing: 8
 
                 TextField {
                   id: replyField
+
                   Layout.fillWidth: true
-                  placeholderText: messageColumn.inlineReplyPlaceholder
-                  selectByMouse: true
                   activeFocusOnPress: true
                   font.pixelSize: 13
                   padding: 8
-                  Keys.onReturnPressed: sendBtn.clicked()
-                  Keys.onEnterPressed: sendBtn.clicked()
-                  onActiveFocusChanged: if (activeFocus)
-                    root.inputFocusRequested()
+                  placeholderText: messageColumn.inlineReplyPlaceholder
+                  selectByMouse: true
+
                   background: Rectangle {
                     anchors.fill: parent
-                    radius: Theme.itemRadius
-                    color: Theme.bgColor
-                    border.width: 1
                     border.color: replyField.activeFocus ? Theme.activeColor : Theme.borderColor
+                    border.width: 1
+                    color: Theme.bgColor
+                    radius: Theme.itemRadius
                   }
+
+                  Keys.onEnterPressed: sendBtn.clicked()
+                  Keys.onReturnPressed: sendBtn.clicked()
+                  onActiveFocusChanged: if (activeFocus)
+                    root.inputFocusRequested()
                 }
 
                 StandardButton {
                   id: sendBtn
+
                   buttonType: "action"
                   text: "Send"
+
                   onClicked: {
                     const replyText = String(replyField.text || "");
                     if (replyText.length === 0)
@@ -363,24 +390,29 @@ Item {
 
             ColumnLayout {
               Layout.fillWidth: true
+              Layout.preferredHeight: visible ? implicitHeight : 0
               Layout.topMargin: 8
+              implicitHeight: actionsRow.implicitHeight
               spacing: 0
               visible: messageColumn.actionsModel.length > 0
-              Layout.preferredHeight: visible ? implicitHeight : 0
-              implicitHeight: actionsRow.implicitHeight
 
               RowLayout {
                 id: actionsRow
-                Layout.fillWidth: true
+
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 8
+                Layout.fillWidth: true
                 implicitHeight: childrenRect.height
+                spacing: 8
+
                 Repeater {
                   model: messageColumn.actionsModel
+
                   delegate: StandardButton {
                     required property var modelData
+
                     buttonType: "action"
                     text: modelData.title || modelData.id || ""
+
                     onClicked: root.svc?.executeAction(messageItem.modelData, modelData.id, modelData._obj)
                   }
                 }
@@ -390,9 +422,10 @@ Item {
 
           MouseArea {
             id: mouseArea
+
+            acceptedButtons: Qt.NoButton
             anchors.fill: parent
             hoverEnabled: messageItem.isMultipleItems
-            acceptedButtons: Qt.NoButton
           }
         }
       }
@@ -400,9 +433,10 @@ Item {
   }
 
   MouseArea {
+    acceptedButtons: Qt.NoButton
     anchors.fill: parent
     hoverEnabled: true
-    acceptedButtons: Qt.NoButton
+
     onEntered: {
       for (const w of root.items)
         if (w?.timer?.running)

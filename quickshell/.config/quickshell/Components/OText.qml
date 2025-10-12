@@ -13,9 +13,9 @@ Text {
   property real sizeMultiplier: 1
   property bool useActiveColor: true
 
-  font.family: Theme.fontFamily
-  font.pixelSize: Theme.fontSize * sizeMultiplier
   color: useActiveColor ? Theme.textActiveColor : Theme.textInactiveColor
   elide: Text.ElideRight
+  font.family: Theme.fontFamily
+  font.pixelSize: Theme.fontSize * sizeMultiplier
   verticalAlignment: Text.AlignVCenter
 }

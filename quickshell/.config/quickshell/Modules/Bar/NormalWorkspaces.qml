@@ -11,9 +11,9 @@ Item {
   readonly property var backingWorkspaces: WorkspaceService.workspaces
   readonly property int count: 10
   readonly property int currentWorkspace: Math.max(1, WorkspaceService.currentWorkspace)
+  property bool expanded: pill?.expanded || false
   readonly property int focusedIndex: Math.max(0, Math.min(currentWorkspace - 1, count - 1))
   property int hoveredIndex: 0
-  property bool expanded: pill?.expanded || false
   readonly property bool isHyprlandSession: MainService.currentWM === "hyprland"
   readonly property int slotH: Theme.itemHeight
   readonly property int slotW: Theme.itemWidth
@@ -36,19 +36,21 @@ Item {
 
   ExpandingPill {
     id: pill
-    slotW: root.slotW
-    slotH: root.slotH
-    spacing: root.spacing
-    count: root.count
-    collapsedIndex: root.focusedIndex
+
     collapseDelayMs: Theme.animationDuration + 200
+    collapsedIndex: root.focusedIndex
+    count: root.count
     rightAligned: false
+    slotH: root.slotH
+    slotW: root.slotW
+    spacing: root.spacing
 
     delegate: Component {
       IconButton {
         id: btn
-        required property int index
+
         readonly property int idNum: root.slots[index]
+        required property int index
 
         colorBg: root.wsColor(idNum)
         icon: String(idNum)
@@ -61,11 +63,11 @@ Item {
           }
         }
 
+        onClicked: if (idNum !== root.currentWorkspace)
+          WorkspaceService.focusWorkspaceByIndex(idNum)
         onEntered: root.hoveredIndex = idNum
         onExited: if (root.hoveredIndex === idNum)
           root.hoveredIndex = 0
-        onClicked: if (idNum !== root.currentWorkspace)
-          WorkspaceService.focusWorkspaceByIndex(idNum)
       }
     }
   }

@@ -16,24 +16,30 @@ import qs.Config
 Rectangle {
   id: root
 
-  property string text: ""
-  property string icon: ""
   property color bgColor: Theme.activeColor
-  property color hoverColor: Qt.lighter(bgColor, 1.2)
-  readonly property color currentBackground: !isEnabled ? Theme.disabledColor : (hovered ? hoverColor : bgColor)
-  property color textColor: Theme.textContrast(currentBackground)
-  property bool isEnabled: true
-  property alias hovered: mouseArea.containsMouse
   // Content container for custom children
   default property alias content: contentContainer.data
+  readonly property color currentBackground: !isEnabled ? Theme.disabledColor : (hovered ? hoverColor : bgColor)
+  property color hoverColor: Qt.lighter(bgColor, 1.2)
+  property alias hovered: mouseArea.containsMouse
+  property string icon: ""
+  property bool isEnabled: true
+  property string text: ""
+  property color textColor: Theme.textContrast(currentBackground)
 
   signal clicked
 
-  implicitWidth: simpleContent.visible ? simpleContent.implicitWidth + 16 : contentContainer.implicitWidth
-  implicitHeight: Theme.itemHeight
   color: currentBackground
-  radius: Theme.itemRadius
+  implicitHeight: Theme.itemHeight
+  implicitWidth: simpleContent.visible ? simpleContent.implicitWidth + 16 : contentContainer.implicitWidth
   opacity: isEnabled ? 1 : 0.5
+  radius: Theme.itemRadius
+
+  Behavior on color {
+    ColorAnimation {
+      duration: Theme.animationDuration
+    }
+  }
 
   // Simple mode: text/icon layout
   RowLayout {
@@ -44,16 +50,16 @@ Rectangle {
     visible: root.text !== "" || root.icon !== ""
 
     OText {
-      visible: root.icon !== ""
-      text: root.icon
       color: root.textColor
+      text: root.icon
+      visible: root.icon !== ""
     }
 
     OText {
-      visible: root.text !== ""
-      text: root.text
-      font.bold: true
       color: root.textColor
+      font.bold: true
+      text: root.text
+      visible: root.text !== ""
     }
   }
 
@@ -69,15 +75,10 @@ Rectangle {
     id: mouseArea
 
     anchors.fill: parent
-    hoverEnabled: true
     cursorShape: root.isEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
     enabled: root.isEnabled
-    onClicked: root.clicked()
-  }
+    hoverEnabled: true
 
-  Behavior on color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
+    onClicked: root.clicked()
   }
 }

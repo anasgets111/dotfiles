@@ -12,6 +12,7 @@ Row {
   // Active window title display
   ActiveWindow {
     id: activeWindowTitle
+
     anchors.verticalCenter: parent.verticalCenter
     visible: true
   }
