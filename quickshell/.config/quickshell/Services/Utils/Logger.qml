@@ -4,22 +4,17 @@ import Quickshell
 import qs.Services.SystemInfo
 
 Singleton {
-  id: logger
+  id: root
 
   property bool enabled: true
-  // If non-empty, only these modules are logged (exact match, case-sensitive)
-  // "Shell", "LockContent", "Bar", "IPC", "NetworkService", "MainService", "AudioService", "BatteryService", "BrightnessService", "ClipboardService", "ClipboardLiteService", "FileSystemService", "IdleService", "KeyboardBacklightService", "KeyboardLayoutService", "LockService", "MediaService", "MonitorService", "NotificationService", "OSDService", "ScreenRecordingService", "SystemInfoService", "SystemTrayService", "TimeService", "UpdateService", "WallpaperService", "WeatherService"
-  property var includeModules: [].filter((v, i, a) => {
-    return a.indexOf(v) === i;
-  })
+  property list<string> includeModules: []
   readonly property int moduleLabelWidth: 16
 
   function emit(kind, args) {
-    const moduleRaw = extractModule(args);
-    if (!logger.shouldLog(moduleRaw))
+    const moduleRaw = root.extractModule(args);
+    if (!root.shouldLog(moduleRaw))
       return;
-
-    const msg = logger.formatMessage(args);
+    const msg = root.formatMessage(args);
     if (kind === "warn")
       console.warn(msg);
     else if (kind === "error")
@@ -29,90 +24,58 @@ Singleton {
   }
 
   function error() {
-    logger.emit("error", Array.prototype.slice.call(arguments));
+    root.emit("error", arguments);
   }
 
   function extractModule(args) {
-    if (!args || args.length <= 1)
-      return null;
-
-    return args[0];
+    return args?.length > 1 ? args[0] : null;
   }
 
   function formatMessage(args) {
-    const timeNow = TimeService.timestamp();
-    const timePart = `\x1b[36m[${timeNow}]\x1b[0m`;
-    let moduleRaw = null;
-    let messageText = "";
-    if (args.length > 1) {
-      moduleRaw = args[0];
-      messageText = args.slice(1).join(" ");
-    } else {
-      messageText = String(args.length ? args[0] : "");
+    if (!args || args.length === 0)
+      return "";
+    if (args.length === 1) {
+      return `\x1b[36m[${TimeService.timestamp()}]\x1b[0m ${args[0]}`;
     }
-    const modulePart = moduleRaw ? (formatModuleLabel(moduleRaw) + " ") : "";
-    return `${timePart} ${modulePart}${messageText}`;
+    const modulePart = root.formatModuleLabel(args[0]);
+    const messageParts = [];
+    for (let i = 1; i < args.length; i++)
+      messageParts.push(args[i]);
+    return `\x1b[36m[${TimeService.timestamp()}]\x1b[0m ${modulePart} ${messageParts.join(" ")}`;
   }
 
   function formatModuleLabel(moduleRaw) {
-    const width = logger.moduleLabelWidth;
-    const name = String(moduleRaw);
-    const clipped = name.substring(0, width);
-    const totalPad = width - clipped.length;
+    const name = String(moduleRaw).substring(0, root.moduleLabelWidth);
+    const totalPad = root.moduleLabelWidth - name.length;
     const left = Math.floor(totalPad / 2);
     const right = totalPad - left;
-    const padded = " ".repeat(left) + clipped + " ".repeat(right);
-    return `\x1b[35m[${padded}]\x1b[0m`;
+    return `\x1b[35m[${" ".repeat(left)}${name}${" ".repeat(right)}]\x1b[0m`;
   }
 
-  // Public API
   function log() {
-    logger.emit("log", Array.prototype.slice.call(arguments));
+    root.emit("log", arguments);
   }
 
-  // Public API: set the allowed/whitelisted module names
   function setIncludeModules(list) {
     if (!list) {
-      logger.includeModules = [];
+      root.includeModules = [];
       return;
     }
-    const norm = list.map(x => {
-      return String(x).trim();
-    }).filter(x => {
-      return x.length > 0;
-    });
-    const uniq = [];
-    for (let i = 0; i < norm.length; i++) {
-      const n = norm[i];
-      if (uniq.indexOf(n) === -1)
-        uniq.push(n);
-    }
-    logger.includeModules = uniq;
+    const normalized = list.map(x => String(x).trim()).filter(x => x.length > 0);
+    root.includeModules = [...new Set(normalized)];
   }
 
   function shouldLog(moduleName) {
-    if (!logger.enabled)
+    if (!root.enabled)
       return false;
-
-    const list = logger.includeModules;
-    if (!list || list.length === 0)
+    if (root.includeModules.length === 0)
       return true;
-
     if (!moduleName)
       return false;
-
-    try {
-      const name = String(moduleName).trim();
-      // exact match
-      for (let i = 0; i < list.length; i++) {
-        if (list[i] === name)
-          return true;
-      }
-    } catch (e) {}
-    return false;
+    return root.includeModules.includes(String(moduleName).trim());
   }
 
   function warn() {
-    logger.emit("warn", Array.prototype.slice.call(arguments));
+    root.emit("warn", arguments);
   }
 }

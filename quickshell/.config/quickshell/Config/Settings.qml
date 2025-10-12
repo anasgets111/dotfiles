@@ -72,32 +72,35 @@ Singleton {
       id: adapter
 
       // applauncher
-      property JsonObject appLauncher: JsonObject {}
-
-      // Per-monitor wallpaper preferences map (dynamic keys)
-      // wallpapers: { "MONITOR_NAME": { wallpaper: string, mode: string } }
-      property var wallpapers: ({})
-      // Allowed values: "fade", "wipe", "disc", "stripes"
-      property string wallpaperTransition: "disc"
+      property JsonObject appLauncher: JsonObject {
+      }
 
       // Idle Service settings (persisted)
       // These defaults act as fallbacks if not present in the user's settings file
       property JsonObject idleService: JsonObject {
+        // dpms stage
+        property bool dpmsEnabled: true
+        property int dpmsTimeoutSec: 30
         // master enable for idle pipeline
         property bool enabled: true
         // lock stage
         property bool lockEnabled: true
         property int lockTimeoutSec: 300
-        // dpms stage
-        property bool dpmsEnabled: true
-        property int dpmsTimeoutSec: 30
+        // behavior
+        property bool respectInhibitors: true
         // suspend stage
         property bool suspendEnabled: false
         property int suspendTimeoutSec: 120
-        // behavior
-        property bool respectInhibitors: true
         property bool videoAutoInhibit: true
       }
+      // Wallpaper folder path for browsing/randomization
+      property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"
+      // Allowed values: "fade", "wipe", "disc", "stripes"
+      property string wallpaperTransition: "disc"
+
+      // Per-monitor wallpaper preferences map (dynamic keys)
+      // wallpapers: { "MONITOR_NAME": { wallpaper: string, mode: string } }
+      property var wallpapers: ({})
     }
   }
 }
