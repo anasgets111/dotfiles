@@ -313,7 +313,8 @@ Singleton {
   }
 
   function _saveCache(updates) {
-    if (!Settings.isLoaded) return;
+    if (!Settings.isLoaded)
+      return;
     // Ensure weatherLocation exists in Settings before modifying
     if (!Settings.data.weatherLocation) {
       Settings.data.weatherLocation = {};
