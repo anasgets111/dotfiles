@@ -251,8 +251,8 @@ Item {
             const needed = weatherIcon.implicitWidth + topRow.spacing + weatherTemp.implicitWidth + (place.length > 0 ? topRow.spacing + weatherPlaceInline.implicitWidth : 0) + (isStale ? topRow.spacing + staleText.implicitWidth + 10 : 0);
             return needed <= width;
           }
-          readonly property string icon: WeatherService?.getWeatherIconFromCode() ?? ""
-          readonly property bool isStale: WeatherService?.isStale ?? false
+          readonly property string icon: WeatherService?.weatherInfo().icon ?? ""
+          readonly property bool isStale: WeatherService?.isDataStale() ?? false
           readonly property string place: WeatherService?.locationName ?? ""
           readonly property string temp: WeatherService?.currentTemp ?? ""
 
