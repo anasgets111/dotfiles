@@ -54,14 +54,14 @@ Singleton {
     return letters.slice(0, 2).toUpperCase();
   }
 
-  function showToggle(label, on) {
-    const msg = label + " " + (on ? "On" : "Off");
-    Logger.log("KeyboardLayoutService", msg);
-  }
-
   function cycleLayout() {
     if (service.backend && typeof service.backend.cycleLayout === "function")
       service.backend.cycleLayout();
+  }
+
+  function showToggle(label, on) {
+    const msg = label + " " + (on ? "On" : "Off");
+    Logger.log("KeyboardLayoutService", msg);
   }
 
   Component.onCompleted: {

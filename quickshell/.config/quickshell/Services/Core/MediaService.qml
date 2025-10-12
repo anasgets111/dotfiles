@@ -7,34 +7,13 @@ import Quickshell.Services.Mpris
 Singleton {
   id: root
 
-  function isAlivePlayer(playerObj) {
-    if (!playerObj)
-      return false;
-    if (typeof playerObj.isValid === "function")
-      return playerObj.isValid();
-    // Check if the player's D-Bus properties are accessible
-    try {
-      return playerObj.canControl !== undefined;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  readonly property var videoAppHints: ["mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex"]
-  readonly property var browserAppHints: ["firefox", "zen", "chrome", "chromium", "brave", "vivaldi", "edge", "opera"]
-  readonly property var audioOnlyPatterns: ["music.youtube.com", "spotify.com", "soundcloud.com", "music.apple.com", "deezer.com", "tidal.com", "bandcamp.com"]
-  readonly property var videoPatterns: ["youtube.com/watch", "youtu.be/", "netflix.com", "primevideo.com", "osnplus.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "crunchyroll.com", "max.com", "hbomax.com"]
-  readonly property var videoFileExts: ["mp4", "mkv", "webm", "avi", "mov", "m4v", "mpeg", "mpg", "wmv", "flv"]
-
-  readonly property bool pipewireVideoActive: hasActiveVideoStreams()
-
-  readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values.filter(playerObj => root.isAlivePlayer(playerObj)) : []
-  readonly property list<MprisPlayer> players: allPlayers.filter(playerObj => playerObj?.canControl ?? false)
   readonly property MprisPlayer active: selectActivePlayer()
   readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
   readonly property string activeIconName: iconNameForPlayer(active)
+  readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values.filter(playerObj => root.isAlivePlayer(playerObj)) : []
   readonly property bool anyVideoPlaying: allPlayers.some(playerObj => playerObj && playerObj.playbackState === MprisPlaybackState.Playing && (isVideoApp(playerObj) || (isBrowserApp(playerObj) && isVideoUrl(getMetadataUrl(playerObj)))))
-
+  readonly property var audioOnlyPatterns: ["music.youtube.com", "spotify.com", "soundcloud.com", "music.apple.com", "deezer.com", "tidal.com", "bandcamp.com"]
+  readonly property var browserAppHints: ["firefox", "zen", "chrome", "chromium", "brave", "vivaldi", "edge", "opera"]
   property bool canGoNext: active?.canGoNext ?? false
   property bool canGoPrevious: active?.canGoPrevious ?? false
   property bool canPause: active?.canPause ?? false
@@ -47,32 +26,17 @@ Singleton {
   property bool isPlaying: active?.isPlaying ?? false
   property string lastActiveKey: ""
   property MprisPlayer manualActive: null
+  readonly property bool pipewireVideoActive: hasActiveVideoStreams()
+  readonly property list<MprisPlayer> players: allPlayers.filter(playerObj => playerObj?.canControl ?? false)
   property int selectedPlayerIndex: -1
   property string trackAlbum: active?.trackAlbum ?? ""
   property string trackArtUrl: active?.trackArtUrl ?? ""
   property string trackArtist: active?.trackArtist ?? ""
   property real trackLength: active && active.length < infiniteTrackLength ? active.length : 0
   property string trackTitle: active?.trackTitle ?? ""
-
-  function hasActiveVideoStreams() {
-    const nodes = Pipewire.nodes;
-    const nodeValues = nodes?.values || null;
-    if (!nodeValues)
-      return false;
-    return nodeValues.some(nodeObj => nodeObj && nodeObj.isStream && (String(nodeObj.properties["media.class"] || "").toLowerCase().includes("video") || ["movie", "video"].includes(String(nodeObj.properties["media.role"] || "").toLowerCase())));
-  }
-
-  function isVideoUrl(urlString) {
-    if (!urlString)
-      return false;
-    const lowerUrl = String(urlString).toLowerCase();
-    if (audioOnlyPatterns.some(pattern => lowerUrl.includes(pattern)))
-      return false;
-    if (videoPatterns.some(pattern => lowerUrl.includes(pattern)))
-      return true;
-    const match = lowerUrl.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/);
-    return !!(match && videoFileExts.includes(match[1]));
-  }
+  readonly property var videoAppHints: ["mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex"]
+  readonly property var videoFileExts: ["mp4", "mkv", "webm", "avi", "mov", "m4v", "mpeg", "mpg", "wmv", "flv"]
+  readonly property var videoPatterns: ["youtube.com/watch", "youtu.be/", "netflix.com", "primevideo.com", "osnplus.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "crunchyroll.com", "max.com", "hbomax.com"]
 
   function appMatches(playerObj, hintsList) {
     if (!playerObj)
@@ -82,23 +46,17 @@ Singleton {
     const list = Array.isArray(hintsList) ? hintsList : [];
     return list.some(hint => desktopEntry.includes(hint) || identity.includes(hint));
   }
-  function isBrowserApp(playerObj) {
-    return appMatches(playerObj, browserAppHints);
-  }
-  function isVideoApp(playerObj) {
-    return appMatches(playerObj, videoAppHints);
-  }
 
   function getMetadataUrl(playerObj) {
     return String(playerObj?.metadata["xesam:url"] || playerObj?.metadata["xesam:URL"] || "");
   }
 
-  function selectActivePlayer() {
-    if (manualActive && isValidPlayer(manualActive))
-      return manualActive;
-    if (selectedPlayerIndex >= 0 && selectedPlayerIndex < players.length)
-      return players[selectedPlayerIndex];
-    return players.find(player => player.playbackState === MprisPlaybackState.Playing) || players.find(player => player.canControl && player.canPlay) || players[0] || null;
+  function hasActiveVideoStreams() {
+    const nodes = Pipewire.nodes;
+    const nodeValues = nodes?.values || null;
+    if (!nodeValues)
+      return false;
+    return nodeValues.some(nodeObj => nodeObj && nodeObj.isStream && (String(nodeObj.properties["media.class"] || "").toLowerCase().includes("video") || ["movie", "video"].includes(String(nodeObj.properties["media.role"] || "").toLowerCase())));
   }
 
   function iconNameForPlayer(playerObj) {
@@ -126,22 +84,58 @@ Singleton {
     return normalize(identity) || "audio-x-generic";
   }
 
+  function isAlivePlayer(playerObj) {
+    if (!playerObj)
+      return false;
+    if (typeof playerObj.isValid === "function")
+      return playerObj.isValid();
+    // Check if the player's D-Bus properties are accessible
+    try {
+      return playerObj.canControl !== undefined;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isBrowserApp(playerObj) {
+    return appMatches(playerObj, browserAppHints);
+  }
+
   function isValidPlayer(playerObj) {
     return root.isAlivePlayer(playerObj) && allPlayers.includes(playerObj);
+  }
+
+  function isVideoApp(playerObj) {
+    return appMatches(playerObj, videoAppHints);
+  }
+
+  function isVideoUrl(urlString) {
+    if (!urlString)
+      return false;
+    const lowerUrl = String(urlString).toLowerCase();
+    if (audioOnlyPatterns.some(pattern => lowerUrl.includes(pattern)))
+      return false;
+    if (videoPatterns.some(pattern => lowerUrl.includes(pattern)))
+      return true;
+    const match = lowerUrl.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/);
+    return !!(match && videoFileExts.includes(match[1]));
   }
 
   function next() {
     if (active && canGoNext)
       active.next();
   }
+
   function pause() {
     if (active && canPause)
       active.pause();
   }
+
   function play() {
     if (active && canPlay)
       active.play();
   }
+
   function playPause() {
     if (!active)
       return;
@@ -150,13 +144,16 @@ Singleton {
     else if (!active.isPlaying && canPlay)
       active.play();
   }
+
   function playerKey(playerObj) {
     return playerObj ? (playerObj.desktopEntry || playerObj.dbusName || playerObj.identity || "") : "";
   }
+
   function previous() {
     if (active && canGoPrevious)
       active.previous();
   }
+
   function seek(position) {
     const p = active;
     if (root.isAlivePlayer(p) && p?.canSeek) {
@@ -166,6 +163,7 @@ Singleton {
       currentPosition = position;
     }
   }
+
   function seekByRatio(ratio) {
     const p = active;
     if (root.isAlivePlayer(p) && p?.canSeek && trackLength > 0) {
@@ -176,6 +174,15 @@ Singleton {
       currentPosition = target;
     }
   }
+
+  function selectActivePlayer() {
+    if (manualActive && isValidPlayer(manualActive))
+      return manualActive;
+    if (selectedPlayerIndex >= 0 && selectedPlayerIndex < players.length)
+      return players[selectedPlayerIndex];
+    return players.find(player => player.playbackState === MprisPlaybackState.Playing) || players.find(player => player.canControl && player.canPlay) || players[0] || null;
+  }
+
   function stop() {
     if (active)
       active.stop();
@@ -189,12 +196,13 @@ Singleton {
   }
 
   Connections {
-    target: Mpris.players
     function onValuesChanged() {
       if (root.selectedPlayerIndex >= root.players.length)
         root.selectedPlayerIndex = -1;
       if (root.manualActive && !root.allPlayers.includes(root.manualActive))
         root.manualActive = null;
     }
+
+    target: Mpris.players
   }
 }

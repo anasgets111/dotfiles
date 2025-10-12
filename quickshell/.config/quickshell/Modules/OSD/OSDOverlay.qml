@@ -8,36 +8,36 @@ import qs.Config
 PanelWindow {
   required property var modelData
 
+  WlrLayershell.exclusiveZone: -1
+  WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+  WlrLayershell.layer: WlrLayer.Overlay
   color: "transparent"
   screen: modelData
   visible: OSDService.visible
-
-  WlrLayershell.layer: WlrLayer.Overlay
-  WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-  WlrLayershell.exclusiveZone: -1
-
-  anchors {
-    top: true
-    left: true
-    right: true
-    bottom: true
-  }
 
   mask: Region {
     item: card
   }
 
+  anchors {
+    bottom: true
+    left: true
+    right: true
+    top: true
+  }
+
   OSDCard {
     id: card
-    anchors {
-      bottom: parent.bottom
-      horizontalCenter: parent.horizontalCenter
-      bottomMargin: Theme.popupOffset * 11
-    }
 
     icon: OSDService.osdIcon
     label: OSDService.osdLabel
-    value: OSDService.osdValue
     showing: OSDService.visible
+    value: OSDService.osdValue
+
+    anchors {
+      bottom: parent.bottom
+      bottomMargin: Theme.popupOffset * 11
+      horizontalCenter: parent.horizontalCenter
+    }
   }
 }

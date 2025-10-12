@@ -9,43 +9,6 @@ SearchGridPanel {
 
   property var appEntries: []
 
-  items: appEntries
-  maxResults: 200
-  windowWidth: 741
-  windowHeight: 471
-  cellWidth: 150
-  cellHeight: 150
-  cellPadding: 32
-  itemImageSize: 72
-
-  finderBuilder: params => {
-    if (typeof Fzf === "undefined" || typeof Fzf.finder !== "function")
-      return null;
-    return new Fzf.finder(params.list, {
-      selector: params.selector,
-      limit: params.limit,
-      tiebreakers: [Fzf.by_start_asc, Fzf.by_length_asc]
-    });
-  }
-
-  labelSelector: function (entry) {
-    return entry?.name || "";
-  }
-  iconSelector: function (entry) {
-    const resolvedName = entry?.name || "";
-    return Utils.resolveIconSource(entry?.id || resolvedName, entry?.icon, "application-x-executable");
-  }
-
-  onActivated: entry => launcherWindow.launchEntry(entry)
-
-  Component.onCompleted: {
-    refreshEntries();
-    open();
-  }
-
-  onActiveChanged: if (active)
-    refreshEntries()
-
   function launchEntry(entry) {
     const command = sanitizeCommand(entry);
     if (!command) {
@@ -62,11 +25,6 @@ SearchGridPanel {
     }
   }
 
-  function sanitizeCommand(entry) {
-    const raw = String(entry?.exec || entry?.command || "");
-    return raw.replace(/%[fFuUdDnNickvm]/g, "").replace(/\s+/g, " ").trim();
-  }
-
   function refreshEntries() {
     let values = [];
     try {
@@ -77,4 +35,42 @@ SearchGridPanel {
     }
     appEntries = values || [];
   }
+
+  function sanitizeCommand(entry) {
+    const raw = String(entry?.exec || entry?.command || "");
+    return raw.replace(/%[fFuUdDnNickvm]/g, "").replace(/\s+/g, " ").trim();
+  }
+
+  cellHeight: 150
+  cellPadding: 32
+  cellWidth: 150
+  finderBuilder: params => {
+    if (typeof Fzf === "undefined" || typeof Fzf.finder !== "function")
+      return null;
+    return new Fzf.finder(params.list, {
+      selector: params.selector,
+      limit: params.limit,
+      tiebreakers: [Fzf.by_start_asc, Fzf.by_length_asc]
+    });
+  }
+  iconSelector: function (entry) {
+    const resolvedName = entry?.name || "";
+    return Utils.resolveIconSource(entry?.id || resolvedName, entry?.icon, "application-x-executable");
+  }
+  itemImageSize: 72
+  items: appEntries
+  labelSelector: function (entry) {
+    return entry?.name || "";
+  }
+  maxResults: 200
+  windowHeight: 471
+  windowWidth: 741
+
+  Component.onCompleted: {
+    refreshEntries();
+    open();
+  }
+  onActivated: entry => launcherWindow.launchEntry(entry)
+  onActiveChanged: if (active)
+    refreshEntries()
 }

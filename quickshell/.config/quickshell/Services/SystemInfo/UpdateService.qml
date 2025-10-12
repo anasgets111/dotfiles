@@ -8,44 +8,50 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  readonly property bool busy: pkgProc.running
+  property bool checkupdatesAvailable: false
+  property var completedPackages: []
+  property int currentPackageIndex: 0
+  property string currentPackageName: ""
+  property string errorMessage: ""
+  property string errorType: ""
+  property var failedPackages: []
+  property int failureCount: 0
+  readonly property int failureThreshold: 5
+  property int lastNotifiedTotal: 0
+  property double lastSync: 0
+  property var outputLines: []
+  property var packageSizes: ({})
+  readonly property int pollInterval: 15 * 60 * 1000
+  readonly property bool ready: MainService.isArchBased && checkupdatesAvailable
+  property bool selectAll: false
+  readonly property int selectedCount: selectedPackageNames.length
+  readonly property var selectedPackageNames: Object.keys(selectedPackages).filter(k => selectedPackages[k])
+  property var selectedPackages: ({})
   readonly property var status: ({
       Idle: 0,
       Updating: 1,
       Completed: 2,
       Error: 3
     })
-
-  property int updateState: status.Idle
-  property string errorMessage: ""
-  property string errorType: ""
-  property int currentPackageIndex: 0
-  property int totalPackagesToUpdate: 0
-  property string currentPackageName: ""
-  property var outputLines: []
-  property var completedPackages: []
-  property var failedPackages: []
-  property var selectedPackages: ({})
-  property bool selectAll: false
-  property var updatePackages: []
-  property double lastSync: 0
-  property int lastNotifiedTotal: 0
-  property bool checkupdatesAvailable: false
-  property int failureCount: 0
-  property var packageSizes: ({})
-
-  readonly property var selectedPackageNames: Object.keys(selectedPackages).filter(k => selectedPackages[k])
-  readonly property int totalUpdates: updatePackages.length
-  readonly property int selectedCount: selectedPackageNames.length
-  readonly property bool busy: pkgProc.running
-  readonly property bool ready: MainService.isArchBased && checkupdatesAvailable
   readonly property int totalDownloadSize: {
     const pkgs = selectedCount > 0 ? updatePackages.filter(p => selectedPackages[p.name] === true) : updatePackages;
     return pkgs.reduce((sum, p) => sum + (packageSizes[p.name] || 0), 0);
   }
-  readonly property int pollInterval: 15 * 60 * 1000
-  readonly property int failureThreshold: 5
+  property int totalPackagesToUpdate: 0
+  readonly property int totalUpdates: updatePackages.length
   readonly property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "sh", "-c", "$BIN/update.sh"]
   readonly property var updateLineRe: /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/
+  property var updatePackages: []
+  property int updateState: status.Idle
+
+  function _handleError(source, message, code) {
+    Logger.warn("UpdateService", `${source} error (code: ${code}): ${message}`);
+    if (++failureCount >= failureThreshold) {
+      _notify(qsTr("Update check failed"), message, "critical");
+      failureCount = 0;
+    }
+  }
 
   function _notify(title, message, urgency = "normal", action = null) {
     const args = ["-u", urgency, "-a", "UpdateService", "-i", "system-software-update"];
@@ -59,14 +65,6 @@ Singleton {
         updateRunner.running = true;
       }
     });
-  }
-
-  function _handleError(source, message, code) {
-    Logger.warn("UpdateService", `${source} error (code: ${code}): ${message}`);
-    if (++failureCount >= failureThreshold) {
-      _notify(qsTr("Update check failed"), message, "critical");
-      failureCount = 0;
-    }
   }
 
   function _notifyIfIncreased() {
@@ -93,11 +91,11 @@ Singleton {
     }).filter(p => p);
   }
 
-  function fetchPackageSizes() {
-    if (updatePackages.length === 0)
-      return;
-    sizeFetchProcess.command = ["expac", "-S", "%k\t%n", ...updatePackages.map(p => p.name)];
-    sizeFetchProcess.running = true;
+  function cancelUpdate() {
+    if (updateProcess.running)
+      updateProcess.running = false;
+    updateState = status.Idle;
+    outputLines = [];
   }
 
   function doPoll() {
@@ -105,15 +103,6 @@ Singleton {
       return;
     pkgProc.command = ["checkupdates", "--nocolor"];
     pkgProc.running = true;
-  }
-
-  function runUpdate() {
-    if (totalUpdates > 0) {
-      updateRunner.command = updateCommand;
-      updateRunner.running = true;
-    } else {
-      doPoll();
-    }
   }
 
   function executeUpdate() {
@@ -136,11 +125,16 @@ Singleton {
     Logger.log("UpdateService", `Starting update of ${packages.length} packages`);
   }
 
-  function cancelUpdate() {
-    if (updateProcess.running)
-      updateProcess.running = false;
-    updateState = status.Idle;
-    outputLines = [];
+  function fetchPackageSizes() {
+    if (updatePackages.length === 0)
+      return;
+    sizeFetchProcess.command = ["expac", "-S", "%k\t%n", ...updatePackages.map(p => p.name)];
+    sizeFetchProcess.running = true;
+  }
+
+  function resetSelection() {
+    selectedPackages = {};
+    selectAll = false;
   }
 
   function retryUpdate() {
@@ -149,11 +143,13 @@ Singleton {
     executeUpdate();
   }
 
-  function toggleSelectAll() {
-    selectAll = !selectAll;
-    selectedPackages = updatePackages.reduce((acc, pkg) => Object.assign({}, acc, {
-        [pkg.name]: selectAll
-      }), {});
+  function runUpdate() {
+    if (totalUpdates > 0) {
+      updateRunner.command = updateCommand;
+      updateRunner.running = true;
+    } else {
+      doPoll();
+    }
   }
 
   function togglePackage(packageName) {
@@ -163,9 +159,11 @@ Singleton {
     selectAll = updatePackages.every(p => selectedPackages[p.name]);
   }
 
-  function resetSelection() {
-    selectedPackages = {};
-    selectAll = false;
+  function toggleSelectAll() {
+    selectAll = !selectAll;
+    selectedPackages = updatePackages.reduce((acc, pkg) => Object.assign({}, acc, {
+        [pkg.name]: selectAll
+      }), {});
   }
 
   Component.onCompleted: {
@@ -173,26 +171,31 @@ Singleton {
     if (cache.cachedLastSync > 0)
       lastSync = cache.cachedLastSync;
   }
-
-  onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
+  Component.onDestruction: pollTimer.stop()
   onLastSyncChanged: cache.cachedLastSync = lastSync
+  onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
 
   PersistentProperties {
     id: cache
-    property string cachedUpdatePackagesJson: "[]"
+
     property double cachedLastSync: 0
+    property string cachedUpdatePackagesJson: "[]"
+
     reloadableId: "ArchCheckerCache"
   }
 
   Process {
     id: updateRunner
+
     onExited: (exitCode, exitStatus) => root.doPoll()
   }
 
   Process {
     id: pacmanCheck
+
     command: ["sh", "-c", "command -v checkupdates >/dev/null && echo yes || echo no"]
     running: true
+
     stdout: StdioCollector {
       onStreamFinished: {
         root.checkupdatesAvailable = (text || "").trim() === "yes";
@@ -206,6 +209,7 @@ Singleton {
 
   Process {
     id: sizeFetchProcess
+
     stdout: SplitParser {
       onRead: line => {
         const parts = line.trim().split('\t');
@@ -221,6 +225,7 @@ Singleton {
         }
       }
     }
+
     onExited: {
       Logger.log("UpdateService", `Fetched sizes for ${Object.keys(root.packageSizes).length} packages`);
     }
@@ -228,6 +233,7 @@ Singleton {
 
   Process {
     id: pkgProc
+
     stderr: StdioCollector {
       onStreamFinished: {
         const msg = (text || "").trim();
@@ -244,6 +250,7 @@ Singleton {
           root.fetchPackageSizes();
       }
     }
+
     onExited: (exitCode, exitStatus) => {
       if (exitCode !== 0 && exitCode !== 2) {
         root._handleError("checkupdates", `Exit code: ${exitCode}`, exitCode);
@@ -269,14 +276,6 @@ Singleton {
       }
     }
 
-    stdout: SplitParser {
-      onRead: data => {
-        const line = data.trim();
-        const isError = line.toLowerCase().includes("error:") || line.includes("failed");
-        updateProcess.addOutput(line, isError ? "error" : "info");
-      }
-    }
-
     stderr: SplitParser {
       onRead: data => {
         const line = data.trim();
@@ -294,6 +293,13 @@ Singleton {
           root.errorType = "auth";
           root.errorMessage = "Authentication failed";
         }
+      }
+    }
+    stdout: SplitParser {
+      onRead: data => {
+        const line = data.trim();
+        const isError = line.toLowerCase().includes("error:") || line.includes("failed");
+        updateProcess.addOutput(line, isError ? "error" : "info");
       }
     }
 
@@ -315,11 +321,11 @@ Singleton {
 
   Timer {
     id: pollTimer
+
     interval: root.pollInterval
     repeat: true
+
     onTriggered: if (root.ready)
       root.doPoll()
   }
-
-  Component.onDestruction: pollTimer.stop()
 }

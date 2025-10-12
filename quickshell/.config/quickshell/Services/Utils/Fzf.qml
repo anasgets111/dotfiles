@@ -6,33 +6,59 @@ import QtQuick
 QtObject {
   id: fzf
 
-  // Scoring constants
-  readonly property int score_match: 16
-  readonly property int score_gap_start: -3
-  readonly property int score_gap_extention: -1
   readonly property int bonus_boundary: score_match / 2
-  readonly property int bonus_non_word: score_match / 2
   readonly property int bonus_camel_123: bonus_boundary + score_gap_extention
   readonly property int bonus_consecutive: -(score_gap_start + score_gap_extention)
   readonly property int bonus_first_char_multiplier: 2
-  // Rune constants
-  readonly property int max_ascii: 127
+  readonly property int bonus_non_word: score_match / 2
   readonly property int capital_a_rune: 65
   readonly property int capital_z_rune: 90
+  // Rune constants
+  readonly property int max_ascii: 127
+  readonly property int numeral_nine_rune: 57
+  readonly property int numeral_zero_rune: 48
+  readonly property int score_gap_extention: -1
+  readonly property int score_gap_start: -3
+
+  // Scoring constants
+  readonly property int score_match: 16
   readonly property int small_a_rune: 97
   readonly property int small_z_rune: 122
-  readonly property int numeral_zero_rune: 48
-  readonly property int numeral_nine_rune: 57
 
-  // Tiebreaker functions (for equal scores)
-  function by_start_asc(a, b) {
-    a = a || {
-      "start": 0
-    };
-    b = b || {
-      "start": 0
-    };
-    return (a.start || 0) - (b.start || 0);
+  function ascii_fuzzy_index(input, pattern, caseSensitive) {
+    const inp = Array.isArray(input) ? input : [];
+    const pat = Array.isArray(pattern) ? pattern : [];
+    if (pat.length === 0)
+      return 0;
+
+    if (!is_ascii(inp) || !is_ascii(pat))
+      return -1;
+
+    let firstIdx = 0, idx = 0;
+    for (let pidx = 0; pidx < pat.length; pidx++) {
+      idx = try_skip(inp, caseSensitive, pat[pidx], idx);
+      if (idx < 0)
+        return -1;
+
+      if (pidx === 0 && idx > 0)
+        firstIdx = idx - 1;
+
+      idx++;
+    }
+    return firstIdx;
+  }
+
+  function bonus_for(prevClass, currClass) {
+    if (prevClass === 0 && currClass !== 0)
+      return bonus_boundary;
+
+    if ((prevClass === 1 && currClass === 2) || (prevClass !== 4 && currClass === 4))
+      return bonus_camel_123;
+
+    if (currClass === 0)
+      return bonus_non_word;
+
+    return 0;
   }
 
   function by_length_asc(a, b, selector) {
@@ -48,6 +74,17 @@ QtObject {
     const aLen = a.item ? selector(a.item).length : 0;
     const bLen = b.item ? selector(b.item).length : 0;
     return aLen - bLen;
+  }
+
+  // Tiebreaker functions (for equal scores)
+  function by_start_asc(a, b) {
+    a = a || {
+      "start": 0
+    };
+    b = b || {
+      "start": 0
+    };
+    return (a.start || 0) - (b.start || 0);
   }
 
   // Character classification for scoring
@@ -75,80 +112,68 @@ QtObject {
     return 0;
   }
 
-  function bonus_for(prevClass, currClass) {
-    if (prevClass === 0 && currClass !== 0)
-      return bonus_boundary;
-
-    if ((prevClass === 1 && currClass === 2) || (prevClass !== 4 && currClass === 4))
-      return bonus_camel_123;
-
-    if (currClass === 0)
-      return bonus_non_word;
-
-    return 0;
-  }
-
-  // String/rune conversion
-  function str_to_runes(str) {
-    const runes = [];
-    for (let i = 0; i < str.length; i++) {
-      const code = str.codePointAt(i);
-      runes.push(code);
-      if (code > 65535)
-        i++;
-      // Skip surrogate pair
-    }
-    return runes;
-  }
-
-  function is_ascii(runes) {
-    return runes.every(r => {
-      return r < 128;
+  // Finder constructor
+  function finder(list, options) {
+    const opts = Object.assign({
+      "limit": Infinity,
+      "selector": v => {
+        return v;
+      },
+      "casing": "smart-case",
+      "sort": true
+    }, options || {});
+    this.opts = opts;
+    this.items = list;
+    this.runesList = list.map(item => {
+      return str_to_runes(opts.selector(item));
     });
-  }
+    this.find = function (query) {
+      if (query.length === 0 || this.items.length === 0)
+        return this.items.slice(0, this.opts.limit).map(item => {
+          return ({
+              "item": item,
+              "start": -1,
+              "end": -1,
+              "score": 0,
+              "positions": new Set()
+            });
+        });
 
-  // ASCII fast path
-  function try_skip(input, caseSensitive, ch, from) {
-    let rest = input.slice(from);
-    let idx = rest.indexOf(ch);
-    if (idx === 0)
-      return from;
+      let caseSensitive = opts.casing === "case-sensitive" || (opts.casing === "smart-case" && query !== query.toLowerCase());
+      if (!caseSensitive)
+        query = query.toLowerCase();
 
-    if (!caseSensitive && ch >= small_a_rune && ch <= small_z_rune) {
-      if (idx > 0)
-        rest = rest.slice(0, idx);
+      const queryRunes = str_to_runes(query);
+      const results = [];
+      for (let i = 0; i < this.runesList.length; i++) {
+        if (queryRunes.length > this.runesList[i].length)
+          continue;
 
-      const uidx = rest.indexOf(ch - 32);
-      if (uidx >= 0)
-        idx = uidx;
-    }
-    if (idx < 0)
-      return -1;
+        const [match, positions] = fuzzy_match_v2(caseSensitive, this.runesList[i], queryRunes, true);
+        if (match.start === -1)
+          continue;
 
-    return from + idx;
-  }
+        results.push(Object.assign({
+          "item": this.items[i],
+          "positions": positions
+        }, match));
+      }
+      if (opts.sort) {
+        results.sort((a, b) => {
+          if (a.score !== b.score)
+            return b.score - a.score;
 
-  function ascii_fuzzy_index(input, pattern, caseSensitive) {
-    const inp = Array.isArray(input) ? input : [];
-    const pat = Array.isArray(pattern) ? pattern : [];
-    if (pat.length === 0)
-      return 0;
-
-    if (!is_ascii(inp) || !is_ascii(pat))
-      return -1;
-
-    let firstIdx = 0, idx = 0;
-    for (let pidx = 0; pidx < pat.length; pidx++) {
-      idx = try_skip(inp, caseSensitive, pat[pidx], idx);
-      if (idx < 0)
-        return -1;
-
-      if (pidx === 0 && idx > 0)
-        firstIdx = idx - 1;
-
-      idx++;
-    }
-    return firstIdx;
+          const tiebreakers = opts.tiebreakers || [];
+          for (const tiebreaker of tiebreakers) {
+            const diff = tiebreaker(a, b, opts.selector);
+            if (diff !== 0)
+              return diff;
+          }
+          return 0;
+        });
+      }
+      return Number.isFinite(opts.limit) ? results.slice(0, opts.limit) : results;
+    };
   }
 
   // Fuzzy Match V2 algorithm
@@ -299,67 +324,43 @@ QtObject {
       pos];
   }
 
-  // Finder constructor
-  function finder(list, options) {
-    const opts = Object.assign({
-      "limit": Infinity,
-      "selector": v => {
-        return v;
-      },
-      "casing": "smart-case",
-      "sort": true
-    }, options || {});
-    this.opts = opts;
-    this.items = list;
-    this.runesList = list.map(item => {
-      return str_to_runes(opts.selector(item));
+  function is_ascii(runes) {
+    return runes.every(r => {
+      return r < 128;
     });
-    this.find = function (query) {
-      if (query.length === 0 || this.items.length === 0)
-        return this.items.slice(0, this.opts.limit).map(item => {
-          return ({
-              "item": item,
-              "start": -1,
-              "end": -1,
-              "score": 0,
-              "positions": new Set()
-            });
-        });
+  }
 
-      let caseSensitive = opts.casing === "case-sensitive" || (opts.casing === "smart-case" && query !== query.toLowerCase());
-      if (!caseSensitive)
-        query = query.toLowerCase();
+  // String/rune conversion
+  function str_to_runes(str) {
+    const runes = [];
+    for (let i = 0; i < str.length; i++) {
+      const code = str.codePointAt(i);
+      runes.push(code);
+      if (code > 65535)
+        i++;
+      // Skip surrogate pair
+    }
+    return runes;
+  }
 
-      const queryRunes = str_to_runes(query);
-      const results = [];
-      for (let i = 0; i < this.runesList.length; i++) {
-        if (queryRunes.length > this.runesList[i].length)
-          continue;
+  // ASCII fast path
+  function try_skip(input, caseSensitive, ch, from) {
+    let rest = input.slice(from);
+    let idx = rest.indexOf(ch);
+    if (idx === 0)
+      return from;
 
-        const [match, positions] = fuzzy_match_v2(caseSensitive, this.runesList[i], queryRunes, true);
-        if (match.start === -1)
-          continue;
+    if (!caseSensitive && ch >= small_a_rune && ch <= small_z_rune) {
+      if (idx > 0)
+        rest = rest.slice(0, idx);
 
-        results.push(Object.assign({
-          "item": this.items[i],
-          "positions": positions
-        }, match));
-      }
-      if (opts.sort) {
-        results.sort((a, b) => {
-          if (a.score !== b.score)
-            return b.score - a.score;
+      const uidx = rest.indexOf(ch - 32);
+      if (uidx >= 0)
+        idx = uidx;
+    }
+    if (idx < 0)
+      return -1;
 
-          const tiebreakers = opts.tiebreakers || [];
-          for (const tiebreaker of tiebreakers) {
-            const diff = tiebreaker(a, b, opts.selector);
-            if (diff !== 0)
-              return diff;
-          }
-          return 0;
-        });
-      }
-      return Number.isFinite(opts.limit) ? results.slice(0, opts.limit) : results;
-    };
+    return from + idx;
   }
 }

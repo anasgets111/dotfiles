@@ -10,10 +10,10 @@ Singleton {
   id: root
 
   readonly property bool available: MainService.hasKeyboardBacklight
-  property string devicePath: ""
-  property string deviceName: ""
   property int brightness: 0
-  property int maxBrightness: 3
+  property string deviceName: ""
+  property string devicePath: ""
+  property int lastBrightness: -1
   readonly property int level: brightness
   readonly property string levelName: {
     if (brightness === 0)
@@ -28,8 +28,21 @@ Singleton {
     }
     return `Level ${brightness}`;
   }
+  property int maxBrightness: 3
   property bool ready: false
-  property int lastBrightness: -1
+
+  function decrease() {
+    setLevel(Math.max(0, brightness - 1));
+  }
+
+  function increase() {
+    setLevel(Math.min(maxBrightness, brightness + 1));
+  }
+
+  function refresh() {
+    monitorProcess.running = false;
+    monitorProcess.running = true;
+  }
 
   function setLevel(level) {
     if (!available || !deviceName)
@@ -40,22 +53,29 @@ Singleton {
     return `Keyboard backlight set to ${levelName}`;
   }
 
-  function increase() {
-    setLevel(Math.min(maxBrightness, brightness + 1));
+  Component.onCompleted: {
+    if (available) {
+      Logger.log("KeyboardBacklightService", `initializing...`);
+    } else {
+      Logger.log("KeyboardBacklightService", "not available");
+    }
   }
-
-  function decrease() {
-    setLevel(Math.max(0, brightness - 1));
+  onBrightnessChanged: {
+    if (available && ready) {
+      Logger.log("KeyboardBacklightService", `keyboard backlight: ${brightness}/${maxBrightness} (${levelName})`);
+    }
   }
-
-  function refresh() {
-    monitorProcess.running = false;
-    monitorProcess.running = true;
+  onDevicePathChanged: {
+    if (devicePath) {
+      root.ready = true;
+      Logger.log("KeyboardBacklightService", `ready | device: ${deviceName} (${devicePath}) | level: ${brightness}/${maxBrightness} (${levelName})`);
+    }
   }
 
   // Detect keyboard backlight device
   Process {
     id: deviceDetector
+
     command: ["sh", "-c", "ls -1 /sys/class/leds/*kbd_backlight*/brightness 2>/dev/null | head -1 | sed 's|/brightness||'"]
     running: root.available
 
@@ -77,6 +97,7 @@ Singleton {
   // Watch brightness file with polling (sysfs doesn't support inotify well)
   Process {
     id: monitorProcess
+
     command: ["sh", "-c", `
       path="${root.devicePath}/brightness"
       while :; do
@@ -92,6 +113,7 @@ Singleton {
 
     stdout: SplitParser {
       splitMarker: "\n"
+
       onRead: line => {
         const value = Number.parseInt(line.trim(), 10);
         if (!Number.isNaN(value) && value !== root.lastBrightness) {
@@ -105,6 +127,7 @@ Singleton {
   // Read max brightness once
   FileView {
     id: maxBrightnessFile
+
     path: root.devicePath ? `${root.devicePath}/max_brightness` : ""
 
     onLoaded: {
@@ -123,27 +146,6 @@ Singleton {
       onRead: () => {
       // Monitor process will pick up the change
       }
-    }
-  }
-
-  Component.onCompleted: {
-    if (available) {
-      Logger.log("KeyboardBacklightService", `initializing...`);
-    } else {
-      Logger.log("KeyboardBacklightService", "not available");
-    }
-  }
-
-  onDevicePathChanged: {
-    if (devicePath) {
-      root.ready = true;
-      Logger.log("KeyboardBacklightService", `ready | device: ${deviceName} (${devicePath}) | level: ${brightness}/${maxBrightness} (${levelName})`);
-    }
-  }
-
-  onBrightnessChanged: {
-    if (available && ready) {
-      Logger.log("KeyboardBacklightService", `keyboard backlight: ${brightness}/${maxBrightness} (${levelName})`);
     }
   }
 }

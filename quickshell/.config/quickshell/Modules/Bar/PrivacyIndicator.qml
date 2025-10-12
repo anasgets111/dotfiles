@@ -9,8 +9,6 @@ import qs.Components
 RowLayout {
   id: pIndic
 
-  spacing: 8
-
   readonly property var activeIndicators: [(PrivacyService.microphoneActive || PrivacyService.microphoneMuted) && {
       icon: PrivacyService.microphoneMuted ? "\uF131" : "\uF130",
       tooltip: PrivacyService.microphoneMuted ? qsTr("Microphone muted") : qsTr("Microphone in use"),
@@ -28,14 +26,16 @@ RowLayout {
       color: Theme.critical
     }].filter(Boolean)
 
+  spacing: 8
+
   Component {
     id: pDelegate
 
     Item {
       id: cell
 
-      required property var modelData
       readonly property var indicator: cell.modelData
+      required property var modelData
 
       Layout.alignment: Qt.AlignVCenter
       Layout.preferredHeight: implicitHeight
@@ -45,11 +45,13 @@ RowLayout {
 
       IconButton {
         id: button
-        colorBg: cell.indicator.color ?? Theme.critical
+
         anchors.fill: parent
+        colorBg: cell.indicator.color ?? Theme.critical
+        enabled: true
         icon: cell.indicator.icon
         tooltipText: cell.indicator.tooltip
-        enabled: true
+
         onClicked: {
           if (typeof cell.indicator.onClick === "function")
             cell.indicator.onClick();
@@ -57,6 +59,7 @@ RowLayout {
       }
     }
   }
+
   Repeater {
     delegate: pDelegate
     model: pIndic.activeIndicators

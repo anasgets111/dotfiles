@@ -34,23 +34,15 @@ Item {
 
       delegate: IconButton {
         id: btn
+
         required property var modelData
 
         Layout.alignment: Qt.AlignVCenter
         Layout.preferredHeight: Theme.itemHeight
         Layout.preferredWidth: Theme.itemWidth
-        showBorder: false
         icon: ""
+        showBorder: false
         tooltipText: SystemTrayService.displayTitleFor(modelData) ? SystemTrayService.tooltipTitleFor(modelData) : ""
-
-        MouseArea {
-          anchors.fill: parent
-          acceptedButtons: Qt.NoButton
-          hoverEnabled: false
-          onWheel: function (w) {
-            SystemTrayService.scrollItem(btn.modelData, w.angleDelta.x, w.angleDelta.y);
-          }
-        }
 
         onClicked: function (mouse) {
           if (!mouse)
@@ -63,18 +55,32 @@ Item {
           SystemTrayService.handleItemClick(modelData, mouse.button);
         }
 
+        MouseArea {
+          acceptedButtons: Qt.NoButton
+          anchors.fill: parent
+          hoverEnabled: false
+
+          onWheel: function (w) {
+            SystemTrayService.scrollItem(btn.modelData, w.angleDelta.x, w.angleDelta.y);
+          }
+        }
+
         Item {
           anchors.fill: parent
+
           IconImage {
             id: iconImage
+
             anchors.centerIn: parent
-            implicitSize: Theme.iconSize
+            backer.cache: false
             backer.fillMode: Image.PreserveAspectFit
             backer.smooth: true
             backer.sourceSize: Qt.size(Theme.iconSize, Theme.iconSize)
+            implicitSize: Theme.iconSize
             source: SystemTrayService.normalizedIconFor(btn.modelData)
             visible: status !== Image.Error && status !== Image.Null
           }
+
           Text {
             anchors.centerIn: parent
             color: Theme.textContrast(btn.effectiveBg)
@@ -101,18 +107,22 @@ Item {
 
   OPanel {
     id: trayMenuPanel
+
+    panelHeight: menuContent.implicitHeight + 16
     panelNamespace: "obelisk-systray-panel"
     panelWidth: 300
-    panelHeight: menuContent.implicitHeight + 16
+
     onPanelClosed: tray.currentMenuItem = null
 
     QsMenuOpener {
       id: menuOpener
+
       menu: tray.currentMenuItem ? SystemTrayService.menuModelForItem(tray.currentMenuItem) : null
     }
 
     ColumnLayout {
       id: menuContent
+
       anchors.fill: parent
       anchors.margins: 8
       spacing: 2
@@ -123,45 +133,47 @@ Item {
         delegate: Component {
           Item {
             id: menuItem
-            required property var modelData
+
             readonly property bool isSeparator: modelData?.isSeparator ?? false
+            required property var modelData
 
             Layout.fillWidth: true
             Layout.preferredHeight: menuItem.isSeparator ? 8 : Theme.itemHeight
 
             Rectangle {
-              visible: menuItem.isSeparator
               anchors.centerIn: parent
-              width: parent.width - 8
-              height: 1
               color: Theme.borderColor
+              height: 1
+              visible: menuItem.isSeparator
+              width: parent.width - 8
             }
 
             Rectangle {
-              visible: !menuItem.isSeparator
               anchors.fill: parent
               color: mouseArea.containsMouse ? Theme.onHoverColor : "transparent"
               radius: Theme.itemRadius
+              visible: !menuItem.isSeparator
 
               Text {
                 anchors.fill: parent
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
-                text: menuItem.modelData?.text || ""
                 color: Theme.textContrast(parent.color)
+                elide: Text.ElideRight
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
-                verticalAlignment: Text.AlignVCenter
-                elide: Text.ElideRight
                 opacity: (menuItem.modelData?.enabled ?? true) ? 1.0 : 0.5
+                text: menuItem.modelData?.text || ""
+                verticalAlignment: Text.AlignVCenter
               }
 
               MouseArea {
                 id: mouseArea
+
                 anchors.fill: parent
-                hoverEnabled: true
-                enabled: menuItem.modelData?.enabled ?? true
                 cursorShape: Qt.PointingHandCursor
+                enabled: menuItem.modelData?.enabled ?? true
+                hoverEnabled: true
 
                 onClicked: {
                   if (menuItem.modelData && !menuItem.isSeparator && (menuItem.modelData?.enabled ?? true)) {
@@ -176,15 +188,15 @@ Item {
       }
 
       Text {
-        visible: menuOpener.children.values.length === 0
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.itemHeight
-        text: "No menu items"
         color: Theme.textActiveColor
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize
         horizontalAlignment: Text.AlignHCenter
+        text: "No menu items"
         verticalAlignment: Text.AlignVCenter
+        visible: menuOpener.children.values.length === 0
       }
     }
   }

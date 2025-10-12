@@ -9,60 +9,62 @@ import qs.Modules.Notification
 
 OPanel {
   id: root
-  panelNamespace: "obelisk-notification-panel"
 
-  readonly property int maxVisibleGroups: 5
-  readonly property int padding: 16
-  readonly property var notificationGroups: NotificationService.groupedNotifications || []
-  readonly property int notificationCount: NotificationService.notifications?.length || 0
   readonly property bool hasNotifications: root.notificationCount > 0
+  readonly property int maxVisibleGroups: 5
+  readonly property int notificationCount: NotificationService.notifications?.length || 0
+  readonly property var notificationGroups: NotificationService.groupedNotifications || []
+  readonly property int padding: 16
 
-  panelWidth: 420
   needsKeyboardFocus: false
+  panelNamespace: "obelisk-notification-panel"
+  panelWidth: 420
 
-  onPanelOpened: NotificationService.onOverlayOpen()
   onPanelClosed: NotificationService.onOverlayClose()
+  onPanelOpened: NotificationService.onOverlayOpen()
 
   FocusScope {
-    width: parent.width
-    height: contentColumn.implicitHeight
     focus: root.isOpen
+    height: contentColumn.implicitHeight
+    width: parent.width
 
     ColumnLayout {
       id: contentColumn
-      width: parent.width
+
       spacing: 0
+      width: parent.width
 
       Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: Theme.itemHeight * 1.2
         Layout.margins: root.padding
+        Layout.preferredHeight: Theme.itemHeight * 1.2
         color: Qt.lighter(Theme.bgColor, 1.2)
         radius: Theme.itemRadius
 
         RowLayout {
+          spacing: 16
+
           anchors {
             fill: parent
             leftMargin: root.padding
             rightMargin: root.padding
           }
-          spacing: 16
 
           RowLayout {
             spacing: 6
 
             OText {
-              text: qsTr("Notifications")
               font.bold: true
               sizeMultiplier: 1.15
+              text: qsTr("Notifications")
             }
 
             OText {
-              text: root.hasNotifications ? `(${root.notificationCount})` : ""
-              useActiveColor: true
+              font.bold: true
               opacity: 0.8
               sizeMultiplier: 0.95
-              font.bold: true
+              text: root.hasNotifications ? `(${root.notificationCount})` : ""
+              useActiveColor: true
               visible: root.hasNotifications
             }
           }
@@ -72,11 +74,12 @@ OPanel {
           }
 
           IconButton {
-            Layout.preferredWidth: Theme.itemHeight * 0.9
             Layout.preferredHeight: Theme.itemHeight * 0.9
+            Layout.preferredWidth: Theme.itemHeight * 0.9
             icon: "󰩹"
             tooltipText: qsTr("Clear All")
             visible: root.hasNotifications
+
             onClicked: {
               NotificationService.clearAllNotifications();
               root.close();
@@ -84,8 +87,8 @@ OPanel {
           }
 
           Rectangle {
-            Layout.preferredWidth: 1
             Layout.preferredHeight: Theme.itemHeight * 0.6
+            Layout.preferredWidth: 1
             color: Theme.textInactiveColor
             opacity: 0.2
             visible: root.hasNotifications
@@ -95,16 +98,17 @@ OPanel {
             spacing: 8
 
             OText {
-              text: qsTr("DND")
-              useActiveColor: NotificationService.doNotDisturb
               opacity: NotificationService.doNotDisturb ? 1.0 : 0.5
               sizeMultiplier: 0.9
+              text: qsTr("DND")
+              useActiveColor: NotificationService.doNotDisturb
             }
 
             OToggle {
-              Layout.preferredWidth: Theme.itemHeight * 1.2
               Layout.preferredHeight: Theme.itemHeight * 0.55
+              Layout.preferredWidth: Theme.itemHeight * 1.2
               checked: NotificationService.doNotDisturb
+
               onToggled: checked => NotificationService.toggleDnd()
             }
           }
@@ -113,44 +117,46 @@ OPanel {
 
       ListView {
         id: notificationList
-        Layout.fillWidth: true
-        Layout.topMargin: 8
-        Layout.bottomMargin: root.padding
-        Layout.leftMargin: root.padding
-        Layout.rightMargin: root.padding
-        Layout.preferredHeight: Math.min(contentHeight, root.maxVisibleGroups * (Theme.itemHeight * 5))
 
-        visible: root.hasNotifications
-        clip: true
-        spacing: 8
+        Layout.bottomMargin: root.padding
+        Layout.fillWidth: true
+        Layout.leftMargin: root.padding
+        Layout.preferredHeight: Math.min(contentHeight, root.maxVisibleGroups * (Theme.itemHeight * 5))
+        Layout.rightMargin: root.padding
+        Layout.topMargin: 8
         boundsBehavior: Flickable.StopAtBounds
+        clip: true
         interactive: contentHeight > height
         model: root.notificationGroups
+        spacing: 8
+        visible: root.hasNotifications
 
         ScrollBar.vertical: ScrollBar {
           policy: notificationList.contentHeight > notificationList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
           width: 8
         }
-
         delegate: Loader {
           id: delegateLoader
-          required property var modelData
-          required property int index
 
-          width: ListView.view.width
+          required property int index
+          required property var modelData
+
           active: !!delegateLoader.modelData
+          width: ListView.view.width
+
           sourceComponent: NotificationCard {
+            group: delegateLoader.modelData.count > 1 ? delegateLoader.modelData : null
             svc: NotificationService
             wrapper: delegateLoader.modelData.count === 1 ? (delegateLoader.modelData.notifications[0] || null) : null
-            group: delegateLoader.modelData.count > 1 ? delegateLoader.modelData : null
+
             onInputFocusRequested: {}
           }
         }
       }
 
       Item {
-        Layout.fillWidth: true
         Layout.fillHeight: true
+        Layout.fillWidth: true
         Layout.minimumHeight: 300
         visible: !root.hasNotifications
 
@@ -161,26 +167,26 @@ OPanel {
 
           Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "󰂚"
+            color: Theme.textInactiveColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize * 4
-            color: Theme.textInactiveColor
             opacity: 0.5
+            text: "󰂚"
           }
 
           OText {
             Layout.alignment: Qt.AlignHCenter
-            text: qsTr("No Notifications")
-            sizeMultiplier: 1.3
             font.bold: true
+            sizeMultiplier: 1.3
+            text: qsTr("No Notifications")
           }
 
           OText {
             Layout.alignment: Qt.AlignHCenter
+            horizontalAlignment: Text.AlignHCenter
+            opacity: 0.7
             text: qsTr("You're all caught up!")
             useActiveColor: false
-            opacity: 0.7
-            horizontalAlignment: Text.AlignHCenter
           }
         }
       }

@@ -9,11 +9,10 @@ Singleton {
   id: root
 
   readonly property bool active: MainService.ready && MainService.currentWM === "niri"
-  property bool enabled: root.active
-
   property string activeSpecial: ""
   property int currentWorkspace: 1
   property int currentWorkspaceId: -1
+  property bool enabled: root.active
   property string focusedOutput: ""
   property var groupBoundaries: []
   property var outputsOrder: []
@@ -21,13 +20,6 @@ Singleton {
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
   property var specialWorkspaces: []
   property var workspaces: []
-
-  function send(request) {
-    if (enabled && requestSocket.connected)
-      requestSocket.write(JSON.stringify(request) + "\n");
-  }
-  function toggleSpecial(_name) {
-  } // Niri: no-op
 
   function focusWorkspaceById(id) {
     if (!enabled)
@@ -76,6 +68,15 @@ Singleton {
     eventStreamSocket.connected = true;
     requestSocket.connected = true;
   }
+
+  function send(request) {
+    if (enabled && requestSocket.connected)
+      requestSocket.write(JSON.stringify(request) + "\n");
+  }
+
+  function toggleSpecial(_name) {
+  } // Niri: no-op
+
 
   function updateSingleFocus(id) {
     const w = workspaces.find(ws => ws.id === id);
@@ -142,7 +143,11 @@ Singleton {
     if (enabled)
       _startupKick.start();
   }
-
+  Component.onDestruction: {
+    _startupKick.stop();
+    eventStreamSocket.connected = false;
+    requestSocket.connected = false;
+  }
   onEnabledChanged: {
     if (enabled && socketPath) {
       eventStreamSocket.connected = true;
@@ -156,11 +161,13 @@ Singleton {
 
   Socket {
     id: eventStreamSocket
+
     connected: root.enabled && !!root.socketPath
     path: root.socketPath
 
     parser: SplitParser {
       splitMarker: "\n"
+
       onRead: line => {
         if (!line)
           return;
@@ -188,21 +195,18 @@ Singleton {
 
   Socket {
     id: requestSocket
+
     connected: root.enabled && !!root.socketPath
     path: root.socketPath
   }
 
   Timer {
     id: _startupKick
+
     interval: 200
     repeat: false
+
     onTriggered: if (root.enabled)
       root.refresh()
-  }
-
-  Component.onDestruction: {
-    _startupKick.stop();
-    eventStreamSocket.connected = false;
-    requestSocket.connected = false;
   }
 }

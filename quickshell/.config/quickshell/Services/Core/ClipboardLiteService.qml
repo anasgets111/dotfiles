@@ -300,6 +300,7 @@ Singleton {
 
     interval: 200
     repeat: false
+
     onTriggered: {
       cliphistSvc._pasteFocused(function (ok) {
         var fn = _pasteTimer._cb;

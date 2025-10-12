@@ -10,21 +10,22 @@ import qs.Services.WM.Impl.Niri as Niri
 Singleton {
   id: root
 
-  property int _featuresRunId: 0
-  property var _drmEntries: null
   property var _capsCache: ({})
-  property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
-  readonly property bool ready: backend !== null
-  property ListModel monitors: ListModel {}
-  property string preferredMain: MainService.mainMon || ""
-  property string lastKnownGoodMainName: ""
-  readonly property var monitorKeyFields: ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"]
+  property var _drmEntries: null
+  property int _featuresRunId: 0
   readonly property string activeMain: preferredMain || (monitors.count > 0 ? monitors.get(0).name : "")
   readonly property var activeMainScreen: (() => {
       const screens = Quickshell.screens;
       return activeMain ? (screens.find(s => s?.name === activeMain) || screens[0] || null) : (screens[0] || null);
     })()
+  property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
   readonly property var effectiveMainScreen: activeMainScreen || screenByName(lastKnownGoodMainName) || Quickshell.screens[0] || null
+  property string lastKnownGoodMainName: ""
+  readonly property var monitorKeyFields: ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"]
+  property ListModel monitors: ListModel {
+  }
+  property string preferredMain: MainService.mainMon || ""
+  readonly property bool ready: backend !== null
 
   signal monitorsUpdated
 
@@ -52,24 +53,29 @@ Singleton {
     if (vrr !== undefined)
       backend.setVrr(name, vrr);
   }
+
   function emitChangedDebounced() {
     changeDebounce.restart();
   }
+
   function findMonitorIndexByName(name) {
     for (let i = 0; i < monitors.count; i++)
       if (monitors.get(i).name === name)
         return i;
     return -1;
   }
+
   function getAvailableFeatures(name, callback) {
     const fn = backend?.fetchFeatures || backend?.getAvailableFeatures;
     fn ? fn(name, callback) : callback(null);
   }
+
   function isSameMonitor(monA, monB) {
     if (!monA || !monB)
       return false;
     return monitorKeyFields.every(key => monA[key] === monB[key]);
   }
+
   function normalizeScreens(screens) {
     return Array.prototype.slice.call(screens).map(screen => ({
           name: screen.name,
@@ -86,6 +92,7 @@ Singleton {
           hdrActive: false
         }));
   }
+
   function readDrmEntries(cb) {
     if (_drmEntries) {
       cb(_drmEntries);
@@ -127,6 +134,7 @@ Singleton {
       }, root);
     });
   }
+
   function refreshFeatures(monitorsList) {
     if (!backend || (!backend.fetchFeatures && !backend.getAvailableFeatures))
       return;
@@ -190,31 +198,39 @@ Singleton {
       });
     }
   }
+
   function screenByName(name) {
     const screens = Quickshell.screens;
     return screens.find(s => s?.name === name) || screens[0] || null;
   }
+
   function setMode(name, width, height, refreshRate) {
     backend?.setMode(name, width, height, refreshRate);
   }
+
   function setPosition(name, x, y) {
     backend?.setPosition(name, x, y);
   }
+
   function setScale(name, scale) {
     backend?.setScale(name, scale);
   }
+
   function setTransform(name, transform) {
     backend?.setTransform(name, transform);
   }
+
   function setVrr(name, mode) {
     backend?.setVrr(name, mode);
   }
+
   function toArray() {
     const result = [];
     for (let i = 0; i < monitors.count; i++)
       result.push(monitors.get(i));
     return result;
   }
+
   function updateMonitors(newScreens) {
     const oldCount = monitors.count;
     const newCount = newScreens.length;
@@ -250,6 +266,10 @@ Singleton {
     if (backend)
       refreshFeatures(norm);
   }
+  onActiveMainScreenChanged: {
+    if (root.activeMainScreen)
+      root.lastKnownGoodMainName = root.activeMain;
+  }
   onBackendChanged: {
     if (backend)
       refreshFeatures(toArray());
@@ -257,29 +277,29 @@ Singleton {
 
   Timer {
     id: changeDebounce
+
     interval: 0
     repeat: false
+
     onTriggered: root.monitorsUpdated()
   }
 
-  onActiveMainScreenChanged: {
-    if (root.activeMainScreen)
-      root.lastKnownGoodMainName = root.activeMain;
-  }
-
   Connections {
-    target: Quickshell
     function onScreensChanged() {
       const norm = root.normalizeScreens(Quickshell.screens);
       root.updateMonitors(norm);
       if (root.backend)
         root.refreshFeatures(norm);
     }
+
+    target: Quickshell
   }
+
   Connections {
-    target: (root.backend && MainService.currentWM === "niri") ? root.backend : null
     function onFeaturesChanged() {
       root.refreshFeatures(root.toArray());
     }
+
+    target: (root.backend && MainService.currentWM === "niri") ? root.backend : null
   }
 }

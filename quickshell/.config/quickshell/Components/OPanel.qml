@@ -53,67 +53,35 @@ import qs.Modules.Bar
 PanelWindow {
   id: root
 
-  // Configuration
-  property int panelWidth: 350
-  property int panelHeight: 0  // Auto-calculated if 0
-  property int maxHeight: 600
-  property int screenMargin: 8
-  required property string panelNamespace  // MUST be unique per panel instance
-
-  // Position tracking
-  property bool useButtonPosition: false
+  property int buttonHeight: 0
   property point buttonPosition: Qt.point(0, 0)
   property int buttonWidth: 0
-  property int buttonHeight: 0
-
-  // State
-  property bool isOpen: false
-  property bool isClosing: false
-  property bool needsKeyboardFocus: false
-  property bool showInverseCorners: true
 
   // Content container (for height calculation)
   default property alias content: contentContainer.data
   readonly property real contentHeight: contentContainer.implicitHeight || contentContainer.childrenRect.height
   readonly property real effectiveHeight: panelHeight > 0 ? panelHeight : Math.min(contentHeight, maxHeight)
+  property bool isClosing: false
+
+  // State
+  property bool isOpen: false
+  property int maxHeight: 600
+  property bool needsKeyboardFocus: false
+  property int panelHeight: 0  // Auto-calculated if 0
+  required property string panelNamespace  // MUST be unique per panel instance
+
+  // Configuration
+  property int panelWidth: 350
+  property int screenMargin: 8
+  property bool showInverseCorners: true
+
+  // Position tracking
+  property bool useButtonPosition: false
+
+  signal panelClosed
 
   // Signals
   signal panelOpened
-  signal panelClosed
-
-  // Window properties
-  color: "transparent"
-  visible: isOpen || isClosing
-
-  WlrLayershell.layer: WlrLayer.Overlay
-  WlrLayershell.exclusionMode: ExclusionMode.Ignore
-  WlrLayershell.namespace: panelNamespace
-  WlrLayershell.keyboardFocus: needsKeyboardFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-  WlrLayershell.exclusiveZone: -1
-
-  anchors {
-    top: true
-    left: true
-    right: true
-    bottom: true
-  }
-
-  // Animation component
-  component PanelAnimation: NumberAnimation {
-    duration: Theme.animationDuration
-    easing.type: Easing.OutQuad
-  }
-
-  // Auto-hide timer
-  Timer {
-    id: hideTimer
-    interval: Theme.animationDuration
-    repeat: false
-    onTriggered: {
-      root.isClosing = false;
-      root.panelClosed();
-    }
-  }
 
   // Position calculation
   function calculateX() {
@@ -140,6 +108,14 @@ PanelWindow {
     return Math.round(Math.min(belowY, maxY));
   }
 
+  function close() {
+    if (!isOpen)
+      return;
+    isClosing = true;
+    isOpen = false;
+    hideTimer.start();
+  }
+
   // Public API
   function open() {
     if (isClosing) {
@@ -149,14 +125,6 @@ PanelWindow {
     useButtonPosition = true;
     isOpen = true;
     panelOpened();
-  }
-
-  function close() {
-    if (!isOpen)
-      return;
-    isClosing = true;
-    isOpen = false;
-    hideTimer.start();
   }
 
   function openAt(x, y) {
@@ -175,21 +143,53 @@ PanelWindow {
     open();
   }
 
+  WlrLayershell.exclusionMode: ExclusionMode.Ignore
+  WlrLayershell.exclusiveZone: -1
+  WlrLayershell.keyboardFocus: needsKeyboardFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+  WlrLayershell.layer: WlrLayer.Overlay
+  WlrLayershell.namespace: panelNamespace
+
+  // Window properties
+  color: "transparent"
+  visible: isOpen || isClosing
+
+  anchors {
+    bottom: true
+    left: true
+    right: true
+    top: true
+  }
+
+  // Auto-hide timer
+  Timer {
+    id: hideTimer
+
+    interval: Theme.animationDuration
+    repeat: false
+
+    onTriggered: {
+      root.isClosing = false;
+      root.panelClosed();
+    }
+  }
+
   // Keyboard shortcuts
   Shortcut {
-    sequences: ["Escape"]
-    enabled: root.isOpen && !root.isClosing
-    onActivated: root.close()
     context: Qt.WindowShortcut
+    enabled: root.isOpen && !root.isClosing
+    sequences: ["Escape"]
+
+    onActivated: root.close()
   }
 
   // Click outside to dismiss
   MouseArea {
     id: dismissArea
-    anchors.fill: parent
+
     acceptedButtons: Qt.LeftButton | Qt.RightButton
-    hoverEnabled: false
+    anchors.fill: parent
     enabled: root.isOpen && !root.isClosing
+    hoverEnabled: false
 
     onPressed: function (mouse) {
       if (!panelBackground)
@@ -209,6 +209,7 @@ PanelWindow {
   // Clip container to prevent menu from appearing above the bar
   Item {
     id: clipContainer
+
     anchors.fill: parent
     anchors.topMargin: Theme.panelHeight
     clip: true
@@ -216,64 +217,71 @@ PanelWindow {
     Rectangle {
       id: panelBackground
 
-      readonly property real targetY: root.calculateY() - Theme.panelHeight
       readonly property real hiddenY: -height
+      readonly property real targetY: root.calculateY() - Theme.panelHeight
 
-      width: root.panelWidth
-      height: Math.max(1, root.effectiveHeight)
-
+      bottomLeftRadius: Theme.itemRadius
+      bottomRightRadius: Theme.itemRadius
+      clip: true
       color: Theme.bgColor
+      height: Math.max(1, root.effectiveHeight)
       radius: Theme.itemRadius
 
       // Only round bottom corners
       topLeftRadius: 0
       topRightRadius: 0
-      bottomLeftRadius: Theme.itemRadius
-      bottomRightRadius: Theme.itemRadius
-
+      width: root.panelWidth
       x: root.calculateX()
       y: root.isOpen ? targetY : hiddenY
 
       Behavior on y {
-        PanelAnimation {}
+        PanelAnimation {
+        }
       }
-
-      clip: true
 
       // Content area
       Item {
         id: contentContainer
+
         anchors.fill: parent
-        implicitWidth: childrenRect.width
         implicitHeight: childrenRect.height
+        implicitWidth: childrenRect.width
       }
     }
 
     // Left inverse corner
     Loader {
       active: root.showInverseCorners && root.visible
+      anchors.right: panelBackground.left
+      anchors.rightMargin: -1
+      y: panelBackground.y
+
       sourceComponent: RoundCorner {
         color: Theme.bgColor
         orientation: 1 // TOP_RIGHT
         radius: Theme.panelRadius * 3
       }
-      anchors.right: panelBackground.left
-      anchors.rightMargin: -1
-      y: panelBackground.y
     }
 
     // Right inverse corner
     Loader {
       active: root.showInverseCorners && root.visible
+      anchors.left: panelBackground.right
+      anchors.leftMargin: -1
+      y: panelBackground.y
+
       sourceComponent: RoundCorner {
         color: Theme.bgColor
         orientation: 0 // TOP_LEFT
         radius: Theme.panelRadius * 3
       }
-      anchors.left: panelBackground.right
-      anchors.leftMargin: -1
-      y: panelBackground.y
     }
+  }
+
+  // Animation component
+  component PanelAnimation: NumberAnimation {
+    duration: Theme.animationDuration
+    easing.type: Easing.OutQuad
   }
 }
 

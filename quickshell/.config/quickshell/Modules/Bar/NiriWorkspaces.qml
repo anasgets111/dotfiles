@@ -54,12 +54,15 @@ Item {
   // Hover expand/collapse
   Timer {
     id: collapseTimer
+
     interval: Theme.animationDuration + 200
+
     onTriggered: {
       root.expanded = false;
       root.hoveredId = 0;
     }
   }
+
   HoverHandler {
     onHoveredChanged: {
       if (hovered) {
@@ -70,13 +73,16 @@ Item {
       }
     }
   }
+
   Item {
     id: rowViewport
+
     anchors.fill: parent
     clip: true
 
     Row {
       id: workspacesRow
+
       height: root.slotH
       spacing: root.spacing
       width: root.fullWidth
@@ -101,12 +107,16 @@ Item {
           icon: String(ws.idx)
           opacity: 1
           width: root.slotW
+
           Behavior on opacity {
             NumberAnimation {
               duration: Theme.animationDuration
               easing.type: Easing.InOutQuad
             }
           }
+
+          onClicked: if (!ws.is_focused)
+            WorkspaceService.focusWorkspaceByWs(ws)
           onEntered: {
             root.expanded = true;
             collapseTimer.stop();
@@ -117,10 +127,9 @@ Item {
               root.hoveredId = 0;
             collapseTimer.restart();
           }
-          onClicked: if (!ws.is_focused)
-            WorkspaceService.focusWorkspaceByWs(ws)
         }
       }
+
       Repeater {
         model: root.groupBoundaries.length
 
@@ -153,9 +162,10 @@ Item {
 
   // Keep slide alignment in sync with service changes
   Connections {
-    target: WorkspaceService
     function onCurrentWorkspaceChanged() {
-    // Behavior on workspacesRow.x will animate to new targetRowX
+      // Behavior on workspacesRow.x will animate to new targetRowX
     }
+
+    target: WorkspaceService
   }
 }

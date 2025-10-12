@@ -21,10 +21,6 @@ Singleton {
   property bool ready: false
   property string username: ""
 
-  function yes(text) {
-    return (text || "").trim() === "yes";
-  }
-
   function buildSystemInfoCommand() {
     // Shell helper: "yn <cmd>" returns yes/no based on <cmd> exit code
     const shLines = ['yn(){ "$@" >/dev/null 2>&1 && echo yes || echo no; }',
@@ -35,6 +31,10 @@ Singleton {
       // Emit key=value pairs expected by this service's properties
       "printf '%s=%s\\n' " + "isArchBased \"$isArchBased\" " + "hasBrightnessControl \"$hasBrightnessControl\" " + "hasKeyboardBacklight \"$hasKeyboardBacklight\" " + "isLaptop \"$isLaptop\" " + "username \"$username\" " + "fullName \"$fullName\" " + "hostname \"$hostname\"",];
     return ["sh", "-c", shLines.join("; ")];
+  }
+
+  function yes(text) {
+    return (text || "").trim() === "yes";
   }
 
   Component.onCompleted: {

@@ -10,11 +10,14 @@ import qs.Config
 Rectangle {
   id: root
 
+  readonly property color _trackDisabled: Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.75)
+  readonly property color _trackHover: Qt.rgba(Theme.onHoverColor.r, Theme.onHoverColor.g, Theme.onHoverColor.b, 0.65)
+  readonly property color _trackOff: Qt.rgba(Theme.textInactiveColor.r, Theme.textInactiveColor.g, Theme.textInactiveColor.b, 0.38)
+  readonly property color _trackOn: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.95)
   property bool checked: false
   property bool disabled: false
   property bool hovered: false
   property bool pressed: false
-  readonly property real trackHeight: Math.round(Theme.itemHeight * 0.7)
   readonly property real thumbPadding: Math.max(3, Math.round(trackHeight * 0.12))
   readonly property real thumbSize: {
     const baseSize = Math.max(trackHeight - thumbPadding * 2, 10);
@@ -22,10 +25,7 @@ Rectangle {
     const sizeBoost = widthRatio > 1.2 ? Math.min(1.15, 0.9 + (widthRatio - 1.2) * 0.35) : 1;
     return Math.min(baseSize * sizeBoost, root.height - thumbPadding * 2);
   }
-  readonly property color _trackOn: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.95)
-  readonly property color _trackOff: Qt.rgba(Theme.textInactiveColor.r, Theme.textInactiveColor.g, Theme.textInactiveColor.b, 0.38)
-  readonly property color _trackHover: Qt.rgba(Theme.onHoverColor.r, Theme.onHoverColor.g, Theme.onHoverColor.b, 0.65)
-  readonly property color _trackDisabled: Qt.rgba(Theme.disabledColor.r, Theme.disabledColor.g, Theme.disabledColor.b, 0.75)
+  readonly property real trackHeight: Math.round(Theme.itemHeight * 0.7)
 
   signal toggled(bool checked)
 
@@ -37,14 +37,22 @@ Rectangle {
     root.toggled(root.checked);
   }
 
+  border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, disabled ? 0.22 : 0.35)
+  border.width: 1
+  color: root.disabled ? _trackDisabled : (root.checked ? _trackOn : root.hovered ? _trackHover : _trackOff)
+  focus: !root.disabled
   implicitHeight: trackHeight
   implicitWidth: Math.round(trackHeight * 2.3)
-  radius: height / 2
-  border.width: 1
-  border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, disabled ? 0.22 : 0.35)
-  color: root.disabled ? _trackDisabled : (root.checked ? _trackOn : root.hovered ? _trackHover : _trackOff)
   opacity: root.disabled ? 0.6 : 1
-  focus: !root.disabled
+  radius: height / 2
+
+  Behavior on color {
+    ColorAnimation {
+      duration: Theme.animationDuration
+      easing.type: Easing.OutCubic
+    }
+  }
+
   Keys.onPressed: event => {
     if (root.disabled)
       return;
@@ -58,33 +66,31 @@ Rectangle {
   Rectangle {
     id: thumb
 
-    width: root.thumbSize
+    border.color: root.disabled ? Qt.rgba(Theme.textInactiveColor.r, Theme.textInactiveColor.g, Theme.textInactiveColor.b, 0.35) : Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.4)
+    border.width: 1
+    color: root.disabled ? Qt.rgba(Theme.textInactiveColor.r, Theme.textInactiveColor.g, Theme.textInactiveColor.b, 0.75) : Qt.rgba(Theme.textActiveColor.r, Theme.textActiveColor.g, Theme.textActiveColor.b, root.pressed ? 0.92 : 1)
     height: root.thumbSize
     radius: height / 2
-    color: root.disabled ? Qt.rgba(Theme.textInactiveColor.r, Theme.textInactiveColor.g, Theme.textInactiveColor.b, 0.75) : Qt.rgba(Theme.textActiveColor.r, Theme.textActiveColor.g, Theme.textActiveColor.b, root.pressed ? 0.92 : 1)
-    border.width: 1
-    border.color: root.disabled ? Qt.rgba(Theme.textInactiveColor.r, Theme.textInactiveColor.g, Theme.textInactiveColor.b, 0.35) : Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.4)
-    y: (parent.height - height) / 2
-    x: root.checked ? parent.width - width - root.thumbPadding : root.thumbPadding
     scale: root.hovered && !root.disabled ? 1.05 : 1
+    width: root.thumbSize
+    x: root.checked ? parent.width - width - root.thumbPadding : root.thumbPadding
+    y: (parent.height - height) / 2
 
-    Behavior on x {
-      NumberAnimation {
+    Behavior on color {
+      ColorAnimation {
         duration: Theme.animationDuration
-        easing.type: Easing.OutQuad
       }
     }
-
     Behavior on scale {
       NumberAnimation {
         duration: Theme.animationDuration
         easing.type: Easing.OutQuad
       }
     }
-
-    Behavior on color {
-      ColorAnimation {
+    Behavior on x {
+      NumberAnimation {
         duration: Theme.animationDuration
+        easing.type: Easing.OutQuad
       }
     }
   }
@@ -93,11 +99,10 @@ Rectangle {
     id: toggleArea
 
     anchors.fill: parent
-    hoverEnabled: true
-    enabled: !root.disabled
     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-    onPressed: root.pressed = true
-    onReleased: root.pressed = false
+    enabled: !root.disabled
+    hoverEnabled: true
+
     onCanceled: root.pressed = false
     onClicked: root.toggle()
     onEntered: root.hovered = true
@@ -105,12 +110,7 @@ Rectangle {
       root.hovered = false;
       root.pressed = false;
     }
-  }
-
-  Behavior on color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-      easing.type: Easing.OutCubic
-    }
+    onPressed: root.pressed = true
+    onReleased: root.pressed = false
   }
 }

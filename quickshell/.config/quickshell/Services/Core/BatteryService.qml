@@ -8,7 +8,6 @@ import qs.Services.Utils
 Singleton {
   id: batteryService
 
-  property var lastNotificationTimestamps: ({})
   readonly property int deviceState: UPower.displayDevice ? UPower.displayDevice.state : UPowerDeviceState.Unknown
   readonly property bool isACPowered: isCharging || isFullyCharged || isPendingCharge
   readonly property bool isCharging: deviceState === UPowerDeviceState.Charging
@@ -24,6 +23,7 @@ Singleton {
   readonly property bool isReady: MainService.isLaptop && isLaptopBattery
   readonly property bool isSuspendingAndNotCharging: isLaptopBattery && percentageFraction <= 0.08 && !isCharging
   readonly property bool isUnknownState: deviceState === UPowerDeviceState.Unknown
+  property var lastNotificationTimestamps: ({})
   readonly property int percentage: Math.round(percentageFraction * 100)
   readonly property real percentageFraction: {
     const rawPercentage = UPower.displayDevice ? UPower.displayDevice.percentage : 0;

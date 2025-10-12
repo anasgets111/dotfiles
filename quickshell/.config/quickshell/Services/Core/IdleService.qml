@@ -10,17 +10,19 @@ import qs.Config
 Singleton {
   id: idleDaemon
 
-  property QsWindow window
-  readonly property var settings: Settings.data.idleService
-  property bool dpmsOffInSession: false
-  readonly property bool monitorsEnabled: Settings.isLoaded && settings.enabled && (settings.lockEnabled || settings.dpmsEnabled || settings.suspendEnabled)
   readonly property bool baseEnabled: rearmToken && monitorsEnabled
-  readonly property bool monitorRespectInhibitors: settings.respectInhibitors && !LockService.locked
+  property bool dpmsOffInSession: false
+  readonly property int dpmsStageTimeoutSec: settings.dpmsEnabled ? (lockStageTimeoutSec + settings.dpmsTimeoutSec) : lockStageTimeoutSec
   readonly property bool effectiveInhibited: settings.videoAutoInhibit && MediaService.anyVideoPlaying
   readonly property int lockStageTimeoutSec: (!LockService.locked && settings.lockEnabled) ? settings.lockTimeoutSec : 0
-  readonly property int dpmsStageTimeoutSec: settings.dpmsEnabled ? (lockStageTimeoutSec + settings.dpmsTimeoutSec) : lockStageTimeoutSec
+  readonly property bool monitorRespectInhibitors: settings.respectInhibitors && !LockService.locked
+  readonly property bool monitorsEnabled: Settings.isLoaded && settings.enabled && (settings.lockEnabled || settings.dpmsEnabled || settings.suspendEnabled)
+  property bool rearmToken: true
+  readonly property var settings: Settings.data.idleService
   readonly property int suspendStageTimeoutSec: settings.suspendEnabled ? (dpmsStageTimeoutSec + settings.suspendTimeoutSec) : dpmsStageTimeoutSec
   readonly property int totalTimeout: suspendStageTimeoutSec
+  property QsWindow window
+  readonly property var wmCmds: wmCommandMap[String(MainService.currentWM || "")]
   readonly property var wmCommandMap: ({
       "hyprland": {
         on: ["hyprctl", "dispatch", "dpms", "on"],
@@ -31,19 +33,15 @@ Singleton {
         off: ["niri", "msg", "action", "power-off-monitors"]
       }
     })
-  readonly property var wmCmds: wmCommandMap[String(MainService.currentWM || "")]
 
   signal actionFired(string name)
 
-  property bool rearmToken: true
   function rearmMonitors(): void {
     rearmToken = false;
     Qt.callLater(() => {
       rearmToken = true;
     });
   }
-
-  onTotalTimeoutChanged: rearmMonitors()
 
   function setDpms(turnOn: bool): void {
     const nextOff = !turnOn;
@@ -62,6 +60,8 @@ Singleton {
       setDpms(true);
   }
 
+  onTotalTimeoutChanged: rearmMonitors()
+
   IdleInhibitor {
     enabled: idleDaemon.effectiveInhibited
     window: idleDaemon.window
@@ -69,9 +69,11 @@ Singleton {
 
   IdleMonitor {
     id: lockMonitor
+
     enabled: idleDaemon.baseEnabled && idleDaemon.settings.lockEnabled && !LockService.locked
     respectInhibitors: idleDaemon.monitorRespectInhibitors
     timeout: idleDaemon.lockStageTimeoutSec
+
     onIsIdleChanged: {
       if (isIdle && !LockService.locked) {
         LockService.locked = true;
@@ -84,25 +86,30 @@ Singleton {
 
   IdleMonitor {
     id: dpmsMonitor
+
     enabled: idleDaemon.baseEnabled && idleDaemon.settings.dpmsEnabled
     respectInhibitors: idleDaemon.monitorRespectInhibitors
     timeout: idleDaemon.dpmsStageTimeoutSec
+
     onIsIdleChanged: isIdle ? idleDaemon.setDpms(false) : idleDaemon.wake()
   }
 
   IdleMonitor {
     id: suspendMonitor
+
     enabled: idleDaemon.baseEnabled && idleDaemon.settings.suspendEnabled
     respectInhibitors: idleDaemon.monitorRespectInhibitors
     timeout: idleDaemon.suspendStageTimeoutSec
+
     onIsIdleChanged: isIdle ? idleDaemon.actionFired("suspend") : idleDaemon.wake()
   }
 
   Connections {
-    target: LockService
     function onLockedChanged() {
       if (!LockService.locked)
         idleDaemon.wake();
     }
+
+    target: LockService
   }
 }

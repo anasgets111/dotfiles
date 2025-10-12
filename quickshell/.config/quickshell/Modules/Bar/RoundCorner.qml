@@ -14,6 +14,7 @@ Item {
 
   Canvas {
     anchors.fill: parent
+
     Component.onCompleted: requestPaint()
     onHeightChanged: requestPaint()
     onPaint: {

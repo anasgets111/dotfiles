@@ -13,24 +13,30 @@ Rectangle {
   property bool checked: false
   property real size: Theme.itemHeight * 0.6
 
-  signal toggled(bool checked)
   signal clicked
+  signal toggled(bool checked)
 
-  implicitWidth: size
-  implicitHeight: size
-  color: "transparent"
   border.color: Theme.textActiveColor
   border.width: 2
+  color: "transparent"
+  implicitHeight: size
+  implicitWidth: size
   radius: 4
+
+  Behavior on border.color {
+    ColorAnimation {
+      duration: Theme.animationDuration
+    }
+  }
 
   Rectangle {
     anchors.centerIn: parent
-    width: parent.width * 0.6
-    height: parent.height * 0.6
     color: Theme.activeColor
+    height: parent.height * 0.6
     radius: 2
-    visible: root.checked
     scale: root.checked ? 1 : 0
+    visible: root.checked
+    width: parent.width * 0.6
 
     Behavior on scale {
       NumberAnimation {
@@ -43,16 +49,11 @@ Rectangle {
   MouseArea {
     anchors.fill: parent
     cursorShape: Qt.PointingHandCursor
+
     onClicked: {
       root.checked = !root.checked;
       root.toggled(root.checked);
       root.clicked();
-    }
-  }
-
-  Behavior on border.color {
-    ColorAnimation {
-      duration: Theme.animationDuration
     }
   }
 }

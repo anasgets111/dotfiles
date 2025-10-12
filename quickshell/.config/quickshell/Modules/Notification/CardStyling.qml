@@ -5,33 +5,37 @@ import qs.Config
 
 Item {
   id: base
+
   property color accentColor: Theme.activeColor
   property real radius: Theme.panelRadius
 
   // Shadow (fast rectangular shadow)
   RectangularShadow {
     anchors.fill: parent
-    radius: base.radius
+    antialiasing: true
+    blur: 24
     color: Qt.rgba(0, 0, 0, 0.55)
     offset: Qt.vector2d(0, 3)
-    blur: 24
+    radius: base.radius
     spread: 0
-    antialiasing: true
   }
 
   // Background
   Rectangle {
     anchors.fill: parent
-    radius: base.radius
-    color: Theme.bgColor
-    border.width: 2
     border.color: Theme.borderColor
+    border.width: 2
+    color: Theme.bgColor
+    radius: base.radius
   }
 
   // Gradient border stroke
   Canvas {
     id: borderCanvas
+
     anchors.fill: parent
+
+    onHeightChanged: requestPaint()
     onPaint: {
       const ctx = getContext("2d");
       const w = width, h = height, r = base.radius;
@@ -60,12 +64,13 @@ Item {
       ctx.stroke();
     }
     onWidthChanged: requestPaint()
-    onHeightChanged: requestPaint()
+
     Connections {
-      target: base
       function onAccentColorChanged() {
         borderCanvas.requestPaint();
       }
+
+      target: base
     }
   }
 }

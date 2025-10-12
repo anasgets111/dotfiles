@@ -156,14 +156,14 @@ WlrLayershell {
 
   Component.onCompleted: root.applyModel(modelData)
   Component.onDestruction: {
-    if (transitionAnim.running)
-      transitionAnim.stop();
+    transitionAnim.stop();
     transitionShader.source1 = null;
     transitionShader.source2 = null;
     transparentSource.sourceItem = null;
     currentWallpaper.source = "";
+    currentWallpaper.sourceSize = Qt.size(0, 0);
     nextWallpaper.source = "";
-    transitionShader.visible = false;
+    nextWallpaper.sourceSize = Qt.size(0, 0);
   }
   onModelDataChanged: root.applyModel(modelData)
 
@@ -200,6 +200,7 @@ WlrLayershell {
     layer.enabled: false
     opacity: 0
     smooth: true
+    sourceSize: Qt.size(root.screenPixelWidth, root.screenPixelHeight)
     visible: true
 
     onStatusChanged: {
@@ -219,6 +220,7 @@ WlrLayershell {
     layer.enabled: false
     opacity: 0
     smooth: true
+    sourceSize: Qt.size(root.screenPixelWidth, root.screenPixelHeight)
     visible: true
 
     onStatusChanged: {

@@ -6,23 +6,14 @@ import qs.Components
 
 Item {
   id: root
+
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, button.implicitWidth)
 
   IconButton {
     id: button
+
     anchors.fill: parent
-
-    icon: {
-      if (UpdateService.updateState === UpdateService.status.Updating)
-        return "󰦖";
-      if (UpdateService.updateState === UpdateService.status.Error)
-        return "󰅙";
-      if (UpdateService.busy)
-        return "";
-      return UpdateService.totalUpdates > 0 ? "" : "󰂪";
-    }
-
     colorBg: {
       if (UpdateService.updateState === UpdateService.status.Error)
         return Theme.critical;
@@ -32,7 +23,15 @@ Item {
         return Theme.inactiveColor;
       return UpdateService.totalUpdates > 0 ? Theme.activeColor : Theme.inactiveColor;
     }
-
+    icon: {
+      if (UpdateService.updateState === UpdateService.status.Updating)
+        return "󰦖";
+      if (UpdateService.updateState === UpdateService.status.Error)
+        return "󰅙";
+      if (UpdateService.busy)
+        return "";
+      return UpdateService.totalUpdates > 0 ? "" : "󰂪";
+    }
     tooltipText: {
       if (UpdateService.updateState === UpdateService.status.Updating)
         return qsTr("Installing updates...");
@@ -48,19 +47,11 @@ Item {
     }
 
     RotationAnimator on rotation {
-      running: UpdateService.updateState === UpdateService.status.Updating
-      from: 0
-      to: 360
       duration: 1000
+      from: 0
       loops: Animation.Infinite
-    }
-
-    Connections {
-      target: UpdateService
-      function onUpdateStateChanged() {
-        if (UpdateService.updateState !== UpdateService.status.Updating)
-          button.rotation = 0;
-      }
+      running: UpdateService.updateState === UpdateService.status.Updating
+      to: 360
     }
 
     onClicked: mouse => {
@@ -74,9 +65,19 @@ Item {
         return;
       UpdateService.totalUpdates > 0 ? UpdateService.runUpdate() : UpdateService.doPoll();
     }
+
+    Connections {
+      function onUpdateStateChanged() {
+        if (UpdateService.updateState !== UpdateService.status.Updating)
+          button.rotation = 0;
+      }
+
+      target: UpdateService
+    }
   }
 
   UpdatePanel {
     id: updatePanel
+
   }
 }

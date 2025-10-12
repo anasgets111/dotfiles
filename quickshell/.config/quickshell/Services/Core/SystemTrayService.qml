@@ -8,10 +8,10 @@ import qs.Services.Utils
 Singleton {
   id: systemTrayService
 
-  readonly property var items: SystemTray.items
-  readonly property int count: items?.count ?? items?.length ?? 0
   property var _iconCache: new Map()
   property var _iconCleanup: new Map()
+  readonly property int count: items?.count ?? items?.length ?? 0
+  readonly property var items: SystemTray.items
   readonly property int maxCacheSize: 25
 
   signal activated(var item)
@@ -20,39 +20,45 @@ Singleton {
   signal menuTriggered(var item, var entry)
   signal secondaryActivated(var item)
 
-  function _modelCount(m) {
-    return m?.count ?? m?.length ?? 0;
+  function _cachedIcon(it) {
+    return (it && systemTrayService._iconCache.has(it)) ? systemTrayService._iconCache.get(it) : "";
   }
+
+  function _callFirst(target, names, args) {
+    const list = Array.isArray(names) ? names : [];
+    for (let i = 0; i < list.length; i++) {
+      const fn = target[list[i]];
+      if (typeof fn === "function") {
+        fn.call(target, ...(args || []));
+        return true;
+      }
+    }
+    return false;
+  }
+
   function _get(model, index) {
     const n = systemTrayService._modelCount(model);
     return (model && index >= 0 && index < n) ? (typeof model.get === "function" ? model.get(index) : model[index]) : null;
   }
-  function getItemFromRef(ref) {
-    return !ref ? null : (typeof ref === "object" && typeof ref.activate === "function" ? ref : (typeof ref === "number" ? systemTrayService._get(systemTrayService.items, ref) : null));
+
+  function _invoke(ref, method, signalName, label) {
+    const it = systemTrayService.getItemFromRef(ref);
+    if (!it) {
+      systemTrayService.error(label + ": invalid item");
+      return false;
+    }
+    try {
+      it[method]();
+      systemTrayService[signalName](it);
+      return true;
+    } catch (e) {
+      systemTrayService.error(label + ": " + e);
+      return false;
+    }
   }
 
-  function menuModelForItem(ref) {
-    const it = systemTrayService.getItemFromRef(ref);
-    return it?.menu ?? it?.contextMenu ?? null;
-  }
-  function hasMenuForItem(ref) {
-    return !!systemTrayService.menuModelForItem(ref);
-  }
-  function menuItemAtIndex(ref, i) {
-    return systemTrayService._get(systemTrayService.menuModelForItem(ref), i);
-  }
-
-  function displayTitleFor(ref) {
-    const it = systemTrayService.getItemFromRef(ref);
-    return it ? (it.title || it.name || it.appId || it.id || "") : "";
-  }
-  function tooltipTitleFor(ref) {
-    const it = systemTrayService.getItemFromRef(ref);
-    return it ? (it.tooltipTitle || systemTrayService.displayTitleFor(it)) : "";
-  }
-  function fallbackGlyphFor(ref) {
-    const t = systemTrayService.tooltipTitleFor(ref) || systemTrayService.displayTitleFor(ref) || "?";
-    return String(t).charAt(0).toUpperCase();
+  function _modelCount(m) {
+    return m?.count ?? m?.length ?? 0;
   }
 
   function _rememberIcon(it, value) {
@@ -83,8 +89,23 @@ Singleton {
       } catch (_) {}
     }
   }
-  function _cachedIcon(it) {
-    return (it && systemTrayService._iconCache.has(it)) ? systemTrayService._iconCache.get(it) : "";
+
+  function activateItem(ref) {
+    return systemTrayService._invoke(ref, "activate", "activated", "activate");
+  }
+
+  function displayTitleFor(ref) {
+    const it = systemTrayService.getItemFromRef(ref);
+    return it ? (it.title || it.name || it.appId || it.id || "") : "";
+  }
+
+  function fallbackGlyphFor(ref) {
+    const t = systemTrayService.tooltipTitleFor(ref) || systemTrayService.displayTitleFor(ref) || "?";
+    return String(t).charAt(0).toUpperCase();
+  }
+
+  function getItemFromRef(ref) {
+    return !ref ? null : (typeof ref === "object" && typeof ref.activate === "function" ? ref : (typeof ref === "number" ? systemTrayService._get(systemTrayService.items, ref) : null));
   }
 
   function getNormalizedIconSource(icon) {
@@ -97,6 +118,24 @@ Singleton {
     const file = slash >= 0 ? name.substring(slash + 1) : name;
     return (!dir || !file) ? s : ("file://" + dir + "/" + file);
   }
+
+  function handleItemClick(ref, button) {
+    return button === Qt.LeftButton ? systemTrayService.activateItem(ref) : systemTrayService.secondaryActivateItem(ref);
+  }
+
+  function hasMenuForItem(ref) {
+    return !!systemTrayService.menuModelForItem(ref);
+  }
+
+  function menuItemAtIndex(ref, i) {
+    return systemTrayService._get(systemTrayService.menuModelForItem(ref), i);
+  }
+
+  function menuModelForItem(ref) {
+    const it = systemTrayService.getItemFromRef(ref);
+    return it?.menu ?? it?.contextMenu ?? null;
+  }
+
   function normalizedIconFor(ref) {
     const it = systemTrayService.getItemFromRef(ref);
     if (!it)
@@ -116,43 +155,6 @@ Singleton {
       return resolved;
     }
     return "";
-  }
-
-  function _callFirst(target, names, args) {
-    const list = Array.isArray(names) ? names : [];
-    for (let i = 0; i < list.length; i++) {
-      const fn = target[list[i]];
-      if (typeof fn === "function") {
-        fn.call(target, ...(args || []));
-        return true;
-      }
-    }
-    return false;
-  }
-  function _invoke(ref, method, signalName, label) {
-    const it = systemTrayService.getItemFromRef(ref);
-    if (!it) {
-      systemTrayService.error(label + ": invalid item");
-      return false;
-    }
-    try {
-      it[method]();
-      systemTrayService[signalName](it);
-      return true;
-    } catch (e) {
-      systemTrayService.error(label + ": " + e);
-      return false;
-    }
-  }
-
-  function activateItem(ref) {
-    return systemTrayService._invoke(ref, "activate", "activated", "activate");
-  }
-  function secondaryActivateItem(ref) {
-    return systemTrayService._invoke(ref, "secondaryActivate", "secondaryActivated", "secondaryActivate");
-  }
-  function handleItemClick(ref, button) {
-    return button === Qt.LeftButton ? systemTrayService.activateItem(ref) : systemTrayService.secondaryActivateItem(ref);
   }
 
   function openMenuForItem(ref, x, y) {
@@ -188,6 +190,15 @@ Singleton {
       return false;
     }
     return false;
+  }
+
+  function secondaryActivateItem(ref) {
+    return systemTrayService._invoke(ref, "secondaryActivate", "secondaryActivated", "secondaryActivate");
+  }
+
+  function tooltipTitleFor(ref) {
+    const it = systemTrayService.getItemFromRef(ref);
+    return it ? (it.tooltipTitle || systemTrayService.displayTitleFor(it)) : "";
   }
 
   function triggerMenuItem(ref, key) {

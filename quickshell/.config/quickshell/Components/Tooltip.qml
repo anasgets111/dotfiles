@@ -7,23 +7,19 @@ import qs.Config
 Item {
   id: root
 
-  property bool isVisible: false
-  readonly property int fadeDuration: Theme.animationDuration
+  readonly property real _hMargin: 12
+  readonly property real _minHeight: 40
+  readonly property real _minWidth: 50
+  readonly property real _vMargin: 12
   readonly property color bgColor: Theme.onHoverColor
-  readonly property real cornerRadius: Theme.itemRadius
   readonly property color borderColor: Theme.inactiveColor
+  readonly property int borderWidth: 1
+  readonly property real cornerRadius: Theme.itemRadius
+  readonly property int fadeDuration: Theme.animationDuration
   readonly property color fgColor: Theme.textContrast(bgColor)
   readonly property real hPadding: 8
-  readonly property real vPadding: 4
-  readonly property int borderWidth: 1
+  property bool isVisible: false
   property int maxWidth: 420
-  property string text: ""
-  property Item target: null
-  property bool positionAbove: false
-  property bool positionLeft: false
-  property bool positionRight: false
-  property bool wrapText: false
-
   readonly property Item overlayParent: {
     if (!root.target)
       return null;
@@ -31,17 +27,13 @@ Item {
     const win = attached ? attached.window : null;
     return win ? win.contentItem : null;
   }
-
-  parent: overlayParent
-  visible: false
-
-  readonly property real _minWidth: 50
-  readonly property real _minHeight: 40
-  readonly property real _hMargin: 12
-  readonly property real _vMargin: 12
-
-  width: Math.max(root._minWidth, tooltipText.implicitWidth + root.hPadding * 2)
-  height: Math.max(root._minHeight, tooltipText.implicitHeight + root.vPadding * 2)
+  property bool positionAbove: false
+  property bool positionLeft: false
+  property bool positionRight: false
+  property Item target: null
+  property string text: ""
+  readonly property real vPadding: 4
+  property bool wrapText: false
 
   function _computePosition(w, h) {
     if (!root.target || !root.parent)
@@ -88,6 +80,11 @@ Item {
     root.y = clamp(root.y, minY, maxY);
   }
 
+  height: Math.max(root._minHeight, tooltipText.implicitHeight + root.vPadding * 2)
+  parent: overlayParent
+  visible: false
+  width: Math.max(root._minWidth, tooltipText.implicitWidth + root.hPadding * 2)
+
   onIsVisibleChanged: {
     if (!root.target)
       return;
@@ -102,50 +99,56 @@ Item {
       tooltipRect.opacity = 0;
     }
   }
+  onMaxWidthChanged: if (root.visible)
+    root._computePosition(root.width, root.height)
+  onParentChanged: if (root.visible)
+    root._computePosition(root.width, root.height)
 
   // Reposition on content/geometry changes
   onTextChanged: if (root.visible)
     root._computePosition(root.width, root.height)
   onWrapTextChanged: if (root.visible)
     root._computePosition(root.width, root.height)
-  onMaxWidthChanged: if (root.visible)
-    root._computePosition(root.width, root.height)
-  onParentChanged: if (root.visible)
-    root._computePosition(root.width, root.height)
 
   Connections {
-    target: root.target
-    function onXChanged() {
-      if (root.visible)
-        root._computePosition(root.width, root.height);
-    }
-    function onYChanged() {
-      if (root.visible)
-        root._computePosition(root.width, root.height);
-    }
-    function onWidthChanged() {
-      if (root.visible)
-        root._computePosition(root.width, root.height);
-    }
     function onHeightChanged() {
       if (root.visible)
         root._computePosition(root.width, root.height);
     }
+
+    function onWidthChanged() {
+      if (root.visible)
+        root._computePosition(root.width, root.height);
+    }
+
+    function onXChanged() {
+      if (root.visible)
+        root._computePosition(root.width, root.height);
+    }
+
+    function onYChanged() {
+      if (root.visible)
+        root._computePosition(root.width, root.height);
+    }
+
+    target: root.target
   }
 
   Rectangle {
     id: tooltipRect
+
     anchors.fill: parent
-    radius: root.cornerRadius
-    color: root.bgColor
     border.color: root.borderColor
     border.width: root.borderWidth
+    color: root.bgColor
     opacity: 0
+    radius: root.cornerRadius
 
     Behavior on opacity {
       NumberAnimation {
         duration: root.fadeDuration
         easing.type: Easing.OutCubic
+
         onStopped: if (tooltipRect.opacity === 0)
           root.visible = false
       }
@@ -153,17 +156,18 @@ Item {
 
     Text {
       id: tooltipText
+
       anchors.centerIn: parent
-      text: root.text
-      wrapMode: root.wrapText ? Text.Wrap : Text.NoWrap
-      width: root.wrapText ? (root.maxWidth - root.hPadding * 2) : implicitWidth
-      maximumLineCount: 16
-      elide: Text.ElideNone
       color: root.fgColor
+      elide: Text.ElideNone
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
       horizontalAlignment: Text.AlignHCenter
+      maximumLineCount: 16
+      text: root.text
       verticalAlignment: Text.AlignVCenter
+      width: root.wrapText ? (root.maxWidth - root.hPadding * 2) : implicitWidth
+      wrapMode: root.wrapText ? Text.Wrap : Text.NoWrap
     }
   }
 }

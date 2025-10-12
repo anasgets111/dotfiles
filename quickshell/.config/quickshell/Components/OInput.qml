@@ -13,27 +13,38 @@ import qs.Config
 ColumnLayout {
   id: root
 
-  property alias text: textField.text
-  property alias placeholderText: textField.placeholderText
-  property alias echoMode: textField.echoMode
-  property bool hasError: false
-  property string errorMessage: ""
   property bool autoFocus: false
+  property alias echoMode: textField.echoMode
+  property string errorMessage: ""
+  property bool hasError: false
   property real inputHeight: Theme.itemHeight * 0.8
+  property alias placeholderText: textField.placeholderText
+  property alias text: textField.text
 
+  signal inputAccepted
   signal inputChanged
   signal inputFinished
-  signal inputAccepted
 
   spacing: 4
 
   Rectangle {
     Layout.fillWidth: true
     Layout.preferredHeight: root.inputHeight
-    color: Theme.bgColor
     border.color: root.hasError ? Theme.critical : (textField.activeFocus ? Theme.activeColor : Theme.borderColor)
     border.width: root.hasError ? 2 : 1
+    color: Theme.bgColor
     radius: Theme.itemRadius
+
+    Behavior on border.color {
+      ColorAnimation {
+        duration: Theme.animationDuration
+      }
+    }
+    Behavior on border.width {
+      NumberAnimation {
+        duration: Theme.animationDuration
+      }
+    }
 
     TextField {
       id: textField
@@ -41,47 +52,36 @@ ColumnLayout {
       anchors.fill: parent
       anchors.leftMargin: 8
       anchors.rightMargin: 8
+      color: Theme.textActiveColor
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
-      color: Theme.textActiveColor
-      selectionColor: Theme.activeColor
       selectedTextColor: Theme.textContrast(Theme.activeColor)
-      onTextChanged: root.inputChanged()
-      onEditingFinished: root.inputFinished()
-      onAccepted: root.inputAccepted()
+      selectionColor: Theme.activeColor
+
+      background: Rectangle {
+        color: "transparent"
+      }
+
       Component.onCompleted: {
         if (root.autoFocus)
           Qt.callLater(() => {
             textField.forceActiveFocus();
           });
       }
-
-      background: Rectangle {
-        color: "transparent"
-      }
-    }
-
-    Behavior on border.color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
-    }
-
-    Behavior on border.width {
-      NumberAnimation {
-        duration: Theme.animationDuration
-      }
+      onAccepted: root.inputAccepted()
+      onEditingFinished: root.inputFinished()
+      onTextChanged: root.inputChanged()
     }
   }
 
   // Error message
   OText {
-    visible: root.hasError && root.errorMessage !== ""
-    text: "⚠ " + root.errorMessage
-    sizeMultiplier: 0.85
-    color: Theme.critical
     Layout.fillWidth: true
+    color: Theme.critical
     opacity: visible ? 1 : 0
+    sizeMultiplier: 0.85
+    text: "⚠ " + root.errorMessage
+    visible: root.hasError && root.errorMessage !== ""
 
     Behavior on opacity {
       NumberAnimation {

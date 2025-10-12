@@ -26,11 +26,15 @@ ShellRoot {
 
   Bar {
     id: bar
+
     onWallpaperPickerRequested: root.wallpaperPickerActive = true
   }
+
   LazyLoader {
     id: osdLoader
+
     active: OSDService.visible
+
     component: OSDOverlay {
       modelData: MonitorService ? MonitorService.effectiveMainScreen : null
     }
@@ -39,33 +43,40 @@ ShellRoot {
   // Global App Launcher loader controlled by IPC
   LazyLoader {
     id: launcherLoader
+
     active: root.ipc.launcherActive && !bar.centerShouldHide
+
     component: Launcher {
-      onDismissed: root.ipc.launcherActive = false
       Component.onCompleted: open()
+      onDismissed: root.ipc.launcherActive = false
     }
   }
 
   LazyLoader {
     id: wallpaperPickerLoader
+
     active: root.wallpaperPickerActive
+
     component: WallpaperPicker {
-      onDismissed: root.wallpaperPickerActive = false
-      onCancelRequested: root.wallpaperPickerActive = false
       Component.onCompleted: open()
+      onCancelRequested: root.wallpaperPickerActive = false
+      onDismissed: root.wallpaperPickerActive = false
     }
   }
 
   Binding {
-    target: IdleService
     property: "window"
+    target: IdleService
     value: bar
   }
-  LockScreen {}
+
+  LockScreen {
+  }
 
   LazyLoader {
     active: NotificationService?.visibleNotifications?.length > 0
     activeAsync: true
+
     component: NotificationPopup {
       modelData: MonitorService ? MonitorService.effectiveMainScreen : null
     }
@@ -74,20 +85,8 @@ ShellRoot {
   Variants {
     model: WallpaperService.monitors
 
-    LazyLoader {
-      id: walLoader
-      property var modelData
-      loading: WallpaperService.ready && !!modelData && !!modelData.name
-      active: WallpaperService.ready && !!modelData && !!modelData.name
-
-      component: AnimatedWallpaper {
-        modelData: walLoader.modelData
-      }
+    AnimatedWallpaper {
+      modelData: modelData
     }
   }
-
-  // Live clipboard
-  // Connections {
-  //   target: ClipboardLiteService
-  // }
 }

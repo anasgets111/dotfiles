@@ -8,13 +8,12 @@ import qs.Components
 RowLayout {
   id: root
 
-  spacing: 8
-
   function capitalizeFirstLetter(s) {
     if (!s)
       return "";
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
+
   function getSpecialLabelByName(wsName) {
     const nameLower = (wsName || "").toLowerCase();
     if (nameLower.indexOf("telegram") !== -1)
@@ -29,16 +28,18 @@ RowLayout {
     return t.length > 2 ? t.slice(0, 2).toUpperCase() : t.toUpperCase();
   }
 
+  spacing: 8
+
   Component {
     id: specialDelegate
 
     Item {
       id: cell
 
-      required property var modelData
-      property var workspace: modelData || {}
       readonly property bool isActive: (cell.workspace?.name || "") === WorkspaceService.activeSpecial
       readonly property string labelText: root.getSpecialLabelByName(cell.workspace?.name)
+      required property var modelData
+      property var workspace: modelData || {}
 
       Layout.alignment: Qt.AlignVCenter
       Layout.preferredHeight: implicitHeight
@@ -49,10 +50,12 @@ RowLayout {
 
       IconButton {
         id: button
+
         anchors.fill: parent
         colorBg: cell.isActive ? Theme.activeColor : Theme.inactiveColor
         icon: cell.labelText
         tooltipText: root.capitalizeFirstLetter((cell.workspace?.name || "").replace("special:", ""))
+
         onClicked: {
           const n = (cell.workspace?.name || "").replace("special:", "");
           WorkspaceService.toggleSpecial(n);
@@ -60,6 +63,7 @@ RowLayout {
       }
     }
   }
+
   Repeater {
     delegate: specialDelegate
     model: WorkspaceService.specialWorkspaces
