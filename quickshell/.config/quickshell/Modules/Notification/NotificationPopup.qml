@@ -124,24 +124,4 @@ PanelWindow {
       }
     }
   }
-
-  Rectangle {
-    id: dndBanner
-
-    anchors.horizontalCenter: parent.horizontalCenter
-    anchors.top: parent.top
-    color: Qt.rgba(0.95, 0.55, 0.10, 0.9)
-    height: 28
-    radius: 6
-    visible: NotificationService ? NotificationService.doNotDisturb : false
-    width: txt.implicitWidth + 24
-
-    Text {
-      id: txt
-
-      anchors.centerIn: parent
-      color: "black"
-      text: "Do Not Disturb Enabled"
-    }
-  }
 }
