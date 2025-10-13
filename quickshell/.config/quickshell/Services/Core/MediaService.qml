@@ -8,10 +8,10 @@ Singleton {
   id: root
 
   readonly property MprisPlayer active: selectActivePlayer()
-  readonly property string activeDisplayName: active ? (active.identity || "Unknown player") : "No player"
+  readonly property string activeDisplayName: active?.identity || (active ? "Unknown player" : "No player")
   readonly property string activeIconName: iconNameForPlayer(active)
-  readonly property list<MprisPlayer> allPlayers: Mpris.players ? Mpris.players.values.filter(playerObj => root.isAlivePlayer(playerObj)) : []
-  readonly property bool anyVideoPlaying: allPlayers.some(playerObj => playerObj && playerObj.playbackState === MprisPlaybackState.Playing && (isVideoApp(playerObj) || (isBrowserApp(playerObj) && isVideoUrl(getMetadataUrl(playerObj)))))
+  readonly property list<MprisPlayer> allPlayers: Mpris.players?.values.filter(p => isAlivePlayer(p)) || []
+  readonly property bool anyVideoPlaying: players.some(p => p?.playbackState === MprisPlaybackState.Playing && (isVideoApp(p) || (isBrowserApp(p) && isVideoUrl(p?.metadata["xesam:url"] || p?.metadata["xesam:URL"] || ""))))
   readonly property var audioOnlyPatterns: ["music.youtube.com", "spotify.com", "soundcloud.com", "music.apple.com", "deezer.com", "tidal.com", "bandcamp.com"]
   readonly property var browserAppHints: ["firefox", "zen", "chrome", "chromium", "brave", "vivaldi", "edge", "opera"]
   property bool canGoNext: active?.canGoNext ?? false
@@ -22,102 +22,82 @@ Singleton {
   property real currentPosition: 0
   readonly property bool hasActive: !!active
   readonly property bool hasPlayers: players.length > 0
-  readonly property real infiniteTrackLength: 922337203685
   property bool isPlaying: active?.isPlaying ?? false
   property string lastActiveKey: ""
   property MprisPlayer manualActive: null
-  readonly property bool pipewireVideoActive: hasActiveVideoStreams()
-  readonly property list<MprisPlayer> players: allPlayers.filter(playerObj => playerObj?.canControl ?? false)
+  readonly property bool pipewireVideoActive: (Pipewire.linkGroups?.values || []).some(lg => lg?.source?.type === PwNodeType.VideoSource)
+  readonly property list<MprisPlayer> players: allPlayers.filter(p => p?.canControl ?? false)
   property int selectedPlayerIndex: -1
   property string trackAlbum: active?.trackAlbum ?? ""
   property string trackArtUrl: active?.trackArtUrl ?? ""
   property string trackArtist: active?.trackArtist ?? ""
-  property real trackLength: active && active.length < infiniteTrackLength ? active.length : 0
+  property real trackLength: (active && active.length < 922337203685) ? active.length : 0
   property string trackTitle: active?.trackTitle ?? ""
   readonly property var videoAppHints: ["mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex"]
   readonly property var videoFileExts: ["mp4", "mkv", "webm", "avi", "mov", "m4v", "mpeg", "mpg", "wmv", "flv"]
   readonly property var videoPatterns: ["youtube.com/watch", "youtu.be/", "netflix.com", "primevideo.com", "osnplus.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "crunchyroll.com", "max.com", "hbomax.com"]
 
-  function appMatches(playerObj, hintsList) {
-    if (!playerObj)
+  function appMatches(p, hints) {
+    if (!p)
       return false;
-    const desktopEntry = String(playerObj.desktopEntry || "").toLowerCase();
-    const identity = String(playerObj.identity || "").toLowerCase();
-    const list = Array.isArray(hintsList) ? hintsList : [];
-    return list.some(hint => desktopEntry.includes(hint) || identity.includes(hint));
+    const entry = String(p.desktopEntry || "").toLowerCase();
+    const id = String(p.identity || "").toLowerCase();
+    return hints.some(hint => entry.includes(hint) || id.includes(hint));
   }
 
-  function getMetadataUrl(playerObj) {
-    return String(playerObj?.metadata["xesam:url"] || playerObj?.metadata["xesam:URL"] || "");
-  }
-
-  function hasActiveVideoStreams() {
-    const nodes = Pipewire.nodes;
-    const nodeValues = nodes?.values || null;
-    if (!nodeValues)
-      return false;
-    return nodeValues.some(nodeObj => nodeObj && nodeObj.isStream && (String(nodeObj.properties["media.class"] || "").toLowerCase().includes("video") || ["movie", "video"].includes(String(nodeObj.properties["media.role"] || "").toLowerCase())));
-  }
-
-  function iconNameForPlayer(playerObj) {
-    if (!playerObj)
+  function iconNameForPlayer(p) {
+    if (!p)
       return "audio-x-generic";
-    const normalize = name => String(name).toLowerCase().replace(/[^a-z0-9+.-]/g, "-");
-    const canonical = name => {
-      const lower = String(name).toLowerCase();
-      if (lower.includes("google chrome") || lower === "chrome")
-        return "google-chrome";
-      if (lower.includes("microsoft edge") || lower === "edge")
-        return "microsoft-edge";
-      if (lower.includes("firefox"))
-        return "firefox";
-      if (lower.includes("zen"))
-        return "zen";
-      if (lower.includes("brave"))
-        return "brave-browser";
-      return name;
+    const iconMap = {
+      "chrome": "google-chrome",
+      "google chrome": "google-chrome",
+      "edge": "microsoft-edge",
+      "microsoft edge": "microsoft-edge",
+      "firefox": "firefox",
+      "zen": "zen",
+      "brave": "brave-browser"
     };
-    const desktopEntry = canonical(playerObj.desktopEntry || "");
-    if (desktopEntry)
-      return normalize(desktopEntry) || "audio-x-generic";
-    const identity = canonical(playerObj.identity || "");
-    return normalize(identity) || "audio-x-generic";
+    const normalize = s => String(s).toLowerCase().replace(/[^a-z0-9+.-]/g, "-");
+    const canonical = str => {
+      const lower = String(str || "").toLowerCase();
+      for (const key in iconMap)
+        if (lower.includes(key))
+          return iconMap[key];
+      return str;
+    };
+    return normalize(canonical(p.desktopEntry) || canonical(p.identity)) || "audio-x-generic";
   }
 
-  function isAlivePlayer(playerObj) {
-    if (!playerObj)
+  // ===== Helper Functions =====
+  function isAlivePlayer(p) {
+    if (!p)
       return false;
-    if (typeof playerObj.isValid === "function")
-      return playerObj.isValid();
-    // Check if the player's D-Bus properties are accessible
+    if (typeof p.isValid === "function")
+      return p.isValid();
     try {
-      return playerObj.canControl !== undefined;
+      return p.canControl !== undefined || !!p.dbusName;
     } catch (e) {
       return false;
     }
   }
 
-  function isBrowserApp(playerObj) {
-    return appMatches(playerObj, browserAppHints);
+  function isBrowserApp(p) {
+    return appMatches(p, browserAppHints);
   }
 
-  function isValidPlayer(playerObj) {
-    return root.isAlivePlayer(playerObj) && allPlayers.includes(playerObj);
+  function isVideoApp(p) {
+    return appMatches(p, videoAppHints);
   }
 
-  function isVideoApp(playerObj) {
-    return appMatches(playerObj, videoAppHints);
-  }
-
-  function isVideoUrl(urlString) {
-    if (!urlString)
+  function isVideoUrl(url) {
+    if (!url)
       return false;
-    const lowerUrl = String(urlString).toLowerCase();
-    if (audioOnlyPatterns.some(pattern => lowerUrl.includes(pattern)))
+    const lower = String(url).toLowerCase();
+    if (audioOnlyPatterns.some(p => lower.includes(p)))
       return false;
-    if (videoPatterns.some(pattern => lowerUrl.includes(pattern)))
+    if (videoPatterns.some(p => lower.includes(p)))
       return true;
-    const match = lowerUrl.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/);
+    const match = lower.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/);
     return !!(match && videoFileExts.includes(match[1]));
   }
 
@@ -145,8 +125,8 @@ Singleton {
       active.play();
   }
 
-  function playerKey(playerObj) {
-    return playerObj ? (playerObj.desktopEntry || playerObj.dbusName || playerObj.identity || "") : "";
+  function playerKey(p) {
+    return p ? (p.desktopEntry || p.dbusName || p.identity || "") : "";
   }
 
   function previous() {
@@ -155,32 +135,30 @@ Singleton {
   }
 
   function seek(position) {
-    const p = active;
-    if (root.isAlivePlayer(p) && p?.canSeek) {
-      const delta = position - p.position; // seconds
-      if (Math.abs(delta) > 0.005)
-        p.seek(delta);
-      currentPosition = position;
-    }
+    if (!active?.canSeek)
+      return;
+    const delta = position - active.position;
+    if (Math.abs(delta) > 0.005)
+      active.seek(delta);
+    currentPosition = position;
   }
 
   function seekByRatio(ratio) {
-    const p = active;
-    if (root.isAlivePlayer(p) && p?.canSeek && trackLength > 0) {
-      const target = ratio * trackLength;
-      const delta = target - p.position; // seconds
-      if (Math.abs(delta) > 0.005)
-        p.seek(delta);
-      currentPosition = target;
-    }
+    if (!active?.canSeek || trackLength <= 0)
+      return;
+    const target = ratio * trackLength;
+    const delta = target - active.position;
+    if (Math.abs(delta) > 0.005)
+      active.seek(delta);
+    currentPosition = target;
   }
 
   function selectActivePlayer() {
-    if (manualActive && isValidPlayer(manualActive))
+    if (manualActive && isAlivePlayer(manualActive) && allPlayers.includes(manualActive))
       return manualActive;
     if (selectedPlayerIndex >= 0 && selectedPlayerIndex < players.length)
       return players[selectedPlayerIndex];
-    return players.find(player => player.playbackState === MprisPlaybackState.Playing) || players.find(player => player.canControl && player.canPlay) || players[0] || null;
+    return players.find(p => p.playbackState === MprisPlaybackState.Playing) || players.find(p => p.canControl && p.canPlay) || players[0] || null;
   }
 
   function stop() {

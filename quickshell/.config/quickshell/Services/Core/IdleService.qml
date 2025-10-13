@@ -8,7 +8,7 @@ import qs.Services
 import qs.Config
 
 Singleton {
-  id: idleDaemon
+  id: root
 
   readonly property bool baseEnabled: rearmToken && monitorsEnabled
   property bool dpmsOffInSession: false
@@ -20,7 +20,6 @@ Singleton {
   property bool rearmToken: true
   readonly property var settings: Settings.data.idleService
   readonly property int suspendStageTimeoutSec: settings.suspendEnabled ? (dpmsStageTimeoutSec + settings.suspendTimeoutSec) : dpmsStageTimeoutSec
-  readonly property int totalTimeout: suspendStageTimeoutSec
   property QsWindow window
   readonly property var wmCmds: wmCommandMap[String(MainService.currentWM || "")]
   readonly property var wmCommandMap: ({
@@ -34,25 +33,23 @@ Singleton {
       }
     })
 
-  signal actionFired(string name)
+  signal actionFired(name: string)
 
   function rearmMonitors(): void {
     rearmToken = false;
-    Qt.callLater(() => {
-      rearmToken = true;
-    });
+    Qt.callLater(() => rearmToken = true);
   }
 
   function setDpms(turnOn: bool): void {
-    const nextOff = !turnOn;
-    if (dpmsOffInSession === nextOff)
+    if (dpmsOffInSession === !turnOn)
       return;
-    dpmsOffInSession = nextOff;
+    dpmsOffInSession = !turnOn;
     actionFired(turnOn ? "dpms-on" : "dpms-off");
+
     if (wmCmds)
-      Utils.runCmd(turnOn ? wmCmds.on : wmCmds.off, undefined, idleDaemon);
+      Utils.runCmd(turnOn ? wmCmds.on : wmCmds.off);
     else
-      Logger.warn("IdleService", "Unsupported WM for DPMS:", String(MainService.currentWM || ""));
+      Logger.warn("IdleService", `Unsupported WM for DPMS: ${MainService.currentWM || "unknown"}`);
   }
 
   function wake(): void {
@@ -60,26 +57,26 @@ Singleton {
       setDpms(true);
   }
 
-  onTotalTimeoutChanged: rearmMonitors()
+  onSuspendStageTimeoutSecChanged: rearmMonitors()
 
   IdleInhibitor {
-    enabled: idleDaemon.effectiveInhibited
-    window: idleDaemon.window
+    enabled: root.effectiveInhibited
+    window: root.window
   }
 
   IdleMonitor {
     id: lockMonitor
 
-    enabled: idleDaemon.baseEnabled && idleDaemon.settings.lockEnabled && !LockService.locked
-    respectInhibitors: idleDaemon.monitorRespectInhibitors
-    timeout: idleDaemon.lockStageTimeoutSec
+    enabled: root.baseEnabled && root.settings.lockEnabled && !LockService.locked
+    respectInhibitors: root.monitorRespectInhibitors
+    timeout: root.lockStageTimeoutSec
 
     onIsIdleChanged: {
-      if (isIdle && !LockService.locked) {
+      if (isIdle) {
         LockService.locked = true;
-        idleDaemon.actionFired("lock");
+        root.actionFired("lock");
       } else {
-        idleDaemon.wake();
+        root.wake();
       }
     }
   }
@@ -87,27 +84,27 @@ Singleton {
   IdleMonitor {
     id: dpmsMonitor
 
-    enabled: idleDaemon.baseEnabled && idleDaemon.settings.dpmsEnabled
-    respectInhibitors: idleDaemon.monitorRespectInhibitors
-    timeout: idleDaemon.dpmsStageTimeoutSec
+    enabled: root.baseEnabled && root.settings.dpmsEnabled
+    respectInhibitors: root.monitorRespectInhibitors
+    timeout: root.dpmsStageTimeoutSec
 
-    onIsIdleChanged: isIdle ? idleDaemon.setDpms(false) : idleDaemon.wake()
+    onIsIdleChanged: isIdle ? root.setDpms(false) : root.wake()
   }
 
   IdleMonitor {
     id: suspendMonitor
 
-    enabled: idleDaemon.baseEnabled && idleDaemon.settings.suspendEnabled
-    respectInhibitors: idleDaemon.monitorRespectInhibitors
-    timeout: idleDaemon.suspendStageTimeoutSec
+    enabled: root.baseEnabled && root.settings.suspendEnabled
+    respectInhibitors: root.monitorRespectInhibitors
+    timeout: root.suspendStageTimeoutSec
 
-    onIsIdleChanged: isIdle ? idleDaemon.actionFired("suspend") : idleDaemon.wake()
+    onIsIdleChanged: isIdle ? root.actionFired("suspend") : root.wake()
   }
 
   Connections {
     function onLockedChanged() {
       if (!LockService.locked)
-        idleDaemon.wake();
+        root.wake();
     }
 
     target: LockService
