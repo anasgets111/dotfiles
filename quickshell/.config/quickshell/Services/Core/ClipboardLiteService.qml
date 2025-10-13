@@ -90,7 +90,7 @@ Singleton {
     }
     const primary = !!(opts && opts.primary);
     const l = String(line || "");
-    Logger.log("ClipboardLiteService", "copyFromLine start; preview=", Utils.stripAnsi(l).slice(0, 120));
+    Logger.log("ClipboardLiteService", "copyFromLine start; preview=", String(l).replace(/\x1B(?:[@-Z\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(\x07|\x1B\))/g, "").slice(0, 120));
     const base = Utils.shCommand('line="$1"; printf "%s\n" "$line" | cliphist decode | wl-copy', [l]);
     Utils.runCmd(base, function () {
       Utils.runCmd(["sh", "-c", "wl-paste -n | head -c 80 | wc -c"], function (n) {
@@ -208,7 +208,7 @@ Singleton {
       return;
     }
     const raw = String(line || "");
-    Logger.log("ClipboardLiteService", "deleteFromLine start; preview=", Utils.stripAnsi(raw).slice(0, 120));
+    Logger.log("ClipboardLiteService", "deleteFromLine start; preview=", String(raw).replace(/\x1B(?:[@-Z\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(\x07|\x1B\))/g, "").slice(0, 120));
     // Prefer deleting by piping the exact list line. If that fails, fall back to anchored delete-query by id and tab.
     const cmd = Utils.shCommand('line="$1"; id=$(printf "%s\n" "$line" | sed -E "s/^([0-9]+).*/\\1/"); echo "DEL_ID=$id"; if printf "%s\n" "$line" | cliphist delete; then echo OK; elif [ -n "$id" ] && cliphist delete-query "^${id}\\t"; then echo OK; else echo FAIL; fi', [raw]);
     Utils.runCmd(cmd, function (text) {
