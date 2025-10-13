@@ -508,16 +508,8 @@ Singleton {
       running: false
 
       onTriggered: {
-        if (wrapper.timer.interval > 0) {
+        if (wrapper.timer.interval > 0)
           wrapper.popup = false;
-          Qt.callLater(() => {
-            root.notifications = root.notifications.filter(n => n !== wrapper);
-            if (wrapper && !wrapper.isDismissing) {
-              wrapper.isDismissing = true;
-              wrapper.destroy();
-            }
-          });
-        }
       }
     }
     readonly property int urgency: notification?.urgency || NotificationUrgency.Normal
