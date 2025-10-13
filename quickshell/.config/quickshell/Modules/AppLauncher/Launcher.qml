@@ -7,7 +7,7 @@ import qs.Components
 SearchGridPanel {
   id: launcherWindow
 
-  property var appEntries: []
+  property var appEntries: DesktopEntries.applications.values
 
   function launchEntry(entry) {
     const command = sanitizeCommand(entry);
@@ -15,25 +15,7 @@ SearchGridPanel {
       Logger.warn("Launcher", "entry missing exec command", entry);
       return;
     }
-    try {
-      if (typeof Quickshell !== "undefined" && typeof Quickshell.execDetached === "function")
-        Quickshell.execDetached(Utils.shCommand(command));
-      else
-        Logger.warn("Launcher", "execDetached unavailable");
-    } catch (e) {
-      Logger.warn("Launcher", "execDetached failed", e);
-    }
-  }
-
-  function refreshEntries() {
-    let values = [];
-    try {
-      if (typeof DesktopEntries !== "undefined" && DesktopEntries?.applications?.values)
-        values = DesktopEntries.applications.values;
-    } catch (err) {
-      Logger.warn("Launcher", "failed to load DesktopEntries", err);
-    }
-    appEntries = values || [];
+    Quickshell.execDetached(Utils.shCommand(command));
   }
 
   function sanitizeCommand(entry) {
@@ -66,11 +48,6 @@ SearchGridPanel {
   windowHeight: 471
   windowWidth: 741
 
-  Component.onCompleted: {
-    refreshEntries();
-    open();
-  }
+  Component.onCompleted: open()
   onActivated: entry => launcherWindow.launchEntry(entry)
-  onActiveChanged: if (active)
-    refreshEntries()
 }
