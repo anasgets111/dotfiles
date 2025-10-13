@@ -48,24 +48,35 @@ Singleton {
   }
 
   function resolveIconSource(key, providedOrFallback, maybeFallback) {
-    const hasFallback = arguments.length >= 3;
-    const provided = hasFallback ? providedOrFallback : null;
-    const fallback = hasFallback ? maybeFallback : providedOrFallback;
-    const toIcon = candidate => {
-      if (!candidate)
+    const has3Args = arguments.length >= 3;
+    const provided = has3Args ? providedOrFallback : null;
+    const fallback = has3Args ? maybeFallback : providedOrFallback;
+
+    const resolveIcon = val => {
+      if (!val)
         return "";
-      const val = String(candidate);
-      if (val.startsWith("file:") || val.startsWith("data:") || val.startsWith("/") || val.startsWith("qrc:"))
-        return val;
-      if (typeof Quickshell === "undefined" || !Quickshell.iconPath)
-        return "";
+      const str = String(val);
+
+      if (str.startsWith("file:") || str.startsWith("data:") || str.startsWith("/") || str.startsWith("qrc:"))
+        return str;
+
       try {
-        return Quickshell.iconPath(val, true) ?? "";
+        if (typeof DesktopEntries !== "undefined") {
+          const entry = DesktopEntries.heuristicLookup?.(str) || DesktopEntries.byId?.(str);
+          if (entry?.icon) {
+            const result = Quickshell.iconPath(entry.icon, false) ?? "";
+            if (result)
+              return result;
+          }
+        }
+
+        return Quickshell.iconPath(str, false) ?? "";
       } catch (_) {
         return "";
       }
     };
-    return toIcon(provided) || toIcon(key) || toIcon(fallback ?? "application-x-executable");
+
+    return resolveIcon(provided) || resolveIcon(key) || resolveIcon(fallback ?? "application-x-executable");
   }
 
   function runCmd(cmd, onDone) {
