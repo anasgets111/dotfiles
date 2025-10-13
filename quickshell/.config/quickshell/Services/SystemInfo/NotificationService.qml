@@ -502,6 +502,16 @@ Singleton {
       }
       return `${daysDiff} days ago`;
     }
+    readonly property string historyTimeStr: {
+      root.timeUpdateTick;
+      const format = root.use24Hour() ? "ddd HH:mm" : "ddd h:mm AP";
+      let formatted = Qt.formatDateTime(wrapper.time, format);
+      // Lowercase AM/PM for 12h format
+      if (!root.use24Hour()) {
+        formatted = formatted.replace(" AM", "am").replace(" PM", "pm");
+      }
+      return formatted;
+    }
     readonly property Timer timer: Timer {
       interval: root.getTimeoutForUrgency(wrapper.urgency)
       repeat: false
