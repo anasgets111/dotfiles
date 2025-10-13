@@ -180,7 +180,10 @@ Singleton {
       onRead: line => {
         if (root.destroyed)
           return;
-        const caps = line[0] !== "0", num = line[2] !== "0", scroll = line[4] !== "0";
+        const parts = line.trim().split(/\s+/);
+        if (parts.length !== 3)
+          return;
+        const caps = parts[0] !== "0", num = parts[1] !== "0", scroll = parts[2] !== "0";
         if (caps === ledMonitor.lastCaps && num === ledMonitor.lastNum && scroll === ledMonitor.lastScroll)
           return;
         ledMonitor.lastCaps = caps;
