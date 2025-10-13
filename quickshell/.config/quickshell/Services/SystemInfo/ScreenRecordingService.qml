@@ -7,12 +7,12 @@ import qs.Services.Utils
 import qs.Services.WM
 
 Singleton {
-  id: screenRecorder
+  id: root
 
   property string audioCodec: "opus"
   property string audioSource: "default_output"
   property string colorRange: "limited"
-  property string directory: StandardPaths.writableLocation(StandardPaths.MoviesLocation)
+  readonly property string directory: String(StandardPaths.writableLocation(StandardPaths.MoviesLocation)).replace(/^file:\/\//, "")
   property int frameRate: 24
   property bool isPaused: false
   property bool isRecording: false
@@ -28,16 +28,9 @@ Singleton {
   signal recordingStarted(string path)
   signal recordingStopped(string path)
 
-  function _syncPersist() {
-    persist.wasRecording = isRecording;
-    persist.wasPaused = isPaused;
-    persist.lastOutputPath = outputPath;
-  }
-
   function startRecording() {
     if (isRecording)
       return;
-
     const filename = TimeService.format("datetime", "yyyyMMdd_HHmmss") + ".mp4";
     const dir = directory.endsWith("/") ? directory : directory + "/";
     outputPath = dir + filename;
@@ -51,41 +44,44 @@ Singleton {
     args.push("-q", quality);
     args.push("-cursor", "yes");
     args.push("-cr", colorRange);
-    Logger.log("ScreenRecorder", "Exec:", args.join(" "));
+    Logger.log("ScreenRecorder", "Starting:", args.join(" "));
     Quickshell.execDetached(args);
+    Quickshell.execDetached(["sh", "-c", `: > "${root.lockPath}"`]);
+
     isRecording = true;
     isPaused = false;
-    Quickshell.execDetached(["sh", "-c", `: > "${screenRecorder.lockPath}"`]);
-    _syncPersist();
+    syncPersist();
     recordingStarted(outputPath);
   }
 
   function stopRecording() {
     if (!isRecording)
       return;
-
     Quickshell.execDetached(["pkill", "-SIGINT", "-f", "gpu-screen-recorder"]);
+    Quickshell.execDetached(["rm", "-f", root.lockPath]);
     isRecording = false;
     isPaused = false;
-    Quickshell.execDetached(["rm", "-f", screenRecorder.lockPath]);
-    _syncPersist();
+    syncPersist();
     recordingStopped(outputPath);
+  }
+
+  function syncPersist() {
+    persist.wasRecording = isRecording;
+    persist.wasPaused = isPaused;
+    persist.lastOutputPath = outputPath;
   }
 
   function togglePause() {
     if (!isRecording)
       return;
-
     Quickshell.execDetached(["pkill", "-SIGUSR2", "-f", "gpu-screen-recorder"]);
-    if (isPaused) {
-      isPaused = false;
-      _syncPersist();
-      recordingResumed(outputPath);
-    } else {
-      isPaused = true;
-      _syncPersist();
+    isPaused = !isPaused;
+    syncPersist();
+
+    if (isPaused)
       recordingPaused(outputPath);
-    }
+    else
+      recordingResumed(outputPath);
   }
 
   function toggleRecording() {
@@ -97,13 +93,12 @@ Singleton {
 
     property string lastOutputPath: ""
     property bool wasPaused: false
-    // Properties saved/restored across reloads
     property bool wasRecording: false
 
     reloadableId: "ScreenRecordingServiceState"
 
     onLoaded: {
-      const script = `([ -e "${screenRecorder.lockPath}" ] && echo lock=yes || echo lock=no); (pgrep -f '^gpu-screen-recorder( |$)' >/dev/null && echo proc=yes || echo proc=no)`;
+      const script = `([ -e "${root.lockPath}" ] && echo lock=yes || echo lock=no); (pgrep -f '^gpu-screen-recorder( |$)' >/dev/null && echo proc=yes || echo proc=no)`;
       Utils.runCmd(["sh", "-c", script], function (out) {
         const txt = String(out || "");
         const active = /lock=yes/.test(txt) || /proc=yes/.test(txt);
@@ -116,8 +111,8 @@ Singleton {
           isRecording = false;
           isPaused = false;
         }
-        _syncPersist();
-      }, screenRecorder);
+        syncPersist();
+      }, root);
     }
   }
 }
