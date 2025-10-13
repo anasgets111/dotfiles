@@ -19,8 +19,8 @@ Item {
   readonly property bool isGroup: !!root.group
   readonly property var items: root.isGroup ? (root.group?.notifications || []) : (root.wrapper ? [root.wrapper] : [])
   readonly property var primaryWrapper: root.items.length > 0 ? root.items[0] : null
-  required property var svc
   property bool showTimestamp: false
+  required property var svc
   property var wrapper: null
 
   signal inputFocusRequested
