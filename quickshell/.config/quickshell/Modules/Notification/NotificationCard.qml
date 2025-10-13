@@ -20,6 +20,7 @@ Item {
   readonly property var items: root.isGroup ? (root.group?.notifications || []) : (root.wrapper ? [root.wrapper] : [])
   readonly property var primaryWrapper: root.items.length > 0 ? root.items[0] : null
   required property var svc
+  property bool showTimestamp: false
   property var wrapper: null
 
   signal inputFocusRequested
@@ -308,6 +309,14 @@ Item {
                 })
                 onLineCountChanged: messageColumn.summaryTruncated = truncated || lineCount > 2
                 onTruncatedChanged: messageColumn.summaryTruncated = truncated || lineCount > 2
+              }
+
+              Text {
+                color: Theme.textInactiveColor
+                font.pixelSize: 11
+                opacity: 0.7
+                text: messageItem.modelData?.historyTimeStr || ""
+                visible: root.showTimestamp && text
               }
 
               RowLayout {

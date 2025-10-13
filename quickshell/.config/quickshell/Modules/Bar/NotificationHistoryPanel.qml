@@ -146,6 +146,7 @@ OPanel {
 
           sourceComponent: NotificationCard {
             group: delegateLoader.modelData.count > 1 ? delegateLoader.modelData : null
+            showTimestamp: true
             svc: NotificationService
             wrapper: delegateLoader.modelData.count === 1 ? (delegateLoader.modelData.notifications[0] || null) : null
 
