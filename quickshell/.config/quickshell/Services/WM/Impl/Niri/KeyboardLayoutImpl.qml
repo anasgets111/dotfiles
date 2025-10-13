@@ -10,7 +10,7 @@ Singleton {
   readonly property bool active: MainService.ready && MainService.currentWM === "niri"
   property string currentLayout: ""
   property var layouts: []
-  readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
+  readonly property string socketPath: Quickshell.env("NIRI_SOCKET")
 
   function cycleLayout() {
     Quickshell.execDetached(["niri", "msg", "action", "switch-layout", "next"]);
@@ -19,46 +19,35 @@ Singleton {
   function parseKeyboardLayouts(event) {
     const info = event?.KeyboardLayoutsChanged?.keyboard_layouts;
     if (info) {
-      impl.layouts = Array.isArray(info.names) ? info.names : [];
-      const idx = typeof info.current_idx === "number" ? info.current_idx : -1;
-      impl.setLayoutByIndex(idx);
-      return true;
-    }
-    const switchedIdx = event?.KeyboardLayoutSwitched?.idx;
-    if (typeof switchedIdx === "number") {
-      impl.setLayoutByIndex(switchedIdx);
-      return true;
-    }
-    return false;
-  }
-
-  function setLayoutByIndex(layoutIndex) {
-    if (!Array.isArray(impl.layouts)) {
-      impl.currentLayout = "";
+      impl.layouts = info.names || [];
+      impl.setLayoutByIndex(info.current_idx ?? -1);
       return;
     }
-    const idx = Number.isInteger(layoutIndex) ? layoutIndex : -1;
-    impl.currentLayout = idx >= 0 && idx < impl.layouts.length ? (impl.layouts[idx] || "") : "";
+
+    const switchedIdx = event?.KeyboardLayoutSwitched?.idx;
+    if (switchedIdx !== undefined)
+      impl.setLayoutByIndex(switchedIdx);
+  }
+
+  function setLayoutByIndex(idx) {
+    impl.currentLayout = idx >= 0 && idx < impl.layouts.length ? impl.layouts[idx] : "";
   }
 
   Socket {
     id: eventStreamSocket
 
-    connected: impl.active && !!impl.socketPath
+    connected: impl.active && impl.socketPath
     path: impl.socketPath
 
     parser: SplitParser {
       splitMarker: "\n"
 
-      onRead: function (segment) {
-        if (!segment)
-          return;
-
-        const event = Utils.safeJsonParse(segment, null);
-        if (!event)
-          return;
-
-        impl.parseKeyboardLayouts(event);
+      onRead: segment => {
+        if (segment) {
+          try {
+            impl.parseKeyboardLayouts(JSON.parse(segment));
+          } catch (_) {}
+        }
       }
     }
 
