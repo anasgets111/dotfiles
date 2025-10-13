@@ -18,26 +18,22 @@ Singleton {
   property string osdType: ""
   property var osdValue: null
   property bool suppressVolumeOSD: false
-
-  // Configuration
   property int timeout: 2000
   readonly property string typeAudioDevice: "audio-device"
+  readonly property string typeBattery: "battery"
   readonly property string typeBluetooth: "bluetooth"
   readonly property string typeBrightness: "brightness"
   readonly property string typeCapsLock: "caps-lock"
   readonly property string typeDnd: "dnd"
   readonly property string typeKeyboardBacklight: "keyboard-backlight"
   readonly property string typeKeyboardLayout: "keyboard-layout"
+  readonly property string typeMicMute: "mic-mute"
   readonly property string typeNetworking: "networking"
   readonly property string typeNumLock: "num-lock"
+  readonly property string typeRecording: "recording"
   readonly property string typeScrollLock: "scroll-lock"
-  readonly property string typeVolumeInput: "volume-input"
-
-  // OSD Type Constants
   readonly property string typeVolumeOutput: "volume-output"
   readonly property string typeWifi: "wifi"
-
-  // OSD State
   property bool visible: false
 
   function hideOSD() {
@@ -45,30 +41,32 @@ Singleton {
     hideTimer.stop();
   }
 
-  // Core Functions
   function showOSD(type, value, icon, label, debounce = false) {
     if (!root.initialized)
       return;
 
     if (debounce) {
       debounceTimer.pendingOSD = {
-        type: type,
-        value: value,
-        icon: icon,
-        label: label
+        type,
+        value,
+        icon,
+        label
       };
       debounceTimer.restart();
       return;
     }
 
-    root.osdType = type || "";
+    root.osdType = type;
     root.osdValue = value !== undefined ? value : null;
-    root.osdIcon = icon || "";
-    root.osdLabel = label || "";
+    root.osdIcon = icon;
+    root.osdLabel = label;
     root.visible = true;
-
     hideTimer.restart();
     Logger.log("OSDService", `Show OSD: ${type} = ${value}`);
+  }
+
+  function showToggleOSD(type, enabled, iconOn, iconOff, label) {
+    root.showOSD(type, enabled, enabled ? iconOn : iconOff, `${label} ${enabled ? "On" : "Off"}`);
   }
 
   Component.onCompleted: {
@@ -76,26 +74,20 @@ Singleton {
     Logger.log("OSDService", "Service created, waiting 1s before showing OSDs");
   }
 
-  // Auto-hide timer
   Timer {
     id: hideTimer
 
     interval: root.timeout
-    repeat: false
-    running: false
 
     onTriggered: root.hideOSD()
   }
 
-  // Debounce timer for volume/brightness changes
   Timer {
     id: debounceTimer
 
     property var pendingOSD: null
 
     interval: root.debounceTimeout
-    repeat: false
-    running: false
 
     onTriggered: {
       if (pendingOSD) {
@@ -105,13 +97,10 @@ Singleton {
     }
   }
 
-  // Initialization delay timer
   Timer {
     id: initTimer
 
     interval: 1000
-    repeat: false
-    running: false
 
     onTriggered: {
       root.initialized = true;
@@ -119,25 +108,21 @@ Singleton {
     }
   }
 
-  // Suppress timer to prevent volume OSD after device change
   Timer {
     id: suppressTimer
 
-    interval: 500
-    repeat: false
-    running: false
+    interval: 100
 
-    onTriggered: {
-      root.suppressVolumeOSD = false;
-    }
+    onTriggered: root.suppressVolumeOSD = false
   }
 
-  // Monitor AudioService
   Connections {
     function onMutedChanged() {
       const volume = Math.round(AudioService.volume * 100);
       const icon = AudioService.muted ? "󰖁" : (volume >= 70 ? "󰕾" : volume >= 30 ? "󰖀" : "󰕿");
-      root.showOSD(root.typeVolumeOutput, AudioService.muted ? 0 : volume, icon, AudioService.muted ? "Muted" : `${volume}%`);
+      const value = AudioService.muted ? 0 : volume;
+      const label = AudioService.muted ? "Muted" : `${volume}%`;
+      root.showOSD(root.typeVolumeOutput, value, icon, label);
     }
 
     function onSinkDeviceChanged(deviceName, icon) {
@@ -157,29 +142,26 @@ Singleton {
     target: typeof AudioService !== "undefined" ? AudioService : null
   }
 
-  // Monitor NetworkService
   Connections {
     function onNetworkingEnabledChanged() {
-      root.showOSD(root.typeNetworking, NetworkService.networkingEnabled, NetworkService.networkingEnabled ? "󰈀" : "󰪎", NetworkService.networkingEnabled ? "Networking On" : "Networking Off");
+      root.showToggleOSD(root.typeNetworking, NetworkService.networkingEnabled, "󰈀", "󰪎", "Networking");
     }
 
     function onWifiRadioEnabledChanged() {
-      root.showOSD(root.typeWifi, NetworkService.wifiRadioEnabled, NetworkService.wifiRadioEnabled ? "󰖩" : "󰖪", NetworkService.wifiRadioEnabled ? "WiFi On" : "WiFi Off");
+      root.showToggleOSD(root.typeWifi, NetworkService.wifiRadioEnabled, "󰖩", "󰖪", "WiFi");
     }
 
     target: typeof NetworkService !== "undefined" ? NetworkService : null
   }
 
-  // Monitor BluetoothService
   Connections {
     function onEnabledChanged() {
-      root.showOSD(root.typeBluetooth, BluetoothService.enabled, BluetoothService.enabled ? "󰂯" : "󰂲", BluetoothService.enabled ? "Bluetooth On" : "Bluetooth Off");
+      root.showToggleOSD(root.typeBluetooth, BluetoothService.enabled, "󰂯", "󰂲", "Bluetooth");
     }
 
     target: typeof BluetoothService !== "undefined" ? BluetoothService : null
   }
 
-  // Monitor BrightnessService
   Connections {
     function onPercentageChanged() {
       if (!BrightnessService.ready)
@@ -192,34 +174,28 @@ Singleton {
     target: typeof BrightnessService !== "undefined" ? BrightnessService : null
   }
 
-  // Monitor KeyboardBacklightService
   Connections {
     function onBrightnessChanged() {
       if (!KeyboardBacklightService.ready)
         return;
-      const level = KeyboardBacklightService.brightness;
       const levelName = KeyboardBacklightService.levelName;
-      // Use simple text indicators since icon encoding has issues
-      const icon = level === 0 ? "⌨" : level === 1 ? "⌨" : level === 2 ? "⌨" : "⌨";
-      root.showOSD(root.typeKeyboardBacklight, null, icon, `Backlight: ${levelName}`, false);
+      root.showOSD(root.typeKeyboardBacklight, null, "⌨", `Backlight: ${levelName}`);
     }
 
     target: typeof KeyboardBacklightService !== "undefined" ? KeyboardBacklightService : null
   }
 
-  // Monitor NotificationService for DND changes
   Connections {
     function onDoNotDisturbChanged() {
-      root.showOSD(root.typeDnd, NotificationService.doNotDisturb, NotificationService.doNotDisturb ? "󰂛" : "󰂚", NotificationService.doNotDisturb ? "Do Not Disturb On" : "Do Not Disturb Off");
+      root.showToggleOSD(root.typeDnd, NotificationService.doNotDisturb, "󰂛", "󰂚", "Do Not Disturb");
     }
 
     target: typeof NotificationService !== "undefined" ? NotificationService : null
   }
 
-  // Monitor KeyboardLayoutService for layout and lock key changes
   Connections {
     function onCapsOnChanged() {
-      root.showOSD(root.typeCapsLock, KeyboardLayoutService.capsOn, "󰘲", KeyboardLayoutService.capsOn ? "Caps Lock On" : "Caps Lock Off");
+      root.showToggleOSD(root.typeCapsLock, KeyboardLayoutService.capsOn, "󰘲", "󰘲", "Caps Lock");
     }
 
     function onCurrentLayoutChanged() {
@@ -228,13 +204,71 @@ Singleton {
     }
 
     function onNumOnChanged() {
-      root.showOSD(root.typeNumLock, KeyboardLayoutService.numOn, "󰎠", KeyboardLayoutService.numOn ? "Num Lock On" : "Num Lock Off");
+      root.showToggleOSD(root.typeNumLock, KeyboardLayoutService.numOn, "󰎠", "󰎠", "Num Lock");
     }
 
     function onScrollOnChanged() {
-      root.showOSD(root.typeScrollLock, KeyboardLayoutService.scrollOn, "󰌐", KeyboardLayoutService.scrollOn ? "Scroll Lock On" : "Scroll Lock Off");
+      root.showToggleOSD(root.typeScrollLock, KeyboardLayoutService.scrollOn, "󰌐", "󰌐", "Scroll Lock");
     }
 
     target: typeof KeyboardLayoutService !== "undefined" ? KeyboardLayoutService : null
+  }
+
+  Connections {
+    function onMicMuteChanged() {
+      if (!AudioService.source?.audio)
+        return;
+      const muted = AudioService.source.audio.muted;
+      const volume = Math.round((AudioService.source.audio.volume || 0) * 100);
+      const icon = muted ? "󰍭" : (volume >= 70 ? "󰍬" : volume >= 30 ? "󰍬" : "󰍬");
+      const label = muted ? "Microphone Muted" : "Microphone Unmuted";
+      root.showOSD(root.typeMicMute, muted, icon, label);
+    }
+
+    target: typeof AudioService !== "undefined" ? AudioService : null
+  }
+
+  Connections {
+    function onIsChargingChanged() {
+      if (!BatteryService.isLaptopBattery)
+        return;
+      const icon = BatteryService.isCharging ? "󰂄" : "󰂃";
+      const label = BatteryService.isCharging ? "Charger Connected" : "Charger Disconnected";
+      root.showOSD(root.typeBattery, null, icon, label);
+    }
+
+    function onIsFullyChargedChanged() {
+      if (!BatteryService.isLaptopBattery || !BatteryService.isFullyCharged)
+        return;
+      root.showOSD(root.typeBattery, null, "󰚥", "Fully Charged");
+    }
+
+    function onIsPendingChargeChanged() {
+      if (!BatteryService.isLaptopBattery || !BatteryService.isPendingCharge)
+        return;
+      root.showOSD(root.typeBattery, null, "󰂏", "Charge Limit Reached");
+    }
+
+    target: typeof BatteryService !== "undefined" ? BatteryService : null
+  }
+
+  Connections {
+    function onRecordingPaused(path) {
+      root.showOSD(root.typeRecording, null, "󰏤", "Recording Paused");
+    }
+
+    function onRecordingResumed(path) {
+      root.showOSD(root.typeRecording, null, "", "Recording Resumed");
+    }
+
+    function onRecordingStarted(path) {
+      root.showOSD(root.typeRecording, null, "󰑊", "Recording Started");
+    }
+
+    function onRecordingStopped(path) {
+      root.showOSD(root.typeRecording, null, "", "Recording Stopped");
+    }
+
+    target: typeof ScreenRecordingService !== "undefined" ? ScreenRecordingService : null
   }
 }
