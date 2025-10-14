@@ -172,7 +172,7 @@ Item {
         font.bold: true
         font.pixelSize: 74
         horizontalAlignment: Text.AlignHCenter
-  text: TimeService.use24Hour ? TimeService.format("time", "HH:mm") : TimeService.format("time")
+        text: TimeService.use24Hour ? TimeService.format("time", "HH:mm") : TimeService.format("time")
       }
 
       Text {
