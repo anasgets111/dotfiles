@@ -7,22 +7,20 @@ import qs.Config
 Item {
   id: root
 
-  readonly property string appId: ToplevelManager.activeToplevel?.appId || ""
+  readonly property var activeToplevel: ToplevelManager.activeToplevel
+  readonly property string appId: activeToplevel?.appId || ""
   property string desktopIconName: "applications-system"
-  readonly property bool hasActive: {
-    const tl = ToplevelManager.activeToplevel;
-    const ws = WorkspaceService.workspaces.find(w => w.id === WorkspaceService.currentWorkspace);
-    return !!(tl?.activated && (tl.appId || tl.title) && (ws?.populated || WorkspaceService.activeSpecial));
-  }
+  readonly property bool hasActive: !!(activeToplevel?.activated && (appId || title) && (WorkspaceService.activeSpecial || WorkspaceService.workspaces?.some(ws => ws.id === WorkspaceService.currentWorkspace && ws.populated)))
+  readonly property string iconSource: hasActive ? Utils.resolveIconSource(appId) : Utils.resolveIconSource("", "", desktopIconName)
   property int maxLength: 47
   readonly property string text: {
     if (!hasActive)
       return "Desktop";
-    const name = appId;
-    const display = name === "Zen Browser" ? title : !title ? (name || "Desktop") : !name ? title : `${name}: ${title}`;
-    return display.length > maxLength ? display.slice(0, maxLength - 3) + "..." : display;
+    const base = title || appId || "Desktop";
+    const limit = Math.max(4, maxLength);
+    return base.length > limit ? `${base.slice(0, limit - 3)}...` : base;
   }
-  readonly property string title: ToplevelManager.activeToplevel?.title || ""
+  readonly property string title: activeToplevel?.title || ""
 
   implicitHeight: row.implicitHeight
   implicitWidth: row.implicitWidth
@@ -42,7 +40,7 @@ Item {
     Image {
       fillMode: Image.PreserveAspectFit
       height: 28
-      source: root.hasActive ? Utils.resolveIconSource(root.appId) : Utils.resolveIconSource("", "", root.desktopIconName)
+      source: root.iconSource
       sourceSize: Qt.size(width, height)
       visible: !!source
       width: 28

@@ -24,6 +24,7 @@ Singleton {
   property var expandedGroups: ({})
   readonly property var groupedNotifications: root._groupedNotificationsCache
   readonly property var groupedPopups: root._groupedPopupsCache
+  readonly property var inlineReplyIdCandidates: (["inline-reply", "inline_reply", "inline reply", "quick_reply", "quick-reply", "reply", "reply_inline", "reply-inline"])
   readonly property int maxNotificationsPerApp: 10
   readonly property int maxStoredNotifications: 100
   readonly property int maxVisibleNotifications: 3
@@ -99,31 +100,45 @@ Singleton {
     const actions = notification?.actions;
     if (!actions)
       return [];
-    const count = Array.isArray(actions) ? actions.length : (actions.length || 0);
-    if (!count)
+
+    const length = Array.isArray(actions) ? actions.length : Number(actions.length || actions.count || 0);
+    if (!length || Number.isNaN(length))
       return [];
-    const normalized = [];
-    const seenIds = new Set();
-    for (let i = 0; i < count; i++) {
-      const action = actions[i];
-      if (!action)
-        continue;
-      const id = String(action.identifier || action.id || action.name || "");
-      if (!id)
-        continue;
-      const idKey = id.toLowerCase();
-      if (seenIds.has(idKey))
-        continue;
-      if (action.isInlineReply === true || (notification?.hasInlineReply && ["inline-reply", "inline_reply", "reply"].includes(idKey)))
-        continue;
-      normalized.push({
-        id: id,
-        title: String(action.text || action.title || action.label || id),
+
+    const list = Array.from({
+      length
+    }, (_, i) => actions[i]).filter(Boolean);
+    if (!list.length)
+      return [];
+
+    const seen = new Set();
+    const hasInline = notification?.hasInlineReply === true;
+    const placeholderKey = String(notification?.inlineReplyPlaceholder || "").trim().toLowerCase();
+
+    return list.reduce((acc, action) => {
+      const identifier = String(action.identifier || action.id || action.name || "").trim();
+      const label = String(action.text || action.title || action.label || identifier).trim();
+      const idKey = identifier.toLowerCase();
+      const labelKey = label.toLowerCase();
+      const inlineMarker = root.inlineReplyIdCandidates;
+      const isInline = action.isInlineReply === true || (hasInline && (inlineMarker.indexOf(idKey) !== -1 || inlineMarker.indexOf(labelKey) !== -1 || (placeholderKey && labelKey === placeholderKey)));
+
+      if (isInline)
+        return acc;
+
+      const id = identifier || label || `action-${acc.length}`;
+      const key = id.toLowerCase();
+      if (seen.has(key))
+        return acc;
+
+      seen.add(key);
+      acc.push({
+        id,
+        title: label || id,
         _obj: action
       });
-      seenIds.add(idKey);
-    }
-    return normalized;
+      return acc;
+    }, []);
   }
 
   function _trimStoredNotifications() {

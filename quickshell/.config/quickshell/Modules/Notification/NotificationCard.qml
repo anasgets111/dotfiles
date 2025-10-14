@@ -23,6 +23,7 @@ Item {
   required property var svc
   property var wrapper: null
 
+  signal inputFocusReleased
   signal inputFocusRequested
 
   function messageExpanded(id) {
@@ -434,8 +435,12 @@ Item {
 
                   Keys.onEnterPressed: sendBtn.clicked()
                   Keys.onReturnPressed: sendBtn.clicked()
-                  onActiveFocusChanged: if (activeFocus)
-                    root.inputFocusRequested()
+                  onActiveFocusChanged: {
+                    if (activeFocus)
+                      root.inputFocusRequested();
+                    else
+                      root.inputFocusReleased();
+                  }
                 }
 
                 StandardButton {

@@ -55,7 +55,7 @@ Row {
 
     anchors.verticalCenter: parent.verticalCenter
     colorBg: Theme.inactiveColor
-    icon: "󰍉"
+    icon: "󰍜"
     tooltipText: qsTr("Open application launcher")
 
     onClicked: IPC.launcherActive = !IPC.launcherActive
