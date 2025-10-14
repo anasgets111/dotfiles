@@ -13,7 +13,7 @@ PanelWindow {
   required property var modelData
 
   WlrLayershell.exclusiveZone: -1
-  WlrLayershell.keyboardFocus: popupColumn.interactionActive ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+  WlrLayershell.keyboardFocus: popupColumn.interactionActive ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
   WlrLayershell.layer: WlrLayer.Overlay
   color: "transparent"
   screen: layer.modelData
@@ -22,6 +22,9 @@ PanelWindow {
   mask: Region {
     item: popupColumn
   }
+
+  onVisibleChanged: if (!visible)
+    popupColumn.resetKeyboardFocus()
 
   anchors {
     bottom: true
@@ -48,8 +51,14 @@ PanelWindow {
       id: popupColumn
 
       readonly property var entries: layer.visible ? computeEntries() : []
+      property int focusCaptureCount: 0
       property bool interactionActive: false
       readonly property var svc: NotificationService
+
+      function claimKeyboardFocus() {
+        popupColumn.focusCaptureCount = Math.max(0, popupColumn.focusCaptureCount) + 1;
+        popupColumn.interactionActive = true;
+      }
 
       function computeEntries() {
         const svc = popupColumn.svc;
@@ -83,6 +92,19 @@ PanelWindow {
         return out;
       }
 
+      function releaseKeyboardFocus() {
+        popupColumn.focusCaptureCount = Math.max(0, popupColumn.focusCaptureCount - 1);
+        if (popupColumn.focusCaptureCount <= 0) {
+          popupColumn.focusCaptureCount = 0;
+          popupColumn.interactionActive = false;
+        }
+      }
+
+      function resetKeyboardFocus() {
+        popupColumn.focusCaptureCount = 0;
+        popupColumn.interactionActive = false;
+      }
+
       spacing: 8
 
       Repeater {
@@ -102,16 +124,6 @@ PanelWindow {
           Column {
             id: col
 
-            TapHandler {
-              acceptedButtons: Qt.LeftButton
-
-              onTapped: {
-                if (!popupColumn.interactionActive) {
-                  popupColumn.interactionActive = true;
-                }
-              }
-            }
-
             Loader {
               id: cardLoader
 
@@ -124,7 +136,8 @@ PanelWindow {
                   svc: popupColumn.svc
                   wrapper: del.modelData.kind === "single" ? del.modelData.wrapper : null
 
-                  onInputFocusRequested: popupColumn.interactionActive = true
+                  onInputFocusReleased: popupColumn.releaseKeyboardFocus()
+                  onInputFocusRequested: popupColumn.claimKeyboardFocus()
                 }
               }
             }

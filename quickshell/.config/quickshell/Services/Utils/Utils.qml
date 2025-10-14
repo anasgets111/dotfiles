@@ -164,18 +164,28 @@ Singleton {
     property bool lastScroll: false
 
     command: ["sh", "-c", `
-      caps_glob=/sys/class/leds/*capslock/brightness
-      num_glob=/sys/class/leds/*numlock/brightness
-      scroll_glob=/sys/class/leds/*scrolllock/brightness
-      set -- $caps_glob; caps=$1
-      set -- $num_glob; num=$1
-      set -- $scroll_glob; scroll=$1
+      get_state() {
+        # Read all capslock devices and use any non-zero value (OR logic)
+        c=0; for f in /sys/class/leds/*capslock/brightness; do
+          [ -f "$f" ] && v=$(cat "$f" 2>/dev/null) && [ "$v" != "0" ] && c=1 && break
+        done
+
+        n=0; for f in /sys/class/leds/*numlock/brightness; do
+          [ -f "$f" ] && v=$(cat "$f" 2>/dev/null) && [ "$v" != "0" ] && n=1 && break
+        done
+
+        s=0; for f in /sys/class/leds/*scrolllock/brightness; do
+          [ -f "$f" ] && v=$(cat "$f" 2>/dev/null) && [ "$v" != "0" ] && s=1 && break
+        done
+
+        echo "$c $n $s"
+      }
+
+      >&2 echo "LED monitor: Watching all *lock devices"
       last=""
+
       while :; do
-        c=$(cat "$caps" 2>/dev/null || echo 0)
-        n=$(cat "$num" 2>/dev/null || echo 0)
-        s=$(cat "$scroll" 2>/dev/null || echo 0)
-        cur="$c $n $s"
+        cur=$(get_state)
         if [ "$cur" != "$last" ]; then
           printf '%s\\n' "$cur"
           last="$cur"
@@ -192,8 +202,10 @@ Singleton {
         if (root.destroyed)
           return;
         const parts = line.trim().split(/\s+/);
-        if (parts.length !== 3)
+        if (parts.length !== 3) {
+          console.warn(`LED: Invalid line format: "${line}" (${parts.length} parts)`);
           return;
+        }
         const caps = parts[0] !== "0", num = parts[1] !== "0", scroll = parts[2] !== "0";
         if (caps === ledMonitor.lastCaps && num === ledMonitor.lastNum && scroll === ledMonitor.lastScroll)
           return;
@@ -224,8 +236,10 @@ Singleton {
     }
 
     onRunningChanged: {
-      if (!running && !root.destroyed && root.ledWatchers.length > 0) {
-        console.warn("LED monitor stopped, restarting...");
+      if (running)
+        return;
+      if (!root.destroyed && root.ledWatchers.length > 0) {
+        console.warn("LED monitor: Stopped unexpectedly, restarting...");
         Qt.callLater(() => {
           if (ledMonitor && !root.destroyed)
             ledMonitor.running = true;
