@@ -172,7 +172,7 @@ OPanel {
           Layout.alignment: Qt.AlignHCenter
           color: Theme.textInactiveColor
           font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize * 4
+          font.pixelSize: Theme.fontSize * 2
           opacity: 0.5
           text: "󰂚"
         }
