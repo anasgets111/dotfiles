@@ -10,12 +10,12 @@ import qs.Modules.Notification
 OPanel {
   id: root
 
+  readonly property real cardHeight: Theme.itemHeight * 5.5
   readonly property bool hasNotifications: root.notificationCount > 0
+  readonly property int maxVisibleCards: 3
   readonly property int notificationCount: NotificationService.notifications?.length || 0
   readonly property var notificationGroups: NotificationService.groupedNotifications || []
   readonly property int padding: 16
-  readonly property real cardHeight: Theme.itemHeight * 5.5
-  readonly property int maxVisibleCards: 3
 
   needsKeyboardFocus: false
   panelNamespace: "obelisk-notification-panel"
