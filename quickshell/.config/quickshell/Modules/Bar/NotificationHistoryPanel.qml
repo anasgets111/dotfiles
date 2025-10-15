@@ -14,6 +14,8 @@ OPanel {
   readonly property int notificationCount: NotificationService.notifications?.length || 0
   readonly property var notificationGroups: NotificationService.groupedNotifications || []
   readonly property int padding: 16
+  readonly property real cardHeight: Theme.itemHeight * 5.5
+  readonly property int maxVisibleCards: 3
 
   needsKeyboardFocus: false
   panelNamespace: "obelisk-notification-panel"
@@ -117,7 +119,7 @@ OPanel {
       Layout.bottomMargin: root.padding
       Layout.fillWidth: true
       Layout.leftMargin: root.padding
-      Layout.preferredHeight: Math.min(400, Math.max(200, notificationColumn.implicitHeight))
+      Layout.preferredHeight: Math.min(root.cardHeight * root.maxVisibleCards, Math.max(root.cardHeight, notificationColumn.implicitHeight))
       Layout.rightMargin: root.padding
       Layout.topMargin: 8
       clip: true
