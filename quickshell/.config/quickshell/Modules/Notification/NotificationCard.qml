@@ -18,8 +18,13 @@ Item {
   readonly property string headerTitle: root.isGroup ? `${root.group?.appName || "app"} (${root.group?.count || root.items.length})` : (root.primaryWrapper?.appName || "app")
   readonly property bool isGroup: !!root.group
   readonly property var items: root.isGroup ? (root.group?.notifications || []) : (root.wrapper ? [root.wrapper] : [])
+  readonly property int messagePadding: 8
+  readonly property int paddingHorizontal: 12
+  readonly property int paddingVertical: 12
   readonly property var primaryWrapper: root.items.length > 0 ? root.items[0] : null
   property bool showTimestamp: false
+  readonly property int spacingContent: 6
+  readonly property int spacingMessages: 8
   required property var svc
   property var wrapper: null
 
@@ -38,7 +43,7 @@ Item {
     root._messageExpansion = next;
   }
 
-  implicitHeight: cardColumn.implicitHeight + 28
+  implicitHeight: cardColumn.implicitHeight + (root.paddingVertical * 2)
   implicitWidth: root.cardWidth
   x: !root._animReady ? root.width + (Theme.popupOffset || 12) : 0
 
@@ -65,14 +70,14 @@ Item {
   ColumnLayout {
     id: cardColumn
 
-    spacing: 10
+    spacing: root.spacingContent
 
     anchors {
-      bottomMargin: 16
+      bottomMargin: root.paddingVertical
       fill: parent
-      leftMargin: 12
-      rightMargin: 16
-      topMargin: 12
+      leftMargin: root.paddingHorizontal
+      rightMargin: root.paddingHorizontal
+      topMargin: root.paddingVertical
     }
 
     RowLayout {
@@ -153,7 +158,7 @@ Item {
       readonly property var renderedItems: root.isGroup && !root.groupExpanded ? (root.items.length > 0 ? [root.items[0]] : []) : root.items
 
       Layout.fillWidth: true
-      spacing: 12
+      spacing: root.spacingMessages
 
       Repeater {
         model: parent.renderedItems
@@ -167,7 +172,7 @@ Item {
           required property var modelData
 
           Layout.fillWidth: true
-          implicitHeight: messageColumn.implicitHeight
+          implicitHeight: messageColumn.implicitHeight + messageColumn.topPadding + messageColumn.bottomPadding
 
           HoverHandler {
             id: hoverHandler
@@ -201,12 +206,12 @@ Item {
             readonly property string body: messageItem.modelData?.body || ""
             readonly property bool bodyHasMultipleLines: (body.match(/\n/g) || []).length > 0
             property bool bodyTruncated: false
-            readonly property int bottomPadding: messageItem.isMultipleItems ? 8 : 0
+            readonly property int bottomPadding: messageItem.isMultipleItems ? root.messagePadding : 0
             readonly property url contentImage: messageItem.modelData?.cleanImage || ""
             readonly property bool expanded: root.messageExpanded(messageColumn.messageId)
             readonly property bool hasBody: messageItem.modelData?.hasBody === true || (body && body.trim() !== "" && body.trim() !== summary.trim())
             readonly property bool hasInlineReply: messageItem.modelData?.hasInlineReply === true
-            readonly property int horizontalPadding: messageItem.isMultipleItems ? 8 : 0
+            readonly property int horizontalPadding: messageItem.isMultipleItems ? root.messagePadding : 0
             readonly property string inlineReplyPlaceholder: messageItem.modelData?.inlineReplyPlaceholder || "Reply"
             readonly property string messageId: messageItem.modelData?.id || String(messageItem.modelData?.notification ? messageItem.modelData.notification.id || "" : "")
             readonly property var renderedBodyMeta: messageColumn.hasBody ? prepareBody(body) : {
@@ -215,7 +220,7 @@ Item {
             }
             readonly property string summary: messageItem.modelData?.summary || "(No title)"
             property bool summaryTruncated: false
-            readonly property int topPadding: messageItem.isMultipleItems ? 8 : 0
+            readonly property int topPadding: messageItem.isMultipleItems ? root.messagePadding : 0
 
             function prepareBody(raw) {
               if (typeof raw !== "string" || raw.length === 0)
@@ -260,7 +265,7 @@ Item {
               }
             }
 
-            spacing: 6
+            spacing: root.spacingContent
 
             anchors {
               bottomMargin: bottomPadding
@@ -407,10 +412,11 @@ Item {
             }
 
             Loader {
-              Layout.bottomMargin: 6
+              Layout.bottomMargin: 4
               Layout.fillWidth: true
-              Layout.topMargin: 8
+              Layout.topMargin: 4
               active: messageColumn.hasInlineReply
+              visible: active
 
               sourceComponent: RowLayout {
                 spacing: 8
@@ -464,7 +470,7 @@ Item {
             ColumnLayout {
               Layout.fillWidth: true
               Layout.preferredHeight: visible ? implicitHeight : 0
-              Layout.topMargin: 8
+              Layout.topMargin: 4
               implicitHeight: actionsRow.implicitHeight
               spacing: 0
               visible: messageColumn.actionsModel.length > 0
