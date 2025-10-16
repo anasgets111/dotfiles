@@ -54,7 +54,7 @@ Singleton {
   }
 
   function _notify(title, message, urgency = "normal", action = null) {
-    const args = ["-u", urgency, "-a", "UpdateService", "-i", "system-software-update"];
+    const args = ["-u", urgency, "-a", "System Updates", "-i", "system-software-update"];
     if (action)
       args.push("-A", `${action}=${qsTr("Run updates")}`);
     args.push(title, message);
