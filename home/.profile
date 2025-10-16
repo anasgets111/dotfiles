@@ -31,6 +31,9 @@ if command -v nvidia-smi >/dev/null 2>&1; then
   export GBM_BACKEND="nvidia-drm"
   export __GL_GSYNC_ALLOWED="1" # Adaptive VSync
   export EGL_PLATFORM="wayland_egl"
+else
+  # Fallback to standard Wayland
+  export EGL_PLATFORM="wayland"
 fi
 
 # Common Wayland & Electron
