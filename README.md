@@ -8,6 +8,13 @@
 
 Modular Wayland desktop dotfiles centered on Quickshell with Hyprland and Niri, managed via GNU Stow.
 
+## Preview
+
+https://github.com/user-attachments/assets/56cffffa-cbbf-4fe1-ad97-7aef8fed57e4
+
+
+
+
 ## Quick start
 
 - Symlink into $HOME with Stow:
