@@ -107,7 +107,7 @@ Item {
         return "Fully Charged";
       if (BatteryService.isPendingCharge)
         return "Charge Limit Reached";
-      if (!BatteryService.isCharging && BatteryService.percentage === 100)
+      if (BatteryService.isACPowered && BatteryService.percentage === 100)
         return "Connected";
       // Prefer service-provided strings
       return BatteryService.isCharging ? BatteryService.timeToFullText : BatteryService.timeToEmptyText;
