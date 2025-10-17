@@ -31,6 +31,8 @@ OPanel {
     return sortedDevices.map(device => {
       const addr = device.address || "";
       const isAudio = BluetoothService.isAudioDevice(device);
+      const currentCodec = BluetoothService.deviceCodecs[addr] || "";
+      const availableCodecs = BluetoothService.deviceAvailableCodecs[addr] || [];
 
       return {
         device: device,
@@ -46,14 +48,16 @@ OPanel {
         canConnect: BluetoothService.canConnect(device),
         canDisconnect: BluetoothService.canDisconnect(device),
         isAudio: isAudio,
-        currentCodec: BluetoothService.deviceCodecs[addr] || "",
-        availableCodecs: BluetoothService.deviceAvailableCodecs[addr] || [],
+        currentCodec: currentCodec,
+        availableCodecs: availableCodecs,
         showCodecSelector: showCodecFor === addr
       };
     });
   }
 
   function handleAction(action: string, device: var) {
+    const deviceName = BluetoothService.getDeviceName(device);
+
     switch (action) {
     case "connect":
       BluetoothService.connectDeviceWithTrust(device);
@@ -419,7 +423,7 @@ OPanel {
 
     Rectangle {
       anchors.fill: parent
-      color: deviceItem.hovered ? Theme.onHoverColor : "transparent"
+      color: (deviceItem.hovered && !deviceItem.modelData.showCodecSelector) ? Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.4) : "transparent"
       radius: Theme.itemRadius
 
       Behavior on color {
@@ -598,20 +602,33 @@ OPanel {
           Repeater {
             model: deviceItem.modelData.availableCodecs
 
-            delegate: Rectangle {
+            delegate: Item {
               id: codecDelegate
 
+              property bool hovered: codecMouseArea.containsMouse
               required property int index
+              readonly property bool isCurrent: codecDelegate.modelData.name === deviceItem.modelData.currentCodec
               required property var modelData
 
               Layout.fillWidth: true
               Layout.preferredHeight: Theme.itemHeight * 0.8
-              color: codecMouseArea.containsMouse ? Theme.onHoverColor : "transparent"
-              radius: Theme.itemRadius
 
-              Behavior on color {
-                ColorAnimation {
-                  duration: Theme.animationDuration
+              Rectangle {
+                anchors.fill: parent
+                border.color: codecDelegate.isCurrent ? Theme.activeColor : "transparent"
+                border.width: codecDelegate.isCurrent ? 1 : 0
+                color: codecDelegate.isCurrent ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.15) : (codecDelegate.hovered ? Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35) : "transparent")
+                radius: Theme.itemRadius
+
+                Behavior on border.color {
+                  ColorAnimation {
+                    duration: Theme.animationDuration
+                  }
+                }
+                Behavior on color {
+                  ColorAnimation {
+                    duration: Theme.animationDuration
+                  }
                 }
               }
 
@@ -625,31 +642,73 @@ OPanel {
                   color: codecDelegate.modelData.qualityColor || Theme.inactiveColor
                   implicitHeight: 8
                   implicitWidth: 8
+                  opacity: codecDelegate.isCurrent ? 1 : (codecDelegate.hovered ? 1 : 0.5)
                   radius: 4
                 }
 
                 Text {
                   Layout.fillWidth: true
-                  color: codecMouseArea.containsMouse ? Theme.textOnHoverColor : Theme.textActiveColor
-                  font.bold: codecDelegate.modelData.name === deviceItem.modelData.currentCodec
+                  color: codecDelegate.isCurrent ? Theme.activeColor : (codecDelegate.hovered ? Theme.textActiveColor : Theme.textInactiveColor)
+                  font.bold: codecDelegate.isCurrent || codecDelegate.hovered
                   font.family: Theme.fontFamily
                   font.pixelSize: Theme.fontSize * 0.85
+                  opacity: codecDelegate.isCurrent ? 1 : (codecDelegate.hovered ? 1 : 0.7)
                   text: codecDelegate.modelData.name || ""
+
+                  Behavior on color {
+                    ColorAnimation {
+                      duration: Theme.animationDuration
+                    }
+                  }
+                  Behavior on font.bold {
+                    animation: NumberAnimation {
+                      duration: Theme.animationDuration
+                    }
+                  }
+                  Behavior on opacity {
+                    NumberAnimation {
+                      duration: Theme.animationDuration
+                    }
+                  }
                 }
 
                 Text {
-                  color: Theme.textInactiveColor
+                  color: codecDelegate.isCurrent ? Theme.activeColor : (codecDelegate.hovered ? Theme.textActiveColor : Theme.textInactiveColor)
                   font.family: Theme.fontFamily
                   font.pixelSize: Theme.fontSize * 0.75
+                  opacity: codecDelegate.isCurrent ? 1 : (codecDelegate.hovered ? 1 : 0.6)
                   text: codecDelegate.modelData.description || ""
+
+                  Behavior on color {
+                    ColorAnimation {
+                      duration: Theme.animationDuration
+                    }
+                  }
+                  Behavior on opacity {
+                    NumberAnimation {
+                      duration: Theme.animationDuration
+                    }
+                  }
                 }
 
-                Text {
-                  color: Theme.activeColor
-                  font.family: Theme.fontFamily
-                  font.pixelSize: Theme.fontSize * 0.8
-                  text: "󰄬"
-                  visible: codecDelegate.modelData.name === deviceItem.modelData.currentCodec
+                Rectangle {
+                  Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                  Layout.preferredHeight: 24
+                  Layout.preferredWidth: 24
+                  border.color: codecDelegate.isCurrent ? Theme.activeColor : "transparent"
+                  border.width: 2
+                  color: codecDelegate.isCurrent ? Theme.activeColor : "transparent"
+                  radius: 12
+
+                  Text {
+                    anchors.centerIn: parent
+                    color: Theme.bgColor
+                    font.bold: true
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize * 0.9
+                    text: "✓"
+                    visible: codecDelegate.isCurrent
+                  }
                 }
               }
 

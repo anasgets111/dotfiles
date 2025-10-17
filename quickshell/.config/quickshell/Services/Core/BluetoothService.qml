@@ -8,7 +8,7 @@ import Quickshell.Io
 Singleton {
   id: root
 
-  property var adapter: null
+  readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
   readonly property var audioKeywords: ["headset", "audio", "headphone", "airpod", "arctis"]
   readonly property bool available: adapter !== null
   readonly property var codecMap: ({
@@ -87,6 +87,8 @@ Singleton {
   }
 
   function disconnectDevice(device) {
+    if (!device)
+      return;
     device?.disconnect();
     // Cleanup codec data on disconnect
     if (device?.address) {
@@ -209,10 +211,6 @@ Singleton {
     codecParser.detected = "";
     codecParser.fullScan = false;
     codecParser.running = true;
-  }
-
-  function setAdapter(a) {
-    adapter = a;
   }
 
   function setBluetoothEnabled(enabled) {
@@ -368,10 +366,12 @@ Singleton {
 
     onRunningChanged: {
       if (!running && addr) {
-        if (fullScan)
+        if (fullScan) {
           root.updateAvailableCodecs(addr, available);
-        else
           root.updateDeviceCodec(addr, detected);
+        } else {
+          root.updateDeviceCodec(addr, detected);
+        }
 
         addr = "";
         cardName = "";
