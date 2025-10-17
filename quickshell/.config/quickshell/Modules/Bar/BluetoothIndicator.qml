@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell.Bluetooth
 import qs.Config
 import qs.Components
 import qs.Services.Core
@@ -56,17 +55,8 @@ Item {
   }
   readonly property var topDevice: sortedConnected[0] ?? null
 
-  function refreshAdapter() {
-    if (!bt || typeof Bluetooth === 'undefined')
-      return;
-    const prop = "default" + "Adapter";
-    bt.setAdapter(Bluetooth[prop]);
-  }
-
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
-
-  Component.onCompleted: refreshAdapter()
 
   IconButton {
     id: iconButton
@@ -103,13 +93,5 @@ Item {
       panel.loaderRef = bluetoothPanelLoader;
       panel.openAtItem(iconButton, 0, 0);
     }
-  }
-
-  Connections {
-    function onDefaultAdapterChanged() {
-      root.refreshAdapter();
-    }
-
-    target: typeof Bluetooth !== 'undefined' ? Bluetooth : null
   }
 }
