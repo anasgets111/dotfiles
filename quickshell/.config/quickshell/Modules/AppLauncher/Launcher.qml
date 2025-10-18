@@ -10,24 +10,22 @@ SearchGridPanel {
   property var appEntries: DesktopEntries.applications.values
 
   function launchEntry(entry) {
-    const command = sanitizeCommand(entry);
-    if (!command) {
+    const cmd = sanitizeCommand(entry);
+    if (!cmd)
       Logger.warn("Launcher", "entry missing exec command", entry);
-      return;
-    }
-    Quickshell.execDetached(Utils.shCommand(command));
+    else
+      Quickshell.execDetached(Utils.shCommand(cmd));
   }
 
   function sanitizeCommand(entry) {
-    const raw = String(entry?.exec || entry?.command || "");
-    return raw.replace(/%[fFuUdDnNickvm]/g, "").replace(/\s+/g, " ").trim();
+    return String(entry?.exec || entry?.command || "").replace(/%[fFuUdDnNickvm]/g, "").replace(/\s+/g, " ").trim();
   }
 
   cellHeight: 150
   cellPadding: 32
   cellWidth: 150
   finderBuilder: params => {
-    if (typeof Fzf === "undefined" || typeof Fzf.finder !== "function")
+    if (!Fzf?.finder)
       return null;
     return new Fzf.finder(params.list, {
       selector: params.selector,
@@ -35,15 +33,13 @@ SearchGridPanel {
       tiebreakers: [Fzf.by_start_asc, Fzf.by_length_asc]
     });
   }
-  iconSelector: function (entry) {
-    const resolvedName = entry?.name || "";
-    return Utils.resolveIconSource(entry?.id || resolvedName, entry?.icon, "application-x-executable");
+  iconSelector: entry => {
+    const name = entry?.name || "";
+    return Utils.resolveIconSource(entry?.id || name, entry?.icon, "application-x-executable");
   }
   itemImageSize: 72
   items: appEntries
-  labelSelector: function (entry) {
-    return entry?.name || "";
-  }
+  labelSelector: entry => entry?.name || ""
   maxResults: 200
   windowHeight: 471
   windowWidth: 741
