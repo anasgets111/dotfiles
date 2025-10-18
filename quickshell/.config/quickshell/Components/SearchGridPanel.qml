@@ -12,65 +12,64 @@ import qs.Services.WM
 PanelWindow {
   id: root
 
-  signal dismissed
-  signal activated(var item)
-
   property bool active: false
-  property var items: []
-  property var filteredItems: []
   property var allItems: []
-  property var finder: null
-  property int currentIndex: -1
-  property int maxResults: 200
-  property int windowWidth: 741
-  property int windowHeight: 471
-  property int cellWidth: 150
   property int cellHeight: 150
   property int cellPadding: 32
-  property int itemImageSize: 72
-  property int contentSpacing: 8
-  property int contentMargin: 12
-  property int headerSpacing: 8
-  property int footerSpacing: 8
+  property int cellWidth: 150
   property bool closeOnActivate: true
-  property bool showSearchField: true
-  property string placeholderText: qsTr("Type to search")
+  property int contentMargin: 12
+  property int contentSpacing: 8
+  property int currentIndex: -1
+  property Component delegateComponent: null
+  property var filteredItems: []
+  property var finder: null
   property var finderBuilder: null
+  property alias footerContent: footerSlot.data
+  property int footerSpacing: 8
+  property alias gridView: itemGrid
+  property alias headerContent: headerSlot.data
+  property int headerSpacing: 8
+  property var iconSelector: function (item) {
+    return item?.icon || "";
+  }
+  property int itemImageSize: 72
+  property var items: []
+  property var labelSelector: function (item) {
+    return item?.name || "";
+  }
+  property int maxResults: 200
+  property string placeholderText: qsTr("Type to search")
+  property var screenTarget: MonitorService ? MonitorService.effectiveMainScreen : null
+  property alias searchInput: searchField
   property var searchSelector: function (item) {
     const label = root.callSelector(root.labelSelector, item) || "";
     const comment = item?.comment || "";
     return comment ? `${label} ${comment}` : label;
   }
-  property var labelSelector: function (item) {
-    return item?.name || "";
-  }
-  property var iconSelector: function (item) {
-    return item?.icon || "";
-  }
-  property var screenTarget: MonitorService ? MonitorService.effectiveMainScreen : null
-  property alias searchInput: searchField
-  property alias gridView: itemGrid
-  property alias headerContent: headerSlot.data
-  property alias footerContent: footerSlot.data
-  property Component delegateComponent: null
+  property bool showSearchField: true
+  property int windowHeight: 471
+  property int windowWidth: 741
 
-  color: "transparent"
-  visible: active
+  signal activated(var item)
+  signal dismissed
 
-  WlrLayershell.layer: WlrLayer.Overlay
-  focusable: active
-  WlrLayershell.exclusiveZone: -1
-  screen: screenTarget
-
-  anchors {
-    top: true
-    left: true
-    right: true
-    bottom: true
+  function activateCurrent() {
+    const entries = root.filteredItems;
+    if (!entries.length)
+      return;
+    const i = root.clamp(root.currentIndex, 0, entries.length - 1);
+    const entry = entries[i];
+    if (entry)
+      activateEntry(entry);
   }
 
-  function clamp(v, lo, hi) {
-    return Math.min(Math.max(v, lo), hi);
+  function activateEntry(entry) {
+    if (!entry)
+      return;
+    root.activated(entry);
+    if (root.closeOnActivate)
+      root.close();
   }
 
   function arraysEqual(a, b) {
@@ -82,16 +81,6 @@ PanelWindow {
       if (a[i] !== b[i])
         return false;
     return true;
-  }
-
-  function toArray(value) {
-    if (!value)
-      return [];
-    if (Array.isArray(value))
-      return value;
-    if (typeof value.length === "number")
-      return Array.from(value);
-    return [];
   }
 
   function buildFinder(list) {
@@ -130,8 +119,25 @@ PanelWindow {
     return selector;
   }
 
-  function gridStride() {
-    return itemGrid ? itemGrid.gridColumns : 1;
+  function clamp(v, lo, hi) {
+    return Math.min(Math.max(v, lo), hi);
+  }
+
+  function close() {
+    if (!root.active)
+      return;
+    root.active = false;
+    root.currentIndex = -1;
+    root.dismissed();
+  }
+
+  function ensureCurrentVisible() {
+    if (root.currentIndex < 0)
+      return;
+    Qt.callLater(() => {
+      if (itemGrid)
+        itemGrid.positionViewAtIndex(root.currentIndex, GridView.Center);
+    });
   }
 
   function ensureFinder(forceRebuild) {
@@ -146,104 +152,8 @@ PanelWindow {
       console.warn("SearchGridPanel: FZF unavailable, using substring filter");
   }
 
-  function updateFilter(query, skipEnsure) {
-    if (!skipEnsure)
-      ensureFinder(false);
-    const text = String(query || "");
-    if (root.finder) {
-      try {
-        root.filteredItems = root.finder.find(text).map(r => r.item);
-      } catch (e) {
-        console.warn("SearchGridPanel FZF search failed:", e);
-        root.filteredItems = [];
-      }
-    } else {
-      const lower = text.toLowerCase();
-      const base = root.allItems;
-      const filtered = lower.length ? base.filter(entry => {
-        try {
-          return String(root.callSelector(root.searchSelector, entry) || "").toLowerCase().includes(lower);
-        } catch (e) {
-          console.warn("SearchGridPanel substring filter failed:", e);
-          return false;
-        }
-      }) : base.slice();
-      root.filteredItems = filtered.slice(0, root.maxResults);
-    }
-    selectDefaultIndex();
-  }
-
-  function selectDefaultIndex() {
-    const len = root.filteredItems.length;
-    if (!len)
-      root.currentIndex = -1;
-    else if (root.currentIndex < 0 || root.currentIndex >= len)
-      root.currentIndex = 0;
-  }
-
-  function moveSelection(step) {
-    const entries = root.filteredItems;
-    if (!entries.length)
-      return;
-    const len = entries.length;
-    const start = root.currentIndex < 0 ? (step > 0 ? -1 : len) : root.currentIndex;
-    const next = root.clamp(start + step, 0, len - 1);
-    if (next !== root.currentIndex) {
-      root.currentIndex = next;
-      root.ensureCurrentVisible();
-    }
-  }
-
-  function ensureCurrentVisible() {
-    if (root.currentIndex < 0)
-      return;
-    Qt.callLater(() => {
-      if (itemGrid)
-        itemGrid.positionViewAtIndex(root.currentIndex, GridView.Center);
-    });
-  }
-
-  function activateCurrent() {
-    const entries = root.filteredItems;
-    if (!entries.length)
-      return;
-    const i = root.clamp(root.currentIndex, 0, entries.length - 1);
-    const entry = entries[i];
-    if (entry)
-      activateEntry(entry);
-  }
-
-  function activateEntry(entry) {
-    if (!entry)
-      return;
-    root.activated(entry);
-    if (root.closeOnActivate)
-      root.close();
-  }
-
-  function open() {
-    if (!root.active)
-      root.active = true;
-  }
-  function close() {
-    if (!root.active)
-      return;
-    root.active = false;
-    root.currentIndex = -1;
-    root.dismissed();
-  }
-
-  function resetAndFocus() {
-    ensureFinder(true);
-    searchField.text = "";
-    updateFilter("", true);
-  }
-
-  function releaseFocus() {
-    if (root.showSearchField && searchField && searchField.activeFocus)
-      searchField.focus = false;
-    if (popupRect)
-      popupRect.forceActiveFocus();
+  function gridStride() {
+    return itemGrid ? itemGrid.gridColumns : 1;
   }
 
   function handleKeyEvent(event) {
@@ -276,6 +186,91 @@ PanelWindow {
     }
   }
 
+  function isPointInsidePopup(item, x, y) {
+    if (!item)
+      return false;
+    const local = item.mapFromItem(dismissArea, x, y);
+    return local.x >= 0 && local.y >= 0 && local.x <= item.width && local.y <= item.height;
+  }
+
+  function moveSelection(step) {
+    const entries = root.filteredItems;
+    if (!entries.length)
+      return;
+    const len = entries.length;
+    const start = root.currentIndex < 0 ? (step > 0 ? -1 : len) : root.currentIndex;
+    const next = root.clamp(start + step, 0, len - 1);
+    if (next !== root.currentIndex) {
+      root.currentIndex = next;
+      root.ensureCurrentVisible();
+    }
+  }
+
+  function open() {
+    if (!root.active)
+      root.active = true;
+  }
+
+  function releaseFocus() {
+    if (root.showSearchField && searchField && searchField.activeFocus)
+      searchField.focus = false;
+    if (popupRect)
+      popupRect.forceActiveFocus();
+  }
+
+  function resetAndFocus() {
+    ensureFinder(true);
+    searchField.text = "";
+    updateFilter("", true);
+  }
+
+  function toArray(value) {
+    if (!value)
+      return [];
+    if (Array.isArray(value))
+      return value;
+    if (typeof value.length === "number")
+      return Array.from(value);
+    return [];
+  }
+
+  function updateFilter(query, skipEnsure) {
+    if (!skipEnsure)
+      ensureFinder(false);
+    const text = String(query || "");
+    if (root.finder) {
+      try {
+        root.filteredItems = root.finder.find(text).map(r => r.item);
+      } catch (e) {
+        console.warn("SearchGridPanel FZF search failed:", e);
+        root.filteredItems = [];
+      }
+    } else {
+      const lower = text.toLowerCase();
+      const base = root.allItems;
+      const filtered = lower.length ? base.filter(entry => {
+        try {
+          return String(root.callSelector(root.searchSelector, entry) || "").toLowerCase().includes(lower);
+        } catch (e) {
+          console.warn("SearchGridPanel substring filter failed:", e);
+          return false;
+        }
+      }) : base.slice();
+      root.filteredItems = filtered.slice(0, root.maxResults);
+    }
+    if (text.length > 0)
+      root.currentIndex = 0;
+    else if (root.currentIndex < 0 || root.currentIndex >= root.filteredItems.length)
+      root.currentIndex = 0;
+  }
+
+  WlrLayershell.exclusiveZone: -1
+  WlrLayershell.layer: WlrLayer.Overlay
+  color: "transparent"
+  focusable: active
+  screen: screenTarget
+  visible: active
+
   onActiveChanged: {
     if (root.active)
       root.resetAndFocus();
@@ -287,10 +282,19 @@ PanelWindow {
     updateFilter(searchField.text, true);
   }
 
+  anchors {
+    bottom: true
+    left: true
+    right: true
+    top: true
+  }
+
   MouseArea {
     id: dismissArea
-    anchors.fill: parent
+
     acceptedButtons: Qt.LeftButton | Qt.RightButton
+    anchors.fill: parent
+
     onPressed: function (mouse) {
       if (root.isPointInsidePopup(popupRect, mouse.x, mouse.y)) {
         mouse.accepted = false;
@@ -300,23 +304,17 @@ PanelWindow {
     }
   }
 
-  function isPointInsidePopup(item, x, y) {
-    if (!item)
-      return false;
-    const local = item.mapFromItem(dismissArea, x, y);
-    return local.x >= 0 && local.y >= 0 && local.x <= item.width && local.y <= item.height;
-  }
-
   Rectangle {
     id: popupRect
-    width: root.windowWidth
-    height: root.windowHeight
-    radius: Theme.itemRadius
-    color: Theme.bgColor
+
+    anchors.centerIn: parent
     border.color: Theme.activeColor
     border.width: 1
-    anchors.centerIn: parent
+    color: Theme.bgColor
     focus: true
+    height: root.windowHeight
+    radius: Theme.itemRadius
+    width: root.windowWidth
 
     Keys.onPressed: event => {
       if (root.handleKeyEvent) {
@@ -343,18 +341,22 @@ PanelWindow {
 
     ColumnLayout {
       id: contentColumn
-      spacing: root.contentSpacing
+
       anchors.fill: parent
       anchors.margins: root.contentMargin
+      spacing: root.contentSpacing
 
       Item {
         id: headerWrapper
+
         Layout.fillWidth: true
         Layout.preferredHeight: headerSlot.implicitHeight
-        visible: headerSlot.children.length > 0
         implicitHeight: headerSlot.implicitHeight
+        visible: headerSlot.children.length > 0
+
         Column {
           id: headerSlot
+
           anchors.fill: parent
           spacing: root.headerSpacing
         }
@@ -362,51 +364,57 @@ PanelWindow {
 
       Item {
         id: searchWrapper
+
         Layout.fillWidth: true
         Layout.preferredHeight: root.showSearchField ? searchField.implicitHeight : 0
-        visible: root.showSearchField
         implicitHeight: root.showSearchField ? searchField.implicitHeight : 0
+        visible: root.showSearchField
 
         TextField {
           id: searchField
+
           anchors.fill: parent
           implicitHeight: 30
           placeholderText: root.placeholderText
+
+          Keys.onPressed: event => root.handleKeyEvent(event)
           onActiveFocusChanged: if (activeFocus)
             selectAll()
           onTextChanged: root.updateFilter(searchField.text)
-          Keys.onPressed: event => root.handleKeyEvent(event)
         }
       }
 
       Item {
         id: gridContainer
-        Layout.fillWidth: true
+
         Layout.fillHeight: true
+        Layout.fillWidth: true
         clip: true
 
         Component {
           id: defaultItemDelegate
+
           Item {
             id: itemDelegate
-            required property var modelData
-            required property int index
 
-            width: GridView.view ? GridView.view.cellWidth : (parent ? parent.width : 0)
-            height: GridView.view ? GridView.view.cellHeight : 0
             property bool hovered: mouseArea.containsMouse
-            readonly property bool selected: GridView.isCurrentItem
-            readonly property string resolvedLabel: root.callSelector(root.labelSelector, itemDelegate.modelData) || ""
+            required property int index
+            required property var modelData
             readonly property string resolvedIcon: root.callSelector(root.iconSelector, itemDelegate.modelData) || ""
+            readonly property string resolvedLabel: root.callSelector(root.labelSelector, itemDelegate.modelData) || ""
+            readonly property bool selected: GridView.isCurrentItem
+
+            height: GridView.view ? GridView.view.cellHeight : 0
+            width: GridView.view ? GridView.view.cellWidth : (parent ? parent.width : 0)
 
             Rectangle {
               anchors.centerIn: parent
-              width: Math.max(0, parent.width - root.cellPadding)
+              color: itemDelegate.selected ? Theme.activeColor : Theme.onHoverColor
               height: Math.max(0, parent.height - root.cellPadding)
+              opacity: itemDelegate.selected ? 0.3 : 0.18
               radius: Theme.itemRadius
               visible: itemDelegate.hovered || itemDelegate.selected
-              color: itemDelegate.selected ? Theme.activeColor : Theme.onHoverColor
-              opacity: itemDelegate.selected ? 0.3 : 0.18
+              width: Math.max(0, parent.width - root.cellPadding)
             }
 
             Column {
@@ -416,77 +424,83 @@ PanelWindow {
 
               Image {
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: root.itemImageSize
-                height: root.itemImageSize
                 fillMode: Image.PreserveAspectFit
+                height: root.itemImageSize
                 source: itemDelegate.resolvedIcon
-                sourceSize.width: width
                 sourceSize.height: height
+                sourceSize.width: width
                 visible: source !== ""
+                width: root.itemImageSize
               }
 
               Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: itemDelegate.resolvedLabel
                 color: Theme.textContrast(Theme.bgColor)
+                elide: Text.ElideRight
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
-                elide: Text.ElideRight
-                wrapMode: Text.NoWrap
-                maximumLineCount: 1
                 horizontalAlignment: Text.AlignHCenter
+                maximumLineCount: 1
+                text: itemDelegate.resolvedLabel
                 verticalAlignment: Text.AlignVCenter
                 width: parent.width
+                wrapMode: Text.NoWrap
               }
             }
 
             MouseArea {
               id: mouseArea
+
+              acceptedButtons: Qt.LeftButton
               anchors.fill: parent
               hoverEnabled: true
-              acceptedButtons: Qt.LeftButton
+
               onClicked: function () {
                 root.currentIndex = itemDelegate.index;
                 root.activateEntry(itemDelegate.modelData);
               }
-              onEntered: root.currentIndex = itemDelegate.index
             }
           }
         }
 
         GridView {
           id: itemGrid
-          anchors.horizontalCenter: parent.horizontalCenter
-          anchors.verticalCenter: parent.verticalCenter
-          clip: true
-          model: root.filteredItems
-          currentIndex: root.currentIndex
-          readonly property int modelCount: root.filteredItems ? root.filteredItems.length : 0
-          readonly property real maxWidth: gridContainer.width
-          readonly property real maxHeight: gridContainer.height
+
           readonly property int availableColumns: Math.max(1, Math.floor(maxWidth / root.cellWidth))
           readonly property int gridColumns: Math.max(1, Math.min(modelCount || 1, availableColumns))
           readonly property int gridRows: Math.max(1, Math.ceil((modelCount || 1) / gridColumns))
-          width: Math.min(maxWidth, Math.max(root.cellWidth, gridColumns * root.cellWidth))
-          height: Math.min(maxHeight, Math.max(root.cellHeight, gridRows * root.cellHeight))
-          cellWidth: root.cellWidth
+          readonly property real maxHeight: gridContainer.height
+          readonly property real maxWidth: gridContainer.width
+          readonly property int modelCount: root.filteredItems ? root.filteredItems.length : 0
+
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.verticalCenter: parent.verticalCenter
           cellHeight: root.cellHeight
-          flow: GridView.FlowLeftToRight
-          interactive: true
-          snapMode: GridView.SnapToRow
-          highlightMoveDuration: Theme.animationDuration
+          cellWidth: root.cellWidth
+          clip: true
+          currentIndex: root.currentIndex
           delegate: root.delegateComponent ? root.delegateComponent : defaultItemDelegate
+          flow: GridView.FlowLeftToRight
+          height: Math.min(maxHeight, Math.max(root.cellHeight, gridRows * root.cellHeight))
+          highlightMoveDuration: Theme.animationDuration
+          interactive: true
+          model: root.filteredItems
+          snapMode: GridView.SnapToRow
+          width: Math.min(maxWidth, Math.max(root.cellWidth, gridColumns * root.cellWidth))
         }
       }
 
       Item {
         id: footerWrapper
+
         Layout.fillWidth: true
         Layout.preferredHeight: footerSlot.implicitHeight
-        visible: footerSlot.children.length > 0
         implicitHeight: footerSlot.implicitHeight
+        visible: footerSlot.children.length > 0
+
         Column {
           id: footerSlot
+
           anchors.fill: parent
           spacing: root.footerSpacing
         }
