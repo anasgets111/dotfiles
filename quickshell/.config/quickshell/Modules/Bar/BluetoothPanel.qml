@@ -11,12 +11,10 @@ OPanel {
   id: root
 
   readonly property int actionButtonSize: itemHeight * 0.8
-  readonly property bool bluetoothEnabled: BluetoothService.enabled
+  readonly property bool active: BluetoothService.available && BluetoothService.enabled
   readonly property color borderColor: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
   readonly property int cardPadding: padding * 0.9
   readonly property int cardSpacing: padding * 0.4
-  readonly property bool discoverable: BluetoothService.discoverable
-  readonly property bool discovering: BluetoothService.discovering
   readonly property int iconSize: itemHeight * 0.9
   readonly property int itemHeight: Theme.itemHeight
   readonly property int padding: 8
@@ -27,15 +25,10 @@ OPanel {
     if (!ready)
       return [];
 
-    const sortedDevices = BluetoothService.sortDevices(BluetoothService.devices);
-    return sortedDevices.map(device => {
+    return BluetoothService.sortDevices(BluetoothService.devices).map(device => {
       const addr = device.address || "";
-      const isAudio = BluetoothService.isAudioDevice(device);
-      const currentCodec = BluetoothService.deviceCodecs[addr] || "";
-      const availableCodecs = BluetoothService.deviceAvailableCodecs[addr] || [];
-
       return {
-        device: device,
+        device,
         address: addr,
         name: BluetoothService.getDeviceName(device) || qsTr("Unknown Device"),
         icon: BluetoothService.getDeviceIcon(device),
@@ -43,21 +36,20 @@ OPanel {
         paired: device.paired || false,
         trusted: device.trusted || false,
         battery: device.batteryAvailable && device.battery > 0 ? device.battery : -1,
+        batteryStr: device.batteryAvailable && device.battery > 0 ? BluetoothService.getBattery(device) : "",
         statusText: BluetoothService.getStatusString(device),
         isBusy: BluetoothService.isDeviceBusy(device),
         canConnect: BluetoothService.canConnect(device),
         canDisconnect: BluetoothService.canDisconnect(device),
-        isAudio: isAudio,
-        currentCodec: currentCodec,
-        availableCodecs: availableCodecs,
+        isAudio: BluetoothService.isAudioDevice(device),
+        currentCodec: BluetoothService.deviceCodecs[addr] || "",
+        availableCodecs: BluetoothService.deviceAvailableCodecs[addr] || [],
         showCodecSelector: showCodecFor === addr
       };
     });
   }
 
   function handleAction(action: string, device: var) {
-    const deviceName = BluetoothService.getDeviceName(device);
-
     switch (action) {
     case "connect":
       BluetoothService.connectDeviceWithTrust(device);
@@ -69,12 +61,14 @@ OPanel {
       BluetoothService.forgetDevice(device);
       break;
     case "toggle-codec":
-      const addr = device?.address || "";
-      if (showCodecFor === addr) {
-        showCodecFor = "";
-      } else {
-        showCodecFor = addr;
-        BluetoothService.getAvailableCodecs(device);
+      {
+        const addr = device?.address || "";
+        if (showCodecFor === addr) {
+          showCodecFor = "";
+        } else {
+          showCodecFor = addr;
+          BluetoothService.getAvailableCodecs(device);
+        }
       }
       break;
     default:
@@ -87,36 +81,18 @@ OPanel {
     }
   }
 
-  function syncToggles() {
-    bluetoothToggle.checked = BluetoothService.enabled;
-    discoverableToggle.checked = BluetoothService.discoverable;
-  }
-
   needsKeyboardFocus: false
   panelNamespace: "obelisk-bluetooth-panel"
   panelWidth: 400
 
-  Component.onCompleted: syncToggles()
   onPanelClosed: {
     showCodecFor = "";
     BluetoothService.stopDiscovery();
   }
   onPanelOpened: {
-    if (ready && bluetoothEnabled) {
+    if (active) {
       BluetoothService.startDiscovery();
     }
-  }
-
-  Connections {
-    function onDiscoverableChanged() {
-      root.syncToggles();
-    }
-
-    function onEnabledChanged() {
-      root.syncToggles();
-    }
-
-    target: BluetoothService
   }
 
   ColumnLayout {
@@ -127,7 +103,7 @@ OPanel {
 
     // Toggle Cards Row
     RowLayout {
-      Layout.bottomMargin: root.bluetoothEnabled ? 0 : root.padding * 2
+      Layout.bottomMargin: BluetoothService.enabled ? 0 : root.padding * 2
       Layout.fillWidth: true
       spacing: root.padding * 1.25
 
@@ -165,7 +141,7 @@ OPanel {
             Rectangle {
               border.color: Qt.rgba(0, 0, 0, 0.12)
               border.width: 1
-              color: root.ready && root.bluetoothEnabled ? Theme.activeColor : Theme.inactiveColor
+              color: root.ready && BluetoothService.enabled ? Theme.activeColor : Theme.inactiveColor
               implicitHeight: root.iconSize
               implicitWidth: root.iconSize
               radius: height / 2
@@ -178,7 +154,7 @@ OPanel {
 
               Text {
                 anchors.centerIn: parent
-                color: root.ready && root.bluetoothEnabled ? "#FFFFFF" : Theme.textInactiveColor
+                color: root.ready && BluetoothService.enabled ? "#FFFFFF" : Theme.textInactiveColor
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize * 0.95
                 text: "󰂯"
@@ -194,6 +170,7 @@ OPanel {
 
               Layout.preferredHeight: Theme.itemHeight * 0.72
               Layout.preferredWidth: Theme.itemHeight * 2.6
+              checked: BluetoothService.enabled
               disabled: !root.ready
 
               onToggled: checked => BluetoothService.setBluetoothEnabled(checked)
@@ -209,7 +186,7 @@ OPanel {
         border.width: 1
         color: Qt.lighter(Theme.bgColor, 1.35)
         radius: Theme.itemRadius
-        visible: root.ready && root.bluetoothEnabled
+        visible: root.active
 
         Behavior on opacity {
           NumberAnimation {
@@ -225,7 +202,7 @@ OPanel {
           spacing: root.cardSpacing
 
           OText {
-            color: root.ready && root.bluetoothEnabled ? Theme.textActiveColor : Theme.textInactiveColor
+            color: root.active ? Theme.textActiveColor : Theme.textInactiveColor
             font.bold: true
             text: qsTr("Discoverable")
           }
@@ -236,7 +213,7 @@ OPanel {
             Rectangle {
               border.color: Qt.rgba(0, 0, 0, 0.12)
               border.width: 1
-              color: root.ready && root.bluetoothEnabled && root.discoverable ? Qt.lighter(Theme.onHoverColor, 1.25) : Qt.darker(Theme.inactiveColor, 1.1)
+              color: root.active && BluetoothService.discoverable ? Qt.lighter(Theme.onHoverColor, 1.25) : Qt.darker(Theme.inactiveColor, 1.1)
               implicitHeight: root.iconSize
               implicitWidth: root.iconSize
               radius: height / 2
@@ -249,7 +226,7 @@ OPanel {
 
               Text {
                 anchors.centerIn: parent
-                color: root.ready && root.bluetoothEnabled ? Theme.textContrast(parent.color) : Theme.textInactiveColor
+                color: root.active ? Theme.textContrast(parent.color) : Theme.textInactiveColor
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize * 0.95
                 text: "󰐾"
@@ -265,7 +242,8 @@ OPanel {
 
               Layout.preferredHeight: Theme.itemHeight * 0.72
               Layout.preferredWidth: Theme.itemHeight * 2.6
-              disabled: !root.ready || !root.bluetoothEnabled
+              checked: BluetoothService.discoverable
+              disabled: !root.active
 
               onToggled: checked => BluetoothService.setDiscoverable(checked)
             }
@@ -282,7 +260,7 @@ OPanel {
       border.width: 1
       color: Qt.lighter(Theme.bgColor, 1.35)
       radius: Theme.itemRadius
-      visible: root.ready && root.bluetoothEnabled
+      visible: root.active
 
       Behavior on opacity {
         NumberAnimation {
@@ -304,7 +282,7 @@ OPanel {
           Rectangle {
             border.color: Qt.rgba(0, 0, 0, 0.12)
             border.width: 1
-            color: root.ready && root.bluetoothEnabled && root.discovering ? Qt.lighter("#A6E3A1", 1.15) : Qt.darker(Theme.inactiveColor, 1.1)
+            color: root.active && BluetoothService.discovering ? Qt.lighter("#A6E3A1", 1.15) : Qt.darker(Theme.inactiveColor, 1.1)
             implicitHeight: root.iconSize
             implicitWidth: root.iconSize
             radius: height / 2
@@ -317,7 +295,7 @@ OPanel {
 
             Text {
               anchors.centerIn: parent
-              color: root.ready && root.bluetoothEnabled ? Theme.textContrast(parent.color) : Theme.textInactiveColor
+              color: root.active ? Theme.textContrast(parent.color) : Theme.textInactiveColor
               font.family: Theme.fontFamily
               font.pixelSize: Theme.fontSize * 0.95
               text: "󰀘"
@@ -326,7 +304,7 @@ OPanel {
                 duration: 2000
                 from: 0
                 loops: Animation.Infinite
-                running: root.discovering
+                running: BluetoothService.discovering
                 to: 360
               }
             }
@@ -337,7 +315,7 @@ OPanel {
             spacing: 2
 
             OText {
-              color: root.ready && root.bluetoothEnabled ? Theme.textActiveColor : Theme.textInactiveColor
+              color: root.active ? Theme.textActiveColor : Theme.textInactiveColor
               font.bold: true
               text: qsTr("Discovery")
             }
@@ -345,8 +323,8 @@ OPanel {
             OText {
               color: Theme.textInactiveColor
               font.pixelSize: Theme.fontSize * 0.85
-              text: root.discovering ? qsTr("Scanning for devices…") : qsTr("No active scan")
-              visible: root.ready && root.bluetoothEnabled
+              text: BluetoothService.discovering ? qsTr("Scanning for devices…") : qsTr("No active scan")
+              visible: root.active
             }
           }
         }
@@ -364,7 +342,7 @@ OPanel {
       color: Qt.lighter(Theme.bgColor, 1.25)
       implicitHeight: visible ? deviceList.implicitHeight + root.padding * 1.4 : 0
       radius: Theme.itemRadius
-      visible: root.ready && root.bluetoothEnabled && deviceList.count > 0
+      visible: root.active && deviceList.count > 0
 
       ListView {
         id: deviceList
@@ -380,6 +358,7 @@ OPanel {
         }
         interactive: contentHeight > height
         model: root.buildDeviceList()
+        reuseItems: true
         spacing: 4
 
         ScrollBar.vertical: ScrollBar {
@@ -389,9 +368,7 @@ OPanel {
         delegate: DeviceItem {
           width: ListView.view.width
 
-          onTriggered: (action, device) => {
-            root.handleAction(action, device);
-          }
+          onTriggered: (action, device) => root.handleAction(action, device)
         }
       }
     }
@@ -439,11 +416,10 @@ OPanel {
       hoverEnabled: true
 
       onClicked: {
-        if (deviceItem.modelData.canConnect) {
+        if (deviceItem.modelData.canConnect)
           deviceItem.triggered("connect", deviceItem.device);
-        } else if (deviceItem.modelData.canDisconnect) {
+        else if (deviceItem.modelData.canDisconnect)
           deviceItem.triggered("disconnect", deviceItem.device);
-        }
       }
       onEntered: deviceItem.hovered = true
       onExited: deviceItem.hovered = false
@@ -503,7 +479,7 @@ OPanel {
             }
           }
 
-          // Battery pill (only for connected devices with battery)
+          // Battery pill
           Rectangle {
             Layout.preferredHeight: Theme.itemHeight * 0.6
             Layout.preferredWidth: Theme.itemHeight * 2
@@ -530,11 +506,11 @@ OPanel {
               font.bold: true
               font.family: Theme.fontFamily
               font.pixelSize: Theme.fontSize * 0.7
-              text: Math.round(deviceItem.modelData.battery * 100) + "%"
+              text: deviceItem.modelData.batteryStr
             }
           }
 
-          // Codec button (for audio devices when connected)
+          // Codec button
           IconButton {
             Layout.preferredHeight: root.actionButtonSize
             Layout.preferredWidth: root.actionButtonSize
