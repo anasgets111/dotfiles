@@ -9,17 +9,17 @@ Item {
 
   readonly property var active: ready ? NetworkService.chooseActiveDevice(NetworkService.deviceList) : null
   readonly property var ap: ready ? (NetworkService.wifiAps.find(ap => ap?.connected) || null) : null
-  readonly property string band: ap?.band || ""
+  readonly property string band: (ap && ap.band) ? String(ap.band) : ""
   readonly property string detail1: {
     if (!ready)
       return "";
-    const ip = link === "ethernet" ? NetworkService.ethernetIpAddress || "--" : link === "wifi" ? NetworkService.wifiIpAddress || "--" : "";
-    const iface = link === "ethernet" ? NetworkService.ethernetInterface || "eth" : link === "wifi" ? NetworkService.wifiInterface || "wlan" : "";
+    const ip = link === "ethernet" ? (NetworkService.ethernetIpAddress || "--") : link === "wifi" ? (NetworkService.wifiIpAddress || "--") : "";
+    const iface = link === "ethernet" ? (NetworkService.ethernetInterface || "eth") : link === "wifi" ? (NetworkService.wifiInterface || "wlan") : "";
     return (link === "ethernet" || link === "wifi") ? qsTr("IP: %1 · IF: %2").arg(ip).arg(iface) : qsTr("No network connection");
   }
-  readonly property string detail2: ready && link !== "disconnected" && active?.connectionName ? qsTr("Conn: %1 (%2)").arg(active.connectionName).arg(active?.type || "") : ""
+  readonly property string detail2: (ready && link !== "disconnected" && active && active.connectionName) ? qsTr("Conn: %1 (%2)").arg(active.connectionName).arg(active.type || "") : ""
   readonly property string link: ready ? (NetworkService.linkType || "disconnected") : "disconnected"
-  readonly property string netIcon: !ready ? "󰤭" : link === "ethernet" ? "󰈀" : link === "wifi" ? NetworkService.getWifiIcon(band, strength) : NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮"
+  readonly property string netIcon: (!ready) ? "󰤭" : (link === "ethernet" ? "󰈀" : (link === "wifi" ? (NetworkService.getWifiIcon ? NetworkService.getWifiIcon(band, strength) : "") : (NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮")))
   readonly property bool ready: NetworkService.ready
   readonly property string secondary: {
     if (!ready)
@@ -33,8 +33,8 @@ Item {
     }
     return "";
   }
-  readonly property string ssid: ap?.ssid || (active?.type === "wifi" ? active.connectionName || "" : "")
-  readonly property int strength: ap?.signal ?? 0
+  readonly property string ssid: (ap && ap.ssid) ? String(ap.ssid) : ((active && active.type === "wifi") ? (active.connectionName || "") : "")
+  readonly property int strength: (ap && typeof ap.signal === "number") ? ap.signal : (active && typeof active.signal === "number" ? active.signal : 0)
   readonly property string title: {
     if (!ready)
       return qsTr("Network: initializing…");
