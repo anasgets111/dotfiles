@@ -11,10 +11,8 @@ SearchGridPanel {
 
   function launchEntry(entry) {
     const cmd = sanitizeCommand(entry);
-    if (!cmd)
-      Logger.warn("Launcher", "entry missing exec command", entry);
-    else
-      Quickshell.execDetached(Utils.shCommand(cmd));
+    if (cmd)
+      Quickshell.execDetached(["sh", "-c", cmd]);
   }
 
   function sanitizeCommand(entry) {
