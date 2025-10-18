@@ -9,42 +9,34 @@ import qs.Modules.Bar
 Item {
   id: root
 
+  readonly property bool active: bt?.available && bt.enabled
   readonly property var bt: BluetoothService
   readonly property string btIcon: {
-    if (!bt?.available || !bt.enabled)
+    if (!active)
       return "󰂲";
     return connectedDevices.length > 0 ? "󰂱" : "󰂯";
   }
   readonly property var connectedDevices: bt?.devices.filter(d => d?.connected) ?? []
   readonly property string detailText1: {
-    if (!bt?.available)
+    if (!active)
       return "";
-
     const d = topDevice;
-    if (bt.enabled && d) {
+    if (d) {
       const name = d.name || d.deviceName || qsTr("Unknown device");
-      const hasBatt = d.batteryAvailable && d.battery > 0;
-      const battStr = hasBatt ? qsTr(" · Battery: %1%").arg(Math.round(d.battery * 100)) : "";
+      const battStr = d.batteryAvailable && d.battery > 0 ? qsTr(" · Battery: %1").arg(BluetoothService.getBattery(d)) : "";
       return qsTr("Top: %1%2").arg(name).arg(battStr);
     }
-
-    if (bt.enabled) {
-      return bt.discovering ? qsTr("Discovering devices…") : pairedDevices.length > 0 ? qsTr("Paired: %1").arg(pairedDevices.length) : qsTr("No devices connected");
-    }
-    return "";
+    return bt.discovering ? qsTr("Discovering devices…") : pairedDevices.length > 0 ? qsTr("Paired: %1").arg(pairedDevices.length) : qsTr("No devices connected");
   }
   readonly property string detailText2: {
-    if (!bt?.available)
+    if (!active)
       return "";
     const n = connectedDevices.length;
     if (n > 1)
       return qsTr("Others: %1 more").arg(n - 1);
-    if (bt.enabled && !topDevice)
-      return bt.discovering ? qsTr("Scanning is active") : "";
-    return "";
+    return topDevice ? "" : (bt.discovering ? qsTr("Scanning is active") : "");
   }
   readonly property var pairedDevices: bt?.pairedDevices ?? []
-  readonly property var sortedConnected: connectedDevices.length > 1 ? bt?.sortDevices(connectedDevices) ?? [] : connectedDevices
   readonly property string titleText: {
     if (!bt?.available)
       return qsTr("Bluetooth: unavailable");
@@ -53,7 +45,8 @@ Item {
     const n = connectedDevices.length;
     return n > 0 ? qsTr("Bluetooth: connected (%1)").arg(n) : qsTr("Bluetooth: on");
   }
-  readonly property var topDevice: sortedConnected[0] ?? null
+  readonly property var topDevice: topList[0] ?? null
+  readonly property var topList: (connectedDevices.length > 1 ? bt?.sortDevices(connectedDevices) ?? [] : connectedDevices)
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
@@ -70,7 +63,6 @@ Item {
     }
   }
 
-  // Component definition for BluetoothPanel (better isolation)
   Component {
     id: bluetoothPanelComponent
 
@@ -81,7 +73,6 @@ Item {
     }
   }
 
-  // Loader for lazy-loading the panel
   Loader {
     id: bluetoothPanelLoader
 

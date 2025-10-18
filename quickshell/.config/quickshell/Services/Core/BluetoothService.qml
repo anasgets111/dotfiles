@@ -9,7 +9,8 @@ Singleton {
   id: root
 
   readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
-  readonly property var audioKeywords: ["headset", "audio", "headphone", "airpod", "arctis"]
+  readonly property var allDevicesWithBattery: devices.filter(d => d?.batteryAvailable && d?.battery > 0)
+  readonly property var audioKeywords: ["headset", "audio", "headphone", "airpod", "arctis", "speaker"]
   readonly property bool available: adapter !== null
   readonly property var codecMap: ({
       LDAC: {
@@ -55,76 +56,82 @@ Singleton {
     })
   property var deviceAvailableCodecs: ({})
   property var deviceCodecs: ({})
-  readonly property var devices: adapter?.devices?.values ?? []
-  readonly property bool discoverable: adapter?.discoverable ?? false
-  readonly property bool discovering: adapter?.discovering ?? false
-  readonly property bool enabled: adapter?.enabled ?? false
+  readonly property var deviceIconChecks: [[["display", "tv", "[tv]", "television"], "󰔂"], [["watch"], "󰥔"], [["mouse"], "󰍽"], [["keyboard"], "󰌌"], [phoneKeywords, "󰄜"], [audioKeywords, "󰋋"]]
+  readonly property var devices: available ? adapter.devices.values : []
+  readonly property bool discoverable: available && adapter.discoverable
+  readonly property bool discovering: available && adapter.discovering
+  readonly property bool enabled: available && adapter.enabled
   readonly property var pairedDevices: devices.filter(d => d?.paired || d?.trusted)
   readonly property var phoneKeywords: ["phone", "iphone", "android", "samsung"]
+  readonly property var signalStrengthMap: ({
+      excellent: {
+        name: "Excellent",
+        icon: "󰤟"
+      },
+      good: {
+        name: "Good",
+        icon: "󰤞"
+      },
+      fair: {
+        name: "Fair",
+        icon: "󰤟"
+      },
+      poor: {
+        name: "Poor",
+        icon: "󰤜"
+      },
+      unknown: {
+        name: "Unknown",
+        icon: "󰤟"
+      }
+    })
 
   function canConnect(device) {
-    return !device?.connected && !device?.pairing && !device?.blocked;
+    return !device.connected && !isDeviceBusy(device) && !device.blocked;
   }
 
   function canDisconnect(device) {
-    return device?.connected && !device?.pairing && !device?.blocked;
+    return device.connected && !isDeviceBusy(device);
   }
 
   function cleanupDeviceCodecData(addr) {
-    const newCodecs = Object.assign({}, deviceCodecs);
-    const newAvailable = Object.assign({}, deviceAvailableCodecs);
-    delete newCodecs[addr];
-    delete newAvailable[addr];
-    deviceCodecs = newCodecs;
-    deviceAvailableCodecs = newAvailable;
+    delete deviceCodecs[addr];
+    delete deviceAvailableCodecs[addr];
+    deviceCodecsChanged();
+    deviceAvailableCodecsChanged();
   }
 
   function connectDeviceWithTrust(device) {
-    if (!device)
-      return;
     device.trusted = true;
     device.connect();
   }
 
   function disconnectDevice(device) {
-    if (!device)
-      return;
-    device?.disconnect();
-    // Cleanup codec data on disconnect
-    if (device?.address) {
+    device.disconnect();
+    if (device.address)
       cleanupDeviceCodecData(device.address);
-    }
   }
 
   function forgetDevice(device) {
-    if (!device)
-      return;
     device.trusted = false;
     device.forget();
-    // Cleanup codec data to prevent memory leak
-    if (device.address) {
+    if (device.address)
       cleanupDeviceCodecData(device.address);
-    }
   }
 
   function getAvailableCodecs(d) {
-    if (!d?.connected || !isAudioDevice(d))
+    if (!d?.connected || !isAudioDevice(d) || codecParser.running)
       return;
-
-    // Don't start a new process if one is already running
-    if (codecParser.running) {
-      console.warn("BluetoothService: codecParser already running, skipping codec query");
-      return;
-    }
 
     const card = getCardName(d);
     codecParser.cardName = card;
     codecParser.addr = d.address;
-    codecParser.available = [];
-    codecParser.seen = false;
-    codecParser.detected = "";
     codecParser.fullScan = true;
     codecParser.running = true;
+  }
+
+  function getBattery(device) {
+    return `${Math.round((device?.battery ?? 0) * 100)}%`;
   }
 
   function getCardName(d) {
@@ -146,26 +153,36 @@ Singleton {
     const name = getDeviceName(device).toLowerCase();
     const icon = (device.icon || "").toLowerCase();
 
-    // Check specific device types first (more specific to less specific)
-    if (icon.includes("display") || icon.includes("tv") || name.includes("[tv]") || name.includes("television"))
-      return "󰔂";
-    if (icon.includes("watch") || name.includes("watch"))
-      return "󰥔";
-    if (icon.includes("mouse") || name.includes("mouse"))
-      return "󰍽";
-    if (icon.includes("keyboard") || name.includes("keyboard"))
-      return "󰌌";
-    if (phoneKeywords.some(k => icon.includes(k) || name.includes(k)))
-      return "󰄜";
-    if (icon.includes("speaker") || name.includes("speaker"))
-      return "󰓃";
-    if (audioKeywords.some(k => icon.includes(k) || name.includes(k)))
-      return "󰋋";
+    for (const [keywords, glyph] of deviceIconChecks) {
+      if (keywords.some(k => icon.includes(k) || name.includes(k)))
+        return glyph;
+    }
     return "󰂯";
   }
 
   function getDeviceName(device) {
     return device?.name || device?.deviceName || "";
+  }
+
+  function getSignalCategory(device) {
+    const signal = device?.signalStrength || 0;
+    if (signal >= 80)
+      return "excellent";
+    if (signal >= 60)
+      return "good";
+    if (signal >= 40)
+      return "fair";
+    if (signal >= 20)
+      return "poor";
+    return "unknown";
+  }
+
+  function getSignalIcon(device) {
+    return signalStrengthMap[getSignalCategory(device)].icon;
+  }
+
+  function getSignalStrength(device) {
+    return signalStrengthMap[getSignalCategory(device)].name;
   }
 
   function getStatusString(device) {
@@ -185,8 +202,7 @@ Singleton {
       return false;
     const name = getDeviceName(d).toLowerCase();
     const icon = (d.icon || "").toLowerCase();
-
-    return audioKeywords.some(k => icon.includes(k) || name.includes(k)) || icon.includes("speaker") || name.includes("speaker");
+    return audioKeywords.some(k => icon.includes(k) || name.includes(k));
   }
 
   function isDeviceBusy(device) {
@@ -194,21 +210,12 @@ Singleton {
   }
 
   function refreshDeviceCodec(d) {
-    if (!d?.connected || !isAudioDevice(d))
+    if (!d?.connected || !isAudioDevice(d) || codecParser.running)
       return;
-
-    // Don't start a new process if one is already running
-    if (codecParser.running) {
-      console.warn("BluetoothService: codecParser already running, skipping refresh");
-      return;
-    }
 
     const card = getCardName(d);
     codecParser.cardName = card;
     codecParser.addr = d.address;
-    codecParser.available = [];
-    codecParser.seen = false;
-    codecParser.detected = "";
     codecParser.fullScan = false;
     codecParser.running = true;
   }
@@ -227,33 +234,23 @@ Singleton {
     if (!list)
       return [];
     return list.slice().sort((a, b) => {
-      // Priority 1: Connected devices first
       const aConnected = a?.connected || false;
       const bConnected = b?.connected || false;
-      if (aConnected && !bConnected)
-        return -1;
-      if (!aConnected && bConnected)
-        return 1;
+      if (aConnected !== bConnected)
+        return bConnected - aConnected;
 
-      // Priority 2: Paired/trusted devices
       const aPaired = a?.paired || a?.trusted || false;
       const bPaired = b?.paired || b?.trusted || false;
-      if (aPaired && !bPaired)
-        return -1;
-      if (!aPaired && bPaired)
-        return 1;
+      if (aPaired !== bPaired)
+        return bPaired - aPaired;
 
-      // Priority 3: Devices with real names
       const aName = getDeviceName(a);
       const bName = getDeviceName(b);
       const aHasRealName = aName.includes(" ") && aName.length > 3;
       const bHasRealName = bName.includes(" ") && bName.length > 3;
-      if (aHasRealName && !bHasRealName)
-        return -1;
-      if (!aHasRealName && bHasRealName)
-        return 1;
+      if (aHasRealName !== bHasRealName)
+        return bHasRealName - aHasRealName;
 
-      // Priority 4: Alphabetical by name
       return aName.localeCompare(bName);
     });
   }
@@ -269,14 +266,8 @@ Singleton {
   }
 
   function switchCodec(d, profile) {
-    if (!d || !isAudioDevice(d))
+    if (!d || !isAudioDevice(d) || codecSwitch.running)
       return;
-
-    // Don't start if already running
-    if (codecSwitch.running) {
-      console.warn("BluetoothService: codecSwitch already running");
-      return;
-    }
 
     const card = getCardName(d);
     codecSwitch.cardName = card;
@@ -286,15 +277,13 @@ Singleton {
   }
 
   function updateAvailableCodecs(addr, list) {
-    deviceAvailableCodecs = Object.assign({}, deviceAvailableCodecs, {
-      [addr]: list
-    });
+    deviceAvailableCodecs[addr] = list;
+    deviceAvailableCodecsChanged();
   }
 
   function updateDeviceCodec(addr, codec) {
-    deviceCodecs = Object.assign({}, deviceCodecs, {
-      [addr]: codec
-    });
+    deviceCodecs[addr] = codec;
+    deviceCodecsChanged();
   }
 
   Component.onDestruction: {
@@ -302,6 +291,15 @@ Singleton {
       codecParser.running = false;
     if (codecSwitch.running)
       codecSwitch.running = false;
+  }
+
+  Connections {
+    function onEnabledChanged() {
+      if (root.adapter?.enabled)
+        Qt.callLater(() => root.adapter.discovering = true);
+    }
+
+    target: root.adapter
   }
 
   Process {
@@ -313,6 +311,15 @@ Singleton {
     property string detected: ""
     property bool fullScan: false
     property bool seen: false
+
+    function reset() {
+      addr = "";
+      cardName = "";
+      seen = false;
+      detected = "";
+      available = [];
+      fullScan = false;
+    }
 
     command: ["pactl", "list", "cards"]
 
@@ -372,13 +379,7 @@ Singleton {
         } else {
           root.updateDeviceCodec(addr, detected);
         }
-
-        addr = "";
-        cardName = "";
-        seen = false;
-        detected = "";
-        available = [];
-        fullScan = false;
+        reset();
       }
     }
   }
@@ -390,18 +391,20 @@ Singleton {
     property string deviceAddress: ""
     property string profile: ""
 
+    function reset() {
+      cardName = "";
+      profile = "";
+      deviceAddress = "";
+    }
+
     command: ["pactl", "set-card-profile", cardName, profile]
 
     onRunningChanged: {
       if (!running && deviceAddress) {
-        // Only refresh the specific device that was switched
         const device = root.adapter?.devices?.get(deviceAddress);
-        if (device) {
+        if (device)
           Qt.callLater(() => root.refreshDeviceCodec(device));
-        }
-        cardName = "";
-        profile = "";
-        deviceAddress = "";
+        reset();
       }
     }
   }
