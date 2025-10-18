@@ -100,10 +100,6 @@ Singleton {
     slot.process.running = true;
   }
 
-  function shCommand(script, ...args) {
-    return ["sh", "-c", String(script), "x", ...args.map(String)];
-  }
-
   function startLockLedWatcher(options) {
     const handler = options?.onChange;
     if (typeof handler !== "function" || destroyed)
