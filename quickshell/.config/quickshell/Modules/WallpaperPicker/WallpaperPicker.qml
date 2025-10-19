@@ -263,9 +263,10 @@ SearchGridPanel {
       Layout.fillWidth: true
       spacing: 8
 
-      Button {
+      OButton {
         id: cancelActionButton
 
+        bgColor: Theme.inactiveColor
         text: qsTr("Cancel")
 
         onClicked: picker.cancelRequested()
@@ -275,10 +276,10 @@ SearchGridPanel {
         Layout.fillWidth: true
       }
 
-      Button {
+      OButton {
         id: applyActionButton
 
-        highlighted: true
+        bgColor: Theme.activeColor
         text: qsTr("Apply")
 
         onClicked: picker.applyChanges()
@@ -296,14 +297,14 @@ SearchGridPanel {
         Layout.minimumWidth: 280
         spacing: 8
 
-        TextField {
+        OInput {
           id: folderPathInput
 
           Layout.fillWidth: true
           placeholderText: qsTr("Wallpaper folder path")
           text: picker.wallpaperFolder
 
-          onEditingFinished: {
+          onInputFinished: {
             if (picker.wallpaperFolder !== text)
               picker.wallpaperFolder = text;
           }
@@ -328,6 +329,40 @@ SearchGridPanel {
           model: picker.monitorOptions
           textRole: "label"
           valueRole: "value"
+
+          background: Rectangle {
+            border.color: Theme.borderColor
+            border.width: 1
+            color: Theme.bgColor
+            radius: Theme.itemRadius
+          }
+          contentItem: OText {
+            bottomPadding: 8
+            leftPadding: 12
+            text: monitorSelector.displayText
+            topPadding: 8
+          }
+          popup: Popup {
+            implicitHeight: contentItem.implicitHeight + 20
+            padding: 10
+            width: monitorSelector.width
+            y: monitorSelector.height
+
+            background: Rectangle {
+              border.color: Theme.borderColor
+              border.width: 1
+              color: Theme.bgColor
+              radius: Theme.itemRadius
+            }
+            contentItem: ListView {
+              clip: true
+              implicitHeight: contentHeight
+              model: monitorSelector.delegateModel
+
+              ScrollIndicator.vertical: ScrollIndicator {
+              }
+            }
+          }
 
           onActivated: function (index) {
             const entry = picker.monitorOptions[index];
@@ -358,6 +393,40 @@ SearchGridPanel {
           model: picker.fillModeOptions
           textRole: "label"
           valueRole: "value"
+
+          background: Rectangle {
+            border.color: Theme.borderColor
+            border.width: 1
+            color: Theme.bgColor
+            radius: Theme.itemRadius
+          }
+          contentItem: OText {
+            bottomPadding: 8
+            leftPadding: 12
+            text: fillModeSelector.displayText
+            topPadding: 8
+          }
+          popup: Popup {
+            implicitHeight: contentItem.implicitHeight + 20
+            padding: 10
+            width: fillModeSelector.width
+            y: fillModeSelector.height + 4
+
+            background: Rectangle {
+              border.color: Theme.borderColor
+              border.width: 1
+              color: Theme.bgColor
+              radius: Theme.itemRadius
+            }
+            contentItem: ListView {
+              clip: true
+              implicitHeight: contentHeight
+              model: fillModeSelector.delegateModel
+
+              ScrollIndicator.vertical: ScrollIndicator {
+              }
+            }
+          }
 
           onActivated: function (index) {
             const entry = picker.fillModeOptions[index];
@@ -392,6 +461,40 @@ SearchGridPanel {
           model: picker.transitionOptions
           textRole: "label"
           valueRole: "value"
+
+          background: Rectangle {
+            border.color: Theme.borderColor
+            border.width: 1
+            color: Theme.bgColor
+            radius: Theme.itemRadius
+          }
+          contentItem: OText {
+            bottomPadding: 8
+            leftPadding: 12
+            text: transitionSelector.displayText
+            topPadding: 8
+          }
+          popup: Popup {
+            implicitHeight: contentItem.implicitHeight + 20
+            padding: 10
+            width: transitionSelector.width
+            y: transitionSelector.height + 4
+
+            background: Rectangle {
+              border.color: Theme.borderColor
+              border.width: 1
+              color: Theme.bgColor
+              radius: Theme.itemRadius
+            }
+            contentItem: ListView {
+              clip: true
+              implicitHeight: contentHeight
+              model: transitionSelector.delegateModel
+
+              ScrollIndicator.vertical: ScrollIndicator {
+              }
+            }
+          }
 
           onActivated: function (index) {
             const entry = picker.transitionOptions[index];
@@ -508,16 +611,13 @@ SearchGridPanel {
             height: Math.max(36, parent.height * 0.18)
             visible: wallpaperItem.resolvedLabel !== ""
 
-            Text {
+            OText {
               anchors.left: parent.left
               anchors.leftMargin: 12
               anchors.right: parent.right
               anchors.rightMargin: 12
               anchors.verticalCenter: parent.verticalCenter
-              color: Theme.textActiveColor
               elide: Text.ElideRight
-              font.family: Theme.fontFamily
-              font.pixelSize: Theme.fontSize
               horizontalAlignment: Text.AlignLeft
               maximumLineCount: 1
               text: wallpaperItem.resolvedLabel

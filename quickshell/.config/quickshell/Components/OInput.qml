@@ -17,7 +17,7 @@ ColumnLayout {
   property alias echoMode: textField.echoMode
   property string errorMessage: ""
   property bool hasError: false
-  property real inputHeight: Theme.itemHeight * 0.8
+  property real inputHeight: Theme.itemHeight
   property alias placeholderText: textField.placeholderText
   property alias text: textField.text
 
@@ -49,9 +49,11 @@ ColumnLayout {
     TextField {
       id: textField
 
+      anchors.bottomMargin: 4
       anchors.fill: parent
-      anchors.leftMargin: 8
-      anchors.rightMargin: 8
+      anchors.leftMargin: 12
+      anchors.rightMargin: 12
+      anchors.topMargin: 4
       color: Theme.textActiveColor
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
