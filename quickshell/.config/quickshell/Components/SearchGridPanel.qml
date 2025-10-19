@@ -4,10 +4,10 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import QtQuick.Controls
-import QtQuick.Window
 import Quickshell.Wayland
 import qs.Config
 import qs.Services.WM
+import qs.Components
 
 PanelWindow {
   id: root
@@ -351,7 +351,6 @@ PanelWindow {
 
         Layout.fillWidth: true
         Layout.preferredHeight: headerSlot.implicitHeight
-        implicitHeight: headerSlot.implicitHeight
         visible: headerSlot.children.length > 0
 
         Column {
@@ -362,26 +361,33 @@ PanelWindow {
         }
       }
 
-      Item {
-        id: searchWrapper
+      TextField {
+        id: searchField
 
         Layout.fillWidth: true
-        Layout.preferredHeight: root.showSearchField ? searchField.implicitHeight : 0
-        implicitHeight: root.showSearchField ? searchField.implicitHeight : 0
+        Layout.preferredHeight: root.showSearchField ? 32 : 0
+        color: Theme.textActiveColor
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize
+        leftPadding: 12
+        placeholderText: root.placeholderText
+        placeholderTextColor: Theme.textInactiveColor
+        rightPadding: 12
+        selectedTextColor: Theme.textContrast(Theme.activeColor)
+        selectionColor: Theme.activeColor
         visible: root.showSearchField
 
-        TextField {
-          id: searchField
-
-          anchors.fill: parent
-          implicitHeight: 30
-          placeholderText: root.placeholderText
-
-          Keys.onPressed: event => root.handleKeyEvent(event)
-          onActiveFocusChanged: if (activeFocus)
-            selectAll()
-          onTextChanged: root.updateFilter(searchField.text)
+        background: Rectangle {
+          border.color: searchField.activeFocus ? Theme.activeColor : Theme.borderColor
+          border.width: searchField.activeFocus ? 2 : 1
+          color: Theme.bgColor
+          radius: Theme.itemRadius
         }
+
+        Keys.onPressed: event => root.handleKeyEvent(event)
+        onActiveFocusChanged: if (activeFocus)
+          selectAll()
+        onTextChanged: root.updateFilter(searchField.text)
       }
 
       Item {
@@ -415,6 +421,25 @@ PanelWindow {
               radius: Theme.itemRadius
               visible: itemDelegate.hovered || itemDelegate.selected
               width: Math.max(0, parent.width - root.cellPadding)
+
+              Behavior on height {
+                NumberAnimation {
+                  duration: 150
+                  easing.type: Easing.OutCubic
+                }
+              }
+              Behavior on opacity {
+                NumberAnimation {
+                  duration: 150
+                  easing.type: Easing.OutCubic
+                }
+              }
+              Behavior on width {
+                NumberAnimation {
+                  duration: 150
+                  easing.type: Easing.OutCubic
+                }
+              }
             }
 
             Column {
@@ -427,18 +452,14 @@ PanelWindow {
                 fillMode: Image.PreserveAspectFit
                 height: root.itemImageSize
                 source: itemDelegate.resolvedIcon
-                sourceSize.height: height
-                sourceSize.width: width
+                sourceSize: Qt.size(root.itemImageSize, root.itemImageSize)
                 visible: source !== ""
                 width: root.itemImageSize
               }
 
-              Text {
+              OText {
                 anchors.horizontalCenter: parent.horizontalCenter
-                color: Theme.textContrast(Theme.bgColor)
                 elide: Text.ElideRight
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
                 horizontalAlignment: Text.AlignHCenter
                 maximumLineCount: 1
                 text: itemDelegate.resolvedLabel
@@ -482,7 +503,7 @@ PanelWindow {
           delegate: root.delegateComponent ? root.delegateComponent : defaultItemDelegate
           flow: GridView.FlowLeftToRight
           height: Math.min(maxHeight, Math.max(root.cellHeight, gridRows * root.cellHeight))
-          highlightMoveDuration: Theme.animationDuration
+          highlightMoveDuration: 200
           interactive: true
           model: root.filteredItems
           snapMode: GridView.SnapToRow
@@ -495,7 +516,6 @@ PanelWindow {
 
         Layout.fillWidth: true
         Layout.preferredHeight: footerSlot.implicitHeight
-        implicitHeight: footerSlot.implicitHeight
         visible: footerSlot.children.length > 0
 
         Column {
