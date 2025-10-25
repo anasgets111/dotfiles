@@ -23,6 +23,7 @@ Singleton {
   property bool initialized: false
   property string osdIcon: ""
   property string osdLabel: ""
+  property var osdMaxValue: 100
   property string osdType: ""
   property var osdValue: null
   property var pendingByType: ({})
@@ -116,6 +117,7 @@ Singleton {
     osdValue = active.value;
     osdIcon = active.icon;
     osdLabel = active.label;
+    osdMaxValue = active.maxValue ?? 100;
     visible = true;
     hideTimer.restart();
     clearSuppressedPending(active.type);
@@ -137,7 +139,8 @@ Singleton {
       value: entry.value,
       icon: entry.icon,
       label: entry.label,
-      priority: overridePriority !== undefined ? overridePriority : (entry.priority !== undefined ? entry.priority : priorityFor(entry.type)),
+      maxValue: entry.maxValue ?? 100,
+      priority: overridePriority ?? entry.priority ?? priorityFor(entry.type),
       sequence: entry.sequence
     };
   }
@@ -209,14 +212,15 @@ Singleton {
       applyEntry(best);
   }
 
-  function showOSD(type, value, icon, label, debounce = false) {
+  function showOSD(type, value, icon, label, debounce = false, maxValue = 100) {
     if (!initialized)
       return;
     const entry = {
       type,
       value: value !== undefined ? value : null,
       icon,
-      label
+      label,
+      maxValue
     };
     if (debounce) {
       debounceTimer.pendingOSD = entry;
@@ -282,7 +286,7 @@ Singleton {
       const icon = root.volumeIcon(vol, AudioService.muted);
       const value = AudioService.muted ? 0 : vol;
       const label = AudioService.muted ? "Muted" : `${vol}%`;
-      root.showOSD(root.types.volumeOutput, value, icon, label);
+      root.showOSD(root.types.volumeOutput, value, icon, label, false, AudioService.maxVolumePercent);
     }
 
     function onSinkDeviceChanged(deviceName, icon) {
@@ -291,7 +295,7 @@ Singleton {
 
     function onVolumeChanged() {
       const vol = Math.round(AudioService.volume * 100);
-      root.showOSD(root.types.volumeOutput, vol, root.volumeIcon(vol, AudioService.muted), `${vol}%`, true);
+      root.showOSD(root.types.volumeOutput, vol, root.volumeIcon(vol, AudioService.muted), `${vol}%`, false, AudioService.maxVolumePercent);
     }
 
     target: typeof AudioService !== "undefined" ? AudioService : null

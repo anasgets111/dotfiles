@@ -31,6 +31,7 @@ PanelWindow {
 
     icon: OSDService.osdIcon
     label: OSDService.osdLabel
+    maxValue: OSDService.osdMaxValue
     showing: OSDService.visible
     value: OSDService.osdValue
 
