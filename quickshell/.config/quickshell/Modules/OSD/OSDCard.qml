@@ -20,6 +20,7 @@ Item {
   property string icon: ""
   readonly property bool isPercentage: typeof root.value === "number" && root.value >= 0
   property string label: ""
+  property int maxValue: 100
   property bool showing: false
   property var value: null
 
