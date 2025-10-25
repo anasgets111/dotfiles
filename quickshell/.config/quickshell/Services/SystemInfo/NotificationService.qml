@@ -230,6 +230,11 @@ Singleton {
       wrapper.notification.dismiss();
     }
     wrapper.destroy();
+    if (root.notificationQueue.length > 0 && root.visibleNotifications.filter(n => n?.popup).length < root.maxVisibleNotifications) {
+      root.addGateBusy = false;
+      addGate.stop();
+      Qt.callLater(() => root.processQueue());
+    }
   }
 
   function executeAction(wrapper, actionId, actionObj) {
