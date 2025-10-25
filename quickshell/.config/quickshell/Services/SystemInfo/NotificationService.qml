@@ -230,11 +230,7 @@ Singleton {
       wrapper.notification.dismiss();
     }
     wrapper.destroy();
-    if (root.notificationQueue.length > 0 && root.visibleNotifications.filter(n => n?.popup).length < root.maxVisibleNotifications) {
-      root.addGateBusy = false;
-      addGate.stop();
-      Qt.callLater(() => root.processQueue());
-    }
+    Qt.callLater(() => root.processQueue());
   }
 
   function executeAction(wrapper, actionId, actionObj) {
@@ -292,7 +288,6 @@ Singleton {
     root.popupsDisabled = true;
     addGate.stop();
     root.addGateBusy = false;
-    root.notificationQueue = [];
     for (const notif of root.visibleNotifications) {
       if (notif)
         notif.popup = false;
@@ -431,8 +426,7 @@ Singleton {
       if (wrapper) {
         root.notifications = [wrapper, ...root.notifications];
         root._trimStoredNotifications();
-        if (shouldShowPopup)
-          root._enqueuePopup(wrapper);
+        root._enqueuePopup(wrapper);
       }
     }
   }
