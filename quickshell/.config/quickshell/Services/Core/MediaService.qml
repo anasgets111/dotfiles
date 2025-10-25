@@ -11,7 +11,7 @@ Singleton {
   readonly property string activeDisplayName: active?.identity || (active ? "Unknown player" : "No player")
   readonly property string activeIconName: iconNameForPlayer(active)
   readonly property list<MprisPlayer> allPlayers: Mpris.players?.values.filter(p => isAlivePlayer(p)) || []
-  readonly property bool anyVideoPlaying: players.some(p => p?.playbackState === MprisPlaybackState.Playing && (isVideoApp(p) || (isBrowserApp(p) && isVideoUrl(p?.metadata["xesam:url"] || p?.metadata["xesam:URL"] || ""))))
+  readonly property bool anyVideoPlaying: (players.some(p => p?.playbackState === MprisPlaybackState.Playing && (isVideoApp(p) || (isBrowserApp(p) && isVideoUrl(p?.metadata["xesam:url"] || p?.metadata["xesam:URL"] || ""))))) || (pipewireVideoActive && active && (isVideoApp(active) || (isBrowserApp(active) && (active.metadata["xesam:url"] || active.metadata["xesam:URL"]))))
   readonly property var audioOnlyPatterns: ["music.youtube.com", "spotify.com", "soundcloud.com", "music.apple.com", "deezer.com", "tidal.com", "bandcamp.com"]
   readonly property var browserAppHints: ["firefox", "zen", "chrome", "chromium", "brave", "vivaldi", "edge", "opera"]
   property bool canGoNext: active?.canGoNext ?? false
