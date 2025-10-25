@@ -17,9 +17,9 @@ Rectangle {
     if (!isAudioReady)
       return "--";
 
-    const norm = volumeSlider ? (volumeSlider.dragging ? volumeSlider.pending : (displayMaxVolume > 0 ? currentVolume / displayMaxVolume : 0)) : 0;
+    const norm = volumeSlider?.dragging ? volumeSlider.pending : volumeSlider?.value ?? 0;
     const valueAbs = norm * displayMaxVolume;
-    const ratioBase = baseVolume > 0 ? Math.min(valueAbs / baseVolume, 1.0) : 0;
+    const ratioBase = Math.min(valueAbs / baseVolume, 1.0);
 
     if (currentDeviceIcon)
       return currentDeviceIcon;
@@ -51,13 +51,12 @@ Rectangle {
   }
   property int sliderStepCount: 30
   readonly property color textContrastColor: {
-    const bg = color;
     if (!expanded)
-      return Theme.textContrast(bg);
+      return Theme.textContrast(color);
 
-    const norm = volumeSlider ? (volumeSlider.dragging ? volumeSlider.pending : volumeSlider.value) : 0;
-    const ref = norm > 0.5 ? Theme.activeColor : bg;
-    return Theme.textContrast(Qt.colorEqual(ref, "transparent") ? bg : ref);
+    const norm = volumeSlider?.dragging ? volumeSlider.pending : volumeSlider?.value ?? 0;
+    const ref = norm > 0.5 ? Theme.activeColor : color;
+    return Theme.textContrast(Qt.colorEqual(ref, "transparent") ? color : ref);
   }
 
   function setAbsoluteVolume(absoluteVolume) {
@@ -84,11 +83,11 @@ Rectangle {
   }
 
   Component.onCompleted: {
-    volumeSlider.value = root.displayMaxVolume > 0 ? currentVolume / root.displayMaxVolume : 0;
+    volumeSlider.value = currentVolume / displayMaxVolume;
   }
   onCurrentVolumeChanged: {
     if (!volumeSlider.dragging)
-      volumeSlider.value = root.displayMaxVolume > 0 ? currentVolume / root.displayMaxVolume : 0;
+      volumeSlider.value = currentVolume / displayMaxVolume;
   }
 
   HoverHandler {
@@ -113,13 +112,13 @@ Rectangle {
     id: volumeSlider
 
     anchors.fill: parent
-    animMs: (dragging || root.isWidthAnimating) ? 0 : Theme.animationDuration
+    animMs: 0
     fillColor: Theme.activeColor
     headroomColor: Theme.critical
     interactive: root.isAudioReady
     opacity: (root.expanded || dragging) ? 1 : 0
     radius: root.radius
-    splitAt: root.displayMaxVolume > 0 ? Math.min(1, root.baseVolume / root.displayMaxVolume) : 1
+    splitAt: 2 / 3
     steps: root.sliderStepCount
     wheelStep: 1 / steps
 

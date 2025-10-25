@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import qs.Config
+import qs.Components
 
 Item {
   id: root
@@ -17,7 +18,7 @@ Item {
     return Math.max(220, 48 + 16 + textWidth + 48);
   }
   property string icon: ""
-  readonly property bool isPercentage: typeof root.value === "number" && root.value >= 0 && root.value <= 100
+  readonly property bool isPercentage: typeof root.value === "number" && root.value >= 0
   property string label: ""
   property bool showing: false
   property var value: null
@@ -80,18 +81,15 @@ Item {
       color: Qt.rgba(1, 1, 1, 0.25)
       radius: 6
 
-      Rectangle {
-        color: Theme.activeColor
-        height: parent.height
-        radius: parent.radius
-        width: parent.width * (root.value / 100)
-
-        Behavior on width {
-          NumberAnimation {
-            duration: 150
-            easing.type: Easing.OutCubic
-          }
-        }
+      Slider {
+        anchors.fill: parent
+        animMs: 0
+        fillColor: Theme.activeColor
+        headroomColor: Theme.critical
+        interactive: false
+        radius: 6
+        splitAt: 2 / 3
+        value: Math.min(root.value / 150, 1)
       }
     }
 
@@ -105,8 +103,6 @@ Item {
 
   // Toggle layout (wifi, bluetooth, etc.)
   RowLayout {
-    id: toggleLayout
-
     anchors.centerIn: parent
     spacing: 16
     visible: !root.isPercentage
