@@ -22,6 +22,7 @@ Item {
   property string label: ""
   property int maxValue: 100
   property bool showing: false
+  property string type: ""
   property var value: null
 
   implicitHeight: 80
@@ -89,8 +90,11 @@ Item {
         headroomColor: Theme.critical
         interactive: false
         radius: 6
-        splitAt: 2 / 3
-        value: Math.min(root.value / 150, 1)
+        splitAt: root.type === "volume-output" ? 2 / 3 : 1.0
+        value: {
+          const divisor = root.type === "volume-output" ? 150 : 100;
+          return Math.min(root.value / divisor, 1);
+        }
       }
     }
 

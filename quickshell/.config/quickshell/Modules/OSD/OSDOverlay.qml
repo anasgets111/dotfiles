@@ -33,6 +33,7 @@ PanelWindow {
     label: OSDService.osdLabel
     maxValue: OSDService.osdMaxValue
     showing: OSDService.visible
+    type: OSDService.osdType
     value: OSDService.osdValue
 
     anchors {
