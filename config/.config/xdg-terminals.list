@@ -1,8 +1,8 @@
 # Preferred terminal emulator list
 
 
-
 kitty.desktop
+foot.desktop
 Alacritty.desktop
 com.mitchellh.ghostty.desktop
 org.wezfurlong.wezterm.desktop
