@@ -272,7 +272,7 @@ Singleton {
         _fetchWeather(cache.lat, cache.lon);
       } else {
         Logger.log("WeatherService", `Next update in ${Math.round(remaining / 60000)} min`);
-        updateTimer.interval = remaining;
+        updateTimer.interval = Math.max(1000, remaining);
         updateTimer.start();
       }
     } else {
