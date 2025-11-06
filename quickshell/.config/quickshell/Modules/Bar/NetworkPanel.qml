@@ -10,6 +10,7 @@ import qs.Services.Core
 OPanel {
   id: root
 
+  readonly property bool ethernetOnline: NetworkService.ethernetOnline
   readonly property int itemHeight: Theme.itemHeight
   readonly property int maxItems: 7
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
@@ -198,7 +199,7 @@ OPanel {
           }
 
           RowLayout {
-            spacing: root.padding * 0.9
+            spacing: root.padding * 0.3
 
             Rectangle {
               border.color: Qt.rgba(0, 0, 0, 0.12)
@@ -219,7 +220,7 @@ OPanel {
                 color: root.ready ? Theme.textContrast(parent.color) : Theme.textInactiveColor
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize * 0.95
-                text: "󰤨"
+                text: "󱘖"
               }
             }
 
@@ -231,7 +232,7 @@ OPanel {
               id: networkToggle
 
               Layout.preferredHeight: Theme.itemHeight * 0.72
-              Layout.preferredWidth: Theme.itemHeight * 2.6
+              Layout.preferredWidth: Theme.itemHeight * 1.5
               disabled: !root.ready
 
               onToggled: checked => NetworkService.setNetworkingEnabled(checked)
@@ -270,7 +271,7 @@ OPanel {
           }
 
           RowLayout {
-            spacing: root.padding * 0.9
+            spacing: root.padding * 0.3
 
             Rectangle {
               border.color: Qt.rgba(0, 0, 0, 0.12)
@@ -291,7 +292,7 @@ OPanel {
                 color: root.ready && root.networkingEnabled ? Theme.textContrast(parent.color) : Theme.textInactiveColor
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize * 0.95
-                text: "󰒓"
+                text: "󰤨"
               }
             }
 
@@ -303,10 +304,87 @@ OPanel {
               id: wifiToggle
 
               Layout.preferredHeight: Theme.itemHeight * 0.72
-              Layout.preferredWidth: Theme.itemHeight * 2.6
+              Layout.preferredWidth: Theme.itemHeight * 1.5
               disabled: !root.ready || !root.networkingEnabled
 
               onToggled: checked => NetworkService.setWifiRadioEnabled(checked)
+            }
+          }
+        }
+      }
+
+      // Ethernet Toggle Card
+      Rectangle {
+        Layout.fillWidth: true
+        Layout.preferredHeight: ethernetCol.implicitHeight + root.padding * 1.2
+        border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+        border.width: 1
+        color: Qt.lighter(Theme.bgColor, 1.35)
+        opacity: root.ready && root.networkingEnabled && root.ethernetOnline ? 1 : 0.5
+        radius: Theme.itemRadius
+        visible: root.ethernetOnline
+
+        Behavior on opacity {
+          NumberAnimation {
+            duration: 150
+          }
+        }
+
+        ColumnLayout {
+          id: ethernetCol
+
+          anchors.fill: parent
+          anchors.margins: root.padding * 0.9
+          spacing: root.padding * 0.4
+
+          OText {
+            color: root.ready && root.networkingEnabled && root.ethernetOnline ? Theme.textActiveColor : Theme.textInactiveColor
+            font.bold: true
+            text: qsTr("Ethernet")
+          }
+
+          RowLayout {
+            spacing: root.padding * 0.3
+
+            Rectangle {
+              border.color: Qt.rgba(0, 0, 0, 0.12)
+              border.width: 1
+              color: root.ready && root.networkingEnabled && root.ethernetOnline ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
+              implicitHeight: implicitWidth
+              implicitWidth: Theme.itemHeight * 0.9
+              radius: height / 2
+
+              Behavior on color {
+                ColorAnimation {
+                  duration: 150
+                }
+              }
+
+              Text {
+                anchors.centerIn: parent
+                color: root.ready && root.networkingEnabled && root.ethernetOnline ? Theme.textContrast(parent.color) : Theme.textInactiveColor
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize * 0.95
+                text: "󰈀"
+              }
+            }
+
+            Item {
+              Layout.fillWidth: true
+            }
+
+            OToggle {
+              id: ethernetToggle
+
+              Layout.preferredHeight: Theme.itemHeight * 0.72
+              Layout.preferredWidth: Theme.itemHeight * 1.5
+              checked: true
+              disabled: !root.ready || !root.networkingEnabled
+
+              onToggled: checked => {
+                if (!checked)
+                  NetworkService.disconnectEthernet();
+              }
             }
           }
         }
