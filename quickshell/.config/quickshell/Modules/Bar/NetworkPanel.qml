@@ -10,7 +10,11 @@ import qs.Services.Core
 OPanel {
   id: root
 
+  readonly property string ethernetInterface: NetworkService.ethernetInterface
   readonly property bool ethernetOnline: NetworkService.ethernetOnline
+  property int hiddenNetworkPhase: 0  // 0=hidden (not connecting), 1=enter name, 2=enter password
+  property string hiddenPasswordError: ""
+  property string hiddenSsid: ""
   readonly property int itemHeight: Theme.itemHeight
   readonly property int maxItems: 7
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
@@ -27,6 +31,19 @@ OPanel {
       return [];
 
     const networks = [];
+
+    // Add hidden network entry at the top (only when not in input phases)
+    if (root.hiddenNetworkPhase === 0) {
+      networks.push({
+        type: "action",
+        icon: "󰒟",
+        label: qsTr("Connect to Hidden Network"),
+        action: "connect-hidden",
+        actionIcon: "󰌘",
+        ssid: "hidden"
+      });
+    }
+
     for (const ap of wifiAps) {
       if (!ap?.ssid)
         continue;
@@ -63,6 +80,10 @@ OPanel {
     return networks;
   }
 
+  function extractInputValue(data) {
+    return (data && "value" in data) ? String(data.value).trim() : "";
+  }
+
   function findSavedConn(ssid) {
     return savedConnections.find(c => c?.ssid === ssid);
   }
@@ -70,12 +91,44 @@ OPanel {
   function handleAction(action: string, data: var) {
     const wifiIface = NetworkService.wifiInterface;
 
+    if (action === "connect-hidden") {
+      // Start hidden network flow: enter name phase
+      root.hiddenNetworkPhase = 1;
+      return;
+    }
+
+    if (action === "submit-hidden-ssid") {
+      const ssid = extractInputValue(data);
+      if (ssid) {
+        hiddenSsid = ssid;
+        root.hiddenNetworkPhase = 2;  // Move to password phase
+      }
+      return;
+    }
+
+    if (action === "submit-hidden-password") {
+      const password = extractInputValue(data);
+      if (wifiIface && hiddenSsid && password) {
+        hiddenPasswordError = "";
+        NetworkService.connectToWifi(hiddenSsid, password, wifiIface, true);  // true = isHidden
+        resetHiddenNetworkState();
+        root.close();  // Close after password submission
+      }
+      return;
+    }
+
+    if (action === "cancel-hidden") {
+      resetHiddenNetworkState();
+      return;
+    }
+
     if (action.startsWith("submit-")) {
       const ssid = action.substring(7);
-      const password = (data && "value" in data) ? String(data.value).trim() : "";
+      const password = extractInputValue(data);
       if (wifiIface && ssid && password) {
         passwordError = "";
-        NetworkService.connectToWifi(ssid, password, wifiIface, false, "");
+        NetworkService.connectToWifi(ssid, password, wifiIface);
+        root.close();  // Close after password submission
       }
       return;
     }
@@ -108,7 +161,7 @@ OPanel {
       const saved = findSavedConn(ssid);
       if (saved?.connectionId) {
         NetworkService.activateConnection(saved.connectionId, wifiIface);
-        root.close();
+        root.close();  // Close after activating saved connection
       } else {
         passwordSsid = ssid;
         passwordError = "";
@@ -116,43 +169,48 @@ OPanel {
     }
   }
 
+  function resetHiddenNetworkState() {
+    hiddenSsid = "";
+    hiddenPasswordError = "";
+    root.hiddenNetworkPhase = 0;
+  }
+
   function resetPasswordState() {
     passwordSsid = "";
     passwordError = "";
   }
 
-  function syncToggles() {
-    networkToggle.checked = NetworkService.networkingEnabled;
-    wifiToggle.checked = NetworkService.wifiRadioEnabled;
-  }
-
-  needsKeyboardFocus: passwordSsid !== ""
+  needsKeyboardFocus: passwordSsid !== "" || root.hiddenNetworkPhase > 0
   panelNamespace: "obelisk-network-panel"
-  panelWidth: passwordSsid ? 350 : 350
+  panelWidth: 350
 
-  Component.onCompleted: syncToggles()
-  onClosed: resetPasswordState()
+  onClosed: {
+    resetPasswordState();
+    resetHiddenNetworkState();
+  }
 
   Connections {
     function onConnectionError(ssid, errorMessage) {
       if (ssid === root.passwordSsid)
         root.passwordError = errorMessage;
+      if (ssid === root.hiddenSsid)
+        root.hiddenPasswordError = errorMessage;
     }
 
     function onConnectionStateChanged() {
+      // Check for visible network connection
       const ap = root.wifiAps.find(a => a?.ssid === root.passwordSsid && a.connected);
       if (ap) {
         root.resetPasswordState();
         root.close();
+        return;
       }
-    }
 
-    function onNetworkingEnabledChanged() {
-      root.syncToggles();
-    }
-
-    function onWifiRadioStateChanged() {
-      root.syncToggles();
+      // Check for hidden network connection (not in wifiAps since it's hidden)
+      if (root.hiddenSsid && NetworkService.wifiOnline) {
+        root.resetHiddenNetworkState();
+        root.close();
+      }
     }
 
     target: NetworkService
@@ -170,223 +228,47 @@ OPanel {
       spacing: root.padding * 1.25
 
       // Networking Toggle Card
-      Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: networkCol.implicitHeight + root.padding * 1.2
-        border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
-        border.width: 1
-        color: Qt.lighter(Theme.bgColor, 1.35)
-        opacity: root.ready ? 1 : 0.5
-        radius: Theme.itemRadius
+      ToggleCard {
+        checked: NetworkService.networkingEnabled
+        disabled: !root.ready
+        icon: "󱘖"
+        iconColor: root.ready ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
+        label: "Networking"
+        labelColor: root.ready ? Theme.textActiveColor : Theme.textInactiveColor
+        opacityValue: root.ready ? 1 : 0.5
 
-        Behavior on opacity {
-          NumberAnimation {
-            duration: 150
-          }
-        }
-
-        ColumnLayout {
-          id: networkCol
-
-          anchors.fill: parent
-          anchors.margins: root.padding * 0.9
-          spacing: root.padding * 0.4
-
-          OText {
-            color: root.ready ? Theme.textActiveColor : Theme.textInactiveColor
-            font.bold: true
-            text: qsTr("Networking")
-          }
-
-          RowLayout {
-            spacing: root.padding * 0.3
-
-            Rectangle {
-              border.color: Qt.rgba(0, 0, 0, 0.12)
-              border.width: 1
-              color: root.ready ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
-              implicitHeight: implicitWidth
-              implicitWidth: Theme.itemHeight * 0.9
-              radius: height / 2
-
-              Behavior on color {
-                ColorAnimation {
-                  duration: 150
-                }
-              }
-
-              Text {
-                anchors.centerIn: parent
-                color: root.ready ? Theme.textContrast(parent.color) : Theme.textInactiveColor
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize * 0.95
-                text: "󱘖"
-              }
-            }
-
-            Item {
-              Layout.fillWidth: true
-            }
-
-            OToggle {
-              id: networkToggle
-
-              Layout.preferredHeight: Theme.itemHeight * 0.72
-              Layout.preferredWidth: Theme.itemHeight * 1.5
-              disabled: !root.ready
-
-              onToggled: checked => NetworkService.setNetworkingEnabled(checked)
-            }
-          }
-        }
+        onToggled: checked => NetworkService.setNetworkingEnabled(checked)
       }
 
       // Wi-Fi Toggle Card
-      Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: wifiCol.implicitHeight + root.padding * 1.2
-        border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
-        border.width: 1
-        color: Qt.lighter(Theme.bgColor, 1.35)
-        opacity: root.ready && root.networkingEnabled ? 1 : 0.5
-        radius: Theme.itemRadius
+      ToggleCard {
+        checked: NetworkService.wifiRadioEnabled
+        disabled: !root.ready || !root.networkingEnabled
+        icon: "󰤨"
+        iconColor: root.ready && root.networkingEnabled ? Qt.lighter(Theme.onHoverColor, 1.25) : Qt.darker(Theme.inactiveColor, 1.1)
+        label: "Wi-Fi"
+        labelColor: root.ready && root.networkingEnabled ? Theme.textActiveColor : Theme.textInactiveColor
+        opacityValue: root.ready && root.networkingEnabled ? 1 : 0.5
 
-        Behavior on opacity {
-          NumberAnimation {
-            duration: 150
-          }
-        }
-
-        ColumnLayout {
-          id: wifiCol
-
-          anchors.fill: parent
-          anchors.margins: root.padding * 0.9
-          spacing: root.padding * 0.4
-
-          OText {
-            color: root.ready && root.networkingEnabled ? Theme.textActiveColor : Theme.textInactiveColor
-            font.bold: true
-            text: qsTr("Wi-Fi")
-          }
-
-          RowLayout {
-            spacing: root.padding * 0.3
-
-            Rectangle {
-              border.color: Qt.rgba(0, 0, 0, 0.12)
-              border.width: 1
-              color: root.ready && root.networkingEnabled ? Qt.lighter(Theme.onHoverColor, 1.25) : Qt.darker(Theme.inactiveColor, 1.1)
-              implicitHeight: implicitWidth
-              implicitWidth: Theme.itemHeight * 0.9
-              radius: height / 2
-
-              Behavior on color {
-                ColorAnimation {
-                  duration: 150
-                }
-              }
-
-              Text {
-                anchors.centerIn: parent
-                color: root.ready && root.networkingEnabled ? Theme.textContrast(parent.color) : Theme.textInactiveColor
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize * 0.95
-                text: "󰤨"
-              }
-            }
-
-            Item {
-              Layout.fillWidth: true
-            }
-
-            OToggle {
-              id: wifiToggle
-
-              Layout.preferredHeight: Theme.itemHeight * 0.72
-              Layout.preferredWidth: Theme.itemHeight * 1.5
-              disabled: !root.ready || !root.networkingEnabled
-
-              onToggled: checked => NetworkService.setWifiRadioEnabled(checked)
-            }
-          }
-        }
+        onToggled: checked => NetworkService.setWifiRadioEnabled(checked)
       }
 
       // Ethernet Toggle Card
-      Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: ethernetCol.implicitHeight + root.padding * 1.2
-        border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
-        border.width: 1
-        color: Qt.lighter(Theme.bgColor, 1.35)
-        opacity: root.ready && root.networkingEnabled && root.ethernetOnline ? 1 : 0.5
-        radius: Theme.itemRadius
-        visible: root.ethernetOnline
+      ToggleCard {
+        checked: NetworkService.ethernetOnline
+        disabled: !root.ready || !root.networkingEnabled
+        icon: "󰈀"
+        iconColor: root.ready && root.networkingEnabled && root.ethernetOnline ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
+        label: "Ethernet"
+        labelColor: root.ready && root.networkingEnabled && root.ethernetOnline ? Theme.textActiveColor : Theme.textInactiveColor
+        opacityValue: root.ready && root.networkingEnabled && root.ethernetOnline ? 1 : 0.5
+        visibleWhen: root.ethernetInterface !== ""
 
-        Behavior on opacity {
-          NumberAnimation {
-            duration: 150
-          }
-        }
-
-        ColumnLayout {
-          id: ethernetCol
-
-          anchors.fill: parent
-          anchors.margins: root.padding * 0.9
-          spacing: root.padding * 0.4
-
-          OText {
-            color: root.ready && root.networkingEnabled && root.ethernetOnline ? Theme.textActiveColor : Theme.textInactiveColor
-            font.bold: true
-            text: qsTr("Ethernet")
-          }
-
-          RowLayout {
-            spacing: root.padding * 0.3
-
-            Rectangle {
-              border.color: Qt.rgba(0, 0, 0, 0.12)
-              border.width: 1
-              color: root.ready && root.networkingEnabled && root.ethernetOnline ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
-              implicitHeight: implicitWidth
-              implicitWidth: Theme.itemHeight * 0.9
-              radius: height / 2
-
-              Behavior on color {
-                ColorAnimation {
-                  duration: 150
-                }
-              }
-
-              Text {
-                anchors.centerIn: parent
-                color: root.ready && root.networkingEnabled && root.ethernetOnline ? Theme.textContrast(parent.color) : Theme.textInactiveColor
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize * 0.95
-                text: "󰈀"
-              }
-            }
-
-            Item {
-              Layout.fillWidth: true
-            }
-
-            OToggle {
-              id: ethernetToggle
-
-              Layout.preferredHeight: Theme.itemHeight * 0.72
-              Layout.preferredWidth: Theme.itemHeight * 1.5
-              checked: true
-              disabled: !root.ready || !root.networkingEnabled
-
-              onToggled: checked => {
-                if (!checked)
-                  NetworkService.disconnectEthernet();
-              }
-            }
-          }
+        onToggled: checked => {
+          if (checked)
+            NetworkService.connectEthernet();
+          else
+            NetworkService.disconnectEthernet();
         }
       }
     }
@@ -413,7 +295,36 @@ OPanel {
         clip: true
         implicitHeight: Math.min(contentHeight, root.maxItems * root.itemHeight + (root.maxItems - 1) * 4)
         interactive: contentHeight > height
-        model: root.buildNetworkList()
+        model: {
+          const networks = root.buildNetworkList();
+
+          // Handle hidden network phases
+          if (root.hiddenNetworkPhase === 1) {
+            // Insert name input as first item
+            networks.unshift({
+              type: "hidden-ssid-input",
+              icon: "󰌾",
+              placeholder: qsTr("Enter hidden network name"),
+              hasError: false,
+              errorMessage: "",
+              action: "submit-hidden-ssid",
+              ssid: ""
+            });
+          } else if (root.hiddenNetworkPhase === 2) {
+            // Insert password input as first item
+            networks.unshift({
+              type: "hidden-password-input",
+              icon: "󰌾",
+              placeholder: qsTr("Password for %1").arg(root.hiddenSsid),
+              hasError: root.hiddenPasswordError !== "",
+              errorMessage: root.hiddenPasswordError,
+              action: "submit-hidden-password",
+              ssid: root.hiddenSsid
+            });
+          }
+
+          return networks;
+        }
         spacing: 4
 
         ScrollBar.vertical: ScrollBar {
@@ -426,12 +337,7 @@ OPanel {
           width: ListView.view.width
 
           onPasswordCleared: root.passwordError = ""
-          onTriggered: (action, data) => {
-            root.handleAction(action, data);
-            if (!action.startsWith("connect-") || delegateItem.modelData.connected || delegateItem.modelData.isSaved) {
-              root.close();
-            }
-          }
+          onTriggered: (action, data) => root.handleAction(action, data)
         }
       }
     }
@@ -441,7 +347,7 @@ OPanel {
     id: networkItem
 
     property bool hovered: false
-    readonly property bool isInput: networkItem.modelData.type === "input"
+    readonly property bool isInput: networkItem.modelData.type === "input" || networkItem.modelData.type === "hidden-ssid-input" || networkItem.modelData.type === "hidden-password-input"
     required property var modelData
     readonly property color textColor: networkItem.hovered ? Theme.textOnHoverColor : Theme.textActiveColor
 
@@ -499,12 +405,12 @@ OPanel {
             anchors.bottom: networkIcon.bottom
             anchors.left: networkIcon.right
             anchors.leftMargin: -2
-            color: networkItem.modelData.bandColor || networkItem.textColor
+            color: (networkItem.modelData.bandColor || networkItem.textColor)
             font.bold: true
             font.family: "Roboto Condensed"
             font.pixelSize: Theme.fontSize * 0.5
-            text: networkItem.modelData.band === "2.4" ? "2.4" : networkItem.modelData.band
-            visible: networkItem.modelData.band !== ""
+            text: (networkItem.modelData.band === "2.4" ? "2.4" : (networkItem.modelData.band || ""))
+            visible: (networkItem.modelData.band || "") !== ""
 
             Behavior on color {
               ColorAnimation {
@@ -608,12 +514,13 @@ OPanel {
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
                 color: Theme.textActiveColor
-                echoMode: TextInput.Password
+                echoMode: networkItem.modelData.type === "hidden-ssid-input" ? TextInput.Normal : TextInput.Password
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
                 placeholderText: networkItem.modelData.placeholder || ""
                 selectedTextColor: Theme.textContrast(Theme.activeColor)
                 selectionColor: Theme.activeColor
+                text: ""  // Clear text when switching between inputs
 
                 background: Rectangle {
                   color: "transparent"
@@ -623,7 +530,8 @@ OPanel {
                 Keys.onPressed: event => {
                   if (event.key === Qt.Key_Escape) {
                     event.accepted = true;
-                    networkItem.triggered("cancel", {});
+                    const cancelAction = networkItem.modelData.type === "hidden-ssid-input" || networkItem.modelData.type === "hidden-password-input" ? "cancel-hidden" : "cancel";
+                    networkItem.triggered(cancelAction, {});
                   } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                     if (passwordField.text !== "") {
                       event.accepted = true;
@@ -644,7 +552,10 @@ OPanel {
               icon: "󰅖"
               tooltipText: qsTr("Cancel")
 
-              onClicked: networkItem.triggered("cancel", {})
+              onClicked: {
+                const cancelAction = networkItem.modelData.type === "hidden-ssid-input" || networkItem.modelData.type === "hidden-password-input" ? "cancel-hidden" : "cancel";
+                networkItem.triggered(cancelAction, {});
+              }
             }
 
             IconButton {
@@ -680,6 +591,89 @@ OPanel {
               }
             }
           }
+        }
+      }
+    }
+  }
+  component ToggleCard: Rectangle {
+    id: card
+
+    required property bool checked
+    required property bool disabled
+    required property string icon
+    required property color iconColor
+    required property string label
+    required property color labelColor
+    required property real opacityValue
+    property bool visibleWhen: true
+
+    signal toggled(bool checked)
+
+    Layout.fillWidth: true
+    Layout.preferredHeight: cardCol.implicitHeight + root.padding * 1.2
+    border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+    border.width: 1
+    color: Qt.lighter(Theme.bgColor, 1.35)
+    opacity: card.opacityValue
+    radius: Theme.itemRadius
+    visible: card.visibleWhen
+
+    Behavior on opacity {
+      NumberAnimation {
+        duration: 150
+      }
+    }
+
+    ColumnLayout {
+      id: cardCol
+
+      anchors.fill: parent
+      anchors.margins: root.padding * 0.9
+      spacing: root.padding * 0.4
+
+      OText {
+        color: card.labelColor
+        font.bold: true
+        text: qsTr(card.label)
+      }
+
+      RowLayout {
+        spacing: root.padding * 0.3
+
+        Rectangle {
+          border.color: Qt.rgba(0, 0, 0, 0.12)
+          border.width: 1
+          color: card.iconColor
+          implicitHeight: implicitWidth
+          implicitWidth: Theme.itemHeight * 0.9
+          radius: height / 2
+
+          Behavior on color {
+            ColorAnimation {
+              duration: 150
+            }
+          }
+
+          Text {
+            anchors.centerIn: parent
+            color: Theme.textContrast(parent.color)
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize * 0.95
+            text: card.icon
+          }
+        }
+
+        Item {
+          Layout.fillWidth: true
+        }
+
+        OToggle {
+          Layout.preferredHeight: Theme.itemHeight * 0.72
+          Layout.preferredWidth: Theme.itemHeight * 1.5
+          checked: card.checked
+          disabled: card.disabled
+
+          onToggled: checked => card.toggled(checked)
         }
       }
     }
