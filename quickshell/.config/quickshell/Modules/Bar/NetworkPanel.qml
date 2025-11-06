@@ -300,6 +300,7 @@ OPanel {
         label: "Ethernet"
         labelColor: root.ready && root.networkingEnabled && root.ethernetInterface !== "" && root.ethernetOnline ? Theme.textActiveColor : Theme.textInactiveColor
         opacityValue: root.ready && root.networkingEnabled && root.ethernetInterface !== "" && root.ethernetOnline ? 1 : 0.5
+        visibleWhen: true
       }
     }
 
