@@ -18,6 +18,7 @@ Singleton {
   property var failedPackages: []
   property int failureCount: 0
   readonly property int failureThreshold: 5
+  property int lastNotificationId: 0
   property int lastNotifiedTotal: 0
   property double lastSync: 0
   property var outputLines: []
@@ -54,13 +55,26 @@ Singleton {
   }
 
   function _notify(title, message, urgency = "normal", action = null) {
-    const args = ["-u", urgency, "-a", "System Updates", "-i", "system-software-update"];
+    const args = ["-u", urgency, "-a", "System Updates", "-i", "system-software-update", "--print-id", "--replace-id", String(lastNotificationId)];
     if (action)
       args.push("-A", `${action}=${qsTr("Run updates")}`);
     args.push(title, message);
 
     Utils.runCmd(["notify-send", ...args], out => {
-      if (action && String(out || "").trim() === action) {
+      // Parse output for ID and action response
+      const lines = (out || "").trim().split('\n');
+
+      // Extract first numeric line as notification ID
+      for (const line of lines) {
+        const id = parseInt(line.trim());
+        if (!isNaN(id)) {
+          lastNotificationId = id;
+          break;
+        }
+      }
+
+      // Check if action was triggered
+      if (action && lines.some(line => line.includes(action))) {
         updateRunner.command = updateCommand;
         updateRunner.running = true;
       }
@@ -144,6 +158,7 @@ Singleton {
   }
 
   function runUpdate() {
+    lastNotificationId = 0;
     if (totalUpdates > 0) {
       updateRunner.command = updateCommand;
       updateRunner.running = true;
@@ -245,6 +260,7 @@ Singleton {
         const parsed = root._parseOutput(text);
         root.updatePackages = parsed;
         root.lastSync = Date.now();
+        root.lastNotificationId = 0;
         root._notifyIfIncreased();
         if (parsed.length > 0)
           root.fetchPackageSizes();
