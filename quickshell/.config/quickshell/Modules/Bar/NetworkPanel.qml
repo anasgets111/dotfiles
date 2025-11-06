@@ -268,7 +268,7 @@ OPanel {
         checked: NetworkService.networkingEnabled
         disabled: !root.ready
         icon: "󱘖"
-        iconColor: root.ready ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
+        iconColor: root.ready ? Qt.lighter(Theme.onHoverColor, 1.25) : Theme.inactiveColor
         label: "Networking"
         labelColor: root.ready ? Theme.textActiveColor : Theme.textInactiveColor
         opacityValue: root.ready ? 1 : 0.5
@@ -296,7 +296,7 @@ OPanel {
         checked: NetworkService.ethernetOnline
         disabled: !root.ready || !root.networkingEnabled
         icon: "󰈀"
-        iconColor: root.ready && root.networkingEnabled && root.ethernetOnline ? Qt.lighter(Theme.activeColor, 1.25) : Theme.inactiveColor
+        iconColor: root.ready && root.networkingEnabled && root.ethernetOnline ? Qt.lighter(Theme.onHoverColor, 1.25) : Theme.inactiveColor
         label: "Ethernet"
         labelColor: root.ready && root.networkingEnabled && root.ethernetOnline ? Theme.textActiveColor : Theme.textInactiveColor
         opacityValue: root.ready && root.networkingEnabled && root.ethernetOnline ? 1 : 0.5
