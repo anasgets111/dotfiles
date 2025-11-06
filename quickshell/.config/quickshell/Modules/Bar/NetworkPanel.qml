@@ -294,13 +294,12 @@ OPanel {
       // Ethernet Toggle Card
       ToggleCard {
         checked: NetworkService.ethernetOnline
-        disabled: !root.ready || !root.networkingEnabled
+        disabled: !root.ready || !root.networkingEnabled || root.ethernetInterface === ""
         icon: "󰈀"
-        iconColor: root.ready && root.networkingEnabled && root.ethernetOnline ? Qt.lighter(Theme.onHoverColor, 1.25) : Theme.inactiveColor
+        iconColor: root.ready && root.networkingEnabled && root.ethernetInterface !== "" && root.ethernetOnline ? Qt.lighter(Theme.onHoverColor, 1.25) : Theme.inactiveColor
         label: "Ethernet"
-        labelColor: root.ready && root.networkingEnabled && root.ethernetOnline ? Theme.textActiveColor : Theme.textInactiveColor
-        opacityValue: root.ready && root.networkingEnabled && root.ethernetOnline ? 1 : 0.5
-        visibleWhen: root.ethernetInterface !== ""
+        labelColor: root.ready && root.networkingEnabled && root.ethernetInterface !== "" && root.ethernetOnline ? Theme.textActiveColor : Theme.textInactiveColor
+        opacityValue: root.ready && root.networkingEnabled && root.ethernetInterface !== "" && root.ethernetOnline ? 1 : 0.5
       }
     }
 
