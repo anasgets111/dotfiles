@@ -6,7 +6,6 @@ import QtQuick.Layouts
 import qs.Config
 import qs.Components
 import qs.Services.Core
-import qs.Services.Utils
 
 OPanel {
   id: root
