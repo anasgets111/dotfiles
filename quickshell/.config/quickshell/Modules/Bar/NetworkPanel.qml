@@ -6,10 +6,12 @@ import QtQuick.Layouts
 import qs.Config
 import qs.Components
 import qs.Services.Core
+import qs.Services.Utils
 
 OPanel {
   id: root
 
+  readonly property var displayNetworks: buildNetworkList()
   readonly property string ethernetInterface: NetworkService.ethernetInterface
   readonly property bool ethernetOnline: NetworkService.ethernetOnline
   property int hiddenNetworkPhase: 0  // 0=hidden (not connecting), 1=enter name, 2=enter password
@@ -32,8 +34,29 @@ OPanel {
 
     const networks = [];
 
-    // Add hidden network entry at the top (only when not in input phases)
-    if (root.hiddenNetworkPhase === 0) {
+    // Handle hidden network input phases
+    if (root.hiddenNetworkPhase === 1) {
+      networks.push({
+        type: "hidden-ssid-input",
+        icon: "󰌾",
+        placeholder: qsTr("Enter hidden network name"),
+        hasError: false,
+        errorMessage: "",
+        action: "submit-hidden-ssid",
+        ssid: ""
+      });
+    } else if (root.hiddenNetworkPhase === 2) {
+      networks.push({
+        type: "hidden-password-input",
+        icon: "󰌾",
+        placeholder: qsTr("Password for %1").arg(root.hiddenSsid),
+        hasError: root.hiddenPasswordError !== "",
+        errorMessage: root.hiddenPasswordError,
+        action: "submit-hidden-password",
+        ssid: root.hiddenSsid
+      });
+    } else {
+      // Only show hidden network button when not in input phases
       networks.push({
         type: "action",
         icon: "󰒟",
@@ -81,7 +104,7 @@ OPanel {
   }
 
   function extractInputValue(data) {
-    return (data && "value" in data) ? String(data.value).trim() : "";
+    return String(data?.value || "").trim();
   }
 
   function findSavedConn(ssid) {
@@ -91,8 +114,11 @@ OPanel {
   function handleAction(action: string, data: var) {
     const wifiIface = NetworkService.wifiInterface;
 
+    // Parse action with optional parameter
+    const [verb, ...params] = action.split("-");
+    const param = params.join("-");
+
     if (action === "connect-hidden") {
-      // Start hidden network flow: enter name phase
       root.hiddenNetworkPhase = 1;
       return;
     }
@@ -101,7 +127,7 @@ OPanel {
       const ssid = extractInputValue(data);
       if (ssid) {
         hiddenSsid = ssid;
-        root.hiddenNetworkPhase = 2;  // Move to password phase
+        root.hiddenNetworkPhase = 2;
       }
       return;
     }
@@ -110,9 +136,9 @@ OPanel {
       const password = extractInputValue(data);
       if (wifiIface && hiddenSsid && password) {
         hiddenPasswordError = "";
-        NetworkService.connectToWifi(hiddenSsid, password, wifiIface, true);  // true = isHidden
+        NetworkService.connectToWifi(hiddenSsid, password, wifiIface, true);
         resetHiddenNetworkState();
-        root.close();  // Close after password submission
+        root.close();
       }
       return;
     }
@@ -122,20 +148,18 @@ OPanel {
       return;
     }
 
-    if (action.startsWith("submit-")) {
-      const ssid = action.substring(7);
+    if (verb === "submit" && param) {
       const password = extractInputValue(data);
-      if (wifiIface && ssid && password) {
+      if (wifiIface && param && password) {
         passwordError = "";
-        NetworkService.connectToWifi(ssid, password, wifiIface);
-        root.close();  // Close after password submission
+        NetworkService.connectToWifi(param, password, wifiIface);
+        root.close();
       }
       return;
     }
 
-    if (action.startsWith("forget-")) {
-      const ssid = action.substring(7);
-      const connId = findSavedConn(ssid)?.connectionId;
+    if (verb === "forget" && param) {
+      const connId = findSavedConn(param)?.connectionId;
       if (connId)
         NetworkService.forgetWifiConnection(connId);
       return;
@@ -146,24 +170,23 @@ OPanel {
       return;
     }
 
-    if (action.startsWith("disconnect-")) {
+    if (verb === "disconnect") {
       if (wifiIface)
         NetworkService.disconnectInterface(wifiIface);
       return;
     }
 
-    if (action.startsWith("connect-")) {
-      const ssid = action.substring(8);
-      const ap = wifiAps.find(a => a?.ssid === ssid);
+    if (verb === "connect" && param) {
+      const ap = wifiAps.find(a => a?.ssid === param);
       if (!ap || ap.connected)
         return;
 
-      const saved = findSavedConn(ssid);
+      const saved = findSavedConn(param);
       if (saved?.connectionId) {
         NetworkService.activateConnection(saved.connectionId, wifiIface);
-        root.close();  // Close after activating saved connection
+        root.close();
       } else {
-        passwordSsid = ssid;
+        passwordSsid = param;
         passwordError = "";
       }
     }
@@ -181,6 +204,7 @@ OPanel {
   }
 
   needsKeyboardFocus: passwordSsid !== "" || root.hiddenNetworkPhase > 0
+  panelHeight: 0  // Will be updated dynamically based on content
   panelNamespace: "obelisk-network-panel"
   panelWidth: 350
 
@@ -216,14 +240,27 @@ OPanel {
     target: NetworkService
   }
 
+  Rectangle {
+    anchors.fill: parent
+    border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+    border.width: 1
+    color: Qt.lighter(Theme.bgColor, 1.25)
+    radius: Theme.itemRadius
+  }
+
   ColumnLayout {
     spacing: 4
     width: parent.width - root.padding * 2
     x: root.padding
     y: root.padding
 
+    onImplicitHeightChanged: {
+      root.panelHeight = implicitHeight + root.padding * 2;
+    }
+
     // Toggle Cards Row
     RowLayout {
+      Layout.bottomMargin: root.padding
       Layout.fillWidth: true
       spacing: root.padding * 1.25
 
@@ -250,7 +287,9 @@ OPanel {
         labelColor: root.ready && root.networkingEnabled ? Theme.textActiveColor : Theme.textInactiveColor
         opacityValue: root.ready && root.networkingEnabled ? 1 : 0.5
 
-        onToggled: checked => NetworkService.setWifiRadioEnabled(checked)
+        onToggled: checked => {
+          NetworkService.setWifiRadioEnabled(checked);
+        }
       }
 
       // Ethernet Toggle Card
@@ -263,21 +302,14 @@ OPanel {
         labelColor: root.ready && root.networkingEnabled && root.ethernetOnline ? Theme.textActiveColor : Theme.textInactiveColor
         opacityValue: root.ready && root.networkingEnabled && root.ethernetOnline ? 1 : 0.5
         visibleWhen: root.ethernetInterface !== ""
-
-        onToggled: checked => {
-          if (checked)
-            NetworkService.connectEthernet();
-          else
-            NetworkService.disconnectEthernet();
-        }
       }
     }
 
     // Network List
     Rectangle {
-      Layout.bottomMargin: root.padding * 2
+      Layout.bottomMargin: visible ? root.padding * 2 : 0
       Layout.fillWidth: true
-      Layout.topMargin: root.padding
+      Layout.topMargin: visible ? root.padding : 0
       border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
       border.width: 1
       clip: true
@@ -295,36 +327,7 @@ OPanel {
         clip: true
         implicitHeight: Math.min(contentHeight, root.maxItems * root.itemHeight + (root.maxItems - 1) * 4)
         interactive: contentHeight > height
-        model: {
-          const networks = root.buildNetworkList();
-
-          // Handle hidden network phases
-          if (root.hiddenNetworkPhase === 1) {
-            // Insert name input as first item
-            networks.unshift({
-              type: "hidden-ssid-input",
-              icon: "󰌾",
-              placeholder: qsTr("Enter hidden network name"),
-              hasError: false,
-              errorMessage: "",
-              action: "submit-hidden-ssid",
-              ssid: ""
-            });
-          } else if (root.hiddenNetworkPhase === 2) {
-            // Insert password input as first item
-            networks.unshift({
-              type: "hidden-password-input",
-              icon: "󰌾",
-              placeholder: qsTr("Password for %1").arg(root.hiddenSsid),
-              hasError: root.hiddenPasswordError !== "",
-              errorMessage: root.hiddenPasswordError,
-              action: "submit-hidden-password",
-              ssid: root.hiddenSsid
-            });
-          }
-
-          return networks;
-        }
+        model: root.displayNetworks
         spacing: 4
 
         ScrollBar.vertical: ScrollBar {
@@ -673,7 +676,9 @@ OPanel {
           checked: card.checked
           disabled: card.disabled
 
-          onToggled: checked => card.toggled(checked)
+          onToggled: checked => {
+            card.toggled(checked);
+          }
         }
       }
     }
