@@ -245,12 +245,13 @@ Item {
               try {
                 const escapeHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;");
                 const escaped = escapeHtml(raw);
-                const urlRegex = /((https?:\/\/|www\.)[\w\-@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([\w\-@:%_\+.~#?&//=;:,]*)?)/gi;
+                const urlRegex = /((?:https?|file):\/\/[^\s<>\'\"]*)/gi;
+                let hasUrl = false;
                 const html = escaped.replace(urlRegex, m => {
-                  const href = m.startsWith('http') ? m : 'https://' + m;
-                  return `<a href="${href}">${m}</a>`;
+                  hasUrl = true;
+                  return `<a href="${m}">${m}</a>`;
                 });
-                return urlRegex.test(raw) ? {
+                return hasUrl ? {
                   text: html,
                   format: Qt.RichText
                 } : {

@@ -24,7 +24,7 @@ QtObject {
     if (looksLikeHtml(trimmed))
       return false;
 
-    return trimmed.search(/(\*\*|__|~~|`|\[[^\]]+\]\([^ )]+\)|^\s{0,3}[-*+]\s|^\s{0,3}\d+\.\s|^>\s|\n>\s|^\s{0,3}#{1,6}\s)/m) !== -1;
+    return trimmed.search(/(\*\*|__|~~|`|\[[^\]]+\]\([^ )]+\)|^\s{0,3}[-*+]\s|^\s{0,3}\d+\.\s|^>\s|\n>\s|^\s{0,3}#{1,6}\s|(?:https?|file):\/\/)/m) !== -1;
   }
 
   function markdownToHtml(text) {
@@ -35,8 +35,8 @@ QtObject {
 
         const codeBlocks = [], inlineCode = [], linkPlaceholders = [];
         let blockIndex = 0, inlineIndex = 0, linkIndex = 0;
-        let html = text.replace(/``````/g, (m, code) => {
-          const trimmedCode = code.replace(/^\n+|\n+$/g, '');
+        let html = text.replace(/```[\s\S]*?```/g, m => {
+          const trimmedCode = m.slice(3, -3).replace(/^\n+|\n+$/g, '');
           const escaped = trimmedCode.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
           codeBlocks.push(`<pre><code>${escaped}</code></pre>`);
           return `\x00CODEBLOCK${blockIndex++}\x00`;
@@ -52,7 +52,7 @@ QtObject {
           linkPlaceholders.push(`<a href="${href}">${label}</a>`);
           return ph;
         });
-        html = html.replace(/(^|[\s(])((?:https?|file):\/\/[^\s<)]+)/g, (m, pre, url) => {
+        html = html.replace(/(^|[\s([\*_`\-])((?:https?|file):\/\/[^\s<>\'"]*)/g, (m, pre, url) => {
           const ph = `\x00MDLINK${linkIndex++}\x00`;
           linkPlaceholders.push(`<a href="${url}">${url}</a>`);
           return pre + ph;
