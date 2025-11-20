@@ -12,9 +12,6 @@ Modular Wayland desktop dotfiles centered on Quickshell with Hyprland and Niri, 
 
 https://github.com/user-attachments/assets/56cffffa-cbbf-4fe1-ad97-7aef8fed57e4
 
-
-
-
 ## Quick start
 
 - Symlink into $HOME with Stow:
@@ -114,9 +111,9 @@ Adjust package names for your distro.
 - [x] Bluetooth indicator with panel
 - [x] System tray
 - [x] Date & time with calendar
-- [ ] Weather Panel
-- [ ] Media controls (MPRIS)
-- [ ] System info (CPU, Memory, Disk)
+- [ ] Weather panel (in date/time display)
+- [ ] Media player widget (MPRIS controls)
+- [ ] System info widget (CPU, Memory, Disk)
 
 #### Overlays & Panels
 
