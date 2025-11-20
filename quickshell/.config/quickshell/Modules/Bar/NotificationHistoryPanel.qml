@@ -16,6 +16,13 @@ OPanel {
   readonly property int notificationCount: NotificationService.notifications?.length || 0
   readonly property var notificationGroups: NotificationService.groupedNotifications || []
   readonly property int padding: 16
+  
+  readonly property real availableContentHeight: {
+    const weatherH = weatherWidget.implicitHeight + root.padding + 8;
+    const headerH = header.Layout.preferredHeight + root.padding;
+    const margins = 8 + root.padding;
+    return Math.max(0, root.maxHeight - weatherH - headerH - margins);
+  }
 
   needsKeyboardFocus: false
   panelNamespace: "obelisk-notification-panel"
@@ -133,17 +140,7 @@ OPanel {
       Layout.bottomMargin: root.padding
       Layout.fillWidth: true
       Layout.leftMargin: root.padding
-      Layout.preferredHeight: {
-        const weatherH = weatherWidget.implicitHeight + root.padding + 8; // top + bottom margins
-        const headerH = header.Layout.preferredHeight + root.padding; // bottom margin (top is 0)
-        const flickableMargins = 8 + root.padding; // top + bottom
-        const otherContent = weatherH + headerH + flickableMargins;
-
-        const available = root.maxHeight - otherContent;
-        const desired = Math.min(root.cardHeight * root.maxVisibleCards, notificationColumn.implicitHeight);
-
-        return Math.max(0, Math.min(desired, available));
-      }
+      Layout.preferredHeight: Math.min(root.cardHeight * root.maxVisibleCards, notificationColumn.implicitHeight, root.availableContentHeight)
       Layout.rightMargin: root.padding
       Layout.topMargin: 8
       clip: true
@@ -183,37 +180,50 @@ OPanel {
 
     // Empty State
     Item {
-      Layout.fillHeight: true
       Layout.fillWidth: true
+      Layout.bottomMargin: root.padding
+      Layout.leftMargin: root.padding
+      Layout.rightMargin: root.padding
+      Layout.topMargin: 8
+      
+      Layout.preferredHeight: Math.min(root.cardHeight * 1.5, root.availableContentHeight)
+      
       visible: !root.hasNotifications
 
-      ColumnLayout {
-        anchors.centerIn: parent
-        spacing: 16
-        width: parent.width * 0.8
+      Flickable {
+        anchors.fill: parent
+        clip: true
+        contentHeight: Math.max(emptyStateCol.implicitHeight, height)
 
-        Text {
-          Layout.alignment: Qt.AlignHCenter
-          color: Theme.textInactiveColor
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize * 2
-          opacity: 0.5
-          text: "󰂚"
-        }
+        ColumnLayout {
+          id: emptyStateCol
+          anchors.centerIn: parent
+          spacing: 16
+          width: parent.width * 0.8
 
-        OText {
-          Layout.alignment: Qt.AlignHCenter
-          font.bold: true
-          sizeMultiplier: 1.3
-          text: qsTr("No Notifications")
-        }
+          Text {
+            Layout.alignment: Qt.AlignHCenter
+            color: Theme.textInactiveColor
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize * 2
+            opacity: 0.5
+            text: "󰂚"
+          }
 
-        OText {
-          Layout.alignment: Qt.AlignHCenter
-          horizontalAlignment: Text.AlignHCenter
-          opacity: 0.7
-          text: qsTr("You're all caught up!")
-          useActiveColor: false
+          OText {
+            Layout.alignment: Qt.AlignHCenter
+            font.bold: true
+            sizeMultiplier: 1.3
+            text: qsTr("No Notifications")
+          }
+
+          OText {
+            Layout.alignment: Qt.AlignHCenter
+            horizontalAlignment: Text.AlignHCenter
+            opacity: 0.7
+            text: qsTr("You're all caught up!")
+            useActiveColor: false
+          }
         }
       }
     }
