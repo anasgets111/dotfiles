@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Services
+import qs.Services.Utils
 
 Singleton {
   id: root
@@ -86,56 +87,80 @@ Singleton {
     root.currentWorkspace = w.idx;
     root.currentWorkspaceId = w.id;
     root.focusedOutput = w.output || focusedOutput;
-    workspaces.forEach(ws => {
+
+    // Create a new array to ensure change detection if needed,
+    // though modifying objects in place works if they are QObjects.
+    // Here they are JS objects, so we might need to trigger an update.
+    // However, the previous code modified in place and reassigned root.workspaces.
+    const newWorkspaces = workspaces.map(ws => {
       ws.is_focused = (ws.id === id);
       ws.is_active = (ws.id === id);
+      return ws;
     });
-    root.workspaces = workspaces;
+    root.workspaces = newWorkspaces;
   }
 
   function updateWorkspaces(arr) {
-    arr.forEach(w => {
-      w.populated = w.active_window_id !== null;
-    });
+    // Pre-process: populate 'populated' field
+    for (let i = 0; i < arr.length; ++i) {
+      arr[i].populated = arr[i].active_window_id !== null;
+    }
 
-    const f = arr.find(w => w.is_focused);
-    if (f)
-      root.focusedOutput = f.output || "";
+    const focusedWs = arr.find(w => w.is_focused);
+    if (focusedWs) {
+      root.focusedOutput = focusedWs.output || "";
+    }
 
-    const groups = {};
-    arr.forEach(w => {
+    // Group by output
+    const groups = new Map();
+    for (const w of arr) {
       const out = w.output || "";
-      if (!groups[out])
-        groups[out] = [];
-      groups[out].push(w);
-    });
+      if (!groups.has(out))
+        groups.set(out, []);
+      groups.get(out).push(w);
+    }
 
-    const outs = Object.keys(groups).sort((a, b) => {
-      if (a === focusedOutput)
+    // Sort outputs: focused first, then alphabetical
+    const sortedOutputs = Array.from(groups.keys()).sort((a, b) => {
+      if (a === root.focusedOutput)
         return -1;
-      if (b === focusedOutput)
+      if (b === root.focusedOutput)
         return 1;
       return a.localeCompare(b);
     });
-    root.outputsOrder = outs;
 
-    let flat = [];
+    // Update outputsOrder only if changed to avoid unnecessary signal emissions
+    if (JSON.stringify(root.outputsOrder) !== JSON.stringify(sortedOutputs)) {
+      root.outputsOrder = sortedOutputs;
+    }
+
+    // Flatten and calculate boundaries
+    const flat = [];
     const bounds = [];
-    let acc = 0;
-    outs.forEach(out => {
-      groups[out].sort((a, b) => a.idx - b.idx);
-      flat = flat.concat(groups[out]);
-      acc += groups[out].length;
-      if (acc > 0 && acc < arr.length)
-        bounds.push(acc);
-    });
+    let accumulatedCount = 0;
+
+    for (const out of sortedOutputs) {
+      const wsList = groups.get(out);
+      wsList.sort((a, b) => a.idx - b.idx);
+
+      // Push all items
+      for (const w of wsList)
+        flat.push(w);
+
+      accumulatedCount += wsList.length;
+      // Add boundary if not the last group
+      if (accumulatedCount < arr.length) {
+        bounds.push(accumulatedCount);
+      }
+    }
+
     root.workspaces = flat;
     root.groupBoundaries = bounds;
 
-    if (f && f.idx !== root.currentWorkspace) {
+    if (focusedWs && focusedWs.idx !== root.currentWorkspace) {
       root.previousWorkspace = root.currentWorkspace;
-      root.currentWorkspace = f.idx;
-      root.currentWorkspaceId = f.id;
+      root.currentWorkspace = focusedWs.idx;
+      root.currentWorkspaceId = focusedWs.id;
     }
   }
 
@@ -179,10 +204,12 @@ Singleton {
             root.updateSingleFocus(evt.WorkspaceActivated.id);
           }
         } catch (e) {
-          eventStreamSocket.connected = false;
-          Qt.callLater(() => {
-            eventStreamSocket.connected = root.enabled && !!root.socketPath;
-          });
+          Logger.log("NiriWs", "JSON parse error: " + e);
+          // Only reconnect if it seems like a stream desync, but for now just log.
+          // eventStreamSocket.connected = false;
+          // Qt.callLater(() => {
+          //   eventStreamSocket.connected = root.enabled && !!root.socketPath;
+          // });
         }
       }
     }

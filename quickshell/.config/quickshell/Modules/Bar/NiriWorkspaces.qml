@@ -159,13 +159,4 @@ Item {
     text: "No workspaces"
     visible: root.workspaces.length === 0
   }
-
-  // Keep slide alignment in sync with service changes
-  Connections {
-    function onCurrentWorkspaceChanged() {
-      // Behavior on workspacesRow.x will animate to new targetRowX
-    }
-
-    target: WorkspaceService
-  }
 }

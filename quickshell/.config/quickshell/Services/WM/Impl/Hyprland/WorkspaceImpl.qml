@@ -88,15 +88,24 @@ Singleton {
         }
       }
 
+      // Optimized boundary calculation
+      const counts = new Map();
+      for (const w of newWorkspaces) {
+        const out = w.output || "";
+        counts.set(out, (counts.get(out) || 0) + 1);
+      }
+
       let acc = 0;
       const total = newWorkspaces.length;
       const bounds = [];
-      root.outputsOrder.forEach(out => {
-        const count = newWorkspaces.filter(w => w.output === out).length;
+
+      for (const out of root.outputsOrder) {
+        const count = counts.get(out) || 0;
         acc += count;
-        if (acc > 0 && acc < total)
+        if (acc > 0 && acc < total) {
           bounds.push(acc);
-      });
+        }
+      }
       root.groupBoundaries = bounds;
     } catch (e) {
       Logger.log("HyprWs", "Recompute error: " + e);
