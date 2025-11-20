@@ -132,6 +132,7 @@ Singleton {
   // Public state
   property string currentTemp: "Loading..."
   property int currentWeatherCode: -1
+  property var dailyForecast: null
   readonly property string displayText: {
     const timeAgo = getTimeAgo();
     const stale = isDataStale() ? " [stale]" : "";
@@ -174,7 +175,7 @@ Singleton {
   }
 
   function _fetchWeather(lat, lon) {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto&forecast_days=10&past_days=1&daily=temperature_2m_max,temperature_2m_min,weathercode`;
     _httpGet(url, data => {
       if (!data.current_weather)
         throw new Error("Missing current_weather");
@@ -186,6 +187,11 @@ Singleton {
       const roundedTemp = Math.round(temp);
       currentWeatherCode = code;
       currentTemp = `${roundedTemp}°C ${weatherInfo(code).icon}`;
+
+      if (data.daily) {
+        dailyForecast = data.daily;
+      }
+
       lastUpdated = new Date();
       hasError = false;
       _retryAttempt = 0;
@@ -193,6 +199,7 @@ Singleton {
       _saveCache({
         weatherCode: code,
         temperature: roundedTemp,
+        dailyForecast: data.daily,
         lastPollTimestamp: lastUpdated.toISOString()
       });
       retryTimer.stop();
@@ -286,19 +293,34 @@ Singleton {
     if (!Settings.isLoaded || !weatherLocation)
       return null;
     try {
-      const {
-        latitude: lat,
-        longitude: lon,
-        weatherCode: code,
-        lastPollTimestamp: timestamp,
-        temperature: temp = 0
-      } = weatherLocation;
+      const lat = weatherLocation.latitude;
+      const lon = weatherLocation.longitude;
+      const code = weatherLocation.weatherCode;
+      const timestamp = weatherLocation.lastPollTimestamp;
+      const temp = weatherLocation.temperature || 0;
+      const cachedDailyStr = weatherLocation.dailyForecast || "";
+      let cachedDaily = null;
+      if (cachedDailyStr !== "") {
+        try {
+          cachedDaily = JSON.parse(cachedDailyStr);
+        } catch (e) {
+          Logger.warn("WeatherService", "Failed to parse daily forecast cache");
+        }
+      }
+
       if (lat == null || lon == null || code == null || !timestamp || isNaN(lat) || isNaN(lon) || isNaN(code))
         return null;
+
+      // Invalidate cache if daily forecast is missing (legacy cache)
+      if (!cachedDaily) {
+        Logger.log("WeatherService", "Cache missing daily forecast, invalidating");
+        return null;
+      }
 
       currentWeatherCode = code;
       lastUpdated = new Date(timestamp);
       currentTemp = `${temp}°C ${weatherInfo(code).icon}`;
+      dailyForecast = cachedDaily;
 
       const isFresh = (TimeService.now.getTime() - lastUpdated.getTime()) < refreshInterval;
       return {
@@ -315,11 +337,25 @@ Singleton {
   function _saveCache(updates) {
     if (!Settings.isLoaded)
       return;
-    // Ensure weatherLocation exists in Settings before modifying
-    if (!Settings.data.weatherLocation) {
-      Settings.data.weatherLocation = {};
-    }
-    Object.assign(Settings.data.weatherLocation, updates);
+
+    const target = Settings.data.weatherLocation;
+    if (!target)
+      return;
+
+    if (updates.weatherCode !== undefined)
+      target.weatherCode = updates.weatherCode;
+    if (updates.temperature !== undefined)
+      target.temperature = String(updates.temperature);
+    if (updates.lastPollTimestamp !== undefined)
+      target.lastPollTimestamp = updates.lastPollTimestamp;
+    if (updates.dailyForecast !== undefined)
+      target.dailyForecast = JSON.stringify(updates.dailyForecast);
+    if (updates.latitude !== undefined)
+      target.latitude = updates.latitude;
+    if (updates.longitude !== undefined)
+      target.longitude = updates.longitude;
+    if (updates.placeName !== undefined)
+      target.placeName = updates.placeName;
   }
 
   function getTimeAgo() {
