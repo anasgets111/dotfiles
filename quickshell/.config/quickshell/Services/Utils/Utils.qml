@@ -6,241 +6,224 @@ import Quickshell.Io
 Singleton {
   id: root
 
-  property var commandSlots: null
-  property bool destroyed: false
-  property list<var> ledWatchers: []
+  // --- Internals ---
 
-  function initializeCommandSlots() {
-    if (commandSlots || destroyed)
-      return;
-    commandSlots = Array.from({
-      length: 3
-    }, () => {
-      const p = Qt.createQmlObject("import Quickshell.Io; Process {}", root);
-      const c = Qt.createQmlObject("import Quickshell.Io; StdioCollector { waitForEnd: true }", p);
-      p.stdout = c;
-      const slot = {
-        process: p,
-        collector: c,
-        busy: false,
-        callback: null,
-        handler: null
-      };
-      slot.handler = () => {
-        if (!slot.busy || destroyed)
-          return;
-        const cb = slot.callback;
-        slot.busy = false;
-        slot.callback = null;
-        if (typeof cb === "function")
-          try {
-            cb(c?.text ?? "");
-          } catch (_) {}
-      };
-      c.onStreamFinished.connect(slot.handler);
-      return slot;
-    });
-  }
+  // Process Pool
+  property list<Process> _processPool: [p1, p2, p3]
 
-  function initializeLedMonitor() {
-    if (!destroyed && !ledMonitor.running)
-      ledMonitor.running = true;
-  }
+  // --- LED State ---
+  property bool capsLock: false
+  property bool numLock: false
+  property bool scrollLock: false
 
-  function resolveIconSource(key, providedOrFallback, maybeFallback) {
-    const has3Args = arguments.length >= 3;
-    const provided = has3Args ? providedOrFallback : null;
-    const fallback = has3Args ? maybeFallback : providedOrFallback;
+  // --- Icon Resolution ---
+  function resolveIconSource(key: var, arg2: var, arg3: var): string {
+    const provided = (arg3 !== undefined && arg3 !== null) ? arg2 : null;
+    const fallback = (arg3 !== undefined && arg3 !== null) ? arg3 : arg2;
+    const candidates = [provided, key, fallback, "application-x-executable"];
 
-    const resolveIcon = val => {
-      if (!val)
-        return "";
-      const str = String(val);
-
-      if (str.startsWith("file:") || str.startsWith("data:") || str.startsWith("/") || str.startsWith("qrc:"))
+    for (const c of candidates) {
+      if (!c)
+        continue;
+      const str = String(c);
+      if (str.includes("/") || str.startsWith("file:") || str.startsWith("data:") || str.startsWith("qrc:")) {
         return str;
-
-      try {
-        if (typeof DesktopEntries !== "undefined") {
-          const entry = DesktopEntries.heuristicLookup?.(str) || DesktopEntries.byId?.(str);
-          if (entry?.icon) {
-            const result = Quickshell.iconPath(entry.icon, false) ?? "";
-            if (result)
-              return result;
-          }
-        }
-
-        return Quickshell.iconPath(str, false) ?? "";
-      } catch (_) {
-        return "";
       }
-    };
 
-    return resolveIcon(provided) || resolveIcon(key) || resolveIcon(fallback ?? "application-x-executable");
+      // Try DesktopEntries
+      if (typeof DesktopEntries !== "undefined") {
+        const entry = DesktopEntries.heuristicLookup?.(str) || DesktopEntries.byId?.(str);
+        if (entry?.icon) {
+          const path = Quickshell.iconPath(entry.icon, false);
+          if (path)
+            return path;
+        }
+      }
+
+      // Try Quickshell icon lookup
+      const path = Quickshell.iconPath(str, false);
+      if (path)
+        return path;
+    }
+
+    return "";
   }
 
-  function runCmd(cmd, onDone) {
-    if (destroyed || !Array.isArray(cmd) || cmd.length === 0) {
+  // --- Command Execution ---
+  function runCmd(cmd: var, onDone: var): void {
+    if (!cmd || (Array.isArray(cmd) && cmd.length === 0)) {
       if (typeof onDone === "function")
         onDone("");
       return;
     }
-    if (!commandSlots)
-      initializeCommandSlots();
-    if (!commandSlots || destroyed)
-      return;
-    const slot = commandSlots.find(s => !s.busy) ?? commandSlots[0];
-    if (!slot)
-      return;
-    if (slot.process?.running)
-      slot.process.running = false;
-    slot.busy = true;
-    slot.callback = typeof onDone === "function" ? onDone : null;
-    slot.process.command = cmd;
-    slot.process.running = true;
+
+    // Find free slot
+    let proc = null;
+    for (let i = 0; i < _processPool.length; i++) {
+      if (!_processPool[i].running) {
+        proc = _processPool[i];
+        break;
+      }
+    }
+    // Fallback to first slot if all busy
+    if (!proc)
+      proc = _processPool[0];
+
+    proc.callback = (typeof onDone === "function") ? onDone : null;
+    proc.command = cmd;
+    proc.running = true;
   }
 
+  // --- Deprecated / Compatibility ---
   function startLockLedWatcher(options) {
     const handler = options?.onChange;
-    if (typeof handler !== "function" || destroyed)
+    if (typeof handler !== "function")
       return () => {};
-    if (!ledMonitor.running)
-      initializeLedMonitor();
-    if (!ledWatchers.includes(handler)) {
-      ledWatchers.push(handler);
-      try {
-        handler({
-          caps: ledMonitor.lastCaps,
-          num: ledMonitor.lastNum,
-          scroll: ledMonitor.lastScroll
-        });
-      } catch (_) {}
-    }
+
+    const cb = () => handler({
+        caps: root.capsLock,
+        num: root.numLock,
+        scroll: root.scrollLock
+      });
+
+    // Initial call
+    cb();
+
+    capsLockChanged.connect(cb);
+    numLockChanged.connect(cb);
+    scrollLockChanged.connect(cb);
+
     return () => {
-      const idx = ledWatchers.indexOf(handler);
-      if (idx >= 0)
-        ledWatchers.splice(idx, 1);
+      try {
+        capsLockChanged.disconnect(cb);
+        numLockChanged.disconnect(cb);
+        scrollLockChanged.disconnect(cb);
+      } catch (_) {}
     };
   }
 
-  Component.onDestruction: {
-    destroyed = true;
-    if (ledMonitor?.running)
-      ledMonitor.running = false;
-    ledWatchers.splice(0, ledWatchers.length);
-    if (commandSlots) {
-      commandSlots.forEach(slot => {
-        if (!slot)
-          return;
-        if (slot.handler && slot.collector?.onStreamFinished) {
-          try {
-            slot.collector.onStreamFinished.disconnect(slot.handler);
-          } catch (_) {}
-        }
-        if (slot.process?.running)
-          slot.process.running = false;
-        Qt.callLater(() => {
-          try {
-            if (slot.collector)
-              slot.collector.destroy();
-            if (slot.process)
-              slot.process.destroy();
-          } catch (_) {}
-        });
-      });
-      commandSlots = null;
+  Process {
+    id: p1
+
+    property var callback: null
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const cb = p1.callback;
+        if (typeof cb === "function")
+          cb(text);
+        p1.callback = null;
+      }
     }
   }
 
   Process {
+    id: p2
+
+    property var callback: null
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const cb = p2.callback;
+        if (typeof cb === "function")
+          cb(text);
+        p2.callback = null;
+      }
+    }
+  }
+
+  Process {
+    id: p3
+
+    property var callback: null
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const cb = p3.callback;
+        if (typeof cb === "function")
+          cb(text);
+        p3.callback = null;
+      }
+    }
+  }
+
+  // LED Monitor
+  Process {
     id: ledMonitor
 
-    property bool lastCaps: false
-    property bool lastNum: false
-    property bool lastScroll: false
-
     command: ["sh", "-c", `
-      get_state() {
-        # Read all capslock devices and use any non-zero value (OR logic)
-        c=0; for f in /sys/class/leds/*capslock/brightness; do
-          [ -f "$f" ] && v=$(cat "$f" 2>/dev/null) && [ "$v" != "0" ] && c=1 && break
+      get_val() {
+        for f in /sys/class/leds/*$1/brightness; do
+          [ -f "$f" ] || continue
+          # Use timeout + cat for safety against hanging drivers (common after sleep)
+          v=$(timeout 0.1 cat "$f" 2>/dev/null)
+          [ "$v" != "0" ] && echo 1 && return
         done
-
-        n=0; for f in /sys/class/leds/*numlock/brightness; do
-          [ -f "$f" ] && v=$(cat "$f" 2>/dev/null) && [ "$v" != "0" ] && n=1 && break
-        done
-
-        s=0; for f in /sys/class/leds/*scrolllock/brightness; do
-          [ -f "$f" ] && v=$(cat "$f" 2>/dev/null) && [ "$v" != "0" ] && s=1 && break
-        done
-
-        echo "$c $n $s"
+        echo 0
       }
 
-      >&2 echo "LED monitor: Watching all *lock devices"
-      last=""
+      check() {
+        c=$(get_val "capslock")
+        n=$(get_val "numlock")
+        s=$(get_val "scrolllock")
+        cur="$c $n $s"
 
-      while :; do
-        cur=$(get_state)
         if [ "$cur" != "$last" ]; then
-          printf '%s\\n' "$cur"
+          echo "$cur"
           last="$cur"
         fi
-        sleep 0.1
+      }
+
+      last=""
+      check # Initial check
+
+      # Wait for input (newline) from QML Timer to trigger check
+      # This avoids spawning 'sleep' processes
+      while read -r _; do
+        check
       done
     `]
-    running: false
+    running: true
 
     stdout: SplitParser {
       splitMarker: "\n"
 
       onRead: line => {
-        if (root.destroyed)
-          return;
-        const parts = line.trim().split(/\s+/);
-        if (parts.length !== 3) {
-          console.warn(`LED: Invalid line format: "${line}" (${parts.length} parts)`);
-          return;
-        }
-        const caps = parts[0] !== "0", num = parts[1] !== "0", scroll = parts[2] !== "0";
-        if (caps === ledMonitor.lastCaps && num === ledMonitor.lastNum && scroll === ledMonitor.lastScroll)
-          return;
-        ledMonitor.lastCaps = caps;
-        ledMonitor.lastNum = num;
-        ledMonitor.lastScroll = scroll;
-        if (root.ledWatchers.length === 0)
-          return;
-        const state = {
-          caps,
-          num,
-          scroll
-        };
-        for (let i = root.ledWatchers.length - 1; i >= 0; i--) {
-          const watcher = root.ledWatchers[i];
-          if (typeof watcher !== "function") {
-            root.ledWatchers.splice(i, 1);
-            continue;
-          }
-          try {
-            watcher(state);
-          } catch (err) {
-            console.warn("LED watcher error:", err);
-            root.ledWatchers.splice(i, 1);
-          }
+        const parts = line.trim().split(" ");
+        if (parts.length === 3) {
+          root.capsLock = (parts[0] === "1");
+          root.numLock = (parts[1] === "1");
+          root.scrollLock = (parts[2] === "1");
         }
       }
     }
 
     onRunningChanged: {
-      if (running)
-        return;
-      if (!root.destroyed && root.ledWatchers.length > 0) {
-        console.warn("LED monitor: Stopped unexpectedly, restarting...");
-        Qt.callLater(() => {
-          if (ledMonitor && !root.destroyed)
-            ledMonitor.running = true;
-        });
+      if (!running) {
+        console.warn("LED monitor stopped, restarting...");
+        restartTimer.start();
       }
     }
+  }
+
+  Timer {
+    id: pollTimer
+
+    interval: 100
+    repeat: true
+    running: ledMonitor.running
+
+    onTriggered: {
+      if (ledMonitor.running)
+        ledMonitor.write("\n");
+    }
+  }
+
+  Timer {
+    id: restartTimer
+
+    interval: 1000
+
+    onTriggered: ledMonitor.running = true
   }
 }
