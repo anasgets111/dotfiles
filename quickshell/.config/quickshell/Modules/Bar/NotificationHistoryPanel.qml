@@ -30,11 +30,25 @@ OPanel {
     x: 0
     y: 0
 
+    // Weather Widget
+    WeatherWidget {
+      id: weatherWidget
+
+      Layout.bottomMargin: 8
+      Layout.fillWidth: true
+      Layout.leftMargin: root.padding
+      Layout.rightMargin: root.padding
+      Layout.topMargin: root.padding
+    }
+
     // Header
     Rectangle {
+      id: header
+
       Layout.fillWidth: true
       Layout.margins: root.padding
       Layout.preferredHeight: Theme.itemHeight * 1.2
+      Layout.topMargin: 0 // Remove top margin since weather is above
       color: Qt.lighter(Theme.bgColor, 1.2)
       radius: Theme.itemRadius
 
@@ -119,13 +133,23 @@ OPanel {
       Layout.bottomMargin: root.padding
       Layout.fillWidth: true
       Layout.leftMargin: root.padding
-      Layout.preferredHeight: Math.min(root.cardHeight * root.maxVisibleCards, Math.max(root.cardHeight, notificationColumn.implicitHeight))
+      Layout.preferredHeight: {
+        const weatherH = weatherWidget.implicitHeight + root.padding + 8; // top + bottom margins
+        const headerH = header.Layout.preferredHeight + root.padding; // bottom margin (top is 0)
+        const flickableMargins = 8 + root.padding; // top + bottom
+        const otherContent = weatherH + headerH + flickableMargins;
+
+        const available = root.maxHeight - otherContent;
+        const desired = Math.min(root.cardHeight * root.maxVisibleCards, notificationColumn.implicitHeight);
+
+        return Math.max(0, Math.min(desired, available));
+      }
       Layout.rightMargin: root.padding
       Layout.topMargin: 8
       clip: true
       contentHeight: notificationColumn.implicitHeight
       contentWidth: width
-      interactive: contentHeight > height
+      interactive: true // Always allow interaction if content overflows
       visible: root.hasNotifications
 
       ScrollBar.vertical: ScrollBar {
