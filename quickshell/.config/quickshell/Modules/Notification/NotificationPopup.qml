@@ -64,32 +64,7 @@ PanelWindow {
         const svc = popupColumn.svc;
         const groups = svc?.groupedPopups ?? [];
         const max = Math.max(1, Number(svc?.maxVisibleNotifications ?? 1));
-        const out = [];
-        for (let i = 0; i < groups.length && out.length < max; i++) {
-          const g = groups[i];
-          if (!g?.notifications?.length)
-            continue;
-          if (g.count <= 1) {
-            out.push({
-              kind: "single",
-              wrapper: g.notifications[0]
-            });
-          } else {
-            out.push({
-              kind: "group",
-              group: {
-                key: g.key,
-                appName: g.appName,
-                notifications: g.notifications,
-                latestNotification: g.latestNotification,
-                count: g.count,
-                hasInlineReply: g.hasInlineReply,
-                expanded: svc?.expandedGroups ? (svc.expandedGroups[g.key] || false) : false
-              }
-            });
-          }
-        }
-        return out;
+        return groups.slice(0, max);
       }
 
       function releaseKeyboardFocus() {
@@ -132,9 +107,8 @@ PanelWindow {
 
               sourceComponent: Component {
                 NotificationCard {
-                  group: del.modelData.kind === "group" ? del.modelData.group : null
+                  group: del.modelData
                   svc: popupColumn.svc
-                  wrapper: del.modelData.kind === "single" ? del.modelData.wrapper : null
 
                   onInputFocusReleased: popupColumn.releaseKeyboardFocus()
                   onInputFocusRequested: popupColumn.claimKeyboardFocus()

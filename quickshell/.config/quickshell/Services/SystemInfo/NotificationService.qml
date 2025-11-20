@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Services.Notifications
 import qs.Config
 import qs.Services.SystemInfo
+import qs.Services.Utils
 
 Singleton {
   id: root
@@ -295,6 +296,47 @@ Singleton {
     root.visibleNotifications = [];
   }
 
+  function prepareBody(raw) {
+    if (typeof raw !== "string" || raw.length === 0)
+      return {
+        text: "",
+        format: Qt.PlainText
+      };
+
+    // Try Markdown2Html first
+    try {
+      if (typeof Markdown2Html !== "undefined" && typeof Markdown2Html.toDisplay === "function") {
+        const result = Markdown2Html.toDisplay(raw);
+        if (result?.format === Qt.RichText)
+          return result;
+      }
+    } catch (e) {}
+
+    // Fallback: linkify URLs
+    try {
+      const escapeHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;");
+      const escaped = escapeHtml(raw);
+      const urlRegex = /((?:https?|file):\/\/[^\s<>\'\"]*)/gi;
+      let hasUrl = false;
+      const html = escaped.replace(urlRegex, m => {
+        hasUrl = true;
+        return `<a href="${m}">${m}</a>`;
+      });
+      return hasUrl ? {
+        text: html,
+        format: Qt.RichText
+      } : {
+        text: raw,
+        format: Qt.PlainText
+      };
+    } catch (e) {
+      return {
+        text: raw,
+        format: Qt.PlainText
+      };
+    }
+  }
+
   function processQueue() {
     if (root.addGateBusy || root.popupsDisabled || root.doNotDisturb || root.notificationQueue.length === 0)
       return;
@@ -454,6 +496,7 @@ Singleton {
     readonly property string appIcon: notification?.appIcon || ""
     readonly property string appName: notification?.appName || "app"
     readonly property string body: notification?.body || ""
+    readonly property var bodyMeta: root.prepareBody(wrapper.body)
     readonly property url cleanImage: {
       const img = String(notification?.image || "");
       if (!img)
