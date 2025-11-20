@@ -234,6 +234,12 @@ PanelWindow {
       x: root.calculateX()
       y: root.isOpen ? targetY : hiddenY
 
+      Behavior on height {
+        NumberAnimation {
+          duration: 300
+          easing.type: Easing.OutCubic
+        }
+      }
       Behavior on y {
         PanelAnimation {
         }

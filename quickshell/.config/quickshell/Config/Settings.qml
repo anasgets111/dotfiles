@@ -104,6 +104,7 @@ Singleton {
 
       // Weather location and last poll data
       property JsonObject weatherLocation: JsonObject {
+        property string dailyForecast: ""
         property string lastPollTimestamp: ""  // ISO 8601 format
         property real latitude: 30.0507
         property real longitude: 31.2489
