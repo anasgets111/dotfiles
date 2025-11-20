@@ -12,12 +12,12 @@ Item {
   property var _messageExpansion: ({})
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
   readonly property real cardWidth: 380
-  property var group: null
+  required property var group
   readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group.key] || false) : false)
   readonly property bool headerHasExpand: root.isGroup && root.items.length > 1
   readonly property string headerTitle: root.isGroup ? `${root.group?.appName || "app"} (${root.group?.count || root.items.length})` : (root.primaryWrapper?.appName || "app")
-  readonly property bool isGroup: !!root.group
-  readonly property var items: root.isGroup ? (root.group?.notifications || []) : (root.wrapper ? [root.wrapper] : [])
+  readonly property bool isGroup: (root.group?.count || 0) > 1
+  readonly property var items: root.group?.notifications || []
   readonly property int messagePadding: 8
   readonly property int paddingHorizontal: 12
   readonly property int paddingVertical: 12
@@ -26,7 +26,6 @@ Item {
   readonly property int spacingContent: 6
   readonly property int spacingMessages: 8
   required property var svc
-  property var wrapper: null
 
   signal inputFocusReleased
   signal inputFocusRequested
@@ -214,57 +213,13 @@ Item {
             readonly property int horizontalPadding: messageItem.isMultipleItems ? root.messagePadding : 0
             readonly property string inlineReplyPlaceholder: messageItem.modelData?.inlineReplyPlaceholder || "Reply"
             readonly property string messageId: messageItem.modelData?.id || String(messageItem.modelData?.notification ? messageItem.modelData.notification.id || "" : "")
-            readonly property var renderedBodyMeta: messageColumn.hasBody ? prepareBody(body) : {
+            readonly property var renderedBodyMeta: messageItem.modelData?.bodyMeta || {
               text: "",
               format: Qt.PlainText
             }
             readonly property string summary: messageItem.modelData?.summary || "(No title)"
             property bool summaryTruncated: false
             readonly property int topPadding: messageItem.isMultipleItems ? root.messagePadding : 0
-
-            function prepareBody(raw) {
-              if (typeof raw !== "string" || raw.length === 0)
-                return {
-                  text: "",
-                  format: Qt.PlainText
-                };
-
-              // Try Markdown2Html first
-              try {
-                if (typeof Markdown2Html !== "undefined" && typeof Markdown2Html.toDisplay === "function") {
-                  const result = Markdown2Html.toDisplay(raw);
-                  if (result?.format === Qt.RichText)
-                    return {
-                      text: result.text,
-                      format: result.format
-                    };
-                }
-              } catch (e) {}
-
-              // Fallback: linkify URLs
-              try {
-                const escapeHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;");
-                const escaped = escapeHtml(raw);
-                const urlRegex = /((?:https?|file):\/\/[^\s<>\'\"]*)/gi;
-                let hasUrl = false;
-                const html = escaped.replace(urlRegex, m => {
-                  hasUrl = true;
-                  return `<a href="${m}">${m}</a>`;
-                });
-                return hasUrl ? {
-                  text: html,
-                  format: Qt.RichText
-                } : {
-                  text: raw,
-                  format: Qt.PlainText
-                };
-              } catch (e) {
-                return {
-                  text: raw,
-                  format: Qt.PlainText
-                };
-              }
-            }
 
             spacing: root.spacingContent
 

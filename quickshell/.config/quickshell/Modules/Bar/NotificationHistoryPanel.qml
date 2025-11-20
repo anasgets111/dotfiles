@@ -165,11 +165,10 @@ OPanel {
             required property int index
             required property var modelData
 
-            group: modelData.count > 1 ? modelData : null
+            group: modelData
             showTimestamp: true
             svc: NotificationService
             width: parent.width
-            wrapper: modelData.count === 1 ? (modelData.notifications[0] || null) : null
 
             onInputFocusReleased: root.needsKeyboardFocus = false
             onInputFocusRequested: root.needsKeyboardFocus = true
