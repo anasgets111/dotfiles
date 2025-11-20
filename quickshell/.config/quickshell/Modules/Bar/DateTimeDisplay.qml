@@ -82,7 +82,6 @@ Item {
     hoverEnabled: true
 
     onClicked: function (mouse) {
-      WeatherService.refresh();
       if (notificationPanelLoader.active) {
         notificationPanelLoader.active = false;
       } else {
