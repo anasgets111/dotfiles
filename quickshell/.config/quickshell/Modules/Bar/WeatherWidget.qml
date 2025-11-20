@@ -34,30 +34,32 @@ Item {
         id: expandBtn
 
         Layout.fillWidth: true
-        Layout.preferredHeight: Theme.itemHeight * 1.3
+        Layout.preferredHeight: Theme.itemHeight
         visible: root.hasData
 
         onClicked: root.expanded = !root.expanded
 
-        ColumnLayout {
-          spacing: -2
-
+        RowLayout {
           anchors {
             left: parent.left
-            margins: Theme.itemRadius / 2
+            margins: Theme.itemRadius
             right: parent.right
             verticalCenter: parent.verticalCenter
           }
 
           OText {
-            Layout.alignment: Qt.AlignHCenter
+            Layout.alignment: Qt.AlignVCenter
             color: expandBtn.textColor
             font.bold: true
             text: root.expanded ? "Show Less" : "10 Day Forecast"
           }
 
+          Item {
+            Layout.fillWidth: true
+          }
+
           Text {
-            Layout.alignment: Qt.AlignRight
+            Layout.alignment: Qt.AlignVCenter
             color: Qt.alpha(expandBtn.textColor, 0.7)
             font.pixelSize: Theme.fontSize * 0.7
             text: "updated " + WeatherService.getTimeAgo()

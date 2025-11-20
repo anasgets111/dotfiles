@@ -171,7 +171,8 @@ OPanel {
             width: parent.width
             wrapper: modelData.count === 1 ? (modelData.notifications[0] || null) : null
 
-            onInputFocusRequested: {}
+            onInputFocusReleased: root.needsKeyboardFocus = false
+            onInputFocusRequested: root.needsKeyboardFocus = true
           }
         }
       }
