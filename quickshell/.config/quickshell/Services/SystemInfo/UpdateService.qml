@@ -41,7 +41,7 @@ Singleton {
   }
   property int totalPackagesToUpdate: 0
   readonly property int totalUpdates: updatePackages.length
-  readonly property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", "-e", "sh", "-c", "$BIN/update.sh"]
+  readonly property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", Quickshell.env("BIN") + "/update.sh"]
   readonly property var updateLineRe: /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/
   property var updatePackages: []
   property int updateState: status.Idle
