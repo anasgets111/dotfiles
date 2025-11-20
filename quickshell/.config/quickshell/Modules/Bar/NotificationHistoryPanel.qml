@@ -10,19 +10,18 @@ import qs.Modules.Notification
 OPanel {
   id: root
 
-  readonly property real cardHeight: Theme.itemHeight * 5.5
-  readonly property bool hasNotifications: root.notificationCount > 0
-  readonly property int maxVisibleCards: 3
-  readonly property int notificationCount: NotificationService.notifications?.length || 0
-  readonly property var notificationGroups: NotificationService.groupedNotifications || []
-  readonly property int padding: 16
-  
   readonly property real availableContentHeight: {
     const weatherH = weatherWidget.implicitHeight + root.padding + 8;
     const headerH = header.Layout.preferredHeight + root.padding;
     const margins = 8 + root.padding;
     return Math.max(0, root.maxHeight - weatherH - headerH - margins);
   }
+  readonly property real cardHeight: Theme.itemHeight * 5.5
+  readonly property bool hasNotifications: root.notificationCount > 0
+  readonly property int maxVisibleCards: 3
+  readonly property int notificationCount: NotificationService.notifications?.length || 0
+  readonly property var notificationGroups: NotificationService.groupedNotifications || []
+  readonly property int padding: 16
 
   needsKeyboardFocus: false
   panelNamespace: "obelisk-notification-panel"
@@ -180,14 +179,12 @@ OPanel {
 
     // Empty State
     Item {
-      Layout.fillWidth: true
       Layout.bottomMargin: root.padding
+      Layout.fillWidth: true
       Layout.leftMargin: root.padding
+      Layout.preferredHeight: Math.min(root.cardHeight * 1.5, root.availableContentHeight)
       Layout.rightMargin: root.padding
       Layout.topMargin: 8
-      
-      Layout.preferredHeight: Math.min(root.cardHeight * 1.5, root.availableContentHeight)
-      
       visible: !root.hasNotifications
 
       Flickable {
@@ -197,6 +194,7 @@ OPanel {
 
         ColumnLayout {
           id: emptyStateCol
+
           anchors.centerIn: parent
           spacing: 16
           width: parent.width * 0.8
