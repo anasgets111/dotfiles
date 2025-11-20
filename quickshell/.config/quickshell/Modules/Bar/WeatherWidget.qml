@@ -14,17 +14,18 @@ Item {
 
   implicitHeight: mainCol.implicitHeight
 
-  // width: parent.width // Removed to allow Layout.fillWidth to control size correctly respecting margins
-
   ColumnLayout {
     id: mainCol
 
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.top: parent.top
     spacing: 8
 
-    // Header Row (Expand/Collapse + Refresh)
+    anchors {
+      left: parent.left
+      right: parent.right
+      top: parent.top
+    }
+
+    // Header
     RowLayout {
       Layout.fillWidth: true
       spacing: 8
@@ -32,7 +33,6 @@ Item {
       OButton {
         id: expandBtn
 
-        Layout.alignment: Qt.AlignVCenter
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.itemHeight * 1.3
         visible: root.hasData
@@ -40,12 +40,14 @@ Item {
         onClicked: root.expanded = !root.expanded
 
         ColumnLayout {
-          anchors.left: parent.left
-          anchors.leftMargin: Theme.itemRadius / 2
-          anchors.right: parent.right
-          anchors.rightMargin: Theme.itemRadius / 2
-          anchors.verticalCenter: parent.verticalCenter
           spacing: -2
+
+          anchors {
+            left: parent.left
+            margins: Theme.itemRadius / 2
+            right: parent.right
+            verticalCenter: parent.verticalCenter
+          }
 
           OText {
             Layout.alignment: Qt.AlignHCenter
@@ -63,14 +65,12 @@ Item {
         }
       }
 
-      // Spacer when button is hidden (loading/error state)
       Item {
         Layout.fillWidth: true
         visible: !root.hasData
       }
 
       IconButton {
-        Layout.alignment: Qt.AlignVCenter
         Layout.preferredHeight: Theme.itemHeight
         Layout.preferredWidth: Theme.itemHeight
         icon: ""
@@ -80,12 +80,12 @@ Item {
       }
     }
 
-    // Content Container
+    // Content
     ColumnLayout {
       Layout.fillWidth: true
       spacing: 8
 
-      // Top Row (Summary) - Always Visible
+      // Summary Row
       RowLayout {
         Layout.fillWidth: true
         spacing: 8
@@ -119,7 +119,7 @@ Item {
         }
       }
 
-      // Expanded Grid (Remaining Days)
+      // Expanded Grid
       Item {
         Layout.fillWidth: true
         Layout.preferredHeight: root.expanded ? gridLayout.implicitHeight : 0
@@ -136,12 +136,15 @@ Item {
         GridLayout {
           id: gridLayout
 
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.top: parent.top
           columnSpacing: 8
           columns: 4
           rowSpacing: 8
+
+          anchors {
+            left: parent.left
+            right: parent.right
+            top: parent.top
+          }
 
           Repeater {
             model: root.hasData ? Math.max(0, root.forecast.time.length - 3) : 0
@@ -157,7 +160,7 @@ Item {
         }
       }
 
-      // Loading / No Data State
+      // Loading / Error
       Item {
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.itemHeight * 2
@@ -170,12 +173,15 @@ Item {
         }
 
         OButton {
-          anchors.bottom: parent.bottom
-          anchors.horizontalCenter: parent.horizontalCenter
           text: "Retry"
           visible: WeatherService.hasError
 
           onClicked: WeatherService.refresh()
+
+          anchors {
+            bottom: parent.bottom
+            horizontalCenter: parent.horizontalCenter
+          }
         }
       }
     }
@@ -184,22 +190,17 @@ Item {
   component WeatherDayCard: Rectangle {
     id: card
 
-    readonly property string dateStr: root.hasData ? root.forecast.time[dayIndex] : ""
-    property int dayIndex: 0
+    readonly property string dateStr: hasData ? forecast.time[dayIndex] : ""
+    required property int dayIndex
+    readonly property var forecast: WeatherService.dailyForecast
+    readonly property bool hasData: forecast && forecast.time && forecast.time.length > dayIndex
     property bool isToday: false
     property string label: ""
-    readonly property real maxTemp: root.hasData ? root.forecast.temperature_2m_max[dayIndex] : 0
-    readonly property real minTemp: root.hasData ? root.forecast.temperature_2m_min[dayIndex] : 0
+    readonly property real maxTemp: hasData ? forecast.temperature_2m_max[dayIndex] : 0
+    readonly property real minTemp: hasData ? forecast.temperature_2m_min[dayIndex] : 0
     property bool showLabel: true
-    readonly property int wCode: root.hasData ? root.forecast.weathercode[dayIndex] : -1
+    readonly property int wCode: hasData ? forecast.weathercode[dayIndex] : -1
     readonly property var wInfo: WeatherService.weatherInfo(wCode)
-
-    function getDayName(dateString) {
-      if (!dateString)
-        return "";
-      const date = new Date(dateString);
-      return date.toLocaleDateString(Qt.locale(), "ddd");
-    }
 
     color: isToday ? Qt.alpha(Theme.activeColor, 0.2) : Qt.lighter(Theme.bgColor, 1.3)
     implicitHeight: col.implicitHeight + 16
@@ -223,11 +224,11 @@ Item {
 
           anchors.centerIn: parent
           font.bold: true
-          opacity: card.showLabel && card.label !== "" ? 1 : 0
+          opacity: visible ? 1 : 0
           sizeMultiplier: 0.9
           text: card.label
           useActiveColor: card.isToday
-          visible: opacity > 0
+          visible: card.showLabel && card.label !== ""
 
           Behavior on opacity {
             NumberAnimation {
@@ -241,11 +242,11 @@ Item {
 
           anchors.centerIn: parent
           font.bold: true
-          opacity: (card.showLabel && card.label !== "") ? 0 : 1
+          opacity: visible ? 1 : 0
           sizeMultiplier: 0.9
-          text: card.getDayName(card.dateStr)
+          text: card.dateStr ? new Date(card.dateStr).toLocaleDateString(Qt.locale(), "ddd") : ""
           useActiveColor: card.isToday
-          visible: opacity > 0
+          visible: !l1.visible
 
           Behavior on opacity {
             NumberAnimation {
