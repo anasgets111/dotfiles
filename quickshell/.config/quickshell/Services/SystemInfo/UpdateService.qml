@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Services
+import qs.Services.SystemInfo
 import qs.Services.Utils
 
 Singleton {
@@ -15,7 +16,6 @@ Singleton {
   property string currentPackageName: ""
   property string errorMessage: ""
   property string errorType: ""
-  property var failedPackages: []
   property int failureCount: 0
   readonly property int failureThreshold: 5
   property int lastNotificationId: 0
@@ -25,10 +25,6 @@ Singleton {
   property var packageSizes: ({})
   readonly property int pollInterval: 15 * 60 * 1000
   readonly property bool ready: MainService.isArchBased && checkupdatesAvailable
-  property bool selectAll: false
-  readonly property int selectedCount: selectedPackageNames.length
-  readonly property var selectedPackageNames: Object.keys(selectedPackages).filter(k => selectedPackages[k])
-  property var selectedPackages: ({})
   readonly property var status: ({
       Idle: 0,
       Updating: 1,
@@ -36,12 +32,10 @@ Singleton {
       Error: 3
     })
   readonly property int totalDownloadSize: {
-    const pkgs = selectedCount > 0 ? updatePackages.filter(p => selectedPackages[p.name] === true) : updatePackages;
-    return pkgs.reduce((sum, p) => sum + (packageSizes[p.name] || 0), 0);
+    return updatePackages.reduce((sum, p) => sum + (packageSizes[p.name] || 0), 0);
   }
   property int totalPackagesToUpdate: 0
   readonly property int totalUpdates: updatePackages.length
-  readonly property var updateCommand: ["xdg-terminal-exec", "--title=Global Updates", Quickshell.env("BIN") + "/update.sh"]
   readonly property var updateLineRe: /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/
   property var updatePackages: []
   property int updateState: status.Idle
@@ -60,6 +54,8 @@ Singleton {
       args.push("-A", `${action}=${qsTr("Run updates")}`);
     args.push(title, message);
 
+    Logger.log("UpdateService", `Sending notification: replace=${lastNotificationId}, title=${title}`);
+
     Utils.runCmd(["notify-send", ...args], out => {
       // Parse output for ID and action response
       const lines = (out || "").trim().split('\n');
@@ -68,6 +64,7 @@ Singleton {
       for (const line of lines) {
         const id = parseInt(line.trim());
         if (!isNaN(id)) {
+          Logger.log("UpdateService", `Notification ID updated: ${lastNotificationId} -> ${id}`);
           lastNotificationId = id;
           break;
         }
@@ -75,8 +72,7 @@ Singleton {
 
       // Check if action was triggered
       if (action && lines.some(line => line.includes(action))) {
-        updateRunner.command = updateCommand;
-        updateRunner.running = true;
+        executeUpdate();
       }
     });
   }
@@ -112,6 +108,12 @@ Singleton {
     outputLines = [];
   }
 
+  function closeAllNotifications() {
+    Logger.log("UpdateService", "Closing all 'System Updates' notifications");
+    NotificationService.dismissNotificationsByAppName("System Updates");
+    lastNotificationId = 0;
+  }
+
   function doPoll() {
     if (busy)
       return;
@@ -120,23 +122,25 @@ Singleton {
   }
 
   function executeUpdate() {
-    const packages = selectedCount > 0 ? selectedPackageNames : updatePackages.map(p => p.name);
-    if (packages.length === 0) {
+    if (totalUpdates === 0) {
       Logger.warn("UpdateService", "No packages to update");
       return;
     }
 
-    totalPackagesToUpdate = packages.length;
+    // We do NOT close the notification here. We keep the ID so the next notification
+    // (Update Complete/Failed) can replace it, preventing notification spam.
+
+    totalPackagesToUpdate = totalUpdates;
     currentPackageIndex = 0;
     currentPackageName = "";
     outputLines = [];
     completedPackages = [];
-    failedPackages = [];
     updateState = status.Updating;
 
-    updateProcess.command = ["bash", "-c", `pkexec pacman -Sy --noconfirm ${packages.join(' ')}`];
+    // Use update.sh with --polkit and --stream for integrated output
+    updateProcess.command = [Quickshell.env("BIN") + "/update.sh", "--polkit", "--stream"];
     updateProcess.running = true;
-    Logger.log("UpdateService", `Starting update of ${packages.length} packages`);
+    Logger.log("UpdateService", `Starting system update`);
   }
 
   function fetchPackageSizes() {
@@ -146,47 +150,21 @@ Singleton {
     sizeFetchProcess.running = true;
   }
 
-  function resetSelection() {
-    selectedPackages = {};
-    selectAll = false;
-  }
-
   function retryUpdate() {
     errorMessage = "";
     errorType = "";
     executeUpdate();
   }
 
-  function runUpdate() {
-    lastNotificationId = 0;
-    if (totalUpdates > 0) {
-      updateRunner.command = updateCommand;
-      updateRunner.running = true;
-    } else {
-      doPoll();
-    }
-  }
-
-  function togglePackage(packageName) {
-    selectedPackages = Object.assign({}, selectedPackages, {
-      [packageName]: !selectedPackages[packageName]
-    });
-    selectAll = updatePackages.every(p => selectedPackages[p.name]);
-  }
-
-  function toggleSelectAll() {
-    selectAll = !selectAll;
-    selectedPackages = updatePackages.reduce((acc, pkg) => Object.assign({}, acc, {
-        [pkg.name]: selectAll
-      }), {});
-  }
-
   Component.onCompleted: {
     updatePackages = JSON.parse(cache.cachedUpdatePackagesJson || "[]");
     if (cache.cachedLastSync > 0)
       lastSync = cache.cachedLastSync;
+    if (cache.cachedNotificationId > 0)
+      lastNotificationId = cache.cachedNotificationId;
   }
   Component.onDestruction: pollTimer.stop()
+  onLastNotificationIdChanged: cache.cachedNotificationId = lastNotificationId
   onLastSyncChanged: cache.cachedLastSync = lastSync
   onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
 
@@ -194,15 +172,10 @@ Singleton {
     id: cache
 
     property double cachedLastSync: 0
+    property int cachedNotificationId: 0
     property string cachedUpdatePackagesJson: "[]"
 
     reloadableId: "ArchCheckerCache"
-  }
-
-  Process {
-    id: updateRunner
-
-    onExited: (exitCode, exitStatus) => root.doPoll()
   }
 
   Process {
@@ -260,7 +233,9 @@ Singleton {
         const parsed = root._parseOutput(text);
         root.updatePackages = parsed;
         root.lastSync = Date.now();
-        root.lastNotificationId = 0;
+        // We do NOT reset lastNotificationId here anymore.
+        // This allows the "Update Complete" notification to persist its ID
+        // so it can be closed by the user.
         root._notifyIfIncreased();
         if (parsed.length > 0)
           root.fetchPackageSizes();
@@ -323,7 +298,6 @@ Singleton {
       root.updateState = exitCode === 0 ? root.status.Completed : root.status.Error;
       if (exitCode === 0) {
         root._notify("Update Complete", `${root.completedPackages.length} packages updated successfully`);
-        root.resetSelection();
         root.doPoll();
       } else {
         if (!root.errorType) {

@@ -55,15 +55,14 @@ Item {
     }
 
     onClicked: mouse => {
-      if (mouse.button === Qt.RightButton) {
-        if (UpdateService.totalUpdates > 0 || UpdateService.updateState !== UpdateService.status.Idle) {
-          updatePanel.openAtItem(button, mouse.x, mouse.y);
-        }
-        return;
-      }
       if (UpdateService.busy)
         return;
-      UpdateService.totalUpdates > 0 ? UpdateService.runUpdate() : UpdateService.doPoll();
+
+      if (mouse.button === Qt.RightButton || UpdateService.totalUpdates > 0 || UpdateService.updateState !== UpdateService.status.Idle) {
+        updatePanel.openAtItem(button, mouse.x, mouse.y);
+      } else {
+        UpdateService.doPoll();
+      }
     }
 
     Connections {
