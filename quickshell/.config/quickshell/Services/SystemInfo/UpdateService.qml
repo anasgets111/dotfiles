@@ -137,14 +137,6 @@ Singleton {
     completedPackages = [];
     updateState = status.Updating;
 
-    // Use update.sh with --polkit and --stream for integrated output
-    // Ensure our Polkit agent is prepared so the authentication prompt appears in Quickshell
-    try {
-      PolkitService.prepareAgent();
-    } catch (e) {
-      Logger.warn("UpdateService", `prepareAgent failed: ${e}`);
-    }
-
     Logger.log("UpdateService", `Starting system update`);
     updateProcess.command = [Quickshell.env("HOME") + "/.local/bin/update.sh", "--polkit"];
     updateProcess.running = true;
