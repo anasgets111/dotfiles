@@ -41,6 +41,7 @@ OPanel {
       // View 0: Package List
       ColumnLayout {
         id: packageView
+
         spacing: 4
 
         Rectangle {
@@ -217,6 +218,7 @@ OPanel {
       // View 1: Live Output
       ColumnLayout {
         id: outputViewLayout
+
         spacing: 0
 
         Rectangle {
