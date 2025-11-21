@@ -26,19 +26,21 @@ OPanel {
 
   FocusScope {
     focus: root.isOpen
-    implicitHeight: stack.implicitHeight + root.padding * 2
+    implicitHeight: stack.height + root.padding * 2
     width: parent.width
 
     StackLayout {
       id: stack
 
       currentIndex: root.viewIndex
+      height: root.viewIndex === 0 ? packageView.implicitHeight : outputViewLayout.implicitHeight
       width: parent.width - root.padding * 2
       x: root.padding
       y: root.padding
 
       // View 0: Package List
       ColumnLayout {
+        id: packageView
         spacing: 4
 
         Rectangle {
@@ -214,6 +216,7 @@ OPanel {
 
       // View 1: Live Output
       ColumnLayout {
+        id: outputViewLayout
         spacing: 0
 
         Rectangle {
