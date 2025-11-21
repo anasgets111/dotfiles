@@ -16,21 +16,13 @@ OPanel {
   readonly property int padding: 8
   readonly property int viewIndex: {
     const s = UpdateService.updateState;
-    return s === UpdateService.status.Idle ? 0 : s === UpdateService.status.Updating ? 1 : 2;
+    return s === UpdateService.status.Idle ? 0 : 1;
   }
 
-  needsKeyboardFocus: root.viewIndex === 0 || root.viewIndex === 2
+  maxHeight: 900
+  needsKeyboardFocus: root.viewIndex === 0 || root.viewIndex === 1
   panelNamespace: "obelisk-update-panel"
   panelWidth: 500
-
-  Connections {
-    function onUpdateStateChanged() {
-      if (UpdateService.updateState === UpdateService.status.Completed)
-        root.close();
-    }
-
-    target: UpdateService
-  }
 
   FocusScope {
     focus: root.isOpen
@@ -243,6 +235,15 @@ OPanel {
               }
             }
 
+            OText {
+              id: authNote
+
+              color: Theme.textInactiveColor
+              sizeMultiplier: 0.9
+              text: PolkitService.flow ? PolkitService.flow.inputPrompt || PolkitService.flow.message : qsTr("Waiting for authentication...")
+              visible: PolkitService && PolkitService.flow && PolkitService.flow.isResponseRequired
+            }
+
             Rectangle {
               Layout.fillWidth: true
               Layout.preferredHeight: 6
@@ -275,8 +276,8 @@ OPanel {
         }
 
         Rectangle {
-          Layout.fillHeight: true
           Layout.fillWidth: true
+          Layout.preferredHeight: 500
           color: Qt.darker(Theme.bgColor, 1.05)
 
           ListView {
@@ -329,131 +330,16 @@ OPanel {
           color: Theme.borderColor
         }
 
-        OButton {
-          Layout.fillWidth: true
-          bgColor: Theme.inactiveColor
-          hoverColor: Theme.onHoverColor
-          text: qsTr("Cancel Update")
-
-          onClicked: UpdateService.cancelUpdate()
-        }
-      }
-
-      // View 2: Completion/Error
-      ColumnLayout {
-        id: completionView
-
-        readonly property color accentColor: isSuccess ? Theme.activeColor : Theme.critical
-        readonly property bool isError: UpdateService.updateState === UpdateService.status.Error
-        readonly property bool isSuccess: UpdateService.updateState === UpdateService.status.Completed
-
-        Layout.fillWidth: true
-        Layout.margins: root.padding
-        spacing: 20
-
         RowLayout {
-          Layout.alignment: Qt.AlignHCenter
           Layout.fillWidth: true
-          Layout.maximumWidth: Math.min(root.panelWidth - root.padding * 2, 460)
-          spacing: 16
-
-          Rectangle {
-            Layout.preferredHeight: Layout.preferredWidth
-            Layout.preferredWidth: Theme.itemHeight * 1.6
-            border.color: completionView.accentColor
-            border.width: 1
-            color: Qt.rgba(completionView.accentColor.r, completionView.accentColor.g, completionView.accentColor.b, 0.12)
-            radius: width / 2
-
-            Text {
-              anchors.centerIn: parent
-              color: completionView.accentColor
-              font.pixelSize: Theme.fontSize * 3.2
-              text: completionView.isSuccess ? "✓" : "❌"
-            }
-          }
-
-          ColumnLayout {
-            Layout.alignment: Qt.AlignVCenter
-            Layout.fillWidth: true
-            spacing: 6
-
-            OText {
-              Layout.fillWidth: true
-              font.bold: true
-              horizontalAlignment: Text.AlignLeft
-              sizeMultiplier: 1.5
-              text: {
-                if (completionView.isSuccess) {
-                  const cnt = UpdateService.completedPackages.length;
-                  return qsTr("%1 Package%2 Updated Successfully").arg(cnt).arg(cnt !== 1 ? "s" : "");
-                }
-                return qsTr("Update Failed");
-              }
-            }
-
-            OText {
-              Layout.fillWidth: true
-              horizontalAlignment: Text.AlignLeft
-              opacity: 0.85
-              text: completionView.isError ? UpdateService.errorMessage : qsTr("All updates have been installed")
-              useActiveColor: false
-              wrapMode: Text.Wrap
-            }
-          }
-        }
-
-        Rectangle {
-          Layout.alignment: Qt.AlignHCenter
-          Layout.fillWidth: true
-          Layout.maximumWidth: Math.min(root.panelWidth - root.padding * 2, 520)
-          Layout.preferredHeight: 160
-          border.color: Theme.borderColor
-          border.width: 1
-          color: Qt.darker(Theme.bgColor, 1.05)
-          radius: Theme.itemRadius
-          visible: completionView.isError
-
-          ScrollView {
-            anchors.fill: parent
-            anchors.margins: 8
-            clip: true
-
-            ListView {
-              model: UpdateService.outputLines.slice(-20)
-              spacing: 2
-
-              delegate: Text {
-                id: errorLine
-
-                required property var modelData
-
-                color: {
-                  const line = errorLine.text.toLowerCase();
-                  return line.includes("error") || line.includes("failed") ? Theme.critical : line.includes("warning") ? Theme.warning : Theme.textInactiveColor;
-                }
-                font.family: "Monospace"
-                font.pixelSize: Theme.fontSize * 0.85
-                text: errorLine.modelData.text || errorLine.modelData
-                width: ListView.view.width
-                wrapMode: Text.Wrap
-              }
-            }
-          }
-        }
-
-        RowLayout {
-          Layout.alignment: Qt.AlignHCenter
-          Layout.fillWidth: true
-          Layout.maximumWidth: Math.min(root.panelWidth - root.padding * 2, 460)
           spacing: 8
 
+          // Retry button (only visible on error)
           OButton {
             Layout.fillWidth: true
             bgColor: Theme.warning
-            hoverColor: Qt.lighter(Theme.warning, 1.2)
             text: qsTr("Retry")
-            visible: completionView.isError
+            visible: UpdateService.updateState === UpdateService.status.Error
 
             onClicked: {
               UpdateService.updateState = UpdateService.status.Idle;
@@ -463,13 +349,17 @@ OPanel {
 
           OButton {
             Layout.fillWidth: true
-            bgColor: Theme.activeColor
-            text: qsTr("Close")
+            bgColor: UpdateService.updateState === UpdateService.status.Updating ? Theme.inactiveColor : Theme.activeColor
+            text: UpdateService.updateState === UpdateService.status.Updating ? qsTr("Cancel Update") : qsTr("Close")
 
             onClicked: {
-              UpdateService.updateState = UpdateService.status.Idle;
-              UpdateService.closeAllNotifications();
-              root.close();
+              if (UpdateService.updateState === UpdateService.status.Updating) {
+                UpdateService.cancelUpdate();
+              } else {
+                UpdateService.updateState = UpdateService.status.Idle;
+                UpdateService.closeAllNotifications();
+                root.close();
+              }
             }
           }
         }

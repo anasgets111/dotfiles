@@ -81,6 +81,13 @@ ShellRoot {
     }
   }
 
+  LazyLoader {
+    active: PolkitService.isActive
+
+    component: PolkitDialog {
+    }
+  }
+
   Variants {
     model: WallpaperService.monitors
 

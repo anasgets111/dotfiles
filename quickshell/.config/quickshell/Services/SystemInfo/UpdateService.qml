@@ -138,9 +138,16 @@ Singleton {
     updateState = status.Updating;
 
     // Use update.sh with --polkit and --stream for integrated output
-    updateProcess.command = [Quickshell.env("BIN") + "/update.sh", "--polkit", "--stream"];
-    updateProcess.running = true;
+    // Ensure our Polkit agent is prepared so the authentication prompt appears in Quickshell
+    try {
+      PolkitService.prepareAgent();
+    } catch (e) {
+      Logger.warn("UpdateService", `prepareAgent failed: ${e}`);
+    }
+
     Logger.log("UpdateService", `Starting system update`);
+    updateProcess.command = [Quickshell.env("HOME") + "/.local/bin/update.sh", "--polkit"];
+    updateProcess.running = true;
   }
 
   function fetchPackageSizes() {
@@ -214,7 +221,7 @@ Singleton {
       }
     }
 
-    onExited: {
+    onExited: (exitCode, exitStatus) => {
       Logger.log("UpdateService", `Fetched sizes for ${Object.keys(root.packageSizes).length} packages`);
     }
   }
@@ -255,10 +262,15 @@ Singleton {
     function addOutput(line, type) {
       if (!line.trim())
         return;
-      root.outputLines.push({
+
+      // Create a new array reference to trigger QML property change
+      var newLines = root.outputLines.slice();
+      newLines.push({
         text: line,
         type: type
       });
+      root.outputLines = newLines;
+
       const match = line.match(/(?:installing|upgrading)\s+(\S+)/);
       if (match) {
         root.currentPackageIndex++;
