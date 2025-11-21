@@ -61,14 +61,6 @@ OPanel {
             anchors.rightMargin: root.padding
             spacing: 8
 
-            OCheckbox {
-              Layout.preferredHeight: root.itemHeight * 0.6
-              Layout.preferredWidth: root.itemHeight * 0.6
-              checked: UpdateService.selectAll
-
-              onClicked: UpdateService.toggleSelectAll()
-            }
-
             OText {
               Layout.preferredWidth: 160
               color: Theme.textContrast(root.headerColor)
@@ -101,6 +93,7 @@ OPanel {
           interactive: contentHeight > height
           model: UpdateService.updatePackages
           spacing: 2
+          visible: UpdateService.totalUpdates > 0
 
           ScrollBar.vertical: ScrollBar {
             policy: packageList.contentHeight > packageList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
@@ -131,8 +124,6 @@ OPanel {
               anchors.fill: parent
               cursorShape: Qt.PointingHandCursor
               hoverEnabled: true
-
-              onClicked: UpdateService.togglePackage(packageRow.pkgName)
             }
 
             RowLayout {
@@ -140,14 +131,6 @@ OPanel {
               anchors.leftMargin: root.padding
               anchors.rightMargin: root.padding
               spacing: 8
-
-              OCheckbox {
-                Layout.preferredHeight: root.itemHeight * 0.6
-                Layout.preferredWidth: root.itemHeight * 0.6
-                checked: UpdateService.selectedPackages[packageRow.pkgName] || false
-
-                onClicked: UpdateService.togglePackage(packageRow.pkgName)
-              }
 
               OText {
                 Layout.preferredWidth: 160
@@ -174,8 +157,22 @@ OPanel {
 
         Rectangle {
           Layout.fillWidth: true
+          Layout.preferredHeight: root.itemHeight * 2
+          color: "transparent"
+          visible: UpdateService.totalUpdates === 0
+
+          OText {
+            anchors.centerIn: parent
+            color: Theme.textInactiveColor
+            text: qsTr("No updates available")
+          }
+        }
+
+        Rectangle {
+          Layout.fillWidth: true
           Layout.preferredHeight: root.itemHeight * 0.6
           color: "transparent"
+          visible: UpdateService.totalUpdates > 0
 
           RowLayout {
             anchors.centerIn: parent
@@ -201,23 +198,12 @@ OPanel {
           spacing: 8
 
           OButton {
-            readonly property bool hasSelection: UpdateService.selectedCount > 0
-
-            Layout.fillWidth: true
-            bgColor: hasSelection ? Theme.activeColor : Theme.disabledColor
-            isEnabled: hasSelection
-            text: hasSelection ? qsTr("Update Selected (%1)").arg(UpdateService.selectedCount) : qsTr("Select packages")
-
-            onClicked: UpdateService.executeUpdate()
-          }
-
-          OButton {
             Layout.fillWidth: true
             bgColor: Theme.activeColor
-            text: qsTr("Update All")
+            isEnabled: UpdateService.totalUpdates > 0
+            text: qsTr("Update Now")
 
             onClicked: {
-              UpdateService.resetSelection();
               UpdateService.executeUpdate();
             }
           }
@@ -228,7 +214,6 @@ OPanel {
             text: qsTr("Cancel")
 
             onClicked: {
-              UpdateService.resetSelection();
               root.close();
             }
           }
@@ -483,7 +468,7 @@ OPanel {
 
             onClicked: {
               UpdateService.updateState = UpdateService.status.Idle;
-              UpdateService.resetSelection();
+              UpdateService.closeAllNotifications();
               root.close();
             }
           }

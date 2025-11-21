@@ -234,6 +234,18 @@ Singleton {
     Qt.callLater(() => root.processQueue());
   }
 
+  function dismissNotificationsByAppName(appName) {
+    const target = String(appName).trim();
+    if (!target)
+      return;
+
+    for (const wrapper of root.notifications) {
+      if (wrapper && wrapper.appName === target) {
+        wrapper.notification?.dismiss();
+      }
+    }
+  }
+
   function executeAction(wrapper, actionId, actionObj) {
     const notif = wrapper?.notification;
     if (!notif)
