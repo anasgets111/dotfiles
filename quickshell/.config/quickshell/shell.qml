@@ -81,11 +81,7 @@ ShellRoot {
     }
   }
 
-  LazyLoader {
-    active: PolkitService.isActive
-
-    component: PolkitDialog {
-    }
+  PolkitDialog {
   }
 
   Variants {

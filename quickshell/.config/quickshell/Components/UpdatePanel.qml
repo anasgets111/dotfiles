@@ -235,15 +235,6 @@ OPanel {
               }
             }
 
-            OText {
-              id: authNote
-
-              color: Theme.textInactiveColor
-              sizeMultiplier: 0.9
-              text: PolkitService.flow ? PolkitService.flow.inputPrompt || PolkitService.flow.message : qsTr("Waiting for authentication...")
-              visible: PolkitService && PolkitService.flow && PolkitService.flow.isResponseRequired
-            }
-
             Rectangle {
               Layout.fillWidth: true
               Layout.preferredHeight: 6
