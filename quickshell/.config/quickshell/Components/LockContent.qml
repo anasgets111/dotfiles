@@ -112,7 +112,7 @@ Item {
     radius: 32
 
     layer.effect: MultiEffect {
-      blur: 1.0
+      blur: 0.2
       blurEnabled: true
       blurMax: 32
       shadowBlur: 20
