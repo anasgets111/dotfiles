@@ -235,6 +235,68 @@ Item {
           }
         }
       }
+
+      // Battery Chip
+      Rectangle {
+        Layout.preferredHeight: 36
+        Layout.preferredWidth: batteryRow.implicitWidth + 24
+        border.color: Qt.rgba(root.colSurface1.r, root.colSurface1.g, root.colSurface1.b, 0.3)
+        color: Qt.rgba(root.colSurface0.r, root.colSurface0.g, root.colSurface0.b, 0.5)
+        radius: 18
+        visible: BatteryService.isLaptopBattery
+
+        RowLayout {
+          id: batteryRow
+          anchors.centerIn: parent
+          spacing: 8
+
+          Text {
+            font.pixelSize: 16
+            text: BatteryService.isCharging ? "⚡" : "🔋"
+          }
+
+          Text {
+            color: root.textSecondary
+            font.family: Theme.fontFamily
+            font.pixelSize: 14
+            text: BatteryService.percentage + "%"
+          }
+        }
+      }
+
+      // Network Chip
+      Rectangle {
+        id: networkChip
+        Layout.preferredHeight: 36
+        Layout.preferredWidth: networkRow.implicitWidth + 24
+        border.color: Qt.rgba(root.colSurface1.r, root.colSurface1.g, root.colSurface1.b, 0.3)
+        color: Qt.rgba(root.colSurface0.r, root.colSurface0.g, root.colSurface0.b, 0.5)
+        radius: 18
+        visible: NetworkService.ready
+
+        readonly property var active: NetworkService.chooseActiveDevice(NetworkService.deviceList)
+        readonly property var ap: NetworkService.wifiAps.find(ap => ap?.connected)
+        readonly property string link: NetworkService.linkType || "disconnected"
+        readonly property string ssid: (ap && ap.ssid) ? String(ap.ssid) : ((active && active.type === "wifi") ? (active.connectionName || "") : "")
+
+        RowLayout {
+          id: networkRow
+          anchors.centerIn: parent
+          spacing: 8
+
+          Text {
+            font.pixelSize: 16
+            text: networkChip.link === "ethernet" ? "󰈀" : (networkChip.link === "wifi" ? "󰤨" : "󰤭")
+          }
+
+          Text {
+            color: root.textSecondary
+            font.family: Theme.fontFamily
+            font.pixelSize: 14
+            text: networkChip.link === "ethernet" ? "Ethernet" : (networkChip.link === "wifi" ? networkChip.ssid : "Offline")
+          }
+        }
+      }
     }
 
     // 4. Password Input Area
