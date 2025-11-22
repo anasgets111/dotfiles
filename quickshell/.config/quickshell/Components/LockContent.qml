@@ -247,6 +247,7 @@ Item {
 
         RowLayout {
           id: batteryRow
+
           anchors.centerIn: parent
           spacing: 8
 
@@ -267,6 +268,12 @@ Item {
       // Network Chip
       Rectangle {
         id: networkChip
+
+        readonly property var active: NetworkService.chooseActiveDevice(NetworkService.deviceList)
+        readonly property var ap: NetworkService.wifiAps.find(ap => ap?.connected)
+        readonly property string link: NetworkService.linkType || "disconnected"
+        readonly property string ssid: (ap && ap.ssid) ? String(ap.ssid) : ((active && active.type === "wifi") ? (active.connectionName || "") : "")
+
         Layout.preferredHeight: 36
         Layout.preferredWidth: networkRow.implicitWidth + 24
         border.color: Qt.rgba(root.colSurface1.r, root.colSurface1.g, root.colSurface1.b, 0.3)
@@ -274,13 +281,9 @@ Item {
         radius: 18
         visible: NetworkService.ready
 
-        readonly property var active: NetworkService.chooseActiveDevice(NetworkService.deviceList)
-        readonly property var ap: NetworkService.wifiAps.find(ap => ap?.connected)
-        readonly property string link: NetworkService.linkType || "disconnected"
-        readonly property string ssid: (ap && ap.ssid) ? String(ap.ssid) : ((active && active.type === "wifi") ? (active.connectionName || "") : "")
-
         RowLayout {
           id: networkRow
+
           anchors.centerIn: parent
           spacing: 8
 
