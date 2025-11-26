@@ -11,49 +11,18 @@ import qs.Config
 Item {
   id: root
 
-  readonly property color accent: Theme.activeColor
-
   // Theme aliases
-  readonly property var cTheme: LockService.theme // Catppuccin palette
-  readonly property color colBase: root.cTheme.base
-  readonly property color colLove: root.cTheme.love
-  readonly property color colMauve: root.cTheme.mauve
-  readonly property color colSurface0: root.cTheme.surface0
-  readonly property color colSurface1: root.cTheme.surface1
-  readonly property color colSurface2: root.cTheme.surface2
-  readonly property color errorColor: Theme.critical
-  readonly property bool hasScreen: lockSurface?.hasScreen ?? false
-  readonly property bool isCompact: width < LockService.compactWidthThreshold
-  readonly property bool isPrimaryMonitor: lockSurface?.isMainMonitor ?? false
+  readonly property var cTheme: LockService.theme
+  readonly property color colBase: cTheme.base
+  readonly property color colSurface0: cTheme.surface0
+  readonly property color colSurface1: cTheme.surface1
+  readonly property color colSurface2: cTheme.surface2
+  required property bool isMainMonitor
 
-  // --- Properties ---
-  required property var lockContext
-  required property var lockSurface
-  readonly property color textPrimary: Theme.textActiveColor
-  readonly property color textSecondary: Theme.textInactiveColor
-
-  // --- Layout & Animation ---
   anchors.centerIn: parent
   height: contentColumn.implicitHeight + 60
-  opacity: hasScreen ? 1 : 0
-  scale: hasScreen ? 1 : 0.95
-  visible: hasScreen
-  width: Math.min(parent.width * 0.9, 500) // Max width for the card
+  width: Math.min(parent.width * 0.9, 500)
 
-  Behavior on opacity {
-    NumberAnimation {
-      duration: 300
-      easing.type: Easing.OutCubic
-    }
-  }
-  Behavior on scale {
-    NumberAnimation {
-      duration: 300
-      easing.type: Easing.OutCubic
-    }
-  }
-
-  // Shake Animation for errors
   transform: Translate {
     id: shakeTransform
 
@@ -94,12 +63,11 @@ Item {
 
   Connections {
     function onAuthStateChanged() {
-      if (root.lockContext.authState === "error" || root.lockContext.authState === "fail") {
+      if (LockService.authState === "error" || LockService.authState === "fail")
         shakeAnimation.restart();
-      }
     }
 
-    target: root.lockContext
+    target: LockService
   }
 
   // --- Background Card ---
@@ -137,7 +105,7 @@ Item {
 
       Text {
         Layout.alignment: Qt.AlignHCenter
-        color: root.textPrimary
+        color: Theme.textActiveColor
         font.bold: true
         font.family: Theme.fontFamily
         font.pixelSize: 86
@@ -148,7 +116,7 @@ Item {
 
       Text {
         Layout.alignment: Qt.AlignHCenter
-        color: root.textSecondary
+        color: Theme.textInactiveColor
         font.family: Theme.fontFamily
         font.pixelSize: 22
         font.weight: Font.Medium
@@ -156,10 +124,10 @@ Item {
       }
     }
 
-    // 2. User Info (Optional)
+    // 2. User Info
     Text {
       Layout.alignment: Qt.AlignHCenter
-      color: root.textPrimary
+      color: Theme.textActiveColor
       font.bold: true
       font.family: Theme.fontFamily
       font.pixelSize: 18
@@ -172,7 +140,6 @@ Item {
     RowLayout {
       Layout.alignment: Qt.AlignHCenter
       spacing: 12
-      visible: root.hasScreen
 
       // Weather Chip
       Rectangle {
@@ -190,20 +157,17 @@ Item {
           spacing: 8
 
           Text {
-            color: root.textPrimary
+            color: Theme.textActiveColor
             font.pixelSize: 18
             text: WeatherService?.weatherInfo().icon ?? ""
           }
 
           Text {
-            color: root.textPrimary
+            color: Theme.textActiveColor
             font.bold: true
             font.family: Theme.fontFamily
             font.pixelSize: 14
-            text: {
-              const t = String(WeatherService?.currentTemp ?? "");
-              return t.split(" ")[0]; // Just the number + unit
-            }
+            text: String(WeatherService?.currentTemp ?? "").split(" ")[0]
           }
         }
       }
@@ -228,7 +192,7 @@ Item {
           }
 
           Text {
-            color: root.textSecondary
+            color: Theme.textInactiveColor
             font.family: Theme.fontFamily
             font.pixelSize: 14
             text: MainService.hostname || "localhost"
@@ -237,16 +201,16 @@ Item {
       }
     }
 
-    // 4. Password Input Area
+    // 4. Password Input Area (main monitor only)
     Item {
       Layout.fillWidth: true
       Layout.preferredHeight: 60
       Layout.topMargin: 10
-      visible: root.isPrimaryMonitor
+      visible: root.isMainMonitor
 
       Rectangle {
         anchors.centerIn: parent
-        border.color: root.lockContext.authState === "fail" ? root.errorColor : root.lockContext.authenticating ? root.accent : Qt.rgba(root.colSurface2.r, root.colSurface2.g, root.colSurface2.b, 0.5)
+        border.color: LockService.authState === "fail" ? Theme.critical : LockService.authenticating ? Theme.activeColor : Qt.rgba(root.colSurface2.r, root.colSurface2.g, root.colSurface2.b, 0.5)
         border.width: 2
         color: Qt.rgba(root.colSurface0.r, root.colSurface0.g, root.colSurface0.b, 0.8)
         height: 50
@@ -259,7 +223,7 @@ Item {
           }
         }
 
-        // Lock Icon / Status
+        // Lock Icon
         Text {
           anchors.left: parent.left
           anchors.leftMargin: 16
@@ -273,13 +237,15 @@ Item {
         Row {
           anchors.centerIn: parent
           spacing: 6
-          visible: root.lockContext.passwordBuffer.length > 0
+          visible: LockService.passwordBuffer.length > 0
 
           Repeater {
-            model: Math.min(root.lockContext.passwordBuffer.length, 12) // Limit dots
+            model: Math.min(LockService.passwordBuffer.length, 12)
 
             Rectangle {
-              color: root.textPrimary
+              required property int index
+
+              color: Theme.textActiveColor
               height: 8
               radius: 4
               width: 8
@@ -287,14 +253,14 @@ Item {
           }
         }
 
-        // Placeholder / Status Text
+        // Status Text
         Text {
           anchors.centerIn: parent
-          color: root.lockContext.authState === "fail" ? root.errorColor : root.textSecondary
+          color: LockService.authState === "fail" ? Theme.critical : Theme.textInactiveColor
           font.family: Theme.fontFamily
           font.pixelSize: 14
-          text: root.lockContext.statusMessage
-          visible: root.lockContext.passwordBuffer.length === 0
+          text: LockService.statusMessage
+          visible: LockService.passwordBuffer.length === 0
         }
 
         // Caps Lock Indicator
@@ -302,7 +268,7 @@ Item {
           anchors.right: parent.right
           anchors.rightMargin: 8
           anchors.verticalCenter: parent.verticalCenter
-          color: root.errorColor
+          color: Theme.critical
           height: 24
           radius: 12
           visible: KeyboardLayoutService.capsOn
@@ -319,12 +285,12 @@ Item {
       }
     }
 
-    // 5. Footer Info
+    // 5. Footer Info (main monitor only)
     RowLayout {
       Layout.alignment: Qt.AlignHCenter
       opacity: 0.6
       spacing: 16
-      visible: root.isPrimaryMonitor
+      visible: root.isMainMonitor
 
       // Battery
       RowLayout {
@@ -332,13 +298,13 @@ Item {
         visible: BatteryService.isLaptopBattery
 
         Text {
-          color: root.textSecondary
+          color: Theme.textInactiveColor
           font.pixelSize: 12
           text: BatteryService.isCharging ? "⚡" : "🔋"
         }
 
         Text {
-          color: root.textSecondary
+          color: Theme.textInactiveColor
           font.family: Theme.fontFamily
           font.pixelSize: 12
           text: BatteryService.percentage + "%"
@@ -346,27 +312,27 @@ Item {
       }
 
       Rectangle {
-        color: root.textSecondary
+        color: Theme.textInactiveColor
         height: 12
         visible: BatteryService.isLaptopBattery
         width: 1
       }
 
       Text {
-        color: root.textSecondary
+        color: Theme.textInactiveColor
         font.family: Theme.fontFamily
         font.pixelSize: 12
         text: "Enter to unlock"
       }
 
       Rectangle {
-        color: root.textSecondary
+        color: Theme.textInactiveColor
         height: 12
         width: 1
       }
 
       Text {
-        color: root.textSecondary
+        color: Theme.textInactiveColor
         font.bold: true
         font.family: Theme.fontFamily
         font.pixelSize: 12
@@ -375,7 +341,7 @@ Item {
       }
 
       Rectangle {
-        color: root.textSecondary
+        color: Theme.textInactiveColor
         height: 12
         visible: NetworkService.ready
         width: 1
@@ -383,22 +349,26 @@ Item {
 
       // Network
       RowLayout {
-        readonly property var active: NetworkService.chooseActiveDevice(NetworkService.deviceList)
-        readonly property var ap: NetworkService.wifiAps.find(ap => ap?.connected)
         readonly property string link: NetworkService.linkType || "disconnected"
-        readonly property string ssid: (ap && ap.ssid) ? String(ap.ssid) : ((active && active.type === "wifi") ? (active.connectionName || "") : "")
+        readonly property string ssid: {
+          const ap = NetworkService.wifiAps.find(a => a?.connected);
+          if (ap?.ssid)
+            return String(ap.ssid);
+          const active = NetworkService.chooseActiveDevice(NetworkService.deviceList);
+          return (active?.type === "wifi") ? (active.connectionName || "") : "";
+        }
 
         spacing: 4
         visible: NetworkService.ready
 
         Text {
-          color: root.textSecondary
+          color: Theme.textInactiveColor
           font.pixelSize: 12
           text: parent.link === "ethernet" ? "󰈀" : (parent.link === "wifi" ? "󰤨" : "󰤭")
         }
 
         Text {
-          color: root.textSecondary
+          color: Theme.textInactiveColor
           font.family: Theme.fontFamily
           font.pixelSize: 12
           text: parent.link === "ethernet" ? "Ethernet" : (parent.link === "wifi" ? parent.ssid : "Offline")

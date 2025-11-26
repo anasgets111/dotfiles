@@ -17,11 +17,8 @@ Scope {
     WlSessionLockSurface {
       id: lockSurface
 
-      readonly property bool hasScreen: !!screen
-      readonly property bool isMainMonitor: hasScreen && MonitorService?.activeMain === screenName
-      readonly property string screenName: screen?.name || ""
-      readonly property var wallpaperData: hasScreen && screenName ? WallpaperService.wallpaperFor(screenName) : null
-      readonly property int wallpaperFillMode: WallpaperService.modeToFillMode(wallpaperData?.mode)
+      readonly property bool isMainMonitor: MonitorService.activeMain === screen?.name
+      readonly property var wallpaperData: screen ? WallpaperService.wallpaperFor(screen.name) : null
 
       color: "transparent"
 
@@ -29,49 +26,30 @@ Scope {
         anchors.fill: parent
         focus: true
 
-        Component.onCompleted: {
-          forceActiveFocus();
-        }
-
-        // Global keyboard event handler - always active when lock screen is visible
+        Component.onCompleted: forceActiveFocus()
         Keys.onPressed: event => {
-          if (LockService.handleGlobalKeyPress(event)) {
+          if (LockService.handleGlobalKeyPress(event))
             event.accepted = true;
+        }
+
+        Image {
+          anchors.fill: parent
+          cache: false
+          fillMode: WallpaperService.modeToFillMode(lockSurface.wallpaperData?.mode)
+          layer.enabled: source !== ""
+          source: lockSurface.wallpaperData?.wallpaper || ""
+
+          layer.effect: MultiEffect {
+            autoPaddingEnabled: false
+            blur: LockService.blurAmount
+            blurEnabled: true
+            blurMax: LockService.blurMax
+            blurMultiplier: LockService.blurMultiplier
           }
         }
 
-        Item {
-          anchors.fill: parent
-
-          Image {
-            id: wallpaperImage
-
-            anchors.fill: parent
-            cache: false
-            fillMode: lockSurface.wallpaperFillMode
-            layer.effect: LockService.locked ? multiEffectComponent : null
-            layer.enabled: LockService.locked && source !== ""
-            source: LockService.locked ? (lockSurface.wallpaperData?.wallpaper || "") : ""
-          }
-
-          Component {
-            id: multiEffectComponent
-
-            MultiEffect {
-              autoPaddingEnabled: false
-              blur: LockService.blurAmount
-              blurEnabled: true
-              blurMax: LockService.blurMax
-              blurMultiplier: LockService.blurMultiplier
-            }
-          }
-
-          LockContent {
-            id: lockContent
-
-            lockContext: LockService
-            lockSurface: lockSurface
-          }
+        LockContent {
+          isMainMonitor: lockSurface.isMainMonitor
         }
       }
 
