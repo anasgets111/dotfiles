@@ -13,10 +13,7 @@ Singleton {
   readonly property int blurMax: 64
   readonly property real blurMultiplier: 1
   readonly property int compactWidthThreshold: 440
-  readonly property int contentSpacing: 14
   property bool locked: false
-  readonly property int panelMargin: 16
-  readonly property real panelWidthRatio: 0.47
   property string passwordBuffer: ""
   // Computed status message for UI
   readonly property string statusMessage: {

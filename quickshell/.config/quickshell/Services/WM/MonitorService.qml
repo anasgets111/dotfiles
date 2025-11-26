@@ -14,12 +14,9 @@ Singleton {
   property var _drmEntries: null
   property int _featuresRunId: 0
   readonly property string activeMain: preferredMain || (monitors.count > 0 ? monitors.get(0).name : "")
-  readonly property var activeMainScreen: (() => {
-      const screens = Quickshell.screens;
-      return activeMain ? (screens.find(s => s?.name === activeMain) || screens[0] || null) : (screens[0] || null);
-    })()
+  readonly property var activeMainScreen: Quickshell.screens.find(s => s?.name === activeMain) || Quickshell.screens[0] || null
   property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
-  readonly property var effectiveMainScreen: activeMainScreen || screenByName(lastKnownGoodMainName) || Quickshell.screens[0] || null
+  readonly property var effectiveMainScreen: activeMainScreen || Quickshell.screens.find(s => s?.name === lastKnownGoodMainName) || Quickshell.screens[0] || null
   property string lastKnownGoodMainName: ""
   readonly property var monitorKeyFields: ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"]
   property ListModel monitors: ListModel {
@@ -28,31 +25,6 @@ Singleton {
   readonly property bool ready: backend !== null
 
   signal monitorsUpdated
-
-  function applySettings(settings) {
-    if (!backend)
-      return;
-    const {
-      name,
-      width,
-      height,
-      refreshRate,
-      scale,
-      transform,
-      position,
-      vrr
-    } = settings;
-    if (width !== undefined && height !== undefined && refreshRate !== undefined)
-      backend.setMode(name, width, height, refreshRate);
-    if (scale !== undefined)
-      backend.setScale(name, scale);
-    if (transform !== undefined)
-      backend.setTransform(name, transform);
-    if (position?.x !== undefined && position?.y !== undefined)
-      backend.setPosition(name, position.x, position.y);
-    if (vrr !== undefined)
-      backend.setVrr(name, vrr);
-  }
 
   function emitChangedDebounced() {
     changeDebounce.restart();
@@ -77,14 +49,14 @@ Singleton {
   }
 
   function normalizeScreens(screens) {
-    return Array.prototype.slice.call(screens).map(screen => ({
-          name: screen.name,
-          width: screen.width,
-          height: screen.height,
-          scale: screen.devicePixelRatio || 1,
-          fps: screen.refreshRate || 60,
-          bitDepth: screen.colorDepth || 8,
-          orientation: screen.orientation,
+    return Array.from(screens).map(s => ({
+          name: s.name,
+          width: s.width,
+          height: s.height,
+          scale: s.devicePixelRatio || 1,
+          fps: s.refreshRate || 60,
+          bitDepth: s.colorDepth || 8,
+          orientation: s.orientation,
           vrr: "off",
           vrrSupported: false,
           hdrSupported: false,
@@ -115,20 +87,15 @@ Singleton {
     };
     readDrmEntries(entries => {
       const match = entries.find(line => line.endsWith(`-${connectorName}`));
-      if (!match) {
-        callback(def);
-        return;
-      }
-      const edidPath = `/sys/class/drm/${match}/edid`;
-      Utils.runCmd(["edid-decode", edidPath], text => {
-        const vrrSupported = /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text);
-        const hdrSupported = /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text);
+      if (!match)
+        return callback(def);
+      Utils.runCmd(["edid-decode", `/sys/class/drm/${match}/edid`], text => {
         callback({
           vrr: {
-            supported: vrrSupported
+            supported: /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text)
           },
           hdr: {
-            supported: hdrSupported
+            supported: /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text)
           }
         });
       }, root);
@@ -197,31 +164,6 @@ Singleton {
         afterCaps(caps);
       });
     }
-  }
-
-  function screenByName(name) {
-    const screens = Quickshell.screens;
-    return screens.find(s => s?.name === name) || screens[0] || null;
-  }
-
-  function setMode(name, width, height, refreshRate) {
-    backend?.setMode(name, width, height, refreshRate);
-  }
-
-  function setPosition(name, x, y) {
-    backend?.setPosition(name, x, y);
-  }
-
-  function setScale(name, scale) {
-    backend?.setScale(name, scale);
-  }
-
-  function setTransform(name, transform) {
-    backend?.setTransform(name, transform);
-  }
-
-  function setVrr(name, mode) {
-    backend?.setVrr(name, mode);
   }
 
   function toArray() {
