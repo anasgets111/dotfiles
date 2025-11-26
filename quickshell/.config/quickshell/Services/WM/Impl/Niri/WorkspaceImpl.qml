@@ -87,31 +87,16 @@ Singleton {
     root.currentWorkspace = w.idx;
     root.currentWorkspaceId = w.id;
     root.focusedOutput = w.output || focusedOutput;
-
-    // Create a new array to ensure change detection if needed,
-    // though modifying objects in place works if they are QObjects.
-    // Here they are JS objects, so we might need to trigger an update.
-    // However, the previous code modified in place and reassigned root.workspaces.
-    const newWorkspaces = workspaces.map(ws => {
-      ws.is_focused = (ws.id === id);
-      ws.is_active = (ws.id === id);
-      return ws;
-    });
-    root.workspaces = newWorkspaces;
+    workspaces.forEach(ws => ws.is_focused = ws.is_active = ws.id === id);
+    root.workspaces = [...workspaces]; // Trigger change
   }
 
   function updateWorkspaces(arr) {
-    // Pre-process: populate 'populated' field
-    for (let i = 0; i < arr.length; ++i) {
-      arr[i].populated = arr[i].active_window_id !== null;
-    }
-
+    arr.forEach(w => w.populated = w.active_window_id !== null);
     const focusedWs = arr.find(w => w.is_focused);
-    if (focusedWs) {
+    if (focusedWs)
       root.focusedOutput = focusedWs.output || "";
-    }
 
-    // Group by output
     const groups = new Map();
     for (const w of arr) {
       const out = w.output || "";
@@ -120,7 +105,6 @@ Singleton {
       groups.get(out).push(w);
     }
 
-    // Sort outputs: focused first, then alphabetical
     const sortedOutputs = Array.from(groups.keys()).sort((a, b) => {
       if (a === root.focusedOutput)
         return -1;
@@ -128,39 +112,24 @@ Singleton {
         return 1;
       return a.localeCompare(b);
     });
+    root.outputsOrder = sortedOutputs;
 
-    // Update outputsOrder only if changed to avoid unnecessary signal emissions
-    if (JSON.stringify(root.outputsOrder) !== JSON.stringify(sortedOutputs)) {
-      root.outputsOrder = sortedOutputs;
-    }
-
-    // Flatten and calculate boundaries
-    const flat = [];
-    const bounds = [];
-    let accumulatedCount = 0;
-
+    const flat = [], bounds = [];
+    let acc = 0;
     for (const out of sortedOutputs) {
-      const wsList = groups.get(out);
-      wsList.sort((a, b) => a.idx - b.idx);
-
-      // Push all items
-      for (const w of wsList)
-        flat.push(w);
-
-      accumulatedCount += wsList.length;
-      // Add boundary if not the last group
-      if (accumulatedCount < arr.length) {
-        bounds.push(accumulatedCount);
-      }
+      const wsList = groups.get(out).sort((a, b) => a.idx - b.idx);
+      flat.push(...wsList);
+      acc += wsList.length;
+      if (acc < arr.length)
+        bounds.push(acc);
     }
-
     root.workspaces = flat;
     root.groupBoundaries = bounds;
 
-    if (focusedWs && focusedWs.idx !== root.currentWorkspace) {
+    if (focusedWs?.idx !== root.currentWorkspace) {
       root.previousWorkspace = root.currentWorkspace;
-      root.currentWorkspace = focusedWs.idx;
-      root.currentWorkspaceId = focusedWs.id;
+      root.currentWorkspace = focusedWs?.idx ?? root.currentWorkspace;
+      root.currentWorkspaceId = focusedWs?.id ?? root.currentWorkspaceId;
     }
   }
 
@@ -205,11 +174,6 @@ Singleton {
           }
         } catch (e) {
           Logger.log("NiriWs", "JSON parse error: " + e);
-          // Only reconnect if it seems like a stream desync, but for now just log.
-          // eventStreamSocket.connected = false;
-          // Qt.callLater(() => {
-          //   eventStreamSocket.connected = root.enabled && !!root.socketPath;
-          // });
         }
       }
     }

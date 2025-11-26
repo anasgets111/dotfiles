@@ -24,9 +24,7 @@ Singleton {
   }
 
   function focusWorkspaceByWs(wsObj) {
-    if (!backend || !wsObj)
-      return;
-    backend.focusWorkspaceByWs ? backend.focusWorkspaceByWs(wsObj) : backend.focusWorkspaceByObject(wsObj);
+    (backend?.focusWorkspaceByWs || backend?.focusWorkspaceByObject)?.(wsObj);
   }
 
   function refresh() {
