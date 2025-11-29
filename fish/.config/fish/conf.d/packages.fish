@@ -1,5 +1,5 @@
 # packages.fish - Fish Shell Package Utilities
-# Version: 2.3.0
+# Version: 2.4.0
 # Author: Anas
 #
 # Usage:
@@ -17,17 +17,18 @@ set -g _pkg_c_rst (set_color normal)
 
 # -- Helper Functions --
 
-function __pkg_require_cmd --description "Check for required dependencies"
+function __pkg_require_cmd
     for cmd in $argv
         if not type -q $cmd
-            echo "$_pkg_c_err""Error: '$cmd' is required but not found.$_pkg_c_rst" >&2
+            echo "$_pkg_c_err""Error: '$cmd' is required.$_pkg_c_rst" >&2
             return 1
         end
     end
 end
 
-function __pkg_format_output --description "Format and print package lists"
-    argparse 'c/columns=' v/verbose -- $argv
+function __pkg_format_output
+    # Use 'or return' to handle invalid flags gracefully
+    argparse 'c/columns=' v/verbose -- $argv; or return 1
     set -l pkgs $argv
 
     if test (count $pkgs) -eq 0
@@ -35,29 +36,25 @@ function __pkg_format_output --description "Format and print package lists"
         return
     end
 
-    # 1. Data Preparation (Colorizing)
+    # 1. Data Preparation
     set -l display_list
     if set -q _flag_verbose
-        # Bulk fetch versions for speed: Input names -> Output "name version"
+        # Bulk fetch versions: Input names -> Output "name version"
         set display_list (printf "%s\n" $pkgs | expac -Q "$_pkg_c_name%n$_pkg_c_rst $_pkg_c_ver%v$_pkg_c_rst" -)
     else
-        # Just colorize names
         set display_list (printf "$_pkg_c_name%s$_pkg_c_rst\n" $pkgs)
     end
 
     # 2. Grid Printing
-    set -l cols $_flag_columns
-    if test -z "$cols"
-        set cols 0
+    set -l cols 0
+    if set -q _flag_columns
+        set cols $_flag_columns
     end
 
     if test $cols -lt 2
-        # Simple Layouts (0=Single Line, 1=List)
         test $cols -eq 0; and echo (string join " " $display_list)
         test $cols -eq 1; and printf "%s\n" $display_list
     else
-        # Multi-column Layout
-        # Scan for max visible width (ignoring ANSI codes) to align correctly
         set -l max_len 0
         for p in $display_list
             set -l len (string length --visible -- $p)
@@ -65,12 +62,10 @@ function __pkg_format_output --description "Format and print package lists"
         end
         set -l width (math $max_len + 2)
 
-        # Print the grid
         set -l i 0
         for p in $display_list
             set -l padding (math "$width - "(string length --visible -- $p))
             printf "%s%s" $p (string repeat -n $padding " ")
-
             set i (math $i + 1)
             if test $i -ge $cols
                 echo
@@ -80,16 +75,16 @@ function __pkg_format_output --description "Format and print package lists"
         test $i -ne 0; and echo
     end
 
-    # Summary
     echo "$_pkg_c_warn""Total explicitly installed packages: $_pkg_c_ver"(count $pkgs)"$_pkg_c_rst"
 end
 
-function __run_list_cmd --description "Generic handler for listing commands"
-    argparse 'c/columns=' v/verbose -- $argv
+function __run_list_cmd
+    argparse 'c/columns=' v/verbose -- $argv; or return 1
     set -l mode $argv[1]
 
-    # Generate package list (NAMES ONLY)
-    # Using 'comm' allows fast set operations without loops
+    # Force C locale for consistent sorting in set operations
+    set -lx LC_ALL C
+
     set -l pkg_list
     switch $mode
         case native
@@ -108,7 +103,6 @@ function __run_list_cmd --description "Generic handler for listing commands"
             set pkg_list (comm -12 (pacman -Qeq | sort | psub) (paclist chaotic-aur 2>/dev/null | awk '{print $1}' | sort | psub))
     end
 
-    # Pass flags to formatter
     set -l flags
     set -q _flag_columns; and set -a flags -c $_flag_columns
     set -q _flag_verbose; and set -a flags -v
@@ -137,10 +131,7 @@ function version --description "Compare installed version vs repo version"
     end
     __pkg_require_cmd expac vercmp; or return 1
 
-    # 1. Bulk Fetch (The Speed Fix)
-    # We fetch ALL versions in two single calls. 
-    # Format: "pkgname|version". Separator '|' avoids space issues.
-    # stderr silenced so warnings about missing pkgs don't leak.
+    # Bulk Fetch - stderr silenced
     set -l inst_list (expac -Q '%n|%v' $argv 2>/dev/null)
     set -l repo_list (expac -S '%n|%v' $argv 2>/dev/null)
 
@@ -148,13 +139,10 @@ function version --description "Compare installed version vs repo version"
         echo "$_pkg_c_rst------------------"
         echo "$_pkg_c_name$pkg$_pkg_c_rst:"
 
-        # 2. Parsing (The Correctness Fix)
-        # We search the bulk list for the line starting with "pkgname|"
-        # 'string match' returns captured group (version) at index 2
+        # Match output: Index 2 is the captured group (version)
         set -l inst (string match -r "^$pkg\|(.*)" -- $inst_list)[2]
         set -l repo (string match -r "^$pkg\|(.*)" -- $repo_list)[2]
 
-        # 3. Comparison Logic
         if test -z "$inst"
             if test -n "$repo"
                 echo "$_pkg_c_err""Not installed$_pkg_c_rst (Available in repos: $_pkg_c_ver$repo$_pkg_c_rst)"
