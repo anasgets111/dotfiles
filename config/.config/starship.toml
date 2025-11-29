@@ -62,6 +62,7 @@ style = "#1E1E2E bg:#E0DEF4"                      # Very dark text for branch na
 [git_status]
 format = "[$ahead_behind$all_status]($style)"
 style = "#1E1E2E bg:#E0DEF4"
+ignore_submodules = true
 
 # Darker, more saturated colors for visibility
 modified = "[ $count](#D32F2F bg:#E0DEF4)"   # Dark red
