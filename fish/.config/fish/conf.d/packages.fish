@@ -1,409 +1,180 @@
 # packages.fish - Fish Shell Package Utilities
-# Title: packages.fish
-# Version: 1.0.0
+# Version: 2.3.0
 # Author: Anas
-#
-# Description:
-#   A collection of fish shell functions to list and compare installed packages,
-#   including native packages, AUR packages, and Chaotic-AUR packages.
 #
 # Usage:
 #   native   [-c N] [-v]    # List native packages
 #   aur      [-c N] [-v]    # List AUR packages
 #   chaotic  [-c N] [-v]    # List Chaotic-AUR packages
-#   version  <pkg1> [pkg2 …] # Compare installed vs repo versions
-#
-# Examples:
-#   native -c 3          # Display native packages in 3 columns without versions
-#   aur -v               # Display AUR packages with versions, one per line
-#   chaotic -c 2 -v      # Display Chaotic-AUR packages in 2 columns with versions
-#   version git vim      # Compare versions of 'git' and 'vim'
+#   version  <pkg> ...      # Compare versions
 
-# __pad -- Pad string to specified width accounting for ANSI escape sequences
-# Arguments:
-#   str   : The input string (may include ANSI color codes)
-#   width : The total width to pad the string to
-# Output:
-#   Prints the padded string, ensuring correct alignment in tables.
-# Example:
-#   __pad "test" 10
-function __pad --description "Pad string to specified width accounting for ANSI escape sequences" --argument-names str width
-    set len (string length -- (string replace -ra '\\e\[[0-9;]*m' '' -- $str))
-    set pad (math $width - $len)
-    if test $pad -lt 0
-        set pad 0
-    end
-    printf "%s%s" $str (string repeat -n $pad ' ')
-end
+# -- Configuration --
+set -g _pkg_c_name (set_color green)
+set -g _pkg_c_ver (set_color blue)
+set -g _pkg_c_warn (set_color yellow)
+set -g _pkg_c_err (set_color red)
+set -g _pkg_c_rst (set_color normal)
 
-# __print_multi_columns -- Helper to print packages in multiple columns
-# Arguments:
-#   cols : Number of columns for layout
-#   pkgs : Array of package strings to display
-# Output:
-#   Arranges and prints the package list into the specified number of columns.
-# Example:
-#   __print_multi_columns 3 pkg1 pkg2 pkg3 pkg4 pkg5 pkg6
-function __print_multi_columns --description "Helper to print packages in multiple columns" --argument-names cols pkgs
-    set -l cols $argv[1]
-    set -l pkgs $argv[2..]
-    set -l max 0
-    for p in $pkgs
-        set clen (string length -- (string replace -ra '\\e\[[0-9;]*m' '' -- $p))
-        if test $clen -gt $max
-            set max $clen
+# -- Helper Functions --
+
+function __pkg_require_cmd --description "Check for required dependencies"
+    for cmd in $argv
+        if not type -q $cmd
+            echo "$_pkg_c_err""Error: '$cmd' is required but not found.$_pkg_c_rst" >&2
+            return 1
         end
-    end
-    set width (math $max + 2)
-    set i 1
-    for p in $pkgs
-        __pad $p $width
-        if test $i -ge $cols
-            echo
-            set i 1
-        else
-            set i (math $i + 1)
-        end
-    end
-    if test $i -ne 1
-        echo
     end
 end
 
-# __print_packages -- Display package list in specified column layout
-# Arguments:
-#   cols : Column layout mode (0 = single line, 1 = one per line, >1 = multi columns)
-#   pkgs : Array of package strings (with optional version info)
-# Output:
-#   Formats and prints the package list according to the column setting.
-# Example:
-#   __print_packages 2 pkg1 pkg2 pkg3 pkg4
-function __print_packages --description "Display package list in specified column layout" --argument-names cols pkgs
-    set -l cols $argv[1]
-    set -e argv[1]
+function __pkg_format_output --description "Format and print package lists"
+    argparse 'c/columns=' v/verbose -- $argv
     set -l pkgs $argv
 
-    switch $cols
-        case 0
-            printf "%s " $pkgs
-            echo
-        case 1
-            printf "%s\n" $pkgs
-        case '*'
-            if test $cols -gt 1
-                __print_multi_columns $cols $pkgs
-            else
-                printf "Invalid column count: %s\n" $cols >&2
-                return 1
-            end
-    end
-end
-
-# __get_packages_generic -- Fetch and format package lists from a command output
-# Arguments:
-#   showver : Flag (0 = hide versions, 1 = show versions)
-#   color   : ANSI color code for package names
-#   cmd     : Command and arguments to list packages (e.g., pacman -Qm)
-# Output:
-#   Reads each line of command output, extracts name and version, applies coloring,
-#   and prints the formatted list.
-function __get_packages_generic --description \
-  "Fetch and format package lists from a command output" \
-  --argument-names showver color cmd
-
-    # pull args apart
-    set -l showver  $argv[1]
-    set -l color    $argv[2]
-    set -l cmd      $argv[3]
-    set -l cmd_args $argv[4..-1]
-
-    set -l output
-
-    # iterate lines in the same process (no subshell)
-    for line in ($cmd $cmd_args 2>/dev/null)
-        if test -z "$line"
-            continue
-        end
-
-        # split into name + version
-        set -l parts (string split ' ' -- $line)
-        if test (count $parts) -lt 2
-            continue
-        end
-        set -l name $parts[1]
-        set -l ver  $parts[2]
-
-        if test $showver -eq 1
-            set -a output \
-                (printf "%s%s%s %s%s%s" \
-                    $color $name $RESET $BLUE $ver $RESET)
-        else
-            set -a output (printf "%s%s%s" $color $name $RESET)
-        end
-    end
-
-    # only print if we actually got something
-    if test (count $output) -gt 0
-        printf "%s\n" $output
-    end
-end
-
-# __get_aur -- List AUR packages installed on the system
-# Arguments:
-#   showver : Flag to show versions (0/1)
-# Output:
-#   Prints installed AUR packages in green; hides or shows version based on flag.
-# Example:
-#   aur -v
-function __get_aur --description "List AUR packages installed on the system" --argument-names showver
-    set showver $argv[1]
-    __get_packages_generic $showver $GREEN pacman -Qm
-end
-
-# __get_chaotic -- List Chaotic-AUR packages installed on the system
-# Arguments:
-#   showver : Flag to show versions (0/1)
-# Output:
-#   Requires paclist; prints Chaotic-AUR packages in green.
-# Example:
-#   chaotic -v
-function __get_chaotic --description "List *explicitly* installed Chaotic-AUR pkgs" \
-    --argument-names showver
-
-    set -l showver $argv[1]
-
-    __require_cmd paclist "paclist (pacman-contrib) required for Chaotic-AUR"
-    or return
-
-    # all explicitly installed pkgs, regardless of repo
-    set -l explicit (pacman -Qqe)
-
-    # all installed Chaotic-AUR pkgs (explicit + deps)
-    set -l chaotic_all \
-        (paclist chaotic-aur 2>/dev/null | awk '{print $1}')
-
-    # filter to only those in both sets → explicitly installed Chaotic
-    set -l chaotic_explicit
-    for pkg in $explicit
-        if contains $pkg $chaotic_all
-            set chaotic_explicit $chaotic_explicit $pkg
-        end
-    end
-
-    test (count $chaotic_explicit) -eq 0; and return
-
-    if test $showver -eq 1
-        for pkg in (printf "%s\n" $chaotic_explicit | sort)
-            set -l line (pacman -Q --color never $pkg)
-            set -l name (string split ' ' -- $line)[1]
-            set -l ver  (string split ' ' -- $line)[2]
-            printf "%s%s%s %s%s%s\n" \
-                $GREEN $name $RESET $BLUE $ver $RESET
-        end
-    else
-        for pkg in (printf "%s\n" $chaotic_explicit | sort)
-            printf "%s%s%s\n" $GREEN $pkg $RESET
-        end
-    end
-end
-
-# __get_native -- Get explicitly installed native packages (excluding AUR/Chaotic)
-# Arguments:
-#   showver : Flag to show versions (0/1)
-# Output:
-#   Lists native packages; excludes AUR and Chaotic-AUR; displays versions if requested.
-# Example:
-#   native -v
-function __get_native --description "Get explicitly installed packages excluding AUR and Chaotic-AUR" --argument-names showver
-    set showver $argv[1]
-    set explicit (pacman -Qqe)
-    set exclude (pacman -Qm | awk '{print $1}')
-    if type -q paclist
-        set exclude $exclude (paclist chaotic-aur 2>/dev/null | awk '{print $1}')
-    end
-
-    set natives
-    for pkg in $explicit
-        if not contains $pkg $exclude
-            set natives $natives $pkg
-        end
-    end
-    test (count $natives) -eq 0; and return
-
-    if test $showver -eq 1
-        for line in (pacman -Q --color never $natives)
-            set name (string split ' ' -- $line)[1]
-            set ver (string split ' ' -- $line)[2]
-            printf "%s%s%s %s%s%s\n" $GREEN $name $RESET $BLUE $ver $RESET
-        end
-    else
-        for name in $natives
-            printf "%s%s%s\n" $GREEN $name $RESET
-        end
-    end
-end
-
-# __require_cmd -- Ensure a required command is available
-# Arguments:
-#   cmd  : Command to check in PATH
-#   desc : Description to display if missing
-# Output:
-#   Prints error message and returns non-zero if the command is not found.
-function __require_cmd --description "Ensure a required command is available, or display an error" --argument-names cmd desc
-    if not type -q $cmd
-        printf "$__NO_PACKAGES" "$desc" "$RESET" >&2
-        return 1
-    end
-end
-
-# __usage -- Display usage instructions for a package category command
-# Arguments:
-#   command : Name of the category command (native, aur, chaotic)
-# Output:
-#   Prints the usage synopsis and option descriptions.
-function __usage --description "Display usage instructions for a package category command" --argument-names command
-    printf "%sUsage:%s  %s [%s-c%s %sN%s] [%s-v%s]\n" $YELLOW $RESET $argv[1] $BLUE $RESET $RED $RESET $BLUE $RESET
-    printf "  %s-c%s %sN%s   columns (0 = single line, 1 = one per line)\n  %s-v%s     show versions\n" $BLUE $RESET $RED $RESET $BLUE $RESET
-end
-
-# __run_category -- Parse options and execute a package-listing category
-# Arguments:
-#   category : One of 'native', 'aur', or 'chaotic'
-# Output:
-#   Parses -c and -v flags, calls the corresponding __get_* function, then prints
-#   the package list and a summary count.
-function __run_category --description "Parse options and execute category-specific package listing" --argument-names category
-    set -l cols 0
-    set -l showver 0
-    set -l args $argv[2..]
-    while set -q args[1]
-        switch $args[1]
-            case -c
-                test (count $args) -lt 2; and __usage $category; and return 1
-                set cols $args[2]
-                set args $args[3..]
-            case -v
-                set showver 1
-                set args $args[2..]
-            case '*'
-                __usage $category
-                return 1
-        end
-    end
-    switch $category
-        case native
-            set pkgs (__get_native  $showver)
-        case aur
-            set pkgs (__get_aur     $showver)
-        case chaotic
-            set pkgs (__get_chaotic $showver)
-    end
-
     if test (count $pkgs) -eq 0
-        printf "$__NO_PACKAGES" $category $RESET
+        echo "$_pkg_c_warn""No packages found.$_pkg_c_rst"
         return
     end
 
-    __print_packages $cols $pkgs
-    printf "%sTotal explicitly installed %s packages:%s %d\n" $YELLOW $category $BLUE (count $pkgs)
+    # 1. Data Preparation (Colorizing)
+    set -l display_list
+    if set -q _flag_verbose
+        # Bulk fetch versions for speed: Input names -> Output "name version"
+        set display_list (printf "%s\n" $pkgs | expac -Q "$_pkg_c_name%n$_pkg_c_rst $_pkg_c_ver%v$_pkg_c_rst" -)
+    else
+        # Just colorize names
+        set display_list (printf "$_pkg_c_name%s$_pkg_c_rst\n" $pkgs)
+    end
+
+    # 2. Grid Printing
+    set -l cols $_flag_columns
+    if test -z "$cols"
+        set cols 0
+    end
+
+    if test $cols -lt 2
+        # Simple Layouts (0=Single Line, 1=List)
+        test $cols -eq 0; and echo (string join " " $display_list)
+        test $cols -eq 1; and printf "%s\n" $display_list
+    else
+        # Multi-column Layout
+        # Scan for max visible width (ignoring ANSI codes) to align correctly
+        set -l max_len 0
+        for p in $display_list
+            set -l len (string length --visible -- $p)
+            test $len -gt $max_len; and set max_len $len
+        end
+        set -l width (math $max_len + 2)
+
+        # Print the grid
+        set -l i 0
+        for p in $display_list
+            set -l padding (math "$width - "(string length --visible -- $p))
+            printf "%s%s" $p (string repeat -n $padding " ")
+
+            set i (math $i + 1)
+            if test $i -ge $cols
+                echo
+                set i 0
+            end
+        end
+        test $i -ne 0; and echo
+    end
+
+    # Summary
+    echo "$_pkg_c_warn""Total explicitly installed packages: $_pkg_c_ver"(count $pkgs)"$_pkg_c_rst"
 end
 
-# native -- List native packages
-# Usage:
-#   native [-c N] [-v]
-# See also: __run_category
+function __run_list_cmd --description "Generic handler for listing commands"
+    argparse 'c/columns=' v/verbose -- $argv
+    set -l mode $argv[1]
+
+    # Generate package list (NAMES ONLY)
+    # Using 'comm' allows fast set operations without loops
+    set -l pkg_list
+    switch $mode
+        case native
+            # Native = Explicit Native (-Qneq) MINUS Chaotic
+            if type -q paclist
+                set pkg_list (comm -23 (pacman -Qneq | sort | psub) (paclist chaotic-aur 2>/dev/null | awk '{print $1}' | sort | psub))
+            else
+                set pkg_list (pacman -Qneq | sort)
+            end
+        case aur
+            # AUR = Foreign (-Qmq)
+            set pkg_list (pacman -Qmq | sort)
+        case chaotic
+            __pkg_require_cmd paclist; or return 1
+            # Chaotic = Explicit (-Qeq) INTERSECT Chaotic
+            set pkg_list (comm -12 (pacman -Qeq | sort | psub) (paclist chaotic-aur 2>/dev/null | awk '{print $1}' | sort | psub))
+    end
+
+    # Pass flags to formatter
+    set -l flags
+    set -q _flag_columns; and set -a flags -c $_flag_columns
+    set -q _flag_verbose; and set -a flags -v
+
+    __pkg_format_output $flags $pkg_list
+end
+
+# -- Main Commands --
+
 function native --description 'List native packages'
-    __run_category native $argv
+    __run_list_cmd native $argv
 end
 
-# aur -- List AUR packages
-# Usage:
-#   aur [-c N] [-v]
-# See also: __run_category
-function aur --description 'List aur packages'
-    __run_category aur $argv
+function aur --description 'List AUR packages'
+    __run_list_cmd aur $argv
 end
 
-# chaotic -- List Chaotic-AUR packages
-# Usage:
-#   chaotic [-c N] [-v]
-# See also: __run_category
-function chaotic --description 'List chaotic packages'
-    __run_category chaotic $argv
+function chaotic --description 'List Chaotic-AUR packages'
+    __run_list_cmd chaotic $argv
 end
 
-# version -- Compare installed version(s) with repository versions for given packages
-# Arguments:
-#   packages : One or more package names to compare
-# Output:
-#   Requires expac and vercmp; prints installed and repo versions and indicates
-#   whether an update is available or if the installed version is newer.
-# Usage:
-#   version <pkg1> [pkg2 …]
-# Example:
-#   version fish vi
-function version --description "Compare installed version(s) with repository version(s) for given packages" --argument-names packages
-    # handle help flag
-    if contains -- "$argv[1]" -h --help
-        printf "%sUsage:%s version [-h|--help] <pkg1> [pkg2 …]\n" $YELLOW $RESET
-        printf "  %sDescription:%s Compare installed version(s) (if any) with repository version(s) (if any)\n" $YELLOW $RESET
-        printf "  %s-h%s, %s--help%s    Show this help message\n" $BLUE $RESET $BLUE $RESET
-        return
-    end
-    __require_cmd expac "expac required for retrieving package version data"
-    __require_cmd vercmp "vercmp required for comparing package versions"
-    set -l SEPARATOR "$BLUE--------------$RESET"
+function version --description "Compare installed version vs repo version"
     if test (count $argv) -eq 0
-        printf "%sUsage: version <pkg1> [pkg2 …]%s\n" $RED $RESET >&2
+        echo "Usage: version <pkg1> [pkg2 ...]" >&2
         return 1
     end
+    __pkg_require_cmd expac vercmp; or return 1
 
-    # retrieve all installed and repo versions
-    set inst_data (expac -Q '%n:%v' $argv 2>/dev/null)
-    set repo_data (expac -S '%n:%v' $argv 2>/dev/null)
+    # 1. Bulk Fetch (The Speed Fix)
+    # We fetch ALL versions in two single calls. 
+    # Format: "pkgname|version". Separator '|' avoids space issues.
+    # stderr silenced so warnings about missing pkgs don't leak.
+    set -l inst_list (expac -Q '%n|%v' $argv 2>/dev/null)
+    set -l repo_list (expac -S '%n|%v' $argv 2>/dev/null)
 
     for pkg in $argv
-        printf "%s%s:%s\n" $GREEN $pkg $RESET
+        echo "$_pkg_c_rst------------------"
+        echo "$_pkg_c_name$pkg$_pkg_c_rst:"
 
-        # extract versions for this package
-        set -l inst_list (string match -r "^$pkg:.*" $inst_data | string replace -r "^$pkg:" "")
-        set -l repo_list (string match -r "^$pkg:.*" $repo_data | string replace -r "^$pkg:" "")
+        # 2. Parsing (The Correctness Fix)
+        # We search the bulk list for the line starting with "pkgname|"
+        # 'string match' returns captured group (version) at index 2
+        set -l inst (string match -r "^$pkg\|(.*)" -- $inst_list)[2]
+        set -l repo (string match -r "^$pkg\|(.*)" -- $repo_list)[2]
 
-        # pick highest version if multiple
-        if test (count $inst_list) -gt 1
-            set inst (printf "%s\n" $inst_list | sort -V | tail -n1)
-        else
-            set inst $inst_list
-        end
-
-        if test (count $repo_list) -gt 1
-            set repo (printf "%s\n" $repo_list | sort -V | tail -n1)
-        else
-            set repo $repo_list
-        end
-
-        # compare and display
-        if test -n "$inst" -a -n "$repo"
-            if test "$inst" = "$repo"
-                printf "%sInstalled:%s %s = %s%s %s(Up-to-date)%s\n" $YELLOW $BLUE $inst $BLUE $repo $YELLOW $RESET
+        # 3. Comparison Logic
+        if test -z "$inst"
+            if test -n "$repo"
+                echo "$_pkg_c_err""Not installed$_pkg_c_rst (Available in repos: $_pkg_c_ver$repo$_pkg_c_rst)"
             else
-                set cmp (vercmp $inst $repo | string trim)
+                echo "$_pkg_c_err""Package not found$_pkg_c_rst (Not installed and not in repos)"
+            end
+        else
+            if test -z "$repo"
+                echo "$_pkg_c_warn""Installed: $_pkg_c_ver$inst$_pkg_c_rst (Local/AUR)"
+            else
+                set -l cmp (vercmp $inst $repo)
                 switch $cmp
+                    case 0
+                        echo "$_pkg_c_warn""Installed: $_pkg_c_ver$inst$_pkg_c_rst = $_pkg_c_ver$repo$_pkg_c_rst (Up-to-date)"
                     case -1
-                        printf "%sInstalled:%s %s < %s%s (Update available!)%s\n" $YELLOW $RED $inst $BLUE $repo $RESET
+                        echo "$_pkg_c_warn""Installed: $_pkg_c_err$inst$_pkg_c_rst < $_pkg_c_ver$repo$_pkg_c_rst (Update Available)"
                     case 1
-                        printf "%sInstalled:%s %s > %s%s (Newer than repo)%s\n" $YELLOW $BLUE $inst $RED $repo $RESET
+                        echo "$_pkg_c_warn""Installed: $_pkg_c_ver$inst$_pkg_c_rst > $_pkg_c_err$repo$_pkg_c_rst (Newer than repo)"
                 end
             end
-        else if test -n "$inst"
-            printf "%sInstalled:%s %s%s%s %s(AUR or locally installed package)%s\n" $YELLOW $RESET $BLUE "$inst" $RESET $YELLOW $RESET
-        else if test -n "$repo"
-            printf "%sNot installed%s (Available in repos: %s%s)%s\n" $RED $YELLOW $BLUE $repo $RESET
-        else
-            printf "%sPackage not found%s (Not installed and not in repos)\n" $RED $YELLOW
         end
-
-        printf "%s%s%s\n" $SEPARATOR
     end
 end
-
