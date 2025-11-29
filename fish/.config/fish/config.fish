@@ -28,36 +28,34 @@ end
 
 # Aliases
 # Alias to drop caches
-alias drop-cache 'sudo paccache -rk3; and paru -Sc --aur --noconfirm'
-alias orphans 'pacman -Qdtq | sudo pacman -Rns -'
-alias mirror 'sudo rate-mirrors --protocol https --allow-root --save /etc/pacman.d/mirrorlist --disable-comments-in-file arch'
-alias mirror-aur 'sudo rate-mirrors --disable-comments-in-file --protocol=https --allow-root --save /etc/pacman.d/chaotic-mirrorlist chaotic-aur'
-alias exercism "/mnt/Work/0Coding/exercism-3.5.4-linux-x86_64/exercism"
-alias ola="docker exec -it ollama ollama"
-alias fixpacman="sudo rm /var/lib/pacman/db.lck"
-alias art='php artisan'
-alias pacin='sudo pacman -S'
-alias pacinn='sudo pacman -S --needed'
-alias pacre='sudo pacman -R'
-alias pacrem='sudo pacman -Rsn'
-alias gl='git pull'
-alias gp='git push'
-alias hw='hwinfo --short' # Hardware Info
-alias big="expac -H M '%m\t%n' | sort -h | nl" # Sort installed packages according to size in MB
-alias ..='cd ..'
-alias ...='cd ../..'
-alias ....='cd ../../..'
-alias .....='cd ../../../..'
-alias ......='cd ../../../../..'
+abbr drop-cache 'sudo paccache -rk3; and paru -Sc --aur --noconfirm'
+abbr orphans 'pacman -Qdtq | sudo pacman -Rns -'
+abbr mirror 'sudo rate-mirrors --protocol https --allow-root --save /etc/pacman.d/mirrorlist --disable-comments-in-file arch'
+abbr mirror-aur 'sudo rate-mirrors --disable-comments-in-file --protocol=https --allow-root --save /etc/pacman.d/chaotic-mirrorlist chaotic-aur'
+abbr exercism "/mnt/Work/0Coding/exercism-3.5.4-linux-x86_64/exercism"
+abbr ola "docker exec -it ollama ollama"
+abbr fixpacman "sudo rm /var/lib/pacman/db.lck"
+abbr art 'php artisan'
+abbr pacin 'sudo pacman -S'
+abbr pacinn 'sudo pacman -S --needed'
+abbr pacre 'sudo pacman -R'
+abbr pacrem 'sudo pacman -Rsn'
+abbr gl 'git pull'
+abbr gp 'git push'
+abbr hw 'hwinfo --short' # Hardware Info
+abbr big "expac -H M '%m\t%n' | sort -h | nl" # Sort installed packages according to size in MB
+abbr .. 'cd ..'
+abbr ... 'cd ../..'
+abbr .... 'cd ../../..'
+abbr ..... 'cd ../../../..'
+abbr ...... 'cd ../../../../..'
 alias fastfetchy="fastfetch -c $XDG_CONFIG_HOME/fastfetchTheme.jsonc"
-alias errors="journalctl -p 3 -xb"
-alias tb='nc termbin.com 9999'
-alias rip="expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
-alias cd="z"
-alias dots='cd $DOTFILES; and stow '
+abbr errors "journalctl -p 3 -xb"
+abbr tb 'nc termbin.com 9999'
+abbr rip "expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
+alias cd z
+abbr dots 'cd $DOTFILES; and stow '
 
 # Initialization for Tools
 zoxide init fish | source
-# fnm env --use-on-cd --version-file-strategy=recursive --resolve-engines | source
-# oh-my-posh init fish --config $XDG_CONFIG_HOME/standard.omp.toml | source
 starship init fish | source
