@@ -8,64 +8,42 @@ import qs.Components
 RowLayout {
   id: root
 
-  function capitalizeFirstLetter(s) {
-    if (!s)
-      return "";
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  }
+  readonly property var iconMap: ({
+    telegram: "\uF2C6",
+    slack: "\uF3EF",
+    discord: "\uF392",
+    vesktop: "\uF392",
+    string: "\uF392",
+    term: "\uF120",
+    magic: "\uF120"
+  })
 
-  function getSpecialLabelByName(wsName) {
-    const nameLower = (wsName || "").toLowerCase();
-    if (nameLower.indexOf("telegram") !== -1)
-      return "\uF2C6";
-    if (nameLower.indexOf("slack") !== -1)
-      return "\uF3EF";
-    if (nameLower.indexOf("discord") !== -1 || nameLower.indexOf("vesktop") !== -1 || nameLower.indexOf("string") !== -1)
-      return "\uF392";
-    if (nameLower.indexOf("term") !== -1 || nameLower.indexOf("magic") !== -1)
-      return "\uF120";
-    const t = (wsName || "").replace("special:", "").trim();
-    return t.length > 2 ? t.slice(0, 2).toUpperCase() : t.toUpperCase();
+  function getIcon(name) {
+    const lower = name.toLowerCase();
+    for (const key in iconMap)
+      if (lower.includes(key))
+        return iconMap[key];
+    return name.length > 2 ? name.slice(0, 2).toUpperCase() : name.toUpperCase();
   }
 
   spacing: 8
 
-  Component {
-    id: specialDelegate
+  Repeater {
+    model: WorkspaceService.specialWorkspaces
 
-    Item {
-      id: cell
-
-      readonly property bool isActive: (cell.workspace?.name || "") === WorkspaceService.activeSpecial
-      readonly property string labelText: root.getSpecialLabelByName(cell.workspace?.name)
+    delegate: IconButton {
       required property var modelData
-      property var workspace: modelData || {}
+      readonly property string cleanName: (modelData?.name ?? "").replace("special:", "")
+      readonly property bool isActive: modelData?.name === WorkspaceService.activeSpecial
 
       Layout.alignment: Qt.AlignVCenter
-      Layout.preferredHeight: implicitHeight
-      Layout.preferredWidth: implicitWidth
-      implicitHeight: Theme.itemHeight
-      implicitWidth: Theme.itemHeight
-      visible: workspace && typeof workspace.id === "number" && workspace.id < 0
+      Layout.preferredHeight: Theme.itemHeight
+      Layout.preferredWidth: Theme.itemHeight
+      colorBg: isActive ? Theme.activeColor : Theme.inactiveColor
+      icon: root.getIcon(cleanName)
+      tooltipText: cleanName.charAt(0).toUpperCase() + cleanName.slice(1)
 
-      IconButton {
-        id: button
-
-        anchors.fill: parent
-        colorBg: cell.isActive ? Theme.activeColor : Theme.inactiveColor
-        icon: cell.labelText
-        tooltipText: root.capitalizeFirstLetter((cell.workspace?.name || "").replace("special:", ""))
-
-        onClicked: {
-          const n = (cell.workspace?.name || "").replace("special:", "");
-          WorkspaceService.toggleSpecial(n);
-        }
-      }
+      onClicked: WorkspaceService.toggleSpecial(cleanName)
     }
-  }
-
-  Repeater {
-    delegate: specialDelegate
-    model: WorkspaceService.specialWorkspaces
   }
 }
