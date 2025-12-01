@@ -12,14 +12,12 @@ Singleton {
 
   function resolveIconSource(key, arg2, arg3) {
     const hasThirdArg = arg3 !== undefined && arg3 !== null;
-    const candidates = hasThirdArg ? [arg2, key, arg3]                        // provided, key, fallback
-    : [key, arg2, "application-x-executable"]; // key, fallback, default
+    const candidates = hasThirdArg ? [arg2, key, arg3] : [key, arg2, "application-x-executable"];
 
     for (const c of candidates) {
       if (!c)
         continue;
       const s = String(c);
-
       if (s.includes("/") || /^(file|data|qrc):/.test(s))
         return s;
 
@@ -40,24 +38,24 @@ Singleton {
   }
 
   Process {
-    id: ledMonitor
+    id: ledProc
 
     command: ["sh", "-c", `
-      get(){ for f in /sys/class/leds/*$1/brightness; do [ -f "$f" ] && v=$(timeout 0.1 cat "$f" 2>/dev/null) && [ "$v" != "0" ] && echo 1 && return; done; echo 0; }
-      last=""; while :; do cur="$(get capslock) $(get numlock) $(get scrolllock)"; [ "$cur" != "$last" ] && echo "$cur" && last="$cur"; read -r _ || break; done
+      check() { for f in /sys/class/leds/*"$1"/brightness; do [ -f "$f" ] && [ "$(cat "$f" 2>/dev/null)" != "0" ] && echo 1 && return; done; echo 0; }
+      last=""
+      while read -r _; do
+        cur="$(check capslock) $(check numlock) $(check scrolllock)"
+        [ "$cur" != "$last" ] && echo "$cur" && last="$cur"
+      done
     `]
     running: true
 
     stdout: SplitParser {
-      splitMarker: "\n"
-
       onRead: line => {
-        const p = line.trim().split(" ");
-        if (p.length === 3) {
-          root.capsLock = p[0] === "1";
-          root.numLock = p[1] === "1";
-          root.scrollLock = p[2] === "1";
-        }
+        const [caps, num, scroll] = line.trim().split(" ");
+        root.capsLock = caps === "1";
+        root.numLock = num === "1";
+        root.scrollLock = scroll === "1";
       }
     }
 
@@ -66,14 +64,11 @@ Singleton {
   }
 
   Timer {
-    id: pollTimer
-
     interval: 100
     repeat: true
-    running: ledMonitor.running
+    running: ledProc.running
 
-    onTriggered: if (ledMonitor.running)
-      ledMonitor.write("\n")
+    onTriggered: ledProc.write("\n")
   }
 
   Timer {
@@ -81,6 +76,6 @@ Singleton {
 
     interval: 1000
 
-    onTriggered: ledMonitor.running = true
+    onTriggered: ledProc.running = true
   }
 }
