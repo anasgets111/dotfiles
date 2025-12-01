@@ -25,6 +25,10 @@ ColumnLayout {
   signal inputChanged
   signal inputFinished
 
+  function forceActiveFocus(): void {
+    textField.forceActiveFocus();
+  }
+
   spacing: 4
 
   Rectangle {

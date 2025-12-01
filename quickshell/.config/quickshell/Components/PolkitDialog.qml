@@ -37,6 +37,11 @@ Item {
     color: "#80000000"
     visible: agent.isActive
 
+    onVisibleChanged: {
+      if (!visible)
+        background.forceActiveFocus();
+    }
+
     anchors {
       bottom: true
       left: true
@@ -45,6 +50,8 @@ Item {
     }
 
     Rectangle {
+      id: background
+
       anchors.centerIn: parent
       border.color: Theme.activeColor
       border.width: 1
@@ -141,7 +148,9 @@ Item {
     Connections {
       function onAuthenticationRequestStarted(): void {
         passwordField.text = "";
-        passwordField.forceActiveFocus();
+        Qt.callLater(() => {
+          passwordField.forceActiveFocus();
+        });
       }
 
       target: agent
