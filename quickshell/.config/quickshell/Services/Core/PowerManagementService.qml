@@ -117,7 +117,7 @@ Singleton {
   Process {
     id: ppdProcess
 
-    command: ["powerprofilesctl", "get"]
+    command: ["sh", "-c", "powerprofilesctl get 2>/dev/null"]
 
     stdout: StdioCollector {
       onStreamFinished: root._ppdRaw = text.trim()
@@ -127,7 +127,7 @@ Singleton {
   Process {
     id: tlpCheckProcess
 
-    command: ["tlpctl", "get"]
+    command: ["sh", "-c", "tlpctl get 2>/dev/null"]
 
     stdout: StdioCollector {
       onStreamFinished: root._tlpRaw = text.trim()
