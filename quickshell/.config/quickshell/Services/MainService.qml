@@ -29,9 +29,9 @@ Singleton {
         hasBrightnessControl "$(yn [ -d /sys/class/backlight ])" \
         hasKeyboardBacklight "$(yn sh -c 'ls /sys/class/leds 2>/dev/null | grep -q kbd_backlight')" \
         isLaptop "$(yn sh -c '[ -d /proc/acpi/button/lid ] || grep -q SW_LID /proc/bus/input/devices')" \
-        username "$USER" \
-        fullName "$(getent passwd "$USER" | cut -d: -f5 | cut -d, -f1)" \
-        hostname "$HOSTNAME"
+        username "$(id -un)" \
+        fullName "$(getent passwd "$(id -un)" | cut -d: -f5 | cut -d, -f1)" \
+        hostname "$(uname -n)"
     `.trim()];
   }
 
