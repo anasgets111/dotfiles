@@ -11,27 +11,20 @@ Singleton {
 
   property bool _cpuReady: false
   property bool _gpuReady: false
-
-  // ===== Internal state =====
   property real _lastCpuIdle: 0
   property real _lastCpuTotal: 0
   property bool _memReady: false
   property bool _storageReady: false
-
-  // ===== State =====
+  property string bootDuration: ""
   property real bootTimeMs: 0
   property real cpuPerc: 0
   property real cpuTemp: 0
   property real gpuPerc: 0
   property real gpuTemp: 0
   property string gpuType: "NONE"
-
-  // ===== Computed =====
   readonly property real memPerc: memTotal > 0 ? memUsed / memTotal : 0
   property real memTotal: 0
   property real memUsed: 0
-
-  // ===== Configuration =====
   property int pollIntervalMs: 3000
   readonly property bool ready: _cpuReady && _memReady
   property int refCount: 0
@@ -42,7 +35,6 @@ Singleton {
   readonly property string uptime: {
     if (bootTimeMs <= 0)
       return "";
-    // TimeService.now creates the binding dependency for updates
     const elapsed = TimeService.now.getTime() - bootTimeMs;
     return (elapsed / 1000).toFixed(0);
   }
@@ -56,7 +48,6 @@ Singleton {
     return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : "-";
   }
 
-  // ===== Formatting utilities =====
   function formatKib(kib: real): var {
     const units = [
       {
@@ -106,7 +97,6 @@ Singleton {
 
   onGpuTypeChanged: Logger.log("SystemInfo", `GPU type: ${gpuType}`)
 
-  // ===== Boot time (runs once) =====
   Process {
     id: bootTimeProc
 
@@ -121,7 +111,23 @@ Singleton {
     }
   }
 
-  // ===== GPU type detection (runs once) =====
+  Process {
+    id: bootAnalyzeProc
+
+    command: ["systemd-analyze"]
+    running: true
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const parts = text.split("=");
+        if (parts.length > 1) {
+          root.bootDuration = parts[parts.length - 1].trim().split("\n")[0];
+          Logger.log("SystemInfo", `Boot Time: ${root.bootDuration}`);
+        }
+      }
+    }
+  }
+
   Process {
     id: gpuTypeCheck
 
@@ -133,7 +139,6 @@ Singleton {
     }
   }
 
-  // ===== Main poll timer =====
   Timer {
     interval: root.pollIntervalMs
     repeat: true
@@ -149,7 +154,6 @@ Singleton {
     }
   }
 
-  // ===== Storage poll timer (slower) =====
   Timer {
     interval: root.storagePollIntervalMs
     repeat: true
@@ -159,7 +163,6 @@ Singleton {
     onTriggered: storageProc.running = true
   }
 
-  // ===== CPU stats =====
   Process {
     id: cpuStatProc
 
@@ -190,7 +193,6 @@ Singleton {
     }
   }
 
-  // ===== Memory info =====
   Process {
     id: meminfoProc
 
@@ -209,7 +211,6 @@ Singleton {
     }
   }
 
-  // ===== Storage info =====
   Process {
     id: storageProc
 
@@ -230,7 +231,6 @@ Singleton {
     }
   }
 
-  // ===== GPU usage =====
   Process {
     id: gpuUsageProc
 
@@ -257,7 +257,6 @@ Singleton {
     }
   }
 
-  // ===== Sensors (CPU temp + generic GPU temp) =====
   Process {
     id: sensorsProc
 
@@ -265,7 +264,6 @@ Singleton {
 
     stdout: StdioCollector {
       onStreamFinished: {
-        // CPU temp: prefer Package id/Tdie, fallback to Tctl
         const cpuMatch = text.match(/(?:Package id \d+|Tdie):\s+([+-]?\d+\.?\d*).C/) || text.match(/Tctl:\s+([+-]?\d+\.?\d*).C/);
         if (cpuMatch) {
           const t = parseFloat(cpuMatch[1]);
@@ -273,7 +271,6 @@ Singleton {
             root.cpuTemp = t;
         }
 
-        // GPU temp for GENERIC only (NVIDIA gets it from nvidia-smi)
         if (root.gpuType !== "GENERIC")
           return;
 
