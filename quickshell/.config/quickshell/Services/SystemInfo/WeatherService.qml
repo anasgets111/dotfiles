@@ -10,21 +10,23 @@ Singleton {
   id: root
 
   // Private state
-  property bool _isRequesting: false
-  property int _retryAttempt: 0
-
-  // Constants
-  // _weatherCodes moved to WeatherCodes.qml
+  property bool _requesting: false
+  property int _retryCount: 0
 
   // Public state
   property string currentTemp: "Loading..."
   property int currentWeatherCode: -1
   property var dailyForecast: null
   readonly property string displayText: {
-    const timeAgo = getTimeAgo();
-    const stale = isDataStale() ? " [stale]" : "";
-    const loc = (includeLocationInDisplay && locationName) ? ` — ${locationName}` : "";
-    return `${currentTemp}${loc}${timeAgo ? ` (${timeAgo})` : ""}${stale}`;
+    const parts = [currentTemp];
+    if (includeLocationInDisplay && locationName)
+      parts.push(`— ${locationName}`);
+    const ago = _timeAgo();
+    if (ago)
+      parts.push(`(${ago})`);
+    if (_isStale())
+      parts.push("[stale]");
+    return parts.join(" ");
   }
   property bool hasError: false
   property bool includeLocationInDisplay: true
@@ -33,34 +35,29 @@ Singleton {
   readonly property string locationName: weatherLocation?.placeName ?? ""
   readonly property real longitude: weatherLocation?.longitude ?? NaN
   readonly property int refreshInterval: 3600000 // 1 hour
-
+  readonly property string timeAgo: _timeAgo()
   readonly property var weatherLocation: Settings.data.weatherLocation
 
   function _fetch() {
-    if (_isRequesting)
+    if (_requesting)
       return;
-
-    const {
-      latitude: lat,
-      longitude: lon
-    } = weatherLocation || {};
-    if (lat != null && lon != null && !isNaN(lat) && !isNaN(lon)) {
-      _fetchWeather(lat, lon);
-    } else {
+    const loc = weatherLocation;
+    if (loc?.latitude != null && loc?.longitude != null && !isNaN(loc.latitude) && !isNaN(loc.longitude))
+      _fetchWeather(loc.latitude, loc.longitude);
+    else
       _fetchGeoLocation();
-    }
   }
 
   function _fetchGeoLocation() {
     _httpGet("https://ipapi.co/json/", data => {
-      const name = [data.city, data.country_name].filter(Boolean).join(", ");
-      _saveCache({
-        latitude: data.latitude,
-        longitude: data.longitude,
-        placeName: name
-      });
+      const loc = weatherLocation;
+      if (loc) {
+        loc.latitude = data.latitude;
+        loc.longitude = data.longitude;
+        loc.placeName = [data.city, data.country_name].filter(Boolean).join(", ");
+      }
       _fetchWeather(data.latitude, data.longitude);
-    }, _handleError);
+    });
   }
 
   function _fetchWeather(lat, lon) {
@@ -80,48 +77,50 @@ Singleton {
       dailyForecast = data.daily;
       lastUpdated = new Date();
       hasError = false;
-      _retryAttempt = 0;
+      _retryCount = 0;
 
-      _saveCache({
-        weatherCode: code,
-        temperature: roundedTemp,
-        dailyForecast: data.daily,
-        lastPollTimestamp: lastUpdated.toISOString()
-      });
-    }, _handleError);
+      // Persist to settings
+      const loc = weatherLocation;
+      if (loc) {
+        loc.weatherCode = code;
+        loc.temperature = String(roundedTemp);
+        loc.dailyForecast = JSON.stringify(data.daily);
+        loc.lastPollTimestamp = lastUpdated.toISOString();
+      }
+    });
   }
 
   function _handleError() {
     hasError = true;
-    if (_retryAttempt++ < 2) {
-      const delay = 2000 * Math.pow(2, _retryAttempt - 1);
-      Logger.warn("WeatherService", `Retry ${_retryAttempt} in ${delay}ms`);
+    if (_retryCount++ < 2) {
+      const delay = 2000 * Math.pow(2, _retryCount - 1);
+      Logger.warn("WeatherService", `Retry ${_retryCount} in ${delay}ms`);
       retryTimer.interval = delay;
       retryTimer.start();
     }
   }
 
-  function _httpGet(url, onSuccess, onError) {
-    _isRequesting = true;
+  function _httpGet(url, onSuccess) {
+    _requesting = true;
     const xhr = new XMLHttpRequest();
     xhr.timeout = 5000;
     xhr.onreadystatechange = () => {
-      if (xhr.readyState === XMLHttpRequest.DONE) {
-        _isRequesting = false;
-        if (xhr.status === 200) {
-          try {
-            onSuccess(JSON.parse(xhr.responseText));
-          } catch (e) {
-            onError();
-          }
-        } else {
-          onError();
-        }
+      if (xhr.readyState !== XMLHttpRequest.DONE)
+        return;
+      _requesting = false;
+      if (xhr.status !== 200) {
+        _handleError();
+        return;
+      }
+      try {
+        onSuccess(JSON.parse(xhr.responseText));
+      } catch (e) {
+        _handleError();
       }
     };
     xhr.ontimeout = () => {
-      _isRequesting = false;
-      onError();
+      _requesting = false;
+      _handleError();
     };
     xhr.open("GET", url);
     xhr.send();
@@ -131,28 +130,24 @@ Singleton {
     if (!Settings.isLoaded || !weatherLocation)
       return;
 
-    try {
-      const {
-        weatherCode,
-        lastPollTimestamp,
-        temperature,
-        dailyForecast: dfStr
-      } = weatherLocation;
-      if (lastPollTimestamp) {
-        lastUpdated = new Date(lastPollTimestamp);
-        currentWeatherCode = weatherCode ?? -1;
-        currentTemp = `${temperature ?? 0}°C ${WeatherCodes.get(currentWeatherCode).icon}`;
-        if (dfStr)
-          dailyForecast = JSON.parse(dfStr);
+    const loc = weatherLocation;
+    if (loc.lastPollTimestamp) {
+      try {
+        lastUpdated = new Date(loc.lastPollTimestamp);
+        currentWeatherCode = loc.weatherCode ?? -1;
+        currentTemp = `${loc.temperature ?? 0}°C ${WeatherCodes.get(currentWeatherCode).icon}`;
+        if (loc.dailyForecast)
+          dailyForecast = JSON.parse(loc.dailyForecast);
 
-        if ((Date.now() - lastUpdated.getTime()) < refreshInterval) {
-          updateTimer.interval = refreshInterval - (Date.now() - lastUpdated.getTime());
+        const elapsed = Date.now() - lastUpdated.getTime();
+        if (elapsed < refreshInterval) {
+          updateTimer.interval = refreshInterval - elapsed;
           updateTimer.start();
           return;
         }
+      } catch (e) {
+        Logger.warn("WeatherService", "Cache load failed");
       }
-    } catch (e) {
-      Logger.warn("WeatherService", "Cache load failed");
     }
 
     _fetch();
@@ -160,21 +155,11 @@ Singleton {
     updateTimer.start();
   }
 
-  function _saveCache(updates) {
-    if (!Settings.isLoaded || !Settings.data.weatherLocation)
-      return;
-    const target = Settings.data.weatherLocation;
-    for (const key in updates) {
-      if (key === 'dailyForecast')
-        target[key] = JSON.stringify(updates[key]);
-      else if (key === 'temperature')
-        target[key] = String(updates[key]);
-      else
-        target[key] = updates[key];
-    }
+  function _isStale() {
+    return lastUpdated && (Date.now() - lastUpdated.getTime()) > refreshInterval * 2;
   }
 
-  function getTimeAgo() {
+  function _timeAgo() {
     if (!lastUpdated)
       return "";
     const diff = (TimeService.now.getTime() - lastUpdated.getTime()) / 1000;
@@ -187,15 +172,11 @@ Singleton {
     return `${Math.floor(diff / 86400)}d ago`;
   }
 
-  function isDataStale() {
-    return lastUpdated && (Date.now() - lastUpdated.getTime()) > refreshInterval * 2;
-  }
-
   function refresh() {
     if (lastUpdated && (Date.now() - lastUpdated.getTime()) < 30000)
       return;
     Logger.log("WeatherService", "Manual refresh");
-    _retryAttempt = 0;
+    _retryCount = 0;
     _fetch();
   }
 
@@ -204,7 +185,7 @@ Singleton {
   }
 
   Component.onCompleted: if (Settings.isLoaded)
-    root._init()
+    _init()
 
   Connections {
     function onIsLoadedChanged() {

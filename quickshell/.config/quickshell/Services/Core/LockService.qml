@@ -12,25 +12,13 @@ Singleton {
   readonly property real blurAmount: 0.9
   readonly property int blurMax: 64
   readonly property real blurMultiplier: 1
-  readonly property int compactWidthThreshold: 440
   property bool locked: false
   property string passwordBuffer: ""
-  // Computed status message for UI
-  readonly property string statusMessage: {
-    if (authenticating)
-      return "Authenticating…";
-
-    switch (authState) {
-    case "error":
-      return "Error";
-    case "max":
-      return "Too many tries";
-    case "fail":
-      return "Incorrect password";
-    default:
-      return "Enter password";
-    }
-  }
+  readonly property string statusMessage: authenticating ? "Authenticating…" : ({
+      error: "Error",
+      max: "Too many tries",
+      fail: "Incorrect password"
+    }[authState] ?? "Enter password")
   readonly property var theme: ({
       "base": "#1e1e2e",
       "mantle": "#181825",
@@ -52,25 +40,23 @@ Singleton {
     if (!locked)
       return false;
 
-    if (IdleService.dpmsOffInSession)
+    if (IdleService.dpmsOff)
       IdleService.wake();
 
-    const key = event.key;
-    if (key === Qt.Key_Enter || key === Qt.Key_Return) {
-      if (!authenticating && passwordBuffer.length > 0)
-        submitOrStart();
-
+    switch (event.key) {
+    case Qt.Key_Enter:
+    case Qt.Key_Return:
+      if (!authenticating && passwordBuffer)
+        pamContext.start();
       return true;
-    }
-    if (key === Qt.Key_Backspace) {
+    case Qt.Key_Backspace:
       passwordBuffer = (event.modifiers & Qt.ControlModifier) ? "" : passwordBuffer.slice(0, -1);
       return true;
-    }
-    if (key === Qt.Key_Escape) {
+    case Qt.Key_Escape:
       passwordBuffer = "";
       return true;
     }
-    if (event.text && event.text.length === 1) {
+    if (event.text) {
       const code = event.text.charCodeAt(0);
       if (code >= 32 && code <= 126) {
         passwordBuffer += event.text;
@@ -80,16 +66,10 @@ Singleton {
     return false;
   }
 
-  function submitOrStart() {
-    if (!authenticating && passwordBuffer.length > 0)
-      pamContext.start();
-  }
-
   onLockedChanged: {
     if (!locked) {
       passwordBuffer = "";
       authState = "";
-      authenticating = false;
     }
   }
 
@@ -98,12 +78,14 @@ Singleton {
 
     onActiveChanged: lockService.authenticating = active
     onCompleted: result => {
-      lockService.authenticating = false;
       if (result === PamResult.Success) {
-        lockService.passwordBuffer = "";
         lockService.locked = false;
       } else {
-        lockService.authState = result === PamResult.Error ? "error" : result === PamResult.MaxTries ? "max" : result === PamResult.Failed ? "fail" : "";
+        lockService.authState = ({
+            [PamResult.Error]: "error",
+            [PamResult.MaxTries]: "max",
+            [PamResult.Failed]: "fail"
+          })[result] ?? "";
         if (lockService.authState)
           authStateResetTimer.restart();
       }

@@ -11,13 +11,12 @@ import qs.Config
 Item {
   id: root
 
-  // Theme aliases
-  readonly property var cTheme: LockService.theme
-  readonly property color colBase: cTheme.base
-  readonly property color colSurface0: cTheme.surface0
-  readonly property color colSurface1: cTheme.surface1
-  readonly property color colSurface2: cTheme.surface2
+  readonly property var colors: LockService.theme
   required property bool isMainMonitor
+
+  function rgba(color, alpha: real): color {
+    return Qt.rgba(color.r, color.g, color.b, alpha);
+  }
 
   anchors.centerIn: parent
   height: contentColumn.implicitHeight + 60
@@ -30,6 +29,8 @@ Item {
 
   SequentialAnimation {
     id: shakeAnimation
+
+    loops: 1
 
     NumberAnimation {
       duration: 50
@@ -73,9 +74,9 @@ Item {
   // --- Background Card ---
   Rectangle {
     anchors.fill: parent
-    border.color: Qt.rgba(root.colSurface1.r, root.colSurface1.g, root.colSurface1.b, 0.4)
+    border.color: root.rgba(root.colors.surface1, 0.4)
     border.width: 1
-    color: Qt.rgba(root.colBase.r, root.colBase.g, root.colBase.b, 0.6)
+    color: root.rgba(root.colors.base, 0.6)
     layer.enabled: true
     radius: 32
 
@@ -133,7 +134,7 @@ Item {
       font.pixelSize: 18
       opacity: 0.8
       text: MainService.fullName || "User"
-      visible: text.length > 0
+      visible: !!text
     }
 
     // 3. Status Chips (Weather, Host)
@@ -141,62 +142,35 @@ Item {
       Layout.alignment: Qt.AlignHCenter
       spacing: 12
 
-      // Weather Chip
-      Rectangle {
-        Layout.preferredHeight: 36
-        Layout.preferredWidth: weatherRow.implicitWidth + 24
-        border.color: Qt.rgba(root.colSurface1.r, root.colSurface1.g, root.colSurface1.b, 0.3)
-        color: Qt.rgba(root.colSurface0.r, root.colSurface0.g, root.colSurface0.b, 0.5)
-        radius: 18
-        visible: WeatherService
+      Chip {
+        visible: !!WeatherService
 
-        RowLayout {
-          id: weatherRow
+        Text {
+          color: Theme.textActiveColor
+          font.pixelSize: 18
+          text: WeatherService?.weatherInfo().icon ?? ""
+        }
 
-          anchors.centerIn: parent
-          spacing: 8
-
-          Text {
-            color: Theme.textActiveColor
-            font.pixelSize: 18
-            text: WeatherService?.weatherInfo().icon ?? ""
-          }
-
-          Text {
-            color: Theme.textActiveColor
-            font.bold: true
-            font.family: Theme.fontFamily
-            font.pixelSize: 14
-            text: String(WeatherService?.currentTemp ?? "").split(" ")[0]
-          }
+        Text {
+          color: Theme.textActiveColor
+          font.bold: true
+          font.family: Theme.fontFamily
+          font.pixelSize: 14
+          text: String(WeatherService?.currentTemp ?? "").split(" ")[0]
         }
       }
 
-      // Host Chip
-      Rectangle {
-        Layout.preferredHeight: 36
-        Layout.preferredWidth: hostRow.implicitWidth + 24
-        border.color: Qt.rgba(root.colSurface1.r, root.colSurface1.g, root.colSurface1.b, 0.3)
-        color: Qt.rgba(root.colSurface0.r, root.colSurface0.g, root.colSurface0.b, 0.5)
-        radius: 18
+      Chip {
+        Text {
+          font.pixelSize: 16
+          text: "💻"
+        }
 
-        RowLayout {
-          id: hostRow
-
-          anchors.centerIn: parent
-          spacing: 8
-
-          Text {
-            font.pixelSize: 16
-            text: "💻"
-          }
-
-          Text {
-            color: Theme.textInactiveColor
-            font.family: Theme.fontFamily
-            font.pixelSize: 14
-            text: MainService.hostname || "localhost"
-          }
+        Text {
+          color: Theme.textInactiveColor
+          font.family: Theme.fontFamily
+          font.pixelSize: 14
+          text: MainService.hostname || "localhost"
         }
       }
     }
@@ -210,9 +184,9 @@ Item {
 
       Rectangle {
         anchors.centerIn: parent
-        border.color: LockService.authState === "fail" ? Theme.critical : LockService.authenticating ? Theme.activeColor : Qt.rgba(root.colSurface2.r, root.colSurface2.g, root.colSurface2.b, 0.5)
+        border.color: LockService.authState === "fail" ? Theme.critical : LockService.authenticating ? Theme.activeColor : root.rgba(root.colors.surface2, 0.5)
         border.width: 2
-        color: Qt.rgba(root.colSurface0.r, root.colSurface0.g, root.colSurface0.b, 0.8)
+        color: root.rgba(root.colors.surface0, 0.8)
         height: 50
         radius: 25
         width: Math.min(parent.width, 300)
@@ -223,7 +197,6 @@ Item {
           }
         }
 
-        // Lock Icon
         Text {
           anchors.left: parent.left
           anchors.leftMargin: 16
@@ -233,7 +206,6 @@ Item {
           text: "🔒"
         }
 
-        // Password Dots
         Row {
           anchors.centerIn: parent
           spacing: 6
@@ -253,17 +225,15 @@ Item {
           }
         }
 
-        // Status Text
         Text {
           anchors.centerIn: parent
           color: LockService.authState === "fail" ? Theme.critical : Theme.textInactiveColor
           font.family: Theme.fontFamily
           font.pixelSize: 14
           text: LockService.statusMessage
-          visible: LockService.passwordBuffer.length === 0
+          visible: !LockService.passwordBuffer
         }
 
-        // Caps Lock Indicator
         Rectangle {
           anchors.right: parent.right
           anchors.rightMargin: 8
@@ -276,7 +246,7 @@ Item {
 
           Text {
             anchors.centerIn: parent
-            color: root.colBase
+            color: root.colors.base
             font.bold: true
             font.pixelSize: 14
             text: "A"
@@ -292,7 +262,6 @@ Item {
       spacing: 16
       visible: root.isMainMonitor
 
-      // Battery
       RowLayout {
         spacing: 4
         visible: BatteryService.isLaptopBattery
@@ -311,11 +280,8 @@ Item {
         }
       }
 
-      Rectangle {
-        color: Theme.textInactiveColor
-        height: 12
+      Divider {
         visible: BatteryService.isLaptopBattery
-        width: 1
       }
 
       Text {
@@ -325,10 +291,7 @@ Item {
         text: "Enter to unlock"
       }
 
-      Rectangle {
-        color: Theme.textInactiveColor
-        height: 12
-        width: 1
+      Divider {
       }
 
       Text {
@@ -337,17 +300,13 @@ Item {
         font.family: Theme.fontFamily
         font.pixelSize: 12
         text: KeyboardLayoutService.currentLayout
-        visible: KeyboardLayoutService.currentLayout.length > 0
+        visible: !!KeyboardLayoutService.currentLayout
       }
 
-      Rectangle {
-        color: Theme.textInactiveColor
-        height: 12
+      Divider {
         visible: NetworkService.ready
-        width: 1
       }
 
-      // Network
       RowLayout {
         readonly property string link: NetworkService.linkType || "disconnected"
         readonly property string ssid: {
@@ -375,5 +334,30 @@ Item {
         }
       }
     }
+  }
+
+  // Chip component for status indicators
+  component Chip: Rectangle {
+    default property alias content: chipContent.children
+
+    Layout.preferredHeight: 36
+    Layout.preferredWidth: chipContent.implicitWidth + 24
+    border.color: root.rgba(root.colors.surface1, 0.3)
+    color: root.rgba(root.colors.surface0, 0.5)
+    radius: 18
+
+    RowLayout {
+      id: chipContent
+
+      anchors.centerIn: parent
+      spacing: 8
+    }
+  }
+
+  // Divider component for footer
+  component Divider: Rectangle {
+    color: Theme.textInactiveColor
+    height: 12
+    width: 1
   }
 }

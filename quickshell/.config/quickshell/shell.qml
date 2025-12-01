@@ -88,7 +88,9 @@ ShellRoot {
     model: WallpaperService.monitors
 
     AnimatedWallpaper {
-      modelData: modelData
+      required property var modelData
+
+      monitor: modelData
     }
   }
 }

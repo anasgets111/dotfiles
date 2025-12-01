@@ -15,30 +15,33 @@ Singleton {
       "phone": "󰏲",
       "portable": "󰏲"
     })
+
+  // Constants
   readonly property real maxVolume: 1.5
-  readonly property int maxVolumePercent: Math.round(maxVolume * 100)
   readonly property bool muted: sink?.audio?.muted ?? false
+
+  // Primary audio nodes
   readonly property PwNode sink: Pipewire.defaultAudioSink
   readonly property string sinkIcon: deviceIconFor(sink)
+
+  // Device lists
   readonly property list<PwNode> sinks: Pipewire.nodes.values.filter(n => !n.isStream && n.isSink)
   readonly property PwNode source: Pipewire.defaultAudioSource
   readonly property list<PwNode> sources: Pipewire.nodes.values.filter(n => !n.isStream && !n.isSink && n.audio)
   readonly property real stepVolume: 0.05
   readonly property list<PwNode> streams: Pipewire.nodes.values.filter(n => n.isStream && n.audio)
-  readonly property real volume: {
-    const vol = sink?.audio?.volume ?? 0;
-    return Math.max(0, Number.isFinite(vol) ? vol : 0);
-  }
 
-  signal micMuteChanged
+  // Derived state
+  readonly property real volume: Math.max(0, sink?.audio?.volume ?? 0)
+
   signal sinkDeviceChanged(string deviceName, string icon)
 
-  function clampVolume(vol) {
-    return Math.max(0, Math.min(maxVolume, Number.isFinite(vol) ? vol : 0));
+  function clamp(vol) {
+    return Math.max(0, Math.min(maxVolume, vol));
   }
 
   function decreaseVolume() {
-    setVolumeReal(root.volume - root.stepVolume);
+    setVolume(root.volume - root.stepVolume);
   }
 
   function deviceIconFor(node) {
@@ -89,7 +92,7 @@ Singleton {
   }
 
   function increaseVolume() {
-    setVolumeReal(root.volume + root.stepVolume);
+    setVolume(root.volume + root.stepVolume);
   }
 
   function setAudioSink(newSink) {
@@ -106,11 +109,8 @@ Singleton {
       return "Invalid percentage";
     if (!source?.audio)
       return "No audio source available";
-
-    const clamped = Math.max(0, Math.min(100, n));
-    source.audio.volume = clamped / 100;
-    micMuteChanged();
-    return `Microphone volume set to ${clamped}%`;
+    source.audio.volume = Math.max(0, Math.min(1, n / 100));
+    return `Microphone volume set to ${Math.round(source.audio.volume * 100)}%`;
   }
 
   function setMuted(muted) {
@@ -118,86 +118,67 @@ Singleton {
       root.sink.audio.muted = !!muted;
   }
 
-  function setVolume(percentage) {
+  // Primary volume setter (accepts 0.0 - maxVolume)
+  function setVolume(newVolume) {
+    if (!root.sink?.audio)
+      return;
+    root.sink.audio.muted = false;
+    root.sink.audio.volume = clamp(newVolume);
+  }
+
+  // IPC entry point (accepts percentage string)
+  function setVolumePercent(percentage) {
     const n = Number.parseInt(percentage, 10);
     if (Number.isNaN(n))
       return "Invalid percentage";
     if (!root.sink?.audio)
       return "No audio sink available";
-
-    const clamped = Math.max(0, Math.min(root.maxVolumePercent, n));
-    setVolumeReal(clamped / 100);
-    return `Volume set to ${clamped}%`;
-  }
-
-  function setVolumeReal(newVolume) {
-    if (!root.sink?.audio)
-      return;
-    const clamped = clampVolume(newVolume);
-    root.sink.audio.muted = false;
-    root.sink.audio.volume = clamped;
+    setVolume(n / 100);
+    return `Volume set to ${Math.round(root.volume * 100)}%`;
   }
 
   function toggleMicMute() {
     if (!source?.audio)
       return "No audio source available";
     source.audio.muted = !source.audio.muted;
-    micMuteChanged();
     return source.audio.muted ? "Microphone muted" : "Microphone unmuted";
   }
 
   function toggleMute() {
     if (!root.sink?.audio)
       return "No audio sink available";
-    const next = !root.sink.audio.muted;
-    setMuted(next);
-    return next ? "Audio muted" : "Audio unmuted";
+    root.sink.audio.muted = !root.sink.audio.muted;
+    return root.muted ? "Audio muted" : "Audio unmuted";
   }
 
   Component.onCompleted: {
     Logger.log("AudioService", `ready | sink: ${displayName(root.sink)} | volume: ${Math.round(root.volume * 100)}% | muted: ${root.muted} | source: ${displayName(root.source)}`);
   }
   onSinkChanged: {
+    const name = displayName(root.sink);
     if (!root.sink?.audio) {
-      Logger.log("AudioService", `sink changed: ${displayName(root.sink)} (no audio)`);
+      Logger.log("AudioService", `sink changed: ${name} (no audio)`);
       return;
     }
-    const vol = clampVolume(root.sink.audio.volume ?? 0);
-    if (vol > root.maxVolume) {
+    // Clamp external volume changes to maxVolume
+    if (root.sink.audio.volume > root.maxVolume)
       root.sink.audio.volume = root.maxVolume;
-    }
-    const deviceName = displayName(root.sink);
-    const icon = deviceIconFor(root.sink);
-    Logger.log("AudioService", `sink changed: ${deviceName}`);
-    root.sinkDeviceChanged(deviceName, icon);
+    Logger.log("AudioService", `sink changed: ${name}`);
+    root.sinkDeviceChanged(name, deviceIconFor(root.sink));
   }
-  onSourceChanged: {
-    Logger.log("AudioService", `source changed: ${displayName(root.source)}`);
-    root.micMuteChanged();
-  }
+  onSourceChanged: Logger.log("AudioService", `source changed: ${displayName(root.source)}`)
 
   PwObjectTracker {
     objects: root.sinks.concat(root.sources)
   }
 
+  // Clamp external volume changes (e.g., from pavucontrol)
   Connections {
     function onVolumeChanged() {
-      if (!root.sink?.audio)
-        return;
-      const vol = root.clampVolume(root.sink.audio.volume ?? 0);
-      if (vol > root.maxVolume) {
+      if (root.sink?.audio && root.sink.audio.volume > root.maxVolume)
         root.sink.audio.volume = root.maxVolume;
-      }
     }
 
     target: root.sink?.audio ?? null
-  }
-
-  Connections {
-    function onMutedChanged() {
-      root.micMuteChanged();
-    }
-
-    target: root.source?.audio ?? null
   }
 }

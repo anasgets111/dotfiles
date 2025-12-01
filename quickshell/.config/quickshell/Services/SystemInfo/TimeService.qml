@@ -13,15 +13,15 @@ Singleton {
   readonly property var now: clock.date
   readonly property bool ntpEnabled: internalNtpEnabled
   readonly property bool ntpSynced: internalNtpSynced
-
-  // Future use: System info & clock widgets
   property int precision: SystemClock.Seconds
   property bool ready: false
   readonly property string timeZone: internalTimeZone
   property bool use24Hour: false
-
-  // Future use: Calendar widgets
   property int weekStart: Qt.locale().firstDayOfWeek
+
+  function _stripMeridiem(str) {
+    return str.replace(/\s*(AM|PM)$/i, "");
+  }
 
   function dayName(day, standalone, longForm) {
     const n = day === 0 ? 7 : day;
@@ -30,30 +30,19 @@ Singleton {
   }
 
   function format(kind, pattern) {
-    if (kind === "time") {
-      if (pattern)
-        return Qt.formatTime(clock.date, pattern);
-      if (use24Hour)
-        return Qt.formatTime(clock.date, "HH:mm");
-      const withMeridiem = Qt.formatTime(clock.date, "hh:mm AP");
-      return withMeridiem.replace(/\s*(AM|PM)$/i, "");
-    }
-    if (kind === "date")
-      return Qt.formatDate(clock.date, pattern || "yyyy-MM-dd");
-    if (kind === "datetime") {
-      if (pattern)
-        return Qt.formatDateTime(clock.date, pattern);
-      if (use24Hour)
-        return Qt.formatDateTime(clock.date, "yyyy-MM-dd HH:mm");
-      const withMeridiem = Qt.formatDateTime(clock.date, "yyyy-MM-dd hh:mm AP");
-      return withMeridiem.replace(/\s*(AM|PM)$/i, "");
-    }
+    const d = clock.date;
+    const formatters = {
+      time: [Qt.formatTime, "HH:mm", "hh:mm AP"],
+      date: [Qt.formatDate, "yyyy-MM-dd", "yyyy-MM-dd"],
+      datetime: [Qt.formatDateTime, "yyyy-MM-dd HH:mm", "yyyy-MM-dd hh:mm AP"]
+    };
+    const [fn, fmt24, fmt12] = formatters[kind] || formatters.datetime;
+
     if (pattern)
-      return Qt.formatDateTime(clock.date, pattern);
+      return fn(d, pattern);
     if (use24Hour)
-      return Qt.formatDateTime(clock.date, "yyyy-MM-dd HH:mm");
-    const withMeridiem = Qt.formatDateTime(clock.date, "yyyy-MM-dd hh:mm AP");
-    return withMeridiem.replace(/\s*(AM|PM)$/i, "");
+      return fn(d, fmt24);
+    return _stripMeridiem(fn(d, fmt12));
   }
 
   function formatDuration(sec) {

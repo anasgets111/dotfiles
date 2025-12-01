@@ -2,6 +2,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import qs.Services
+import qs.Services.Utils
 
 Singleton {
   id: impl
@@ -42,10 +43,12 @@ Singleton {
       splitMarker: "\n"
 
       onRead: segment => {
-        if (segment) {
-          try {
-            impl.parseKeyboardLayouts(JSON.parse(segment));
-          } catch (_) {}
+        if (!segment)
+          return;
+        try {
+          impl.parseKeyboardLayouts(JSON.parse(segment));
+        } catch (e) {
+          Logger.log("KeyboardLayoutImpl(Niri)", `Parse error: ${e}`);
         }
       }
     }

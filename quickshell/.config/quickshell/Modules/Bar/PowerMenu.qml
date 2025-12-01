@@ -8,7 +8,6 @@ import qs.Components
 Item {
   id: powerMenu
 
-  // Actions (unchanged API)
   readonly property var actions: [
     {
       cmd: "loginctl terminate-user $USER",
@@ -27,14 +26,13 @@ Item {
     }
   ]
   property int countdown: initialCountdown
-  property bool counting: false
+  readonly property bool counting: selectedIndex >= 0
 
-  // Countdown state
+  // Countdown state - counting is derived from selectedIndex
   readonly property int initialCountdown: 10
   property int selectedIndex: -1
 
   function cancelCountdown() {
-    counting = false;
     selectedIndex = -1;
     tickTimer.stop();
   }
@@ -47,38 +45,29 @@ Item {
     cancelCountdown();
   }
 
-  // API-equivalent functions
   function startCountdown(index) {
     selectedIndex = index;
     countdown = initialCountdown;
-    counting = true;
     tickTimer.start();
   }
 
-  // Size follows the pill
   height: pill.height
   width: pill.width
-
-  Component.onDestruction: {
-    tickTimer.stop();
-  }
 
   Process {
     id: proc
 
   }
 
-  // Global click-away catcher while counting
+  // Click-away handler while counting
   MouseArea {
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     anchors.fill: parent
     visible: powerMenu.counting
 
     onPressed: mouse => {
-      // If click occurs outside the pill, cancel; else let it pass through
       const p = pill.mapFromItem(this, mouse.x, mouse.y);
-      const inside = p.x >= 0 && p.y >= 0 && p.x <= pill.width && p.y <= pill.height;
-      if (!inside) {
+      if (p.x < 0 || p.y < 0 || p.x > pill.width || p.y > pill.height) {
         powerMenu.cancelCountdown();
         mouse.accepted = true;
       } else {
@@ -87,7 +76,6 @@ Item {
     }
   }
 
-  // Countdown timer
   Timer {
     id: tickTimer
 
@@ -95,11 +83,7 @@ Item {
     repeat: true
 
     onTriggered: {
-      if (!powerMenu.counting) {
-        stop();
-        return;
-      }
-      powerMenu.countdown -= 1;
+      powerMenu.countdown--;
       if (powerMenu.countdown <= 0) {
         stop();
         powerMenu.commitSelected();
@@ -107,7 +91,6 @@ Item {
     }
   }
 
-  // The expanding/collapsing right-aligned pill container (your ExpandingPill)
   ExpandingPill {
     id: pill
 
@@ -117,23 +100,24 @@ Item {
     count: powerMenu.actions.length
     holdOpen: powerMenu.counting
 
-    // Per-cell content
     delegate: Component {
       IconButton {
         id: btn
 
+        readonly property var action: powerMenu.actions[index]
         required property int index
-        readonly property bool isSelectedCounting: powerMenu.counting && powerMenu.selectedIndex === index
-        readonly property var rec: powerMenu.actions[index]
+        readonly property bool isSelected: powerMenu.counting && powerMenu.selectedIndex === index
 
         anchors.fill: parent
-        icon: ""
-        tooltipText: powerMenu.counting ? (isSelectedCounting ? `${rec.tooltip} — ${powerMenu.countdown}s\nLeft click to execute now • Right click to cancel` : `${rec.tooltip}\nRight click to cancel`) : rec.tooltip
+        opacity: 1.0
+        tooltipText: powerMenu.counting ? (isSelected ? `${action.tooltip} — ${powerMenu.countdown}s\nLeft click to execute now • Right click to cancel` : `${action.tooltip}\nRight click to cancel`) : action.tooltip
 
-        // Flash while counting (selected only)
         SequentialAnimation on opacity {
           loops: Animation.Infinite
-          running: btn.isSelectedCounting
+          running: btn.isSelected
+
+          onRunningChanged: if (!running)
+            btn.opacity = 1.0
 
           NumberAnimation {
             duration: 300
@@ -151,36 +135,24 @@ Item {
         }
 
         onClicked: point => {
-          switch (point.button) {
-          case Qt.RightButton:
+          if (point.button === Qt.RightButton) {
             if (powerMenu.counting)
               powerMenu.cancelCountdown();
-            return;
-          case Qt.LeftButton:
-            {
-              const isSelected = powerMenu.selectedIndex === index;
-              if (!powerMenu.counting || !isSelected)
-                powerMenu.startCountdown(index);
-              else
-                powerMenu.commitSelected();
-              return;
-            }
-          default:
-            return; // ignore middle/other buttons for now
+          } else if (point.button === Qt.LeftButton) {
+            if (!powerMenu.counting || powerMenu.selectedIndex !== index)
+              powerMenu.startCountdown(index);
+            else
+              powerMenu.commitSelected();
           }
         }
-        onIsSelectedCountingChanged: if (!btn.isSelectedCounting)
-          btn.opacity = 1.0
 
-        // Progress sweep when counting selected (uses shared FillBar component)
         FillBar {
           anchors.fill: parent
           fillColor: Theme.onHoverColor
-          progress: btn.isSelectedCounting ? (powerMenu.initialCountdown - powerMenu.countdown) / powerMenu.initialCountdown : 0
+          progress: btn.isSelected ? (powerMenu.initialCountdown - powerMenu.countdown) / powerMenu.initialCountdown : 0
           radius: Theme.itemHeight / 2
         }
 
-        // Centered glyph or countdown number
         Text {
           anchors.centerIn: parent
           color: btn.effectiveFg ?? Theme.textContrast(Theme.inactiveColor)
@@ -188,7 +160,7 @@ Item {
           font.family: Theme.fontFamily
           font.pixelSize: Theme.fontSize
           horizontalAlignment: Text.AlignHCenter
-          text: btn.isSelectedCounting ? String(powerMenu.countdown) : btn.rec.icon
+          text: btn.isSelected ? String(powerMenu.countdown) : btn.action.icon
           verticalAlignment: Text.AlignVCenter
         }
       }

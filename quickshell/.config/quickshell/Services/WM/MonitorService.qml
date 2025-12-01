@@ -1,9 +1,9 @@
 pragma Singleton
 import Quickshell
+import Quickshell.Io
 import QtQml
 import QtQuick
 import qs.Services
-import qs.Services.Utils
 import qs.Services.WM.Impl.Hyprland as Hyprland
 import qs.Services.WM.Impl.Niri as Niri
 
@@ -12,7 +12,9 @@ Singleton {
 
   property var _capsCache: ({})
   property var _drmEntries: null
+  property var _edidQueue: []
   property int _featuresRunId: 0
+  property var _pendingEdidCallback: null
   readonly property string activeMain: preferredMain || (monitors.count > 0 ? monitors.get(0).name : "")
   readonly property var activeMainScreen: Quickshell.screens.find(s => s?.name === activeMain) || Quickshell.screens[0] || null
   property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
@@ -25,6 +27,15 @@ Singleton {
   readonly property bool ready: backend !== null
 
   signal monitorsUpdated
+
+  function _processEdidQueue() {
+    if (_edidProc.running || !_edidQueue.length)
+      return;
+    const job = _edidQueue.shift();
+    _pendingEdidCallback = job.cb;
+    _edidProc.command = ["edid-decode", job.path];
+    _edidProc.running = true;
+  }
 
   function emitChangedDebounced() {
     changeDebounce.restart();
@@ -70,10 +81,8 @@ Singleton {
       cb(_drmEntries);
       return;
     }
-    Utils.runCmd(["sh", "-c", "ls /sys/class/drm"], stdout => {
-      _drmEntries = stdout.split(/\r?\n/).filter(Boolean);
-      cb(_drmEntries);
-    }, root);
+    _drmProc._cb = cb;
+    _drmProc.running = true;
   }
 
   function readEdidCaps(connectorName, callback) {
@@ -89,16 +98,11 @@ Singleton {
       const match = entries.find(line => line.endsWith(`-${connectorName}`));
       if (!match)
         return callback(def);
-      Utils.runCmd(["edid-decode", `/sys/class/drm/${match}/edid`], text => {
-        callback({
-          vrr: {
-            supported: /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text)
-          },
-          hdr: {
-            supported: /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text)
-          }
-        });
-      }, root);
+      _edidQueue.push({
+        path: `/sys/class/drm/${match}/edid`,
+        cb: callback
+      });
+      _processEdidQueue();
     });
   }
 
@@ -243,5 +247,48 @@ Singleton {
     }
 
     target: (root.backend && MainService.currentWM === "niri") ? root.backend : null
+  }
+
+  Process {
+    id: _drmProc
+
+    property var _cb: null
+
+    command: ["sh", "-c", "ls /sys/class/drm"]
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        root._drmEntries = text.split(/\r?\n/).filter(Boolean);
+        const cb = _drmProc._cb;
+        _drmProc._cb = null;
+        if (cb)
+          cb(root._drmEntries);
+      }
+    }
+  }
+
+  Process {
+    id: _edidProc
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const cb = root._pendingEdidCallback;
+        root._pendingEdidCallback = null;
+        if (cb) {
+          cb({
+            vrr: {
+              supported: /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text)
+            },
+            hdr: {
+              supported: /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text)
+            }
+          });
+        }
+        root._processEdidQueue();
+      }
+    }
+
+    onRunningChanged: if (!running)
+      root._processEdidQueue()
   }
 }

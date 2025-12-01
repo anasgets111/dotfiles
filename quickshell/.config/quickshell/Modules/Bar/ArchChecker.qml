@@ -7,71 +7,40 @@ import qs.Components
 Item {
   id: root
 
+  readonly property int state: UpdateService.updateState
+
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, button.implicitWidth)
 
   IconButton {
     id: button
 
-    anchors.fill: parent
-    colorBg: {
-      if (UpdateService.updateState === UpdateService.status.Error)
-        return Theme.critical;
-      if (UpdateService.updateState === UpdateService.status.Updating)
-        return Theme.activeColor;
-      if (UpdateService.busy)
-        return Theme.inactiveColor;
-      return UpdateService.totalUpdates > 0 ? Theme.activeColor : Theme.inactiveColor;
-    }
-    icon: {
-      if (UpdateService.updateState === UpdateService.status.Updating)
-        return "󰦖";
-      if (UpdateService.updateState === UpdateService.status.Error)
-        return "󰅙";
-      if (UpdateService.busy)
-        return "";
-      return UpdateService.totalUpdates > 0 ? "" : "󰂪";
-    }
-    tooltipText: {
-      if (UpdateService.updateState === UpdateService.status.Updating)
-        return qsTr("Installing updates...");
-      if (UpdateService.updateState === UpdateService.status.Error)
-        return qsTr("Update failed - click for details");
-      if (UpdateService.busy)
-        return qsTr("Checking for updates…");
-      if (UpdateService.totalUpdates === 0)
-        return qsTr("No updates available");
-      if (UpdateService.totalUpdates === 1)
-        return qsTr("One package can be upgraded");
-      return qsTr("%1 packages can be upgraded").arg(UpdateService.totalUpdates);
-    }
+    readonly property bool isError: root.state === UpdateService.status.Error
+    readonly property bool isUpdating: root.state === UpdateService.status.Updating
+    property real spinAngle: 0
 
-    RotationAnimator on rotation {
+    anchors.fill: parent
+    colorBg: isError ? Theme.critical : isUpdating ? Theme.activeColor : UpdateService.busy ? Theme.inactiveColor : UpdateService.totalUpdates > 0 ? Theme.activeColor : Theme.inactiveColor
+    icon: isUpdating ? "󰦖" : isError ? "󰅙" : UpdateService.busy ? "" : UpdateService.totalUpdates > 0 ? "" : "󰂪"
+    rotation: isUpdating ? spinAngle : 0
+    tooltipText: isUpdating ? qsTr("Installing updates...") : isError ? qsTr("Update failed - click for details") : UpdateService.busy ? qsTr("Checking for updates…") : UpdateService.totalUpdates === 0 ? qsTr("No updates available") : UpdateService.totalUpdates === 1 ? qsTr("One package can be upgraded") : qsTr("%1 packages can be upgraded").arg(UpdateService.totalUpdates)
+
+    NumberAnimation on spinAngle {
       duration: 1000
       from: 0
       loops: Animation.Infinite
-      running: UpdateService.updateState === UpdateService.status.Updating
+      running: button.isUpdating
       to: 360
     }
 
     onClicked: mouse => {
       if (UpdateService.busy)
         return;
-
-      if (mouse.button === Qt.RightButton || UpdateService.totalUpdates > 0 || UpdateService.updateState !== UpdateService.status.Idle) {
+      if (mouse.button === Qt.RightButton || UpdateService.totalUpdates > 0 || root.state !== UpdateService.status.Idle) {
         updatePanel.openAtItem(button, mouse.x, mouse.y);
       } else {
         UpdateService.doPoll();
       }
-    }
-
-    Connections {
-      function onUpdateStateChanged() {
-        if (UpdateService.updateState !== UpdateService.status.Updating)
-          button.rotation = 0;
-      }
-
-      target: UpdateService
     }
   }
 

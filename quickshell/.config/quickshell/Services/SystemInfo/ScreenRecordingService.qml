@@ -2,6 +2,7 @@ pragma Singleton
 import Qt.labs.platform
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Services.SystemInfo
 import qs.Services.Utils
 import qs.Services.WM
@@ -97,22 +98,28 @@ Singleton {
 
     reloadableId: "ScreenRecordingServiceState"
 
-    onLoaded: {
-      const script = `([ -e "${root.lockPath}" ] && echo lock=yes || echo lock=no); (pgrep -f '^gpu-screen-recorder( |$)' >/dev/null && echo proc=yes || echo proc=no)`;
-      Utils.runCmd(["sh", "-c", script], function (out) {
-        const txt = String(out || "");
-        const active = /lock=yes/.test(txt) || /proc=yes/.test(txt);
+    onLoaded: _stateCheckProc.running = true
+  }
+
+  Process {
+    id: _stateCheckProc
+
+    command: ["sh", "-c", `([ -e "${root.lockPath}" ] && echo lock=yes || echo lock=no); (pgrep -f '^gpu-screen-recorder( |$)' >/dev/null && echo proc=yes || echo proc=no)`]
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const active = /lock=yes/.test(text) || /proc=yes/.test(text);
         if (active) {
-          isRecording = true;
-          isPaused = !!persist.wasPaused;
+          root.isRecording = true;
+          root.isPaused = !!persist.wasPaused;
           if (persist.lastOutputPath)
-            outputPath = persist.lastOutputPath;
+            root.outputPath = persist.lastOutputPath;
         } else {
-          isRecording = false;
-          isPaused = false;
+          root.isRecording = false;
+          root.isPaused = false;
         }
-        syncPersist();
-      }, root);
+        root.syncPersist();
+      }
     }
   }
 }
