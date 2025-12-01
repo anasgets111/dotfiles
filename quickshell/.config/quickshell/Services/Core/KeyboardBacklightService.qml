@@ -13,21 +13,7 @@ Singleton {
   property int brightness: 0
   property string deviceName: ""
   property string devicePath: ""
-  property int lastBrightness: -1
-  readonly property int level: brightness
-  readonly property string levelName: {
-    if (brightness === 0)
-      return "Off";
-    if (maxBrightness === 3) {
-      if (brightness === 1)
-        return "Low";
-      if (brightness === 2)
-        return "Medium";
-      if (brightness === 3)
-        return "High";
-    }
-    return `Level ${brightness}`;
-  }
+  readonly property string levelName: ["Off", "Low", "Medium", "High"][brightness] ?? `Level ${brightness}`
   property int maxBrightness: 3
   property bool ready: false
 
@@ -98,17 +84,7 @@ Singleton {
   Process {
     id: monitorProcess
 
-    command: ["sh", "-c", `
-      path="${root.devicePath}/brightness"
-      while :; do
-        if [ -f "$path" ]; then
-          cat "$path" 2>/dev/null || echo "0"
-        else
-          echo "0"
-        fi
-        sleep 0.2
-      done
-    `]
+    command: ["sh", "-c", `while :; do cat "${root.devicePath}/brightness" 2>/dev/null || echo 0; sleep 0.2; done`]
     running: root.available && root.devicePath !== ""
 
     stdout: SplitParser {
@@ -116,8 +92,7 @@ Singleton {
 
       onRead: line => {
         const value = Number.parseInt(line.trim(), 10);
-        if (!Number.isNaN(value) && value !== root.lastBrightness) {
-          root.lastBrightness = value;
+        if (!Number.isNaN(value) && value !== root.brightness) {
           root.brightness = value;
         }
       }
