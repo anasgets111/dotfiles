@@ -15,23 +15,15 @@ Singleton {
       "phone": "󰏲",
       "portable": "󰏲"
     })
-
-  // Constants
   readonly property real maxVolume: 1.5
   readonly property bool muted: sink?.audio?.muted ?? false
-
-  // Primary audio nodes
   readonly property PwNode sink: Pipewire.defaultAudioSink
   readonly property string sinkIcon: deviceIconFor(sink)
-
-  // Device lists
   readonly property list<PwNode> sinks: Pipewire.nodes.values.filter(n => !n.isStream && n.isSink)
   readonly property PwNode source: Pipewire.defaultAudioSource
   readonly property list<PwNode> sources: Pipewire.nodes.values.filter(n => !n.isStream && !n.isSink && n.audio)
   readonly property real stepVolume: 0.05
   readonly property list<PwNode> streams: Pipewire.nodes.values.filter(n => n.isStream && n.audio)
-
-  // Derived state
   readonly property real volume: Math.max(0, sink?.audio?.volume ?? 0)
 
   signal sinkDeviceChanged(string deviceName, string icon)
@@ -118,7 +110,6 @@ Singleton {
       root.sink.audio.muted = !!muted;
   }
 
-  // Primary volume setter (accepts 0.0 - maxVolume)
   function setVolume(newVolume) {
     if (!root.sink?.audio)
       return;
@@ -126,7 +117,7 @@ Singleton {
     root.sink.audio.volume = clamp(newVolume);
   }
 
-  // IPC entry point (accepts percentage string)
+  // IPC enty point (accepts percentage string)
   function setVolumePercent(percentage) {
     const n = Number.parseInt(percentage, 10);
     if (Number.isNaN(n))
@@ -160,7 +151,6 @@ Singleton {
       Logger.log("AudioService", `sink changed: ${name} (no audio)`);
       return;
     }
-    // Clamp external volume changes to maxVolume
     if (root.sink.audio.volume > root.maxVolume)
       root.sink.audio.volume = root.maxVolume;
     Logger.log("AudioService", `sink changed: ${name}`);
@@ -172,7 +162,6 @@ Singleton {
     objects: root.sinks.concat(root.sources)
   }
 
-  // Clamp external volume changes (e.g., from pavucontrol)
   Connections {
     function onVolumeChanged() {
       if (root.sink?.audio && root.sink.audio.volume > root.maxVolume)
