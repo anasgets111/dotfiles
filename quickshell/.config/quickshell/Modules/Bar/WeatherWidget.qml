@@ -62,7 +62,7 @@ Item {
             Layout.alignment: Qt.AlignVCenter
             color: Qt.alpha(expandBtn.textColor, 0.7)
             font.pixelSize: Theme.fontSize * 0.7
-            text: "updated " + WeatherService.getTimeAgo()
+            text: "updated " + WeatherService.timeAgo
           }
         }
       }

@@ -9,7 +9,6 @@ Row {
 
   spacing: 8
 
-  // Active window title display
   ActiveWindow {
     id: activeWindowTitle
 

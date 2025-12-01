@@ -71,15 +71,16 @@ Row {
   }
 
   Loader {
+    id: niriWsLoader
+
     active: MainService.currentWM === "niri"
 
     sourceComponent: NiriWorkspaces {
-      id: niriWorkspaces
-
       anchors.verticalCenter: parent.verticalCenter
-
-      onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
     }
+
+    onItemChanged: if (item)
+      leftSide.normalWorkspacesExpanded = Qt.binding(() => item.expanded)
   }
 
   Loader {
@@ -93,14 +94,15 @@ Row {
   }
 
   Loader {
+    id: normalWsLoader
+
     active: MainService.currentWM === "hyprland"
 
     sourceComponent: NormalWorkspaces {
-      id: normalWorkspaces
-
       anchors.verticalCenter: parent.verticalCenter
-
-      onExpandedChanged: leftSide.normalWorkspacesExpanded = expanded
     }
+
+    onItemChanged: if (item)
+      leftSide.normalWorkspacesExpanded = Qt.binding(() => item.expanded)
   }
 }

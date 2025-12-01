@@ -83,31 +83,23 @@ Item {
       Layout.fillWidth: true
       spacing: 10
 
-      Loader {
-        Layout.preferredHeight: active ? 40 : 0
-        Layout.preferredWidth: active ? 40 : 0
-        active: !!root.primaryWrapper
+      Rectangle {
+        Layout.preferredHeight: 40
+        Layout.preferredWidth: 40
+        border.color: Qt.rgba(255, 255, 255, 0.05)
+        border.width: 1
+        color: Qt.rgba(1, 1, 1, 0.07)
+        radius: 8
+        visible: !!root.primaryWrapper
 
-        sourceComponent: Rectangle {
-          border.color: Qt.rgba(255, 255, 255, 0.05)
-          border.width: 1
-          color: Qt.rgba(1, 1, 1, 0.07)
-          height: 40
-          radius: 8
-          width: 40
-
-          Image {
-            anchors.centerIn: parent
-            fillMode: Image.PreserveAspectFit
-            height: 30
-            smooth: true
-            source: Utils.resolveIconSource(root.primaryWrapper?.appName || "app", root.primaryWrapper?.appIcon, "dialog-information")
-            sourceSize: Qt.size(30, 30)
-            width: 30
-
-            onStatusChanged: if (status === Image.Error)
-              parent.parent.active = false
-          }
+        Image {
+          anchors.centerIn: parent
+          fillMode: Image.PreserveAspectFit
+          height: 30
+          smooth: true
+          source: root.primaryWrapper ? Utils.resolveIconSource(root.primaryWrapper.appName || "app", root.primaryWrapper.appIcon, "dialog-information") : ""
+          sourceSize: Qt.size(30, 30)
+          width: 30
         }
       }
 
@@ -124,16 +116,13 @@ Item {
       RowLayout {
         spacing: 6
 
-        Loader {
-          active: root.headerHasExpand
+        StandardButton {
+          Accessible.name: root.groupExpanded ? "Collapse group" : "Expand group"
+          buttonType: "control"
+          text: root.groupExpanded ? "▴" : "▾"
+          visible: root.headerHasExpand
 
-          sourceComponent: StandardButton {
-            Accessible.name: root.groupExpanded ? "Collapse group" : "Expand group"
-            buttonType: "control"
-            text: root.groupExpanded ? "▴" : "▾"
-
-            onClicked: root.svc?.toggleGroupExpansion(root.group?.key)
-          }
+          onClicked: root.svc?.toggleGroupExpansion(root.group?.key)
         }
 
         StandardButton {
@@ -141,12 +130,7 @@ Item {
           buttonType: "control"
           text: "x"
 
-          onClicked: {
-            if (root.isGroup)
-              root.svc?.dismissGroup(root.group?.key);
-            else if (root.primaryWrapper)
-              root.svc?.dismissNotification(root.primaryWrapper);
-          }
+          onClicked: root.isGroup ? root.svc?.dismissGroup(root.group?.key) : root.svc?.dismissNotification(root.primaryWrapper)
         }
       }
     }
@@ -237,21 +221,13 @@ Item {
               Layout.fillWidth: true
               spacing: 8
 
-              Loader {
-                Layout.preferredHeight: active ? 24 : 0
-                Layout.preferredWidth: active ? 24 : 0
-                active: !!messageColumn.contentImage
-
-                sourceComponent: Image {
-                  fillMode: Image.PreserveAspectFit
-                  height: 24
-                  smooth: true
-                  source: messageColumn.contentImage
-                  width: 24
-
-                  onStatusChanged: if (status === Image.Error)
-                    parent.parent.active = false
-                }
+              Image {
+                Layout.preferredHeight: visible ? 24 : 0
+                Layout.preferredWidth: visible ? 24 : 0
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                source: messageColumn.contentImage
+                visible: String(messageColumn.contentImage) !== "" && status !== Image.Error
               }
 
               Text {
@@ -284,31 +260,22 @@ Item {
               RowLayout {
                 spacing: 6
 
-                Loader {
-                  active: messageColumn.summaryTruncated || messageColumn.bodyTruncated || messageColumn.expanded
+                StandardButton {
+                  Accessible.name: messageColumn.expanded ? "Collapse message" : "Expand message"
+                  buttonType: "control"
+                  text: messageColumn.expanded ? "▴" : "▾"
+                  visible: messageColumn.summaryTruncated || messageColumn.bodyTruncated || messageColumn.expanded
 
-                  sourceComponent: StandardButton {
-                    Accessible.name: messageColumn.expanded ? "Collapse message" : "Expand message"
-                    buttonType: "control"
-                    text: messageColumn.expanded ? "▴" : "▾"
-
-                    onClicked: root.toggleMessageExpansion(messageColumn.messageId)
-                  }
+                  onClicked: root.toggleMessageExpansion(messageColumn.messageId)
                 }
 
-                Loader {
-                  active: messageItem.isMultipleItems
+                StandardButton {
+                  Accessible.name: "Dismiss notification"
+                  buttonType: "control"
+                  text: "x"
+                  visible: messageItem.isMultipleItems
 
-                  sourceComponent: StandardButton {
-                    Accessible.name: "Dismiss notification"
-                    buttonType: "control"
-                    text: "x"
-
-                    onClicked: {
-                      if (messageItem.modelData)
-                        root.svc?.dismissNotification(messageItem.modelData);
-                    }
-                  }
+                  onClicked: root.svc?.dismissNotification(messageItem.modelData)
                 }
               }
             }
@@ -468,7 +435,8 @@ Item {
       } else {
         for (const w of root.items) {
           const t = w?.timer;
-          if (t && (t.interval || 0) > 0 && !t.running)
+          // Only restart if popup is still active and timer has non-zero interval
+          if (t && w.popup && (t.interval || 0) > 0 && !t.running)
             t.start();
         }
       }

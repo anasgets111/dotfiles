@@ -9,44 +9,35 @@ import qs.Modules.Bar
 Item {
   id: root
 
-  readonly property bool active: bt?.available && bt.enabled
-  readonly property var bt: BluetoothService
-  readonly property string btIcon: {
-    if (!active)
-      return "󰂲";
-    return connectedDevices.length > 0 ? "󰂱" : "󰂯";
-  }
-  readonly property var connectedDevices: bt?.devices.filter(d => d?.connected) ?? []
+  readonly property bool active: BluetoothService.available && BluetoothService.enabled
+  readonly property string btIcon: !active ? "󰂲" : (connectedDevices.length > 0 ? "󰂱" : "󰂯")
+  readonly property var connectedDevices: BluetoothService.devices.filter(d => d?.connected) ?? []
   readonly property string detailText1: {
     if (!active)
       return "";
-    const d = topDevice;
-    if (d) {
-      const name = d.name || d.deviceName || qsTr("Unknown device");
-      const battStr = d.batteryAvailable && d.battery > 0 ? qsTr(" · Battery: %1").arg(BluetoothService.getBattery(d)) : "";
+    if (topDevice) {
+      const name = topDevice.name || topDevice.deviceName || qsTr("Unknown device");
+      const battStr = topDevice.batteryAvailable && topDevice.battery > 0 ? qsTr(" · Battery: %1").arg(BluetoothService.getBattery(topDevice)) : "";
       return qsTr("Top: %1%2").arg(name).arg(battStr);
     }
-    return bt.discovering ? qsTr("Discovering devices…") : pairedDevices.length > 0 ? qsTr("Paired: %1").arg(pairedDevices.length) : qsTr("No devices connected");
+    return BluetoothService.discovering ? qsTr("Discovering devices…") : (pairedDevices.length > 0 ? qsTr("Paired: %1").arg(pairedDevices.length) : qsTr("No devices connected"));
   }
   readonly property string detailText2: {
     if (!active)
       return "";
-    const n = connectedDevices.length;
-    if (n > 1)
-      return qsTr("Others: %1 more").arg(n - 1);
-    return topDevice ? "" : (bt.discovering ? qsTr("Scanning is active") : "");
+    if (connectedDevices.length > 1)
+      return qsTr("Others: %1 more").arg(connectedDevices.length - 1);
+    return topDevice ? "" : (BluetoothService.discovering ? qsTr("Scanning is active") : "");
   }
-  readonly property var pairedDevices: bt?.pairedDevices ?? []
+  readonly property var pairedDevices: BluetoothService.devices.filter(d => d?.paired || d?.trusted) ?? []
   readonly property string titleText: {
-    if (!bt?.available)
+    if (!BluetoothService.available)
       return qsTr("Bluetooth: unavailable");
-    if (!bt.enabled)
+    if (!BluetoothService.enabled)
       return qsTr("Bluetooth: off");
-    const n = connectedDevices.length;
-    return n > 0 ? qsTr("Bluetooth: connected (%1)").arg(n) : qsTr("Bluetooth: on");
+    return connectedDevices.length > 0 ? qsTr("Bluetooth: connected (%1)").arg(connectedDevices.length) : qsTr("Bluetooth: on");
   }
-  readonly property var topDevice: topList[0] ?? null
-  readonly property var topList: (connectedDevices.length > 1 ? bt?.sortDevices(connectedDevices) ?? [] : connectedDevices)
+  readonly property var topDevice: connectedDevices.length > 1 ? BluetoothService.sortDevices(connectedDevices)[0] : connectedDevices[0]
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)

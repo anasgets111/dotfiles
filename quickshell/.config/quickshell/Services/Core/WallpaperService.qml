@@ -22,9 +22,22 @@ Singleton {
     })
   property bool hydrated: false
   property var monitorPrefs: ({})
-  property list<var> monitors: []
+  readonly property var monitors: {
+    if (!ready)
+      return [];
+    const count = MonitorService.monitors.count;
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const m = MonitorService.monitors.get(i);
+      out.push({
+        name: m.name,
+        scale: m.scale
+      });
+    }
+    return out;
+  }
   readonly property bool ready: hydrated && MonitorService?.ready && (MonitorService.monitors?.count ?? 0) > 0
-  property list<var> wallpaperFiles: []
+  property var wallpaperFiles: []
   readonly property bool wallpaperFilesReady: wallpaperFolderModel.status === FolderListModel.Ready
   property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"
   property string wallpaperTransition: defaultTransition
@@ -72,10 +85,8 @@ Singleton {
       wallpaperFolder = String(Settings.data.wallpaperFolder);
     }
     hydrated = true;
-    if (MonitorService.ready) {
-      root.rebuildMonitors();
+    if (MonitorService.ready)
       root.announceAll();
-    }
     root.persistMonitors();
   }
 
@@ -101,45 +112,14 @@ Singleton {
   }
 
   function randomizeAllMonitors() {
-    if (!MonitorService?.ready || !wallpaperFilesReady)
+    if (!ready || !wallpaperFilesReady || !wallpaperFiles.length)
       return;
-
-    if (!wallpaperFiles.length) {
-      console.warn("WallpaperService: no wallpaper files available in", wallpaperFolder);
-      return;
-    }
-
     const count = MonitorService.monitors.count;
     for (let i = 0; i < count; i++) {
-      const mon = MonitorService.monitors.get(i);
+      const name = MonitorService.monitors.get(i).name;
       const chosen = wallpaperFiles[Math.floor(Math.random() * wallpaperFiles.length)].path;
-      root.setWallpaper(mon.name, chosen);
+      root.setWallpaper(name, chosen);
     }
-  }
-
-  function rebuildMonitors() {
-    if (!ready) {
-      monitors = [];
-      return;
-    }
-    const out = [];
-    const count = MonitorService.monitors.count;
-    for (let i = 0; i < count; i++) {
-      const m = MonitorService.monitors.get(i);
-      const prefs = root.ensurePrefs(m.name);
-      out.push({
-        name: m.name,
-        width: m.width,
-        height: m.height,
-        scale: m.scale,
-        fps: m.fps,
-        bitDepth: m.bitDepth,
-        orientation: m.orientation,
-        wallpaper: prefs.wallpaper,
-        mode: prefs.mode
-      });
-    }
-    monitors = out;
   }
 
   function setModePref(name, mode) {
@@ -150,8 +130,7 @@ Singleton {
     if (p.mode === v)
       return;
     p.mode = v;
-    modeChanged(name, p.mode);
-    root.rebuildMonitors();
+    modeChanged(name, v);
     persistDebounce.restart();
   }
 
@@ -199,19 +178,8 @@ Singleton {
   function wallpaperFor(name) {
     if (!name || !ready)
       return null;
-    const idx = MonitorService.findMonitorIndexByName(name);
-    if (idx < 0)
-      return null;
-    const m = MonitorService.monitors.get(idx);
     const p = root.ensurePrefs(name);
     return {
-      name: m.name,
-      width: m.width,
-      height: m.height,
-      scale: m.scale,
-      fps: m.fps,
-      bitDepth: m.bitDepth,
-      orientation: m.orientation,
       wallpaper: p.wallpaper,
       mode: p.mode,
       transition: wallpaperTransition
@@ -232,41 +200,22 @@ Singleton {
     showFiles: true
 
     onStatusChanged: {
-      if (status === FolderListModel.Ready) {
-        // Pre-allocate array for better memory performance
-        const list = new Array(count);
-        let validCount = 0;
-
-        for (let i = 0; i < count; i++) {
-          const filePath = get(i, "filePath").toString().replace("file://", "");
-          if (filePath) {
-            const resolvedPath = filePath.startsWith("file:") ? filePath : `file://${filePath}`;
-            const nameMatch = filePath.split("/").pop() || filePath;
-            list[validCount++] = {
-              path: filePath,
-              displayName: nameMatch,
-              previewSource: resolvedPath
-            };
-          }
+      if (status !== FolderListModel.Ready)
+        return;
+      const list = [];
+      for (let i = 0; i < count; i++) {
+        const raw = get(i, "filePath").toString();
+        const path = raw.replace("file://", "");
+        if (path) {
+          list.push({
+            path,
+            displayName: path.split("/").pop(),
+            previewSource: `file://${path}`
+          });
         }
-
-        // Trim array to actual valid count if needed
-        if (validCount < count) {
-          list.length = validCount;
-        }
-
-        root.wallpaperFiles = list;
       }
+      root.wallpaperFiles = list;
     }
-  }
-
-  Timer {
-    id: announceDebounce
-
-    interval: 50
-    repeat: false
-
-    onTriggered: root.announceAll()
   }
 
   Timer {
@@ -289,16 +238,13 @@ Singleton {
 
   Connections {
     function onMonitorsUpdated() {
-      if (MonitorService.ready && root.hydrated) {
-        root.rebuildMonitors();
+      if (MonitorService.ready && root.hydrated)
         root.persistMonitors();
-      }
     }
 
     function onReadyChanged() {
-      if (MonitorService.ready && root.hydrated) {
-        root.rebuildMonitors();
-      }
+      if (MonitorService.ready && root.hydrated)
+        root.announceAll();
     }
 
     target: MonitorService

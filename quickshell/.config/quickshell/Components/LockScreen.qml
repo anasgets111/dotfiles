@@ -7,11 +7,7 @@ import qs.Services.Core
 import qs.Services.WM
 
 Scope {
-  id: root
-
   WlSessionLock {
-    id: sessionLock
-
     locked: LockService.locked
 
     WlSessionLockSurface {
@@ -27,17 +23,14 @@ Scope {
         focus: true
 
         Component.onCompleted: forceActiveFocus()
-        Keys.onPressed: event => {
-          if (LockService.handleGlobalKeyPress(event))
-            event.accepted = true;
-        }
+        Keys.onPressed: event => event.accepted = LockService.handleGlobalKeyPress(event)
 
         Image {
           anchors.fill: parent
           cache: false
           fillMode: WallpaperService.modeToFillMode(lockSurface.wallpaperData?.mode)
-          layer.enabled: source !== ""
-          source: lockSurface.wallpaperData?.wallpaper || ""
+          layer.enabled: !!source
+          source: lockSurface.wallpaperData?.wallpaper ?? ""
 
           layer.effect: MultiEffect {
             autoPaddingEnabled: false

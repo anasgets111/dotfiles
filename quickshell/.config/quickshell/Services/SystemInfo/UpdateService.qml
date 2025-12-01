@@ -9,13 +9,13 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  property var _notifyQueue: []
+  property var _pendingNotifyAction: null
   readonly property bool busy: pkgProc.running
   property bool checkupdatesAvailable: false
-  property var completedPackages: []
   property int currentPackageIndex: 0
   property string currentPackageName: ""
   property string errorMessage: ""
-  property string errorType: ""
   property int failureCount: 0
   readonly property int failureThreshold: 5
   property int lastNotificationId: 0
@@ -31,12 +31,9 @@ Singleton {
       Completed: 2,
       Error: 3
     })
-  readonly property int totalDownloadSize: {
-    return updatePackages.reduce((sum, p) => sum + (packageSizes[p.name] || 0), 0);
-  }
+  readonly property int totalDownloadSize: updatePackages.reduce((sum, p) => sum + (packageSizes[p.name] ?? 0), 0)
   property int totalPackagesToUpdate: 0
   readonly property int totalUpdates: updatePackages.length
-  readonly property var updateLineRe: /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/
   property var updatePackages: []
   property int updateState: status.Idle
 
@@ -53,28 +50,11 @@ Singleton {
     if (action)
       args.push("-A", `${action}=${qsTr("Run updates")}`);
     args.push(title, message);
-
-    Logger.log("UpdateService", `Sending notification: replace=${lastNotificationId}, title=${title}`);
-
-    Utils.runCmd(["notify-send", ...args], out => {
-      // Parse output for ID and action response
-      const lines = (out || "").trim().split('\n');
-
-      // Extract first numeric line as notification ID
-      for (const line of lines) {
-        const id = parseInt(line.trim());
-        if (!isNaN(id)) {
-          Logger.log("UpdateService", `Notification ID updated: ${lastNotificationId} -> ${id}`);
-          lastNotificationId = id;
-          break;
-        }
-      }
-
-      // Check if action was triggered
-      if (action && lines.some(line => line.includes(action))) {
-        executeUpdate();
-      }
+    _notifyQueue.push({
+      args,
+      action
     });
+    _processNotifyQueue();
   }
 
   function _notifyIfIncreased() {
@@ -91,14 +71,27 @@ Singleton {
   }
 
   function _parseOutput(text) {
-    return (text || "").trim().split(/\r?\n/).filter(l => l).map(line => {
-      const m = line.match(updateLineRe);
-      return m ? {
-        name: m[1],
-        oldVersion: m[2],
-        newVersion: m[3]
-      } : null;
-    }).filter(p => p);
+    const result = [];
+    const re = /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/;
+    for (const line of (text ?? "").trim().split(/\r?\n/)) {
+      const m = line.match(re);
+      if (m)
+        result.push({
+          name: m[1],
+          oldVersion: m[2],
+          newVersion: m[3]
+        });
+    }
+    return result;
+  }
+
+  function _processNotifyQueue() {
+    if (_notifyProc.running || !_notifyQueue.length)
+      return;
+    const job = _notifyQueue.shift();
+    _pendingNotifyAction = job.action;
+    _notifyProc.command = ["notify-send"].concat(job.args);
+    _notifyProc.running = true;
   }
 
   function cancelUpdate() {
@@ -109,7 +102,6 @@ Singleton {
   }
 
   function closeAllNotifications() {
-    Logger.log("UpdateService", "Closing all 'System Updates' notifications");
     NotificationService.dismissNotificationsByAppName("System Updates");
     lastNotificationId = 0;
   }
@@ -122,22 +114,16 @@ Singleton {
   }
 
   function executeUpdate() {
-    if (totalUpdates === 0) {
-      Logger.warn("UpdateService", "No packages to update");
+    if (totalUpdates === 0)
       return;
-    }
-
-    // We do NOT close the notification here. We keep the ID so the next notification
-    // (Update Complete/Failed) can replace it, preventing notification spam.
 
     totalPackagesToUpdate = totalUpdates;
     currentPackageIndex = 0;
     currentPackageName = "";
     outputLines = [];
-    completedPackages = [];
+    errorMessage = "";
     updateState = status.Updating;
 
-    Logger.log("UpdateService", `Starting system update`);
     updateProcess.command = [Quickshell.env("HOME") + "/.local/bin/update.sh", "--polkit"];
     updateProcess.running = true;
   }
@@ -145,14 +131,8 @@ Singleton {
   function fetchPackageSizes() {
     if (updatePackages.length === 0)
       return;
-    sizeFetchProcess.command = ["expac", "-S", "%k\t%n", ...updatePackages.map(p => p.name)];
+    sizeFetchProcess.command = ["expac", "-S", "%k\t%n"].concat(updatePackages.map(p => p.name));
     sizeFetchProcess.running = true;
-  }
-
-  function retryUpdate() {
-    errorMessage = "";
-    errorType = "";
-    executeUpdate();
   }
 
   Component.onCompleted: {
@@ -185,7 +165,7 @@ Singleton {
 
     stdout: StdioCollector {
       onStreamFinished: {
-        root.checkupdatesAvailable = (text || "").trim() === "yes";
+        root.checkupdatesAvailable = (text ?? "").trim() === "yes";
         if (root.ready) {
           root.doPoll();
           pollTimer.start();
@@ -202,19 +182,14 @@ Singleton {
         const parts = line.trim().split('\t');
         if (parts.length !== 2)
           return;
-        const sizeBytes = parseFloat(parts[0]);
-        const packageName = parts[1];
-        if (!isNaN(sizeBytes) && packageName) {
-          // expac %k returns bytes, convert to KiB for consistency
+        const size = parseFloat(parts[0]);
+        const name = parts[1];
+        if (!isNaN(size) && name) {
           root.packageSizes = Object.assign({}, root.packageSizes, {
-            [packageName]: Math.round(sizeBytes / 1024)
+            [name]: Math.round(size / 1024)
           });
         }
       }
-    }
-
-    onExited: (exitCode, exitStatus) => {
-      Logger.log("UpdateService", `Fetched sizes for ${Object.keys(root.packageSizes).length} packages`);
     }
   }
 
@@ -223,51 +198,43 @@ Singleton {
 
     stderr: StdioCollector {
       onStreamFinished: {
-        const msg = (text || "").trim();
+        const msg = (text ?? "").trim();
         msg ? root._handleError("checkupdates", msg, -1) : (root.failureCount = 0);
       }
     }
     stdout: StdioCollector {
       onStreamFinished: {
-        const parsed = root._parseOutput(text);
-        root.updatePackages = parsed;
+        root.updatePackages = root._parseOutput(text);
         root.lastSync = Date.now();
-        // We do NOT reset lastNotificationId here anymore.
-        // This allows the "Update Complete" notification to persist its ID
-        // so it can be closed by the user.
         root._notifyIfIncreased();
-        if (parsed.length > 0)
+        if (root.updatePackages.length > 0)
           root.fetchPackageSizes();
       }
     }
 
-    onExited: (exitCode, exitStatus) => {
-      if (exitCode !== 0 && exitCode !== 2) {
-        root._handleError("checkupdates", `Exit code: ${exitCode}`, exitCode);
-      }
+    onExited: (code, exitStatus) => {
+      if (code !== 0 && code !== 2)
+        root._handleError("checkupdates", `Exit code: ${code}`, code);
     }
   }
 
   Process {
     id: updateProcess
 
-    function addOutput(line, type) {
+    function addLine(line, isError = false) {
       if (!line.trim())
         return;
-
-      // Create a new array reference to trigger QML property change
-      var newLines = root.outputLines.slice();
+      const newLines = root.outputLines.slice();
       newLines.push({
         text: line,
-        type: type
+        type: isError ? "error" : "info"
       });
       root.outputLines = newLines;
 
-      const match = line.match(/(?:installing|upgrading)\s+(\S+)/);
+      const match = line.match(/(?:installing|upgrading)\s+(\S+)/i);
       if (match) {
         root.currentPackageIndex++;
         root.currentPackageName = match[1];
-        root.completedPackages.push(match[1]);
       }
     }
 
@@ -276,16 +243,14 @@ Singleton {
         const line = data.trim();
         if (!line)
           return;
-        updateProcess.addOutput(line, "error");
+        updateProcess.addLine(line, true);
 
-        if (line.includes("failed retrieving") || line.includes("download timeout") || line.includes("connection refused") || line.includes("could not resolve host")) {
-          root.errorType = "network";
+        const lower = line.toLowerCase();
+        if (lower.includes("failed retrieving") || lower.includes("download timeout") || lower.includes("connection refused") || lower.includes("could not resolve host")) {
           root.errorMessage = "Network error: Failed to download packages";
-        } else if (line.includes("not enough free disk space")) {
-          root.errorType = "disk";
+        } else if (lower.includes("not enough free disk space")) {
           root.errorMessage = "Insufficient disk space";
-        } else if (line.includes("authentication failure") || line.includes("incorrect password")) {
-          root.errorType = "auth";
+        } else if (lower.includes("authentication failure") || lower.includes("incorrect password")) {
           root.errorMessage = "Authentication failed";
         }
       }
@@ -294,20 +259,18 @@ Singleton {
       onRead: data => {
         const line = data.trim();
         const isError = line.toLowerCase().includes("error:") || line.includes("failed");
-        updateProcess.addOutput(line, isError ? "error" : "info");
+        updateProcess.addLine(line, isError);
       }
     }
 
-    onExited: (exitCode, exitStatus) => {
-      root.updateState = exitCode === 0 ? root.status.Completed : root.status.Error;
-      if (exitCode === 0) {
-        root._notify("Update Complete", `${root.completedPackages.length} packages updated successfully`);
+    onExited: (code, exitStatus) => {
+      root.updateState = code === 0 ? root.status.Completed : root.status.Error;
+      if (code === 0) {
+        root._notify("Update Complete", `${root.currentPackageIndex} packages updated successfully`);
         root.doPoll();
       } else {
-        if (!root.errorType) {
-          root.errorType = "unknown";
-          root.errorMessage = `Update failed with code ${exitCode}`;
-        }
+        if (!root.errorMessage)
+          root.errorMessage = `Update failed with code ${code}`;
         root._notify("Update Failed", root.errorMessage, "critical");
       }
     }
@@ -321,5 +284,30 @@ Singleton {
 
     onTriggered: if (root.ready)
       root.doPoll()
+  }
+
+  Process {
+    id: _notifyProc
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const lines = text.trim().split('\n');
+        for (const line of lines) {
+          const id = parseInt(line.trim());
+          if (!isNaN(id)) {
+            root.lastNotificationId = id;
+            break;
+          }
+        }
+        const action = root._pendingNotifyAction;
+        root._pendingNotifyAction = null;
+        if (action && lines.some(l => l.includes(action)))
+          root.executeUpdate();
+        root._processNotifyQueue();
+      }
+    }
+
+    onRunningChanged: if (!running)
+      root._processNotifyQueue()
   }
 }

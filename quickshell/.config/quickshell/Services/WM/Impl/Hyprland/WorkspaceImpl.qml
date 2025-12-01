@@ -13,78 +13,87 @@ Singleton {
   property int currentWorkspace: 1
   property int currentWorkspaceId: 1
   property bool enabled: MainService.ready && MainService.currentWM === "hyprland"
-  property string focusedOutput: ""
+  property string focusedOutput: Hyprland.focusedMonitor?.name ?? ""
   property var groupBoundaries: []
   property var outputsOrder: []
   property int previousWorkspace: 1
   property var specialWorkspaces: []
   property var workspaces: []
 
-  function focusWorkspaceByIndex(index) {
-    if (enabled && index)
-      Hyprland.dispatch("workspace " + index);
+  function focusWorkspaceByIndex(idx) {
+    if (enabled && idx)
+      Hyprland.dispatch("workspace " + idx);
   }
 
-  function focusWorkspaceByObject(ws) {
+  function focusWorkspaceByWs(ws) {
     if (enabled && ws?.id)
       focusWorkspaceByIndex(ws.id);
   }
 
   function recompute() {
-    try {
-      const wsList = Hyprland.workspaces?.values || Hyprland.workspaces || [];
-      const monList = Hyprland.monitors?.values || Hyprland.monitors || [];
-      const focusedMon = Hyprland.focusedMonitor || monList.find(m => m.focused);
+    const wsList = Array.from(Hyprland.workspaces.values);
+    const monList = Array.from(Hyprland.monitors.values);
 
-      root.focusedOutput = focusedMon?.name || "";
-      root.outputsOrder = monList.length ? monList.slice().sort((l, r) => {
-        if (l.name === root.focusedOutput)
-          return -1;
-        if (r.name === root.focusedOutput)
-          return 1;
-        return l.name.localeCompare(r.name);
-      }).map(m => m.name) : [];
+    // Sort monitors: focused first, then alphabetical
+    const sortedMons = monList.sort((a, b) => {
+      if (a.name === focusedOutput)
+        return -1;
+      if (b.name === focusedOutput)
+        return 1;
+      return a.localeCompare(b);
+    });
+    root.outputsOrder = sortedMons.map(m => m.name);
 
-      root.specialWorkspaces = wsList.filter(w => w.id < 0);
-      const newWorkspaces = wsList.filter(w => w.id > 0).map(w => {
-        const winCount = w.lastIpcObject?.windows;
-        return {
-          id: w.id,
-          focused: !!w.focused,
-          populated: typeof winCount === "number" ? winCount > 0 : (!!w.hasFullscreen || !!w.focused),
-          output: w.monitor?.name || (typeof w.monitor === "string" ? w.monitor : "")
-        };
-      }).sort((a, b) => a.id - b.id);
-      root.workspaces = newWorkspaces;
+    root.specialWorkspaces = wsList.filter(w => w.id < 0);
 
-      const focusedWs = wsList.find(w => w.id > 0 && w.focused);
-      if (focusedWs?.id && focusedWs.id !== root.currentWorkspace) {
-        root.previousWorkspace = root.currentWorkspace;
-        root.currentWorkspace = root.currentWorkspaceId = focusedWs.id;
-      }
-
-      // Boundary calculation
-      const counts = new Map();
-      for (const w of newWorkspaces)
-        counts.set(w.output || "", (counts.get(w.output || "") || 0) + 1);
-      let acc = 0;
-      root.groupBoundaries = root.outputsOrder.reduce((bounds, out) => {
-        acc += counts.get(out) || 0;
-        if (acc > 0 && acc < newWorkspaces.length)
-          bounds.push(acc);
-        return bounds;
-      }, []);
-    } catch (e) {
-      Logger.log("HyprWs", "Recompute error: " + e);
+    // Build workspaces with unified structure: { id, idx, focused, populated, output, name? }
+    const regular = [];
+    let focusedWs = null;
+    for (const w of wsList) {
+      if (w.id <= 0)
+        continue;
+      const winCount = w.lastIpcObject?.windows;
+      const ws = {
+        id: w.id,
+        idx: w.id  // Hyprland: idx equals id
+        ,
+        focused: w.focused,
+        populated: typeof winCount === "number" ? winCount > 0 : (w.hasFullscreen || w.focused),
+        output: w.monitor?.name ?? ""
+      };
+      regular.push(ws);
+      if (w.focused)
+        focusedWs = ws;
     }
+    regular.sort((a, b) => a.idx - b.idx);
+    root.workspaces = regular;
+
+    if (focusedWs && focusedWs.id !== currentWorkspace) {
+      root.previousWorkspace = currentWorkspace;
+      root.currentWorkspace = root.currentWorkspaceId = focusedWs.id;
+    }
+
+    // Boundary calculation: cumulative count per output
+    const counts = new Map();
+    for (const w of regular)
+      counts.set(w.output, (counts.get(w.output) ?? 0) + 1);
+
+    const bounds = [];
+    let acc = 0;
+    for (const out of outputsOrder) {
+      acc += counts.get(out) ?? 0;
+      if (acc > 0 && acc < regular.length)
+        bounds.push(acc);
+    }
+    root.groupBoundaries = bounds;
   }
 
   function refresh() {
-    if (enabled) {
-      Hyprland.refreshMonitors();
-      Hyprland.refreshWorkspaces();
-      Qt.callLater(recompute);
-    }
+    if (!enabled)
+      return;
+    Hyprland.refreshMonitors();
+    Hyprland.refreshWorkspaces();
+    Qt.callLater(recompute);
   }
 
   function toggleSpecial(name) {
@@ -92,39 +101,27 @@ Singleton {
       Hyprland.dispatch("togglespecialworkspace " + name);
   }
 
-  Component.onCompleted: {
-    if (enabled)
-      refresh();
-    _startupKick.start();
-  }
-  Component.onDestruction: {
-    _startupKick.stop();
-  }
+  Component.onCompleted: if (enabled)
+    _startupKick.start()
   onEnabledChanged: {
     if (enabled) {
       refresh();
     } else {
       workspaces = specialWorkspaces = outputsOrder = groupBoundaries = [];
-      activeSpecial = focusedOutput = "";
+      activeSpecial = "";
       currentWorkspace = currentWorkspaceId = previousWorkspace = 1;
     }
   }
 
   Connections {
     function onFocusedMonitorChanged() {
-      if (!enabled)
-        return;
-      root.focusedOutput = Hyprland.focusedMonitor?.name || "";
       root.recompute();
     }
 
     function onRawEvent(evt) {
-      if (!enabled || !evt?.name)
-        return;
       switch (evt.name) {
       case "activespecial":
-        const specialName = evt.data?.split(",")[0] || "";
-        root.activeSpecial = specialName;
+        root.activeSpecial = evt.data?.split(",")[0] ?? "";
         root.recompute();
         break;
       case "closespecial":
@@ -148,16 +145,14 @@ Singleton {
     }
 
     enabled: root.enabled
-    target: enabled ? Hyprland : null
+    target: Hyprland
   }
 
   Timer {
     id: _startupKick
 
     interval: 200
-    repeat: false
 
-    onTriggered: if (root.enabled)
-      root.refresh()
+    onTriggered: root.refresh()
   }
 }

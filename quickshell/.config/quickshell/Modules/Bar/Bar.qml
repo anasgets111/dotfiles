@@ -7,13 +7,8 @@ import qs.Services.WM
 PanelWindow {
   id: panelWindow
 
-  // from RightSide (e.g., Volume hover)
   readonly property bool centerShouldHide: workspacesExpanded || rightSideExpanded
-  // from LeftSide (Normal/Niri workspaces)
   property bool rightSideExpanded: false
-  property bool screenChanging: false
-
-  // Track expansion sources separately
   property bool workspacesExpanded: false
 
   signal wallpaperPickerRequested
@@ -29,16 +24,9 @@ PanelWindow {
     item: panelRect
   }
 
-  onScreenChanged: {
-    if (panelWindow.screenChanging)
-      return;
-
-    panelWindow.screenChanging = true;
-    if (!panelWindow.visible)
-      panelWindow.visible = true;
-
-    panelWindow.screenChanging = false;
-  }
+  // Ensure visibility when screen changes
+  onScreenChanged: if (!visible)
+    visible = true
 
   anchors {
     left: true

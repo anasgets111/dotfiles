@@ -9,85 +9,61 @@ import qs.Modules.Bar
 Rectangle {
   id: root
 
-  readonly property real baseVolume: 1.0
-  readonly property real collapsedWidth: iconMetrics.width + 2 * contentPadding
-  property int contentPadding: 10
-  readonly property string currentDeviceIcon: AudioService?.sinkIcon ?? ""
-  readonly property string currentIcon: {
-    if (!isAudioReady)
+  readonly property real collapsedWidth: iconSize + 20
+  readonly property real displayValue: volumeSlider.dragging ? volumeSlider.pending : sliderValue
+  property bool expanded: hoverHandler.hovered
+  readonly property string icon: {
+    if (!ready)
       return "--";
-
-    const norm = volumeSlider?.dragging ? volumeSlider.pending : volumeSlider?.value ?? 0;
-    const valueAbs = norm * displayMaxVolume;
-    const ratioBase = Math.min(valueAbs / baseVolume, 1.0);
-
-    if (currentDeviceIcon)
-      return currentDeviceIcon;
-    if (isMuted)
+    if (AudioService.sinkIcon)
+      return AudioService.sinkIcon;
+    if (muted)
       return "󰝟";
-    if (ratioBase < 0.01)
+    const v = displayValue * maxVol; // actual volume 0-1.5
+    if (v < 0.01)
       return "󰖁";
-    if (ratioBase < 0.33)
+    if (v < 0.33)
       return "󰕿";
-    if (ratioBase < 0.66)
+    if (v < 0.66)
       return "󰖀";
     return "󰕾";
   }
-  readonly property real currentVolume: AudioService?.volume ?? 0.0
-  readonly property real displayMaxVolume: 1.5
-  property bool expanded: hoverHandler.hovered
-  property int expandedWidth: Theme.volumeExpandedWidth
-  readonly property bool isAudioReady: AudioService?.sink?.audio ?? false
-  readonly property bool isMuted: AudioService?.muted ?? false
-  property bool isWidthAnimating: false
-  readonly property real maxVolume: AudioService?.maxVolume ?? 1.0
-  readonly property string percentageText: {
-    if (!isAudioReady)
+  readonly property int iconSize: Theme.fontSize * 1.5
+  readonly property real maxVol: AudioService.maxVolume
+  readonly property bool muted: AudioService.muted
+  readonly property string percentText: {
+    if (!ready)
       return "--";
-    if (isMuted)
+    if (muted)
       return "0%";
-    const vol = volumeSlider.dragging ? volumeSlider.pending * displayMaxVolume : currentVolume;
-    return Math.round(Math.min(vol / baseVolume, 1.5) * 100) + "%";
+    return Math.round(Math.min(displayValue * maxVol, 1.5) * 100) + "%";
   }
-  property int sliderStepCount: 30
-  readonly property color textContrastColor: {
-    if (!expanded)
-      return Theme.textContrast(color);
+  readonly property bool ready: AudioService.sink?.audio ?? false
 
-    const norm = volumeSlider?.dragging ? volumeSlider.pending : volumeSlider?.value ?? 0;
-    const ref = norm > 0.5 ? Theme.activeColor : color;
-    return Theme.textContrast(Qt.colorEqual(ref, "transparent") ? color : ref);
+  // Slider value normalized to 0-1 range (where 1.0 = maxVolume)
+  readonly property real sliderValue: volume / maxVol
+  readonly property color textColor: {
+    const ref = expanded && displayValue > 0.5 ? Theme.activeColor : color;
+    return Theme.textContrast(ref);
   }
+  readonly property real volume: AudioService.volume
 
-  function setAbsoluteVolume(absoluteVolume) {
-    if (!isAudioReady || !AudioService)
-      return;
-    const clamped = Math.max(0, Math.min(maxVolume, absoluteVolume));
-    AudioService.setVolumeReal(clamped);
-  }
-
-  activeFocusOnTab: true
   clip: true
   color: Theme.inactiveColor
   height: Theme.itemHeight
   radius: Theme.itemRadius
-  width: expanded ? expandedWidth : collapsedWidth
+  width: expanded ? Theme.volumeExpandedWidth : collapsedWidth
 
   Behavior on width {
     NumberAnimation {
       duration: Theme.animationDuration
       easing.type: Easing.InOutQuad
-
-      onRunningChanged: root.isWidthAnimating = running
     }
   }
 
-  Component.onCompleted: {
-    volumeSlider.value = currentVolume / displayMaxVolume;
-  }
-  onCurrentVolumeChanged: {
+  onSliderValueChanged: {
     if (!volumeSlider.dragging)
-      volumeSlider.value = currentVolume / displayMaxVolume;
+      volumeSlider.value = sliderValue;
   }
 
   HoverHandler {
@@ -99,12 +75,11 @@ Rectangle {
     acceptedButtons: Qt.MiddleButton | Qt.RightButton
     anchors.fill: parent
 
-    onClicked: function (mouse) {
-      if (mouse.button === Qt.MiddleButton && root.isAudioReady && AudioService) {
+    onClicked: mouse => {
+      if (mouse.button === Qt.MiddleButton && root.ready)
         AudioService.toggleMute();
-      } else if (mouse.button === Qt.RightButton) {
+      else if (mouse.button === Qt.RightButton)
         audioPanelLoader.active = true;
-      }
     }
   }
 
@@ -115,80 +90,51 @@ Rectangle {
     animMs: 0
     fillColor: Theme.activeColor
     headroomColor: Theme.critical
-    interactive: root.isAudioReady
-    opacity: (root.expanded || dragging) ? 1 : 0
+    interactive: root.ready
+    opacity: root.expanded || dragging ? 1 : 0
     radius: root.radius
-    splitAt: 2 / 3
-    steps: root.sliderStepCount
+    splitAt: 1.0 / root.maxVol  // Split at 100% (1.0/1.5 ≈ 0.67)
+    steps: 30
     wheelStep: 1 / steps
 
     onCommitted: normalized => {
-      if (root.isAudioReady)
-        root.setAbsoluteVolume(normalized * root.displayMaxVolume);
+      if (root.ready)
+        AudioService.setVolume(normalized * root.maxVol);
     }
-  }
-
-  TextMetrics {
-    id: iconMetrics
-
-    font.family: Theme.fontFamily
-    font.pixelSize: Theme.fontSize + Theme.fontSize / 2
-    text: "󰕾"
-  }
-
-  TextMetrics {
-    id: percentMetrics
-
-    font.family: Theme.fontFamily
-    font.pixelSize: Theme.fontSize
-    text: "100%"
   }
 
   RowLayout {
     anchors.centerIn: parent
-    anchors.margins: root.contentPadding
     spacing: 8
 
-    Item {
-      id: volumeIconItem
+    Text {
+      color: root.textColor
+      horizontalAlignment: Text.AlignHCenter
+      text: root.icon
+      verticalAlignment: Text.AlignVCenter
 
-      Layout.preferredHeight: Theme.itemHeight
-      Layout.preferredWidth: iconMetrics.width
-      clip: true
-
-      Text {
-        anchors.centerIn: parent
-        color: root.textContrastColor
-        font.bold: true
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize + Theme.fontSize / 2
-        horizontalAlignment: Text.AlignHCenter
-        text: root.currentIcon
-        verticalAlignment: Text.AlignVCenter
+      font {
+        bold: true
+        family: Theme.fontFamily
+        pixelSize: root.iconSize
       }
     }
 
-    Item {
-      id: percentItem
-
-      Layout.preferredHeight: root.expanded ? percentMetrics.height : 0
-      Layout.preferredWidth: root.expanded ? percentMetrics.width : 0
+    Text {
+      color: root.textColor
+      horizontalAlignment: Text.AlignHCenter
+      text: root.percentText
+      verticalAlignment: Text.AlignVCenter
       visible: root.expanded
 
-      Text {
-        anchors.centerIn: parent
-        color: root.textContrastColor
-        font.bold: true
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        horizontalAlignment: Text.AlignHCenter
-        text: root.percentageText
-        verticalAlignment: Text.AlignVCenter
+      font {
+        bold: true
+        family: Theme.fontFamily
+        pixelSize: Theme.fontSize
       }
     }
   }
 
-  // Component definition for AudioPanel (better isolation)
   Component {
     id: audioPanelComponent
 
@@ -199,7 +145,6 @@ Rectangle {
     }
   }
 
-  // Loader for lazy-loading the panel
   Loader {
     id: audioPanelLoader
 

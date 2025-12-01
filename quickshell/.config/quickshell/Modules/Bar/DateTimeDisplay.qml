@@ -155,14 +155,8 @@ Item {
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize - 2
         opacity: 0.7
-        text: {
-          const timeAgo = WeatherService.getTimeAgo();
-          return timeAgo ? "Last updated " + timeAgo : "";
-        }
-        visible: (function () {
-            const t = WeatherService.getTimeAgo();
-            return t ? t.length > 0 : false;
-          })()
+        text: WeatherService.timeAgo ? "Last updated " + WeatherService.timeAgo : ""
+        visible: WeatherService.timeAgo.length > 0
       }
 
       // Load the calendar immediately (simple Loader vs LazyLoader to avoid hover teardown issues)

@@ -11,16 +11,12 @@ OPanel {
   id: root
 
   readonly property real availableContentHeight: {
-    const weatherH = weatherWidget.implicitHeight + root.padding + 8;
-    const headerH = header.Layout.preferredHeight + root.padding;
-    const margins = 8 + root.padding;
-    return Math.max(0, root.maxHeight - weatherH - headerH - margins);
+    const usedHeight = weatherWidget.implicitHeight + header.Layout.preferredHeight + root.padding * 2 + 16;
+    return Math.max(0, root.maxHeight - usedHeight);
   }
   readonly property real cardHeight: Theme.itemHeight * 5.5
-  readonly property bool hasNotifications: root.notificationCount > 0
+  readonly property bool hasNotifications: NotificationService.notifications.length > 0
   readonly property int maxVisibleCards: 3
-  readonly property int notificationCount: NotificationService.notifications?.length || 0
-  readonly property var notificationGroups: NotificationService.groupedNotifications || []
   readonly property int padding: 16
 
   needsKeyboardFocus: false
@@ -33,57 +29,35 @@ OPanel {
   ColumnLayout {
     spacing: 0
     width: parent.width
-    x: 0
-    y: 0
 
-    // Weather Widget
     WeatherWidget {
       id: weatherWidget
 
       Layout.bottomMargin: 8
       Layout.fillWidth: true
-      Layout.leftMargin: root.padding
-      Layout.rightMargin: root.padding
-      Layout.topMargin: root.padding
+      Layout.margins: root.padding
     }
 
-    // Header
     Rectangle {
       id: header
 
       Layout.fillWidth: true
-      Layout.margins: root.padding
+      Layout.leftMargin: root.padding
       Layout.preferredHeight: Theme.itemHeight * 1.2
-      Layout.topMargin: 0 // Remove top margin since weather is above
+      Layout.rightMargin: root.padding
       color: Qt.lighter(Theme.bgColor, 1.2)
       radius: Theme.itemRadius
 
       RowLayout {
+        anchors.fill: parent
+        anchors.leftMargin: root.padding
+        anchors.rightMargin: root.padding
         spacing: 16
 
-        anchors {
-          fill: parent
-          leftMargin: root.padding
-          rightMargin: root.padding
-        }
-
-        RowLayout {
-          spacing: 6
-
-          OText {
-            font.bold: true
-            sizeMultiplier: 1.15
-            text: qsTr("Notifications")
-          }
-
-          OText {
-            font.bold: true
-            opacity: 0.8
-            sizeMultiplier: 0.95
-            text: root.hasNotifications ? `(${root.notificationCount})` : ""
-            useActiveColor: true
-            visible: root.hasNotifications
-          }
+        OText {
+          font.bold: true
+          sizeMultiplier: 1.15
+          text: root.hasNotifications ? qsTr("Notifications") + ` (${NotificationService.notifications.length})` : qsTr("Notifications")
         }
 
         Item {
@@ -126,26 +100,22 @@ OPanel {
             Layout.preferredWidth: Theme.itemHeight * 1.2
             checked: NotificationService.doNotDisturb
 
-            onToggled: checked => NotificationService.toggleDnd()
+            onToggled: NotificationService.toggleDnd()
           }
         }
       }
     }
 
-    // Scrollable Notifications Area
     Flickable {
       id: notificationFlickable
 
-      Layout.bottomMargin: root.padding
       Layout.fillWidth: true
-      Layout.leftMargin: root.padding
+      Layout.margins: root.padding
       Layout.preferredHeight: Math.min(root.cardHeight * root.maxVisibleCards, notificationColumn.implicitHeight, root.availableContentHeight)
-      Layout.rightMargin: root.padding
       Layout.topMargin: 8
       clip: true
       contentHeight: notificationColumn.implicitHeight
       contentWidth: width
-      interactive: true // Always allow interaction if content overflows
       visible: root.hasNotifications
 
       ScrollBar.vertical: ScrollBar {
@@ -159,7 +129,7 @@ OPanel {
         width: parent.width
 
         Repeater {
-          model: root.notificationGroups
+          model: NotificationService.groupedNotifications
 
           NotificationCard {
             required property int index
@@ -177,52 +147,45 @@ OPanel {
       }
     }
 
-    // Empty State
-    Item {
-      Layout.bottomMargin: root.padding
+    ColumnLayout {
+      Layout.alignment: Qt.AlignHCenter
       Layout.fillWidth: true
-      Layout.leftMargin: root.padding
+      Layout.margins: root.padding
       Layout.preferredHeight: Math.min(root.cardHeight * 1.5, root.availableContentHeight)
-      Layout.rightMargin: root.padding
       Layout.topMargin: 8
+      spacing: 16
       visible: !root.hasNotifications
 
-      Flickable {
-        anchors.fill: parent
-        clip: true
-        contentHeight: Math.max(emptyStateCol.implicitHeight, height)
+      Item {
+        Layout.fillHeight: true
+      }
 
-        ColumnLayout {
-          id: emptyStateCol
+      Text {
+        Layout.alignment: Qt.AlignHCenter
+        color: Theme.textInactiveColor
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize * 2
+        opacity: 0.5
+        text: "󰂚"
+      }
 
-          anchors.centerIn: parent
-          spacing: 16
-          width: parent.width * 0.8
+      OText {
+        Layout.alignment: Qt.AlignHCenter
+        font.bold: true
+        sizeMultiplier: 1.3
+        text: qsTr("No Notifications")
+      }
 
-          Text {
-            Layout.alignment: Qt.AlignHCenter
-            color: Theme.textInactiveColor
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize * 2
-            opacity: 0.5
-            text: "󰂚"
-          }
+      OText {
+        Layout.alignment: Qt.AlignHCenter
+        horizontalAlignment: Text.AlignHCenter
+        opacity: 0.7
+        text: qsTr("You're all caught up!")
+        useActiveColor: false
+      }
 
-          OText {
-            Layout.alignment: Qt.AlignHCenter
-            font.bold: true
-            sizeMultiplier: 1.3
-            text: qsTr("No Notifications")
-          }
-
-          OText {
-            Layout.alignment: Qt.AlignHCenter
-            horizontalAlignment: Text.AlignHCenter
-            opacity: 0.7
-            text: qsTr("You're all caught up!")
-            useActiveColor: false
-          }
-        }
+      Item {
+        Layout.fillHeight: true
       }
     }
   }

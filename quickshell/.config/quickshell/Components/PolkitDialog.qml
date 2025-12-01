@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
@@ -17,153 +16,135 @@ Item {
   PolkitAgent {
     id: agent
 
-    onAuthenticationRequestStarted: {
-      Logger.log("PolkitDialog", `Auth started: ${agent.flow ? agent.flow.message : '<no flow>'} for ${agent.flow ? agent.flow.actionId : '<no-action>'}`);
-    }
+    onAuthenticationRequestStarted: Logger.log("PolkitDialog", `Auth started: ${agent.flow?.message ?? '<no flow>'} for ${agent.flow?.actionId ?? '<no-action>'}`)
   }
 
-  LazyLoader {
-    active: agent.isActive
+  PanelWindow {
+    id: window
 
-    component: PanelWindow {
-      id: window
+    readonly property var flow: agent.flow
 
-      WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-      WlrLayershell.layer: WlrLayer.Overlay
-      WlrLayershell.namespace: "polkit-dialog"
-      color: "#80000000"
-      visible: true
-
-      anchors {
-        bottom: true
-        left: true
-        right: true
-        top: true
+    function submit(): void {
+      if (flow && passwordField.text) {
+        flow.submit(passwordField.text);
+        passwordField.text = "";
       }
+    }
 
-      Rectangle {
-        id: content
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "polkit-dialog"
+    color: "#80000000"
+    visible: agent.isActive
 
-        anchors.centerIn: parent
-        border.color: Theme.activeColor
-        border.width: 1
-        color: Theme.bgColor
-        height: layout.implicitHeight + 40
-        radius: Theme.itemRadius
-        width: 450
+    anchors {
+      bottom: true
+      left: true
+      right: true
+      top: true
+    }
 
-        ColumnLayout {
-          id: layout
+    Rectangle {
+      anchors.centerIn: parent
+      border.color: Theme.activeColor
+      border.width: 1
+      color: Theme.bgColor
+      height: layout.implicitHeight + 40
+      radius: Theme.itemRadius
+      width: 450
 
-          readonly property var flow: agent.flow
+      ColumnLayout {
+        id: layout
 
-          anchors.fill: parent
-          anchors.margins: 20
+        anchors.fill: parent
+        anchors.margins: 20
+        spacing: 16
+
+        RowLayout {
           spacing: 16
 
-          RowLayout {
-            spacing: 16
-
-            IconImage {
-              Layout.preferredHeight: 48
-              Layout.preferredWidth: 48
-              source: Utils.resolveIconSource(layout.flow ? layout.flow.iconName : "", "dialog-password")
-            }
-
-            ColumnLayout {
-              spacing: 4
-
-              OText {
-                Layout.fillWidth: true
-                font.bold: true
-                text: layout.flow ? layout.flow.message : ""
-                wrapMode: Text.Wrap
-              }
-
-              OText {
-                Layout.fillWidth: true
-                color: Theme.textInactiveColor
-                elide: Text.ElideMiddle
-                sizeMultiplier: 0.8
-                text: layout.flow ? layout.flow.actionId : ""
-              }
-            }
+          IconImage {
+            Layout.preferredHeight: 48
+            Layout.preferredWidth: 48
+            source: Utils.resolveIconSource(window.flow?.iconName ?? "", "dialog-password")
           }
 
           ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 8
-            visible: layout.flow && layout.flow.isResponseRequired
+            spacing: 4
 
             OText {
-              text: layout.flow ? layout.flow.inputPrompt : ""
-              visible: text !== ""
-            }
-
-            OInput {
-              id: passwordField
-
               Layout.fillWidth: true
-              autoFocus: true
-              echoMode: (layout.flow && layout.flow.responseVisible) ? TextInput.Normal : TextInput.Password
-              placeholderText: qsTr("Password")
-
-              onInputAccepted: {
-                if (layout.flow) {
-                  layout.flow.submit(text);
-                  text = "";
-                }
-              }
+              font.bold: true
+              text: window.flow?.message ?? ""
+              wrapMode: Text.Wrap
             }
 
             OText {
-              color: Theme.critical
-              text: qsTr("Authentication Failed")
-              visible: layout.flow && layout.flow.failed
-            }
-          }
-
-          RowLayout {
-            Layout.alignment: Qt.AlignRight
-            spacing: 8
-
-            OButton {
-              bgColor: Theme.inactiveColor
-              text: qsTr("Cancel")
-
-              onClicked: {
-                if (layout.flow) {
-                  layout.flow.cancelAuthenticationRequest();
-                }
-              }
-            }
-
-            OButton {
-              bgColor: Theme.activeColor
-              isEnabled: passwordField.text.length > 0
-              text: qsTr("Authenticate")
-
-              onClicked: {
-                if (layout.flow) {
-                  layout.flow.submit(passwordField.text);
-                  passwordField.text = "";
-                }
-              }
+              Layout.fillWidth: true
+              color: Theme.textInactiveColor
+              elide: Text.ElideMiddle
+              sizeMultiplier: 0.8
+              text: window.flow?.actionId ?? ""
             }
           }
         }
-      }
 
-      Connections {
-        function onIsActiveChanged() {
-          if (agent.isActive) {
-            passwordField.text = "";
-            passwordField.forceActiveFocus();
+        ColumnLayout {
+          Layout.fillWidth: true
+          spacing: 8
+          visible: window.flow?.isResponseRequired ?? false
+
+          OText {
+            text: window.flow?.inputPrompt ?? ""
+            visible: text !== ""
+          }
+
+          OInput {
+            id: passwordField
+
+            Layout.fillWidth: true
+            echoMode: window.flow?.responseVisible ? TextInput.Normal : TextInput.Password
+            placeholderText: qsTr("Password")
+
+            onInputAccepted: window.submit()
+          }
+
+          OText {
+            color: Theme.critical
+            text: qsTr("Authentication Failed")
+            visible: window.flow?.failed ?? false
           }
         }
 
-        target: agent
+        RowLayout {
+          Layout.alignment: Qt.AlignRight
+          spacing: 8
+
+          OButton {
+            bgColor: Theme.inactiveColor
+            text: qsTr("Cancel")
+
+            onClicked: window.flow?.cancelAuthenticationRequest()
+          }
+
+          OButton {
+            bgColor: Theme.activeColor
+            isEnabled: passwordField.text.length > 0
+            text: qsTr("Authenticate")
+
+            onClicked: window.submit()
+          }
+        }
       }
+    }
+
+    Connections {
+      function onAuthenticationRequestStarted(): void {
+        passwordField.text = "";
+        passwordField.forceActiveFocus();
+      }
+
+      target: agent
     }
   }
 }

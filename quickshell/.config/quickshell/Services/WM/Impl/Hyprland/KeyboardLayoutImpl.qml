@@ -78,12 +78,10 @@ Singleton {
       if (event?.name !== "activelayout" || !event.data)
         return;
 
-      // payload e.g. "us,us-intl,ara,ara(mac)" -> last entry is active
-      const parts = event.data.split(",").map(s => s.trim()).filter(Boolean);
-      if (parts.length > 0) {
-        impl.layouts = parts;
-        impl.currentLayout = parts[parts.length - 1];
-      }
+      // Event format: "KEYBOARDNAME,LAYOUTNAME" - only update current layout
+      const commaIdx = event.data.indexOf(",");
+      if (commaIdx > 0)
+        impl.currentLayout = event.data.slice(commaIdx + 1).trim();
     }
 
     target: impl.active ? Hyprland : null

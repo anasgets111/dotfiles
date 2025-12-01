@@ -21,38 +21,10 @@ OPanel {
   readonly property bool ready: BluetoothService.available
   property string showCodecFor: ""
 
-  function buildDeviceList() {
-    if (!ready)
-      return [];
-
-    return BluetoothService.sortDevices(BluetoothService.devices).map(device => {
-      const addr = device.address || "";
-      return {
-        device,
-        address: addr,
-        name: BluetoothService.getDeviceName(device) || qsTr("Unknown Device"),
-        icon: BluetoothService.getDeviceIcon(device),
-        connected: device.connected || false,
-        paired: device.paired || false,
-        trusted: device.trusted || false,
-        battery: device.batteryAvailable && device.battery > 0 ? device.battery : -1,
-        batteryStr: device.batteryAvailable && device.battery > 0 ? BluetoothService.getBattery(device) : "",
-        statusText: BluetoothService.getStatusString(device),
-        isBusy: BluetoothService.isDeviceBusy(device),
-        canConnect: BluetoothService.canConnect(device),
-        canDisconnect: BluetoothService.canDisconnect(device),
-        isAudio: BluetoothService.isAudioDevice(device),
-        currentCodec: BluetoothService.deviceCodecs[addr] || "",
-        availableCodecs: BluetoothService.deviceAvailableCodecs[addr] || [],
-        showCodecSelector: showCodecFor === addr
-      };
-    });
-  }
-
   function handleAction(action: string, device: var) {
     switch (action) {
     case "connect":
-      BluetoothService.connectDeviceWithTrust(device);
+      BluetoothService.connectDevice(device);
       break;
     case "disconnect":
       BluetoothService.disconnectDevice(device);
@@ -61,23 +33,16 @@ OPanel {
       BluetoothService.forgetDevice(device);
       break;
     case "toggle-codec":
-      {
-        const addr = device?.address || "";
-        if (showCodecFor === addr) {
-          showCodecFor = "";
-        } else {
-          showCodecFor = addr;
-          BluetoothService.getAvailableCodecs(device);
-        }
-      }
+      const addr = device?.address || "";
+      showCodecFor = showCodecFor === addr ? "" : addr;
+      if (showCodecFor)
+        BluetoothService.fetchCodecs(device);
       break;
     default:
-      if (action.startsWith("switch-codec-")) {
-        const profile = action.substring(13);
-        BluetoothService.switchCodec(device, profile);
+      if (action.startsWith("codec:")) {
+        BluetoothService.switchCodec(device, action.substring(6));
         showCodecFor = "";
       }
-      break;
     }
   }
 
@@ -173,7 +138,7 @@ OPanel {
               checked: BluetoothService.enabled
               disabled: !root.ready
 
-              onToggled: checked => BluetoothService.setBluetoothEnabled(checked)
+              onToggled: checked => BluetoothService.setEnabled(checked)
             }
           }
         }
@@ -253,6 +218,7 @@ OPanel {
     }
 
     Rectangle {
+      Layout.bottomMargin: (root.active && deviceList.count === 0) ? root.padding * 2 : 0
       Layout.fillWidth: true
       Layout.preferredHeight: discoveryCol.implicitHeight + root.cardPadding * 1.3
       Layout.topMargin: root.padding * 0.5
@@ -333,9 +299,9 @@ OPanel {
 
     // Device List
     Rectangle {
-      Layout.bottomMargin: root.padding * 2
+      Layout.bottomMargin: root.padding
       Layout.fillWidth: true
-      Layout.topMargin: root.padding
+      Layout.topMargin: root.padding * 0.5
       border.color: root.borderColor
       border.width: 1
       clip: true
@@ -357,7 +323,7 @@ OPanel {
           return displayCount * root.itemHeight * 1.5 + (displayCount - 1) * 4;
         }
         interactive: contentHeight > height
-        model: root.buildDeviceList()
+        model: root.ready ? BluetoothService.sortedDevices : []
         reuseItems: true
         spacing: 4
 
@@ -368,29 +334,130 @@ OPanel {
         delegate: DeviceItem {
           width: ListView.view.width
 
-          onTriggered: (action, device) => root.handleAction(action, device)
+          onTriggered: (action, dev) => root.handleAction(action, dev)
         }
       }
     }
   }
 
+  component CodecItem: Item {
+    id: codecItem
+
+    required property string currentCodec
+    required property int index
+    readonly property bool isCurrent: modelData.name === currentCodec
+    readonly property bool isHovered: codecMouse.containsMouse
+    required property var modelData
+
+    signal selected(string profile)
+
+    Layout.fillWidth: true
+    Layout.preferredHeight: Theme.itemHeight * 0.8
+
+    Rectangle {
+      anchors.fill: parent
+      border.color: codecItem.isCurrent ? Theme.activeColor : "transparent"
+      border.width: codecItem.isCurrent ? 1 : 0
+      color: codecItem.isCurrent ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.15) : (codecItem.isHovered ? Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35) : "transparent")
+      radius: Theme.itemRadius
+
+      Behavior on color {
+        ColorAnimation {
+          duration: Theme.animationDuration
+        }
+      }
+    }
+
+    RowLayout {
+      anchors.fill: parent
+      anchors.leftMargin: root.padding
+      anchors.rightMargin: root.padding
+      spacing: 8
+
+      Rectangle {
+        color: codecItem.modelData.qualityColor || Theme.inactiveColor
+        implicitHeight: 8
+        implicitWidth: 8
+        opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : 0.5
+        radius: 4
+      }
+
+      Text {
+        Layout.fillWidth: true
+        color: codecItem.isCurrent ? Theme.activeColor : (codecItem.isHovered ? Theme.textActiveColor : Theme.textInactiveColor)
+        font.bold: codecItem.isCurrent || codecItem.isHovered
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize * 0.85
+        opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : 0.7
+        text: codecItem.modelData.name || ""
+      }
+
+      Text {
+        color: codecItem.isCurrent ? Theme.activeColor : (codecItem.isHovered ? Theme.textActiveColor : Theme.textInactiveColor)
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize * 0.75
+        opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : 0.6
+        text: codecItem.modelData.description || ""
+      }
+
+      Rectangle {
+        Layout.preferredHeight: 24
+        Layout.preferredWidth: 24
+        border.color: codecItem.isCurrent ? Theme.activeColor : "transparent"
+        border.width: 2
+        color: codecItem.isCurrent ? Theme.activeColor : "transparent"
+        radius: 12
+
+        Text {
+          anchors.centerIn: parent
+          color: Theme.bgColor
+          font.bold: true
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize * 0.9
+          text: "✓"
+          visible: codecItem.isCurrent
+        }
+      }
+    }
+
+    MouseArea {
+      id: codecMouse
+
+      anchors.fill: parent
+      cursorShape: Qt.PointingHandCursor
+      hoverEnabled: true
+
+      onClicked: if (!codecItem.isCurrent)
+        codecItem.selected(codecItem.modelData.profile)
+    }
+  }
   component DeviceItem: Item {
     id: deviceItem
 
-    readonly property var device: deviceItem.modelData.device
+    readonly property string addr: device?.address || ""
+    readonly property var availableCodecs: BluetoothService.deviceAvailableCodecs[addr] || []
+    readonly property real batteryLevel: hasBattery ? device.battery : -1
+    readonly property string batteryStr: BluetoothService.getBattery(device)
+    readonly property bool canConnect: BluetoothService.canConnect(device)
+    readonly property bool canDisconnect: BluetoothService.canDisconnect(device)
+    readonly property string currentCodec: BluetoothService.deviceCodecs[addr] || ""
+    readonly property var device: modelData
+    readonly property bool hasBattery: device?.batteryAvailable && device.battery > 0
     property bool hovered: false
+    readonly property string icon: BluetoothService.getDeviceIcon(device)
+    readonly property bool isAudio: BluetoothService.isAudioDevice(device)
+    readonly property bool isBusy: BluetoothService.isDeviceBusy(device)
+    readonly property bool isConnected: device?.connected || false
+    readonly property bool isPaired: device?.paired || device?.trusted || false
     required property var modelData
-    readonly property color textColor: deviceItem.hovered ? Theme.textOnHoverColor : Theme.textActiveColor
+    readonly property string name: BluetoothService.getDeviceName(device) || qsTr("Unknown Device")
+    readonly property bool showCodecSelector: root.showCodecFor === addr && availableCodecs.length > 0
+    readonly property string statusText: BluetoothService.getStatusString(device)
+    readonly property color textColor: hovered ? Theme.textOnHoverColor : Theme.textActiveColor
 
     signal triggered(string action, var device)
 
-    height: {
-      let h = Theme.itemHeight;
-      if (deviceItem.modelData.showCodecSelector && deviceItem.modelData.availableCodecs.length > 0) {
-        h += deviceItem.modelData.availableCodecs.length * (Theme.itemHeight * 0.8) + root.padding;
-      }
-      return h;
-    }
+    height: Theme.itemHeight + (showCodecSelector ? availableCodecs.length * (Theme.itemHeight * 0.8) + root.padding : 0)
 
     Behavior on height {
       NumberAnimation {
@@ -400,7 +467,7 @@ OPanel {
 
     Rectangle {
       anchors.fill: parent
-      color: (deviceItem.hovered && !deviceItem.modelData.showCodecSelector) ? Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.4) : "transparent"
+      color: (deviceItem.hovered && !deviceItem.showCodecSelector) ? Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.4) : "transparent"
       radius: Theme.itemRadius
 
       Behavior on color {
@@ -416,9 +483,9 @@ OPanel {
       hoverEnabled: true
 
       onClicked: {
-        if (deviceItem.modelData.canConnect)
+        if (deviceItem.canConnect)
           deviceItem.triggered("connect", deviceItem.device);
-        else if (deviceItem.modelData.canDisconnect)
+        else if (deviceItem.canDisconnect)
           deviceItem.triggered("disconnect", deviceItem.device);
       }
       onEntered: deviceItem.hovered = true
@@ -428,20 +495,18 @@ OPanel {
         anchors.fill: parent
         spacing: 4
 
-        // Main device row
         RowLayout {
           Layout.fillWidth: true
           Layout.preferredHeight: Theme.itemHeight
           spacing: 8
 
-          // Device icon
           Text {
             Layout.alignment: Qt.AlignVCenter
             Layout.leftMargin: root.padding
-            color: deviceItem.modelData.connected ? Theme.activeColor : deviceItem.textColor
+            color: deviceItem.isConnected ? Theme.activeColor : deviceItem.textColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
-            text: deviceItem.modelData.icon || "󰂯"
+            text: deviceItem.icon
 
             Behavior on color {
               ColorAnimation {
@@ -450,7 +515,6 @@ OPanel {
             }
           }
 
-          // Device name + status
           ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
@@ -461,7 +525,7 @@ OPanel {
               elide: Text.ElideRight
               font.family: Theme.fontFamily
               font.pixelSize: Theme.fontSize
-              text: deviceItem.modelData.name || ""
+              text: deviceItem.name
 
               Behavior on color {
                 ColorAnimation {
@@ -474,25 +538,17 @@ OPanel {
               color: Theme.textInactiveColor
               font.family: Theme.fontFamily
               font.pixelSize: Theme.fontSize * 0.75
-              text: deviceItem.modelData.statusText || ""
+              text: deviceItem.statusText
               visible: text !== ""
             }
           }
 
-          // Battery pill
           Rectangle {
             Layout.preferredHeight: Theme.itemHeight * 0.6
             Layout.preferredWidth: Theme.itemHeight * 2
-            color: {
-              const level = deviceItem.modelData.battery;
-              if (level <= 0.1)
-                return Theme.critical;
-              if (level <= 0.2)
-                return Theme.warning;
-              return Theme.activeColor;
-            }
+            color: deviceItem.batteryLevel <= 0.1 ? Theme.critical : (deviceItem.batteryLevel <= 0.2 ? Theme.warning : Theme.activeColor)
             radius: height / 2
-            visible: deviceItem.modelData.battery >= 0
+            visible: deviceItem.hasBattery
 
             Behavior on color {
               ColorAnimation {
@@ -506,201 +562,77 @@ OPanel {
               font.bold: true
               font.family: Theme.fontFamily
               font.pixelSize: Theme.fontSize * 0.7
-              text: deviceItem.modelData.batteryStr
+              text: deviceItem.batteryStr
             }
           }
 
-          // Codec button
           IconButton {
             Layout.preferredHeight: root.actionButtonSize
             Layout.preferredWidth: root.actionButtonSize
-            colorBg: deviceItem.modelData.showCodecSelector ? Theme.activeColor : Theme.onHoverColor
+            colorBg: deviceItem.showCodecSelector ? Theme.activeColor : Theme.onHoverColor
             icon: "󰓃"
-            tooltipText: deviceItem.modelData.currentCodec ? qsTr("Codec: %1").arg(deviceItem.modelData.currentCodec) : qsTr("Select Codec")
-            visible: deviceItem.modelData.isAudio && deviceItem.modelData.connected
+            tooltipText: deviceItem.currentCodec ? qsTr("Codec: %1").arg(deviceItem.currentCodec) : qsTr("Select Codec")
+            visible: deviceItem.isAudio && deviceItem.isConnected
 
             onClicked: deviceItem.triggered("toggle-codec", deviceItem.device)
           }
 
-          // Forget button
           IconButton {
             Layout.preferredHeight: root.actionButtonSize
             Layout.preferredWidth: root.actionButtonSize
             colorBg: "#F38BA8"
             icon: "󰩺"
             tooltipText: qsTr("Forget Device")
-            visible: deviceItem.modelData.paired || deviceItem.modelData.trusted
+            visible: deviceItem.isPaired
 
             onClicked: deviceItem.triggered("forget", deviceItem.device)
           }
 
-          // Connect/Disconnect button
           IconButton {
             Layout.preferredHeight: root.actionButtonSize
             Layout.preferredWidth: root.actionButtonSize
             Layout.rightMargin: root.padding
-            colorBg: deviceItem.modelData.connected ? "#F9E2AF" : Theme.activeColor
-            enabled: deviceItem.modelData.canConnect || deviceItem.modelData.canDisconnect
-            icon: deviceItem.modelData.connected ? "󱘖" : "󰌘"
-            tooltipText: deviceItem.modelData.connected ? qsTr("Disconnect") : qsTr("Connect")
-            visible: !deviceItem.modelData.isBusy
+            colorBg: deviceItem.isConnected ? "#F9E2AF" : Theme.activeColor
+            enabled: deviceItem.canConnect || deviceItem.canDisconnect
+            icon: deviceItem.isConnected ? "󱘖" : "󰌘"
+            tooltipText: deviceItem.isConnected ? qsTr("Disconnect") : qsTr("Connect")
+            visible: !deviceItem.isBusy
 
-            onClicked: deviceItem.triggered(deviceItem.modelData.connected ? "disconnect" : "connect", deviceItem.device)
+            onClicked: deviceItem.triggered(deviceItem.isConnected ? "disconnect" : "connect", deviceItem.device)
           }
 
-          // Busy indicator
           Text {
             Layout.rightMargin: root.padding
             color: Theme.activeColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
             text: "󰇙"
-            visible: deviceItem.modelData.isBusy
+            visible: deviceItem.isBusy
 
             RotationAnimation on rotation {
               duration: 1000
               from: 0
               loops: Animation.Infinite
-              running: deviceItem.modelData.isBusy
+              running: deviceItem.isBusy
               to: 360
             }
           }
         }
 
-        // Codec selector (expanded)
         ColumnLayout {
           Layout.fillWidth: true
           Layout.leftMargin: root.padding * 2
           Layout.rightMargin: root.padding
           spacing: 2
-          visible: deviceItem.modelData.showCodecSelector && deviceItem.modelData.availableCodecs.length > 0
+          visible: deviceItem.showCodecSelector
 
           Repeater {
-            model: deviceItem.modelData.availableCodecs
+            model: deviceItem.availableCodecs
 
-            delegate: Item {
-              id: codecDelegate
+            delegate: CodecItem {
+              currentCodec: deviceItem.currentCodec
 
-              property bool hovered: codecMouseArea.containsMouse
-              required property int index
-              readonly property bool isCurrent: codecDelegate.modelData.name === deviceItem.modelData.currentCodec
-              required property var modelData
-
-              Layout.fillWidth: true
-              Layout.preferredHeight: Theme.itemHeight * 0.8
-
-              Rectangle {
-                anchors.fill: parent
-                border.color: codecDelegate.isCurrent ? Theme.activeColor : "transparent"
-                border.width: codecDelegate.isCurrent ? 1 : 0
-                color: codecDelegate.isCurrent ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.15) : (codecDelegate.hovered ? Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35) : "transparent")
-                radius: Theme.itemRadius
-
-                Behavior on border.color {
-                  ColorAnimation {
-                    duration: Theme.animationDuration
-                  }
-                }
-                Behavior on color {
-                  ColorAnimation {
-                    duration: Theme.animationDuration
-                  }
-                }
-              }
-
-              RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: root.padding
-                anchors.rightMargin: root.padding
-                spacing: 8
-
-                Rectangle {
-                  color: codecDelegate.modelData.qualityColor || Theme.inactiveColor
-                  implicitHeight: 8
-                  implicitWidth: 8
-                  opacity: codecDelegate.isCurrent ? 1 : (codecDelegate.hovered ? 1 : 0.5)
-                  radius: 4
-                }
-
-                Text {
-                  Layout.fillWidth: true
-                  color: codecDelegate.isCurrent ? Theme.activeColor : (codecDelegate.hovered ? Theme.textActiveColor : Theme.textInactiveColor)
-                  font.bold: codecDelegate.isCurrent || codecDelegate.hovered
-                  font.family: Theme.fontFamily
-                  font.pixelSize: Theme.fontSize * 0.85
-                  opacity: codecDelegate.isCurrent ? 1 : (codecDelegate.hovered ? 1 : 0.7)
-                  text: codecDelegate.modelData.name || ""
-
-                  Behavior on color {
-                    ColorAnimation {
-                      duration: Theme.animationDuration
-                    }
-                  }
-                  Behavior on font.bold {
-                    animation: NumberAnimation {
-                      duration: Theme.animationDuration
-                    }
-                  }
-                  Behavior on opacity {
-                    NumberAnimation {
-                      duration: Theme.animationDuration
-                    }
-                  }
-                }
-
-                Text {
-                  color: codecDelegate.isCurrent ? Theme.activeColor : (codecDelegate.hovered ? Theme.textActiveColor : Theme.textInactiveColor)
-                  font.family: Theme.fontFamily
-                  font.pixelSize: Theme.fontSize * 0.75
-                  opacity: codecDelegate.isCurrent ? 1 : (codecDelegate.hovered ? 1 : 0.6)
-                  text: codecDelegate.modelData.description || ""
-
-                  Behavior on color {
-                    ColorAnimation {
-                      duration: Theme.animationDuration
-                    }
-                  }
-                  Behavior on opacity {
-                    NumberAnimation {
-                      duration: Theme.animationDuration
-                    }
-                  }
-                }
-
-                Rectangle {
-                  Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                  Layout.preferredHeight: 24
-                  Layout.preferredWidth: 24
-                  border.color: codecDelegate.isCurrent ? Theme.activeColor : "transparent"
-                  border.width: 2
-                  color: codecDelegate.isCurrent ? Theme.activeColor : "transparent"
-                  radius: 12
-
-                  Text {
-                    anchors.centerIn: parent
-                    color: Theme.bgColor
-                    font.bold: true
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize * 0.9
-                    text: "✓"
-                    visible: codecDelegate.isCurrent
-                  }
-                }
-              }
-
-              MouseArea {
-                id: codecMouseArea
-
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                hoverEnabled: true
-
-                onClicked: {
-                  if (codecDelegate.modelData.name !== deviceItem.modelData.currentCodec) {
-                    deviceItem.triggered("switch-codec-" + codecDelegate.modelData.profile, deviceItem.device);
-                  }
-                }
-              }
+              onSelected: profile => deviceItem.triggered("codec:" + profile, deviceItem.device)
             }
           }
         }

@@ -7,61 +7,39 @@ import qs.Services.Core
 import qs.Components
 
 RowLayout {
-  id: pIndic
-
-  readonly property var activeIndicators: [(PrivacyService.microphoneActive || PrivacyService.microphoneMuted) && {
-      icon: PrivacyService.microphoneMuted ? "\uF131" : "\uF130",
-      tooltip: PrivacyService.microphoneMuted ? qsTr("Microphone muted") : qsTr("Microphone in use"),
-      color: PrivacyService.microphoneMuted ? Theme.warning : Theme.critical,
-      onClick: AudioService?.source?.audio ? function () {
-        AudioService.toggleMicMute();
-      } : null
-    }, PrivacyService.cameraActive && {
-      icon: "\uF030",
-      tooltip: qsTr("Camera in use"),
-      color: Theme.critical
-    }, PrivacyService.screensharingActive && {
-      icon: "\uF108",
-      tooltip: qsTr("Screen sharing in progress"),
-      color: Theme.critical
-    }].filter(Boolean)
+  id: root
 
   spacing: 8
 
-  Component {
-    id: pDelegate
+  IconButton {
+    Layout.preferredHeight: Theme.itemHeight
+    Layout.preferredWidth: Theme.itemHeight
+    colorBg: PrivacyService.microphoneMuted ? Theme.warning : Theme.critical
+    enabled: true
+    icon: PrivacyService.microphoneMuted ? "\uF131" : "\uF130"
+    tooltipText: PrivacyService.microphoneMuted ? qsTr("Microphone muted") : qsTr("Microphone in use")
+    visible: PrivacyService.microphoneActive || PrivacyService.microphoneMuted
 
-    Item {
-      id: cell
-
-      readonly property var indicator: cell.modelData
-      required property var modelData
-
-      Layout.alignment: Qt.AlignVCenter
-      Layout.preferredHeight: implicitHeight
-      Layout.preferredWidth: implicitWidth
-      implicitHeight: Theme.itemHeight
-      implicitWidth: Theme.itemHeight
-
-      IconButton {
-        id: button
-
-        anchors.fill: parent
-        colorBg: cell.indicator.color ?? Theme.critical
-        enabled: true
-        icon: cell.indicator.icon
-        tooltipText: cell.indicator.tooltip
-
-        onClicked: {
-          if (typeof cell.indicator.onClick === "function")
-            cell.indicator.onClick();
-        }
-      }
-    }
+    onClicked: AudioService?.source?.audio && AudioService.toggleMicMute()
   }
 
-  Repeater {
-    delegate: pDelegate
-    model: pIndic.activeIndicators
+  IconButton {
+    Layout.preferredHeight: Theme.itemHeight
+    Layout.preferredWidth: Theme.itemHeight
+    colorBg: Theme.critical
+    enabled: true
+    icon: "\uF030"
+    tooltipText: qsTr("Camera in use")
+    visible: PrivacyService.cameraActive
+  }
+
+  IconButton {
+    Layout.preferredHeight: Theme.itemHeight
+    Layout.preferredWidth: Theme.itemHeight
+    colorBg: Theme.critical
+    enabled: true
+    icon: "\uF108"
+    tooltipText: qsTr("Screen sharing in progress")
+    visible: PrivacyService.screensharingActive
   }
 }

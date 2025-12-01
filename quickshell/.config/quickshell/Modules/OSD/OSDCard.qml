@@ -8,17 +8,8 @@ import qs.Components
 Item {
   id: root
 
-  // Calculate width: fixed for percentage, dynamic for toggle based on text + icon + padding
-  readonly property int calculatedWidth: {
-    if (root.isPercentage)
-      return 300;
-
-    // For toggle: icon (48) + spacing (16) + text width + horizontal padding (48)
-    const textWidth = labelText.implicitWidth;
-    return Math.max(220, 48 + 16 + textWidth + 48);
-  }
   property string icon: ""
-  readonly property bool isPercentage: typeof root.value === "number" && root.value >= 0
+  readonly property bool isSlider: typeof value === "number" && value >= 0
   property string label: ""
   property int maxValue: 100
   property bool showing: false
@@ -26,24 +17,23 @@ Item {
   property var value: null
 
   implicitHeight: 80
-  implicitWidth: calculatedWidth
-  opacity: root.showing ? 1 : 0
-  y: root.showing ? 0 : 60
+  implicitWidth: isSlider ? 300 : Math.max(220, 112 + labelText.implicitWidth)
+  opacity: showing ? 1 : 0
+  y: showing ? 0 : 60
 
   Behavior on opacity {
     NumberAnimation {
-      duration: 160
+      duration: Theme.animationDuration
       easing.type: Easing.InOutQuad
     }
   }
   Behavior on y {
     NumberAnimation {
-      duration: 260
+      duration: Theme.animationDuration * 1.5
       easing.type: Easing.OutCubic
     }
   }
 
-  // Shadow
   RectangularShadow {
     anchors.fill: bg
     blur: 20
@@ -52,7 +42,6 @@ Item {
     radius: 40
   }
 
-  // Background
   Rectangle {
     id: bg
 
@@ -63,14 +52,14 @@ Item {
     radius: 40
   }
 
-  // Percentage layout (volume, brightness)
+  // Slider layout (volume, brightness)
   RowLayout {
     anchors.centerIn: parent
     spacing: 16
-    visible: root.isPercentage
+    visible: root.isSlider
     width: parent.width - 48
 
-    Text {
+    OText {
       color: Theme.activeColor
       font.family: "JetBrainsMono Nerd Font Mono"
       font.pixelSize: 32
@@ -90,27 +79,23 @@ Item {
         headroomColor: Theme.critical
         interactive: false
         radius: 6
-        splitAt: root.type === "volume-output" ? 2 / 3 : 1.0
-        value: {
-          const divisor = root.type === "volume-output" ? 150 : 100;
-          return Math.min(root.value / divisor, 1);
-        }
+        splitAt: root.type === "volume-output" ? 2 / 3 : 1
+        value: Math.min(root.value / (root.type === "volume-output" ? 150 : 100), 1)
       }
     }
 
-    Text {
-      color: "#eeeeee"
+    OText {
       font.bold: true
       font.pixelSize: 16
       text: `${Math.round(root.value)}%`
     }
   }
 
-  // Toggle layout (wifi, bluetooth, etc.)
+  // Toggle layout
   RowLayout {
     anchors.centerIn: parent
     spacing: 16
-    visible: !root.isPercentage
+    visible: !root.isSlider
 
     Rectangle {
       Layout.preferredHeight: 48
@@ -120,7 +105,7 @@ Item {
       color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.25)
       radius: 14
 
-      Text {
+      OText {
         anchors.centerIn: parent
         color: Theme.activeColor
         font.family: "JetBrainsMono Nerd Font Mono"
@@ -129,10 +114,9 @@ Item {
       }
     }
 
-    Text {
+    OText {
       id: labelText
 
-      color: "#eeeeee"
       font.bold: true
       font.pixelSize: 16
       text: root.label || ""

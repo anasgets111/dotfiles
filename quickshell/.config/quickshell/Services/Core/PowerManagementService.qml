@@ -5,120 +5,85 @@ import Quickshell.Io
 import qs.Services.Core
 
 Singleton {
-  id: pms
+  id: root
 
   property string cpuGovernor: "Unknown"
   property string energyPerformance: "Unknown"
   property bool hasPPD: false
   property int kbdOnAC: 3
   property int kbdOnBattery: 1
-
-  // Brightness settings
   property int onACBrightness: 100
-
-  // Reflect whether the system is currently running on battery power
-  property bool onBattery: BatteryService.isOnBattery
+  readonly property bool onBattery: BatteryService.isOnBattery
   property int onBatteryBrightness: 10
-  readonly property string platformInfo: "Platform: " + pms.platformProfile
-  property string platformProfile: "Loading..."
-  readonly property string ppdInfo: "PPD: " + pms.ppdText
-  property string ppdText: "Loading..."
+  readonly property string platformInfo: "Platform: " + platformProfile
+  property string platformProfile: "Unknown"
+  readonly property string ppdInfo: "PPD: " + ppdProfile
+  property string ppdProfile: "Unknown"
 
-  function _doRefreshPowerInfo() {
-    // Platform profile
-    pms.readFile("/sys/firmware/acpi/platform_profile", function (data) {
-      pms.platformProfile = data;
-    });
-    // CPU governor
-    pms.readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", function (data) {
-      pms.cpuGovernor = data;
-    });
-    // EPP
-    pms.readFile("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference", function (data) {
-      pms.energyPerformance = data;
-    });
-    if (BatteryService.isLaptopBattery && pms.hasPPD)
-      ppdProcess.running = true;
-  }
-
-  function adjustBrightness() {
+  function adjustBrightness(): void {
     if (!BatteryService.isLaptopBattery)
       return;
-
-    // Adjust screen brightness
-    if (BrightnessService.ready) {
-      const targetPercent = pms.onBattery ? pms.onBatteryBrightness : pms.onACBrightness;
-      BrightnessService.setBrightness(targetPercent);
-    }
-
-    // Adjust keyboard backlight
-    if (KeyboardBacklightService.ready) {
-      const targetLevel = pms.onBattery ? pms.kbdOnBattery : pms.kbdOnAC;
-      KeyboardBacklightService.setLevel(targetLevel);
-    }
+    if (BrightnessService.ready)
+      BrightnessService.setBrightness(onBattery ? onBatteryBrightness : onACBrightness);
+    if (KeyboardBacklightService.ready)
+      KeyboardBacklightService.setLevel(onBattery ? kbdOnBattery : kbdOnAC);
   }
 
-  // Minimal one-shot reader utility
-  function readFile(path, cb) {
-    const p = readProcessComponent.createObject(pms, {
-      command: ["cat", path]
-    });
-    p.stdout.streamFinished.connect(function () {
-      const data = p.stdout.text?.trim() || "";
-      try {
-        cb(data);
-      } finally {
-        p.destroy();
-      }
-    });
-    p.running = true;
+  function refreshPowerInfo(): void {
+    refreshDebounce.restart();
   }
 
-  function refreshPowerInfo() {
-    _refreshDebounce.restart();
-  }
-
-  Component.onCompleted: pms.refreshPowerInfo()
-  Component.onDestruction: {
-    ppdProcess.running = false;
-    try {
-      ppdProcess.destroy();
-    } catch (_) {}
-    try {
-      ppdCheck.destroy();
-    } catch (_) {}
-  }
+  Component.onCompleted: refreshPowerInfo()
   onOnBatteryChanged: {
-    pms.refreshPowerInfo();
-    pms.adjustBrightness();
+    refreshPowerInfo();
+    adjustBrightness();
   }
 
-  // Listen to BatteryService for laptop detection changes
   Connections {
-    function onIsLaptopBatteryChanged() {
-      pms.refreshPowerInfo();
+    function onIsLaptopBatteryChanged(): void {
+      root.refreshPowerInfo();
     }
 
     target: BatteryService
   }
 
-  // Debounce timer for refreshPowerInfo to avoid rapid repeated spawns
   Timer {
-    id: _refreshDebounce
+    id: refreshDebounce
 
     interval: 80
-    repeat: false
 
-    onTriggered: pms._doRefreshPowerInfo()
+    onTriggered: {
+      powerInfoProcess.running = true;
+      if (BatteryService.isLaptopBattery)
+        ppdProcess.running = true;
+    }
   }
 
-  Component {
-    id: readProcessComponent
+  // Single process reads all sysfs power info at once
+  Process {
+    id: powerInfoProcess
 
-    Process {
-      running: false
+    command: ["sh", "-c", `
+      echo "platform:$(cat /sys/firmware/acpi/platform_profile 2>/dev/null || echo Unknown)"
+      echo "governor:$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo Unknown)"
+      echo "epp:$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || echo Unknown)"
+    `]
 
-      stdout: StdioCollector {
+    stdout: SplitParser {
+      splitMarker: "\n"
+
+      onRead: line => {
+        const idx = line.indexOf(":");
+        if (idx < 0)
+          return;
+        const key = line.substring(0, idx);
+        const value = line.substring(idx + 1).trim() || "Unknown";
+        if (key === "platform")
+          root.platformProfile = value;
+        else if (key === "governor")
+          root.cpuGovernor = value;
+        else if (key === "epp")
+          root.energyPerformance = value;
       }
     }
   }
@@ -127,31 +92,12 @@ Singleton {
     id: ppdProcess
 
     command: ["powerprofilesctl", "get"]
-    running: false
 
     stdout: StdioCollector {
-      id: ppdStdout
-
       onStreamFinished: {
-        pms.ppdText = ppdStdout.text.trim() || "Unknown";
-      }
-    }
-  }
-
-  // Small check to detect if powerprofilesctl exists on the system
-  Process {
-    id: ppdCheck
-
-    command: ["sh", "-c", "if command -v powerprofilesctl >/dev/null 2>&1; then echo yes; else echo no; fi"]
-    running: true
-
-    stdout: StdioCollector {
-      id: ppdCheckStdout
-
-      onStreamFinished: {
-        pms.hasPPD = ppdCheckStdout.text.trim() === "yes";
-        if (pms.hasPPD && BatteryService.isLaptopBattery)
-          ppdProcess.running = true;
+        const result = text.trim();
+        root.hasPPD = result.length > 0;
+        root.ppdProfile = result || "Unknown";
       }
     }
   }

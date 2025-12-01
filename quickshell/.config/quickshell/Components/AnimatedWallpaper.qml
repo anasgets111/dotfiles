@@ -7,34 +7,24 @@ import qs.Services.Core
 WlrLayershell {
   id: root
 
-  readonly property bool booting: !hasCurrent && nextWallpaper.status === Image.Ready
-  readonly property real currentPaintedHeightPx: Math.max(1, Math.round(currentWallpaper.paintedHeight * deviceScale))
-  readonly property real currentPaintedWidthPx: Math.max(1, Math.round(currentWallpaper.paintedWidth * deviceScale))
-  readonly property real deviceScale: modelData?.scale ?? 1.0
+  readonly property real deviceScale: monitor?.scale ?? 1.0
   property real discCenterX: 0.5
   property real discCenterY: 0.5
-  property string displayMode: modelData?.mode ?? "fill"
-  readonly property real edgeSmoothness: 0.1
-  readonly property bool hasCurrent: currentWallpaper.status === Image.Ready && !!currentWallpaper.source
+  property string displayMode: "fill"
+  readonly property bool hasCurrent: currentWallpaper.status === Image.Ready && currentWallpaper.source.toString()
   readonly property int imageFillMode: WallpaperService.modeToFillMode(displayMode)
   property bool isDestroyed: false
-  readonly property size maxSourceSize: Qt.size(Math.min(screenPixelWidth, 3840), Math.min(screenPixelHeight, 2160))
-  required property var modelData
-  readonly property real nextPaintedHeightPx: Math.max(1, Math.round(nextWallpaper.paintedHeight * deviceScale))
-  readonly property real nextPaintedWidthPx: Math.max(1, Math.round(nextWallpaper.paintedWidth * deviceScale))
-  property bool pendingProgressReset: false
+  readonly property size maxSourceSize: Qt.size(Math.min(width * deviceScale, 3840), Math.min(height * deviceScale, 2160))
+  required property var monitor
   property string pendingWallpaperUrl: ""
-  readonly property string screenName: modelData?.name ?? ""
-  readonly property var screenObject: screenName ? Quickshell.screens.find(s => s?.name === screenName) ?? null : null
-  readonly property real screenPixelHeight: height * deviceScale
-  readonly property real screenPixelWidth: width * deviceScale
+  readonly property string screenName: monitor?.name ?? ""
+  readonly property var screenObject: screenName ? Quickshell.screens.find(s => s?.name === screenName) : null
   readonly property bool screenValid: screenObject !== null
   property real stripesAngle: 0
   property real stripesCount: 16
   property real transitionProgress: 0.0
-  property string transitionType: modelData?.transition ?? WallpaperService.wallpaperTransition
+  property string transitionType: WallpaperService.wallpaperTransition
   readonly property bool transitioning: transitionAnim.running
-  property bool waitingForCurrentReady: false
   property real wipeDirection: 0
 
   function changeWallpaper(newPath) {
@@ -43,30 +33,13 @@ WlrLayershell {
     const newUrl = normalizeUrl(newPath);
     if (!newUrl || newUrl === String(currentWallpaper.source) || newUrl === String(nextWallpaper.source))
       return;
-    if (transitionAnim.running || waitingForCurrentReady) {
+    if (transitionAnim.running) {
       pendingWallpaperUrl = newUrl;
       return;
     }
-    if (pendingWallpaperUrl === newUrl)
-      pendingWallpaperUrl = "";
+    pendingWallpaperUrl = "";
     setupTransition(transitionType);
-    if (nextWallpaper.source && nextWallpaper.source !== newUrl) {
-      nextWallpaper.source = "";
-      Qt.callLater(() => {
-        if (!isDestroyed)
-          nextWallpaper.source = newUrl;
-      });
-      return;
-    }
     nextWallpaper.source = newUrl;
-    if (nextWallpaper.status === Image.Ready) {
-      if (currentWallpaper.source && transitionType !== "none")
-        transitionAnim.start();
-      else {
-        transitionProgress = 1.0;
-        commitNextWallpaper(true);
-      }
-    }
   }
 
   function cleanupResources() {
@@ -75,45 +48,19 @@ WlrLayershell {
     wallpaperConnections.enabled = false;
   }
 
-  function commitNextWallpaper(resetProgress) {
-    if (isDestroyed)
+  function commitNextWallpaper() {
+    if (isDestroyed || !nextWallpaper.source)
       return;
-    if (!nextWallpaper.source) {
-      pendingProgressReset = false;
-      waitingForCurrentReady = false;
-      return;
-    }
-    if (currentWallpaper.source !== nextWallpaper.source) {
-      if (currentWallpaper.source) {
-        const tempSource = nextWallpaper.source;
-        currentWallpaper.source = tempSource;
-      } else {
-        currentWallpaper.source = nextWallpaper.source;
-      }
-    }
-    pendingProgressReset = resetProgress;
-    waitingForCurrentReady = true;
-    if (currentWallpaper.status === Image.Ready)
-      handleCurrentStatus(Image.Ready);
+    // Keep showing nextWallpaper via shader until currentWallpaper is ready
+    currentWallpaper.source = nextWallpaper.source;
+    // Don't reset yet - wait for currentWallpaper to be ready
   }
 
-  function handleCurrentStatus(status) {
-    if (isDestroyed || !waitingForCurrentReady)
-      return;
-    if (status === Image.Ready) {
-      if (pendingProgressReset)
-        transitionProgress = 0.0;
-      pendingProgressReset = false;
-      if (String(nextWallpaper.source) === String(currentWallpaper.source)) {
-        nextWallpaper.source = "";
-      }
-      waitingForCurrentReady = false;
-      Qt.callLater(processPendingWallpaper);
-    } else if (status === Image.Error) {
-      pendingProgressReset = false;
-      waitingForCurrentReady = false;
-      Qt.callLater(processPendingWallpaper);
-    }
+  function finalizeTransition() {
+    nextWallpaper.source = "";
+    transitionProgress = 0.0;
+    // Don't process pending until currentWallpaper is fully ready
+    // processPendingWallpaper is called from currentWallpaper.onStatusChanged
   }
 
   // Core functions
@@ -153,16 +100,17 @@ WlrLayershell {
   screen: screenObject
 
   Component.onCompleted: {
-    if (modelData?.wallpaper)
-      currentWallpaper.source = normalizeUrl(modelData.wallpaper);
+    if (!screenName)
+      return;
+    const prefs = WallpaperService.wallpaperFor(screenName);
+    if (prefs) {
+      displayMode = prefs.mode || "fill";
+      transitionType = prefs.transition || WallpaperService.wallpaperTransition;
+      if (prefs.wallpaper)
+        currentWallpaper.source = normalizeUrl(prefs.wallpaper);
+    }
   }
   Component.onDestruction: cleanupResources()
-  onModelDataChanged: {
-    if (modelData?.mode)
-      displayMode = modelData.mode;
-    if (modelData?.transition)
-      transitionType = modelData.transition;
-  }
   onScreenValidChanged: {
     if (!screenValid && !isDestroyed) {
       cleanupResources();
@@ -188,10 +136,18 @@ WlrLayershell {
     visible: !root.transitioning && root.transitionProgress === 0
 
     onStatusChanged: {
-      if (root.isDestroyed)
+      if (root.isDestroyed || status === Image.Loading)
         return;
-      if (status === Image.Ready || status === Image.Error)
-        root.handleCurrentStatus(status);
+      if (status === Image.Ready) {
+        // Finalize transition if we just loaded the same image as nextWallpaper
+        if (nextWallpaper.source && String(currentWallpaper.source) === String(nextWallpaper.source))
+          root.finalizeTransition();
+        // Process pending wallpaper only when current is fully ready and not transitioning
+        if (root.pendingWallpaperUrl && !root.transitioning)
+          Qt.callLater(root.processPendingWallpaper);
+      } else if (status === Image.Error) {
+        console.warn("AnimatedWallpaper: Failed to load", currentWallpaper.source);
+      }
     }
   }
 
@@ -207,41 +163,38 @@ WlrLayershell {
     visible: false
 
     onStatusChanged: {
-      if (root.isDestroyed)
+      if (root.isDestroyed || status === Image.Loading)
         return;
       if (status === Image.Error) {
         nextWallpaper.source = "";
         return;
       }
-      if (status !== Image.Ready)
-        return;
-      if (!currentWallpaper.source || root.transitionType === "none") {
-        root.transitionProgress = 1.0;
-        root.commitNextWallpaper(true);
-        return;
+      if (status === Image.Ready) {
+        if (!currentWallpaper.source || root.transitionType === "none")
+          root.commitNextWallpaper();
+        else if (!transitionAnim.running)
+          transitionAnim.start();
       }
-      if (!transitionAnim.running)
-        transitionAnim.start();
     }
   }
 
   ShaderEffect {
     id: transitionShader
 
-    property real angle: root.stripesAngle
-    property real aspectRatio: root.screenPixelWidth / Math.max(1.0, root.screenPixelHeight)
-    property real centerX: root.transitionType === "disc" ? root.discCenterX : 0.5
-    property real centerY: root.transitionType === "disc" ? root.discCenterY : 0.5
-    property real direction: root.wipeDirection
+    readonly property real angle: root.stripesAngle
+    readonly property real aspectRatio: width / Math.max(1.0, height)
+    readonly property real centerX: root.transitionType === "disc" ? root.discCenterX : 0.5
+    readonly property real centerY: root.transitionType === "disc" ? root.discCenterY : 0.5
+    readonly property real direction: root.wipeDirection
     readonly property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
     readonly property real fillMode: 1.0
-    property real imageHeight1: root.hasCurrent ? root.currentPaintedHeightPx : root.screenPixelHeight
-    property real imageHeight2: root.nextPaintedHeightPx
-    property real imageWidth1: root.hasCurrent ? root.currentPaintedWidthPx : root.screenPixelWidth
-    property real imageWidth2: root.nextPaintedWidthPx
-    property real progress: root.transitionProgress
-    property real screenHeight: root.screenPixelHeight
-    property real screenWidth: root.screenPixelWidth
+    readonly property real imageHeight1: root.hasCurrent ? currentWallpaper.paintedHeight : height
+    readonly property real imageHeight2: nextWallpaper.paintedHeight
+    readonly property real imageWidth1: root.hasCurrent ? currentWallpaper.paintedWidth : width
+    readonly property real imageWidth2: nextWallpaper.paintedWidth
+    readonly property real progress: root.transitionProgress
+    readonly property real screenHeight: height * root.deviceScale
+    readonly property real screenWidth: width * root.deviceScale
     readonly property url shaderUrl: {
       switch (root.transitionType) {
       case "wipe":
@@ -256,14 +209,14 @@ WlrLayershell {
         return Qt.resolvedUrl("../Shaders/qsb/wp_fade.frag.qsb");
       }
     }
-    property real smoothness: root.edgeSmoothness
+    readonly property real smoothness: 0.1
     readonly property var source1: currentWallpaper
     readonly property var source2: nextWallpaper
-    property real stripeCount: root.stripesCount
+    readonly property real stripeCount: root.stripesCount
 
     anchors.fill: parent
     fragmentShader: shaderUrl
-    visible: (root.transitioning || root.transitionProgress > 0) && (root.hasCurrent || root.booting)
+    visible: (root.transitioning || root.transitionProgress > 0) && (root.hasCurrent || nextWallpaper.status === Image.Ready)
   }
 
   NumberAnimation {
@@ -277,10 +230,8 @@ WlrLayershell {
     to: 1.0
 
     onFinished: {
-      Qt.callLater(() => {
-        if (!root.isDestroyed && nextWallpaper.source && nextWallpaper.status === Image.Ready)
-          root.commitNextWallpaper(true);
-      });
+      if (!root.isDestroyed)
+        root.commitNextWallpaper();
     }
   }
 

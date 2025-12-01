@@ -8,12 +8,22 @@ import qs.Services.SystemInfo
 PanelWindow {
   id: layer
 
+  // Keyboard focus tracking
+  property int _keyboardFocusCount: 0
   property int barOffset: 36
   property int margin: 12
   required property var modelData
 
+  function claimKeyboardFocus() {
+    layer._keyboardFocusCount++;
+  }
+
+  function releaseKeyboardFocus() {
+    layer._keyboardFocusCount = Math.max(0, layer._keyboardFocusCount - 1);
+  }
+
   WlrLayershell.exclusiveZone: -1
-  WlrLayershell.keyboardFocus: popupColumn.interactionActive ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+  WlrLayershell.keyboardFocus: layer._keyboardFocusCount > 0 ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
   WlrLayershell.layer: WlrLayer.Overlay
   color: "transparent"
   screen: layer.modelData
@@ -24,7 +34,7 @@ PanelWindow {
   }
 
   onVisibleChanged: if (!visible)
-    popupColumn.resetKeyboardFocus()
+    layer._keyboardFocusCount = 0
 
   anchors {
     bottom: true
@@ -34,88 +44,36 @@ PanelWindow {
   }
 
   ScrollView {
-    id: popupScroll
-
-    anchors.bottom: parent.bottom
-    anchors.bottomMargin: layer.margin
-    anchors.right: parent.right
-    anchors.rightMargin: layer.margin
-    anchors.top: parent.top
-    anchors.topMargin: layer.margin + layer.barOffset
     clip: true
     contentHeight: popupColumn.implicitHeight
     contentWidth: popupColumn.implicitWidth
     width: popupColumn.implicitWidth
 
+    anchors {
+      bottom: parent.bottom
+      bottomMargin: layer.margin
+      right: parent.right
+      rightMargin: layer.margin
+      top: parent.top
+      topMargin: layer.margin + layer.barOffset
+    }
+
     Column {
       id: popupColumn
-
-      readonly property var entries: layer.visible ? computeEntries() : []
-      property int focusCaptureCount: 0
-      property bool interactionActive: false
-      readonly property var svc: NotificationService
-
-      function claimKeyboardFocus() {
-        popupColumn.focusCaptureCount = Math.max(0, popupColumn.focusCaptureCount) + 1;
-        popupColumn.interactionActive = true;
-      }
-
-      function computeEntries() {
-        const svc = popupColumn.svc;
-        const groups = svc?.groupedPopups ?? [];
-        const max = Math.max(1, Number(svc?.maxVisibleNotifications ?? 1));
-        return groups.slice(0, max);
-      }
-
-      function releaseKeyboardFocus() {
-        popupColumn.focusCaptureCount = Math.max(0, popupColumn.focusCaptureCount - 1);
-        if (popupColumn.focusCaptureCount <= 0) {
-          popupColumn.focusCaptureCount = 0;
-          popupColumn.interactionActive = false;
-        }
-      }
-
-      function resetKeyboardFocus() {
-        popupColumn.focusCaptureCount = 0;
-        popupColumn.interactionActive = false;
-      }
 
       spacing: 8
 
       Repeater {
-        id: notifRepeater
+        model: NotificationService.groupedPopups.slice(0, NotificationService.maxVisibleNotifications)
 
-        model: popupColumn.entries
-
-        delegate: Item {
-          id: del
-
+        NotificationCard {
           required property var modelData
 
-          implicitHeight: col.implicitHeight
-          implicitWidth: col.implicitWidth
-          width: col.width
+          group: modelData
+          svc: NotificationService
 
-          Column {
-            id: col
-
-            Loader {
-              id: cardLoader
-
-              active: !!popupColumn.svc && !!del.modelData
-              asynchronous: false
-
-              sourceComponent: Component {
-                NotificationCard {
-                  group: del.modelData
-                  svc: popupColumn.svc
-
-                  onInputFocusReleased: popupColumn.releaseKeyboardFocus()
-                  onInputFocusRequested: popupColumn.claimKeyboardFocus()
-                }
-              }
-            }
-          }
+          onInputFocusReleased: layer.releaseKeyboardFocus()
+          onInputFocusRequested: layer.claimKeyboardFocus()
         }
       }
     }

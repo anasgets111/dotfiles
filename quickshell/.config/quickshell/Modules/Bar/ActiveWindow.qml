@@ -1,26 +1,23 @@
 import QtQuick
 import Quickshell.Wayland
 import qs.Services.Utils
-import qs.Services.WM
 import qs.Config
 
 Item {
   id: root
 
   readonly property var activeToplevel: ToplevelManager.activeToplevel
-  readonly property string appId: activeToplevel?.appId || ""
-  property string desktopIconName: "applications-system"
-  readonly property bool hasActive: !!(activeToplevel?.activated && (appId || title) && (WorkspaceService.activeSpecial || WorkspaceService.workspaces?.some(ws => ws.id === WorkspaceService.currentWorkspace && ws.populated)))
-  readonly property string iconSource: hasActive ? Utils.resolveIconSource(appId) : Utils.resolveIconSource("", "", desktopIconName)
+  readonly property string appId: activeToplevel?.appId ?? ""
+  readonly property bool hasActive: !!(activeToplevel?.activated && (appId || title))
+  readonly property string iconSource: hasActive ? Utils.resolveIconSource(appId) : Utils.resolveIconSource("", "", "applications-system")
   property int maxLength: 47
   readonly property string text: {
     if (!hasActive)
       return "Desktop";
-    const base = title || appId || "Desktop";
-    const limit = Math.max(4, maxLength);
-    return base.length > limit ? `${base.slice(0, limit - 3)}...` : base;
+    const base = title || appId;
+    return base.length > maxLength ? `${base.slice(0, maxLength - 3)}...` : base;
   }
-  readonly property string title: activeToplevel?.title || ""
+  readonly property string title: activeToplevel?.title ?? ""
 
   implicitHeight: row.implicitHeight
   implicitWidth: row.implicitWidth
