@@ -7,6 +7,7 @@ import qs.Services.WM
 PanelWindow {
   id: panelWindow
 
+  property bool _screenChangeGuard: false
   readonly property bool centerShouldHide: workspacesExpanded || rightSideExpanded
   property bool rightSideExpanded: false
   property bool workspacesExpanded: false
@@ -24,9 +25,14 @@ PanelWindow {
     item: panelRect
   }
 
-  // Ensure visibility when screen changes
-  onScreenChanged: if (!visible)
-    visible = true
+  onScreenChanged: {
+    if (_screenChangeGuard)
+      return;
+    _screenChangeGuard = true;
+    if (!visible)
+      visible = true;
+    _screenChangeGuard = false;
+  }
 
   anchors {
     left: true
