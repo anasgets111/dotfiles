@@ -7,9 +7,13 @@ import qs.Services.Core
 Singleton {
   id: root
 
+  property string _ppdRaw: ""
+  property string _tlpRaw: ""
   property string cpuGovernor: "Unknown"
   property string energyPerformance: "Unknown"
-  property bool hasPPD: false
+  readonly property bool hasPPD: _ppdRaw !== ""
+  readonly property bool hasTlp: _tlpRaw !== ""
+  readonly property bool isLaptop: BatteryService.isLaptopBattery
   property int kbdOnAC: 3
   property int kbdOnBattery: 1
   property int onACBrightness: 100
@@ -18,30 +22,44 @@ Singleton {
   readonly property string platformInfo: "Platform: " + platformProfile
   property string platformProfile: "Unknown"
   readonly property string ppdInfo: "PPD: " + ppdProfile
-  property string ppdProfile: "Unknown"
+  readonly property string ppdProfile: hasPPD ? _ppdRaw : (hasTlp ? _tlpRaw : "Unknown")
 
   function adjustBrightness(): void {
-    if (!BatteryService.isLaptopBattery)
+    if (!isLaptop)
       return;
-    if (BrightnessService.ready)
+
+    if (BrightnessService.ready) {
       BrightnessService.setBrightness(onBattery ? onBatteryBrightness : onACBrightness);
-    if (KeyboardBacklightService.ready)
+    }
+    if (KeyboardBacklightService.ready) {
       KeyboardBacklightService.setLevel(onBattery ? kbdOnBattery : kbdOnAC);
+    }
   }
 
   function refreshPowerInfo(): void {
     refreshDebounce.restart();
   }
 
-  Component.onCompleted: refreshPowerInfo()
-  onOnBatteryChanged: {
-    refreshPowerInfo();
-    adjustBrightness();
+  function setPowerProfile(profile: string): void {
+    if (hasPPD) {
+      setProfileProcess.command = ["powerprofilesctl", "set", profile];
+      setProfileProcess.running = true;
+    } else if (hasTlp) {
+      setProfileProcess.command = ["tlpctl", profile];
+      setProfileProcess.running = true;
+    }
   }
 
+  Component.onCompleted: refreshPowerInfo()
+
   Connections {
-    function onIsLaptopBatteryChanged(): void {
+    function onIsLaptopBatteryChanged() {
       root.refreshPowerInfo();
+    }
+
+    function onIsOnBatteryChanged() {
+      root.refreshPowerInfo();
+      root.adjustBrightness();
     }
 
     target: BatteryService
@@ -50,16 +68,24 @@ Singleton {
   Timer {
     id: refreshDebounce
 
-    interval: 80
+    interval: 100
 
     onTriggered: {
       powerInfoProcess.running = true;
-      if (BatteryService.isLaptopBattery)
+      if (root.isLaptop) {
         ppdProcess.running = true;
+        tlpCheckProcess.running = true;
+      }
     }
   }
 
-  // Single process reads all sysfs power info at once
+  Process {
+    id: setProfileProcess
+
+    onRunningChanged: if (!running)
+      root.refreshPowerInfo()
+  }
+
   Process {
     id: powerInfoProcess
 
@@ -73,17 +99,17 @@ Singleton {
       splitMarker: "\n"
 
       onRead: line => {
-        const idx = line.indexOf(":");
-        if (idx < 0)
+        const parts = line.split(":");
+        if (parts.length < 2)
           return;
-        const key = line.substring(0, idx);
-        const value = line.substring(idx + 1).trim() || "Unknown";
+        const key = parts[0];
+        const val = parts.slice(1).join(":").trim() || "Unknown";
         if (key === "platform")
-          root.platformProfile = value;
+          root.platformProfile = val;
         else if (key === "governor")
-          root.cpuGovernor = value;
+          root.cpuGovernor = val;
         else if (key === "epp")
-          root.energyPerformance = value;
+          root.energyPerformance = val;
       }
     }
   }
@@ -94,11 +120,17 @@ Singleton {
     command: ["powerprofilesctl", "get"]
 
     stdout: StdioCollector {
-      onStreamFinished: {
-        const result = text.trim();
-        root.hasPPD = result.length > 0;
-        root.ppdProfile = result || "Unknown";
-      }
+      onStreamFinished: root._ppdRaw = text.trim()
+    }
+  }
+
+  Process {
+    id: tlpCheckProcess
+
+    command: ["tlpctl", "get"]
+
+    stdout: StdioCollector {
+      onStreamFinished: root._tlpRaw = text.trim()
     }
   }
 }
