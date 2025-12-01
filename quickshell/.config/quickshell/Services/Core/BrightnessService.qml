@@ -12,7 +12,6 @@ Singleton {
   readonly property bool available: MainService.hasBrightnessControl
   property int brightness: 0
   property string devicePath: ""
-  property int lastBrightness: -1
   property int maxBrightness: 100
   readonly property int percentage: maxBrightness > 0 ? Math.round((brightness / maxBrightness) * 100) : 0
   property bool ready: false
@@ -80,17 +79,7 @@ Singleton {
   Process {
     id: monitorProcess
 
-    command: ["sh", "-c", `
-      path="${root.devicePath}/brightness"
-      while :; do
-        if [ -f "$path" ]; then
-          cat "$path" 2>/dev/null || echo "0"
-        else
-          echo "0"
-        fi
-        sleep 0.2
-      done
-    `]
+    command: ["sh", "-c", `while :; do cat "${root.devicePath}/brightness" 2>/dev/null || echo 0; sleep 0.2; done`]
     running: root.available && root.devicePath !== ""
 
     stdout: SplitParser {
@@ -98,8 +87,7 @@ Singleton {
 
       onRead: line => {
         const value = Number.parseInt(line.trim(), 10);
-        if (!Number.isNaN(value) && value !== root.lastBrightness) {
-          root.lastBrightness = value;
+        if (!Number.isNaN(value) && value !== root.brightness) {
           root.brightness = value;
         }
       }
