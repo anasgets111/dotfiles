@@ -58,69 +58,61 @@ Singleton {
     }
   }
 
-  // Detect keyboard backlight device
-  Process {
-    id: deviceDetector
-
-    command: ["sh", "-c", "ls -1 /sys/class/leds/*kbd_backlight*/brightness 2>/dev/null | head -1 | sed 's|/brightness||'"]
-    running: root.available
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const fullPath = text.trim();
-        Logger.log("KeyboardBacklightService", `Device detector found: "${fullPath}"`);
-        if (fullPath) {
-          root.devicePath = fullPath;
-          // Extract device name from path: /sys/class/leds/asus::kbd_backlight -> asus::kbd_backlight
-          const parts = fullPath.split('/');
-          root.deviceName = parts[parts.length - 1];
-          Logger.log("KeyboardBacklightService", `Device name extracted: ${root.deviceName}`);
-        }
-      }
-    }
-  }
-
-  // Watch brightness file with polling (sysfs doesn't support inotify well)
   Process {
     id: monitorProcess
 
-    command: ["sh", "-c", `while :; do cat "${root.devicePath}/brightness" 2>/dev/null || echo 0; sleep 0.2; done`]
-    running: root.available && root.devicePath !== ""
+    command: ["sh", "-c", `
+      path=$(ls -1d /sys/class/leds/*kbd_backlight* 2>/dev/null | head -1)
+      [ -z "$path" ] && exit 1
+      name=$(basename "$path")
+      echo "INIT $path $name $(cat "$path/max_brightness" 2>/dev/null)"
+      last=""
+      while read -r _; do
+        cur=$(cat "$path/brightness" 2>/dev/null)
+        [ "$cur" != "$last" ] && echo "$cur" && last="$cur"
+      done
+    `]
+    running: root.available
 
     stdout: SplitParser {
-      splitMarker: "\n"
-
       onRead: line => {
-        const value = Number.parseInt(line.trim(), 10);
+        const trimmed = line.trim();
+        if (trimmed.startsWith("INIT ")) {
+          const parts = trimmed.split(" ");
+          root.devicePath = parts[1];
+          root.deviceName = parts[2];
+          root.maxBrightness = Number.parseInt(parts[3], 10) || 3;
+          return;
+        }
+        const value = Number.parseInt(trimmed, 10);
         if (!Number.isNaN(value) && value !== root.brightness) {
           root.brightness = value;
         }
       }
     }
+
+    onRunningChanged: if (!running && root.available)
+      restartTimer.start()
   }
 
-  // Read max brightness once
-  FileView {
-    id: maxBrightnessFile
+  Timer {
+    interval: 100
+    repeat: true
+    running: monitorProcess.running
 
-    path: root.devicePath ? `${root.devicePath}/max_brightness` : ""
+    onTriggered: monitorProcess.write("\n")
+  }
 
-    onLoaded: {
-      const value = Number.parseInt(text().trim(), 10);
-      Logger.log("KeyboardBacklightService", `Max brightness loaded: ${value}`);
-      if (!Number.isNaN(value)) {
-        root.maxBrightness = value;
-      }
-    }
+  Timer {
+    id: restartTimer
+
+    interval: 1000
+
+    onTriggered: monitorProcess.running = true
   }
 
   Process {
     id: setBrightnessProcess
 
-    stdout: SplitParser {
-      onRead: () => {
-      // Monitor process will pick up the change
-      }
-    }
   }
 }

@@ -58,63 +58,60 @@ Singleton {
     }
   }
 
-  // Detect backlight device
-  Process {
-    id: deviceDetector
-
-    command: ["sh", "-c", "ls /sys/class/backlight/ 2>/dev/null | head -1"]
-    running: root.available
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const device = text.trim();
-        if (device) {
-          root.devicePath = `/sys/class/backlight/${device}`;
-        }
-      }
-    }
-  }
-
-  // Watch brightness file with polling (sysfs doesn't support inotify well)
   Process {
     id: monitorProcess
 
-    command: ["sh", "-c", `while :; do cat "${root.devicePath}/brightness" 2>/dev/null || echo 0; sleep 0.2; done`]
-    running: root.available && root.devicePath !== ""
+    command: ["sh", "-c", `
+      dev=$(ls /sys/class/backlight/ 2>/dev/null | head -1)
+      [ -z "$dev" ] && exit 1
+      path="/sys/class/backlight/$dev"
+      echo "INIT $path $(cat "$path/max_brightness" 2>/dev/null)"
+      last=""
+      while read -r _; do
+        cur=$(cat "$path/brightness" 2>/dev/null)
+        [ "$cur" != "$last" ] && echo "$cur" && last="$cur"
+      done
+    `]
+    running: root.available
 
     stdout: SplitParser {
-      splitMarker: "\n"
-
       onRead: line => {
-        const value = Number.parseInt(line.trim(), 10);
+        const trimmed = line.trim();
+        if (trimmed.startsWith("INIT ")) {
+          const parts = trimmed.split(" ");
+          root.devicePath = parts[1];
+          root.maxBrightness = Number.parseInt(parts[2], 10) || 100;
+          return;
+        }
+        const value = Number.parseInt(trimmed, 10);
         if (!Number.isNaN(value) && value !== root.brightness) {
           root.brightness = value;
         }
       }
     }
+
+    onRunningChanged: if (!running && root.available)
+      restartTimer.start()
   }
 
-  // Read max brightness once
-  FileView {
-    id: maxBrightnessFile
+  Timer {
+    interval: 100
+    repeat: true
+    running: monitorProcess.running
 
-    path: root.devicePath ? `${root.devicePath}/max_brightness` : ""
+    onTriggered: monitorProcess.write("\n")
+  }
 
-    onLoaded: {
-      const value = Number.parseInt(text().trim(), 10);
-      if (!Number.isNaN(value)) {
-        root.maxBrightness = value;
-      }
-    }
+  Timer {
+    id: restartTimer
+
+    interval: 1000
+
+    onTriggered: monitorProcess.running = true
   }
 
   Process {
     id: setBrightnessProcess
 
-    stdout: SplitParser {
-      onRead: () => {
-      // Monitor process will pick up the change
-      }
-    }
   }
 }
