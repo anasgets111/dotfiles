@@ -52,7 +52,7 @@ OPanel {
         anchors.fill: parent
         anchors.leftMargin: root.padding
         anchors.rightMargin: root.padding
-        spacing: 16
+        spacing: 8
 
         OText {
           font.bold: true
@@ -78,30 +78,28 @@ OPanel {
         }
 
         Rectangle {
+          Layout.leftMargin: 4
           Layout.preferredHeight: Theme.itemHeight * 0.6
           Layout.preferredWidth: 1
+          Layout.rightMargin: 4
           color: Theme.textInactiveColor
           opacity: 0.2
           visible: root.hasNotifications
         }
 
-        RowLayout {
-          spacing: 8
+        OText {
+          opacity: NotificationService.doNotDisturb ? 1.0 : 0.5
+          sizeMultiplier: 0.9
+          text: qsTr("DND")
+          useActiveColor: NotificationService.doNotDisturb
+        }
 
-          OText {
-            opacity: NotificationService.doNotDisturb ? 1.0 : 0.5
-            sizeMultiplier: 0.9
-            text: qsTr("DND")
-            useActiveColor: NotificationService.doNotDisturb
-          }
+        OToggle {
+          Layout.preferredHeight: Theme.itemHeight * 0.55
+          Layout.preferredWidth: Theme.itemHeight * 1.2
+          checked: NotificationService.doNotDisturb
 
-          OToggle {
-            Layout.preferredHeight: Theme.itemHeight * 0.55
-            Layout.preferredWidth: Theme.itemHeight * 1.2
-            checked: NotificationService.doNotDisturb
-
-            onToggled: NotificationService.toggleDnd()
-          }
+          onToggled: NotificationService.toggleDnd()
         }
       }
     }
