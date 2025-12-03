@@ -28,19 +28,8 @@ Rectangle {
   // Track colors
   readonly property color _trackDisabled: Theme.withOpacity(Theme.disabledColor, 0.75)
 
-  // Computed dimensions from size
-  readonly property int _trackHeight: {
-    switch (size) {
-    case "sm":
-      return Math.round(Theme.controlHeightSm * 0.65);
-    case "md":
-      return Math.round(Theme.controlHeightMd * 0.65);
-    case "lg":
-      return Math.round(Theme.controlHeightLg * 0.65);
-    default:
-      return Math.round(Theme.controlHeightMd * 0.65);
-    }
-  }
+  // Computed dimensions from size using Theme helper function
+  readonly property int _trackHeight: Math.round(Theme.controlHeightFor(size) * Theme.scaleSmall)
   readonly property color _trackHover: Theme.withOpacity(Theme.onHoverColor, 0.65)
   readonly property color _trackOff: Theme.withOpacity(Theme.textInactiveColor, 0.38)
   readonly property color _trackOn: Theme.activeFull

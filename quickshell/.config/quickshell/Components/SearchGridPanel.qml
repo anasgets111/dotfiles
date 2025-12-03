@@ -14,9 +14,9 @@ PanelWindow {
 
   property bool active: false
   property var allItems: []
-  property int cellHeight: 150
+  property int cellHeight: Theme.launcherCellSize
   property int cellPadding: Theme.spacingXl + Theme.spacingSm
-  property int cellWidth: 150
+  property int cellWidth: Theme.launcherCellSize
   property bool closeOnActivate: true
   property int contentMargin: Theme.spacingMd
   property int contentSpacing: Theme.spacingSm
@@ -33,7 +33,7 @@ PanelWindow {
   property var iconSelector: function (item) {
     return item?.icon || "";
   }
-  property int itemImageSize: 72
+  property int itemImageSize: Theme.launcherIconSize
   property var items: []
   property var labelSelector: function (item) {
     return item?.name || "";
@@ -48,8 +48,8 @@ PanelWindow {
     return comment ? `${label} ${comment}` : label;
   }
   property bool showSearchField: true
-  property int windowHeight: 471
-  property int windowWidth: 741
+  property int windowHeight: Theme.launcherWindowHeight
+  property int windowWidth: Theme.launcherWindowWidth
 
   signal activated(var item)
   signal dismissed

@@ -118,7 +118,7 @@ OPanel {
 
               Text {
                 anchors.centerIn: parent
-                color: root.ready && BluetoothService.enabled ? "#FFFFFF" : Theme.textInactiveColor
+                color: root.ready && BluetoothService.enabled ? Theme.textActiveColor : Theme.textInactiveColor
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize * 0.95
                 text: "󰂯"
@@ -246,7 +246,7 @@ OPanel {
           Rectangle {
             border.color: Qt.rgba(0, 0, 0, 0.12)
             border.width: 1
-            color: root.active && BluetoothService.discovering ? Qt.lighter("#A6E3A1", 1.15) : Qt.darker(Theme.inactiveColor, 1.1)
+            color: root.active && BluetoothService.discovering ? Qt.lighter(Theme.powerSaveColor, 1.15) : Qt.darker(Theme.inactiveColor, 1.1)
             implicitHeight: root.iconSize
             implicitWidth: root.iconSize
             radius: height / 2
@@ -377,9 +377,9 @@ OPanel {
 
       Rectangle {
         color: codecItem.modelData.qualityColor || Theme.inactiveColor
-        implicitHeight: 8
-        implicitWidth: 8
-        opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : 0.5
+        implicitHeight: Theme.spacingSm
+        implicitWidth: Theme.spacingSm
+        opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : Theme.opacityDisabled
         radius: Theme.radiusXs
       }
 
@@ -400,10 +400,10 @@ OPanel {
       }
 
       Rectangle {
-        Layout.preferredHeight: 24
-        Layout.preferredWidth: 24
+        Layout.preferredHeight: Theme.controlHeightXs
+        Layout.preferredWidth: Theme.controlHeightXs
         border.color: codecItem.isCurrent ? Theme.activeColor : "transparent"
-        border.width: 2
+        border.width: Theme.borderWidthMedium
         color: codecItem.isCurrent ? Theme.activeColor : "transparent"
         radius: Theme.radiusMd
 
@@ -573,7 +573,7 @@ OPanel {
           IconButton {
             Layout.preferredHeight: root.actionButtonSize
             Layout.preferredWidth: root.actionButtonSize
-            colorBg: "#F38BA8"
+            colorBg: Theme.critical
             icon: "󰩺"
             tooltipText: qsTr("Forget Device")
             visible: deviceItem.isPaired
@@ -585,7 +585,7 @@ OPanel {
             Layout.preferredHeight: root.actionButtonSize
             Layout.preferredWidth: root.actionButtonSize
             Layout.rightMargin: root.padding
-            colorBg: deviceItem.isConnected ? "#F9E2AF" : Theme.activeColor
+            colorBg: deviceItem.isConnected ? Theme.warning : Theme.activeColor
             enabled: deviceItem.canConnect || deviceItem.canDisconnect
             icon: deviceItem.isConnected ? "󱘖" : "󰌘"
             tooltipText: deviceItem.isConnected ? qsTr("Disconnect") : qsTr("Connect")
