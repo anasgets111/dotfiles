@@ -43,7 +43,6 @@ OPanel {
 
     // Output Volume Card
     Rectangle {
-    Rectangle {
       Layout.fillWidth: true
       Layout.preferredHeight: outputCol.implicitHeight + root.panelPadding * 1.5
       color: root.cardBg

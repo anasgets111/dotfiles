@@ -45,7 +45,7 @@ Rectangle {
       return "󰖀";
     return "󰕾";
   }
-  readonly property int volumeIconSize: Math.round(Theme.fontSize * Theme.scaleExtraLarge)
+  readonly property int volumeIconSize: Theme.iconSizeXl
 
   clip: true
   color: Theme.inactiveColor

@@ -8,6 +8,9 @@ import qs.Components
 Item {
   id: root
 
+  // Computed width for toggle layout (icon container + spacing + label)
+  readonly property int _toggleWidth: Theme.osdToggleIconContainerSize + Theme.spacingLg * 2 + labelText.implicitWidth
+
   property string icon: ""
   readonly property bool isSlider: typeof value === "number" && value >= 0
   property string label: ""
@@ -17,7 +20,7 @@ Item {
   property var value: null
 
   implicitHeight: Theme.osdCardHeight
-  implicitWidth: isSlider ? Theme.osdSliderWidth : Math.max(Theme.osdToggleMinWidth, Theme.osdToggleIconContainerSize + Theme.spacingLg * 2 + labelText.implicitWidth)
+  implicitWidth: isSlider ? Theme.osdSliderWidth : Math.max(Theme.osdToggleMinWidth, _toggleWidth)
   opacity: showing ? 1 : 0
   y: showing ? 0 : Theme.osdAnimationOffset
 
