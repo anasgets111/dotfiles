@@ -4,7 +4,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import qs.Services
-import qs.Services.Utils
 
 Singleton {
   id: root
