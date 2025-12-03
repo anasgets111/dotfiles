@@ -21,72 +21,11 @@ import qs.Config
 Rectangle {
   id: root
 
-  readonly property int _fontSize: {
-    switch (size) {
-    case "xs":
-      return Theme.fontXs;
-    case "sm":
-      return Theme.fontSm;
-    case "md":
-      return Theme.fontMd;
-    case "lg":
-      return Theme.fontLg;
-    case "xl":
-      return Theme.fontXl;
-    default:
-      return Theme.fontMd;
-    }
-  }
-
-  // Internal: size-based dimensions
-  readonly property int _height: {
-    switch (size) {
-    case "xs":
-      return Theme.controlHeightXs;
-    case "sm":
-      return Theme.controlHeightSm;
-    case "md":
-      return Theme.controlHeightMd;
-    case "lg":
-      return Theme.controlHeightLg;
-    case "xl":
-      return Theme.controlHeightXl;
-    default:
-      return Theme.controlHeightMd;
-    }
-  }
-  readonly property int _iconSize: {
-    switch (size) {
-    case "xs":
-      return Theme.iconSizeXs;
-    case "sm":
-      return Theme.iconSizeSm;
-    case "md":
-      return Theme.iconSizeMd;
-    case "lg":
-      return Theme.iconSizeLg;
-    case "xl":
-      return Theme.iconSizeXl;
-    default:
-      return Theme.iconSizeMd;
-    }
-  }
-  readonly property int _padding: {
-    switch (size) {
-    case "xs":
-      return Theme.spacingXs;
-    case "sm":
-      return Theme.spacingSm;
-    case "md":
-      return Theme.spacingMd;
-    case "lg":
-      return Theme.spacingLg;
-    case "xl":
-      return Theme.spacingXl;
-    default:
-      return Theme.spacingMd;
-    }
-  }
+  // Internal: size-based dimensions using Theme helper functions
+  readonly property int _fontSize: Theme.fontSizeFor(size)
+  readonly property int _height: Theme.controlHeightFor(size)
+  readonly property int _iconSize: Theme.iconSizeFor(size)
+  readonly property int _padding: Theme.spacingFor(size)
 
   // Internal: variant-based default colors
   readonly property color _variantBgColor: {

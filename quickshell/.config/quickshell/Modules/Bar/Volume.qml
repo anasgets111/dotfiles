@@ -9,44 +9,43 @@ import qs.Modules.Bar
 Rectangle {
   id: root
 
-  readonly property real collapsedWidth: iconSize + 20
+  readonly property real collapsedWidth: volumeIconSize + Theme.spacingLg
   readonly property real displayValue: volumeSlider.dragging ? volumeSlider.pending : sliderValue
   property bool expanded: hoverHandler.hovered
-  readonly property string icon: {
+  readonly property bool isMuted: AudioService.muted
+  readonly property real maxVolume: AudioService.maxVolume
+  readonly property string percentText: {
+    if (!ready)
+      return "--";
+    if (isMuted)
+      return "0%";
+    return Math.round(Math.min(displayValue * maxVolume, 1.5) * 100) + "%";
+  }
+  readonly property bool ready: AudioService.sink?.audio ?? false
+  // Slider value normalized to 0-1 range (where 1.0 = maxVolume)
+  readonly property real sliderValue: currentVolume / maxVolume
+  readonly property color textColor: {
+    const referenceColor = expanded && displayValue > 0.5 ? Theme.activeColor : color;
+    return Theme.textContrast(referenceColor);
+  }
+  readonly property real currentVolume: AudioService.volume
+  readonly property string volumeIcon: {
     if (!ready)
       return "--";
     if (AudioService.sinkIcon)
       return AudioService.sinkIcon;
-    if (muted)
+    if (isMuted)
       return "󰝟";
-    const v = displayValue * maxVol; // actual volume 0-1.5
-    if (v < 0.01)
+    const volumeLevel = displayValue * maxVolume;
+    if (volumeLevel < 0.01)
       return "󰖁";
-    if (v < 0.33)
+    if (volumeLevel < 0.33)
       return "󰕿";
-    if (v < 0.66)
+    if (volumeLevel < 0.66)
       return "󰖀";
     return "󰕾";
   }
-  readonly property int iconSize: Theme.fontSize * 1.5
-  readonly property real maxVol: AudioService.maxVolume
-  readonly property bool muted: AudioService.muted
-  readonly property string percentText: {
-    if (!ready)
-      return "--";
-    if (muted)
-      return "0%";
-    return Math.round(Math.min(displayValue * maxVol, 1.5) * 100) + "%";
-  }
-  readonly property bool ready: AudioService.sink?.audio ?? false
-
-  // Slider value normalized to 0-1 range (where 1.0 = maxVolume)
-  readonly property real sliderValue: volume / maxVol
-  readonly property color textColor: {
-    const ref = expanded && displayValue > 0.5 ? Theme.activeColor : color;
-    return Theme.textContrast(ref);
-  }
-  readonly property real volume: AudioService.volume
+  readonly property int volumeIconSize: Math.round(Theme.fontSize * Theme.scaleExtraLarge)
 
   clip: true
   color: Theme.inactiveColor
@@ -93,13 +92,13 @@ Rectangle {
     interactive: root.ready
     opacity: root.expanded || dragging ? 1 : 0
     radius: root.radius
-    splitAt: 1.0 / root.maxVol  // Split at 100% (1.0/1.5 ≈ 0.67)
+    splitAt: 1.0 / root.maxVolume  // Split at 100% (1.0/1.5 ≈ 0.67)
     steps: 30
     wheelStep: 1 / steps
 
-    onCommitted: normalized => {
+    onCommitted: normalizedValue => {
       if (root.ready)
-        AudioService.setVolume(normalized * root.maxVol);
+        AudioService.setVolume(normalizedValue * root.maxVolume);
     }
   }
 
@@ -110,9 +109,9 @@ Rectangle {
     OText {
       bold: true
       color: root.textColor
-      font.pixelSize: root.iconSize
+      font.pixelSize: root.volumeIconSize
       horizontalAlignment: Text.AlignHCenter
-      text: root.icon
+      text: root.volumeIcon
     }
 
     OText {

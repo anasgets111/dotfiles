@@ -16,10 +16,10 @@ Item {
   property string type: ""
   property var value: null
 
-  implicitHeight: 80
-  implicitWidth: isSlider ? 300 : Math.max(220, 112 + labelText.implicitWidth)
+  implicitHeight: Theme.osdCardHeight
+  implicitWidth: isSlider ? Theme.osdSliderWidth : Math.max(Theme.osdToggleMinWidth, Theme.osdToggleIconContainerSize + Theme.spacingLg * 2 + labelText.implicitWidth)
   opacity: showing ? 1 : 0
-  y: showing ? 0 : 60
+  y: showing ? 0 : Theme.osdAnimationOffset
 
   Behavior on opacity {
     NumberAnimation {
@@ -68,8 +68,8 @@ Item {
 
     Rectangle {
       Layout.fillWidth: true
-      Layout.preferredHeight: 12
-      color: Qt.rgba(1, 1, 1, 0.25)
+      Layout.preferredHeight: Theme.osdSliderTrackHeight
+      color: Qt.rgba(1, 1, 1, Theme.opacityLight)
       radius: Theme.radiusSm
 
       Slider {
@@ -98,10 +98,10 @@ Item {
     visible: !root.isSlider
 
     Rectangle {
-      Layout.preferredHeight: 48
-      Layout.preferredWidth: 48
+      Layout.preferredHeight: Theme.osdToggleIconContainerSize
+      Layout.preferredWidth: Theme.osdToggleIconContainerSize
       border.color: Theme.activeMedium
-      border.width: 1.5
+      border.width: Theme.borderWidthThin
       color: Theme.activeLight
       radius: Theme.radiusMd
 

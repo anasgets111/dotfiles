@@ -28,30 +28,12 @@ Text {
     return Theme.textActiveColor;
   }
 
-  // Internal computed font size
+  // Internal computed font size using Theme helper function
   readonly property int _computedSize: {
     // If sizeMultiplier is not default, use legacy behavior
     if (sizeMultiplier !== 1.0)
       return Math.round(Theme.fontSize * sizeMultiplier);
-
-    switch (size) {
-    case "xs":
-      return Theme.fontXs;
-    case "sm":
-      return Theme.fontSm;
-    case "md":
-      return Theme.fontMd;
-    case "lg":
-      return Theme.fontLg;
-    case "xl":
-      return Theme.fontXl;
-    case "xxl":
-      return Theme.fontXxl;
-    case "hero":
-      return Theme.fontHero;
-    default:
-      return Theme.fontMd;
-    }
+    return Theme.fontSizeFor(size);
   }
 
   // Internal computed font weight
