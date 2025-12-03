@@ -6,6 +6,7 @@ import qs.Config
 import qs.Components
 import qs.Services.SystemInfo
 import qs.Modules.Notification
+import qs.Modules.Bar.Indicators
 
 OPanel {
   id: root

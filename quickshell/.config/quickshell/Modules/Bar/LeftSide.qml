@@ -6,6 +6,8 @@ import qs.Services.Core
 import qs.Services.Utils
 import qs.Components
 import qs.Config
+import qs.Modules.Bar.Indicators
+import qs.Modules.Bar.Panels
 
 Row {
   id: leftSide

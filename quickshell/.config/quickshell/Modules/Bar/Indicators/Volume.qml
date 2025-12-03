@@ -4,12 +4,13 @@ import QtQuick.Layouts
 import qs.Config
 import qs.Services.Core
 import qs.Components
-import qs.Modules.Bar
+import qs.Modules.Bar.Panels
 
 Rectangle {
   id: root
 
   readonly property real collapsedWidth: volumeIconSize + Theme.spacingLg
+  readonly property real currentVolume: AudioService.volume
   readonly property real displayValue: volumeSlider.dragging ? volumeSlider.pending : sliderValue
   property bool expanded: hoverHandler.hovered
   readonly property bool isMuted: AudioService.muted
@@ -28,7 +29,6 @@ Rectangle {
     const referenceColor = expanded && displayValue > 0.5 ? Theme.activeColor : color;
     return Theme.textContrast(referenceColor);
   }
-  readonly property real currentVolume: AudioService.volume
   readonly property string volumeIcon: {
     if (!ready)
       return "--";

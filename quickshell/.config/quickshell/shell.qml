@@ -6,8 +6,8 @@ pragma ComponentBehavior: Bound
 import QtQml
 import QtQuick
 import Quickshell
-import qs.Components
 import qs.Modules.Bar
+import qs.Modules.Global
 import qs.Modules.OSD
 import qs.Modules.AppLauncher
 import qs.Modules.WallpaperPicker

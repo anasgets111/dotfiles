@@ -4,7 +4,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.Config
-import qs.Modules.Bar
 
 /**
  * OPanel - Obelisk generic panel component
