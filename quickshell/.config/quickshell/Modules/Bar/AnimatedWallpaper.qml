@@ -198,15 +198,15 @@ WlrLayershell {
     readonly property url shaderUrl: {
       switch (root.transitionType) {
       case "wipe":
-        return Qt.resolvedUrl("../Shaders/qsb/wp_wipe.frag.qsb");
+        return Qt.resolvedUrl("../../Shaders/qsb/wp_wipe.frag.qsb");
       case "disc":
-        return Qt.resolvedUrl("../Shaders/qsb/wp_disc.frag.qsb");
+        return Qt.resolvedUrl("../../Shaders/qsb/wp_disc.frag.qsb");
       case "stripes":
-        return Qt.resolvedUrl("../Shaders/qsb/wp_stripes.frag.qsb");
+        return Qt.resolvedUrl("../../Shaders/qsb/wp_stripes.frag.qsb");
       case "portal":
-        return Qt.resolvedUrl("../Shaders/qsb/wp_portal.frag.qsb");
+        return Qt.resolvedUrl("../../Shaders/qsb/wp_portal.frag.qsb");
       default:
-        return Qt.resolvedUrl("../Shaders/qsb/wp_fade.frag.qsb");
+        return Qt.resolvedUrl("../../Shaders/qsb/wp_fade.frag.qsb");
       }
     }
     readonly property real smoothness: 0.1

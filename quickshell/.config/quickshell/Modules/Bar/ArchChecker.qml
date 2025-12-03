@@ -1,8 +1,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import qs.Services.SystemInfo
-import qs.Config
 import qs.Components
+import qs.Config
+import qs.Services.SystemInfo
 
 Item {
   id: root
