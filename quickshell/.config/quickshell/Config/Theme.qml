@@ -6,22 +6,31 @@ import qs.Services.WM as WM
 Singleton {
   id: theme
 
+  // Aspect ratio for ultrawide detection (width / height)
+  readonly property real _aspectRatio: _screenWidthPx / Math.max(1, _screenHeightPx)
+  readonly property real _devicePixelRatio: _mainScreenScale
+  // Ultrawide threshold: 21:9 ≈ 2.33, 32:9 ≈ 3.56. Standard 16:9 ≈ 1.78
+  readonly property bool _isUltrawide: _aspectRatio > 2.1
+
   // --- Private: Screen-related properties for scaling calculations ---
   // Access via WM.MonitorService singleton
   readonly property var _mainScreen: (WM.MonitorService && WM.MonitorService.activeMainScreen) ? WM.MonitorService.activeMainScreen : null
   readonly property int _mainScreenHeight: _mainScreen ? _mainScreen.height : 1080
   readonly property real _mainScreenScale: _mainScreen ? (_mainScreen.devicePixelRatio || _mainScreen.scale || 1) : 1
   readonly property int _mainScreenWidth: _mainScreen ? _mainScreen.width : 1920
-  readonly property real _devicePixelRatio: _mainScreenScale
-  readonly property real _screenWidthPx: _mainScreenWidth
+  // For scaling, use height-based diagonal equivalent to normalize ultrawides
+  // This simulates what diagonal would be if the monitor was 16:9 with same height
+  readonly property real _normalizedDiagonal: {
+    const height = _screenHeightPx;
+    if (_isUltrawide) {
+      // Simulate 16:9 diagonal from height: diagonal = height * sqrt(1 + (16/9)^2) ≈ height * 1.87
+      return height * 1.87 * _devicePixelRatio;
+    }
+    // Standard monitors use actual diagonal
+    return Math.sqrt(_screenWidthPx * _screenWidthPx + _screenHeightPx * _screenHeightPx) * _devicePixelRatio;
+  }
   readonly property real _screenHeightPx: _mainScreenHeight
-  // Diagonal in physical pixels (approx): sqrt(w^2 + h^2) * DPR
-  // Compute a diagonal-based scale using pixel diagonal and device pixel ratio (DPR).
-  // This produces a smooth, monotonic scale so smaller physical/low-res screens get
-  // a smaller UI and larger/high-DPI screens scale up. We dampen DPR so HiDPI
-  // doesn't double-inflate sizes.
-  readonly property real _diagonalPixels: Math.sqrt(_screenWidthPx * _screenWidthPx + _screenHeightPx * _screenHeightPx) * _devicePixelRatio
-
+  readonly property real _screenWidthPx: _mainScreenWidth
   readonly property color activeColor: "#CBA6F7"
 
   // Active/accent color variants (using withOpacity helper)
@@ -47,10 +56,11 @@ Singleton {
   readonly property int baseItemRadius: 18
   readonly property int baseItemWidth: 34
   readonly property int basePanelHeight: 42
-  // Map diagonalPixels to a scale value using linear mapping + clamps.
+  // Map normalized diagonal to a scale value using linear mapping + clamps.
   // Tunable breakpoints: small laptops -> ~0.86, common 1080/1440 monitors -> ~0.95..1.12, 4K -> ~1.28
+  // Ultrawides use height-normalized diagonal so they scale like equivalent-height 16:9 monitors
   readonly property real baseScale: {
-    const diag = _diagonalPixels;
+    const diag = _normalizedDiagonal;
     // Target calibration points (approx):
     // - 1920x1080 -> diagonal ~2203 px -> prefer scale ~= 0.90
     // - 2560x1440 -> diagonal ~2938 px -> prefer scale ~= 1.00
@@ -122,6 +132,12 @@ Singleton {
   readonly property int controlWidthXs: Math.max(20, Math.round(24 * baseScale))
   readonly property color critical: "#f38ba8"
   readonly property int dialogPadding: Math.round(20 * baseScale)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DIALOG/CARD TOKENS - Centered content widths (ultrawide-aware)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // For ultrawide monitors, use a smaller percentage of screen width
+  readonly property real dialogWidthRatio: _isUltrawide ? 0.4 : 0.9
   readonly property color disabledColor: "#232634"
   readonly property string fontFamily: "CaskaydiaCove Nerd Font Propo"
   readonly property int fontHero: Math.max(32, Math.round(48 * baseScale)) // 48px @ 1x - hero/display text
@@ -165,6 +181,24 @@ Singleton {
   readonly property int itemHeight: Math.max(20, Math.round(baseItemHeight * baseScale))
   readonly property int itemRadius: Math.max(6, Math.round(baseItemRadius * baseScale))
   readonly property int itemWidth: Math.max(20, Math.round(baseItemWidth * baseScale))
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAUNCHER TOKENS - App launcher/search panel dimensions (scaled automatically)
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property int launcherCellSize: Math.round(150 * baseScale)
+  readonly property int launcherIconSize: Math.round(72 * baseScale)
+  readonly property int launcherWindowHeight: Math.round(471 * baseScale)
+  readonly property int launcherWindowWidth: Math.round(741 * baseScale)
+  // Lock screen card width
+  readonly property int lockCardContentWidth: Math.round(400 * baseScale)
+  readonly property int lockCardMaxWidth: Math.round(500 * baseScale)
+  readonly property int notificationAppIconSize: Math.round(40 * baseScale)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // NOTIFICATION TOKENS - Notification card dimensions
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property int notificationCardWidth: Math.round(380 * baseScale)
+  readonly property int notificationInlineImageSize: Math.round(24 * baseScale)
   readonly property color onHoverColor: "#A28DCD"
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -178,6 +212,16 @@ Singleton {
   readonly property real opacitySolid: 0.6        // Card backgrounds
   readonly property real opacityStrong: 0.8       // Input backgrounds
   readonly property real opacitySubtle: 0.15      // Subtle highlights, hover states
+  readonly property int osdAnimationOffset: Math.round(60 * baseScale)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OSD TOKENS - Centralized OSD dimensions (scaled automatically)
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property int osdCardHeight: Math.round(80 * baseScale)
+  readonly property int osdSliderTrackHeight: Math.round(12 * baseScale)
+  readonly property int osdSliderWidth: Math.round(300 * baseScale)
+  readonly property int osdToggleIconContainerSize: Math.round(48 * baseScale)
+  readonly property int osdToggleMinWidth: Math.round(220 * baseScale)
   readonly property int panelHeight: Math.max(28, Math.round(basePanelHeight * baseScale))
   readonly property int panelMargin: spacingMd
   readonly property int panelRadius: radiusMd
@@ -194,6 +238,18 @@ Singleton {
   readonly property int radiusSm: Math.max(4, Math.round(6 * baseScale))   // 6px - small buttons, tags
   readonly property int radiusXl: Math.max(20, Math.round(40 * baseScale)) // 40px - OSD, pills
   readonly property int radiusXs: Math.max(2, Math.round(3 * baseScale))   // 3px - tiny elements, checkmarks
+
+  readonly property real scaleExtraLarge: 1.5      // 150% - icons, featured elements
+
+  readonly property real scaleLarge: 1.2           // 120% - emphasized elements
+  readonly property real scaleMedium: 0.9          // 90% - slightly reduced elements
+  readonly property real scaleMediumSmall: 0.8     // 80% - secondary buttons
+  readonly property real scaleNormal: 1.0          // 100% - standard size
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INTERACTIVE SCALE VARIANTS - Common multipliers for components
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property real scaleSmall: 0.7           // 70% - small buttons, compact elements
 
   // UI element sizes
   readonly property int scrollBarWidth: spacingSm  // Default scrollbar width (8px scaled)
@@ -224,41 +280,6 @@ Singleton {
   readonly property int tooltipMaxSpace: 100
   readonly property int volumeExpandedWidth: Math.max(140, Math.round(baseVolumeExpandedWidth * baseScale))
   readonly property color warning: "#fab387"
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // OSD TOKENS - Centralized OSD dimensions (scaled automatically)
-  // ═══════════════════════════════════════════════════════════════════════════
-  readonly property int osdCardHeight: Math.round(80 * baseScale)
-  readonly property int osdSliderWidth: Math.round(300 * baseScale)
-  readonly property int osdToggleMinWidth: Math.round(220 * baseScale)
-  readonly property int osdToggleIconContainerSize: Math.round(48 * baseScale)
-  readonly property int osdSliderTrackHeight: Math.round(12 * baseScale)
-  readonly property int osdAnimationOffset: Math.round(60 * baseScale)
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LAUNCHER TOKENS - App launcher/search panel dimensions (scaled automatically)
-  // ═══════════════════════════════════════════════════════════════════════════
-  readonly property int launcherCellSize: Math.round(150 * baseScale)
-  readonly property int launcherWindowWidth: Math.round(741 * baseScale)
-  readonly property int launcherWindowHeight: Math.round(471 * baseScale)
-  readonly property int launcherIconSize: Math.round(72 * baseScale)
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // NOTIFICATION TOKENS - Notification card dimensions
-  // ═══════════════════════════════════════════════════════════════════════════
-  readonly property int notificationCardWidth: Math.round(380 * baseScale)
-  readonly property int notificationAppIconSize: Math.round(40 * baseScale)
-  readonly property int notificationInlineImageSize: Math.round(24 * baseScale)
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // INTERACTIVE SCALE VARIANTS - Common multipliers for components
-  // ═══════════════════════════════════════════════════════════════════════════
-  readonly property real scaleSmall: 0.7           // 70% - small buttons, compact elements
-  readonly property real scaleMediumSmall: 0.8     // 80% - secondary buttons
-  readonly property real scaleMedium: 0.9          // 90% - slightly reduced elements
-  readonly property real scaleNormal: 1.0          // 100% - standard size
-  readonly property real scaleLarge: 1.2           // 120% - emphasized elements
-  readonly property real scaleExtraLarge: 1.5      // 150% - icons, featured elements
 
   // ═══════════════════════════════════════════════════════════════════════════
   // HELPER FUNCTIONS
@@ -322,24 +343,6 @@ Singleton {
     }
   }
 
-  // Get spacing for size preset: "xs", "sm", "md", "lg", "xl"
-  function spacingFor(size: string): int {
-    switch (size) {
-    case "xs":
-      return theme.spacingXs;
-    case "sm":
-      return theme.spacingSm;
-    case "md":
-      return theme.spacingMd;
-    case "lg":
-      return theme.spacingLg;
-    case "xl":
-      return theme.spacingXl;
-    default:
-      return theme.spacingMd;
-    }
-  }
-
   // Get radius for size preset: "none", "xs", "sm", "md", "lg", "xl", "full"
   function radiusFor(size: string): int {
     switch (size) {
@@ -359,6 +362,24 @@ Singleton {
       return theme.radiusFull;
     default:
       return theme.radiusMd;
+    }
+  }
+
+  // Get spacing for size preset: "xs", "sm", "md", "lg", "xl"
+  function spacingFor(size: string): int {
+    switch (size) {
+    case "xs":
+      return theme.spacingXs;
+    case "sm":
+      return theme.spacingSm;
+    case "md":
+      return theme.spacingMd;
+    case "lg":
+      return theme.spacingLg;
+    case "xl":
+      return theme.spacingXl;
+    default:
+      return theme.spacingMd;
     }
   }
 

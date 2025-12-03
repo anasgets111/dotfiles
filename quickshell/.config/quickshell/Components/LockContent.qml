@@ -11,18 +11,11 @@ import qs.Config
 Item {
   id: root
 
-  // Shared colors - using Theme tokens
-  readonly property color cardBg: Theme.bgCard
-  readonly property color cardBorder: Theme.borderMedium
-  readonly property color chipBg: Theme.withOpacity(Theme.bgColor, 0.5)
-  readonly property color chipBorder: Theme.withOpacity(Theme.borderColor, 0.3)
-  readonly property color inputBg: Theme.bgInput
-  readonly property color inputBorder: Theme.borderStrong
   required property bool isMainMonitor
 
   anchors.centerIn: parent
-  height: contentColumn.implicitHeight + Theme.dialogPadding * 3
-  width: Math.min(parent.width * 0.9, 500)
+  implicitHeight: card.implicitHeight
+  implicitWidth: card.implicitWidth
 
   transform: Translate {
     id: shakeTransform
@@ -73,116 +66,109 @@ Item {
     target: LockService
   }
 
-  // Background Card
+  // Card container
   Rectangle {
-    anchors.fill: parent
-    border.color: root.cardBorder
-    border.width: 1
-    color: root.cardBg
+    id: card
+
+    border.color: Theme.borderMedium
+    border.width: Theme.borderWidthThin
+    color: Theme.bgCard
+    implicitHeight: contentColumn.implicitHeight + Theme.dialogPadding * 2
+    implicitWidth: Math.min(root.parent.width * Theme.dialogWidthRatio, Theme.lockCardMaxWidth)
     layer.enabled: true
-    radius: Theme.itemRadius * 2
+    radius: Theme.radiusLg
 
     layer.effect: MultiEffect {
-      blur: 0.2
       blurEnabled: true
       blurMax: Theme.shadowBlurLg
       shadowBlur: Theme.shadowBlurMd
       shadowColor: Theme.shadowColor
       shadowEnabled: true
-      shadowVerticalOffset: 10
+      shadowVerticalOffset: Theme.shadowOffsetY * 4
     }
-  }
 
-  // Content
-  ColumnLayout {
-    id: contentColumn
-
-    anchors.centerIn: parent
-    spacing: Theme.spacingXl
-    width: parent.width - Theme.dialogPadding * 3
-
-    // 1. Clock Section
     ColumnLayout {
-      Layout.alignment: Qt.AlignHCenter
-      spacing: -Theme.spacingSm
+      id: contentColumn
 
+      anchors.centerIn: parent
+      spacing: Theme.spacingLg
+      width: Math.min(Theme.lockCardContentWidth, parent.width - Theme.dialogPadding * 2)
+
+      // Clock
+      ColumnLayout {
+        Layout.alignment: Qt.AlignHCenter
+        spacing: 0
+
+        OText {
+          Layout.alignment: Qt.AlignHCenter
+          bold: true
+          sizeMultiplier: Theme.baseScale * 5
+          style: Text.Outline
+          styleColor: Theme.withOpacity(Theme.bgColor, Theme.opacitySubtle)
+          text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "h:mm AP")
+        }
+
+        OText {
+          Layout.alignment: Qt.AlignHCenter
+          size: "xl"
+          text: TimeService.format("date", "dddd, MMMM d")
+          useActiveColor: false
+          weight: Font.Medium
+        }
+      }
+
+      // User name
       OText {
         Layout.alignment: Qt.AlignHCenter
         bold: true
-        sizeMultiplier: Theme.baseScale * 5
-        style: Text.Outline
-        styleColor: Qt.rgba(0, 0, 0, 0.1)
-        text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "h:mm AP")
+        opacity: Theme.opacityStrong
+        size: "lg"
+        text: MainService.fullName || "User"
+        visible: !!text
       }
 
-      OText {
+      // Status chips
+      RowLayout {
         Layout.alignment: Qt.AlignHCenter
-        size: "xl"
-        text: TimeService.format("date", "dddd, MMMM d")
-        useActiveColor: false
-        weight: Font.Medium
-      }
-    }
+        spacing: Theme.spacingMd
 
-    // 2. User Info
-    OText {
-      Layout.alignment: Qt.AlignHCenter
-      bold: true
-      opacity: 0.8
-      size: "lg"
-      text: MainService.fullName || "User"
-      visible: !!text
-    }
+        Chip {
+          visible: !!WeatherService?.currentTemp
 
-    // 3. Status Chips (Weather, Host)
-    RowLayout {
-      Layout.alignment: Qt.AlignHCenter
-      spacing: Theme.spacingMd
+          OText {
+            size: "lg"
+            text: WeatherService?.weatherInfo().icon ?? ""
+          }
 
-      Chip {
-        visible: !!WeatherService?.currentTemp
-
-        OText {
-          size: "lg"
-          text: WeatherService?.weatherInfo().icon ?? ""
+          OText {
+            bold: true
+            size: "sm"
+            text: String(WeatherService?.currentTemp ?? "").split(" ")[0]
+          }
         }
 
-        OText {
-          bold: true
-          size: "sm"
-          text: String(WeatherService?.currentTemp ?? "").split(" ")[0]
+        Chip {
+          Text {
+            font.pixelSize: Theme.fontMd
+            text: "💻"
+          }
+
+          OText {
+            size: "sm"
+            text: MainService.hostname || "localhost"
+            useActiveColor: false
+          }
         }
       }
 
-      Chip {
-        Text {
-          font.pixelSize: Theme.fontSize
-          text: "💻"
-        }
-
-        OText {
-          size: "sm"
-          text: MainService.hostname || "localhost"
-          useActiveColor: false
-        }
-      }
-    }
-
-    // 4. Password Input Area (main monitor only)
-    Item {
-      Layout.fillWidth: true
-      Layout.preferredHeight: Theme.itemHeight * 1.4
-      Layout.topMargin: Theme.spacingSm
-      visible: root.isMainMonitor
-
+      // Password input (main monitor only)
       Rectangle {
-        anchors.centerIn: parent
-        border.color: LockService.authState === "fail" ? Theme.critical : LockService.authenticating ? Theme.activeColor : root.inputBorder
-        border.width: 2
-        color: root.inputBg
-        height: Theme.itemHeight * 1.3
-        radius: height / 2
-        width: Math.min(parent.width, Theme.itemHeight * 8)
+        Layout.alignment: Qt.AlignHCenter
+        Layout.preferredHeight: Theme.controlHeightLg
+        Layout.preferredWidth: Math.min(contentColumn.width, Theme.controlHeightLg * 6)
+        color: Theme.bgInput
+        radius: Theme.radiusFull
+        visible: root.isMainMonitor
 
         Behavior on border.color {
           ColorAnimation {
@@ -190,15 +176,20 @@ Item {
           }
         }
 
+        border {
+          color: LockService.authState === "fail" ? Theme.critical : LockService.authenticating ? Theme.activeColor : Theme.borderStrong
+          width: Theme.borderWidthMedium
+        }
+
         // Lock icon
         Text {
-          font.pixelSize: Theme.fontSize
-          opacity: 0.7
+          font.pixelSize: Theme.fontMd
+          opacity: Theme.opacityDisabled + 0.2
           text: "🔒"
 
           anchors {
             left: parent.left
-            leftMargin: Theme.fontSize
+            leftMargin: Theme.spacingMd
             verticalCenter: parent.verticalCenter
           }
         }
@@ -235,8 +226,8 @@ Item {
         // Caps lock indicator
         Rectangle {
           color: Theme.warning
-          height: Theme.controlHeightSm
-          radius: Theme.itemRadius
+          height: Theme.controlHeightXs
+          radius: Theme.radiusSm
           visible: KeyboardLayoutService.capsOn
           width: capsText.implicitWidth + Theme.spacingMd
 
@@ -257,100 +248,102 @@ Item {
           }
         }
       }
-    }
 
-    // 5. Footer Info (main monitor only)
-    RowLayout {
-      Layout.alignment: Qt.AlignHCenter
-      opacity: 0.6
-      spacing: Theme.fontSize
-      visible: root.isMainMonitor
-
+      // Footer info (main monitor only)
       RowLayout {
-        spacing: Theme.spacingXs
-        visible: BatteryService.isLaptopBattery
+        Layout.alignment: Qt.AlignHCenter
+        opacity: Theme.opacitySolid
+        spacing: Theme.spacingSm
+        visible: root.isMainMonitor
 
-        Text {
-          font.pixelSize: Theme.fontSize - 3
-          text: BatteryService.isCharging ? "⚡" : "🔋"
+        // Battery
+        RowLayout {
+          spacing: Theme.spacingXs
+          visible: BatteryService.isLaptopBattery
+
+          Text {
+            font.pixelSize: Theme.fontSm
+            text: BatteryService.isCharging ? "⚡" : "🔋"
+          }
+
+          OText {
+            size: "sm"
+            text: BatteryService.percentage + "%"
+            useActiveColor: false
+          }
+        }
+
+        Divider {
+          visible: BatteryService.isLaptopBattery
         }
 
         OText {
           size: "sm"
-          text: BatteryService.percentage + "%"
+          text: "Enter to unlock"
           useActiveColor: false
         }
-      }
 
-      Divider {
-        visible: BatteryService.isLaptopBattery
-      }
-
-      OText {
-        size: "sm"
-        text: "Enter to unlock"
-        useActiveColor: false
-      }
-
-      Divider {
-        visible: !!KeyboardLayoutService.currentLayout
-      }
-
-      OText {
-        size: "sm"
-        text: KeyboardLayoutService.currentLayout
-        useActiveColor: false
-        visible: !!KeyboardLayoutService.currentLayout
-        weight: Font.Medium
-      }
-
-      Divider {
-        visible: NetworkService.ready
-      }
-
-      RowLayout {
-        readonly property string link: NetworkService.linkType || "disconnected"
-        readonly property string ssid: NetworkService.wifiAps.find(a => a?.connected)?.ssid ?? ""
-
-        spacing: Theme.spacingXs
-        visible: NetworkService.ready
-
-        Text {
-          font.pixelSize: Theme.fontSize - 3
-          text: parent.link === "ethernet" ? "🔌" : parent.link === "wifi" ? "📶" : "📵"
+        Divider {
+          visible: !!KeyboardLayoutService.currentLayout
         }
 
         OText {
           size: "sm"
-          text: parent.link === "ethernet" ? "Ethernet" : parent.link === "wifi" ? parent.ssid : "Offline"
+          text: KeyboardLayoutService.currentLayout
           useActiveColor: false
+          visible: !!KeyboardLayoutService.currentLayout
+          weight: Font.Medium
+        }
+
+        Divider {
+          visible: NetworkService.ready
+        }
+
+        // Network
+        RowLayout {
+          readonly property string link: NetworkService.linkType || "disconnected"
+          readonly property string ssid: NetworkService.wifiAps.find(a => a?.connected)?.ssid ?? ""
+
+          spacing: Theme.spacingXs
+          visible: NetworkService.ready
+
+          Text {
+            font.pixelSize: Theme.fontSm
+            text: parent.link === "ethernet" ? "🔌" : parent.link === "wifi" ? "📶" : "📵"
+          }
+
+          OText {
+            size: "sm"
+            text: parent.link === "ethernet" ? "Ethernet" : parent.link === "wifi" ? parent.ssid : "Offline"
+            useActiveColor: false
+          }
         }
       }
     }
   }
 
-  // Chip component for status indicators
+  // Chip component
   component Chip: Rectangle {
-    default property alias content: chipContent.children
+    default property alias content: chipRow.children
 
-    Layout.preferredHeight: Theme.itemHeight
-    Layout.preferredWidth: chipContent.implicitWidth + Theme.spacingLg
-    border.color: root.chipBorder
-    color: root.chipBg
-    radius: Theme.itemRadius
+    Layout.preferredHeight: Theme.controlHeightMd
+    Layout.preferredWidth: chipRow.implicitWidth + Theme.spacingLg
+    border.color: Theme.borderSubtle
+    color: Theme.bgSubtle
+    radius: Theme.radiusSm
 
     RowLayout {
-      id: chipContent
+      id: chipRow
 
       anchors.centerIn: parent
       spacing: Theme.spacingXs
     }
   }
 
-  // Divider component for footer
+  // Divider component
   component Divider: Rectangle {
     color: Theme.textInactiveColor
     height: Theme.spacingMd
-    width: 1
+    width: Theme.borderWidthThin
   }
 }
