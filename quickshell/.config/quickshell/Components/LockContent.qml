@@ -104,7 +104,7 @@ Item {
     // 1. Clock Section
     ColumnLayout {
       Layout.alignment: Qt.AlignHCenter
-      spacing: -Math.round(Theme.baseScale * 8)
+      spacing: -Theme.spacingSm
 
       OText {
         Layout.alignment: Qt.AlignHCenter
@@ -216,9 +216,9 @@ Item {
               required property int index
 
               color: Theme.textActiveColor
-              height: 8
+              height: Theme.spacingSm
               radius: Theme.radiusXs
-              width: 8
+              width: Theme.spacingSm
             }
           }
         }
@@ -334,7 +334,7 @@ Item {
     default property alias content: chipContent.children
 
     Layout.preferredHeight: Theme.itemHeight
-    Layout.preferredWidth: chipContent.implicitWidth + Theme.fontSize * 1.5
+    Layout.preferredWidth: chipContent.implicitWidth + Theme.spacingLg
     border.color: root.chipBorder
     color: root.chipBg
     radius: Theme.itemRadius

@@ -98,7 +98,7 @@ Item {
     }
 
     PauseAnimation {
-      duration: 100
+      duration: Theme.animationFast
     }
 
     PropertyAction {
@@ -108,7 +108,7 @@ Item {
     }
 
     PauseAnimation {
-      duration: 100
+      duration: Theme.animationFast
     }
   }
 
@@ -128,7 +128,7 @@ Item {
 
       Behavior on color {
         ColorAnimation {
-          duration: 100
+          duration: Theme.animationFast
           easing.type: Easing.OutCubic
         }
       }
@@ -138,7 +138,7 @@ Item {
       id: flashOverlay
 
       anchors.fill: parent
-      color: "#ffe066"
+      color: Theme.warning
       opacity: 0
       radius: height / 2
     }

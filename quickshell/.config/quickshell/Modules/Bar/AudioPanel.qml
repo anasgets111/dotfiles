@@ -11,7 +11,7 @@ import qs.Services.Utils
 OPanel {
   id: root
 
-  readonly property int btnSize: Theme.itemHeight * 0.7
+  readonly property int muteButtonSize: Math.round(Theme.itemHeight * Theme.scaleSmall)
   readonly property color cardBg: Theme.bgElevated
   readonly property color cardBgAlt: Theme.bgElevatedAlt
   readonly property color cardBorder: Theme.borderLight
@@ -21,8 +21,8 @@ OPanel {
   readonly property bool inputMuted: inputAudio?.muted ?? false
   readonly property real inputVolume: inputAudio?.volume ?? 0
   property bool mixerExpanded: false
-  readonly property int pad: 8
-  readonly property int sliderHeight: Theme.itemHeight * 0.6
+  readonly property int panelPadding: Theme.spacingSm
+  readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
 
   needsKeyboardFocus: false
   panelNamespace: "obelisk-audio-panel"
@@ -36,15 +36,16 @@ OPanel {
   }
 
   ColumnLayout {
-    spacing: root.pad * 1.5
-    width: parent.width - root.pad * 2
-    x: root.pad
-    y: root.pad
+    spacing: Math.round(root.panelPadding * 1.5)
+    width: parent.width - root.panelPadding * 2
+    x: root.panelPadding
+    y: root.panelPadding
 
     // Output Volume Card
     Rectangle {
+    Rectangle {
       Layout.fillWidth: true
-      Layout.preferredHeight: outputCol.implicitHeight + root.pad * 1.5
+      Layout.preferredHeight: outputCol.implicitHeight + root.panelPadding * 1.5
       color: root.cardBg
       radius: Theme.itemRadius
 
@@ -56,20 +57,20 @@ OPanel {
       ColumnLayout {
         id: outputCol
 
-        spacing: root.pad * 0.8
+        spacing: root.panelPadding * 0.8
 
         anchors {
           fill: parent
-          margins: root.pad
+          margins: root.panelPadding
         }
 
         RowLayout {
           Layout.fillWidth: true
-          spacing: root.pad
+          spacing: root.panelPadding
 
           OText {
             color: AudioService.muted ? Theme.textInactiveColor : Theme.activeColor
-            font.pixelSize: Theme.fontSize * 1.2
+            font.pixelSize: Theme.fontLg
             text: AudioService.muted ? "󰝟" : "󰕾"
           }
 
@@ -86,8 +87,8 @@ OPanel {
           }
 
           IconButton {
-            Layout.preferredHeight: root.btnSize
-            Layout.preferredWidth: root.btnSize
+            Layout.preferredHeight: root.muteButtonSize
+            Layout.preferredWidth: root.muteButtonSize
             colorBg: AudioService.muted ? Theme.inactiveColor : Theme.activeColor
             icon: AudioService.muted ? "󰝟" : "󰕾"
             tooltipText: AudioService.muted ? qsTr("Unmute") : qsTr("Mute")
@@ -146,12 +147,12 @@ OPanel {
           ColumnLayout {
             id: mixerCol
 
-            spacing: root.pad * 0.5
+            spacing: root.panelPadding * 0.5
             width: parent.width
 
             OText {
               Layout.fillWidth: true
-              Layout.topMargin: root.pad
+              Layout.topMargin: root.panelPadding
               color: Theme.textInactiveColor
               horizontalAlignment: Text.AlignHCenter
               size: "sm"
@@ -173,7 +174,7 @@ OPanel {
     // Input Volume Card
     Rectangle {
       Layout.fillWidth: true
-      Layout.preferredHeight: inputCol.implicitHeight + root.pad * 1.5
+      Layout.preferredHeight: inputCol.implicitHeight + root.panelPadding * 1.5
       color: root.cardBg
       radius: Theme.itemRadius
       visible: AudioService.source !== null
@@ -186,20 +187,20 @@ OPanel {
       ColumnLayout {
         id: inputCol
 
-        spacing: root.pad * 0.8
+        spacing: root.panelPadding * 0.8
 
         anchors {
           fill: parent
-          margins: root.pad
+          margins: root.panelPadding
         }
 
         RowLayout {
           Layout.fillWidth: true
-          spacing: root.pad
+          spacing: root.panelPadding
 
           OText {
             color: root.inputMuted ? Theme.textInactiveColor : Theme.activeColor
-            font.pixelSize: Theme.fontSize * 1.2
+            font.pixelSize: Theme.fontLg
             text: root.inputMuted ? "󰍭" : "󰍬"
           }
 
@@ -216,8 +217,8 @@ OPanel {
           }
 
           IconButton {
-            Layout.preferredHeight: root.btnSize
-            Layout.preferredWidth: root.btnSize
+            Layout.preferredHeight: root.muteButtonSize
+            Layout.preferredWidth: root.muteButtonSize
             colorBg: root.inputMuted ? Theme.inactiveColor : Theme.activeColor
             icon: root.inputMuted ? "󰍭" : "󰍬"
             tooltipText: root.inputMuted ? qsTr("Unmute Mic") : qsTr("Mute Mic")
@@ -250,7 +251,7 @@ OPanel {
     // Output Devices
     ColumnLayout {
       Layout.fillWidth: true
-      spacing: root.pad * 0.5
+      spacing: root.panelPadding * 0.5
 
       OText {
         bold: true
@@ -259,7 +260,7 @@ OPanel {
 
       Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: sinkList.implicitHeight + root.pad * 1.2
+        Layout.preferredHeight: sinkList.implicitHeight + root.panelPadding * 1.2
         clip: true
         color: root.cardBgAlt
         radius: Theme.itemRadius
@@ -296,7 +297,7 @@ OPanel {
 
           anchors {
             fill: parent
-            margins: root.pad * 0.6
+            margins: root.panelPadding * 0.6
           }
         }
       }
@@ -304,9 +305,9 @@ OPanel {
 
     // Input Devices
     ColumnLayout {
-      Layout.bottomMargin: root.pad
+      Layout.bottomMargin: root.panelPadding
       Layout.fillWidth: true
-      spacing: root.pad * 0.5
+      spacing: root.panelPadding * 0.5
       visible: sourceList.count > 0
 
       OText {
@@ -316,7 +317,7 @@ OPanel {
 
       Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: sourceList.implicitHeight + root.pad * 1.2
+        Layout.preferredHeight: sourceList.implicitHeight + root.panelPadding * 1.2
         clip: true
         color: root.cardBgAlt
         radius: Theme.itemRadius
@@ -353,7 +354,7 @@ OPanel {
 
           anchors {
             fill: parent
-            margins: root.pad * 0.6
+            margins: root.panelPadding * 0.6
           }
         }
       }
@@ -402,12 +403,12 @@ OPanel {
     }
 
     RowLayout {
-      spacing: root.pad
+      spacing: root.panelPadding
 
       anchors {
         fill: parent
-        leftMargin: root.pad
-        rightMargin: root.pad
+        leftMargin: root.panelPadding
+        rightMargin: root.panelPadding
       }
 
       OText {
@@ -439,23 +440,23 @@ OPanel {
     readonly property real vol: modelData.audio?.volume ?? 0
 
     Layout.fillWidth: true
-    spacing: root.pad * 0.3
+    spacing: root.panelPadding * 0.3
 
     RowLayout {
       Layout.fillWidth: true
-      spacing: root.pad
+      spacing: root.panelPadding
 
       Image {
-        Layout.preferredHeight: Theme.fontSize * 1.3
-        Layout.preferredWidth: Theme.fontSize * 1.3
+        Layout.preferredHeight: Theme.fontLg
+        Layout.preferredWidth: Theme.fontLg
         asynchronous: true
         cache: true
         fillMode: Image.PreserveAspectFit
         source: Utils.resolveIconSource(streamItem.modelData.name, streamItem.modelData.properties?.["application.icon-name"], "󰝚")
 
         sourceSize {
-          height: Theme.fontSize * 1.3
-          width: Theme.fontSize * 1.3
+          height: Theme.fontLg
+          width: Theme.fontLg
         }
 
         OText {

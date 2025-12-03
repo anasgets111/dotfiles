@@ -12,7 +12,7 @@ Item {
   property bool _animReady: false
   property var _messageExpansion: ({})
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
-  readonly property real cardWidth: 380
+  readonly property real cardWidth: Theme.notificationCardWidth
   required property var group
   readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group.key] || false) : false)
   readonly property bool headerHasExpand: root.isGroup && root.items.length > 1
@@ -85,11 +85,11 @@ Item {
       spacing: Theme.cardPadding
 
       Rectangle {
-        Layout.preferredHeight: 40
-        Layout.preferredWidth: 40
-        border.color: Qt.rgba(255, 255, 255, 0.05)
-        border.width: 1
-        color: Qt.rgba(1, 1, 1, 0.07)
+        Layout.preferredHeight: Theme.notificationAppIconSize
+        Layout.preferredWidth: Theme.notificationAppIconSize
+        border.color: Qt.rgba(255, 255, 255, Theme.opacitySubtle / 3)
+        border.width: Theme.borderWidthThin
+        color: Qt.rgba(1, 1, 1, Theme.opacitySubtle / 2)
         radius: Theme.radiusSm
         visible: !!root.primaryWrapper
 
@@ -222,8 +222,8 @@ Item {
               spacing: Theme.spacingSm
 
               Image {
-                Layout.preferredHeight: visible ? 24 : 0
-                Layout.preferredWidth: visible ? 24 : 0
+                Layout.preferredHeight: visible ? Theme.notificationInlineImageSize : 0
+                Layout.preferredWidth: visible ? Theme.notificationInlineImageSize : 0
                 fillMode: Image.PreserveAspectFit
                 smooth: true
                 source: messageColumn.contentImage
@@ -234,7 +234,7 @@ Item {
                 id: summaryText
 
                 Layout.fillWidth: true
-                color: "#dddddd"
+                color: Theme.textActiveColor
                 elide: Text.ElideRight
                 font.pixelSize: Theme.fontMd
                 horizontalAlignment: messageItem.isMultipleItems ? Text.AlignLeft : Text.AlignHCenter
@@ -292,7 +292,7 @@ Item {
                 Text {
                   id: bodyText
 
-                  color: "#bbbbbb"
+                  color: Theme.textInactiveColor
                   font.pixelSize: Theme.fontSm
                   linkColor: root.accentColor
                   text: messageColumn.renderedBodyMeta.text

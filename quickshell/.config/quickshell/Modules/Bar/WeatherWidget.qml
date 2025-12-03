@@ -130,7 +130,7 @@ Item {
 
         Behavior on Layout.preferredHeight {
           NumberAnimation {
-            duration: 300
+            duration: Theme.animationSlow
             easing.type: Easing.OutQuad
           }
         }
@@ -234,7 +234,7 @@ Item {
 
           Behavior on opacity {
             NumberAnimation {
-              duration: 300
+              duration: Theme.animationSlow
             }
           }
         }
@@ -252,7 +252,7 @@ Item {
 
           Behavior on opacity {
             NumberAnimation {
-              duration: 300
+              duration: Theme.animationSlow
             }
           }
         }
@@ -262,7 +262,7 @@ Item {
         Layout.alignment: Qt.AlignHCenter
         color: Theme.textActiveColor
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize * 1.5
+        font.pixelSize: Theme.fontXl
         text: card.wInfo.icon
       }
 

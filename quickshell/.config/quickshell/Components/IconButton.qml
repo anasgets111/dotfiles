@@ -17,58 +17,14 @@ import qs.Config
 Item {
   id: root
 
-  readonly property int _iconSize: {
-    switch (size) {
-    case "xs":
-      return Theme.iconSizeXs;
-    case "sm":
-      return Theme.iconSizeSm;
-    case "md":
-      return Theme.iconSizeMd;
-    case "lg":
-      return Theme.iconSizeLg;
-    case "xl":
-      return Theme.iconSizeXl;
-    default:
-      return Theme.iconSizeMd;
-    }
-  }
+  // Computed dimensions from size using Theme helper functions
+  readonly property int _iconSize: Theme.iconSizeFor(size)
   readonly property int _radius: {
     if (shape === "circle")
       return Math.min(width, height) / 2;
-    switch (size) {
-    case "xs":
-      return Theme.radiusSm;
-    case "sm":
-      return Theme.radiusSm;
-    case "md":
-      return Theme.radiusMd;
-    case "lg":
-      return Theme.radiusMd;
-    case "xl":
-      return Theme.radiusLg;
-    default:
-      return Theme.radiusMd;
-    }
+    return Theme.radiusFor(size === "xs" || size === "sm" ? "sm" : size === "xl" ? "lg" : "md");
   }
-
-  // Computed dimensions from size
-  readonly property int _size: {
-    switch (size) {
-    case "xs":
-      return Theme.controlHeightXs;
-    case "sm":
-      return Theme.controlHeightSm;
-    case "md":
-      return Theme.controlHeightMd;
-    case "lg":
-      return Theme.controlHeightLg;
-    case "xl":
-      return Theme.controlHeightXl;
-    default:
-      return Theme.controlHeightMd;
-    }
-  }
+  readonly property int _size: Theme.controlHeightFor(size)
   property bool allowClickWhenDisabled: false
 
   // Color customization

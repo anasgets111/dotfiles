@@ -6,26 +6,22 @@ import qs.Services.WM as WM
 Singleton {
   id: theme
 
-  readonly property real _devicePixelRatio: _mss
-  // Diagonal in physical pixels (approx): sqrt(w^2 + h^2) * DPR
-  readonly property real _diagonalPixels: Math.sqrt(_screenWidthPx * _screenWidthPx + _screenHeightPx * _screenHeightPx) * _devicePixelRatio
-
-  // --- Responsive scaling prototype ---
-  // We derive a baseScale from the active main monitor via MonitorService.
-  // This is an initial test implementation: keep legacy fixed constants for now.
-  // Formula: start from a resolution category factor, multiply by monitor scale (devicePixelRatio) moderation,
-  // then clamp. Later we can migrate size tokens to use this.
+  // --- Private: Screen-related properties for scaling calculations ---
   // Access via WM.MonitorService singleton
   readonly property var _mainScreen: (WM.MonitorService && WM.MonitorService.activeMainScreen) ? WM.MonitorService.activeMainScreen : null
-  readonly property int _msh: _mainScreen ? _mainScreen.height : 1080
-  readonly property real _mss: _mainScreen ? (_mainScreen.devicePixelRatio || _mainScreen.scale || 1) : 1
-  readonly property int _msw: _mainScreen ? _mainScreen.width : 1920
-  readonly property real _screenHeightPx: _msh
+  readonly property int _mainScreenHeight: _mainScreen ? _mainScreen.height : 1080
+  readonly property real _mainScreenScale: _mainScreen ? (_mainScreen.devicePixelRatio || _mainScreen.scale || 1) : 1
+  readonly property int _mainScreenWidth: _mainScreen ? _mainScreen.width : 1920
+  readonly property real _devicePixelRatio: _mainScreenScale
+  readonly property real _screenWidthPx: _mainScreenWidth
+  readonly property real _screenHeightPx: _mainScreenHeight
+  // Diagonal in physical pixels (approx): sqrt(w^2 + h^2) * DPR
   // Compute a diagonal-based scale using pixel diagonal and device pixel ratio (DPR).
   // This produces a smooth, monotonic scale so smaller physical/low-res screens get
   // a smaller UI and larger/high-DPI screens scale up. We dampen DPR so HiDPI
   // doesn't double-inflate sizes.
-  readonly property real _screenWidthPx: _msw
+  readonly property real _diagonalPixels: Math.sqrt(_screenWidthPx * _screenWidthPx + _screenHeightPx * _screenHeightPx) * _devicePixelRatio
+
   readonly property color activeColor: "#CBA6F7"
 
   // Active/accent color variants (using withOpacity helper)
@@ -230,10 +226,143 @@ Singleton {
   readonly property color warning: "#fab387"
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // OSD TOKENS - Centralized OSD dimensions (scaled automatically)
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property int osdCardHeight: Math.round(80 * baseScale)
+  readonly property int osdSliderWidth: Math.round(300 * baseScale)
+  readonly property int osdToggleMinWidth: Math.round(220 * baseScale)
+  readonly property int osdToggleIconContainerSize: Math.round(48 * baseScale)
+  readonly property int osdSliderTrackHeight: Math.round(12 * baseScale)
+  readonly property int osdAnimationOffset: Math.round(60 * baseScale)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAUNCHER TOKENS - App launcher/search panel dimensions (scaled automatically)
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property int launcherCellSize: Math.round(150 * baseScale)
+  readonly property int launcherWindowWidth: Math.round(741 * baseScale)
+  readonly property int launcherWindowHeight: Math.round(471 * baseScale)
+  readonly property int launcherIconSize: Math.round(72 * baseScale)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // NOTIFICATION TOKENS - Notification card dimensions
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property int notificationCardWidth: Math.round(380 * baseScale)
+  readonly property int notificationAppIconSize: Math.round(40 * baseScale)
+  readonly property int notificationInlineImageSize: Math.round(24 * baseScale)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INTERACTIVE SCALE VARIANTS - Common multipliers for components
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property real scaleSmall: 0.7           // 70% - small buttons, compact elements
+  readonly property real scaleMediumSmall: 0.8     // 80% - secondary buttons
+  readonly property real scaleMedium: 0.9          // 90% - slightly reduced elements
+  readonly property real scaleNormal: 1.0          // 100% - standard size
+  readonly property real scaleLarge: 1.2           // 120% - emphasized elements
+  readonly property real scaleExtraLarge: 1.5      // 150% - icons, featured elements
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // HELPER FUNCTIONS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function textContrast(bgColor) {
+  // Get control height for size preset: "xs", "sm", "md", "lg", "xl"
+  function controlHeightFor(size: string): int {
+    switch (size) {
+    case "xs":
+      return theme.controlHeightXs;
+    case "sm":
+      return theme.controlHeightSm;
+    case "md":
+      return theme.controlHeightMd;
+    case "lg":
+      return theme.controlHeightLg;
+    case "xl":
+      return theme.controlHeightXl;
+    default:
+      return theme.controlHeightMd;
+    }
+  }
+
+  // Get font size for size preset: "xs", "sm", "md", "lg", "xl", "xxl", "hero"
+  function fontSizeFor(size: string): int {
+    switch (size) {
+    case "xs":
+      return theme.fontXs;
+    case "sm":
+      return theme.fontSm;
+    case "md":
+      return theme.fontMd;
+    case "lg":
+      return theme.fontLg;
+    case "xl":
+      return theme.fontXl;
+    case "xxl":
+      return theme.fontXxl;
+    case "hero":
+      return theme.fontHero;
+    default:
+      return theme.fontMd;
+    }
+  }
+
+  // Get icon size for size preset: "xs", "sm", "md", "lg", "xl"
+  function iconSizeFor(size: string): int {
+    switch (size) {
+    case "xs":
+      return theme.iconSizeXs;
+    case "sm":
+      return theme.iconSizeSm;
+    case "md":
+      return theme.iconSizeMd;
+    case "lg":
+      return theme.iconSizeLg;
+    case "xl":
+      return theme.iconSizeXl;
+    default:
+      return theme.iconSizeMd;
+    }
+  }
+
+  // Get spacing for size preset: "xs", "sm", "md", "lg", "xl"
+  function spacingFor(size: string): int {
+    switch (size) {
+    case "xs":
+      return theme.spacingXs;
+    case "sm":
+      return theme.spacingSm;
+    case "md":
+      return theme.spacingMd;
+    case "lg":
+      return theme.spacingLg;
+    case "xl":
+      return theme.spacingXl;
+    default:
+      return theme.spacingMd;
+    }
+  }
+
+  // Get radius for size preset: "none", "xs", "sm", "md", "lg", "xl", "full"
+  function radiusFor(size: string): int {
+    switch (size) {
+    case "none":
+      return theme.radiusNone;
+    case "xs":
+      return theme.radiusXs;
+    case "sm":
+      return theme.radiusSm;
+    case "md":
+      return theme.radiusMd;
+    case "lg":
+      return theme.radiusLg;
+    case "xl":
+      return theme.radiusXl;
+    case "full":
+      return theme.radiusFull;
+    default:
+      return theme.radiusMd;
+    }
+  }
+
+  function textContrast(bgColor: color): color {
     function luminance(c) {
       return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
     }
@@ -249,7 +378,7 @@ Singleton {
   }
 
   // Create a color with custom opacity from any base color
-  function withOpacity(color, opacity) {
+  function withOpacity(color: color, opacity: real): color {
     return Qt.rgba(color.r, color.g, color.b, opacity);
   }
 }

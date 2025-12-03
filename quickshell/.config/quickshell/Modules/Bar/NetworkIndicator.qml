@@ -92,12 +92,12 @@ Item {
     Text {
       anchors.bottom: mainIcon.bottom
       anchors.left: mainIcon.right
-      anchors.leftMargin: -2
+      anchors.leftMargin: -Theme.spacingXs / 2
       color: NetworkService.getBandColor(root.band)
       font.bold: true
       font.family: "Roboto Condensed"
       font.letterSpacing: -1
-      font.pixelSize: Theme.fontSize * 0.5
+      font.pixelSize: Theme.fontXs
       text: root.band || ""
       visible: root.link === "wifi" && root.band
 

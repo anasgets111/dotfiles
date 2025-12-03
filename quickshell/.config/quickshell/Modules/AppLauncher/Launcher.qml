@@ -20,9 +20,9 @@ SearchGridPanel {
     return String(entry?.exec || entry?.command || "").replace(/%[fFuUdDnNickvm]/g, "").replace(/\s+/g, " ").trim();
   }
 
-  cellHeight: 150
+  cellHeight: Theme.launcherCellSize
   cellPadding: Theme.spacingXl + Theme.spacingSm
-  cellWidth: 150
+  cellWidth: Theme.launcherCellSize
   finderBuilder: params => {
     if (!Fzf?.finder)
       return null;
@@ -36,12 +36,12 @@ SearchGridPanel {
     const name = entry?.name || "";
     return Utils.resolveIconSource(entry?.id || name, entry?.icon, "application-x-executable");
   }
-  itemImageSize: 72
+  itemImageSize: Theme.launcherIconSize
   items: appEntries
   labelSelector: entry => entry?.name || ""
   maxResults: 200
-  windowHeight: 471
-  windowWidth: 741
+  windowHeight: Theme.launcherWindowHeight
+  windowWidth: Theme.launcherWindowWidth
 
   Component.onCompleted: open()
   onActivated: entry => launcherWindow.launchEntry(entry)

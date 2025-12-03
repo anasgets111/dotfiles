@@ -20,44 +20,10 @@ import qs.Config
 ColumnLayout {
   id: root
 
-  readonly property int _fontSize: {
-    switch (size) {
-    case "sm":
-      return Theme.fontSm;
-    case "md":
-      return Theme.fontMd;
-    case "lg":
-      return Theme.fontLg;
-    default:
-      return Theme.fontMd;
-    }
-  }
-
-  // Computed from size
-  readonly property int _height: {
-    switch (size) {
-    case "sm":
-      return Theme.controlHeightSm;
-    case "md":
-      return Theme.controlHeightMd;
-    case "lg":
-      return Theme.controlHeightLg;
-    default:
-      return Theme.controlHeightMd;
-    }
-  }
-  readonly property int _padding: {
-    switch (size) {
-    case "sm":
-      return Theme.spacingSm;
-    case "md":
-      return Theme.spacingMd;
-    case "lg":
-      return Theme.spacingLg;
-    default:
-      return Theme.spacingMd;
-    }
-  }
+  // Computed from size using Theme helper functions
+  readonly property int _fontSize: Theme.fontSizeFor(size)
+  readonly property int _height: Theme.controlHeightFor(size)
+  readonly property int _padding: Theme.spacingFor(size)
 
   // Input properties
   property bool autoFocus: false

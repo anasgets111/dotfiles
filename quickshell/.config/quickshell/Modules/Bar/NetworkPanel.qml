@@ -385,7 +385,7 @@ OPanel {
         Item {
           Layout.leftMargin: root.padding
           Layout.preferredHeight: Theme.itemHeight
-          Layout.preferredWidth: Theme.fontSize * 1.5
+          Layout.preferredWidth: Theme.fontLg
 
           Text {
             id: networkIcon
@@ -406,11 +406,11 @@ OPanel {
           Text {
             anchors.bottom: networkIcon.bottom
             anchors.left: networkIcon.right
-            anchors.leftMargin: -2
+            anchors.leftMargin: -Theme.spacingXs / 2
             color: (networkItem.modelData.bandColor || networkItem.textColor)
             font.bold: true
             font.family: "Roboto Condensed"
-            font.pixelSize: Theme.fontSize * 0.5
+            font.pixelSize: Theme.fontXs
             text: (networkItem.modelData.band === "2.4" ? "2.4" : (networkItem.modelData.band || ""))
             visible: (networkItem.modelData.band || "") !== ""
 
@@ -448,7 +448,7 @@ OPanel {
           Layout.preferredHeight: Theme.itemHeight * 0.8
           Layout.preferredWidth: Theme.itemHeight * 0.8
           Layout.rightMargin: Theme.spacingXs
-          colorBg: "#F38BA8"
+          colorBg: Theme.critical
           icon: networkItem.modelData.forgetIcon || ""
           tooltipText: qsTr("Forget Network")
           visible: networkItem.modelData.forgetIcon !== undefined
@@ -561,7 +561,7 @@ OPanel {
             IconButton {
               Layout.preferredHeight: Theme.itemHeight * 0.8
               Layout.preferredWidth: Theme.itemHeight * 0.8
-              colorBg: networkItem.modelData.hasError ? "#F38BA8" : Theme.activeColor
+              colorBg: networkItem.modelData.hasError ? Theme.critical : Theme.activeColor
               enabled: passwordField.text !== ""
               icon: networkItem.modelData.hasError ? "󰀦" : "󰌘"
               tooltipText: networkItem.modelData.hasError ? qsTr("Retry") : qsTr("Submit")
@@ -578,7 +578,7 @@ OPanel {
 
           OText {
             Layout.fillWidth: true
-            color: "#F38BA8"
+            color: Theme.critical
             opacity: visible ? 1 : 0
             size: "sm"
             text: "⚠ " + (networkItem.modelData.errorMessage || "")
