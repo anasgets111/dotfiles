@@ -1,10 +1,7 @@
-pragma ComponentBehavior: Bound
-
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import qs.Config
-import qs.Components
 import qs.Services.SystemInfo
 
 OPanel {
