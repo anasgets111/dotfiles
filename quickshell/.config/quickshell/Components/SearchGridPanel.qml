@@ -15,21 +15,21 @@ PanelWindow {
   property bool active: false
   property var allItems: []
   property int cellHeight: 150
-  property int cellPadding: 32
+  property int cellPadding: Theme.spacingXl + Theme.spacingSm
   property int cellWidth: 150
   property bool closeOnActivate: true
-  property int contentMargin: 12
-  property int contentSpacing: 8
+  property int contentMargin: Theme.spacingMd
+  property int contentSpacing: Theme.spacingSm
   property int currentIndex: -1
   property Component delegateComponent: null
   property var filteredItems: []
   property var finder: null
   property var finderBuilder: null
   property alias footerContent: footerSlot.data
-  property int footerSpacing: 8
+  property int footerSpacing: Theme.spacingSm
   property alias gridView: itemGrid
   property alias headerContent: headerSlot.data
-  property int headerSpacing: 8
+  property int headerSpacing: Theme.spacingSm
   property var iconSelector: function (item) {
     return item?.icon || "";
   }
@@ -365,14 +365,14 @@ PanelWindow {
         id: searchField
 
         Layout.fillWidth: true
-        Layout.preferredHeight: root.showSearchField ? 32 : 0
+        Layout.preferredHeight: root.showSearchField ? Theme.itemHeight : 0
         color: Theme.textActiveColor
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize
-        leftPadding: 12
+        leftPadding: Theme.spacingMd
         placeholderText: root.placeholderText
         placeholderTextColor: Theme.textInactiveColor
-        rightPadding: 12
+        rightPadding: Theme.spacingMd
         selectedTextColor: Theme.textContrast(Theme.activeColor)
         selectionColor: Theme.activeColor
         visible: root.showSearchField
@@ -424,19 +424,19 @@ PanelWindow {
 
               Behavior on height {
                 NumberAnimation {
-                  duration: 150
+                  duration: Theme.animationDuration
                   easing.type: Easing.OutCubic
                 }
               }
               Behavior on opacity {
                 NumberAnimation {
-                  duration: 150
+                  duration: Theme.animationDuration
                   easing.type: Easing.OutCubic
                 }
               }
               Behavior on width {
                 NumberAnimation {
-                  duration: 150
+                  duration: Theme.animationDuration
                   easing.type: Easing.OutCubic
                 }
               }
@@ -444,7 +444,7 @@ PanelWindow {
 
             Column {
               anchors.centerIn: parent
-              spacing: 10
+              spacing: Theme.spacingMd
               width: Math.max(0, parent.width - root.cellPadding)
 
               Image {

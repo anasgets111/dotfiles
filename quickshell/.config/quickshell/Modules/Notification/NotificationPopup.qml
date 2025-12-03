@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import QtQuick.Controls
 import Quickshell.Wayland
+import qs.Config
 import qs.Services.SystemInfo
 
 PanelWindow {
@@ -10,8 +11,8 @@ PanelWindow {
 
   // Keyboard focus tracking
   property int _keyboardFocusCount: 0
-  property int barOffset: 36
-  property int margin: 12
+  property int barOffset: Theme.itemHeight
+  property int margin: Theme.spacingMd
   required property var modelData
 
   function claimKeyboardFocus() {
@@ -61,7 +62,7 @@ PanelWindow {
     Column {
       id: popupColumn
 
-      spacing: 8
+      spacing: Theme.spacingSm
 
       Repeater {
         model: NotificationService.groupedPopups.slice(0, NotificationService.maxVisibleNotifications)

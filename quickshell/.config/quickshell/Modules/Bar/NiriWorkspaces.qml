@@ -22,7 +22,7 @@ Item {
   property int hoveredId: 0
   readonly property int slotH: Theme.itemHeight
   readonly property int slotW: Theme.itemWidth
-  readonly property int spacing: 8
+  readonly property int spacing: Theme.spacingSm
   readonly property var workspaces: WorkspaceService.workspaces
 
   function wsColor(ws) {

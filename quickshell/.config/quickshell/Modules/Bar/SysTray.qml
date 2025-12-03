@@ -25,7 +25,6 @@ Item {
     id: trayRow
 
     anchors.centerIn: parent
-    spacing: 0
 
     Repeater {
       id: trayRepeater
@@ -81,12 +80,10 @@ Item {
             visible: status !== Image.Error && status !== Image.Null
           }
 
-          Text {
+          OText {
             anchors.centerIn: parent
+            bold: true
             color: Theme.textContrast(btn.effectiveBg)
-            font.bold: true
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
             text: (btn.modelData.tooltipTitle || btn.modelData.title || btn.modelData.id || "?").charAt(0).toUpperCase()
             visible: !iconImage.visible
           }
@@ -95,12 +92,11 @@ Item {
     }
   }
 
-  Text {
+  OText {
     anchors.centerIn: parent
     color: Theme.bgColor
-    font.family: Theme.fontFamily
-    font.pixelSize: 10
     opacity: 0.7
+    size: "xs"
     text: "No tray items"
     visible: trayRepeater.count === 0
   }
@@ -124,8 +120,8 @@ Item {
       id: menuContent
 
       anchors.fill: parent
-      anchors.margins: 8
-      spacing: 2
+      anchors.margins: Theme.spacingSm
+      spacing: Theme.spacingXs / 2
 
       Repeater {
         model: menuOpener.children?.values ?? []
@@ -145,7 +141,7 @@ Item {
             color: Theme.borderColor
             height: 1
             visible: menuItem.isSeparator
-            width: parent.width - 8
+            width: parent.width - Theme.spacingSm
           }
 
           Rectangle {
@@ -154,14 +150,12 @@ Item {
             radius: Theme.itemRadius
             visible: !menuItem.isSeparator
 
-            Text {
+            OText {
               anchors.fill: parent
-              anchors.leftMargin: 12
-              anchors.rightMargin: 12
+              anchors.leftMargin: Theme.spacingMd
+              anchors.rightMargin: Theme.spacingMd
               color: Theme.textContrast(parent.color)
               elide: Text.ElideRight
-              font.family: Theme.fontFamily
-              font.pixelSize: Theme.fontSize
               opacity: menuItem.itemEnabled ? 1.0 : 0.5
               text: menuItem.modelData?.text ?? ""
               verticalAlignment: Text.AlignVCenter
@@ -184,12 +178,10 @@ Item {
         }
       }
 
-      Text {
+      OText {
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.itemHeight
         color: Theme.textActiveColor
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
         horizontalAlignment: Text.AlignHCenter
         text: "No menu items"
         verticalAlignment: Text.AlignVCenter

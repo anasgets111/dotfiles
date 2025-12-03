@@ -14,7 +14,7 @@ Row {
 
   signal wallpaperPickerRequested
 
-  spacing: 8
+  spacing: Theme.spacingSm
 
   Loader {
     active: true

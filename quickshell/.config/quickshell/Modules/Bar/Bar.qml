@@ -79,7 +79,6 @@ PanelWindow {
       normalWorkspacesExpanded: panelWindow.centerShouldHide
       // When workspaces (or volume) are expanded, hide center via opacity
       opacity: panelWindow.centerShouldHide ? 0 : 1
-      visible: true
 
       Behavior on opacity {
         NumberAnimation {

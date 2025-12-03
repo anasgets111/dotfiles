@@ -17,7 +17,7 @@ Item {
   ColumnLayout {
     id: mainCol
 
-    spacing: 8
+    spacing: Theme.spacingSm
 
     anchors {
       left: parent.left
@@ -28,7 +28,7 @@ Item {
     // Header
     RowLayout {
       Layout.fillWidth: true
-      spacing: 8
+      spacing: Theme.spacingSm
 
       OButton {
         id: expandBtn
@@ -49,8 +49,8 @@ Item {
 
           OText {
             Layout.alignment: Qt.AlignVCenter
+            bold: true
             color: expandBtn.textColor
-            font.bold: true
             text: root.expanded ? "Show Less" : "10 Day Forecast"
           }
 
@@ -58,10 +58,10 @@ Item {
             Layout.fillWidth: true
           }
 
-          Text {
+          OText {
             Layout.alignment: Qt.AlignVCenter
             color: Qt.alpha(expandBtn.textColor, 0.7)
-            font.pixelSize: Theme.fontSize * 0.7
+            size: "xs"
             text: "updated " + WeatherService.timeAgo
           }
         }
@@ -85,12 +85,12 @@ Item {
     // Content
     ColumnLayout {
       Layout.fillWidth: true
-      spacing: 8
+      spacing: Theme.spacingSm
 
       // Summary Row
       RowLayout {
         Layout.fillWidth: true
-        spacing: 8
+        spacing: Theme.spacingSm
         visible: root.hasData
 
         WeatherDayCard {
@@ -138,9 +138,9 @@ Item {
         GridLayout {
           id: gridLayout
 
-          columnSpacing: 8
+          columnSpacing: Theme.spacingSm
           columns: 4
-          rowSpacing: 8
+          rowSpacing: Theme.spacingSm
 
           anchors {
             left: parent.left
@@ -205,15 +205,15 @@ Item {
     readonly property var wInfo: WeatherService.weatherInfo(wCode)
 
     color: isToday ? Qt.alpha(Theme.activeColor, 0.2) : Qt.lighter(Theme.bgColor, 1.3)
-    implicitHeight: col.implicitHeight + 16
+    implicitHeight: col.implicitHeight + Theme.spacingLg
     radius: Theme.itemRadius
 
     ColumnLayout {
       id: col
 
       anchors.centerIn: parent
-      spacing: 2
-      width: parent.width - 16
+      spacing: Theme.spacingXs
+      width: parent.width - Theme.spacingLg
 
       Item {
         Layout.alignment: Qt.AlignHCenter
@@ -225,9 +225,9 @@ Item {
           id: l1
 
           anchors.centerIn: parent
-          font.bold: true
+          bold: true
           opacity: visible ? 1 : 0
-          sizeMultiplier: 0.9
+          size: "sm"
           text: card.label
           useActiveColor: card.isToday
           visible: card.showLabel && card.label !== ""
@@ -243,9 +243,9 @@ Item {
           id: l2
 
           anchors.centerIn: parent
-          font.bold: true
+          bold: true
           opacity: visible ? 1 : 0
-          sizeMultiplier: 0.9
+          size: "sm"
           text: card.dateStr ? new Date(card.dateStr).toLocaleDateString(Qt.locale(), "ddd") : ""
           useActiveColor: card.isToday
           visible: !l1.visible
@@ -268,15 +268,15 @@ Item {
 
       OText {
         Layout.alignment: Qt.AlignHCenter
-        font.bold: true
-        sizeMultiplier: 1.1
+        bold: true
+        size: "lg"
         text: Math.round(card.maxTemp) + "°"
       }
 
       OText {
         Layout.alignment: Qt.AlignHCenter
         opacity: 0.6
-        sizeMultiplier: 0.85
+        size: "sm"
         text: Math.round(card.minTemp) + "°"
       }
     }

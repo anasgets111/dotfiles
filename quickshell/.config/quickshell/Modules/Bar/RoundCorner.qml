@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Config
 
 Item {
   id: cornerShape
@@ -7,10 +8,10 @@ Item {
   property bool invertH: false
   property bool invertV: false
   property int orientation: 0 // 0=TOP_LEFT, 1=TOP_RIGHT, 2=BOTTOM_LEFT, 3=BOTTOM_RIGHT
-  property int radius: 16
+  property int radius: Theme.radiusLg
 
-  height: 48
-  width: 48
+  height: Theme.panelHeight
+  width: Theme.panelHeight
 
   Canvas {
     anchors.fill: parent

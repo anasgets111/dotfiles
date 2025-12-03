@@ -19,7 +19,7 @@ OPanel {
   readonly property int itemHeight: Theme.itemHeight
   readonly property int maxItems: 7
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
-  readonly property int padding: 8
+  readonly property int padding: Theme.spacingSm
   property string passwordError: ""
   property string passwordSsid: ""
   readonly property bool ready: NetworkService.ready
@@ -241,14 +241,14 @@ OPanel {
 
   Rectangle {
     anchors.fill: parent
-    border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+    border.color: Theme.borderLight
     border.width: 1
-    color: Qt.lighter(Theme.bgColor, 1.25)
+    color: Theme.bgElevatedAlt
     radius: Theme.itemRadius
   }
 
   ColumnLayout {
-    spacing: 4
+    spacing: Theme.spacingXs
     width: parent.width - root.padding * 2
     x: root.padding
     y: root.padding
@@ -309,10 +309,10 @@ OPanel {
       Layout.bottomMargin: visible ? root.padding * 2 : 0
       Layout.fillWidth: true
       Layout.topMargin: visible ? root.padding : 0
-      border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+      border.color: Theme.borderLight
       border.width: 1
       clip: true
-      color: Qt.lighter(Theme.bgColor, 1.25)
+      color: Theme.bgElevatedAlt
       implicitHeight: visible ? networkList.implicitHeight + root.padding * 1.4 : 0
       radius: Theme.itemRadius
       visible: root.ready && root.networkingEnabled && root.wifiEnabled && networkList.count > 0
@@ -324,14 +324,14 @@ OPanel {
         anchors.margins: root.padding * 0.8
         boundsBehavior: Flickable.StopAtBounds
         clip: true
-        implicitHeight: Math.min(contentHeight, root.maxItems * root.itemHeight + (root.maxItems - 1) * 4)
+        implicitHeight: Math.min(contentHeight, root.maxItems * root.itemHeight + (root.maxItems - 1) * Theme.spacingXs)
         interactive: contentHeight > height
         model: root.displayNetworks
-        spacing: 4
+        spacing: Theme.spacingXs
 
         ScrollBar.vertical: ScrollBar {
           policy: networkList.contentHeight > networkList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-          width: 8
+          width: Theme.scrollBarWidth
         }
         delegate: NetworkItem {
           id: delegateItem
@@ -380,7 +380,7 @@ OPanel {
       id: actionComp
 
       RowLayout {
-        spacing: 8
+        spacing: Theme.spacingSm
 
         Item {
           Layout.leftMargin: root.padding
@@ -422,11 +422,9 @@ OPanel {
           }
         }
 
-        Text {
+        OText {
           Layout.fillWidth: true
           color: networkItem.textColor
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
           text: networkItem.modelData.label || ""
 
           Behavior on color {
@@ -449,7 +447,7 @@ OPanel {
         IconButton {
           Layout.preferredHeight: Theme.itemHeight * 0.8
           Layout.preferredWidth: Theme.itemHeight * 0.8
-          Layout.rightMargin: 4
+          Layout.rightMargin: Theme.spacingXs
           colorBg: "#F38BA8"
           icon: networkItem.modelData.forgetIcon || ""
           tooltipText: qsTr("Forget Network")
@@ -476,7 +474,7 @@ OPanel {
       id: inputComp
 
       RowLayout {
-        spacing: 8
+        spacing: Theme.spacingSm
 
         Text {
           Layout.leftMargin: root.padding
@@ -489,11 +487,11 @@ OPanel {
         ColumnLayout {
           Layout.fillWidth: true
           Layout.rightMargin: root.padding
-          spacing: 4
+          spacing: Theme.spacingXs
 
           RowLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: Theme.spacingSm
 
             Rectangle {
               Layout.fillWidth: true
@@ -513,8 +511,8 @@ OPanel {
                 id: passwordField
 
                 anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
+                anchors.leftMargin: Theme.spacingSm
+                anchors.rightMargin: Theme.spacingSm
                 color: Theme.textActiveColor
                 echoMode: networkItem.modelData.type === "hidden-ssid-input" ? TextInput.Normal : TextInput.Password
                 font.family: Theme.fontFamily
@@ -578,12 +576,11 @@ OPanel {
             }
           }
 
-          Text {
+          OText {
             Layout.fillWidth: true
             color: "#F38BA8"
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize * 0.85
             opacity: visible ? 1 : 0
+            size: "sm"
             text: "⚠ " + (networkItem.modelData.errorMessage || "")
             visible: networkItem.modelData.hasError && networkItem.modelData.errorMessage !== ""
 
@@ -613,16 +610,16 @@ OPanel {
 
     Layout.fillWidth: true
     Layout.preferredHeight: cardCol.implicitHeight + root.padding * 1.2
-    border.color: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+    border.color: Theme.borderLight
     border.width: 1
-    color: Qt.lighter(Theme.bgColor, 1.35)
+    color: Theme.bgElevated
     opacity: card.opacityValue
     radius: Theme.itemRadius
     visible: card.visibleWhen
 
     Behavior on opacity {
       NumberAnimation {
-        duration: 150
+        duration: Theme.animationDuration
       }
     }
 
@@ -634,8 +631,8 @@ OPanel {
       spacing: root.padding * 0.4
 
       OText {
+        bold: true
         color: card.labelColor
-        font.bold: true
         text: qsTr(card.label)
       }
 
@@ -652,7 +649,7 @@ OPanel {
 
           Behavior on color {
             ColorAnimation {
-              duration: 150
+              duration: Theme.animationDuration
             }
           }
 

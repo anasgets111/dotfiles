@@ -1,22 +1,21 @@
 import QtQuick
+import qs.Components
 import qs.Config
 import qs.Services.SystemInfo
 
 Item {
   id: dateTimeDisplay
 
-  property string formattedDateTime: TimeService.format("datetime")
+  readonly property color bgColor: mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor
   readonly property bool hasNotifications: notificationCount > 0
   readonly property int notificationCount: NotificationService.notifications?.length || 0
-  property string weatherIcon: (WeatherService.weatherInfo() || {}).icon || ""
-  property string weatherText: WeatherService.currentTemp || ""
 
   height: Theme.itemHeight
   width: mainRow.width
 
   Rectangle {
     anchors.fill: parent
-    color: mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor
+    color: dateTimeDisplay.bgColor
     radius: Theme.itemRadius
 
     Behavior on color {
@@ -30,20 +29,17 @@ Item {
     id: mainRow
 
     anchors.centerIn: parent
-    anchors.verticalCenterOffset: 0
     height: parent.height
-    spacing: 6
+    spacing: Theme.spacingXs
 
     // Notification indicator
     Text {
-      id: notifIndicator
-
       anchors.verticalCenter: parent.verticalCenter
-      color: dateTimeDisplay.hasNotifications ? Theme.activeColor : Theme.textContrast(mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
+      color: dateTimeDisplay.hasNotifications ? Theme.activeColor : Theme.textContrast(dateTimeDisplay.bgColor)
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
-      leftPadding: 8
-      text: NotificationService.doNotDisturb ? "󰂛 " : (dateTimeDisplay.hasNotifications ? "󱅫 " + dateTimeDisplay.notificationCount : " ")
+      leftPadding: Theme.spacingSm
+      text: NotificationService.doNotDisturb ? "󰂛 " : (dateTimeDisplay.hasNotifications ? "󱅫 " + dateTimeDisplay.notificationCount : " ")
       verticalAlignment: Text.AlignVCenter
 
       Behavior on color {
@@ -53,17 +49,14 @@ Item {
       }
     }
 
-    Text {
+    OText {
       id: textItem
 
       anchors.verticalCenter: parent.verticalCenter
-      color: Theme.textContrast(mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor)
-      font.bold: true
-      font.family: Theme.fontFamily
-      font.pixelSize: Theme.fontSize
-      leftPadding: 0
-      rightPadding: 8
-      text: WeatherService.currentTemp + " " + dateTimeDisplay.formattedDateTime
+      bold: true
+      color: Theme.textContrast(dateTimeDisplay.bgColor)
+      rightPadding: Theme.spacingSm
+      text: WeatherService.currentTemp + " " + TimeService.format("datetime")
       verticalAlignment: Text.AlignVCenter
 
       Behavior on color {
@@ -90,89 +83,54 @@ Item {
     }
   }
 
-  // Tooltip background and content: Rectangle is now parent of Column
-  Item {
+  // Tooltip with weather info and calendar
+  Tooltip {
     id: tooltip
 
-    anchors.horizontalCenter: parent.horizontalCenter
-    anchors.top: parent.bottom
-    anchors.topMargin: 8
-    height: tooltipColumn.implicitHeight + 8
-    opacity: mouseArea.containsMouse && !notificationPanelLoader.active ? 1 : 0
-    visible: mouseArea.containsMouse && !notificationPanelLoader.active
-    width: tooltipColumn.width + 16
-
-    Behavior on opacity {
-      NumberAnimation {
-        duration: Theme.animationDuration
-        easing.type: Easing.OutCubic
-      }
-    }
-
-    Rectangle {
-      anchors.fill: parent
-      color: Theme.onHoverColor
-      radius: Theme.itemRadius
-    }
+    isVisible: mouseArea.containsMouse && !notificationPanelLoader.active
+    target: dateTimeDisplay
 
     Column {
       id: tooltipColumn
 
-      anchors.centerIn: parent
-      spacing: 6
-      width: implicitWidth
+      readonly property color textColor: Theme.textContrast(Theme.onHoverColor)
+
+      spacing: Theme.spacingXs
 
       // First row: description and place
       Row {
-        id: firstRow
-
         anchors.horizontalCenter: parent.horizontalCenter
-        spacing: 8
-        width: implicitWidth
+        spacing: Theme.spacingSm
 
-        Text {
-          id: tooltipText
-
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
+        OText {
+          color: tooltipColumn.textColor
           text: (WeatherService.weatherInfo() || {}).desc || ""
         }
 
-        Text {
-          color: Theme.textContrast(Theme.onHoverColor)
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize - 2
+        OText {
+          color: tooltipColumn.textColor
+          size: "sm"
           text: "in " + WeatherService.locationName
           visible: WeatherService.locationName.length > 0
         }
       }
 
       // Last updated row
-      Text {
+      OText {
         anchors.horizontalCenter: parent.horizontalCenter
-        color: Theme.textContrast(Theme.onHoverColor)
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize - 2
+        color: tooltipColumn.textColor
         opacity: 0.7
+        size: "sm"
         text: WeatherService.timeAgo ? "Last updated " + WeatherService.timeAgo : ""
         visible: WeatherService.timeAgo.length > 0
       }
 
-      // Load the calendar immediately (simple Loader vs LazyLoader to avoid hover teardown issues)
+      // Load the calendar
       Loader {
-        id: calendarLoader
-
         active: mouseArea.containsMouse
-        // Always load the calendar so it is ready instantly when tooltip appears
         asynchronous: true
-        visible: mouseArea.containsMouse
 
         sourceComponent: MinimalCalendar {
-          id: calendar
-
-          theme: Theme
-          // Ensure 'today' is a Date object for MinimalCalendar
           today: TimeService.now
           weekStart: 6
         }

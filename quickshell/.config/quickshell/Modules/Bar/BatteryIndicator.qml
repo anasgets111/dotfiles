@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Widgets
+import qs.Components
 import qs.Config
 import qs.Services.Core
 
@@ -163,39 +164,29 @@ Item {
 
     Row {
       anchors.centerIn: parent
-      spacing: 4
+      spacing: Theme.spacingXs
 
-      Text {
+      OText {
+        bold: true
         color: root.textColor
         text: root.batteryIcon
-
-        font {
-          bold: true
-          family: Theme.fontFamily
-          pixelSize: Theme.fontSize
-        }
       }
 
-      Text {
+      OText {
         anchors.verticalCenter: parent.verticalCenter
+        bold: true
         color: root.textColor
         text: BatteryService.percentage + "%"
-
-        font {
-          bold: true
-          family: Theme.fontFamily
-          pixelSize: Theme.fontSize
-        }
       }
     }
 
     Rectangle {
       color: Theme.onHoverColor
-      height: tooltipCol.height + 8
+      height: tooltipCol.height + Theme.spacingSm
       opacity: mouseArea.containsMouse ? 1 : 0
       radius: Theme.itemRadius
       visible: mouseArea.containsMouse
-      width: tooltipCol.width + 16
+      width: tooltipCol.width + Theme.spacingLg
 
       Behavior on opacity {
         NumberAnimation {
@@ -207,46 +198,31 @@ Item {
       anchors {
         horizontalCenter: parent.horizontalCenter
         top: parent.bottom
-        topMargin: 8
+        topMargin: Theme.spacingSm
       }
 
       Column {
         id: tooltipCol
 
         anchors.centerIn: parent
-        spacing: 4
+        spacing: Theme.spacingXs
 
-        Text {
+        OText {
           color: Theme.textContrast(Theme.onHoverColor)
           text: root.statusText
-
-          font {
-            family: Theme.fontFamily
-            pixelSize: Theme.fontSize
-          }
         }
 
         // Power info
-        Text {
+        OText {
           color: Theme.textContrast(Theme.onHoverColor)
           opacity: 0.7
           text: root.powerInfoText
-
-          font {
-            family: Theme.fontFamily
-            pixelSize: Theme.fontSize
-          }
         }
 
-        Text {
+        OText {
           color: Theme.textContrast(Theme.onHoverColor)
           opacity: 0.6
           text: qsTr("CPU: %1 + %2").arg(root.power?.cpuGovernor ?? "Unknown").arg(root.power?.energyPerformance ?? "Unknown")
-
-          font {
-            family: Theme.fontFamily
-            pixelSize: Theme.fontSize
-          }
         }
       }
     }

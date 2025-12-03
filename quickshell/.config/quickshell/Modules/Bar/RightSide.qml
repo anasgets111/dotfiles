@@ -1,11 +1,12 @@
 import QtQuick
+import qs.Config
 
 Row {
   id: rightSide
 
   required property bool normalWorkspacesExpanded
 
-  spacing: 8
+  spacing: Theme.spacingSm
 
   PrivacyIndicator {
     anchors.verticalCenter: parent.verticalCenter

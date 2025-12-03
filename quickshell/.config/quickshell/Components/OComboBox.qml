@@ -12,16 +12,16 @@ ComboBox {
     radius: Theme.itemRadius
   }
   contentItem: OText {
-    bottomPadding: 8
-    leftPadding: 12
+    bottomPadding: Theme.spacingSm
+    leftPadding: Theme.spacingMd
     text: root.displayText
-    topPadding: 8
+    topPadding: Theme.spacingSm
   }
   popup: Popup {
-    implicitHeight: contentItem.implicitHeight + 20
-    padding: 10
+    implicitHeight: contentItem.implicitHeight + Theme.dialogPadding
+    padding: Theme.spacingMd
     width: root.width
-    y: root.height + 4
+    y: root.height + Theme.spacingXs
 
     background: Rectangle {
       border.color: Theme.borderColor

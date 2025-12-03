@@ -17,7 +17,7 @@ OPanel {
   readonly property real cardHeight: Theme.itemHeight * 5.5
   readonly property bool hasNotifications: NotificationService.notifications.length > 0
   readonly property int maxVisibleCards: 3
-  readonly property int padding: 16
+  readonly property int padding: Theme.spacingLg
 
   needsKeyboardFocus: false
   panelNamespace: "obelisk-notification-panel"
@@ -27,13 +27,12 @@ OPanel {
   onPanelOpened: NotificationService.onOverlayOpen()
 
   ColumnLayout {
-    spacing: 0
     width: parent.width
 
     WeatherWidget {
       id: weatherWidget
 
-      Layout.bottomMargin: 8
+      Layout.bottomMargin: Theme.spacingSm
       Layout.fillWidth: true
       Layout.margins: root.padding
     }
@@ -45,18 +44,18 @@ OPanel {
       Layout.leftMargin: root.padding
       Layout.preferredHeight: Theme.itemHeight * 1.2
       Layout.rightMargin: root.padding
-      color: Qt.lighter(Theme.bgColor, 1.2)
+      color: Theme.bgElevatedAlt
       radius: Theme.itemRadius
 
       RowLayout {
         anchors.fill: parent
         anchors.leftMargin: root.padding
         anchors.rightMargin: root.padding
-        spacing: 8
+        spacing: Theme.spacingSm
 
         OText {
-          font.bold: true
-          sizeMultiplier: 1.15
+          bold: true
+          size: "lg"
           text: root.hasNotifications ? qsTr("Notifications") + ` (${NotificationService.notifications.length})` : qsTr("Notifications")
         }
 
@@ -78,20 +77,20 @@ OPanel {
         }
 
         Rectangle {
-          Layout.leftMargin: 4
+          Layout.leftMargin: Theme.spacingXs
           Layout.preferredHeight: Theme.itemHeight * 0.6
           Layout.preferredWidth: 1
-          Layout.rightMargin: 4
+          Layout.rightMargin: Theme.spacingXs
           color: Theme.textInactiveColor
           opacity: 0.2
           visible: root.hasNotifications
         }
 
         OText {
+          accent: NotificationService.doNotDisturb
           opacity: NotificationService.doNotDisturb ? 1.0 : 0.5
-          sizeMultiplier: 0.9
+          size: "sm"
           text: qsTr("DND")
-          useActiveColor: NotificationService.doNotDisturb
         }
 
         OToggle {
@@ -110,7 +109,7 @@ OPanel {
       Layout.fillWidth: true
       Layout.margins: root.padding
       Layout.preferredHeight: Math.min(root.cardHeight * root.maxVisibleCards, notificationColumn.implicitHeight, root.availableContentHeight)
-      Layout.topMargin: 8
+      Layout.topMargin: Theme.spacingSm
       clip: true
       contentHeight: notificationColumn.implicitHeight
       contentWidth: width
@@ -123,7 +122,7 @@ OPanel {
       Column {
         id: notificationColumn
 
-        spacing: 8
+        spacing: Theme.spacingSm
         width: parent.width
 
         Repeater {
@@ -150,8 +149,8 @@ OPanel {
       Layout.fillWidth: true
       Layout.margins: root.padding
       Layout.preferredHeight: Math.min(root.cardHeight * 1.5, root.availableContentHeight)
-      Layout.topMargin: 8
-      spacing: 16
+      Layout.topMargin: Theme.spacingSm
+      spacing: Theme.spacingLg
       visible: !root.hasNotifications
 
       Item {
@@ -169,17 +168,17 @@ OPanel {
 
       OText {
         Layout.alignment: Qt.AlignHCenter
-        font.bold: true
-        sizeMultiplier: 1.3
+        bold: true
+        size: "xl"
         text: qsTr("No Notifications")
       }
 
       OText {
         Layout.alignment: Qt.AlignHCenter
         horizontalAlignment: Text.AlignHCenter
+        muted: true
         opacity: 0.7
         text: qsTr("You're all caught up!")
-        useActiveColor: false
       }
 
       Item {

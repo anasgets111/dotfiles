@@ -9,16 +9,67 @@ import qs.Config
  *
  * A TextField wrapper with error states, placeholder support,
  * and Theme-based styling including focus indicators.
+ *
+ * Size presets: "sm", "md" (default), "lg"
+ *
+ * Examples:
+ *   OInput { placeholderText: "Enter name" }
+ *   OInput { size: "sm"; placeholderText: "Search..." }
+ *   OInput { size: "lg"; hasError: true; errorMessage: "Invalid" }
  */
 ColumnLayout {
   id: root
 
+  readonly property int _fontSize: {
+    switch (size) {
+    case "sm":
+      return Theme.fontSm;
+    case "md":
+      return Theme.fontMd;
+    case "lg":
+      return Theme.fontLg;
+    default:
+      return Theme.fontMd;
+    }
+  }
+
+  // Computed from size
+  readonly property int _height: {
+    switch (size) {
+    case "sm":
+      return Theme.controlHeightSm;
+    case "md":
+      return Theme.controlHeightMd;
+    case "lg":
+      return Theme.controlHeightLg;
+    default:
+      return Theme.controlHeightMd;
+    }
+  }
+  readonly property int _padding: {
+    switch (size) {
+    case "sm":
+      return Theme.spacingSm;
+    case "md":
+      return Theme.spacingMd;
+    case "lg":
+      return Theme.spacingLg;
+    default:
+      return Theme.spacingMd;
+    }
+  }
+
+  // Input properties
   property bool autoFocus: false
   property alias echoMode: textField.echoMode
   property string errorMessage: ""
+
+  // Error state
   property bool hasError: false
-  property real inputHeight: Theme.itemHeight
   property alias placeholderText: textField.placeholderText
+
+  // Size preset: "sm", "md", "lg"
+  property string size: "md"
   property alias text: textField.text
 
   signal inputAccepted
@@ -29,15 +80,15 @@ ColumnLayout {
     textField.forceActiveFocus();
   }
 
-  spacing: 4
+  spacing: Theme.spacingXs
 
   Rectangle {
     Layout.fillWidth: true
-    Layout.preferredHeight: root.inputHeight
+    Layout.preferredHeight: root._height
     border.color: root.hasError ? Theme.critical : (textField.activeFocus ? Theme.activeColor : Theme.borderColor)
-    border.width: root.hasError ? 2 : 1
+    border.width: root.hasError ? Theme.borderWidthMedium : Theme.borderWidthThin
     color: Theme.bgColor
-    radius: Theme.itemRadius
+    radius: Theme.radiusMd
 
     Behavior on border.color {
       ColorAnimation {
@@ -53,16 +104,17 @@ ColumnLayout {
     TextField {
       id: textField
 
-      anchors.bottomMargin: 4
+      anchors.bottomMargin: Theme.spacingXs
       anchors.fill: parent
-      anchors.leftMargin: 12
-      anchors.rightMargin: 12
-      anchors.topMargin: 4
+      anchors.leftMargin: root._padding
+      anchors.rightMargin: root._padding
+      anchors.topMargin: Theme.spacingXs
       color: Theme.textActiveColor
       font.family: Theme.fontFamily
-      font.pixelSize: Theme.fontSize
+      font.pixelSize: root._fontSize
       selectedTextColor: Theme.textContrast(Theme.activeColor)
       selectionColor: Theme.activeColor
+      verticalAlignment: Text.AlignVCenter
 
       background: Rectangle {
         color: "transparent"
@@ -85,7 +137,7 @@ ColumnLayout {
     Layout.fillWidth: true
     color: Theme.critical
     opacity: visible ? 1 : 0
-    sizeMultiplier: 0.85
+    size: "sm"
     text: "⚠ " + root.errorMessage
     visible: root.hasError && root.errorMessage !== ""
 

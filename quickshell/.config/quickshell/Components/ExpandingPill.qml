@@ -27,7 +27,7 @@ Item {
 
   // Layout
   property int slotW: Theme.itemWidth
-  property int spacing: 8
+  property int spacing: Theme.spacingSm
 
   clip: true
   height: slotH

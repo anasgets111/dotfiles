@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Wayland
+import qs.Components
 import qs.Services.Utils
 import qs.Config
 
@@ -32,27 +33,22 @@ Item {
   Row {
     id: row
 
-    spacing: 6
+    spacing: Theme.spacingXs
 
     Image {
       fillMode: Image.PreserveAspectFit
-      height: 28
+      height: Theme.controlHeightSm
       source: root.iconSource
       sourceSize: Qt.size(width, height)
       visible: !!source
-      width: 28
+      width: Theme.controlHeightSm
     }
 
-    Text {
+    OText {
       anchors.verticalCenter: parent.verticalCenter
+      bold: true
       color: Theme.textContrast(Theme.bgColor)
       text: root.text
-
-      font {
-        bold: true
-        family: Theme.fontFamily
-        pixelSize: Theme.fontSize
-      }
     }
   }
 }

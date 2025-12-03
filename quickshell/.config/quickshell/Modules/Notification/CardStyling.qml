@@ -13,8 +13,8 @@ Item {
   RectangularShadow {
     anchors.fill: parent
     antialiasing: true
-    blur: 24
-    color: Qt.rgba(0, 0, 0, 0.55)
+    blur: Theme.shadowBlurLg
+    color: Theme.shadowColorStrong
     offset: Qt.vector2d(0, 3)
     radius: base.radius
     spread: 0

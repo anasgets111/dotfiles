@@ -11,15 +11,17 @@ import qs.Config
 Item {
   id: root
 
-  readonly property var colors: LockService.theme
+  // Shared colors - using Theme tokens
+  readonly property color cardBg: Theme.bgCard
+  readonly property color cardBorder: Theme.borderMedium
+  readonly property color chipBg: Theme.withOpacity(Theme.bgColor, 0.5)
+  readonly property color chipBorder: Theme.withOpacity(Theme.borderColor, 0.3)
+  readonly property color inputBg: Theme.bgInput
+  readonly property color inputBorder: Theme.borderStrong
   required property bool isMainMonitor
 
-  function rgba(color, alpha: real): color {
-    return Qt.rgba(color.r, color.g, color.b, alpha);
-  }
-
   anchors.centerIn: parent
-  height: contentColumn.implicitHeight + 60
+  height: contentColumn.implicitHeight + Theme.dialogPadding * 3
   width: Math.min(parent.width * 0.9, 500)
 
   transform: Translate {
@@ -71,68 +73,63 @@ Item {
     target: LockService
   }
 
-  // --- Background Card ---
+  // Background Card
   Rectangle {
     anchors.fill: parent
-    border.color: root.rgba(root.colors.surface1, 0.4)
+    border.color: root.cardBorder
     border.width: 1
-    color: root.rgba(root.colors.base, 0.6)
+    color: root.cardBg
     layer.enabled: true
-    radius: 32
+    radius: Theme.itemRadius * 2
 
     layer.effect: MultiEffect {
       blur: 0.2
       blurEnabled: true
-      blurMax: 32
-      shadowBlur: 20
-      shadowColor: Qt.rgba(0, 0, 0, 0.2)
+      blurMax: Theme.shadowBlurLg
+      shadowBlur: Theme.shadowBlurMd
+      shadowColor: Theme.shadowColor
       shadowEnabled: true
       shadowVerticalOffset: 10
     }
   }
 
-  // --- Content ---
+  // Content
   ColumnLayout {
     id: contentColumn
 
     anchors.centerIn: parent
-    spacing: 24
-    width: parent.width - 60
+    spacing: Theme.spacingXl
+    width: parent.width - Theme.dialogPadding * 3
 
     // 1. Clock Section
     ColumnLayout {
       Layout.alignment: Qt.AlignHCenter
-      spacing: -10
+      spacing: -Math.round(Theme.baseScale * 8)
 
-      Text {
+      OText {
         Layout.alignment: Qt.AlignHCenter
-        color: Theme.textActiveColor
-        font.bold: true
-        font.family: Theme.fontFamily
-        font.pixelSize: 86
+        bold: true
+        sizeMultiplier: Theme.baseScale * 5
         style: Text.Outline
         styleColor: Qt.rgba(0, 0, 0, 0.1)
-        text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "hh:mm")
+        text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "h:mm AP")
       }
 
-      Text {
+      OText {
         Layout.alignment: Qt.AlignHCenter
-        color: Theme.textInactiveColor
-        font.family: Theme.fontFamily
-        font.pixelSize: 22
-        font.weight: Font.Medium
+        size: "xl"
         text: TimeService.format("date", "dddd, MMMM d")
+        useActiveColor: false
+        weight: Font.Medium
       }
     }
 
     // 2. User Info
-    Text {
+    OText {
       Layout.alignment: Qt.AlignHCenter
-      color: Theme.textActiveColor
-      font.bold: true
-      font.family: Theme.fontFamily
-      font.pixelSize: 18
+      bold: true
       opacity: 0.8
+      size: "lg"
       text: MainService.fullName || "User"
       visible: !!text
     }
@@ -140,37 +137,33 @@ Item {
     // 3. Status Chips (Weather, Host)
     RowLayout {
       Layout.alignment: Qt.AlignHCenter
-      spacing: 12
+      spacing: Theme.spacingMd
 
       Chip {
-        visible: !!WeatherService
+        visible: !!WeatherService?.currentTemp
 
-        Text {
-          color: Theme.textActiveColor
-          font.pixelSize: 18
+        OText {
+          size: "lg"
           text: WeatherService?.weatherInfo().icon ?? ""
         }
 
-        Text {
-          color: Theme.textActiveColor
-          font.bold: true
-          font.family: Theme.fontFamily
-          font.pixelSize: 14
+        OText {
+          bold: true
+          size: "sm"
           text: String(WeatherService?.currentTemp ?? "").split(" ")[0]
         }
       }
 
       Chip {
         Text {
-          font.pixelSize: 16
+          font.pixelSize: Theme.fontSize
           text: "💻"
         }
 
-        Text {
-          color: Theme.textInactiveColor
-          font.family: Theme.fontFamily
-          font.pixelSize: 14
+        OText {
+          size: "sm"
           text: MainService.hostname || "localhost"
+          useActiveColor: false
         }
       }
     }
@@ -178,37 +171,42 @@ Item {
     // 4. Password Input Area (main monitor only)
     Item {
       Layout.fillWidth: true
-      Layout.preferredHeight: 60
-      Layout.topMargin: 10
+      Layout.preferredHeight: Theme.itemHeight * 1.4
+      Layout.topMargin: Theme.spacingSm
       visible: root.isMainMonitor
 
       Rectangle {
         anchors.centerIn: parent
-        border.color: LockService.authState === "fail" ? Theme.critical : LockService.authenticating ? Theme.activeColor : root.rgba(root.colors.surface2, 0.5)
+        border.color: LockService.authState === "fail" ? Theme.critical : LockService.authenticating ? Theme.activeColor : root.inputBorder
         border.width: 2
-        color: root.rgba(root.colors.surface0, 0.8)
-        height: 50
-        radius: 25
-        width: Math.min(parent.width, 300)
+        color: root.inputBg
+        height: Theme.itemHeight * 1.3
+        radius: height / 2
+        width: Math.min(parent.width, Theme.itemHeight * 8)
 
         Behavior on border.color {
           ColorAnimation {
-            duration: 150
+            duration: Theme.animationDuration
           }
         }
 
+        // Lock icon
         Text {
-          anchors.left: parent.left
-          anchors.leftMargin: 16
-          anchors.verticalCenter: parent.verticalCenter
-          font.pixelSize: 18
+          font.pixelSize: Theme.fontSize
           opacity: 0.7
           text: "🔒"
+
+          anchors {
+            left: parent.left
+            leftMargin: Theme.fontSize
+            verticalCenter: parent.verticalCenter
+          }
         }
 
+        // Password dots
         Row {
           anchors.centerIn: parent
-          spacing: 6
+          spacing: Theme.spacingXs
           visible: LockService.passwordBuffer.length > 0
 
           Repeater {
@@ -219,37 +217,43 @@ Item {
 
               color: Theme.textActiveColor
               height: 8
-              radius: 4
+              radius: Theme.radiusXs
               width: 8
             }
           }
         }
 
-        Text {
+        // Status text
+        OText {
           anchors.centerIn: parent
           color: LockService.authState === "fail" ? Theme.critical : Theme.textInactiveColor
-          font.family: Theme.fontFamily
-          font.pixelSize: 14
+          size: "sm"
           text: LockService.statusMessage
           visible: !LockService.passwordBuffer
         }
 
+        // Caps lock indicator
         Rectangle {
-          anchors.right: parent.right
-          anchors.rightMargin: 8
-          anchors.verticalCenter: parent.verticalCenter
-          color: Theme.critical
-          height: 24
-          radius: 12
+          color: Theme.warning
+          height: Theme.controlHeightSm
+          radius: Theme.itemRadius
           visible: KeyboardLayoutService.capsOn
-          width: 24
+          width: capsText.implicitWidth + Theme.spacingMd
 
-          Text {
+          anchors {
+            right: parent.right
+            rightMargin: Theme.spacingSm
+            verticalCenter: parent.verticalCenter
+          }
+
+          OText {
+            id: capsText
+
             anchors.centerIn: parent
-            color: root.colors.base
-            font.bold: true
-            font.pixelSize: 14
-            text: "A"
+            bold: true
+            color: Theme.bgColor
+            size: "xs"
+            text: "CAPS"
           }
         }
       }
@@ -259,24 +263,22 @@ Item {
     RowLayout {
       Layout.alignment: Qt.AlignHCenter
       opacity: 0.6
-      spacing: 16
+      spacing: Theme.fontSize
       visible: root.isMainMonitor
 
       RowLayout {
-        spacing: 4
+        spacing: Theme.spacingXs
         visible: BatteryService.isLaptopBattery
 
         Text {
-          color: Theme.textInactiveColor
-          font.pixelSize: 12
+          font.pixelSize: Theme.fontSize - 3
           text: BatteryService.isCharging ? "⚡" : "🔋"
         }
 
-        Text {
-          color: Theme.textInactiveColor
-          font.family: Theme.fontFamily
-          font.pixelSize: 12
+        OText {
+          size: "sm"
           text: BatteryService.percentage + "%"
+          useActiveColor: false
         }
       }
 
@@ -284,23 +286,22 @@ Item {
         visible: BatteryService.isLaptopBattery
       }
 
-      Text {
-        color: Theme.textInactiveColor
-        font.family: Theme.fontFamily
-        font.pixelSize: 12
+      OText {
+        size: "sm"
         text: "Enter to unlock"
+        useActiveColor: false
       }
 
       Divider {
+        visible: !!KeyboardLayoutService.currentLayout
       }
 
-      Text {
-        color: Theme.textInactiveColor
-        font.bold: true
-        font.family: Theme.fontFamily
-        font.pixelSize: 12
+      OText {
+        size: "sm"
         text: KeyboardLayoutService.currentLayout
+        useActiveColor: false
         visible: !!KeyboardLayoutService.currentLayout
+        weight: Font.Medium
       }
 
       Divider {
@@ -309,28 +310,20 @@ Item {
 
       RowLayout {
         readonly property string link: NetworkService.linkType || "disconnected"
-        readonly property string ssid: {
-          const ap = NetworkService.wifiAps.find(a => a?.connected);
-          if (ap?.ssid)
-            return String(ap.ssid);
-          const active = NetworkService.chooseActiveDevice(NetworkService.deviceList);
-          return (active?.type === "wifi") ? (active.connectionName || "") : "";
-        }
+        readonly property string ssid: NetworkService.wifiAps.find(a => a?.connected)?.ssid ?? ""
 
-        spacing: 4
+        spacing: Theme.spacingXs
         visible: NetworkService.ready
 
         Text {
-          color: Theme.textInactiveColor
-          font.pixelSize: 12
-          text: parent.link === "ethernet" ? "󰈀" : (parent.link === "wifi" ? "󰤨" : "󰤭")
+          font.pixelSize: Theme.fontSize - 3
+          text: parent.link === "ethernet" ? "🔌" : parent.link === "wifi" ? "📶" : "📵"
         }
 
-        Text {
-          color: Theme.textInactiveColor
-          font.family: Theme.fontFamily
-          font.pixelSize: 12
-          text: parent.link === "ethernet" ? "Ethernet" : (parent.link === "wifi" ? parent.ssid : "Offline")
+        OText {
+          size: "sm"
+          text: parent.link === "ethernet" ? "Ethernet" : parent.link === "wifi" ? parent.ssid : "Offline"
+          useActiveColor: false
         }
       }
     }
@@ -340,24 +333,24 @@ Item {
   component Chip: Rectangle {
     default property alias content: chipContent.children
 
-    Layout.preferredHeight: 36
-    Layout.preferredWidth: chipContent.implicitWidth + 24
-    border.color: root.rgba(root.colors.surface1, 0.3)
-    color: root.rgba(root.colors.surface0, 0.5)
-    radius: 18
+    Layout.preferredHeight: Theme.itemHeight
+    Layout.preferredWidth: chipContent.implicitWidth + Theme.fontSize * 1.5
+    border.color: root.chipBorder
+    color: root.chipBg
+    radius: Theme.itemRadius
 
     RowLayout {
       id: chipContent
 
       anchors.centerIn: parent
-      spacing: 8
+      spacing: Theme.spacingXs
     }
   }
 
   // Divider component for footer
   component Divider: Rectangle {
     color: Theme.textInactiveColor
-    height: 12
+    height: Theme.spacingMd
     width: 1
   }
 }
