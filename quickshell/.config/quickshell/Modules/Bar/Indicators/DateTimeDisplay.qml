@@ -40,7 +40,7 @@ Item {
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
       leftPadding: Theme.spacingSm
-      text: NotificationService.doNotDisturb ? "󰂛 " : (dateTimeDisplay.hasNotifications ? "󱅫 " + dateTimeDisplay.notificationCount : " ")
+      text: NotificationService.doNotDisturb ? "󰂛 " : (dateTimeDisplay.hasNotifications ? "󱅫 " + dateTimeDisplay.notificationCount : " ")
       verticalAlignment: Text.AlignVCenter
 
       Behavior on color {

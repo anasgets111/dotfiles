@@ -11,7 +11,7 @@ WlrLayershell {
   property real discCenterX: 0.5
   property real discCenterY: 0.5
   property string displayMode: "fill"
-  readonly property bool hasCurrent: currentWallpaper.status === Image.Ready && currentWallpaper.source.toString()
+  readonly property bool hasCurrent: currentWallpaper.status === Image.Ready && currentWallpaper.source !== ""
   readonly property int imageFillMode: WallpaperService.modeToFillMode(displayMode)
   property bool isDestroyed: false
   readonly property size maxSourceSize: Qt.size(Math.min(width * deviceScale, 3840), Math.min(height * deviceScale, 2160))
@@ -19,7 +19,14 @@ WlrLayershell {
   property string pendingWallpaperUrl: ""
   readonly property string screenName: monitor?.name ?? ""
   readonly property var screenObject: screenName ? Quickshell.screens.find(s => s?.name === screenName) : null
-  readonly property bool screenValid: screenObject !== null
+  readonly property var shaderMap: ({
+      wipe: Qt.resolvedUrl("../../Shaders/qsb/wp_wipe.frag.qsb"),
+      disc: Qt.resolvedUrl("../../Shaders/qsb/wp_disc.frag.qsb"),
+      stripes: Qt.resolvedUrl("../../Shaders/qsb/wp_stripes.frag.qsb"),
+      portal: Qt.resolvedUrl("../../Shaders/qsb/wp_portal.frag.qsb"),
+      fade: Qt.resolvedUrl("../../Shaders/qsb/wp_fade.frag.qsb")
+    })
+  readonly property url shaderUrl: shaderMap[transitionType] ?? shaderMap.fade
   property real stripesAngle: 0
   property real stripesCount: 16
   property real transitionProgress: 0.0
@@ -27,11 +34,11 @@ WlrLayershell {
   readonly property bool transitioning: transitionAnim.running
   property real wipeDirection: 0
 
-  function changeWallpaper(newPath) {
+  function changeWallpaper(newPath: string): void {
     if (isDestroyed)
       return;
     const newUrl = normalizeUrl(newPath);
-    if (!newUrl || newUrl === String(currentWallpaper.source) || newUrl === String(nextWallpaper.source))
+    if (!newUrl || newUrl === currentWallpaper.source.toString() || newUrl === nextWallpaper.source.toString())
       return;
     if (transitionAnim.running) {
       pendingWallpaperUrl = newUrl;
@@ -42,36 +49,31 @@ WlrLayershell {
     nextWallpaper.source = newUrl;
   }
 
-  function cleanupResources() {
+  function cleanupResources(): void {
     isDestroyed = true;
     transitionAnim.stop();
     wallpaperConnections.enabled = false;
   }
 
-  function commitNextWallpaper() {
-    if (isDestroyed || !nextWallpaper.source)
+  function commitNextWallpaper(): void {
+    if (isDestroyed || nextWallpaper.source === "")
       return;
-    // Keep showing nextWallpaper via shader until currentWallpaper is ready
     currentWallpaper.source = nextWallpaper.source;
-    // Don't reset yet - wait for currentWallpaper to be ready
   }
 
-  function finalizeTransition() {
+  function finalizeTransition(): void {
     nextWallpaper.source = "";
     transitionProgress = 0.0;
-    // Don't process pending until currentWallpaper is fully ready
-    // processPendingWallpaper is called from currentWallpaper.onStatusChanged
   }
 
-  // Core functions
-  function normalizeUrl(path) {
+  function normalizeUrl(path: string): string {
     if (!path)
       return "";
     const str = String(path);
     return str.startsWith("file://") || str.startsWith("http://") || str.startsWith("https://") ? str : `file://${str}`;
   }
 
-  function processPendingWallpaper() {
+  function processPendingWallpaper(): void {
     if (isDestroyed || !pendingWallpaperUrl)
       return;
     const pending = pendingWallpaperUrl;
@@ -79,19 +81,15 @@ WlrLayershell {
     changeWallpaper(pending);
   }
 
-  function setupTransition(type) {
-    switch (type) {
-    case "wipe":
+  function setupTransition(type: string): void {
+    if (type === "wipe") {
       wipeDirection = Math.random() * 4;
-      break;
-    case "disc":
+    } else if (type === "disc") {
       discCenterX = Math.random();
       discCenterY = Math.random();
-      break;
-    case "stripes":
+    } else if (type === "stripes") {
       stripesCount = Math.round(Math.random() * 20 + 4);
       stripesAngle = Math.random() * 360;
-      break;
     }
   }
 
@@ -111,11 +109,8 @@ WlrLayershell {
     }
   }
   Component.onDestruction: cleanupResources()
-  onScreenValidChanged: {
-    if (!screenValid && !isDestroyed) {
-      cleanupResources();
-    }
-  }
+  onScreenObjectChanged: if (!screenObject && !isDestroyed)
+    cleanupResources()
 
   anchors {
     bottom: true
@@ -139,10 +134,8 @@ WlrLayershell {
       if (root.isDestroyed || status === Image.Loading)
         return;
       if (status === Image.Ready) {
-        // Finalize transition if we just loaded the same image as nextWallpaper
-        if (nextWallpaper.source && String(currentWallpaper.source) === String(nextWallpaper.source))
+        if (nextWallpaper.source !== "" && currentWallpaper.source.toString() === nextWallpaper.source.toString())
           root.finalizeTransition();
-        // Process pending wallpaper only when current is fully ready and not transitioning
         if (root.pendingWallpaperUrl && !root.transitioning)
           Qt.callLater(root.processPendingWallpaper);
       } else if (status === Image.Error) {
@@ -167,10 +160,8 @@ WlrLayershell {
         return;
       if (status === Image.Error) {
         nextWallpaper.source = "";
-        return;
-      }
-      if (status === Image.Ready) {
-        if (!currentWallpaper.source || root.transitionType === "none")
+      } else if (status === Image.Ready) {
+        if (currentWallpaper.source === "" || root.transitionType === "none")
           root.commitNextWallpaper();
         else if (!transitionAnim.running)
           transitionAnim.start();
@@ -183,8 +174,8 @@ WlrLayershell {
 
     readonly property real angle: root.stripesAngle
     readonly property real aspectRatio: width / Math.max(1.0, height)
-    readonly property real centerX: root.transitionType === "disc" ? root.discCenterX : 0.5
-    readonly property real centerY: root.transitionType === "disc" ? root.discCenterY : 0.5
+    readonly property real centerX: root.transitionType === "disc" || root.transitionType === "portal" ? root.discCenterX : 0.5
+    readonly property real centerY: root.transitionType === "disc" || root.transitionType === "portal" ? root.discCenterY : 0.5
     readonly property real direction: root.wipeDirection
     readonly property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
     readonly property real fillMode: 1.0
@@ -195,27 +186,13 @@ WlrLayershell {
     readonly property real progress: root.transitionProgress
     readonly property real screenHeight: height * root.deviceScale
     readonly property real screenWidth: width * root.deviceScale
-    readonly property url shaderUrl: {
-      switch (root.transitionType) {
-      case "wipe":
-        return Qt.resolvedUrl("../../Shaders/qsb/wp_wipe.frag.qsb");
-      case "disc":
-        return Qt.resolvedUrl("../../Shaders/qsb/wp_disc.frag.qsb");
-      case "stripes":
-        return Qt.resolvedUrl("../../Shaders/qsb/wp_stripes.frag.qsb");
-      case "portal":
-        return Qt.resolvedUrl("../../Shaders/qsb/wp_portal.frag.qsb");
-      default:
-        return Qt.resolvedUrl("../../Shaders/qsb/wp_fade.frag.qsb");
-      }
-    }
     readonly property real smoothness: 0.1
-    readonly property var source1: currentWallpaper
-    readonly property var source2: nextWallpaper
+    readonly property Image source1: currentWallpaper
+    readonly property Image source2: nextWallpaper
     readonly property real stripeCount: root.stripesCount
 
     anchors.fill: parent
-    fragmentShader: shaderUrl
+    fragmentShader: root.shaderUrl
     visible: (root.transitioning || root.transitionProgress > 0) && (root.hasCurrent || nextWallpaper.status === Image.Ready)
   }
 
@@ -238,17 +215,17 @@ WlrLayershell {
   Connections {
     id: wallpaperConnections
 
-    function onModeChanged(name, mode) {
-      if (name && root.screenName === name)
+    function onModeChanged(name: string, mode: string): void {
+      if (name === root.screenName)
         root.displayMode = mode;
     }
 
-    function onTransitionChanged(t) {
-      root.transitionType = t;
+    function onTransitionChanged(transition: string): void {
+      root.transitionType = transition;
     }
 
-    function onWallpaperChanged(name, path) {
-      if (name && root.screenName === name)
+    function onWallpaperChanged(name: string, path: string): void {
+      if (name === root.screenName)
         root.changeWallpaper(path);
     }
 
