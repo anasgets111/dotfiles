@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import qs.Components
 import qs.Config
 import qs.Services.SystemInfo
 

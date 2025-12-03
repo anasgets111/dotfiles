@@ -6,8 +6,8 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Services.Polkit
-import qs.Config
 import qs.Components
+import qs.Config
 import qs.Services.Utils
 
 Item {
