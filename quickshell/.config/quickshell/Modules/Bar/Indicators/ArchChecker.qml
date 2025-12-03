@@ -3,6 +3,7 @@ import QtQuick
 import qs.Components
 import qs.Config
 import qs.Services.SystemInfo
+import qs.Modules.Bar.Panels
 
 Item {
   id: root
