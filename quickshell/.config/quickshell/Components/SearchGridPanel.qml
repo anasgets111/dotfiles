@@ -480,6 +480,24 @@ PanelWindow {
                 root.currentIndex = itemDelegate.index;
                 root.activateEntry(itemDelegate.modelData);
               }
+              onEntered: {
+                const pos = mapToItem(itemDelegate, mouseX, mouseY);
+                itemTooltip._mouseX = pos.x;
+                itemTooltip._mouseY = pos.y;
+              }
+              onPositionChanged: mouse => {
+                itemTooltip._mouseX = mouse.x;
+                itemTooltip._mouseY = mouse.y;
+              }
+            }
+
+            Tooltip {
+              id: itemTooltip
+
+              isVisible: itemDelegate.hovered
+              positionAtMouse: true
+              target: itemDelegate
+              text: itemDelegate.resolvedLabel
             }
           }
         }

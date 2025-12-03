@@ -10,6 +10,8 @@ Item {
   readonly property real _hPadding: Theme.spacingSm
   readonly property real _minHeight: Theme.controlHeightMd
   readonly property real _minWidth: Theme.controlWidthLg
+  property real _mouseX: 0
+  property real _mouseY: 0
   readonly property real _vMargin: Theme.spacingMd
   readonly property real _vPadding: Theme.spacingXs
   readonly property color bgColor: Theme.onHoverColor
@@ -22,6 +24,8 @@ Item {
   readonly property bool hasCustomContent: contentContainer.children.length > 0
   property bool isVisible: false
   property int maxWidth: 420
+  property real mouseOffsetX: 8
+  property real mouseOffsetY: 8
   readonly property Item overlayParent: {
     if (!root.target)
       return null;
@@ -30,6 +34,7 @@ Item {
     return win ? win.contentItem : null;
   }
   property bool positionAbove: false
+  property bool positionAtMouse: false
   property bool positionLeft: false
   property bool positionRight: false
   property Item target: null
@@ -40,7 +45,11 @@ Item {
     if (!root.target || !root.parent)
       return;
     let p;
-    if (root.positionLeft) {
+    if (root.positionAtMouse) {
+      p = root.target.mapToItem(root.parent, root._mouseX, root._mouseY);
+      root.x = p.x + root.mouseOffsetX;
+      root.y = p.y + root.mouseOffsetY;
+    } else if (root.positionLeft) {
       p = root.target.mapToItem(root.parent, 0, 0);
       root.x = p.x - w - root._hMargin;
       root.y = p.y + (root.target.height - h) / 2;
@@ -111,6 +120,10 @@ Item {
   onWidthChanged: if (root.visible)
     root._computePosition(root.width, root.height)
   onWrapTextChanged: if (root.visible)
+    root._computePosition(root.width, root.height)
+  on_MouseXChanged: if (root.visible && root.positionAtMouse)
+    root._computePosition(root.width, root.height)
+  on_MouseYChanged: if (root.visible && root.positionAtMouse)
     root._computePosition(root.width, root.height)
 
   Connections {
