@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Config
+import qs.Modules.Bar.Indicators
 
 Row {
   id: rightSide

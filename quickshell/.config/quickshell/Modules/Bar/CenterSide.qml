@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Config
+import qs.Modules.Bar.Indicators
 
 Row {
   id: centerSide
