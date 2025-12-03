@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import QtQuick.Effects
+import qs.Components
 import qs.Services.Core
 import qs.Services.WM
 
