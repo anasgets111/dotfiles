@@ -1,21 +1,20 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import qs.Components
+import qs.Config
 
 Item {
   id: root
 
-  property int cellHeight: 22
-  property int cellWidth: 32
+  readonly property int cellHeight: Theme.fontXl
+  readonly property int cellWidth: Theme.controlWidthSm
+  readonly property color contrastColor: Theme.textContrast(Theme.onHoverColor)
   readonly property int daysInMonth: new Date(year, month + 1, 0).getDate()
   readonly property int firstDayOffset: ((new Date(year, month, 1).getDay() - weekStart + 7) % 7)
-  property int headerHeight: 22
   readonly property int month: (today ?? new Date()).getMonth()
   readonly property int rowCount: Math.ceil((firstDayOffset + daysInMonth) / 7)
   readonly property int saturdayCol: (6 - weekStart + 7) % 7
-  property int spacing: 8
-  property var theme: null
-  property int titleHeight: 22
   property var today: null
   readonly property int todayDate: today?.getDate() ?? 0
   readonly property var weekDays: {
@@ -23,45 +22,41 @@ Item {
     return days.slice(weekStart).concat(days.slice(0, weekStart));
   }
   property int weekStart: 0
-
-  // Computed from today or current date
   readonly property int year: (today ?? new Date()).getFullYear()
 
   function isCurrentMonth(): bool {
     return today && month === today.getMonth() && year === today.getFullYear();
   }
 
-  implicitHeight: titleHeight + headerHeight + (rowCount * cellHeight) + ((rowCount + 1) * spacing)
-  implicitWidth: (7 * cellWidth) + (6 * spacing)
+  implicitHeight: (3 + rowCount) * cellHeight + (rowCount + 1) * Theme.spacingXs
+  implicitWidth: 7 * cellWidth + 6 * Theme.spacingXs
 
   Column {
     anchors.horizontalCenter: parent.horizontalCenter
-    spacing: root.spacing
+    spacing: Theme.spacingXs
 
-    Text {
-      color: root.theme?.textContrast(root.theme.onHoverColor) ?? "#fff"
-      font.bold: true
-      font.pixelSize: root.theme?.fontSize - 1 ?? 13
-      height: root.titleHeight
+    OText {
+      bold: true
+      color: root.contrastColor
+      height: root.cellHeight
       horizontalAlignment: Text.AlignHCenter
       text: Qt.formatDate(new Date(root.year, root.month), "MMMM yyyy")
       width: root.implicitWidth
     }
 
     Row {
-      spacing: root.spacing
+      spacing: Theme.spacingXs
 
       Repeater {
         model: root.weekDays
 
-        Text {
+        OText {
           required property int index
           required property string modelData
 
-          color: index === root.saturdayCol ? (root.theme?.bgColor ?? "#11111b") : (root.theme?.textContrast(root.theme.onHoverColor) ?? "#fff")
-          font.bold: true
-          font.pixelSize: root.theme?.fontSize - 2 ?? 12
-          height: root.headerHeight
+          bold: true
+          color: index === root.saturdayCol ? Theme.textContrast(Theme.bgColor) : root.contrastColor
+          height: root.cellHeight
           horizontalAlignment: Text.AlignHCenter
           text: modelData
           verticalAlignment: Text.AlignVCenter
@@ -72,7 +67,7 @@ Item {
 
     Grid {
       columns: 7
-      spacing: root.spacing
+      spacing: Theme.spacingXs
 
       Repeater {
         model: root.firstDayOffset + root.daysInMonth
@@ -91,16 +86,16 @@ Item {
 
           Rectangle {
             anchors.fill: parent
-            color: root.theme?.activeColor ?? "#CBA6F7"
+            color: Theme.activeColor
             radius: width / 2
             visible: cell.isToday
           }
 
-          Text {
+          OText {
             anchors.centerIn: parent
-            color: cell.isToday ? (root.theme?.textContrast(root.theme.activeColor) ?? "#fff") : cell.isSaturday ? (root.theme?.textContrast(root.theme.bgColor) ?? "#fff") : (root.theme?.textContrast(root.theme.onHoverColor) ?? "#fff")
-            font.bold: cell.isToday
-            font.pixelSize: root.theme?.fontSize - 3 ?? 11
+            bold: cell.isToday
+            color: cell.isToday ? Theme.textContrast(Theme.activeColor) : cell.isSaturday ? Theme.textContrast(Theme.bgColor) : root.contrastColor
+            size: "sm"
             text: cell.day > 0 ? cell.day : ""
           }
         }

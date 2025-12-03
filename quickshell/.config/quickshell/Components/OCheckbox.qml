@@ -21,7 +21,7 @@ Rectangle {
   color: "transparent"
   implicitHeight: size
   implicitWidth: size
-  radius: 4
+  radius: Theme.radiusXs
 
   Behavior on border.color {
     ColorAnimation {
@@ -33,7 +33,7 @@ Rectangle {
     anchors.centerIn: parent
     color: Theme.activeColor
     height: parent.height * 0.6
-    radius: 2
+    radius: Theme.radiusXs
     scale: root.checked ? 1 : 0
     visible: root.checked
     width: parent.width * 0.6

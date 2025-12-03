@@ -105,33 +105,23 @@ Rectangle {
 
   RowLayout {
     anchors.centerIn: parent
-    spacing: 8
+    spacing: Theme.spacingSm
 
-    Text {
+    OText {
+      bold: true
       color: root.textColor
+      font.pixelSize: root.iconSize
       horizontalAlignment: Text.AlignHCenter
       text: root.icon
-      verticalAlignment: Text.AlignVCenter
-
-      font {
-        bold: true
-        family: Theme.fontFamily
-        pixelSize: root.iconSize
-      }
     }
 
-    Text {
+    OText {
+      bold: true
       color: root.textColor
       horizontalAlignment: Text.AlignHCenter
       text: root.percentText
       verticalAlignment: Text.AlignVCenter
       visible: root.expanded
-
-      font {
-        bold: true
-        family: Theme.fontFamily
-        pixelSize: Theme.fontSize
-      }
     }
   }
 

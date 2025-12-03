@@ -12,12 +12,12 @@ OPanel {
 
   readonly property int actionButtonSize: itemHeight * 0.8
   readonly property bool active: BluetoothService.available && BluetoothService.enabled
-  readonly property color borderColor: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+  readonly property color borderColor: Theme.borderLight
   readonly property int cardPadding: padding * 0.9
   readonly property int cardSpacing: padding * 0.4
   readonly property int iconSize: itemHeight * 0.9
   readonly property int itemHeight: Theme.itemHeight
-  readonly property int padding: 8
+  readonly property int padding: Theme.spacingSm
   readonly property bool ready: BluetoothService.available
   property string showCodecFor: ""
 
@@ -61,14 +61,13 @@ OPanel {
   }
 
   ColumnLayout {
-    spacing: 4
+    spacing: Theme.spacingXs
     width: parent.width - root.padding * 2
     x: root.padding
     y: root.padding
 
     // Toggle Cards Row
     RowLayout {
-      Layout.bottomMargin: BluetoothService.enabled ? 0 : root.padding * 2
       Layout.fillWidth: true
       spacing: root.padding * 1.25
 
@@ -77,7 +76,7 @@ OPanel {
         Layout.preferredHeight: btCol.implicitHeight + root.cardPadding * 1.3
         border.color: root.borderColor
         border.width: 1
-        color: Qt.lighter(Theme.bgColor, 1.35)
+        color: Theme.bgElevated
         opacity: root.ready ? 1 : 0.5
         radius: Theme.itemRadius
 
@@ -95,8 +94,8 @@ OPanel {
           spacing: root.cardSpacing
 
           OText {
+            bold: true
             color: root.ready ? Theme.textActiveColor : Theme.textInactiveColor
-            font.bold: true
             text: qsTr("Bluetooth")
           }
 
@@ -149,7 +148,7 @@ OPanel {
         Layout.preferredHeight: discoverableCol.implicitHeight + root.cardPadding * 1.3
         border.color: root.borderColor
         border.width: 1
-        color: Qt.lighter(Theme.bgColor, 1.35)
+        color: Theme.bgElevated
         radius: Theme.itemRadius
         visible: root.active
 
@@ -167,8 +166,8 @@ OPanel {
           spacing: root.cardSpacing
 
           OText {
+            bold: true
             color: root.active ? Theme.textActiveColor : Theme.textInactiveColor
-            font.bold: true
             text: qsTr("Discoverable")
           }
 
@@ -218,13 +217,12 @@ OPanel {
     }
 
     Rectangle {
-      Layout.bottomMargin: (root.active && deviceList.count === 0) ? root.padding * 2 : 0
       Layout.fillWidth: true
       Layout.preferredHeight: discoveryCol.implicitHeight + root.cardPadding * 1.3
       Layout.topMargin: root.padding * 0.5
       border.color: root.borderColor
       border.width: 1
-      color: Qt.lighter(Theme.bgColor, 1.35)
+      color: Theme.bgElevated
       radius: Theme.itemRadius
       visible: root.active
 
@@ -278,17 +276,17 @@ OPanel {
 
           ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: Theme.spacingXs / 2
 
             OText {
+              bold: true
               color: root.active ? Theme.textActiveColor : Theme.textInactiveColor
-              font.bold: true
               text: qsTr("Discovery")
             }
 
             OText {
               color: Theme.textInactiveColor
-              font.pixelSize: Theme.fontSize * 0.85
+              size: "sm"
               text: BluetoothService.discovering ? qsTr("Scanning for devices…") : qsTr("No active scan")
               visible: root.active
             }
@@ -299,37 +297,34 @@ OPanel {
 
     // Device List
     Rectangle {
-      Layout.bottomMargin: root.padding
       Layout.fillWidth: true
       Layout.topMargin: root.padding * 0.5
       border.color: root.borderColor
       border.width: 1
       clip: true
-      color: Qt.lighter(Theme.bgColor, 1.25)
-      implicitHeight: visible ? deviceList.implicitHeight + root.padding * 1.4 : 0
+      color: Theme.bgElevatedAlt
+      implicitHeight: visible ? deviceList.contentHeight + root.cardPadding * 2 : 0
       radius: Theme.itemRadius
       visible: root.active && deviceList.count > 0
 
       ListView {
         id: deviceList
 
+        readonly property int maxVisibleItems: 4
+
         anchors.fill: parent
-        anchors.margins: root.padding * 0.8
+        anchors.margins: root.cardPadding
         boundsBehavior: Flickable.StopAtBounds
         clip: true
-        implicitHeight: {
-          const itemCount = deviceList.count;
-          const displayCount = Math.min(itemCount, 4);
-          return displayCount * root.itemHeight * 1.5 + (displayCount - 1) * 4;
-        }
+        implicitHeight: Math.min(contentHeight, maxVisibleItems * root.itemHeight + (maxVisibleItems - 1) * spacing)
         interactive: contentHeight > height
         model: root.ready ? BluetoothService.sortedDevices : []
         reuseItems: true
-        spacing: 4
+        spacing: Theme.spacingXs
 
         ScrollBar.vertical: ScrollBar {
           policy: deviceList.contentHeight > deviceList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-          width: 8
+          width: Theme.scrollBarWidth
         }
         delegate: DeviceItem {
           width: ListView.view.width
@@ -337,6 +332,12 @@ OPanel {
           onTriggered: (action, dev) => root.handleAction(action, dev)
         }
       }
+    }
+
+    // Bottom spacer for padding (needs extra to account for y offset)
+    Item {
+      Layout.fillWidth: true
+      Layout.preferredHeight: root.padding * 1.5
     }
   }
 
@@ -358,7 +359,7 @@ OPanel {
       anchors.fill: parent
       border.color: codecItem.isCurrent ? Theme.activeColor : "transparent"
       border.width: codecItem.isCurrent ? 1 : 0
-      color: codecItem.isCurrent ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.15) : (codecItem.isHovered ? Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35) : "transparent")
+      color: codecItem.isCurrent ? Theme.activeSubtle : (codecItem.isHovered ? Theme.borderLight : "transparent")
       radius: Theme.itemRadius
 
       Behavior on color {
@@ -372,31 +373,29 @@ OPanel {
       anchors.fill: parent
       anchors.leftMargin: root.padding
       anchors.rightMargin: root.padding
-      spacing: 8
+      spacing: Theme.spacingSm
 
       Rectangle {
         color: codecItem.modelData.qualityColor || Theme.inactiveColor
         implicitHeight: 8
         implicitWidth: 8
         opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : 0.5
-        radius: 4
+        radius: Theme.radiusXs
       }
 
-      Text {
+      OText {
         Layout.fillWidth: true
+        bold: codecItem.isCurrent || codecItem.isHovered
         color: codecItem.isCurrent ? Theme.activeColor : (codecItem.isHovered ? Theme.textActiveColor : Theme.textInactiveColor)
-        font.bold: codecItem.isCurrent || codecItem.isHovered
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize * 0.85
         opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : 0.7
+        size: "sm"
         text: codecItem.modelData.name || ""
       }
 
-      Text {
+      OText {
         color: codecItem.isCurrent ? Theme.activeColor : (codecItem.isHovered ? Theme.textActiveColor : Theme.textInactiveColor)
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize * 0.75
         opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : 0.6
+        size: "xs"
         text: codecItem.modelData.description || ""
       }
 
@@ -406,14 +405,13 @@ OPanel {
         border.color: codecItem.isCurrent ? Theme.activeColor : "transparent"
         border.width: 2
         color: codecItem.isCurrent ? Theme.activeColor : "transparent"
-        radius: 12
+        radius: Theme.radiusMd
 
-        Text {
+        OText {
           anchors.centerIn: parent
+          bold: true
           color: Theme.bgColor
-          font.bold: true
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize * 0.9
+          size: "sm"
           text: "✓"
           visible: codecItem.isCurrent
         }
@@ -467,7 +465,7 @@ OPanel {
 
     Rectangle {
       anchors.fill: parent
-      color: (deviceItem.hovered && !deviceItem.showCodecSelector) ? Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.4) : "transparent"
+      color: (deviceItem.hovered && !deviceItem.showCodecSelector) ? Theme.borderMedium : "transparent"
       radius: Theme.itemRadius
 
       Behavior on color {
@@ -493,12 +491,12 @@ OPanel {
 
       ColumnLayout {
         anchors.fill: parent
-        spacing: 4
+        spacing: Theme.spacingXs
 
         RowLayout {
           Layout.fillWidth: true
           Layout.preferredHeight: Theme.itemHeight
-          spacing: 8
+          spacing: Theme.spacingSm
 
           Text {
             Layout.alignment: Qt.AlignVCenter
@@ -517,14 +515,11 @@ OPanel {
 
           ColumnLayout {
             Layout.fillWidth: true
-            spacing: 0
 
-            Text {
+            OText {
               Layout.fillWidth: true
               color: deviceItem.textColor
               elide: Text.ElideRight
-              font.family: Theme.fontFamily
-              font.pixelSize: Theme.fontSize
               text: deviceItem.name
 
               Behavior on color {
@@ -534,10 +529,9 @@ OPanel {
               }
             }
 
-            Text {
+            OText {
               color: Theme.textInactiveColor
-              font.family: Theme.fontFamily
-              font.pixelSize: Theme.fontSize * 0.75
+              size: "xs"
               text: deviceItem.statusText
               visible: text !== ""
             }
@@ -556,12 +550,11 @@ OPanel {
               }
             }
 
-            Text {
+            OText {
               anchors.centerIn: parent
+              bold: true
               color: Theme.textContrast(parent.color)
-              font.bold: true
-              font.family: Theme.fontFamily
-              font.pixelSize: Theme.fontSize * 0.7
+              size: "xs"
               text: deviceItem.batteryStr
             }
           }
@@ -623,7 +616,7 @@ OPanel {
           Layout.fillWidth: true
           Layout.leftMargin: root.padding * 2
           Layout.rightMargin: root.padding
-          spacing: 2
+          spacing: Theme.spacingXs / 2
           visible: deviceItem.showCodecSelector
 
           Repeater {

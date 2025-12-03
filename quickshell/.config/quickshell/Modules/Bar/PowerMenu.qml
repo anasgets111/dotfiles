@@ -109,7 +109,6 @@ Item {
         readonly property bool isSelected: powerMenu.counting && powerMenu.selectedIndex === index
 
         anchors.fill: parent
-        opacity: 1.0
         tooltipText: powerMenu.counting ? (isSelected ? `${action.tooltip} — ${powerMenu.countdown}s\nLeft click to execute now • Right click to cancel` : `${action.tooltip}\nRight click to cancel`) : action.tooltip
 
         SequentialAnimation on opacity {
@@ -153,12 +152,10 @@ Item {
           radius: Theme.itemHeight / 2
         }
 
-        Text {
+        OText {
           anchors.centerIn: parent
+          bold: true
           color: btn.effectiveFg ?? Theme.textContrast(Theme.inactiveColor)
-          font.bold: true
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize
           horizontalAlignment: Text.AlignHCenter
           text: btn.isSelected ? String(powerMenu.countdown) : btn.action.icon
           verticalAlignment: Text.AlignVCenter

@@ -9,7 +9,7 @@ import qs.Components
 RowLayout {
   id: root
 
-  spacing: 8
+  spacing: Theme.spacingSm
 
   IconButton {
     Layout.preferredHeight: Theme.itemHeight

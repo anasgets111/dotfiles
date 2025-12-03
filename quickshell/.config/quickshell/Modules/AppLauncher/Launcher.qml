@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import qs.Config
 import qs.Services.Utils
 import qs.Components
 
@@ -20,7 +21,7 @@ SearchGridPanel {
   }
 
   cellHeight: 150
-  cellPadding: 32
+  cellPadding: Theme.spacingXl + Theme.spacingSm
   cellWidth: 150
   finderBuilder: params => {
     if (!Fzf?.finder)

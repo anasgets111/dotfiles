@@ -15,7 +15,7 @@ OPanel {
   readonly property bool isUpdating: UpdateService.updateState === UpdateService.status.Updating
   readonly property int itemHeight: Theme.itemHeight
   readonly property int maxItems: 10
-  readonly property int pad: 8
+  readonly property int pad: Theme.spacingSm
 
   maxHeight: 900
   needsKeyboardFocus: true
@@ -40,7 +40,7 @@ OPanel {
       ColumnLayout {
         id: packageView
 
-        spacing: 4
+        spacing: Theme.spacingXs
 
         // Header row
         Rectangle {
@@ -53,26 +53,26 @@ OPanel {
             anchors.fill: parent
             anchors.leftMargin: root.pad
             anchors.rightMargin: root.pad
-            spacing: 8
+            spacing: Theme.spacingSm
 
             OText {
               Layout.preferredWidth: 160
+              bold: true
               color: Theme.textContrast(root.headerColor)
-              font.bold: true
               text: qsTr("Package")
             }
 
             OText {
               Layout.preferredWidth: 120
+              bold: true
               color: Theme.textContrast(root.headerColor)
-              font.bold: true
               text: qsTr("Old Version")
             }
 
             OText {
               Layout.preferredWidth: 120
+              bold: true
               color: Theme.textContrast(root.headerColor)
-              font.bold: true
               text: qsTr("New Version")
             }
           }
@@ -86,19 +86,19 @@ OPanel {
           clip: true
           interactive: contentHeight > height
           model: UpdateService.updatePackages
-          spacing: 2
+          spacing: Theme.spacingXs / 2
           visible: UpdateService.totalUpdates > 0
 
           ScrollBar.vertical: ScrollBar {
             policy: packageList.contentHeight > packageList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-            width: 8
+            width: Theme.scrollBarWidth
           }
           delegate: Rectangle {
             id: pkgRow
 
             required property var modelData
 
-            color: pkgHover.containsMouse ? Qt.lighter(Theme.bgColor, 1.47) : Theme.bgColor
+            color: pkgHover.containsMouse ? Theme.bgElevatedHover : Theme.bgColor
             height: root.itemHeight
             radius: Theme.itemRadius * 0.5
             width: ListView.view.width
@@ -120,7 +120,7 @@ OPanel {
               anchors.fill: parent
               anchors.leftMargin: root.pad
               anchors.rightMargin: root.pad
-              spacing: 8
+              spacing: Theme.spacingSm
 
               OText {
                 Layout.preferredWidth: 160
@@ -157,8 +157,8 @@ OPanel {
 
         RowLayout {
           Layout.alignment: Qt.AlignHCenter
-          Layout.topMargin: 4
-          spacing: 4
+          Layout.topMargin: Theme.spacingXs
+          spacing: Theme.spacingXs
           visible: UpdateService.totalUpdates > 0
 
           OText {
@@ -169,15 +169,15 @@ OPanel {
 
           OText {
             opacity: 0.8
-            sizeMultiplier: 0.9
+            size: "sm"
             text: qsTr("Total download: %1").arg(SystemInfoService.fmtKib(UpdateService.totalDownloadSize))
           }
         }
 
         RowLayout {
           Layout.fillWidth: true
-          Layout.topMargin: 8
-          spacing: 8
+          Layout.topMargin: Theme.spacingSm
+          spacing: Theme.spacingSm
 
           OButton {
             Layout.fillWidth: true
@@ -202,23 +202,21 @@ OPanel {
       ColumnLayout {
         id: outputView
 
-        spacing: 0
-
         ColumnLayout {
           Layout.fillWidth: true
-          Layout.margins: 8
-          spacing: 4
+          Layout.margins: Theme.spacingSm
+          spacing: Theme.spacingXs
 
           OText {
-            font.bold: true
+            bold: true
             text: UpdateService.totalPackagesToUpdate > 0 ? qsTr("Installing %1 of %2 packages...").arg(UpdateService.currentPackageIndex).arg(UpdateService.totalPackagesToUpdate) : qsTr("Updating packages...")
           }
 
           Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 6
+            Layout.preferredHeight: Theme.radiusSm
             color: Theme.borderColor
-            radius: 3
+            radius: Theme.radiusXs
 
             Rectangle {
               color: Theme.activeColor
@@ -243,7 +241,7 @@ OPanel {
 
         Rectangle {
           Layout.fillWidth: true
-          Layout.preferredHeight: 500
+          Layout.preferredHeight: Theme.itemHeight * 15
           color: Qt.darker(Theme.bgColor, 1.05)
 
           ListView {
@@ -252,10 +250,10 @@ OPanel {
             property bool userScrolled: false
 
             anchors.fill: parent
-            anchors.margins: 8
+            anchors.margins: Theme.spacingSm
             clip: true
             model: UpdateService.outputLines
-            spacing: 2
+            spacing: Theme.spacingXs / 2
 
             ScrollBar.vertical: ScrollBar {
               minimumSize: 0.1
@@ -293,8 +291,8 @@ OPanel {
 
         RowLayout {
           Layout.fillWidth: true
-          Layout.topMargin: 8
-          spacing: 8
+          Layout.topMargin: Theme.spacingSm
+          spacing: Theme.spacingSm
 
           OButton {
             Layout.fillWidth: true

@@ -34,7 +34,7 @@ Item {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "polkit-dialog"
-    color: "#80000000"
+    color: Theme.bgOverlay
     visible: agent.isActive
 
     onVisibleChanged: {
@@ -56,7 +56,7 @@ Item {
       border.color: Theme.activeColor
       border.width: 1
       color: Theme.bgColor
-      height: layout.implicitHeight + 40
+      height: layout.implicitHeight + Theme.dialogPadding * 2
       radius: Theme.itemRadius
       width: 450
 
@@ -64,33 +64,33 @@ Item {
         id: layout
 
         anchors.fill: parent
-        anchors.margins: 20
-        spacing: 16
+        anchors.margins: Theme.dialogPadding
+        spacing: Theme.spacingLg
 
         RowLayout {
-          spacing: 16
+          spacing: Theme.spacingLg
 
           IconImage {
-            Layout.preferredHeight: 48
-            Layout.preferredWidth: 48
+            Layout.preferredHeight: Theme.panelHeight
+            Layout.preferredWidth: Theme.panelHeight
             source: Utils.resolveIconSource(window.flow?.iconName ?? "", "dialog-password")
           }
 
           ColumnLayout {
-            spacing: 4
+            spacing: Theme.spacingXs
 
             OText {
               Layout.fillWidth: true
-              font.bold: true
+              bold: true
               text: window.flow?.message ?? ""
               wrapMode: Text.Wrap
             }
 
             OText {
               Layout.fillWidth: true
-              color: Theme.textInactiveColor
               elide: Text.ElideMiddle
-              sizeMultiplier: 0.8
+              muted: true
+              size: "xs"
               text: window.flow?.actionId ?? ""
             }
           }
@@ -98,7 +98,7 @@ Item {
 
         ColumnLayout {
           Layout.fillWidth: true
-          spacing: 8
+          spacing: Theme.spacingSm
           visible: window.flow?.isResponseRequired ?? false
 
           OText {
@@ -125,7 +125,7 @@ Item {
 
         RowLayout {
           Layout.alignment: Qt.AlignRight
-          spacing: 8
+          spacing: Theme.spacingSm
 
           OButton {
             bgColor: Theme.inactiveColor

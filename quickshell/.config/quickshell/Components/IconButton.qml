@@ -2,31 +2,109 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Config
 
+/**
+ * IconButton - Circular icon button with hover states and tooltip
+ *
+ * Size presets: "xs", "sm", "md" (default), "lg", "xl"
+ * Shape: "circle" (default), "rounded"
+ *
+ * Examples:
+ *   IconButton { icon: "󰅖" }
+ *   IconButton { icon: "󰅖"; size: "sm" }
+ *   IconButton { icon: "󰐊"; colorBg: Theme.activeColor }
+ *   IconButton { icon: "󰐊"; shape: "rounded"; tooltipText: "Play" }
+ */
 Item {
   id: root
 
+  readonly property int _iconSize: {
+    switch (size) {
+    case "xs":
+      return Theme.iconSizeXs;
+    case "sm":
+      return Theme.iconSizeSm;
+    case "md":
+      return Theme.iconSizeMd;
+    case "lg":
+      return Theme.iconSizeLg;
+    case "xl":
+      return Theme.iconSizeXl;
+    default:
+      return Theme.iconSizeMd;
+    }
+  }
+  readonly property int _radius: {
+    if (shape === "circle")
+      return Math.min(width, height) / 2;
+    switch (size) {
+    case "xs":
+      return Theme.radiusSm;
+    case "sm":
+      return Theme.radiusSm;
+    case "md":
+      return Theme.radiusMd;
+    case "lg":
+      return Theme.radiusMd;
+    case "xl":
+      return Theme.radiusLg;
+    default:
+      return Theme.radiusMd;
+    }
+  }
+
+  // Computed dimensions from size
+  readonly property int _size: {
+    switch (size) {
+    case "xs":
+      return Theme.controlHeightXs;
+    case "sm":
+      return Theme.controlHeightSm;
+    case "md":
+      return Theme.controlHeightMd;
+    case "lg":
+      return Theme.controlHeightLg;
+    case "xl":
+      return Theme.controlHeightXl;
+    default:
+      return Theme.controlHeightMd;
+    }
+  }
   property bool allowClickWhenDisabled: false
+
+  // Color customization
   property color colorBg: Theme.inactiveColor
   readonly property color colorBgHover: Theme.onHoverColor
   readonly property color colorBorder: Theme.onHoverColor
   readonly property color colorBorderHover: Theme.onHoverColor
   readonly property color colorFg: Theme.textContrast(colorBg)
   readonly property color colorFgHover: Theme.textContrast(colorBgHover)
+
+  // Computed colors
   readonly property color effectiveBg: !enabled ? colorBg : (hovered ? colorBgHover : colorBg)
   readonly property color effectiveBorderColor: showBorder ? (hovered ? colorBorderHover : colorBorder) : "transparent"
   readonly property color effectiveFg: !enabled ? Theme.textContrast(colorBg) : (hovered ? colorFgHover : colorFg)
+
+  // Behavior
   property bool enabled: true
-  property bool hovered: mouseArea.containsMouse && root.enabled
+  readonly property bool hovered: mouseArea.containsMouse && root.enabled
+
+  // Content
   property string icon: ""
+
+  // Shape: "circle", "rounded"
+  property string shape: "circle"
   property bool showBorder: true
+
+  // Size preset: "xs", "sm", "md", "lg", "xl"
+  property string size: "md"
   property string tooltipText: ""
 
   signal clicked(var point)
   signal entered
   signal exited
 
-  implicitHeight: Theme.itemHeight
-  implicitWidth: Theme.itemHeight
+  implicitHeight: _size
+  implicitWidth: _size
 
   onTooltipTextChanged: if (mouseArea.containsMouse && root.tooltipText.length)
     tooltip.isVisible = true
@@ -36,9 +114,9 @@ Item {
 
     anchors.fill: parent
     border.color: root.effectiveBorderColor
-    border.width: root.showBorder ? 1 : 0
+    border.width: root.showBorder ? Theme.borderWidthThin : 0
     color: mouseArea.containsPress ? root.colorBgHover : root.effectiveBg
-    radius: Math.min(width, height) / 2
+    radius: root._radius
 
     Behavior on border.color {
       ColorAnimation {
@@ -84,9 +162,9 @@ Item {
 
       anchors.centerIn: parent
       color: root.effectiveFg
-      font.bold: true
       font.family: Theme.fontFamily
-      font.pixelSize: Theme.fontSize
+      font.pixelSize: root._iconSize
+      font.weight: Font.Medium
       horizontalAlignment: Text.AlignHCenter
       text: root.icon
       verticalAlignment: Text.AlignVCenter

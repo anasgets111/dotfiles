@@ -18,7 +18,7 @@ Item {
   readonly property int slotH: Theme.itemHeight
   readonly property int slotW: Theme.itemWidth
   readonly property var slots: Array(10).fill(0).map((_, i) => i + 1)
-  readonly property int spacing: 8
+  readonly property int spacing: Theme.spacingSm
 
   function wsColor(id) {
     if (id === currentWorkspace)

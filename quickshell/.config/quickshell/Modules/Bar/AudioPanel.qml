@@ -12,9 +12,9 @@ OPanel {
   id: root
 
   readonly property int btnSize: Theme.itemHeight * 0.7
-  readonly property color cardBg: Qt.lighter(Theme.bgColor, 1.35)
-  readonly property color cardBgAlt: Qt.lighter(Theme.bgColor, 1.25)
-  readonly property color cardBorder: Qt.rgba(Theme.borderColor.r, Theme.borderColor.g, Theme.borderColor.b, 0.35)
+  readonly property color cardBg: Theme.bgElevated
+  readonly property color cardBgAlt: Theme.bgElevatedAlt
+  readonly property color cardBorder: Theme.borderLight
 
   // Input state shortcuts
   readonly property var inputAudio: AudioService.source?.audio ?? null
@@ -67,31 +67,22 @@ OPanel {
           Layout.fillWidth: true
           spacing: root.pad
 
-          Text {
+          OText {
             color: AudioService.muted ? Theme.textInactiveColor : Theme.activeColor
+            font.pixelSize: Theme.fontSize * 1.2
             text: AudioService.muted ? "󰝟" : "󰕾"
-
-            font {
-              family: Theme.fontFamily
-              pixelSize: Theme.fontSize * 1.2
-            }
           }
 
           OText {
             Layout.fillWidth: true
-            font.bold: true
+            bold: true
             text: qsTr("Output Volume")
           }
 
-          Text {
+          OText {
+            bold: true
             color: Theme.textActiveColor
             text: Math.round(AudioService.volume * 100) + "%"
-
-            font {
-              bold: true
-              family: Theme.fontFamily
-              pixelSize: Theme.fontSize
-            }
           }
 
           IconButton {
@@ -131,15 +122,11 @@ OPanel {
 
           onClicked: root.mixerExpanded = !root.mixerExpanded
 
-          Text {
+          OText {
             anchors.centerIn: parent
             color: Theme.textInactiveColor
+            size: "sm"
             text: root.mixerExpanded ? "󰅃" : "󰅀"
-
-            font {
-              family: Theme.fontFamily
-              pixelSize: Theme.fontSize * 0.9
-            }
           }
         }
 
@@ -162,18 +149,14 @@ OPanel {
             spacing: root.pad * 0.5
             width: parent.width
 
-            Text {
+            OText {
               Layout.fillWidth: true
               Layout.topMargin: root.pad
               color: Theme.textInactiveColor
               horizontalAlignment: Text.AlignHCenter
+              size: "sm"
               text: "No active streams"
               visible: AudioService.streams.length === 0
-
-              font {
-                family: Theme.fontFamily
-                pixelSize: Theme.fontSize * 0.9
-              }
             }
 
             Repeater {
@@ -214,31 +197,22 @@ OPanel {
           Layout.fillWidth: true
           spacing: root.pad
 
-          Text {
+          OText {
             color: root.inputMuted ? Theme.textInactiveColor : Theme.activeColor
+            font.pixelSize: Theme.fontSize * 1.2
             text: root.inputMuted ? "󰍭" : "󰍬"
-
-            font {
-              family: Theme.fontFamily
-              pixelSize: Theme.fontSize * 1.2
-            }
           }
 
           OText {
             Layout.fillWidth: true
-            font.bold: true
+            bold: true
             text: qsTr("Input Volume")
           }
 
-          Text {
+          OText {
+            bold: true
             color: Theme.textActiveColor
             text: Math.round(root.inputVolume * 100) + "%"
-
-            font {
-              bold: true
-              family: Theme.fontFamily
-              pixelSize: Theme.fontSize
-            }
           }
 
           IconButton {
@@ -279,8 +253,7 @@ OPanel {
       spacing: root.pad * 0.5
 
       OText {
-        color: Theme.textActiveColor
-        font.bold: true
+        bold: true
         text: qsTr("Output Devices")
       }
 
@@ -304,11 +277,11 @@ OPanel {
           implicitHeight: Math.min(contentHeight, Theme.itemHeight * 4)
           interactive: contentHeight > height
           model: AudioService.sinks
-          spacing: 4
+          spacing: Theme.spacingXs
 
           ScrollBar.vertical: ScrollBar {
             policy: sinkList.contentHeight > sinkList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-            width: 8
+            width: Theme.scrollBarWidth
           }
           delegate: DeviceItem {
             required property var modelData
@@ -337,8 +310,7 @@ OPanel {
       visible: sourceList.count > 0
 
       OText {
-        color: Theme.textActiveColor
-        font.bold: true
+        bold: true
         text: qsTr("Input Devices")
       }
 
@@ -362,11 +334,11 @@ OPanel {
           implicitHeight: Math.min(contentHeight, Theme.itemHeight * 4)
           interactive: contentHeight > height
           model: AudioService.sources
-          spacing: 4
+          spacing: Theme.spacingXs
 
           ScrollBar.vertical: ScrollBar {
             policy: sourceList.contentHeight > sourceList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-            width: 8
+            width: Theme.scrollBarWidth
           }
           delegate: DeviceItem {
             required property var modelData
@@ -405,7 +377,7 @@ OPanel {
 
     Rectangle {
       anchors.fill: parent
-      color: hoverHandler.hovered ? Theme.onHoverColor : (deviceItem.isActive ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.15) : "transparent")
+      color: hoverHandler.hovered ? Theme.onHoverColor : (deviceItem.isActive ? Theme.activeSubtle : "transparent")
       radius: Theme.itemRadius
 
       Behavior on color {
@@ -438,37 +410,23 @@ OPanel {
         rightMargin: root.pad
       }
 
-      Text {
+      OText {
         color: deviceItem.isActive ? Theme.activeColor : deviceItem.textColor
         text: deviceItem.displayIcon
-
-        font {
-          family: Theme.fontFamily
-          pixelSize: Theme.fontSize
-        }
       }
 
-      Text {
+      OText {
         Layout.fillWidth: true
         color: deviceItem.textColor
         elide: Text.ElideRight
         text: deviceItem.displayName
-
-        font {
-          family: Theme.fontFamily
-          pixelSize: Theme.fontSize
-        }
       }
 
-      Text {
+      OText {
         color: Theme.activeColor
+        size: "sm"
         text: "󰄬"
         visible: deviceItem.isActive
-
-        font {
-          family: Theme.fontFamily
-          pixelSize: Theme.fontSize * 0.9
-        }
       }
     }
   }
@@ -500,39 +458,25 @@ OPanel {
           width: Theme.fontSize * 1.3
         }
 
-        Text {
+        OText {
           anchors.centerIn: parent
-          color: Theme.textActiveColor
           text: "󰝚"
           visible: parent.status === Image.Error || parent.status === Image.Null
-
-          font {
-            family: Theme.fontFamily
-            pixelSize: Theme.fontSize
-          }
         }
       }
 
-      Text {
+      OText {
         Layout.fillWidth: true
         color: Theme.textActiveColor
         elide: Text.ElideRight
+        size: "sm"
         text: streamItem.modelData.name || "Unknown"
-
-        font {
-          family: Theme.fontFamily
-          pixelSize: Theme.fontSize * 0.9
-        }
       }
 
-      Text {
+      OText {
         color: Theme.textInactiveColor
+        size: "sm"
         text: Math.round(streamItem.vol * 100) + "%"
-
-        font {
-          family: Theme.fontFamily
-          pixelSize: Theme.fontSize * 0.8
-        }
       }
     }
 

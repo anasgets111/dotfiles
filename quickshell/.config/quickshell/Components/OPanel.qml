@@ -72,7 +72,7 @@ PanelWindow {
 
   // Configuration
   property int panelWidth: 350
-  property int screenMargin: 8
+  property int screenMargin: Theme.spacingSm
   property bool showInverseCorners: true
 
   // Position tracking

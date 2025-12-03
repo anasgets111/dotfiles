@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import qs.Components
 import qs.Services.Utils
 import qs.Config
 
@@ -18,13 +19,13 @@ Item {
   readonly property string headerTitle: root.isGroup ? `${root.group?.appName || "app"} (${root.group?.count || root.items.length})` : (root.primaryWrapper?.appName || "app")
   readonly property bool isGroup: (root.group?.count || 0) > 1
   readonly property var items: root.group?.notifications || []
-  readonly property int messagePadding: 8
-  readonly property int paddingHorizontal: 12
-  readonly property int paddingVertical: 12
+  readonly property int messagePadding: Theme.spacingSm
+  readonly property int paddingHorizontal: Theme.spacingMd
+  readonly property int paddingVertical: Theme.spacingMd
   readonly property var primaryWrapper: root.items.length > 0 ? root.items[0] : null
   property bool showTimestamp: false
-  readonly property int spacingContent: 6
-  readonly property int spacingMessages: 8
+  readonly property int spacingContent: Theme.spacingXs + 2
+  readonly property int spacingMessages: Theme.spacingSm
   required property var svc
 
   signal inputFocusReleased
@@ -81,7 +82,7 @@ Item {
 
     RowLayout {
       Layout.fillWidth: true
-      spacing: 10
+      spacing: Theme.cardPadding
 
       Rectangle {
         Layout.preferredHeight: 40
@@ -89,32 +90,31 @@ Item {
         border.color: Qt.rgba(255, 255, 255, 0.05)
         border.width: 1
         color: Qt.rgba(1, 1, 1, 0.07)
-        radius: 8
+        radius: Theme.radiusSm
         visible: !!root.primaryWrapper
 
         Image {
           anchors.centerIn: parent
           fillMode: Image.PreserveAspectFit
-          height: 30
+          height: Theme.itemHeight
           smooth: true
           source: root.primaryWrapper ? Utils.resolveIconSource(root.primaryWrapper.appName || "app", root.primaryWrapper.appIcon, "dialog-information") : ""
-          sourceSize: Qt.size(30, 30)
-          width: 30
+          sourceSize: Qt.size(Theme.itemHeight, Theme.itemHeight)
+          width: Theme.itemHeight
         }
       }
 
-      Text {
+      OText {
         Layout.fillWidth: true
+        bold: true
         color: "white"
         elide: Text.ElideRight
-        font.bold: true
-        font.pixelSize: 15
         horizontalAlignment: Text.AlignHCenter
         text: root.headerTitle
       }
 
       RowLayout {
-        spacing: 6
+        spacing: Theme.spacingXs
 
         StandardButton {
           Accessible.name: root.groupExpanded ? "Collapse group" : "Expand group"
@@ -168,16 +168,16 @@ Item {
             border.color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.4) : Qt.rgba(1, 1, 1, 0.1)) : "transparent"
             border.width: messageItem.isMultipleItems ? 1 : 0
             color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03)) : "transparent"
-            radius: 6
+            radius: Theme.radiusSm
 
             Behavior on border.color {
               ColorAnimation {
-                duration: 150
+                duration: Theme.animationDuration
               }
             }
             Behavior on color {
               ColorAnimation {
-                duration: 150
+                duration: Theme.animationDuration
               }
             }
           }
@@ -219,7 +219,7 @@ Item {
 
             RowLayout {
               Layout.fillWidth: true
-              spacing: 8
+              spacing: Theme.spacingSm
 
               Image {
                 Layout.preferredHeight: visible ? 24 : 0
@@ -236,7 +236,7 @@ Item {
                 Layout.fillWidth: true
                 color: "#dddddd"
                 elide: Text.ElideRight
-                font.pixelSize: 14
+                font.pixelSize: Theme.fontMd
                 horizontalAlignment: messageItem.isMultipleItems ? Text.AlignLeft : Text.AlignHCenter
                 maximumLineCount: messageColumn.expanded ? 0 : 2
                 text: messageColumn.summary
@@ -249,16 +249,16 @@ Item {
                 onTruncatedChanged: messageColumn.summaryTruncated = truncated || lineCount > 2
               }
 
-              Text {
+              OText {
                 color: Theme.textInactiveColor
-                font.pixelSize: 11
                 opacity: 0.7
+                size: "xs"
                 text: messageItem.modelData?.historyTimeStr || ""
                 visible: root.showTimestamp && text
               }
 
               RowLayout {
-                spacing: 6
+                spacing: Theme.spacingXs
 
                 StandardButton {
                   Accessible.name: messageColumn.expanded ? "Collapse message" : "Expand message"
@@ -293,7 +293,7 @@ Item {
                   id: bodyText
 
                   color: "#bbbbbb"
-                  font.pixelSize: 12
+                  font.pixelSize: Theme.fontSm
                   linkColor: root.accentColor
                   text: messageColumn.renderedBodyMeta.text
                   textFormat: messageColumn.renderedBodyMeta.format
@@ -335,22 +335,22 @@ Item {
             }
 
             Loader {
-              Layout.bottomMargin: 4
+              Layout.bottomMargin: Theme.spacingXs
               Layout.fillWidth: true
-              Layout.topMargin: 4
+              Layout.topMargin: Theme.spacingXs
               active: messageColumn.hasInlineReply
               visible: active
 
               sourceComponent: RowLayout {
-                spacing: 8
+                spacing: Theme.spacingSm
 
                 TextField {
                   id: replyField
 
                   Layout.fillWidth: true
                   activeFocusOnPress: true
-                  font.pixelSize: 13
-                  padding: 8
+                  font.pixelSize: Theme.fontSm
+                  padding: Theme.spacingSm
                   placeholderText: messageColumn.inlineReplyPlaceholder
                   selectByMouse: true
 
@@ -393,9 +393,8 @@ Item {
             ColumnLayout {
               Layout.fillWidth: true
               Layout.preferredHeight: visible ? implicitHeight : 0
-              Layout.topMargin: 4
+              Layout.topMargin: Theme.spacingXs
               implicitHeight: actionsRow.implicitHeight
-              spacing: 0
               visible: messageColumn.actionsModel.length > 0
 
               RowLayout {
@@ -404,7 +403,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.fillWidth: true
                 implicitHeight: childrenRect.height
-                spacing: 8
+                spacing: Theme.spacingSm
 
                 Repeater {
                   model: messageColumn.actionsModel

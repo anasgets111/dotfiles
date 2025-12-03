@@ -1,23 +1,25 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Window
 import qs.Config
 
 Item {
   id: root
 
-  readonly property real _hMargin: 12
-  readonly property real _minHeight: 40
-  readonly property real _minWidth: 50
-  readonly property real _vMargin: 12
+  readonly property real _hMargin: Theme.spacingMd
+  readonly property real _hPadding: Theme.spacingSm
+  readonly property real _minHeight: Theme.controlHeightMd
+  readonly property real _minWidth: Theme.controlWidthLg
+  readonly property real _vMargin: Theme.spacingMd
+  readonly property real _vPadding: Theme.spacingXs
   readonly property color bgColor: Theme.onHoverColor
   readonly property color borderColor: Theme.inactiveColor
-  readonly property int borderWidth: 1
-  readonly property real cornerRadius: Theme.itemRadius
+  readonly property int borderWidth: Theme.borderWidthThin
+  default property alias content: contentContainer.data
+  readonly property real cornerRadius: Theme.radiusMd
   readonly property int fadeDuration: Theme.animationDuration
   readonly property color fgColor: Theme.textContrast(bgColor)
-  readonly property real hPadding: 8
+  readonly property bool hasCustomContent: contentContainer.children.length > 0
   property bool isVisible: false
   property int maxWidth: 420
   readonly property Item overlayParent: {
@@ -32,7 +34,6 @@ Item {
   property bool positionRight: false
   property Item target: null
   property string text: ""
-  readonly property real vPadding: 4
   property bool wrapText: false
 
   function _computePosition(w, h) {
@@ -80,11 +81,13 @@ Item {
     root.y = clamp(root.y, minY, maxY);
   }
 
-  height: Math.max(root._minHeight, tooltipText.implicitHeight + root.vPadding * 2)
+  height: root.hasCustomContent ? Math.max(root._minHeight, contentContainer.implicitHeight + root._vPadding * 2) : Math.max(root._minHeight, tooltipText.implicitHeight + root._vPadding * 2)
   parent: overlayParent
   visible: false
-  width: Math.max(root._minWidth, tooltipText.implicitWidth + root.hPadding * 2)
+  width: root.hasCustomContent ? Math.max(root._minWidth, contentContainer.implicitWidth + root._hPadding * 2) : Math.max(root._minWidth, tooltipText.implicitWidth + root._hPadding * 2)
 
+  onHeightChanged: if (root.visible)
+    root._computePosition(root.width, root.height)
   onIsVisibleChanged: {
     if (!root.target)
       return;
@@ -103,9 +106,9 @@ Item {
     root._computePosition(root.width, root.height)
   onParentChanged: if (root.visible)
     root._computePosition(root.width, root.height)
-
-  // Reposition on content/geometry changes
   onTextChanged: if (root.visible)
+    root._computePosition(root.width, root.height)
+  onWidthChanged: if (root.visible)
     root._computePosition(root.width, root.height)
   onWrapTextChanged: if (root.visible)
     root._computePosition(root.width, root.height)
@@ -161,13 +164,29 @@ Item {
       color: root.fgColor
       elide: Text.ElideNone
       font.family: Theme.fontFamily
-      font.pixelSize: Theme.fontSize
+      font.pixelSize: Theme.fontMd
       horizontalAlignment: Text.AlignHCenter
       maximumLineCount: 16
       text: root.text
       verticalAlignment: Text.AlignVCenter
-      width: root.wrapText ? (root.maxWidth - root.hPadding * 2) : implicitWidth
+      visible: !root.hasCustomContent
+      width: root.wrapText ? (root.maxWidth - root._hPadding * 2) : implicitWidth
       wrapMode: root.wrapText ? Text.Wrap : Text.NoWrap
+    }
+
+    // Container for custom content
+    Item {
+      id: contentContainer
+
+      anchors.centerIn: parent
+      implicitHeight: childrenRect.height
+      implicitWidth: childrenRect.width
+      visible: root.hasCustomContent
+
+      onImplicitHeightChanged: if (root.visible)
+        root._computePosition(root.width, root.height)
+      onImplicitWidthChanged: if (root.visible)
+        root._computePosition(root.width, root.height)
     }
   }
 }

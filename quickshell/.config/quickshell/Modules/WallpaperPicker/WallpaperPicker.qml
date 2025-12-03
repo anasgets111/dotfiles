@@ -148,11 +148,11 @@ SearchGridPanel {
   }
 
   cellHeight: 150
-  cellPadding: 24
+  cellPadding: Theme.spacingXl
   cellWidth: 240
   closeOnActivate: false
-  contentMargin: 16
-  contentSpacing: 10
+  contentMargin: Theme.spacingLg
+  contentSpacing: Theme.spacingMd
   delegateComponent: wallpaperDelegate
   finderBuilder: null
   iconSelector: function (entry) {
@@ -173,7 +173,7 @@ SearchGridPanel {
   footerContent: [
     RowLayout {
       Layout.fillWidth: true
-      spacing: 8
+      spacing: Theme.spacingSm
 
       OButton {
         id: cancelActionButton
@@ -201,13 +201,13 @@ SearchGridPanel {
   headerContent: [
     RowLayout {
       Layout.fillWidth: true
-      spacing: 16
+      spacing: Theme.spacingLg
 
       RowLayout {
         Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
         Layout.fillWidth: true
         Layout.minimumWidth: 280
-        spacing: 8
+        spacing: Theme.spacingSm
 
         OInput {
           id: folderPathInput
@@ -225,7 +225,7 @@ SearchGridPanel {
 
       RowLayout {
         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-        spacing: 8
+        spacing: Theme.spacingSm
 
         OComboBox {
           id: monitorSelector
@@ -246,7 +246,7 @@ SearchGridPanel {
 
       RowLayout {
         Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-        spacing: 8
+        spacing: Theme.spacingSm
 
         OComboBox {
           id: fillModeSelector
@@ -346,7 +346,7 @@ SearchGridPanel {
         id: tileFrame
 
         anchors.fill: parent
-        anchors.margins: 8
+        anchors.margins: Theme.spacingSm
         border.color: wallpaperItem.selected ? Theme.activeColor : (wallpaperItem.hovered ? Theme.onHoverColor : Theme.borderColor)
         border.width: 1
         color: Qt.rgba(0, 0, 0, 0.18)
@@ -395,9 +395,9 @@ SearchGridPanel {
 
             OText {
               anchors.left: parent.left
-              anchors.leftMargin: 12
+              anchors.leftMargin: Theme.spacingMd
               anchors.right: parent.right
-              anchors.rightMargin: 12
+              anchors.rightMargin: Theme.spacingMd
               anchors.verticalCenter: parent.verticalCenter
               elide: Text.ElideRight
               horizontalAlignment: Text.AlignLeft
