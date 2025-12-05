@@ -10,6 +10,7 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  property var _dismissingGroupKeys: ({})
   property Timer _groupUpdateDebounce: Timer {
     interval: 16
     repeat: false
@@ -20,12 +21,13 @@ Singleton {
   property var _groupedPopupsCache: []
   property bool _isDestroying: false
   property bool _popupGateBusy: false
+  property var _shownPopupKeys: ({})
   readonly property int animationDuration: 400
   property bool doNotDisturb: false
   property var expandedGroups: ({})
   readonly property var groupedNotifications: root._groupedNotificationsCache
   readonly property var groupedPopups: root._groupedPopupsCache
-  readonly property var inlineReplyIdSet: new Set(["inline-reply", "inline_reply", "inline reply", "quick_reply", "quick-reply", "reply", "reply_inline", "reply-inline"])
+  readonly property var inlineReplyIds: ["inline-reply", "inline_reply", "inline reply", "quick_reply", "quick-reply", "reply", "reply_inline", "reply-inline"]
   readonly property int maxNotificationsPerApp: 10
   readonly property int maxStoredNotifications: 100
   readonly property int maxVisibleNotifications: 3
@@ -38,32 +40,42 @@ Singleton {
 
   function _computeGroups(notificationList) {
     const groups = {};
-    for (const notif of notificationList) {
-      if (!notif)
-        continue;
-      const groupKey = root.getGroupKey(notif);
-      if (!groups[groupKey]) {
-        groups[groupKey] = {
-          key: groupKey,
+    for (const notif of notificationList.filter(Boolean)) {
+      const key = root.getGroupKey(notif);
+      if (!groups[key])
+        groups[key] = {
+          key,
           appName: notif.appName,
           notifications: [],
           latestNotification: notif,
           hasInlineReply: false,
           count: 0
         };
-      }
-      groups[groupKey].notifications.unshift(notif);
-      groups[groupKey].count = groups[groupKey].notifications.length;
-      if (notif.notification?.hasInlineReply)
-        groups[groupKey].hasInlineReply = true;
+      const g = groups[key];
+      g.notifications.unshift(notif);
+      g.count = g.notifications.length;
+      g.hasInlineReply = g.hasInlineReply || notif.notification?.hasInlineReply;
     }
     return Object.values(groups).sort((a, b) => {
-      const aUrgency = a.latestNotification?.urgency ?? 0;
-      const bUrgency = b.latestNotification?.urgency ?? 0;
-      if (aUrgency !== bUrgency)
-        return bUrgency - aUrgency;
-      return (b.latestNotification?.time?.getTime() ?? 0) - (a.latestNotification?.time?.getTime() ?? 0);
+      const urgDiff = (b.latestNotification?.urgency ?? 0) - (a.latestNotification?.urgency ?? 0);
+      return urgDiff || (b.latestNotification?.time?.getTime() ?? 0) - (a.latestNotification?.time?.getTime() ?? 0);
     });
+  }
+
+  function _finishDismiss(groupKey, wrappers) {
+    if (groupKey)
+      root._setGroupDismissing(groupKey, false);
+    for (const wrapper of wrappers) {
+      if (wrapper) {
+        wrapper.popup = false;
+        root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
+        root.notifications = root.notifications.filter(n => n !== wrapper);
+        wrapper.notification?.dismiss();
+        wrapper.destroy();
+      }
+    }
+    if (root && !root._isDestroying)
+      root._showNextPopup();
   }
 
   function _limitNotificationsPerApp() {
@@ -92,47 +104,51 @@ Singleton {
     if (!length || Number.isNaN(length))
       return [];
 
-    const list = [];
-    for (let i = 0; i < length; i++) {
-      if (actions[i])
-        list.push(actions[i]);
-    }
+    const list = Array.from({
+      length
+    }, (_, i) => actions[i]).filter(Boolean);
     if (!list.length)
       return [];
 
     const seen = new Set();
     const hasInline = notification?.hasInlineReply === true;
-    const placeholderKey = String(notification?.inlineReplyPlaceholder || "").trim().toLowerCase();
-    const result = [];
+    const placeholderKey = (notification?.inlineReplyPlaceholder || "").trim().toLowerCase();
 
-    for (const action of list) {
-      const identifier = String(action.identifier || action.id || action.name || "").trim();
-      const label = String(action.text || action.title || action.label || identifier).trim();
+    return list.reduce((result, action) => {
+      const identifier = (action.identifier || action.id || action.name || "").trim();
+      const label = (action.text || action.title || action.label || identifier).trim();
       const idKey = identifier.toLowerCase();
       const labelKey = label.toLowerCase();
 
-      // Skip inline reply actions
-      const isInline = action.isInlineReply === true || (hasInline && (root.inlineReplyIdSet.has(idKey) || root.inlineReplyIdSet.has(labelKey) || (placeholderKey && labelKey === placeholderKey)));
-      if (isInline)
-        continue;
+      // Skip inline reply actions (strict check - external data may have truthy non-boolean values)
+      if (action.isInlineReply === true || (hasInline && (root.inlineReplyIds.includes(idKey) || root.inlineReplyIds.includes(labelKey) || (placeholderKey && labelKey === placeholderKey))))
+        return result;
 
       const id = identifier || label || `action-${result.length}`;
-      const key = id.toLowerCase();
-      if (seen.has(key))
-        continue;
+      if (seen.has(id.toLowerCase()))
+        return result;
 
-      seen.add(key);
+      seen.add(id.toLowerCase());
       result.push({
         id,
         title: label || id,
         _obj: action
       });
-    }
-    return result;
+      return result;
+    }, []);
   }
 
   function _scheduleGroupUpdate() {
     root._groupUpdateDebounce.restart();
+  }
+
+  function _setGroupDismissing(key, value) {
+    const next = Object.assign({}, root._dismissingGroupKeys);
+    if (value)
+      next[key] = true;
+    else
+      delete next[key];
+    root._dismissingGroupKeys = next;
   }
 
   function _showNextPopup() {
@@ -185,6 +201,15 @@ Singleton {
   function _updateGroupCaches() {
     root._groupedNotificationsCache = root._computeGroups(root.notifications);
     root._groupedPopupsCache = root._computeGroups(root.visibleNotifications);
+
+    // Clean up stale popup keys for groups no longer visible
+    const activeKeys = {};
+    for (const g of root._groupedPopupsCache)
+      activeKeys[g.key] = true;
+    for (const key in root._shownPopupKeys) {
+      if (!activeKeys[key])
+        delete root._shownPopupKeys[key];
+    }
   }
 
   function clearAllNotifications() {
@@ -199,6 +224,7 @@ Singleton {
     const toDestroy = [...root.notifications];
     root.notifications = [];
     root.expandedGroups = {};
+    root._shownPopupKeys = {};
 
     for (const wrapper of toDestroy) {
       if (wrapper && !wrapper.isDismissing) {
@@ -216,33 +242,65 @@ Singleton {
   }
 
   function dismissGroup(groupKey) {
-    if (!groupKey)
+    if (!groupKey || root._dismissingGroupKeys[groupKey])
       return;
+
     const group = root.groupedPopups.find(g => g.key === groupKey) || root.groupedNotifications.find(g => g.key === groupKey);
-    if (group) {
-      // Copy array to avoid mutation during iteration
-      const items = [...group.notifications];
-      for (const notif of items)
-        root.dismissNotification(notif);
+    if (!group)
+      return;
+
+    // Mark all as dismissing and collect wrappers
+    const wrappers = [];
+    for (const notif of group.notifications) {
+      if (notif && !notif.isDismissing) {
+        notif.isDismissing = true;
+        notif.timer?.stop();
+        wrappers.push(notif);
+      }
     }
+
+    // Trigger slide-out animation
+    root._setGroupDismissing(groupKey, true);
+
+    // Delay actual removal until animation completes
+    dismissAnimTimer.createObject(root, {
+      groupKey,
+      wrappers
+    });
   }
 
   function dismissNotification(wrapper) {
     if (!wrapper || wrapper.isDismissing)
       return;
+
+    const groupKey = root.getGroupKey(wrapper);
+
+    // Check if already animating this group
+    if (root._dismissingGroupKeys[groupKey])
+      return;
+
+    // Find how many non-dismissing items remain in this popup group
+    const group = root.groupedPopups.find(g => g.key === groupKey);
+    const remainingInPopup = group ? group.notifications.filter(n => !n.isDismissing).length : 0;
+    const isLastInPopupGroup = remainingInPopup === 1;
+
     wrapper.isDismissing = true;
     wrapper.timer?.stop();
-    wrapper.popup = false;
 
-    root.visibleNotifications = root.visibleNotifications.filter(n => n !== wrapper);
-    root.notifications = root.notifications.filter(n => n !== wrapper);
-
-    wrapper.notification?.dismiss();
-    Qt.callLater(() => {
-      wrapper.destroy();
-      if (root && !root._isDestroying)
-        root._showNextPopup();
-    });
+    if (isLastInPopupGroup) {
+      // Animate the whole card out
+      root._setGroupDismissing(groupKey, true);
+      dismissAnimTimer.createObject(root, {
+        groupKey,
+        wrappers: [wrapper]
+      });
+    } else {
+      // Individual message animates out, then gets removed
+      dismissAnimTimer.createObject(root, {
+        groupKey: "",
+        wrappers: [wrapper]
+      });
+    }
   }
 
   function dismissNotificationsByAppName(appName) {
@@ -298,6 +356,18 @@ Singleton {
     }
   }
 
+  function isGroupDismissing(key) {
+    return !!root._dismissingGroupKeys[key];
+  }
+
+  function isPopupNew(key) {
+    return !root._shownPopupKeys[key];
+  }
+
+  function markPopupShown(key) {
+    root._shownPopupKeys[key] = true;
+  }
+
   function onOverlayClose() {
     Qt.callLater(() => {
       if (root && !root._isDestroying) {
@@ -325,17 +395,18 @@ Singleton {
         format: Qt.PlainText
       };
 
+    // Try markdown conversion first (separate try-catch for fallback to URL linking)
     try {
-      if (typeof Markdown2Html !== "undefined" && typeof Markdown2Html.toDisplay === "function") {
+      if (typeof Markdown2Html !== "undefined" && Markdown2Html.toDisplay) {
         const result = Markdown2Html.toDisplay(raw);
         if (result?.format === Qt.RichText)
           return result;
       }
     } catch (e) {}
 
+    // Fallback: escape HTML and convert URLs to links
     try {
-      const escapeHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-      const escaped = escapeHtml(raw);
+      const escaped = raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
       const urlRegex = /((?:https?|file):\/\/[^\s<>'\"]*)/gi;
       let hasUrl = false;
       const html = escaped.replace(urlRegex, m => {
@@ -467,6 +538,23 @@ Singleton {
     }
   }
 
+  Component {
+    id: dismissAnimTimer
+
+    Timer {
+      required property string groupKey
+      required property var wrappers
+
+      interval: root.animationDuration
+      running: true
+
+      onTriggered: {
+        root._finishDismiss(groupKey, wrappers);
+        destroy();
+      }
+    }
+  }
+
   Connections {
     function onUse24HourChanged() {
       root._scheduleGroupUpdate();
@@ -537,24 +625,18 @@ Singleton {
     readonly property string summary: notification?.summary || ""
     readonly property date time: new Date()
     readonly property string timeStr: {
-      root.groupedNotifications;
+      root.groupedNotifications; // dependency trigger
       const now = new Date();
-      const diff = now.getTime() - wrapper.time.getTime();
-      const minutes = Math.floor(diff / 60000);
+      const minutes = Math.floor((now - wrapper.time) / 60000);
       if (minutes < 1)
         return "now";
       if (minutes < 60)
         return `${minutes}m ago`;
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const notifDay = new Date(wrapper.time.getFullYear(), wrapper.time.getMonth(), wrapper.time.getDate());
-      const daysDiff = Math.floor((today - notifDay) / 86400000);
 
+      const daysDiff = Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - new Date(wrapper.time.getFullYear(), wrapper.time.getMonth(), wrapper.time.getDate())) / 86400000);
       const timeFormat = root.use24Hour() ? "HH:mm" : "h:mm AP";
-      if (daysDiff === 0)
-        return wrapper.time.toLocaleTimeString(Qt.locale(), timeFormat);
-      if (daysDiff === 1)
-        return `yesterday, ${wrapper.time.toLocaleTimeString(Qt.locale(), timeFormat)}`;
-      return `${daysDiff} days ago`;
+      const timeStr = wrapper.time.toLocaleTimeString(Qt.locale(), timeFormat);
+      return daysDiff === 0 ? timeStr : daysDiff === 1 ? `yesterday, ${timeStr}` : `${daysDiff} days ago`;
     }
     readonly property Timer timer: Timer {
       interval: root.getTimeoutForUrgency(wrapper.urgency)
@@ -563,7 +645,7 @@ Singleton {
 
       onTriggered: {
         if (wrapper.timer.interval > 0)
-          wrapper.popup = false;
+          root.dismissNotification(wrapper);
       }
     }
     readonly property int urgency: notification?.urgency || NotificationUrgency.Normal
