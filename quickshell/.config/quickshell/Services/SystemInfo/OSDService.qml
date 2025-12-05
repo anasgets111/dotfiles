@@ -286,15 +286,15 @@ Singleton {
     }
 
     function onCurrentLayoutChanged() {
-      root.showOSD(root.types.keyboardLayout, KeyboardLayoutService.currentLayout || "??", "", `Layout: ${KeyboardLayoutService.currentLayout || "??"}`);
+      root.showOSD(root.types.keyboardLayout, KeyboardLayoutService.currentLayout || "??", "󰌌", `Layout: ${KeyboardLayoutService.currentLayout || "??"}`);
     }
 
     function onNumOnChanged() {
-      root.showToggleOSD(root.types.numLock, KeyboardLayoutService.numOn, "", "", "Num Lock");
+      root.showToggleOSD(root.types.numLock, KeyboardLayoutService.numOn, "󰎠", "󰎠", "Num Lock");
     }
 
     function onScrollOnChanged() {
-      root.showToggleOSD(root.types.scrollLock, KeyboardLayoutService.scrollOn, "󰌐", "", "Scroll Lock");
+      root.showToggleOSD(root.types.scrollLock, KeyboardLayoutService.scrollOn, "󰌐", "󰌐", "Scroll Lock");
     }
 
     target: KeyboardLayoutService

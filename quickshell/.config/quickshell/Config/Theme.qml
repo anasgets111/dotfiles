@@ -189,9 +189,21 @@ Singleton {
   readonly property int launcherIconSize: Math.round(72 * baseScale)
   readonly property int launcherWindowHeight: Math.round(471 * baseScale)
   readonly property int launcherWindowWidth: Math.round(741 * baseScale)
-  // Lock screen card width
-  readonly property int lockCardContentWidth: Math.round(400 * baseScale)
-  readonly property int lockCardMaxWidth: Math.round(500 * baseScale)
+
+  // Lock screen card width (scaled for high-res displays)
+  readonly property int lockCardContentWidth: Math.round(400 * baseScale * lockScale)
+  readonly property int lockCardMaxWidth: Math.round(500 * baseScale * lockScale)
+
+  // Lock screen scaling - boost for 2K+ and ultrawide displays
+  readonly property real lockScale: {
+    const height = _screenHeightPx;
+    // 1440p (2K) and above get a boost, ultrawides get additional boost
+    if (height >= 1440) {
+      const heightBoost = 1.15 + (height - 1440) / 2160 * 0.15; // 1.15 at 1440p, ~1.25 at 4K
+      return _isUltrawide ? heightBoost * 1.1 : heightBoost;
+    }
+    return _isUltrawide ? 1.1 : 1.0;
+  }
   readonly property int notificationAppIconSize: Math.round(40 * baseScale)
 
   // ═══════════════════════════════════════════════════════════════════════════

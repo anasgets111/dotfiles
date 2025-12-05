@@ -90,8 +90,11 @@ Item {
     ColumnLayout {
       id: contentColumn
 
+      // Lock-specific scale for 2K+/ultrawide
+      readonly property real ls: Theme.lockScale
+
       anchors.centerIn: parent
-      spacing: Theme.spacingLg
+      spacing: Math.round(Theme.spacingLg * ls)
       width: Math.min(Theme.lockCardContentWidth, parent.width - Theme.dialogPadding * 2)
 
       // Clock
@@ -102,7 +105,7 @@ Item {
         OText {
           Layout.alignment: Qt.AlignHCenter
           bold: true
-          sizeMultiplier: Theme.baseScale * 5
+          sizeMultiplier: Theme.baseScale * 5 * contentColumn.ls
           style: Text.Outline
           styleColor: Theme.withOpacity(Theme.bgColor, Theme.opacitySubtle)
           text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "h:mm AP")
@@ -111,6 +114,7 @@ Item {
         OText {
           Layout.alignment: Qt.AlignHCenter
           size: "xl"
+          sizeMultiplier: contentColumn.ls
           text: TimeService.format("date", "dddd, MMMM d")
           useActiveColor: false
           weight: Font.Medium
@@ -123,6 +127,7 @@ Item {
         bold: true
         opacity: Theme.opacityStrong
         size: "lg"
+        sizeMultiplier: contentColumn.ls
         text: MainService.fullName || "User"
         visible: !!text
       }
@@ -130,31 +135,34 @@ Item {
       // Status chips
       RowLayout {
         Layout.alignment: Qt.AlignHCenter
-        spacing: Theme.spacingMd
+        spacing: Math.round(Theme.spacingMd * contentColumn.ls)
 
         Chip {
           visible: !!WeatherService?.currentTemp
 
           OText {
             size: "lg"
+            sizeMultiplier: contentColumn.ls
             text: WeatherService?.weatherInfo().icon ?? ""
           }
 
           OText {
             bold: true
             size: "sm"
+            sizeMultiplier: contentColumn.ls
             text: String(WeatherService?.currentTemp ?? "").split(" ")[0]
           }
         }
 
         Chip {
           Text {
-            font.pixelSize: Theme.fontMd
+            font.pixelSize: Math.round(Theme.fontMd * contentColumn.ls)
             text: "💻"
           }
 
           OText {
             size: "sm"
+            sizeMultiplier: contentColumn.ls
             text: MainService.hostname || "localhost"
             useActiveColor: false
           }
@@ -163,9 +171,11 @@ Item {
 
       // Password input (main monitor only)
       Rectangle {
+        readonly property real ls: contentColumn.ls
+
         Layout.alignment: Qt.AlignHCenter
-        Layout.preferredHeight: Theme.controlHeightLg
-        Layout.preferredWidth: Math.min(contentColumn.width, Theme.controlHeightLg * 6)
+        Layout.preferredHeight: Math.round(Theme.controlHeightLg * ls)
+        Layout.preferredWidth: Math.min(contentColumn.width, Math.round(Theme.controlHeightLg * ls * 6))
         color: Theme.bgInput
         radius: Theme.radiusFull
         visible: root.isMainMonitor
@@ -183,13 +193,13 @@ Item {
 
         // Lock icon
         Text {
-          font.pixelSize: Theme.fontMd
+          font.pixelSize: Math.round(Theme.fontMd * parent.ls)
           opacity: Theme.opacityDisabled + 0.2
           text: "🔒"
 
           anchors {
             left: parent.left
-            leftMargin: Theme.spacingMd
+            leftMargin: Math.round(Theme.spacingMd * parent.ls)
             verticalCenter: parent.verticalCenter
           }
         }
@@ -197,7 +207,7 @@ Item {
         // Password dots
         Row {
           anchors.centerIn: parent
-          spacing: Theme.spacingXs
+          spacing: Math.round(Theme.spacingXs * contentColumn.ls)
           visible: LockService.passwordBuffer.length > 0
 
           Repeater {
@@ -207,9 +217,9 @@ Item {
               required property int index
 
               color: Theme.textActiveColor
-              height: Theme.spacingSm
+              height: Math.round(Theme.spacingSm * contentColumn.ls)
               radius: Theme.radiusXs
-              width: Theme.spacingSm
+              width: Math.round(Theme.spacingSm * contentColumn.ls)
             }
           }
         }
@@ -219,6 +229,7 @@ Item {
           anchors.centerIn: parent
           color: LockService.authState === "fail" ? Theme.critical : Theme.textInactiveColor
           size: "sm"
+          sizeMultiplier: contentColumn.ls
           text: LockService.statusMessage
           visible: !LockService.passwordBuffer
         }
@@ -226,14 +237,14 @@ Item {
         // Caps lock indicator
         Rectangle {
           color: Theme.warning
-          height: Theme.controlHeightXs
+          height: Math.round(Theme.controlHeightXs * contentColumn.ls)
           radius: Theme.radiusSm
           visible: KeyboardLayoutService.capsOn
-          width: capsText.implicitWidth + Theme.spacingMd
+          width: capsText.implicitWidth + Math.round(Theme.spacingMd * contentColumn.ls)
 
           anchors {
             right: parent.right
-            rightMargin: Theme.spacingSm
+            rightMargin: Math.round(Theme.spacingSm * contentColumn.ls)
             verticalCenter: parent.verticalCenter
           }
 
@@ -244,6 +255,7 @@ Item {
             bold: true
             color: Theme.bgColor
             size: "xs"
+            sizeMultiplier: contentColumn.ls
             text: "CAPS"
           }
         }
@@ -253,21 +265,22 @@ Item {
       RowLayout {
         Layout.alignment: Qt.AlignHCenter
         opacity: Theme.opacitySolid
-        spacing: Theme.spacingSm
+        spacing: Math.round(Theme.spacingSm * contentColumn.ls)
         visible: root.isMainMonitor
 
         // Battery
         RowLayout {
-          spacing: Theme.spacingXs
+          spacing: Math.round(Theme.spacingXs * contentColumn.ls)
           visible: BatteryService.isLaptopBattery
 
           Text {
-            font.pixelSize: Theme.fontSm
+            font.pixelSize: Math.round(Theme.fontSm * contentColumn.ls)
             text: BatteryService.isCharging ? "⚡" : "🔋"
           }
 
           OText {
             size: "sm"
+            sizeMultiplier: contentColumn.ls
             text: BatteryService.percentage + "%"
             useActiveColor: false
           }
@@ -279,6 +292,7 @@ Item {
 
         OText {
           size: "sm"
+          sizeMultiplier: contentColumn.ls
           text: "Enter to unlock"
           useActiveColor: false
         }
@@ -289,6 +303,7 @@ Item {
 
         OText {
           size: "sm"
+          sizeMultiplier: contentColumn.ls
           text: KeyboardLayoutService.currentLayout
           useActiveColor: false
           visible: !!KeyboardLayoutService.currentLayout
@@ -304,16 +319,17 @@ Item {
           readonly property string link: NetworkService.linkType || "disconnected"
           readonly property string ssid: NetworkService.wifiAps.find(a => a?.connected)?.ssid ?? ""
 
-          spacing: Theme.spacingXs
+          spacing: Math.round(Theme.spacingXs * contentColumn.ls)
           visible: NetworkService.ready
 
           Text {
-            font.pixelSize: Theme.fontSm
+            font.pixelSize: Math.round(Theme.fontSm * contentColumn.ls)
             text: parent.link === "ethernet" ? "🔌" : parent.link === "wifi" ? "📶" : "📵"
           }
 
           OText {
             size: "sm"
+            sizeMultiplier: contentColumn.ls
             text: parent.link === "ethernet" ? "Ethernet" : parent.link === "wifi" ? parent.ssid : "Offline"
             useActiveColor: false
           }
@@ -326,8 +342,8 @@ Item {
   component Chip: Rectangle {
     default property alias content: chipRow.children
 
-    Layout.preferredHeight: Theme.controlHeightMd
-    Layout.preferredWidth: chipRow.implicitWidth + Theme.spacingLg
+    Layout.preferredHeight: Math.round(Theme.controlHeightMd * contentColumn.ls)
+    Layout.preferredWidth: chipRow.implicitWidth + Math.round(Theme.spacingLg * contentColumn.ls)
     border.color: Theme.borderSubtle
     color: Theme.bgSubtle
     radius: Theme.radiusSm
@@ -336,14 +352,14 @@ Item {
       id: chipRow
 
       anchors.centerIn: parent
-      spacing: Theme.spacingXs
+      spacing: Math.round(Theme.spacingXs * contentColumn.ls)
     }
   }
 
   // Divider component
   component Divider: Rectangle {
     color: Theme.textInactiveColor
-    height: Theme.spacingMd
+    height: Math.round(Theme.spacingMd * contentColumn.ls)
     width: Theme.borderWidthThin
   }
 }
