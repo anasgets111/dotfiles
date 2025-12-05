@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
-# HDR-aware screenshot tool for Hyprland
-# Temporarily sets SDR brightness/saturation to 1.0 for color-accurate captures
+# HDR-aware screenshot for Hyprland - resets SDR brightness/saturation for accurate colors
 # Dependencies: hyprctl, jq, hyprshot, satty, wl-copy
 
 set -euo pipefail
 
 MODE="${1:-region}"
+SCREENSHOT_DIR="$HOME/Pictures"
+
 [[ "$MODE" =~ ^(region|output)$ ]] || { echo "Usage: $0 [region|output]" >&2; exit 1; }
 
-RESTORE_BATCH="" TMP=""
+RESTORE_BATCH=""
+TMP=""
+
 cleanup() {
     [[ -n "$RESTORE_BATCH" ]] && hyprctl --batch "$RESTORE_BATCH" &>/dev/null || true
     [[ -f "$TMP" ]] && rm -f "$TMP"
 }
 trap cleanup EXIT
 
-# Build batch commands for HDR monitors only (SDR monitors don't need adjustment)
+# Adjust HDR monitors (10-bit) - SDR monitors don't need adjustment
 SET_BATCH=""
 while IFS=$'\t' read -r name mode pos scale transform vrr mirror sdr_b sdr_s fmt; do
     [[ "$fmt" != *10* ]] && continue
@@ -23,18 +26,19 @@ while IFS=$'\t' read -r name mode pos scale transform vrr mirror sdr_b sdr_s fmt
     [[ -n "$mirror" ]] && base+=",mirror,$mirror"
     SET_BATCH+="keyword monitor $base,sdrbrightness,1.0,sdrsaturation,1.0;"
     RESTORE_BATCH+="keyword monitor $base,sdrbrightness,$sdr_b,sdrsaturation,$sdr_s;"
-done < <(hyprctl monitors -j | jq -r '
-    .[] | [.name, "\(.width)x\(.height)@\(.refreshRate)", "\(.x)x\(.y)",
-    (.scale|tostring), (.transform|tostring), (.vrr|tostring), (.mirrorOf // ""),
-    (.sdrBrightness|tostring), (.sdrSaturation|tostring), .currentFormat] | @tsv')
+done < <(hyprctl monitors -j | jq -r '.[] | [
+    .name, "\(.width)x\(.height)@\(.refreshRate)", "\(.x)x\(.y)",
+    (.scale|tostring), (.transform|tostring), (.vrr|tostring),
+    (.mirrorOf // ""), (.sdrBrightness|tostring), (.sdrSaturation|tostring),
+    .currentFormat] | @tsv')
 
-# Set HDR monitors to SDR 1.0 in one batch (instant, no flicker)
 [[ -n "$SET_BATCH" ]] && hyprctl --batch "$SET_BATCH" >/dev/null && sleep .05
 
+# Capture
 TMP=$(mktemp --suffix=.png)
 hyprshot --mode "$MODE" --freeze --raw > "$TMP" || exit 0
 
-# Wait for PNG to finish writing
+# Wait for PNG to finish writing (hyprshot --raw flushes async)
 for _ in {1..20}; do
     tail -c12 "$TMP" 2>/dev/null | grep -qa 'IEND' && break
     sleep .05
@@ -44,15 +48,15 @@ done
 head -c8 "$TMP" 2>/dev/null | grep -qa $'\x89PNG' || exit 0
 tail -c12 "$TMP" 2>/dev/null | grep -qa 'IEND' || exit 0
 
-# Restore HDR monitors in one batch
+# Restore monitors before editor opens
 [[ -n "$RESTORE_BATCH" ]] && hyprctl --batch "$RESTORE_BATCH" >/dev/null || true
 RESTORE_BATCH=""
 
-# Copy to clipboard and open editor
-mkdir -p "$HOME/Pictures"
+# Copy and edit
+mkdir -p "$SCREENSHOT_DIR"
 wl-copy < "$TMP" || true
 satty --filename "$TMP" \
-    --output-filename "$HOME/Pictures/$(date +%F_%H-%M-%S).png" \
+    --output-filename "$SCREENSHOT_DIR/$(date +%F_%H-%M-%S).png" \
     --early-exit \
     --actions-on-enter save-to-clipboard \
     --save-after-copy \
