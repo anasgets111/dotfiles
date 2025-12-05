@@ -25,6 +25,7 @@ Item {
     id: trayRow
 
     anchors.centerIn: parent
+    spacing: 0
 
     Repeater {
       id: trayRepeater
@@ -37,8 +38,6 @@ Item {
         required property SystemTrayItem modelData
 
         Layout.alignment: Qt.AlignVCenter
-        Layout.preferredHeight: Theme.itemHeight
-        Layout.preferredWidth: Theme.itemWidth
         icon: ""
         showBorder: false
         tooltipText: modelData.tooltipTitle || modelData.title || ""
