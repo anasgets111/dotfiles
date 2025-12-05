@@ -16,7 +16,7 @@ Item {
   PolkitAgent {
     id: agent
 
-    onAuthenticationRequestStarted: Logger.log("PolkitDialog", `Auth started: ${agent.flow?.message ?? '<no flow>'} for ${agent.flow?.actionId ?? '<no-action>'}`)
+    onAuthenticationRequestStarted: Logger.log("PolkitDialog", `Auth started: ${flow?.message ?? '<no flow>'} for ${flow?.actionId ?? '<no-action>'}`)
   }
 
   PanelWindow {
@@ -37,16 +37,23 @@ Item {
     color: Theme.bgOverlay
     visible: agent.isActive
 
-    onVisibleChanged: {
-      if (!visible)
-        background.forceActiveFocus();
-    }
+    onVisibleChanged: if (!visible)
+      background.forceActiveFocus()
 
     anchors {
       bottom: true
       left: true
       right: true
       top: true
+    }
+
+    Connections {
+      function onAuthenticationRequestStarted(): void {
+        passwordField.text = "";
+        Qt.callLater(passwordField.forceActiveFocus);
+      }
+
+      target: agent
     }
 
     Rectangle {
@@ -113,6 +120,7 @@ Item {
             echoMode: window.flow?.responseVisible ? TextInput.Normal : TextInput.Password
             placeholderText: qsTr("Password")
 
+            Keys.onEscapePressed: window.flow?.cancelAuthenticationRequest()
             onInputAccepted: window.submit()
           }
 
@@ -143,17 +151,6 @@ Item {
           }
         }
       }
-    }
-
-    Connections {
-      function onAuthenticationRequestStarted(): void {
-        passwordField.text = "";
-        Qt.callLater(() => {
-          passwordField.forceActiveFocus();
-        });
-      }
-
-      target: agent
     }
   }
 }
