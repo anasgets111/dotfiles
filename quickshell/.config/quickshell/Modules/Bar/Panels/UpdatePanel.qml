@@ -263,7 +263,26 @@ OPanel {
 
               color: {
                 const t = text.toLowerCase();
-                return t.includes("error") || t.includes("failed") ? Theme.critical : t.includes("warning") ? Theme.warning : t.includes("installing") || t.includes("upgrading") ? Theme.activeColor : Theme.textInactiveColor;
+                const raw = text;
+                // Error (highest priority)
+                if (t.includes("[fail]") || t.includes("error") || t.includes("failed"))
+                  return Theme.critical;
+                // Warning
+                if (t.includes("[skip]") || t.includes("warning"))
+                  return Theme.warning;
+                // Success
+                if (t.includes("[ ok ]") || t.includes("successful") || t.includes("done.") || t.includes("is up to date") || t.includes("nothing to do") || t.includes("no packages need"))
+                  return Theme.powerSaveColor;
+                // Section headers
+                if (raw.startsWith("▶") || raw.startsWith("::") || (raw.startsWith("==>") && !t.includes("warning")))
+                  return Theme.textActiveColor;
+                // Progress indicators
+                if (/\(\d+\/\d+\)/.test(raw) || t.includes("installing") || t.includes("upgrading"))
+                  return Theme.activeColor;
+                // Build hooks
+                if (t.includes("-> running") || t.includes("build hook"))
+                  return "#89B4FA";
+                return Theme.textInactiveColor;
               }
               font.family: "Monospace"
               font.pixelSize: Theme.fontSize * 0.9
