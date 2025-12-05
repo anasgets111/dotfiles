@@ -9,7 +9,7 @@ import qs.Modules.Bar.Panels
 Rectangle {
   id: root
 
-  readonly property real collapsedWidth: volumeIconSize + Theme.spacingLg
+  readonly property real collapsedWidth: Theme.itemHeight
   readonly property real currentVolume: AudioService.volume
   readonly property real displayValue: volumeSlider.dragging ? volumeSlider.pending : sliderValue
   property bool expanded: hoverHandler.hovered
