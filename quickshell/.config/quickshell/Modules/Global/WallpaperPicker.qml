@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import Qt5Compat.GraphicalEffects
 import qs.Components
 import qs.Config
 import qs.Services.Core
@@ -10,49 +9,50 @@ import qs.Services.Core
 SearchGridPanel {
   id: picker
 
-  readonly property var _modeLabels: ({
-      fill: qsTr("Fill"),
-      fit: qsTr("Fit"),
-      center: qsTr("Center"),
-      stretch: qsTr("Stretch"),
-      tile: qsTr("Tile")
-    })
-  readonly property var _transitionLabels: ({
-      fade: qsTr("Fade"),
-      wipe: qsTr("Wipe"),
-      disc: qsTr("Disc"),
-      stripes: qsTr("Stripes"),
-      portal: qsTr("Portal")
-    })
-  property alias applyButton: applyActionButton
-  property alias cancelButton: cancelActionButton
-  property alias fillModeCombo: fillModeSelector
   readonly property var fillModeOptions: (WallpaperService?.availableModes ?? []).map(m => ({
-        label: _modeLabels[m] ?? m,
+        label: {
+          fill: qsTr("Fill"),
+          fit: qsTr("Fit"),
+          center: qsTr("Center"),
+          stretch: qsTr("Stretch"),
+          tile: qsTr("Tile")
+        }[m] ?? m,
         value: m
       }))
-  property alias folderInput: folderPathInput
   property bool loadingFromService: false
-  property alias monitorCombo: monitorSelector
-  readonly property var monitorOptions: [
-    {
-      label: qsTr("All Monitors"),
-      value: "all"
-    }
-  ].concat((WallpaperService?.monitors ?? []).map(m => ({
-        label: m.name,
-        value: m.name
-      })).filter(e => e.value))
+
+  // Derived options
+  readonly property var monitorOptions: {
+    const list = [
+      {
+        label: qsTr("All Monitors"),
+        value: "all"
+      }
+    ];
+    for (const m of WallpaperService?.monitors ?? [])
+      if (m?.name)
+        list.push({
+          label: m.name,
+          value: m.name
+        });
+    return list;
+  }
+
+  // Mutable state
   property string selectedMonitor: "all"
   property var stagedModes: ({})
   property string stagedTransition: "disc"
   property var stagedWallpapers: ({})
-  property alias transitionCombo: transitionSelector
   readonly property var transitionOptions: (WallpaperService?.availableTransitions ?? []).map(t => ({
-        label: _transitionLabels[t] ?? t,
+        label: {
+          fade: qsTr("Fade"),
+          wipe: qsTr("Wipe"),
+          disc: qsTr("Disc"),
+          stripes: qsTr("Stripes"),
+          portal: qsTr("Portal")
+        }[t] ?? t,
         value: t
       }))
-  property string wallpaperFolder: WallpaperService?.wallpaperFolder ?? ""
 
   signal applyRequested
   signal cancelRequested
@@ -61,20 +61,18 @@ SearchGridPanel {
     if (!WallpaperService?.ready)
       return;
     const applyToAll = selectedMonitor === "all" && stagedWallpapers.all;
-
-    for (const option of monitorOptions) {
-      if (option.value === "all")
+    for (const {
+      value: name
+    } of monitorOptions) {
+      if (name === "all")
         continue;
-      const name = option.value;
       const mode = stagedModes[name] ?? stagedModes.all ?? WallpaperService.defaultMode;
       const wallpaper = applyToAll ? stagedWallpapers.all : (stagedWallpapers[name] ?? "");
-
       if (mode)
         WallpaperService.setModePref(name, mode);
       if (wallpaper)
         WallpaperService.setWallpaper(name, wallpaper);
     }
-
     WallpaperService.setWallpaperTransition(stagedTransition);
     loadFromService(selectedMonitor);
     applyRequested();
@@ -83,19 +81,21 @@ SearchGridPanel {
   function loadFromService(preferredMonitor) {
     loadingFromService = true;
     const monitors = WallpaperService?.monitors ?? [];
+    const defaultMode = WallpaperService?.defaultMode ?? "fill";
     const modes = {
-      all: WallpaperService?.defaultMode ?? "fill"
+      all: defaultMode
     };
     const wallpapers = {
       all: ""
     };
 
-    for (const mon of monitors) {
-      const name = mon?.name;
+    for (const {
+      name
+    } of monitors) {
       if (!name)
         continue;
       const state = WallpaperService?.ready ? WallpaperService.wallpaperFor(name) : null;
-      modes[name] = state?.mode ?? modes.all;
+      modes[name] = state?.mode ?? defaultMode;
       wallpapers[name] = state?.wallpaper ?? "";
     }
 
@@ -103,44 +103,29 @@ SearchGridPanel {
     stagedWallpapers = wallpapers;
     stagedTransition = WallpaperService?.wallpaperTransition ?? "disc";
 
-    const validNames = monitors.map(m => m?.name).filter(Boolean);
-    const preferred = preferredMonitor ?? selectedMonitor;
-    selectedMonitor = (preferred !== "all" && validNames.includes(preferred)) ? preferred : "all";
-
-    updateCurrentWallpaperSelection();
+    const names = monitors.map(m => m?.name).filter(Boolean);
+    const pref = preferredMonitor ?? selectedMonitor;
+    selectedMonitor = (pref !== "all" && names.includes(pref)) ? pref : "all";
+    updateSelection();
     loadingFromService = false;
   }
 
-  function refreshWallpapers() {
-    const folder = String(picker.wallpaperFolder || "").replace(/\/$/, "");
-    if (!folder.length)
-      return;
-    WallpaperService.setWallpaperFolder(folder);
-  }
-
   function stageWallpaper(entry) {
-    const path = entry?.path;
-    if (!path)
+    if (!entry?.path)
       return;
     const key = selectedMonitor === "all" ? "all" : selectedMonitor;
-    const updated = Object.assign({}, stagedWallpapers);
-    updated[key] = path;
-    stagedWallpapers = updated;
-    updateCurrentWallpaperSelection();
+    stagedWallpapers = Object.assign({}, stagedWallpapers, {
+      [key]: entry.path
+    });
+    updateSelection();
   }
 
-  function stagedWallpaperForMonitor(name) {
-    if (name && name !== "all")
-      return stagedWallpapers[name] || stagedWallpapers.all || "";
-    return stagedWallpapers.all || "";
-  }
-
-  function updateCurrentWallpaperSelection() {
+  function updateSelection() {
     const items = WallpaperService?.wallpaperFiles ?? [];
-    const expectedPath = stagedWallpaperForMonitor(selectedMonitor);
-    if (!items.length || !expectedPath)
+    const expected = stagedWallpapers[selectedMonitor] || stagedWallpapers.all || "";
+    if (!items.length || !expected)
       return;
-    const idx = items.findIndex(entry => entry?.path === expectedPath);
+    const idx = items.findIndex(e => e?.path === expected);
     if (idx >= 0)
       currentIndex = idx;
   }
@@ -152,19 +137,12 @@ SearchGridPanel {
   contentMargin: Theme.spacingLg
   contentSpacing: Theme.spacingMd
   delegateComponent: wallpaperDelegate
-  finderBuilder: null
-  iconSelector: function (entry) {
-    return entry?.previewSource || "";
-  }
+  iconSelector: entry => entry?.previewSource ?? ""
   itemImageSize: 265
-  items: WallpaperService?.wallpaperFiles || []
-  labelSelector: function (entry) {
-    return entry?.displayName || "";
-  }
+  items: WallpaperService?.wallpaperFiles ?? []
+  labelSelector: entry => entry?.displayName ?? ""
   placeholderText: qsTr("Search wallpapers…")
-  searchSelector: function (entry) {
-    return entry?.displayName || "";
-  }
+  searchSelector: labelSelector
   windowHeight: 520
   windowWidth: 900
 
@@ -174,8 +152,6 @@ SearchGridPanel {
       spacing: Theme.spacingSm
 
       OButton {
-        id: cancelActionButton
-
         bgColor: Theme.inactiveColor
         text: qsTr("Cancel")
 
@@ -187,8 +163,6 @@ SearchGridPanel {
       }
 
       OButton {
-        id: applyActionButton
-
         bgColor: Theme.activeColor
         text: qsTr("Apply")
 
@@ -201,59 +175,31 @@ SearchGridPanel {
       Layout.fillWidth: true
       spacing: Theme.spacingLg
 
-      RowLayout {
-        Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+      OInput {
         Layout.fillWidth: true
         Layout.minimumWidth: 280
-        spacing: Theme.spacingSm
+        placeholderText: qsTr("Wallpaper folder path")
+        text: WallpaperService?.wallpaperFolder ?? ""
 
-        OInput {
-          id: folderPathInput
+        onInputFinished: if (text !== (WallpaperService?.wallpaperFolder ?? ""))
+          WallpaperService.setWallpaperFolder(text)
+      }
 
-          Layout.fillWidth: true
-          placeholderText: qsTr("Wallpaper folder path")
-          text: picker.wallpaperFolder
+      OComboBox {
+        Layout.preferredWidth: 200
+        currentIndex: Math.max(0, picker.monitorOptions.findIndex(o => o.value === picker.selectedMonitor))
+        model: picker.monitorOptions
+        textRole: "label"
+        valueRole: "value"
 
-          onInputFinished: {
-            if (picker.wallpaperFolder !== text)
-              picker.wallpaperFolder = text;
-          }
-        }
+        onActivated: idx => picker.selectedMonitor = picker.monitorOptions[idx]?.value ?? "all"
       }
 
       RowLayout {
-        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
         spacing: Theme.spacingSm
 
         OComboBox {
-          id: monitorSelector
-
-          Layout.preferredWidth: 200
-          currentIndex: Math.max(0, picker.monitorOptions.findIndex(o => o.value === picker.selectedMonitor))
-          model: picker.monitorOptions
-          textRole: "label"
-          valueRole: "value"
-
-          onActivated: index => {
-            const entry = picker.monitorOptions[index];
-            if (entry?.value)
-              picker.selectedMonitor = entry.value;
-          }
-        }
-      }
-
-      RowLayout {
-        Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-        spacing: Theme.spacingSm
-
-        OComboBox {
-          id: fillModeSelector
-
-          readonly property string currentMode: {
-            const modes = picker.stagedModes ?? {};
-            const key = picker.selectedMonitor === "all" ? "all" : picker.selectedMonitor;
-            return modes[key] ?? modes.all ?? "fill";
-          }
+          readonly property string currentMode: picker.stagedModes[picker.selectedMonitor] ?? picker.stagedModes.all ?? "fill"
 
           Layout.preferredWidth: 140
           currentIndex: Math.max(0, picker.fillModeOptions.findIndex(o => o.value === currentMode))
@@ -261,64 +207,51 @@ SearchGridPanel {
           textRole: "label"
           valueRole: "value"
 
-          onActivated: index => {
-            const entry = picker.fillModeOptions[index];
-            if (!entry?.value)
+          onActivated: idx => {
+            const mode = picker.fillModeOptions[idx]?.value;
+            if (!mode)
               return;
-            const modes = Object.assign({}, picker.stagedModes ?? {});
+            const modes = Object.assign({}, picker.stagedModes);
             if (picker.selectedMonitor === "all") {
-              modes.all = entry.value;
-              picker.monitorOptions.forEach(o => {
-                if (o?.value && o.value !== "all")
-                  modes[o.value] = entry.value;
-              });
+              modes.all = mode;
+              for (const {
+                value
+              } of picker.monitorOptions)
+                if (value !== "all")
+                  modes[value] = mode;
             } else {
-              modes[picker.selectedMonitor] = entry.value;
+              modes[picker.selectedMonitor] = mode;
             }
             picker.stagedModes = modes;
           }
         }
 
         OComboBox {
-          id: transitionSelector
-
           Layout.preferredWidth: 150
           currentIndex: Math.max(0, picker.transitionOptions.findIndex(o => o.value === picker.stagedTransition))
           model: picker.transitionOptions
           textRole: "label"
           valueRole: "value"
 
-          onActivated: index => {
-            const entry = picker.transitionOptions[index];
-            if (entry?.value)
-              picker.stagedTransition = entry.value;
-          }
+          onActivated: idx => picker.stagedTransition = picker.transitionOptions[idx]?.value ?? "disc"
         }
       }
     }
   ]
 
-  Component.onCompleted: {
-    // Optimize GridView memory usage
-    if (gridView) {
-      gridView.cacheBuffer = 300; // Limit off-screen items (2 rows)
-    }
-    refreshWallpapers();
-  }
+  Component.onCompleted: if (gridView)
+    gridView.cacheBuffer = 300
   onActivated: entry => stageWallpaper(entry)
   onActiveChanged: if (active)
     loadFromService()
-  onMonitorOptionsChanged: if (!monitorOptions.some(option => option.value === selectedMonitor))
+  onMonitorOptionsChanged: if (!monitorOptions.some(o => o.value === selectedMonitor))
     selectedMonitor = "all"
-  onSelectedMonitorChanged: {
-    if (!loadingFromService)
-      updateCurrentWallpaperSelection();
-  }
-  onWallpaperFolderChanged: refreshWallpapers()
+  onSelectedMonitorChanged: if (!loadingFromService)
+    updateSelection()
 
   Connections {
     function onWallpaperFilesChanged() {
-      Qt.callLater(() => picker.updateCurrentWallpaperSelection());
+      Qt.callLater(picker.updateSelection);
     }
 
     target: WallpaperService
@@ -328,100 +261,73 @@ SearchGridPanel {
     id: wallpaperDelegate
 
     Item {
-      id: wallpaperItem
+      id: tile
 
-      property bool hovered: mouseArea.containsMouse
+      readonly property bool hovered: mouse.containsMouse
       required property int index
       required property var modelData
-      readonly property string resolvedIcon: picker.callSelector(picker.iconSelector, wallpaperItem.modelData) || ""
-      readonly property string resolvedLabel: picker.callSelector(picker.labelSelector, wallpaperItem.modelData) || ""
       readonly property bool selected: GridView.isCurrentItem
 
-      height: GridView.view ? GridView.view.cellHeight : 0
-      width: GridView.view ? GridView.view.cellWidth : 0
+      height: GridView.view?.cellHeight ?? 0
+      width: GridView.view?.cellWidth ?? 0
 
       Rectangle {
-        id: tileFrame
-
         anchors.fill: parent
         anchors.margins: Theme.spacingSm
-        border.color: wallpaperItem.selected ? Theme.activeColor : (wallpaperItem.hovered ? Theme.onHoverColor : Theme.borderColor)
+        border.color: tile.selected ? Theme.activeColor : (tile.hovered ? Theme.onHoverColor : Theme.borderColor)
         border.width: 1
+        clip: true
         color: Qt.rgba(0, 0, 0, 0.18)
-        opacity: 0.95
         radius: Theme.itemRadius
 
-        Item {
-          id: maskedContent
-
+        Image {
           anchors.fill: parent
-          layer.enabled: true
+          asynchronous: true
+          cache: false
+          fillMode: Image.PreserveAspectCrop
+          source: tile.modelData?.previewSource ?? ""
+          sourceSize: Qt.size(240, 150)
+        }
 
-          layer.effect: OpacityMask {
-            maskSource: Rectangle {
-              color: "white"
-              height: maskedContent.height
-              radius: tileFrame.radius
-              width: maskedContent.width
-            }
+        Rectangle {
+          color: Qt.rgba(0, 0, 0, 0.45)
+          height: Math.max(36, parent.height * 0.18)
+          visible: tile.modelData?.displayName
+
+          anchors {
+            bottom: parent.bottom
+            left: parent.left
+            right: parent.right
           }
 
-          Image {
-            id: wallpaperPreview
-
+          OText {
             anchors.fill: parent
-            asynchronous: true
-            cache: false
-            fillMode: Image.PreserveAspectCrop
-            smooth: true
-            source: wallpaperItem.resolvedIcon
-            // Optimize: Use thumbnail size instead of full resolution
-            sourceSize.height: 150
-            sourceSize.width: 240
-            visible: source !== ""
+            anchors.leftMargin: Theme.spacingMd
+            anchors.rightMargin: Theme.spacingMd
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignLeft
+            maximumLineCount: 1
+            text: tile.modelData?.displayName ?? ""
+            verticalAlignment: Text.AlignVCenter
           }
+        }
 
-          Rectangle {
-            id: labelBackground
-
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            color: Qt.rgba(0, 0, 0, 0.45)
-            height: Math.max(36, parent.height * 0.18)
-            visible: wallpaperItem.resolvedLabel !== ""
-
-            OText {
-              anchors.left: parent.left
-              anchors.leftMargin: Theme.spacingMd
-              anchors.right: parent.right
-              anchors.rightMargin: Theme.spacingMd
-              anchors.verticalCenter: parent.verticalCenter
-              elide: Text.ElideRight
-              horizontalAlignment: Text.AlignLeft
-              maximumLineCount: 1
-              text: wallpaperItem.resolvedLabel
-              verticalAlignment: Text.AlignVCenter
-            }
-          }
-
-          Rectangle {
-            anchors.fill: parent
-            color: (wallpaperItem.selected || wallpaperItem.hovered) ? Qt.rgba(1, 1, 1, wallpaperItem.selected ? 0.18 : 0.10) : "transparent"
-          }
+        Rectangle {
+          anchors.fill: parent
+          color: Qt.rgba(1, 1, 1, tile.selected ? 0.18 : 0.10)
+          visible: tile.selected || tile.hovered
         }
       }
 
       MouseArea {
-        id: mouseArea
+        id: mouse
 
-        acceptedButtons: Qt.LeftButton
         anchors.fill: parent
         hoverEnabled: true
 
-        onClicked: function () {
-          picker.currentIndex = wallpaperItem.index;
-          picker.activateEntry(wallpaperItem.modelData);
+        onClicked: {
+          picker.currentIndex = tile.index;
+          picker.activateEntry(tile.modelData);
         }
       }
     }
