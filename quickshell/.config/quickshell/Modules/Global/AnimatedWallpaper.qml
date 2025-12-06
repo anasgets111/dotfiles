@@ -68,10 +68,12 @@ WlrLayershell {
   Component.onDestruction: {
     transitionAnim.stop();
     wallpaperConn.enabled = false;
+    shaderLoader.active = false;
   }
   onScreenObjectChanged: if (!screenObject && wallpaperConn.enabled) {
     transitionAnim.stop();
     wallpaperConn.enabled = false;
+    shaderLoader.active = false;
   }
 
   anchors {
@@ -133,37 +135,41 @@ WlrLayershell {
     }
   }
 
-  ShaderEffect {
-    id: shader
+  Loader {
+    id: shaderLoader
 
-    readonly property real angle: root.tp.angle ?? 0
-    readonly property real aspectRatio: width / Math.max(1, height)
-    readonly property real centerX: root.tp.cx ?? 0.5
-    readonly property real centerY: root.tp.cy ?? 0.5
-
-    // Transition params from tp object
-    readonly property real direction: root.tp.dir ?? 0
-    readonly property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
-    readonly property real fillMode: 1.0
-    readonly property real imageHeight1: currentImg.status === Image.Ready ? currentImg.paintedHeight : height
-    readonly property real imageHeight2: nextImg.paintedHeight
-    readonly property real imageWidth1: currentImg.status === Image.Ready ? currentImg.paintedWidth : width
-    readonly property real imageWidth2: nextImg.paintedWidth
-
-    // Shader uniforms
-    readonly property real progress: root.transitionProgress
-    readonly property real screenHeight: height * (root.monitor?.scale ?? 1)
-    readonly property real screenWidth: width * (root.monitor?.scale ?? 1)
-    readonly property real smoothness: 0.1
-
-    // Image sources and dimensions
-    readonly property Image source1: currentImg
-    readonly property Image source2: nextImg
-    readonly property real stripeCount: root.tp.count ?? 16
-
+    active: root.visible && wallpaperConn.enabled && (transitionAnim.running || root.transitionProgress > 0) && ((currentImg.status === Image.Ready && currentImg.source !== "") || nextImg.status === Image.Ready)
     anchors.fill: parent
-    fragmentShader: Qt.resolvedUrl(`../../Shaders/qsb/wp_${["wipe", "disc", "stripes", "portal"].includes(root.transitionType) ? root.transitionType : "fade"}.frag.qsb`)
-    visible: (transitionAnim.running || root.transitionProgress > 0) && ((currentImg.status === Image.Ready && currentImg.source !== "") || nextImg.status === Image.Ready)
+
+    sourceComponent: ShaderEffect {
+      readonly property real angle: root.tp.angle ?? 0
+      readonly property real aspectRatio: width / Math.max(1, height)
+      readonly property real centerX: root.tp.cx ?? 0.5
+      readonly property real centerY: root.tp.cy ?? 0.5
+
+      // Transition params from tp object
+      readonly property real direction: root.tp.dir ?? 0
+      readonly property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
+      readonly property real fillMode: 1.0
+      readonly property real imageHeight1: currentImg.status === Image.Ready ? currentImg.paintedHeight : height
+      readonly property real imageHeight2: nextImg.paintedHeight
+      readonly property real imageWidth1: currentImg.status === Image.Ready ? currentImg.paintedWidth : width
+      readonly property real imageWidth2: nextImg.paintedWidth
+
+      // Shader uniforms
+      readonly property real progress: root.transitionProgress
+      readonly property real screenHeight: height * (root.monitor?.scale ?? 1)
+      readonly property real screenWidth: width * (root.monitor?.scale ?? 1)
+      readonly property real smoothness: 0.1
+
+      // Image sources and dimensions
+      readonly property Image source1: currentImg
+      readonly property Image source2: nextImg
+      readonly property real stripeCount: root.tp.count ?? 16
+
+      anchors.fill: parent
+      fragmentShader: Qt.resolvedUrl(`../../Shaders/qsb/wp_${["wipe", "disc", "stripes", "portal"].includes(root.transitionType) ? root.transitionType : "fade"}.frag.qsb`)
+    }
   }
 
   NumberAnimation {
