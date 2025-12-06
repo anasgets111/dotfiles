@@ -25,12 +25,12 @@ Singleton {
   property var packageSizes: ({})
   readonly property int pollInterval: 15 * 60 * 1000
   readonly property bool ready: MainService.isArchBased && checkupdatesAvailable
-  readonly property var status: ({
-      Idle: 0,
-      Updating: 1,
-      Completed: 2,
-      Error: 3
-    })
+  readonly property var status: Object.freeze({
+    Idle: 0,
+    Updating: 1,
+    Completed: 2,
+    Error: 3
+  })
   readonly property int totalDownloadSize: updatePackages.reduce((sum, p) => sum + (packageSizes[p.name] ?? 0), 0)
   property int totalPackagesToUpdate: 0
   readonly property int totalUpdates: updatePackages.length
@@ -49,9 +49,8 @@ Singleton {
     const args = ["-u", urgency, "-a", "System Updates", "-i", "system-software-update", "--print-id", "--replace-id", String(lastNotificationId)];
     if (action)
       args.push("-A", `${action}=${qsTr("Run updates")}`);
-    args.push(title, message);
     _notifyQueue.push({
-      args,
+      args: args.concat(title, message),
       action
     });
     _processNotifyQueue();
@@ -62,27 +61,26 @@ Singleton {
       lastNotifiedTotal = 0;
       return;
     }
-    if (totalUpdates > lastNotifiedTotal) {
-      const added = totalUpdates - lastNotifiedTotal;
-      const msg = added === 1 ? `${qsTr("One new package can be upgraded")} (${totalUpdates})` : `${added} ${qsTr("new packages can be upgraded")} (${totalUpdates})`;
-      _notify(qsTr("Updates Available"), msg, "normal", "run-updates");
-      lastNotifiedTotal = totalUpdates;
-    }
+    if (totalUpdates <= lastNotifiedTotal)
+      return;
+    const added = totalUpdates - lastNotifiedTotal;
+    const msg = added === 1 ? `${qsTr("One new package can be upgraded")} (${totalUpdates})` : `${added} ${qsTr("new packages can be upgraded")} (${totalUpdates})`;
+    _notify(qsTr("Updates Available"), msg, "normal", "run-updates");
+    lastNotifiedTotal = totalUpdates;
   }
 
   function _parseOutput(text) {
-    const result = [];
     const re = /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/;
-    for (const line of (text ?? "").trim().split(/\r?\n/)) {
+    return (text ?? "").trim().split(/\r?\n/).reduce((list, line) => {
       const m = line.match(re);
       if (m)
-        result.push({
+        list.push({
           name: m[1],
           oldVersion: m[2],
           newVersion: m[3]
         });
-    }
-    return result;
+      return list;
+    }, []);
   }
 
   function _processNotifyQueue() {
@@ -116,31 +114,28 @@ Singleton {
   function executeUpdate() {
     if (totalUpdates === 0)
       return;
-
     totalPackagesToUpdate = totalUpdates;
     currentPackageIndex = 0;
     currentPackageName = "";
     outputLines = [];
     errorMessage = "";
     updateState = status.Updating;
-
     updateProcess.command = [Quickshell.env("HOME") + "/.local/bin/update.sh", "--polkit"];
     updateProcess.running = true;
   }
 
   function fetchPackageSizes() {
-    if (updatePackages.length === 0)
+    if (!updatePackages.length)
       return;
     sizeFetchProcess.command = ["expac", "-S", "%k\t%n"].concat(updatePackages.map(p => p.name));
     sizeFetchProcess.running = true;
   }
 
   Component.onCompleted: {
-    updatePackages = JSON.parse(cache.cachedUpdatePackagesJson || "[]");
-    if (cache.cachedLastSync > 0)
-      lastSync = cache.cachedLastSync;
-    if (cache.cachedNotificationId > 0)
-      lastNotificationId = cache.cachedNotificationId;
+    const c = cache;
+    updatePackages = JSON.parse(c.cachedUpdatePackagesJson || "[]");
+    lastSync = c.cachedLastSync || 0;
+    lastNotificationId = c.cachedNotificationId || 0;
   }
   Component.onDestruction: pollTimer.stop()
   onLastNotificationIdChanged: cache.cachedNotificationId = lastNotificationId
@@ -180,15 +175,12 @@ Singleton {
     stdout: SplitParser {
       onRead: line => {
         const parts = line.trim().split('\t');
-        if (parts.length !== 2)
-          return;
         const size = parseFloat(parts[0]);
         const name = parts[1];
-        if (!isNaN(size) && name) {
+        if (!isNaN(size) && name)
           root.packageSizes = Object.assign({}, root.packageSizes, {
             [name]: Math.round(size / 1024)
           });
-        }
       }
     }
   }
@@ -204,10 +196,11 @@ Singleton {
     }
     stdout: StdioCollector {
       onStreamFinished: {
-        root.updatePackages = root._parseOutput(text);
+        const packages = root._parseOutput(text);
+        root.updatePackages = packages;
         root.lastSync = Date.now();
         root._notifyIfIncreased();
-        if (root.updatePackages.length > 0)
+        if (packages.length > 0)
           root.fetchPackageSizes();
       }
     }
@@ -222,16 +215,14 @@ Singleton {
     id: updateProcess
 
     function addLine(line, isError = false) {
-      if (!line.trim())
+      const trimmed = line.trim();
+      if (!trimmed)
         return;
-      const newLines = root.outputLines.slice();
-      newLines.push({
-        text: line,
+      root.outputLines = root.outputLines.concat({
+        text: trimmed,
         type: isError ? "error" : "info"
       });
-      root.outputLines = newLines;
-
-      const match = line.match(/(?:installing|upgrading)\s+(\S+)/i);
+      const match = trimmed.match(/(?:installing|upgrading)\s+(\S+)/i);
       if (match) {
         root.currentPackageIndex++;
         root.currentPackageName = match[1];
@@ -244,7 +235,6 @@ Singleton {
         if (!line)
           return;
         updateProcess.addLine(line, true);
-
         const lower = line.toLowerCase();
         if (lower.includes("failed retrieving") || lower.includes("download timeout") || lower.includes("connection refused") || lower.includes("could not resolve host")) {
           root.errorMessage = "Network error: Failed to download packages";
@@ -258,8 +248,10 @@ Singleton {
     stdout: SplitParser {
       onRead: data => {
         const line = data.trim();
-        const isError = line.toLowerCase().includes("error:") || line.includes("failed");
-        updateProcess.addLine(line, isError);
+        if (!line)
+          return;
+        const lower = line.toLowerCase();
+        updateProcess.addLine(line, lower.includes("error:") || line.includes("failed"));
       }
     }
 
@@ -291,14 +283,10 @@ Singleton {
 
     stdout: StdioCollector {
       onStreamFinished: {
-        const lines = text.trim().split('\n');
-        for (const line of lines) {
-          const id = parseInt(line.trim());
-          if (!isNaN(id)) {
-            root.lastNotificationId = id;
-            break;
-          }
-        }
+        const lines = (text || "").trim().split('\n');
+        const id = lines.map(l => parseInt(l.trim())).find(v => !isNaN(v));
+        if (!isNaN(id))
+          root.lastNotificationId = id;
         const action = root._pendingNotifyAction;
         root._pendingNotifyAction = null;
         if (action && lines.some(l => l.includes(action)))
