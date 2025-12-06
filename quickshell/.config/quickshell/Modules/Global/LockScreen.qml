@@ -15,7 +15,9 @@ Scope {
       id: lockSurface
 
       readonly property bool isMainMonitor: MonitorService.activeMain === screen?.name
-      readonly property var wallpaperData: screen ? WallpaperService.wallpaperFor(screen.name) : null
+      readonly property var wallpaperData: screen && WallpaperService.wallpaperFor(screen.name)
+      readonly property int wallpaperFillMode: WallpaperService.modeToFillMode(wallpaperData?.mode)
+      readonly property url wallpaperSource: wallpaperData?.wallpaper ?? ""
 
       color: "transparent"
 
@@ -29,9 +31,9 @@ Scope {
         Image {
           anchors.fill: parent
           cache: false
-          fillMode: WallpaperService.modeToFillMode(lockSurface.wallpaperData?.mode)
-          layer.enabled: !!source
-          source: lockSurface.wallpaperData?.wallpaper ?? ""
+          fillMode: lockSurface.wallpaperFillMode
+          layer.enabled: !!lockSurface.wallpaperSource
+          source: lockSurface.wallpaperSource
 
           layer.effect: MultiEffect {
             autoPaddingEnabled: false
