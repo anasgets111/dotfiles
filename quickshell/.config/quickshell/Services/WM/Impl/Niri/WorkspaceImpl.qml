@@ -94,8 +94,10 @@ Singleton {
     let foundIdx = -1;
     for (let i = 0; i < workspaces.length; i++) {
       const ws = workspaces[i];
-      ws.focused = ws.id === id;
-      if (ws.focused)
+      const isFocused = ws.id === id;
+      if (ws.focused !== isFocused)
+        ws.focused = isFocused;
+      if (isFocused)
         foundIdx = i;
     }
 
@@ -103,24 +105,25 @@ Singleton {
       return;
 
     const foundWs = workspaces[foundIdx];
-    root.previousWorkspace = currentWorkspace;
-    root.currentWorkspace = foundWs.idx;
+    if (foundWs.idx !== currentWorkspace) {
+      root.previousWorkspace = currentWorkspace;
+      root.currentWorkspace = foundWs.idx;
+    }
     root.currentWorkspaceId = foundWs.id;
     root.focusedOutput = foundWs.output ?? focusedOutput;
     root.workspacesChanged(); // Trigger binding updates
   }
 
   function updateWorkspaces(arr) {
-    // Group by output
-    const groups = new Map();
+    const perOutput = Object.create(null);
     let focusedWs = null;
 
     for (const w of arr) {
       const ws = toUnifiedWs(w);
-      const out = ws.output;
-      if (!groups.has(out))
-        groups.set(out, []);
-      groups.get(out).push(ws);
+      const out = ws.output ?? "";
+      if (!perOutput[out])
+        perOutput[out] = [];
+      perOutput[out].push(ws);
       if (ws.focused)
         focusedWs = ws;
     }
@@ -128,24 +131,21 @@ Singleton {
     if (focusedWs)
       root.focusedOutput = focusedWs.output;
 
-    // Sort outputs: focused first, then alphabetical
-    const sortedOutputs = Array.from(groups.keys()).sort((a, b) => {
+    const order = Object.keys(perOutput).sort((a, b) => {
       if (a === focusedOutput)
         return -1;
       if (b === focusedOutput)
         return 1;
       return a.localeCompare(b);
     });
-    root.outputsOrder = sortedOutputs;
+    root.outputsOrder = order;
 
-    // Flatten with boundaries
     const flat = [];
     const bounds = [];
     const total = arr.length;
-    for (const out of sortedOutputs) {
-      const wsList = groups.get(out).sort((a, b) => a.idx - b.idx);
-      for (const ws of wsList)
-        flat.push(ws);
+    for (const out of order) {
+      const wsList = perOutput[out].sort((a, b) => a.idx - b.idx);
+      flat.push(...wsList);
       if (flat.length < total)
         bounds.push(flat.length);
     }
