@@ -9,14 +9,14 @@ Item {
 
   readonly property var activeToplevel: ToplevelManager.activeToplevel
   readonly property string appId: activeToplevel?.appId ?? ""
+  readonly property string baseLabel: title || appId
   readonly property bool hasActive: !!(activeToplevel?.activated && (appId || title))
   readonly property string iconSource: hasActive ? Utils.resolveIconSource(appId) : Utils.resolveIconSource("", "", "applications-system")
-  property int maxLength: 47
+  property int maxLength: Theme._isUltrawide ? 74 : 47
   readonly property string text: {
     if (!hasActive)
       return "Desktop";
-    const base = title || appId;
-    return base.length > maxLength ? `${base.slice(0, maxLength - 3)}...` : base;
+    return baseLabel.length > maxLength ? `${baseLabel.slice(0, maxLength - 3)}...` : baseLabel;
   }
   readonly property string title: activeToplevel?.title ?? ""
 
