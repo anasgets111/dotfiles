@@ -8,8 +8,9 @@ import qs.Components
 Item {
   id: root
 
+  readonly property int horizontalPadding: Theme.spacingXl
   // Computed width for toggle layout (icon container + spacing + label)
-  readonly property int _toggleWidth: Theme.osdToggleIconContainerSize + Theme.spacingLg * 2 + labelText.implicitWidth
+  readonly property int _toggleWidth: Theme.osdToggleIconContainerSize + Theme.spacingLg * 2 + labelText.implicitWidth + horizontalPadding * 2
 
   property string icon: ""
   readonly property bool isSlider: typeof value === "number" && value >= 0
@@ -60,7 +61,7 @@ Item {
     anchors.centerIn: parent
     spacing: Theme.spacingLg
     visible: root.isSlider
-    width: parent.width - Theme.spacingXl * 2
+    width: parent.width - horizontalPadding * 2
 
     OText {
       color: Theme.activeColor
