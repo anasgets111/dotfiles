@@ -9,18 +9,7 @@ IconButton {
 
   readonly property bool anyInhibit: manualInhibit || IdleService.effectiveInhibited
   property bool manualInhibit: false
-  readonly property string reason: {
-    if (!anyInhibit)
-      return "";
-    const reasons = [];
-    if (manualInhibit)
-      reasons.push(qsTr("manual"));
-    if (MediaService.anyVideoPlaying)
-      reasons.push(qsTr("video"));
-    else if (IdleService.effectiveInhibited)
-      reasons.push(qsTr("external"));
-    return reasons.join(" + ");
-  }
+  readonly property string reason: !anyInhibit ? "" : [manualInhibit ? qsTr("manual") : "", IdleService.effectiveInhibited ? qsTr("video") : ""].filter(r => r).join(" + ")
 
   colorBg: anyInhibit ? Theme.activeColor : Theme.inactiveColor
   icon: manualInhibit ? "󰅶" : "󰾪"
