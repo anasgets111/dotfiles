@@ -9,12 +9,31 @@ import qs.Services.SystemInfo
 OPanel {
   id: root
 
+  readonly property bool hasUpdates: UpdateService.totalUpdates > 0
   readonly property color headerColor: Qt.lighter(Theme.bgColor, 1.74)
   readonly property bool isIdle: UpdateService.updateState === UpdateService.status.Idle
   readonly property bool isUpdating: UpdateService.updateState === UpdateService.status.Updating
   readonly property int itemHeight: Theme.itemHeight
   readonly property int maxItems: 10
   readonly property int pad: Theme.spacingSm
+  readonly property real progress: UpdateService.totalPackagesToUpdate > 0 ? UpdateService.currentPackageIndex / UpdateService.totalPackagesToUpdate : 0
+
+  function logColor(raw) {
+    const t = raw.toLowerCase();
+    if (t.includes("[fail]") || t.includes("error") || t.includes("failed"))
+      return Theme.critical;
+    if (t.includes("[skip]") || t.includes("warning"))
+      return Theme.warning;
+    if (t.includes("[ ok ]") || t.includes("successful") || t.includes("done.") || t.includes("is up to date") || t.includes("nothing to do") || t.includes("no packages need"))
+      return Theme.powerSaveColor;
+    if (raw.startsWith("▶") || raw.startsWith("::") || (raw.startsWith("==>") && !t.includes("warning")))
+      return Theme.textActiveColor;
+    if (/\(\d+\/\d+\)/.test(raw) || t.includes("installing") || t.includes("upgrading"))
+      return Theme.activeColor;
+    if (t.includes("-> running") || t.includes("build hook"))
+      return "#89B4FA";
+    return Theme.textInactiveColor;
+  }
 
   maxHeight: 900
   needsKeyboardFocus: true
@@ -86,7 +105,7 @@ OPanel {
           interactive: contentHeight > height
           model: UpdateService.updatePackages
           spacing: Theme.spacingXs / 2
-          visible: UpdateService.totalUpdates > 0
+          visible: root.hasUpdates
 
           ScrollBar.vertical: ScrollBar {
             policy: packageList.contentHeight > packageList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
@@ -158,7 +177,7 @@ OPanel {
           Layout.alignment: Qt.AlignHCenter
           Layout.topMargin: Theme.spacingXs
           spacing: Theme.spacingXs
-          visible: UpdateService.totalUpdates > 0
+          visible: root.hasUpdates
 
           OText {
             color: Theme.textInactiveColor
@@ -181,7 +200,7 @@ OPanel {
           OButton {
             Layout.fillWidth: true
             bgColor: Theme.activeColor
-            isEnabled: UpdateService.totalUpdates > 0
+            isEnabled: root.hasUpdates
             text: qsTr("Update Now")
 
             onClicked: UpdateService.executeUpdate()
@@ -221,7 +240,7 @@ OPanel {
               color: Theme.activeColor
               height: parent.height
               radius: parent.radius
-              width: UpdateService.totalPackagesToUpdate > 0 ? parent.width * (UpdateService.currentPackageIndex / UpdateService.totalPackagesToUpdate) : 0
+              width: parent.width * root.progress
 
               Behavior on width {
                 NumberAnimation {
@@ -261,29 +280,7 @@ OPanel {
             delegate: Text {
               required property var modelData
 
-              color: {
-                const t = text.toLowerCase();
-                const raw = text;
-                // Error (highest priority)
-                if (t.includes("[fail]") || t.includes("error") || t.includes("failed"))
-                  return Theme.critical;
-                // Warning
-                if (t.includes("[skip]") || t.includes("warning"))
-                  return Theme.warning;
-                // Success
-                if (t.includes("[ ok ]") || t.includes("successful") || t.includes("done.") || t.includes("is up to date") || t.includes("nothing to do") || t.includes("no packages need"))
-                  return Theme.powerSaveColor;
-                // Section headers
-                if (raw.startsWith("▶") || raw.startsWith("::") || (raw.startsWith("==>") && !t.includes("warning")))
-                  return Theme.textActiveColor;
-                // Progress indicators
-                if (/\(\d+\/\d+\)/.test(raw) || t.includes("installing") || t.includes("upgrading"))
-                  return Theme.activeColor;
-                // Build hooks
-                if (t.includes("-> running") || t.includes("build hook"))
-                  return "#89B4FA";
-                return Theme.textInactiveColor;
-              }
+              color: root.logColor(text)
               font.family: "Monospace"
               font.pixelSize: Theme.fontSize * 0.9
               text: modelData.text ?? modelData
