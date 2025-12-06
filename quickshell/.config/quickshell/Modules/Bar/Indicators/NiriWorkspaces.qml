@@ -11,12 +11,8 @@ Item {
   readonly property int currentWsId: WorkspaceService.currentWorkspaceId
   readonly property bool expanded: pill.expanded
   readonly property int focusedIndex: {
-    const wsId = currentWsId;
-    for (let i = 0; i < workspaces.length; i++) {
-      if (workspaces[i].id === wsId)
-        return i;
-    }
-    return 0;
+    const idx = workspaces.findIndex(ws => ws.id === currentWsId);
+    return idx >= 0 ? idx : 0;
   }
   readonly property var groupBoundaries: WorkspaceService.groupBoundaries
   property int hoveredId: 0

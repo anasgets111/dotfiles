@@ -33,38 +33,48 @@ Singleton {
     const wsList = Array.from(Hyprland.workspaces.values);
     const monList = Array.from(Hyprland.monitors.values);
 
-    // Sort monitors: focused first, then alphabetical
+    // Sort monitors: focused first, then alphabetical by name
     const sortedMons = monList.sort((a, b) => {
-      if (a.name === focusedOutput)
+      const aName = a?.name ?? "";
+      const bName = b?.name ?? "";
+      if (aName === focusedOutput)
         return -1;
-      if (b.name === focusedOutput)
+      if (bName === focusedOutput)
         return 1;
-      return a.localeCompare(b);
+      return aName.localeCompare(bName);
     });
-    root.outputsOrder = sortedMons.map(m => m.name);
+    const outputsOrder = sortedMons.map(m => m.name);
+    root.outputsOrder = outputsOrder;
 
-    root.specialWorkspaces = wsList.filter(w => w.id < 0);
-
-    // Build workspaces with unified structure: { id, idx, focused, populated, output, name? }
+    const specials = [];
     const regular = [];
+    const counts = new Map();
     let focusedWs = null;
+
     for (const w of wsList) {
-      if (w.id <= 0)
+      if (w.id <= 0) {
+        specials.push(w);
         continue;
+      }
+      const outputName = w.monitor?.name ?? "";
       const winCount = w.lastIpcObject?.windows;
+      const populated = typeof winCount === "number" ? winCount > 0 : (w.hasFullscreen || w.focused);
       const ws = {
         id: w.id,
-        idx: w.id  // Hyprland: idx equals id
+        idx: w.id // Hyprland: idx equals id
         ,
         focused: w.focused,
-        populated: typeof winCount === "number" ? winCount > 0 : (w.hasFullscreen || w.focused),
-        output: w.monitor?.name ?? ""
+        populated,
+        output: outputName
       };
       regular.push(ws);
+      counts.set(outputName, (counts.get(outputName) ?? 0) + 1);
       if (w.focused)
         focusedWs = ws;
     }
+
     regular.sort((a, b) => a.idx - b.idx);
+    root.specialWorkspaces = specials;
     root.workspaces = regular;
 
     if (focusedWs && focusedWs.id !== currentWorkspace) {
@@ -72,17 +82,14 @@ Singleton {
       root.currentWorkspace = root.currentWorkspaceId = focusedWs.id;
     }
 
-    // Boundary calculation: cumulative count per output
-    const counts = new Map();
-    for (const w of regular)
-      counts.set(w.output, (counts.get(w.output) ?? 0) + 1);
-
     const bounds = [];
-    let acc = 0;
-    for (const out of outputsOrder) {
-      acc += counts.get(out) ?? 0;
-      if (acc > 0 && acc < regular.length)
-        bounds.push(acc);
+    if (regular.length) {
+      let acc = 0;
+      for (const out of outputsOrder) {
+        acc += counts.get(out) ?? 0;
+        if (acc > 0 && acc < regular.length)
+          bounds.push(acc);
+      }
     }
     root.groupBoundaries = bounds;
   }
