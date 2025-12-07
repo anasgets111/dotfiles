@@ -385,7 +385,8 @@ OPanel {
         Item {
           Layout.leftMargin: root.padding
           Layout.preferredHeight: Theme.itemHeight
-          Layout.preferredWidth: Theme.fontLg
+          Layout.preferredWidth: Theme.itemHeight
+          Layout.rightMargin: Theme.spacingSm
 
           Text {
             id: networkIcon
@@ -425,7 +426,11 @@ OPanel {
         OText {
           Layout.fillWidth: true
           color: networkItem.textColor
+          elide: Text.ElideRight
+          horizontalAlignment: Text.AlignLeft
+          maximumLineCount: 1
           text: networkItem.modelData.label || ""
+          wrapMode: Text.NoWrap
 
           Behavior on color {
             ColorAnimation {
