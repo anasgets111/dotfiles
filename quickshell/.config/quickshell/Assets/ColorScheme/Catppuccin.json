@@ -18,21 +18,21 @@
 		"warning": "#fab387"
 	},
 	"light": {
-		"activeColor": "#7287fd",
+		"activeColor": "#1e66f5",
 		"bgColor": "#eff1f5",
-		"bgElevated": "#ffffff",
-		"bgElevatedAlt": "#ffffff",
-		"bgElevatedHover": "#ffffff",
-		"borderColor": "#ccd0da",
+		"bgElevated": "#e6e9ef",
+		"bgElevatedAlt": "#dce0e8",
+		"bgElevatedHover": "#ccd0da",
+		"borderColor": "#bcc0cc",
 		"critical": "#d20f39",
-		"disabledColor": "#e6e9ef",
-		"inactiveColor": "#9ca0b0",
-		"onHoverColor": "#8839ef",
+		"disabledColor": "#acb0be",
+		"inactiveColor": "#8c8fa1",
+		"onHoverColor": "#7287fd",
 		"panelWindowColor": "transparent",
 		"powerSaveColor": "#40a02b",
 		"textActiveColor": "#4c4f69",
 		"textInactiveColor": "#6c6f85",
-		"textOnHoverColor": "#8839ef",
+		"textOnHoverColor": "#1e66f5",
 		"warning": "#df8e1d"
 	}
 }
