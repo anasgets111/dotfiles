@@ -33,6 +33,7 @@ Singleton {
       lg: iconSizeLg,
       xl: iconSizeXl
     })
+  readonly property bool _isUltrawide: internal.isUltrawide
   readonly property var _radii: ({
       none: radiusNone,
       xs: radiusXs,
@@ -313,8 +314,10 @@ Singleton {
     readonly property int height: mainScreen?.height ?? 1080
     readonly property bool isUltrawide: (width / Math.max(1, height)) > 2.1
     readonly property real lockScale: {
-      if (height >= 1440) {
-        const normalized = Math.min(1, (height - 1440) / 720);
+      // Lock screen scaling uses effective (perceived) height so dpr doesn't double-boost.
+      const effectiveHeight = height / dpr;
+      if (effectiveHeight >= 1440) {
+        const normalized = Math.min(1, (effectiveHeight - 1440) / 720);
         const heightBoost = 1.15 + normalized * 0.10;
         return isUltrawide ? heightBoost * 1.1 : heightBoost;
       }
@@ -323,12 +326,15 @@ Singleton {
     readonly property var mainScreen: MonitorService?.activeMainScreen ?? null
     readonly property real normalizedDiagonal: isUltrawide ? height * 1.87 : Math.sqrt(width * width + height * height)
     readonly property real scaleFactor: {
-      const diag1080 = 2203, scale1080 = 0.9;
-      const diag1440 = 2938, scale1440 = 1.0;
-      const m = (scale1440 - scale1080) / (diag1440 - diag1080);
-      const linearScale = m * normalizedDiagonal + (scale1080 - m * diag1080);
-      const dprDampening = 1 + (dpr - 1) * 0.15;
-      return Math.max(0.75, Math.min(1.4, linearScale * dprDampening));
+      // Calculate perceived height to avoid double-scaling on high-DPI screens.
+      // Example: 4K (2160p) at 2x -> 1080 effective height.
+      const effectiveHeight = height / dpr;
+      // Map effective height to a scale preference:
+      // 1080p effective -> 0.9 (compact), 1440p effective -> 1.0 (standard).
+      // Formula: 0.9 + (diff_from_1080 / 360) * 0.1
+      const hScale = 0.9 + ((effectiveHeight - 1080) / 360) * 0.1;
+      // Clamp to keep layouts stable on extreme sizes.
+      return Math.max(0.75, Math.min(1.4, hScale));
     }
     readonly property int width: mainScreen?.width ?? 1920
   }
