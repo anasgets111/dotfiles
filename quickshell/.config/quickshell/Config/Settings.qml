@@ -8,8 +8,24 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COLOR SCHEME - Dynamic theme colors loaded from JSON
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property string _colorSchemePath: Qt.resolvedUrl("../Assets/ColorScheme/" + data.themeName + ".json")
+  readonly property var _fallbackColors: ({})
+  property var _loadedScheme: ({})
+
+  // List of available theme names (populated by scanning ColorScheme folder)
+  property list<string> availableThemes: []
   property string cacheDir: Quickshell.env("OBELISK_CACHE_DIR") || (Quickshell.env("XDG_CACHE_HOME") || Quickshell.env("HOME") + "/.cache") + "/" + shellName + "/"
   property string cacheDirImages: cacheDir + "images/"
+
+  // Currently active color palette (dark or light based on themeMode)
+  readonly property var colors: {
+    const scheme = _loadedScheme;
+    const mode = data.themeMode;
+    return (scheme && scheme[mode]) ? scheme[mode] : _fallbackColors;
+  }
   property string configDir: Quickshell.env("OBELISK_CONFIG_DIR") || (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/" + shellName + "/"
 
   // Used to access via Settings.data.xxx.yyy
@@ -24,13 +40,77 @@ Singleton {
   // Default cache directory: ~/.cache/Obelisk
   property string shellName: "Obelisk"
 
+  // Set theme mode ("dark" or "light")
+  function setThemeMode(mode: string): void {
+    const validMode = (mode === "light") ? "light" : "dark";
+    if (root.data.themeMode !== validMode)
+      root.data.themeMode = validMode;
+  }
+
+  function setThemeName(name: string): void {
+    if (!name || root.data.themeName === name)
+      return;
+    // Validate theme exists, fallback to current if invalid
+    if (root.availableThemes.length && !root.availableThemes.includes(name)) {
+      Logger.log("Settings", `Theme "${name}" not found, keeping "${root.data.themeName}"`, "warning");
+      return;
+    }
+    root.data.themeName = name;
+  }
+
   Item {
     Component.onCompleted: {
-
       // ensure settings dir exists
       Quickshell.execDetached(["mkdir", "-p", root.configDir]);
       Quickshell.execDetached(["mkdir", "-p", root.cacheDir]);
       Quickshell.execDetached(["mkdir", "-p", root.cacheDirImages]);
+      // enumerate available themes
+      themeEnumerator.running = true;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COLOR SCHEME LOADER - Reads theme JSON files
+  // ═══════════════════════════════════════════════════════════════════════════
+  FileView {
+    id: colorSchemeFileView
+
+    path: root._colorSchemePath
+    watchChanges: true
+
+    Component.onCompleted: reload()
+    onFileChanged: reload()
+    onLoadFailed: error => {
+      Logger.log("Settings", "Failed to load color scheme '" + adapter.themeName + "': " + error + ". Falling back to Catppuccin.", "warning");
+      // Fall back to Catppuccin if current theme fails
+      if (adapter.themeName !== "Catppuccin") {
+        adapter.themeName = "Catppuccin";
+        adapter.themeMode = "dark";
+      }
+    }
+    onLoaded: {
+      try {
+        root._loadedScheme = JSON.parse(text());
+        Logger.log("Settings", "Loaded color scheme: " + adapter.themeName + "/" + adapter.themeMode);
+      } catch (e) {
+        Logger.log("Settings", "Failed to parse color scheme JSON: " + e, "warning");
+        root._loadedScheme = {};
+      }
+    }
+  }
+
+  // Enumerate available themes from ColorScheme folder
+  Process {
+    id: themeEnumerator
+
+    command: ["sh", "-c", "ls -1 '" + Qt.resolvedUrl("../Assets/ColorScheme/").toString().replace("file://", "") + "' | sed 's/\\.json$//'"]
+    running: false
+
+    stdout: SplitParser {
+      onRead: data => {
+        if (data.trim())
+          root.availableThemes = root.availableThemes.concat([data.trim()]);
+      }
     }
   }
 
@@ -93,6 +173,11 @@ Singleton {
         property int suspendTimeoutSec: 120
         property bool videoAutoInhibit: true
       }
+
+      // Theme settings
+      property string themeMode: "dark"   // "dark" or "light"
+      property string themeName: "Catppuccin"
+
       // Wallpaper folder path for browsing/randomization
       property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"
       // Allowed values: "fade", "wipe", "disc", "stripes"
