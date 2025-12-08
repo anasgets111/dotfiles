@@ -43,6 +43,15 @@ SearchGridPanel {
   property var stagedModes: ({})
   property string stagedTransition: "disc"
   property var stagedWallpapers: ({})
+  readonly property var themeOptions: {
+    const themes = Settings?.availableThemes ?? [];
+    const current = Settings?.data?.themeName ?? "";
+    const list = current && !themes.includes(current) ? themes.concat([current]) : themes;
+    return list.map(name => ({
+          label: name,
+          value: name
+        }));
+  }
   readonly property var transitionOptions: (WallpaperService?.availableTransitions ?? []).map(t => ({
         label: {
           fade: qsTr("Fade"),
@@ -171,69 +180,109 @@ SearchGridPanel {
     }
   ]
   headerContent: [
-    RowLayout {
+    ColumnLayout {
       Layout.fillWidth: true
-      spacing: Theme.spacingLg
-
-      OInput {
-        Layout.fillWidth: true
-        Layout.minimumWidth: 280
-        placeholderText: qsTr("Wallpaper folder path")
-        text: WallpaperService?.wallpaperFolder ?? ""
-
-        onInputFinished: if (text !== (WallpaperService?.wallpaperFolder ?? ""))
-          WallpaperService.setWallpaperFolder(text)
-      }
-
-      OComboBox {
-        Layout.preferredWidth: 200
-        currentIndex: Math.max(0, picker.monitorOptions.findIndex(o => o.value === picker.selectedMonitor))
-        model: picker.monitorOptions
-        textRole: "label"
-        valueRole: "value"
-
-        onActivated: idx => picker.selectedMonitor = picker.monitorOptions[idx]?.value ?? "all"
-      }
+      spacing: Theme.spacingSm
 
       RowLayout {
-        spacing: Theme.spacingSm
+        Layout.fillWidth: true
+        spacing: Theme.spacingLg
 
-        OComboBox {
-          readonly property string currentMode: picker.stagedModes[picker.selectedMonitor] ?? picker.stagedModes.all ?? "fill"
+        OInput {
+          Layout.fillWidth: true
+          Layout.minimumWidth: 280
+          placeholderText: qsTr("Wallpaper folder path")
+          text: WallpaperService?.wallpaperFolder ?? ""
 
-          Layout.preferredWidth: 140
-          currentIndex: Math.max(0, picker.fillModeOptions.findIndex(o => o.value === currentMode))
-          model: picker.fillModeOptions
-          textRole: "label"
-          valueRole: "value"
-
-          onActivated: idx => {
-            const mode = picker.fillModeOptions[idx]?.value;
-            if (!mode)
-              return;
-            const modes = Object.assign({}, picker.stagedModes);
-            if (picker.selectedMonitor === "all") {
-              modes.all = mode;
-              for (const {
-                value
-              } of picker.monitorOptions)
-                if (value !== "all")
-                  modes[value] = mode;
-            } else {
-              modes[picker.selectedMonitor] = mode;
-            }
-            picker.stagedModes = modes;
-          }
+          onInputFinished: if (text !== (WallpaperService?.wallpaperFolder ?? ""))
+            WallpaperService.setWallpaperFolder(text)
         }
 
         OComboBox {
-          Layout.preferredWidth: 150
-          currentIndex: Math.max(0, picker.transitionOptions.findIndex(o => o.value === picker.stagedTransition))
-          model: picker.transitionOptions
+          Layout.preferredWidth: 200
+          currentIndex: Math.max(0, picker.monitorOptions.findIndex(o => o.value === picker.selectedMonitor))
+          model: picker.monitorOptions
           textRole: "label"
           valueRole: "value"
 
-          onActivated: idx => picker.stagedTransition = picker.transitionOptions[idx]?.value ?? "disc"
+          onActivated: idx => picker.selectedMonitor = picker.monitorOptions[idx]?.value ?? "all"
+        }
+
+        RowLayout {
+          spacing: Theme.spacingSm
+
+          OComboBox {
+            readonly property string currentMode: picker.stagedModes[picker.selectedMonitor] ?? picker.stagedModes.all ?? "fill"
+
+            Layout.preferredWidth: 140
+            currentIndex: Math.max(0, picker.fillModeOptions.findIndex(o => o.value === currentMode))
+            model: picker.fillModeOptions
+            textRole: "label"
+            valueRole: "value"
+
+            onActivated: idx => {
+              const mode = picker.fillModeOptions[idx]?.value;
+              if (!mode)
+                return;
+              const modes = Object.assign({}, picker.stagedModes);
+              if (picker.selectedMonitor === "all") {
+                modes.all = mode;
+                for (const {
+                  value
+                } of picker.monitorOptions)
+                  if (value !== "all")
+                    modes[value] = mode;
+              } else {
+                modes[picker.selectedMonitor] = mode;
+              }
+              picker.stagedModes = modes;
+            }
+          }
+
+          OComboBox {
+            Layout.preferredWidth: 150
+            currentIndex: Math.max(0, picker.transitionOptions.findIndex(o => o.value === picker.stagedTransition))
+            model: picker.transitionOptions
+            textRole: "label"
+            valueRole: "value"
+
+            onActivated: idx => picker.stagedTransition = picker.transitionOptions[idx]?.value ?? "disc"
+          }
+        }
+      }
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingSm
+
+        Item {
+          Layout.fillWidth: true
+        }
+
+        OComboBox {
+          Layout.preferredWidth: 180
+          currentIndex: Math.max(0, picker.themeOptions.findIndex(o => o.value === (Settings?.data?.themeName ?? "")))
+          model: picker.themeOptions
+          textRole: "label"
+          valueRole: "value"
+
+          onActivated: idx => Settings?.setThemeName(picker.themeOptions[idx]?.value ?? "")
+        }
+
+        RowLayout {
+          spacing: Theme.spacingXs
+
+          OText {
+            muted: true
+            text: qsTr("Dark mode")
+          }
+
+          OToggle {
+            Layout.alignment: Qt.AlignVCenter
+            checked: (Settings?.data?.themeMode ?? "dark") === "dark"
+
+            onToggled: checked => Settings?.setThemeMode(checked ? "dark" : "light")
+          }
         }
       }
     }
