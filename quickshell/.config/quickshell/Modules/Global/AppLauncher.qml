@@ -8,16 +8,11 @@ import qs.Components
 SearchGridPanel {
   id: launcherWindow
 
-  property var appEntries: DesktopEntries.applications.values
-
   function launchEntry(entry) {
-    const cmd = sanitizeCommand(entry);
-    if (cmd)
-      Quickshell.execDetached(["sh", "-c", cmd]);
-  }
-
-  function sanitizeCommand(entry) {
-    return String(entry?.exec || entry?.command || "").replace(/%[fFuUdDnNickvm]/g, "").replace(/\s+/g, " ").trim();
+    const desktopId = String(entry?.id || "").replace(/\.desktop$/, "");
+    if (!desktopId)
+      return;
+    Quickshell.execDetached(["gtk-launch", desktopId]);
   }
 
   cellHeight: Theme.launcherCellSize
@@ -32,17 +27,14 @@ SearchGridPanel {
       tiebreakers: [Fzf.by_start_asc, Fzf.by_length_asc]
     });
   }
-  iconSelector: entry => {
-    const name = entry?.name || "";
-    return Utils.resolveIconSource(entry?.id || name, entry?.icon, "application-x-executable");
-  }
+  iconSelector: entry => Utils.resolveIconSource(entry?.id || entry?.name || "", entry?.icon, "application-x-executable")
   itemImageSize: Theme.launcherIconSize
-  items: appEntries
+  items: DesktopEntries.applications.values
   labelSelector: entry => entry?.name || ""
   maxResults: 200
   windowHeight: Theme.launcherWindowHeight
   windowWidth: Theme.launcherWindowWidth
 
   Component.onCompleted: open()
-  onActivated: entry => launcherWindow.launchEntry(entry)
+  onActivated: entry => launchEntry(entry)
 }
