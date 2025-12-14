@@ -18,11 +18,15 @@ RowLayout {
       magic: "\uF120"
     })
 
-  function getIcon(name) {
+  function capitalize(text: string): string {
+    return text.length > 0 ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+  }
+
+  function getIcon(name: string): string {
     const lower = name.toLowerCase();
-    for (const key in iconMap)
-      if (lower.includes(key))
-        return iconMap[key];
+    const key = Object.keys(iconMap).find(k => lower.includes(k));
+    if (key)
+      return iconMap[key];
     return name.length > 2 ? name.slice(0, 2).toUpperCase() : name.toUpperCase();
   }
 
@@ -41,7 +45,7 @@ RowLayout {
       Layout.preferredWidth: Theme.itemHeight
       colorBg: isActive ? Theme.activeColor : Theme.inactiveColor
       icon: root.getIcon(cleanName)
-      tooltipText: cleanName.charAt(0).toUpperCase() + cleanName.slice(1)
+      tooltipText: root.capitalize(cleanName)
 
       onClicked: WorkspaceService.toggleSpecial(cleanName)
     }

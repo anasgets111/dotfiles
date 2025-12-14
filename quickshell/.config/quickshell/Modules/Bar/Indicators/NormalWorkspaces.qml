@@ -11,14 +11,14 @@ Item {
   readonly property var backingWorkspaces: WorkspaceService.workspaces
   readonly property int count: slotIds.length
   readonly property int currentWorkspace: Math.max(1, WorkspaceService.currentWorkspace)
-  property bool expanded: pill?.expanded || false
+  readonly property bool expanded: pill?.expanded ?? false
   readonly property int focusedIndex: Math.max(0, slotIds.indexOf(currentWorkspace))
   property int hoveredId: 0
   readonly property bool isHyprlandSession: MainService.currentWM === "hyprland"
   readonly property int slotH: Theme.itemHeight
   readonly property var slotIds: {
     const ids = (backingWorkspaces ?? []).map(ws => ws.id).filter(id => id > 0);
-    const maxId = Math.max(10, currentWorkspace, ...(ids.length ? ids : [0]));
+    const maxId = Math.max(10, currentWorkspace, ...ids);
     return Array.from({
       length: maxId
     }, (_, i) => i + 1);
@@ -32,15 +32,13 @@ Item {
     return map;
   }
 
-  function wsColor(id) {
+  function wsColor(id: int): color {
     if (id === currentWorkspace)
       return Theme.activeColor;
     if (id === hoveredId)
       return Theme.onHoverColor;
     const ws = workspaceMap[id];
-    if (ws)
-      return ws.populated ? Theme.inactiveColor : Theme.disabledColor;
-    return Theme.disabledColor;
+    return ws?.populated ? Theme.inactiveColor : Theme.disabledColor;
   }
 
   clip: true
@@ -63,12 +61,13 @@ Item {
       IconButton {
         id: btn
 
-        readonly property int idNum: root.slotIds[index]
+        readonly property int idNum: root.slotIds[index] ?? 0
         required property int index
+        readonly property bool isPopulated: root.workspaceMap[idNum]?.populated ?? false
 
         colorBg: root.wsColor(idNum)
         icon: String(idNum)
-        opacity: (root.workspaceMap[idNum]?.populated ?? false) ? 1 : 0.5
+        opacity: isPopulated ? 1 : 0.5
 
         Behavior on opacity {
           NumberAnimation {
@@ -77,11 +76,15 @@ Item {
           }
         }
 
-        onClicked: if (idNum !== root.currentWorkspace)
-          WorkspaceService.focusWorkspaceByIndex(idNum)
+        onClicked: {
+          if (idNum !== root.currentWorkspace)
+            WorkspaceService.focusWorkspaceByIndex(idNum);
+        }
         onEntered: root.hoveredId = idNum
-        onExited: if (root.hoveredId === idNum)
-          root.hoveredId = 0
+        onExited: {
+          if (root.hoveredId === idNum)
+            root.hoveredId = 0;
+        }
       }
     }
   }
