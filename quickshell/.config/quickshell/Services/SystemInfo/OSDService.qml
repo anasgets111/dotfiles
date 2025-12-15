@@ -306,7 +306,7 @@ Singleton {
     }
 
     function onRecordingResumed(_) {
-      root.showOSD(root.types.recording, null, "", "Recording Resumed");
+      root.showOSD(root.types.recording, null, "󰐊", "Recording Resumed");
     }
 
     function onRecordingStarted(_) {
@@ -314,7 +314,7 @@ Singleton {
     }
 
     function onRecordingStopped(_) {
-      root.showOSD(root.types.recording, null, "", "Recording Stopped");
+      root.showOSD(root.types.recording, null, "󰓛", "Recording Stopped");
     }
 
     target: ScreenRecordingService
