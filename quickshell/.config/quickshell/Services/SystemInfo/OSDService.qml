@@ -10,47 +10,13 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  property var currentEntry: null
-  readonly property int debounceMs: 150
-  readonly property var groups: ({
-      [types.capsLock]: "locks",
-      [types.numLock]: "locks",
-      [types.scrollLock]: "locks"
-    })
-  property bool initialized: false
   property string osdIcon: ""
   property string osdLabel: ""
   property int osdMaxValue: 100
   property string osdType: ""
-  property var osdValue: null
-  property var pendingEntry: null
-  readonly property var priorities: ({
-      [types.battery]: 0,
-      [types.recording]: 0,
-      [types.audioDevice]: 1,
-      [types.micMute]: 1,
-      [types.networking]: 2,
-      [types.wifi]: 2,
-      [types.bluetooth]: 2,
-      [types.volumeOutput]: 3,
-      [types.brightness]: 3,
-      [types.keyboardBacklight]: 4,
-      [types.keyboardLayout]: 4,
-      [types.capsLock]: 4,
-      [types.numLock]: 4,
-      [types.scrollLock]: 4,
-      [types.dnd]: 4
-    })
+  property var osdValue: null // Can be int or null
 
-  // Suppression: key suppresses values in array
-  readonly property var suppresses: ({
-      [types.battery]: [types.brightness, types.keyboardBacklight],
-      [types.audioDevice]: [types.volumeOutput],
-      [types.bluetooth]: [types.audioDevice],
-      [types.networking]: [types.wifi],
-      [types.micMute]: [types.volumeOutput]
-    })
-  readonly property int timeoutMs: 2000
+  // --- Constants / Enum ---
   readonly property var types: ({
       audioDevice: "audio-device",
       battery: "battery",
@@ -68,136 +34,236 @@ Singleton {
       volumeOutput: "volume-output",
       wifi: "wifi"
     })
+
+  // --- Public API ---
   property bool visible: false
 
-  function applyEntry(entry): void {
-    currentEntry = entry;
-    osdType = entry.type;
-    osdValue = entry.value;
-    osdIcon = entry.icon;
-    osdLabel = entry.label;
-    osdMaxValue = entry.maxValue;
-    visible = true;
-    hideTimer.restart();
-    if (pendingEntry && suppresses[entry.type]?.includes(pendingEntry.type))
-      pendingEntry = null;
-  }
+  // --- Helper Functions ---
 
-  function handleEntry(entry): void {
-    const current = currentEntry;
-    if (current && suppresses[current.type]?.includes(entry.type))
-      return;
-    if (current && sameTypeOrGroup(current.type, entry.type)) {
-      applyEntry(entry);
-      return;
-    }
-
-    if (current && entry.priority < current.priority) {
-      pendingEntry = current;
-      applyEntry(entry);
-      return;
-    }
-
-    if (!visible) {
-      applyEntry(entry);
-      return;
-    }
-
-    if (!pendingEntry || entry.priority <= pendingEntry.priority)
-      pendingEntry = entry;
-  }
-
-  function hideOSD(): void {
-    if (!visible)
-      return;
-    visible = false;
-    hideTimer.stop();
-    currentEntry = null;
-
-    if (pendingEntry) {
-      const next = pendingEntry;
-      pendingEntry = null;
-      applyEntry(next);
-    }
-  }
-
-  function sameTypeOrGroup(a: string, b: string): bool {
-    return a === b || (groups[a] && groups[a] === groups[b]);
-  }
-
-  function showOSD(type, value, icon, label, debounce = false, maxValue = 100) {
-    if (!initialized)
-      return;
+  function show(type: string, value: var, icon: string, label: string, debounce = false, maxValue = 100) {
     const entry = {
-      type,
-      value: value ?? null,
-      icon,
-      label,
-      maxValue,
-      priority: priorities[type] ?? 99
+      type: type,
+      value: value,
+      icon: icon,
+      label: label,
+      maxValue: maxValue,
+      priority: _.config[type]?.prio ?? 99
     };
+
     if (debounce) {
-      debounceTimer.entry = entry;
+      _.debounceEntry = entry;
       debounceTimer.restart();
     } else {
-      handleEntry(entry);
+      _.push(entry);
     }
   }
 
-  function showToggleOSD(type, enabled, iconOn, iconOff, label) {
-    showOSD(type, null, enabled ? iconOn : iconOff, `${label} ${enabled ? "On" : "Off"}`);
+  function showToggle(type: string, enabled: bool, iconOn: string, iconOff: string, label: string) {
+    show(type, null, enabled ? iconOn : iconOff, `${label} ${enabled ? "On" : "Off"}`);
   }
 
-  function volumeIcon(vol: int, muted: bool): string {
-    return muted ? "󰖁" : (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿");
+  // --- Internal Logic & Configuration ---
+  QtObject {
+    id: _
+
+    // Config: [Priority (lower is higher), Group, SuppressionList]
+    readonly property var config: ({
+        [root.types.battery]: {
+          prio: 0,
+          group: "",
+          suppress: [root.types.brightness, root.types.keyboardBacklight]
+        },
+        [root.types.recording]: {
+          prio: 0,
+          group: "",
+          suppress: []
+        },
+        [root.types.audioDevice]: {
+          prio: 1,
+          group: "",
+          suppress: [root.types.volumeOutput]
+        },
+        [root.types.micMute]: {
+          prio: 1,
+          group: "",
+          suppress: [root.types.volumeOutput]
+        },
+        [root.types.networking]: {
+          prio: 2,
+          group: "",
+          suppress: [root.types.wifi]
+        },
+        [root.types.wifi]: {
+          prio: 2,
+          group: "",
+          suppress: []
+        },
+        [root.types.bluetooth]: {
+          prio: 2,
+          group: "",
+          suppress: [root.types.audioDevice]
+        },
+        [root.types.volumeOutput]: {
+          prio: 3,
+          group: "",
+          suppress: []
+        },
+        [root.types.brightness]: {
+          prio: 3,
+          group: "",
+          suppress: []
+        },
+        [root.types.keyboardBacklight]: {
+          prio: 4,
+          group: "",
+          suppress: []
+        },
+        [root.types.keyboardLayout]: {
+          prio: 4,
+          group: "",
+          suppress: []
+        },
+        [root.types.capsLock]: {
+          prio: 4,
+          group: "locks",
+          suppress: []
+        },
+        [root.types.numLock]: {
+          prio: 4,
+          group: "locks",
+          suppress: []
+        },
+        [root.types.scrollLock]: {
+          prio: 4,
+          group: "locks",
+          suppress: []
+        },
+        [root.types.dnd]: {
+          prio: 4,
+          group: "",
+          suppress: []
+        }
+      })
+
+    // State
+    property var current: null
+    property var debounceEntry: null
+    readonly property int debounceMs: 150
+    property bool initialized: false
+    property var pending: null
+    readonly property int timeoutMs: 2000
+
+    function apply(entry) {
+      _.current = entry;
+      root.osdType = entry.type;
+      root.osdValue = entry.value;
+      root.osdIcon = entry.icon;
+      root.osdLabel = entry.label;
+      root.osdMaxValue = entry.maxValue;
+      root.visible = true;
+      hideTimer.restart();
+
+      // Clear pending if the new entry suppresses what was waiting
+      if (_.pending && _.config[entry.type]?.suppress.includes(_.pending.type)) {
+        _.pending = null;
+      }
+    }
+
+    function close() {
+      if (!root.visible)
+        return;
+      root.visible = false;
+      hideTimer.stop();
+      _.current = null;
+
+      if (_.pending) {
+        const next = _.pending;
+        _.pending = null;
+        _.apply(next);
+      }
+    }
+
+    function push(entry) {
+      if (!_.initialized)
+        return;
+
+      // 1. Check Suppression (Does current entry suppress the new one?)
+      if (_.current && _.config[_.current.type]?.suppress.includes(entry.type))
+        return;
+
+      // 2. Check Grouping (Update in place if same type or group)
+      const sameGroup = _.config[entry.type]?.group !== "" && _.config[entry.type]?.group === _.config[_.current?.type]?.group;
+      if (_.current && (_.current.type === entry.type || sameGroup)) {
+        _.apply(entry);
+        return;
+      }
+
+      // 3. Priority Interruption (New entry is more important than current)
+      if (_.current && entry.priority < _.current.priority) {
+        _.pending = _.current; // Save current for later
+        _.apply(entry);
+        return;
+      }
+
+      // 4. Show immediately if nothing is showing
+      if (!root.visible) {
+        _.apply(entry);
+        return;
+      }
+
+      // 5. Queue logic (Add to pending if priority allows)
+      if (!_.pending || entry.priority <= _.pending.priority) {
+        _.pending = entry;
+      }
+    }
   }
 
-  Component.onCompleted: initTimer.start()
+  // --- Timers ---
 
   Timer {
     id: hideTimer
 
-    interval: root.timeoutMs
+    interval: _.timeoutMs
 
-    onTriggered: root.hideOSD()
+    onTriggered: _.close()
   }
 
   Timer {
     id: debounceTimer
 
-    property var entry: null
-
-    interval: root.debounceMs
+    interval: _.debounceMs
 
     onTriggered: {
-      if (entry) {
-        root.handleEntry(entry);
-        entry = null;
+      if (_.debounceEntry) {
+        _.push(_.debounceEntry);
+        _.debounceEntry = null;
       }
     }
   }
 
+  // Initialization delay to prevent startup spam
   Timer {
-    id: initTimer
-
     interval: 1000
+    running: true
 
-    onTriggered: root.initialized = true
+    onTriggered: _.initialized = true
   }
+
+  // --- Service Connections ---
 
   Connections {
     function onMutedChanged() {
       const vol = Math.round(AudioService.volume * 100);
-      root.showOSD(root.types.volumeOutput, AudioService.muted ? 0 : vol, root.volumeIcon(vol, AudioService.muted), AudioService.muted ? "Muted" : `${vol}%`, false, Math.round(AudioService.maxVolume * 100));
+      root.show(root.types.volumeOutput, AudioService.muted ? 0 : vol, AudioService.muted ? "󰖁" : (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿"), AudioService.muted ? "Muted" : `${vol}%`, false, Math.round(AudioService.maxVolume * 100));
     }
 
     function onSinkDeviceChanged(deviceName, icon) {
-      root.showOSD(root.types.audioDevice, null, icon || "󰓃", deviceName);
+      root.show(root.types.audioDevice, null, icon || "󰓃", deviceName);
     }
 
     function onVolumeChanged() {
       const vol = Math.round(AudioService.volume * 100);
-      root.showOSD(root.types.volumeOutput, vol, root.volumeIcon(vol, AudioService.muted), `${vol}%`, false, Math.round(AudioService.maxVolume * 100));
+      root.show(root.types.volumeOutput, vol, (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿"), `${vol}%`, false, Math.round(AudioService.maxVolume * 100));
     }
 
     target: AudioService
@@ -206,7 +272,7 @@ Singleton {
   Connections {
     function onMutedChanged() {
       const muted = AudioService.source?.audio?.muted ?? false;
-      root.showOSD(root.types.micMute, null, muted ? "󰍭" : "󰍬", muted ? "Microphone Muted" : "Microphone Unmuted");
+      root.show(root.types.micMute, null, muted ? "󰍭" : "󰍬", muted ? "Microphone Muted" : "Microphone Unmuted");
     }
 
     target: AudioService.source?.audio ?? null
@@ -214,11 +280,11 @@ Singleton {
 
   Connections {
     function onNetworkingEnabledChanged() {
-      root.showToggleOSD(root.types.networking, NetworkService.networkingEnabled, "󰈀", "󰪎", "Networking");
+      root.showToggle(root.types.networking, NetworkService.networkingEnabled, "󰈀", "󰪎", "Networking");
     }
 
     function onWifiRadioEnabledChanged() {
-      root.showToggleOSD(root.types.wifi, NetworkService.wifiRadioEnabled, "󰖩", "󰖪", "WiFi");
+      root.showToggle(root.types.wifi, NetworkService.wifiRadioEnabled, "󰖩", "󰖪", "WiFi");
     }
 
     target: NetworkService
@@ -226,7 +292,7 @@ Singleton {
 
   Connections {
     function onEnabledChanged() {
-      root.showToggleOSD(root.types.bluetooth, BluetoothService.enabled, "󰂯", "󰂲", "Bluetooth");
+      root.showToggle(root.types.bluetooth, BluetoothService.enabled, "󰂯", "󰂲", "Bluetooth");
     }
 
     target: BluetoothService
@@ -234,19 +300,18 @@ Singleton {
 
   Connections {
     function onIsChargingChanged() {
-      if (!BatteryService.isLaptopBattery)
-        return;
-      root.showOSD(root.types.battery, null, BatteryService.isCharging ? "󰂄" : "󰂃", BatteryService.isCharging ? "Charger Connected" : "Charger Disconnected");
+      if (BatteryService.isLaptopBattery)
+        root.show(root.types.battery, null, BatteryService.isCharging ? "󰂄" : "󰂃", BatteryService.isCharging ? "Charger Connected" : "Charger Disconnected");
     }
 
     function onIsFullyChargedChanged() {
       if (BatteryService.isLaptopBattery && BatteryService.isFullyCharged)
-        root.showOSD(root.types.battery, null, "󰚥", "Fully Charged");
+        root.show(root.types.battery, null, "󰚥", "Fully Charged");
     }
 
     function onIsPendingChargeChanged() {
       if (BatteryService.isLaptopBattery && BatteryService.isPendingCharge)
-        root.showOSD(root.types.battery, null, "󰂏", "Charge Limit Reached");
+        root.show(root.types.battery, null, "󰂏", "Charge Limit Reached");
     }
 
     target: BatteryService
@@ -257,7 +322,7 @@ Singleton {
       if (!BrightnessService.ready)
         return;
       const p = BrightnessService.percentage;
-      root.showOSD(root.types.brightness, p, p >= 70 ? "󰃠" : p >= 30 ? "󰃟" : "󰃞", `${p}%`, true);
+      root.show(root.types.brightness, p, p >= 70 ? "󰃠" : p >= 30 ? "󰃟" : "󰃞", `${p}%`, true);
     }
 
     target: BrightnessService
@@ -266,7 +331,7 @@ Singleton {
   Connections {
     function onBrightnessChanged() {
       if (KeyboardBacklightService.ready)
-        root.showOSD(root.types.keyboardBacklight, null, "⌨", `Backlight: ${KeyboardBacklightService.levelName}`);
+        root.show(root.types.keyboardBacklight, null, "⌨", `Backlight: ${KeyboardBacklightService.levelName}`);
     }
 
     target: KeyboardBacklightService
@@ -274,7 +339,7 @@ Singleton {
 
   Connections {
     function onDoNotDisturbChanged() {
-      root.showToggleOSD(root.types.dnd, NotificationService.doNotDisturb, "󰂛", "󰂚", "Do Not Disturb");
+      root.showToggle(root.types.dnd, NotificationService.doNotDisturb, "󰂛", "󰂚", "Do Not Disturb");
     }
 
     target: NotificationService
@@ -282,19 +347,19 @@ Singleton {
 
   Connections {
     function onCapsOnChanged() {
-      root.showToggleOSD(root.types.capsLock, KeyboardLayoutService.capsOn, "󰘲", "󰘲", "Caps Lock");
+      root.showToggle(root.types.capsLock, KeyboardLayoutService.capsOn, "󰘲", "󰘲", "Caps Lock");
     }
 
     function onCurrentLayoutChanged() {
-      root.showOSD(root.types.keyboardLayout, KeyboardLayoutService.currentLayout || "??", "󰌌", `Layout: ${KeyboardLayoutService.currentLayout || "??"}`);
+      root.show(root.types.keyboardLayout, null, "󰌌", `Layout: ${KeyboardLayoutService.currentLayout || "??"}`);
     }
 
     function onNumOnChanged() {
-      root.showToggleOSD(root.types.numLock, KeyboardLayoutService.numOn, "󰎠", "󰎠", "Num Lock");
+      root.showToggle(root.types.numLock, KeyboardLayoutService.numOn, "�", "�", "Num Lock");
     }
 
     function onScrollOnChanged() {
-      root.showToggleOSD(root.types.scrollLock, KeyboardLayoutService.scrollOn, "󰌐", "󰌐", "Scroll Lock");
+      root.showToggle(root.types.scrollLock, KeyboardLayoutService.scrollOn, "󰌐", "󰌐", "Scroll Lock");
     }
 
     target: KeyboardLayoutService
@@ -302,19 +367,19 @@ Singleton {
 
   Connections {
     function onRecordingPaused(_) {
-      root.showOSD(root.types.recording, null, "󰏤", "Recording Paused");
+      root.show(root.types.recording, null, "󰏤", "Recording Paused");
     }
 
     function onRecordingResumed(_) {
-      root.showOSD(root.types.recording, null, "󰐊", "Recording Resumed");
+      root.show(root.types.recording, null, "󰐊", "Recording Resumed");
     }
 
     function onRecordingStarted(_) {
-      root.showOSD(root.types.recording, null, "󰑊", "Recording Started");
+      root.show(root.types.recording, null, "󰑊", "Recording Started");
     }
 
     function onRecordingStopped(_) {
-      root.showOSD(root.types.recording, null, "󰓛", "Recording Stopped");
+      root.show(root.types.recording, null, "󰓛", "Recording Stopped");
     }
 
     target: ScreenRecordingService
