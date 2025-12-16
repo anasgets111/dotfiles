@@ -36,7 +36,6 @@ OPanel {
   }
 
   maxHeight: 900
-  needsKeyboardFocus: true
   panelNamespace: "obelisk-update-panel"
   panelWidth: 500
 
