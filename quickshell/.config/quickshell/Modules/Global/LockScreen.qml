@@ -44,6 +44,7 @@ Scope {
           }
         }
 
+        // one day :D
         // ScreencopyView {
         //   id: background
 
@@ -64,8 +65,6 @@ Scope {
           isMainMonitor: lockSurface.isMainMonitor
         }
       }
-
-      // one day :D
     }
   }
 }
