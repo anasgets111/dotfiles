@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Arch Linux Installation Script
 # Hardware: Ryzen 5900X • RTX 3080 • NVMe

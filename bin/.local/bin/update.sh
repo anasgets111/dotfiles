@@ -18,6 +18,16 @@ done
 # ——————————————————————————————————————————————————————————————
 has_cmd () { command -v "$1" >/dev/null 2>&1; }
 
+get_aur_helper() {
+  if has_cmd yay; then
+    echo "yay"
+  elif has_cmd paru; then
+    echo "paru"
+  else
+    echo ""
+  fi
+}
+
 print_header() {
   printf "\n▶ %s\n" "$1"
 }
@@ -49,6 +59,8 @@ step_if() {
 # Updates
 # ——————————————————————————————————————————————————————————————
 
+AUR_HELPER=$(get_aur_helper)
+
 if [ "$POLKIT" = "1" ]; then
   step_if \
     "Update system packages (pkexec pacman)" \
@@ -56,16 +68,16 @@ if [ "$POLKIT" = "1" ]; then
     "stdbuf -oL -eL pkexec pacman -Syu --noconfirm"
 else
   step_if \
-    "Update system packages (paru)" \
-    "command -v paru" \
-    "stdbuf -oL -eL paru -Syu --noconfirm"
+    "Update system packages ($AUR_HELPER)" \
+    "[ -n \"$AUR_HELPER\" ]" \
+    "stdbuf -oL -eL $AUR_HELPER -Syu --noconfirm"
 fi
 
 if [ "$POLKIT" = "1" ]; then
   step_if \
-    "Update AUR packages (paru)" \
-    "command -v paru" \
-    "stdbuf -oL -eL paru -Sua --noconfirm"
+    "Update AUR packages ($AUR_HELPER)" \
+    "[ -n \"$AUR_HELPER\" ]" \
+    "stdbuf -oL -eL $AUR_HELPER -Sua --noconfirm"
 fi
 
 step_if \
