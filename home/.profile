@@ -1,25 +1,16 @@
 #!/usr/bin/env sh
 
-# ─── XDG Base Dirs ──────────────────────────────────────────────────────────────
-export XDG_CONFIG_HOME="$HOME/.config"
-export XDG_DATA_HOME="$HOME/.local/share"
-export XDG_CACHE_HOME="$HOME/.cache"
-export XDG_DOWNLOAD_DIR="/mnt/Work/Downloads"
-export EDITOR="nvim"
-
-# ─── User Info ──────────────────────────────────────────────────────────────────
-FULL_NAME="$( getent passwd "$USER" | cut -d: -f5 | cut -d, -f1)"
+# ─── User Info (dynamic) ────────────────────────────────────────────────────────
+FULL_NAME="$(getent passwd "$USER" | cut -d: -f5 | cut -d, -f1)"
 export FULL_NAME
 
-# ─── Tool Homes ─────────────────────────────────────────────────────────────────
-export CARGO_HOME="$XDG_DATA_HOME/cargo"
-export CARGOBIN="$CARGO_HOME/bin"
-export FNM_PATH="$XDG_DATA_HOME/fnm"
-export GNUPGHOME="$XDG_DATA_HOME/gnupg"
-export MYSQL_HOST="127.0.0.1"
-export BIN="$HOME/.local/bin"
-export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc-2.0"
-export LESSHISTFILE="$XDG_CACHE_HOME/less_history"
+# ─── PATH (shell-managed) ───────────────────────────────────────────────────────
+# CARGOBIN and BIN are set in environment.d
+PATH="$(
+  printf '%s' "${CARGOBIN:-}:${BIN:-}:$HOME/.config/composer/vendor/bin:$PATH" |
+    sed 's/^://; s/::*/:/g'
+)"
+export PATH
 
 # ─── NVIDIA (conditional) ───────────────────────────────────────────────────────
 if command -v nvidia-smi >/dev/null 2>&1; then
@@ -31,36 +22,23 @@ if command -v nvidia-smi >/dev/null 2>&1; then
   export EGL_PLATFORM="wayland"
 fi
 
-# ─── Wayland Toolkits ───────────────────────────────────────────────────────────
-export QT_QPA_PLATFORM="wayland"
-export GDK_BACKEND="wayland"
-export CLUTTER_BACKEND="wayland"
-export MOZ_ENABLE_WAYLAND="1"
-export ELECTRON_OZONE_PLATFORM_HINT="auto"
-export ELECTRON_ENABLE_FEATURES="UseOzonePlatform,WaylandWindowDecorations,WaylandLinuxDrmSyncobj"
-
-# ─── Scaling ────────────────────────────────────────────────────────────────────
-export GDK_SCALE="1"
-export QT_SCALE_FACTOR="1"
-export QT_AUTO_SCREEN_SCALE_FACTOR="1"
-
-# ─── Qt Theming ─────────────────────────────────────────────────────────────────
-export QT_QPA_PLATFORMTHEME="qt6ct"
-
-
-# ─── PATH ───────────────────────────────────────────────────────────────────────
-export PATH="$CARGOBIN:$BIN:$XDG_CONFIG_HOME/composer/vendor/bin:$PATH"
-
 # ─── Dotfiles & Secrets ─────────────────────────────────────────────────────────
-export DOTFILES="/mnt/Work/1Progs/Dots"
-CRED_FILE="$DOTFILES/.local_secrets/credentials.sh"
-if [ -n "$DOTFILES" ] && [ -r "$CRED_FILE" ]; then
-  # shellcheck disable=SC1090
-  . "$CRED_FILE" || printf 'Warning: failed to source %s\n' "$CRED_FILE" >&2
+# DOTFILES is set in environment.d
+if [ -r "$DOTFILES/.local_secrets/credentials.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$DOTFILES/.local_secrets/credentials.sh" || printf 'Warning: failed to source credentials\n' >&2
 fi
 
-# ─── fnm (Node version manager) ─────────────────────────────────────────────────
-eval "$( fnm env --shell=bash --use-on-cd --version-file-strategy=recursive --resolve-engines )"
+# ─── fnm (shell hook) ──────────────────────────────────────────────────────────
+if command -v fnm >/dev/null 2>&1; then
+  eval "$(
+    fnm env \
+      --shell=bash \
+      --use-on-cd \
+      --version-file-strategy=recursive \
+      --resolve-engines
+  )"
+fi
 
 # ─── Drop into Fish ─────────────────────────────────────────────────────────────
 if [ -t 1 ] && [ -z "$FISH_VERSION" ]; then
