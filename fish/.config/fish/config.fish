@@ -54,7 +54,7 @@ abbr ... 'cd ../..'
 abbr .... 'cd ../../..'
 abbr ..... 'cd ../../../..'
 abbr ...... 'cd ../../../../..'
-alias fastfetchy="fastfetch -c $XDG_CONFIG_HOME/fastfetchTheme.jsonc"
+alias fastfetchy="fastfetch -c $HOME/.config/fastfetchTheme.jsonc"
 abbr errors "journalctl -p 3 -xb"
 abbr tb 'nc termbin.com 9999'
 abbr rip "expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
