@@ -44,25 +44,28 @@ Scope {
           }
         }
 
+        // ScreencopyView {
+        //   id: background
+
+        //   anchors.fill: parent
+        //   captureSource: lockSurface.screen
+        //   layer.enabled: true
+
+        //   layer.effect: MultiEffect {
+        //     autoPaddingEnabled: false
+        //     blur: 0.9
+        //     blurEnabled: true
+        //     blurMax: 64
+        //     blurMultiplier: 1
+        //   }
+        // }
+
         LockContent {
           isMainMonitor: lockSurface.isMainMonitor
         }
       }
 
       // one day :D
-      // ScreencopyView {
-      //   id: background
-      //   anchors.fill: parent
-      //   captureSource: lockSurface.screen
-      //   layer.enabled: true
-      //   layer.effect: MultiEffect {
-      //     autoPaddingEnabled: false
-      //     blurEnabled: true
-      //     blur: 0.9
-      //     blurMax: 64
-      //     blurMultiplier: 1
-      //   }
-      // }
     }
   }
 }
