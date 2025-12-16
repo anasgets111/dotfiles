@@ -50,7 +50,6 @@ Item {
     Connections {
       function onAuthenticationRequestStarted(): void {
         passwordField.text = "";
-        Qt.callLater(passwordField.forceActiveFocus);
       }
 
       target: agent
@@ -107,6 +106,9 @@ Item {
           Layout.fillWidth: true
           spacing: Theme.spacingSm
           visible: window.flow?.isResponseRequired ?? false
+
+          onVisibleChanged: if (visible)
+            Qt.callLater(passwordField.forceActiveFocus)
 
           OText {
             text: window.flow?.inputPrompt ?? ""
