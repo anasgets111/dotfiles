@@ -40,10 +40,10 @@ Item {
         Layout.alignment: Qt.AlignVCenter
         icon: ""
         showBorder: false
-        tooltipText: modelData.tooltipTitle || modelData.title || ""
+        tooltipText: modelData?.tooltipTitle || modelData?.title || ""
 
         onClicked: function (mouse) {
-          if (!mouse)
+          if (!mouse || !modelData)
             return;
           if (mouse.button === Qt.RightButton && modelData.hasMenu) {
             tray.currentMenuItem = modelData;
@@ -60,7 +60,7 @@ Item {
           anchors.fill: parent
           hoverEnabled: false
 
-          onWheel: w => btn.modelData.scroll(Math.abs(w.angleDelta.y) > Math.abs(w.angleDelta.x) ? w.angleDelta.y : w.angleDelta.x, Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y))
+          onWheel: w => btn.modelData?.scroll(Math.abs(w.angleDelta.y) > Math.abs(w.angleDelta.x) ? w.angleDelta.y : w.angleDelta.x, Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y))
         }
 
         Item {
@@ -75,7 +75,7 @@ Item {
             backer.smooth: true
             backer.sourceSize: Qt.size(Theme.iconSize, Theme.iconSize)
             implicitSize: Theme.iconSize
-            source: btn.modelData.icon
+            source: btn.modelData ? btn.modelData.icon : ""
             visible: status !== Image.Error && status !== Image.Null
           }
 
@@ -83,7 +83,10 @@ Item {
             anchors.centerIn: parent
             bold: true
             color: Theme.textContrast(btn.effectiveBg)
-            text: (btn.modelData.tooltipTitle || btn.modelData.title || btn.modelData.id || "?").charAt(0).toUpperCase()
+            text: {
+              const label = btn.modelData?.tooltipTitle || btn.modelData?.title || btn.modelData?.id || "?";
+              return String(label).charAt(0).toUpperCase();
+            }
             visible: !iconImage.visible
           }
         }
