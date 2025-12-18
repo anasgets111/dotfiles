@@ -1,8 +1,3 @@
-# ─── PATH (ensure BIN and CARGOBIN are included) ────────────────────────────────
-set -q CARGOBIN; or set -gx CARGOBIN $HOME/.local/share/cargo/bin
-set -q BIN; or set -gx BIN $HOME/.local/bin
-set -gx PATH $CARGOBIN $BIN $HOME/.config/composer/vendor/bin $PATH
-
 # Shared global color variables
 set -g GREEN (set_color green)
 set -g BLUE (set_color blue)
