@@ -1,6 +1,8 @@
 pragma Singleton
+pragma ComponentBehavior: Bound
 
 import QtQuick
+import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 import qs.Services.Utils
@@ -9,9 +11,13 @@ import qs.Services
 Singleton {
   id: root
 
+  readonly property string _devicePath: {
+    for (let i = 0; i < backlightFolder.count; i++)
+      return `/sys/class/backlight/${backlightFolder.get(i, "fileName")}`;
+    return "";
+  }
   readonly property bool available: MainService.hasBrightnessControl
   property int brightness: 0
-  property string devicePath: ""
   property int maxBrightness: 100
   readonly property int percentage: maxBrightness > 0 ? Math.round((brightness / maxBrightness) * 100) : 0
   property bool ready: false
@@ -25,11 +31,6 @@ Singleton {
     setBrightness(percentage + step);
   }
 
-  function refresh() {
-    monitorProcess.running = false;
-    monitorProcess.running = true;
-  }
-
   function setBrightness(percent) {
     if (!available)
       return "Brightness control not available";
@@ -39,75 +40,51 @@ Singleton {
     return `Brightness set to ${clamped}%`;
   }
 
-  Component.onCompleted: {
-    if (available) {
-      Logger.log("BrightnessService", `initializing...`);
-    } else {
+  onAvailableChanged: {
+    if (!available)
       Logger.log("BrightnessService", "not available");
-    }
-  }
-  onDevicePathChanged: {
-    if (devicePath) {
-      root.ready = true;
-      Logger.log("BrightnessService", `ready | device: ${devicePath} | brightness: ${percentage}%`);
-    }
   }
   onPercentageChanged: {
-    if (available && ready) {
+    if (available && ready)
       Logger.log("BrightnessService", `brightness: ${percentage}%`);
+  }
+  on_DevicePathChanged: {
+    if (_devicePath) {
+      root.ready = true;
+      Logger.log("BrightnessService", `ready | device: ${_devicePath} | brightness: ${percentage}%`);
     }
   }
 
-  Process {
-    id: monitorProcess
+  FolderListModel {
+    id: backlightFolder
 
-    command: ["sh", "-c", `
-      dev=$(ls /sys/class/backlight/ 2>/dev/null | head -1)
-      [ -z "$dev" ] && exit 1
-      path="/sys/class/backlight/$dev"
-      echo "INIT $path $(cat "$path/max_brightness" 2>/dev/null)"
-      last=""
-      while read -r _; do
-        cur=$(cat "$path/brightness" 2>/dev/null)
-        [ "$cur" != "$last" ] && echo "$cur" && last="$cur"
-      done
-    `]
-    running: root.available
+    folder: "file:///sys/class/backlight"
+    showDirs: true
+    showFiles: false
+  }
 
-    stdout: SplitParser {
-      onRead: line => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith("INIT ")) {
-          const parts = trimmed.split(" ");
-          root.devicePath = parts[1];
-          root.maxBrightness = Number.parseInt(parts[2], 10) || 100;
-          return;
-        }
-        const value = Number.parseInt(trimmed, 10);
-        if (!Number.isNaN(value) && value !== root.brightness) {
-          root.brightness = value;
-        }
-      }
-    }
+  FileView {
+    id: maxBrightnessFile
 
-    onRunningChanged: if (!running && root.available)
-      restartTimer.start()
+    path: root._devicePath ? `${root._devicePath}/max_brightness` : ""
+
+    onLoaded: root.maxBrightness = parseInt(text().trim(), 10) || 100
+  }
+
+  FileView {
+    id: brightnessFile
+
+    path: root._devicePath ? `${root._devicePath}/brightness` : ""
+
+    onLoaded: root.brightness = parseInt(text().trim(), 10) || 0
   }
 
   Timer {
     interval: 100
     repeat: true
-    running: monitorProcess.running
+    running: root.available && root._devicePath !== ""
 
-    onTriggered: monitorProcess.write("\n")
-  }
-
-  Timer {
-    id: restartTimer
-
-    interval: 1000
-
-    onTriggered: monitorProcess.running = true
+    onTriggered: brightnessFile.reload()
   }
 
   Process {
