@@ -81,32 +81,68 @@ Singleton {
   }
 
   function logSnapshot() {
-    if (_cpuReady) {
+    if (_cpuReady)
       Logger.log("SystemInfo", `CPU: ${fmtPerc(cpuPerc)}${cpuTemp > 0 ? ` @ ${cpuTemp.toFixed(1)}°C` : ""}`);
-    }
-    if (_memReady && memTotal > 0) {
+    if (_memReady && memTotal > 0)
       Logger.log("SystemInfo", `Memory: ${fmtKib(memUsed)} / ${fmtKib(memTotal)} (${fmtPerc(memPerc)})`);
-    }
-    if (_gpuReady) {
+    if (_gpuReady)
       Logger.log("SystemInfo", `GPU: ${fmtPerc(gpuPerc)}${gpuTemp > 0 ? ` @ ${gpuTemp.toFixed(1)}°C` : ""}`);
-    }
-    if (_storageReady && storageTotal > 0) {
+    if (_storageReady && storageTotal > 0)
       Logger.log("SystemInfo", `Storage: ${fmtKib(storageUsed)} / ${fmtKib(storageTotal)} (${fmtPerc(storagePerc)})`);
-    }
   }
 
   onGpuTypeChanged: Logger.log("SystemInfo", `GPU type: ${gpuType}`)
 
-  Process {
-    id: bootTimeProc
+  FileView {
+    id: uptimeFile
 
-    command: ["cat", "/proc/uptime"]
-    running: true
+    path: "/proc/uptime"
 
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const uptimeSec = parseFloat(text.split(" ")[0] || "0");
-        root.bootTimeMs = Date.now() - uptimeSec * 1000;
+    onLoaded: {
+      const uptimeSec = parseFloat(text().split(" ")[0] || "0");
+      root.bootTimeMs = Date.now() - uptimeSec * 1000;
+    }
+  }
+
+  FileView {
+    id: cpuStatFile
+
+    path: "/proc/stat"
+
+    onLoaded: {
+      const match = text().match(/^cpu\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/);
+      if (!match)
+        return;
+      const stats = match.slice(1).map(Number);
+      const total = stats.reduce((a, b) => a + b, 0);
+      const idle = stats[3] + (stats[4] || 0);
+      const totalDiff = total - root._lastCpuTotal;
+      const idleDiff = idle - root._lastCpuIdle;
+      if (totalDiff > 0) {
+        const perc = 1 - idleDiff / totalDiff;
+        if (perc >= 0 && perc <= 1) {
+          root.cpuPerc = perc;
+          root._cpuReady = true;
+        }
+      }
+      root._lastCpuTotal = total;
+      root._lastCpuIdle = idle;
+    }
+  }
+
+  FileView {
+    id: meminfoFile
+
+    path: "/proc/meminfo"
+
+    onLoaded: {
+      const t = text();
+      const total = parseInt(t.match(/MemTotal:\s*(\d+)/)?.[1] || "0", 10);
+      const avail = parseInt(t.match(/MemAvailable:\s*(\d+)/)?.[1] || "0", 10);
+      if (total > 0 && avail >= 0) {
+        root.memTotal = total;
+        root.memUsed = total - avail;
+        root._memReady = true;
       }
     }
   }
@@ -146,8 +182,8 @@ Singleton {
     triggeredOnStart: true
 
     onTriggered: {
-      cpuStatProc.running = true;
-      meminfoProc.running = true;
+      cpuStatFile.reload();
+      meminfoFile.reload();
       gpuUsageProc.running = true;
       sensorsProc.running = true;
       root.logSnapshot();
@@ -161,54 +197,6 @@ Singleton {
     triggeredOnStart: true
 
     onTriggered: storageProc.running = true
-  }
-
-  Process {
-    id: cpuStatProc
-
-    command: ["cat", "/proc/stat"]
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const match = text.match(/^cpu\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/);
-        if (!match)
-          return;
-
-        const stats = match.slice(1).map(Number);
-        const total = stats.reduce((a, b) => a + b, 0);
-        const idle = stats[3] + (stats[4] || 0);
-        const totalDiff = total - root._lastCpuTotal;
-        const idleDiff = idle - root._lastCpuIdle;
-
-        if (totalDiff > 0) {
-          const perc = 1 - idleDiff / totalDiff;
-          if (perc >= 0 && perc <= 1) {
-            root.cpuPerc = perc;
-            root._cpuReady = true;
-          }
-        }
-        root._lastCpuTotal = total;
-        root._lastCpuIdle = idle;
-      }
-    }
-  }
-
-  Process {
-    id: meminfoProc
-
-    command: ["cat", "/proc/meminfo"]
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const total = parseInt(text.match(/MemTotal:\s*(\d+)/)?.[1] || "0", 10);
-        const avail = parseInt(text.match(/MemAvailable:\s*(\d+)/)?.[1] || "0", 10);
-        if (total > 0 && avail >= 0) {
-          root.memTotal = total;
-          root.memUsed = total - avail;
-          root._memReady = true;
-        }
-      }
-    }
   }
 
   Process {
@@ -270,10 +258,8 @@ Singleton {
           if (Number.isFinite(t))
             root.cpuTemp = t;
         }
-
         if (root.gpuType !== "GENERIC")
           return;
-
         let inPci = false, sum = 0, count = 0;
         for (const line of text.split("\n")) {
           if (line === "Adapter: PCI adapter")

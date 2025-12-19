@@ -27,13 +27,10 @@ Singleton {
   function adjustBrightness(): void {
     if (!isLaptop)
       return;
-
-    if (BrightnessService.ready) {
+    if (BrightnessService.ready)
       BrightnessService.setBrightness(onBattery ? onBatteryBrightness : onACBrightness);
-    }
-    if (KeyboardBacklightService.ready) {
+    if (KeyboardBacklightService.ready)
       KeyboardBacklightService.setLevel(onBattery ? kbdOnBattery : kbdOnAC);
-    }
   }
 
   function refreshPowerInfo(): void {
@@ -71,7 +68,9 @@ Singleton {
     interval: 100
 
     onTriggered: {
-      powerInfoProcess.running = true;
+      platformFile.reload();
+      governorFile.reload();
+      eppFile.reload();
       if (root.isLaptop) {
         ppdProcess.running = true;
         tlpCheckProcess.running = true;
@@ -79,39 +78,35 @@ Singleton {
     }
   }
 
+  FileView {
+    id: platformFile
+
+    path: "/sys/firmware/acpi/platform_profile"
+
+    onLoaded: root.platformProfile = text().trim() || "Unknown"
+  }
+
+  FileView {
+    id: governorFile
+
+    path: "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+
+    onLoaded: root.cpuGovernor = text().trim() || "Unknown"
+  }
+
+  FileView {
+    id: eppFile
+
+    path: "/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference"
+
+    onLoaded: root.energyPerformance = text().trim() || "Unknown"
+  }
+
   Process {
     id: setProfileProcess
 
     onRunningChanged: if (!running)
       root.refreshPowerInfo()
-  }
-
-  Process {
-    id: powerInfoProcess
-
-    command: ["sh", "-c", `
-      echo "platform:$(cat /sys/firmware/acpi/platform_profile 2>/dev/null || echo Unknown)"
-      echo "governor:$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo Unknown)"
-      echo "epp:$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || echo Unknown)"
-    `]
-
-    stdout: SplitParser {
-      splitMarker: "\n"
-
-      onRead: line => {
-        const parts = line.split(":");
-        if (parts.length < 2)
-          return;
-        const key = parts[0];
-        const val = parts.slice(1).join(":").trim() || "Unknown";
-        if (key === "platform")
-          root.platformProfile = val;
-        else if (key === "governor")
-          root.cpuGovernor = val;
-        else if (key === "epp")
-          root.energyPerformance = val;
-      }
-    }
   }
 
   Process {

@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 pragma Singleton
 import QtQuick
+import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 import qs.Services.Utils
@@ -59,7 +60,6 @@ Singleton {
   // ═══════════════════════════════════════════════════════════════════════════
   Component.onCompleted: {
     Quickshell.execDetached(["mkdir", "-p", configDir, cacheDir, cacheDirImages]);
-    themeEnumerator.running = true;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -94,18 +94,18 @@ Singleton {
   // ═══════════════════════════════════════════════════════════════════════════
   // THEME ENUMERATOR
   // ═══════════════════════════════════════════════════════════════════════════
-  Process {
+  FolderListModel {
     id: themeEnumerator
 
-    command: ["sh", "-c", "ls -1 '" + Qt.resolvedUrl("../Assets/ColorScheme/").toString().replace("file://", "") + "' | sed 's/\\.json$//'"]
-    running: false
+    folder: Qt.resolvedUrl("../Assets/ColorScheme/")
+    nameFilters: ["*.json"]
+    showDirs: false
 
-    stdout: SplitParser {
-      onRead: data => {
-        const name = data.trim();
-        if (name)
-          root.availableThemes = root.availableThemes.concat([name]);
-      }
+    onCountChanged: {
+      const themes = [];
+      for (let i = 0; i < count; i++)
+        themes.push(get(i, "fileBaseName"));
+      root.availableThemes = themes;
     }
   }
 
