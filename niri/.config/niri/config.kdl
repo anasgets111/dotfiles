@@ -39,6 +39,11 @@ output "eDP-1" {
     mode "1920x1200@60"
         focus-at-startup
 }
+output "DP-1" {
+    mode "3440x1440@165"
+    focus-at-startup
+    variable-refresh-rate on-demand=true
+}
 output "DP-2" {
     mode "1920x1080@60"
     position x=2560 y=-450
@@ -53,12 +58,15 @@ output "DP-3" {
 
 hotkey-overlay {
     skip-at-startup
+    // hide-not-bound
 }
 
 
 cursor {
     xcursor-theme "Bibata-Modern-Ice"
     xcursor-size 24
+    // hide-when-typing
+    // hide-after-inactive-ms 5000
 }
 
 
@@ -68,6 +76,9 @@ prefer-no-csd
 layout {
     gaps 11
     center-focused-column "never"
+    always-center-single-column
+    // empty-workspace-above-first
+    // default-column-display "tabbed"
 
     // You can customize the widths that "switch-preset-column-width" (Mod+R) toggles between.
     preset-column-widths {
@@ -95,6 +106,7 @@ layout {
         // - CSS-like notation: "rgb(255, 127, 0)", rgba(), hsl() and a few others.
         active-color "#7fc8ff"
         inactive-color "#505050"
+        urgent-color "#9b0000"
         // inactive-gradient from="#505050" to="#808080" angle=45 relative-to="workspace-view"
     }
 
@@ -111,9 +123,57 @@ layout {
         // You can also change the shadow color and opacity.
         color "#0007"
     }
+
+    // Tab indicator configuration (for tabbed column display)
+    tab-indicator {
+        // hide-when-single-tab
+        // place-within-column
+        // gap 5
+        // width 4
+        // position "right"  // "top", "right", "bottom", "left"
+        // length total-proportion=1.0
+        // corner-radius 8
+        // active-color "#7fc8ff"
+        // inactive-color "#505050"
+        // urgent-color "#9b0000"
+    }
+
+    // Visual hint for window insertion
+    // insert-hint {
+    //     color "#ffc87f80"
+    //     // gradient from="#ffbb6680" to="#ffc88080" angle=45 relative-to="workspace-view"
+    // }
+
+    // Reserve space at screen edges
+    // struts {
+    //     // left 64
+    //     // right 64
+    //     // top 64
+    //     // bottom 64
+    // }
 }
 clipboard {
     disable-primary
+    // copy-on-select
+    // control-v-paste
+}
+
+// Overview configuration
+overview {
+    // zoom 0.5
+    // backdrop-color "#262626"
+    workspace-shadow {
+        // off
+        // softness 40
+        // spread 10
+        // offset x=0 y=10
+        // color "#00000050"
+    }
+}
+
+// Recent windows configuration (Alt-Tab switcher)
+recent-windows {
+    // off
 }
 
 spawn-at-startup "dbus-update-activation-environment" "--systemd" "--all"
@@ -152,6 +212,22 @@ animations {
         curve "ease-out-quad"
     }
     slowdown 0.74
+
+    // Window open animation
+    // window-open {
+    //     duration-ms 150
+    //     curve "ease-out-expo"
+    // }
+
+    // Window resize animation
+    // window-resize {
+    //     spring damping-ratio=1.0 stiffness=800 epsilon=0.0001
+    // }
+
+    // Workspace switch animation
+    // workspace-switch {
+    //     spring damping-ratio=1.0 stiffness=1000 epsilon=0.0001
+    // }
 }
 
 // =====================
@@ -159,10 +235,15 @@ animations {
 // =====================
 // Global window defaults
 window-rule {
-geometry-corner-radius 15 15 0 0
-clip-to-geometry true
-draw-border-with-background false
-opacity 0.95
+    geometry-corner-radius 15 15 0 0
+    clip-to-geometry true
+    draw-border-with-background false
+    opacity 0.95
+    // default-floating-position x=100 y=200 relative-to="bottom-left"
+    // scroll-factor 0.75
+    // variable-refresh-rate true
+    // block-out-from "screencast"
+    // tiled-state true
 }
 // Workspace placement
 window-rule {
@@ -211,7 +292,14 @@ open-floating true
 window-rule {
     match app-id="mpv"
     opacity 1.0
+    // variable-refresh-rate true  // Enable VRR for video playback
 }
+
+// Block password managers from screencasts
+// window-rule {
+//     match app-id=r#"^org\.keepassxc\.KeePassXC$"#
+//     block-out-from "screencast"
+// }
 // Floating windows, medium size (~74%)
 window-rule {
 match app-id="io.missioncenter.MissionCenter"
@@ -399,6 +487,12 @@ binds {
     // Switches focus between the current and the previous workspace.
     // Mod+Tab { focus-workspace-previous; }
 
+    // Alt-Tab: Recent windows switcher (v25.11+)
+    // Alt+Tab automatically shows the recent windows switcher when recent-windows section is configured
+    // Focus previous window (quick alt-tab alternative)
+    Mod+Tab { focus-window-previous; }
+    Alt+Tab { focus-window-previous; }
+
     // The following binds move the focused window in and out of a column.
     // If the window is alone, they will consume it into the nearby column to the side.
     // If the window is already in a column, they will expel it out.
@@ -459,12 +553,60 @@ binds {
 debug {
     // honor-xdg-activation-with-invalid-serial
     wait-for-frame-completion-before-queueing
+    // strict-new-window-focus-policy
+    // deactivate-unfocused-windows
+    // skip-cursor-only-updates-during-vrr
 }
+
+// Gestures configuration
+// gestures {
+//     // Hot corner to toggle overview
+//     hot-corners {
+//         // top-left
+//     }
+//
+//     // Drag-and-drop edge view scroll
+//     dnd-edge-view-scroll {
+//         trigger-height 100
+//         max-speed 3000
+//     }
+//
+//     // Drag-and-drop edge workspace switch
+//     dnd-edge-workspace-switch {
+//         trigger-height 100
+//         max-speed 3000
+//     }
+// }
+
+// Configuration includes (split config into multiple files)
+// include "keybinds.kdl"
+// include "window-rules.kdl"
 environment {
     // DISPLAY ":0"
     ELECTRON_OZONE_PLATFORM_HINT "auto"
+    // QT_QPA_PLATFORM "wayland"
 }
 screenshot-path "~/Pictures/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
 // You can also set this to null to disable saving screenshots to disk.
 // screenshot-path null
+
+// Layer rules for layer-shell surfaces (panels, launchers, etc.)
+// layer-rule {
+//     match namespace="^launcher$"
+//     opacity 0.95
+//     shadow { on }
+//     geometry-corner-radius 10
+// }
+
+// Place wallpaper in backdrop (visible in overview)
+// layer-rule {
+//     match namespace="^wallpaper$"
+//     place-within-backdrop true
+// }
+
+// Block layer surfaces from screencasts
+// layer-rule {
+//     match namespace="^notifications$"
+//     block-out-from "screencast"
+// }
