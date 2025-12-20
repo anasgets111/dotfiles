@@ -136,8 +136,6 @@ OPanel {
       if (wifiIface && hiddenSsid && password) {
         hiddenPasswordError = "";
         NetworkService.connectToWifi(hiddenSsid, password, wifiIface, true);
-        resetHiddenNetworkState();
-        root.close();
       }
       return;
     }
@@ -301,6 +299,13 @@ OPanel {
         labelColor: root.ready && root.networkingEnabled && root.ethernetInterface !== "" && root.ethernetOnline ? Theme.textActiveColor : Theme.textInactiveColor
         opacityValue: root.ready && root.networkingEnabled && root.ethernetInterface !== "" && root.ethernetOnline ? 1 : 0.5
         visibleWhen: true
+
+        onToggled: checked => {
+          if (checked)
+            NetworkService.connectEthernet();
+          else
+            NetworkService.disconnectEthernet();
+        }
       }
     }
 
