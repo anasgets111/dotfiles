@@ -10,19 +10,20 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  property string audioCodec: "opus"
+  property string audioCodec: ""
   property string audioSource: "default_output"
-  property string colorRange: "limited"
+  property string colorRange: ""
   readonly property string directory: String(StandardPaths.writableLocation(StandardPaths.MoviesLocation)).replace(/^file:\/\//, "")
-  property int frameRate: 24
+  property int frameRate: 0
   property bool isPaused: false
   property bool isRecording: false
   readonly property string lockPath: Quickshell.statePath("screen-recording.lock")
   property string monitor: WorkspaceService.focusedOutput
   property string outputPath: ""
-  property string quality: "medium"
+  property string quality: ""
+  property bool recordAudio: true
   property bool showCursor: true
-  property string videoCodec: "h264"
+  property string videoCodec: ""
 
   signal recordingPaused(string path)
   signal recordingResumed(string path)
@@ -37,14 +38,21 @@ Singleton {
     outputPath = dir + filename;
     const args = ["gpu-screen-recorder"];
     args.push("-w", monitor);
-    args.push("-f", String(frameRate));
+    if (frameRate > 0)
+      args.push("-f", String(frameRate));
     args.push("-o", outputPath);
-    args.push("-k", videoCodec);
-    // args.push("-a", audioSource);
-    // args.push("-ac", audioCodec);
-    args.push("-q", quality);
-    args.push("-cursor", "yes");
-    args.push("-cr", colorRange);
+    if (videoCodec)
+      args.push("-k", videoCodec);
+    if (recordAudio && audioSource) {
+      args.push("-a", audioSource);
+      if (audioCodec)
+        args.push("-ac", audioCodec);
+    }
+    if (quality)
+      args.push("-q", quality);
+    args.push("-cursor", showCursor ? "yes" : "no");
+    if (colorRange)
+      args.push("-cr", colorRange);
     Logger.log("ScreenRecorder", "Starting:", args.join(" "));
     Quickshell.execDetached(args);
     Quickshell.execDetached(["sh", "-c", `: > "${root.lockPath}"`]);
