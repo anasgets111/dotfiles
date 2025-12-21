@@ -40,10 +40,10 @@ Item {
         Layout.alignment: Qt.AlignVCenter
         icon: ""
         showBorder: false
-        tooltipText: modelData?.tooltipTitle || modelData?.title || ""
+        tooltipText: modelData.tooltipTitle || modelData.title || ""
 
         onClicked: function (mouse) {
-          if (!mouse || !modelData)
+          if (!mouse)
             return;
           if (mouse.button === Qt.RightButton && modelData.hasMenu) {
             tray.currentMenuItem = modelData;
@@ -58,9 +58,8 @@ Item {
         MouseArea {
           acceptedButtons: Qt.NoButton
           anchors.fill: parent
-          hoverEnabled: false
 
-          onWheel: w => btn.modelData?.scroll(Math.abs(w.angleDelta.y) > Math.abs(w.angleDelta.x) ? w.angleDelta.y : w.angleDelta.x, Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y))
+          onWheel: w => btn.modelData.scroll(Math.abs(w.angleDelta.y) > Math.abs(w.angleDelta.x) ? w.angleDelta.y : w.angleDelta.x, Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y))
         }
 
         Item {
@@ -75,7 +74,7 @@ Item {
             backer.smooth: true
             backer.sourceSize: Qt.size(Theme.iconSize, Theme.iconSize)
             implicitSize: Theme.iconSize
-            source: btn.modelData ? btn.modelData.icon : ""
+            source: btn.modelData.icon
             visible: status !== Image.Error && status !== Image.Null
           }
 
@@ -84,7 +83,7 @@ Item {
             bold: true
             color: Theme.textContrast(btn.effectiveBg)
             text: {
-              const label = btn.modelData?.tooltipTitle || btn.modelData?.title || btn.modelData?.id || "?";
+              const label = btn.modelData.tooltipTitle || btn.modelData.title || btn.modelData.id || "?";
               return String(label).charAt(0).toUpperCase();
             }
             visible: !iconImage.visible
@@ -126,14 +125,16 @@ Item {
       spacing: Theme.spacingXs / 2
 
       Repeater {
-        model: menuOpener.children?.values ?? []
+        id: menuRepeater
+
+        model: menuOpener.children ?? []
 
         delegate: Item {
           id: menuItem
 
-          readonly property bool isSeparator: modelData?.isSeparator ?? false
-          readonly property bool itemEnabled: modelData?.enabled ?? true
-          required property var modelData
+          readonly property bool isSeparator: modelData.isSeparator
+          readonly property bool itemEnabled: modelData.enabled
+          required property QsMenuEntry modelData
 
           Layout.fillWidth: true
           Layout.preferredHeight: isSeparator ? 8 : Theme.itemHeight
@@ -159,7 +160,7 @@ Item {
               color: Theme.textContrast(parent.color)
               elide: Text.ElideRight
               opacity: menuItem.itemEnabled ? 1.0 : 0.5
-              text: menuItem.modelData?.text ?? ""
+              text: menuItem.modelData.text ?? ""
               verticalAlignment: Text.AlignVCenter
             }
 
@@ -172,7 +173,7 @@ Item {
               hoverEnabled: true
 
               onClicked: {
-                menuItem.modelData?.triggered();
+                menuItem.modelData.triggered();
                 trayMenuPanel.close();
               }
             }
@@ -187,7 +188,7 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         text: "No menu items"
         verticalAlignment: Text.AlignVCenter
-        visible: (menuOpener.children?.values.length ?? 0) === 0
+        visible: menuRepeater.count === 0
       }
     }
   }
