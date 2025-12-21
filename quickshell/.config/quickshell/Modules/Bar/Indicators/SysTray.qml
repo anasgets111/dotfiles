@@ -40,7 +40,7 @@ Item {
         Layout.alignment: Qt.AlignVCenter
         icon: ""
         showBorder: false
-        tooltipText: modelData ? (modelData.tooltipTitle || modelData.title || "") : ""
+        tooltipText: modelData && (modelData.tooltipTitle || modelData.title) || ""
         visible: modelData !== null
 
         onClicked: function (mouse) {
@@ -60,11 +60,7 @@ Item {
           acceptedButtons: Qt.NoButton
           anchors.fill: parent
 
-          onWheel: w => {
-            if (btn.modelData) {
-              btn.modelData.scroll(Math.abs(w.angleDelta.y) > Math.abs(w.angleDelta.x) ? w.angleDelta.y : w.angleDelta.x, Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y));
-            }
-          }
+          onWheel: w => btn.modelData && btn.modelData.scroll(Math.abs(w.angleDelta.y) > Math.abs(w.angleDelta.x) ? w.angleDelta.y : w.angleDelta.x, Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y))
         }
 
         Item {
@@ -79,7 +75,7 @@ Item {
             backer.smooth: true
             backer.sourceSize: Qt.size(Theme.iconSize, Theme.iconSize)
             implicitSize: Theme.iconSize
-            source: btn.modelData ? btn.modelData.icon : ""
+            source: btn.modelData && btn.modelData.icon || ""
             visible: status !== Image.Error && status !== Image.Null
           }
 
@@ -88,9 +84,7 @@ Item {
             bold: true
             color: Theme.textContrast(btn.effectiveBg)
             text: {
-              if (!btn.modelData)
-                return "?";
-              const label = btn.modelData.tooltipTitle || btn.modelData.title || btn.modelData.id || "?";
+              const label = btn.modelData && (btn.modelData.tooltipTitle || btn.modelData.title || btn.modelData.id) || "?";
               return String(label).charAt(0).toUpperCase();
             }
             visible: !iconImage.visible
