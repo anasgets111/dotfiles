@@ -355,7 +355,7 @@ Singleton {
     }
 
     function onNumOnChanged() {
-      root.showToggle(root.types.numLock, KeyboardLayoutService.numOn, "�", "�", "Num Lock");
+      root.showToggle(root.types.numLock, KeyboardLayoutService.numOn, "󰎠", "󰎠", "Num Lock");
     }
 
     function onScrollOnChanged() {
