@@ -1,8 +1,6 @@
 ## User key bindings
 function fish_user_key_bindings
     # Bind Ctrl+Delete to delete the next word
-
-    bind -k sdc 'commandline -f kill-line'
     bind \e\[3\;5~ 'commandline -f kill-word'
     bind \b 'commandline -f backward-kill-word'
 
