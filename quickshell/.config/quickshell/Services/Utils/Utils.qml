@@ -43,28 +43,36 @@ Singleton {
     id: ledFolder
 
     folder: "file:///sys/class/leds"
+    nameFilters: ["*lock"]
     showDirs: true
-    showFiles: false
+    showFiles: true // Required: sysfs entries are often symlinks
   }
 
-  Repeater {
-    id: ledRepeater
+  Instantiator {
+    id: ledInstantiator
 
     model: ["capslock", "numlock", "scrolllock"]
 
-    FileView {
+    delegate: FileView {
       required property string modelData
 
+      // Dynamically find the path. Re-evaluates when ledFolder.count or status changes.
       path: {
+        if (ledFolder.status !== FolderListModel.Ready)
+          return "";
         for (let i = 0; i < ledFolder.count; i++) {
           const name = ledFolder.get(i, "fileName");
-          if (name.endsWith(modelData))
+          if (name.endsWith(modelData)) {
             return `/sys/class/leds/${name}/brightness`;
+          }
         }
         return "";
       }
 
-      onLoaded: root[modelData.replace("lock", "Lock")] = text().trim() !== "0"
+      onLoaded: {
+        const val = text().trim();
+        root[modelData.replace("lock", "Lock")] = val !== "0";
+      }
     }
   }
 
@@ -74,8 +82,9 @@ Singleton {
     running: true
 
     onTriggered: {
-      for (let i = 0; i < ledRepeater.count; i++)
-        (ledRepeater.itemAt(i) as FileView)?.reload();
+      for (let i = 0; i < ledInstantiator.count; i++) {
+        (ledInstantiator.objectAt(i) as FileView)?.reload();
+      }
     }
   }
 }
