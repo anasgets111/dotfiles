@@ -20,7 +20,16 @@ Item {
   }
   readonly property string detail2: (ready && link !== "disconnected" && active && active.connectionName) ? qsTr("Conn: %1 (%2)").arg(active.connectionName).arg(active.type || "") : ""
   readonly property string link: ready ? (NetworkService.linkType || "disconnected") : "disconnected"
-  readonly property string netIcon: (!ready) ? "󰤭" : (link === "ethernet" ? "󰈀" : (link === "wifi" ? (NetworkService.getWifiIcon ? NetworkService.getWifiIcon(band, strength) : "") : (NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮")))
+  readonly property string netIcon: {
+    if (!ready)
+      return "󰤭";
+    if (link === "ethernet")
+      return "󰈀";
+    if (link === "wifi") {
+      return NetworkService.getWifiIcon ? NetworkService.getWifiIcon(band, strength) : "";
+    }
+    return NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮";
+  }
   readonly property bool ready: NetworkService.ready
   readonly property string secondary: {
     if (!ready)
@@ -64,9 +73,10 @@ Item {
 
     onClicked: function (mouse) {
       if (mouse.button === Qt.LeftButton || mouse.button === Qt.RightButton) {
-        const iface = NetworkService.wifiInterface || NetworkService.firstWifiInterface() || "";
-        if (iface && NetworkService.scanWifi)
+        const iface = NetworkService.wifiInterface || "";
+        if (iface && NetworkService.scanWifi) {
           NetworkService.scanWifi(iface, true);
+        }
         networkPanelLoader.active = true;
       }
       root.clicked(mouse);
@@ -111,7 +121,6 @@ Item {
     }
   }
 
-  // Component definition for NetworkPanel (better isolation)
   Component {
     id: networkPanelComponent
 
@@ -122,7 +131,6 @@ Item {
     }
   }
 
-  // Loader for lazy-loading the panel
   Loader {
     id: networkPanelLoader
 

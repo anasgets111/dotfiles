@@ -1,5 +1,4 @@
 pragma ComponentBehavior: Bound
-
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -13,7 +12,7 @@ OPanel {
   readonly property var displayNetworks: buildNetworkList()
   readonly property string ethernetInterface: NetworkService.ethernetInterface
   readonly property bool ethernetOnline: NetworkService.ethernetOnline
-  property int hiddenNetworkPhase: 0  // 0=hidden (not connecting), 1=enter name, 2=enter password
+  property int hiddenNetworkPhase: 0
   property string hiddenPasswordError: ""
   property string hiddenSsid: ""
   readonly property int itemHeight: Theme.itemHeight
@@ -33,7 +32,6 @@ OPanel {
 
     const networks = [];
 
-    // Handle hidden network input phases
     if (root.hiddenNetworkPhase === 1) {
       networks.push({
         type: "hidden-ssid-input",
@@ -55,7 +53,6 @@ OPanel {
         ssid: root.hiddenSsid
       });
     } else {
-      // Only show hidden network button when not in input phases
       networks.push({
         type: "action",
         icon: "󰒟",
@@ -112,8 +109,6 @@ OPanel {
 
   function handleAction(action: string, data: var) {
     const wifiIface = NetworkService.wifiInterface;
-
-    // Parse action with optional parameter
     const [verb, ...params] = action.split("-");
     const param = params.join("-");
 
@@ -121,7 +116,6 @@ OPanel {
       root.hiddenNetworkPhase = 1;
       return;
     }
-
     if (action === "submit-hidden-ssid") {
       const ssid = extractInputValue(data);
       if (ssid) {
@@ -130,26 +124,23 @@ OPanel {
       }
       return;
     }
-
     if (action === "submit-hidden-password") {
       const password = extractInputValue(data);
       if (wifiIface && hiddenSsid && password) {
         hiddenPasswordError = "";
-        NetworkService.connectToWifi(hiddenSsid, password, wifiIface, true);
+        NetworkService.connectToWifi(hiddenSsid, password, wifiIface, true, "");
       }
       return;
     }
-
     if (action === "cancel-hidden") {
       resetHiddenNetworkState();
       return;
     }
-
     if (verb === "submit" && param) {
       const password = extractInputValue(data);
       if (wifiIface && param && password) {
         passwordError = "";
-        NetworkService.connectToWifi(param, password, wifiIface);
+        NetworkService.connectToWifi(param, password, wifiIface, true, "");
         root.close();
       }
       return;
@@ -168,8 +159,7 @@ OPanel {
     }
 
     if (verb === "disconnect") {
-      if (wifiIface)
-        NetworkService.disconnectInterface(wifiIface);
+      NetworkService.disconnectWifi();
       return;
     }
 
@@ -201,7 +191,7 @@ OPanel {
   }
 
   needsKeyboardFocus: passwordSsid !== "" || root.hiddenNetworkPhase > 0
-  panelHeight: 0  // Will be updated dynamically based on content
+  panelHeight: 0
   panelNamespace: "obelisk-network-panel"
   panelWidth: 350
 
@@ -219,15 +209,13 @@ OPanel {
     }
 
     function onConnectionStateChanged() {
-      // Check for visible network connection
-      const ap = root.wifiAps.find(a => a?.ssid === root.passwordSsid && a.connected);
-      if (ap) {
-        root.resetPasswordState();
-        root.close();
-        return;
+      if (root.passwordSsid) {
+        const ap = root.wifiAps.find(a => a?.ssid === root.passwordSsid && a.connected);
+        if (ap) {
+          root.resetPasswordState();
+          root.close();
+        }
       }
-
-      // Check for hidden network connection (not in wifiAps since it's hidden)
       if (root.hiddenSsid && NetworkService.wifiOnline) {
         root.resetHiddenNetworkState();
         root.close();
@@ -251,17 +239,13 @@ OPanel {
     x: root.padding
     y: root.padding
 
-    onImplicitHeightChanged: {
-      root.panelHeight = implicitHeight + root.padding * 2;
-    }
+    onImplicitHeightChanged: root.panelHeight = implicitHeight + root.padding * 2
 
-    // Toggle Cards Row
     RowLayout {
       Layout.bottomMargin: root.padding
       Layout.fillWidth: true
       spacing: root.padding * 1.25
 
-      // Networking Toggle Card
       ToggleCard {
         checked: NetworkService.networkingEnabled
         disabled: !root.ready
@@ -274,7 +258,6 @@ OPanel {
         onToggled: checked => NetworkService.setNetworkingEnabled(checked)
       }
 
-      // Wi-Fi Toggle Card
       ToggleCard {
         checked: NetworkService.wifiRadioEnabled
         disabled: !root.ready || !root.networkingEnabled
@@ -284,20 +267,17 @@ OPanel {
         labelColor: root.ready && root.networkingEnabled ? Theme.textActiveColor : Theme.textInactiveColor
         opacityValue: root.ready && root.networkingEnabled ? 1 : 0.5
 
-        onToggled: checked => {
-          NetworkService.setWifiRadioEnabled(checked);
-        }
+        onToggled: checked => NetworkService.setWifiRadioEnabled(checked)
       }
 
-      // Ethernet Toggle Card
       ToggleCard {
         checked: NetworkService.ethernetOnline
         disabled: !root.ready || !root.networkingEnabled || root.ethernetInterface === ""
         icon: "󰈀"
-        iconColor: root.ready && root.networkingEnabled && root.ethernetInterface !== "" && root.ethernetOnline ? Qt.lighter(Theme.onHoverColor, 1.25) : Theme.inactiveColor
+        iconColor: checked ? Qt.lighter(Theme.onHoverColor, 1.25) : Theme.inactiveColor
         label: "Ethernet"
-        labelColor: root.ready && root.networkingEnabled && root.ethernetInterface !== "" && root.ethernetOnline ? Theme.textActiveColor : Theme.textInactiveColor
-        opacityValue: root.ready && root.networkingEnabled && root.ethernetInterface !== "" && root.ethernetOnline ? 1 : 0.5
+        labelColor: checked ? Theme.textActiveColor : Theme.textInactiveColor
+        opacityValue: checked ? 1 : 0.5
         visibleWhen: true
 
         onToggled: checked => {
@@ -309,7 +289,6 @@ OPanel {
       }
     }
 
-    // Network List
     Rectangle {
       Layout.bottomMargin: visible ? root.padding * 2 : 0
       Layout.fillWidth: true
@@ -339,8 +318,6 @@ OPanel {
           width: Theme.scrollBarWidth
         }
         delegate: NetworkItem {
-          id: delegateItem
-
           width: ListView.view.width
 
           onPasswordCleared: root.passwordError = ""
@@ -354,14 +331,14 @@ OPanel {
     id: networkItem
 
     property bool hovered: false
-    readonly property bool isInput: networkItem.modelData.type === "input" || networkItem.modelData.type === "hidden-ssid-input" || networkItem.modelData.type === "hidden-password-input"
+    readonly property bool isInput: ["input", "hidden-ssid-input", "hidden-password-input"].includes(modelData.type)
     required property var modelData
-    readonly property color textColor: networkItem.hovered ? Theme.textOnHoverColor : Theme.textActiveColor
+    readonly property color textColor: hovered ? Theme.textOnHoverColor : Theme.textActiveColor
 
     signal passwordCleared
     signal triggered(string action, var data)
 
-    height: networkItem.isInput ? (networkItem.modelData.hasError ? Theme.itemHeight * 1.6 : Theme.itemHeight * 0.8) : Theme.itemHeight
+    height: isInput ? (modelData.hasError ? Theme.itemHeight * 1.6 : Theme.itemHeight * 0.8) : Theme.itemHeight
 
     Rectangle {
       anchors.fill: parent
@@ -413,12 +390,12 @@ OPanel {
             anchors.bottom: networkIcon.bottom
             anchors.left: networkIcon.right
             anchors.leftMargin: -Theme.spacingXs / 2
-            color: (networkItem.modelData.bandColor || networkItem.textColor)
+            color: networkItem.modelData.bandColor || networkItem.textColor
             font.bold: true
             font.family: "Roboto Condensed"
             font.pixelSize: Theme.fontXs
             text: (networkItem.modelData.band === "2.4" ? "2.4" : (networkItem.modelData.band || ""))
-            visible: (networkItem.modelData.band || "") !== ""
+            visible: !!networkItem.modelData.band
 
             Behavior on color {
               ColorAnimation {
@@ -432,16 +409,7 @@ OPanel {
           Layout.fillWidth: true
           color: networkItem.textColor
           elide: Text.ElideRight
-          horizontalAlignment: Text.AlignLeft
-          maximumLineCount: 1
           text: networkItem.modelData.label || ""
-          wrapMode: Text.NoWrap
-
-          Behavior on color {
-            ColorAnimation {
-              duration: Theme.animationDuration
-            }
-          }
 
           MouseArea {
             anchors.fill: parent
@@ -528,9 +496,8 @@ OPanel {
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
                 placeholderText: networkItem.modelData.placeholder || ""
-                selectedTextColor: Theme.textContrast(Theme.activeColor)
                 selectionColor: Theme.activeColor
-                text: ""  // Clear text when switching between inputs
+                text: ""
 
                 background: Rectangle {
                   color: "transparent"
@@ -540,7 +507,7 @@ OPanel {
                 Keys.onPressed: event => {
                   if (event.key === Qt.Key_Escape) {
                     event.accepted = true;
-                    const cancelAction = networkItem.modelData.type === "hidden-ssid-input" || networkItem.modelData.type === "hidden-password-input" ? "cancel-hidden" : "cancel";
+                    const cancelAction = networkItem.modelData.type.includes("hidden") ? "cancel-hidden" : "cancel";
                     networkItem.triggered(cancelAction, {});
                   } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                     if (passwordField.text !== "") {
@@ -563,7 +530,7 @@ OPanel {
               tooltipText: qsTr("Cancel")
 
               onClicked: {
-                const cancelAction = networkItem.modelData.type === "hidden-ssid-input" || networkItem.modelData.type === "hidden-password-input" ? "cancel-hidden" : "cancel";
+                const cancelAction = networkItem.modelData.type.includes("hidden") ? "cancel-hidden" : "cancel";
                 networkItem.triggered(cancelAction, {});
               }
             }
@@ -592,7 +559,7 @@ OPanel {
             opacity: visible ? 1 : 0
             size: "sm"
             text: "⚠ " + (networkItem.modelData.errorMessage || "")
-            visible: networkItem.modelData.hasError && networkItem.modelData.errorMessage !== ""
+            visible: networkItem.modelData.hasError && !!networkItem.modelData.errorMessage
 
             Behavior on opacity {
               NumberAnimation {
@@ -682,9 +649,7 @@ OPanel {
           checked: card.checked
           disabled: card.disabled
 
-          onToggled: checked => {
-            card.toggled(checked);
-          }
+          onToggled: checked => card.toggled(checked)
         }
       }
     }
