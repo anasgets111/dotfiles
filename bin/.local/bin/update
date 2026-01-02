@@ -1,43 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
 export LANG=C
 export LC_ALL=C
 
 # ——————————————————————————————————————————————————————————————
-# CLI flags
-# ——————————————————————————————————————————————————————————————
-POLKIT=0
-for arg in "$@"; do
-  case "$arg" in
-    --polkit) POLKIT=1 ;;
-  esac
-done
-
-# ——————————————————————————————————————————————————————————————
 # Helpers
 # ——————————————————————————————————————————————————————————————
-has_cmd () { command -v "$1" >/dev/null 2>&1; }
-
-get_aur_helper() {
-  if has_cmd yay; then
-    echo "yay"
-  elif has_cmd paru; then
-    echo "paru"
-  else
-    echo ""
-  fi
-}
-
-print_header() {
-  printf "\n▶ %s\n" "$1"
-}
+has_cmd() { type -P "$1" >/dev/null 2>&1; }
 
 run_cmd() {
-  local desc=$1
-  local cmd=$2
-  print_header "$desc"
-  # Run command, piping stdout/stderr to stdout so Quickshell captures it
-  if bash -c "$cmd"; then
+  local desc="$1"
+  shift
+  printf "\n▶ %s\n" "$desc"
+  if "$@"; then
     printf "[ OK ] %s\n" "$desc"
   else
     printf "[FAIL] %s\n" "$desc"
@@ -45,60 +21,42 @@ run_cmd() {
 }
 
 step_if() {
-  local desc=$1
-  local cond=$2
-  local cmd=$3
-  if bash -c "$cond" >/dev/null 2>&1; then
-    run_cmd "$desc" "$cmd"
+  local desc="$1"
+  local cond="$2"
+  shift 2
+  if eval "$cond" >/dev/null 2>&1; then
+    run_cmd "$desc" "$@"
   else
     printf "[SKIP] %s (precondition not met)\n" "$desc"
   fi
 }
 
 # ——————————————————————————————————————————————————————————————
-# Updates
+# Detection
 # ——————————————————————————————————————————————————————————————
 
-AUR_HELPER=$(get_aur_helper)
-
-if [ "$POLKIT" = "1" ]; then
-  step_if \
-    "Update system packages (pkexec pacman)" \
-    "command -v pkexec && command -v pacman" \
-    "stdbuf -oL -eL pkexec pacman -Syu --noconfirm"
-else
-  step_if \
-    "Update system packages ($AUR_HELPER)" \
-    "[ -n \"$AUR_HELPER\" ]" \
-    "stdbuf -oL -eL $AUR_HELPER -Syu --noconfirm"
+# Check for pacman
+if ! has_cmd pacman; then
+  printf "[ERROR] pacman not found - not an Arch-based system?\n"
+  exit 1
 fi
 
-if [ "$POLKIT" = "1" ]; then
-  step_if \
-    "Update AUR packages ($AUR_HELPER)" \
-    "[ -n \"$AUR_HELPER\" ]" \
-    "stdbuf -oL -eL $AUR_HELPER -Sua --noconfirm"
-fi
+# Detect privilege escalator
+PRIV_ESCALATOR="sudo"
+has_cmd pkexec && PRIV_ESCALATOR="pkexec"
 
-step_if \
-  "Update Composer global packages" \
-  "command -v composer" \
-  "composer global update"
+# ——————————————————————————————————————————————————————————————
+# Main Update Logic
+# ——————————————————————————————————————————————————————————————
 
-step_if \
-  "Install/use latest Node LTS via fnm" \
-  "command -v fnm" \
-  "fnm use lts-latest --install-if-missing --silent-if-unchanged && fnm default lts-latest"
+# Update system packages
+step_if "System Packages (pacman via $PRIV_ESCALATOR)" "true" \
+  stdbuf -oL -eL "$PRIV_ESCALATOR" pacman -Syu --noconfirm
 
-step_if \
-  "Update Rust Cargo binaries" \
-  "command -v cargo && command -v cargo-install-update" \
-  "cargo install-update -a"
-
-step_if \
-  "Update Rust toolchain (rustup)" \
-  "command -v rustup" \
-  "rustup update"
+# Development Tooling
+step_if "Composer" "has_cmd composer" stdbuf -oL -eL composer global update
+step_if "Node (fnm)" "has_cmd fnm" stdbuf -oL -eL fnm use lts-latest --install-if-missing
+step_if "Rust Binaries" "has_cmd cargo-install-update" stdbuf -oL -eL cargo install-update -a
+step_if "Rust Toolchain" "has_cmd rustup" stdbuf -oL -eL rustup update
 
 printf "\nDone.\n"
-

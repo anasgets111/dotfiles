@@ -120,7 +120,7 @@ Singleton {
     outputLines = [];
     errorMessage = "";
     updateState = status.Updating;
-    updateProcess.command = [Quickshell.env("HOME") + "/.local/bin/update.sh", "--polkit"];
+    updateProcess.command = ["update"];
     updateProcess.running = true;
   }
 
