@@ -55,6 +55,7 @@ abbr tb 'nc termbin.com 9999'
 abbr rip "expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
 alias cd z
 abbr dots 'cd $DOTFILES; and stow '
+abbr ssh 'kitty +kitten ssh'
 
 # Initialization for Tools
 zoxide init fish | source
