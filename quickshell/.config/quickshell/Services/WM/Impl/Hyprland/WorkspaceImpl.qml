@@ -10,13 +10,14 @@ Singleton {
 
   property string activeSpecial: ""
   property int currentWorkspace: 1
-  property int currentWorkspaceId: 1
+  readonly property int debounceMs: 50
   property bool enabled: MainService.ready && MainService.currentWM === "hyprland"
   property string focusedOutput: Hyprland.focusedMonitor?.name ?? ""
   property var groupBoundaries: []
   property var outputsOrder: []
   property int previousWorkspace: 1
   property var specialWorkspaces: []
+  readonly property int startupDelayMs: 500
   property var workspaces: []
 
   function focusWorkspaceByIndex(idx: int): void {
@@ -29,34 +30,15 @@ Singleton {
       focusWorkspaceByIndex(ws.id);
   }
 
-  function getOccupiedWorkspaceIds(): var {
-    const occupied = {};
-    const toplevels = Hyprland.toplevels?.values ?? [];
-
-    for (const toplevel of toplevels) {
-      const wsId = toplevel?.workspace?.id;
-      if (typeof wsId === "number" && wsId > 0)
-        occupied[wsId] = true;
-    }
-
-    return occupied;
-  }
-
   function recompute(): void {
-    const wsList = Array.from(Hyprland.workspaces.values);
-    const monList = Array.from(Hyprland.monitors.values);
+    const wsValues = Array.from(Hyprland.workspaces.values);
+    const monValues = Array.from(Hyprland.monitors.values);
     const focusedName = focusedOutput;
-    const occupiedIds = getOccupiedWorkspaceIds();
 
-    // Sort monitors: focused first, then alphabetical (non-mutating)
-    const sortedMons = [...monList].sort((a, b) => {
+    const sortedMons = monValues.sort((a, b) => {
       const aName = a?.name ?? "";
       const bName = b?.name ?? "";
-      if (aName === focusedName)
-        return -1;
-      if (bName === focusedName)
-        return 1;
-      return aName.localeCompare(bName);
+      return aName === focusedName ? -1 : bName === focusedName ? 1 : aName.localeCompare(bName);
     });
 
     const newOutputsOrder = sortedMons.map(m => m?.name ?? "");
@@ -65,20 +47,22 @@ Singleton {
     const counts = new Map();
     let focusedWs = null;
 
-    for (const w of wsList) {
+    for (const w of wsValues) {
       if (w.id <= 0) {
-        specials.push(w);
+        specials.push({
+          name: w?.name ?? `special:${w.id}`
+        });
         continue;
       }
 
       const outputName = w.monitor?.name ?? "";
-      const populated = occupiedIds[w.id] === true;
+      const windows = w?.lastIpcObject?.windows ?? 0;
 
       const ws = {
         id: w.id,
         idx: w.id,
         focused: w.focused,
-        populated,
+        populated: windows > 0,
         output: outputName
       };
 
@@ -95,21 +79,18 @@ Singleton {
     root.specialWorkspaces = specials;
     root.workspaces = regular;
 
-    if (focusedWs && focusedWs.id !== currentWorkspace) {
+    if (focusedWs.id !== currentWorkspace) {
       root.previousWorkspace = currentWorkspace;
       root.currentWorkspace = focusedWs.id;
-      root.currentWorkspaceId = focusedWs.id;
     }
 
-    // Compute group boundaries for multi-monitor setups
+    // Compute group boundaries
     const bounds = [];
-    if (regular.length > 0) {
-      let acc = 0;
-      for (const out of newOutputsOrder) {
-        acc += counts.get(out) ?? 0;
-        if (acc > 0 && acc < regular.length)
-          bounds.push(acc);
-      }
+    let acc = 0;
+    for (const out of newOutputsOrder) {
+      acc += counts.get(out) ?? 0;
+      if (acc > 0 && acc < regular.length)
+        bounds.push(acc);
     }
     root.groupBoundaries = bounds;
   }
@@ -123,7 +104,6 @@ Singleton {
       return;
     Hyprland.refreshMonitors();
     Hyprland.refreshWorkspaces();
-    Hyprland.refreshToplevels();
     recomputeDebounced();
   }
 
@@ -146,7 +126,6 @@ Singleton {
       groupBoundaries = [];
       activeSpecial = "";
       currentWorkspace = 1;
-      currentWorkspaceId = 1;
       previousWorkspace = 1;
     }
   }
@@ -154,7 +133,7 @@ Singleton {
   Timer {
     id: _debounceTimer
 
-    interval: 50
+    interval: root.debounceMs
     repeat: false
 
     onTriggered: root.recompute()
@@ -163,32 +142,11 @@ Singleton {
   Timer {
     id: _startupKick
 
-    interval: 200
+    interval: root.startupDelayMs
 
     onTriggered: root.refresh()
   }
 
-  // React to workspace ObjectModel changes
-  Connections {
-    function onValuesChanged(): void {
-      root.recomputeDebounced();
-    }
-
-    enabled: root.enabled
-    target: Hyprland.workspaces
-  }
-
-  // React to toplevel (window) ObjectModel changes
-  Connections {
-    function onValuesChanged(): void {
-      root.recomputeDebounced();
-    }
-
-    enabled: root.enabled
-    target: Hyprland.toplevels
-  }
-
-  // Handle Hyprland signals and raw events
   Connections {
     function onFocusedMonitorChanged(): void {
       root.recomputeDebounced();
@@ -196,23 +154,19 @@ Singleton {
 
     function onRawEvent(evt: var): void {
       const eventName = evt?.name ?? "";
-      const eventData = typeof evt?.data === "string" ? evt.data : "";
+      const eventData = evt?.data ?? "";
 
       switch (eventName) {
       case "activespecial":
-        // Format: "specialname,monitorname" or empty when closing
         root.activeSpecial = eventData ? eventData.split(",")[0] : "";
         break;
       case "workspace":
       case "createworkspace":
       case "destroyworkspace":
-        Hyprland.refreshWorkspaces();
-        root.recomputeDebounced();
-        break;
       case "openwindow":
       case "closewindow":
       case "movewindow":
-        Hyprland.refreshToplevels();
+        Hyprland.refreshWorkspaces();
         root.recomputeDebounced();
         break;
       case "monitoradded":
