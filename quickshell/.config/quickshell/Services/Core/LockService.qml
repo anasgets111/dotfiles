@@ -60,6 +60,9 @@ Singleton {
     if (!locked) {
       passwordBuffer = "";
       authState = authStates.idle;
+      Quickshell.execDetached(["loginctl", "unlock-session"]);
+    } else {
+      Quickshell.execDetached(["loginctl", "lock-session"]);
     }
   }
 
