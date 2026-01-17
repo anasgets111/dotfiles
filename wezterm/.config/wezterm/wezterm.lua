@@ -9,7 +9,7 @@ return {
   -- 2. Font & Appearance
   font = wezterm.font("CaskaydiaCove Nerd Font Mono"),
   font_size = 12.0,
-  line_height = 1.15,              -- 110% line spacing
+  line_height = 1.2,
   -- freetype_load_target = "Light",
   color_scheme = "Catppuccin Mocha",
 
