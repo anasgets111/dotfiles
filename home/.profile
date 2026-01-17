@@ -58,8 +58,3 @@ fi
 
 # ─── fnm (Node version manager) ─────────────────────────────────────────────────
 eval "$( fnm env --shell=bash --use-on-cd --version-file-strategy=recursive --resolve-engines )"
-
-# ─── Drop into Fish ─────────────────────────────────────────────────────────────
-if [ -t 1 ] && [ -z "$FISH_VERSION" ]; then
-  exec fish --login
-fi
