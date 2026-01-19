@@ -134,6 +134,7 @@ OPanel {
             required property var modelData
 
             group: modelData
+            groupScope: "history"
             showTimestamp: true
             svc: NotificationService
             width: parent.width

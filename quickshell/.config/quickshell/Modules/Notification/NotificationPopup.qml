@@ -71,6 +71,7 @@ PanelWindow {
           required property var modelData
 
           group: modelData
+          groupScope: "popup"
           svc: NotificationService
 
           onInputFocusReleased: layer.releaseKeyboardFocus()

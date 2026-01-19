@@ -9,13 +9,14 @@ import qs.Config
 Item {
   id: root
 
-  property bool _animReady: root.isGroup || !root.svc?.isPopupNew(root.group?.key)
-  readonly property bool _isDismissing: root.svc?.isGroupDismissing(root.group?.key) ?? false
+  property bool _animReady: root.isGroup || root.groupScope !== "popup" || !root.svc?.isPopupNew(root.group?.key)
+  readonly property bool _isDismissing: root.svc?.isGroupDismissing(root.group?.key, root.groupScope) ?? false
   property var _messageExpansion: ({})
   property var _shownMessageIds: ({})
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
   readonly property real cardWidth: Theme.notificationCardWidth
   required property var group
+  property string groupScope: "history"
   readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group.key] || false) : false)
   readonly property bool headerHasExpand: root.isGroup && root.items.length > 1
   readonly property string headerTitle: root.isGroup ? `${root.group?.appName || "app"} (${root.group?.count || root.items.length})` : (root.primaryWrapper?.appName || "app")
@@ -67,7 +68,7 @@ Item {
   }
 
   Component.onCompleted: {
-    if (root.group?.key)
+    if (root.groupScope === "popup" && root.group?.key)
       root.svc?.markPopupShown(root.group.key);
     if (!root._animReady)
       Qt.callLater(() => root._animReady = true);
