@@ -42,8 +42,11 @@ if ! has_cmd pacman; then
 fi
 
 # Detect privilege escalator
-PRIV_ESCALATOR="sudo"
-has_cmd pkexec && PRIV_ESCALATOR="pkexec"
+if ! has_cmd run0; then
+  printf "[ERROR] run0 not found - update systemd?\n"
+  exit 1
+fi
+PRIV_ESCALATOR="run0"
 
 # ——————————————————————————————————————————————————————————————
 # Main Update Logic
