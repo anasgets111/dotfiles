@@ -128,7 +128,7 @@ OPanel {
       const password = extractInputValue(data);
       if (wifiIface && hiddenSsid && password) {
         hiddenPasswordError = "";
-        NetworkService.connectToWifi(hiddenSsid, password, wifiIface, true, "");
+        NetworkService.connectToWifi(hiddenSsid, password, wifiIface, true);
       }
       return;
     }
@@ -140,7 +140,7 @@ OPanel {
       const password = extractInputValue(data);
       if (wifiIface && param && password) {
         passwordError = "";
-        NetworkService.connectToWifi(param, password, wifiIface, true, "");
+        NetworkService.connectToWifi(param, password, wifiIface, false);
         root.close();
       }
       return;
@@ -179,6 +179,21 @@ OPanel {
     }
   }
 
+  function handleWifiConnectionUpdate() {
+    if (root.passwordSsid) {
+      const ap = root.wifiAps.find(a => a?.ssid === root.passwordSsid && a.connected);
+      if (ap) {
+        root.resetPasswordState();
+        root.close();
+        return;
+      }
+    }
+    if (root.hiddenSsid && NetworkService.wifiOnline) {
+      root.resetHiddenNetworkState();
+      root.close();
+    }
+  }
+
   function resetHiddenNetworkState() {
     hiddenSsid = "";
     hiddenPasswordError = "";
@@ -208,18 +223,12 @@ OPanel {
         root.hiddenPasswordError = errorMessage;
     }
 
-    function onConnectionStateChanged() {
-      if (root.passwordSsid) {
-        const ap = root.wifiAps.find(a => a?.ssid === root.passwordSsid && a.connected);
-        if (ap) {
-          root.resetPasswordState();
-          root.close();
-        }
-      }
-      if (root.hiddenSsid && NetworkService.wifiOnline) {
-        root.resetHiddenNetworkState();
-        root.close();
-      }
+    function onWifiApsChanged() {
+      root.handleWifiConnectionUpdate();
+    }
+
+    function onWifiOnlineChanged() {
+      root.handleWifiConnectionUpdate();
     }
 
     target: NetworkService
