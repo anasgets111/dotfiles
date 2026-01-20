@@ -49,6 +49,5 @@ alias fastfetchy 'fastfetch -c $HOME/.config/fastfetchTheme.jsonc'
 abbr tb 'nc termbin.com 9999'
 abbr errors 'journalctl -p 3 -xb'
 abbr hw 'hwinfo --short'
-abbr ssh 'kitty +kitten ssh'
 abbr big "expac -H M '%m\t%n' | sort -h | nl"
 abbr rip "expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
