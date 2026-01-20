@@ -137,7 +137,12 @@ OPanel {
               checked: BluetoothService.enabled
               disabled: !root.ready
 
-              onToggled: checked => BluetoothService.setEnabled(checked)
+              onToggled: checked => {
+                if (!checked)
+                  BluetoothService.stopDiscovery();
+                BluetoothService.setEnabled(checked);
+                Qt.callLater(() => bluetoothToggle.checked = BluetoothService.enabled);
+              }
             }
           }
         }
@@ -209,7 +214,10 @@ OPanel {
               checked: BluetoothService.discoverable
               disabled: !root.active
 
-              onToggled: checked => BluetoothService.setDiscoverable(checked)
+              onToggled: checked => {
+                BluetoothService.setDiscoverable(checked);
+                Qt.callLater(() => discoverableToggle.checked = BluetoothService.discoverable);
+              }
             }
           }
         }
@@ -436,8 +444,8 @@ OPanel {
     readonly property var availableCodecs: BluetoothService.deviceAvailableCodecs[addr] || []
     readonly property real batteryLevel: hasBattery ? device.battery : -1
     readonly property string batteryStr: BluetoothService.getBattery(device)
-    readonly property bool canConnect: BluetoothService.canConnect(device)
-    readonly property bool canDisconnect: BluetoothService.canDisconnect(device)
+    readonly property bool canConnect: device && !device.connected && !isBusy && !device.blocked
+    readonly property bool canDisconnect: device && device.connected && !isBusy
     readonly property string currentCodec: BluetoothService.deviceCodecs[addr] || ""
     readonly property var device: modelData
     readonly property bool hasBattery: device?.batteryAvailable && device.battery > 0
