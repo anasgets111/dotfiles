@@ -31,7 +31,7 @@ ShellRoot {
   LazyLoader {
     id: osdLoader
 
-    active: OSDService.visible
+    activeAsync: OSDService.visible
 
     component: OSDOverlay {
       modelData: MonitorService ? MonitorService.effectiveMainScreen : null
@@ -42,7 +42,7 @@ ShellRoot {
   LazyLoader {
     id: launcherLoader
 
-    active: root.ipc.launcherActive && !bar.centerShouldHide
+    activeAsync: root.ipc.launcherActive && !bar.centerShouldHide
 
     component: AppLauncher {
       Component.onCompleted: open()
@@ -53,7 +53,7 @@ ShellRoot {
   LazyLoader {
     id: wallpaperPickerLoader
 
-    active: root.wallpaperPickerActive
+    activeAsync: root.wallpaperPickerActive
 
     component: WallpaperPicker {
       Component.onCompleted: open()
@@ -72,7 +72,7 @@ ShellRoot {
   }
 
   LazyLoader {
-    active: NotificationService?.visibleNotifications?.length > 0
+    activeAsync: NotificationService?.visibleNotifications?.length > 0
 
     component: NotificationPopup {
       modelData: MonitorService ? MonitorService.effectiveMainScreen : null
