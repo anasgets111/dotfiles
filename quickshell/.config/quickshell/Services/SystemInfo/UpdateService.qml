@@ -46,7 +46,7 @@ Singleton {
   }
 
   function _notify(title, message, urgency = "normal", action = null) {
-    const args = ["-u", urgency, "-a", "System Updates", "-i", "system-software-update", "--print-id", "--replace-id", String(lastNotificationId)];
+    const args = ["-u", urgency, "-a", "System Updates", "-n", "system-software-update", "--print-id", "--replace-id", String(lastNotificationId)];
     if (action)
       args.push("-A", `${action}=${qsTr("Run updates")}`);
     _notifyQueue.push({
