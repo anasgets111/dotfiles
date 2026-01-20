@@ -67,6 +67,8 @@ config.keys = {
   { key = "(", mods = "CTRL|SHIFT", action = act.ScrollToTop },
   { key = ")", mods = "CTRL|SHIFT", action = act.ScrollToBottom },
   { key = "<", mods = "CTRL|SHIFT", action = act.ReloadConfiguration },
+  { key = "Backspace", mods = "SHIFT", action = act.SendString "\x1b[7;2~" },
+  { key = "Backspace", mods = "CTRL", action = act.SendString "\x1b[7;5~" },
 }
 
 return config
