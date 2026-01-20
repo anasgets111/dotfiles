@@ -811,6 +811,7 @@ Singleton {
     property bool isDismissing: false
     required property Notification notification
     property bool popup: false
+    readonly property string resolvedAppIcon: Utils.resolveIconSource(wrapper.appName, wrapper.appIcon, "applications-system")
     property int sequence: 0
     readonly property string summary: notification?.summary || ""
     readonly property date time: new Date()
