@@ -31,6 +31,15 @@ function copy
     end
 end
 
+function ssh --wraps=ssh
+    if set -q KITTY_WINDOW_ID; and type -q kitty
+        command kitty +kitten ssh $argv
+        return
+    end
+
+    command ssh $argv
+end
+
 function sendText
     # Use the first argument as the filename; default to file.txt if not provided
     if test (count $argv) -gt 0
