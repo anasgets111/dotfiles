@@ -9,8 +9,8 @@ bind shift-delete 'commandline -f kill-line'
 bind \e\[7\;2~ 'commandline -f backward-kill-line'
 
 function sail
-    if test -f sail
-        sh sail $argv
+    if test -f "$PWD/sail"
+        sh "$PWD/sail" $argv
     else
         sh vendor/bin/sail $argv
     end
@@ -18,7 +18,7 @@ end
 
 ## Backup Function
 function backup --argument filename
-    cp $filename $filename.bak
+    cp -- "$filename" "$filename.bak"
 end
 
 ## Copy Function
@@ -27,9 +27,9 @@ function copy
     if test "$count" = 2 and test -d "$argv[1]"
         set from (string trim --right '/' -- $argv[1])
         set to $argv[2]
-        cp -r "$from" "$to"
+        cp -r -- "$from" "$to"
     else
-        cp $argv
+        cp -- $argv
     end
 end
 
