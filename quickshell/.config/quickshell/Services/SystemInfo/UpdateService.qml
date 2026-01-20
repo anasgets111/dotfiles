@@ -46,6 +46,7 @@ Singleton {
   }
 
   function _notify(title, message, urgency = "normal", action = null) {
+    Logger.log("UpdateService", `Sending notification: ${title} - ${message}`);
     const args = ["-u", urgency, "-a", "System Updates", "-n", "system-software-update", "--print-id", "--replace-id", String(lastNotificationId)];
     if (action)
       args.push("-A", `${action}=${qsTr("Run updates")}`);
@@ -258,7 +259,9 @@ Singleton {
     onExited: (code, exitStatus) => {
       root.updateState = code === 0 ? root.status.Completed : root.status.Error;
       if (code === 0) {
-        root._notify("Update Complete", `${root.currentPackageIndex} packages updated successfully`);
+        const count = root.totalPackagesToUpdate || root.updatePackages.length;
+        Logger.log("UpdateService", `Updates completed (${count}): ${root.updatePackages.map(p => p.name).join(", ")}`);
+        root._notify("Update Complete", count === 1 ? "1 package updated successfully" : `${count} packages updated successfully`);
         root.doPoll();
       } else {
         if (!root.errorMessage)
