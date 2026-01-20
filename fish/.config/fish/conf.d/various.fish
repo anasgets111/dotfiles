@@ -1,10 +1,12 @@
 ## User key bindings
-function fish_user_key_bindings
-    # Bind Ctrl+Delete to delete the next word
-    bind \e\[3\;5~ 'commandline -f kill-word'
-    bind \b 'commandline -f backward-kill-word'
-
-end
+# Ctrl+Delete: delete next word
+bind ctrl-delete 'commandline -f kill-word'
+# Ctrl+Backspace: custom sequence from WezTerm
+bind \e\[7\;5~ 'commandline -f backward-kill-word'
+# Shift+Delete: delete from cursor to end of line
+bind shift-delete 'commandline -f kill-line'
+# Shift+Backspace: custom sequence from WezTerm
+bind \e\[7\;2~ 'commandline -f backward-kill-line'
 
 function sail
     if test -f sail
