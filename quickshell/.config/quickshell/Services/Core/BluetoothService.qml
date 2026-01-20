@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Bluetooth
 import Quickshell.Io
+import qs.Services.Utils
 
 Singleton {
   id: root
@@ -53,24 +54,20 @@ Singleton {
         color: "#9E9E9E"
       }
     })
+  // Codec data storage: Property bindings to deviceCodecs[addr] automatically react
+  // when deviceCodecsChanged() is emitted. This is more ergonomic than signal-based
+  // patterns which require manual Connections in every consumer.
   property var deviceAvailableCodecs: ({})
   property var deviceCodecs: ({})
   readonly property var deviceIconMap: [[["display", "tv", "[tv]", "television"], "󰔂"], [["watch"], "󰥔"], [["mouse"], "󰍽"], [["keyboard"], "󰌌"], [["phone", "iphone", "android", "samsung"], "󰄜"], [audioKeywords, "󰋋"]]
   readonly property var devices: available ? adapter.devices.values : []
   readonly property bool discoverable: available && adapter.discoverable
   readonly property bool discovering: available && adapter.discovering
+  property bool discoveryRequested: false
   readonly property bool enabled: available && adapter.enabled
   readonly property var sortedDevices: sortDevices(devices)
 
-  function canConnect(device) {
-    return device && !device.connected && !isDeviceBusy(device) && !device.blocked;
-  }
-
-  function canDisconnect(device) {
-    return device && device.connected && !isDeviceBusy(device);
-  }
-
-  function cleanupCodecData(addr) {
+  function cleanupCodecData(addr: string): void {
     if (!addr)
       return;
     delete deviceCodecs[addr];
@@ -79,21 +76,21 @@ Singleton {
     deviceAvailableCodecsChanged();
   }
 
-  function connectDevice(device) {
+  function connectDevice(device: QtObject): void {
     if (!device)
       return;
     device.trusted = true;
     device.connect();
   }
 
-  function disconnectDevice(device) {
+  function disconnectDevice(device: QtObject): void {
     if (!device)
       return;
     device.disconnect();
     cleanupCodecData(device.address);
   }
 
-  function fetchCodecs(device, fullScan = true) {
+  function fetchCodecs(device: QtObject, fullScan = true): void {
     if (!device?.connected || !isAudioDevice(device) || codecParser.running)
       return;
     codecParser.addr = device.address;
@@ -102,7 +99,7 @@ Singleton {
     codecParser.running = true;
   }
 
-  function forgetDevice(device) {
+  function forgetDevice(device: QtObject): void {
     if (!device)
       return;
     device.trusted = false;
@@ -110,11 +107,11 @@ Singleton {
     cleanupCodecData(device.address);
   }
 
-  function getBattery(device) {
+  function getBattery(device: QtObject): string {
     return device?.batteryAvailable && device.battery > 0 ? `${Math.round(device.battery * 100)}%` : "";
   }
 
-  function getCodecInfo(name) {
+  function getCodecInfo(name: string): var {
     const key = (name || "").replace(/-/g, "_").toUpperCase();
     return codecMap[key] ?? {
       name: name || "",
@@ -123,7 +120,7 @@ Singleton {
     };
   }
 
-  function getDeviceIcon(device) {
+  function getDeviceIcon(device: QtObject): string {
     if (!device)
       return "󰂯";
     const name = (device.name || device.deviceName || "").toLowerCase();
@@ -135,11 +132,11 @@ Singleton {
     return "󰂯";
   }
 
-  function getDeviceName(device) {
+  function getDeviceName(device: QtObject): string {
     return device?.name || device?.deviceName || "";
   }
 
-  function getStatusString(device) {
+  function getStatusString(device: QtObject): string {
     if (!device)
       return "";
     if (device.state === BluetoothDeviceState.Connecting)
@@ -151,7 +148,7 @@ Singleton {
     return "";
   }
 
-  function isAudioDevice(device) {
+  function isAudioDevice(device: QtObject): bool {
     if (!device)
       return false;
     const name = (device.name || device.deviceName || "").toLowerCase();
@@ -159,21 +156,60 @@ Singleton {
     return audioKeywords.some(k => icon.includes(k) || name.includes(k));
   }
 
-  function isDeviceBusy(device) {
+  function isDeviceBusy(device: QtObject): bool {
     return device?.pairing || device?.state === BluetoothDeviceState.Disconnecting || device?.state === BluetoothDeviceState.Connecting;
   }
 
-  function setDiscoverable(value) {
+  function parseCodecLine(line: string): void {
+    if (line.startsWith("Name: ")) {
+      codecParser.inCard = line.includes(codecParser.cardName);
+      return;
+    }
+    if (!codecParser.inCard)
+      return;
+    if (line.startsWith("Active Profile:")) {
+      codecParser.activeProfile = line.split(": ")[1] || "";
+      return;
+    }
+    if (line.includes("codec") && line.includes("available: yes")) {
+      const parts = line.split(": ");
+      if (parts.length < 2)
+        return;
+      const profile = parts[0].trim();
+      const match = parts[1].match(/codec ([^\)\s]+)/i);
+      const raw = match ? match[1].toUpperCase() : "UNKNOWN";
+      const info = getCodecInfo(raw);
+      if (!codecParser.parsedCodecs.some(c => c.profile === profile)) {
+        codecParser.parsedCodecs.push({
+          name: info.name,
+          profile,
+          description: info.desc,
+          qualityColor: info.color
+        });
+      }
+    }
+  }
+
+  function setDiscoverable(value: bool): void {
+    Logger.log("BluetoothService", `Set discoverable: ${value} (available=${available})`);
     if (adapter)
       adapter.discoverable = value;
   }
 
-  function setEnabled(value) {
-    if (adapter)
-      adapter.enabled = value;
+  function setEnabled(value: bool): void {
+    Logger.log("BluetoothService", `Set enabled: ${value} (available=${available})`);
+    if (!adapter)
+      return;
+    if (!value && adapter.discovering)
+      adapter.discovering = false;
+    if (value) {
+      adapter.enabled = true;
+      return;
+    }
+    Qt.callLater(() => adapter.enabled = false);
   }
 
-  function sortDevices(list) {
+  function sortDevices(list: var): var {
     if (!list?.length)
       return [];
     return [...list].sort((a, b) => {
@@ -185,25 +221,23 @@ Singleton {
         return bPaired - aPaired;
       const aName = getDeviceName(a);
       const bName = getDeviceName(b);
-      const aReal = aName.includes(" ") && aName.length > 3;
-      const bReal = bName.includes(" ") && bName.length > 3;
-      if (aReal !== bReal)
-        return bReal - aReal;
       return aName.localeCompare(bName);
     });
   }
 
-  function startDiscovery() {
+  function startDiscovery(): void {
+    Logger.log("BluetoothService", `Start discovery (enabled=${adapter?.enabled ?? false})`);
+    discoveryRequested = true;
     if (adapter?.enabled)
       adapter.discovering = true;
   }
 
-  function stopDiscovery() {
-    if (adapter)
-      adapter.discovering = false;
+  function stopDiscovery(): void {
+    Logger.log("BluetoothService", `Stop discovery requested`);
+    discoveryRequested = false;
   }
 
-  function switchCodec(device, profile) {
+  function switchCodec(device: QtObject, profile: string): void {
     if (!device?.address || codecSwitch.running)
       return;
     codecSwitch.cardName = `bluez_card.${device.address.replace(/:/g, "_")}`;
@@ -212,18 +246,31 @@ Singleton {
     codecSwitch.running = true;
   }
 
+  Component.onCompleted: Logger.log("BluetoothService", `Init: defaultAdapter=${Bluetooth.defaultAdapter ? "yes" : "no"}`)
   Component.onDestruction: {
     codecParser.running = false;
     codecSwitch.running = false;
   }
 
   Connections {
+    function onDiscoveringChanged() {
+      Logger.log("BluetoothService", `Adapter discovering changed: ${root.adapter?.discovering ?? false}`);
+    }
+
     function onEnabledChanged() {
-      if (root.adapter?.enabled)
-        Qt.callLater(() => root.adapter.discovering = true);
+      Logger.log("BluetoothService", `Adapter enabled changed: ${root.adapter?.enabled ?? false}`);
     }
 
     target: root.adapter
+  }
+
+  Connections {
+    function onDefaultAdapterChanged() {
+      const adapter = Bluetooth.defaultAdapter;
+      Logger.log("BluetoothService", `Default adapter changed: ${adapter ? "set" : "none"}`);
+    }
+
+    target: Bluetooth
   }
 
   Process {
@@ -241,38 +288,7 @@ Singleton {
     stdout: SplitParser {
       splitMarker: "\n"
 
-      onRead: data => {
-        const line = data.trim();
-        if (line.startsWith("Name: ")) {
-          codecParser.inCard = line.includes(codecParser.cardName);
-          return;
-        }
-        if (!codecParser.inCard)
-          return;
-
-        if (line.startsWith("Active Profile:")) {
-          codecParser.activeProfile = line.split(": ")[1] || "";
-          return;
-        }
-
-        if (line.includes("codec") && line.includes("available: yes")) {
-          const parts = line.split(": ");
-          if (parts.length < 2)
-            return;
-          const profile = parts[0].trim();
-          const match = parts[1].match(/codec ([^\)\s]+)/i);
-          const raw = match ? match[1].toUpperCase() : "UNKNOWN";
-          const info = root.getCodecInfo(raw);
-          if (!codecParser.parsedCodecs.some(c => c.profile === profile)) {
-            codecParser.parsedCodecs.push({
-              name: info.name,
-              profile,
-              description: info.desc,
-              qualityColor: info.color
-            });
-          }
-        }
-      }
+      onRead: data => root.parseCodecLine(data.trim())
     }
 
     onRunningChanged: {
