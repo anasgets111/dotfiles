@@ -52,9 +52,10 @@ QtObject {
           linkPlaceholders.push(`<a href="${href}">${label}</a>`);
           return ph;
         });
-        html = html.replace(/(^|[\s([\*_`\-])((?:https?|file):\/\/[^\s<>\'"]*)/g, (m, pre, url) => {
+        html = html.replace(/(^|[\s([\*_`\-])((?:https?|file):\/\/[^\s<>\'"]*)/gi, (m, pre, url) => {
           const ph = `\x00MDLINK${linkIndex++}\x00`;
-          linkPlaceholders.push(`<a href="${url}">${url}</a>`);
+          const safeUrl = url.replace(/"/g, "&quot;");
+          linkPlaceholders.push(`<a href="${safeUrl}">${url}</a>`);
           return pre + ph;
         });
         html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
