@@ -10,7 +10,7 @@ Item {
   id: root
 
   property bool _animReady: root.isGroup || root.groupScope !== "popup" || !root.svc?.isPopupNew(root.group?.key)
-  readonly property bool _isDismissing: root.svc?.isGroupDismissing(root.group?.key, root.groupScope) ?? false
+  readonly property bool _isDismissing: (root.svc?.isGroupDismissing(root.group?.key, root.groupScope) ?? false) || root.primaryWrapper?.isHidingPopup || root.primaryWrapper?.isDismissing
   property var _messageExpansion: ({})
   property var _shownMessageIds: ({})
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
@@ -304,7 +304,16 @@ Item {
                   color: Theme.textInactiveColor
                   opacity: 0.7
                   size: "xs"
-                  text: messageItem.modelData?.historyTimeStr || ""
+                  text: {
+                    const wrapper = messageItem.modelData;
+                    if (!wrapper?.createdAt)
+                      return "";
+                    const format = root.svc?.use24Hour() ? "ddd HH:mm" : "ddd h:mm AP";
+                    let formatted = Qt.formatDateTime(wrapper.createdAt, format);
+                    if (!root.svc?.use24Hour())
+                      formatted = formatted.replace(" AM", "am").replace(" PM", "pm");
+                    return formatted;
+                  }
                   visible: root.showTimestamp && text
                 }
 

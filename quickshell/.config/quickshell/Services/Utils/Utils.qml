@@ -18,6 +18,17 @@ Singleton {
   property bool numLock: false
   property bool scrollLock: false
 
+  // Normalizes image paths for QML Image sources (adds file:// prefix for absolute paths)
+  function normalizeImageUrl(img: string): string {
+    if (!img)
+      return "";
+    if (img.startsWith("file://"))
+      return img;
+    if (img.startsWith("/"))
+      return "file://" + img;
+    return img;
+  }
+
   // Resolves a valid icon path from a variety of sources (system theme, file path, raw data).
   // Priorities: 3rd arg -> 2nd arg -> key -> fallback.
   function resolveIconSource(key: string, arg2: var, arg3: var): string {
