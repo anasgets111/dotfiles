@@ -19,8 +19,8 @@ Row {
   spacing: Theme.spacingSm
 
   Loader {
-    active: true
     anchors.verticalCenter: parent.verticalCenter
+    asynchronous: true
 
     sourceComponent: PowerMenu {
     }
@@ -29,6 +29,7 @@ Row {
   Loader {
     active: MainService.isArchBased
     anchors.verticalCenter: parent.verticalCenter
+    asynchronous: true
 
     sourceComponent: ArchChecker {
     }
@@ -46,6 +47,7 @@ Row {
 
   Loader {
     active: BatteryService.isLaptopBattery
+    asynchronous: true
 
     sourceComponent: BatteryIndicator {
       anchors.verticalCenter: parent.verticalCenter
@@ -76,17 +78,22 @@ Row {
     id: niriWsLoader
 
     active: MainService.currentWM === "niri"
+    asynchronous: true
 
     sourceComponent: NiriWorkspaces {
       anchors.verticalCenter: parent.verticalCenter
     }
 
-    onItemChanged: if (item)
-      leftSide.normalWorkspacesExpanded = Qt.binding(() => item.expanded)
+    onItemChanged: {
+      const workspaces = item as NiriWorkspaces;
+      if (workspaces)
+        leftSide.normalWorkspacesExpanded = Qt.binding(() => workspaces.expanded);
+    }
   }
 
   Loader {
     active: MainService.currentWM === "hyprland"
+    asynchronous: true
 
     sourceComponent: SpecialWorkspaces {
       id: specialWorkspaces
@@ -99,12 +106,16 @@ Row {
     id: normalWsLoader
 
     active: MainService.currentWM === "hyprland"
+    asynchronous: true
 
     sourceComponent: NormalWorkspaces {
       anchors.verticalCenter: parent.verticalCenter
     }
 
-    onItemChanged: if (item)
-      leftSide.normalWorkspacesExpanded = Qt.binding(() => item.expanded)
+    onItemChanged: {
+      const workspaces = item as NormalWorkspaces;
+      if (workspaces)
+        leftSide.normalWorkspacesExpanded = Qt.binding(() => workspaces.expanded);
+    }
   }
 }
