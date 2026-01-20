@@ -1,6 +1,7 @@
 pragma Singleton
 
 import QtQuick
+import QtMultimedia
 import Quickshell
 import Quickshell.Services.Pipewire
 import qs.Services.Utils
@@ -39,37 +40,30 @@ Singleton {
   function deviceIconFor(node) {
     if (!node)
       return "";
-
     const props = node.properties ?? {};
     const iconName = props["device.icon_name"] ?? "";
     if (deviceIconMap[iconName])
       return deviceIconMap[iconName];
-
     const desc = (node.description ?? "").toLowerCase();
     for (const key in deviceIconMap)
       if (desc.includes(key))
         return deviceIconMap[key];
-
     return node.name?.startsWith("bluez_output") ? deviceIconMap["headphone"] : "";
   }
 
   function displayName(node) {
     if (!node)
       return "";
-
     const props = node.properties ?? {};
     if (props["device.description"])
       return props["device.description"];
-
     const desc = node.description ?? "";
     const nick = node.nickname ?? "";
     const name = node.name ?? "";
-
     if (desc && desc !== name)
       return desc;
     if (nick && nick !== name)
       return nick;
-
     const lname = name.toLowerCase();
     if (lname.includes("analog-stereo"))
       return "Built-in Speakers";
@@ -85,6 +79,20 @@ Singleton {
 
   function increaseVolume() {
     setVolume(root.volume + root.stepVolume);
+  }
+
+  function playCriticalNotificationSound() {
+    if (criticalNotificationSound.playbackState === MediaPlayer.PlayingState) {
+      criticalNotificationSound.stop();
+    }
+    criticalNotificationSound.play();
+  }
+
+  function playNormalNotificationSound() {
+    if (normalNotificationSound.playbackState === MediaPlayer.PlayingState) {
+      normalNotificationSound.stop();
+    }
+    normalNotificationSound.play();
   }
 
   function setAudioSink(newSink) {
@@ -157,6 +165,32 @@ Singleton {
     root.sinkDeviceChanged(name, deviceIconFor(root.sink));
   }
   onSourceChanged: Logger.log("AudioService", `source changed: ${displayName(root.source)}`)
+
+  MediaDevices {
+    id: mediaDevices
+
+    onDefaultAudioOutputChanged: Logger.log("AudioService", `default audio output changed to: ${defaultAudioOutput ? defaultAudioOutput.description : "None"}`)
+  }
+
+  AudioOutput {
+    id: notificationOutput
+    device: mediaDevices.defaultAudioOutput
+    volume: 1.0
+  }
+
+  MediaPlayer {
+    id: normalNotificationSound
+
+    source: "file:///usr/share/sounds/freedesktop/stereo/message.oga"
+    audioOutput: notificationOutput
+  }
+
+  MediaPlayer {
+    id: criticalNotificationSound
+
+    source: "file:///usr/share/sounds/freedesktop/stereo/bell.oga"
+    audioOutput: notificationOutput
+  }
 
   PwObjectTracker {
     objects: root.sinks.concat(root.sources)
