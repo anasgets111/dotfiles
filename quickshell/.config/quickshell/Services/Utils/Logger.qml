@@ -6,6 +6,7 @@ import qs.Services.SystemInfo
 Singleton {
   id: root
 
+  readonly property string currentTimestamp: TimeService.timestamp()
   property bool enabled: true
   property list<string> includeModules: []
   readonly property int moduleLabelWidth: 16
@@ -32,29 +33,27 @@ Singleton {
   }
 
   function formatMessage(args) {
-    if (!args || args.length === 0)
+    if (!args?.length)
       return "";
 
-    const timestamp = "\x1b[36m[" + TimeService.timestamp() + "]\x1b[0m";
+    const timestamp = `\x1b[36m[${root.currentTimestamp}]\x1b[0m`;
 
-    if (args.length === 1) {
-      return timestamp + " " + args[0];
-    }
+    if (args.length === 1)
+      return `${timestamp} ${String(args[0])}`;
 
     const modulePart = root.formatModuleLabel(args[0]);
-    // Pre-allocate array for better memory performance
     const messageCount = args.length - 1;
     const messageParts = new Array(messageCount);
 
     for (let i = 0; i < messageCount; i++) {
-      messageParts[i] = args[i + 1];
+      messageParts[i] = String(args[i + 1] ?? "");
     }
 
-    return timestamp + " " + modulePart + " " + messageParts.join(" ");
+    return `${timestamp} ${modulePart} ${messageParts.join(" ")}`;
   }
 
   function formatModuleLabel(moduleRaw) {
-    const name = String(moduleRaw).substring(0, root.moduleLabelWidth);
+    const name = String(moduleRaw ?? "").substring(0, root.moduleLabelWidth);
     const totalPad = root.moduleLabelWidth - name.length;
     const left = Math.floor(totalPad / 2);
     const right = totalPad - left;

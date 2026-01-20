@@ -16,8 +16,8 @@ Item {
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
   readonly property real cardWidth: Theme.notificationCardWidth
   required property var group
-  property string groupScope: "history"
   readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group.key] || false) : false)
+  property string groupScope: "history"
   readonly property bool headerHasExpand: root.isGroup && root.items.length > 1
   readonly property string headerTitle: root.isGroup ? `${root.group?.appName || "app"} (${root.group?.count || root.items.length})` : (root.primaryWrapper?.appName || "app")
   readonly property bool isGroup: root.group?.count > 1

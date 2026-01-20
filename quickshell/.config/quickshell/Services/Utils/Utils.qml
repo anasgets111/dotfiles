@@ -21,31 +21,32 @@ Singleton {
   // Resolves a valid icon path from a variety of sources (system theme, file path, raw data).
   // Priorities: 3rd arg -> 2nd arg -> key -> fallback.
   function resolveIconSource(key: string, arg2: var, arg3: var): string {
-    const hasThirdArg = arg3 !== undefined && arg3 !== null;
-    const candidates = hasThirdArg ? [arg2, key, arg3] : [key, arg2, "application-x-executable"];
+    const fallback = (arg3 !== undefined && arg3 !== null) ? String(arg3) : "application-x-executable";
+    const candidates = arg3 ? [arg2, key] : [key, arg2];
 
     for (const c of candidates) {
       if (!c)
         continue;
       const s = String(c);
-      // Direct file paths or resources are returned immediately
+
+      // Direct paths
       if (s.includes("/") || /^(file|data|qrc):/.test(s))
         return s;
-      // Lookup in XDG Desktop standards if available
+
+      // DesktopEntries
       if (typeof DesktopEntries !== "undefined") {
         const entry = DesktopEntries.heuristicLookup?.(s) || DesktopEntries.byId?.(s);
-        if (entry?.icon) {
-          const p = Quickshell.iconPath(entry.icon, false);
-          if (p)
-            return p;
-        }
+        if (entry?.icon)
+          return Quickshell.iconPath(entry.icon, fallback);
       }
-      // Fallback to Quickshell icon theme lookup
-      const p = Quickshell.iconPath(s, false);
-      if (p)
-        return p;
+
+      // Icon theme with fallback
+      const path = Quickshell.iconPath(s, fallback);
+      if (path)
+        return path;
     }
-    return "";
+
+    return Quickshell.iconPath(fallback);
   }
 
   // Scans the Linux sysfs LED directory.
