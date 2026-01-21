@@ -57,19 +57,15 @@ Due to some technical limitations, it was not possible to reuse the native qml `
 ### Properties
 
 - `devicePixelRatio: real` (readonly)
-
   - The ratio between physical pixels and device-independent (scaled) pixels.
 
 - `model: string` (readonly)
-
   - The model of the screen as seen by the operating system.
 
 - `serialNumber: string` (readonly)
-
   - The serial number of the screen as seen by the operating system.
 
 - `name: string` (readonly)
-
   - The name of the screen as seen by the operating system. Usually something like `DP-1`, `HDMI-1`, `eDP-1`.
 
 - `x: int` (readonly)
@@ -81,11 +77,9 @@ Due to some technical limitations, it was not possible to reuse the native qml `
 - `height: int` (readonly)
 
 - `physicalPixelDensity: real` (readonly)
-
   - The number of physical pixels per millimeter.
 
 - `logicalPixelDensity: real` (readonly)
-
   - The number of device-independent (scaled) pixels per millimeter.
 
 - `orientation: unknown` (readonly)
@@ -123,25 +117,20 @@ Text {
 ### Properties
 
 - `hours: int` (readonly)
-
   - The current hour.
 
 - `date: date` (readonly)
-
   - The current date and time.
   - Tip: You can use `Qt.formatDateTime()` to get the time as a string in your format of choice.
 
 - `enabled: bool`
-
   - If the clock should update. Defaults to `true`.
   - Setting `enabled` to `false` pauses the clock.
 
 - `minutes: int` (readonly)
-
   - The current minute, or `0` if `precision` is `SystemClock.Hours`.
 
 - `precision: SystemClock`
-
   - The precision the clock should measure at. Defaults to `SystemClock.Seconds`.
 
 - `seconds: int` (readonly)
@@ -306,7 +295,6 @@ LazyLoaders do not start loading before the first window is created, meaning if 
 ### Properties
 
 - loading: bool
-
   - If the loader is actively loading.
   - If the component is not loaded, setting this property to true will start loading it asynchronously. If the component is already loaded, setting this property has no effect.
   - See also: activeAsync.
@@ -704,7 +692,6 @@ See `QsMenuEntry.buttonType`.
 ### Functions
 
 - `toString(value)`: `string`
-
   - `value`: `QsMenuButtonType`
 
 ### Variants
@@ -770,7 +757,6 @@ import Quickshell
 ### Functions
 
 - `display(parentWindow, relativeX, relativeY)`: `void`
-
   - `parentWindow`: `QtObject`
   - `relativeX`: `int`
   - `relativeY`: `int`
@@ -916,11 +902,9 @@ Base class of Quickshell windows
   This property is intended to be used to force a binding update, along with map[To|From]Item (which is not reactive).
 
 - `surfaceFormat`: `[opaque]`
-
   - `opaque`: `bool`
 
   Set the surface format to request from the system.
-
   - `opaque` - If the requested surface should be opaque. Opaque windows allow the operating system to avoid drawing things behind them, or blending the window with those behind it, saving power and GPU load. If unset, this property defaults to true if `color` is opaque, or false if not. You should not need to modify this property unless you create a surface that starts opaque and later becomes transparent.
 
   > NOTE
@@ -938,7 +922,6 @@ Base class of Quickshell windows
 ### Functions [?]
 
 - `itemPosition(item)`: `point`
-
   - `item`: `Item`
 
   Returns the given Item's position relative to the window. Does not update reactively.
@@ -948,7 +931,6 @@ Base class of Quickshell windows
   See also: `Item.mapFromItem()`
 
 - `itemRect(item)`: `rect`
-
   - `item`: `Item`
 
   Returns the given Item's geometry relative to the window. Does not update reactively
@@ -958,7 +940,6 @@ Base class of Quickshell windows
   See also: `Item.mapFromItem()`
 
 - `mapFromItem(item, point)`: `point`
-
   - `item`: `Item`
   - `point`: `point`
 
@@ -967,7 +948,6 @@ Base class of Quickshell windows
   Equivalent to calling `window.contentItem.mapFromItem(item, point)`
 
 - `mapFromItem(item, x, y)`: `point`
-
   - `item`: `Item`
   - `x`: `real`
   - `y`: `real`
@@ -977,7 +957,6 @@ Base class of Quickshell windows
   Equivalent to calling `window.contentItem.mapFromItem(item, x, y)`
 
 - `mapFromItem(item, rect)`: `rect`
-
   - `item`: `Item`
   - `rect`: `rect`
 
@@ -986,7 +965,6 @@ Base class of Quickshell windows
   Equivalent to calling `window.contentItem.mapFromItem(item, rect)`
 
 - `mapFromItem(item, x, y, width, height)`: `rect`
-
   - `item`: `Item`
   - `x`: `real`
   - `y`: `real`
@@ -1103,13 +1081,11 @@ import Quickshell
 ### Functions [?]
 
 - `cachePath(path)`: `string`
-
   - `path`: `string`
 
   Equivalent to `${Quickshell.cacheDir}/${path}`
 
 - `configPath(path)`: `string`
-
   - `path`: `string`
 
   WARNING
@@ -1117,25 +1093,21 @@ import Quickshell
   Deprecated: Renamed to `shellPath()` for clarity.
 
 - `dataPath(path)`: `string`
-
   - `path`: `string`
 
   Equivalent to `${Quickshell.dataDir}/${path}`
 
 - `env(variable)`: `variant`
-
   - `variable`: `string`
 
   Returns the string value of an environment variable or null if it is not set.
 
 - `execDetached(context)`: `void`
-
   - `context`:
 
   Launch a process detached from Quickshell.
 
   The context parameter can either be a list of command arguments or a JS object with the following fields:
-
   - `command`: A list containing the command and all its arguments. See `Process.command`.
   - `environment`: Changes to make to the process environment. See `Process.environment`.
   - `clearEnvironment`: Removes all variables from the environment if true.
@@ -1154,7 +1126,6 @@ import Quickshell
   This function is equivalent to `Process.startDetached()`.
 
 - `iconPath(icon)`: `string`
-
   - `icon`: `string`
 
   Returns a string usable for a `Image.source` for a given system icon.
@@ -1166,14 +1137,12 @@ import Quickshell
   If you want to use a different icon theme, you can put `//@ pragma IconTheme <name>` at the top of your root config file or set the `QS_ICON_THEME` variable to the name of your icon theme.
 
 - `iconPath(icon, check)`: `string`
-
   - `icon`: `string`
   - `check`: `bool`
 
   Setting the `check` parameter of `iconPath` to true will return an empty string if the icon does not exist, instead of an image showing a missing texture.
 
 - `iconPath(icon, fallback)`: `string`
-
   - `icon`: `string`
   - `fallback`: `string`
 
@@ -1186,7 +1155,6 @@ import Quickshell
   The popup can also be blocked by setting `QS_NO_RELOAD_POPUP=1`.
 
 - `reload(hard)`: `void`
-
   - `hard`: `bool`
 
   Reload the shell.
@@ -1196,7 +1164,6 @@ import Quickshell
   See `Reloadable` for more information on what can be reloaded and how.
 
 - `statePath(path)`: `string`
-
   - `path`: `string`
 
   Equivalent to `${Quickshell.stateDir}/${path}`
@@ -1204,7 +1171,6 @@ import Quickshell
 ### Signals [?]
 
 - `reloadFailed(errorString)`
-
   - `errorString`: `string`
 
   The reload sequence has failed.
@@ -1453,3 +1419,88 @@ A system tray item. Key properties, functions and signals are listed below.
 ### Signals
 
 - `ready()`
+
+# QUICKSHELL HYPRLAND OBJECT REFERENCE
+
+1. ROOT OBJECT (Singleton: Hyprland)
+
+---
+
+• monitors : Map<String, Monitor> -> Access: Array.from(Hyprland.monitors.values)
+• workspaces : Map<int, Workspace> -> Access: Array.from(Hyprland.workspaces.values)
+• toplevels : UntypedObjectModel -> Access: Array.from(Hyprland.toplevels.values)
+• focusedMonitor : Monitor (nullable)
+• focusedWorkspace : Workspace (nullable)
+• dispatch(cmd) : Function (Executes Hyprland dispatchers)
+• activeWindow : UNDEFINED (Use Events or focusedWorkspace.toplevels)
+
+2. MONITOR OBJECT
+
+---
+
+• id : int
+• name : string (e.g., "eDP-1")
+• description : string
+• x, y : int (Position)
+• width, height : int (Resolution)
+• scale : double
+• focused : bool
+• activeWorkspace : Workspace (Object)
+
+3. WORKSPACE OBJECT
+
+---
+
+• id : int (Standard IDs > 0, Special IDs < -1)
+• name : string (e.g., "1", "special:vesktop")
+• focused : bool
+• monitor : Monitor (Object)
+• toplevels : Map<address, Window> (CRITICAL: Not an Array)
+-> Usage: Array.from(w.toplevels.values)
+• lastIpcObject : Object (Raw IPC data backup)
+-> .windows : int (Count of windows, useful if Map is empty)
+
+4. WINDOW OBJECT (Wrapper)
+
+---
+
+Found inside workspace.toplevels or Hyprland.toplevels.
+• title : string
+• address : string (Hex handle)
+• monitor : Monitor
+• workspace : Workspace
+• MISSING DIRECTLY : class, appId, floating, geometry, fullscreen.
+(Must use .lastIpcObject for these details)
+
+5. WINDOW IPC OBJECT (.lastIpcObject)
+
+---
+
+The raw data source for window details.
+• class : string (e.g., "vesktop", "firefox")
+• initialClass : string
+• title : string
+• floating : bool
+• fullscreen : int/bool (0 = false)
+• pinned : bool
+• xwayland : bool
+• pid : int
+• at : [x, y]
+• size : [width, height]
+
+6. EVENTS (via Connections { target: Hyprland ... })
+
+---
+
+Signal: onRawEvent(event)
+• event.name : string
+• event.data : string (comma-separated values)
+
+Common Event Signatures:
+• openwindow : address, workspaceName, class, title
+• activewindow : class, title
+• activewindowv2 : address (Hex handle)
+• activespecial : workspaceName, monitorName
+• activespecialv2 : workspaceId, workspaceName, monitorName
+• destroyworkspace : workspaceName
+• windowtitle : address
