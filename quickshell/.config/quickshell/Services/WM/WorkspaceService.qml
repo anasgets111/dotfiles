@@ -42,7 +42,13 @@ Singleton {
   }
 
   function focusWorkspaceByWs(ws) {
-    backend?.focusWorkspaceByWs(ws);
+    if (backend && typeof backend.focusWorkspaceByWs === "function") {
+      backend.focusWorkspaceByWs(ws);
+      return;
+    }
+    if (ws?.idx !== undefined) {
+      backend?.focusWorkspaceByIndex(ws.idx);
+    }
   }
 
   function refresh() {
@@ -51,17 +57,5 @@ Singleton {
 
   function toggleSpecial(name) {
     backend?.toggleSpecial(name);
-  }
-
-  Binding {
-    property: "enabled"
-    target: Hypr.WorkspaceImpl
-    value: MainService.ready && root.backend === Hypr.WorkspaceImpl
-  }
-
-  Binding {
-    property: "enabled"
-    target: Niri.WorkspaceImpl
-    value: MainService.ready && root.backend === Niri.WorkspaceImpl
   }
 }

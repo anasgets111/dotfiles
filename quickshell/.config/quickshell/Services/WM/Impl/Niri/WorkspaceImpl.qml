@@ -9,16 +9,18 @@ import qs.Services.Utils
 Singleton {
   id: root
 
-  property string activeSpecial: ""
+  property int _previousWorkspaceId: 1
+  property int _trackerWorkspaceId: 1
+  readonly property string activeSpecial: ""
   property int currentWorkspace: 1
   property int currentWorkspaceId: -1
   property bool enabled: MainService.ready && MainService.currentWM === "niri"
   property string focusedOutput: ""
   property var groupBoundaries: []
   property var outputsOrder: []
-  property int previousWorkspace: 1
+  readonly property int previousWorkspace: _previousWorkspaceId
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
-  property var specialWorkspaces: []
+  readonly property var specialWorkspaces: []
   property var workspaces: []
 
   function focusWorkspaceById(id) {
@@ -43,29 +45,12 @@ Singleton {
       focusWorkspaceById(ws.id);
   }
 
-  function focusWorkspaceByWs(ws) {
-    if (!enabled || !ws)
-      return;
-    if (ws.output && ws.output !== focusedOutput) {
-      send({
-        Action: {
-          FocusMonitor: {
-            reference: {
-              Name: ws.output
-            }
-          }
-        }
-      });
-    }
-    focusWorkspaceById(ws.id);
-  }
-
   function refresh() {
     if (!enabled || !socketPath)
       return;
     eventStreamSocket.connected = false;
-    requestSocket.connected = false;
     eventStreamSocket.connected = true;
+    requestSocket.connected = false;
     requestSocket.connected = true;
   }
 
@@ -74,7 +59,6 @@ Singleton {
       requestSocket.write(JSON.stringify(request) + "\n");
   }
 
-  // Transform raw Niri workspace to unified structure: { id, idx, focused, populated, output, name? }
   function toUnifiedWs(w) {
     return {
       id: w.id,
@@ -86,32 +70,24 @@ Singleton {
     };
   }
 
-  function toggleSpecial(_name) {
-  } // Niri doesn't support special workspaces
-
+  function toggleSpecial(name) {
+  }
 
   function updateSingleFocus(id) {
-    let foundIdx = -1;
-    for (let i = 0; i < workspaces.length; i++) {
-      const ws = workspaces[i];
-      const isFocused = ws.id === id;
-      if (ws.focused !== isFocused)
-        ws.focused = isFocused;
-      if (isFocused)
-        foundIdx = i;
-    }
-
-    if (foundIdx < 0)
+    const ws = workspaces.find(w => w.id === id);
+    if (!ws)
       return;
 
-    const foundWs = workspaces[foundIdx];
-    if (foundWs.idx !== currentWorkspace) {
-      root.previousWorkspace = currentWorkspace;
-      root.currentWorkspace = foundWs.idx;
+    if (root.currentWorkspace !== ws.idx) {
+      root.currentWorkspace = ws.idx;
     }
-    root.currentWorkspaceId = foundWs.id;
-    root.focusedOutput = foundWs.output ?? focusedOutput;
-    root.workspacesChanged(); // Trigger binding updates
+    root.currentWorkspaceId = ws.id;
+    root.focusedOutput = ws.output ?? root.focusedOutput;
+
+    for (let i = 0; i < workspaces.length; i++) {
+      workspaces[i].focused = (workspaces[i].id === id);
+    }
+    root.workspacesChanged();
   }
 
   function updateWorkspaces(arr) {
@@ -152,15 +128,21 @@ Singleton {
     root.workspaces = flat;
     root.groupBoundaries = bounds;
 
-    if (focusedWs && focusedWs.idx !== currentWorkspace) {
-      root.previousWorkspace = currentWorkspace;
-      root.currentWorkspace = focusedWs.idx;
+    if (focusedWs) {
+      if (root.currentWorkspace !== focusedWs.idx)
+        root.currentWorkspace = focusedWs.idx;
       root.currentWorkspaceId = focusedWs.id;
     }
   }
 
   Component.onCompleted: if (enabled)
     _startupKick.start()
+  onCurrentWorkspaceChanged: {
+    if (currentWorkspace !== _trackerWorkspaceId) {
+      _previousWorkspaceId = _trackerWorkspaceId;
+      _trackerWorkspaceId = currentWorkspace;
+    }
+  }
   onEnabledChanged: {
     if (enabled && socketPath) {
       eventStreamSocket.connected = true;
@@ -192,15 +174,13 @@ Singleton {
             root.updateSingleFocus(evt.WorkspaceActivated.id);
           }
         } catch (e) {
-          Logger.log("NiriWs", "Parse error: " + e);
+          Logger.log("WorkspaceImpl(Niri)", `Parse error: ${e}`);
         }
       }
     }
 
-    onConnectionStateChanged: {
-      if (connected)
-        write('"EventStream"\n');
-    }
+    onConnectionStateChanged: if (connected)
+      write('"EventStream"\n')
   }
 
   Socket {
