@@ -670,7 +670,7 @@ Singleton {
       function onClosed(_) {
         if (root._isDestroying || wrapper._removed)
           return;
-        root._removeWrappers([wrapper], false);
+        root._removeWrappers([wrapper], true);
       }
 
       enabled: !wrapper._removed && !!target
@@ -680,7 +680,7 @@ Singleton {
       function onDropped() {
         if (root._isDestroying || wrapper.isDismissing || wrapper._removed)
           return;
-        root._removeWrappers([wrapper], false);
+        root._removeWrappers([wrapper], true);
       }
 
       enabled: !wrapper.isDismissing && !wrapper._removed && !!target
