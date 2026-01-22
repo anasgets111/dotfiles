@@ -41,7 +41,7 @@ Singleton {
     if (!node)
       return "";
     const props = node.properties ?? {};
-    const iconName = props["device.icon_name"] ?? "";
+    const iconName = props["device.icon-name"] ?? "";
     if (deviceIconMap[iconName])
       return deviceIconMap[iconName];
     const desc = (node.description ?? "").toLowerCase();
@@ -174,6 +174,7 @@ Singleton {
 
   AudioOutput {
     id: notificationOutput
+
     device: mediaDevices.defaultAudioOutput
     volume: 1.0
   }
@@ -181,15 +182,15 @@ Singleton {
   MediaPlayer {
     id: normalNotificationSound
 
-    source: "file:///usr/share/sounds/freedesktop/stereo/message.oga"
     audioOutput: notificationOutput
+    source: "file:///usr/share/sounds/freedesktop/stereo/message.oga"
   }
 
   MediaPlayer {
     id: criticalNotificationSound
 
-    source: "file:///usr/share/sounds/freedesktop/stereo/bell.oga"
     audioOutput: notificationOutput
+    source: "file:///usr/share/sounds/freedesktop/stereo/bell.oga"
   }
 
   PwObjectTracker {
