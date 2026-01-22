@@ -9,6 +9,11 @@ Singleton {
   readonly property string currentTimestamp: TimeService.timestamp()
   property bool enabled: true
   property list<string> includeModules: []
+  readonly property bool isTty: {
+    // Check if TERM is set (present in terminals, absent in daemon logs)
+    const term = Quickshell.env("TERM");
+    return term !== null && term !== "" && term !== "dumb";
+  }
   readonly property int moduleLabelWidth: 16
 
   function emit(kind, args) {
@@ -36,7 +41,7 @@ Singleton {
     if (!args?.length)
       return "";
 
-    const timestamp = `\x1b[36m[${root.currentTimestamp}]\x1b[0m`;
+    const timestamp = root.isTty ? `\x1b[36m[${root.currentTimestamp}]\x1b[0m` : `[${root.currentTimestamp}]`;
 
     if (args.length === 1)
       return `${timestamp} ${String(args[0])}`;
@@ -57,7 +62,8 @@ Singleton {
     const totalPad = root.moduleLabelWidth - name.length;
     const left = Math.floor(totalPad / 2);
     const right = totalPad - left;
-    return `\x1b[35m[${" ".repeat(left)}${name}${" ".repeat(right)}]\x1b[0m`;
+
+    return root.isTty ? `\x1b[35m[${" ".repeat(left)}${name}${" ".repeat(right)}]\x1b[0m` : `[${" ".repeat(left)}${name}${" ".repeat(right)}]`;
   }
 
   function log() {
