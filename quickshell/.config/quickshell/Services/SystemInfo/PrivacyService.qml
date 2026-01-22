@@ -8,11 +8,14 @@ Singleton {
   id: root
 
   readonly property bool cameraActive: {
-    if (!Pipewire.ready)
+    const links = Pipewire.linkGroups?.values;
+    if (!links)
       return false;
 
-    for (const node of Pipewire.nodes?.values ?? []) {
-      if (node?.ready && node.properties?.["media.class"] === "Stream/Input/Video" && node.properties["stream.is-live"] === "true") {
+    for (const {
+      source
+    } of links) {
+      if (source?.type === PwNodeType.VideoSource && _looksLikeCamera(source)) {
         return true;
       }
     }
@@ -53,6 +56,11 @@ Singleton {
 
   function _isVirtual(node: PwNode): bool {
     return /cava|monitor|system/.test(_describe(node));
+  }
+
+  function _looksLikeCamera(node: PwNode): bool {
+    const desc = _describe(node);
+    return /camera|webcam|video|v4l2/.test(desc) && !/screen|desktop|obs|xdg/.test(desc);
   }
 
   PwObjectTracker {
