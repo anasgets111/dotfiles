@@ -3,49 +3,56 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
-import qs.Services.Core
 
 Singleton {
   id: root
 
-  readonly property var _cameraPattern: /camera|webcam|v4l2|uvc/
-  readonly property var _privacyState: {
-    const result = {
+  readonly property var _patterns: ({
+      camera: /camera|webcam|v4l2|uvc/i,
+      screenshare: /xdg-desktop-portal|pipewire-screen-audio|obs|wf-recorder|gpu-screen-recorder|grim|slurp|wl-screenrec|screen.?share|desktop.?capture|display.?capture/i,
+      virtual: /cava|monitor|system/i
+    })
+  readonly property var _status: {
+    const state = {
       camera: false,
-      mic: false,
+      microphone: false,
       screenshare: false
     };
-    const groups = Pipewire.linkGroups?.values;
-    if (!groups)
-      return result;
+    const links = Pipewire.linkGroups?.values;
+    if (!links)
+      return state;
 
-    for (const lg of groups) {
-      if (lg.source?.type === PwNodeType.VideoSource) {
-        const info = _getNodeInfo(lg.source);
-        if (_cameraPattern.test(info))
-          result.camera = true;
-        else if (_screensharePattern.test(info))
-          result.screenshare = true;
+    for (const {
+      source,
+      target
+    } of links) {
+      if (!source)
+        continue;
+      if (source.type === PwNodeType.VideoSource) {
+        const info = _describe(source);
+        if (!state.camera && _patterns.camera.test(info))
+          state.camera = true;
+        else if (!state.screenshare && _patterns.screenshare.test(info))
+          state.screenshare = true;
+      } else if (!state.microphone && source.type === PwNodeType.AudioSource && target?.type === PwNodeType.AudioInStream) {
+        if (!target.audio?.muted && !_patterns.virtual.test(_describe(target))) {
+          state.microphone = true;
+        }
       }
-      if (lg.source?.type === PwNodeType.AudioSource && lg.target?.type === PwNodeType.AudioInStream) {
-        const info = _getNodeInfo(lg.target);
-        if (!_virtualMicPattern.test(info) && !lg.target.audio?.muted)
-          result.mic = true;
-      }
+      if (state.camera && state.microphone && state.screenshare)
+        break;
     }
-    return result;
+    return state;
   }
-  readonly property var _screensharePattern: /xdg-desktop-portal|pipewire-screen-audio|obs|wf-recorder|gpu-screen-recorder|grim|slurp|wl-screenrec|screen.?share|desktop.?capture|display.?capture/
-  readonly property var _virtualMicPattern: /cava|monitor|system/
-  readonly property bool cameraActive: _privacyState.camera
-  readonly property bool microphoneActive: _privacyState.mic
-  readonly property bool microphoneMuted: AudioService?.source?.audio?.muted ?? false
-  readonly property bool screensharingActive: _privacyState.screenshare
+  readonly property bool cameraActive: _status.camera
+  readonly property bool microphoneActive: _status.microphone
+  readonly property bool microphoneMuted: Pipewire.defaultAudioSource?.audio?.muted ?? false
+  readonly property bool screenshareActive: _status.screenshare
 
-  function _getNodeInfo(node) {
+  function _describe(node: PwNode): string {
     if (!node)
       return "";
     const props = node.properties;
-    return [node.name, props?.["media.name"], props?.["application.name"]].filter(Boolean).join(" ").toLowerCase();
+    return [node.name, props["media.name"], props["application.name"]].filter(Boolean).join(" ").toLowerCase();
   }
 }
