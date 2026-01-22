@@ -40,6 +40,6 @@ RowLayout {
     enabled: true
     icon: "\uF108"
     tooltipText: qsTr("Screen sharing in progress")
-    visible: PrivacyService.screensharingActive
+    visible: PrivacyService.screenshareActive
   }
 }
