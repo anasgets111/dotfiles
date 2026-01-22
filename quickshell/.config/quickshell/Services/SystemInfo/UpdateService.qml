@@ -128,7 +128,7 @@ Singleton {
   function fetchPackageSizes() {
     if (!updatePackages.length)
       return;
-    sizeFetchProcess.command = ["expac", "-S", "%k\t%n"].concat(updatePackages.map(p => p.name));
+    sizeFetchProcess.command = ["expac", "-S", "%k|%n"].concat(updatePackages.map(p => p.name));
     sizeFetchProcess.running = true;
   }
 
@@ -175,7 +175,7 @@ Singleton {
 
     stdout: SplitParser {
       onRead: line => {
-        const parts = line.trim().split('\t');
+        const parts = line.trim().split('|');
         const size = parseFloat(parts[0]);
         const name = parts[1];
         if (!isNaN(size) && name)
