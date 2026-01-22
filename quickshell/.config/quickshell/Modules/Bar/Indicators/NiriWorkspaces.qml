@@ -8,10 +8,10 @@ import qs.Components
 Item {
   id: root
 
-  readonly property int currentWsId: WorkspaceService.currentWorkspaceId
+  readonly property int currentWsIdx: WorkspaceService.currentWorkspace
   readonly property bool expanded: pill.expanded
   readonly property int focusedIndex: {
-    const idx = workspaces.findIndex(ws => ws.id === currentWsId);
+    const idx = workspaces.findIndex(ws => ws.idx === currentWsIdx);
     return idx >= 0 ? idx : 0;
   }
   readonly property var groupBoundaries: WorkspaceService.groupBoundaries
@@ -24,7 +24,7 @@ Item {
   function wsColor(ws) {
     if (!ws)
       return Theme.disabledColor;
-    if (ws.focused || ws.id === currentWsId)
+    if (ws.focused || ws.idx === currentWsIdx)
       return Theme.activeColor;
     if (ws.id === hoveredId)
       return Theme.onHoverColor;

@@ -29,7 +29,6 @@ Singleton {
   readonly property string activeSpecial: backend?.activeSpecial ?? ""
   readonly property var backend: MainService.currentWM === "hyprland" ? Hypr.WorkspaceImpl : MainService.currentWM === "niri" ? Niri.WorkspaceImpl : null
   readonly property int currentWorkspace: backend?.currentWorkspace ?? -1
-  readonly property int currentWorkspaceId: backend?.currentWorkspaceId ?? -1
   readonly property string focusedOutput: backend?.focusedOutput ?? ""
   readonly property var groupBoundaries: backend?.groupBoundaries ?? []
   readonly property var outputsOrder: backend?.outputsOrder ?? []

@@ -13,7 +13,6 @@ Singleton {
   property int _trackerWorkspaceId: 1
   readonly property string activeSpecial: ""
   property int currentWorkspace: 1
-  property int currentWorkspaceId: -1
   property bool enabled: MainService.ready && MainService.currentWM === "niri"
   property string focusedOutput: ""
   property var groupBoundaries: []
@@ -81,7 +80,6 @@ Singleton {
     if (root.currentWorkspace !== ws.idx) {
       root.currentWorkspace = ws.idx;
     }
-    root.currentWorkspaceId = ws.id;
     root.focusedOutput = ws.output ?? root.focusedOutput;
 
     for (let i = 0; i < workspaces.length; i++) {
@@ -131,7 +129,6 @@ Singleton {
     if (focusedWs) {
       if (root.currentWorkspace !== focusedWs.idx)
         root.currentWorkspace = focusedWs.idx;
-      root.currentWorkspaceId = focusedWs.id;
     }
   }
 
