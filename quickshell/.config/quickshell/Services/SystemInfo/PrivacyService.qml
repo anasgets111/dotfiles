@@ -2,12 +2,13 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Pipewire
 
 Singleton {
   id: root
 
-  readonly property bool cameraActive: {
+  readonly property bool _pipewireCamera: {
     const links = Pipewire.linkGroups?.values;
     if (!links)
       return false;
@@ -21,6 +22,8 @@ Singleton {
     }
     return false;
   }
+  readonly property bool _v4l2Camera: v4l2Process.running ? v4l2Collector.text.trim().length > 0 : false
+  readonly property bool cameraActive: _pipewireCamera || _v4l2Camera
   readonly property bool microphoneActive: {
     const links = Pipewire.linkGroups?.values;
     if (!links)
@@ -61,6 +64,39 @@ Singleton {
   function _looksLikeCamera(node: PwNode): bool {
     const desc = _describe(node);
     return /camera|webcam|video|v4l2/.test(desc) && !/screen|desktop|obs|xdg/.test(desc);
+  }
+
+  Process {
+    id: v4l2Process
+
+    command: ["sh", "-c", "fuser /dev/video* 2>/dev/null"]
+    running: true
+
+    stdout: SplitParser {
+      id: v4l2Collector
+
+      onRead: data => v4l2Timer.restart()
+    }
+  }
+
+  Timer {
+    id: v4l2Timer
+
+    interval: 2000
+
+    onTriggered: v4l2Process.running = false
+  }
+
+  Timer {
+    interval: 1000
+    repeat: true
+    running: true
+
+    onTriggered: {
+      if (!v4l2Process.running) {
+        v4l2Process.running = true;
+      }
+    }
   }
 
   PwObjectTracker {
