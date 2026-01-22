@@ -2,104 +2,62 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Services.Pipewire
+import Quickshell.Io
 
 Singleton {
   id: root
 
-  readonly property bool _pipewireCamera: {
+  readonly property var _privacyState: {
+    const result = {
+      mic: false,
+      screenshare: false
+    };
     const links = Pipewire.linkGroups?.values;
-    if (!links)
-      return false;
 
-    for (const {
-      source
-    } of links) {
-      if (source?.type === PwNodeType.VideoSource && _looksLikeCamera(source)) {
-        return true;
+    if (!links)
+      return result;
+
+    for (const link of links) {
+      if (link.source?.type === PwNodeType.VideoSource) {
+        if (/xdg-desktop-portal|obs|wf-recorder|grim|slurp|screen.?share|display.?capture/.test(_describe(link.source))) {
+          result.screenshare = true;
+        }
+      } else if (link.source?.type === PwNodeType.AudioSource && link.target?.type === PwNodeType.AudioInStream) {
+        if (!/cava|monitor|system/.test(_describe(link.target)) && !link.target.audio?.muted) {
+          result.mic = true;
+        }
       }
     }
-    return false;
+    return result;
   }
-  readonly property bool _v4l2Camera: v4l2Process.running ? v4l2Collector.text.trim().length > 0 : false
-  readonly property bool cameraActive: _pipewireCamera || _v4l2Camera
-  readonly property bool microphoneActive: {
-    const links = Pipewire.linkGroups?.values;
-    if (!links)
-      return false;
-
-    for (const {
-      source,
-      target
-    } of links) {
-      if (source?.type === PwNodeType.AudioSource && target?.type === PwNodeType.AudioInStream && !target.audio?.muted && !_isVirtual(target)) {
-        return true;
-      }
-    }
-    return false;
-  }
+  property bool _v4l2Active: false
+  readonly property bool cameraActive: _v4l2Active
+  readonly property bool microphoneActive: _privacyState.mic
   readonly property bool microphoneMuted: Pipewire.defaultAudioSource?.audio?.muted ?? false
-  readonly property bool screenshareActive: {
-    if (!Pipewire.ready)
-      return false;
+  readonly property bool screenshareActive: _privacyState.screenshare
 
-    for (const node of Pipewire.nodes?.values ?? []) {
-      if ((node?.type & PwNodeType.VideoSource) && /xdg-desktop-portal|screencast|obs/.test(_describe(node))) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function _describe(node: PwNode): string {
-    const p = node?.properties ?? {};
-    return [node?.name, p["application.name"], p["media.name"]].filter(Boolean).join(" ").toLowerCase();
-  }
-
-  function _isVirtual(node: PwNode): bool {
-    return /cava|monitor|system/.test(_describe(node));
-  }
-
-  function _looksLikeCamera(node: PwNode): bool {
-    const desc = _describe(node);
-    return /camera|webcam|video|v4l2/.test(desc) && !/screen|desktop|obs|xdg/.test(desc);
+  function _describe(node) {
+    if (!node)
+      return "";
+    const p = node.properties;
+    return [node.name, p?.["media.name"], p?.["application.name"]].filter(Boolean).join(" ").toLowerCase();
   }
 
   Process {
     id: v4l2Process
 
-    command: ["sh", "-c", "fuser /dev/video* 2>/dev/null"]
-    running: true
+    command: ["fuser", "-s", "/dev/video0", "/dev/video1", "/dev/video2", "/dev/video3"]
 
-    stdout: SplitParser {
-      id: v4l2Collector
-
-      onRead: data => v4l2Timer.restart()
-    }
+    onExited: code => root._v4l2Active = (code === 0)
   }
 
   Timer {
-    id: v4l2Timer
-
-    interval: 2000
-
-    onTriggered: v4l2Process.running = false
-  }
-
-  Timer {
-    interval: 1000
+    interval: 250
     repeat: true
     running: true
 
-    onTriggered: {
-      if (!v4l2Process.running) {
-        v4l2Process.running = true;
-      }
-    }
-  }
-
-  PwObjectTracker {
-    objects: Pipewire.nodes?.values.filter(n => !n?.isStream) ?? []
+    onTriggered: if (!v4l2Process.running)
+      v4l2Process.running = true
   }
 }
