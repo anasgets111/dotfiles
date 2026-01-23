@@ -253,10 +253,6 @@ Singleton {
   }
 
   Connections {
-    function onDiscoveringChanged() {
-      Logger.log("BluetoothService", `Adapter discovering changed: ${root.adapter?.discovering ?? false}`);
-    }
-
     function onEnabledChanged() {
       Logger.log("BluetoothService", `Adapter enabled changed: ${root.adapter?.enabled ?? false}`);
     }
