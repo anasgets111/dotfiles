@@ -26,7 +26,7 @@ abbr pacinn 'sudo pacman -S --needed'
 abbr pacrem 'sudo pacman -Rns'
 abbr orphans 'pacman -Qdtq | sudo pacman -Rns -'
 abbr mirrors 'sudo rate-mirrors --protocol https --allow-root --save /etc/pacman.d/mirrorlist --disable-comments-in-file arch'
-abbr mirror-aur 'sudo rate-mirrors --disable-comments-in-file --protocol=https --allow-root --save /etc/pacman.d/chaotic-mirrorlist chaotic-aur'
+abbr mirrors-aur 'sudo rate-mirrors --disable-comments-in-file --protocol=https --allow-root --save /etc/pacman.d/chaotic-mirrorlist chaotic-aur'
 
 abbr drop-cache 'sudo paccache -rk3; and sudo pacman -Sc --noconfirm'
 abbr fixpacman 'sudo rm /var/lib/pacman/db.lck'
