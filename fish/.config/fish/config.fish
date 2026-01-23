@@ -12,14 +12,17 @@ string match -q Zed "$TERM_PROGRAM"; and set -gx fish_history zed
 type -q zoxide; and zoxide init fish --cmd cd | source
 type -q starship; and starship init fish | source
 
-# 4. Smart Greeting (Runs only in pure terminals)
+# 4. Theme
+fish_config theme choose "Catppuccin Mocha"
+
+# 5. Smart Greeting (Runs only in pure terminals)
 function fish_greeting
     if test "$fish_history" = fish
         type -q fastfetch; and fastfetch -c $HOME/.config/fastfetchTheme.jsonc
     end
 end
 
-# 5. Abbreviations
+# 6. Abbreviations
 # --- Arch Maintenance ---
 abbr pacin 'sudo pacman -S'
 abbr pacinn 'sudo pacman -S --needed'
