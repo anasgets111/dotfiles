@@ -22,7 +22,7 @@ Singleton {
         bounds: []
       });
   }
-  readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "monitoradded", "monitoraddedv2", "monitorremoved", "moveworkspace"]
+  readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "monitoradded", "monitoraddedv2", "monitorremoved", "moveworkspace", "openwindow", "closewindow", "movewindow"]
   property int _updateTick: 0
   property string activeSpecial: ""
   readonly property int currentWorkspace: _focusedMonitor?.activeWorkspace?.id ?? 1
