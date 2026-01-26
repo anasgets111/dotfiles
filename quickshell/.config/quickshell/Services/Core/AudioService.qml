@@ -17,6 +17,8 @@ Singleton {
       "portable": "󰏲"
     })
   readonly property real maxVolume: 1.5
+  readonly property bool micMuted: source?.audio?.muted ?? false
+  readonly property real micVolume: Math.max(0, source?.audio?.volume ?? 0)
   readonly property bool muted: sink?.audio?.muted ?? false
   readonly property PwNode sink: Pipewire.defaultAudioSink
   readonly property string sinkIcon: deviceIconFor(sink)
@@ -29,8 +31,8 @@ Singleton {
 
   signal sinkDeviceChanged(string deviceName, string icon)
 
-  function clamp(vol) {
-    return Math.max(0, Math.min(maxVolume, vol));
+  function clamp(volume) {
+    return Math.max(0, Math.min(maxVolume, volume));
   }
 
   function decreaseVolume() {
@@ -40,10 +42,9 @@ Singleton {
   function deviceIconFor(node) {
     if (!node)
       return "";
-    const props = node.properties ?? {};
-    const iconName = props["device.icon-name"] ?? "";
-    if (deviceIconMap[iconName])
-      return deviceIconMap[iconName];
+    const icon = deviceIconMap[node.properties?.["device.icon-name"]];
+    if (icon)
+      return icon;
     const desc = (node.description ?? "").toLowerCase();
     for (const key in deviceIconMap)
       if (desc.includes(key))
@@ -57,22 +58,13 @@ Singleton {
     const props = node.properties ?? {};
     if (props["device.description"])
       return props["device.description"];
-    const desc = node.description ?? "";
-    const nick = node.nickname ?? "";
+
     const name = node.name ?? "";
+    const desc = node.description ?? "";
     if (desc && desc !== name)
       return desc;
-    if (nick && nick !== name)
-      return nick;
-    const lname = name.toLowerCase();
-    if (lname.includes("analog-stereo"))
-      return "Built-in Speakers";
-    if (lname.includes("bluez"))
-      return "Bluetooth Audio";
-    if (lname.includes("usb"))
-      return "USB Audio";
-    if (lname.includes("hdmi"))
-      return "HDMI Audio";
+    if (node.nickname && node.nickname !== name)
+      return node.nickname;
 
     return name;
   }
@@ -81,17 +73,18 @@ Singleton {
     setVolume(root.volume + root.stepVolume);
   }
 
+  function parsePercentage(valueString) {
+    const n = parseInt(valueString, 10);
+    return isNaN(n) ? null : n / 100;
+  }
+
   function playCriticalNotificationSound() {
-    if (criticalNotificationSound.playbackState === MediaPlayer.PlayingState) {
-      criticalNotificationSound.stop();
-    }
+    criticalNotificationSound.stop();
     criticalNotificationSound.play();
   }
 
   function playNormalNotificationSound() {
-    if (normalNotificationSound.playbackState === MediaPlayer.PlayingState) {
-      normalNotificationSound.stop();
-    }
+    normalNotificationSound.stop();
     normalNotificationSound.play();
   }
 
@@ -103,13 +96,20 @@ Singleton {
     Pipewire.preferredDefaultAudioSource = newSource;
   }
 
+  function setInputVolume(newVolume) {
+    if (!root.source?.audio)
+      return;
+    root.source.audio.muted = false;
+    root.source.audio.volume = Math.max(0, Math.min(1.0, newVolume));
+  }
+
   function setMicVolume(percentage) {
-    const n = Number.parseInt(percentage, 10);
-    if (Number.isNaN(n))
+    const v = parsePercentage(percentage);
+    if (v === null)
       return "Invalid percentage";
     if (!source?.audio)
       return "No audio source available";
-    source.audio.volume = Math.max(0, Math.min(1, n / 100));
+    setInputVolume(v);
     return `Microphone volume set to ${Math.round(source.audio.volume * 100)}%`;
   }
 
@@ -127,12 +127,12 @@ Singleton {
 
   // IPC enty point (accepts percentage string)
   function setVolumePercent(percentage) {
-    const n = Number.parseInt(percentage, 10);
-    if (Number.isNaN(n))
+    const v = parsePercentage(percentage);
+    if (v === null)
       return "Invalid percentage";
     if (!root.sink?.audio)
       return "No audio sink available";
-    setVolume(n / 100);
+    setVolume(v);
     return `Volume set to ${Math.round(root.volume * 100)}%`;
   }
 
@@ -194,7 +194,7 @@ Singleton {
   }
 
   PwObjectTracker {
-    objects: root.sinks.concat(root.sources)
+    objects: root.sinks.concat(root.sources).concat(root.streams)
   }
 
   Connections {
