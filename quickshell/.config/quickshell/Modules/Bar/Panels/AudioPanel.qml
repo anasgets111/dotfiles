@@ -11,29 +11,19 @@ import qs.Services.Utils
 OPanel {
   id: root
 
-  readonly property int muteButtonSize: Math.round(Theme.itemHeight * Theme.scaleSmall)
   readonly property color cardBg: Theme.bgElevated
   readonly property color cardBgAlt: Theme.bgElevatedAlt
   readonly property color cardBorder: Theme.borderLight
 
   // Input state shortcuts
-  readonly property var inputAudio: AudioService.source?.audio ?? null
-  readonly property bool inputMuted: inputAudio?.muted ?? false
-  readonly property real inputVolume: inputAudio?.volume ?? 0
   property bool mixerExpanded: false
+  readonly property int muteButtonSize: Math.round(Theme.itemHeight * Theme.scaleSmall)
   readonly property int panelPadding: Theme.spacingSm
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
 
   needsKeyboardFocus: false
   panelNamespace: "obelisk-audio-panel"
   panelWidth: 400
-
-  onVisibleChanged: {
-    if (visible) {
-      outputSlider.value = AudioService.volume / AudioService.maxVolume;
-      inputSlider.value = inputVolume;
-    }
-  }
 
   ColumnLayout {
     spacing: Math.round(root.panelPadding * 1.5)
@@ -42,128 +32,67 @@ OPanel {
     y: root.panelPadding
 
     // Output Volume Card
-    Rectangle {
-      Layout.fillWidth: true
-      Layout.preferredHeight: outputCol.implicitHeight + root.panelPadding * 1.5
-      color: root.cardBg
-      radius: Theme.itemRadius
+    VolumeCard {
+      headroomColor: Theme.critical
+      iconOff: "󰝟"
+      iconOn: "󰕾"
+      muted: AudioService.muted
+      splitAt: 1.0 / AudioService.maxVolume
+      title: qsTr("Output Volume")
+      volume: AudioService.volume / AudioService.maxVolume
 
-      border {
-        color: root.cardBorder
-        width: 1
+      onCommitted: v => AudioService.setVolume(v * AudioService.maxVolume)
+      onToggled: AudioService.toggleMute()
+
+      // Mixer toggle
+      MouseArea {
+        Layout.fillWidth: true
+        Layout.preferredHeight: Theme.itemHeight * 0.5
+        cursorShape: Qt.PointingHandCursor
+
+        onClicked: root.mixerExpanded = !root.mixerExpanded
+
+        OText {
+          anchors.centerIn: parent
+          color: Theme.textInactiveColor
+          size: "sm"
+          text: root.mixerExpanded ? "󰅃" : "󰅀"
+        }
       }
 
-      ColumnLayout {
-        id: outputCol
+      // Volume Mixer (collapsible)
+      Item {
+        Layout.fillWidth: true
+        Layout.preferredHeight: root.mixerExpanded ? (AudioService.streams.length > 0 ? mixerLayout.implicitHeight : 40) : 0
+        clip: true
 
-        spacing: root.panelPadding * 0.8
-
-        anchors {
-          fill: parent
-          margins: root.panelPadding
+        Behavior on Layout.preferredHeight {
+          NumberAnimation {
+            duration: Theme.animationDuration
+            easing.type: Easing.OutCubic
+          }
         }
 
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: root.panelPadding
+        ColumnLayout {
+          id: mixerLayout
 
-          OText {
-            color: AudioService.muted ? Theme.textInactiveColor : Theme.activeColor
-            font.pixelSize: Theme.fontLg
-            text: AudioService.muted ? "󰝟" : "󰕾"
-          }
+          spacing: root.panelPadding * 0.5
+          width: parent.width
 
           OText {
             Layout.fillWidth: true
-            bold: true
-            text: qsTr("Output Volume")
-          }
-
-          OText {
-            bold: true
-            color: Theme.textActiveColor
-            text: Math.round(AudioService.volume * 100) + "%"
-          }
-
-          IconButton {
-            Layout.preferredHeight: root.muteButtonSize
-            Layout.preferredWidth: root.muteButtonSize
-            colorBg: AudioService.muted ? Theme.inactiveColor : Theme.activeColor
-            icon: AudioService.muted ? "󰝟" : "󰕾"
-            tooltipText: AudioService.muted ? qsTr("Unmute") : qsTr("Mute")
-
-            onClicked: AudioService.toggleMute()
-          }
-        }
-
-        Item {
-          Layout.fillWidth: true
-          Layout.preferredHeight: root.sliderHeight
-
-          Slider {
-            id: outputSlider
-
-            fillColor: Theme.activeColor
-            headroomColor: Theme.critical
-            radius: Theme.itemRadius
-            splitAt: 1.0 / AudioService.maxVolume
-            steps: 30
-            wheelStep: 1 / steps
-
-            onCommitted: v => AudioService.setVolume(v * AudioService.maxVolume)
-          }
-        }
-
-        // Mixer toggle
-        MouseArea {
-          Layout.fillWidth: true
-          Layout.preferredHeight: Theme.itemHeight * 0.5
-          cursorShape: Qt.PointingHandCursor
-
-          onClicked: root.mixerExpanded = !root.mixerExpanded
-
-          OText {
-            anchors.centerIn: parent
+            Layout.topMargin: root.panelPadding
             color: Theme.textInactiveColor
+            horizontalAlignment: Text.AlignHCenter
             size: "sm"
-            text: root.mixerExpanded ? "󰅃" : "󰅀"
-          }
-        }
-
-        // Volume Mixer (collapsible)
-        Item {
-          Layout.fillWidth: true
-          Layout.preferredHeight: root.mixerExpanded ? (AudioService.streams.length > 0 ? mixerCol.implicitHeight : 40) : 0
-          clip: true
-
-          Behavior on Layout.preferredHeight {
-            NumberAnimation {
-              duration: Theme.animationDuration
-              easing.type: Easing.OutCubic
-            }
+            text: "No active streams"
+            visible: AudioService.streams.length === 0
           }
 
-          ColumnLayout {
-            id: mixerCol
+          Repeater {
+            model: AudioService.streams
 
-            spacing: root.panelPadding * 0.5
-            width: parent.width
-
-            OText {
-              Layout.fillWidth: true
-              Layout.topMargin: root.panelPadding
-              color: Theme.textInactiveColor
-              horizontalAlignment: Text.AlignHCenter
-              size: "sm"
-              text: "No active streams"
-              visible: AudioService.streams.length === 0
-            }
-
-            Repeater {
-              model: AudioService.streams
-
-              delegate: StreamItem {
-              }
+            delegate: StreamItem {
             }
           }
         }
@@ -171,192 +100,38 @@ OPanel {
     }
 
     // Input Volume Card
-    Rectangle {
-      Layout.fillWidth: true
-      Layout.preferredHeight: inputCol.implicitHeight + root.panelPadding * 1.5
-      color: root.cardBg
-      radius: Theme.itemRadius
+    VolumeCard {
+      iconOff: "󰍭"
+      iconOn: "󰍬"
+      muted: AudioService.micMuted
+      title: qsTr("Input Volume")
       visible: AudioService.source !== null
+      volume: AudioService.micVolume
 
-      border {
-        color: root.cardBorder
-        width: 1
-      }
-
-      ColumnLayout {
-        id: inputCol
-
-        spacing: root.panelPadding * 0.8
-
-        anchors {
-          fill: parent
-          margins: root.panelPadding
-        }
-
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: root.panelPadding
-
-          OText {
-            color: root.inputMuted ? Theme.textInactiveColor : Theme.activeColor
-            font.pixelSize: Theme.fontLg
-            text: root.inputMuted ? "󰍭" : "󰍬"
-          }
-
-          OText {
-            Layout.fillWidth: true
-            bold: true
-            text: qsTr("Input Volume")
-          }
-
-          OText {
-            bold: true
-            color: Theme.textActiveColor
-            text: Math.round(root.inputVolume * 100) + "%"
-          }
-
-          IconButton {
-            Layout.preferredHeight: root.muteButtonSize
-            Layout.preferredWidth: root.muteButtonSize
-            colorBg: root.inputMuted ? Theme.inactiveColor : Theme.activeColor
-            icon: root.inputMuted ? "󰍭" : "󰍬"
-            tooltipText: root.inputMuted ? qsTr("Unmute Mic") : qsTr("Mute Mic")
-
-            onClicked: AudioService.toggleMicMute()
-          }
-        }
-
-        Item {
-          Layout.fillWidth: true
-          Layout.preferredHeight: root.sliderHeight
-
-          Slider {
-            id: inputSlider
-
-            fillColor: Theme.activeColor
-            radius: Theme.itemRadius
-            steps: 30
-            wheelStep: 1 / steps
-
-            onCommitted: v => {
-              if (root.inputAudio)
-                root.inputAudio.volume = v;
-            }
-          }
-        }
-      }
+      onCommitted: v => AudioService.setInputVolume(v)
+      onToggled: AudioService.toggleMicMute()
     }
 
     // Output Devices
-    ColumnLayout {
-      Layout.fillWidth: true
-      spacing: root.panelPadding * 0.5
+    DeviceList {
+      activeNode: AudioService.sink
+      defaultIcon: "󰓃"
+      model: AudioService.sinks
+      title: qsTr("Output Devices")
 
-      OText {
-        bold: true
-        text: qsTr("Output Devices")
-      }
-
-      Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: sinkList.implicitHeight + root.panelPadding * 1.2
-        clip: true
-        color: root.cardBgAlt
-        radius: Theme.itemRadius
-
-        border {
-          color: root.cardBorder
-          width: 1
-        }
-
-        ListView {
-          id: sinkList
-
-          boundsBehavior: Flickable.StopAtBounds
-          clip: true
-          implicitHeight: Math.min(contentHeight, Theme.itemHeight * 4)
-          interactive: contentHeight > height
-          model: AudioService.sinks
-          spacing: Theme.spacingXs
-
-          ScrollBar.vertical: ScrollBar {
-            policy: sinkList.contentHeight > sinkList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-            width: Theme.scrollBarWidth
-          }
-          delegate: DeviceItem {
-            required property var modelData
-
-            defaultIcon: "󰓃"
-            isActive: modelData === AudioService.sink
-            node: modelData
-            width: ListView.view.width
-
-            onClicked: AudioService.setAudioSink(modelData)
-          }
-
-          anchors {
-            fill: parent
-            margins: root.panelPadding * 0.6
-          }
-        }
-      }
+      onDeviceSelected: node => AudioService.setAudioSink(node)
     }
 
     // Input Devices
-    ColumnLayout {
+    DeviceList {
       Layout.bottomMargin: root.panelPadding
-      Layout.fillWidth: true
-      spacing: root.panelPadding * 0.5
-      visible: sourceList.count > 0
+      activeNode: AudioService.source
+      defaultIcon: "󰍬"
+      model: AudioService.sources
+      title: qsTr("Input Devices")
+      visible: model.length > 0
 
-      OText {
-        bold: true
-        text: qsTr("Input Devices")
-      }
-
-      Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: sourceList.implicitHeight + root.panelPadding * 1.2
-        clip: true
-        color: root.cardBgAlt
-        radius: Theme.itemRadius
-
-        border {
-          color: root.cardBorder
-          width: 1
-        }
-
-        ListView {
-          id: sourceList
-
-          boundsBehavior: Flickable.StopAtBounds
-          clip: true
-          implicitHeight: Math.min(contentHeight, Theme.itemHeight * 4)
-          interactive: contentHeight > height
-          model: AudioService.sources
-          spacing: Theme.spacingXs
-
-          ScrollBar.vertical: ScrollBar {
-            policy: sourceList.contentHeight > sourceList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-            width: Theme.scrollBarWidth
-          }
-          delegate: DeviceItem {
-            required property var modelData
-
-            defaultIcon: "󰍬"
-            isActive: modelData === AudioService.source
-            node: modelData
-            width: ListView.view.width
-
-            onClicked: AudioService.setAudioSource(modelData)
-          }
-
-          anchors {
-            fill: parent
-            margins: root.panelPadding * 0.6
-          }
-        }
-      }
+      onDeviceSelected: node => AudioService.setAudioSource(node)
     }
   }
 
@@ -431,12 +206,75 @@ OPanel {
     }
   }
 
+  // Device list component
+  component DeviceList: ColumnLayout {
+    id: deviceListRoot
+
+    property var activeNode
+    property string defaultIcon
+    property alias model: listView.model
+    property string title
+
+    signal deviceSelected(var node)
+
+    Layout.fillWidth: true
+    spacing: root.panelPadding * 0.5
+
+    OText {
+      bold: true
+      text: deviceListRoot.title
+    }
+
+    Rectangle {
+      Layout.fillWidth: true
+      Layout.preferredHeight: listView.implicitHeight + root.panelPadding * 1.2
+      clip: true
+      color: root.cardBgAlt
+      radius: Theme.itemRadius
+
+      border {
+        color: root.cardBorder
+        width: 1
+      }
+
+      ListView {
+        id: listView
+
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+        implicitHeight: Math.min(contentHeight, Theme.itemHeight * 4)
+        interactive: contentHeight > height
+        spacing: Theme.spacingXs
+
+        ScrollBar.vertical: ScrollBar {
+          policy: listView.contentHeight > listView.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+          width: Theme.scrollBarWidth
+        }
+        delegate: DeviceItem {
+          required property var modelData
+
+          defaultIcon: deviceListRoot.defaultIcon
+          isActive: modelData === deviceListRoot.activeNode
+          node: modelData
+          width: ListView.view.width
+
+          onClicked: deviceListRoot.deviceSelected(modelData)
+        }
+
+        anchors {
+          fill: parent
+          margins: root.panelPadding * 0.6
+        }
+      }
+    }
+  }
+
   // Stream item for mixer
   component StreamItem: ColumnLayout {
     id: streamItem
 
     required property var modelData
-    readonly property real vol: modelData.audio?.volume ?? 0
+    readonly property real volume: Number.isFinite(modelData.audio?.volume) ? modelData.audio.volume : 0
 
     Layout.fillWidth: true
     spacing: root.panelPadding * 0.3
@@ -476,7 +314,7 @@ OPanel {
       OText {
         color: Theme.textInactiveColor
         size: "sm"
-        text: Math.round(streamItem.vol * 100) + "%"
+        text: Math.round(streamItem.volume * 100) + "%"
       }
     }
 
@@ -488,13 +326,106 @@ OPanel {
         fillColor: Theme.activeColor
         radius: Theme.itemRadius * 0.5
         steps: 20
-        value: streamItem.vol
+        value: streamItem.volume
         wheelStep: 1 / steps
 
         onCommitted: v => {
           if (streamItem.modelData?.audio)
             streamItem.modelData.audio.volume = v;
         }
+      }
+    }
+  }
+  component VolumeCard: Rectangle {
+    id: volumeCardRoot
+
+    default property alias content: extensionArea.data
+    property color headroomColor: "transparent"
+    property string iconOff
+    property string iconOn
+    property bool muted
+    property real splitAt: 1.0
+    property string title
+    property real volume
+
+    signal committed(real v)
+    signal toggled
+
+    Layout.fillWidth: true
+    Layout.preferredHeight: cardLayout.implicitHeight + root.panelPadding * 1.5
+    color: root.cardBg
+    radius: Theme.itemRadius
+
+    border {
+      color: root.cardBorder
+      width: 1
+    }
+
+    ColumnLayout {
+      id: cardLayout
+
+      spacing: root.panelPadding * 0.8
+
+      anchors {
+        fill: parent
+        margins: root.panelPadding
+      }
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: root.panelPadding
+
+        OText {
+          color: volumeCardRoot.muted ? Theme.textInactiveColor : Theme.activeColor
+          font.pixelSize: Theme.fontLg
+          text: volumeCardRoot.muted ? volumeCardRoot.iconOff : volumeCardRoot.iconOn
+        }
+
+        OText {
+          Layout.fillWidth: true
+          bold: true
+          text: volumeCardRoot.title
+        }
+
+        OText {
+          bold: true
+          color: Theme.textActiveColor
+          text: Math.round(volumeCardRoot.volume * (1.0 / volumeCardRoot.splitAt) * 100) + "%"
+        }
+
+        IconButton {
+          Layout.preferredHeight: root.muteButtonSize
+          Layout.preferredWidth: root.muteButtonSize
+          colorBg: volumeCardRoot.muted ? Theme.inactiveColor : Theme.activeColor
+          icon: volumeCardRoot.muted ? volumeCardRoot.iconOff : volumeCardRoot.iconOn
+          tooltipText: volumeCardRoot.muted ? qsTr("Unmute") : qsTr("Mute")
+
+          onClicked: volumeCardRoot.toggled()
+        }
+      }
+
+      Item {
+        Layout.fillWidth: true
+        Layout.preferredHeight: root.sliderHeight
+
+        Slider {
+          fillColor: Theme.activeColor
+          headroomColor: volumeCardRoot.headroomColor
+          radius: Theme.itemRadius
+          splitAt: volumeCardRoot.splitAt
+          steps: 30
+          value: volumeCardRoot.volume
+          wheelStep: 1 / steps
+
+          onCommitted: v => volumeCardRoot.committed(v)
+        }
+      }
+
+      ColumnLayout {
+        id: extensionArea
+
+        Layout.fillWidth: true
+        spacing: root.panelPadding * 0.8
       }
     }
   }
