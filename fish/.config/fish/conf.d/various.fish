@@ -35,10 +35,12 @@ end
 
 function ssh --wraps=ssh
     if set -q KITTY_WINDOW_ID; and type -q kitty
+        echo "Using Kitty SSH kitten"
         command kitty +kitten ssh $argv
         return
     end
 
+    echo "Using standard SSH"
     command ssh $argv
 end
 
