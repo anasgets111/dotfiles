@@ -1,19 +1,6 @@
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Introduction
-// Remember to uncomment the node by removing "/-"!
 
-
-workspace "Zen"  {open-on-output "DP-3";}
-workspace "Chromium"  {open-on-output "DP-3";}
-workspace "Code"       {open-on-output "DP-3";}
-workspace "Zed"          {open-on-output "DP-3";}
-workspace "Files"        {open-on-output "DP-3";}
-workspace "Thunderbird"  {open-on-output "DP-3";}
-workspace "Games"        {open-on-output "DP-3";}
-workspace "Terminal" {open-on-output "DP-3";}
-workspace "Telegram" {open-on-output "DP-2";}
-workspace "Discord" {open-on-output "DP-2";}
-workspace "Slack"   {open-on-output "DP-2";}
-
+// --- Input Configuration ---
 input {
     keyboard {
         xkb {
@@ -24,20 +11,18 @@ input {
         numlock
     }
     touchpad {
-        // off
         tap
         dwt
         natural-scroll
     }
-    // warp-mouse-to-focus
     focus-follows-mouse max-scroll-amount="0%"
     workspace-auto-back-and-forth
 }
 
-// `niri msg outputs` while inside a niri instance.
+// --- Output Configuration ---
 output "eDP-1" {
     mode "1920x1200@60"
-        focus-at-startup
+    focus-at-startup
 }
 output "DP-1" {
     mode "3440x1440@165"
@@ -53,145 +38,71 @@ output "DP-3" {
     mode "2560x1440@120"
     position x=0 y=0
     focus-at-startup
-    // variable-refresh-rate on-demand=true
 }
 
-hotkey-overlay {
-    skip-at-startup
-    // hide-not-bound
-}
-
-
-cursor {
-    xcursor-theme "Bibata-Modern-Ice"
-    xcursor-size 24
-    // hide-when-typing
-    // hide-after-inactive-ms 5000
-}
-
-
+// --- Layout & Appearance ---
 prefer-no-csd
-
 
 layout {
     gaps 11
     center-focused-column "never"
     always-center-single-column
-    // empty-workspace-above-first
-    // default-column-display "tabbed"
 
-    // You can customize the widths that "switch-preset-column-width" (Mod+R) toggles between.
     preset-column-widths {
         proportion 0.33333
         proportion 0.5
         proportion 0.66667
-        // fixed 1920
     }
 
-    // You can also customize the heights that "switch-preset-window-height" (Mod+Shift+R) toggles between.
-    preset-window-heights {
-        proportion 0.33333
-        proportion 0.5
-        proportion 0.66667
-    }
-
-    default-column-width {   proportion 1.0; }
+    default-column-width { proportion 1.0; }
 
     focus-ring {
-        // off
         width 2
-
-        // - CSS named colors: "red"
-        // - RGB hex: "#rgb", "#rgba", "#rrggbb", "#rrggbbaa"
-        // - CSS-like notation: "rgb(255, 127, 0)", rgba(), hsl() and a few others.
         active-color "#7fc8ff"
         inactive-color "#505050"
         urgent-color "#9b0000"
-        // inactive-gradient from="#505050" to="#808080" angle=45 relative-to="workspace-view"
     }
 
     border {
         off
+        width 4
+        active-color "#ffc87f"
+        inactive-color "#505050"
+        urgent-color "#9b0000"
     }
-    // You can enable drop shadows for windows.
+
     shadow {
-        // on
-        // draw-behind-window true
         softness 30
         spread 5
         offset x=0 y=5
-        // You can also change the shadow color and opacity.
         color "#0007"
     }
+}
 
-    // Tab indicator configuration (for tabbed column display)
-    tab-indicator {
-        // hide-when-single-tab
-        // place-within-column
-        // gap 5
-        // width 4
-        // position "right"  // "top", "right", "bottom", "left"
-        // length total-proportion=1.0
-        // corner-radius 8
-        // active-color "#7fc8ff"
-        // inactive-color "#505050"
-        // urgent-color "#9b0000"
+cursor {
+    xcursor-theme "Bibata-Modern-Ice"
+    xcursor-size 24
+}
+
+animations {
+    screenshot-ui-open {
+        duration-ms 471
+        curve "ease-out-quad"
     }
-
-    // Visual hint for window insertion
-    // insert-hint {
-    //     color "#ffc87f80"
-    //     // gradient from="#ffbb6680" to="#ffc88080" angle=45 relative-to="workspace-view"
-    // }
-
-    // Reserve space at screen edges
-    // struts {
-    //     // left 64
-    //     // right 64
-    //     // top 64
-    //     // bottom 64
-    // }
-}
-clipboard {
-    disable-primary
-    // copy-on-select
-    // control-v-paste
+    slowdown 0.74
 }
 
-// Overview configuration
-overview {
-    // zoom 0.5
-    // backdrop-color "#262626"
-    workspace-shadow {
-        // off
-        // softness 40
-        // spread 10
-        // offset x=0 y=10
-        // color "#00000050"
-    }
-}
+screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
-// Recent windows configuration (Alt-Tab switcher)
-recent-windows {
-    // off
-}
+hotkey-overlay { skip-at-startup; }
 
-spawn-at-startup "dbus-update-activation-environment" "--systemd" "--all"
-// Note that running niri as a session supports xdg-desktop-autostart
-//spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
-// spawn-at-startup "swayidle"
+// --- Startup Applications ---
 spawn-at-startup "quickshell"
-// spawn-at-startup "swayosd-server"
-// spawn-at-startup "sh" "-c" "wl-paste --watch cliphist store"
-// spawn-at-startup "swaync"
 spawn-sh-at-startup "wl-paste --type text --watch cliphist store"
 spawn-sh-at-startup "wl-paste --type image --watch cliphist store"
-
-// spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
 spawn-at-startup "kdeconnectd"
 spawn-at-startup "kdeconnect-indicator"
 spawn-at-startup "speech-dispatcher"
-// spawn-at-startup "sh" "-c" "sleep 3 && openrgb --startminimized --profile 'Default'"
 spawn-at-startup "code"
 spawn-at-startup "zen-browser"
 spawn-at-startup "chromium"
@@ -201,412 +112,243 @@ spawn-at-startup "vesktop"
 spawn-at-startup "thunderbird"
 spawn-at-startup "xdg-terminal-exec"
 
-switch-events {
-    lid-close { spawn "quickshell" "ipc" "call" "lock" "lock" ; }
-}
+// --- Workspaces ---
+workspace "1"  { open-on-output "DP-3"; }
+workspace "2"  { open-on-output "DP-3"; }
+workspace "3"  { open-on-output "DP-3"; }
+workspace "4"  { open-on-output "DP-3"; }
+workspace "5"  { open-on-output "DP-3"; }
+workspace "6"  { open-on-output "DP-3"; }
+workspace "7"  { open-on-output "DP-3"; }
+workspace "8"  { open-on-output "DP-3"; }
+workspace "9"  { open-on-output "DP-2"; }
+workspace "10" { open-on-output "DP-2"; }
+workspace "terminal" { open-on-output "DP-2"; }
 
-animations {
-    // off
-    screenshot-ui-open {
-        duration-ms 471
-        curve "ease-out-quad"
-    }
-    slowdown 0.74
-
-    // Window open animation
-    // window-open {
-    //     duration-ms 150
-    //     curve "ease-out-expo"
-    // }
-
-    // Window resize animation
-    // window-resize {
-    //     spring damping-ratio=1.0 stiffness=800 epsilon=0.0001
-    // }
-
-    // Workspace switch animation
-    // workspace-switch {
-    //     spring damping-ratio=1.0 stiffness=1000 epsilon=0.0001
-    // }
-}
-
-// =====================
-// Window Rules Section
-// =====================
-// Global window defaults
+// --- Window Rules ---
 window-rule {
     geometry-corner-radius 15 15 0 0
     clip-to-geometry true
     draw-border-with-background false
-    opacity 0.95
-    // default-floating-position x=100 y=200 relative-to="bottom-left"
-    // scroll-factor 0.75
-    // variable-refresh-rate true
-    // block-out-from "screencast"
-    // tiled-state true
-}
-// Workspace placement
-window-rule {
-match app-id="code"
-open-on-workspace "Code"
-}
-window-rule {
-match app-id="org.gnome.Nautilus"
-open-on-workspace "Files"
+    opacity 0.97
 }
 
+// Workspace Assignments
+window-rule { match app-id="code"; open-on-workspace "3"; }
+window-rule { match app-id="org.gnome.Nautilus|chromium"; open-on-workspace "2"; }
+window-rule { match app-id="Slack"; open-on-workspace "10"; }
+window-rule { match app-id="org.telegram.desktop"; open-on-workspace "9"; }
+window-rule { match app-id="vesktop"; open-on-workspace "8"; }
+window-rule { match app-id="zen"; open-on-workspace "1"; }
+window-rule { match app-id="org.mozilla.Thunderbird"; open-on-workspace "7"; }
 window-rule {
-match app-id="Slack"
-open-on-workspace "Slack"
-}
-window-rule {
-match app-id="org.telegram.desktop"
-open-on-workspace "Telegram"
-}
-window-rule {
-match app-id="vesktop"
-open-on-workspace "Discord"
-}
-window-rule {
-match app-id="zen"
-open-on-workspace "Zen"
-}
-window-rule {
-match app-id="chromium"
-open-on-workspace "Chromium"
-}
-window-rule {
-match app-id="thunderbird"
-open-on-workspace "Thunderbird"
+    match app-id="kitty|alacritty|com.mitchellh.ghostty|org.wezfurlong.wezterm|foot"
+    open-on-workspace "terminal"
 }
 
-// Floating windows (no explicit size)
+// Floating Windows (Small Dialogs)
 window-rule {
-match title="OpenRGB"
-match title="Network Connections"
-match title="Do you want to retry your last request"
-match app-id="org.kde.kdeconnect.handler"
-match app-id="waypaper"
-open-floating true
+    match title="OpenRGB"
+    match title="Network Connections"
+    match title="Do you want to retry your last request"
+    match app-id="org.kde.kdeconnect.handler"
+    match app-id="waypaper"
+    open-floating true
 }
+
+// Floating Windows (Medium Size ~74%)
 window-rule {
+    match app-id="io.missioncenter.MissionCenter"
+    match app-id="gtk-pipe-viewer"
+    match app-id="org.pulseaudio.pavucontrol"
+    match app-id="blueman-manager"
+    match app-id="org.gnome.DiskUtility"
+    match app-id="nm-connection-editor"
+    match app-id="polkit.authentication-agent."
+    match app-id="xdg-desktop-portal.*"
+    match app-id="zenity"
+    match app-id="pavucontrol"
     match app-id="mpv"
-    opacity 1.0
-    // variable-refresh-rate true  // Enable VRR for video playback
+    match title=".*Global Updates"
+    match title="Sign in - Google Accounts — Zen Browser"
+    open-floating true
+    default-column-width { proportion 0.74; }
+    default-window-height { proportion 0.74; }
 }
 
-// Block password managers from screencasts
-// window-rule {
-//     match app-id=r#"^org\.keepassxc\.KeePassXC$"#
-//     block-out-from "screencast"
-// }
-// Floating windows, medium size (~74%)
+// Floating Windows (Small Size ~47%)
 window-rule {
-match app-id="io.missioncenter.MissionCenter"
-match app-id="gtk-pipe-viewer"
-match app-id="org.pulseaudio.pavucontrol"
-match app-id="blueman-manager"
-match app-id="org.gnome.DiskUtility"
-match app-id="nm-connection-editor"
-match app-id="polkit.authentication-agent."
-match app-id="xdg-desktop-portal.*"
-match app-id="zenity"
-match app-id="pavucontrol"
-match app-id="mpv"
-match title=".*Global Updates"
-match title="Sign in - Google Accounts — Zen Browser"
-open-floating true
-default-column-width { proportion 0.74; }
-default-window-height { proportion 0.74; }
-}
-
-
-// Floating windows, small dialogs (~47%)
-window-rule {
-match app-id="com.saivert.pwvucontrol"
-match title="Install from VSIX"
-match title="Open File"
-match title="Save File"
-match title="Save As"
-match title="Downloading Certificate"
-match title="Open Folder"
-match title="File Upload"
-match title="Enter name of file to save to.."
-match title="Authentication Required"
-match title="Create or select new Steam library folder"
-match title="About Zen Browser"
-match title=r#"^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$"#
-open-floating true
-default-column-width { proportion 0.47; }
-default-window-height { proportion 0.47; }
+    match app-id="com.saivert.pwvucontrol"
+    match title="Install from VSIX"
+    match title="Open File"
+    match title="Save File"
+    match title="Save As"
+    match title="Downloading Certificate"
+    match title="Open Folder"
+    match title="File Upload"
+    match title="Enter name of file to save to.."
+    match title="Authentication Required"
+    match title="Create or select new Steam library folder"
+    match title="About Zen Browser"
+    match title=r#"^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$"#
+    open-floating true
+    default-column-width { proportion 0.47; }
+    default-window-height { proportion 0.47; }
 }
 
 // Calculator: tiny float (~15%)
 window-rule {
-match app-id="org.gnome.Calculator"
-open-floating true
-default-column-width { proportion 0.15; }
-default-window-height { proportion 0.15; }
+    match app-id="org.gnome.Calculator"
+    open-floating true
+    default-column-width { proportion 0.15; }
+    default-window-height { proportion 0.15; }
 }
 
+// Terminals
 window-rule {
-    match app-id="kitty"
-    match app-id="alacritty"
-    match app-id="com.mitchellh.ghostty"
-    open-on-workspace "terminal"
+    match app-id="kitty|alacritty|com.mitchellh.ghostty|org.wezfurlong.wezterm|foot"
     open-floating true
     default-column-width  { proportion 0.8; }
     default-window-height { proportion 0.8; }
 }
+
+window-rule {
+    match app-id="mpv"
+    opacity 1.0
+}
+
+switch-events {
+    lid-close { spawn "quickshell" "ipc" "call" "lock" "lock"; }
+}
+
+// --- Keybindings ---
 binds {
-    // "Mod" Super when running on a TTY, and to Alt when running as a winit window.
-    // shows a list of important hotkeys.
+    // System & Tools
     Mod+Shift+Slash { show-hotkey-overlay; }
-
-    Mod+Return hotkey-overlay-title="Open a Terminal" { spawn "niri-stash" "term"; }
-    Mod+KP_Enter { spawn "niri-stash.sh" "term"; }
+    Mod+Space repeat=false { spawn "quickshell" "ipc" "call" "launcher" "toggle"; }
+    Super+L { spawn "quickshell" "ipc" "call" "lock" "lock"; }
+    Print { screenshot; }
+    Ctrl+Print { screenshot-screen; }
+    Alt+Print { screenshot-window; }
     Ctrl+Alt+Delete { spawn "missioncenter"; }
+    Mod+Shift+P { power-off-monitors; }
+    Mod+Shift+E { quit; }
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
+    // Application Launching
+    Mod+Return { spawn "niri-stash" "term"; }
+    Mod+KP_Enter { spawn "niri-stash" "term"; }
     Mod+Z { spawn "zeditor"; }
     Mod+C { spawn "code"; }
-    //Mod+SPACE { spawn "pidof rofi && pkill rofi || ~/.config/rofi/launchers/type-6/launcher.sh"; }
     Mod+E { spawn "nautilus"; }
     Mod+H { spawn "heroic"; }
     Mod+B { spawn "zen-browser"; }
-
     Mod+S { spawn "slack"; }
     Mod+T { spawn "Telegram"; }
     Mod+D { spawn "vesktop"; }
 
-    Super+L hotkey-overlay-title="Lock the Screen" { spawn "quickshell" "ipc" "call" "lock" "lock"; }
-
-
-    // The allow-when-locked=true property makes them work even when the session is locked.
-    // Volume controls (PipeWire via wpctl)
+    // Media & Hardware Controls
     XF86AudioRaiseVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%+"; }
     XF86AudioLowerVolume allow-when-locked=true { spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%-"; }
     XF86AudioMute        allow-when-locked=true { spawn "wpctl" "set-mute"   "@DEFAULT_AUDIO_SINK@" "toggle"; }
     XF86AudioMicMute     allow-when-locked=true { spawn "wpctl" "set-mute"   "@DEFAULT_AUDIO_SOURCE@" "toggle"; }
+    XF86AudioPlay        allow-when-locked=true { spawn-sh "playerctl play-pause"; }
+    XF86AudioStop        allow-when-locked=true { spawn-sh "playerctl stop"; }
+    XF86AudioPrev        allow-when-locked=true { spawn-sh "playerctl previous"; }
+    XF86AudioNext        allow-when-locked=true { spawn-sh "playerctl next"; }
+    XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+5%"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "5%-"; }
 
-    // Brightness controls (brightnessctl)
-    XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "-q" "set" "5%+"; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "-q" "set" "5%-"; }
-    XF86Calculator {spawn "gnome-calculator"; }
+    // Window Management
+    Mod+Q repeat=false { close-window; }
+    Mod+V       { toggle-window-floating; }
+    Mod+Shift+V { switch-focus-between-floating-and-tiling; }
+    Mod+W { toggle-column-tabbed-display; }
+    Mod+F { maximize-column; }
+    Mod+Shift+F { fullscreen-window; }
+    Mod+M { maximize-window-to-edges; }
+    Mod+Ctrl+F { expand-column-to-available-width; }
+    Mod+Ctrl+C { center-visible-columns; }
+    Mod+BracketLeft  { consume-or-expel-window-left; }
+    Mod+BracketRight { consume-or-expel-window-right; }
+    Mod+Comma  { consume-window-into-column; }
+    Mod+Period { expel-window-from-column; }
 
-    // the top-left hot corner, or a four-finger swipe up on a touchpad opens the overview too.
-    Mod+Space repeat=false { spawn "quickshell" "ipc" "call" "launcher" "toggle"; }
-    Mod+Q { close-window; }
-
+    // Navigation (Focus)
     Mod+Left  { focus-column-left; }
-    Mod+Down  { focus-window-or-workspace-down; }
-    Mod+Up    { focus-window-or-workspace-up; }
+    Mod+Down  { focus-window-down; }
+    Mod+Up    { focus-window-up; }
     Mod+Right { focus-column-right; }
-
-    Mod+Ctrl+Left  { move-column-left; }
-    Mod+Ctrl+Down  { move-window-down; }
-    Mod+Ctrl+Up    { move-window-up; }
-    Mod+Ctrl+Right { move-column-right; }
-
     Mod+Home { focus-column-first; }
     Mod+End  { focus-column-last; }
-    Mod+Ctrl+Home { move-column-to-first; }
-    Mod+Ctrl+End  { move-column-to-last; }
-
+    Mod+Page_Down      { focus-workspace-down; }
+    Mod+Page_Up        { focus-workspace-up; }
+    Mod+U              { focus-workspace-down; }
+    Mod+I              { focus-workspace-up; }
+    Mod+WheelScrollRight      { focus-column-right; }
+    Mod+WheelScrollLeft       { focus-column-left; }
+    Mod+Shift+WheelScrollDown      { focus-column-right; }
+    Mod+Shift+WheelScrollUp        { focus-column-left; }
+    Mod+WheelScrollDown      cooldown-ms=150 { focus-workspace-down; }
+    Mod+WheelScrollUp        cooldown-ms=150 { focus-workspace-up; }
     Mod+Shift+Left  { focus-monitor-left; }
     Mod+Shift+Down  { focus-monitor-down; }
     Mod+Shift+Up    { focus-monitor-up; }
     Mod+Shift+Right { focus-monitor-right; }
 
-    Mod+Shift+Ctrl+Left  { move-window-to-monitor-left; }
-    Mod+Shift+Ctrl+Down  { move-window-to-monitor-down; }
-
-
-    Mod+Page_Down      { focus-workspace-down; }
-    Mod+Page_Up        { focus-workspace-up; }
+    // Movement (Move)
+    Mod+Ctrl+Left  { move-column-left; }
+    Mod+Ctrl+Down  { move-window-down; }
+    Mod+Ctrl+Up    { move-window-up; }
+    Mod+Ctrl+Right { move-column-right; }
+    Mod+Ctrl+Home { move-column-to-first; }
+    Mod+Ctrl+End  { move-column-to-last; }
     Mod+Ctrl+Page_Down { move-column-to-workspace-down; }
     Mod+Ctrl+Page_Up   { move-column-to-workspace-up; }
     Mod+Ctrl+U         { move-column-to-workspace-down; }
     Mod+Ctrl+I         { move-column-to-workspace-up; }
-
-
+    Mod+Ctrl+WheelScrollRight { move-column-right; }
+    Mod+Ctrl+WheelScrollLeft  { move-column-left; }
+    Mod+Ctrl+Shift+WheelScrollDown { move-column-right; }
+    Mod+Ctrl+Shift+WheelScrollUp   { move-column-left; }
+    Mod+Ctrl+WheelScrollDown cooldown-ms=150 { move-column-to-workspace-down; }
+    Mod+Ctrl+WheelScrollUp   cooldown-ms=150 { move-column-to-workspace-up; }
     Mod+Shift+Page_Down { move-workspace-down; }
     Mod+Shift+Page_Up   { move-workspace-up; }
     Mod+Shift+U         { move-workspace-down; }
     Mod+Shift+I         { move-workspace-up; }
+    Mod+Shift+Ctrl+Left  { move-column-to-monitor-left; }
+    Mod+Shift+Ctrl+Down  { move-column-to-monitor-down; }
+    Mod+Shift+Ctrl+Up    { move-column-to-monitor-up; }
+    Mod+Shift+Ctrl+Right { move-column-to-monitor-right; }
 
-    Mod+WheelScrollDown      { focus-column-right; }
-    Mod+WheelScrollUp       { focus-column-left; }
-    Mod+Ctrl+WheelScrollDown { move-column-right; }
-    Mod+Ctrl+WheelScrollUp  { move-column-left; }
+    // Workspaces (1-10)
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+    Mod+0 { focus-workspace 10; }
+    Mod+Ctrl+1 { move-column-to-workspace 1; }
+    Mod+Ctrl+2 { move-column-to-workspace 2; }
+    Mod+Ctrl+3 { move-column-to-workspace 3; }
+    Mod+Ctrl+4 { move-column-to-workspace 4; }
+    Mod+Ctrl+5 { move-column-to-workspace 5; }
+    Mod+Ctrl+6 { move-column-to-workspace 6; }
+    Mod+Ctrl+7 { move-column-to-workspace 7; }
+    Mod+Ctrl+8 { move-column-to-workspace 8; }
+    Mod+Ctrl+9 { move-column-to-workspace 9; }
 
-    // Usually scrolling up and down with Shift in applications results in
-    // horizontal scrolling; these binds replicate that.
-    Mod+Shift+WheelScrollDown      { focus-column-right; }
-    Mod+Shift+WheelScrollUp        { focus-column-left; }
-    Mod+Ctrl+Shift+WheelScrollDown { move-column-right; }
-    Mod+Ctrl+Shift+WheelScrollUp   { move-column-left; }
-
-    Mod+1 { focus-workspace "Zen"; }
-    Mod+2 { focus-workspace "Chromium"; }
-    Mod+3 { focus-workspace "Code"; }
-    Mod+4 { focus-workspace "Zed"; }
-    Mod+5 { focus-workspace "Files"; }
-    Mod+6 { focus-workspace "Games"; }
-    Mod+7 { focus-workspace "Thunderbird"; }
-    Mod+8 { focus-workspace "Telegram"; }
-    Mod+9 { focus-workspace "Discord"; }
-    Mod+0 { focus-workspace "Slack"; }
-
-    Mod+KP_End { focus-workspace "Zen"; }
-    Mod+KP_Down { focus-workspace "Chromium"; }
-    Mod+KP_Next { focus-workspace "Code"; }
-    Mod+KP_Left { focus-workspace "Zed"; }
-    Mod+KP_Begin { focus-workspace "Files"; }
-    Mod+KP_Right { focus-workspace "Games"; }
-    Mod+KP_Home { focus-workspace "Thunderbird"; }
-    Mod+KP_Up { focus-workspace "Telegram"; }
-    Mod+KP_Prior { focus-workspace "Discord"; }
-    Mod+KP_Insert { focus-workspace "Slack"; }
-
-    Mod+Shift+1 { move-window-to-workspace "Zen"; }
-    Mod+Shift+2 { move-window-to-workspace "Chromium"; }
-    Mod+Shift+3 { move-window-to-workspace "Code"; }
-    Mod+Shift+4 { move-window-to-workspace "Zed"; }
-    Mod+Shift+5 { move-window-to-workspace "Files"; }
-    Mod+Shift+6 { move-window-to-workspace "Torrent"; }
-    Mod+Shift+7 { move-window-to-workspace "Thunderbird"; }
-    Mod+Shift+8 { move-window-to-workspace "Telegram"; }
-    Mod+Shift+9 { move-window-to-workspace "Discord"; }
-    Mod+Shift+0 { move-window-to-workspace "Slack"; }
-
-
-
-    // Alternatively, there are commands to move just a single window:
-    // Mod+Ctrl+1 { move-window-to-workspace 1; }
-
-    // Switches focus between the current and the previous workspace.
-    // Mod+Tab { focus-workspace-previous; }
-
-    // Alt-Tab: Recent windows switcher (v25.11+)
-    // Alt+Tab automatically shows the recent windows switcher when recent-windows section is configured
-    // Focus previous window (quick alt-tab alternative)
-    Mod+Tab { focus-window-previous; }
-    Alt+Tab { focus-window-previous; }
-
-    // The following binds move the focused window in and out of a column.
-    // If the window is alone, they will consume it into the nearby column to the side.
-    // If the window is already in a column, they will expel it out.
-    Mod+BracketLeft  { consume-or-expel-window-left; }
-    Mod+BracketRight { consume-or-expel-window-right; }
-
-    // Consume one window from the right to the bottom of the focused column.
-    Mod+Comma  { consume-window-into-column; }
-    // Expel the bottom window from the focused column to the right.
-    Mod+Period { expel-window-from-column; }
+    // Resizing
     Mod+R { switch-preset-column-width; }
     Mod+Shift+R { switch-preset-window-height; }
     Mod+Ctrl+R { reset-window-height; }
-
-    Mod+V       { toggle-window-floating; }
-    Mod+F { maximize-column; }
-    Mod+Shift+F { fullscreen-window; }
-
-    // Expand the focused column to space not taken up by other fully visible columns.
-    // Makes the column "fill the rest of the space".
-    Mod+Ctrl+F { expand-column-to-available-width; }
-
-    // Mod+C { center-column; }
-
     Mod+Minus { set-column-width "-5%"; }
     Mod+Equal { set-column-width "+5%"; }
     Mod+Shift+Minus { set-window-height "-5%"; }
     Mod+Shift+Equal { set-window-height "+5%"; }
-
-    // Toggle tabbed column display mode.
-    // Windows in this column will appear as vertical tabs,
-    // rather than stacked on top of each other.
-    Mod+W { toggle-column-tabbed-display; }
-
-
-    Print hotkey-overlay-title="Take Screenshot and Annotate" { screenshot ; }
-    Ctrl+Print { screenshot-screen; }
-    Alt+Print { screenshot-window; }
-    Shift+Print { spawn "quickshell" "ipc" "call" "rec" "toggle" ;}
-    // Applications such as remote-desktop clients and software KVM switches may
-    // request that niri stops processing the keyboard shortcuts defined here
-    // so they may, for example, forward the key presses as-is to a remote machine.
-    // It's a good idea to bind an escape hatch to toggle the inhibitor,
-    // so a buggy application can't hold your session hostage.
-    //
-    // The allow-inhibiting=false property can be applied to other binds as well,
-    // which ensures niri always processes them, even when an inhibitor is active.
-    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
-
-    // The quit action will show a confirmation dialog to avoid accidental exits.
-    Mod+Shift+L { quit; }
-
-    // Powers off the monitors. To turn them back on, do any input like
-    // moving the mouse or pressing any other key.
-    Mod+Shift+P { power-off-monitors; }
 }
-
-debug {
-    // honor-xdg-activation-with-invalid-serial
-    wait-for-frame-completion-before-queueing
-    // strict-new-window-focus-policy
-    // deactivate-unfocused-windows
-    // skip-cursor-only-updates-during-vrr
-}
-
-// Gestures configuration
-// gestures {
-//     // Hot corner to toggle overview
-//     hot-corners {
-//         // top-left
-//     }
-//
-//     // Drag-and-drop edge view scroll
-//     dnd-edge-view-scroll {
-//         trigger-height 100
-//         max-speed 3000
-//     }
-//
-//     // Drag-and-drop edge workspace switch
-//     dnd-edge-workspace-switch {
-//         trigger-height 100
-//         max-speed 3000
-//     }
-// }
-
-// Configuration includes (split config into multiple files)
-// include "keybinds.kdl"
-// include "window-rules.kdl"
-environment {
-    // DISPLAY ":0"
-    ELECTRON_OZONE_PLATFORM_HINT "auto"
-    // QT_QPA_PLATFORM "wayland"
-}
-screenshot-path "~/Pictures/Screenshot from %Y-%m-%d %H-%M-%S.png"
-
-// You can also set this to null to disable saving screenshots to disk.
-// screenshot-path null
-
-// Layer rules for layer-shell surfaces (panels, launchers, etc.)
-// layer-rule {
-//     match namespace="^launcher$"
-//     opacity 0.95
-//     shadow { on }
-//     geometry-corner-radius 10
-// }
-
-// Place wallpaper in backdrop (visible in overview)
-// layer-rule {
-//     match namespace="^wallpaper$"
-//     place-within-backdrop true
-// }
-
-// Block layer surfaces from screencasts
-// layer-rule {
-//     match namespace="^notifications$"
-//     block-out-from "screencast"
-// }
