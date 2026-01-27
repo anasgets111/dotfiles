@@ -238,8 +238,9 @@ Singleton {
 
       const sig = parseInt(f[3]) || 0;
       const isActive = f[0] === "*";
+      const current = map[ssid];
 
-      if (!map[ssid] || (!map[ssid].active && sig > map[ssid].signal)) {
+      if (!current || (isActive && !current.active) || (isActive === current.active && sig > current.signal)) {
         map[ssid] = {
           active: isActive,
           ssid: ssid,
