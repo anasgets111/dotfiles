@@ -1,102 +1,75 @@
 #!/usr/bin/env bash
+set -e
 
-if [[ -z "$1" ]]; then
-  echo "no argument provided"
-  exit 1
+# --- Configuration ---
+readonly KEY="${1:?Error: No argument provided}"
+readonly STASH_WSP="terminal"
+
+# Use SINGLE quotes for Regex to avoid double-escaping backslashes
+declare -A REGEX CMD
+REGEX['term']='^(kitty|(com\.mitchellh\.)?ghostty|Alacritty|org\.wezfurlong\.wezterm|foot)$'
+CMD['term']='xdg-terminal-exec'
+
+REGEX['vol']='^pavucontrol$'
+CMD['vol']='pavucontrol'
+
+readonly MATCH_REGEX="${REGEX[$KEY]}"
+readonly SPAWN_CMD="${CMD[$KEY]}"
+
+[[ -z "$MATCH_REGEX" ]] && { echo "Unknown key: $KEY"; exit 1; }
+
+# --- Helpers ---
+niri_jq() { niri msg -j "$1" | jq "${@:2}"; }
+
+get_win_json() {
+    niri_jq windows -c --arg re "$MATCH_REGEX" \
+        'map(select((.title//""|test($re;"i")) or (.app_id//""|test($re;"i")))) | .[0]'
+}
+
+get_focused_wsp() {
+    niri_jq workspaces -r '.[] | select(.is_focused).idx'
+}
+
+# --- Main Logic ---
+
+WIN_JSON=$(get_win_json)
+
+# 1. If MISSING: Spawn & Capture
+if [[ "$WIN_JSON" == "null" ]]; then
+    # Snapshot active workspace in case user switches during spawn
+    TARGET_WSP=$(get_focused_wsp)
+    
+    niri msg action spawn -- sh -c "$SPAWN_CMD"
+    
+    # Efficient wait loop (using read -t avoids forking 'sleep')
+    for ((i=0; i<50; i++)); do
+        WIN_JSON=$(get_win_json)
+        [[ "$WIN_JSON" != "null" ]] && break
+        read -t 0.1 -N 0 || true
+    done
+
+    # Safety: Ensure it lands on the requested workspace
+    if [[ "$WIN_JSON" != "null" ]]; then
+        WIN_ID=$(jq -r '.id' <<<"$WIN_JSON")
+        niri msg action move-window-to-workspace --window-id "$WIN_ID" "$TARGET_WSP"
+        niri msg action focus-window --id "$WIN_ID"
+    fi
+    exit 0
 fi
 
-STASH_WIN_NAME="$1"
-STASH_WSP_NAME="terminal"
+# 2. If EXISTS: Toggle
+WIN_ID=$(jq -r '.id' <<<"$WIN_JSON")
+IS_FOCUSED=$(jq -r '.is_focused' <<<"$WIN_JSON")
+ACTIVE_WSP=$(get_focused_wsp)
 
-# identifiers for window app_id or title
-declare -A NAME
-NAME["term"]="^(kitty|ghostty|Alacritty)$"
-
-# commands to run for a given identifier
-declare -A CMD
-CMD["term"]="xdg-terminal-exec"
-
-
-main() {
-
-  create_stash_win_if_none "$1"
-
-  # fetch once to avoid repeated niri/jq calls
-  local STASH_WIN_INFO
-  STASH_WIN_INFO=$(get_stash_win_info)
-  local STASH_WIN_ID
-  STASH_WIN_ID=$(jq '.id' <<<"$STASH_WIN_INFO")
-  local STASH_WIN_IS_FOCUSED
-  STASH_WIN_IS_FOCUSED=$(jq '.is_focused' <<<"$STASH_WIN_INFO")
-
-  local ACTIVE_WSP_NAME
-  ACTIVE_WSP_NAME=$(get_active_wsp_name)
-
-  if [[ "$STASH_WIN_IS_FOCUSED" == "false" ]]; then
-    niri msg action move-window-to-workspace --window-id "$STASH_WIN_ID" "$ACTIVE_WSP_NAME"
-    niri msg action focus-window --id "$STASH_WIN_ID"
-  else
-    # --focus=false supposedly doesnt work yet, but PR is there
-    # https://github.com/YaLTeR/niri/pull/1820
-    niri msg action move-window-to-workspace --window-id "$STASH_WIN_ID" "$STASH_WSP_NAME" --focus=false
-
-    # niri workspace reference includes double quotes for some reason?
-    niri msg action focus-workspace "\"$ACTIVE_WSP_NAME\""
-  fi
-}
-
-create_stash_win() {
-  local cmd="${CMD["$1"]}"
-  niri msg action spawn -- "sh" "-c" "$cmd"
-  wait_until_win_exists "$(map_name_to_identifier "$1")"
-}
-
-map_name_to_identifier() {
-  echo "${NAME["$1"]}"
-}
-
-create_stash_win_if_none() {
-  [[ $(get_stash_win_info) == "null" ]] && create_stash_win "$1"
-}
-
-wait_until_win_exists() {
-  local ident="$1"
-  local max_tries=100   # ~10s at 0.1s interval
-  local delay=0.1
-  local i=0
-  while [[ $(get_win_info "$ident") == "null" && $i -lt $max_tries ]]; do
-    echo "waiting for window: $ident"
-    sleep "$delay"
-    ((i++))
-  done
-
-  if [[ $(get_win_info "$ident") == "null" ]]; then
-    echo "timeout waiting for window: $ident" >&2
-    exit 1
-  fi
-
-  # small extra settle delay
-  sleep "$delay"
-}
-
-get_win_info() {
-  # matches identifier against title or app_id
-  # get first if multiple exists, useful for windows that cannot set title ie. nautilus
-  niri msg -j windows | jq -c --arg id "$1" '
-    map(
-      select(
-        ((.title  // "") | test($id; "i")) or
-        ((.app_id // "") | test($id; "i"))
-      )
-    ) | first'
-}
-
-get_stash_win_info() {
-  get_win_info "$(map_name_to_identifier "$STASH_WIN_NAME")"
-}
-
-get_active_wsp_name() {
-  niri msg -j workspaces | jq -r '.[] | select(.is_focused==true).name'
-}
-
-main "$@"
+if [[ "$IS_FOCUSED" == "false" ]]; then
+    niri msg action move-window-to-workspace --window-id "$WIN_ID" "$ACTIVE_WSP"
+    niri msg action focus-window --id "$WIN_ID"
+else
+    niri msg action move-window-to-workspace --window-id "$WIN_ID" --focus=false "$STASH_WSP"
+    
+    # Anti-drift: ensure focus returns to the original workspace
+    # (niri sometimes shifts focus when moving windows even with --focus=false)
+    read -t 0.1 -N 0 || true
+    [[ "$(get_focused_wsp)" != "$ACTIVE_WSP" ]] && niri msg action focus-workspace "$ACTIVE_WSP"
+fi
