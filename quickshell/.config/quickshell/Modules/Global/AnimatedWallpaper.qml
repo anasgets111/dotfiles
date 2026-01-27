@@ -135,12 +135,13 @@ WlrLayershell {
     }
   }
 
-  LazyLoader {
+  Loader {
     id: shaderLoader
 
-    activeAsync: root.visible && wallpaperConn.enabled && (transitionAnim.running || root.transitionProgress > 0) && ((currentImg.status === Image.Ready && currentImg.source !== "") || nextImg.status === Image.Ready)
+    active: root.visible && wallpaperConn.enabled && (transitionAnim.running || root.transitionProgress > 0) && ((currentImg.status === Image.Ready && currentImg.source !== "") || nextImg.status === Image.Ready)
+    anchors.fill: parent
 
-    component: ShaderEffect {
+    sourceComponent: ShaderEffect {
       readonly property real angle: root.tp.angle ?? 0
       readonly property real aspectRatio: width / Math.max(1, height)
       readonly property real centerX: root.tp.cx ?? 0.5
