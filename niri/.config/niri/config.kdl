@@ -126,6 +126,13 @@ workspace "10" { open-on-output "DP-2"; }
 workspace "stash" { open-on-output "DP-2"; }
 
 // --- Window Rules ---
+// Prevent startup apps from stealing focus
+window-rule {
+    match at-startup=true
+    match app-id="Slack|org.telegram.desktop|vesktop|kitty|Alacritty|com.mitchellh.ghostty|org.wezfurlong.wezterm|foot"
+    open-focused false
+}
+
 window-rule {
     geometry-corner-radius 15 15 0 0
     clip-to-geometry true
