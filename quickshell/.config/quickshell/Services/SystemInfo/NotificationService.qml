@@ -618,11 +618,6 @@ Singleton {
       if (root._isDestroying)
         return;
 
-      if (notif.urgency === NotificationUrgency.Critical)
-        AudioService.playCriticalNotificationSound();
-      else
-        AudioService.playNormalNotificationSound();
-
       notif.tracked = true;
       root._sequence += 1;
       const wrapper = notifComponent.createObject(null, {
