@@ -1,5 +1,4 @@
 pragma ComponentBehavior: Bound
-
 import QtQuick
 import qs.Config
 import qs.Services.WM
@@ -8,86 +7,68 @@ import qs.Components
 Item {
   id: root
 
-  readonly property int currentWsIdx: WorkspaceService.currentWorkspace
-  readonly property bool expanded: pill.expanded
-  readonly property int focusedIndex: {
-    const idx = workspaces.findIndex(ws => ws.idx === currentWsIdx);
-    return idx >= 0 ? idx : 0;
+  readonly property int currentWorkspaceId: WorkspaceService.currentWorkspace
+  readonly property bool expanded: expandingPill.expanded
+  readonly property int focusedSlotIndex: {
+    const idx = workspaces.findIndex(ws => ws.focused);
+    return Math.max(0, idx);
   }
-  readonly property var groupBoundaries: WorkspaceService.groupBoundaries
-  property int hoveredId: 0
+  property int hoveredWorkspaceId: 0
   readonly property int slotH: Theme.itemHeight
   readonly property int slotW: Theme.itemWidth
   readonly property int spacing: Theme.spacingSm
-  readonly property var workspaces: WorkspaceService.workspaces
+  readonly property var workspaces: WorkspaceService.workspaces ?? []
 
-  function wsColor(ws) {
+  function computeWorkspaceColor(ws: var): color {
     if (!ws)
       return Theme.disabledColor;
-    if (ws.focused || ws.idx === currentWsIdx)
+    if (ws.focused)
       return Theme.activeColor;
-    if (ws.id === hoveredId)
+    if (ws.id === hoveredWorkspaceId)
       return Theme.onHoverColor;
     return ws.populated ? Theme.inactiveColor : Theme.disabledColor;
   }
 
   clip: true
-  height: pill.height
+  height: expandingPill.height
   visible: workspaces.length > 0
-  width: pill.width
+  width: expandingPill.width
 
   ExpandingPill {
-    id: pill
+    id: expandingPill
 
     collapseDelayMs: Theme.animationDuration + 200
-    collapsedIndex: root.focusedIndex
+    collapsedIndex: root.focusedSlotIndex
     count: root.workspaces.length
     rightAligned: false
     slotH: root.slotH
     slotW: root.slotW
     spacing: root.spacing
 
-    delegate: Component {
-      IconButton {
-        required property int index
-        readonly property var ws: root.workspaces[index] ?? {}
-
-        colorBg: root.wsColor(ws)
-        icon: String(ws.idx ?? index + 1)
-
-        onClicked: if (!ws.focused)
-          WorkspaceService.focusWorkspaceByWs(ws)
-        onEntered: {
-          pill.expanded = true;
-          root.hoveredId = ws.id;
-        }
-        onExited: if (root.hoveredId === ws.id)
-          root.hoveredId = 0
-      }
-    }
-  }
-
-  // Group boundary dividers
-  Repeater {
-    model: root.groupBoundaries.length
-
-    delegate: Rectangle {
-      readonly property int boundaryIdx: root.groupBoundaries[index]
+    delegate: IconButton {
       required property int index
+      readonly property var ws: root.workspaces[index] ?? {}
 
-      anchors.verticalCenter: parent.verticalCenter
-      color: Theme.textContrast(Theme.bgColor)
-      height: Math.round(root.slotH * 0.6)
-      opacity: pill.expanded ? 0.5 : 0
-      radius: 1
-      visible: pill.expanded
-      width: 2
-      x: boundaryIdx * (root.slotW + root.spacing) - root.spacing / 2 - 1
+      colorBg: root.computeWorkspaceColor(ws)
+      icon: String(ws.idx ?? index + 1)
+      opacity: ws.populated ? 1.0 : 0.5
 
       Behavior on opacity {
         NumberAnimation {
           duration: Theme.animationDuration
           easing.type: Easing.InOutQuad
+        }
+      }
+
+      onClicked: {
+        if (!ws.focused) {
+          WorkspaceService.focusWorkspaceByWs(ws);
+        }
+      }
+      onEntered: root.hoveredWorkspaceId = ws.id
+      onExited: {
+        if (root.hoveredWorkspaceId === ws.id) {
+          root.hoveredWorkspaceId = 0;
         }
       }
     }
