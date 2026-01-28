@@ -1,75 +1,36 @@
 #!/usr/bin/env bash
 set -e
 
-# --- Configuration ---
-readonly KEY="${1:?Error: No argument provided}"
-readonly STASH_WSP="terminal"
+case $1 in
+    term)     re='^(kitty|(com\.mitchellh\.)?ghostty|Alacritty|org\.wezfurlong\.wezterm|foot)$'; cmd='xdg-terminal-exec' ;;
+    slack)    re='^Slack$'; cmd='slack' ;;
+    telegram) re='^org\.telegram\.desktop$'; cmd='Telegram' ;;
+    vesktop)  re='^vesktop$'; cmd='vesktop' ;;
+    *)        echo "Usage: $0 {term|slack|telegram|vesktop}" >&2; exit 1 ;;
+esac
 
-# Use SINGLE quotes for Regex to avoid double-escaping backslashes
-declare -A REGEX CMD
-REGEX['term']='^(kitty|(com\.mitchellh\.)?ghostty|Alacritty|org\.wezfurlong\.wezterm|foot)$'
-CMD['term']='xdg-terminal-exec'
+get_ws() { niri msg -j workspaces | jq -r '.[]|select(.is_focused).idx'; }
+find_win() { niri msg -j windows | jq -r --arg re "$re" '.[]|select((.title//""|test($re;"i")) or (.app_id//""|test($re;"i")))|"\(.id) \(.is_focused)"' | head -1; }
 
-REGEX['vol']='^pavucontrol$'
-CMD['vol']='pavucontrol'
+read -r id focused <<< "$(find_win)" || true
 
-readonly MATCH_REGEX="${REGEX[$KEY]}"
-readonly SPAWN_CMD="${CMD[$KEY]}"
-
-[[ -z "$MATCH_REGEX" ]] && { echo "Unknown key: $KEY"; exit 1; }
-
-# --- Helpers ---
-niri_jq() { niri msg -j "$1" | jq "${@:2}"; }
-
-get_win_json() {
-    niri_jq windows -c --arg re "$MATCH_REGEX" \
-        'map(select((.title//""|test($re;"i")) or (.app_id//""|test($re;"i")))) | .[0]'
-}
-
-get_focused_wsp() {
-    niri_jq workspaces -r '.[] | select(.is_focused).idx'
-}
-
-# --- Main Logic ---
-
-WIN_JSON=$(get_win_json)
-
-# 1. If MISSING: Spawn & Capture
-if [[ "$WIN_JSON" == "null" ]]; then
-    # Snapshot active workspace in case user switches during spawn
-    TARGET_WSP=$(get_focused_wsp)
-    
-    niri msg action spawn -- sh -c "$SPAWN_CMD"
-    
-    # Efficient wait loop (using read -t avoids forking 'sleep')
+if [[ -z "$id" ]]; then
+    ws=$(get_ws)
+    niri msg action spawn -- sh -c "$cmd"
     for ((i=0; i<50; i++)); do
-        WIN_JSON=$(get_win_json)
-        [[ "$WIN_JSON" != "null" ]] && break
-        read -t 0.1 -N 0 || true
+        read -r id _ <<< "$(find_win)" || true
+        [[ -n "$id" ]] && break
+        read -rt 0.1 -N 0 || true
     done
-
-    # Safety: Ensure it lands on the requested workspace
-    if [[ "$WIN_JSON" != "null" ]]; then
-        WIN_ID=$(jq -r '.id' <<<"$WIN_JSON")
-        niri msg action move-window-to-workspace --window-id "$WIN_ID" "$TARGET_WSP"
-        niri msg action focus-window --id "$WIN_ID"
-    fi
-    exit 0
-fi
-
-# 2. If EXISTS: Toggle
-WIN_ID=$(jq -r '.id' <<<"$WIN_JSON")
-IS_FOCUSED=$(jq -r '.is_focused' <<<"$WIN_JSON")
-ACTIVE_WSP=$(get_focused_wsp)
-
-if [[ "$IS_FOCUSED" == "false" ]]; then
-    niri msg action move-window-to-workspace --window-id "$WIN_ID" "$ACTIVE_WSP"
-    niri msg action focus-window --id "$WIN_ID"
+    [[ -n "$id" ]] || exit 1
+    niri msg action move-window-to-workspace --window-id "$id" "$ws"
+    niri msg action center-floating-window --id "$id" 2>/dev/null || true
+    niri msg action focus-window --id "$id"
+elif [[ "$focused" == "true" ]]; then
+    niri msg action move-window-to-workspace --window-id "$id" --focus=false "stash"
 else
-    niri msg action move-window-to-workspace --window-id "$WIN_ID" --focus=false "$STASH_WSP"
-    
-    # Anti-drift: ensure focus returns to the original workspace
-    # (niri sometimes shifts focus when moving windows even with --focus=false)
-    read -t 0.1 -N 0 || true
-    [[ "$(get_focused_wsp)" != "$ACTIVE_WSP" ]] && niri msg action focus-workspace "$ACTIVE_WSP"
+    ws=$(get_ws)
+    niri msg action move-window-to-workspace --window-id "$id" "$ws"
+    niri msg action center-floating-window --id "$id" 2>/dev/null || true
+    niri msg action focus-window --id "$id"
 fi
