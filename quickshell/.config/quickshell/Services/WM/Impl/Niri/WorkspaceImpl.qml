@@ -4,47 +4,150 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Services
-import qs.Services.Utils
 
 Singleton {
   id: root
 
-  property int _previousWorkspaceId: 1
-  property int _trackerWorkspaceId: 1
-  readonly property string activeSpecial: ""
-  property int currentWorkspace: 1
-  property bool enabled: MainService.ready && MainService.currentWM === "niri"
-  property string focusedOutput: ""
-  property var groupBoundaries: []
-  property var outputsOrder: []
-  readonly property int previousWorkspace: _previousWorkspaceId
+  readonly property int currentWorkspace: trackedWorkspaceId
+  readonly property bool enabled: MainService.ready && MainService.currentWM === "niri"
+  property var flatWorkspaceList: []
+  readonly property string focusedOutput: focusedOutputName
+  property string focusedOutputName: ""
+  readonly property list<int> groupBoundaries: outputGroupBoundaries
+  property int lastTrackedWorkspaceId: 1
+  property list<int> outputGroupBoundaries: []
+  property list<string> outputOrderList: []
+  readonly property list<string> outputsOrder: outputOrderList
+  readonly property int previousWorkspace: lastTrackedWorkspaceId
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
-  readonly property var specialWorkspaces: []
-  property var workspaces: []
+  property int trackedWorkspaceId: 1
+  property var windowsById: ({})
+  readonly property var workspaces: flatWorkspaceList
+  property var workspacesById: ({})
 
-  function focusWorkspaceById(id) {
+  function focusWorkspaceById(workspaceId: int): void {
     if (!enabled)
       return;
-    send({
+    sendAction({
       Action: {
         FocusWorkspace: {
           reference: {
-            Id: id
+            Id: workspaceId
           }
         }
       }
     });
   }
 
-  function focusWorkspaceByIndex(idx) {
+  function focusWorkspaceByIndex(workspaceIndex: int): void {
     if (!enabled)
       return;
-    const ws = workspaces.find(w => w.idx === idx);
-    if (ws)
-      focusWorkspaceById(ws.id);
+    const workspace = workspaces.find(ws => ws.idx === workspaceIndex);
+    workspace ? focusWorkspaceById(workspace.id) : console.warn(`[Niri] Invalid index: ${workspaceIndex}`);
   }
 
-  function refresh() {
+  function focusWorkspaceByWs(ws: var): void {
+    if (!enabled || !ws)
+      return;
+    focusWorkspaceById(ws.id);
+  }
+
+  function handleEvent(line: string): void {
+    if (!line)
+      return;
+
+    try {
+      const event = JSON.parse(line);
+
+      if (event.WorkspacesChanged) {
+        const updatedWorkspaces = {};
+        event.WorkspacesChanged.workspaces.forEach(ws => updatedWorkspaces[ws.id] = ws);
+        workspacesById = updatedWorkspaces;
+
+        const focusedWorkspace = event.WorkspacesChanged.workspaces.find(ws => ws.is_focused);
+        if (focusedWorkspace && focusedWorkspace.id !== trackedWorkspaceId) {
+          trackedWorkspaceId = focusedWorkspace.id;
+        } else {
+          Qt.callLater(rebuildWorkspaceList);
+        }
+      } else if (event.WorkspaceActivated) {
+        trackedWorkspaceId = event.WorkspaceActivated.id;
+      } else if (event.WindowsChanged) {
+        const updatedWindows = {};
+        event.WindowsChanged.windows.forEach(win => updatedWindows[win.id] = win);
+        windowsById = updatedWindows;
+        Qt.callLater(rebuildWorkspaceList);
+      } else if (event.WindowOpenedOrChanged) {
+        const window = event.WindowOpenedOrChanged.window;
+        windowsById[window.id] = window;
+        Qt.callLater(rebuildWorkspaceList);
+      } else if (event.WindowClosed) {
+        delete windowsById[event.WindowClosed.id];
+        Qt.callLater(rebuildWorkspaceList);
+      }
+    } catch (error) {
+      console.warn(`[Niri] Parse error: ${error}`);
+    }
+  }
+
+  function rebuildWorkspaceList(): void {
+    const workspacesByOutput = {};
+    const allWorkspaces = [];
+    const boundaries = [];
+    const populatedIds = new Set(Object.values(windowsById).filter(win => win.workspace_id !== null).map(win => String(win.workspace_id)));
+    let currentFocusedWorkspace = null;
+
+    for (const workspaceId in workspacesById) {
+      const rawWorkspace = workspacesById[workspaceId];
+      const isCurrentlyFocused = rawWorkspace.id === trackedWorkspaceId;
+
+      const workspace = {
+        id: rawWorkspace.id,
+        idx: rawWorkspace.idx,
+        focused: isCurrentlyFocused,
+        populated: populatedIds.has(String(rawWorkspace.id)),
+        output: rawWorkspace.output ?? "",
+        name: rawWorkspace.name ?? null
+      };
+
+      const outputName = workspace.output;
+      if (!workspacesByOutput[outputName]) {
+        workspacesByOutput[outputName] = [];
+      }
+      workspacesByOutput[outputName].push(workspace);
+
+      if (isCurrentlyFocused) {
+        currentFocusedWorkspace = workspace;
+      }
+    }
+
+    if (currentFocusedWorkspace) {
+      focusedOutputName = currentFocusedWorkspace.output;
+    }
+
+    outputOrderList = Object.keys(workspacesByOutput).sort((a, b) => {
+      if (a === focusedOutputName)
+        return -1;
+      if (b === focusedOutputName)
+        return 1;
+      return a.localeCompare(b);
+    });
+
+    const totalWorkspaces = Object.keys(workspacesById).length;
+    for (const outputName of outputOrderList) {
+      const sortedWorkspaces = workspacesByOutput[outputName].sort((a, b) => a.idx - b.idx);
+      allWorkspaces.push(...sortedWorkspaces);
+
+      if (allWorkspaces.length < totalWorkspaces) {
+        boundaries.push(allWorkspaces.length);
+      }
+    }
+
+    flatWorkspaceList = allWorkspaces;
+    outputGroupBoundaries = boundaries;
+  }
+
+  function refresh(): void {
     if (!enabled || !socketPath)
       return;
     eventStreamSocket.connected = false;
@@ -53,142 +156,54 @@ Singleton {
     requestSocket.connected = true;
   }
 
-  function send(request) {
-    if (enabled && requestSocket.connected)
+  function sendAction(request: var): void {
+    if (enabled && requestSocket.connected) {
       requestSocket.write(JSON.stringify(request) + "\n");
-  }
-
-  function toUnifiedWs(w) {
-    return {
-      id: w.id,
-      idx: w.idx,
-      focused: w.is_focused,
-      populated: w.active_window_id !== null,
-      output: w.output ?? "",
-      name: w.name ?? null
-    };
-  }
-
-  function toggleSpecial(name) {
-  }
-
-  function updateSingleFocus(id) {
-    const ws = workspaces.find(w => w.id === id);
-    if (!ws)
-      return;
-
-    if (root.currentWorkspace !== ws.idx) {
-      root.currentWorkspace = ws.idx;
-    }
-    root.focusedOutput = ws.output ?? root.focusedOutput;
-
-    for (let i = 0; i < workspaces.length; i++) {
-      workspaces[i].focused = (workspaces[i].id === id);
-    }
-    root.workspacesChanged();
-  }
-
-  function updateWorkspaces(arr) {
-    const perOutput = Object.create(null);
-    let focusedWs = null;
-
-    for (const w of arr) {
-      const ws = toUnifiedWs(w);
-      const out = ws.output ?? "";
-      if (!perOutput[out])
-        perOutput[out] = [];
-      perOutput[out].push(ws);
-      if (ws.focused)
-        focusedWs = ws;
-    }
-
-    if (focusedWs)
-      root.focusedOutput = focusedWs.output;
-
-    const order = Object.keys(perOutput).sort((a, b) => {
-      if (a === focusedOutput)
-        return -1;
-      if (b === focusedOutput)
-        return 1;
-      return a.localeCompare(b);
-    });
-    root.outputsOrder = order;
-
-    const flat = [];
-    const bounds = [];
-    const total = arr.length;
-    for (const out of order) {
-      const wsList = perOutput[out].sort((a, b) => a.idx - b.idx);
-      flat.push(...wsList);
-      if (flat.length < total)
-        bounds.push(flat.length);
-    }
-    root.workspaces = flat;
-    root.groupBoundaries = bounds;
-
-    if (focusedWs) {
-      if (root.currentWorkspace !== focusedWs.idx)
-        root.currentWorkspace = focusedWs.idx;
     }
   }
 
-  Component.onCompleted: if (enabled)
-    _startupKick.start()
-  onCurrentWorkspaceChanged: {
-    if (currentWorkspace !== _trackerWorkspaceId) {
-      _previousWorkspaceId = _trackerWorkspaceId;
-      _trackerWorkspaceId = currentWorkspace;
-    }
+  Component.onCompleted: {
+    if (enabled)
+      startupTimer.start();
   }
   onEnabledChanged: {
-    if (enabled && socketPath) {
-      eventStreamSocket.connected = true;
-      requestSocket.connected = true;
-      _startupKick.start();
-    } else {
-      eventStreamSocket.connected = false;
-      requestSocket.connected = false;
+    eventStreamSocket.connected = enabled && !!socketPath;
+    requestSocket.connected = enabled && !!socketPath;
+    if (enabled)
+      startupTimer.restart();
+  }
+  onTrackedWorkspaceIdChanged: {
+    if (trackedWorkspaceId !== lastTrackedWorkspaceId) {
+      lastTrackedWorkspaceId = trackedWorkspaceId;
     }
+    Qt.callLater(rebuildWorkspaceList);
   }
 
   Socket {
     id: eventStreamSocket
 
-    connected: root.enabled && !!root.socketPath
     path: root.socketPath
 
     parser: SplitParser {
       splitMarker: "\n"
 
-      onRead: line => {
-        if (!line)
-          return;
-        try {
-          const evt = JSON.parse(line);
-          if (evt.WorkspacesChanged) {
-            root.updateWorkspaces(evt.WorkspacesChanged.workspaces);
-          } else if (evt.WorkspaceActivated) {
-            root.updateSingleFocus(evt.WorkspaceActivated.id);
-          }
-        } catch (e) {
-          Logger.log("WorkspaceImpl(Niri)", `Parse error: ${e}`);
-        }
-      }
+      onRead: line => root.handleEvent(line)
     }
 
-    onConnectionStateChanged: if (connected)
-      write('"EventStream"\n')
+    onConnectionStateChanged: {
+      if (connected)
+        write('"EventStream"\n');
+    }
   }
 
   Socket {
     id: requestSocket
 
-    connected: root.enabled && !!root.socketPath
     path: root.socketPath
   }
 
   Timer {
-    id: _startupKick
+    id: startupTimer
 
     interval: 200
 
