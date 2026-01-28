@@ -1,7 +1,6 @@
 pragma Singleton
 
 import QtQuick
-import QtMultimedia
 import Quickshell
 import Quickshell.Services.Pipewire
 import qs.Services.Utils
@@ -76,16 +75,6 @@ Singleton {
   function parsePercentage(valueString) {
     const n = parseInt(valueString, 10);
     return isNaN(n) ? null : n / 100;
-  }
-
-  function playCriticalNotificationSound() {
-    criticalNotificationSound.stop();
-    criticalNotificationSound.play();
-  }
-
-  function playNormalNotificationSound() {
-    normalNotificationSound.stop();
-    normalNotificationSound.play();
   }
 
   function setAudioSink(newSink) {
@@ -166,35 +155,8 @@ Singleton {
   }
   onSourceChanged: Logger.log("AudioService", `source changed: ${displayName(root.source)}`)
 
-  MediaDevices {
-    id: mediaDevices
-
-    onDefaultAudioOutputChanged: Logger.log("AudioService", `default audio output changed to: ${defaultAudioOutput ? defaultAudioOutput.description : "None"}`)
-  }
-
-  AudioOutput {
-    id: notificationOutput
-
-    device: mediaDevices.defaultAudioOutput
-    volume: 1.0
-  }
-
-  MediaPlayer {
-    id: normalNotificationSound
-
-    audioOutput: notificationOutput
-    source: "file:///usr/share/sounds/freedesktop/stereo/message.oga"
-  }
-
-  MediaPlayer {
-    id: criticalNotificationSound
-
-    audioOutput: notificationOutput
-    source: "file:///usr/share/sounds/freedesktop/stereo/bell.oga"
-  }
-
   PwObjectTracker {
-    objects: root.sinks.concat(root.sources).concat(root.streams)
+    objects: root.sinks.concat(root.sources)
   }
 
   Connections {
