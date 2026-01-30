@@ -115,6 +115,7 @@ Singleton {
   function executeUpdate() {
     if (totalUpdates === 0)
       return;
+    closeAllNotifications();
     totalPackagesToUpdate = totalUpdates;
     currentPackageIndex = 0;
     currentPackageName = "";
