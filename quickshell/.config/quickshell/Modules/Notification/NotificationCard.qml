@@ -9,14 +9,14 @@ import qs.Config
 Item {
   id: root
 
-  property bool _animReady: root.isGroup || root.groupScope !== "popup" || !root.svc?.isPopupNew(root.group?.key)
-  readonly property bool _isDismissing: (root.svc?.isGroupDismissing(root.group?.key, root.groupScope) ?? false) || root.primaryWrapper?.isHidingPopup || root.primaryWrapper?.isDismissing
+  property bool _animReady: root.isGroup || root.groupScope !== "popup" || !(root.svc?.isPopupNew(root.group?.key || "") ?? false)
+  readonly property bool _isDismissing: (root.svc?.isGroupDismissing(root.group?.key, root.groupScope) ?? false) || (root.primaryWrapper?.isHidingPopup ?? false) || (root.primaryWrapper?.isDismissing ?? false)
   property var _messageExpansion: ({})
   property var _shownMessageIds: ({})
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
   readonly property real cardWidth: Theme.notificationCardWidth
   required property var group
-  readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group.key] || false) : false)
+  readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group?.key] || false) : false)
   property string groupScope: "history"
   readonly property bool headerHasExpand: root.isGroup && root.items.length > 1
   readonly property string headerTitle: root.isGroup ? `${root.group?.appName || "app"} (${root.group?.count || root.items.length})` : (root.primaryWrapper?.appName || "app")
