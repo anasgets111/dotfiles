@@ -299,9 +299,9 @@ Singleton {
   }
 
   Connections {
-    function onIsChargingChanged() {
+    function onIsACPoweredChanged() {
       if (BatteryService.isLaptopBattery)
-        root.show(root.types.battery, null, BatteryService.isCharging ? "󰂄" : "󰂃", BatteryService.isCharging ? "Charger Connected" : "Charger Disconnected");
+        root.show(root.types.battery, null, BatteryService.isACPowered ? "󰂄" : "󰂃", BatteryService.isACPowered ? "Charger Connected" : "Charger Disconnected");
     }
 
     function onIsFullyChargedChanged() {
