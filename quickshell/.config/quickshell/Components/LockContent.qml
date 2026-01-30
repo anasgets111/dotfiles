@@ -277,7 +277,7 @@ Item {
           Text {
             color: Theme.textActiveColor
             font.pixelSize: Math.round(Theme.fontSm * root.lockScale)
-            text: BatteryService.isCharging ? "⚡" : "🔋"
+            text: BatteryService.isACPowered ? "⚡" : "🔋"
           }
 
           OText {
