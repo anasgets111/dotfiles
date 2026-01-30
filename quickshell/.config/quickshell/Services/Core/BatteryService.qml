@@ -11,19 +11,19 @@ Singleton {
   property var _notifyTimestamps: ({})
   readonly property var device: UPower.displayDevice
   readonly property int deviceState: device?.state ?? UPowerDeviceState.Unknown
-  readonly property bool isACPowered: isCharging || isFullyCharged || isPendingCharge
+  readonly property bool isACPowered: !UPower.onBattery
   readonly property bool isCharging: deviceState === UPowerDeviceState.Charging
-  readonly property bool isCriticalAndNotCharging: isLaptopBattery && !isCharging && percentageFraction <= 0.1
+  readonly property bool isCriticalAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= 0.1
   readonly property bool isDischarging: deviceState === UPowerDeviceState.Discharging
   readonly property bool isEmptyState: deviceState === UPowerDeviceState.Empty
   readonly property bool isFullyCharged: deviceState === UPowerDeviceState.FullyCharged
   readonly property bool isLaptopBattery: device?.type === UPowerDeviceType.Battery && device?.isPresent
-  readonly property bool isLowAndNotCharging: isLaptopBattery && !isCharging && percentageFraction <= 0.2
-  readonly property bool isOnBattery: isDischarging || isPendingDischarge
+  readonly property bool isLowAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= 0.2
+  readonly property bool isOnBattery: UPower.onBattery
   readonly property bool isPendingCharge: deviceState === UPowerDeviceState.PendingCharge
   readonly property bool isPendingDischarge: deviceState === UPowerDeviceState.PendingDischarge
   readonly property bool isReady: MainService.isLaptop && isLaptopBattery
-  readonly property bool isSuspendingAndNotCharging: isLaptopBattery && !isCharging && percentageFraction <= 0.08
+  readonly property bool isSuspendingAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= 0.08
   readonly property bool isUnknownState: deviceState === UPowerDeviceState.Unknown
   readonly property int percentage: Math.round(percentageFraction * 100)
   readonly property real percentageFraction: {
@@ -33,7 +33,7 @@ Singleton {
   readonly property string timeToEmptyText: {
     if (!device)
       return qsTr("Unknown");
-    if (!isCharging && device.timeToEmpty > 0)
+    if (isOnBattery && device.timeToEmpty > 0)
       return qsTr("Time remaining: %1").arg(TimeService.formatHM(device.timeToEmpty));
     return qsTr("Calculating…");
   }

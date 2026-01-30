@@ -11,10 +11,10 @@ Item {
 
   readonly property color batteryColor: percentage <= 0.1 ? Theme.critical : percentage <= 0.2 ? Theme.warning : Theme.activeColor
   readonly property string batteryIcon: {
-    if (BatteryService.isCharging)
-      return "";
     if (BatteryService.isPendingCharge)
       return "󰂄";
+    if (BatteryService.isACPowered)
+      return "";
     const icons = ["", "", "", "", ""];
     return icons[Math.min(Math.floor(percentage * 5), 4)];
   }
@@ -35,7 +35,7 @@ Item {
       return qsTr("Charge Limit Reached");
     if (BatteryService.isACPowered && BatteryService.percentage === 100)
       return qsTr("Connected");
-    return BatteryService.isCharging ? BatteryService.timeToFullText : BatteryService.timeToEmptyText;
+    return BatteryService.isACPowered ? BatteryService.timeToFullText : BatteryService.timeToEmptyText;
   }
   readonly property color textColor: Theme.textContrast(percentage > 0.6 ? batteryColor : bgColor)
 
