@@ -66,6 +66,8 @@ Singleton {
   QtObject {
     id: _
 
+    property bool chargeStateNotified: false
+
     // Config: [Priority (lower is higher), Group, SuppressionList]
     readonly property var config: ({
         [root.types.battery]: {
@@ -299,19 +301,23 @@ Singleton {
   }
 
   Connections {
+    function onDeviceStateChanged() {
+      if (!BatteryService.isLaptopBattery || _.chargeStateNotified)
+        return;
+
+      if (BatteryService.isFullyCharged) {
+        root.show(root.types.battery, null, "󰚥", "Fully Charged");
+        _.chargeStateNotified = true;
+      } else if (BatteryService.isPendingCharge) {
+        root.show(root.types.battery, null, "󰂏", "Charge Limit Reached");
+        _.chargeStateNotified = true;
+      }
+    }
+
     function onIsACPoweredChanged() {
+      _.chargeStateNotified = false;
       if (BatteryService.isLaptopBattery)
         root.show(root.types.battery, null, BatteryService.isACPowered ? "󰂄" : "󰂃", BatteryService.isACPowered ? "Charger Connected" : "Charger Disconnected");
-    }
-
-    function onIsFullyChargedChanged() {
-      if (BatteryService.isLaptopBattery && BatteryService.isFullyCharged)
-        root.show(root.types.battery, null, "󰚥", "Fully Charged");
-    }
-
-    function onIsPendingChargeChanged() {
-      if (BatteryService.isLaptopBattery && BatteryService.isPendingCharge)
-        root.show(root.types.battery, null, "󰂏", "Charge Limit Reached");
     }
 
     target: BatteryService
