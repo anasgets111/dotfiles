@@ -1,43 +1,34 @@
 #!/usr/bin/env bash
-
-# vps_setup.sh
-# Simplified VPS setup: Starship, Fish (Dark Theme), Bash->Fish switch
+# vps_setup.sh - Simplified VPS setup: Starship, Fish (Dark Theme), Bash->Fish switch
 
 set -e
 
-echo "Starting VPS environment setup..."
-
-# 0. Install Dependencies
-echo "Installing dependencies (sudo required)..."
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y fish starship kitty-terminfo bat curl wget git unzip
-
-
-# 1. Directory Structure
+# Configuration variables
 CONFIG_DIR="$HOME/.config"
 FISH_DIR="$CONFIG_DIR/fish"
 THEME_DIR="$FISH_DIR/themes"
 
-mkdir -p "$CONFIG_DIR"
-mkdir -p "$FISH_DIR/conf.d"
-mkdir -p "$THEME_DIR"
+install_dependencies() {
+    echo "Installing dependencies (sudo required)..."
+    sudo apt-get update && sudo apt-get upgrade -y
+    sudo apt-get install -y fish starship kitty-terminfo bat curl wget git unzip
+}
 
-echo "Directories created."
+setup_directories() {
+    echo "Creating directory structure..."
+    mkdir -p "$FISH_DIR/conf.d" "$THEME_DIR"
+}
 
-# 2. Starship Configuration
-echo "Writing starship.toml..."
-cat << 'EOF' > "$CONFIG_DIR/starship.toml"
-# @schema https://starship.rs/config-schema.json
+configure_starship() {
+    echo "Writing starship.toml..."
+    cat << 'EOF' > "$CONFIG_DIR/starship.toml"
 add_newline = false
-# Toggle between "dark", "light", and "dark_inverted"
 palette = "dark"
 
-format = """
-[╭─](mauve)$os$shell$username$hostname$directory$git_branch$git_status$cmd_duration$fill\
-$nodejs$python$php$rust$golang$time$line_break\
-[╰─](mauve)$character"""
+format = "[╭─](mauve)$os$shell$username$hostname$directory$git_branch$git_status$cmd_duration$fill\
+$nodejs$php$rust$golang$time$line_break\
+[╰─](mauve)$character"
 
-# DARK MODE (Original Custom - Light Grey End)
 [palettes.dark]
 mauve = "#CBA6F7"
 green_success = "#a3daa8"
@@ -47,7 +38,6 @@ surface_dark = "#444859"
 overlay_grey = "#C6C3CE"
 base_dark = "#1E1E2E"
 red_root = "#F38BA8"
-# High-Contrast Git Colors
 git_red = "#B71C1C"
 git_green = "#1B5E20"
 git_orange = "#E65100"
@@ -66,6 +56,7 @@ symbol = " "
 [os]
 format = "[](surface_dark)[$symbol ](text_light bg:surface_dark)"
 disabled = false
+
 [os.symbols]
 Arch = ""
 Fedora = ""
@@ -132,10 +123,6 @@ format = "[](mauve)[ $version](base_dark bg:mauve)[](mauve) "
 version_format = "${major}.${minor}"
 detect_files = ["package.json"]
 
-[python]
-format = "[](text_light)[ $virtualenv $version](base_dark bg:text_light)[](text_light) "
-version_format = "${major}"
-
 [php]
 format = "[](text_light)[ $version](base_dark bg:text_light)[](text_light) "
 version_format = "${major}.${minor}"
@@ -154,14 +141,11 @@ format = "[](overlay_grey)[  $time ](base_dark bg:overlay_grey)[](overl
 use_12hr = true
 time_format = "%I:%M %p"
 EOF
+}
 
-# 3. Fish Theme (Catppuccin Mocha - Dark Only)
-echo "Writing Fish theme..."
-cat << 'EOF' > "$THEME_DIR/Catppuccin Mocha.theme"
-# name: 'Catppuccin Mocha'
-# url: 'https://github.com/catppuccin/fish'
-
-# preferred_background: 1e1e2e
+configure_fish_theme() {
+    echo "Writing Fish theme..."
+    cat << 'EOF' > "$THEME_DIR/Catppuccin Mocha.theme"
 fish_color_normal cdd6f4
 fish_color_command 89b4fa
 fish_color_param f2cdcd
@@ -189,90 +173,103 @@ fish_pager_color_prefix f5c2e7
 fish_pager_color_completion cdd6f4
 fish_pager_color_description 6c7086
 EOF
+}
 
-# 4. Fish Configuration
-echo "Writing config.fish..."
-cat << 'EOF' > "$FISH_DIR/config.fish"
-# 1. Environment
-# Local paths removed
-
-# 2. History
+configure_fish() {
+    echo "Writing config.fish..."
+    cat << 'EOF' > "$FISH_DIR/config.fish"
 set -gx fish_history fish
-
-# 3. Tool Initialization
 type -q starship; and starship init fish | source
-
-# 4. Theme
 fish_config theme choose "Catppuccin Mocha"
-
-# 5. Greeting
 set -U fish_greeting ""
 
-# 6. Abbreviations
-
-# --- Navigation ---
+# Abbreviations
 abbr .. 'cd ..'
 abbr ... 'cd ../..'
 abbr .... 'cd ../../..'
 abbr ..... 'cd ../../../..'
-
-# --- Git ---
 abbr gl 'git pull'
 abbr gp 'git push'
 abbr gs 'git status'
 abbr gd 'git diff'
 abbr gc 'git commit'
-
-# --- Utilities ---
 abbr errors 'journalctl -p 3 -xb'
 abbr ll 'ls -lah'
 
-# 7. Keybindings
-# Ctrl+Delete: delete next word
+# Use batcat on Ubuntu/Debian, bat elsewhere
+if type -q batcat
+    abbr cat 'batcat'
+else if type -q bat
+    abbr cat 'bat'
+end
+
+# Keybindings
 bind ctrl-delete 'commandline -f kill-word'
-# Ctrl+Backspace: custom sequence from WezTerm
-bind \e\[7\;5~ 'commandline -f backward-kill-word'
-# Shift+Delete: delete from cursor to end of line
 bind shift-delete 'commandline -f kill-line'
-# Shift+Backspace: custom sequence from WezTerm
-bind \e\[7\;2~ 'commandline -f backward-kill-line'
+# Backward kill word/line (using quotes for safety)
+bind "\e[7;5~" 'commandline -f backward-kill-word'
+bind "\e[7;2~" 'commandline -f backward-kill-line'
 EOF
+}
 
-# 5. Bashrc Modification
-echo "Configuring .bashrc to execute fish..."
-if ! grep -q "exec fish --login" "$HOME/.bashrc"; then
-    # Ensure there is a newline before appending
-    echo "" >> "$HOME/.bashrc"
-    cat << 'EOF' >> "$HOME/.bashrc"
+setup_bash_switch() {
+    echo "Configuring .bashrc to execute fish..."
+    if ! grep -q "exec fish --login" "$HOME/.bashrc"; then
+        echo "" >> "$HOME/.bashrc"
+        cat << 'EOF' >> "$HOME/.bashrc"
 
-# If this is an interactive non-login bash, exec fish
 if [ -t 1 ] && [ -z "$FISH_VERSION" ] && [ -z "$STAY" ]; then
   exec fish --login
 fi
 EOF
-    echo "Added fish switch to .bashrc"
-else
-    echo ".bashrc already configured for fish"
-fi
-
-# 6. Swap Configuration
-echo "Checking for swap..."
-if [ -z "$(sudo swapon --show)" ]; then
-    echo "No swap detected. Creating 2G swap file..."
-    sudo fallocate -l 2G /swapfile
-    sudo chmod 600 /swapfile
-    sudo mkswap /swapfile
-    sudo swapon /swapfile
-
-    if ! grep -q "^/swapfile" /etc/fstab; then
-        echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-        echo "Added to /etc/fstab."
+        echo "Added fish switch to .bashrc"
+    else
+        echo ".bashrc already configured for fish"
     fi
-    echo "Swap created and enabled."
-else
-    echo "Swap already exists."
-fi
+}
+
+setup_swap() {
+    echo "Configuring swap..."
+    if [ -z "$(sudo swapon --show)" ]; then
+        echo "Creating 2G swap file..."
+        sudo fallocate -l 2G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        echo "Swap created and enabled."
+    else
+        echo "Swap already exists."
+    fi
+
+    if ! grep -q "/swapfile" /etc/fstab; then
+        echo '/swapfile none swap sw,pri=100 0 0' | sudo tee -a /etc/fstab
+    fi
+}
+
+apply_sysctl_tweaks() {
+    echo "Applying sysctl performance tweaks..."
+    printf "vm.swappiness=10\nvm.vfs_cache_pressure=50\n" | sudo tee /etc/sysctl.d/99-vps-performance.conf > /dev/null
+    sudo sysctl -p /etc/sysctl.d/99-vps-performance.conf
+}
+
+cleanup() {
+    echo "Cleaning up..."
+    sudo apt-get autoremove -y
+    sudo apt-get clean
+}
+
+# Main execution
+echo "Starting VPS environment setup..."
+install_dependencies
+setup_directories
+configure_starship
+configure_fish_theme
+configure_fish
+setup_bash_switch
+setup_swap
+apply_sysctl_tweaks
+cleanup
 
 echo "--------------------------------------------------------"
 echo "Setup complete!"
-echo "Make sure 'fish' and 'starship' are installed."
+echo "Start a new SSH session to enter Fish."
