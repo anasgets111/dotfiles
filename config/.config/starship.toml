@@ -1,20 +1,41 @@
 # @schema https://starship.rs/config-schema.json
 add_newline = false
+# Toggle between "dark", "light", and "dark_inverted"
+palette = "dark"
 
-format = """[╭─](#CBA6F7)$os$shell$username$hostname$directory$git_branch$git_status$cmd_duration$fill\
+format = """
+[╭─](mauve)$os$shell$username$hostname$directory$git_branch$git_status$cmd_duration$fill\
 $nodejs$python$php$rust$golang$time$line_break\
-[╰─](#CBA6F7)$character"""
+[╰─](mauve)$character"""
+
+# DARK MODE (Original Custom - Light Grey End)
+[palettes.dark]
+mauve = "#CBA6F7"
+green_success = "#a3daa8"
+red_error = "#ef5350"
+text_light = "#E0DEF4"
+surface_dark = "#444859"
+overlay_grey = "#C6C3CE"
+base_dark = "#1E1E2E"
+red_root = "#F38BA8"
+# High-Contrast Git Colors
+git_red = "#B71C1C"
+git_green = "#1B5E20"
+git_orange = "#E65100"
+git_teal = "#004D40"
+git_blue = "#0D47A1"
+git_purple = "#4A148C"
 
 [character]
-success_symbol = "[ ](#a3daa8)"
-error_symbol = "[ ](#ef5350)"
+success_symbol = "[ ](green_success)"
+error_symbol = "[ ](red_error)"
 format = "$symbol"
 
 [fill]
 symbol = " "
 
 [os]
-format = "[](#444859)[$symbol](#E0DEF4 bg:#444859)[](fg:#444859 bg:#444859)"
+format = "[](surface_dark)[$symbol ](text_light bg:surface_dark)"
 disabled = false
 [os.symbols]
 Arch = ""
@@ -26,7 +47,7 @@ Macos = ""
 Windows = ""
 
 [shell]
-format = "[$indicator](#E0DEF4 bg:#444859)[](fg:#444859 bg:#C6C3CE)"
+format = "[$indicator](text_light bg:surface_dark)[](fg:surface_dark bg:overlay_grey)"
 disabled = false
 bash_indicator = " "
 zsh_indicator = " "
@@ -36,18 +57,17 @@ unknown_indicator = " "
 
 [username]
 show_always = true
-format = "[ $user](#1E1E2E bg:#C6C3CE)"
-style_user = "#1E1E2E"
-style_root = "#F38BA8"
+format = "[ $user](base_dark bg:overlay_grey)"
+style_user = "base_dark"
+style_root = "red_root"
 
 [hostname]
 ssh_only = false
-format = "[:$hostname ](#1E1E2E bg:#C6C3CE)[](fg:#C6C3CE bg:#E0DEF4)"
+format = "[:$hostname ](base_dark bg:overlay_grey)[](fg:overlay_grey bg:text_light)"
 ssh_symbol = ""
 
-
 [directory]
-style = "#1E1E2E bg:#E0DEF4"                       # Dark text on light bg for contrast
+style = "base_dark bg:text_light"
 truncation_length = 4
 truncate_to_repo = true
 home_symbol = ""
@@ -55,54 +75,52 @@ read_only = " "
 format = "[  $path]($style)[$read_only]($style)"
 
 [git_branch]
-format = "[| $symbol$branch](#1E1E2E bg:#E0DEF4)"
+style = "base_dark bg:text_light"
 symbol = " "
-style = "#1E1E2E bg:#E0DEF4"                      # Very dark text for branch name
+format = "[| $symbol$branch]($style)"
 
 [git_status]
+style = "base_dark bg:text_light"
 format = "[$ahead_behind$all_status]($style)"
-style = "#1E1E2E bg:#E0DEF4"
 ignore_submodules = true
-
-# Darker, more saturated colors for visibility
-modified = "[ $count](#D32F2F bg:#E0DEF4)"   # Dark red
-staged = "[ $count](#388E3C bg:#E0DEF4)"     # Dark green
-untracked = "[ $count](#F57C00 bg:#E0DEF4)"  # Dark orange
-stashed = "[ $count](#00897B bg:#E0DEF4)"    # Dark teal
-behind = "[ ⇣$count](#D32F2F bg:#E0DEF4)"     # Dark red
-ahead = "[ ⇡$count](#1976D2 bg:#E0DEF4)"      # Dark blue
-conflicted = "[ $count](#6A1B9A bg:#E0DEF4)" # Dark purple
-deleted = "[ $count](#6A1B9A bg:#E0DEF4)"    # Dark purple
-renamed = "[ $count](#6A1B9A bg:#E0DEF4)"    # Dark purple
+modified = "[ $count](git_red bg:text_light)"
+staged = "[ $count](git_green bg:text_light)"
+untracked = "[ $count](git_orange bg:text_light)"
+stashed = "[ $count](git_teal bg:text_light)"
+behind = "[ ⇣$count](git_red bg:text_light)"
+ahead = "[ ⇡$count](git_blue bg:text_light)"
+conflicted = "[ $count](git_purple bg:text_light)"
+deleted = "[ $count](git_purple bg:text_light)"
+renamed = "[ $count](git_purple bg:text_light)"
 
 [cmd_duration]
 show_milliseconds = true
 min_time = 0
-format = "[](fg:#E0DEF4 bg:#CBA6F7)[  $duration ](#1E1E2E bg:#CBA6F7)[](#CBA6F7)"
+format = "[](fg:text_light bg:mauve)[  $duration ](base_dark bg:mauve)[](mauve)"
 
 [nodejs]
-format = "[](#CBA6F7)[ $version](#1E1E2E bg:#CBA6F7)[](#CBA6F7) "
+format = "[](mauve)[ $version](base_dark bg:mauve)[](mauve) "
 version_format = "${major}.${minor}"
 detect_files = ["package.json"]
 
 [python]
-format = "[](#E0DEF4)[ $virtualenv $version](#1E1E2E bg:#E0DEF4)[](#E0DEF4) "
+format = "[](text_light)[ $virtualenv $version](base_dark bg:text_light)[](text_light) "
 version_format = "${major}"
 
 [php]
-format = "[](#E0DEF4)[ $version](#1E1E2E bg:#E0DEF4)[](#E0DEF4) "
+format = "[](text_light)[ $version](base_dark bg:text_light)[](text_light) "
 version_format = "${major}.${minor}"
 
 [rust]
-format = "[](#E0DEF4)[ $version](#1E1E2E bg:#E0DEF4)[](#E0DEF4) "
+format = "[](text_light)[ $version](base_dark bg:text_light)[](text_light) "
 version_format = "${major}"
 
 [golang]
-format = "[](#E0DEF4)[ $version](#1E1E2E bg:#E0DEF4)[](#E0DEF4) "
+format = "[](text_light)[ $version](base_dark bg:text_light)[](text_light) "
 version_format = "${major}"
 
 [time]
 disabled = false
-format = "[](#C6C3CE)[  $time ](#1E1E2E bg:#C6C3CE)[](#C6C3CE)"
+format = "[](overlay_grey)[  $time ](base_dark bg:overlay_grey)[](overlay_grey)"
 use_12hr = true
 time_format = "%I:%M %p"
