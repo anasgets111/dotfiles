@@ -9,8 +9,8 @@ echo "Starting VPS environment setup..."
 
 # 0. Install Dependencies
 echo "Installing dependencies (sudo required)..."
-sudo apt update
-sudo apt install -y fish starship
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y fish starship kitty-terminfo bat curl wget git unzip
 
 
 # 1. Directory Structure
@@ -224,9 +224,18 @@ abbr gd 'git diff'
 abbr gc 'git commit'
 
 # --- Utilities ---
-abbr tb 'nc termbin.com 9999'
 abbr errors 'journalctl -p 3 -xb'
 abbr ll 'ls -lah'
+
+# 7. Keybindings
+# Ctrl+Delete: delete next word
+bind ctrl-delete 'commandline -f kill-word'
+# Ctrl+Backspace: custom sequence from WezTerm
+bind \e\[7\;5~ 'commandline -f backward-kill-word'
+# Shift+Delete: delete from cursor to end of line
+bind shift-delete 'commandline -f kill-line'
+# Shift+Backspace: custom sequence from WezTerm
+bind \e\[7\;2~ 'commandline -f backward-kill-line'
 EOF
 
 # 5. Bashrc Modification
@@ -244,6 +253,24 @@ EOF
     echo "Added fish switch to .bashrc"
 else
     echo ".bashrc already configured for fish"
+fi
+
+# 6. Swap Configuration
+echo "Checking for swap..."
+if [ -z "$(sudo swapon --show)" ]; then
+    echo "No swap detected. Creating 2G swap file..."
+    sudo fallocate -l 2G /swapfile
+    sudo chmod 600 /swapfile
+    sudo mkswap /swapfile
+    sudo swapon /swapfile
+
+    if ! grep -q "^/swapfile" /etc/fstab; then
+        echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+        echo "Added to /etc/fstab."
+    fi
+    echo "Swap created and enabled."
+else
+    echo "Swap already exists."
 fi
 
 echo "--------------------------------------------------------"
