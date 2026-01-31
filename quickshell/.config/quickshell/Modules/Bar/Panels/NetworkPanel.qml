@@ -215,6 +215,14 @@ OPanel {
     resetHiddenNetworkState();
   }
 
+  Timer {
+    interval: 10000
+    repeat: true
+    running: root.isOpen
+
+    onTriggered: NetworkService.refreshAll()
+  }
+
   Connections {
     function onConnectionError(ssid, errorMessage) {
       if (ssid === root.passwordSsid)
