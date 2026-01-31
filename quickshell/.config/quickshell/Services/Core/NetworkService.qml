@@ -258,6 +258,7 @@ Singleton {
   }
 
   function refreshAll() {
+    backgroundRefreshTimer.restart();
     root.refreshDeviceList(false);
     if (root._wifiRadioEnabled && root._wifiInterface)
       root.scanWifi(root._wifiInterface, false);
@@ -268,6 +269,7 @@ Singleton {
   }
 
   function refreshDeviceList(force: bool) {
+    backgroundRefreshTimer.restart();
     if (!force && (Date.now() - root._lastDeviceRefreshMs < root.defaultDeviceRefreshCooldownMs))
       return;
     root._lastDeviceRefreshMs = Date.now();
@@ -276,6 +278,7 @@ Singleton {
   }
 
   function scanWifi(iface: string, force: bool) {
+    backgroundRefreshTimer.restart();
     const i = iface || root._wifiInterface;
     if (!i || root._scanning)
       return;
@@ -345,6 +348,16 @@ Singleton {
     interval: 3000
 
     onTriggered: procMonitor.running = true
+  }
+
+  Timer {
+    id: backgroundRefreshTimer
+
+    interval: 30000
+    repeat: false
+    running: true
+
+    onTriggered: root.refreshAll()
   }
 
   // 2. Status
