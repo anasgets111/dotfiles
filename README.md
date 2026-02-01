@@ -16,8 +16,8 @@ https://github.com/user-attachments/assets/56cffffa-cbbf-4fe1-ad97-7aef8fed57e4
 ## Quick start
 
 - Symlink into $HOME with Stow:
-  - Core: `stow -t ~ home config quickshell hypr niri fish nvim kitty mpv swayidle ghostty alacritty nushell`
-  - Optional: `stow -t ~ swaylock swaync swayosd waybar`
+  - Core: `stow -t ~ home config quickshell hypr niri fish nvim kitty mpv`
+  - Optional: `stow -t ~ swaylock swaync swayosd waybar swayidle ghostty alacritty nushell`
 - Remove: `stow -D -t ~ <package>`
 - Test Quickshell: `quickshell` (check logs for `=== MainService System Info ===`).
 - Sessions: Hyprland and Niri autostart Quickshell.
