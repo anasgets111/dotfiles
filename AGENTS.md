@@ -9,13 +9,14 @@ Wayland desktop dotfiles centered on **Quickshell** (QML-based shell), supportin
 ## Build / Test / Lint Commands
 
 ### Quickshell (QML)
+
 - **Run**: `quickshell` (interprets QML, no compilation)
 - **No formatter needed**
 - **Check**: Run `quickshell log`, check output for errors
 - **No unit tests** - Quickshell is interpreted
 
-
 ### Deployment (Stow)
+
 ```bash
 # Deploy core packages
 stow -t ~ quickshell hypr niri fish kitty nvim home config
@@ -32,30 +33,36 @@ stow -D -t ~ <package>
 ### QML (Quickshell)
 
 **Pragmas:**
+
 - Services: `pragma Singleton`
 - Components: `pragma ComponentBehavior: Bound`
 
 **Naming:**
+
 - Services: PascalCase (`AudioService.qml`)
 - Components: PascalCase (`IconButton.qml`)
 - Properties: camelCase
 - Private/internal: `_prefix`
 
 **Imports:**
+
 - Never `import "."` - use namespace: `import qs.Services.Core`
 - Standard order: Qt → Quickshell → qs namespaces
 
 **Patterns:**
+
 - Prefer arrow functions/ternary over imperative
 - Use `readonly property` for computed values
 - Use optional chaining (`?.`) and nullish coalescing (`??`)
 - Property bindings over assignments
 
 **Error Handling:**
+
 - Don't validate internal code
 - Only validate at boundaries (user input, external APIs)
 
 **Example:**
+
 ```qml
 pragma Singleton
 import QtQuick
@@ -72,10 +79,10 @@ Singleton {
 }
 ```
 
-
 ## Architecture
 
 ### Quickshell Structure
+
 ```
 quickshell/.config/quickshell/
   shell.qml          # Entry point
@@ -91,12 +98,15 @@ quickshell/.config/quickshell/
 ```
 
 ### Service Pattern
+
 - All services are QML singletons
 - Use `Logger.log("ServiceName", "message")` for debugging
 - Access via singleton pattern
 
 ### Compositor Detection
+
 Check before WM-specific features:
+
 ```qml
 if (MainService.currentWM === "hyprland") {
   // Hyprland IPC
@@ -105,9 +115,10 @@ if (MainService.currentWM === "hyprland") {
 }
 ```
 
-
 ## Key Principles
 
+- **Check context7 or online** documentation about relevant topics for example quickshell-git
+- **Always check existing code** before adding new functionality
 - **Prefer concise code** - Use least amount of code possible
 - **Avoid over-engineering** - Only make directly requested changes
 - **DRY principle** - Reuse existing abstractions
