@@ -143,7 +143,7 @@ Singleton {
       if (!group) {
         group = {
           key: key,
-          appName: wrapper.appName,
+          displayName: wrapper.displayName,
           notifications: [],
           latestNotification: wrapper,
           count: 0,
@@ -161,7 +161,7 @@ Singleton {
       group.notifications.sort(root._compareWrappers);
       group.count = group.notifications.length;
       group.latestNotification = group.notifications[0] || group.latestNotification;
-      group.appName = group.latestNotification?.appName || group.appName;
+      group.displayName = group.latestNotification?.displayName || group.displayName;
       group.urgency = group.latestNotification?.urgency ?? NotificationUrgency.Normal;
       group._latestTime = group.latestNotification?.createdAt?.getTime() ?? 0;
       group._latestSeq = group.latestNotification?.sequence ?? 0;
@@ -688,6 +688,11 @@ Singleton {
     }
     readonly property date createdAt: new Date()
     readonly property string desktopEntry: notification?.desktopEntry || ""
+    readonly property string displayName: {
+      const entryId = (wrapper.desktopEntry || wrapper.appName || "").trim();
+      const entry = DesktopEntries.heuristicLookup(entryId);
+      return entry?.name || wrapper.appName || "app";
+    }
     readonly property string groupKey: {
       const de = (wrapper.desktopEntry || "").trim().toLowerCase();
       return de ? de : (wrapper.appName || "app").toLowerCase();
