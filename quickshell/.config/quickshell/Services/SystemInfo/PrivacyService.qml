@@ -13,18 +13,18 @@ Singleton {
       mic: false,
       screenshare: false
     };
-    const links = Pipewire.linkGroups?.values;
+    const nodes = Pipewire.nodes?.values;
 
-    if (!links)
+    if (!nodes)
       return result;
 
-    for (const link of links) {
-      if (link.source?.type === PwNodeType.VideoSource) {
-        if (/xdg-desktop-portal|obs|wf-recorder|grim|slurp|screen.?share|display.?capture/.test(_describe(link.source))) {
+    for (const node of nodes) {
+      if ((node.type & PwNodeType.VideoSource) === PwNodeType.VideoSource) {
+        if (/xdg-desktop-portal|xdpw|screencast|screen|gnome shell|kwin|obs|wf-recorder|grim|slurp|screen.?share|display.?capture/.test(_describe(node))) {
           result.screenshare = true;
         }
-      } else if (link.source?.type === PwNodeType.AudioSource && link.target?.type === PwNodeType.AudioInStream) {
-        if (!/cava|monitor|system/.test(_describe(link.target)) && !link.target.audio?.muted) {
+      } else if ((node.type & PwNodeType.AudioSource) === PwNodeType.AudioSource) {
+        if (!/cava|monitor|system/.test(_describe(node)) && !node.audio?.muted) {
           result.mic = true;
         }
       }
