@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # vps_setup.sh - Simplified VPS setup: Starship, Fish (Dark Theme), Bash->Fish switch
 
-set -e
+set -eu
+
+# OS Detection
+if ! command -v apt-get &>/dev/null; then
+    echo "Error: This script requires apt-get (Debian/Ubuntu based system)"
+    exit 1
+fi
 
 # Configuration variables
 CONFIG_DIR="$HOME/.config"
@@ -15,8 +21,7 @@ install_dependencies() {
 }
 
 setup_directories() {
-    echo "Creating directory structure..."
-    mkdir -p "$FISH_DIR/conf.d" "$THEME_DIR"
+    mkdir -p "$THEME_DIR"
 }
 
 configure_starship() {
@@ -180,7 +185,6 @@ configure_fish() {
     cat << 'EOF' > "$FISH_DIR/config.fish"
 set -gx fish_history fish
 type -q starship; and starship init fish | source
-fish_config theme choose "Catppuccin Mocha"
 set -U fish_greeting ""
 
 # Abbreviations
@@ -206,16 +210,15 @@ end
 # Keybindings
 bind ctrl-delete 'commandline -f kill-word'
 bind shift-delete 'commandline -f kill-line'
-# Backward kill word/line (using quotes for safety)
 bind "\e[7;5~" 'commandline -f backward-kill-word'
 bind "\e[7;2~" 'commandline -f backward-kill-line'
 EOF
+fish -c 'fish_config theme save "Catppuccin Mocha"' 2>/dev/null || true
 }
 
 setup_bash_switch() {
     echo "Configuring .bashrc to execute fish..."
     if ! grep -q "exec fish --login" "$HOME/.bashrc"; then
-        echo "" >> "$HOME/.bashrc"
         cat << 'EOF' >> "$HOME/.bashrc"
 
 if [ -t 1 ] && [ -z "$FISH_VERSION" ] && [ -z "$STAY" ]; then
@@ -230,35 +233,28 @@ EOF
 
 setup_swap() {
     echo "Configuring swap..."
-    if [ -z "$(sudo swapon --show)" ]; then
-        echo "Creating 2G swap file..."
-        sudo fallocate -l 2G /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
-        echo "Swap created and enabled."
-    else
+    if sudo swapon --show | grep -q .; then
         echo "Swap already exists."
+        return
     fi
-
-    if ! grep -q "/swapfile" /etc/fstab; then
-        echo '/swapfile none swap sw,pri=100 0 0' | sudo tee -a /etc/fstab
-    fi
+    echo "Creating 2G swap file..."
+    sudo fallocate -l 2G /swapfile
+    sudo chmod 600 /swapfile
+    sudo mkswap /swapfile
+    sudo swapon /swapfile
+    grep -q "^/swapfile" /etc/fstab || echo '/swapfile none swap sw,pri=100 0 0' | sudo tee -a /etc/fstab
 }
 
 apply_sysctl_tweaks() {
     echo "Applying sysctl performance tweaks..."
     printf "vm.swappiness=10\nvm.vfs_cache_pressure=50\n" | sudo tee /etc/sysctl.d/99-vps-performance.conf > /dev/null
-    sudo sysctl -p /etc/sysctl.d/99-vps-performance.conf
+    sudo sysctl -qp /etc/sysctl.d/99-vps-performance.conf
 }
 
 cleanup() {
-    echo "Cleaning up..."
-    sudo apt-get autoremove -y
-    sudo apt-get clean
+    sudo apt-get autoremove -y && sudo apt-get clean
 }
 
-# Main execution
 echo "Starting VPS environment setup..."
 install_dependencies
 setup_directories
@@ -269,7 +265,4 @@ setup_bash_switch
 setup_swap
 apply_sysctl_tweaks
 cleanup
-
-echo "--------------------------------------------------------"
-echo "Setup complete!"
-echo "Start a new SSH session to enter Fish."
+echo "Setup complete! Start a new SSH session to enter Fish."
