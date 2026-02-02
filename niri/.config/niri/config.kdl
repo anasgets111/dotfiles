@@ -359,3 +359,9 @@ binds {
     Mod+Shift+Minus { set-window-height "-5%"; }
     Mod+Shift+Equal { set-window-height "+5%"; }
 }
+
+// Overview wallpaper support - places quickshell layer in backdrop
+layer-rule {
+    match namespace="^quickshell-overview-wallpaper$"
+    place-within-backdrop true
+}

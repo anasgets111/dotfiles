@@ -7,7 +7,10 @@ import qs.Services.Core
 WlrLayershell {
   id: root
 
-  property string displayMode: "fill"
+  readonly property string currentMode: screenName ? WallpaperService.wallpaperMode(screenName) : "fill"
+  readonly property string currentPath: screenName ? WallpaperService.wallpaperPath(screenName) : ""
+  readonly property string currentTransition: WallpaperService.wallpaperTransitionType()
+  property string displayMode: currentMode
   readonly property int imageFillMode: WallpaperService.modeToFillMode(displayMode)
   readonly property size maxSourceSize: Qt.size(Math.min(width * (monitor?.scale ?? 1), 3840), Math.min(height * (monitor?.scale ?? 1), 2160))
   required property var monitor
@@ -15,12 +18,11 @@ WlrLayershell {
   readonly property string screenName: monitor?.name ?? ""
   readonly property var screenObject: screenName ? Quickshell.screens.find(s => s?.name === screenName) : null
   property var tp: ({})  // transition params: { dir, cx, cy, count, angle }
-
   property real transitionProgress: 0.0
-  property string transitionType: WallpaperService.wallpaperTransition
+  property string transitionType: currentTransition
 
   function changeWallpaper(newPath: string): void {
-    if (!wallpaperConn.enabled)
+    if (!screenObject)
       return;
     const url = normalizeUrl(newPath);
     if (!url || url === currentImg.source.toString() || url === nextImg.source.toString())
@@ -54,25 +56,16 @@ WlrLayershell {
   layer: WlrLayer.Background
   screen: screenObject
 
-  Component.onCompleted: {
-    if (!screenName)
-      return;
-    const prefs = WallpaperService.wallpaperFor(screenName);
-    if (prefs) {
-      displayMode = prefs.mode || "fill";
-      transitionType = prefs.transition || WallpaperService.wallpaperTransition;
-      if (prefs.wallpaper)
-        currentImg.source = normalizeUrl(prefs.wallpaper);
-    }
-  }
   Component.onDestruction: {
     transitionAnim.stop();
-    wallpaperConn.enabled = false;
     shaderLoader.active = false;
   }
-  onScreenObjectChanged: if (!screenObject && wallpaperConn.enabled) {
+  onCurrentModeChanged: displayMode = currentMode
+  onCurrentPathChanged: if (currentPath)
+    changeWallpaper(normalizeUrl(currentPath))
+  onCurrentTransitionChanged: transitionType = currentTransition
+  onScreenObjectChanged: if (!screenObject) {
     transitionAnim.stop();
-    wallpaperConn.enabled = false;
     shaderLoader.active = false;
   }
 
@@ -95,7 +88,7 @@ WlrLayershell {
     visible: !transitionAnim.running && root.transitionProgress === 0
 
     onStatusChanged: {
-      if (!wallpaperConn.enabled || status === Image.Loading)
+      if (!root.screenObject || status === Image.Loading)
         return;
       if (status === Image.Ready) {
         if (nextImg.source !== "" && source.toString() === nextImg.source.toString()) {
@@ -122,7 +115,7 @@ WlrLayershell {
     visible: false
 
     onStatusChanged: {
-      if (!wallpaperConn.enabled || status === Image.Loading)
+      if (!root.screenObject || status === Image.Loading)
         return;
       if (status === Image.Error) {
         source = "";
@@ -138,7 +131,7 @@ WlrLayershell {
   Loader {
     id: shaderLoader
 
-    active: root.visible && wallpaperConn.enabled && (transitionAnim.running || root.transitionProgress > 0) && ((currentImg.status === Image.Ready && currentImg.source !== "") || nextImg.status === Image.Ready)
+    active: root.visible && root.screenObject && (transitionAnim.running || root.transitionProgress > 0) && ((currentImg.status === Image.Ready && currentImg.source !== "") || nextImg.status === Image.Ready)
     anchors.fill: parent
 
     sourceComponent: ShaderEffect {
@@ -182,27 +175,7 @@ WlrLayershell {
     target: root
     to: 1.0
 
-    onFinished: if (wallpaperConn.enabled && nextImg.source !== "")
+    onFinished: if (nextImg.source !== "")
       currentImg.source = nextImg.source
-  }
-
-  Connections {
-    id: wallpaperConn
-
-    function onModeChanged(name: string, mode: string): void {
-      if (name === root.screenName)
-        root.displayMode = mode;
-    }
-
-    function onTransitionChanged(transition: string): void {
-      root.transitionType = transition;
-    }
-
-    function onWallpaperChanged(name: string, path: string): void {
-      if (name === root.screenName)
-        root.changeWallpaper(path);
-    }
-
-    target: WallpaperService
   }
 }
