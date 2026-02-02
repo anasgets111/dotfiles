@@ -156,6 +156,9 @@ Singleton {
         property int suspendTimeoutSec: 120
         property bool videoAutoInhibit: true
       }
+      property int overviewBlurMax: 64
+      property real overviewBlurMultiplier: 2.0
+      property real overviewBlurStrength: 0.6
       property string themeMode: "dark"
       property string themeName: "Catppuccin"
       property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"
