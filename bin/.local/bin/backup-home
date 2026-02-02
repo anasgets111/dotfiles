@@ -1,47 +1,74 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-BACKUP_DIR="/mnt/Work/Home_backup/"
+BACKUP_DIR="/mnt/Work/Home_backup"
+MOUNT_POINT="$(dirname "$BACKUP_DIR")"
 
-if [[ "$1" == "--restore" || "$1" == "-r" ]]; then
-  echo "Restoring from $BACKUP_DIR to ~..."
-  cd "$BACKUP_DIR" && rsync -avR --stats . ~
+# Check if mount exists to prevent filling root partition
+if ! mountpoint -q "$MOUNT_POINT"; then
+    echo "Error: Backup drive not mounted at $MOUNT_POINT"
+    exit 1
+fi
+
+EXCLUDES=(
+    '*.tmp' '*.log' '*.cache' '*.bak'
+    '*.swp' '*.swo' '*~' '.DS_Store'
+    # Dependencies
+    'vendor' 'node_modules'
+    # Build artifacts
+    'target' 'build' 'dist' 'out'
+    # Version control
+    '.git' '.svn' '.hg'
+    # Python
+    '__pycache__' '*.pyc' '*.pyo' '.venv' '.tox'
+    # IDE/Editor
+    '.idea' '.gradle'
+    # Misc
+    '.next' '.nuxt' 'coverage' '.parcel-cache'
+)
+
+INCLUDES=(
+    .ssh
+    .local/share/gnupg
+    .gemini
+    .config/Code
+    .vscode
+    .local/share/cargo
+    .rustup
+    .local/share/fnm
+    .config/composer
+    .config/github-copilot
+    .zen
+    .thunderbird
+    .config/Slack
+    .config/vesktop
+    .local/share/TelegramDesktop
+    .config/zed
+    .local/share/zed
+    .themes
+    .config/gtk-2.0
+    .config/gtk-3.0
+    .config/gtk-4.0
+    .config/Kvantum
+    .config/qt5ct
+    .config/qt6ct
+    .config/qBittorrent
+    .local/share/opencode
+    .config/user-dirs.dirs
+)
+
+RSYNC_ARGS=(
+    -avh
+    --relative
+)
+
+for exc in "${EXCLUDES[@]}"; do RSYNC_ARGS+=("--exclude=$exc"); done
+
+if [[ "${1:-}" == "--restore" || "${1:-}" == "-r" ]]; then
+    echo "Restoring from $BACKUP_DIR to ~..."
+    cd "$BACKUP_DIR" && rsync "${RSYNC_ARGS[@]}" . ~
 else
-  echo "Backing up ~ to $BACKUP_DIR..."
-  cd ~ && rsync -avR --stats --delete \
-    --exclude='*.tmp' \
-    --exclude='*.log' \
-    --exclude='*.cache' \
-    --exclude='*.bak' \
-    --exclude='*.swp' \
-    --exclude='*.swo' \
-    --exclude='*~' \
-    --exclude='.DS_Store' \
-    .ssh \
-    .local/share/gnupg \
-    .gemini \
-    .config/Code \
-    .vscode \
-    .local/share/cargo \
-    .rustup \
-    .local/share/fnm \
-    .config/composer \
-    .config/github-copilot \
-    .zen \
-    .thunderbird \
-    .config/Slack \
-    .config/vesktop \
-    .local/share/TelegramDesktop \
-    .config/zed \
-    .local/share/zed \
-    .themes \
-    .config/gtk-2.0 \
-    .config/gtk-3.0 \
-    .config/gtk-4.0 \
-    .config/Kvantum \
-    .config/qt5ct \
-    .config/qt6ct \
-    .config/qBittorrent \
-    .local/share/opencode \
-    .config/user-dirs.dirs \
-    "$BACKUP_DIR"
+    echo "Backing up ~ to $BACKUP_DIR..."
+    mkdir -p "$BACKUP_DIR"
+    cd ~ && rsync "${RSYNC_ARGS[@]}" --delete --delete-excluded "${INCLUDES[@]}" "$BACKUP_DIR/"
 fi
