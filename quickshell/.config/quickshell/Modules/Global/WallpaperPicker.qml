@@ -103,9 +103,8 @@ SearchGridPanel {
     } of monitors) {
       if (!name)
         continue;
-      const state = WallpaperService?.ready ? WallpaperService.wallpaperFor(name) : null;
-      modes[name] = state?.mode ?? defaultMode;
-      wallpapers[name] = state?.wallpaper ?? "";
+      modes[name] = WallpaperService?.ready ? WallpaperService.wallpaperMode(name) : defaultMode;
+      wallpapers[name] = WallpaperService?.ready ? WallpaperService.wallpaperPath(name) : "";
     }
 
     stagedModes = modes;

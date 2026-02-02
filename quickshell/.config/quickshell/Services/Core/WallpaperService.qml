@@ -8,6 +8,9 @@ import qs.Services.WM
 Singleton {
   id: root
 
+  property int _modeVersion: 0
+  property int _pathVersion: 0
+  property int _transitionVersion: 0
   readonly property list<string> availableModes: ["fill", "fit", "center", "stretch", "tile"]
   readonly property list<string> availableTransitions: ["fade", "wipe", "disc", "stripes", "portal"]
   readonly property string defaultMode: "fill"
@@ -31,27 +34,15 @@ Singleton {
       scale: m.scale
     };
   }) : []
+  readonly property string overviewNamespace: "quickshell-overview-wallpaper"
   readonly property bool ready: hydrated && MonitorService?.ready && (MonitorService.monitors?.count ?? 0) > 0
   property var wallpaperFiles: []
   readonly property bool wallpaperFilesReady: folderModel.status === FolderListModel.Ready
   property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"
   property string wallpaperTransition: defaultTransition
 
-  signal modeChanged(string monitorName, string mode)
-  signal transitionChanged(string transition)
-  signal wallpaperChanged(string monitorName, string wallpaperPath)
-
-  function announceAll(): void {
-    if (!ready)
-      return;
-    for (let i = 0; i < MonitorService.monitors.count; i++) {
-      const name = MonitorService.monitors.get(i).name;
-      wallpaperChanged(name, getPrefs(name).wallpaper);
-    }
-  }
-
-  function getPrefs(name: string): var {
-    return monitorPrefs[name] ?? (monitorPrefs[name] = {
+  function getPrefs(monitorName: string): var {
+    return monitorPrefs[monitorName] ?? (monitorPrefs[monitorName] = {
         wallpaper: defaultWallpaper,
         mode: defaultMode
       });
@@ -73,12 +64,10 @@ Singleton {
     if (Settings.data.wallpaperFolder)
       wallpaperFolder = String(Settings.data.wallpaperFolder);
     hydrated = true;
-    if (MonitorService.ready)
-      announceAll();
     persistMonitors();
   }
 
-  function modeToFillMode(mode): int {
+  function modeToFillMode(mode: string): int {
     return fillModeMap[validate(mode, availableModes, defaultMode)] ?? 2;
   }
 
@@ -107,27 +96,27 @@ Singleton {
     }
   }
 
-  function setModePref(name: string, mode: string): void {
-    if (!name)
+  function setModePref(monitorName: string, mode: string): void {
+    if (!monitorName)
       return;
-    const p = getPrefs(name);
+    const p = getPrefs(monitorName);
     const v = validate(mode, availableModes, defaultMode);
     if (p.mode === v)
       return;
     p.mode = v;
-    modeChanged(name, v);
+    _modeVersion++;
     persistDebounce.restart();
   }
 
-  function setWallpaper(name: string, path: string): void {
-    if (!name)
+  function setWallpaper(monitorName: string, path: string): void {
+    if (!monitorName)
       return;
-    const p = getPrefs(name);
+    const p = getPrefs(monitorName);
     const v = path || defaultWallpaper;
     if (p.wallpaper === v)
       return;
     p.wallpaper = v;
-    wallpaperChanged(name, v);
+    _pathVersion++;
     persistDebounce.restart();
   }
 
@@ -145,7 +134,7 @@ Singleton {
     if (wallpaperTransition === v)
       return;
     wallpaperTransition = v;
-    transitionChanged(v);
+    _transitionVersion++;
     if (Settings?.data)
       Settings.data.wallpaperTransition = v;
   }
@@ -155,15 +144,19 @@ Singleton {
     return allowed.includes(v) ? v : fallback;
   }
 
-  function wallpaperFor(name: string): var {
-    if (!name || !ready)
-      return null;
-    const p = getPrefs(name);
-    return {
-      wallpaper: p.wallpaper,
-      mode: p.mode,
-      transition: wallpaperTransition
-    };
+  function wallpaperMode(monitorName: string): string {
+    void _modeVersion;
+    return getPrefs(monitorName).mode ?? defaultMode;
+  }
+
+  function wallpaperPath(monitorName: string): string {
+    void _pathVersion;
+    return getPrefs(monitorName).wallpaper ?? defaultWallpaper;
+  }
+
+  function wallpaperTransitionType(): string {
+    void _transitionVersion;
+    return wallpaperTransition;
   }
 
   Component.onCompleted: if (Settings?.isLoaded)
@@ -215,11 +208,6 @@ Singleton {
     function onMonitorsUpdated(): void {
       if (MonitorService.ready && root.hydrated)
         root.persistMonitors();
-    }
-
-    function onReadyChanged(): void {
-      if (MonitorService.ready && root.hydrated)
-        root.announceAll();
     }
 
     target: MonitorService

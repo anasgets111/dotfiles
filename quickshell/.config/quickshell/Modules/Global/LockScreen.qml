@@ -15,9 +15,10 @@ Scope {
       id: lockSurface
 
       readonly property bool isMainMonitor: MonitorService.activeMain === screen?.name
-      readonly property var wallpaperData: screen && WallpaperService.wallpaperFor(screen.name)
-      readonly property int wallpaperFillMode: WallpaperService.modeToFillMode(wallpaperData?.mode)
-      readonly property url wallpaperSource: wallpaperData?.wallpaper ?? ""
+      readonly property string currentPath: screen?.name ? WallpaperService.wallpaperPath(screen.name) : ""
+      readonly property string currentMode: screen?.name ? WallpaperService.wallpaperMode(screen.name) : "fill"
+      readonly property int wallpaperFillMode: WallpaperService.modeToFillMode(currentMode)
+      readonly property url wallpaperSource: currentPath ? `file://${currentPath}` : ""
 
       color: "transparent"
 

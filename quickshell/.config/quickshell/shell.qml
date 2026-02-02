@@ -12,6 +12,7 @@ import qs.Modules.Bar
 import qs.Modules.Global
 import qs.Modules.Notification
 import qs.Modules.OSD
+import qs.Services
 import qs.Services.Core
 import qs.Services.SystemInfo
 import qs.Services.Utils
@@ -91,6 +92,21 @@ ShellRoot {
       required property var modelData
 
       monitor: modelData
+    }
+  }
+
+  // Niri overview wallpaper - static, shown only in overview via layer-rule
+  LazyLoader {
+    activeAsync: MainService.ready && MainService.currentWM === "niri"
+
+    component: Variants {
+      model: WallpaperService.monitors
+
+      OverviewWallpaper {
+        required property var modelData
+
+        monitor: modelData
+      }
     }
   }
 }
