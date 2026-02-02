@@ -308,7 +308,12 @@ OPanel {
         color: Theme.textActiveColor
         elide: Text.ElideRight
         size: "sm"
-        text: streamItem.modelData.name || "Unknown"
+        readonly property string _rawName: streamItem.modelData.name || ""
+        readonly property string _displayName: {
+          const entry = DesktopEntries.heuristicLookup(_rawName);
+          return entry?.name || _rawName || "Unknown";
+        }
+        text: _displayName
       }
 
       OText {
