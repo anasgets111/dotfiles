@@ -8,6 +8,15 @@ set -q VSCODE_INJECTION; and set -gx fish_history vscode
 set -q CURSOR_TRACE_ID; and set -gx fish_history cursor
 string match -q Zed "$TERM_PROGRAM"; and set -gx fish_history zed
 
+function fish_should_add_to_history
+    # 1. Ignore commands executed while in specific directories
+    string match -qr '^/mnt/Work/Downloads' -- $PWD; and return 1
+    # 2. Ignore specific patterns in the command itself
+    string match -qr '^\s|mnt/Work/Downloads|SDL_VIDEODRIVER=wayland' -- $argv; and return 1
+    # 3. Allow everything else
+    return 0
+end
+
 # 3. Tool Initialization
 type -q zoxide; and zoxide init fish --cmd cd | source
 type -q starship; and starship init fish | source
