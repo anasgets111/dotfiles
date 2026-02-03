@@ -157,15 +157,15 @@ Singleton {
 
   function getWifiIcon(band: string, signal: int): string {
     const s = Math.max(0, Math.min(100, signal | 0));
-    const icons = band === "6" ? ["", "", "", ""] : ["󰤟", "󰤢", "󰤥", "󰤨"];
+    const icons = ["󰤟", "󰤢", "󰤥", "󰤨"];
     return s >= 95 ? icons[3] : s >= 80 ? icons[2] : s >= 50 ? icons[1] : icons[0];
   }
 
   function inferBandLabel(freqStr: var): string {
-    const f = parseInt(String(freqStr || ""), 10);
-    if (f >= 5925 && f <= 7125)
+    const f = parseInt(String(freqStr || "").split(" ")[0], 10);
+    if (f >= 5925 && f <= 7200)
       return "6";
-    if (f >= 4900 && f <= 5900)
+    if (f >= 4900 && f < 5925)
       return "5";
     if (f >= 2400 && f <= 2500)
       return "2.4";
