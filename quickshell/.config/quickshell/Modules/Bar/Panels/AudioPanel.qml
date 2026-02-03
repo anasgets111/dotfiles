@@ -309,11 +309,7 @@ OPanel {
         elide: Text.ElideRight
         size: "sm"
         readonly property string _rawName: streamItem.modelData.name || ""
-        readonly property string _displayName: {
-          const entry = DesktopEntries.heuristicLookup(_rawName);
-          return entry?.name || _rawName || "Unknown";
-        }
-        text: _displayName
+        text: Utils.lookupDesktopEntryName(_rawName) || _rawName || "Unknown"
       }
 
       OText {

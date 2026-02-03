@@ -690,8 +690,7 @@ Singleton {
     readonly property string desktopEntry: notification?.desktopEntry || ""
     readonly property string displayName: {
       const entryId = (wrapper.desktopEntry || wrapper.appName || "").trim();
-      const entry = DesktopEntries.heuristicLookup(entryId);
-      return entry?.name || wrapper.appName || "app";
+      return Utils.lookupDesktopEntryName(entryId) || wrapper.appName || "app";
     }
     readonly property string groupKey: {
       const de = (wrapper.desktopEntry || "").trim().toLowerCase();

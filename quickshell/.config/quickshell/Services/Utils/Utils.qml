@@ -60,6 +60,14 @@ Singleton {
     return Quickshell.iconPath(fallback);
   }
 
+  // Safely looks up a desktop entry name with guard for undefined DesktopEntries
+  function lookupDesktopEntryName(id: string): string {
+    if (typeof DesktopEntries === "undefined" || !id)
+      return "";
+    const entry = DesktopEntries.heuristicLookup?.(id) || DesktopEntries.byId?.(id);
+    return entry?.name || "";
+  }
+
   // Scans the Linux sysfs LED directory.
   // We need this because input device names change across reboots (e.g., input3::capslock).
   FolderListModel {
