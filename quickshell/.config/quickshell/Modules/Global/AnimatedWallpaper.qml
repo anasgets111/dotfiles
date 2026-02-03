@@ -25,6 +25,10 @@ WlrLayershell {
     if (!screenObject)
       return;
     const url = normalizeUrl(newPath);
+    if (!currentImg.source || currentImg.source === "") {
+      currentImg.source = url;
+      return;
+    }
     if (!url || url === currentImg.source.toString() || url === nextImg.source.toString())
       return;
     if (transitionAnim.running) {
@@ -56,6 +60,8 @@ WlrLayershell {
   layer: WlrLayer.Background
   screen: screenObject
 
+  Component.onCompleted: if (currentPath)
+    currentImg.source = normalizeUrl(currentPath)
   Component.onDestruction: {
     transitionAnim.stop();
     shaderLoader.active = false;
