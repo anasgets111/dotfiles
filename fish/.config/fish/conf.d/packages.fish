@@ -1,168 +1,186 @@
-# packages.fish - Fish Shell Package Utilities
-# Version: 2.4.0
-# Author: Anas
-#
-# Usage:
-#   native   [-c N] [-v]    # List native packages
-#   aur      [-c N] [-v]    # List AUR packages
-#   chaotic  [-c N] [-v]    # List Chaotic-AUR packages
-#   version  <pkg> ...      # Compare versions
-
-# -- Configuration --
-set -g _pkg_c_name (set_color green)
-set -g _pkg_c_ver (set_color blue)
-set -g _pkg_c_warn (set_color yellow)
-set -g _pkg_c_err (set_color red)
-set -g _pkg_c_rst (set_color normal)
-
-# -- Helper Functions --
-
-function __pkg_require_cmd
-    for cmd in $argv
-        if not type -q $cmd
-            echo "$_pkg_c_err""Error: '$cmd' is required.$_pkg_c_rst" >&2
-            return 1
-        end
+# packages: list explicitly installed packages (by repo)
+# Usage: packages [-r|--repo <repo[,repo...]>] [-v|--version]
+function packages
+    set -l c_name (set_color green)
+    set -l c_ver (set_color blue)
+    set -l c_warn (set_color yellow)
+    set -l c_rst (set_color normal)
+    set -l missing
+    for cmd in expac vercmp
+        command -q $cmd; or set -a missing $cmd
     end
-end
-
-function __pkg_format_output
-    # Use 'or return' to handle invalid flags gracefully
-    argparse 'c/columns=' v/verbose -- $argv; or return 1
-    set -l pkgs $argv
-
-    if test (count $pkgs) -eq 0
-        echo "$_pkg_c_warn""No packages found.$_pkg_c_rst"
-        return
-    end
-
-    # 1. Data Preparation
-    set -l display_list
-    if set -q _flag_verbose
-        # Bulk fetch versions: Input names -> Output "name version"
-        set display_list (printf "%s\n" $pkgs | expac -Q "$_pkg_c_name%n$_pkg_c_rst $_pkg_c_ver%v$_pkg_c_rst" -)
-    else
-        set display_list (printf "$_pkg_c_name%s$_pkg_c_rst\n" $pkgs)
-    end
-
-    # 2. Grid Printing
-    set -l cols 0
-    if set -q _flag_columns
-        set cols $_flag_columns
-    end
-
-    if test $cols -lt 2
-        test $cols -eq 0; and echo (string join " " $display_list)
-        test $cols -eq 1; and printf "%s\n" $display_list
-    else
-        set -l max_len 0
-        for p in $display_list
-            set -l len (string length --visible -- $p)
-            test $len -gt $max_len; and set max_len $len
-        end
-        set -l width (math $max_len + 2)
-
-        set -l i 0
-        for p in $display_list
-            set -l padding (math "$width - "(string length --visible -- $p))
-            printf "%s%s" $p (string repeat -n $padding " ")
-            set i (math $i + 1)
-            if test $i -ge $cols
-                echo
-                set i 0
-            end
-        end
-        test $i -ne 0; and echo
-    end
-
-    echo "$_pkg_c_warn""Total explicitly installed packages: $_pkg_c_ver"(count $pkgs)"$_pkg_c_rst"
-end
-
-function __run_list_cmd
-    argparse 'c/columns=' v/verbose -- $argv; or return 1
-    set -l mode $argv[1]
-
-    # Force C locale for consistent sorting in set operations
-    set -lx LC_ALL C
-
-    set -l pkg_list
-    switch $mode
-        case native
-            # Native = Explicit Native (-Qneq) MINUS Chaotic
-            if type -q paclist
-                set pkg_list (comm -23 (pacman -Qneq | sort | psub) (paclist chaotic-aur 2>/dev/null | awk '{print $1}' | sort | psub))
-            else
-                set pkg_list (pacman -Qneq | sort)
-            end
-        case aur
-            # AUR = Foreign (-Qmq)
-            set pkg_list (pacman -Qmq | sort)
-        case chaotic
-            __pkg_require_cmd paclist; or return 1
-            # Chaotic = Explicit (-Qeq) INTERSECT Chaotic
-            set pkg_list (comm -12 (pacman -Qeq | sort | psub) (paclist chaotic-aur 2>/dev/null | awk '{print $1}' | sort | psub))
-    end
-
-    set -l flags
-    set -q _flag_columns; and set -a flags -c $_flag_columns
-    set -q _flag_verbose; and set -a flags -v
-
-    __pkg_format_output $flags $pkg_list
-end
-
-# -- Main Commands --
-
-function native --description 'List native packages'
-    __run_list_cmd native $argv
-end
-
-function aur --description 'List AUR packages'
-    __run_list_cmd aur $argv
-end
-
-function chaotic --description 'List Chaotic-AUR packages'
-    __run_list_cmd chaotic $argv
-end
-
-function version --description "Compare installed version vs repo version"
-    if test (count $argv) -eq 0
-        echo "Usage: version <pkg1> [pkg2 ...]" >&2
+    if test (count $missing) -gt 0
+        echo "Error: missing required commands: "(string join ", " $missing)
         return 1
     end
-    __pkg_require_cmd expac vercmp; or return 1
+    argparse 'r/repo=+' v/version -- $argv || return
 
-    # Bulk Fetch - stderr silenced
-    set -l inst_list (expac -Q '%n|%v' $argv 2>/dev/null)
-    set -l repo_list (expac -S '%n|%v' $argv 2>/dev/null)
+    set -l detected (pacman-conf --repo-list)
+    set -l repos $argv
+    set -l check_aur 0
+    set -l auto 0
+    set -l used_native 0
+    set -l used_aur 0
+    if set -q _flag_r
+        set repos (string split ',' -- $_flag_r)
+    else if test (count $repos) -eq 0
+        set repos $detected
+        set check_aur 1
+        set used_aur 1
+        set used_native 1
+        set auto 1
+    end
 
-    for pkg in $argv
-        echo "$_pkg_c_rst------------------"
-        echo "$_pkg_c_name$pkg$_pkg_c_rst:"
+    set -l target
+    for r in $repos
+        switch $r
+            case aur
+                set check_aur 1
+                set used_aur 1
+            case native
+                set used_native 1
+                set -a target core extra multilib
+            case '*'
+                set -a target $r
+        end
+    end
+    set target (printf '%s\n' $target | sort -u)
+    set target (string match -r '.+' -- $target)
 
-        # Match output: Index 2 is the captured group (version)
-        set -l inst (string match -r "^$pkg\|(.*)" -- $inst_list)[2]
-        set -l repo (string match -r "^$pkg\|(.*)" -- $repo_list)[2]
+    set -l installed (pacman -Qqe)
+    test -z "$installed"; and begin
+        echo "No explicit packages" >&2
+        return 1
+    end
+    set -l repo_re (string join '|' -- $target)
+    test -z "$repo_re"; and set repo_re '^$' || set repo_re '^('$repo_re')$'
 
-        if test -z "$inst"
-            if test -n "$repo"
-                echo "$_pkg_c_err""Not installed$_pkg_c_rst (Available in repos: $_pkg_c_ver$repo$_pkg_c_rst)"
-            else
-                echo "$_pkg_c_err""Package not found$_pkg_c_rst (Not installed and not in repos)"
+    set -l fmt_local '%n'
+    set -l fmt_repo '%r\t%n'
+    if set -q _flag_v
+        set fmt_local '%n\t%v'
+        set fmt_repo '%r\t%n\t%v'
+    end
+    set -l local_list (expac -Q $fmt_local $installed)
+    set -l repo_list (expac -S $fmt_repo $installed 2>/dev/null)
+    set -l sep (printf '\x1f')
+    set -l info (printf '%s\n%s\n' $local_list $repo_list | awk -F'\t' -v regex="$repo_re" -v check_aur="$check_aur" -v verbose="$_flag_v" -v sep="$sep" '
+        NF==0 { next }
+        NF==1 || (verbose && NF==2) { name=$1; local_ver[name]=$(NF); next }
+        { repo=$1; name=$2; seen[name]=1; if(repo~regex && !printed[name]++) print name (verbose ? sep local_ver[name] sep $3 : "") }
+        END{ if(check_aur) for(pkg in local_ver) if(!seen[pkg]) print pkg (verbose ? sep local_ver[pkg] sep local_ver[pkg] : "") }
+    ' | sort)
+
+    set -l pkg_count (count $info)
+    if test $pkg_count -eq 0
+        set -l searched $target
+        test $check_aur -eq 1; and set -a searched aur
+        echo "No packages found in: "(string join ", " $searched)
+        return 1
+    end
+
+    if set -q _flag_v
+        set -l statuses
+        set -l names
+        set -l locals
+        set -l w_name 0
+        set -l w_local 0
+        for pkg in $info
+            set -l f (string split $sep -- $pkg)
+            set -l name $f[1]
+            set -l lver $f[2]
+            set -l rver $f[3]
+            set -l st "✓"
+            if test "$lver" != "$rver"
+                set st "+"
+                test (vercmp "$lver" "$rver") -lt 0; and set st "⬆"
             end
-        else
-            if test -z "$repo"
-                echo "$_pkg_c_warn""Installed: $_pkg_c_ver$inst$_pkg_c_rst (Local/AUR)"
-            else
-                set -l cmp (vercmp $inst $repo)
-                switch $cmp
-                    case 0
-                        echo "$_pkg_c_warn""Installed: $_pkg_c_ver$inst$_pkg_c_rst = $_pkg_c_ver$repo$_pkg_c_rst (Up-to-date)"
-                    case -1
-                        echo "$_pkg_c_warn""Installed: $_pkg_c_err$inst$_pkg_c_rst < $_pkg_c_ver$repo$_pkg_c_rst (Update Available)"
-                    case 1
-                        echo "$_pkg_c_warn""Installed: $_pkg_c_ver$inst$_pkg_c_rst > $_pkg_c_err$repo$_pkg_c_rst (Newer than repo)"
-                end
+            test (string length --visible -- $name) -gt 24; and set name (string sub -s 1 -l 24 -- $name)
+            set -a statuses $st
+            set -a names $name
+            set -a locals $lver
+            set -l ln (string length --visible -- $name)
+            test $ln -gt $w_name; and set w_name $ln
+            set -l lv (string length --visible -- $lver)
+            test $lv -gt $w_local; and set w_local $lv
+        end
+        set -l triplets
+        for i in (seq (count $names))
+            set -l st $statuses[$i]
+            set -l nm $names[$i]
+            set -l lv $locals[$i]
+            set -l stc $c_warn
+            test "$st" = "✓"; and set stc $c_name
+            set -l name_pad (string repeat -n (math "$w_name - "(string length --visible -- $nm)) " ")
+            set -l local_pad (string repeat -n (math "max(0, $w_local - "(string length --visible -- $lv)" - 1)") " ")
+            set -a triplets (printf "%s%s%s %s%s%s%s %s%s%s%s" $stc $st $c_rst $c_name $nm $c_rst $name_pad $c_ver $lv $c_rst $local_pad)
+        end
+        set -l per_row 3
+        set -l total (count $triplets)
+        set -l i 1
+        while test $i -le $total
+            set -l end (math "$i + $per_row - 1")
+            test $end -gt $total; and set end $total
+            echo (string join "  " $triplets[$i..$end])
+            set i (math "$end + 1")
+        end
+    else
+        set -l display
+        for pkg in $info
+            set -a display "$c_name"(string split \t -- $pkg)[1]"$c_rst"
+        end
+        echo (string join " " $display)
+    end
+
+    set -l repo_parts
+    for repo in $target
+        set -l color $c_ver
+        if test $used_native -eq 1
+            switch $repo
+                case core extra multilib
+                    set color $c_name
             end
         end
+        set -a repo_parts "$color$repo$c_rst"
+    end
+    set -l repo_label (string join "," $repo_parts)
+    set -l repo_prefix ""
+    test $auto -eq 1; and set repo_prefix "$c_warn""auto:""$c_rst"
+
+    set -l detected_target (printf '%s\n' $detected | sort -u)
+    set -l detected_re (string join '|' -- $detected_target)
+    test -z "$detected_re"; and set detected_re '^$' || set detected_re '^('$detected_re')$'
+    set -l local_names (printf '%s\n' $local_list | awk -F'\t' '{print $1}')
+    set -l detected_info (printf '%s\n%s\n' $local_names $repo_list | awk -F'\t' -v regex="$detected_re" -v check_aur="$check_aur" '
+        NF==0 { next }
+        NF==1 { name=$1; local_seen[name]=1; next }
+        { repo=$1; name=$2; if(repo~regex && local_seen[name] && !printed[name]++) { print name; seen[name]=1 } }
+        END{ if(check_aur) for(pkg in local_seen) if(!seen[pkg]) print pkg }
+    ' | sort)
+    set -l detected_count (count $detected_info)
+
+    set -l detected_parts
+    for repo in $detected_target
+        set -l color $c_ver
+        switch $repo
+            case core extra multilib
+                set color $c_name
+        end
+        set -a detected_parts "$color$repo$c_rst"
+    end
+    set -l detected_label (string join "," $detected_parts)
+    test $check_aur -eq 1; and set detected_label "$detected_label,$c_warn""aur""$c_rst"
+
+    set -l used_label "$repo_prefix$repo_label"
+    if test $used_aur -eq 1
+        test -n "$repo_label"; and set used_label "$used_label "
+        set used_label "$used_label$c_warn""aur""$c_rst"
+    end
+
+    if test $auto -eq 1
+        printf '\n%sExplicit packages:%s %s%d%s (repos: %s)\n' $c_warn $c_rst $c_ver $pkg_count $c_rst $detected_label
+    else
+        printf '\n%sExplicit packages:%s %s%d%s (used: %s) | %sDetected repos:%s %s%d%s (detected: %s)\n' \
+            $c_warn $c_rst $c_ver $pkg_count $c_rst $used_label $c_warn $c_rst $c_ver $detected_count $c_rst $detected_label
     end
 end
