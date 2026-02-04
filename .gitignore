@@ -5,3 +5,7 @@ hypr/.config/hypr/config/monitors.conf
 .local_secrets/
 home/.gitconfig
 nushell/.config/nushell/history.txt
+
+# Nix build results
+result
+result-*
