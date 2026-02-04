@@ -25,7 +25,7 @@ WlrLayershell {
     if (!screenObject)
       return;
     const url = normalizeUrl(newPath);
-    if (!currentImg.source || currentImg.source === "") {
+    if (!currentImg.source || currentImg.source === "" || currentImg.status === Image.Loading) {
       currentImg.source = url;
       return;
     }
@@ -128,7 +128,7 @@ WlrLayershell {
       } else if (status === Image.Ready) {
         if (currentImg.source === "" || root.transitionType === "none")
           currentImg.source = source;
-        else if (!transitionAnim.running)
+        else if (!transitionAnim.running && currentImg.status === Image.Ready)
           transitionAnim.start();
       }
     }
