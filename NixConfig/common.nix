@@ -51,9 +51,16 @@ in {
 
   imports = [
     inputs.home-manager.nixosModules.home-manager
+    ./php.nix
+    ./containers.nix
   ];
 
   system.stateVersion = "25.11";
+
+  time.timeZone = "Africa/Cairo";
+  i18n.defaultLocale = "en_US.UTF-8";
+
+  services.timesyncd.enable = true;
 
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
@@ -61,8 +68,6 @@ in {
     warn-dirty = false;
     substituters = [
       "https://cache.nixos.org"
-      "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store"
-      "https://nix-mirror.f7l.de"
       "https://nix-community.cachix.org"
     ];
     trusted-public-keys = [
@@ -148,11 +153,6 @@ in {
     pulse.enable = true;
     jack.enable = true;
     wireplumber.enable = true;
-  };
-
-  virtualisation.docker.rootless = {
-    enable = true;
-    setSocketVariable = true;
   };
 
   # ====================================================================
