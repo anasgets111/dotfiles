@@ -3,12 +3,17 @@
   hardware.cpu.intel.updateMicrocode = true;
 
   # Intel Graphics Configuration
-  services.xserver.videoDrivers = [ "modesetting" ]; # Or "intel" depending on preference, modesetting is usually preferred for modern Intel
+  services.xserver.videoDrivers = [ "modesetting" ];
   hardware.graphics.extraPackages = with pkgs; [
     intel-media-driver
+    vpl-gpu-rt # Supersedes Media SDK for newer GPUs
     intel-vaapi-driver
     libvdpau-va-gl
   ];
+
+  environment.sessionVariables = {
+    LIBVA_DRIVER_NAME = "iHD"; # Force intel-media-driver
+  };
 
   # File Systems
   fileSystems."/" = {
