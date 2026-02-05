@@ -6,6 +6,12 @@
     defaultNetwork.settings.dns_enabled = true;
   };
 
+  environment.systemPackages = with pkgs; [
+    oxker
+    ducker
+    mariadb.client
+  ];
+
   virtualisation.oci-containers = {
     backend = "podman";
     containers = {
