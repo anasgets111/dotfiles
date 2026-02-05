@@ -80,6 +80,7 @@ in {
 
   boot = {
     kernelPackages = pkgs.linuxPackages_latest;
+    blacklistedKernelModules = [ "cdc_acm" ];
     loader = {
       systemd-boot.enable = true;
       efi.canTouchEfiVariables = true;
@@ -99,7 +100,10 @@ in {
     ];
   };
 
-  services.qemuGuest.enable = true;
+  services.udev.extraRules = ''
+    # Samsung/Android/Odin
+    SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", MODE="0666"
+  '';
 
   networking = {
     networkmanager.enable = true;
