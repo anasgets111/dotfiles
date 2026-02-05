@@ -41,7 +41,8 @@ let
   ];
 
   devTools = with pkgs; [
-    rustup mold mariadb docker-compose gpu-screen-recorder
+    rustup mold docker-compose gpu-screen-recorder
+    cargo-binstall cargo-bloat cargo-edit hyprland-per-window-layout
   ];
 
 in {
@@ -50,7 +51,7 @@ in {
   # ====================================================================
 
   imports = [
-    inputs.home-manager.nixosModules.home-manager
+    ./home.nix
     ./php.nix
     ./containers.nix
   ];
@@ -163,50 +164,6 @@ in {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" ];
     password = "nixos";
-  };
-
-  home-manager = {
-    useGlobalPkgs = true;
-    useUserPackages = true;
-    extraSpecialArgs = { inherit inputs; };
-    users.anas = {
-      home.stateVersion = "25.11";
-
-      # Mirroring GNU Stow behavior
-      home.file = {
-        # Individual files from 'config' module
-        ".config/starship.toml".source = ../config/.config/starship.toml;
-        ".config/xdg-terminals.list".source = ../config/.config/xdg-terminals.list;
-        ".config/fastfetchTheme.jsonc".source = ../config/.config/fastfetchTheme.jsonc;
-        
-        # Directory symlinks
-        ".config/kitty".source = ../kitty/.config/kitty;
-        ".config/ghostty".source = ../ghostty/.config/ghostty;
-        ".config/wezterm".source = ../wezterm/.config/wezterm;
-        ".config/foot".source = ../foot/.config/foot;
-        ".config/alacritty".source = ../alacritty/.config/alacritty;
-        ".config/hypr".source = ../hypr/.config/hypr;
-        ".config/niri".source = ../niri/.config/niri;
-        ".config/nvim".source = ../nvim/.config/nvim;
-        ".config/mpv".source = ../mpv/.config/mpv;
-        ".config/fish".source = ../fish/.config/fish;
-        ".config/nushell".source = ../nushell/.config/nushell;
-        ".config/quickshell".source = ../quickshell/.config/quickshell;
-        
-        # Wayland/Sway extras
-        ".config/waybar".source = ../waybar/.config/waybar;
-        ".config/swaync".source = ../swaync/.config/swaync;
-        ".config/swaylock".source = ../swaylock/.config/swaylock;
-        ".config/swayidle".source = ../swayidle/.config/swayidle;
-        ".config/swayosd".source = ../swayosd/.config/swayosd;
-
-        ".local/bin".source = ../bin/.local/bin;
-        
-        # Files from 'home' module
-        ".bashrc".source = ../home/.bashrc;
-        ".profile".source = ../home/.profile;
-      };
-    };
   };
 
   programs = {
