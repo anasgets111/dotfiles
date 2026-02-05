@@ -59,7 +59,6 @@ in {
   environment.systemPackages = [ 
     myPhp 
     myPhp.packages.composer 
-    pkgs.mariadb.client
     pkgs.mkcert
   ];
 
