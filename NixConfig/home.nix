@@ -15,6 +15,27 @@ in {
     users.anas = { config, pkgs, ... }: {
       home.stateVersion = "25.11";
       wayland.windowManager.hyprland.systemd.enable = false;
+      home.packages = with pkgs; [
+        qbittorrent
+        vesktop
+        slack
+        telegram-desktop
+        mpv
+        mpvScripts.mpris
+        thunderbird
+        tableplus
+        rustdesk-flutter
+        nautilus
+        nautilus-python
+        simple-scan
+        papers
+        gnome-calculator
+        mission-center
+        gnome-disk-utility
+        gnome-firmware
+        zed-editor
+        inputs.zen-browser.packages."${pkgs.stdenv.hostPlatform.system}".beta
+      ];
 
       # Disabled intentionally while stabilizing HM startup.
       # Keep only symlink management active.
