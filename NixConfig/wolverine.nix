@@ -90,5 +90,15 @@
   # Solaar rule for Logitech devices
   services.udev.packages = [ pkgs.solaar ];
 
+  services.openssh = {
+    enable = true;
+    openFirewall = true;
+    settings = {
+      PermitRootLogin = "no";
+      PasswordAuthentication = true;
+      KbdInteractiveAuthentication = false;
+    };
+  };
+
   networking.hostName = "Wolverine";
 }
