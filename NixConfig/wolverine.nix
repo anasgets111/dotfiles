@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{ pkgs, lib, ... }: {
   imports = [
     ./wolverine-hardware.nix
   ];
@@ -52,11 +52,21 @@
 
   xdg.portal = {
     enable = true;
-    extraPortals = [ 
+    xdgOpenUsePortal = true;
+    extraPortals = lib.mkForce [
       pkgs.xdg-desktop-portal-hyprland
       pkgs.xdg-desktop-portal-gnome
+      pkgs.xdg-desktop-portal-gtk
     ];
-    config.common.default = [ "hyprland" "gnome" ];
+    config = {
+      common.default = [ "hyprland" "gnome" "gtk" ];
+      hyprland = {
+        default = [ "hyprland" "gnome" "gtk" ];
+        "org.freedesktop.impl.portal.ScreenCast" = [ "hyprland" ];
+        "org.freedesktop.impl.portal.Screenshot" = [ "hyprland" ];
+        "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
+      };
+    };
   };
 
   # Nvidia Configuration
