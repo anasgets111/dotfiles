@@ -1,5 +1,15 @@
 {
   description = "NixOS configuration with multiple hosts";
+  nixConfig = {
+    http2 = false;
+    "http-connections" = 40;
+    "max-substitution-jobs" = 20;
+    substituters = [
+      "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store"
+      "https://mirror.sjtu.edu.cn/nix-channels/store"
+      "https://cache.nixos.org"
+    ];
+  };
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
