@@ -57,7 +57,9 @@ if [ -n "$DOTFILES" ] && [ -r "$CRED_FILE" ]; then
 fi
 
 # ─── fnm (Node version manager) ─────────────────────────────────────────────────
-eval "$( fnm env --shell=bash --use-on-cd --version-file-strategy=recursive --resolve-engines )"
+if command -v fnm >/dev/null 2>&1; then
+  eval "$(fnm env --shell=bash --use-on-cd --version-file-strategy=recursive --resolve-engines 2>/dev/null || true)"
+fi
 
 # ─── Drop into Fish ─────────────────────────────────────────────────────────────
 if [ -t 1 ] && [ -z "$FISH_VERSION" ]; then
