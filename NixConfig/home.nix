@@ -86,7 +86,8 @@ in {
       in stowModules // sharedData;
 
       home.activation = {
-        installAiTools = config.lib.dag.entryAfter ["writeBoundary"] ''
+        setupScript = config.lib.dag.entryAfter ["writeBoundary"] ''
+          $DRY_RUN_CMD ${pkgs.glib}/bin/gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
           if [ ! -d "$HOME/.local/share/fnm" ]; then
             $DRY_RUN_CMD ${pkgs.fnm}/bin/fnm install --lts
             $DRY_RUN_CMD ${pkgs.fnm}/bin/fnm default lts
