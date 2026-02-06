@@ -14,6 +14,7 @@ in {
     extraSpecialArgs = { inherit inputs; };
     users.anas = { config, pkgs, ... }: {
       home.stateVersion = "25.11";
+      wayland.windowManager.hyprland.systemd.enable = false;
 
       # Disabled intentionally while stabilizing HM startup.
       # Keep only symlink management active.
