@@ -22,12 +22,10 @@ let
   coreTools = with pkgs; [
     git curl wget zip _7zz zoxide just inotify-tools 
     bat eza fd ripgrep dysk tokei python3Packages.subliminal
-    rsync gemini-cli fnm fzf
+    rsync fnm fzf
     btop jq wl-clipboard unzip unrar tealdeer git-lfs
     pciutils usbutils lshw ffmpegthumbnailer
     android-tools
-    codex
-    inputs.opencode.packages."${pkgs.stdenv.hostPlatform.system}".default
   ];
 
   desktopEnv = with pkgs; [
@@ -70,17 +68,22 @@ in {
 
   services.timesyncd.enable = true;
 
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    auto-optimise-store = true;
-    warn-dirty = false;
-    extra-substituters = [ "https://nix-community.cachix.org" ];
-    extra-trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
-    # Speed optimizations
-    http-connections = 5
-    max-substitution-jobs = 128;
-    max-jobs = "auto";
-    builders-use-substitutes = true;
+  nix = {
+    settings = {
+      experimental-features = [ "nix-command" "flakes" ];
+      auto-optimise-store = true;
+      warn-dirty = false;
+      
+      trusted-users = [ "root" "anas" "@wheel" ];
+      use-xdg-base-directories = true;
+
+      extra-substituters = [ "https://nix-community.cachix.org" ];
+      extra-trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
+    };
+    daemonCPUSchedPolicy = "idle";
+    daemonIOSchedClass = "idle";
+    nixPath = [ "nixpkgs=${inputs.nixpkgs}" ];
+    registry.nixpkgs.flake = inputs.nixpkgs;
   };
 
   nixpkgs.config.allowUnfree = true;

@@ -84,6 +84,16 @@ in {
           ".config/composer".source = config.lib.file.mkOutOfStoreSymlink "${backupPath}/.config/composer";
         };
       in stowModules // sharedData;
+
+      home.activation = {
+        installAiTools = config.lib.dag.entryAfter ["writeBoundary"] ''
+          if [ ! -d "$HOME/.local/share/fnm" ]; then
+            $DRY_RUN_CMD ${pkgs.fnm}/bin/fnm install --lts
+            $DRY_RUN_CMD ${pkgs.fnm}/bin/fnm default lts
+            $DRY_RUN_CMD ${pkgs.fnm}/bin/fnm exec --lts npm install -g @google/gemini-cli opencode-ai @openai/codex
+          fi
+        '';
+      };
     };
   };
 }
