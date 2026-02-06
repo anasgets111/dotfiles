@@ -142,6 +142,11 @@ in {
   hardware.enableRedistributableFirmware = true;
 
   hardware.graphics.enable = true;
+  environment.sessionVariables = {
+    QT_PLUGIN_PATH = "/run/current-system/sw/lib/qt-6/plugins";
+    QML_IMPORT_PATH = "/run/current-system/sw/lib/qt-6/qml";
+    QML2_IMPORT_PATH = "/run/current-system/sw/lib/qt-6/qml";
+  };
   zramSwap = {
     enable = true;
     algorithm = "zstd";
