@@ -62,6 +62,3 @@ if command -v fnm >/dev/null 2>&1; then
 fi
 
 # ─── Drop into Fish ─────────────────────────────────────────────────────────────
-if [ -t 1 ] && [ -z "$FISH_VERSION" ]; then
-  exec fish --login
-fi
