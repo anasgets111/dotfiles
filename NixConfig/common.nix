@@ -1,4 +1,4 @@
-{ pkgs, inputs, ... }: 
+{ pkgs, inputs, lib, ... }: 
 let
   # --- Package & Font Categorization ---
   
@@ -55,8 +55,8 @@ in {
 
   imports = [
     ./home.nix
-    ./php.nix
-    ./containers.nix
+    # ./php.nix
+    # ./containers.nix
   ];
 
   system.stateVersion = "25.11";
@@ -155,18 +155,17 @@ in {
   services.dbus.implementation = "broker";
   services.gnome.gnome-keyring.enable = true;
   services.gvfs.enable = true;
-
-  services.displayManager.ly = {
+  services.greetd = {
     enable = true;
+    useTextGreeter = true;
     settings = {
-      animation = "matrix";
-      bigclock = "en";
-      bigclock_12hr = true;
-      allow_empty_password = true;
-      # Force configured default session instead of reusing stale saved sessions.
-      save = false;
+      default_session = {
+        command = "${lib.getExe pkgs.tuigreet} --time --asterisks --remember --remember-user-session --sessions /run/current-system/sw/share/wayland-sessions:/run/current-system/sw/share/xsessions --theme 'border=magenta;prompt=cyan;input=green;time=yellow;action=blue;button=cyan;container=black;text=white'";
+        user = "greeter";
+      };
     };
   };
+  security.pam.services.greetd.enableGnomeKeyring = true;
 
   services.pipewire = {
     enable = true;
