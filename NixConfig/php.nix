@@ -97,9 +97,6 @@ in {
     supportsDryActivation = true;
     text = ''
       mkdir -p /var/lib/mkcert
-      # Ensure mkcert is installed in system CA store
-      ${pkgs.mkcert}/bin/mkcert -install
-      
       ${lib.concatStringsSep "\n" (lib.mapAttrsToList (name: target: ''
         if [ ! -f /var/lib/mkcert/${name}.test.pem ]; then
           ${pkgs.mkcert}/bin/mkcert -cert-file /var/lib/mkcert/${name}.test.pem \

@@ -88,6 +88,9 @@ in {
       home.activation = {
         setupScript = config.lib.dag.entryAfter ["writeBoundary"] ''
           $DRY_RUN_CMD ${pkgs.glib}/bin/gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+          if [ ! -f "$HOME/.local/share/mkcert/rootCA.pem" ]; then
+            $DRY_RUN_CMD ${pkgs.mkcert}/bin/mkcert -install
+          fi
           if [ ! -d "$HOME/.local/share/fnm" ]; then
             $DRY_RUN_CMD ${pkgs.fnm}/bin/fnm install --lts
             $DRY_RUN_CMD ${pkgs.fnm}/bin/fnm default lts
