@@ -73,6 +73,7 @@ in {
   # 2. PHP-FPM: User-specific pool
   services.phpfpm.pools.mypool = {
     user = "anas";
+    group = "users";
     settings = {
       "listen.owner" = "nginx";
       "listen.group" = "nginx";
