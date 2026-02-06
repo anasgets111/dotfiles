@@ -9,7 +9,6 @@
     };
     zen-browser.url = "github:0xc000022070/zen-browser-flake";
     quickshell.url = "github:outfoxxed/quickshell";
-    opencode.url = "github:anomalyco/opencode";
   };
 
   outputs = { self, nixpkgs, home-manager, ... }@inputs: 
