@@ -115,12 +115,15 @@ in {
       systemd.enable = true;
       verbose = false;
     };
-    consoleLogLevel = 3;
+    consoleLogLevel = 0;
     kernelParams = [ 
       "quiet"
       "splash"
       "udev.log_priority=3"
-      "rd.systemd.show_status=auto"
+      "rd.udev.log_level=3"
+      "rd.systemd.show_status=false"
+      "systemd.show_status=false"
+      "loglevel=3"
       "nowatchdog"
     ];
   };
@@ -160,7 +163,8 @@ in {
       bigclock = "en";
       bigclock_12hr = true;
       allow_empty_password = true;
-      save = true;
+      # Force configured default session instead of reusing stale saved sessions.
+      save = false;
     };
   };
 
@@ -179,6 +183,7 @@ in {
   users.users.anas = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" ];
+    linger = false;
     shell = pkgs.fish;
     hashedPassword = "$6$0wX8COvNNFCHy063$syMPd5D08JIuPIFdPOSWZOOkdFyZZEPeg6JQN9bML7G.uZ5lgC7.ETc5O4zOjKhy4P7H1eUCX6Qj0YmzUOTGC0";
   };
