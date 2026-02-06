@@ -184,6 +184,7 @@ in {
   users.users.anas = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" ];
+    shell = pkgs.fish;
     hashedPassword = "$6$0wX8COvNNFCHy063$syMPd5D08JIuPIFdPOSWZOOkdFyZZEPeg6JQN9bML7G.uZ5lgC7.ETc5O4zOjKhy4P7H1eUCX6Qj0YmzUOTGC0";
   };
 
