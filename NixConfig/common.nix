@@ -16,12 +16,18 @@ let
     freefont_ttf
     inter
     source-code-pro
+    font-awesome
   ];
 
   coreTools = with pkgs; [
     git curl wget zip _7zz zoxide just inotify-tools 
     bat eza fd ripgrep dysk tokei python3Packages.subliminal
-    rsync gemini-cli opencode fnm fzf
+    rsync gemini-cli fnm fzf
+    btop jq wl-clipboard unzip unrar tealdeer git-lfs
+    pciutils usbutils lshw ffmpegthumbnailer
+    android-tools
+    codex
+    inputs.opencode.packages."${pkgs.stdenv.hostPlatform.system}".default
   ];
 
   desktopEnv = with pkgs; [
@@ -35,9 +41,10 @@ let
   applications = with pkgs; [
     neovim qbittorrent vesktop slack telegram-desktop
     mpv mpvScripts.mpris thunderbird tableplus
-    rustdesk anydesk nautilus simple-scan papers 
+    rustdesk anydesk nautilus nautilus-python simple-scan papers 
     gnome-calculator mission-center gnome-disk-utility gnome-firmware
     inputs.zen-browser.packages."${pkgs.stdenv.hostPlatform.system}".beta
+    zed-editor
   ];
 
   devTools = with pkgs; [
@@ -67,16 +74,10 @@ in {
     experimental-features = [ "nix-command" "flakes" ];
     auto-optimise-store = true;
     warn-dirty = false;
-    substituters = [
-      "https://cache.nixos.org"
-      "https://nix-community.cachix.org"
-    ];
-    trusted-public-keys = [
-      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-    ];
+    extra-substituters = [ "https://nix-community.cachix.org" ];
+    extra-trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
     # Speed optimizations
-    http-connections = 128;
+    http-connections = 5
     max-substitution-jobs = 128;
     max-jobs = "auto";
     builders-use-substitutes = true;
@@ -136,6 +137,7 @@ in {
   security.rtkit.enable = true;
   services.dbus.implementation = "broker";
   services.gnome.gnome-keyring.enable = true;
+  services.gvfs.enable = true;
 
   services.displayManager.ly = {
     enable = true;
@@ -176,6 +178,11 @@ in {
     fish.enable = true;
     bash.completion.enable = true;
     kdeconnect.enable = true;
+    dconf.enable = true;
+    nautilus-open-any-terminal = {
+      enable = true;
+      terminal = "kitty";
+    };
     nano.enable = false;
   };
 
