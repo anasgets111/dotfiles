@@ -32,29 +32,18 @@ step_if() {
 }
 
 # ——————————————————————————————————————————————————————————————
-# Detection
-# ——————————————————————————————————————————————————————————————
-
-# Check for pacman
-if ! has_cmd pacman; then
-  printf "[ERROR] pacman not found - not an Arch-based system?\n"
-  exit 1
-fi
-
-# Detect privilege escalator
-if ! has_cmd run0; then
-  printf "[ERROR] run0 not found - update systemd?\n"
-  exit 1
-fi
-PRIV_ESCALATOR="run0"
-
-# ——————————————————————————————————————————————————————————————
 # Main Update Logic
 # ——————————————————————————————————————————————————————————————
 
-# Update system packages
-step_if "System Packages (pacman via $PRIV_ESCALATOR)" "true" \
-  stdbuf -oL -eL "$PRIV_ESCALATOR" pacman -Syu --noconfirm
+# System Packages (Arch Linux)
+if has_cmd pacman; then
+  if ! has_cmd run0; then
+    printf "[ERROR] run0 not found - required for system updates.\n"
+    exit 1
+  fi
+  run_cmd "System Packages (pacman via run0)" \
+    stdbuf -oL -eL run0 pacman -Syu --noconfirm
+fi
 
 # Development Tooling
 step_if "Composer" "has_cmd composer" stdbuf -oL -eL composer global update
