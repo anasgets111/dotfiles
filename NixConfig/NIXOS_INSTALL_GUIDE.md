@@ -1,70 +1,61 @@
-# NixOS Installation Guide (Wolverine)
+# NixOS Installation Guide (Live ISO, Wolverine + Mentalist)
 
-Follow these steps exactly to install NixOS using your existing Flake configuration.
+All commands below are intended to run from the NixOS live ISO shell.
 
 ## 1. Boot the NixOS Live ISO
-Boot from your Ventoy USB and select the NixOS ISO. Once the terminal is ready:
+Boot from Ventoy and open a shell.
 
-## 2. Format the Target Partitions
-We will format the existing Boot and Archlinux partitions. **Double-check your device names with `lsblk` before running these.**
+## 2. Format Target Partitions
+Check device names first with `lsblk`.
 
 ```bash
-# Format the Boot partition
+# Example (adjust partitions for the current machine)
 sudo mkfs.vfat -F 32 -n BOOT /dev/nvme0n1p1
-
-# Format the Root partition (setting label to 'nixos' to match config)
 sudo mkfs.ext4 -L nixos /dev/nvme0n1p2
 ```
 
-## 3. Mount the Filesystem Hierarchy
-Mount everything into `/mnt` so the installer can see the target structure.
+## 3. Mount Install Target and Repo Separately
+Do not mount `Work` inside `/mnt`. Keep it separate at `/mnt_work`.
 
 ```bash
-# 1. Mount Root
+# Install target
 sudo mount /dev/disk/by-label/nixos /mnt
-
-# 2. Mount Boot
 sudo mkdir -p /mnt/boot
 sudo mount /dev/disk/by-label/BOOT /mnt/boot
 
-# 3. Mount Work (Where your Dots and Flake live)
-sudo mkdir -p /mnt/mnt/Work
-sudo mount /dev/disk/by-label/Work /mnt/mnt/Work
+# Repo location (separate from install target)
+sudo mkdir -p /mnt_work
+sudo mount /dev/disk/by-label/Work /mnt_work
 ```
 
-## 4. Generate Hardware Configuration
-Since hardware differs between machines, we need to generate a specific config for this machine.
-
-### Method A: From the Live ISO (Recommended)
-After mounting your drives in Step 3, run:
+## 4. Set Repo Path
 ```bash
-# Generate the config based on mounted drives
-sudo nixos-generate-config --root /mnt --show-config > /mnt/mnt/Work/1Progs/Dots/NixConfig/wolverine-hardware.nix
+REPO=/mnt_work/1Progs/Dots/NixConfig
 ```
 
-### Method B: From Arch Linux (Before Installation)
-If you have `nix` installed on Arch, you can scan your hardware directly:
+## 5. Generate Host Hardware File
+`*-hardware.nix` is scanner-owned. Manual filesystems/swap are in host files.
+
 ```bash
-nix shell nixpkgs#nixos-install-tools -c nixos-generate-config --show-hardware-config --no-filesystems
+# Wolverine
+sudo nixos-generate-config --root /mnt --show-hardware-config --no-filesystems \
+  > "$REPO/wolverine-hardware.nix"
+
+# Mentalist
+sudo nixos-generate-config --root /mnt --show-hardware-config --no-filesystems \
+  > "$REPO/mentalist-hardware.nix"
 ```
-Copy the output into your `wolverine-hardware.nix` or `mentalist-hardware.nix`. Note that you will still need to manually add your `fileSystems` and `swapDevices` blocks if you use this method.
 
-## 5. Update Flake (Optional but Recommended)
-Before running the install, you might want to ensure `flake.nix` or your host file (`wolverine.nix`) imports this new hardware file. 
-
-If you've already added `imports = [ ./wolverine-hardware.nix ];` to your `wolverine.nix`, you can proceed.
-
-## 6. Perform the Installation
-Run the installer pointing to your flake on the mounted Work partition.
-
+## 6. Install (Choose Host)
 ```bash
-sudo nixos-install --flake /mnt/mnt/Work/1Progs/Dots/NixConfig#wolverine
+# Wolverine
+sudo nixos-install --root /mnt --flake "$REPO#wolverine" --accept-flake-config --keep-going
+
+# Mentalist
+sudo nixos-install --root /mnt --flake "$REPO#mentalist" --accept-flake-config --keep-going
 ```
 
 ## 7. Finalize
-1. Set the root password if prompted.
-2. Set your user password: `sudo nixos-enter --command "passwd anas"`
-3. Reboot: `reboot`
-
-## Post-Install Note
-Your dotfiles are linked via `mkOutOfStoreSymlink` to `/mnt/Work/1Progs/Dots`. Since we mounted the `Work` partition, your configurations (Hyprland, Waybar, etc.) will be active immediately upon login.
+1. Set root password if prompted.
+2. Set user password: `sudo nixos-enter --root /mnt --command "passwd anas"`.
+3. Reboot: `reboot`.
