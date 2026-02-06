@@ -39,7 +39,7 @@ let
   applications = with pkgs; [
     neovim qbittorrent vesktop slack telegram-desktop
     mpv mpvScripts.mpris thunderbird tableplus
-    rustdesk nautilus nautilus-python simple-scan papers 
+    rustdesk-flutter nautilus nautilus-python simple-scan papers 
     gnome-calculator mission-center gnome-disk-utility gnome-firmware
     inputs.zen-browser.packages."${pkgs.stdenv.hostPlatform.system}".beta
     zed-editor
@@ -173,11 +173,11 @@ in {
   # ====================================================================
   # USER CONFIG & PROGRAMS
   # ====================================================================
-
+  users.users.root.hashedPassword = "$6$pW5cb7ocpxATZwAj$bJpM/q6mjcMpK7NaTiUlZ3jvxc5hT0.SYsOLj3WzUcSbDoD9ExXwPhIAXeL54H6wBq4EpcJNeQ10JHCsQSoe6/";
   users.users.anas = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" ];
-    password = "nixos";
+    hashedPassword = "$6$0wX8COvNNFCHy063$syMPd5D08JIuPIFdPOSWZOOkdFyZZEPeg6JQN9bML7G.uZ5lgC7.ETc5O4zOjKhy4P7H1eUCX6Qj0YmzUOTGC0";
   };
 
   programs = {
