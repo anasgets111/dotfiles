@@ -40,12 +40,7 @@ let
   ];
 
   applications = with pkgs; [
-    neovim qbittorrent vesktop slack telegram-desktop
-    mpv mpvScripts.mpris thunderbird tableplus
-    rustdesk-flutter nautilus nautilus-python simple-scan papers 
-    gnome-calculator mission-center gnome-disk-utility gnome-firmware
-    inputs.zen-browser.packages."${pkgs.stdenv.hostPlatform.system}".beta
-    zed-editor
+    neovim
   ];
 
   devTools = with pkgs; [
