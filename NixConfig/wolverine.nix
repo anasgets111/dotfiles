@@ -44,6 +44,10 @@
     enable = true;
     withUWSM = true;
   };
+  services.greetd.settings.default_session = {
+    command = "${lib.getExe pkgs.tuigreet} --time --asterisks --remember --remember-user-session --cmd '${lib.getExe pkgs.uwsm} start hyprland.desktop' --theme 'border=magenta;prompt=cyan;input=green;time=yellow;action=blue;button=cyan;container=black;text=white'";
+    user = "greeter";
+  };
 
   # Gaming & Performance
   programs.steam.enable = true;
