@@ -37,23 +37,21 @@ in {
         inputs.zen-browser.packages."${pkgs.stdenv.hostPlatform.system}".beta
       ];
 
-      # Disabled intentionally while stabilizing HM startup.
-      # Keep only symlink management active.
-      # xdg.userDirs = {
-      #   enable = true;
-      #   download = "/mnt/Work/Downloads";
-      # };
-      #
-      # dconf.settings = {
-      #   "org/gnome/desktop/interface" = {
-      #     color-scheme = "prefer-dark";
-      #   };
-      # };
-      #
-      # programs.vscode = {
-      #   enable = true;
-      #   package = pkgs.vscode.fhs;
-      # };
+      xdg.userDirs = {
+        enable = true;
+        download = "/mnt/Work/Downloads";
+      };
+
+      dconf.settings = {
+        "org/gnome/desktop/interface" = {
+          color-scheme = "prefer-dark";
+        };
+      };
+
+      programs.vscode = {
+        enable = true;
+        package = pkgs.vscode.fhs;
+      };
 
       home.file = let
         # 1. Stow-like Modules (instant edits from your Dots folder)
