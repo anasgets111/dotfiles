@@ -10,25 +10,28 @@ in {
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
+    backupFileExtension = "hm-bak";
     extraSpecialArgs = { inherit inputs; };
     users.anas = { config, pkgs, ... }: {
       home.stateVersion = "25.11";
 
-      xdg.userDirs = {
-        enable = true;
-        download = "/mnt/Work/Downloads";
-      };
-
-      dconf.settings = {
-        "org/gnome/desktop/interface" = {
-          color-scheme = "prefer-dark";
-        };
-      };
-
-      programs.vscode = {
-        enable = true;
-        package = pkgs.vscode.fhs;
-      };
+      # Disabled intentionally while stabilizing HM startup.
+      # Keep only symlink management active.
+      # xdg.userDirs = {
+      #   enable = true;
+      #   download = "/mnt/Work/Downloads";
+      # };
+      #
+      # dconf.settings = {
+      #   "org/gnome/desktop/interface" = {
+      #     color-scheme = "prefer-dark";
+      #   };
+      # };
+      #
+      # programs.vscode = {
+      #   enable = true;
+      #   package = pkgs.vscode.fhs;
+      # };
 
       home.file = let
         # 1. Stow-like Modules (instant edits from your Dots folder)
@@ -89,31 +92,28 @@ in {
           ".config/qt6ct".source = config.lib.file.mkOutOfStoreSymlink "${backupPath}/.config/qt6ct";
           ".config/composer".source = config.lib.file.mkOutOfStoreSymlink "${backupPath}/.config/composer";
         };
-        bootstrapScript = {
-          ".config/hm/bootstrap-user-tools.sh" = {
-            executable = true;
-            text = ''
-              #!/usr/bin/env bash
-              set -euo pipefail
-
-              if [ ! -d "$HOME/.local/share/fnm" ]; then
-                ${pkgs.fnm}/bin/fnm install --lts
-                ${pkgs.fnm}/bin/fnm default lts
-              fi
-
-              ${pkgs.fnm}/bin/fnm exec --lts npm install -g @google/gemini-cli opencode-ai @openai/codex
-            '';
-          };
-        };
-      in stowModules // sharedData // bootstrapScript;
-
-      home.activation = {
-        setupScript = config.lib.dag.entryAfter ["writeBoundary"] ''
-          if [ ! -f "$HOME/.local/share/mkcert/rootCA.pem" ]; then
-            $DRY_RUN_CMD ${pkgs.mkcert}/bin/mkcert -install || true
-          fi
-        '';
-      };
+        # Disabled intentionally while stabilizing HM startup.
+        # bootstrapScript = {
+        #   ".config/hm/bootstrap-user-tools.sh" = {
+        #     executable = true;
+        #     text = ''
+        #       #!/usr/bin/env bash
+        #       set -euo pipefail
+        #
+        #       if [ ! -f "$HOME/.local/share/mkcert/rootCA.pem" ]; then
+        #         ${pkgs.mkcert}/bin/mkcert -install || true
+        #       fi
+        #
+        #       if [ ! -d "$HOME/.local/share/fnm" ]; then
+        #         ${pkgs.fnm}/bin/fnm install --lts
+        #         ${pkgs.fnm}/bin/fnm default lts
+        #       fi
+        #
+        #       ${pkgs.fnm}/bin/fnm exec --lts npm install -g @google/gemini-cli opencode-ai @openai/codex
+        #     '';
+        #   };
+        # };
+      in stowModules // sharedData;
     };
   };
 }
