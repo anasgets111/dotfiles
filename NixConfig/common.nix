@@ -24,7 +24,7 @@ let
     bat eza fd ripgrep dysk tokei python3Packages.subliminal
     rsync fnm fzf
     btop jq wl-clipboard unzip unrar tealdeer git-lfs
-    pciutils usbutils lshw ffmpegthumbnailer
+    pciutils usbutils lshw ffmpeg ffmpegthumbnailer
     android-tools
   ];
 
