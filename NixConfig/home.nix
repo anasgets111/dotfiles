@@ -19,6 +19,12 @@ in {
         download = "/mnt/Work/Downloads";
       };
 
+      dconf.settings = {
+        "org/gnome/desktop/interface" = {
+          color-scheme = "prefer-dark";
+        };
+      };
+
       programs.vscode = {
         enable = true;
         package = pkgs.vscode.fhs;
@@ -83,18 +89,28 @@ in {
           ".config/qt6ct".source = config.lib.file.mkOutOfStoreSymlink "${backupPath}/.config/qt6ct";
           ".config/composer".source = config.lib.file.mkOutOfStoreSymlink "${backupPath}/.config/composer";
         };
-      in stowModules // sharedData;
+        bootstrapScript = {
+          ".config/hm/bootstrap-user-tools.sh" = {
+            executable = true;
+            text = ''
+              #!/usr/bin/env bash
+              set -euo pipefail
+
+              if [ ! -d "$HOME/.local/share/fnm" ]; then
+                ${pkgs.fnm}/bin/fnm install --lts
+                ${pkgs.fnm}/bin/fnm default lts
+              fi
+
+              ${pkgs.fnm}/bin/fnm exec --lts npm install -g @google/gemini-cli opencode-ai @openai/codex
+            '';
+          };
+        };
+      in stowModules // sharedData // bootstrapScript;
 
       home.activation = {
         setupScript = config.lib.dag.entryAfter ["writeBoundary"] ''
-          $DRY_RUN_CMD ${pkgs.glib}/bin/gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
           if [ ! -f "$HOME/.local/share/mkcert/rootCA.pem" ]; then
-            $DRY_RUN_CMD ${pkgs.mkcert}/bin/mkcert -install
-          fi
-          if [ ! -d "$HOME/.local/share/fnm" ]; then
-            $DRY_RUN_CMD ${pkgs.fnm}/bin/fnm install --lts
-            $DRY_RUN_CMD ${pkgs.fnm}/bin/fnm default lts
-            $DRY_RUN_CMD ${pkgs.fnm}/bin/fnm exec --lts npm install -g @google/gemini-cli opencode-ai @openai/codex
+            $DRY_RUN_CMD ${pkgs.mkcert}/bin/mkcert -install || true
           fi
         '';
       };

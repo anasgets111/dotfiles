@@ -117,9 +117,13 @@ in {
       systemd.enable = true;
       verbose = false;
     };
-    consoleLogLevel = 0;
+    consoleLogLevel = 3;
     kernelParams = [ 
-      "quiet" "splash" "loglevel=3" "nowatchdog"
+      "quiet"
+      "splash"
+      "udev.log_priority=3"
+      "rd.systemd.show_status=auto"
+      "nowatchdog"
     ];
   };
 

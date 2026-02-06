@@ -44,6 +44,7 @@
     enable = true;
     withUWSM = true;
   };
+  services.displayManager.ly.settings.default_session = "hyprland-uwsm.desktop";
 
   # Gaming & Performance
   programs.steam.enable = true;
