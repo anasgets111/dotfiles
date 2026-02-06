@@ -39,7 +39,7 @@ let
   applications = with pkgs; [
     neovim qbittorrent vesktop slack telegram-desktop
     mpv mpvScripts.mpris thunderbird tableplus
-    rustdesk anydesk nautilus nautilus-python simple-scan papers 
+    rustdesk nautilus nautilus-python simple-scan papers 
     gnome-calculator mission-center gnome-disk-utility gnome-firmware
     inputs.zen-browser.packages."${pkgs.stdenv.hostPlatform.system}".beta
     zed-editor
