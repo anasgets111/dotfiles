@@ -32,6 +32,9 @@ let
     kitty starship fastfetch 
     bibata-cursors tela-circle-icon-theme 
     xdg-terminal-exec qt6Packages.qt6ct qt6Packages.qtstyleplugin-kvantum
+    qt6Packages.qtbase qt6Packages.qtdeclarative qt6Packages.qtmultimedia
+    qt6Packages.qt5compat qt6Packages.qtimageformats qt6Packages.qtsvg
+    qt6Packages.qtwayland
     brightnessctl cliphist satty
     inputs.quickshell.packages."${pkgs.stdenv.hostPlatform.system}".default
   ];
