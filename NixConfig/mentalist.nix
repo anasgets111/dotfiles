@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{ pkgs, lib, ... }: {
   imports = [
     ./mentalist-hardware.nix
   ];
@@ -25,10 +25,18 @@
   programs.niri.enable = true;
   xdg.portal = {
     enable = true;
-    extraPortals = [ 
-      pkgs.xdg-desktop-portal-gnome 
+    xdgOpenUsePortal = true;
+    extraPortals = lib.mkForce [
+      pkgs.xdg-desktop-portal-gtk
+      pkgs.xdg-desktop-portal-gnome
     ];
-    config.common.default = [ "gnome" ];
+    config = {
+      common.default = [ "gnome" "gtk" ];
+      niri = {
+        default = [ "gnome" "gtk" ];
+        "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
+      };
+    };
   };
 
   # Power Management
