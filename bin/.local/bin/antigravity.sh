@@ -2,25 +2,24 @@
 
 set -euo pipefail
 
-UNIT_NAME="antigravity-$(date +%s)"
+ID_SUFFIX=$(head /dev/urandom | tr -dc 'a-z0-9' | head -c 6)
+UNIT_NAME="antigravity-${ID_SUFFIX}"
+
 readonly APP_BIN="/usr/bin/antigravity"
 readonly APP_ARGS=(--verbose)
 
 cleanup() {
-    echo "[*] Cleaning up scope..."
+    echo "[*] Cleaning up scope: $UNIT_NAME"
     systemctl --user kill -s SIGKILL "$UNIT_NAME.scope" 2>/dev/null || true
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 echo "[*] Launching $UNIT_NAME..."
 
 systemd-run --user \
     --scope \
     --unit="$UNIT_NAME" \
-    --property=LimitCORE=0 \
     --property=KillMode=control-group \
     --property=SendSIGKILL=yes \
     --description="Antigravity Electron Wrapper" \
-    "$APP_BIN" "${APP_ARGS[@]}" || true
-
-# trap EXIT handles cleanup automatically
+    prlimit --core=0 -- "$APP_BIN" "${APP_ARGS[@]}" || true
