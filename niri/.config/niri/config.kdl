@@ -247,6 +247,7 @@ binds {
     Mod+KP_Enter { spawn "niri-stash" "term"; }
     Mod+Z { spawn "zeditor"; }
     Mod+C { spawn "code"; }
+    Mod+A { spawn "antigravity.sh";}
     Mod+E { spawn "nautilus"; }
     Mod+H { spawn "heroic"; }
     Mod+B { spawn "zen-browser"; }
