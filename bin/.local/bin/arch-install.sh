@@ -11,7 +11,24 @@ set -euo pipefail
 
 # Network Configuration
 WIFI_SSID="Ghuzlan-private"
-WIFI_PASSPHRASE="Khghza12345"
+WIFI_PASSPHRASE=""  # Will be prompted interactively
+
+# Function to configure WiFi credentials interactively
+configure_wifi() {
+    echo -e "\n${YELLOW}=== WiFi Configuration ===${NC}"
+    echo "Current SSID: $WIFI_SSID"
+    echo ""
+
+    read -rp "Use this SSID? [Y/n]: " choice
+    case $choice in
+        [Nn]* )
+            read -rp "Enter WiFi SSID: " WIFI_SSID
+            ;;
+    esac
+
+    read -rs -p "Enter WiFi passphrase: " WIFI_PASSPHRASE
+    echo ""
+}
 
 # Disk Configuration
 DISK="/dev/nvme0n1"
@@ -36,11 +53,11 @@ BOOT_TITLE="Arch Linux"
 BASE_BOOT_OPTIONS="root=LABEL=$ROOT_LABEL rw quiet splash loglevel=3 nowatchdog"
 NVIDIA_BOOT_OPTIONS="nvidia-drm.modeset=1 vt.global_cursor_default=0"
 
-# Package Configuration
-BASE_PACKAGES="base linux linux-firmware vim"
+# Package Configuration (using arrays for proper handling)
+BASE_PACKAGES=(base linux linux-firmware vim)
 MICROCODE_PACKAGE="amd-ucode"
-GPU_PACKAGES="nvidia-open nvidia-open-dkms nvidia-utils lib32-nvidia-utils"
-ADDITIONAL_PACKAGES="plymouth wireless-regdb"
+GPU_PACKAGES=(nvidia-open nvidia-open-dkms nvidia-utils lib32-nvidia-utils)
+ADDITIONAL_PACKAGES=(plymouth wireless-regdb)
 
 # GPU Configuration
 INSTALL_NVIDIA="true"  # Set to "false" to skip NVIDIA installation
@@ -62,7 +79,7 @@ configure_nvidia() {
     echo ""
 
     while true; do
-        read -p "Install NVIDIA drivers? [Y/n]: " choice
+        read -rp "Install NVIDIA drivers? [Y/n]: " choice
         case $choice in
             [Yy]* | "" )
                 INSTALL_NVIDIA="true"
@@ -143,7 +160,7 @@ is_chroot() {
 # Function to wait for user confirmation
 confirm_step() {
     echo -e "\n${YELLOW}Ready to proceed with: $1${NC}"
-    read -p "Press Enter to continue or Ctrl+C to abort..."
+    read -rp "Press Enter to continue or Ctrl+C to abort..."
 }
 
 # =============================================================================
@@ -220,8 +237,8 @@ step_4_mirrorlist() {
 step_5_base_install() {
     log_step "5" "Base system installation"
 
-    log_info "Installing base packages: $BASE_PACKAGES"
-    pacstrap "$MOUNT_POINT" $BASE_PACKAGES
+    log_info "Installing base packages: ${BASE_PACKAGES[*]} ${ADDITIONAL_PACKAGES[*]}"
+    pacstrap "$MOUNT_POINT" "${BASE_PACKAGES[@]}" "${ADDITIONAL_PACKAGES[@]}"
 
     log_success "Base system installed"
 }
@@ -247,6 +264,9 @@ main() {
     log_info "Target disk: $DISK"
     log_info "Hostname: $HOSTNAME"
     log_info "Username: $USERNAME"
+
+    # Configure WiFi credentials
+    configure_wifi
 
     # Configure NVIDIA option
     configure_nvidia
@@ -353,11 +373,11 @@ step_10_microcode_gpu() {
     fi
 
     log_info "Installing AMD microcode"
-    pacman -S --noconfirm $MICROCODE_PACKAGE
+    pacman -S --noconfirm "$MICROCODE_PACKAGE"
 
     if [[ "$INSTALL_NVIDIA" == "true" ]]; then
-        log_info "Installing NVIDIA drivers: $GPU_PACKAGES"
-        pacman -S --noconfirm $GPU_PACKAGES
+        log_info "Installing NVIDIA drivers: ${GPU_PACKAGES[*]}"
+        pacman -S --noconfirm "${GPU_PACKAGES[@]}"
         log_success "Microcode and NVIDIA drivers installed"
     else
         log_info "Skipping NVIDIA drivers installation"
