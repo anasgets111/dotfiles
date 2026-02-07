@@ -83,7 +83,7 @@ Singleton {
 
 ### Quickshell Structure
 
-```
+```text
 quickshell/.config/quickshell/
   shell.qml          # Entry point
   Components/        # Reusable UI components
