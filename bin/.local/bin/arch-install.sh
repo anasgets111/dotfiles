@@ -162,6 +162,56 @@ require_root() {
     fi
 }
 
+detect_host_strict() {
+    log_step "0.5" "Detecting target system"
+
+    local cpu_vendor_raw="" cpu_vendor="unknown"
+    local nvidia_state="unknown"
+
+    if command -v lscpu &>/dev/null; then
+        cpu_vendor_raw=$(lscpu 2>/dev/null | awk -F: '/Vendor ID/{print tolower($2)}' | xargs)
+    fi
+    if [[ -z "$cpu_vendor_raw" && -r /proc/cpuinfo ]]; then
+        cpu_vendor_raw=$(awk -F: '/vendor_id/{print tolower($2); exit}' /proc/cpuinfo | xargs)
+    fi
+
+    if [[ "$cpu_vendor_raw" == *"authenticamd"* ]]; then
+        cpu_vendor="amd"
+    elif [[ "$cpu_vendor_raw" == *"genuineintel"* ]]; then
+        cpu_vendor="intel"
+    fi
+
+    if command -v lspci &>/dev/null; then
+        if lspci | grep -Ei 'vga|3d' | grep -qi 'nvidia'; then
+            nvidia_state="true"
+        else
+            nvidia_state="false"
+        fi
+    fi
+
+    if [[ "$cpu_vendor" == "amd" && "$nvidia_state" == "true" ]]; then
+        HOSTNAME="Wolverine"
+        IS_PC=true
+        log_success "Auto-detected: $HOSTNAME (CPU: $cpu_vendor, NVIDIA: yes)"
+        return 0
+    fi
+
+    if [[ "$cpu_vendor" == "intel" && "$nvidia_state" == "false" ]]; then
+        HOSTNAME="Mentalist"
+        IS_PC=false
+        log_success "Auto-detected: $HOSTNAME (CPU: $cpu_vendor, NVIDIA: no)"
+        return 0
+    fi
+
+    log_error "Unsupported hardware combination for this script."
+    log_error "Detected CPU vendor: $cpu_vendor"
+    log_error "Detected NVIDIA GPU: $nvidia_state"
+    log_info "Supported combinations:"
+    log_info "  - amd + nvidia => Wolverine"
+    log_info "  - intel + no nvidia => Mentalist"
+    exit 1
+}
+
 menu_select() {
     local prompt="$1"
     local default_idx="$2"
@@ -249,24 +299,7 @@ step_0_connectivity() {
 }
 
 select_hostname() {
-    log_step "0.5" "Select target system"
-
-    local system_options=(
-        "Mentalist (Intel i9 13900H Laptop)"
-        "Wolverine (Ryzen 5900X + RTX 3080 PC)"
-    )
-    local selected
-    selected=$(menu_select "Select target system" 0 "${system_options[@]}")
-
-    if ((selected == 0)); then
-        HOSTNAME="Mentalist"
-        IS_PC=false
-    else
-        HOSTNAME="Wolverine"
-        IS_PC=true
-    fi
-
-    log_success "Selected: $HOSTNAME"
+    detect_host_strict
 }
 
 step_1_configure_pacman() {
@@ -504,13 +537,13 @@ editor no
 EOF
 
     # Boot entry
-    local options="root=LABEL=Archlinux rw quiet splash loglevel=3 nowatchdog"
+    local kernel_opts="root=LABEL=Archlinux rw quiet splash loglevel=3 nowatchdog"
 
     cat >/boot/loader/entries/arch.conf <<EOF
 title   Arch Linux
 linux   /vmlinuz-linux
 initrd  /initramfs-linux.img
-options $options
+options $kernel_opts
 EOF
 
     log_success "Bootloader installed"
