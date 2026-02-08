@@ -153,21 +153,9 @@ check_internet() {
 }
 
 get_wifi_interface() {
-    local iface_path
-    local iface_name=""
-
-    if command -v iw &>/dev/null; then
-        iface_name=$(iw dev 2>/dev/null | awk '$1 == "Interface" { print $2; exit }')
-        if [[ -n "$iface_name" ]]; then
-            echo "$iface_name"
-            return 0
-        fi
-    fi
-
-    for iface_path in /sys/class/net/wl*; do
-        [[ -e "$iface_path" ]] || continue
-        basename "$iface_path"
-        return 0
+    local iface
+    for iface in /sys/class/net/wl*; do
+        [[ -e "$iface" ]] && basename "$iface" && return 0
     done
 }
 
@@ -216,8 +204,8 @@ append_repo_if_missing() {
     log_info "Added repo [$repo_name]"
 }
 
-detect_host_strict() {
-    log_step "0.5" "Detecting target system"
+step_1_detect_host() {
+    log_step "1" "Detecting target system"
 
     local cpu_vendor_raw cpu_vendor="unknown"
     local nvidia_state="unknown"
@@ -268,8 +256,6 @@ menu_select() {
     local options=("$@")
     local selected="$default_idx"
     local key
-
-
 
     printf "%s\n" "$prompt" >/dev/tty
     printf "Use ↑/↓ and Enter.\n" >/dev/tty
@@ -378,8 +364,8 @@ run_yay_with_temp_nopasswd() {
 # STEP FUNCTIONS
 # =============================================================================
 
-step_0_connectivity() {
-    log_step "0" "Checking connectivity"
+step_2_connectivity() {
+    log_step "2" "Checking connectivity"
     local wifi_iface
 
     if check_internet; then
@@ -411,8 +397,8 @@ step_0_connectivity() {
     fi
 }
 
-step_2_select_partitions() {
-    log_step "2" "Partition selection"
+step_3_select_partitions() {
+    log_step "3" "Partition selection"
 
     log_info "Detected partitions:"
     lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINT
@@ -506,8 +492,8 @@ cleanup_mounts_before_format() {
     fi
 }
 
-step_2_format_partitions() {
-    log_step "2.5" "Formatting partitions"
+step_4_format_partitions() {
+    log_step "4" "Formatting partitions"
 
     show_summary
 
@@ -528,8 +514,8 @@ step_2_format_partitions() {
     log_success "Partitions formatted"
 }
 
-step_3_mount() {
-    log_step "3" "Mounting filesystems"
+step_5_mount() {
+    log_step "5" "Mounting filesystems"
 
     mount -o noatime "$ROOT_PART" "$MOUNT_POINT"
     mkdir -p "$MOUNT_POINT/boot"
@@ -538,8 +524,8 @@ step_3_mount() {
     log_success "Filesystems mounted"
 }
 
-step_4_mirrorlist() {
-    log_step "4" "Optimizing mirrors with reflector"
+step_6_mirrorlist() {
+    log_step "6" "Optimizing mirrors with reflector"
 
     log_info "Finding fastest mirrors..."
     reflector --country Germany,Austria,Italy,Netherlands,France \
@@ -553,14 +539,14 @@ step_4_mirrorlist() {
     log_success "Mirrors optimized"
 }
 
-step_4_5_pacman_defaults_live() {
-    log_step "4.5" "Configuring pacman defaults (live environment)"
+step_7_pacman_defaults() {
+    log_step "7" "Configuring pacman defaults (live environment)"
     configure_pacman_defaults /etc/pacman.conf
     log_success "Pacman defaults configured in live environment"
 }
 
-step_5_pacstrap() {
-    log_step "5" "Installing base system"
+step_8_pacstrap() {
+    log_step "8" "Installing base system"
 
     local packages=("${PKGS_COMMON[@]}")
 
@@ -576,8 +562,8 @@ step_5_pacstrap() {
     log_success "Base system installed"
 }
 
-step_6_fstab() {
-    log_step "6" "Generating fstab"
+step_9_fstab() {
+    log_step "9" "Generating fstab"
 
     genfstab -L "$MOUNT_POINT" >"$MOUNT_POINT/etc/fstab"
 
@@ -596,8 +582,8 @@ step_6_fstab() {
     log_success "fstab generated"
 }
 
-step_7_prepare_chroot() {
-    log_step "7" "Preparing chroot"
+step_10_prepare_chroot() {
+    log_step "10" "Preparing chroot"
 
     # Copy the script to chroot (running from /tmp ensures stable source)
     cp /tmp/arch-install.sh "$MOUNT_POINT/root/install.sh"
@@ -622,8 +608,8 @@ EOF
 # CHROOT FUNCTIONS
 # =============================================================================
 
-chroot_step_8_basics() {
-    log_step "8" "System basics"
+chroot_step_11_basics() {
+    log_step "11" "System basics"
 
     log_info "Setting timezone"
     ln -sf "/usr/share/zoneinfo/$TIMEZONE" /etc/localtime
@@ -647,8 +633,8 @@ EOF
     log_success "System basics configured"
 }
 
-chroot_step_9_bootloader() {
-    log_step "9" "Installing bootloader"
+chroot_step_12_bootloader() {
+    log_step "12" "Installing bootloader"
 
     bootctl install
 
@@ -673,8 +659,8 @@ EOF
     log_success "Bootloader installed"
 }
 
-chroot_step_10_repos() {
-    log_step "10" "Setting up AUR repos and packages"
+chroot_step_13_repos() {
+    log_step "13" "Setting up AUR repos and packages"
     log_info "Appending Chaotic-AUR and Omarchy repos in installed system pacman.conf"
 
     # Chaotic-AUR
@@ -709,8 +695,8 @@ Server = https://pkgs.omarchy.org/\$arch"
     log_success "AUR packages installed"
 }
 
-chroot_step_11_zram() {
-    log_step "11" "Configuring ZRAM"
+chroot_step_14_zram() {
+    log_step "14" "Configuring ZRAM"
 
     cat >/etc/systemd/zram-generator.conf <<'EOF'
 [zram0]
@@ -724,8 +710,8 @@ EOF
     log_success "ZRAM configured"
 }
 
-chroot_step_12_initramfs() {
-    log_step "12" "Configuring initramfs"
+chroot_step_15_initramfs() {
+    log_step "15" "Configuring initramfs"
 
     if $IS_PC; then
         log_info "Adding NVIDIA modules"
@@ -740,8 +726,8 @@ chroot_step_12_initramfs() {
     log_success "Initramfs regenerated"
 }
 
-chroot_step_13_services() {
-    log_step "13" "Enabling services"
+chroot_step_16_services() {
+    log_step "16" "Enabling services"
 
     local services=(
         NetworkManager
@@ -764,15 +750,17 @@ chroot_step_13_services() {
 
     # Ly configuration
     log_info "Configuring Ly"
-    sed -i 's/^animation = none/animation = matrix/' /etc/ly/config.ini 2>/dev/null || true
-    sed -i 's/^bigclock = none/bigclock = en/' /etc/ly/config.ini 2>/dev/null || true
-    sed -i 's/^clock = .*/clock = %c/' /etc/ly/config.ini 2>/dev/null || true
+    sed -i \
+        -e 's/^animation = none/animation = matrix/' \
+        -e 's/^bigclock = none/bigclock = en/' \
+        -e 's/^clock = .*/clock = %c/' \
+        /etc/ly/config.ini 2>/dev/null || true
 
     log_success "Services enabled"
 }
 
-chroot_step_14_user() {
-    log_step "14" "Creating user"
+chroot_step_17_user() {
+    log_step "17" "Creating user"
 
     log_info "Creating user: $USERNAME"
     useradd -m -c "$USER_FULLNAME" -G "$USER_GROUPS" -s /usr/bin/fish "$USERNAME"
@@ -785,8 +773,8 @@ chroot_step_14_user() {
     log_success "User created"
 }
 
-chroot_step_14_post_user_setup() {
-    log_step "14.5" "Post-install user bootstrap"
+chroot_step_18_post_user() {
+    log_step "18" "Post-install user bootstrap"
 
     local dots_dir="/mnt/Work/Dots"
     local backup_script="$dots_dir/bin/.local/bin/backup-home"
@@ -835,8 +823,8 @@ chroot_step_14_post_user_setup() {
     log_success "Post-user bootstrap complete"
 }
 
-chroot_step_15_cleanup() {
-    log_step "15" "Cleanup"
+chroot_step_19_cleanup() {
+    log_step "19" "Cleanup"
 
     rm -f /root/install.sh /root/install.conf
     rm -f /etc/sudoers.d/90-yay-temp-install
@@ -845,9 +833,8 @@ chroot_step_15_cleanup() {
     log_success "Installation complete!"
     echo
     echo "Next steps:"
-    echo "  1. Exit chroot: exit"
-    echo "  2. Unmount: umount -R /mnt"
-    echo "  3. Reboot: reboot"
+    echo "  1. Unmount: umount -R /mnt"
+    echo "  2. Reboot: reboot"
     echo
 }
 
@@ -863,16 +850,16 @@ main() {
     echo "========================================"
     echo
 
-    detect_host_strict
-    step_0_connectivity
-    step_2_select_partitions
-    step_2_format_partitions
-    step_3_mount
-    step_4_mirrorlist
-    step_4_5_pacman_defaults_live
-    step_5_pacstrap
-    step_6_fstab
-    step_7_prepare_chroot
+    step_1_detect_host
+    step_2_connectivity
+    step_3_select_partitions
+    step_4_format_partitions
+    step_5_mount
+    step_6_mirrorlist
+    step_7_pacman_defaults
+    step_8_pacstrap
+    step_9_fstab
+    step_10_prepare_chroot
 }
 
 chroot_main() {
@@ -880,15 +867,15 @@ chroot_main() {
     # Load config
     source /root/install.conf
 
-    chroot_step_8_basics
-    chroot_step_9_bootloader
-    chroot_step_10_repos
-    chroot_step_11_zram
-    chroot_step_12_initramfs
-    chroot_step_13_services
-    chroot_step_14_user
-    chroot_step_14_post_user_setup
-    chroot_step_15_cleanup
+    chroot_step_11_basics
+    chroot_step_12_bootloader
+    chroot_step_13_repos
+    chroot_step_14_zram
+    chroot_step_15_initramfs
+    chroot_step_16_services
+    chroot_step_17_user
+    chroot_step_18_post_user
+    chroot_step_19_cleanup
 }
 
 # Entry point
