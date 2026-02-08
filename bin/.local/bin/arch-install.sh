@@ -47,13 +47,13 @@ WIFI_SSID="Ghuzlan_5G"
 MOUNT_POINT="/mnt"
 
 # Derived (set after hostname selection)
-declare HOSTNAME
+declare HOSTNAME=""
 declare IS_PC=false
 declare -i CURRENT_STEP=1
 declare STATE_FILE="/tmp/arch-install.state"
 
 # Partition selections (set interactively)
-declare BOOT_PART ROOT_PART
+declare BOOT_PART="" ROOT_PART=""
 
 # PACKAGE ARRAYS - OFFICIAL REPOS (for pacstrap)
 # =============================================================================

@@ -96,6 +96,17 @@ EXCLUDES=(
     '.config/waybar'
     '.config/wezterm'
     '.local/bin'
+
+    # Additional Caches & Logs
+    'logs'
+    'log'
+    'tmp'
+    'temp'
+    'cache'
+    'node-versions'
+    'Shared Dictionary'
+    'audio_cache'
+    'media_cache'
 )
 
 RSYNC_ARGS=(
