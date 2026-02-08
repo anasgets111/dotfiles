@@ -620,8 +620,8 @@ chroot_step_13_repos() {
 	log_info "Setting up Chaotic-AUR"
 	pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
 	pacman-key --lsign-key 3056513887B78AEB
-	pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
-	pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
+	pacman -U --needed --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
+	pacman -U --needed --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
 
 	if grep -q '^\[chaotic-aur\]' /etc/pacman.conf; then
 		log_info "[chaotic-aur] already exists in pacman.conf"
@@ -659,7 +659,7 @@ EOF
 		aur_packages+=("${PKGS_AUR_MENTALIST[@]}")
 	fi
 
-	pacman -S --noconfirm "${aur_packages[@]}"
+	pacman -S --needed --noconfirm "${aur_packages[@]}"
 
 	log_success "AUR packages installed"
 }
@@ -763,7 +763,7 @@ chroot_step_18_post_user() {
 	fi
 
 	if [[ ! -d "$dots_dir" ]]; then
-		log_warning "Dots directory not found at $dots_dir. Skipping restore/stow/gsettings."
+		log_warning "Dots directory not found at $dots_dir. Skipping restore/stow."
 		return 0
 	fi
 
@@ -782,10 +782,6 @@ chroot_step_18_post_user() {
 
 	if ! run_as_user 'yay -S --needed --noconfirm --removemake --cleanafter --answerclean None --answerdiff None --answeredit None antigravity quickshell-git'; then
 		log_warning "yay install failed for antigravity/quickshell-git; continuing."
-	fi
-
-	if ! run_as_user "dbus-run-session -- gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'"; then
-		log_warning "Failed to set gsettings dark preference; continuing."
 	fi
 
 	log_success "Post-user bootstrap complete"
