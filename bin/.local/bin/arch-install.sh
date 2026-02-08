@@ -154,6 +154,14 @@ confirm() {
     [[ "$response" =~ ^[Yy]$ ]]
 }
 
+require_root() {
+    if ((EUID != 0)); then
+        log_error "This script must run as root."
+        log_info "Try: sudo -i"
+        exit 1
+    fi
+}
+
 menu_select() {
     local prompt="$1"
     local default_idx="$2"
@@ -162,11 +170,11 @@ menu_select() {
     local selected="$default_idx"
     local key
 
-    if [[ ! -t 0 || ! -t 1 || ! -r /dev/tty || ! -w /dev/tty ]]; then
-        log_warning "Interactive menu unavailable, using numbered input"
-        echo "$prompt"
+    if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+        log_warning "Interactive menu unavailable, using numbered input" >&2
+        echo "$prompt" >&2
         for i in "${!options[@]}"; do
-            echo "  $((i + 1))) ${options[$i]}"
+            echo "  $((i + 1))) ${options[$i]}" >&2
         done
         while true; do
             read -rp "Select [1-${#options[@]}]: " choice
@@ -174,7 +182,7 @@ menu_select() {
                 printf '%s\n' "$((choice - 1))"
                 return 0
             fi
-            echo "Invalid selection"
+            echo "Invalid selection" >&2
         done
     fi
 
@@ -646,6 +654,7 @@ chroot_step_15_cleanup() {
 # =============================================================================
 
 main() {
+    require_root
     echo
     echo "========================================"
     echo "   Arch Linux Installation Script"
@@ -665,6 +674,7 @@ main() {
 }
 
 chroot_main() {
+    require_root
     # Load config
     source /root/install.conf
 
