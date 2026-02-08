@@ -103,7 +103,7 @@ spawn-sh-at-startup "wl-paste --type image --watch cliphist store"
 spawn-at-startup "kdeconnectd"
 spawn-at-startup "kdeconnect-indicator"
 spawn-at-startup "speech-dispatcher"
-spawn-at-startup "code"
+spawn-at-startup "antigravity.sh"
 spawn-at-startup "zen-browser"
 spawn-at-startup "chromium"
 spawn-at-startup "slack"
@@ -129,7 +129,7 @@ workspace "stash" { open-on-output "DP-2"; }
 // Prevent startup apps from stealing focus
 window-rule {
     match at-startup=true
-    match app-id="Slack|org.telegram.desktop|vesktop|kitty|Alacritty|com.mitchellh.ghostty|org.wezfurlong.wezterm|foot"
+    match app-id="Slack|org.telegram.desktop|vesktop|kitty|Alacritty|com.mitchellh.ghostty|org.wezfurlong.wezterm|foot|antigravity"
     open-focused false
 }
 
@@ -143,7 +143,7 @@ window-rule {
 // Workspace Assignments
 window-rule { match app-id="zen"; open-on-workspace "1"; }
 window-rule { match app-id="org.gnome.Nautilus|chromium"; open-on-workspace "2"; }
-window-rule { match app-id="code"; open-on-workspace "3"; }
+window-rule { match app-id="code|antigravity"; open-on-workspace "3"; }
 window-rule { match app-id="org.mozilla.Thunderbird"; open-on-workspace "7"; }
 window-rule { match app-id="Slack"; open-on-workspace "stash"; }
 window-rule { match app-id="org.telegram.desktop"; open-on-workspace "stash"; }
