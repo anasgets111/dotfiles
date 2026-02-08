@@ -42,6 +42,7 @@ IS_PC=false
 # Partition selections (set interactively)
 BOOT_PART=""
 ROOT_PART=""
+START_MODE="full"
 
 # =============================================================================
 # PACKAGE ARRAYS
@@ -300,6 +301,68 @@ menu_select() {
     printf '%s\n' "$selected"
 }
 
+select_start_mode() {
+    local options=(
+        "Full run (all steps)"
+        "Start after reflector (skip mirror optimization)"
+        "Start after pacstrap (skip mirror optimization + base install)"
+    )
+    local selected
+    selected=$(menu_select "Select start mode" 0 "${options[@]}")
+
+    case "$selected" in
+    0) START_MODE="full" ;;
+    1) START_MODE="after_reflector" ;;
+    2) START_MODE="after_pacstrap" ;;
+    *)
+        log_error "Invalid start mode selection: $selected"
+        exit 1
+        ;;
+    esac
+
+    log_info "Selected start mode: $START_MODE"
+}
+
+require_resume_mounts() {
+    if ! findmnt -rn -M "$MOUNT_POINT" >/dev/null 2>&1; then
+        log_error "$MOUNT_POINT must be mounted before using resume mode."
+        exit 1
+    fi
+    if ! findmnt -rn -M "$MOUNT_POINT/boot" >/dev/null 2>&1; then
+        log_error "$MOUNT_POINT/boot must be mounted before using resume mode."
+        exit 1
+    fi
+}
+
+require_recent_valid_mirrorlist() {
+    local mirrorlist="/etc/pacman.d/mirrorlist"
+    local now mtime age
+
+    if [[ ! -f "$mirrorlist" ]]; then
+        log_error "Mirrorlist not found: $mirrorlist"
+        exit 1
+    fi
+    if ! grep -qE '^[[:space:]]*Server[[:space:]]*=' "$mirrorlist"; then
+        log_error "Mirrorlist is invalid: no 'Server =' entries found."
+        exit 1
+    fi
+    mtime=$(stat -c %Y "$mirrorlist" 2>/dev/null || echo 0)
+    now=$(date +%s)
+    age=$((now - mtime))
+    if ((age > 3600)); then
+        log_error "Mirrorlist is older than 1 hour (${age}s). Re-run reflector or use full mode."
+        exit 1
+    fi
+}
+
+require_pacstrap_done() {
+    if [[ ! -f "$MOUNT_POINT/usr/bin/bash" ]]; then
+        log_error "Pacstrap marker missing: $MOUNT_POINT/usr/bin/bash"
+        log_error "Run full mode or start after reflector."
+        exit 1
+    fi
+}
+
 # =============================================================================
 # STEP FUNCTIONS
 # =============================================================================
@@ -532,12 +595,40 @@ step_6_fstab() {
     log_success "fstab generated"
 }
 
+write_chroot_script() {
+    local target="$1"
+
+    {
+        cat <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+EOF
+        printf "RED=%q\nGREEN=%q\nYELLOW=%q\nBLUE=%q\nNC=%q\n" \
+            "$RED" "$GREEN" "$YELLOW" "$BLUE" "$NC"
+        echo "trap 'echo -e \"\${RED}[ERROR]\${NC} Line \$LINENO failed\"; exit 1' ERR"
+        printf "TIMEZONE=%q\nLOCALE=%q\nUSERNAME=%q\nUSER_FULLNAME=%q\nUSER_GROUPS=%q\n" \
+            "$TIMEZONE" "$LOCALE" "$USERNAME" "$USER_FULLNAME" "$USER_GROUPS"
+        declare -p PKGS_AUR_COMMON PKGS_AUR_MENTALIST PKGS_AUR_WOLVERINE
+        declare -f log_info log_success log_warning log_error log_step
+        declare -f require_root set_password_with_retry append_repo_if_missing
+        declare -f chroot_step_8_basics chroot_step_9_bootloader chroot_step_10_repos
+        declare -f chroot_step_11_zram chroot_step_12_initramfs chroot_step_13_services
+        declare -f chroot_step_14_user chroot_step_15_cleanup chroot_main
+        cat <<'EOF'
+if [[ "${1:-}" == "chroot" ]]; then
+    chroot_main
+fi
+EOF
+    } >"$target"
+
+    chmod +x "$target"
+}
+
 step_7_prepare_chroot() {
     log_step "7" "Preparing chroot"
 
-    # Copy this script to chroot
-    cp "$0" "$MOUNT_POINT/root/install.sh"
-    chmod +x "$MOUNT_POINT/root/install.sh"
+    # Build a standalone chroot script (works for local file and process substitution runs).
+    write_chroot_script "$MOUNT_POINT/root/install.sh"
 
     # Save config for chroot
     cat >"$MOUNT_POINT/root/install.conf" <<EOF
@@ -745,15 +836,42 @@ main() {
     echo
 
     select_hostname
-    step_0_connectivity
-    step_1_configure_pacman
-    step_2_select_partitions
-    step_2_format_partitions
-    step_3_mount
-    step_4_mirrorlist
-    step_5_pacstrap
-    step_6_fstab
-    step_7_prepare_chroot
+    select_start_mode
+
+    case "$START_MODE" in
+    full)
+        step_0_connectivity
+        step_1_configure_pacman
+        step_2_select_partitions
+        step_2_format_partitions
+        step_3_mount
+        step_4_mirrorlist
+        step_5_pacstrap
+        step_6_fstab
+        step_7_prepare_chroot
+        ;;
+    after_reflector)
+        step_0_connectivity
+        step_1_configure_pacman
+        require_resume_mounts
+        require_recent_valid_mirrorlist
+        step_5_pacstrap
+        step_6_fstab
+        step_7_prepare_chroot
+        ;;
+    after_pacstrap)
+        step_0_connectivity
+        step_1_configure_pacman
+        require_resume_mounts
+        require_pacstrap_done
+        step_6_fstab
+        step_7_prepare_chroot
+        ;;
+    *)
+        log_error "Unknown start mode: $START_MODE"
+        exit 1
+        ;;
+    esac
 }
 
 chroot_main() {
