@@ -30,29 +30,36 @@ stow -D -t ~ <package>
 
 ## VS Code Extensions
 
-- `bmalehorn.vscode-fish`
-- `bmewburn.vscode-intelephense-client`
-- `bradlc.vscode-tailwindcss`
-- `catppuccin.catppuccin-vsc`
-- `catppuccin.catppuccin-vsc-icons`
-- `davidanson.vscode-markdownlint`
-- `devsense.composer-php-vscode`
-- `emilast.logfilehighlighter`
-- `esbenp.prettier-vscode`
-- `github.vscode-pull-request-github`
-- `henrikdev.ag-quota`
-- `jnoortheen.nix-ide`
-- `junstyle.php-cs-fixer`
-- `laravel.vscode-laravel`
-- `lumirelle.shell-format-rev`
-- `oderwat.indent-rainbow`
-- `openai.chatgpt`
-- `pkief.material-product-icons`
-- `rust-lang.rust-analyzer`
-- `tamasfe.even-better-toml`
-- `theqtcompany.qt-core`
-- `theqtcompany.qt-qml`
-- `timonwong.shellcheck`
+### Core (Installed)
+
+- `amiralizadeh9480.laravel-extra-intellisense` (Laravel advanced intelligence)
+- `bmalehorn.vscode-fish` (Basic Fish support)
+- `bmewburn.vscode-intelephense-client` (PHP Intelligence - **Standard**)
+- `bradlc.vscode-tailwindcss` (Tailwind - **Official**)
+- `catppuccin.catppuccin-vsc` (Theme)
+- `catppuccin.catppuccin-vsc-icons` (Icons)
+- `davidanson.vscode-markdownlint` (Markdown Lint)
+- `devsense.composer-php-vscode` (Composer support)
+- `emilast.logfilehighlighter` (Log highlighting)
+- `esbenp.prettier-vscode` (Formatting - **Standard**)
+- `github.vscode-pull-request-github` (GitHub integration)
+- `henrikdev.ag-quota` (Antigravity Quota monitor - **Essential**)
+- `jnoortheen.nix-ide` (Nix support - **Standard**)
+- `junstyle.php-cs-fixer` (PHP Formatting)
+- `laravel.vscode-laravel` (**Official** Laravel Extension - **Keep**)
+- `lumirelle.shell-format-rev` (Shell formatting - **Fixed version** for `shfmt`)
+- `oderwat.indent-rainbow` (UI)
+- `openai.chatgpt` (AI)
+- `pkief.material-product-icons` (UI)
+- `rust-lang.rust-analyzer` (Rust - **Standard**)
+- `tamasfe.even-better-toml` (TOML - **Standard**)
+- `theqtcompany.qt-core` (Qt Core - **Official**)
+- `theqtcompany.qt-qml` (QML support - **Official / Critical**)
+- `timonwong.shellcheck` (Shell Static Analysis)
+
+### Recommendations & Alternatives
+
+- **PHP**: `devsense.phptools.vscode` is a powerful (but paid) alternative to Intelephense if you need deep refactoring tools.
 
 ## Code Style Guidelines
 
