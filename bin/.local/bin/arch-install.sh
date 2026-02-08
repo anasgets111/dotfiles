@@ -63,7 +63,7 @@ PKGS_COMMON=(
 	base base-devel linux linux-firmware networkmanager
 	# Shell & CLI
 	neovim git bash-completion wget curl fish 7zip bat btop
-	cliphist dysk expac eza fastfetch fzf git-filter-repo git-lfs
+	cliphist dysk expac eza fastfetch fzf git-filter-repo git-lfs bun
 	inotify-tools just less rsync ripgrep pkgstats pacman-contrib stow
 	starship zoxide fd jq tealdeer rustup usbutils wl-clipboard zip
 	unrar unzip lshw i2c-tools tokei tree-sitter-cli ffmpegthumbnailer shfmt
