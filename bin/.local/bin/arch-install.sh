@@ -430,9 +430,40 @@ show_summary() {
 
 unmount_if_mounted() {
     local partition="$1"
+    local partition_real="$partition"
+    local sources=()
     local targets=()
 
-    mapfile -t targets < <(findmnt -rn -S "$partition" -o TARGET 2>/dev/null | sort -r)
+    if partition_real=$(readlink -f "$partition" 2>/dev/null); then
+        :
+    else
+        partition_real="$partition"
+    fi
+
+    sources=("$partition")
+    [[ "$partition_real" != "$partition" ]] && sources+=("$partition_real")
+
+    for src in "${sources[@]}"; do
+        while IFS= read -r target; do
+            [[ -n "$target" ]] && targets+=("$target")
+        done < <(findmnt -rn -S "$src" -o TARGET 2>/dev/null || true)
+    done
+
+    while IFS= read -r target; do
+        [[ -n "$target" ]] && targets+=("$target")
+    done < <(lsblk -nrpo MOUNTPOINTS "$partition" 2>/dev/null | tr ',' '\n' | awk 'NF' || true)
+
+    if [[ ${#targets[@]} -gt 0 ]]; then
+        mapfile -t targets < <(
+            printf '%s\n' "${targets[@]}" |
+                awk 'NF' |
+                sort -u |
+                awk '{ print length, $0 }' |
+                sort -rn |
+                cut -d' ' -f2-
+        )
+    fi
+
     if [[ ${#targets[@]} -eq 0 ]]; then
         return 0
     fi
@@ -442,6 +473,13 @@ unmount_if_mounted() {
         log_info "Unmounting $target"
         umount "$target"
     done
+
+    umount "$partition" 2>/dev/null || true
+
+    if findmnt -rn -S "$partition" >/dev/null 2>&1 || findmnt -rn -S "$partition_real" >/dev/null 2>&1; then
+        log_error "Failed to unmount $partition cleanly. Please unmount it manually and retry."
+        exit 1
+    fi
 }
 
 step_2_format_partitions() {
