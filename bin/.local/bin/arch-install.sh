@@ -148,18 +148,6 @@ AUX_LABELS=(Work Media Games)
 # HELPER FUNCTIONS
 # =============================================================================
 
-check_internet() {
-    ping -c 1 -W 3 archlinux.org &>/dev/null
-}
-
-require_root() {
-    if ((EUID != 0)); then
-        log_error "This script must run as root."
-        log_info "Try: sudo -i"
-        exit 1
-    fi
-}
-
 set_password_with_retry() {
     local target_label="$1"
     shift
@@ -176,19 +164,6 @@ set_password_with_retry() {
     done
     log_error "Failed to set password for $target_label after $max_attempts attempts."
     exit 1
-}
-
-append_repo_if_missing() {
-    local repo_name="$1"
-    local repo_block="$2"
-
-    if grep -qE "^[[:space:]]*\\[$repo_name\\][[:space:]]*$" /etc/pacman.conf; then
-        log_info "Repo [$repo_name] already configured, skipping"
-        return 0
-    fi
-
-    printf '\n%s\n' "$repo_block" >>/etc/pacman.conf
-    log_info "Added repo [$repo_name]"
 }
 
 step_1_detect_host() {
@@ -277,11 +252,6 @@ menu_select() {
     printf '%s\n' "$selected"
 }
 
-run_as_user() {
-    local cmd="$1"
-    runuser -u "$USERNAME" -- bash -lc "$cmd"
-}
-
 run_yay_with_temp_nopasswd() {
     local rule_file="/etc/sudoers.d/90-yay-temp-install"
     local yay_cmd='yay -S --needed --noconfirm --sudoloop --removemake --cleanafter --answerclean None --answerdiff None --answeredit None antigravity quickshell-git'
@@ -296,7 +266,7 @@ run_yay_with_temp_nopasswd() {
     fi
 
     local status=0
-    run_as_user "$yay_cmd" || status=1
+    runuser -u "$USERNAME" -- bash -lc "$yay_cmd" || status=1
     rm -f "$rule_file"
     return "$status"
 }
@@ -309,7 +279,7 @@ step_2_connectivity() {
     log_step "2" "Checking connectivity"
     local wifi_iface
 
-    if check_internet; then
+    if ping -c 1 -W 3 archlinux.org &>/dev/null; then
         log_success "Internet connection available"
         return 0
     fi
@@ -335,7 +305,7 @@ step_2_connectivity() {
     iwctl station "$wifi_iface" connect-hidden "$WIFI_SSID" --passphrase "$wifi_pass"
     sleep 5
 
-    if check_internet; then
+    if ping -c 1 -W 3 archlinux.org &>/dev/null; then
         log_success "Connected to Wi-Fi"
     else
         log_error "Failed to connect. Please check manually."
@@ -358,32 +328,29 @@ step_3_select_partitions() {
         exit 1
     fi
 
-    # Find defaults by label
-    local default_boot_idx="" default_root_idx=""
     local default_boot default_root
     default_boot=$(blkid -L BOOT 2>/dev/null || true)
     default_root=$(blkid -L Archlinux 2>/dev/null || true)
 
     local partition_options=()
+    local boot_default_zero=0
+    local root_default_zero=0
+
     for i in "${!partitions[@]}"; do
         local part_dev
         part_dev=$(echo "${partitions[$i]}" | awk '{print $1}')
         local marker=""
         if [[ "$part_dev" == "$default_boot" ]]; then
             marker=" [current BOOT]"
-            default_boot_idx=$((i + 1))
+            boot_default_zero=$i
         elif [[ "$part_dev" == "$default_root" ]]; then
             marker=" [current Archlinux]"
-            default_root_idx=$((i + 1))
+            root_default_zero=$i
         fi
         partition_options+=("${partitions[$i]}$marker")
     done
 
     local boot_selected root_selected
-    local boot_default_zero=0
-    local root_default_zero=0
-    [[ -n "$default_boot_idx" ]] && boot_default_zero=$((default_boot_idx - 1))
-    [[ -n "$default_root_idx" ]] && root_default_zero=$((default_root_idx - 1))
 
     boot_selected=$(menu_select "Select BOOT partition" "$boot_default_zero" "${partition_options[@]}")
     BOOT_PART=$(echo "${partitions[$boot_selected]}" | awk '{print $1}')
@@ -603,14 +570,22 @@ chroot_step_13_repos() {
     pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
     pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
 
-    append_repo_if_missing "chaotic-aur" "[chaotic-aur]
-Include = /etc/pacman.d/chaotic-mirrorlist"
+    cat >>/etc/pacman.conf <<EOF
+
+[chaotic-aur]
+Include = /etc/pacman.d/chaotic-mirrorlist
+EOF
+    log_info "Added repo [chaotic-aur]"
 
     # Omarchy
     log_info "Setting up Omarchy"
-    append_repo_if_missing "omarchy" "[omarchy]
+    cat >>/etc/pacman.conf <<EOF
+
+[omarchy]
 SigLevel = Optional TrustAll
-Server = https://pkgs.omarchy.org/\$arch"
+Server = https://pkgs.omarchy.org/\$arch
+EOF
+    log_info "Added repo [omarchy]"
 
     pacman -Sy
 
@@ -649,10 +624,8 @@ chroot_step_15_initramfs() {
     if $IS_PC; then
         log_info "Adding NVIDIA modules"
         sed -i 's/^MODULES=()/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
-        sed -i 's/^HOOKS=.*/HOOKS=(base systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)/' /etc/mkinitcpio.conf
-    else
-        sed -i 's/^HOOKS=.*/HOOKS=(base systemd plymouth autodetect microcode modconf kms keyboard keymap sd-vconsole block filesystems fsck)/' /etc/mkinitcpio.conf
     fi
+    sed -i 's/^HOOKS=.*/HOOKS=(base systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)/' /etc/mkinitcpio.conf
 
     mkinitcpio -P
 
@@ -738,15 +711,15 @@ chroot_step_18_post_user() {
         return 0
     fi
 
-    if ! run_as_user "\"$backup_script\" -r"; then
+    if ! runuser -u "$USERNAME" -- bash -lc "\"$backup_script\" -r"; then
         log_warning "backup-home restore failed (or script missing); continuing."
     fi
 
-    if ! run_as_user 'rm -f "$HOME/.bashrc" "$HOME/.bash_profile"'; then
+    if ! runuser -u "$USERNAME" -- bash -lc 'rm -f "$HOME/.bashrc" "$HOME/.bash_profile"'; then
         log_warning "Failed removing default bash files; continuing."
     fi
 
-    if ! run_as_user "cd '$dots_dir' && stow -t \"\$HOME\" ${stow_packages[*]}"; then
+    if ! runuser -u "$USERNAME" -- bash -lc "cd '$dots_dir' && stow -t \"\$HOME\" ${stow_packages[*]}"; then
         log_warning "Stow failed; continuing."
     fi
 
@@ -754,7 +727,7 @@ chroot_step_18_post_user() {
         log_warning "yay install failed for antigravity/quickshell-git; continuing."
     fi
 
-    if ! run_as_user "dbus-run-session -- gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'"; then
+    if ! runuser -u "$USERNAME" -- bash -lc "dbus-run-session -- gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'"; then
         log_warning "Failed to set gsettings dark preference; continuing."
     fi
 
@@ -781,7 +754,6 @@ chroot_step_19_cleanup() {
 # =============================================================================
 
 main() {
-    require_root
     echo
     echo "========================================"
     echo "   Arch Linux Installation Script"
@@ -801,7 +773,6 @@ main() {
 }
 
 chroot_main() {
-    require_root
     # Load config
     source /root/install.conf
 
@@ -816,7 +787,6 @@ chroot_main() {
     chroot_step_19_cleanup
 }
 
-# Entry point
 if [[ "${1:-}" == "chroot" ]]; then
     chroot_main
 else
