@@ -30,8 +30,7 @@ log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step() {
 	local title="$1"
-	((++STEP_COUNTER))
-	echo -e "\n${GREEN}=== Step ${STEP_COUNTER}: ${title} ===${NC}"
+	echo -e "\n${GREEN}=== Step ${CURRENT_STEP}: ${title} ===${NC}"
 }
 
 # =============================================================================
@@ -50,7 +49,8 @@ MOUNT_POINT="/mnt"
 # Derived (set after hostname selection)
 declare HOSTNAME
 declare IS_PC=false
-declare -i STEP_COUNTER=0
+declare -i CURRENT_STEP=1
+declare STATE_FILE="/tmp/arch-install.state"
 
 # Partition selections (set interactively)
 declare BOOT_PART ROOT_PART
@@ -186,6 +186,47 @@ run_as_user() {
 	local script="$1"
 	shift
 	runuser -u "$USERNAME" -- bash -lc "$script" bash "$@"
+}
+
+save_state() {
+	cat >"$STATE_FILE" <<EOF
+CURRENT_STEP=$CURRENT_STEP
+HOSTNAME="$HOSTNAME"
+IS_PC=$IS_PC
+BOOT_PART="$BOOT_PART"
+ROOT_PART="$ROOT_PART"
+EOF
+}
+
+load_state() {
+	[[ -f "$STATE_FILE" ]] || return 1
+	# shellcheck disable=SC1090
+	source "$STATE_FILE"
+	: "${CURRENT_STEP:=1}"
+	: "${HOSTNAME:=}"
+	: "${IS_PC:=false}"
+	: "${BOOT_PART:=}"
+	: "${ROOT_PART:=}"
+	return 0
+}
+
+clear_state() {
+	rm -f "$STATE_FILE"
+}
+
+run_step() {
+	local step="$1"
+	local fn="$2"
+	local save_next="${3:-true}"
+
+	CURRENT_STEP="$step"
+	save_state
+	"$fn"
+
+	if [[ "$save_next" == "true" ]]; then
+		CURRENT_STEP=$((step + 1))
+		save_state
+	fi
 }
 
 step_1_detect_host() {
@@ -429,8 +470,17 @@ step_4_format_partitions() {
 step_5_mount() {
 	log_step "Mounting filesystems"
 
-	mount -o noatime "$ROOT_PART" "$MOUNT_POINT"
-	mount --mkdir -o noatime,umask=0077 "$BOOT_PART" "$MOUNT_POINT/boot"
+	if mountpoint -q "$MOUNT_POINT"; then
+		log_info "$MOUNT_POINT is already mounted"
+	else
+		mount -o noatime "$ROOT_PART" "$MOUNT_POINT"
+	fi
+
+	if mountpoint -q "$MOUNT_POINT/boot"; then
+		log_info "$MOUNT_POINT/boot is already mounted"
+	else
+		mount --mkdir -o noatime,umask=0077 "$BOOT_PART" "$MOUNT_POINT/boot"
+	fi
 
 	log_success "Filesystems mounted"
 }
@@ -506,8 +556,13 @@ step_10_prepare_chroot() {
 	cat >"$MOUNT_POINT/root/install.conf" <<EOF
 HOSTNAME="$HOSTNAME"
 IS_PC=$IS_PC
-STEP_COUNTER=$STEP_COUNTER
 EOF
+
+	if [[ -f "$MOUNT_POINT/root/install.state" ]]; then
+		log_info "Existing chroot state found; keeping it for resume"
+	else
+		cp "$STATE_FILE" "$MOUNT_POINT/root/install.state"
+	fi
 
 	# Copy optimized mirrorlist and tune target pacman defaults
 	cp /etc/pacman.d/mirrorlist "$MOUNT_POINT/etc/pacman.d/mirrorlist"
@@ -587,21 +642,29 @@ chroot_step_13_repos() {
 	pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
 	pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
 
-	cat >>/etc/pacman.conf <<EOF
+	if grep -q '^\[chaotic-aur\]' /etc/pacman.conf; then
+		log_info "[chaotic-aur] already exists in pacman.conf"
+	else
+		cat >>/etc/pacman.conf <<EOF
 
 [chaotic-aur]
 Include = /etc/pacman.d/chaotic-mirrorlist
 EOF
+	fi
 	log_info "Added repo [chaotic-aur]"
 
 	# Omarchy
 	log_info "Setting up Omarchy"
-	cat >>/etc/pacman.conf <<EOF
+	if grep -q '^\[omarchy\]' /etc/pacman.conf; then
+		log_info "[omarchy] already exists in pacman.conf"
+	else
+		cat >>/etc/pacman.conf <<EOF
 
 [omarchy]
 SigLevel = Optional TrustAll
 Server = https://pkgs.omarchy.org/\$arch
 EOF
+	fi
 	log_info "Added repo [omarchy]"
 
 	pacman -Sy
@@ -686,8 +749,12 @@ chroot_step_16_services() {
 chroot_step_17_user() {
 	log_step "Creating user"
 
-	log_info "Creating user: $USERNAME"
-	useradd -m -c "$USER_FULLNAME" -G "$USER_GROUPS" -s /usr/bin/fish "$USERNAME"
+	if id -u "$USERNAME" &>/dev/null; then
+		log_info "User $USERNAME already exists, skipping creation"
+	else
+		log_info "Creating user: $USERNAME"
+		useradd -m -c "$USER_FULLNAME" -G "$USER_GROUPS" -s /usr/bin/fish "$USERNAME"
+	fi
 
 	set_password_with_retry "$USERNAME" passwd "$USERNAME"
 
@@ -748,6 +815,7 @@ chroot_step_19_cleanup() {
 
 	rm -f /root/install.sh /root/install.conf
 	rm -f /etc/sudoers.d/90-yay-temp-install
+	clear_state
 
 	echo
 	log_success "Installation complete!"
@@ -769,18 +837,61 @@ main() {
 	echo "========================================"
 	echo
 
-	step_1_detect_host
-	step_2_connectivity
-	step_3_select_partitions
-	step_4_format_partitions
-	step_5_mount
-	step_6_mirrorlist
-	step_7_pacman_defaults
-	step_8_pacstrap
-	step_9_fstab
-	step_10_prepare_chroot
+	STATE_FILE="/tmp/arch-install.state"
+
+	if [[ -f "$STATE_FILE" ]]; then
+		if load_state; then
+			local resume_options=(
+				"Resume previous install"
+				"Start new install"
+			)
+			local resume_choice
+			resume_choice=$(menu_select "Existing install state found" 0 "${resume_options[@]}")
+			if ((resume_choice == 1)); then
+				clear_state
+				CURRENT_STEP=1
+				HOSTNAME=""
+				IS_PC=false
+				BOOT_PART=""
+				ROOT_PART=""
+			fi
+		else
+			log_warning "Failed to load state file, starting fresh"
+			clear_state
+			CURRENT_STEP=1
+			HOSTNAME=""
+			IS_PC=false
+			BOOT_PART=""
+			ROOT_PART=""
+		fi
+	fi
+
+	if ((CURRENT_STEP == 4)); then
+		log_warning "Step 4 is non-rerunnable, skipping to step 5"
+		CURRENT_STEP=5
+	fi
+
+	while ((CURRENT_STEP <= 10)); do
+		case "$CURRENT_STEP" in
+		1) run_step 1 step_1_detect_host ;;
+		2) run_step 2 step_2_connectivity ;;
+		3) run_step 3 step_3_select_partitions ;;
+		4) run_step 4 step_4_format_partitions ;;
+		5) run_step 5 step_5_mount ;;
+		6) run_step 6 step_6_mirrorlist ;;
+		7) run_step 7 step_7_pacman_defaults ;;
+		8) run_step 8 step_8_pacstrap ;;
+		9) run_step 9 step_9_fstab ;;
+		10) run_step 10 step_10_prepare_chroot ;;
+		*)
+			log_error "Invalid CURRENT_STEP: $CURRENT_STEP"
+			exit 1
+			;;
+		esac
+	done
 
 	log_info "Chroot completed successfully"
+	clear_state
 	echo
 	read -rsn1 -p "Press any key to unmount and reboot (Ctrl+C to cancel)..."
 	echo
@@ -804,17 +915,37 @@ main() {
 chroot_main() {
 	# Load config
 	source /root/install.conf
-	: "${STEP_COUNTER:=0}"
+	STATE_FILE="/root/install.state"
 
-	chroot_step_11_basics
-	chroot_step_12_bootloader
-	chroot_step_13_repos
-	chroot_step_14_zram
-	chroot_step_15_initramfs
-	chroot_step_16_services
-	chroot_step_17_user
-	chroot_step_18_post_user
-	chroot_step_19_cleanup
+	if ! load_state; then
+		CURRENT_STEP=11
+		save_state
+	fi
+
+	if ((CURRENT_STEP < 11)); then
+		CURRENT_STEP=11
+	fi
+
+	while ((CURRENT_STEP <= 19)); do
+		case "$CURRENT_STEP" in
+		11) run_step 11 chroot_step_11_basics ;;
+		12) run_step 12 chroot_step_12_bootloader ;;
+		13) run_step 13 chroot_step_13_repos ;;
+		14) run_step 14 chroot_step_14_zram ;;
+		15) run_step 15 chroot_step_15_initramfs ;;
+		16) run_step 16 chroot_step_16_services ;;
+		17) run_step 17 chroot_step_17_user ;;
+		18) run_step 18 chroot_step_18_post_user ;;
+		19)
+			run_step 19 chroot_step_19_cleanup false
+			break
+			;;
+		*)
+			log_error "Invalid CURRENT_STEP in chroot: $CURRENT_STEP"
+			exit 1
+			;;
+		esac
+	done
 }
 
 if [[ "${1:-}" == "chroot" ]]; then
