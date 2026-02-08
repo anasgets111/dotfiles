@@ -28,7 +28,11 @@ log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-log_step() { echo -e "\n${GREEN}=== Step $1: $2 ===${NC}"; }
+log_step() {
+	local title="$1"
+	((++STEP_COUNTER))
+	echo -e "\n${GREEN}=== Step ${STEP_COUNTER}: ${title} ===${NC}"
+}
 
 # =============================================================================
 # FIXED CONFIGURATION
@@ -46,6 +50,7 @@ MOUNT_POINT="/mnt"
 # Derived (set after hostname selection)
 declare HOSTNAME
 declare IS_PC=false
+declare -i STEP_COUNTER=0
 
 # Partition selections (set interactively)
 declare BOOT_PART ROOT_PART
@@ -177,8 +182,14 @@ apply_pacman_defaults() {
 	grep -q "^ILoveCandy" "$pacman_conf_path" || sed -i '/^Color/a ILoveCandy' "$pacman_conf_path"
 }
 
+run_as_user() {
+	local script="$1"
+	shift
+	runuser -u "$USERNAME" -- bash -lc "$script" bash "$@"
+}
+
 step_1_detect_host() {
-	log_step "1" "Detecting target system"
+	log_step "Detecting target system"
 
 	local cpu_vendor_raw cpu_vendor="unknown"
 	local nvidia_state="unknown"
@@ -287,8 +298,8 @@ run_yay_with_temp_nopasswd() {
 # =============================================================================
 
 step_2_connectivity() {
-	log_step "2" "Checking connectivity"
-	local wifi_iface
+	log_step "Checking connectivity"
+	local wifi_iface=""
 
 	if ping -c 1 -W 3 archlinux.org &>/dev/null; then
 		log_success "Internet connection available"
@@ -302,7 +313,7 @@ step_2_connectivity() {
 			break
 		}
 	done
-	if [[ -z "$wifi_iface" ]]; then
+	if [[ -z "${wifi_iface:-}" ]]; then
 		log_error "No Wi-Fi interface detected."
 		exit 1
 	fi
@@ -329,7 +340,7 @@ step_2_connectivity() {
 }
 
 step_3_select_partitions() {
-	log_step "3" "Partition selection"
+	log_step "Partition selection"
 
 	log_info "Detected partitions:"
 	lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINT
@@ -381,7 +392,7 @@ step_3_select_partitions() {
 }
 
 step_4_format_partitions() {
-	log_step "4" "Formatting partitions"
+	log_step "Formatting partitions"
 
 	echo
 	echo "=============================================="
@@ -416,7 +427,7 @@ step_4_format_partitions() {
 }
 
 step_5_mount() {
-	log_step "5" "Mounting filesystems"
+	log_step "Mounting filesystems"
 
 	mount -o noatime "$ROOT_PART" "$MOUNT_POINT"
 	mount --mkdir -o noatime,umask=0077 "$BOOT_PART" "$MOUNT_POINT/boot"
@@ -425,7 +436,7 @@ step_5_mount() {
 }
 
 step_6_mirrorlist() {
-	log_step "6" "Optimizing mirrors with reflector"
+	log_step "Optimizing mirrors with reflector"
 
 	log_info "Finding fastest mirrors..."
 	reflector --country Germany,Austria,Italy,Netherlands,France \
@@ -440,7 +451,7 @@ step_6_mirrorlist() {
 }
 
 step_7_pacman_defaults() {
-	log_step "7" "Configuring pacman defaults (live environment)"
+	log_step "Configuring pacman defaults (live environment)"
 
 	log_info "Enabling ParallelDownloads, Color, ILoveCandy, multilib"
 	apply_pacman_defaults /etc/pacman.conf
@@ -449,10 +460,9 @@ step_7_pacman_defaults() {
 }
 
 step_8_pacstrap() {
-	log_step "8" "Installing base system"
+	log_step "Installing base system"
 
 	local packages=("${PKGS_COMMON[@]}")
-
 	if $IS_PC; then
 		packages+=("${PKGS_WOLVERINE[@]}")
 	else
@@ -466,7 +476,7 @@ step_8_pacstrap() {
 }
 
 step_9_fstab() {
-	log_step "9" "Generating fstab"
+	log_step "Generating fstab"
 
 	genfstab -L "$MOUNT_POINT" >"$MOUNT_POINT/etc/fstab"
 
@@ -486,7 +496,7 @@ step_9_fstab() {
 }
 
 step_10_prepare_chroot() {
-	log_step "10" "Preparing chroot"
+	log_step "Preparing chroot"
 
 	# Copy the script to chroot (running from /tmp ensures stable source)
 	cp /tmp/arch-install.sh "$MOUNT_POINT/root/install.sh"
@@ -496,6 +506,7 @@ step_10_prepare_chroot() {
 	cat >"$MOUNT_POINT/root/install.conf" <<EOF
 HOSTNAME="$HOSTNAME"
 IS_PC=$IS_PC
+STEP_COUNTER=$STEP_COUNTER
 EOF
 
 	# Copy optimized mirrorlist and tune target pacman defaults
@@ -512,7 +523,7 @@ EOF
 # =============================================================================
 
 chroot_step_11_basics() {
-	log_step "11" "System basics"
+	log_step "System basics"
 
 	log_info "Setting timezone"
 	ln -sf "/usr/share/zoneinfo/$TIMEZONE" /etc/localtime
@@ -540,7 +551,7 @@ EOF
 }
 
 chroot_step_12_bootloader() {
-	log_step "12" "Installing bootloader"
+	log_step "Installing bootloader"
 
 	bootctl install
 
@@ -566,7 +577,7 @@ EOF
 }
 
 chroot_step_13_repos() {
-	log_step "13" "Setting up AUR repos and packages"
+	log_step "Setting up AUR repos and packages"
 	log_info "Appending Chaotic-AUR and Omarchy repos in installed system pacman.conf"
 
 	# Chaotic-AUR
@@ -610,7 +621,7 @@ EOF
 }
 
 chroot_step_14_zram() {
-	log_step "14" "Configuring ZRAM"
+	log_step "Configuring ZRAM"
 
 	cat >/etc/systemd/zram-generator.conf <<'EOF'
 [zram0]
@@ -625,7 +636,7 @@ EOF
 }
 
 chroot_step_15_initramfs() {
-	log_step "15" "Configuring initramfs"
+	log_step "Configuring initramfs"
 
 	if $IS_PC; then
 		log_info "Adding NVIDIA modules"
@@ -639,7 +650,7 @@ chroot_step_15_initramfs() {
 }
 
 chroot_step_16_services() {
-	log_step "16" "Enabling services"
+	log_step "Enabling services"
 
 	local services=(
 		NetworkManager
@@ -673,7 +684,7 @@ chroot_step_16_services() {
 }
 
 chroot_step_17_user() {
-	log_step "17" "Creating user"
+	log_step "Creating user"
 
 	log_info "Creating user: $USERNAME"
 	useradd -m -c "$USER_FULLNAME" -G "$USER_GROUPS" -s /usr/bin/fish "$USERNAME"
@@ -687,12 +698,11 @@ chroot_step_17_user() {
 }
 
 chroot_step_18_post_user() {
-	log_step "18" "Post-install user bootstrap"
+	log_step "Post-install user bootstrap"
 
 	local dots_dir="/mnt/Work/Dots"
 	local backup_script="$dots_dir/bin/.local/bin/backup-home"
 	local stow_packages=(bin kitty quickshell fish nvim mpv wezterm)
-
 	if $IS_PC; then
 		stow_packages+=(hypr)
 	else
@@ -709,15 +719,16 @@ chroot_step_18_post_user() {
 		return 0
 	fi
 
-	if ! runuser -u "$USERNAME" -- bash -lc "\"$backup_script\" -r"; then
+	if ! run_as_user "\"$backup_script\" -r"; then
 		log_warning "backup-home restore failed (or script missing); continuing."
 	fi
 
-	if ! runuser -u "$USERNAME" -- bash -lc 'rm -f "$HOME/.bashrc" "$HOME/.bash_profile"'; then
+	if ! run_as_user 'rm -f "$HOME/.bashrc" "$HOME/.bash_profile"'; then
 		log_warning "Failed removing default bash files; continuing."
 	fi
 
-	if ! runuser -u "$USERNAME" -- bash -lc "cd '$dots_dir' && stow -t \"\$HOME\" ${stow_packages[*]}"; then
+	if ! run_as_user 'cd "$1" && shift && stow -t "$HOME" "$@"' \
+		"$dots_dir" "${stow_packages[@]}"; then
 		log_warning "Stow failed; continuing."
 	fi
 
@@ -725,7 +736,7 @@ chroot_step_18_post_user() {
 		log_warning "yay install failed for antigravity/quickshell-git; continuing."
 	fi
 
-	if ! runuser -u "$USERNAME" -- bash -lc "dbus-run-session -- gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'"; then
+	if ! run_as_user "dbus-run-session -- gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'"; then
 		log_warning "Failed to set gsettings dark preference; continuing."
 	fi
 
@@ -733,7 +744,7 @@ chroot_step_18_post_user() {
 }
 
 chroot_step_19_cleanup() {
-	log_step "19" "Cleanup"
+	log_step "Cleanup"
 
 	rm -f /root/install.sh /root/install.conf
 	rm -f /etc/sudoers.d/90-yay-temp-install
@@ -742,8 +753,8 @@ chroot_step_19_cleanup() {
 	log_success "Installation complete!"
 	echo
 	echo "Next steps:"
-	echo "  1. Unmount: umount -R /mnt"
-	echo "  2. Reboot: reboot"
+	echo "  1. Exit chroot (will happen automatically)"
+	echo "  2. Script will unmount and reboot"
 	echo
 }
 
@@ -768,11 +779,32 @@ main() {
 	step_8_pacstrap
 	step_9_fstab
 	step_10_prepare_chroot
+
+	log_info "Chroot completed successfully"
+	echo
+	read -rsn1 -p "Press any key to unmount and reboot (Ctrl+C to cancel)..."
+	echo
+
+	if umount -R "$MOUNT_POINT" 2>/dev/null; then
+		log_success "Unmounted $MOUNT_POINT"
+	else
+		log_warning "Some filesystems busy, trying lazy unmount..."
+		if umount -l -R "$MOUNT_POINT" 2>/dev/null; then
+			log_success "Lazy unmount completed for $MOUNT_POINT"
+		else
+			log_warning "Lazy unmount failed; rebooting anyway."
+		fi
+	fi
+
+	log_success "Ready to reboot"
+	sleep 2
+	reboot
 }
 
 chroot_main() {
 	# Load config
 	source /root/install.conf
+	: "${STEP_COUNTER:=0}"
 
 	chroot_step_11_basics
 	chroot_step_12_bootloader
