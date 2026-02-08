@@ -412,7 +412,7 @@ step_2_format_partitions() {
     mkfs.fat -F32 -n BOOT "$BOOT_PART"
 
     log_info "Formatting ROOT partition as ext4"
-    mkfs.ext4 -L Archlinux "$ROOT_PART"
+    mkfs.ext4 -F -L Archlinux "$ROOT_PART"
 
     log_success "Partitions formatted"
 }
