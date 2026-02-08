@@ -578,6 +578,12 @@ step_4_mirrorlist() {
     log_success "Mirrors optimized"
 }
 
+step_4_5_pacman_defaults_live() {
+    log_step "4.5" "Configuring pacman defaults (live environment)"
+    configure_pacman_defaults /etc/pacman.conf
+    log_success "Pacman defaults configured in live environment"
+}
+
 step_5_pacstrap() {
     log_step "5" "Installing base system"
 
@@ -598,7 +604,7 @@ step_5_pacstrap() {
 step_6_fstab() {
     log_step "6" "Generating fstab"
 
-    genfstab -U "$MOUNT_POINT" >"$MOUNT_POINT/etc/fstab"
+    genfstab -L "$MOUNT_POINT" >"$MOUNT_POINT/etc/fstab"
 
     # Secure boot partition
     sed -i '/\/boot/ s/rw,relatime/rw,relatime,fmask=0077,dmask=0077/' "$MOUNT_POINT/etc/fstab"
@@ -663,6 +669,11 @@ EOF
 
     # Copy optimized mirrorlist from live env
     cp /etc/pacman.d/mirrorlist "$MOUNT_POINT/etc/pacman.d/mirrorlist"
+    log_info "Copied live mirrorlist to installed system"
+
+    # Copy pacman defaults configured in live env
+    cp /etc/pacman.conf "$MOUNT_POINT/etc/pacman.conf"
+    log_info "Copied live pacman.conf to installed system"
 
     log_info "Entering chroot..."
     arch-chroot "$MOUNT_POINT" /root/install.sh chroot
@@ -725,7 +736,7 @@ EOF
 
 chroot_step_10_repos() {
     log_step "10" "Setting up AUR repos and packages"
-    configure_pacman_defaults /etc/pacman.conf
+    log_info "Appending Chaotic-AUR and Omarchy repos in installed system pacman.conf"
 
     # Chaotic-AUR
     log_info "Setting up Chaotic-AUR"
@@ -919,6 +930,7 @@ main() {
     step_2_format_partitions
     step_3_mount
     step_4_mirrorlist
+    step_4_5_pacman_defaults_live
     step_5_pacstrap
     step_6_fstab
     step_7_prepare_chroot
