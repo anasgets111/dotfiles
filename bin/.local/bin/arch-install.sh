@@ -315,25 +315,6 @@ menu_select() {
 	printf '%s\n' "$selected"
 }
 
-run_yay_with_temp_nopasswd() {
-	local rule_file="/etc/sudoers.d/90-yay-temp-install"
-	local yay_cmd='yay -S --needed --noconfirm --sudoloop --removemake --cleanafter --answerclean None --answerdiff None --answeredit None antigravity quickshell-git'
-
-	printf '%s ALL=(ALL:ALL) NOPASSWD: /usr/bin/pacman\n' "$USERNAME" >"$rule_file"
-	chmod 0440 "$rule_file"
-
-	if ! visudo -cf "$rule_file" &>/dev/null; then
-		log_warning "Temporary sudoers rule validation failed; skipping yay install."
-		rm -f "$rule_file"
-		return 1
-	fi
-
-	local status=0
-	runuser -u "$USERNAME" -- bash -lc "$yay_cmd" || status=1
-	rm -f "$rule_file"
-	return "$status"
-}
-
 # =============================================================================
 # STEP FUNCTIONS
 # =============================================================================
@@ -799,7 +780,7 @@ chroot_step_18_post_user() {
 		log_warning "Stow failed; continuing."
 	fi
 
-	if ! run_yay_with_temp_nopasswd; then
+	if ! run_as_user 'yay -S --needed --noconfirm --removemake --cleanafter --answerclean None --answerdiff None --answeredit None antigravity quickshell-git'; then
 		log_warning "yay install failed for antigravity/quickshell-git; continuing."
 	fi
 
@@ -814,7 +795,6 @@ chroot_step_19_cleanup() {
 	log_step "Cleanup"
 
 	rm -f /root/install.sh /root/install.conf
-	rm -f /etc/sudoers.d/90-yay-temp-install
 	clear_state
 
 	echo
