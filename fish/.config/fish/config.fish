@@ -22,7 +22,7 @@ type -q zoxide; and zoxide init fish --cmd cd | source
 type -q starship; and starship init fish | source
 
 # 4. Theme
-fish_config theme choose "Catppuccin Mocha"
+fish_config theme choose --color-theme=dark "Catppuccin Mocha"
 
 # 5. Smart Greeting (Runs only in pure terminals)
 function fish_greeting
