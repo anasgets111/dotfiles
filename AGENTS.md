@@ -28,6 +28,32 @@ stow -t ~ swaylock swaync swayosd waybar swayidle ghostty alacritty nushell
 stow -D -t ~ <package>
 ```
 
+## VS Code Extensions
+
+- `bmalehorn.vscode-fish`
+- `bmewburn.vscode-intelephense-client`
+- `bradlc.vscode-tailwindcss`
+- `catppuccin.catppuccin-vsc`
+- `catppuccin.catppuccin-vsc-icons`
+- `davidanson.vscode-markdownlint`
+- `devsense.composer-php-vscode`
+- `emilast.logfilehighlighter`
+- `esbenp.prettier-vscode`
+- `github.vscode-pull-request-github`
+- `henrikdev.ag-quota`
+- `jnoortheen.nix-ide`
+- `junstyle.php-cs-fixer`
+- `laravel.vscode-laravel`
+- `lumirelle.shell-format-rev`
+- `oderwat.indent-rainbow`
+- `openai.chatgpt`
+- `pkief.material-product-icons`
+- `rust-lang.rust-analyzer`
+- `tamasfe.even-better-toml`
+- `theqtcompany.qt-core`
+- `theqtcompany.qt-qml`
+- `timonwong.shellcheck`
+
 ## Code Style Guidelines
 
 ### QML (Quickshell)
