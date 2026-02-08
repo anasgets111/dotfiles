@@ -7,6 +7,13 @@
 set -euo pipefail
 trap 'echo -e "${RED}[ERROR]${NC} Line $LINENO failed"; exit 1' ERR
 
+# Relocate to /tmp for stability during mount operations
+if [[ "$(dirname "$(realpath "$0")" 2>/dev/null)" != "/tmp" && -f "$0" ]]; then
+    cp "$0" /tmp/arch-install.sh
+    chmod +x /tmp/arch-install.sh
+    exec /tmp/arch-install.sh "$@"
+fi
+
 # =============================================================================
 # COLORS & LOGGING
 # =============================================================================
@@ -32,17 +39,16 @@ LOCALE="en_US.UTF-8"
 VCONSOLE_KEYMAP="us"
 USERNAME="anas"
 USER_FULLNAME="Anas Khalifa"
-USER_GROUPS="wheel,audio,video,network,storage"
+USER_GROUPS="wheel"
 WIFI_SSID="Ghuzlan_5G"
 MOUNT_POINT="/mnt"
 
 # Derived (set after hostname selection)
-HOSTNAME=""
-IS_PC=false
+declare HOSTNAME
+declare IS_PC=false
 
 # Partition selections (set interactively)
-BOOT_PART=""
-ROOT_PART=""
+declare BOOT_PART ROOT_PART
 
 # PACKAGE ARRAYS - OFFICIAL REPOS (for pacstrap)
 # =============================================================================
@@ -213,15 +219,10 @@ append_repo_if_missing() {
 detect_host_strict() {
     log_step "0.5" "Detecting target system"
 
-    local cpu_vendor_raw="" cpu_vendor="unknown"
+    local cpu_vendor_raw cpu_vendor="unknown"
     local nvidia_state="unknown"
 
-    if command -v lscpu &>/dev/null; then
-        cpu_vendor_raw=$(lscpu 2>/dev/null | awk -F: '/Vendor ID/{print tolower($2)}' | xargs)
-    fi
-    if [[ -z "$cpu_vendor_raw" && -r /proc/cpuinfo ]]; then
-        cpu_vendor_raw=$(awk -F: '/vendor_id/{print tolower($2); exit}' /proc/cpuinfo | xargs)
-    fi
+    cpu_vendor_raw=$(awk -F: '/vendor_id/{print tolower($2); exit}' /proc/cpuinfo | xargs)
 
     if [[ "$cpu_vendor_raw" == *"authenticamd"* ]]; then
         cpu_vendor="amd"
@@ -268,21 +269,7 @@ menu_select() {
     local selected="$default_idx"
     local key
 
-    if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
-        log_warning "Interactive menu unavailable, using numbered input" >&2
-        echo "$prompt" >&2
-        for i in "${!options[@]}"; do
-            echo "  $((i + 1))) ${options[$i]}" >&2
-        done
-        while true; do
-            read -rp "Select [1-${#options[@]}]: " choice
-            if [[ "$choice" =~ ^[0-9]+$ ]] && ((choice >= 1 && choice <= ${#options[@]})); then
-                printf '%s\n' "$((choice - 1))"
-                return 0
-            fi
-            echo "Invalid selection" >&2
-        done
-    fi
+
 
     printf "%s\n" "$prompt" >/dev/tty
     printf "Use ↑/↓ and Enter.\n" >/dev/tty
@@ -342,29 +329,19 @@ configure_pacman_defaults() {
 
 mount_work_partition() {
     local work_mount="/mnt/Work"
-    local work_device mounted_source work_real mounted_real
-
-    mkdir -p "$work_mount"
+    local work_device
 
     work_device=$(blkid -L Work 2>/dev/null || true)
     if [[ -z "$work_device" ]]; then
-        log_warning "Partition label Work not found. Skipping post-user bootstrap."
+        log_warning "Partition label Work not found. Skipping."
         return 1
     fi
-    work_real=$(readlink -f "$work_device" 2>/dev/null || echo "$work_device")
 
-    if findmnt -rn -M "$work_mount" >/dev/null 2>&1; then
-        mounted_source=$(findmnt -rn -o SOURCE -M "$work_mount" 2>/dev/null || true)
-        mounted_real=$(readlink -f "$mounted_source" 2>/dev/null || echo "$mounted_source")
-        if [[ "$mounted_real" == "$work_real" ]]; then
-            return 0
-        fi
-        log_warning "$work_mount is mounted from $mounted_source, expected $work_device. Skipping post-user bootstrap."
-        return 1
-    fi
+    mkdir -p "$work_mount"
+    umount "$work_mount" 2>/dev/null || true
 
     if ! mount "$work_device" "$work_mount"; then
-        log_warning "Failed to mount Work partition at $work_mount. Skipping post-user bootstrap."
+        log_warning "Failed to mount Work partition. Skipping."
         return 1
     fi
 }
@@ -515,16 +492,15 @@ cleanup_mounts_before_format() {
     umount "$BOOT_PART" 2>/dev/null || true
     umount "$ROOT_PART" 2>/dev/null || true
 
-    if findmnt -rn -S "$BOOT_PART" >/dev/null 2>&1; then
-        log_error "$BOOT_PART is still mounted."
-        exit 1
-    fi
-    if findmnt -rn -S "$ROOT_PART" >/dev/null 2>&1; then
-        log_error "$ROOT_PART is still mounted."
-        exit 1
-    fi
+    for part in "$BOOT_PART" "$ROOT_PART"; do
+        if findmnt -rn -S "$part" >/dev/null 2>&1; then
+            log_error "$part is still mounted."
+            exit 1
+        fi
+    done
+
     if findmnt -Rno TARGET "$MOUNT_POINT" >/dev/null 2>&1; then
-        log_error "Some mounts under $MOUNT_POINT are still active:"
+        log_error "Mounts under $MOUNT_POINT still active:"
         findmnt -Rno TARGET,SOURCE,FSTYPE "$MOUNT_POINT"
         exit 1
     fi
@@ -610,55 +586,22 @@ step_6_fstab() {
 
     # Auxiliary partitions
     for label in "${AUX_LABELS[@]}"; do
-        if blkid -L "$label" &>/dev/null; then
-            if grep -qE "^[[:space:]]*LABEL=${label}[[:space:]]+" "$MOUNT_POINT/etc/fstab"; then
-                log_info "$label already exists in fstab, skipping"
-                continue
-            fi
-            log_info "Adding $label partition to fstab"
-            echo "LABEL=$label  /mnt/$label  ext4  nosuid,nodev,nofail,x-gvfs-show,x-systemd.makedir,noatime  0 2" \
-                >>"$MOUNT_POINT/etc/fstab"
-        fi
+        blkid -L "$label" &>/dev/null || continue
+        grep -qE "^[[:space:]]*LABEL=${label}[[:space:]]+" "$MOUNT_POINT/etc/fstab" && { log_info "$label already in fstab"; continue; }
+        log_info "Adding $label partition to fstab"
+        echo "LABEL=$label  /mnt/$label  ext4  nosuid,nodev,nofail,x-gvfs-show,x-systemd.makedir,noatime  0 2" \
+            >>"$MOUNT_POINT/etc/fstab"
     done
 
     log_success "fstab generated"
 }
 
-write_chroot_script() {
-    local target="$1"
-
-    {
-        cat <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-EOF
-        printf "RED=%q\nGREEN=%q\nYELLOW=%q\nBLUE=%q\nNC=%q\n" \
-            "$RED" "$GREEN" "$YELLOW" "$BLUE" "$NC"
-        echo "trap 'echo -e \"\${RED}[ERROR]\${NC} Line \$LINENO failed\"; exit 1' ERR"
-        printf "TIMEZONE=%q\nLOCALE=%q\nVCONSOLE_KEYMAP=%q\nUSERNAME=%q\nUSER_FULLNAME=%q\nUSER_GROUPS=%q\n" \
-            "$TIMEZONE" "$LOCALE" "$VCONSOLE_KEYMAP" "$USERNAME" "$USER_FULLNAME" "$USER_GROUPS"
-        declare -p PKGS_AUR_COMMON PKGS_AUR_MENTALIST PKGS_AUR_WOLVERINE
-        declare -f log_info log_success log_warning log_error log_step
-        declare -f require_root set_password_with_retry append_repo_if_missing ensure_vconsole_conf configure_pacman_defaults
-        declare -f mount_work_partition run_as_user run_yay_with_temp_nopasswd
-        declare -f chroot_step_8_basics chroot_step_9_bootloader chroot_step_10_repos
-        declare -f chroot_step_11_zram chroot_step_12_initramfs chroot_step_13_services
-        declare -f chroot_step_14_user chroot_step_14_post_user_setup chroot_step_15_cleanup chroot_main
-        cat <<'EOF'
-if [[ "${1:-}" == "chroot" ]]; then
-    chroot_main
-fi
-EOF
-    } >"$target"
-
-    chmod +x "$target"
-}
-
 step_7_prepare_chroot() {
     log_step "7" "Preparing chroot"
 
-    # Build a standalone chroot script (works for local file and process substitution runs).
-    write_chroot_script "$MOUNT_POINT/root/install.sh"
+    # Copy the script to chroot (running from /tmp ensures stable source)
+    cp /tmp/arch-install.sh "$MOUNT_POINT/root/install.sh"
+    chmod +x "$MOUNT_POINT/root/install.sh"
 
     # Save config for chroot
     cat >"$MOUNT_POINT/root/install.conf" <<EOF
@@ -666,13 +609,10 @@ HOSTNAME="$HOSTNAME"
 IS_PC=$IS_PC
 EOF
 
-    # Copy optimized mirrorlist from live env
+    # Copy optimized mirrorlist and pacman.conf from live env
     cp /etc/pacman.d/mirrorlist "$MOUNT_POINT/etc/pacman.d/mirrorlist"
-    log_info "Copied live mirrorlist to installed system"
-
-    # Copy pacman defaults configured in live env
     cp /etc/pacman.conf "$MOUNT_POINT/etc/pacman.conf"
-    log_info "Copied live pacman.conf to installed system"
+    log_info "Copied mirrorlist and pacman.conf to installed system"
 
     log_info "Entering chroot..."
     arch-chroot "$MOUNT_POINT" /root/install.sh chroot
