@@ -44,9 +44,6 @@ IS_PC=false
 BOOT_PART=""
 ROOT_PART=""
 
-# =============================================================================
-# PACKAGE ARRAYS
-# =============================================================================
 # PACKAGE ARRAYS - OFFICIAL REPOS (for pacstrap)
 # =============================================================================
 
@@ -380,24 +377,24 @@ run_as_user() {
 run_yay_with_temp_nopasswd() {
     local rule_file="/etc/sudoers.d/90-yay-temp-install"
     local yay_cmd='yay -S --needed --noconfirm --sudoloop --removemake --cleanafter --answerclean None --answerdiff None --answeredit None antigravity quickshell-git'
+    local status=0
 
     printf '%s ALL=(ALL:ALL) NOPASSWD: /usr/bin/pacman\n' "$USERNAME" >"$rule_file"
     chmod 0440 "$rule_file"
 
     if command -v visudo &>/dev/null; then
         if ! visudo -cf "$rule_file" >/dev/null 2>&1; then
-            rm -f "$rule_file"
             log_warning "Temporary sudoers rule validation failed; skipping yay install."
-            return 1
+            status=1
         fi
     fi
 
-    if ! run_as_user "$yay_cmd"; then
-        rm -f "$rule_file"
-        return 1
+    if ((status == 0)) && ! run_as_user "$yay_cmd"; then
+        status=1
     fi
 
     rm -f "$rule_file"
+    return "$status"
 }
 
 # =============================================================================
@@ -422,6 +419,7 @@ step_0_connectivity() {
     log_info "Using Wi-Fi interface: $wifi_iface"
     log_info "Connecting to Wi-Fi: $WIFI_SSID"
 
+    local wifi_pass
     read -rsp "Enter Wi-Fi passphrase: " wifi_pass
     echo
 
@@ -434,10 +432,6 @@ step_0_connectivity() {
         log_error "Failed to connect. Please check manually."
         exit 1
     fi
-}
-
-select_hostname() {
-    detect_host_strict
 }
 
 step_2_select_partitions() {
@@ -458,8 +452,8 @@ step_2_select_partitions() {
     # Find defaults by label
     local default_boot_idx="" default_root_idx=""
     local default_boot default_root
-    default_boot=$(blkid -L BOOT 2>/dev/null || echo "")
-    default_root=$(blkid -L Archlinux 2>/dev/null || echo "")
+    default_boot=$(blkid -L BOOT 2>/dev/null || true)
+    default_root=$(blkid -L Archlinux 2>/dev/null || true)
 
     local partition_options=()
     for i in "${!partitions[@]}"; do
@@ -924,7 +918,7 @@ main() {
     echo "========================================"
     echo
 
-    select_hostname
+    detect_host_strict
     step_0_connectivity
     step_2_select_partitions
     step_2_format_partitions
