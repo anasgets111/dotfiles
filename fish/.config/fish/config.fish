@@ -1,6 +1,6 @@
 # 1. Environment
 fish_add_path -a /mnt/Work/0Coding/Exercism
-fish_add_path -a $HOME/.cache/bun/bin
+fish_add_path -a $HOME/.cache/.bun/bin
 
 # 2. Context-Aware History (Ordered by priority: Generic -> Specific)
 set -gx fish_history fish
