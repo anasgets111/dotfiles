@@ -566,7 +566,12 @@ step_4_mirrorlist() {
     log_step "4" "Optimizing mirrors with reflector"
 
     log_info "Finding fastest mirrors..."
-    reflector --country Germany,Austria,Italy,Netherlands,France --protocol https --age 12 --sort rate --save /etc/pacman.d/mirrorlist
+    reflector --country Germany,Austria,Italy,Netherlands,France \
+        --latest 20 \
+        --protocol https \
+        --sort rate \
+        --save /etc/pacman.d/mirrorlist \
+        --number 12
 
     pacman -Sy
     log_success "Mirrors optimized"
