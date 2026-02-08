@@ -428,106 +428,23 @@ show_summary() {
     echo
 }
 
-unmount_if_mounted() {
-    local partition="$1"
-    local partition_real="$partition"
-    local partition_majmin=""
-    local sources=()
-    local targets=()
-
-    if partition_real=$(readlink -f "$partition" 2>/dev/null); then
-        :
-    else
-        partition_real="$partition"
-    fi
-    partition_majmin=$(lsblk -dnro MAJ:MIN "$partition" 2>/dev/null || true)
-
-    sources=("$partition")
-    [[ "$partition_real" != "$partition" ]] && sources+=("$partition_real")
-
-    for src in "${sources[@]}"; do
-        while IFS= read -r target; do
-            [[ -n "$target" ]] && targets+=("$target")
-        done < <(findmnt -rn -S "$src" -o TARGET 2>/dev/null || true)
-    done
-
-    if [[ -n "$partition_majmin" ]]; then
-        while IFS= read -r line; do
-            local target majmin
-            target="${line%% *}"
-            majmin="${line##* }"
-            [[ "$majmin" == "$partition_majmin" && -n "$target" ]] && targets+=("$target")
-        done < <(findmnt -rn -o TARGET,MAJ:MIN 2>/dev/null || true)
-    fi
-
-    while IFS= read -r target; do
-        [[ -n "$target" ]] && targets+=("$target")
-    done < <(lsblk -nrpo MOUNTPOINTS "$partition" 2>/dev/null | tr ',' '\n' | awk 'NF' || true)
-
-    if [[ ${#targets[@]} -gt 0 ]]; then
-        mapfile -t targets < <(
-            printf '%s\n' "${targets[@]}" |
-                awk 'NF' |
-                sort -u |
-                awk '{ print length, $0 }' |
-                sort -rn |
-                cut -d' ' -f2-
-        )
-    fi
-
-    if [[ ${#targets[@]} -eq 0 ]]; then
-        return 0
-    fi
-
-    log_warning "$partition is mounted. Unmounting before format."
+cleanup_mounts_before_format() {
     cd /
-    for target in "${targets[@]}"; do
-        log_info "Unmounting $target"
-        umount "$target" 2>/dev/null || true
-    done
+    umount -R "$MOUNT_POINT" 2>/dev/null || true
+    umount "$BOOT_PART" 2>/dev/null || true
+    umount "$ROOT_PART" 2>/dev/null || true
 
-    umount "$partition" 2>/dev/null || true
-
-    if findmnt -rn -S "$partition" >/dev/null 2>&1 || findmnt -rn -S "$partition_real" >/dev/null 2>&1; then
-        log_error "Failed to unmount $partition cleanly. Please unmount it manually and retry."
+    if findmnt -rn -S "$BOOT_PART" >/dev/null 2>&1; then
+        log_error "$BOOT_PART is still mounted."
         exit 1
     fi
-    if [[ -n "$partition_majmin" ]] && findmnt -rn -o MAJ:MIN 2>/dev/null | awk -v mm="$partition_majmin" '$1 == mm { found=1 } END { exit !found }'; then
-        log_error "Failed to unmount $partition cleanly. Please unmount it manually and retry."
+    if findmnt -rn -S "$ROOT_PART" >/dev/null 2>&1; then
+        log_error "$ROOT_PART is still mounted."
         exit 1
     fi
-    if lsblk -nrpo MOUNTPOINTS "$partition" 2>/dev/null | awk 'NF { found=1 } END { exit !found }'; then
-        log_error "Failed to unmount $partition cleanly. Please unmount it manually and retry."
-        exit 1
-    fi
-}
-
-unmount_mountpoint_tree() {
-    local mount_root="$1"
-    local targets=()
-
-    mapfile -t targets < <(
-        findmnt -rn -o TARGET 2>/dev/null |
-            awk -v mp="$mount_root" '$0 == mp || index($0, mp "/") == 1' |
-            awk '{ print length, $0 }' |
-            sort -rn |
-            cut -d' ' -f2-
-    )
-
-    if [[ ${#targets[@]} -eq 0 ]]; then
-        return 0
-    fi
-
-    log_warning "Found existing mounts under $mount_root. Cleaning up."
-    cd /
-    for target in "${targets[@]}"; do
-        log_info "Unmounting $target"
-        umount "$target" 2>/dev/null || true
-    done
-
-    if findmnt -rn -o TARGET 2>/dev/null | awk -v mp="$mount_root" '$0 == mp || index($0, mp "/") == 1 { found=1 } END { exit !found }'; then
-        log_error "Failed to unmount all targets under $mount_root."
-        findmnt -rn -o TARGET,SOURCE,FSTYPE 2>/dev/null | awk -v mp="$mount_root" '$1 == mp || index($1, mp "/") == 1'
+    if findmnt -Rno TARGET "$MOUNT_POINT" >/dev/null 2>&1; then
+        log_error "Some mounts under $MOUNT_POINT are still active:"
+        findmnt -Rno TARGET,SOURCE,FSTYPE "$MOUNT_POINT"
         exit 1
     fi
 }
@@ -543,9 +460,7 @@ step_2_format_partitions() {
         exit 1
     fi
 
-    unmount_mountpoint_tree "$MOUNT_POINT"
-    unmount_if_mounted "$BOOT_PART"
-    unmount_if_mounted "$ROOT_PART"
+    cleanup_mounts_before_format
 
     log_info "Formatting BOOT partition as FAT32"
     mkfs.fat -F32 -n BOOT "$BOOT_PART"
