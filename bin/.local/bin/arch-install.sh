@@ -428,6 +428,22 @@ show_summary() {
     echo
 }
 
+unmount_if_mounted() {
+    local partition="$1"
+    local targets=()
+
+    mapfile -t targets < <(findmnt -rn -S "$partition" -o TARGET 2>/dev/null | sort -r)
+    if [[ ${#targets[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    log_warning "$partition is mounted. Unmounting before format."
+    for target in "${targets[@]}"; do
+        log_info "Unmounting $target"
+        umount "$target"
+    done
+}
+
 step_2_format_partitions() {
     log_step "2.5" "Formatting partitions"
 
@@ -438,6 +454,9 @@ step_2_format_partitions() {
         log_error "Aborted by user"
         exit 1
     fi
+
+    unmount_if_mounted "$BOOT_PART"
+    unmount_if_mounted "$ROOT_PART"
 
     log_info "Formatting BOOT partition as FAT32"
     mkfs.fat -F32 -n BOOT "$BOOT_PART"
