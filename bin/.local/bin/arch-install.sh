@@ -154,6 +154,63 @@ confirm() {
     [[ "$response" =~ ^[Yy]$ ]]
 }
 
+menu_select() {
+    local prompt="$1"
+    local default_idx="$2"
+    shift 2
+    local options=("$@")
+    local selected="$default_idx"
+    local key
+
+    if [[ ! -t 0 || ! -t 1 || ! -r /dev/tty || ! -w /dev/tty ]]; then
+        log_warning "Interactive menu unavailable, using numbered input"
+        echo "$prompt"
+        for i in "${!options[@]}"; do
+            echo "  $((i + 1))) ${options[$i]}"
+        done
+        while true; do
+            read -rp "Select [1-${#options[@]}]: " choice
+            if [[ "$choice" =~ ^[0-9]+$ ]] && ((choice >= 1 && choice <= ${#options[@]})); then
+                printf '%s\n' "$((choice - 1))"
+                return 0
+            fi
+            echo "Invalid selection"
+        done
+    fi
+
+    printf "%s\n" "$prompt" >/dev/tty
+    printf "Use ↑/↓ and Enter.\n" >/dev/tty
+    for _ in "${options[@]}"; do
+        printf "\n" >/dev/tty
+    done
+
+    printf "\033[?25l" >/dev/tty
+    while true; do
+        printf "\033[%dA" "${#options[@]}" >/dev/tty
+        for i in "${!options[@]}"; do
+            if ((i == selected)); then
+                printf "\r\033[2K  > %s\n" "${options[$i]}" >/dev/tty
+            else
+                printf "\r\033[2K    %s\n" "${options[$i]}" >/dev/tty
+            fi
+        done
+
+        IFS= read -rsn1 key </dev/tty
+        if [[ "$key" == $'\x1b' ]]; then
+            IFS= read -rsn2 key </dev/tty
+            case "$key" in
+            "[A") selected=$(((selected - 1 + ${#options[@]}) % ${#options[@]})) ;;
+            "[B") selected=$(((selected + 1) % ${#options[@]})) ;;
+            esac
+        elif [[ -z "$key" ]]; then
+            break
+        fi
+    done
+    printf "\033[?25h" >/dev/tty
+    printf "\n" >/dev/tty
+    printf '%s\n' "$selected"
+}
+
 # =============================================================================
 # STEP FUNCTIONS
 # =============================================================================
@@ -186,26 +243,20 @@ step_0_connectivity() {
 select_hostname() {
     log_step "0.5" "Select target system"
 
-    echo "1) Mentalist (Intel i9 13900H Laptop)"
-    echo "2) Wolverine (Ryzen 5900X + RTX 3080 PC)"
-    echo
+    local system_options=(
+        "Mentalist (Intel i9 13900H Laptop)"
+        "Wolverine (Ryzen 5900X + RTX 3080 PC)"
+    )
+    local selected
+    selected=$(menu_select "Select target system" 0 "${system_options[@]}")
 
-    while true; do
-        read -rp "Select [1/2]: " choice
-        case $choice in
-        1)
-            HOSTNAME="Mentalist"
-            IS_PC=false
-            break
-            ;;
-        2)
-            HOSTNAME="Wolverine"
-            IS_PC=true
-            break
-            ;;
-        *) echo "Invalid choice" ;;
-        esac
-    done
+    if ((selected == 0)); then
+        HOSTNAME="Mentalist"
+        IS_PC=false
+    else
+        HOSTNAME="Wolverine"
+        IS_PC=true
+    fi
 
     log_success "Selected: $HOSTNAME"
 }
@@ -245,7 +296,7 @@ step_2_select_partitions() {
     default_boot=$(blkid -L BOOT 2>/dev/null || echo "")
     default_root=$(blkid -L Archlinux 2>/dev/null || echo "")
 
-    echo "Available partitions:"
+    local partition_options=()
     for i in "${!partitions[@]}"; do
         local part_dev
         part_dev=$(echo "${partitions[$i]}" | awk '{print $1}')
@@ -257,34 +308,23 @@ step_2_select_partitions() {
             marker=" [current Archlinux]"
             default_root_idx=$((i + 1))
         fi
-        echo "  $((i + 1))) ${partitions[$i]}$marker"
-    done
-    echo
-
-    # Select BOOT partition
-    local boot_prompt="Select BOOT partition"
-    [[ -n "$default_boot_idx" ]] && boot_prompt="$boot_prompt [$default_boot_idx]"
-    while true; do
-        read -rp "$boot_prompt: " boot_choice
-        boot_choice="${boot_choice:-$default_boot_idx}"
-        if [[ "$boot_choice" =~ ^[0-9]+$ ]] && ((boot_choice >= 1 && boot_choice <= ${#partitions[@]})); then
-            BOOT_PART=$(echo "${partitions[$((boot_choice - 1))]}" | awk '{print $1}')
-            break
-        fi
-        echo "Invalid selection. Enter a number 1-${#partitions[@]}"
+        partition_options+=("${partitions[$i]}$marker")
     done
 
-    # Select ROOT partition
-    local root_prompt="Select ROOT partition"
-    [[ -n "$default_root_idx" ]] && root_prompt="$root_prompt [$default_root_idx]"
+    local boot_selected root_selected
+    local boot_default_zero=0
+    local root_default_zero=0
+    [[ -n "$default_boot_idx" ]] && boot_default_zero=$((default_boot_idx - 1))
+    [[ -n "$default_root_idx" ]] && root_default_zero=$((default_root_idx - 1))
+
+    boot_selected=$(menu_select "Select BOOT partition" "$boot_default_zero" "${partition_options[@]}")
+    BOOT_PART=$(echo "${partitions[$boot_selected]}" | awk '{print $1}')
+
     while true; do
-        read -rp "$root_prompt: " root_choice
-        root_choice="${root_choice:-$default_root_idx}"
-        if [[ "$root_choice" =~ ^[0-9]+$ ]] && ((root_choice >= 1 && root_choice <= ${#partitions[@]})); then
-            ROOT_PART=$(echo "${partitions[$((root_choice - 1))]}" | awk '{print $1}')
-            break
-        fi
-        echo "Invalid selection. Enter a number 1-${#partitions[@]}"
+        root_selected=$(menu_select "Select ROOT partition" "$root_default_zero" "${partition_options[@]}")
+        ROOT_PART=$(echo "${partitions[$root_selected]}" | awk '{print $1}')
+        [[ "$BOOT_PART" != "$ROOT_PART" ]] && break
+        log_warning "BOOT and ROOT cannot be the same partition. Please choose again."
     done
 
     # Validate not same partition
