@@ -431,6 +431,7 @@ show_summary() {
 unmount_if_mounted() {
     local partition="$1"
     local partition_real="$partition"
+    local partition_majmin=""
     local sources=()
     local targets=()
 
@@ -439,6 +440,7 @@ unmount_if_mounted() {
     else
         partition_real="$partition"
     fi
+    partition_majmin=$(lsblk -dnro MAJ:MIN "$partition" 2>/dev/null || true)
 
     sources=("$partition")
     [[ "$partition_real" != "$partition" ]] && sources+=("$partition_real")
@@ -448,6 +450,15 @@ unmount_if_mounted() {
             [[ -n "$target" ]] && targets+=("$target")
         done < <(findmnt -rn -S "$src" -o TARGET 2>/dev/null || true)
     done
+
+    if [[ -n "$partition_majmin" ]]; then
+        while IFS= read -r line; do
+            local target majmin
+            target="${line%% *}"
+            majmin="${line##* }"
+            [[ "$majmin" == "$partition_majmin" && -n "$target" ]] && targets+=("$target")
+        done < <(findmnt -rn -o TARGET,MAJ:MIN 2>/dev/null || true)
+    fi
 
     while IFS= read -r target; do
         [[ -n "$target" ]] && targets+=("$target")
@@ -469,15 +480,54 @@ unmount_if_mounted() {
     fi
 
     log_warning "$partition is mounted. Unmounting before format."
+    cd /
     for target in "${targets[@]}"; do
         log_info "Unmounting $target"
-        umount "$target"
+        umount "$target" 2>/dev/null || true
     done
 
     umount "$partition" 2>/dev/null || true
 
     if findmnt -rn -S "$partition" >/dev/null 2>&1 || findmnt -rn -S "$partition_real" >/dev/null 2>&1; then
         log_error "Failed to unmount $partition cleanly. Please unmount it manually and retry."
+        exit 1
+    fi
+    if [[ -n "$partition_majmin" ]] && findmnt -rn -o MAJ:MIN 2>/dev/null | awk -v mm="$partition_majmin" '$1 == mm { found=1 } END { exit !found }'; then
+        log_error "Failed to unmount $partition cleanly. Please unmount it manually and retry."
+        exit 1
+    fi
+    if lsblk -nrpo MOUNTPOINTS "$partition" 2>/dev/null | awk 'NF { found=1 } END { exit !found }'; then
+        log_error "Failed to unmount $partition cleanly. Please unmount it manually and retry."
+        exit 1
+    fi
+}
+
+unmount_mountpoint_tree() {
+    local mount_root="$1"
+    local targets=()
+
+    mapfile -t targets < <(
+        findmnt -rn -o TARGET 2>/dev/null |
+            awk -v mp="$mount_root" '$0 == mp || index($0, mp "/") == 1' |
+            awk '{ print length, $0 }' |
+            sort -rn |
+            cut -d' ' -f2-
+    )
+
+    if [[ ${#targets[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    log_warning "Found existing mounts under $mount_root. Cleaning up."
+    cd /
+    for target in "${targets[@]}"; do
+        log_info "Unmounting $target"
+        umount "$target" 2>/dev/null || true
+    done
+
+    if findmnt -rn -o TARGET 2>/dev/null | awk -v mp="$mount_root" '$0 == mp || index($0, mp "/") == 1 { found=1 } END { exit !found }'; then
+        log_error "Failed to unmount all targets under $mount_root."
+        findmnt -rn -o TARGET,SOURCE,FSTYPE 2>/dev/null | awk -v mp="$mount_root" '$1 == mp || index($1, mp "/") == 1'
         exit 1
     fi
 }
@@ -493,6 +543,7 @@ step_2_format_partitions() {
         exit 1
     fi
 
+    unmount_mountpoint_tree "$MOUNT_POINT"
     unmount_if_mounted "$BOOT_PART"
     unmount_if_mounted "$ROOT_PART"
 
