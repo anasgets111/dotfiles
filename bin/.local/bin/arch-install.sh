@@ -29,6 +29,7 @@ log_step() { echo -e "\n${GREEN}=== Step $1: $2 ===${NC}"; }
 
 TIMEZONE="Africa/Cairo"
 LOCALE="en_US.UTF-8"
+VCONSOLE_KEYMAP="us"
 USERNAME="anas"
 USER_FULLNAME="Anas Khalifa"
 USER_GROUPS="wheel,audio,video,network,storage"
@@ -43,6 +44,7 @@ IS_PC=false
 BOOT_PART=""
 ROOT_PART=""
 START_MODE="full"
+CHROOT_START_MODE="full"
 
 # =============================================================================
 # PACKAGE ARRAYS
@@ -306,6 +308,7 @@ select_start_mode() {
         "Full run (all steps)"
         "Start after reflector (skip mirror optimization)"
         "Start after pacstrap (skip mirror optimization + base install)"
+        "Start after AUR install (resume from chroot step 11)"
     )
     local selected
     selected=$(menu_select "Select start mode" 0 "${options[@]}")
@@ -314,6 +317,7 @@ select_start_mode() {
     0) START_MODE="full" ;;
     1) START_MODE="after_reflector" ;;
     2) START_MODE="after_pacstrap" ;;
+    3) START_MODE="after_aur" ;;
     *)
         log_error "Invalid start mode selection: $selected"
         exit 1
@@ -361,6 +365,25 @@ require_pacstrap_done() {
         log_error "Run full mode or start after reflector."
         exit 1
     fi
+}
+
+require_aur_done() {
+    if [[ ! -f "$MOUNT_POINT/usr/bin/yay" ]]; then
+        log_error "AUR marker missing: $MOUNT_POINT/usr/bin/yay"
+        log_error "Run full mode or start after pacstrap."
+        exit 1
+    fi
+}
+
+ensure_vconsole_conf() {
+    if [[ -f /etc/vconsole.conf ]] && grep -qE '^[[:space:]]*KEYMAP=' /etc/vconsole.conf; then
+        return 0
+    fi
+
+    log_warning "/etc/vconsole.conf missing or incomplete. Creating default config."
+    cat >/etc/vconsole.conf <<EOF
+KEYMAP=$VCONSOLE_KEYMAP
+EOF
 }
 
 # =============================================================================
@@ -606,11 +629,11 @@ EOF
         printf "RED=%q\nGREEN=%q\nYELLOW=%q\nBLUE=%q\nNC=%q\n" \
             "$RED" "$GREEN" "$YELLOW" "$BLUE" "$NC"
         echo "trap 'echo -e \"\${RED}[ERROR]\${NC} Line \$LINENO failed\"; exit 1' ERR"
-        printf "TIMEZONE=%q\nLOCALE=%q\nUSERNAME=%q\nUSER_FULLNAME=%q\nUSER_GROUPS=%q\n" \
-            "$TIMEZONE" "$LOCALE" "$USERNAME" "$USER_FULLNAME" "$USER_GROUPS"
+        printf "TIMEZONE=%q\nLOCALE=%q\nVCONSOLE_KEYMAP=%q\nUSERNAME=%q\nUSER_FULLNAME=%q\nUSER_GROUPS=%q\n" \
+            "$TIMEZONE" "$LOCALE" "$VCONSOLE_KEYMAP" "$USERNAME" "$USER_FULLNAME" "$USER_GROUPS"
         declare -p PKGS_AUR_COMMON PKGS_AUR_MENTALIST PKGS_AUR_WOLVERINE
         declare -f log_info log_success log_warning log_error log_step
-        declare -f require_root set_password_with_retry append_repo_if_missing
+        declare -f require_root set_password_with_retry append_repo_if_missing ensure_vconsole_conf
         declare -f chroot_step_8_basics chroot_step_9_bootloader chroot_step_10_repos
         declare -f chroot_step_11_zram chroot_step_12_initramfs chroot_step_13_services
         declare -f chroot_step_14_user chroot_step_15_cleanup chroot_main
@@ -625,6 +648,7 @@ EOF
 }
 
 step_7_prepare_chroot() {
+    local chroot_mode="${1:-full}"
     log_step "7" "Preparing chroot"
 
     # Build a standalone chroot script (works for local file and process substitution runs).
@@ -634,6 +658,7 @@ step_7_prepare_chroot() {
     cat >"$MOUNT_POINT/root/install.conf" <<EOF
 HOSTNAME="$HOSTNAME"
 IS_PC=$IS_PC
+CHROOT_START_MODE="$chroot_mode"
 EOF
 
     # Copy optimized mirrorlist from live env
@@ -658,6 +683,7 @@ chroot_step_8_basics() {
     sed -i "s/^#$LOCALE/$LOCALE/" /etc/locale.gen
     locale-gen
     echo "LANG=$LOCALE" >/etc/locale.conf
+    ensure_vconsole_conf
 
     log_info "Setting hostname: $HOSTNAME"
     echo "$HOSTNAME" >/etc/hostname
@@ -749,6 +775,7 @@ EOF
 
 chroot_step_12_initramfs() {
     log_step "12" "Configuring initramfs"
+    ensure_vconsole_conf
 
     if $IS_PC; then
         log_info "Adding NVIDIA modules"
@@ -840,6 +867,7 @@ main() {
 
     case "$START_MODE" in
     full)
+        CHROOT_START_MODE="full"
         step_0_connectivity
         step_1_configure_pacman
         step_2_select_partitions
@@ -848,24 +876,35 @@ main() {
         step_4_mirrorlist
         step_5_pacstrap
         step_6_fstab
-        step_7_prepare_chroot
+        step_7_prepare_chroot "$CHROOT_START_MODE"
         ;;
     after_reflector)
+        CHROOT_START_MODE="full"
         step_0_connectivity
         step_1_configure_pacman
         require_resume_mounts
         require_recent_valid_mirrorlist
         step_5_pacstrap
         step_6_fstab
-        step_7_prepare_chroot
+        step_7_prepare_chroot "$CHROOT_START_MODE"
         ;;
     after_pacstrap)
+        CHROOT_START_MODE="full"
         step_0_connectivity
         step_1_configure_pacman
         require_resume_mounts
         require_pacstrap_done
         step_6_fstab
-        step_7_prepare_chroot
+        step_7_prepare_chroot "$CHROOT_START_MODE"
+        ;;
+    after_aur)
+        CHROOT_START_MODE="after_aur"
+        step_0_connectivity
+        step_1_configure_pacman
+        require_resume_mounts
+        require_pacstrap_done
+        require_aur_done
+        step_7_prepare_chroot "$CHROOT_START_MODE"
         ;;
     *)
         log_error "Unknown start mode: $START_MODE"
@@ -878,15 +917,31 @@ chroot_main() {
     require_root
     # Load config
     source /root/install.conf
+    CHROOT_START_MODE="${CHROOT_START_MODE:-full}"
 
-    chroot_step_8_basics
-    chroot_step_9_bootloader
-    chroot_step_10_repos
-    chroot_step_11_zram
-    chroot_step_12_initramfs
-    chroot_step_13_services
-    chroot_step_14_user
-    chroot_step_15_cleanup
+    case "$CHROOT_START_MODE" in
+    full)
+        chroot_step_8_basics
+        chroot_step_9_bootloader
+        chroot_step_10_repos
+        chroot_step_11_zram
+        chroot_step_12_initramfs
+        chroot_step_13_services
+        chroot_step_14_user
+        chroot_step_15_cleanup
+        ;;
+    after_aur)
+        chroot_step_11_zram
+        chroot_step_12_initramfs
+        chroot_step_13_services
+        chroot_step_14_user
+        chroot_step_15_cleanup
+        ;;
+    *)
+        log_error "Unknown chroot start mode: $CHROOT_START_MODE"
+        exit 1
+        ;;
+    esac
 }
 
 # Entry point
