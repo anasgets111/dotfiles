@@ -162,6 +162,37 @@ require_root() {
     fi
 }
 
+set_password_with_retry() {
+    local target_label="$1"
+    shift
+
+    local max_attempts=3
+    local attempt=1
+    while ((attempt <= max_attempts)); do
+        log_info "Set password for $target_label (attempt $attempt/$max_attempts)"
+        if "$@"; then
+            return 0
+        fi
+        log_warning "Password setup failed for $target_label."
+        attempt=$((attempt + 1))
+    done
+    log_error "Failed to set password for $target_label after $max_attempts attempts."
+    exit 1
+}
+
+append_repo_if_missing() {
+    local repo_name="$1"
+    local repo_block="$2"
+
+    if grep -qE "^[[:space:]]*\\[$repo_name\\][[:space:]]*$" /etc/pacman.conf; then
+        log_info "Repo [$repo_name] already configured, skipping"
+        return 0
+    fi
+
+    printf '\n%s\n' "$repo_block" >>/etc/pacman.conf
+    log_info "Added repo [$repo_name]"
+}
+
 detect_host_strict() {
     log_step "0.5" "Detecting target system"
 
@@ -457,7 +488,7 @@ step_5_pacstrap() {
 step_6_fstab() {
     log_step "6" "Generating fstab"
 
-    genfstab -U "$MOUNT_POINT" >>"$MOUNT_POINT/etc/fstab"
+    genfstab -U "$MOUNT_POINT" >"$MOUNT_POINT/etc/fstab"
 
     # Secure boot partition
     sed -i '/\/boot/ s/rw,relatime/rw,relatime,fmask=0077,dmask=0077/' "$MOUNT_POINT/etc/fstab"
@@ -465,6 +496,10 @@ step_6_fstab() {
     # Auxiliary partitions
     for label in "${AUX_LABELS[@]}"; do
         if blkid -L "$label" &>/dev/null; then
+            if grep -qE "^[[:space:]]*LABEL=${label}[[:space:]]+" "$MOUNT_POINT/etc/fstab"; then
+                log_info "$label already exists in fstab, skipping"
+                continue
+            fi
             log_info "Adding $label partition to fstab"
             echo "LABEL=$label  /mnt/$label  ext4  nosuid,nodev,nofail,x-gvfs-show,x-systemd.makedir,noatime  0 2" \
                 >>"$MOUNT_POINT/etc/fstab"
@@ -517,8 +552,7 @@ chroot_step_8_basics() {
 127.0.1.1   $HOSTNAME.localdomain $HOSTNAME
 EOF
 
-    log_info "Set root password"
-    passwd
+    set_password_with_retry "root" passwd
 
     log_success "System basics configured"
 }
@@ -559,20 +593,14 @@ chroot_step_10_repos() {
     pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
     pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
 
-    cat >>/etc/pacman.conf <<'EOF'
-
-[chaotic-aur]
-Include = /etc/pacman.d/chaotic-mirrorlist
-EOF
+    append_repo_if_missing "chaotic-aur" "[chaotic-aur]
+Include = /etc/pacman.d/chaotic-mirrorlist"
 
     # Omarchy
     log_info "Setting up Omarchy"
-    cat >>/etc/pacman.conf <<'EOF'
-
-[omarchy]
+    append_repo_if_missing "omarchy" "[omarchy]
 SigLevel = Optional TrustAll
-Server = https://pkgs.omarchy.org/$arch
-EOF
+Server = https://pkgs.omarchy.org/\$arch"
 
     pacman -Sy
 
@@ -658,8 +686,7 @@ chroot_step_14_user() {
     log_info "Creating user: $USERNAME"
     useradd -m -c "$USER_FULLNAME" -G "$USER_GROUPS" -s /usr/bin/fish "$USERNAME"
 
-    log_info "Set password for $USERNAME"
-    passwd "$USERNAME"
+    set_password_with_retry "$USERNAME" passwd "$USERNAME"
 
     log_info "Enabling sudo for wheel group"
     sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
