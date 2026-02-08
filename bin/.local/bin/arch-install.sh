@@ -767,7 +767,7 @@ chroot_step_17_user() {
 chroot_step_18_post_user() {
 	log_step "Post-install user bootstrap"
 
-	local dots_dir="/mnt/Work/Dots"
+	local dots_dir="/mnt/Work/1Progs/Dots"
 	local backup_script="$dots_dir/bin/.local/bin/backup-home"
 	local stow_packages=(bin kitty quickshell fish nvim mpv wezterm)
 	if $IS_PC; then
