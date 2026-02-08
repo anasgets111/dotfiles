@@ -61,7 +61,7 @@ PKGS_COMMON=(
 	cliphist dysk expac eza fastfetch fzf git-filter-repo git-lfs
 	inotify-tools just less rsync ripgrep pkgstats pacman-contrib stow
 	starship zoxide fd jq tealdeer rustup usbutils wl-clipboard zip
-	unrar unzip lshw i2c-tools tokei tree-sitter-cli ffmpegthumbnailer
+	unrar unzip lshw i2c-tools tokei tree-sitter-cli ffmpegthumbnailer shfmt
 	# Audio & Accessibility
 	pipewire pipewire-jack pipewire-pulse pipewire-alsa wireplumber
 	espeak-ng speech-dispatcher
@@ -419,8 +419,7 @@ step_5_mount() {
 	log_step "5" "Mounting filesystems"
 
 	mount -o noatime "$ROOT_PART" "$MOUNT_POINT"
-	mkdir -p "$MOUNT_POINT/boot"
-	mount "$BOOT_PART" "$MOUNT_POINT/boot"
+	mount --mkdir -o noatime,umask=0077 "$BOOT_PART" "$MOUNT_POINT/boot"
 
 	log_success "Filesystems mounted"
 }
@@ -470,9 +469,6 @@ step_9_fstab() {
 	log_step "9" "Generating fstab"
 
 	genfstab -L "$MOUNT_POINT" >"$MOUNT_POINT/etc/fstab"
-
-	# Secure boot partition
-	sed -i '/\/boot/ s/rw,relatime/rw,relatime,fmask=0077,dmask=0077/' "$MOUNT_POINT/etc/fstab"
 
 	# Auxiliary partitions
 	for label in "${AUX_LABELS[@]}"; do
@@ -703,17 +699,8 @@ chroot_step_18_post_user() {
 		stow_packages+=(niri)
 	fi
 
-	# Mount Work partition
-	local work_device
-	work_device=$(blkid -L Work 2>/dev/null || true)
-	if [[ -z "$work_device" ]]; then
-		log_warning "Partition label Work not found. Skipping post-user setup."
-		return 0
-	fi
-	mkdir -p /mnt/Work
-	umount /mnt/Work 2>/dev/null || true
-	if ! mount "$work_device" /mnt/Work; then
-		log_warning "Failed to mount Work partition. Skipping post-user setup."
+	if ! mount --mkdir /mnt/Work; then
+		log_warning "Failed to mount /mnt/Work (check fstab). Skipping post-user setup."
 		return 0
 	fi
 
