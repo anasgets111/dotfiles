@@ -43,8 +43,6 @@ IS_PC=false
 # Partition selections (set interactively)
 BOOT_PART=""
 ROOT_PART=""
-START_MODE="full"
-CHROOT_START_MODE="full"
 
 # =============================================================================
 # PACKAGE ARRAYS
@@ -303,78 +301,6 @@ menu_select() {
     printf '%s\n' "$selected"
 }
 
-select_start_mode() {
-    local options=(
-        "Full run (all steps)"
-        "Start after reflector (skip mirror optimization)"
-        "Start after pacstrap (skip mirror optimization + base install)"
-        "Start after AUR install (resume from chroot step 11)"
-    )
-    local selected
-    selected=$(menu_select "Select start mode" 0 "${options[@]}")
-
-    case "$selected" in
-    0) START_MODE="full" ;;
-    1) START_MODE="after_reflector" ;;
-    2) START_MODE="after_pacstrap" ;;
-    3) START_MODE="after_aur" ;;
-    *)
-        log_error "Invalid start mode selection: $selected"
-        exit 1
-        ;;
-    esac
-
-    log_info "Selected start mode: $START_MODE"
-}
-
-require_resume_mounts() {
-    if ! findmnt -rn -M "$MOUNT_POINT" >/dev/null 2>&1; then
-        log_error "$MOUNT_POINT must be mounted before using resume mode."
-        exit 1
-    fi
-    if ! findmnt -rn -M "$MOUNT_POINT/boot" >/dev/null 2>&1; then
-        log_error "$MOUNT_POINT/boot must be mounted before using resume mode."
-        exit 1
-    fi
-}
-
-require_recent_valid_mirrorlist() {
-    local mirrorlist="/etc/pacman.d/mirrorlist"
-    local now mtime age
-
-    if [[ ! -f "$mirrorlist" ]]; then
-        log_error "Mirrorlist not found: $mirrorlist"
-        exit 1
-    fi
-    if ! grep -qE '^[[:space:]]*Server[[:space:]]*=' "$mirrorlist"; then
-        log_error "Mirrorlist is invalid: no 'Server =' entries found."
-        exit 1
-    fi
-    mtime=$(stat -c %Y "$mirrorlist" 2>/dev/null || echo 0)
-    now=$(date +%s)
-    age=$((now - mtime))
-    if ((age > 3600)); then
-        log_error "Mirrorlist is older than 1 hour (${age}s). Re-run reflector or use full mode."
-        exit 1
-    fi
-}
-
-require_pacstrap_done() {
-    if [[ ! -f "$MOUNT_POINT/usr/bin/bash" ]]; then
-        log_error "Pacstrap marker missing: $MOUNT_POINT/usr/bin/bash"
-        log_error "Run full mode or start after reflector."
-        exit 1
-    fi
-}
-
-require_aur_done() {
-    if [[ ! -f "$MOUNT_POINT/usr/bin/yay" ]]; then
-        log_error "AUR marker missing: $MOUNT_POINT/usr/bin/yay"
-        log_error "Run full mode or start after pacstrap."
-        exit 1
-    fi
-}
-
 ensure_vconsole_conf() {
     if [[ -f /etc/vconsole.conf ]] && grep -qE '^[[:space:]]*KEYMAP=' /etc/vconsole.conf; then
         return 0
@@ -384,6 +310,18 @@ ensure_vconsole_conf() {
     cat >/etc/vconsole.conf <<EOF
 KEYMAP=$VCONSOLE_KEYMAP
 EOF
+}
+
+configure_pacman_defaults() {
+    local conf="${1:-/etc/pacman.conf}"
+
+    log_info "Enabling ParallelDownloads, Color, ILoveCandy in $conf"
+    sed -i 's/^#ParallelDownloads/ParallelDownloads/' "$conf"
+    sed -i 's/^#Color/Color/' "$conf"
+    grep -q "^ILoveCandy" "$conf" || sed -i '/^Color/a ILoveCandy' "$conf"
+
+    log_info "Enabling multilib in $conf"
+    sed -i '/\[multilib\]/,/Include/s/^#//' "$conf"
 }
 
 # =============================================================================
@@ -421,16 +359,9 @@ select_hostname() {
 
 step_1_configure_pacman() {
     log_step "1" "Configuring pacman"
-
-    log_info "Enabling ParallelDownloads, Color, ILoveCandy"
-    sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
-    sed -i 's/^#Color/Color/' /etc/pacman.conf
-    grep -q "^ILoveCandy" /etc/pacman.conf || sed -i '/^Color/a ILoveCandy' /etc/pacman.conf
-
-    log_info "Enabling multilib"
-    sed -i '/\[multilib\]/,/Include/s/^#//' /etc/pacman.conf
-
-    log_success "Pacman configured"
+    log_info "Skipping pacman.conf tweaks in live environment"
+    log_info "Pacman defaults will be configured inside installed system (chroot step 10)"
+    log_success "Live pacman step complete"
 }
 
 step_2_select_partitions() {
@@ -633,7 +564,7 @@ EOF
             "$TIMEZONE" "$LOCALE" "$VCONSOLE_KEYMAP" "$USERNAME" "$USER_FULLNAME" "$USER_GROUPS"
         declare -p PKGS_AUR_COMMON PKGS_AUR_MENTALIST PKGS_AUR_WOLVERINE
         declare -f log_info log_success log_warning log_error log_step
-        declare -f require_root set_password_with_retry append_repo_if_missing ensure_vconsole_conf
+        declare -f require_root set_password_with_retry append_repo_if_missing ensure_vconsole_conf configure_pacman_defaults
         declare -f chroot_step_8_basics chroot_step_9_bootloader chroot_step_10_repos
         declare -f chroot_step_11_zram chroot_step_12_initramfs chroot_step_13_services
         declare -f chroot_step_14_user chroot_step_15_cleanup chroot_main
@@ -648,7 +579,6 @@ EOF
 }
 
 step_7_prepare_chroot() {
-    local chroot_mode="${1:-full}"
     log_step "7" "Preparing chroot"
 
     # Build a standalone chroot script (works for local file and process substitution runs).
@@ -658,7 +588,6 @@ step_7_prepare_chroot() {
     cat >"$MOUNT_POINT/root/install.conf" <<EOF
 HOSTNAME="$HOSTNAME"
 IS_PC=$IS_PC
-CHROOT_START_MODE="$chroot_mode"
 EOF
 
     # Copy optimized mirrorlist from live env
@@ -725,6 +654,7 @@ EOF
 
 chroot_step_10_repos() {
     log_step "10" "Setting up AUR repos and packages"
+    configure_pacman_defaults /etc/pacman.conf
 
     # Chaotic-AUR
     log_info "Setting up Chaotic-AUR"
@@ -798,7 +728,7 @@ chroot_step_13_services() {
         systemd-timesyncd
         fstrim.timer
         bluetooth
-        ly
+        ly@tty2
         power-profiles-daemon
         fwupd-refresh.timer
     )
@@ -863,85 +793,30 @@ main() {
     echo
 
     select_hostname
-    select_start_mode
-
-    case "$START_MODE" in
-    full)
-        CHROOT_START_MODE="full"
-        step_0_connectivity
-        step_1_configure_pacman
-        step_2_select_partitions
-        step_2_format_partitions
-        step_3_mount
-        step_4_mirrorlist
-        step_5_pacstrap
-        step_6_fstab
-        step_7_prepare_chroot "$CHROOT_START_MODE"
-        ;;
-    after_reflector)
-        CHROOT_START_MODE="full"
-        step_0_connectivity
-        step_1_configure_pacman
-        require_resume_mounts
-        require_recent_valid_mirrorlist
-        step_5_pacstrap
-        step_6_fstab
-        step_7_prepare_chroot "$CHROOT_START_MODE"
-        ;;
-    after_pacstrap)
-        CHROOT_START_MODE="full"
-        step_0_connectivity
-        step_1_configure_pacman
-        require_resume_mounts
-        require_pacstrap_done
-        step_6_fstab
-        step_7_prepare_chroot "$CHROOT_START_MODE"
-        ;;
-    after_aur)
-        CHROOT_START_MODE="after_aur"
-        step_0_connectivity
-        step_1_configure_pacman
-        require_resume_mounts
-        require_pacstrap_done
-        require_aur_done
-        step_7_prepare_chroot "$CHROOT_START_MODE"
-        ;;
-    *)
-        log_error "Unknown start mode: $START_MODE"
-        exit 1
-        ;;
-    esac
+    step_0_connectivity
+    step_1_configure_pacman
+    step_2_select_partitions
+    step_2_format_partitions
+    step_3_mount
+    step_4_mirrorlist
+    step_5_pacstrap
+    step_6_fstab
+    step_7_prepare_chroot
 }
 
 chroot_main() {
     require_root
     # Load config
     source /root/install.conf
-    CHROOT_START_MODE="${CHROOT_START_MODE:-full}"
 
-    case "$CHROOT_START_MODE" in
-    full)
-        chroot_step_8_basics
-        chroot_step_9_bootloader
-        chroot_step_10_repos
-        chroot_step_11_zram
-        chroot_step_12_initramfs
-        chroot_step_13_services
-        chroot_step_14_user
-        chroot_step_15_cleanup
-        ;;
-    after_aur)
-        chroot_step_11_zram
-        chroot_step_12_initramfs
-        chroot_step_13_services
-        chroot_step_14_user
-        chroot_step_15_cleanup
-        ;;
-    *)
-        log_error "Unknown chroot start mode: $CHROOT_START_MODE"
-        exit 1
-        ;;
-    esac
+    chroot_step_8_basics
+    chroot_step_9_bootloader
+    chroot_step_10_repos
+    chroot_step_11_zram
+    chroot_step_12_initramfs
+    chroot_step_13_services
+    chroot_step_14_user
+    chroot_step_15_cleanup
 }
 
 # Entry point
