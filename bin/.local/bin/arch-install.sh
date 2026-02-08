@@ -324,6 +324,25 @@ configure_pacman_defaults() {
     sed -i '/\[multilib\]/,/Include/s/^#//' "$conf"
 }
 
+mount_work_partition() {
+    local work_mount="/mnt/Work"
+
+    mkdir -p "$work_mount"
+    if findmnt -rn -M "$work_mount" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if ! mount LABEL=Work "$work_mount"; then
+        log_warning "Failed to mount Work partition at $work_mount. Skipping post-user bootstrap."
+        return 1
+    fi
+}
+
+run_as_user() {
+    local cmd="$1"
+    runuser -u "$USERNAME" -- bash -lc "$cmd"
+}
+
 # =============================================================================
 # STEP FUNCTIONS
 # =============================================================================
@@ -355,13 +374,6 @@ step_0_connectivity() {
 
 select_hostname() {
     detect_host_strict
-}
-
-step_1_configure_pacman() {
-    log_step "1" "Configuring pacman"
-    log_info "Skipping pacman.conf tweaks in live environment"
-    log_info "Pacman defaults will be configured inside installed system (chroot step 10)"
-    log_success "Live pacman step complete"
 }
 
 step_2_select_partitions() {
@@ -415,12 +427,6 @@ step_2_select_partitions() {
         [[ "$BOOT_PART" != "$ROOT_PART" ]] && break
         log_warning "BOOT and ROOT cannot be the same partition. Please choose again."
     done
-
-    # Validate not same partition
-    if [[ "$BOOT_PART" == "$ROOT_PART" ]]; then
-        log_error "BOOT and ROOT cannot be the same partition!"
-        exit 1
-    fi
 
     log_success "Selected: BOOT=$BOOT_PART, ROOT=$ROOT_PART"
 }
@@ -565,9 +571,10 @@ EOF
         declare -p PKGS_AUR_COMMON PKGS_AUR_MENTALIST PKGS_AUR_WOLVERINE
         declare -f log_info log_success log_warning log_error log_step
         declare -f require_root set_password_with_retry append_repo_if_missing ensure_vconsole_conf configure_pacman_defaults
+        declare -f mount_work_partition run_as_user
         declare -f chroot_step_8_basics chroot_step_9_bootloader chroot_step_10_repos
         declare -f chroot_step_11_zram chroot_step_12_initramfs chroot_step_13_services
-        declare -f chroot_step_14_user chroot_step_15_cleanup chroot_main
+        declare -f chroot_step_14_user chroot_step_14_post_user_setup chroot_step_15_cleanup chroot_main
         cat <<'EOF'
 if [[ "${1:-}" == "chroot" ]]; then
     chroot_main
@@ -705,7 +712,6 @@ EOF
 
 chroot_step_12_initramfs() {
     log_step "12" "Configuring initramfs"
-    ensure_vconsole_conf
 
     if $IS_PC; then
         log_info "Adding NVIDIA modules"
@@ -765,6 +771,56 @@ chroot_step_14_user() {
     log_success "User created"
 }
 
+chroot_step_14_post_user_setup() {
+    log_step "14.5" "Post-install user bootstrap"
+
+    local dots_dir="/mnt/Work/Dots"
+    local backup_script="$dots_dir/bin/.local/bin/backup-home"
+    local stow_packages=(bin kitty quickshell fish nvim mpv wezterm)
+    local stow_cmd
+
+    if $IS_PC; then
+        stow_packages+=(hypr)
+    else
+        stow_packages+=(niri)
+    fi
+
+    if ! mount_work_partition; then
+        return 0
+    fi
+
+    if [[ ! -d "$dots_dir" ]]; then
+        log_warning "Dots directory not found at $dots_dir. Skipping restore/stow/gsettings."
+        return 0
+    fi
+
+    if ! run_as_user "\"$backup_script\" -r"; then
+        log_warning "backup-home restore failed (or script missing); continuing."
+    fi
+
+    if ! run_as_user 'rm -f "$HOME/.bashrc" "$HOME/.bash_profile"'; then
+        log_warning "Failed removing default bash files; continuing."
+    fi
+
+    stow_cmd=$(printf 'cd %q && stow -t "$HOME"' "$dots_dir")
+    for pkg in "${stow_packages[@]}"; do
+        stow_cmd+=" $(printf '%q' "$pkg")"
+    done
+    if ! run_as_user "$stow_cmd"; then
+        log_warning "Stow failed; continuing."
+    fi
+
+    if ! run_as_user 'yay -S --noconfirm --removemake --cleanafter antigravity quickshell-git'; then
+        log_warning "yay install failed for antigravity/quickshell-git; continuing."
+    fi
+
+    if ! run_as_user "dbus-run-session -- gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'"; then
+        log_warning "Failed to set gsettings dark preference; continuing."
+    fi
+
+    log_success "Post-user bootstrap complete"
+}
+
 chroot_step_15_cleanup() {
     log_step "15" "Cleanup"
 
@@ -794,7 +850,6 @@ main() {
 
     select_hostname
     step_0_connectivity
-    step_1_configure_pacman
     step_2_select_partitions
     step_2_format_partitions
     step_3_mount
@@ -816,6 +871,7 @@ chroot_main() {
     chroot_step_12_initramfs
     chroot_step_13_services
     chroot_step_14_user
+    chroot_step_14_post_user_setup
     chroot_step_15_cleanup
 }
 
