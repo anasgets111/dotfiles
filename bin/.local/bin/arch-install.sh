@@ -149,6 +149,25 @@ check_internet() {
     ping -c 1 -W 3 archlinux.org &>/dev/null
 }
 
+get_wifi_interface() {
+    local iface_path
+    local iface_name=""
+
+    if command -v iw &>/dev/null; then
+        iface_name=$(iw dev 2>/dev/null | awk '$1 == "Interface" { print $2; exit }')
+        if [[ -n "$iface_name" ]]; then
+            echo "$iface_name"
+            return 0
+        fi
+    fi
+
+    for iface_path in /sys/class/net/wl*; do
+        [[ -e "$iface_path" ]] || continue
+        basename "$iface_path"
+        return 0
+    done
+}
+
 confirm() {
     local prompt="${1:-Continue?}"
     read -rp "$prompt [y/N]: " response
@@ -326,13 +345,28 @@ configure_pacman_defaults() {
 
 mount_work_partition() {
     local work_mount="/mnt/Work"
+    local work_device mounted_source work_real mounted_real
 
     mkdir -p "$work_mount"
+
+    work_device=$(blkid -L Work 2>/dev/null || true)
+    if [[ -z "$work_device" ]]; then
+        log_warning "Partition label Work not found. Skipping post-user bootstrap."
+        return 1
+    fi
+    work_real=$(readlink -f "$work_device" 2>/dev/null || echo "$work_device")
+
     if findmnt -rn -M "$work_mount" >/dev/null 2>&1; then
-        return 0
+        mounted_source=$(findmnt -rn -o SOURCE -M "$work_mount" 2>/dev/null || true)
+        mounted_real=$(readlink -f "$mounted_source" 2>/dev/null || echo "$mounted_source")
+        if [[ "$mounted_real" == "$work_real" ]]; then
+            return 0
+        fi
+        log_warning "$work_mount is mounted from $mounted_source, expected $work_device. Skipping post-user bootstrap."
+        return 1
     fi
 
-    if ! mount LABEL=Work "$work_mount"; then
+    if ! mount "$work_device" "$work_mount"; then
         log_warning "Failed to mount Work partition at $work_mount. Skipping post-user bootstrap."
         return 1
     fi
@@ -343,12 +377,36 @@ run_as_user() {
     runuser -u "$USERNAME" -- bash -lc "$cmd"
 }
 
+run_yay_with_temp_nopasswd() {
+    local rule_file="/etc/sudoers.d/90-yay-temp-install"
+    local yay_cmd='yay -S --needed --noconfirm --sudoloop --removemake --cleanafter --answerclean None --answerdiff None --answeredit None antigravity quickshell-git'
+
+    printf '%s ALL=(ALL:ALL) NOPASSWD: /usr/bin/pacman\n' "$USERNAME" >"$rule_file"
+    chmod 0440 "$rule_file"
+
+    if command -v visudo &>/dev/null; then
+        if ! visudo -cf "$rule_file" >/dev/null 2>&1; then
+            rm -f "$rule_file"
+            log_warning "Temporary sudoers rule validation failed; skipping yay install."
+            return 1
+        fi
+    fi
+
+    if ! run_as_user "$yay_cmd"; then
+        rm -f "$rule_file"
+        return 1
+    fi
+
+    rm -f "$rule_file"
+}
+
 # =============================================================================
 # STEP FUNCTIONS
 # =============================================================================
 
 step_0_connectivity() {
     log_step "0" "Checking connectivity"
+    local wifi_iface
 
     if check_internet; then
         log_success "Internet connection available"
@@ -356,12 +414,18 @@ step_0_connectivity() {
     fi
 
     log_warning "No internet connection detected"
+    wifi_iface=$(get_wifi_interface)
+    if [[ -z "$wifi_iface" ]]; then
+        log_error "No Wi-Fi interface detected."
+        exit 1
+    fi
+    log_info "Using Wi-Fi interface: $wifi_iface"
     log_info "Connecting to Wi-Fi: $WIFI_SSID"
 
     read -rsp "Enter Wi-Fi passphrase: " wifi_pass
     echo
 
-    iwctl station wlan0 connect-hidden "$WIFI_SSID" --passphrase "$wifi_pass"
+    iwctl station "$wifi_iface" connect-hidden "$WIFI_SSID" --passphrase "$wifi_pass"
     sleep 5
 
     if check_internet; then
@@ -571,7 +635,7 @@ EOF
         declare -p PKGS_AUR_COMMON PKGS_AUR_MENTALIST PKGS_AUR_WOLVERINE
         declare -f log_info log_success log_warning log_error log_step
         declare -f require_root set_password_with_retry append_repo_if_missing ensure_vconsole_conf configure_pacman_defaults
-        declare -f mount_work_partition run_as_user
+        declare -f mount_work_partition run_as_user run_yay_with_temp_nopasswd
         declare -f chroot_step_8_basics chroot_step_9_bootloader chroot_step_10_repos
         declare -f chroot_step_11_zram chroot_step_12_initramfs chroot_step_13_services
         declare -f chroot_step_14_user chroot_step_14_post_user_setup chroot_step_15_cleanup chroot_main
@@ -810,7 +874,7 @@ chroot_step_14_post_user_setup() {
         log_warning "Stow failed; continuing."
     fi
 
-    if ! run_as_user 'yay -S --noconfirm --removemake --cleanafter antigravity quickshell-git'; then
+    if ! run_yay_with_temp_nopasswd; then
         log_warning "yay install failed for antigravity/quickshell-git; continuing."
     fi
 
@@ -825,6 +889,7 @@ chroot_step_15_cleanup() {
     log_step "15" "Cleanup"
 
     rm -f /root/install.sh /root/install.conf
+    rm -f /etc/sudoers.d/90-yay-temp-install
 
     echo
     log_success "Installation complete!"
