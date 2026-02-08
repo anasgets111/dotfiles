@@ -98,7 +98,7 @@ PKGS_MENTALIST=(
 
 PKGS_WOLVERINE=(
     # Hardware
-    amd-ucode nvidia-open nvidia-utils nvidia-settings vulkan-nvidia
+    amd-ucode nvidia-open nvidia-utils nvidia-settings
     lib32-nvidia-utils libva-nvidia-driver
     # Hyprland WM
     hyprland hyprpicker hyprshot uwsm xdg-desktop-portal-hyprland
