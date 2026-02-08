@@ -152,19 +152,6 @@ check_internet() {
     ping -c 1 -W 3 archlinux.org &>/dev/null
 }
 
-get_wifi_interface() {
-    local iface
-    for iface in /sys/class/net/wl*; do
-        [[ -e "$iface" ]] && basename "$iface" && return 0
-    done
-}
-
-confirm() {
-    local prompt="${1:-Continue?}"
-    read -rp "$prompt [y/N]: " response
-    [[ "$response" =~ ^[Yy]$ ]]
-}
-
 require_root() {
     if ((EUID != 0)); then
         log_error "This script must run as root."
@@ -278,8 +265,8 @@ menu_select() {
         if [[ "$key" == $'\x1b' ]]; then
             IFS= read -rsn2 key </dev/tty
             case "$key" in
-            "[A") selected=$(((selected - 1 + ${#options[@]}) % ${#options[@]})) ;;
-            "[B") selected=$(((selected + 1) % ${#options[@]})) ;;
+                "[A") selected=$(((selected - 1 + ${#options[@]}) % ${#options[@]})) ;;
+                "[B") selected=$(((selected + 1) % ${#options[@]})) ;;
             esac
         elif [[ -z "$key" ]]; then
             break
@@ -290,48 +277,6 @@ menu_select() {
     printf '%s\n' "$selected"
 }
 
-ensure_vconsole_conf() {
-    if [[ -f /etc/vconsole.conf ]] && grep -qE '^[[:space:]]*KEYMAP=' /etc/vconsole.conf; then
-        return 0
-    fi
-
-    log_warning "/etc/vconsole.conf missing or incomplete. Creating default config."
-    cat >/etc/vconsole.conf <<EOF
-KEYMAP=$VCONSOLE_KEYMAP
-EOF
-}
-
-configure_pacman_defaults() {
-    local conf="${1:-/etc/pacman.conf}"
-
-    log_info "Enabling ParallelDownloads, Color, ILoveCandy in $conf"
-    sed -i 's/^#ParallelDownloads/ParallelDownloads/' "$conf"
-    sed -i 's/^#Color/Color/' "$conf"
-    grep -q "^ILoveCandy" "$conf" || sed -i '/^Color/a ILoveCandy' "$conf"
-
-    log_info "Enabling multilib in $conf"
-    sed -i '/\[multilib\]/,/Include/s/^#//' "$conf"
-}
-
-mount_work_partition() {
-    local work_mount="/mnt/Work"
-    local work_device
-
-    work_device=$(blkid -L Work 2>/dev/null || true)
-    if [[ -z "$work_device" ]]; then
-        log_warning "Partition label Work not found. Skipping."
-        return 1
-    fi
-
-    mkdir -p "$work_mount"
-    umount "$work_mount" 2>/dev/null || true
-
-    if ! mount "$work_device" "$work_mount"; then
-        log_warning "Failed to mount Work partition. Skipping."
-        return 1
-    fi
-}
-
 run_as_user() {
     local cmd="$1"
     runuser -u "$USERNAME" -- bash -lc "$cmd"
@@ -340,22 +285,18 @@ run_as_user() {
 run_yay_with_temp_nopasswd() {
     local rule_file="/etc/sudoers.d/90-yay-temp-install"
     local yay_cmd='yay -S --needed --noconfirm --sudoloop --removemake --cleanafter --answerclean None --answerdiff None --answeredit None antigravity quickshell-git'
-    local status=0
 
     printf '%s ALL=(ALL:ALL) NOPASSWD: /usr/bin/pacman\n' "$USERNAME" >"$rule_file"
     chmod 0440 "$rule_file"
 
-    if command -v visudo &>/dev/null; then
-        if ! visudo -cf "$rule_file" >/dev/null 2>&1; then
-            log_warning "Temporary sudoers rule validation failed; skipping yay install."
-            status=1
-        fi
+    if ! visudo -cf "$rule_file" &>/dev/null; then
+        log_warning "Temporary sudoers rule validation failed; skipping yay install."
+        rm -f "$rule_file"
+        return 1
     fi
 
-    if ((status == 0)) && ! run_as_user "$yay_cmd"; then
-        status=1
-    fi
-
+    local status=0
+    run_as_user "$yay_cmd" || status=1
     rm -f "$rule_file"
     return "$status"
 }
@@ -374,7 +315,12 @@ step_2_connectivity() {
     fi
 
     log_warning "No internet connection detected"
-    wifi_iface=$(get_wifi_interface)
+    for iface in /sys/class/net/wl*; do
+        [[ -e "$iface" ]] && {
+            wifi_iface=$(basename "$iface")
+            break
+        }
+    done
     if [[ -z "$wifi_iface" ]]; then
         log_error "No Wi-Fi interface detected."
         exit 1
@@ -452,7 +398,9 @@ step_3_select_partitions() {
     log_success "Selected: BOOT=$BOOT_PART, ROOT=$ROOT_PART"
 }
 
-show_summary() {
+step_4_format_partitions() {
+    log_step "4" "Formatting partitions"
+
     echo
     echo "=============================================="
     echo "           INSTALLATION SUMMARY"
@@ -463,47 +411,18 @@ show_summary() {
     echo "Username:       $USERNAME"
     echo "Timezone:       $TIMEZONE"
     echo "Locale:         $LOCALE"
-    if $IS_PC; then
-        echo "Type:           PC (AMD + NVIDIA)"
-    else
-        echo "Type:           Laptop (Intel)"
-    fi
+    $IS_PC && echo "Type:           PC (AMD + NVIDIA)" || echo "Type:           Laptop (Intel)"
     echo "=============================================="
     echo
-}
-
-cleanup_mounts_before_format() {
-    cd /
-    umount -R "$MOUNT_POINT" 2>/dev/null || true
-    umount "$BOOT_PART" 2>/dev/null || true
-    umount "$ROOT_PART" 2>/dev/null || true
-
-    for part in "$BOOT_PART" "$ROOT_PART"; do
-        if findmnt -rn -S "$part" >/dev/null 2>&1; then
-            log_error "$part is still mounted."
-            exit 1
-        fi
-    done
-
-    if findmnt -Rno TARGET "$MOUNT_POINT" >/dev/null 2>&1; then
-        log_error "Mounts under $MOUNT_POINT still active:"
-        findmnt -Rno TARGET,SOURCE,FSTYPE "$MOUNT_POINT"
-        exit 1
-    fi
-}
-
-step_4_format_partitions() {
-    log_step "4" "Formatting partitions"
-
-    show_summary
 
     log_warning "This will ERASE all data on $BOOT_PART and $ROOT_PART!"
-    if ! confirm "Are you sure you want to continue?"; then
+    read -rp "Are you sure you want to continue? [y/N]: " response
+    [[ "$response" =~ ^[Yy]$ ]] || {
         log_error "Aborted by user"
         exit 1
-    fi
+    }
 
-    cleanup_mounts_before_format
+    cd / && umount -R "$MOUNT_POINT" 2>/dev/null || true
 
     log_info "Formatting BOOT partition as FAT32"
     mkfs.fat -F32 -n BOOT "$BOOT_PART"
@@ -541,8 +460,16 @@ step_6_mirrorlist() {
 
 step_7_pacman_defaults() {
     log_step "7" "Configuring pacman defaults (live environment)"
-    configure_pacman_defaults /etc/pacman.conf
-    log_success "Pacman defaults configured in live environment"
+
+    log_info "Enabling ParallelDownloads, Color, ILoveCandy, multilib"
+    sed -i \
+        -e 's/^#ParallelDownloads/ParallelDownloads/' \
+        -e 's/^#Color/Color/' \
+        -e '/\[multilib\]/,/Include/s/^#//' \
+        /etc/pacman.conf
+    grep -q "^ILoveCandy" /etc/pacman.conf || sed -i '/^Color/a ILoveCandy' /etc/pacman.conf
+
+    log_success "Pacman defaults configured"
 }
 
 step_8_pacstrap() {
@@ -573,7 +500,10 @@ step_9_fstab() {
     # Auxiliary partitions
     for label in "${AUX_LABELS[@]}"; do
         blkid -L "$label" &>/dev/null || continue
-        grep -qE "^[[:space:]]*LABEL=${label}[[:space:]]+" "$MOUNT_POINT/etc/fstab" && { log_info "$label already in fstab"; continue; }
+        grep -qE "^[[:space:]]*LABEL=${label}[[:space:]]+" "$MOUNT_POINT/etc/fstab" && {
+            log_info "$label already in fstab"
+            continue
+        }
         log_info "Adding $label partition to fstab"
         echo "LABEL=$label  /mnt/$label  ext4  nosuid,nodev,nofail,x-gvfs-show,x-systemd.makedir,noatime  0 2" \
             >>"$MOUNT_POINT/etc/fstab"
@@ -619,7 +549,10 @@ chroot_step_11_basics() {
     sed -i "s/^#$LOCALE/$LOCALE/" /etc/locale.gen
     locale-gen
     echo "LANG=$LOCALE" >/etc/locale.conf
-    ensure_vconsole_conf
+    if ! [[ -f /etc/vconsole.conf ]] || ! grep -qE '^[[:space:]]*KEYMAP=' /etc/vconsole.conf; then
+        log_warning "/etc/vconsole.conf missing or incomplete. Creating default."
+        echo "KEYMAP=$VCONSOLE_KEYMAP" >/etc/vconsole.conf
+    fi
 
     log_info "Setting hostname: $HOSTNAME"
     echo "$HOSTNAME" >/etc/hostname
@@ -779,7 +712,6 @@ chroot_step_18_post_user() {
     local dots_dir="/mnt/Work/Dots"
     local backup_script="$dots_dir/bin/.local/bin/backup-home"
     local stow_packages=(bin kitty quickshell fish nvim mpv wezterm)
-    local stow_cmd
 
     if $IS_PC; then
         stow_packages+=(hypr)
@@ -787,7 +719,17 @@ chroot_step_18_post_user() {
         stow_packages+=(niri)
     fi
 
-    if ! mount_work_partition; then
+    # Mount Work partition
+    local work_device
+    work_device=$(blkid -L Work 2>/dev/null || true)
+    if [[ -z "$work_device" ]]; then
+        log_warning "Partition label Work not found. Skipping post-user setup."
+        return 0
+    fi
+    mkdir -p /mnt/Work
+    umount /mnt/Work 2>/dev/null || true
+    if ! mount "$work_device" /mnt/Work; then
+        log_warning "Failed to mount Work partition. Skipping post-user setup."
         return 0
     fi
 
@@ -804,11 +746,7 @@ chroot_step_18_post_user() {
         log_warning "Failed removing default bash files; continuing."
     fi
 
-    stow_cmd=$(printf 'cd %q && stow -t "$HOME"' "$dots_dir")
-    for pkg in "${stow_packages[@]}"; do
-        stow_cmd+=" $(printf '%q' "$pkg")"
-    done
-    if ! run_as_user "$stow_cmd"; then
+    if ! run_as_user "cd '$dots_dir' && stow -t \"\$HOME\" ${stow_packages[*]}"; then
         log_warning "Stow failed; continuing."
     fi
 
