@@ -46,7 +46,7 @@ USER_GROUPS="wheel"
 WIFI_SSID="Ghuzlan_5G"
 MOUNT_POINT="/mnt"
 
-# Derived (set after hostname selection)
+# Derived (set after host detection/resume)
 declare HOSTNAME=""
 declare IS_PC=false
 declare -i CURRENT_STEP=1
@@ -188,11 +188,15 @@ run_as_user() {
 	runuser -u "$USERNAME" -- bash -lc "$script" bash "$@"
 }
 
+derive_is_pc() {
+	IS_PC=false
+	[[ "$HOSTNAME" == "Wolverine" ]] && IS_PC=true
+}
+
 save_state() {
 	cat >"$STATE_FILE" <<EOF
 CURRENT_STEP=$CURRENT_STEP
 HOSTNAME="$HOSTNAME"
-IS_PC=$IS_PC
 BOOT_PART="$BOOT_PART"
 ROOT_PART="$ROOT_PART"
 EOF
@@ -204,7 +208,7 @@ load_state() {
 	source "$STATE_FILE"
 	: "${CURRENT_STEP:=1}"
 	: "${HOSTNAME:=}"
-	: "${IS_PC:=false}"
+	derive_is_pc
 	: "${BOOT_PART:=}"
 	: "${ROOT_PART:=}"
 	return 0
@@ -536,7 +540,6 @@ step_10_prepare_chroot() {
 	# Save config for chroot
 	cat >"$MOUNT_POINT/root/install.conf" <<EOF
 HOSTNAME="$HOSTNAME"
-IS_PC=$IS_PC
 EOF
 
 	if [[ -f "$MOUNT_POINT/root/install.state" ]]; then
@@ -891,6 +894,7 @@ main() {
 chroot_main() {
 	# Load config
 	source /root/install.conf
+	derive_is_pc
 	STATE_FILE="/root/install.state"
 
 	if ! load_state; then
