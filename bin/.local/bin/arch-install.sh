@@ -247,46 +247,34 @@ run_step() {
 step_1_detect_host() {
 	log_step "Detecting target system"
 
-	local cpu_vendor_raw cpu_vendor="unknown"
-	local nvidia_state="unknown"
-
+	local cpu_vendor cpu_vendor_raw cpu_name
 	cpu_vendor_raw=$(awk -F: '/vendor_id/{print tolower($2); exit}' /proc/cpuinfo | xargs)
+	cpu_name=$(awk -F: '/model name/{sub(/^[[:space:]]+/, "", $2); print $2; exit}' /proc/cpuinfo)
+	[[ -n "$cpu_name" ]] && log_info "Detected CPU: $cpu_name"
 
-	if [[ "$cpu_vendor_raw" == *"authenticamd"* ]]; then
+	case "$cpu_vendor_raw" in
+	*authenticamd*)
 		cpu_vendor="amd"
-	elif [[ "$cpu_vendor_raw" == *"genuineintel"* ]]; then
-		cpu_vendor="intel"
-	fi
-
-	if command -v lspci &>/dev/null; then
-		if lspci | grep -Ei 'vga|3d' | grep -qi 'nvidia'; then
-			nvidia_state="true"
-		else
-			nvidia_state="false"
-		fi
-	fi
-
-	if [[ "$cpu_vendor" == "amd" && "$nvidia_state" == "true" ]]; then
 		HOSTNAME="Wolverine"
 		IS_PC=true
-		log_success "Auto-detected: $HOSTNAME (CPU: $cpu_vendor, NVIDIA: yes)"
-		return 0
-	fi
-
-	if [[ "$cpu_vendor" == "intel" && "$nvidia_state" == "false" ]]; then
+		;;
+	*genuineintel*)
+		cpu_vendor="intel"
 		HOSTNAME="Mentalist"
 		IS_PC=false
-		log_success "Auto-detected: $HOSTNAME (CPU: $cpu_vendor, NVIDIA: no)"
-		return 0
-	fi
+		;;
+	*)
+		cpu_vendor="unknown"
+		log_error "Unsupported CPU vendor for this script."
+		log_error "Detected CPU vendor: $cpu_vendor_raw"
+		log_info "Supported combinations:"
+		log_info "  - amd => Wolverine"
+		log_info "  - intel => Mentalist"
+		exit 1
+		;;
+	esac
 
-	log_error "Unsupported hardware combination for this script."
-	log_error "Detected CPU vendor: $cpu_vendor"
-	log_error "Detected NVIDIA GPU: $nvidia_state"
-	log_info "Supported combinations:"
-	log_info "  - amd + nvidia => Wolverine"
-	log_info "  - intel + no nvidia => Mentalist"
-	exit 1
+	log_success "Auto-detected: $HOSTNAME (CPU: $cpu_vendor)"
 }
 
 menu_select() {
@@ -350,7 +338,7 @@ step_2_connectivity() {
 			break
 		}
 	done
-	if [[ -z "${wifi_iface:-}" ]]; then
+	if [[ -z "$wifi_iface" ]]; then
 		log_error "No Wi-Fi interface detected."
 		exit 1
 	fi
@@ -400,8 +388,7 @@ step_3_select_partitions() {
 	local root_default_zero=0
 
 	for i in "${!partitions[@]}"; do
-		local part_dev
-		part_dev=$(awk '{print $1}' <<<"${partitions[$i]}")
+		local part_dev="${partitions[$i]%% *}"
 		local marker=""
 		if [[ "$part_dev" == "$default_boot" ]]; then
 			marker=" [current BOOT]"
@@ -416,11 +403,11 @@ step_3_select_partitions() {
 	local boot_selected root_selected
 
 	boot_selected=$(menu_select "Select BOOT partition" "$boot_default_zero" "${partition_options[@]}")
-	BOOT_PART=$(awk '{print $1}' <<<"${partitions[$boot_selected]}")
+	BOOT_PART="${partitions[$boot_selected]%% *}"
 
 	while true; do
 		root_selected=$(menu_select "Select ROOT partition" "$root_default_zero" "${partition_options[@]}")
-		ROOT_PART=$(awk '{print $1}' <<<"${partitions[$root_selected]}")
+		ROOT_PART="${partitions[$root_selected]%% *}"
 		[[ "$BOOT_PART" != "$ROOT_PART" ]] && break
 		log_warning "BOOT and ROOT cannot be the same partition. Please choose again."
 	done
@@ -476,7 +463,7 @@ step_4_format_partitions() {
 step_5_mount() {
 	log_step "Mounting filesystems"
 
-	cd / && umount -R "$MOUNT_POINT" 2>/dev/null || true
+	mountpoint -q "$MOUNT_POINT" && cd / && umount -R "$MOUNT_POINT"
 	mount -o noatime "$ROOT_PART" "$MOUNT_POINT"
 	mount --mkdir -o noatime,umask=0077 "$BOOT_PART" "$MOUNT_POINT/boot"
 
