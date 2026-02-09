@@ -1,4 +1,5 @@
 # This file contains fish universal variable definitions.
 # VERSION: 3.0
+SETUVAR --export --path MANPATH:/usr/share/fish/man\x1e/usr/local/man\x1e/usr/share/man
 SETUVAR __fish_initialized:4300
 SETUVAR fish_user_paths:/mnt/Work/0Coding/Exercism\x1e/home/anas/\x2ecache/\x2ebun/bin
