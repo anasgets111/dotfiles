@@ -59,60 +59,71 @@ declare BOOT_PART="" ROOT_PART=""
 # =============================================================================
 
 PKGS_COMMON=(
-	# Base
+	# Base System
 	base base-devel linux linux-firmware networkmanager
-	# Shell & CLI
-	neovim git bash-completion wget curl fish 7zip bat btop
-	cliphist dysk expac eza fastfetch fzf git-filter-repo git-lfs bun
-	inotify-tools just less rsync ripgrep pkgstats pacman-contrib stow
-	starship zoxide fd jq tealdeer rustup usbutils wl-clipboard zip
-	unrar unzip lshw i2c-tools tokei tree-sitter-cli ffmpegthumbnailer shfmt
+
+	# Hardware & Firmware
+	bluez gnome-firmware i2c-tools lshw plymouth usbutils wireless-regdb zram-generator
+
 	# Audio & Accessibility
-	pipewire pipewire-jack pipewire-pulse pipewire-alsa wireplumber
-	espeak-ng speech-dispatcher
-	# System
-	bluez plymouth wireless-regdb zram-generator ly mkcert mold gnome-keyring
-	xdg-desktop-portal-gnome
-	# Desktop Apps
-	kitty nautilus nautilus-image-converter
-	gnome-calculator gnome-disk-utility gnome-firmware gnome-text-editor
-	papers simple-scan qbittorrent kdeconnect mission-center
+	espeak-ng pipewire pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber
+
+	# System Utilities
+	gnome-keyring ly mkcert mold pacman-contrib pkgstats xdg-desktop-portal-gnome
+
+	# Shell & Terminal
+	bash-completion bat btop cliphist dysk expac eza fastfetch fd fish fzf jq kitty starship tealdeer zoxide
+
+	# CLI Tools
+	7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools
+	less neovim ripgrep rsync shfmt stow tokei tree-sitter-cli unrar unzip wget wl-clipboard zip
+
+	# Development
+	bun just rustup
+
+	# Desktop Environment & Apps
+	gnome-calculator gnome-disk-utility gnome-text-editor kdeconnect
+	mission-center nautilus nautilus-image-converter papers qbittorrent simple-scan
+
 	# Communication
 	telegram-desktop thunderbird
+
+	# Media & Design
+	mpv mpv-mpris satty zed
+
 	# Theming
-	kvantum qt6ct
-	# Media
-	mpv mpv-mpris satty
-	# Editors
-	zed
+	kvantum qt6ct tela-circle-icon-theme-dracula
+
 	# Fonts
-	inter-font otf-font-awesome opendesktop-fonts terminus-font gnu-free-fonts
-	adobe-source-code-pro-fonts noto-fonts noto-fonts-emoji noto-fonts-extra
-	ttf-bitstream-vera ttf-cascadia-code-nerd ttf-fira-code ttf-firacode-nerd
-	ttf-liberation ttf-roboto-mono-nerd ttf-scheherazade-new
-	tela-circle-icon-theme-dracula
+	adobe-source-code-pro-fonts gnu-free-fonts inter-font noto-fonts noto-fonts-emoji noto-fonts-extra opendesktop-fonts
+	otf-font-awesome terminus-font ttf-bitstream-vera ttf-cascadia-code-nerd ttf-fira-code ttf-firacode-nerd ttf-liberation
+	ttf-roboto-mono-nerd ttf-scheherazade-new
 )
 
 PKGS_MENTALIST=(
-	# Hardware
-	intel-ucode brightnessctl vulkan-intel intel-media-driver acpi_call
-	# Niri WM
+	# Hardware (Intel)
+	acpi_call brightnessctl intel-media-driver intel-ucode vulkan-intel
+
+	# Desktop (Niri)
 	niri pipewire-libcamera pipewire-v4l2
+
 	# PHP Stack
-	nginx dnsmasq composer php php-fpm php-gd php-igbinary php-imagick
-	php-pgsql php-redis php-snmp php-sodium php-sqlite php-xsl mariadb-clients
+	composer dnsmasq mariadb-clients nginx php php-fpm php-gd php-igbinary php-imagick php-pgsql php-redis php-snmp php-sodium php-sqlite php-xsl
+
 	# Database
 	unixodbc
 )
 
 PKGS_WOLVERINE=(
-	# Hardware
-	amd-ucode nvidia-open nvidia-utils nvidia-settings
-	lib32-nvidia-utils libva-nvidia-driver
+	# Hardware (AMD + NVIDIA)
+	amd-ucode lib32-nvidia-utils libva-nvidia-driver nvidia-open nvidia-settings nvidia-utils
+
 	# Hyprland WM
 	hyprland hyprpicker hyprshot uwsm xdg-desktop-portal-hyprland
+
 	# Gaming
-	lib32-gamemode mangohud steam
+	gamemode mangohud steam
+
 	# Peripherals
 	solaar
 )
@@ -753,7 +764,7 @@ chroot_step_18_post_user() {
 
 	local dots_dir="/mnt/Work/1Progs/Dots"
 	local backup_script="$dots_dir/bin/.local/bin/backup-home"
-	local stow_packages=(bin kitty quickshell fish nvim mpv wezterm)
+	local stow_packages=(bin kitty quickshell fish nvim mpv)
 	if $IS_PC; then
 		stow_packages+=(hypr)
 	else
@@ -783,7 +794,7 @@ chroot_step_18_post_user() {
 		log_warning "Stow failed; continuing."
 	fi
 
-	if ! run_as_user 'yay -S --needed --noconfirm --removemake --cleanafter --answerclean None --answerdiff None --answeredit None antigravity quickshell-git'; then
+	if ! run_as_user 'yay -S --needed --noconfirm --removemake --cleanafter antigravity quickshell-git'; then
 		log_warning "yay install failed for antigravity/quickshell-git; continuing."
 	fi
 
