@@ -65,7 +65,7 @@ abbr ..... 'cd ../../../..'
 
 # --- Utilities ---
 alias fastfetchy 'fastfetch -c $HOME/.config/fastfetchTheme.jsonc'
+alias cat 'bat -pP'
 abbr tb 'nc termbin.com 9999'
 abbr errors 'journalctl -p 3 -xb'
 abbr hw 'hwinfo --short'
-abbr cat 'bat -pP'
