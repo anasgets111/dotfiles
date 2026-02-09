@@ -24,13 +24,13 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_info() { printf '%b\n' "${BLUE}[INFO]${NC} $1"; }
+log_success() { printf '%b\n' "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { printf '%b\n' "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { printf '%b\n' "${RED}[ERROR]${NC} $1"; }
 log_step() {
 	local title="$1"
-	echo -e "\n${GREEN}=== Step ${CURRENT_STEP}: ${title} ===${NC}"
+	printf '\n%b\n' "${GREEN}=== Step ${CURRENT_STEP}: ${title} ===${NC}"
 }
 
 # =============================================================================
@@ -359,7 +359,7 @@ step_2_connectivity() {
 
 	local wifi_pass
 	read -rsp "Enter Wi-Fi passphrase: " wifi_pass
-	echo
+	printf '\n'
 
 	iwctl station "$wifi_iface" connect-hidden "$WIFI_SSID" --passphrase "$wifi_pass"
 
@@ -381,7 +381,7 @@ step_3_select_partitions() {
 
 	log_info "Detected partitions:"
 	lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINT
-	echo
+	printf '\n'
 
 	# Get list of partitions (exclude whole disks, only partitions)
 	mapfile -t partitions < <(lsblk -lnpo NAME,SIZE,FSTYPE,LABEL | grep -E "^/dev/(nvme[0-9]+n[0-9]+p|sd[a-z]|vd[a-z])[0-9]")
@@ -401,7 +401,7 @@ step_3_select_partitions() {
 
 	for i in "${!partitions[@]}"; do
 		local part_dev
-		part_dev=$(echo "${partitions[$i]}" | awk '{print $1}')
+		part_dev=$(awk '{print $1}' <<<"${partitions[$i]}")
 		local marker=""
 		if [[ "$part_dev" == "$default_boot" ]]; then
 			marker=" [current BOOT]"
@@ -416,11 +416,11 @@ step_3_select_partitions() {
 	local boot_selected root_selected
 
 	boot_selected=$(menu_select "Select BOOT partition" "$boot_default_zero" "${partition_options[@]}")
-	BOOT_PART=$(echo "${partitions[$boot_selected]}" | awk '{print $1}')
+	BOOT_PART=$(awk '{print $1}' <<<"${partitions[$boot_selected]}")
 
 	while true; do
 		root_selected=$(menu_select "Select ROOT partition" "$root_default_zero" "${partition_options[@]}")
-		ROOT_PART=$(echo "${partitions[$root_selected]}" | awk '{print $1}')
+		ROOT_PART=$(awk '{print $1}' <<<"${partitions[$root_selected]}")
 		[[ "$BOOT_PART" != "$ROOT_PART" ]] && break
 		log_warning "BOOT and ROOT cannot be the same partition. Please choose again."
 	done
@@ -431,19 +431,23 @@ step_3_select_partitions() {
 step_4_format_partitions() {
 	log_step "Formatting partitions"
 
-	echo
-	echo "=============================================="
-	echo "           INSTALLATION SUMMARY"
-	echo "=============================================="
-	echo "Hostname:       $HOSTNAME"
-	echo "Boot Partition: $BOOT_PART"
-	echo "Root Partition: $ROOT_PART"
-	echo "Username:       $USERNAME"
-	echo "Timezone:       $TIMEZONE"
-	echo "Locale:         $LOCALE"
-	$IS_PC && echo "Type:           PC (AMD + NVIDIA)" || echo "Type:           Laptop (Intel)"
-	echo "=============================================="
-	echo
+	printf '\n'
+	printf '%s\n' "=============================================="
+	printf '%s\n' "           INSTALLATION SUMMARY"
+	printf '%s\n' "=============================================="
+	printf '%s\n' "Hostname:       $HOSTNAME"
+	printf '%s\n' "Boot Partition: $BOOT_PART"
+	printf '%s\n' "Root Partition: $ROOT_PART"
+	printf '%s\n' "Username:       $USERNAME"
+	printf '%s\n' "Timezone:       $TIMEZONE"
+	printf '%s\n' "Locale:         $LOCALE"
+	if $IS_PC; then
+		printf '%s\n' "Type:           PC (AMD + NVIDIA)"
+	else
+		printf '%s\n' "Type:           Laptop (Intel)"
+	fi
+	printf '%s\n' "=============================================="
+	printf '\n'
 
 	log_warning "This will ERASE all data on $BOOT_PART and $ROOT_PART!"
 	read -rp "Are you sure you want to continue? [y/N]: " response
@@ -546,7 +550,7 @@ step_9_fstab() {
 			sed -i "s|^[[:space:]]*LABEL=${label}[[:space:]].*|$entry|" "$MOUNT_POINT/etc/fstab"
 		else
 			log_info "Adding $label partition to fstab"
-			echo "$entry" >>"$MOUNT_POINT/etc/fstab"
+			printf '%s\n' "$entry" >>"$MOUNT_POINT/etc/fstab"
 		fi
 	done
 
@@ -594,14 +598,14 @@ chroot_step_11_basics() {
 	log_info "Setting locale"
 	sed -i "s/^#$LOCALE/$LOCALE/" /etc/locale.gen
 	locale-gen
-	echo "LANG=$LOCALE" >/etc/locale.conf
+	printf '%s\n' "LANG=$LOCALE" >/etc/locale.conf
 	if ! [[ -f /etc/vconsole.conf ]] || ! grep -qE '^[[:space:]]*KEYMAP=' /etc/vconsole.conf; then
 		log_warning "/etc/vconsole.conf missing or incomplete. Creating default."
-		echo "KEYMAP=$VCONSOLE_KEYMAP" >/etc/vconsole.conf
+		printf '%s\n' "KEYMAP=$VCONSOLE_KEYMAP" >/etc/vconsole.conf
 	fi
 
 	log_info "Setting hostname: $HOSTNAME"
-	echo "$HOSTNAME" >/etc/hostname
+	printf '%s\n' "$HOSTNAME" >/etc/hostname
 	cat >/etc/hosts <<EOF
 127.0.0.1   localhost
 127.0.1.1   $HOSTNAME.localdomain $HOSTNAME
@@ -822,13 +826,13 @@ chroot_step_19_cleanup() {
 	rm -f /root/install.sh /root/install.conf
 	clear_state
 
-	echo
+	printf '\n'
 	log_success "Installation complete!"
-	echo
-	echo "Next steps:"
-	echo "  1. Exit chroot (will happen automatically)"
-	echo "  2. Script will unmount and reboot"
-	echo
+	printf '\n'
+	printf '%s\n' "Next steps:"
+	printf '%s\n' "  1. Exit chroot (will happen automatically)"
+	printf '%s\n' "  2. Script will unmount and reboot"
+	printf '\n'
 }
 
 # =============================================================================
@@ -836,11 +840,11 @@ chroot_step_19_cleanup() {
 # =============================================================================
 
 main() {
-	echo
-	echo "========================================"
-	echo "   Arch Linux Installation Script"
-	echo "========================================"
-	echo
+	printf '\n'
+	printf '%s\n' "========================================"
+	printf '%s\n' "   Arch Linux Installation Script"
+	printf '%s\n' "========================================"
+	printf '\n'
 
 	STATE_FILE="/tmp/arch-install.state"
 
@@ -897,9 +901,9 @@ main() {
 
 	log_info "Chroot completed successfully"
 	clear_state
-	echo
+	printf '\n'
 	read -rsn1 -p "Press any key to unmount and reboot (Ctrl+C to cancel)..."
-	echo
+	printf '\n'
 
 	if umount -R "$MOUNT_POINT" 2>/dev/null; then
 		log_success "Unmounted $MOUNT_POINT"
