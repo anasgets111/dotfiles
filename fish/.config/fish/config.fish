@@ -7,6 +7,7 @@ set -gx fish_history fish
 set -q TERMINAL_EMULATOR; and set -gx fish_history phpstorm
 set -q VSCODE_INJECTION; and set -gx fish_history vscode
 set -q CURSOR_TRACE_ID; and set -gx fish_history cursor
+set -Ux MANPATH (man -w)
 string match -q Zed "$TERM_PROGRAM"; and set -gx fish_history zed
 
 function fish_should_add_to_history
@@ -67,3 +68,4 @@ alias fastfetchy 'fastfetch -c $HOME/.config/fastfetchTheme.jsonc'
 abbr tb 'nc termbin.com 9999'
 abbr errors 'journalctl -p 3 -xb'
 abbr hw 'hwinfo --short'
+abbr cat 'bat -pP'
