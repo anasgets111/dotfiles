@@ -452,7 +452,13 @@ step_4_format_partitions() {
 		exit 1
 	}
 
-	cd / && umount -R "$MOUNT_POINT" 2>/dev/null || true
+	if mountpoint -q "$MOUNT_POINT"; then
+		log_info "Unmounting existing filesystems under $MOUNT_POINT"
+		if ! cd / && umount -R "$MOUNT_POINT"; then
+			log_error "Failed to unmount $MOUNT_POINT. Resolve busy mounts and retry."
+			exit 1
+		fi
+	fi
 
 	log_info "Formatting BOOT partition as FAT32"
 	mkfs.fat -F32 -n BOOT "$BOOT_PART"
@@ -466,17 +472,19 @@ step_4_format_partitions() {
 step_5_mount() {
 	log_step "Mounting filesystems"
 
-	if mountpoint -q "$MOUNT_POINT"; then
-		log_info "$MOUNT_POINT is already mounted"
-	else
-		mount -o noatime "$ROOT_PART" "$MOUNT_POINT"
+	cd / && umount -R "$MOUNT_POINT" 2>/dev/null || true
+	mount -o noatime "$ROOT_PART" "$MOUNT_POINT"
+	mount --mkdir -o noatime,umask=0077 "$BOOT_PART" "$MOUNT_POINT/boot"
+
+	# Mount required Work partition so it's available in chroot
+	local work_part
+	work_part=$(blkid -L Work || true)
+	if [[ -z "$work_part" ]]; then
+		log_error "Required Work partition (label: Work) not found"
+		exit 1
 	fi
 
-	if mountpoint -q "$MOUNT_POINT/boot"; then
-		log_info "$MOUNT_POINT/boot is already mounted"
-	else
-		mount --mkdir -o noatime,umask=0077 "$BOOT_PART" "$MOUNT_POINT/boot"
-	fi
+	mount --mkdir -o noatime "$work_part" "$MOUNT_POINT/mnt/Work"
 
 	log_success "Filesystems mounted"
 }
@@ -529,13 +537,17 @@ step_9_fstab() {
 	# Auxiliary partitions
 	for label in "${AUX_LABELS[@]}"; do
 		blkid -L "$label" &>/dev/null || continue
-		grep -qE "^[[:space:]]*LABEL=${label}[[:space:]]+" "$MOUNT_POINT/etc/fstab" && {
-			log_info "$label already in fstab"
-			continue
-		}
-		log_info "Adding $label partition to fstab"
-		echo "LABEL=$label  /mnt/$label  ext4  nosuid,nodev,nofail,x-gvfs-show,x-systemd.makedir,noatime  0 2" \
-			>>"$MOUNT_POINT/etc/fstab"
+
+		local opts="nosuid,nodev,nofail,x-gvfs-show,x-systemd.makedir,noatime"
+		local entry="LABEL=$label  /mnt/$label  ext4  $opts  0 2"
+
+		if grep -qE "^[[:space:]]*LABEL=${label}[[:space:]]+" "$MOUNT_POINT/etc/fstab"; then
+			log_info "Updating fstab options for $label"
+			sed -i "s|^[[:space:]]*LABEL=${label}[[:space:]].*|$entry|" "$MOUNT_POINT/etc/fstab"
+		else
+			log_info "Adding $label partition to fstab"
+			echo "$entry" >>"$MOUNT_POINT/etc/fstab"
+		fi
 	done
 
 	log_success "fstab generated"
@@ -771,9 +783,12 @@ chroot_step_18_post_user() {
 		stow_packages+=(niri)
 	fi
 
-	if ! mount --mkdir /mnt/Work; then
-		log_warning "Failed to mount /mnt/Work (check fstab). Skipping post-user setup."
-		return 0
+	if ! mountpoint -q /mnt/Work; then
+		log_info "/mnt/Work is not mounted; attempting mount from fstab..."
+		if ! mount --mkdir /mnt/Work; then
+			log_error "Failed to mount /mnt/Work. Cannot continue post-user bootstrap."
+			return 1
+		fi
 	fi
 
 	if [[ ! -d "$dots_dir" ]]; then
@@ -889,12 +904,7 @@ main() {
 	if umount -R "$MOUNT_POINT" 2>/dev/null; then
 		log_success "Unmounted $MOUNT_POINT"
 	else
-		log_warning "Some filesystems busy, trying lazy unmount..."
-		if umount -l -R "$MOUNT_POINT" 2>/dev/null; then
-			log_success "Lazy unmount completed for $MOUNT_POINT"
-		else
-			log_warning "Lazy unmount failed; rebooting anyway."
-		fi
+		log_warning "Failed to unmount $MOUNT_POINT cleanly; rebooting anyway."
 	fi
 
 	log_success "Ready to reboot"
