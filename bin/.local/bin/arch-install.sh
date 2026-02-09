@@ -60,7 +60,7 @@ declare BOOT_PART="" ROOT_PART=""
 
 PKGS_COMMON=(
 	# Base System
-	base base-devel linux linux-firmware networkmanager
+	base base-devel linux linux-firmware networkmanager mandoc man
 
 	# Hardware & Firmware
 	bluez gnome-firmware i2c-tools lshw plymouth usbutils wireless-regdb zram-generator
