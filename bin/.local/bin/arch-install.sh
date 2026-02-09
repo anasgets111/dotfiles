@@ -244,7 +244,7 @@ run_step() {
 	fi
 }
 
-step_1_detect_host() {
+detect_host() {
 	log_step "Detecting target system"
 
 	local cpu_vendor cpu_vendor_raw cpu_name
@@ -322,7 +322,7 @@ menu_select() {
 # STEP FUNCTIONS
 # =============================================================================
 
-step_2_connectivity() {
+connectivity() {
 	log_step "Checking connectivity"
 	local wifi_iface=""
 
@@ -364,7 +364,7 @@ step_2_connectivity() {
 	log_success "Connected to Wi-Fi"
 }
 
-step_3_select_partitions() {
+select_partitions() {
 	log_step "Partition selection"
 
 	log_info "Detected partitions:"
@@ -415,25 +415,24 @@ step_3_select_partitions() {
 	log_success "Selected: BOOT=$BOOT_PART, ROOT=$ROOT_PART"
 }
 
-step_4_format_partitions() {
+format_partitions() {
 	log_step "Formatting partitions"
 
+	local summary_sep="=============================================="
+	local system_type="Laptop (Intel)"
+	$IS_PC && system_type="PC (AMD + NVIDIA)"
 	printf '\n'
-	printf '%s\n' "=============================================="
+	printf '%s\n' "$summary_sep"
 	printf '%s\n' "           INSTALLATION SUMMARY"
-	printf '%s\n' "=============================================="
-	printf '%s\n' "Hostname:       $HOSTNAME"
-	printf '%s\n' "Boot Partition: $BOOT_PART"
-	printf '%s\n' "Root Partition: $ROOT_PART"
-	printf '%s\n' "Username:       $USERNAME"
-	printf '%s\n' "Timezone:       $TIMEZONE"
-	printf '%s\n' "Locale:         $LOCALE"
-	if $IS_PC; then
-		printf '%s\n' "Type:           PC (AMD + NVIDIA)"
-	else
-		printf '%s\n' "Type:           Laptop (Intel)"
-	fi
-	printf '%s\n' "=============================================="
+	printf '%s\n' "$summary_sep"
+	printf 'Hostname:       %s\n' "$HOSTNAME"
+	printf 'Boot Partition: %s\n' "$BOOT_PART"
+	printf 'Root Partition: %s\n' "$ROOT_PART"
+	printf 'Username:       %s\n' "$USERNAME"
+	printf 'Timezone:       %s\n' "$TIMEZONE"
+	printf 'Locale:         %s\n' "$LOCALE"
+	printf 'Type:           %s\n' "$system_type"
+	printf '%s\n' "$summary_sep"
 	printf '\n'
 
 	log_warning "This will ERASE all data on $BOOT_PART and $ROOT_PART!"
@@ -460,7 +459,7 @@ step_4_format_partitions() {
 	log_success "Partitions formatted"
 }
 
-step_5_mount() {
+mount_filesystems() {
 	log_step "Mounting filesystems"
 
 	mountpoint -q "$MOUNT_POINT" && cd / && umount -R "$MOUNT_POINT"
@@ -480,7 +479,7 @@ step_5_mount() {
 	log_success "Filesystems mounted"
 }
 
-step_6_mirrorlist() {
+mirrorlist() {
 	log_step "Optimizing mirrors with reflector"
 
 	log_info "Finding fastest mirrors..."
@@ -495,7 +494,7 @@ step_6_mirrorlist() {
 	log_success "Mirrors optimized"
 }
 
-step_7_pacman_defaults() {
+pacman_defaults() {
 	log_step "Configuring pacman defaults (live environment)"
 
 	log_info "Enabling ParallelDownloads, Color, ILoveCandy, multilib"
@@ -504,15 +503,11 @@ step_7_pacman_defaults() {
 	log_success "Pacman defaults configured"
 }
 
-step_8_pacstrap() {
+pacstrap_base() {
 	log_step "Installing base system"
 
 	local packages=("${PKGS_COMMON[@]}")
-	if $IS_PC; then
-		packages+=("${PKGS_WOLVERINE[@]}")
-	else
-		packages+=("${PKGS_MENTALIST[@]}")
-	fi
+	$IS_PC && packages+=("${PKGS_WOLVERINE[@]}") || packages+=("${PKGS_MENTALIST[@]}")
 
 	log_info "Installing ${#packages[@]} packages..."
 	pacstrap -K "$MOUNT_POINT" "${packages[@]}"
@@ -520,18 +515,16 @@ step_8_pacstrap() {
 	log_success "Base system installed"
 }
 
-step_9_fstab() {
+fstab() {
 	log_step "Generating fstab"
 
 	genfstab -L "$MOUNT_POINT" >"$MOUNT_POINT/etc/fstab"
 
 	# Auxiliary partitions
+	local opts="nosuid,nodev,nofail,x-gvfs-show,x-systemd.makedir,noatime"
 	for label in "${AUX_LABELS[@]}"; do
 		blkid -L "$label" &>/dev/null || continue
-
-		local opts="nosuid,nodev,nofail,x-gvfs-show,x-systemd.makedir,noatime"
 		local entry="LABEL=$label  /mnt/$label  ext4  $opts  0 2"
-
 		if grep -qE "^[[:space:]]*LABEL=${label}[[:space:]]+" "$MOUNT_POINT/etc/fstab"; then
 			log_info "Updating fstab options for $label"
 			sed -i "s|^[[:space:]]*LABEL=${label}[[:space:]].*|$entry|" "$MOUNT_POINT/etc/fstab"
@@ -544,17 +537,14 @@ step_9_fstab() {
 	log_success "fstab generated"
 }
 
-step_10_prepare_chroot() {
+prepare_chroot() {
 	log_step "Preparing chroot"
 
 	# Copy the script to chroot (running from /tmp ensures stable source)
-	cp /tmp/arch-install.sh "$MOUNT_POINT/root/install.sh"
-	chmod +x "$MOUNT_POINT/root/install.sh"
+	install -m 0755 /tmp/arch-install.sh "$MOUNT_POINT/root/install.sh"
 
 	# Save config for chroot
-	cat >"$MOUNT_POINT/root/install.conf" <<EOF
-HOSTNAME="$HOSTNAME"
-EOF
+	printf '%s\n' "HOSTNAME=\"$HOSTNAME\"" >"$MOUNT_POINT/root/install.conf"
 
 	if [[ -f "$MOUNT_POINT/root/install.state" ]]; then
 		log_info "Existing chroot state found; keeping it for resume"
@@ -575,7 +565,7 @@ EOF
 # CHROOT FUNCTIONS
 # =============================================================================
 
-chroot_step_11_basics() {
+chroot_basics() {
 	log_step "System basics"
 
 	log_info "Setting timezone"
@@ -603,7 +593,7 @@ EOF
 	log_success "System basics configured"
 }
 
-chroot_step_12_bootloader() {
+chroot_bootloader() {
 	log_step "Installing bootloader"
 
 	bootctl install
@@ -629,7 +619,7 @@ EOF
 	log_success "Bootloader installed"
 }
 
-chroot_step_13_repos() {
+chroot_repos() {
 	log_step "Setting up AUR repos and packages"
 	log_info "Appending Chaotic-AUR and Omarchy repos in installed system pacman.conf"
 
@@ -681,7 +671,7 @@ EOF
 	log_success "AUR packages installed"
 }
 
-chroot_step_14_zram() {
+chroot_zram() {
 	log_step "Configuring ZRAM"
 
 	cat >/etc/systemd/zram-generator.conf <<'EOF'
@@ -696,7 +686,7 @@ EOF
 	log_success "ZRAM configured"
 }
 
-chroot_step_15_initramfs() {
+chroot_initramfs() {
 	log_step "Configuring initramfs"
 
 	if $IS_PC; then
@@ -710,7 +700,7 @@ chroot_step_15_initramfs() {
 	log_success "Initramfs regenerated"
 }
 
-chroot_step_16_services() {
+chroot_services() {
 	log_step "Enabling services"
 
 	local services=(
@@ -744,7 +734,7 @@ chroot_step_16_services() {
 	log_success "Services enabled"
 }
 
-chroot_step_17_user() {
+chroot_user() {
 	log_step "Creating user"
 
 	if id -u "$USERNAME" &>/dev/null; then
@@ -762,7 +752,7 @@ chroot_step_17_user() {
 	log_success "User created"
 }
 
-chroot_step_18_post_user() {
+chroot_post_user() {
 	log_step "Post-install user bootstrap"
 
 	local dots_dir="/mnt/Work/1Progs/Dots"
@@ -807,7 +797,7 @@ chroot_step_18_post_user() {
 	log_success "Post-user bootstrap complete"
 }
 
-chroot_step_19_cleanup() {
+chroot_cleanup() {
 	log_step "Cleanup"
 
 	rm -f /root/install.sh /root/install.conf
@@ -827,10 +817,11 @@ chroot_step_19_cleanup() {
 # =============================================================================
 
 main() {
+	local banner_sep="========================================"
 	printf '\n'
-	printf '%s\n' "========================================"
+	printf '%s\n' "$banner_sep"
 	printf '%s\n' "   Arch Linux Installation Script"
-	printf '%s\n' "========================================"
+	printf '%s\n' "$banner_sep"
 	printf '\n'
 
 	STATE_FILE="/tmp/arch-install.state"
@@ -867,23 +858,25 @@ main() {
 		CURRENT_STEP=5
 	fi
 
+	local -a live_steps=(
+		detect_host
+		connectivity
+		select_partitions
+		format_partitions
+		mount_filesystems
+		mirrorlist
+		pacman_defaults
+		pacstrap_base
+		fstab
+		prepare_chroot
+	)
 	while ((CURRENT_STEP <= 10)); do
-		case "$CURRENT_STEP" in
-		1) run_step 1 step_1_detect_host ;;
-		2) run_step 2 step_2_connectivity ;;
-		3) run_step 3 step_3_select_partitions ;;
-		4) run_step 4 step_4_format_partitions ;;
-		5) run_step 5 step_5_mount ;;
-		6) run_step 6 step_6_mirrorlist ;;
-		7) run_step 7 step_7_pacman_defaults ;;
-		8) run_step 8 step_8_pacstrap ;;
-		9) run_step 9 step_9_fstab ;;
-		10) run_step 10 step_10_prepare_chroot ;;
-		*)
+		local fn="${live_steps[CURRENT_STEP - 1]:-}"
+		[[ -n "$fn" ]] || {
 			log_error "Invalid CURRENT_STEP: $CURRENT_STEP"
 			exit 1
-			;;
-		esac
+		}
+		run_step "$CURRENT_STEP" "$fn"
 	done
 
 	log_info "Chroot completed successfully"
@@ -920,16 +913,16 @@ chroot_main() {
 
 	while ((CURRENT_STEP <= 19)); do
 		case "$CURRENT_STEP" in
-		11) run_step 11 chroot_step_11_basics ;;
-		12) run_step 12 chroot_step_12_bootloader ;;
-		13) run_step 13 chroot_step_13_repos ;;
-		14) run_step 14 chroot_step_14_zram ;;
-		15) run_step 15 chroot_step_15_initramfs ;;
-		16) run_step 16 chroot_step_16_services ;;
-		17) run_step 17 chroot_step_17_user ;;
-		18) run_step 18 chroot_step_18_post_user ;;
+		11) run_step 11 chroot_basics ;;
+		12) run_step 12 chroot_bootloader ;;
+		13) run_step 13 chroot_repos ;;
+		14) run_step 14 chroot_zram ;;
+		15) run_step 15 chroot_initramfs ;;
+		16) run_step 16 chroot_services ;;
+		17) run_step 17 chroot_user ;;
+		18) run_step 18 chroot_post_user ;;
 		19)
-			run_step 19 chroot_step_19_cleanup false
+			run_step 19 chroot_cleanup false
 			break
 			;;
 		*)
