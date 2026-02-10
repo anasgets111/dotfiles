@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Pam
 import qs.Services.Core
+import qs.Services.WM
 
 Singleton {
   id: lockService
@@ -20,6 +21,7 @@ Singleton {
   readonly property real blurMultiplier: 1
   property bool locked: false
   property string passwordBuffer: ""
+  property string savedLayout: ""
   readonly property string statusMessage: authenticating ? "Authenticating…" : (statusMessages[authState] ?? "Enter password")
   readonly property var statusMessages: ({
       error: "Error",
@@ -57,9 +59,18 @@ Singleton {
   }
 
   onLockedChanged: {
-    if (!locked) {
+    if (locked) {
+      if (KeyboardLayoutService.layouts.length > 0) {
+        lockService.savedLayout = KeyboardLayoutService.currentLayout;
+        KeyboardLayoutService.cycleLayout(KeyboardLayoutService.layouts[0]);
+      }
+    } else {
       passwordBuffer = "";
       authState = authStates.idle;
+      if (lockService.savedLayout) {
+        KeyboardLayoutService.cycleLayout(lockService.savedLayout);
+        lockService.savedLayout = "";
+      }
     }
   }
 
