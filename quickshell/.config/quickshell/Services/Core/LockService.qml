@@ -28,7 +28,7 @@ Singleton {
     })
 
   function handleGlobalKeyPress(event) {
-    if (!locked)
+    if (!locked || authenticating)
       return false;
     if (IdleService.dpmsOff)
       IdleService.wake();

@@ -74,7 +74,7 @@ Singleton {
   function persistMonitors(): void {
     if (!hydrated || !Settings?.data || !MonitorService?.ready)
       return;
-    const out = {};
+    const out = Object.assign({}, Settings.data.wallpapers ?? {});
     for (let i = 0; i < (MonitorService.monitors?.count ?? 0); i++) {
       const name = MonitorService.monitors.get(i).name;
       const p = monitorPrefs[name] ?? {};
