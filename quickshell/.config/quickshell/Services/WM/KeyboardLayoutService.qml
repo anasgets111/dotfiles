@@ -22,8 +22,17 @@ Singleton {
   readonly property bool numOn: Utils.numLock
   readonly property bool scrollOn: Utils.scrollLock
 
-  function cycleLayout() {
-    backend?.cycleLayout?.();
+  function cycleLayout(target) {
+    if (!target)
+      return backend?.cycleLayout?.();
+
+    const currentIdx = layouts.indexOf(currentLayout), targetIdx = layouts.indexOf(target);
+
+    if (currentIdx < 0 || targetIdx < 0)
+      return;
+
+    for (let i = 0; i < (targetIdx - currentIdx + layouts.length) % layouts.length; i++)
+      backend?.cycleLayout?.();
   }
 
   onCurrentLayoutChanged: {
