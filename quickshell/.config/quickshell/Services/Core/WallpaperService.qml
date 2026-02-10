@@ -84,7 +84,7 @@ Singleton {
       };
     }
     Settings.data.wallpapers = out;
-    Settings.data.wallpaperTransition = validate(wallpaperTransition, availableTransitions, defaultTransition);
+    Settings.data.wallpaperTransition = wallpaperTransition;
   }
 
   function randomizeAllMonitors(): void {

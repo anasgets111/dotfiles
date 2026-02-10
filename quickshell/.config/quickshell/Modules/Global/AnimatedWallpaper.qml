@@ -87,7 +87,6 @@ WlrLayershell {
 
     anchors.fill: parent
     asynchronous: true
-    cache: false
     fillMode: root.imageFillMode
     smooth: true
     sourceSize: root.maxSourceSize
@@ -114,7 +113,6 @@ WlrLayershell {
 
     anchors.fill: parent
     asynchronous: true
-    cache: false
     fillMode: root.imageFillMode
     smooth: true
     sourceSize: root.maxSourceSize
