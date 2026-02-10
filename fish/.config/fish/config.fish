@@ -58,4 +58,9 @@ if status is-interactive
     abbr tb 'nc termbin.com 9999'
     abbr errors 'journalctl -p 3 -xb'
     abbr hw 'hwinfo --short'
+    
+    # PostgreSQL environment variables
+    set -gx PGHOST 127.0.0.1
+    set -gx PGPORT 5432
+    set -gx PGUSER root
 end
