@@ -21,7 +21,7 @@ Singleton {
   readonly property real blurMultiplier: 1
   property bool locked: false
   property string passwordBuffer: ""
-  property string savedLayout: ""
+  property int layoutBeforeLockIndex: -1
   readonly property string statusMessage: authenticating ? "Authenticating…" : (statusMessages[authState] ?? "Enter password")
   readonly property var statusMessages: ({
       error: "Error",
@@ -29,7 +29,7 @@ Singleton {
       fail: "Incorrect password"
     })
 
-  function handleGlobalKeyPress(event) {
+  function handleGlobalKeyPress(event: var): bool {
     if (!locked || authenticating)
       return false;
     if (IdleService.dpmsOff)
@@ -60,18 +60,15 @@ Singleton {
 
   onLockedChanged: {
     if (locked) {
-      if (KeyboardLayoutService.layouts.length > 0) {
-        lockService.savedLayout = KeyboardLayoutService.currentLayout;
-        KeyboardLayoutService.cycleLayout(KeyboardLayoutService.layouts[0]);
-      }
-    } else {
-      passwordBuffer = "";
-      authState = authStates.idle;
-      if (lockService.savedLayout) {
-        KeyboardLayoutService.cycleLayout(lockService.savedLayout);
-        lockService.savedLayout = "";
-      }
+      lockService.layoutBeforeLockIndex = KeyboardLayoutService.currentLayoutIndex;
+      KeyboardLayoutService.setLayoutByIndex(0);
+      return;
     }
+
+    passwordBuffer = "";
+    authState = authStates.idle;
+    KeyboardLayoutService.setLayoutByIndex(lockService.layoutBeforeLockIndex);
+    lockService.layoutBeforeLockIndex = -1;
   }
 
   PamContext {

@@ -9,28 +9,23 @@ Singleton {
 
   readonly property bool active: MainService.ready && MainService.currentWM === "niri"
   property string currentLayout: ""
+  property int currentLayoutIndex: -1
   property var layouts: []
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET")
 
-  function cycleLayout() {
+  function nextLayout(): void {
     Quickshell.execDetached(["niri", "msg", "action", "switch-layout", "next"]);
   }
 
-  function parseKeyboardLayouts(event) {
+  function handleLayoutEvent(event: var): void {
     const info = event?.KeyboardLayoutsChanged?.keyboard_layouts;
-    if (info) {
+    if (info)
       impl.layouts = info.names || [];
-      impl.setLayoutByIndex(info.current_idx ?? -1);
+    const idx = info?.current_idx ?? event?.KeyboardLayoutSwitched?.idx;
+    if (idx === undefined)
       return;
-    }
-
-    const switchedIdx = event?.KeyboardLayoutSwitched?.idx;
-    if (switchedIdx !== undefined)
-      impl.setLayoutByIndex(switchedIdx);
-  }
-
-  function setLayoutByIndex(idx) {
-    impl.currentLayout = idx >= 0 && idx < impl.layouts.length ? impl.layouts[idx] : "";
+    impl.currentLayoutIndex = idx >= 0 && idx < impl.layouts.length ? idx : -1;
+    impl.currentLayout = impl.currentLayoutIndex >= 0 ? impl.layouts[impl.currentLayoutIndex] : "";
   }
 
   Socket {
@@ -46,16 +41,14 @@ Singleton {
         if (!segment)
           return;
         try {
-          impl.parseKeyboardLayouts(JSON.parse(segment));
+          impl.handleLayoutEvent(JSON.parse(segment));
         } catch (e) {
           Logger.log("KeyboardLayoutImpl(Niri)", `Parse error: ${e}`);
         }
       }
     }
 
-    onConnectionStateChanged: {
-      if (connected)
-        write('"EventStream"\n');
-    }
+    onConnectionStateChanged: if (connected)
+      write('"EventStream"\n')
   }
 }
