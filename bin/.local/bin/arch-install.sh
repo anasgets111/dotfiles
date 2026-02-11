@@ -100,15 +100,17 @@ PKGS_COMMON=(
 	ttf-roboto-mono-nerd ttf-scheherazade-new
 )
 
+PKGS_PHP=(
+	# PHP Stack
+	composer dnsmasq mariadb-clients postgresql-libs nginx php php-fpm php-gd php-igbinary php-imagick php-pgsql php-redis php-snmp php-sodium php-sqlite php-xsl
+)
+
 PKGS_MENTALIST=(
 	# Hardware (Intel)
 	acpi_call brightnessctl intel-media-driver intel-ucode vulkan-intel
 
 	# Desktop (Niri)
 	niri pipewire-libcamera pipewire-v4l2
-
-	# PHP Stack
-	composer dnsmasq mariadb-clients nginx php php-fpm php-gd php-igbinary php-imagick php-pgsql php-redis php-snmp php-sodium php-sqlite php-xsl
 
 	# Database
 	unixodbc
@@ -508,6 +510,12 @@ pacstrap_base() {
 
 	local packages=("${PKGS_COMMON[@]}")
 	$IS_PC && packages+=("${PKGS_WOLVERINE[@]}") || packages+=("${PKGS_MENTALIST[@]}")
+
+	read -rp "Do you want to install the PHP stack? [y/N]: " install_php
+	if [[ "$install_php" =~ ^[Yy]$ ]]; then
+		packages+=("${PKGS_PHP[@]}")
+		log_info "PHP stack added."
+	fi
 
 	log_info "Installing ${#packages[@]} packages..."
 	pacstrap -K "$MOUNT_POINT" "${packages[@]}"
