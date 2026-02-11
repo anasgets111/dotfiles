@@ -17,6 +17,6 @@ Item {
     icon: KeyboardLayoutService.layoutShort
     tooltipText: KeyboardLayoutService.currentLayout
 
-    onClicked: KeyboardLayoutService.cycleLayout()
+    onClicked: KeyboardLayoutService.nextLayout()
   }
 }

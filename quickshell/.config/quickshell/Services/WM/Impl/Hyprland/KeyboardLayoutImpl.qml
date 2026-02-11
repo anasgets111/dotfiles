@@ -1,5 +1,5 @@
 pragma Singleton
-import QtQuick
+import QtQml
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
@@ -11,46 +11,42 @@ Singleton {
 
   readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
   property string currentLayout: ""
+  property int currentLayoutIndex: -1
   property var layouts: []
-  property string mainKeyboardName: ""
+  property string keyboardDeviceName: ""
 
-  function buildLayoutsFromDevices(jsonText) {
-    const clean = jsonText.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "").trim();
-    const keyboards = JSON.parse(clean)?.keyboards?.filter(kb => kb.main) || [];
-
-    const unique = [];
-    let active = "";
-    let mainKeyboard = "";
-
-    keyboards.forEach(kb => {
-      if (kb.name && !mainKeyboard)
-        mainKeyboard = kb.name;
-
-      kb.layout?.split(",").map(s => s.trim()).filter(Boolean).forEach(name => {
-        if (!unique.includes(name))
-          unique.push(name);
-      });
-
-      if (kb.active_keymap)
-        active = kb.active_keymap;
-    });
-
-    return {
-      unique,
-      active,
-      mainKeyboard
-    };
+  function requestLayoutSync(): void {
+    if (impl.active && !layoutSyncProcess.running)
+      layoutSyncProcess.running = true;
   }
 
-  function cycleLayout() {
-    Quickshell.execDetached(["hyprctl", "switchxkblayout", impl.mainKeyboardName || "at-translated-set-2-keyboard", "next"]);
+  function syncLayoutState(jsonText: string): void {
+    const clean = jsonText.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "").trim();
+    const keyboard = (JSON.parse(clean)?.keyboards || []).find(kb => kb.main) || {};
+    const layoutNames = keyboard.layout?.split(",").map(name => name.trim()).filter(Boolean) || [];
+    const activeIndex = Number.isInteger(keyboard.active_layout_index) ? keyboard.active_layout_index : Number.isInteger(keyboard.active_keymap_index) ? keyboard.active_keymap_index : -1;
+
+    impl.layouts = layoutNames;
+    impl.currentLayoutIndex = activeIndex >= 0 && activeIndex < layoutNames.length ? activeIndex : -1;
+    impl.currentLayout = keyboard.active_keymap || (impl.currentLayoutIndex >= 0 ? layoutNames[impl.currentLayoutIndex] : "");
+    impl.keyboardDeviceName = keyboard.name || "";
+  }
+
+  function nextLayout(): void {
+    Quickshell.execDetached(["hyprctl", "switchxkblayout", impl.keyboardDeviceName || "at-translated-set-2-keyboard", "next"]);
+  }
+
+  function setLayoutByIndex(index: int): void {
+    if (index < 0 || index >= impl.layouts.length)
+      return;
+    Quickshell.execDetached(["hyprctl", "switchxkblayout", impl.keyboardDeviceName || "at-translated-set-2-keyboard", `${index}`]);
   }
 
   Process {
-    id: layoutSeedProcess
+    id: layoutSyncProcess
 
     command: ["hyprctl", "-j", "devices"]
-    running: impl.active
+    running: false
 
     stdout: StdioCollector {
       onStreamFinished: {
@@ -58,14 +54,7 @@ Singleton {
           return;
 
         try {
-          const {
-            unique,
-            active,
-            mainKeyboard
-          } = impl.buildLayoutsFromDevices(text);
-          impl.layouts = unique;
-          impl.currentLayout = active;
-          impl.mainKeyboardName = mainKeyboard;
+          impl.syncLayoutState(text);
         } catch (e) {
           Logger.log("KeyboardLayoutImpl(Hypr)", `Parse error: ${e}`);
         }
@@ -73,15 +62,15 @@ Singleton {
     }
   }
 
-  Connections {
-    function onRawEvent(event) {
-      if (event?.name !== "activelayout" || !event.data)
-        return;
+  Component.onCompleted: requestLayoutSync()
 
-      // Event format: "KEYBOARDNAME,LAYOUTNAME" - only update current layout
-      const commaIdx = event.data.indexOf(",");
-      if (commaIdx > 0)
-        impl.currentLayout = event.data.slice(commaIdx + 1).trim();
+  onActiveChanged: if (active)
+    requestLayoutSync()
+
+  Connections {
+    function onRawEvent(event: var): void {
+      if (event?.name === "activelayout")
+        impl.requestLayoutSync();
     }
 
     target: impl.active ? Hyprland : null
