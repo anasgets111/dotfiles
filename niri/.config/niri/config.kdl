@@ -98,8 +98,9 @@ hotkey-overlay { skip-at-startup; }
 
 // --- Startup Applications ---
 spawn-at-startup "quickshell"
-spawn-sh-at-startup "wl-paste --type text --watch cliphist store"
-spawn-sh-at-startup "wl-paste --type image --watch cliphist store"
+// spawn-sh-at-startup "wl-paste --type text --watch cliphist store"
+// spawn-sh-at-startup "wl-paste --type image --watch cliphist store"
+spawn-at-startup "systemctl" "--user" "enable" "--now" "cliphist.service"
 spawn-at-startup "kdeconnectd"
 spawn-at-startup "kdeconnect-indicator"
 spawn-at-startup "speech-dispatcher"
