@@ -51,7 +51,7 @@ Item {
       return "󰖓";
     return "󰖐";
   }
-  readonly property string weatherLabel: !!WeatherService?.currentTemp ? String(WeatherService.currentTemp).split(" ")[0] : "--"
+  readonly property string weatherLabel: (WeatherService.currentTemp || "").split(" ")[0] || "--"
   readonly property string wmIcon: "󱂬"
 
   anchors.centerIn: parent
@@ -140,21 +140,15 @@ Item {
         color: Theme.withOpacity(Theme.activeColor, 0.2)
         radius: Theme.radiusMd
 
-        Rectangle {
-          anchors.fill: parent
-          color: "transparent"
-          radius: parent.radius
+        gradient: Gradient {
+          GradientStop {
+            color: Theme.activeLight
+            position: 0
+          }
 
-          gradient: Gradient {
-            GradientStop {
-              color: Theme.activeLight
-              position: 0
-            }
-
-            GradientStop {
-              color: Theme.withOpacity(Theme.bgCard, 0)
-              position: 0.72
-            }
+          GradientStop {
+            color: Theme.withOpacity(Theme.bgCard, 0)
+            position: 0.72
           }
         }
 
