@@ -2,21 +2,61 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
+import qs.Config
 import qs.Services
 import qs.Services.Core
 import qs.Services.SystemInfo
 import qs.Services.WM
-import qs.Config
 
 Item {
   id: root
 
+  readonly property int absoluteMaxWidth: 1400
+  readonly property int absoluteMinWidth: 900
+  readonly property string authHint: {
+    if (LockService.authState === LockService.authStates.fail)
+      return "Authentication failed. Press Enter to retry or Esc to cancel";
+    if (LockService.authenticating)
+      return "Authenticating...";
+    return "Press Enter to unlock or Esc to cancel";
+  }
+  readonly property real fullNameScale: Math.max(root.lockScale, 1.68)
   required property bool isMainMonitor
+  readonly property string layoutIcon: "󰌌"
   readonly property real lockScale: Theme.lockScale
+  readonly property string networkIcon: NetworkService.linkType === "ethernet" ? "󰈀" : NetworkService.linkType === "wifi" ? "󰤨" : "󰤮"
+  readonly property string networkLabel: NetworkService.linkType === "ethernet" ? "Ethernet" : NetworkService.linkType === "wifi" ? (NetworkService.wifiAps.find(a => a?.connected)?.ssid ?? "Wi-Fi") : "Offline"
+  readonly property string powerIcon: BatteryService.isACPowered ? "󰚥" : "󰂄"
+  readonly property real readableScale: Math.max(root.lockScale, 1.05)
+  readonly property real rightTextScale: Math.max(root.lockScale, 1.36)
+  readonly property int spaceLg: Math.round(Theme.spacingLg * root.lockScale)
+  readonly property int spaceMd: Math.round(Theme.spacingMd * root.lockScale)
+  readonly property int spaceSm: Math.round(Theme.spacingSm * root.lockScale)
+  readonly property string userHostText: (MainService.username || "user") + "@" + (MainService.hostname || "localhost")
+  readonly property string weatherIcon: {
+    const code = WeatherService.currentWeatherCode;
+    if (code < 0)
+      return "󰖐";
+    if (code === 0 || code === 1)
+      return "󰖙";
+    if (code === 2 || code === 3)
+      return "󰖐";
+    if (code === 45 || code === 48)
+      return "󰖑";
+    if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code))
+      return "󰖗";
+    if ([56, 57, 66, 67, 71, 73, 75, 77, 85, 86].includes(code))
+      return "󰖘";
+    if ([95, 96, 99].includes(code))
+      return "󰖓";
+    return "󰖐";
+  }
+  readonly property string weatherLabel: !!WeatherService?.currentTemp ? String(WeatherService.currentTemp).split(" ")[0] : "--"
+  readonly property string wmIcon: "󱂬"
 
   anchors.centerIn: parent
-  implicitHeight: card.implicitHeight
-  implicitWidth: card.implicitWidth
+  implicitHeight: shell.implicitHeight
+  implicitWidth: shell.implicitWidth
 
   transform: Translate {
     id: shakeTransform
@@ -25,8 +65,6 @@ Item {
 
   SequentialAnimation {
     id: shakeAnimation
-
-    loops: 1
 
     PropertyAnimation {
       duration: 50
@@ -67,306 +105,303 @@ Item {
     target: LockService
   }
 
-  // Card container
   Rectangle {
-    id: card
+    id: shell
 
     border.color: Theme.borderMedium
     border.width: Theme.borderWidthThin
-    color: Theme.bgCard
-    implicitHeight: contentColumn.implicitHeight + Theme.dialogPadding * 2
-    implicitWidth: Math.min(root.parent.width * Theme.dialogWidthRatio, Theme.lockCardMaxWidth)
+    color: Theme.withOpacity(Theme.bgCard, Theme.opacityStrong)
+    implicitHeight: Math.max(leftContent.implicitHeight, rightContent.implicitHeight) + root.spaceLg * 2 + root.spaceMd
+    implicitWidth: Math.max(root.absoluteMinWidth, Math.min(Math.round((root.parent ? root.parent.width : root.absoluteMinWidth) * 0.56), root.absoluteMaxWidth))
     layer.enabled: true
     radius: Theme.radiusLg
 
     layer.effect: MultiEffect {
       blurEnabled: true
-      blurMax: Theme.shadowBlurLg
       shadowBlur: Theme.shadowBlurMd
-      shadowColor: Theme.shadowColor
+      shadowColor: Theme.shadowColorStrong
       shadowEnabled: true
-      shadowVerticalOffset: Theme.shadowOffsetY * 4
+      shadowVerticalOffset: Theme.shadowOffsetY * 2
     }
 
-    ColumnLayout {
-      id: contentColumn
+    RowLayout {
+      anchors.fill: parent
+      anchors.margins: root.spaceLg
+      spacing: root.spaceLg
 
-      anchors.centerIn: parent
-      spacing: Math.round(Theme.spacingLg * root.lockScale)
-      width: Math.min(Theme.lockCardContentWidth, parent.width - Theme.dialogPadding * 2)
-
-      // Clock
-      ColumnLayout {
-        Layout.alignment: Qt.AlignHCenter
-        spacing: 0
-
-        OText {
-          Layout.alignment: Qt.AlignHCenter
-          bold: true
-          sizeMultiplier: Theme.baseScale * 5 * root.lockScale
-          style: Text.Outline
-          styleColor: Theme.withOpacity(Theme.bgColor, Theme.opacitySubtle)
-          text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "h:mm AP")
-        }
-
-        OText {
-          Layout.alignment: Qt.AlignHCenter
-          size: "xl"
-          sizeMultiplier: root.lockScale
-          text: TimeService.format("date", "dddd, MMMM d")
-          useActiveColor: false
-          weight: Font.Medium
-        }
-      }
-
-      // User name
-      OText {
-        Layout.alignment: Qt.AlignHCenter
-        bold: true
-        opacity: Theme.opacityStrong
-        size: "lg"
-        sizeMultiplier: root.lockScale
-        text: MainService.fullName || "User"
-        visible: !!text
-      }
-
-      // Status chips
-      RowLayout {
-        Layout.alignment: Qt.AlignHCenter
-        spacing: Math.round(Theme.spacingMd * root.lockScale)
-
-        Chip {
-          visible: !!WeatherService?.currentTemp
-
-          OText {
-            size: "lg"
-            sizeMultiplier: root.lockScale
-            text: WeatherService?.weatherInfo().icon ?? ""
-          }
-
-          OText {
-            bold: true
-            size: "sm"
-            sizeMultiplier: root.lockScale
-            text: String(WeatherService?.currentTemp ?? "").split(" ")[0]
-          }
-        }
-
-        Chip {
-          Text {
-            font.pixelSize: Math.round(Theme.fontMd * root.lockScale)
-            text: "💻"
-          }
-
-          OText {
-            size: "sm"
-            sizeMultiplier: root.lockScale
-            text: MainService.hostname || "localhost"
-            useActiveColor: false
-          }
-        }
-      }
-
-      // Password input (main monitor only)
       Rectangle {
-        id: passwordBox
+        id: leftPane
 
-        readonly property bool hasPassword: passwordLength > 0
-        readonly property int passwordLength: LockService.passwordBuffer.length
+        Layout.fillHeight: true
+        Layout.preferredWidth: Math.round((shell.width - root.spaceLg * 3) * 0.38)
+        border.color: Theme.activeSubtle
+        border.width: Theme.borderWidthThin
+        clip: true
+        color: Theme.withOpacity(Theme.activeColor, 0.2)
+        radius: Theme.radiusMd
 
-        Layout.alignment: Qt.AlignHCenter
-        Layout.preferredHeight: Math.round(Theme.controlHeightLg * root.lockScale)
-        Layout.preferredWidth: Math.min(contentColumn.width, Math.round(Theme.controlHeightLg * root.lockScale * 6))
-        color: Theme.bgInput
-        radius: Theme.radiusFull
-        visible: root.isMainMonitor
+        Rectangle {
+          anchors.fill: parent
+          color: "transparent"
+          radius: parent.radius
 
-        Behavior on border.color {
-          ColorAnimation {
-            duration: Theme.animationDuration
-          }
-        }
+          gradient: Gradient {
+            GradientStop {
+              color: Theme.activeLight
+              position: 0
+            }
 
-        border {
-          color: LockService.authState === LockService.authStates.fail ? Theme.critical : LockService.authenticating ? Theme.activeColor : Theme.borderStrong
-          width: Theme.borderWidthMedium
-        }
-
-        // Lock icon
-        Text {
-          font.pixelSize: Math.round(Theme.fontMd * root.lockScale)
-          opacity: Theme.opacityDisabled + 0.2
-          text: "🔒"
-
-          anchors {
-            left: parent.left
-            leftMargin: Math.round(Theme.spacingMd * root.lockScale)
-            verticalCenter: parent.verticalCenter
-          }
-        }
-
-        // Password dots
-        Row {
-          anchors.centerIn: parent
-          spacing: Math.round(Theme.spacingXs * root.lockScale)
-          visible: passwordBox.hasPassword
-
-          Repeater {
-            model: Math.min(passwordBox.passwordLength, 12)
-
-            Rectangle {
-              required property int index
-
-              color: Theme.textActiveColor
-              height: Math.round(Theme.spacingSm * root.lockScale)
-              radius: Theme.radiusXs
-              width: Math.round(Theme.spacingSm * root.lockScale)
+            GradientStop {
+              color: Theme.withOpacity(Theme.bgCard, 0)
+              position: 0.72
             }
           }
         }
 
-        // Status text
-        OText {
-          anchors.centerIn: parent
-          color: LockService.authState === LockService.authStates.fail ? Theme.critical : Theme.textInactiveColor
-          size: "sm"
-          sizeMultiplier: root.lockScale
-          text: LockService.statusMessage
-          visible: !passwordBox.hasPassword
-        }
+        ColumnLayout {
+          id: leftContent
 
-        // Caps lock indicator
-        Rectangle {
-          color: Theme.warning
-          height: Math.round(Theme.controlHeightXs * root.lockScale)
-          radius: Theme.radiusSm
-          visible: KeyboardLayoutService.capsOn
-          width: capsText.implicitWidth + Math.round(Theme.spacingMd * root.lockScale)
-
-          anchors {
-            right: parent.right
-            rightMargin: Math.round(Theme.spacingSm * root.lockScale)
-            verticalCenter: parent.verticalCenter
-          }
+          anchors.fill: parent
+          anchors.margins: root.spaceLg
+          spacing: root.spaceMd
 
           OText {
-            id: capsText
-
-            anchors.centerIn: parent
-            bold: true
-            color: Theme.bgColor
+            Layout.fillWidth: true
+            color: Theme.textInactiveColor
             size: "xs"
-            sizeMultiplier: root.lockScale
-            text: "CAPS"
+            sizeMultiplier: root.readableScale
+            text: "LOCKED"
+          }
+
+          OText {
+            Layout.fillWidth: true
+            bold: true
+            color: Theme.textActiveColor
+            font.pixelSize: Math.round(Theme.fontHero * 0.94 * root.readableScale)
+            text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "h:mm AP")
+          }
+
+          OText {
+            Layout.fillWidth: true
+            color: Theme.textInactiveColor
+            size: "md"
+            sizeMultiplier: root.readableScale
+            text: TimeService.format("date", "dddd, MMMM d")
+          }
+
+          ThinDivider {
+          }
+
+          Repeater {
+            model: [[root.weatherIcon, root.weatherLabel], [root.powerIcon, BatteryService.isLaptopBattery ? BatteryService.percentage + "%" : "Desktop"], [root.networkIcon, root.networkLabel], [root.layoutIcon, KeyboardLayoutService.currentLayout || "N/A"], [root.wmIcon, MainService.currentWM || "unknown"]]
+
+            StatusRow {
+              required property var modelData
+
+              icon: modelData[0]
+              value: modelData[1]
+            }
+          }
+
+          Item {
+            Layout.preferredHeight: Math.round(root.spaceMd * root.readableScale)
           }
         }
       }
 
-      // Footer info (main monitor only)
-      RowLayout {
-        Layout.alignment: Qt.AlignHCenter
-        opacity: Theme.opacitySolid
-        spacing: Math.round(Theme.spacingSm * root.lockScale)
-        visible: root.isMainMonitor
+      Rectangle {
+        id: rightPane
 
-        // Battery
-        RowLayout {
-          spacing: Math.round(Theme.spacingXs * root.lockScale)
-          visible: BatteryService.isLaptopBattery
+        Layout.fillHeight: true
+        Layout.fillWidth: true
+        border.color: Theme.borderLight
+        border.width: Theme.borderWidthThin
+        clip: true
+        color: Theme.withOpacity(Theme.bgElevated, Theme.opacityStrong)
+        radius: Theme.radiusMd
 
-          Text {
-            color: Theme.textActiveColor
-            font.pixelSize: Math.round(Theme.fontSm * root.lockScale)
-            text: BatteryService.isACPowered ? "⚡" : "🔋"
+        ColumnLayout {
+          id: rightContent
+
+          anchors.fill: parent
+          anchors.margins: root.spaceLg
+          spacing: root.spaceMd
+
+          Item {
+            Layout.fillHeight: true
           }
 
-          OText {
-            color: Theme.textActiveColor
-            size: "sm"
-            sizeMultiplier: root.lockScale
-            text: BatteryService.percentage + "%"
-            useActiveColor: false
-          }
-        }
+          ColumnLayout {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.fillWidth: true
+            spacing: root.spaceSm
 
-        Divider {
-          visible: BatteryService.isLaptopBattery
-        }
+            OText {
+              Layout.fillWidth: true
+              bold: true
+              color: Theme.textActiveColor
+              horizontalAlignment: Text.AlignHCenter
+              size: "xl"
+              sizeMultiplier: root.fullNameScale
+              text: MainService.fullName || "User"
+            }
 
-        OText {
-          color: Theme.textActiveColor
-          size: "sm"
-          sizeMultiplier: root.lockScale
-          text: "Enter to unlock"
-          useActiveColor: false
-        }
-
-        Divider {
-          visible: !!KeyboardLayoutService.currentLayout
-        }
-
-        OText {
-          color: Theme.textActiveColor
-          size: "sm"
-          sizeMultiplier: root.lockScale
-          text: KeyboardLayoutService.currentLayout
-          useActiveColor: false
-          visible: !!KeyboardLayoutService.currentLayout
-          weight: Font.Medium
-        }
-
-        Divider {
-          visible: NetworkService.ready
-        }
-
-        // Network
-        RowLayout {
-          readonly property string link: NetworkService.linkType || "disconnected"
-          readonly property string ssid: NetworkService.wifiAps.find(a => a?.connected)?.ssid ?? ""
-
-          spacing: Math.round(Theme.spacingXs * root.lockScale)
-          visible: NetworkService.ready
-
-          Text {
-            color: Theme.textActiveColor
-            font.pixelSize: Math.round(Theme.fontSm * root.lockScale)
-            text: parent.link === "ethernet" ? "🖧" : parent.link === "wifi" ? "📶" : "📵"
+            OText {
+              Layout.fillWidth: true
+              color: Theme.textInactiveColor
+              horizontalAlignment: Text.AlignHCenter
+              size: "md"
+              sizeMultiplier: root.rightTextScale
+              text: root.userHostText
+            }
           }
 
-          OText {
-            color: Theme.textActiveColor
-            size: "sm"
-            sizeMultiplier: root.lockScale
-            text: parent.link === "ethernet" ? "Ethernet" : parent.link === "wifi" ? parent.ssid : "Offline"
-            useActiveColor: false
+          Rectangle {
+            id: authCard
+
+            Layout.alignment: Qt.AlignHCenter
+            Layout.fillWidth: true
+            border.color: Theme.withOpacity(Theme.activeColor, Theme.opacityMedium)
+            border.width: Theme.borderWidthThin
+            color: Theme.withOpacity(Theme.bgElevatedAlt, Theme.opacityStrong)
+            implicitHeight: cardColumn.implicitHeight + root.spaceMd * 2
+            radius: Theme.radiusMd
+
+            ColumnLayout {
+              id: cardColumn
+
+              anchors.fill: parent
+              anchors.margins: root.spaceMd
+              spacing: root.spaceMd
+
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: root.spaceSm
+
+                Text {
+                  color: Theme.activeColor
+                  font.family: Theme.iconFontFamily
+                  font.pixelSize: Math.round(Theme.iconSizeMd * root.rightTextScale)
+                  text: "󰌾"
+                }
+
+                OText {
+                  Layout.fillWidth: true
+                  bold: true
+                  color: Theme.textActiveColor
+                  size: "md"
+                  sizeMultiplier: root.rightTextScale
+                  text: "Authentication"
+                }
+              }
+
+              Rectangle {
+                id: passwordInput
+
+                readonly property bool hasPassword: LockService.passwordBuffer.length > 0
+
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.round(Theme.controlHeightLg * root.rightTextScale)
+                border.color: LockService.authState === LockService.authStates.fail ? Theme.critical : LockService.authenticating ? Theme.activeColor : Theme.borderMedium
+                border.width: Theme.borderWidthMedium
+                color: Theme.bgInput
+                radius: Theme.radiusSm
+                visible: root.isMainMonitor
+
+                Behavior on border.color {
+                  ColorAnimation {
+                    duration: Theme.animationDuration
+                  }
+                }
+
+                RowLayout {
+                  anchors.fill: parent
+                  anchors.leftMargin: root.spaceSm
+                  anchors.rightMargin: root.spaceSm
+                  spacing: root.spaceSm
+
+                  Text {
+                    color: Theme.activeColor
+                    font.family: Theme.iconFontFamily
+                    font.pixelSize: Math.round(Theme.iconSizeSm * root.rightTextScale)
+                    text: "󰌋"
+                  }
+
+                  OText {
+                    Layout.fillWidth: true
+                    color: LockService.authState === LockService.authStates.fail ? Theme.critical : Theme.textActiveColor
+                    font.pixelSize: Math.round(Theme.fontLg * root.rightTextScale)
+                    text: passwordInput.hasPassword ? "*".repeat(Math.min(LockService.passwordBuffer.length, 32)) : LockService.statusMessage
+                  }
+
+                  Rectangle {
+                    Layout.preferredHeight: Math.round(Theme.controlHeightXs * root.lockScale)
+                    Layout.preferredWidth: capsText.implicitWidth + root.spaceSm * 2
+                    color: Theme.warning
+                    radius: Theme.radiusSm
+                    visible: KeyboardLayoutService.capsOn
+
+                    OText {
+                      id: capsText
+
+                      anchors.centerIn: parent
+                      bold: true
+                      color: Theme.bgColor
+                      size: "sm"
+                      sizeMultiplier: root.rightTextScale
+                      text: "CAPS"
+                    }
+                  }
+                }
+              }
+
+              OText {
+                Layout.fillWidth: true
+                color: Theme.textInactiveColor
+                horizontalAlignment: Text.AlignHCenter
+                size: "md"
+                sizeMultiplier: root.rightTextScale
+                text: root.isMainMonitor ? root.authHint : "Unlock on main monitor"
+                wrapMode: Text.WordWrap
+              }
+            }
+          }
+
+          Item {
+            Layout.fillHeight: true
           }
         }
       }
     }
   }
 
-  // Chip component
-  component Chip: Rectangle {
-    default property alias content: chipRow.children
+  component StatusRow: RowLayout {
+    property string icon: ""
+    property string value: ""
 
-    Layout.preferredHeight: Math.round(Theme.controlHeightMd * root.lockScale)
-    Layout.preferredWidth: chipRow.implicitWidth + Math.round(Theme.spacingLg * root.lockScale)
-    border.color: Theme.borderSubtle
-    color: Theme.bgSubtle
-    radius: Theme.radiusFull
+    Layout.fillWidth: true
+    spacing: root.spaceSm
 
-    RowLayout {
-      id: chipRow
+    Text {
+      Layout.preferredWidth: Math.round(Theme.iconSizeLg * root.readableScale * 1.3)
+      color: Theme.activeColor
+      font.family: Theme.iconFontFamily
+      font.pixelSize: Math.round(Theme.iconSizeMd * root.readableScale)
+      text: parent.icon
+      verticalAlignment: Text.AlignVCenter
+    }
 
-      anchors.centerIn: parent
-      spacing: Math.round(Theme.spacingXs * root.lockScale)
+    OText {
+      Layout.fillWidth: true
+      color: Theme.textActiveColor
+      size: "md"
+      sizeMultiplier: root.readableScale
+      text: parent.value
     }
   }
-
-  // Divider component
-  component Divider: Rectangle {
-    color: Theme.textInactiveColor
-    height: Math.round(Theme.spacingMd * root.lockScale)
-    width: Theme.borderWidthThin
+  component ThinDivider: Rectangle {
+    Layout.fillWidth: true
+    Layout.preferredHeight: Theme.borderWidthThin
+    color: Theme.borderSubtle
   }
 }
