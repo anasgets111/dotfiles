@@ -5,7 +5,7 @@ export XDG_DOWNLOAD_DIR="/mnt/Work/Downloads"
 export EDITOR="nvim"
 
 # ─── User Info ──────────────────────────────────────────────────────────────────
-FULL_NAME="$( getent passwd "$USER" | cut -d: -f5 | cut -d, -f1)"
+FULL_NAME="$(getent passwd "$USER" | cut -d: -f5 | cut -d, -f1)"
 export FULL_NAME
 
 # ─── Tool Homes ─────────────────────────────────────────────────────────────────
@@ -44,7 +44,6 @@ export QT_AUTO_SCREEN_SCALE_FACTOR="1"
 # ─── Qt Theming ─────────────────────────────────────────────────────────────────
 export QT_QPA_PLATFORMTHEME="qt6ct"
 
-
 # ─── PATH ───────────────────────────────────────────────────────────────────────
 export PATH="$CARGOBIN:$BIN:$HOME/.config/composer/vendor/bin:$PATH"
 
@@ -60,5 +59,3 @@ fi
 if command -v fnm >/dev/null 2>&1; then
   eval "$(fnm env --shell=bash --use-on-cd --version-file-strategy=recursive --resolve-engines 2>/dev/null || true)"
 fi
-
-# ─── Drop into Fish ─────────────────────────────────────────────────────────────
