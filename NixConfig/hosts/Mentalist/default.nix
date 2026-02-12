@@ -6,19 +6,18 @@
   fileSystems."/" = {
     device = "/dev/disk/by-label/nixos";
     fsType = "ext4";
-    options = [ "rw" "relatime" ];
   };
 
   fileSystems."/boot" = {
     device = "/dev/disk/by-label/BOOT";
     fsType = "vfat";
-    options = [ "umask=0077" ];
+    options = [ "nosuid" "nodev" "noexec" "fmask=0177" "dmask=0077" ];
   };
 
   fileSystems."/mnt/Work" = {
     device = "/dev/disk/by-label/Work";
     fsType = "ext4";
-    options = [ "rw" "relatime" "nosuid" "nodev" "nofail" "x-gvfs-show" "x-systemd.makedir" ];
+    options = [ "nosuid" "nodev" "nofail" "x-gvfs-show" "x-systemd.makedir" ];
   };
 
   # Window Manager & Portals

@@ -17,26 +17,12 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, ... }@inputs: 
+  outputs = { nixpkgs, ... }@inputs: 
   let
     system = "x86_64-linux";
     specialArgs = { inherit inputs; };
   in {
     nixosConfigurations = {
-      generic = nixpkgs.lib.nixosSystem {
-        inherit system specialArgs;
-        modules = [
-          ./modules/common.nix
-          { 
-            networking.hostName = "nixos";
-            fileSystems."/" = {
-              device = "/dev/disk/by-label/nixos";
-              fsType = "ext4";
-            };
-          }
-        ];
-      };
-
       wolverine = nixpkgs.lib.nixosSystem {
         inherit system specialArgs;
         modules = [

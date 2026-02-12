@@ -1,4 +1,7 @@
-{ pkgs, lib, ... }: {
+{ pkgs, lib, ... }:
+let
+  dataMountOptions = [ "nosuid" "nodev" "nofail" "x-gvfs-show" "x-systemd.makedir" ];
+in {
   imports = [
     ./hardware-config.nix
   ];
@@ -13,25 +16,25 @@
   fileSystems."/boot" = {
     device = "/dev/disk/by-label/BOOT";
     fsType = "vfat";
-    options = [ "umask=0077" ];
+    options = [ "nosuid" "nodev" "noexec" "fmask=0177" "dmask=0077" ];
   };
 
   fileSystems."/mnt/Work" = {
     device = "/dev/disk/by-label/Work";
     fsType = "ext4";
-    options = [ "nosuid" "nodev" "nofail" "x-gvfs-show" "x-systemd.makedir" ];
+    options = dataMountOptions;
   };
 
   fileSystems."/mnt/Media" = {
     device = "/dev/disk/by-label/Media";
     fsType = "ext4";
-    options = [ "nosuid" "nodev" "nofail" "x-gvfs-show" "x-systemd.makedir" ];
+    options = dataMountOptions;
   };
 
   fileSystems."/mnt/Games" = {
     device = "/dev/disk/by-label/Games";
     fsType = "ext4";
-    options = [ "nosuid" "nodev" "nofail" "x-gvfs-show" "x-systemd.makedir" ];
+    options = dataMountOptions;
   };
 
   swapDevices = [ {
@@ -60,7 +63,6 @@
     config = {
       common.default = [ "hyprland" "gnome" "gtk" ];
       hyprland = {
-        default = [ "hyprland" "gnome" "gtk" ];
         "org.freedesktop.impl.portal.ScreenCast" = [ "hyprland" ];
         "org.freedesktop.impl.portal.Screenshot" = [ "hyprland" ];
         "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
@@ -72,10 +74,7 @@
   services.xserver.videoDrivers = [ "nvidia" ];
   hardware.nvidia = {
     modesetting.enable = true;
-    powerManagement.enable = false;
-    powerManagement.finegrained = false;
     open = true;
-    nvidiaSettings = true;
     package = pkgs.linuxPackages_latest.nvidiaPackages.latest;
   };
 
