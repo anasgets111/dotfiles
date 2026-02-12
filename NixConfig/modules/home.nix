@@ -1,4 +1,4 @@
-{ config, inputs, ... }: 
+{ inputs, ... }: 
 let
   dotsPath = "/mnt/Work/1Progs/Dots";
   backupPath = "/mnt/Work/Home_backup";
