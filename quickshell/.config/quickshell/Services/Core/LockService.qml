@@ -19,18 +19,24 @@ Singleton {
   readonly property real blurAmount: 0.9
   readonly property int blurMax: 64
   readonly property real blurMultiplier: 1
+  property int layoutBeforeLockIndex: -1
   property bool locked: false
   property string passwordBuffer: ""
-  property int layoutBeforeLockIndex: -1
-  readonly property string statusMessage: authenticating ? "Authenticating…" : (statusMessages[authState] ?? "Enter password")
+  readonly property string statusMessage: unlocking ? "Unlocking…" : authenticating ? "Authenticating…" : (statusMessages[authState] ?? "Enter password")
   readonly property var statusMessages: ({
       error: "Error",
       max: "Too many tries",
       fail: "Incorrect password"
     })
+  property bool unlocking: false
+
+  function finalizeUnlock(): void {
+    if (unlocking)
+      locked = false;
+  }
 
   function handleGlobalKeyPress(event: var): bool {
-    if (!locked || authenticating)
+    if (!locked || authenticating || unlocking)
       return false;
     if (IdleService.dpmsOff)
       IdleService.wake();
@@ -58,17 +64,29 @@ Singleton {
     return false;
   }
 
+  function requestLock(): void {
+    unlocking = false;
+    locked = true;
+  }
+
+  function requestUnlock(): void {
+    if (locked)
+      unlocking = true;
+  }
+
   onLockedChanged: {
+    unlocking = false;
+
     if (locked) {
-      lockService.layoutBeforeLockIndex = KeyboardLayoutService.currentLayoutIndex;
+      layoutBeforeLockIndex = KeyboardLayoutService.currentLayoutIndex;
       KeyboardLayoutService.setLayoutByIndex(0);
       return;
     }
 
     passwordBuffer = "";
     authState = authStates.idle;
-    KeyboardLayoutService.setLayoutByIndex(lockService.layoutBeforeLockIndex);
-    lockService.layoutBeforeLockIndex = -1;
+    KeyboardLayoutService.setLayoutByIndex(layoutBeforeLockIndex);
+    layoutBeforeLockIndex = -1;
   }
 
   PamContext {
@@ -77,7 +95,7 @@ Singleton {
     onActiveChanged: lockService.authenticating = active
     onCompleted: result => {
       if (result === PamResult.Success) {
-        lockService.locked = false;
+        lockService.requestUnlock();
       } else {
         lockService.authState = ({
             [PamResult.Error]: lockService.authStates.error,

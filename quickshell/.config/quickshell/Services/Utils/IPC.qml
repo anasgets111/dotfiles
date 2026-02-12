@@ -21,7 +21,7 @@ Singleton {
 
     function lock(): string {
       Logger.log("IPC", "lock");
-      LockService.locked = true;
+      LockService.requestLock();
       return "locked";
     }
 
@@ -31,16 +31,10 @@ Singleton {
       return s;
     }
 
-    function toggle(): string {
-      Logger.log("IPC", "toggle");
-      LockService.locked = !LockService.locked;
-      return LockService.locked ? "locked" : "unlocked";
-    }
-
     function unlock(): string {
       Logger.log("IPC", "unlock");
-      LockService.locked = false;
-      return "unlocked";
+      LockService.requestUnlock();
+      return LockService.locked ? "unlocking" : "unlocked";
     }
 
     target: "lock"

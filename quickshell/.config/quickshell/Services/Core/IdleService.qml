@@ -57,7 +57,7 @@ Singleton {
     respectInhibitors: root.respectInhibitors
     timeout: root.settings?.lockTimeoutSec ?? 0
 
-    onIsIdleChanged: isIdle ? LockService.locked = true : root.wake()
+    onIsIdleChanged: isIdle ? LockService.requestLock() : root.wake()
   }
 
   IdleMonitor {
