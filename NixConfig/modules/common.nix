@@ -142,17 +142,7 @@ in {
   services.dbus.implementation = "broker";
   services.gnome.gnome-keyring.enable = true;
   services.gvfs.enable = true;
-  services.greetd = {
-    enable = true;
-    useTextGreeter = true;
-    settings = {
-      default_session = {
-        command = "${lib.getExe pkgs.tuigreet} --time --asterisks --remember --remember-user-session --sessions /run/current-system/sw/share/wayland-sessions:/run/current-system/sw/share/xsessions --theme 'border=magenta;prompt=cyan;input=green;time=yellow;action=blue;button=cyan;container=black;text=white'";
-        user = "greeter";
-      };
-    };
-  };
-  security.pam.services.greetd.enableGnomeKeyring = true;
+  services.displayManager.ly.enable = true;
 
   services.pipewire = {
     enable = true;
