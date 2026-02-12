@@ -1,4 +1,4 @@
-{ pkgs, inputs, lib, ... }: 
+{ pkgs, inputs, ... }: 
 let
   # --- Package & Font Categorization ---
   
@@ -129,6 +129,7 @@ in {
   hardware.enableRedistributableFirmware = true;
 
   hardware.graphics.enable = true;
+  services.fstrim.enable = true;
   zramSwap = {
     enable = true;
     algorithm = "zstd";
