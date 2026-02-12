@@ -67,7 +67,7 @@ PKGS_COMMON=(
 	bluez gnome-firmware i2c-tools lshw plymouth usbutils wireless-regdb zram-generator
 
 	# Audio & Accessibility
-	espeak-ng pipewire pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber
+	espeak-ng pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber
 
 	# System Utilities
 	gnome-keyring ly mkcert mold pacman-contrib pkgstats xdg-desktop-portal-gnome
@@ -77,33 +77,33 @@ PKGS_COMMON=(
 
 	# CLI Tools
 	7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools
-	less neovim ripgrep rsync shfmt stow tokei tree-sitter-cli unrar unzip wget wl-clipboard zip
+	less neovim ripgrep rsync shfmt stow tokei tree-sitter-cli unrar unzip wget zip
 
 	# Development
 	bun just rustup
 
 	# Desktop Environment & Apps
 	gnome-calculator gnome-disk-utility gnome-text-editor kdeconnect
-	mission-center nautilus nautilus-image-converter papers qbittorrent simple-scan
+	mission-center nautilus-image-converter papers qbittorrent simple-scan
 
 	# Communication
 	telegram-desktop thunderbird
 
 	# Media & Design
-	mpv mpv-mpris satty zed
+	mpv-mpris satty zed
 
 	# Theming
 	kvantum qt6ct tela-circle-icon-theme-dracula
 
 	# Fonts
-	adobe-source-code-pro-fonts gnu-free-fonts inter-font noto-fonts noto-fonts-emoji noto-fonts-extra opendesktop-fonts
+	adobe-source-code-pro-fonts gnu-free-fonts inter-font noto-fonts-emoji noto-fonts-extra opendesktop-fonts
 	otf-font-awesome terminus-font ttf-bitstream-vera ttf-cascadia-code-nerd ttf-fira-code ttf-firacode-nerd ttf-liberation
 	ttf-roboto-mono-nerd ttf-scheherazade-new
 )
 
 PKGS_PHP=(
 	# PHP Stack
-	composer dnsmasq mariadb-clients postgresql-libs nginx php php-fpm php-gd php-igbinary php-imagick php-pgsql php-redis php-snmp php-sodium php-sqlite php-xsl
+	composer dnsmasq mariadb-clients postgresql-libs nginx php php-fpm php-gd php-igbinary php-imagick php-pgsql php-redis php-snmp php-sodium php-sqlite php-xsl podman-compose
 )
 
 PKGS_MENTALIST=(
