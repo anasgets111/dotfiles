@@ -1,6 +1,6 @@
 { pkgs, lib, ... }: {
   imports = [
-    ./mentalist-hardware.nix
+    ./hardware-config.nix
   ];
 
   fileSystems."/" = {
@@ -32,10 +32,6 @@
     ];
     config = {
       common.default = [ "gnome" "gtk" ];
-      niri = {
-        default = [ "gnome" "gtk" ];
-        "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
-      };
     };
   };
 
@@ -50,10 +46,6 @@
     intel-vaapi-driver
     libvdpau-va-gl
   ];
-
-  environment.sessionVariables = {
-    LIBVA_DRIVER_NAME = "iHD"; # Force intel-media-driver
-  };
 
   networking.hostName = "Mentalist";
 }
