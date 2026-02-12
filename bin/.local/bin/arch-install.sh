@@ -64,7 +64,7 @@ PKGS_COMMON=(
 	base base-devel linux linux-firmware networkmanager mandoc man
 
 	# Hardware & Firmware
-	bluez gnome-firmware i2c-tools lshw plymouth usbutils wireless-regdb zram-generator
+	bluez gnome-firmware i2c-tools lshw plymouth wireless-regdb zram-generator
 
 	# Audio & Accessibility
 	espeak-ng pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber
@@ -73,11 +73,11 @@ PKGS_COMMON=(
 	gnome-keyring ly mkcert mold pacman-contrib pkgstats xdg-desktop-portal-gnome
 
 	# Shell & Terminal
-	bash-completion bat btop cliphist dysk expac eza fastfetch fd fish fzf jq kitty starship tealdeer zoxide xsel
+	bash-completion bat btop cliphist dysk expac eza fastfetch fd fish fzf kitty starship tealdeer zoxide xsel
 
 	# CLI Tools
 	7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools
-	less neovim ripgrep rsync shfmt stow tokei tree-sitter-cli unrar unzip wget zip
+	less neovim ripgrep rsync shfmt stow tokei tree-sitter-cli unrar wget zip
 
 	# Development
 	bun just rustup
@@ -103,7 +103,7 @@ PKGS_COMMON=(
 
 PKGS_PHP=(
 	# PHP Stack
-	composer dnsmasq mariadb-clients postgresql-libs nginx php php-fpm php-gd php-igbinary php-imagick php-pgsql php-redis php-snmp php-sodium php-sqlite php-xsl podman-compose
+	composer dnsmasq mariadb-clients nginx php-fpm php-gd php-imagick php-pgsql php-redis php-snmp php-sodium php-sqlite php-xsl podman-compose
 )
 
 PKGS_MENTALIST=(
@@ -119,7 +119,7 @@ PKGS_MENTALIST=(
 
 PKGS_WOLVERINE=(
 	# Hardware (AMD + NVIDIA)
-	amd-ucode lib32-nvidia-utils libva-nvidia-driver nvidia-open nvidia-settings nvidia-utils
+	amd-ucode lib32-nvidia-utils libva-nvidia-driver nvidia-open nvidia-settings
 
 	# Hyprland WM
 	hyprland hyprpicker hyprshot uwsm xdg-desktop-portal-hyprland
