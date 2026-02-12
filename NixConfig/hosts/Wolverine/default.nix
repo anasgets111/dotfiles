@@ -1,6 +1,6 @@
 { pkgs, lib, ... }: {
   imports = [
-    ./wolverine-hardware.nix
+    ./hardware-config.nix
   ];
 
   boot.initrd.kernelModules = [ "nvidia" "nvidia_modeset" "nvidia_uvm" "nvidia_drm" ];
@@ -98,16 +98,6 @@
 
   # Solaar rule for Logitech devices
   services.udev.packages = [ pkgs.solaar ];
-
-  services.openssh = {
-    enable = true;
-    openFirewall = true;
-    settings = {
-      PermitRootLogin = "no";
-      PasswordAuthentication = true;
-      KbdInteractiveAuthentication = false;
-    };
-  };
 
   networking.hostName = "Wolverine";
 }
