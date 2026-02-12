@@ -21,6 +21,11 @@ function fish_should_add_to_history
 end
 
 if status is-interactive
+    set -l podman_sock "/run/user/"(id -u)"/podman/podman.sock"
+    if test -S $podman_sock
+        set -gx DOCKER_HOST "unix://$podman_sock"
+    end
+
     # 3. Tool Initialization
     type -q zoxide; and zoxide init fish --cmd cd | source
     type -q starship; and starship init fish | source
@@ -58,7 +63,7 @@ if status is-interactive
     abbr tb 'nc termbin.com 9999'
     abbr errors 'journalctl -p 3 -xb'
     abbr hw 'hwinfo --short'
-    
+
     # PostgreSQL environment variables
     set -gx PGHOST 127.0.0.1
     set -gx PGPORT 5432
