@@ -17,133 +17,142 @@ Singleton {
       "portable": "󰏲"
     })
   readonly property real maxVolume: 1.5
+  readonly property var _pipewireNodes: Pipewire.nodes?.values ?? []
   readonly property bool micMuted: source?.audio?.muted ?? false
   readonly property real micVolume: Math.max(0, source?.audio?.volume ?? 0)
   readonly property bool muted: sink?.audio?.muted ?? false
   readonly property PwNode sink: Pipewire.defaultAudioSink
   readonly property string sinkIcon: deviceIconFor(sink)
-  readonly property list<PwNode> sinks: Pipewire.nodes.values.filter(n => !n.isStream && n.isSink)
+  readonly property list<PwNode> sinks: _pipewireNodes.filter(node => !node.isStream && node.isSink)
   readonly property PwNode source: Pipewire.defaultAudioSource
-  readonly property list<PwNode> sources: Pipewire.nodes.values.filter(n => !n.isStream && !n.isSink && n.audio)
+  readonly property list<PwNode> sources: _pipewireNodes.filter(node => !node.isStream && !node.isSink && node.audio)
   readonly property real stepVolume: 0.05
-  readonly property list<PwNode> streams: Pipewire.nodes.values.filter(n => n.isStream && n.audio)
+  readonly property list<PwNode> streams: _pipewireNodes.filter(node => node.isStream && node.audio)
   readonly property real volume: Math.max(0, sink?.audio?.volume ?? 0)
 
   signal sinkDeviceChanged(string deviceName, string icon)
 
-  function clamp(volume) {
+  function clamp(volume: real): real {
     return Math.max(0, Math.min(maxVolume, volume));
   }
 
-  function decreaseVolume() {
+  function decreaseVolume(): void {
     setVolume(root.volume - root.stepVolume);
   }
 
-  function deviceIconFor(node) {
+  function deviceIconFor(node: var): string {
     if (!node)
       return "";
-    const icon = deviceIconMap[node.properties?.["device.icon-name"]];
-    if (icon)
-      return icon;
-    const desc = (node.description ?? "").toLowerCase();
+    const mappedIcon = deviceIconMap[node.properties?.["device.icon-name"]];
+    if (mappedIcon)
+      return mappedIcon;
+    const description = (node.description ?? "").toLowerCase();
     for (const key in deviceIconMap)
-      if (desc.includes(key))
+      if (description.includes(key))
         return deviceIconMap[key];
     return node.name?.startsWith("bluez_output") ? deviceIconMap["headphone"] : "";
   }
 
-  function displayName(node) {
+  function displayName(node: var): string {
     if (!node)
       return "";
-    const props = node.properties ?? {};
-    if (props["device.description"])
-      return props["device.description"];
+    const properties = node.properties ?? {};
+    if (properties["device.description"])
+      return properties["device.description"];
 
     const name = node.name ?? "";
-    const desc = node.description ?? "";
-    if (desc && desc !== name)
-      return desc;
+    const description = node.description ?? "";
+    if (description && description !== name)
+      return description;
     if (node.nickname && node.nickname !== name)
       return node.nickname;
 
     return name;
   }
 
-  function increaseVolume() {
+  function increaseVolume(): void {
     setVolume(root.volume + root.stepVolume);
   }
 
-  function playCriticalNotificationSound() {
+  function playCriticalNotificationSound(): void {
     criticalNotificationSound.stop();
     criticalNotificationSound.play();
   }
 
-  function playNormalNotificationSound() {
+  function playNormalNotificationSound(): void {
     normalNotificationSound.stop();
     normalNotificationSound.play();
   }
 
-  function parsePercentage(valueString) {
-    const n = parseInt(valueString, 10);
-    return isNaN(n) ? null : n / 100;
+  function parsePercentage(rawPercentage: var): real {
+    const percentageText = String(rawPercentage ?? "").trim();
+    if (!/^-?\d+$/.test(percentageText))
+      return Number.NaN;
+    const percentageNumber = Number(percentageText);
+    return Number.isSafeInteger(percentageNumber) ? percentageNumber / 100 : Number.NaN;
   }
 
-  function setAudioSink(newSink) {
+  function setAudioSink(newSink: var): void {
     Pipewire.preferredDefaultAudioSink = newSink;
   }
 
-  function setAudioSource(newSource) {
+  function setAudioSource(newSource: var): void {
     Pipewire.preferredDefaultAudioSource = newSource;
   }
 
-  function setInputVolume(newVolume) {
+  function setInputVolume(newVolume: real): void {
     if (!root.source?.audio)
       return;
     root.source.audio.muted = false;
     root.source.audio.volume = Math.max(0, Math.min(1.0, newVolume));
   }
 
-  function setMicVolume(percentage) {
-    const v = parsePercentage(percentage);
-    if (v === null)
+  function setMicVolume(percentage: var): string {
+    const parsedPercentage = parsePercentage(percentage);
+    if (!Number.isFinite(parsedPercentage))
       return "Invalid percentage";
     if (!source?.audio)
       return "No audio source available";
-    setInputVolume(v);
+    setInputVolume(parsedPercentage);
     return `Microphone volume set to ${Math.round(source.audio.volume * 100)}%`;
   }
 
-  function setMuted(muted) {
+  function setMuted(mutedState: bool): void {
     if (root.sink?.audio)
-      root.sink.audio.muted = !!muted;
+      root.sink.audio.muted = !!mutedState;
   }
 
-  function setVolume(newVolume) {
+  function setVolume(newVolume: real): void {
     if (!root.sink?.audio)
       return;
     root.sink.audio.muted = false;
     root.sink.audio.volume = clamp(newVolume);
   }
 
-  // IPC enty point (accepts percentage string)
-  function setVolumePercent(percentage) {
-    const v = parsePercentage(percentage);
-    if (v === null)
+  // IPC entry point (accepts percentage string)
+  function setVolumePercent(percentage: var): string {
+    const parsedPercentage = parsePercentage(percentage);
+    if (!Number.isFinite(parsedPercentage))
       return "Invalid percentage";
     if (!root.sink?.audio)
       return "No audio sink available";
-    setVolume(v);
+    setVolume(parsedPercentage);
     return `Volume set to ${Math.round(root.volume * 100)}%`;
   }
 
-  function toggleMicMute() {
+  function capSinkVolume(): void {
+    if (root.sink?.audio && root.sink.audio.volume > root.maxVolume)
+      root.sink.audio.volume = root.maxVolume;
+  }
+
+  function toggleMicMute(): string {
     if (!source?.audio)
       return "No audio source available";
     source.audio.muted = !source.audio.muted;
     return source.audio.muted ? "Microphone muted" : "Microphone unmuted";
   }
 
-  function toggleMute() {
+  function toggleMute(): string {
     if (!root.sink?.audio)
       return "No audio sink available";
     root.sink.audio.muted = !root.sink.audio.muted;
@@ -159,8 +168,7 @@ Singleton {
       Logger.log("AudioService", `sink changed: ${name} (no audio)`);
       return;
     }
-    if (root.sink.audio.volume > root.maxVolume)
-      root.sink.audio.volume = root.maxVolume;
+    capSinkVolume();
     Logger.log("AudioService", `sink changed: ${name}`);
     root.sinkDeviceChanged(name, deviceIconFor(root.sink));
   }
@@ -199,8 +207,7 @@ Singleton {
 
   Connections {
     function onVolumeChanged() {
-      if (root.sink?.audio && root.sink.audio.volume > root.maxVolume)
-        root.sink.audio.volume = root.maxVolume;
+      capSinkVolume();
     }
 
     target: root.sink?.audio ?? null
