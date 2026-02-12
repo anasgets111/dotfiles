@@ -12,10 +12,29 @@ in {
     useUserPackages = true;
     backupFileExtension = "hm-bak";
     extraSpecialArgs = { inherit inputs; };
-    users.anas = { config, pkgs, ... }: {
+    users.anas = { config, pkgs, lib, osConfig, ... }:
+    let
+      userTools = with pkgs; [
+        zip _7zz zoxide just inotify-tools
+        bat eza fd ripgrep dysk tokei python3Packages.subliminal
+        fnm fzf btop jq wl-clipboard
+        unzip unrar tealdeer git-lfs android-tools
+      ];
+      devTools = with pkgs; [
+        neovim rustup mold docker-compose gpu-screen-recorder
+        cargo-binstall cargo-bloat cargo-edit hyprland-per-window-layout
+      ];
+    in {
       home.stateVersion = "25.11";
       wayland.windowManager.hyprland.systemd.enable = false;
-      home.packages = with pkgs; [
+      home.sessionVariables = {
+        QT_PLUGIN_PATH = "/run/current-system/sw/lib/qt-6/plugins";
+        QML_IMPORT_PATH = "/run/current-system/sw/lib/qt-6/qml";
+        QML2_IMPORT_PATH = "/run/current-system/sw/lib/qt-6/qml";
+      } // lib.optionalAttrs (osConfig.networking.hostName == "Mentalist") {
+        LIBVA_DRIVER_NAME = "iHD";
+      };
+      home.packages = userTools ++ devTools ++ (with pkgs; [
         qbittorrent
         vesktop
         slack
@@ -35,7 +54,7 @@ in {
         gnome-firmware
         zed-editor
         inputs.zen-browser.packages."${pkgs.stdenv.hostPlatform.system}".beta
-      ];
+      ]);
 
       xdg.userDirs = {
         enable = true;

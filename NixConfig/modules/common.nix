@@ -19,33 +19,20 @@ let
     font-awesome
   ];
 
-  coreTools = with pkgs; [
-    git curl wget zip _7zz zoxide just inotify-tools 
-    bat eza fd ripgrep dysk tokei python3Packages.subliminal
-    rsync fnm fzf
-    btop jq wl-clipboard unzip unrar tealdeer git-lfs
-    pciutils usbutils lshw ffmpeg ffmpegthumbnailer
-    android-tools
+  systemTools = with pkgs; [
+    git curl wget rsync
+    pciutils usbutils lshw
   ];
 
-  desktopEnv = with pkgs; [
+  sharedDesktopRuntime = with pkgs; [
     kitty starship fastfetch 
     bibata-cursors tela-circle-icon-theme 
     xdg-terminal-exec qt6Packages.qt6ct qt6Packages.qtstyleplugin-kvantum
     qt6Packages.qtbase qt6Packages.qtdeclarative qt6Packages.qtmultimedia
     qt6Packages.qt5compat qt6Packages.qtimageformats qt6Packages.qtsvg
     qt6Packages.qtwayland
-    brightnessctl cliphist satty
+    brightnessctl cliphist satty ffmpeg ffmpegthumbnailer
     inputs.quickshell.packages."${pkgs.stdenv.hostPlatform.system}".default
-  ];
-
-  applications = with pkgs; [
-    neovim
-  ];
-
-  devTools = with pkgs; [
-    rustup mold docker-compose gpu-screen-recorder
-    cargo-binstall cargo-bloat cargo-edit hyprland-per-window-layout
   ];
 
 in {
@@ -55,8 +42,8 @@ in {
 
   imports = [
     ./home.nix
-    # ./php.nix
-    # ./containers.nix
+    ./php.nix
+    ./containers.nix
   ];
 
   system.stateVersion = "25.11";
@@ -142,11 +129,6 @@ in {
   hardware.enableRedistributableFirmware = true;
 
   hardware.graphics.enable = true;
-  environment.sessionVariables = {
-    QT_PLUGIN_PATH = "/run/current-system/sw/lib/qt-6/plugins";
-    QML_IMPORT_PATH = "/run/current-system/sw/lib/qt-6/qml";
-    QML2_IMPORT_PATH = "/run/current-system/sw/lib/qt-6/qml";
-  };
   zramSwap = {
     enable = true;
     algorithm = "zstd";
@@ -178,6 +160,15 @@ in {
     pulse.enable = true;
     jack.enable = true;
     wireplumber.enable = true;
+  };
+  services.openssh = {
+    enable = true;
+    openFirewall = true;
+    settings = {
+      PermitRootLogin = "no";
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+    };
   };
 
   # ====================================================================
@@ -223,5 +214,5 @@ in {
 
   fonts.packages = fontsList;
 
-  environment.systemPackages = coreTools ++ desktopEnv ++ applications ++ devTools;
+  environment.systemPackages = systemTools ++ sharedDesktopRuntime;
 }

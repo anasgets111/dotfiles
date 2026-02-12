@@ -1,15 +1,5 @@
 {
   description = "NixOS configuration with multiple hosts";
-  nixConfig = {
-    http2 = false;
-    "http-connections" = 40;
-    "max-substitution-jobs" = 20;
-    substituters = [
-      "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store"
-      "https://mirror.sjtu.edu.cn/nix-channels/store"
-      "https://cache.nixos.org"
-    ];
-  };
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -17,7 +7,10 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    zen-browser.url = "github:0xc000022070/zen-browser-flake";
+    zen-browser = {
+      url = "github:0xc000022070/zen-browser-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     quickshell = {
       url = "github:outfoxxed/quickshell";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -33,7 +26,7 @@
       generic = nixpkgs.lib.nixosSystem {
         inherit system specialArgs;
         modules = [
-          ./common.nix
+          ./modules/common.nix
           { 
             networking.hostName = "nixos";
             fileSystems."/" = {
@@ -47,16 +40,16 @@
       wolverine = nixpkgs.lib.nixosSystem {
         inherit system specialArgs;
         modules = [
-          ./common.nix
-          ./wolverine.nix
+          ./modules/common.nix
+          ./hosts/Wolverine/default.nix
         ];
       };
 
       mentalist = nixpkgs.lib.nixosSystem {
         inherit system specialArgs;
         modules = [
-          ./common.nix
-          ./mentalist.nix
+          ./modules/common.nix
+          ./hosts/Mentalist/default.nix
         ];
       };
     };
