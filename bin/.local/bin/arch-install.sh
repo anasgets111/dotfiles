@@ -53,7 +53,8 @@ declare -i CURRENT_STEP=1
 declare STATE_FILE="/tmp/arch-install.state"
 
 # Partition selections (set interactively)
-declare BOOT_PART="" ROOT_PART=""
+declare BOOT_PART=""
+declare ROOT_PART=""
 
 # PACKAGE ARRAYS - OFFICIAL REPOS (for pacstrap)
 # =============================================================================
@@ -72,7 +73,7 @@ PKGS_COMMON=(
 	gnome-keyring ly mkcert mold pacman-contrib pkgstats xdg-desktop-portal-gnome
 
 	# Shell & Terminal
-	bash-completion bat btop cliphist dysk expac eza fastfetch fd fish fzf jq kitty starship tealdeer zoxide
+	bash-completion bat btop cliphist dysk expac eza fastfetch fd fish fzf jq kitty starship tealdeer zoxide xsel
 
 	# CLI Tools
 	7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools
@@ -249,24 +250,23 @@ run_step() {
 detect_host() {
 	log_step "Detecting target system"
 
-	local cpu_vendor cpu_vendor_raw cpu_name
+	local cpu_vendor_raw cpu_name
 	cpu_vendor_raw=$(awk -F: '/vendor_id/{print tolower($2); exit}' /proc/cpuinfo | xargs)
 	cpu_name=$(awk -F: '/model name/{sub(/^[[:space:]]+/, "", $2); print $2; exit}' /proc/cpuinfo)
 	[[ -n "$cpu_name" ]] && log_info "Detected CPU: $cpu_name"
 
 	case "$cpu_vendor_raw" in
 	*authenticamd*)
-		cpu_vendor="amd"
 		HOSTNAME="Wolverine"
 		IS_PC=true
+		log_success "Auto-detected: $HOSTNAME (CPU: amd)"
 		;;
 	*genuineintel*)
-		cpu_vendor="intel"
 		HOSTNAME="Mentalist"
 		IS_PC=false
+		log_success "Auto-detected: $HOSTNAME (CPU: intel)"
 		;;
 	*)
-		cpu_vendor="unknown"
 		log_error "Unsupported CPU vendor for this script."
 		log_error "Detected CPU vendor: $cpu_vendor_raw"
 		log_info "Supported combinations:"
@@ -275,8 +275,6 @@ detect_host() {
 		exit 1
 		;;
 	esac
-
-	log_success "Auto-detected: $HOSTNAME (CPU: $cpu_vendor)"
 }
 
 menu_select() {
@@ -832,7 +830,14 @@ main() {
 	printf '%s\n' "$banner_sep"
 	printf '\n'
 
-	STATE_FILE="/tmp/arch-install.state"
+	reset_state() {
+		clear_state
+		CURRENT_STEP=1
+		HOSTNAME=""
+		IS_PC=false
+		BOOT_PART=""
+		ROOT_PART=""
+	}
 
 	if [[ -f "$STATE_FILE" ]]; then
 		if load_state; then
@@ -842,22 +847,10 @@ main() {
 			)
 			local resume_choice
 			resume_choice=$(menu_select "Existing install state found" 0 "${resume_options[@]}")
-			if ((resume_choice == 1)); then
-				clear_state
-				CURRENT_STEP=1
-				HOSTNAME=""
-				IS_PC=false
-				BOOT_PART=""
-				ROOT_PART=""
-			fi
+			((resume_choice == 1)) && reset_state
 		else
 			log_warning "Failed to load state file, starting fresh"
-			clear_state
-			CURRENT_STEP=1
-			HOSTNAME=""
-			IS_PC=false
-			BOOT_PART=""
-			ROOT_PART=""
+			reset_state
 		fi
 	fi
 
