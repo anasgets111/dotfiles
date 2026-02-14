@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_NAME="$(basename "$0")"
 ACTION="${1:-}"
 TLD="${2:-test}"
+ORIGINAL_ARGS=("$@")
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || printf "%s" "$0")"
 
 NM_DROPIN="/etc/NetworkManager/conf.d/90-local-dev-dns.conf"
 DNSMASQ_BASE_DROPIN="/etc/dnsmasq.d/90-local-dev-base.conf"
@@ -14,6 +16,8 @@ DNSMASQ_MAIN_BLOCK_BEGIN="# BEGIN local-dev-dns"
 DNSMASQ_MAIN_BLOCK_END="# END local-dev-dns"
 RESOLV_STUB="/run/systemd/resolve/stub-resolv.conf"
 RESOLV_UPLINK="/run/systemd/resolve/resolv.conf"
+STATE_DIR="/var/lib/local-dev-dns"
+STATE_FILE="${STATE_DIR}/state.env"
 
 print_usage() {
     cat <<EOF
@@ -35,11 +39,56 @@ normalize_tld() {
     printf "%s" "${raw#.}"
 }
 
-require_root() {
-    if [[ "${EUID}" -ne 0 ]]; then
-        echo "This action requires root. Run with sudo."
+validate_tld() {
+    local tld="${1}"
+
+    if [[ ! "${tld}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+        echo "Invalid TLD: ${tld}"
+        echo "Use lowercase letters, digits, and hyphens only."
         exit 1
     fi
+}
+
+require_root() {
+    if [[ "${EUID}" -ne 0 ]]; then
+        if ! command -v sudo >/dev/null 2>&1; then
+            echo "This action requires root and sudo is not installed."
+            exit 1
+        fi
+
+        exec sudo -- "${SCRIPT_PATH}" "${ORIGINAL_ARGS[@]}"
+    fi
+}
+
+service_enabled_state() {
+    local service="${1}"
+    systemctl is-enabled "${service}" 2>/dev/null || echo "unknown"
+}
+
+service_active_state() {
+    local service="${1}"
+    systemctl is-active "${service}" 2>/dev/null || echo "unknown"
+}
+
+save_pre_setup_state() {
+    local resolv_target
+
+    if [[ -f "${STATE_FILE}" ]]; then
+        return
+    fi
+
+    mkdir -p "${STATE_DIR}"
+    resolv_target="$(readlink -f /etc/resolv.conf 2>/dev/null || true)"
+
+    {
+        printf 'RESOLV_TARGET=%q\n' "${resolv_target}"
+        printf 'SYSTEMD_RESOLVED_ENABLED=%q\n' "$(service_enabled_state systemd-resolved)"
+        printf 'SYSTEMD_RESOLVED_ACTIVE=%q\n' "$(service_active_state systemd-resolved)"
+        printf 'NETWORKMANAGER_ENABLED=%q\n' "$(service_enabled_state NetworkManager)"
+        printf 'NETWORKMANAGER_ACTIVE=%q\n' "$(service_active_state NetworkManager)"
+        printf 'DNSMASQ_ENABLED=%q\n' "$(service_enabled_state dnsmasq)"
+        printf 'DNSMASQ_ACTIVE=%q\n' "$(service_active_state dnsmasq)"
+    } > "${STATE_FILE}"
 }
 
 ensure_dnsmasq_loads_dropins() {
@@ -95,15 +144,81 @@ cleanup_dnsmasq_main_conf() {
     rm -f "${tmp_file}"
 }
 
-restart_services() {
+restart_setup_services() {
     systemctl enable --now systemd-resolved NetworkManager dnsmasq >/dev/null
     systemctl restart systemd-resolved
     systemctl restart NetworkManager
     systemctl restart dnsmasq
 }
 
+apply_enabled_state() {
+    local service="${1}"
+    local desired_enabled="${2}"
+
+    case "${desired_enabled}" in
+        enabled)
+            systemctl enable "${service}" >/dev/null
+            ;;
+        disabled)
+            systemctl disable "${service}" >/dev/null
+            ;;
+        masked)
+            systemctl mask "${service}" >/dev/null
+            ;;
+        *)
+            ;;
+    esac
+}
+
+apply_active_state() {
+    local service="${1}"
+    local desired_active="${2}"
+
+    case "${desired_active}" in
+        active)
+            systemctl restart "${service}" >/dev/null
+            ;;
+        inactive|failed)
+            systemctl stop "${service}" >/dev/null 2>&1 || true
+            ;;
+        *)
+            ;;
+    esac
+}
+
+restore_pre_setup_state() {
+    if [[ ! -f "${STATE_FILE}" ]]; then
+        ln -sf "${RESOLV_UPLINK}" /etc/resolv.conf
+        systemctl restart systemd-resolved
+        systemctl restart NetworkManager
+        systemctl disable --now dnsmasq >/dev/null 2>&1 || true
+        return
+    fi
+
+    # shellcheck disable=SC1090
+    source "${STATE_FILE}"
+
+    if [[ -n "${RESOLV_TARGET:-}" ]]; then
+        ln -sf "${RESOLV_TARGET}" /etc/resolv.conf
+    else
+        ln -sf "${RESOLV_UPLINK}" /etc/resolv.conf
+    fi
+
+    apply_enabled_state systemd-resolved "${SYSTEMD_RESOLVED_ENABLED:-unknown}"
+    apply_enabled_state NetworkManager "${NETWORKMANAGER_ENABLED:-unknown}"
+    apply_enabled_state dnsmasq "${DNSMASQ_ENABLED:-unknown}"
+
+    apply_active_state systemd-resolved "${SYSTEMD_RESOLVED_ACTIVE:-unknown}"
+    apply_active_state NetworkManager "${NETWORKMANAGER_ACTIVE:-unknown}"
+    apply_active_state dnsmasq "${DNSMASQ_ACTIVE:-unknown}"
+
+    rm -f "${STATE_FILE}"
+}
+
 setup_tld() {
     local tld="${1}"
+
+    save_pre_setup_state
 
     mkdir -p /etc/NetworkManager/conf.d
     cat > "${NM_DROPIN}" <<'EOF'
@@ -136,7 +251,7 @@ EOF
 
     ln -sf "${RESOLV_STUB}" /etc/resolv.conf
 
-    restart_services
+    restart_setup_services
     status_tld "${tld}"
 }
 
@@ -147,9 +262,7 @@ revert_setup() {
     rm -f "${RESOLVED_TLD_DROPIN}"
     cleanup_dnsmasq_main_conf
 
-    ln -sf "${RESOLV_UPLINK}" /etc/resolv.conf
-
-    restart_services
+    restore_pre_setup_state
 
     echo "Reverted local dev DNS overrides."
     echo
@@ -184,6 +297,7 @@ case "${ACTION}" in
     setup)
         require_root
         NORMALIZED_TLD="$(normalize_tld "${TLD}")"
+        validate_tld "${NORMALIZED_TLD}"
         echo "Setting up local DNS for *.${NORMALIZED_TLD}"
         setup_tld "${NORMALIZED_TLD}"
         ;;
@@ -193,6 +307,7 @@ case "${ACTION}" in
         ;;
     status)
         NORMALIZED_TLD="$(normalize_tld "${TLD}")"
+        validate_tld "${NORMALIZED_TLD}"
         status_tld "${NORMALIZED_TLD}"
         ;;
     *)
