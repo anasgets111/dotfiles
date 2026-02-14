@@ -31,14 +31,14 @@ Item {
       }
     }
 
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "polkit-dialog"
     color: Theme.bgOverlay
     visible: agent.isActive
 
-    onVisibleChanged: if (visible)
-      background.forceActiveFocus()
+    onVisibleChanged: if (!visible)
+      passwordField.clearFocus()
 
     anchors {
       bottom: true
@@ -108,7 +108,10 @@ Item {
           visible: window.flow?.isResponseRequired ?? false
 
           onVisibleChanged: if (visible)
-            Qt.callLater(passwordField.forceActiveFocus)
+            Qt.callLater(() => {
+              if (visible && window.visible && (window.flow?.isResponseRequired ?? false))
+                passwordField.forceActiveFocus();
+            })
 
           OText {
             text: window.flow?.inputPrompt ?? ""
