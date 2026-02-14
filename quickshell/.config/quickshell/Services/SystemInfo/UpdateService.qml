@@ -142,6 +142,14 @@ Singleton {
   Component.onDestruction: pollTimer.stop()
   onLastNotificationIdChanged: cache.cachedNotificationId = lastNotificationId
   onLastSyncChanged: cache.cachedLastSync = lastSync
+  onReadyChanged: {
+    if (ready) {
+      doPoll();
+      pollTimer.start();
+    } else {
+      pollTimer.stop();
+    }
+  }
   onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
 
   PersistentProperties {
