@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_NAME="$(basename "$0")"
+ACTION="${1:-}"
+TLD="${2:-test}"
+
+NM_DROPIN="/etc/NetworkManager/conf.d/90-local-dev-dns.conf"
+DNSMASQ_BASE_DROPIN="/etc/dnsmasq.d/90-local-dev-base.conf"
+DNSMASQ_TLD_DROPIN="/etc/dnsmasq.d/91-local-dev-tld.conf"
+RESOLVED_TLD_DROPIN="/etc/systemd/resolved.conf.d/90-local-dev-tld.conf"
+DNSMASQ_MAIN_CONF="/etc/dnsmasq.conf"
+DNSMASQ_MAIN_BLOCK_BEGIN="# BEGIN local-dev-dns"
+DNSMASQ_MAIN_BLOCK_END="# END local-dev-dns"
+RESOLV_STUB="/run/systemd/resolve/stub-resolv.conf"
+RESOLV_UPLINK="/run/systemd/resolve/resolv.conf"
+
+print_usage() {
+    cat <<EOF
+Usage:
+  sudo ./${SCRIPT_NAME} setup [tld]
+  sudo ./${SCRIPT_NAME} revert
+  ./${SCRIPT_NAME} status [tld]
+
+Examples:
+  sudo ./${SCRIPT_NAME} setup
+  sudo ./${SCRIPT_NAME} setup test
+  sudo ./${SCRIPT_NAME} revert
+  ./${SCRIPT_NAME} status
+EOF
+}
+
+normalize_tld() {
+    local raw="${1}"
+    printf "%s" "${raw#.}"
+}
+
+require_root() {
+    if [[ "${EUID}" -ne 0 ]]; then
+        echo "This action requires root. Run with sudo."
+        exit 1
+    fi
+}
+
+ensure_dnsmasq_loads_dropins() {
+    if grep -q "^${DNSMASQ_MAIN_BLOCK_BEGIN}\$" "${DNSMASQ_MAIN_CONF}"; then
+        return
+    fi
+
+    if ! grep -Eq '^conf-dir=/etc/dnsmasq.d/?,\*\.conf$' "${DNSMASQ_MAIN_CONF}"; then
+        printf '\n%s\nconf-dir=/etc/dnsmasq.d/,*.conf\n%s\n' \
+            "${DNSMASQ_MAIN_BLOCK_BEGIN}" \
+            "${DNSMASQ_MAIN_BLOCK_END}" >> "${DNSMASQ_MAIN_CONF}"
+    fi
+}
+
+cleanup_dnsmasq_main_conf() {
+    local tmp_file
+
+    tmp_file="$(mktemp)"
+    awk -v begin="${DNSMASQ_MAIN_BLOCK_BEGIN}" -v end="${DNSMASQ_MAIN_BLOCK_END}" '
+        BEGIN {
+            skip = 0
+            prev = ""
+        }
+        {
+            if ($0 == begin) {
+                skip = 1
+                next
+            }
+            if ($0 == end) {
+                skip = 0
+                next
+            }
+            if (skip == 1) {
+                next
+            }
+            if (prev == "# Load local drop-in configs" && ($0 == "conf-dir=/etc/dnsmasq.d,*.conf" || $0 == "conf-dir=/etc/dnsmasq.d/,*.conf")) {
+                prev = ""
+                next
+            }
+            if (prev != "") {
+                print prev
+            }
+            prev = $0
+        }
+        END {
+            if (prev != "") {
+                print prev
+            }
+        }
+    ' "${DNSMASQ_MAIN_CONF}" > "${tmp_file}"
+
+    cat "${tmp_file}" > "${DNSMASQ_MAIN_CONF}"
+    rm -f "${tmp_file}"
+}
+
+restart_services() {
+    systemctl enable --now systemd-resolved NetworkManager dnsmasq >/dev/null
+    systemctl restart systemd-resolved
+    systemctl restart NetworkManager
+    systemctl restart dnsmasq
+}
+
+setup_tld() {
+    local tld="${1}"
+
+    mkdir -p /etc/NetworkManager/conf.d
+    cat > "${NM_DROPIN}" <<'EOF'
+[main]
+dns=systemd-resolved
+EOF
+
+    mkdir -p /etc/dnsmasq.d
+    cat > "${DNSMASQ_BASE_DROPIN}" <<'EOF'
+listen-address=127.0.0.1
+interface=lo
+bind-interfaces
+no-resolv
+no-poll
+local-service
+EOF
+
+    cat > "${DNSMASQ_TLD_DROPIN}" <<EOF
+address=/${tld}/127.0.0.1
+EOF
+
+    ensure_dnsmasq_loads_dropins
+
+    mkdir -p /etc/systemd/resolved.conf.d
+    cat > "${RESOLVED_TLD_DROPIN}" <<EOF
+[Resolve]
+DNS=127.0.0.1
+Domains=~${tld}
+EOF
+
+    ln -sf "${RESOLV_STUB}" /etc/resolv.conf
+
+    restart_services
+    status_tld "${tld}"
+}
+
+revert_setup() {
+    rm -f "${NM_DROPIN}"
+    rm -f "${DNSMASQ_BASE_DROPIN}"
+    rm -f "${DNSMASQ_TLD_DROPIN}"
+    rm -f "${RESOLVED_TLD_DROPIN}"
+    cleanup_dnsmasq_main_conf
+
+    ln -sf "${RESOLV_UPLINK}" /etc/resolv.conf
+
+    restart_services
+
+    echo "Reverted local dev DNS overrides."
+    echo
+    status_tld "test"
+}
+
+status_tld() {
+    local tld="${1}"
+
+    echo "=== resolv.conf ==="
+    ls -l /etc/resolv.conf
+    readlink -f /etc/resolv.conf
+    grep '^nameserver' /etc/resolv.conf || true
+    echo
+
+    echo "=== services ==="
+    systemctl is-active systemd-resolved || true
+    systemctl is-active NetworkManager || true
+    systemctl is-active dnsmasq || true
+    echo
+
+    echo "=== resolved status (summary) ==="
+    resolvectl status | sed -n '1,40p' || true
+    echo
+
+    echo "=== DNS checks ==="
+    resolvectl query "anything.${tld}" || true
+    resolvectl query google.com || true
+}
+
+case "${ACTION}" in
+    setup)
+        require_root
+        NORMALIZED_TLD="$(normalize_tld "${TLD}")"
+        echo "Setting up local DNS for *.${NORMALIZED_TLD}"
+        setup_tld "${NORMALIZED_TLD}"
+        ;;
+    revert)
+        require_root
+        revert_setup
+        ;;
+    status)
+        NORMALIZED_TLD="$(normalize_tld "${TLD}")"
+        status_tld "${NORMALIZED_TLD}"
+        ;;
+    *)
+        print_usage
+        exit 1
+        ;;
+esac
