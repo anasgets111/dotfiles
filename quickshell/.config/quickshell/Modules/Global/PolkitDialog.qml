@@ -37,7 +37,7 @@ Item {
     color: Theme.bgOverlay
     visible: agent.isActive
 
-    onVisibleChanged: if (!visible)
+    onVisibleChanged: if (visible)
       background.forceActiveFocus()
 
     anchors {
