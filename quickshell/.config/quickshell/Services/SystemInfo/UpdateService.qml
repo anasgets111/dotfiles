@@ -47,7 +47,15 @@ Singleton {
 
   function _notify(title, message, urgency = "normal", action = null) {
     Logger.log("UpdateService", `Sending notification: ${title} - ${message}`);
-    const args = ["-u", urgency, "-a", "System Updates", "-n", "system-software-update", "--print-id", "--replace-id", String(lastNotificationId)];
+    const isRunUpdates = action === "run-updates";
+    if (isRunUpdates) {
+      root._notifyQueue = root._notifyQueue.filter(job => job.action !== action);
+      if (root._notifyProc.running && root._pendingNotifyAction === action) {
+        root._pendingNotifyAction = null;
+        root._notifyProc.running = false;
+      }
+    }
+    const args = ["-u", urgency, "-a", "System Updates", "-n", "system-software-update", "--print-id", "--replace-id", String(isRunUpdates ? 8001 : root.lastNotificationId)];
     if (action)
       args.push("-A", `${action}=${qsTr("Run updates")}`);
     _notifyQueue.push({
