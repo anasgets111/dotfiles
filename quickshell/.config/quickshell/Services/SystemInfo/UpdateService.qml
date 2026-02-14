@@ -49,10 +49,11 @@ Singleton {
     Logger.log("UpdateService", `Sending notification: ${title} - ${message}`);
     const isRunUpdates = action === "run-updates";
     if (isRunUpdates) {
+      const notifyProc = root._notifyProc;
       root._notifyQueue = root._notifyQueue.filter(job => job.action !== action);
-      if (root._notifyProc.running && root._pendingNotifyAction === action) {
+      if (notifyProc?.running && root._pendingNotifyAction === action) {
         root._pendingNotifyAction = null;
-        root._notifyProc.running = false;
+        notifyProc.running = false;
       }
     }
     const args = ["-u", urgency, "-a", "System Updates", "-n", "system-software-update", "--print-id", "--replace-id", String(isRunUpdates ? 8001 : root.lastNotificationId)];
@@ -93,7 +94,7 @@ Singleton {
   }
 
   function _processNotifyQueue() {
-    if (_notifyProc.running || !_notifyQueue.length)
+    if (!_notifyProc || _notifyProc.running || !_notifyQueue.length)
       return;
     const job = _notifyQueue.shift();
     _pendingNotifyAction = job.action;
