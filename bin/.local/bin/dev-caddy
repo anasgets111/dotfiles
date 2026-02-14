@@ -1,0 +1,365 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_NAME="$(basename "$0")"
+ACTION="${1:-}"
+PROJECT="${2:-sacredcube}"
+APP_PATH="${3:-$(pwd)}"
+PHP_FPM_SOCK="${4:-/run/php-fpm/php-fpm.sock}"
+
+DOMAIN="${PROJECT}.test"
+BIND_TARGET="/srv/dev/${PROJECT}"
+PUBLIC_PATH="${BIND_TARGET}/public"
+SITE_CONF="/etc/caddy/conf.d/${PROJECT}.conf"
+CADDYFILE="/etc/caddy/Caddyfile"
+if command -v systemd-escape >/dev/null 2>&1; then
+    MOUNT_UNIT="$(systemd-escape --suffix=mount --path "${BIND_TARGET}")"
+else
+    MOUNT_UNIT="srv-dev-${PROJECT}.mount"
+fi
+MOUNT_UNIT_PATH="/etc/systemd/system/${MOUNT_UNIT}"
+USER_OVERRIDE_PATH="/etc/systemd/system/caddy.service.d/10-local-dev-user.conf"
+
+print_usage() {
+    cat <<EOF
+Usage:
+  sudo ./${SCRIPT_NAME} setup [project] [app-path] [php-fpm-socket]
+  sudo ./${SCRIPT_NAME} revert [project]
+  sudo ./${SCRIPT_NAME} proxy [name] [port] [upstream-host]
+  sudo ./${SCRIPT_NAME} unproxy [name]
+  ./${SCRIPT_NAME} status [project]
+  ./${SCRIPT_NAME} status-proxy [name]
+
+Examples:
+  sudo ./${SCRIPT_NAME} setup sacredcube /mnt/Work/0Coding/0SacredCube/erp /run/php-fpm/php-fpm.sock
+  sudo ./${SCRIPT_NAME} revert sacredcube
+  sudo ./${SCRIPT_NAME} proxy mailpit 8025
+  sudo ./${SCRIPT_NAME} unproxy mailpit
+  ./${SCRIPT_NAME} status sacredcube
+  ./${SCRIPT_NAME} status-proxy mailpit
+EOF
+}
+
+require_root() {
+    if [[ "${EUID}" -ne 0 ]]; then
+        echo "This action requires root. Run with sudo."
+        exit 1
+    fi
+}
+
+ensure_conf_import() {
+    if ! grep -q '^import /etc/caddy/conf.d/\*$' "${CADDYFILE}"; then
+        printf '\n# Import additional caddy config files in /etc/caddy/conf.d/\nimport /etc/caddy/conf.d/*\n' >> "${CADDYFILE}"
+    fi
+}
+
+restore_default_caddy_service_state() {
+    rm -f "${USER_OVERRIDE_PATH}"
+    systemctl daemon-reload
+
+    if id caddy >/dev/null 2>&1; then
+        install -d -o caddy -g caddy -m 750 /run/caddy /var/lib/caddy /var/log/caddy
+        chown -R caddy:caddy /var/lib/caddy /var/log/caddy
+    fi
+}
+
+grant_laravel_runtime_permissions() {
+    local source_path="${1}"
+    local fpm_user
+
+    fpm_user="$(awk -F= '/^user\\s*=/{gsub(/ /,"",$2); print $2; exit}' /etc/php/php-fpm.d/www.conf)"
+    if [[ -z "${fpm_user}" ]]; then
+        fpm_user="http"
+    fi
+
+    if ! id "${fpm_user}" >/dev/null 2>&1; then
+        echo "PHP-FPM user ${fpm_user} not found, skipping ACL setup."
+        return
+    fi
+
+    if ! command -v setfacl >/dev/null 2>&1; then
+        echo "setfacl not installed, skipping ACL setup."
+        return
+    fi
+
+    setfacl -R -m "u:${fpm_user}:rwx" "${source_path}/storage" "${source_path}/bootstrap/cache"
+    setfacl -R -d -m "u:${fpm_user}:rwx" "${source_path}/storage" "${source_path}/bootstrap/cache"
+}
+
+configure_bind_mount_unit() {
+    local source_path="${1}"
+    local resolved_source_path
+
+    resolved_source_path="$(readlink -f "${source_path}")"
+
+    install -d -m 755 /srv /srv/dev "${BIND_TARGET}"
+
+    cat > "${MOUNT_UNIT_PATH}" <<EOF
+[Unit]
+Description=Bind mount for ${PROJECT} local dev project
+RequiresMountsFor=${resolved_source_path}
+ConditionPathExists=${resolved_source_path}
+
+[Mount]
+What=${resolved_source_path}
+Where=${BIND_TARGET}
+Type=none
+Options=bind
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable --now "${MOUNT_UNIT}" >/dev/null
+}
+
+setup_site() {
+    if [[ ! -d "${APP_PATH}" ]]; then
+        echo "Project path not found: ${APP_PATH}"
+        exit 1
+    fi
+
+    if [[ ! -d "${APP_PATH}/public" ]]; then
+        echo "Laravel public path not found: ${APP_PATH}/public"
+        exit 1
+    fi
+
+    if [[ ! -S "${PHP_FPM_SOCK}" ]]; then
+        echo "PHP-FPM socket not found: ${PHP_FPM_SOCK}"
+        exit 1
+    fi
+
+    grant_laravel_runtime_permissions "${APP_PATH}"
+    restore_default_caddy_service_state
+    configure_bind_mount_unit "${APP_PATH}"
+
+    if [[ ! -d "${PUBLIC_PATH}" ]]; then
+        echo "Bind mount is not active at ${BIND_TARGET}"
+        exit 1
+    fi
+
+    mkdir -p /etc/caddy/conf.d
+    cat > "${SITE_CONF}" <<EOF
+${DOMAIN}, *.${DOMAIN} {
+    root * ${PUBLIC_PATH}
+    encode zstd gzip
+    php_fastcgi unix//${PHP_FPM_SOCK}
+    file_server
+    tls internal
+}
+EOF
+
+    ensure_conf_import
+
+    caddy validate --config "${CADDYFILE}"
+    systemctl enable caddy >/dev/null
+    systemctl restart caddy
+    caddy trust --config "${CADDYFILE}"
+
+    echo "Caddy site configured: ${SITE_CONF}"
+    echo "Hosts: ${DOMAIN}, *.${DOMAIN}"
+    echo "Root path: ${PUBLIC_PATH}"
+}
+
+revert_site() {
+    rm -f "${SITE_CONF}"
+
+    if systemctl is-enabled --quiet "${MOUNT_UNIT}" 2>/dev/null; then
+        systemctl disable --now "${MOUNT_UNIT}" >/dev/null || true
+    else
+        systemctl stop "${MOUNT_UNIT}" 2>/dev/null || true
+    fi
+
+    rm -f "${MOUNT_UNIT_PATH}"
+    systemctl daemon-reload
+
+    if mountpoint -q "${BIND_TARGET}"; then
+        umount "${BIND_TARGET}" || true
+    fi
+
+    caddy validate --config "${CADDYFILE}"
+
+    if systemctl is-active --quiet caddy; then
+        systemctl restart caddy
+    fi
+
+    echo "Removed Caddy site config: ${SITE_CONF}"
+    echo "Removed bind mount unit: ${MOUNT_UNIT_PATH}"
+}
+
+status_site() {
+    local project="${1}"
+    local domain="${project}.test"
+    local conf="/etc/caddy/conf.d/${project}.conf"
+    local bind_target="/srv/dev/${project}"
+    local mount_unit
+
+    if command -v systemd-escape >/dev/null 2>&1; then
+        mount_unit="$(systemd-escape --suffix=mount --path "${bind_target}")"
+    else
+        mount_unit="srv-dev-${project}.mount"
+    fi
+
+    echo "=== caddy service ==="
+    systemctl is-active caddy || true
+    systemctl show caddy -p User -p Group || true
+    echo
+
+    echo "=== caddy validate ==="
+    caddy validate --config /etc/caddy/Caddyfile || true
+    echo
+
+    echo "=== bind mount ==="
+    systemctl is-active "${mount_unit}" || true
+    findmnt --target "${bind_target}" || true
+    echo
+
+    echo "=== site config ==="
+    if [[ -f "${conf}" ]]; then
+        sed -n '1,120p' "${conf}"
+    else
+        echo "Missing: ${conf}"
+    fi
+    echo
+
+    echo "=== HTTPS checks ==="
+    curl -Ik "https://${domain}" || true
+    curl -Ik "https://app.${domain}" || true
+}
+
+validate_proxy_name() {
+    local proxy_name="${1}"
+
+    if [[ ! "${proxy_name}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+        echo "Invalid proxy name: ${proxy_name}"
+        echo "Use lowercase letters, digits, and hyphens only."
+        exit 1
+    fi
+}
+
+validate_proxy_port() {
+    local proxy_port="${1}"
+
+    if [[ ! "${proxy_port}" =~ ^[0-9]+$ ]]; then
+        echo "Invalid port: ${proxy_port}"
+        exit 1
+    fi
+
+    if ((proxy_port < 1 || proxy_port > 65535)); then
+        echo "Port out of range: ${proxy_port}"
+        exit 1
+    fi
+}
+
+setup_proxy() {
+    local proxy_name="${1}"
+    local proxy_port="${2}"
+    local upstream_host="${3:-127.0.0.1}"
+    local proxy_domain="${proxy_name}.test"
+    local proxy_conf="/etc/caddy/conf.d/${proxy_name}.proxy.conf"
+
+    validate_proxy_name "${proxy_name}"
+    validate_proxy_port "${proxy_port}"
+
+    mkdir -p /etc/caddy/conf.d
+    cat > "${proxy_conf}" <<EOF
+${proxy_domain} {
+    reverse_proxy ${upstream_host}:${proxy_port}
+    tls internal
+}
+EOF
+
+    ensure_conf_import
+    caddy validate --config "${CADDYFILE}"
+    systemctl enable caddy >/dev/null
+    if systemctl is-active --quiet caddy; then
+        systemctl reload caddy
+    else
+        systemctl start caddy
+    fi
+    caddy trust --config "${CADDYFILE}"
+
+    echo "Proxy configured: ${proxy_conf}"
+    echo "Host: https://${proxy_domain}"
+    echo "Upstream: ${upstream_host}:${proxy_port}"
+}
+
+revert_proxy() {
+    local proxy_name="${1}"
+    local proxy_conf="/etc/caddy/conf.d/${proxy_name}.proxy.conf"
+
+    validate_proxy_name "${proxy_name}"
+    rm -f "${proxy_conf}"
+    caddy validate --config "${CADDYFILE}"
+
+    if systemctl is-active --quiet caddy; then
+        systemctl reload caddy
+    fi
+
+    echo "Removed proxy config: ${proxy_conf}"
+}
+
+status_proxy() {
+    local proxy_name="${1}"
+    local proxy_domain="${proxy_name}.test"
+    local proxy_conf="/etc/caddy/conf.d/${proxy_name}.proxy.conf"
+
+    validate_proxy_name "${proxy_name}"
+
+    echo "=== caddy service ==="
+    systemctl is-active caddy || true
+    echo
+
+    echo "=== caddy validate ==="
+    caddy validate --config /etc/caddy/Caddyfile || true
+    echo
+
+    echo "=== proxy config ==="
+    if [[ -f "${proxy_conf}" ]]; then
+        sed -n '1,120p' "${proxy_conf}"
+    else
+        echo "Missing: ${proxy_conf}"
+    fi
+    echo
+
+    echo "=== HTTPS check ==="
+    curl -Ik "https://${proxy_domain}" || true
+}
+
+case "${ACTION}" in
+    setup)
+        require_root
+        setup_site
+        ;;
+    revert)
+        require_root
+        SITE_CONF="/etc/caddy/conf.d/${PROJECT}.conf"
+        BIND_TARGET="/srv/dev/${PROJECT}"
+        if command -v systemd-escape >/dev/null 2>&1; then
+            MOUNT_UNIT="$(systemd-escape --suffix=mount --path "${BIND_TARGET}")"
+        else
+            MOUNT_UNIT="srv-dev-${PROJECT}.mount"
+        fi
+        MOUNT_UNIT_PATH="/etc/systemd/system/${MOUNT_UNIT}"
+        revert_site
+        ;;
+    status)
+        status_site "${PROJECT}"
+        ;;
+    proxy)
+        require_root
+        setup_proxy "${2:-}" "${3:-}" "${4:-127.0.0.1}"
+        ;;
+    unproxy)
+        require_root
+        revert_proxy "${2:-}"
+        ;;
+    status-proxy)
+        status_proxy "${2:-}"
+        ;;
+    *)
+        print_usage
+        exit 1
+        ;;
+esac
