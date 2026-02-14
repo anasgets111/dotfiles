@@ -81,8 +81,10 @@ Singleton {
       cb(_drmEntries);
       return;
     }
-    _drmProc._cb = cb;
-    _drmProc.running = true;
+    if (typeof cb === "function")
+      _drmProc._callbacks.push(cb);
+    if (!_drmProc.running)
+      _drmProc.running = true;
   }
 
   function readEdidCaps(connectorName, callback) {
@@ -252,17 +254,14 @@ Singleton {
   Process {
     id: _drmProc
 
-    property var _cb: null
+    property var _callbacks: []
 
     command: ["sh", "-c", "ls /sys/class/drm"]
 
     stdout: StdioCollector {
       onStreamFinished: {
         root._drmEntries = text.split(/\r?\n/).filter(Boolean);
-        const cb = _drmProc._cb;
-        _drmProc._cb = null;
-        if (cb)
-          cb(root._drmEntries);
+        _drmProc._callbacks.splice(0).forEach(cb => cb(root._drmEntries));
       }
     }
   }

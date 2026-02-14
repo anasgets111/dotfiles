@@ -12,17 +12,29 @@ Singleton {
   readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
   property string currentLayout: ""
   property int currentLayoutIndex: -1
-  property var layouts: []
   property string keyboardDeviceName: ""
+  property var layouts: []
+
+  function nextLayout(): void {
+    Quickshell.execDetached(["hyprctl", "switchxkblayout", impl.keyboardDeviceName || "at-translated-set-2-keyboard", "next"]);
+  }
 
   function requestLayoutSync(): void {
     if (impl.active && !layoutSyncProcess.running)
       layoutSyncProcess.running = true;
   }
 
+  function setLayoutByIndex(index: int): void {
+    if (index < 0 || index >= impl.layouts.length)
+      return;
+    Quickshell.execDetached(["hyprctl", "switchxkblayout", impl.keyboardDeviceName || "at-translated-set-2-keyboard", `${index}`]);
+  }
+
   function syncLayoutState(jsonText: string): void {
-    const clean = jsonText.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "").trim();
-    const keyboard = (JSON.parse(clean)?.keyboards || []).find(kb => kb.main) || {};
+    const clean = String(jsonText ?? "").replace(/\x1B\[[0-9;]*[A-Za-z]/g, "").trim();
+    if (!clean || !clean.startsWith("{"))
+      return;
+    const keyboard = (JSON.parse(clean).keyboards || []).find(kb => kb.main) || {};
     const layoutNames = keyboard.layout?.split(",").map(name => name.trim()).filter(Boolean) || [];
     const activeIndex = Number.isInteger(keyboard.active_layout_index) ? keyboard.active_layout_index : Number.isInteger(keyboard.active_keymap_index) ? keyboard.active_keymap_index : -1;
 
@@ -32,15 +44,9 @@ Singleton {
     impl.keyboardDeviceName = keyboard.name || "";
   }
 
-  function nextLayout(): void {
-    Quickshell.execDetached(["hyprctl", "switchxkblayout", impl.keyboardDeviceName || "at-translated-set-2-keyboard", "next"]);
-  }
-
-  function setLayoutByIndex(index: int): void {
-    if (index < 0 || index >= impl.layouts.length)
-      return;
-    Quickshell.execDetached(["hyprctl", "switchxkblayout", impl.keyboardDeviceName || "at-translated-set-2-keyboard", `${index}`]);
-  }
+  Component.onCompleted: requestLayoutSync()
+  onActiveChanged: if (active)
+    requestLayoutSync()
 
   Process {
     id: layoutSyncProcess
@@ -56,16 +62,11 @@ Singleton {
         try {
           impl.syncLayoutState(text);
         } catch (e) {
-          Logger.log("KeyboardLayoutImpl(Hypr)", `Parse error: ${e}`);
+          Logger.warn("KeyboardLayoutImpl(Hypr)", `Parse error: ${e}`);
         }
       }
     }
   }
-
-  Component.onCompleted: requestLayoutSync()
-
-  onActiveChanged: if (active)
-    requestLayoutSync()
 
   Connections {
     function onRawEvent(event: var): void {

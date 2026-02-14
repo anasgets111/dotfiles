@@ -119,6 +119,6 @@ Singleton {
       return "cleared";
     }
 
-    target: "notifis"
+    target: "notifs"
   }
 }
