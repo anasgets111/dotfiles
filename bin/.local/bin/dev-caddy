@@ -6,6 +6,8 @@ ACTION="${1:-}"
 PROJECT="${2:-sacredcube}"
 APP_PATH="${3:-$(pwd)}"
 PHP_FPM_SOCK="${4:-/run/php-fpm/php-fpm.sock}"
+ORIGINAL_ARGS=("$@")
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || printf "%s" "$0")"
 
 DOMAIN="${PROJECT}.test"
 BIND_TARGET="/srv/dev/${PROJECT}"
@@ -19,6 +21,8 @@ else
 fi
 MOUNT_UNIT_PATH="/etc/systemd/system/${MOUNT_UNIT}"
 USER_OVERRIDE_PATH="/etc/systemd/system/caddy.service.d/10-local-dev-user.conf"
+IMPORT_BLOCK_BEGIN="# BEGIN dev-caddy-import"
+IMPORT_BLOCK_END="# END dev-caddy-import"
 
 print_usage() {
     cat <<EOF
@@ -42,15 +46,23 @@ EOF
 
 require_root() {
     if [[ "${EUID}" -ne 0 ]]; then
-        echo "This action requires root. Run with sudo."
-        exit 1
+        if ! command -v sudo >/dev/null 2>&1; then
+            echo "This action requires root and sudo is not installed."
+            exit 1
+        fi
+
+        exec sudo -- "${SCRIPT_PATH}" "${ORIGINAL_ARGS[@]}"
     fi
 }
 
 ensure_conf_import() {
-    if ! grep -q '^import /etc/caddy/conf.d/\*$' "${CADDYFILE}"; then
-        printf '\n# Import additional caddy config files in /etc/caddy/conf.d/\nimport /etc/caddy/conf.d/*\n' >> "${CADDYFILE}"
+    if grep -Eq '^[[:space:]]*import[[:space:]]+/etc/caddy/conf\.d/\*[[:space:]]*$' "${CADDYFILE}"; then
+        return
     fi
+
+    printf '\n%s\nimport /etc/caddy/conf.d/*\n%s\n' \
+        "${IMPORT_BLOCK_BEGIN}" \
+        "${IMPORT_BLOCK_END}" >> "${CADDYFILE}"
 }
 
 restore_default_caddy_service_state() {
@@ -66,6 +78,7 @@ restore_default_caddy_service_state() {
 grant_laravel_runtime_permissions() {
     local source_path="${1}"
     local fpm_user
+    local writable_dir
 
     fpm_user="$(awk -F= '/^user\\s*=/{gsub(/ /,"",$2); print $2; exit}' /etc/php/php-fpm.d/www.conf)"
     if [[ -z "${fpm_user}" ]]; then
@@ -82,8 +95,18 @@ grant_laravel_runtime_permissions() {
         return
     fi
 
-    setfacl -R -m "u:${fpm_user}:rwx" "${source_path}/storage" "${source_path}/bootstrap/cache"
-    setfacl -R -d -m "u:${fpm_user}:rwx" "${source_path}/storage" "${source_path}/bootstrap/cache"
+    for writable_dir in "${source_path}/storage" "${source_path}/bootstrap/cache"; do
+        mkdir -p "${writable_dir}"
+
+        if ! setfacl -R -m "u:${fpm_user}:rwx" "${writable_dir}"; then
+            echo "Failed to apply ACL on ${writable_dir}, skipping."
+            continue
+        fi
+
+        if ! setfacl -R -d -m "u:${fpm_user}:rwx" "${writable_dir}"; then
+            echo "Failed to apply default ACL on ${writable_dir}, skipping."
+        fi
+    done
 }
 
 configure_bind_mount_unit() {
@@ -140,7 +163,8 @@ setup_site() {
     fi
 
     mkdir -p /etc/caddy/conf.d
-    cat > "${SITE_CONF}" <<EOF
+    ensure_conf_import
+    write_caddy_conf_with_validation "${SITE_CONF}" <<EOF
 ${DOMAIN}, *.${DOMAIN} {
     root * ${PUBLIC_PATH}
     encode zstd gzip
@@ -150,9 +174,6 @@ ${DOMAIN}, *.${DOMAIN} {
 }
 EOF
 
-    ensure_conf_import
-
-    caddy validate --config "${CADDYFILE}"
     systemctl enable caddy >/dev/null
     systemctl restart caddy
     caddy trust --config "${CADDYFILE}"
@@ -163,7 +184,7 @@ EOF
 }
 
 revert_site() {
-    rm -f "${SITE_CONF}"
+    remove_caddy_conf_with_validation "${SITE_CONF}"
 
     if systemctl is-enabled --quiet "${MOUNT_UNIT}" 2>/dev/null; then
         systemctl disable --now "${MOUNT_UNIT}" >/dev/null || true
@@ -177,8 +198,6 @@ revert_site() {
     if mountpoint -q "${BIND_TARGET}"; then
         umount "${BIND_TARGET}" || true
     fi
-
-    caddy validate --config "${CADDYFILE}"
 
     if systemctl is-active --quiet caddy; then
         systemctl restart caddy
@@ -200,6 +219,8 @@ status_site() {
     else
         mount_unit="srv-dev-${project}.mount"
     fi
+
+    validate_project_name "${project}"
 
     echo "=== caddy service ==="
     systemctl is-active caddy || true
@@ -228,6 +249,16 @@ status_site() {
     curl -Ik "https://app.${domain}" || true
 }
 
+validate_project_name() {
+    local project_name="${1}"
+
+    if [[ ! "${project_name}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+        echo "Invalid project name: ${project_name}"
+        echo "Use lowercase letters, digits, and hyphens only."
+        exit 1
+    fi
+}
+
 validate_proxy_name() {
     local proxy_name="${1}"
 
@@ -236,6 +267,30 @@ validate_proxy_name() {
         echo "Use lowercase letters, digits, and hyphens only."
         exit 1
     fi
+}
+
+validate_upstream_host() {
+    local upstream_host="${1}"
+
+    if [[ "${upstream_host}" == "localhost" ]]; then
+        return
+    fi
+
+    if [[ "${upstream_host}" =~ ^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+$ ]]; then
+        return
+    fi
+
+    if [[ "${upstream_host}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        return
+    fi
+
+    if [[ "${upstream_host}" =~ ^\[[0-9A-Fa-f:]+\]$ ]]; then
+        return
+    fi
+
+    echo "Invalid upstream host: ${upstream_host}"
+    echo "Use hostname, IPv4, localhost, or bracketed IPv6 (for example [::1])."
+    exit 1
 }
 
 validate_proxy_port() {
@@ -252,6 +307,65 @@ validate_proxy_port() {
     fi
 }
 
+write_caddy_conf_with_validation() {
+    local target_conf="${1}"
+    local tmp_conf
+    local backup_conf=""
+    local had_existing=0
+
+    tmp_conf="$(mktemp)"
+    cat > "${tmp_conf}"
+
+    if [[ -f "${target_conf}" ]]; then
+        had_existing=1
+        backup_conf="$(mktemp)"
+        cp "${target_conf}" "${backup_conf}"
+    fi
+
+    install -m 644 "${tmp_conf}" "${target_conf}"
+    rm -f "${tmp_conf}"
+
+    if ! caddy validate --config "${CADDYFILE}"; then
+        if ((had_existing == 1)); then
+            install -m 644 "${backup_conf}" "${target_conf}"
+        else
+            rm -f "${target_conf}"
+        fi
+
+        rm -f "${backup_conf}"
+        echo "Caddy validation failed for ${target_conf}. Restored previous config."
+        exit 1
+    fi
+
+    rm -f "${backup_conf}"
+}
+
+remove_caddy_conf_with_validation() {
+    local target_conf="${1}"
+    local backup_conf=""
+    local had_existing=0
+
+    if [[ -f "${target_conf}" ]]; then
+        had_existing=1
+        backup_conf="$(mktemp)"
+        cp "${target_conf}" "${backup_conf}"
+    fi
+
+    rm -f "${target_conf}"
+
+    if ! caddy validate --config "${CADDYFILE}"; then
+        if ((had_existing == 1)); then
+            install -m 644 "${backup_conf}" "${target_conf}"
+        fi
+
+        rm -f "${backup_conf}"
+        echo "Caddy validation failed after removing ${target_conf}. Restored previous config."
+        exit 1
+    fi
+
+    rm -f "${backup_conf}"
+}
+
 setup_proxy() {
     local proxy_name="${1}"
     local proxy_port="${2}"
@@ -261,17 +375,17 @@ setup_proxy() {
 
     validate_proxy_name "${proxy_name}"
     validate_proxy_port "${proxy_port}"
+    validate_upstream_host "${upstream_host}"
 
     mkdir -p /etc/caddy/conf.d
-    cat > "${proxy_conf}" <<EOF
+    ensure_conf_import
+    write_caddy_conf_with_validation "${proxy_conf}" <<EOF
 ${proxy_domain} {
     reverse_proxy ${upstream_host}:${proxy_port}
     tls internal
 }
 EOF
 
-    ensure_conf_import
-    caddy validate --config "${CADDYFILE}"
     systemctl enable caddy >/dev/null
     if systemctl is-active --quiet caddy; then
         systemctl reload caddy
@@ -290,8 +404,7 @@ revert_proxy() {
     local proxy_conf="/etc/caddy/conf.d/${proxy_name}.proxy.conf"
 
     validate_proxy_name "${proxy_name}"
-    rm -f "${proxy_conf}"
-    caddy validate --config "${CADDYFILE}"
+    remove_caddy_conf_with_validation "${proxy_conf}"
 
     if systemctl is-active --quiet caddy; then
         systemctl reload caddy
@@ -330,10 +443,12 @@ status_proxy() {
 case "${ACTION}" in
     setup)
         require_root
+        validate_project_name "${PROJECT}"
         setup_site
         ;;
     revert)
         require_root
+        validate_project_name "${PROJECT}"
         SITE_CONF="/etc/caddy/conf.d/${PROJECT}.conf"
         BIND_TARGET="/srv/dev/${PROJECT}"
         if command -v systemd-escape >/dev/null 2>&1; then
@@ -345,6 +460,7 @@ case "${ACTION}" in
         revert_site
         ;;
     status)
+        validate_project_name "${PROJECT}"
         status_site "${PROJECT}"
         ;;
     proxy)
