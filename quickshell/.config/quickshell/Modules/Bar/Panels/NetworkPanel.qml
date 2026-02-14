@@ -193,7 +193,7 @@ OPanel {
   panelNamespace: "obelisk-network-panel"
   panelWidth: 350
 
-  onClosed: resetConnectionState()
+  onPanelClosed: resetConnectionState()
 
   Timer {
     interval: 10000

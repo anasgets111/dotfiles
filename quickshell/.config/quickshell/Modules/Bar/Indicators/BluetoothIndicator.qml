@@ -11,7 +11,8 @@ Item {
 
   readonly property bool active: BluetoothService.available && BluetoothService.enabled
   readonly property string btIcon: !active ? "󰂲" : (connectedDevices.length > 0 ? "󰂱" : "󰂯")
-  readonly property var connectedDevices: BluetoothService.devices.filter(d => d?.connected) ?? []
+  readonly property var devices: BluetoothService.devices ?? []
+  readonly property var connectedDevices: devices.filter(d => d?.connected)
   readonly property string detailText1: {
     if (!active)
       return "";
@@ -29,7 +30,7 @@ Item {
       return qsTr("Others: %1 more").arg(connectedDevices.length - 1);
     return topDevice ? "" : (BluetoothService.discovering ? qsTr("Scanning is active") : "");
   }
-  readonly property var pairedDevices: BluetoothService.devices.filter(d => d?.paired || d?.trusted) ?? []
+  readonly property var pairedDevices: devices.filter(d => d?.paired || d?.trusted)
   readonly property string titleText: {
     if (!BluetoothService.available)
       return qsTr("Bluetooth: unavailable");
