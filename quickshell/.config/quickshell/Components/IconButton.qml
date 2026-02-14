@@ -62,6 +62,8 @@ Item {
   implicitHeight: _size
   implicitWidth: _size
 
+  onEnabledChanged: if (!enabled && tooltip.isVisible)
+    tooltip.isVisible = false
   onTooltipTextChanged: if (mouseArea.containsMouse && root.tooltipText.length)
     tooltip.isVisible = true
 
