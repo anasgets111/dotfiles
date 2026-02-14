@@ -45,6 +45,10 @@ ColumnLayout {
     textField.forceActiveFocus();
   }
 
+  function clearFocus(): void {
+    textField.focus = false;
+  }
+
   spacing: Theme.spacingXs
 
   Rectangle {
