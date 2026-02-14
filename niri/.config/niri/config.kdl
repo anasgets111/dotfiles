@@ -143,7 +143,7 @@ window-rule {
 window-rule { match app-id="zen"; open-on-workspace "1"; }
 window-rule { match app-id="org.gnome.Nautilus|chromium"; open-on-workspace "2"; }
 window-rule { match app-id="code|antigravity"; open-on-workspace "3"; }
-window-rule { match app-id="org.mozilla.Thunderbird"; open-on-workspace "7"; }
+window-rule { match app-id="code|antigravity|dev.zed.Zed"; open-on-workspace "3"; }
 window-rule { match app-id="Slack"; open-on-workspace "stash"; }
 window-rule { match app-id="org.telegram.desktop"; open-on-workspace "stash"; }
 window-rule { match app-id="vesktop"; open-on-workspace "stash"; }
