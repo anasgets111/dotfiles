@@ -23,7 +23,7 @@ Item {
   readonly property string layoutIcon: "󰌌"
   readonly property real lockScale: Theme.lockScale
   readonly property string networkIcon: NetworkService.linkType === "ethernet" ? "󰈀" : NetworkService.linkType === "wifi" ? "󰤨" : "󰤮"
-  readonly property string networkLabel: NetworkService.linkType === "ethernet" ? "Ethernet" : NetworkService.linkType === "wifi" ? (NetworkService.wifiAps.find(a => a?.connected)?.ssid ?? "Wi-Fi") : "Offline"
+  readonly property string networkLabel: NetworkService.linkType === "ethernet" ? "Ethernet" : NetworkService.linkType === "wifi" ? ((NetworkService.wifiAps ?? []).find(a => a?.connected)?.ssid ?? "Wi-Fi") : "Offline"
   readonly property string networkLabelCompact: root.networkLabel.length > 18 ? root.networkLabel.slice(0, 17) + "…" : root.networkLabel
   readonly property string powerIcon: BatteryService.isACPowered ? "󰚥" : "󰂄"
   readonly property real readableScale: Math.max(root.lockScale, 1.05)
