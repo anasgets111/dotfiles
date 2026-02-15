@@ -17,6 +17,8 @@ export MYSQL_HOST="127.0.0.1"
 export BIN="$HOME/.local/bin"
 export GTK2_RC_FILES="$HOME/.config/gtk-2.0/gtkrc-2.0"
 export LESSHISTFILE="$HOME/.cache/less_history"
+export BUN_INSTALL="$HOME/.local/share/bun"
+export BUN_INSTALL_CACHE_DIR="$HOME/.cache/bun"
 
 # ─── NVIDIA (conditional) ───────────────────────────────────────────────────────
 if command -v nvidia-smi >/dev/null 2>&1; then

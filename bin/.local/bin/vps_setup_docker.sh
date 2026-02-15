@@ -4,7 +4,7 @@ set -eu
 # ==============================================================================
 # BLUEPRINT: SacredCube Communication Stack (VoceChat + Caddy)
 # TARGET: Fresh VPS (Ubuntu/Debian) | 1GB RAM
-# FEATURES: 
+# FEATURES:
 #   - Internal Bridge Networking
 # ==============================================================================
 
