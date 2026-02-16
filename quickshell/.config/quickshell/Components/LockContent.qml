@@ -14,17 +14,17 @@ Item {
   readonly property int absoluteMinWidth: 900
   readonly property string authHint: {
     if (LockService.authState === LockService.authStates.fail)
-      return "Authentication failed. Press Enter to retry or Esc to cancel";
+      return "Authentication failed. Press Enter to retry";
     if (LockService.authenticating)
-      return "Authenticating...";
-    return "Press Enter to unlock or Esc to cancel";
+      return "Authenticating…";
+    return "Press Enter to unlock";
   }
   required property bool isMainMonitor
   readonly property string layoutIcon: "󰌌"
   readonly property real lockScale: Theme.lockScale
   readonly property string networkIcon: NetworkService.linkType === "ethernet" ? "󰈀" : NetworkService.linkType === "wifi" ? "󰤨" : "󰤮"
   readonly property string networkLabel: NetworkService.linkType === "ethernet" ? "Ethernet" : NetworkService.linkType === "wifi" ? ((NetworkService.wifiAps ?? []).find(a => a?.connected)?.ssid ?? "Wi-Fi") : "Offline"
-  readonly property string networkLabelCompact: root.networkLabel.length > 18 ? root.networkLabel.slice(0, 17) + "…" : root.networkLabel
+  readonly property string networkLabelCompact: root.networkLabel.length > 14 ? root.networkLabel.slice(0, 13) + "…" : root.networkLabel
   readonly property string powerIcon: BatteryService.isACPowered ? "󰚥" : "󰂄"
   readonly property real readableScale: Math.max(root.lockScale, 1.05)
   readonly property real rightTextScale: Math.max(root.lockScale, 1.36)
@@ -32,8 +32,8 @@ Item {
   readonly property int spaceLg: Math.round(Theme.spacingLg * root.lockScale)
   readonly property int spaceMd: Math.round(Theme.spacingMd * root.lockScale)
   readonly property int spaceSm: Math.round(Theme.spacingSm * root.lockScale)
-  readonly property var statusItems: [[root.weatherIcon, root.weatherLabel], [root.powerIcon, BatteryService.isLaptopBattery ? BatteryService.percentage + "%" : "Desktop"], [root.networkIcon, root.networkLabelCompact], [root.layoutIcon, KeyboardLayoutService.currentLayout || "N/A"], [root.wmIcon, MainService.currentWM || "unknown"]]
-  readonly property string userHostText: (MainService.username || "user") + "@" + (MainService.hostname || "localhost")
+  readonly property int spaceXl: Math.round(root.spaceLg * 1.5)
+  readonly property var statusItems: [[root.weatherIcon, root.weatherLabel], [root.powerIcon, BatteryService.isLaptopBattery ? BatteryService.percentage + "%" : "AC"], [root.networkIcon, root.networkLabelCompact], [root.layoutIcon, KeyboardLayoutService.currentLayout || "N/A"],]
   readonly property string userInitials: {
     const source = MainService.fullName || MainService.username || "U";
     return source.split(" ").filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase() ?? "").join("") || "U";
@@ -57,7 +57,6 @@ Item {
     return "󰖐";
   }
   readonly property string weatherLabel: (WeatherService.currentTemp || "").split(" ")[0] || "--"
-  readonly property string wmIcon: "󱂬"
 
   anchors.centerIn: parent
   implicitHeight: shell.implicitHeight
@@ -74,7 +73,7 @@ Item {
     id: enterAnim
 
     NumberAnimation {
-      duration: 280
+      duration: 300
       easing.type: Easing.OutCubic
       property: "opacity"
       target: shell
@@ -82,8 +81,8 @@ Item {
     }
 
     NumberAnimation {
-      duration: 320
-      easing.overshoot: 1.15
+      duration: 360
+      easing.overshoot: 1.1
       easing.type: Easing.OutBack
       property: "scale"
       target: shell
@@ -137,97 +136,117 @@ Item {
     target: LockService
   }
 
+  // ── Main Shell ──────────────────────────────────────────────
   Rectangle {
     id: shell
 
-    border.color: Theme.withOpacity("#ffffff", 0.28)
+    border.color: Theme.withOpacity("#ffffff", 0.22)
     border.width: 1
-    color: Theme.withOpacity(Theme.bgColor, 0.34)
-    implicitHeight: contentColumn.implicitHeight + root.spaceLg * 2
-    implicitWidth: Math.max(540, Math.min(Math.round((root.parent ? root.parent.width : root.absoluteMinWidth) * 0.4), 900))
+    color: Theme.withOpacity(Theme.bgColor, 0.30)
+    implicitHeight: outerColumn.implicitHeight + root.spaceXl * 2
+    implicitWidth: Math.max(480, Math.min(Math.round((root.parent ? root.parent.width : root.absoluteMinWidth) * 0.38), 720))
     layer.enabled: true
     opacity: 0
-    radius: Theme.radiusXl
+    radius: Theme.radiusXl * 1.2
     scale: 0.96
     transformOrigin: Item.Center
 
     layer.effect: MultiEffect {
       blurEnabled: false
-      shadowBlur: Theme.shadowBlurLg
+      shadowBlur: Theme.shadowBlurLg * 1.2
       shadowColor: Theme.shadowColorStrong
       shadowEnabled: true
-      shadowVerticalOffset: Theme.shadowOffsetY * 2
+      shadowVerticalOffset: Theme.shadowOffsetY * 2.5
     }
 
+    // Inner highlight border
     Rectangle {
       anchors.fill: parent
       anchors.margins: 1
-      border.color: Theme.withOpacity("#ffffff", 0.16)
+      border.color: Theme.withOpacity("#ffffff", 0.10)
       border.width: 1
       color: "transparent"
       radius: Math.max(0, shell.radius - 1)
     }
 
     ColumnLayout {
-      id: contentColumn
+      id: outerColumn
 
       anchors.fill: parent
-      anchors.margins: root.spaceLg
-      spacing: root.spaceMd
+      anchors.margins: root.spaceXl
+      spacing: 0
 
-      OText {
-        Layout.fillWidth: true
-        color: Theme.withOpacity(Theme.textActiveColor, 0.78)
-        font.pixelSize: Math.round(Theme.fontMd * 0.9 * root.readableScale)
-        horizontalAlignment: Text.AlignHCenter
-        size: "xs"
-        text: "LOCKED"
-      }
-
+      // ── Hero Clock ────────────────────────────────────────
       OText {
         Layout.fillWidth: true
         color: Theme.textActiveColor
-        font.pixelSize: Math.round(Theme.fontHero * 1.06 * root.readableScale)
+        font.pixelSize: Math.round(Theme.fontHero * 1.4 * root.readableScale)
         horizontalAlignment: Text.AlignHCenter
         text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "h:mm AP")
-        weight: "medium"
+        weight: "bold"
       }
 
       OText {
         Layout.fillWidth: true
-        color: Theme.withOpacity(Theme.textActiveColor, 0.86)
+        Layout.topMargin: root.spaceSm * 0.5
+        color: Theme.withOpacity(Theme.textActiveColor, 0.7)
         font.pixelSize: Math.round(Theme.fontLg * root.readableScale)
         horizontalAlignment: Text.AlignHCenter
         text: TimeService.format("date", "dddd, MMMM d")
       }
 
+      // ── Spacer ────────────────────────────────────────────
       Item {
-        Layout.fillWidth: true
-        Layout.preferredHeight: statusRow.implicitHeight
+        Layout.preferredHeight: root.spaceXl
+      }
 
-        RowLayout {
-          id: statusRow
+      // ── Avatar ────────────────────────────────────────────
+      Item {
+        readonly property int avatarSize: Math.round(Theme.controlHeightLg * 2.4 * root.roundedScale)
 
-          anchors.horizontalCenter: parent.horizontalCenter
-          spacing: root.spaceSm
+        Layout.alignment: Qt.AlignHCenter
+        Layout.preferredHeight: avatarSize
+        Layout.preferredWidth: avatarSize
 
-          Repeater {
-            model: root.statusItems
+        // Glow ring behind avatar
+        Rectangle {
+          anchors.centerIn: parent
+          border.color: Theme.withOpacity(Theme.activeColor, 0.5)
+          border.width: 2
+          color: "transparent"
+          height: parent.avatarSize + 6
+          layer.enabled: true
+          radius: width / 2
+          width: parent.avatarSize + 6
 
-            StatusPill {
-              required property var modelData
+          layer.effect: MultiEffect {
+            shadowBlur: 16
+            shadowColor: Theme.withOpacity(Theme.activeColor, 0.35)
+            shadowEnabled: true
+          }
+        }
 
-              icon: modelData[0]
-              value: modelData[1]
-            }
+        Rectangle {
+          anchors.fill: parent
+          color: Theme.withOpacity(Theme.activeColor, 0.22)
+          radius: width / 2
+
+          OText {
+            anchors.centerIn: parent
+            bold: true
+            color: Theme.textActiveColor
+            font.pixelSize: Math.round(Theme.fontHero * 0.8 * root.readableScale)
+            text: root.userInitials
           }
         }
       }
 
+      // ── User Identity ─────────────────────────────────────
       OText {
         Layout.fillWidth: true
+        Layout.topMargin: root.spaceMd
         color: Theme.textActiveColor
-        font.pixelSize: Math.round(Theme.fontXl * 1.15 * root.readableScale)
+        font.pixelSize: Math.round(Theme.fontXl * 1.2 * root.readableScale)
         horizontalAlignment: Text.AlignHCenter
         text: MainService.fullName || "User"
         weight: "semibold"
@@ -235,198 +254,158 @@ Item {
 
       OText {
         Layout.fillWidth: true
-        color: Theme.withOpacity(Theme.textActiveColor, 0.9)
-        font.pixelSize: Math.round(Theme.fontLg * root.readableScale)
+        Layout.topMargin: root.spaceSm * 0.3
+        color: Theme.withOpacity(Theme.textActiveColor, 0.55)
+        font.pixelSize: Math.round(Theme.fontMd * root.readableScale)
         horizontalAlignment: Text.AlignHCenter
-        text: root.userHostText
+        text: (MainService.username || "user") + "@" + (MainService.hostname || "localhost")
       }
 
-      Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: 1
-        color: Theme.withOpacity("#ffffff", 0.14)
+      // ── Spacer ────────────────────────────────────────────
+      Item {
+        Layout.preferredHeight: root.spaceLg
       }
 
+      // ── Password Field (bare, no card wrapper) ────────────
       Rectangle {
-        id: authCard
+        id: passwordInput
 
+        readonly property bool hasPassword: LockService.passwordBuffer.length > 0
+        readonly property bool isFail: LockService.authState === LockService.authStates.fail
+
+        Layout.alignment: Qt.AlignHCenter
         Layout.fillWidth: true
-        border.color: Theme.withOpacity("#ffffff", 0.24)
-        border.width: 1
-        color: Theme.withOpacity(Theme.bgElevated, 0.62)
-        implicitHeight: cardColumn.implicitHeight + root.spaceMd * 2
-        radius: Theme.radiusLg
+        Layout.maximumWidth: Math.round(shell.implicitWidth * 0.82)
+        Layout.preferredHeight: Math.round(Theme.controlHeightLg * 1.1 * root.roundedScale)
+        border.color: passwordInput.isFail ? Theme.critical : LockService.authenticating ? Theme.activeColor : Theme.withOpacity("#ffffff", 0.18)
+        border.width: 2
+        color: Theme.withOpacity(Theme.bgInput, 0.85)
+        layer.enabled: LockService.authenticating
+        radius: Theme.radiusFull
+        visible: root.isMainMonitor
 
-        ColumnLayout {
-          id: cardColumn
+        Behavior on border.color {
+          ColorAnimation {
+            duration: Theme.animationDuration
+          }
+        }
+        layer.effect: MultiEffect {
+          shadowBlur: 14
+          shadowColor: Theme.withOpacity(Theme.activeColor, 0.4)
+          shadowEnabled: true
+        }
 
+        RowLayout {
           anchors.fill: parent
-          anchors.margins: root.spaceMd
+          anchors.leftMargin: root.spaceMd
+          anchors.rightMargin: root.spaceMd
           spacing: root.spaceSm
 
-          RowLayout {
-            Layout.fillWidth: true
-            spacing: root.spaceSm
-
-            Rectangle {
-              Layout.preferredHeight: Math.round(Theme.controlHeightLg * root.roundedScale)
-              Layout.preferredWidth: Math.round(Theme.controlHeightLg * root.roundedScale)
-              color: Theme.withOpacity(Theme.activeColor, 0.3)
-              radius: Theme.radiusFull
-
-              OText {
-                anchors.centerIn: parent
-                bold: true
-                color: Theme.textActiveColor
-                font.pixelSize: Math.round(Theme.fontLg * 1.1 * root.readableScale)
-                text: root.userInitials
-              }
-            }
-
-            ColumnLayout {
-              Layout.fillWidth: true
-              spacing: 0
-
-              OText {
-                Layout.fillWidth: true
-                bold: true
-                color: Theme.textActiveColor
-                font.pixelSize: Math.round(Theme.fontLg * root.readableScale)
-                text: "Authentication"
-              }
-
-              OText {
-                Layout.fillWidth: true
-                color: Theme.withOpacity(Theme.textActiveColor, 0.84)
-                font.pixelSize: Math.round(Theme.fontMd * root.readableScale)
-                text: "Secure session"
-              }
-            }
-          }
-
-          Rectangle {
-            id: passwordInput
-
-            readonly property bool hasPassword: LockService.passwordBuffer.length > 0
-
-            Layout.fillWidth: true
-            Layout.preferredHeight: Math.round(Theme.controlHeightLg * root.roundedScale)
-            border.color: LockService.authState === LockService.authStates.fail ? Theme.critical : LockService.authenticating ? Theme.activeColor : Theme.borderMedium
-            border.width: 2
-            color: Theme.withOpacity(Theme.bgInput, 0.9)
-            layer.enabled: LockService.authenticating
-            radius: Theme.radiusFull
-            visible: root.isMainMonitor
-
-            Behavior on border.color {
-              ColorAnimation {
-                duration: Theme.animationDuration
-              }
-            }
-            layer.effect: MultiEffect {
-              shadowBlur: 12
-              shadowColor: Theme.activeColor
-              shadowEnabled: true
-            }
-
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: root.spaceSm
-              anchors.rightMargin: root.spaceSm
-              spacing: root.spaceSm
-
-              Text {
-                color: Theme.activeColor
-                font.family: Theme.iconFontFamily
-                font.pixelSize: Math.round(Theme.iconSizeMd * root.readableScale)
-                text: "󰌋"
-              }
-
-              OText {
-                Layout.fillWidth: true
-                color: LockService.authState === LockService.authStates.fail ? Theme.critical : Theme.textActiveColor
-                font.pixelSize: Math.round(Theme.fontLg * root.readableScale)
-                text: passwordInput.hasPassword ? "*".repeat(Math.min(LockService.passwordBuffer.length, 32)) : LockService.statusMessage
-              }
-
-              Rectangle {
-                Layout.preferredHeight: Math.round(Theme.controlHeightXs * root.lockScale)
-                Layout.preferredWidth: capsRow.implicitWidth + root.spaceSm * 2
-                color: Theme.withOpacity(Theme.warning, 0.95)
-                radius: Theme.radiusFull
-                visible: KeyboardLayoutService.capsOn
-
-                RowLayout {
-                  id: capsRow
-
-                  anchors.centerIn: parent
-                  spacing: root.spaceSm * 0.5
-
-                  Text {
-                    color: Theme.bgColor
-                    font.family: Theme.iconFontFamily
-                    font.pixelSize: Math.round(Theme.iconSizeSm * root.rightTextScale)
-                    text: "󰘲"
-                  }
-
-                  OText {
-                    id: capsText
-
-                    bold: true
-                    color: Theme.bgColor
-                    size: "sm"
-                    sizeMultiplier: root.rightTextScale
-                    text: "CAPS"
-                  }
-                }
-              }
-            }
+          Text {
+            color: Theme.withOpacity(Theme.activeColor, 0.8)
+            font.family: Theme.iconFontFamily
+            font.pixelSize: Math.round(Theme.iconSizeMd * root.readableScale)
+            text: "󰌋"
           }
 
           OText {
             Layout.fillWidth: true
-            color: Theme.withOpacity(Theme.textActiveColor, 0.9)
-            font.pixelSize: Math.round(Theme.fontMd * root.readableScale)
-            horizontalAlignment: Text.AlignHCenter
-            text: root.isMainMonitor ? root.authHint : "Unlock on main monitor"
-            wrapMode: Text.WordWrap
+            color: passwordInput.isFail ? Theme.critical : passwordInput.hasPassword ? Theme.textActiveColor : Theme.withOpacity(Theme.textActiveColor, 0.4)
+            font.pixelSize: Math.round(Theme.fontLg * root.readableScale)
+            text: passwordInput.hasPassword ? "●".repeat(Math.min(LockService.passwordBuffer.length, 32)) : "Password"
+          }
+
+          // Caps lock badge
+          Rectangle {
+            Layout.preferredHeight: Math.round(Theme.controlHeightXs * root.lockScale)
+            Layout.preferredWidth: capsRow.implicitWidth + root.spaceSm * 2
+            color: Theme.withOpacity(Theme.warning, 0.92)
+            radius: Theme.radiusFull
+            visible: KeyboardLayoutService.capsOn
+
+            RowLayout {
+              id: capsRow
+
+              anchors.centerIn: parent
+              spacing: root.spaceSm * 0.5
+
+              Text {
+                color: Theme.bgColor
+                font.family: Theme.iconFontFamily
+                font.pixelSize: Math.round(Theme.iconSizeSm * root.rightTextScale)
+                text: "󰘲"
+              }
+
+              OText {
+                bold: true
+                color: Theme.bgColor
+                size: "sm"
+                sizeMultiplier: root.rightTextScale
+                text: "CAPS"
+              }
+            }
           }
         }
       }
-    }
-  }
 
-  component StatusPill: Rectangle {
-    id: pillRoot
-
-    property string icon: ""
-    property string value: ""
-
-    border.color: Theme.withOpacity("#ffffff", 0.2)
-    border.width: 1
-    color: Theme.withOpacity(Theme.bgElevated, 0.58)
-    implicitHeight: pillRow.implicitHeight + Math.round(root.spaceSm * 1.25)
-    implicitWidth: pillRow.implicitWidth + root.spaceMd
-    radius: Theme.radiusFull
-
-    RowLayout {
-      id: pillRow
-
-      anchors.centerIn: parent
-      spacing: root.spaceSm * 0.7
-
-      Text {
-        color: Theme.activeColor
-        font.family: Theme.iconFontFamily
-        font.pixelSize: Math.round(Theme.iconSizeMd * root.readableScale)
-        text: pillRoot.icon
-        verticalAlignment: Text.AlignVCenter
+      // ── Auth Hint ─────────────────────────────────────────
+      OText {
+        Layout.fillWidth: true
+        Layout.topMargin: root.spaceSm
+        color: Theme.withOpacity(Theme.textActiveColor, 0.45)
+        font.pixelSize: Math.round(Theme.fontMd * 0.9 * root.readableScale)
+        horizontalAlignment: Text.AlignHCenter
+        text: root.isMainMonitor ? root.authHint : "Unlock on main monitor"
+        wrapMode: Text.WordWrap
       }
 
-      OText {
-        color: Theme.textActiveColor
-        font.pixelSize: Math.round(Theme.fontMd * root.readableScale)
-        text: pillRoot.value
+      // ── Spacer (push footer down) ────────────────────────
+      Item {
+        Layout.preferredHeight: root.spaceXl
+      }
+
+      // ── Thin separator ────────────────────────────────────
+      Rectangle {
+        Layout.alignment: Qt.AlignHCenter
+        Layout.preferredHeight: 1
+        Layout.preferredWidth: parent.width * 0.6
+        color: Theme.withOpacity("#ffffff", 0.08)
+      }
+
+      Item {
+        Layout.preferredHeight: root.spaceSm
+      }
+
+      // ── Status Footer ─────────────────────────────────────
+      RowLayout {
+        Layout.alignment: Qt.AlignHCenter
+        spacing: root.spaceMd
+
+        Repeater {
+          model: root.statusItems
+
+          RowLayout {
+            id: statusItem
+
+            required property var modelData
+
+            spacing: root.spaceSm * 0.5
+
+            Text {
+              color: Theme.withOpacity(Theme.activeColor, 0.6)
+              font.family: Theme.iconFontFamily
+              font.pixelSize: Math.round(Theme.iconSizeSm * root.readableScale)
+              text: statusItem.modelData[0]
+              verticalAlignment: Text.AlignVCenter
+            }
+
+            OText {
+              color: Theme.withOpacity(Theme.textActiveColor, 0.5)
+              font.pixelSize: Math.round(Theme.fontSm * root.readableScale)
+              text: statusItem.modelData[1]
+            }
+          }
+        }
       }
     }
   }
