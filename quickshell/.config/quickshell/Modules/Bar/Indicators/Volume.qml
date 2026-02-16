@@ -1,16 +1,15 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import QtQuick.Layouts
 import qs.Config
 import qs.Services.Core
 import qs.Components
-import qs.Modules.Bar.Panels
+import qs.Services.UI
 
 Rectangle {
   id: root
 
-  property bool audioPanelRequested: false
+  required property string screenName
   readonly property real collapsedWidth: Theme.itemHeight
   readonly property real currentVolume: AudioService.volume
   readonly property real displayValue: volumeSlider.dragging ? volumeSlider.pending : sliderValue
@@ -80,7 +79,7 @@ Rectangle {
       if (mouse.button === Qt.MiddleButton && root.ready)
         AudioService.toggleMute();
       else if (mouse.button === Qt.RightButton)
-        root.audioPanelRequested = true;
+        ShellUiState.togglePanelForItem("audio", root.screenName, root);
     }
   }
 
@@ -126,19 +125,4 @@ Rectangle {
     }
   }
 
-  LazyLoader {
-    id: audioPanelLoader
-
-    activeAsync: root.audioPanelRequested
-
-    component: AudioPanel {
-      onPanelClosed: root.audioPanelRequested = false
-    }
-
-    onItemChanged: {
-      const panel = item as AudioPanel;
-      if (panel)
-        panel.openAtItem(root, 0, 0);
-    }
-  }
 }

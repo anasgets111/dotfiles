@@ -9,8 +9,8 @@ Item {
 
   readonly property var activeToplevel: ToplevelManager.activeToplevel
   readonly property string appId: activeToplevel?.appId ?? ""
-  readonly property string displayName: Utils.lookupDesktopEntryName(appId) || appId
   readonly property string baseLabel: title || displayName
+  readonly property string displayName: Utils.lookupDesktopEntryName(appId) || appId
   readonly property bool hasActive: !!(activeToplevel?.activated && (appId || title))
   readonly property string iconSource: hasActive ? Utils.resolveIconSource(appId) : Utils.resolveIconSource("", "", "applications-system")
   property int maxLength: Theme._isUltrawide ? 74 : 47

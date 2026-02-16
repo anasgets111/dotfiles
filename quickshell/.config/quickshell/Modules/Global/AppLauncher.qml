@@ -29,9 +29,7 @@ SearchGridPanel {
   }
   iconSelector: entry => Utils.resolveIconSource(entry?.id || entry?.name || "", entry?.icon, "application-x-executable")
   itemImageSize: Theme.launcherIconSize
-  items: typeof DesktopEntries !== "undefined" 
-    ? DesktopEntries.applications?.values || [] 
-    : []
+  items: typeof DesktopEntries !== "undefined" ? DesktopEntries.applications?.values || [] : []
   labelSelector: entry => entry?.name || ""
   maxResults: 200
   windowHeight: Theme.launcherWindowHeight

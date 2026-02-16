@@ -6,7 +6,7 @@ import qs.Config
 import qs.Components
 import qs.Services.Core
 
-OPanel {
+PanelContentBase {
   id: root
 
   property string activeConnectionTarget: ""
@@ -20,6 +20,8 @@ OPanel {
   readonly property int maxItems: 7
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
   readonly property int padding: Theme.spacingSm
+  readonly property real preferredHeight: mainLayout.implicitHeight + root.padding * 2
+  readonly property real preferredWidth: 350
   readonly property var processedWifiAps: {
     if (!ready || !networkingEnabled || !wifiEnabled)
       return {
@@ -85,7 +87,7 @@ OPanel {
     const saved = findSavedConn(ssid);
     if (saved?.connectionId) {
       NetworkService.activateConnection(saved.connectionId, wifiInterface);
-      root.close();
+      root.closeRequested();
     } else {
       activeConnectionTarget = ssid;
       isHiddenTarget = false;
@@ -122,7 +124,7 @@ OPanel {
       const ap = findAp(activeConnectionTarget);
       if (ap?.connected) {
         resetConnectionState();
-        root.close();
+        root.closeRequested();
         return;
       }
     }
@@ -130,7 +132,7 @@ OPanel {
       const ap = findAp(targetSsid);
       if (ap?.connected || !hiddenConnectStartedOnline) {
         resetConnectionState();
-        root.close();
+        root.closeRequested();
       }
     }
   }
@@ -189,11 +191,9 @@ OPanel {
   }
 
   needsKeyboardFocus: showSsidInput || showPasswordInput
-  panelHeight: mainLayout.implicitHeight + padding * 2
-  panelNamespace: "obelisk-network-panel"
-  panelWidth: 350
 
-  onPanelClosed: resetConnectionState()
+  onIsOpenChanged: if (!isOpen)
+    resetConnectionState()
 
   Timer {
     interval: 10000
@@ -233,8 +233,6 @@ OPanel {
 
     anchors.fill: parent
     spacing: Theme.spacingMd
-
-    onImplicitHeightChanged: root.panelHeight = implicitHeight + root.padding * 2
 
     ColumnLayout {
       Layout.fillWidth: true
