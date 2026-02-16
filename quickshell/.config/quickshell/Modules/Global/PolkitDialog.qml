@@ -38,7 +38,7 @@ Item {
     visible: agent.isActive
 
     onVisibleChanged: if (!visible)
-      passwordField.clearFocus()
+      passwordField.text = ""
 
     anchors {
       bottom: true

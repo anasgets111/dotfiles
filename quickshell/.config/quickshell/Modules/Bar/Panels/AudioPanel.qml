@@ -8,7 +8,7 @@ import qs.Components
 import qs.Services.Core
 import qs.Services.Utils
 
-OPanel {
+PanelContentBase {
   id: root
 
   readonly property color cardBg: Theme.bgElevated
@@ -19,13 +19,13 @@ OPanel {
   property bool mixerExpanded: false
   readonly property int muteButtonSize: Math.round(Theme.itemHeight * Theme.scaleSmall)
   readonly property int panelPadding: Theme.spacingSm
+  readonly property real preferredHeight: contentLayout.implicitHeight + root.panelPadding * 2
+  readonly property real preferredWidth: 400
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
 
-  needsKeyboardFocus: false
-  panelNamespace: "obelisk-audio-panel"
-  panelWidth: 400
-
   ColumnLayout {
+    id: contentLayout
+
     spacing: Math.round(root.panelPadding * 1.5)
     width: parent.width - root.panelPadding * 2
     x: root.panelPadding

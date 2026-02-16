@@ -7,7 +7,7 @@ import qs.Config
 import qs.Components
 import qs.Services.Core
 
-OPanel {
+PanelContentBase {
   id: root
 
   readonly property int actionButtonSize: itemHeight * 0.8
@@ -18,6 +18,8 @@ OPanel {
   readonly property int iconSize: itemHeight * 0.9
   readonly property int itemHeight: Theme.itemHeight
   readonly property int padding: Theme.spacingSm
+  readonly property real preferredHeight: contentLayout.implicitHeight + root.padding * 2
+  readonly property real preferredWidth: 400
   readonly property bool ready: BluetoothService.available
   property string showCodecFor: ""
 
@@ -46,21 +48,18 @@ OPanel {
     }
   }
 
-  needsKeyboardFocus: false
-  panelNamespace: "obelisk-bluetooth-panel"
-  panelWidth: 400
-
-  onPanelClosed: {
+  onIsOpenChanged: {
+    if (isOpen && active) {
+      BluetoothService.startDiscovery();
+      return;
+    }
     showCodecFor = "";
     BluetoothService.stopDiscovery();
   }
-  onPanelOpened: {
-    if (active) {
-      BluetoothService.startDiscovery();
-    }
-  }
 
   ColumnLayout {
+    id: contentLayout
+
     spacing: Theme.spacingXs
     width: parent.width - root.padding * 2
     x: root.padding

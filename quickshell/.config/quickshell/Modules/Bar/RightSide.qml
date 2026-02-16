@@ -6,6 +6,7 @@ Row {
   id: rightSide
 
   required property bool normalWorkspacesExpanded
+  required property string screenName
 
   spacing: Theme.spacingSm
 
@@ -17,6 +18,7 @@ Row {
     id: volume
 
     anchors.verticalCenter: parent.verticalCenter
+    screenName: rightSide.screenName
 
     onExpandedChanged: rightSide.normalWorkspacesExpanded = expanded
   }
@@ -27,17 +29,21 @@ Row {
 
   NetworkIndicator {
     anchors.verticalCenter: parent.verticalCenter
+    screenName: rightSide.screenName
   }
 
   BluetoothIndicator {
     anchors.verticalCenter: parent.verticalCenter
+    screenName: rightSide.screenName
   }
 
   SysTray {
     anchors.verticalCenter: parent.verticalCenter
+    screenName: rightSide.screenName
   }
 
   DateTimeDisplay {
     anchors.verticalCenter: parent.verticalCenter
+    screenName: rightSide.screenName
   }
 }

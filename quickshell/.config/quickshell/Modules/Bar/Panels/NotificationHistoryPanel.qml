@@ -8,7 +8,7 @@ import qs.Services.SystemInfo
 import qs.Modules.Notification
 import qs.Modules.Bar.Indicators
 
-OPanel {
+PanelContentBase {
   id: root
 
   readonly property real availableContentHeight: {
@@ -18,16 +18,21 @@ OPanel {
   readonly property real cardHeight: Theme.itemHeight * 5.5
   readonly property bool hasNotifications: NotificationService.notifications.length > 0
   readonly property int maxVisibleCards: 3
+  property int maxHeight: 600
   readonly property int padding: Theme.spacingLg
+  readonly property real preferredHeight: contentLayout.implicitHeight
+  readonly property real preferredWidth: 420
 
-  needsKeyboardFocus: false
-  panelNamespace: "obelisk-notification-panel"
-  panelWidth: 420
-
-  onPanelClosed: NotificationService.onOverlayClose()
-  onPanelOpened: NotificationService.onOverlayOpen()
+  onIsOpenChanged: {
+    if (isOpen)
+      NotificationService.onOverlayOpen();
+    else
+      NotificationService.onOverlayClose();
+  }
 
   ColumnLayout {
+    id: contentLayout
+
     width: parent.width
 
     WeatherWidget {
@@ -73,7 +78,7 @@ OPanel {
 
           onClicked: {
             NotificationService.clearAllNotifications();
-            root.close();
+            root.closeRequested();
           }
         }
 

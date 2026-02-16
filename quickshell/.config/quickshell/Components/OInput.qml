@@ -41,12 +41,12 @@ ColumnLayout {
   signal inputChanged
   signal inputFinished
 
-  function forceActiveFocus(): void {
-    textField.forceActiveFocus();
-  }
-
   function clearFocus(): void {
     textField.focus = false;
+  }
+
+  function forceActiveFocus(): void {
+    textField.forceActiveFocus();
   }
 
   spacing: Theme.spacingXs

@@ -2,14 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
 import QtQuick.Controls
-import Quickshell.Wayland
 import qs.Config
-import qs.Services.WM
 import qs.Components
 
-PanelWindow {
+Item {
   id: root
 
   property bool active: false
@@ -40,7 +37,6 @@ PanelWindow {
   }
   property int maxResults: 200
   property string placeholderText: qsTr("Type to search")
-  property var screenTarget: MonitorService ? MonitorService.effectiveMainScreen : null
   property alias searchInput: searchField
   property var searchSelector: function (item) {
     const label = root.callSelector(root.labelSelector, item) || "";
@@ -264,11 +260,8 @@ PanelWindow {
       root.currentIndex = 0;
   }
 
-  WlrLayershell.exclusiveZone: -1
-  WlrLayershell.layer: WlrLayer.Overlay
-  color: "transparent"
-  focusable: active
-  screen: screenTarget
+  anchors.fill: parent
+  focus: active
   visible: active
 
   onActiveChanged: {
@@ -280,13 +273,6 @@ PanelWindow {
   onItemsChanged: {
     ensureFinder(true);
     updateFilter(searchField.text, true);
-  }
-
-  anchors {
-    bottom: true
-    left: true
-    right: true
-    top: true
   }
 
   MouseArea {

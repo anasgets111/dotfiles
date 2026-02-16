@@ -3,11 +3,12 @@ import QtQuick
 import qs.Config
 import qs.Components
 import qs.Services.Core
-import qs.Modules.Bar.Panels
+import qs.Services.UI
 
 Item {
   id: root
 
+  required property string screenName
   readonly property var active: ready ? NetworkService.chooseActiveDevice(NetworkService.deviceList) : null
   readonly property var ap: ready ? (NetworkService.wifiAps.find(ap => ap?.connected) || null) : null
   readonly property string band: (ap && ap.band) ? String(ap.band) : ""
@@ -31,6 +32,7 @@ Item {
     return NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮";
   }
   readonly property bool ready: NetworkService.ready
+  readonly property bool panelOpen: ShellUiState.isPanelOpen("network", root.screenName)
   readonly property string secondary: {
     if (!ready)
       return "";
@@ -69,6 +71,7 @@ Item {
     id: iconButton
 
     enabled: root.ready
+    suppressTooltip: root.panelOpen
     tooltipText: root.tooltipText
 
     onClicked: function (mouse) {
@@ -77,7 +80,7 @@ Item {
         if (iface && NetworkService.scanWifi) {
           NetworkService.scanWifi(iface, true);
         }
-        networkPanelLoader.active = true;
+        ShellUiState.togglePanelForItem("network", root.screenName, iconButton);
       }
       root.clicked(mouse);
     }
@@ -121,26 +124,4 @@ Item {
     }
   }
 
-  Component {
-    id: networkPanelComponent
-
-    NetworkPanel {
-      property var loaderRef
-
-      onPanelClosed: loaderRef.active = false
-    }
-  }
-
-  Loader {
-    id: networkPanelLoader
-
-    active: false
-    sourceComponent: networkPanelComponent
-
-    onLoaded: {
-      const panel = item as NetworkPanel;
-      panel.loaderRef = networkPanelLoader;
-      panel.openAtItem(iconButton, 0, 0);
-    }
-  }
 }
