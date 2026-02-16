@@ -48,12 +48,15 @@ PanelContentBase {
     }
   }
 
-  Component.onDestruction: BluetoothService.stopDiscovery()
   onIsOpenChanged: {
     if (isOpen && active) {
       BluetoothService.startDiscovery();
       return;
     }
+    showCodecFor = "";
+    BluetoothService.stopDiscovery();
+  }
+  Component.onDestruction: {
     showCodecFor = "";
     BluetoothService.stopDiscovery();
   }
