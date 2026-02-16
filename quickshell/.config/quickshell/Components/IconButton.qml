@@ -17,6 +17,8 @@ import qs.Config
 Item {
   id: root
 
+  readonly property bool _canShowTooltip: root.enabled && !root.suppressTooltip && root.tooltipText.length > 0
+
   // Computed dimensions from size using Theme helper functions
   readonly property int _iconSize: Theme.iconSizeFor(size)
   readonly property int _radius: {
@@ -53,6 +55,7 @@ Item {
 
   // Size preset: "xs", "sm", "md", "lg", "xl"
   property string size: "md"
+  property bool suppressTooltip: false
   property string tooltipText: ""
 
   signal clicked(var point)
@@ -64,8 +67,18 @@ Item {
 
   onEnabledChanged: if (!enabled && tooltip.isVisible)
     tooltip.isVisible = false
-  onTooltipTextChanged: if (mouseArea.containsMouse && root.tooltipText.length)
-    tooltip.isVisible = true
+  onSuppressTooltipChanged: {
+    if (root.suppressTooltip && tooltip.isVisible)
+      tooltip.isVisible = false;
+    else if (!root.suppressTooltip && mouseArea.containsMouse && root._canShowTooltip)
+      tooltip.isVisible = true;
+  }
+  onTooltipTextChanged: {
+    if (mouseArea.containsMouse && root._canShowTooltip)
+      tooltip.isVisible = true;
+    else if (tooltip.isVisible && !root._canShowTooltip)
+      tooltip.isVisible = false;
+  }
 
   Rectangle {
     id: bgRect
@@ -101,11 +114,13 @@ Item {
       onClicked: function (mouse) {
         if (!root.enabled && !root.allowClickWhenDisabled)
           return;
+        if (tooltip.isVisible)
+          tooltip.isVisible = false;
         root.clicked(mouse);
       }
       onEntered: {
         root.entered();
-        if (root.tooltipText.length)
+        if (root._canShowTooltip)
           tooltip.isVisible = true;
       }
       onExited: {

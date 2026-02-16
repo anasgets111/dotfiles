@@ -6,7 +6,7 @@ import qs.Components
 import qs.Config
 import qs.Services.SystemInfo
 
-OPanel {
+PanelContentBase {
   id: root
 
   readonly property bool hasUpdates: UpdateService.totalUpdates > 0
@@ -16,6 +16,8 @@ OPanel {
   readonly property int itemHeight: Theme.itemHeight
   readonly property int maxItems: 10
   readonly property int pad: Theme.spacingSm
+  readonly property real preferredHeight: contentScope.implicitHeight + root.pad * 2
+  readonly property real preferredWidth: 500
   readonly property real progress: UpdateService.totalPackagesToUpdate > 0 ? UpdateService.currentPackageIndex / UpdateService.totalPackagesToUpdate : 0
 
   function logColor(raw) {
@@ -35,11 +37,9 @@ OPanel {
     return Theme.textInactiveColor;
   }
 
-  maxHeight: 900
-  panelNamespace: "obelisk-update-panel"
-  panelWidth: 500
-
   FocusScope {
+    id: contentScope
+
     focus: root.isOpen
     implicitHeight: (root.isIdle ? packageView.implicitHeight : outputView.implicitHeight) + root.pad * 2
     width: parent.width
@@ -210,7 +210,7 @@ OPanel {
             bgColor: Theme.inactiveColor
             text: qsTr("Cancel")
 
-            onClicked: root.close()
+            onClicked: root.closeRequested()
           }
         }
       }
@@ -331,7 +331,7 @@ OPanel {
               } else {
                 UpdateService.updateState = UpdateService.status.Idle;
                 UpdateService.closeAllNotifications();
-                root.close();
+                root.closeRequested();
               }
             }
           }

@@ -1,45 +1,20 @@
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import qs.Components
 import qs.Config
-import qs.Services.WM
 
-PanelWindow {
-  id: panelWindow
+Item {
+  id: root
 
-  property bool _screenChangeGuard: false
   readonly property bool centerShouldHide: workspacesExpanded || rightSideExpanded
   property bool rightSideExpanded: false
+  required property ShellScreen screen
   property bool workspacesExpanded: false
 
   signal wallpaperPickerRequested
 
-  WlrLayershell.namespace: "quickshell:bar:blur"
-  color: Theme.panelWindowColor
-  exclusiveZone: Theme.panelHeight
-  implicitHeight: screen ? screen.height : Theme.panelHeight
-  screen: MonitorService.effectiveMainScreen
-  surfaceFormat.opaque: false
-
-  mask: Region {
-    item: barContent
-  }
-
-  onScreenChanged: {
-    if (_screenChangeGuard)
-      return;
-    _screenChangeGuard = true;
-    if (!visible)
-      visible = true;
-    _screenChangeGuard = false;
-  }
-
-  anchors {
-    left: true
-    right: true
-    top: true
-  }
+  height: implicitHeight
+  implicitHeight: Theme.panelHeight + Theme.panelRadius
 
   Column {
     id: barContent
@@ -58,10 +33,11 @@ PanelWindow {
       width: parent.width
 
       LeftSide {
-        normalWorkspacesExpanded: panelWindow.workspacesExpanded
+        normalWorkspacesExpanded: root.workspacesExpanded
+        screenName: root.screen?.name ?? ""
 
-        onNormalWorkspacesExpandedChanged: panelWindow.workspacesExpanded = normalWorkspacesExpanded
-        onWallpaperPickerRequested: panelWindow.wallpaperPickerRequested()
+        onNormalWorkspacesExpandedChanged: root.workspacesExpanded = normalWorkspacesExpanded
+        onWallpaperPickerRequested: root.wallpaperPickerRequested()
 
         anchors {
           left: parent.left
@@ -71,9 +47,10 @@ PanelWindow {
       }
 
       RightSide {
-        normalWorkspacesExpanded: panelWindow.rightSideExpanded
+        normalWorkspacesExpanded: root.rightSideExpanded
+        screenName: root.screen?.name ?? ""
 
-        onNormalWorkspacesExpandedChanged: panelWindow.rightSideExpanded = normalWorkspacesExpanded
+        onNormalWorkspacesExpandedChanged: root.rightSideExpanded = normalWorkspacesExpanded
 
         anchors {
           right: parent.right
@@ -84,8 +61,8 @@ PanelWindow {
 
       CenterSide {
         anchors.centerIn: parent
-        normalWorkspacesExpanded: panelWindow.centerShouldHide
-        opacity: panelWindow.centerShouldHide ? 0 : 1
+        normalWorkspacesExpanded: root.centerShouldHide
+        opacity: root.centerShouldHide ? 0 : 1
         visible: opacity > 0
 
         Behavior on opacity {

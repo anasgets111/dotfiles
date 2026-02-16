@@ -3,6 +3,7 @@ import qs.Components
 import qs.Config
 import qs.Services.SystemInfo
 import qs.Modules.Bar.Panels
+import qs.Services.UI
 
 Item {
   id: dateTimeDisplay
@@ -10,6 +11,8 @@ Item {
   readonly property color bgColor: mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor
   readonly property bool hasNotifications: notificationCount > 0
   readonly property int notificationCount: NotificationService.notifications?.length || 0
+  readonly property bool panelOpen: ShellUiState.isPanelOpen("notifications", dateTimeDisplay.screenName)
+  required property string screenName
 
   height: Theme.itemHeight
   width: mainRow.width
@@ -76,11 +79,7 @@ Item {
     hoverEnabled: true
 
     onClicked: function (mouse) {
-      if (notificationPanelLoader.active) {
-        notificationPanelLoader.active = false;
-      } else {
-        notificationPanelLoader.active = true;
-      }
+      ShellUiState.togglePanelForItem("notifications", dateTimeDisplay.screenName, dateTimeDisplay);
     }
   }
 
@@ -88,7 +87,7 @@ Item {
   Tooltip {
     id: tooltip
 
-    isVisible: mouseArea.containsMouse && !notificationPanelLoader.active
+    isVisible: mouseArea.containsMouse && !dateTimeDisplay.panelOpen
     target: dateTimeDisplay
 
     Column {
@@ -136,31 +135,6 @@ Item {
           weekStart: 6
         }
       }
-    }
-  }
-
-  // Component definition for NotificationHistoryPanel (better isolation)
-  Component {
-    id: notificationPanelComponent
-
-    NotificationHistoryPanel {
-      property var loaderRef
-
-      onPanelClosed: loaderRef.active = false
-    }
-  }
-
-  // Loader for lazy-loading the panel
-  Loader {
-    id: notificationPanelLoader
-
-    active: false
-    sourceComponent: notificationPanelComponent
-
-    onLoaded: {
-      const panel = item as NotificationHistoryPanel;
-      panel.loaderRef = notificationPanelLoader;
-      panel.openAtItem(dateTimeDisplay, 0, 0);
     }
   }
 }

@@ -13,6 +13,7 @@ Row {
   id: leftSide
 
   required property bool normalWorkspacesExpanded
+  required property string screenName
 
   signal wallpaperPickerRequested
 
@@ -32,6 +33,7 @@ Row {
     asynchronous: true
 
     sourceComponent: ArchChecker {
+      screenName: leftSide.screenName
     }
   }
 
