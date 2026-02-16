@@ -12,8 +12,8 @@ Item {
   property rect anchorRect: Qt.rect(0, 0, 0, 0)
   readonly property bool contentActive: root.active || closeHoldTimer.running
   readonly property rect effectiveAnchorRect: root.active ? root.anchorRect : root.retainedAnchorRect
-  readonly property var effectivePanelComponent: root.panelComponent ?? (root.contentActive ? root.retainedPanelComponent : null)
-  readonly property var effectivePanelData: root.panelComponent !== null ? root.panelData : root.retainedPanelData
+  readonly property var effectivePanelComponent: root.active ? root.panelComponent : (root.contentActive ? root.retainedPanelComponent : null)
+  readonly property var effectivePanelData: root.active ? (root.panelComponent !== null ? root.panelData : null) : root.retainedPanelData
   readonly property real effectivePanelHeight: root.active ? root.livePanelHeight : root.retainedPanelHeight
   readonly property real effectivePanelWidth: root.active ? root.panelContentWidth : root.retainedPanelWidth
   readonly property real livePanelHeight: Math.min(root.panelContentHeight, root.height - Theme.panelHeight - 8)
@@ -85,14 +85,23 @@ Item {
     root.retainedPanelHeight = root.livePanelHeight
   onPanelContentWidthChanged: if (root.active && root.panelComponent !== null)
     root.retainedPanelWidth = root.panelContentWidth
-  onPanelDataChanged: if (root.panelComponent !== null)
-    root.retainedPanelData = root.panelData
+  onPanelDataChanged: root.retainedPanelData = root.panelData
+  onPanelIdChanged: if (root.active && root.panelId.length > 0 && root.panelComponent === null)
+    root.closeRequested()
 
   Timer {
     id: closeHoldTimer
 
     interval: Theme.animationDuration
     repeat: false
+
+    onTriggered: if (!root.active) {
+      root.retainedAnchorRect = Qt.rect(0, 0, 0, 0);
+      root.retainedPanelComponent = null;
+      root.retainedPanelData = null;
+      root.retainedPanelHeight = 1;
+      root.retainedPanelWidth = 350;
+    }
   }
 
   MouseArea {
@@ -167,7 +176,7 @@ Item {
             return;
           root.panelItem.width = Qt.binding(() => panelLoader.width);
           root.panelItem.height = Qt.binding(() => panelLoader.height);
-          root.panelItem.isOpen = Qt.binding(() => root.contentActive);
+          root.panelItem.isOpen = Qt.binding(() => root.active);
           root.panelItem.panelData = Qt.binding(() => root.effectivePanelData);
         }
       }

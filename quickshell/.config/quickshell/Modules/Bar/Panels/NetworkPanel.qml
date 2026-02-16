@@ -153,8 +153,10 @@ PanelContentBase {
     isHiddenTarget = false;
     hiddenConnectStartedOnline = false;
     targetSsid = "";
-    ssidInput.text = "";
-    passwordInput.text = "";
+    if (ssidInput)
+      ssidInput.text = "";
+    if (passwordInput)
+      passwordInput.text = "";
     connectionError = "";
   }
 
@@ -192,6 +194,7 @@ PanelContentBase {
 
   needsKeyboardFocus: showSsidInput || showPasswordInput
 
+  Component.onDestruction: resetConnectionState()
   onIsOpenChanged: if (!isOpen)
     resetConnectionState()
 

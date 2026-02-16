@@ -17,12 +17,13 @@ PanelContentBase {
   }
   readonly property real cardHeight: Theme.itemHeight * 5.5
   readonly property bool hasNotifications: NotificationService.notifications.length > 0
-  readonly property int maxVisibleCards: 3
   property int maxHeight: 600
+  readonly property int maxVisibleCards: 3
   readonly property int padding: Theme.spacingLg
   readonly property real preferredHeight: contentLayout.implicitHeight
   readonly property real preferredWidth: 420
 
+  Component.onDestruction: NotificationService.onOverlayClose()
   onIsOpenChanged: {
     if (isOpen)
       NotificationService.onOverlayOpen();
