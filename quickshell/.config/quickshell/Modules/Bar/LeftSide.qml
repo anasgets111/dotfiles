@@ -41,6 +41,7 @@ Row {
     id: idleInhibitor
 
     anchors.verticalCenter: leftSide.verticalCenter
+    screenName: leftSide.screenName
   }
 
   KeyboardLayoutIndicator {

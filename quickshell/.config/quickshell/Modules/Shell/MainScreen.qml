@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import qs.Components
 import qs.Config
 import qs.Modules.Bar
+import qs.Modules.Bar.Panels
 import qs.Modules.Global
 import qs.Modules.Notification
 import qs.Modules.OSD
@@ -20,12 +21,13 @@ PanelWindow {
   readonly property bool isModalActiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyModalOpen
   readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(root.screenName)
   readonly property bool isWallpaperPickerOpen: ShellUiState.isModalOpenOn(root.screenName, "wallpaperPicker")
+  readonly property bool isIdleSettingsOpen: ShellUiState.isModalOpenOn(root.screenName, "idleSettings")
   readonly property bool launcherOpen: ShellUiState.isModalOpenOn(root.screenName, "launcher")
   property var modelData: null
   readonly property bool panelNeedsKeyboardFocus: panelContainer.active && panelContainer.needsKeyboardFocus
   readonly property string screenName: screen?.name ?? ""
   readonly property bool shouldCaptureBackground: ShellUiState.isAnyPanelOpen || ShellUiState.isAnyModalOpen
-  readonly property bool wantsKeyboardHere: panelNeedsKeyboardFocus || launcherOpen || isWallpaperPickerOpen || notificationPopup.needsKeyboardFocus
+  readonly property bool wantsKeyboardHere: panelNeedsKeyboardFocus || launcherOpen || isWallpaperPickerOpen || isIdleSettingsOpen || notificationPopup.needsKeyboardFocus
 
   WlrLayershell.exclusionMode: ExclusionMode.Normal
   WlrLayershell.exclusiveZone: Theme.panelHeight
@@ -173,6 +175,18 @@ PanelWindow {
         onApplyRequested: ShellUiState.closeModal("wallpaperPicker")
         onCancelRequested: ShellUiState.closeModal("wallpaperPicker")
         onDismissed: ShellUiState.closeModal("wallpaperPicker")
+      }
+    }
+
+    Loader {
+      active: root.isIdleSettingsOpen
+      anchors.fill: parent
+      z: 75
+
+      sourceComponent: IdleSettingsPanel {
+        active: true
+
+        onDismissed: ShellUiState.closeModal("idleSettings")
       }
     }
   }
