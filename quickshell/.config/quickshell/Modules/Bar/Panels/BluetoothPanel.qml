@@ -48,6 +48,7 @@ PanelContentBase {
     }
   }
 
+  Component.onDestruction: BluetoothService.stopDiscovery()
   onIsOpenChanged: {
     if (isOpen && active) {
       BluetoothService.startDiscovery();
