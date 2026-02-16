@@ -12,12 +12,18 @@ WlrLayershell {
   readonly property string currentTransition: WallpaperService.wallpaperTransitionType()
   property string displayMode: currentMode
   readonly property int imageFillMode: WallpaperService.modeToFillMode(displayMode)
-  readonly property size maxSourceSize: Qt.size(Math.min(width * (monitor?.scale ?? 1), 3840), Math.min(height * (monitor?.scale ?? 1), 2160))
+  readonly property size maxSourceSize: {
+    const s = monitor?.scale ?? 1;
+    return Qt.size(width * s, height * s);
+  }
   required property var monitor
   property string pendingUrl: ""
+  readonly property string safeTransitionType: {
+    const valid = ["wipe", "disc", "stripes", "portal"];
+    return valid.includes(transitionType) ? transitionType : "fade";
+  }
   readonly property string screenName: monitor?.name ?? ""
   readonly property var screenObject: screenName ? Quickshell.screens.find(s => s?.name === screenName) : null
-  property var tp: ({})  // transition params: { dir, cx, cy, count, angle }
   property real transitionProgress: 0.0
   property string transitionType: currentTransition
 
@@ -25,35 +31,27 @@ WlrLayershell {
     if (!screenObject)
       return;
     const url = normalizeUrl(newPath);
+    if (!url)
+      return;
     if (!currentImg.source || currentImg.source === "" || currentImg.status === Image.Loading) {
       currentImg.source = url;
       return;
     }
-    if (!url || url === currentImg.source.toString() || url === nextImg.source.toString())
+    const currentStr = currentImg.source.toString();
+    const nextStr = nextImg.source.toString();
+    if (url === currentStr || url === nextStr)
       return;
     if (transitionAnim.running) {
       pendingUrl = url;
       return;
     }
     pendingUrl = "";
-    setupTransition();
+    tp.randomize(transitionType);
     nextImg.source = url;
   }
 
   function normalizeUrl(path: string): string {
     return !path ? "" : /^(file|https?):\/\//.test(path) ? path : `file://${path}`;
-  }
-
-  function setupTransition(): void {
-    tp = transitionType === "wipe" ? {
-      dir: Math.random() * 4
-    } : transitionType === "disc" || transitionType === "portal" ? {
-      cx: Math.random(),
-      cy: Math.random()
-    } : transitionType === "stripes" ? {
-      count: Math.round(Math.random() * 20 + 4),
-      angle: Math.random() * 360
-    } : {};
   }
 
   exclusionMode: ExclusionMode.Ignore
@@ -68,7 +66,7 @@ WlrLayershell {
   }
   onCurrentModeChanged: displayMode = currentMode
   onCurrentPathChanged: if (currentPath)
-    changeWallpaper(normalizeUrl(currentPath))
+    changeWallpaper(currentPath)
   onCurrentTransitionChanged: transitionType = currentTransition
   onScreenObjectChanged: if (!screenObject) {
     transitionAnim.stop();
@@ -82,29 +80,44 @@ WlrLayershell {
     top: true
   }
 
+  // Typed transition parameters
+  QtObject {
+    id: tp
+
+    property real angle: 0
+    property int count: 16
+    property real cx: 0.5
+    property real cy: 0.5
+    property real dir: 0
+
+    function randomize(type: string): void {
+      if (type === "wipe") {
+        dir = Math.random() * 4;
+      } else if (type === "disc" || type === "portal") {
+        cx = Math.random();
+        cy = Math.random();
+      } else if (type === "stripes") {
+        count = Math.round(Math.random() * 20 + 4);
+        angle = Math.random() * 360;
+      }
+    }
+  }
+
   Image {
     id: currentImg
 
+    // Hidden during transition — shader composites both images
     anchors.fill: parent
     asynchronous: true
     fillMode: root.imageFillMode
-    smooth: true
     sourceSize: root.maxSourceSize
     visible: !transitionAnim.running && root.transitionProgress === 0
 
     onStatusChanged: {
       if (!root.screenObject || status === Image.Loading)
         return;
-      if (status === Image.Ready) {
-        if (nextImg.source !== "" && source.toString() === nextImg.source.toString()) {
-          nextImg.source = "";
-          root.transitionProgress = 0;
-        }
-        if (root.pendingUrl && !transitionAnim.running)
-          Qt.callLater(() => root.changeWallpaper(root.pendingUrl));
-      } else if (status === Image.Error) {
+      if (status === Image.Error)
         console.warn("AnimatedWallpaper: Failed to load", source);
-      }
     }
   }
 
@@ -114,7 +127,6 @@ WlrLayershell {
     anchors.fill: parent
     asynchronous: true
     fillMode: root.imageFillMode
-    smooth: true
     sourceSize: root.maxSourceSize
     visible: false
 
@@ -139,33 +151,27 @@ WlrLayershell {
     anchors.fill: parent
 
     sourceComponent: ShaderEffect {
-      readonly property real angle: root.tp.angle ?? 0
+      readonly property real angle: tp.angle
       readonly property real aspectRatio: width / Math.max(1, height)
-      readonly property real centerX: root.tp.cx ?? 0.5
-      readonly property real centerY: root.tp.cy ?? 0.5
-
-      // Transition params from tp object
-      readonly property real direction: root.tp.dir ?? 0
+      readonly property real centerX: tp.cx
+      readonly property real centerY: tp.cy
+      readonly property real direction: tp.dir
       readonly property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
       readonly property real fillMode: 1.0
       readonly property real imageHeight1: currentImg.status === Image.Ready ? currentImg.paintedHeight : height
       readonly property real imageHeight2: nextImg.paintedHeight
       readonly property real imageWidth1: currentImg.status === Image.Ready ? currentImg.paintedWidth : width
       readonly property real imageWidth2: nextImg.paintedWidth
-
-      // Shader uniforms
       readonly property real progress: root.transitionProgress
       readonly property real screenHeight: height * (root.monitor?.scale ?? 1)
       readonly property real screenWidth: width * (root.monitor?.scale ?? 1)
       readonly property real smoothness: 0.1
-
-      // Image sources and dimensions
       readonly property Image source1: currentImg
       readonly property Image source2: nextImg
-      readonly property real stripeCount: root.tp.count ?? 16
+      readonly property real stripeCount: tp.count
 
       anchors.fill: parent
-      fragmentShader: Qt.resolvedUrl(`../../Shaders/qsb/wp_${["wipe", "disc", "stripes", "portal"].includes(root.transitionType) ? root.transitionType : "fade"}.frag.qsb`)
+      fragmentShader: Qt.resolvedUrl(`../../Shaders/qsb/wp_${root.safeTransitionType}.frag.qsb`)
     }
   }
 
@@ -179,7 +185,14 @@ WlrLayershell {
     target: root
     to: 1.0
 
-    onFinished: if (nextImg.source !== "")
-      currentImg.source = nextImg.source
+    onFinished: {
+      if (nextImg.source !== "") {
+        currentImg.source = nextImg.source;
+        nextImg.source = "";
+      }
+      root.transitionProgress = 0.0;
+      if (root.pendingUrl)
+        Qt.callLater(() => root.changeWallpaper(root.pendingUrl));
+    }
   }
 }
