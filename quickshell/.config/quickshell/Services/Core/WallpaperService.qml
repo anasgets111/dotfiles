@@ -16,13 +16,6 @@ Singleton {
   readonly property string defaultMode: "fill"
   readonly property string defaultTransition: "disc"
   readonly property string defaultWallpaper: Settings.defaultWallpaper
-  readonly property var fillModeMap: ({
-      fill: 2,
-      fit: 1,
-      stretch: 3,
-      center: 6,
-      tile: 4
-    })
   property bool hydrated: false
   property var monitorPrefs: ({})
   readonly property var monitors: ready ? Array.from({
@@ -42,6 +35,9 @@ Singleton {
   property string wallpaperTransition: defaultTransition
 
   function getPrefs(monitorName: string): var {
+    // Mutates monitorPrefs in-place if key missing.
+    // No QML signal emitted — callers must use version counters
+    // (_pathVersion, _modeVersion) for reactive bindings.
     return monitorPrefs[monitorName] ?? (monitorPrefs[monitorName] = {
         wallpaper: defaultWallpaper,
         mode: defaultMode
@@ -68,7 +64,20 @@ Singleton {
   }
 
   function modeToFillMode(mode: string): int {
-    return fillModeMap[validate(mode, availableModes, defaultMode)] ?? 2;
+    switch (validate(mode, availableModes, defaultMode)) {
+    case "fit":
+      return Image.PreserveAspectFit;
+    case "fill":
+      return Image.PreserveAspectCrop;
+    case "stretch":
+      return Image.Stretch;
+    case "tile":
+      return Image.Tile;
+    case "center":
+      return Image.Pad;
+    default:
+      return Image.PreserveAspectCrop;
+    }
   }
 
   function persistMonitors(): void {
@@ -125,8 +134,7 @@ Singleton {
     if (!path || wallpaperFolder === path)
       return;
     wallpaperFolder = path;
-    if (Settings?.data)
-      Settings.data.wallpaperFolder = path;
+    persistDebounce.restart();
   }
 
   function setWallpaperTransition(transition: string): void {
@@ -135,8 +143,7 @@ Singleton {
       return;
     wallpaperTransition = v;
     _transitionVersion++;
-    if (Settings?.data)
-      Settings.data.wallpaperTransition = v;
+    persistDebounce.restart();
   }
 
   function validate(value: string, allowed: list<string>, fallback: string): string {
@@ -145,17 +152,17 @@ Singleton {
   }
 
   function wallpaperMode(monitorName: string): string {
-    void _modeVersion;
+    void _modeVersion; // reactive dependency — triggers re-evaluation on change
     return getPrefs(monitorName).mode ?? defaultMode;
   }
 
   function wallpaperPath(monitorName: string): string {
-    void _pathVersion;
+    void _pathVersion; // reactive dependency — triggers re-evaluation on change
     return getPrefs(monitorName).wallpaper ?? defaultWallpaper;
   }
 
   function wallpaperTransitionType(): string {
-    void _transitionVersion;
+    void _transitionVersion; // reactive dependency — triggers re-evaluation on change
     return wallpaperTransition;
   }
 
@@ -165,8 +172,9 @@ Singleton {
   FolderListModel {
     id: folderModel
 
+    caseSensitive: false
     folder: root.wallpaperFolder ? `file://${root.wallpaperFolder}` : ""
-    nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.JPG", "*.JPEG", "*.PNG", "*.WEBP"]
+    nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp"]
     showDirs: false
     showFiles: true
 
@@ -176,11 +184,11 @@ Singleton {
       root.wallpaperFiles = Array.from({
         length: count
       }, (_, i) => {
-        const path = get(i, "filePath").toString().replace("file://", "");
+        const path = get(i, "filePath");
         return {
           path,
           displayName: path.split("/").pop(),
-          previewSource: `file://${path}`
+          previewSource: get(i, "fileUrl")
         };
       });
     }
