@@ -3,9 +3,12 @@ import Quickshell.Wayland
 import qs.Components
 import qs.Config
 import qs.Services.Core
+import qs.Services.UI
 
 IconButton {
   id: root
+
+  required property string screenName
 
   readonly property bool anyInhibit: manualInhibit || IdleService.effectiveInhibited
   property bool manualInhibit: false
@@ -17,7 +20,12 @@ IconButton {
   implicitWidth: Theme.itemWidth
   tooltipText: anyInhibit ? qsTr("Idle inhibition active") + "\n" + qsTr("Reason: %1").arg(reason) : qsTr("Click to prevent idle")
 
-  onClicked: manualInhibit = !manualInhibit
+  onClicked: function (mouse) {
+    if (mouse.button === Qt.RightButton)
+      ShellUiState.openModal("idleSettings", root.screenName);
+    else
+      root.manualInhibit = !root.manualInhibit;
+  }
 
   IdleInhibitor {
     enabled: root.manualInhibit

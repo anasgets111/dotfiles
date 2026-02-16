@@ -51,8 +51,6 @@ Item {
     slider.changing(pending);
   }
 
-  anchors.fill: parent
-
   // Visual track: two-tone fill (0..splitAt) and (splitAt..1)
   Item {
     id: track
