@@ -296,6 +296,11 @@ Singleton {
     root.exec(cmdConnect, ["nmcli", "networking", enabled ? "on" : "off"]);
     if (enabled) {
       root.exec(cmdConnect, ["nmcli", "radio", "wifi", "on"]);
+      root.connectEthernet();
+    } else {
+      root.disconnectWifi();
+      root.disconnectEthernet();
+      root.exec(cmdConnect, ["nmcli", "radio", "wifi", "off"]);
     }
   }
 
