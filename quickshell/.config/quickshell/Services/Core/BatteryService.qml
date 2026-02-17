@@ -76,6 +76,6 @@ Singleton {
   }
   onIsSuspendingAndNotChargingChanged: {
     if (isSuspendingAndNotCharging)
-      Quickshell.execDetached(["systemctl", "suspend"]);
+      PowerManagementService.suspend();
   }
 }
