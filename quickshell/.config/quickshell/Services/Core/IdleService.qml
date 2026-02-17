@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import qs.Services
 import qs.Services.Core
 import qs.Services.Utils
+import qs.Services.SystemInfo
 import qs.Config
 
 Singleton {
@@ -21,7 +22,7 @@ Singleton {
       }
     })
   property bool dpmsOff: false
-  readonly property bool effectiveInhibited: !!settings?.videoAutoInhibit && MediaService.anyVideoPlaying
+  readonly property bool effectiveInhibited: (!!settings?.videoAutoInhibit && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.microphoneActive))
   readonly property bool ready: Settings.isLoaded && !!settings
   readonly property bool respectInhibitors: !LockService.locked && (settings?.respectInhibitors ?? true)
   readonly property var settings: Settings.data?.idleService
