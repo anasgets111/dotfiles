@@ -1,21 +1,19 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import Quickshell
 import QtQuick.Controls
+import Quickshell.Wayland
 import qs.Config
 import qs.Services.SystemInfo
 
-Item {
+PanelWindow {
   id: layer
 
   // Keyboard focus tracking
   property int _keyboardFocusCount: 0
   property int barOffset: Theme.itemHeight
   property int margin: Theme.spacingMd
-  readonly property bool needsKeyboardFocus: layer._keyboardFocusCount > 0
-  readonly property real popupHeight: popupScroll.height
-  readonly property real popupWidth: popupScroll.width
-  readonly property real popupX: popupScroll.x
-  readonly property real popupY: popupScroll.y
+  required property var modelData
 
   function claimKeyboardFocus() {
     layer._keyboardFocusCount++;
@@ -25,10 +23,28 @@ Item {
     layer._keyboardFocusCount = Math.max(0, layer._keyboardFocusCount - 1);
   }
 
+  WlrLayershell.exclusiveZone: -1
+  WlrLayershell.keyboardFocus: layer._keyboardFocusCount > 0 ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+  WlrLayershell.layer: WlrLayer.Overlay
+  WlrLayershell.namespace: "obelisk-notification-popup-" + (screen?.name || "unknown")
+  color: "transparent"
+  screen: layer.modelData
+  surfaceFormat.opaque: false
   visible: NotificationService.visibleNotifications.length > 0
+
+  mask: Region {
+    item: popupColumn
+  }
 
   onVisibleChanged: if (!visible)
     layer._keyboardFocusCount = 0
+
+  anchors {
+    bottom: true
+    left: true
+    right: true
+    top: true
+  }
 
   ScrollView {
     id: popupScroll
