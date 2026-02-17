@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+# dots-greeter — Compositor launcher for the Obelisk greeter
+# Called by greetd as the default session command.
+# Starts a compositor, runs quickshell greeter, then exits the compositor.
+
+set -e
+
+COMPOSITOR=""
+COMPOSITOR_CONFIG=""
+GREETER_PATH=""
+CACHE_DIR="/var/cache/obelisk-greeter"
+
+show_help() {
+    cat <<'EOF'
+dots-greeter — Obelisk greeter compositor launcher
+
+Usage: dots-greeter [--command COMPOSITOR | --detect] [OPTIONS]
+
+Required (one of):
+    --command COMPOSITOR    Compositor to use (niri or hyprland)
+    --detect                Auto-detect compositor from PATH
+
+Options:
+    -C, --config PATH       Custom compositor config file
+    --greeter-path PATH     Path to greeter QML dir (default: XDG search)
+    --cache-dir PATH        Cache directory (default: /var/cache/obelisk-greeter)
+    -h, --help              Show this help
+
+Examples:
+    dots-greeter --detect
+    dots-greeter --command niri
+    dots-greeter --command hyprland -C /etc/greetd/custom-hypr.conf
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+    --command)
+        COMPOSITOR="$2"
+        shift 2
+        ;;
+    --detect)
+        COMPOSITOR="auto"
+        shift
+        ;;
+    -C | --config)
+        COMPOSITOR_CONFIG="$2"
+        shift 2
+        ;;
+    --greeter-path)
+        GREETER_PATH="$2"
+        shift 2
+        ;;
+    --cache-dir)
+        CACHE_DIR="$2"
+        shift 2
+        ;;
+    -h | --help)
+        show_help
+        exit 0
+        ;;
+    *)
+        echo "Unknown option: $1" >&2
+        show_help
+        exit 1
+        ;;
+    esac
+done
+
+# ── Auto-detect compositor ──────────────────────────────────────────────
+if [[ "$COMPOSITOR" == "auto" ]]; then
+    if command -v niri >/dev/null 2>&1; then
+        COMPOSITOR="niri"
+    elif command -v Hyprland >/dev/null 2>&1; then
+        COMPOSITOR="hyprland"
+    else
+        echo "Error: No supported compositor found (niri, Hyprland)" >&2
+        exit 1
+    fi
+    echo "Auto-detected compositor: $COMPOSITOR" >&2
+fi
+
+if [[ -z "$COMPOSITOR" ]]; then
+    echo "Error: --command or --detect is required" >&2
+    show_help
+    exit 1
+fi
+
+# ── Locate greeter QML ─────────────────────────────────────────────────
+locate_greeter() {
+    local search_paths=(
+        "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/obelisk-greeter"
+        "/usr/share/quickshell/obelisk-greeter"
+    )
+
+    IFS=':' read -ra dirs <<<"${XDG_CONFIG_DIRS:-/etc/xdg}"
+    for dir in "${dirs[@]}"; do
+        [[ -n "$dir" ]] && search_paths+=("$dir/quickshell/obelisk-greeter")
+    done
+
+    for path in "${search_paths[@]}"; do
+        if [[ -f "$path/shell.qml" ]]; then
+            echo "$path"
+            return 0
+        fi
+    done
+    return 1
+}
+
+if [[ -z "$GREETER_PATH" ]]; then
+    # First check own directory (script lives alongside shell.qml when deployed)
+    SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -f "$SELF_DIR/shell.qml" ]]; then
+        GREETER_PATH="$SELF_DIR"
+    else
+        GREETER_PATH=$(locate_greeter) || {
+            echo "Error: Could not find greeter (shell.qml) in any XDG path" >&2
+            exit 1
+        }
+    fi
+fi
+
+echo "Using greeter at: $GREETER_PATH" >&2
+
+# ── Environment ─────────────────────────────────────────────────────────
+export XDG_SESSION_TYPE=wayland
+export QT_QPA_PLATFORM=wayland
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+export EGL_PLATFORM=gbm
+export GREETER_CACHE_DIR="$CACHE_DIR"
+export OBELISK_GREETER=1
+
+mkdir -p "$CACHE_DIR"
+
+QS_CMD="qs -p '${GREETER_PATH}'"
+
+# ── Launch compositor ───────────────────────────────────────────────────
+case "$COMPOSITOR" in
+niri)
+    TEMP_CONFIG=$(mktemp)
+    if [[ -n "$COMPOSITOR_CONFIG" ]]; then
+        cat "$COMPOSITOR_CONFIG" >"$TEMP_CONFIG"
+    else
+        cat >"$TEMP_CONFIG" <<'NIRI_EOF'
+hotkey-overlay {
+    skip-at-startup
+}
+
+debug {
+    keep-max-bpc-unchanged
+}
+
+gestures {
+    hot-corners {
+        off
+    }
+}
+
+layout {
+    background-color "#000000"
+}
+NIRI_EOF
+    fi
+
+    # Append includes if override files exist (e.g. for screen rotation)
+    for override in "/etc/greetd/niri_overrides.kdl" "/usr/local/etc/greetd/niri_overrides.kdl"; do
+        if [[ -f "$override" ]]; then
+            echo "include \"$override\"" >>"$TEMP_CONFIG"
+        fi
+    done
+
+    cat >>"$TEMP_CONFIG" <<NIRI_EOF
+
+environment {
+    GREETER_CACHE_DIR "$CACHE_DIR"
+    OBELISK_GREETER "1"
+}
+
+spawn-at-startup "sh" "-c" "$QS_CMD; niri msg action quit --skip-confirmation"
+NIRI_EOF
+
+    exec niri -c "$TEMP_CONFIG"
+    ;;
+
+hyprland)
+    TEMP_CONFIG=$(mktemp)
+    if [[ -n "$COMPOSITOR_CONFIG" ]]; then
+        cat "$COMPOSITOR_CONFIG" >"$TEMP_CONFIG"
+    else
+        cat >"$TEMP_CONFIG" <<'HYPR_EOF'
+misc {
+    disable_hyprland_logo = true
+}
+HYPR_EOF
+    fi
+
+    cat >>"$TEMP_CONFIG" <<HYPR_EOF
+
+env = GREETER_CACHE_DIR,$CACHE_DIR
+
+exec-once = sh -c "$QS_CMD; hyprctl dispatch exit"
+HYPR_EOF
+
+    if command -v start-hyprland >/dev/null 2>&1; then
+        exec start-hyprland -- --config "$TEMP_CONFIG"
+    else
+        exec Hyprland -c "$TEMP_CONFIG"
+    fi
+    ;;
+
+*)
+    echo "Error: Unsupported compositor: $COMPOSITOR" >&2
+    echo "Supported: niri, hyprland" >&2
+    exit 1
+    ;;
+esac
