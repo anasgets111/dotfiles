@@ -324,6 +324,7 @@ PanelContentBase {
       Layout.preferredHeight: root.sliderHeight * 0.8
 
       Slider {
+        anchors.fill: parent
         fillColor: Theme.activeColor
         radius: Theme.itemRadius * 0.5
         steps: 20
@@ -410,6 +411,7 @@ PanelContentBase {
         Layout.preferredHeight: root.sliderHeight
 
         Slider {
+          anchors.fill: parent
           fillColor: Theme.activeColor
           headroomColor: volumeCardRoot.headroomColor
           radius: Theme.itemRadius
