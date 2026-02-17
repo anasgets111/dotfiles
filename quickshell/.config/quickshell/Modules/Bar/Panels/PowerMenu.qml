@@ -1,26 +1,26 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell.Io
 import qs.Config
 import qs.Components
+import qs.Services.Core
 
 Item {
   id: powerMenu
 
   readonly property var actions: [
     {
-      cmd: "loginctl terminate-user $USER",
+      callback: () => PowerManagementService.logout(),
       icon: "󰍃",
       tooltip: "Log Out"
     },
     {
-      cmd: "systemctl reboot",
+      callback: () => PowerManagementService.reboot(),
       icon: "",
       tooltip: "Restart"
     },
     {
-      cmd: "systemctl poweroff",
+      callback: () => PowerManagementService.poweroff(),
       icon: "⏻",
       tooltip: "Power Off"
     }
@@ -38,10 +38,8 @@ Item {
   }
 
   function commitSelected() {
-    if (selectedIndex >= 0) {
-      proc.command = ["sh", "-c", actions[selectedIndex].cmd];
-      proc.running = true;
-    }
+    if (selectedIndex >= 0)
+      actions[selectedIndex].callback();
     cancelCountdown();
   }
 
@@ -53,11 +51,6 @@ Item {
 
   height: pill.height
   width: pill.width
-
-  Process {
-    id: proc
-
-  }
 
   // Click-away handler while counting
   MouseArea {
