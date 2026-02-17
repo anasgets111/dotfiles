@@ -828,7 +828,7 @@ PanelContentBase {
       Rectangle {
         required property int index
 
-        anchors.bottom: parent.bottom
+        anchors.bottom: bars.bottom
         color: index < bars.level ? bars.activeColor : Theme.textInactiveColor
         height: bars.barHeights[index]
         opacity: index < bars.level ? 1.0 : 0.25
