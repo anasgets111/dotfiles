@@ -294,6 +294,9 @@ Singleton {
   // 3. State Toggles
   function setNetworkingEnabled(enabled: bool) {
     root.exec(cmdConnect, ["nmcli", "networking", enabled ? "on" : "off"]);
+    if (enabled) {
+      root.exec(cmdConnect, ["nmcli", "radio", "wifi", "on"]);
+    }
   }
 
   function setWifiRadioEnabled(enabled: bool) {
