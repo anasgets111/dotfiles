@@ -24,7 +24,6 @@ Singleton {
   property string _wifiIp: ""
   property bool _wifiOnline: false
   property bool _wifiRadioEnabled: true
-  property var _connectQueue: []
   property string connectingSsid: ""
   readonly property int defaultDeviceRefreshCooldownMs: 1000
   readonly property int defaultWifiScanCooldownMs: 10000
@@ -53,7 +52,7 @@ Singleton {
     if (!connId)
       return;
     const ifaceName = (iface || "").trim() || root._wifiInterface;
-    root.execConnect(["nmcli", "connection", "up", "uuid", connId, "ifname", ifaceName]);
+    root.exec(cmdConnect, ["nmcli", "connection", "up", "uuid", connId, "ifname", ifaceName]);
   }
 
   function chooseActiveDevice(devices: var): var {
@@ -74,9 +73,9 @@ Singleton {
       return;
     const dev = root.deviceByInterface(iface);
     if (dev?.connectionUuid)
-      root.execConnect(["nmcli", "connection", "up", "uuid", dev.connectionUuid]);
+      root.exec(cmdConnect, ["nmcli", "connection", "up", "uuid", dev.connectionUuid]);
     else
-      root.execConnect(["nmcli", "device", "connect", iface]);
+      root.exec(cmdConnect, ["nmcli", "device", "connect", iface]);
   }
 
   function connectToWifi(ssid: string, pwd: string, iface: string, hidden: bool) {
@@ -92,7 +91,7 @@ Singleton {
       args.push("password", p);
     if (hidden)
       args.push("hidden", "yes");
-    root.execConnect(args);
+    root.exec(cmdConnect, args);
   }
 
   function deriveDeviceState(devs: var): var {
@@ -135,7 +134,7 @@ Singleton {
 
   function disconnectInterface(iface: string) {
     if (iface)
-      root.execConnect(["nmcli", "device", "disconnect", iface]);
+      root.exec(cmdConnect, ["nmcli", "device", "disconnect", iface]);
   }
 
   function disconnectWifi() {
@@ -147,23 +146,6 @@ Singleton {
       return;
     proc.command = ["env", "LC_ALL=C"].concat(cmd);
     proc.running = true;
-  }
-
-  function execConnect(cmd: var): void {
-    const full = ["env", "LC_ALL=C"].concat(cmd);
-    if (cmdConnect.running) {
-      root._connectQueue.push(full);
-      return;
-    }
-    cmdConnect.command = full;
-    cmdConnect.running = true;
-  }
-
-  function runNextConnectCommand(): void {
-    if (cmdConnect.running || !root._connectQueue.length)
-      return;
-    cmdConnect.command = root._connectQueue.shift();
-    cmdConnect.running = true;
   }
 
   function forgetWifiConnection(id: string) {
@@ -316,19 +298,11 @@ Singleton {
 
   // 3. State Toggles
   function setNetworkingEnabled(enabled: bool) {
-    root.execConnect(["nmcli", "networking", enabled ? "on" : "off"]);
-    if (enabled) {
-      root.execConnect(["nmcli", "radio", "wifi", "on"]);
-      root.connectEthernet();
-    } else {
-      root.disconnectWifi();
-      root.disconnectEthernet();
-      root.execConnect(["nmcli", "radio", "wifi", "off"]);
-    }
+    root.exec(cmdConnect, ["nmcli", "networking", enabled ? "on" : "off"]);
   }
 
   function setWifiRadioEnabled(enabled: bool) {
-    root.execConnect(["nmcli", "radio", "wifi", enabled ? "on" : "off"]);
+    root.exec(cmdConnect, ["nmcli", "radio", "wifi", enabled ? "on" : "off"]);
   }
 
   function updateWifiFlags() {
@@ -395,7 +369,7 @@ Singleton {
   Process {
     id: procStatus
 
-    command: ["env", "LC_ALL=C", "nmcli", "-t", "-f", "WIFI,STATE", "general"]
+    command: ["env", "LC_ALL=C", "nmcli", "-t", "-f", "NETWORKING,WIFI", "general"]
 
     stdout: StdioCollector {
       onStreamFinished: {
@@ -403,8 +377,8 @@ Singleton {
         if (parts.length < 2)
           return;
 
-        const wEnabled = parts[0] === "enabled" || parts[0] === "yes";
-        const nEnabled = parts[1] !== "asleep" && parts[1] !== "disabled";
+        const nEnabled = parts[0] === "enabled" || parts[0] === "yes";
+        const wEnabled = parts[1] === "enabled" || parts[1] === "yes";
 
         if (root._wifiRadioEnabled !== wEnabled)
           root._wifiRadioEnabled = wEnabled;
@@ -508,7 +482,6 @@ Singleton {
     stdout: StdioCollector {
       onStreamFinished: {
         root.refreshAll();
-        root.runNextConnectCommand();
       }
     }
   }
