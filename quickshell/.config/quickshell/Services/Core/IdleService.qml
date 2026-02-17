@@ -39,7 +39,7 @@ Singleton {
   }
 
   function suspend(): void {
-    Quickshell.execDetached(["systemctl", "suspend"]);
+    PowerManagementService.suspend();
   }
 
   function wake(): void {
