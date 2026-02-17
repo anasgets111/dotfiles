@@ -388,16 +388,54 @@ PanelContentBase {
     }
   }
 
+  component ActionIcon: Rectangle {
+    id: btn
+
+    property string icon: ""
+    property color tint: Theme.textActiveColor
+
+    signal clicked
+
+    color: ma.containsMouse ? Qt.rgba(tint.r, tint.g, tint.b, 0.15) : "transparent"
+    implicitHeight: 30
+    implicitWidth: 30
+    radius: 8
+
+    Behavior on color {
+      ColorAnimation {
+        duration: 120
+      }
+    }
+
+    Text {
+      anchors.centerIn: parent
+      color: parent.tint
+      font.family: Theme.fontFamily
+      font.pixelSize: Theme.fontSize
+      opacity: ma.containsMouse ? 1.0 : 0.5
+      text: parent.icon
+    }
+
+    MouseArea {
+      id: ma
+
+      anchors.fill: parent
+      cursorShape: Qt.PointingHandCursor
+      hoverEnabled: true
+
+      onClicked: parent.clicked()
+    }
+  }
   component BandBadge: Rectangle {
     property string band: ""
     readonly property string bv: String(band || "").trim()
 
     color: bv === "6" ? Theme.powerSaveColor : bv === "5" ? Theme.activeColor : Theme.inactiveColor
-    height: Theme.fontSm + 2
+    implicitHeight: Theme.fontSm + 2
+    implicitWidth: bandText.implicitWidth + 6
     opacity: 0.7
     radius: height / 2
     visible: bv !== ""
-    width: bandText.implicitWidth + 6
 
     OText {
       id: bandText
@@ -634,44 +672,6 @@ PanelContentBase {
       }
     }
   }
-  component ActionIcon: Rectangle {
-    id: btn
-
-    property string icon: ""
-    property color tint: Theme.textActiveColor
-
-    signal clicked
-
-    color: ma.containsMouse ? Qt.rgba(tint.r, tint.g, tint.b, 0.15) : "transparent"
-    implicitHeight: 30
-    radius: 8
-    implicitWidth: 30
-
-    Behavior on color {
-      ColorAnimation {
-        duration: 120
-      }
-    }
-
-    Text {
-      anchors.centerIn: parent
-      color: parent.tint
-      font.family: Theme.fontFamily
-      font.pixelSize: Theme.fontSize
-      opacity: ma.containsMouse ? 1.0 : 0.5
-      text: parent.icon
-    }
-
-    MouseArea {
-      id: ma
-
-      anchors.fill: parent
-      cursorShape: Qt.PointingHandCursor
-      hoverEnabled: true
-
-      onClicked: parent.clicked()
-    }
-  }
   component NetworkRow: Rectangle {
     id: row
 
@@ -721,11 +721,11 @@ PanelContentBase {
 
       Rectangle {
         color: Theme.activeColor
-        height: 6
+        implicitHeight: 6
+        implicitWidth: 6
         opacity: 0.5
         radius: 3
         visible: row.isSaved && !rowMa.containsMouse
-        width: 6
       }
 
       BandBadge {
@@ -765,7 +765,7 @@ PanelContentBase {
     signal cancelled
     signal textEdited
 
-    height: 36
+    implicitHeight: 36
 
     onVisibleChanged: if (visible)
       Qt.callLater(() => innerField.forceActiveFocus())
@@ -825,7 +825,7 @@ PanelContentBase {
     readonly property int level: signal_ > 70 ? 3 : signal_ > 40 ? 2 : signal_ > 0 ? 1 : 0
     property int signal_: 0
 
-    height: 18
+    Layout.preferredHeight: 18
     spacing: bars.barSpacing
 
     Repeater {
