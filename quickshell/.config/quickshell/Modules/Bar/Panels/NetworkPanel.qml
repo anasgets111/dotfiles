@@ -573,7 +573,7 @@ PanelContentBase {
         Layout.fillWidth: true
       }
 
-      IconButton {
+      ActionIcon {
         icon: "󰩺"
         tint: Theme.critical
         visible: {
@@ -584,7 +584,7 @@ PanelContentBase {
         onClicked: hero.forgetClicked(hero.network?.ssid || "")
       }
 
-      IconButton {
+      ActionIcon {
         icon: "󱘖"
         tint: Theme.critical
 
@@ -593,9 +593,13 @@ PanelContentBase {
     }
   }
   component HoverButton: Item {
+    id: hbtn
+
     property bool showTopBorder: false
 
     signal clicked
+
+    implicitHeight: Theme.itemHeight
 
     Rectangle {
       anchors.left: parent.left
@@ -630,16 +634,18 @@ PanelContentBase {
       }
     }
   }
-  component IconButton: Rectangle {
+  component ActionIcon: Rectangle {
+    id: btn
+
     property string icon: ""
     property color tint: Theme.textActiveColor
 
     signal clicked
 
     color: ma.containsMouse ? Qt.rgba(tint.r, tint.g, tint.b, 0.15) : "transparent"
-    height: 30
+    implicitHeight: 30
     radius: 8
-    width: 30
+    implicitWidth: 30
 
     Behavior on color {
       ColorAnimation {
@@ -738,7 +744,7 @@ PanelContentBase {
         }
       }
 
-      IconButton {
+      ActionIcon {
         icon: "󰩺"
         tint: Theme.critical
         visible: row.isSaved && rowMa.containsMouse
@@ -852,7 +858,11 @@ PanelContentBase {
     property string icon: ""
     property string text: ""
 
+    implicitHeight: stateContent.implicitHeight
+
     ColumnLayout {
+      id: stateContent
+
       anchors.centerIn: parent
       spacing: Theme.spacingSm
 
