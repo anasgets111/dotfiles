@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 import qs.Config
 import qs.Components
 import qs.Services.Core
@@ -10,16 +11,21 @@ import qs.Services.Core
 PanelContentBase {
   id: root
 
-  readonly property int actionButtonSize: itemHeight * 0.8
-  readonly property bool active: BluetoothService.available && BluetoothService.enabled
-  readonly property color borderColor: Theme.borderLight
-  readonly property int cardPadding: padding * 0.9
-  readonly property int cardSpacing: padding * 0.4
-  readonly property int iconSize: itemHeight * 0.9
-  readonly property int itemHeight: Theme.itemHeight
-  readonly property int padding: Theme.spacingSm
-  readonly property real preferredHeight: contentLayout.implicitHeight + root.padding * 2
-  readonly property real preferredWidth: 400
+  readonly property bool active: BluetoothService.available
+    && BluetoothService.enabled
+  readonly property var connectedDevices: {
+    if (!ready) return [];
+    return (BluetoothService.sortedDevices || [])
+      .filter(d => d?.connected);
+  }
+  readonly property var otherDevices: {
+    if (!ready) return [];
+    return (BluetoothService.sortedDevices || [])
+      .filter(d => !d?.connected);
+  }
+  readonly property real preferredHeight: mainLayout.implicitHeight
+    + Theme.spacingMd * 2
+  readonly property real preferredWidth: 360
   readonly property bool ready: BluetoothService.available
   property string showCodecFor: ""
 
@@ -56,589 +62,757 @@ PanelContentBase {
     showCodecFor = "";
     BluetoothService.stopDiscovery();
   }
+
   Component.onDestruction: {
     showCodecFor = "";
     BluetoothService.stopDiscovery();
   }
 
+  // ── Outer Shell ──
+  Rectangle {
+    anchors.fill: parent
+    color: Theme.bgElevatedAlt
+    radius: 16
+    layer.enabled: true
+    layer.effect: MultiEffect {
+      shadowEnabled: true
+      shadowColor: Qt.rgba(0, 0, 0, 0.18)
+      shadowVerticalOffset: 4
+      shadowBlur: 0.5
+    }
+  }
+
   ColumnLayout {
-    id: contentLayout
+    id: mainLayout
 
-    spacing: Theme.spacingXs
-    width: parent.width - root.padding * 2
-    x: root.padding
-    y: root.padding
+    anchors.fill: parent
+    anchors.margins: Theme.spacingMd
+    spacing: 0
 
-    // Toggle Cards Row
+    // ═══════════════════════════════════════════
+    // SECTION 1 — Toggle Pills
+    // ═══════════════════════════════════════════
     RowLayout {
       Layout.fillWidth: true
-      spacing: root.padding * 1.25
+      Layout.bottomMargin: Theme.spacingMd
+      spacing: Theme.spacingXs
 
-      Rectangle {
+      TogglePill {
+        icon: "󰂯"
+        label: "Bluetooth"
+        active: root.ready
+        checked: BluetoothService.enabled
+        onToggled: c => {
+          if (!c) BluetoothService.stopDiscovery();
+          BluetoothService.setEnabled(c);
+        }
+      }
+
+      TogglePill {
+        icon: "󰐾"
+        label: "Visible"
+        active: root.active
+        checked: BluetoothService.discoverable
+        onToggled: c => BluetoothService.setDiscoverable(c)
+      }
+
+      TogglePill {
+        icon: BluetoothService.discovering ? "󰀘" : "󰀘"
+        label: "Scan"
+        active: root.active
+        checked: BluetoothService.discovering
+        spinning: BluetoothService.discovering
+        onToggled: c => c
+          ? BluetoothService.startDiscovery()
+          : BluetoothService.stopDiscovery()
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // SECTION 2 — Connected Device Hero Cards
+    // ═══════════════════════════════════════════
+    Repeater {
+      model: root.connectedDevices
+
+      delegate: HeroCard {
+        required property var modelData
+
         Layout.fillWidth: true
-        Layout.preferredHeight: btCol.implicitHeight + root.cardPadding * 1.3
-        border.color: root.borderColor
-        border.width: 1
-        color: Theme.bgElevated
-        opacity: root.ready ? 1 : 0.5
-        radius: Theme.itemRadius
+        Layout.bottomMargin: Theme.spacingSm
+        device: modelData
+        showCodecFor: root.showCodecFor
 
-        Behavior on opacity {
-          NumberAnimation {
-            duration: Theme.animationDuration
-          }
-        }
+        onAction: (a, d) => root.handleAction(a, d)
+      }
+    }
 
-        ColumnLayout {
-          id: btCol
+    // ═══════════════════════════════════════════
+    // SECTION 3 — Device List
+    // ═══════════════════════════════════════════
+    ColumnLayout {
+      Layout.fillWidth: true
+      spacing: 0
+      visible: root.active && root.otherDevices.length > 0
 
-          anchors.fill: parent
-          anchors.margins: root.cardPadding
-          spacing: root.cardSpacing
-
-          OText {
-            bold: true
-            color: root.ready ? Theme.textActiveColor : Theme.textInactiveColor
-            text: qsTr("Bluetooth")
-          }
-
-          RowLayout {
-            spacing: root.cardPadding
-
-            Rectangle {
-              border.color: Qt.rgba(0, 0, 0, 0.12)
-              border.width: 1
-              color: root.ready && BluetoothService.enabled ? Theme.activeColor : Theme.inactiveColor
-              implicitHeight: root.iconSize
-              implicitWidth: root.iconSize
-              radius: height / 2
-
-              Behavior on color {
-                ColorAnimation {
-                  duration: Theme.animationDuration
-                }
-              }
-
-              Text {
-                anchors.centerIn: parent
-                color: root.ready && BluetoothService.enabled ? Theme.textActiveColor : Theme.textInactiveColor
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize * 0.95
-                text: "󰂯"
-              }
-            }
-
-            Item {
-              Layout.fillWidth: true
-            }
-
-            OToggle {
-              id: bluetoothToggle
-
-              Layout.preferredHeight: Theme.itemHeight * 0.72
-              Layout.preferredWidth: Theme.itemHeight * 2.6
-              checked: BluetoothService.enabled
-              disabled: !root.ready
-
-              onToggled: checked => {
-                if (!checked)
-                  BluetoothService.stopDiscovery();
-                BluetoothService.setEnabled(checked);
-                Qt.callLater(() => bluetoothToggle.checked = BluetoothService.enabled);
-              }
-            }
-          }
-        }
+      OText {
+        Layout.bottomMargin: Theme.spacingXs
+        color: Theme.textInactiveColor
+        size: "xs"
+        bold: true
+        text: "DEVICES"
       }
 
       Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: discoverableCol.implicitHeight + root.cardPadding * 1.3
-        border.color: root.borderColor
-        border.width: 1
-        color: Theme.bgElevated
-        radius: Theme.itemRadius
-        visible: root.active
-
-        Behavior on opacity {
-          NumberAnimation {
-            duration: Theme.animationDuration
-          }
-        }
-
-        ColumnLayout {
-          id: discoverableCol
-
-          anchors.fill: parent
-          anchors.margins: root.cardPadding
-          spacing: root.cardSpacing
-
-          OText {
-            bold: true
-            color: root.active ? Theme.textActiveColor : Theme.textInactiveColor
-            text: qsTr("Discoverable")
-          }
-
-          RowLayout {
-            spacing: root.cardPadding
-
-            Rectangle {
-              border.color: Qt.rgba(0, 0, 0, 0.12)
-              border.width: 1
-              color: root.active && BluetoothService.discoverable ? Qt.lighter(Theme.onHoverColor, 1.25) : Qt.darker(Theme.inactiveColor, 1.1)
-              implicitHeight: root.iconSize
-              implicitWidth: root.iconSize
-              radius: height / 2
-
-              Behavior on color {
-                ColorAnimation {
-                  duration: Theme.animationDuration
-                }
-              }
-
-              Text {
-                anchors.centerIn: parent
-                color: root.active ? Theme.textContrast(parent.color) : Theme.textInactiveColor
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize * 0.95
-                text: "󰐾"
-              }
-            }
-
-            Item {
-              Layout.fillWidth: true
-            }
-
-            OToggle {
-              id: discoverableToggle
-
-              Layout.preferredHeight: Theme.itemHeight * 0.72
-              Layout.preferredWidth: Theme.itemHeight * 2.6
-              checked: BluetoothService.discoverable
-              disabled: !root.active
-
-              onToggled: checked => {
-                BluetoothService.setDiscoverable(checked);
-                Qt.callLater(() => discoverableToggle.checked = BluetoothService.discoverable);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    Rectangle {
-      Layout.fillWidth: true
-      Layout.preferredHeight: discoveryCol.implicitHeight + root.cardPadding * 1.3
-      Layout.topMargin: root.padding * 0.5
-      border.color: root.borderColor
-      border.width: 1
-      color: Theme.bgElevated
-      radius: Theme.itemRadius
-      visible: root.active
-
-      Behavior on opacity {
-        NumberAnimation {
-          duration: Theme.animationDuration
-        }
-      }
-
-      ColumnLayout {
-        id: discoveryCol
-
-        anchors.fill: parent
-        anchors.margins: root.cardPadding
-        spacing: root.cardSpacing
-
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: root.cardPadding
-
-          Rectangle {
-            border.color: Qt.rgba(0, 0, 0, 0.12)
-            border.width: 1
-            color: root.active && BluetoothService.discovering ? Qt.lighter(Theme.powerSaveColor, 1.15) : Qt.darker(Theme.inactiveColor, 1.1)
-            implicitHeight: root.iconSize
-            implicitWidth: root.iconSize
-            radius: height / 2
-
-            Behavior on color {
-              ColorAnimation {
-                duration: Theme.animationDuration
-              }
-            }
-
-            Text {
-              anchors.centerIn: parent
-              color: root.active ? Theme.textContrast(parent.color) : Theme.textInactiveColor
-              font.family: Theme.fontFamily
-              font.pixelSize: Theme.fontSize * 0.95
-              text: "󰀘"
-
-              RotationAnimation on rotation {
-                duration: 2000
-                from: 0
-                loops: Animation.Infinite
-                running: BluetoothService.discovering
-                to: 360
-              }
-            }
-          }
-
-          ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacingXs / 2
-
-            OText {
-              bold: true
-              color: root.active ? Theme.textActiveColor : Theme.textInactiveColor
-              text: qsTr("Discovery")
-            }
-
-            OText {
-              color: Theme.textInactiveColor
-              size: "sm"
-              text: BluetoothService.discovering ? qsTr("Scanning for devices…") : qsTr("No active scan")
-              visible: root.active
-            }
-          }
-        }
-      }
-    }
-
-    // Device List
-    Rectangle {
-      Layout.fillWidth: true
-      Layout.topMargin: root.padding * 0.5
-      border.color: root.borderColor
-      border.width: 1
-      clip: true
-      color: Theme.bgElevatedAlt
-      implicitHeight: visible ? deviceList.contentHeight + root.cardPadding * 2 : 0
-      radius: Theme.itemRadius
-      visible: root.active && deviceList.count > 0
-
-      ListView {
-        id: deviceList
-
-        readonly property int maxVisibleItems: 4
-
-        anchors.fill: parent
-        anchors.margins: root.cardPadding
-        boundsBehavior: Flickable.StopAtBounds
+        Layout.preferredHeight: Math.min(
+          deviceList.contentHeight,
+          Theme.itemHeight * 6
+        )
+        color: "transparent"
         clip: true
-        implicitHeight: Math.min(contentHeight, maxVisibleItems * root.itemHeight + (maxVisibleItems - 1) * spacing)
-        interactive: contentHeight > height
-        model: root.ready ? BluetoothService.sortedDevices : []
-        reuseItems: true
-        spacing: Theme.spacingXs
 
-        ScrollBar.vertical: ScrollBar {
-          policy: deviceList.contentHeight > deviceList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-          width: Theme.scrollBarWidth
-        }
-        delegate: DeviceItem {
-          width: ListView.view.width
+        ListView {
+          id: deviceList
 
-          onTriggered: (action, dev) => root.handleAction(action, dev)
+          anchors.fill: parent
+          boundsBehavior: Flickable.StopAtBounds
+          interactive: contentHeight > height
+          model: root.otherDevices
+          spacing: 2
+
+          ScrollBar.vertical: ScrollBar {
+            policy: deviceList.contentHeight > deviceList.height
+              ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+            width: 4
+          }
+
+          delegate: DeviceRow {
+            required property var modelData
+            required property int index
+
+            width: ListView.view.width
+            device: modelData
+
+            onAction: (a, d) => root.handleAction(a, d)
+          }
         }
       }
     }
 
-    // Bottom spacer for padding (needs extra to account for y offset)
+    // ── Empty state ──
     Item {
       Layout.fillWidth: true
-      Layout.preferredHeight: root.padding * 1.5
-    }
-  }
-
-  component CodecItem: Item {
-    id: codecItem
-
-    required property string currentCodec
-    required property int index
-    readonly property bool isCurrent: modelData.name === currentCodec
-    readonly property bool isHovered: codecMouse.containsMouse
-    required property var modelData
-
-    signal selected(string profile)
-
-    Layout.fillWidth: true
-    Layout.preferredHeight: Theme.itemHeight * 0.8
-
-    Rectangle {
-      anchors.fill: parent
-      border.color: codecItem.isCurrent ? Theme.activeColor : "transparent"
-      border.width: codecItem.isCurrent ? 1 : 0
-      color: codecItem.isCurrent ? Theme.activeSubtle : (codecItem.isHovered ? Theme.borderLight : "transparent")
-      radius: Theme.itemRadius
-
-      Behavior on color {
-        ColorAnimation {
-          duration: Theme.animationDuration
-        }
-      }
-    }
-
-    RowLayout {
-      anchors.fill: parent
-      anchors.leftMargin: root.padding
-      anchors.rightMargin: root.padding
-      spacing: Theme.spacingSm
-
-      Rectangle {
-        color: codecItem.modelData.qualityColor || Theme.inactiveColor
-        implicitHeight: Theme.spacingSm
-        implicitWidth: Theme.spacingSm
-        opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : Theme.opacityDisabled
-        radius: Theme.radiusXs
-      }
-
-      OText {
-        Layout.fillWidth: true
-        bold: codecItem.isCurrent || codecItem.isHovered
-        color: codecItem.isCurrent ? Theme.activeColor : (codecItem.isHovered ? Theme.textActiveColor : Theme.textInactiveColor)
-        opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : 0.7
-        size: "sm"
-        text: codecItem.modelData.name || ""
-      }
-
-      OText {
-        color: codecItem.isCurrent ? Theme.activeColor : (codecItem.isHovered ? Theme.textActiveColor : Theme.textInactiveColor)
-        opacity: codecItem.isCurrent || codecItem.isHovered ? 1 : 0.6
-        size: "xs"
-        text: codecItem.modelData.description || ""
-      }
-
-      Rectangle {
-        Layout.preferredHeight: Theme.controlHeightXs
-        Layout.preferredWidth: Theme.controlHeightXs
-        border.color: codecItem.isCurrent ? Theme.activeColor : "transparent"
-        border.width: Theme.borderWidthMedium
-        color: codecItem.isCurrent ? Theme.activeColor : "transparent"
-        radius: Theme.radiusMd
-
-        OText {
-          anchors.centerIn: parent
-          bold: true
-          color: Theme.bgColor
-          size: "sm"
-          text: "✓"
-          visible: codecItem.isCurrent
-        }
-      }
-    }
-
-    MouseArea {
-      id: codecMouse
-
-      anchors.fill: parent
-      cursorShape: Qt.PointingHandCursor
-      hoverEnabled: true
-
-      onClicked: if (!codecItem.isCurrent)
-        codecItem.selected(codecItem.modelData.profile)
-    }
-  }
-  component DeviceItem: Item {
-    id: deviceItem
-
-    readonly property string addr: device?.address || ""
-    readonly property var availableCodecs: BluetoothService.deviceAvailableCodecs[addr] || []
-    readonly property real batteryLevel: hasBattery ? device.battery : -1
-    readonly property string batteryStr: BluetoothService.getBattery(device)
-    readonly property bool canConnect: device && !device.connected && !isBusy && !device.blocked
-    readonly property bool canDisconnect: device && device.connected && !isBusy
-    readonly property string currentCodec: BluetoothService.deviceCodecs[addr] || ""
-    readonly property var device: modelData
-    readonly property bool hasBattery: device?.batteryAvailable && device.battery > 0
-    property bool hovered: false
-    readonly property string icon: BluetoothService.getDeviceIcon(device)
-    readonly property bool isAudio: BluetoothService.isAudioDevice(device)
-    readonly property bool isBusy: BluetoothService.isDeviceBusy(device)
-    readonly property bool isConnected: device?.connected || false
-    readonly property bool isPaired: device?.paired || device?.trusted || false
-    required property var modelData
-    readonly property string name: BluetoothService.getDeviceName(device) || qsTr("Unknown Device")
-    readonly property bool showCodecSelector: root.showCodecFor === addr && availableCodecs.length > 0
-    readonly property string statusText: BluetoothService.getStatusString(device)
-    readonly property color textColor: hovered ? Theme.textOnHoverColor : Theme.textActiveColor
-
-    signal triggered(string action, var device)
-
-    height: Theme.itemHeight + (showCodecSelector ? availableCodecs.length * (Theme.itemHeight * 0.8) + root.padding : 0)
-
-    Behavior on height {
-      NumberAnimation {
-        duration: Theme.animationDuration
-      }
-    }
-
-    Rectangle {
-      anchors.fill: parent
-      color: (deviceItem.hovered && !deviceItem.showCodecSelector) ? Theme.borderMedium : "transparent"
-      radius: Theme.itemRadius
-
-      Behavior on color {
-        ColorAnimation {
-          duration: Theme.animationDuration
-        }
-      }
-    }
-
-    MouseArea {
-      anchors.fill: parent
-      cursorShape: Qt.PointingHandCursor
-      hoverEnabled: true
-
-      onClicked: {
-        if (deviceItem.canConnect)
-          deviceItem.triggered("connect", deviceItem.device);
-        else if (deviceItem.canDisconnect)
-          deviceItem.triggered("disconnect", deviceItem.device);
-      }
-      onEntered: deviceItem.hovered = true
-      onExited: deviceItem.hovered = false
+      Layout.fillHeight: true
+      Layout.minimumHeight: 120
+      visible: root.active
+        && root.connectedDevices.length === 0
+        && root.otherDevices.length === 0
 
       ColumnLayout {
-        anchors.fill: parent
-        spacing: Theme.spacingXs
+        anchors.centerIn: parent
+        spacing: Theme.spacingSm
 
-        RowLayout {
+        Text {
+          Layout.alignment: Qt.AlignHCenter
+          color: Theme.textInactiveColor
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize * 2
+          text: "󰂲"
+          opacity: 0.4
+        }
+
+        OText {
+          Layout.alignment: Qt.AlignHCenter
+          color: Theme.textInactiveColor
+          text: BluetoothService.discovering
+            ? qsTr("Scanning\u2026") : qsTr("No devices found")
+        }
+      }
+    }
+
+    // ── Disabled state ──
+    Item {
+      Layout.fillWidth: true
+      Layout.fillHeight: true
+      Layout.minimumHeight: 120
+      visible: !root.active
+
+      ColumnLayout {
+        anchors.centerIn: parent
+        spacing: Theme.spacingSm
+
+        Text {
+          Layout.alignment: Qt.AlignHCenter
+          color: Theme.textInactiveColor
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize * 2
+          text: "󰂲"
+          opacity: 0.3
+        }
+
+        OText {
+          Layout.alignment: Qt.AlignHCenter
+          color: Theme.textInactiveColor
+          text: !root.ready
+            ? qsTr("Bluetooth Unavailable")
+            : qsTr("Bluetooth Off")
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════
+  // INLINE COMPONENTS
+  // ═══════════════════════════════════════════════
+
+  // ── Toggle Pill ──
+  component TogglePill: Rectangle {
+    id: pill
+
+    property bool active: true
+    property bool checked: false
+    required property string icon
+    required property string label
+    property bool spinning: false
+
+    signal toggled(bool checked)
+
+    Layout.fillWidth: true
+    Layout.preferredHeight: 56
+    radius: 12
+    color: pill.checked && pill.active
+      ? Theme.activeSubtle : Theme.bgElevated
+    border.color: pill.checked && pill.active
+      ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g,
+          Theme.activeColor.b, 0.3)
+      : "transparent"
+    border.width: 1
+    opacity: pill.active ? 1.0 : Theme.opacityDisabled
+
+    Behavior on color { ColorAnimation { duration: 150 } }
+    Behavior on border.color { ColorAnimation { duration: 150 } }
+    Behavior on opacity { NumberAnimation { duration: 150 } }
+
+    MouseArea {
+      anchors.fill: parent
+      cursorShape: pill.active
+        ? Qt.PointingHandCursor : Qt.ArrowCursor
+      enabled: pill.active
+      onClicked: pill.toggled(!pill.checked)
+    }
+
+    ColumnLayout {
+      anchors.centerIn: parent
+      spacing: 4
+
+      Text {
+        id: pillIcon
+
+        Layout.alignment: Qt.AlignHCenter
+        color: pill.checked && pill.active
+          ? Theme.activeColor : Theme.textInactiveColor
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize * 1.3
+        text: pill.icon
+
+        Behavior on color { ColorAnimation { duration: 150 } }
+
+        RotationAnimation on rotation {
+          duration: 2000
+          from: 0
+          to: 360
+          loops: Animation.Infinite
+          running: pill.spinning
+        }
+      }
+
+      OText {
+        Layout.alignment: Qt.AlignHCenter
+        color: pill.checked && pill.active
+          ? Theme.activeColor : Theme.textInactiveColor
+        size: "xs"
+        bold: pill.checked
+        text: pill.label
+
+        Behavior on color { ColorAnimation { duration: 150 } }
+      }
+    }
+  }
+
+  // ── Hero Connected Card ──
+  component HeroCard: Rectangle {
+    id: hero
+
+    property var device: null
+    property string showCodecFor: ""
+
+    readonly property string addr: device?.address || ""
+    readonly property var availableCodecs:
+      BluetoothService.deviceAvailableCodecs[addr] || []
+    readonly property string currentCodec:
+      BluetoothService.deviceCodecs[addr] || ""
+    readonly property bool hasBattery:
+      device?.batteryAvailable && device.battery > 0
+    readonly property string icon:
+      BluetoothService.getDeviceIcon(device)
+    readonly property bool isAudio:
+      BluetoothService.isAudioDevice(device)
+    readonly property bool isPaired:
+      device?.paired || device?.trusted || false
+    readonly property string name:
+      BluetoothService.getDeviceName(device) || qsTr("Unknown")
+    readonly property bool showCodecs:
+      showCodecFor === addr && availableCodecs.length > 0
+
+    signal action(string act, var dev)
+
+    implicitHeight: visible
+      ? heroCol.implicitHeight + Theme.spacingSm * 2 : 0
+    radius: 14
+    color: Theme.activeSubtle
+    border.color: Qt.rgba(Theme.activeColor.r,
+      Theme.activeColor.g, Theme.activeColor.b, 0.25)
+    border.width: 1
+
+    Behavior on implicitHeight {
+      NumberAnimation {
+        duration: 200; easing.type: Easing.OutCubic
+      }
+    }
+
+    ColumnLayout {
+      id: heroCol
+
+      anchors.fill: parent
+      anchors.margins: Theme.spacingSm
+      anchors.leftMargin: Theme.spacingMd
+      anchors.rightMargin: Theme.spacingSm
+      spacing: 0
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingSm
+
+        Text {
+          color: Theme.activeColor
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize * 1.2
+          text: hero.icon
+        }
+
+        ColumnLayout {
           Layout.fillWidth: true
-          Layout.preferredHeight: Theme.itemHeight
-          spacing: Theme.spacingSm
+          spacing: 2
 
-          Text {
-            Layout.alignment: Qt.AlignVCenter
-            Layout.leftMargin: root.padding
-            color: deviceItem.isConnected ? Theme.activeColor : deviceItem.textColor
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            text: deviceItem.icon
-
-            Behavior on color {
-              ColorAnimation {
-                duration: Theme.animationDuration
-              }
-            }
-          }
-
-          ColumnLayout {
+          OText {
+            text: hero.name
+            bold: true
+            color: Theme.activeColor
+            elide: Text.ElideRight
             Layout.fillWidth: true
+          }
+
+          RowLayout {
+            spacing: Theme.spacingXs
 
             OText {
-              Layout.fillWidth: true
-              color: deviceItem.textColor
-              elide: Text.ElideRight
-              text: deviceItem.name
+              text: qsTr("Connected")
+              size: "xs"
+              color: Qt.rgba(Theme.activeColor.r,
+                Theme.activeColor.g,
+                Theme.activeColor.b, 0.7)
+            }
 
-              Behavior on color {
-                ColorAnimation {
-                  duration: Theme.animationDuration
-                }
+            // Battery badge
+            Rectangle {
+              visible: hero.hasBattery
+              width: battLabel.implicitWidth + 8
+              height: Theme.fontSm + 4
+              radius: height / 2
+              color: {
+                const b = hero.device?.battery || 0;
+                if (b <= 10) return Theme.critical;
+                if (b <= 20) return Theme.warning;
+                return Theme.activeColor;
+              }
+              opacity: 0.85
+
+              OText {
+                id: battLabel
+                anchors.centerIn: parent
+                size: "xs"
+                bold: true
+                color: Theme.bgColor
+                text: BluetoothService.getBattery(hero.device)
               }
             }
 
-            OText {
-              color: Theme.textInactiveColor
-              size: "xs"
-              text: deviceItem.statusText
-              visible: text !== ""
-            }
-          }
+            // Codec badge
+            Rectangle {
+              visible: hero.currentCodec !== ""
+              width: codecLabel.implicitWidth + 8
+              height: Theme.fontSm + 4
+              radius: height / 2
+              color: Theme.inactiveColor
+              opacity: 0.6
 
-          Rectangle {
-            Layout.preferredHeight: Theme.itemHeight * 0.6
-            Layout.preferredWidth: Theme.itemHeight * 2
-            color: deviceItem.batteryLevel <= 0.1 ? Theme.critical : (deviceItem.batteryLevel <= 0.2 ? Theme.warning : Theme.activeColor)
-            radius: height / 2
-            visible: deviceItem.hasBattery
-
-            Behavior on color {
-              ColorAnimation {
-                duration: Theme.animationDuration
+              OText {
+                id: codecLabel
+                anchors.centerIn: parent
+                size: "xs"
+                bold: true
+                color: Theme.bgColor
+                text: hero.currentCodec
               }
             }
-
-            OText {
-              anchors.centerIn: parent
-              bold: true
-              color: Theme.textContrast(parent.color)
-              size: "xs"
-              text: deviceItem.batteryStr
-            }
           }
+        }
 
-          IconButton {
-            Layout.preferredHeight: root.actionButtonSize
-            Layout.preferredWidth: root.actionButtonSize
-            colorBg: deviceItem.showCodecSelector ? Theme.activeColor : Theme.onHoverColor
-            icon: "󰓃"
-            tooltipText: deviceItem.currentCodec ? qsTr("Codec: %1").arg(deviceItem.currentCodec) : qsTr("Select Codec")
-            visible: deviceItem.isAudio && deviceItem.isConnected
+        Item { Layout.fillWidth: true }
 
-            onClicked: deviceItem.triggered("toggle-codec", deviceItem.device)
-          }
+        // Codec toggle
+        Rectangle {
+          Layout.preferredWidth: 30
+          Layout.preferredHeight: 30
+          radius: 8
+          visible: hero.isAudio
+          color: hero.showCodecs
+            ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g,
+                Theme.activeColor.b, 0.2)
+            : codecMa.containsMouse
+              ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g,
+                  Theme.activeColor.b, 0.1)
+              : "transparent"
 
-          IconButton {
-            Layout.preferredHeight: root.actionButtonSize
-            Layout.preferredWidth: root.actionButtonSize
-            colorBg: Theme.critical
-            icon: "󰩺"
-            tooltipText: qsTr("Forget Device")
-            visible: deviceItem.isPaired
-
-            onClicked: deviceItem.triggered("forget", deviceItem.device)
-          }
-
-          IconButton {
-            Layout.preferredHeight: root.actionButtonSize
-            Layout.preferredWidth: root.actionButtonSize
-            Layout.rightMargin: root.padding
-            colorBg: deviceItem.isConnected ? Theme.warning : Theme.activeColor
-            enabled: deviceItem.canConnect || deviceItem.canDisconnect
-            icon: deviceItem.isConnected ? "󱘖" : "󰌘"
-            tooltipText: deviceItem.isConnected ? qsTr("Disconnect") : qsTr("Connect")
-            visible: !deviceItem.isBusy
-
-            onClicked: deviceItem.triggered(deviceItem.isConnected ? "disconnect" : "connect", deviceItem.device)
-          }
+          Behavior on color { ColorAnimation { duration: 120 } }
 
           Text {
-            Layout.rightMargin: root.padding
+            anchors.centerIn: parent
             color: Theme.activeColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
-            text: "󰇙"
-            visible: deviceItem.isBusy
+            text: "󰓃"
+            opacity: hero.showCodecs || codecMa.containsMouse
+              ? 1.0 : 0.5
+          }
 
-            RotationAnimation on rotation {
-              duration: 1000
-              from: 0
-              loops: Animation.Infinite
-              running: deviceItem.isBusy
-              to: 360
-            }
+          MouseArea {
+            id: codecMa
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+            onClicked: hero.action("toggle-codec", hero.device)
           }
         }
 
-        ColumnLayout {
-          Layout.fillWidth: true
-          Layout.leftMargin: root.padding * 2
-          Layout.rightMargin: root.padding
-          spacing: Theme.spacingXs / 2
-          visible: deviceItem.showCodecSelector
+        // Forget
+        Rectangle {
+          Layout.preferredWidth: 30
+          Layout.preferredHeight: 30
+          radius: 8
+          visible: hero.isPaired
+          color: heroForgetMa.containsMouse
+            ? Qt.rgba(Theme.critical.r, Theme.critical.g,
+                Theme.critical.b, 0.15)
+            : "transparent"
 
-          Repeater {
-            model: deviceItem.availableCodecs
+          Behavior on color { ColorAnimation { duration: 120 } }
 
-            delegate: CodecItem {
-              currentCodec: deviceItem.currentCodec
+          Text {
+            anchors.centerIn: parent
+            color: Theme.critical
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize
+            text: "󰩺"
+            opacity: heroForgetMa.containsMouse ? 1.0 : 0.5
+          }
 
-              onSelected: profile => deviceItem.triggered("codec:" + profile, deviceItem.device)
+          MouseArea {
+            id: heroForgetMa
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+            onClicked: hero.action("forget", hero.device)
+          }
+        }
+
+        // Disconnect
+        Rectangle {
+          Layout.preferredWidth: 30
+          Layout.preferredHeight: 30
+          radius: 8
+          color: heroDiscMa.containsMouse
+            ? Qt.rgba(Theme.critical.r, Theme.critical.g,
+                Theme.critical.b, 0.15)
+            : "transparent"
+
+          Behavior on color { ColorAnimation { duration: 120 } }
+
+          Text {
+            anchors.centerIn: parent
+            color: Theme.critical
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize
+            text: "󱘖"
+            opacity: heroDiscMa.containsMouse ? 1.0 : 0.5
+          }
+
+          MouseArea {
+            id: heroDiscMa
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+            onClicked: hero.action("disconnect", hero.device)
+          }
+        }
+      }
+
+      // ── Codec Selector ──
+      ColumnLayout {
+        Layout.fillWidth: true
+        Layout.topMargin: hero.showCodecs ? Theme.spacingSm : 0
+        Layout.leftMargin: Theme.spacingMd
+        spacing: 2
+        visible: hero.showCodecs
+
+        Repeater {
+          model: hero.availableCodecs
+
+          delegate: Rectangle {
+            id: codecRow
+
+            required property var modelData
+            required property int index
+
+            readonly property bool isCurrent:
+              modelData.name === hero.currentCodec
+
+            Layout.fillWidth: true
+            height: Theme.itemHeight * 0.7
+            radius: 8
+            color: codecRow.isCurrent
+              ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g,
+                  Theme.activeColor.b, 0.15)
+              : codecRowMa.containsMouse
+                ? Qt.rgba(Theme.activeColor.r,
+                    Theme.activeColor.g,
+                    Theme.activeColor.b, 0.08)
+                : "transparent"
+
+            Behavior on color {
+              ColorAnimation { duration: 100 }
+            }
+
+            MouseArea {
+              id: codecRowMa
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              hoverEnabled: true
+              onClicked: if (!codecRow.isCurrent)
+                hero.action(
+                  "codec:" + codecRow.modelData.profile,
+                  hero.device)
+            }
+
+            RowLayout {
+              anchors.fill: parent
+              anchors.leftMargin: Theme.spacingSm
+              anchors.rightMargin: Theme.spacingSm
+              spacing: Theme.spacingSm
+
+              Rectangle {
+                width: 6
+                height: 6
+                radius: 3
+                color: codecRow.modelData.qualityColor
+                  || Theme.inactiveColor
+              }
+
+              OText {
+                Layout.fillWidth: true
+                text: codecRow.modelData.name || ""
+                size: "xs"
+                bold: codecRow.isCurrent
+                color: codecRow.isCurrent
+                  ? Theme.activeColor
+                  : Theme.textActiveColor
+              }
+
+              OText {
+                text: codecRow.modelData.description || ""
+                size: "xs"
+                color: Theme.textInactiveColor
+              }
+
+              Text {
+                visible: codecRow.isCurrent
+                color: Theme.activeColor
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize * 0.8
+                text: "󰄬"
+              }
             }
           }
+        }
+      }
+    }
+  }
+
+  // ── Device Row ──
+  component DeviceRow: Rectangle {
+    id: row
+
+    property var device: null
+
+    readonly property string addr: device?.address || ""
+    readonly property bool canConnect:
+      device && !device.connected
+      && !isBusy && !device.blocked
+    readonly property bool hasBattery:
+      device?.batteryAvailable && device.battery > 0
+    readonly property string icon:
+      BluetoothService.getDeviceIcon(device)
+    readonly property bool isBusy:
+      BluetoothService.isDeviceBusy(device)
+    readonly property bool isPaired:
+      device?.paired || device?.trusted || false
+    readonly property string name:
+      BluetoothService.getDeviceName(device) || qsTr("Unknown")
+    readonly property string statusText:
+      BluetoothService.getStatusString(device)
+
+    signal action(string act, var dev)
+
+    height: Theme.itemHeight
+    radius: 10
+    color: rowMa.containsMouse
+      ? Qt.rgba(Theme.textActiveColor.r,
+          Theme.textActiveColor.g,
+          Theme.textActiveColor.b, 0.06)
+      : "transparent"
+
+    Behavior on color { ColorAnimation { duration: 120 } }
+
+    MouseArea {
+      id: rowMa
+      anchors.fill: parent
+      cursorShape: row.canConnect
+        ? Qt.PointingHandCursor : Qt.ArrowCursor
+      hoverEnabled: true
+      onClicked: if (row.canConnect)
+        row.action("connect", row.device)
+    }
+
+    RowLayout {
+      anchors.fill: parent
+      anchors.leftMargin: Theme.spacingSm
+      anchors.rightMargin: Theme.spacingSm
+      spacing: Theme.spacingSm
+
+      Text {
+        color: Theme.textActiveColor
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize
+        text: row.icon
+      }
+
+      ColumnLayout {
+        Layout.fillWidth: true
+        spacing: 0
+
+        OText {
+          text: row.name
+          elide: Text.ElideRight
+          color: Theme.textActiveColor
+          Layout.fillWidth: true
+        }
+
+        OText {
+          text: row.statusText
+          size: "xs"
+          color: Theme.textInactiveColor
+          visible: text !== ""
+        }
+      }
+
+      // Battery
+      Rectangle {
+        visible: row.hasBattery
+        width: rowBattLabel.implicitWidth + 8
+        height: Theme.fontSm + 4
+        radius: height / 2
+        color: {
+          const b = row.device?.battery || 0;
+          if (b <= 10) return Theme.critical;
+          if (b <= 20) return Theme.warning;
+          return Theme.activeColor;
+        }
+        opacity: 0.7
+
+        OText {
+          id: rowBattLabel
+          anchors.centerIn: parent
+          size: "xs"
+          bold: true
+          color: Theme.bgColor
+          text: BluetoothService.getBattery(row.device)
+        }
+      }
+
+      // Paired dot
+      Rectangle {
+        visible: row.isPaired && !rowMa.containsMouse
+        width: 6
+        height: 6
+        radius: 3
+        color: Theme.activeColor
+        opacity: 0.5
+      }
+
+      // Forget — visible for paired on hover
+      Rectangle {
+        visible: row.isPaired && rowMa.containsMouse
+        width: 26
+        height: 26
+        radius: 6
+        color: rowForgetMa.containsMouse
+          ? Qt.rgba(Theme.critical.r, Theme.critical.g,
+              Theme.critical.b, 0.15)
+          : "transparent"
+
+        Behavior on color { ColorAnimation { duration: 100 } }
+
+        Text {
+          anchors.centerIn: parent
+          color: Theme.critical
+          font.family: Theme.fontFamily
+          font.pixelSize: Theme.fontSize * 0.85
+          text: "󰩺"
+          opacity: rowForgetMa.containsMouse ? 1.0 : 0.45
+        }
+
+        MouseArea {
+          id: rowForgetMa
+          anchors.fill: parent
+          cursorShape: Qt.PointingHandCursor
+          hoverEnabled: true
+          onClicked: row.action("forget", row.device)
+        }
+      }
+
+      // Busy spinner
+      Text {
+        visible: row.isBusy
+        color: Theme.activeColor
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize
+        text: "󰇙"
+
+        RotationAnimation on rotation {
+          duration: 1000
+          from: 0; to: 360
+          loops: Animation.Infinite
+          running: row.isBusy
         }
       }
     }
