@@ -1,10 +1,32 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import Quickshell
+import Quickshell.Wayland
 import qs.Services.SystemInfo
 import qs.Config
 
-Item {
+PanelWindow {
+  required property var modelData
+
+  WlrLayershell.exclusiveZone: -1
+  WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+  WlrLayershell.layer: WlrLayer.Overlay
+  WlrLayershell.namespace: "obelisk-osd-overlay-" + (screen?.name || "unknown")
+  color: "transparent"
+  screen: modelData
+  surfaceFormat.opaque: false
   visible: OSDService.visible
+
+  mask: Region {
+    item: card
+  }
+
+  anchors {
+    bottom: true
+    left: true
+    right: true
+    top: true
+  }
 
   OSDCard {
     id: card

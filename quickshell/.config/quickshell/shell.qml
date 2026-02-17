@@ -8,6 +8,8 @@ import QtQml
 import QtQuick
 import Quickshell
 import qs.Modules.Global
+import qs.Modules.Notification
+import qs.Modules.OSD
 import qs.Modules.Shell
 import qs.Services
 import qs.Services.Core
@@ -23,6 +25,14 @@ ShellRoot {
   readonly property var sysInfo: SystemInfoService
 
   MainScreen {
+    modelData: MonitorService.effectiveMainScreen
+  }
+
+  NotificationPopup {
+    modelData: MonitorService.effectiveMainScreen
+  }
+
+  OSDOverlay {
     modelData: MonitorService.effectiveMainScreen
   }
 

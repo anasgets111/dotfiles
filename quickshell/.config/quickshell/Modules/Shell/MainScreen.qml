@@ -8,8 +8,6 @@ import qs.Config
 import qs.Modules.Bar
 import qs.Modules.Bar.Panels
 import qs.Modules.Global
-import qs.Modules.Notification
-import qs.Modules.OSD
 import qs.Services
 import qs.Services.Core
 import qs.Services.UI
@@ -17,7 +15,7 @@ import qs.Services.UI
 PanelWindow {
   id: root
 
-  readonly property bool hasInteractiveHere: (ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyInteractiveOpen) || notificationPopup.needsKeyboardFocus
+  readonly property bool hasInteractiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyInteractiveOpen
   readonly property bool isModalActiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyModalOpen
   readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(root.screenName)
   readonly property bool isWallpaperPickerOpen: ShellUiState.isModalOpenOn(root.screenName, "wallpaperPicker")
@@ -27,12 +25,12 @@ PanelWindow {
   readonly property bool panelNeedsKeyboardFocus: panelContainer.active && panelContainer.needsKeyboardFocus
   readonly property string screenName: screen?.name ?? ""
   readonly property bool shouldCaptureBackground: ShellUiState.isAnyPanelOpen || ShellUiState.isAnyModalOpen
-  readonly property bool wantsKeyboardHere: panelNeedsKeyboardFocus || launcherOpen || isWallpaperPickerOpen || isIdleSettingsOpen || notificationPopup.needsKeyboardFocus
+  readonly property bool wantsKeyboardHere: panelNeedsKeyboardFocus || launcherOpen || isWallpaperPickerOpen || isIdleSettingsOpen
 
   WlrLayershell.exclusionMode: ExclusionMode.Normal
   WlrLayershell.exclusiveZone: Theme.panelHeight
   WlrLayershell.keyboardFocus: {
-    if (!ShellUiState.isAnyInteractiveOpen && !notificationPopup.needsKeyboardFocus)
+    if (!ShellUiState.isAnyInteractiveOpen)
       return WlrKeyboardFocus.None;
 
     if (root.hasInteractiveHere) {
@@ -53,7 +51,7 @@ PanelWindow {
   mask: Region {
     height: root.height
     intersection: Intersection.Xor
-    regions: [barMaskRegion, notificationMaskRegion, backgroundMaskRegion]
+    regions: [barMaskRegion, backgroundMaskRegion]
     width: root.width
     x: 0
     y: 0
@@ -63,16 +61,6 @@ PanelWindow {
 
       intersection: Intersection.Subtract
       item: barClickableRegion
-    }
-
-    Region {
-      id: notificationMaskRegion
-
-      height: notificationPopup.visible ? notificationPopup.popupHeight : 0
-      intersection: Intersection.Subtract
-      width: notificationPopup.visible ? notificationPopup.popupWidth : 0
-      x: notificationPopup.visible ? notificationPopup.popupX : 0
-      y: notificationPopup.visible ? notificationPopup.popupY : 0
     }
 
     Region {
@@ -106,18 +94,6 @@ PanelWindow {
         ShellUiState.closePanel();
         ShellUiState.closeModal();
       }
-    }
-
-    NotificationPopup {
-      id: notificationPopup
-
-      anchors.fill: parent
-      z: 20
-    }
-
-    OSDOverlay {
-      anchors.fill: parent
-      z: 30
     }
 
     Item {
