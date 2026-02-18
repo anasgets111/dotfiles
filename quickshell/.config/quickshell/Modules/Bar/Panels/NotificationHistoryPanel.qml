@@ -23,13 +23,13 @@ PanelContentBase {
   readonly property real preferredHeight: contentLayout.implicitHeight
   readonly property real preferredWidth: 420
 
+  Component.onDestruction: NotificationService.onOverlayClose()
   onIsOpenChanged: {
     if (isOpen)
       NotificationService.onOverlayOpen();
     else
       NotificationService.onOverlayClose();
   }
-  Component.onDestruction: NotificationService.onOverlayClose()
 
   ColumnLayout {
     id: contentLayout
