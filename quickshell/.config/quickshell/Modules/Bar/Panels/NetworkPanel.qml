@@ -205,7 +205,7 @@ PanelContentBase {
       Layout.fillWidth: true
       spacing: Theme.spacingXs
 
-      TogglePill {
+      PanelTogglePill {
         active: root.ready
         checked: root.networkingEnabled
         icon: "󱘖"
@@ -214,7 +214,7 @@ PanelContentBase {
         onToggled: c => NetworkService.setNetworkingEnabled(c)
       }
 
-      TogglePill {
+      PanelTogglePill {
         active: root.ready && root.networkingEnabled
         checked: root.wifiEnabled
         icon: "󰤨"
@@ -223,7 +223,7 @@ PanelContentBase {
         onToggled: c => NetworkService.setWifiRadioEnabled(c)
       }
 
-      TogglePill {
+      PanelTogglePill {
         active: root.ready && root.networkingEnabled && root.ethernetInterface !== ""
         checked: NetworkService.ethernetOnline
         icon: "󰈀"
@@ -308,7 +308,6 @@ PanelContentBase {
             width: 4
           }
           delegate: NetworkRow {
-            required property int index
             required property var modelData
 
             // Simplified: properties are already inside modelData from the JS logic
@@ -388,44 +387,6 @@ PanelContentBase {
     }
   }
 
-  component ActionIcon: Rectangle {
-    id: btn
-
-    property string icon: ""
-    property color tint: Theme.textActiveColor
-
-    signal clicked
-
-    color: ma.containsMouse ? Qt.rgba(tint.r, tint.g, tint.b, 0.15) : "transparent"
-    implicitHeight: 30
-    implicitWidth: 30
-    radius: 8
-
-    Behavior on color {
-      ColorAnimation {
-        duration: 120
-      }
-    }
-
-    Text {
-      anchors.centerIn: parent
-      color: parent.tint
-      font.family: Theme.fontFamily
-      font.pixelSize: Theme.fontSize
-      opacity: ma.containsMouse ? 1.0 : 0.5
-      text: parent.icon
-    }
-
-    MouseArea {
-      id: ma
-
-      anchors.fill: parent
-      cursorShape: Qt.PointingHandCursor
-      hoverEnabled: true
-
-      onClicked: parent.clicked()
-    }
-  }
   component BandBadge: Rectangle {
     property string band: ""
     readonly property string bv: String(band || "").trim()
@@ -611,7 +572,7 @@ PanelContentBase {
         Layout.fillWidth: true
       }
 
-      ActionIcon {
+      PanelActionIcon {
         icon: "󰩺"
         tint: Theme.critical
         visible: {
@@ -622,7 +583,7 @@ PanelContentBase {
         onClicked: hero.forgetClicked(hero.network?.ssid || "")
       }
 
-      ActionIcon {
+      PanelActionIcon {
         icon: "󱘖"
         tint: Theme.critical
 
@@ -744,7 +705,7 @@ PanelContentBase {
         }
       }
 
-      ActionIcon {
+      PanelActionIcon {
         icon: "󰩺"
         tint: Theme.critical
         visible: row.isSaved && rowMa.containsMouse
@@ -879,81 +840,6 @@ PanelContentBase {
         Layout.alignment: Qt.AlignHCenter
         color: Theme.textInactiveColor
         text: parent.parent.text
-      }
-    }
-  }
-  component TogglePill: Rectangle {
-    id: pill
-
-    property bool active: true
-    property bool checked: false
-    required property string icon
-    required property string label
-
-    signal toggled(bool checked)
-
-    Layout.fillWidth: true
-    Layout.preferredHeight: 56
-    border.color: pill.checked && pill.active ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.3) : "transparent"
-    border.width: 1
-    color: pill.checked && pill.active ? Theme.activeSubtle : Theme.bgElevated
-    opacity: pill.active ? 1.0 : Theme.opacityDisabled
-    radius: 12
-
-    Behavior on border.color {
-      ColorAnimation {
-        duration: 150
-      }
-    }
-    Behavior on color {
-      ColorAnimation {
-        duration: 150
-      }
-    }
-    Behavior on opacity {
-      NumberAnimation {
-        duration: 150
-      }
-    }
-
-    MouseArea {
-      anchors.fill: parent
-      cursorShape: pill.active ? Qt.PointingHandCursor : Qt.ArrowCursor
-      enabled: pill.active
-
-      onClicked: pill.toggled(!pill.checked)
-    }
-
-    ColumnLayout {
-      anchors.centerIn: parent
-      spacing: 4
-
-      Text {
-        Layout.alignment: Qt.AlignHCenter
-        color: pill.checked && pill.active ? Theme.activeColor : Theme.textInactiveColor
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize * 1.3
-        text: pill.icon
-
-        Behavior on color {
-          ColorAnimation {
-            duration: 150
-          }
-        }
-      }
-
-      OText {
-        Layout.alignment: Qt.AlignHCenter
-        bold: pill.checked
-        color: pill.checked && pill.active ? Theme.activeColor : Theme.textInactiveColor
-        size: "xs"
-        text: pill.label
-
-        Behavior on color {
-          ColorAnimation {
-            duration: 150
-          }
-        }
       }
     }
   }
