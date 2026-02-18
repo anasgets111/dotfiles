@@ -325,9 +325,9 @@ PanelContentBase {
     property string iconOff
     property string iconOn
     property bool muted
+    property int sliderSteps: 30
     property real splitAt: 1.0
     property string subtitle: ""
-    property int sliderSteps: 30
     property string tag: ""
     property string title
     property real volume
@@ -431,6 +431,7 @@ PanelContentBase {
           steps: hero.sliderSteps
           value: root.ready ? hero.volume : 0
           wheelStep: 1 / steps
+
           onCommitted: v => hero.committed(v)
         }
       }
