@@ -38,6 +38,7 @@ Item {
   property real retainedPanelHeight: 1
   property real retainedPanelWidth: 350
   property int screenMargin: Theme.spacingSm
+  readonly property bool useFlatContainer: root.effectivePanelComponent === audioPanelComponent || root.effectivePanelComponent === bluetoothPanelComponent || root.effectivePanelComponent === networkPanelComponent
   property bool showInverseCorners: true
 
   signal closeRequested
@@ -133,12 +134,12 @@ Item {
       readonly property real hiddenY: -height
       readonly property real targetY: root.calculateY() - Theme.panelHeight
 
-      bottomLeftRadius: Theme.itemRadius
-      bottomRightRadius: Theme.itemRadius
+      bottomLeftRadius: root.useFlatContainer ? Theme.panelRadius * 2 : Theme.itemRadius
+      bottomRightRadius: root.useFlatContainer ? Theme.panelRadius * 2 : Theme.itemRadius
       clip: true
       color: Theme.bgColor
       height: root.effectivePanelHeight
-      radius: Theme.itemRadius
+      radius: root.useFlatContainer ? 0 : Theme.itemRadius
       topLeftRadius: 0
       topRightRadius: 0
       visible: panelLoader.active
@@ -161,7 +162,7 @@ Item {
 
       border {
         color: Theme.borderLight
-        width: 1
+        width: root.useFlatContainer ? 0 : 1
       }
 
       Loader {

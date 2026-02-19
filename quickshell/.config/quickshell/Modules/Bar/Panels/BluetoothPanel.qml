@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Effects
 import qs.Config
 import qs.Components
 import qs.Services.Core
@@ -63,21 +62,6 @@ PanelContentBase {
     }
     showCodecFor = "";
     BluetoothService.stopDiscovery();
-  }
-
-  // ── Outer Shell ──
-  Rectangle {
-    anchors.fill: parent
-    color: Theme.bgElevatedAlt
-    layer.enabled: true
-    radius: 16
-
-    layer.effect: MultiEffect {
-      shadowBlur: 0.5
-      shadowColor: Qt.rgba(0, 0, 0, 0.18)
-      shadowEnabled: true
-      shadowVerticalOffset: 4
-    }
   }
 
   ColumnLayout {
