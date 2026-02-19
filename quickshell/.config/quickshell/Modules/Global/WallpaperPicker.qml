@@ -9,6 +9,17 @@ import qs.Services.Core
 SearchGridPanel {
   id: picker
 
+  readonly property int activeFillModeIndex: {
+    const mode = stagedModes[selectedMonitor] ?? stagedModes.all ?? "fill";
+    const idx = fillModeOptions.findIndex(o => o.value === mode);
+    return Math.max(0, idx);
+  }
+  readonly property int activeTransitionIndex: {
+    const idx = transitionOptions.findIndex(o => o.value === stagedTransition);
+    return Math.max(0, idx);
+  }
+  readonly property string currentWallpaperPath: selectedMonitor !== "all" && WallpaperService?.ready ? WallpaperService.wallpaperPath(selectedMonitor) : ""
+
   // ── Logic (unchanged) ────────────────────────────────────────────
   readonly property var fillModeOptions: (WallpaperService?.availableModes ?? []).map(m => ({
         label: {
@@ -59,15 +70,6 @@ SearchGridPanel {
         }[t] ?? t,
         value: t
       }))
-  readonly property int activeFillModeIndex: {
-    const mode = stagedModes[selectedMonitor] ?? stagedModes.all ?? "fill";
-    const idx = fillModeOptions.findIndex(o => o.value === mode);
-    return Math.max(0, idx);
-  }
-  readonly property int activeTransitionIndex: {
-    const idx = transitionOptions.findIndex(o => o.value === stagedTransition);
-    return Math.max(0, idx);
-  }
 
   signal applyRequested
   signal cancelRequested
@@ -121,15 +123,6 @@ SearchGridPanel {
     loadingFromService = false;
   }
 
-  function stageWallpaper(entry) {
-    if (!entry?.path)
-      return;
-    stagedWallpapers = Object.assign({}, stagedWallpapers, {
-      [selectedMonitor === "all" ? "all" : selectedMonitor]: entry.path
-    });
-    updateSelection();
-  }
-
   function stageFillMode(mode) {
     const modes = Object.assign({}, stagedModes);
     if (selectedMonitor === "all") {
@@ -143,6 +136,15 @@ SearchGridPanel {
       modes[selectedMonitor] = mode;
     }
     stagedModes = modes;
+  }
+
+  function stageWallpaper(entry) {
+    if (!entry?.path)
+      return;
+    stagedWallpapers = Object.assign({}, stagedWallpapers, {
+      [selectedMonitor === "all" ? "all" : selectedMonitor]: entry.path
+    });
+    updateSelection();
   }
 
   function updateSelection() {
@@ -322,6 +324,8 @@ SearchGridPanel {
               model: picker.monitorOptions
 
               delegate: Rectangle {
+                id: recta
+
                 required property int index
                 readonly property bool isActive: picker.selectedMonitor === modelData.value
                 required property var modelData
@@ -341,10 +345,10 @@ SearchGridPanel {
                   id: monitorLabel
 
                   anchors.centerIn: parent
-                  font.bold: isActive
+                  font.bold: recta.isActive
                   font.pixelSize: 12
-                  opacity: isActive ? 1 : 0.55
-                  text: modelData.label
+                  opacity: recta.isActive ? 1 : 0.55
+                  text: recta.modelData.label
 
                   Behavior on opacity {
                     NumberAnimation {
@@ -357,7 +361,7 @@ SearchGridPanel {
                   anchors.fill: parent
                   cursorShape: Qt.PointingHandCursor
 
-                  onClicked: picker.selectedMonitor = modelData.value
+                  onClicked: picker.selectedMonitor = recta.modelData.value
                 }
               }
             }
@@ -497,6 +501,7 @@ SearchGridPanel {
     Item {
       id: tile
 
+      readonly property bool currentWallpaper: picker.currentWallpaperPath !== "" && modelData?.path === picker.currentWallpaperPath
       readonly property bool hovered: mouse.containsMouse
       required property int index
       required property var modelData
@@ -563,6 +568,28 @@ SearchGridPanel {
             ColorAnimation {
               duration: 130
             }
+          }
+        }
+
+        Rectangle {
+          color: "#20c05c"
+          height: 20
+          radius: 10
+          visible: tile.currentWallpaper
+          width: 20
+
+          anchors {
+            left: parent.left
+            leftMargin: 8
+            top: parent.top
+            topMargin: 8
+          }
+
+          OText {
+            anchors.centerIn: parent
+            font.bold: true
+            font.pixelSize: 12
+            text: "✓"
           }
         }
 
