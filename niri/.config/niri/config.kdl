@@ -237,6 +237,7 @@ binds {
     Print { screenshot; }
     Ctrl+Print { screenshot-screen; }
     Alt+Print { screenshot-window; }
+    Shift+Print { spawn "quickshell" "ipc" "call" "rec" "toggle"; }
     Ctrl+Alt+Delete { spawn "missioncenter"; }
     Mod+Shift+P { power-off-monitors; }
     Mod+Shift+E { quit; }
