@@ -165,3 +165,5 @@ For async IPC use `IPC` service: `IPC.spawn(command)`
 ## Keeping This File Updated
 
 If you discover critical information that would take 5+ prompts for another agent to figure out (e.g., non-obvious import behavior, undocumented quirks, essential patterns), add it to this file. Focus on things that are impossible or very hard to learn without explicit guidance.
+
+## Operational Gotchas
