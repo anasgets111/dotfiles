@@ -10,16 +10,15 @@ ORIGINAL_ARGS=("$@")
 SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || printf "%s" "$0")"
 
 DOMAIN="${PROJECT}.test"
-BIND_TARGET="/srv/dev/${PROJECT}"
-PUBLIC_PATH="${BIND_TARGET}/public"
 SITE_CONF="/etc/caddy/conf.d/${PROJECT}.conf"
 CADDYFILE="/etc/caddy/Caddyfile"
+LEGACY_BIND_TARGET="/srv/dev/${PROJECT}"
 if command -v systemd-escape >/dev/null 2>&1; then
-    MOUNT_UNIT="$(systemd-escape --suffix=mount --path "${BIND_TARGET}")"
+    LEGACY_MOUNT_UNIT="$(systemd-escape --suffix=mount --path "${LEGACY_BIND_TARGET}")"
 else
-    MOUNT_UNIT="srv-dev-${PROJECT}.mount"
+    LEGACY_MOUNT_UNIT="srv-dev-${PROJECT}.mount"
 fi
-MOUNT_UNIT_PATH="/etc/systemd/system/${MOUNT_UNIT}"
+LEGACY_MOUNT_UNIT_PATH="/etc/systemd/system/${LEGACY_MOUNT_UNIT}"
 USER_OVERRIDE_PATH="/etc/systemd/system/caddy.service.d/10-local-dev-user.conf"
 IMPORT_BLOCK_BEGIN="# BEGIN dev-caddy-import"
 IMPORT_BLOCK_END="# END dev-caddy-import"
@@ -75,14 +74,117 @@ restore_default_caddy_service_state() {
     fi
 }
 
+cleanup_legacy_bind_mount() {
+    if systemctl is-enabled --quiet "${LEGACY_MOUNT_UNIT}" 2>/dev/null; then
+        systemctl disable --now "${LEGACY_MOUNT_UNIT}" >/dev/null || true
+    else
+        systemctl stop "${LEGACY_MOUNT_UNIT}" 2>/dev/null || true
+    fi
+
+    rm -f "${LEGACY_MOUNT_UNIT_PATH}"
+    systemctl daemon-reload
+
+    if mountpoint -q "${LEGACY_BIND_TARGET}"; then
+        umount "${LEGACY_BIND_TARGET}" || true
+    fi
+}
+
+ensure_user_traversal_acl() {
+    local user_name="${1}"
+    local target_path="${2}"
+    local current_dir
+
+    if ! command -v setfacl >/dev/null 2>&1; then
+        echo "setfacl not installed, skipping traversal ACL setup for ${user_name}."
+        return
+    fi
+
+    if ! id "${user_name}" >/dev/null 2>&1; then
+        echo "User ${user_name} not found, skipping traversal ACL setup."
+        return
+    fi
+
+    current_dir="$(readlink -f "${target_path}" 2>/dev/null || printf "%s" "${target_path}")"
+    while [[ "${current_dir}" != "/" ]]; do
+        if [[ -d "${current_dir}" ]]; then
+            setfacl -m "u:${user_name}:--x" "${current_dir}" >/dev/null 2>&1 || true
+        fi
+        current_dir="$(dirname "${current_dir}")"
+    done
+}
+
+warn_cache_prefix_mismatch() {
+    local app_root="${1}"
+    local cache_dir="${app_root}/bootstrap/cache"
+    local mismatch_prefix=""
+
+    [[ -d "${cache_dir}" ]] || return
+
+    case "${app_root}" in
+        /srv/dev/*)
+            mismatch_prefix="/mnt/"
+            ;;
+        /mnt/*)
+            mismatch_prefix="/srv/dev/"
+            ;;
+        *)
+            return
+            ;;
+    esac
+
+    if grep -RqsF "${mismatch_prefix}" "${cache_dir}"; then
+        echo "Warning: cache files under ${cache_dir} still reference ${mismatch_prefix}"
+        echo "Rebuild Laravel caches from ${app_root}:"
+        echo "  php artisan optimize:clear"
+        echo "  php artisan config:cache"
+        echo "  php artisan route:cache"
+        echo "  php artisan view:cache"
+    fi
+}
+
+detect_fpm_user() {
+    local socket_path="${1:-}"
+    local detected_user=""
+    local pool_file
+
+    if [[ -S "${socket_path}" ]]; then
+        detected_user="$(stat -c '%U' "${socket_path}" 2>/dev/null || true)"
+        if [[ -n "${detected_user}" && "${detected_user}" != "UNKNOWN" ]]; then
+            printf "%s" "${detected_user}"
+            return
+        fi
+    fi
+
+    for pool_file in \
+        /etc/php/php-fpm.d/www.conf \
+        /etc/php-fpm.d/www.conf \
+        /etc/php/*/fpm/pool.d/www.conf; do
+        [[ -f "${pool_file}" ]] || continue
+        detected_user="$(awk -F= '/^[[:space:]]*user[[:space:]]*=/{gsub(/[[:space:]]/,"",$2); print $2; exit}' "${pool_file}" 2>/dev/null || true)"
+        if [[ -n "${detected_user}" ]]; then
+            printf "%s" "${detected_user}"
+            return
+        fi
+    done
+
+    if id www-data >/dev/null 2>&1; then
+        printf "%s" "www-data"
+        return
+    fi
+
+    printf "%s" "http"
+}
+
 grant_laravel_runtime_permissions() {
     local source_path="${1}"
     local fpm_user
     local writable_dir
 
-    fpm_user="$(awk -F= '/^user\\s*=/{gsub(/ /,"",$2); print $2; exit}' /etc/php/php-fpm.d/www.conf)"
-    if [[ -z "${fpm_user}" ]]; then
-        fpm_user="http"
+    fpm_user="$(detect_fpm_user "${PHP_FPM_SOCK}")"
+
+    ensure_user_traversal_acl "${fpm_user}" "${source_path}"
+    if id caddy >/dev/null 2>&1; then
+        ensure_user_traversal_acl caddy "${source_path}"
     fi
 
     if ! id "${fpm_user}" >/dev/null 2>&1; then
@@ -109,42 +211,20 @@ grant_laravel_runtime_permissions() {
     done
 }
 
-configure_bind_mount_unit() {
-    local source_path="${1}"
-    local resolved_source_path
-
-    resolved_source_path="$(readlink -f "${source_path}")"
-
-    install -d -m 755 /srv /srv/dev "${BIND_TARGET}"
-
-    cat > "${MOUNT_UNIT_PATH}" <<EOF
-[Unit]
-Description=Bind mount for ${PROJECT} local dev project
-RequiresMountsFor=${resolved_source_path}
-ConditionPathExists=${resolved_source_path}
-
-[Mount]
-What=${resolved_source_path}
-Where=${BIND_TARGET}
-Type=none
-Options=bind
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    systemctl daemon-reload
-    systemctl enable --now "${MOUNT_UNIT}" >/dev/null
-}
-
 setup_site() {
+    local resolved_app_path
+    local public_path
+
     if [[ ! -d "${APP_PATH}" ]]; then
         echo "Project path not found: ${APP_PATH}"
         exit 1
     fi
 
-    if [[ ! -d "${APP_PATH}/public" ]]; then
-        echo "Laravel public path not found: ${APP_PATH}/public"
+    resolved_app_path="$(readlink -f "${APP_PATH}")"
+    public_path="${resolved_app_path}/public"
+
+    if [[ ! -d "${public_path}" ]]; then
+        echo "Laravel public path not found: ${public_path}"
         exit 1
     fi
 
@@ -153,20 +233,15 @@ setup_site() {
         exit 1
     fi
 
-    grant_laravel_runtime_permissions "${APP_PATH}"
+    grant_laravel_runtime_permissions "${resolved_app_path}"
     restore_default_caddy_service_state
-    configure_bind_mount_unit "${APP_PATH}"
-
-    if [[ ! -d "${PUBLIC_PATH}" ]]; then
-        echo "Bind mount is not active at ${BIND_TARGET}"
-        exit 1
-    fi
+    cleanup_legacy_bind_mount
 
     mkdir -p /etc/caddy/conf.d
     ensure_conf_import
     write_caddy_conf_with_validation "${SITE_CONF}" <<EOF
 ${DOMAIN}, *.${DOMAIN} {
-    root * ${PUBLIC_PATH}
+    root * ${public_path}
     encode zstd gzip
     php_fastcgi unix//${PHP_FPM_SOCK}
     file_server
@@ -180,44 +255,34 @@ EOF
 
     echo "Caddy site configured: ${SITE_CONF}"
     echo "Hosts: ${DOMAIN}, *.${DOMAIN}"
-    echo "Root path: ${PUBLIC_PATH}"
+    echo "Root path: ${public_path}"
+    warn_cache_prefix_mismatch "${resolved_app_path}"
 }
 
 revert_site() {
     remove_caddy_conf_with_validation "${SITE_CONF}"
-
-    if systemctl is-enabled --quiet "${MOUNT_UNIT}" 2>/dev/null; then
-        systemctl disable --now "${MOUNT_UNIT}" >/dev/null || true
-    else
-        systemctl stop "${MOUNT_UNIT}" 2>/dev/null || true
-    fi
-
-    rm -f "${MOUNT_UNIT_PATH}"
-    systemctl daemon-reload
-
-    if mountpoint -q "${BIND_TARGET}"; then
-        umount "${BIND_TARGET}" || true
-    fi
+    cleanup_legacy_bind_mount
 
     if systemctl is-active --quiet caddy; then
         systemctl restart caddy
     fi
 
     echo "Removed Caddy site config: ${SITE_CONF}"
-    echo "Removed bind mount unit: ${MOUNT_UNIT_PATH}"
+    echo "Legacy bind mount cleanup done: ${LEGACY_MOUNT_UNIT_PATH}"
 }
 
 status_site() {
     local project="${1}"
     local domain="${project}.test"
     local conf="/etc/caddy/conf.d/${project}.conf"
-    local bind_target="/srv/dev/${project}"
-    local mount_unit
+    local legacy_bind_target="/srv/dev/${project}"
+    local legacy_mount_unit
+    local configured_public_path=""
 
     if command -v systemd-escape >/dev/null 2>&1; then
-        mount_unit="$(systemd-escape --suffix=mount --path "${bind_target}")"
+        legacy_mount_unit="$(systemd-escape --suffix=mount --path "${legacy_bind_target}")"
     else
-        mount_unit="srv-dev-${project}.mount"
+        legacy_mount_unit="srv-dev-${project}.mount"
     fi
 
     validate_project_name "${project}"
@@ -231,9 +296,23 @@ status_site() {
     caddy validate --config /etc/caddy/Caddyfile || true
     echo
 
-    echo "=== bind mount ==="
-    systemctl is-active "${mount_unit}" || true
-    findmnt --target "${bind_target}" || true
+    echo "=== configured root ==="
+    if [[ -f "${conf}" ]]; then
+        configured_public_path="$(sed -nE 's/^[[:space:]]*root[[:space:]]+\*[[:space:]]+(.+)$/\1/p' "${conf}" | head -n 1)"
+        grep -E '^[[:space:]]*root[[:space:]]+\*[[:space:]]+' "${conf}" | head -n 1 || true
+    else
+        echo "Missing: ${conf}"
+    fi
+    echo
+
+    if [[ -n "${configured_public_path}" ]]; then
+        warn_cache_prefix_mismatch "$(dirname "${configured_public_path}")"
+        echo
+    fi
+
+    echo "=== legacy bind mount (old setup) ==="
+    systemctl is-active "${legacy_mount_unit}" || true
+    findmnt --target "${legacy_bind_target}" || true
     echo
 
     echo "=== site config ==="
@@ -449,14 +528,6 @@ case "${ACTION}" in
     revert)
         require_root
         validate_project_name "${PROJECT}"
-        SITE_CONF="/etc/caddy/conf.d/${PROJECT}.conf"
-        BIND_TARGET="/srv/dev/${PROJECT}"
-        if command -v systemd-escape >/dev/null 2>&1; then
-            MOUNT_UNIT="$(systemd-escape --suffix=mount --path "${BIND_TARGET}")"
-        else
-            MOUNT_UNIT="srv-dev-${PROJECT}.mount"
-        fi
-        MOUNT_UNIT_PATH="/etc/systemd/system/${MOUNT_UNIT}"
         revert_site
         ;;
     status)
