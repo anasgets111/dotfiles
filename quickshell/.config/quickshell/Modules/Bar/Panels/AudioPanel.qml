@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Effects
 import qs.Config
 import qs.Components
 import qs.Services.Core
@@ -35,22 +34,6 @@ PanelContentBase {
     interval: 30
 
     onTriggered: root.ready = true
-  }
-
-  // ── Background ──────────────────────────────────────────────
-
-  Rectangle {
-    anchors.fill: parent
-    color: Theme.bgElevatedAlt
-    layer.enabled: true
-    radius: 16
-
-    layer.effect: MultiEffect {
-      shadowBlur: 0.5
-      shadowColor: Qt.rgba(0, 0, 0, 0.18)
-      shadowEnabled: true
-      shadowVerticalOffset: 4
-    }
   }
 
   // ── Content ─────────────────────────────────────────────────
