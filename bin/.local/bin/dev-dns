@@ -18,18 +18,20 @@ RESOLV_STUB="/run/systemd/resolve/stub-resolv.conf"
 RESOLV_UPLINK="/run/systemd/resolve/resolv.conf"
 STATE_DIR="/var/lib/local-dev-dns"
 STATE_FILE="${STATE_DIR}/state.env"
+RESOLV_BACKUP_FILE="${STATE_DIR}/resolv.conf.backup"
 
 print_usage() {
     cat <<EOF
 Usage:
   sudo ./${SCRIPT_NAME} setup [tld]
-  sudo ./${SCRIPT_NAME} revert
+  sudo ./${SCRIPT_NAME} revert [--force-reset]
   ./${SCRIPT_NAME} status [tld]
 
 Examples:
   sudo ./${SCRIPT_NAME} setup
   sudo ./${SCRIPT_NAME} setup test
   sudo ./${SCRIPT_NAME} revert
+  sudo ./${SCRIPT_NAME} revert --force-reset
   ./${SCRIPT_NAME} status
 EOF
 }
@@ -72,16 +74,28 @@ service_active_state() {
 
 save_pre_setup_state() {
     local resolv_target
+    local resolv_kind
 
     if [[ -f "${STATE_FILE}" ]]; then
         return
     fi
 
     mkdir -p "${STATE_DIR}"
-    resolv_target="$(readlink -f /etc/resolv.conf 2>/dev/null || true)"
+    rm -f "${RESOLV_BACKUP_FILE}"
+
+    if [[ -L /etc/resolv.conf ]]; then
+        resolv_kind="symlink"
+        resolv_target="$(readlink -f /etc/resolv.conf 2>/dev/null || true)"
+    else
+        resolv_kind="file"
+        resolv_target=""
+        cp /etc/resolv.conf "${RESOLV_BACKUP_FILE}"
+    fi
 
     {
+        printf 'RESOLV_KIND=%q\n' "${resolv_kind}"
         printf 'RESOLV_TARGET=%q\n' "${resolv_target}"
+        printf 'RESOLV_BACKUP=%q\n' "${RESOLV_BACKUP_FILE}"
         printf 'SYSTEMD_RESOLVED_ENABLED=%q\n' "$(service_enabled_state systemd-resolved)"
         printf 'SYSTEMD_RESOLVED_ACTIVE=%q\n' "$(service_active_state systemd-resolved)"
         printf 'NETWORKMANAGER_ENABLED=%q\n' "$(service_enabled_state NetworkManager)"
@@ -187,22 +201,48 @@ apply_active_state() {
 }
 
 restore_pre_setup_state() {
+    local force_reset="${1:-0}"
+
     if [[ ! -f "${STATE_FILE}" ]]; then
-        ln -sf "${RESOLV_UPLINK}" /etc/resolv.conf
-        systemctl restart systemd-resolved
-        systemctl restart NetworkManager
-        systemctl disable --now dnsmasq >/dev/null 2>&1 || true
+        if [[ "${force_reset}" == "1" ]]; then
+            ln -sf "${RESOLV_UPLINK}" /etc/resolv.conf
+            systemctl restart systemd-resolved
+            systemctl restart NetworkManager
+            systemctl disable --now dnsmasq >/dev/null 2>&1 || true
+        else
+            echo "State file not found; skipped service and resolv.conf restoration."
+            echo "Use '${SCRIPT_NAME} revert --force-reset' to apply default reset behavior."
+        fi
         return
     fi
 
     # shellcheck disable=SC1090
     source "${STATE_FILE}"
 
-    if [[ -n "${RESOLV_TARGET:-}" ]]; then
-        ln -sf "${RESOLV_TARGET}" /etc/resolv.conf
-    else
-        ln -sf "${RESOLV_UPLINK}" /etc/resolv.conf
-    fi
+    case "${RESOLV_KIND:-}" in
+        symlink)
+            if [[ -n "${RESOLV_TARGET:-}" && "${RESOLV_TARGET}" != "/etc/resolv.conf" ]]; then
+                ln -sf "${RESOLV_TARGET}" /etc/resolv.conf
+            else
+                echo "Skipped restoring /etc/resolv.conf symlink: invalid saved target."
+            fi
+            ;;
+        file)
+            if [[ -f "${RESOLV_BACKUP:-}" ]]; then
+                rm -f /etc/resolv.conf
+                install -m 644 "${RESOLV_BACKUP}" /etc/resolv.conf
+            else
+                echo "Skipped restoring /etc/resolv.conf file: backup not found."
+            fi
+            ;;
+        *)
+            if [[ -n "${RESOLV_TARGET:-}" && "${RESOLV_TARGET}" != "/etc/resolv.conf" ]]; then
+                ln -sf "${RESOLV_TARGET}" /etc/resolv.conf
+            else
+                echo "Skipped restoring /etc/resolv.conf: no valid saved state."
+            fi
+            ;;
+    esac
 
     apply_enabled_state systemd-resolved "${SYSTEMD_RESOLVED_ENABLED:-unknown}"
     apply_enabled_state NetworkManager "${NETWORKMANAGER_ENABLED:-unknown}"
@@ -213,6 +253,7 @@ restore_pre_setup_state() {
     apply_active_state dnsmasq "${DNSMASQ_ACTIVE:-unknown}"
 
     rm -f "${STATE_FILE}"
+    rm -f "${RESOLV_BACKUP:-${RESOLV_BACKUP_FILE}}"
 }
 
 setup_tld() {
@@ -256,13 +297,15 @@ EOF
 }
 
 revert_setup() {
+    local force_reset="${1:-0}"
+
     rm -f "${NM_DROPIN}"
     rm -f "${DNSMASQ_BASE_DROPIN}"
     rm -f "${DNSMASQ_TLD_DROPIN}"
     rm -f "${RESOLVED_TLD_DROPIN}"
     cleanup_dnsmasq_main_conf
 
-    restore_pre_setup_state
+    restore_pre_setup_state "${force_reset}"
 
     echo "Reverted local dev DNS overrides."
     echo
@@ -303,7 +346,11 @@ case "${ACTION}" in
         ;;
     revert)
         require_root
-        revert_setup
+        FORCE_RESET=0
+        if [[ "${2:-}" == "--force-reset" ]]; then
+            FORCE_RESET=1
+        fi
+        revert_setup "${FORCE_RESET}"
         ;;
     status)
         NORMALIZED_TLD="$(normalize_tld "${TLD}")"
