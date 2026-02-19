@@ -28,6 +28,7 @@ Singleton {
       return;
     activeModal = "";
     modalData = null;
+    isInitializingKeyboard = false;
     if (!isAnyPanelOpen)
       activeScreenName = "";
   }
@@ -58,10 +59,11 @@ Singleton {
       return;
     activePanelId = "";
     panelData = null;
-    isInitializingKeyboard = false;
+    isInitializingKeyboard = true;
     activeScreenName = screenName || "";
     activeModal = modalId;
     modalData = data ?? null;
+    keyboardInitTimer.restart();
   }
 
   function openPanel(panelId, screenName, anchor, data) {

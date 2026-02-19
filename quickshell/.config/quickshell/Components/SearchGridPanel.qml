@@ -218,6 +218,14 @@ Item {
     ensureFinder(true);
     searchField.text = "";
     updateFilter("", true);
+    Qt.callLater(() => {
+      if (!root.active)
+        return;
+      if (root.showSearchField && searchField)
+        searchField.forceActiveFocus();
+      else if (popupRect)
+        popupRect.forceActiveFocus();
+    });
   }
 
   function toArray(value) {
