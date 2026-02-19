@@ -9,6 +9,7 @@ import qs.Services.Core
 SearchGridPanel {
   id: picker
 
+  // ── Logic (unchanged) ────────────────────────────────────────────
   readonly property var fillModeOptions: (WallpaperService?.availableModes ?? []).map(m => ({
         label: {
           fill: qsTr("Fill"),
@@ -20,12 +21,10 @@ SearchGridPanel {
         value: m
       }))
   property bool loadingFromService: false
-
-  // Derived options
   readonly property var monitorOptions: {
     const list = [
       {
-        label: qsTr("All Monitors"),
+        label: qsTr("All"),
         value: "all"
       }
     ];
@@ -37,8 +36,6 @@ SearchGridPanel {
         });
     return list;
   }
-
-  // Mutable state
   property string selectedMonitor: "all"
   property var stagedModes: ({})
   property string stagedTransition: "disc"
@@ -62,6 +59,15 @@ SearchGridPanel {
         }[t] ?? t,
         value: t
       }))
+  readonly property int activeFillModeIndex: {
+    const mode = stagedModes[selectedMonitor] ?? stagedModes.all ?? "fill";
+    const idx = fillModeOptions.findIndex(o => o.value === mode);
+    return Math.max(0, idx);
+  }
+  readonly property int activeTransitionIndex: {
+    const idx = transitionOptions.findIndex(o => o.value === stagedTransition);
+    return Math.max(0, idx);
+  }
 
   signal applyRequested
   signal cancelRequested
@@ -97,7 +103,6 @@ SearchGridPanel {
     const wallpapers = {
       all: ""
     };
-
     for (const {
       name
     } of monitors) {
@@ -106,11 +111,9 @@ SearchGridPanel {
       modes[name] = WallpaperService?.ready ? WallpaperService.wallpaperMode(name) : defaultMode;
       wallpapers[name] = WallpaperService?.ready ? WallpaperService.wallpaperPath(name) : "";
     }
-
     stagedModes = modes;
     stagedWallpapers = wallpapers;
     stagedTransition = WallpaperService?.wallpaperTransition ?? "disc";
-
     const names = monitors.map(m => m?.name).filter(Boolean);
     const pref = preferredMonitor ?? selectedMonitor;
     selectedMonitor = (pref !== "all" && names.includes(pref)) ? pref : "all";
@@ -121,11 +124,25 @@ SearchGridPanel {
   function stageWallpaper(entry) {
     if (!entry?.path)
       return;
-    const key = selectedMonitor === "all" ? "all" : selectedMonitor;
     stagedWallpapers = Object.assign({}, stagedWallpapers, {
-      [key]: entry.path
+      [selectedMonitor === "all" ? "all" : selectedMonitor]: entry.path
     });
     updateSelection();
+  }
+
+  function stageFillMode(mode) {
+    const modes = Object.assign({}, stagedModes);
+    if (selectedMonitor === "all") {
+      modes.all = mode;
+      for (const {
+        value
+      } of monitorOptions)
+        if (value !== "all")
+          modes[value] = mode;
+    } else {
+      modes[selectedMonitor] = mode;
+    }
+    stagedModes = modes;
   }
 
   function updateSelection() {
@@ -138,12 +155,13 @@ SearchGridPanel {
       currentIndex = idx;
   }
 
-  cellHeight: 150
-  cellPadding: Theme.spacingXl
-  cellWidth: 240
+  // ── Grid config ──────────────────────────────────────────────────
+  cellHeight: 145
+  cellPadding: 6
+  cellWidth: 230
   closeOnActivate: false
-  contentMargin: Theme.spacingLg
-  contentSpacing: Theme.spacingMd
+  contentMargin: 14
+  contentSpacing: 10
   delegateComponent: wallpaperDelegate
   iconSelector: entry => entry?.previewSource ?? ""
   itemImageSize: 265
@@ -151,115 +169,245 @@ SearchGridPanel {
   labelSelector: entry => entry?.displayName ?? ""
   placeholderText: qsTr("Search wallpapers…")
   searchSelector: labelSelector
-  windowHeight: 520
-  windowWidth: 900
+  windowHeight: 540
+  windowWidth: 960
 
+  // ── Footer: ghost Cancel + bold pill Apply ───────────────────────
   footerContent: [
     RowLayout {
-      Layout.fillWidth: true
-      spacing: Theme.spacingSm
+      spacing: 10
+      width: parent?.width ?? 0
 
-      OButton {
-        bgColor: Theme.inactiveColor
-        text: qsTr("Cancel")
+      Rectangle {
+        border.color: Qt.rgba(1, 1, 1, 0.2)
+        border.width: 1
+        color: Qt.rgba(1, 1, 1, cancelMouse.containsMouse ? 0.08 : 0)
+        implicitHeight: 40
+        implicitWidth: 110
+        radius: 20
 
-        onClicked: picker.cancelRequested()
+        Behavior on color {
+          ColorAnimation {
+            duration: 130
+          }
+        }
+
+        OText {
+          anchors.centerIn: parent
+          font.pixelSize: Theme.fontSize
+          opacity: cancelMouse.containsMouse ? 1 : 0.65
+          text: qsTr("Cancel")
+
+          Behavior on opacity {
+            NumberAnimation {
+              duration: 130
+            }
+          }
+        }
+
+        MouseArea {
+          id: cancelMouse
+
+          anchors.fill: parent
+          cursorShape: Qt.PointingHandCursor
+          hoverEnabled: true
+
+          onClicked: picker.cancelRequested()
+        }
       }
 
       Item {
         Layout.fillWidth: true
       }
 
-      OButton {
-        bgColor: Theme.activeColor
-        text: qsTr("Apply")
+      Rectangle {
+        color: Theme.activeColor
+        implicitHeight: 40
+        implicitWidth: 126
+        radius: 20
+        scale: applyMouse.containsMouse ? 1.05 : 1.0
 
-        onClicked: picker.applyChanges()
+        Behavior on scale {
+          NumberAnimation {
+            duration: 140
+            easing.type: Easing.OutCubic
+          }
+        }
+
+        OText {
+          anchors.centerIn: parent
+          font.bold: true
+          font.pixelSize: Theme.fontSize
+          text: qsTr("Apply")
+        }
+
+        MouseArea {
+          id: applyMouse
+
+          anchors.fill: parent
+          cursorShape: Qt.PointingHandCursor
+          hoverEnabled: true
+
+          onClicked: picker.applyChanges()
+        }
       }
     }
   ]
+
+  // ── Header ───────────────────────────────────────────────────────
   headerContent: [
     ColumnLayout {
-      Layout.fillWidth: true
-      spacing: Theme.spacingSm
+      spacing: 10
+      width: parent?.width ?? 0
 
+      // Row 1 — folder path + monitor chip group
       RowLayout {
         Layout.fillWidth: true
-        spacing: Theme.spacingLg
+        spacing: 10
 
-        OInput {
+        Rectangle {
           Layout.fillWidth: true
-          Layout.minimumWidth: 280
-          placeholderText: qsTr("Wallpaper folder path")
-          text: WallpaperService?.wallpaperFolder ?? ""
+          border.color: Qt.rgba(1, 1, 1, 0.1)
+          border.width: 1
+          color: Qt.rgba(1, 1, 1, 0.05)
+          implicitHeight: 36
+          radius: 8
 
-          onInputFinished: if (text !== (WallpaperService?.wallpaperFolder ?? ""))
-            WallpaperService.setWallpaperFolder(text)
-        }
+          RowLayout {
+            spacing: 8
 
-        OComboBox {
-          Layout.preferredWidth: 200
-          currentIndex: Math.max(0, picker.monitorOptions.findIndex(o => o.value === picker.selectedMonitor))
-          model: picker.monitorOptions
-          textRole: "label"
-          valueRole: "value"
+            anchors {
+              fill: parent
+              leftMargin: 12
+              rightMargin: 12
+            }
 
-          onActivated: idx => picker.selectedMonitor = picker.monitorOptions[idx]?.value ?? "all"
-        }
+            OText {
+              font.pixelSize: 13
+              muted: true
+              text: "⌂"
+            }
 
-        RowLayout {
-          spacing: Theme.spacingSm
+            TextInput {
+              Layout.fillWidth: true
+              clip: true
+              color: Theme.textActiveColor
+              font.family: Theme.fontFamily
+              font.pixelSize: Theme.fontSize
+              selectByMouse: true
+              text: WallpaperService?.wallpaperFolder ?? ""
 
-          OComboBox {
-            readonly property string currentMode: picker.stagedModes[picker.selectedMonitor] ?? picker.stagedModes.all ?? "fill"
-
-            Layout.preferredWidth: 140
-            currentIndex: Math.max(0, picker.fillModeOptions.findIndex(o => o.value === currentMode))
-            model: picker.fillModeOptions
-            textRole: "label"
-            valueRole: "value"
-
-            onActivated: idx => {
-              const mode = picker.fillModeOptions[idx]?.value;
-              if (!mode)
-                return;
-              const modes = Object.assign({}, picker.stagedModes);
-              if (picker.selectedMonitor === "all") {
-                modes.all = mode;
-                for (const {
-                  value
-                } of picker.monitorOptions)
-                  if (value !== "all")
-                    modes[value] = mode;
-              } else {
-                modes[picker.selectedMonitor] = mode;
-              }
-              picker.stagedModes = modes;
+              onEditingFinished: if (text !== (WallpaperService?.wallpaperFolder ?? ""))
+                WallpaperService.setWallpaperFolder(text)
             }
           }
+        }
 
-          OComboBox {
-            Layout.preferredWidth: 150
-            currentIndex: Math.max(0, picker.transitionOptions.findIndex(o => o.value === picker.stagedTransition))
-            model: picker.transitionOptions
-            textRole: "label"
-            valueRole: "value"
+        // Monitor chip group
+        Rectangle {
+          border.color: Qt.rgba(1, 1, 1, 0.1)
+          border.width: 1
+          color: Qt.rgba(1, 1, 1, 0.05)
+          implicitHeight: 34
+          implicitWidth: monitorChips.implicitWidth + 12
+          radius: 17
 
-            onActivated: idx => picker.stagedTransition = picker.transitionOptions[idx]?.value ?? "disc"
+          Row {
+            id: monitorChips
+
+            anchors.centerIn: parent
+            spacing: 2
+
+            Repeater {
+              model: picker.monitorOptions
+
+              delegate: Rectangle {
+                required property int index
+                readonly property bool isActive: picker.selectedMonitor === modelData.value
+                required property var modelData
+
+                color: isActive ? Theme.activeColor : "transparent"
+                implicitHeight: 28
+                implicitWidth: Math.max(58, monitorLabel.implicitWidth + 22)
+                radius: 14
+
+                Behavior on color {
+                  ColorAnimation {
+                    duration: 160
+                  }
+                }
+
+                OText {
+                  id: monitorLabel
+
+                  anchors.centerIn: parent
+                  font.bold: isActive
+                  font.pixelSize: 12
+                  opacity: isActive ? 1 : 0.55
+                  text: modelData.label
+
+                  Behavior on opacity {
+                    NumberAnimation {
+                      duration: 160
+                    }
+                  }
+                }
+
+                MouseArea {
+                  anchors.fill: parent
+                  cursorShape: Qt.PointingHandCursor
+
+                  onClicked: picker.selectedMonitor = modelData.value
+                }
+              }
+            }
           }
         }
       }
 
+      // Row 2 — fill chips + transition chips + theme + dark toggle
       RowLayout {
         Layout.fillWidth: true
-        spacing: Theme.spacingSm
+        spacing: 8
+
+        OText {
+          font.pixelSize: 11
+          muted: true
+          opacity: 0.45
+          text: qsTr("Mode")
+        }
+
+        ExpandableOptionPill {
+          activeBgColor: Qt.rgba(1, 1, 1, 0.2)
+          currentIndex: picker.activeFillModeIndex
+          minSlotWidth: 50
+          options: picker.fillModeOptions
+
+          onSelected: value => picker.stageFillMode(value || "fill")
+        }
+
+        OText {
+          font.pixelSize: 11
+          muted: true
+          opacity: 0.45
+          text: qsTr("Transition")
+        }
+
+        ExpandableOptionPill {
+          activeBgColor: Theme.activeColor
+          currentIndex: picker.activeTransitionIndex
+          minSlotWidth: 58
+          options: picker.transitionOptions
+
+          onSelected: value => picker.stagedTransition = value || "disc"
+        }
 
         Item {
           Layout.fillWidth: true
         }
 
         OComboBox {
-          Layout.preferredWidth: 180
+          Layout.preferredWidth: 160
           currentIndex: Math.max(0, picker.themeOptions.findIndex(o => o.value === (Settings?.data?.themeName ?? "")))
           model: picker.themeOptions
           textRole: "label"
@@ -268,25 +416,62 @@ SearchGridPanel {
           onActivated: idx => Settings?.setThemeName(picker.themeOptions[idx]?.value ?? "")
         }
 
+        // macOS-style dark toggle
         RowLayout {
-          spacing: Theme.spacingXs
+          spacing: 6
 
           OText {
+            font.pixelSize: 11
             muted: true
-            text: qsTr("Dark mode")
+            opacity: 0.55
+            text: qsTr("Dark")
           }
 
-          OToggle {
-            Layout.alignment: Qt.AlignVCenter
-            checked: (Settings?.data?.themeMode ?? "dark") === "dark"
+          Rectangle {
+            id: darkTrack
 
-            onToggled: checked => Settings?.setThemeMode(checked ? "dark" : "light")
+            readonly property bool isDark: (Settings?.data?.themeMode ?? "dark") === "dark"
+
+            color: isDark ? Theme.activeColor : Qt.rgba(1, 1, 1, 0.18)
+            implicitHeight: 26
+            implicitWidth: 44
+            radius: 13
+
+            Behavior on color {
+              ColorAnimation {
+                duration: 200
+              }
+            }
+
+            Rectangle {
+              anchors.verticalCenter: parent.verticalCenter
+              color: "#ffffff"
+              height: 20
+              radius: 10
+              width: 20
+              x: darkTrack.isDark ? parent.width - width - 3 : 3
+
+              Behavior on x {
+                NumberAnimation {
+                  duration: 200
+                  easing.type: Easing.OutCubic
+                }
+              }
+            }
+
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+
+              onClicked: Settings?.setThemeMode(darkTrack.isDark ? "light" : "dark")
+            }
           }
         }
       }
     }
   ]
 
+  // ── Connections ──────────────────────────────────────────────────
   Component.onCompleted: if (gridView)
     gridView.cacheBuffer = 300
   onActivated: entry => stageWallpaper(entry)
@@ -305,6 +490,7 @@ SearchGridPanel {
     target: WallpaperService
   }
 
+  // ── Wallpaper tile — gallery style ──────────────────────────────
   Component {
     id: wallpaperDelegate
 
@@ -317,16 +503,47 @@ SearchGridPanel {
       readonly property bool selected: GridView.isCurrentItem
 
       height: GridView.view?.cellHeight ?? 0
+      scale: hovered && !selected ? 1.03 : 1.0
       width: GridView.view?.cellWidth ?? 0
 
+      Behavior on scale {
+        NumberAnimation {
+          duration: 150
+          easing.type: Easing.OutCubic
+        }
+      }
+
+      // Selection ring
       Rectangle {
-        anchors.fill: parent
-        anchors.margins: Theme.spacingSm
-        border.color: tile.selected ? Theme.activeColor : (tile.hovered ? Theme.onHoverColor : Theme.borderColor)
-        border.width: 1
+        border.color: Theme.activeColor
+        border.width: 3
+        color: "transparent"
+        opacity: tile.selected ? 1 : 0
+        radius: card.radius + 3
+
+        Behavior on opacity {
+          NumberAnimation {
+            duration: 180
+          }
+        }
+
+        anchors {
+          fill: card
+          margins: -3
+        }
+      }
+
+      Rectangle {
+        id: card
+
         clip: true
-        color: Qt.rgba(0, 0, 0, 0.18)
-        radius: Theme.itemRadius
+        color: "#111"
+        radius: 12
+
+        anchors {
+          fill: parent
+          margins: 5
+        }
 
         Image {
           anchors.fill: parent
@@ -334,13 +551,32 @@ SearchGridPanel {
           cache: false
           fillMode: Image.PreserveAspectCrop
           source: tile.modelData?.previewSource ?? ""
-          sourceSize: Qt.size(240, 150)
+          sourceSize: Qt.size(230, 145)
         }
 
+        // Hover / selected overlay
         Rectangle {
-          color: Qt.rgba(0, 0, 0, 0.45)
-          height: Math.max(36, parent.height * 0.18)
-          visible: tile.modelData?.displayName
+          anchors.fill: parent
+          color: Qt.rgba(0, 0, 0, tile.selected ? 0.22 : tile.hovered ? 0.12 : 0)
+
+          Behavior on color {
+            ColorAnimation {
+              duration: 130
+            }
+          }
+        }
+
+        // Name label fades in on hover / select
+        Rectangle {
+          color: Qt.rgba(0, 0, 0, 0.65)
+          height: 32
+          opacity: tile.hovered || tile.selected ? 1 : 0
+
+          Behavior on opacity {
+            NumberAnimation {
+              duration: 150
+            }
+          }
 
           anchors {
             bottom: parent.bottom
@@ -349,21 +585,20 @@ SearchGridPanel {
           }
 
           OText {
-            anchors.fill: parent
-            anchors.leftMargin: Theme.spacingMd
-            anchors.rightMargin: Theme.spacingMd
             elide: Text.ElideRight
+            font.bold: true
+            font.pixelSize: 11
             horizontalAlignment: Text.AlignLeft
             maximumLineCount: 1
             text: tile.modelData?.displayName ?? ""
             verticalAlignment: Text.AlignVCenter
-          }
-        }
 
-        Rectangle {
-          anchors.fill: parent
-          color: Qt.rgba(1, 1, 1, tile.selected ? 0.18 : 0.10)
-          visible: tile.selected || tile.hovered
+            anchors {
+              fill: parent
+              leftMargin: 10
+              rightMargin: 10
+            }
+          }
         }
       }
 
