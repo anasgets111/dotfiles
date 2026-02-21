@@ -79,6 +79,12 @@ layout {
     }
 }
 
+// Global blur settings (used by window background-effect)
+blur {
+    passes 1
+    offset 4.7
+}
+
 cursor {
     xcursor-theme "Bibata-Modern-Ice"
     xcursor-size 24
@@ -136,7 +142,11 @@ window-rule {
     geometry-corner-radius 15 15 0 0
     clip-to-geometry true
     draw-border-with-background false
-    opacity 0.97
+    opacity 0.9
+    background-effect {
+        blur true
+        xray true
+    }
 }
 
 // Workspace Assignments
@@ -217,6 +227,15 @@ window-rule {
     open-floating true
     default-column-width  { proportion 0.8; }
     default-window-height { proportion 0.8; }
+}
+
+// Floating windows: normal blur (shows windows below)
+// Placed among other floating-window rules so it applies to the floating windows above.
+window-rule {
+    match is-floating=true
+    background-effect {
+        xray false
+    }
 }
 
 window-rule {
