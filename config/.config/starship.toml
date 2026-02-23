@@ -113,7 +113,7 @@ version_format = "${major}.${minor}"
 
 [rust]
 format = "[](text_light)[ $version](base_dark bg:text_light)[](text_light) "
-version_format = "${major}"
+version_format = "${major}.${minor}"
 
 [golang]
 format = "[](text_light)[ $version](base_dark bg:text_light)[](text_light) "
