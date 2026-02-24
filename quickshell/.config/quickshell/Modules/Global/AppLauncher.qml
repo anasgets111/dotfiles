@@ -11,34 +11,56 @@ import qs.Services.Utils
 Item {
   id: root
 
-  property bool active: false
   property bool _closing: false
-  property bool _shown: false
-  property int currentIndex: 0
-  property bool hoverSelectionArmed: false
   property real _lastPointerX: -1
   property real _lastPointerY: -1
+  property bool _shown: false
+  property bool active: false
+  readonly property var allApps: typeof DesktopEntries !== "undefined" ? DesktopEntries.applications?.values || [] : []
+  readonly property bool calcMode: CalcEngine.hasResult
+  property int currentIndex: 0
   property var filteredApps: []
   property var finder: null
-  property string query: ""
-
-  readonly property var allApps: typeof DesktopEntries !== "undefined" ? DesktopEntries.applications?.values || [] : []
-  readonly property bool hasSpecial: query.trim().length > 0 && (CalcEngine.hasResult || CurrencyEngine.hasResult)
-  readonly property bool calcMode: CalcEngine.hasResult
   readonly property bool fxMode: CurrencyEngine.hasResult
+  readonly property bool hasSpecial: query.trim().length > 0 && (CalcEngine.hasResult || CurrencyEngine.hasResult)
+  property bool hoverSelectionArmed: false
   readonly property int maxVisible: 8
-  readonly property int visibleAppCount: Math.min(filteredApps.length, maxVisible)
+  property string query: ""
   readonly property int totalRows: visibleAppCount + (hasSpecial ? 1 : 0)
+  readonly property int visibleAppCount: Math.min(filteredApps.length, maxVisible)
 
   signal dismissed
 
-  function open(): void {
-    closeDelay.stop();
-    _closing = false;
-    if (_shown)
+  function activateCurrent(): void {
+    if (totalRows <= 0)
       return;
-    Qt.callLater(() => root._shown = true);
+    if (isSpecialSelected()) {
+      if (calcMode) {
+        copy(CalcEngine.resultText);
+        close();
+      } else if (fxMode) {
+        copy(CurrencyEngine.resultText);
+        close();
+      }
+      return;
+    }
+    const idx = selectedAppIndex();
+    if (idx >= 0)
+      launch(filteredApps[idx]);
   }
+
+  function armHoverSelectionIfMoved(x: real, y: real): void {
+    const px = Number(x);
+    const py = Number(y);
+    if (!Number.isFinite(px) || !Number.isFinite(py))
+      return;
+    if (px === _lastPointerX && py === _lastPointerY)
+      return;
+    _lastPointerX = px;
+    _lastPointerY = py;
+    hoverSelectionArmed = true;
+  }
+
   function close(): void {
     if (!_shown || _closing)
       return;
@@ -47,14 +69,12 @@ Item {
     closeDelay.restart();
   }
 
-  function toArray(v: var): var {
-    if (!v)
-      return [];
-    if (Array.isArray(v))
-      return v;
-    if (typeof v.length === "number")
-      return Array.from(v);
-    return [];
+  function copy(text: string): void {
+    Quickshell.execDetached(["sh", "-c", "echo -n '" + escapeSingle(text) + "' | wl-copy"]);
+  }
+
+  function disarmHoverSelection(): void {
+    hoverSelectionArmed = false;
   }
 
   function ensureFinder(force: bool): void {
@@ -79,6 +99,10 @@ Item {
     }
   }
 
+  function escapeSingle(s: string): string {
+    return String(s || "").replace(/'/g, "'\\''");
+  }
+
   function filterApps(text: string): void {
     ensureFinder(false);
     const q = String(text || "");
@@ -90,8 +114,7 @@ Item {
       try {
         filteredApps = finder.find(q).map(r => r.item);
         return;
-      } catch (_) {
-      }
+      } catch (_) {}
     }
     const lower = q.toLowerCase();
     filteredApps = toArray(allApps).filter(e => {
@@ -99,6 +122,41 @@ Item {
       const c = String(e?.comment || "").toLowerCase();
       return n.includes(lower) || c.includes(lower);
     }).slice(0, 200);
+  }
+
+  function isSpecialSelected(): bool {
+    return hasSpecial && currentIndex === 0;
+  }
+
+  function launch(entry: var): void {
+    const id = String(entry?.id || "").replace(/\.desktop$/, "");
+    if (!id)
+      return;
+    Quickshell.execDetached(["gtk-launch", id]);
+    close();
+  }
+
+  function mockRateLabel(): string {
+    if (!fxMode || CurrencyEngine.inputAmount === 0)
+      return "";
+    const rate = CurrencyEngine.outputAmount / CurrencyEngine.inputAmount;
+    const decimals = rate >= 100 ? 2 : (rate >= 1 ? 4 : 6);
+    return " · 1 " + CurrencyEngine.fromCode.toUpperCase() + " = " + rate.toLocaleString(Qt.locale(), "f", decimals) + " " + CurrencyEngine.toCode.toUpperCase();
+  }
+
+  function move(delta: int): void {
+    if (totalRows <= 0)
+      return;
+    disarmHoverSelection();
+    currentIndex = Math.max(0, Math.min(currentIndex + delta, totalRows - 1));
+  }
+
+  function open(): void {
+    closeDelay.stop();
+    _closing = false;
+    if (_shown)
+      return;
+    Qt.callLater(() => root._shown = true);
   }
 
   function processInput(text: string): void {
@@ -118,62 +176,18 @@ Item {
     currentIndex = 0;
   }
 
-  function isSpecialSelected(): bool { return hasSpecial && currentIndex === 0; }
-  function selectedAppIndex(): int { return visibleAppCount <= 0 ? -1 : Math.max(0, Math.min(currentIndex - (hasSpecial ? 1 : 0), visibleAppCount - 1)); }
-  function escapeSingle(s: string): string { return String(s || "").replace(/'/g, "'\\''"); }
-  function copy(text: string): void { Quickshell.execDetached(["sh", "-c", "echo -n '" + escapeSingle(text) + "' | wl-copy"]); }
-  function mockRateLabel(): string {
-    if (!fxMode || CurrencyEngine.inputAmount === 0)
-      return "";
-    const rate = CurrencyEngine.outputAmount / CurrencyEngine.inputAmount;
-    const decimals = rate >= 100 ? 2 : (rate >= 1 ? 4 : 6);
-    return " · 1 " + CurrencyEngine.fromCode.toUpperCase() + " = " + rate.toLocaleString(Qt.locale(), "f", decimals) + " " + CurrencyEngine.toCode.toUpperCase();
+  function selectedAppIndex(): int {
+    return visibleAppCount <= 0 ? -1 : Math.max(0, Math.min(currentIndex - (hasSpecial ? 1 : 0), visibleAppCount - 1));
   }
 
-  function launch(entry: var): void {
-    const id = String(entry?.id || "").replace(/\.desktop$/, "");
-    if (!id)
-      return;
-    Quickshell.execDetached(["gtk-launch", id]);
-    close();
-  }
-
-  function activateCurrent(): void {
-    if (totalRows <= 0)
-      return;
-    if (isSpecialSelected()) {
-      if (calcMode)
-        copy(CalcEngine.resultText);
-      else if (fxMode)
-        copy(CurrencyEngine.resultText);
-      return;
-    }
-    const idx = selectedAppIndex();
-    if (idx >= 0)
-      launch(filteredApps[idx]);
-  }
-
-  function move(delta: int): void {
-    if (totalRows <= 0)
-      return;
-    disarmHoverSelection();
-    currentIndex = Math.max(0, Math.min(currentIndex + delta, totalRows - 1));
-  }
-
-  function disarmHoverSelection(): void {
-    hoverSelectionArmed = false;
-  }
-
-  function armHoverSelectionIfMoved(x: real, y: real): void {
-    const px = Number(x);
-    const py = Number(y);
-    if (!Number.isFinite(px) || !Number.isFinite(py))
-      return;
-    if (px === _lastPointerX && py === _lastPointerY)
-      return;
-    _lastPointerX = px;
-    _lastPointerY = py;
-    hoverSelectionArmed = true;
+  function toArray(v: var): var {
+    if (!v)
+      return [];
+    if (Array.isArray(v))
+      return v;
+    if (typeof v.length === "number")
+      return Array.from(v);
+    return [];
   }
 
   anchors.fill: parent
@@ -219,7 +233,12 @@ Item {
     }
   }
 
-  MouseArea { anchors.fill: parent; onClicked: root.close() }
+  MouseArea {
+    anchors.fill: parent
+
+    onClicked: root.close()
+  }
+
   Rectangle {
     anchors.fill: parent
     color: Theme.withOpacity("#000", 0.35)
@@ -237,28 +256,33 @@ Item {
     id: panel
 
     anchors.horizontalCenter: parent.horizontalCenter
-    width: Math.min(860, parent.width * 0.62)
-    y: root._shown ? parent.height * 0.13 : parent.height * 0.11
-    radius: Theme.radiusLg
-    color: Theme.withOpacity(Theme.bgColor, 0.95)
     border.color: Theme.withOpacity(Theme.borderColor, 0.45)
     border.width: 1
+    color: Theme.withOpacity(Theme.bgColor, 0.95)
     height: Math.min(parent.height * 0.75, content.implicitHeight + Theme.spacingLg * 2)
     opacity: root._shown ? 1 : 0
+    radius: Theme.radiusLg
+    width: Math.min(860, parent.width * 0.62)
+    y: root._shown ? parent.height * 0.13 : parent.height * 0.11
 
-    Behavior on y {
-      NumberAnimation {
-        duration: Theme.animationSlow
-        easing.type: Easing.OutCubic
-      }
-    }
     Behavior on opacity {
       NumberAnimation {
         duration: Theme.animationDuration
         easing.type: Easing.OutCubic
       }
     }
-    MouseArea { anchors.fill: parent; onPressed: m => m.accepted = true }
+    Behavior on y {
+      NumberAnimation {
+        duration: Theme.animationSlow
+        easing.type: Easing.OutCubic
+      }
+    }
+
+    MouseArea {
+      anchors.fill: parent
+
+      onPressed: m => m.accepted = true
+    }
 
     ColumnLayout {
       id: content
@@ -270,10 +294,10 @@ Item {
       Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.s(56)
-        radius: Theme.radiusMd
-        color: Theme.withOpacity(Theme.bgElevated, 0.75)
         border.color: search.activeFocus ? Theme.withOpacity(Theme.activeColor, 0.5) : Theme.withOpacity(Theme.borderColor, 0.4)
         border.width: search.activeFocus ? 2 : 1
+        color: Theme.withOpacity(Theme.bgElevated, 0.75)
+        radius: Theme.radiusMd
 
         RowLayout {
           anchors.fill: parent
@@ -298,7 +322,6 @@ Item {
             selectedTextColor: Theme.textContrast(Theme.activeColor)
             selectionColor: Theme.activeColor
             verticalAlignment: Text.AlignVCenter
-            onTextChanged: root.processInput(text)
 
             Keys.onPressed: e => {
               switch (e.key) {
@@ -325,6 +348,7 @@ Item {
                 break;
               }
             }
+            onTextChanged: root.processInput(text)
 
             OText {
               anchors.fill: parent
@@ -345,11 +369,11 @@ Item {
 
       Rectangle {
         Layout.fillWidth: true
-        implicitHeight: (hasSpecial || visibleAppCount > 0) ? results.implicitHeight + Theme.spacingSm * 2 : 0
         Layout.preferredHeight: implicitHeight
-        visible: implicitHeight > 0
-        radius: Theme.radiusMd
         color: Theme.withOpacity(Theme.bgElevated, 0.65)
+        implicitHeight: (hasSpecial || visibleAppCount > 0) ? results.implicitHeight + Theme.spacingSm * 2 : 0
+        radius: Theme.radiusMd
+        visible: implicitHeight > 0
 
         ColumnLayout {
           id: results
@@ -361,22 +385,23 @@ Item {
           Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: hasSpecial ? Theme.s(86) : 0
-            visible: hasSpecial
-            radius: Theme.radiusMd
             color: isSpecialSelected() ? Theme.withOpacity(Theme.activeColor, 0.20) : Theme.withOpacity(Theme.onHoverColor, 0.12)
+            radius: Theme.radiusMd
+            visible: hasSpecial
 
             MouseArea {
               anchors.fill: parent
               hoverEnabled: true
+
+              onClicked: {
+                root.currentIndex = 0;
+                root.activateCurrent();
+              }
               onPositionChanged: mouse => {
                 const pos = mapToItem(root, mouse.x, mouse.y);
                 root.armHoverSelectionIfMoved(pos.x, pos.y);
                 if (root.hoverSelectionArmed)
                   root.currentIndex = 0;
-              }
-              onClicked: {
-                root.currentIndex = 0;
-                root.activateCurrent();
               }
             }
 
@@ -390,11 +415,13 @@ Item {
                 font.pixelSize: Theme.fontXs
                 text: calcMode ? "Calculator" : ("Currency (Mock)" + root.mockRateLabel())
               }
+
               OText {
                 font.pixelSize: Theme.fontLg
-                width: parent.width
                 text: calcMode ? (CalcEngine.expression + " = " + CalcEngine.resultText) : (CurrencyEngine.inputAmount + " " + CurrencyEngine.fromCode.toUpperCase() + " -> " + CurrencyEngine.resultText + " " + CurrencyEngine.toCode.toUpperCase())
+                width: parent.width
               }
+
               OText {
                 color: Theme.textInactiveColor
                 font.pixelSize: Theme.fontXs
@@ -409,33 +436,30 @@ Item {
 
             Layout.fillWidth: true
             Layout.preferredHeight: visibleAppCount > 0 ? Math.min(visibleAppCount * Theme.s(64), Theme.s(64) * maxVisible) : 0
-            currentIndex: root.isSpecialSelected() ? -1 : root.selectedAppIndex()
-            model: filteredApps
-            clip: true
             boundsBehavior: Flickable.StopAtBounds
+            clip: true
+            currentIndex: root.isSpecialSelected() ? -1 : root.selectedAppIndex()
             highlightFollowsCurrentItem: true
             highlightMoveDuration: Theme.animationDuration
-            highlight: Rectangle {
-              radius: Theme.radiusSm
-              color: Theme.withOpacity(Theme.activeColor, 0.30)
-            }
             interactive: filteredApps.length > maxVisible
+            model: filteredApps
 
             delegate: Item {
               id: row
 
+              readonly property int composedIndex: hasSpecial ? index + 1 : index
               required property int index
               required property var modelData
-              readonly property int composedIndex: hasSpecial ? index + 1 : index
               readonly property bool selected: composedIndex === root.currentIndex
-              width: list.width
+
               height: Theme.s(64)
               visible: index < maxVisible || list.interactive
+              width: list.width
 
               Rectangle {
                 anchors.fill: parent
-                radius: Theme.radiusSm
                 color: "transparent"
+                radius: Theme.radiusSm
               }
 
               RowLayout {
@@ -447,9 +471,9 @@ Item {
                 Image {
                   Layout.preferredHeight: Theme.s(34)
                   Layout.preferredWidth: Theme.s(34)
-                  source: Utils.resolveIconSource(modelData?.id || modelData?.name || "", modelData?.icon, "application-x-executable")
                   fillMode: Image.PreserveAspectFit
                   scale: row.selected ? 1.3 : 1.0
+                  source: Utils.resolveIconSource(modelData?.id || modelData?.name || "", modelData?.icon, "application-x-executable")
 
                   Behavior on scale {
                     NumberAnimation {
@@ -462,11 +486,13 @@ Item {
                 ColumnLayout {
                   Layout.fillWidth: true
                   spacing: 0
+
                   OText {
                     Layout.fillWidth: true
                     font.pixelSize: Theme.fontMd
                     text: modelData?.name || ""
                   }
+
                   OText {
                     Layout.fillWidth: true
                     color: Theme.textInactiveColor
@@ -481,14 +507,19 @@ Item {
               MouseArea {
                 anchors.fill: parent
                 hoverEnabled: true
+
+                onClicked: root.launch(row.modelData)
                 onPositionChanged: mouse => {
                   const pos = mapToItem(root, mouse.x, mouse.y);
                   root.armHoverSelectionIfMoved(pos.x, pos.y);
                   if (root.hoverSelectionArmed)
                     root.currentIndex = row.composedIndex;
                 }
-                onClicked: root.launch(row.modelData)
               }
+            }
+            highlight: Rectangle {
+              color: Theme.withOpacity(Theme.activeColor, 0.30)
+              radius: Theme.radiusSm
             }
           }
         }
