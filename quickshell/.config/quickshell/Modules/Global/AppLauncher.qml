@@ -126,7 +126,7 @@ Item {
     close();
   }
 
-  function mockRateLabel(): string {
+  function rateLabel(): string {
     if (!fxMode || CurrencyEngine.inputAmount === 0)
       return "";
     const rate = CurrencyEngine.outputAmount / CurrencyEngine.inputAmount;
@@ -340,7 +340,7 @@ Item {
           OText {
             color: Theme.withOpacity(Theme.activeColor, 0.8)
             font.pixelSize: Theme.fontXs
-            text: calcMode ? "CALC" : (fxMode ? "FX-MOCK" : "")
+            text: calcMode ? "CALC" : (fxMode ? (CurrencyEngine.ratesLive ? "FX" : "FX-STATIC") : "")
           }
         }
       }
@@ -389,13 +389,57 @@ Item {
               OText {
                 color: Theme.activeColor
                 font.pixelSize: Theme.fontXs
-                text: calcMode ? "Calculator" : ("Currency (Mock)" + root.mockRateLabel())
+                text: calcMode ? "Calculator" : ((CurrencyEngine.ratesLive ? "Currency" : "Currency (Static)") + root.rateLabel())
               }
 
+              // Calculator Result
               OText {
+                visible: calcMode
                 font.pixelSize: Theme.fontLg
-                text: calcMode ? (CalcEngine.expression + " = " + CalcEngine.resultText) : (CurrencyEngine.inputAmount + " " + CurrencyEngine.fromCode.toUpperCase() + " -> " + CurrencyEngine.resultText + " " + CurrencyEngine.toCode.toUpperCase())
-                width: parent.width
+                text: CalcEngine.expression + " = " + CalcEngine.resultText
+                Layout.fillWidth: true
+              }
+
+              // Currency Result Stacked
+              RowLayout {
+                visible: fxMode
+                spacing: Theme.spacingLg
+
+                ColumnLayout {
+                  spacing: 0
+                  OText {
+                    text: CurrencyEngine.fromFlag
+                    font.pixelSize: Theme.fontLg
+                    Layout.alignment: Qt.AlignHCenter
+                  }
+                  OText {
+                    text: CurrencyEngine.inputAmount + " " + CurrencyEngine.fromCode.toUpperCase()
+                    font.pixelSize: Theme.fontLg
+                  }
+                }
+
+                OText {
+                  text: "→"
+                  font.pixelSize: Theme.fontLg
+                  color: Theme.textInactiveColor
+                  Layout.alignment: Qt.AlignBottom
+                  Layout.bottomMargin: Theme.spacingXs
+                }
+
+                ColumnLayout {
+                  spacing: 0
+                  OText {
+                    text: CurrencyEngine.toFlag
+                    font.pixelSize: Theme.fontLg
+                    Layout.alignment: Qt.AlignHCenter
+                  }
+                  OText {
+                    text: CurrencyEngine.resultText + " " + CurrencyEngine.toCode.toUpperCase()
+                    font.pixelSize: Theme.fontLg
+                  }
+                }
+                
+                Item { Layout.fillWidth: true } // Spacer
               }
 
               OText {
