@@ -115,11 +115,8 @@ Singleton {
         lastUpdated = data.date;
         
         // Persist to state in settings
-        if (Settings.state.currency) {
-          Settings.state.currency.ratesJson = JSON.stringify(newRates);
-          Settings.state.currency.lastUpdate = new Date().toISOString();
-          Settings.saveState();
-        }
+        Settings.state.currency = { rates: newRates, lastUpdate: new Date().toISOString() };
+        Settings.saveState();
         
         Logger.log("CurrencyEngine", `Rates updated (date: ${data.date})`);
       }
@@ -181,12 +178,11 @@ Singleton {
     if (!Settings.isStateLoaded) return;
 
     const cache = Settings.state.currency;
-    if (cache.lastUpdate && cache.ratesJson) {
+    if (cache.lastUpdate && cache.rates) {
       try {
         const last = new Date(cache.lastUpdate);
-        const parsedRates = JSON.parse(cache.ratesJson);
-        if (parsedRates && typeof parsedRates === "object") {
-          rates = parsedRates;
+        if (cache.rates && typeof cache.rates === "object") {
+          rates = cache.rates;
           lastUpdated = cache.lastUpdate;
           ratesLive = true;
 

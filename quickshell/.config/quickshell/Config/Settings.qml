@@ -214,10 +214,7 @@ Singleton {
     JsonAdapter {
       id: cacheAdapter
 
-      property JsonObject currency: JsonObject {
-        property string lastUpdate: ""
-        property string ratesJson: ""
-      }
+      property var currency: ({ lastUpdate: "", rates: {} })
       property JsonObject updates: JsonObject {
         property string cachedUpdatePackagesJson: "[]"
         property double lastSync: 0
