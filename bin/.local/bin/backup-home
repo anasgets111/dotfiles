@@ -80,7 +80,10 @@ EXCLUDES=(
     '.rustup'
     '.local/share/containers/storage'
     '.antigravity/extensions'
+    '.vscode/extensions'
     '.local/share/zed/external_agents'
+    '.local/share/opencode/snapshot'
+    '.gemini/tmp'
 
     # Stow-managed files (home module)
     '.bashrc'
