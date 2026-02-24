@@ -21,8 +21,10 @@ Item {
   property int currentIndex: 0
   property var filteredApps: []
   property var finder: null
+  property real maxAppScore: 0
   readonly property bool fxMode: CurrencyEngine.hasResult
-  readonly property bool hasSpecial: query.trim().length > 0 && (calcMode || fxMode)
+  readonly property bool webMode: WebEngine.hasResult
+  readonly property bool hasSpecial: query.trim().length > 0 && (calcMode || fxMode || webMode)
   property bool hoverSelectionArmed: false
   readonly property int maxVisible: 8
   property string query: ""
@@ -38,7 +40,11 @@ Item {
     if (totalRows <= 0)
       return;
     if (specialSelected) {
-      copy(calcMode ? CalcEngine.resultText : CurrencyEngine.resultText);
+      if (calcMode || fxMode) {
+        copy(calcMode ? CalcEngine.resultText : CurrencyEngine.resultText);
+      } else if (webMode) {
+        Quickshell.execDetached(["xdg-open", WebEngine.url]);
+      }
       close();
       return;
     }
@@ -99,16 +105,20 @@ Item {
     const q = String(text || "");
     if (!q) {
       filteredApps = toArray(allApps).slice(0, 200);
+      maxAppScore = 0;
       return;
     }
     if (finder) {
       try {
-        filteredApps = finder.find(q).map(r => r.item);
+        const results = finder.find(q);
+        filteredApps = results.map(r => r.item);
+        maxAppScore = results.length > 0 ? results[0].score : 0;
         return;
       } catch (_) {}
     }
     const lower = q.toLowerCase();
     filteredApps = toArray(allApps).filter(e => (e?.name || "").toLowerCase().includes(lower) || (e?.comment || "").toLowerCase().includes(lower)).slice(0, 200);
+    maxAppScore = 0; // Simple fallback counts as "poor" match
   }
 
   // Extracted helper — deduplicates the identical mapToItem + arm + assign pattern in both MouseAreas
@@ -154,15 +164,27 @@ Item {
     query = text;
     CalcEngine.reset();
     CurrencyEngine.reset();
+    WebEngine.reset();
     const trimmed = String(text || "").trim();
     if (!trimmed) {
       filterApps("");
       currentIndex = 0;
       return;
     }
-    if (!CurrencyEngine.parseAndConvert(trimmed))
+    const hasFx = CurrencyEngine.parseAndConvert(trimmed);
+    if (!hasFx)
       CalcEngine.evaluate(trimmed);
     filterApps(trimmed);
+    
+    // Web search is fallback if no apps, calc, or fx. 
+    // Or if it's a direct URL.
+    // Or if app results are "poor" (score < threshold).
+    // FZF score for a perfect boundary match is ~32 per char.
+    // We'll use 25 per char as a threshold for "good" matches.
+    const scoreThreshold = Math.max(32, trimmed.length * 25);
+    const isFallback = (filteredApps.length === 0 || maxAppScore < scoreThreshold) && !CalcEngine.hasResult && !CurrencyEngine.hasResult;
+    WebEngine.parse(trimmed, isFallback);
+    
     currentIndex = 0;
   }
 
@@ -340,7 +362,7 @@ Item {
           OText {
             color: Theme.withOpacity(Theme.activeColor, 0.8)
             font.pixelSize: Theme.fontXs
-            text: calcMode ? "CALC" : (fxMode ? (CurrencyEngine.ratesLive ? "FX" : "FX-STATIC") : "")
+            text: calcMode ? "CALC" : (fxMode ? (CurrencyEngine.ratesLive ? "FX" : "FX-STATIC") : (WebEngine.isUrl ? "URL" : (WebEngine.hasResult ? "WEB" : "")))
           }
         }
       }
@@ -389,7 +411,7 @@ Item {
               OText {
                 color: Theme.activeColor
                 font.pixelSize: Theme.fontXs
-                text: calcMode ? "Calculator" : ((CurrencyEngine.ratesLive ? "Currency" : "Currency (Static)") + root.rateLabel())
+                text: calcMode ? "Calculator" : (fxMode ? ((CurrencyEngine.ratesLive ? "Currency" : "Currency (Static)") + root.rateLabel()) : (WebEngine.isUrl ? "Open Link" : "Web Search"))
               }
 
               // Calculator Result
@@ -400,9 +422,27 @@ Item {
                 Layout.fillWidth: true
               }
 
+              // Web Result
+              RowLayout {
+                visible: webMode && !calcMode && !fxMode
+                spacing: Theme.spacingMd
+
+                OText {
+                  color: Theme.activeColor
+                  font.pixelSize: Theme.fontLg
+                  text: WebEngine.isUrl ? "󰖟" : "󰍉"
+                }
+
+                OText {
+                  Layout.fillWidth: true
+                  font.pixelSize: Theme.fontLg
+                  text: WebEngine.isUrl ? WebEngine.url : WebEngine.query
+                }
+              }
+
               // Currency Result Stacked
               RowLayout {
-                visible: fxMode
+                visible: fxMode && !calcMode
                 spacing: Theme.spacingLg
 
                 ColumnLayout {
