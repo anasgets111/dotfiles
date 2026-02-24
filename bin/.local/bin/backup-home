@@ -75,6 +75,17 @@ EXCLUDES=(
     '.config/heroic/tools'
     '.config/heroic/prefixes'
     '.config/heroic/images-cache'
+    '.config/obs-studio'
+    '.config/wireplumber'
+    '.config/solaar'
+    '.config/protonfixes'
+    '.config/nwjs'
+    '.config/nwg-look'
+    '.config/nix'
+    '.config/nautilus'
+    '.config/menus'
+    '.config/autostart'
+    '.config/btop'
 
     # Re-downloadable toolchains/runtimes (large, low-risk to exclude)
     '.rustup'
@@ -84,6 +95,14 @@ EXCLUDES=(
     '.local/share/zed/external_agents'
     '.local/share/opencode/snapshot'
     '.gemini/tmp'
+
+    # User content folders (excluded by request)
+    '/Desktop/'
+    '/Documents/'
+    '/Music/'
+    '/Pictures/'
+    '/Public/'
+    '/Videos/'
 
     # Stow-managed files (home module)
     '.bashrc'
