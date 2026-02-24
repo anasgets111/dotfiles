@@ -1,7 +1,6 @@
 //@ pragma Env QS_NO_RELOAD_POPUP=1
 //@ pragma Env QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
 //@ pragma Env QT_WAYLAND_DISABLE_WINDOWDECORATION=1
-//@ pragma Env QSG_RHI_BACKEND=vulkan
 
 pragma ComponentBehavior: Bound
 
