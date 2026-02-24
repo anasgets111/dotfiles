@@ -40,30 +40,38 @@ Singleton {
           "₹": "inr",
           "₿": "btc"
         }[s] || "usd");
-    const patterns = [[/^(\d+\.?\d*)\s*([a-zA-Z]{2,5})\s+(?:to|in|->|=>|=)\s+([a-zA-Z]{2,5})$/i, m => ({
-              a: parseFloat(m[1]),
-              f: m[2].toLowerCase(),
-              t: m[3].toLowerCase()
-            })], [/^[$€£¥₹₿]\s*(\d+\.?\d*)\s+(?:to|in|->|=>|=)\s+([a-zA-Z]{2,5})$/i, m => ({
-              a: parseFloat(m[1]),
-              f: fromSymbol(input.charAt(0)),
-              t: m[2].toLowerCase()
-            })], [/^([a-zA-Z]{2,5})\s+(?:to|in|->|=>|=)\s+([a-zA-Z]{2,5})$/i, m => ({
-              a: 1,
-              f: m[1].toLowerCase(),
-              t: m[2].toLowerCase()
-            })], [/^(\d+\.?\d*)\s+([a-zA-Z]{2,5})\s+([a-zA-Z]{2,5})$/i, m => ({
-              a: parseFloat(m[1]),
-              f: m[2].toLowerCase(),
-              t: m[3].toLowerCase()
-            })], [/^(\d+\.?\d*)\s*([a-zA-Z]{2,5})$/i, m => {
-          const f = m[2].toLowerCase();
-          return ({
-              a: parseFloat(m[1]),
-              f,
-              t: f === "usd" ? "eur" : "usd"
-            });
-        }]];
+    const patterns = [
+      // 100 USD to EUR or 100USD to EUR
+      [/^(\d+(?:\.\d+)?)\s*([a-zA-Z]{3,5})\s+(?:to|in|->|=>|=)\s+([a-zA-Z]{3,5})$/i, m => ({
+        a: parseFloat(m[1]),
+        f: m[2].toLowerCase(),
+        t: m[3].toLowerCase()
+      })],
+      // $100 to EUR
+      [/^([$€£¥₹₿])\s*(\d+(?:\.\d+)?)\s+(?:to|in|->|=>|=)\s+([a-zA-Z]{3,5})$/i, m => ({
+        a: parseFloat(m[2]),
+        f: fromSymbol(m[1]),
+        t: m[3].toLowerCase()
+      })],
+      // 100 USD (defaults to EGP, or USD if input is EGP)
+      [/^(\d+(?:\.\d+)?)\s*([a-zA-Z]{3,5})$/i, m => {
+        const f = m[2].toLowerCase();
+        return {
+          a: parseFloat(m[1]),
+          f: f,
+          t: f === "egp" ? "usd" : "egp"
+        };
+      }],
+      // $100 (defaults to EGP, or USD if input is EGP)
+      [/^([$€£¥₹₿])\s*(\d+(?:\.\d+)?)$/i, m => {
+        const f = fromSymbol(m[1]);
+        return {
+          a: parseFloat(m[2]),
+          f: f,
+          t: f === "egp" ? "usd" : "egp"
+        };
+      }]
+    ];
     let parsed = null;
     for (const [re, fn] of patterns) {
       const m = input.match(re);
