@@ -129,12 +129,14 @@ PanelWindow {
     }
 
     Loader {
-      active: root.launcherOpen
+      id: launcherLoader
+
+      active: true
       anchors.fill: parent
       z: 70
 
       sourceComponent: AppLauncher {
-        active: true
+        active: root.launcherOpen
 
         onDismissed: ShellUiState.closeModal("launcher")
       }
