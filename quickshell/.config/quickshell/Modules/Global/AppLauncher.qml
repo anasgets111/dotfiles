@@ -15,6 +15,9 @@ Item {
   property bool _closing: false
   property bool _shown: false
   property int currentIndex: 0
+  property bool hoverSelectionArmed: false
+  property real _lastPointerX: -1
+  property real _lastPointerY: -1
   property var filteredApps: []
   property var finder: null
   property string query: ""
@@ -99,6 +102,7 @@ Item {
   }
 
   function processInput(text: string): void {
+    disarmHoverSelection();
     query = text;
     CalcEngine.reset();
     CurrencyEngine.reset();
@@ -152,7 +156,24 @@ Item {
   function move(delta: int): void {
     if (totalRows <= 0)
       return;
+    disarmHoverSelection();
     currentIndex = Math.max(0, Math.min(currentIndex + delta, totalRows - 1));
+  }
+
+  function disarmHoverSelection(): void {
+    hoverSelectionArmed = false;
+  }
+
+  function armHoverSelectionIfMoved(x: real, y: real): void {
+    const px = Number(x);
+    const py = Number(y);
+    if (!Number.isFinite(px) || !Number.isFinite(py))
+      return;
+    if (px === _lastPointerX && py === _lastPointerY)
+      return;
+    _lastPointerX = px;
+    _lastPointerY = py;
+    hoverSelectionArmed = true;
   }
 
   anchors.fill: parent
@@ -166,7 +187,11 @@ Item {
   onActiveChanged: {
     if (active) {
       open();
+      disarmHoverSelection();
+      _lastPointerX = -1;
+      _lastPointerY = -1;
       ensureFinder(true);
+      search.text = "";
       processInput("");
       Qt.callLater(() => search.forceActiveFocus());
       return;
@@ -343,7 +368,12 @@ Item {
             MouseArea {
               anchors.fill: parent
               hoverEnabled: true
-              onEntered: root.currentIndex = 0
+              onPositionChanged: mouse => {
+                const pos = mapToItem(root, mouse.x, mouse.y);
+                root.armHoverSelectionIfMoved(pos.x, pos.y);
+                if (root.hoverSelectionArmed)
+                  root.currentIndex = 0;
+              }
               onClicked: {
                 root.currentIndex = 0;
                 root.activateCurrent();
@@ -451,7 +481,12 @@ Item {
               MouseArea {
                 anchors.fill: parent
                 hoverEnabled: true
-                onEntered: root.currentIndex = row.composedIndex
+                onPositionChanged: mouse => {
+                  const pos = mapToItem(root, mouse.x, mouse.y);
+                  root.armHoverSelectionIfMoved(pos.x, pos.y);
+                  if (root.hoverSelectionArmed)
+                    root.currentIndex = row.composedIndex;
+                }
                 onClicked: root.launch(row.modelData)
               }
             }
