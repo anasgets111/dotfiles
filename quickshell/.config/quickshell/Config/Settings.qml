@@ -22,6 +22,7 @@ Singleton {
   readonly property var colors: _loadedScheme?.[data.themeMode] ?? {}
   property string configDir: Quickshell.env("OBELISK_CONFIG_DIR") || (_xdgConfig + "/" + shellName + "/")
   property alias data: adapter
+  property alias state: cacheAdapter
   property string defaultAvatar: Quickshell.env("HOME") + "/.face"
   property string defaultWallpaper: Qt.resolvedUrl("../Assets/3.jpg")
 
@@ -29,7 +30,9 @@ Singleton {
   // STATE
   // ═══════════════════════════════════════════════════════════════════════════
   property bool isLoaded: false
+  property bool isStateLoaded: false
   property string settingsFile: Quickshell.env("OBELISK_SETTINGS_FILE") || (configDir + "settings.json")
+  property string stateFile: cacheDir + "state.json"
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PATHS
@@ -39,6 +42,10 @@ Singleton {
   // ═══════════════════════════════════════════════════════════════════════════
   // PUBLIC API
   // ═══════════════════════════════════════════════════════════════════════════
+  function saveState(): void {
+    if (isStateLoaded)
+      stateFileView.writeAdapter();
+  }
   function setThemeMode(mode: string): void {
     const validMode = mode === "light" ? "light" : "dark";
     if (data.themeMode !== validMode)
@@ -165,11 +172,60 @@ Singleton {
       property string wallpaperTransition: "disc"
       property var wallpapers: ({})
       property JsonObject weatherLocation: JsonObject {
-        property string dailyForecast: ""
-        property string lastPollTimestamp: ""
         property real latitude: 30.0507
         property real longitude: 31.2489
         property string placeName: "Cairo, Egypt"
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE PERSISTENCE
+  // ═══════════════════════════════════════════════════════════════════════════
+  Timer {
+    id: saveStateTimer
+
+    interval: 1000
+
+    onTriggered: stateFileView.writeAdapter()
+  }
+
+  FileView {
+    id: stateFileView
+
+    path: root.stateFile
+    watchChanges: true
+
+    Component.onCompleted: reload()
+    onAdapterUpdated: saveStateTimer.start()
+    onFileChanged: reload()
+    onLoadFailed: error => {
+      if (error.toString().includes("No such file") || error === 2)
+        writeAdapter();
+      root.isStateLoaded = true;
+    }
+    onLoaded: {
+      if (!root.isStateLoaded) {
+        Logger.log("Settings", "State JSON completed loading");
+        root.isStateLoaded = true;
+      }
+    }
+
+    JsonAdapter {
+      id: cacheAdapter
+
+      property JsonObject currency: JsonObject {
+        property string lastUpdate: ""
+        property string ratesJson: ""
+      }
+      property JsonObject updates: JsonObject {
+        property string cachedUpdatePackagesJson: "[]"
+        property double lastSync: 0
+        property int lastNotificationId: 0
+      }
+      property JsonObject weather: JsonObject {
+        property string dailyForecast: ""
+        property string lastPollTimestamp: ""
         property string temperature: ""
         property int weatherCode: -1
       }

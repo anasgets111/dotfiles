@@ -2,6 +2,8 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import qs.Config
+import qs.Services.Utils
 
 Singleton {
   id: root
@@ -11,86 +13,19 @@ Singleton {
   property real _outputAmount: 0
   property string _resultText: ""
   property string _toCode: ""
+  property bool _requesting: false
+  property string lastUpdated: ""
   readonly property string fromCode: _fromCode
+  readonly property string fromFlag: _getFlag(_fromCode)
   readonly property bool hasResult: _resultText !== ""
   readonly property real inputAmount: _inputAmount
   readonly property real outputAmount: _outputAmount
-  readonly property var rates: ({
-      "usd": 1.0,
-      "eur": 0.92,
-      "gbp": 0.79,
-      "egp": 50.75,
-      "jpy": 149.50,
-      "cny": 7.24,
-      "inr": 83.40,
-      "cad": 1.36,
-      "aud": 1.53,
-      "chf": 0.88,
-      "krw": 1330.0,
-      "brl": 4.97,
-      "mxn": 17.15,
-      "sar": 3.75,
-      "aed": 3.67,
-      "try": 32.40,
-      "rub": 92.50,
-      "zar": 18.60,
-      "sek": 10.45,
-      "nok": 10.55,
-      "dkk": 6.87,
-      "pln": 3.98,
-      "thb": 35.20,
-      "idr": 15650.0,
-      "myr": 4.72,
-      "sgd": 1.34,
-      "hkd": 7.82,
-      "php": 56.10,
-      "ngn": 1550.0,
-      "pkr": 278.50,
-      "bdt": 110.0,
-      "vnd": 24500.0,
-      "cop": 3950.0,
-      "ars": 870.0,
-      "clp": 935.0,
-      "pen": 3.72,
-      "uah": 38.50,
-      "czk": 22.80,
-      "huf": 355.0,
-      "ron": 4.57,
-      "bgn": 1.80,
-      "hrk": 6.92,
-      "ils": 3.65,
-      "qar": 3.64,
-      "kwd": 0.31,
-      "bhd": 0.376,
-      "omr": 0.385,
-      "jod": 0.709,
-      "lbp": 89500.0,
-      "mad": 10.0,
-      "tnd": 3.11,
-      "dzd": 134.50,
-      "lyd": 4.85,
-      "kes": 153.0,
-      "ghs": 12.50,
-      "tzs": 2520.0,
-      "ugx": 3780.0,
-      "xof": 603.0,
-      "xaf": 603.0,
-      "nzd": 1.64,
-      "gel": 2.70,
-      "kzt": 450.0,
-      "uzs": 12350.0,
-      "azn": 1.70,
-      "twd": 31.50,
-      "lkr": 310.0,
-      "mmk": 2100.0,
-      "byn": 3.27,
-      "isk": 137.0,
-      "btc": 0.0000098,
-      "eth": 0.00028
-    })
-  readonly property bool ratesLive: false
+  property var rates: ({ "usd": 1.0 })
+  property bool ratesLive: false
   readonly property string resultText: _resultText
   readonly property string toCode: _toCode
+  readonly property string toFlag: _getFlag(_toCode)
+  readonly property int refreshInterval: 86400000 // 24 hours
 
   function parseAndConvert(text: string): bool {
     reset();
@@ -146,6 +81,8 @@ Singleton {
     _inputAmount = parsed.a;
     _outputAmount = out;
     _resultText = Math.abs(out) < 0.01 && out !== 0 ? out.toPrecision(6) : out.toLocaleString(Qt.locale(), "f", decimals);
+    
+    Logger.log("CurrencyEngine", `Query success: ${parsed.a} ${parsed.f} -> ${out} ${parsed.t} (${fromFlag} -> ${toFlag})`);
     return true;
   }
 
@@ -155,5 +92,118 @@ Singleton {
     _inputAmount = 0;
     _outputAmount = 0;
     _resultText = "";
+  }
+
+  function _fetchRates(): void {
+    if (_requesting) return;
+    const url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json";
+    
+    _httpGet(url, data => {
+      if (data && data.usd) {
+        const newRates = data.usd;
+        newRates["usd"] = 1.0;
+        rates = newRates;
+        ratesLive = true;
+        lastUpdated = data.date;
+        
+        // Persist to state in settings
+        if (Settings.state.currency) {
+          Settings.state.currency.ratesJson = JSON.stringify(newRates);
+          Settings.state.currency.lastUpdate = new Date().toISOString();
+          Settings.saveState();
+        }
+        
+        Logger.log("CurrencyEngine", `Rates updated (date: ${data.date})`);
+      }
+    });
+  }
+
+  function _getFlag(code: string): string {
+    if (!code) return "";
+    const lower = code.toLowerCase();
+    const specials = {
+      "eur": "eu",
+      "gbp": "gb",
+      "usd": "us",
+      "btc": "₿",
+      "eth": "Ξ",
+      "ltc": "Ł",
+      "doge": "Ð",
+      "xrp": "✕",
+      "ada": "₳",
+      "sol": "₴",
+      "dot": "●",
+      "usdt": "₮",
+      "usdc": "₵"
+    };
+    const country = specials[lower] || lower.substring(0, 2);
+    // Regional Indicator Symbol conversion (A=127462)
+    if (country.length === 2 && /^[a-z]{2}$/i.test(country)) {
+      return String.fromCodePoint(...[...country.toUpperCase()].map(c => c.charCodeAt(0) + 127397));
+    }
+    return country.toUpperCase();
+  }
+
+  function _httpGet(url: string, onSuccess: var): void {
+    _requesting = true;
+    const xhr = new XMLHttpRequest();
+    xhr.timeout = 5000;
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState !== XMLHttpRequest.DONE) return;
+      _requesting = false;
+      if (xhr.status !== 200) {
+        Logger.warn("CurrencyEngine", `Failed to fetch rates: ${xhr.status}`);
+        return;
+      }
+      try {
+        onSuccess(JSON.parse(xhr.responseText));
+      } catch (e) {
+        Logger.warn("CurrencyEngine", "Failed to parse rates JSON");
+      }
+    };
+    xhr.ontimeout = () => {
+      _requesting = false;
+      Logger.warn("CurrencyEngine", "Rate fetch timed out");
+    };
+    xhr.open("GET", url);
+    xhr.send();
+  }
+
+  function _init(): void {
+    if (!Settings.isStateLoaded) return;
+
+    const cache = Settings.state.currency;
+    if (cache.lastUpdate && cache.ratesJson) {
+      try {
+        const last = new Date(cache.lastUpdate);
+        const parsedRates = JSON.parse(cache.ratesJson);
+        if (parsedRates && typeof parsedRates === "object") {
+          rates = parsedRates;
+          lastUpdated = cache.lastUpdate;
+          ratesLive = true;
+
+          const elapsed = Date.now() - last.getTime();
+          if (elapsed < refreshInterval) {
+            Logger.log("CurrencyEngine", "Using cached rates");
+            return;
+          }
+        }
+      } catch (e) {
+        Logger.warn("CurrencyEngine", "Failed to load cache: " + e);
+      }
+    }
+
+    Logger.log("CurrencyEngine", "Refreshing rates from API (cache stale or missing)");
+    _fetchRates();
+  }
+
+  Component.onCompleted: if (Settings.isStateLoaded) _init()
+
+  Connections {
+    function onIsStateLoadedChanged() {
+      if (Settings.isStateLoaded)
+        root._init();
+    }
+    target: Settings
   }
 }

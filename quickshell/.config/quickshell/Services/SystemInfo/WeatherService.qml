@@ -37,6 +37,7 @@ Singleton {
   readonly property int refreshInterval: 3600000 // 1 hour
   readonly property string timeAgo: _timeAgo()
   readonly property var weatherLocation: Settings.data.weatherLocation
+  readonly property var weatherCache: Settings.state.weather
 
   function _fetch() {
     if (_requesting)
@@ -79,13 +80,13 @@ Singleton {
       hasError = false;
       _retryCount = 0;
 
-      // Persist to settings
-      const loc = weatherLocation;
-      if (loc) {
-        loc.weatherCode = code;
-        loc.temperature = String(roundedTemp);
-        loc.dailyForecast = JSON.stringify(data.daily);
-        loc.lastPollTimestamp = lastUpdated.toISOString();
+      // Persist to state cache
+      const cache = weatherCache;
+      if (cache) {
+        cache.weatherCode = code;
+        cache.temperature = String(roundedTemp);
+        cache.dailyForecast = JSON.stringify(data.daily);
+        cache.lastPollTimestamp = lastUpdated.toISOString();
       }
     });
   }
@@ -127,17 +128,17 @@ Singleton {
   }
 
   function _init() {
-    if (!Settings.isLoaded || !weatherLocation)
+    if (!Settings.isLoaded || !Settings.isStateLoaded || !weatherLocation)
       return;
 
-    const loc = weatherLocation;
-    if (loc.lastPollTimestamp) {
+    const cache = weatherCache;
+    if (cache?.lastPollTimestamp) {
       try {
-        lastUpdated = new Date(loc.lastPollTimestamp);
-        currentWeatherCode = loc.weatherCode ?? -1;
-        currentTemp = `${loc.temperature ?? 0}°C ${WeatherCodes.get(currentWeatherCode).icon}`;
-        if (loc.dailyForecast)
-          dailyForecast = JSON.parse(loc.dailyForecast);
+        lastUpdated = new Date(cache.lastPollTimestamp);
+        currentWeatherCode = cache.weatherCode ?? -1;
+        currentTemp = `${cache.temperature ?? 0}°C ${WeatherCodes.get(currentWeatherCode).icon}`;
+        if (cache.dailyForecast)
+          dailyForecast = JSON.parse(cache.dailyForecast);
 
         const elapsed = Date.now() - lastUpdated.getTime();
         if (elapsed < refreshInterval) {
@@ -184,12 +185,16 @@ Singleton {
     return WeatherCodes.get(code);
   }
 
-  Component.onCompleted: if (Settings.isLoaded)
+  Component.onCompleted: if (Settings.isLoaded && Settings.isStateLoaded)
     _init()
 
   Connections {
     function onIsLoadedChanged() {
-      if (Settings.isLoaded)
+      if (Settings.isLoaded && Settings.isStateLoaded)
+        root._init();
+    }
+    function onIsStateLoadedChanged() {
+      if (Settings.isLoaded && Settings.isStateLoaded)
         root._init();
     }
 

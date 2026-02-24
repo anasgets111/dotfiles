@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Config
 import qs.Services
 import qs.Services.SystemInfo
 import qs.Services.Utils
@@ -142,15 +143,19 @@ Singleton {
     sizeFetchProcess.running = true;
   }
 
-  Component.onCompleted: {
-    const c = cache;
+  function _init() {
+    if (!Settings.isStateLoaded) return;
+    const c = Settings.state.updates;
     updatePackages = JSON.parse(c.cachedUpdatePackagesJson || "[]");
-    lastSync = c.cachedLastSync || 0;
-    lastNotificationId = c.cachedNotificationId || 0;
+    lastSync = c.lastSync || 0;
+    lastNotificationId = c.lastNotificationId || 0;
   }
+
+  Component.onCompleted: if (Settings.isStateLoaded) _init()
   Component.onDestruction: pollTimer.stop()
-  onLastNotificationIdChanged: cache.cachedNotificationId = lastNotificationId
-  onLastSyncChanged: cache.cachedLastSync = lastSync
+
+  onLastNotificationIdChanged: if (Settings.isStateLoaded) Settings.state.updates.lastNotificationId = lastNotificationId
+  onLastSyncChanged: if (Settings.isStateLoaded) Settings.state.updates.lastSync = lastSync
   onReadyChanged: {
     if (ready) {
       doPoll();
@@ -159,16 +164,14 @@ Singleton {
       pollTimer.stop();
     }
   }
-  onUpdatePackagesChanged: cache.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
+  onUpdatePackagesChanged: if (Settings.isStateLoaded) Settings.state.updates.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
 
-  PersistentProperties {
-    id: cache
-
-    property double cachedLastSync: 0
-    property int cachedNotificationId: 0
-    property string cachedUpdatePackagesJson: "[]"
-
-    reloadableId: "ArchCheckerCache"
+  Connections {
+    function onIsStateLoadedChanged() {
+      if (Settings.isStateLoaded)
+        root._init();
+    }
+    target: Settings
   }
 
   Process {
