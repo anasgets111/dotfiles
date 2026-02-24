@@ -4,7 +4,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Services.SystemInfo
-import qs.Services.Utils
 import qs.Services.WM
 
 Singleton {
@@ -30,14 +29,17 @@ Singleton {
   signal recordingStarted(string path)
   signal recordingStopped(string path)
 
-  function startRecording() {
+  function startRecording(mode = "default") {
     if (isRecording)
       return;
     const filename = TimeService.format("datetime", "yyyyMMdd_HHmmss") + ".mp4";
     const dir = directory.endsWith("/") ? directory : directory + "/";
     outputPath = dir + filename;
     const args = ["gpu-screen-recorder"];
-    args.push("-w", monitor);
+    if (mode === "selection")
+      args.push("-w", "region", "-region", "__REGION__");
+    else
+      args.push("-w", monitor);
     if (frameRate > 0)
       args.push("-f", String(frameRate));
     args.push("-o", outputPath);
@@ -53,8 +55,13 @@ Singleton {
     args.push("-cursor", showCursor ? "yes" : "no");
     if (colorRange)
       args.push("-cr", colorRange);
-    Logger.log("ScreenRecorder", "Starting:", args.join(" "));
-    Quickshell.execDetached(args);
+
+    if (mode === "selection") {
+      const escaped = args.map(part => part === "__REGION__" ? "\"$region\"" : `"${String(part).replace(/"/g, "\\\"")}"`).join(" ");
+      Quickshell.execDetached(["sh", "-c", `region="$(/usr/sbin/slurp -f '%wx%h+%x+%y')" || exit 0; [ -n "$region" ] || exit 0; ${escaped}`]);
+    } else {
+      Quickshell.execDetached(args);
+    }
     Quickshell.execDetached(["sh", "-c", `: > "${root.lockPath}"`]);
 
     isRecording = true;
