@@ -5,13 +5,12 @@ import Quickshell
 
 Singleton {
   id: root
+
   property string _expression: ""
   property string _resultText: ""
-  readonly property bool hasResult: _resultText !== ""
   readonly property string expression: _expression
+  readonly property bool hasResult: _resultText !== ""
   readonly property string resultText: _resultText
-
-  function reset(): void { _expression = ""; _resultText = ""; }
 
   function evaluate(text: string): bool {
     reset();
@@ -25,7 +24,8 @@ Singleton {
       expr = expr.replace(/(\d+\.?\d*)%/g, "($1/100)").replace(/[^0-9+\-*/().%\s]/g, "");
       if (!expr.trim())
         return false;
-      const value = eval("(" + expr + ")");
+      const fn = Function("\"use strict\"; return (" + expr + ");");
+      const value = fn();
       if (typeof value !== "number" || !isFinite(value))
         return false;
       _expression = input;
@@ -35,5 +35,10 @@ Singleton {
       reset();
       return false;
     }
+  }
+
+  function reset(): void {
+    _expression = "";
+    _resultText = "";
   }
 }
