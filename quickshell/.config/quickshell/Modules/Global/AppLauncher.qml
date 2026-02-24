@@ -22,10 +22,13 @@ Item {
   property var filteredApps: []
   property var finder: null
   readonly property bool fxMode: CurrencyEngine.hasResult
-  readonly property bool hasSpecial: query.trim().length > 0 && (CalcEngine.hasResult || CurrencyEngine.hasResult)
+  readonly property bool hasSpecial: query.trim().length > 0 && (calcMode || fxMode)
   property bool hoverSelectionArmed: false
   readonly property int maxVisible: 8
   property string query: ""
+  readonly property int selectedAppIdx: visibleAppCount <= 0 ? -1 : Math.max(0, Math.min(currentIndex - (hasSpecial ? 1 : 0), visibleAppCount - 1))
+  // Replaces isSpecialSelected() and selectedAppIndex() functions
+  readonly property bool specialSelected: hasSpecial && currentIndex === 0
   readonly property int totalRows: visibleAppCount + (hasSpecial ? 1 : 0)
   readonly property int visibleAppCount: Math.min(filteredApps.length, maxVisible)
 
@@ -34,30 +37,21 @@ Item {
   function activateCurrent(): void {
     if (totalRows <= 0)
       return;
-    if (isSpecialSelected()) {
-      if (calcMode) {
-        copy(CalcEngine.resultText);
-        close();
-      } else if (fxMode) {
-        copy(CurrencyEngine.resultText);
-        close();
-      }
+    if (specialSelected) {
+      copy(calcMode ? CalcEngine.resultText : CurrencyEngine.resultText);
+      close();
       return;
     }
-    const idx = selectedAppIndex();
-    if (idx >= 0)
-      launch(filteredApps[idx]);
+    if (selectedAppIdx >= 0)
+      launch(filteredApps[selectedAppIdx]);
   }
 
+  // Number() coercions dropped — params are typed real, already numeric
   function armHoverSelectionIfMoved(x: real, y: real): void {
-    const px = Number(x);
-    const py = Number(y);
-    if (!Number.isFinite(px) || !Number.isFinite(py))
+    if (!Number.isFinite(x) || !Number.isFinite(y) || (x === _lastPointerX && y === _lastPointerY))
       return;
-    if (px === _lastPointerX && py === _lastPointerY)
-      return;
-    _lastPointerX = px;
-    _lastPointerY = py;
+    _lastPointerX = x;
+    _lastPointerY = y;
     hoverSelectionArmed = true;
   }
 
@@ -69,8 +63,10 @@ Item {
     closeDelay.restart();
   }
 
+  // escapeSingle inlined — was only ever called here
   function copy(text: string): void {
-    Quickshell.execDetached(["sh", "-c", "echo -n '" + escapeSingle(text) + "' | wl-copy"]);
+    const escaped = String(text || "").replace(/'/g, "'\\\\''");
+    Quickshell.execDetached(["sh", "-c", "echo -n '" + escaped + "' | wl-copy"]);
   }
 
   function disarmHoverSelection(): void {
@@ -87,8 +83,7 @@ Item {
     try {
       finder = new Fzf.finder(toArray(allApps), {
         selector: e => {
-          const n = e?.name || "";
-          const c = e?.comment || "";
+          const n = e?.name || "", c = e?.comment || "";
           return c ? `${n} ${c}` : n;
         },
         limit: 200,
@@ -97,10 +92,6 @@ Item {
     } catch (_) {
       finder = null;
     }
-  }
-
-  function escapeSingle(s: string): string {
-    return String(s || "").replace(/'/g, "'\\''");
   }
 
   function filterApps(text: string): void {
@@ -117,15 +108,14 @@ Item {
       } catch (_) {}
     }
     const lower = q.toLowerCase();
-    filteredApps = toArray(allApps).filter(e => {
-      const n = String(e?.name || "").toLowerCase();
-      const c = String(e?.comment || "").toLowerCase();
-      return n.includes(lower) || c.includes(lower);
-    }).slice(0, 200);
+    filteredApps = toArray(allApps).filter(e => (e?.name || "").toLowerCase().includes(lower) || (e?.comment || "").toLowerCase().includes(lower)).slice(0, 200);
   }
 
-  function isSpecialSelected(): bool {
-    return hasSpecial && currentIndex === 0;
+  // Extracted helper — deduplicates the identical mapToItem + arm + assign pattern in both MouseAreas
+  function handleHoverMove(x: real, y: real, targetIndex: int): void {
+    armHoverSelectionIfMoved(x, y);
+    if (hoverSelectionArmed)
+      currentIndex = targetIndex;
   }
 
   function launch(entry: var): void {
@@ -176,18 +166,8 @@ Item {
     currentIndex = 0;
   }
 
-  function selectedAppIndex(): int {
-    return visibleAppCount <= 0 ? -1 : Math.max(0, Math.min(currentIndex - (hasSpecial ? 1 : 0), visibleAppCount - 1));
-  }
-
   function toArray(v: var): var {
-    if (!v)
-      return [];
-    if (Array.isArray(v))
-      return v;
-    if (typeof v.length === "number")
-      return Array.from(v);
-    return [];
+    return !v ? [] : Array.isArray(v) ? v : Array.from(v);
   }
 
   anchors.fill: parent
@@ -224,8 +204,8 @@ Item {
     id: closeDelay
 
     interval: Theme.animationSlow
-    repeat: false
 
+    // repeat: false is the default — removed
     onTriggered: {
       root._closing = false;
       root._shown = false;
@@ -329,16 +309,14 @@ Item {
                 root.close();
                 e.accepted = true;
                 break;
+              // Down and Tab share the same action — merged
               case Qt.Key_Down:
+              case Qt.Key_Tab:
                 root.move(1);
                 e.accepted = true;
                 break;
               case Qt.Key_Up:
                 root.move(-1);
-                e.accepted = true;
-                break;
-              case Qt.Key_Tab:
-                root.move(1);
                 e.accepted = true;
                 break;
               case Qt.Key_Return:
@@ -385,7 +363,7 @@ Item {
           Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: hasSpecial ? Theme.s(86) : 0
-            color: isSpecialSelected() ? Theme.withOpacity(Theme.activeColor, 0.20) : Theme.withOpacity(Theme.onHoverColor, 0.12)
+            color: root.specialSelected ? Theme.withOpacity(Theme.activeColor, 0.20) : Theme.withOpacity(Theme.onHoverColor, 0.12)
             radius: Theme.radiusMd
             visible: hasSpecial
 
@@ -398,10 +376,8 @@ Item {
                 root.activateCurrent();
               }
               onPositionChanged: mouse => {
-                const pos = mapToItem(root, mouse.x, mouse.y);
-                root.armHoverSelectionIfMoved(pos.x, pos.y);
-                if (root.hoverSelectionArmed)
-                  root.currentIndex = 0;
+                const p = mapToItem(root, mouse.x, mouse.y);
+                root.handleHoverMove(p.x, p.y, 0);
               }
             }
 
@@ -438,8 +414,8 @@ Item {
             Layout.preferredHeight: visibleAppCount > 0 ? Math.min(visibleAppCount * Theme.s(64), Theme.s(64) * maxVisible) : 0
             boundsBehavior: Flickable.StopAtBounds
             clip: true
-            currentIndex: root.isSpecialSelected() ? -1 : root.selectedAppIndex()
-            highlightFollowsCurrentItem: true
+            currentIndex: root.specialSelected ? -1 : root.selectedAppIdx
+            // highlightFollowsCurrentItem: true is the default — removed
             highlightMoveDuration: Theme.animationDuration
             interactive: filteredApps.length > maxVisible
             model: filteredApps
@@ -456,11 +432,7 @@ Item {
               visible: index < maxVisible || list.interactive
               width: list.width
 
-              Rectangle {
-                anchors.fill: parent
-                color: "transparent"
-                radius: Theme.radiusSm
-              }
+              // Removed: Rectangle { color: "transparent" } — visual no-op, pure dead code
 
               RowLayout {
                 anchors.fill: parent
@@ -510,10 +482,8 @@ Item {
 
                 onClicked: root.launch(row.modelData)
                 onPositionChanged: mouse => {
-                  const pos = mapToItem(root, mouse.x, mouse.y);
-                  root.armHoverSelectionIfMoved(pos.x, pos.y);
-                  if (root.hoverSelectionArmed)
-                    root.currentIndex = row.composedIndex;
+                  const p = mapToItem(root, mouse.x, mouse.y);
+                  root.handleHoverMove(p.x, p.y, row.composedIndex);
                 }
               }
             }
