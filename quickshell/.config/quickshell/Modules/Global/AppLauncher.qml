@@ -202,6 +202,7 @@ Item {
   }
   onActiveChanged: {
     if (active) {
+      CurrencyEngine.refreshIfStale();
       open();
       disarmHoverSelection();
       _lastPointerX = -1;

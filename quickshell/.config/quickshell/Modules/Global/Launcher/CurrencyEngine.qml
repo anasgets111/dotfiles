@@ -123,6 +123,13 @@ Singleton {
     });
   }
 
+  function refreshIfStale(): void {
+    if (!Settings.isStateLoaded)
+      return;
+    if (Date.now() > (Date.parse(Settings.state.currency?.lastUpdate || lastUpdated || "") || 0) + refreshInterval)
+      _fetchRates();
+  }
+
   function _getFlag(code: string): string {
     if (!code) return "";
     const lower = code.toLowerCase();
