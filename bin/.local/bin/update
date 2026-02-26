@@ -48,7 +48,7 @@ fi
 # Development Tooling
 step_if "Composer" "has_cmd composer" stdbuf -oL -eL composer global update
 step_if "Node (fnm)" "has_cmd fnm" stdbuf -oL -eL fnm use lts-latest --install-if-missing
-step_if "Bun Binaries" "has_cmd bun" stdbuf -oL -eL bun update -g
+step_if "Bun Binaries" "has_cmd bun" stdbuf -oL -eL bun update -g --latest
 step_if "Rust Binaries" "has_cmd cargo-install-update" stdbuf -oL -eL cargo install-update -a
 step_if "Rust Toolchain" "has_cmd rustup" stdbuf -oL -eL rustup update
 
