@@ -52,7 +52,15 @@ if status is-interactive
     abbr art 'php artisan'
     abbr gl 'git pull'
     abbr gp 'git push'
-    abbr ola 'docker exec -it ollama ollama'
+    function ola
+        if type -q docker
+            docker exec -it ollama ollama $argv
+        else if type -q podman
+            podman exec -it ollama ollama $argv
+        else
+            echo "Neither docker nor podman found"
+        end
+    end
     abbr dots 'cd $DOTFILES'
     abbr .. 'cd ..'
     abbr ... 'cd ../..'
