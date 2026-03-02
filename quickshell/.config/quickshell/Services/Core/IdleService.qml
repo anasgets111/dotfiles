@@ -22,7 +22,7 @@ Singleton {
       }
     })
   property bool dpmsOff: false
-  readonly property bool effectiveInhibited: (!!settings?.videoAutoInhibit && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.microphoneActive))
+  readonly property bool effectiveInhibited: (!!settings?.videoAutoInhibit && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive))
   readonly property bool ready: Settings.isLoaded && !!settings
   readonly property bool respectInhibitors: !LockService.locked && (settings?.respectInhibitors ?? true)
   readonly property var settings: Settings.data?.idleService

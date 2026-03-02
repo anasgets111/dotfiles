@@ -1,6 +1,5 @@
 {
-	"$schema": "https://opencode.ai/config.json",
-	"theme": "catppuccin",
+  "$schema": "https://opencode.ai/config.json",
 	"mcp": {
 		"context7": {
 			"type": "remote",
