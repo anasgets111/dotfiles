@@ -31,17 +31,21 @@ Singleton {
   }
 
   function syncLayoutState(jsonText: string): void {
-    const clean = String(jsonText ?? "").replace(/\x1B\[[0-9;]*[A-Za-z]/g, "").trim();
-    if (!clean || !clean.startsWith("{"))
+    if (!jsonText)
       return;
-    const keyboard = (JSON.parse(clean).keyboards || []).find(kb => kb.main) || {};
+    const keyboards = JSON.parse(String(jsonText)).keyboards || [];
+    const isIgnored = name => /(virtual-keyboard|consumer-control|system-control|power-button)/i.test(String(name ?? ""));
+    const keyboard = keyboards.find(kb => kb?.name === impl.keyboardDeviceName && !isIgnored(kb?.name)) || keyboards.find(kb => kb?.main && !isIgnored(kb?.name)) || keyboards.find(kb => !isIgnored(kb?.name)) || {};
     const layoutNames = keyboard.layout?.split(",").map(name => name.trim()).filter(Boolean) || [];
     const activeIndex = Number.isInteger(keyboard.active_layout_index) ? keyboard.active_layout_index : Number.isInteger(keyboard.active_keymap_index) ? keyboard.active_keymap_index : -1;
+    const rawKeymap = String(keyboard.active_keymap ?? "").trim();
 
     impl.layouts = layoutNames;
     impl.currentLayoutIndex = activeIndex >= 0 && activeIndex < layoutNames.length ? activeIndex : -1;
-    impl.currentLayout = keyboard.active_keymap || (impl.currentLayoutIndex >= 0 ? layoutNames[impl.currentLayoutIndex] : "");
-    impl.keyboardDeviceName = keyboard.name || "";
+    if (rawKeymap.toLowerCase() !== "error")
+      impl.currentLayout = rawKeymap || (impl.currentLayoutIndex >= 0 ? layoutNames[impl.currentLayoutIndex] || impl.currentLayout : impl.currentLayout);
+    if (keyboard.name)
+      impl.keyboardDeviceName = keyboard.name;
   }
 
   Component.onCompleted: requestLayoutSync()
