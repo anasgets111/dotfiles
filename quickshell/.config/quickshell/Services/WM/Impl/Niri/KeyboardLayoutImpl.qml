@@ -13,19 +13,24 @@ Singleton {
   property var layouts: []
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET")
 
-  function nextLayout(): void {
-    Quickshell.execDetached(["niri", "msg", "action", "switch-layout", "next"]);
-  }
-
   function handleLayoutEvent(event: var): void {
     const info = event?.KeyboardLayoutsChanged?.keyboard_layouts;
-    if (info)
-      impl.layouts = info.names || [];
-    const idx = info?.current_idx ?? event?.KeyboardLayoutSwitched?.idx;
-    if (idx === undefined)
+    const layoutNames = Array.isArray(info?.names) ? info.names.map(name => String(name ?? "").trim()).filter(Boolean) : null;
+    if (layoutNames)
+      impl.layouts = layoutNames;
+    const rawIdx = info?.current_idx ?? event?.KeyboardLayoutSwitched?.idx;
+    if (!Number.isInteger(rawIdx))
       return;
-    impl.currentLayoutIndex = idx >= 0 && idx < impl.layouts.length ? idx : -1;
-    impl.currentLayout = impl.currentLayoutIndex >= 0 ? impl.layouts[impl.currentLayoutIndex] : "";
+    impl.currentLayoutIndex = rawIdx >= 0 && rawIdx < impl.layouts.length ? rawIdx : -1;
+    if (impl.currentLayoutIndex >= 0) {
+      const layout = String(impl.layouts[impl.currentLayoutIndex] ?? "").trim();
+      if (layout)
+        impl.currentLayout = layout;
+    }
+  }
+
+  function nextLayout(): void {
+    Quickshell.execDetached(["niri", "msg", "action", "switch-layout", "next"]);
   }
 
   Socket {
@@ -38,12 +43,13 @@ Singleton {
       splitMarker: "\n"
 
       onRead: segment => {
-        if (!segment)
+        const clean = String(segment ?? "").trim();
+        if (!clean)
           return;
         try {
-          impl.handleLayoutEvent(JSON.parse(segment));
+          impl.handleLayoutEvent(JSON.parse(clean));
         } catch (e) {
-          Logger.log("KeyboardLayoutImpl(Niri)", `Parse error: ${e}`);
+          Logger.warn("KeyboardLayoutImpl(Niri)", `Parse error: ${e}`);
         }
       }
     }

@@ -273,6 +273,7 @@ binds {
     Mod+H { spawn "heroic"; }
     Mod+B { spawn "zen-browser"; }
     Mod+S { spawn "niri-stash" "slack"; }
+    Mod+Ctrl+S { spawn "voxtype" "record" "toggle"; }
     Mod+T { spawn "niri-stash" "telegram"; }
     Mod+D { spawn "niri-stash" "vesktop"; }
 
