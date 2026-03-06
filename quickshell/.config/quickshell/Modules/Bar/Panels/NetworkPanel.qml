@@ -691,9 +691,11 @@ PanelContentBase {
       }
 
       PanelActionIcon {
+        id: forgetBtn
+
         icon: "󰩺"
         tint: Theme.critical
-        visible: row.isSaved && rowMa.containsMouse
+        visible: row.isSaved && (rowMa.containsMouse || forgetBtn.hovered)
 
         onClicked: row.forgetClicked()
       }

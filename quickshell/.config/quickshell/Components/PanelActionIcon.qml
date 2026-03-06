@@ -8,6 +8,7 @@ Rectangle {
 
   property string icon: ""
   property color tint: Theme.textActiveColor
+  readonly property bool hovered: ma.containsMouse
 
   signal clicked
 

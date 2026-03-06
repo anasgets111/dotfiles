@@ -31,6 +31,9 @@ PanelContentBase {
     case "connect":
       BluetoothService.connectDevice(device);
       break;
+    case "pair":
+      BluetoothService.pairDevice(device);
+      break;
     case "disconnect":
       BluetoothService.disconnectDevice(device);
       break;
@@ -53,7 +56,6 @@ PanelContentBase {
 
   Component.onDestruction: {
     showCodecFor = "";
-    BluetoothService.stopDiscovery();
   }
   onIsOpenChanged: {
     if (isOpen && active) {
@@ -238,12 +240,12 @@ PanelContentBase {
   component DeviceRow: Rectangle {
     id: row
 
-    readonly property bool canConnect: device && !device.connected && !isBusy && !device.blocked
+    readonly property bool canConnect: row.isPaired && device && !device.connected && !isBusy && !device.blocked
     property var device: null
     readonly property bool hasBattery: device?.batteryAvailable && device.battery > 0
     readonly property string icon: BluetoothService.getDeviceIcon(device)
     readonly property bool isBusy: BluetoothService.isDeviceBusy(device)
-    readonly property bool isPaired: device?.paired || device?.trusted || false
+    readonly property bool isPaired: !!device?.paired
     readonly property string name: BluetoothService.getDeviceName(device) || qsTr("Unknown")
     readonly property string statusText: BluetoothService.getStatusString(device)
 
@@ -339,38 +341,30 @@ PanelContentBase {
         visible: row.isPaired && !rowMa.containsMouse
       }
 
-      // Forget — visible for paired on hover
-      Rectangle {
-        color: rowForgetMa.containsMouse ? Qt.rgba(Theme.critical.r, Theme.critical.g, Theme.critical.b, 0.15) : "transparent"
-        implicitHeight: 26
-        implicitWidth: 26
-        radius: 6
-        visible: row.isPaired && rowMa.containsMouse
+      PanelActionIcon {
+        id: forgetBtn
 
-        Behavior on color {
-          ColorAnimation {
-            duration: 100
-          }
-        }
+        Layout.preferredHeight: 26
+        Layout.preferredWidth: 26
+        icon: "󰩺"
+        tint: Theme.critical
+        visible: row.isPaired && (rowMa.containsMouse || forgetBtn.hovered)
 
-        Text {
-          anchors.centerIn: parent
-          color: Theme.critical
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize * 0.85
-          opacity: rowForgetMa.containsMouse ? 1.0 : 0.45
-          text: "󰩺"
-        }
+        onClicked: row.action("forget", row.device)
+      }
 
-        MouseArea {
-          id: rowForgetMa
+      OButton {
+        id: pairBtn
 
-          anchors.fill: parent
-          cursorShape: Qt.PointingHandCursor
-          hoverEnabled: true
+        bgColor: "transparent"
+        hoverColor: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.15)
+        size: "xs"
+        text: qsTr("Pair")
+        textColor: Theme.activeColor
+        variant: "ghost"
+        visible: !row.isPaired && device && !isBusy && !device.blocked && (rowMa.containsMouse || pairBtn.hovered)
 
-          onClicked: row.action("forget", row.device)
-        }
+        onClicked: row.action("pair", row.device)
       }
 
       // Busy spinner
@@ -407,7 +401,7 @@ PanelContentBase {
     readonly property bool hasBattery: device?.batteryAvailable && device.battery > 0
     readonly property string icon: BluetoothService.getDeviceIcon(device)
     readonly property bool isAudio: BluetoothService.isAudioDevice(device)
-    readonly property bool isPaired: device?.paired || device?.trusted || false
+    readonly property bool isPaired: !!device?.paired
     readonly property string name: BluetoothService.getDeviceName(device) || qsTr("Unknown")
     property string showCodecFor: ""
     readonly property bool showCodecs: showCodecFor === addr && availableCodecs.length > 0

@@ -31,7 +31,7 @@ Item {
       return qsTr("Others: %1 more").arg(connectedDevices.length - 1);
     return topDevice ? "" : (BluetoothService.discovering ? qsTr("Scanning is active") : "");
   }
-  readonly property var pairedDevices: devices.filter(d => d?.paired || d?.trusted)
+  readonly property var pairedDevices: devices.filter(d => d?.paired)
   readonly property string titleText: {
     if (!BluetoothService.available)
       return qsTr("Bluetooth: unavailable");

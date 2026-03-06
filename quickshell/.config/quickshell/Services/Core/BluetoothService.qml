@@ -63,7 +63,8 @@ Singleton {
   readonly property var devices: available ? adapter.devices.values : []
   readonly property bool discoverable: available && adapter.discoverable
   readonly property bool discovering: available && adapter.discovering
-  property bool discoveryRequested: false
+  property string connectAfterPairAddress: ""
+  property bool discoveryOwned: false
   readonly property bool enabled: available && adapter.enabled
   readonly property var sortedDevices: sortDevices(devices)
 
@@ -76,8 +77,13 @@ Singleton {
     deviceAvailableCodecsChanged();
   }
 
+  function clearPendingPair(device: QtObject): void {
+    if (device?.address === connectAfterPairAddress)
+      connectAfterPairAddress = "";
+  }
+
   function connectDevice(device: QtObject): void {
-    if (!device)
+    if (!device || device.blocked || isDeviceBusy(device) || device.connected || !device.paired)
       return;
     device.trusted = true;
     device.connect();
@@ -86,6 +92,7 @@ Singleton {
   function disconnectDevice(device: QtObject): void {
     if (!device)
       return;
+    clearPendingPair(device);
     device.disconnect();
     cleanupCodecData(device.address);
   }
@@ -102,6 +109,7 @@ Singleton {
   function forgetDevice(device: QtObject): void {
     if (!device)
       return;
+    clearPendingPair(device);
     device.trusted = false;
     device.forget();
     cleanupCodecData(device.address);
@@ -160,6 +168,14 @@ Singleton {
     return device?.pairing || device?.state === BluetoothDeviceState.Disconnecting || device?.state === BluetoothDeviceState.Connecting;
   }
 
+  function pairDevice(device: QtObject): void {
+    if (!device || device.blocked || device.paired || device.pairing)
+      return;
+    connectAfterPairAddress = device.address;
+    device.trusted = true;
+    device.pair();
+  }
+
   function parseCodecLine(line: string): void {
     if (line.startsWith("Name: ")) {
       codecParser.inCard = line.includes(codecParser.cardName);
@@ -215,8 +231,8 @@ Singleton {
     return [...list].sort((a, b) => {
       if (a.connected !== b.connected)
         return b.connected - a.connected;
-      const aPaired = a.paired || a.trusted;
-      const bPaired = b.paired || b.trusted;
+      const aPaired = !!a.paired;
+      const bPaired = !!b.paired;
       if (aPaired !== bPaired)
         return bPaired - aPaired;
       const aName = getDeviceName(a);
@@ -226,15 +242,16 @@ Singleton {
   }
 
   function startDiscovery(): void {
-    Logger.log("BluetoothService", `Start discovery (enabled=${adapter?.enabled ?? false})`);
-    discoveryRequested = true;
-    if (adapter?.enabled)
-      adapter.discovering = true;
+    if (!adapter?.enabled || adapter.discovering)
+      return;
+    discoveryOwned = true;
+    adapter.discovering = true;
   }
 
   function stopDiscovery(): void {
-    Logger.log("BluetoothService", `Stop discovery requested`);
-    discoveryRequested = false;
+    if (adapter?.enabled && adapter.discovering && discoveryOwned)
+      adapter.discovering = false;
+    discoveryOwned = false;
   }
 
   function switchCodec(device: QtObject, profile: string): void {
@@ -254,7 +271,13 @@ Singleton {
 
   Connections {
     function onEnabledChanged() {
-      Logger.log("BluetoothService", `Adapter enabled changed: ${root.adapter?.enabled ?? false}`);
+      if (!root.adapter?.enabled)
+        root.discoveryOwned = false;
+    }
+
+    function onDiscoveringChanged() {
+      if (!root.adapter?.discovering)
+        root.discoveryOwned = false;
     }
 
     target: root.adapter
@@ -267,6 +290,27 @@ Singleton {
     }
 
     target: Bluetooth
+  }
+
+  Instantiator {
+    model: root.devices
+
+    delegate: QtObject {
+      required property QtObject modelData
+      readonly property string addr: modelData?.address || ""
+      readonly property Connections deviceConn: Connections {
+        ignoreUnknownSignals: true
+        target: modelData
+
+        function onPairingChanged() {
+          if (modelData?.pairing || addr !== root.connectAfterPairAddress)
+            return;
+          root.connectAfterPairAddress = "";
+          if (modelData?.paired)
+            Qt.callLater(() => root.connectDevice(modelData));
+        }
+      }
+    }
   }
 
   Process {
