@@ -276,6 +276,7 @@ Item {
                   fillMode: Image.PreserveAspectFit
                   smooth: true
                   source: messageColumn.contentImage
+                  sourceSize: Qt.size(Theme.notificationInlineImageSize, Theme.notificationInlineImageSize)
                   visible: String(messageColumn.contentImage) !== "" && status !== Image.Error
                 }
 
