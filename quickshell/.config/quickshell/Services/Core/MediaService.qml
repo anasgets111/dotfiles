@@ -88,7 +88,7 @@ Singleton {
       })
     readonly property var videoExts: ["mp4", "mkv", "webm", "avi", "mov", "m4v", "mpeg", "mpg", "wmv", "flv"]
     readonly property var videoHints: ["mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex", "freetube", "stremio", "clapper", "dragon", "hypnotix"]
-    readonly property var videoPatterns: ["youtube.com/watch", "laracasts.com/", "youtu.be/", "netflix.com", "primevideo.com", "osnplus.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "crunchyroll.com", "max.com", "hbomax.com", "udemy.com", "coursera.org", "pluralsight.com", "nebula.tv", "odysee.com", "dailymotion.com", "tv.apple.com", "tiktok.com", "instagram.com/reel"]
+    readonly property var videoPatterns: ["youtube.com/watch", "laracasts.com/", "youtu.be/", "netflix.com", "primevideo.com", "osnplus.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "crunchyroll.com", "max.com", "hbomax.com", "udemy.com", "coursera.org", "pluralsight.com", "nebula.tv", "odysee.com", "dailymotion.com", "tv.apple.com", "tiktok.com", "instagram.com/reel", "meet.google.com", "teams.microsoft.com", "teams.live.com", "zoom.us", "discord.com", "meet.jit.si", "whereby.com", "webex.com", "gotomeeting.com"]
 
     function getUrl(player: var): string {
       return player?.metadata?.["xesam:url"] ?? player?.metadata?.["xesam:URL"] ?? "";
