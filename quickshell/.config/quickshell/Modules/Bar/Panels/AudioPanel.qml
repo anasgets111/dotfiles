@@ -444,7 +444,7 @@ PanelContentBase {
         Layout.preferredHeight: Theme.fontLg
         Layout.preferredWidth: Theme.fontLg
         asynchronous: true
-        cache: true
+        cache: false
         fillMode: Image.PreserveAspectFit
         source: Utils.resolveIconSource(streamItem.modelData.name, streamItem.modelData.properties?.["application.icon-name"], "󰝚")
 

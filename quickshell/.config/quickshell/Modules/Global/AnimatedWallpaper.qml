@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -38,7 +39,7 @@ WlrLayershell {
       return;
     }
     const currentStr = currentImg.source.toString();
-    const nextStr = nextImg.source.toString();
+    const nextStr = nextImgLoader.pendingSource;
     if (url === currentStr || url === nextStr)
       return;
     if (transitionAnim.running) {
@@ -47,7 +48,7 @@ WlrLayershell {
     }
     pendingUrl = "";
     tp.randomize(transitionType);
-    nextImg.source = url;
+    nextImgLoader.pendingSource = url;
   }
 
   function normalizeUrl(path: string): string {
@@ -63,6 +64,7 @@ WlrLayershell {
   Component.onDestruction: {
     transitionAnim.stop();
     shaderLoader.active = false;
+    nextImgLoader.pendingSource = "";
   }
   onCurrentModeChanged: displayMode = currentMode
   onCurrentPathChanged: if (currentPath)
@@ -71,6 +73,7 @@ WlrLayershell {
   onScreenObjectChanged: if (!screenObject) {
     transitionAnim.stop();
     shaderLoader.active = false;
+    nextImgLoader.pendingSource = "";
   }
 
   anchors {
@@ -121,25 +124,39 @@ WlrLayershell {
     }
   }
 
-  Image {
-    id: nextImg
+  // Only exists during transitions — destroyed after completion to guarantee GPU texture release
+  Loader {
+    id: nextImgLoader
 
+    readonly property real nextPaintedHeight: item ? item.paintedHeight : 0
+    readonly property real nextPaintedWidth: item ? item.paintedWidth : 0
+    readonly property int nextStatus: item ? item.status : Image.Null
+    property string pendingSource: ""
+
+    active: pendingSource !== ""
     anchors.fill: parent
-    asynchronous: true
-    fillMode: root.imageFillMode
-    sourceSize: root.maxSourceSize
-    visible: false
 
-    onStatusChanged: {
-      if (!root.screenObject || status === Image.Loading)
-        return;
-      if (status === Image.Error) {
-        source = "";
-      } else if (status === Image.Ready) {
-        if (currentImg.source === "" || root.transitionType === "none")
-          currentImg.source = source;
-        else if (!transitionAnim.running && currentImg.status === Image.Ready)
-          transitionAnim.start();
+    sourceComponent: Image {
+      anchors.fill: parent
+      asynchronous: true
+      fillMode: root.imageFillMode
+      source: nextImgLoader.pendingSource
+      sourceSize: root.maxSourceSize
+      visible: false
+
+      onStatusChanged: {
+        if (!root.screenObject || status === Image.Loading)
+          return;
+        if (status === Image.Error) {
+          nextImgLoader.pendingSource = "";
+        } else if (status === Image.Ready) {
+          if (currentImg.source === "" || root.transitionType === "none") {
+            currentImg.source = nextImgLoader.pendingSource;
+            nextImgLoader.pendingSource = "";
+          } else if (!transitionAnim.running && currentImg.status === Image.Ready) {
+            transitionAnim.start();
+          }
+        }
       }
     }
   }
@@ -147,7 +164,7 @@ WlrLayershell {
   Loader {
     id: shaderLoader
 
-    active: root.visible && root.screenObject && (transitionAnim.running || root.transitionProgress > 0) && ((currentImg.status === Image.Ready && currentImg.source !== "") || nextImg.status === Image.Ready)
+    active: root.visible && root.screenObject && (transitionAnim.running || root.transitionProgress > 0) && ((currentImg.status === Image.Ready && currentImg.source !== "") || nextImgLoader.nextStatus === Image.Ready)
     anchors.fill: parent
 
     sourceComponent: ShaderEffect {
@@ -159,15 +176,15 @@ WlrLayershell {
       readonly property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
       readonly property real fillMode: 1.0
       readonly property real imageHeight1: currentImg.status === Image.Ready ? currentImg.paintedHeight : height
-      readonly property real imageHeight2: nextImg.paintedHeight
+      readonly property real imageHeight2: nextImgLoader.nextPaintedHeight
       readonly property real imageWidth1: currentImg.status === Image.Ready ? currentImg.paintedWidth : width
-      readonly property real imageWidth2: nextImg.paintedWidth
+      readonly property real imageWidth2: nextImgLoader.nextPaintedWidth
       readonly property real progress: root.transitionProgress
       readonly property real screenHeight: height * (root.monitor?.scale ?? 1)
       readonly property real screenWidth: width * (root.monitor?.scale ?? 1)
       readonly property real smoothness: 0.1
       readonly property Image source1: currentImg
-      readonly property Image source2: nextImg
+      readonly property Image source2: nextImgLoader.item as Image
       readonly property real stripeCount: tp.count
 
       anchors.fill: parent
@@ -186,9 +203,9 @@ WlrLayershell {
     to: 1.0
 
     onFinished: {
-      if (nextImg.source !== "") {
-        currentImg.source = nextImg.source;
-        nextImg.source = "";
+      if (nextImgLoader.pendingSource !== "") {
+        currentImg.source = nextImgLoader.pendingSource;
+        nextImgLoader.pendingSource = "";
       }
       root.transitionProgress = 0.0;
       if (root.pendingUrl)
