@@ -20,33 +20,26 @@ trap cleanup EXIT
 
 # Adjust HDR monitors (10-bit) - SDR monitors don't need adjustment
 SET_BATCH=""
-while IFS=$'\t' read -r name mode pos scale transform vrr mirror sdr_b sdr_s fmt; do
+while IFS=$'\t' read -r name mode pos scale transform vrr mirror sdr_b sdr_s fmt cm_preset; do
     [[ "$fmt" != *10* ]] && continue
-    base="$name,$mode,$pos,$scale,transform,$transform,bitdepth,10,cm,hdr,vrr,$vrr"
+    base="$name,$mode,$pos,$scale,transform,$transform,bitdepth,10"
+    [[ -n "$cm_preset" ]] && base+=",cm,$cm_preset"
+    base+=",vrr,$vrr"
     [[ -n "$mirror" ]] && base+=",mirror,$mirror"
     SET_BATCH+="keyword monitor $base,sdrbrightness,1.0,sdrsaturation,1.0;"
     RESTORE_BATCH+="keyword monitor $base,sdrbrightness,$sdr_b,sdrsaturation,$sdr_s;"
 done < <(hyprctl monitors -j | jq -r '.[] | [
     .name, "\(.width)x\(.height)@\(.refreshRate)", "\(.x)x\(.y)",
-    (.scale|tostring), (.transform|tostring), (.vrr|tostring),
-    (.mirrorOf // ""), (.sdrBrightness|tostring), (.sdrSaturation|tostring),
-    .currentFormat] | @tsv')
+    (.scale|tostring), (.transform|tostring), (if .vrr then "1" else "0" end),
+    (if .mirrorOf == "none" or .mirrorOf == null then "" else .mirrorOf end),
+    (.sdrBrightness|tostring), (.sdrSaturation|tostring),
+    .currentFormat, (.colorManagementPreset // "")] | @tsv')
 
 [[ -n "$SET_BATCH" ]] && hyprctl --batch "$SET_BATCH" >/dev/null && sleep .05
 
 # Capture
 TMP=$(mktemp --suffix=.png)
 hyprshot --mode "$MODE" --freeze --raw > "$TMP" || exit 0
-
-# Wait for PNG to finish writing (hyprshot --raw flushes async)
-for _ in {1..20}; do
-    tail -c12 "$TMP" 2>/dev/null | grep -qa 'IEND' && break
-    sleep .05
-done
-
-# Validate PNG
-head -c8 "$TMP" 2>/dev/null | grep -qa $'\x89PNG' || exit 0
-tail -c12 "$TMP" 2>/dev/null | grep -qa 'IEND' || exit 0
 
 # Restore monitors before editor opens
 [[ -n "$RESTORE_BATCH" ]] && hyprctl --batch "$RESTORE_BATCH" >/dev/null || true
