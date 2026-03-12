@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+MODEL="${HOME}/.local/share/piper-voices/en_US-lessac-medium.onnx"
+DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}/say"
+mkdir -p "$DIR"
+
+_write() { printf '%s' "$2" > "$DIR/$1.tmp" && mv "$DIR/$1.tmp" "$DIR/$1"; }
+_hash()  { printf '%s' "$1" | sha256sum | cut -d' ' -f1; }
+_cancel_timer() { kill "$(cat "$DIR/timer" 2>/dev/null)" 2>/dev/null || true; rm -f "$DIR/timer"; }
+
+_sig() {
+    local pid; pid=$(cat "$DIR/pid" 2>/dev/null) && kill -"$1" "$pid" 2>/dev/null || true
+    pkill -"$1" -u "$USER" -f "paplay|piper-tts" 2>/dev/null || true
+}
+
+_kill() {
+    _cancel_timer; _sig KILL
+    rm -f "$DIR"/{pid,state,hash}
+}
+
+_speak() {
+    _kill; _write state "playing"; _write hash "$2"
+    (printf '%s' "$1" \
+        | piper-tts --model "$MODEL" --output-raw 2>/dev/null \
+        | paplay --raw --rate=22050 --format=s16le --channels=1 --latency-msec=100
+    rm -f "$DIR"/{state,hash,pid}) 9>&- &
+    _write pid "$!"; disown $!
+}
+
+# ── Input ─────────────────────────────────────────────────────────────────────
+if [[ "${1:-}" == "--clipboard" ]]; then
+    text=$(wl-paste --primary 2>/dev/null || wl-paste 2>/dev/null || true)
+elif (( $# > 0 )); then
+    text="$*"
+elif [[ ! -t 0 ]]; then
+    text=$(cat)
+else
+    exit 0
+fi
+[[ -n "$text" ]] || exit 0
+
+# ── Lock ──────────────────────────────────────────────────────────────────────
+exec 9>"$DIR/lock"
+flock -n 9 || exit 0
+
+incoming=$(_hash "$text")
+stored=$(cat "$DIR/hash" 2>/dev/null || true)
+state=$(cat "$DIR/state" 2>/dev/null || true)
+kill -0 "$(cat "$DIR/pid" 2>/dev/null)" 2>/dev/null || state="dead"
+
+# ── Decision ──────────────────────────────────────────────────────────────────
+if [[ "$state" == "dead" || "$incoming" != "$stored" ]]; then
+    _speak "$text" "$incoming"
+elif [[ "$state" == "paused" ]]; then
+    _cancel_timer; _sig CONT; _write state "playing"
+else
+    _sig STOP; _write state "paused"
+    (sleep 120; [[ "$(cat "$DIR/state" 2>/dev/null)" == "paused" ]] && _kill) 9>&- &
+    _write timer "$!"; disown $!
+fi
