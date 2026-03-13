@@ -41,6 +41,17 @@ done < <(hyprctl monitors -j | jq -r '.[] | [
 TMP=$(mktemp --suffix=.png)
 hyprshot --mode "$MODE" --freeze --raw > "$TMP" || exit 0
 
+# hyprshot can return before the PNG trailer is fully flushed.
+# Wait for a complete image before handing it to wl-copy or satty.
+for _ in {1..20}; do
+    tail -c12 "$TMP" 2>/dev/null | grep -qa 'IEND' && break
+    sleep .05
+done
+
+# Bail out quietly if the capture was cancelled or the PNG is incomplete.
+head -c8 "$TMP" 2>/dev/null | grep -qa $'\x89PNG' || exit 0
+tail -c12 "$TMP" 2>/dev/null | grep -qa 'IEND' || exit 0
+
 # Restore monitors before editor opens
 [[ -n "$RESTORE_BATCH" ]] && hyprctl --batch "$RESTORE_BATCH" >/dev/null || true
 RESTORE_BATCH=""
