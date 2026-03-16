@@ -121,4 +121,14 @@ Singleton {
 
     target: "notifs"
   }
+
+  // ----- Microphone -----
+  IpcHandler {
+    function mute(): string {
+      Logger.log("IPC", "mic.mute");
+      return AudioService.toggleMicMute();
+    }
+
+    target: "mic"
+  }
 }

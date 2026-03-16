@@ -297,7 +297,8 @@ binds {
     Mod+W { toggle-column-tabbed-display; }
     Mod+F { maximize-column; }
     Mod+Shift+F { fullscreen-window; }
-    Mod+M { maximize-window-to-edges; }
+    Mod+Shift+M { maximize-window-to-edges; }
+    Mod+M { spawn "quickshell" "ipc" "call" "mic" "mute"; }
     Mod+Ctrl+F { expand-column-to-available-width; }
     Mod+Ctrl+C { center-visible-columns; }
     Mod+BracketLeft  { consume-or-expel-window-left; }
