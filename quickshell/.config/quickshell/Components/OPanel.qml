@@ -191,7 +191,8 @@ Item {
 
       sourceComponent: RoundCorner {
         color: Theme.bgColor
-        orientation: 1
+        invertH: true
+        orientation: 0
         radius: Theme.panelRadius * 3
       }
     }
