@@ -375,6 +375,27 @@ binds {
     Mod+Ctrl+8 { move-column-to-workspace 8; }
     Mod+Ctrl+9 { move-column-to-workspace 9; }
 
+    // Workspaces (Numpad 1-0)
+    Mod+KP_End   { focus-workspace 1; }
+    Mod+KP_Down  { focus-workspace 2; }
+    Mod+KP_Next  { focus-workspace 3; }
+    Mod+KP_Left  { focus-workspace 4; }
+    Mod+KP_Begin { focus-workspace 5; }
+    Mod+KP_Right { focus-workspace 6; }
+    Mod+KP_Home  { focus-workspace 7; }
+    Mod+KP_Up    { focus-workspace 8; }
+    Mod+KP_Prior { focus-workspace 9; }
+    Mod+KP_Insert { focus-workspace 10; }
+    Mod+Ctrl+KP_End   { move-column-to-workspace 1; }
+    Mod+Ctrl+KP_Down  { move-column-to-workspace 2; }
+    Mod+Ctrl+KP_Next  { move-column-to-workspace 3; }
+    Mod+Ctrl+KP_Left  { move-column-to-workspace 4; }
+    Mod+Ctrl+KP_Begin { move-column-to-workspace 5; }
+    Mod+Ctrl+KP_Right { move-column-to-workspace 6; }
+    Mod+Ctrl+KP_Home  { move-column-to-workspace 7; }
+    Mod+Ctrl+KP_Up    { move-column-to-workspace 8; }
+    Mod+Ctrl+KP_Prior { move-column-to-workspace 9; }
+
     // Resizing
     Mod+R { switch-preset-column-width; }
     Mod+Shift+R { switch-preset-window-height; }
