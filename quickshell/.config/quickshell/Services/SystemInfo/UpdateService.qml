@@ -12,6 +12,7 @@ Singleton {
 
   property var _notifyQueue: []
   property var _pendingNotifyAction: null
+  property var _runningAction: null
   readonly property bool busy: pkgProc.running
   property bool checkupdatesAvailable: false
   property int currentPackageIndex: 0
@@ -19,7 +20,6 @@ Singleton {
   property string errorMessage: ""
   property int failureCount: 0
   readonly property int failureThreshold: 5
-  property int lastNotificationId: 0
   property int lastNotifiedTotal: 0
   property double lastSync: 0
   property var outputLines: []
@@ -46,17 +46,26 @@ Singleton {
     }
   }
 
+  function _init() {
+    if (!Settings.isStateLoaded)
+      return;
+    const c = Settings.state.updates;
+    updatePackages = JSON.parse(c.cachedUpdatePackagesJson || "[]");
+    lastSync = c.lastSync || 0;
+  }
+
   function _notify(title, message, urgency = "normal", action = null) {
     Logger.log("UpdateService", `Sending notification: ${title} - ${message}`);
     const isRunUpdates = action === "run-updates";
     if (isRunUpdates) {
       root._notifyQueue = root._notifyQueue.filter(job => job.action !== action);
-      if (_notifyProc?.running && root._pendingNotifyAction === action) {
+      if (_notifyProc?.running && root._runningAction === action) {
         root._pendingNotifyAction = null;
+        root._runningAction = null;
         _notifyProc.running = false;
       }
     }
-    const args = ["-u", urgency, "-a", "System Updates", "-n", "system-software-update", "--print-id", "--replace-id", String(isRunUpdates ? 8001 : root.lastNotificationId)];
+    const args = ["-u", urgency, "-a", "System Updates", "-n", "system-software-update", "--print-id", "--replace-id", String(isRunUpdates ? 8001 : 8002)];
     if (action)
       args.push("-A", `${action}=${qsTr("Run updates")}`);
     _notifyQueue.push({
@@ -98,6 +107,7 @@ Singleton {
       return;
     const job = _notifyQueue.shift();
     _pendingNotifyAction = job.action;
+    _runningAction = job.action;
     _notifyProc.command = ["notify-send"].concat(job.args);
     _notifyProc.running = true;
   }
@@ -111,7 +121,6 @@ Singleton {
 
   function closeAllNotifications() {
     NotificationService.dismissNotificationsByAppName("System Updates");
-    lastNotificationId = 0;
   }
 
   function doPoll() {
@@ -122,7 +131,7 @@ Singleton {
   }
 
   function executeUpdate() {
-    if (totalUpdates === 0)
+    if (totalUpdates === 0 || updateState === status.Updating)
       return;
     closeAllNotifications();
     totalPackagesToUpdate = totalUpdates;
@@ -142,19 +151,11 @@ Singleton {
     sizeFetchProcess.running = true;
   }
 
-  function _init() {
-    if (!Settings.isStateLoaded) return;
-    const c = Settings.state.updates;
-    updatePackages = JSON.parse(c.cachedUpdatePackagesJson || "[]");
-    lastSync = c.lastSync || 0;
-    lastNotificationId = c.lastNotificationId || 0;
-  }
-
-  Component.onCompleted: if (Settings.isStateLoaded) _init()
+  Component.onCompleted: if (Settings.isStateLoaded)
+    _init()
   Component.onDestruction: pollTimer.stop()
-
-  onLastNotificationIdChanged: if (Settings.isStateLoaded) Settings.state.updates.lastNotificationId = lastNotificationId
-  onLastSyncChanged: if (Settings.isStateLoaded) Settings.state.updates.lastSync = lastSync
+  onLastSyncChanged: if (Settings.isStateLoaded)
+    Settings.state.updates.lastSync = lastSync
   onReadyChanged: {
     if (ready) {
       doPoll();
@@ -163,13 +164,15 @@ Singleton {
       pollTimer.stop();
     }
   }
-  onUpdatePackagesChanged: if (Settings.isStateLoaded) Settings.state.updates.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
+  onUpdatePackagesChanged: if (Settings.isStateLoaded)
+    Settings.state.updates.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
 
   Connections {
     function onIsStateLoadedChanged() {
       if (Settings.isStateLoaded)
         root._init();
     }
+
     target: Settings
   }
 
@@ -182,10 +185,6 @@ Singleton {
     stdout: StdioCollector {
       onStreamFinished: {
         root.checkupdatesAvailable = (text ?? "").trim() === "yes";
-        if (root.ready) {
-          root.doPoll();
-          pollTimer.start();
-        }
       }
     }
   }
@@ -209,26 +208,34 @@ Singleton {
   Process {
     id: pkgProc
 
+    property string _stderrMsg: ""
+    property string _stdoutData: ""
+
     stderr: StdioCollector {
       onStreamFinished: {
-        const msg = (text ?? "").trim();
-        msg ? root._handleError("checkupdates", msg, -1) : (root.failureCount = 0);
+        pkgProc._stderrMsg = (text ?? "").trim();
       }
     }
     stdout: StdioCollector {
       onStreamFinished: {
-        const packages = root._parseOutput(text);
+        pkgProc._stdoutData = text ?? "";
+      }
+    }
+
+    onExited: (code, exitStatus) => {
+      if (code === 0 || code === 2) {
+        root.failureCount = 0;
+        const packages = root._parseOutput(pkgProc._stdoutData);
         root.updatePackages = packages;
         root.lastSync = Date.now();
         root._notifyIfIncreased();
         if (packages.length > 0)
           root.fetchPackageSizes();
+      } else {
+        root._handleError("checkupdates", pkgProc._stderrMsg || `Exit code: ${code}`, code);
       }
-    }
-
-    onExited: (code, exitStatus) => {
-      if (code !== 0 && code !== 2)
-        root._handleError("checkupdates", `Exit code: ${code}`, code);
+      pkgProc._stderrMsg = "";
+      pkgProc._stdoutData = "";
     }
   }
 
@@ -307,9 +314,6 @@ Singleton {
     stdout: StdioCollector {
       onStreamFinished: {
         const lines = (text || "").trim().split('\n');
-        const id = lines.map(l => parseInt(l.trim())).find(v => !isNaN(v));
-        if (!isNaN(id))
-          root.lastNotificationId = id;
         const action = root._pendingNotifyAction;
         root._pendingNotifyAction = null;
         if (action && lines.some(l => l.includes(action)))
@@ -318,7 +322,9 @@ Singleton {
       }
     }
 
-    onRunningChanged: if (!running)
-      root._processNotifyQueue()
+    onRunningChanged: {
+      if (!running)
+        root._processNotifyQueue();
+    }
   }
 }
