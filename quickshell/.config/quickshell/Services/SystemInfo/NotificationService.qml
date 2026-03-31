@@ -250,14 +250,11 @@ Singleton {
     if (root.popupsDisabled || root.doNotDisturb || root._isDestroying)
       return;
 
-    const activeGroups = new Set();
     let activeCount = 0;
     root.visibleNotifications.forEach(w => {
       if (!w || w.isHidingPopup)
         return;
       activeCount++;
-      if (!w.isDismissing)
-        activeGroups.add(w.groupKey);
     });
 
     const nextQueue = [];
@@ -268,11 +265,8 @@ Singleton {
       if (!w || w._removed || w.isDismissing || w.isHidingPopup || root.visibleNotifications.includes(w))
         continue;
 
-      const key = w.groupKey;
-      if (activeGroups.has(key)) {
-        toShow.push(w);
-      } else if (activeGroups.size < root.maxVisibleNotifications) {
-        activeGroups.add(key);
+      if (activeCount < root.maxVisibleNotifications) {
+        activeCount++;
         toShow.push(w);
       } else {
         nextQueue.push(w);
@@ -414,7 +408,7 @@ Singleton {
     const key = (groupKey || "").trim();
     if (!key)
       return;
-    const wrappers = root.notifications.filter(w => w && !w._removed && w.groupKey === key);
+    const wrappers = root.notifications.filter(w => w && !w._removed && !w.isDismissing && w.groupKey === key);
     if (!wrappers.length)
       return;
     wrappers.forEach(w => {
@@ -470,9 +464,8 @@ Singleton {
     const target = (appName || "").trim();
     if (!target)
       return;
-    const toRemove = root.notifications.filter(w => w && w.appName === target);
-    if (toRemove.length)
-      root._removeWrappers(toRemove, true);
+    const keys = new Set(root.notifications.filter(w => w && w.appName === target).map(w => w.groupKey));
+    keys.forEach(key => root.dismissGroup(key));
   }
 
   function executeAction(wrapper: QtObject, actionId: string, actionObj: var): void {
