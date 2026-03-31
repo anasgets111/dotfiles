@@ -85,16 +85,22 @@ PanelContentBase {
   readonly property bool ready: NetworkService.ready
   readonly property var savedConnections: NetworkService.savedWifiAps || []
   readonly property var savedNetworks: processedWifiAps.saved
-  readonly property bool showPasswordInput: isConnecting && (!isHiddenTarget || targetSsid !== "")
+  readonly property string pendingSsid: isHiddenTarget ? targetSsid : activeConnectionTarget
+  readonly property var pendingAp: pendingSsid ? accessPointForSsid(pendingSsid) : null
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
+  readonly property bool showPasswordInput: isConnecting && !showSsidInput && (pendingAp ? securityRequiresPassword(pendingAp.security) : isHiddenTarget)
   property string targetSsid: ""
   readonly property var wifiAps: NetworkService.wifiAps || []
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
   readonly property string wifiInterface: NetworkService.wifiInterface
 
-  function connectToNetwork(ssid: string): void {
+  function accessPointForSsid(ssid: string): var {
     const aps = wifiAps.filter(a => a?.ssid === ssid);
-    const ap = aps.find(a => a?.connected) || aps[0];
+    return aps.find(a => a?.connected) || aps[0] || null;
+  }
+
+  function connectToNetwork(ssid: string): void {
+    const ap = accessPointForSsid(ssid);
     if (!ap || ap.connected)
       return;
     const saved = savedConnections.find(c => c?.ssid === ssid);
@@ -106,12 +112,23 @@ PanelContentBase {
       isHiddenTarget = false;
       targetSsid = "";
       connectionError = "";
+      if (!securityRequiresPassword(ap?.security))
+        submitPassword("");
     }
   }
 
   function normalizeBand(b): string {
     const s = String(b || "").trim();
     return s.startsWith("2") ? "2.4" : s.startsWith("5") ? "5" : s.startsWith("6") ? "6" : "";
+  }
+
+  function securityRequiresPassword(security: string): bool {
+    const sec = String(security || "").trim().toUpperCase();
+    if (!sec || sec === "--")
+      return false;
+
+    const tokens = sec.split(/\s+/).filter(Boolean);
+    return tokens.some(token => token !== "OWE");
   }
 
   function resetConnectionState(): void {
@@ -125,23 +142,29 @@ PanelContentBase {
   }
 
   function submitPassword(password: string): void {
-    password = password.trim();
-    if (!wifiInterface || !password)
+    const trimmedPassword = String(password || "").trim();
+    if (!wifiInterface || !pendingSsid || (showPasswordInput && !trimmedPassword))
       return;
     connectionError = "";
-    if (isHiddenTarget && targetSsid) {
+    if (isHiddenTarget) {
       hiddenConnectStartedOnline = NetworkService.wifiOnline;
-      NetworkService.connectToWifi(targetSsid, password, wifiInterface, true);
-    } else if (activeConnectionTarget) {
-      NetworkService.connectToWifi(activeConnectionTarget, password, wifiInterface, false);
     }
+    NetworkService.connectToWifi(pendingSsid, trimmedPassword, wifiInterface, isHiddenTarget);
   }
 
   needsKeyboardFocus: showSsidInput || showPasswordInput
 
   Component.onDestruction: resetConnectionState()
-  onIsOpenChanged: if (!isOpen)
-    resetConnectionState()
+  onIsOpenChanged: {
+    if (!isOpen) {
+      resetConnectionState();
+      return;
+    }
+
+    NetworkService.refreshAll();
+    if (root.wifiEnabled && root.wifiInterface)
+      NetworkService.scanWifi(root.wifiInterface, true);
+  }
 
   Timer {
     interval: 10000
@@ -251,6 +274,9 @@ PanelContentBase {
         if (ssid) {
           root.targetSsid = ssid;
           root.connectionError = "";
+          const targetAp = root.accessPointForSsid(ssid);
+          if (targetAp && !root.securityRequiresPassword(targetAp?.security))
+            root.submitPassword("");
         }
       }
     }
@@ -400,6 +426,7 @@ PanelContentBase {
     property bool passwordMode: false
     property bool ssidMode: false
     property string targetName: ""
+    readonly property bool waitingMode: !ssidMode && !passwordMode
 
     signal cancelled
     signal errorCleared
@@ -417,7 +444,7 @@ PanelContentBase {
       bold: true
       color: Theme.textActiveColor
       size: "sm"
-      text: sheet.ssidMode ? qsTr("Hidden Network") : qsTr("Connect to \u201C%1\u201D").arg(sheet.targetName)
+      text: sheet.ssidMode ? qsTr("Hidden Network") : sheet.waitingMode ? qsTr("Connecting to \u201C%1\u201D").arg(sheet.targetName) : qsTr("Connect to \u201C%1\u201D").arg(sheet.targetName)
     }
 
     SheetField {
