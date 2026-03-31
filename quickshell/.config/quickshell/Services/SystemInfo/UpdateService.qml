@@ -64,6 +64,7 @@ Singleton {
         root._runningAction = null;
         _notifyProc.running = false;
       }
+      NotificationService.dismissNotificationsByAppName("System Updates");
     }
     const args = ["-u", urgency, "-a", "System Updates", "-n", "system-software-update", "--print-id", "--replace-id", String(isRunUpdates ? 8001 : 8002)];
     if (action)
