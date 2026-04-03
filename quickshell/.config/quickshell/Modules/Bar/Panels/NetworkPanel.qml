@@ -11,6 +11,7 @@ PanelContentBase {
 
   property string activeConnectionTarget: ""
   readonly property var availableNetworks: processedWifiAps.available
+  property var connectingNetwork: null
   readonly property var connectedNetwork: {
     const all = [...savedNetworks, ...availableNetworks];
     return all.find(n => n.connected) || null;
@@ -31,49 +32,20 @@ PanelContentBase {
         viewList: []
       };
 
-    const saved = savedConnections || [];
-    const apMap = new Map();
+    const aps = NetworkService.wifiAps ?? [];
 
-    // 1. Efficiently map best APs
-    for (const ap of (wifiAps || [])) {
-      const ssid = ap?.ssid;
-      if (!ssid)
-        continue;
-      const curr = apMap.get(ssid);
-      // Logic: Prefer connected > stronger signal
-      if (!curr || (ap?.connected && !curr?.connected) || (ap?.connected === curr?.connected && (ap?.signal || 0) > (curr?.signal || 0)))
-        apMap.set(ssid, ap);
-    }
+    // Saved: known networks that are in range or connected
+    const savedList = aps.filter(ap => ap.saved && (ap.signal > 0 || ap.connected)).sort((a, b) => (b.connected - a.connected) || (b.signal - a.signal)).map(ap => Object.assign({}, ap, {
+          _saved: true
+        }));
 
-    const savedSsids = new Set(saved.map(s => s.ssid));
+    const savedNames = new Set(savedList.map(n => n.ssid));
 
-    // 2. Build Saved List
-    const savedList = saved.map(conn => {
-      const ap = apMap.get(conn.ssid);
-      return {
-        ssid: conn.ssid,
-        connectionId: conn.connectionId,
-        connected: ap?.connected || false,
-        signal: ap?.signal || 0,
-        band: normalizeBand(ap?.band),
-        security: ap?.security || "",
-        available: !!ap && (ap.signal || 0) > 0,
-        _saved: true // Tag for UI
-      };
-    }).filter(n => n.available || n.connected).sort((a, b) => (b.connected - a.connected) || (b.signal - a.signal));
+    // Available: unknown networks with signal
+    const availableList = aps.filter(ap => !savedNames.has(ap.ssid) && ap.signal > 0).sort((a, b) => b.signal - a.signal).map(ap => Object.assign({}, ap, {
+          _saved: false
+        }));
 
-    // 3. Build Available List
-    const availableList = Array.from(apMap.values()).filter(ap => ap?.ssid && !savedSsids.has(ap.ssid)).map(ap => ({
-          ssid: ap.ssid,
-          signal: ap.signal || 0,
-          band: normalizeBand(ap?.band),
-          security: ap.security || "",
-          connected: ap.connected || false,
-          _saved: false // Tag for UI
-        })).sort((a, b) => b.signal - a.signal);
-
-    // 4. Generate Unified View List (Everything NOT connected)
-    // Doing this here prevents the ListView from recalculating on every paint
     const viewList = [...savedList.filter(n => !n.connected), ...availableList.filter(n => !n.connected)];
 
     return {
@@ -83,52 +55,49 @@ PanelContentBase {
     };
   }
   readonly property bool ready: NetworkService.ready
-  readonly property var savedConnections: NetworkService.savedWifiAps || []
   readonly property var savedNetworks: processedWifiAps.saved
   readonly property string pendingSsid: isHiddenTarget ? targetSsid : activeConnectionTarget
   readonly property var pendingAp: pendingSsid ? accessPointForSsid(pendingSsid) : null
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
   readonly property bool showPasswordInput: isConnecting && !showSsidInput && (pendingAp ? securityRequiresPassword(pendingAp.security) : isHiddenTarget)
   property string targetSsid: ""
-  readonly property var wifiAps: NetworkService.wifiAps || []
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
   readonly property string wifiInterface: NetworkService.wifiInterface
 
+  // Look up a flat AP object (for security/UI checks)
   function accessPointForSsid(ssid: string): var {
-    const aps = wifiAps.filter(a => a?.ssid === ssid);
-    return aps.find(a => a?.connected) || aps[0] || null;
+    const aps = NetworkService.wifiAps ?? [];
+    return aps.find(a => a?.ssid === ssid) || null;
+  }
+
+  // Look up the live WifiNetwork object (for connect/disconnect/forget actions)
+  function wifiNetworkForSsid(ssid: string): var {
+    return (NetworkService.wifiDevice?.networks.values ?? []).find(n => n.name === ssid) ?? null;
   }
 
   function connectToNetwork(ssid: string): void {
     const ap = accessPointForSsid(ssid);
     if (!ap || ap.connected)
       return;
-    const saved = savedConnections.find(c => c?.ssid === ssid);
-    if (saved?.connectionId) {
-      NetworkService.activateConnection(saved.connectionId, wifiInterface);
-      root.closeRequested();
+    if (ap.saved) {
+      const net = wifiNetworkForSsid(ssid);
+      if (net) {
+        net.connect();
+        root.closeRequested();
+      }
     } else {
       activeConnectionTarget = ssid;
       isHiddenTarget = false;
       targetSsid = "";
       connectionError = "";
-      if (!securityRequiresPassword(ap?.security))
+      if (!securityRequiresPassword(ap.security))
         submitPassword("");
     }
   }
 
-  function normalizeBand(b): string {
-    const s = String(b || "").trim();
-    return s.startsWith("2") ? "2.4" : s.startsWith("5") ? "5" : s.startsWith("6") ? "6" : "";
-  }
-
   function securityRequiresPassword(security: string): bool {
-    const sec = String(security || "").trim().toUpperCase();
-    if (!sec || sec === "--")
-      return false;
-
-    const tokens = sec.split(/\s+/).filter(Boolean);
-    return tokens.some(token => token !== "OWE");
+    const sec = String(security || "").trim();
+    return sec !== "" && sec !== "--";
   }
 
   function resetConnectionState(): void {
@@ -136,6 +105,7 @@ PanelContentBase {
     isHiddenTarget = false;
     hiddenConnectStartedOnline = false;
     targetSsid = "";
+    connectingNetwork = null;
     if (credentialSheet)
       credentialSheet.clearInputs();
     connectionError = "";
@@ -143,13 +113,22 @@ PanelContentBase {
 
   function submitPassword(password: string): void {
     const trimmedPassword = String(password || "").trim();
-    if (!wifiInterface || !pendingSsid || (showPasswordInput && !trimmedPassword))
+    if (!pendingSsid || (showPasswordInput && !trimmedPassword))
       return;
     connectionError = "";
     if (isHiddenTarget) {
       hiddenConnectStartedOnline = NetworkService.wifiOnline;
+      NetworkService.connectHiddenWifi(pendingSsid, trimmedPassword, root.wifiInterface);
+      return;
     }
-    NetworkService.connectToWifi(pendingSsid, trimmedPassword, wifiInterface, isHiddenTarget);
+    const net = wifiNetworkForSsid(pendingSsid);
+    if (!net)
+      return;
+    root.connectingNetwork = net;
+    if (trimmedPassword)
+      net.connectWithPsk(trimmedPassword);
+    else
+      net.connect();
   }
 
   needsKeyboardFocus: showSsidInput || showPasswordInput
@@ -158,47 +137,40 @@ PanelContentBase {
   onIsOpenChanged: {
     if (!isOpen) {
       resetConnectionState();
+      NetworkService.stopWifiScan();
       return;
     }
-
-    NetworkService.refreshAll();
-    if (root.wifiEnabled && root.wifiInterface)
-      NetworkService.scanWifi(root.wifiInterface, true);
+    NetworkService.startWifiScan();
   }
 
-  Timer {
-    interval: 10000
-    repeat: true
-    running: root.isOpen
-
-    onTriggered: NetworkService.refreshAll()
-  }
-
+  // Per-network connection failure / success
   Connections {
-    function onConnectionError(ssid, errorMessage): void {
-      if (ssid === root.activeConnectionTarget || (root.isHiddenTarget && ssid === root.targetSsid))
-        root.connectionError = errorMessage;
+    enabled: root.connectingNetwork !== null
+    target: root.connectingNetwork ?? null
+
+    function onConnectionFailed(reason) {
+      root.connectionError = NetworkService.connectionFailReasonText(reason);
+      root.connectingNetwork = null;
     }
 
-    function onWifiApsChanged(): void {
-      const aps = root.wifiAps.filter(a => a?.ssid === root.activeConnectionTarget);
-      if (root.activeConnectionTarget && root.activeConnectionTarget !== "hidden" && aps.find(a => a?.connected)) {
+    function onConnectedChanged() {
+      if (root.connectingNetwork?.connected) {
         root.resetConnectionState();
         root.closeRequested();
-      } else if (root.isHiddenTarget && root.targetSsid && NetworkService.wifiOnline) {
-        const targetAp = root.wifiAps.find(a => a?.ssid === root.targetSsid);
-        if (targetAp?.connected || !root.hiddenConnectStartedOnline) {
-          root.resetConnectionState();
-          root.closeRequested();
-        }
       }
     }
+  }
 
-    function onWifiOnlineChanged(): void {
-      onWifiApsChanged();
-    }
-
+  // Hidden network success detection
+  Connections {
     target: NetworkService
+
+    function onWifiOnlineChanged() {
+      if (root.isHiddenTarget && NetworkService.wifiOnline) {
+        root.resetConnectionState();
+        root.closeRequested();
+      }
+    }
   }
 
   ColumnLayout {
@@ -249,9 +221,8 @@ PanelContentBase {
 
       onDisconnectClicked: NetworkService.disconnectWifi()
       onForgetClicked: ssid => {
-        const conn = root.savedConnections.find(c => c?.ssid === ssid);
-        if (conn?.connectionId)
-          NetworkService.forgetWifiConnection(conn.connectionId);
+        const net = wifiNetworkForSsid(ssid);
+        net?.forget();
       }
     }
 
@@ -307,10 +278,6 @@ PanelContentBase {
           anchors.fill: parent
           boundsBehavior: Flickable.StopAtBounds
           interactive: contentHeight > height
-
-          // Fixed: Binds directly to the property.
-          // Since "viewList" is part of the "processedWifiAps" object,
-          // it updates automatically when signals change, but avoids inline mapping costs.
           model: root.processedWifiAps.viewList
           spacing: 2
 
@@ -321,16 +288,14 @@ PanelContentBase {
           delegate: NetworkRow {
             required property var modelData
 
-            // Simplified: properties are already inside modelData from the JS logic
             isSaved: modelData._saved
             network: modelData
             width: ListView.view.width
 
             onClicked: root.connectToNetwork(modelData.ssid)
             onForgetClicked: {
-              const conn = root.savedConnections.find(c => c?.ssid === modelData.ssid);
-              if (conn?.connectionId)
-                NetworkService.forgetWifiConnection(conn.connectionId);
+              const net = wifiNetworkForSsid(modelData.ssid);
+              net?.forget();
             }
           }
         }
@@ -587,10 +552,7 @@ PanelContentBase {
       PanelActionIcon {
         icon: "󰩺"
         tint: Theme.critical
-        visible: {
-          const ssid = hero.network?.ssid || "";
-          return ssid !== "" && root.savedConnections.find(c => c?.ssid === ssid) !== undefined;
-        }
+        visible: hero.network?._saved === true && (hero.network?.ssid || "") !== ""
 
         onClicked: hero.forgetClicked(hero.network?.ssid || "")
       }

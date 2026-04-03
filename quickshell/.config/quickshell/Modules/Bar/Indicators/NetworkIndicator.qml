@@ -9,7 +9,6 @@ Item {
   id: root
 
   required property string screenName
-  readonly property var active: ready ? NetworkService.chooseActiveDevice(NetworkService.deviceList) : null
   readonly property var ap: ready ? (NetworkService.wifiAps.find(ap => ap?.connected) || null) : null
   readonly property string band: (ap && ap.band) ? String(ap.band) : ""
   readonly property string detail1: {
@@ -19,16 +18,15 @@ Item {
     const iface = link === "ethernet" ? (NetworkService.ethernetInterface || "eth") : link === "wifi" ? (NetworkService.wifiInterface || "wlan") : "";
     return (link === "ethernet" || link === "wifi") ? qsTr("IP: %1 · IF: %2").arg(ip).arg(iface) : qsTr("No network connection");
   }
-  readonly property string detail2: (ready && link !== "disconnected" && active && active.connectionName) ? qsTr("Conn: %1 (%2)").arg(active.connectionName).arg(active.type || "") : ""
+  readonly property string detail2: ""
   readonly property string link: ready ? (NetworkService.linkType || "disconnected") : "disconnected"
   readonly property string netIcon: {
     if (!ready)
       return "󰤭";
     if (link === "ethernet")
       return "󰈀";
-    if (link === "wifi") {
+    if (link === "wifi")
       return NetworkService.getWifiIcon ? NetworkService.getWifiIcon(band, strength) : "";
-    }
     return NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮";
   }
   readonly property bool ready: NetworkService.ready
@@ -45,8 +43,8 @@ Item {
     }
     return "";
   }
-  readonly property string ssid: (ap && ap.ssid) ? String(ap.ssid) : ((active && active.type === "wifi") ? (active.connectionName || "") : "")
-  readonly property int strength: (ap && typeof ap.signal === "number") ? ap.signal : (active && typeof active.signal === "number" ? active.signal : 0)
+  readonly property string ssid: (ap && ap.ssid) ? String(ap.ssid) : ""
+  readonly property int strength: (ap && typeof ap.signal === "number") ? ap.signal : 0
   readonly property string title: {
     if (!ready)
       return qsTr("Network: initializing…");
@@ -76,10 +74,7 @@ Item {
 
     onClicked: function (mouse) {
       if (mouse.button === Qt.LeftButton || mouse.button === Qt.RightButton) {
-        const iface = NetworkService.wifiInterface || "";
-        if (iface && NetworkService.scanWifi) {
-          NetworkService.scanWifi(iface, true);
-        }
+        NetworkService.startWifiScan();
         ShellUiState.togglePanelForItem("network", root.screenName, iconButton);
       }
       root.clicked(mouse);
