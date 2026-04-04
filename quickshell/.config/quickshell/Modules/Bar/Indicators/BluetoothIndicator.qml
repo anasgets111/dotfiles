@@ -48,7 +48,7 @@ Item {
   IconButton {
     id: iconButton
 
-    enabled: true
+    isEnabled: true
     icon: root.btIcon
     suppressTooltip: root.panelOpen
     tooltipText: [root.titleText, root.detailText1, root.detailText2].filter(t => t?.length > 0).join("\n")

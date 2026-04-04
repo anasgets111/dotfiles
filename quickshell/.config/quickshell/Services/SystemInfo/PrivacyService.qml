@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
 import Quickshell.Io
+import qs.Services.Core
 
 Singleton {
   id: root
@@ -15,10 +16,10 @@ Singleton {
       const source = link.source;
       const target = link.target;
       const targetAudio = target?.audio;
-      return source?.type === PwNodeType.AudioSource && target?.type === PwNodeType.AudioInStream && targetAudio && !targetAudio.muted && !/\bcava\b/.test(_describe(target));
+      return source?.type === PwNodeType.AudioSource && target?.type === PwNodeType.AudioInStream && targetAudio && (!target.ready || !targetAudio.muted) && !/\bcava\b/.test(_describe(target));
     })
   readonly property bool audioCaptureActive: _activeLinks.some(link => link.source?.type === PwNodeType.AudioSource && link.target?.type === PwNodeType.AudioInStream && !/\bcava\b/.test(_describe(link.target)))
-  readonly property bool microphoneMuted: Pipewire.defaultAudioSource?.audio?.muted ?? false
+  readonly property bool microphoneMuted: AudioService.sourceControllable ? AudioService.micMuted : false
   readonly property bool screenshareActive: _activeLinks.some(link => {
       const source = link.source;
       return (source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource && /xdg-desktop-portal|xdpw|screencast|screen|gnome shell|kwin|obs|wf-recorder|grim|slurp|screen.?share|display.?capture/.test(_describe(source));
@@ -27,7 +28,7 @@ Singleton {
   function _describe(node: var): string {
     if (!node)
       return "";
-    const properties = node.properties;
+    const properties = node.ready ? (node.properties ?? {}) : {};
     return [node.name, properties?.["media.name"], properties?.["application.name"]].filter(Boolean).join(" ").toLowerCase();
   }
 

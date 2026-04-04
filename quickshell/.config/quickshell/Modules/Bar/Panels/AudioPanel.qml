@@ -16,7 +16,6 @@ PanelContentBase {
   readonly property string outputName: AudioService.sink ? root.friendlyName(AudioService.displayName(AudioService.sink)) : qsTr("No output device")
   readonly property real preferredHeight: contentLayout.implicitHeight + Theme.spacingMd * 2
   readonly property real preferredWidth: 400
-  property bool ready: false
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
 
   // Strip common vendor noise from device names
@@ -24,16 +23,6 @@ PanelContentBase {
     if (!raw)
       return raw;
     return raw.replace(/\s*High Definition Audio Controller\b/i, "").replace(/\s*HD Audio Controller\b/i, "").replace(/\s*Audio Controller\b/i, "").replace(/\s*Digital Stereo\b/i, "").replace(/\s*Analog Stereo\b/i, "").replace(/\s*\(HDMI\)/i, " HDMI").replace(/\s*\(S\/PDIF\)/i, " S/PDIF").replace(/\s+/g, " ").trim() || raw;
-  }
-
-  Component.onCompleted: readyDelay.start()
-
-  Timer {
-    id: readyDelay
-
-    interval: 30
-
-    onTriggered: root.ready = true
   }
 
   // ── Content ─────────────────────────────────────────────────
@@ -63,7 +52,7 @@ PanelContentBase {
         ToggleSegment {
           Layout.fillHeight: true
           Layout.fillWidth: true
-          active: true
+          active: AudioService.sinkControllable
           checked: !AudioService.muted
           icon: !AudioService.muted ? "󰕾" : "󰝟"
           label: "Output"
@@ -74,8 +63,8 @@ PanelContentBase {
         ToggleSegment {
           Layout.fillHeight: true
           Layout.fillWidth: true
-          active: AudioService.source !== null
-          checked: AudioService.source !== null && !AudioService.micMuted
+          active: AudioService.sourceControllable
+          checked: AudioService.sourceControllable && !AudioService.micMuted
           icon: AudioService.micMuted ? "󰍭" : "󰍬"
           label: "Mic"
 
@@ -103,6 +92,7 @@ PanelContentBase {
       iconOff: "󰝟"
       iconOn: "󰕾"
       muted: AudioService.muted
+      ready: AudioService.sinkControllable
       splitAt: 1.0 / AudioService.maxVolume
       subtitle: root.outputName
       tag: "OUTPUT"
@@ -165,6 +155,7 @@ PanelContentBase {
       iconOff: "󰍭"
       iconOn: "󰍬"
       muted: AudioService.micMuted
+      ready: AudioService.sourceControllable
       sliderSteps: 20
       subtitle: root.inputName
       tag: "INPUT"
@@ -308,6 +299,7 @@ PanelContentBase {
     property string iconOff
     property string iconOn
     property bool muted
+    property bool ready: true
     property int sliderSteps: 30
     property real splitAt: 1.0
     property string subtitle: ""
@@ -382,13 +374,14 @@ PanelContentBase {
         OText {
           bold: true
           color: Theme.textActiveColor
-          text: Math.round(hero.volume * (1.0 / hero.splitAt) * 100) + "%"
+          text: hero.ready ? Math.round(hero.volume * (1.0 / hero.splitAt) * 100) + "%" : "--"
         }
 
         IconButton {
           Layout.preferredHeight: root.muteButtonSize
           Layout.preferredWidth: root.muteButtonSize
           colorBg: hero.muted ? Theme.inactiveColor : Theme.activeColor
+          isEnabled: hero.ready
           icon: hero.muted ? hero.iconOff : hero.iconOn
           tooltipText: hero.muted ? qsTr("Unmute") : qsTr("Mute")
 
@@ -408,14 +401,17 @@ PanelContentBase {
           fillColor: Theme.activeColor
           headroomColor: hero.headroomColor
           height: parent.height
-          interactive: root.ready
+          interactive: hero.ready
           radius: Theme.itemRadius
           splitAt: hero.splitAt
           steps: hero.sliderSteps
-          value: root.ready ? hero.volume : 0
+          value: hero.ready ? hero.volume : 0
           wheelStep: 1 / steps
 
-          onCommitted: v => hero.committed(v)
+          onCommitted: v => {
+            if (hero.ready)
+              hero.committed(v);
+          }
         }
       }
 
@@ -431,7 +427,8 @@ PanelContentBase {
     id: streamItem
 
     required property var modelData
-    readonly property real volume: Number.isFinite(modelData.audio?.volume) ? modelData.audio.volume : 0
+    readonly property bool ready: AudioService.hasControllableAudio(modelData)
+    readonly property real volume: AudioService.audioVolume(modelData)
 
     Layout.fillWidth: true
     spacing: Theme.spacingXs
@@ -446,7 +443,7 @@ PanelContentBase {
         asynchronous: true
         cache: false
         fillMode: Image.PreserveAspectFit
-        source: Utils.resolveIconSource(streamItem.modelData.name, streamItem.modelData.properties?.["application.icon-name"], "󰝚")
+        source: Utils.resolveIconSource(streamItem.modelData.name, AudioService.nodeApplicationIconName(streamItem.modelData), "󰝚")
 
         sourceSize {
           height: Theme.fontLg
@@ -488,15 +485,15 @@ PanelContentBase {
         animMs: 0
         fillColor: Theme.activeColor
         height: parent.height
-        interactive: root.ready
+        interactive: streamItem.ready
         radius: Theme.itemRadius * 0.5
         steps: 20
-        value: streamItem.volume
+        value: streamItem.ready ? streamItem.volume : 0
         wheelStep: 1 / steps
 
         onCommitted: v => {
-          if (streamItem.modelData?.audio)
-            streamItem.modelData.audio.volume = v;
+          if (streamItem.ready)
+            AudioService.setStreamVolume(streamItem.modelData, v);
         }
       }
     }

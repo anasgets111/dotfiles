@@ -18,6 +18,14 @@ Singleton {
   property bool numLock: false
   property bool scrollLock: false
 
+  // Safely looks up a desktop entry name with guard for undefined DesktopEntries
+  function lookupDesktopEntryName(id: string): string {
+    if (typeof DesktopEntries === "undefined" || !id)
+      return "";
+    const entry = DesktopEntries.heuristicLookup?.(id) || DesktopEntries.byId?.(id);
+    return entry?.name || "";
+  }
+
   // Normalizes image paths for QML Image sources (adds file:// prefix for absolute paths)
   function normalizeImageUrl(img: string): string {
     if (!img)
@@ -34,6 +42,7 @@ Singleton {
   function resolveIconSource(key: string, arg2: var, arg3: var): string {
     const fallback = (arg3 !== undefined && arg3 !== null) ? String(arg3) : "application-x-executable";
     const candidates = arg3 ? [arg2, key] : [key, arg2];
+    const fallbackPath = Quickshell.hasThemeIcon(fallback) ? Quickshell.iconPath(fallback) : "";
 
     for (const c of candidates) {
       if (!c)
@@ -42,30 +51,27 @@ Singleton {
 
       // Direct paths
       if (s.includes("/") || /^(file|data|qrc):/.test(s))
-        return s;
+        return normalizeImageUrl(s);
 
       // DesktopEntries
       if (typeof DesktopEntries !== "undefined") {
         const entry = DesktopEntries.heuristicLookup?.(s) || DesktopEntries.byId?.(s);
-        if (entry?.icon)
-          return Quickshell.iconPath(entry.icon, fallback);
+        const entryIcon = String(entry?.icon ?? "");
+        if (entryIcon) {
+          if (entryIcon.includes("/") || /^(file|data|qrc):/.test(entryIcon))
+            return normalizeImageUrl(entryIcon);
+          const entryPath = Quickshell.iconPath(entryIcon, true);
+          if (entryPath)
+            return entryPath;
+        }
       }
 
-      // Icon theme with fallback
-      const path = Quickshell.iconPath(s, fallback);
+      const path = Quickshell.iconPath(s, true);
       if (path)
         return path;
     }
 
-    return Quickshell.iconPath(fallback);
-  }
-
-  // Safely looks up a desktop entry name with guard for undefined DesktopEntries
-  function lookupDesktopEntryName(id: string): string {
-    if (typeof DesktopEntries === "undefined" || !id)
-      return "";
-    const entry = DesktopEntries.heuristicLookup?.(id) || DesktopEntries.byId?.(id);
-    return entry?.name || "";
+    return fallbackPath;
   }
 
   // Scans the Linux sysfs LED directory.

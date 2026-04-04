@@ -23,7 +23,7 @@ Rectangle {
       return "0%";
     return Math.round(Math.min(displayValue * maxVolume, 1.5) * 100) + "%";
   }
-  readonly property bool ready: AudioService.sink?.audio ?? false
+  readonly property bool ready: AudioService.sinkControllable
   // Slider value normalized to 0-1 range (where 1.0 = maxVolume)
   readonly property real sliderValue: currentVolume / maxVolume
   readonly property color textColor: {

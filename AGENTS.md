@@ -143,6 +143,7 @@ This section is a living record of findings from repeated interactions. When Cla
 ### Known QML / Quickshell Pitfalls
 
 <!-- Add entries below as they are discovered -->
+- Quickshell PipeWire nodes expose `PwNode.properties` and `PwNode.audio` fields only after binding, and they can still be incomplete until `node.ready`; guard bound-property reads and never write volume/mute before readiness.
 
 ---
 
