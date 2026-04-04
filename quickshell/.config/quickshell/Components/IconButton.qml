@@ -17,7 +17,7 @@ import qs.Config
 Item {
   id: root
 
-  readonly property bool _canShowTooltip: root.enabled && !root.suppressTooltip && root.tooltipText.length > 0
+  readonly property bool _canShowTooltip: root.isEnabled && !root.suppressTooltip && root.tooltipText.length > 0
 
   // Computed dimensions from size using Theme helper functions
   readonly property int _iconSize: Theme.iconSizeFor(size)
@@ -38,13 +38,13 @@ Item {
   readonly property color colorFgHover: Theme.textContrast(colorBgHover)
 
   // Computed colors
-  readonly property color effectiveBg: !enabled ? colorBg : (hovered ? colorBgHover : colorBg)
+  readonly property color effectiveBg: !isEnabled ? colorBg : (hovered ? colorBgHover : colorBg)
   readonly property color effectiveBorderColor: showBorder ? (hovered ? colorBorderHover : colorBorder) : "transparent"
-  readonly property color effectiveFg: !enabled ? Theme.textContrast(colorBg) : (hovered ? colorFgHover : colorFg)
+  readonly property color effectiveFg: !isEnabled ? Theme.textContrast(colorBg) : (hovered ? colorFgHover : colorFg)
 
   // Behavior
-  property bool enabled: true
-  readonly property bool hovered: mouseArea.containsMouse && root.enabled
+  property bool isEnabled: true
+  readonly property bool hovered: mouseArea.containsMouse && root.isEnabled
 
   // Content
   property string icon: ""
@@ -65,7 +65,7 @@ Item {
   implicitHeight: _size
   implicitWidth: _size
 
-  onEnabledChanged: if (!enabled && tooltip.isVisible)
+  onIsEnabledChanged: if (!isEnabled && tooltip.isVisible)
     tooltip.isVisible = false
   onSuppressTooltipChanged: {
     if (root.suppressTooltip && tooltip.isVisible)
@@ -107,12 +107,12 @@ Item {
 
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       anchors.fill: parent
-      cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-      enabled: root.allowClickWhenDisabled || root.enabled
+      cursorShape: root.isEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+      enabled: root.allowClickWhenDisabled || root.isEnabled
       hoverEnabled: true
 
       onClicked: function (mouse) {
-        if (!root.enabled && !root.allowClickWhenDisabled)
+        if (!root.isEnabled && !root.allowClickWhenDisabled)
           return;
         if (tooltip.isVisible)
           tooltip.isVisible = false;
