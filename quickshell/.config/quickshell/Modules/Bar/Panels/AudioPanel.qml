@@ -10,20 +10,13 @@ import qs.Services.Utils
 PanelContentBase {
   id: root
 
-  readonly property string inputName: AudioService.source ? root.friendlyName(AudioService.displayName(AudioService.source)) : qsTr("No input device")
+  readonly property string inputName: AudioService.source ? AudioService.displayName(AudioService.source) : qsTr("No input device")
   property bool mixerExpanded: false
   readonly property int muteButtonSize: Math.round(Theme.itemHeight * Theme.scaleSmall)
-  readonly property string outputName: AudioService.sink ? root.friendlyName(AudioService.displayName(AudioService.sink)) : qsTr("No output device")
+  readonly property string outputName: AudioService.sink ? AudioService.displayName(AudioService.sink) : qsTr("No output device")
   readonly property real preferredHeight: contentLayout.implicitHeight + Theme.spacingMd * 2
   readonly property real preferredWidth: 400
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
-
-  // Strip common vendor noise from device names
-  function friendlyName(raw: string): string {
-    if (!raw)
-      return raw;
-    return raw.replace(/\s*High Definition Audio Controller\b/i, "").replace(/\s*HD Audio Controller\b/i, "").replace(/\s*Audio Controller\b/i, "").replace(/\s*Digital Stereo\b/i, "").replace(/\s*Analog Stereo\b/i, "").replace(/\s*\(HDMI\)/i, " HDMI").replace(/\s*\(S\/PDIF\)/i, " S/PDIF").replace(/\s+/g, " ").trim() || raw;
-  }
 
   // ── Content ─────────────────────────────────────────────────
 
@@ -197,7 +190,7 @@ PanelContentBase {
 
     property string defaultIcon: ""
     readonly property string displayIcon: AudioService.deviceIconFor(node) || defaultIcon
-    readonly property string displayName: root.friendlyName(AudioService.displayName(node))
+    readonly property string displayName: AudioService.displayName(node)
     property bool isActive: false
     property var node
 
