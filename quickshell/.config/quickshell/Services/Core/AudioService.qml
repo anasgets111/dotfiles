@@ -143,10 +143,11 @@ Singleton {
     return true;
   }
 
-  function setNodeVolume(node: var, newVolume: real, maximum: real, unmute: bool = true): bool {
+  function setNodeVolume(node: var, newVolume: real, maximum: real, unmute): bool {
+    const shouldUnmute = unmute === undefined ? true : !!unmute;
     if (!hasControllableAudio(node))
       return false;
-    if (unmute)
+    if (shouldUnmute)
       node.audio.muted = false;
     node.audio.volume = clampVolume(newVolume, maximum);
     return true;
