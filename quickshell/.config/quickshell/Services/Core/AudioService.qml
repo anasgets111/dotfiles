@@ -235,7 +235,7 @@ Singleton {
   }
 
   PwObjectTracker {
-    objects: root._pipewireNodes
+    objects: root._audioNodes
   }
 
   Connections {
