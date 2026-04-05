@@ -9,21 +9,37 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  property var _bandMap: ({})
+
   // --- Private nmcli-only state ---
   property string _ethernetInterface: ""
   property string _ethernetIp: ""
   property bool _ethernetOnline: false
   property bool _networkingEnabled: true
   property string _wifiIp: ""
-  property var _bandMap: ({})
 
   // --- Ethernet (nmcli) ---
   readonly property alias ethernetInterface: root._ethernetInterface
   readonly property alias ethernetIpAddress: root._ethernetIp
   readonly property alias ethernetOnline: root._ethernetOnline
+  readonly property string linkType: root._ethernetOnline ? "ethernet" : (root.wifiOnline ? "wifi" : "disconnected")
 
   // --- Networking toggle (nmcli) ---
   readonly property alias networkingEnabled: root._networkingEnabled
+  readonly property bool ready: Networking.backend !== NetworkBackendType.None
+
+  // --- Wifi APs: native data + band from supplemental scan ---
+  readonly property var wifiAps: {
+    const nets = root.wifiDevice?.networks.values ?? [];
+    return nets.map(n => ({
+          ssid: n.name,
+          signal: Math.round(n.signalStrength * 100),
+          band: root._bandMap[n.name] ?? "",
+          security: (n.security !== WifiSecurityType.Open && n.security !== WifiSecurityType.Owe && n.security !== WifiSecurityType.Unknown) ? "secured" : "",
+          connected: n.connected,
+          saved: n.known
+        })).sort((a, b) => (b.connected - a.connected) || (b.signal - a.signal));
+  }
 
   // --- Wifi state (native) ---
   readonly property var wifiDevice: {
@@ -33,55 +49,19 @@ Singleton {
     }
     return null;
   }
-  readonly property bool wifiOnline: root.wifiDevice?.connected ?? false
   readonly property string wifiInterface: root.wifiDevice?.name ?? ""
-  readonly property bool wifiRadioEnabled: Networking.wifiEnabled
-  readonly property bool ready: Networking.backend !== NetworkBackendType.None
-  readonly property string linkType: root._ethernetOnline ? "ethernet" : (root.wifiOnline ? "wifi" : "disconnected")
 
   // --- Wifi IP (nmcli, native doesn't expose it) ---
   readonly property alias wifiIpAddress: root._wifiIp
+  readonly property bool wifiOnline: root.wifiDevice?.connected ?? false
+  readonly property bool wifiRadioEnabled: Networking.wifiEnabled
 
-  // --- Wifi APs: native data + band from supplemental scan ---
-  readonly property var wifiAps: {
-    const nets = root.wifiDevice?.networks.values ?? [];
-    return nets.map(n => ({
-      ssid: n.name,
-      signal: Math.round(n.signalStrength * 100),
-      band: root._bandMap[n.name] ?? "",
-      security: (n.security !== WifiSecurityType.Open && n.security !== WifiSecurityType.Owe && n.security !== WifiSecurityType.Unknown) ? "secured" : "",
-      connected: n.connected,
-      saved: n.known
-    })).sort((a, b) => (b.connected - a.connected) || (b.signal - a.signal));
-  }
-
-  // --- Scanner control ---
-  function startWifiScan() {
-    if (root.wifiDevice)
-      root.wifiDevice.scannerEnabled = true;
-    root.refreshBandData();
-  }
-
-  function stopWifiScan() {
-    if (root.wifiDevice)
-      root.wifiDevice.scannerEnabled = false;
-  }
-
-  function refreshBandData() {
-    const iface = root.wifiInterface;
-    if (!iface || procBand.running)
+  // --- Ethernet actions (nmcli only, no ethernet in native DeviceType) ---
+  function connectEthernet() {
+    const iface = (root._ethernetInterface || "").trim();
+    if (!iface)
       return;
-    root.exec(procBand, ["nmcli", "-t", "-f", "SSID,FREQ", "device", "wifi", "list", "ifname", iface]);
-  }
-
-  // --- Wifi radio toggle ---
-  function setWifiRadioEnabled(enabled: bool) {
-    Networking.wifiEnabled = enabled;
-  }
-
-  // --- Wifi disconnect (delegates to native) ---
-  function disconnectWifi() {
-    root.wifiDevice?.disconnect();
+    root.exec(cmdConnect, ["nmcli", "device", "connect", iface]);
   }
 
   // --- Hidden wifi (nmcli only, no native support for hidden flag) ---
@@ -96,24 +76,6 @@ Singleton {
     root.exec(cmdConnect, args);
   }
 
-  // --- Ethernet actions (nmcli only, no ethernet in native DeviceType) ---
-  function connectEthernet() {
-    const iface = (root._ethernetInterface || "").trim();
-    if (!iface)
-      return;
-    root.exec(cmdConnect, ["nmcli", "device", "connect", iface]);
-  }
-
-  function disconnectEthernet() {
-    if (root._ethernetInterface)
-      root.exec(cmdConnect, ["nmcli", "device", "disconnect", root._ethernetInterface]);
-  }
-
-  // --- Networking toggle (nmcli only) ---
-  function setNetworkingEnabled(enabled: bool) {
-    root.exec(cmdConnect, ["nmcli", "networking", enabled ? "on" : "off"]);
-  }
-
   // --- Connection error helper (for consumers without Quickshell.Networking import) ---
   function connectionFailReasonText(reason): string {
     if (reason === ConnectionFailReason.NoSecrets)
@@ -123,6 +85,23 @@ Singleton {
     if (reason === ConnectionFailReason.WifiNetworkLost)
       return qsTr("Network not found");
     return qsTr("Connection failed");
+  }
+
+  function disconnectEthernet() {
+    if (root._ethernetInterface)
+      root.exec(cmdConnect, ["nmcli", "device", "disconnect", root._ethernetInterface]);
+  }
+
+  // --- Wifi disconnect (delegates to native) ---
+  function disconnectWifi() {
+    root.wifiDevice?.disconnect();
+  }
+
+  function exec(proc: Process, cmd: var) {
+    if (proc.running)
+      return;
+    proc.command = ["env", "LC_ALL=C"].concat(cmd);
+    proc.running = true;
   }
 
   // --- Helper functions ---
@@ -147,13 +126,6 @@ Singleton {
     return "";
   }
 
-  function exec(proc: Process, cmd: var) {
-    if (proc.running)
-      return;
-    proc.command = ["env", "LC_ALL=C"].concat(cmd);
-    proc.running = true;
-  }
-
   function parseTerse(line: string): var {
     const res = [];
     let buf = "";
@@ -170,9 +142,34 @@ Singleton {
     return res;
   }
 
-  // Refresh band data when wifi interface becomes available
-  onWifiInterfaceChanged: if (root.wifiInterface)
-    root.refreshBandData()
+  function refreshBandData() {
+    const iface = root.wifiInterface;
+    if (!iface || procBand.running)
+      return;
+    root.exec(procBand, ["nmcli", "-t", "-f", "SSID,FREQ", "device", "wifi", "list", "ifname", iface]);
+  }
+
+  // --- Networking toggle (nmcli only) ---
+  function setNetworkingEnabled(enabled: bool) {
+    root.exec(cmdConnect, ["nmcli", "networking", enabled ? "on" : "off"]);
+  }
+
+  // --- Wifi radio toggle ---
+  function setWifiRadioEnabled(enabled: bool) {
+    Networking.wifiEnabled = enabled;
+  }
+
+  // --- Scanner control ---
+  function startWifiScan() {
+    if (root.wifiDevice)
+      root.wifiDevice.scannerEnabled = true;
+    root.refreshBandData();
+  }
+
+  function stopWifiScan() {
+    if (root.wifiDevice)
+      root.wifiDevice.scannerEnabled = false;
+  }
 
   Component.onCompleted: {
     procMonitor.running = true;
@@ -180,6 +177,10 @@ Singleton {
     procStatus.running = true;
     Logger.log("NetworkService", "ready");
   }
+
+  // Refresh band data when wifi interface becomes available
+  onWifiInterfaceChanged: if (root.wifiInterface)
+    root.refreshBandData()
 
   // --- nmcli monitor (ethernet / networking state changes) ---
   Process {

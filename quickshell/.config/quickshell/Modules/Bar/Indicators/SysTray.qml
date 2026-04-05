@@ -39,8 +39,8 @@ Item {
 
         Layout.alignment: Qt.AlignVCenter
         icon: ""
-        suppressTooltip: ShellUiState.isPanelOpen("tray", tray.screenName) && ShellUiState.panelData?.menuItem === modelData
         showBorder: false
+        suppressTooltip: ShellUiState.isPanelOpen("tray", tray.screenName) && ShellUiState.panelData?.menuItem === modelData
         tooltipText: modelData && (modelData.tooltipTitle || modelData.title) || ""
         visible: modelData !== null
 
