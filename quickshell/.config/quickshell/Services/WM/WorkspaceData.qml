@@ -9,9 +9,9 @@ Singleton {
 
     if (!denseSlots)
       return normalized.map(ws => ({
-          idx: ws?.idx ?? -1,
-          workspace: ws
-        }));
+            idx: ws?.idx ?? -1,
+            workspace: ws
+          }));
 
     const maxIndex = normalized.reduce((maxValue, ws) => Math.max(maxValue, ws?.idx ?? 0), Math.max(minimumSlotCount, currentWorkspaceIndex));
     const workspaceMap = {};
@@ -19,7 +19,9 @@ Singleton {
     for (const workspace of normalized)
       workspaceMap[workspace.idx] = workspace;
 
-    return Array.from({length: maxIndex}, (_, index) => {
+    return Array.from({
+      length: maxIndex
+    }, (_, index) => {
       const idx = index + 1;
       const workspace = workspaceMap[idx] ?? null;
       if (workspace)

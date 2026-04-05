@@ -202,7 +202,7 @@ Singleton {
       Logger.log("AudioService", `sink changed: ${name} (waiting for binding)`);
       return;
     }
-    capSinkVolume();
+    root.capSinkVolume();
     Logger.log("AudioService", `sink changed: ${name}`);
   }
   onSourceChanged: Logger.log("AudioService", `source changed: ${displayName(root.source)}`)
@@ -241,7 +241,7 @@ Singleton {
   Connections {
     function onReadyChanged() {
       if (root.sinkControllable)
-        capSinkVolume();
+        root.capSinkVolume();
     }
 
     target: root.sink ?? null
@@ -249,7 +249,7 @@ Singleton {
 
   Connections {
     function onVolumeChanged() {
-      capSinkVolume();
+      root.capSinkVolume();
     }
 
     target: root.sinkControllable ? root.sink.audio : null
