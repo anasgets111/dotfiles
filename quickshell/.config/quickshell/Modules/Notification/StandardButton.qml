@@ -9,7 +9,15 @@ ToolButton {
   // "control" (default), "action", "send"
   property string buttonType: "control"
 
-  display: (icon.source && icon.source.toString() !== "") ? AbstractButton.TextBesideIcon : AbstractButton.TextOnly
+  display: {
+    const hasIcon = !!(icon.source && icon.source.toString() !== "");
+    const hasText = !!String(text || "");
+    if (hasIcon && hasText)
+      return AbstractButton.TextBesideIcon;
+    if (hasIcon)
+      return AbstractButton.IconOnly;
+    return AbstractButton.TextOnly;
+  }
   font.pixelSize: Theme.fontSm
   leftPadding: btn.buttonType === "action" ? Theme.spacingMd : Theme.spacingSm
 

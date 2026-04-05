@@ -259,8 +259,11 @@ Singleton {
       root.show(root.types.volumeOutput, AudioService.muted ? 0 : vol, AudioService.muted ? "󰖁" : (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿"), AudioService.muted ? "Muted" : `${vol}%`, false, Math.round(AudioService.maxVolume * 100));
     }
 
-    function onSinkDeviceChanged(deviceName, icon) {
-      root.show(root.types.audioDevice, null, icon || "󰓃", deviceName);
+    function onSinkChanged() {
+      const deviceName = AudioService.displayName(AudioService.sink);
+      if (!deviceName)
+        return;
+      root.show(root.types.audioDevice, null, AudioService.sinkIcon || "󰓃", deviceName);
     }
 
     function onVolumeChanged() {
