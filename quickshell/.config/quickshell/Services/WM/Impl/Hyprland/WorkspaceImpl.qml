@@ -5,17 +5,19 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import qs.Services
+import qs.Services.WM
 
 Singleton {
   id: root
 
   readonly property var _emptyLayout: ({
-      ws: [],
-      special: [],
-      out: [],
-      bounds: []
+      focusedOutput: "",
+      focusedWorkspace: null,
+      groupBoundaries: [],
+      outputsOrder: [],
+      specialWorkspaces: [],
+      workspaces: []
     })
-  property int _historyTracker: 1
   readonly property var _layoutState: {
     _updateTick;
     return enabled ? _calcLayout() : _emptyLayout;
@@ -23,23 +25,23 @@ Singleton {
   readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "monitoradded", "monitoraddedv2", "monitorremoved", "moveworkspace", "openwindow", "closewindow", "movewindow", "movewindowv2"]
   property int _updateTick: 0
   property string activeSpecial: ""
-  readonly property int currentWorkspace: Hyprland.focusedWorkspace?.id ?? 1
   readonly property bool enabled: MainService.currentWM === "hyprland"
-  readonly property string focusedOutput: Hyprland.focusedMonitor?.name ?? ""
-  readonly property var groupBoundaries: _layoutState.bounds
-  readonly property var outputsOrder: _layoutState.out
-  property int previousWorkspace: 1
-  readonly property var specialWorkspaces: _layoutState.special
-  readonly property var workspaces: _layoutState.ws
+  readonly property int currentWorkspace: focusedWorkspace?.id ?? -1
+  readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
+  readonly property string focusedOutput: _layoutState.focusedOutput
+  readonly property var focusedWorkspace: _layoutState.focusedWorkspace
+  readonly property var groupBoundaries: _layoutState.groupBoundaries
+  readonly property var outputsOrder: _layoutState.outputsOrder
+  readonly property var specialWorkspaces: _layoutState.specialWorkspaces
+  readonly property var workspaces: _layoutState.workspaces
 
   function _calcLayout(): var {
     const rawWs = Array.from(Hyprland.workspaces.values);
     const rawMons = Array.from(Hyprland.monitors.values);
-    const outOrder = rawMons.sort((a, b) => (b.focused - a.focused) || a.name.localeCompare(b.name)).map(m => m.name);
+    const outputOrderHint = rawMons.sort((a, b) => (b.focused - a.focused) || a.name.localeCompare(b.name)).map(m => m.name);
 
     const regular = [];
     const special = [];
-    const counts = new Map();
 
     for (const w of rawWs) {
       if (w.id < -1) {
@@ -53,36 +55,26 @@ Singleton {
         continue;
 
       const outName = w.monitor?.name ?? "";
-      const winCount = w.lastIpcObject?.windows ?? (w.toplevels?.values ? Array.from(w.toplevels.values).length : (w.toplevels?.size ?? 0));
+      const winCount = w.lastIpcObject?.windows ?? Array.from(w.toplevels.values).length;
 
       regular.push({
         id: w.id,
         idx: w.id,
         focused: w.focused,
         populated: winCount > 0,
-        output: outName
+        output: outName,
+        name: w.name ?? ""
       });
-
-      if (outName)
-        counts.set(outName, (counts.get(outName) ?? 0) + 1);
     }
 
-    regular.sort((a, b) => a.id - b.id);
-
-    const bounds = [];
-    let acc = 0;
-    const total = regular.length;
-    for (const out of outOrder) {
-      acc += counts.get(out) ?? 0;
-      if (acc > 0 && acc < total)
-        bounds.push(acc);
-    }
-
+    const layout = WorkspaceData.buildLayout(regular, Hyprland.focusedMonitor?.name ?? "", outputOrderHint);
     return {
-      ws: regular,
-      special,
-      out: outOrder,
-      bounds
+      focusedOutput: layout.focusedOutput,
+      focusedWorkspace: layout.focusedWorkspace,
+      groupBoundaries: layout.groupBoundaries,
+      outputsOrder: layout.outputsOrder,
+      specialWorkspaces: special,
+      workspaces: layout.workspaces
     };
   }
 
@@ -99,6 +91,11 @@ Singleton {
       Hyprland.dispatch(`workspace ${idx}`);
   }
 
+  function focusWorkspace(ws: var): void {
+    if (enabled && (ws?.idx ?? 0) > 0)
+      focusWorkspaceByIndex(ws.idx);
+  }
+
   function toggleSpecial(name: string): void {
     if (enabled && name)
       Hyprland.dispatch(`togglespecialworkspace ${name}`);
@@ -106,21 +103,11 @@ Singleton {
 
   Component.onCompleted: {
     if (enabled) {
-      _historyTracker = currentWorkspace;
-      previousWorkspace = currentWorkspace;
       refresh();
       Qt.callLater(refresh);
     }
   }
-  onCurrentWorkspaceChanged: {
-    if (currentWorkspace > 0 && currentWorkspace !== _historyTracker) {
-      previousWorkspace = _historyTracker;
-      _historyTracker = currentWorkspace;
-    }
-  }
   onEnabledChanged: if (enabled) {
-    _historyTracker = currentWorkspace;
-    previousWorkspace = currentWorkspace;
     refresh();
     Qt.callLater(refresh);
   }
