@@ -116,7 +116,7 @@ Item {
           fillMode: Image.PreserveAspectFit
           height: Theme.itemHeight
           smooth: true
-          source: root.primaryWrapper ? Utils.resolveIconSource(root.primaryWrapper.appName || "app", root.primaryWrapper.appIcon, "dialog-information") : ""
+          source: root.primaryWrapper ? Utils.resolveIconSource(root.primaryWrapper.notification?.appName || "app", root.primaryWrapper.notification?.appIcon || "", "dialog-information") : ""
           sourceSize: Qt.size(Theme.itemHeight, Theme.itemHeight)
           width: Theme.itemHeight
         }
@@ -212,6 +212,13 @@ Item {
               }
             }
 
+            MouseArea {
+              anchors.fill: parent
+              enabled: !!messageColumn.defaultAction
+
+              onClicked: messageColumn.defaultAction?.invoke()
+            }
+
             Rectangle {
               anchors.fill: parent
               border.color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.4) : Qt.rgba(1, 1, 1, 0.1)) : "transparent"
@@ -234,25 +241,34 @@ Item {
             ColumnLayout {
               id: messageColumn
 
-              readonly property var actionsModel: messageItem.modelData?.actions || []
-              readonly property string body: messageItem.modelData?.body || ""
+              readonly property var actionsModel: notification?.actions || []
+              readonly property string body: notification?.body || ""
               readonly property bool bodyHasMultipleLines: (body.match(/\n/g) || []).length > 0
               property bool bodyTruncated: false
               readonly property int bottomPadding: messageItem.isMultipleItems ? root.messagePadding : 0
-              readonly property url contentImage: messageItem.modelData?.cleanImage || ""
+              readonly property url contentImage: Utils.normalizeImageUrl(String(notification?.image || ""))
+              readonly property var defaultAction: actionsModel.find(action => String(action?.identifier || "").trim() === "default") || null
               readonly property bool expanded: root.messageExpanded(messageColumn.messageId)
-              readonly property bool hasBody: messageItem.modelData?.hasBody === true || (body && body.trim() !== "" && body.trim() !== summary.trim())
-              readonly property bool hasInlineReply: messageItem.modelData?.hasInlineReply === true
+              readonly property bool hasBody: !!(body && body.trim() !== "" && body.trim() !== summary.trim())
+              readonly property bool hasInlineReply: notification?.hasInlineReply === true
               readonly property int horizontalPadding: messageItem.isMultipleItems ? root.messagePadding : 0
-              readonly property string inlineReplyPlaceholder: messageItem.modelData?.inlineReplyPlaceholder || "Reply"
-              readonly property string messageId: messageItem.modelData?.id || String(messageItem.modelData?.notification ? messageItem.modelData.notification.id || "" : "")
-              readonly property var renderedBodyMeta: messageItem.modelData?.bodyMeta || {
-                text: "",
-                format: Qt.PlainText
-              }
-              readonly property string summary: messageItem.modelData?.summary || "(No title)"
+              readonly property string inlineReplyPlaceholder: notification?.inlineReplyPlaceholder || "Reply"
+              readonly property string messageId: String(notification?.id || "")
+              readonly property var notification: messageItem.modelData?.notification || null
+              readonly property var renderedActions: actionsModel.filter(action => {
+                if (!action)
+                  return false;
+                const identifier = String(action.identifier || "").trim();
+                if (identifier === "default")
+                  return false;
+                const text = String(action.text || "").trim();
+                return text !== "" || (!messageColumn.useActionIcons && identifier !== "");
+              })
+              readonly property var renderedBodyMeta: Markdown2Html.toDisplay(body)
+              readonly property string summary: notification?.summary || "(No title)"
               property bool summaryTruncated: false
               readonly property int topPadding: messageItem.isMultipleItems ? root.messagePadding : 0
+              readonly property bool useActionIcons: notification?.hasActionIcons || false
 
               spacing: root.spacingContent
 
@@ -441,8 +457,16 @@ Item {
                       const replyText = String(replyField.text || "");
                       if (replyText.length === 0)
                         return;
-                      const success = messageItem.modelData && messageItem.modelData.sendInlineReply ? messageItem.modelData.sendInlineReply(replyText) : false;
-                      if (success !== false)
+                      let success = false;
+                      try {
+                        if (messageColumn.notification?.hasInlineReply) {
+                          messageColumn.notification.sendInlineReply(replyText);
+                          success = true;
+                        }
+                      } catch (e) {
+                        success = false;
+                      }
+                      if (success)
                         replyField.text = "";
                     }
                   }
@@ -454,7 +478,7 @@ Item {
                 Layout.preferredHeight: visible ? implicitHeight : 0
                 Layout.topMargin: Theme.spacingXs
                 implicitHeight: actionsRow.implicitHeight
-                visible: messageColumn.actionsModel.length > 0
+                visible: messageColumn.renderedActions.length > 0
 
                 RowLayout {
                   id: actionsRow
@@ -465,15 +489,25 @@ Item {
                   spacing: Theme.spacingSm
 
                   Repeater {
-                    model: messageColumn.actionsModel
+                    model: messageColumn.renderedActions
 
                     delegate: StandardButton {
+                      readonly property string actionIcon: messageColumn.useActionIcons && actionIdentifier ? Utils.resolveIconSource(actionIdentifier, "", "") : ""
+                      readonly property string actionIdentifier: String(modelData?.identifier || "")
+                      readonly property string actionLabel: {
+                        const text = String(modelData?.text || "").trim();
+                        if (text !== "")
+                          return text;
+                        return messageColumn.useActionIcons ? "" : String(modelData?.identifier || "").trim();
+                      }
                       required property var modelData
 
                       buttonType: "action"
-                      text: modelData.title || modelData.id || ""
+                      icon.source: actionIcon
+                      text: actionLabel
+                      visible: actionLabel !== "" || actionIcon !== ""
 
-                      onClicked: root.svc?.executeAction(messageItem.modelData, modelData.id, modelData._obj)
+                      onClicked: modelData?.invoke()
                     }
                   }
                 }
