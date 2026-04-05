@@ -18,7 +18,7 @@ Singleton {
     })
   readonly property var _layoutState: {
     normalizedWorkspaces;
-    return enabled ? WorkspaceData.buildLayout(normalizedWorkspaces, "", []) : _emptyLayout;
+    return enabled ? WorkspaceService.buildLayout(normalizedWorkspaces, "", []) : _emptyLayout;
   }
   readonly property bool enabled: MainService.ready && MainService.currentWM === "niri"
   readonly property int currentWorkspace: focusedWorkspace?.id ?? trackedWorkspaceId
