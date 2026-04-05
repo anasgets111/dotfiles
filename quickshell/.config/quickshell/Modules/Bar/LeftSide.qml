@@ -78,23 +78,6 @@ Row {
   }
 
   Loader {
-    id: niriWsLoader
-
-    active: MainService.currentWM === "niri"
-    asynchronous: true
-
-    sourceComponent: NiriWorkspaces {
-      anchors.verticalCenter: parent.verticalCenter
-    }
-
-    onItemChanged: {
-      const workspaces = item as NiriWorkspaces;
-      if (workspaces)
-        leftSide.normalWorkspacesExpanded = Qt.binding(() => workspaces.expanded);
-    }
-  }
-
-  Loader {
     active: MainService.currentWM === "hyprland"
     asynchronous: true
 
@@ -106,19 +89,20 @@ Row {
   }
 
   Loader {
-    id: normalWsLoader
+    id: workspaceStripLoader
 
-    active: MainService.currentWM === "hyprland"
+    active: MainService.currentWM === "hyprland" || MainService.currentWM === "niri"
     asynchronous: true
 
-    sourceComponent: NormalWorkspaces {
+    sourceComponent: WorkspaceStrip {
       anchors.verticalCenter: parent.verticalCenter
     }
 
     onItemChanged: {
-      const workspaces = item as NormalWorkspaces;
+      const workspaces = item as WorkspaceStrip;
       if (workspaces)
         leftSide.normalWorkspacesExpanded = Qt.binding(() => workspaces.expanded);
     }
   }
+
 }
