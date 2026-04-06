@@ -36,6 +36,10 @@ ShellRoot {
     modelData: MonitorService.effectiveMainScreen
   }
 
+  InputDisplayOverlay {
+    modelData: MonitorService.effectiveMainScreen
+  }
+
   LockScreen {
   }
 

@@ -152,6 +152,12 @@ Singleton {
 
       property JsonObject appLauncher: JsonObject {
       }
+      property JsonObject inputDisplay: JsonObject {
+        property bool enabled: true
+        property bool showPrintableKeys: false
+        property real positionXRatio: 0.06
+        property real positionYRatio: 0.74
+      }
       property JsonObject idleService: JsonObject {
         property bool dpmsEnabled: true
         property int dpmsTimeoutSec: 30
