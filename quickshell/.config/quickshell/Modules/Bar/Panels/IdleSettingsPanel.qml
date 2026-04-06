@@ -6,6 +6,7 @@ import QtQuick.Controls
 import QtQuick.Effects
 import qs.Config
 import qs.Components
+import qs.Services.SystemInfo
 
 Item {
   id: root
@@ -499,6 +500,71 @@ Item {
                   if (root.idleData)
                     root.idleData.videoAutoInhibit = c;
                 }
+              }
+            }
+          }
+
+          // ── Input display card ───────────────────────────────
+          Rectangle {
+            Layout.fillWidth: true
+            border.color: Theme.withOpacity(Theme.borderLight, 0.6)
+            border.width: 1
+            clip: true
+            color: Theme.bgElevated
+            implicitHeight: inputDisplayBody.implicitHeight + Theme.spacingLg * 2
+            radius: Theme.radiusLg
+
+            Rectangle {
+              height: parent.height * 0.45
+              radius: parent.radius
+
+              gradient: Gradient {
+                GradientStop {
+                  color: Theme.withOpacity(Theme.activeColor, 0.05)
+                  position: 0.0
+                }
+
+                GradientStop {
+                  color: "transparent"
+                  position: 1.0
+                }
+              }
+
+              anchors {
+                left: parent.left
+                right: parent.right
+                top: parent.top
+              }
+            }
+
+            ColumnLayout {
+              id: inputDisplayBody
+
+              spacing: 0
+
+              anchors {
+                fill: parent
+                margins: Theme.spacingLg
+              }
+
+              SettingRow {
+                checked: InputDisplayService.enabled
+                description: qsTr("Show the keyboard and mouse overlay.")
+                icon: "󰖳"
+                label: qsTr("Input Display")
+
+                onToggled: c => InputDisplayService.setEnabled(c)
+              }
+
+              SettingRow {
+                checked: InputDisplayService.showPrintableKeys
+                description: qsTr("Letters, digits, punctuation, and space.")
+                disabled: !InputDisplayService.enabled
+                icon: "󰌌"
+                label: qsTr("Show Printable Keys")
+                showSeparator: false
+
+                onToggled: c => InputDisplayService.setShowPrintableKeys(c)
               }
             }
           }
