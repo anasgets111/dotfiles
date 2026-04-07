@@ -7,25 +7,23 @@ import qs.Config
 Singleton {
   id: root
 
-  property string _query: ""
-  property string _url: ""
-  property bool _isUrl: false
-  
-  readonly property bool hasResult: _query.length > 0 && (_isUrl || _isFallback)
-  readonly property bool isUrl: _isUrl
-  readonly property string url: _url
-  readonly property string query: _query
-  
   // Only show as fallback if other engines didn't match and no apps found
   // This property will be controlled by AppLauncher
   property bool _isFallback: false
+  property bool _isUrl: false
+  property string _query: ""
+  property string _url: ""
+  readonly property bool hasResult: _query.length > 0 && (_isUrl || _isFallback)
   readonly property bool isFallback: _isFallback
+  readonly property bool isUrl: _isUrl
+  readonly property string query: _query
+  readonly property string url: _url
 
   function parse(text: string, isFallback: bool): void {
     const input = String(text || "").trim();
     _query = input;
     _isFallback = isFallback;
-    
+
     if (!input) {
       _url = "";
       _isUrl = false;

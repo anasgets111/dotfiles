@@ -16,10 +16,10 @@ PanelWindow {
   id: root
 
   readonly property bool hasInteractiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyInteractiveOpen
+  readonly property bool isIdleSettingsOpen: ShellUiState.isModalOpenOn(root.screenName, "idleSettings")
   readonly property bool isModalActiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyModalOpen
   readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(root.screenName)
   readonly property bool isWallpaperPickerOpen: ShellUiState.isModalOpenOn(root.screenName, "wallpaperPicker")
-  readonly property bool isIdleSettingsOpen: ShellUiState.isModalOpenOn(root.screenName, "idleSettings")
   readonly property bool launcherOpen: ShellUiState.isModalOpenOn(root.screenName, "launcher")
   property var modelData: null
   readonly property bool panelNeedsKeyboardFocus: panelContainer.active && panelContainer.needsKeyboardFocus

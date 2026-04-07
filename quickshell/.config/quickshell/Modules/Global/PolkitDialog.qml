@@ -33,17 +33,17 @@ PanelWindow {
   }
 
   anchors {
-    top: true
     bottom: true
     left: true
     right: true
+    top: true
   }
 
   PolkitAgent {
     id: agent
 
     onAuthenticationRequestStarted: {
-      Logger.log("PolkitDialog", `Auth started: ${flow?.message ?? '<no flow>'} for ${flow?.actionId ?? '<no-action>'}`)
+      Logger.log("PolkitDialog", `Auth started: ${flow?.message ?? '<no flow>'} for ${flow?.actionId ?? '<no-action>'}`);
       passwordField.text = "";
     }
   }

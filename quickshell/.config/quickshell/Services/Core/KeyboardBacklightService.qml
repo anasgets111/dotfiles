@@ -92,6 +92,5 @@ Singleton {
 
   Process {
     id: setBrightnessProcess
-
   }
 }

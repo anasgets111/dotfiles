@@ -11,19 +11,19 @@ Singleton {
 
   readonly property var _activeLinks: (Pipewire.linkGroups?.values ?? []).filter(link => link.state === PwLinkState.Active)
   property bool _v4l2Active: false
+  readonly property bool audioCaptureActive: _activeLinks.some(link => link.source?.type === PwNodeType.AudioSource && link.target?.type === PwNodeType.AudioInStream && !/\bcava\b/.test(_describe(link.target)))
   readonly property bool cameraActive: _v4l2Active
   readonly property bool microphoneActive: _activeLinks.some(link => {
-      const source = link.source;
-      const target = link.target;
-      const targetAudio = target?.audio;
-      return source?.type === PwNodeType.AudioSource && target?.type === PwNodeType.AudioInStream && targetAudio && (!target.ready || !targetAudio.muted) && !/\bcava\b/.test(_describe(target));
-    })
-  readonly property bool audioCaptureActive: _activeLinks.some(link => link.source?.type === PwNodeType.AudioSource && link.target?.type === PwNodeType.AudioInStream && !/\bcava\b/.test(_describe(link.target)))
+    const source = link.source;
+    const target = link.target;
+    const targetAudio = target?.audio;
+    return source?.type === PwNodeType.AudioSource && target?.type === PwNodeType.AudioInStream && targetAudio && (!target.ready || !targetAudio.muted) && !/\bcava\b/.test(_describe(target));
+  })
   readonly property bool microphoneMuted: AudioService.sourceControllable ? AudioService.micMuted : false
   readonly property bool screenshareActive: _activeLinks.some(link => {
-      const source = link.source;
-      return (source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource && /xdg-desktop-portal|xdpw|screencast|screen|gnome shell|kwin|obs|wf-recorder|grim|slurp|screen.?share|display.?capture/.test(_describe(source));
-    })
+    const source = link.source;
+    return (source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource && /xdg-desktop-portal|xdpw|screencast|screen|gnome shell|kwin|obs|wf-recorder|grim|slurp|screen.?share|display.?capture/.test(_describe(source));
+  })
 
   function _describe(node: var): string {
     if (!node)

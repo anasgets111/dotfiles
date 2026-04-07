@@ -46,12 +46,12 @@ Singleton {
     return activeScreenName === (screenName || "") && activeModal === (modalId || "");
   }
 
-  function isPanelOpenOn(screenName) {
-    return isAnyPanelOpen && activeScreenName === (screenName || "");
-  }
-
   function isPanelOpen(panelId, screenName) {
     return activePanelId === (panelId || "") && activeScreenName === (screenName || "");
+  }
+
+  function isPanelOpenOn(screenName) {
+    return isAnyPanelOpen && activeScreenName === (screenName || "");
   }
 
   function openModal(modalId, screenName, data) {

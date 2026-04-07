@@ -8,11 +8,10 @@ import qs.Services.UI
 IconButton {
   id: root
 
-  required property string screenName
-
   readonly property bool anyInhibit: manualInhibit || IdleService.effectiveInhibited
   property bool manualInhibit: false
   readonly property string reason: !anyInhibit ? "" : [manualInhibit ? qsTr("manual") : "", IdleService.effectiveInhibited ? qsTr("video") : ""].filter(r => r).join(" + ")
+  required property string screenName
 
   colorBg: anyInhibit ? Theme.activeColor : Theme.inactiveColor
   icon: manualInhibit ? "󰅶" : "󰾪"

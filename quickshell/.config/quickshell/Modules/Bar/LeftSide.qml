@@ -104,5 +104,4 @@ Row {
         leftSide.normalWorkspacesExpanded = Qt.binding(() => workspaces.expanded);
     }
   }
-
 }

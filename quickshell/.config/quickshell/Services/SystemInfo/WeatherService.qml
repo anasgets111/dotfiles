@@ -36,8 +36,8 @@ Singleton {
   readonly property real longitude: weatherLocation?.longitude ?? NaN
   readonly property int refreshInterval: 3600000 // 1 hour
   readonly property string timeAgo: _timeAgo()
-  readonly property var weatherLocation: Settings.data.weatherLocation
   readonly property var weatherCache: Settings.state.weather
+  readonly property var weatherLocation: Settings.data.weatherLocation
 
   function _fetch() {
     if (_requesting)
@@ -193,6 +193,7 @@ Singleton {
       if (Settings.isLoaded && Settings.isStateLoaded)
         root._init();
     }
+
     function onIsStateLoadedChanged() {
       if (Settings.isLoaded && Settings.isStateLoaded)
         root._init();

@@ -54,6 +54,7 @@ Singleton {
         color: "#9E9E9E"
       }
     })
+  property string connectAfterPairAddress: ""
   // Codec data storage: Property bindings to deviceCodecs[addr] automatically react
   // when deviceCodecsChanged() is emitted. This is more ergonomic than signal-based
   // patterns which require manual Connections in every consumer.
@@ -63,7 +64,6 @@ Singleton {
   readonly property var devices: available ? adapter.devices.values : []
   readonly property bool discoverable: available && adapter.discoverable
   readonly property bool discovering: available && adapter.discovering
-  property string connectAfterPairAddress: ""
   property bool discoveryOwned: false
   readonly property bool enabled: available && adapter.enabled
   readonly property var sortedDevices: sortDevices(devices)
@@ -270,13 +270,13 @@ Singleton {
   }
 
   Connections {
-    function onEnabledChanged() {
-      if (!root.adapter?.enabled)
+    function onDiscoveringChanged() {
+      if (!root.adapter?.discovering)
         root.discoveryOwned = false;
     }
 
-    function onDiscoveringChanged() {
-      if (!root.adapter?.discovering)
+    function onEnabledChanged() {
+      if (!root.adapter?.enabled)
         root.discoveryOwned = false;
     }
 
@@ -296,12 +296,8 @@ Singleton {
     model: root.devices
 
     delegate: QtObject {
-      required property QtObject modelData
       readonly property string addr: modelData?.address || ""
       readonly property Connections deviceConn: Connections {
-        ignoreUnknownSignals: true
-        target: modelData
-
         function onPairingChanged() {
           if (modelData?.pairing || addr !== root.connectAfterPairAddress)
             return;
@@ -309,7 +305,11 @@ Singleton {
           if (modelData?.paired)
             Qt.callLater(() => root.connectDevice(modelData));
         }
+
+        ignoreUnknownSignals: true
+        target: modelData
       }
+      required property QtObject modelData
     }
   }
 

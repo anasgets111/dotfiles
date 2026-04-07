@@ -21,11 +21,10 @@ Item {
   property int currentIndex: 0
   property var filteredApps: []
   property var finder: null
-  property real maxAppScore: 0
   readonly property bool fxMode: CurrencyEngine.hasResult
-  readonly property bool webMode: WebEngine.hasResult
   readonly property bool hasSpecial: query.trim().length > 0 && (calcMode || fxMode || webMode)
   property bool hoverSelectionArmed: false
+  property real maxAppScore: 0
   readonly property int maxVisible: 8
   property string query: ""
   readonly property int selectedAppIdx: visibleAppCount <= 0 ? -1 : Math.max(0, Math.min(currentIndex - (hasSpecial ? 1 : 0), visibleAppCount - 1))
@@ -33,6 +32,7 @@ Item {
   readonly property bool specialSelected: hasSpecial && currentIndex === 0
   readonly property int totalRows: visibleAppCount + (hasSpecial ? 1 : 0)
   readonly property int visibleAppCount: Math.min(filteredApps.length, maxVisible)
+  readonly property bool webMode: WebEngine.hasResult
 
   signal dismissed
 
@@ -136,14 +136,6 @@ Item {
     close();
   }
 
-  function rateLabel(): string {
-    if (!fxMode || CurrencyEngine.inputAmount === 0)
-      return "";
-    const rate = CurrencyEngine.outputAmount / CurrencyEngine.inputAmount;
-    const decimals = rate >= 100 ? 2 : (rate >= 1 ? 4 : 6);
-    return " · 1 " + CurrencyEngine.fromCode.toUpperCase() + " = " + rate.toLocaleString(Qt.locale(), "f", decimals) + " " + CurrencyEngine.toCode.toUpperCase();
-  }
-
   function move(delta: int): void {
     if (totalRows <= 0)
       return;
@@ -175,8 +167,8 @@ Item {
     if (!hasFx)
       CalcEngine.evaluate(trimmed);
     filterApps(trimmed);
-    
-    // Web search is fallback if no apps, calc, or fx. 
+
+    // Web search is fallback if no apps, calc, or fx.
     // Or if it's a direct URL.
     // Or if app results are "poor" (score < threshold).
     // FZF score for a perfect boundary match is ~32 per char.
@@ -184,8 +176,16 @@ Item {
     const scoreThreshold = Math.max(32, trimmed.length * 25);
     const isFallback = (filteredApps.length === 0 || maxAppScore < scoreThreshold) && !CalcEngine.hasResult && !CurrencyEngine.hasResult;
     WebEngine.parse(trimmed, isFallback);
-    
+
     currentIndex = 0;
+  }
+
+  function rateLabel(): string {
+    if (!fxMode || CurrencyEngine.inputAmount === 0)
+      return "";
+    const rate = CurrencyEngine.outputAmount / CurrencyEngine.inputAmount;
+    const decimals = rate >= 100 ? 2 : (rate >= 1 ? 4 : 6);
+    return " · 1 " + CurrencyEngine.fromCode.toUpperCase() + " = " + rate.toLocaleString(Qt.locale(), "f", decimals) + " " + CurrencyEngine.toCode.toUpperCase();
   }
 
   function toArray(v: var): var {
@@ -417,16 +417,16 @@ Item {
 
               // Calculator Result
               OText {
-                visible: calcMode
+                Layout.fillWidth: true
                 font.pixelSize: Theme.fontLg
                 text: CalcEngine.expression + " = " + CalcEngine.resultText
-                Layout.fillWidth: true
+                visible: calcMode
               }
 
               // Web Result
               RowLayout {
-                visible: webMode && !calcMode && !fxMode
                 spacing: Theme.spacingMd
+                visible: webMode && !calcMode && !fxMode
 
                 OText {
                   color: Theme.activeColor
@@ -443,44 +443,50 @@ Item {
 
               // Currency Result Stacked
               RowLayout {
-                visible: fxMode && !calcMode
                 spacing: Theme.spacingLg
+                visible: fxMode && !calcMode
 
                 ColumnLayout {
                   spacing: 0
+
                   OText {
-                    text: CurrencyEngine.fromFlag
-                    font.pixelSize: Theme.fontLg
                     Layout.alignment: Qt.AlignHCenter
-                  }
-                  OText {
-                    text: CurrencyEngine.inputAmount + " " + CurrencyEngine.fromCode.toUpperCase()
                     font.pixelSize: Theme.fontLg
+                    text: CurrencyEngine.fromFlag
+                  }
+
+                  OText {
+                    font.pixelSize: Theme.fontLg
+                    text: CurrencyEngine.inputAmount + " " + CurrencyEngine.fromCode.toUpperCase()
                   }
                 }
 
                 OText {
-                  text: "→"
-                  font.pixelSize: Theme.fontLg
-                  color: Theme.textInactiveColor
                   Layout.alignment: Qt.AlignBottom
                   Layout.bottomMargin: Theme.spacingXs
+                  color: Theme.textInactiveColor
+                  font.pixelSize: Theme.fontLg
+                  text: "→"
                 }
 
                 ColumnLayout {
                   spacing: 0
+
                   OText {
-                    text: CurrencyEngine.toFlag
-                    font.pixelSize: Theme.fontLg
                     Layout.alignment: Qt.AlignHCenter
-                  }
-                  OText {
-                    text: CurrencyEngine.resultText + " " + CurrencyEngine.toCode.toUpperCase()
                     font.pixelSize: Theme.fontLg
+                    text: CurrencyEngine.toFlag
+                  }
+
+                  OText {
+                    font.pixelSize: Theme.fontLg
+                    text: CurrencyEngine.resultText + " " + CurrencyEngine.toCode.toUpperCase()
                   }
                 }
-                
-                Item { Layout.fillWidth: true } // Spacer
+
+                Item {
+                  Layout.fillWidth: true
+                } // Spacer
               }
 
               OText {
