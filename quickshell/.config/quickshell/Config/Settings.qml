@@ -22,7 +22,6 @@ Singleton {
   readonly property var colors: _loadedScheme?.[root.data?.themeMode ?? "dark"] ?? {}
   property string configDir: Quickshell.env("OBELISK_CONFIG_DIR") || (_xdgConfig + "/" + shellName + "/")
   property alias data: settingsAdapter
-  property alias state: cacheAdapter
   property string defaultAvatar: Quickshell.env("HOME") + "/.face"
   property string defaultWallpaper: Qt.resolvedUrl("../Assets/3.jpg")
 
@@ -32,12 +31,13 @@ Singleton {
   property bool isLoaded: false
   property bool isStateLoaded: false
   property string settingsFile: Quickshell.env("OBELISK_SETTINGS_FILE") || (configDir + "settings.json")
-  property string stateFile: cacheDir + "state.json"
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PATHS
   // ═══════════════════════════════════════════════════════════════════════════
   readonly property string shellName: "Obelisk"
+  property alias state: cacheAdapter
+  property string stateFile: cacheDir + "state.json"
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PUBLIC API
@@ -46,6 +46,7 @@ Singleton {
     if (isStateLoaded)
       stateFileView.writeAdapter();
   }
+
   function setThemeMode(mode: string): void {
     const validMode = mode === "light" ? "light" : "dark";
     if (root.data?.themeMode !== validMode)
@@ -121,22 +122,23 @@ Singleton {
 
     property JsonObject appLauncher: JsonObject {
     }
-    property JsonObject inputDisplay: JsonObject {
-      property bool enabled: true
-      property bool showPrintableKeys: false
-      property real positionXRatio: 0.06
-      property real positionYRatio: 0.74
-    }
     property JsonObject idleService: JsonObject {
       property bool dpmsEnabled: true
       property int dpmsTimeoutSec: 30
       property bool enabled: true
+      property bool lockAfterDpms: false
       property bool lockEnabled: true
       property int lockTimeoutSec: 300
       property bool respectInhibitors: true
       property bool suspendEnabled: false
       property int suspendTimeoutSec: 120
       property bool videoAutoInhibit: true
+    }
+    property JsonObject inputDisplay: JsonObject {
+      property bool enabled: true
+      property real positionXRatio: 0.06
+      property real positionYRatio: 0.74
+      property bool showPrintableKeys: false
     }
     property int overviewBlurMax: 64
     property real overviewBlurMultiplier: 2.0
@@ -156,11 +158,14 @@ Singleton {
   JsonAdapter {
     id: cacheAdapter
 
-    property var currency: ({ lastUpdate: "", rates: {} })
+    property var currency: ({
+        lastUpdate: "",
+        rates: {}
+      })
     property JsonObject updates: JsonObject {
       property string cachedUpdatePackagesJson: "[]"
-      property double lastSync: 0
       property int lastNotificationId: 0
+      property double lastSync: 0
     }
     property JsonObject weather: JsonObject {
       property string dailyForecast: ""
