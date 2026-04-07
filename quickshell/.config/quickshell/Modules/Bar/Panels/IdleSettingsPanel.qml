@@ -18,6 +18,8 @@ Item {
   readonly property int enabledActionCount: (lockEnabled ? 1 : 0) + (suspendEnabled ? 1 : 0) + (dpmsEnabled ? 1 : 0)
   readonly property var idleData: Settings.data?.idleService ?? null
   readonly property bool idleEnabled: idleData?.enabled ?? true
+  readonly property bool inputDisplayBackendReady: InputDisplayService.backendAvailable
+  readonly property string inputDisplayStatusText: InputDisplayService.backendCheckComplete ? qsTr("Install showmethekey-cli to enable the keyboard and mouse overlay.") : qsTr("Checking for showmethekey-cli...")
   readonly property bool lockEnabled: idleData?.lockEnabled ?? true
   property real lockTimeout: 5
   readonly property bool suspendEnabled: idleData?.suspendEnabled ?? false
@@ -68,8 +70,10 @@ Item {
   visible: active
 
   Component.onCompleted: loadFromSettings()
-  onActiveChanged: if (active)
-    loadFromSettings()
+  onActiveChanged: if (active) {
+    loadFromSettings();
+    InputDisplayService.refreshBackendAvailability();
+  }
 
   // ── Scrim ─────────────────────────────────────────────────────
   Rectangle {
@@ -547,11 +551,20 @@ Item {
                 margins: Theme.spacingLg
               }
 
+              StatusPill {
+                Layout.fillWidth: true
+                active: false
+                icon: InputDisplayService.backendCheckComplete ? "󰅚" : "󰔟"
+                text: root.inputDisplayStatusText
+                visible: !root.inputDisplayBackendReady
+              }
+
               SettingRow {
                 checked: InputDisplayService.enabled
                 description: qsTr("Show the keyboard and mouse overlay.")
                 icon: "󰖳"
                 label: qsTr("Input Display")
+                visible: root.inputDisplayBackendReady
 
                 onToggled: c => InputDisplayService.setEnabled(c)
               }
@@ -563,6 +576,7 @@ Item {
                 icon: "󰌌"
                 label: qsTr("Show Printable Keys")
                 showSeparator: false
+                visible: root.inputDisplayBackendReady
 
                 onToggled: c => InputDisplayService.setShowPrintableKeys(c)
               }
