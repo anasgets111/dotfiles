@@ -26,21 +26,24 @@ PanelWindow {
   readonly property string screenName: screen?.name ?? ""
   readonly property bool shouldCaptureBackground: ShellUiState.isAnyPanelOpen || ShellUiState.isAnyModalOpen
   readonly property bool wantsKeyboardHere: panelNeedsKeyboardFocus || launcherOpen || isWallpaperPickerOpen || isIdleSettingsOpen
-
-  WlrLayershell.exclusionMode: ExclusionMode.Normal
-  WlrLayershell.exclusiveZone: Theme.panelHeight
-  WlrLayershell.keyboardFocus: {
+  readonly property int effectiveKeyboardFocus: {
     if (!ShellUiState.isAnyInteractiveOpen)
       return WlrKeyboardFocus.None;
 
     if (root.hasInteractiveHere) {
+      if (!root.wantsKeyboardHere)
+        return WlrKeyboardFocus.None;
       if (MainService.currentWM === "hyprland")
-        return ShellUiState.isInitializingKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand;
-      return root.wantsKeyboardHere ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand;
+        return WlrKeyboardFocus.OnDemand;
+      return WlrKeyboardFocus.Exclusive;
     }
 
-    return WlrKeyboardFocus.OnDemand;
+    return WlrKeyboardFocus.None;
   }
+
+  WlrLayershell.exclusionMode: ExclusionMode.Normal
+  WlrLayershell.exclusiveZone: Theme.panelHeight
+  WlrLayershell.keyboardFocus: root.effectiveKeyboardFocus
   WlrLayershell.layer: WlrLayer.Top
   WlrLayershell.namespace: "obelisk-main-screen-" + (root.screenName || "unknown")
   color: "transparent"
