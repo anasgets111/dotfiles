@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -8,8 +10,9 @@ PanelContentBase {
   id: root
 
   readonly property var menuItem: panelData?.menuItem ?? null
-  readonly property real preferredHeight: menuContent.implicitHeight + Theme.spacingSm * 2
-  readonly property real preferredWidth: 300
+
+  preferredHeight: menuContent.implicitHeight + Theme.spacingSm * 2
+  preferredWidth: 300
 
   QsMenuOpener {
     id: menuOpener
@@ -23,13 +26,16 @@ PanelContentBase {
     Item {
       id: rowItem
 
+      property QsMenuEntry entry: null
+      readonly property string iconSource: entry?.icon ?? ""
+
       anchors.fill: parent
 
       Rectangle {
         anchors.centerIn: parent
         color: Theme.borderColor
         height: 1
-        visible: modelData?.isSeparator ?? false
+        visible: rowItem.entry?.isSeparator ?? false
         width: parent.width - Theme.spacingSm
       }
 
@@ -37,7 +43,7 @@ PanelContentBase {
         anchors.fill: parent
         color: rowMouse.containsMouse ? Theme.onHoverColor : "transparent"
         radius: Theme.itemRadius
-        visible: !(modelData?.isSeparator ?? false)
+        visible: !(rowItem.entry?.isSeparator ?? false)
 
         RowLayout {
           anchors.fill: parent
@@ -49,23 +55,23 @@ PanelContentBase {
             Layout.preferredHeight: Theme.iconSizeSm
             Layout.preferredWidth: Theme.iconSizeSm
             fillMode: Image.PreserveAspectFit
-            source: modelData?.icon ?? ""
+            source: rowItem.iconSource
             sourceSize: Qt.size(Theme.iconSizeSm, Theme.iconSizeSm)
-            visible: (modelData?.icon ?? "") !== ""
+            visible: rowItem.iconSource !== ""
           }
 
           OText {
             Layout.fillWidth: true
             color: rowMouse.containsMouse ? Theme.textContrast(Theme.onHoverColor) : Theme.textActiveColor
             elide: Text.ElideRight
-            opacity: modelData?.enabled ? 1.0 : 0.5
-            text: modelData?.text ?? ""
+            opacity: rowItem.entry?.enabled ? 1.0 : 0.5
+            text: rowItem.entry?.text ?? ""
             verticalAlignment: Text.AlignVCenter
           }
 
           OText {
             color: rowMouse.containsMouse ? Theme.textContrast(Theme.onHoverColor) : Theme.textActiveColor
-            text: modelData?.hasChildren ? "›" : modelData?.buttonType === QsMenuButtonType.CheckBox && modelData?.checkState === Qt.Checked ? "✓" : modelData?.buttonType === QsMenuButtonType.RadioButton && modelData?.checkState === Qt.Checked ? "●" : ""
+            text: rowItem.entry?.hasChildren ? "›" : rowItem.entry?.buttonType === QsMenuButtonType.CheckBox && rowItem.entry?.checkState === Qt.Checked ? "✓" : rowItem.entry?.buttonType === QsMenuButtonType.RadioButton && rowItem.entry?.checkState === Qt.Checked ? "●" : ""
           }
         }
 
@@ -74,16 +80,16 @@ PanelContentBase {
 
           anchors.fill: parent
           cursorShape: Qt.PointingHandCursor
-          enabled: modelData?.enabled ?? true
+          enabled: rowItem.entry?.enabled ?? true
           hoverEnabled: true
 
-          onClicked: if (!modelData?.hasChildren) {
-            modelData?.triggered();
+          onClicked: if (!rowItem.entry?.hasChildren) {
+            rowItem.entry?.triggered();
             root.closeRequested();
           }
           onEntered: {
             subTimer.stop();
-            if (modelData?.hasChildren)
+            if (rowItem.entry?.hasChildren)
               subLoader.active = true;
           }
           onExited: subTimer.start()
@@ -97,9 +103,9 @@ PanelContentBase {
         sourceComponent: submenuPopupComponent
 
         onLoaded: {
-          item.submenuHandle = modelData;
-          item.anchorTo = rowItem;
-          item.entered.connect(() => subTimer.stop());
+          item["submenuHandle"] = rowItem.entry;
+          item["anchorTo"] = rowItem;
+          item["enterCallback"] = () => subTimer.stop();
           item.visible = true;
         }
       }
@@ -131,12 +137,9 @@ PanelContentBase {
       id: subPopup
 
       property Item anchorTo: null
+      property var enterCallback: null
       property QsMenuHandle submenuHandle: null
 
-      signal entered
-
-      anchor.edges: Edges.Top | Edges.Left
-      anchor.gravity: Edges.Bottom | Edges.Right
       anchor.item: anchorTo
       anchor.rect.x: (anchorTo?.width ?? 0) + Theme.spacingSm
       color: "transparent"
@@ -168,11 +171,15 @@ PanelContentBase {
             model: subOpener.children
 
             delegate: Loader {
+              id: submenuRowLoader
+
               required property QsMenuEntry modelData
 
               Layout.fillWidth: true
-              Layout.preferredHeight: modelData?.isSeparator ? 8 : Theme.itemHeight
+              Layout.preferredHeight: submenuRowLoader.modelData?.isSeparator ? 8 : Theme.itemHeight
               sourceComponent: menuRowComponent
+
+              onLoaded: item["entry"] = submenuRowLoader.modelData
             }
           }
         }
@@ -180,7 +187,7 @@ PanelContentBase {
 
       HoverHandler {
         onHoveredChanged: if (hovered)
-          subPopup.entered()
+          subPopup.enterCallback?.()
       }
     }
   }
@@ -198,11 +205,15 @@ PanelContentBase {
       model: menuOpener.children ?? []
 
       delegate: Loader {
+        id: menuRowLoader
+
         required property QsMenuEntry modelData
 
         Layout.fillWidth: true
-        Layout.preferredHeight: modelData?.isSeparator ? 8 : Theme.itemHeight
+        Layout.preferredHeight: menuRowLoader.modelData?.isSeparator ? 8 : Theme.itemHeight
         sourceComponent: menuRowComponent
+
+        onLoaded: item["entry"] = menuRowLoader.modelData
       }
     }
 

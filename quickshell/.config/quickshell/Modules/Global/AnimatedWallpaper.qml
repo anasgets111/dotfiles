@@ -128,9 +128,10 @@ WlrLayershell {
   Loader {
     id: nextImgLoader
 
-    readonly property real nextPaintedHeight: item ? item.paintedHeight : 0
-    readonly property real nextPaintedWidth: item ? item.paintedWidth : 0
-    readonly property int nextStatus: item ? item.status : Image.Null
+    readonly property Image nextImage: item as Image
+    readonly property real nextPaintedHeight: nextImage ? nextImage.paintedHeight : 0
+    readonly property real nextPaintedWidth: nextImage ? nextImage.paintedWidth : 0
+    readonly property int nextStatus: nextImage ? nextImage.status : Image.Null
     property string pendingSource: ""
 
     active: pendingSource !== ""

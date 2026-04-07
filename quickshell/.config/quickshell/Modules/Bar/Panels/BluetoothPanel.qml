@@ -21,10 +21,11 @@ PanelContentBase {
       return [];
     return (BluetoothService.sortedDevices || []).filter(d => !d?.connected);
   }
-  readonly property real preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
-  readonly property real preferredWidth: 360
   readonly property bool ready: BluetoothService.available
   property string showCodecFor: ""
+
+  preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
+  preferredWidth: 360
 
   function handleAction(action: string, device: var) {
     switch (action) {
@@ -362,7 +363,7 @@ PanelContentBase {
         text: qsTr("Pair")
         textColor: Theme.activeColor
         variant: "ghost"
-        visible: !row.isPaired && device && !isBusy && !device.blocked && (rowMa.containsMouse || pairBtn.hovered)
+        visible: !row.isPaired && row.device && !row.isBusy && !row.device.blocked && (rowMa.containsMouse || pairBtn.hovered)
 
         onClicked: row.action("pair", row.device)
       }

@@ -2,6 +2,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Services.UPower
 import qs.Services
+import qs.Services.Core
 import qs.Services.SystemInfo
 import qs.Services.Utils
 

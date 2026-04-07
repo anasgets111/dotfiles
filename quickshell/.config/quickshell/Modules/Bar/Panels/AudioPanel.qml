@@ -14,9 +14,10 @@ PanelContentBase {
   property bool mixerExpanded: false
   readonly property int muteButtonSize: Math.round(Theme.itemHeight * Theme.scaleSmall)
   readonly property string outputName: AudioService.sink ? AudioService.displayName(AudioService.sink) : qsTr("No output device")
-  readonly property real preferredHeight: contentLayout.implicitHeight + Theme.spacingMd * 2
-  readonly property real preferredWidth: 400
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
+
+  preferredHeight: contentLayout.implicitHeight + Theme.spacingMd * 2
+  preferredWidth: 400
 
   // ── Content ─────────────────────────────────────────────────
 

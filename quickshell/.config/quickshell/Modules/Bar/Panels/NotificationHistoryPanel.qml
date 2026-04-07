@@ -20,8 +20,9 @@ PanelContentBase {
   property int maxHeight: 600
   readonly property int maxVisibleCards: 3
   readonly property int padding: Theme.spacingLg
-  readonly property real preferredHeight: contentLayout.implicitHeight
-  readonly property real preferredWidth: 420
+
+  preferredHeight: contentLayout.implicitHeight
+  preferredWidth: 420
 
   Component.onDestruction: NotificationService.onOverlayClose()
   onIsOpenChanged: {

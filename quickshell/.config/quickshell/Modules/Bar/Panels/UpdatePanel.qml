@@ -16,8 +16,6 @@ PanelContentBase {
   readonly property int itemHeight: Theme.itemHeight
   readonly property int maxItems: 10
   readonly property int pad: Theme.spacingSm
-  readonly property real preferredHeight: contentScope.implicitHeight + root.pad * 2
-  readonly property real preferredWidth: 500
   readonly property real progress: UpdateService.totalPackagesToUpdate > 0 ? UpdateService.currentPackageIndex / UpdateService.totalPackagesToUpdate : 0
 
   function logColor(raw) {
@@ -36,6 +34,9 @@ PanelContentBase {
       return "#89B4FA";
     return Theme.textInactiveColor;
   }
+
+  preferredHeight: contentScope.implicitHeight + root.pad * 2
+  preferredWidth: 500
 
   FocusScope {
     id: contentScope
@@ -252,8 +253,8 @@ PanelContentBase {
 
         Rectangle {
           Layout.fillWidth: true
+          Layout.preferredHeight: 1
           color: Theme.borderColor
-          height: 1
         }
 
         Rectangle {
@@ -299,8 +300,8 @@ PanelContentBase {
 
         Rectangle {
           Layout.fillWidth: true
+          Layout.preferredHeight: 1
           color: Theme.borderColor
-          height: 1
         }
 
         RowLayout {

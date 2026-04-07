@@ -10,15 +10,14 @@ Rectangle {
   property int animMs: 130
   property color baseColor: Qt.rgba(1, 1, 1, 0.04)
   property color borderColor: Qt.rgba(1, 1, 1, 0.08)
-  property color inactiveBgColor: "transparent"
   property int collapseDelayMs: 220
   property int currentIndex: 0
   property int fontSize: 11
+  property color inactiveBgColor: "transparent"
   property int minSlotWidth: 56
   property var options: []
-  property int slotHeight: 24
-
   readonly property int safeCurrentIndex: Math.max(0, Math.min(currentIndex, Math.max(0, (options?.length ?? 0) - 1)))
+  property int slotHeight: 24
   readonly property int slotWidth: {
     let maxWidth = 0;
     for (const option of options ?? [])
@@ -57,11 +56,13 @@ Rectangle {
 
     delegate: Component {
       Rectangle {
+        id: optionDelegate
+
         required property int index
         readonly property bool isActive: index === root.safeCurrentIndex
         readonly property var modelData: root.options[index] ?? {}
 
-        color: isActive ? root.activeBgColor : root.inactiveBgColor
+        color: optionDelegate.isActive ? root.activeBgColor : root.inactiveBgColor
         radius: 12
 
         Behavior on color {
@@ -72,10 +73,10 @@ Rectangle {
 
         OText {
           anchors.centerIn: parent
-          font.bold: isActive
+          font.bold: optionDelegate.isActive
           font.pixelSize: root.fontSize
-          opacity: isActive ? 1 : 0.5
-          text: modelData?.label ?? ""
+          opacity: optionDelegate.isActive ? 1 : 0.5
+          text: optionDelegate.modelData?.label ?? ""
 
           Behavior on opacity {
             NumberAnimation {
@@ -88,7 +89,7 @@ Rectangle {
           anchors.fill: parent
           cursorShape: Qt.PointingHandCursor
 
-          onClicked: root.selected(modelData?.value ?? "")
+          onClicked: root.selected(optionDelegate.modelData?.value ?? "")
         }
       }
     }
