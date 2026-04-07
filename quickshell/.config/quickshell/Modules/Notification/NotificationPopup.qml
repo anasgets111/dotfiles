@@ -7,7 +7,7 @@ import qs.Config
 import qs.Services.SystemInfo
 
 PanelWindow {
-  id: layer
+  id: root
 
   // Keyboard focus tracking
   property int _keyboardFocusCount: 0
@@ -16,19 +16,19 @@ PanelWindow {
   required property var modelData
 
   function claimKeyboardFocus() {
-    layer._keyboardFocusCount++;
+    root._keyboardFocusCount++;
   }
 
   function releaseKeyboardFocus() {
-    layer._keyboardFocusCount = Math.max(0, layer._keyboardFocusCount - 1);
+    root._keyboardFocusCount = Math.max(0, root._keyboardFocusCount - 1);
   }
 
   WlrLayershell.exclusiveZone: -1
-  WlrLayershell.keyboardFocus: layer._keyboardFocusCount > 0 ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+  WlrLayershell.keyboardFocus: root._keyboardFocusCount > 0 ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
   WlrLayershell.layer: WlrLayer.Overlay
   WlrLayershell.namespace: "obelisk-notification-popup-" + (screen?.name || "unknown")
   color: "transparent"
-  screen: layer.modelData
+  screen: root.modelData
   surfaceFormat.opaque: false
   visible: NotificationService.visibleNotifications.length > 0
 
@@ -37,7 +37,7 @@ PanelWindow {
   }
 
   onVisibleChanged: if (!visible)
-    layer._keyboardFocusCount = 0
+    root._keyboardFocusCount = 0
 
   anchors {
     bottom: true
@@ -56,11 +56,11 @@ PanelWindow {
 
     anchors {
       bottom: parent.bottom
-      bottomMargin: layer.margin
+      bottomMargin: root.margin
       right: parent.right
-      rightMargin: layer.margin
+      rightMargin: root.margin
       top: parent.top
-      topMargin: layer.margin + layer.barOffset
+      topMargin: root.margin + root.barOffset
     }
 
     Column {
@@ -78,8 +78,8 @@ PanelWindow {
           groupScope: "popup"
           svc: NotificationService
 
-          onInputFocusReleased: layer.releaseKeyboardFocus()
-          onInputFocusRequested: layer.claimKeyboardFocus()
+          onInputFocusReleased: root.releaseKeyboardFocus()
+          onInputFocusRequested: root.claimKeyboardFocus()
         }
       }
     }
