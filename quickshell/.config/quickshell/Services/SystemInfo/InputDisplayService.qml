@@ -99,6 +99,7 @@ Singleton {
   property var activeMouseButtons: []
   readonly property string backend: "showmethekey-cli"
   property bool backendAvailable: false
+  property bool backendCheckComplete: false
   readonly property string comboDisplayLabel: comboLabel.length > 0 ? (comboRepeatCount > 1 ? `${comboLabel} ×${comboRepeatCount}` : comboLabel) : ""
   property string comboLabel: ""
   property int comboRepeatCount: 0
@@ -240,6 +241,7 @@ Singleton {
   }
 
   function refreshBackendAvailability(): void {
+    backendCheckComplete = false;
     backendCheckProcess.running = false;
     backendCheckProcess.running = true;
   }
@@ -334,6 +336,7 @@ Singleton {
       onStreamFinished: {
         const found = String(text ?? "").trim() === "yes";
         root.backendAvailable = found;
+        root.backendCheckComplete = true;
 
         if (!found)
           Logger.warn("InputDisplayService", "showmethekey-cli not found; input display disabled");
