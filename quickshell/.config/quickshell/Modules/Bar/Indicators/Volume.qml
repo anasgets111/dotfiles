@@ -9,7 +9,6 @@ import qs.Services.UI
 Rectangle {
   id: root
 
-  required property string screenName
   readonly property real collapsedWidth: Theme.itemHeight
   readonly property real currentVolume: AudioService.volume
   readonly property real displayValue: volumeSlider.dragging ? volumeSlider.pending : sliderValue
@@ -24,6 +23,7 @@ Rectangle {
     return Math.round(Math.min(displayValue * maxVolume, 1.5) * 100) + "%";
   }
   readonly property bool ready: AudioService.sinkControllable
+  required property string screenName
   // Slider value normalized to 0-1 range (where 1.0 = maxVolume)
   readonly property real sliderValue: currentVolume / maxVolume
   readonly property color textColor: {
@@ -68,7 +68,6 @@ Rectangle {
 
   HoverHandler {
     id: hoverHandler
-
   }
 
   MouseArea {
@@ -124,5 +123,4 @@ Rectangle {
       visible: root.expanded
     }
   }
-
 }

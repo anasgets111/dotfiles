@@ -9,10 +9,8 @@ import qs.Services.UI
 Item {
   id: root
 
-  required property string screenName
   readonly property bool active: BluetoothService.available && BluetoothService.enabled
   readonly property string btIcon: !active ? "󰂲" : (connectedDevices.length > 0 ? "󰂱" : "󰂯")
-  readonly property var devices: BluetoothService.devices ?? []
   readonly property var connectedDevices: devices.filter(d => d?.connected)
   readonly property string detailText1: {
     if (!active)
@@ -31,7 +29,10 @@ Item {
       return qsTr("Others: %1 more").arg(connectedDevices.length - 1);
     return topDevice ? "" : (BluetoothService.discovering ? qsTr("Scanning is active") : "");
   }
+  readonly property var devices: BluetoothService.devices ?? []
   readonly property var pairedDevices: devices.filter(d => d?.paired)
+  readonly property bool panelOpen: ShellUiState.isPanelOpen("bluetooth", root.screenName)
+  required property string screenName
   readonly property string titleText: {
     if (!BluetoothService.available)
       return qsTr("Bluetooth: unavailable");
@@ -39,7 +40,6 @@ Item {
       return qsTr("Bluetooth: off");
     return connectedDevices.length > 0 ? qsTr("Bluetooth: connected (%1)").arg(connectedDevices.length) : qsTr("Bluetooth: on");
   }
-  readonly property bool panelOpen: ShellUiState.isPanelOpen("bluetooth", root.screenName)
   readonly property var topDevice: connectedDevices.length > 1 ? BluetoothService.sortDevices(connectedDevices)[0] : connectedDevices[0]
 
   implicitHeight: Theme.itemHeight
@@ -48,8 +48,8 @@ Item {
   IconButton {
     id: iconButton
 
-    isEnabled: true
     icon: root.btIcon
+    isEnabled: true
     suppressTooltip: root.panelOpen
     tooltipText: [root.titleText, root.detailText1, root.detailText2].filter(t => t?.length > 0).join("\n")
 

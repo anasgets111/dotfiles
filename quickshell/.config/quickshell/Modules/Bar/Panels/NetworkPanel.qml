@@ -11,17 +11,19 @@ PanelContentBase {
 
   property string activeConnectionTarget: ""
   readonly property var availableNetworks: processedWifiAps.available
-  property var connectingNetwork: null
   readonly property var connectedNetwork: {
     const all = [...savedNetworks, ...availableNetworks];
     return all.find(n => n.connected) || null;
   }
+  property var connectingNetwork: null
   property string connectionError: ""
   readonly property string ethernetInterface: NetworkService.ethernetInterface
   property bool hiddenConnectStartedOnline: false
   readonly property bool isConnecting: activeConnectionTarget !== ""
   property bool isHiddenTarget: false
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
+  readonly property var pendingAp: pendingSsid ? accessPointForSsid(pendingSsid) : null
+  readonly property string pendingSsid: isHiddenTarget ? targetSsid : activeConnectionTarget
   readonly property real preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
   readonly property real preferredWidth: 340
   readonly property var processedWifiAps: {
@@ -36,15 +38,15 @@ PanelContentBase {
 
     // Saved: known networks that are in range or connected
     const savedList = aps.filter(ap => ap.saved && (ap.signal > 0 || ap.connected)).sort((a, b) => (b.connected - a.connected) || (b.signal - a.signal)).map(ap => Object.assign({}, ap, {
-          _saved: true
-        }));
+        _saved: true
+      }));
 
     const savedNames = new Set(savedList.map(n => n.ssid));
 
     // Available: unknown networks with signal
     const availableList = aps.filter(ap => !savedNames.has(ap.ssid) && ap.signal > 0).sort((a, b) => b.signal - a.signal).map(ap => Object.assign({}, ap, {
-          _saved: false
-        }));
+        _saved: false
+      }));
 
     const viewList = [...savedList.filter(n => !n.connected), ...availableList.filter(n => !n.connected)];
 
@@ -56,10 +58,8 @@ PanelContentBase {
   }
   readonly property bool ready: NetworkService.ready
   readonly property var savedNetworks: processedWifiAps.saved
-  readonly property string pendingSsid: isHiddenTarget ? targetSsid : activeConnectionTarget
-  readonly property var pendingAp: pendingSsid ? accessPointForSsid(pendingSsid) : null
-  readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
   readonly property bool showPasswordInput: isConnecting && !showSsidInput && (pendingAp ? securityRequiresPassword(pendingAp.security) : isHiddenTarget)
+  readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
   property string targetSsid: ""
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
   readonly property string wifiInterface: NetworkService.wifiInterface
@@ -68,11 +68,6 @@ PanelContentBase {
   function accessPointForSsid(ssid: string): var {
     const aps = NetworkService.wifiAps ?? [];
     return aps.find(a => a?.ssid === ssid) || null;
-  }
-
-  // Look up the live WifiNetwork object (for connect/disconnect/forget actions)
-  function wifiNetworkForSsid(ssid: string): var {
-    return (NetworkService.wifiDevice?.networks.values ?? []).find(n => n.name === ssid) ?? null;
   }
 
   function connectToNetwork(ssid: string): void {
@@ -95,11 +90,6 @@ PanelContentBase {
     }
   }
 
-  function securityRequiresPassword(security: string): bool {
-    const sec = String(security || "").trim();
-    return sec !== "" && sec !== "--";
-  }
-
   function resetConnectionState(): void {
     activeConnectionTarget = "";
     isHiddenTarget = false;
@@ -109,6 +99,11 @@ PanelContentBase {
     if (credentialSheet)
       credentialSheet.clearInputs();
     connectionError = "";
+  }
+
+  function securityRequiresPassword(security: string): bool {
+    const sec = String(security || "").trim();
+    return sec !== "" && sec !== "--";
   }
 
   function submitPassword(password: string): void {
@@ -131,6 +126,11 @@ PanelContentBase {
       net.connect();
   }
 
+  // Look up the live WifiNetwork object (for connect/disconnect/forget actions)
+  function wifiNetworkForSsid(ssid: string): var {
+    return (NetworkService.wifiDevice?.networks.values ?? []).find(n => n.name === ssid) ?? null;
+  }
+
   needsKeyboardFocus: showSsidInput || showPasswordInput
 
   Component.onDestruction: resetConnectionState()
@@ -145,32 +145,32 @@ PanelContentBase {
 
   // Per-network connection failure / success
   Connections {
-    enabled: root.connectingNetwork !== null
-    target: root.connectingNetwork ?? null
-
-    function onConnectionFailed(reason) {
-      root.connectionError = NetworkService.connectionFailReasonText(reason);
-      root.connectingNetwork = null;
-    }
-
     function onConnectedChanged() {
       if (root.connectingNetwork?.connected) {
         root.resetConnectionState();
         root.closeRequested();
       }
     }
+
+    function onConnectionFailed(reason) {
+      root.connectionError = NetworkService.connectionFailReasonText(reason);
+      root.connectingNetwork = null;
+    }
+
+    enabled: root.connectingNetwork !== null
+    target: root.connectingNetwork ?? null
   }
 
   // Hidden network success detection
   Connections {
-    target: NetworkService
-
     function onWifiOnlineChanged() {
       if (root.isHiddenTarget && NetworkService.wifiOnline) {
         root.resetConnectionState();
         root.closeRequested();
       }
     }
+
+    target: NetworkService
   }
 
   ColumnLayout {
