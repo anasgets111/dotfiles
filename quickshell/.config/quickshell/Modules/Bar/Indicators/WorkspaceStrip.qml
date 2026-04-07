@@ -19,13 +19,6 @@ Item {
   readonly property int slotW: Theme.itemWidth
   readonly property int spacing: Theme.spacingSm
 
-  function slotKey(slot: var): string {
-    const workspaceId = slot?.workspace?.id;
-    if (workspaceId !== undefined && workspaceId !== null)
-      return `ws:${workspaceId}`;
-    return `slot:${slot?.idx ?? -1}`;
-  }
-
   function computeWorkspaceColor(slot: var): color {
     if (!slot)
       return Theme.disabledColor;
@@ -35,6 +28,13 @@ Item {
     if (slotKey(slot) === hoveredSlotKey)
       return Theme.onHoverColor;
     return (workspace?.populated ?? false) ? Theme.inactiveColor : Theme.disabledColor;
+  }
+
+  function slotKey(slot: var): string {
+    const workspaceId = slot?.workspace?.id;
+    if (workspaceId !== undefined && workspaceId !== null)
+      return `ws:${workspaceId}`;
+    return `slot:${slot?.idx ?? -1}`;
   }
 
   clip: true

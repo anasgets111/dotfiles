@@ -49,6 +49,28 @@ Singleton {
       KEY_TAB: "Tab",
       KEY_UP: "Up"
     })
+  readonly property var _modifierOrder: ({
+      Ctrl: 0,
+      Shift: 1,
+      Alt: 2,
+      Super: 3
+    })
+  readonly property var _mouseNames: ({
+      BTN_BACK: "Mouse4",
+      BTN_EXTRA: "Mouse5",
+      BTN_FORWARD: "Mouse5",
+      BTN_LEFT: "LMB",
+      BTN_MIDDLE: "MMB",
+      BTN_RIGHT: "RMB",
+      BTN_SIDE: "Mouse4"
+    })
+  readonly property var _mouseOrder: ({
+      LMB: 0,
+      RMB: 1,
+      MMB: 2,
+      Mouse4: 3,
+      Mouse5: 4
+    })
   readonly property var _printableSymbols: ({
       "'": true,
       ",": true,
@@ -63,28 +85,6 @@ Singleton {
       "]": true,
       "`": true
     })
-  readonly property var _modifierOrder: ({
-      Ctrl: 0,
-      Shift: 1,
-      Alt: 2,
-      Super: 3
-    })
-  readonly property var _mouseOrder: ({
-      LMB: 0,
-      RMB: 1,
-      MMB: 2,
-      Mouse4: 3,
-      Mouse5: 4
-    })
-  readonly property var _mouseNames: ({
-      BTN_BACK: "Mouse4",
-      BTN_EXTRA: "Mouse5",
-      BTN_FORWARD: "Mouse5",
-      BTN_LEFT: "LMB",
-      BTN_MIDDLE: "MMB",
-      BTN_RIGHT: "RMB",
-      BTN_SIDE: "Mouse4"
-    })
   readonly property var _wheelNames: ({
       REL_HWHEEL_LEFT: "WheelLeft",
       REL_HWHEEL_RIGHT: "WheelRight",
@@ -95,24 +95,23 @@ Singleton {
       WHEEL_RIGHT: "WheelRight",
       WHEEL_UP: "WheelUp"
     })
-
   property var activeKeys: []
   property var activeMouseButtons: []
-  property var retainedKeys: []
-  property var retainedMouseButtons: []
   readonly property string backend: "showmethekey-cli"
   property bool backendAvailable: false
-  property string comboLabel: ""
   readonly property string comboDisplayLabel: comboLabel.length > 0 ? (comboRepeatCount > 1 ? `${comboLabel} ×${comboRepeatCount}` : comboLabel) : ""
+  property string comboLabel: ""
   property int comboRepeatCount: 0
-  property bool overlayHovered: false
   readonly property bool enabled: Settings.data?.inputDisplay?.enabled ?? false
+  property bool overlayHovered: false
   readonly property real positionXRatio: root.validRatio(Settings.data?.inputDisplay?.positionXRatio) ? Settings.data.inputDisplay.positionXRatio : 0.06
   readonly property real positionYRatio: root.validRatio(Settings.data?.inputDisplay?.positionYRatio) ? Settings.data.inputDisplay.positionYRatio : 0.74
+  property var retainedKeys: []
+  property var retainedMouseButtons: []
   readonly property bool showPrintableKeys: Settings.data?.inputDisplay?.showPrintableKeys ?? false
+  readonly property bool visible: enabled && (comboLabel.length > 0 || visibleKeys.length > 0 || visibleMouseButtons.length > 0)
   readonly property var visibleKeys: activeKeys.length > 0 ? activeKeys : retainedKeys
   readonly property var visibleMouseButtons: activeMouseButtons.length > 0 ? activeMouseButtons : retainedMouseButtons
-  readonly property bool visible: enabled && (comboLabel.length > 0 || visibleKeys.length > 0 || visibleMouseButtons.length > 0)
 
   function clearState(): void {
     activeKeys = [];
@@ -121,18 +120,6 @@ Singleton {
     retainedMouseButtons = [];
     comboLabel = "";
     comboRepeatCount = 0;
-  }
-
-  function setEnabled(value: bool): void {
-    if (!Settings.data?.inputDisplay)
-      return;
-    Settings.data.inputDisplay.enabled = !!value;
-  }
-
-  function setShowPrintableKeys(value: bool): void {
-    if (!Settings.data?.inputDisplay)
-      return;
-    Settings.data.inputDisplay.showPrintableKeys = !!value;
   }
 
   function handleBackendLine(line: string): void {
@@ -185,17 +172,6 @@ Singleton {
     root.showCombo(label);
   }
 
-  function isPrintableKey(label: string): bool {
-    if (/^[A-Z]$/.test(label) || /^[0-9]$/.test(label))
-      return true;
-
-    return root._printableSymbols[label] ?? false;
-  }
-
-  function isModifierKey(label: string): bool {
-    return root._modifierOrder[label] !== undefined;
-  }
-
   function handlePointerButton(rawName: string, pressed: bool): void {
     const label = root._mouseNames[rawName] ?? "";
     if (!label)
@@ -213,6 +189,17 @@ Singleton {
       return;
 
     root.showCombo(label);
+  }
+
+  function isModifierKey(label: string): bool {
+    return root._modifierOrder[label] !== undefined;
+  }
+
+  function isPrintableKey(label: string): bool {
+    if (/^[A-Z]$/.test(label) || /^[0-9]$/.test(label))
+      return true;
+
+    return root._printableSymbols[label] ?? false;
   }
 
   function normalizeKeyboardKey(rawName: string): string {
@@ -257,23 +244,23 @@ Singleton {
     backendCheckProcess.running = true;
   }
 
-  function syncRetainedState(): void {
-    if (activeKeys.length > 0)
-      retainedKeys = activeKeys.slice();
-    else if (!overlayHovered)
-      retainedKeys = [];
-
-    if (activeMouseButtons.length > 0)
-      retainedMouseButtons = activeMouseButtons.slice();
-    else if (!overlayHovered)
-      retainedMouseButtons = [];
-  }
-
   function sanitizeRatio(value: real, fallback: real): real {
     const num = Number(value);
     if (!Number.isFinite(num))
       return fallback;
     return Math.max(0, Math.min(1, num));
+  }
+
+  function setEnabled(value: bool): void {
+    if (!Settings.data?.inputDisplay)
+      return;
+    Settings.data.inputDisplay.enabled = !!value;
+  }
+
+  function setShowPrintableKeys(value: bool): void {
+    if (!Settings.data?.inputDisplay)
+      return;
+    Settings.data.inputDisplay.showPrintableKeys = !!value;
   }
 
   function showCombo(label: string): void {
@@ -296,6 +283,18 @@ Singleton {
       inputProcess.running = true;
   }
 
+  function syncRetainedState(): void {
+    if (activeKeys.length > 0)
+      retainedKeys = activeKeys.slice();
+    else if (!overlayHovered)
+      retainedKeys = [];
+
+    if (activeMouseButtons.length > 0)
+      retainedMouseButtons = activeMouseButtons.slice();
+    else if (!overlayHovered)
+      retainedMouseButtons = [];
+  }
+
   function updatedList(list: var, label: string, pressed: bool, order: var): var {
     const next = list.filter(entry => entry !== label);
     if (pressed)
@@ -309,7 +308,8 @@ Singleton {
   }
 
   Component.onCompleted: root.refreshBackendAvailability()
-
+  onActiveKeysChanged: root.syncRetainedState()
+  onActiveMouseButtonsChanged: root.syncRetainedState()
   onBackendAvailableChanged: {
     if (!backendAvailable)
       clearState();
@@ -322,8 +322,6 @@ Singleton {
       refreshBackendAvailability();
     syncProcess();
   }
-  onActiveKeysChanged: root.syncRetainedState()
-  onActiveMouseButtonsChanged: root.syncRetainedState()
   onOverlayHoveredChanged: root.syncRetainedState()
 
   Process {

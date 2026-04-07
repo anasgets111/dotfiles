@@ -22,7 +22,11 @@ Singleton {
   readonly property var layouts: backend?.layouts ?? []
   readonly property bool numOn: Utils.numLock
   readonly property bool scrollOn: Utils.scrollLock
-  function nextLayout(): void { backend?.nextLayout?.(); }
+
+  function nextLayout(): void {
+    backend?.nextLayout?.();
+  }
+
   function setLayoutByIndex(targetIndex: int): void {
     const currentIdx = currentLayoutIndex;
     if (targetIndex < 0 || targetIndex >= layouts.length || targetIndex === currentIdx)
@@ -32,6 +36,7 @@ Singleton {
     for (let i = 0, steps = currentIdx < 0 ? 0 : (targetIndex - currentIdx + layouts.length) % layouts.length; i < steps; i++)
       backend?.nextLayout?.();
   }
+
   onCurrentLayoutChanged: if (currentLayout)
     Logger.log("KeyboardLayoutService", `Layout: ${currentLayout}`)
 }

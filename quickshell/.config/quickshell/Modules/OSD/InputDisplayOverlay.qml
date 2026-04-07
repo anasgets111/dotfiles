@@ -12,6 +12,12 @@ import qs.Services.SystemInfo
 PanelWindow {
   id: root
 
+  required property var modelData
+  readonly property string pressedSignature: visibleTokens.join("+")
+  readonly property bool shouldStayVisible: InputDisplayService.visible || dragArea.drag.active
+  readonly property bool showComboLabel: InputDisplayService.comboDisplayLabel.length > 0 && InputDisplayService.comboLabel !== pressedSignature
+  readonly property var visibleTokens: InputDisplayService.visibleKeys.concat(InputDisplayService.visibleMouseButtons)
+
   function positionToRatios(): var {
     const availableWidth = Math.max(0, root.width - card.width);
     const availableHeight = Math.max(0, root.height - card.height);
@@ -30,12 +36,6 @@ PanelWindow {
     card.y = availableHeight > 0 ? Math.round(InputDisplayService.positionYRatio * availableHeight) : 0;
   }
 
-  required property var modelData
-  readonly property var visibleTokens: InputDisplayService.visibleKeys.concat(InputDisplayService.visibleMouseButtons)
-  readonly property string pressedSignature: visibleTokens.join("+")
-  readonly property bool showComboLabel: InputDisplayService.comboDisplayLabel.length > 0 && InputDisplayService.comboLabel !== pressedSignature
-  readonly property bool shouldStayVisible: InputDisplayService.visible || dragArea.drag.active
-
   WlrLayershell.exclusiveZone: -1
   WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
   WlrLayershell.layer: WlrLayer.Overlay
@@ -49,6 +49,10 @@ PanelWindow {
     item: root.shouldStayVisible ? card : null
   }
 
+  Component.onCompleted: Qt.callLater(root.syncCardToSavedPosition)
+  onHeightChanged: Qt.callLater(root.syncCardToSavedPosition)
+  onWidthChanged: Qt.callLater(root.syncCardToSavedPosition)
+
   anchors {
     bottom: true
     left: true
@@ -56,25 +60,11 @@ PanelWindow {
     top: true
   }
 
-  Component.onCompleted: Qt.callLater(root.syncCardToSavedPosition)
-  onHeightChanged: Qt.callLater(root.syncCardToSavedPosition)
-  onWidthChanged: Qt.callLater(root.syncCardToSavedPosition)
-
   Rectangle {
     id: card
 
     readonly property int hpad: Theme.spacingLg
     readonly property int vpad: Theme.spacingMd
-
-    HoverHandler {
-      id: cardHover
-    }
-
-    Binding {
-      target: InputDisplayService
-      property: "overlayHovered"
-      value: cardHover.hovered
-    }
 
     border.color: Theme.borderColor
     border.width: Theme.borderWidthThin
@@ -92,12 +82,24 @@ PanelWindow {
         easing.type: Easing.InOutQuad
       }
     }
-
     Behavior on width {
       NumberAnimation {
         duration: Theme.animationDuration
         easing.type: Easing.InOutQuad
       }
+    }
+
+    onHeightChanged: Qt.callLater(root.syncCardToSavedPosition)
+    onWidthChanged: Qt.callLater(root.syncCardToSavedPosition)
+
+    HoverHandler {
+      id: cardHover
+    }
+
+    Binding {
+      property: "overlayHovered"
+      target: InputDisplayService
+      value: cardHover.hovered
     }
 
     RectangularShadow {
@@ -109,20 +111,18 @@ PanelWindow {
       z: -1
     }
 
-    onHeightChanged: Qt.callLater(root.syncCardToSavedPosition)
-    onWidthChanged: Qt.callLater(root.syncCardToSavedPosition)
-
     ColumnLayout {
       id: content
 
+      spacing: Theme.spacingSm
+
       anchors {
-        fill: parent
-        topMargin: card.vpad
         bottomMargin: card.vpad
+        fill: parent
         leftMargin: card.hpad
         rightMargin: card.hpad
+        topMargin: card.vpad
       }
-      spacing: Theme.spacingSm
 
       // ── Drag strip ─────────────────────────────────────────────
       Item {
@@ -156,10 +156,10 @@ PanelWindow {
             model: 3
 
             Rectangle {
+              color: dragArea.containsMouse || dragArea.drag.active ? Theme.activeMedium : Theme.borderColor
               height: Theme.spacingXs
               radius: height / 2
               width: Theme.spacingMd
-              color: dragArea.containsMouse || dragArea.drag.active ? Theme.activeMedium : Theme.borderColor
 
               Behavior on color {
                 ColorAnimation {
@@ -199,20 +199,20 @@ PanelWindow {
 
             required property string modelData
 
-            clip: true
-            color: Theme.bgElevatedAlt
             border.color: Theme.borderColor
             border.width: Theme.borderWidthThin
-            radius: Theme.radiusSm
+            clip: true
+            color: Theme.bgElevatedAlt
             height: keyLabel.implicitHeight + Theme.spacingXs * 2
+            radius: Theme.radiusSm
             width: keyLabel.implicitWidth + Theme.spacingSm * 2
 
             // Keycap depth: accent bar along the bottom edge
             Rectangle {
               anchors.bottom: parent.bottom
               anchors.left: parent.left
-              anchors.right: parent.right
               anchors.margins: Theme.borderWidthThin
+              anchors.right: parent.right
               color: Theme.activeMedium
               height: Theme.borderWidthMedium
             }

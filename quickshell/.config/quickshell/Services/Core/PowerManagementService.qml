@@ -24,22 +24,6 @@ Singleton {
   readonly property string ppdInfo: "PPD: " + ppdProfile
   readonly property string ppdProfile: hasPPD ? _ppdRaw : (hasTlp ? _tlpRaw : "Unknown")
 
-  function reboot(): void {
-    Quickshell.execDetached(["systemctl", "reboot"]);
-  }
-
-  function poweroff(): void {
-    Quickshell.execDetached(["systemctl", "poweroff"]);
-  }
-
-  function suspend(): void {
-    Quickshell.execDetached(["systemctl", "suspend"]);
-  }
-
-  function logout(): void {
-    Quickshell.execDetached(["sh", "-c", "loginctl terminate-user $USER"]);
-  }
-
   function adjustBrightness(): void {
     if (!isLaptop)
       return;
@@ -47,6 +31,18 @@ Singleton {
       BrightnessService.setBrightness(onBattery ? onBatteryBrightness : onACBrightness);
     if (KeyboardBacklightService.ready)
       KeyboardBacklightService.setLevel(onBattery ? kbdOnBattery : kbdOnAC);
+  }
+
+  function logout(): void {
+    Quickshell.execDetached(["sh", "-c", "loginctl terminate-user $USER"]);
+  }
+
+  function poweroff(): void {
+    Quickshell.execDetached(["systemctl", "poweroff"]);
+  }
+
+  function reboot(): void {
+    Quickshell.execDetached(["systemctl", "reboot"]);
   }
 
   function refreshPowerInfo(): void {
@@ -61,6 +57,10 @@ Singleton {
       setProfileProcess.command = ["tlpctl", profile];
       setProfileProcess.running = true;
     }
+  }
+
+  function suspend(): void {
+    Quickshell.execDetached(["systemctl", "suspend"]);
   }
 
   Component.onCompleted: refreshPowerInfo()

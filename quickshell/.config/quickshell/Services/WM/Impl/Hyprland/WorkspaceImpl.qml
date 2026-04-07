@@ -25,9 +25,9 @@ Singleton {
   readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "monitoradded", "monitoraddedv2", "monitorremoved", "moveworkspace", "openwindow", "closewindow", "movewindow", "movewindowv2"]
   property int _updateTick: 0
   property string activeSpecial: ""
-  readonly property bool enabled: MainService.currentWM === "hyprland"
   readonly property int currentWorkspace: focusedWorkspace?.id ?? -1
   readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
+  readonly property bool enabled: MainService.currentWM === "hyprland"
   readonly property string focusedOutput: _layoutState.focusedOutput
   readonly property var focusedWorkspace: _layoutState.focusedWorkspace
   readonly property var groupBoundaries: _layoutState.groupBoundaries
@@ -78,12 +78,9 @@ Singleton {
     };
   }
 
-  function refresh(): void {
-    if (!enabled)
-      return;
-    Hyprland.refreshMonitors();
-    Hyprland.refreshWorkspaces();
-    _updateTick++;
+  function focusWorkspace(ws: var): void {
+    if (enabled && (ws?.idx ?? 0) > 0)
+      focusWorkspaceByIndex(ws.idx);
   }
 
   function focusWorkspaceByIndex(idx: int): void {
@@ -91,9 +88,12 @@ Singleton {
       Hyprland.dispatch(`workspace ${idx}`);
   }
 
-  function focusWorkspace(ws: var): void {
-    if (enabled && (ws?.idx ?? 0) > 0)
-      focusWorkspaceByIndex(ws.idx);
+  function refresh(): void {
+    if (!enabled)
+      return;
+    Hyprland.refreshMonitors();
+    Hyprland.refreshWorkspaces();
+    _updateTick++;
   }
 
   function toggleSpecial(name: string): void {

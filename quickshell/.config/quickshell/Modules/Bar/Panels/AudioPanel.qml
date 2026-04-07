@@ -209,7 +209,6 @@ PanelContentBase {
 
     HoverHandler {
       id: hoverHandler
-
     }
 
     TapHandler {
@@ -374,8 +373,8 @@ PanelContentBase {
           Layout.preferredHeight: root.muteButtonSize
           Layout.preferredWidth: root.muteButtonSize
           colorBg: hero.muted ? Theme.inactiveColor : Theme.activeColor
-          isEnabled: hero.ready
           icon: hero.muted ? hero.iconOff : hero.iconOn
+          isEnabled: hero.ready
           tooltipText: hero.muted ? qsTr("Unmute") : qsTr("Mute")
 
           onClicked: hero.toggled()

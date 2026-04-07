@@ -8,7 +8,6 @@ import qs.Services.UI
 Item {
   id: root
 
-  required property string screenName
   readonly property var ap: ready ? (NetworkService.wifiAps.find(ap => ap?.connected) || null) : null
   readonly property string band: (ap && ap.band) ? String(ap.band) : ""
   readonly property string detail1: {
@@ -29,8 +28,9 @@ Item {
       return NetworkService.getWifiIcon ? NetworkService.getWifiIcon(band, strength) : "";
     return NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮";
   }
-  readonly property bool ready: NetworkService.ready
   readonly property bool panelOpen: ShellUiState.isPanelOpen("network", root.screenName)
+  readonly property bool ready: NetworkService.ready
+  required property string screenName
   readonly property string secondary: {
     if (!ready)
       return "";
@@ -118,5 +118,4 @@ Item {
       }
     }
   }
-
 }

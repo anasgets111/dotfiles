@@ -20,9 +20,9 @@ Singleton {
     normalizedWorkspaces;
     return enabled ? WorkspaceService.buildLayout(normalizedWorkspaces, "", []) : _emptyLayout;
   }
-  readonly property bool enabled: MainService.ready && MainService.currentWM === "niri"
   readonly property int currentWorkspace: focusedWorkspace?.id ?? trackedWorkspaceId
   readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
+  readonly property bool enabled: MainService.ready && MainService.currentWM === "niri"
   readonly property string focusedOutput: _layoutState.focusedOutput
   readonly property var focusedWorkspace: _layoutState.focusedWorkspace
   readonly property list<int> groupBoundaries: _layoutState.groupBoundaries
@@ -33,6 +33,12 @@ Singleton {
   property var windowsById: ({})
   readonly property var workspaces: _layoutState.workspaces
   property var workspacesById: ({})
+
+  function focusWorkspace(ws: var): void {
+    if (!enabled || !ws)
+      return;
+    focusWorkspaceById(ws.id);
+  }
 
   function focusWorkspaceById(workspaceId: int): void {
     if (!enabled)
@@ -53,12 +59,6 @@ Singleton {
       return;
     const workspace = workspaces.find(ws => ws?.idx === workspaceIndex);
     workspace ? focusWorkspaceById(workspace.id) : console.warn(`[Niri] Invalid index: ${workspaceIndex}`);
-  }
-
-  function focusWorkspace(ws: var): void {
-    if (!enabled || !ws)
-      return;
-    focusWorkspaceById(ws.id);
   }
 
   function handleEvent(line: string): void {
@@ -145,8 +145,7 @@ Singleton {
     if (enabled)
       startupTimer.restart();
   }
-  onTrackedWorkspaceIdChanged:
-    Qt.callLater(rebuildWorkspaceList);
+  onTrackedWorkspaceIdChanged: Qt.callLater(rebuildWorkspaceList)
 
   Socket {
     id: eventStreamSocket
