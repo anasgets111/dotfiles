@@ -12,7 +12,6 @@ Singleton {
   readonly property bool isAnyInteractiveOpen: isAnyPanelOpen || isAnyModalOpen
   readonly property bool isAnyModalOpen: activeModal.length > 0
   readonly property bool isAnyPanelOpen: activePanelId.length > 0
-  property bool isInitializingKeyboard: false
   property var modalData: null
   property var panelData: null
 
@@ -28,7 +27,6 @@ Singleton {
       return;
     activeModal = "";
     modalData = null;
-    isInitializingKeyboard = false;
     if (!isAnyPanelOpen)
       activeScreenName = "";
   }
@@ -37,7 +35,6 @@ Singleton {
     activePanelId = "";
     anchorRect = Qt.rect(0, 0, 0, 0);
     panelData = null;
-    isInitializingKeyboard = false;
     if (!isAnyModalOpen)
       activeScreenName = "";
   }
@@ -59,11 +56,9 @@ Singleton {
       return;
     activePanelId = "";
     panelData = null;
-    isInitializingKeyboard = true;
     activeScreenName = screenName || "";
     activeModal = modalId;
     modalData = data ?? null;
-    keyboardInitTimer.restart();
   }
 
   function openPanel(panelId, screenName, anchor, data) {
@@ -75,8 +70,6 @@ Singleton {
     activeScreenName = screenName || "";
     anchorRect = anchor ?? Qt.rect(0, 0, 0, 0);
     panelData = data ?? null;
-    isInitializingKeyboard = true;
-    keyboardInitTimer.restart();
   }
 
   function togglePanel(panelId, screenName, anchor, data) {
@@ -89,14 +82,5 @@ Singleton {
 
   function togglePanelForItem(panelId, screenName, item, data) {
     togglePanel(panelId, screenName, anchorRectForItem(item), data);
-  }
-
-  Timer {
-    id: keyboardInitTimer
-
-    interval: 180
-    repeat: false
-
-    onTriggered: root.isInitializingKeyboard = false
   }
 }
