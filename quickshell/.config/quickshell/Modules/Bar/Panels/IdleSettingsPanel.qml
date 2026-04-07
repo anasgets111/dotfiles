@@ -20,6 +20,7 @@ Item {
   readonly property bool idleEnabled: idleData?.enabled ?? true
   readonly property bool inputDisplayBackendReady: InputDisplayService.backendAvailable
   readonly property string inputDisplayStatusText: InputDisplayService.backendCheckComplete ? qsTr("Install showmethekey-cli to enable the keyboard and mouse overlay.") : qsTr("Checking for showmethekey-cli...")
+  readonly property bool lockAfterDpms: idleData?.lockAfterDpms ?? false
   readonly property bool lockEnabled: idleData?.lockEnabled ?? true
   property real lockTimeout: 5
   readonly property bool suspendEnabled: idleData?.suspendEnabled ?? false
@@ -232,25 +233,20 @@ Item {
           Layout.fillWidth: true
           spacing: Theme.spacingSm
 
-          StatusPill {
-            Layout.fillWidth: true
-            active: root.idleEnabled && root.lockEnabled
-            icon: "󰌾"
-            text: active ? qsTr("Lock • %1").arg(root.formatDuration(root.lockTimeout)) : qsTr("Lock • Off")
-          }
+          Repeater {
+            model: root.lockAfterDpms ? ["dpms", "lock", "suspend"] : ["lock", "dpms", "suspend"]
 
-          StatusPill {
-            Layout.fillWidth: true
-            active: root.idleEnabled && root.dpmsEnabled
-            icon: "󰍹"
-            text: active ? qsTr("Display • %1").arg(root.formatDuration(root.dpmsTimeout)) : qsTr("Display • Off")
-          }
+            delegate: StatusPill {
+              readonly property bool isDpms: modelData === "dpms"
+              readonly property bool isLock: modelData === "lock"
+              required property var modelData
+              readonly property bool pillActive: root.idleEnabled && (isLock ? root.lockEnabled : isDpms ? root.dpmsEnabled : root.suspendEnabled)
 
-          StatusPill {
-            Layout.fillWidth: true
-            active: root.idleEnabled && root.suspendEnabled
-            icon: "󰒚"
-            text: active ? qsTr("Suspend • %1").arg(root.formatDuration(root.suspendTimeout)) : qsTr("Suspend • Off")
+              Layout.fillWidth: true
+              active: pillActive
+              icon: isLock ? "󰌾" : isDpms ? "󰍹" : "󰒚"
+              text: isLock ? (pillActive ? qsTr("Lock • %1").arg(root.formatDuration(root.lockTimeout)) : qsTr("Lock • Off")) : isDpms ? (pillActive ? qsTr("Display • %1").arg(root.formatDuration(root.dpmsTimeout)) : qsTr("Display • Off")) : (pillActive ? qsTr("Suspend • %1").arg(root.formatDuration(root.suspendTimeout)) : qsTr("Suspend • Off"))
+            }
           }
         }
       }
@@ -419,7 +415,6 @@ Item {
                   hasSlider: true
                   icon: "󰒚"
                   label: qsTr("Suspend System")
-                  showSeparator: false
                   sliderMax: 60
                   sliderValue: root.suspendTimeout
 
@@ -430,6 +425,20 @@ Item {
                   onToggled: c => {
                     if (root.idleData)
                       root.idleData.suspendEnabled = c;
+                  }
+                }
+
+                SettingRow {
+                  checked: root.lockAfterDpms
+                  description: qsTr("Swap the order: display off first, then lock.")
+                  disabled: !root.idleEnabled || !root.lockEnabled || !root.dpmsEnabled
+                  icon: "󰁯"
+                  label: qsTr("Lock After Display Off")
+                  showSeparator: false
+
+                  onToggled: c => {
+                    if (root.idleData)
+                      root.idleData.lockAfterDpms = c;
                   }
                 }
               }
@@ -613,7 +622,7 @@ Item {
                 Layout.fillWidth: true
                 color: Theme.textInactiveColor
                 font.pixelSize: Theme.fontMd
-                text: qsTr("Tip: set timeouts in this order for a clean flow: Lock → Display Off → Suspend.")
+                text: root.lockAfterDpms ? qsTr("Tip: current flow is Display Off → Lock → Suspend.") : qsTr("Tip: current flow is Lock → Display Off → Suspend.")
                 wrapMode: Text.Wrap
               }
             }
