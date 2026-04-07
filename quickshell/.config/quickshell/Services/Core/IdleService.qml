@@ -23,6 +23,7 @@ Singleton {
     })
   property bool dpmsOff: false
   readonly property bool effectiveInhibited: (!!settings?.videoAutoInhibit && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive))
+  readonly property bool lockAfterDpms: settings?.lockAfterDpms ?? false
   readonly property bool ready: Settings.isLoaded && !!settings
   readonly property bool respectInhibitors: !LockService.locked && (settings?.respectInhibitors ?? true)
   readonly property var settings: Settings.data?.idleService
@@ -54,7 +55,7 @@ Singleton {
   }
 
   IdleMonitor {
-    enabled: root.ready && !!root.settings.enabled && root.settings.lockEnabled && !LockService.locked
+    enabled: root.ready && !!root.settings.enabled && root.settings.lockEnabled && !LockService.locked && (!root.lockAfterDpms || !root.settings.dpmsEnabled || root.dpmsOff)
     respectInhibitors: root.respectInhibitors
     timeout: root.settings?.lockTimeoutSec ?? 0
 
@@ -62,7 +63,7 @@ Singleton {
   }
 
   IdleMonitor {
-    enabled: root.ready && !!root.settings.enabled && root.settings.dpmsEnabled && (LockService.locked || !root.settings.lockEnabled)
+    enabled: root.ready && !!root.settings.enabled && root.settings.dpmsEnabled && (root.lockAfterDpms || LockService.locked || !root.settings.lockEnabled)
     respectInhibitors: root.respectInhibitors
     timeout: root.settings?.dpmsTimeoutSec ?? 0
 
@@ -70,7 +71,7 @@ Singleton {
   }
 
   IdleMonitor {
-    enabled: root.ready && !!root.settings.enabled && root.settings.suspendEnabled && root.dpmsOff
+    enabled: root.ready && !!root.settings.enabled && root.settings.suspendEnabled && root.dpmsOff && (!root.settings.lockEnabled || LockService.locked)
     respectInhibitors: root.respectInhibitors
     timeout: root.settings?.suspendTimeoutSec ?? 0
 
