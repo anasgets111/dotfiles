@@ -387,6 +387,10 @@ Singleton {
       return;
     root.visibleNotifications = [...root.visibleNotifications, wrapper];
     wrapper.popup = true;
+    if (!wrapper.soundPlayed) {
+      wrapper.soundPlayed = true;
+      AudioService.playNotificationSound(wrapper.notification);
+    }
     if (wrapper.timer) {
       wrapper.timer.stop();
       if (wrapper.timer.interval > 0)
@@ -638,6 +642,7 @@ Singleton {
     bodyHyperlinksSupported: true
     bodyImagesSupported: true
     bodyMarkupSupported: true
+    extraHints: ["sound"]
     imageSupported: true
     inlineReplySupported: true
     keepOnReload: false
@@ -646,8 +651,6 @@ Singleton {
     onNotification: notif => {
       if (root._isDestroying)
         return;
-
-      AudioService.playNotificationSound(notif.urgency === NotificationUrgency.Critical);
 
       if (notif.transient) {
         if (root.popupsDisabled || root.doNotDisturb)
@@ -731,6 +734,7 @@ Singleton {
     property bool persistent: true
     property bool popup: false
     property int sequence: 0
+    property bool soundPlayed: false
     readonly property Timer timer: Timer {
       interval: root.getTimeoutForUrgency(wrapper.notification?.urgency ?? NotificationUrgency.Normal)
       repeat: false

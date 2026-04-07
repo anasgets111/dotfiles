@@ -1,7 +1,6 @@
 pragma Singleton
 
 import QtQuick
-import QtMultimedia
 import Quickshell
 import Quickshell.Services.Pipewire
 import qs.Services.Utils
@@ -17,6 +16,7 @@ Singleton {
       "phone": "󰏲",
       "portable": "󰏲"
     })
+  readonly property string _notificationSoundDir: "/usr/share/sounds/freedesktop/stereo"
   readonly property var _pipewireNodes: Pipewire.nodes?.values ?? []
   readonly property real maxVolume: 1.5
   readonly property bool micMuted: audioMuted(source)
@@ -32,6 +32,25 @@ Singleton {
   readonly property real stepVolume: 0.05
   readonly property list<PwNode> streams: _audioNodes.filter(node => node.isStream)
   readonly property real volume: audioVolume(sink)
+
+  function _notificationHint(notification: var, key: string): var {
+    const hints = notification?.hints ?? ({});
+    const value = hints[key];
+    return value?.value ?? value;
+  }
+
+  function _notificationSoundFile(pathOrUri: var): string {
+    if (typeof pathOrUri !== "string" || pathOrUri.length === 0)
+      return "";
+    if (pathOrUri.startsWith("file:///")) {
+      try {
+        return decodeURIComponent(pathOrUri.substring("file://".length));
+      } catch (e) {
+        return pathOrUri.substring("file://".length);
+      }
+    }
+    return pathOrUri.startsWith("/") ? pathOrUri : "";
+  }
 
   function audioMuted(node: var): bool {
     return hasControllableAudio(node) ? !!node.audio.muted : false;
@@ -116,10 +135,15 @@ Singleton {
     return raw.replace(/\s*High Definition Audio Controller\b/i, "").replace(/\s*HD Audio Controller\b/i, "").replace(/\s*Audio Controller\b/i, "").replace(/\s*Digital Stereo\b/i, "").replace(/\s*Analog Stereo\b/i, "").replace(/\s*\(HDMI\)/i, " HDMI").replace(/\s*\(S\/PDIF\)/i, " S/PDIF").replace(/\s+/g, " ").trim() || raw;
   }
 
-  function playNotificationSound(isCritical: bool): void {
-    const player = isCritical ? criticalNotificationSound : normalNotificationSound;
-    player.stop();
-    player.play();
+  function playNotificationSound(notification: var): void {
+    const suppressSound = _notificationHint(notification, "suppress-sound");
+    if (suppressSound === true || String(suppressSound).toLowerCase() === "true")
+      return;
+
+    const defaultSound = (notification?.urgency ?? 1) >= 2 ? `${_notificationSoundDir}/bell.oga` : `${_notificationSoundDir}/message.oga`;
+    const soundPath = _notificationSoundFile(_notificationHint(notification, "sound-file")) || defaultSound;
+
+    Quickshell.execDetached(["pw-play", "--media-role", "Notification", "--volume", "0.8", soundPath]);
   }
 
   function setAudioSink(newSink: var): void {
@@ -206,33 +230,6 @@ Singleton {
     Logger.log("AudioService", `sink changed: ${name}`);
   }
   onSourceChanged: Logger.log("AudioService", `source changed: ${displayName(root.source)}`)
-
-  MediaDevices {
-    id: mediaDevices
-
-    onDefaultAudioOutputChanged: Logger.log("AudioService", `default audio output changed to: ${defaultAudioOutput ? defaultAudioOutput.description : "None"}`)
-  }
-
-  AudioOutput {
-    id: notificationOutput
-
-    device: mediaDevices.defaultAudioOutput
-    volume: 1.0
-  }
-
-  MediaPlayer {
-    id: normalNotificationSound
-
-    audioOutput: notificationOutput
-    source: "file:///usr/share/sounds/freedesktop/stereo/message.oga"
-  }
-
-  MediaPlayer {
-    id: criticalNotificationSound
-
-    audioOutput: notificationOutput
-    source: "file:///usr/share/sounds/freedesktop/stereo/bell.oga"
-  }
 
   PwObjectTracker {
     objects: root._audioNodes
