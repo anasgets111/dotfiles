@@ -24,8 +24,6 @@ PanelContentBase {
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
   readonly property var pendingAp: pendingSsid ? accessPointForSsid(pendingSsid) : null
   readonly property string pendingSsid: isHiddenTarget ? targetSsid : activeConnectionTarget
-  readonly property real preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
-  readonly property real preferredWidth: 340
   readonly property var processedWifiAps: {
     if (!ready || !networkingEnabled || !wifiEnabled)
       return {
@@ -63,6 +61,9 @@ PanelContentBase {
   property string targetSsid: ""
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
   readonly property string wifiInterface: NetworkService.wifiInterface
+
+  preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
+  preferredWidth: 340
 
   // Look up a flat AP object (for security/UI checks)
   function accessPointForSsid(ssid: string): var {
@@ -221,7 +222,7 @@ PanelContentBase {
 
       onDisconnectClicked: NetworkService.disconnectWifi()
       onForgetClicked: ssid => {
-        const net = wifiNetworkForSsid(ssid);
+        const net = root.wifiNetworkForSsid(ssid);
         net?.forget();
       }
     }
@@ -294,7 +295,7 @@ PanelContentBase {
 
             onClicked: root.connectToNetwork(modelData.ssid)
             onForgetClicked: {
-              const net = wifiNetworkForSsid(modelData.ssid);
+              const net = root.wifiNetworkForSsid(modelData.ssid);
               net?.forget();
             }
           }
@@ -581,7 +582,7 @@ PanelContentBase {
       color: Theme.borderLight
       height: 1
       opacity: 0.5
-      visible: showTopBorder
+      visible: hbtn.showTopBorder
     }
 
     MouseArea {
@@ -595,7 +596,7 @@ PanelContentBase {
 
       Rectangle {
         anchors.fill: parent
-        anchors.topMargin: showTopBorder ? 1 : 0
+        anchors.topMargin: hbtn.showTopBorder ? 1 : 0
         color: hma.containsMouse ? Qt.rgba(Theme.textActiveColor.r, Theme.textActiveColor.g, Theme.textActiveColor.b, 0.06) : "transparent"
         radius: Theme.itemRadius
 
@@ -792,6 +793,8 @@ PanelContentBase {
     }
   }
   component StateMessage: Item {
+    id: stateMessage
+
     property string icon: ""
     property string text: ""
 
@@ -809,13 +812,13 @@ PanelContentBase {
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize * 2
         opacity: 0.4
-        text: parent.parent.icon
+        text: stateMessage.icon
       }
 
       OText {
         Layout.alignment: Qt.AlignHCenter
         color: Theme.textInactiveColor
-        text: parent.parent.text
+        text: stateMessage.text
       }
     }
   }

@@ -10,7 +10,7 @@ Item {
 
   readonly property bool panelOpen: ShellUiState.isPanelOpen("updates", root.screenName)
   required property string screenName
-  readonly property int state: UpdateService.updateState
+  readonly property int updateState: UpdateService.updateState
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, button.implicitWidth)
@@ -18,8 +18,8 @@ Item {
   IconButton {
     id: button
 
-    readonly property bool isError: root.state === UpdateService.status.Error
-    readonly property bool isUpdating: root.state === UpdateService.status.Updating
+    readonly property bool isError: root.updateState === UpdateService.status.Error
+    readonly property bool isUpdating: root.updateState === UpdateService.status.Updating
     property real spinAngle: 0
 
     anchors.fill: parent
@@ -40,7 +40,7 @@ Item {
     onClicked: mouse => {
       if (UpdateService.busy)
         return;
-      if (mouse.button === Qt.RightButton || UpdateService.totalUpdates > 0 || root.state !== UpdateService.status.Idle) {
+      if (mouse.button === Qt.RightButton || UpdateService.totalUpdates > 0 || root.updateState !== UpdateService.status.Idle) {
         ShellUiState.togglePanelForItem("updates", root.screenName, button);
       } else {
         UpdateService.doPoll();

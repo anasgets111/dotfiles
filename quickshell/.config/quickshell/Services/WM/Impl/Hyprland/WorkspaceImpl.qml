@@ -19,8 +19,7 @@ Singleton {
       workspaces: []
     })
   readonly property var _layoutState: {
-    _updateTick;
-    return enabled ? _calcLayout() : _emptyLayout;
+    return enabled && _updateTick >= 0 ? _calcLayout() : _emptyLayout;
   }
   readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "monitoradded", "monitoraddedv2", "monitorremoved", "moveworkspace", "openwindow", "closewindow", "movewindow", "movewindowv2"]
   property int _updateTick: 0

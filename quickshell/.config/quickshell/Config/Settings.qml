@@ -12,16 +12,16 @@ Singleton {
   // ═══════════════════════════════════════════════════════════════════════════
   // COLOR SCHEME
   // ═══════════════════════════════════════════════════════════════════════════
-  readonly property string _colorSchemePath: Qt.resolvedUrl("../Assets/ColorScheme/" + data.themeName + ".json")
+  readonly property string _colorSchemePath: Qt.resolvedUrl("../Assets/ColorScheme/" + (root.data?.themeName ?? "Catppuccin") + ".json")
   property var _loadedScheme: ({})
   readonly property string _xdgCache: Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")
   readonly property string _xdgConfig: Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
   property list<string> availableThemes: []
   property string cacheDir: Quickshell.env("OBELISK_CACHE_DIR") || (Quickshell.env("XDG_CACHE_HOME") || Quickshell.env("HOME") + "/.cache") + "/" + shellName + "/"
   property string cacheDirImages: cacheDir + "images/"
-  readonly property var colors: _loadedScheme?.[data.themeMode] ?? {}
+  readonly property var colors: _loadedScheme?.[root.data?.themeMode ?? "dark"] ?? {}
   property string configDir: Quickshell.env("OBELISK_CONFIG_DIR") || (_xdgConfig + "/" + shellName + "/")
-  property alias data: adapter
+  property alias data: settingsAdapter
   property alias state: cacheAdapter
   property string defaultAvatar: Quickshell.env("HOME") + "/.face"
   property string defaultWallpaper: Qt.resolvedUrl("../Assets/3.jpg")
@@ -48,18 +48,18 @@ Singleton {
   }
   function setThemeMode(mode: string): void {
     const validMode = mode === "light" ? "light" : "dark";
-    if (data.themeMode !== validMode)
-      data.themeMode = validMode;
+    if (root.data?.themeMode !== validMode)
+      root.data.themeMode = validMode;
   }
 
   function setThemeName(name: string): void {
-    if (!name || data.themeName === name)
+    if (!name || root.data?.themeName === name)
       return;
     if (availableThemes.length && !availableThemes.includes(name)) {
-      Logger.log("Settings", `Theme "${name}" not found, keeping "${data.themeName}"`, "warning");
+      Logger.log("Settings", `Theme "${name}" not found, keeping "${root.data?.themeName ?? "Catppuccin"}"`, "warning");
       return;
     }
-    data.themeName = name;
+    root.data.themeName = name;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -81,16 +81,16 @@ Singleton {
     Component.onCompleted: reload()
     onFileChanged: reload()
     onLoadFailed: error => {
-      Logger.log("Settings", "Failed to load color scheme '" + adapter.themeName + "': " + error + ". Falling back to Catppuccin.", "warning");
-      if (adapter.themeName !== "Catppuccin") {
-        adapter.themeName = "Catppuccin";
-        adapter.themeMode = "dark";
+      Logger.log("Settings", "Failed to load color scheme '" + (root.data?.themeName ?? "Catppuccin") + "': " + error + ". Falling back to Catppuccin.", "warning");
+      if (root.data?.themeName !== "Catppuccin") {
+        root.data.themeName = "Catppuccin";
+        root.data.themeMode = "dark";
       }
     }
     onLoaded: {
       try {
         root._loadedScheme = JSON.parse(text());
-        Logger.log("Settings", "Loaded color scheme: " + adapter.themeName + "/" + adapter.themeMode);
+        Logger.log("Settings", "Loaded color scheme: " + (root.data?.themeName ?? "Catppuccin") + "/" + (root.data?.themeMode ?? "dark"));
       } catch (e) {
         Logger.log("Settings", "Failed to parse color scheme JSON: " + e, "warning");
         root._loadedScheme = {};
@@ -116,6 +116,60 @@ Singleton {
     }
   }
 
+  JsonAdapter {
+    id: settingsAdapter
+
+    property JsonObject appLauncher: JsonObject {
+    }
+    property JsonObject inputDisplay: JsonObject {
+      property bool enabled: true
+      property bool showPrintableKeys: false
+      property real positionXRatio: 0.06
+      property real positionYRatio: 0.74
+    }
+    property JsonObject idleService: JsonObject {
+      property bool dpmsEnabled: true
+      property int dpmsTimeoutSec: 30
+      property bool enabled: true
+      property bool lockEnabled: true
+      property int lockTimeoutSec: 300
+      property bool respectInhibitors: true
+      property bool suspendEnabled: false
+      property int suspendTimeoutSec: 120
+      property bool videoAutoInhibit: true
+    }
+    property int overviewBlurMax: 64
+    property real overviewBlurMultiplier: 2.0
+    property real overviewBlurStrength: 0.6
+    property string themeMode: "dark"
+    property string themeName: "Catppuccin"
+    property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"
+    property string wallpaperTransition: "disc"
+    property var wallpapers: ({})
+    property JsonObject weatherLocation: JsonObject {
+      property real latitude: 30.0507
+      property real longitude: 31.2489
+      property string placeName: "Cairo, Egypt"
+    }
+  }
+
+  JsonAdapter {
+    id: cacheAdapter
+
+    property var currency: ({ lastUpdate: "", rates: {} })
+    property JsonObject updates: JsonObject {
+      property string cachedUpdatePackagesJson: "[]"
+      property double lastSync: 0
+      property int lastNotificationId: 0
+    }
+    property JsonObject weather: JsonObject {
+      property string dailyForecast: ""
+      property string lastPollTimestamp: ""
+      property string temperature: ""
+      property int weatherCode: -1
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // SETTINGS PERSISTENCE
   // ═══════════════════════════════════════════════════════════════════════════
@@ -130,6 +184,7 @@ Singleton {
   FileView {
     id: settingsFileView
 
+    adapter: settingsAdapter
     path: root.settingsFile
     watchChanges: true
 
@@ -144,43 +199,6 @@ Singleton {
       if (!root.isLoaded) {
         Logger.log("Settings", "JSON completed loading");
         root.isLoaded = true;
-      }
-    }
-
-    JsonAdapter {
-      id: adapter
-
-      property JsonObject appLauncher: JsonObject {
-      }
-      property JsonObject inputDisplay: JsonObject {
-        property bool enabled: true
-        property bool showPrintableKeys: false
-        property real positionXRatio: 0.06
-        property real positionYRatio: 0.74
-      }
-      property JsonObject idleService: JsonObject {
-        property bool dpmsEnabled: true
-        property int dpmsTimeoutSec: 30
-        property bool enabled: true
-        property bool lockEnabled: true
-        property int lockTimeoutSec: 300
-        property bool respectInhibitors: true
-        property bool suspendEnabled: false
-        property int suspendTimeoutSec: 120
-        property bool videoAutoInhibit: true
-      }
-      property int overviewBlurMax: 64
-      property real overviewBlurMultiplier: 2.0
-      property real overviewBlurStrength: 0.6
-      property string themeMode: "dark"
-      property string themeName: "Catppuccin"
-      property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"
-      property string wallpaperTransition: "disc"
-      property var wallpapers: ({})
-      property JsonObject weatherLocation: JsonObject {
-        property real latitude: 30.0507
-        property real longitude: 31.2489
-        property string placeName: "Cairo, Egypt"
       }
     }
   }
@@ -199,6 +217,7 @@ Singleton {
   FileView {
     id: stateFileView
 
+    adapter: cacheAdapter
     path: root.stateFile
     watchChanges: true
 
@@ -214,23 +233,6 @@ Singleton {
       if (!root.isStateLoaded) {
         Logger.log("Settings", "State JSON completed loading");
         root.isStateLoaded = true;
-      }
-    }
-
-    JsonAdapter {
-      id: cacheAdapter
-
-      property var currency: ({ lastUpdate: "", rates: {} })
-      property JsonObject updates: JsonObject {
-        property string cachedUpdatePackagesJson: "[]"
-        property double lastSync: 0
-        property int lastNotificationId: 0
-      }
-      property JsonObject weather: JsonObject {
-        property string dailyForecast: ""
-        property string lastPollTimestamp: ""
-        property string temperature: ""
-        property int weatherCode: -1
       }
     }
   }

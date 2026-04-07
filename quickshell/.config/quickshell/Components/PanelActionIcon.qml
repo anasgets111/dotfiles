@@ -6,9 +6,9 @@ import qs.Config
 Rectangle {
   id: btn
 
+  readonly property bool hovered: ma.containsMouse
   property string icon: ""
   property color tint: Theme.textActiveColor
-  readonly property bool hovered: ma.containsMouse
 
   signal clicked
 
