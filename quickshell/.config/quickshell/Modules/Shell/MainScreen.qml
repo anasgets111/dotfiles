@@ -33,8 +33,6 @@ PanelWindow {
     if (root.hasInteractiveHere) {
       if (!root.wantsKeyboardHere)
         return WlrKeyboardFocus.None;
-      if (MainService.currentWM === "hyprland")
-        return WlrKeyboardFocus.OnDemand;
       return WlrKeyboardFocus.Exclusive;
     }
 
