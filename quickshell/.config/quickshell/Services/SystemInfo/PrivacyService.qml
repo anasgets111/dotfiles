@@ -10,6 +10,7 @@ Singleton {
   id: root
 
   readonly property var _activeLinks: (Pipewire.linkGroups?.values ?? []).filter(link => link.state === PwLinkState.Active)
+  readonly property var _trackerObjects: (Pipewire.nodes?.values ?? []).concat(Pipewire.linkGroups?.values ?? [])
   property bool _v4l2Active: false
   readonly property bool audioCaptureActive: _activeLinks.some(link => link.source?.type === PwNodeType.AudioSource && link.target?.type === PwNodeType.AudioInStream && !/\bcava\b/.test(_describe(link.target)))
   readonly property bool cameraActive: _v4l2Active
@@ -33,7 +34,7 @@ Singleton {
   }
 
   PwObjectTracker {
-    objects: (Pipewire.nodes?.values ?? []).concat(Pipewire.linkGroups?.values ?? [])
+    objects: root._trackerObjects
   }
 
   Process {

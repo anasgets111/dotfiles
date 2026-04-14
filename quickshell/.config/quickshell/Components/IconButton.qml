@@ -15,9 +15,9 @@ import qs.Config
  *   IconButton { icon: "󰐊"; shape: "rounded"; tooltipText: "Play" }
  */
 Item {
-  id: root
+  id: iconButton
 
-  readonly property bool _canShowTooltip: root.isEnabled && !root.suppressTooltip && root.tooltipText.length > 0
+  readonly property bool _canShowTooltip: iconButton.isEnabled && !iconButton.suppressTooltip && iconButton.tooltipText.length > 0
 
   // Computed dimensions from size using Theme helper functions
   readonly property int _iconSize: Theme.iconSizeFor(size)
@@ -41,13 +41,13 @@ Item {
   readonly property color effectiveBg: !isEnabled ? colorBg : (hovered ? colorBgHover : colorBg)
   readonly property color effectiveBorderColor: showBorder ? (hovered ? colorBorderHover : colorBorder) : "transparent"
   readonly property color effectiveFg: !isEnabled ? Theme.textContrast(colorBg) : (hovered ? colorFgHover : colorFg)
-
-  // Behavior
-  property bool isEnabled: true
-  readonly property bool hovered: mouseArea.containsMouse && root.isEnabled
+  readonly property bool hovered: mouseArea.containsMouse && iconButton.isEnabled
 
   // Content
   property string icon: ""
+
+  // Behavior
+  property bool isEnabled: true
 
   // Shape: "circle", "rounded"
   property string shape: "circle"
@@ -65,29 +65,25 @@ Item {
   implicitHeight: _size
   implicitWidth: _size
 
-  onIsEnabledChanged: if (!isEnabled && tooltip.isVisible)
-    tooltip.isVisible = false
+  onIsEnabledChanged: if (!isEnabled && tooltipLoader.item?.isVisible)
+    tooltipLoader.item.isVisible = false
   onSuppressTooltipChanged: {
-    if (root.suppressTooltip && tooltip.isVisible)
-      tooltip.isVisible = false;
-    else if (!root.suppressTooltip && mouseArea.containsMouse && root._canShowTooltip)
-      tooltip.isVisible = true;
+    if (iconButton.suppressTooltip && tooltipLoader.item?.isVisible)
+      tooltipLoader.item.isVisible = false;
   }
   onTooltipTextChanged: {
-    if (mouseArea.containsMouse && root._canShowTooltip)
-      tooltip.isVisible = true;
-    else if (tooltip.isVisible && !root._canShowTooltip)
-      tooltip.isVisible = false;
+    if (tooltipLoader.item?.isVisible && !iconButton._canShowTooltip)
+      tooltipLoader.item.isVisible = false;
   }
 
   Rectangle {
     id: bgRect
 
     anchors.fill: parent
-    border.color: root.effectiveBorderColor
-    border.width: root.showBorder ? Theme.borderWidthThin : 0
-    color: mouseArea.containsPress ? root.colorBgHover : root.effectiveBg
-    radius: root._radius
+    border.color: iconButton.effectiveBorderColor
+    border.width: iconButton.showBorder ? Theme.borderWidthThin : 0
+    color: mouseArea.containsPress ? iconButton.colorBgHover : iconButton.effectiveBg
+    radius: iconButton._radius
 
     Behavior on border.color {
       ColorAnimation {
@@ -107,26 +103,22 @@ Item {
 
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       anchors.fill: parent
-      cursorShape: root.isEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-      enabled: root.allowClickWhenDisabled || root.isEnabled
+      cursorShape: iconButton.isEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+      enabled: iconButton.allowClickWhenDisabled || iconButton.isEnabled
       hoverEnabled: true
 
       onClicked: function (mouse) {
-        if (!root.isEnabled && !root.allowClickWhenDisabled)
+        if (!iconButton.isEnabled && !iconButton.allowClickWhenDisabled)
           return;
-        if (tooltip.isVisible)
-          tooltip.isVisible = false;
-        root.clicked(mouse);
+        if (tooltipLoader.item?.isVisible)
+          tooltipLoader.item.isVisible = false;
+        iconButton.clicked(mouse);
       }
       onEntered: {
-        root.entered();
-        if (root._canShowTooltip)
-          tooltip.isVisible = true;
+        iconButton.entered();
       }
       onExited: {
-        root.exited();
-        if (tooltip.isVisible)
-          tooltip.isVisible = false;
+        iconButton.exited();
       }
     }
 
@@ -134,14 +126,14 @@ Item {
       id: iconLabel
 
       anchors.centerIn: parent
-      color: root.effectiveFg
+      color: iconButton.effectiveFg
       font.family: Theme.fontFamily
-      font.pixelSize: root._iconSize
+      font.pixelSize: iconButton._iconSize
       font.weight: Font.Medium
       horizontalAlignment: Text.AlignHCenter
-      text: root.icon
+      text: iconButton.icon
       verticalAlignment: Text.AlignVCenter
-      visible: root.icon.length > 0
+      visible: iconButton.icon.length > 0
 
       Behavior on color {
         ColorAnimation {
@@ -152,10 +144,16 @@ Item {
     }
   }
 
-  Tooltip {
-    id: tooltip
+  Loader {
+    id: tooltipLoader
 
-    target: root
-    text: root.tooltipText
+    active: iconButton.hovered && iconButton._canShowTooltip
+
+    sourceComponent: Tooltip {
+      target: iconButton
+      text: iconButton.tooltipText
+    }
+
+    onLoaded: item.isVisible = true
   }
 }

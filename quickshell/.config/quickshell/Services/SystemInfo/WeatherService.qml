@@ -163,7 +163,7 @@ Singleton {
   function _timeAgo() {
     if (!lastUpdated)
       return "";
-    const diff = (TimeService.now.getTime() - lastUpdated.getTime()) / 1000;
+    const diff = (TimeService.minuteNow.getTime() - lastUpdated.getTime()) / 1000;
     if (diff < 60)
       return "just now";
     if (diff < 3600)

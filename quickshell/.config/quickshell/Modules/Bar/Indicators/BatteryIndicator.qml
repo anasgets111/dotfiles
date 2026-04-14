@@ -179,52 +179,16 @@ Item {
         text: BatteryService.percentage + "%"
       }
     }
+  }
 
-    Rectangle {
-      color: Theme.onHoverColor
-      height: tooltipCol.height + Theme.spacingSm
-      opacity: mouseArea.containsMouse ? 1 : 0
-      radius: Theme.itemRadius
-      visible: mouseArea.containsMouse
-      width: tooltipCol.width + Theme.spacingLg
+  Loader {
+    active: mouseArea.containsMouse
 
-      Behavior on opacity {
-        NumberAnimation {
-          duration: Theme.animationDuration
-          easing.type: Easing.OutCubic
-        }
-      }
-
-      anchors {
-        horizontalCenter: parent.horizontalCenter
-        top: parent.bottom
-        topMargin: Theme.spacingSm
-      }
-
-      Column {
-        id: tooltipCol
-
-        anchors.centerIn: parent
-        spacing: Theme.spacingXs
-
-        OText {
-          color: Theme.textContrast(Theme.onHoverColor)
-          text: root.statusText
-        }
-
-        // Power info
-        OText {
-          color: Theme.textContrast(Theme.onHoverColor)
-          opacity: 0.7
-          text: root.powerInfoText
-        }
-
-        OText {
-          color: Theme.textContrast(Theme.onHoverColor)
-          opacity: 0.6
-          text: qsTr("CPU: %1 + %2").arg(root.power?.cpuGovernor ?? "Unknown").arg(root.power?.energyPerformance ?? "Unknown")
-        }
-      }
+    sourceComponent: Tooltip {
+      target: root
+      text: [root.statusText, root.powerInfoText, qsTr("CPU: %1 + %2").arg(root.power?.cpuGovernor ?? "Unknown").arg(root.power?.energyPerformance ?? "Unknown")].join("\n")
     }
+
+    onLoaded: item.isVisible = true
   }
 }
