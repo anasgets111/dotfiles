@@ -143,11 +143,16 @@ window-rule {
     geometry-corner-radius 15 15 0 0
     clip-to-geometry true
     draw-border-with-background false
-    opacity 0.97
+    opacity 0.94
     background-effect {
         blur true
         xray true
     }
+    popups {
+            background-effect {
+                blur true
+            }
+        }
 }
 
 // Workspace Assignments
