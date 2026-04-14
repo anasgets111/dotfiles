@@ -10,11 +10,8 @@ PanelContentBase {
   id: root
 
   property string activeConnectionTarget: ""
-  readonly property var availableNetworks: processedWifiAps.available
-  readonly property var connectedNetwork: {
-    const all = [...savedNetworks, ...availableNetworks];
-    return all.find(n => n.connected) || null;
-  }
+  readonly property var availableNetworks: NetworkService.availableWifiAps
+  readonly property var connectedNetwork: NetworkService.connectedWifiAp
   property var connectingNetwork: null
   property string connectionError: ""
   readonly property string ethernetInterface: NetworkService.ethernetInterface
@@ -24,46 +21,14 @@ PanelContentBase {
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
   readonly property var pendingAp: pendingSsid ? accessPointForSsid(pendingSsid) : null
   readonly property string pendingSsid: isHiddenTarget ? targetSsid : activeConnectionTarget
-  readonly property var processedWifiAps: {
-    if (!ready || !networkingEnabled || !wifiEnabled)
-      return {
-        available: [],
-        saved: [],
-        viewList: []
-      };
-
-    const aps = NetworkService.wifiAps ?? [];
-
-    // Saved: known networks that are in range or connected
-    const savedList = aps.filter(ap => ap.saved && (ap.signal > 0 || ap.connected)).sort((a, b) => (b.connected - a.connected) || (b.signal - a.signal)).map(ap => Object.assign({}, ap, {
-        _saved: true
-      }));
-
-    const savedNames = new Set(savedList.map(n => n.ssid));
-
-    // Available: unknown networks with signal
-    const availableList = aps.filter(ap => !savedNames.has(ap.ssid) && ap.signal > 0).sort((a, b) => b.signal - a.signal).map(ap => Object.assign({}, ap, {
-        _saved: false
-      }));
-
-    const viewList = [...savedList.filter(n => !n.connected), ...availableList.filter(n => !n.connected)];
-
-    return {
-      available: availableList,
-      saved: savedList,
-      viewList: viewList
-    };
-  }
   readonly property bool ready: NetworkService.ready
-  readonly property var savedNetworks: processedWifiAps.saved
+  readonly property var savedNetworks: NetworkService.savedWifiAps
   readonly property bool showPasswordInput: isConnecting && !showSsidInput && (pendingAp ? securityRequiresPassword(pendingAp.security) : isHiddenTarget)
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
   property string targetSsid: ""
+  readonly property var viewList: NetworkService.viewWifiAps
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
   readonly property string wifiInterface: NetworkService.wifiInterface
-
-  preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
-  preferredWidth: 340
 
   // Look up a flat AP object (for security/UI checks)
   function accessPointForSsid(ssid: string): var {
@@ -133,6 +98,8 @@ PanelContentBase {
   }
 
   needsKeyboardFocus: showSsidInput || showPasswordInput
+  preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
+  preferredWidth: 340
 
   Component.onDestruction: resetConnectionState()
   onIsOpenChanged: {
@@ -279,7 +246,7 @@ PanelContentBase {
           anchors.fill: parent
           boundsBehavior: Flickable.StopAtBounds
           interactive: contentHeight > height
-          model: root.processedWifiAps.viewList
+          model: root.viewList
           spacing: 2
 
           ScrollBar.vertical: ScrollBar {
@@ -289,7 +256,7 @@ PanelContentBase {
           delegate: NetworkRow {
             required property var modelData
 
-            isSaved: modelData._saved
+            isSaved: modelData.saved
             network: modelData
             width: ListView.view.width
 
@@ -553,7 +520,7 @@ PanelContentBase {
       PanelActionIcon {
         icon: "󰩺"
         tint: Theme.critical
-        visible: hero.network?._saved === true && (hero.network?.ssid || "") !== ""
+        visible: hero.network?.saved === true && (hero.network?.ssid || "") !== ""
 
         onClicked: hero.forgetClicked(hero.network?.ssid || "")
       }

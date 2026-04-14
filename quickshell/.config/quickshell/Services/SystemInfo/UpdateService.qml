@@ -168,6 +168,8 @@ Singleton {
   onUpdatePackagesChanged: if (Settings.isStateLoaded)
     Settings.state.updates.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
 
+  // ── Processes ──────────────────────────────────────────────
+
   Connections {
     function onIsStateLoadedChanged() {
       if (Settings.isStateLoaded)
@@ -184,24 +186,23 @@ Singleton {
     running: true
 
     stdout: StdioCollector {
-      onStreamFinished: {
-        root.checkupdatesAvailable = (text ?? "").trim() === "yes";
-      }
+      onStreamFinished: root.checkupdatesAvailable = (text ?? "").trim() === "yes"
     }
   }
 
   Process {
     id: sizeFetchProcess
 
-    stdout: SplitParser {
-      onRead: line => {
-        const parts = line.trim().split('|');
-        const size = parseFloat(parts[0]);
-        const name = parts[1];
-        if (!isNaN(size) && name)
-          root.packageSizes = Object.assign({}, root.packageSizes, {
-            [name]: Math.round(size / 1024)
-          });
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const newSizes = {};
+        (text ?? "").trim().split("\n").forEach(line => {
+          const [kib, name] = line.split("|");
+          const v = parseFloat(kib);
+          if (name && isFinite(v))
+            newSizes[name] = Math.round(v / 1024);
+        });
+        root.packageSizes = Object.assign({}, root.packageSizes, newSizes);
       }
     }
   }
@@ -213,14 +214,10 @@ Singleton {
     property string _stdoutData: ""
 
     stderr: StdioCollector {
-      onStreamFinished: {
-        pkgProc._stderrMsg = (text ?? "").trim();
-      }
+      onStreamFinished: pkgProc._stderrMsg = (text ?? "").trim()
     }
     stdout: StdioCollector {
-      onStreamFinished: {
-        pkgProc._stdoutData = text ?? "";
-      }
+      onStreamFinished: pkgProc._stdoutData = text ?? ""
     }
 
     onExited: (code, exitStatus) => {
@@ -247,10 +244,13 @@ Singleton {
       const trimmed = line.trim();
       if (!trimmed)
         return;
-      root.outputLines = root.outputLines.concat({
+
+      const lineObj = {
         text: trimmed,
         type: isError ? "error" : "info"
-      });
+      };
+      root.outputLines = root.outputLines.concat(lineObj);
+
       const match = trimmed.match(/(?:installing|upgrading)\s+(\S+)/i);
       if (match) {
         root.currentPackageIndex++;

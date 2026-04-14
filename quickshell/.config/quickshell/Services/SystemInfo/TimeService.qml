@@ -10,6 +10,7 @@ Singleton {
   property bool internalNtpEnabled: false
   property bool internalNtpSynced: false
   property string internalTimeZone: ""
+  readonly property var minuteNow: minuteClock.date
   readonly property var now: clock.date
   readonly property bool ntpEnabled: internalNtpEnabled
   readonly property bool ntpSynced: internalNtpSynced
@@ -101,6 +102,12 @@ Singleton {
     id: clock
 
     precision: dateTime.precision
+  }
+
+  SystemClock {
+    id: minuteClock
+
+    precision: SystemClock.Minutes
   }
 
   Process {

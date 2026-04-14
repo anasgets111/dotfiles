@@ -6,7 +6,6 @@ import qs.Services.SystemInfo
 Singleton {
   id: root
 
-  readonly property string currentTimestamp: TimeService.timestamp()
   property bool enabled: true
   property list<string> includeModules: []
   readonly property int moduleLabelWidth: 16
@@ -36,7 +35,7 @@ Singleton {
     if (!args?.length)
       return "";
 
-    const timestamp = `[${root.currentTimestamp}]`;
+    const timestamp = `[${TimeService.timestamp()}]`;
 
     if (args.length === 1)
       return `${timestamp} ${String(args[0])}`;
