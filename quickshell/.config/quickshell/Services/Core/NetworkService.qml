@@ -17,6 +17,11 @@ Singleton {
   property bool _ethernetOnline: false
   property bool _networkingEnabled: true
   property string _wifiIp: ""
+  readonly property var availableWifiAps: {
+    const savedNames = new Set(savedWifiAps.map(n => n.ssid));
+    return wifiAps.filter(ap => !savedNames.has(ap.ssid) && ap.signal > 0);
+  }
+  readonly property var connectedWifiAp: wifiAps.find(ap => ap.connected) || null
 
   // --- Ethernet (nmcli) ---
   readonly property alias ethernetInterface: root._ethernetInterface
@@ -27,6 +32,8 @@ Singleton {
   // --- Networking toggle (nmcli) ---
   readonly property alias networkingEnabled: root._networkingEnabled
   readonly property bool ready: Networking.backend !== NetworkBackendType.None
+  readonly property var savedWifiAps: wifiAps.filter(ap => ap.saved && (ap.signal > 0 || ap.connected))
+  readonly property var viewWifiAps: savedWifiAps.filter(ap => !ap.connected).concat(availableWifiAps.filter(ap => !ap.connected))
 
   // --- Wifi APs: native data + band from supplemental scan ---
   readonly property var wifiAps: {

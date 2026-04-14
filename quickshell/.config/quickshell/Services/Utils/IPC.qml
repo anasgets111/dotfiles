@@ -15,8 +15,8 @@ Singleton {
 
   // ----- Lock -----
   IpcHandler {
-    function islocked(): string {
-      return LockService.locked ? "true" : "false";
+    function islocked(): bool {
+      return LockService.locked;
     }
 
     function lock(): string {
@@ -25,10 +25,9 @@ Singleton {
       return "locked";
     }
 
-    function status(): string {
-      const s = LockService.locked ? "locked" : "unlocked";
-      Logger.log("IPC", `status -> ${s}`);
-      return s;
+    function status(): bool {
+      Logger.log("IPC", `status -> ${LockService.locked}`);
+      return LockService.locked;
     }
 
     function unlock(): string {
