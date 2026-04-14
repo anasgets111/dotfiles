@@ -82,7 +82,7 @@ layout {
 // Global blur settings (used by window background-effect)
 blur {
     passes 1
-    offset 4.7
+    offset 1.47
 }
 
 cursor {
@@ -143,7 +143,7 @@ window-rule {
     geometry-corner-radius 15 15 0 0
     clip-to-geometry true
     draw-border-with-background false
-    opacity 0.94
+    opacity 0.9
     background-effect {
         blur true
         xray true
