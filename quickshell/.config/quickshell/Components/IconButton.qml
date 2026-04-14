@@ -45,6 +45,7 @@ Item {
 
   // Content
   property string icon: ""
+  property real iconRotation: 0
 
   // Behavior
   property bool isEnabled: true
@@ -65,15 +66,15 @@ Item {
   implicitHeight: _size
   implicitWidth: _size
 
-  onIsEnabledChanged: if (!isEnabled && tooltipLoader.item?.isVisible)
-    tooltipLoader.item.isVisible = false
+  onIsEnabledChanged: if (!isEnabled && (tooltipLoader.item as Tooltip)?.isVisible)
+    (tooltipLoader.item as Tooltip).isVisible = false
   onSuppressTooltipChanged: {
-    if (iconButton.suppressTooltip && tooltipLoader.item?.isVisible)
-      tooltipLoader.item.isVisible = false;
+    if (iconButton.suppressTooltip && (tooltipLoader.item as Tooltip)?.isVisible)
+      (tooltipLoader.item as Tooltip).isVisible = false;
   }
   onTooltipTextChanged: {
-    if (tooltipLoader.item?.isVisible && !iconButton._canShowTooltip)
-      tooltipLoader.item.isVisible = false;
+    if ((tooltipLoader.item as Tooltip)?.isVisible && !iconButton._canShowTooltip)
+      (tooltipLoader.item as Tooltip).isVisible = false;
   }
 
   Rectangle {
@@ -110,8 +111,8 @@ Item {
       onClicked: function (mouse) {
         if (!iconButton.isEnabled && !iconButton.allowClickWhenDisabled)
           return;
-        if (tooltipLoader.item?.isVisible)
-          tooltipLoader.item.isVisible = false;
+        if ((tooltipLoader.item as Tooltip)?.isVisible)
+          (tooltipLoader.item as Tooltip).isVisible = false;
         iconButton.clicked(mouse);
       }
       onEntered: {
@@ -131,7 +132,9 @@ Item {
       font.pixelSize: iconButton._iconSize
       font.weight: Font.Medium
       horizontalAlignment: Text.AlignHCenter
+      rotation: iconButton.iconRotation
       text: iconButton.icon
+      transformOrigin: Item.Center
       verticalAlignment: Text.AlignVCenter
       visible: iconButton.icon.length > 0
 
@@ -154,6 +157,6 @@ Item {
       text: iconButton.tooltipText
     }
 
-    onLoaded: item.isVisible = true
+    onLoaded: (item as Tooltip).isVisible = true
   }
 }
