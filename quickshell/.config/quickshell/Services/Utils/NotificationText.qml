@@ -123,4 +123,11 @@ QtObject {
         "format": Qt.PlainText
       });
   }
+
+  function summary(raw) {
+    return ({
+        "text": typeof raw === "string" && raw.length > 0 ? decodeEntities(raw) : "(No title)",
+        "format": Qt.PlainText
+      });
+  }
 }
