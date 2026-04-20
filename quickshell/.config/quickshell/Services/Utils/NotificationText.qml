@@ -30,6 +30,14 @@ QtObject {
     return escapeHtml(text).replace(/"/g, "&quot;");
   }
 
+  function safeUrl(raw) {
+    if (typeof raw !== "string")
+      return "";
+
+    const url = decodeEntities(raw).trim();
+    return url.search(/^(https?|file):\/\//i) === 0 ? url : "";
+  }
+
   function looksLikeMarkup(text) {
     if (typeof text !== "string")
       return false;
@@ -78,7 +86,8 @@ QtObject {
       return "</a>";
 
     const href = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
-    return href ? `<a href="${escapeAttribute(decodeEntities(href[1] ?? href[2] ?? href[3] ?? ""))}">` : "";
+    const url = href ? safeUrl(href[1] ?? href[2] ?? href[3] ?? "") : "";
+    return url ? `<a href="${escapeAttribute(url)}">` : "";
   }
 
   function looksLikeMarkdown(text) {
@@ -109,14 +118,19 @@ QtObject {
     });
     html = escapeHtml(html);
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, label, href) => {
+      const url = safeUrl(href);
+      if (!url)
+        return label;
       const ph = `\x00MDLINK${linkIndex++}\x00`;
-      linkPlaceholders.push(`<a href="${href}">${label}</a>`);
+      linkPlaceholders.push(`<a href="${escapeAttribute(url)}">${label}</a>`);
       return ph;
     });
     html = html.replace(/(^|[\s([\*_`\-])((?:https?|file):\/\/[^\s<>\'"]*)/gi, (m, pre, url) => {
+      const href = safeUrl(url);
+      if (!href)
+        return m;
       const ph = `\x00MDLINK${linkIndex++}\x00`;
-      const safeUrl = url.replace(/"/g, "&quot;");
-      linkPlaceholders.push(`<a href="${safeUrl}">${url}</a>`);
+      linkPlaceholders.push(`<a href="${escapeAttribute(href)}">${url}</a>`);
       return pre + ph;
     });
     html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
