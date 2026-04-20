@@ -266,6 +266,7 @@ Item {
               })
               readonly property var renderedBodyMeta: NotificationText.body(body)
               readonly property string summary: notification?.summary || "(No title)"
+              readonly property var renderedSummaryMeta: NotificationText.summary(summary)
               property bool summaryTruncated: false
               readonly property int topPadding: messageItem.isMultipleItems ? root.messagePadding : 0
               readonly property bool useActionIcons: notification?.hasActionIcons || false
@@ -309,7 +310,8 @@ Item {
                   font.pixelSize: Theme.fontMd
                   horizontalAlignment: messageItem.isMultipleItems ? Text.AlignLeft : Text.AlignHCenter
                   maximumLineCount: messageColumn.expanded ? 0 : 2
-                  text: messageColumn.summary
+                  text: messageColumn.renderedSummaryMeta.text
+                  textFormat: messageColumn.renderedSummaryMeta.format
                   wrapMode: Text.WordWrap
 
                   Component.onCompleted: Qt.callLater(updateTruncation)
