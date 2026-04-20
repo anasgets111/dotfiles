@@ -101,11 +101,11 @@ Item {
     Text {
       anchors.bottom: mainIcon.bottom
       anchors.left: mainIcon.right
-      anchors.leftMargin: -Theme.spacingXs / 2
+      anchors.leftMargin: root.band === "2.4" ? -Theme.spacingXs : -Theme.spacingXs / 2
       color: NetworkService.getBandColor(root.band)
       font.bold: true
       font.family: "Roboto Condensed"
-      font.letterSpacing: -1
+      font.letterSpacing: root.band === "2.4" ? -1.5 : -1
       font.pixelSize: Theme.fontXs
       text: root.band || ""
       visible: root.link === "wifi" && root.band
