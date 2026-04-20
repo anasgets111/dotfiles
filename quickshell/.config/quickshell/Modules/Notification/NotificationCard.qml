@@ -249,7 +249,6 @@ Item {
               readonly property url contentImage: Utils.normalizeImageUrl(String(notification?.image || ""))
               readonly property var defaultAction: actionsModel.find(action => String(action?.identifier || "").trim() === "default") || null
               readonly property bool expanded: root.messageExpanded(messageColumn.messageId)
-              readonly property bool hasBody: !!(body && body.trim() !== "" && body.trim() !== summary.trim())
               readonly property bool hasInlineReply: notification?.hasInlineReply === true
               readonly property int horizontalPadding: messageItem.isMultipleItems ? root.messagePadding : 0
               readonly property string inlineReplyPlaceholder: notification?.inlineReplyPlaceholder || "Reply"
@@ -267,6 +266,7 @@ Item {
               readonly property var renderedBodyMeta: NotificationText.body(body)
               readonly property string summary: notification?.summary || "(No title)"
               readonly property var renderedSummaryMeta: NotificationText.summary(summary)
+              readonly property bool hasBody: !!(renderedBodyMeta.plain.trim() && renderedBodyMeta.plain.trim() !== renderedSummaryMeta.plain.trim())
               property bool summaryTruncated: false
               readonly property int topPadding: messageItem.isMultipleItems ? root.messagePadding : 0
               readonly property bool useActionIcons: notification?.hasActionIcons || false

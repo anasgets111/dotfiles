@@ -33,6 +33,16 @@ QtObject {
     return text.search(/<\s*\/?\s*[a-zA-Z!][^>]*>/) !== -1;
   }
 
+  function plainBody(raw) {
+    if (typeof raw !== "string")
+      return "";
+
+    if (!looksLikeMarkup(raw))
+      return decodeEntities(raw);
+
+    return decodeEntities(raw.replace(/<\s*br\s*\/?\s*>/gi, "\n").replace(/<[^>]*>/g, ""));
+  }
+
   function looksLikeMarkdown(text) {
     if (typeof text !== "string")
       return false;
@@ -99,20 +109,23 @@ QtObject {
     if (typeof raw !== "string" || raw.length === 0)
       return ({
           "text": "",
-          "format": Qt.PlainText
+          "format": Qt.PlainText,
+          "plain": ""
         });
 
     if (looksLikeMarkup(raw))
       return ({
           "text": raw,
-          "format": Qt.RichText
+          "format": Qt.RichText,
+          "plain": plainBody(raw)
         });
 
     if (looksLikeMarkdown(raw)) {
       try {
         return ({
             "text": markdownToHtml(decodeEntities(raw)),
-            "format": Qt.RichText
+            "format": Qt.RichText,
+            "plain": plainBody(raw)
           });
       } catch (err) {
         console.warn("NotificationText", "markdownToHtml failed", err);
@@ -120,14 +133,17 @@ QtObject {
     }
     return ({
         "text": decodeEntities(raw),
-        "format": Qt.PlainText
+        "format": Qt.PlainText,
+        "plain": plainBody(raw)
       });
   }
 
   function summary(raw) {
+    const text = typeof raw === "string" && raw.length > 0 ? decodeEntities(raw) : "(No title)";
     return ({
-        "text": typeof raw === "string" && raw.length > 0 ? decodeEntities(raw) : "(No title)",
-        "format": Qt.PlainText
+        "text": text,
+        "format": Qt.PlainText,
+        "plain": text
       });
   }
 }
