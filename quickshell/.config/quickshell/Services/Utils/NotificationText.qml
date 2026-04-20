@@ -26,6 +26,10 @@ QtObject {
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  function escapeAttribute(text) {
+    return escapeHtml(text).replace(/"/g, "&quot;");
+  }
+
   function looksLikeMarkup(text) {
     if (typeof text !== "string")
       return false;
@@ -41,6 +45,40 @@ QtObject {
       return decodeEntities(raw);
 
     return decodeEntities(raw.replace(/<\s*br\s*\/?\s*>/gi, "\n").replace(/<[^>]*>/g, ""));
+  }
+
+  function sanitizeMarkup(raw) {
+    const tags = /<[^>]*>/g;
+    let out = "";
+    let lastIndex = 0;
+    let match;
+    while ((match = tags.exec(raw)) !== null) {
+      out += escapeHtml(decodeEntities(raw.slice(lastIndex, match.index)));
+      out += sanitizeTag(match[0]);
+      lastIndex = match.index + match[0].length;
+    }
+    return out + escapeHtml(decodeEntities(raw.slice(lastIndex)));
+  }
+
+  function sanitizeTag(tag) {
+    const parsed = tag.match(/^<\s*(\/?)\s*([a-zA-Z][\w:-]*)\b([^>]*)\/?\s*>$/);
+    if (!parsed)
+      return "";
+
+    const closing = parsed[1] === "/";
+    const name = parsed[2].toLowerCase();
+    const attrs = parsed[3] || "";
+    if (["b", "i", "u"].includes(name))
+      return closing ? `</${name}>` : `<${name}>`;
+    if (name === "br")
+      return closing ? "" : "<br/>";
+    if (name !== "a")
+      return "";
+    if (closing)
+      return "</a>";
+
+    const href = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    return href ? `<a href="${escapeAttribute(decodeEntities(href[1] ?? href[2] ?? href[3] ?? ""))}">` : "";
   }
 
   function looksLikeMarkdown(text) {
@@ -115,7 +153,7 @@ QtObject {
 
     if (looksLikeMarkup(raw))
       return ({
-          "text": raw,
+          "text": sanitizeMarkup(raw),
           "format": Qt.RichText,
           "plain": plainBody(raw)
         });
