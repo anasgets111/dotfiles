@@ -71,6 +71,8 @@ Singleton {
   function cleanupCodecData(addr: string): void {
     if (!addr)
       return;
+    if (codecParser.addr === addr)
+      codecParser.addr = "";
     delete deviceCodecs[addr];
     delete deviceAvailableCodecs[addr];
     deviceCodecsChanged();
@@ -195,14 +197,13 @@ Singleton {
       const match = parts[1].match(/codec ([^\)\s]+)/i);
       const raw = match ? match[1].toUpperCase() : "UNKNOWN";
       const info = getCodecInfo(raw);
-      if (!codecParser.parsedCodecs.some(c => c.profile === profile)) {
+      if (!codecParser.parsedCodecs.some(c => c.profile === profile))
         codecParser.parsedCodecs.push({
           name: info.name,
           profile,
           description: info.desc,
           qualityColor: info.color
         });
-      }
     }
   }
 
@@ -222,7 +223,10 @@ Singleton {
       adapter.enabled = true;
       return;
     }
-    Qt.callLater(() => adapter.enabled = false);
+    Qt.callLater(() => {
+      if (root.adapter)
+        root.adapter.enabled = false;
+    });
   }
 
   function sortDevices(list: var): var {
