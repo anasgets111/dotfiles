@@ -264,7 +264,7 @@ Item {
                 const text = String(action.text || "").trim();
                 return text !== "" || (!messageColumn.useActionIcons && identifier !== "");
               })
-              readonly property var renderedBodyMeta: Markdown2Html.toDisplay(body)
+              readonly property var renderedBodyMeta: NotificationText.body(body)
               readonly property string summary: notification?.summary || "(No title)"
               property bool summaryTruncated: false
               readonly property int topPadding: messageItem.isMultipleItems ? root.messagePadding : 0
