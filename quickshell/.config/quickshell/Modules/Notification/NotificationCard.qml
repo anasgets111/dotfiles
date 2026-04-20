@@ -44,6 +44,12 @@ Item {
       root._shownMessageIds[id] = true;
   }
 
+  function openBodyLink(url) {
+    const safeUrl = NotificationText.safeUrl(String(url || ""));
+    if (safeUrl)
+      Qt.openUrlExternally(safeUrl);
+  }
+
   function messageExpanded(id) {
     return !!root._messageExpansion[id];
   }
@@ -385,7 +391,6 @@ Item {
 
                     Component.onCompleted: Qt.callLater(updateTruncation)
                     onLineCountChanged: updateTruncation()
-                    onLinkActivated: url => Qt.openUrlExternally(url)
                     onTruncatedChanged: updateTruncation()
                   }
 
@@ -401,7 +406,7 @@ Item {
                     onTapped: function (eventPoint) {
                       const link = bodyText.linkAt(eventPoint.position.x, eventPoint.position.y);
                       if (link) {
-                        Qt.openUrlExternally(link);
+                        root.openBodyLink(link);
                       }
                     }
                   }
