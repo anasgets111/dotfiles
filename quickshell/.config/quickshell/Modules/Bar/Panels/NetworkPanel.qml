@@ -15,7 +15,6 @@ PanelContentBase {
   property var connectingNetwork: null
   property string connectionError: ""
   readonly property string ethernetInterface: NetworkService.ethernetInterface
-  property bool hiddenConnectStartedOnline: false
   readonly property bool isConnecting: activeConnectionTarget !== ""
   property bool isHiddenTarget: false
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
@@ -59,7 +58,6 @@ PanelContentBase {
   function resetConnectionState(): void {
     activeConnectionTarget = "";
     isHiddenTarget = false;
-    hiddenConnectStartedOnline = false;
     targetSsid = "";
     connectingNetwork = null;
     if (credentialSheet)
@@ -78,8 +76,7 @@ PanelContentBase {
       return;
     connectionError = "";
     if (isHiddenTarget) {
-      hiddenConnectStartedOnline = NetworkService.wifiOnline;
-      NetworkService.connectHiddenWifi(pendingSsid, trimmedPassword, root.wifiInterface);
+      NetworkService.connectHiddenWifi(pendingSsid, trimmedPassword);
       return;
     }
     const net = wifiNetworkForSsid(pendingSsid);
