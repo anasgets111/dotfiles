@@ -487,6 +487,15 @@ Item {
                 Item {
                   Layout.fillWidth: true
                 } // Spacer
+
+                OText {
+                  Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                  color: Theme.textInactiveColor
+                  font.pixelSize: Theme.fontXs
+                  opacity: 0.8
+                  text: CurrencyEngine.lastUpdatedText
+                  visible: text !== ""
+                }
               }
 
               OText {

@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import qs.Config
+import qs.Services.SystemInfo
 import qs.Services.Utils
 
 Singleton {
@@ -18,7 +19,7 @@ Singleton {
   readonly property string fromFlag: _getFlag(_fromCode)
   readonly property bool hasResult: _resultText !== ""
   readonly property real inputAmount: _inputAmount
-  property string lastUpdated: ""
+  property var lastUpdated: null
   readonly property real outputAmount: _outputAmount
   property var rates: ({
       "usd": 1.0
@@ -26,6 +27,7 @@ Singleton {
   property bool ratesLive: false
   readonly property int refreshInterval: 86400000 // 24 hours
 
+  readonly property string lastUpdatedText: _formatLastUpdated(lastUpdated)
   readonly property string resultText: _resultText
   readonly property string toCode: _toCode
   readonly property string toFlag: _getFlag(_toCode)
@@ -38,21 +40,31 @@ Singleton {
     _httpGet(url, data => {
       if (data && data.usd) {
         const newRates = data.usd;
+        const fetchedAt = new Date();
         newRates["usd"] = 1.0;
         rates = newRates;
         ratesLive = true;
-        lastUpdated = data.date;
+        lastUpdated = fetchedAt;
 
         // Persist to state in settings
         Settings.state.currency = {
           rates: newRates,
-          lastUpdate: new Date().toISOString()
+          lastUpdate: fetchedAt.toISOString()
         };
         Settings.saveState();
 
         Logger.log("CurrencyEngine", `Rates updated (date: ${data.date})`);
       }
     });
+  }
+
+  function _formatLastUpdated(value: var): string {
+    if (!value || typeof value.getTime !== "function" || isNaN(value.getTime()))
+      return "";
+    const now = new Date();
+    const sameDay = value.getFullYear() === now.getFullYear() && value.getMonth() === now.getMonth() && value.getDate() === now.getDate();
+    const pattern = sameDay ? (TimeService.use24Hour ? "HH:mm" : "h:mm AP") : (TimeService.use24Hour ? "MMM d, HH:mm" : "MMM d, h:mm AP");
+    return "Updated " + value.toLocaleString(Qt.locale(), pattern);
   }
 
   function _getFlag(code: string): string {
@@ -118,7 +130,7 @@ Singleton {
         const last = new Date(cache.lastUpdate);
         if (cache.rates && typeof cache.rates === "object") {
           rates = cache.rates;
-          lastUpdated = cache.lastUpdate;
+          lastUpdated = last;
           ratesLive = true;
 
           const elapsed = Date.now() - last.getTime();
@@ -205,7 +217,7 @@ Singleton {
   function refreshIfStale(): void {
     if (!Settings.isStateLoaded)
       return;
-    if (Date.now() > (Date.parse(Settings.state.currency?.lastUpdate || lastUpdated || "") || 0) + refreshInterval)
+    if (Date.now() > ((lastUpdated?.getTime() || 0) + refreshInterval))
       _fetchRates();
   }
 
