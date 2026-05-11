@@ -13,8 +13,8 @@ Singleton {
 
   readonly property var dpmsCmds: ({
       hyprland: {
-        on: ["hyprctl", "dispatch", "dpms", "on"],
-        off: ["hyprctl", "dispatch", "dpms", "off"]
+        on: ["hyprctl", "dispatch", "hl.dsp.dpms({action=\"on\"})"],
+        off: ["hyprctl", "dispatch", "hl.dsp.dpms({action=\"off\"})"]
       },
       niri: {
         on: ["niri", "msg", "action", "power-on-monitors"],
