@@ -23,7 +23,6 @@ local blender_splash = [[^Blender$]]
 
 hl.window_rule({ match = { class = ".*" }, suppress_event = "maximize" })
 hl.window_rule({ match = { class = ".*" }, idle_inhibit = "fullscreen" })
-hl.window_rule({ match = { float = false }, no_shadow = true })
 hl.window_rule({ match = { fullscreen = true }, no_blur = true, no_anim = true })
 hl.window_rule({ match = { class = "^steam_app_" }, fullscreen = true, immediate = true })
 

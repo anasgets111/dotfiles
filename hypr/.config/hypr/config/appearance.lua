@@ -18,18 +18,14 @@ hl.config({
 			inactive_border = "rgba(aaaaaaaa)",
 		},
 		resize_on_border = true,
-		layout = "dwindle",
 		snap = {
 			enabled = true,
 			window_gap = 11,
 			monitor_gap = 11,
-			border_overlap = false,
 		},
 	},
 
 	render = {
-		cm_auto_hdr = true,
-		non_shader_cm = true,
 		direct_scanout = 2,
 	},
 
@@ -41,15 +37,9 @@ hl.config({
 			enabled = false,
 		},
 		blur = {
-			enabled = true,
 			size = 5,
 			passes = 3,
-			new_optimizations = true,
 		},
-	},
-
-	animations = {
-		enabled = true,
 	},
 
 	dwindle = {
@@ -73,7 +63,6 @@ hl.config({
 		disable_hyprland_logo = true,
 		disable_splash_rendering = true,
 		middle_click_paste = false,
-		enable_swallow = true,
 		allow_session_lock_restore = true,
 	},
 })

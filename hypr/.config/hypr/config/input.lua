@@ -3,14 +3,11 @@ hl.config({
 		kb_layout = "us,eg",
 		kb_options = "grp:alt_shift_toggle,lv3:ralt_alt",
 		numlock_by_default = true,
-		follow_mouse = 1,
 		touchpad = {
 			natural_scroll = true,
-			disable_while_typing = true,
 		},
 	},
 	gestures = {
-		workspace_swipe_invert = true,
 		workspace_swipe_distance = 700,
 	},
 })
