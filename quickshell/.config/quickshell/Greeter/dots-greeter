@@ -198,7 +198,7 @@ HYPR_EOF
 
 env = GREETER_CACHE_DIR,$CACHE_DIR
 
-exec-once = sh -c "$QS_CMD; hyprctl dispatch exit"
+exec-once = sh -c "$QS_CMD; hyprctl dispatch 'hl.dsp.exit()'"
 HYPR_EOF
 
     if command -v start-hyprland >/dev/null 2>&1; then
