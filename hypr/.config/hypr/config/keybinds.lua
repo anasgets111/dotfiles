@@ -1,5 +1,8 @@
-local vars = require("config.vars")
-local mod = vars.mainMod
+local mod = "SUPER"
+local file_manager = "nautilus"
+local browser = "zen-browser"
+local menu = "quickshell ipc call launcher toggle"
+local lock_cmd = "quickshell ipc call lock lock"
 
 local function bind_workspace(key, workspace)
 	hl.bind(mod .. " + " .. key, hl.dsp.focus({ workspace = workspace }))
@@ -102,10 +105,10 @@ hl.bind(mod .. " + D", hl.dsp.workspace.toggle_special("vesktop"))
 hl.bind(mod .. " + T", hl.dsp.workspace.toggle_special("telegram"))
 hl.bind(mod .. " + S", hl.dsp.workspace.toggle_special("slack"))
 
-hl.bind(mod .. " + E", hl.dsp.exec_cmd(vars.fileManager))
-hl.bind(mod .. " + B", hl.dsp.exec_cmd(vars.browser, { workspace = "2" }))
+hl.bind(mod .. " + E", hl.dsp.exec_cmd(file_manager))
+hl.bind(mod .. " + B", hl.dsp.exec_cmd(browser))
 hl.bind("CTRL + ALT + Delete", hl.dsp.exec_cmd("missioncenter"))
-hl.bind(mod .. " + space", hl.dsp.exec_cmd(vars.menu))
+hl.bind(mod .. " + space", hl.dsp.exec_cmd(menu))
 
 hl.bind(mod .. " + C", hl.dsp.exec_cmd("cursor"))
 hl.bind(mod .. " + A", hl.dsp.exec_cmd("antigravity.sh"))
@@ -114,10 +117,10 @@ hl.bind(mod .. " + H", hl.dsp.exec_cmd("heroic", { workspace = "6" }))
 hl.bind(mod .. " + G", hl.dsp.exec_cmd("steam", { workspace = "6" }))
 hl.bind(mod .. " + n", hl.dsp.exec_cmd("say --clipboard"))
 
-hl.bind(mod .. " + L", hl.dsp.exec_cmd(vars.lockCmd))
+hl.bind(mod .. " + L", hl.dsp.exec_cmd(lock_cmd))
 hl.bind(mod .. " + SHIFT + L", hl.dsp.exit())
 
-hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd(vars.lockCmd), { locked = true })
+hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd(lock_cmd), { locked = true })
 hl.bind(
 	"XF86AudioRaiseVolume",
 	hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"),
