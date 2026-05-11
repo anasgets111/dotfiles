@@ -84,7 +84,7 @@ Singleton {
 
   function focusWorkspaceByIndex(idx: int): void {
     if (enabled && idx > 0)
-      Hyprland.dispatch(`workspace ${idx}`);
+      Hyprland.dispatch(`hl.dsp.focus({ workspace = ${idx} })`);
   }
 
   function refresh(): void {
@@ -97,7 +97,7 @@ Singleton {
 
   function toggleSpecial(name: string): void {
     if (enabled && name)
-      Hyprland.dispatch(`togglespecialworkspace ${name}`);
+      Hyprland.dispatch(`hl.dsp.workspace.toggle_special(${JSON.stringify(name)})`);
   }
 
   Component.onCompleted: {

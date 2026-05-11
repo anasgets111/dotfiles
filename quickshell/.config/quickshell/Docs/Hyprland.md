@@ -9,7 +9,7 @@
 • toplevels : UntypedObjectModel -> Access: Array.from(Hyprland.toplevels.values)
 • focusedMonitor : Monitor (nullable)
 • focusedWorkspace : Workspace (nullable)
-• dispatch(cmd) : Function (Executes Hyprland dispatchers)
+• dispatch(cmd) : Function (Executes a single Hyprland 0.55+ Lua dispatcher string, e.g. `hl.dsp.focus({ workspace = 3 })`)
 • activeWindow : UNDEFINED (Use Events or focusedWorkspace.toplevels)
 
 2. MONITOR OBJECT

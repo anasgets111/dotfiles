@@ -8,11 +8,15 @@ Singleton {
 
   readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
 
-  function fetchFeatures(name, callback) {
+  function _findMonitor(name) {
     const monitors = Hyprland.monitors?.values || [];
-    const monitor = monitors.find(m => {
+    return monitors.find(m => {
       return m && (m.name === name || m.id === name || m.identifier === name || m.outputName === name);
-    });
+    }) || null;
+  }
+
+  function fetchFeatures(name, callback) {
+    const monitor = _findMonitor(name);
 
     if (!monitor) {
       callback(null);
@@ -43,25 +47,5 @@ Singleton {
       },
       mirror: isMirror
     });
-  }
-
-  function setMode(name, width, height, refreshRate) {
-    Hyprland.dispatch("output", `${name},mode,${width}x${height}@${refreshRate}`);
-  }
-
-  function setPosition(name, x, y) {
-    Hyprland.dispatch("output", `${name},position,${x} ${y}`);
-  }
-
-  function setScale(name, scale) {
-    Hyprland.dispatch("output", `${name},scale,${scale}`);
-  }
-
-  function setTransform(name, transform) {
-    Hyprland.dispatch("output", `${name},transform,${transform}`);
-  }
-
-  function setVrr(name, mode) {
-    Hyprland.dispatch("output", `${name},vrr,${mode}`);
   }
 }
