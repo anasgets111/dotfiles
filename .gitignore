@@ -1,6 +1,7 @@
 quickshell/.config/quickshell/.qmlls.ini
 # Hypr monitors symlink (host-specific, managed at runtime)
 hypr/.config/hypr/config/monitors.conf
+hypr/.config/hypr/old/config/monitors.conf
 # Secrets directory
 .local_secrets/
 home/.gitconfig
