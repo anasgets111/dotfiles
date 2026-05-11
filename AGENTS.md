@@ -144,6 +144,8 @@ This section is a living record of findings from repeated interactions. When Cla
 
 <!-- Add entries below as they are discovered -->
 - Quickshell PipeWire nodes expose `PwNode.properties` and `PwNode.audio` fields only after binding, and they can still be incomplete until `node.ready`; guard bound-property reads and never write volume/mute before readiness.
+- Destroying a `ScreencopyView` immediately after async `Loader` creation (for example with `Loader.onLoaded: active = false`) can trigger `wl_proxy_get_listener called with a null proxy`; keep the loader active and let the view live normally.
+- Niri does not provide a Hyprland-style session-lock xray path for transparent lock surfaces; if a Quickshell lock surface relies on transparency or screencopy under lock, Niri will show its red locked-session background instead, so gate that effect by compositor and fall back to an opaque background.
 
 ---
 
