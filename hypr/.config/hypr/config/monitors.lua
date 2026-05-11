@@ -84,7 +84,7 @@ local selected_host = hostname()
 
 if selected_host == "wolverine" then
 	desktop()
-else
+elseif selected_host == "mentalist" then
 	laptop()
 end
 
