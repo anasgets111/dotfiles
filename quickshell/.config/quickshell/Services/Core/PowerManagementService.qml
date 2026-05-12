@@ -36,7 +36,7 @@ Singleton {
 
   function logout(): void {
     if (MainService.currentWM === "hyprland")
-      Quickshell.execDetached(["hyprshutdown"]);
+      Quickshell.execDetached(["uwsm", "stop"]);
     else if (MainService.currentWM === "niri")
       Quickshell.execDetached(["niri", "msg", "action", "quit", "--skip-confirmation"]);
   }
