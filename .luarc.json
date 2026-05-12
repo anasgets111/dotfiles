@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "format.enable": true,
+  "workspace": {
+    "library": ["/usr/share/hypr/stubs"]
+  },
+  "diagnostics": {
+    "globals": ["hl"]
+  }
+}
