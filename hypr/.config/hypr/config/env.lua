@@ -1,3 +1,4 @@
+-- Variables
 local env_vars = {
     QT_WAYLAND_DISABLE_WINDOWDECORATION = "1",
     QT_QUICK_CONTROLS_STYLE             = "org.hyprland.style",
