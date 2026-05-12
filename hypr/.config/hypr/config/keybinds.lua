@@ -82,7 +82,7 @@ local keybinds = {
 
     -- System & Lock
     { mod .. " + L",           hl.dsp.exec_cmd(lock_cmd) },
-    { mod .. " + SHIFT + L",   hl.dsp.exit() },
+    { mod .. " + SHIFT + L",   hl.dsp.exec_cmd("hyprshutdown") },
     { "switch:on:Lid Switch",  hl.dsp.exec_cmd(lock_cmd),                                       { locked = true } },
 
     -- Media & Hardware (Locked + Optional Repeating)

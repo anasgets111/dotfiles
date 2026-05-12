@@ -14,6 +14,10 @@ local function float_center(match, window_size)
     hl.window_rule({ match = match, float = true, center = true, size = window_size })
 end
 
+local function float_modal_center(class_regex, window_size)
+    float_center({ class = class_regex, modal = true }, window_size)
+end
+
 -- Global behavior
 hl.window_rule({ match = { class = ".*" }, suppress_event = "maximize" })
 hl.window_rule({ match = { class = ".*" }, idle_inhibit = "fullscreen" })
@@ -52,12 +56,10 @@ hl.window_rule({ match = { class = [[^vesktop$]] }, workspace = "special:vesktop
 hl.window_rule({ match = { class = [[(?i)^slack(-desktop)?$]] }, workspace = "special:slack" })
 
 -- Floating dialogs
-local small_editor_dialog_titles = [[^(Do you want to retry your last request\?|Authentication Required)$]]
-
 float_center({ class = [[(?i)^(gnome-calculator|org\.gnome\.calculator)$]] }, sizes.tiny)
 float_center({ class = [[^org\.kde\.kdeconnect\.handler$]] }, sizes.small)
-float_center({ class = [[(?i)^(code|cursor|antigravity)$]], title = small_editor_dialog_titles }, sizes.small)
-float_center({ class = [[^dev\.zed\.Zed$]], title = small_editor_dialog_titles }, sizes.small)
+float_modal_center([[(?i)^(code|cursor|antigravity)$]], sizes.small)
+float_modal_center([[^dev\.zed\.Zed$]], sizes.small)
 float_center({
     title =
     [[^(Install from VSIX|Downloading Certificate|Open File|Save File|Save As|Open Folder|File Upload|Enter name of file to save to\.\.|About Zen Browser|Steam - Self Updater|Steam Settings|Select File containing CA certificate)$]],
