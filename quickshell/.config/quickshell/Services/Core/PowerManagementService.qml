@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Services
 import qs.Services.Core
 
 Singleton {
@@ -34,7 +35,10 @@ Singleton {
   }
 
   function logout(): void {
-    Quickshell.execDetached(["sh", "-c", "loginctl terminate-user $USER"]);
+    if (MainService.currentWM === "hyprland")
+      Quickshell.execDetached(["hyprshutdown"]);
+    else if (MainService.currentWM === "niri")
+      Quickshell.execDetached(["niri", "msg", "action", "quit", "--skip-confirmation"]);
   }
 
   function poweroff(): void {
