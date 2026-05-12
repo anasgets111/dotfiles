@@ -21,7 +21,6 @@ local host_profiles = {
             output = monitor,
             mode = "3440x1440@165",
             position = "0x0",
-            scale = 1,
             bitdepth = 10,
             vrr = 2
         })
