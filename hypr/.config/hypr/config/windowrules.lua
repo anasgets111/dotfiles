@@ -1,88 +1,83 @@
-local function size(width, height)
-    return { width, height }
-end
-
 local sizes = {
-    xlarge = size("(monitor_w*0.85)", "(monitor_h*0.85)"),
-    large = size("(monitor_w*0.60)", "(monitor_h*0.60)"),
-    medium = size("(monitor_w*0.45)", "(monitor_h*0.45)"),
-    small = size("(monitor_w*0.30)", "(monitor_h*0.30)"),
-    tiny = size("(monitor_w*0.15)", "(monitor_h*0.15)"),
+    xlarge = { "(monitor_w*0.85)", "(monitor_h*0.85)" },
+    large  = { "(monitor_w*0.60)", "(monitor_h*0.60)" },
+    medium = { "(monitor_w*0.45)", "(monitor_h*0.45)" },
+    small  = { "(monitor_w*0.30)", "(monitor_h*0.30)" },
+    tiny   = { "(monitor_w*0.15)", "(monitor_h*0.15)" },
 }
 
-local function float_center(match, window_size)
-    hl.window_rule({ match = match, float = true, center = true, size = window_size })
+-- 1. Globals
+local globals = {
+    { match = { class = ".*" },          suppress_event = "maximize" },
+    { match = { class = ".*" },          idle_inhibit = "fullscreen" },
+    { match = { fullscreen = true },     no_blur = true,             no_anim = true },
+    { match = { class = "^steam_app_" }, fullscreen = true,          immediate = true },
+}
+
+for _, rule in ipairs(globals) do
+    hl.window_rule(rule)
 end
 
-local function float_modal_center(class_regex, window_size)
-    float_center({ class = class_regex, modal = true }, window_size)
+-- 2. Lazy Workspaces
+local lazy_apps = {
+    ["1"]                = "zen-browser",
+    ["2"]                = "chromium",
+    ["3"]                = "zeditor",
+    ["special:vesktop"]  = "vesktop",
+    ["special:telegram"] = "Telegram",
+    ["special:slack"]    = "slack",
+    ["special:terminal"] = "xdg-terminal-exec",
+}
+
+for ws, app in pairs(lazy_apps) do
+    hl.workspace_rule({ workspace = ws, on_created_empty = app })
 end
 
--- Global behavior
-hl.window_rule({ match = { class = ".*" }, suppress_event = "maximize" })
-hl.window_rule({ match = { class = ".*" }, idle_inhibit = "fullscreen" })
-hl.window_rule({ match = { fullscreen = true }, no_blur = true, no_anim = true })
-hl.window_rule({ match = { class = "^steam_app_" }, fullscreen = true, immediate = true })
+-- 3. Smart Gaps
+for _, ws_match in ipairs({ "w[tv1]s[false]", "f[1]s[false]" }) do
+    hl.workspace_rule({ workspace = ws_match, gaps_out = 0, gaps_in = 0 })
+    hl.window_rule({ match = { float = false, workspace = ws_match }, border_size = 0, rounding = 0 })
+end
 
--- Lazy workspace apps
-hl.workspace_rule({ workspace = "1", on_created_empty = "zen-browser" })
-hl.workspace_rule({ workspace = "2", on_created_empty = "chromium" })
-hl.workspace_rule({ workspace = "3", on_created_empty = "zeditor" })
-hl.workspace_rule({ workspace = "special:vesktop", on_created_empty = "vesktop" })
-hl.workspace_rule({ workspace = "special:telegram", on_created_empty = "Telegram" })
-hl.workspace_rule({ workspace = "special:slack", on_created_empty = "slack" })
-hl.workspace_rule({ workspace = "special:terminal", on_created_empty = "xdg-terminal-exec" })
+-- 4. App Routing
+local app_routes = {
+    ["1"]                = { [[^(zen-browser|zen)$]] },
+    ["2"]                = { [[^chromium$]] },
+    ["3"]                = { [[(?i)^(code|cursor|antigravity)(-url-handler)?$]], [[^dev\.zed\.Zed$]] },
+    ["5"]                = { [[^(qbittorrent|steam_app_)]] },
+    ["7"]                = { [[(?i)^(thunderbird|org\.mozilla\.thunderbird)$]] },
+    ["special:telegram"] = { [[(?i)^(org\.telegram\.desktop|telegram(-desktop)?)$]] },
+    ["special:vesktop"]  = { [[^vesktop$]] },
+    ["special:slack"]    = { [[(?i)^slack(-desktop)?$]] },
+}
 
--- Smart gaps
-hl.workspace_rule({ workspace = "w[tv1]s[false]", gaps_out = 0, gaps_in = 0 })
-hl.workspace_rule({ workspace = "f[1]s[false]", gaps_out = 0, gaps_in = 0 })
-hl.window_rule({ match = { float = false, workspace = "w[tv1]s[false]" }, border_size = 0 })
-hl.window_rule({ match = { float = false, workspace = "w[tv1]s[false]" }, rounding = 0 })
-hl.window_rule({ match = { float = false, workspace = "f[1]s[false]" }, border_size = 0 })
-hl.window_rule({ match = { float = false, workspace = "f[1]s[false]" }, rounding = 0 })
+for ws, patterns in pairs(app_routes) do
+    for _, pat in ipairs(patterns) do
+        hl.window_rule({ match = { class = pat }, workspace = ws })
+    end
+end
 
--- App workspace routing
-hl.window_rule({ match = { class = [[^(zen-browser|zen)$]] }, workspace = "1" })
-hl.window_rule({ match = { class = [[^chromium$]] }, workspace = "2" })
-hl.window_rule({ match = { class = [[(?i)^(code|cursor|antigravity)(-url-handler)?$]] }, workspace = "3" })
-hl.window_rule({ match = { class = [[^dev\.zed\.Zed$]] }, workspace = "3" })
-hl.window_rule({ match = { class = [[^(qbittorrent|steam_app_)]] }, workspace = "5" })
-hl.window_rule({ match = { class = [[(?i)^(thunderbird|org\.mozilla\.thunderbird)$]] }, workspace = "7" })
-hl.window_rule({
-    match = { class = [[(?i)^(org\.telegram\.desktop|telegram(-desktop)?)$]] },
-    workspace = "special:telegram",
-})
-hl.window_rule({ match = { class = [[^vesktop$]] }, workspace = "special:vesktop" })
-hl.window_rule({ match = { class = [[(?i)^slack(-desktop)?$]] }, workspace = "special:slack" })
+-- 5. Floating Dialogs & Special Cases
+local floaters = {
+    { match = { class = [[(?i)^(gnome-calculator|org\.gnome\.calculator)$]] },                                                                                                                                                                                                         size = sizes.tiny },
+    { match = { class = [[^org\.kde\.kdeconnect\.handler$]] },                                                                                                                                                                                                                         size = sizes.small },
+    { match = { class = [[(?i)^(code|cursor|antigravity)$]], modal = true },                                                                                                                                                                                                           size = sizes.small },
+    { match = { class = [[^dev\.zed\.Zed$]], modal = true },                                                                                                                                                                                                                           size = sizes.small },
+    { match = { title = [[^(Install from VSIX|Downloading Certificate|Open File|Save File|Save As|Open Folder|File Upload|Enter name of file to save to\.\.|About Zen Browser|Steam - Self Updater|Steam Settings|Select File containing CA certificate)$]] },                         size = sizes.medium },
+    { match = { class = [[^(com\.saivert\.pwvucontrol|org\.pulseaudio\.pavucontrol|pavucontrol|gtk-pipe-viewer|blueman-manager|nm-connection-editor|org\.gnome\.DiskUtility|xdg-desktop-portal.*|polkit.*|zenity|waypaper|io\.missioncenter\.MissionCenter|mpv|com\.gabm\.satty)$]] }, size = sizes.large },
+    { match = { title = [[^(OpenRGB|Network Connections|imv|nemo|ncmpcpp|Create or select new Steam library folder)$]] },                                                                                                                                                              size = sizes.large },
+    { match = { title = ".*Global Updates.*" },                                                                                                                                                                                                                                        size = sizes.xlarge },
+    { match = { class = "^blender$", initial_title = [[^Blender$]] },                                                                                                                                                                                                                  size = sizes.large },
+    {
+        match = { title = [[(?i)^picture.?in.?picture]] },
+        pin = true,
+        size = sizes.large,
+        move = { "monitor_w-window_w-(monitor_w*0.02)", "monitor_h-window_h-(monitor_h*0.02)" }
+    },
+}
 
--- Floating dialogs
-float_center({ class = [[(?i)^(gnome-calculator|org\.gnome\.calculator)$]] }, sizes.tiny)
-float_center({ class = [[^org\.kde\.kdeconnect\.handler$]] }, sizes.small)
-float_modal_center([[(?i)^(code|cursor|antigravity)$]], sizes.small)
-float_modal_center([[^dev\.zed\.Zed$]], sizes.small)
-float_center({
-    title =
-    [[^(Install from VSIX|Downloading Certificate|Open File|Save File|Save As|Open Folder|File Upload|Enter name of file to save to\.\.|About Zen Browser|Steam - Self Updater|Steam Settings|Select File containing CA certificate)$]],
-}, sizes.medium)
-float_center({
-    class =
-    [[^(com\.saivert\.pwvucontrol|org\.pulseaudio\.pavucontrol|pavucontrol|gtk-pipe-viewer|blueman-manager|nm-connection-editor|org\.gnome\.DiskUtility|xdg-desktop-portal.*|polkit.*|zenity|waypaper|io\.missioncenter\.MissionCenter|mpv|com\.gabm\.satty)$]],
-}, sizes.large)
-float_center({
-    title = [[^(OpenRGB|Network Connections|imv|nemo|ncmpcpp|Create or select new Steam library folder)$]],
-}, sizes.large)
-float_center({ title = ".*Global Updates.*" }, sizes.xlarge)
-
--- Special cases
-hl.window_rule({
-    match = { class = "^blender$", initial_title = [[^Blender$]] },
-    float = true,
-    size = sizes.large,
-})
-hl.window_rule({
-    match = { title = [[(?i)^picture.?in.?picture]] },
-    float = true,
-    pin = true,
-    size = sizes.large,
-    move = size("monitor_w-window_w-(monitor_w*0.02)", "monitor_h-window_h-(monitor_h*0.02)"),
-})
+for _, rule in ipairs(floaters) do
+    rule.float = true
+    if not rule.move then rule.center = true end
+    hl.window_rule(rule)
+end
