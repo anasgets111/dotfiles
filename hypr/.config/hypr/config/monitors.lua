@@ -1,19 +1,26 @@
 local function get_system_hostname()
-    local host = os.getenv("hostname") or os.getenv("HOSTNAME")
-    return (host or ""):match("^%s*(.-)%s*$"):lower()
+    local file = io.open("/proc/sys/kernel/hostname", "r")
+
+    if not file then
+        return ""
+    end
+
+    local name = (file:read("*l") or ""):match("^%s*(.-)%s*$"):lower()
+    file:close()
+
+    return name
 end
 
-local function apply_workspace_rules(monitor_id)
+local function apply_workspace_rules()
     for i = 1, 10 do
         hl.workspace_rule({
             workspace = tostring(i),
-            monitor = monitor_id,
             default = (i == 1) or nil,
+            layout = (i == 2) and "scrolling" or nil,
         })
     end
 end
 
--- Profiles
 local host_profiles = {
     wolverine = function()
         local monitor = "DP-1"
@@ -23,26 +30,25 @@ local host_profiles = {
             bitdepth = 10,
             vrr = 2
         })
-        apply_workspace_rules(monitor)
         hl.config({ cursor = { default_monitor = monitor } })
     end,
 
     mentalist = function()
-        local monitor = "eDP-1"
         hl.monitor({
-            output = monitor,
+            output = "eDP-1",
             mode = "1920x1200@60",
         })
-        apply_workspace_rules(monitor)
     end
 }
 
--- Active Profile
 local current_host = get_system_hostname()
+local profile = host_profiles[current_host]
 
-if host_profiles[current_host] then
-    host_profiles[current_host]()
+if profile then
+    profile()
 end
+
+apply_workspace_rules()
 
 return {
     get_system_hostname = get_system_hostname,
