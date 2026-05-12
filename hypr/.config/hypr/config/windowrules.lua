@@ -11,7 +11,7 @@ local globals = {
     { match = { class = ".*" },          suppress_event = "maximize" },
     { match = { class = ".*" },          idle_inhibit = "fullscreen" },
     { match = { fullscreen = true },     no_blur = true,             no_anim = true },
-    { match = { class = "^steam_app_" }, fullscreen = true,          immediate = true },
+    { match = { class = "^steam_app_.*$" }, fullscreen = true,       immediate = true },
 }
 
 for _, rule in ipairs(globals) do
@@ -42,13 +42,13 @@ end
 -- 4. App Routing
 local app_routes = {
     ["1"]                = { [[^(zen-browser|zen)$]] },
-    ["2"]                = { [[^chromium$]] },
-    ["3"]                = { [[(?i)^(code|cursor|antigravity)(-url-handler)?$]], [[^dev\.zed\.Zed$]] },
-    ["5"]                = { [[^(qbittorrent|steam_app_)]] },
-    ["7"]                = { [[(?i)^(thunderbird|org\.mozilla\.thunderbird)$]] },
-    ["special:telegram"] = { [[(?i)^(org\.telegram\.desktop|telegram(-desktop)?)$]] },
-    ["special:vesktop"]  = { [[^vesktop$]] },
-    ["special:slack"]    = { [[(?i)^slack(-desktop)?$]] },
+    ["2 silent"]         = { [[^chromium$]] },
+    ["3 silent"]         = { [[(?i)^(code|cursor|antigravity)(-url-handler)?$]], [[^dev\.zed\.Zed$]] },
+    ["5 silent"]         = { [[^qbittorrent$]], [[^steam_app_.*$]] },
+    ["7 silent"]         = { [[(?i)^(thunderbird|org\.mozilla\.thunderbird)$]] },
+    ["special:telegram silent"] = { [[(?i)^(org\.telegram\.desktop|telegram(-desktop)?)$]] },
+    ["special:vesktop silent"]  = { [[^vesktop$]] },
+    ["special:slack silent"]    = { [[(?i)^slack(-desktop)?$]] },
 }
 
 for ws, patterns in pairs(app_routes) do
