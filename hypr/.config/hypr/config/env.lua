@@ -1,10 +1,14 @@
-hl.env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")
-hl.env("QT_QUICK_CONTROLS_STYLE", "org.hyprland.style")
+local env_vars = {
+    QT_WAYLAND_DISABLE_WINDOWDECORATION = "1",
+    QT_QUICK_CONTROLS_STYLE             = "org.hyprland.style",
+    HYPRCURSOR_THEME                    = "Bibata-Modern-Ice",
+    HYPRCURSOR_SIZE                     = "24",
+    XCURSOR_THEME                       = "Bibata-Modern-Ice",
+    XCURSOR_SIZE                        = "24",
+    GTK_THEME                           = "Catppuccin-GnomeTheme",
+    PASSWORD_STORE                      = "secret-service",
+}
 
-hl.env("HYPRCURSOR_THEME", "Bibata-Modern-Ice")
-hl.env("HYPRCURSOR_SIZE", "24")
-hl.env("XCURSOR_THEME", "Bibata-Modern-Ice")
-hl.env("XCURSOR_SIZE", "24")
-
-hl.env("GTK_THEME", "Catppuccin-GnomeTheme")
-hl.env("PASSWORD_STORE", "secret-service")
+for key, value in pairs(env_vars) do
+    hl.env(key, value)
+end

@@ -4,164 +4,106 @@ local browser = "zen-browser"
 local menu = "quickshell ipc call launcher toggle"
 local lock_cmd = "quickshell ipc call lock lock"
 
-local function bind_workspace(key, workspace)
-    hl.bind(mod .. " + " .. key, hl.dsp.focus({ workspace = workspace }))
-end
-
-local function bind_move_to_workspace(key, workspace)
-    hl.bind(mod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = workspace }))
-end
-
-local workspace_keys = {
-    { "1",         1 },
-    { "2",         2 },
-    { "3",         3 },
-    { "4",         4 },
-    { "5",         5 },
-    { "6",         6 },
-    { "7",         7 },
-    { "8",         8 },
-    { "9",         9 },
-    { "0",         10 },
-    { "KP_End",    1 },
-    { "KP_Down",   2 },
-    { "KP_Next",   3 },
-    { "KP_Left",   4 },
-    { "KP_Begin",  5 },
-    { "KP_Right",  6 },
-    { "KP_Home",   7 },
-    { "KP_Up",     8 },
-    { "KP_Prior",  9 },
-    { "KP_Insert", 10 },
+-- Workspaces
+local ws_keys = {
+    [1] = { "1", "KP_End" },
+    [2] = { "2", "KP_Down" },
+    [3] = { "3", "KP_Next" },
+    [4] = { "4", "KP_Left" },
+    [5] = { "5", "KP_Begin" },
+    [6] = { "6", "KP_Right" },
+    [7] = { "7", "KP_Home" },
+    [8] = { "8", "KP_Up" },
+    [9] = { "9", "KP_Prior" },
+    [10] = { "0", "KP_Insert" }
 }
 
-for _, entry in ipairs(workspace_keys) do
-    bind_workspace(entry[1], entry[2])
-    bind_move_to_workspace(entry[1], entry[2])
+for ws, keys in pairs(ws_keys) do
+    for _, key in ipairs(keys) do
+        hl.bind(mod .. " + " .. key, hl.dsp.focus({ workspace = ws }))
+        hl.bind(mod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = ws }))
+    end
 end
 
-hl.bind(mod .. " + Tab", hl.dsp.focus({ workspace = "e+1" }))
-hl.bind(mod .. " + SHIFT + Tab", hl.dsp.focus({ workspace = "e-1" }))
-
-hl.bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
-hl.bind(mod .. " + mouse_up", hl.dsp.focus({ workspace = "e-1" }))
-
-local directional_binds = {
-    {
-        key = "left",
-        direction = "l",
-        resize = { x = -15, y = 0 },
-        move_description = "Move active window to the left",
-        focus_description = "Move focus to the left",
-        resize_description = "Resize to the left",
-    },
-    {
-        key = "right",
-        direction = "r",
-        resize = { x = 15, y = 0 },
-        move_description = "Move active window to the right",
-        focus_description = "Move focus to the right",
-        resize_description = "Resize to the right",
-    },
-    {
-        key = "up",
-        direction = "u",
-        resize = { x = 0, y = -15 },
-        move_description = "Move active window upwards",
-        focus_description = "Move focus upwards",
-        resize_description = "Resize upwards",
-    },
-    {
-        key = "down",
-        direction = "d",
-        resize = { x = 0, y = 15 },
-        move_description = "Move active window downwards",
-        focus_description = "Move focus downwards",
-        resize_description = "Resize downwards",
-    },
+-- Directional
+local directions = {
+    left  = { dir = "l", x = -15, y = 0, desc = "to the left" },
+    right = { dir = "r", x = 15, y = 0, desc = "to the right" },
+    up    = { dir = "u", x = 0, y = -15, desc = "upwards" },
+    down  = { dir = "d", x = 0, y = 15, desc = "downwards" },
 }
 
-for _, binding in ipairs(directional_binds) do
-    hl.bind(mod .. " + SHIFT + " .. binding.key, hl.dsp.window.move({ direction = binding.direction }), {
-        description = binding.move_description,
-    })
-    hl.bind(mod .. " + " .. binding.key, hl.dsp.focus({ direction = binding.direction }), {
-        description = binding.focus_description,
-    })
-    hl.bind(
-        mod .. " + CTRL + SHIFT + " .. binding.key,
-        hl.dsp.window.resize({ x = binding.resize.x, y = binding.resize.y, relative = true }),
-        { description = binding.resize_description }
-    )
+for key, d in pairs(directions) do
+    hl.bind(mod .. " + " .. key, hl.dsp.focus({ direction = d.dir }), { description = "Move focus " .. d.desc })
+    hl.bind(mod .. " + SHIFT + " .. key, hl.dsp.window.move({ direction = d.dir }),
+        { description = "Move window " .. d.desc })
+    hl.bind(mod .. " + CTRL + SHIFT + " .. key, hl.dsp.window.resize({ x = d.x, y = d.y, relative = true }),
+        { description = "Resize " .. d.desc })
 end
 
-hl.bind(mod .. " + Q", hl.dsp.window.close())
-hl.bind(mod .. " + V", hl.dsp.window.float({ action = "toggle" }))
-hl.bind(mod .. " + F", hl.dsp.window.fullscreen({ action = "toggle" }))
-hl.bind(mod .. " + P", hl.dsp.window.pseudo({ action = "toggle" }))
-hl.bind(mod .. " + J", hl.dsp.layout("togglesplit"))
+-- Master Dispatch
+local keybinds = {
+    -- Window Management
+    { mod .. " + Q",           hl.dsp.window.close() },
+    { mod .. " + V",           hl.dsp.window.float({ action = "toggle" }) },
+    { mod .. " + F",           hl.dsp.window.fullscreen({ action = "toggle" }) },
+    { mod .. " + P",           hl.dsp.window.pseudo({ action = "toggle" }) },
+    { mod .. " + J",           hl.dsp.layout("togglesplit") },
+    { mod .. " + mouse:272",   hl.dsp.window.drag(),                                            { mouse = true } },
+    { mod .. " + mouse:273",   hl.dsp.window.resize(),                                          { mouse = true } },
 
-hl.bind(mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
-hl.bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
+    -- Special Workspaces
+    { mod .. " + Return",      hl.dsp.workspace.toggle_special("terminal") },
+    { mod .. " + KP_Enter",    hl.dsp.workspace.toggle_special("terminal") },
+    { mod .. " + SHIFT + S",   hl.dsp.window.move({ workspace = "special:terminal" }) },
+    { mod .. " + D",           hl.dsp.workspace.toggle_special("vesktop") },
+    { mod .. " + T",           hl.dsp.workspace.toggle_special("telegram") },
+    { mod .. " + S",           hl.dsp.workspace.toggle_special("slack") },
 
-hl.bind(mod .. " + Return", hl.dsp.workspace.toggle_special("terminal"))
-hl.bind(mod .. " + KP_Enter", hl.dsp.workspace.toggle_special("terminal"))
-hl.bind(mod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:terminal" }))
-hl.bind(mod .. " + D", hl.dsp.workspace.toggle_special("vesktop"))
-hl.bind(mod .. " + T", hl.dsp.workspace.toggle_special("telegram"))
-hl.bind(mod .. " + S", hl.dsp.workspace.toggle_special("slack"))
+    -- Cycle Workspaces
+    { mod .. " + Tab",         hl.dsp.focus({ workspace = "e+1" }) },
+    { mod .. " + SHIFT + Tab", hl.dsp.focus({ workspace = "e-1" }) },
+    { mod .. " + mouse_down",  hl.dsp.focus({ workspace = "e+1" }) },
+    { mod .. " + mouse_up",    hl.dsp.focus({ workspace = "e-1" }) },
 
-hl.bind(mod .. " + E", hl.dsp.exec_cmd(file_manager))
-hl.bind(mod .. " + B", hl.dsp.exec_cmd(browser))
-hl.bind("CTRL + ALT + Delete", hl.dsp.exec_cmd("missioncenter"))
-hl.bind(mod .. " + space", hl.dsp.exec_cmd(menu))
+    -- Apps & Utilities
+    { mod .. " + E",           hl.dsp.exec_cmd(file_manager) },
+    { mod .. " + B",           hl.dsp.exec_cmd(browser) },
+    { "CTRL + ALT + Delete",   hl.dsp.exec_cmd("missioncenter") },
+    { mod .. " + space",       hl.dsp.exec_cmd(menu) },
+    { mod .. " + C",           hl.dsp.exec_cmd("cursor") },
+    { mod .. " + A",           hl.dsp.exec_cmd("antigravity.sh") },
+    { mod .. " + Z",           hl.dsp.exec_cmd("WAYLAND_DISPLAY='' zeditor") },
+    { mod .. " + H",           hl.dsp.exec_cmd("heroic", { workspace = "6" }) },
+    { mod .. " + G",           hl.dsp.exec_cmd("steam", { workspace = "6" }) },
+    { mod .. " + n",           hl.dsp.exec_cmd("say --clipboard") },
+    { mod .. " + CTRL + S",    hl.dsp.exec_cmd("voxtype record toggle") },
+    { mod .. " + M",           hl.dsp.exec_cmd("quickshell ipc call mic mute") },
 
-hl.bind(mod .. " + C", hl.dsp.exec_cmd("cursor"))
-hl.bind(mod .. " + A", hl.dsp.exec_cmd("antigravity.sh"))
-hl.bind(mod .. " + Z", hl.dsp.exec_cmd("WAYLAND_DISPLAY='' zeditor"))
-hl.bind(mod .. " + H", hl.dsp.exec_cmd("heroic", { workspace = "6" }))
-hl.bind(mod .. " + G", hl.dsp.exec_cmd("steam", { workspace = "6" }))
-hl.bind(mod .. " + n", hl.dsp.exec_cmd("say --clipboard"))
+    -- System & Lock
+    { mod .. " + L",           hl.dsp.exec_cmd(lock_cmd) },
+    { mod .. " + SHIFT + L",   hl.dsp.exit() },
+    { "switch:on:Lid Switch",  hl.dsp.exec_cmd(lock_cmd),                                       { locked = true } },
 
-hl.bind(mod .. " + L", hl.dsp.exec_cmd(lock_cmd))
-hl.bind(mod .. " + SHIFT + L", hl.dsp.exit())
+    -- Media & Hardware (Locked + Optional Repeating)
+    { "XF86AudioRaiseVolume",  hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"),    { locked = true, repeating = true } },
+    { "XF86AudioLowerVolume",  hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),    { locked = true, repeating = true } },
+    { "XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -q set 5%+"),                     { locked = true, repeating = true } },
+    { "XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -q set 5%-"),                     { locked = true, repeating = true } },
+    { "XF86AudioMute",         hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),   { locked = true } },
+    { "XF86AudioMicMute",      hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true } },
+    { "XF86AudioNext",         hl.dsp.exec_cmd("playerctl next"),                               { locked = true } },
+    { "XF86AudioPause",        hl.dsp.exec_cmd("playerctl play-pause"),                         { locked = true } },
+    { "XF86AudioPlay",         hl.dsp.exec_cmd("playerctl play-pause"),                         { locked = true } },
+    { "XF86AudioPrev",         hl.dsp.exec_cmd("playerctl previous"),                           { locked = true } },
+    { "XF86Calculator",        hl.dsp.exec_cmd("gnome-calculator"),                             { locked = true } },
 
-hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd(lock_cmd), { locked = true })
-
-local locked_repeating_command_binds = {
-    { key = "XF86AudioRaiseVolume",  command = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+" },
-    { key = "XF86AudioLowerVolume",  command = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-" },
-    { key = "XF86AudioMute",         command = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle" },
-    { key = "XF86AudioMicMute",      command = "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle" },
-    { key = "XF86MonBrightnessUp",   command = "brightnessctl -q set 5%+" },
-    { key = "XF86MonBrightnessDown", command = "brightnessctl -q set 5%-" },
+    -- Screenshots
+    { "Print",                 hl.dsp.exec_cmd("hdrshot region") },
+    { "CTRL + Print",          hl.dsp.exec_cmd("hdrshot output") },
+    { "SHIFT + Print",         hl.dsp.exec_cmd("quickshell ipc call rec toggle") },
 }
 
-for _, binding in ipairs(locked_repeating_command_binds) do
-    hl.bind(binding.key, hl.dsp.exec_cmd(binding.command), { locked = true, repeating = true })
-end
-
-local locked_command_binds = {
-    { key = "XF86AudioNext",  command = "playerctl next" },
-    { key = "XF86AudioPause", command = "playerctl play-pause" },
-    { key = "XF86AudioPlay",  command = "playerctl play-pause" },
-    { key = "XF86AudioPrev",  command = "playerctl previous" },
-    { key = "XF86Calculator", command = "gnome-calculator" },
-}
-
-for _, binding in ipairs(locked_command_binds) do
-    hl.bind(binding.key, hl.dsp.exec_cmd(binding.command), { locked = true })
-end
-
-hl.bind(mod .. " + CTRL + S", hl.dsp.exec_cmd("voxtype record toggle"))
-hl.bind(mod .. " + M", hl.dsp.exec_cmd("quickshell ipc call mic mute"))
-
-local screenshot_binds = {
-    { key = "Print",         command = "hdrshot region" },
-    { key = "CTRL + Print",  command = "hdrshot output" },
-    { key = "SHIFT + Print", command = "quickshell ipc call rec toggle" },
-}
-
-for _, binding in ipairs(screenshot_binds) do
-    hl.bind(binding.key, hl.dsp.exec_cmd(binding.command))
+for _, b in ipairs(keybinds) do
+    hl.bind(b[1], b[2], b[3] or nil)
 end
