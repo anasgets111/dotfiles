@@ -41,7 +41,7 @@ hl.config({
 
     dwindle    = { preserve_split = true, special_scale_factor = 0.85 },
     master     = { new_status = "master", special_scale_factor = 0.85 },
-    scrolling  = { follow_focus = true, follow_min_visible = 0.05 },
+    scrolling  = { follow_focus = true, follow_min_visible = 0, focus_fit_method = 1 },
 
     misc       = {
         force_default_wallpaper    = 0,
