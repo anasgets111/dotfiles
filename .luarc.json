@@ -2,9 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
   "format.enable": true,
   "workspace": {
-    "library": ["/usr/share/hypr/stubs"]
+    "library": ["/usr/share/hypr/stubs", "/usr/share/nvim/runtime/lua"]
   },
   "diagnostics": {
-    "globals": ["hl"]
+    "globals": ["hl", "vim", "mp"]
   }
 }
