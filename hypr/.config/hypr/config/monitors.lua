@@ -20,7 +20,6 @@ local host_profiles = {
         hl.monitor({
             output = monitor,
             mode = "3440x1440@165",
-            position = "0x0",
             bitdepth = 10,
             vrr = 2
         })
@@ -33,7 +32,6 @@ local host_profiles = {
         hl.monitor({
             output = monitor,
             mode = "1920x1200@60",
-            position = "0x0"
         })
         apply_workspace_rules(monitor)
     end
