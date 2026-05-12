@@ -5,6 +5,7 @@ local palette = {
     transparent = "rgba(0,0,0,0)",
 }
 
+-- 1. Core
 hl.config({
     general    = {
         gaps_in          = 1,
@@ -52,6 +53,7 @@ hl.config({
     },
 })
 
+-- 2. Curves
 local curves = {
     wind      = { { 0.05, 0.90 }, { 0.10, 1.05 } },
     winIn     = { { 0.10, 1.10 }, { 0.10, 1.10 } },
@@ -66,6 +68,7 @@ for name, points in pairs(curves) do
     hl.curve(name, { type = "bezier", points = points })
 end
 
+-- 3. Animations
 local animations = {
     { leaf = "windows",          speed = 3, bezier = "wind",      style = "slide" },
     { leaf = "windowsIn",        speed = 2, bezier = "winIn",     style = "slide" },

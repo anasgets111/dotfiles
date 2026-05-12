@@ -4,6 +4,7 @@ local function delayed_exec(timeout, cmd, rules)
     end, { timeout = timeout, type = "oneshot" })
 end
 
+-- Apps
 local function run_once()
     hl.exec_cmd("hyprctl setcursor Bibata-Modern-Ice 24")
     hl.exec_cmd("$CARGOBIN/hyprland-per-window-layout")

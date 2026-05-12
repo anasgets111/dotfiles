@@ -1,5 +1,4 @@
 local function get_system_hostname()
-    -- Probes environment variables; case-sensitive check
     local host = os.getenv("hostname") or os.getenv("HOSTNAME")
     return (host or ""):match("^%s*(.-)%s*$"):lower()
 end
@@ -14,6 +13,7 @@ local function apply_workspace_rules(monitor_id)
     end
 end
 
+-- Profiles
 local host_profiles = {
     wolverine = function()
         local monitor = "DP-1"
@@ -39,6 +39,7 @@ local host_profiles = {
     end
 }
 
+-- Active Profile
 local current_host = get_system_hostname()
 
 if host_profiles[current_host] then
