@@ -29,7 +29,7 @@ hl.config({
         },
     },
 
-    render     = { direct_scanout = 2 },
+    render     = { direct_scanout = 2, cm_auto_hdr = 1 },
 
     decoration = {
         rounding         = 14,

@@ -28,7 +28,8 @@ local host_profiles = {
             output = monitor,
             mode = "3440x1440@165",
             bitdepth = 10,
-            vrr = 2
+            vrr = 2,
+            icc = "/mnt/Work/1Progs/Windows/Y34wz-30.icm"
         })
         hl.config({ cursor = { default_monitor = monitor } })
     end,
