@@ -1,15 +1,10 @@
 local function get_system_hostname()
-    local file = io.open("/proc/sys/kernel/hostname", "r")
-
-    if not file then
-        return ""
-    end
-
-    local name = (file:read("*l") or ""):match("^%s*(.-)%s*$"):lower()
+    local file = assert(io.open("/proc/sys/kernel/hostname", "r"))
+    local name = (file:read("*l") or ""):lower()
     file:close()
-
     return name
 end
+
 
 local function apply_workspace_rules()
     for i = 1, 10 do
