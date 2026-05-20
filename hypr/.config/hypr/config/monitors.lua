@@ -5,7 +5,6 @@ local function get_system_hostname()
     return name
 end
 
-
 local function apply_workspace_rules()
     for i = 1, 10 do
         hl.workspace_rule({
@@ -17,36 +16,30 @@ local function apply_workspace_rules()
 end
 
 local host_profiles = {
-    wolverine = function()
-        local monitor = "DP-1"
-        hl.monitor({
-            output = monitor,
+    wolverine = {
+        monitor = {
+            output = "DP-1",
             mode = "3440x1440@165",
             bitdepth = 10,
             vrr = 2,
-            icc = "/mnt/Work/1Progs/Windows/Y34wz-30.icm"
-        })
-        hl.config({ cursor = { default_monitor = monitor } })
-    end,
-
-    mentalist = function()
-        hl.monitor({
+            icc = "/mnt/Work/1Progs/Windows/Y34wz-30.icm",
+        },
+    },
+    mentalist = {
+        monitor = {
             output = "eDP-1",
             mode = "1920x1200@60",
-        })
-    end
+        },
+    },
 }
 
-local current_host = get_system_hostname()
-local profile = host_profiles[current_host]
+local function apply_host_profile(profile)
+    if not profile then
+        return
+    end
 
-if profile then
-    profile()
+    hl.monitor(profile.monitor)
 end
 
+apply_host_profile(host_profiles[get_system_hostname()])
 apply_workspace_rules()
-
-return {
-    get_system_hostname = get_system_hostname,
-    current_host = current_host,
-}
