@@ -82,7 +82,7 @@ local animations = {
     { leaf = "specialWorkspace", speed = 2, bezier = "default",   style = "slidefadevert -90%" },
 }
 
-for _, anim in ipairs(animations) do
-    anim.enabled = true
-    hl.animation(anim)
+for _, animation in ipairs(animations) do
+    animation.enabled = true
+    hl.animation(animation)
 end

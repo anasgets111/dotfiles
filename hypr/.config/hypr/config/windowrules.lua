@@ -29,8 +29,8 @@ local lazy_apps = {
     ["special:terminal"] = "xdg-terminal-exec",
 }
 
-for ws, app in pairs(lazy_apps) do
-    hl.workspace_rule({ workspace = ws, on_created_empty = app })
+for workspace_name, app_name in pairs(lazy_apps) do
+    hl.workspace_rule({ workspace = workspace_name, on_created_empty = app_name })
 end
 
 -- 3. Smart Gaps
@@ -51,9 +51,9 @@ local app_routes = {
     ["special:slack silent"]    = { [[(?i)^slack(-desktop)?$]] },
 }
 
-for ws, patterns in pairs(app_routes) do
-    for _, pat in ipairs(patterns) do
-        hl.window_rule({ match = { class = pat }, workspace = ws })
+for workspace_name, class_patterns in pairs(app_routes) do
+    for _, class_pattern in ipairs(class_patterns) do
+        hl.window_rule({ match = { class = class_pattern }, workspace = workspace_name })
     end
 end
 
