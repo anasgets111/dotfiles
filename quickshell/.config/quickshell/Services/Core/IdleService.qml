@@ -22,7 +22,8 @@ Singleton {
       }
     })
   property bool dpmsOff: false
-  readonly property bool effectiveInhibited: (!!settings?.videoAutoInhibit && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive))
+  readonly property bool anyFullscreen: ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen)
+  readonly property bool effectiveInhibited: anyFullscreen || (!!settings?.videoAutoInhibit && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive))
   readonly property bool lockAfterDpms: settings?.lockAfterDpms ?? false
   readonly property bool ready: Settings.isLoaded && !!settings
   readonly property bool respectInhibitors: !LockService.locked && (settings?.respectInhibitors ?? true)
