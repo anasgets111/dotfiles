@@ -59,9 +59,8 @@ local curves = {
     winIn     = { { 0.10, 1.10 }, { 0.10, 1.10 } },
     winOut    = { { 0.30, -0.30 }, { 0.00, 1.00 } },
     linear    = { { 1.00, 1.00 }, { 1.00, 1.00 } },
-    overshot  = { { 0.00, 0.00 }, { 1.00, 1.00 } },
+    overshot  = { { 0.05, 0.90 }, { 0.10, 1.10 } },
     smoothOut = { { 0.50, 0.00 }, { 0.99, 0.99 } },
-    smoothIn  = { { 0.50, -0.50 }, { 0.68, 1.50 } },
 }
 
 for name, points in pairs(curves) do
@@ -70,19 +69,18 @@ end
 
 -- 3. Animations
 local animations = {
-    { leaf = "windows",          speed = 3, bezier = "wind",      style = "slide" },
-    { leaf = "windowsIn",        speed = 2, bezier = "winIn",     style = "slide" },
-    { leaf = "windowsOut",       speed = 1, bezier = "smoothOut", style = "slide" },
-    { leaf = "windowsMove",      speed = 2, bezier = "wind",      style = "slide" },
-    { leaf = "border",           speed = 1, bezier = "linear" },
-    { leaf = "fade",             speed = 2, bezier = "smoothOut" },
-    { leaf = "workspaces",       speed = 2, bezier = "overshot" },
-    { leaf = "workspacesIn",     speed = 2, bezier = "winIn",     style = "slide" },
-    { leaf = "workspacesOut",    speed = 2, bezier = "winOut",    style = "slide" },
-    { leaf = "specialWorkspace", speed = 2, bezier = "default",   style = "slidefadevert -90%" },
+    { enabled = true, leaf = "windows",          speed = 3, bezier = "wind",      style = "slide" },
+    { enabled = true, leaf = "windowsIn",        speed = 2, bezier = "winIn",     style = "slide" },
+    { enabled = true, leaf = "windowsOut",       speed = 1, bezier = "smoothOut", style = "slide" },
+    { enabled = true, leaf = "windowsMove",      speed = 2, bezier = "wind",      style = "slide" },
+    { enabled = true, leaf = "border",           speed = 1, bezier = "linear" },
+    { enabled = true, leaf = "fade",             speed = 2, bezier = "smoothOut" },
+    { enabled = true, leaf = "workspaces",       speed = 2, bezier = "overshot" },
+    { enabled = true, leaf = "workspacesIn",     speed = 2, bezier = "winIn",     style = "slide" },
+    { enabled = true, leaf = "workspacesOut",    speed = 2, bezier = "winOut",    style = "slide" },
+    { enabled = true, leaf = "specialWorkspace", speed = 2, bezier = "default",   style = "slidefadevert -90%" },
 }
 
-for _, animation in ipairs(animations) do
-    animation.enabled = true
-    hl.animation(animation)
+for _, anim in ipairs(animations) do
+    hl.animation(anim)
 end

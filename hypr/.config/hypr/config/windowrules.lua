@@ -3,23 +3,20 @@ local sizes = {
     large  = { "(monitor_w*0.60)", "(monitor_h*0.60)" },
     medium = { "(monitor_w*0.45)", "(monitor_h*0.45)" },
     small  = { "(monitor_w*0.30)", "(monitor_h*0.30)" },
-    tiny   = { "(monitor_w*0.15)", "(monitor_h*0.15)" },
+    tiny   = { "(monitor_w*0.10)", "(monitor_h*0.15)" },
 }
 
 -- 1. Globals
-local globals = {
-    { match = { class = ".*" },             suppress_event = "maximize" },
-    { match = { class = ".*" },             idle_inhibit = "fullscreen" },
-    { match = { fullscreen = true },        no_blur = true,             no_anim = true },
-    { match = { class = "^steam_app_.*$" }, fullscreen = true,          immediate = true },
-}
-
-for _, rule in ipairs(globals) do
+for _, rule in ipairs({
+    { match = { class = ".*" },             suppress_event = "maximize", idle_inhibit = "fullscreen" },
+    { match = { fullscreen = true },        no_blur = true,              no_anim = true },
+    { match = { class = "^steam_app_.*$" }, fullscreen = true,           immediate = true },
+}) do
     hl.window_rule(rule)
 end
 
 -- 2. Lazy Workspaces
-local lazy_apps = {
+for workspace, app in pairs({
     ["1"]                = "zen-browser",
     ["2"]                = "chromium",
     ["3"]                = "zeditor",
@@ -27,20 +24,18 @@ local lazy_apps = {
     ["special:telegram"] = "Telegram",
     ["special:slack"]    = "slack",
     ["special:terminal"] = "xdg-terminal-exec",
-}
-
-for workspace_name, app_name in pairs(lazy_apps) do
-    hl.workspace_rule({ workspace = workspace_name, on_created_empty = app_name })
+}) do
+    hl.workspace_rule({ workspace = workspace, on_created_empty = app })
 end
 
 -- 3. Smart Gaps
-for _, ws_match in ipairs({ "w[tv1]s[false]", "f[1]s[false]" }) do
-    hl.workspace_rule({ workspace = ws_match, gaps_out = 0, gaps_in = 0 })
-    hl.window_rule({ match = { float = false, workspace = ws_match }, border_size = 0, rounding = 0 })
+for _, workspace in ipairs({ "w[tv1]s[false]", "f[1]s[false]" }) do
+    hl.workspace_rule({ workspace = workspace, gaps_out = 0, gaps_in = 0 })
+    hl.window_rule({ match = { float = false, workspace = workspace }, border_size = 0, rounding = 0 })
 end
 
 -- 4. App Routing
-local app_routes = {
+for workspace, patterns in pairs({
     ["1"]                       = { [[^(zen-browser|zen)$]] },
     ["2 silent"]                = { [[^chromium$]] },
     ["3 silent"]                = { [[(?i)^(code|cursor|antigravity)(-url-handler)?$]], [[^dev\.zed\.Zed$]] },
@@ -49,16 +44,14 @@ local app_routes = {
     ["special:telegram silent"] = { [[(?i)^(org\.telegram\.desktop|telegram(-desktop)?)$]] },
     ["special:vesktop silent"]  = { [[^vesktop$]] },
     ["special:slack silent"]    = { [[(?i)^slack(-desktop)?$]] },
-}
-
-for workspace_name, class_patterns in pairs(app_routes) do
-    for _, class_pattern in ipairs(class_patterns) do
-        hl.window_rule({ match = { class = class_pattern }, workspace = workspace_name })
+}) do
+    for _, pattern in ipairs(patterns) do
+        hl.window_rule({ match = { class = pattern }, workspace = workspace })
     end
 end
 
 -- 5. Floating Dialogs & Special Cases
-local floaters = {
+for _, rule in ipairs({
     { match = { class = [[(?i)^(gnome-calculator|org\.gnome\.calculator)$]] },                                                                                                                                                                                                         size = sizes.tiny },
     { match = { class = [[^org\.kde\.kdeconnect\.handler$]] },                                                                                                                                                                                                                         size = sizes.small },
     { match = { class = [[(?i)^(code|cursor|antigravity)$]], modal = true },                                                                                                                                                                                                           size = sizes.small },
@@ -70,14 +63,14 @@ local floaters = {
     { match = { class = "^blender$", initial_title = [[^Blender$]] },                                                                                                                                                                                                                  size = sizes.large },
     {
         match = { title = [[(?i)^picture.?in.?picture]] },
-        pin = true,
-        size = sizes.large,
-        move = { "monitor_w-window_w-(monitor_w*0.02)", "monitor_h-window_h-(monitor_h*0.02)" }
+        pin   = true,
+        size  = sizes.large,
+        move  = { "monitor_w-window_w-(monitor_w*0.02)", "monitor_h-window_h-(monitor_h*0.02)" }
     },
-}
-
-for _, rule in ipairs(floaters) do
-    rule.float = true
-    if not rule.move then rule.center = true end
-    hl.window_rule(rule)
+}) do
+    local floater = {}
+    for k, v in pairs(rule) do floater[k] = v end
+    floater.float = true
+    if not floater.move then floater.center = true end
+    hl.window_rule(floater)
 end
