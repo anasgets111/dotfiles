@@ -25,7 +25,7 @@ function Bind.leader_key(leader, keys, action, options)
 end
 
 function Bind.keys(rows)
-    for _, binding in ipairs(rows or {}) do
+    for _, binding in ipairs(rows) do
         bind_keys(binding[1], binding[2], binding[3])
     end
 end

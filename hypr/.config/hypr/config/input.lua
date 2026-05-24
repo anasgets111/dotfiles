@@ -1,4 +1,4 @@
--- 1. Devices
+-- Devices
 hl.config({
     input = {
         kb_layout = "us,eg",
@@ -13,6 +13,6 @@ hl.config({
     },
 })
 
--- 2. Gestures
+-- Gestures
 hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 hl.gesture({ fingers = 3, direction = "vertical", action = "special", workspace_name = "terminal" })
