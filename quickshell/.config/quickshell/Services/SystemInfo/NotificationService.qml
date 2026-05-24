@@ -571,6 +571,7 @@ Singleton {
 
   function toggleDnd(): void {
     root.doNotDisturb = !root.doNotDisturb;
+    AudioService.dndActive = root.doNotDisturb;
     if (root.doNotDisturb) {
       root._clearVisiblePopups();
       root._expireTransientWrappers();

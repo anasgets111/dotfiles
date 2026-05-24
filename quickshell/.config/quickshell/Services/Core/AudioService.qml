@@ -16,8 +16,11 @@ Singleton {
       "phone": "󰏲",
       "portable": "󰏲"
     })
+  property var _dndMutedStreamIds: []
+  readonly property var _dndTargetApps: ["slack", "vesktop", "telegram", "thunderbird"]
   readonly property string _notificationSoundDir: "/usr/share/sounds/freedesktop/stereo"
   readonly property var _pipewireNodes: Pipewire.nodes?.values ?? []
+  property bool dndActive: false
   readonly property real maxVolume: 1.5
   readonly property bool micMuted: audioMuted(source)
   readonly property real micVolume: audioVolume(source)
@@ -32,6 +35,21 @@ Singleton {
   readonly property real stepVolume: 0.05
   readonly property list<PwNode> streams: _audioNodes.filter(node => node.isStream)
   readonly property real volume: audioVolume(sink)
+
+  function _muteDndStreams(): void {
+    for (const stream of streams) {
+      if (stream.audio.muted || _dndMutedStreamIds.includes(stream.id))
+        continue;
+      const p = nodeProperties(stream);
+      if (p["media.role"] !== "Notification")
+        continue;
+      const appId = `${p["application.name"] ?? ""} ${p["application.process.binary"] ?? ""}`.toLowerCase();
+      if (_dndTargetApps.some(app => appId.includes(app))) {
+        stream.audio.muted = true;
+        _dndMutedStreamIds.push(stream.id);
+      }
+    }
+  }
 
   function _notificationHint(notification: var, key: string): var {
     const hints = notification?.hints ?? ({});
@@ -50,6 +68,13 @@ Singleton {
       }
     }
     return pathOrUri.startsWith("/") ? pathOrUri : "";
+  }
+
+  function _unmuteDndStreams(): void {
+    for (const s of streams)
+      if (_dndMutedStreamIds.includes(s.id))
+        s.audio.muted = false;
+    _dndMutedStreamIds = [];
   }
 
   function audioMuted(node: var): bool {
@@ -216,6 +241,7 @@ Singleton {
   Component.onCompleted: {
     Logger.log("AudioService", `ready | sink: ${displayName(root.sink)} | volume: ${Math.round(root.volume * 100)}% | muted: ${root.muted} | source: ${displayName(root.source)}`);
   }
+  onDndActiveChanged: dndActive ? _muteDndStreams() : _unmuteDndStreams()
   onSinkChanged: {
     const name = displayName(root.sink);
     if (!root.sink?.audio) {
@@ -230,6 +256,8 @@ Singleton {
     Logger.log("AudioService", `sink changed: ${name}`);
   }
   onSourceChanged: Logger.log("AudioService", `source changed: ${displayName(root.source)}`)
+  onStreamsChanged: if (dndActive)
+    _muteDndStreams()
 
   PwObjectTracker {
     objects: root._audioNodes
