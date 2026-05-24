@@ -12,7 +12,7 @@ Singleton {
   readonly property var backend: MainService.currentWM === "hyprland" ? Hypr.WorkspaceImpl : MainService.currentWM === "niri" ? Niri.WorkspaceImpl : null
   readonly property int currentWorkspace: backend?.currentWorkspace ?? -1
   readonly property int currentWorkspaceIndex: backend?.currentWorkspaceIndex ?? -1
-  readonly property var displayWorkspaces: root.buildDisplayWorkspaces(workspaces, currentWorkspaceIndex, MainService.currentWM === "hyprland")
+  readonly property var displayWorkspaces: root.buildDisplayWorkspaces(workspaces, currentWorkspaceIndex, MainService.currentWM === "hyprland", 10)
   readonly property string focusedOutput: backend?.focusedOutput ?? ""
   readonly property var focusedWorkspace: backend?.focusedWorkspace ?? null
   readonly property var groupBoundaries: backend?.groupBoundaries ?? []
@@ -20,52 +20,44 @@ Singleton {
   readonly property var specialWorkspaces: backend?.specialWorkspaces ?? []
   readonly property var workspaces: backend?.workspaces ?? []
 
-  function buildDisplayWorkspaces(workspaces: var, currentWorkspaceIndex: int, denseSlots: bool, minimumSlotCount = 10): var {
-    const normalized = Array.isArray(workspaces) ? workspaces : [];
+  function buildDisplayWorkspaces(sourceWorkspaces: var, activeWorkspaceIndex: int, fillEmptySlots: bool, minimumSlotCount: int): var {
+    const normalizedWorkspaces = Array.isArray(sourceWorkspaces) ? sourceWorkspaces : [];
 
-    if (!denseSlots)
-      return normalized.map(ws => ({
-            idx: ws?.idx ?? -1,
-            workspace: ws
+    if (!fillEmptySlots)
+      return normalizedWorkspaces.map(workspace => ({
+            idx: workspace?.idx ?? -1,
+            workspace
           }));
 
-    const maxIndex = normalized.reduce((maxValue, ws) => Math.max(maxValue, ws?.idx ?? 0), Math.max(minimumSlotCount, currentWorkspaceIndex));
-    const workspaceMap = {};
-
-    for (const workspace of normalized)
-      workspaceMap[workspace.idx] = workspace;
+    const slotCount = normalizedWorkspaces.reduce((highestIndex, workspace) => Math.max(highestIndex, workspace?.idx ?? 0), Math.max(minimumSlotCount, activeWorkspaceIndex));
+    const workspacesByIndex = new Map(normalizedWorkspaces.map(workspace => [workspace.idx, workspace]));
 
     return Array.from({
-      length: maxIndex
-    }, (_, index) => {
-      const idx = index + 1;
-      const workspace = workspaceMap[idx] ?? null;
-      if (workspace)
-        return {
-          idx,
-          workspace
-        };
-
-      return {
-        idx,
-        focused: idx === currentWorkspaceIndex
+      length: slotCount
+    }, (_unused, zeroBasedIndex) => {
+      const workspaceIndex = zeroBasedIndex + 1;
+      const workspace = workspacesByIndex.get(workspaceIndex) ?? null;
+      return workspace ? {
+        idx: workspaceIndex,
+        workspace
+      } : {
+        idx: workspaceIndex,
+        focused: workspaceIndex === activeWorkspaceIndex
       };
     });
   }
 
-  function buildLayout(workspaces: var, focusedOutputHint: string, outputOrderHint: var): var {
-    const normalized = (Array.isArray(workspaces) ? workspaces : []).filter(ws => (ws?.id ?? 0) > 0);
-    const grouped = {};
-    const seenOutputs = new Set();
+  function buildLayout(sourceWorkspaces: var, focusedOutputHint: string, outputOrderHint: var): var {
+    const validWorkspaces = (Array.isArray(sourceWorkspaces) ? sourceWorkspaces : []).filter(workspace => (workspace?.id ?? 0) > 0);
+    const workspacesByOutput = new Map();
     let focusedWorkspace = null;
     let focusedOutput = focusedOutputHint ?? "";
 
-    for (const workspace of normalized) {
+    for (const workspace of validWorkspaces) {
       const outputName = workspace.output ?? "";
-      if (!grouped[outputName])
-        grouped[outputName] = [];
-      grouped[outputName].push(workspace);
-      seenOutputs.add(outputName);
+      if (!workspacesByOutput.has(outputName))
+        workspacesByOutput.set(outputName, []);
+      workspacesByOutput.get(outputName).push(workspace);
 
       if (workspace.focused) {
         focusedWorkspace = workspace;
@@ -73,37 +65,31 @@ Singleton {
       }
     }
 
-    const hintedOrder = Array.isArray(outputOrderHint) ? outputOrderHint.filter(name => seenOutputs.has(name)) : [];
-    const outputsOrder = Array.from(seenOutputs).sort((a, b) => {
+    const outputNames = Array.from(workspacesByOutput.keys());
+    const outputRank = new Map((Array.isArray(outputOrderHint) ? outputOrderHint : []).map((name, index) => [name, index]));
+    const outputsOrder = outputNames.sort((leftName, rightName) => {
       if (focusedOutput) {
-        if (a === focusedOutput)
+        if (leftName === focusedOutput)
           return -1;
-        if (b === focusedOutput)
+        if (rightName === focusedOutput)
           return 1;
       }
 
-      const aHint = hintedOrder.indexOf(a);
-      const bHint = hintedOrder.indexOf(b);
-      if (aHint !== -1 || bHint !== -1)
-        return (aHint === -1 ? Number.MAX_SAFE_INTEGER : aHint) - (bHint === -1 ? Number.MAX_SAFE_INTEGER : bHint);
+      const leftRank = outputRank.get(leftName) ?? Number.MAX_SAFE_INTEGER;
+      const rightRank = outputRank.get(rightName) ?? Number.MAX_SAFE_INTEGER;
 
-      return a.localeCompare(b);
+      return leftRank - rightRank || leftName.localeCompare(rightName);
     });
 
     const sortedWorkspaces = [];
     const groupBoundaries = [];
-    const totalWorkspaces = normalized.length;
 
     for (const outputName of outputsOrder) {
-      const sortedGroup = (grouped[outputName] ?? []).sort((a, b) => {
-        if (a.idx !== b.idx)
-          return a.idx - b.idx;
-        return a.id - b.id;
-      });
+      const outputWorkspaces = (workspacesByOutput.get(outputName) ?? []).sort((leftWorkspace, rightWorkspace) => (leftWorkspace.idx - rightWorkspace.idx) || (leftWorkspace.id - rightWorkspace.id));
 
-      for (const workspace of sortedGroup)
+      for (const workspace of outputWorkspaces)
         sortedWorkspaces.push(workspace);
-      if (sortedWorkspaces.length > 0 && sortedWorkspaces.length < totalWorkspaces)
+      if (sortedWorkspaces.length > 0 && sortedWorkspaces.length < validWorkspaces.length)
         groupBoundaries.push(sortedWorkspaces.length);
     }
 
@@ -116,16 +102,16 @@ Singleton {
     };
   }
 
-  function focusWorkspace(ws) {
-    if (ws)
-      backend?.focusWorkspace(ws);
+  function focusWorkspace(workspace: var): void {
+    if (workspace)
+      backend?.focusWorkspace(workspace);
   }
 
-  function focusWorkspaceByIndex(idx) {
-    backend?.focusWorkspaceByIndex(idx);
+  function focusWorkspaceByIndex(workspaceIndex: int): void {
+    backend?.focusWorkspaceByIndex(workspaceIndex);
   }
 
-  function toggleSpecial(name) {
+  function toggleSpecial(name: string): void {
     backend?.toggleSpecial(name);
   }
 }

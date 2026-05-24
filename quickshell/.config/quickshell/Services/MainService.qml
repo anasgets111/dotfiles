@@ -17,52 +17,39 @@ Singleton {
   property string hostname: ""
   property bool isArchBased: false
   property bool isLaptop: false
-  readonly property string mainMon: Quickshell.env("MAINMON") || ""
+  readonly property string mainMon: Quickshell.env("MAINMON") ?? ""
   property bool ready: false
   property string username: ""
 
-  function buildSystemInfoCommand() {
-    return ["sh", "-c", `
+  Process {
+    id: sysProc
+
+    command: ["sh", "-c", `
       yn(){ "$@" >/dev/null 2>&1 && echo yes || echo no; }
       printf '%s=%s\\n' \
-        isArchBased "$(yn command -v pacman)" \
+        isArchBased          "$(yn command -v pacman)" \
         hasBrightnessControl "$(yn [ -d /sys/class/backlight ])" \
         hasKeyboardBacklight "$(yn sh -c 'ls /sys/class/leds 2>/dev/null | grep -q kbd_backlight')" \
-        isLaptop "$(yn sh -c '[ -d /proc/acpi/button/lid ] || grep -q SW_LID /proc/bus/input/devices')" \
-        username "$(id -un)" \
-        fullName "$(getent passwd "$(id -un)" | cut -d: -f5 | cut -d, -f1)" \
-        hostname "$(uname -n)"
-    `.trim()];
-  }
-
-  function yes(text) {
-    return text?.trim() === "yes";
-  }
-
-  Component.onCompleted: {
-    sys.ready = false;
-    systemInfoProc.running = true;
-  }
-
-  Process {
-    id: systemInfoProc
-
-    command: sys.buildSystemInfoCommand()
+        isLaptop             "$(yn sh -c '[ -d /proc/acpi/button/lid ] || grep -q SW_LID /proc/bus/input/devices')" \
+        username             "$(id -un)" \
+        fullName             "$(getent passwd "$(id -un)" | cut -d: -f5 | cut -d, -f1)" \
+        hostname             "$(uname -n)"
+    `.trim()]
+    running: true
 
     stdout: StdioCollector {
       onStreamFinished: {
         text.trim().split("\n").forEach(line => {
-          const [key, value] = line.split("=");
-          if (!key || !(key in sys))
+          const eqIndex = line.indexOf("=");
+          if (eqIndex < 0 || !(line.slice(0, eqIndex) in sys))
             return;
-
-          const isBool = key.startsWith("is") || key.startsWith("has");
-          sys[key] = isBool ? sys.yes(value) : value;
-          Logger.log("MainService", `Detected ${key} = ${sys[key]}`);
+          const key = line.slice(0, eqIndex);
+          const value = line.slice(eqIndex + 1);
+          sys[key] = (key.startsWith("is") || key.startsWith("has")) ? value.trim() === "yes" : value;
+          Logger.log("MainService", `${key} = ${sys[key]}`);
         });
-
         sys.ready = true;
-        Logger.log("MainService", "All checks complete, ready = true");
+        Logger.log("MainService", "ready");
       }
     }
   }

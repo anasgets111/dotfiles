@@ -14,67 +14,55 @@ Singleton {
   property bool _networkingEnabled: true
   property string _wifiIp: ""
   readonly property var availableWifiAps: {
-    const savedNames = new Set(root.savedWifiAps.map(n => n.ssid));
-    return root.wifiAps.filter(ap => !savedNames.has(ap.ssid) && ap.signal > 0);
+    const savedNames = new Set(root.savedWifiAps.map(accessPoint => accessPoint.ssid));
+    return root.wifiAps.filter(accessPoint => !savedNames.has(accessPoint.ssid) && accessPoint.signal > 0);
   }
-  readonly property var connectedWifiAp: root.wifiAps.find(ap => ap.connected) || null
+  readonly property var connectedWifiAp: root.wifiAps.find(accessPoint => accessPoint.connected) || null
   readonly property string ethernetInterface: root.wiredDevice?.name ?? ""
   readonly property alias ethernetIpAddress: root._ethernetIp
   readonly property bool ethernetOnline: root.wiredNetwork?.connected ?? false
   readonly property string linkType: root.ethernetOnline ? "ethernet" : (root.wifiOnline ? "wifi" : "disconnected")
   readonly property alias networkingEnabled: root._networkingEnabled
   readonly property bool ready: Networking.backend !== NetworkBackendType.None
-  readonly property var savedWifiAps: root.wifiAps.filter(ap => ap.saved && (ap.signal > 0 || ap.connected))
-  readonly property var viewWifiAps: root.savedWifiAps.filter(ap => !ap.connected).concat(root.availableWifiAps.filter(ap => !ap.connected))
+  readonly property var savedWifiAps: root.wifiAps.filter(accessPoint => accessPoint.saved && (accessPoint.signal > 0 || accessPoint.connected))
+  readonly property var viewWifiAps: root.savedWifiAps.filter(accessPoint => !accessPoint.connected).concat(root.availableWifiAps.filter(accessPoint => !accessPoint.connected))
 
   // --- Wifi state (native) ---
   readonly property var wifiAps: {
-    const nets = root.wifiDevice?.networks.values ?? [];
-    return nets.map(n => ({
-          ssid: n.name,
-          signal: Math.round(n.signalStrength * 100),
-          band: root._bandMap[n.name] ?? "",
-          security: (n.security !== WifiSecurityType.Open && n.security !== WifiSecurityType.Owe && n.security !== WifiSecurityType.Unknown) ? "secured" : "",
-          connected: n.connected,
-          saved: n.known
-        })).sort((a, b) => (b.connected - a.connected) || (b.signal - a.signal));
+    const networks = root.wifiDevice?.networks.values ?? [];
+    return networks.map(network => ({
+          ssid: network.name,
+          signal: Math.round(network.signalStrength * 100),
+          band: root._bandMap[network.name] ?? "",
+          security: root.securityLabel(network.security),
+          connected: network.connected,
+          saved: network.known
+        })).sort((leftAccessPoint, rightAccessPoint) => (rightAccessPoint.connected - leftAccessPoint.connected) || (rightAccessPoint.signal - leftAccessPoint.signal));
   }
-  readonly property var wifiDevice: {
-    for (const d of Networking.devices.values) {
-      if (d.type === DeviceType.Wifi)
-        return d;
-    }
-    return null;
-  }
+  readonly property var wifiDevice: root.deviceOfType(DeviceType.Wifi)
   readonly property string wifiInterface: root.wifiDevice?.name ?? ""
   readonly property alias wifiIpAddress: root._wifiIp
   readonly property bool wifiOnline: root.wifiDevice?.connected ?? false
   readonly property bool wifiRadioEnabled: Networking.wifiEnabled
-  readonly property var wiredDevice: {
-    for (const d of Networking.devices.values) {
-      if (d.type === DeviceType.Wired)
-        return d;
-    }
-    return null;
-  }
+  readonly property var wiredDevice: root.deviceOfType(DeviceType.Wired)
   readonly property var wiredNetwork: root.wiredDevice?.network ?? null
 
-  function connectEthernet() {
+  function connectEthernet(): void {
     root.wiredNetwork?.connect();
   }
 
-  function connectHiddenWifi(ssid: string, pwd: string) {
-    const s = (ssid || "").trim();
-    const iface = root.wifiInterface;
-    if (!s || !iface)
+  function connectHiddenWifi(ssid: string, password: string): void {
+    const trimmedSsid = (ssid || "").trim();
+    const interfaceName = root.wifiInterface;
+    if (!trimmedSsid || !interfaceName)
       return;
-    const args = ["nmcli", "device", "wifi", "connect", s, "ifname", iface, "hidden", "yes"];
-    if (pwd)
-      args.push("password", pwd);
-    root.exec(cmdAction, args);
+    const command = ["nmcli", "device", "wifi", "connect", trimmedSsid, "ifname", interfaceName, "hidden", "yes"];
+    if (password)
+      command.push("password", password);
+    root.runCommand(cmdAction, command);
   }
 
-  function connectionFailReasonText(reason): string {
+  function connectionFailReasonText(reason: int): string {
     if (reason === ConnectionFailReason.NoSecrets)
       return qsTr("Wrong password");
     if (reason === ConnectionFailReason.WifiAuthTimeout)
@@ -84,93 +72,133 @@ Singleton {
     return qsTr("Connection failed");
   }
 
-  function disconnectEthernet() {
+  function deviceOfType(deviceType: int): var {
+    for (const device of Networking.devices.values) {
+      if (device.type === deviceType)
+        return device;
+    }
+    return null;
+  }
+
+  function disconnectEthernet(): void {
     root.wiredDevice?.disconnect();
   }
 
-  function disconnectWifi() {
+  function disconnectWifi(): void {
     root.wifiDevice?.disconnect();
   }
 
-  function exec(proc: Process, cmd: var) {
-    if (proc.running)
-      return;
-    proc.command = ["env", "LC_ALL=C"].concat(cmd);
-    proc.running = true;
-  }
-
-  // --- Helper functions ---
   function getBandColor(band: string): string {
     return band === "6" ? "#A6E3A1" : band === "5" ? "#89B4FA" : "#CDD6F4";
   }
 
   function getWifiIcon(band: string, signal: int): string {
-    const s = Math.max(0, Math.min(100, signal | 0));
-    const icons = ["󰤟", "󰤢", "󰤥", "󰤨"];
-    return s >= 95 ? icons[3] : s >= 80 ? icons[2] : s >= 50 ? icons[1] : icons[0];
+    const normalizedSignal = Math.max(0, Math.min(100, signal | 0));
+    return normalizedSignal >= 95 ? "󰤨" : normalizedSignal >= 80 ? "󰤥" : normalizedSignal >= 50 ? "󰤢" : "󰤟";
   }
 
-  function inferBandLabel(freqStr): string {
-    const f = parseInt(String(freqStr || "").split(" ")[0], 10);
-    if (f >= 5925 && f <= 7200)
+  function inferBandLabel(frequencyText: string): string {
+    const frequencyMhz = parseInt(String(frequencyText || "").split(" ")[0], 10);
+    if (frequencyMhz >= 5925 && frequencyMhz <= 7200)
       return "6";
-    if (f >= 4900 && f < 5925)
+    if (frequencyMhz >= 4900 && frequencyMhz < 5925)
       return "5";
-    if (f >= 2400 && f <= 2500)
+    if (frequencyMhz >= 2400 && frequencyMhz <= 2500)
       return "2.4";
     return "";
   }
 
-  function parseTerse(line: string): var {
-    const res = [];
-    let buf = "";
-    for (let i = 0; i < line.length; i++) {
-      if (line[i] === '\\' && i + 1 < line.length)
-        buf += line[++i];
-      else if (line[i] === ':') {
-        res.push(buf);
-        buf = "";
-      } else
-        buf += line[i];
+  function nmcliCommand(args: var): var {
+    return ["env", "LC_ALL=C"].concat(args);
+  }
+
+  function parseInterfaceAddresses(nmcliOutput: string): var {
+    const addressesByInterface = {};
+    let currentInterface = "";
+
+    for (const line of (nmcliOutput || "").split("\n")) {
+      const fields = root.parseNmcliTerseLine(line.trim());
+      if (fields.length < 2)
+        continue;
+      if (fields[0] === "GENERAL.DEVICE")
+        currentInterface = fields[1];
+      else if (currentInterface && fields[0].includes("IP4.ADDRESS") && !addressesByInterface[currentInterface])
+        addressesByInterface[currentInterface] = fields[1].split("/")[0];
     }
-    res.push(buf);
-    return res;
+    return addressesByInterface;
   }
 
-  function refreshBandData() {
-    const iface = root.wifiInterface;
-    if (!iface || procBand.running)
+  function parseNmcliTerseLine(line: string): var {
+    const fields = [];
+    let field = "";
+    for (let index = 0; index < line.length; index++) {
+      if (line[index] === '\\' && index + 1 < line.length)
+        field += line[++index];
+      else if (line[index] === ':') {
+        fields.push(field);
+        field = "";
+      } else
+        field += line[index];
+    }
+    fields.push(field);
+    return fields;
+  }
+
+  function parseWifiBands(nmcliOutput: string): var {
+    const bandsBySsid = {};
+    for (const line of (nmcliOutput || "").split("\n")) {
+      const fields = root.parseNmcliTerseLine(line);
+      const ssid = fields[0] ?? "";
+      if (fields.length < 2 || !ssid || ssid === "--")
+        continue;
+      const band = root.inferBandLabel(fields[1]);
+      if (band)
+        bandsBySsid[ssid] = band;
+    }
+    return bandsBySsid;
+  }
+
+  function refreshBandData(): void {
+    const interfaceName = root.wifiInterface;
+    if (!interfaceName || procBand.running)
       return;
-    root.exec(procBand, ["nmcli", "-t", "-f", "SSID,FREQ", "device", "wifi", "list", "ifname", iface]);
+    root.runCommand(procBand, ["nmcli", "-t", "-f", "SSID,FREQ", "device", "wifi", "list", "ifname", interfaceName]);
   }
 
-  function refreshIpData() {
-    if (procIp.running)
+  function refreshIpData(): void {
+    root.runCommand(procIp, ["nmcli", "-t", "-f", "GENERAL.DEVICE,IP4.ADDRESS", "device", "show"]);
+  }
+
+  function refreshNetworkingStatus(): void {
+    root.runCommand(procStatus, ["nmcli", "-t", "-f", "NETWORKING", "general"]);
+  }
+
+  function runCommand(process: Process, command: var): void {
+    if (process.running)
       return;
-    root.exec(procIp, ["nmcli", "-t", "-f", "GENERAL.DEVICE,IP4.ADDRESS", "device", "show"]);
+    process.command = root.nmcliCommand(command);
+    process.running = true;
   }
 
-  function refreshNetworkingStatus() {
-    if (procStatus.running)
-      return;
-    procStatus.running = true;
+  function securityLabel(securityType: int): string {
+    return (securityType !== WifiSecurityType.Open && securityType !== WifiSecurityType.Owe && securityType !== WifiSecurityType.Unknown) ? "secured" : "";
   }
 
-  function setNetworkingEnabled(enabled: bool) {
-    root.exec(cmdAction, ["nmcli", "networking", enabled ? "on" : "off"]);
+  function setNetworkingEnabled(enabled: bool): void {
+    root.runCommand(cmdAction, ["nmcli", "networking", enabled ? "on" : "off"]);
   }
 
-  function setWifiRadioEnabled(enabled: bool) {
+  function setWifiRadioEnabled(enabled: bool): void {
     Networking.wifiEnabled = enabled;
   }
 
-  function startWifiScan() {
+  function startWifiScan(): void {
     if (root.wifiDevice)
       root.wifiDevice.scannerEnabled = true;
     root.refreshBandData();
   }
 
-  function stopWifiScan() {
+  function stopWifiScan(): void {
     if (root.wifiDevice)
       root.wifiDevice.scannerEnabled = false;
   }
@@ -194,7 +222,7 @@ Singleton {
   Process {
     id: procMonitor
 
-    command: ["env", "LC_ALL=C", "nmcli", "monitor"]
+    command: root.nmcliCommand(["nmcli", "monitor"])
 
     stdout: SplitParser {
       onRead: refreshTimer.restart()
@@ -227,14 +255,8 @@ Singleton {
   Process {
     id: procStatus
 
-    command: ["env", "LC_ALL=C", "nmcli", "-t", "-f", "NETWORKING", "general"]
-
     stdout: StdioCollector {
-      onStreamFinished: {
-        const nEnabled = (text || "").trim() === "enabled";
-        if (root._networkingEnabled !== nEnabled)
-          root._networkingEnabled = nEnabled;
-      }
+      onStreamFinished: root._networkingEnabled = (text || "").trim() === "enabled"
     }
   }
 
@@ -242,39 +264,11 @@ Singleton {
   Process {
     id: procIp
 
-    command: ["env", "LC_ALL=C", "nmcli", "-t", "-f", "GENERAL.DEVICE,IP4.ADDRESS", "device", "show"]
-
     stdout: StdioCollector {
       onStreamFinished: {
-        let eIp = "", wIp = "";
-        let curIface = "", curIp = "";
-
-        function commit() {
-          if (!curIface)
-            return;
-          if (curIface === root.ethernetInterface)
-            eIp = curIp;
-          else if (curIface === root.wifiInterface)
-            wIp = curIp;
-        }
-
-        for (const line of (text || "").split("\n")) {
-          const f = root.parseTerse(line.trim());
-          if (f.length < 2)
-            continue;
-          if (f[0] === "GENERAL.DEVICE") {
-            commit();
-            curIface = f[1];
-            curIp = "";
-          } else if (f[0].includes("IP4.ADDRESS")) {
-            if (!curIp)
-              curIp = f[1].split("/")[0];
-          }
-        }
-        commit();
-
-        root._ethernetIp = eIp;
-        root._wifiIp = wIp;
+        const addressesByInterface = root.parseInterfaceAddresses(text);
+        root._ethernetIp = addressesByInterface[root.ethernetInterface] ?? "";
+        root._wifiIp = addressesByInterface[root.wifiInterface] ?? "";
       }
     }
   }
@@ -284,18 +278,7 @@ Singleton {
     id: procBand
 
     stdout: StdioCollector {
-      onStreamFinished: {
-        const map = {};
-        for (const line of (text || "").split("\n")) {
-          const f = root.parseTerse(line);
-          if (f.length < 2 || !f[0] || f[0] === "--")
-            continue;
-          const band = root.inferBandLabel(f[1]);
-          if (band)
-            map[f[0]] = band;
-        }
-        root._bandMap = map;
-      }
+      onStreamFinished: root._bandMap = root.parseWifiBands(text)
     }
   }
 
@@ -305,9 +288,9 @@ Singleton {
 
     stderr: StdioCollector {
       onStreamFinished: {
-        const err = (text || "").trim();
-        if (err)
-          Logger.log("NetworkService", `Error: ${err}`);
+        const error = (text || "").trim();
+        if (error)
+          Logger.log("NetworkService", `Error: ${error}`);
       }
     }
     stdout: StdioCollector {

@@ -6,28 +6,23 @@ import qs.Services.Core
 import qs.Services.WM
 
 Singleton {
-  id: lockService
+  id: root
 
   property string authState: ""
-  readonly property var authStates: ({
-      idle: "",
-      error: "error",
-      max: "max",
-      fail: "fail"
+  readonly property var _authMessages: ({
+      error: "Error",
+      max: "Too many tries",
+      fail: "Incorrect password"
     })
   property bool authenticating: false
+  // TODO: move to config/theme
   readonly property real blurAmount: 0.9
   readonly property int blurMax: 64
   readonly property real blurMultiplier: 1
   property int layoutBeforeLockIndex: -1
   property bool locked: false
   property string passwordBuffer: ""
-  readonly property string statusMessage: unlocking ? "Unlocking…" : authenticating ? "Authenticating…" : (statusMessages[authState] ?? "Enter password")
-  readonly property var statusMessages: ({
-      error: "Error",
-      max: "Too many tries",
-      fail: "Incorrect password"
-    })
+  readonly property string statusMessage: unlocking ? "Unlocking…" : authenticating ? "Authenticating…" : (_authMessages[authState] ?? "Enter password")
   property bool unlocking: false
 
   function finalizeUnlock(): void {
@@ -43,7 +38,7 @@ Singleton {
     switch (event.key) {
     case Qt.Key_Enter:
     case Qt.Key_Return:
-      if (!authenticating && passwordBuffer)
+      if (passwordBuffer)
         pamContext.start();
       return true;
     case Qt.Key_Backspace:
@@ -84,7 +79,7 @@ Singleton {
     }
 
     passwordBuffer = "";
-    authState = authStates.idle;
+    authState = "";
     KeyboardLayoutService.setLayoutByIndex(layoutBeforeLockIndex);
     layoutBeforeLockIndex = -1;
   }
@@ -92,24 +87,24 @@ Singleton {
   PamContext {
     id: pamContext
 
-    onActiveChanged: lockService.authenticating = active
+    onActiveChanged: root.authenticating = active
     onCompleted: result => {
       if (result === PamResult.Success) {
-        lockService.requestUnlock();
+        root.requestUnlock();
       } else {
-        lockService.authState = ({
-            [PamResult.Error]: lockService.authStates.error,
-            [PamResult.MaxTries]: lockService.authStates.max,
-            [PamResult.Failed]: lockService.authStates.fail
-          })[result] ?? lockService.authStates.idle;
-        if (lockService.authState)
+        root.authState = ({
+            [PamResult.Error]: "error",
+            [PamResult.MaxTries]: "max",
+            [PamResult.Failed]: "fail"
+          })[result] ?? "";
+        if (root.authState)
           authStateResetTimer.restart();
       }
     }
     onResponseRequiredChanged: {
       if (responseRequired) {
-        respond(lockService.passwordBuffer);
-        lockService.passwordBuffer = "";
+        respond(root.passwordBuffer);
+        root.passwordBuffer = "";
       }
     }
   }
@@ -119,6 +114,6 @@ Singleton {
 
     interval: 1000
 
-    onTriggered: lockService.authState = lockService.authStates.idle
+    onTriggered: root.authState = ""
   }
 }

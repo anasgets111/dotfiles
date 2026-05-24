@@ -7,40 +7,31 @@ Singleton {
   id: root
 
   property var _replyQueue: []
-  readonly property bool active: MainService.ready && MainService.currentWM === "niri"
+  readonly property bool enabled: MainService.ready && MainService.currentWM === "niri"
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
 
   signal featuresChanged
 
-  function act(name, action, callback) {
-    send({
-      Output: {
-        output: name,
-        action
-      }
-    }, callback);
-  }
-
-  function fetchFeatures(name, callback) {
-    sendRaw('"Outputs"', resp => {
-      const list = resp?.Ok && Array.isArray(resp.Ok) ? resp.Ok : null;
-      if (!list)
+  function fetchFeatures(outputName: string, callback: var): void {
+    sendRaw('"Outputs"', response => {
+      const outputs = response?.Ok && Array.isArray(response.Ok) ? response.Ok : null;
+      if (!outputs)
         return callback(null);
 
-      const out = list.find(obj => obj?.name === name);
-      if (!out)
+      const output = outputs.find(candidate => candidate?.name === outputName);
+      if (!output)
         return callback(null);
 
-      const modes = (out.modes || []).map(modeObj => ({
-            width: modeObj.width,
-            height: modeObj.height,
-            refreshRate: typeof modeObj.refresh_rate === "number" ? modeObj.refresh_rate / 1000 : null
+      const modes = (output.modes || []).map(mode => ({
+            width: mode.width,
+            height: mode.height,
+            refreshRate: typeof mode.refresh_rate === "number" ? mode.refresh_rate / 1000 : null
           }));
 
       callback({
         modes,
         vrr: {
-          active: !!out.vrr_enabled
+          active: !!output.vrr_enabled
         },
         hdr: {
           active: false
@@ -49,30 +40,39 @@ Singleton {
     });
   }
 
-  function json(str) {
+  function parseJson(text: string): var {
     try {
-      return JSON.parse(str);
-    } catch (e) {
+      return JSON.parse(text);
+    } catch (error) {
       return null;
     }
   }
 
-  function send(obj, callback) {
-    sendRaw(JSON.stringify(obj), callback);
+  function send(request: var, callback: var): void {
+    sendRaw(JSON.stringify(request), callback);
   }
 
-  function sendRaw(raw, callback) {
+  function sendOutputAction(outputName: string, action: var, callback: var): void {
+    send({
+      Output: {
+        output: outputName,
+        action
+      }
+    }, callback);
+  }
+
+  function sendRaw(message: string, callback: var): void {
     if (!requestSocket.connected) {
       if (callback)
         callback(null);
       return;
     }
     _replyQueue.push(callback || (() => {}));
-    requestSocket.write(raw.endsWith("\n") ? raw : `${raw}\n`);
+    requestSocket.write(message.endsWith("\n") ? message : `${message}\n`);
   }
 
-  function setMode(name, width, height, refreshRate) {
-    act(name, {
+  function setMode(outputName: string, width: int, height: int, refreshRate: real): void {
+    sendOutputAction(outputName, {
       Mode: {
         mode: {
           Specific: {
@@ -85,21 +85,21 @@ Singleton {
     }, () => featuresChanged());
   }
 
-  function setPosition(name, x, y) {
-    act(name, {
+  function setPosition(outputName: string, positionX: int, positionY: int): void {
+    sendOutputAction(outputName, {
       Position: {
         position: {
           Specific: {
-            x,
-            y
+            x: positionX,
+            y: positionY
           }
         }
       }
     }, () => featuresChanged());
   }
 
-  function setScale(name, scale) {
-    act(name, {
+  function setScale(outputName: string, scale: real): void {
+    sendOutputAction(outputName, {
       Scale: {
         scale: {
           Specific: scale
@@ -108,20 +108,20 @@ Singleton {
     }, () => featuresChanged());
   }
 
-  function setTransform(name, transform) {
-    act(name, {
+  function setTransform(outputName: string, transform: string): void {
+    sendOutputAction(outputName, {
       Transform: {
         transform
       }
     }, () => featuresChanged());
   }
 
-  function setVrr(name, mode) {
-    const lower = String(mode || "").toLowerCase();
-    const vrr = lower === "on-demand" || lower === "ondemand" ? {
+  function setVrr(outputName: string, mode: string): void {
+    const normalizedMode = String(mode || "").toLowerCase();
+    const vrr = normalizedMode === "on-demand" || normalizedMode === "ondemand" ? {
       vrr: true,
       on_demand: true
-    } : lower === "on" || lower === "enabled" ? {
+    } : normalizedMode === "on" || normalizedMode === "enabled" ? {
       vrr: true,
       on_demand: false
     } : {
@@ -129,7 +129,7 @@ Singleton {
       on_demand: false
     };
 
-    act(name, {
+    sendOutputAction(outputName, {
       Vrr: {
         vrr
       }
@@ -139,7 +139,7 @@ Singleton {
   Socket {
     id: requestSocket
 
-    connected: root.active && !!root.socketPath
+    connected: root.enabled && !!root.socketPath
     path: root.socketPath
 
     parser: SplitParser {
@@ -150,16 +150,16 @@ Singleton {
           return;
         const callback = root._replyQueue.shift();
         if (callback)
-          callback(root.json(message));
+          callback(root.parseJson(message));
       }
     }
 
     onConnectionStateChanged: {
       if (!connected) {
         while (root._replyQueue.length) {
-          const cb = root._replyQueue.shift();
-          if (cb)
-            cb(null);
+          const callback = root._replyQueue.shift();
+          if (callback)
+            callback(null);
         }
       }
     }
@@ -168,15 +168,15 @@ Singleton {
   Socket {
     id: eventStreamSocket
 
-    connected: root.active && !!root.socketPath
+    connected: root.enabled && !!root.socketPath
     path: root.socketPath
 
     parser: SplitParser {
       splitMarker: "\n"
 
       onRead: message => {
-        const evt = message && root.json(message);
-        if (evt?.ConfigLoaded)
+        const event = message && root.parseJson(message);
+        if (event?.ConfigLoaded)
           root.featuresChanged();
       }
     }
