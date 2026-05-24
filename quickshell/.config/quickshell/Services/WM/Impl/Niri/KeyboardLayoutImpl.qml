@@ -7,25 +7,25 @@ import qs.Services.Utils
 Singleton {
   id: impl
 
-  readonly property bool active: MainService.ready && MainService.currentWM === "niri"
   property string currentLayout: ""
   property int currentLayoutIndex: -1
+  readonly property bool enabled: MainService.ready && MainService.currentWM === "niri"
   property var layouts: []
-  readonly property string socketPath: Quickshell.env("NIRI_SOCKET")
+  readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
 
   function handleLayoutEvent(event: var): void {
-    const info = event?.KeyboardLayoutsChanged?.keyboard_layouts;
-    const layoutNames = Array.isArray(info?.names) ? info.names.map(name => String(name ?? "").trim()).filter(Boolean) : null;
+    const layoutInfo = event?.KeyboardLayoutsChanged?.keyboard_layouts;
+    const layoutNames = Array.isArray(layoutInfo?.names) ? layoutInfo.names.map(name => String(name ?? "").trim()).filter(Boolean) : null;
     if (layoutNames)
-      impl.layouts = layoutNames;
-    const rawIdx = info?.current_idx ?? event?.KeyboardLayoutSwitched?.idx;
-    if (!Number.isInteger(rawIdx))
+      layouts = layoutNames;
+    const rawIndex = layoutInfo?.current_idx ?? event?.KeyboardLayoutSwitched?.idx;
+    if (!Number.isInteger(rawIndex))
       return;
-    impl.currentLayoutIndex = rawIdx >= 0 && rawIdx < impl.layouts.length ? rawIdx : -1;
-    if (impl.currentLayoutIndex >= 0) {
-      const layout = String(impl.layouts[impl.currentLayoutIndex] ?? "").trim();
+    currentLayoutIndex = rawIndex >= 0 && rawIndex < layouts.length ? rawIndex : -1;
+    if (currentLayoutIndex >= 0) {
+      const layout = String(layouts[currentLayoutIndex] ?? "").trim();
       if (layout)
-        impl.currentLayout = layout;
+        currentLayout = layout;
     }
   }
 
@@ -36,20 +36,20 @@ Singleton {
   Socket {
     id: eventStreamSocket
 
-    connected: impl.active && impl.socketPath
+    connected: impl.enabled && impl.socketPath
     path: impl.socketPath
 
     parser: SplitParser {
       splitMarker: "\n"
 
-      onRead: segment => {
-        const clean = String(segment ?? "").trim();
-        if (!clean)
+      onRead: line => {
+        const message = String(line ?? "").trim();
+        if (!message)
           return;
         try {
-          impl.handleLayoutEvent(JSON.parse(clean));
-        } catch (e) {
-          Logger.warn("KeyboardLayoutImpl(Niri)", `Parse error: ${e}`);
+          impl.handleLayoutEvent(JSON.parse(message));
+        } catch (error) {
+          Logger.warn("KeyboardLayoutImpl(Niri)", `Parse error: ${error}`);
         }
       }
     }

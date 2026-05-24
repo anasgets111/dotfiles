@@ -8,7 +8,7 @@ import qs.Services.Utils
 Singleton {
   id: root
 
-  readonly property var _audioNodes: _pipewireNodes.filter(node => !!node?.audio)
+  readonly property var _audioNodes: (Pipewire.nodes?.values ?? []).filter(node => !!node?.audio)
   readonly property var _deviceIconMap: ({
       "headphone": "󰋋",
       "hands-free": "󰋎",
@@ -18,8 +18,6 @@ Singleton {
     })
   property var _dndMutedStreamIds: []
   readonly property var _dndTargetApps: ["slack", "vesktop", "telegram", "thunderbird"]
-  readonly property string _notificationSoundDir: "/usr/share/sounds/freedesktop/stereo"
-  readonly property var _pipewireNodes: Pipewire.nodes?.values ?? []
   property bool dndActive: false
   readonly property real maxVolume: 1.5
   readonly property bool micMuted: audioMuted(source)
@@ -40,13 +38,13 @@ Singleton {
     for (const stream of streams) {
       if (stream.audio.muted || _dndMutedStreamIds.includes(stream.id))
         continue;
-      const p = nodeProperties(stream);
-      if (p["media.role"] !== "Notification")
+      const props = nodeProperties(stream);
+      if (props["media.role"] !== "Notification")
         continue;
-      const appId = `${p["application.name"] ?? ""} ${p["application.process.binary"] ?? ""}`.toLowerCase();
+      const appId = `${props["application.name"] ?? ""} ${props["application.process.binary"] ?? ""}`.toLowerCase();
       if (_dndTargetApps.some(app => appId.includes(app))) {
         stream.audio.muted = true;
-        _dndMutedStreamIds.push(stream.id);
+        _dndMutedStreamIds = [..._dndMutedStreamIds, stream.id];
       }
     }
   }
@@ -70,10 +68,18 @@ Singleton {
     return pathOrUri.startsWith("/") ? pathOrUri : "";
   }
 
+  function _toggleError(node: var, unavailableMessage: string, notReadyMessage: string): string {
+    if (!node?.audio)
+      return unavailableMessage;
+    if (!hasControllableAudio(node))
+      return notReadyMessage;
+    return "";
+  }
+
   function _unmuteDndStreams(): void {
-    for (const s of streams)
-      if (_dndMutedStreamIds.includes(s.id))
-        s.audio.muted = false;
+    for (const stream of streams)
+      if (_dndMutedStreamIds.includes(stream.id))
+        stream.audio.muted = false;
     _dndMutedStreamIds = [];
   }
 
@@ -135,15 +141,11 @@ Singleton {
   }
 
   function hasControllableAudio(node: var): bool {
-    return isNodeReady(node) && !!node?.audio;
+    return !!node?.ready && !!node?.audio;
   }
 
   function increaseVolume(): void {
     setVolume(root.volume + root.stepVolume);
-  }
-
-  function isNodeReady(node: var): bool {
-    return !!node?.ready;
   }
 
   function nodeApplicationIconName(node: var): string {
@@ -151,13 +153,22 @@ Singleton {
   }
 
   function nodeProperties(node: var): var {
-    return isNodeReady(node) ? (node.properties ?? {}) : ({});
+    return !!node?.ready ? (node.properties ?? {}) : ({});
   }
 
   function normalizeDeviceName(raw: string): string {
     if (!raw)
       return raw;
-    return raw.replace(/\s*High Definition Audio Controller\b/i, "").replace(/\s*HD Audio Controller\b/i, "").replace(/\s*Audio Controller\b/i, "").replace(/\s*Digital Stereo\b/i, "").replace(/\s*Analog Stereo\b/i, "").replace(/\s*\(HDMI\)/i, " HDMI").replace(/\s*\(S\/PDIF\)/i, " S/PDIF").replace(/\s+/g, " ").trim() || raw;
+    let cleaned = raw;
+    cleaned = cleaned.replace(/\s*High Definition Audio Controller\b/i, "");
+    cleaned = cleaned.replace(/\s*HD Audio Controller\b/i, "");
+    cleaned = cleaned.replace(/\s*Audio Controller\b/i, "");
+    cleaned = cleaned.replace(/\s*Digital Stereo\b/i, "");
+    cleaned = cleaned.replace(/\s*Analog Stereo\b/i, "");
+    cleaned = cleaned.replace(/\s*\(HDMI\)/i, " HDMI");
+    cleaned = cleaned.replace(/\s*\(S\/PDIF\)/i, " S/PDIF");
+    cleaned = cleaned.replace(/\s+/g, " ");
+    return cleaned.trim() || raw;
   }
 
   function playNotificationSound(notification: var): void {
@@ -165,7 +176,8 @@ Singleton {
     if (suppressSound === true || String(suppressSound).toLowerCase() === "true")
       return;
 
-    const defaultSound = (notification?.urgency ?? 1) >= 2 ? `${_notificationSoundDir}/bell.oga` : `${_notificationSoundDir}/message.oga`;
+    const soundDir = "/usr/share/sounds/freedesktop/stereo";
+    const defaultSound = (notification?.urgency ?? 1) >= 2 ? `${soundDir}/bell.oga` : `${soundDir}/message.oga`;
     const soundPath = _notificationSoundFile(_notificationHint(notification, "sound-file")) || defaultSound;
 
     Quickshell.execDetached(["pw-play", "--media-role", "Notification", "--volume", "0.8", soundPath]);
@@ -192,11 +204,10 @@ Singleton {
     return true;
   }
 
-  function setNodeVolume(node: var, newVolume: real, maximum: real, unmute): bool {
-    const shouldUnmute = unmute === undefined ? true : !!unmute;
+  function setNodeVolume(node: var, newVolume: real, maximum: real, unmute: bool): bool {
     if (!hasControllableAudio(node))
       return false;
-    if (shouldUnmute)
+    if (unmute)
       node.audio.muted = false;
     node.audio.volume = clampVolume(newVolume, maximum);
     return true;
@@ -213,29 +224,21 @@ Singleton {
   }
 
   function toggleMicMute(): string {
-    const status = toggleStatus(root.source, "No audio source available", "Audio source is not ready");
-    if (status)
-      return status;
+    const error = _toggleError(root.source, "No audio source available", "Audio source is not ready");
+    if (error)
+      return error;
     const nextMuted = !root.source.audio.muted;
     setNodeMuted(root.source, nextMuted);
     return nextMuted ? "Microphone muted" : "Microphone unmuted";
   }
 
   function toggleMute(): string {
-    const status = toggleStatus(root.sink, "No audio sink available", "Audio sink is not ready");
-    if (status)
-      return status;
+    const error = _toggleError(root.sink, "No audio sink available", "Audio sink is not ready");
+    if (error)
+      return error;
     const nextMuted = !root.sink.audio.muted;
     setNodeMuted(root.sink, nextMuted);
     return nextMuted ? "Audio muted" : "Audio unmuted";
-  }
-
-  function toggleStatus(node: var, unavailableMessage: string, notReadyMessage: string): string {
-    if (!node?.audio)
-      return unavailableMessage;
-    if (!hasControllableAudio(node))
-      return notReadyMessage;
-    return "";
   }
 
   Component.onCompleted: {

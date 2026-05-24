@@ -6,31 +6,28 @@ import qs.Services
 Singleton {
   id: root
 
-  readonly property bool active: MainService.ready && MainService.currentWM === "hyprland"
+  readonly property bool enabled: MainService.ready && MainService.currentWM === "hyprland"
 
-  function _findMonitor(name) {
+  function _findMonitor(name: string): var {
     const monitors = Hyprland.monitors?.values || [];
-    return monitors.find(m => {
-      return m && (m.name === name || m.id === name || m.identifier === name || m.outputName === name);
-    }) || null;
+    return monitors.find(monitor => monitor && (monitor.name === name || monitor.id === name || monitor.identifier === name || monitor.outputName === name)) || null;
   }
 
-  function fetchFeatures(name, callback) {
+  function fetchFeatures(name: string, callback: var): void {
     const monitor = _findMonitor(name);
-
     if (!monitor) {
       callback(null);
       return;
     }
 
-    const modes = (monitor.availableModes || []).map(modeStr => {
-      const match = modeStr.match(/^(\d+)x(\d+)@([\d.]+)Hz$/);
+    const modes = (monitor.availableModes || []).map(modeText => {
+      const match = modeText.match(/^(\d+)x(\d+)@([\d.]+)Hz$/);
       return match ? {
         width: parseInt(match[1]),
         height: parseInt(match[2]),
         refreshRate: parseFloat(match[3])
       } : {
-        raw: modeStr
+        raw: modeText
       };
     });
 

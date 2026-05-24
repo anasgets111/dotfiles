@@ -11,7 +11,8 @@ import qs.Config
 Singleton {
   id: root
 
-  readonly property var dpmsCmds: ({
+  readonly property bool _avActive: MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive
+  readonly property var _dpmsCmds: ({
       hyprland: {
         on: ["hyprctl", "dispatch", "hl.dsp.dpms({action=\"on\"})"],
         off: ["hyprctl", "dispatch", "hl.dsp.dpms({action=\"off\"})"]
@@ -21,9 +22,9 @@ Singleton {
         off: ["niri", "msg", "action", "power-off-monitors"]
       }
     })
-  property bool dpmsOff: false
   readonly property bool anyFullscreen: ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen)
-  readonly property bool effectiveInhibited: anyFullscreen || (!!settings?.videoAutoInhibit && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive))
+  property bool dpmsOff: false
+  readonly property bool effectiveInhibited: anyFullscreen || (!!settings?.videoAutoInhibit && _avActive)
   readonly property bool lockAfterDpms: settings?.lockAfterDpms ?? false
   readonly property bool ready: Settings.isLoaded && !!settings
   readonly property bool respectInhibitors: !LockService.locked && (settings?.respectInhibitors ?? true)
@@ -31,18 +32,14 @@ Singleton {
   property QsWindow window
 
   function setDpms(on: bool): void {
-    if (root.dpmsOff === !on)
+    if (root.dpmsOff !== on)
       return;
     root.dpmsOff = !on;
-    const cmd = root.dpmsCmds[MainService.currentWM]?.[on ? "on" : "off"];
+    const cmd = root._dpmsCmds[MainService.currentWM]?.[on ? "on" : "off"];
     if (cmd)
       Quickshell.execDetached(cmd);
     else
       Logger.warn("IdleService", `Unsupported WM for DPMS: ${MainService.currentWM}`);
-  }
-
-  function suspend(): void {
-    PowerManagementService.suspend();
   }
 
   function wake(): void {
@@ -76,7 +73,7 @@ Singleton {
     respectInhibitors: root.respectInhibitors
     timeout: root.settings?.suspendTimeoutSec ?? 0
 
-    onIsIdleChanged: isIdle ? root.suspend() : root.wake()
+    onIsIdleChanged: isIdle ? PowerManagementService.suspend() : root.wake()
   }
 
   Connections {

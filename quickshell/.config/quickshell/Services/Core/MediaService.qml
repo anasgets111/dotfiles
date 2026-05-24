@@ -7,7 +7,7 @@ import Quickshell.Services.Mpris
 Singleton {
   id: root
 
-  readonly property MprisPlayer active: _resolveActive()
+  readonly property MprisPlayer active: players.find(player => player.playbackState === MprisPlaybackState.Playing) ?? players.find(player => player.canPlay) ?? players[0] ?? null
   readonly property string activeDisplayName: active?.identity ?? (active ? "Unknown Player" : "No Player")
   readonly property string activeIconName: logic.iconFor(active)
   readonly property bool activeIsVideo: logic.isVideo(active)
@@ -22,16 +22,15 @@ Singleton {
   readonly property bool hasPlayingVideo: players.some(player => player?.playbackState === MprisPlaybackState.Playing && logic.isVideo(player))
   readonly property bool isPlaying: active?.isPlaying ?? false
   readonly property bool pipewireVideoActive: (Pipewire.linkGroups?.values ?? []).some(linkGroup => linkGroup?.state === PwLinkState.Active && (linkGroup?.source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource)
-  readonly property list<MprisPlayer> players: Mpris.players?.values.filter(player => player?.canControl !== undefined && player.canControl) ?? []
+  readonly property list<MprisPlayer> players: Mpris.players?.values.filter(player => !!player?.canControl) ?? []
   readonly property string trackAlbum: active?.trackAlbum ?? ""
   readonly property string trackArtUrl: active?.trackArtUrl ?? ""
   readonly property string trackArtist: active?.trackArtist ?? ""
-  readonly property real trackLength: (active?.length ?? 0) < 9e12 ? (active?.length ?? 0) : 0
-  readonly property string trackTitle: active?.trackTitle ?? ""
-
-  function _resolveActive(): var {
-    return players.find(player => player.playbackState === MprisPlaybackState.Playing) ?? players.find(player => player.canPlay) ?? players[0] ?? null;
+  readonly property real trackLength: {
+    const rawLength = active?.length ?? 0;
+    return rawLength < 9e12 ? rawLength : 0;
   }
+  readonly property string trackTitle: active?.trackTitle ?? ""
 
   function next(): void {
     active?.next();

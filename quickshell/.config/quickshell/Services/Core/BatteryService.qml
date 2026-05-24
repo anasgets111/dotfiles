@@ -12,7 +12,7 @@ Singleton {
   property var _notifyTimestamps: ({})
   readonly property var device: UPower.displayDevice
   readonly property int deviceState: device?.state ?? UPowerDeviceState.Unknown
-  readonly property bool isACPowered: !UPower.onBattery
+  readonly property bool isACPowered: !isOnBattery
   readonly property bool isCharging: deviceState === UPowerDeviceState.Charging
   readonly property bool isCriticalAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= 0.1
   readonly property bool isDischarging: deviceState === UPowerDeviceState.Discharging
@@ -29,7 +29,7 @@ Singleton {
   readonly property int percentage: Math.round(percentageFraction * 100)
   readonly property real percentageFraction: {
     const raw = device?.percentage ?? 0;
-    return Math.max(0, Math.min(raw > 1 ? raw / 100 : raw, 1));
+    return Math.max(0, Math.min(raw >= 2 ? raw / 100 : raw, 1));
   }
   readonly property string timeToEmptyText: {
     if (!device)
@@ -57,26 +57,18 @@ Singleton {
       return;
 
     _notifyTimestamps[key] = now;
-    Quickshell.execDetached(["notify-send", "-a", "Battery", "-u", isCritical ? "critical" : "normal", "-t", "5000", "-e", summary, body]);
+    const urgency = isCritical ? "critical" : "normal";
+    Quickshell.execDetached(["notify-send", "-a", "Battery", "-u", urgency, "-t", "5000", "-e", summary, body]);
   }
 
-  onIsCriticalAndNotChargingChanged: {
-    if (isCriticalAndNotCharging)
-      sendNotification(qsTr("Critical Battery"), qsTr("Automatic suspend at 5%!"), true);
-  }
-  onIsLowAndNotChargingChanged: {
-    if (isLowAndNotCharging)
-      sendNotification(qsTr("Low Battery"), qsTr("Plug in soon!"), false);
-  }
+  onIsCriticalAndNotChargingChanged: if (isCriticalAndNotCharging)
+    sendNotification(qsTr("Critical Battery"), qsTr("Automatic suspend at 5%!"), true)
+  onIsLowAndNotChargingChanged: if (isLowAndNotCharging)
+    sendNotification(qsTr("Low Battery"), qsTr("Plug in soon!"), false)
   onIsReadyChanged: {
-    if (isReady) {
-      Logger.log("BatteryService", `Battery ready: ${device?.nativePath ?? "(no path)"}, ${percentage}%`);
-    } else {
-      Logger.log("BatteryService", "Battery device lost");
-    }
+    const msg = isReady ? `Battery ready: ${device?.nativePath ?? "(no path)"}, ${percentage}%` : "Battery device lost";
+    Logger.log("BatteryService", msg);
   }
-  onIsSuspendingAndNotChargingChanged: {
-    if (isSuspendingAndNotCharging)
-      PowerManagementService.suspend();
-  }
+  onIsSuspendingAndNotChargingChanged: if (isSuspendingAndNotCharging)
+    PowerManagementService.suspend()
 }

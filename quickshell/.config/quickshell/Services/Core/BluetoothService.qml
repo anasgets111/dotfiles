@@ -55,9 +55,7 @@ Singleton {
       }
     })
   property string connectAfterPairAddress: ""
-  // Codec data storage: Property bindings to deviceCodecs[addr] automatically react
-  // when deviceCodecsChanged() is emitted. This is more ergonomic than signal-based
-  // patterns which require manual Connections in every consumer.
+  // Consumers bind to deviceCodecs[address]; emit change signals after object mutation.
   property var deviceAvailableCodecs: ({})
   property var deviceCodecs: ({})
   readonly property var deviceIconMap: [[["display", "tv", "[tv]", "television"], "󰔂"], [["watch"], "󰥔"], [["mouse"], "󰍽"], [["keyboard"], "󰌌"], [["phone", "iphone", "android", "samsung"], "󰄜"], [audioKeywords, "󰋋"]]
@@ -68,13 +66,17 @@ Singleton {
   readonly property bool enabled: available && adapter.enabled
   readonly property var sortedDevices: sortDevices(devices)
 
-  function cleanupCodecData(addr: string): void {
-    if (!addr)
+  function bluezCardName(address: string): string {
+    return `bluez_card.${address.replace(/:/g, "_")}`;
+  }
+
+  function cleanupCodecData(address: string): void {
+    if (!address)
       return;
-    if (codecParser.addr === addr)
-      codecParser.addr = "";
-    delete deviceCodecs[addr];
-    delete deviceAvailableCodecs[addr];
+    if (codecParser.address === address)
+      codecParser.address = "";
+    delete deviceCodecs[address];
+    delete deviceAvailableCodecs[address];
     deviceCodecsChanged();
     deviceAvailableCodecsChanged();
   }
@@ -91,6 +93,11 @@ Singleton {
     device.connect();
   }
 
+  function deviceMatchesKeywords(device: QtObject, keywords: var): bool {
+    const searchText = `${device?.icon || ""} ${getDeviceName(device)}`.toLowerCase();
+    return keywords.some(keyword => searchText.includes(keyword));
+  }
+
   function disconnectDevice(device: QtObject): void {
     if (!device)
       return;
@@ -102,8 +109,8 @@ Singleton {
   function fetchCodecs(device: QtObject, fullScan = true): void {
     if (!device?.connected || !isAudioDevice(device) || codecParser.running)
       return;
-    codecParser.addr = device.address;
-    codecParser.cardName = `bluez_card.${device.address.replace(/:/g, "_")}`;
+    codecParser.address = device.address;
+    codecParser.cardName = root.bluezCardName(device.address);
     codecParser.fullScan = fullScan;
     codecParser.running = true;
   }
@@ -133,10 +140,8 @@ Singleton {
   function getDeviceIcon(device: QtObject): string {
     if (!device)
       return "󰂯";
-    const name = (device.name || device.deviceName || "").toLowerCase();
-    const icon = (device.icon || "").toLowerCase();
     for (const [keywords, glyph] of deviceIconMap) {
-      if (keywords.some(k => icon.includes(k) || name.includes(k)))
+      if (deviceMatchesKeywords(device, keywords))
         return glyph;
     }
     return "󰂯";
@@ -159,11 +164,7 @@ Singleton {
   }
 
   function isAudioDevice(device: QtObject): bool {
-    if (!device)
-      return false;
-    const name = (device.name || device.deviceName || "").toLowerCase();
-    const icon = (device.icon || "").toLowerCase();
-    return audioKeywords.some(k => icon.includes(k) || name.includes(k));
+    return !!device && deviceMatchesKeywords(device, audioKeywords);
   }
 
   function isDeviceBusy(device: QtObject): bool {
@@ -189,22 +190,22 @@ Singleton {
       codecParser.activeProfile = line.split(": ")[1] || "";
       return;
     }
-    if (line.includes("codec") && line.includes("available: yes")) {
-      const parts = line.split(": ");
-      if (parts.length < 2)
-        return;
-      const profile = parts[0].trim();
-      const match = parts[1].match(/codec ([^\)\s]+)/i);
-      const raw = match ? match[1].toUpperCase() : "UNKNOWN";
-      const info = getCodecInfo(raw);
-      if (!codecParser.parsedCodecs.some(c => c.profile === profile))
-        codecParser.parsedCodecs.push({
-          name: info.name,
-          profile,
-          description: info.desc,
-          qualityColor: info.color
-        });
-    }
+    if (!line.includes("codec") || !line.includes("available: yes"))
+      return;
+    const parts = line.split(": ");
+    if (parts.length < 2)
+      return;
+    const profile = parts[0].trim();
+    const codecMatch = parts[1].match(/codec ([^\)\s]+)/i);
+    const codecName = codecMatch ? codecMatch[1].toUpperCase() : "UNKNOWN";
+    const codecInfo = getCodecInfo(codecName);
+    if (!codecParser.parsedCodecs.some(codec => codec.profile === profile))
+      codecParser.parsedCodecs.push({
+        name: codecInfo.name,
+        profile,
+        description: codecInfo.desc,
+        qualityColor: codecInfo.color
+      });
   }
 
   function setDiscoverable(value: bool): void {
@@ -232,16 +233,14 @@ Singleton {
   function sortDevices(list: var): var {
     if (!list?.length)
       return [];
-    return [...list].sort((a, b) => {
-      if (a.connected !== b.connected)
-        return b.connected - a.connected;
-      const aPaired = !!a.paired;
-      const bPaired = !!b.paired;
-      if (aPaired !== bPaired)
-        return bPaired - aPaired;
-      const aName = getDeviceName(a);
-      const bName = getDeviceName(b);
-      return aName.localeCompare(bName);
+    return [...list].sort((leftDevice, rightDevice) => {
+      if (leftDevice.connected !== rightDevice.connected)
+        return rightDevice.connected - leftDevice.connected;
+      const leftPaired = !!leftDevice.paired;
+      const rightPaired = !!rightDevice.paired;
+      if (leftPaired !== rightPaired)
+        return rightPaired - leftPaired;
+      return getDeviceName(leftDevice).localeCompare(getDeviceName(rightDevice));
     });
   }
 
@@ -261,7 +260,7 @@ Singleton {
   function switchCodec(device: QtObject, profile: string): void {
     if (!device?.address || codecSwitch.running)
       return;
-    codecSwitch.cardName = `bluez_card.${device.address.replace(/:/g, "_")}`;
+    codecSwitch.cardName = root.bluezCardName(device.address);
     codecSwitch.profile = profile;
     codecSwitch.deviceAddress = device.address;
     codecSwitch.running = true;
@@ -289,8 +288,8 @@ Singleton {
 
   Connections {
     function onDefaultAdapterChanged() {
-      const adapter = Bluetooth.defaultAdapter;
-      Logger.log("BluetoothService", `Default adapter changed: ${adapter ? "set" : "none"}`);
+      const defaultAdapter = Bluetooth.defaultAdapter;
+      Logger.log("BluetoothService", `Default adapter changed: ${defaultAdapter ? "set" : "none"}`);
     }
 
     target: Bluetooth
@@ -300,10 +299,10 @@ Singleton {
     model: root.devices
 
     delegate: QtObject {
-      readonly property string addr: modelData?.address || ""
+      readonly property string address: modelData?.address || ""
       readonly property Connections deviceConn: Connections {
         function onPairingChanged() {
-          if (modelData?.pairing || addr !== root.connectAfterPairAddress)
+          if (modelData?.pairing || address !== root.connectAfterPairAddress)
             return;
           root.connectAfterPairAddress = "";
           if (modelData?.paired)
@@ -321,7 +320,7 @@ Singleton {
     id: codecParser
 
     property string activeProfile: ""
-    property string addr: ""
+    property string address: ""
     property string cardName: ""
     property bool fullScan: true
     property bool inCard: false
@@ -332,7 +331,7 @@ Singleton {
     stdout: SplitParser {
       splitMarker: "\n"
 
-      onRead: data => root.parseCodecLine(data.trim())
+      onRead: line => root.parseCodecLine(line.trim())
     }
 
     onRunningChanged: {
@@ -340,17 +339,17 @@ Singleton {
         parsedCodecs = [];
         activeProfile = "";
         inCard = false;
-      } else if (addr) {
+      } else if (address) {
         if (fullScan) {
-          root.deviceAvailableCodecs[addr] = parsedCodecs;
+          root.deviceAvailableCodecs[address] = parsedCodecs;
           root.deviceAvailableCodecsChanged();
         }
-        const hit = parsedCodecs.find(c => c.profile === activeProfile);
-        if (hit) {
-          root.deviceCodecs[addr] = hit.name;
+        const activeCodec = parsedCodecs.find(codec => codec.profile === activeProfile);
+        if (activeCodec) {
+          root.deviceCodecs[address] = activeCodec.name;
           root.deviceCodecsChanged();
         }
-        addr = "";
+        address = "";
         cardName = "";
       }
     }

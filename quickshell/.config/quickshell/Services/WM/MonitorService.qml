@@ -16,9 +16,9 @@ Singleton {
   property int _featuresRunId: 0
   property var _pendingEdidCallback: null
   readonly property string activeMain: preferredMain || (monitors.count > 0 ? monitors.get(0).name : "")
-  readonly property var activeMainScreen: Quickshell.screens.find(s => s?.name === activeMain) || Quickshell.screens[0] || null
-  property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
-  readonly property var effectiveMainScreen: activeMainScreen || Quickshell.screens.find(s => s?.name === lastKnownGoodMainName) || Quickshell.screens[0] || null
+  readonly property var activeMainScreen: Quickshell.screens.find(screen => screen?.name === activeMain) || Quickshell.screens[0] || null
+  readonly property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
+  readonly property var effectiveMainScreen: activeMainScreen || Quickshell.screens.find(screen => screen?.name === lastKnownGoodMainName) || Quickshell.screens[0] || null
   property string lastKnownGoodMainName: ""
   readonly property var monitorKeyFields: ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"]
   property ListModel monitors: ListModel {
@@ -28,46 +28,46 @@ Singleton {
 
   signal monitorsUpdated
 
-  function _processEdidQueue() {
+  function _processEdidQueue(): void {
     if (_edidProc.running || !_edidQueue.length)
       return;
     const job = _edidQueue.shift();
-    _pendingEdidCallback = job.cb;
+    _pendingEdidCallback = job.callback;
     _edidProc.command = ["edid-decode", job.path];
     _edidProc.running = true;
   }
 
-  function emitChangedDebounced() {
+  function emitChangedDebounced(): void {
     changeDebounce.restart();
   }
 
-  function findMonitorIndexByName(name) {
-    for (let i = 0; i < monitors.count; i++)
-      if (monitors.get(i).name === name)
-        return i;
+  function findMonitorIndexByName(name: string): int {
+    for (let monitorIndex = 0; monitorIndex < monitors.count; monitorIndex++)
+      if (monitors.get(monitorIndex).name === name)
+        return monitorIndex;
     return -1;
   }
 
-  function getAvailableFeatures(name, callback) {
-    const fn = backend?.fetchFeatures || backend?.getAvailableFeatures;
-    fn ? fn(name, callback) : callback(null);
+  function getAvailableFeatures(name: string, callback: var): void {
+    const fetchFeatures = backend?.fetchFeatures || backend?.getAvailableFeatures;
+    fetchFeatures ? fetchFeatures(name, callback) : callback(null);
   }
 
-  function isSameMonitor(monA, monB) {
-    if (!monA || !monB)
+  function isSameMonitor(leftMonitor: var, rightMonitor: var): bool {
+    if (!leftMonitor || !rightMonitor)
       return false;
-    return monitorKeyFields.every(key => monA[key] === monB[key]);
+    return monitorKeyFields.every(key => leftMonitor[key] === rightMonitor[key]);
   }
 
-  function normalizeScreens(screens) {
-    return Array.from(screens).map(s => ({
-          name: s.name,
-          width: s.width,
-          height: s.height,
-          scale: s.devicePixelRatio || 1,
-          fps: s.refreshRate || 60,
-          bitDepth: s.colorDepth || 8,
-          orientation: s.orientation,
+  function normalizeScreens(screens: var): var {
+    return Array.from(screens).map(screen => ({
+          name: screen.name,
+          width: screen.width,
+          height: screen.height,
+          scale: screen.devicePixelRatio || 1,
+          fps: screen.refreshRate || 60,
+          bitDepth: screen.colorDepth || 8,
+          orientation: screen.orientation,
           vrr: "off",
           vrrSupported: false,
           hdrSupported: false,
@@ -76,19 +76,19 @@ Singleton {
         }));
   }
 
-  function readDrmEntries(cb) {
+  function readDrmEntries(callback: var): void {
     if (_drmEntries) {
-      cb(_drmEntries);
+      callback(_drmEntries);
       return;
     }
-    if (typeof cb === "function")
-      _drmProc._callbacks.push(cb);
+    if (typeof callback === "function")
+      _drmProc._callbacks.push(callback);
     if (!_drmProc.running)
       _drmProc.running = true;
   }
 
-  function readEdidCaps(connectorName, callback) {
-    const def = {
+  function readEdidCaps(connectorName: string, callback: var): void {
+    const defaultCaps = {
       vrr: {
         supported: false
       },
@@ -99,110 +99,98 @@ Singleton {
     readDrmEntries(entries => {
       const match = entries.find(line => line.endsWith(`-${connectorName}`));
       if (!match)
-        return callback(def);
+        return callback(defaultCaps);
       _edidQueue.push({
         path: `/sys/class/drm/${match}/edid`,
-        cb: callback
+        callback
       });
       _processEdidQueue();
     });
   }
 
-  function refreshFeatures(monitorsList) {
+  function setMonitorPropertyIfChanged(monitorIndex: int, propertyName: string, value: var): bool {
+    if (monitors.get(monitorIndex)[propertyName] === value)
+      return false;
+    monitors.setProperty(monitorIndex, propertyName, value);
+    return true;
+  }
+
+  function refreshFeatures(monitorsList: var): void {
     if (!backend || (!backend.fetchFeatures && !backend.getAvailableFeatures))
       return;
-    const fetchFn = backend.fetchFeatures || backend.getAvailableFeatures;
+    const fetchFeatures = backend.fetchFeatures || backend.getAvailableFeatures;
     const runId = ++_featuresRunId;
 
-    for (const m of monitorsList) {
-      const name = m.name;
-      const cached = _capsCache[name];
-      const afterCaps = caps => {
+    for (const monitor of monitorsList) {
+      const monitorName = monitor.name;
+      const cachedCaps = _capsCache[monitorName];
+      const updateCaps = caps => {
         if (runId !== _featuresRunId)
           return;
-        const idx1 = findMonitorIndexByName(name);
-        if (idx1 < 0)
+        const monitorIndex = findMonitorIndexByName(monitorName);
+        if (monitorIndex < 0)
           return;
         const vrrSupported = !!(caps?.vrr?.supported);
         const hdrSupported = !!(caps?.hdr?.supported);
-        let dirtyMeta = false;
-        if (monitors.get(idx1).vrrSupported !== vrrSupported) {
-          monitors.setProperty(idx1, "vrrSupported", vrrSupported);
-          dirtyMeta = true;
-        }
-        if (monitors.get(idx1).hdrSupported !== hdrSupported) {
-          monitors.setProperty(idx1, "hdrSupported", hdrSupported);
-          dirtyMeta = true;
-        }
-        if (dirtyMeta)
+        let changed = setMonitorPropertyIfChanged(monitorIndex, "vrrSupported", vrrSupported);
+        changed = setMonitorPropertyIfChanged(monitorIndex, "hdrSupported", hdrSupported) || changed;
+        if (changed)
           emitChangedDebounced();
 
-        fetchFn(name, features => {
+        fetchFeatures(monitorName, features => {
           if (runId !== _featuresRunId || !features)
             return;
-          const idx2 = findMonitorIndexByName(name);
-          if (idx2 < 0)
+          const featureIndex = findMonitorIndexByName(monitorName);
+          if (featureIndex < 0)
             return;
-          const cur = monitors.get(idx2);
-          let dirty = false;
           const vrrActive = !!(features.vrr && (features.vrr.active || features.vrr.enabled));
           const hdrActive = !!(features.hdr && (features.hdr.active || features.hdr.enabled));
-          if (cur.vrrActive !== vrrActive) {
-            monitors.setProperty(idx2, "vrrActive", vrrActive);
-            dirty = true;
-          }
-          if (cur.hdrActive !== hdrActive) {
-            monitors.setProperty(idx2, "hdrActive", hdrActive);
-            dirty = true;
-          }
-          const legacy = vrrActive ? "on" : "off";
-          if (cur.vrr !== legacy) {
-            monitors.setProperty(idx2, "vrr", legacy);
-            dirty = true;
-          }
-          if (dirty)
+          let featureChanged = setMonitorPropertyIfChanged(featureIndex, "vrrActive", vrrActive);
+          featureChanged = setMonitorPropertyIfChanged(featureIndex, "hdrActive", hdrActive) || featureChanged;
+          featureChanged = setMonitorPropertyIfChanged(featureIndex, "vrr", vrrActive ? "on" : "off") || featureChanged;
+          if (featureChanged)
             emitChangedDebounced();
         });
       };
 
-      cached ? afterCaps(cached) : readEdidCaps(name, caps => {
-        _capsCache[name] = caps;
-        afterCaps(caps);
+      cachedCaps ? updateCaps(cachedCaps) : readEdidCaps(monitorName, caps => {
+        _capsCache[monitorName] = caps;
+        updateCaps(caps);
       });
     }
   }
 
-  function toArray() {
+  function toArray(): var {
     const result = [];
-    for (let i = 0; i < monitors.count; i++)
-      result.push(monitors.get(i));
+    for (let monitorIndex = 0; monitorIndex < monitors.count; monitorIndex++)
+      result.push(monitors.get(monitorIndex));
     return result;
   }
 
-  function updateMonitors(newScreens) {
+  function updateMonitors(newScreens: var): void {
     const oldCount = monitors.count;
     const newCount = newScreens.length;
     let changed = false;
 
-    const min = Math.min(oldCount, newCount);
-    for (let i = 0; i < min; i++) {
-      const cur = monitors.get(i);
-      const inc = newScreens[i];
-      if (!isSameMonitor(cur, inc)) {
-        monitors.set(i, Object.assign({}, cur, inc));
+    const sharedCount = Math.min(oldCount, newCount);
+    for (let monitorIndex = 0; monitorIndex < sharedCount; monitorIndex++) {
+      const currentMonitor = monitors.get(monitorIndex);
+      const nextMonitor = newScreens[monitorIndex];
+      if (!isSameMonitor(currentMonitor, nextMonitor)) {
+        monitors.set(monitorIndex, Object.assign({}, currentMonitor, nextMonitor));
         changed = true;
       }
     }
     if (oldCount > newCount) {
       changed = true;
-      for (let i = oldCount - 1; i >= newCount; i--) {
-        monitors.remove(i);
+      for (let monitorIndex = oldCount - 1; monitorIndex >= newCount; monitorIndex--) {
+        monitors.remove(monitorIndex);
       }
     }
     if (newCount > oldCount) {
       changed = true;
-      for (let i = oldCount; i < newCount; i++)
-        monitors.append(newScreens[i]);
+      for (let monitorIndex = oldCount; monitorIndex < newCount; monitorIndex++)
+        monitors.append(newScreens[monitorIndex]);
     }
     if (changed)
       emitChangedDebounced();
@@ -261,7 +249,7 @@ Singleton {
     stdout: StdioCollector {
       onStreamFinished: {
         root._drmEntries = text.split(/\r?\n/).filter(Boolean);
-        _drmProc._callbacks.splice(0).forEach(cb => cb(root._drmEntries));
+        _drmProc._callbacks.splice(0).forEach(callback => callback(root._drmEntries));
       }
     }
   }
@@ -271,10 +259,10 @@ Singleton {
 
     stdout: StdioCollector {
       onStreamFinished: {
-        const cb = root._pendingEdidCallback;
+        const callback = root._pendingEdidCallback;
         root._pendingEdidCallback = null;
-        if (cb) {
-          cb({
+        if (callback) {
+          callback({
             vrr: {
               supported: /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text)
             },

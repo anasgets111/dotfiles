@@ -7,10 +7,6 @@ import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 
-// Global Singleton for managing system-wide keyboard state and UI utilities.
-// Capabilities:
-// 1. Tracks Keyboard LED status (Caps, Num, Scroll) by reading /sys/class/leds.
-// 2. Provides a centralized icon resolution helper.
 Singleton {
   id: root
 
@@ -18,75 +14,67 @@ Singleton {
   property bool numLock: false
   property bool scrollLock: false
 
-  // Safely looks up a desktop entry name with guard for undefined DesktopEntries
-  function lookupDesktopEntryName(id: string): string {
-    if (typeof DesktopEntries === "undefined" || !id)
+  function lookupDesktopEntryName(appId: string): string {
+    if (typeof DesktopEntries === "undefined" || !appId)
       return "";
-    const entry = DesktopEntries.heuristicLookup?.(id) || DesktopEntries.byId?.(id);
+    const entry = DesktopEntries.heuristicLookup?.(appId) || DesktopEntries.byId?.(appId);
     return entry?.name || "";
   }
 
-  // Normalizes image paths for QML Image sources (adds file:// prefix for absolute paths)
-  function normalizeImageUrl(img: string): string {
-    if (!img)
+  function normalizeImageUrl(imageSource: string): string {
+    if (!imageSource)
       return "";
-    if (img.startsWith("file://"))
-      return img;
-    if (img.startsWith("/"))
-      return "file://" + img;
-    return img;
+    if (imageSource.startsWith("file://"))
+      return imageSource;
+    if (imageSource.startsWith("/"))
+      return "file://" + imageSource;
+    return imageSource;
   }
 
-  // Resolves a valid icon path from a variety of sources (system theme, file path, raw data).
-  // Priorities: 3rd arg -> 2nd arg -> key -> fallback.
-  function resolveIconSource(key: string, arg2: var, arg3: var): string {
-    const fallback = (arg3 !== undefined && arg3 !== null) ? String(arg3) : "application-x-executable";
-    const candidates = arg3 ? [arg2, key] : [key, arg2];
+  // Priorities when 3 args given: iconHint > appId > fallbackIcon.
+  // When 2 args given: appId > iconHint > "application-x-executable".
+  function resolveIconSource(appId: string, iconHint: var, fallbackIcon: var): string {
+    const fallback = (fallbackIcon != null) ? String(fallbackIcon) : "application-x-executable";
+    const candidates = fallbackIcon ? [iconHint, appId] : [appId, iconHint];
     const fallbackPath = Quickshell.hasThemeIcon(fallback) ? Quickshell.iconPath(fallback) : "";
 
-    for (const c of candidates) {
-      if (!c)
+    for (const candidate of candidates) {
+      if (!candidate)
         continue;
-      const s = String(c);
+      const source = String(candidate);
 
-      // Direct paths
-      if (s.includes("/") || /^(file|data|qrc):/.test(s))
-        return normalizeImageUrl(s);
+      if (source.includes("/") || /^(file|data|qrc):/.test(source))
+        return normalizeImageUrl(source);
 
-      // DesktopEntries
       if (typeof DesktopEntries !== "undefined") {
-        const entry = DesktopEntries.heuristicLookup?.(s) || DesktopEntries.byId?.(s);
+        const entry = DesktopEntries.heuristicLookup?.(source) || DesktopEntries.byId?.(source);
         const entryIcon = String(entry?.icon ?? "");
         if (entryIcon) {
           if (entryIcon.includes("/") || /^(file|data|qrc):/.test(entryIcon))
             return normalizeImageUrl(entryIcon);
-          const entryPath = Quickshell.iconPath(entryIcon, true);
-          if (entryPath)
-            return entryPath;
+          const entryIconPath = Quickshell.iconPath(entryIcon, true);
+          if (entryIconPath)
+            return entryIconPath;
         }
       }
 
-      const path = Quickshell.iconPath(s, true);
-      if (path)
-        return path;
+      const iconPath = Quickshell.iconPath(source, true);
+      if (iconPath)
+        return iconPath;
     }
 
     return fallbackPath;
   }
 
-  // Scans the Linux sysfs LED directory.
-  // We need this because input device names change across reboots (e.g., input3::capslock).
   FolderListModel {
     id: ledFolder
 
     folder: "file:///sys/class/leds"
     nameFilters: ["*lock"]
     showDirs: true
-    showFiles: true // Required: sysfs entries are often symlinks, which strict filters might hide
+    showFiles: true // sysfs entries are symlinks — strict filters would hide them
   }
 
-  // Manages a non-visual FileView object for each lock type.
-  // Unlike Repeater, Instantiator does not require a visual parent.
   Instantiator {
     id: ledInstantiator
 
@@ -95,43 +83,30 @@ Singleton {
     delegate: FileView {
       required property string modelData
 
-      // Dynamically resolves the specific path for this lock type.
-      // Re-evaluates automatically when the sysfs FolderListModel updates.
       path: {
         if (ledFolder.status !== FolderListModel.Ready)
           return "";
-        for (let i = 0; i < ledFolder.count; i++) {
-          const fileName = ledFolder.get(i, "fileName");
-          if (fileName.endsWith(modelData)) {
+        for (let index = 0; index < ledFolder.count; index++) {
+          const fileName = ledFolder.get(index, "fileName");
+          if (fileName.endsWith(modelData))
             return `/sys/class/leds/${fileName}/brightness`;
-          }
         }
         return "";
       }
 
-      // Updates the corresponding Singleton property (e.g., capsLock)
-      // whenever the file content is read.
-      onLoaded: {
-        const rawValue = text().trim();
-        const propName = modelData.replace("lock", "Lock"); // "capslock" -> "capsLock"
-        root[propName] = rawValue !== "0";
-      }
+      onLoaded: root[modelData.replace("lock", "Lock")] = text().trim() === "1"
     }
   }
 
-  // Polls the LED status files.
-  // Polling is required because /sys/class files are virtual kernel interfaces
-  // and do not emit standard filesystem change events (inotify).
+  // sysfs virtual files don't emit inotify events, polling is required
   Timer {
     interval: 100
     repeat: true
     running: true
 
     onTriggered: {
-      for (let i = 0; i < ledInstantiator.count; i++) {
-        // Safe cast to FileView to access the .reload() method
-        (ledInstantiator.objectAt(i) as FileView)?.reload();
-      }
+      for (let index = 0; index < ledInstantiator.count; index++)
+        (ledInstantiator.objectAt(index) as FileView)?.reload();
     }
   }
 }

@@ -28,12 +28,12 @@ Singleton {
   }
 
   function setLayoutByIndex(targetIndex: int): void {
-    const currentIdx = currentLayoutIndex;
-    if (targetIndex < 0 || targetIndex >= layouts.length || targetIndex === currentIdx)
+    const sourceIndex = currentLayoutIndex;
+    if (targetIndex < 0 || targetIndex >= layouts.length || targetIndex === sourceIndex)
       return;
     if (backend?.setLayoutByIndex)
       return backend.setLayoutByIndex(targetIndex);
-    for (let i = 0, steps = currentIdx < 0 ? 0 : (targetIndex - currentIdx + layouts.length) % layouts.length; i < steps; i++)
+    for (let stepIndex = 0, stepCount = sourceIndex < 0 ? 0 : (targetIndex - sourceIndex + layouts.length) % layouts.length; stepIndex < stepCount; stepIndex++)
       backend?.nextLayout?.();
   }
 

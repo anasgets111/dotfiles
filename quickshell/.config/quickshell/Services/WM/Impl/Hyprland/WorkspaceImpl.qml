@@ -19,10 +19,10 @@ Singleton {
       workspaces: []
     })
   readonly property var _layoutState: {
-    return enabled && _updateTick >= 0 ? _calcLayout() : _emptyLayout;
+    return enabled && _revision >= 0 ? _buildLayoutState() : _emptyLayout;
   }
+  property int _revision: 0
   readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "monitoradded", "monitoraddedv2", "monitorremoved", "moveworkspace", "openwindow", "closewindow", "movewindow", "movewindowv2"]
-  property int _updateTick: 0
   property string activeSpecial: ""
   readonly property int currentWorkspace: focusedWorkspace?.id ?? -1
   readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
@@ -34,57 +34,55 @@ Singleton {
   readonly property var specialWorkspaces: _layoutState.specialWorkspaces
   readonly property var workspaces: _layoutState.workspaces
 
-  function _calcLayout(): var {
-    const rawWs = Array.from(Hyprland.workspaces.values);
-    const rawMons = Array.from(Hyprland.monitors.values);
-    const outputOrderHint = rawMons.sort((a, b) => (b.focused - a.focused) || a.name.localeCompare(b.name)).map(m => m.name);
+  function _buildLayoutState(): var {
+    const outputOrderHint = Array.from(Hyprland.monitors.values).sort((leftMonitor, rightMonitor) => (rightMonitor.focused - leftMonitor.focused) || leftMonitor.name.localeCompare(rightMonitor.name)).map(monitor => monitor.name);
 
-    const regular = [];
-    const special = [];
+    const regularWorkspaces = [];
+    const specialWorkspaces = [];
 
-    for (const w of rawWs) {
-      if (w.id < -1) {
-        special.push({
-          name: w.name
+    for (const rawWorkspace of Hyprland.workspaces.values) {
+      if (rawWorkspace.id < -1) {
+        specialWorkspaces.push({
+          name: rawWorkspace.name
         });
         continue;
       }
 
-      if (w.id <= 0)
+      if (rawWorkspace.id <= 0)
         continue;
 
-      const outName = w.monitor?.name ?? "";
-      const winCount = w.lastIpcObject?.windows ?? Array.from(w.toplevels.values).length;
+      const outputName = rawWorkspace.monitor?.name ?? "";
+      const windowCount = rawWorkspace.lastIpcObject?.windows ?? Array.from(rawWorkspace.toplevels.values).length;
 
-      regular.push({
-        id: w.id,
-        idx: w.id,
-        focused: w.focused,
-        populated: winCount > 0,
-        output: outName,
-        name: w.name ?? ""
+      regularWorkspaces.push({
+        id: rawWorkspace.id,
+        idx: rawWorkspace.id,
+        focused: rawWorkspace.focused,
+        populated: windowCount > 0,
+        output: outputName,
+        name: rawWorkspace.name ?? ""
       });
     }
 
-    const layout = WorkspaceService.buildLayout(regular, Hyprland.focusedMonitor?.name ?? "", outputOrderHint);
+    const layout = WorkspaceService.buildLayout(regularWorkspaces, Hyprland.focusedMonitor?.name ?? "", outputOrderHint);
     return {
       focusedOutput: layout.focusedOutput,
       focusedWorkspace: layout.focusedWorkspace,
       groupBoundaries: layout.groupBoundaries,
       outputsOrder: layout.outputsOrder,
-      specialWorkspaces: special,
+      specialWorkspaces,
       workspaces: layout.workspaces
     };
   }
 
-  function focusWorkspace(ws: var): void {
-    if (enabled && (ws?.idx ?? 0) > 0)
-      focusWorkspaceByIndex(ws.idx);
+  function focusWorkspace(workspace: var): void {
+    if (enabled && (workspace?.idx ?? 0) > 0)
+      focusWorkspaceByIndex(workspace.idx);
   }
 
-  function focusWorkspaceByIndex(idx: int): void {
-    if (enabled && idx > 0)
-      Hyprland.dispatch(`hl.dsp.focus({ workspace = ${idx} })`);
+  function focusWorkspaceByIndex(workspaceIndex: int): void {
+    if (enabled && workspaceIndex > 0)
+      Hyprland.dispatch(`hl.dsp.focus({ workspace = ${workspaceIndex} })`);
   }
 
   function refresh(): void {
@@ -92,7 +90,7 @@ Singleton {
       return;
     Hyprland.refreshMonitors();
     Hyprland.refreshWorkspaces();
-    _updateTick++;
+    _revision++;
   }
 
   function toggleSpecial(name: string): void {
@@ -125,7 +123,7 @@ Singleton {
     function onRawEvent(event: var): void {
       if (event.name === "activespecialv2") {
         root.activeSpecial = event.data.split(",")[1] || "";
-        root._updateTick++;
+        root._revision++;
       } else if (root._structuralEvents.includes(event.name)) {
         root.refresh();
       }

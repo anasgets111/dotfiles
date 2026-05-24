@@ -8,24 +8,12 @@ import qs.Config
 import qs.Modules.Bar
 import qs.Modules.Bar.Panels
 import qs.Modules.Global
-import qs.Services
 import qs.Services.Core
 import qs.Services.UI
 
 PanelWindow {
   id: root
 
-  readonly property bool hasInteractiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyInteractiveOpen
-  readonly property bool isIdleSettingsOpen: ShellUiState.isModalOpenOn(root.screenName, "idleSettings")
-  readonly property bool isModalActiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyModalOpen
-  readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(root.screenName)
-  readonly property bool isWallpaperPickerOpen: ShellUiState.isModalOpenOn(root.screenName, "wallpaperPicker")
-  readonly property bool launcherOpen: ShellUiState.isModalOpenOn(root.screenName, "launcher")
-  property var modelData: null
-  readonly property bool panelNeedsKeyboardFocus: panelContainer.active && panelContainer.needsKeyboardFocus
-  readonly property string screenName: screen?.name ?? ""
-  readonly property bool shouldCaptureBackground: ShellUiState.isAnyPanelOpen || ShellUiState.isAnyModalOpen
-  readonly property bool wantsKeyboardHere: panelNeedsKeyboardFocus || launcherOpen || isWallpaperPickerOpen || isIdleSettingsOpen
   readonly property int effectiveKeyboardFocus: {
     if (!ShellUiState.isAnyInteractiveOpen)
       return WlrKeyboardFocus.None;
@@ -38,6 +26,17 @@ PanelWindow {
 
     return WlrKeyboardFocus.None;
   }
+  readonly property bool hasInteractiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyInteractiveOpen
+  readonly property bool isIdleSettingsOpen: ShellUiState.isModalOpenOn(root.screenName, "idleSettings")
+  readonly property bool isModalActiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyModalOpen
+  readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(root.screenName)
+  readonly property bool isWallpaperPickerOpen: ShellUiState.isModalOpenOn(root.screenName, "wallpaperPicker")
+  readonly property bool launcherOpen: ShellUiState.isModalOpenOn(root.screenName, "launcher")
+  property var modelData: null
+  readonly property bool panelNeedsKeyboardFocus: panelContainer.active && panelContainer.needsKeyboardFocus
+  readonly property string screenName: screen?.name ?? ""
+  readonly property bool shouldCaptureBackground: ShellUiState.isAnyPanelOpen || ShellUiState.isAnyModalOpen
+  readonly property bool wantsKeyboardHere: panelNeedsKeyboardFocus || launcherOpen || isWallpaperPickerOpen || isIdleSettingsOpen
 
   WlrLayershell.exclusionMode: ExclusionMode.Normal
   WlrLayershell.exclusiveZone: Theme.panelHeight
