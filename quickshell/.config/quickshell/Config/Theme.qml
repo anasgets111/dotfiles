@@ -135,6 +135,7 @@ Singleton {
   readonly property int controlWidthXs: s(24, 20)
   readonly property color critical: c.critical ?? "#f38ba8"
   readonly property int dialogPadding: s(20)
+  readonly property int dialogWidth: s(450)
   readonly property real dialogWidthRatio: internal.isUltrawide ? 0.45 : 0.6
   readonly property color disabledColor: c.disabledColor ?? "#232634"
 

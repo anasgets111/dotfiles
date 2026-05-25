@@ -16,7 +16,7 @@ PanelWindow {
   readonly property var flow: agent.flow
 
   function submit(): void {
-    if (flow && passwordField.text) {
+    if (flow && (passwordField.text || !flow.isResponseRequired)) {
       flow.submit(passwordField.text);
       passwordField.text = "";
     }
@@ -57,7 +57,7 @@ PanelWindow {
     color: Theme.bgColor
     height: layout.implicitHeight + Theme.dialogPadding * 2
     radius: Theme.itemRadius
-    width: 450
+    width: Theme.dialogWidth
 
     ColumnLayout {
       id: layout
@@ -102,12 +102,8 @@ PanelWindow {
         spacing: Theme.spacingSm
         visible: window.flow?.isResponseRequired ?? false
 
-        onVisibleChanged: if (visible && window.visible) {
-          Qt.callLater(() => {
-            if (inputArea.visible && window.visible)
-              passwordField.forceActiveFocus();
-          });
-        }
+        onVisibleChanged: if (visible && window.visible)
+          passwordField.forceActiveFocus()
 
         OText {
           text: window.flow?.inputPrompt ?? ""
@@ -118,6 +114,7 @@ PanelWindow {
           id: passwordField
 
           Layout.fillWidth: true
+          autoFocus: true
           echoMode: window.flow?.responseVisible ? TextInput.Normal : TextInput.Password
           placeholderText: qsTr("Password")
 
@@ -137,15 +134,14 @@ PanelWindow {
         spacing: Theme.spacingSm
 
         OButton {
-          bgColor: Theme.inactiveColor
           text: qsTr("Cancel")
+          variant: "secondary"
 
           onClicked: window.flow?.cancelAuthenticationRequest()
         }
 
         OButton {
-          bgColor: Theme.activeColor
-          isEnabled: passwordField.text.length > 0
+          isEnabled: !(window.flow?.isResponseRequired ?? false) || passwordField.text.length > 0
           text: qsTr("Authenticate")
 
           onClicked: window.submit()
