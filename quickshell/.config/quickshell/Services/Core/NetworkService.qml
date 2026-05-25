@@ -21,6 +21,7 @@ Singleton {
   readonly property string ethernetInterface: root.wiredDevice?.name ?? ""
   readonly property alias ethernetIpAddress: root._ethernetIp
   readonly property bool ethernetOnline: root.wiredNetwork?.connected ?? false
+  readonly property int ethernetSpeed: root.wiredDevice?.linkSpeed ?? 0
   readonly property string linkType: root.ethernetOnline ? "ethernet" : (root.wifiOnline ? "wifi" : "disconnected")
   readonly property alias networkingEnabled: root._networkingEnabled
   readonly property bool ready: Networking.backend !== NetworkBackendType.None
@@ -171,6 +172,14 @@ Singleton {
 
   function refreshNetworkingStatus(): void {
     root.runCommand(procStatus, ["nmcli", "-t", "-f", "NETWORKING", "general"]);
+  }
+
+  function rescanWifi(): void {
+    const interfaceName = root.wifiInterface;
+    if (!interfaceName)
+      return;
+    root.runCommand(cmdAction, ["nmcli", "device", "wifi", "rescan", "ifname", interfaceName]);
+    root.refreshBandData();
   }
 
   function runCommand(process: Process, command: var): void {
