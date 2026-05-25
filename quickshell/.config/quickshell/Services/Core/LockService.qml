@@ -8,21 +8,17 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  property string authState: ""
-  readonly property var _authMessages: ({
-      error: "Error",
-      max: "Too many tries",
-      fail: "Incorrect password"
-    })
   property bool authenticating: false
   // TODO: move to config/theme
   readonly property real blurAmount: 0.9
   readonly property int blurMax: 64
   readonly property real blurMultiplier: 1
+  readonly property bool hasAuthFailure: pamResult !== PamResult.Success
   property int layoutBeforeLockIndex: -1
   property bool locked: false
+  property int pamResult: PamResult.Success
   property string passwordBuffer: ""
-  readonly property string statusMessage: unlocking ? "Unlocking…" : authenticating ? "Authenticating…" : (_authMessages[authState] ?? "Enter password")
+  readonly property bool passwordRejected: pamResult === PamResult.Failed
   property bool unlocking: false
 
   function finalizeUnlock(): void {
@@ -79,7 +75,7 @@ Singleton {
     }
 
     passwordBuffer = "";
-    authState = "";
+    pamResult = PamResult.Success;
     KeyboardLayoutService.setLayoutByIndex(layoutBeforeLockIndex);
     layoutBeforeLockIndex = -1;
   }
@@ -92,13 +88,10 @@ Singleton {
       if (result === PamResult.Success) {
         root.requestUnlock();
       } else {
-        root.authState = ({
-            [PamResult.Error]: "error",
-            [PamResult.MaxTries]: "max",
-            [PamResult.Failed]: "fail"
-          })[result] ?? "";
-        if (root.authState)
-          authStateResetTimer.restart();
+        root.pamResult = PamResult.Success;
+        root.pamResult = result;
+        if (root.hasAuthFailure)
+          pamResultResetTimer.restart();
       }
     }
     onResponseRequiredChanged: {
@@ -110,10 +103,10 @@ Singleton {
   }
 
   Timer {
-    id: authStateResetTimer
+    id: pamResultResetTimer
 
     interval: 1000
 
-    onTriggered: root.authState = ""
+    onTriggered: root.pamResult = PamResult.Success
   }
 }
