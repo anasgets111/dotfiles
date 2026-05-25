@@ -4,363 +4,358 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-  id: fzf
+  id: root
 
-  readonly property int bonus_boundary: score_match / 2
-  readonly property int bonus_camel_123: bonus_boundary + score_gap_extention
-  readonly property int bonus_consecutive: -(score_gap_start + score_gap_extention)
-  readonly property int bonus_first_char_multiplier: 2
-  readonly property int bonus_non_word: score_match / 2
-  readonly property int capital_a_rune: 65
-  readonly property int capital_z_rune: 90
-  // Rune constants
-  readonly property int max_ascii: 127
-  readonly property int numeral_nine_rune: 57
-  readonly property int numeral_zero_rune: 48
-  readonly property int score_gap_extention: -1
-  readonly property int score_gap_start: -3
+  readonly property int asciiMax: 127
+  readonly property int bonusBoundary: scoreMatch / 2
+  readonly property int bonusCamelOrNumber: bonusBoundary + scoreGapExtension
+  readonly property int bonusConsecutive: -(scoreGapStart + scoreGapExtension)
+  readonly property int bonusFirstCharMultiplier: 2
+  readonly property int bonusNonWord: scoreMatch / 2
+  readonly property int capitalARune: 65
+  readonly property int capitalZRune: 90
+  readonly property int charClassLower: 1
+  readonly property int charClassNonWord: 0
+  readonly property int charClassNumber: 4
+  readonly property int charClassUpper: 2
+  readonly property int numeralNineRune: 57
+  readonly property int numeralZeroRune: 48
+  readonly property int scoreGapExtension: -1
+  readonly property int scoreGapStart: -3
+  readonly property int scoreMatch: 16
+  readonly property int smallARune: 97
+  readonly property int smallZRune: 122
 
-  // Scoring constants
-  readonly property int score_match: 16
-  readonly property int small_a_rune: 97
-  readonly property int small_z_rune: 122
-
-  function ascii_fuzzy_index(input, pattern, caseSensitive) {
-    const inp = Array.isArray(input) ? input : [];
-    const pat = Array.isArray(pattern) ? pattern : [];
-    if (pat.length === 0)
+  function asciiFuzzyIndex(inputRunes: var, patternRunes: var, caseSensitive: bool): int {
+    if (patternRunes.length === 0)
       return 0;
-
-    if (!is_ascii(inp) || !is_ascii(pat))
+    if (!root.isAscii(inputRunes) || !root.isAscii(patternRunes))
       return -1;
 
-    let firstIdx = 0, idx = 0;
-    for (let pidx = 0; pidx < pat.length; pidx++) {
-      idx = try_skip(inp, caseSensitive, pat[pidx], idx);
-      if (idx < 0)
+    let searchIndex = 0;
+    let firstMatchStart = 0;
+    for (let patternIndex = 0; patternIndex < patternRunes.length; patternIndex++) {
+      searchIndex = root.trySkip(inputRunes, caseSensitive, patternRunes[patternIndex], searchIndex);
+      if (searchIndex < 0)
         return -1;
-
-      if (pidx === 0 && idx > 0)
-        firstIdx = idx - 1;
-
-      idx++;
+      if (patternIndex === 0 && searchIndex > 0)
+        firstMatchStart = searchIndex - 1;
+      searchIndex++;
     }
-    return firstIdx;
+    return firstMatchStart;
   }
 
-  function bonus_for(prevClass, currClass) {
-    if (prevClass === 0 && currClass !== 0)
-      return bonus_boundary;
-
-    if ((prevClass === 1 && currClass === 2) || (prevClass !== 4 && currClass === 4))
-      return bonus_camel_123;
-
-    if (currClass === 0)
-      return bonus_non_word;
-
-    return 0;
+  function bonusFor(previousClass: int, currentClass: int): int {
+    if (previousClass === root.charClassNonWord && currentClass !== root.charClassNonWord)
+      return root.bonusBoundary;
+    if ((previousClass === root.charClassLower && currentClass === root.charClassUpper) || (previousClass !== root.charClassNumber && currentClass === root.charClassNumber))
+      return root.bonusCamelOrNumber;
+    return currentClass === root.charClassNonWord ? root.bonusNonWord : 0;
   }
 
-  function by_length_asc(a, b, selector) {
-    a = a || {
-      "item": ""
-    };
-    b = b || {
-      "item": ""
-    };
+  function byLengthAsc(leftMatch: var, rightMatch: var, selector: var): int {
     if (!selector)
       return 0;
 
-    const aLen = a.item ? selector(a.item).length : 0;
-    const bLen = b.item ? selector(b.item).length : 0;
-    return aLen - bLen;
+    const leftLength = leftMatch?.item ? selector(leftMatch.item).length : 0;
+    const rightLength = rightMatch?.item ? selector(rightMatch.item).length : 0;
+    return leftLength - rightLength;
   }
 
-  // Tiebreaker functions (for equal scores)
-  function by_start_asc(a, b) {
-    a = a || {
-      "start": 0
-    };
-    b = b || {
-      "start": 0
-    };
-    return (a.start || 0) - (b.start || 0);
+  function byStartAsc(leftMatch: var, rightMatch: var): int {
+    return (leftMatch?.start ?? 0) - (rightMatch?.start ?? 0);
   }
 
-  // Character classification for scoring
-  function char_class_of(rune) {
-    if (rune <= max_ascii) {
-      if (rune >= small_a_rune && rune <= small_z_rune)
-        return 1;
-      // lowercase
-      if (rune >= capital_a_rune && rune <= capital_z_rune)
-        return 2;
-      // uppercase
-      if (rune >= numeral_zero_rune && rune <= numeral_nine_rune)
-        return 4;
-      // number
-      return 0; // non-word
+  function charClassOf(rune: int): int {
+    if (rune <= root.asciiMax) {
+      if (rune >= root.smallARune && rune <= root.smallZRune)
+        return root.charClassLower;
+      if (rune >= root.capitalARune && rune <= root.capitalZRune)
+        return root.charClassUpper;
+      if (rune >= root.numeralZeroRune && rune <= root.numeralNineRune)
+        return root.charClassNumber;
+      return root.charClassNonWord;
     }
-    // Simplified non-ASCII handling
-    const ch = String.fromCodePoint(rune);
-    if (ch !== ch.toUpperCase())
-      return 1;
 
-    if (ch !== ch.toLowerCase())
-      return 2;
-
-    return 0;
+    const character = String.fromCodePoint(rune);
+    if (character !== character.toUpperCase())
+      return root.charClassLower;
+    if (character !== character.toLowerCase())
+      return root.charClassUpper;
+    return root.charClassNonWord;
   }
 
-  // Finder constructor
-  function finder(list, options) {
-    const opts = Object.assign({
-      "limit": Infinity,
-      "selector": v => {
-        return v;
-      },
-      "casing": "smart-case",
-      "sort": true
+  function createFinder(list: var, options: var): var {
+    const settings = Object.assign({
+      limit: Infinity,
+      selector: item => item,
+      casing: "smart-case",
+      sort: true,
+      tiebreakers: []
     }, options || {});
-    this.opts = opts;
-    this.items = list;
-    this.runesList = list.map(item => {
-      return str_to_runes(opts.selector(item));
-    });
-    this.find = function (query) {
-      if (query.length === 0 || this.items.length === 0)
-        return this.items.slice(0, this.opts.limit).map(item => {
-          return ({
-              "item": item,
-              "start": -1,
-              "end": -1,
-              "score": 0,
-              "positions": new Set()
-            });
-        });
 
-      let caseSensitive = opts.casing === "case-sensitive" || (opts.casing === "smart-case" && query !== query.toLowerCase());
-      if (!caseSensitive)
-        query = query.toLowerCase();
+    const finderInstance = {
+      options: settings,
+      items: Array.isArray(list) ? list : []
+    };
+    finderInstance.runesByItem = finderInstance.items.map(item => root.stringToRunes(settings.selector(item)));
+    finderInstance.find = query => root.find(finderInstance, String(query ?? ""));
+    return finderInstance;
+  }
 
-      const queryRunes = str_to_runes(query);
-      const results = [];
-      for (let i = 0; i < this.runesList.length; i++) {
-        if (queryRunes.length > this.runesList[i].length)
-          continue;
-
-        const [match, positions] = fuzzy_match_v2(caseSensitive, this.runesList[i], queryRunes, true);
-        if (match.start === -1)
-          continue;
-
-        results.push(Object.assign({
-          "item": this.items[i],
-          "positions": positions
-        }, match));
-      }
-      if (opts.sort) {
-        results.sort((a, b) => {
-          if (a.score !== b.score)
-            return b.score - a.score;
-
-          const tiebreakers = opts.tiebreakers || [];
-          for (const tiebreaker of tiebreakers) {
-            const diff = tiebreaker(a, b, opts.selector);
-            if (diff !== 0)
-              return diff;
-          }
-          return 0;
-        });
-      }
-      return Number.isFinite(opts.limit) ? results.slice(0, opts.limit) : results;
+  function emptyResult(item: var): var {
+    return {
+      item: item,
+      start: -1,
+      end: -1,
+      score: 0,
+      positions: new Set()
     };
   }
 
-  // Fuzzy Match V2 algorithm
-  function fuzzy_match_v2(caseSensitive, input, pattern, withPos) {
-    const inp = Array.isArray(input) ? input : [];
-    const pat = Array.isArray(pattern) ? pattern : [];
-    const M = pat.length;
-    if (M === 0)
+  function failedMatch(): var {
+    return [
+      {
+        start: -1,
+        end: -1,
+        score: 0
+      },
+      null];
+  }
+
+  function find(finderInstance: var, query: string): var {
+    const items = finderInstance.items;
+    const options = finderInstance.options;
+    if (query.length === 0 || items.length === 0)
+      return items.slice(0, options.limit).map(item => root.emptyResult(item));
+
+    const caseSensitive = options.casing === "case-sensitive" || (options.casing === "smart-case" && query !== query.toLowerCase());
+    const patternRunes = root.stringToRunes(caseSensitive ? query : query.toLowerCase());
+    const results = [];
+
+    for (let itemIndex = 0; itemIndex < finderInstance.runesByItem.length; itemIndex++) {
+      const inputRunes = finderInstance.runesByItem[itemIndex];
+      if (patternRunes.length > inputRunes.length)
+        continue;
+
+      const [match, positions] = root.fuzzyMatchV2(caseSensitive, inputRunes, patternRunes, true);
+      if (match.start !== -1)
+        results.push(Object.assign({
+          item: items[itemIndex],
+          positions: positions
+        }, match));
+    }
+
+    if (options.sort)
+      root.sortResults(results, options);
+    return Number.isFinite(options.limit) ? results.slice(0, options.limit) : results;
+  }
+
+  function fuzzyMatchV2(caseSensitive: bool, input: var, pattern: var, withPositions: bool): var {
+    const inputRunes = Array.isArray(input) ? input : [];
+    const patternRunes = Array.isArray(pattern) ? pattern : [];
+    const patternLength = patternRunes.length;
+    if (patternLength === 0)
       return [
         {
-          "start": 0,
-          "end": 0,
-          "score": 0
+          start: 0,
+          end: 0,
+          score: 0
         },
-        withPos ? new Set() : null];
+        withPositions ? new Set() : null];
 
-    const N = inp.length;
-    const idx = ascii_fuzzy_index(inp, pat, caseSensitive);
-    if (idx < 0)
-      return [
-        {
-          "start": -1,
-          "end": -1,
-          "score": 0
-        },
-        null];
+    const inputLength = inputRunes.length;
+    const matchStart = root.asciiFuzzyIndex(inputRunes, patternRunes, caseSensitive);
+    if (matchStart < 0)
+      return root.failedMatch();
 
-    const H0 = new Int16Array(N);
-    const C0 = new Int16Array(N);
-    const B = new Int16Array(N);
-    const F = new Int32Array(M);
-    const T = new Int32Array(inp);
-    let maxScore = 0, maxScorePos = 0, pidx = 0, lastIdx = 0;
-    const pchar0 = pat[0];
-    let pchar = pat[0], prevH0 = 0, prevCharClass = 0, inGap = false;
-    for (let off = idx; off < T.length; off++) {
-      let ch = T[off];
-      const charClass = char_class_of(ch);
-      if (!caseSensitive && charClass === 2)
-        ch += 32;
-      T[off] = ch;
-      const bonus = bonus_for(prevCharClass, charClass);
-      B[off] = bonus;
-      prevCharClass = charClass;
-      if (ch === pchar && pidx < M) {
-        F[pidx] = off;
-        pidx++;
-        pchar = pat[Math.min(pidx, M - 1)];
-        lastIdx = off;
+    const firstRowScores = new Int16Array(inputLength);
+    const firstRowConsecutive = new Int16Array(inputLength);
+    const bonuses = new Int16Array(inputLength);
+    const firstMatchByPattern = new Int32Array(patternLength);
+    const normalizedRunes = new Int32Array(inputRunes);
+    const firstPatternRune = patternRunes[0];
+    let currentPatternRune = firstPatternRune;
+    let maxScore = 0;
+    let maxScoreIndex = 0;
+    let patternIndex = 0;
+    let lastMatchIndex = 0;
+    let previousClass = root.charClassNonWord;
+    let previousScore = 0;
+    let inGap = false;
+
+    for (let inputIndex = matchStart; inputIndex < normalizedRunes.length; inputIndex++) {
+      let inputRune = normalizedRunes[inputIndex];
+      const currentClass = root.charClassOf(inputRune);
+      if (!caseSensitive && currentClass === root.charClassUpper)
+        inputRune += 32;
+
+      normalizedRunes[inputIndex] = inputRune;
+      bonuses[inputIndex] = root.bonusFor(previousClass, currentClass);
+      previousClass = currentClass;
+
+      if (inputRune === currentPatternRune && patternIndex < patternLength) {
+        firstMatchByPattern[patternIndex] = inputIndex;
+        patternIndex++;
+        currentPatternRune = patternRunes[Math.min(patternIndex, patternLength - 1)];
+        lastMatchIndex = inputIndex;
       }
-      if (ch === pchar0) {
-        const score = score_match + bonus * bonus_first_char_multiplier;
-        H0[off] = score;
-        C0[off] = 1;
-        if (M === 1 && score > maxScore) {
+
+      if (inputRune === firstPatternRune) {
+        const score = root.scoreMatch + bonuses[inputIndex] * root.bonusFirstCharMultiplier;
+        firstRowScores[inputIndex] = score;
+        firstRowConsecutive[inputIndex] = 1;
+        if (patternLength === 1 && score > maxScore) {
           maxScore = score;
-          maxScorePos = off;
-          if (bonus === bonus_boundary)
+          maxScoreIndex = inputIndex;
+          if (bonuses[inputIndex] === root.bonusBoundary)
             break;
         }
         inGap = false;
       } else {
-        H0[off] = Math.max((inGap ? prevH0 + score_gap_extention : prevH0 + score_gap_start), 0);
-        C0[off] = 0;
+        firstRowScores[inputIndex] = Math.max(previousScore + (inGap ? root.scoreGapExtension : root.scoreGapStart), 0);
+        firstRowConsecutive[inputIndex] = 0;
         inGap = true;
       }
-      prevH0 = H0[off];
+      previousScore = firstRowScores[inputIndex];
     }
-    if (pidx !== M)
-      return [
-        {
-          "start": -1,
-          "end": -1,
-          "score": 0
-        },
-        null];
 
-    if (M === 1) {
-      const pos = withPos ? new Set([maxScorePos]) : null;
-      return [
-        {
-          "start": maxScorePos,
-          "end": maxScorePos + 1,
-          "score": maxScore
-        },
-        pos];
-    }
-    const f0 = F[0];
-    const width = lastIdx - f0 + 1;
-    const H = new Int16Array(width * M);
-    const C = new Int16Array(width * M);
-    H.set(H0.subarray(f0, lastIdx + 1));
-    C.set(C0.subarray(f0, lastIdx + 1));
-    for (let pidx2 = 1; pidx2 < M; pidx2++) {
-      const f = F[pidx2];
-      const pchar2 = pat[pidx2];
-      const row = pidx2 * width;
-      let inGap2 = false;
-      for (let off2 = 0; off2 < lastIdx - f + 1; off2++) {
-        const col = off2 + f;
-        const ch = T[col];
-        let s1 = 0, s2 = 0, consecutive = 0;
-        s2 = (off2 > 0 ? H[row + col - f0 - 1] : 0) + (inGap2 ? score_gap_extention : score_gap_start);
-        if (pchar2 === ch) {
-          s1 = H[row - width + col - f0 - 1] + score_match;
-          consecutive = C[row - width + col - f0 - 1] + 1;
-          let b = B[col];
-          if (b === bonus_boundary)
-            consecutive = 1;
-          else if (consecutive > 1)
-            b = Math.max(b, Math.max(bonus_consecutive, B[col - consecutive + 1]));
-          s1 += (s1 + b < s2) ? B[col] : b;
-        }
-        C[row + col - f0] = consecutive;
-        inGap2 = s1 < s2;
-        const score = Math.max(Math.max(s1, s2), 0);
-        if (pidx2 === M - 1 && score > maxScore) {
-          maxScore = score;
-          maxScorePos = col;
-        }
-        H[row + col - f0] = score;
-      }
-    }
-    const pos = withPos ? new Set() : null;
-    if (withPos && pos) {
-      let i = M - 1, j = maxScorePos;
-      while (true) {
-        const I = i * width, j0 = j - f0;
-        const s = H[I + j0];
-        const s1 = (i > 0 && j >= F[i]) ? H[I - width + j0 - 1] : 0;
-        const s2 = (j > F[i]) ? H[I + j0 - 1] : 0;
-        if (s > s1 && s > s2) {
-          pos.add(j);
-          if (i === 0)
-            break;
+    if (patternIndex !== patternLength)
+      return root.failedMatch();
+    if (patternLength === 1)
+      return root.singleRuneMatch(maxScoreIndex, maxScore, withPositions);
 
-          i--;
-        }
-        j--;
-      }
-    }
-    return [
-      {
-        "start": f0,
-        "end": maxScorePos + 1,
-        "score": maxScore
-      },
-      pos];
+    return root.scoreMultiRuneMatch(patternRunes, normalizedRunes, bonuses, firstRowScores, firstRowConsecutive, firstMatchByPattern, lastMatchIndex, maxScore, maxScoreIndex, withPositions);
   }
 
-  function is_ascii(runes) {
-    return runes.every(r => {
-      return r < 128;
+  function isAscii(runes: var): bool {
+    return runes.every(rune => rune < 128);
+  }
+
+  function scoreMultiRuneMatch(patternRunes: var, inputRunes: var, bonuses: var, firstRowScores: var, firstRowConsecutive: var, firstMatchByPattern: var, lastMatchIndex: int, initialMaxScore: int, initialMaxScoreIndex: int, withPositions: bool): var {
+    const patternLength = patternRunes.length;
+    const firstMatchIndex = firstMatchByPattern[0];
+    const matrixWidth = lastMatchIndex - firstMatchIndex + 1;
+    const scores = new Int16Array(matrixWidth * patternLength);
+    const consecutiveMatches = new Int16Array(matrixWidth * patternLength);
+    let maxScore = initialMaxScore;
+    let maxScoreIndex = initialMaxScoreIndex;
+
+    scores.set(firstRowScores.subarray(firstMatchIndex, lastMatchIndex + 1));
+    consecutiveMatches.set(firstRowConsecutive.subarray(firstMatchIndex, lastMatchIndex + 1));
+
+    for (let patternIndex = 1; patternIndex < patternLength; patternIndex++) {
+      const firstInputIndex = firstMatchByPattern[patternIndex];
+      const patternRune = patternRunes[patternIndex];
+      const rowOffset = patternIndex * matrixWidth;
+      let inGap = false;
+
+      for (let relativeIndex = 0; relativeIndex < lastMatchIndex - firstInputIndex + 1; relativeIndex++) {
+        const inputIndex = relativeIndex + firstInputIndex;
+        const cellIndex = rowOffset + inputIndex - firstMatchIndex;
+        const leftScore = (relativeIndex > 0 ? scores[cellIndex - 1] : 0) + (inGap ? root.scoreGapExtension : root.scoreGapStart);
+        let diagonalScore = 0;
+        let consecutive = 0;
+
+        if (patternRune === inputRunes[inputIndex]) {
+          const previousCellIndex = rowOffset - matrixWidth + inputIndex - firstMatchIndex - 1;
+          diagonalScore = scores[previousCellIndex] + root.scoreMatch;
+          consecutive = consecutiveMatches[previousCellIndex] + 1;
+
+          let bonus = bonuses[inputIndex];
+          if (bonus === root.bonusBoundary)
+            consecutive = 1;
+          else if (consecutive > 1)
+            bonus = Math.max(bonus, Math.max(root.bonusConsecutive, bonuses[inputIndex - consecutive + 1]));
+
+          diagonalScore += diagonalScore + bonus < leftScore ? bonuses[inputIndex] : bonus;
+        }
+
+        consecutiveMatches[cellIndex] = consecutive;
+        inGap = diagonalScore < leftScore;
+        scores[cellIndex] = Math.max(Math.max(diagonalScore, leftScore), 0);
+        if (patternIndex === patternLength - 1 && scores[cellIndex] > maxScore) {
+          maxScore = scores[cellIndex];
+          maxScoreIndex = inputIndex;
+        }
+      }
+    }
+
+    const positions = withPositions ? root.tracePositions(scores, firstMatchByPattern, patternLength, matrixWidth, firstMatchIndex, maxScoreIndex) : null;
+    return [
+      {
+        start: firstMatchIndex,
+        end: maxScoreIndex + 1,
+        score: maxScore
+      },
+      positions];
+  }
+
+  function singleRuneMatch(maxScoreIndex: int, maxScore: int, withPositions: bool): var {
+    return [
+      {
+        start: maxScoreIndex,
+        end: maxScoreIndex + 1,
+        score: maxScore
+      },
+      withPositions ? new Set([maxScoreIndex]) : null];
+  }
+
+  function sortResults(results: var, options: var): void {
+    results.sort((leftMatch, rightMatch) => {
+      if (leftMatch.score !== rightMatch.score)
+        return rightMatch.score - leftMatch.score;
+
+      for (const tiebreaker of options.tiebreakers) {
+        const difference = tiebreaker(leftMatch, rightMatch, options.selector);
+        if (difference !== 0)
+          return difference;
+      }
+      return 0;
     });
   }
 
-  // String/rune conversion
-  function str_to_runes(str) {
+  function stringToRunes(text: var): var {
     const runes = [];
-    for (let i = 0; i < str.length; i++) {
-      const code = str.codePointAt(i);
-      runes.push(code);
-      if (code > 65535)
-        i++;
-      // Skip surrogate pair
+    const source = String(text ?? "");
+    for (let inputIndex = 0; inputIndex < source.length; inputIndex++) {
+      const codePoint = source.codePointAt(inputIndex);
+      runes.push(codePoint);
+      if (codePoint > 0xffff)
+        inputIndex++;
     }
     return runes;
   }
 
-  // ASCII fast path
-  function try_skip(input, caseSensitive, ch, from) {
-    let rest = input.slice(from);
-    let idx = rest.indexOf(ch);
-    if (idx === 0)
-      return from;
+  function tracePositions(scores: var, firstMatchByPattern: var, patternLength: int, matrixWidth: int, firstMatchIndex: int, maxScoreIndex: int): var {
+    const positions = new Set();
+    let patternIndex = patternLength - 1;
+    let inputIndex = maxScoreIndex;
 
-    if (!caseSensitive && ch >= small_a_rune && ch <= small_z_rune) {
-      if (idx > 0)
-        rest = rest.slice(0, idx);
+    while (patternIndex >= 0 && inputIndex >= firstMatchIndex) {
+      const rowOffset = patternIndex * matrixWidth;
+      const relativeIndex = inputIndex - firstMatchIndex;
+      const score = scores[rowOffset + relativeIndex];
+      const diagonalScore = patternIndex > 0 && inputIndex >= firstMatchByPattern[patternIndex] ? scores[rowOffset - matrixWidth + relativeIndex - 1] : 0;
+      const leftScore = inputIndex > firstMatchByPattern[patternIndex] ? scores[rowOffset + relativeIndex - 1] : 0;
 
-      const uidx = rest.indexOf(ch - 32);
-      if (uidx >= 0)
-        idx = uidx;
+      if (score > diagonalScore && score > leftScore) {
+        positions.add(inputIndex);
+        if (patternIndex === 0)
+          break;
+        patternIndex--;
+      }
+      inputIndex--;
     }
-    if (idx < 0)
-      return -1;
+    return positions;
+  }
 
-    return from + idx;
+  function trySkip(inputRunes: var, caseSensitive: bool, rune: int, startIndex: int): int {
+    const upperRune = !caseSensitive && rune >= root.smallARune && rune <= root.smallZRune ? rune - 32 : -1;
+    for (let inputIndex = startIndex; inputIndex < inputRunes.length; inputIndex++) {
+      if (inputRunes[inputIndex] === rune || inputRunes[inputIndex] === upperRune)
+        return inputIndex;
+    }
+    return -1;
   }
 }

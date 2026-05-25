@@ -82,18 +82,19 @@ Item {
   function ensureFinder(force: bool): void {
     if (!force && finder)
       return;
-    if (!Fzf?.finder) {
+    if (!Fzf?.createFinder) {
       finder = null;
       return;
     }
     try {
-      finder = new Fzf.finder(toArray(allApps), {
-        selector: e => {
-          const n = e?.name || "", c = e?.comment || "";
-          return c ? `${n} ${c}` : n;
+      finder = Fzf.createFinder(toArray(allApps), {
+        selector: entry => {
+          const name = entry?.name || "";
+          const comment = entry?.comment || "";
+          return comment ? `${name} ${comment}` : name;
         },
         limit: 200,
-        tiebreakers: [Fzf.by_start_asc, Fzf.by_length_asc]
+        tiebreakers: [Fzf.byStartAsc, Fzf.byLengthAsc]
       });
     } catch (_) {
       finder = null;

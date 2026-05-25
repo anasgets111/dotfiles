@@ -10,69 +10,69 @@ Singleton {
   property list<string> includeModules: []
   readonly property int moduleLabelWidth: 16
 
-  function emit(kind, args) {
-    const moduleRaw = root.extractModule(args);
-    if (!root.shouldLog(moduleRaw))
+  function emit(kind: string, argumentList: var): void {
+    const moduleName = root.extractModule(argumentList);
+    if (!root.shouldLog(moduleName))
       return;
-    const msg = root.formatMessage(args);
+
+    const message = root.formatMessage(argumentList);
     if (kind === "warn")
-      console.warn(msg);
+      console.warn(message);
     else if (kind === "error")
-      console.error(msg);
+      console.error(message);
     else
-      console.log(msg);
+      console.log(message);
   }
 
   function error() {
     root.emit("error", arguments);
   }
 
-  function extractModule(args) {
-    return args?.length > 1 ? args[0] : null;
+  function extractModule(argumentList: var): var {
+    return argumentList?.length > 1 ? argumentList[0] : null;
   }
 
-  function formatMessage(args) {
-    if (!args?.length)
+  function formatMessage(argumentList: var): string {
+    if (!argumentList?.length)
       return "";
 
     const timestamp = `[${TimeService.timestamp()}]`;
 
-    if (args.length === 1)
-      return `${timestamp} ${String(args[0])}`;
+    if (argumentList.length === 1)
+      return `${timestamp} ${String(argumentList[0])}`;
 
-    const modulePart = root.formatModuleLabel(args[0]);
-    const messageCount = args.length - 1;
-    const messageParts = new Array(messageCount);
+    const modulePart = root.formatModuleLabel(argumentList[0]);
+    const messageParts = [];
 
-    for (let i = 0; i < messageCount; i++) {
-      messageParts[i] = String(args[i + 1] ?? "");
-    }
+    for (let argumentIndex = 1; argumentIndex < argumentList.length; argumentIndex++)
+      messageParts.push(String(argumentList[argumentIndex] ?? ""));
 
     return `${timestamp} ${modulePart} ${messageParts.join(" ")}`;
   }
 
-  function formatModuleLabel(moduleRaw) {
-    const name = String(moduleRaw ?? "").substring(0, root.moduleLabelWidth);
-    const totalPad = root.moduleLabelWidth - name.length;
-    const left = Math.floor(totalPad / 2);
-    const right = totalPad - left;
-    return `[${" ".repeat(left)}${name}${" ".repeat(right)}]`;
+  function formatModuleLabel(moduleName: var): string {
+    const label = String(moduleName ?? "").substring(0, root.moduleLabelWidth);
+    const padding = root.moduleLabelWidth - label.length;
+    const leftPadding = Math.floor(padding / 2);
+    const rightPadding = padding - leftPadding;
+    return `[${" ".repeat(leftPadding)}${label}${" ".repeat(rightPadding)}]`;
   }
 
   function log() {
     root.emit("log", arguments);
   }
 
-  function setIncludeModules(list) {
-    if (!list) {
+  function setIncludeModules(modules: var): void {
+    if (!modules) {
       root.includeModules = [];
       return;
     }
-    const normalized = list.map(x => String(x).trim()).filter(x => x.length > 0);
+
+    const normalized = modules.map(moduleName => String(moduleName).trim()).filter(moduleName => moduleName.length > 0);
     root.includeModules = [...new Set(normalized)];
   }
 
-  function shouldLog(moduleName) {
+  function shouldLog(moduleName: var): bool {
     if (!root.enabled)
       return false;
     if (root.includeModules.length === 0)
