@@ -333,9 +333,9 @@ Item {
                     const wrapper = messageItem.modelData;
                     if (!wrapper?.createdAt)
                       return "";
-                    const format = root.svc?.use24Hour() ? "ddd HH:mm" : "ddd h:mm AP";
+                    const format = root.svc?.uses24HourClock() ? "ddd HH:mm" : "ddd h:mm AP";
                     let formatted = Qt.formatDateTime(wrapper.createdAt, format);
-                    if (!root.svc?.use24Hour())
+                    if (!root.svc?.uses24HourClock())
                       formatted = formatted.replace(" AM", "am").replace(" PM", "pm");
                     return formatted;
                   }
