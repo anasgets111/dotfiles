@@ -143,7 +143,7 @@ WlrLayershell {
         if (status === Image.Error) {
           nextImgLoader.pendingSource = "";
         } else if (status === Image.Ready) {
-          if (currentImg.source === "" || root.transitionType === "none") {
+          if (currentImg.source === "") {
             currentImg.source = nextImgLoader.pendingSource;
             nextImgLoader.pendingSource = "";
           } else if (!transitionAnim.running && currentImg.status === Image.Ready) {

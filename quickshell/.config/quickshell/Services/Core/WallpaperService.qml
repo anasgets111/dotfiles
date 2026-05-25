@@ -8,8 +8,7 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  property int _modeVersion: 0
-  property int _pathVersion: 0
+  property int _prefsVersion: 0
   readonly property list<string> availableModes: ["fill", "fit", "center", "stretch", "tile"]
   readonly property list<string> availableTransitions: ["fade", "wipe", "disc", "stripes", "portal"]
   readonly property string defaultMode: "fill"
@@ -40,7 +39,7 @@ Singleton {
   property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"
   property string wallpaperTransition: defaultTransition
 
-  function getPrefs(monitorName: string): var {
+  function ensurePrefs(monitorName: string): var {
     return monitorPrefs[monitorName] ?? (monitorPrefs[monitorName] = {
         wallpaper: defaultWallpaper,
         mode: defaultMode
@@ -101,24 +100,24 @@ Singleton {
   function setModePref(monitorName: string, mode: string): void {
     if (!monitorName)
       return;
-    const prefs = getPrefs(monitorName);
+    const prefs = ensurePrefs(monitorName);
     const validated = validate(mode, availableModes, defaultMode);
     if (prefs.mode === validated)
       return;
     prefs.mode = validated;
-    _modeVersion++;
+    _prefsVersion++;
     persistDebounce.restart();
   }
 
   function setWallpaper(monitorName: string, path: string): void {
     if (!monitorName)
       return;
-    const prefs = getPrefs(monitorName);
+    const prefs = ensurePrefs(monitorName);
     const resolved = path || defaultWallpaper;
     if (prefs.wallpaper === resolved)
       return;
     prefs.wallpaper = resolved;
-    _pathVersion++;
+    _prefsVersion++;
     persistDebounce.restart();
   }
 
@@ -145,13 +144,13 @@ Singleton {
   }
 
   function wallpaperMode(monitorName: string): string {
-    void _modeVersion;
-    return monitorName ? getPrefs(monitorName).mode : defaultMode;
+    void _prefsVersion;
+    return monitorName ? (monitorPrefs[monitorName]?.mode ?? defaultMode) : defaultMode;
   }
 
   function wallpaperPath(monitorName: string): string {
-    void _pathVersion;
-    return monitorName ? getPrefs(monitorName).wallpaper : defaultWallpaper;
+    void _prefsVersion;
+    return monitorName ? (monitorPrefs[monitorName]?.wallpaper ?? defaultWallpaper) : defaultWallpaper;
   }
 
   Component.onCompleted: if (Settings?.isLoaded)
