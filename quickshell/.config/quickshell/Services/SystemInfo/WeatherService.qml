@@ -1,5 +1,4 @@
 pragma Singleton
-import QtQml
 import QtQuick
 import Quickshell
 import qs.Config
@@ -9,24 +8,20 @@ import qs.Services.Utils
 Singleton {
   id: root
 
-  // Private state
-  property bool _requesting: false
+  property bool _requestInFlight: false
   property int _retryCount: 0
-
-  // Public state
   property string currentTemp: "Loading..."
   property int currentWeatherCode: -1
   property var dailyForecast: null
   readonly property string displayText: {
-    const parts = [currentTemp];
+    const displayParts = [currentTemp];
     if (includeLocationInDisplay && locationName)
-      parts.push(`— ${locationName}`);
-    const ago = _timeAgo();
-    if (ago)
-      parts.push(`(${ago})`);
+      displayParts.push(`— ${locationName}`);
+    if (timeAgo)
+      displayParts.push(`(${timeAgo})`);
     if (_isStale())
-      parts.push("[stale]");
-    return parts.join(" ");
+      displayParts.push("[stale]");
+    return displayParts.join(" ");
   }
   property bool hasError: false
   property bool includeLocationInDisplay: true
@@ -34,154 +29,171 @@ Singleton {
   readonly property real latitude: weatherLocation?.latitude ?? NaN
   readonly property string locationName: weatherLocation?.placeName ?? ""
   readonly property real longitude: weatherLocation?.longitude ?? NaN
-  readonly property int refreshInterval: 3600000 // 1 hour
-  readonly property string timeAgo: _timeAgo()
+  readonly property int refreshInterval: 60 * 60 * 1000
+  readonly property string timeAgo: _formatTimeAgo()
   readonly property var weatherCache: Settings.state.weather
   readonly property var weatherLocation: Settings.data.weatherLocation
 
-  function _fetch() {
-    if (_requesting)
+  function _applyWeatherData(responseData: var): void {
+    const currentWeather = responseData?.current_weather;
+    if (!currentWeather)
+      throw new Error("No weather data");
+    const weatherCode = currentWeather.weathercode ?? -1;
+    const roundedTemperature = Math.round(currentWeather.temperature ?? 0);
+    const cacheEntry = weatherCache;
+    currentWeatherCode = weatherCode;
+    currentTemp = `${roundedTemperature}°C ${WeatherCodes.get(weatherCode).icon}`;
+    dailyForecast = responseData.daily ?? null;
+    lastUpdated = new Date();
+    hasError = false;
+    _retryCount = 0;
+    if (!cacheEntry)
       return;
-    const loc = weatherLocation;
-    if (loc?.latitude != null && loc?.longitude != null && !isNaN(loc.latitude) && !isNaN(loc.longitude))
-      _fetchWeather(loc.latitude, loc.longitude);
-    else
-      _fetchGeoLocation();
+    cacheEntry.weatherCode = weatherCode;
+    cacheEntry.temperature = String(roundedTemperature);
+    cacheEntry.dailyForecast = dailyForecast ? JSON.stringify(dailyForecast) : "";
+    cacheEntry.lastPollTimestamp = lastUpdated.toISOString();
   }
 
-  function _fetchGeoLocation() {
-    _httpGet("https://ipapi.co/json/", data => {
-      const loc = weatherLocation;
-      if (loc) {
-        loc.latitude = data.latitude;
-        loc.longitude = data.longitude;
-        loc.placeName = [data.city, data.country_name].filter(Boolean).join(", ");
-      }
-      _fetchWeather(data.latitude, data.longitude);
-    });
-  }
-
-  function _fetchWeather(lat, lon) {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto&forecast_days=10&past_days=1&daily=temperature_2m_max,temperature_2m_min,weathercode`;
-    _httpGet(url, data => {
-      if (!data.current_weather)
-        throw new Error("No weather data");
-
-      const {
-        weathercode: code,
-        temperature: temp
-      } = data.current_weather;
-      const roundedTemp = Math.round(temp);
-
-      currentWeatherCode = code;
-      currentTemp = `${roundedTemp}°C ${WeatherCodes.get(code).icon}`;
-      dailyForecast = data.daily;
-      lastUpdated = new Date();
-      hasError = false;
-      _retryCount = 0;
-
-      // Persist to state cache
-      const cache = weatherCache;
-      if (cache) {
-        cache.weatherCode = code;
-        cache.temperature = String(roundedTemp);
-        cache.dailyForecast = JSON.stringify(data.daily);
-        cache.lastPollTimestamp = lastUpdated.toISOString();
-      }
-    });
-  }
-
-  function _handleError() {
-    hasError = true;
-    if (_retryCount++ < 2) {
-      const delay = 2000 * Math.pow(2, _retryCount - 1);
-      Logger.warn("WeatherService", `Retry ${_retryCount} in ${delay}ms`);
-      retryTimer.interval = delay;
-      retryTimer.start();
+  function _fetch(): void {
+    if (_requestInFlight)
+      return;
+    if (_hasCoordinates(latitude, longitude)) {
+      _fetchWeather(latitude, longitude);
+      return;
     }
+    _fetchGeoLocation();
   }
 
-  function _httpGet(url, onSuccess) {
-    _requesting = true;
-    const xhr = new XMLHttpRequest();
-    xhr.timeout = 5000;
-    xhr.onreadystatechange = () => {
-      if (xhr.readyState !== XMLHttpRequest.DONE)
+  function _fetchGeoLocation(): void {
+    _httpGet("https://ipapi.co/json/", data => {
+      const resolvedLatitude = data?.latitude;
+      const resolvedLongitude = data?.longitude;
+      if (!_hasCoordinates(resolvedLatitude, resolvedLongitude))
+        throw new Error("No geolocation coordinates");
+      if (weatherLocation) {
+        weatherLocation.latitude = resolvedLatitude;
+        weatherLocation.longitude = resolvedLongitude;
+        weatherLocation.placeName = [data.city, data.country_name].filter(Boolean).join(", ");
+      }
+      _fetchWeather(resolvedLatitude, resolvedLongitude);
+    });
+  }
+
+  function _fetchWeather(requestLatitude: real, requestLongitude: real): void {
+    const requestUrl = "https://api.open-meteo.com/v1/forecast" + `?latitude=${requestLatitude}` + `&longitude=${requestLongitude}` + "&current_weather=true" + "&timezone=auto" + "&forecast_days=10" + "&past_days=1" + "&daily=temperature_2m_max,temperature_2m_min,weathercode";
+    _httpGet(requestUrl, data => _applyWeatherData(data));
+  }
+
+  function _formatTimeAgo(): string {
+    if (!lastUpdated)
+      return "";
+    const elapsedSeconds = Math.max(0, Math.floor((TimeService.minuteNow.getTime() - lastUpdated.getTime()) / 1000));
+    if (elapsedSeconds < 60)
+      return "just now";
+    if (elapsedSeconds < 60 * 60)
+      return `${Math.floor(elapsedSeconds / 60)}m ago`;
+    if (elapsedSeconds < 24 * 60 * 60)
+      return `${Math.floor(elapsedSeconds / (60 * 60))}h ago`;
+    return `${Math.floor(elapsedSeconds / (24 * 60 * 60))}d ago`;
+  }
+
+  function _handleRequestError(): void {
+    hasError = true;
+    if (_retryCount >= 2)
+      return;
+    _retryCount += 1;
+    const retryDelay = 2000 * Math.pow(2, _retryCount - 1);
+    Logger.warn("WeatherService", `Retry ${_retryCount} in ${retryDelay}ms`);
+    retryTimer.interval = retryDelay;
+    retryTimer.start();
+  }
+
+  function _hasCoordinates(candidateLatitude: real, candidateLongitude: real): bool {
+    return candidateLatitude != null && candidateLongitude != null && !isNaN(candidateLatitude) && !isNaN(candidateLongitude);
+  }
+
+  function _httpGet(url: string, onSuccess: var): void {
+    _requestInFlight = true;
+    const request = new XMLHttpRequest();
+    let requestFinished = false;
+    const finishRequest = () => {
+      if (requestFinished)
+        return false;
+      requestFinished = true;
+      _requestInFlight = false;
+      return true;
+    };
+    request.timeout = 5000;
+    request.onreadystatechange = () => {
+      if (request.readyState !== XMLHttpRequest.DONE || !finishRequest())
         return;
-      _requesting = false;
-      if (xhr.status !== 200) {
-        _handleError();
+      if (request.status !== 200) {
+        _handleRequestError();
         return;
       }
       try {
-        onSuccess(JSON.parse(xhr.responseText));
-      } catch (e) {
-        _handleError();
+        onSuccess(JSON.parse(request.responseText));
+      } catch (error) {
+        Logger.warn("WeatherService", `Request handling failed: ${error}`);
+        _handleRequestError();
       }
     };
-    xhr.ontimeout = () => {
-      _requesting = false;
-      _handleError();
+    request.onerror = () => {
+      if (finishRequest())
+        _handleRequestError();
     };
-    xhr.open("GET", url);
-    xhr.send();
+    request.ontimeout = () => {
+      if (finishRequest())
+        _handleRequestError();
+    };
+    request.open("GET", url);
+    request.send();
   }
 
-  function _init() {
+  function _init(): void {
     if (!Settings.isLoaded || !Settings.isStateLoaded || !weatherLocation)
       return;
-
-    const cache = weatherCache;
-    if (cache?.lastPollTimestamp) {
+    const cacheEntry = weatherCache;
+    if (cacheEntry?.lastPollTimestamp) {
       try {
-        lastUpdated = new Date(cache.lastPollTimestamp);
-        currentWeatherCode = cache.weatherCode ?? -1;
-        currentTemp = `${cache.temperature ?? 0}°C ${WeatherCodes.get(currentWeatherCode).icon}`;
-        if (cache.dailyForecast)
-          dailyForecast = JSON.parse(cache.dailyForecast);
+        const cachedTimestamp = new Date(cacheEntry.lastPollTimestamp);
+        if (!isNaN(cachedTimestamp.getTime())) {
+          lastUpdated = cachedTimestamp;
+          currentWeatherCode = cacheEntry.weatherCode ?? -1;
+          currentTemp = `${cacheEntry.temperature ?? 0}°C ${WeatherCodes.get(currentWeatherCode).icon}`;
+          dailyForecast = cacheEntry.dailyForecast ? JSON.parse(cacheEntry.dailyForecast) : null;
 
-        const elapsed = Date.now() - lastUpdated.getTime();
-        if (elapsed < refreshInterval) {
-          updateTimer.interval = refreshInterval - elapsed;
-          updateTimer.start();
-          return;
+          const elapsedMs = Date.now() - cachedTimestamp.getTime();
+          if (elapsedMs < refreshInterval) {
+            updateTimer.interval = refreshInterval - elapsedMs;
+            updateTimer.start();
+            return;
+          }
         }
-      } catch (e) {
-        Logger.warn("WeatherService", "Cache load failed");
+      } catch (error) {
+        Logger.warn("WeatherService", `Cache load failed: ${error}`);
       }
     }
-
     _fetch();
     updateTimer.interval = refreshInterval;
     updateTimer.start();
   }
 
-  function _isStale() {
-    return lastUpdated && (Date.now() - lastUpdated.getTime()) > refreshInterval * 2;
+  function _isStale(): bool {
+    return !!lastUpdated && (Date.now() - lastUpdated.getTime()) > refreshInterval * 2;
   }
 
-  function _timeAgo() {
-    if (!lastUpdated)
-      return "";
-    const diff = (TimeService.minuteNow.getTime() - lastUpdated.getTime()) / 1000;
-    if (diff < 60)
-      return "just now";
-    if (diff < 3600)
-      return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400)
-      return `${Math.floor(diff / 3600)}h ago`;
-    return `${Math.floor(diff / 86400)}d ago`;
-  }
-
-  function refresh() {
-    if (lastUpdated && (Date.now() - lastUpdated.getTime()) < 30000)
+  function refresh(): void {
+    if (lastUpdated && (Date.now() - lastUpdated.getTime()) < 30 * 1000)
       return;
     Logger.log("WeatherService", "Manual refresh");
     _retryCount = 0;
+    retryTimer.stop();
     _fetch();
   }
 
-  function weatherInfo(code = currentWeatherCode) {
+  function weatherInfo(code = currentWeatherCode): var {
     return WeatherCodes.get(code);
   }
 
@@ -189,12 +201,12 @@ Singleton {
     _init()
 
   Connections {
-    function onIsLoadedChanged() {
+    function onIsLoadedChanged(): void {
       if (Settings.isLoaded && Settings.isStateLoaded)
         root._init();
     }
 
-    function onIsStateLoadedChanged() {
+    function onIsStateLoadedChanged(): void {
       if (Settings.isLoaded && Settings.isStateLoaded)
         root._init();
     }
