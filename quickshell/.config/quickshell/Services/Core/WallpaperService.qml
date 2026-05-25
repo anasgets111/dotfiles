@@ -15,16 +15,24 @@ Singleton {
   readonly property string defaultMode: "fill"
   readonly property string defaultTransition: "disc"
   readonly property string defaultWallpaper: Settings.defaultWallpaper
-  readonly property var fillModes: ({fill: Image.PreserveAspectCrop, fit: Image.PreserveAspectFit, stretch: Image.Stretch, tile: Image.Tile, center: Image.Pad})
+  readonly property var fillModes: ({
+      fill: Image.PreserveAspectCrop,
+      fit: Image.PreserveAspectFit,
+      stretch: Image.Stretch,
+      tile: Image.Tile,
+      center: Image.Pad
+    })
   property bool hydrated: false
   property var monitorPrefs: ({})
-  readonly property var monitors: ready ? Array.from(
-    {length: MonitorService.monitors.count},
-    (_unused, index) => {
-      const monitor = MonitorService.monitors.get(index);
-      return {name: monitor.name, scale: monitor.scale};
-    }
-  ) : []
+  readonly property var monitors: ready ? Array.from({
+    length: MonitorService.monitors.count
+  }, (_unused, index) => {
+    const monitor = MonitorService.monitors.get(index);
+    return {
+      name: monitor.name,
+      scale: monitor.scale
+    };
+  }) : []
   readonly property string overviewNamespace: "quickshell-overview-wallpaper"
   readonly property bool ready: hydrated && MonitorService?.ready && (MonitorService.monitors?.count ?? 0) > 0
   property var wallpaperFiles: []
@@ -34,9 +42,9 @@ Singleton {
 
   function getPrefs(monitorName: string): var {
     return monitorPrefs[monitorName] ?? (monitorPrefs[monitorName] = {
-      wallpaper: defaultWallpaper,
-      mode: defaultMode
-    });
+        wallpaper: defaultWallpaper,
+        mode: defaultMode
+      });
   }
 
   function hydrateFromSettings(): void {
@@ -63,7 +71,11 @@ Singleton {
   }
 
   function persistMonitors(): void {
-    if (!hydrated || !Settings?.data || !MonitorService?.ready)
+    if (!hydrated || !Settings?.data)
+      return;
+    Settings.data.wallpaperFolder = wallpaperFolder;
+    Settings.data.wallpaperTransition = wallpaperTransition;
+    if (!MonitorService?.ready)
       return;
     const persisted = Object.assign({}, Settings.data.wallpapers ?? {});
     for (let index = 0; index < (MonitorService.monitors?.count ?? 0); index++) {
@@ -75,7 +87,6 @@ Singleton {
       };
     }
     Settings.data.wallpapers = persisted;
-    Settings.data.wallpaperTransition = wallpaperTransition;
   }
 
   function randomizeAllMonitors(): void {
@@ -116,6 +127,7 @@ Singleton {
     if (!path || wallpaperFolder === path)
       return;
     wallpaperFolder = path;
+    wallpaperFiles = [];
     persistDebounce.restart();
   }
 
@@ -157,9 +169,15 @@ Singleton {
     onStatusChanged: {
       if (status !== FolderListModel.Ready)
         return;
-      root.wallpaperFiles = Array.from({length: count}, (_unused, index) => {
+      root.wallpaperFiles = Array.from({
+        length: count
+      }, (_unused, index) => {
         const filePath = get(index, "filePath");
-        return {path: filePath, displayName: filePath.split("/").pop(), previewSource: get(index, "fileUrl")};
+        return {
+          path: filePath,
+          displayName: filePath.split("/").pop(),
+          previewSource: get(index, "fileUrl")
+        };
       });
     }
   }

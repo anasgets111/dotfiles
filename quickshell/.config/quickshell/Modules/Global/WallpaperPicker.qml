@@ -79,9 +79,9 @@ SearchGridPanel {
       return;
     const applyToAll = selectedMonitor === "all" && stagedWallpapers.all;
     for (const {
-      value: name
-    } of monitorOptions) {
-      if (name === "all")
+      name
+    } of WallpaperService.monitors) {
+      if (!name)
         continue;
       const mode = stagedModes[name] ?? stagedModes.all ?? WallpaperService.defaultMode;
       const wallpaper = applyToAll ? stagedWallpapers.all : (stagedWallpapers[name] ?? "");
