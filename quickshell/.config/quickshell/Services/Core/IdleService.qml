@@ -11,40 +11,38 @@ import qs.Config
 Singleton {
   id: root
 
-  readonly property bool _avActive: MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive
-  readonly property var _dpmsCmds: ({
-      hyprland: {
-        on: ["hyprctl", "dispatch", "hl.dsp.dpms({action=\"on\"})"],
-        off: ["hyprctl", "dispatch", "hl.dsp.dpms({action=\"off\"})"]
-      },
-      niri: {
-        on: ["niri", "msg", "action", "power-on-monitors"],
-        off: ["niri", "msg", "action", "power-off-monitors"]
-      }
-    })
-  readonly property bool anyFullscreen: ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen)
-  property bool dpmsOff: false
-  readonly property bool effectiveInhibited: anyFullscreen || (!!settings?.videoAutoInhibit && _avActive)
-  readonly property bool lockAfterDpms: settings?.lockAfterDpms ?? false
-  readonly property bool ready: Settings.isLoaded && !!settings
+  readonly property bool autoInhibitorActive: MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive
+  readonly property bool canLock: idleEnabled && settings.lockEnabled && !LockService.locked && (!settings.lockAfterDpms || !settings.dpmsEnabled || displaysPoweredOff)
+  readonly property bool canPowerOffDisplays: idleEnabled && settings.dpmsEnabled && (settings.lockAfterDpms || LockService.locked || !settings.lockEnabled)
+  readonly property bool canSuspend: idleEnabled && settings.suspendEnabled && displaysPoweredOff && (!settings.lockEnabled || LockService.locked)
+  property bool displaysPoweredOff: false
+  readonly property bool effectiveInhibited: fullscreenInhibitorActive || ((settings?.videoAutoInhibit ?? false) && autoInhibitorActive)
+  readonly property bool fullscreenInhibitorActive: ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen)
+  readonly property bool idleEnabled: Settings.isLoaded && settings !== null && settings.enabled
   readonly property bool respectInhibitors: !LockService.locked && (settings?.respectInhibitors ?? true)
-  readonly property var settings: Settings.data?.idleService
+  readonly property var settings: Settings.data?.idleService ?? null
   property QsWindow window
 
-  function setDpms(on: bool): void {
-    if (root.dpmsOff !== on)
+  function setDisplaysPowered(powered: bool): void {
+    const shouldBePoweredOff = !powered;
+    if (root.displaysPoweredOff === shouldBePoweredOff)
       return;
-    root.dpmsOff = !on;
-    const cmd = root._dpmsCmds[MainService.currentWM]?.[on ? "on" : "off"];
-    if (cmd)
-      Quickshell.execDetached(cmd);
-    else
+    let command = null;
+    if (MainService.currentWM === "hyprland")
+      command = ["hyprctl", "dispatch", `hl.dsp.dpms({action="${powered ? "on" : "off"}"})`];
+    else if (MainService.currentWM === "niri")
+      command = ["niri", "msg", "action", powered ? "power-on-monitors" : "power-off-monitors"];
+    if (!command) {
       Logger.warn("IdleService", `Unsupported WM for DPMS: ${MainService.currentWM}`);
+      return;
+    }
+    root.displaysPoweredOff = shouldBePoweredOff;
+    Quickshell.execDetached(command);
   }
 
-  function wake(): void {
-    if (root.dpmsOff)
-      root.setDpms(true);
+  function wakeDisplays(): void {
+    if (root.displaysPoweredOff)
+      root.setDisplaysPowered(true);
   }
 
   IdleInhibitor {
@@ -53,33 +51,33 @@ Singleton {
   }
 
   IdleMonitor {
-    enabled: root.ready && !!root.settings.enabled && root.settings.lockEnabled && !LockService.locked && (!root.lockAfterDpms || !root.settings.dpmsEnabled || root.dpmsOff)
+    enabled: root.canLock
     respectInhibitors: root.respectInhibitors
     timeout: root.settings?.lockTimeoutSec ?? 0
 
-    onIsIdleChanged: isIdle ? LockService.requestLock() : root.wake()
+    onIsIdleChanged: isIdle ? LockService.requestLock() : root.wakeDisplays()
   }
 
   IdleMonitor {
-    enabled: root.ready && !!root.settings.enabled && root.settings.dpmsEnabled && (root.lockAfterDpms || LockService.locked || !root.settings.lockEnabled)
+    enabled: root.canPowerOffDisplays
     respectInhibitors: root.respectInhibitors
     timeout: root.settings?.dpmsTimeoutSec ?? 0
 
-    onIsIdleChanged: isIdle ? root.setDpms(false) : root.wake()
+    onIsIdleChanged: isIdle ? root.setDisplaysPowered(false) : root.wakeDisplays()
   }
 
   IdleMonitor {
-    enabled: root.ready && !!root.settings.enabled && root.settings.suspendEnabled && root.dpmsOff && (!root.settings.lockEnabled || LockService.locked)
+    enabled: root.canSuspend
     respectInhibitors: root.respectInhibitors
     timeout: root.settings?.suspendTimeoutSec ?? 0
 
-    onIsIdleChanged: isIdle ? PowerManagementService.suspend() : root.wake()
+    onIsIdleChanged: isIdle ? PowerManagementService.suspend() : root.wakeDisplays()
   }
 
   Connections {
     function onLockedChanged(): void {
       if (!LockService.locked)
-        root.wake();
+        root.wakeDisplays();
     }
 
     target: LockService

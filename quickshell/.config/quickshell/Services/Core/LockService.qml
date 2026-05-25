@@ -29,8 +29,8 @@ Singleton {
   function handleGlobalKeyPress(event: var): bool {
     if (!locked || authenticating || unlocking)
       return false;
-    if (IdleService.dpmsOff)
-      IdleService.wake();
+    if (IdleService.displaysPoweredOff)
+      IdleService.wakeDisplays();
     switch (event.key) {
     case Qt.Key_Enter:
     case Qt.Key_Return:
