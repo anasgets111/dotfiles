@@ -13,7 +13,7 @@ Item {
 
   readonly property int absoluteMinWidth: 900
   readonly property string authHint: {
-    if (LockService.authState === LockService.authStates.fail)
+    if (LockService.passwordRejected)
       return "Authentication failed. Press Enter to retry";
     if (LockService.authenticating)
       return "Authenticating…";
@@ -64,7 +64,6 @@ Item {
 
   transform: Translate {
     id: shakeTransform
-
   }
 
   Component.onCompleted: enterAnim.restart()
@@ -128,8 +127,8 @@ Item {
   }
 
   Connections {
-    function onAuthStateChanged() {
-      if (LockService.authState === LockService.authStates.error || LockService.authState === LockService.authStates.fail)
+    function onPamResultChanged() {
+      if (LockService.hasAuthFailure)
         shakeAnimation.restart();
     }
 
@@ -271,13 +270,13 @@ Item {
         id: passwordInput
 
         readonly property bool hasPassword: LockService.passwordBuffer.length > 0
-        readonly property bool isFail: LockService.authState === LockService.authStates.fail
+        readonly property bool passwordRejected: LockService.passwordRejected
 
         Layout.alignment: Qt.AlignHCenter
         Layout.fillWidth: true
         Layout.maximumWidth: Math.round(shell.implicitWidth * 0.82)
         Layout.preferredHeight: Math.round(Theme.controlHeightLg * 1.1 * root.roundedScale)
-        border.color: passwordInput.isFail ? Theme.critical : LockService.authenticating ? Theme.activeColor : Theme.withOpacity("#ffffff", 0.18)
+        border.color: passwordInput.passwordRejected ? Theme.critical : LockService.authenticating ? Theme.activeColor : Theme.withOpacity("#ffffff", 0.18)
         border.width: 2
         color: Theme.withOpacity(Theme.bgInput, 0.85)
         layer.enabled: LockService.authenticating
@@ -310,7 +309,7 @@ Item {
 
           OText {
             Layout.fillWidth: true
-            color: passwordInput.isFail ? Theme.critical : passwordInput.hasPassword ? Theme.textActiveColor : Theme.withOpacity(Theme.textActiveColor, 0.4)
+            color: passwordInput.passwordRejected ? Theme.critical : passwordInput.hasPassword ? Theme.textActiveColor : Theme.withOpacity(Theme.textActiveColor, 0.4)
             font.pixelSize: Math.round(Theme.fontLg * root.readableScale)
             text: passwordInput.hasPassword ? "●".repeat(Math.min(LockService.passwordBuffer.length, 32)) : "Password"
           }
