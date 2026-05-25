@@ -106,7 +106,7 @@ PanelContentBase {
           Layout.preferredWidth: Theme.itemHeight * 1.2
           checked: NotificationService.doNotDisturb
 
-          onToggled: NotificationService.toggleDnd()
+          onToggled: NotificationService.toggleDoNotDisturb()
         }
       }
     }
