@@ -66,7 +66,8 @@ Singleton {
   QtObject {
     id: _
 
-    property bool chargeStateNotified: false
+    property bool wasCharging: false
+    property bool wasPendingCharge: false
 
     // Config: [Priority (lower is higher), Group, SuppressionList]
     readonly property var config: ({
@@ -248,7 +249,11 @@ Singleton {
     interval: 1000
     running: true
 
-    onTriggered: _.initialized = true
+    onTriggered: {
+      _.initialized = true;
+      _.wasCharging = BatteryService.isCharging;
+      _.wasPendingCharge = BatteryService.isPendingCharge;
+    }
   }
 
   // --- Service Connections ---
@@ -305,21 +310,22 @@ Singleton {
 
   Connections {
     function onDeviceStateChanged() {
-      if (!BatteryService.isLaptopBattery || _.chargeStateNotified)
+      const wasCharging = _.wasCharging;
+      const wasPendingCharge = _.wasPendingCharge;
+      _.wasCharging = BatteryService.isCharging;
+      _.wasPendingCharge = BatteryService.isPendingCharge;
+
+      if (!BatteryService.isLaptopBattery || !BatteryService.device?.ready || !BatteryService.isACPowered)
         return;
 
-      if (BatteryService.isFullyCharged) {
-        root.show(root.types.battery, null, "󰚥", "Fully Charged");
-        _.chargeStateNotified = true;
-      } else if (BatteryService.isPendingCharge) {
+      if (!wasPendingCharge && BatteryService.isPendingCharge)
         root.show(root.types.battery, null, "󰂏", "Charge Limit Reached");
-        _.chargeStateNotified = true;
-      }
+      else if (wasCharging && !BatteryService.isCharging && (BatteryService.isFullyCharged || BatteryService.percentage >= 100))
+        root.show(root.types.battery, null, "󰚥", "Fully Charged");
     }
 
     function onIsACPoweredChanged() {
-      _.chargeStateNotified = false;
-      if (BatteryService.isLaptopBattery)
+      if (BatteryService.isLaptopBattery && BatteryService.device?.ready)
         root.show(root.types.battery, null, BatteryService.isACPowered ? "󰂄" : "󰂃", BatteryService.isACPowered ? "Charger Connected" : "Charger Disconnected");
     }
 

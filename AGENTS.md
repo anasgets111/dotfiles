@@ -148,6 +148,7 @@ This section is a living record of findings from repeated interactions. When Cla
 - Niri does not provide a Hyprland-style session-lock xray path for transparent lock surfaces; if a Quickshell lock surface relies on transparency or screencopy under lock, Niri will show its red locked-session background instead, so gate that effect by compositor and fall back to an opaque background.
 - Quickshell `Hyprland.dispatch(...)` is a one-argument API on Hyprland 0.55+; old forms like `Hyprland.dispatch("workspace 3")` or `Hyprland.dispatch("workspace", "3")` break because Hyprland now parses dispatch requests as Lua. Use a Lua dispatcher string such as ``Hyprland.dispatch(`hl.dsp.focus({ workspace = 3 })`)`` instead.
 - QML method names cannot begin with an uppercase letter; do not expose constructor-style APIs like `function Finder(...)`. Use a lowercase factory such as `createFinder(...)` instead.
+- `UPower.displayDevice.state` can flap between `Charging`, `FullyCharged`, and `PendingCharge` while AC remains connected; for battery OSD, do not trigger `Fully Charged` from aggregate terminal-state changes alone. Prefer the edge where charging stops while AC is still connected, and treat `PendingCharge` as its own entry edge.
 
 ---
 
