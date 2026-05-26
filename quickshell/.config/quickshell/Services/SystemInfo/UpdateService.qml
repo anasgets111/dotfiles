@@ -18,13 +18,13 @@ Singleton {
   property string errorMessage: ""
   property int failureCount: 0
   readonly property int failureThreshold: 5
-  property int lastNotifiedTotal: 0
+  property string lastNotifiedPackageNamesKey: ""
   property double lastSync: 0
   readonly property string notificationAppName: "System Updates"
   property var outputLines: []
   property var packageSizes: ({})
   readonly property int pollInterval: 15 * 60 * 1000
-  readonly property int pollTimerInterval: Math.max(1, pollInterval - (lastSync > 0 ? Math.max(0, Date.now() - lastSync) : pollInterval))
+  readonly property int pollTimerInterval: lastSync > 0 ? Math.max(1, pollInterval - Math.max(0, Date.now() - lastSync)) : 1
   readonly property bool ready: MainService.isArchBased && checkUpdatesAvailable && Settings.isStateLoaded
   readonly property string runUpdatesAction: "run-updates"
   readonly property var status: Object.freeze({
@@ -89,17 +89,17 @@ Singleton {
 
   function _notifyIfIncreased(): void {
     if (!ready || totalUpdates === 0) {
-      lastNotifiedTotal = 0;
+      lastNotifiedPackageNamesKey = "";
       return;
     }
-    if (totalUpdates <= lastNotifiedTotal) {
-      lastNotifiedTotal = totalUpdates;
+    const packageNames = updatePackages.map(packageInfo => packageInfo.name).filter(Boolean).sort();
+    const previousNames = new Set(lastNotifiedPackageNamesKey ? lastNotifiedPackageNamesKey.split("\n") : []);
+    const newPackageCount = packageNames.filter(packageName => !previousNames.has(packageName)).length;
+    lastNotifiedPackageNamesKey = packageNames.join("\n");
+    if (newPackageCount === 0)
       return;
-    }
-    const newPackageCount = totalUpdates - lastNotifiedTotal;
     const notificationMessage = newPackageCount === 1 ? `${qsTr("One new package can be upgraded")} (${totalUpdates})` : `${newPackageCount} ${qsTr("new packages can be upgraded")} (${totalUpdates})`;
     _notify(qsTr("Updates Available"), notificationMessage, "normal", runUpdatesAction);
-    lastNotifiedTotal = totalUpdates;
   }
 
   function _parsePackageSizes(outputText: string): var {
@@ -204,6 +204,12 @@ Singleton {
 
   Component.onCompleted: if (Settings.isStateLoaded)
     _init()
+  onReadyChanged: {
+    if (!ready)
+      return;
+    if ((Date.now() - lastSync) > 60 * 1000)
+      doPoll();
+  }
   onLastSyncChanged: if (Settings.isStateLoaded)
     Settings.state.updates.lastSync = lastSync
   onUpdatePackagesChanged: if (Settings.isStateLoaded)
@@ -329,7 +335,10 @@ Singleton {
     repeat: true
     running: root.ready && !root.busy
 
-    onTriggered: root.doPoll()
+    onTriggered: {
+      interval = root.pollInterval;
+      root.doPoll();
+    }
   }
 
   Process {
