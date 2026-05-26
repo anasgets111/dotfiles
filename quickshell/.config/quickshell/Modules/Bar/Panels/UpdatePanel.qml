@@ -283,7 +283,7 @@ PanelContentBase {
               color: root.logColor(text)
               font.family: "Monospace"
               font.pixelSize: Theme.fontSize * 0.9
-              text: modelData.text ?? modelData
+              text: modelData
               width: ListView.view.width
               wrapMode: Text.Wrap
             }

@@ -4,19 +4,17 @@ import Quickshell
 import Quickshell.Io
 import qs.Config
 import qs.Services
-import qs.Services.SystemInfo
 import qs.Services.Utils
 
 Singleton {
   id: root
 
+  property bool _cancellingUpdate: false
   property var _notifyQueue: []
-  property string _pendingNotifyAction: ""
-  property string _runningAction: ""
+  property var _pendingActionArgs: null
   readonly property bool busy: checkUpdatesProcess.running || updateState === status.Updating
   property bool checkUpdatesAvailable: false
   property int currentPackageIndex: 0
-  property string currentPackageName: ""
   property string errorMessage: ""
   property int failureCount: 0
   readonly property int failureThreshold: 5
@@ -26,7 +24,8 @@ Singleton {
   property var outputLines: []
   property var packageSizes: ({})
   readonly property int pollInterval: 15 * 60 * 1000
-  readonly property bool ready: MainService.isArchBased && checkUpdatesAvailable
+  readonly property int pollTimerInterval: Math.max(1, pollInterval - (lastSync > 0 ? Math.max(0, Date.now() - lastSync) : pollInterval))
+  readonly property bool ready: MainService.isArchBased && checkUpdatesAvailable && Settings.isStateLoaded
   readonly property string runUpdatesAction: "run-updates"
   readonly property var status: Object.freeze({
     Idle: 0,
@@ -65,19 +64,26 @@ Singleton {
     }
   }
 
+  function _launchPendingActionNotification(): void {
+    if (!_pendingActionArgs || actionNotifyProcess.running)
+      return;
+    const launchArgs = _pendingActionArgs;
+    _pendingActionArgs = null;
+    actionNotifyProcess.command = ["notify-send"].concat(launchArgs);
+    actionNotifyProcess.running = true;
+  }
+
   function _notify(title: string, message: string, urgency = "normal", actionName = ""): void {
     Logger.log("UpdateService", `Sending notification: ${title} - ${message}`);
+    const baseArgs = ["-u", urgency, "-a", notificationAppName, "-n", "system-software-update"];
+    // The "Run updates" prompt needs notify-send --wait to detect the action click, which
+    // keeps its process alive until the notification is closed. It runs on its own process
+    // so it never blocks the fire-and-forget queue below.
     if (actionName === runUpdatesAction) {
-      _notifyQueue = _notifyQueue.filter(notificationJob => notificationJob.action !== actionName);
-      NotificationService.dismissNotificationsByAppName(notificationAppName);
+      _showActionNotification(baseArgs.concat("--print-id", "--replace-id", "8001", "--wait", "-A", `${actionName}=${qsTr("Run updates")}`, title, message));
+      return;
     }
-    const notifyArgs = ["-u", urgency, "-a", notificationAppName, "-n", "system-software-update", "--print-id", "--replace-id", String(actionName === runUpdatesAction ? 8001 : 8002)];
-    if (actionName)
-      notifyArgs.push("-A", `${actionName}=${qsTr("Run updates")}`);
-    _notifyQueue.push({
-      action: actionName,
-      args: notifyArgs.concat(title, message)
-    });
+    _notifyQueue.push(baseArgs.concat("--replace-id", "8002", title, message));
     _processNotifyQueue();
   }
 
@@ -86,8 +92,10 @@ Singleton {
       lastNotifiedTotal = 0;
       return;
     }
-    if (totalUpdates <= lastNotifiedTotal)
+    if (totalUpdates <= lastNotifiedTotal) {
+      lastNotifiedTotal = totalUpdates;
       return;
+    }
     const newPackageCount = totalUpdates - lastNotifiedTotal;
     const notificationMessage = newPackageCount === 1 ? `${qsTr("One new package can be upgraded")} (${totalUpdates})` : `${newPackageCount} ${qsTr("new packages can be upgraded")} (${totalUpdates})`;
     _notify(qsTr("Updates Available"), notificationMessage, "normal", runUpdatesAction);
@@ -122,10 +130,7 @@ Singleton {
   function _processNotifyQueue(): void {
     if (notificationProcess.running || !_notifyQueue.length)
       return;
-    const notificationJob = _notifyQueue.shift();
-    _pendingNotifyAction = notificationJob.action;
-    _runningAction = notificationJob.action;
-    notificationProcess.command = ["notify-send"].concat(notificationJob.args);
+    notificationProcess.command = ["notify-send"].concat(_notifyQueue.shift());
     notificationProcess.running = true;
   }
 
@@ -138,28 +143,42 @@ Singleton {
     failureCount = 0;
   }
 
-  function _resetNotificationState(): void {
-    _pendingNotifyAction = "";
-    _runningAction = "";
-  }
-
   function _resetUpdateProgress(): void {
     currentPackageIndex = 0;
-    currentPackageName = "";
     errorMessage = "";
     outputLines = [];
   }
 
+  function _showActionNotification(args: var): void {
+    NotificationService.dismissNotificationsByAppName(notificationAppName);
+    _pendingActionArgs = args;
+    if (actionNotifyProcess.running)
+      actionNotifyProcess.running = false;
+    else
+      _launchPendingActionNotification();
+  }
+
   function cancelUpdate(): void {
-    if (updateProcess.running)
+    if (updateProcess.running) {
+      _cancellingUpdate = true;
       updateProcess.running = false;
+    }
     updateState = status.Idle;
     _resetUpdateProgress();
+  }
+
+  function closeAllNotifications(): void {
+    _notifyQueue = [];
+    _pendingActionArgs = null;
+    if (actionNotifyProcess.running)
+      actionNotifyProcess.running = false;
+    NotificationService.dismissNotificationsByAppName(notificationAppName);
   }
 
   function doPoll(): void {
     if (!ready || busy)
       return;
+    lastSync = Date.now();
     checkUpdatesProcess.command = ["checkupdates", "--nocolor"];
     checkUpdatesProcess.running = true;
   }
@@ -167,6 +186,7 @@ Singleton {
   function executeUpdate(): void {
     if (totalUpdates === 0 || updateState === status.Updating)
       return;
+    _pendingActionArgs = null;
     NotificationService.dismissNotificationsByAppName(notificationAppName);
     totalPackagesToUpdate = totalUpdates;
     _resetUpdateProgress();
@@ -184,17 +204,8 @@ Singleton {
 
   Component.onCompleted: if (Settings.isStateLoaded)
     _init()
-  Component.onDestruction: pollTimer.stop()
   onLastSyncChanged: if (Settings.isStateLoaded)
     Settings.state.updates.lastSync = lastSync
-  onReadyChanged: {
-    if (ready) {
-      doPoll();
-      pollTimer.start();
-    } else {
-      pollTimer.stop();
-    }
-  }
   onUpdatePackagesChanged: if (Settings.isStateLoaded)
     Settings.state.updates.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
 
@@ -239,12 +250,13 @@ Singleton {
       onStreamFinished: checkUpdatesProcess._stdoutText = text ?? ""
     }
 
-    onExited: (exitCode, exitStatus) => {
+    onExited: exitCode => {
+      if (root.updateState !== root.status.Error)
+        root.updateState = root.status.Idle;
       if (exitCode === 0 || exitCode === 2) {
         const packages = root._parseUpdatePackages(checkUpdatesProcess._stdoutText);
         root.failureCount = 0;
         root.updatePackages = packages;
-        root.lastSync = Date.now();
         root._notifyIfIncreased();
         if (packages.length > 0)
           root.fetchPackageSizes();
@@ -259,18 +271,14 @@ Singleton {
   Process {
     id: updateProcess
 
-    function appendOutputLine(lineText: string, isErrorLine = false): void {
+    function appendOutputLine(lineText: string): void {
       const trimmedLine = lineText.trim();
       if (!trimmedLine)
         return;
-      root.outputLines = root.outputLines.concat({
-        text: trimmedLine,
-        type: isErrorLine ? "error" : "info"
-      });
+      root.outputLines = root.outputLines.concat(trimmedLine);
       const progressMatch = trimmedLine.match(/(?:installing|upgrading)\s+(\S+)/i);
       if (progressMatch) {
         root.currentPackageIndex += 1;
-        root.currentPackageName = progressMatch[1];
       }
     }
 
@@ -279,7 +287,7 @@ Singleton {
         const lineText = data.trim();
         if (!lineText)
           return;
-        updateProcess.appendOutputLine(lineText, true);
+        updateProcess.appendOutputLine(lineText);
         const detectedMessage = root._detectErrorMessage(lineText);
         if (detectedMessage)
           root.errorMessage = detectedMessage;
@@ -290,12 +298,15 @@ Singleton {
         const lineText = data.trim();
         if (!lineText)
           return;
-        const normalizedLine = lineText.toLowerCase();
-        updateProcess.appendOutputLine(lineText, normalizedLine.includes("error:") || normalizedLine.includes("failed"));
+        updateProcess.appendOutputLine(lineText);
       }
     }
 
-    onExited: (exitCode, exitStatus) => {
+    onExited: exitCode => {
+      if (root._cancellingUpdate) {
+        root._cancellingUpdate = false;
+        return;
+      }
       root.updateState = exitCode === 0 ? root.status.Completed : root.status.Error;
       if (exitCode === 0) {
         const completedPackageCount = root.totalPackagesToUpdate || root.updatePackages.length;
@@ -306,6 +317,7 @@ Singleton {
         if (!root.errorMessage)
           root.errorMessage = `Update failed with code ${exitCode}`;
         root._notify("Update Failed", root.errorMessage, "critical");
+        root.doPoll();
       }
     }
   }
@@ -313,8 +325,9 @@ Singleton {
   Timer {
     id: pollTimer
 
-    interval: root.pollInterval
+    interval: root.pollTimerInterval
     repeat: true
+    running: root.ready && !root.busy
 
     onTriggered: root.doPoll()
   }
@@ -322,20 +335,23 @@ Singleton {
   Process {
     id: notificationProcess
 
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const outputLines = (text || "").trim().split("\n");
-        const actionName = root._pendingNotifyAction;
-        if (actionName && outputLines.some(outputLine => outputLine.trim().split(/\s+/).includes(actionName)))
-          root.executeUpdate();
-        root._resetNotificationState();
-        root._processNotifyQueue();
-      }
-    }
-
     onRunningChanged: {
       if (!running)
         root._processNotifyQueue();
     }
+  }
+
+  Process {
+    id: actionNotifyProcess
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const outputLines = (text || "").trim().split("\n");
+        if (outputLines.some(outputLine => outputLine.trim().split(/\s+/).includes(root.runUpdatesAction)))
+          root.executeUpdate();
+      }
+    }
+
+    onExited: Qt.callLater(root._launchPendingActionNotification)
   }
 }
