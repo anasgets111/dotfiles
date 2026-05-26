@@ -164,7 +164,6 @@ Singleton {
       })
     property JsonObject updates: JsonObject {
       property string cachedUpdatePackagesJson: "[]"
-      property int lastNotificationId: 0
       property double lastSync: 0
     }
     property JsonObject weather: JsonObject {
