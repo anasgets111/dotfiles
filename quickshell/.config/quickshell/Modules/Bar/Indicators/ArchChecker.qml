@@ -38,7 +38,7 @@ Item {
     }
 
     onClicked: mouse => {
-      if (UpdateService.busy)
+      if (UpdateService.busy && UpdateService.updateState === UpdateService.status.Idle)
         return;
       if (mouse.button === Qt.RightButton || UpdateService.totalUpdates > 0 || root.updateState !== UpdateService.status.Idle) {
         ShellUiState.togglePanelForItem("updates", root.screenName, button);
