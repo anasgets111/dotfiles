@@ -23,7 +23,7 @@ Singleton {
   property string configDir: Quickshell.env("OBELISK_CONFIG_DIR") || (_xdgConfig + "/" + shellName + "/")
   property alias data: settingsAdapter
   property string defaultAvatar: Quickshell.env("HOME") + "/.face"
-  property string defaultWallpaper: Qt.resolvedUrl("../Assets/3.jpg")
+  property string defaultWallpaper: Qt.resolvedUrl("../Assets/3.webp")
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STATE
