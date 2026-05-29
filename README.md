@@ -16,8 +16,8 @@ https://github.com/user-attachments/assets/56cffffa-cbbf-4fe1-ad97-7aef8fed57e4
 ## Quick start
 
 - Symlink into $HOME with Stow:
-  - Core: `stow -t ~ home config quickshell hypr niri fish nvim kitty mpv`
-  - Optional: `stow -t ~ swaylock swaync swayosd waybar swayidle ghostty alacritty nushell`
+  - Core: `stow -t ~ home config quickshell hypr niri fish nvim kitty mpv bin`
+  - Optional: `stow -t ~ ghostty alacritty foot wezterm nushell`
 - Remove: `stow -D -t ~ <package>`
 - Test Quickshell: `quickshell` (check logs for `=== MainService System Info ===`).
 - Sessions: Hyprland and Niri autostart Quickshell.
@@ -26,16 +26,16 @@ https://github.com/user-attachments/assets/56cffffa-cbbf-4fe1-ad97-7aef8fed57e4
 
 - **Core**: quickshell, hypr, niri, fish, kitty
 - **Shells**: fish (primary), nushell, bash
-- **Terminals**: kitty (primary), ghostty, alacritty
+- **Terminals**: kitty (primary), ghostty, alacritty, foot, wezterm
 - **UI**: Quickshell handles shell, notifications, OSD, lockscreen
-- **Backups**: swaync, swayosd, swaylock-effects, waybar (for fallback)
-- **Idle/Lock**: hypridle/hyprlock (Hyprland), swayidle/swaylock-effects (Niri)
+- **Idle/Lock**: hypridle/hyprlock (Hyprland), swayidle (Niri)
 - **Media**: mpv
+- **Bin**: local utility scripts
 
 ## Dependencies
 
 - **Required**: quickshell, hyprland or niri, fish, kitty, xdg-terminal-exec, pacman-contrib, gpu-screen-recorder, jq, nmcli, xrandr, libnotify
-- **Optional**: hypridle, hyprlock, swayidle, swaylock-effects, swayosd, swaync, waybar, hyprshot, satty, ghostty, alacritty, nvim, mpv, zen-browser
+- **Optional**: hypridle, hyprlock, swayidle, hyprshot, satty, ghostty, alacritty, nvim, mpv, zen-browser
 
 Adjust package names for your distro.
 
@@ -51,8 +51,9 @@ Adjust package names for your distro.
 - [x] System info monitoring (CPU, Memory, Disk)
 - [x] Monitor management (hotplug, layout, resolution, HDR, VRR)
 - [x] Keyboard layout switching & indicator
-- [ ] Display brightness control
-- [ ] Keyboard backlight control
+- [x] Display brightness control
+- [x] Keyboard backlight control
+- [x] Power management (PPD / TLP profiles)
 
 #### Window Management
 
@@ -67,6 +68,7 @@ Adjust package names for your distro.
 - [x] App launcher
 - [/] Clipboard management
 - [x] IPC command system
+- [x] Polkit authentication dialog
 
 #### Security & Privacy
 
@@ -76,7 +78,7 @@ Adjust package names for your distro.
 
 #### Connectivity
 
-- [x] Network manager (WiFi/Ethernet)
+- [x] Network manager (WiFi/Ethernet, inline connections)
 - [x] Bluetooth manager
 
 #### Visual & Media
@@ -84,13 +86,16 @@ Adjust package names for your distro.
 - [x] Wallpaper management (per-monitor, animated transitions)
 - [x] Screen recording (gpu-screen-recorder)
 - [x] OSD (on-screen display) system
+- [ ] Audio visualizer (cava)
+- [x] Input display overlay (keyboard/mouse key display)
 
 #### System
 
 - [x] Power menu
-- [x] Package updates (Arch/pacman)
+- [x] Package updates (Arch/pacman, notifies by package name)
 - [x] Time & date display
 - [x] Weather information
+- [x] DND mutes third-party audio streams
 
 ### UI Components
 
@@ -100,7 +105,7 @@ Adjust package names for your distro.
 - [x] Update checker (Arch)
 - [x] Idle inhibitor toggle
 - [x] Keyboard layout indicator
-- [x] Battery indicator (laptop)
+- [x] Battery indicator with PPD profile (laptop)
 - [x] App launcher button
 - [x] Wallpaper picker button
 - [x] Workspace indicators (Normal & Special)
@@ -112,25 +117,26 @@ Adjust package names for your distro.
 - [x] Bluetooth indicator with panel
 - [x] System tray
 - [x] Date & time with calendar
-- [ ] Weather panel (in date/time display)
 - [ ] Media player widget (MPRIS controls)
 - [ ] System info widget (CPU, Memory, Disk)
 
 #### Overlays & Panels
 
 - [x] Notification popup (actions, images, inline reply, grouping)
-- [x] Notification center (DND, history)
+- [x] Notification center (DND, history, weather forecast)
 - [x] OSD overlay (volume, brightness, etc.)
 - [x] Audio panel (devices, streams)
-- [x] Network panel (WiFi networks, connections)
+- [x] Network panel (WiFi networks, inline connections)
 - [x] Bluetooth panel (devices, pairing)
 - [x] Lock screen (per-monitor wallpapers)
 - [x] App launcher (grid view, search)
 - [x] Wallpaper picker (per-monitor, transitions)
+- [x] Idle settings panel
+- [x] Input display overlay (draggable)
 
 #### Design System
 
-- [/] Theme (responsive scaling, colors)
+- [x] Theme (responsive scaling, colors, ultrawide support)
 - [x] IconButton component
 - [x] Tooltip system
 - [x] Panel framework
@@ -139,7 +145,7 @@ Adjust package names for your distro.
 
 ## Notes
 
-- Waybar, swaync, swayosd, hyprlock, swaylock are all deprecated; Quickshell provides UI.
+- hyprlock and swaylock are no longer included; Quickshell provides the lock screen.
 - Default terminal via `xdg-terminal-exec` is easier for me to swap in all the system.
 
 ## Credits
