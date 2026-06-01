@@ -263,7 +263,7 @@ Singleton {
     _muteDndStreams()
 
   PwObjectTracker {
-    objects: root._audioNodes
+    objects: Pipewire.nodes?.values ?? []
   }
 
   Connections {
