@@ -67,7 +67,7 @@ Singleton {
       });
     }
 
-    const layout = WorkspaceService.buildLayout(regularWorkspaces, Hyprland.focusedMonitor?.name ?? "", outputOrderHint);
+    const layout = WorkspaceArrangement.buildLayout(regularWorkspaces, Hyprland.focusedMonitor?.name ?? "", outputOrderHint);
     return {
       focusedOutput: layout.focusedOutput,
       focusedWorkspace: layout.focusedWorkspace,
