@@ -32,11 +32,11 @@ ShellRoot {
     modelData: MonitorService.effectiveMainScreen
   }
 
-  OSDOverlay {
+  OSDPopup {
     modelData: MonitorService.effectiveMainScreen
   }
 
-  InputDisplayOverlay {
+  InputDisplayPopup {
     modelData: MonitorService.effectiveMainScreen
   }
 
