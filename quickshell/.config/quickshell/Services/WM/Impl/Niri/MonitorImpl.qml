@@ -7,7 +7,7 @@ Singleton {
   id: root
 
   property var _replyQueue: []
-  readonly property bool enabled: MainService.ready && MainService.currentWM === "niri"
+  readonly property bool enabled: MainService.currentWM === "niri"
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
 
   signal featuresChanged

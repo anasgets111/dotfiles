@@ -20,7 +20,7 @@ Singleton {
   readonly property var _layoutState: enabled ? WorkspaceArrangement.buildLayout(normalizedWorkspaces, "", []) : _emptyLayout
   readonly property int currentWorkspace: focusedWorkspace?.id ?? trackedWorkspaceId
   readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
-  readonly property bool enabled: MainService.ready && MainService.currentWM === "niri"
+  readonly property bool enabled: MainService.currentWM === "niri"
   readonly property string focusedOutput: _layoutState.focusedOutput
   readonly property var focusedWorkspace: _layoutState.focusedWorkspace
   readonly property bool fullscreenVisible: enabled && visibleWindowKeys.size > 0 && ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen && visibleWindowKeys.has(root._windowKey(toplevel.appId, toplevel.title)))
