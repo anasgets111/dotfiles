@@ -8,7 +8,7 @@ local sizes = {
 
 -- 1. Globals
 for _, rule in ipairs({
-    { match = { class = ".*" },             suppress_event = "maximize", idle_inhibit = "fullscreen" },
+    { match = { class = ".*" },             suppress_event = "maximize" },
     { match = { fullscreen = true },        no_blur = true,              no_anim = true },
     { match = { class = "^steam_app_.*$" }, fullscreen = true,           immediate = true },
 }) do

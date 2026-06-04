@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 pragma Singleton
 import QtQuick
 import Quickshell
@@ -11,16 +12,19 @@ import qs.Config
 Singleton {
   id: root
 
+  readonly property bool armed: idleEnabled && !inhibited
   readonly property bool autoInhibitorActive: MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive
-  readonly property bool canLock: idleEnabled && settings.lockEnabled && !LockService.locked && (!settings.lockAfterDpms || !settings.dpmsEnabled || displaysPoweredOff)
-  readonly property bool canPowerOffDisplays: idleEnabled && settings.dpmsEnabled && (settings.lockAfterDpms || LockService.locked || !settings.lockEnabled)
-  readonly property bool canSuspend: idleEnabled && settings.suspendEnabled && displaysPoweredOff && (!settings.lockEnabled || LockService.locked)
+  readonly property bool canLock: armed && settings.lockEnabled && !LockService.locked && (!settings.lockAfterDpms || !settings.dpmsEnabled || displaysPoweredOff)
+  readonly property bool canPowerOffDisplays: armed && settings.dpmsEnabled && (settings.lockAfterDpms || LockService.locked || !settings.lockEnabled)
+  readonly property bool canSuspend: armed && settings.suspendEnabled && displaysPoweredOff && (!settings.lockEnabled || LockService.locked)
   property bool displaysPoweredOff: false
-  readonly property bool effectiveInhibited: fullscreenInhibitorActive || ((settings?.videoAutoInhibit ?? false) && autoInhibitorActive)
-  readonly property bool fullscreenInhibitorActive: ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen)
+  readonly property bool fullscreenInhibitorActive: ToplevelManager.activeToplevel?.fullscreen ?? false
   readonly property bool idleEnabled: Settings.isLoaded && settings !== null && settings.enabled
+  readonly property bool inhibited: manualInhibit || fullscreenInhibitorActive || videoInhibitorActive
+  property bool manualInhibit: false
   readonly property bool respectInhibitors: !LockService.locked && (settings?.respectInhibitors ?? true)
   readonly property var settings: Settings.data?.idleService ?? null
+  readonly property bool videoInhibitorActive: (settings?.videoAutoInhibit ?? false) && autoInhibitorActive
   property QsWindow window
 
   function setDisplaysPowered(powered: bool): void {
@@ -46,32 +50,26 @@ Singleton {
   }
 
   IdleInhibitor {
-    enabled: root.effectiveInhibited
+    enabled: root.inhibited
     window: root.window
   }
 
-  IdleMonitor {
+  IdleStage {
     enabled: root.canLock
-    respectInhibitors: root.respectInhibitors
+    idleAction: () => LockService.requestLock()
     timeout: root.settings?.lockTimeoutSec ?? 0
-
-    onIsIdleChanged: isIdle ? LockService.requestLock() : root.wakeDisplays()
   }
 
-  IdleMonitor {
+  IdleStage {
     enabled: root.canPowerOffDisplays
-    respectInhibitors: root.respectInhibitors
+    idleAction: () => root.setDisplaysPowered(false)
     timeout: root.settings?.dpmsTimeoutSec ?? 0
-
-    onIsIdleChanged: isIdle ? root.setDisplaysPowered(false) : root.wakeDisplays()
   }
 
-  IdleMonitor {
+  IdleStage {
     enabled: root.canSuspend
-    respectInhibitors: root.respectInhibitors
+    idleAction: () => PowerManagementService.suspend()
     timeout: root.settings?.suspendTimeoutSec ?? 0
-
-    onIsIdleChanged: isIdle ? PowerManagementService.suspend() : root.wakeDisplays()
   }
 
   Connections {
@@ -81,5 +79,13 @@ Singleton {
     }
 
     target: LockService
+  }
+
+  component IdleStage: IdleMonitor {
+    required property var idleAction
+
+    respectInhibitors: root.respectInhibitors
+
+    onIsIdleChanged: isIdle ? idleAction() : root.wakeDisplays()
   }
 }
