@@ -53,7 +53,7 @@ Singleton {
         };
         Settings.saveState();
 
-        Logger.log("CurrencyEngine", `Rates updated (date: ${data.date})`);
+        Logger.log("CurrencyProvider", `Rates updated (date: ${data.date})`);
       }
     });
   }
@@ -103,18 +103,18 @@ Singleton {
         return;
       _requesting = false;
       if (xhr.status !== 200) {
-        Logger.warn("CurrencyEngine", `Failed to fetch rates: ${xhr.status}`);
+        Logger.warn("CurrencyProvider", `Failed to fetch rates: ${xhr.status}`);
         return;
       }
       try {
         onSuccess(JSON.parse(xhr.responseText));
       } catch (e) {
-        Logger.warn("CurrencyEngine", "Failed to parse rates JSON");
+        Logger.warn("CurrencyProvider", "Failed to parse rates JSON");
       }
     };
     xhr.ontimeout = () => {
       _requesting = false;
-      Logger.warn("CurrencyEngine", "Rate fetch timed out");
+      Logger.warn("CurrencyProvider", "Rate fetch timed out");
     };
     xhr.open("GET", url);
     xhr.send();
@@ -135,16 +135,16 @@ Singleton {
 
           const elapsed = Date.now() - last.getTime();
           if (elapsed < refreshInterval) {
-            Logger.log("CurrencyEngine", "Using cached rates");
+            Logger.log("CurrencyProvider", "Using cached rates");
             return;
           }
         }
       } catch (e) {
-        Logger.warn("CurrencyEngine", "Failed to load cache: " + e);
+        Logger.warn("CurrencyProvider", "Failed to load cache: " + e);
       }
     }
 
-    Logger.log("CurrencyEngine", "Refreshing rates from API (cache stale or missing)");
+    Logger.log("CurrencyProvider", "Refreshing rates from API (cache stale or missing)");
     _fetchRates();
   }
 
@@ -210,7 +210,7 @@ Singleton {
     _outputAmount = out;
     _resultText = Math.abs(out) < 0.01 && out !== 0 ? out.toPrecision(6) : out.toLocaleString(Qt.locale(), "f", decimals);
 
-    Logger.log("CurrencyEngine", `Query success: ${parsed.a} ${parsed.f} -> ${out} ${parsed.t} (${fromFlag} -> ${toFlag})`);
+    Logger.log("CurrencyProvider", `Query success: ${parsed.a} ${parsed.f} -> ${out} ${parsed.t} (${fromFlag} -> ${toFlag})`);
     return true;
   }
 
