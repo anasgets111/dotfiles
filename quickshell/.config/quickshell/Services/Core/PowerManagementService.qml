@@ -2,8 +2,8 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.Services
 import qs.Services.Core
+import qs.Services.WM
 
 Singleton {
   id: root
@@ -35,10 +35,7 @@ Singleton {
   }
 
   function logout(): void {
-    if (MainService.currentWM === "hyprland")
-      Quickshell.execDetached(["uwsm", "stop"]);
-    else if (MainService.currentWM === "niri")
-      Quickshell.execDetached(["niri", "msg", "action", "quit", "--skip-confirmation"]);
+    CompositorService.exitSession();
   }
 
   function poweroff(): void {

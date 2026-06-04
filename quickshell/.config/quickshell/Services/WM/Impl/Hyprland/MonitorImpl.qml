@@ -8,6 +8,8 @@ Singleton {
 
   readonly property bool enabled: MainService.ready && MainService.currentWM === "hyprland"
 
+  signal featuresChanged
+
   function _findMonitor(name: string): var {
     const monitors = Hyprland.monitors?.values || [];
     return monitors.find(monitor => monitor && (monitor.name === name || monitor.id === name || monitor.identifier === name || monitor.outputName === name)) || null;

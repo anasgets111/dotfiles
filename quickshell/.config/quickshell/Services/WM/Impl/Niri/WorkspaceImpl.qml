@@ -25,6 +25,7 @@ Singleton {
   readonly property var focusedWorkspace: _layoutState.focusedWorkspace
   readonly property bool fullscreenVisible: enabled && visibleWindowKeys.size > 0 && ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen && visibleWindowKeys.has(root._windowKey(toplevel.appId, toplevel.title)))
   readonly property list<int> groupBoundaries: _layoutState.groupBoundaries
+  readonly property bool hasOverview: true
   property var normalizedWorkspaces: []
   readonly property list<string> outputsOrder: _layoutState.outputsOrder
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""

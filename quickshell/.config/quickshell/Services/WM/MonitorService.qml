@@ -48,11 +48,6 @@ Singleton {
     return -1;
   }
 
-  function getAvailableFeatures(name: string, callback: var): void {
-    const fetchFeatures = backend?.fetchFeatures || backend?.getAvailableFeatures;
-    fetchFeatures ? fetchFeatures(name, callback) : callback(null);
-  }
-
   function isSameMonitor(leftMonitor: var, rightMonitor: var): bool {
     if (!leftMonitor || !rightMonitor)
       return false;
@@ -116,9 +111,9 @@ Singleton {
   }
 
   function refreshFeatures(monitorsList: var): void {
-    if (!backend || (!backend.fetchFeatures && !backend.getAvailableFeatures))
+    if (!backend?.fetchFeatures)
       return;
-    const fetchFeatures = backend.fetchFeatures || backend.getAvailableFeatures;
+    const fetchFeatures = backend.fetchFeatures;
     const runId = ++_featuresRunId;
 
     for (const monitor of monitorsList) {
@@ -236,7 +231,7 @@ Singleton {
       root.refreshFeatures(root.toArray());
     }
 
-    target: (root.backend && MainService.currentWM === "niri") ? root.backend : null
+    target: root.backend
   }
 
   Process {
