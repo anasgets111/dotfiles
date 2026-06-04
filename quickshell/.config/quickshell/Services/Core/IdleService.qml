@@ -7,6 +7,7 @@ import qs.Services
 import qs.Services.Core
 import qs.Services.Utils
 import qs.Services.SystemInfo
+import qs.Services.WM
 import qs.Config
 
 Singleton {
@@ -18,7 +19,7 @@ Singleton {
   readonly property bool canPowerOffDisplays: armed && settings.dpmsEnabled && (settings.lockAfterDpms || LockService.locked || !settings.lockEnabled)
   readonly property bool canSuspend: armed && settings.suspendEnabled && displaysPoweredOff && (!settings.lockEnabled || LockService.locked)
   property bool displaysPoweredOff: false
-  readonly property bool fullscreenInhibitorActive: ToplevelManager.activeToplevel?.fullscreen ?? false
+  readonly property bool fullscreenInhibitorActive: WorkspaceService.fullscreenVisible
   readonly property bool idleEnabled: Settings.isLoaded && settings !== null && settings.enabled
   readonly property bool inhibited: manualInhibit || fullscreenInhibitorActive || videoInhibitorActive
   property bool manualInhibit: false
