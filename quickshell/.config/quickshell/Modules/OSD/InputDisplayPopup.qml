@@ -3,16 +3,13 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
-import Quickshell
-import Quickshell.Wayland
-import qs.Config
 import qs.Components
+import qs.Config
 import qs.Services.SystemInfo
 
-PanelWindow {
+OPopup {
   id: root
 
-  required property var modelData
   readonly property string pressedSignature: visibleTokens.join("+")
   readonly property bool shouldStayVisible: InputDisplayService.visible || dragArea.drag.active
   readonly property bool showComboLabel: InputDisplayService.comboDisplayLabel.length > 0 && InputDisplayService.comboLabel !== pressedSignature
@@ -36,29 +33,13 @@ PanelWindow {
     card.y = availableHeight > 0 ? Math.round(InputDisplayService.positionYRatio * availableHeight) : 0;
   }
 
-  WlrLayershell.exclusiveZone: -1
-  WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-  WlrLayershell.layer: WlrLayer.Overlay
-  WlrLayershell.namespace: "obelisk-input-display-overlay-" + (screen?.name || "unknown")
-  color: "transparent"
-  screen: modelData
-  surfaceFormat.opaque: false
+  popupNamespace: "obelisk-input-display-overlay"
   visible: true
-
-  mask: Region {
-    item: root.shouldStayVisible ? card : null
-  }
+  maskItem: root.shouldStayVisible ? card : null
 
   Component.onCompleted: Qt.callLater(root.syncCardToSavedPosition)
   onHeightChanged: Qt.callLater(root.syncCardToSavedPosition)
   onWidthChanged: Qt.callLater(root.syncCardToSavedPosition)
-
-  anchors {
-    bottom: true
-    left: true
-    right: true
-    top: true
-  }
 
   Rectangle {
     id: card
