@@ -6,7 +6,7 @@ import qs.Services
 Singleton {
   id: root
 
-  readonly property bool enabled: MainService.ready && MainService.currentWM === "hyprland"
+  readonly property bool enabled: MainService.currentWM === "hyprland"
 
   signal featuresChanged
 

@@ -11,7 +11,7 @@ Singleton {
 
   property string currentLayout: ""
   property int currentLayoutIndex: -1
-  readonly property bool enabled: MainService.ready && MainService.currentWM === "hyprland"
+  readonly property bool enabled: MainService.currentWM === "hyprland"
   property string keyboardDeviceName: ""
   property var layouts: []
 

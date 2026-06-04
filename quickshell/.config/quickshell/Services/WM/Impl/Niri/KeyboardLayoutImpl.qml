@@ -9,7 +9,7 @@ Singleton {
 
   property string currentLayout: ""
   property int currentLayoutIndex: -1
-  readonly property bool enabled: MainService.ready && MainService.currentWM === "niri"
+  readonly property bool enabled: MainService.currentWM === "niri"
   property var layouts: []
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
 
