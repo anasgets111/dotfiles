@@ -48,13 +48,30 @@ All services use `pragma Singleton` and are accessed directly: `Settings.data.th
 
 ### Compositor Detection
 
-Always check before using WM-specific features:
+`MainService.currentWM` (`"hyprland"`, `"niri"`, `"other"`) is the **seam**, not a tool for callers. Do **not** branch on it in services, panels, or UI — that reintroduces the leaks the WM seam was built to remove. See `CONTEXT.md` for the vocabulary (compositor, adapter, WM facade).
+
+The brand may only be compared in one place: a WM facade's `backend` selector.
 
 ```qml
-if (MainService.currentWM === "hyprland") { ... }
-else if (MainService.currentWM === "niri") { ... }
-// Values: "hyprland", "niri", "other"
+// In Services/WM/<X>Service.qml — the ONLY allowed currentWM comparison:
+readonly property var backend: MainService.currentWM === "hyprland" ? Hypr.XImpl
+  : MainService.currentWM === "niri" ? Niri.XImpl : null
 ```
+
+Everywhere else, ask the facade *what the compositor can do*, never *which one it is*:
+
+```qml
+// Imperative compositor action → CompositorService (DPMS, session exit)
+CompositorService.setDisplaysPowered(false);
+CompositorService.exitSession();
+
+// Capability gate → a facade capability property, backed per-adapter
+Loader { active: WorkspaceService.supportsSpecialWorkspaces; /* ... */ }
+```
+
+Missing an operation or capability? Add it to the adapter interface
+(`Services/WM/Impl/{Hyprland,Niri}/*Impl.qml`) and surface it on the facade — don't
+add a `currentWM` branch at the call site.
 
 ### Settings Persistence
 
@@ -120,7 +137,7 @@ import qs.Config
 2. **Check existing code** — Look at similar files before adding functionality
 3. **DRY** — Reuse existing abstractions (Theme, Logger, IPC, etc.)
 4. **Property bindings over assignments**
-5. **Compositor detection** — Never use WM-specific features without checking `MainService.currentWM`
+5. **Compositor seam** — Never branch on `MainService.currentWM` outside a WM facade's `backend` selector; reach for a facade capability/action instead (see Compositor Detection)
 
 ## Notable Files
 

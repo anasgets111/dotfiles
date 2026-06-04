@@ -3,7 +3,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import qs.Services
 import qs.Services.Core
 import qs.Services.Utils
 import qs.Services.SystemInfo
@@ -32,17 +31,11 @@ Singleton {
     const shouldBePoweredOff = !powered;
     if (root.displaysPoweredOff === shouldBePoweredOff)
       return;
-    let command = null;
-    if (MainService.currentWM === "hyprland")
-      command = ["hyprctl", "dispatch", `hl.dsp.dpms({action="${powered ? "on" : "off"}"})`];
-    else if (MainService.currentWM === "niri")
-      command = ["niri", "msg", "action", powered ? "power-on-monitors" : "power-off-monitors"];
-    if (!command) {
-      Logger.warn("IdleService", `Unsupported WM for DPMS: ${MainService.currentWM}`);
+    if (!CompositorService.setDisplaysPowered(powered)) {
+      Logger.warn("IdleService", "DPMS not supported by the current compositor");
       return;
     }
     root.displaysPoweredOff = shouldBePoweredOff;
-    Quickshell.execDetached(command);
   }
 
   function wakeDisplays(): void {

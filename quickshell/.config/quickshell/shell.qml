@@ -82,7 +82,7 @@ ShellRoot {
 
   // Niri overview wallpaper - static, shown only in overview via layer-rule
   LazyLoader {
-    activeAsync: MainService.ready && MainService.currentWM === "niri"
+    activeAsync: MainService.ready && WorkspaceService.hasOverview
 
     component: Variants {
       model: WallpaperService.monitors

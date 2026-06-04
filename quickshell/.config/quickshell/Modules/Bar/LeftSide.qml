@@ -4,6 +4,7 @@ import QtQuick
 import qs.Services
 import qs.Services.Core
 import qs.Services.Utils
+import qs.Services.WM
 import qs.Components
 import qs.Config
 import qs.Modules.Bar.Indicators
@@ -78,7 +79,7 @@ Row {
   }
 
   Loader {
-    active: MainService.currentWM === "hyprland"
+    active: WorkspaceService.supportsSpecialWorkspaces
     asynchronous: true
 
     sourceComponent: SpecialWorkspaces {
@@ -91,7 +92,7 @@ Row {
   Loader {
     id: workspaceStripLoader
 
-    active: MainService.currentWM === "hyprland" || MainService.currentWM === "niri"
+    active: WorkspaceService.ready
     asynchronous: true
 
     sourceComponent: WorkspaceStrip {
