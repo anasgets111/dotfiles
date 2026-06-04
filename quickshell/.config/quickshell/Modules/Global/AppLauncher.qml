@@ -17,11 +17,11 @@ Item {
   property bool _shown: false
   property bool active: false
   readonly property var allApps: typeof DesktopEntries !== "undefined" ? DesktopEntries.applications?.values || [] : []
-  readonly property bool calcMode: CalcEngine.hasResult
+  readonly property bool calcMode: CalcProvider.hasResult
   property int currentIndex: 0
   property var filteredApps: []
   property var finder: null
-  readonly property bool fxMode: CurrencyEngine.hasResult
+  readonly property bool fxMode: CurrencyProvider.hasResult
   readonly property bool hasSpecial: query.trim().length > 0 && (calcMode || fxMode || webMode)
   property bool hoverSelectionArmed: false
   property real maxAppScore: 0
@@ -32,7 +32,7 @@ Item {
   readonly property bool specialSelected: hasSpecial && currentIndex === 0
   readonly property int totalRows: visibleAppCount + (hasSpecial ? 1 : 0)
   readonly property int visibleAppCount: Math.min(filteredApps.length, maxVisible)
-  readonly property bool webMode: WebEngine.hasResult
+  readonly property bool webMode: WebProvider.hasResult
 
   signal dismissed
 
@@ -41,9 +41,9 @@ Item {
       return;
     if (specialSelected) {
       if (calcMode || fxMode) {
-        copy(calcMode ? CalcEngine.resultText : CurrencyEngine.resultText);
+        copy(calcMode ? CalcProvider.resultText : CurrencyProvider.resultText);
       } else if (webMode) {
-        Quickshell.execDetached(["xdg-open", WebEngine.url]);
+        Quickshell.execDetached(["xdg-open", WebProvider.url]);
       }
       close();
       return;
@@ -155,18 +155,18 @@ Item {
   function processInput(text: string): void {
     disarmHoverSelection();
     query = text;
-    CalcEngine.reset();
-    CurrencyEngine.reset();
-    WebEngine.reset();
+    CalcProvider.reset();
+    CurrencyProvider.reset();
+    WebProvider.reset();
     const trimmed = String(text || "").trim();
     if (!trimmed) {
       filterApps("");
       currentIndex = 0;
       return;
     }
-    const hasFx = CurrencyEngine.parseAndConvert(trimmed);
+    const hasFx = CurrencyProvider.parseAndConvert(trimmed);
     if (!hasFx)
-      CalcEngine.evaluate(trimmed);
+      CalcProvider.evaluate(trimmed);
     filterApps(trimmed);
 
     // Web search is fallback if no apps, calc, or fx.
@@ -175,18 +175,18 @@ Item {
     // FZF score for a perfect boundary match is ~32 per char.
     // We'll use 25 per char as a threshold for "good" matches.
     const scoreThreshold = Math.max(32, trimmed.length * 25);
-    const isFallback = (filteredApps.length === 0 || maxAppScore < scoreThreshold) && !CalcEngine.hasResult && !CurrencyEngine.hasResult;
-    WebEngine.parse(trimmed, isFallback);
+    const isFallback = (filteredApps.length === 0 || maxAppScore < scoreThreshold) && !CalcProvider.hasResult && !CurrencyProvider.hasResult;
+    WebProvider.parse(trimmed, isFallback);
 
     currentIndex = 0;
   }
 
   function rateLabel(): string {
-    if (!fxMode || CurrencyEngine.inputAmount === 0)
+    if (!fxMode || CurrencyProvider.inputAmount === 0)
       return "";
-    const rate = CurrencyEngine.outputAmount / CurrencyEngine.inputAmount;
+    const rate = CurrencyProvider.outputAmount / CurrencyProvider.inputAmount;
     const decimals = rate >= 100 ? 2 : (rate >= 1 ? 4 : 6);
-    return " · 1 " + CurrencyEngine.fromCode.toUpperCase() + " = " + rate.toLocaleString(Qt.locale(), "f", decimals) + " " + CurrencyEngine.toCode.toUpperCase();
+    return " · 1 " + CurrencyProvider.fromCode.toUpperCase() + " = " + rate.toLocaleString(Qt.locale(), "f", decimals) + " " + CurrencyProvider.toCode.toUpperCase();
   }
 
   function toArray(v: var): var {
@@ -203,7 +203,7 @@ Item {
   }
   onActiveChanged: {
     if (active) {
-      CurrencyEngine.refreshIfStale();
+      CurrencyProvider.refreshIfStale();
       open();
       disarmHoverSelection();
       _lastPointerX = -1;
@@ -364,7 +364,7 @@ Item {
           OText {
             color: Theme.withOpacity(Theme.activeColor, 0.8)
             font.pixelSize: Theme.fontXs
-            text: calcMode ? "CALC" : (fxMode ? (CurrencyEngine.ratesLive ? "FX" : "FX-STATIC") : (WebEngine.isUrl ? "URL" : (WebEngine.hasResult ? "WEB" : "")))
+            text: calcMode ? "CALC" : (fxMode ? (CurrencyProvider.ratesLive ? "FX" : "FX-STATIC") : (WebProvider.isUrl ? "URL" : (WebProvider.hasResult ? "WEB" : "")))
           }
         }
       }
@@ -413,14 +413,14 @@ Item {
               OText {
                 color: Theme.activeColor
                 font.pixelSize: Theme.fontXs
-                text: calcMode ? "Calculator" : (fxMode ? ((CurrencyEngine.ratesLive ? "Currency" : "Currency (Static)") + root.rateLabel()) : (WebEngine.isUrl ? "Open Link" : "Web Search"))
+                text: calcMode ? "Calculator" : (fxMode ? ((CurrencyProvider.ratesLive ? "Currency" : "Currency (Static)") + root.rateLabel()) : (WebProvider.isUrl ? "Open Link" : "Web Search"))
               }
 
               // Calculator Result
               OText {
                 Layout.fillWidth: true
                 font.pixelSize: Theme.fontLg
-                text: CalcEngine.expression + " = " + CalcEngine.resultText
+                text: CalcProvider.expression + " = " + CalcProvider.resultText
                 visible: calcMode
               }
 
@@ -432,13 +432,13 @@ Item {
                 OText {
                   color: Theme.activeColor
                   font.pixelSize: Theme.fontLg
-                  text: WebEngine.isUrl ? "󰖟" : "󰍉"
+                  text: WebProvider.isUrl ? "󰖟" : "󰍉"
                 }
 
                 OText {
                   Layout.fillWidth: true
                   font.pixelSize: Theme.fontLg
-                  text: WebEngine.isUrl ? WebEngine.url : WebEngine.query
+                  text: WebProvider.isUrl ? WebProvider.url : WebProvider.query
                 }
               }
 
@@ -453,12 +453,12 @@ Item {
                   OText {
                     Layout.alignment: Qt.AlignHCenter
                     font.pixelSize: Theme.fontLg
-                    text: CurrencyEngine.fromFlag
+                    text: CurrencyProvider.fromFlag
                   }
 
                   OText {
                     font.pixelSize: Theme.fontLg
-                    text: CurrencyEngine.inputAmount + " " + CurrencyEngine.fromCode.toUpperCase()
+                    text: CurrencyProvider.inputAmount + " " + CurrencyProvider.fromCode.toUpperCase()
                   }
                 }
 
@@ -476,12 +476,12 @@ Item {
                   OText {
                     Layout.alignment: Qt.AlignHCenter
                     font.pixelSize: Theme.fontLg
-                    text: CurrencyEngine.toFlag
+                    text: CurrencyProvider.toFlag
                   }
 
                   OText {
                     font.pixelSize: Theme.fontLg
-                    text: CurrencyEngine.resultText + " " + CurrencyEngine.toCode.toUpperCase()
+                    text: CurrencyProvider.resultText + " " + CurrencyProvider.toCode.toUpperCase()
                   }
                 }
 
@@ -494,7 +494,7 @@ Item {
                   color: Theme.textInactiveColor
                   font.pixelSize: Theme.fontXs
                   opacity: 0.8
-                  text: CurrencyEngine.lastUpdatedText
+                  text: CurrencyProvider.lastUpdatedText
                   visible: text !== ""
                 }
               }
