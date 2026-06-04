@@ -15,6 +15,7 @@ Singleton {
   readonly property var displayWorkspaces: root.buildDisplayWorkspaces(workspaces, currentWorkspaceIndex, MainService.currentWM === "hyprland", 10)
   readonly property string focusedOutput: backend?.focusedOutput ?? ""
   readonly property var focusedWorkspace: backend?.focusedWorkspace ?? null
+  readonly property bool fullscreenVisible: backend?.fullscreenVisible ?? false
   readonly property var groupBoundaries: backend?.groupBoundaries ?? []
   readonly property var outputsOrder: backend?.outputsOrder ?? []
   readonly property var specialWorkspaces: backend?.specialWorkspaces ?? []

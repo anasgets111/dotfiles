@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import qs.Services
 import qs.Services.WM
 
@@ -22,14 +23,26 @@ Singleton {
   readonly property bool enabled: MainService.ready && MainService.currentWM === "niri"
   readonly property string focusedOutput: _layoutState.focusedOutput
   readonly property var focusedWorkspace: _layoutState.focusedWorkspace
+  readonly property bool fullscreenVisible: enabled && visibleWindowKeys.size > 0 && ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen && visibleWindowKeys.has(root._windowKey(toplevel.appId, toplevel.title)))
   readonly property list<int> groupBoundaries: _layoutState.groupBoundaries
   property var normalizedWorkspaces: []
   readonly property list<string> outputsOrder: _layoutState.outputsOrder
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
   property int trackedWorkspaceId: 1
+  property var visibleWindowKeys: new Set()
   property var windowsById: ({})
   readonly property var workspaces: _layoutState.workspaces
   property var workspacesById: ({})
+
+  function _activateWorkspace(workspaceId: int): void {
+    const activated = workspacesById[workspaceId];
+    if (activated)
+      for (const workspace of Object.values(workspacesById))
+        if (workspace.output === activated.output)
+          workspace.is_active = workspace.id === workspaceId;
+    trackedWorkspaceId = workspaceId;
+    Qt.callLater(rebuildWorkspaceList);
+  }
 
   function _indexById(items: var): var {
     const indexedItems = {};
@@ -47,6 +60,10 @@ Singleton {
       trackedWorkspaceId = focusedWorkspace.id;
     else
       Qt.callLater(rebuildWorkspaceList);
+  }
+
+  function _windowKey(appId: string, title: string): string {
+    return JSON.stringify([appId ?? "", title ?? ""]);
   }
 
   function focusWorkspace(workspace: var): void {
@@ -88,7 +105,7 @@ Singleton {
       if (event.WorkspacesChanged) {
         _updateWorkspaces(event.WorkspacesChanged.workspaces);
       } else if (event.WorkspaceActivated) {
-        trackedWorkspaceId = event.WorkspaceActivated.id;
+        _activateWorkspace(event.WorkspaceActivated.id);
       } else if (event.WindowsChanged) {
         windowsById = _indexById(event.WindowsChanged.windows);
         Qt.callLater(rebuildWorkspaceList);
@@ -116,6 +133,9 @@ Singleton {
           output: rawWorkspace.output ?? "",
           name: rawWorkspace.name ?? ""
         }));
+
+    const activeWorkspaceIds = new Set(Object.values(workspacesById).filter(workspace => workspace.is_active).map(workspace => workspace.id));
+    visibleWindowKeys = new Set(Object.values(windowsById).filter(window => activeWorkspaceIds.has(window.workspace_id)).map(window => _windowKey(window.app_id, window.title)));
   }
 
   function refresh(): void {
