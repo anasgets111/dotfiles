@@ -44,14 +44,14 @@ Item {
       root._shownMessageIds[id] = true;
   }
 
+  function messageExpanded(id) {
+    return !!root._messageExpansion[id];
+  }
+
   function openBodyLink(url) {
     const safeUrl = NotificationText.safeUrl(String(url || ""));
     if (safeUrl)
       Qt.openUrlExternally(safeUrl);
-  }
-
-  function messageExpanded(id) {
-    return !!root._messageExpansion[id];
   }
 
   function toggleMessageExpansion(id) {
@@ -220,9 +220,9 @@ Item {
 
             MouseArea {
               anchors.fill: parent
-              enabled: !!messageColumn.defaultAction
+              enabled: messageColumn.wrapper?.hasDefaultAction ?? false
 
-              onClicked: messageColumn.defaultAction?.invoke()
+              onClicked: root.svc?.invokeDefaultAction(messageColumn.wrapper)
             }
 
             Rectangle {
@@ -247,35 +247,14 @@ Item {
             ColumnLayout {
               id: messageColumn
 
-              readonly property var actionsModel: notification?.actions || []
-              readonly property string body: notification?.body || ""
-              readonly property bool bodyHasMultipleLines: (body.match(/\n/g) || []).length > 0
               property bool bodyTruncated: false
               readonly property int bottomPadding: messageItem.isMultipleItems ? root.messagePadding : 0
-              readonly property url contentImage: Utils.normalizeImageUrl(String(notification?.image || ""))
-              readonly property var defaultAction: actionsModel.find(action => String(action?.identifier || "").trim() === "default") || null
               readonly property bool expanded: root.messageExpanded(messageColumn.messageId)
-              readonly property bool hasInlineReply: notification?.hasInlineReply === true
               readonly property int horizontalPadding: messageItem.isMultipleItems ? root.messagePadding : 0
-              readonly property string inlineReplyPlaceholder: notification?.inlineReplyPlaceholder || "Reply"
-              readonly property string messageId: String(notification?.id || "")
-              readonly property var notification: messageItem.modelData?.notification || null
-              readonly property var renderedActions: actionsModel.filter(action => {
-                if (!action)
-                  return false;
-                const identifier = String(action.identifier || "").trim();
-                if (identifier === "default")
-                  return false;
-                const text = String(action.text || "").trim();
-                return text !== "" || (!messageColumn.useActionIcons && identifier !== "");
-              })
-              readonly property var renderedBodyMeta: NotificationText.body(body)
-              readonly property string summary: notification?.summary || "(No title)"
-              readonly property var renderedSummaryMeta: NotificationText.summary(summary)
-              readonly property bool hasBody: !!(renderedBodyMeta.plain.trim() && renderedBodyMeta.plain.trim() !== renderedSummaryMeta.plain.trim())
+              readonly property string messageId: wrapper?.messageId || ""
               property bool summaryTruncated: false
               readonly property int topPadding: messageItem.isMultipleItems ? root.messagePadding : 0
-              readonly property bool useActionIcons: notification?.hasActionIcons || false
+              readonly property var wrapper: messageItem.modelData
 
               spacing: root.spacingContent
 
@@ -298,9 +277,9 @@ Item {
                   Layout.preferredWidth: visible ? Theme.notificationInlineImageSize : 0
                   fillMode: Image.PreserveAspectFit
                   smooth: true
-                  source: messageColumn.contentImage
+                  source: messageColumn.wrapper?.contentImage || ""
                   sourceSize: Qt.size(Theme.notificationInlineImageSize, Theme.notificationInlineImageSize)
-                  visible: String(messageColumn.contentImage) !== "" && status !== Image.Error
+                  visible: String(messageColumn.wrapper?.contentImage || "") !== "" && status !== Image.Error
                 }
 
                 Text {
@@ -316,8 +295,8 @@ Item {
                   font.pixelSize: Theme.fontMd
                   horizontalAlignment: messageItem.isMultipleItems ? Text.AlignLeft : Text.AlignHCenter
                   maximumLineCount: messageColumn.expanded ? 0 : 2
-                  text: messageColumn.renderedSummaryMeta.text
-                  textFormat: messageColumn.renderedSummaryMeta.format
+                  text: messageColumn.wrapper?.renderedSummary.text || ""
+                  textFormat: messageColumn.wrapper?.renderedSummary.format ?? Text.PlainText
                   wrapMode: Text.WordWrap
 
                   Component.onCompleted: Qt.callLater(updateTruncation)
@@ -329,16 +308,7 @@ Item {
                   color: Theme.textInactiveColor
                   opacity: 0.7
                   size: "xs"
-                  text: {
-                    const wrapper = messageItem.modelData;
-                    if (!wrapper?.createdAt)
-                      return "";
-                    const format = root.svc?.uses24HourClock() ? "ddd HH:mm" : "ddd h:mm AP";
-                    let formatted = Qt.formatDateTime(wrapper.createdAt, format);
-                    if (!root.svc?.uses24HourClock())
-                      formatted = formatted.replace(" AM", "am").replace(" PM", "pm");
-                    return formatted;
-                  }
+                  text: messageItem.modelData?.timestampText || ""
                   visible: root.showTimestamp && text
                 }
 
@@ -367,7 +337,7 @@ Item {
 
               Loader {
                 Layout.fillWidth: true
-                active: messageColumn.hasBody
+                active: messageColumn.wrapper?.hasBody ?? false
 
                 sourceComponent: Item {
                   Layout.fillWidth: true
@@ -378,14 +348,14 @@ Item {
                     id: bodyText
 
                     function updateTruncation() {
-                      messageColumn.bodyTruncated = truncated || lineCount > 2 || messageColumn.bodyHasMultipleLines || implicitHeight > font.pixelSize * 3;
+                      messageColumn.bodyTruncated = truncated || lineCount > 2 || (messageColumn.wrapper?.bodyHasMultipleLines ?? false) || implicitHeight > font.pixelSize * 3;
                     }
 
                     color: Theme.textInactiveColor
                     font.pixelSize: Theme.fontSm
                     linkColor: root.accentColor
-                    text: messageColumn.renderedBodyMeta.text
-                    textFormat: messageColumn.renderedBodyMeta.format
+                    text: messageColumn.wrapper?.renderedBody.text || ""
+                    textFormat: messageColumn.wrapper?.renderedBody.format ?? Text.PlainText
                     width: parent.width
                     wrapMode: Text.WordWrap
 
@@ -420,7 +390,7 @@ Item {
                 Layout.bottomMargin: Theme.spacingXs
                 Layout.fillWidth: true
                 Layout.topMargin: Theme.spacingXs
-                active: messageColumn.hasInlineReply
+                active: messageColumn.wrapper?.hasInlineReply ?? false
                 visible: active
 
                 sourceComponent: RowLayout {
@@ -433,7 +403,7 @@ Item {
                     activeFocusOnPress: true
                     font.pixelSize: Theme.fontSm
                     padding: Theme.spacingSm
-                    placeholderText: messageColumn.inlineReplyPlaceholder
+                    placeholderText: messageColumn.wrapper?.inlineReplyPlaceholder || "Reply"
                     selectByMouse: true
 
                     background: Rectangle {
@@ -461,19 +431,7 @@ Item {
                     text: "Send"
 
                     onClicked: {
-                      const replyText = String(replyField.text || "");
-                      if (replyText.length === 0)
-                        return;
-                      let success = false;
-                      try {
-                        if (messageColumn.notification?.hasInlineReply) {
-                          messageColumn.notification.sendInlineReply(replyText);
-                          success = true;
-                        }
-                      } catch (e) {
-                        success = false;
-                      }
-                      if (success)
+                      if (root.svc?.sendReply(messageColumn.wrapper, replyField.text))
                         replyField.text = "";
                     }
                   }
@@ -485,7 +443,7 @@ Item {
                 Layout.preferredHeight: visible ? implicitHeight : 0
                 Layout.topMargin: Theme.spacingXs
                 implicitHeight: actionsRow.implicitHeight
-                visible: messageColumn.renderedActions.length > 0
+                visible: (messageColumn.wrapper?.visibleActions.length || 0) > 0
 
                 RowLayout {
                   id: actionsRow
@@ -496,25 +454,16 @@ Item {
                   spacing: Theme.spacingSm
 
                   Repeater {
-                    model: messageColumn.renderedActions
+                    model: messageColumn.wrapper?.visibleActions || []
 
                     delegate: StandardButton {
-                      readonly property string actionIcon: messageColumn.useActionIcons && actionIdentifier ? Utils.resolveIconSource(actionIdentifier, "", "") : ""
-                      readonly property string actionIdentifier: String(modelData?.identifier || "")
-                      readonly property string actionLabel: {
-                        const text = String(modelData?.text || "").trim();
-                        if (text !== "")
-                          return text;
-                        return messageColumn.useActionIcons ? "" : String(modelData?.identifier || "").trim();
-                      }
                       required property var modelData
 
                       buttonType: "action"
-                      icon.source: actionIcon
-                      text: actionLabel
-                      visible: actionLabel !== "" || actionIcon !== ""
+                      icon.source: modelData?.icon || ""
+                      text: modelData?.label || ""
 
-                      onClicked: modelData?.invoke()
+                      onClicked: root.svc?.invokeAction(messageColumn.wrapper, modelData?.identifier || "")
                     }
                   }
                 }
@@ -527,18 +476,6 @@ Item {
   }
 
   HoverHandler {
-    onHoveredChanged: {
-      for (const w of root.items) {
-        const t = w?.timer;
-        if (!t)
-          continue;
-        if (hovered) {
-          if (t.running)
-            t.stop();
-        } else if (w.popup && t.interval > 0 && !t.running) {
-          t.start();
-        }
-      }
-    }
+    onHoveredChanged: hovered ? root.svc?.pauseTimers(root.items) : root.svc?.resumeTimers(root.items)
   }
 }
