@@ -10,21 +10,21 @@ PanelContentBase {
   id: root
 
   readonly property var availableNetworks: NetworkService.availableWifiAps
+  readonly property string connectError: root.errorDismissed ? "" : NetworkService.connectError
   readonly property var connectedNetwork: NetworkService.connectedWifiAp
-  property var connectingNetwork: null
-  property string connectionError: ""
+  readonly property string connectingSsid: NetworkService.connectingSsid
+  property bool errorDismissed: false
   readonly property string ethernetInterface: NetworkService.ethernetInterface
-  // SSID whose inline password field is open ("" = none)
   property string expandedSsid: ""
-  property bool hiddenConnecting: false
+  readonly property bool hiddenConnecting: isHiddenTarget && targetSsid !== "" && connectingSsid === targetSsid
   property bool isHiddenTarget: false
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
-  readonly property var pendingAp: (isHiddenTarget && targetSsid !== "") ? accessPointForSsid(targetSsid) : null
+  readonly property var pendingAp: (isHiddenTarget && targetSsid !== "") ? networkForSsid(targetSsid) : null
   readonly property bool ready: NetworkService.ready
   readonly property var savedNetworks: NetworkService.savedWifiAps
   property bool scanning: false
   readonly property bool showGroups: savedNetworks.some(ap => !ap.connected) && availableNetworks.length > 0
-  readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && !hiddenConnecting && (pendingAp ? securityRequiresPassword(pendingAp.security) : true)
+  readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && !hiddenConnecting && (pendingAp ? pendingAp.secured : true)
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
   property string targetSsid: ""
   readonly property var viewList: NetworkService.viewWifiAps.map(ap => Object.assign({}, ap, {
@@ -33,93 +33,51 @@ PanelContentBase {
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
   readonly property string wifiInterface: NetworkService.wifiInterface
 
-  // Look up a flat AP object (for security/UI checks)
-  function accessPointForSsid(ssid: string): var {
-    const aps = NetworkService.wifiAps ?? [];
-    return aps.find(a => a?.ssid === ssid) || null;
-  }
-
   function cancelInline(): void {
     root.expandedSsid = "";
-    root.connectingNetwork = null;
-    root.connectionError = "";
+    NetworkService.cancelConnect();
   }
 
   function connectToNetwork(ssid: string): void {
-    const ap = accessPointForSsid(ssid);
+    const ap = networkForSsid(ssid);
     if (!ap || ap.connected)
       return;
-    if (ap.saved) {
-      const net = wifiNetworkForSsid(ssid);
-      if (net) {
-        net.connect();
-        root.closeRequested();
-      }
-      return;
-    }
-    root.connectionError = "";
-    if (securityRequiresPassword(ap.security)) {
-      root.expandedSsid = root.expandedSsid === ssid ? "" : ssid;
-    } else {
+    root.errorDismissed = false;
+    if (ap.saved || !ap.secured) {
       root.expandedSsid = "";
-      submitConnect(ssid, "");
+      NetworkService.connectToSsid(ssid, "");
+    } else {
+      root.expandedSsid = root.expandedSsid === ssid ? "" : ssid;
     }
+  }
+
+  function networkForSsid(ssid: string): var {
+    const aps = NetworkService.wifiAps ?? [];
+    return aps.find(a => a?.ssid === ssid) || null;
   }
 
   function resetConnectionState(): void {
     isHiddenTarget = false;
     targetSsid = "";
     expandedSsid = "";
-    connectingNetwork = null;
-    hiddenConnecting = false;
-    hiddenTimeout.stop();
+    errorDismissed = false;
+    NetworkService.cancelConnect();
     if (credentialSheet)
       credentialSheet.clearInputs();
-    connectionError = "";
   }
 
-  function securityRequiresPassword(security: string): bool {
-    const sec = String(security || "").trim();
-    return sec !== "" && sec !== "--";
-  }
-
-  // Inline (visible-network) connection
-  function submitConnect(ssid: string, password: string): void {
-    const net = wifiNetworkForSsid(ssid);
-    if (!net)
-      return;
-    const trimmedPassword = String(password || "").trim();
-    root.connectionError = "";
-    root.connectingNetwork = net;
-    if (trimmedPassword)
-      net.connectWithPsk(trimmedPassword);
-    else
-      net.connect();
-  }
-
-  // Hidden-network connection (sheet flow)
   function submitHiddenPassword(password: string): void {
-    const trimmedPassword = String(password || "").trim();
-    if (!targetSsid || (showPasswordInput && !trimmedPassword))
+    if (!targetSsid || (showPasswordInput && String(password || "").trim() === ""))
       return;
-    connectionError = "";
-    hiddenConnecting = true;
-    hiddenTimeout.restart();
-    NetworkService.connectHiddenWifi(targetSsid, trimmedPassword);
+    root.errorDismissed = false;
+    NetworkService.connectToSsid(targetSsid, password);
   }
 
-  // Look up the live WifiNetwork object (for connect/disconnect/forget actions)
-  function wifiNetworkForSsid(ssid: string): var {
-    return (NetworkService.wifiDevice?.networks.values ?? []).find(n => n.name === ssid) ?? null;
-  }
-
-  needsKeyboardFocus: showSsidInput || showPasswordInput || (expandedSsid !== "" && connectingNetwork === null)
+  needsKeyboardFocus: showSsidInput || showPasswordInput || (expandedSsid !== "" && connectingSsid === "")
   preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: 340
 
   Component.onDestruction: resetConnectionState()
-  // Pause scanning while a password field is open so the model doesn't churn
-  // and clobber the field the user is typing into.
   onExpandedSsidChanged: {
     if (!isOpen)
       return;
@@ -141,8 +99,6 @@ PanelContentBase {
     scanGraceTimer.restart();
   }
 
-  // Grace window for distinguishing "scanning" from "no networks found"
-  // (the backend exposes no active-scan signal).
   Timer {
     id: scanGraceTimer
 
@@ -151,46 +107,14 @@ PanelContentBase {
     onTriggered: root.scanning = false
   }
 
-  // Hidden-connect has no failure signal; bail out after a timeout so the
-  // sheet doesn't hang forever.
-  Timer {
-    id: hiddenTimeout
-
-    interval: 20000
-
-    onTriggered: {
-      if (root.isHiddenTarget && root.hiddenConnecting) {
-        root.connectionError = qsTr("Connection failed");
-        root.hiddenConnecting = false;
-      }
-    }
-  }
-
-  // Per-network connection failure / success (inline flow)
   Connections {
-    function onConnectedChanged() {
-      if (root.connectingNetwork?.connected) {
-        root.resetConnectionState();
-        root.closeRequested();
-      }
+    function onConnectFailed() {
+      root.errorDismissed = false;
     }
 
-    function onConnectionFailed(reason) {
-      root.connectionError = NetworkService.connectionFailReasonText(reason);
-      root.connectingNetwork = null;
-    }
-
-    enabled: root.connectingNetwork !== null
-    target: root.connectingNetwork ?? null
-  }
-
-  // Hidden network success detection
-  Connections {
-    function onWifiOnlineChanged() {
-      if (root.isHiddenTarget && root.hiddenConnecting && NetworkService.wifiOnline) {
-        root.resetConnectionState();
-        root.closeRequested();
-      }
+    function onConnectSucceeded() {
+      root.resetConnectionState();
+      root.closeRequested();
     }
 
     target: NetworkService
@@ -255,10 +179,7 @@ PanelContentBase {
       visible: root.connectedNetwork !== null
 
       onDisconnectClicked: NetworkService.disconnectWifi()
-      onForgetClicked: ssid => {
-        const net = root.wifiNetworkForSsid(ssid);
-        net?.forget();
-      }
+      onForgetClicked: ssid => NetworkService.forgetWifi(ssid)
     }
 
     CredentialSheet {
@@ -266,22 +187,22 @@ PanelContentBase {
 
       Layout.bottomMargin: visible ? Theme.spacingMd : 0
       Layout.fillWidth: true
-      errorMessage: root.connectionError
+      errorMessage: root.connectError
       passwordMode: root.showPasswordInput
       ssidMode: root.showSsidInput
       targetName: root.targetSsid
       visible: root.isHiddenTarget
 
       onCancelled: root.resetConnectionState()
-      onErrorCleared: root.connectionError = ""
+      onErrorCleared: root.errorDismissed = true
       onPasswordSubmitted: pw => root.submitHiddenPassword(pw)
       onSsidSubmitted: ssid => {
         ssid = ssid.trim();
         if (ssid) {
           root.targetSsid = ssid;
-          root.connectionError = "";
-          const targetAp = root.accessPointForSsid(ssid);
-          if (targetAp && !root.securityRequiresPassword(targetAp?.security))
+          root.errorDismissed = false;
+          const targetAp = root.networkForSsid(ssid);
+          if (targetAp && !targetAp.secured)
             root.submitHiddenPassword("");
         }
       }
@@ -372,8 +293,8 @@ PanelContentBase {
           delegate: NetworkRow {
             required property var modelData
 
-            connecting: root.connectingNetwork !== null && root.connectingNetwork.name === modelData.ssid
-            errorMessage: root.expandedSsid === modelData.ssid ? root.connectionError : ""
+            connecting: root.connectingSsid !== "" && root.connectingSsid === modelData.ssid
+            errorMessage: root.expandedSsid === modelData.ssid ? root.connectError : ""
             expanded: root.expandedSsid === modelData.ssid
             isSaved: modelData.saved
             network: modelData
@@ -381,12 +302,9 @@ PanelContentBase {
 
             onCancelExpand: root.cancelInline()
             onClicked: root.connectToNetwork(modelData.ssid)
-            onForgetClicked: {
-              const net = root.wifiNetworkForSsid(modelData.ssid);
-              net?.forget();
-            }
-            onPasswordEdited: root.connectionError = ""
-            onPasswordSubmitted: pw => root.submitConnect(modelData.ssid, pw)
+            onForgetClicked: NetworkService.forgetWifi(modelData.ssid)
+            onPasswordEdited: root.errorDismissed = true
+            onPasswordSubmitted: pw => NetworkService.connectToSsid(modelData.ssid, pw)
           }
           section.delegate: Item {
             id: sectionRoot
@@ -425,7 +343,7 @@ PanelContentBase {
           root.expandedSsid = "";
           if (credentialSheet)
             credentialSheet.clearInputs();
-          root.connectionError = "";
+          NetworkService.cancelConnect();
         }
 
         RowLayout {
@@ -842,10 +760,7 @@ PanelContentBase {
     property bool expanded: false
     property bool isSaved: false
     property var network: null
-    readonly property bool secured: {
-      const sec = network?.security || "";
-      return sec !== "" && sec !== "--";
-    }
+    readonly property bool secured: network?.secured === true
 
     signal cancelExpand
     signal clicked
@@ -963,7 +878,6 @@ PanelContentBase {
         }
       }
 
-      // Inline password expander
       ColumnLayout {
         Layout.bottomMargin: row.expanded ? Theme.spacingSm : 0
         Layout.fillWidth: true

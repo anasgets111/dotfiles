@@ -10,6 +10,9 @@ Singleton {
   id: root
 
   property var _bandMap: ({})
+  property string _connectError: ""
+  property var _connectingNetwork: null
+  property string _connectingSsid: ""
   property string _ethernetIp: ""
   property bool _networkingEnabled: true
   property string _wifiIp: ""
@@ -17,7 +20,9 @@ Singleton {
     const savedNames = new Set(root.savedWifiAps.map(accessPoint => accessPoint.ssid));
     return root.wifiAps.filter(accessPoint => !savedNames.has(accessPoint.ssid) && accessPoint.signal > 0);
   }
+  readonly property alias connectError: root._connectError
   readonly property var connectedWifiAp: root.wifiAps.find(accessPoint => accessPoint.connected) || null
+  readonly property alias connectingSsid: root._connectingSsid
   readonly property string ethernetInterface: root.wiredDevice?.name ?? ""
   readonly property alias ethernetIpAddress: root._ethernetIp
   readonly property bool ethernetOnline: root.wiredNetwork?.connected ?? false
@@ -27,15 +32,13 @@ Singleton {
   readonly property bool ready: Networking.backend !== NetworkBackendType.None
   readonly property var savedWifiAps: root.wifiAps.filter(accessPoint => accessPoint.saved && (accessPoint.signal > 0 || accessPoint.connected))
   readonly property var viewWifiAps: root.savedWifiAps.filter(accessPoint => !accessPoint.connected).concat(root.availableWifiAps.filter(accessPoint => !accessPoint.connected))
-
-  // --- Wifi state (native) ---
   readonly property var wifiAps: {
     const networks = root.wifiDevice?.networks.values ?? [];
     return networks.map(network => ({
           ssid: network.name,
           signal: Math.round(network.signalStrength * 100),
           band: root._bandMap[network.name] ?? "",
-          security: root.securityLabel(network.security),
+          secured: root.isSecured(network.security),
           connected: network.connected,
           saved: network.known
         })).sort((leftAccessPoint, rightAccessPoint) => (rightAccessPoint.connected - leftAccessPoint.connected) || (rightAccessPoint.signal - leftAccessPoint.signal));
@@ -48,19 +51,64 @@ Singleton {
   readonly property var wiredDevice: root.deviceOfType(DeviceType.Wired)
   readonly property var wiredNetwork: root.wiredDevice?.network ?? null
 
+  signal connectFailed(string ssid, string reason)
+  signal connectSucceeded(string ssid)
+
+  function _connectHidden(ssid: string, password: string): void {
+    const interfaceName = root.wifiInterface;
+    if (!interfaceName)
+      return;
+    const command = ["nmcli", "device", "wifi", "connect", ssid, "ifname", interfaceName, "hidden", "yes"];
+    if (password)
+      command.push("password", password);
+    root.runCommand(cmdAction, command);
+  }
+
+  function _failConnect(reason: string): void {
+    root.connectFailed(root._resetConnecting(reason), reason);
+  }
+
+  function _resetConnecting(error: string): string {
+    const ssid = root._connectingSsid;
+    connectTimeout.stop();
+    root._connectingNetwork = null;
+    root._connectingSsid = "";
+    root._connectError = error;
+    return ssid;
+  }
+
+  function _succeedConnect(): void {
+    root.connectSucceeded(root._resetConnecting(""));
+  }
+
+  function cancelConnect(): void {
+    root._resetConnecting("");
+  }
+
   function connectEthernet(): void {
     root.wiredNetwork?.connect();
   }
 
-  function connectHiddenWifi(ssid: string, password: string): void {
+  function connectToSsid(ssid: string, password: string): void {
     const trimmedSsid = (ssid || "").trim();
-    const interfaceName = root.wifiInterface;
-    if (!trimmedSsid || !interfaceName)
+    if (!trimmedSsid)
       return;
-    const command = ["nmcli", "device", "wifi", "connect", trimmedSsid, "ifname", interfaceName, "hidden", "yes"];
-    if (password)
-      command.push("password", password);
-    root.runCommand(cmdAction, command);
+    const trimmedPassword = String(password || "").trim();
+    root._connectError = "";
+    root._connectingNetwork = null;
+    root._connectingSsid = trimmedSsid;
+    connectTimeout.restart();
+
+    const live = root.wifiNetworkForSsid(trimmedSsid);
+    if (live) {
+      root._connectingNetwork = live;
+      if (trimmedPassword)
+        live.connectWithPsk(trimmedPassword);
+      else
+        live.connect();
+    } else {
+      root._connectHidden(trimmedSsid, trimmedPassword);
+    }
   }
 
   function connectionFailReasonText(reason: int): string {
@@ -89,6 +137,10 @@ Singleton {
     root.wifiDevice?.disconnect();
   }
 
+  function forgetWifi(ssid: string): void {
+    root.wifiNetworkForSsid(ssid)?.forget();
+  }
+
   function getBandColor(band: string): string {
     return band === "6" ? "#A6E3A1" : band === "5" ? "#89B4FA" : "#CDD6F4";
   }
@@ -107,6 +159,10 @@ Singleton {
     if (frequencyMhz >= 2400 && frequencyMhz <= 2500)
       return "2.4";
     return "";
+  }
+
+  function isSecured(securityType: int): bool {
+    return securityType !== WifiSecurityType.Open && securityType !== WifiSecurityType.Owe && securityType !== WifiSecurityType.Unknown;
   }
 
   function nmcliCommand(args: var): var {
@@ -189,10 +245,6 @@ Singleton {
     process.running = true;
   }
 
-  function securityLabel(securityType: int): string {
-    return (securityType !== WifiSecurityType.Open && securityType !== WifiSecurityType.Owe && securityType !== WifiSecurityType.Unknown) ? "secured" : "";
-  }
-
   function setNetworkingEnabled(enabled: bool): void {
     root.runCommand(cmdAction, ["nmcli", "networking", enabled ? "on" : "off"]);
   }
@@ -212,6 +264,10 @@ Singleton {
       root.wifiDevice.scannerEnabled = false;
   }
 
+  function wifiNetworkForSsid(ssid: string): var {
+    return (root.wifiDevice?.networks.values ?? []).find(network => network.name === ssid) ?? null;
+  }
+
   Component.onCompleted: {
     procMonitor.running = true;
     root.refreshIpData();
@@ -225,9 +281,35 @@ Singleton {
       root.refreshBandData();
     root.refreshIpData();
   }
-  onWifiOnlineChanged: root.refreshIpData()
+  onWifiOnlineChanged: {
+    root.refreshIpData();
+    if (root.wifiOnline && root._connectingSsid !== "" && root._connectingNetwork === null)
+      root._succeedConnect();
+  }
 
-  // --- Fallback refresh trigger for nmcli-only data ---
+  Connections {
+    function onConnectedChanged() {
+      if (root._connectingNetwork?.connected)
+        root._succeedConnect();
+    }
+
+    function onConnectionFailed(reason) {
+      root._failConnect(root.connectionFailReasonText(reason));
+    }
+
+    enabled: root._connectingNetwork !== null
+    target: root._connectingNetwork
+  }
+
+  Timer {
+    id: connectTimeout
+
+    interval: 20000
+
+    onTriggered: if (root._connectingSsid !== "")
+      root._failConnect(qsTr("Connection failed"))
+  }
+
   Process {
     id: procMonitor
 
@@ -260,7 +342,6 @@ Singleton {
     onTriggered: procMonitor.running = true
   }
 
-  // --- Networking enabled (nmcli fallback) ---
   Process {
     id: procStatus
 
@@ -269,7 +350,6 @@ Singleton {
     }
   }
 
-  // --- IP addresses (nmcli fallback, native API does not expose them) ---
   Process {
     id: procIp
 
@@ -282,7 +362,6 @@ Singleton {
     }
   }
 
-  // --- Band data: lightweight supplemental scan for frequency info ---
   Process {
     id: procBand
 
@@ -291,7 +370,6 @@ Singleton {
     }
   }
 
-  // --- Hidden wifi / networking toggle command ---
   Process {
     id: cmdAction
 
