@@ -432,6 +432,43 @@ Singleton {
     groupKeys.forEach(groupKey => root.dismissGroup(groupKey));
   }
 
+  function invokeAction(wrapper: var, identifier: string): void {
+    const target = String(identifier || "").trim();
+    const action = (wrapper?.notification?.actions || []).find(candidate => String(candidate?.identifier || "").trim() === target);
+    action?.invoke();
+  }
+
+  function invokeDefaultAction(wrapper: var): void {
+    root.invokeAction(wrapper, "default");
+  }
+
+  function sendReply(wrapper: var, text: string): bool {
+    const replyText = String(text || "");
+    if (replyText.length === 0)
+      return false;
+    const notification = wrapper?.notification;
+    if (notification?.hasInlineReply !== true)
+      return false;
+    try {
+      notification.sendInlineReply(replyText);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function pauseTimers(wrappers: var): void {
+    (wrappers || []).forEach(wrapper => root._stopWrapperTimer(wrapper));
+  }
+
+  function resumeTimers(wrappers: var): void {
+    (wrappers || []).forEach(wrapper => {
+      const timer = wrapper?.timer;
+      if (wrapper?.popup && timer && timer.interval > 0 && !timer.running)
+        timer.start();
+    });
+  }
+
   function isGroupDismissing(key: string, scope: string): bool {
     return root._groupState.isDismissing(key || "", scope || "history");
   }
@@ -670,6 +707,43 @@ Singleton {
     readonly property string groupKey: {
       const desktopEntry = String(wrapper.notification?.desktopEntry || "").trim().toLowerCase();
       return desktopEntry || String(wrapper.notification?.appName || "app").toLowerCase();
+    }
+    readonly property var actionList: wrapper.notification?.actions || []
+    readonly property bool useActionIcons: wrapper.notification?.hasActionIcons || false
+    readonly property bool hasDefaultAction: wrapper.actionList.some(action => String(action?.identifier || "").trim() === "default")
+    readonly property var visibleActions: wrapper.actionList.filter(action => {
+      if (!action)
+        return false;
+      const identifier = String(action.identifier || "").trim();
+      if (identifier === "default")
+        return false;
+      const text = String(action.text || "").trim();
+      return text !== "" || (!wrapper.useActionIcons && identifier !== "");
+    }).map(action => {
+      const identifier = String(action.identifier || "");
+      const text = String(action.text || "").trim();
+      return {
+        identifier: identifier,
+        label: text !== "" ? text : (wrapper.useActionIcons ? "" : identifier.trim()),
+        icon: wrapper.useActionIcons && identifier ? Utils.resolveIconSource(identifier, "", "") : ""
+      };
+    })
+    readonly property string summaryText: wrapper.notification?.summary || "(No title)"
+    readonly property string bodyText: wrapper.notification?.body || ""
+    readonly property var renderedSummary: NotificationText.summary(wrapper.summaryText)
+    readonly property var renderedBody: NotificationText.body(wrapper.bodyText)
+    readonly property bool hasBody: !!(wrapper.renderedBody.plain.trim() && wrapper.renderedBody.plain.trim() !== wrapper.renderedSummary.plain.trim())
+    readonly property bool bodyHasMultipleLines: (wrapper.bodyText.match(/\n/g) || []).length > 0
+    readonly property url contentImage: Utils.normalizeImageUrl(String(wrapper.notification?.image || ""))
+    readonly property bool hasInlineReply: wrapper.notification?.hasInlineReply === true
+    readonly property string inlineReplyPlaceholder: wrapper.notification?.inlineReplyPlaceholder || "Reply"
+    readonly property string messageId: String(wrapper.notification?.id || "")
+    readonly property string timestampText: {
+      if (!wrapper.createdAt)
+        return "";
+      const use24Hour = root.uses24HourClock();
+      const formatted = Qt.formatDateTime(wrapper.createdAt, use24Hour ? "ddd HH:mm" : "ddd h:mm AP");
+      return use24Hour ? formatted : formatted.replace(" AM", "am").replace(" PM", "pm");
     }
     property bool isDismissing: false
     property bool isHidingPopup: false
