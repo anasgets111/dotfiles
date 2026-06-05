@@ -5,21 +5,18 @@ import QtQuick.Layouts
 import qs.Config
 import qs.Components
 import qs.Services.Core
-import qs.Services.Utils
 
 PanelContentBase {
   id: root
 
-  readonly property string inputName: AudioService.source ? AudioService.displayName(AudioService.source) : qsTr("No input device")
+  readonly property string inputName: AudioService.sourceName || qsTr("No input device")
   property bool mixerExpanded: false
   readonly property int muteButtonSize: Math.round(Theme.itemHeight * Theme.scaleSmall)
-  readonly property string outputName: AudioService.sink ? AudioService.displayName(AudioService.sink) : qsTr("No output device")
+  readonly property string outputName: AudioService.sinkName || qsTr("No output device")
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
 
   preferredHeight: contentLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: 400
-
-  // ── Content ─────────────────────────────────────────────────
 
   ColumnLayout {
     id: contentLayout
@@ -27,8 +24,6 @@ PanelContentBase {
     anchors.fill: parent
     anchors.margins: Theme.spacingMd
     spacing: Theme.spacingSm
-
-    // ── Quick-toggle bar ────────────────────────────────────
 
     Rectangle {
       Layout.fillWidth: true
@@ -78,8 +73,6 @@ PanelContentBase {
       }
     }
 
-    // ── Output volume card ──────────────────────────────────
-
     HeroAudioCard {
       Layout.fillWidth: true
       headroomColor: Theme.critical
@@ -98,7 +91,7 @@ PanelContentBase {
 
       Item {
         Layout.fillWidth: true
-        Layout.preferredHeight: root.mixerExpanded ? (AudioService.streams.length > 0 ? mixerLayout.implicitHeight + Theme.spacingSm * 2 : 48) : 0
+        Layout.preferredHeight: root.mixerExpanded ? (AudioService.streamModels.length > 0 ? mixerLayout.implicitHeight + Theme.spacingSm * 2 : 48) : 0
         clip: true
 
         Behavior on Layout.preferredHeight {
@@ -129,11 +122,11 @@ PanelContentBase {
             horizontalAlignment: Text.AlignHCenter
             size: "sm"
             text: qsTr("No active streams")
-            visible: AudioService.streams.length === 0
+            visible: AudioService.streamModels.length === 0
           }
 
           Repeater {
-            model: AudioService.streams
+            model: AudioService.streamModels
 
             delegate: StreamItem {
             }
@@ -141,8 +134,6 @@ PanelContentBase {
         }
       }
     }
-
-    // ── Input volume card ───────────────────────────────────
 
     HeroAudioCard {
       Layout.fillWidth: true
@@ -161,39 +152,33 @@ PanelContentBase {
       onToggled: AudioService.toggleMicMute()
     }
 
-    // ── Device lists ────────────────────────────────────────
-
     DeviceList {
-      activeNode: AudioService.sink
       defaultIcon: "󰓃"
-      model: AudioService.sinks
+      model: AudioService.sinkModels
       title: qsTr("Output Devices")
 
-      onDeviceSelected: node => AudioService.setAudioSink(node)
+      onDeviceSelected: id => AudioService.setAudioSink(id)
     }
 
     DeviceList {
       Layout.bottomMargin: Theme.spacingSm
-      activeNode: AudioService.source
       defaultIcon: "󰍬"
-      model: AudioService.sources
+      model: AudioService.sourceModels
       title: qsTr("Input Devices")
       visible: model.length > 0
 
-      onDeviceSelected: node => AudioService.setAudioSource(node)
+      onDeviceSelected: id => AudioService.setAudioSource(id)
     }
   }
-
-  // ── Flat device row ───────────────────────────────────────
 
   component DeviceItem: Rectangle {
     id: deviceItem
 
     property string defaultIcon: ""
-    readonly property string displayIcon: AudioService.deviceIconFor(node) || defaultIcon
-    readonly property string displayName: AudioService.displayName(node)
-    property bool isActive: false
-    property var node
+    readonly property string displayIcon: (deviceItem.entry?.icon ?? "") || deviceItem.defaultIcon
+    readonly property string displayName: deviceItem.entry?.name ?? ""
+    property var entry
+    readonly property bool isActive: deviceItem.entry?.active ?? false
 
     signal clicked
 
@@ -243,18 +228,14 @@ PanelContentBase {
       }
     }
   }
-
-  // ── Flat device list (no outer container box) ─────────────
-
   component DeviceList: ColumnLayout {
     id: deviceListRoot
 
-    property var activeNode
     property string defaultIcon
     property alias model: deviceRepeater.model
     property string title
 
-    signal deviceSelected(var node)
+    signal deviceSelected(int id)
 
     Layout.fillWidth: true
     spacing: Theme.spacingXs
@@ -274,16 +255,12 @@ PanelContentBase {
 
         Layout.fillWidth: true
         defaultIcon: deviceListRoot.defaultIcon
-        isActive: modelData === deviceListRoot.activeNode
-        node: modelData
+        entry: modelData
 
-        onClicked: deviceListRoot.deviceSelected(modelData)
+        onClicked: deviceListRoot.deviceSelected(modelData.id)
       }
     }
   }
-
-  // ── Inline Components ───────────────────────────────────────
-
   component HeroAudioCard: Rectangle {
     id: hero
 
@@ -420,8 +397,8 @@ PanelContentBase {
     id: streamItem
 
     required property var modelData
-    readonly property bool ready: AudioService.hasControllableAudio(modelData)
-    readonly property real volume: AudioService.audioVolume(modelData)
+    readonly property bool ready: AudioService.streamReady(modelData.id)
+    readonly property real volume: AudioService.streamVolume(modelData.id)
 
     Layout.fillWidth: true
     spacing: Theme.spacingXs
@@ -436,7 +413,7 @@ PanelContentBase {
         asynchronous: true
         cache: false
         fillMode: Image.PreserveAspectFit
-        source: Utils.resolveIconSource(streamItem.modelData.name, AudioService.nodeApplicationIconName(streamItem.modelData), "󰝚")
+        source: streamItem.modelData.iconSource
 
         sourceSize {
           height: Theme.fontLg
@@ -451,13 +428,11 @@ PanelContentBase {
       }
 
       OText {
-        readonly property string _rawName: streamItem.modelData.name || ""
-
         Layout.fillWidth: true
         color: Theme.textActiveColor
         elide: Text.ElideRight
         size: "sm"
-        text: Utils.lookupDesktopEntryName(_rawName) || _rawName || "Unknown"
+        text: streamItem.modelData.name
       }
 
       OText {
@@ -486,7 +461,7 @@ PanelContentBase {
 
         onCommitted: v => {
           if (streamItem.ready)
-            AudioService.setStreamVolume(streamItem.modelData, v);
+            AudioService.setStreamVolume(streamItem.modelData.id, v);
         }
       }
     }
