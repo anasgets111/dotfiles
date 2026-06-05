@@ -2,7 +2,6 @@ pragma Singleton
 import QtQml
 import Quickshell
 import Quickshell.Hyprland
-import Quickshell.Io
 import qs.Services
 import qs.Services.Utils
 
@@ -16,18 +15,27 @@ Singleton {
   property var layouts: []
 
   function nextLayout(): void {
-    Quickshell.execDetached(["hyprctl", "switchxkblayout", keyboardDeviceName || "at-translated-set-2-keyboard", "next"]);
+    Command.detached(["hyprctl", "switchxkblayout", keyboardDeviceName || "at-translated-set-2-keyboard", "next"]);
   }
 
   function requestLayoutSync(): void {
-    if (enabled && !layoutSyncProcess.running)
-      layoutSyncProcess.running = true;
+    if (!enabled)
+      return;
+    Command.run(["hyprctl", "-j", "devices"], result => {
+      if (!impl.enabled)
+        return;
+      try {
+        impl.syncLayoutState(result.stdout);
+      } catch (error) {
+        Logger.warn("KeyboardLayoutImpl(Hypr)", `Parse error: ${error}`);
+      }
+    }, "hypr.layoutSync");
   }
 
   function setLayoutByIndex(layoutIndex: int): void {
     if (layoutIndex < 0 || layoutIndex >= layouts.length)
       return;
-    Quickshell.execDetached(["hyprctl", "switchxkblayout", keyboardDeviceName || "at-translated-set-2-keyboard", `${layoutIndex}`]);
+    Command.detached(["hyprctl", "switchxkblayout", keyboardDeviceName || "at-translated-set-2-keyboard", `${layoutIndex}`]);
   }
 
   function syncLayoutState(jsonText: string): void {
@@ -50,26 +58,6 @@ Singleton {
   Component.onCompleted: requestLayoutSync()
   onEnabledChanged: if (enabled)
     requestLayoutSync()
-
-  Process {
-    id: layoutSyncProcess
-
-    command: ["hyprctl", "-j", "devices"]
-    running: false
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        if (!impl.enabled)
-          return;
-
-        try {
-          impl.syncLayoutState(text);
-        } catch (error) {
-          Logger.warn("KeyboardLayoutImpl(Hypr)", `Parse error: ${error}`);
-        }
-      }
-    }
-  }
 
   Connections {
     function onRawEvent(event: var): void {

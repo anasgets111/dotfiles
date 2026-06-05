@@ -1,7 +1,6 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Services.Utils
 
 Singleton {
@@ -21,10 +20,7 @@ Singleton {
   property bool ready: false
   property string username: ""
 
-  Process {
-    id: sysProc
-
-    command: ["sh", "-c", `
+  Component.onCompleted: Command.run(["sh", "-c", `
       yn(){ "$@" >/dev/null 2>&1 && echo yes || echo no; }
       printf '%s=%s\\n' \
         isArchBased          "$(yn command -v pacman)" \
@@ -34,23 +30,17 @@ Singleton {
         username             "$(id -un)" \
         fullName             "$(getent passwd "$(id -un)" | cut -d: -f5 | cut -d, -f1)" \
         hostname             "$(uname -n)"
-    `.trim()]
-    running: true
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        text.trim().split("\n").forEach(line => {
-          const eqIndex = line.indexOf("=");
-          if (eqIndex < 0 || !(line.slice(0, eqIndex) in sys))
-            return;
-          const key = line.slice(0, eqIndex);
-          const value = line.slice(eqIndex + 1);
-          sys[key] = (key.startsWith("is") || key.startsWith("has")) ? value.trim() === "yes" : value;
-          Logger.log("MainService", `${key} = ${sys[key]}`);
-        });
-        sys.ready = true;
-        Logger.log("MainService", "ready");
-      }
-    }
-  }
+    `.trim()], result => {
+    result.stdout.trim().split("\n").forEach(line => {
+      const eqIndex = line.indexOf("=");
+      if (eqIndex < 0 || !(line.slice(0, eqIndex) in sys))
+        return;
+      const key = line.slice(0, eqIndex);
+      const value = line.slice(eqIndex + 1);
+      sys[key] = (key.startsWith("is") || key.startsWith("has")) ? value.trim() === "yes" : value;
+      Logger.log("MainService", `${key} = ${sys[key]}`);
+    });
+    sys.ready = true;
+    Logger.log("MainService", "ready");
+  })
 }

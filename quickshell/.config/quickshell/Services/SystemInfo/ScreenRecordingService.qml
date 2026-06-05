@@ -2,8 +2,8 @@ pragma Singleton
 import Qt.labs.platform
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Services.SystemInfo
+import qs.Services.Utils
 import qs.Services.WM
 
 Singleton {
@@ -58,11 +58,11 @@ Singleton {
 
     if (mode === "selection") {
       const escaped = args.map(part => part === "__REGION__" ? "\"$region\"" : `"${String(part).replace(/"/g, "\\\"")}"`).join(" ");
-      Quickshell.execDetached(["sh", "-c", `region="$(/usr/sbin/slurp -f '%wx%h+%x+%y')" || exit 0; [ -n "$region" ] || exit 0; ${escaped}`]);
+      Command.detached(["sh", "-c", `region="$(/usr/sbin/slurp -f '%wx%h+%x+%y')" || exit 0; [ -n "$region" ] || exit 0; ${escaped}`]);
     } else {
-      Quickshell.execDetached(args);
+      Command.detached(args);
     }
-    Quickshell.execDetached(["sh", "-c", `: > "${root.lockPath}"`]);
+    Command.detached(["sh", "-c", `: > "${root.lockPath}"`]);
 
     isRecording = true;
     isPaused = false;
@@ -73,8 +73,8 @@ Singleton {
   function stopRecording() {
     if (!isRecording)
       return;
-    Quickshell.execDetached(["pkill", "-SIGINT", "-f", "gpu-screen-recorder"]);
-    Quickshell.execDetached(["rm", "-f", root.lockPath]);
+    Command.detached(["pkill", "-SIGINT", "-f", "gpu-screen-recorder"]);
+    Command.detached(["rm", "-f", root.lockPath]);
     isRecording = false;
     isPaused = false;
     syncPersist();
@@ -90,7 +90,7 @@ Singleton {
   function togglePause() {
     if (!isRecording)
       return;
-    Quickshell.execDetached(["pkill", "-SIGUSR2", "-f", "gpu-screen-recorder"]);
+    Command.detached(["pkill", "-SIGUSR2", "-f", "gpu-screen-recorder"]);
     isPaused = !isPaused;
     syncPersist();
 
@@ -113,28 +113,18 @@ Singleton {
 
     reloadableId: "ScreenRecordingServiceState"
 
-    onLoaded: _stateCheckProc.running = true
-  }
-
-  Process {
-    id: _stateCheckProc
-
-    command: ["sh", "-c", `([ -e "${root.lockPath}" ] && echo lock=yes || echo lock=no); (pgrep -f '^gpu-screen-recorder( |$)' >/dev/null && echo proc=yes || echo proc=no)`]
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const active = /lock=yes/.test(text) || /proc=yes/.test(text);
-        if (active) {
-          root.isRecording = true;
-          root.isPaused = !!persist.wasPaused;
-          if (persist.lastOutputPath)
-            root.outputPath = persist.lastOutputPath;
-        } else {
-          root.isRecording = false;
-          root.isPaused = false;
-        }
-        root.syncPersist();
+    onLoaded: Command.run(["sh", "-c", `([ -e "${root.lockPath}" ] && echo lock=yes || echo lock=no); (pgrep -f '^gpu-screen-recorder( |$)' >/dev/null && echo proc=yes || echo proc=no)`], result => {
+      const active = /lock=yes/.test(result.stdout) || /proc=yes/.test(result.stdout);
+      if (active) {
+        root.isRecording = true;
+        root.isPaused = !!persist.wasPaused;
+        if (persist.lastOutputPath)
+          root.outputPath = persist.lastOutputPath;
+      } else {
+        root.isRecording = false;
+        root.isPaused = false;
       }
-    }
+      root.syncPersist();
+    })
   }
 }

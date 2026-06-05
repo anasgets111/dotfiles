@@ -1,9 +1,9 @@
 pragma Singleton
 import Quickshell
-import Quickshell.Io
 import QtQml
 import QtQuick
 import qs.Services
+import qs.Services.Utils
 import qs.Services.WM.Impl.Hyprland as Hyprland
 import qs.Services.WM.Impl.Niri as Niri
 
@@ -11,10 +11,12 @@ Singleton {
   id: root
 
   property var _capsCache: ({})
+  property var _drmCallbacks: []
   property var _drmEntries: null
+  property bool _drmLoading: false
   property var _edidQueue: []
+  property bool _edidRunning: false
   property int _featuresRunId: 0
-  property var _pendingEdidCallback: null
   readonly property string activeMain: preferredMain || (monitors.count > 0 ? monitors.get(0).name : "")
   readonly property var activeMainScreen: Quickshell.screens.find(screen => screen?.name === activeMain) || Quickshell.screens[0] || null
   readonly property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
@@ -29,12 +31,23 @@ Singleton {
   signal monitorsUpdated
 
   function _processEdidQueue(): void {
-    if (_edidProc.running || !_edidQueue.length)
+    if (_edidRunning || !_edidQueue.length)
       return;
+    _edidRunning = true;
     const job = _edidQueue.shift();
-    _pendingEdidCallback = job.callback;
-    _edidProc.command = ["edid-decode", job.path];
-    _edidProc.running = true;
+    Command.run(["edid-decode", job.path], result => {
+      root._edidRunning = false;
+      if (job.callback)
+        job.callback({
+          vrr: {
+            supported: /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(result.stdout)
+          },
+          hdr: {
+            supported: /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(result.stdout)
+          }
+        });
+      root._processEdidQueue();
+    });
   }
 
   function emitChangedDebounced(): void {
@@ -77,9 +90,15 @@ Singleton {
       return;
     }
     if (typeof callback === "function")
-      _drmProc._callbacks.push(callback);
-    if (!_drmProc.running)
-      _drmProc.running = true;
+      _drmCallbacks.push(callback);
+    if (_drmLoading)
+      return;
+    _drmLoading = true;
+    Command.run(["sh", "-c", "ls /sys/class/drm"], result => {
+      root._drmLoading = false;
+      root._drmEntries = result.stdout.split(/\r?\n/).filter(Boolean);
+      root._drmCallbacks.splice(0).forEach(cb => cb(root._drmEntries));
+    });
   }
 
   function readEdidCaps(connectorName: string, callback: var): void {
@@ -101,13 +120,6 @@ Singleton {
       });
       _processEdidQueue();
     });
-  }
-
-  function setMonitorPropertyIfChanged(monitorIndex: int, propertyName: string, value: var): bool {
-    if (monitors.get(monitorIndex)[propertyName] === value)
-      return false;
-    monitors.setProperty(monitorIndex, propertyName, value);
-    return true;
   }
 
   function refreshFeatures(monitorsList: var): void {
@@ -153,6 +165,13 @@ Singleton {
         updateCaps(caps);
       });
     }
+  }
+
+  function setMonitorPropertyIfChanged(monitorIndex: int, propertyName: string, value: var): bool {
+    if (monitors.get(monitorIndex)[propertyName] === value)
+      return false;
+    monitors.setProperty(monitorIndex, propertyName, value);
+    return true;
   }
 
   function toArray(): var {
@@ -232,45 +251,5 @@ Singleton {
     }
 
     target: root.backend
-  }
-
-  Process {
-    id: _drmProc
-
-    property var _callbacks: []
-
-    command: ["sh", "-c", "ls /sys/class/drm"]
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        root._drmEntries = text.split(/\r?\n/).filter(Boolean);
-        _drmProc._callbacks.splice(0).forEach(callback => callback(root._drmEntries));
-      }
-    }
-  }
-
-  Process {
-    id: _edidProc
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const callback = root._pendingEdidCallback;
-        root._pendingEdidCallback = null;
-        if (callback) {
-          callback({
-            vrr: {
-              supported: /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(text)
-            },
-            hdr: {
-              supported: /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(text)
-            }
-          });
-        }
-        root._processEdidQueue();
-      }
-    }
-
-    onRunningChanged: if (!running)
-      root._processEdidQueue()
   }
 }

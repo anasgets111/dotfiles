@@ -39,6 +39,72 @@ Singleton {
     return (elapsed / 1000).toFixed(0);
   }
 
+  function _pollGpuUsage(): void {
+    const command = root.gpuType === "NVIDIA" ? ["nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu", "--format=csv,noheader,nounits"] : root.gpuType === "GENERIC" ? ["sh", "-c", "cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null"] : ["true"];
+    Command.run(command, result => {
+      const text = result.stdout;
+      if (root.gpuType === "NVIDIA") {
+        const [usage, temp] = text.trim().split(",").map(s => parseInt(s, 10));
+        if (Number.isFinite(usage)) {
+          root.gpuPerc = usage / 100;
+          root._gpuReady = true;
+        }
+        if (Number.isFinite(temp))
+          root.gpuTemp = temp;
+      } else if (root.gpuType === "GENERIC") {
+        const values = text.trim().split("\n").map(Number).filter(Number.isFinite);
+        if (values.length > 0) {
+          root.gpuPerc = values.reduce((a, b) => a + b, 0) / values.length / 100;
+          root._gpuReady = true;
+        }
+      }
+    }, "sysinfo.gpu");
+  }
+
+  function _pollSensors(): void {
+    Command.run(["env", "LANG=C", "LC_ALL=C", "sensors"], result => {
+      const text = result.stdout;
+      const cpuMatch = text.match(/(?:Package id \d+|Tdie):\s+([+-]?\d+\.?\d*).C/) || text.match(/Tctl:\s+([+-]?\d+\.?\d*).C/);
+      if (cpuMatch) {
+        const t = parseFloat(cpuMatch[1]);
+        if (Number.isFinite(t))
+          root.cpuTemp = t;
+      }
+      if (root.gpuType !== "GENERIC")
+        return;
+      let inPci = false, sum = 0, count = 0;
+      for (const line of text.split("\n")) {
+        if (line === "Adapter: PCI adapter")
+          inPci = true;
+        else if (line === "")
+          inPci = false;
+        else if (inPci) {
+          const match = line.match(/^(?:temp\d+|GPU core|edge|junction|mem):\s+\+(\d+\.?\d*).C/);
+          if (match) {
+            sum += parseFloat(match[1]);
+            count++;
+          }
+        }
+      }
+      if (count > 0)
+        root.gpuTemp = sum / count;
+    }, "sysinfo.sensors");
+  }
+
+  function _pollStorage(): void {
+    Command.run(["sh", "-c", "df -P 2>/dev/null | awk '/^\\/dev/ {u[$1]=$3; a[$1]=$4} END {for(d in u) print d, u[d], a[d]}'"], result => {
+      let totalUsed = 0, totalAvail = 0;
+      for (const line of result.stdout.trim().split("\n")) {
+        const [, used, avail] = line.split(/\s+/);
+        totalUsed += parseInt(used, 10) || 0;
+        totalAvail += parseInt(avail, 10) || 0;
+      }
+      root.storageUsed = totalUsed;
+      root.storageTotal = totalUsed + totalAvail;
+      root._storageReady = true;
+    }, "sysinfo.storage");
+  }
+
   function fmtKib(v: real): string {
     const f = formatKib(v || 0);
     return `${f.value.toFixed(1)} ${f.unit}`;
@@ -91,6 +157,16 @@ Singleton {
       Logger.log("SystemInfo", `Storage: ${fmtKib(storageUsed)} / ${fmtKib(storageTotal)} (${fmtPerc(storagePerc)})`);
   }
 
+  Component.onCompleted: {
+    Command.run(["systemd-analyze"], result => {
+      const parts = result.stdout.split("=");
+      if (parts.length > 1) {
+        root.bootDuration = parts[parts.length - 1].trim().split("\n")[0];
+        Logger.log("SystemInfo", `Boot Time: ${root.bootDuration}`);
+      }
+    });
+    Command.run(["sh", "-c", "command -v nvidia-smi >/dev/null && nvidia-smi -L >/dev/null 2>&1 && echo NVIDIA || (ls /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | grep -q . && echo GENERIC || echo NONE)"], result => root.gpuType = result.stdout.trim());
+  }
   onGpuTypeChanged: Logger.log("SystemInfo", `GPU type: ${gpuType}`)
 
   FileView {
@@ -147,34 +223,6 @@ Singleton {
     }
   }
 
-  Process {
-    id: bootAnalyzeProc
-
-    command: ["systemd-analyze"]
-    running: true
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const parts = text.split("=");
-        if (parts.length > 1) {
-          root.bootDuration = parts[parts.length - 1].trim().split("\n")[0];
-          Logger.log("SystemInfo", `Boot Time: ${root.bootDuration}`);
-        }
-      }
-    }
-  }
-
-  Process {
-    id: gpuTypeCheck
-
-    command: ["sh", "-c", "command -v nvidia-smi >/dev/null && nvidia-smi -L >/dev/null 2>&1 && echo NVIDIA || (ls /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | grep -q . && echo GENERIC || echo NONE)"]
-    running: true
-
-    stdout: StdioCollector {
-      onStreamFinished: root.gpuType = text.trim()
-    }
-  }
-
   Timer {
     interval: root.pollIntervalMs
     repeat: true
@@ -184,8 +232,8 @@ Singleton {
     onTriggered: {
       cpuStatFile.reload();
       meminfoFile.reload();
-      gpuUsageProc.running = true;
-      sensorsProc.running = true;
+      root._pollGpuUsage();
+      root._pollSensors();
       root.logSnapshot();
     }
   }
@@ -196,87 +244,6 @@ Singleton {
     running: root.refCount > 0
     triggeredOnStart: true
 
-    onTriggered: storageProc.running = true
-  }
-
-  Process {
-    id: storageProc
-
-    command: ["sh", "-c", "df -P 2>/dev/null | awk '/^\\/dev/ {u[$1]=$3; a[$1]=$4} END {for(d in u) print d, u[d], a[d]}'"]
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        let totalUsed = 0, totalAvail = 0;
-        for (const line of text.trim().split("\n")) {
-          const [, used, avail] = line.split(/\s+/);
-          totalUsed += parseInt(used, 10) || 0;
-          totalAvail += parseInt(avail, 10) || 0;
-        }
-        root.storageUsed = totalUsed;
-        root.storageTotal = totalUsed + totalAvail;
-        root._storageReady = true;
-      }
-    }
-  }
-
-  Process {
-    id: gpuUsageProc
-
-    command: root.gpuType === "NVIDIA" ? ["nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu", "--format=csv,noheader,nounits"] : root.gpuType === "GENERIC" ? ["sh", "-c", "cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null"] : ["true"]
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        if (root.gpuType === "NVIDIA") {
-          const [usage, temp] = text.trim().split(",").map(s => parseInt(s, 10));
-          if (Number.isFinite(usage)) {
-            root.gpuPerc = usage / 100;
-            root._gpuReady = true;
-          }
-          if (Number.isFinite(temp))
-            root.gpuTemp = temp;
-        } else if (root.gpuType === "GENERIC") {
-          const values = text.trim().split("\n").map(Number).filter(Number.isFinite);
-          if (values.length > 0) {
-            root.gpuPerc = values.reduce((a, b) => a + b, 0) / values.length / 100;
-            root._gpuReady = true;
-          }
-        }
-      }
-    }
-  }
-
-  Process {
-    id: sensorsProc
-
-    command: ["env", "LANG=C", "LC_ALL=C", "sensors"]
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const cpuMatch = text.match(/(?:Package id \d+|Tdie):\s+([+-]?\d+\.?\d*).C/) || text.match(/Tctl:\s+([+-]?\d+\.?\d*).C/);
-        if (cpuMatch) {
-          const t = parseFloat(cpuMatch[1]);
-          if (Number.isFinite(t))
-            root.cpuTemp = t;
-        }
-        if (root.gpuType !== "GENERIC")
-          return;
-        let inPci = false, sum = 0, count = 0;
-        for (const line of text.split("\n")) {
-          if (line === "Adapter: PCI adapter")
-            inPci = true;
-          else if (line === "")
-            inPci = false;
-          else if (inPci) {
-            const match = line.match(/^(?:temp\d+|GPU core|edge|junction|mem):\s+\+(\d+\.?\d*).C/);
-            if (match) {
-              sum += parseFloat(match[1]);
-              count++;
-            }
-          }
-        }
-        if (count > 0)
-          root.gpuTemp = sum / count;
-      }
-    }
+    onTriggered: root._pollStorage()
   }
 }

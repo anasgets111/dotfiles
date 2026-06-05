@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Bluetooth
-import Quickshell.Io
 import qs.Services.Utils
 
 Singleton {
@@ -71,6 +70,45 @@ Singleton {
     root._revision++;
   }
 
+  function _parseCodecs(output: string, cardName: string): var {
+    let inCard = false;
+    let activeProfile = "";
+    const parsedCodecs = [];
+    for (const rawLine of (output || "").split("\n")) {
+      const line = rawLine.trim();
+      if (line.startsWith("Name: ")) {
+        inCard = line.includes(cardName);
+        continue;
+      }
+      if (!inCard)
+        continue;
+      if (line.startsWith("Active Profile:")) {
+        activeProfile = line.split(": ")[1] || "";
+        continue;
+      }
+      if (!line.includes("codec") || !line.includes("available: yes"))
+        continue;
+      const parts = line.split(": ");
+      if (parts.length < 2)
+        continue;
+      const profile = parts[0].trim();
+      const codecMatch = parts[1].match(/codec ([^\)\s]+)/i);
+      const codecName = codecMatch ? codecMatch[1].toUpperCase() : "UNKNOWN";
+      const codecInfo = getCodecInfo(codecName);
+      if (!parsedCodecs.some(codec => codec.profile === profile))
+        parsedCodecs.push({
+          name: codecInfo.name,
+          profile,
+          description: codecInfo.desc,
+          qualityColor: codecInfo.color
+        });
+    }
+    return {
+      parsedCodecs,
+      activeProfile
+    };
+  }
+
   function bluezCardName(address: string): string {
     return `bluez_card.${address.replace(/:/g, "_")}`;
   }
@@ -96,8 +134,6 @@ Singleton {
   function cleanupCodecData(address: string): void {
     if (!address)
       return;
-    if (codecParser.address === address)
-      codecParser.address = "";
     delete deviceCodecs[address];
     delete deviceAvailableCodecs[address];
     deviceCodecsChanged();
@@ -118,7 +154,7 @@ Singleton {
   }
 
   function deviceForAddress(address: string): BluetoothDevice {
-    return root.adapter?.devices?.get(address) ?? null;
+    return (root.adapter?.devices?.values ?? []).find(device => device?.address === address) ?? null;
   }
 
   function deviceMatchesKeywords(device: BluetoothDevice, keywords: var): bool {
@@ -137,12 +173,23 @@ Singleton {
 
   function fetchCodecs(address: string, fullScan = true): void {
     const device = root.deviceForAddress(address);
-    if (!device?.connected || !isAudioDevice(device) || codecParser.running)
+    if (!device?.connected || !isAudioDevice(device))
       return;
-    codecParser.address = address;
-    codecParser.cardName = root.bluezCardName(address);
-    codecParser.fullScan = fullScan;
-    codecParser.running = true;
+    const cardName = root.bluezCardName(address);
+    Command.run(["pactl", "list", "cards"], result => {
+      if (!root.deviceForAddress(address)?.connected)
+        return;
+      const parsed = root._parseCodecs(result.stdout, cardName);
+      if (fullScan) {
+        root.deviceAvailableCodecs[address] = parsed.parsedCodecs;
+        root.deviceAvailableCodecsChanged();
+      }
+      const activeCodec = parsed.parsedCodecs.find(codec => codec.profile === parsed.activeProfile);
+      if (activeCodec) {
+        root.deviceCodecs[address] = activeCodec.name;
+        root.deviceCodecsChanged();
+      }
+    }, "bt.codec");
   }
 
   function forgetDevice(address: string): void {
@@ -211,35 +258,6 @@ Singleton {
     device.pair();
   }
 
-  function parseCodecLine(line: string): void {
-    if (line.startsWith("Name: ")) {
-      codecParser.inCard = line.includes(codecParser.cardName);
-      return;
-    }
-    if (!codecParser.inCard)
-      return;
-    if (line.startsWith("Active Profile:")) {
-      codecParser.activeProfile = line.split(": ")[1] || "";
-      return;
-    }
-    if (!line.includes("codec") || !line.includes("available: yes"))
-      return;
-    const parts = line.split(": ");
-    if (parts.length < 2)
-      return;
-    const profile = parts[0].trim();
-    const codecMatch = parts[1].match(/codec ([^\)\s]+)/i);
-    const codecName = codecMatch ? codecMatch[1].toUpperCase() : "UNKNOWN";
-    const codecInfo = getCodecInfo(codecName);
-    if (!codecParser.parsedCodecs.some(codec => codec.profile === profile))
-      codecParser.parsedCodecs.push({
-        name: codecInfo.name,
-        profile,
-        description: codecInfo.desc,
-        qualityColor: codecInfo.color
-      });
-  }
-
   function setDiscoverable(value: bool): void {
     Logger.log("BluetoothService", `Set discoverable: ${value} (available=${available})`);
     if (adapter)
@@ -276,12 +294,10 @@ Singleton {
   }
 
   function switchCodec(address: string, profile: string): void {
-    if (!address || codecSwitch.running)
+    if (!address)
       return;
-    codecSwitch.cardName = root.bluezCardName(address);
-    codecSwitch.profile = profile;
-    codecSwitch.deviceAddress = address;
-    codecSwitch.running = true;
+    const cardName = root.bluezCardName(address);
+    Command.run(["pactl", "set-card-profile", cardName, profile], () => Qt.callLater(() => root.fetchCodecs(address, false)), "bt.codecSwitch");
   }
 
   function toDeviceModel(device: BluetoothDevice): var {
@@ -307,10 +323,6 @@ Singleton {
   }
 
   Component.onCompleted: Logger.log("BluetoothService", `Init: defaultAdapter=${Bluetooth.defaultAdapter ? "yes" : "no"}`)
-  Component.onDestruction: {
-    codecParser.running = false;
-    codecSwitch.running = false;
-  }
 
   Connections {
     function onDiscoveringChanged() {
@@ -380,65 +392,6 @@ Singleton {
         target: deviceEntry.modelData
       }
       required property BluetoothDevice modelData
-    }
-  }
-
-  Process {
-    id: codecParser
-
-    property string activeProfile: ""
-    property string address: ""
-    property string cardName: ""
-    property bool fullScan: true
-    property bool inCard: false
-    property var parsedCodecs: []
-
-    command: ["pactl", "list", "cards"]
-
-    stdout: SplitParser {
-      splitMarker: "\n"
-
-      onRead: line => root.parseCodecLine(line.trim())
-    }
-
-    onRunningChanged: {
-      if (running) {
-        parsedCodecs = [];
-        activeProfile = "";
-        inCard = false;
-      } else if (address) {
-        if (fullScan) {
-          root.deviceAvailableCodecs[address] = parsedCodecs;
-          root.deviceAvailableCodecsChanged();
-        }
-        const activeCodec = parsedCodecs.find(codec => codec.profile === activeProfile);
-        if (activeCodec) {
-          root.deviceCodecs[address] = activeCodec.name;
-          root.deviceCodecsChanged();
-        }
-        address = "";
-        cardName = "";
-      }
-    }
-  }
-
-  Process {
-    id: codecSwitch
-
-    property string cardName: ""
-    property string deviceAddress: ""
-    property string profile: ""
-
-    command: ["pactl", "set-card-profile", cardName, profile]
-
-    onRunningChanged: {
-      if (!running && deviceAddress) {
-        const addr = deviceAddress;
-        Qt.callLater(() => root.fetchCodecs(addr, false));
-        deviceAddress = "";
-        cardName = "";
-        profile = "";
-      }
     }
   }
 }

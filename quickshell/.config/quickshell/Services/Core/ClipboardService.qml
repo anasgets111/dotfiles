@@ -1,12 +1,12 @@
 pragma Singleton
 import QtQml
 import Quickshell
-import Quickshell.Io
 import qs.Services.Utils
 
 Singleton {
   id: root
 
+  property bool _persisting: false
   property bool enabled: true
   property list<var> history: []
   property int ignoreNextChanges: 0
@@ -21,6 +21,15 @@ Singleton {
 
   signal changed
   signal textItemAdded(var entry)
+
+  function _fetchText(mime) {
+    Command.run(["wl-paste", "-n", "-t", mime], result => {
+      const content = String(result.stdout ?? "");
+      if (content.length)
+        root.appendTextHistory(mime, content);
+      root.finishFetchCycle();
+    });
+  }
 
   function appendTextHistory(mime, content) {
     const head = root.history[0];
@@ -96,30 +105,46 @@ Singleton {
     root.isFetching = true;
     root.selectedTextMime = "";
     root.selectedPersistMime = "";
-    typeDetectionProcess.command = ["wl-paste", "-l"];
-    typeDetectionProcess.running = true;
+    Command.run(["wl-paste", "-l"], result => {
+      const types = String(result.stdout ?? "").trim().split(/\n+/).filter(t => !!t);
+      Logger.log("ClipboardLiteService", `Types: ${types.join(", ")}`);
+
+      root.selectedPersistMime = root.pickPersistMime(types);
+      root.selectedTextMime = root.pickPreferredTextMime(types);
+
+      if (root.selectedTextMime)
+        root._fetchText(root.selectedTextMime);
+
+      if (root.selectedPersistMime)
+        root.startPersist(root.selectedPersistMime);
+      if (!root.selectedTextMime)
+        root.finishFetchCycle();
+    });
   }
 
   function startPersist(mime) {
     if (!mime)
       return;
-    persistProcess.command = ["sh", "-c", `mime='${mime}'; wl-paste -n -t "$mime" | wl-copy -t "$mime"`];
     root.ignoreNextChanges = Math.max(root.ignoreNextChanges, 1);
-    persistProcess.running = true;
+    root._persisting = true;
+    Command.run(["sh", "-c", `mime='${mime}'; wl-paste -n -t "$mime" | wl-copy -t "$mime"`], () => {
+      root._persisting = false;
+      root.lastPersisted = {
+        mime: root.selectedPersistMime,
+        ts: Date.now()
+      };
+      Logger.log("ClipboardLiteService", `Persist done: ${root.selectedPersistMime}`);
+      root.ignoreNextChanges = 0;
+    });
   }
 
   Component.onCompleted: {
     root.loadTextHistory();
-    if (root.enabled) {
-      watcher.running = true;
-      root.startFetchCycle();
-    }
-  }
-  onEnabledChanged: {
-    watcher.running = root.enabled;
     if (root.enabled)
       root.startFetchCycle();
   }
+  onEnabledChanged: if (root.enabled)
+    root.startFetchCycle()
 
   PersistentProperties {
     id: store
@@ -129,86 +154,22 @@ Singleton {
     reloadableId: "ClipboardLiteService"
   }
 
-  Process {
+  CommandStream {
     id: watcher
 
+    active: root.enabled
     command: ["wl-paste", "--watch", "printf", "CHANGE\n"]
 
-    stdout: SplitParser {
-      splitMarker: "\n"
-
-      onRead: function (_) {
-        if (!root.enabled)
-          return;
-        if (root.ignoreNextChanges > 0 && persistProcess.running) {
-          root.ignoreNextChanges = Math.max(0, root.ignoreNextChanges - 1);
-          return;
-        } else if (root.ignoreNextChanges > 0) {
-          root.ignoreNextChanges = 0;
-        }
-        root.startFetchCycle();
-      }
-    }
-
-    onRunningChanged: Logger.log("ClipboardLiteService", `Watcher running=${watcher.running}`)
-  }
-
-  Process {
-    id: typeDetectionProcess
-
-    stdout: StdioCollector {
-      id: typeOut
-
-      onStreamFinished: {
-        const types = String(typeOut.text ?? "").trim().split(/\n+/).filter(t => !!t);
-        Logger.log("ClipboardLiteService", `Types: ${types.join(", ")}`);
-
-        root.selectedPersistMime = root.pickPersistMime(types);
-        root.selectedTextMime = root.pickPreferredTextMime(types);
-
-        if (root.selectedTextMime) {
-          textFetchProcess.mime = root.selectedTextMime;
-          textFetchProcess.command = ["wl-paste", "-n", "-t", root.selectedTextMime];
-          textFetchProcess.running = true;
-        }
-
-        if (root.selectedPersistMime)
-          root.startPersist(root.selectedPersistMime);
-        if (!root.selectedTextMime)
-          root.finishFetchCycle();
-      }
-    }
-  }
-
-  Process {
-    id: textFetchProcess
-
-    property string mime: ""
-
-    stdout: StdioCollector {
-      id: textOut
-
-      onStreamFinished: {
-        const content = String(textOut.text ?? "");
-        if (content.length)
-          root.appendTextHistory(textFetchProcess.mime, content);
-        root.finishFetchCycle();
-      }
-    }
-  }
-
-  Process {
-    id: persistProcess
-
-    onRunningChanged: {
-      if (!persistProcess.running) {
-        root.lastPersisted = {
-          mime: root.selectedPersistMime,
-          ts: Date.now()
-        };
-        Logger.log("ClipboardLiteService", `Persist done: ${root.selectedPersistMime}`);
+    onLineRead: {
+      if (!root.enabled)
+        return;
+      if (root.ignoreNextChanges > 0 && root._persisting) {
+        root.ignoreNextChanges = Math.max(0, root.ignoreNextChanges - 1);
+        return;
+      } else if (root.ignoreNextChanges > 0) {
         root.ignoreNextChanges = 0;
       }
+      root.startFetchCycle();
     }
   }
 }

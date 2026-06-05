@@ -30,7 +30,7 @@ Singleton {
   }
 
   function nextLayout(): void {
-    Quickshell.execDetached(["niri", "msg", "action", "switch-layout", "next"]);
+    Command.detached(["niri", "msg", "action", "switch-layout", "next"]);
   }
 
   Socket {

@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Services.Core
+import qs.Services.Utils
 import qs.Services.WM
 
 Singleton {
@@ -39,11 +40,11 @@ Singleton {
   }
 
   function poweroff(): void {
-    Quickshell.execDetached(["systemctl", "poweroff"]);
+    Command.detached(["systemctl", "poweroff"]);
   }
 
   function reboot(): void {
-    Quickshell.execDetached(["systemctl", "reboot"]);
+    Command.detached(["systemctl", "reboot"]);
   }
 
   function refreshPowerInfo(): void {
@@ -51,17 +52,14 @@ Singleton {
   }
 
   function setPowerProfile(profile: string): void {
-    if (hasPPD) {
-      setProfileProcess.command = ["powerprofilesctl", "set", profile];
-      setProfileProcess.running = true;
-    } else if (hasTlp) {
-      setProfileProcess.command = ["tlpctl", profile];
-      setProfileProcess.running = true;
-    }
+    if (hasPPD)
+      Command.run(["powerprofilesctl", "set", profile], () => root.refreshPowerInfo(), "power.setProfile");
+    else if (hasTlp)
+      Command.run(["tlpctl", profile], () => root.refreshPowerInfo(), "power.setProfile");
   }
 
   function suspend(): void {
-    Quickshell.execDetached(["systemctl", "suspend"]);
+    Command.detached(["systemctl", "suspend"]);
   }
 
   Component.onCompleted: refreshPowerInfo()
@@ -89,8 +87,8 @@ Singleton {
       governorFile.reload();
       eppFile.reload();
       if (root.isLaptop) {
-        ppdProcess.running = true;
-        tlpCheckProcess.running = true;
+        Command.run(["sh", "-c", "powerprofilesctl get 2>/dev/null"], result => root._ppdRaw = result.stdout.trim(), "power.ppd");
+        Command.run(["sh", "-c", "tlpctl get 2>/dev/null"], result => root._tlpRaw = result.stdout.trim(), "power.tlp");
       }
     }
   }
@@ -117,32 +115,5 @@ Singleton {
     path: "/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference"
 
     onLoaded: root.energyPerformance = text().trim() || "Unknown"
-  }
-
-  Process {
-    id: setProfileProcess
-
-    onRunningChanged: if (!running)
-      root.refreshPowerInfo()
-  }
-
-  Process {
-    id: ppdProcess
-
-    command: ["sh", "-c", "powerprofilesctl get 2>/dev/null"]
-
-    stdout: StdioCollector {
-      onStreamFinished: root._ppdRaw = text.trim()
-    }
-  }
-
-  Process {
-    id: tlpCheckProcess
-
-    command: ["sh", "-c", "tlpctl get 2>/dev/null"]
-
-    stdout: StdioCollector {
-      onStreamFinished: root._tlpRaw = text.trim()
-    }
   }
 }
