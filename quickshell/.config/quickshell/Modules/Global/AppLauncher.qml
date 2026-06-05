@@ -17,22 +17,18 @@ Item {
   property bool _shown: false
   property bool active: false
   readonly property var allApps: typeof DesktopEntries !== "undefined" ? DesktopEntries.applications?.values || [] : []
-  readonly property bool calcMode: CalcProvider.hasResult
   property int currentIndex: 0
   property var filteredApps: []
   property var finder: null
-  readonly property bool fxMode: CurrencyProvider.hasResult
-  readonly property bool hasSpecial: query.trim().length > 0 && (calcMode || fxMode || webMode)
+  readonly property bool hasSpecial: LauncherService.hasSpecial
   property bool hoverSelectionArmed: false
   property real maxAppScore: 0
   readonly property int maxVisible: 8
   property string query: ""
   readonly property int selectedAppIdx: visibleAppCount <= 0 ? -1 : Math.max(0, Math.min(currentIndex - (hasSpecial ? 1 : 0), visibleAppCount - 1))
-  // Replaces isSpecialSelected() and selectedAppIndex() functions
   readonly property bool specialSelected: hasSpecial && currentIndex === 0
   readonly property int totalRows: visibleAppCount + (hasSpecial ? 1 : 0)
   readonly property int visibleAppCount: Math.min(filteredApps.length, maxVisible)
-  readonly property bool webMode: WebProvider.hasResult
 
   signal dismissed
 
@@ -40,11 +36,7 @@ Item {
     if (totalRows <= 0)
       return;
     if (specialSelected) {
-      if (calcMode || fxMode) {
-        copy(calcMode ? CalcProvider.resultText : CurrencyProvider.resultText);
-      } else if (webMode) {
-        Quickshell.execDetached(["xdg-open", WebProvider.url]);
-      }
+      LauncherService.activateSpecial();
       close();
       return;
     }
@@ -52,7 +44,6 @@ Item {
       launch(filteredApps[selectedAppIdx]);
   }
 
-  // Number() coercions dropped — params are typed real, already numeric
   function armHoverSelectionIfMoved(x: real, y: real): void {
     if (!Number.isFinite(x) || !Number.isFinite(y) || (x === _lastPointerX && y === _lastPointerY))
       return;
@@ -67,12 +58,6 @@ Item {
     _closing = true;
     _shown = false;
     closeDelay.restart();
-  }
-
-  // escapeSingle inlined — was only ever called here
-  function copy(text: string): void {
-    const escaped = String(text || "").replace(/'/g, "'\\\\''");
-    Quickshell.execDetached(["sh", "-c", "echo -n '" + escaped + "' | wl-copy"]);
   }
 
   function disarmHoverSelection(): void {
@@ -122,7 +107,6 @@ Item {
     maxAppScore = 0; // Simple fallback counts as "poor" match
   }
 
-  // Extracted helper — deduplicates the identical mapToItem + arm + assign pattern in both MouseAreas
   function handleHoverMove(x: real, y: real, targetIndex: int): void {
     armHoverSelectionIfMoved(x, y);
     if (hoverSelectionArmed)
@@ -155,38 +139,10 @@ Item {
   function processInput(text: string): void {
     disarmHoverSelection();
     query = text;
-    CalcProvider.reset();
-    CurrencyProvider.reset();
-    WebProvider.reset();
     const trimmed = String(text || "").trim();
-    if (!trimmed) {
-      filterApps("");
-      currentIndex = 0;
-      return;
-    }
-    const hasFx = CurrencyProvider.parseAndConvert(trimmed);
-    if (!hasFx)
-      CalcProvider.evaluate(trimmed);
     filterApps(trimmed);
-
-    // Web search is fallback if no apps, calc, or fx.
-    // Or if it's a direct URL.
-    // Or if app results are "poor" (score < threshold).
-    // FZF score for a perfect boundary match is ~32 per char.
-    // We'll use 25 per char as a threshold for "good" matches.
-    const scoreThreshold = Math.max(32, trimmed.length * 25);
-    const isFallback = (filteredApps.length === 0 || maxAppScore < scoreThreshold) && !CalcProvider.hasResult && !CurrencyProvider.hasResult;
-    WebProvider.parse(trimmed, isFallback);
-
+    LauncherService.route(trimmed, filteredApps.length, maxAppScore);
     currentIndex = 0;
-  }
-
-  function rateLabel(): string {
-    if (!fxMode || CurrencyProvider.inputAmount === 0)
-      return "";
-    const rate = CurrencyProvider.outputAmount / CurrencyProvider.inputAmount;
-    const decimals = rate >= 100 ? 2 : (rate >= 1 ? 4 : 6);
-    return " · 1 " + CurrencyProvider.fromCode.toUpperCase() + " = " + rate.toLocaleString(Qt.locale(), "f", decimals) + " " + CurrencyProvider.toCode.toUpperCase();
   }
 
   function toArray(v: var): var {
@@ -203,7 +159,7 @@ Item {
   }
   onActiveChanged: {
     if (active) {
-      CurrencyProvider.refreshIfStale();
+      LauncherService.refresh();
       open();
       disarmHoverSelection();
       _lastPointerX = -1;
@@ -229,7 +185,6 @@ Item {
 
     interval: Theme.animationSlow
 
-    // repeat: false is the default — removed
     onTriggered: {
       root._closing = false;
       root._shown = false;
@@ -333,7 +288,6 @@ Item {
                 root.close();
                 e.accepted = true;
                 break;
-              // Down and Tab share the same action — merged
               case Qt.Key_Down:
               case Qt.Key_Tab:
                 root.move(1);
@@ -364,7 +318,7 @@ Item {
           OText {
             color: Theme.withOpacity(Theme.activeColor, 0.8)
             font.pixelSize: Theme.fontXs
-            text: calcMode ? "CALC" : (fxMode ? (CurrencyProvider.ratesLive ? "FX" : "FX-STATIC") : (WebProvider.isUrl ? "URL" : (WebProvider.hasResult ? "WEB" : "")))
+            text: LauncherService.activeProvider?.statusLabel ?? ""
           }
         }
       }
@@ -405,108 +359,10 @@ Item {
               }
             }
 
-            Column {
+            Loader {
               anchors.fill: parent
               anchors.margins: Theme.spacingMd
-              spacing: Theme.spacingXs
-
-              OText {
-                color: Theme.activeColor
-                font.pixelSize: Theme.fontXs
-                text: calcMode ? "Calculator" : (fxMode ? ((CurrencyProvider.ratesLive ? "Currency" : "Currency (Static)") + root.rateLabel()) : (WebProvider.isUrl ? "Open Link" : "Web Search"))
-              }
-
-              // Calculator Result
-              OText {
-                Layout.fillWidth: true
-                font.pixelSize: Theme.fontLg
-                text: CalcProvider.expression + " = " + CalcProvider.resultText
-                visible: calcMode
-              }
-
-              // Web Result
-              RowLayout {
-                spacing: Theme.spacingMd
-                visible: webMode && !calcMode && !fxMode
-
-                OText {
-                  color: Theme.activeColor
-                  font.pixelSize: Theme.fontLg
-                  text: WebProvider.isUrl ? "󰖟" : "󰍉"
-                }
-
-                OText {
-                  Layout.fillWidth: true
-                  font.pixelSize: Theme.fontLg
-                  text: WebProvider.isUrl ? WebProvider.url : WebProvider.query
-                }
-              }
-
-              // Currency Result Stacked
-              RowLayout {
-                spacing: Theme.spacingLg
-                visible: fxMode && !calcMode
-
-                ColumnLayout {
-                  spacing: 0
-
-                  OText {
-                    Layout.alignment: Qt.AlignHCenter
-                    font.pixelSize: Theme.fontLg
-                    text: CurrencyProvider.fromFlag
-                  }
-
-                  OText {
-                    font.pixelSize: Theme.fontLg
-                    text: CurrencyProvider.inputAmount + " " + CurrencyProvider.fromCode.toUpperCase()
-                  }
-                }
-
-                OText {
-                  Layout.alignment: Qt.AlignBottom
-                  Layout.bottomMargin: Theme.spacingXs
-                  color: Theme.textInactiveColor
-                  font.pixelSize: Theme.fontLg
-                  text: "→"
-                }
-
-                ColumnLayout {
-                  spacing: 0
-
-                  OText {
-                    Layout.alignment: Qt.AlignHCenter
-                    font.pixelSize: Theme.fontLg
-                    text: CurrencyProvider.toFlag
-                  }
-
-                  OText {
-                    font.pixelSize: Theme.fontLg
-                    text: CurrencyProvider.resultText + " " + CurrencyProvider.toCode.toUpperCase()
-                  }
-                }
-
-                Item {
-                  Layout.fillWidth: true
-                } // Spacer
-
-
-
-                OText {
-                  Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                  color: Theme.textInactiveColor
-                  font.pixelSize: Theme.fontXs
-                  opacity: 0.8
-                  text: CurrencyProvider.lastUpdatedText
-                  visible: text !== ""
-                }
-              }
-
-              OText {
-                color: Theme.textInactiveColor
-                font.pixelSize: Theme.fontXs
-                opacity: 0.8
-                text: "Enter to copy"
-              }
+              sourceComponent: LauncherService.activeProvider?.delegate ?? null
             }
           }
 
@@ -518,7 +374,6 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             clip: true
             currentIndex: root.specialSelected ? -1 : root.selectedAppIdx
-            // highlightFollowsCurrentItem: true is the default — removed
             highlightMoveDuration: Theme.animationDuration
             interactive: filteredApps.length > maxVisible
             model: filteredApps
@@ -534,8 +389,6 @@ Item {
               height: Theme.s(64)
               visible: index < maxVisible || list.interactive
               width: list.width
-
-              // Removed: Rectangle { color: "transparent" } — visual no-op, pure dead code
 
               RowLayout {
                 anchors.fill: parent

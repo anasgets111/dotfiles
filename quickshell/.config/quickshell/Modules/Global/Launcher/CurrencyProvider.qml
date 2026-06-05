@@ -1,7 +1,9 @@
 pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
+import qs.Components
 import qs.Config
 import qs.Services.SystemInfo
 import qs.Services.Utils
@@ -15,11 +17,83 @@ Singleton {
   property bool _requesting: false
   property string _resultText: ""
   property string _toCode: ""
+  readonly property Component delegate: Component {
+    Column {
+      anchors.fill: parent
+      spacing: Theme.spacingXs
+
+      OText {
+        color: Theme.activeColor
+        font.pixelSize: Theme.fontXs
+        text: (root.ratesLive ? "Currency" : "Currency (Static)") + root.rateLabel()
+      }
+
+      RowLayout {
+        spacing: Theme.spacingLg
+
+        ColumnLayout {
+          spacing: 0
+
+          OText {
+            Layout.alignment: Qt.AlignHCenter
+            font.pixelSize: Theme.fontLg
+            text: root.fromFlag
+          }
+
+          OText {
+            font.pixelSize: Theme.fontLg
+            text: root.inputAmount + " " + root.fromCode.toUpperCase()
+          }
+        }
+
+        OText {
+          Layout.alignment: Qt.AlignBottom
+          Layout.bottomMargin: Theme.spacingXs
+          color: Theme.textInactiveColor
+          font.pixelSize: Theme.fontLg
+          text: "→"
+        }
+
+        ColumnLayout {
+          spacing: 0
+
+          OText {
+            Layout.alignment: Qt.AlignHCenter
+            font.pixelSize: Theme.fontLg
+            text: root.toFlag
+          }
+
+          OText {
+            font.pixelSize: Theme.fontLg
+            text: root.resultText + " " + root.toCode.toUpperCase()
+          }
+        }
+
+        Item {
+          Layout.fillWidth: true
+        }
+
+        OText {
+          Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+          color: Theme.textInactiveColor
+          font.pixelSize: Theme.fontXs
+          opacity: 0.8
+          text: root.lastUpdatedText
+          visible: text !== ""
+        }
+      }
+
+      LauncherHint {
+        text: "Enter to copy"
+      }
+    }
+  }
   readonly property string fromCode: _fromCode
   readonly property string fromFlag: _getFlag(_fromCode)
   readonly property bool hasResult: _resultText !== ""
   readonly property real inputAmount: _inputAmount
   property var lastUpdated: null
+  readonly property string lastUpdatedText: _formatLastUpdated(lastUpdated)
   readonly property real outputAmount: _outputAmount
   property var rates: ({
       "usd": 1.0
@@ -27,8 +101,8 @@ Singleton {
   property bool ratesLive: false
   readonly property int refreshInterval: 86400000 // 24 hours
 
-  readonly property string lastUpdatedText: _formatLastUpdated(lastUpdated)
   readonly property string resultText: _resultText
+  readonly property string statusLabel: ratesLive ? "FX" : "FX-STATIC"
   readonly property string toCode: _toCode
   readonly property string toFlag: _getFlag(_toCode)
 
@@ -148,9 +222,12 @@ Singleton {
     _fetchRates();
   }
 
-  function parseAndConvert(text: string): bool {
-    reset();
-    const input = String(text || "").trim();
+  function activate(): void {
+    Utils.copyText(resultText);
+  }
+
+  function claims(query: string): bool {
+    const input = String(query || "").trim();
     if (!input)
       return false;
     const fromSymbol = s => ({
@@ -212,6 +289,14 @@ Singleton {
 
     Logger.log("CurrencyProvider", `Query success: ${parsed.a} ${parsed.f} -> ${out} ${parsed.t} (${fromFlag} -> ${toFlag})`);
     return true;
+  }
+
+  function rateLabel(): string {
+    if (!hasResult || _inputAmount === 0)
+      return "";
+    const rate = _outputAmount / _inputAmount;
+    const decimals = rate >= 100 ? 2 : (rate >= 1 ? 4 : 6);
+    return " · 1 " + _fromCode.toUpperCase() + " = " + rate.toLocaleString(Qt.locale(), "f", decimals) + " " + _toCode.toUpperCase();
   }
 
   function refreshIfStale(): void {

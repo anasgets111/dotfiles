@@ -2,19 +2,46 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import qs.Components
+import qs.Config
+import qs.Services.Utils
 
 Singleton {
   id: root
 
   property string _expression: ""
   property string _resultText: ""
-  readonly property string expression: _expression
-  readonly property bool hasResult: _resultText !== ""
-  readonly property string resultText: _resultText
+  readonly property Component delegate: Component {
+    Column {
+      anchors.fill: parent
+      spacing: Theme.spacingXs
 
-  function evaluate(text: string): bool {
-    reset();
-    const input = String(text || "").trim();
+      OText {
+        color: Theme.activeColor
+        font.pixelSize: Theme.fontXs
+        text: "Calculator"
+      }
+
+      OText {
+        font.pixelSize: Theme.fontLg
+        text: root.expression + " = " + root.resultText
+      }
+
+      LauncherHint {
+        text: "Enter to copy"
+      }
+    }
+  }
+  readonly property string expression: _expression
+  readonly property string resultText: _resultText
+  readonly property string statusLabel: "CALC"
+
+  function activate(): void {
+    Utils.copyText(resultText);
+  }
+
+  function claims(query: string): bool {
+    const input = String(query || "").trim();
     if (!input)
       return false;
     if (!/^[\d\s+\-*/().,%^]+$/.test(input) || !/\d/.test(input) || !/[+\-*/^%]/.test(input) || /^\d+\.?\d*$/.test(input))

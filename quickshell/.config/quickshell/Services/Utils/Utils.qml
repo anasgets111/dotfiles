@@ -14,6 +14,11 @@ Singleton {
   property bool numLock: false
   property bool scrollLock: false
 
+  function copyText(text: string): void {
+    const escaped = String(text || "").replace(/'/g, "'\\''");
+    Command.detached(["sh", "-c", "printf %s '" + escaped + "' | wl-copy"]);
+  }
+
   function lookupDesktopEntryName(appId: string): string {
     if (typeof DesktopEntries === "undefined" || !appId)
       return "";
