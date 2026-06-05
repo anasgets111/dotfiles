@@ -8,7 +8,6 @@ import qs.Components
 Item {
   id: root
 
-  // Computed width for toggle layout (icon container + spacing + label)
   readonly property int _toggleWidth: Theme.osdToggleIconContainerSize + Theme.spacingLg * 2 + labelText.implicitWidth + horizontalPadding * 2
   readonly property int horizontalPadding: Theme.spacingXl
   property string icon: ""
@@ -55,7 +54,6 @@ Item {
     radius: Theme.radiusXl
   }
 
-  // Slider layout (volume, brightness)
   RowLayout {
     anchors.centerIn: parent
     spacing: Theme.spacingLg
@@ -94,7 +92,6 @@ Item {
     }
   }
 
-  // Toggle layout
   RowLayout {
     anchors.centerIn: parent
     spacing: Theme.spacingLg

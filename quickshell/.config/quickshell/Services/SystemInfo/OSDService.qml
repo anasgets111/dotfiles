@@ -16,7 +16,6 @@ Singleton {
   property string osdType: ""
   property var osdValue: null // Can be int or null
 
-  // --- Constants / Enum ---
   readonly property var types: ({
       audioDevice: "audio-device",
       battery: "battery",
@@ -35,10 +34,8 @@ Singleton {
       wifi: "wifi"
     })
 
-  // --- Public API ---
   property bool visible: false
 
-  // --- Helper Functions ---
 
   function show(type: string, value: var, icon: string, label: string, debounce = false, maxValue = 100) {
     const entry = {
@@ -62,14 +59,12 @@ Singleton {
     show(type, null, enabled ? iconOn : iconOff, `${label} ${enabled ? "On" : "Off"}`);
   }
 
-  // --- Internal Logic & Configuration ---
   QtObject {
     id: _
 
     property bool wasCharging: false
     property bool wasPendingCharge: false
 
-    // Config: [Priority (lower is higher), Group, SuppressionList]
     readonly property var config: ({
         [root.types.battery]: {
           prio: 0,
@@ -148,7 +143,6 @@ Singleton {
         }
       })
 
-    // State
     property var current: null
     property var debounceEntry: null
     readonly property int debounceMs: 150
@@ -166,7 +160,6 @@ Singleton {
       root.visible = true;
       hideTimer.restart();
 
-      // Clear pending if the new entry suppresses what was waiting
       if (_.pending && _.config[entry.type]?.suppress.includes(_.pending.type)) {
         _.pending = null;
       }
@@ -190,38 +183,32 @@ Singleton {
       if (!_.initialized)
         return;
 
-      // 1. Check Suppression (Does current entry suppress the new one?)
       if (_.current && _.config[_.current.type]?.suppress.includes(entry.type))
         return;
 
-      // 2. Check Grouping (Update in place if same type or group)
       const sameGroup = _.config[entry.type]?.group !== "" && _.config[entry.type]?.group === _.config[_.current?.type]?.group;
       if (_.current && (_.current.type === entry.type || sameGroup)) {
         _.apply(entry);
         return;
       }
 
-      // 3. Priority Interruption (New entry is more important than current)
       if (_.current && entry.priority < _.current.priority) {
         _.pending = _.current; // Save current for later
         _.apply(entry);
         return;
       }
 
-      // 4. Show immediately if nothing is showing
       if (!root.visible) {
         _.apply(entry);
         return;
       }
 
-      // 5. Queue logic (Add to pending if priority allows)
       if (!_.pending || entry.priority <= _.pending.priority) {
         _.pending = entry;
       }
     }
   }
 
-  // --- Timers ---
 
   Timer {
     id: hideTimer
@@ -244,7 +231,6 @@ Singleton {
     }
   }
 
-  // Initialization delay to prevent startup spam
   Timer {
     interval: 1000
     running: true
@@ -256,7 +242,6 @@ Singleton {
     }
   }
 
-  // --- Service Connections ---
 
   Connections {
     function onMutedChanged() {
@@ -265,7 +250,7 @@ Singleton {
     }
 
     function onSinkChanged() {
-      const deviceName = AudioService.displayName(AudioService.sink);
+      const deviceName = AudioService.sinkName;
       if (!deviceName)
         return;
       root.show(root.types.audioDevice, null, AudioService.sinkIcon || "󰓃", deviceName);

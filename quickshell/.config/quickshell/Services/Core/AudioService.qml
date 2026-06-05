@@ -26,11 +26,16 @@ Singleton {
   readonly property PwNode sink: Pipewire.defaultAudioSink
   readonly property bool sinkControllable: hasControllableAudio(sink)
   readonly property string sinkIcon: deviceIconFor(sink)
+  readonly property var sinkModels: buildAudioDevices(sinks, sink)
+  readonly property string sinkName: displayName(sink)
   readonly property list<PwNode> sinks: _audioNodes.filter(node => !node.isStream && node.isSink)
   readonly property PwNode source: Pipewire.defaultAudioSource
   readonly property bool sourceControllable: hasControllableAudio(source)
+  readonly property var sourceModels: buildAudioDevices(sources, source)
+  readonly property string sourceName: displayName(source)
   readonly property list<PwNode> sources: _audioNodes.filter(node => !node.isStream && !node.isSink)
   readonly property real stepVolume: 0.05
+  readonly property var streamModels: buildStreamModels()
   readonly property list<PwNode> streams: _audioNodes.filter(node => node.isStream)
   readonly property real volume: audioVolume(sink)
 
@@ -47,6 +52,10 @@ Singleton {
         _dndMutedStreamIds = [..._dndMutedStreamIds, stream.id];
       }
     }
+  }
+
+  function _nodeById(nodes: var, id: int): var {
+    return nodes.find(node => node.id === id) ?? null;
   }
 
   function _notificationHint(notification: var, key: string): var {
@@ -92,6 +101,26 @@ Singleton {
       return 0;
     const volume = node.audio.volume;
     return Number.isFinite(volume) ? Math.max(0, volume) : 0;
+  }
+
+  function buildAudioDevices(nodes: var, activeNode: var): var {
+    return nodes.map(node => ({
+          id: node.id,
+          name: displayName(node),
+          icon: deviceIconFor(node),
+          active: node === activeNode
+        }));
+  }
+
+  function buildStreamModels(): var {
+    return root.streams.map(stream => {
+      const rawName = stream.name || "";
+      return {
+        id: stream.id,
+        name: Utils.lookupDesktopEntryName(rawName) || rawName || qsTr("Unknown"),
+        iconSource: Utils.resolveIconSource(rawName, nodeApplicationIconName(stream), "󰝚")
+      };
+    });
   }
 
   function capSinkVolume(): void {
@@ -183,12 +212,16 @@ Singleton {
     Quickshell.execDetached(["pw-play", "--media-role", "Notification", "--volume", "0.8", soundPath]);
   }
 
-  function setAudioSink(newSink: var): void {
-    Pipewire.preferredDefaultAudioSink = newSink;
+  function setAudioSink(id: int): void {
+    const node = _nodeById(root.sinks, id);
+    if (node)
+      Pipewire.preferredDefaultAudioSink = node;
   }
 
-  function setAudioSource(newSource: var): void {
-    Pipewire.preferredDefaultAudioSource = newSource;
+  function setAudioSource(id: int): void {
+    const node = _nodeById(root.sources, id);
+    if (node)
+      Pipewire.preferredDefaultAudioSource = node;
   }
 
   function setInputVolume(newVolume: real): void {
@@ -213,14 +246,24 @@ Singleton {
     return true;
   }
 
-  function setStreamVolume(stream: var, newVolume: real): void {
-    setNodeVolume(stream, newVolume, 1.0, true);
+  function setStreamVolume(id: int, newVolume: real): void {
+    const stream = _nodeById(root.streams, id);
+    if (stream)
+      setNodeVolume(stream, newVolume, 1.0, true);
   }
 
   function setVolume(newVolume: real): void {
     if (!root.sinkControllable)
       return;
     setNodeVolume(root.sink, newVolume, root.maxVolume, true);
+  }
+
+  function streamReady(id: int): bool {
+    return hasControllableAudio(_nodeById(root.streams, id));
+  }
+
+  function streamVolume(id: int): real {
+    return audioVolume(_nodeById(root.streams, id));
   }
 
   function toggleMicMute(): string {
