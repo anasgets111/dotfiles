@@ -10,9 +10,11 @@ Singleton {
   id: root
 
   property bool _cancellingUpdate: false
+  property bool _checking: false
   property var _notifyQueue: []
+  property bool _notifying: false
   property var _pendingActionArgs: null
-  readonly property bool busy: checkUpdatesProcess.running || updateState === status.Updating
+  readonly property bool busy: _checking || updateState === status.Updating
   property bool checkUpdatesAvailable: false
   property int currentPackageIndex: 0
   property string errorMessage: ""
@@ -128,10 +130,13 @@ Singleton {
   }
 
   function _processNotifyQueue(): void {
-    if (notificationProcess.running || !_notifyQueue.length)
+    if (_notifying || !_notifyQueue.length)
       return;
-    notificationProcess.command = ["notify-send"].concat(_notifyQueue.shift());
-    notificationProcess.running = true;
+    _notifying = true;
+    Command.run(["notify-send"].concat(_notifyQueue.shift()), () => {
+      root._notifying = false;
+      root._processNotifyQueue();
+    });
   }
 
   function _recordFailure(sourceName: string, message: string, exitCode: int): void {
@@ -179,8 +184,22 @@ Singleton {
     if (!ready || busy)
       return;
     lastSync = Date.now();
-    checkUpdatesProcess.command = ["checkupdates", "--nocolor"];
-    checkUpdatesProcess.running = true;
+    _checking = true;
+    Command.run(["checkupdates", "--nocolor"], result => {
+      root._checking = false;
+      if (root.updateState !== root.status.Error)
+        root.updateState = root.status.Idle;
+      if (result.exitCode === 0 || result.exitCode === 2) {
+        const packages = root._parseUpdatePackages(result.stdout);
+        root.failureCount = 0;
+        root.updatePackages = packages;
+        root._notifyIfIncreased();
+        if (packages.length > 0)
+          root.fetchPackageSizes();
+      } else {
+        root._recordFailure("checkupdates", (result.stderr || "").trim() || `Exit code: ${result.exitCode}`, result.exitCode);
+      }
+    }, "update.check");
   }
 
   function executeUpdate(): void {
@@ -196,22 +215,24 @@ Singleton {
   }
 
   function fetchPackageSizes(): void {
-    if (!updatePackages.length || sizeFetchProcess.running)
+    if (!updatePackages.length)
       return;
-    sizeFetchProcess.command = ["expac", "-S", "%k|%n"].concat(updatePackages.map(packageInfo => packageInfo.name));
-    sizeFetchProcess.running = true;
+    Command.run(["expac", "-S", "%k|%n"].concat(updatePackages.map(packageInfo => packageInfo.name)), result => root.packageSizes = Object.assign({}, root.packageSizes, root._parsePackageSizes(result.stdout ?? "")), "update.size");
   }
 
-  Component.onCompleted: if (Settings.isStateLoaded)
-    _init()
+  Component.onCompleted: {
+    Command.run(["sh", "-c", "command -v checkupdates >/dev/null && echo yes || echo no"], result => root.checkUpdatesAvailable = (result.stdout ?? "").trim() === "yes");
+    if (Settings.isStateLoaded)
+      _init();
+  }
+  onLastSyncChanged: if (Settings.isStateLoaded)
+    Settings.state.updates.lastSync = lastSync
   onReadyChanged: {
     if (!ready)
       return;
     if ((Date.now() - lastSync) > 60 * 1000)
       doPoll();
   }
-  onLastSyncChanged: if (Settings.isStateLoaded)
-    Settings.state.updates.lastSync = lastSync
   onUpdatePackagesChanged: if (Settings.isStateLoaded)
     Settings.state.updates.cachedUpdatePackagesJson = JSON.stringify(updatePackages)
 
@@ -222,56 +243,6 @@ Singleton {
     }
 
     target: Settings
-  }
-
-  Process {
-    id: checkUpdatesProbe
-
-    command: ["sh", "-c", "command -v checkupdates >/dev/null && echo yes || echo no"]
-    running: true
-
-    stdout: StdioCollector {
-      onStreamFinished: root.checkUpdatesAvailable = (text ?? "").trim() === "yes"
-    }
-  }
-
-  Process {
-    id: sizeFetchProcess
-
-    stdout: StdioCollector {
-      onStreamFinished: root.packageSizes = Object.assign({}, root.packageSizes, root._parsePackageSizes(text ?? ""))
-    }
-  }
-
-  Process {
-    id: checkUpdatesProcess
-
-    property string _stderrText: ""
-    property string _stdoutText: ""
-
-    stderr: StdioCollector {
-      onStreamFinished: checkUpdatesProcess._stderrText = (text ?? "").trim()
-    }
-    stdout: StdioCollector {
-      onStreamFinished: checkUpdatesProcess._stdoutText = text ?? ""
-    }
-
-    onExited: exitCode => {
-      if (root.updateState !== root.status.Error)
-        root.updateState = root.status.Idle;
-      if (exitCode === 0 || exitCode === 2) {
-        const packages = root._parseUpdatePackages(checkUpdatesProcess._stdoutText);
-        root.failureCount = 0;
-        root.updatePackages = packages;
-        root._notifyIfIncreased();
-        if (packages.length > 0)
-          root.fetchPackageSizes();
-      } else {
-        root._recordFailure("checkupdates", checkUpdatesProcess._stderrText || `Exit code: ${exitCode}`, exitCode);
-      }
-      checkUpdatesProcess._stderrText = "";
-      checkUpdatesProcess._stdoutText = "";
-    }
   }
 
   Process {
@@ -338,15 +309,6 @@ Singleton {
     onTriggered: {
       interval = root.pollInterval;
       root.doPoll();
-    }
-  }
-
-  Process {
-    id: notificationProcess
-
-    onRunningChanged: {
-      if (!running)
-        root._processNotifyQueue();
     }
   }
 

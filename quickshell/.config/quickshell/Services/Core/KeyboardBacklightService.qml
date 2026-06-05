@@ -38,8 +38,7 @@ Singleton {
     if (!available || !_deviceName)
       return "Keyboard backlight not available";
     const clamped = Math.max(0, Math.min(maxBrightness, level));
-    setBrightnessProcess.command = ["brightnessctl", `--device=${_deviceName}`, "set", `${clamped}`];
-    setBrightnessProcess.running = true;
+    Command.run(["brightnessctl", `--device=${_deviceName}`, "set", `${clamped}`]);
     return `Keyboard backlight set to ${levelName}`;
   }
 
@@ -88,9 +87,5 @@ Singleton {
     running: root.available && root._devicePath !== ""
 
     onTriggered: brightnessFile.reload()
-  }
-
-  Process {
-    id: setBrightnessProcess
   }
 }

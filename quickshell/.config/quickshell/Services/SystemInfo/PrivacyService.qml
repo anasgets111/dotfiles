@@ -3,8 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
-import Quickshell.Io
 import qs.Services.Core
+import qs.Services.Utils
 
 Singleton {
   id: root
@@ -37,20 +37,11 @@ Singleton {
     objects: root._trackerObjects
   }
 
-  Process {
-    id: v4l2Process
-
-    command: ["fuser", "-s", "/dev/video0", "/dev/video1", "/dev/video2"]
-
-    onExited: code => root._v4l2Active = (code === 0)
-  }
-
   Timer {
     interval: 250
     repeat: true
     running: true
 
-    onTriggered: if (!v4l2Process.running)
-      v4l2Process.running = true
+    onTriggered: Command.run(["fuser", "-s", "/dev/video0", "/dev/video1", "/dev/video2"], result => root._v4l2Active = (result.exitCode === 0), "privacy.v4l2")
   }
 }

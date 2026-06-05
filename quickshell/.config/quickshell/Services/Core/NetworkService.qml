@@ -2,7 +2,6 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Networking
 import qs.Services.Utils
 
@@ -61,7 +60,7 @@ Singleton {
     const command = ["nmcli", "device", "wifi", "connect", ssid, "ifname", interfaceName, "hidden", "yes"];
     if (password)
       command.push("password", password);
-    root.runCommand(cmdAction, command);
+    root._runAction(command);
   }
 
   function _failConnect(reason: string): void {
@@ -75,6 +74,16 @@ Singleton {
     root._connectingSsid = "";
     root._connectError = error;
     return ssid;
+  }
+
+  function _runAction(command: var): void {
+    Command.run(root.nmcliCommand(command), result => {
+      const error = (result.stderr || "").trim();
+      if (error)
+        Logger.log("NetworkService", `Error: ${error}`);
+      root.refreshIpData();
+      root.refreshNetworkingStatus();
+    }, "net.action");
   }
 
   function _succeedConnect(): void {
@@ -217,36 +226,33 @@ Singleton {
 
   function refreshBandData(): void {
     const interfaceName = root.wifiInterface;
-    if (!interfaceName || procBand.running)
+    if (!interfaceName)
       return;
-    root.runCommand(procBand, ["nmcli", "-t", "-f", "SSID,FREQ", "device", "wifi", "list", "ifname", interfaceName]);
+    Command.run(root.nmcliCommand(["nmcli", "-t", "-f", "SSID,FREQ", "device", "wifi", "list", "ifname", interfaceName]), result => root._bandMap = root.parseWifiBands(result.stdout), "net.band");
   }
 
   function refreshIpData(): void {
-    root.runCommand(procIp, ["nmcli", "-t", "-f", "GENERAL.DEVICE,IP4.ADDRESS", "device", "show"]);
+    Command.run(root.nmcliCommand(["nmcli", "-t", "-f", "GENERAL.DEVICE,IP4.ADDRESS", "device", "show"]), result => {
+      const addressesByInterface = root.parseInterfaceAddresses(result.stdout);
+      root._ethernetIp = addressesByInterface[root.ethernetInterface] ?? "";
+      root._wifiIp = addressesByInterface[root.wifiInterface] ?? "";
+    }, "net.ip");
   }
 
   function refreshNetworkingStatus(): void {
-    root.runCommand(procStatus, ["nmcli", "-t", "-f", "NETWORKING", "general"]);
+    Command.run(root.nmcliCommand(["nmcli", "-t", "-f", "NETWORKING", "general"]), result => root._networkingEnabled = (result.stdout || "").trim() === "enabled", "net.status");
   }
 
   function rescanWifi(): void {
     const interfaceName = root.wifiInterface;
     if (!interfaceName)
       return;
-    root.runCommand(cmdAction, ["nmcli", "device", "wifi", "rescan", "ifname", interfaceName]);
+    root._runAction(["nmcli", "device", "wifi", "rescan", "ifname", interfaceName]);
     root.refreshBandData();
   }
 
-  function runCommand(process: Process, command: var): void {
-    if (process.running)
-      return;
-    process.command = root.nmcliCommand(command);
-    process.running = true;
-  }
-
   function setNetworkingEnabled(enabled: bool): void {
-    root.runCommand(cmdAction, ["nmcli", "networking", enabled ? "on" : "off"]);
+    root._runAction(["nmcli", "networking", enabled ? "on" : "off"]);
   }
 
   function setWifiRadioEnabled(enabled: bool): void {
@@ -269,7 +275,6 @@ Singleton {
   }
 
   Component.onCompleted: {
-    procMonitor.running = true;
     root.refreshIpData();
     root.refreshNetworkingStatus();
     Logger.log("NetworkService", "ready");
@@ -310,17 +315,14 @@ Singleton {
       root._failConnect(qsTr("Connection failed"))
   }
 
-  Process {
+  CommandStream {
     id: procMonitor
 
+    active: true
     command: root.nmcliCommand(["nmcli", "monitor"])
+    restartDelay: 3000
 
-    stdout: SplitParser {
-      onRead: refreshTimer.restart()
-    }
-
-    onRunningChanged: if (!running)
-      restartTimer.restart()
+    onLineRead: refreshTimer.restart()
   }
 
   Timer {
@@ -331,60 +333,6 @@ Singleton {
     onTriggered: {
       root.refreshIpData();
       root.refreshNetworkingStatus();
-    }
-  }
-
-  Timer {
-    id: restartTimer
-
-    interval: 3000
-
-    onTriggered: procMonitor.running = true
-  }
-
-  Process {
-    id: procStatus
-
-    stdout: StdioCollector {
-      onStreamFinished: root._networkingEnabled = (text || "").trim() === "enabled"
-    }
-  }
-
-  Process {
-    id: procIp
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const addressesByInterface = root.parseInterfaceAddresses(text);
-        root._ethernetIp = addressesByInterface[root.ethernetInterface] ?? "";
-        root._wifiIp = addressesByInterface[root.wifiInterface] ?? "";
-      }
-    }
-  }
-
-  Process {
-    id: procBand
-
-    stdout: StdioCollector {
-      onStreamFinished: root._bandMap = root.parseWifiBands(text)
-    }
-  }
-
-  Process {
-    id: cmdAction
-
-    stderr: StdioCollector {
-      onStreamFinished: {
-        const error = (text || "").trim();
-        if (error)
-          Logger.log("NetworkService", `Error: ${error}`);
-      }
-    }
-    stdout: StdioCollector {
-      onStreamFinished: {
-        root.refreshIpData();
-        root.refreshNetworkingStatus();
-      }
     }
   }
 }

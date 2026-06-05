@@ -58,7 +58,7 @@ Singleton {
 
     _notifyTimestamps[key] = now;
     const urgency = isCritical ? "critical" : "normal";
-    Quickshell.execDetached(["notify-send", "-a", "Battery", "-u", urgency, "-t", "5000", "-e", summary, body]);
+    Command.detached(["notify-send", "-a", "Battery", "-u", urgency, "-t", "5000", "-e", summary, body]);
   }
 
   onIsCriticalAndNotChargingChanged: if (isCriticalAndNotCharging)

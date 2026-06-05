@@ -1,7 +1,6 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Services.Utils
 
 Singleton {
@@ -93,7 +92,14 @@ Singleton {
   Component.onCompleted: {
     if (weekStart < 1 || weekStart > 7)
       weekStart = 7;
-    timeInfoProc.running = true;
+    Command.run(["sh", "-c", "timedatectl show -P Timezone -P NTP -P NTPSynchronized"], result => {
+      const vals = result.stdout.trim().split(/\r?\n/);
+      if (vals.length === 3) {
+        dateTime.internalTimeZone = vals[0];
+        dateTime.internalNtpEnabled = vals[1].toLowerCase() === "yes";
+        dateTime.internalNtpSynced = vals[2].toLowerCase() === "yes";
+      }
+    });
     ready = true;
     Logger.log("TimeService", "Ready");
   }
@@ -108,22 +114,5 @@ Singleton {
     id: minuteClock
 
     precision: SystemClock.Minutes
-  }
-
-  Process {
-    id: timeInfoProc
-
-    command: ["sh", "-c", "timedatectl show -P Timezone -P NTP -P NTPSynchronized"]
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const vals = this.text.trim().split(/\r?\n/);
-        if (vals.length === 3) {
-          dateTime.internalTimeZone = vals[0];
-          dateTime.internalNtpEnabled = vals[1].toLowerCase() === "yes";
-          dateTime.internalNtpSynced = vals[2].toLowerCase() === "yes";
-        }
-      }
-    }
   }
 }

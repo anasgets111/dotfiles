@@ -209,7 +209,7 @@ Singleton {
     const defaultSound = (notification?.urgency ?? 1) >= 2 ? `${soundDir}/bell.oga` : `${soundDir}/message.oga`;
     const soundPath = _notificationSoundFile(_notificationHint(notification, "sound-file")) || defaultSound;
 
-    Quickshell.execDetached(["pw-play", "--media-role", "Notification", "--volume", "0.8", soundPath]);
+    Command.detached(["pw-play", "--media-role", "Notification", "--volume", "0.8", soundPath]);
   }
 
   function setAudioSink(id: int): void {

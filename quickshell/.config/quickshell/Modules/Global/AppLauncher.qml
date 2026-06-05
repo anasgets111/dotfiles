@@ -489,6 +489,8 @@ Item {
                   Layout.fillWidth: true
                 } // Spacer
 
+
+
                 OText {
                   Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                   color: Theme.textInactiveColor

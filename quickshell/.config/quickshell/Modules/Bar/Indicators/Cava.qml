@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
+import qs.Services.Utils
 
 Singleton {
   id: root
@@ -12,93 +12,23 @@ Singleton {
 
   // Colors from cava config for visualization
   property var gradientColors: ["#3b3c59", "#4b4464", "#4b4464", "#6d5276", "#7f597e", "#926184", "#a4688a", "#b6708e", "#c87990", "#d98292"]
-  property bool isRunning: false
+  readonly property alias isRunning: cavaProcess.active
 
   // Lighter version of gradient colors for visualization
   property var lighterGradientColors: gradientColors.map(color => Qt.lighter(color, 1.4))
-  readonly property int maxRestarts: 5
-  property int restartCount: 0
   property var values: []
 
   // Start the cava process
   function start() {
-    if (!isRunning) {
-      isRunning = true;
-      restartCount = 0;
-      cavaProcess.running = true;
-    }
+    cavaProcess.active = true;
   }
 
   // Stop the cava process
   function stop() {
-    isRunning = false;
-    restartCount = 0;
-    cavaProcess.running = false;
+    cavaProcess.active = false;
   }
 
-  Component.onCompleted: {
-    createConfigProcess.running = true;
-  }
-  Component.onDestruction: {
-    root.stop();
-  }
-
-  Process {
-    id: cavaProcess
-
-    command: ["/usr/bin/cava", "-p", "/tmp/cava_config"]
-    running: false
-
-    stdout: SplitParser {
-      splitMarker: "\n"
-
-      onRead: data => {
-        const line = data.trim();
-        if (!line)
-          return;
-        const parts = line.split(';');
-        const newValues = [];
-        for (let i = 0; i < parts.length; i++) {
-          const value = parseFloat(parts[i]);
-          if (!Number.isNaN(value))
-            newValues.push(Math.min(1.0, Math.max(0.0, value / 1000.0)));
-        }
-        if (newValues.length > 0)
-          root.values = newValues;
-      }
-    }
-
-    onRunningChanged: {
-      if (!cavaProcess.running && root.isRunning) {
-        if (root.restartCount < root.maxRestarts) {
-          root.restartCount++;
-          const delay = Math.min(5000, 100 * Math.pow(2, root.restartCount - 1));
-          restartTimer.interval = delay;
-          restartTimer.start();
-        } else {
-          root.isRunning = false;
-        }
-      }
-    }
-  }
-
-  Timer {
-    id: restartTimer
-
-    repeat: false
-
-    onTriggered: {
-      if (root.isRunning) {
-        cavaProcess.running = true;
-      }
-    }
-  }
-
-  // Create cava config file
-  Process {
-    id: createConfigProcess
-
-    command: ["bash", "-c", `
+  Component.onCompleted: Command.run(["bash", "-c", `
             cat > /tmp/cava_config << 'EOF'
 [general]
 autosens = 1
@@ -129,13 +59,33 @@ gravity = 100
 #4 = 1
 #5 = 1 # treble
 EOF
-        `]
-    running: false
+        `], () => root.start())
+  Component.onDestruction: {
+    root.stop();
+  }
 
-    onRunningChanged: {
-      if (!createConfigProcess.running) {
-        root.start();
+  CommandStream {
+    id: cavaProcess
+
+    command: ["/usr/bin/cava", "-p", "/tmp/cava_config"]
+    maxRestartDelay: 5000
+    maxRestarts: 5
+    restartBackoff: 2
+    restartDelay: 100
+
+    onLineRead: data => {
+      const line = data.trim();
+      if (!line)
+        return;
+      const parts = line.split(';');
+      const newValues = [];
+      for (let i = 0; i < parts.length; i++) {
+        const value = parseFloat(parts[i]);
+        if (!Number.isNaN(value))
+          newValues.push(Math.min(1.0, Math.max(0.0, value / 1000.0)));
       }
+      if (newValues.length > 0)
+        root.values = newValues;
     }
   }
 }

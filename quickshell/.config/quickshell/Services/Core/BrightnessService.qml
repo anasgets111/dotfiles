@@ -35,8 +35,7 @@ Singleton {
     if (!available)
       return "Brightness control not available";
     const clamped = Math.max(0, Math.min(100, percent));
-    setBrightnessProcess.command = ["brightnessctl", "--class=backlight", "set", `${clamped}%`];
-    setBrightnessProcess.running = true;
+    Command.run(["brightnessctl", "--class=backlight", "set", `${clamped}%`]);
     return `Brightness set to ${clamped}%`;
   }
 
@@ -85,9 +84,5 @@ Singleton {
     running: root.available && root._devicePath !== ""
 
     onTriggered: brightnessFile.reload()
-  }
-
-  Process {
-    id: setBrightnessProcess
   }
 }

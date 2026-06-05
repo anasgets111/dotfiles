@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Config
 import qs.Services.Utils
 
@@ -242,8 +241,13 @@ Singleton {
 
   function refreshBackendAvailability(): void {
     backendCheckComplete = false;
-    backendCheckProcess.running = false;
-    backendCheckProcess.running = true;
+    Command.run(["sh", "-c", "command -v showmethekey-cli >/dev/null 2>&1 && printf yes || printf no"], result => {
+      const found = String(result.stdout ?? "").trim() === "yes";
+      root.backendAvailable = found;
+      root.backendCheckComplete = true;
+      if (!found)
+        Logger.warn("InputDisplayService", "showmethekey-cli not found; input display disabled");
+    });
   }
 
   function sanitizeRatio(value: real, fallback: real): real {
@@ -270,19 +274,6 @@ Singleton {
     comboRepeatCount = comboHideTimer.running && comboLabel === nextLabel ? comboRepeatCount + 1 : 1;
     comboLabel = nextLabel;
     comboHideTimer.restart();
-  }
-
-  function syncProcess(): void {
-    const shouldRun = enabled && backendAvailable;
-    restartTimer.stop();
-
-    if (!shouldRun) {
-      inputProcess.running = false;
-      return;
-    }
-
-    if (!inputProcess.running)
-      inputProcess.running = true;
   }
 
   function syncRetainedState(): void {
@@ -312,70 +303,35 @@ Singleton {
   Component.onCompleted: root.refreshBackendAvailability()
   onActiveKeysChanged: root.syncRetainedState()
   onActiveMouseButtonsChanged: root.syncRetainedState()
-  onBackendAvailableChanged: {
-    if (!backendAvailable)
-      clearState();
-    syncProcess();
-  }
+  onBackendAvailableChanged: if (!backendAvailable)
+    clearState()
   onEnabledChanged: {
     if (!enabled)
       clearState();
     else if (!backendAvailable)
       refreshBackendAvailability();
-    syncProcess();
   }
   onOverlayHoveredChanged: root.syncRetainedState()
 
-  Process {
-    id: backendCheckProcess
-
-    command: ["sh", "-c", "command -v showmethekey-cli >/dev/null 2>&1 && printf yes || printf no"]
-    running: false
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const found = String(text ?? "").trim() === "yes";
-        root.backendAvailable = found;
-        root.backendCheckComplete = true;
-
-        if (!found)
-          Logger.warn("InputDisplayService", "showmethekey-cli not found; input display disabled");
-      }
-    }
-  }
-
-  Process {
+  CommandStream {
     id: inputProcess
 
+    active: root.enabled && root.backendAvailable
     command: [root.backend]
-    running: false
+    restartDelay: 3000
 
-    stderr: SplitParser {
-      splitMarker: "\n"
-
-      onRead: line => {
-        const clean = String(line ?? "").trim();
-        if (clean.length > 0)
-          Logger.warn("InputDisplayService", clean);
-      }
+    onErrorRead: line => {
+      const clean = String(line ?? "").trim();
+      if (clean.length > 0)
+        Logger.warn("InputDisplayService", clean);
     }
-    stdout: SplitParser {
-      splitMarker: "\n"
-
-      onRead: line => root.handleBackendLine(line)
-    }
-
     onExited: (code, exitStatus) => {
       if (!root.enabled || !root.backendAvailable)
         return;
-
       if (code !== 0)
         Logger.warn("InputDisplayService", `showmethekey-cli exited with code ${code}`);
     }
-    onRunningChanged: {
-      if (!inputProcess.running && root.enabled && root.backendAvailable)
-        restartTimer.restart();
-    }
+    onLineRead: line => root.handleBackendLine(line)
   }
 
   Timer {
@@ -391,13 +347,5 @@ Singleton {
       root.comboLabel = "";
       root.comboRepeatCount = 0;
     }
-  }
-
-  Timer {
-    id: restartTimer
-
-    interval: 3000
-
-    onTriggered: root.syncProcess()
   }
 }

@@ -67,7 +67,7 @@ Singleton {
   // INITIALIZATION
   // ═══════════════════════════════════════════════════════════════════════════
   Component.onCompleted: {
-    Quickshell.execDetached(["mkdir", "-p", configDir, cacheDir, cacheDirImages]);
+    Command.detached(["mkdir", "-p", configDir, cacheDir, cacheDirImages]);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
