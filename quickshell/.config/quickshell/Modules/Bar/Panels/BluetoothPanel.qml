@@ -11,49 +11,41 @@ PanelContentBase {
   id: root
 
   readonly property bool active: BluetoothService.available && BluetoothService.enabled
-  readonly property var connectedDevices: {
-    if (!ready)
-      return [];
-    return (BluetoothService.sortedDevices || []).filter(d => d?.connected);
-  }
-  readonly property var otherDevices: {
-    if (!ready)
-      return [];
-    return (BluetoothService.sortedDevices || []).filter(d => !d?.connected);
-  }
+  readonly property var connectedDevices: ready ? BluetoothService.deviceModels.filter(d => d.connected) : []
+  readonly property var otherDevices: ready ? BluetoothService.deviceModels.filter(d => !d.connected) : []
   readonly property bool ready: BluetoothService.available
   property string showCodecFor: ""
 
-  preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
-  preferredWidth: 360
-
   function handleAction(action: string, device: var) {
+    const address = device?.address || "";
     switch (action) {
     case "connect":
-      BluetoothService.connectDevice(device);
+      BluetoothService.connectDevice(address);
       break;
     case "pair":
-      BluetoothService.pairDevice(device);
+      BluetoothService.pairDevice(address);
       break;
     case "disconnect":
-      BluetoothService.disconnectDevice(device);
+      BluetoothService.disconnectDevice(address);
       break;
     case "forget":
-      BluetoothService.forgetDevice(device);
+      BluetoothService.forgetDevice(address);
       break;
     case "toggle-codec":
-      const addr = device?.address || "";
-      showCodecFor = showCodecFor === addr ? "" : addr;
+      showCodecFor = showCodecFor === address ? "" : address;
       if (showCodecFor)
-        BluetoothService.fetchCodecs(device);
+        BluetoothService.fetchCodecs(address);
       break;
     default:
       if (action.startsWith("codec:")) {
-        BluetoothService.switchCodec(device, action.substring(6));
+        BluetoothService.switchCodec(address, action.substring(6));
         showCodecFor = "";
       }
     }
   }
+
+  preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
+  preferredWidth: 360
 
   Component.onDestruction: {
     showCodecFor = "";
@@ -74,9 +66,6 @@ PanelContentBase {
     anchors.margins: Theme.spacingMd
     spacing: 0
 
-    // ═══════════════════════════════════════════
-    // SECTION 1 — Toggle Pills
-    // ═══════════════════════════════════════════
     RowLayout {
       Layout.bottomMargin: Theme.spacingMd
       Layout.fillWidth: true
@@ -115,9 +104,6 @@ PanelContentBase {
       }
     }
 
-    // ═══════════════════════════════════════════
-    // SECTION 2 — Connected Device Hero Cards
-    // ═══════════════════════════════════════════
     Repeater {
       model: root.connectedDevices
 
@@ -133,9 +119,6 @@ PanelContentBase {
       }
     }
 
-    // ═══════════════════════════════════════════
-    // SECTION 3 — Device List
-    // ═══════════════════════════════════════════
     ColumnLayout {
       Layout.fillWidth: true
       spacing: 0
@@ -180,75 +163,51 @@ PanelContentBase {
       }
     }
 
-    // ── Empty state ──
-    Item {
-      Layout.fillHeight: true
-      Layout.fillWidth: true
-      Layout.minimumHeight: 120
+    StateMessage {
+      iconOpacity: 0.4
+      text: BluetoothService.discovering ? qsTr("Scanning ...") : qsTr("No devices found")
       visible: root.active && root.connectedDevices.length === 0 && root.otherDevices.length === 0
-
-      ColumnLayout {
-        anchors.centerIn: parent
-        spacing: Theme.spacingSm
-
-        Text {
-          Layout.alignment: Qt.AlignHCenter
-          color: Theme.textInactiveColor
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize * 2
-          opacity: 0.4
-          text: "󰂲"
-        }
-
-        OText {
-          Layout.alignment: Qt.AlignHCenter
-          color: Theme.textInactiveColor
-          text: BluetoothService.discovering ? qsTr("Scanning\u2026") : qsTr("No devices found")
-        }
-      }
     }
 
-    // ── Disabled state ──
-    Item {
-      Layout.fillHeight: true
-      Layout.fillWidth: true
-      Layout.minimumHeight: 120
+    StateMessage {
+      iconOpacity: 0.3
+      text: !root.ready ? qsTr("Bluetooth Unavailable") : qsTr("Bluetooth Off")
       visible: !root.active
-
-      ColumnLayout {
-        anchors.centerIn: parent
-        spacing: Theme.spacingSm
-
-        Text {
-          Layout.alignment: Qt.AlignHCenter
-          color: Theme.textInactiveColor
-          font.family: Theme.fontFamily
-          font.pixelSize: Theme.fontSize * 2
-          opacity: 0.3
-          text: "󰂲"
-        }
-
-        OText {
-          Layout.alignment: Qt.AlignHCenter
-          color: Theme.textInactiveColor
-          text: !root.ready ? qsTr("Bluetooth Unavailable") : qsTr("Bluetooth Off")
-        }
-      }
     }
   }
 
-  // ── Device Row ──
+  component BatteryBadge: Rectangle {
+    id: badge
+
+    property var device: null
+    readonly property int level: device?.battery || 0
+
+    color: level <= 10 ? Theme.critical : level <= 20 ? Theme.warning : Theme.activeColor
+    implicitHeight: Theme.fontSm + 4
+    implicitWidth: badgeLabel.implicitWidth + 8
+    radius: height / 2
+    visible: !!device?.hasBattery
+
+    OText {
+      id: badgeLabel
+
+      anchors.centerIn: parent
+      bold: true
+      color: Theme.bgColor
+      size: "xs"
+      text: badge.device?.batteryText || ""
+    }
+  }
   component DeviceRow: Rectangle {
     id: row
 
-    readonly property bool canConnect: row.isPaired && device && !device.connected && !isBusy && !device.blocked
+    readonly property bool canConnect: !!device?.canConnect
     property var device: null
-    readonly property bool hasBattery: device?.batteryAvailable && device.battery > 0
-    readonly property string icon: BluetoothService.getDeviceIcon(device)
-    readonly property bool isBusy: BluetoothService.isDeviceBusy(device)
+    readonly property string icon: device?.icon || "󰂯"
+    readonly property bool isBusy: !!device?.busy
     readonly property bool isPaired: !!device?.paired
-    readonly property string name: BluetoothService.getDeviceName(device) || qsTr("Unknown")
-    readonly property string statusText: BluetoothService.getStatusString(device)
+    readonly property string name: device?.name || qsTr("Unknown")
+    readonly property string statusText: device?.statusText || ""
 
     signal action(string act, var dev)
 
@@ -305,34 +264,11 @@ PanelContentBase {
         }
       }
 
-      // Battery
-      Rectangle {
-        color: {
-          const b = row.device?.battery || 0;
-          if (b <= 10)
-            return Theme.critical;
-          if (b <= 20)
-            return Theme.warning;
-          return Theme.activeColor;
-        }
-        implicitHeight: Theme.fontSm + 4
-        implicitWidth: rowBattLabel.implicitWidth + 8
+      BatteryBadge {
+        device: row.device
         opacity: 0.7
-        radius: height / 2
-        visible: row.hasBattery
-
-        OText {
-          id: rowBattLabel
-
-          anchors.centerIn: parent
-          bold: true
-          color: Theme.bgColor
-          size: "xs"
-          text: BluetoothService.getBattery(row.device)
-        }
       }
 
-      // Paired dot
       Rectangle {
         color: Theme.activeColor
         implicitHeight: 6
@@ -363,12 +299,11 @@ PanelContentBase {
         text: qsTr("Pair")
         textColor: Theme.activeColor
         variant: "ghost"
-        visible: !row.isPaired && row.device && !row.isBusy && !row.device.blocked && (rowMa.containsMouse || pairBtn.hovered)
+        visible: !!row.device?.canPair && (rowMa.containsMouse || pairBtn.hovered)
 
         onClicked: row.action("pair", row.device)
       }
 
-      // Busy spinner
       Text {
         color: Theme.activeColor
         font.family: Theme.fontFamily
@@ -386,24 +321,17 @@ PanelContentBase {
       }
     }
   }
-
-  // ═══════════════════════════════════════════════
-  // INLINE COMPONENTS
-  // ═══════════════════════════════════════════════
-
-  // ── Hero Connected Card ──
   component HeroCard: Rectangle {
     id: hero
 
     readonly property string addr: device?.address || ""
-    readonly property var availableCodecs: BluetoothService.deviceAvailableCodecs[addr] || []
-    readonly property string currentCodec: BluetoothService.deviceCodecs[addr] || ""
+    readonly property var availableCodecs: device?.availableCodecs || []
+    readonly property string currentCodec: device?.currentCodec || ""
     property var device: null
-    readonly property bool hasBattery: device?.batteryAvailable && device.battery > 0
-    readonly property string icon: BluetoothService.getDeviceIcon(device)
-    readonly property bool isAudio: BluetoothService.isAudioDevice(device)
+    readonly property string icon: device?.icon || "󰂯"
+    readonly property bool isAudio: !!device?.isAudio
     readonly property bool isPaired: !!device?.paired
-    readonly property string name: BluetoothService.getDeviceName(device) || qsTr("Unknown")
+    readonly property string name: device?.name || qsTr("Unknown")
     property string showCodecFor: ""
     readonly property bool showCodecs: showCodecFor === addr && availableCodecs.length > 0
 
@@ -463,34 +391,11 @@ PanelContentBase {
               text: qsTr("Connected")
             }
 
-            // Battery badge
-            Rectangle {
-              color: {
-                const b = hero.device?.battery || 0;
-                if (b <= 10)
-                  return Theme.critical;
-                if (b <= 20)
-                  return Theme.warning;
-                return Theme.activeColor;
-              }
-              implicitHeight: Theme.fontSm + 4
-              implicitWidth: battLabel.implicitWidth + 8
+            BatteryBadge {
+              device: hero.device
               opacity: 0.85
-              radius: height / 2
-              visible: hero.hasBattery
-
-              OText {
-                id: battLabel
-
-                anchors.centerIn: parent
-                bold: true
-                color: Theme.bgColor
-                size: "xs"
-                text: BluetoothService.getBattery(hero.device)
-              }
             }
 
-            // Codec badge
             Rectangle {
               color: Theme.inactiveColor
               implicitHeight: Theme.fontSm + 4
@@ -516,7 +421,6 @@ PanelContentBase {
           Layout.fillWidth: true
         }
 
-        // Codec toggle
         PanelActionIcon {
           Layout.preferredHeight: 30
           Layout.preferredWidth: 30
@@ -528,7 +432,6 @@ PanelContentBase {
           onClicked: hero.action("toggle-codec", hero.device)
         }
 
-        // Forget
         PanelActionIcon {
           Layout.preferredHeight: 30
           Layout.preferredWidth: 30
@@ -539,7 +442,6 @@ PanelContentBase {
           onClicked: hero.action("forget", hero.device)
         }
 
-        // Disconnect
         PanelActionIcon {
           Layout.preferredHeight: 30
           Layout.preferredWidth: 30
@@ -550,7 +452,6 @@ PanelContentBase {
         }
       }
 
-      // ── Codec Selector ──
       ColumnLayout {
         Layout.fillWidth: true
         Layout.leftMargin: Theme.spacingMd
@@ -626,6 +527,36 @@ PanelContentBase {
             }
           }
         }
+      }
+    }
+  }
+  component StateMessage: Item {
+    id: stateMessage
+
+    property real iconOpacity: 0.4
+    property string text: ""
+
+    Layout.fillHeight: true
+    Layout.fillWidth: true
+    Layout.minimumHeight: 120
+
+    ColumnLayout {
+      anchors.centerIn: parent
+      spacing: Theme.spacingSm
+
+      Text {
+        Layout.alignment: Qt.AlignHCenter
+        color: Theme.textInactiveColor
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize * 2
+        opacity: stateMessage.iconOpacity
+        text: "󰂲"
+      }
+
+      OText {
+        Layout.alignment: Qt.AlignHCenter
+        color: Theme.textInactiveColor
+        text: stateMessage.text
       }
     }
   }

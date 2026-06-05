@@ -9,6 +9,7 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  property int _revision: 0
   readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
   readonly property var audioKeywords: ["headset", "audio", "headphone", "airpod", "arctis", "speaker"]
   readonly property bool available: adapter !== null
@@ -59,15 +60,37 @@ Singleton {
   property var deviceAvailableCodecs: ({})
   property var deviceCodecs: ({})
   readonly property var deviceIconMap: [[["display", "tv", "[tv]", "television"], "󰔂"], [["watch"], "󰥔"], [["mouse"], "󰍽"], [["keyboard"], "󰌌"], [["phone", "iphone", "android", "samsung"], "󰄜"], [audioKeywords, "󰋋"]]
+  readonly property var deviceModels: root.buildDeviceModels(root._revision)
   readonly property var devices: available ? adapter.devices.values : []
   readonly property bool discoverable: available && adapter.discoverable
   readonly property bool discovering: available && adapter.discovering
   property bool discoveryOwned: false
   readonly property bool enabled: available && adapter.enabled
-  readonly property var sortedDevices: sortDevices(devices)
+
+  function _bumpRevision(): void {
+    root._revision++;
+  }
 
   function bluezCardName(address: string): string {
     return `bluez_card.${address.replace(/:/g, "_")}`;
+  }
+
+  function buildDeviceModels(revision: int): var {
+    return root.devices.map(device => root.toDeviceModel(device)).sort((leftModel, rightModel) => {
+      if (leftModel.connected !== rightModel.connected)
+        return rightModel.connected - leftModel.connected;
+      if (leftModel.paired !== rightModel.paired)
+        return rightModel.paired - leftModel.paired;
+      return leftModel.name.localeCompare(rightModel.name);
+    });
+  }
+
+  function canConnect(device: BluetoothDevice): bool {
+    return !!device?.paired && !device.connected && !isDeviceBusy(device) && !device.blocked;
+  }
+
+  function canPair(device: BluetoothDevice): bool {
+    return !!device && !device.paired && !device.blocked && !isDeviceBusy(device);
   }
 
   function cleanupCodecData(address: string): void {
@@ -81,50 +104,58 @@ Singleton {
     deviceAvailableCodecsChanged();
   }
 
-  function clearPendingPair(device: QtObject): void {
+  function clearPendingPair(device: BluetoothDevice): void {
     if (device?.address === connectAfterPairAddress)
       connectAfterPairAddress = "";
   }
 
-  function connectDevice(device: QtObject): void {
+  function connectDevice(address: string): void {
+    const device = root.deviceForAddress(address);
     if (!device || device.blocked || isDeviceBusy(device) || device.connected || !device.paired)
       return;
     device.trusted = true;
     device.connect();
   }
 
-  function deviceMatchesKeywords(device: QtObject, keywords: var): bool {
+  function deviceForAddress(address: string): BluetoothDevice {
+    return root.adapter?.devices?.get(address) ?? null;
+  }
+
+  function deviceMatchesKeywords(device: BluetoothDevice, keywords: var): bool {
     const searchText = `${device?.icon || ""} ${getDeviceName(device)}`.toLowerCase();
     return keywords.some(keyword => searchText.includes(keyword));
   }
 
-  function disconnectDevice(device: QtObject): void {
+  function disconnectDevice(address: string): void {
+    const device = root.deviceForAddress(address);
     if (!device)
       return;
     clearPendingPair(device);
     device.disconnect();
-    cleanupCodecData(device.address);
+    cleanupCodecData(address);
   }
 
-  function fetchCodecs(device: QtObject, fullScan = true): void {
+  function fetchCodecs(address: string, fullScan = true): void {
+    const device = root.deviceForAddress(address);
     if (!device?.connected || !isAudioDevice(device) || codecParser.running)
       return;
-    codecParser.address = device.address;
-    codecParser.cardName = root.bluezCardName(device.address);
+    codecParser.address = address;
+    codecParser.cardName = root.bluezCardName(address);
     codecParser.fullScan = fullScan;
     codecParser.running = true;
   }
 
-  function forgetDevice(device: QtObject): void {
+  function forgetDevice(address: string): void {
+    const device = root.deviceForAddress(address);
     if (!device)
       return;
     clearPendingPair(device);
     device.trusted = false;
     device.forget();
-    cleanupCodecData(device.address);
+    cleanupCodecData(address);
   }
 
-  function getBattery(device: QtObject): string {
+  function getBattery(device: BluetoothDevice): string {
     return device?.batteryAvailable && device.battery > 0 ? `${Math.round(device.battery * 100)}%` : "";
   }
 
@@ -137,7 +168,7 @@ Singleton {
     };
   }
 
-  function getDeviceIcon(device: QtObject): string {
+  function getDeviceIcon(device: BluetoothDevice): string {
     if (!device)
       return "󰂯";
     for (const [keywords, glyph] of deviceIconMap) {
@@ -147,11 +178,11 @@ Singleton {
     return "󰂯";
   }
 
-  function getDeviceName(device: QtObject): string {
+  function getDeviceName(device: BluetoothDevice): string {
     return device?.name || device?.deviceName || "";
   }
 
-  function getStatusString(device: QtObject): string {
+  function getStatusString(device: BluetoothDevice): string {
     if (!device)
       return "";
     if (device.state === BluetoothDeviceState.Connecting)
@@ -163,18 +194,19 @@ Singleton {
     return "";
   }
 
-  function isAudioDevice(device: QtObject): bool {
+  function isAudioDevice(device: BluetoothDevice): bool {
     return !!device && deviceMatchesKeywords(device, audioKeywords);
   }
 
-  function isDeviceBusy(device: QtObject): bool {
+  function isDeviceBusy(device: BluetoothDevice): bool {
     return device?.pairing || device?.state === BluetoothDeviceState.Disconnecting || device?.state === BluetoothDeviceState.Connecting;
   }
 
-  function pairDevice(device: QtObject): void {
+  function pairDevice(address: string): void {
+    const device = root.deviceForAddress(address);
     if (!device || device.blocked || device.paired || device.pairing)
       return;
-    connectAfterPairAddress = device.address;
+    connectAfterPairAddress = address;
     device.trusted = true;
     device.pair();
   }
@@ -230,20 +262,6 @@ Singleton {
     });
   }
 
-  function sortDevices(list: var): var {
-    if (!list?.length)
-      return [];
-    return [...list].sort((leftDevice, rightDevice) => {
-      if (leftDevice.connected !== rightDevice.connected)
-        return rightDevice.connected - leftDevice.connected;
-      const leftPaired = !!leftDevice.paired;
-      const rightPaired = !!rightDevice.paired;
-      if (leftPaired !== rightPaired)
-        return rightPaired - leftPaired;
-      return getDeviceName(leftDevice).localeCompare(getDeviceName(rightDevice));
-    });
-  }
-
   function startDiscovery(): void {
     if (!adapter?.enabled || adapter.discovering)
       return;
@@ -257,13 +275,35 @@ Singleton {
     discoveryOwned = false;
   }
 
-  function switchCodec(device: QtObject, profile: string): void {
-    if (!device?.address || codecSwitch.running)
+  function switchCodec(address: string, profile: string): void {
+    if (!address || codecSwitch.running)
       return;
-    codecSwitch.cardName = root.bluezCardName(device.address);
+    codecSwitch.cardName = root.bluezCardName(address);
     codecSwitch.profile = profile;
-    codecSwitch.deviceAddress = device.address;
+    codecSwitch.deviceAddress = address;
     codecSwitch.running = true;
+  }
+
+  function toDeviceModel(device: BluetoothDevice): var {
+    const address = device?.address || "";
+    return {
+      address,
+      name: root.getDeviceName(device) || qsTr("Unknown"),
+      icon: root.getDeviceIcon(device),
+      statusText: root.getStatusString(device),
+      connected: !!device?.connected,
+      paired: !!device?.paired,
+      blocked: !!device?.blocked,
+      busy: root.isDeviceBusy(device),
+      isAudio: root.isAudioDevice(device),
+      hasBattery: !!(device?.batteryAvailable && device.battery > 0),
+      battery: device?.batteryAvailable && device.battery > 0 ? Math.round(device.battery * 100) : 0,
+      batteryText: root.getBattery(device),
+      canConnect: root.canConnect(device),
+      canPair: root.canPair(device),
+      currentCodec: root.deviceCodecs[address] || "",
+      availableCodecs: root.deviceAvailableCodecs[address] || []
+    };
   }
 
   Component.onCompleted: Logger.log("BluetoothService", `Init: defaultAdapter=${Bluetooth.defaultAdapter ? "yes" : "no"}`)
@@ -299,20 +339,47 @@ Singleton {
     model: root.devices
 
     delegate: QtObject {
+      id: deviceEntry
+
       readonly property string address: modelData?.address || ""
       readonly property Connections deviceConn: Connections {
+        function onBatteryAvailableChanged() {
+          root._bumpRevision();
+        }
+
+        function onBatteryChanged() {
+          root._bumpRevision();
+        }
+
+        function onBlockedChanged() {
+          root._bumpRevision();
+        }
+
+        function onConnectedChanged() {
+          root._bumpRevision();
+        }
+
+        function onPairedChanged() {
+          root._bumpRevision();
+        }
+
         function onPairingChanged() {
-          if (modelData?.pairing || address !== root.connectAfterPairAddress)
+          root._bumpRevision();
+          if (deviceEntry.modelData?.pairing || deviceEntry.address !== root.connectAfterPairAddress)
             return;
           root.connectAfterPairAddress = "";
-          if (modelData?.paired)
-            Qt.callLater(() => root.connectDevice(modelData));
+          if (deviceEntry.modelData?.paired)
+            Qt.callLater(() => root.connectDevice(deviceEntry.address));
+        }
+
+        function onStateChanged() {
+          root._bumpRevision();
         }
 
         ignoreUnknownSignals: true
-        target: modelData
+        target: deviceEntry.modelData
       }
-      required property QtObject modelData
+      required property BluetoothDevice modelData
     }
   }
 
@@ -366,9 +433,8 @@ Singleton {
 
     onRunningChanged: {
       if (!running && deviceAddress) {
-        const device = root.adapter?.devices?.get(deviceAddress);
-        if (device)
-          Qt.callLater(() => root.fetchCodecs(device, false));
+        const addr = deviceAddress;
+        Qt.callLater(() => root.fetchCodecs(addr, false));
         deviceAddress = "";
         cardName = "";
         profile = "";
