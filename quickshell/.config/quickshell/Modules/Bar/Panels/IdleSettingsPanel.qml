@@ -4,40 +4,42 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Effects
+import qs.Services.Core
+import qs.Services.SystemInfo
 import qs.Config
 import qs.Components
-import qs.Services.SystemInfo
 
 Item {
   id: root
 
   // ── Properties ────────────────────────────────────────────────
   property bool active: false
-  readonly property bool dpmsEnabled: idleData?.dpmsEnabled ?? true
-  property real dpmsTimeout: 0
-  readonly property int enabledActionCount: (lockEnabled ? 1 : 0) + (suspendEnabled ? 1 : 0) + (dpmsEnabled ? 1 : 0)
-  readonly property var idleData: Settings.data?.idleService ?? null
-  readonly property bool idleEnabled: idleData?.enabled ?? true
+  readonly property bool displayPowerOffEnabled: IdleService.displayPowerOffEnabled
+  readonly property real displayPowerOffTimeout: IdleService.displayPowerOffTimeoutMin
+  readonly property int enabledActionCount: IdleService.enabledActionCount
+  readonly property var flowSteps: IdleService.flowSteps
+  readonly property bool idleEnabled: IdleService.idleEnabled
   readonly property bool inputDisplayBackendReady: InputDisplayService.backendAvailable
   readonly property string inputDisplayStatusText: InputDisplayService.backendCheckComplete ? qsTr("Install showmethekey-cli to enable the keyboard and mouse overlay.") : qsTr("Checking for showmethekey-cli...")
-  readonly property bool lockAfterDpms: idleData?.lockAfterDpms ?? false
-  readonly property bool lockEnabled: idleData?.lockEnabled ?? true
-  property real lockTimeout: 5
-  readonly property bool suspendEnabled: idleData?.suspendEnabled ?? false
-  property real suspendTimeout: 2
+  readonly property bool lockAfterDisplayPowerOff: IdleService.lockAfterDisplayPowerOff
+  readonly property bool lockEnabled: IdleService.lockEnabled
+  readonly property real lockTimeout: IdleService.lockTimeoutMin
+  readonly property bool suspendEnabled: IdleService.suspendEnabled
+  readonly property real suspendTimeout: IdleService.suspendTimeoutMin
   property int windowHeight: 820
   property int windowWidth: 1000
 
   signal dismissed
 
-  function close() {
+  function close(): void {
     if (!active)
       return;
     active = false;
     dismissed();
   }
 
-  function formatDuration(v) {
+  function formatDuration(value: real): string {
+    const v = Math.max(0, Number(value) || 0);
     if (v <= 0)
       return qsTr("Never");
     const mins = Math.floor(v);
@@ -47,22 +49,8 @@ Item {
     return mins > 0 ? `${mins}m` : `${secs}s`;
   }
 
-  function loadFromSettings() {
-    const idle = Settings.data?.idleService;
-    if (!idle)
-      return;
-    lockTimeout = (idle.lockTimeoutSec ?? 300) / 60;
-    suspendTimeout = (idle.suspendTimeoutSec ?? 120) / 60;
-    dpmsTimeout = (idle.dpmsTimeoutSec ?? 30) / 60;
-  }
-
-  function open() {
+  function open(): void {
     active = true;
-  }
-
-  function saveTimeout(key, v) {
-    if (Settings.data?.idleService)
-      Settings.data.idleService[key] = Math.round(v * 60);
   }
 
   // ── Root ──────────────────────────────────────────────────────
@@ -70,9 +58,7 @@ Item {
   focus: active
   visible: active
 
-  Component.onCompleted: loadFromSettings()
   onActiveChanged: if (active) {
-    loadFromSettings();
     InputDisplayService.refreshBackendAvailability();
   }
 
@@ -234,18 +220,18 @@ Item {
           spacing: Theme.spacingSm
 
           Repeater {
-            model: root.lockAfterDpms ? ["dpms", "lock", "suspend"] : ["lock", "dpms", "suspend"]
+            model: root.flowSteps
 
             delegate: StatusPill {
-              readonly property bool isDpms: modelData === "dpms"
+              readonly property bool isDisplayPowerOff: modelData === "displayPowerOff"
               readonly property bool isLock: modelData === "lock"
               required property var modelData
-              readonly property bool pillActive: root.idleEnabled && (isLock ? root.lockEnabled : isDpms ? root.dpmsEnabled : root.suspendEnabled)
+              readonly property bool pillActive: root.idleEnabled && (isLock ? root.lockEnabled : isDisplayPowerOff ? root.displayPowerOffEnabled : root.suspendEnabled)
 
               Layout.fillWidth: true
               active: pillActive
-              icon: isLock ? "󰌾" : isDpms ? "󰍹" : "󰒚"
-              text: isLock ? (pillActive ? qsTr("Lock • %1").arg(root.formatDuration(root.lockTimeout)) : qsTr("Lock • Off")) : isDpms ? (pillActive ? qsTr("Display • %1").arg(root.formatDuration(root.dpmsTimeout)) : qsTr("Display • Off")) : (pillActive ? qsTr("Suspend • %1").arg(root.formatDuration(root.suspendTimeout)) : qsTr("Suspend • Off"))
+              icon: isLock ? "󰌾" : isDisplayPowerOff ? "󰍹" : "󰒚"
+              text: isLock ? (pillActive ? qsTr("Lock • %1").arg(root.formatDuration(root.lockTimeout)) : qsTr("Lock • Off")) : isDisplayPowerOff ? (pillActive ? qsTr("Display • %1").arg(root.formatDuration(root.displayPowerOffTimeout)) : qsTr("Display • Off")) : (pillActive ? qsTr("Suspend • %1").arg(root.formatDuration(root.suspendTimeout)) : qsTr("Suspend • Off"))
             }
           }
         }
@@ -349,10 +335,7 @@ Item {
                   checked: root.idleEnabled
                   size: "lg"
 
-                  onToggled: c => {
-                    if (root.idleData)
-                      root.idleData.enabled = c;
-                  }
+                  onToggled: c => IdleService.setIdleEnabled(c)
                 }
               }
 
@@ -378,34 +361,22 @@ Item {
                   sliderMax: 30
                   sliderValue: root.lockTimeout
 
-                  onSliderChanged: v => {
-                    root.lockTimeout = v;
-                    root.saveTimeout("lockTimeoutSec", v);
-                  }
-                  onToggled: c => {
-                    if (root.idleData)
-                      root.idleData.lockEnabled = c;
-                  }
+                  onSliderChanged: v => IdleService.setLockTimeoutMin(v)
+                  onToggled: c => IdleService.setLockEnabled(c)
                 }
 
                 SettingRow {
-                  checked: root.dpmsEnabled
+                  checked: root.displayPowerOffEnabled
                   description: qsTr("Power down monitors when no activity is detected.")
                   disabled: !root.idleEnabled
                   hasSlider: true
                   icon: "󰍹"
                   label: qsTr("Turn Off Display")
                   sliderMax: 10
-                  sliderValue: root.dpmsTimeout
+                  sliderValue: root.displayPowerOffTimeout
 
-                  onSliderChanged: v => {
-                    root.dpmsTimeout = v;
-                    root.saveTimeout("dpmsTimeoutSec", v);
-                  }
-                  onToggled: c => {
-                    if (root.idleData)
-                      root.idleData.dpmsEnabled = c;
-                  }
+                  onSliderChanged: v => IdleService.setDisplayPowerOffTimeoutMin(v)
+                  onToggled: c => IdleService.setDisplayPowerOffEnabled(c)
                 }
 
                 SettingRow {
@@ -418,28 +389,19 @@ Item {
                   sliderMax: 60
                   sliderValue: root.suspendTimeout
 
-                  onSliderChanged: v => {
-                    root.suspendTimeout = v;
-                    root.saveTimeout("suspendTimeoutSec", v);
-                  }
-                  onToggled: c => {
-                    if (root.idleData)
-                      root.idleData.suspendEnabled = c;
-                  }
+                  onSliderChanged: v => IdleService.setSuspendTimeoutMin(v)
+                  onToggled: c => IdleService.setSuspendEnabled(c)
                 }
 
                 SettingRow {
-                  checked: root.lockAfterDpms
+                  checked: root.lockAfterDisplayPowerOff
                   description: qsTr("Swap the order: display off first, then lock.")
-                  disabled: !root.idleEnabled || !root.lockEnabled || !root.dpmsEnabled
+                  disabled: !root.idleEnabled || !root.lockEnabled || !root.displayPowerOffEnabled
                   icon: "󰁯"
                   label: qsTr("Lock After Display Off")
                   showSeparator: false
 
-                  onToggled: c => {
-                    if (root.idleData)
-                      root.idleData.lockAfterDpms = c;
-                  }
+                  onToggled: c => IdleService.setLockAfterDisplayPowerOff(c)
                 }
               }
             }
@@ -489,30 +451,24 @@ Item {
               }
 
               SettingRow {
-                checked: root.idleData?.respectInhibitors ?? true
+                checked: IdleService.respectInhibitorsEnabled
                 description: qsTr("Honor compositor and app inhibit requests.")
                 disabled: !root.idleEnabled
                 icon: "󰈑"
                 label: qsTr("Respect Inhibitors")
 
-                onToggled: c => {
-                  if (root.idleData)
-                    root.idleData.respectInhibitors = c;
-                }
+                onToggled: c => IdleService.setRespectInhibitors(c)
               }
 
               SettingRow {
-                checked: root.idleData?.videoAutoInhibit ?? true
+                checked: IdleService.videoAutoInhibitEnabled
                 description: qsTr("Auto-inhibit while media is actively playing.")
                 disabled: !root.idleEnabled
                 icon: "󰀈"
                 label: qsTr("Video Inhibit")
                 showSeparator: false
 
-                onToggled: c => {
-                  if (root.idleData)
-                    root.idleData.videoAutoInhibit = c;
-                }
+                onToggled: c => IdleService.setVideoAutoInhibit(c)
               }
             }
           }
@@ -622,7 +578,7 @@ Item {
                 Layout.fillWidth: true
                 color: Theme.textInactiveColor
                 font.pixelSize: Theme.fontMd
-                text: root.lockAfterDpms ? qsTr("Tip: current flow is Display Off → Lock → Suspend.") : qsTr("Tip: current flow is Lock → Display Off → Suspend.")
+                text: root.lockAfterDisplayPowerOff ? qsTr("Tip: current flow is Display Off → Lock → Suspend.") : qsTr("Tip: current flow is Lock → Display Off → Suspend.")
                 wrapMode: Text.Wrap
               }
             }
@@ -652,16 +608,6 @@ Item {
 
     signal sliderChanged(real value)
     signal toggled(bool checked)
-
-    function formatValue(val) {
-      if (val <= 0)
-        return qsTr("Never");
-      const mins = Math.floor(val), secs = Math.round((val - mins) * 60);
-      let r = mins > 0 ? mins + "m" : "";
-      if (secs > 0)
-        r += (r ? " " : "") + secs + "s";
-      return r || "0s";
-    }
 
     Layout.fillWidth: true
     enabled: !disabled
@@ -765,7 +711,7 @@ Item {
             color: Theme.textInactiveColor
             font.pixelSize: Theme.fontSm
             opacity: 0.85
-            text: rowRoot.hasSlider && rowRoot.checked ? qsTr("Timeout: %1").arg(rowRoot.formatValue(rowRoot.sliderValue)) : rowRoot.description
+            text: rowRoot.hasSlider && rowRoot.checked ? qsTr("Timeout: %1").arg(root.formatDuration(rowRoot.sliderValue)) : rowRoot.description
             visible: text.length > 0
             wrapMode: Text.Wrap
           }
@@ -825,7 +771,7 @@ Item {
             bold: true
             color: Theme.activeColor
             font.pixelSize: Theme.fontSm
-            text: rowRoot.formatValue(rowRoot.sliderValue)
+            text: root.formatDuration(rowRoot.sliderValue)
           }
         }
 
