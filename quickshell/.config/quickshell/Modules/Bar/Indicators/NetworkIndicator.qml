@@ -25,7 +25,7 @@ Item {
     if (link === "ethernet")
       return "󰈀";
     if (link === "wifi")
-      return NetworkService.getWifiIcon ? NetworkService.getWifiIcon(band, strength) : "";
+      return NetworkService.getWifiIcon ? NetworkService.getWifiIcon(strength) : "";
     return NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮";
   }
   readonly property bool panelOpen: ShellUiState.isPanelOpen("network", root.screenName)
