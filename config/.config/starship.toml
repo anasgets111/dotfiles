@@ -1,6 +1,6 @@
 # @schema https://starship.rs/config-schema.json
 add_newline = false
-# Toggle between "dark", "light", and "dark_inverted"
+# Only "dark" is defined for now; add more palettes below and switch here later.
 palette = "dark"
 
 format = """
@@ -104,7 +104,7 @@ version_format = "${major}.${minor}"
 detect_files = ["package.json"]
 
 [python]
-format = "[](text_light)[ $virtualenv $version](base_dark bg:text_light)[](text_light) "
+format = "[](text_light)[ ($virtualenv )$version](base_dark bg:text_light)[](text_light) "
 version_format = "${major}"
 
 [php]
