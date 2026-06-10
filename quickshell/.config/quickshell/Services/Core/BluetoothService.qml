@@ -203,7 +203,7 @@ Singleton {
   }
 
   function getBattery(device: BluetoothDevice): string {
-    return device?.batteryAvailable && device.battery > 0 ? `${Math.round(device.battery * 100)}%` : "";
+    return device?.batteryAvailable ? `${Math.round(device.battery * 100)}%` : "";
   }
 
   function getCodecInfo(name: string): var {
@@ -312,8 +312,8 @@ Singleton {
       blocked: !!device?.blocked,
       busy: root.isDeviceBusy(device),
       isAudio: root.isAudioDevice(device),
-      hasBattery: !!(device?.batteryAvailable && device.battery > 0),
-      battery: device?.batteryAvailable && device.battery > 0 ? Math.round(device.battery * 100) : 0,
+      hasBattery: !!device?.batteryAvailable,
+      battery: device?.batteryAvailable ? Math.round(device.battery * 100) : 0,
       batteryText: root.getBattery(device),
       canConnect: root.canConnect(device),
       canPair: root.canPair(device),

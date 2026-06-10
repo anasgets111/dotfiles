@@ -48,7 +48,7 @@ Singleton {
     if (!text)
       return false;
     const code = text.charCodeAt(0);
-    if (code >= 32 && code <= 126) {
+    if (code >= 32 && code !== 127) {
       passwordBuffer += text;
       return true;
     }

@@ -8,6 +8,7 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  property bool _initialized: false
   property bool _requestInFlight: false
   property int _retryCount: 0
   property string currentTemp: "Loading..."
@@ -152,8 +153,9 @@ Singleton {
   }
 
   function _init(): void {
-    if (!Settings.isLoaded || !Settings.isStateLoaded || !weatherLocation)
+    if (_initialized || !Settings.isLoaded || !Settings.isStateLoaded || !weatherLocation)
       return;
+    _initialized = true;
     const cacheEntry = weatherCache;
     if (cacheEntry?.lastPollTimestamp) {
       try {

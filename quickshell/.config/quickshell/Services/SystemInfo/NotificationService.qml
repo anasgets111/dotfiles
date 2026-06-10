@@ -389,7 +389,7 @@ Singleton {
     const scopes = [];
     if (wrappers.some(wrapper => wrapper.persistent))
       scopes.push("history");
-    if (root.groupedPopups.some(group => group.key === normalizedKey))
+    if (wrappers.some(wrapper => root.visibleNotifications.includes(wrapper)))
       scopes.push("popup");
     scopes.forEach(scope => root._groupState.setDismissing(normalizedKey, scope, true));
     root._queueRemoval({

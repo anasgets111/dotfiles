@@ -35,6 +35,6 @@ Singleton {
   }
 
   function toggleSpecial(name: string): void {
-    backend?.toggleSpecial(name);
+    backend?.toggleSpecial?.(name);
   }
 }

@@ -42,6 +42,6 @@ Singleton {
     repeat: true
     running: true
 
-    onTriggered: Command.run(["fuser", "-s", "/dev/video0", "/dev/video1", "/dev/video2"], result => root._v4l2Active = (result.exitCode === 0), "privacy.v4l2")
+    onTriggered: Command.run(["sh", "-c", "fuser -s /dev/video* 2>/dev/null"], result => root._v4l2Active = (result.exitCode === 0), "privacy.v4l2")
   }
 }

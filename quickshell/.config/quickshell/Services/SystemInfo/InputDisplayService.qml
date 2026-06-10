@@ -206,7 +206,7 @@ Singleton {
     if (root._keyNames[rawName])
       return root._keyNames[rawName];
 
-    if (rawName.startsWith("KEY_F"))
+    if (/^KEY_F\d+$/.test(rawName))
       return rawName.substring(4);
 
     if (!rawName.startsWith("KEY_"))
