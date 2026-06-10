@@ -12,7 +12,6 @@ else if set -q ZED_TERM
 else
     set -gx fish_history fish
 end
-set -Ux MANPATH (man -w)
 
 function fish_should_add_to_history
     string match -qr '^/mnt/Work/Downloads' -- $PWD; and return 1
@@ -29,6 +28,7 @@ if status is-interactive
     # 3. Tool Initialization
     type -q zoxide; and zoxide init fish --cmd cd | source
     type -q starship; and starship init fish | source
+    type -q fnm; and fnm env --shell=fish --use-on-cd --version-file-strategy=recursive --resolve-engines | source
 
     # 5. Smart Greeting
     function fish_greeting
@@ -40,7 +40,7 @@ if status is-interactive
         abbr pacin 'sudo pacman -S'
         abbr pacinn 'sudo pacman -S --needed'
         abbr pacrem 'sudo pacman -Rns'
-        abbr orphans 'pacman -Qdtq | sudo pacman -Rns -'
+        abbr orphans 'set -l pkgs (pacman -Qdtq); and sudo pacman -Rns $pkgs; or echo "No orphaned packages"'
         abbr mirrors 'sudo rate-mirrors --protocol https --allow-root --save /etc/pacman.d/mirrorlist --disable-comments-in-file arch'
         abbr mirrors-aur 'sudo rate-mirrors --disable-comments-in-file --protocol=https --allow-root --save /etc/pacman.d/chaotic-mirrorlist chaotic-aur'
         abbr drop-cache 'sudo paccache -rk3; and sudo pacman -Sc --noconfirm'
