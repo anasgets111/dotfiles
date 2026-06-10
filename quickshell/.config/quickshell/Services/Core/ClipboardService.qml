@@ -6,6 +6,7 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  property double _persistDoneTs: 0
   property bool _persisting: false
   property bool enabled: true
   property list<var> history: []
@@ -130,11 +131,11 @@ Singleton {
     Command.run(["sh", "-c", `mime='${mime}'; wl-paste -n -t "$mime" | wl-copy -t "$mime"`], () => {
       root._persisting = false;
       root.lastPersisted = {
-        mime: root.selectedPersistMime,
+        mime,
         ts: Date.now()
       };
-      Logger.log("ClipboardLiteService", `Persist done: ${root.selectedPersistMime}`);
-      root.ignoreNextChanges = 0;
+      Logger.log("ClipboardLiteService", `Persist done: ${mime}`);
+      root._persistDoneTs = Date.now();
     });
   }
 
@@ -163,12 +164,13 @@ Singleton {
     onLineRead: {
       if (!root.enabled)
         return;
-      if (root.ignoreNextChanges > 0 && root._persisting) {
-        root.ignoreNextChanges = Math.max(0, root.ignoreNextChanges - 1);
+      // Swallow the change our own wl-copy made; it can land after the persist
+      // exit callback, hence a grace window rather than the _persisting flag.
+      if (root.ignoreNextChanges > 0 && (root._persisting || Date.now() - root._persistDoneTs < 1000)) {
+        root.ignoreNextChanges--;
         return;
-      } else if (root.ignoreNextChanges > 0) {
-        root.ignoreNextChanges = 0;
       }
+      root.ignoreNextChanges = 0;
       root.startFetchCycle();
     }
   }

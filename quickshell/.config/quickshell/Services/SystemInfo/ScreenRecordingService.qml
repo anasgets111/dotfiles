@@ -32,14 +32,23 @@ Singleton {
   function startRecording(mode = "default") {
     if (isRecording)
       return;
+    if (mode === "selection") {
+      Command.run(["slurp", "-f", "%wx%h+%x+%y"], result => {
+        const region = (result.stdout ?? "").trim();
+        if (root.isRecording || result.exitCode !== 0 || !region)
+          return;
+        root._launchRecorder(["-w", "region", "-region", region]);
+      });
+      return;
+    }
+    _launchRecorder(["-w", monitor]);
+  }
+
+  function _launchRecorder(captureArgs) {
     const filename = TimeService.format("datetime", "yyyyMMdd_HHmmss") + ".mp4";
     const dir = directory.endsWith("/") ? directory : directory + "/";
     outputPath = dir + filename;
-    const args = ["gpu-screen-recorder"];
-    if (mode === "selection")
-      args.push("-w", "region", "-region", "__REGION__");
-    else
-      args.push("-w", monitor);
+    const args = ["gpu-screen-recorder", ...captureArgs];
     if (frameRate > 0)
       args.push("-f", String(frameRate));
     args.push("-o", outputPath);
@@ -56,12 +65,7 @@ Singleton {
     if (colorRange)
       args.push("-cr", colorRange);
 
-    if (mode === "selection") {
-      const escaped = args.map(part => part === "__REGION__" ? "\"$region\"" : `"${String(part).replace(/"/g, "\\\"")}"`).join(" ");
-      Command.detached(["sh", "-c", `region="$(/usr/sbin/slurp -f '%wx%h+%x+%y')" || exit 0; [ -n "$region" ] || exit 0; ${escaped}`]);
-    } else {
-      Command.detached(args);
-    }
+    Command.detached(args);
     Command.detached(["sh", "-c", `: > "${root.lockPath}"`]);
 
     isRecording = true;

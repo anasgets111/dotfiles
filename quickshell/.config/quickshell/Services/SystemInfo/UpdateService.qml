@@ -57,6 +57,7 @@ Singleton {
       return;
     const updatesState = Settings.state.updates;
     lastSync = updatesState.lastSync || 0;
+    lastNotifiedPackageNamesKey = updatesState.notifiedPackagesKey || "";
     try {
       const cachedPackages = JSON.parse(updatesState.cachedUpdatePackagesJson || "[]");
       updatePackages = Array.isArray(cachedPackages) ? cachedPackages : [];
@@ -225,6 +226,8 @@ Singleton {
     if (Settings.isStateLoaded)
       _init();
   }
+  onLastNotifiedPackageNamesKeyChanged: if (Settings.isStateLoaded)
+    Settings.state.updates.notifiedPackagesKey = lastNotifiedPackageNamesKey
   onLastSyncChanged: if (Settings.isStateLoaded)
     Settings.state.updates.lastSync = lastSync
   onReadyChanged: {

@@ -165,6 +165,7 @@ Singleton {
     property JsonObject updates: JsonObject {
       property string cachedUpdatePackagesJson: "[]"
       property double lastSync: 0
+      property string notifiedPackagesKey: ""
     }
     property JsonObject weather: JsonObject {
       property string dailyForecast: ""
