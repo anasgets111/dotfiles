@@ -1,7 +1,6 @@
 #!/usr/bin/env sh
 
-# ─── XDG Base Dirs ──────────────────────────────────────────────────────────────
-export XDG_DOWNLOAD_DIR="/mnt/Work/Downloads"
+# ─── Editor ─────────────────────────────────────────────────────────────────────
 export EDITOR="nvim"
 
 # ─── User Info ──────────────────────────────────────────────────────────────────
@@ -41,7 +40,6 @@ export ELECTRON_ENABLE_FEATURES="UseOzonePlatform,WaylandWindowDecorations,Wayla
 # ─── Scaling ────────────────────────────────────────────────────────────────────
 export GDK_SCALE="1"
 export QT_SCALE_FACTOR="1"
-export QT_AUTO_SCREEN_SCALE_FACTOR="1"
 
 # ─── Qt Theming ─────────────────────────────────────────────────────────────────
 export QT_QPA_PLATFORMTHEME="qt6ct"

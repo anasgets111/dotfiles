@@ -9,10 +9,13 @@ bind shift-delete 'commandline -f kill-line'
 bind \e\[7\;2~ 'commandline -f backward-kill-line'
 
 function sail
-    if test -f "$PWD/sail"
-        sh "$PWD/sail" $argv
+    if test -x "$PWD/sail"
+        "$PWD/sail" $argv
+    else if test -x vendor/bin/sail
+        vendor/bin/sail $argv
     else
-        sh vendor/bin/sail $argv
+        echo "sail: no executable found in ./ or vendor/bin/" >&2
+        return 1
     end
 end
 
@@ -24,8 +27,8 @@ end
 ## Copy Function
 function copy
     set count (count $argv)
-    if test "$count" = 2 and test -d "$argv[1]"
-        set from (string trim --right '/' -- $argv[1])
+    if test $count -eq 2; and test -d "$argv[1]"
+        set from (string trim --right --chars=/ -- $argv[1])
         set to $argv[2]
         cp -r -- "$from" "$to"
     else
@@ -35,12 +38,12 @@ end
 
 function ssh --wraps=ssh
     if set -q KITTY_WINDOW_ID; and type -q kitty
-        echo "Using Kitty SSH kitten"
+        echo "Using Kitty SSH kitten" >&2
         command kitty +kitten ssh $argv
         return
     end
 
-    echo "Using standard SSH"
+    echo "Using standard SSH" >&2
     command ssh $argv
 end
 
