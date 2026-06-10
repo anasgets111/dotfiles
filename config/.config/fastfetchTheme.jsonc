@@ -1,7 +1,9 @@
 {
 	"$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
 	"display": {
-		"separator": " "
+		"separator": " ",
+		"key": { "width": 20 },
+		"percent": { "type": 9 }
 	},
 	"modules": [
 		// ─────────────── Hardware ───────────────
@@ -11,41 +13,34 @@
 		},
 		{
 			"type": "board",
-			"key": "\u001b[38;5;40m│  Motherboard:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;40m│  Motherboard:"
 		},
 		{
 			"type": "bios",
-			"key": "\u001b[38;5;40m│  BIOS:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;40m│  BIOS:"
 		},
 		{
 			"type": "battery",
-			"key": "\u001b[38;5;40m│  Battery:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;40m│  Battery:"
 		},
 		{
 			"type": "cpu",
 			"key": "\u001b[38;5;40m│ 󰻠 CPU:",
-			"showPeCoreCount": true,
-			"keyWidth": 20
+			"showPeCoreCount": true
 		},
 		{
 			"type": "gpu",
 			"key": "\u001b[38;5;40m│ 󰢮 GPU:",
-			"format": "{2} {3}",
-			"keyWidth": 20
+			"format": "{2} {3}"
 		},
 		{
 			"type": "memory",
-			"key": "\u001b[38;5;40m│ 󰑭 RAM:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;40m│ 󰑭 RAM:"
 		},
 		{
 			"type": "disk",
 			"key": "\u001b[38;5;40m│ 󰋊 Disk:",
-			"folders": "/",
-			"keyWidth": 20
+			"folders": "/"
 		},
 		{
 			"type": "custom",
@@ -60,34 +55,28 @@
 		{
 			"type": "os",
 			"key": "\u001b[38;5;220m│  OS:",
-			"format": "{2} BTW",
-			"keyWidth": 20
+			"format": "{2} BTW"
 		},
 		{
 			"type": "initsystem",
 			"key": "\u001b[38;5;220m│  BootLoader:",
-			"format": "{1}",
-			"keyWidth": 20
+			"format": "{1}"
 		},
 		{
 			"type": "kernel",
-			"key": "\u001b[38;5;220m│  Kernel:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;220m│  Kernel:"
 		},
 		{
 			"type": "shell",
-			"key": "\u001b[38;5;220m│  Shell:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;220m│  Shell:"
 		},
 		{
 			"type": "packages",
-			"key": "\u001b[38;5;220m│ 󰏖 Packages:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;220m│ 󰏖 Packages:"
 		},
 		{
 			"type": "processes",
-			"key": "\u001b[38;5;220m│  Processes:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;220m│  Processes:"
 		},
 		{
 			"type": "custom",
@@ -101,34 +90,28 @@
 		},
 		{
 			"type": "wm",
-			"key": "\u001b[38;5;33m│  WM:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;33m│  WM:"
 		},
 		{
 			"type": "theme",
-			"key": "\u001b[38;5;33m│ 󰉼 Theme:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;33m│ 󰉼 Theme:"
 		},
 		{
 			"type": "icons",
-			"key": "\u001b[38;5;33m│ 󰀻 Icons:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;33m│ 󰀻 Icons:"
 		},
 		{
 			"type": "cursor",
-			"key": "\u001b[38;5;33m│ 󰇀 Cursor:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;33m│ 󰇀 Cursor:"
 		},
 		{
 			"type": "terminal",
-			"key": "\u001b[38;5;33m│  Terminal:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;33m│  Terminal:"
 		},
 		{
 			"type": "terminalfont",
 			"key": "\u001b[38;5;33m│  Term Font:",
-			"format": "{2}",
-			"keyWidth": 20
+			"format": "{2}"
 		},
 		{
 			"type": "custom",
@@ -143,25 +126,21 @@
 		{
 			"type": "command",
 			"key": "\u001b[38;5;135m│ Linux Journey:",
-			"text": "echo $(( ( $(date +%s) - $(date -d '2024-02-15' +%s) ) / 2592000 )) months",
-			"keyWidth": 20
+			"text": "echo $(( ( $(date +%s) - 1707948000 ) / 2592000 )) months"
 		},
 		{
 			"type": "command",
 			"key": "\u001b[38;5;135m│ Arch Journey:",
-			"text": "echo $(( ( $(date +%s) - $(date -d '2024-06-22' +%s) ) / 86400 )) days",
-			"keyWidth": 20
+			"text": "echo $(( ( $(date +%s) - 1719003600 ) / 86400 )) days"
 		},
 		{
 			"type": "command",
 			"key": "\u001b[38;5;135m│ Current OS Age:",
-			"text": "echo $(( ( $(date +%s) - $(stat -c %W /) ) / 86400 )) days",
-			"keyWidth": 20
+			"text": "echo $(( ( $(date +%s) - $(stat -c %W /) ) / 86400 )) days"
 		},
 		{
 			"type": "uptime",
-			"key": "\u001b[38;5;135m│ Uptime:",
-			"keyWidth": 20
+			"key": "\u001b[38;5;135m│ Uptime:"
 		},
 		{
 			"type": "custom",
