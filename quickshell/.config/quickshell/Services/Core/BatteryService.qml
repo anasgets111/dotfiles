@@ -27,10 +27,7 @@ Singleton {
   readonly property bool isSuspendingAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= suspendThreshold
   readonly property bool isUnknownState: deviceState === UPowerDeviceState.Unknown
   readonly property int percentage: Math.round(percentageFraction * 100)
-  readonly property real percentageFraction: {
-    const raw = device?.percentage ?? 0;
-    return Math.max(0, Math.min(raw >= 2 ? raw / 100 : raw, 1));
-  }
+  readonly property real percentageFraction: Math.max(0, Math.min(device?.percentage ?? 0, 1))
   readonly property real suspendThreshold: 0.08
   readonly property string timeToEmptyText: {
     if (!device)
