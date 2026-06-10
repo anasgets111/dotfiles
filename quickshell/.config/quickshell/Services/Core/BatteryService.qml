@@ -24,13 +24,14 @@ Singleton {
   readonly property bool isPendingCharge: deviceState === UPowerDeviceState.PendingCharge
   readonly property bool isPendingDischarge: deviceState === UPowerDeviceState.PendingDischarge
   readonly property bool isReady: MainService.isLaptop && isLaptopBattery
-  readonly property bool isSuspendingAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= 0.08
+  readonly property bool isSuspendingAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= suspendThreshold
   readonly property bool isUnknownState: deviceState === UPowerDeviceState.Unknown
   readonly property int percentage: Math.round(percentageFraction * 100)
   readonly property real percentageFraction: {
     const raw = device?.percentage ?? 0;
     return Math.max(0, Math.min(raw >= 2 ? raw / 100 : raw, 1));
   }
+  readonly property real suspendThreshold: 0.08
   readonly property string timeToEmptyText: {
     if (!device)
       return qsTr("Unknown");
@@ -62,7 +63,7 @@ Singleton {
   }
 
   onIsCriticalAndNotChargingChanged: if (isCriticalAndNotCharging)
-    sendNotification(qsTr("Critical Battery"), qsTr("Automatic suspend at 5%!"), true)
+    sendNotification(qsTr("Critical Battery"), qsTr("Automatic suspend at %1%!").arg(Math.round(suspendThreshold * 100)), true)
   onIsLowAndNotChargingChanged: if (isLowAndNotCharging)
     sendNotification(qsTr("Low Battery"), qsTr("Plug in soon!"), false)
   onIsReadyChanged: {

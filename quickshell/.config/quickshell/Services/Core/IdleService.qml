@@ -16,7 +16,7 @@ Singleton {
   readonly property bool autoInhibitorActive: MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive
   readonly property bool canLock: armed && lockEnabled && !LockService.locked && (!lockAfterDisplayPowerOff || !displayPowerOffEnabled || displaysPoweredOff)
   readonly property bool canPowerOffDisplays: armed && displayPowerOffEnabled && (lockAfterDisplayPowerOff || LockService.locked || !lockEnabled)
-  readonly property bool canSuspend: armed && suspendEnabled && displaysPoweredOff && (!lockEnabled || LockService.locked)
+  readonly property bool canSuspend: armed && suspendEnabled && (!displayPowerOffEnabled || displaysPoweredOff) && (!lockEnabled || LockService.locked)
   readonly property bool displayPowerOffEnabled: settings?.dpmsEnabled ?? true
   readonly property real displayPowerOffTimeoutMin: _secToMin(_displayPowerOffTimeoutSec)
   property bool displaysPoweredOff: false

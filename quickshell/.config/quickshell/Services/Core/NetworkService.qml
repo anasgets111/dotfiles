@@ -154,7 +154,7 @@ Singleton {
     return band === "6" ? "#A6E3A1" : band === "5" ? "#89B4FA" : "#CDD6F4";
   }
 
-  function getWifiIcon(band: string, signal: int): string {
+  function getWifiIcon(signal: int): string {
     const normalizedSignal = Math.max(0, Math.min(100, signal | 0));
     return normalizedSignal >= 95 ? "󰤨" : normalizedSignal >= 80 ? "󰤥" : normalizedSignal >= 50 ? "󰤢" : "󰤟";
   }
