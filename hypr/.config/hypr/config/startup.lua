@@ -15,14 +15,11 @@ local startup = {
     { "slack",                                         2000 },
 }
 
-local function start(command, delay)
-    hl.timer(function()
-        hl.exec_cmd(command)
-    end, { timeout = delay or 0, type = "oneshot" })
-end
-
 hl.on("hyprland.start", function()
     for _, entry in ipairs(startup) do
-        start(entry[1], entry[2])
+        local command, delay = entry[1], entry[2]
+        hl.timer(function()
+            hl.exec_cmd(command)
+        end, { timeout = delay or 1, type = "oneshot" })
     end
 end)
