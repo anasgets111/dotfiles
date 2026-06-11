@@ -15,17 +15,13 @@ Singleton {
   readonly property bool isACPowered: !isOnBattery
   readonly property bool isCharging: deviceState === UPowerDeviceState.Charging
   readonly property bool isCriticalAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= 0.1
-  readonly property bool isDischarging: deviceState === UPowerDeviceState.Discharging
-  readonly property bool isEmptyState: deviceState === UPowerDeviceState.Empty
   readonly property bool isFullyCharged: deviceState === UPowerDeviceState.FullyCharged
   readonly property bool isLaptopBattery: device?.type === UPowerDeviceType.Battery && device?.isPresent
   readonly property bool isLowAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= 0.2
   readonly property bool isOnBattery: UPower.onBattery
   readonly property bool isPendingCharge: deviceState === UPowerDeviceState.PendingCharge
-  readonly property bool isPendingDischarge: deviceState === UPowerDeviceState.PendingDischarge
   readonly property bool isReady: MainService.isLaptop && isLaptopBattery
   readonly property bool isSuspendingAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= suspendThreshold
-  readonly property bool isUnknownState: deviceState === UPowerDeviceState.Unknown
   readonly property int percentage: Math.round(percentageFraction * 100)
   readonly property real percentageFraction: Math.max(0, Math.min(device?.percentage ?? 0, 1))
   readonly property real suspendThreshold: 0.08

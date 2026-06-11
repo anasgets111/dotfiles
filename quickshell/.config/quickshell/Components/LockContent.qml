@@ -127,9 +127,8 @@ Item {
   }
 
   Connections {
-    function onPamResultChanged() {
-      if (LockService.hasAuthFailure)
-        shakeAnimation.restart();
+    function onAuthFailed() {
+      shakeAnimation.restart();
     }
 
     target: LockService

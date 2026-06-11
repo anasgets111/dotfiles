@@ -13,13 +13,14 @@ Singleton {
   readonly property real blurAmount: 0.9
   readonly property int blurMax: 64
   readonly property real blurMultiplier: 1
-  readonly property bool hasAuthFailure: pamResult !== PamResult.Success
   property int layoutBeforeLockIndex: -1
   property bool locked: false
   property int pamResult: PamResult.Success
   property string passwordBuffer: ""
   readonly property bool passwordRejected: pamResult === PamResult.Failed
   property bool unlocking: false
+
+  signal authFailed
 
   function finalizeUnlock(): void {
     if (unlocking)
@@ -88,10 +89,9 @@ Singleton {
       if (result === PamResult.Success) {
         root.requestUnlock();
       } else {
-        root.pamResult = PamResult.Success;
         root.pamResult = result;
-        if (root.hasAuthFailure)
-          pamResultResetTimer.restart();
+        root.authFailed();
+        pamResultResetTimer.restart();
       }
     }
     onResponseRequiredChanged: {

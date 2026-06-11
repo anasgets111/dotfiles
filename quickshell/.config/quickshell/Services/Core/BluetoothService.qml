@@ -309,7 +309,6 @@ Singleton {
       statusText: root.getStatusString(device),
       connected: !!device?.connected,
       paired: !!device?.paired,
-      blocked: !!device?.blocked,
       busy: root.isDeviceBusy(device),
       isAudio: root.isAudioDevice(device),
       hasBattery: !!device?.batteryAvailable,

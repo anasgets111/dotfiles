@@ -67,11 +67,12 @@ Singleton {
   function _notificationSoundFile(pathOrUri: var): string {
     if (typeof pathOrUri !== "string" || pathOrUri.length === 0)
       return "";
-    if (pathOrUri.startsWith("file:///")) {
+    if (pathOrUri.startsWith("file://")) {
+      const path = pathOrUri.substring("file://".length).replace(/^[^/]*/, "");
       try {
-        return decodeURIComponent(pathOrUri.substring("file://".length));
+        return decodeURIComponent(path);
       } catch (e) {
-        return pathOrUri.substring("file://".length);
+        return path;
       }
     }
     return pathOrUri.startsWith("/") ? pathOrUri : "";
@@ -149,7 +150,12 @@ Singleton {
     for (const key in _deviceIconMap)
       if (description.includes(key))
         return _deviceIconMap[key];
-    return node.name?.startsWith("bluez_output") ? _deviceIconMap["headphone"] : "";
+    const name = node.name ?? "";
+    if (name.startsWith("bluez_output"))
+      return _deviceIconMap["headphone"];
+    if (name.startsWith("bluez_input"))
+      return _deviceIconMap["headset"];
+    return "";
   }
 
   function displayName(node: var): string {
@@ -302,8 +308,12 @@ Singleton {
     Logger.log("AudioService", `sink changed: ${name}`);
   }
   onSourceChanged: Logger.log("AudioService", `source changed: ${displayName(root.source)}`)
-  onStreamsChanged: if (dndActive)
-    _muteDndStreams()
+  onStreamsChanged: {
+    const liveIds = root.streams.map(stream => stream.id);
+    root._dndMutedStreamIds = root._dndMutedStreamIds.filter(id => liveIds.includes(id));
+    if (root.dndActive)
+      root._muteDndStreams();
+  }
 
   PwObjectTracker {
     objects: Pipewire.nodes?.values ?? []
