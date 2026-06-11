@@ -1,35 +1,28 @@
-local delayed_timeout = 2000
-
-local immediate_startup = {
-    "hyprctl setcursor Bibata-Modern-Ice 24",
-    "$CARGOBIN/hyprland-per-window-layout",
-    "quickshell",
-    "systemctl --user enable --now cliphist.service",
-    "kdeconnectd",
-    "kdeconnect-indicator",
-    "speech-dispatcher",
+local startup = {
+    { "hyprctl setcursor Bibata-Modern-Ice 24" },
+    { "$CARGOBIN/hyprland-per-window-layout" },
+    { "quickshell" },
+    { "systemctl --user enable --now cliphist.service" },
+    { "kdeconnectd" },
+    { "kdeconnect-indicator" },
+    { "speech-dispatcher" },
+    { "chromium",                                      2000 },
+    { "zeditor",                                       2000 },
+    { "qbittorrent",                                   2000 },
+    { "thunderbird",                                   2000 },
+    { "Telegram",                                      2000 },
+    { "vesktop",                                       2000 },
+    { "slack",                                         2000 },
 }
 
-local delayed_startup = {
-    "chromium",
-    "zeditor",
-    "qbittorrent",
-    "thunderbird",
-    "Telegram",
-    "vesktop",
-    "slack",
-}
-
-local function run_once()
-    for _, command in ipairs(immediate_startup) do
+local function start(command, delay)
+    hl.timer(function()
         hl.exec_cmd(command)
-    end
-
-    for _, command in ipairs(delayed_startup) do
-        hl.timer(function()
-            hl.exec_cmd(command)
-        end, { timeout = delayed_timeout, type = "oneshot" })
-    end
+    end, { timeout = delay or 0, type = "oneshot" })
 end
 
-hl.on("hyprland.start", run_once)
+hl.on("hyprland.start", function()
+    for _, entry in ipairs(startup) do
+        start(entry[1], entry[2])
+    end
+end)
