@@ -9,8 +9,8 @@ local sizes = {
 -- 1. Globals
 for _, rule in ipairs({
     { match = { class = ".*" },             suppress_event = "maximize" },
-    { match = { fullscreen = true },        no_blur = true,              no_anim = true },
-    { match = { class = "^steam_app_.*$" }, fullscreen = true,           immediate = true },
+    { match = { fullscreen = true },        no_blur = true,             no_anim = true },
+    { match = { class = "^steam_app_.*$" }, fullscreen = true,          immediate = true },
 }) do
     hl.window_rule(rule)
 end
@@ -68,9 +68,7 @@ for _, rule in ipairs({
         move  = { "monitor_w-window_w-(monitor_w*0.02)", "monitor_h-window_h-(monitor_h*0.02)" }
     },
 }) do
-    local floater = {}
-    for k, v in pairs(rule) do floater[k] = v end
-    floater.float = true
-    if not floater.move then floater.center = true end
-    hl.window_rule(floater)
+    rule.float = true
+    if not rule.move then rule.center = true end
+    hl.window_rule(rule)
 end
