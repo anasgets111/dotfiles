@@ -134,7 +134,7 @@ workspace "stash" { open-on-output "DP-2"; }
 // Prevent startup apps from stealing focus
 window-rule {
     match at-startup=true
-    match app-id="Slack|org.telegram.desktop|vesktop|kitty|Alacritty|com.mitchellh.ghostty|org.wezfurlong.wezterm|foot|antigravity"
+    match app-id=r#"^(Slack|slack|com\.slack\.Slack|org.telegram.desktop|vesktop|kitty|Alacritty|com.mitchellh.ghostty|org.wezfurlong.wezterm|foot|antigravity)$"#
     open-focused false
 }
 
@@ -159,7 +159,7 @@ window-rule { match app-id="org.mozilla.Thunderbird"; open-on-workspace "7"; }
 window-rule { match app-id="zen"; open-on-workspace "1"; }
 window-rule { match app-id="org.gnome.Nautilus|chromium"; open-on-workspace "2"; }
 window-rule { match app-id="code|antigravity|dev.zed.Zed"; open-on-workspace "3"; }
-window-rule { match app-id="Slack"; open-on-workspace "stash"; }
+window-rule { match app-id=r#"^(Slack|slack|com\.slack\.Slack)$"#; open-on-workspace "stash"; }
 window-rule { match app-id="org.telegram.desktop"; open-on-workspace "stash"; }
 window-rule { match app-id="vesktop"; open-on-workspace "stash"; }
 window-rule {
