@@ -61,8 +61,10 @@ Singleton {
 
   Connections {
     function onRawEvent(event: var): void {
-      if (event?.name === "activelayout")
-        impl.requestLayoutSync();
+      if (event?.name !== "activelayout")
+        return;
+      impl.keyboardDeviceName = String(event?.data ?? "").split(",")[0].trim() || impl.keyboardDeviceName;
+      impl.requestLayoutSync();
     }
 
     target: impl.enabled ? Hyprland : null
