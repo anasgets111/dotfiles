@@ -71,6 +71,8 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 		vim.hl.on_yank()
 	end,
 })
+-- Edit read-only files without W10 (save with :W); fires on the first edit attempt.
+vim.api.nvim_create_autocmd("FileChangedRO", { command = "setlocal noreadonly" })
 
 -- UI
 vim.cmd.colorscheme("catppuccin")
