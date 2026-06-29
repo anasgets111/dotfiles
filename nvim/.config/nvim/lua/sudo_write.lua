@@ -1,142 +1,124 @@
--- Dots/nvim/.config/nvim/lua/sudo_write.lua
--- Smart sudo-write module (atomic).
--- Write flow:
--- 1. If file is writable normally, use regular :write
--- 2. Otherwise, write buffer contents to a tmp file in the target directory
---    using `sudo tee tmpfile` (password passed on stdin), then `sudo mv tmpfile target`
---    to make the replacement atomic (rename on same filesystem).
--- 3. Provides user commands `:W` and `:WQ` and safe cnoreabbrev for `:w`/`:wq`.
---
--- Usage:
---   local sudo_write = require("sudo_write")
---   sudo_write.setup()                  -- registers commands/abbrevs with defaults
---   -- or:
---   sudo_write.setup({ max_tries = 2 }) -- customize behavior
---
--- Exported:
---   sudo_write.sudo_write() -- can be called directly
-
--- Dots/nvim/.config/nvim/lua/sudo_write.lua
+-- Atomic, attribute-preserving sudo-write: :W / :WQ, with :w / :wq remapped.
+-- Unwritable files are staged to a temp via Neovim's own writer (exact encoding/
+-- eol/format), then replaced through a privileged same-dir mktemp + mv.
+-- Caveat: a root 0600 file you can't read opens empty, so saving clobbers it —
+-- use sudoedit for those.
 
 local M = {}
 
-local default_opts = {
-    max_tries            = 3,
-    tmp_prefix           = ".nvim_sudo_tmp_",
-    notify_success_level = vim.log.levels.INFO,
-    notify_warn_level    = vim.log.levels.WARN,
-    notify_error_level   = vim.log.levels.ERROR,
-}
+local DEFAULT_TRIES = 3
 
-math.randomseed(os.time() + vim.fn.getpid())
+-- Writable without sudo: existing writable file, or new file in a writable dir.
+local function is_writable(path)
+    if path == "" then return false end
+    if vim.fn.filewritable(path) == 1 then return true end
+    if vim.uv.fs_stat(path) then return false end
+    return vim.fn.filewritable(vim.fs.dirname(path)) == 2
+end
 
-local function _is_writable(path)
-    if not path or path == "" then return false end
-    local ok, fd = pcall(function()
-        return vim.uv.fs_open(path, "r+", 438)
-    end)
-    if not ok or not fd then return false end
-    pcall(vim.uv.fs_close, fd)
+-- Privileged atomic replace ($1=target, $2=src, passed as argv so the paths
+-- never touch shell parsing): mktemp a sibling (root-owned, so no name can be
+-- pre-planted), seed the target's attrs onto it, write src's bytes, then rename.
+-- `set -eu` aborts on any real failure; the trap clears the temp on exit.
+local REPLACE_SCRIPT = [[
+set -eu
+target=$1 src=$2
+tmp=$(mktemp -- "$(dirname -- "$target")/.nvim_sudo_tmp_XXXXXX")
+trap 'rm -f -- "$tmp"' EXIT
+if [ -e "$target" ]; then cp -a --attributes-only -- "$target" "$tmp"; else chmod 0644 "$tmp"; fi
+cat -- "$src" > "$tmp"
+mv -f -- "$tmp" "$target"
+]]
+
+-- Run REPLACE_SCRIPT as root over `target`/`src`. Cached creds / NOPASSWD run via
+-- `sudo -n`; otherwise the password feeds one `sudo -S` (stdin = password only).
+local function sudo_run(target, src, tries)
+    local argv = { "sh", "-c", REPLACE_SCRIPT, "sh", target, src }
+    if vim.system({ "sudo", "-n", "true" }):wait().code == 0 then
+        return vim.system(vim.list_extend({ "sudo", "-n" }, argv)):wait().code == 0
+    end
+    for attempt = 1, tries do
+        local password = vim.fn.inputsecret(attempt == 1 and "🔒 sudo password: "
+            or string.format("🔒 sudo password (attempt %d/%d): ", attempt, tries))
+        if password == "" then
+            vim.notify("Write cancelled", vim.log.levels.WARN)
+            return false
+        end
+        local run = vim.system(vim.list_extend({ "sudo", "-S", "-p", "" }, argv), { stdin = password .. "\n" }):wait()
+        if run.code == 0 then return true end
+        local is_last = attempt == tries
+        vim.notify(is_last and "✗ sudo write failed (wrong password?)"
+            or string.format("✗ Wrong password (%d/%d)", attempt, tries),
+            is_last and vim.log.levels.ERROR or vim.log.levels.WARN)
+    end
+    return false
+end
+
+function M.sudo_write(opts, bang)
+    local bufnr = vim.api.nvim_get_current_buf()
+    local bufname = vim.api.nvim_buf_get_name(bufnr)
+    if bufname == "" then
+        vim.notify("No file name", vim.log.levels.WARN)
+        return false
+    end
+    -- Write through symlinks, like Vim's default.
+    local target = vim.fn.resolve(vim.fn.fnamemodify(bufname, ":p"))
+
+    if is_writable(target) then
+        local ok, err = pcall(vim.api.nvim_cmd, { cmd = "write", bang = bang }, {})
+        if not ok then vim.notify("✗ Write failed: " .. tostring(err), vim.log.levels.ERROR) end
+        return ok
+    end
+
+    -- Fire save hooks, then stage the buffer ourselves (root reads the temp via cat).
+    pcall(vim.api.nvim_exec_autocmds, "BufWritePre", { buffer = bufnr, modeline = false })
+    local staged_path = vim.fn.tempname()
+    local staged = pcall(vim.api.nvim_cmd,
+        { cmd = "write", bang = true, args = { staged_path }, mods = { noautocmd = true, keepalt = true } }, {})
+    if not staged then
+        vim.fn.delete(staged_path)
+        vim.notify("✗ Could not stage buffer to a temp file", vim.log.levels.ERROR)
+        return false
+    end
+
+    local ok = sudo_run(target, staged_path, tonumber(opts and opts.max_tries) or DEFAULT_TRIES)
+    vim.fn.delete(staged_path)
+    if not ok then
+        vim.notify("✗ sudo write failed: " .. target, vim.log.levels.ERROR)
+        return false
+    end
+
+    vim.bo[bufnr].modified = false
+    vim.cmd("silent! checktime " .. bufnr) -- refresh mtime so :checktime won't nag (W11)
+    pcall(vim.api.nvim_exec_autocmds, "BufWritePost", { buffer = bufnr, modeline = false })
+    vim.notify("✓ Saved (sudo): " .. target, vim.log.levels.INFO)
     return true
 end
 
-local function _get_buffer_content(bufnr)
-    bufnr = bufnr or 0
-    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-    local content = table.concat(lines, "\n")
-    if vim.bo[bufnr].eol then
-        content = content .. "\n"
-    end
-    return content
-end
-
-local function _make_tmp_name(dir, prefix)
-    return string.format(
-        "%s/%s%d_%d_%d",
-        dir, prefix,
-        vim.fn.getpid(),
-        os.time(),
-        math.random(10000, 99999)
-    )
-end
-
--- Single sudo call: tee to tmp then mv into place atomically
--- Avoids credential-caching issues between separate subprocess calls
-local function _sudo_write_atomic(tmp, filepath, stdin)
-    local cmd = string.format(
-        "tee %s > /dev/null && mv %s %s",
-        vim.fn.shellescape(tmp),
-        vim.fn.shellescape(tmp),
-        vim.fn.shellescape(filepath)
-    )
-    vim.fn.system({ "sudo", "-S", "sh", "-c", cmd }, stdin)
-    return vim.v.shell_error == 0
-end
-
-local function _sudo_rm(tmp)
-    pcall(function() vim.fn.system({ "sudo", "rm", "-f", tmp }) end)
-end
-
-function M.sudo_write(opts)
-    opts = vim.tbl_extend("force", default_opts, opts or {})
-
-    local filepath = vim.api.nvim_buf_get_name(0)
-    if not filepath or filepath == "" then
-        vim.notify("No file name", opts.notify_warn_level)
-        return
-    end
-
-    if _is_writable(filepath) then
-        pcall(vim.cmd, "write")
-        return
-    end
-
-    local content = _get_buffer_content(0)
-    local dir = vim.fn.fnamemodify(filepath, ":h")
-    if dir == "" or dir == "." then dir = vim.fn.getcwd() end
-
-    local tmp = _make_tmp_name(dir, opts.tmp_prefix)
-    local max_tries = tonumber(opts.max_tries) or default_opts.max_tries
-
-    for attempt = 1, max_tries do
-        local label = attempt > 1
-            and string.format("🔒 sudo password (attempt %d/%d): ", attempt, max_tries)
-            or "🔒 sudo password: "
-
-        local password = vim.fn.inputsecret(label)
-        if not password or password == "" then
-            vim.notify("Write cancelled", opts.notify_warn_level)
-            return
-        end
-
-        if _sudo_write_atomic(tmp, filepath, password .. "\n" .. content) then
-            pcall(function() vim.bo.modified = false end)
-            pcall(vim.cmd, "edit!")
-            vim.notify("✓ Saved (sudo): " .. filepath, opts.notify_success_level)
-            return
-        else
-            _sudo_rm(tmp)
-            local is_last = attempt == max_tries
-            local msg = is_last
-                and ("✗ sudo write failed after " .. max_tries .. " attempts")
-                or string.format("✗ Wrong password (%d/%d)", attempt, max_tries)
-            vim.notify(msg, is_last and opts.notify_error_level or opts.notify_warn_level)
-        end
-    end
+-- Delegate `:w file` to the builtin (true if it did). nargs="?" also keeps the
+-- abbrevs from throwing E488 before an argument.
+local function passthrough(cmd, builtin)
+    if cmd.args == "" then return false end
+    local ok, err = pcall(vim.api.nvim_cmd, { cmd = builtin, args = cmd.fargs, bang = cmd.bang }, {})
+    if not ok then vim.notify("✗ " .. tostring(err), vim.log.levels.ERROR) end
+    return true
 end
 
 function M.setup(opts)
     opts = opts or {}
-    local wrapped = function() M.sudo_write(opts) end
 
-    vim.api.nvim_create_user_command("W", wrapped, {})
-    vim.api.nvim_create_user_command("WQ", function()
-        wrapped()
-        if not vim.bo.modified then pcall(vim.cmd, "quit") end
-    end, {})
+    vim.api.nvim_create_user_command("W", function(cmd)
+        if not passthrough(cmd, "write") then M.sudo_write(opts, cmd.bang) end
+    end, { nargs = "?", bang = true, complete = "file" })
 
-    vim.cmd([[cnoreabbrev <expr> w  getcmdtype() == ":" && getcmdline() == "w"  ? "W"  : "w"]])
-    vim.cmd([[cnoreabbrev <expr> wq getcmdtype() == ":" && getcmdline() == "wq" ? "WQ" : "wq"]])
+    vim.api.nvim_create_user_command("WQ", function(cmd)
+        if passthrough(cmd, "wq") then return end
+        M.sudo_write(opts, cmd.bang)
+        if not vim.bo.modified then pcall(vim.api.nvim_cmd, { cmd = "quit" }, {}) end
+    end, { nargs = "?", bang = true, complete = "file" })
+
+    vim.cmd([[cnoreabbrev <expr> w  (getcmdtype() == ":" && getcmdline() == "w")  ? "W"  : "w"]])
+    vim.cmd([[cnoreabbrev <expr> wq (getcmdtype() == ":" && getcmdline() == "wq") ? "WQ" : "wq"]])
 end
 
 return M
