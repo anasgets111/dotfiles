@@ -35,7 +35,9 @@ mv -f -- "$tmp" "$target"
 local function sudo_run(target, src, tries)
     local argv = { "sh", "-c", REPLACE_SCRIPT, "sh", target, src }
     if vim.system({ "sudo", "-n", "true" }):wait().code == 0 then
-        return vim.system(vim.list_extend({ "sudo", "-n" }, argv)):wait().code == 0
+        local run = vim.system(vim.list_extend({ "sudo", "-n" }, argv)):wait()
+        if run.code ~= 0 then vim.notify("✗ sudo write failed: " .. vim.trim(run.stderr or ""), vim.log.levels.ERROR) end
+        return run.code == 0
     end
     for attempt = 1, tries do
         local password = vim.fn.inputsecret(attempt == 1 and "🔒 sudo password: "
@@ -46,6 +48,11 @@ local function sudo_run(target, src, tries)
         end
         local run = vim.system(vim.list_extend({ "sudo", "-S", "-p", "" }, argv), { stdin = password .. "\n" }):wait()
         if run.code == 0 then return true end
+        -- Password accepted (creds now cached) but the run still failed => real error, not a typo.
+        if vim.system({ "sudo", "-n", "true" }):wait().code == 0 then
+            vim.notify("✗ sudo write failed: " .. vim.trim(run.stderr or ""), vim.log.levels.ERROR)
+            return false
+        end
         local is_last = attempt == tries
         vim.notify(is_last and "✗ sudo write failed (wrong password?)"
             or string.format("✗ Wrong password (%d/%d)", attempt, tries),
@@ -83,10 +90,7 @@ function M.sudo_write(opts, bang)
 
     local ok = sudo_run(target, staged_path, tonumber(opts and opts.max_tries) or DEFAULT_TRIES)
     vim.fn.delete(staged_path)
-    if not ok then
-        vim.notify("✗ sudo write failed: " .. target, vim.log.levels.ERROR)
-        return false
-    end
+    if not ok then return false end
 
     vim.bo[bufnr].modified = false
     vim.cmd("silent! checktime " .. bufnr) -- refresh mtime so :checktime won't nag (W11)
@@ -113,8 +117,7 @@ function M.setup(opts)
 
     vim.api.nvim_create_user_command("WQ", function(cmd)
         if passthrough(cmd, "wq") then return end
-        M.sudo_write(opts, cmd.bang)
-        if not vim.bo.modified then pcall(vim.api.nvim_cmd, { cmd = "quit" }, {}) end
+        if M.sudo_write(opts, cmd.bang) then pcall(vim.api.nvim_cmd, { cmd = "quit" }, {}) end
     end, { nargs = "?", bang = true, complete = "file" })
 
     vim.cmd([[cnoreabbrev <expr> w  (getcmdtype() == ":" && getcmdline() == "w")  ? "W"  : "w"]])
