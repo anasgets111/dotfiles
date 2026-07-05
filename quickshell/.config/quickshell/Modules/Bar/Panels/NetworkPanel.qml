@@ -31,7 +31,6 @@ PanelContentBase {
       group: ap.saved ? "saved" : "available"
     }))
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
-  readonly property string wifiInterface: NetworkService.wifiInterface
 
   function cancelInline(): void {
     root.expandedSsid = "";
@@ -412,6 +411,95 @@ PanelContentBase {
       text: parent.bv === "2.4" ? "2.4" : parent.bv + "G"
     }
   }
+  component CredentialForm: ColumnLayout {
+    id: form
+
+    property string buttonSize: "md"
+    property bool connecting: false
+    property string errorMessage: ""
+
+    signal cancelled
+    signal edited
+    signal submitted(string password)
+
+    function clear(): void {
+      pwField.text = "";
+    }
+
+    spacing: Theme.spacingXs
+
+    SheetField {
+      id: pwField
+
+      Layout.fillWidth: true
+      hasError: form.errorMessage !== ""
+      isPassword: true
+      placeholder: qsTr("Password")
+      visible: !form.connecting
+
+      onAccepted: val => form.submitted(val)
+      onCancelled: form.cancelled()
+      onTextEdited: form.edited()
+    }
+
+    OText {
+      color: Theme.critical
+      size: "xs"
+      text: "⚠ " + form.errorMessage
+      visible: form.errorMessage !== "" && !form.connecting
+    }
+
+    RowLayout {
+      Layout.fillWidth: true
+      spacing: Theme.spacingSm
+
+      Text {
+        color: Theme.activeColor
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSize
+        text: "󰑐"
+        visible: form.connecting
+
+        RotationAnimation on rotation {
+          duration: 1000
+          from: 0
+          loops: Animation.Infinite
+          running: form.connecting
+          to: 360
+        }
+      }
+
+      OText {
+        color: Theme.textInactiveColor
+        size: "xs"
+        text: qsTr("Connecting…")
+        visible: form.connecting
+      }
+
+      Item {
+        Layout.fillWidth: true
+      }
+
+      OButton {
+        size: form.buttonSize
+        text: qsTr("Cancel")
+        variant: "ghost"
+
+        onClicked: form.cancelled()
+      }
+
+      OButton {
+        icon: form.errorMessage !== "" ? "󰀦" : ""
+        isEnabled: pwField.text.trim() !== ""
+        size: form.buttonSize
+        text: form.errorMessage !== "" ? qsTr("Retry") : qsTr("Connect")
+        variant: "primary"
+        visible: !form.connecting
+
+        onClicked: form.submitted(pwField.text)
+      }
+    }
+  }
   component CredentialSheet: ColumnLayout {
     id: sheet
 
@@ -428,7 +516,7 @@ PanelContentBase {
 
     function clearInputs(): void {
       ssidField.text = "";
-      pwField.text = "";
+      credForm.clear();
     }
 
     spacing: Theme.spacingSm
@@ -451,62 +539,10 @@ PanelContentBase {
       onCancelled: sheet.cancelled()
     }
 
-    SheetField {
-      id: pwField
-
-      Layout.fillWidth: true
-      hasError: sheet.errorMessage !== ""
-      isPassword: true
-      placeholder: qsTr("Password")
-      visible: sheet.passwordMode
-
-      onAccepted: val => sheet.passwordSubmitted(val)
-      onCancelled: sheet.cancelled()
-      onTextEdited: sheet.errorCleared()
-    }
-
-    OText {
-      color: Theme.critical
-      size: "xs"
-      text: "⚠ " + sheet.errorMessage
-      visible: sheet.errorMessage !== ""
-
-      Behavior on opacity {
-        NumberAnimation {
-          duration: 150
-        }
-      }
-    }
-
-    RowLayout {
-      spacing: Theme.spacingSm
-      visible: sheet.waitingMode
-
-      Text {
-        color: Theme.activeColor
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize
-        text: "󰇙"
-
-        RotationAnimation on rotation {
-          duration: 1000
-          from: 0
-          loops: Animation.Infinite
-          running: sheet.waitingMode
-          to: 360
-        }
-      }
-
-      OText {
-        color: Theme.textInactiveColor
-        size: "xs"
-        text: qsTr("Connecting…")
-      }
-    }
-
     RowLayout {
       Layout.fillWidth: true
       spacing: Theme.spacingSm
+      visible: sheet.ssidMode
 
       Item {
         Layout.fillWidth: true
@@ -523,20 +559,22 @@ PanelContentBase {
         isEnabled: ssidField.text.trim() !== ""
         text: qsTr("Next")
         variant: "primary"
-        visible: sheet.ssidMode
 
         onClicked: sheet.ssidSubmitted(ssidField.text)
       }
+    }
 
-      OButton {
-        icon: sheet.errorMessage !== "" ? "󰀦" : ""
-        isEnabled: pwField.text.trim() !== ""
-        text: sheet.errorMessage !== "" ? qsTr("Retry") : qsTr("Connect")
-        variant: "primary"
-        visible: sheet.passwordMode
+    CredentialForm {
+      id: credForm
 
-        onClicked: sheet.passwordSubmitted(pwField.text)
-      }
+      Layout.fillWidth: true
+      connecting: sheet.waitingMode
+      errorMessage: sheet.errorMessage
+      visible: !sheet.ssidMode
+
+      onCancelled: sheet.cancelled()
+      onEdited: sheet.errorCleared()
+      onSubmitted: pw => sheet.passwordSubmitted(pw)
     }
   }
   component EthernetHeroCard: Rectangle {
@@ -854,7 +892,7 @@ PanelContentBase {
             color: Theme.activeColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
-            text: "󰇙"
+            text: "󰑐"
             visible: row.connecting
 
             RotationAnimation on rotation {
@@ -878,86 +916,20 @@ PanelContentBase {
         }
       }
 
-      ColumnLayout {
+      CredentialForm {
         Layout.bottomMargin: row.expanded ? Theme.spacingSm : 0
         Layout.fillWidth: true
         Layout.leftMargin: Theme.spacingSm
         Layout.rightMargin: Theme.spacingSm
         Layout.topMargin: row.expanded ? Theme.spacingXs : 0
-        spacing: Theme.spacingXs
+        buttonSize: "sm"
+        connecting: row.connecting
+        errorMessage: row.errorMessage
         visible: row.expanded
 
-        SheetField {
-          id: rowPwField
-
-          Layout.fillWidth: true
-          hasError: row.errorMessage !== ""
-          isPassword: true
-          placeholder: qsTr("Password")
-          visible: row.expanded && !row.connecting
-
-          onAccepted: val => row.passwordSubmitted(val)
-          onCancelled: row.cancelExpand()
-          onTextEdited: row.passwordEdited()
-        }
-
-        OText {
-          color: Theme.critical
-          size: "xs"
-          text: "⚠ " + row.errorMessage
-          visible: row.errorMessage !== "" && !row.connecting
-        }
-
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: Theme.spacingSm
-
-          Text {
-            color: Theme.activeColor
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            text: "󰇙"
-            visible: row.connecting
-
-            RotationAnimation on rotation {
-              duration: 1000
-              from: 0
-              loops: Animation.Infinite
-              running: row.connecting
-              to: 360
-            }
-          }
-
-          OText {
-            color: Theme.textInactiveColor
-            size: "xs"
-            text: qsTr("Connecting…")
-            visible: row.connecting
-          }
-
-          Item {
-            Layout.fillWidth: true
-          }
-
-          OButton {
-            size: "sm"
-            text: qsTr("Cancel")
-            variant: "ghost"
-
-            onClicked: row.cancelExpand()
-          }
-
-          OButton {
-            icon: row.errorMessage !== "" ? "󰀦" : ""
-            isEnabled: rowPwField.text.trim() !== ""
-            size: "sm"
-            text: row.errorMessage !== "" ? qsTr("Retry") : qsTr("Connect")
-            variant: "primary"
-            visible: !row.connecting
-
-            onClicked: row.passwordSubmitted(rowPwField.text)
-          }
-        }
+        onCancelled: row.cancelExpand()
+        onEdited: row.passwordEdited()
+        onSubmitted: pw => row.passwordSubmitted(pw)
       }
     }
   }

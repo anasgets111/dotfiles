@@ -10,7 +10,6 @@ Singleton {
 
   property var _bandMap: ({})
   property string _connectError: ""
-  property var _connectingNetwork: null
   property string _connectingSsid: ""
   property string _ethernetIp: ""
   property bool _networkingEnabled: true
@@ -53,27 +52,15 @@ Singleton {
   signal connectFailed(string ssid, string reason)
   signal connectSucceeded(string ssid)
 
-  function _connectHidden(ssid: string, password: string): void {
-    const interfaceName = root.wifiInterface;
-    if (!interfaceName)
-      return;
-    const command = ["nmcli", "device", "wifi", "connect", ssid, "ifname", interfaceName, "hidden", "yes"];
-    if (password)
-      command.push("password", password);
-    root._runAction(command);
-  }
-
-  function _failConnect(reason: string): void {
-    root.connectFailed(root._resetConnecting(reason), reason);
-  }
-
-  function _resetConnecting(error: string): string {
-    const ssid = root._connectingSsid;
-    connectTimeout.stop();
-    root._connectingNetwork = null;
-    root._connectingSsid = "";
-    root._connectError = error;
-    return ssid;
+  function _connectErrorText(stderr: string): string {
+    const message = (stderr || "").toLowerCase();
+    if (message.includes("secrets were required") || message.includes("no secrets"))
+      return qsTr("Wrong password");
+    if (message.includes("no network with ssid") || message.includes("not found"))
+      return qsTr("Network not found");
+    if (message.includes("timeout") || message.includes("timed out"))
+      return qsTr("Connection timeout");
+    return qsTr("Connection failed");
   }
 
   function _runAction(command: var): void {
@@ -86,12 +73,9 @@ Singleton {
     }, "net.action");
   }
 
-  function _succeedConnect(): void {
-    root.connectSucceeded(root._resetConnecting(""));
-  }
-
   function cancelConnect(): void {
-    root._resetConnecting("");
+    root._connectingSsid = "";
+    root._connectError = "";
   }
 
   function connectEthernet(): void {
@@ -99,35 +83,36 @@ Singleton {
   }
 
   function connectToSsid(ssid: string, password: string): void {
-    const trimmedSsid = (ssid || "").trim();
-    if (!trimmedSsid)
+    const target = (ssid || "").trim();
+    if (!target || !root.wifiInterface || root._connectingSsid === target)
       return;
-    const trimmedPassword = String(password || "").trim();
     root._connectError = "";
-    root._connectingNetwork = null;
-    root._connectingSsid = trimmedSsid;
-    connectTimeout.restart();
+    root._connectingSsid = target;
 
-    const live = root.wifiNetworkForSsid(trimmedSsid);
-    if (live) {
-      root._connectingNetwork = live;
-      if (trimmedPassword)
-        live.connectWithPsk(trimmedPassword);
-      else
-        live.connect();
-    } else {
-      root._connectHidden(trimmedSsid, trimmedPassword);
-    }
-  }
+    const command = ["nmcli", "-w", "20", "device", "wifi", "connect", target, "ifname", root.wifiInterface];
+    const secret = String(password || "").trim();
+    if (secret)
+      command.push("password", secret);
+    const hidden = !root.wifiNetworkForSsid(target);
+    if (hidden)
+      command.push("hidden", "yes");
 
-  function connectionFailReasonText(reason: int): string {
-    if (reason === ConnectionFailReason.NoSecrets)
-      return qsTr("Wrong password");
-    if (reason === ConnectionFailReason.WifiAuthTimeout)
-      return qsTr("Connection timeout");
-    if (reason === ConnectionFailReason.WifiNetworkLost)
-      return qsTr("Network not found");
-    return qsTr("Connection failed");
+    Command.run(root.nmcliCommand(command), result => {
+      if (root._connectingSsid !== target)
+        return;
+      root.refreshIpData();
+      if ((result.exitCode ?? 1) === 0) {
+        root._connectingSsid = "";
+        if (hidden)
+          root._runAction(["nmcli", "connection", "modify", target, "802-11-wireless.hidden", "yes"]);
+        root.connectSucceeded(target);
+      } else {
+        const reason = root._connectErrorText(result.stderr);
+        root._connectingSsid = "";
+        root._connectError = reason;
+        root.connectFailed(target, reason);
+      }
+    });
   }
 
   function deviceOfType(deviceType: int): var {
@@ -286,34 +271,7 @@ Singleton {
       root.refreshBandData();
     root.refreshIpData();
   }
-  onWifiOnlineChanged: {
-    root.refreshIpData();
-    if (root.wifiOnline && root._connectingSsid !== "" && root._connectingNetwork === null)
-      root._succeedConnect();
-  }
-
-  Connections {
-    function onConnectedChanged() {
-      if (root._connectingNetwork?.connected)
-        root._succeedConnect();
-    }
-
-    function onConnectionFailed(reason) {
-      root._failConnect(root.connectionFailReasonText(reason));
-    }
-
-    enabled: root._connectingNetwork !== null
-    target: root._connectingNetwork
-  }
-
-  Timer {
-    id: connectTimeout
-
-    interval: 20000
-
-    onTriggered: if (root._connectingSsid !== "")
-      root._failConnect(qsTr("Connection failed"))
-  }
+  onWifiOnlineChanged: root.refreshIpData()
 
   CommandStream {
     id: procMonitor
