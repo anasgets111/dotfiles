@@ -15,138 +15,73 @@ https://github.com/user-attachments/assets/56cffffa-cbbf-4fe1-ad97-7aef8fed57e4
 
 ## Quick start
 
-- Symlink into $HOME with Stow:
-  - Core: `stow -t ~ home config quickshell hypr niri fish nvim kitty mpv bin`
-  - Optional: `stow -t ~ ghostty alacritty foot wezterm nushell`
-- Remove: `stow -D -t ~ <package>`
-- Test Quickshell: `quickshell` (check logs for `=== MainService System Info ===`).
-- Sessions: Hyprland and Niri autostart Quickshell.
+- Install the core packages with GNU Stow:
 
-## Backed-up configs
+  ```bash
+  stow -t "$HOME" home config quickshell hypr niri fish nvim kitty mpv bin
+  ```
 
-- **Core**: quickshell, hypr, niri, fish, kitty
-- **Shells**: fish (primary), nushell, bash
-- **Terminals**: kitty (primary), ghostty, alacritty, foot, wezterm
-- **UI**: Quickshell handles shell, notifications, OSD, lockscreen
-- **Idle/Lock**: hypridle/hyprlock (Hyprland), swayidle (Niri)
-- **Media**: mpv
-- **Bin**: local utility scripts
+- Install any terminal or shell configs you use:
+
+  ```bash
+  stow -t "$HOME" ghostty alacritty foot wezterm nushell
+  ```
+
+- Remove a package with `stow -D -t "$HOME" <package>`.
+- Choose either a Hyprland or Niri session. Both configurations start Quickshell.
+- Quickshell reloads QML changes automatically.
+
+## Repository layout
+
+| Path | Contents |
+| --- | --- |
+| `quickshell/` | Obelisk Shell: QML components, services, panels, shaders, themes, and greeter. |
+| `hypr/`, `niri/` | Hyprland Lua configuration and Niri KDL configuration. |
+| `home/`, `config/` | Shell profile plus shared XDG, Starship, Fastfetch, and application flag configuration. |
+| `fish/`, `nushell/`, `nvim/` | Shell and editor configuration. |
+| `kitty/`, `ghostty/`, `alacritty/`, `foot/`, `wezterm/` | Terminal emulator configurations. |
+| `mpv/` | mpv configuration and scripts. |
+| `bin/` | Local utilities, including update, backup, screenshot, logging, and setup helpers. |
+| `NixConfig/` | NixOS flake with Wolverine (NVIDIA/Hyprland) and Mentalist (Intel/Niri) hosts. |
 
 ## Dependencies
 
-- **Required**: quickshell, hyprland or niri, fish, kitty, xdg-terminal-exec, pacman-contrib, gpu-screen-recorder, jq, nmcli, xrandr, libnotify
-- **Optional**: hypridle, hyprlock, swayidle, hyprshot, satty, ghostty, alacritty, nvim, mpv, zen-browser
 
-Adjust package names for your distro.
+The shell needs Quickshell and either Hyprland or Niri. Its enabled services also use NetworkManager (`nmcli`), PipeWire (`wpctl`/`pactl`), UPower, `brightnessctl`, `powerprofilesctl`, `wl-clipboard`, and `notify-send`.
+
+Optional integrations are detected at runtime:
+
+- Screen recording needs `gpu-screen-recorder` and `slurp`.
+- The keyboard and mouse input overlay needs `showmethekey-cli`.
+- `hdrshot` needs Hyprland, `hyprshot`, `satty`, `jq`, and `wl-copy`.
+- The Arch update widget is active only on Arch-based systems.
+
+Adjust package names for your distribution. The default terminal is resolved through `xdg-terminal-exec`.
 
 ## Features
 
-### Core Services
+### Shell
 
-#### System & Hardware
+- A Wayland bar with compositor-agnostic workspace, monitor, keyboard-layout, and active-window services for Hyprland and Niri.
+- Freedesktop notifications, system tray, OSD, application launcher, Polkit dialog, and a WlSessionLock lock screen.
+- Per-monitor wallpapers with animated transitions, plus the Niri overview wallpaper.
+- Audio input/output controls, privacy status, battery and power-profile controls, brightness and keyboard-backlight control, and MPRIS playback controls through IPC.
+- Network and Bluetooth management, clipboard persistence, weather, time/date, and Arch package-update notifications.
 
-- [x] Battery monitoring & indicator
-- [x] Audio (input/output control)
-- [x] Media player controls (MPRIS)
-- [x] System info monitoring (CPU, Memory, Disk)
-- [x] Monitor management (hotplug, layout, resolution, HDR, VRR)
-- [x] Keyboard layout switching & indicator
-- [x] Display brightness control
-- [x] Keyboard backlight control
-- [x] Power management (PPD / TLP profiles)
+### Bar, panels, and overlays
 
-#### Window Management
+- Bar controls for power, updates, idle inhibition, keyboard layout, battery, launcher, wallpapers, workspaces, active window, privacy, audio, recording, networking, Bluetooth, tray, and calendar.
+- Panels for audio devices and streams, network connections, Bluetooth devices, notifications, updates, calendar, power, and idle/input-overlay settings.
+- A draggable keyboard and mouse overlay when `showmethekey-cli` is installed.
+- Region screen recording with `gpu-screen-recorder`.
 
-- [x] Workspace management (Hyprland/Niri support)
-- [x] Active window tracking & display
-- [x] Multi-monitor support
+### Included but not wired into the bar
 
-#### Desktop Integration
-
-- [x] Notification system (FreeDesktop spec)
-- [x] System tray (StatusNotifier protocol)
-- [x] App launcher
-- [/] Clipboard management
-- [x] IPC command system
-- [x] Polkit authentication dialog
-
-#### Security & Privacy
-
-- [x] Lock screen (WlSessionLock)
-- [x] Idle management & inhibit
-- [x] Privacy indicators (mic/camera/screenshare)
-
-#### Connectivity
-
-- [x] Network manager (WiFi/Ethernet, inline connections)
-- [x] Bluetooth manager
-
-#### Visual & Media
-
-- [x] Wallpaper management (per-monitor, animated transitions)
-- [x] Screen recording (gpu-screen-recorder)
-- [x] OSD (on-screen display) system
-- [ ] Audio visualizer (cava)
-- [x] Input display overlay (keyboard/mouse key display)
-
-#### System
-
-- [x] Power menu
-- [x] Package updates (Arch/pacman, notifies by package name)
-- [x] Time & date display
-- [x] Weather information
-- [x] DND mutes third-party audio streams
-
-### UI Components
-
-#### Bar Widgets
-
-- [x] Power menu button
-- [x] Update checker (Arch)
-- [x] Idle inhibitor toggle
-- [x] Keyboard layout indicator
-- [x] Battery indicator with PPD profile (laptop)
-- [x] App launcher button
-- [x] Wallpaper picker button
-- [x] Workspace indicators (Normal & Special)
-- [x] Active window title
-- [x] Privacy indicators
-- [x] Volume control with panel
-- [x] Screen recorder controls
-- [x] Network indicator with panel
-- [x] Bluetooth indicator with panel
-- [x] System tray
-- [x] Date & time with calendar
-- [ ] Media player widget (MPRIS controls)
-- [ ] System info widget (CPU, Memory, Disk)
-
-#### Overlays & Panels
-
-- [x] Notification popup (actions, images, inline reply, grouping)
-- [x] Notification center (DND, history, weather forecast)
-- [x] OSD overlay (volume, brightness, etc.)
-- [x] Audio panel (devices, streams)
-- [x] Network panel (WiFi networks, inline connections)
-- [x] Bluetooth panel (devices, pairing)
-- [x] Lock screen (per-monitor wallpapers)
-- [x] App launcher (grid view, search)
-- [x] Wallpaper picker (per-monitor, transitions)
-- [x] Idle settings panel
-- [x] Input display overlay (draggable)
-
-#### Design System
-
-- [x] Theme (responsive scaling, colors, ultrawide support)
-- [x] IconButton component
-- [x] Tooltip system
-- [x] Panel framework
-- [x] Input components
-- [x] Toggle components
+- `Cava.qml`, a media player service, and system-information services are present, but no Cava, media, or system-information bar widget is currently loaded.
 
 ## Notes
 
-- hyprlock and swaylock are no longer included; Quickshell provides the lock screen.
-- Default terminal via `xdg-terminal-exec` is easier for me to swap in all the system.
+- Hyprlock, Swaylock, Hypridle, and Swayidle configurations are not included; Quickshell owns locking and idle handling.
 
 ## Credits
 
