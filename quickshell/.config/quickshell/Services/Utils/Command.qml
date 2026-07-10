@@ -55,7 +55,7 @@ Singleton {
         id: outCollector
       }
 
-      onExited: (exitCode, exitStatus) => {
+      onExited: exitCode => {
         const callback = _callback;
         const result = {
           exitCode,

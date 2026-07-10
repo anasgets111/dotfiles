@@ -11,11 +11,7 @@ import qs.Services
 Singleton {
   id: root
 
-  readonly property string _devicePath: {
-    for (let i = 0; i < backlightFolder.count; i++)
-      return `/sys/class/backlight/${backlightFolder.get(i, "fileName")}`;
-    return "";
-  }
+  readonly property string _devicePath: backlightFolder.count ? `/sys/class/backlight/${backlightFolder.get(0, "fileName")}` : ""
   readonly property bool available: MainService.hasBrightnessControl
   property int brightness: 0
   property int maxBrightness: 100

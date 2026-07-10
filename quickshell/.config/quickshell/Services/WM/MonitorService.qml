@@ -20,8 +20,7 @@ Singleton {
   readonly property string activeMain: preferredMain || (monitors.count > 0 ? monitors.get(0).name : "")
   readonly property var activeMainScreen: Quickshell.screens.find(screen => screen?.name === activeMain) || Quickshell.screens[0] || null
   readonly property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
-  readonly property var effectiveMainScreen: activeMainScreen || Quickshell.screens.find(screen => screen?.name === lastKnownGoodMainName) || Quickshell.screens[0] || null
-  property string lastKnownGoodMainName: ""
+  readonly property var effectiveMainScreen: activeMainScreen
   readonly property var monitorKeyFields: ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"]
   property ListModel monitors: ListModel {
   }
@@ -215,10 +214,6 @@ Singleton {
     updateMonitors(norm);
     if (backend)
       refreshFeatures(norm);
-  }
-  onActiveMainScreenChanged: {
-    if (root.activeMainScreen)
-      root.lastKnownGoodMainName = root.activeMain;
   }
   onBackendChanged: {
     if (backend)

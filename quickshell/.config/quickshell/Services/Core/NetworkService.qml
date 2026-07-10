@@ -9,6 +9,7 @@ Singleton {
   id: root
 
   property var _bandMap: ({})
+  property int _connectGeneration: 0
   property string _connectError: ""
   property string _connectingSsid: ""
   property string _ethernetIp: ""
@@ -74,6 +75,7 @@ Singleton {
   }
 
   function cancelConnect(): void {
+    root._connectGeneration++;
     root._connectingSsid = "";
     root._connectError = "";
   }
@@ -83,14 +85,15 @@ Singleton {
   }
 
   function connectToSsid(ssid: string, password: string): void {
-    const target = (ssid || "").trim();
+    const target = String(ssid ?? "");
     if (!target || !root.wifiInterface || root._connectingSsid === target)
       return;
+    const generation = ++root._connectGeneration;
     root._connectError = "";
     root._connectingSsid = target;
 
     const command = ["nmcli", "-w", "20", "device", "wifi", "connect", target, "ifname", root.wifiInterface];
-    const secret = String(password || "").trim();
+    const secret = String(password ?? "");
     if (secret)
       command.push("password", secret);
     const hidden = !root.wifiNetworkForSsid(target);
@@ -98,7 +101,7 @@ Singleton {
       command.push("hidden", "yes");
 
     Command.run(root.nmcliCommand(command), result => {
-      if (root._connectingSsid !== target)
+      if (root._connectGeneration !== generation)
         return;
       root.refreshIpData();
       if ((result.exitCode ?? 1) === 0) {

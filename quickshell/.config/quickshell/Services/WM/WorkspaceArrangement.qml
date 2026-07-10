@@ -78,7 +78,7 @@ QtObject {
 
       for (const workspace of outputWorkspaces)
         sortedWorkspaces.push(workspace);
-      if (sortedWorkspaces.length > 0 && sortedWorkspaces.length < validWorkspaces.length)
+      if (sortedWorkspaces.length < validWorkspaces.length)
         groupBoundaries.push(sortedWorkspaces.length);
     }
 

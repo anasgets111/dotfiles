@@ -14,19 +14,12 @@ Singleton {
   readonly property bool ntpEnabled: internalNtpEnabled
   readonly property bool ntpSynced: internalNtpSynced
   property int precision: SystemClock.Seconds
-  property bool ready: false
   readonly property string timeZone: internalTimeZone
   property bool use24Hour: false
   property int weekStart: Qt.locale().firstDayOfWeek
 
   function _stripMeridiem(str) {
     return str.replace(/\s*(AM|PM)$/i, "");
-  }
-
-  function dayName(day, standalone, longForm) {
-    const n = day === 0 ? 7 : day;
-    const fmt = longForm ? Locale.LongFormat : Locale.ShortFormat;
-    return standalone ? Qt.locale().standaloneDayName(n, fmt) : Qt.locale().dayName(n, fmt);
   }
 
   function format(kind, pattern) {
@@ -43,26 +36,6 @@ Singleton {
     if (use24Hour)
       return fn(d, fmt24);
     return _stripMeridiem(fn(d, fmt12));
-  }
-
-  function formatDuration(sec) {
-    sec = Math.floor(sec);
-    if (sec <= 0)
-      return "";
-    const day = Math.floor(sec / 86400);
-    const hour = Math.floor((sec % 86400) / 3600);
-    const minute = Math.floor((sec % 3600) / 60);
-    const second = sec % 60;
-    const parts = [];
-    if (day)
-      parts.push(`${day}d`);
-    if (hour)
-      parts.push(`${hour}h`);
-    if (minute)
-      parts.push(`${minute}m`);
-    if (!day && !hour && !minute)
-      parts.push(`${second}s`);
-    return parts.join(" ");
   }
 
   function formatHM(sec) {
@@ -100,7 +73,6 @@ Singleton {
         dateTime.internalNtpSynced = vals[2].toLowerCase() === "yes";
       }
     });
-    ready = true;
     Logger.log("TimeService", "Ready");
   }
 

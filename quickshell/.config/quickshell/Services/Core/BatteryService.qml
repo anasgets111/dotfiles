@@ -16,7 +16,7 @@ Singleton {
   readonly property bool isCharging: deviceState === UPowerDeviceState.Charging
   readonly property bool isCriticalAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= 0.1
   readonly property bool isFullyCharged: deviceState === UPowerDeviceState.FullyCharged
-  readonly property bool isLaptopBattery: device?.type === UPowerDeviceType.Battery && device?.isPresent
+  readonly property bool isLaptopBattery: !!device?.ready && device.type === UPowerDeviceType.Battery && device.isPresent
   readonly property bool isLowAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= 0.2
   readonly property bool isOnBattery: UPower.onBattery
   readonly property bool isPendingCharge: deviceState === UPowerDeviceState.PendingCharge

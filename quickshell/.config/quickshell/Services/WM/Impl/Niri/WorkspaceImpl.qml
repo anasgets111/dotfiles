@@ -31,7 +31,7 @@ Singleton {
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
   property int trackedWorkspaceId: 1
   property var visibleWindowKeys: new Set()
-  property var windowsById: ({})
+  property var windows: []
   readonly property var workspaces: _layoutState.workspaces
   property var workspacesById: ({})
 
@@ -108,14 +108,15 @@ Singleton {
       } else if (event.WorkspaceActivated) {
         _activateWorkspace(event.WorkspaceActivated.id);
       } else if (event.WindowsChanged) {
-        windowsById = _indexById(event.WindowsChanged.windows);
+        windows = Array.isArray(event.WindowsChanged.windows) ? event.WindowsChanged.windows : [];
         Qt.callLater(rebuildWorkspaceList);
       } else if (event.WindowOpenedOrChanged) {
         const changedWindow = event.WindowOpenedOrChanged.window;
-        windowsById[changedWindow.id] = changedWindow;
+        const windowIndex = windows.findIndex(window => window.id === changedWindow.id);
+        windows = windowIndex < 0 ? [...windows, changedWindow] : windows.map((window, index) => index === windowIndex ? changedWindow : window);
         Qt.callLater(rebuildWorkspaceList);
       } else if (event.WindowClosed) {
-        delete windowsById[event.WindowClosed.id];
+        windows = windows.filter(window => window.id !== event.WindowClosed.id);
         Qt.callLater(rebuildWorkspaceList);
       }
     } catch (error) {
@@ -124,7 +125,7 @@ Singleton {
   }
 
   function rebuildWorkspaceList(): void {
-    const populatedWorkspaceIds = new Set(Object.values(windowsById).filter(window => window.workspace_id !== null && window.workspace_id !== undefined).map(window => window.workspace_id));
+    const populatedWorkspaceIds = new Set(windows.filter(window => window.workspace_id !== null && window.workspace_id !== undefined).map(window => window.workspace_id));
 
     normalizedWorkspaces = Object.values(workspacesById).map(rawWorkspace => ({
           id: rawWorkspace.id,
@@ -136,7 +137,7 @@ Singleton {
         }));
 
     const activeWorkspaceIds = new Set(Object.values(workspacesById).filter(workspace => workspace.is_active).map(workspace => workspace.id));
-    visibleWindowKeys = new Set(Object.values(windowsById).filter(window => activeWorkspaceIds.has(window.workspace_id)).map(window => _windowKey(window.app_id, window.title)));
+    visibleWindowKeys = new Set(windows.filter(window => activeWorkspaceIds.has(window.workspace_id)).map(window => _windowKey(window.app_id, window.title)));
   }
 
   function refresh(): void {

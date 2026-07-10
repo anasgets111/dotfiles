@@ -6,6 +6,7 @@ import QtQml
 import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
+import qs.Services.Utils
 
 Singleton {
   id: root
@@ -39,8 +40,9 @@ Singleton {
   // Priorities when 3 args given: iconHint > appId > fallbackIcon.
   // When 2 args given: appId > iconHint > "application-x-executable".
   function resolveIconSource(appId: string, iconHint: var, fallbackIcon: var): string {
-    const fallback = (fallbackIcon != null) ? String(fallbackIcon) : "application-x-executable";
-    const candidates = fallbackIcon ? [iconHint, appId] : [appId, iconHint];
+    const hasFallback = fallbackIcon !== undefined;
+    const fallback = hasFallback ? String(fallbackIcon ?? "") : "application-x-executable";
+    const candidates = hasFallback ? [iconHint, appId] : [appId, iconHint];
     const fallbackPath = Quickshell.hasThemeIcon(fallback) ? Quickshell.iconPath(fallback) : "";
 
     for (const candidate of candidates) {

@@ -7,8 +7,8 @@ Singleton {
   id: sys
 
   readonly property string currentWM: {
-    const desktop = Quickshell.env("XDG_CURRENT_DESKTOP")?.toLowerCase() ?? "";
-    return ["hyprland", "niri"].includes(desktop) ? desktop : "other";
+    const desktops = Quickshell.env("XDG_CURRENT_DESKTOP")?.toLowerCase().split(":") ?? [];
+    return desktops.find(desktop => ["hyprland", "niri"].includes(desktop)) ?? "other";
   }
   property string fullName: ""
   property bool hasBrightnessControl: false

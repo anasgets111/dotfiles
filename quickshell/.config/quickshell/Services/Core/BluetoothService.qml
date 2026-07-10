@@ -11,7 +11,7 @@ Singleton {
   property int _revision: 0
   readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
   readonly property var audioKeywords: ["headset", "audio", "headphone", "airpod", "arctis", "speaker"]
-  readonly property bool available: adapter !== null
+  readonly property bool available: !!adapter
   readonly property var codecMap: ({
       LDAC: {
         name: "LDAC",

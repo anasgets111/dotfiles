@@ -11,7 +11,7 @@ Singleton {
   readonly property int moduleLabelWidth: 16
 
   function emit(kind: string, argumentList: var): void {
-    const moduleName = root.extractModule(argumentList);
+    const moduleName = argumentList?.length > 1 ? argumentList[0] : null;
     if (!root.shouldLog(moduleName))
       return;
 
@@ -26,10 +26,6 @@ Singleton {
 
   function error() {
     root.emit("error", arguments);
-  }
-
-  function extractModule(argumentList: var): var {
-    return argumentList?.length > 1 ? argumentList[0] : null;
   }
 
   function formatMessage(argumentList: var): string {

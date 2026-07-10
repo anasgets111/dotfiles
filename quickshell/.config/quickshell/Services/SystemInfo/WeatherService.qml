@@ -14,18 +14,7 @@ Singleton {
   property string currentTemp: "Loading..."
   property int currentWeatherCode: -1
   property var dailyForecast: null
-  readonly property string displayText: {
-    const displayParts = [currentTemp];
-    if (includeLocationInDisplay && locationName)
-      displayParts.push(`— ${locationName}`);
-    if (timeAgo)
-      displayParts.push(`(${timeAgo})`);
-    if (_isStale())
-      displayParts.push("[stale]");
-    return displayParts.join(" ");
-  }
   property bool hasError: false
-  property bool includeLocationInDisplay: true
   property var lastUpdated: null
   readonly property real latitude: weatherLocation?.latitude ?? NaN
   readonly property string locationName: weatherLocation?.placeName ?? ""

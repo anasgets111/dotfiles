@@ -8,8 +8,8 @@ import Quickshell.Io
 // directly. When `restartDelay` > 0 the process is respawned that many ms after it
 // dies while still active; set `restartBackoff` > 1 to grow the delay per consecutive
 // attempt (capped at `maxRestartDelay`), and `maxRestarts` > 0 to give up after that
-// many consecutive attempts. The attempt counter resets whenever `active` is
-// re-asserted. Connect `onLineRead` / `onErrorRead` for stdout / stderr lines, and
+// many consecutive attempts. The attempt counter resets whenever `active` changes.
+// Connect `onLineRead` / `onErrorRead` for stdout / stderr lines, and
 // `onExited` if needed. Callers must NOT override `onRunningChanged`,
 // `onActiveChanged` or `Component.onCompleted` — those own the start/restart lifecycle.
 Process {
@@ -65,7 +65,6 @@ Process {
   readonly property Timer _restartTimer: Timer {
     interval: root.restartDelay
 
-    onTriggered: if (root.active)
-      root.running = true
+    onTriggered: root._sync()
   }
 }

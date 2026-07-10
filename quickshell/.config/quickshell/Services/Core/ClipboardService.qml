@@ -55,8 +55,7 @@ Singleton {
 
   function finishFetchCycle() {
     root.isFetching = false;
-    if (root.isColdStart)
-      root.isColdStart = false;
+    root.isColdStart = false;
   }
 
   function loadTextHistory() {
@@ -74,8 +73,7 @@ Singleton {
       if (String(t ?? "").startsWith("image/"))
         return t;
     }
-    const text = root.pickPreferredTextMime(types);
-    return text || (types.length ? String(types[0]) : "");
+    return root.pickPreferredTextMime(types) || (types.length ? String(types[0]) : "");
   }
 
   function pickPreferredTextMime(types) {
@@ -128,7 +126,7 @@ Singleton {
       return;
     root.ignoreNextChanges = Math.max(root.ignoreNextChanges, 1);
     root._persisting = true;
-    Command.run(["sh", "-c", `mime='${mime}'; wl-paste -n -t "$mime" | wl-copy -t "$mime"`], () => {
+    Command.run(["sh", "-c", "wl-paste -n -t \"$1\" | wl-copy -t \"$1\"", "sh", mime], () => {
       root._persisting = false;
       root.lastPersisted = {
         mime,

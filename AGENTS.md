@@ -125,7 +125,7 @@ import qs.Config
 - Property bindings over assignments (let QML handle reactivity)
 - `readonly property` for computed values
 - Explicit types: `function setThemeName(name: string): void`
-- Use `Logger.log("ServiceName", "message", "warning")` for debugging
+- Use `Logger.log("ServiceName", "message")`, `Logger.warn(...)`, or `Logger.error(...)` as appropriate
 - Use optional chaining (`?.`) and nullish coalescing (`??`)
 - Use `try/catch` inside `onLoaded` handlers for JSON parsing
 - Use Theme constants — never hardcode colors, sizes, or spacing

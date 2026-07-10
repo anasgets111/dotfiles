@@ -231,8 +231,6 @@ Singleton {
   }
 
   function setInputVolume(newVolume: real): void {
-    if (!root.sourceControllable)
-      return;
     setNodeVolume(root.source, newVolume, 1.0, true);
   }
 
@@ -244,7 +242,7 @@ Singleton {
   }
 
   function setNodeVolume(node: var, newVolume: real, maximum: real, unmute: bool): bool {
-    if (!hasControllableAudio(node))
+    if (!hasControllableAudio(node) || !Number.isFinite(newVolume))
       return false;
     if (unmute)
       node.audio.muted = false;
@@ -259,8 +257,6 @@ Singleton {
   }
 
   function setVolume(newVolume: real): void {
-    if (!root.sinkControllable)
-      return;
     setNodeVolume(root.sink, newVolume, root.maxVolume, true);
   }
 

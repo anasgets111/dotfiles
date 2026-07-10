@@ -66,7 +66,7 @@ Singleton {
       args.push("-cr", colorRange);
 
     Command.detached(args);
-    Command.detached(["sh", "-c", `: > "${root.lockPath}"`]);
+    Command.detached(["touch", root.lockPath]);
 
     isRecording = true;
     isPaused = false;

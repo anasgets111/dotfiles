@@ -6,8 +6,6 @@ import qs.Services.WM.Impl.Hyprland as Hypr
 import qs.Services.WM.Impl.Niri as Niri
 
 Singleton {
-  id: service
-
   readonly property var backend: MainService.currentWM === "hyprland" ? Hypr.KeyboardLayoutImpl : MainService.currentWM === "niri" ? Niri.KeyboardLayoutImpl : null
   readonly property bool capsOn: Utils.capsLock
   readonly property string currentLayout: backend?.currentLayout ?? ""
