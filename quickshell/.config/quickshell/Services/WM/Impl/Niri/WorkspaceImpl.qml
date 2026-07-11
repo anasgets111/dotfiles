@@ -9,19 +9,11 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  readonly property var _emptyLayout: ({
-      focusedOutput: "",
-      focusedWorkspace: null,
-      groupBoundaries: [],
-      outputsOrder: [],
-      workspaces: []
-    })
-  readonly property var _layoutState: enabled ? WorkspaceArrangement.buildLayout(normalizedWorkspaces, "", []) : _emptyLayout
+  readonly property var _layoutState: WorkspaceArrangement.buildLayout(normalizedWorkspaces, "", [])
   readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
-  property bool enabled: false
   readonly property string focusedOutput: _layoutState.focusedOutput
   readonly property var focusedWorkspace: _layoutState.focusedWorkspace
-  readonly property bool fullscreenVisible: enabled && visibleWindowKeys.size > 0 && ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen && visibleWindowKeys.has(root._windowKey(toplevel.appId, toplevel.title)))
+  readonly property bool fullscreenVisible: visibleWindowKeys.size > 0 && ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen && visibleWindowKeys.has(root._windowKey(toplevel.appId, toplevel.title)))
   readonly property bool hasOverview: true
   property var normalizedWorkspaces: []
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
@@ -68,7 +60,7 @@ Singleton {
   }
 
   function focusWorkspaceById(workspaceId: int): void {
-    if (!enabled || workspaceId <= 0)
+    if (workspaceId <= 0)
       return;
     sendAction({
       Action: {
@@ -82,8 +74,6 @@ Singleton {
   }
 
   function focusWorkspaceByIndex(workspaceIndex: int): void {
-    if (!enabled)
-      return;
     const workspace = workspaces.find(candidate => candidate?.idx === workspaceIndex);
     if (!workspace) {
       console.warn(`[Niri] Invalid index: ${workspaceIndex}`);
@@ -137,7 +127,7 @@ Singleton {
   }
 
   function refresh(): void {
-    if (!enabled || !socketPath)
+    if (!socketPath)
       return;
     eventStreamSocket.connected = false;
     eventStreamSocket.connected = true;
@@ -146,25 +136,17 @@ Singleton {
   }
 
   function sendAction(request: var): void {
-    if (enabled && requestSocket.connected)
+    if (requestSocket.connected)
       requestSocket.write(JSON.stringify(request) + "\n");
   }
 
-  Component.onCompleted: {
-    if (enabled)
-      startupTimer.start();
-  }
-  onEnabledChanged: {
-    eventStreamSocket.connected = enabled && !!socketPath;
-    requestSocket.connected = enabled && !!socketPath;
-    if (enabled)
-      startupTimer.restart();
-  }
+  Component.onCompleted: startupTimer.start()
   onTrackedWorkspaceIdChanged: Qt.callLater(rebuildWorkspaceList)
 
   Socket {
     id: eventStreamSocket
 
+    connected: !!root.socketPath
     path: root.socketPath
 
     parser: SplitParser {
@@ -182,6 +164,7 @@ Singleton {
   Socket {
     id: requestSocket
 
+    connected: !!root.socketPath
     path: root.socketPath
   }
 

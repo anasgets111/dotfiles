@@ -6,7 +6,6 @@ Singleton {
   id: root
 
   property var _replyQueue: []
-  property bool enabled: false
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
 
   signal featuresChanged
@@ -60,7 +59,7 @@ Singleton {
   Socket {
     id: requestSocket
 
-    connected: root.enabled && !!root.socketPath
+    connected: !!root.socketPath
     path: root.socketPath
 
     parser: SplitParser {
@@ -89,7 +88,7 @@ Singleton {
   Socket {
     id: eventStreamSocket
 
-    connected: root.enabled && !!root.socketPath
+    connected: !!root.socketPath
     path: root.socketPath
 
     parser: SplitParser {

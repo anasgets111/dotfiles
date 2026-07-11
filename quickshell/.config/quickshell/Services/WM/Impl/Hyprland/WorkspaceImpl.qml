@@ -9,26 +9,15 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  readonly property var _emptyLayout: ({
-      focusedOutput: "",
-      focusedWorkspace: null,
-      groupBoundaries: [],
-      outputsOrder: [],
-      specialWorkspaces: [],
-      workspaces: []
-    })
-  readonly property var _layoutState: {
-    return enabled && _revision >= 0 ? _buildLayoutState() : _emptyLayout;
-  }
+  readonly property var _layoutState: _revision >= 0 ? _buildLayoutState() : null
   property int _revision: 0
   readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "fullscreen", "monitoradded", "monitoraddedv2", "monitorremoved", "moveworkspace", "openwindow", "closewindow", "movewindow", "movewindowv2"]
   property string activeSpecial: ""
   readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
-  property bool enabled: false
   readonly property bool fillsEmptyWorkspaceSlots: true
   readonly property string focusedOutput: _layoutState.focusedOutput
   readonly property var focusedWorkspace: _layoutState.focusedWorkspace
-  readonly property bool fullscreenVisible: enabled && _revision >= 0 && Array.from(Hyprland.workspaces.values).some(ws => ws.active && ws.hasFullscreen)
+  readonly property bool fullscreenVisible: _revision >= 0 && Array.from(Hyprland.workspaces.values).some(ws => ws.active && ws.hasFullscreen)
   readonly property var specialWorkspaces: _layoutState.specialWorkspaces
   readonly property bool supportsSpecialWorkspaces: true
   readonly property var workspaces: _layoutState.workspaces
@@ -75,35 +64,27 @@ Singleton {
   }
 
   function focusWorkspace(workspace: var): void {
-    if (enabled && (workspace?.idx ?? 0) > 0)
+    if ((workspace?.idx ?? 0) > 0)
       focusWorkspaceByIndex(workspace.idx);
   }
 
   function focusWorkspaceByIndex(workspaceIndex: int): void {
-    if (enabled && workspaceIndex > 0)
+    if (workspaceIndex > 0)
       Hyprland.dispatch(`hl.dsp.focus({ workspace = ${workspaceIndex} })`);
   }
 
   function refresh(): void {
-    if (!enabled)
-      return;
     Hyprland.refreshMonitors();
     Hyprland.refreshWorkspaces();
     _revision++;
   }
 
   function toggleSpecial(name: string): void {
-    if (enabled && name)
+    if (name)
       Hyprland.dispatch(`hl.dsp.workspace.toggle_special(${JSON.stringify(name)})`);
   }
 
   Component.onCompleted: {
-    if (enabled) {
-      refresh();
-      Qt.callLater(refresh);
-    }
-  }
-  onEnabledChanged: if (enabled) {
     refresh();
     Qt.callLater(refresh);
   }
@@ -114,7 +95,6 @@ Singleton {
       Qt.callLater(root.refresh);
     }
 
-    enabled: root.enabled
     target: Quickshell
   }
 
@@ -128,7 +108,6 @@ Singleton {
       }
     }
 
-    enabled: root.enabled
     target: Hyprland
   }
 }

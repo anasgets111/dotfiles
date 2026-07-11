@@ -17,7 +17,7 @@ in {
       userTools = with pkgs; [
         zip _7zz zoxide just inotify-tools
         bat eza fd ripgrep dysk tokei python3Packages.subliminal
-        fnm fzf btop nvtop jq wl-clipboard
+        fnm fzf btop nvtop jq slurp wl-clipboard
         unzip unrar tealdeer git-lfs android-tools
       ];
       devTools = with pkgs; [

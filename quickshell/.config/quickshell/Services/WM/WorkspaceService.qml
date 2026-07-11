@@ -1,5 +1,4 @@
 pragma Singleton
-import QtQuick
 import Quickshell
 import qs.Services
 import qs.Services.WM
@@ -7,8 +6,6 @@ import qs.Services.WM.Impl.Hyprland as Hypr
 import qs.Services.WM.Impl.Niri as Niri
 
 Singleton {
-  id: root
-
   readonly property string activeSpecial: backend?.activeSpecial ?? ""
   readonly property var backend: MainService.currentWM === "hyprland" ? Hypr.WorkspaceImpl : MainService.currentWM === "niri" ? Niri.WorkspaceImpl : null
   readonly property int currentWorkspaceIndex: backend?.currentWorkspaceIndex ?? -1
@@ -32,17 +29,5 @@ Singleton {
 
   function toggleSpecial(name: string): void {
     backend?.toggleSpecial?.(name);
-  }
-
-  Binding {
-    property: "enabled"
-    target: Hypr.WorkspaceImpl
-    value: root.backend === Hypr.WorkspaceImpl
-  }
-
-  Binding {
-    property: "enabled"
-    target: Niri.WorkspaceImpl
-    value: root.backend === Niri.WorkspaceImpl
   }
 }

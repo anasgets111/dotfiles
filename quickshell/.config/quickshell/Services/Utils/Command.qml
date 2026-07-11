@@ -37,6 +37,7 @@ Singleton {
     idle._callback = callback ?? null;
     idle._lane = lane ?? "";
     idle.command = argv;
+    idle.stdinEnabled = true;
     idle.running = true;
   }
 
@@ -47,15 +48,9 @@ Singleton {
       property bool _busy: false
       property var _callback
       property string _lane
+      property bool _started: false
 
-      stderr: StdioCollector {
-        id: errCollector
-      }
-      stdout: StdioCollector {
-        id: outCollector
-      }
-
-      onExited: exitCode => {
+      function _finish(exitCode: int): void {
         const callback = _callback;
         const result = {
           exitCode,
@@ -65,9 +60,25 @@ Singleton {
         _busy = false;
         _callback = null;
         _lane = "";
+        _started = false;
         if (callback)
           callback(result);
       }
+
+      stderr: StdioCollector {
+        id: errCollector
+      }
+      stdout: StdioCollector {
+        id: outCollector
+      }
+
+      onRunningChanged: if (_busy && !running && !_started)
+        _finish(-1)
+      onStarted: {
+        _started = true;
+        stdinEnabled = false;
+      }
+      onExited: exitCode => _finish(exitCode)
     }
   }
 }

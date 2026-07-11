@@ -77,7 +77,7 @@ PKGS_COMMON=(
 
 	# CLI Tools
 	7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools
-	less neovim ripgrep rsync shfmt stow tokei tree-sitter-cli unrar wget zip
+	less neovim ripgrep rsync shfmt slurp stow tokei tree-sitter-cli unrar wget zip
 
 	# Development
 	bun just rustup

@@ -9,7 +9,6 @@ Singleton {
 
   property string currentLayout: ""
   property int currentLayoutIndex: -1
-  property bool enabled: false
   property string keyboardDeviceName: ""
   property var layouts: []
 
@@ -18,11 +17,7 @@ Singleton {
   }
 
   function requestLayoutSync(): void {
-    if (!enabled)
-      return;
     Command.run(["hyprctl", "-j", "devices"], result => {
-      if (!impl.enabled)
-        return;
       try {
         impl.syncLayoutState(result.stdout);
       } catch (error) {
@@ -55,8 +50,6 @@ Singleton {
   }
 
   Component.onCompleted: requestLayoutSync()
-  onEnabledChanged: if (enabled)
-    requestLayoutSync()
 
   Connections {
     function onRawEvent(event: var): void {
@@ -66,6 +59,6 @@ Singleton {
       impl.requestLayoutSync();
     }
 
-    target: impl.enabled ? Hyprland : null
+    target: Hyprland
   }
 }

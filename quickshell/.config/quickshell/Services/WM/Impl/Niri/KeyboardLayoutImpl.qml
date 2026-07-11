@@ -8,7 +8,6 @@ Singleton {
 
   property string currentLayout: ""
   property int currentLayoutIndex: -1
-  property bool enabled: false
   property var layouts: []
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
 
@@ -35,7 +34,7 @@ Singleton {
   Socket {
     id: eventStreamSocket
 
-    connected: impl.enabled && impl.socketPath
+    connected: !!impl.socketPath
     path: impl.socketPath
 
     parser: SplitParser {

@@ -3,10 +3,6 @@ import Quickshell
 import Quickshell.Hyprland
 
 Singleton {
-  id: root
-
-  property bool enabled: false
-
   signal featuresChanged
 
   function _findMonitor(name: string): var {
