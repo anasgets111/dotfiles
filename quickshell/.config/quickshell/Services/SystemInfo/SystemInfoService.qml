@@ -1,37 +1,29 @@
 pragma Singleton
 
+import QtQuick
 import Quickshell
 import Quickshell.Io
-import QtQuick
 import qs.Services.Utils
-import qs.Services.SystemInfo
 
 Singleton {
   id: root
 
-  property bool _cpuReady: false
-  property bool _gpuReady: false
   property real _lastCpuIdle: 0
   property real _lastCpuTotal: 0
-  property bool _memReady: false
-  property bool _storageReady: false
   property string bootDuration: ""
   property real bootTimeMs: 0
   property real cpuPerc: 0
   property real cpuTemp: 0
   property real gpuPerc: 0
+  property real gpuMemTotalKib: 0
+  property real gpuMemUsedKib: 0
   property real gpuTemp: 0
   property string gpuType: "NONE"
   readonly property real memPerc: memTotal > 0 ? memUsed / memTotal : 0
   property real memTotal: 0
   property real memUsed: 0
-  property int pollIntervalMs: 3000
-  readonly property bool ready: _cpuReady && _memReady
   property int refCount: 0
-  readonly property real storagePerc: storageTotal > 0 ? storageUsed / storageTotal : 0
-  property int storagePollIntervalMs: 60000
-  property real storageTotal: 0
-  property real storageUsed: 0
+  property var storageDisks: []
   readonly property string uptime: {
     if (bootTimeMs <= 0)
       return "";
@@ -40,23 +32,40 @@ Singleton {
   }
 
   function _pollGpuUsage(): void {
-    const command = root.gpuType === "NVIDIA" ? ["nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu", "--format=csv,noheader,nounits"] : root.gpuType === "GENERIC" ? ["sh", "-c", "cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null"] : ["true"];
+    if (root.gpuType === "NONE")
+      return;
+    const command = root.gpuType === "NVIDIA" ? ["nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"] : ["sh", "-c", "for d in /sys/class/drm/card[0-9]/device; do [ -r \"$d/gpu_busy_percent\" ] && printf 'usage ' && cat \"$d/gpu_busy_percent\"; [ -r \"$d/mem_info_vram_used\" ] && [ -r \"$d/mem_info_vram_total\" ] && printf 'memory ' && cat \"$d/mem_info_vram_used\" \"$d/mem_info_vram_total\" | tr '\\n' ' ' && printf '\\n'; done"];
     Command.run(command, result => {
       const text = result.stdout;
       if (root.gpuType === "NVIDIA") {
-        const [usage, temp] = text.trim().split(",").map(s => parseInt(s, 10));
+        const [usage, temp, memoryUsedMib, memoryTotalMib] = text.trim().split(",").map(s => parseInt(s, 10));
         if (Number.isFinite(usage)) {
           root.gpuPerc = usage / 100;
-          root._gpuReady = true;
         }
         if (Number.isFinite(temp))
           root.gpuTemp = temp;
-      } else if (root.gpuType === "GENERIC") {
-        const values = text.trim().split("\n").map(Number).filter(Number.isFinite);
-        if (values.length > 0) {
-          root.gpuPerc = values.reduce((a, b) => a + b, 0) / values.length / 100;
-          root._gpuReady = true;
+        if (Number.isFinite(memoryUsedMib) && Number.isFinite(memoryTotalMib)) {
+          root.gpuMemUsedKib = memoryUsedMib * 1024;
+          root.gpuMemTotalKib = memoryTotalMib * 1024;
         }
+      } else if (root.gpuType === "GENERIC") {
+        const usageValues = [];
+        let memoryUsedBytes = 0;
+        let memoryTotalBytes = 0;
+        for (const line of text.trim().split("\n")) {
+          const parts = line.trim().split(/\s+/);
+          if (parts[0] === "usage" && Number.isFinite(Number(parts[1])))
+            usageValues.push(Number(parts[1]));
+          else if (parts[0] === "memory" && Number.isFinite(Number(parts[1])) && Number.isFinite(Number(parts[2]))) {
+            memoryUsedBytes += Number(parts[1]);
+            memoryTotalBytes += Number(parts[2]);
+          }
+        }
+        if (usageValues.length > 0) {
+          root.gpuPerc = usageValues.reduce((a, b) => a + b, 0) / usageValues.length / 100;
+        }
+        root.gpuMemUsedKib = memoryUsedBytes / 1024;
+        root.gpuMemTotalKib = memoryTotalBytes / 1024;
       }
     }, "sysinfo.gpu");
   }
@@ -92,32 +101,48 @@ Singleton {
   }
 
   function _pollStorage(): void {
-    Command.run(["sh", "-c", "df -P 2>/dev/null | awk '/^\\/dev/ {u[$1]=$3; a[$1]=$4} END {for(d in u) print d, u[d], a[d]}'"], result => {
-      let totalUsed = 0, totalAvail = 0;
-      for (const line of result.stdout.trim().split("\n")) {
-        const [, used, avail] = line.split(/\s+/);
-        totalUsed += parseInt(used, 10) || 0;
-        totalAvail += parseInt(avail, 10) || 0;
+    Command.run(["lsblk", "--json", "--bytes", "--output", "NAME,PATH,TYPE,MOUNTPOINT,FSUSED,FSAVAIL"], result => {
+      try {
+        const roots = JSON.parse(result.stdout || "{}").blockdevices || [];
+        const disks = [];
+
+        for (const disk of roots) {
+          if (disk.type !== "disk" || disk.name?.startsWith("zram"))
+            continue;
+          const partitions = [];
+          const collectMounted = node => {
+            const usedBytes = Number(node.fsused) || 0;
+            const availableBytes = Number(node.fsavail) || 0;
+            const totalBytes = usedBytes + availableBytes;
+            if (node.mountpoint && node.mountpoint !== "[SWAP]" && totalBytes > 0) {
+              partitions.push({
+                mountPoint: node.mountpoint,
+                usedKib: usedBytes / 1024,
+                totalKib: totalBytes / 1024,
+                percentage: usedBytes / totalBytes
+              });
+            }
+            for (const child of node.children || [])
+              collectMounted(child);
+          };
+          collectMounted(disk);
+          if (!partitions.length)
+            continue;
+          const diskUsedKib = partitions.reduce((sum, partition) => sum + partition.usedKib, 0);
+          const diskTotalKib = partitions.reduce((sum, partition) => sum + partition.totalKib, 0);
+          disks.push({
+            name: disk.name,
+            partitions,
+            usedKib: diskUsedKib,
+            totalKib: diskTotalKib
+          });
+        }
+
+        root.storageDisks = disks;
+      } catch (error) {
+        Logger.warn("SystemInfo", `Storage parse failed: ${error}`);
       }
-      root.storageUsed = totalUsed;
-      root.storageTotal = totalUsed + totalAvail;
-      root._storageReady = true;
     }, "sysinfo.storage");
-  }
-
-  function fmtPerc(v: real): string {
-    return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : "-";
-  }
-
-  function logSnapshot() {
-    if (_cpuReady)
-      Logger.log("SystemInfo", `CPU: ${fmtPerc(cpuPerc)}${cpuTemp > 0 ? ` @ ${cpuTemp.toFixed(1)}°C` : ""}`);
-    if (_memReady && memTotal > 0)
-      Logger.log("SystemInfo", `Memory: ${Utils.fmtKib(memUsed)} / ${Utils.fmtKib(memTotal)} (${fmtPerc(memPerc)})`);
-    if (_gpuReady)
-      Logger.log("SystemInfo", `GPU: ${fmtPerc(gpuPerc)}${gpuTemp > 0 ? ` @ ${gpuTemp.toFixed(1)}°C` : ""}`);
-    if (_storageReady && storageTotal > 0)
-      Logger.log("SystemInfo", `Storage: ${Utils.fmtKib(storageUsed)} / ${Utils.fmtKib(storageTotal)} (${fmtPerc(storagePerc)})`);
   }
 
   Component.onCompleted: {
@@ -128,7 +153,7 @@ Singleton {
         Logger.log("SystemInfo", `Boot Time: ${root.bootDuration}`);
       }
     });
-    Command.run(["sh", "-c", "command -v nvidia-smi >/dev/null && nvidia-smi -L >/dev/null 2>&1 && echo NVIDIA || (ls /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | grep -q . && echo GENERIC || echo NONE)"], result => root.gpuType = result.stdout.trim());
+    Command.run(["sh", "-c", "command -v nvidia-smi >/dev/null && nvidia-smi -L >/dev/null 2>&1 && echo NVIDIA || (ls /sys/class/drm/card[0-9]/device/gpu_busy_percent 2>/dev/null | grep -q . && echo GENERIC || echo NONE)"], result => root.gpuType = result.stdout.trim());
   }
   onGpuTypeChanged: Logger.log("SystemInfo", `GPU type: ${gpuType}`)
 
@@ -161,7 +186,6 @@ Singleton {
         const perc = 1 - idleDiff / totalDiff;
         if (perc >= 0 && perc <= 1) {
           root.cpuPerc = perc;
-          root._cpuReady = true;
         }
       }
       root._lastCpuTotal = total;
@@ -181,13 +205,12 @@ Singleton {
       if (total > 0 && avail >= 0) {
         root.memTotal = total;
         root.memUsed = total - avail;
-        root._memReady = true;
       }
     }
   }
 
   Timer {
-    interval: root.pollIntervalMs
+    interval: 3000
     repeat: true
     running: root.refCount > 0
     triggeredOnStart: true
@@ -197,12 +220,11 @@ Singleton {
       meminfoFile.reload();
       root._pollGpuUsage();
       root._pollSensors();
-      root.logSnapshot();
     }
   }
 
   Timer {
-    interval: root.storagePollIntervalMs
+    interval: 60000
     repeat: true
     running: root.refCount > 0
     triggeredOnStart: true

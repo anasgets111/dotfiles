@@ -12,7 +12,7 @@ PanelContentBase {
   id: root
 
   readonly property real availableContentHeight: {
-    const usedHeight = weatherWidget.implicitHeight + header.Layout.preferredHeight + root.padding * 2 + 16;
+    const usedHeight = weatherWidget.implicitHeight + systemInfoWidget.implicitHeight + header.Layout.preferredHeight + root.padding * 2 + Theme.spacingSm * 3;
     return Math.max(0, root.maxHeight - usedHeight);
   }
   readonly property real cardHeight: Theme.itemHeight * 5.5
@@ -43,6 +43,16 @@ PanelContentBase {
       Layout.bottomMargin: Theme.spacingSm
       Layout.fillWidth: true
       Layout.margins: root.padding
+    }
+
+    SystemInfoWidget {
+      id: systemInfoWidget
+
+      Layout.bottomMargin: Theme.spacingSm
+      Layout.fillWidth: true
+      Layout.leftMargin: root.padding
+      Layout.rightMargin: root.padding
+      active: root.isOpen
     }
 
     Rectangle {
