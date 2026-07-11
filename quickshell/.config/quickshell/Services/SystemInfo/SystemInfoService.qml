@@ -32,40 +32,21 @@ Singleton {
   }
 
   function _pollGpuUsage(): void {
-    if (root.gpuType === "NONE")
-      return;
-    const command = root.gpuType === "NVIDIA" ? ["nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"] : ["sh", "-c", "for d in /sys/class/drm/card[0-9]/device; do [ -r \"$d/gpu_busy_percent\" ] && printf 'usage ' && cat \"$d/gpu_busy_percent\"; [ -r \"$d/mem_info_vram_used\" ] && [ -r \"$d/mem_info_vram_total\" ] && printf 'memory ' && cat \"$d/mem_info_vram_used\" \"$d/mem_info_vram_total\" | tr '\\n' ' ' && printf '\\n'; done"];
-    Command.run(command, result => {
-      const text = result.stdout;
-      if (root.gpuType === "NVIDIA") {
-        const [usage, temp, memoryUsedMib, memoryTotalMib] = text.trim().split(",").map(s => parseInt(s, 10));
-        if (Number.isFinite(usage)) {
-          root.gpuPerc = usage / 100;
+    Command.run(["nvtop", "-s"], result => {
+      try {
+        // ponytail: the widget shows one GPU; add a selector before supporting multi-GPU hosts.
+        const gpu = JSON.parse(result.stdout)?.[0];
+        if (!gpu) {
+          root.gpuType = "NONE";
+          return;
         }
-        if (Number.isFinite(temp))
-          root.gpuTemp = temp;
-        if (Number.isFinite(memoryUsedMib) && Number.isFinite(memoryTotalMib)) {
-          root.gpuMemUsedKib = memoryUsedMib * 1024;
-          root.gpuMemTotalKib = memoryTotalMib * 1024;
-        }
-      } else if (root.gpuType === "GENERIC") {
-        const usageValues = [];
-        let memoryUsedBytes = 0;
-        let memoryTotalBytes = 0;
-        for (const line of text.trim().split("\n")) {
-          const parts = line.trim().split(/\s+/);
-          if (parts[0] === "usage" && Number.isFinite(Number(parts[1])))
-            usageValues.push(Number(parts[1]));
-          else if (parts[0] === "memory" && Number.isFinite(Number(parts[1])) && Number.isFinite(Number(parts[2]))) {
-            memoryUsedBytes += Number(parts[1]);
-            memoryTotalBytes += Number(parts[2]);
-          }
-        }
-        if (usageValues.length > 0) {
-          root.gpuPerc = usageValues.reduce((a, b) => a + b, 0) / usageValues.length / 100;
-        }
-        root.gpuMemUsedKib = memoryUsedBytes / 1024;
-        root.gpuMemTotalKib = memoryTotalBytes / 1024;
+        root.gpuType = gpu.device_name || "GPU";
+        root.gpuPerc = Math.min((parseFloat(gpu.gpu_util) || 0) / 100, 1);
+        root.gpuTemp = parseFloat(gpu.temp) || 0;
+        root.gpuMemUsedKib = Number(gpu.mem_used) / 1024 || 0;
+        root.gpuMemTotalKib = root.gpuMemUsedKib > 0 ? Number(gpu.mem_total) / 1024 || 0 : 0;
+      } catch (error) {
+        Logger.warn("SystemInfo", `GPU parse failed: ${error}`);
       }
     }, "sysinfo.gpu");
   }
@@ -79,24 +60,6 @@ Singleton {
         if (Number.isFinite(t))
           root.cpuTemp = t;
       }
-      if (root.gpuType !== "GENERIC")
-        return;
-      let inPci = false, sum = 0, count = 0;
-      for (const line of text.split("\n")) {
-        if (line === "Adapter: PCI adapter")
-          inPci = true;
-        else if (line === "")
-          inPci = false;
-        else if (inPci) {
-          const match = line.match(/^(?:temp\d+|GPU core|edge|junction|mem):\s+\+(\d+\.?\d*).C/);
-          if (match) {
-            sum += parseFloat(match[1]);
-            count++;
-          }
-        }
-      }
-      if (count > 0)
-        root.gpuTemp = sum / count;
     }, "sysinfo.sensors");
   }
 
@@ -153,7 +116,6 @@ Singleton {
         Logger.log("SystemInfo", `Boot Time: ${root.bootDuration}`);
       }
     });
-    Command.run(["sh", "-c", "command -v nvidia-smi >/dev/null && nvidia-smi -L >/dev/null 2>&1 && echo NVIDIA || (ls /sys/class/drm/card[0-9]/device/gpu_busy_percent 2>/dev/null | grep -q . && echo GENERIC || echo NONE)"], result => root.gpuType = result.stdout.trim());
   }
   onGpuTypeChanged: Logger.log("SystemInfo", `GPU type: ${gpuType}`)
 

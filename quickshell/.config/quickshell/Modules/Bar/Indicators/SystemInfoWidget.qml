@@ -189,10 +189,12 @@ Item {
             model: SystemInfoService.storageDisks
 
             DiskTile {
+              id: diskDelegate
+
               required property var modelData
 
               Layout.columnSpan: 2
-              disk: modelData
+              disk: diskDelegate.modelData
             }
           }
         }
@@ -331,6 +333,8 @@ Item {
         model: diskTile.disk.partitions
 
         ColumnLayout {
+          id: partitionDelegate
+
           required property var modelData
 
           Layout.fillWidth: true
@@ -345,26 +349,26 @@ Item {
               bold: true
               elide: Text.ElideMiddle
               size: "sm"
-              text: modelData.mountPoint === "/" ? qsTr("Root") : modelData.mountPoint
+              text: partitionDelegate.modelData.mountPoint === "/" ? qsTr("Root") : partitionDelegate.modelData.mountPoint
             }
 
             OText {
               color: Theme.textInactiveColor
               size: "xs"
-              text: `${Utils.fmtKib(modelData.usedKib)} / ${Utils.fmtKib(modelData.totalKib)}`
+              text: `${Utils.fmtKib(partitionDelegate.modelData.usedKib)} / ${Utils.fmtKib(partitionDelegate.modelData.totalKib)}`
             }
 
             OText {
               bold: true
-              color: root.statusColor(modelData.percentage, Theme.textActiveColor)
+              color: root.statusColor(partitionDelegate.modelData.percentage, Theme.textActiveColor)
               size: "sm"
-              text: `${(modelData.percentage * 100).toFixed(0)}%`
+              text: `${(partitionDelegate.modelData.percentage * 100).toFixed(0)}%`
             }
           }
 
           ProgressTrack {
             accentColor: Theme.activeColor
-            progress: modelData.percentage
+            progress: partitionDelegate.modelData.percentage
           }
         }
       }
@@ -402,6 +406,7 @@ Item {
         OText {
           Layout.fillWidth: true
           bold: true
+          elide: Text.ElideRight
           size: "sm"
           text: SystemInfoService.gpuType === "NONE" ? qsTr("GPU") : qsTr("GPU · %1").arg(SystemInfoService.gpuType)
         }
@@ -435,6 +440,7 @@ Item {
       RowLayout {
         Layout.fillWidth: true
         spacing: Theme.spacingSm
+        visible: SystemInfoService.gpuMemTotalKib > 0
 
         OText {
           Layout.preferredWidth: Theme.itemWidth * 1.4
@@ -459,7 +465,8 @@ Item {
       OText {
         color: SystemInfoService.gpuTemp >= 85 ? Theme.critical : SystemInfoService.gpuTemp >= 70 ? Theme.warning : Theme.textInactiveColor
         size: "xs"
-        text: SystemInfoService.gpuTemp > 0 ? qsTr("Temperature %1°C").arg(SystemInfoService.gpuTemp.toFixed(0)) : qsTr("Temperature unavailable")
+        text: qsTr("Temperature %1°C").arg(SystemInfoService.gpuTemp.toFixed(0))
+        visible: SystemInfoService.gpuTemp > 0
       }
     }
   }
