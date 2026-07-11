@@ -1,4 +1,4 @@
-# Base: only write MindClaws colors.json for the shell
+# Base: only write Obelisk colors.json for the shell
 [config]
 
 [templates.Obelisk]

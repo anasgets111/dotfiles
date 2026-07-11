@@ -41,10 +41,6 @@ ColumnLayout {
   signal inputChanged
   signal inputFinished
 
-  function clearFocus(): void {
-    textField.focus = false;
-  }
-
   function forceActiveFocus(): void {
     textField.forceActiveFocus();
   }

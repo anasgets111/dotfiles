@@ -1,7 +1,6 @@
 pragma Singleton
 import Quickshell
 import Quickshell.Io
-import qs.Services
 import qs.Services.Utils
 
 Singleton {
@@ -9,7 +8,7 @@ Singleton {
 
   property string currentLayout: ""
   property int currentLayoutIndex: -1
-  readonly property bool enabled: MainService.currentWM === "niri"
+  property bool enabled: false
   property var layouts: []
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
 

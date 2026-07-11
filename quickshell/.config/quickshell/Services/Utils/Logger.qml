@@ -58,16 +58,6 @@ Singleton {
     root.emit("log", arguments);
   }
 
-  function setIncludeModules(modules: var): void {
-    if (!modules) {
-      root.includeModules = [];
-      return;
-    }
-
-    const normalized = modules.map(moduleName => String(moduleName).trim()).filter(moduleName => moduleName.length > 0);
-    root.includeModules = [...new Set(normalized)];
-  }
-
   function shouldLog(moduleName: var): bool {
     if (!root.enabled)
       return false;

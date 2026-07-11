@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick.Effects
 import qs.Components
+import qs.Config
 import qs.Services.Core
 import qs.Services.WM
 
@@ -124,10 +125,10 @@ Scope {
 
           layer.effect: MultiEffect {
             autoPaddingEnabled: false
-            blur: LockService.blurAmount * stage.backgroundOpacity
+            blur: Settings.data.lockBlurAmount * stage.backgroundOpacity
             blurEnabled: stage.backgroundOpacity > 0
-            blurMax: LockService.blurMax
-            blurMultiplier: LockService.blurMultiplier
+            blurMax: Settings.data.lockBlurMax
+            blurMultiplier: Settings.data.lockBlurMultiplier
           }
         }
 

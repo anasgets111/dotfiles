@@ -94,7 +94,6 @@ Singleton {
   readonly property real inputAmount: _inputAmount
   property var lastUpdated: null
   readonly property string lastUpdatedText: _formatLastUpdated(lastUpdated)
-  readonly property real outputAmount: _outputAmount
   property var rates: ({
       "usd": 1.0
     })

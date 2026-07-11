@@ -105,56 +105,19 @@ Singleton {
     }, "sysinfo.storage");
   }
 
-  function fmtKib(v: real): string {
-    const f = formatKib(v || 0);
-    return `${f.value.toFixed(1)} ${f.unit}`;
-  }
-
   function fmtPerc(v: real): string {
     return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : "-";
-  }
-
-  function formatKib(kib: real): var {
-    const units = [
-      {
-        threshold: 1024 ** 3,
-        unit: "TiB"
-      },
-      {
-        threshold: 1024 ** 2,
-        unit: "GiB"
-      },
-      {
-        threshold: 1024,
-        unit: "MiB"
-      },
-      {
-        threshold: 0,
-        unit: "KiB"
-      }
-    ];
-    for (const u of units) {
-      if (kib >= u.threshold)
-        return {
-          value: u.threshold > 0 ? kib / u.threshold : kib,
-          unit: u.unit
-        };
-    }
-    return {
-      value: kib,
-      unit: "KiB"
-    };
   }
 
   function logSnapshot() {
     if (_cpuReady)
       Logger.log("SystemInfo", `CPU: ${fmtPerc(cpuPerc)}${cpuTemp > 0 ? ` @ ${cpuTemp.toFixed(1)}°C` : ""}`);
     if (_memReady && memTotal > 0)
-      Logger.log("SystemInfo", `Memory: ${fmtKib(memUsed)} / ${fmtKib(memTotal)} (${fmtPerc(memPerc)})`);
+      Logger.log("SystemInfo", `Memory: ${Utils.fmtKib(memUsed)} / ${Utils.fmtKib(memTotal)} (${fmtPerc(memPerc)})`);
     if (_gpuReady)
       Logger.log("SystemInfo", `GPU: ${fmtPerc(gpuPerc)}${gpuTemp > 0 ? ` @ ${gpuTemp.toFixed(1)}°C` : ""}`);
     if (_storageReady && storageTotal > 0)
-      Logger.log("SystemInfo", `Storage: ${fmtKib(storageUsed)} / ${fmtKib(storageTotal)} (${fmtPerc(storagePerc)})`);
+      Logger.log("SystemInfo", `Storage: ${Utils.fmtKib(storageUsed)} / ${Utils.fmtKib(storageTotal)} (${fmtPerc(storagePerc)})`);
   }
 
   Component.onCompleted: {

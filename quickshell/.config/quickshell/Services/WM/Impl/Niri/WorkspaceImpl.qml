@@ -4,7 +4,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
-import qs.Services
 import qs.Services.WM
 
 Singleton {
@@ -18,16 +17,13 @@ Singleton {
       workspaces: []
     })
   readonly property var _layoutState: enabled ? WorkspaceArrangement.buildLayout(normalizedWorkspaces, "", []) : _emptyLayout
-  readonly property int currentWorkspace: focusedWorkspace?.id ?? trackedWorkspaceId
   readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
-  readonly property bool enabled: MainService.currentWM === "niri"
+  property bool enabled: false
   readonly property string focusedOutput: _layoutState.focusedOutput
   readonly property var focusedWorkspace: _layoutState.focusedWorkspace
   readonly property bool fullscreenVisible: enabled && visibleWindowKeys.size > 0 && ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen && visibleWindowKeys.has(root._windowKey(toplevel.appId, toplevel.title)))
-  readonly property list<int> groupBoundaries: _layoutState.groupBoundaries
   readonly property bool hasOverview: true
   property var normalizedWorkspaces: []
-  readonly property list<string> outputsOrder: _layoutState.outputsOrder
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
   property int trackedWorkspaceId: 1
   property var visibleWindowKeys: new Set()

@@ -9,20 +9,12 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  property string audioCodec: ""
-  property string audioSource: "default_output"
-  property string colorRange: ""
   readonly property string directory: String(StandardPaths.writableLocation(StandardPaths.MoviesLocation)).replace(/^file:\/\//, "")
-  property int frameRate: 0
   property bool isPaused: false
   property bool isRecording: false
   readonly property string lockPath: Quickshell.statePath("screen-recording.lock")
   property string monitor: WorkspaceService.focusedOutput
   property string outputPath: ""
-  property string quality: ""
-  property bool recordAudio: true
-  property bool showCursor: true
-  property string videoCodec: ""
 
   signal recordingPaused(string path)
   signal recordingResumed(string path)
@@ -48,24 +40,7 @@ Singleton {
     const filename = TimeService.format("datetime", "yyyyMMdd_HHmmss") + ".mp4";
     const dir = directory.endsWith("/") ? directory : directory + "/";
     outputPath = dir + filename;
-    const args = ["gpu-screen-recorder", ...captureArgs];
-    if (frameRate > 0)
-      args.push("-f", String(frameRate));
-    args.push("-o", outputPath);
-    if (videoCodec)
-      args.push("-k", videoCodec);
-    if (recordAudio && audioSource) {
-      args.push("-a", audioSource);
-      if (audioCodec)
-        args.push("-ac", audioCodec);
-    }
-    if (quality)
-      args.push("-q", quality);
-    args.push("-cursor", showCursor ? "yes" : "no");
-    if (colorRange)
-      args.push("-cr", colorRange);
-
-    Command.detached(args);
+    Command.detached(["gpu-screen-recorder", ...captureArgs, "-o", outputPath, "-a", "default_output", "-cursor", "yes"]);
     Command.detached(["touch", root.lockPath]);
 
     isRecording = true;

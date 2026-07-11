@@ -20,6 +20,28 @@ Singleton {
     Command.detached(["sh", "-c", "printf %s '" + escaped + "' | wl-copy"]);
   }
 
+  function formatKib(kib: real): var {
+    const units = ["TiB", "GiB", "MiB", "KiB"];
+    const thresholds = [1024 ** 3, 1024 ** 2, 1024, 0];
+    for (let index = 0; index < thresholds.length; index++) {
+      const threshold = thresholds[index];
+      if (kib >= threshold)
+        return {
+          value: threshold > 0 ? kib / threshold : kib,
+          unit: units[index]
+        };
+    }
+    return {
+      value: kib,
+      unit: "KiB"
+    };
+  }
+
+  function fmtKib(kib: real): string {
+    const formatted = formatKib(kib || 0);
+    return `${formatted.value.toFixed(1)} ${formatted.unit}`;
+  }
+
   function lookupDesktopEntryName(appId: string): string {
     if (typeof DesktopEntries === "undefined" || !appId)
       return "";

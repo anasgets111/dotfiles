@@ -9,10 +9,6 @@ Singleton {
   id: root
 
   property bool authenticating: false
-  // TODO: move to config/theme
-  readonly property real blurAmount: 0.9
-  readonly property int blurMax: 64
-  readonly property real blurMultiplier: 1
   property int layoutBeforeLockIndex: -1
   property bool locked: false
   property int pamResult: PamResult.Success

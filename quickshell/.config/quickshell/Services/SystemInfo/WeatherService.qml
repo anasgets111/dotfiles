@@ -171,10 +171,6 @@ Singleton {
     updateTimer.start();
   }
 
-  function _isStale(): bool {
-    return !!lastUpdated && (Date.now() - lastUpdated.getTime()) > refreshInterval * 2;
-  }
-
   function refresh(): void {
     if (lastUpdated && (Date.now() - lastUpdated.getTime()) < 30 * 1000)
       return;

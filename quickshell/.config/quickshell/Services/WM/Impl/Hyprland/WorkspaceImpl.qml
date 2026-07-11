@@ -4,7 +4,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import qs.Services
 import qs.Services.WM
 
 Singleton {
@@ -24,15 +23,12 @@ Singleton {
   property int _revision: 0
   readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "fullscreen", "monitoradded", "monitoraddedv2", "monitorremoved", "moveworkspace", "openwindow", "closewindow", "movewindow", "movewindowv2"]
   property string activeSpecial: ""
-  readonly property int currentWorkspace: focusedWorkspace?.id ?? -1
   readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
-  readonly property bool enabled: MainService.currentWM === "hyprland"
+  property bool enabled: false
   readonly property bool fillsEmptyWorkspaceSlots: true
   readonly property string focusedOutput: _layoutState.focusedOutput
   readonly property var focusedWorkspace: _layoutState.focusedWorkspace
   readonly property bool fullscreenVisible: enabled && _revision >= 0 && Array.from(Hyprland.workspaces.values).some(ws => ws.active && ws.hasFullscreen)
-  readonly property var groupBoundaries: _layoutState.groupBoundaries
-  readonly property var outputsOrder: _layoutState.outputsOrder
   readonly property var specialWorkspaces: _layoutState.specialWorkspaces
   readonly property bool supportsSpecialWorkspaces: true
   readonly property var workspaces: _layoutState.workspaces

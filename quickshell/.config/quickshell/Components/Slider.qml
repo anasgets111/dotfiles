@@ -55,7 +55,6 @@ Item {
   Item {
     id: track
 
-    readonly property real basePart: Math.min(eff, s)
     readonly property real eff: Math.max(0, Math.min(1, slider.dragging ? slider.pending : slider.value))
     readonly property real s: Math.max(0, Math.min(1, slider.splitAt))
 

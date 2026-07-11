@@ -247,4 +247,16 @@ Singleton {
 
     target: root.backend
   }
+
+  Binding {
+    property: "enabled"
+    target: Hyprland.MonitorImpl
+    value: root.backend === Hyprland.MonitorImpl
+  }
+
+  Binding {
+    property: "enabled"
+    target: Niri.MonitorImpl
+    value: root.backend === Niri.MonitorImpl
+  }
 }

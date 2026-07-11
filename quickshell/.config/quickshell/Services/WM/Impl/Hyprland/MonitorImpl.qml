@@ -1,12 +1,11 @@
 pragma Singleton
 import Quickshell
 import Quickshell.Hyprland
-import qs.Services
 
 Singleton {
   id: root
 
-  readonly property bool enabled: MainService.currentWM === "hyprland"
+  property bool enabled: false
 
   signal featuresChanged
 

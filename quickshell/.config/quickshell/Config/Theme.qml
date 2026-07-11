@@ -86,7 +86,6 @@ Singleton {
   // ═══════════════════════════════════════════════════════════════════════════
   // SCALING
   // ═══════════════════════════════════════════════════════════════════════════
-  readonly property real baseScale: internal.scaleFactor
   readonly property int baseVolumeExpandedWidth: 220
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -107,7 +106,6 @@ Singleton {
   readonly property color borderStrong: c.borderStrong ?? withOpacity(borderColor, opacityDisabled)
   readonly property color borderSubtle: c.borderSubtle ?? withOpacity(borderColor, 0.22)
   readonly property int borderWidthMedium: 2
-  readonly property int borderWidthThick: 3
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BORDER
@@ -127,16 +125,12 @@ Singleton {
   // Control Heights
   readonly property int controlHeightXs: s(24, 20)
   readonly property int controlWidthLg: s(48, 40)
-  readonly property int controlWidthMd: s(baseItemWidth, 28)
   readonly property int controlWidthSm: s(32, 24)
-  readonly property int controlWidthXl: s(64, 52)
 
   // Control Widths
-  readonly property int controlWidthXs: s(24, 20)
   readonly property color critical: c.critical ?? "#f38ba8"
   readonly property int dialogPadding: s(20)
   readonly property int dialogWidth: s(450)
-  readonly property real dialogWidthRatio: internal.isUltrawide ? 0.45 : 0.6
   readonly property color disabledColor: c.disabledColor ?? "#232634"
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -148,11 +142,6 @@ Singleton {
   readonly property int fontMd: s(14, 12)
   readonly property int fontSize: s(baseFontSize, 10)
   readonly property int fontSm: s(12, 10)
-  readonly property int fontWeightBold: Font.Bold
-  readonly property int fontWeightLight: Font.Light
-  readonly property int fontWeightMedium: Font.Medium
-  readonly property int fontWeightNormal: Font.Normal
-  readonly property int fontWeightSemiBold: Font.DemiBold
   readonly property int fontXl: s(20, 16)
 
   // Font Sizes
@@ -183,8 +172,6 @@ Singleton {
   readonly property int launcherWindowWidth: s(741)
 
   // Lock Screen
-  readonly property int lockCardContentWidth: Math.round(400 * baseScale * lockScale)
-  readonly property int lockCardMaxWidth: Math.round(500 * baseScale * lockScale)
   readonly property real lockScale: internal.lockScale
 
   // Notifications
@@ -226,12 +213,6 @@ Singleton {
   readonly property int radiusSm: s(6, 4)
   readonly property int radiusXl: s(40, 20)
   readonly property int radiusXs: s(3, 2)
-  readonly property real scaleExtraLarge: 1.5
-  readonly property real scaleLarge: 1.2
-  readonly property real scaleMedium: 0.9
-  readonly property real scaleMediumSmall: 0.8
-  readonly property real scaleNormal: 1.0
-
   // ═══════════════════════════════════════════════════════════════════════════
   // SCALE PRESETS
   // ═══════════════════════════════════════════════════════════════════════════
@@ -243,7 +224,6 @@ Singleton {
   // ═══════════════════════════════════════════════════════════════════════════
   // SHADOW
   // ═══════════════════════════════════════════════════════════════════════════
-  readonly property int shadowBlurSm: 8
   readonly property color shadowColor: withOpacity(c.shadowColor ?? "#000000", 0.2)
   readonly property color shadowColorStrong: withOpacity(c.shadowColorStrong ?? "#000000", 0.55)
   readonly property int shadowOffsetY: 2
@@ -258,7 +238,6 @@ Singleton {
   readonly property color textDisabled: c.textDisabled ?? withOpacity(textInactiveColor, opacityMedium)
   readonly property color textInactiveColor: c.textInactiveColor ?? "#a6adc8"
   readonly property color textOnHoverColor: c.textOnHoverColor ?? "#cba6f7"
-  readonly property int tooltipMaxSpace: 100
   readonly property int volumeExpandedWidth: s(baseVolumeExpandedWidth, 140)
   readonly property color warning: c.warning ?? "#fab387"
 
@@ -325,7 +304,6 @@ Singleton {
       return isUltrawide ? 1.1 : 1.0;
     }
     readonly property var mainScreen: MonitorService?.activeMainScreen ?? null
-    readonly property real normalizedDiagonal: isUltrawide ? height * 1.87 : Math.sqrt(width * width + height * height)
     readonly property real scaleFactor: {
       // Calculate perceived height to avoid double-scaling on high-DPI screens.
       // Example: 4K (2160p) at 2x -> 1080 effective height.

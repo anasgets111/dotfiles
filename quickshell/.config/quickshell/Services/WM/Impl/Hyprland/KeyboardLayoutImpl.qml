@@ -2,7 +2,6 @@ pragma Singleton
 import QtQml
 import Quickshell
 import Quickshell.Hyprland
-import qs.Services
 import qs.Services.Utils
 
 Singleton {
@@ -10,7 +9,7 @@ Singleton {
 
   property string currentLayout: ""
   property int currentLayoutIndex: -1
-  readonly property bool enabled: MainService.currentWM === "hyprland"
+  property bool enabled: false
   property string keyboardDeviceName: ""
   property var layouts: []
 

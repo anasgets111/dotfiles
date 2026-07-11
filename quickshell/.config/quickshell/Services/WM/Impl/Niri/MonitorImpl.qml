@@ -1,13 +1,12 @@
 pragma Singleton
 import Quickshell
 import Quickshell.Io
-import qs.Services
 
 Singleton {
   id: root
 
   property var _replyQueue: []
-  readonly property bool enabled: MainService.currentWM === "niri"
+  property bool enabled: false
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") || ""
 
   signal featuresChanged
@@ -48,19 +47,6 @@ Singleton {
     }
   }
 
-  function send(request: var, callback: var): void {
-    sendRaw(JSON.stringify(request), callback);
-  }
-
-  function sendOutputAction(outputName: string, action: var, callback: var): void {
-    send({
-      Output: {
-        output: outputName,
-        action
-      }
-    }, callback);
-  }
-
   function sendRaw(message: string, callback: var): void {
     if (!requestSocket.connected) {
       if (callback)
@@ -69,71 +55,6 @@ Singleton {
     }
     _replyQueue.push(callback || (() => {}));
     requestSocket.write(message.endsWith("\n") ? message : `${message}\n`);
-  }
-
-  function setMode(outputName: string, width: int, height: int, refreshRate: real): void {
-    sendOutputAction(outputName, {
-      Mode: {
-        mode: {
-          Specific: {
-            width,
-            height,
-            refresh: refreshRate
-          }
-        }
-      }
-    }, () => featuresChanged());
-  }
-
-  function setPosition(outputName: string, positionX: int, positionY: int): void {
-    sendOutputAction(outputName, {
-      Position: {
-        position: {
-          Specific: {
-            x: positionX,
-            y: positionY
-          }
-        }
-      }
-    }, () => featuresChanged());
-  }
-
-  function setScale(outputName: string, scale: real): void {
-    sendOutputAction(outputName, {
-      Scale: {
-        scale: {
-          Specific: scale
-        }
-      }
-    }, () => featuresChanged());
-  }
-
-  function setTransform(outputName: string, transform: string): void {
-    sendOutputAction(outputName, {
-      Transform: {
-        transform
-      }
-    }, () => featuresChanged());
-  }
-
-  function setVrr(outputName: string, mode: string): void {
-    const normalizedMode = String(mode || "").toLowerCase();
-    const vrr = normalizedMode === "on-demand" || normalizedMode === "ondemand" ? {
-      vrr: true,
-      on_demand: true
-    } : normalizedMode === "on" || normalizedMode === "enabled" ? {
-      vrr: true,
-      on_demand: false
-    } : {
-      vrr: false,
-      on_demand: false
-    };
-
-    sendOutputAction(outputName, {
-      Vrr: {
-        vrr
-      }
-    }, () => featuresChanged());
   }
 
   Socket {

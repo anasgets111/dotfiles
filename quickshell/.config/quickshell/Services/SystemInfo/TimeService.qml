@@ -1,20 +1,13 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import qs.Services.Utils
 
 Singleton {
   id: dateTime
 
-  property bool internalNtpEnabled: false
-  property bool internalNtpSynced: false
-  property string internalTimeZone: ""
   readonly property var minuteNow: minuteClock.date
   readonly property var now: clock.date
-  readonly property bool ntpEnabled: internalNtpEnabled
-  readonly property bool ntpSynced: internalNtpSynced
   property int precision: SystemClock.Seconds
-  readonly property string timeZone: internalTimeZone
   property bool use24Hour: false
   property int weekStart: Qt.locale().firstDayOfWeek
 
@@ -54,26 +47,9 @@ Singleton {
     return Qt.formatTime(clock.date, "h:mm:ss AP");
   }
 
-  function toggle24Hour() {
-    use24Hour = !use24Hour;
-  }
-
-  function toggleSeconds() {
-    precision = precision === SystemClock.Seconds ? SystemClock.Minutes : SystemClock.Seconds;
-  }
-
   Component.onCompleted: {
     if (weekStart < 1 || weekStart > 7)
       weekStart = 7;
-    Command.run(["sh", "-c", "timedatectl show -P Timezone -P NTP -P NTPSynchronized"], result => {
-      const vals = result.stdout.trim().split(/\r?\n/);
-      if (vals.length === 3) {
-        dateTime.internalTimeZone = vals[0];
-        dateTime.internalNtpEnabled = vals[1].toLowerCase() === "yes";
-        dateTime.internalNtpSynced = vals[2].toLowerCase() === "yes";
-      }
-    });
-    Logger.log("TimeService", "Ready");
   }
 
   SystemClock {

@@ -14,15 +14,12 @@ Singleton {
   // ═══════════════════════════════════════════════════════════════════════════
   readonly property string _colorSchemePath: Qt.resolvedUrl("../Assets/ColorScheme/" + (root.data?.themeName ?? "Catppuccin") + ".json")
   property var _loadedScheme: ({})
-  readonly property string _xdgCache: Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")
   readonly property string _xdgConfig: Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
   property list<string> availableThemes: []
   property string cacheDir: Quickshell.env("OBELISK_CACHE_DIR") || (Quickshell.env("XDG_CACHE_HOME") || Quickshell.env("HOME") + "/.cache") + "/" + shellName + "/"
-  property string cacheDirImages: cacheDir + "images/"
   readonly property var colors: _loadedScheme?.[root.data?.themeMode ?? "dark"] ?? {}
   property string configDir: Quickshell.env("OBELISK_CONFIG_DIR") || (_xdgConfig + "/" + shellName + "/")
   property alias data: settingsAdapter
-  property string defaultAvatar: Quickshell.env("HOME") + "/.face"
   property string defaultWallpaper: Qt.resolvedUrl("../Assets/3.webp")
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -67,7 +64,7 @@ Singleton {
   // INITIALIZATION
   // ═══════════════════════════════════════════════════════════════════════════
   Component.onCompleted: {
-    Command.detached(["mkdir", "-p", configDir, cacheDir, cacheDirImages]);
+    Command.detached(["mkdir", "-p", configDir, cacheDir]);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -120,8 +117,6 @@ Singleton {
   JsonAdapter {
     id: settingsAdapter
 
-    property JsonObject appLauncher: JsonObject {
-    }
     property JsonObject idleService: JsonObject {
       property bool dpmsEnabled: true
       property int dpmsTimeoutSec: 30
@@ -140,6 +135,9 @@ Singleton {
       property real positionYRatio: 0.74
       property bool showPrintableKeys: false
     }
+    property real lockBlurAmount: 0.9
+    property int lockBlurMax: 64
+    property real lockBlurMultiplier: 1.0
     property int overviewBlurMax: 64
     property real overviewBlurMultiplier: 2.0
     property real overviewBlurStrength: 0.6

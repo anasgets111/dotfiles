@@ -10,21 +10,17 @@ Singleton {
   id: root
 
   property string _ppdRaw: ""
-  property string _tlpRaw: ""
   property string cpuGovernor: "Unknown"
   property string energyPerformance: "Unknown"
   readonly property bool hasPPD: _ppdRaw !== ""
-  readonly property bool hasTlp: _tlpRaw !== ""
   readonly property bool isLaptop: BatteryService.isLaptopBattery
   property int kbdOnAC: 3
   property int kbdOnBattery: 1
   property int onACBrightness: 100
   readonly property bool onBattery: BatteryService.isOnBattery
   property int onBatteryBrightness: 10
-  readonly property string platformInfo: "Platform: " + platformProfile
   property string platformProfile: "Unknown"
-  readonly property string ppdInfo: "PPD: " + ppdProfile
-  readonly property string ppdProfile: hasPPD ? _ppdRaw : (hasTlp ? _tlpRaw : "Unknown")
+  readonly property string ppdProfile: hasPPD ? _ppdRaw : "Unknown"
 
   function adjustBrightness(): void {
     if (!isLaptop)
@@ -49,13 +45,6 @@ Singleton {
 
   function refreshPowerInfo(): void {
     refreshDebounce.restart();
-  }
-
-  function setPowerProfile(profile: string): void {
-    if (hasPPD)
-      Command.run(["powerprofilesctl", "set", profile], () => root.refreshPowerInfo(), "power.setProfile");
-    else if (hasTlp)
-      Command.run(["tlpctl", profile], () => root.refreshPowerInfo(), "power.setProfile");
   }
 
   function suspend(): void {
@@ -86,10 +75,8 @@ Singleton {
       platformFile.reload();
       governorFile.reload();
       eppFile.reload();
-      if (root.isLaptop) {
-        Command.run(["sh", "-c", "powerprofilesctl get 2>/dev/null"], result => root._ppdRaw = result.stdout.trim(), "power.ppd");
-        Command.run(["sh", "-c", "tlpctl get 2>/dev/null"], result => root._tlpRaw = result.stdout.trim(), "power.tlp");
-      }
+      if (root.isLaptop)
+        Command.run(["powerprofilesctl", "get"], result => root._ppdRaw = result.stdout.trim(), "power.ppd");
     }
   }
 

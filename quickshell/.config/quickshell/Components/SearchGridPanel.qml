@@ -37,7 +37,6 @@ Item {
   }
   property int maxResults: 200
   property string placeholderText: qsTr("Type to search")
-  property alias searchInput: searchField
   property var searchSelector: function (item) {
     const label = root.callSelector(root.labelSelector, item) || "";
     const comment = item?.comment || "";

@@ -5,6 +5,7 @@ import QtQuick.Controls
 import qs.Components
 import qs.Config
 import qs.Services.SystemInfo
+import qs.Services.Utils
 
 PanelContentBase {
   id: root
@@ -188,7 +189,7 @@ PanelContentBase {
           OText {
             opacity: 0.8
             size: "sm"
-            text: qsTr("Total download: %1").arg(SystemInfoService.fmtKib(UpdateService.totalDownloadSize))
+            text: qsTr("Total download: %1").arg(Utils.fmtKib(UpdateService.totalDownloadSize))
           }
         }
 

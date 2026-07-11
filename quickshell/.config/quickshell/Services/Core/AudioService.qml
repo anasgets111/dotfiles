@@ -34,7 +34,6 @@ Singleton {
   readonly property var sourceModels: buildAudioDevices(sources, source)
   readonly property string sourceName: displayName(source)
   readonly property list<PwNode> sources: _audioNodes.filter(node => !node.isStream && !node.isSink)
-  readonly property real stepVolume: 0.05
   readonly property var streamModels: buildStreamModels()
   readonly property list<PwNode> streams: _audioNodes.filter(node => node.isStream)
   readonly property real volume: audioVolume(sink)
@@ -135,10 +134,6 @@ Singleton {
     return Math.max(0, Math.min(maximum, volume));
   }
 
-  function decreaseVolume(): void {
-    setVolume(root.volume - root.stepVolume);
-  }
-
   function deviceIconFor(node: var): string {
     if (!node)
       return "";
@@ -177,10 +172,6 @@ Singleton {
 
   function hasControllableAudio(node: var): bool {
     return !!node?.ready && !!node?.audio;
-  }
-
-  function increaseVolume(): void {
-    setVolume(root.volume + root.stepVolume);
   }
 
   function nodeApplicationIconName(node: var): string {
