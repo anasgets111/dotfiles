@@ -15,6 +15,7 @@ Singleton {
   readonly property bool canPause: active?.canPause ?? false
   readonly property bool canPlay: active?.canPlay ?? false
   readonly property bool canSeek: active?.canSeek ?? false
+  readonly property bool canTogglePlaying: active?.canTogglePlaying ?? false
   readonly property bool hasActive: !!active
   readonly property bool hasPlayingVideo: players.some(player => player?.playbackState === MprisPlaybackState.Playing && logic.isVideo(player))
   readonly property bool isPlaying: active?.isPlaying ?? false
@@ -24,43 +25,55 @@ Singleton {
   readonly property string trackArtUrl: active?.trackArtUrl ?? ""
   readonly property string trackArtist: active?.trackArtist ?? ""
   readonly property real trackLength: {
+    if (!active?.lengthSupported)
+      return 0;
     const rawLength = active?.length ?? 0;
-    return rawLength < 9e12 ? rawLength : 0;
+    return Number.isFinite(rawLength) && rawLength > 0 && rawLength < 9e12 ? rawLength : 0;
   }
   readonly property string trackTitle: active?.trackTitle ?? ""
 
   function next(): void {
-    active?.next();
+    if (canGoNext)
+      active.next();
   }
 
   function pause(): void {
-    active?.pause();
+    if (canPause)
+      active.pause();
   }
 
   function play(): void {
-    active?.play();
+    if (canPlay)
+      active.play();
   }
 
   function playPause(): void {
-    active?.isPlaying ? active?.pause() : active?.play();
+    if (canTogglePlaying)
+      active.togglePlaying();
   }
 
   function previous(): void {
-    active?.previous();
+    if (canGoPrevious)
+      active.previous();
   }
 
   function seek(position: real): void {
-    if (canSeek && active)
-      logic.safeSeek(active, position - active.position);
+    if (!canSeek || !active?.positionSupported || !Number.isFinite(position))
+      return;
+    const target = trackLength > 0 ? Math.max(0, Math.min(trackLength, position)) : Math.max(0, position);
+    logic.safeSeek(active, target - active.position);
   }
 
   function seekByRatio(positionRatio: real): void {
-    if (canSeek && trackLength > 0 && active)
-      logic.safeSeek(active, positionRatio * trackLength - active.position);
+    if (!canSeek || !active?.positionSupported || !active?.lengthSupported || trackLength <= 0 || !Number.isFinite(positionRatio))
+      return;
+    const ratio = Math.max(0, Math.min(1, positionRatio));
+    logic.safeSeek(active, ratio * trackLength - active.position);
   }
 
   function stop(): void {
-    active?.stop();
+    if (active?.canControl)
+      active.stop();
   }
 
   PwObjectTracker {
@@ -99,7 +112,7 @@ Singleton {
     }
 
     function safeSeek(player: var, deltaPosition: real): void {
-      if (Math.abs(deltaPosition) > 0.005)
+      if (Number.isFinite(deltaPosition) && Math.abs(deltaPosition) > 0.005)
         player.seek(deltaPosition);
     }
   }

@@ -6,7 +6,6 @@ import qs.Services.WM.Impl.Hyprland as Hypr
 import qs.Services.WM.Impl.Niri as Niri
 
 Singleton {
-  readonly property string activeSpecial: backend?.activeSpecial ?? ""
   readonly property var backend: MainService.currentWM === "hyprland" ? Hypr.WorkspaceImpl : MainService.currentWM === "niri" ? Niri.WorkspaceImpl : null
   readonly property int currentWorkspaceIndex: backend?.currentWorkspaceIndex ?? -1
   readonly property var displayWorkspaces: WorkspaceArrangement.buildDisplayWorkspaces(workspaces, currentWorkspaceIndex, backend?.fillsEmptyWorkspaceSlots ?? false, 10)

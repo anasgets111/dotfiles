@@ -1,8 +1,6 @@
 pragma Singleton
 import Quickshell
 import Quickshell.Services.UPower
-import qs.Services
-import qs.Services.Core
 import qs.Services.SystemInfo
 import qs.Services.Utils
 
@@ -20,7 +18,7 @@ Singleton {
   readonly property bool isLowAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= 0.2
   readonly property bool isOnBattery: UPower.onBattery
   readonly property bool isPendingCharge: deviceState === UPowerDeviceState.PendingCharge
-  readonly property bool isReady: MainService.isLaptop && isLaptopBattery
+  readonly property bool isReady: isLaptopBattery
   readonly property bool isSuspendingAndNotCharging: isLaptopBattery && isOnBattery && percentageFraction <= suspendThreshold
   readonly property int percentage: Math.round(percentageFraction * 100)
   readonly property real percentageFraction: Math.max(0, Math.min(device?.percentage ?? 0, 1))
@@ -63,6 +61,4 @@ Singleton {
     const msg = isReady ? `Battery ready: ${device?.nativePath ?? "(no path)"}, ${percentage}%` : "Battery device lost";
     Logger.log("BatteryService", msg);
   }
-  onIsSuspendingAndNotChargingChanged: if (isSuspendingAndNotCharging)
-    PowerManagementService.suspend()
 }

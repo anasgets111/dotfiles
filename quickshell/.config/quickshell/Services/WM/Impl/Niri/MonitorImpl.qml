@@ -1,6 +1,6 @@
 pragma Singleton
+import QtQuick
 import Quickshell
-import Quickshell.Io
 
 Singleton {
   id: root
@@ -12,11 +12,11 @@ Singleton {
 
   function fetchFeatures(outputName: string, callback: var): void {
     sendRaw('"Outputs"', response => {
-      const outputs = response?.Ok && Array.isArray(response.Ok) ? response.Ok : null;
-      if (!outputs)
+      const outputs = response?.Ok?.Outputs;
+      if (!outputs || typeof outputs !== "object")
         return callback(null);
 
-      const output = outputs.find(candidate => candidate?.name === outputName);
+      const output = outputs[outputName] ?? Object.values(outputs).find(candidate => candidate?.name === outputName);
       if (!output)
         return callback(null);
 
@@ -25,15 +25,21 @@ Singleton {
             height: mode.height,
             refreshRate: typeof mode.refresh_rate === "number" ? mode.refresh_rate / 1000 : null
           }));
+      const currentMode = Number.isInteger(output.current_mode) ? modes[output.current_mode] : null;
 
       callback({
+        bitDepth: typeof output.max_bpc === "number" ? output.max_bpc : null,
+        fps: currentMode?.refreshRate ?? null,
         modes,
         vrr: {
+          supported: !!output.vrr_supported,
           active: !!output.vrr_enabled
         },
         hdr: {
+          supported: false,
           active: false
-        }
+        },
+        mirror: false
       });
     });
   }
@@ -54,56 +60,42 @@ Singleton {
     }
     _replyQueue.push(callback || (() => {}));
     requestSocket.write(message.endsWith("\n") ? message : `${message}\n`);
+    requestSocket.flush();
   }
 
-  Socket {
+  NiriSocket {
     id: requestSocket
 
-    connected: !!root.socketPath
     path: root.socketPath
 
-    parser: SplitParser {
-      splitMarker: "\n"
-
-      onRead: message => {
-        if (!message)
-          return;
+    onConnectedChanged: {
+      if (connected) {
+        root.featuresChanged();
+        return;
+      }
+      while (root._replyQueue.length) {
         const callback = root._replyQueue.shift();
         if (callback)
-          callback(root.parseJson(message));
+          callback(null);
       }
     }
-
-    onConnectionStateChanged: {
-      if (!connected) {
-        while (root._replyQueue.length) {
-          const callback = root._replyQueue.shift();
-          if (callback)
-            callback(null);
-        }
-      }
+    onLineRead: message => {
+      if (!message)
+        return;
+      const callback = root._replyQueue.shift();
+      if (callback)
+        callback(root.parseJson(message));
     }
   }
 
-  Socket {
-    id: eventStreamSocket
-
-    connected: !!root.socketPath
+  NiriSocket {
+    eventStream: true
     path: root.socketPath
 
-    parser: SplitParser {
-      splitMarker: "\n"
-
-      onRead: message => {
-        const event = message && root.parseJson(message);
-        if (event?.ConfigLoaded)
-          root.featuresChanged();
-      }
-    }
-
-    onConnectionStateChanged: {
-      if (connected)
-        write('"EventStream"\n');
+    onLineRead: message => {
+      const event = message && root.parseJson(message);
+      if (event?.ConfigLoaded)
+        root.featuresChanged();
     }
   }
 }

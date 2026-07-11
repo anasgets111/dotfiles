@@ -19,12 +19,15 @@ Singleton {
     Quickshell.execDetached(argv);
   }
 
-  function run(argv: var, callback: var, lane: var): void {
+  // Returns a {cancel()} handle, or null when the lane is already busy.
+  // Cancelling kills the process and suppresses the callback; `stdinText`
+  // is written once on start (for secrets that must not appear in argv).
+  function run(argv: var, callback: var, lane: var, stdinText: var): var {
     let idle = null;
     for (let i = 0; i < root._pool.length; i++) {
       const candidate = root._pool[i];
       if (lane && candidate._busy && candidate._lane === lane)
-        return;
+        return null;
       if (!candidate._busy && !idle)
         idle = candidate;
     }
@@ -36,9 +39,20 @@ Singleton {
     idle._busy = true;
     idle._callback = callback ?? null;
     idle._lane = lane ?? "";
+    idle._stdin = stdinText ?? "";
+    idle._runId++;
     idle.command = argv;
     idle.stdinEnabled = true;
     idle.running = true;
+
+    const proc = idle;
+    const runId = idle._runId;
+    return {
+      cancel: () => {
+        if (proc._busy && proc._runId === runId)
+          proc.cancelRun();
+      }
+    };
   }
 
   Component {
@@ -48,7 +62,15 @@ Singleton {
       property bool _busy: false
       property var _callback
       property string _lane
+      property int _runId: 0
       property bool _started: false
+      property string _stdin: ""
+
+      function cancelRun(): void {
+        _callback = null;
+        _stdin = "";
+        running = false;
+      }
 
       function _finish(exitCode: int): void {
         const callback = _callback;
@@ -61,6 +83,7 @@ Singleton {
         _callback = null;
         _lane = "";
         _started = false;
+        _stdin = "";
         if (callback)
           callback(result);
       }
@@ -76,6 +99,10 @@ Singleton {
         _finish(-1)
       onStarted: {
         _started = true;
+        if (_stdin) {
+          write(_stdin);
+          _stdin = "";
+        }
         stdinEnabled = false;
       }
       onExited: exitCode => _finish(exitCode)

@@ -1,9 +1,9 @@
 // Fzf for JavaScript (QML port for Quickshell)
 // BSD 3-Clause License - Copyright (c) 2021, Ajit
 pragma Singleton
-import QtQuick
+import Quickshell
 
-QtObject {
+Singleton {
   id: root
 
   readonly property int asciiMax: 127
@@ -98,7 +98,8 @@ QtObject {
       options: settings,
       items: Array.isArray(list) ? list : []
     };
-    finderInstance.runesByItem = finderInstance.items.map(item => root.stringToRunes(settings.selector(item)));
+    finderInstance.textByItem = finderInstance.items.map(item => String(settings.selector(item) ?? ""));
+    finderInstance.runesByItem = finderInstance.textByItem.map(text => root.stringToRunes(text));
     finderInstance.find = query => root.find(finderInstance, String(query ?? ""));
     return finderInstance;
   }
@@ -138,7 +139,7 @@ QtObject {
       if (patternRunes.length > inputRunes.length)
         continue;
 
-      const [match, positions] = root.fuzzyMatchV2(caseSensitive, inputRunes, patternRunes, true);
+      const [match, positions] = root.isAscii(inputRunes) && root.isAscii(patternRunes) ? root.fuzzyMatchV2(caseSensitive, inputRunes, patternRunes, true) : root.fuzzyMatchUnicode(caseSensitive, finderInstance.textByItem[itemIndex], query);
       if (match.start !== -1)
         results.push(Object.assign({
           item: items[itemIndex],
@@ -149,6 +150,52 @@ QtObject {
     if (options.sort)
       root.sortResults(results, options);
     return Number.isFinite(options.limit) ? results.slice(0, options.limit) : results;
+  }
+
+  function fuzzyMatchUnicode(caseSensitive: bool, inputText: string, patternText: string): var {
+    // ponytail: Unicode fallback uses locale-aware subsequence scoring rather than
+    // full fzf normalization. Upgrade only if localized ranking needs exact parity.
+    const input = Array.from(caseSensitive ? inputText : inputText.toLocaleLowerCase());
+    const pattern = Array.from(caseSensitive ? patternText : patternText.toLocaleLowerCase());
+    if (pattern.length === 0)
+      return [{
+          start: 0,
+          end: 0,
+          score: 0
+        }, new Set()];
+
+    const positions = new Set();
+    let inputIndex = 0;
+    let firstIndex = -1;
+    let previousIndex = -2;
+    let score = 0;
+
+    for (const character of pattern) {
+      while (inputIndex < input.length && input[inputIndex] !== character)
+        inputIndex++;
+      if (inputIndex >= input.length)
+        return root.failedMatch();
+
+      if (firstIndex < 0)
+        firstIndex = inputIndex;
+      const previousCharacter = inputIndex > 0 ? input[inputIndex - 1] : "";
+      const atBoundary = inputIndex === 0 || previousCharacter.toLocaleUpperCase() === previousCharacter.toLocaleLowerCase();
+      score += root.scoreMatch;
+      if (inputIndex === previousIndex + 1)
+        score += root.bonusConsecutive;
+      else if (atBoundary)
+        score += root.bonusBoundary;
+      score += root.scoreGapExtension * Math.max(0, inputIndex - previousIndex - 1);
+      positions.add(inputIndex);
+      previousIndex = inputIndex;
+      inputIndex++;
+    }
+
+    return [{
+        start: firstIndex,
+        end: previousIndex + 1,
+        score
+      }, positions];
   }
 
   function fuzzyMatchV2(caseSensitive: bool, input: var, pattern: var, withPositions: bool): var {

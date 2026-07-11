@@ -8,6 +8,9 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  property var _codecRevisions: ({})
+  property var _codecSwitchActive: ({})
+  property var _pendingCodecProfiles: ({})
   property int _revision: 0
   readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
   readonly property var audioKeywords: ["headset", "audio", "headphone", "airpod", "arctis", "speaker"]
@@ -16,42 +19,42 @@ Singleton {
       LDAC: {
         name: "LDAC",
         desc: "Highest quality",
-        color: "#4CAF50"
+        qualityTier: "best"
       },
       APTX_HD: {
         name: "aptX HD",
         desc: "High quality",
-        color: "#FF9800"
+        qualityTier: "high"
       },
       APTX: {
         name: "aptX",
         desc: "Good quality",
-        color: "#FF9800"
+        qualityTier: "high"
       },
       AAC: {
         name: "AAC",
         desc: "Balanced",
-        color: "#2196F3"
+        qualityTier: "balanced"
       },
       SBC_XQ: {
         name: "SBC-XQ",
         desc: "Enhanced SBC",
-        color: "#2196F3"
+        qualityTier: "balanced"
       },
       SBC: {
         name: "SBC",
         desc: "Basic",
-        color: "#9E9E9E"
+        qualityTier: "basic"
       },
       MSBC: {
         name: "mSBC",
         desc: "Speech",
-        color: "#9E9E9E"
+        qualityTier: "basic"
       },
       CVSD: {
         name: "CVSD",
         desc: "Legacy speech",
-        color: "#9E9E9E"
+        qualityTier: "basic"
       }
     })
   property string connectAfterPairAddress: ""
@@ -68,6 +71,12 @@ Singleton {
 
   function _bumpRevision(): void {
     root._revision++;
+  }
+
+  function _nextCodecRevision(address: string): int {
+    const revision = (root._codecRevisions[address] ?? 0) + 1;
+    root._codecRevisions[address] = revision;
+    return revision;
   }
 
   function _parseCodecs(output: string, cardName: string): var {
@@ -100,13 +109,56 @@ Singleton {
           name: codecInfo.name,
           profile,
           description: codecInfo.desc,
-          qualityColor: codecInfo.color
+          qualityTier: codecInfo.qualityTier
         });
     }
     return {
       parsedCodecs,
       activeProfile
     };
+  }
+
+  function _fetchCodecs(address: string, fullScan: bool, revision: int): void {
+    const cardName = root.bluezCardName(address);
+    Command.run(["pactl", "list", "cards"], result => {
+      if (root._codecRevisions[address] !== revision)
+        return;
+      if (!root.deviceForAddress(address)?.connected) {
+        root.cleanupCodecData(address);
+        return;
+      }
+      const parsed = root._parseCodecs(result.stdout, cardName);
+      if (fullScan) {
+        root.deviceAvailableCodecs[address] = parsed.parsedCodecs;
+        root.deviceAvailableCodecsChanged();
+      }
+      const activeCodec = parsed.parsedCodecs.find(codec => codec.profile === parsed.activeProfile);
+      root.deviceCodecs[address] = activeCodec?.name ?? "";
+      root.deviceCodecsChanged();
+    });
+  }
+
+  function _runPendingCodecSwitch(address: string): void {
+    if (root._codecSwitchActive[address])
+      return;
+    const profile = root._pendingCodecProfiles[address] ?? "";
+    if (!profile)
+      return;
+    root._pendingCodecProfiles[address] = "";
+    root._codecSwitchActive[address] = true;
+    Command.run(["pactl", "set-card-profile", root.bluezCardName(address), profile], () => {
+      root._codecSwitchActive[address] = false;
+      if (!root.deviceForAddress(address)?.connected) {
+        root.cleanupCodecData(address);
+        return;
+      }
+      if (root._pendingCodecProfiles[address]) {
+        root._runPendingCodecSwitch(address);
+        return;
+      }
+      const revision = root._nextCodecRevision(address);
+      Qt.callLater(() => root._fetchCodecs(address, false, revision));
+    }, `bt.codecSwitch.${address}`);
   }
 
   function bluezCardName(address: string): string {
@@ -134,6 +186,8 @@ Singleton {
   function cleanupCodecData(address: string): void {
     if (!address)
       return;
+    root._nextCodecRevision(address);
+    root._pendingCodecProfiles[address] = "";
     delete deviceCodecs[address];
     delete deviceAvailableCodecs[address];
     deviceCodecsChanged();
@@ -175,21 +229,8 @@ Singleton {
     const device = root.deviceForAddress(address);
     if (!device?.connected || !isAudioDevice(device))
       return;
-    const cardName = root.bluezCardName(address);
-    Command.run(["pactl", "list", "cards"], result => {
-      if (!root.deviceForAddress(address)?.connected)
-        return;
-      const parsed = root._parseCodecs(result.stdout, cardName);
-      if (fullScan) {
-        root.deviceAvailableCodecs[address] = parsed.parsedCodecs;
-        root.deviceAvailableCodecsChanged();
-      }
-      const activeCodec = parsed.parsedCodecs.find(codec => codec.profile === parsed.activeProfile);
-      if (activeCodec) {
-        root.deviceCodecs[address] = activeCodec.name;
-        root.deviceCodecsChanged();
-      }
-    }, "bt.codec");
+    const revision = root._nextCodecRevision(address);
+    root._fetchCodecs(address, fullScan, revision);
   }
 
   function forgetDevice(address: string): void {
@@ -211,7 +252,7 @@ Singleton {
     return codecMap[key] ?? {
       name: name || "",
       desc: "Unknown",
-      color: "#9E9E9E"
+      qualityTier: "basic"
     };
   }
 
@@ -294,10 +335,11 @@ Singleton {
   }
 
   function switchCodec(address: string, profile: string): void {
-    if (!address)
+    if (!address || !profile || !root.deviceForAddress(address)?.connected)
       return;
-    const cardName = root.bluezCardName(address);
-    Command.run(["pactl", "set-card-profile", cardName, profile], () => Qt.callLater(() => root.fetchCodecs(address, false)), "bt.codecSwitch");
+    root._nextCodecRevision(address);
+    root._pendingCodecProfiles[address] = profile;
+    root._runPendingCodecSwitch(address);
   }
 
   function toDeviceModel(device: BluetoothDevice): var {
@@ -368,6 +410,10 @@ Singleton {
 
         function onConnectedChanged() {
           root._bumpRevision();
+          if (deviceEntry.modelData?.connected && root.isAudioDevice(deviceEntry.modelData))
+            Qt.callLater(() => root.fetchCodecs(deviceEntry.address));
+          else
+            root.cleanupCodecData(deviceEntry.address);
         }
 
         function onPairedChanged() {
@@ -391,6 +437,8 @@ Singleton {
         target: deviceEntry.modelData
       }
       required property BluetoothDevice modelData
+
+      Component.onDestruction: root.cleanupCodecData(address)
     }
   }
 }

@@ -11,11 +11,8 @@ Singleton {
     return desktops.find(desktop => ["hyprland", "niri"].includes(desktop)) ?? "other";
   }
   property string fullName: ""
-  property bool hasBrightnessControl: false
-  property bool hasKeyboardBacklight: false
   property string hostname: ""
   property bool isArchBased: false
-  property bool isLaptop: false
   readonly property string mainMon: Quickshell.env("MAINMON") ?? ""
   property bool ready: false
   property string username: ""
@@ -24,9 +21,6 @@ Singleton {
       yn(){ "$@" >/dev/null 2>&1 && echo yes || echo no; }
       printf '%s=%s\\n' \
         isArchBased          "$(yn command -v pacman)" \
-        hasBrightnessControl "$(yn [ -d /sys/class/backlight ])" \
-        hasKeyboardBacklight "$(yn sh -c 'ls /sys/class/leds 2>/dev/null | grep -q kbd_backlight')" \
-        isLaptop             "$(yn sh -c '[ -d /proc/acpi/button/lid ] || grep -q SW_LID /proc/bus/input/devices')" \
         username             "$(id -un)" \
         fullName             "$(getent passwd "$(id -un)" | cut -d: -f5 | cut -d, -f1)" \
         hostname             "$(uname -n)"

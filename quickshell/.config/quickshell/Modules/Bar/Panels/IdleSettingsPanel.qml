@@ -811,7 +811,7 @@ Item {
             color: Theme.textInactiveColor
             font.pixelSize: Theme.fontXs
             opacity: 0.65
-            text: rowRoot.formatValue(rowRoot.sliderMax)
+            text: root.formatDuration(rowRoot.sliderMax)
           }
         }
       }

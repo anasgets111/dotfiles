@@ -46,30 +46,6 @@ ShellRoot {
   PolkitDialog {
   }
 
-  Connections {
-    function onActiveModalChanged() {
-      const launcherOpen = ShellUiState.activeModal === "launcher";
-      if (!launcherOpen && root.ipc.launcherActive)
-        root.ipc.launcherActive = false;
-      if (launcherOpen && !root.ipc.launcherActive)
-        root.ipc.launcherActive = true;
-    }
-
-    target: ShellUiState
-  }
-
-  Connections {
-    function onLauncherActiveChanged() {
-      if (root.ipc.launcherActive) {
-        ShellUiState.openModal("launcher", MonitorService.effectiveMainScreen?.name ?? "");
-      } else if (ShellUiState.activeModal === "launcher") {
-        ShellUiState.closeModal("launcher");
-      }
-    }
-
-    target: root.ipc
-  }
-
   Variants {
     model: WallpaperService.monitors
 

@@ -16,6 +16,16 @@ PanelContentBase {
   readonly property bool ready: BluetoothService.available
   property string showCodecFor: ""
 
+  function codecQualityColor(qualityTier: string): color {
+    if (qualityTier === "best")
+      return Theme.powerSaveColor;
+    if (qualityTier === "high")
+      return Theme.warning;
+    if (qualityTier === "balanced")
+      return Theme.activeColor;
+    return Theme.inactiveColor;
+  }
+
   function handleAction(action: string, device: var) {
     const address = device?.address || "";
     switch (action) {
@@ -497,7 +507,7 @@ PanelContentBase {
               spacing: Theme.spacingSm
 
               Rectangle {
-                color: codecRow.modelData.qualityColor || Theme.inactiveColor
+                color: root.codecQualityColor(codecRow.modelData.qualityTier || "basic")
                 implicitHeight: 6
                 implicitWidth: 6
                 radius: 3

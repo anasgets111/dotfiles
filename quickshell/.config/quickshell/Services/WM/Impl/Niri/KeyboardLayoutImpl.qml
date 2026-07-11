@@ -1,6 +1,6 @@
 pragma Singleton
+import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Services.Utils
 
 Singleton {
@@ -31,28 +31,24 @@ Singleton {
     Command.detached(["niri", "msg", "action", "switch-layout", "next"]);
   }
 
-  Socket {
-    id: eventStreamSocket
+  function setLayoutByIndex(layoutIndex: int): void {
+    if (layoutIndex >= 0 && layoutIndex < layouts.length)
+      Command.detached(["niri", "msg", "action", "switch-layout", `${layoutIndex}`]);
+  }
 
-    connected: !!impl.socketPath
+  NiriSocket {
+    eventStream: true
     path: impl.socketPath
 
-    parser: SplitParser {
-      splitMarker: "\n"
-
-      onRead: line => {
-        const message = String(line ?? "").trim();
-        if (!message)
-          return;
-        try {
-          impl.handleLayoutEvent(JSON.parse(message));
-        } catch (error) {
-          Logger.warn("KeyboardLayoutImpl(Niri)", `Parse error: ${error}`);
-        }
+    onLineRead: line => {
+      const message = String(line ?? "").trim();
+      if (!message)
+        return;
+      try {
+        impl.handleLayoutEvent(JSON.parse(message));
+      } catch (error) {
+        Logger.warn("KeyboardLayoutImpl(Niri)", `Parse error: ${error}`);
       }
     }
-
-    onConnectionStateChanged: if (connected)
-      write('"EventStream"\n')
   }
 }

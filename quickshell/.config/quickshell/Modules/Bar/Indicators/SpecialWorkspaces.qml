@@ -37,7 +37,7 @@ RowLayout {
 
     delegate: IconButton {
       readonly property string cleanName: (modelData?.name ?? "").replace("special:", "")
-      readonly property bool isActive: modelData?.name === WorkspaceService.activeSpecial
+      readonly property bool isActive: !!modelData?.active
       required property var modelData
 
       Layout.alignment: Qt.AlignVCenter

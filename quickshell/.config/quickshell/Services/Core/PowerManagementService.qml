@@ -47,15 +47,25 @@ Singleton {
     refreshDebounce.restart();
   }
 
+  function suspendIfBatteryCritical(): void {
+    if (BatteryService.isSuspendingAndNotCharging)
+      root.suspend();
+  }
+
   function suspend(): void {
     Command.detached(["systemctl", "suspend"]);
   }
 
-  Component.onCompleted: refreshPowerInfo()
+  Component.onCompleted: {
+    refreshPowerInfo();
+    adjustBrightness();
+    suspendIfBatteryCritical();
+  }
 
   Connections {
     function onIsLaptopBatteryChanged() {
       root.refreshPowerInfo();
+      root.adjustBrightness();
     }
 
     function onIsOnBatteryChanged() {
@@ -63,7 +73,29 @@ Singleton {
       root.adjustBrightness();
     }
 
+    function onIsSuspendingAndNotChargingChanged() {
+      root.suspendIfBatteryCritical();
+    }
+
     target: BatteryService
+  }
+
+  Connections {
+    function onReadyChanged(): void {
+      if (BrightnessService.ready)
+        root.adjustBrightness();
+    }
+
+    target: BrightnessService
+  }
+
+  Connections {
+    function onReadyChanged(): void {
+      if (KeyboardBacklightService.ready)
+        root.adjustBrightness();
+    }
+
+    target: KeyboardBacklightService
   }
 
   Timer {

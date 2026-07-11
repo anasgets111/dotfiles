@@ -14,18 +14,20 @@ Singleton {
 
   readonly property bool armed: idleEnabled && !inhibited
   readonly property bool autoInhibitorActive: MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive
-  readonly property bool canLock: armed && lockEnabled && !LockService.locked && (!lockAfterDisplayPowerOff || !displayPowerOffEnabled || displaysPoweredOff)
-  readonly property bool canPowerOffDisplays: armed && displayPowerOffEnabled && (lockAfterDisplayPowerOff || LockService.locked || !lockEnabled)
-  readonly property bool canSuspend: armed && suspendEnabled && (!displayPowerOffEnabled || displaysPoweredOff) && (!lockEnabled || LockService.locked)
+  readonly property bool canLock: armed && lockActionEnabled && !LockService.locked && (!lockAfterDisplayPowerOff || !displayPowerOffActionEnabled || displaysPoweredOff)
+  readonly property bool canPowerOffDisplays: armed && displayPowerOffActionEnabled && (lockAfterDisplayPowerOff || LockService.locked || !lockActionEnabled)
+  readonly property bool canSuspend: armed && suspendActionEnabled && (!displayPowerOffActionEnabled || displaysPoweredOff) && (!lockActionEnabled || LockService.locked)
+  readonly property bool displayPowerOffActionEnabled: displayPowerOffEnabled && _displayPowerOffTimeoutSec > 0
   readonly property bool displayPowerOffEnabled: settings?.dpmsEnabled ?? true
   readonly property real displayPowerOffTimeoutMin: _secToMin(_displayPowerOffTimeoutSec)
   property bool displaysPoweredOff: false
-  readonly property int enabledActionCount: (lockEnabled ? 1 : 0) + (suspendEnabled ? 1 : 0) + (displayPowerOffEnabled ? 1 : 0)
+  readonly property int enabledActionCount: (lockActionEnabled ? 1 : 0) + (suspendActionEnabled ? 1 : 0) + (displayPowerOffActionEnabled ? 1 : 0)
   readonly property var flowSteps: lockAfterDisplayPowerOff ? ["displayPowerOff", "lock", "suspend"] : ["lock", "displayPowerOff", "suspend"]
   readonly property bool fullscreenInhibitorActive: WorkspaceService.fullscreenVisible
   readonly property bool idleEnabled: Settings.isLoaded && settings !== null && (settings.enabled ?? true)
   readonly property bool inhibited: manualInhibit || fullscreenInhibitorActive || videoInhibitorActive
   readonly property bool lockAfterDisplayPowerOff: settings?.lockAfterDpms ?? false
+  readonly property bool lockActionEnabled: lockEnabled && _lockTimeoutSec > 0
   readonly property bool lockEnabled: settings?.lockEnabled ?? true
   readonly property real lockTimeoutMin: _secToMin(_lockTimeoutSec)
   property bool manualInhibit: false
@@ -33,6 +35,7 @@ Singleton {
   readonly property bool respectInhibitorsEnabled: settings?.respectInhibitors ?? true
   readonly property var settings: Settings.data?.idleService ?? null
   readonly property bool suspendEnabled: settings?.suspendEnabled ?? false
+  readonly property bool suspendActionEnabled: suspendEnabled && _suspendTimeoutSec > 0
   readonly property real suspendTimeoutMin: _secToMin(_suspendTimeoutSec)
   readonly property bool videoAutoInhibitEnabled: settings?.videoAutoInhibit ?? true
   readonly property bool videoInhibitorActive: videoAutoInhibitEnabled && autoInhibitorActive
@@ -128,6 +131,7 @@ Singleton {
     enabled: root.canPowerOffDisplays
     idleAction: () => root.setDisplaysPowered(false)
     timeout: root._displayPowerOffTimeoutSec
+    wakesDisplays: true
   }
 
   IdleStage {
@@ -147,9 +151,15 @@ Singleton {
 
   component IdleStage: IdleMonitor {
     required property var idleAction
+    property bool wakesDisplays: false
 
     respectInhibitors: root.respectInhibitors
 
-    onIsIdleChanged: isIdle ? idleAction() : root.wakeDisplays()
+    onIsIdleChanged: {
+      if (isIdle)
+        idleAction();
+      else if (enabled && wakesDisplays)
+        root.wakeDisplays();
+    }
   }
 }

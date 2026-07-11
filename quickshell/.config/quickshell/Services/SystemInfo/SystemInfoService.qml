@@ -31,13 +31,21 @@ Singleton {
     return (elapsed / 1000).toFixed(0);
   }
 
+  function _clearGpuSnapshot(): void {
+    gpuType = "NONE";
+    gpuPerc = 0;
+    gpuTemp = 0;
+    gpuMemUsedKib = 0;
+    gpuMemTotalKib = 0;
+  }
+
   function _pollGpuUsage(): void {
     Command.run(["nvtop", "-s"], result => {
       try {
         // ponytail: the widget shows one GPU; add a selector before supporting multi-GPU hosts.
         const gpu = JSON.parse(result.stdout)?.[0];
         if (!gpu) {
-          root.gpuType = "NONE";
+          root._clearGpuSnapshot();
           return;
         }
         root.gpuType = gpu.device_name || "GPU";
@@ -46,6 +54,7 @@ Singleton {
         root.gpuMemUsedKib = Number(gpu.mem_used) / 1024 || 0;
         root.gpuMemTotalKib = root.gpuMemUsedKib > 0 ? Number(gpu.mem_total) / 1024 || 0 : 0;
       } catch (error) {
+        root._clearGpuSnapshot();
         Logger.warn("SystemInfo", `GPU parse failed: ${error}`);
       }
     }, "sysinfo.gpu");

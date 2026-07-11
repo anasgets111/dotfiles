@@ -2,8 +2,8 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
+import qs.Services.Utils
 import qs.Services.WM
 
 Singleton {
@@ -13,24 +13,34 @@ Singleton {
   readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
   readonly property string focusedOutput: _layoutState.focusedOutput
   readonly property var focusedWorkspace: _layoutState.focusedWorkspace
+  // ponytail: Niri IPC IDs are not exposed by foreign-toplevel handles, so
+  // appId/title matching can conservatively collide. Replace this bridge when
+  // either API exposes a shared stable window identity.
   readonly property bool fullscreenVisible: visibleWindowKeys.size > 0 && ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen && visibleWindowKeys.has(root._windowKey(toplevel.appId, toplevel.title)))
   readonly property bool hasOverview: true
   property var normalizedWorkspaces: []
   readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
-  property int trackedWorkspaceId: 1
+  // ponytail: keep opaque u64 IDs out of QML int; JSON numbers still have a
+  // 53-bit ceiling. Switch identity keys to strings if Niri exposes them so.
+  property var trackedWorkspaceId: null
   property var visibleWindowKeys: new Set()
   property var windows: []
   readonly property var workspaces: _layoutState.workspaces
   property var workspacesById: ({})
 
-  function _activateWorkspace(workspaceId: int): void {
+  function _activateWorkspace(activation: var): void {
+    const workspaceId = activation?.id;
+    if (workspaceId === null || workspaceId === undefined)
+      return;
     const activated = workspacesById[workspaceId];
     if (activated)
       for (const workspace of Object.values(workspacesById))
         if (workspace.output === activated.output)
           workspace.is_active = workspace.id === workspaceId;
-    trackedWorkspaceId = workspaceId;
-    Qt.callLater(rebuildWorkspaceList);
+    if (activation?.focused === true && trackedWorkspaceId !== workspaceId)
+      trackedWorkspaceId = workspaceId;
+    else
+      Qt.callLater(rebuildWorkspaceList);
   }
 
   function _indexById(items: var): var {
@@ -44,9 +54,9 @@ Singleton {
     const sourceWorkspaces = Array.isArray(rawWorkspaces) ? rawWorkspaces : [];
     workspacesById = _indexById(sourceWorkspaces);
 
-    const focusedWorkspace = sourceWorkspaces.find(workspace => workspace.is_focused);
-    if (focusedWorkspace && focusedWorkspace.id !== trackedWorkspaceId)
-      trackedWorkspaceId = focusedWorkspace.id;
+    const focusedWorkspaceId = sourceWorkspaces.find(workspace => workspace.is_focused)?.id ?? null;
+    if (focusedWorkspaceId !== trackedWorkspaceId)
+      trackedWorkspaceId = focusedWorkspaceId;
     else
       Qt.callLater(rebuildWorkspaceList);
   }
@@ -56,11 +66,11 @@ Singleton {
   }
 
   function focusWorkspace(workspace: var): void {
-    focusWorkspaceById(workspace?.id ?? -1);
+    focusWorkspaceById(workspace?.id ?? null);
   }
 
-  function focusWorkspaceById(workspaceId: int): void {
-    if (workspaceId <= 0)
+  function focusWorkspaceById(workspaceId: var): void {
+    if (workspaceId === null || workspaceId === undefined)
       return;
     sendAction({
       Action: {
@@ -76,7 +86,7 @@ Singleton {
   function focusWorkspaceByIndex(workspaceIndex: int): void {
     const workspace = workspaces.find(candidate => candidate?.idx === workspaceIndex);
     if (!workspace) {
-      console.warn(`[Niri] Invalid index: ${workspaceIndex}`);
+      Logger.warn("WorkspaceImpl(Niri)", `Invalid index: ${workspaceIndex}`);
       return;
     }
     focusWorkspaceById(workspace.id);
@@ -92,7 +102,7 @@ Singleton {
       if (event.WorkspacesChanged) {
         _updateWorkspaces(event.WorkspacesChanged.workspaces);
       } else if (event.WorkspaceActivated) {
-        _activateWorkspace(event.WorkspaceActivated.id);
+        _activateWorkspace(event.WorkspaceActivated);
       } else if (event.WindowsChanged) {
         windows = Array.isArray(event.WindowsChanged.windows) ? event.WindowsChanged.windows : [];
         Qt.callLater(rebuildWorkspaceList);
@@ -106,7 +116,7 @@ Singleton {
         Qt.callLater(rebuildWorkspaceList);
       }
     } catch (error) {
-      console.warn(`[Niri] Parse error: ${error}`);
+      Logger.warn("WorkspaceImpl(Niri)", `Parse error: ${error}`);
     }
   }
 
@@ -126,53 +136,25 @@ Singleton {
     visibleWindowKeys = new Set(windows.filter(window => activeWorkspaceIds.has(window.workspace_id)).map(window => _windowKey(window.app_id, window.title)));
   }
 
-  function refresh(): void {
-    if (!socketPath)
-      return;
-    eventStreamSocket.connected = false;
-    eventStreamSocket.connected = true;
-    requestSocket.connected = false;
-    requestSocket.connected = true;
-  }
-
   function sendAction(request: var): void {
-    if (requestSocket.connected)
+    if (requestSocket.connected) {
       requestSocket.write(JSON.stringify(request) + "\n");
+      requestSocket.flush();
+    }
   }
 
-  Component.onCompleted: startupTimer.start()
   onTrackedWorkspaceIdChanged: Qt.callLater(rebuildWorkspaceList)
 
-  Socket {
-    id: eventStreamSocket
-
-    connected: !!root.socketPath
+  NiriSocket {
+    eventStream: true
     path: root.socketPath
 
-    parser: SplitParser {
-      splitMarker: "\n"
-
-      onRead: line => root.handleEvent(line)
-    }
-
-    onConnectionStateChanged: {
-      if (connected)
-        write('"EventStream"\n');
-    }
+    onLineRead: line => root.handleEvent(line)
   }
 
-  Socket {
+  NiriSocket {
     id: requestSocket
 
-    connected: !!root.socketPath
     path: root.socketPath
-  }
-
-  Timer {
-    id: startupTimer
-
-    interval: 200
-
-    onTriggered: root.refresh()
   }
 }

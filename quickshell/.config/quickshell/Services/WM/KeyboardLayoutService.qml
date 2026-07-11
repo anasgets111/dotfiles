@@ -26,13 +26,9 @@ Singleton {
   }
 
   function setLayoutByIndex(targetIndex: int): void {
-    const sourceIndex = currentLayoutIndex;
-    if (targetIndex < 0 || targetIndex >= layouts.length || targetIndex === sourceIndex)
+    if (targetIndex < 0 || targetIndex >= layouts.length || targetIndex === currentLayoutIndex)
       return;
-    if (backend?.setLayoutByIndex)
-      return backend.setLayoutByIndex(targetIndex);
-    for (let stepIndex = 0, stepCount = sourceIndex < 0 ? 0 : (targetIndex - sourceIndex + layouts.length) % layouts.length; stepIndex < stepCount; stepIndex++)
-      backend?.nextLayout?.();
+    backend?.setLayoutByIndex?.(targetIndex);
   }
 
   onCurrentLayoutChanged: if (currentLayout)

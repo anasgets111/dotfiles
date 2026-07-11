@@ -17,10 +17,10 @@ Singleton {
   readonly property bool microphoneActive: _activeLinks.some(link => {
     const source = link.source;
     const target = link.target;
-    const targetAudio = target?.audio;
-    return source?.type === PwNodeType.AudioSource && target?.type === PwNodeType.AudioInStream && targetAudio && (!target.ready || !targetAudio.muted) && !/\bcava\b/.test(_describe(target));
+    const targetAudio = target?.ready ? target.audio : null;
+    return source?.type === PwNodeType.AudioSource && target?.type === PwNodeType.AudioInStream && targetAudio && !targetAudio.muted && !/\bcava\b/.test(_describe(target));
   })
-  readonly property bool microphoneMuted: AudioService.sourceControllable ? AudioService.micMuted : false
+  readonly property bool microphoneMuted: AudioService.micMuted
   readonly property bool screenshareActive: _activeLinks.some(link => {
     const source = link.source;
     return (source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource && /xdg-desktop-portal|xdpw|screencast|screen|gnome shell|kwin|obs|wf-recorder|grim|slurp|screen.?share|display.?capture/.test(_describe(source));
@@ -38,7 +38,7 @@ Singleton {
   }
 
   Timer {
-    interval: 250
+    interval: 1000
     repeat: true
     running: true
 

@@ -3,6 +3,7 @@ import QtQuick
 import Qt.labs.folderlistmodel
 import Quickshell
 import qs.Config
+import qs.Services.Utils
 import qs.Services.WM
 
 Singleton {
@@ -13,7 +14,7 @@ Singleton {
   readonly property list<string> availableTransitions: ["fade", "wipe", "disc", "stripes", "portal"]
   readonly property string defaultMode: "fill"
   readonly property string defaultTransition: "disc"
-  readonly property string defaultWallpaper: Settings.defaultWallpaper
+  readonly property string defaultWallpaper: Utils.normalizeImageUrl(Settings.defaultWallpaper)
   readonly property var fillModes: ({
       fill: Image.PreserveAspectCrop,
       fit: Image.PreserveAspectFit,
@@ -36,7 +37,7 @@ Singleton {
   readonly property bool ready: hydrated && MonitorService?.ready && (MonitorService.monitors?.count ?? 0) > 0
   property var wallpaperFiles: []
   readonly property bool wallpaperFilesReady: folderModel.status === FolderListModel.Ready
-  property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"
+  readonly property string wallpaperFolder: Settings.data?.wallpaperFolder ?? ""
   property string wallpaperTransition: defaultTransition
 
   function ensurePrefs(monitorName: string): var {
@@ -53,14 +54,12 @@ Singleton {
     for (const name of Object.keys(saved)) {
       const entry = saved[name] ?? {};
       monitorPrefs[name] = {
-        wallpaper: entry.wallpaper || defaultWallpaper,
+        wallpaper: Utils.normalizeImageUrl(entry.wallpaper || defaultWallpaper),
         mode: validate(entry.mode, availableModes, defaultMode)
       };
     }
     if (Settings.data.wallpaperTransition)
       wallpaperTransition = validate(Settings.data.wallpaperTransition, availableTransitions, defaultTransition);
-    if (Settings.data.wallpaperFolder)
-      wallpaperFolder = String(Settings.data.wallpaperFolder);
     hydrated = true;
     persistMonitors();
   }
@@ -72,7 +71,6 @@ Singleton {
   function persistMonitors(): void {
     if (!hydrated || !Settings?.data)
       return;
-    Settings.data.wallpaperFolder = wallpaperFolder;
     Settings.data.wallpaperTransition = wallpaperTransition;
     if (!MonitorService?.ready)
       return;
@@ -113,7 +111,7 @@ Singleton {
     if (!monitorName)
       return;
     const prefs = ensurePrefs(monitorName);
-    const resolved = path || defaultWallpaper;
+    const resolved = Utils.normalizeImageUrl(path || defaultWallpaper);
     if (prefs.wallpaper === resolved)
       return;
     prefs.wallpaper = resolved;
@@ -122,12 +120,11 @@ Singleton {
   }
 
   function setWallpaperFolder(folder: string): void {
-    const path = String(folder || "").replace(/\/$/, "");
+    const rawPath = String(folder || "").trim();
+    const path = rawPath === "/" ? rawPath : rawPath.replace(/\/+$/, "");
     if (!path || wallpaperFolder === path)
       return;
-    wallpaperFolder = path;
-    wallpaperFiles = [];
-    persistDebounce.restart();
+    Settings.data.wallpaperFolder = path;
   }
 
   function setWallpaperTransition(transition: string): void {
@@ -155,12 +152,13 @@ Singleton {
 
   Component.onCompleted: if (Settings?.isLoaded)
     hydrateFromSettings()
+  onWallpaperFolderChanged: wallpaperFiles = []
 
   FolderListModel {
     id: folderModel
 
     caseSensitive: false
-    folder: root.wallpaperFolder ? `file://${root.wallpaperFolder}` : ""
+    folder: Utils.normalizeImageUrl(root.wallpaperFolder)
     nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp"]
     showDirs: false
     showFiles: true
@@ -173,7 +171,7 @@ Singleton {
       }, (_unused, index) => {
         const filePath = get(index, "filePath");
         return {
-          path: filePath,
+          path: String(get(index, "fileUrl")),
           displayName: filePath.split("/").pop(),
           previewSource: get(index, "fileUrl")
         };

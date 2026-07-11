@@ -10,7 +10,7 @@ import qs.Services.Utils
 PanelContentBase {
   id: root
 
-  readonly property bool hasUpdates: UpdateService.totalUpdates > 0
+  readonly property bool hasUpdates: UpdateService.ready && UpdateService.totalUpdates > 0
   readonly property color headerColor: Qt.lighter(Theme.bgColor, 1.74)
   readonly property bool isIdle: UpdateService.updateState === UpdateService.status.Idle
   readonly property bool isUpdating: UpdateService.updateState === UpdateService.status.Updating
@@ -169,9 +169,9 @@ PanelContentBase {
           Layout.preferredHeight: root.itemHeight * 2
           color: Theme.textInactiveColor
           horizontalAlignment: Text.AlignHCenter
-          text: qsTr("No updates available")
+          text: UpdateService.ready ? qsTr("No updates available") : qsTr("Update service unavailable")
           verticalAlignment: Text.AlignVCenter
-          visible: UpdateService.totalUpdates === 0
+          visible: !root.hasUpdates
         }
 
         RowLayout {

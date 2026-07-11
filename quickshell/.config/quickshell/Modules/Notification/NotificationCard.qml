@@ -27,7 +27,7 @@ Item {
   readonly property int paddingVertical: Theme.spacingMd
   readonly property var primaryWrapper: root.items[0] ?? null
   property bool showTimestamp: false
-  readonly property int slideAnimDuration: (Theme.animationDuration || 200) * 1.4
+  readonly property int slideAnimDuration: root.svc?.animationDuration ?? 0
   readonly property int spacingContent: Theme.spacingXs + 2
   readonly property int spacingMessages: Theme.spacingSm
   required property var svc

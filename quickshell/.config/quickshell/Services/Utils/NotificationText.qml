@@ -1,7 +1,8 @@
 pragma Singleton
 import QtQuick
+import Quickshell
 
-QtObject {
+Singleton {
   readonly property var htmlEntities: ({
       quot: "\"",
       apos: "'",

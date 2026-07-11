@@ -1,8 +1,8 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Services
 import qs.Services.Core
+import qs.Services.SystemInfo
 import qs.Services.Utils
 import qs.Services.WM
 import qs.Components
@@ -29,7 +29,7 @@ Row {
   }
 
   Loader {
-    active: MainService.isArchBased
+    active: UpdateService.ready
     anchors.verticalCenter: parent.verticalCenter
     asynchronous: true
 
@@ -66,7 +66,7 @@ Row {
     icon: "󰍜"
     tooltipText: qsTr("Open application launcher")
 
-    onClicked: IPC.launcherActive = !IPC.launcherActive
+    onClicked: IPC.toggleLauncher()
   }
 
   WallpaperButton {

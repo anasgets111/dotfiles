@@ -1,7 +1,9 @@
 pragma Singleton
-import Quickshell
-import QtQml
+pragma ComponentBehavior: Bound
 import QtQuick
+import QtQml
+import QtQml.Models
+import Quickshell
 import qs.Services
 import qs.Services.Utils
 import qs.Services.WM.Impl.Hyprland as Hyprland
@@ -17,12 +19,13 @@ Singleton {
   property var _edidQueue: []
   property bool _edidRunning: false
   property int _featuresRunId: 0
-  readonly property string activeMain: preferredMain || (monitors.count > 0 ? monitors.get(0).name : "")
-  readonly property var activeMainScreen: Quickshell.screens.find(screen => screen?.name === activeMain) || Quickshell.screens[0] || null
+  readonly property var activeMainScreen: Quickshell.screens.find(screen => screen?.name === preferredMain) || Quickshell.screens[0] || null
+  readonly property string activeMain: activeMainScreen?.name ?? ""
   readonly property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
   readonly property var effectiveMainScreen: activeMainScreen
-  readonly property var monitorKeyFields: ["name", "width", "height", "scale", "fps", "bitDepth", "orientation"]
+  readonly property var _screenKeyFields: ["name", "width", "height", "scale", "orientation"]
   property ListModel monitors: ListModel {
+    dynamicRoles: true
   }
   property string preferredMain: MainService.mainMon || ""
   readonly property bool ready: backend !== null
@@ -36,13 +39,14 @@ Singleton {
     const job = _edidQueue.shift();
     Command.run(["edid-decode", job.path], result => {
       root._edidRunning = false;
+      const decodedEdid = result.exitCode === 0 ? result.stdout : "";
       if (job.callback)
         job.callback({
           vrr: {
-            supported: /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(result.stdout)
+            supported: /Adaptive-Sync|FreeSync|Vendor-Specific Data Block \(AMD\)/i.test(decodedEdid)
           },
           hdr: {
-            supported: /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(result.stdout)
+            supported: /HDR Static Metadata|SMPTE ST2084|HLG|BT2020/i.test(decodedEdid)
           }
         });
       root._processEdidQueue();
@@ -63,7 +67,7 @@ Singleton {
   function isSameMonitor(leftMonitor: var, rightMonitor: var): bool {
     if (!leftMonitor || !rightMonitor)
       return false;
-    return monitorKeyFields.every(key => leftMonitor[key] === rightMonitor[key]);
+    return _screenKeyFields.every(key => leftMonitor[key] === rightMonitor[key]);
   }
 
   function normalizeScreens(screens: var): var {
@@ -72,9 +76,14 @@ Singleton {
           width: screen.width,
           height: screen.height,
           scale: screen.devicePixelRatio || 1,
-          fps: screen.refreshRate || 60,
-          bitDepth: screen.colorDepth || 8,
           orientation: screen.orientation,
+          // ponytail: ShellScreen has no refresh/format fields. Adapters fill
+          // these when their compositor version exposes them; values stay null
+          // otherwise. Add a DRM-property probe only if a consumer needs more.
+          fps: null,
+          bitDepth: null,
+          modes: [],
+          mirror: false,
           vrr: "off",
           vrrSupported: false,
           hdrSupported: false,
@@ -95,7 +104,7 @@ Singleton {
     _drmLoading = true;
     Command.run(["sh", "-c", "ls /sys/class/drm"], result => {
       root._drmLoading = false;
-      root._drmEntries = result.stdout.split(/\r?\n/).filter(Boolean);
+      root._drmEntries = result.exitCode === 0 ? result.stdout.split(/\r?\n/).filter(Boolean) : [];
       root._drmCallbacks.splice(0).forEach(cb => cb(root._drmEntries));
     });
   }
@@ -154,6 +163,14 @@ Singleton {
           let featureChanged = setMonitorPropertyIfChanged(featureIndex, "vrrActive", vrrActive);
           featureChanged = setMonitorPropertyIfChanged(featureIndex, "hdrActive", hdrActive) || featureChanged;
           featureChanged = setMonitorPropertyIfChanged(featureIndex, "vrr", vrrActive ? "on" : "off") || featureChanged;
+          featureChanged = setMonitorPropertyIfChanged(featureIndex, "fps", Number.isFinite(features.fps) ? features.fps : null) || featureChanged;
+          featureChanged = setMonitorPropertyIfChanged(featureIndex, "bitDepth", Number.isFinite(features.bitDepth) ? features.bitDepth : null) || featureChanged;
+          featureChanged = setMonitorPropertyIfChanged(featureIndex, "modes", Array.isArray(features.modes) ? features.modes : []) || featureChanged;
+          featureChanged = setMonitorPropertyIfChanged(featureIndex, "mirror", !!features.mirror) || featureChanged;
+          if (typeof features.vrr?.supported === "boolean")
+            featureChanged = setMonitorPropertyIfChanged(featureIndex, "vrrSupported", features.vrr.supported || monitors.get(featureIndex).vrrSupported) || featureChanged;
+          if (typeof features.hdr?.supported === "boolean")
+            featureChanged = setMonitorPropertyIfChanged(featureIndex, "hdrSupported", features.hdr.supported || monitors.get(featureIndex).hdrSupported) || featureChanged;
           if (featureChanged)
             emitChangedDebounced();
         });
@@ -178,6 +195,17 @@ Singleton {
     for (let monitorIndex = 0; monitorIndex < monitors.count; monitorIndex++)
       result.push(monitors.get(monitorIndex));
     return result;
+  }
+
+  function refreshScreens(invalidateCaps: bool): void {
+    if (invalidateCaps) {
+      _capsCache = ({});
+      _drmEntries = null;
+    }
+    const normalizedScreens = normalizeScreens(Quickshell.screens);
+    updateMonitors(normalizedScreens);
+    if (backend)
+      refreshFeatures(normalizedScreens);
   }
 
   function updateMonitors(newScreens: var): void {
@@ -210,10 +238,7 @@ Singleton {
   }
 
   Component.onCompleted: {
-    const norm = normalizeScreens(Quickshell.screens);
-    updateMonitors(norm);
-    if (backend)
-      refreshFeatures(norm);
+    refreshScreens(false);
   }
   onBackendChanged: {
     if (backend)
@@ -231,10 +256,7 @@ Singleton {
 
   Connections {
     function onScreensChanged() {
-      const norm = root.normalizeScreens(Quickshell.screens);
-      root.updateMonitors(norm);
-      if (root.backend)
-        root.refreshFeatures(norm);
+      root.refreshScreens(true);
     }
 
     target: Quickshell
@@ -242,9 +264,31 @@ Singleton {
 
   Connections {
     function onFeaturesChanged() {
-      root.refreshFeatures(root.toArray());
+      root.refreshScreens(false);
     }
 
     target: root.backend
+  }
+
+  Instantiator {
+    model: Quickshell.screens
+
+    delegate: Connections {
+      required property ShellScreen modelData
+
+      target: modelData
+
+      function onGeometryChanged(): void {
+        root.refreshScreens(false);
+      }
+
+      function onOrientationChanged(): void {
+        root.refreshScreens(false);
+      }
+
+      function onPhysicalPixelDensityChanged(): void {
+        root.refreshScreens(false);
+      }
+    }
   }
 }

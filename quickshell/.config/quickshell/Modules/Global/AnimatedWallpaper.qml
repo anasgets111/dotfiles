@@ -28,7 +28,7 @@ WlrLayershell {
   function changeWallpaper(newPath: string): void {
     if (!screenObject)
       return;
-    const url = normalizeUrl(newPath);
+    const url = newPath;
     if (!url)
       return;
     if (currentImg.source === "" || currentImg.status === Image.Loading) {
@@ -46,10 +46,6 @@ WlrLayershell {
     nextImgLoader.pendingSource = url;
   }
 
-  function normalizeUrl(path: string): string {
-    return !path ? "" : /^(file|https?):\/\//.test(path) ? path : `file://${path}`;
-  }
-
   function resetTransition(): void {
     transitionAnim.stop();
     shaderLoader.active = false;
@@ -61,7 +57,7 @@ WlrLayershell {
   screen: screenObject
 
   Component.onCompleted: if (currentPath)
-    currentImg.source = normalizeUrl(currentPath)
+    currentImg.source = currentPath
   Component.onDestruction: resetTransition()
   onCurrentModeChanged: displayMode = currentMode
   onCurrentPathChanged: if (currentPath)

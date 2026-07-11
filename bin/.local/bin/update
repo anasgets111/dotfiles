@@ -4,6 +4,11 @@ export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$HOME/
 export LANG=C
 export LC_ALL=C
 
+# ponytail: package updates are globally serialized; use per-run unit IDs only if
+# concurrent update orchestration is ever added.
+PACMAN_UNIT="obelisk-shell-package-update.service"
+failure_count=0
+
 # ——————————————————————————————————————————————————————————————
 # Helpers
 # ——————————————————————————————————————————————————————————————
@@ -17,7 +22,49 @@ run_cmd() {
     printf "[ OK ] %s\n" "$desc"
   else
     printf "[FAIL] %s\n" "$desc"
+    failure_count=$((failure_count + 1))
   fi
+}
+
+stop_pacman_unit() {
+  systemctl is-active --quiet "$PACMAN_UNIT" || return 0
+  if ! has_cmd run0; then
+    printf "[ERROR] run0 not found; cannot stop %s safely.\n" "$PACMAN_UNIT" >&2
+    return 1
+  fi
+  if ! run0 --pipe systemctl stop "$PACMAN_UNIT"; then
+    printf "[ERROR] Failed to stop %s.\n" "$PACMAN_UNIT" >&2
+    return 1
+  fi
+}
+
+cancel_update() {
+  local process_group="${1:-}"
+  local cancel_failed=0
+
+  if [[ ! "$process_group" =~ ^[1-9][0-9]*$ ]]; then
+    printf "[ERROR] Invalid update process group: %s\n" "$process_group" >&2
+    return 2
+  fi
+
+  printf "Cancelling update process group %s...\n" "$process_group"
+  if kill -0 -- "-$process_group" 2>/dev/null; then
+    kill -TERM -- "-$process_group" 2>/dev/null || cancel_failed=1
+  fi
+
+  stop_pacman_unit || cancel_failed=1
+
+  for _ in {1..50}; do
+    kill -0 -- "-$process_group" 2>/dev/null || break
+    sleep 0.1
+  done
+  if kill -0 -- "-$process_group" 2>/dev/null; then
+    kill -KILL -- "-$process_group" 2>/dev/null || cancel_failed=1
+  fi
+  # The named unit may appear just after its run0 client receives SIGTERM.
+  stop_pacman_unit || cancel_failed=1
+
+  return "$cancel_failed"
 }
 
 step_if() {
@@ -35,14 +82,20 @@ step_if() {
 # Main Update Logic
 # ——————————————————————————————————————————————————————————————
 
+if [[ "${1:-}" == "--cancel" ]]; then
+  cancel_update "${2:-}"
+  exit $?
+fi
+
 # System Packages (Arch Linux)
 if has_cmd pacman; then
   if ! has_cmd run0; then
     printf "[ERROR] run0 not found - required for system updates.\n"
-    exit 1
+    failure_count=$((failure_count + 1))
+  else
+    run_cmd "System Packages (pacman via run0)" \
+      stdbuf -oL -eL run0 --unit="${PACMAN_UNIT%.service}" --pipe pacman -Syu --noconfirm
   fi
-  run_cmd "System Packages (pacman via run0)" \
-    stdbuf -oL -eL run0 pacman -Syu --noconfirm
 fi
 
 # Development Tooling
@@ -51,5 +104,10 @@ step_if "Node (fnm)" "has_cmd fnm" stdbuf -oL -eL bash -lc 'fnm install lts-late
 step_if "Bun Binaries" "has_cmd bun" stdbuf -oL -eL bun update -g --latest
 step_if "Rust Binaries" "has_cmd cargo-install-update" stdbuf -oL -eL cargo install-update -a
 step_if "Rust Toolchain" "has_cmd rustup" stdbuf -oL -eL rustup update
+
+if ((failure_count > 0)); then
+  printf "\nDone with %d failed step(s).\n" "$failure_count"
+  exit 1
+fi
 
 printf "\nDone.\n"

@@ -4,19 +4,17 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Qt.labs.folderlistmodel
 import Quickshell
-import Quickshell.Io
 import qs.Services.Utils
-import qs.Services
 
 Singleton {
   id: root
 
   readonly property string _devicePath: backlightFolder.count ? `/sys/class/backlight/${backlightFolder.get(0, "fileName")}` : ""
-  readonly property bool available: MainService.hasBrightnessControl
-  property int brightness: 0
-  property int maxBrightness: 100
+  readonly property bool available: _devicePath !== ""
+  readonly property int brightness: brightnessFile.value
+  readonly property int maxBrightness: maxBrightnessFile.value
   readonly property int percentage: maxBrightness > 0 ? Math.round((brightness / maxBrightness) * 100) : 0
-  property bool ready: false
+  readonly property bool ready: available && brightnessFile.valid && maxBrightnessFile.valid
   readonly property int step: 5
 
   function decrease() {
@@ -27,7 +25,7 @@ Singleton {
     setBrightness(percentage + step);
   }
 
-  function setBrightness(percent) {
+  function setBrightness(percent: real): string {
     if (!available)
       return "Brightness control not available";
     const clamped = Math.max(0, Math.min(100, percent));
@@ -44,10 +42,12 @@ Singleton {
       Logger.log("BrightnessService", `brightness: ${percentage}%`);
   }
   on_DevicePathChanged: {
-    if (_devicePath) {
-      root.ready = true;
+    if (!_devicePath)
+      Logger.log("BrightnessService", "device lost");
+  }
+  onReadyChanged: {
+    if (ready)
       Logger.log("BrightnessService", `ready | device: ${_devicePath} | brightness: ${percentage}%`);
-    }
   }
 
   FolderListModel {
@@ -58,27 +58,28 @@ Singleton {
     showFiles: false
   }
 
-  FileView {
+  SysfsValue {
     id: maxBrightnessFile
 
+    fallback: 100
     path: root._devicePath ? `${root._devicePath}/max_brightness` : ""
-
-    onLoaded: root.maxBrightness = parseInt(text().trim(), 10) || 100
   }
 
-  FileView {
+  SysfsValue {
     id: brightnessFile
 
     path: root._devicePath ? `${root._devicePath}/brightness` : ""
-
-    onLoaded: root.brightness = parseInt(text().trim(), 10) || 0
   }
 
   Timer {
     interval: 100
     repeat: true
-    running: root.available && root._devicePath !== ""
+    running: root.available
 
-    onTriggered: brightnessFile.reload()
+    onTriggered: {
+      if (!maxBrightnessFile.valid)
+        maxBrightnessFile.reload();
+      brightnessFile.reload();
+    }
   }
 }

@@ -9,12 +9,15 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  property bool _cancelCommandDone: false
+  property int _cancelledUpdateExitCode: -1
   property bool _cancellingUpdate: false
   property bool _checking: false
   property var _notifyQueue: []
   property bool _notifying: false
   property var _pendingActionArgs: null
-  readonly property bool busy: _checking || updateState === status.Updating
+  property bool _updateProcessStarted: false
+  readonly property bool busy: _checking || updateProcess.running || cancelProcess.running || updateState === status.Updating
   property bool checkUpdatesAvailable: false
   property int currentPackageIndex: 0
   property string errorMessage: ""
@@ -164,13 +167,78 @@ Singleton {
       _launchPendingActionNotification();
   }
 
-  function cancelUpdate(): void {
-    if (updateProcess.running) {
-      _cancellingUpdate = true;
-      updateProcess.running = false;
-    }
+  function _completeCancellation(): void {
+    if (!_cancelCommandDone || updateProcess.running)
+      return;
+    _cancelCommandDone = false;
+    _cancelledUpdateExitCode = -1;
+    _cancellingUpdate = false;
     updateState = status.Idle;
     _resetUpdateProgress();
+    doPoll();
+  }
+
+  function _finishUpdate(exitCode: int): void {
+    updateState = exitCode === 0 ? status.Completed : status.Error;
+    if (exitCode === 0) {
+      const completedPackageCount = totalPackagesToUpdate || updatePackages.length;
+      Logger.log("UpdateService", `Updates completed (${completedPackageCount}): ${updatePackages.map(packageInfo => packageInfo.name).join(", ")}`);
+      _notify("Update Complete", completedPackageCount === 1 ? "1 package updated successfully" : `${completedPackageCount} packages updated successfully`);
+    } else {
+      if (!errorMessage)
+        errorMessage = exitCode < 0 ? "Failed to start the update command" : `Update failed with code ${exitCode}`;
+      _notify("Update Failed", errorMessage, "critical");
+    }
+    doPoll();
+  }
+
+  function _handleCancelExit(exitCode: int): void {
+    _cancelCommandDone = true;
+    if (exitCode === 0) {
+      _completeCancellation();
+      return;
+    }
+
+    _cancelCommandDone = false;
+    _cancellingUpdate = false;
+    errorMessage = "Failed to cancel the update safely";
+    outputLines = outputLines.concat(errorMessage);
+    Logger.error("UpdateService", `${errorMessage} (code: ${exitCode})`);
+    if (!updateProcess.running)
+      _finishUpdate(_cancelledUpdateExitCode >= 0 ? _cancelledUpdateExitCode : exitCode);
+  }
+
+  function _handleUpdateExit(exitCode: int): void {
+    _updateProcessStarted = false;
+    if (_cancellingUpdate) {
+      _cancelledUpdateExitCode = exitCode;
+      _completeCancellation();
+      return;
+    }
+    _finishUpdate(exitCode);
+  }
+
+  function cancelUpdate(): void {
+    if (_cancellingUpdate || cancelProcess.running)
+      return;
+    if (!updateProcess.running) {
+      updateState = status.Idle;
+      _resetUpdateProgress();
+      return;
+    }
+    if (!_updateProcessStarted || updateProcess.processId <= 0) {
+      _cancellingUpdate = true;
+      _cancelCommandDone = true;
+      updateProcess.running = false;
+      Qt.callLater(root._completeCancellation);
+      return;
+    }
+    _cancellingUpdate = true;
+    _cancelCommandDone = false;
+    _cancelledUpdateExitCode = -1;
+    outputLines = outputLines.concat(qsTr("Cancelling update safely..."));
+    cancelProcess.command = ["update", "--cancel", String(updateProcess.processId)];
+    cancelProcess.running = true;
   }
 
   function closeAllNotifications(): void {
@@ -204,14 +272,15 @@ Singleton {
   }
 
   function executeUpdate(): void {
-    if (totalUpdates === 0 || updateState === status.Updating)
+    if (!ready || totalUpdates === 0 || busy)
       return;
     _pendingActionArgs = null;
     NotificationService.dismissNotificationsByAppName(notificationAppName);
     totalPackagesToUpdate = totalUpdates;
     _resetUpdateProgress();
+    _updateProcessStarted = false;
     updateState = status.Updating;
-    updateProcess.command = ["update"];
+    updateProcess.command = ["setsid", "update"];
     updateProcess.running = true;
   }
 
@@ -282,23 +351,34 @@ Singleton {
       }
     }
 
+    onRunningChanged: {
+      if (!running && root.updateState === root.status.Updating && !root._updateProcessStarted && !root._cancellingUpdate)
+        root._finishUpdate(-1);
+    }
+    onStarted: root._updateProcessStarted = true
+    onExited: exitCode => root._handleUpdateExit(exitCode)
+  }
+
+  Process {
+    id: cancelProcess
+
+    property bool _started: false
+
+    stderr: SplitParser {
+      onRead: data => updateProcess.appendOutputLine(data)
+    }
+    stdout: SplitParser {
+      onRead: data => updateProcess.appendOutputLine(data)
+    }
+
+    onRunningChanged: {
+      if (!running && root._cancellingUpdate && !_started)
+        root._handleCancelExit(-1);
+    }
+    onStarted: _started = true
     onExited: exitCode => {
-      if (root._cancellingUpdate) {
-        root._cancellingUpdate = false;
-        return;
-      }
-      root.updateState = exitCode === 0 ? root.status.Completed : root.status.Error;
-      if (exitCode === 0) {
-        const completedPackageCount = root.totalPackagesToUpdate || root.updatePackages.length;
-        Logger.log("UpdateService", `Updates completed (${completedPackageCount}): ${root.updatePackages.map(packageInfo => packageInfo.name).join(", ")}`);
-        root._notify("Update Complete", completedPackageCount === 1 ? "1 package updated successfully" : `${completedPackageCount} packages updated successfully`);
-        root.doPoll();
-      } else {
-        if (!root.errorMessage)
-          root.errorMessage = `Update failed with code ${exitCode}`;
-        root._notify("Update Failed", root.errorMessage, "critical");
-        root.doPoll();
-      }
+      _started = false;
+      root._handleCancelExit(exitCode);
     }
   }
 

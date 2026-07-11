@@ -5,13 +5,21 @@ import Quickshell.Io
 import qs.Services.Utils
 import qs.Services.Core
 import qs.Services.SystemInfo
+import qs.Services.UI
+import qs.Services.WM
 
 // Centralized IPC handlers. Each target delegates to its service singleton.
 // This consolidates scattered IpcHandler blocks from services/components.
 Singleton {
   id: ipc
 
-  property bool launcherActive: false
+  function toggleLauncher(): bool {
+    if (ShellUiState.activeModal === "launcher")
+      ShellUiState.closeModal("launcher");
+    else
+      ShellUiState.openModal("launcher", MonitorService.effectiveMainScreen?.name ?? "");
+    return ShellUiState.activeModal === "launcher";
+  }
 
   // ----- Lock -----
   IpcHandler {
@@ -93,7 +101,7 @@ Singleton {
     function toggle(): string {
       Logger.log("IPC", "rec.toggle");
       ScreenRecordingService.toggleRecording();
-      return ScreenRecordingService.isRecording ? "recording" : "stopped";
+      return ScreenRecordingService.isRecording ? "recording" : ScreenRecordingService.starting ? "starting" : "stopped";
     }
 
     target: "rec"
@@ -102,9 +110,9 @@ Singleton {
   // ----- Application Launcher -----
   IpcHandler {
     function toggle(): string {
-      ipc.launcherActive = !ipc.launcherActive;
-      Logger.log("IPC", `launcher.toggle -> ${ipc.launcherActive ? "open" : "closed"}`);
-      return ipc.launcherActive ? "open" : "closed";
+      const active = ipc.toggleLauncher();
+      Logger.log("IPC", `launcher.toggle -> ${active ? "open" : "closed"}`);
+      return active ? "open" : "closed";
     }
 
     target: "launcher"

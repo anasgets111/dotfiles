@@ -2,7 +2,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import qs.Config
-import qs.Services.SystemInfo
 import qs.Services.Utils
 
 Singleton {
@@ -53,6 +52,12 @@ Singleton {
       return;
     }
     _fetchGeoLocation();
+  }
+
+  function _startRefreshCycle(): void {
+    _retryCount = 0;
+    retryTimer.stop();
+    _fetch();
   }
 
   function _fetchGeoLocation(): void {
@@ -166,7 +171,7 @@ Singleton {
         Logger.warn("WeatherService", `Cache load failed: ${error}`);
       }
     }
-    _fetch();
+    _startRefreshCycle();
     updateTimer.interval = refreshInterval;
     updateTimer.start();
   }
@@ -175,9 +180,7 @@ Singleton {
     if (lastUpdated && (Date.now() - lastUpdated.getTime()) < 30 * 1000)
       return;
     Logger.log("WeatherService", "Manual refresh");
-    _retryCount = 0;
-    retryTimer.stop();
-    _fetch();
+    _startRefreshCycle();
   }
 
   function weatherInfo(code = currentWeatherCode): var {
@@ -209,7 +212,7 @@ Singleton {
 
     onTriggered: {
       interval = root.refreshInterval;
-      root._fetch();
+      root._startRefreshCycle();
     }
   }
 

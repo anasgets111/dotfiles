@@ -4,9 +4,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Qt.labs.folderlistmodel
 import Quickshell
-import Quickshell.Io
 import qs.Services.Utils
-import qs.Services
 
 Singleton {
   id: root
@@ -20,11 +18,11 @@ Singleton {
     }
     return "";
   }
-  readonly property bool available: MainService.hasKeyboardBacklight
-  property int brightness: 0
+  readonly property bool available: _devicePath !== ""
+  readonly property int brightness: brightnessFile.value
   readonly property string levelName: ["Off", "Low", "Medium", "High"][brightness] ?? `Level ${brightness}`
-  property int maxBrightness: 3
-  property bool ready: false
+  readonly property int maxBrightness: maxBrightnessFile.value
+  readonly property bool ready: available && brightnessFile.valid && maxBrightnessFile.valid
 
   function decrease() {
     setLevel(Math.max(0, brightness - 1));
@@ -34,12 +32,13 @@ Singleton {
     setLevel(Math.min(maxBrightness, brightness + 1));
   }
 
-  function setLevel(level) {
+  function setLevel(level: int): string {
     if (!available || !_deviceName)
       return "Keyboard backlight not available";
     const clamped = Math.max(0, Math.min(maxBrightness, level));
     Command.run(["brightnessctl", `--device=${_deviceName}`, "set", `${clamped}`]);
-    return `Keyboard backlight set to ${levelName}`;
+    const targetName = ["Off", "Low", "Medium", "High"][clamped] ?? `Level ${clamped}`;
+    return `Keyboard backlight set to ${targetName}`;
   }
 
   onAvailableChanged: {
@@ -51,10 +50,12 @@ Singleton {
       Logger.log("KeyboardBacklightService", `keyboard backlight: ${brightness}/${maxBrightness} (${levelName})`);
   }
   on_DevicePathChanged: {
-    if (_devicePath) {
-      root.ready = true;
+    if (!_devicePath)
+      Logger.log("KeyboardBacklightService", "device lost");
+  }
+  onReadyChanged: {
+    if (ready)
       Logger.log("KeyboardBacklightService", `ready | device: ${_deviceName} (${_devicePath}) | level: ${brightness}/${maxBrightness} (${levelName})`);
-    }
   }
 
   FolderListModel {
@@ -65,27 +66,28 @@ Singleton {
     showFiles: false
   }
 
-  FileView {
+  SysfsValue {
     id: maxBrightnessFile
 
+    fallback: 3
     path: root._devicePath ? `${root._devicePath}/max_brightness` : ""
-
-    onLoaded: root.maxBrightness = parseInt(text().trim(), 10) || 3
   }
 
-  FileView {
+  SysfsValue {
     id: brightnessFile
 
     path: root._devicePath ? `${root._devicePath}/brightness` : ""
-
-    onLoaded: root.brightness = parseInt(text().trim(), 10) || 0
   }
 
   Timer {
     interval: 100
     repeat: true
-    running: root.available && root._devicePath !== ""
+    running: root.available
 
-    onTriggered: brightnessFile.reload()
+    onTriggered: {
+      if (!maxBrightnessFile.valid)
+        maxBrightnessFile.reload();
+      brightnessFile.reload();
+    }
   }
 }

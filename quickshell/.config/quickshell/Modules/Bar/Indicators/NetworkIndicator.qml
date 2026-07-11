@@ -61,6 +61,10 @@ Item {
 
   signal clicked(var point)
 
+  function bandColor(value: string): color {
+    return value === "6" ? Theme.powerSaveColor : value === "5" ? Theme.activeColor : Theme.inactiveColor;
+  }
+
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
   visible: ready
@@ -84,7 +88,7 @@ Item {
       id: mainIcon
 
       anchors.centerIn: parent
-      color: root.link === "wifi" && root.band ? NetworkService.getBandColor(root.band) : (iconButton.hovered ? Theme.textContrast(iconButton.colorBgHover) : Theme.textContrast(iconButton.colorBg))
+      color: root.link === "wifi" && root.band ? root.bandColor(root.band) : (iconButton.hovered ? Theme.textContrast(iconButton.colorBgHover) : Theme.textContrast(iconButton.colorBg))
       font.bold: true
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
@@ -102,7 +106,7 @@ Item {
       anchors.bottom: mainIcon.bottom
       anchors.left: mainIcon.right
       anchors.leftMargin: root.band === "2.4" ? -Theme.spacingXs : -Theme.spacingXs / 2
-      color: NetworkService.getBandColor(root.band)
+      color: root.bandColor(root.band)
       font.bold: true
       font.family: "Roboto Condensed"
       font.letterSpacing: root.band === "2.4" ? -1.5 : -1

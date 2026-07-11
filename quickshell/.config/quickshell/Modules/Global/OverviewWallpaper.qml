@@ -31,7 +31,7 @@ WlrLayershell {
 
     anchors.fill: parent
     fillMode: Image.PreserveAspectCrop
-    source: root.wallpaperPath ? `file://${root.wallpaperPath}` : ""
+    source: root.wallpaperPath
     sourceSize: Qt.size(width, height)
     visible: false  // Source only, not displayed directly
   }

@@ -17,7 +17,7 @@ Scope {
 
       readonly property string currentPath: screen?.name ? WallpaperService.wallpaperPath(screen.name) : ""
       readonly property bool isMainMonitor: MonitorService.activeMain === screen?.name
-      readonly property url wallpaperSource: currentPath ? `file://${currentPath}` : ""
+      readonly property url wallpaperSource: currentPath
 
       color: "transparent"
 

@@ -8,7 +8,7 @@ import qs.Services.Utils
 Singleton {
   id: root
 
-  readonly property var _audioNodes: (Pipewire.nodes?.values ?? []).filter(node => !!node?.audio)
+  readonly property var _audioNodes: (Pipewire.nodes?.values ?? []).filter(node => !!node?.ready && !!node.audio)
   readonly property var _deviceIconMap: ({
       "headphone": "󰋋",
       "hands-free": "󰋎",
@@ -78,10 +78,12 @@ Singleton {
   }
 
   function _toggleError(node: var, unavailableMessage: string, notReadyMessage: string): string {
-    if (!node?.audio)
+    if (!node)
       return unavailableMessage;
-    if (!hasControllableAudio(node))
+    if (!node.ready)
       return notReadyMessage;
+    if (!node.audio)
+      return unavailableMessage;
     return "";
   }
 
@@ -283,12 +285,12 @@ Singleton {
   onDndActiveChanged: dndActive ? _muteDndStreams() : _unmuteDndStreams()
   onSinkChanged: {
     const name = displayName(root.sink);
-    if (!root.sink?.audio) {
-      Logger.log("AudioService", `sink changed: ${name} (no audio)`);
+    if (!root.sink?.ready) {
+      Logger.log("AudioService", `sink changed: ${name} (waiting for binding)`);
       return;
     }
-    if (!root.sink.ready) {
-      Logger.log("AudioService", `sink changed: ${name} (waiting for binding)`);
+    if (!root.sink.audio) {
+      Logger.log("AudioService", `sink changed: ${name} (no audio)`);
       return;
     }
     root.capSinkVolume();

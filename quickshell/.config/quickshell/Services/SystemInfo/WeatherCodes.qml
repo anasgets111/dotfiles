@@ -1,7 +1,7 @@
 pragma Singleton
-import QtQml
+import Quickshell
 
-QtObject {
+Singleton {
   readonly property var codes: ({
       "0": {
         icon: "☀️",

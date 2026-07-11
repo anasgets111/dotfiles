@@ -11,8 +11,7 @@ Singleton {
 
   readonly property var _layoutState: _revision >= 0 ? _buildLayoutState() : null
   property int _revision: 0
-  readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "fullscreen", "monitoradded", "monitoraddedv2", "monitorremoved", "moveworkspace", "openwindow", "closewindow", "movewindow", "movewindowv2"]
-  property string activeSpecial: ""
+  readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "focusedmonv2", "fullscreen", "monitoradded", "monitoraddedv2", "monitorremoved", "monitorremovedv2", "moveworkspace", "moveworkspacev2", "activespecial", "activespecialv2", "configreloaded", "openwindow", "closewindow", "movewindow", "movewindowv2"]
   readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
   readonly property bool fillsEmptyWorkspaceSlots: true
   readonly property string focusedOutput: _layoutState.focusedOutput
@@ -23,7 +22,9 @@ Singleton {
   readonly property var workspaces: _layoutState.workspaces
 
   function _buildLayoutState(): var {
-    const outputOrderHint = Array.from(Hyprland.monitors.values).sort((leftMonitor, rightMonitor) => (rightMonitor.focused - leftMonitor.focused) || leftMonitor.name.localeCompare(rightMonitor.name)).map(monitor => monitor.name);
+    const monitors = Array.from(Hyprland.monitors.values);
+    const outputOrderHint = monitors.slice().sort((leftMonitor, rightMonitor) => (rightMonitor.focused - leftMonitor.focused) || leftMonitor.name.localeCompare(rightMonitor.name)).map(monitor => monitor.name);
+    const activeSpecialNames = new Set(monitors.map(monitor => String(monitor.lastIpcObject?.specialWorkspace?.name ?? "")).filter(Boolean));
 
     const regularWorkspaces = [];
     const specialWorkspaces = [];
@@ -31,6 +32,7 @@ Singleton {
     for (const rawWorkspace of Hyprland.workspaces.values) {
       if (rawWorkspace.id < -1) {
         specialWorkspaces.push({
+          active: activeSpecialNames.has(rawWorkspace.name),
           name: rawWorkspace.name
         });
         continue;
@@ -100,12 +102,8 @@ Singleton {
 
   Connections {
     function onRawEvent(event: var): void {
-      if (event.name === "activespecialv2") {
-        root.activeSpecial = event.data.split(",")[1] || "";
-        root._revision++;
-      } else if (root._structuralEvents.includes(event.name)) {
+      if (root._structuralEvents.includes(event.name))
         root.refresh();
-      }
     }
 
     target: Hyprland

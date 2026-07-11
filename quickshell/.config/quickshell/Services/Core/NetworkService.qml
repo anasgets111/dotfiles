@@ -9,7 +9,7 @@ Singleton {
   id: root
 
   property var _bandMap: ({})
-  property int _connectGeneration: 0
+  property var _connectHandle: null
   property string _connectError: ""
   property string _connectingSsid: ""
   property string _ethernetIp: ""
@@ -53,8 +53,8 @@ Singleton {
   signal connectFailed(string ssid, string reason)
   signal connectSucceeded(string ssid)
 
-  function _connectErrorText(stderr: string): string {
-    const message = (stderr || "").toLowerCase();
+  function _connectErrorText(output: string): string {
+    const message = (output || "").toLowerCase();
     if (message.includes("secrets were required") || message.includes("no secrets"))
       return qsTr("Wrong password");
     if (message.includes("no network with ssid") || message.includes("not found"))
@@ -75,9 +75,13 @@ Singleton {
   }
 
   function cancelConnect(): void {
-    root._connectGeneration++;
+    const wasConnecting = root._connectingSsid !== "";
+    root._connectHandle?.cancel();
+    root._connectHandle = null;
     root._connectingSsid = "";
     root._connectError = "";
+    if (wasConnecting)
+      root.wifiDevice?.disconnect();
   }
 
   function connectEthernet(): void {
@@ -86,36 +90,36 @@ Singleton {
 
   function connectToSsid(ssid: string, password: string): void {
     const target = String(ssid ?? "");
-    if (!target || !root.wifiInterface || root._connectingSsid === target)
+    if (!target || !root.wifiInterface || root._connectingSsid !== "")
       return;
-    const generation = ++root._connectGeneration;
-    root._connectError = "";
-    root._connectingSsid = target;
 
-    const command = ["nmcli", "-w", "20", "device", "wifi", "connect", target, "ifname", root.wifiInterface];
     const secret = String(password ?? "");
+    const command = ["nmcli"];
     if (secret)
-      command.push("password", secret);
+      command.push("--ask");
+    command.push("-w", "20", "device", "wifi", "connect", target, "ifname", root.wifiInterface);
     const hidden = !root.wifiNetworkForSsid(target);
     if (hidden)
       command.push("hidden", "yes");
-
-    Command.run(root.nmcliCommand(command), result => {
-      if (root._connectGeneration !== generation)
-        return;
+    // ponytail: this password-only UI supports PSK networks. Add a NetworkManager
+    // secret agent before expanding it to multi-prompt enterprise authentication.
+    const handle = Command.run(root.nmcliCommand(command), result => {
+      root._connectHandle = null;
       root.refreshIpData();
-      if ((result.exitCode ?? 1) === 0) {
-        root._connectingSsid = "";
-        if (hidden)
-          root._runAction(["nmcli", "connection", "modify", target, "802-11-wireless.hidden", "yes"]);
+      root._connectingSsid = "";
+      if (result.exitCode === 0) {
         root.connectSucceeded(target);
-      } else {
-        const reason = root._connectErrorText(result.stderr);
-        root._connectingSsid = "";
-        root._connectError = reason;
-        root.connectFailed(target, reason);
+        return;
       }
-    });
+      const reason = root._connectErrorText(`${result.stderr}\n${result.stdout}`);
+      root._connectError = reason;
+      root.connectFailed(target, reason);
+    }, "net.connect", secret ? `${secret}\n` : "");
+    if (!handle)
+      return;
+    root._connectHandle = handle;
+    root._connectError = "";
+    root._connectingSsid = target;
   }
 
   function deviceOfType(deviceType: int): var {
@@ -136,10 +140,6 @@ Singleton {
 
   function forgetWifi(ssid: string): void {
     root.wifiNetworkForSsid(ssid)?.forget();
-  }
-
-  function getBandColor(band: string): string {
-    return band === "6" ? "#A6E3A1" : band === "5" ? "#89B4FA" : "#CDD6F4";
   }
 
   function getWifiIcon(signal: int): string {

@@ -265,12 +265,12 @@ Singleton {
   }
 
   Connections {
-    function onMutedChanged() {
-      const muted = AudioService.source?.audio?.muted ?? false;
+    function onMicMutedChanged() {
+      const muted = AudioService.micMuted;
       root.show(root.types.micMute, null, muted ? "󰍭" : "󰍬", muted ? "Microphone Muted" : "Microphone Unmuted");
     }
 
-    target: AudioService.source?.audio ?? null
+    target: AudioService
   }
 
   Connections {

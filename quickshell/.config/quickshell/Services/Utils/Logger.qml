@@ -1,7 +1,6 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import qs.Services.SystemInfo
 
 Singleton {
   id: root
@@ -32,7 +31,7 @@ Singleton {
     if (!argumentList?.length)
       return "";
 
-    const timestamp = `[${TimeService.timestamp()}]`;
+    const timestamp = `[${Qt.formatTime(new Date(), "h:mm:ss AP")}]`;
 
     if (argumentList.length === 1)
       return `${timestamp} ${String(argumentList[0])}`;

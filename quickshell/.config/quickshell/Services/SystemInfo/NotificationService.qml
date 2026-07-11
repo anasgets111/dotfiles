@@ -5,7 +5,6 @@ import Quickshell
 import Quickshell.Services.Notifications
 import qs.Config
 import qs.Services.Core
-import qs.Services.SystemInfo
 import qs.Services.Utils
 
 Singleton {
@@ -33,7 +32,7 @@ Singleton {
       },
       [NotificationUrgency.Critical]: {
         timeout: 0,
-        color: "#ff4d4f"
+        color: Theme.critical
       }
     })
 

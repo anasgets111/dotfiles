@@ -7,13 +7,10 @@ Singleton {
 
   readonly property var minuteNow: minuteClock.date
   readonly property var now: clock.date
+  readonly property string localeTimeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
   property int precision: SystemClock.Seconds
-  property bool use24Hour: false
+  property bool use24Hour: !/\bAP\b/i.test(localeTimeFormat)
   property int weekStart: Qt.locale().firstDayOfWeek
-
-  function _stripMeridiem(str) {
-    return str.replace(/\s*(AM|PM)$/i, "");
-  }
 
   function format(kind, pattern) {
     const d = clock.date;
@@ -28,7 +25,7 @@ Singleton {
       return fn(d, pattern);
     if (use24Hour)
       return fn(d, fmt24);
-    return _stripMeridiem(fn(d, fmt12));
+    return fn(d, fmt12);
   }
 
   function formatHM(sec) {
@@ -44,7 +41,7 @@ Singleton {
   }
 
   function timestamp() {
-    return Qt.formatTime(clock.date, "h:mm:ss AP");
+    return Qt.formatTime(clock.date, use24Hour ? "HH:mm:ss" : "h:mm:ss AP");
   }
 
   Component.onCompleted: {
