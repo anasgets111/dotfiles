@@ -46,6 +46,7 @@ Item {
   IconButton {
     id: iconButton
 
+    colorFg: root.connectedDevices.length > 0 ? Theme.activeColor : Theme.textContrast(Theme.inactiveColor)
     icon: root.btIcon
     isEnabled: true
     suppressTooltip: root.panelOpen

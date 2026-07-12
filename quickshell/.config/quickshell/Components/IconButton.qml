@@ -34,7 +34,7 @@ Item {
   readonly property color colorBgHover: Theme.onHoverColor
   readonly property color colorBorder: Theme.onHoverColor
   readonly property color colorBorderHover: Theme.onHoverColor
-  readonly property color colorFg: Theme.textContrast(colorBg)
+  property color colorFg: Theme.textContrast(colorBg)
   readonly property color colorFgHover: Theme.textContrast(colorBgHover)
 
   // Computed colors
