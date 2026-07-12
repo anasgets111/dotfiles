@@ -1,18 +1,16 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts
 import QtQuick.Controls
-import QtQuick.Effects
+import QtQuick.Layouts
+import qs.Components
+import qs.Config
 import qs.Services.Core
 import qs.Services.SystemInfo
-import qs.Config
-import qs.Components
 
 Item {
   id: root
 
-  // ── Properties ────────────────────────────────────────────────
   property bool active: false
   readonly property bool displayPowerOffEnabled: IdleService.displayPowerOffEnabled
   readonly property real displayPowerOffTimeout: IdleService.displayPowerOffTimeoutMin
@@ -20,14 +18,14 @@ Item {
   readonly property var flowSteps: IdleService.flowSteps
   readonly property bool idleEnabled: IdleService.idleEnabled
   readonly property bool inputDisplayBackendReady: InputDisplayService.backendAvailable
-  readonly property string inputDisplayStatusText: InputDisplayService.backendCheckComplete ? qsTr("Install showmethekey-cli to enable the keyboard and mouse overlay.") : qsTr("Checking for showmethekey-cli...")
+  readonly property string inputDisplayStatusText: InputDisplayService.backendCheckComplete ? qsTr("Install showmethekey-cli to use the input overlay.") : qsTr("Checking input overlay availability…")
   readonly property bool lockAfterDisplayPowerOff: IdleService.lockAfterDisplayPowerOff
   readonly property bool lockEnabled: IdleService.lockEnabled
   readonly property real lockTimeout: IdleService.lockTimeoutMin
   readonly property bool suspendEnabled: IdleService.suspendEnabled
   readonly property real suspendTimeout: IdleService.suspendTimeoutMin
-  property int windowHeight: 820
-  property int windowWidth: 1000
+  property int windowHeight: 760
+  property int windowWidth: 780
 
   signal dismissed
 
@@ -39,30 +37,27 @@ Item {
   }
 
   function formatDuration(value: real): string {
-    const v = Math.max(0, Number(value) || 0);
-    if (v <= 0)
-      return qsTr("Never");
-    const mins = Math.floor(v);
-    const secs = Math.round((v - mins) * 60);
-    if (mins > 0 && secs > 0)
-      return `${mins}m ${secs}s`;
-    return mins > 0 ? `${mins}m` : `${secs}s`;
+    const totalSeconds = Math.max(0, Math.round((Number(value) || 0) * 60));
+    if (totalSeconds === 0)
+      return qsTr("Not set");
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes > 0 && seconds > 0)
+      return qsTr("%1 min %2 sec").arg(minutes).arg(seconds);
+    return minutes > 0 ? qsTr("%1 min").arg(minutes) : qsTr("%1 sec").arg(seconds);
   }
 
   function open(): void {
     active = true;
   }
 
-  // ── Root ──────────────────────────────────────────────────────
   anchors.fill: parent
   focus: active
   visible: active
 
-  onActiveChanged: if (active) {
-    InputDisplayService.refreshBackendAvailability();
-  }
+  onActiveChanged: if (active)
+    InputDisplayService.refreshBackendAvailability()
 
-  // ── Scrim ─────────────────────────────────────────────────────
   Rectangle {
     anchors.fill: parent
     color: Theme.bgOverlay
@@ -74,7 +69,9 @@ Item {
     anchors.fill: parent
 
     onPressed: mouse => {
-      if (popupRect.contains(popupRect.mapFromItem(root, mouse.x, mouse.y))) {
+      const local = panel.mapFromItem(root, mouse.x, mouse.y);
+      const inside = local.x >= 0 && local.y >= 0 && local.x <= panel.width && local.y <= panel.height;
+      if (inside) {
         mouse.accepted = false;
         return;
       }
@@ -82,31 +79,23 @@ Item {
     }
   }
 
-  // ── Popup Card ────────────────────────────────────────────────
   Rectangle {
-    id: popupRect
+    id: panel
 
     anchors.centerIn: parent
-    border.color: Theme.withOpacity(Theme.activeColor, 0.18)
-    border.width: 1
+    border.color: Theme.borderLight
+    border.width: Theme.borderWidthThin
     clip: true
     color: Theme.bgElevatedAlt
     focus: true
     height: Math.min(root.windowHeight, parent.height - Theme.spacingXl * 2)
-    layer.enabled: true
     radius: Theme.radiusXl
-    scale: root.active ? 1.0 : 0.96
+    scale: root.active ? 1 : 0.97
     width: Math.min(root.windowWidth, parent.width - Theme.spacingXl * 2)
 
-    layer.effect: MultiEffect {
-      shadowBlur: 0.9
-      shadowColor: Theme.withOpacity(Theme.shadowColorStrong, 0.72)
-      shadowEnabled: true
-      shadowVerticalOffset: 14
-    }
     Behavior on scale {
       NumberAnimation {
-        duration: Theme.animationVerySlow
+        duration: Theme.animationDuration
         easing.type: Easing.OutCubic
       }
     }
@@ -118,84 +107,49 @@ Item {
       }
     }
 
-    // Inner border shimmer
-    Rectangle {
-      anchors.fill: parent
-      border.color: Theme.withOpacity(Theme.textActiveColor, 0.05)
-      border.width: 1
-      color: "transparent"
-      radius: parent.radius
-    }
-
-    // Top accent glow
-    Rectangle {
-      height: parent.height * 0.4
-      radius: parent.radius
-
-      gradient: Gradient {
-        GradientStop {
-          color: Theme.withOpacity(Theme.activeColor, 0.09)
-          position: 0.0
-        }
-
-        GradientStop {
-          color: "transparent"
-          position: 1.0
-        }
-      }
-
-      anchors {
-        left: parent.left
-        right: parent.right
-        top: parent.top
-      }
-    }
-
     ColumnLayout {
       anchors.fill: parent
       spacing: 0
 
-      // ── Header ───────────────────────────────────────────────
-      ColumnLayout {
-        Layout.bottomMargin: Theme.spacingLg
+      Item {
         Layout.fillWidth: true
-        Layout.margins: Theme.spacingXl
-        spacing: Theme.spacingLg
+        Layout.preferredHeight: headerLayout.implicitHeight + Theme.spacingXl * 2
 
         RowLayout {
-          Layout.fillWidth: true
-          spacing: Theme.spacingLg
+          id: headerLayout
+
+          anchors.fill: parent
+          anchors.leftMargin: Theme.spacingXl
+          anchors.rightMargin: Theme.spacingXl
+          spacing: Theme.spacingMd
 
           Rectangle {
-            border.color: Theme.withOpacity(Theme.activeColor, 0.55)
-            border.width: 1
-            color: Theme.withOpacity(Theme.activeColor, 0.18)
-            implicitHeight: Theme.iconSizeXl * 1.8
-            implicitWidth: Theme.iconSizeXl * 1.8
+            Layout.preferredHeight: Theme.controlHeightXl
+            Layout.preferredWidth: Theme.controlHeightXl
+            color: Theme.activeSubtle
             radius: Theme.radiusLg
 
             OText {
               anchors.centerIn: parent
               color: Theme.activeColor
-              font.pixelSize: Theme.fontXl * 1.35
+              font.pixelSize: Theme.fontXl
               text: "󰾪"
             }
           }
 
           ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 3
+            spacing: Theme.spacingXs
 
             OText {
               bold: true
               font.pixelSize: Theme.fontXxl
-              text: qsTr("Idle Settings")
+              text: qsTr("Idle & Power")
             }
 
             OText {
               color: Theme.textInactiveColor
               font.pixelSize: Theme.fontMd
-              text: root.idleEnabled ? qsTr("Session automation is active — %1 actions armed.").arg(root.enabledActionCount) : qsTr("Session automation is currently paused.")
+              text: root.idleEnabled ? qsTr("%1 automatic actions enabled").arg(root.enabledActionCount) : qsTr("Automatic actions are paused")
             }
           }
 
@@ -203,36 +157,29 @@ Item {
             Layout.fillWidth: true
           }
 
+          OText {
+            Layout.alignment: Qt.AlignVCenter
+            color: root.idleEnabled ? Theme.activeColor : Theme.textInactiveColor
+            font.pixelSize: Theme.fontSm
+            text: qsTr("Idle Service")
+          }
+
+          OToggle {
+            Layout.alignment: Qt.AlignVCenter
+            checked: root.idleEnabled
+            size: "lg"
+
+            onToggled: checked => IdleService.setIdleEnabled(checked)
+          }
+
           IconButton {
-            Layout.alignment: Qt.AlignTop
-            Layout.preferredHeight: Theme.controlHeightLg
-            Layout.preferredWidth: Theme.controlHeightLg
-            colorBg: Theme.withOpacity(Theme.bgColor, 0.6)
+            Layout.alignment: Qt.AlignVCenter
+            colorBg: Theme.withOpacity(Theme.bgColor, 0.5)
             icon: "󰅖"
+            shape: "rounded"
             tooltipText: qsTr("Close")
 
             onClicked: root.close()
-          }
-        }
-
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: Theme.spacingSm
-
-          Repeater {
-            model: root.flowSteps
-
-            delegate: StatusPill {
-              readonly property bool isDisplayPowerOff: modelData === "displayPowerOff"
-              readonly property bool isLock: modelData === "lock"
-              required property var modelData
-              readonly property bool pillActive: root.idleEnabled && (isLock ? root.lockEnabled : isDisplayPowerOff ? root.displayPowerOffEnabled : root.suspendEnabled)
-
-              Layout.fillWidth: true
-              active: pillActive
-              icon: isLock ? "󰌾" : isDisplayPowerOff ? "󰍹" : "󰒚"
-              text: isLock ? (pillActive ? qsTr("Lock • %1").arg(root.formatDuration(root.lockTimeout)) : qsTr("Lock • Off")) : isDisplayPowerOff ? (pillActive ? qsTr("Display • %1").arg(root.formatDuration(root.displayPowerOffTimeout)) : qsTr("Display • Off")) : (pillActive ? qsTr("Suspend • %1").arg(root.formatDuration(root.suspendTimeout)) : qsTr("Suspend • Off"))
-            }
           }
         }
       }
@@ -240,13 +187,11 @@ Item {
       Rectangle {
         Layout.fillWidth: true
         color: Theme.borderSubtle
-        implicitHeight: 1
-        opacity: 0.55
+        implicitHeight: Theme.borderWidthThin
       }
 
-      // ── Scroll Body ───────────────────────────────────────────
       ScrollView {
-        id: settingsScroll
+        id: scrollView
 
         Layout.fillHeight: true
         Layout.fillWidth: true
@@ -255,270 +200,167 @@ Item {
 
         ColumnLayout {
           spacing: Theme.spacingLg
-          width: settingsScroll.availableWidth - Theme.spacingXl * 2
+          width: scrollView.availableWidth - Theme.spacingXl * 2
           x: Theme.spacingXl
 
           Item {
-            implicitHeight: Theme.spacingMd
+            Layout.preferredHeight: Theme.spacingSm
           }
 
-          // ── General + Actions hero card ───────────────────────
-          Rectangle {
+          FlowSummary {
             Layout.fillWidth: true
-            border.color: Theme.withOpacity(Theme.borderLight, 0.6)
-            border.width: 1
-            clip: true
-            color: Theme.bgElevated
-            implicitHeight: heroBody.implicitHeight + Theme.spacingLg * 2
-            radius: Theme.radiusLg
+          }
 
-            Rectangle {
-              height: parent.height * 0.45
-              radius: parent.radius
+          SettingsSection {
+            Layout.fillWidth: true
+            description: qsTr("Choose what happens when the session is inactive.")
+            icon: "󰒲"
+            title: qsTr("Automation")
 
-              gradient: Gradient {
-                GradientStop {
-                  color: Theme.withOpacity(Theme.activeColor, 0.05)
-                  position: 0.0
-                }
+            SettingRow {
+              checked: root.lockEnabled
+              description: qsTr("Secure the session after inactivity.")
+              disabled: !root.idleEnabled
+              icon: "󰌾"
+              label: qsTr("Lock screen")
+              timeoutValue: root.lockTimeout
+              timeoutValues: [0.5, 1, 2, 5, 10, 15, 30]
 
-                GradientStop {
-                  color: "transparent"
-                  position: 1.0
-                }
-              }
-
-              anchors {
-                left: parent.left
-                right: parent.right
-                top: parent.top
+              onTimeoutChanged: value => IdleService.setLockTimeoutMin(value)
+              onToggled: checked => {
+                if (checked && root.lockTimeout <= 0)
+                  IdleService.setLockTimeoutMin(5);
+                IdleService.setLockEnabled(checked);
               }
             }
 
-            ColumnLayout {
-              id: heroBody
+            SettingRow {
+              checked: root.displayPowerOffEnabled
+              description: qsTr("Power down displays until activity resumes.")
+              disabled: !root.idleEnabled
+              icon: "󰍹"
+              label: qsTr("Turn off displays")
+              timeoutValue: root.displayPowerOffTimeout
+              timeoutValues: [0.5, 1, 2, 5, 10, 15]
 
-              spacing: Theme.spacingMd
-
-              anchors {
-                fill: parent
-                margins: Theme.spacingLg
+              onTimeoutChanged: value => IdleService.setDisplayPowerOffTimeoutMin(value)
+              onToggled: checked => {
+                if (checked && root.displayPowerOffTimeout <= 0)
+                  IdleService.setDisplayPowerOffTimeoutMin(1);
+                IdleService.setDisplayPowerOffEnabled(checked);
               }
+            }
 
-              // Hero row
-              RowLayout {
+            SettingRow {
+              checked: root.suspendEnabled
+              description: qsTr("Suspend the device to reduce power use.")
+              disabled: !root.idleEnabled
+              icon: "󰒚"
+              label: qsTr("Suspend system")
+              showSeparator: false
+              timeoutValue: root.suspendTimeout
+              timeoutValues: [5, 10, 15, 30, 60, 120]
+
+              onTimeoutChanged: value => IdleService.setSuspendTimeoutMin(value)
+              onToggled: checked => {
+                if (checked && root.suspendTimeout <= 0)
+                  IdleService.setSuspendTimeoutMin(10);
+                IdleService.setSuspendEnabled(checked);
+              }
+            }
+          }
+
+          RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacingLg
+
+            SettingsSection {
+              Layout.alignment: Qt.AlignTop
+              Layout.fillWidth: true
+              description: qsTr("Action order and wake requests.")
+              icon: "󰒓"
+              title: qsTr("Behavior")
+
+              ColumnLayout {
                 Layout.fillWidth: true
-                spacing: Theme.spacingMd
+                Layout.leftMargin: Theme.spacingLg
+                Layout.rightMargin: Theme.spacingLg
+                Layout.topMargin: Theme.spacingSm
+                enabled: root.idleEnabled && root.lockEnabled && root.displayPowerOffEnabled
+                opacity: enabled ? 1 : Theme.opacityDisabled
+                spacing: Theme.spacingSm
 
-                ColumnLayout {
-                  Layout.fillWidth: true
-                  spacing: 2
-
-                  OText {
-                    bold: true
-                    font.pixelSize: Theme.fontXxl * 1.4
-                    text: qsTr("Idle Service")
-                  }
-
-                  OText {
-                    color: Theme.textInactiveColor
-                    font.pixelSize: Theme.fontMd
-                    text: root.idleEnabled ? qsTr("%1 actions armed").arg(root.enabledActionCount) : qsTr("All automation paused")
-                  }
+                OText {
+                  bold: true
+                  font.pixelSize: Theme.fontLg
+                  text: qsTr("Action order")
                 }
 
-                Item {
+                RowLayout {
                   Layout.fillWidth: true
-                }
+                  spacing: Theme.spacingXs
 
-                OToggle {
-                  checked: root.idleEnabled
-                  size: "lg"
+                  OButton {
+                    Layout.fillWidth: true
+                    bgColor: root.lockAfterDisplayPowerOff ? Theme.withOpacity(Theme.bgColor, 0.55) : Theme.activeColor
+                    size: "sm"
+                    text: qsTr("Lock first")
+                    textColor: root.lockAfterDisplayPowerOff ? Theme.textInactiveColor : Theme.textContrast(bgColor)
 
-                  onToggled: c => IdleService.setIdleEnabled(c)
+                    onClicked: IdleService.setLockAfterDisplayPowerOff(false)
+                  }
+
+                  OButton {
+                    Layout.fillWidth: true
+                    bgColor: root.lockAfterDisplayPowerOff ? Theme.activeColor : Theme.withOpacity(Theme.bgColor, 0.55)
+                    size: "sm"
+                    text: qsTr("Display first")
+                    textColor: root.lockAfterDisplayPowerOff ? Theme.textContrast(bgColor) : Theme.textInactiveColor
+
+                    onClicked: IdleService.setLockAfterDisplayPowerOff(true)
+                  }
                 }
               }
 
               Rectangle {
                 Layout.fillWidth: true
+                Layout.leftMargin: Theme.spacingLg
                 color: Theme.borderSubtle
-                implicitHeight: 1
+                implicitHeight: Theme.borderWidthThin
                 opacity: 0.4
-              }
-
-              // Nested action rows
-              ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 0
-
-                SettingRow {
-                  checked: root.lockEnabled
-                  description: qsTr("Secure your session after inactivity.")
-                  disabled: !root.idleEnabled
-                  hasSlider: true
-                  icon: "󰌾"
-                  label: qsTr("Lock Screen")
-                  sliderMax: 30
-                  sliderValue: root.lockTimeout
-
-                  onSliderChanged: v => IdleService.setLockTimeoutMin(v)
-                  onToggled: c => IdleService.setLockEnabled(c)
-                }
-
-                SettingRow {
-                  checked: root.displayPowerOffEnabled
-                  description: qsTr("Power down monitors when no activity is detected.")
-                  disabled: !root.idleEnabled
-                  hasSlider: true
-                  icon: "󰍹"
-                  label: qsTr("Turn Off Display")
-                  sliderMax: 10
-                  sliderValue: root.displayPowerOffTimeout
-
-                  onSliderChanged: v => IdleService.setDisplayPowerOffTimeoutMin(v)
-                  onToggled: c => IdleService.setDisplayPowerOffEnabled(c)
-                }
-
-                SettingRow {
-                  checked: root.suspendEnabled
-                  description: qsTr("Save power by suspending the device.")
-                  disabled: !root.idleEnabled
-                  hasSlider: true
-                  icon: "󰒚"
-                  label: qsTr("Suspend System")
-                  sliderMax: 60
-                  sliderValue: root.suspendTimeout
-
-                  onSliderChanged: v => IdleService.setSuspendTimeoutMin(v)
-                  onToggled: c => IdleService.setSuspendEnabled(c)
-                }
-
-                SettingRow {
-                  checked: root.lockAfterDisplayPowerOff
-                  description: qsTr("Swap the order: display off first, then lock.")
-                  disabled: !root.idleEnabled || !root.lockEnabled || !root.displayPowerOffEnabled
-                  icon: "󰁯"
-                  label: qsTr("Lock After Display Off")
-                  showSeparator: false
-
-                  onToggled: c => IdleService.setLockAfterDisplayPowerOff(c)
-                }
-              }
-            }
-          }
-
-          // ── Advanced card ─────────────────────────────────────
-          Rectangle {
-            Layout.fillWidth: true
-            border.color: Theme.withOpacity(Theme.borderLight, 0.6)
-            border.width: 1
-            clip: true
-            color: Theme.bgElevated
-            implicitHeight: advancedBody.implicitHeight + Theme.spacingLg * 2
-            radius: Theme.radiusLg
-
-            Rectangle {
-              height: parent.height * 0.45
-              radius: parent.radius
-
-              gradient: Gradient {
-                GradientStop {
-                  color: Theme.withOpacity(Theme.activeColor, 0.05)
-                  position: 0.0
-                }
-
-                GradientStop {
-                  color: "transparent"
-                  position: 1.0
-                }
-              }
-
-              anchors {
-                left: parent.left
-                right: parent.right
-                top: parent.top
-              }
-            }
-
-            ColumnLayout {
-              id: advancedBody
-
-              spacing: 0
-
-              anchors {
-                fill: parent
-                margins: Theme.spacingLg
               }
 
               SettingRow {
                 checked: IdleService.respectInhibitorsEnabled
-                description: qsTr("Honor compositor and app inhibit requests.")
+                description: qsTr("Honor application wake requests.")
                 disabled: !root.idleEnabled
                 icon: "󰈑"
-                label: qsTr("Respect Inhibitors")
+                label: qsTr("Respect inhibitors")
 
-                onToggled: c => IdleService.setRespectInhibitors(c)
+                onToggled: checked => IdleService.setRespectInhibitors(checked)
               }
 
               SettingRow {
                 checked: IdleService.videoAutoInhibitEnabled
-                description: qsTr("Auto-inhibit while media is actively playing.")
+                description: qsTr("Stay awake during active media.")
                 disabled: !root.idleEnabled
                 icon: "󰀈"
-                label: qsTr("Video Inhibit")
+                label: qsTr("Keep awake for media")
                 showSeparator: false
 
-                onToggled: c => IdleService.setVideoAutoInhibit(c)
-              }
-            }
-          }
-
-          // ── Input display card ───────────────────────────────
-          Rectangle {
-            Layout.fillWidth: true
-            border.color: Theme.withOpacity(Theme.borderLight, 0.6)
-            border.width: 1
-            clip: true
-            color: Theme.bgElevated
-            implicitHeight: inputDisplayBody.implicitHeight + Theme.spacingLg * 2
-            radius: Theme.radiusLg
-
-            Rectangle {
-              height: parent.height * 0.45
-              radius: parent.radius
-
-              gradient: Gradient {
-                GradientStop {
-                  color: Theme.withOpacity(Theme.activeColor, 0.05)
-                  position: 0.0
-                }
-
-                GradientStop {
-                  color: "transparent"
-                  position: 1.0
-                }
-              }
-
-              anchors {
-                left: parent.left
-                right: parent.right
-                top: parent.top
+                onToggled: checked => IdleService.setVideoAutoInhibit(checked)
               }
             }
 
-            ColumnLayout {
-              id: inputDisplayBody
+            SettingsSection {
+              Layout.alignment: Qt.AlignTop
+              Layout.fillWidth: true
+              description: qsTr("Show pressed keys and mouse buttons.")
+              icon: "󰖳"
+              title: qsTr("Input overlay")
 
-              spacing: 0
-
-              anchors {
-                fill: parent
-                margins: Theme.spacingLg
-              }
-
-              StatusPill {
+              InlineMessage {
                 Layout.fillWidth: true
-                active: false
                 icon: InputDisplayService.backendCheckComplete ? "󰅚" : "󰔟"
                 text: root.inputDisplayStatusText
                 visible: !root.inputDisplayBackendReady
@@ -526,92 +368,212 @@ Item {
 
               SettingRow {
                 checked: InputDisplayService.enabled
-                description: qsTr("Show the keyboard and mouse overlay.")
-                icon: "󰖳"
-                label: qsTr("Input Display")
+                description: qsTr("Show input events on screen.")
+                icon: "󰌌"
+                label: qsTr("Show input overlay")
                 visible: root.inputDisplayBackendReady
 
-                onToggled: c => InputDisplayService.setEnabled(c)
+                onToggled: checked => InputDisplayService.setEnabled(checked)
               }
 
               SettingRow {
                 checked: InputDisplayService.showPrintableKeys
-                description: qsTr("Letters, digits, punctuation, and space.")
+                description: qsTr("Include letters and punctuation.")
                 disabled: !InputDisplayService.enabled
                 icon: "󰌌"
-                label: qsTr("Show Printable Keys")
+                label: qsTr("Printable keys")
                 showSeparator: false
                 visible: root.inputDisplayBackendReady
 
-                onToggled: c => InputDisplayService.setShowPrintableKeys(c)
-              }
-            }
-          }
-
-          // ── Tip banner ────────────────────────────────────────
-          Rectangle {
-            Layout.fillWidth: true
-            border.color: Theme.withOpacity(Theme.activeColor, 0.2)
-            border.width: 1
-            color: Theme.withOpacity(Theme.bgElevated, 0.75)
-            implicitHeight: tipRow.implicitHeight + Theme.spacingMd * 2
-            radius: Theme.radiusMd
-
-            RowLayout {
-              id: tipRow
-
-              spacing: Theme.spacingSm
-
-              anchors {
-                fill: parent
-                leftMargin: Theme.spacingLg
-                rightMargin: Theme.spacingLg
-              }
-
-              OText {
-                color: Theme.activeColor
-                font.pixelSize: Theme.fontLg
-                text: "󰋼"
-              }
-
-              OText {
-                Layout.fillWidth: true
-                color: Theme.textInactiveColor
-                font.pixelSize: Theme.fontMd
-                text: root.lockAfterDisplayPowerOff ? qsTr("Tip: current flow is Display Off → Lock → Suspend.") : qsTr("Tip: current flow is Lock → Display Off → Suspend.")
-                wrapMode: Text.Wrap
+                onToggled: checked => InputDisplayService.setShowPrintableKeys(checked)
               }
             }
           }
 
           Item {
-            implicitHeight: Theme.spacingMd
+            Layout.preferredHeight: Theme.spacingMd
           }
         }
       }
     }
   }
 
-  // ── SettingRow ────────────────────────────────────────────────
+  component FlowSummary: Rectangle {
+    id: flowRoot
+
+    color: root.idleEnabled ? Theme.activeSubtle : Theme.withOpacity(Theme.bgColor, 0.35)
+    implicitHeight: flowLayout.implicitHeight + Theme.spacingMd * 2
+    radius: Theme.radiusLg
+
+    RowLayout {
+      id: flowLayout
+
+      anchors.fill: parent
+      anchors.leftMargin: Theme.spacingLg
+      anchors.rightMargin: Theme.spacingLg
+      spacing: Theme.spacingSm
+
+      OText {
+        color: root.idleEnabled ? Theme.activeColor : Theme.textInactiveColor
+        font.pixelSize: Theme.fontLg
+        text: root.idleEnabled ? "󰐊" : "󰏤"
+      }
+
+      OText {
+        bold: true
+        color: root.idleEnabled ? Theme.textActiveColor : Theme.textInactiveColor
+        font.pixelSize: Theme.fontSm
+        text: root.idleEnabled ? qsTr("Current flow") : qsTr("Automation paused")
+      }
+
+      Item {
+        Layout.fillWidth: true
+      }
+
+      Repeater {
+        model: root.flowSteps
+
+        delegate: RowLayout {
+          required property int index
+          required property var modelData
+          readonly property bool isDisplay: modelData === "displayPowerOff"
+          readonly property bool isLock: modelData === "lock"
+          readonly property string stepLabel: isLock ? qsTr("Lock") : isDisplay ? qsTr("Display") : qsTr("Suspend")
+          readonly property bool stepEnabled: root.idleEnabled && (isLock ? root.lockEnabled : isDisplay ? root.displayPowerOffEnabled : root.suspendEnabled)
+          readonly property real timeout: isLock ? root.lockTimeout : isDisplay ? root.displayPowerOffTimeout : root.suspendTimeout
+
+          spacing: Theme.spacingSm
+
+          OText {
+            color: parent.stepEnabled ? Theme.activeColor : Theme.textInactiveColor
+            font.pixelSize: Theme.fontSm
+            opacity: parent.stepEnabled ? 1 : 0.45
+            text: parent.isLock ? "󰌾" : parent.isDisplay ? "󰍹" : "󰒚"
+          }
+
+          OText {
+            color: parent.stepEnabled ? Theme.textActiveColor : Theme.textInactiveColor
+            font.pixelSize: Theme.fontSm
+            opacity: parent.stepEnabled ? 1 : 0.45
+            text: parent.stepEnabled ? qsTr("%1 · %2").arg(parent.stepLabel).arg(root.formatDuration(parent.timeout)) : qsTr("%1 · Off").arg(parent.stepLabel)
+          }
+
+          OText {
+            color: Theme.textInactiveColor
+            font.pixelSize: Theme.fontSm
+            opacity: 0.45
+            text: "→"
+            visible: parent.index < root.flowSteps.length - 1
+          }
+        }
+      }
+    }
+  }
+
+  component SettingsSection: Rectangle {
+    id: sectionRoot
+
+    default property alias content: sectionContent.data
+    property string description: ""
+    property string icon: ""
+    property string title: ""
+
+    border.color: Theme.borderSubtle
+    border.width: Theme.borderWidthThin
+    color: Theme.bgElevated
+    implicitHeight: sectionLayout.implicitHeight + Theme.spacingLg * 2
+    radius: Theme.radiusLg
+
+    ColumnLayout {
+      id: sectionLayout
+
+      anchors.fill: parent
+      anchors.topMargin: Theme.spacingLg
+      anchors.bottomMargin: Theme.spacingLg
+      spacing: Theme.spacingMd
+
+      RowLayout {
+        Layout.fillWidth: true
+        Layout.leftMargin: Theme.spacingLg
+        Layout.rightMargin: Theme.spacingLg
+        spacing: Theme.spacingSm
+
+        OText {
+          color: Theme.activeColor
+          font.pixelSize: Theme.fontLg
+          text: sectionRoot.icon
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          spacing: Theme.spacingXs
+
+          OText {
+            bold: true
+            font.pixelSize: Theme.fontXl
+            text: sectionRoot.title
+          }
+
+          OText {
+            Layout.fillWidth: true
+            color: Theme.textInactiveColor
+            font.pixelSize: Theme.fontSm
+            text: sectionRoot.description
+            wrapMode: Text.Wrap
+          }
+        }
+      }
+
+      ColumnLayout {
+        id: sectionContent
+
+        Layout.fillWidth: true
+        spacing: 0
+      }
+    }
+  }
+
   component SettingRow: ColumnLayout {
     id: rowRoot
 
     property bool checked: false
     property string description: ""
     property bool disabled: false
-    property bool hasSlider: false
     property string icon: ""
     property string label: ""
     property bool showSeparator: true
-    property real sliderMax: 60
-    property real sliderValue: 0
+    readonly property var effectiveTimeoutValues: {
+      const values = timeoutValues.slice();
+      if (timeoutValue > 0 && !values.some(value => Math.abs(value - timeoutValue) < 0.001)) {
+        values.push(timeoutValue);
+        values.sort((left, right) => left - right);
+      }
+      return values;
+    }
+    property real timeoutValue: 0
+    property var timeoutValues: []
 
-    signal sliderChanged(real value)
+    signal timeoutChanged(real value)
     signal toggled(bool checked)
+
+    function timeoutIndex(): int {
+      if (effectiveTimeoutValues.length === 0)
+        return -1;
+      let closestIndex = 0;
+      let closestDistance = Math.abs(effectiveTimeoutValues[0] - timeoutValue);
+      for (let i = 1; i < effectiveTimeoutValues.length; i++) {
+        const distance = Math.abs(effectiveTimeoutValues[i] - timeoutValue);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = i;
+        }
+      }
+      return closestIndex;
+    }
 
     Layout.fillWidth: true
     enabled: !disabled
-    opacity: disabled ? Theme.opacityDisabled : 1.0
+    opacity: disabled ? Theme.opacityDisabled : 1
     spacing: 0
 
     Behavior on opacity {
@@ -620,260 +582,106 @@ Item {
       }
     }
 
-    // Main row
-    Rectangle {
+    RowLayout {
       Layout.fillWidth: true
-      clip: true
-      color: rowHover.containsMouse && !rowRoot.disabled ? Theme.withOpacity(Theme.activeColor, 0.04) : "transparent"
-      implicitHeight: rowBody.implicitHeight + Theme.spacingMd * 2
+      Layout.leftMargin: Theme.spacingLg
+      Layout.rightMargin: Theme.spacingLg
+      Layout.topMargin: Theme.spacingMd
+      Layout.bottomMargin: Theme.spacingMd
+      spacing: Theme.spacingMd
 
-      Behavior on color {
-        ColorAnimation {
-          duration: Theme.animationDuration
-        }
-      }
-
-      MouseArea {
-        id: rowHover
-
-        acceptedButtons: Qt.NoButton
-        anchors.fill: parent
-        hoverEnabled: true
-      }
-
-      RowLayout {
-        id: rowBody
-
-        spacing: Theme.spacingMd
-
-        anchors {
-          bottomMargin: Theme.spacingMd
-          fill: parent
-          leftMargin: Theme.spacingLg
-          rightMargin: Theme.spacingMd
-          topMargin: Theme.spacingMd
-        }
-
-        // Icon badge
-        Rectangle {
-          border.color: rowRoot.checked ? Theme.withOpacity(Theme.activeColor, 0.55) : Theme.borderSubtle
-          border.width: 1
-          color: rowRoot.checked ? Theme.withOpacity(Theme.activeColor, 0.18) : Theme.withOpacity(Theme.bgColor, 0.4)
-          implicitHeight: Theme.controlHeightMd
-          implicitWidth: Theme.controlHeightMd
-          radius: Theme.radiusSm
-
-          Behavior on border.color {
-            ColorAnimation {
-              duration: Theme.animationDuration
-            }
-          }
-          Behavior on color {
-            ColorAnimation {
-              duration: Theme.animationDuration
-            }
-          }
-
-          OText {
-            anchors.centerIn: parent
-            color: rowRoot.checked ? Theme.activeColor : Theme.textInactiveColor
-            font.pixelSize: Theme.fontMd
-            text: rowRoot.icon
-
-            Behavior on color {
-              ColorAnimation {
-                duration: Theme.animationDuration
-              }
-            }
-          }
-        }
-
-        // Label + description
-        ColumnLayout {
-          Layout.fillWidth: true
-          spacing: 2
-
-          OText {
-            bold: rowRoot.checked
-            color: rowRoot.checked ? Theme.textActiveColor : Theme.textInactiveColor
-            font.pixelSize: Theme.fontLg
-            text: rowRoot.label
-
-            Behavior on color {
-              ColorAnimation {
-                duration: Theme.animationDuration
-              }
-            }
-          }
-
-          OText {
-            Layout.fillWidth: true
-            color: Theme.textInactiveColor
-            font.pixelSize: Theme.fontSm
-            opacity: 0.85
-            text: rowRoot.hasSlider && rowRoot.checked ? qsTr("Timeout: %1").arg(root.formatDuration(rowRoot.sliderValue)) : rowRoot.description
-            visible: text.length > 0
-            wrapMode: Text.Wrap
-          }
-        }
-
-        OToggle {
-          checked: rowRoot.checked
-          disabled: rowRoot.disabled
-          size: "lg"
-
-          onToggled: c => rowRoot.toggled(c)
-        }
-      }
-    }
-
-    // Slider section
-    Item {
-      Layout.fillWidth: true
-      Layout.preferredHeight: visible ? sliderInner.implicitHeight + Theme.spacingSm * 2 : 0
-      clip: true
-      visible: rowRoot.hasSlider && rowRoot.checked
-
-      Behavior on Layout.preferredHeight {
-        NumberAnimation {
-          duration: Theme.animationDuration
-          easing.type: Easing.OutCubic
-        }
+      OText {
+        Layout.alignment: Qt.AlignTop
+        Layout.preferredWidth: Theme.controlHeightMd
+        color: rowRoot.checked ? Theme.activeColor : Theme.textInactiveColor
+        font.pixelSize: Theme.fontMd
+        horizontalAlignment: Text.AlignHCenter
+        text: rowRoot.icon
       }
 
       ColumnLayout {
-        id: sliderInner
-
+        Layout.fillWidth: true
         spacing: Theme.spacingXs
 
-        anchors {
-          bottomMargin: Theme.spacingSm
-          fill: parent
-          leftMargin: Theme.spacingLg + Theme.controlHeightMd + Theme.spacingMd
-          rightMargin: Theme.spacingMd
-          topMargin: Theme.spacingSm
-        }
-
-        RowLayout {
+        OText {
           Layout.fillWidth: true
-
-          OText {
-            color: Theme.textInactiveColor
-            font.pixelSize: Theme.fontSm
-            text: qsTr("Timeout")
-          }
-
-          Item {
-            Layout.fillWidth: true
-          }
-
-          OText {
-            bold: true
-            color: Theme.activeColor
-            font.pixelSize: Theme.fontSm
-            text: root.formatDuration(rowRoot.sliderValue)
-          }
+          bold: rowRoot.checked
+          color: Theme.textActiveColor
+          font.pixelSize: Theme.fontLg
+          text: rowRoot.label
         }
 
-        Slider {
+        OText {
           Layout.fillWidth: true
-          Layout.preferredHeight: 24
-          fillColor: Theme.activeColor
-          interactive: !rowRoot.disabled
-          radius: 12
-          steps: Math.max(1, Math.round(rowRoot.sliderMax * 2))
-          value: rowRoot.sliderMax > 0 ? rowRoot.sliderValue / rowRoot.sliderMax : 0
-
-          onCommitted: v => {
-            if (rowRoot.sliderMax <= 0) {
-              rowRoot.sliderChanged(0);
-              return;
-            }
-            rowRoot.sliderChanged(Math.round(v * rowRoot.sliderMax * 2) / 2);
-          }
+          color: Theme.textInactiveColor
+          font.pixelSize: Theme.fontSm
+          text: rowRoot.description
+          wrapMode: Text.Wrap
         }
+      }
 
-        RowLayout {
-          Layout.fillWidth: true
+      OComboBox {
+        Layout.alignment: Qt.AlignVCenter
+        Layout.preferredWidth: 108
+        currentIndex: rowRoot.timeoutIndex()
+        model: rowRoot.effectiveTimeoutValues.map(value => root.formatDuration(value))
+        visible: rowRoot.timeoutValues.length > 0 && rowRoot.checked
 
-          OText {
-            color: Theme.textInactiveColor
-            font.pixelSize: Theme.fontXs
-            opacity: 0.65
-            text: qsTr("Never")
-          }
+        onActivated: index => rowRoot.timeoutChanged(rowRoot.effectiveTimeoutValues[index])
+      }
 
-          Item {
-            Layout.fillWidth: true
-          }
+      OToggle {
+        Layout.alignment: Qt.AlignVCenter
+        checked: rowRoot.checked
+        disabled: rowRoot.disabled
+        size: "lg"
 
-          OText {
-            color: Theme.textInactiveColor
-            font.pixelSize: Theme.fontXs
-            opacity: 0.65
-            text: root.formatDuration(rowRoot.sliderMax)
-          }
-        }
+        onToggled: checked => rowRoot.toggled(checked)
       }
     }
 
-    // Separator
     Rectangle {
       Layout.fillWidth: true
       Layout.leftMargin: Theme.spacingLg + Theme.controlHeightMd + Theme.spacingMd
       color: Theme.borderSubtle
-      implicitHeight: 1
-      opacity: 0.28
+      implicitHeight: Theme.borderWidthThin
+      opacity: 0.4
       visible: rowRoot.showSeparator
     }
   }
 
-  // ── StatusPill ────────────────────────────────────────────────
-  component StatusPill: Rectangle {
-    id: pillRoot
+  component InlineMessage: Rectangle {
+    id: messageRoot
 
-    property bool active: true
     property string icon: ""
     property string text: ""
 
-    border.color: active ? Theme.withOpacity(Theme.activeColor, 0.4) : Theme.borderSubtle
-    border.width: 1
-    color: active ? Theme.withOpacity(Theme.activeColor, 0.15) : Theme.withOpacity(Theme.bgColor, 0.26)
-    implicitHeight: Theme.controlHeightLg
-    radius: Theme.radiusSm
-
-    Behavior on border.color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
-    }
-    Behavior on color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
-    }
+    Layout.leftMargin: Theme.spacingLg
+    Layout.rightMargin: Theme.spacingLg
+    color: Theme.withOpacity(Theme.bgColor, 0.45)
+    implicitHeight: messageRow.implicitHeight + Theme.spacingMd * 2
+    radius: Theme.radiusMd
 
     RowLayout {
-      spacing: Theme.spacingXs
+      id: messageRow
 
-      anchors {
-        fill: parent
-        leftMargin: Theme.spacingSm
-        rightMargin: Theme.spacingSm
-      }
+      anchors.fill: parent
+      anchors.leftMargin: Theme.spacingMd
+      anchors.rightMargin: Theme.spacingMd
+      spacing: Theme.spacingSm
 
       OText {
-        color: pillRoot.active ? Theme.activeColor : Theme.textInactiveColor
+        color: Theme.textInactiveColor
         font.pixelSize: Theme.fontMd
-        text: pillRoot.icon
+        text: messageRoot.icon
       }
 
       OText {
         Layout.fillWidth: true
-        color: pillRoot.active ? Theme.textActiveColor : Theme.textInactiveColor
-        elide: Text.ElideRight
+        color: Theme.textInactiveColor
         font.pixelSize: Theme.fontSm
-        text: pillRoot.text
+        text: messageRoot.text
+        wrapMode: Text.Wrap
       }
     }
   }

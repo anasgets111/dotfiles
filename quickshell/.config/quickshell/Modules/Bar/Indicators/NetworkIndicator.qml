@@ -1,15 +1,15 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import qs.Config
 import qs.Components
+import qs.Config
 import qs.Services.Core
 import qs.Services.UI
 
 Item {
   id: root
 
-  readonly property var ap: ready ? (NetworkService.wifiAps.find(ap => ap?.connected) || null) : null
-  readonly property string band: (ap && ap.band) ? String(ap.band) : ""
+  readonly property var ap: ready ? NetworkService.connectedWifiAp : null
+  readonly property string band: String(ap?.band ?? "")
   readonly property string detail1: {
     if (!ready)
       return "";
@@ -17,15 +17,14 @@ Item {
     const iface = link === "ethernet" ? (NetworkService.ethernetInterface || "eth") : link === "wifi" ? (NetworkService.wifiInterface || "wlan") : "";
     return (link === "ethernet" || link === "wifi") ? qsTr("IP: %1 · IF: %2").arg(ip).arg(iface) : qsTr("No network connection");
   }
-  readonly property string detail2: ""
-  readonly property string link: ready ? (NetworkService.linkType || "disconnected") : "disconnected"
+  readonly property string link: ready ? NetworkService.linkType : "disconnected"
   readonly property string netIcon: {
     if (!ready)
       return "󰤭";
     if (link === "ethernet")
       return "󰈀";
     if (link === "wifi")
-      return NetworkService.getWifiIcon ? NetworkService.getWifiIcon(strength) : "";
+      return NetworkService.getWifiIcon(strength);
     return NetworkService.wifiRadioEnabled ? "󰤭" : "󰤮";
   }
   readonly property bool panelOpen: ShellUiState.isPanelOpen("network", root.screenName)
@@ -43,8 +42,8 @@ Item {
     }
     return "";
   }
-  readonly property string ssid: (ap && ap.ssid) ? String(ap.ssid) : ""
-  readonly property int strength: (ap && typeof ap.signal === "number") ? ap.signal : 0
+  readonly property string ssid: String(ap?.ssid ?? "")
+  readonly property int strength: typeof ap?.signal === "number" ? ap.signal : 0
   readonly property string title: {
     if (!ready)
       return qsTr("Network: initializing…");
@@ -57,9 +56,7 @@ Item {
     }
     return NetworkService.wifiRadioEnabled ? qsTr("Disconnected") : qsTr("Wi-Fi radio: off");
   }
-  readonly property string tooltipText: [title, detail1, detail2, secondary].filter(t => t).join("\n")
-
-  signal clicked(var point)
+  readonly property string tooltipText: [title, detail1, secondary].filter(t => t).join("\n")
 
   function bandColor(value: string): color {
     return value === "6" ? Theme.powerSaveColor : value === "5" ? Theme.activeColor : Theme.inactiveColor;
@@ -81,14 +78,13 @@ Item {
         NetworkService.startWifiScan();
         ShellUiState.togglePanelForItem("network", root.screenName, iconButton);
       }
-      root.clicked(mouse);
     }
 
     Text {
       id: mainIcon
 
       anchors.centerIn: parent
-      color: root.link === "wifi" && root.band ? root.bandColor(root.band) : (iconButton.hovered ? Theme.textContrast(iconButton.colorBgHover) : Theme.textContrast(iconButton.colorBg))
+      color: iconButton.hovered ? Theme.textContrast(iconButton.colorBgHover) : root.link === "wifi" && root.band ? root.bandColor(root.band) : Theme.textContrast(iconButton.colorBg)
       font.bold: true
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
@@ -106,7 +102,7 @@ Item {
       anchors.bottom: mainIcon.bottom
       anchors.left: mainIcon.right
       anchors.leftMargin: root.band === "2.4" ? -Theme.spacingXs : -Theme.spacingXs / 2
-      color: root.bandColor(root.band)
+      color: iconButton.hovered ? Theme.textContrast(iconButton.colorBgHover) : root.bandColor(root.band)
       font.bold: true
       font.family: "Roboto Condensed"
       font.letterSpacing: root.band === "2.4" ? -1.5 : -1

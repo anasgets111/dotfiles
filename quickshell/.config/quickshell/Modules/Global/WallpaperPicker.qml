@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell.Widgets
 import qs.Components
 import qs.Config
 import qs.Services.Core
@@ -18,9 +19,15 @@ SearchGridPanel {
     const idx = transitionOptions.findIndex(o => o.value === stagedTransition);
     return Math.max(0, idx);
   }
-  readonly property string currentWallpaperPath: selectedMonitor !== "all" && WallpaperService?.ready ? WallpaperService.wallpaperPath(selectedMonitor) : ""
+  readonly property string currentWallpaperPath: {
+    if (!WallpaperService?.ready)
+      return "";
+    if (selectedMonitor !== "all")
+      return WallpaperService.wallpaperPath(selectedMonitor);
+    const paths = (WallpaperService.monitors ?? []).map(m => m?.name ? WallpaperService.wallpaperPath(m.name) : "").filter(Boolean);
+    return paths.length > 0 && paths.length === (WallpaperService.monitors ?? []).length && paths.every(path => path === paths[0]) ? paths[0] : "";
+  }
 
-  // ── Logic (unchanged) ────────────────────────────────────────────
   readonly property var fillModeOptions: (WallpaperService?.availableModes ?? []).map(m => ({
         label: {
           fill: qsTr("Fill"),
@@ -32,6 +39,24 @@ SearchGridPanel {
         value: m
       }))
   property bool loadingFromService: false
+  readonly property bool pendingChanges: {
+    if (!WallpaperService?.ready)
+      return false;
+    if (stagedTransition !== WallpaperService.wallpaperTransition)
+      return true;
+    const applyToAll = selectedMonitor === "all" && stagedWallpapers.all;
+    for (const monitor of WallpaperService.monitors ?? []) {
+      if (!monitor?.name)
+        continue;
+      const mode = stagedModes[monitor.name] ?? stagedModes.all ?? WallpaperService.defaultMode;
+      if (mode !== WallpaperService.wallpaperMode(monitor.name))
+        return true;
+      const wallpaper = applyToAll ? stagedWallpapers.all : (stagedWallpapers[monitor.name] ?? "");
+      if (wallpaper && wallpaper !== WallpaperService.wallpaperPath(monitor.name))
+        return true;
+    }
+    return false;
+  }
   readonly property var monitorOptions: {
     const list = [
       {
@@ -113,6 +138,8 @@ SearchGridPanel {
       modes[name] = WallpaperService?.ready ? WallpaperService.wallpaperMode(name) : defaultMode;
       wallpapers[name] = WallpaperService?.ready ? WallpaperService.wallpaperPath(name) : "";
     }
+    const monitorWallpapers = monitors.map(m => m?.name ? wallpapers[m.name] : "").filter(Boolean);
+    wallpapers.all = monitorWallpapers.length > 0 && monitorWallpapers.length === monitors.length && monitorWallpapers.every(path => path === monitorWallpapers[0]) ? monitorWallpapers[0] : "";
     stagedModes = modes;
     stagedWallpapers = wallpapers;
     stagedTransition = WallpaperService?.wallpaperTransition ?? "disc";
@@ -124,6 +151,13 @@ SearchGridPanel {
   }
 
   function stageFillMode(mode) {
+    if (selectedMonitor === "all") {
+      const monitorNames = monitorOptions.map(option => option.value).filter(value => value !== "all");
+      if (stagedModes.all === mode && monitorNames.every(name => stagedModes[name] === mode))
+        return;
+    } else if ((stagedModes[selectedMonitor] ?? stagedModes.all ?? WallpaperService?.defaultMode) === mode) {
+      return;
+    }
     const modes = Object.assign({}, stagedModes);
     if (selectedMonitor === "all") {
       modes.all = mode;
@@ -141,10 +175,19 @@ SearchGridPanel {
   function stageWallpaper(entry) {
     if (!entry?.path)
       return;
+    const target = selectedMonitor === "all" ? "all" : selectedMonitor;
+    if ((stagedWallpapers[target] ?? "") === entry.path)
+      return;
     stagedWallpapers = Object.assign({}, stagedWallpapers, {
-      [selectedMonitor === "all" ? "all" : selectedMonitor]: entry.path
+      [target]: entry.path
     });
     updateSelection();
+  }
+
+  function stageTransition(transition) {
+    if (stagedTransition === transition)
+      return;
+    stagedTransition = transition;
   }
 
   function updateSelection() {
@@ -157,162 +200,110 @@ SearchGridPanel {
       currentIndex = idx;
   }
 
-  // ── Grid config ──────────────────────────────────────────────────
-  cellHeight: 145
-  cellPadding: 6
+  cellHeight: Math.round(cellWidth * 9 / 16)
   cellWidth: 230
   closeOnActivate: false
-  contentMargin: 14
-  contentSpacing: 10
+  contentMargin: Theme.spacingLg
+  contentSpacing: Theme.spacingMd
   delegateComponent: wallpaperDelegate
-  iconSelector: entry => entry?.previewSource ?? ""
-  itemImageSize: 265
   items: WallpaperService?.wallpaperFiles ?? []
   labelSelector: entry => entry?.displayName ?? ""
   placeholderText: qsTr("Search wallpapers…")
+  popupBorderColor: Theme.borderLight
+  popupRadius: Theme.radiusXl
+  scrimColor: Theme.withOpacity(Theme.bgOverlay, 0.35)
   searchSelector: labelSelector
-  windowHeight: 540
+  windowHeight: 650
   windowWidth: 960
 
-  // ── Footer: ghost Cancel + bold pill Apply ───────────────────────
   footerContent: [
     RowLayout {
-      spacing: 10
+      spacing: Theme.spacingMd
       width: parent?.width ?? 0
 
-      Rectangle {
-        border.color: Qt.rgba(1, 1, 1, 0.2)
-        border.width: 1
-        color: Qt.rgba(1, 1, 1, cancelMouse.containsMouse ? 0.08 : 0)
-        implicitHeight: 40
-        implicitWidth: 110
-        radius: 20
-
-        Behavior on color {
-          ColorAnimation {
-            duration: 130
-          }
-        }
-
-        OText {
-          anchors.centerIn: parent
-          font.pixelSize: Theme.fontSize
-          opacity: cancelMouse.containsMouse ? 1 : 0.65
-          text: qsTr("Cancel")
-
-          Behavior on opacity {
-            NumberAnimation {
-              duration: 130
-            }
-          }
-        }
-
-        MouseArea {
-          id: cancelMouse
-
-          anchors.fill: parent
-          cursorShape: Qt.PointingHandCursor
-          hoverEnabled: true
-
-          onClicked: picker.cancelRequested()
-        }
+      OText {
+        color: Theme.textContrast(Theme.bgColor)
+        font.pixelSize: Theme.fontSm
+        opacity: picker.pendingChanges ? 0.9 : 0.65
+        text: picker.pendingChanges ? qsTr("Changes are ready to apply") : qsTr("No pending changes")
       }
 
       Item {
         Layout.fillWidth: true
       }
 
-      Rectangle {
-        color: Theme.activeColor
-        implicitHeight: 40
-        implicitWidth: 126
-        radius: 20
-        scale: applyMouse.containsMouse ? 1.05 : 1.0
+      OButton {
+        Layout.preferredWidth: 110
+        size: "lg"
+        text: qsTr("Cancel")
+        variant: "secondary"
 
-        Behavior on scale {
-          NumberAnimation {
-            duration: 140
-            easing.type: Easing.OutCubic
-          }
-        }
+        onClicked: picker.cancelRequested()
+      }
 
-        OText {
-          anchors.centerIn: parent
-          font.bold: true
-          font.pixelSize: Theme.fontSize
-          text: qsTr("Apply")
-        }
+      OButton {
+        Layout.preferredWidth: 126
+        isEnabled: picker.pendingChanges
+        size: "lg"
+        text: qsTr("Apply")
 
-        MouseArea {
-          id: applyMouse
-
-          anchors.fill: parent
-          cursorShape: Qt.PointingHandCursor
-          hoverEnabled: true
-
-          onClicked: picker.applyChanges()
-        }
+        onClicked: picker.applyChanges()
       }
     }
   ]
 
-  // ── Header ───────────────────────────────────────────────────────
   headerContent: [
     ColumnLayout {
-      spacing: 10
+      spacing: Theme.spacingMd
       width: parent?.width ?? 0
 
-      // Row 1 — folder path + monitor chip group
       RowLayout {
         Layout.fillWidth: true
-        spacing: 10
+        spacing: Theme.spacingMd
 
         Rectangle {
-          Layout.fillWidth: true
-          border.color: Qt.rgba(1, 1, 1, 0.1)
-          border.width: 1
-          color: Qt.rgba(1, 1, 1, 0.05)
-          implicitHeight: 36
-          radius: 8
+          Layout.preferredHeight: Theme.controlHeightXl
+          Layout.preferredWidth: Theme.controlHeightXl
+          color: Theme.activeSubtle
+          radius: Theme.radiusLg
 
-          RowLayout {
-            spacing: 8
-
-            anchors {
-              fill: parent
-              leftMargin: 12
-              rightMargin: 12
-            }
-
-            OText {
-              font.pixelSize: 13
-              muted: true
-              text: "⌂"
-            }
-
-            TextInput {
-              Layout.fillWidth: true
-              clip: true
-              color: Theme.textActiveColor
-              font.family: Theme.fontFamily
-              font.pixelSize: Theme.fontSize
-              selectByMouse: true
-              text: WallpaperService?.wallpaperFolder ?? ""
-
-              onEditingFinished: if (text !== (WallpaperService?.wallpaperFolder ?? ""))
-                WallpaperService.setWallpaperFolder(text)
-            }
+          OText {
+            anchors.centerIn: parent
+            color: Theme.activeColor
+            font.pixelSize: Theme.fontXl
+            text: "󰸉"
           }
         }
 
-        // Monitor chip group
+        ColumnLayout {
+          spacing: Theme.spacingXs
+
+          OText {
+            bold: true
+            color: Theme.textContrast(Theme.bgColor)
+            font.pixelSize: Theme.fontXxl
+            text: qsTr("Wallpaper")
+          }
+
+          OText {
+            color: Theme.textContrast(Theme.bgColor)
+            font.pixelSize: Theme.fontSm
+            opacity: 0.72
+            text: picker.selectedMonitor === "all" ? qsTr("Choose a wallpaper for all displays") : qsTr("Choose a wallpaper for %1").arg(picker.selectedMonitor)
+          }
+        }
+
+        Item {
+          Layout.fillWidth: true
+        }
+
         Rectangle {
-          border.color: Qt.rgba(1, 1, 1, 0.1)
-          border.width: 1
-          color: Qt.rgba(1, 1, 1, 0.05)
-          implicitHeight: 34
-          implicitWidth: monitorChips.implicitWidth + 12
-          radius: 17
+          border.color: Theme.borderSubtle
+          border.width: Theme.borderWidthThin
+          color: Theme.withOpacity(Theme.bgColor, 0.45)
+          implicitHeight: Theme.controlHeightLg
+          implicitWidth: monitorChips.implicitWidth + Theme.spacingSm
+          radius: Theme.radiusFull
 
           Row {
             id: monitorChips
@@ -323,151 +314,133 @@ SearchGridPanel {
             Repeater {
               model: picker.monitorOptions
 
-              delegate: Rectangle {
-                id: recta
-
+              delegate: OButton {
                 required property int index
                 readonly property bool isActive: picker.selectedMonitor === modelData.value
                 required property var modelData
 
-                color: isActive ? Theme.activeColor : "transparent"
-                implicitHeight: 28
-                implicitWidth: Math.max(58, monitorLabel.implicitWidth + 22)
-                radius: 14
+                bgColor: isActive ? Theme.activeColor : "transparent"
+                height: Theme.controlHeightMd
+                radius: Theme.radiusFull
+                size: "sm"
+                text: modelData.label
+                textColor: isActive ? Theme.textContrast(bgColor) : Theme.withOpacity(Theme.textContrast(Theme.bgColor), 0.72)
+                width: Math.max(58, implicitWidth)
 
-                Behavior on color {
-                  ColorAnimation {
-                    duration: 160
-                  }
-                }
-
-                OText {
-                  id: monitorLabel
-
-                  anchors.centerIn: parent
-                  font.bold: recta.isActive
-                  font.pixelSize: 12
-                  opacity: recta.isActive ? 1 : 0.55
-                  text: recta.modelData.label
-
-                  Behavior on opacity {
-                    NumberAnimation {
-                      duration: 160
-                    }
-                  }
-                }
-
-                MouseArea {
-                  anchors.fill: parent
-                  cursorShape: Qt.PointingHandCursor
-
-                  onClicked: picker.selectedMonitor = recta.modelData.value
-                }
+                onClicked: picker.selectedMonitor = modelData.value
               }
             }
           }
         }
       }
 
-      // Row 2 — fill chips + transition chips + theme + dark toggle
-      RowLayout {
+      Rectangle {
         Layout.fillWidth: true
-        spacing: 8
+        border.color: Theme.borderSubtle
+        border.width: Theme.borderWidthThin
+        color: Theme.bgElevated
+        implicitHeight: settingsLayout.implicitHeight + Theme.spacingLg * 2
+        radius: Theme.radiusLg
 
-        OText {
-          font.pixelSize: 11
-          muted: true
-          opacity: 0.45
-          text: qsTr("Mode")
-        }
+        ColumnLayout {
+          id: settingsLayout
 
-        ExpandableOptionPill {
-          activeBgColor: Qt.rgba(1, 1, 1, 0.2)
-          currentIndex: picker.activeFillModeIndex
-          minSlotWidth: 50
-          options: picker.fillModeOptions
+          anchors.fill: parent
+          anchors.margins: Theme.spacingLg
+          spacing: Theme.spacingMd
 
-          onSelected: value => picker.stageFillMode(value || "fill")
-        }
+          RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacingSm
 
-        OText {
-          font.pixelSize: 11
-          muted: true
-          opacity: 0.45
-          text: qsTr("Transition")
-        }
+            OText {
+              color: Theme.textContrast(Theme.bgElevated)
+              font.pixelSize: Theme.fontSm
+              opacity: 0.75
+              text: "󰉋  " + qsTr("Library")
+            }
 
-        ExpandableOptionPill {
-          activeBgColor: Theme.activeColor
-          currentIndex: picker.activeTransitionIndex
-          minSlotWidth: 58
-          options: picker.transitionOptions
+            OInput {
+              Layout.fillWidth: true
+              size: "md"
+              text: WallpaperService?.wallpaperFolder ?? ""
 
-          onSelected: value => picker.stagedTransition = value || "disc"
-        }
-
-        Item {
-          Layout.fillWidth: true
-        }
-
-        OComboBox {
-          Layout.preferredWidth: 160
-          currentIndex: Math.max(0, picker.themeOptions.findIndex(o => o.value === (Settings?.data?.themeName ?? "")))
-          model: picker.themeOptions
-          textRole: "label"
-          valueRole: "value"
-
-          onActivated: idx => Settings?.setThemeName(picker.themeOptions[idx]?.value ?? "")
-        }
-
-        // macOS-style dark toggle
-        RowLayout {
-          spacing: 6
-
-          OText {
-            font.pixelSize: 11
-            muted: true
-            opacity: 0.55
-            text: qsTr("Dark")
+              onInputFinished: if (text !== (WallpaperService?.wallpaperFolder ?? ""))
+                WallpaperService.setWallpaperFolder(text)
+            }
           }
 
-          Rectangle {
-            id: darkTrack
+          RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacingMd
 
-            readonly property bool isDark: (Settings?.data?.themeMode ?? "dark") === "dark"
-
-            color: isDark ? Theme.activeColor : Qt.rgba(1, 1, 1, 0.18)
-            implicitHeight: 26
-            implicitWidth: 44
-            radius: 13
-
-            Behavior on color {
-              ColorAnimation {
-                duration: 200
-              }
+            OText {
+              color: Theme.textContrast(Theme.bgElevated)
+              font.pixelSize: Theme.fontSm
+              opacity: 0.75
+              text: qsTr("Display mode")
             }
 
-            Rectangle {
-              anchors.verticalCenter: parent.verticalCenter
-              color: "#ffffff"
-              height: 20
-              radius: 10
-              width: 20
-              x: darkTrack.isDark ? parent.width - width - 3 : 3
+            OComboBox {
+              Layout.preferredWidth: 110
+              currentIndex: picker.activeFillModeIndex
+              model: picker.fillModeOptions
+              textRole: "label"
+              valueRole: "value"
 
-              Behavior on x {
-                NumberAnimation {
-                  duration: 200
-                  easing.type: Easing.OutCubic
-                }
-              }
+              onActivated: index => picker.stageFillMode(picker.fillModeOptions[index]?.value ?? "fill")
             }
 
-            MouseArea {
-              anchors.fill: parent
-              cursorShape: Qt.PointingHandCursor
+            OText {
+              color: Theme.textContrast(Theme.bgElevated)
+              font.pixelSize: Theme.fontSm
+              opacity: 0.75
+              text: qsTr("Transition")
+            }
 
-              onClicked: Settings?.setThemeMode(darkTrack.isDark ? "light" : "dark")
+            OComboBox {
+              Layout.preferredWidth: 120
+              currentIndex: picker.activeTransitionIndex
+              model: picker.transitionOptions
+              textRole: "label"
+              valueRole: "value"
+
+              onActivated: index => picker.stageTransition(picker.transitionOptions[index]?.value ?? "disc")
+            }
+
+            Item {
+              Layout.fillWidth: true
+            }
+
+            OText {
+              color: Theme.textContrast(Theme.bgElevated)
+              font.pixelSize: Theme.fontSm
+              opacity: 0.75
+              text: qsTr("Theme")
+            }
+
+            OComboBox {
+              Layout.preferredWidth: 150
+              currentIndex: Math.max(0, picker.themeOptions.findIndex(o => o.value === (Settings?.data?.themeName ?? "")))
+              model: picker.themeOptions
+              textRole: "label"
+              valueRole: "value"
+
+              onActivated: index => Settings?.setThemeName(picker.themeOptions[index]?.value ?? "")
+            }
+
+            OText {
+              color: Theme.textContrast(Theme.bgElevated)
+              font.pixelSize: Theme.fontSm
+              opacity: 0.75
+              text: qsTr("Dark")
+            }
+
+            OToggle {
+              checked: (Settings?.data?.themeMode ?? "dark") === "dark"
+              size: "lg"
+
+              onToggled: checked => Settings?.setThemeMode(checked ? "dark" : "light")
             }
           }
         }
@@ -538,12 +511,11 @@ SearchGridPanel {
         }
       }
 
-      Rectangle {
+      ClippingRectangle {
         id: card
 
-        clip: true
-        color: "#111"
-        radius: 12
+        color: Theme.bgElevated
+        radius: Theme.radiusLg
 
         anchors {
           fill: parent
@@ -556,13 +528,13 @@ SearchGridPanel {
           cache: false
           fillMode: Image.PreserveAspectCrop
           source: tile.modelData?.previewSource ?? ""
-          sourceSize: Qt.size(230, 145)
+          sourceSize: Qt.size(230, 130)
         }
 
         // Hover / selected overlay
         Rectangle {
           anchors.fill: parent
-          color: Qt.rgba(0, 0, 0, tile.selected ? 0.22 : tile.hovered ? 0.12 : 0)
+          color: Theme.withOpacity(Theme.shadowColorStrong, tile.selected ? 0.4 : tile.hovered ? 0.22 : 0)
 
           Behavior on color {
             ColorAnimation {
@@ -572,9 +544,9 @@ SearchGridPanel {
         }
 
         Rectangle {
-          color: "#20c05c"
+          color: Theme.activeColor
           height: 20
-          radius: 10
+          radius: Theme.radiusFull
           visible: tile.currentWallpaper
           width: 20
 
@@ -587,15 +559,16 @@ SearchGridPanel {
 
           OText {
             anchors.centerIn: parent
+            color: Theme.textContrast(parent.color)
             font.bold: true
             font.pixelSize: 12
-            text: "✓"
+            text: "󰄬"
           }
         }
 
         // Name label fades in on hover / select
         Rectangle {
-          color: Qt.rgba(0, 0, 0, 0.65)
+          color: Theme.withOpacity(Theme.shadowColorStrong, 0.82)
           height: 32
           opacity: tile.hovered || tile.selected ? 1 : 0
 
@@ -612,6 +585,7 @@ SearchGridPanel {
           }
 
           OText {
+            color: Theme.textContrast(parent.color)
             elide: Text.ElideRight
             font.bold: true
             font.pixelSize: 11

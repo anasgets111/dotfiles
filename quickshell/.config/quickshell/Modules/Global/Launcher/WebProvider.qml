@@ -10,7 +10,6 @@ import qs.Services.Utils
 Singleton {
   id: root
 
-  property bool _isFallback: false
   property bool _isUrl: false
   property string _query: ""
   property string _url: ""
@@ -22,7 +21,7 @@ Singleton {
       OText {
         color: Theme.activeColor
         font.pixelSize: Theme.fontXs
-        text: root.isUrl ? "Open Link" : "Web Search"
+        text: root._isUrl ? qsTr("Open link") : qsTr("Web search")
       }
 
       RowLayout {
@@ -31,57 +30,45 @@ Singleton {
         OText {
           color: Theme.activeColor
           font.pixelSize: Theme.fontLg
-          text: root.isUrl ? "󰖟" : "󰍉"
+          text: root._isUrl ? "󰖟" : "󰍉"
         }
 
         OText {
           Layout.fillWidth: true
           font.pixelSize: Theme.fontLg
-          text: root.isUrl ? root.url : root.query
+          text: root._isUrl ? root._url : root._query
         }
       }
 
       LauncherHint {
-        text: "Enter to open"
+        text: qsTr("Enter to open")
       }
     }
   }
-  readonly property bool hasResult: _query.length > 0 && (_isUrl || _isFallback)
-  readonly property bool isUrl: _isUrl
-  readonly property string query: _query
   readonly property string statusLabel: _isUrl ? "URL" : "WEB"
-  readonly property string url: _url
 
   function activate(): void {
-    Command.detached(["xdg-open", url]);
+    Command.detached(["xdg-open", _url]);
   }
 
   function claims(query: string, appsWeak: bool): bool {
     const input = String(query || "").trim();
     _query = input;
-    _isFallback = appsWeak;
-
-    if (!input) {
-      _url = "";
-      _isUrl = false;
-      return false;
-    }
 
     const urlPattern = /^(https?:\/\/)?([\w\-]+\.)+[\w\-]{2,}(\/.*)?$/i;
     if (urlPattern.test(input)) {
       _isUrl = true;
-      _url = input.startsWith("http") ? input : "https://" + input;
+      _url = /^https?:\/\//i.test(input) ? input : "https://" + input;
     } else {
       _isUrl = false;
       _url = "https://duckduckgo.com/?q=" + encodeURIComponent(input);
     }
-    return hasResult;
+    return _isUrl || appsWeak;
   }
 
   function reset(): void {
     _query = "";
     _url = "";
     _isUrl = false;
-    _isFallback = false;
   }
 }

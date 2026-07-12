@@ -37,6 +37,9 @@ Item {
   }
   property int maxResults: 200
   property string placeholderText: qsTr("Type to search")
+  property color popupBorderColor: Theme.activeColor
+  property real popupRadius: Theme.itemRadius
+  property color scrimColor: "transparent"
   property var searchSelector: function (item) {
     const label = root.callSelector(root.labelSelector, item) || "";
     const comment = item?.comment || "";
@@ -282,6 +285,11 @@ Item {
     updateFilter(searchField.text, true);
   }
 
+  Rectangle {
+    anchors.fill: parent
+    color: root.scrimColor
+  }
+
   MouseArea {
     id: dismissArea
 
@@ -301,12 +309,12 @@ Item {
     id: popupRect
 
     anchors.centerIn: parent
-    border.color: Theme.activeColor
+    border.color: root.popupBorderColor
     border.width: 1
     color: Theme.bgColor
     focus: true
     height: root.windowHeight
-    radius: Theme.itemRadius
+    radius: root.popupRadius
     width: root.windowWidth
 
     Keys.onPressed: event => {

@@ -19,31 +19,27 @@ Singleton {
       OText {
         color: Theme.activeColor
         font.pixelSize: Theme.fontXs
-        text: "Calculator"
+        text: qsTr("Calculator")
       }
 
       OText {
         font.pixelSize: Theme.fontLg
-        text: root.expression + " = " + root.resultText
+        text: root._expression + " = " + root._resultText
       }
 
       LauncherHint {
-        text: "Enter to copy"
+        text: qsTr("Enter to copy")
       }
     }
   }
-  readonly property string expression: _expression
-  readonly property string resultText: _resultText
   readonly property string statusLabel: "CALC"
 
   function activate(): void {
-    Utils.copyText(resultText);
+    Utils.copyText(_resultText);
   }
 
   function claims(query: string): bool {
     const input = String(query || "").trim();
-    if (!input)
-      return false;
     if (!/^[\d\s+\-*/().,%^]+$/.test(input) || !/\d/.test(input) || !/[+\-*/^%]/.test(input) || /^\d+\.?\d*$/.test(input))
       return false;
     try {
@@ -51,9 +47,8 @@ Singleton {
       expr = expr.replace(/(\d+\.?\d*)%/g, "($1/100)").replace(/[^0-9+\-*/().%\s]/g, "");
       if (!expr.trim())
         return false;
-      const fn = Function("\"use strict\"; return (" + expr + ");");
-      const value = fn();
-      if (typeof value !== "number" || !isFinite(value))
+      const value = Function("\"use strict\"; return (" + expr + ");")();
+      if (typeof value !== "number" || !Number.isFinite(value))
         return false;
       _expression = input;
       _resultText = Number.isInteger(value) ? value.toLocaleString() : parseFloat(value.toPrecision(12)).toString();

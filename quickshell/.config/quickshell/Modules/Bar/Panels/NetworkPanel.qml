@@ -2,8 +2,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import qs.Config
 import qs.Components
+import qs.Config
 import qs.Services.Core
 
 PanelContentBase {
@@ -126,34 +126,37 @@ PanelContentBase {
     anchors.margins: Theme.spacingMd
     spacing: 0
 
+    PanelTogglePill {
+      Layout.bottomMargin: root.networkingEnabled ? Theme.spacingXs : Theme.spacingMd
+      active: root.ready
+      checked: root.networkingEnabled
+      detail: !root.ready ? qsTr("Unavailable") : !root.networkingEnabled ? qsTr("Off") : root.connectedNetwork !== null ? root.connectedNetwork.ssid : NetworkService.ethernetOnline ? qsTr("Ethernet connected") : qsTr("Not connected")
+      icon: root.connectedNetwork !== null ? "󰤨" : NetworkService.ethernetOnline ? "󰈀" : "󱘖"
+      label: qsTr("Network")
+
+      onToggled: c => NetworkService.setNetworkingEnabled(c)
+    }
+
     RowLayout {
       Layout.bottomMargin: Theme.spacingMd
       Layout.fillWidth: true
       spacing: Theme.spacingXs
+      visible: root.networkingEnabled
 
       PanelTogglePill {
         active: root.ready
-        checked: root.networkingEnabled
-        icon: "󱘖"
-        label: "Network"
-
-        onToggled: c => NetworkService.setNetworkingEnabled(c)
-      }
-
-      PanelTogglePill {
-        active: root.ready && root.networkingEnabled
         checked: root.wifiEnabled
         icon: "󰤨"
-        label: "Wi-Fi"
+        label: qsTr("Wi-Fi")
 
         onToggled: c => NetworkService.setWifiRadioEnabled(c)
       }
 
       PanelTogglePill {
-        active: root.ready && root.networkingEnabled && root.ethernetInterface !== ""
+        active: root.ready && root.ethernetInterface !== ""
         checked: NetworkService.ethernetOnline
         icon: "󰈀"
-        label: "Ethernet"
+        label: root.ethernetInterface !== "" ? qsTr("Ethernet") : qsTr("No Ethernet")
 
         onToggled: c => c ? NetworkService.connectEthernet() : NetworkService.disconnectEthernet()
       }
@@ -221,7 +224,7 @@ PanelContentBase {
           bold: true
           color: Theme.textInactiveColor
           size: "xs"
-          text: "NETWORKS"
+          text: qsTr("Networks").toUpperCase()
           visible: root.savedNetworks.length > 0 || root.availableNetworks.length > 0
         }
 
@@ -385,7 +388,7 @@ PanelContentBase {
       Layout.fillWidth: true
       Layout.minimumHeight: 120
       icon: root.networkingEnabled ? "󰤮" : "󱘖"
-      text: !root.networkingEnabled ? qsTr("Networking Disabled") : qsTr("Wi-Fi Off")
+      text: !root.networkingEnabled ? qsTr("Networking disabled") : qsTr("Wi-Fi off")
       visible: !root.networkingEnabled || !root.wifiEnabled
     }
   }
@@ -406,7 +409,7 @@ PanelContentBase {
 
       anchors.centerIn: parent
       bold: true
-      color: Theme.bgColor
+      color: Theme.textContrast(parent.color)
       size: "xs"
       text: parent.bv === "2.4" ? "2.4" : parent.bv + "G"
     }
@@ -587,15 +590,15 @@ PanelContentBase {
 
     signal disconnectClicked
 
-    border.color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.25)
-    border.width: 1
+    border.color: Theme.borderLight
+    border.width: Theme.borderWidthThin
     color: Theme.activeSubtle
     implicitHeight: visible ? ethContent.implicitHeight + Theme.spacingSm * 2 : 0
-    radius: 14
+    radius: Theme.radiusLg
 
     Behavior on implicitHeight {
       NumberAnimation {
-        duration: 200
+        duration: Theme.animationDuration
         easing.type: Easing.OutCubic
       }
     }
@@ -622,13 +625,13 @@ PanelContentBase {
         OText {
           Layout.fillWidth: true
           bold: true
-          color: Theme.activeColor
+          color: Theme.textActiveColor
           elide: Text.ElideRight
           text: ethHero.interfaceName || qsTr("Ethernet")
         }
 
         OText {
-          color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.7)
+          color: Theme.textInactiveColor
           size: "xs"
           text: ethHero.speed > 0 ? ethHero.speedText : qsTr("Connected")
         }
@@ -660,15 +663,15 @@ PanelContentBase {
     signal disconnectClicked
     signal forgetClicked(string ssid)
 
-    border.color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.25)
-    border.width: 1
+    border.color: Theme.borderLight
+    border.width: Theme.borderWidthThin
     color: Theme.activeSubtle
     implicitHeight: visible ? heroContent.implicitHeight + Theme.spacingSm * 2 : 0
-    radius: 14
+    radius: Theme.radiusLg
 
     Behavior on implicitHeight {
       NumberAnimation {
-        duration: 200
+        duration: Theme.animationDuration
         easing.type: Easing.OutCubic
       }
     }
@@ -694,7 +697,7 @@ PanelContentBase {
         OText {
           Layout.fillWidth: true
           bold: true
-          color: Theme.activeColor
+          color: Theme.textActiveColor
           elide: Text.ElideRight
           text: hero.network?.ssid || ""
         }
@@ -704,7 +707,7 @@ PanelContentBase {
           spacing: Theme.spacingXs
 
           OText {
-            color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.7)
+            color: Theme.textInactiveColor
             size: "xs"
             text: qsTr("Connected")
           }
@@ -726,10 +729,6 @@ PanelContentBase {
           text: hero.ip
           visible: hero.ip !== ""
         }
-      }
-
-      Item {
-        Layout.fillWidth: true
       }
 
       PanelActionIcon {
@@ -779,12 +778,12 @@ PanelContentBase {
       Rectangle {
         anchors.fill: parent
         anchors.topMargin: hbtn.showTopBorder ? 1 : 0
-        color: hma.containsMouse ? Qt.rgba(Theme.textActiveColor.r, Theme.textActiveColor.g, Theme.textActiveColor.b, 0.06) : "transparent"
+        color: hma.containsMouse ? Theme.withOpacity(Theme.activeColor, 0.08) : "transparent"
         radius: Theme.itemRadius
 
         Behavior on color {
           ColorAnimation {
-            duration: 120
+            duration: Theme.animationDuration
           }
         }
       }
@@ -808,11 +807,11 @@ PanelContentBase {
 
     color: "transparent"
     height: rowCol.implicitHeight
-    radius: 10
+    radius: Theme.radiusMd
 
     Behavior on height {
       NumberAnimation {
-        duration: 150
+        duration: Theme.animationDuration
         easing.type: Easing.OutCubic
       }
     }
@@ -828,12 +827,12 @@ PanelContentBase {
 
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.itemHeight
-        color: rowMa.containsMouse && !row.connecting ? Qt.rgba(Theme.textActiveColor.r, Theme.textActiveColor.g, Theme.textActiveColor.b, 0.06) : "transparent"
-        radius: 10
+        color: rowMa.containsMouse && !row.connecting ? Theme.withOpacity(Theme.activeColor, 0.08) : "transparent"
+        radius: Theme.radiusMd
 
         Behavior on color {
           ColorAnimation {
-            duration: 120
+            duration: Theme.animationDuration
           }
         }
 
@@ -953,13 +952,13 @@ PanelContentBase {
     Rectangle {
       anchors.fill: parent
       border.color: sf.hasError ? Theme.critical : innerField.activeFocus ? Theme.activeColor : Theme.borderColor
-      border.width: sf.hasError ? 2 : 1
+      border.width: sf.hasError ? Theme.borderWidthMedium : Theme.borderWidthThin
       color: Theme.bgColor
-      radius: 10
+      radius: Theme.radiusMd
 
       Behavior on border.color {
         ColorAnimation {
-          duration: 150
+          duration: Theme.animationDuration
         }
       }
 
@@ -1023,12 +1022,12 @@ PanelContentBase {
 
         Behavior on color {
           ColorAnimation {
-            duration: 150
+            duration: Theme.animationDuration
           }
         }
         Behavior on opacity {
           NumberAnimation {
-            duration: 150
+            duration: Theme.animationDuration
           }
         }
       }

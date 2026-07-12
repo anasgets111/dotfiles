@@ -13,59 +13,47 @@ Singleton {
 
   property string _fromCode: ""
   property real _inputAmount: 0
-  property real _outputAmount: 0
   property bool _requesting: false
   property string _resultText: ""
+  readonly property var _symbolCodes: ({
+      "$": "usd",
+      "€": "eur",
+      "£": "gbp",
+      "¥": "jpy",
+      "₹": "inr",
+      "₿": "btc"
+    })
   property string _toCode: ""
   readonly property Component delegate: Component {
-    Column {
+    ColumnLayout {
       anchors.fill: parent
       spacing: Theme.spacingXs
 
-      OText {
-        color: Theme.activeColor
-        font.pixelSize: Theme.fontXs
-        text: (root.ratesLive ? "Currency" : "Currency (Static)") + root.rateLabel()
-      }
-
       RowLayout {
-        spacing: Theme.spacingLg
-
-        ColumnLayout {
-          spacing: 0
-
-          OText {
-            Layout.alignment: Qt.AlignHCenter
-            font.pixelSize: Theme.fontLg
-            text: root.fromFlag
-          }
-
-          OText {
-            font.pixelSize: Theme.fontLg
-            text: root.inputAmount + " " + root.fromCode.toUpperCase()
-          }
-        }
+        Layout.fillWidth: true
+        spacing: Theme.spacingSm
 
         OText {
-          Layout.alignment: Qt.AlignBottom
-          Layout.bottomMargin: Theme.spacingXs
-          color: Theme.textInactiveColor
-          font.pixelSize: Theme.fontLg
-          text: "→"
+          bold: true
+          color: Theme.activeColor
+          font.pixelSize: Theme.fontXs
+          text: qsTr("Currency")
         }
 
-        ColumnLayout {
-          spacing: 0
+        Rectangle {
+          color: Theme.inactiveColor
+          implicitHeight: Theme.controlHeightXs
+          implicitWidth: staticLabel.implicitWidth + Theme.spacingSm
+          radius: height / 2
+          visible: !root.ratesLive
 
           OText {
-            Layout.alignment: Qt.AlignHCenter
-            font.pixelSize: Theme.fontLg
-            text: root.toFlag
-          }
+            id: staticLabel
 
-          OText {
-            font.pixelSize: Theme.fontLg
-            text: root.resultText + " " + root.toCode.toUpperCase()
+            anchors.centerIn: parent
+            color: Theme.textInactiveColor
+            size: "xs"
+            text: qsTr("Static rates")
           }
         }
 
@@ -74,7 +62,6 @@ Singleton {
         }
 
         OText {
-          Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
           color: Theme.textInactiveColor
           font.pixelSize: Theme.fontXs
           opacity: 0.8
@@ -83,15 +70,46 @@ Singleton {
         }
       }
 
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingSm
+
+        OText {
+          font.pixelSize: Theme.fontLg
+          text: root.fromFlag
+        }
+
+        OText {
+          bold: true
+          font.pixelSize: Theme.fontLg
+          text: root._inputAmount + " " + root._fromCode.toUpperCase()
+        }
+
+        OText {
+          color: Theme.textInactiveColor
+          font.pixelSize: Theme.fontLg
+          text: "→"
+        }
+
+        OText {
+          font.pixelSize: Theme.fontLg
+          text: root.toFlag
+        }
+
+        OText {
+          bold: true
+          color: Theme.activeColor
+          font.pixelSize: Theme.fontLg
+          text: root._resultText + " " + root._toCode.toUpperCase()
+        }
+      }
+
       LauncherHint {
-        text: "Enter to copy"
+        text: qsTr("Enter to copy result")
       }
     }
   }
-  readonly property string fromCode: _fromCode
   readonly property string fromFlag: _getFlag(_fromCode)
-  readonly property bool hasResult: _resultText !== ""
-  readonly property real inputAmount: _inputAmount
   property var lastUpdated: null
   readonly property string lastUpdatedText: _formatLastUpdated(lastUpdated)
   property var rates: ({
@@ -100,9 +118,7 @@ Singleton {
   property bool ratesLive: false
   readonly property int refreshInterval: 86400000 // 24 hours
 
-  readonly property string resultText: _resultText
   readonly property string statusLabel: ratesLive ? "FX" : "FX-STATIC"
-  readonly property string toCode: _toCode
   readonly property string toFlag: _getFlag(_toCode)
 
   function _fetchRates(): void {
@@ -111,33 +127,30 @@ Singleton {
     const url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json";
 
     _httpGet(url, data => {
-      if (data && data.usd) {
-        const newRates = data.usd;
-        const fetchedAt = new Date();
-        newRates["usd"] = 1.0;
-        rates = newRates;
-        ratesLive = true;
-        lastUpdated = fetchedAt;
-
-        // Persist to state in settings
-        Settings.state.currency = {
-          rates: newRates,
-          lastUpdate: fetchedAt.toISOString()
-        };
-        Settings.saveState();
-
-        Logger.log("CurrencyProvider", `Rates updated (date: ${data.date})`);
-      }
+      if (!data?.usd)
+        return;
+      const newRates = data.usd;
+      const fetchedAt = new Date();
+      newRates["usd"] = 1.0;
+      rates = newRates;
+      ratesLive = true;
+      lastUpdated = fetchedAt;
+      Settings.state.currency = {
+        rates: newRates,
+        lastUpdate: fetchedAt.toISOString()
+      };
+      Settings.saveState();
+      Logger.log("CurrencyProvider", `Rates updated (date: ${data.date})`);
     });
   }
 
   function _formatLastUpdated(value: var): string {
-    if (!value || typeof value.getTime !== "function" || isNaN(value.getTime()))
+    if (!value || typeof value.getTime !== "function" || Number.isNaN(value.getTime()))
       return "";
     const now = new Date();
     const sameDay = value.getFullYear() === now.getFullYear() && value.getMonth() === now.getMonth() && value.getDate() === now.getDate();
     const pattern = sameDay ? (TimeService.use24Hour ? "HH:mm" : "h:mm AP") : (TimeService.use24Hour ? "MMM d, HH:mm" : "MMM d, h:mm AP");
-    return "Updated " + value.toLocaleString(Qt.locale(), pattern);
+    return qsTr("Updated %1").arg(value.toLocaleString(Qt.locale(), pattern));
   }
 
   function _getFlag(code: string): string {
@@ -193,27 +206,23 @@ Singleton {
     xhr.send();
   }
 
+  function _currencyCode(token: string): string {
+    return root._symbolCodes[token] ?? token.toLowerCase();
+  }
+
   function _init(): void {
-    if (!Settings.isStateLoaded)
-      return;
+    const cache = Settings.state.currency ?? ({});
+    if (cache.lastUpdate && cache.rates && typeof cache.rates === "object") {
+      const last = new Date(cache.lastUpdate);
+      if (!Number.isNaN(last.getTime())) {
+        rates = cache.rates;
+        lastUpdated = last;
+        ratesLive = true;
 
-    const cache = Settings.state.currency;
-    if (cache.lastUpdate && cache.rates) {
-      try {
-        const last = new Date(cache.lastUpdate);
-        if (cache.rates && typeof cache.rates === "object") {
-          rates = cache.rates;
-          lastUpdated = last;
-          ratesLive = true;
-
-          const elapsed = Date.now() - last.getTime();
-          if (elapsed < refreshInterval) {
-            Logger.log("CurrencyProvider", "Using cached rates");
-            return;
-          }
+        if (Date.now() - last.getTime() < refreshInterval) {
+          Logger.log("CurrencyProvider", "Using cached rates");
+          return;
         }
-      } catch (e) {
-        Logger.warn("CurrencyProvider", "Failed to load cache: " + e);
       }
     }
 
@@ -221,81 +230,47 @@ Singleton {
     _fetchRates();
   }
 
+  function _parseSource(text: string, allowImplicitAmount: bool): var {
+    let match = text.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z]{3,5}|[$€£¥₹₿])$/i);
+    if (match)
+      return {a: parseFloat(match[1]), f: root._currencyCode(match[2])};
+    match = text.match(/^([$€£¥₹₿])\s*(\d+(?:\.\d+)?)$/i);
+    if (match)
+      return {a: parseFloat(match[2]), f: root._currencyCode(match[1])};
+    if (!allowImplicitAmount)
+      return null;
+    match = text.match(/^([a-zA-Z]{3,5}|[$€£¥₹₿])$/i);
+    return match ? {a: 1, f: root._currencyCode(match[1])} : null;
+  }
+
   function activate(): void {
-    Utils.copyText(resultText);
+    Utils.copyText(_resultText);
   }
 
   function claims(query: string): bool {
     const input = String(query || "").trim();
-    if (!input)
+    const conversion = input.match(/^(.+?)\s+(?:to|in|->|=>|=)\s+([a-zA-Z]{3,5}|[$€£¥₹₿])$/i);
+    const parsed = root._parseSource(conversion ? conversion[1] : input, !!conversion);
+    if (!parsed)
       return false;
-    const fromSymbol = s => ({
-          "$": "usd",
-          "€": "eur",
-          "£": "gbp",
-          "¥": "jpy",
-          "₹": "inr",
-          "₿": "btc"
-        }[s] || "usd");
-    const patterns = [
-      // 100 USD to EUR or 100USD to EUR
-      [/^(\d+(?:\.\d+)?)\s*([a-zA-Z]{3,5})\s+(?:to|in|->|=>|=)\s+([a-zA-Z]{3,5})$/i, m => ({
-              a: parseFloat(m[1]),
-              f: m[2].toLowerCase(),
-              t: m[3].toLowerCase()
-            })],
-      // $100 to EUR
-      [/^([$€£¥₹₿])\s*(\d+(?:\.\d+)?)\s+(?:to|in|->|=>|=)\s+([a-zA-Z]{3,5})$/i, m => ({
-              a: parseFloat(m[2]),
-              f: fromSymbol(m[1]),
-              t: m[3].toLowerCase()
-            })],
-      // 100 USD (defaults to EGP, or USD if input is EGP)
-      [/^(\d+(?:\.\d+)?)\s*([a-zA-Z]{3,5})$/i, m => {
-          const f = m[2].toLowerCase();
-          return {
-            a: parseFloat(m[1]),
-            f: f,
-            t: f === "egp" ? "usd" : "egp"
-          };
-        }],
-      // $100 (defaults to EGP, or USD if input is EGP)
-      [/^([$€£¥₹₿])\s*(\d+(?:\.\d+)?)$/i, m => {
-          const f = fromSymbol(m[1]);
-          return {
-            a: parseFloat(m[2]),
-            f: f,
-            t: f === "egp" ? "usd" : "egp"
-          };
-        }]];
-    let parsed = null;
-    for (const [re, fn] of patterns) {
-      const m = input.match(re);
-      if (m) {
-        parsed = fn(m);
-        break;
-      }
-    }
-    if (!parsed || !(parsed.f in rates) || !(parsed.t in rates) || parsed.f === parsed.t)
+    parsed.t = conversion ? root._currencyCode(conversion[2]) : parsed.f === "egp" ? "usd" : "egp";
+    if (parsed.f === parsed.t)
       return false;
-    const out = (parsed.a / rates[parsed.f]) * rates[parsed.t];
+    const fromRate = Number(rates[parsed.f]);
+    const toRate = Number(rates[parsed.t]);
+    if (!Number.isFinite(parsed.a) || !Number.isFinite(fromRate) || !Number.isFinite(toRate) || fromRate <= 0 || toRate <= 0)
+      return false;
+    const out = (parsed.a / fromRate) * toRate;
+    if (!Number.isFinite(out))
+      return false;
     const decimals = out >= 100 ? 2 : (out >= 1 ? 4 : 6);
     _fromCode = parsed.f;
     _toCode = parsed.t;
     _inputAmount = parsed.a;
-    _outputAmount = out;
     _resultText = Math.abs(out) < 0.01 && out !== 0 ? out.toPrecision(6) : out.toLocaleString(Qt.locale(), "f", decimals);
 
-    Logger.log("CurrencyProvider", `Query success: ${parsed.a} ${parsed.f} -> ${out} ${parsed.t} (${fromFlag} -> ${toFlag})`);
+    Logger.log("CurrencyProvider", `Query success: ${parsed.a} ${parsed.f} -> ${out} ${parsed.t} (${root.fromFlag} -> ${root.toFlag})`);
     return true;
-  }
-
-  function rateLabel(): string {
-    if (!hasResult || _inputAmount === 0)
-      return "";
-    const rate = _outputAmount / _inputAmount;
-    const decimals = rate >= 100 ? 2 : (rate >= 1 ? 4 : 6);
-    return " · 1 " + _fromCode.toUpperCase() + " = " + rate.toLocaleString(Qt.locale(), "f", decimals) + " " + _toCode.toUpperCase();
   }
 
   function refreshIfStale(): void {
@@ -309,7 +284,6 @@ Singleton {
     _fromCode = "";
     _toCode = "";
     _inputAmount = 0;
-    _outputAmount = 0;
     _resultText = "";
   }
 

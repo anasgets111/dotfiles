@@ -16,18 +16,17 @@ Item {
   property real _lastPointerY: -1
   property bool _shown: false
   property bool active: false
-  readonly property var allApps: typeof DesktopEntries !== "undefined" ? DesktopEntries.applications?.values || [] : []
+  readonly property var allApps: Array.from(DesktopEntries.applications?.values ?? [])
   property int currentIndex: 0
   property var filteredApps: []
   property var finder: null
   readonly property bool hasSpecial: LauncherService.hasSpecial
   property bool hoverSelectionArmed: false
-  property real maxAppScore: 0
+  readonly property int maxResults: 200
   readonly property int maxVisible: 8
-  property string query: ""
-  readonly property int selectedAppIdx: visibleAppCount <= 0 ? -1 : Math.max(0, Math.min(currentIndex - (hasSpecial ? 1 : 0), visibleAppCount - 1))
+  readonly property int selectedAppIdx: filteredApps.length === 0 ? -1 : Math.max(0, Math.min(currentIndex - (hasSpecial ? 1 : 0), filteredApps.length - 1))
   readonly property bool specialSelected: hasSpecial && currentIndex === 0
-  readonly property int totalRows: visibleAppCount + (hasSpecial ? 1 : 0)
+  readonly property int totalRows: filteredApps.length + (hasSpecial ? 1 : 0)
   readonly property int visibleAppCount: Math.min(filteredApps.length, maxVisible)
 
   signal dismissed
@@ -67,44 +66,27 @@ Item {
   function ensureFinder(force: bool): void {
     if (!force && finder)
       return;
-    if (!Fzf?.createFinder) {
-      finder = null;
-      return;
-    }
-    try {
-      finder = Fzf.createFinder(toArray(allApps), {
-        selector: entry => {
-          const name = entry?.name || "";
-          const comment = entry?.comment || "";
-          return comment ? `${name} ${comment}` : name;
-        },
-        limit: 200,
-        tiebreakers: [Fzf.byStartAsc, Fzf.byLengthAsc]
-      });
-    } catch (_) {
-      finder = null;
-    }
+    finder = Fzf.createFinder(allApps, {
+      selector: entry => {
+        const name = entry?.name || "";
+        const comment = entry?.comment || "";
+        return comment ? `${name} ${comment}` : name;
+      },
+      limit: maxResults,
+      tiebreakers: [Fzf.byStartAsc, Fzf.byLengthAsc]
+    });
   }
 
-  function filterApps(text: string): void {
+  function filterApps(text: string): real {
     ensureFinder(false);
     const q = String(text || "");
     if (!q) {
-      filteredApps = toArray(allApps).slice(0, 200);
-      maxAppScore = 0;
-      return;
+      filteredApps = allApps.slice(0, maxResults);
+      return 0;
     }
-    if (finder) {
-      try {
-        const results = finder.find(q);
-        filteredApps = results.map(r => r.item);
-        maxAppScore = results.length > 0 ? results[0].score : 0;
-        return;
-      } catch (_) {}
-    }
-    const lower = q.toLowerCase();
-    filteredApps = toArray(allApps).filter(e => (e?.name || "").toLowerCase().includes(lower) || (e?.comment || "").toLowerCase().includes(lower)).slice(0, 200);
-    maxAppScore = 0; // Simple fallback counts as "poor" match
+    const results = finder.find(q);
+    filteredApps = results.map(result => result.item);
+    return results.length > 0 ? results[0].score : 0;
   }
 
   function handleHoverMove(x: real, y: real, targetIndex: int): void {
@@ -138,15 +120,10 @@ Item {
 
   function processInput(text: string): void {
     disarmHoverSelection();
-    query = text;
     const trimmed = String(text || "").trim();
-    filterApps(trimmed);
+    const maxAppScore = filterApps(trimmed);
     LauncherService.route(trimmed, filteredApps.length, maxAppScore);
     currentIndex = 0;
-  }
-
-  function toArray(v: var): var {
-    return !v ? [] : Array.isArray(v) ? v : Array.from(v);
   }
 
   anchors.fill: parent
@@ -165,8 +142,10 @@ Item {
       _lastPointerX = -1;
       _lastPointerY = -1;
       ensureFinder(true);
-      search.text = "";
-      processInput("");
+      if (search.text !== "")
+        search.text = "";
+      else
+        processInput("");
       Qt.callLater(() => search.forceActiveFocus());
       return;
     }
@@ -177,7 +156,7 @@ Item {
     if (!active && !_shown)
       return;
     ensureFinder(true);
-    filterApps(query.trim());
+    processInput(search.text);
   }
 
   Timer {
@@ -200,7 +179,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Theme.withOpacity("#000", 0.35)
+    color: Theme.bgOverlay
     opacity: root._shown ? 1 : 0
 
     Behavior on opacity {
@@ -216,7 +195,7 @@ Item {
 
     anchors.horizontalCenter: parent.horizontalCenter
     border.color: Theme.withOpacity(Theme.borderColor, 0.45)
-    border.width: 1
+    border.width: Theme.borderWidthThin
     color: Theme.withOpacity(Theme.bgColor, 0.95)
     height: Math.min(parent.height * 0.75, content.implicitHeight + Theme.spacingLg * 2)
     opacity: root._shown ? 1 : 0
@@ -254,7 +233,7 @@ Item {
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.s(56)
         border.color: search.activeFocus ? Theme.withOpacity(Theme.activeColor, 0.5) : Theme.withOpacity(Theme.borderColor, 0.4)
-        border.width: search.activeFocus ? 2 : 1
+        border.width: search.activeFocus ? Theme.borderWidthMedium : Theme.borderWidthThin
         color: Theme.withOpacity(Theme.bgElevated, 0.75)
         radius: Theme.radiusMd
 
@@ -311,7 +290,7 @@ Item {
               color: Theme.textInactiveColor
               font: search.font
               opacity: search.text.length === 0 ? 0.6 : 0
-              text: "Search apps, calculate, convert currency..."
+              text: qsTr("Search apps, calculate, convert currency…")
             }
           }
 
@@ -325,7 +304,6 @@ Item {
 
       Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: implicitHeight
         color: Theme.withOpacity(Theme.bgElevated, 0.65)
         implicitHeight: (hasSpecial || visibleAppCount > 0) ? results.implicitHeight + Theme.spacingSm * 2 : 0
         radius: Theme.radiusMd
@@ -347,6 +325,7 @@ Item {
 
             MouseArea {
               anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
               hoverEnabled: true
 
               onClicked: {
@@ -370,13 +349,15 @@ Item {
             id: list
 
             Layout.fillWidth: true
-            Layout.preferredHeight: visibleAppCount > 0 ? Math.min(visibleAppCount * Theme.s(64), Theme.s(64) * maxVisible) : 0
+            Layout.preferredHeight: visibleAppCount * Theme.s(64)
             boundsBehavior: Flickable.StopAtBounds
             clip: true
             currentIndex: root.specialSelected ? -1 : root.selectedAppIdx
             highlightMoveDuration: Theme.animationDuration
             interactive: filteredApps.length > maxVisible
-            model: filteredApps
+            model: ScriptModel {
+              values: root.filteredApps
+            }
 
             delegate: Item {
               id: row
@@ -387,7 +368,6 @@ Item {
               readonly property bool selected: composedIndex === root.currentIndex
 
               height: Theme.s(64)
-              visible: index < maxVisible || list.interactive
               width: list.width
 
               RowLayout {
@@ -434,6 +414,7 @@ Item {
 
               MouseArea {
                 anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
 
                 onClicked: root.launch(row.modelData)
@@ -456,7 +437,7 @@ Item {
         color: Theme.textInactiveColor
         font.pixelSize: Theme.fontSm
         opacity: 0.7
-        text: query.trim().length > 0 && totalRows === 0 ? "No results found" : ""
+        text: search.text.trim().length > 0 && totalRows === 0 ? qsTr("No results found") : ""
       }
     }
   }

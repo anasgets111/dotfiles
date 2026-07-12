@@ -1,8 +1,8 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Config
 import qs.Components
+import qs.Config
 import qs.Services.Core
 import qs.Services.UI
 
@@ -52,8 +52,6 @@ Item {
     suppressTooltip: root.panelOpen
     tooltipText: [root.titleText, root.detailText1, root.detailText2].filter(t => t?.length > 0).join("\n")
 
-    onClicked: function (mouse) {
-      ShellUiState.togglePanelForItem("bluetooth", root.screenName, iconButton);
-    }
+    onClicked: ShellUiState.togglePanelForItem("bluetooth", root.screenName, iconButton)
   }
 }

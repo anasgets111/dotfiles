@@ -3,8 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import qs.Config
 import qs.Components
+import qs.Config
 import qs.Services.Core
 
 PanelContentBase {
@@ -26,7 +26,7 @@ PanelContentBase {
     return Theme.inactiveColor;
   }
 
-  function handleAction(action: string, device: var) {
+  function handleAction(action: string, device: var): void {
     const address = device?.address || "";
     switch (action) {
     case "connect":
@@ -57,9 +57,6 @@ PanelContentBase {
   preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: 360
 
-  Component.onDestruction: {
-    showCodecFor = "";
-  }
   onIsOpenChanged: {
     if (isOpen && active) {
       BluetoothService.startDiscovery();
@@ -76,38 +73,39 @@ PanelContentBase {
     anchors.margins: Theme.spacingMd
     spacing: 0
 
+    PanelTogglePill {
+      Layout.bottomMargin: root.active ? Theme.spacingXs : Theme.spacingMd
+      active: root.ready
+      checked: root.active
+      detail: !root.ready ? qsTr("Unavailable") : !root.active ? qsTr("Off") : root.connectedDevices.length === 1 ? root.connectedDevices[0].name : root.connectedDevices.length > 1 ? qsTr("%1 connected").arg(root.connectedDevices.length) : BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices connected")
+      icon: root.active ? "󰂯" : "󰂲"
+      label: qsTr("Bluetooth")
+
+      onToggled: c => {
+        if (!c)
+          BluetoothService.stopDiscovery();
+        BluetoothService.setEnabled(c);
+      }
+    }
+
     RowLayout {
       Layout.bottomMargin: Theme.spacingMd
       Layout.fillWidth: true
       spacing: Theme.spacingXs
+      visible: root.active
 
       PanelTogglePill {
-        active: root.ready
-        checked: BluetoothService.enabled
-        icon: "󰂯"
-        label: "Bluetooth"
-
-        onToggled: c => {
-          if (!c)
-            BluetoothService.stopDiscovery();
-          BluetoothService.setEnabled(c);
-        }
-      }
-
-      PanelTogglePill {
-        active: root.active
         checked: BluetoothService.discoverable
         icon: "󰐾"
-        label: "Visible"
+        label: qsTr("Visible")
 
         onToggled: c => BluetoothService.setDiscoverable(c)
       }
 
       PanelTogglePill {
-        active: root.active
         checked: BluetoothService.discovering
         icon: "󰀘"
-        label: "Scan"
+        label: qsTr("Scan")
         spinning: BluetoothService.discovering
 
         onToggled: c => c ? BluetoothService.startDiscovery() : BluetoothService.stopDiscovery()
@@ -139,7 +137,7 @@ PanelContentBase {
         bold: true
         color: Theme.textInactiveColor
         size: "xs"
-        text: "DEVICES"
+        text: qsTr("Devices").toUpperCase()
       }
 
       Rectangle {
@@ -175,13 +173,13 @@ PanelContentBase {
 
     StateMessage {
       iconOpacity: 0.4
-      text: BluetoothService.discovering ? qsTr("Scanning ...") : qsTr("No devices found")
+      text: BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices found")
       visible: root.active && root.connectedDevices.length === 0 && root.otherDevices.length === 0
     }
 
     StateMessage {
       iconOpacity: 0.3
-      text: !root.ready ? qsTr("Bluetooth Unavailable") : qsTr("Bluetooth Off")
+      text: !root.ready ? qsTr("Bluetooth unavailable") : qsTr("Bluetooth off")
       visible: !root.active
     }
   }
@@ -203,7 +201,7 @@ PanelContentBase {
 
       anchors.centerIn: parent
       bold: true
-      color: Theme.bgColor
+      color: Theme.textContrast(badge.color)
       size: "xs"
       text: badge.device?.batteryText || ""
     }
@@ -221,13 +219,13 @@ PanelContentBase {
 
     signal action(string act, var dev)
 
-    color: rowMa.containsMouse ? Qt.rgba(Theme.textActiveColor.r, Theme.textActiveColor.g, Theme.textActiveColor.b, 0.06) : "transparent"
+    color: rowMa.containsMouse ? Theme.withOpacity(Theme.activeColor, 0.08) : "transparent"
     height: Theme.itemHeight
-    radius: 10
+    radius: Theme.radiusMd
 
     Behavior on color {
       ColorAnimation {
-        duration: 120
+        duration: Theme.animationDuration
       }
     }
 
@@ -304,7 +302,7 @@ PanelContentBase {
         id: pairBtn
 
         bgColor: "transparent"
-        hoverColor: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.15)
+        hoverColor: Theme.withOpacity(Theme.activeColor, 0.15)
         size: "xs"
         text: qsTr("Pair")
         textColor: Theme.activeColor
@@ -347,15 +345,15 @@ PanelContentBase {
 
     signal action(string act, var dev)
 
-    border.color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.25)
-    border.width: 1
+    border.color: Theme.borderLight
+    border.width: Theme.borderWidthThin
     color: Theme.activeSubtle
     implicitHeight: visible ? heroCol.implicitHeight + Theme.spacingSm * 2 : 0
-    radius: 14
+    radius: Theme.radiusLg
 
     Behavior on implicitHeight {
       NumberAnimation {
-        duration: 200
+        duration: Theme.animationDuration
         easing.type: Easing.OutCubic
       }
     }
@@ -387,7 +385,7 @@ PanelContentBase {
           OText {
             Layout.fillWidth: true
             bold: true
-            color: Theme.activeColor
+            color: Theme.textActiveColor
             elide: Text.ElideRight
             text: hero.name
           }
@@ -396,7 +394,7 @@ PanelContentBase {
             spacing: Theme.spacingXs
 
             OText {
-              color: Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.7)
+              color: Theme.textInactiveColor
               size: "xs"
               text: qsTr("Connected")
             }
@@ -419,16 +417,12 @@ PanelContentBase {
 
                 anchors.centerIn: parent
                 bold: true
-                color: Theme.bgColor
+                color: Theme.textContrast(parent.color)
                 size: "xs"
                 text: hero.currentCodec
               }
             }
           }
-        }
-
-        Item {
-          Layout.fillWidth: true
         }
 
         PanelActionIcon {
@@ -479,13 +473,13 @@ PanelContentBase {
             required property var modelData
 
             Layout.fillWidth: true
-            color: codecRow.isCurrent ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.15) : codecRowMa.containsMouse ? Qt.rgba(Theme.activeColor.r, Theme.activeColor.g, Theme.activeColor.b, 0.08) : "transparent"
+            color: codecRow.isCurrent ? Theme.withOpacity(Theme.activeColor, 0.15) : codecRowMa.containsMouse ? Theme.withOpacity(Theme.activeColor, 0.08) : "transparent"
             height: Theme.itemHeight * 0.7
-            radius: 8
+            radius: Theme.radiusMd
 
             Behavior on color {
               ColorAnimation {
-                duration: 100
+                duration: Theme.animationDuration
               }
             }
 
