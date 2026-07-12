@@ -189,7 +189,7 @@ Singleton {
         errorMessage = exitCode < 0 ? "Failed to start the update command" : `Update failed with code ${exitCode}`;
       _notify("Update Failed", errorMessage, "critical");
     }
-    doPoll();
+    Qt.callLater(root.doPoll);
   }
 
   function _handleCancelExit(exitCode: int): void {
