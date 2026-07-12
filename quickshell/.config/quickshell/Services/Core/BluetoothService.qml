@@ -186,8 +186,9 @@ Singleton {
   function cleanupCodecData(address: string): void {
     if (!address)
       return;
-    root._nextCodecRevision(address);
-    root._pendingCodecProfiles[address] = "";
+    delete root._codecRevisions[address];
+    delete root._codecSwitchActive[address];
+    delete root._pendingCodecProfiles[address];
     delete deviceCodecs[address];
     delete deviceAvailableCodecs[address];
     deviceCodecsChanged();
