@@ -124,28 +124,47 @@ Singleton {
   function _fetchRates(): void {
     if (_requesting)
       return;
-    const url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json";
-
-    _httpGet(url, data => {
+    _requesting = true;
+    const xhr = new XMLHttpRequest();
+    xhr.timeout = 5000;
+    xhr.onerror = xhr.ontimeout = () => {
+      _requesting = false;
+      Logger.warn("CurrencyProvider", "Rate fetch failed");
+    };
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState !== XMLHttpRequest.DONE)
+        return;
+      _requesting = false;
+      if (xhr.status !== 200) {
+        Logger.warn("CurrencyProvider", `Failed to fetch rates: ${xhr.status}`);
+        return;
+      }
+      let data;
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch (e) {
+        Logger.warn("CurrencyProvider", "Failed to parse rates JSON");
+        return;
+      }
       if (!data?.usd)
         return;
-      const newRates = data.usd;
-      const fetchedAt = new Date();
-      newRates["usd"] = 1.0;
-      rates = newRates;
+      data.usd["usd"] = 1.0;
+      rates = data.usd;
       ratesLive = true;
-      lastUpdated = fetchedAt;
+      lastUpdated = new Date();
       Settings.state.currency = {
-        rates: newRates,
-        lastUpdate: fetchedAt.toISOString()
+        rates: data.usd,
+        lastUpdate: lastUpdated.toISOString()
       };
       Settings.saveState();
       Logger.log("CurrencyProvider", `Rates updated (date: ${data.date})`);
-    });
+    };
+    xhr.open("GET", "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json");
+    xhr.send();
   }
 
   function _formatLastUpdated(value: var): string {
-    if (!value || typeof value.getTime !== "function" || Number.isNaN(value.getTime()))
+    if (!value || Number.isNaN(value.getTime()))
       return "";
     const now = new Date();
     const sameDay = value.getFullYear() === now.getFullYear() && value.getMonth() === now.getMonth() && value.getDate() === now.getDate();
@@ -180,32 +199,6 @@ Singleton {
     return country.toUpperCase();
   }
 
-  function _httpGet(url: string, onSuccess: var): void {
-    _requesting = true;
-    const xhr = new XMLHttpRequest();
-    xhr.timeout = 5000;
-    xhr.onreadystatechange = () => {
-      if (xhr.readyState !== XMLHttpRequest.DONE)
-        return;
-      _requesting = false;
-      if (xhr.status !== 200) {
-        Logger.warn("CurrencyProvider", `Failed to fetch rates: ${xhr.status}`);
-        return;
-      }
-      try {
-        onSuccess(JSON.parse(xhr.responseText));
-      } catch (e) {
-        Logger.warn("CurrencyProvider", "Failed to parse rates JSON");
-      }
-    };
-    xhr.ontimeout = () => {
-      _requesting = false;
-      Logger.warn("CurrencyProvider", "Rate fetch timed out");
-    };
-    xhr.open("GET", url);
-    xhr.send();
-  }
-
   function _currencyCode(token: string): string {
     return root._symbolCodes[token] ?? token.toLowerCase();
   }
@@ -234,13 +227,13 @@ Singleton {
     let match = text.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z]{3,5}|[$€£¥₹₿])$/i);
     if (match)
       return {a: parseFloat(match[1]), f: root._currencyCode(match[2])};
-    match = text.match(/^([$€£¥₹₿])\s*(\d+(?:\.\d+)?)$/i);
+    match = text.match(/^([$€£¥₹₿])\s*(\d+(?:\.\d+)?)?$/);
     if (match)
-      return {a: parseFloat(match[2]), f: root._currencyCode(match[1])};
+      return {a: match[2] ? parseFloat(match[2]) : 1, f: root._currencyCode(match[1])};
     if (!allowImplicitAmount)
       return null;
-    match = text.match(/^([a-zA-Z]{3,5}|[$€£¥₹₿])$/i);
-    return match ? {a: 1, f: root._currencyCode(match[1])} : null;
+    match = text.match(/^[a-zA-Z]{3,5}$/i);
+    return match ? {a: 1, f: root._currencyCode(match[0])} : null;
   }
 
   function activate(): void {
@@ -249,11 +242,11 @@ Singleton {
 
   function claims(query: string): bool {
     const input = String(query || "").trim();
-    const conversion = input.match(/^(.+?)\s+(?:to|in|->|=>|=)\s+([a-zA-Z]{3,5}|[$€£¥₹₿])$/i);
+    const conversion = input.match(/^(.+?)\s+(?:to|in|->|=>|=)\s*([a-zA-Z]{3,5}|[$€£¥₹₿])?$/i);
     const parsed = root._parseSource(conversion ? conversion[1] : input, !!conversion);
     if (!parsed)
       return false;
-    parsed.t = conversion ? root._currencyCode(conversion[2]) : parsed.f === "egp" ? "usd" : "egp";
+    parsed.t = conversion?.[2] ? root._currencyCode(conversion[2]) : parsed.f === "egp" ? "usd" : "egp";
     if (parsed.f === parsed.t)
       return false;
     const fromRate = Number(rates[parsed.f]);

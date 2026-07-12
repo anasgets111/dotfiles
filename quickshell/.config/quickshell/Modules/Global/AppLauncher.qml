@@ -43,24 +43,12 @@ Item {
       launch(filteredApps[selectedAppIdx]);
   }
 
-  function armHoverSelectionIfMoved(x: real, y: real): void {
-    if (!Number.isFinite(x) || !Number.isFinite(y) || (x === _lastPointerX && y === _lastPointerY))
-      return;
-    _lastPointerX = x;
-    _lastPointerY = y;
-    hoverSelectionArmed = true;
-  }
-
   function close(): void {
     if (!_shown || _closing)
       return;
     _closing = true;
     _shown = false;
     closeDelay.restart();
-  }
-
-  function disarmHoverSelection(): void {
-    hoverSelectionArmed = false;
   }
 
   function ensureFinder(force: bool): void {
@@ -79,18 +67,20 @@ Item {
 
   function filterApps(text: string): real {
     ensureFinder(false);
-    const q = String(text || "");
-    if (!q) {
+    if (!text) {
       filteredApps = allApps.slice(0, maxResults);
       return 0;
     }
-    const results = finder.find(q);
+    const results = finder.find(text);
     filteredApps = results.map(result => result.item);
-    return results.length > 0 ? results[0].score : 0;
+    return results[0]?.score ?? 0;
   }
 
-  function handleHoverMove(x: real, y: real, targetIndex: int): void {
-    armHoverSelectionIfMoved(x, y);
+  function handleHoverMove(pos: point, targetIndex: int): void {
+    if (_lastPointerX >= 0 && (pos.x !== _lastPointerX || pos.y !== _lastPointerY))
+      hoverSelectionArmed = true;
+    _lastPointerX = pos.x;
+    _lastPointerY = pos.y;
     if (hoverSelectionArmed)
       currentIndex = targetIndex;
   }
@@ -106,8 +96,10 @@ Item {
   function move(delta: int): void {
     if (totalRows <= 0)
       return;
-    disarmHoverSelection();
+    hoverSelectionArmed = false;
     currentIndex = Math.max(0, Math.min(currentIndex + delta, totalRows - 1));
+    if (!specialSelected && selectedAppIdx >= 0)
+      list.positionViewAtIndex(selectedAppIdx, ListView.Contain);
   }
 
   function open(): void {
@@ -119,11 +111,12 @@ Item {
   }
 
   function processInput(text: string): void {
-    disarmHoverSelection();
-    const trimmed = String(text || "").trim();
+    hoverSelectionArmed = false;
+    const trimmed = text.trim();
     const maxAppScore = filterApps(trimmed);
     LauncherService.route(trimmed, filteredApps.length, maxAppScore);
     currentIndex = 0;
+    list.positionViewAtBeginning();
   }
 
   anchors.fill: parent
@@ -138,7 +131,7 @@ Item {
     if (active) {
       LauncherService.refresh();
       open();
-      disarmHoverSelection();
+      hoverSelectionArmed = false;
       _lastPointerX = -1;
       _lastPointerY = -1;
       ensureFinder(true);
@@ -332,10 +325,7 @@ Item {
                 root.currentIndex = 0;
                 root.activateCurrent();
               }
-              onPositionChanged: mouse => {
-                const p = mapToItem(root, mouse.x, mouse.y);
-                root.handleHoverMove(p.x, p.y, 0);
-              }
+              onPositionChanged: mouse => root.handleHoverMove(mapToItem(root, mouse.x, mouse.y), 0)
             }
 
             Loader {
@@ -352,12 +342,8 @@ Item {
             Layout.preferredHeight: visibleAppCount * Theme.s(64)
             boundsBehavior: Flickable.StopAtBounds
             clip: true
-            currentIndex: root.specialSelected ? -1 : root.selectedAppIdx
-            highlightMoveDuration: Theme.animationDuration
             interactive: filteredApps.length > maxVisible
-            model: ScriptModel {
-              values: root.filteredApps
-            }
+            model: root.filteredApps
 
             delegate: Item {
               id: row
@@ -369,6 +355,18 @@ Item {
 
               height: Theme.s(64)
               width: list.width
+
+              Rectangle {
+                anchors.fill: parent
+                color: row.selected ? Theme.withOpacity(Theme.activeColor, 0.30) : "transparent"
+                radius: Theme.radiusSm
+
+                Behavior on color {
+                  ColorAnimation {
+                    duration: Theme.animationFast
+                  }
+                }
+              }
 
               RowLayout {
                 anchors.fill: parent
@@ -418,15 +416,8 @@ Item {
                 hoverEnabled: true
 
                 onClicked: root.launch(row.modelData)
-                onPositionChanged: mouse => {
-                  const p = mapToItem(root, mouse.x, mouse.y);
-                  root.handleHoverMove(p.x, p.y, row.composedIndex);
-                }
+                onPositionChanged: mouse => root.handleHoverMove(mapToItem(root, mouse.x, mouse.y), row.composedIndex)
               }
-            }
-            highlight: Rectangle {
-              color: Theme.withOpacity(Theme.activeColor, 0.30)
-              radius: Theme.radiusSm
             }
           }
         }
