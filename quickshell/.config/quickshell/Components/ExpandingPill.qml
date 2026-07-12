@@ -110,8 +110,6 @@ Item {
       delegate: Item {
         id: cell
 
-        // Instantiate the delegate manually so we can pass 'index' at creation time
-        property var __child
         required property int index
 
         height: pill.slotH
@@ -134,15 +132,11 @@ Item {
         }
 
         Component.onCompleted: {
-          __child = pill.delegate && pill.delegate.createObject(cell, {
+          const child = (pill.delegate && pill.delegate.createObject(cell, {
             index: cell.index
-          });
-          if (__child && __child.anchors)
-            __child.anchors.fill = cell;
-        }
-        Component.onDestruction: {
-          if (__child)
-            __child.destroy();
+          })) as Item;
+          if (child)
+            child.anchors.fill = cell;
         }
       }
     }
