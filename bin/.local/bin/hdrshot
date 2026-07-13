@@ -1,66 +1,61 @@
 #!/usr/bin/env bash
 # HDR-aware screenshot for Hyprland - resets SDR brightness/saturation for accurate colors
-# Dependencies: hyprctl, jq, hyprshot, satty, wl-copy
+# Dependencies: flock, hyprctl, jq, hyprshot, satty, wl-copy
 
 set -euo pipefail
 
-MODE="${1:-region}"
-SCREENSHOT_DIR="$HOME/Pictures"
+mode="${1:-region}"
+screenshot_dir="$HOME/Pictures"
 
-[[ "$MODE" =~ ^(region|output)$ ]] || { echo "Usage: $0 [region|output]" >&2; exit 1; }
-
-RESTORE_BATCH=""
-TMP=""
-
-cleanup() {
-    [[ -n "$RESTORE_BATCH" ]] && hyprctl --batch "$RESTORE_BATCH" &>/dev/null || true
-    [[ -f "$TMP" ]] && rm -f "$TMP"
+[[ $mode =~ ^(region|output)$ ]] || {
+    echo "Usage: $0 [region|output]" >&2
+    exit 1
 }
-trap cleanup EXIT
 
-# Adjust HDR monitors (10-bit) - SDR monitors don't need adjustment
-SET_BATCH=""
-while IFS=$'\t' read -r name mode pos scale transform vrr mirror sdr_b sdr_s fmt cm_preset; do
-    [[ "$fmt" != *10* ]] && continue
-    base="$name,$mode,$pos,$scale,transform,$transform,bitdepth,10"
-    [[ -n "$cm_preset" ]] && base+=",cm,$cm_preset"
-    base+=",vrr,$vrr"
-    [[ -n "$mirror" ]] && base+=",mirror,$mirror"
-    SET_BATCH+="keyword monitor $base,sdrbrightness,1.0,sdrsaturation,1.0;"
-    RESTORE_BATCH+="keyword monitor $base,sdrbrightness,$sdr_b,sdrsaturation,$sdr_s;"
-done < <(hyprctl monitors -j | jq -r '.[] | [
-    .name, "\(.width)x\(.height)@\(.refreshRate)", "\(.x)x\(.y)",
-    (.scale|tostring), (.transform|tostring), (if .vrr then "1" else "0" end),
-    (if .mirrorOf == "none" or .mirrorOf == null then "" else .mirrorOf end),
-    (.sdrBrightness|tostring), (.sdrSaturation|tostring),
-    .currentFormat, (.colorManagementPreset // "")] | @tsv')
+# ponytail: serialize monitor mutation globally; use per-output locks if captures need concurrency.
+exec {lock_fd}>"$XDG_RUNTIME_DIR/hdrshot.lock"
+flock -n "$lock_fd" || exit 0
 
-[[ -n "$SET_BATCH" ]] && hyprctl --batch "$SET_BATCH" >/dev/null && sleep .05
+tmp=$(mktemp --suffix=.png)
+restore_script=""
 
-# Capture
-TMP=$(mktemp --suffix=.png)
-hyprshot --mode "$MODE" --freeze --raw > "$TMP" || exit 0
+restore_monitors() {
+    [[ -z $restore_script ]] || hyprctl eval "$restore_script" >/dev/null
+    restore_script=""
+}
 
-# hyprshot can return before the PNG trailer is fully flushed.
-# Wait for a complete image before handing it to wl-copy or satty.
-for _ in {1..20}; do
-    tail -c12 "$TMP" 2>/dev/null | grep -qa 'IEND' && break
+trap 'restore_monitors &>/dev/null || true; rm -f "$tmp"' EXIT
+
+# Change only the values needed for capture; leave the rest of each monitor rule intact.
+scripts=$(hyprctl monitors -j | jq -r '
+    def hdr: .[] | select((.currentFormat // "") | contains("10"));
+    [
+        ([hdr | "hl.monitor({ output = \(.name | @json), sdrbrightness = 1.0, sdrsaturation = 1.0 })"] | join("; ")),
+        ([hdr | "hl.monitor({ output = \(.name | @json), sdrbrightness = \(.sdrBrightness), sdrsaturation = \(.sdrSaturation) })"] | join("; "))
+    ] | @tsv
+')
+IFS=$'\t' read -r set_script restore_script <<<"$scripts"
+
+if [[ -n $set_script ]]; then
+    hyprctl eval "$set_script" >/dev/null
     sleep .05
-done
+fi
+
+hyprshot --mode "$mode" --freeze --raw | tee "$tmp" >/dev/null || exit 0
 
 # Bail out quietly if the capture was cancelled or the PNG is incomplete.
-head -c8 "$TMP" 2>/dev/null | grep -qa $'\x89PNG' || exit 0
-tail -c12 "$TMP" 2>/dev/null | grep -qa 'IEND' || exit 0
+head -c8 "$tmp" 2>/dev/null | grep -qa $'\x89PNG' || exit 0
+tail -c12 "$tmp" 2>/dev/null | grep -qa 'IEND' || exit 0
 
 # Restore monitors before editor opens
-[[ -n "$RESTORE_BATCH" ]] && hyprctl --batch "$RESTORE_BATCH" >/dev/null || true
-RESTORE_BATCH=""
+restore_monitors
+flock -u "$lock_fd"
 
 # Copy and edit
-mkdir -p "$SCREENSHOT_DIR"
-wl-copy < "$TMP" || true
-satty --filename "$TMP" \
-    --output-filename "$SCREENSHOT_DIR/$(date +%F_%H-%M-%S).png" \
+mkdir -p "$screenshot_dir"
+wl-copy <"$tmp" || true
+satty --filename "$tmp" \
+    --output-filename "$screenshot_dir/%Y-%m-%d_%H-%M-%S.png" \
     --early-exit \
     --actions-on-enter save-to-clipboard \
     --save-after-copy \

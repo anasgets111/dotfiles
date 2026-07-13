@@ -6,7 +6,7 @@ MOUNT_POINT="$(dirname "$BACKUP_DIR")"
 
 # Check if mount exists to prevent filling root partition
 if ! mountpoint -q "$MOUNT_POINT"; then
-    echo "Error: Backup drive not mounted at $MOUNT_POINT"
+    echo "Error: Backup drive not mounted at $MOUNT_POINT" >&2
     exit 1
 fi
 
@@ -144,18 +144,13 @@ EXCLUDES=(
     'media_cache'
 )
 
-RSYNC_ARGS=(
-    -avh
-    --relative
-)
-
-for exc in "${EXCLUDES[@]}"; do RSYNC_ARGS+=("--exclude=$exc"); done
+RSYNC_ARGS=(-avh "${EXCLUDES[@]/#/--exclude=}")
 
 if [[ "${1:-}" == "--restore" || "${1:-}" == "-r" ]]; then
-    echo "Restoring from $BACKUP_DIR to ~..."
-    cd "$BACKUP_DIR" && rsync "${RSYNC_ARGS[@]}" . ~
+    echo "Restoring from $BACKUP_DIR to $HOME..."
+    rsync "${RSYNC_ARGS[@]}" "$BACKUP_DIR/" "$HOME/"
 else
-    echo "Backing up ~ to $BACKUP_DIR..."
+    echo "Backing up $HOME to $BACKUP_DIR..."
     mkdir -p "$BACKUP_DIR"
-    cd ~ && rsync "${RSYNC_ARGS[@]}" --delete --delete-excluded . "$BACKUP_DIR/"
+    rsync "${RSYNC_ARGS[@]}" --delete --delete-excluded "$HOME/" "$BACKUP_DIR/"
 fi
