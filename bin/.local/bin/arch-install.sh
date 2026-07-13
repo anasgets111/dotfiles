@@ -304,7 +304,7 @@ menu_select() {
 
 		IFS= read -rsn1 key </dev/tty
 		if [[ "$key" == $'\x1b' ]]; then
-			IFS= read -rsn2 key </dev/tty
+			IFS= read -rsn2 -t 0.05 key </dev/tty || key=""
 			case "$key" in
 			"[A") selected=$(((selected - 1 + ${#options[@]}) % ${#options[@]})) ;;
 			"[B") selected=$(((selected + 1) % ${#options[@]})) ;;
@@ -444,7 +444,8 @@ format_partitions() {
 
 	if mountpoint -q "$MOUNT_POINT"; then
 		log_info "Unmounting existing filesystems under $MOUNT_POINT"
-		if ! cd / && umount -R "$MOUNT_POINT"; then
+		cd /
+		if ! umount -R "$MOUNT_POINT"; then
 			log_error "Failed to unmount $MOUNT_POINT. Resolve busy mounts and retry."
 			exit 1
 		fi
@@ -661,8 +662,6 @@ EOF
 	fi
 	log_info "Added repo [omarchy]"
 
-	pacman -Sy
-
 	# Install AUR packages
 	log_info "Installing AUR packages..."
 	local aur_packages=("${PKGS_AUR_COMMON[@]}")
@@ -672,7 +671,7 @@ EOF
 		aur_packages+=("${PKGS_AUR_MENTALIST[@]}")
 	fi
 
-	pacman -S --needed --noconfirm "${aur_packages[@]}"
+	pacman -Syu --needed --noconfirm "${aur_packages[@]}"
 
 	log_success "AUR packages installed"
 }
@@ -726,7 +725,9 @@ chroot_services() {
 
 	for svc in "${services[@]}"; do
 		log_info "Enabling $svc"
-		systemctl enable "$svc" 2>/dev/null || true
+		if ! systemctl enable "$svc"; then
+			log_warning "Failed to enable $svc"
+		fi
 	done
 
 	# Ly configuration
@@ -852,11 +853,6 @@ main() {
 			log_warning "Failed to load state file, starting fresh"
 			reset_state
 		fi
-	fi
-
-	if ((CURRENT_STEP == 4)); then
-		log_warning "Step 4 is non-rerunnable, skipping to step 5"
-		CURRENT_STEP=5
 	fi
 
 	local -a live_steps=(
