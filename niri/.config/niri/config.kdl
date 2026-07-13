@@ -104,7 +104,7 @@ hotkey-overlay { skip-at-startup; }
 
 // --- Startup Applications ---
 spawn-at-startup "quickshell"
-spawn-at-startup "wl-clip-presist" "--clipboard" "regular"
+spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
 spawn-at-startup "kdeconnectd"
 spawn-at-startup "kdeconnect-indicator"
 spawn-at-startup "speech-dispatcher"
@@ -134,7 +134,7 @@ workspace "stash" { open-on-output "DP-2"; }
 // Prevent startup apps from stealing focus
 window-rule {
     match at-startup=true
-    match app-id=r#"^(Slack|slack|com\.slack\.Slack|org.telegram.desktop|vesktop|kitty|Alacritty|com.mitchellh.ghostty|org.wezfurlong.wezterm|foot|antigravity)$"#
+    match app-id=r#"^(Slack|slack|com\.slack\.Slack|org\.telegram\.desktop|vesktop|kitty|Alacritty|com\.mitchellh\.ghostty|org\.wezfurlong\.wezterm|foot|antigravity)$"#
     open-focused false
 }
 
@@ -157,13 +157,22 @@ window-rule {
 // Workspace Assignments
 window-rule { match app-id="org.mozilla.Thunderbird"; open-on-workspace "7"; }
 window-rule { match app-id="zen"; open-on-workspace "1"; }
-window-rule { match app-id="org.gnome.Nautilus|chromium"; open-on-workspace "2"; }
-window-rule { match app-id="code|antigravity|dev.zed.Zed"; open-on-workspace "3"; }
+window-rule { match app-id=r#"^(org\.gnome\.Nautilus|chromium)$"#; open-on-workspace "2"; }
+window-rule { match app-id=r#"^(code|antigravity|dev\.zed\.Zed)$"#; open-on-workspace "3"; }
 window-rule { match app-id=r#"^(Slack|slack|com\.slack\.Slack)$"#; open-on-workspace "stash"; }
-window-rule { match app-id="org.telegram.desktop"; open-on-workspace "stash"; }
+window-rule {
+    match app-id=r#"^org\.telegram\.desktop$"#
+    exclude title="^Media viewer$"
+    open-on-workspace "stash"
+}
+window-rule {
+    match app-id=r#"^org\.telegram\.desktop$"# title="^Media viewer$"
+    open-floating true
+    open-focused true
+}
 window-rule { match app-id="vesktop"; open-on-workspace "stash"; }
 window-rule {
-    match app-id="kitty|Alacritty|com.mitchellh.ghostty|org.wezfurlong.wezterm|foot"
+    match app-id=r#"^(kitty|Alacritty|com\.mitchellh\.ghostty|org\.wezfurlong\.wezterm|foot)$"#
     open-on-workspace "stash"
 }
 
@@ -185,8 +194,8 @@ window-rule {
     match app-id="blueman-manager"
     match app-id="org.gnome.DiskUtility"
     match app-id="nm-connection-editor"
-    match app-id="polkit.authentication-agent."
-    match app-id="xdg-desktop-portal.*"
+    match app-id=r#"polkit\.authentication-agent."#
+    match app-id=r#"xdg-desktop-portal\..*"#
     match app-id="zenity"
     match app-id="pavucontrol"
     match app-id="mpv"
@@ -227,7 +236,7 @@ window-rule {
 
 // Terminals
 window-rule {
-    match app-id="kitty|Alacritty|com.mitchellh.ghostty|org.wezfurlong.wezterm|foot"
+    match app-id=r#"^(kitty|Alacritty|com\.mitchellh\.ghostty|org\.wezfurlong\.wezterm|foot)$"#
     open-floating true
     default-column-width  { proportion 0.8; }
     default-window-height { proportion 0.8; }
@@ -267,19 +276,19 @@ binds {
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
     // Application Launching
-    Mod+Return { spawn "niri-stash" "term"; }
-    Mod+KP_Enter { spawn "niri-stash" "term"; }
+    Mod+Return repeat=false { spawn "niri-stash" "term"; }
+    Mod+KP_Enter repeat=false { spawn "niri-stash" "term"; }
     Mod+Z { spawn "zeditor"; }
     Mod+C { spawn "code"; }
     Mod+A { spawn "antigravity.sh";}
     Mod+E { spawn "nautilus"; }
     Mod+H { spawn "heroic"; }
     Mod+B { spawn "zen-browser"; }
-    Mod+S { spawn "niri-stash" "slack"; }
+    Mod+S repeat=false { spawn "niri-stash" "slack"; }
     Mod+Ctrl+S { spawn "voxtype" "record" "toggle"; }
     Mod+N  { spawn "say" "--clipboard"; }
-    Mod+T { spawn "niri-stash" "telegram"; }
-    Mod+D { spawn "niri-stash" "vesktop"; }
+    Mod+T repeat=false { spawn "niri-stash" "telegram"; }
+    Mod+D repeat=false { spawn "niri-stash" "vesktop"; }
 
     // Media & Hardware Controls
     XF86Calculator         { spawn "gnome-calculator"; }
@@ -377,6 +386,7 @@ binds {
     Mod+Ctrl+7 { move-column-to-workspace 7; }
     Mod+Ctrl+8 { move-column-to-workspace 8; }
     Mod+Ctrl+9 { move-column-to-workspace 9; }
+    Mod+Ctrl+0 { move-column-to-workspace 10; }
 
     // Workspaces (Numpad 1-0)
     Mod+KP_End   { focus-workspace 1; }
@@ -398,6 +408,7 @@ binds {
     Mod+Ctrl+KP_Home  { move-column-to-workspace 7; }
     Mod+Ctrl+KP_Up    { move-column-to-workspace 8; }
     Mod+Ctrl+KP_Prior { move-column-to-workspace 9; }
+    Mod+Ctrl+KP_Insert { move-column-to-workspace 10; }
 
     // Resizing
     Mod+R { switch-preset-column-width; }

@@ -192,6 +192,7 @@ This section is a living record of findings from repeated interactions. When Cla
 
 ## Operational Gotchas
 
+- `niri` subcommands take their own config option: validate a repository config with `niri validate --config path/to/config.kdl`, not `niri --config path/to/config.kdl validate`.
 - `monitors.conf` is gitignored (host-specific) — create it manually per machine
 - Secrets in `.local_secrets/` (gitignored) — `.gitconfig` is symlinked from there
 - Waybar, swaync, swayosd, swaylock are all deprecated; Quickshell handles all UI

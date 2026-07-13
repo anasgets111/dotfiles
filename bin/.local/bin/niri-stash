@@ -1,36 +1,45 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-case $1 in
-    term)     re='^(kitty|(com\.mitchellh\.)?ghostty|Alacritty|org\.wezfurlong\.wezterm|foot)$'; cmd='xdg-terminal-exec' ;;
-    slack)    re='^Slack$'; cmd='slack' ;;
-    telegram) re='^org\.telegram\.desktop$'; cmd='Telegram' ;;
-    vesktop)  re='^vesktop$'; cmd='vesktop' ;;
-    *)        echo "Usage: $0 {term|slack|telegram|vesktop}" >&2; exit 1 ;;
+case ${1:-} in
+    term)     re='^(kitty|(com\.mitchellh\.)?ghostty|Alacritty|org\.wezfurlong\.wezterm|foot)$'; cmd=xdg-terminal-exec ;;
+    slack)    re='^(Slack|slack|com\.slack\.Slack)$'; cmd=slack ;;
+    telegram) re='^org\.telegram\.desktop$'; exclude='^Media viewer$'; cmd=Telegram ;;
+    vesktop)  re='^vesktop$'; cmd=vesktop ;;
+    *)        printf 'Usage: %s {term|slack|telegram|vesktop}\n' "$0" >&2; exit 1 ;;
 esac
 
-get_ws() { niri msg -j workspaces | jq -r '.[]|select(.is_focused).idx'; }
-find_win() { niri msg -j windows | jq -r --arg re "$re" '.[]|select((.title//""|test($re;"i")) or (.app_id//""|test($re;"i")))|"\(.id) \(.is_focused)"' | head -1; }
+exec 9>"${XDG_RUNTIME_DIR:?}/niri-stash-$1.lock"
+flock -n 9 || exit 0
 
-read -r id focused <<< "$(find_win)" || true
+find_window() {
+    niri msg -j windows | jq -r --arg re "$re" --arg exclude "${exclude:-}" '
+        map(select((.app_id // "") | test($re; "i"))
+            | select($exclude == "" or ((.title // "") | test($exclude; "i") | not)))
+        | (max_by([.is_focused, .focus_timestamp.secs // 0, .focus_timestamp.nanos // 0, .id]) // empty)
+        | "\(.id) \(.is_focused)"'
+}
 
-if [[ -z "$id" ]]; then
-    ws=$(get_ws)
-    niri msg action spawn -- sh -c "$cmd"
-    for ((i=0; i<50; i++)); do
-        read -r id _ <<< "$(find_win)" || true
-        [[ -n "$id" ]] && break
-        read -rt 0.1 -N 0 || true
-    done
-    [[ -n "$id" ]] || exit 1
-    niri msg action move-window-to-workspace --window-id "$id" "$ws"
-    niri msg action center-floating-window --id "$id" 2>/dev/null || true
-    niri msg action focus-window --id "$id"
-elif [[ "$focused" == "true" ]]; then
-    niri msg action move-window-to-workspace --window-id "$id" --focus=false "stash"
-else
-    ws=$(get_ws)
-    niri msg action move-window-to-workspace --window-id "$id" "$ws"
-    niri msg action center-floating-window --id "$id" 2>/dev/null || true
-    niri msg action focus-window --id "$id"
+window_info=$(find_window)
+read -r id focused <<< "$window_info" || true
+
+if [[ ${focused:-} == true ]]; then
+    niri msg action move-window-to-workspace --window-id "$id" --focus=false stash
+    exit
 fi
+
+output=$(niri msg -j focused-output | jq -er '.name')
+
+if [[ -z ${id:-} ]]; then
+    niri msg action spawn -- "$cmd"
+    for _ in {1..25}; do
+        sleep 0.2
+        window_info=$(find_window)
+        read -r id focused <<< "$window_info" || true
+        [[ -n ${id:-} ]] && break
+    done
+    [[ -n ${id:-} ]] || { printf 'niri-stash: %s did not open\n' "$1" >&2; exit 1; }
+fi
+
+niri msg action move-window-to-monitor --id "$id" "$output"
+niri msg action focus-window --id "$id"
