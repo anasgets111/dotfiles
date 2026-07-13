@@ -287,7 +287,7 @@ Singleton {
   function fetchPackageSizes(): void {
     if (!updatePackages.length)
       return;
-    Command.run(["expac", "-S", "%k|%n"].concat(updatePackages.map(packageInfo => packageInfo.name)), result => root.packageSizes = Object.assign({}, root.packageSizes, root._parsePackageSizes(result.stdout ?? "")), "update.size");
+    Command.run(["expac", "-S", "%k|%n"].concat(updatePackages.map(packageInfo => packageInfo.name)), result => root.packageSizes = root._parsePackageSizes(result.stdout ?? ""), "update.size");
   }
 
   Component.onCompleted: {

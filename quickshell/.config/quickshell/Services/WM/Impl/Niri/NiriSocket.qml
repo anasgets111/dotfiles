@@ -3,8 +3,9 @@ import Quickshell
 import Quickshell.Io
 
 // Line-oriented socket on the Niri IPC path that subscribes to the event
-// stream when `eventStream` is set and reconnects 500ms after any error or
-// unexpected disconnect. Instances handle onLineRead / onConnectedChanged.
+// stream when `eventStream` is set and reconnects after any error or
+// unexpected disconnect, with exponential backoff (capped) so a socket that
+// never comes back doesn't spin forever. Instances handle onLineRead / onConnectedChanged.
 Scope {
   id: root
 
@@ -12,6 +13,9 @@ Scope {
   property bool eventStream: false
   property string path: ""
   property bool _enabled: path !== ""
+  property int _reconnectAttempts: 0
+  readonly property int _baseReconnectDelay: 500
+  readonly property int _maxReconnectDelay: 10000
 
   signal lineRead(string message)
 
@@ -27,8 +31,12 @@ Scope {
     if (path === "")
       return;
     _enabled = false;
+    reconnectTimer.interval = Math.min(_baseReconnectDelay * Math.pow(2, _reconnectAttempts), _maxReconnectDelay);
+    _reconnectAttempts++;
     reconnectTimer.restart();
   }
+
+  onPathChanged: _reconnectAttempts = 0
 
   Socket {
     id: sock
@@ -44,6 +52,7 @@ Scope {
 
     onConnectionStateChanged: {
       if (connected) {
+        root._reconnectAttempts = 0;
         if (root.eventStream) {
           write('"EventStream"\n');
           flush();
