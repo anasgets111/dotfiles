@@ -13,8 +13,12 @@ PanelContentBase {
   readonly property bool active: BluetoothService.available && BluetoothService.enabled
   readonly property var connectedDevices: ready ? BluetoothService.deviceModels.filter(d => d.connected) : []
   readonly property var otherDevices: ready ? BluetoothService.deviceModels.filter(d => !d.connected) : []
+  readonly property var otherDevicesView: otherDevices.map(d => Object.assign({}, d, {
+      group: d.paired ? "paired" : "available"
+    }))
   readonly property bool ready: BluetoothService.available
   property string showCodecFor: ""
+  readonly property bool showDeviceGroups: otherDevices.some(d => d.paired) && otherDevices.some(d => !d.paired)
 
   function codecQualityColor(qualityTier: string): color {
     if (qualityTier === "best")
@@ -152,7 +156,9 @@ PanelContentBase {
           anchors.fill: parent
           boundsBehavior: Flickable.StopAtBounds
           interactive: contentHeight > height
-          model: root.otherDevices
+          model: root.otherDevicesView
+          section.criteria: ViewSection.FullString
+          section.property: root.showDeviceGroups ? "group" : ""
           spacing: 2
 
           ScrollBar.vertical: ScrollBar {
@@ -166,6 +172,27 @@ PanelContentBase {
             width: ListView.view.width
 
             onAction: (a, d) => root.handleAction(a, d)
+          }
+          section.delegate: Item {
+            id: sectionRoot
+
+            required property string section
+
+            implicitHeight: sectionLabel.implicitHeight + Theme.spacingXs
+            width: ListView.view.width
+
+            OText {
+              id: sectionLabel
+
+              anchors.bottom: parent.bottom
+              anchors.left: parent.left
+              anchors.leftMargin: Theme.spacingSm
+              bold: true
+              color: Theme.textInactiveColor
+              opacity: 0.7
+              size: "xs"
+              text: sectionRoot.section === "paired" ? qsTr("Paired") : qsTr("Available")
+            }
           }
         }
       }
@@ -184,27 +211,15 @@ PanelContentBase {
     }
   }
 
-  component BatteryBadge: Rectangle {
+  component BatteryBadge: InfoBadge {
     id: badge
 
     property var device: null
     readonly property int level: device?.battery || 0
 
-    color: level <= 10 ? Theme.critical : level <= 20 ? Theme.warning : Theme.activeColor
-    implicitHeight: Theme.fontSm + 4
-    implicitWidth: badgeLabel.implicitWidth + 8
-    radius: height / 2
-    visible: !!device?.hasBattery
-
-    OText {
-      id: badgeLabel
-
-      anchors.centerIn: parent
-      bold: true
-      color: Theme.textContrast(badge.color)
-      size: "xs"
-      text: badge.device?.batteryText || ""
-    }
+    badgeColor: level <= 10 ? Theme.critical : level <= 20 ? Theme.warning : Theme.activeColor
+    text: badge.device?.batteryText || ""
+    visible: !!badge.device?.hasBattery
   }
   component DeviceRow: Rectangle {
     id: row
@@ -335,6 +350,7 @@ PanelContentBase {
     readonly property string addr: device?.address || ""
     readonly property var availableCodecs: device?.availableCodecs || []
     readonly property string currentCodec: device?.currentCodec || ""
+    readonly property string currentCodecQuality: availableCodecs.find(c => c.name === currentCodec)?.qualityTier || ""
     property var device: null
     readonly property string icon: device?.icon || "󰂯"
     readonly property bool isAudio: !!device?.isAudio
@@ -345,8 +361,8 @@ PanelContentBase {
 
     signal action(string act, var dev)
 
-    border.color: Theme.borderLight
-    border.width: Theme.borderWidthThin
+    border.color: Theme.withOpacity(Theme.activeColor, 0.35)
+    border.width: Theme.borderWidthMedium
     color: Theme.activeSubtle
     implicitHeight: visible ? heroCol.implicitHeight + Theme.spacingSm * 2 : 0
     radius: Theme.radiusLg
@@ -405,22 +421,17 @@ PanelContentBase {
             }
 
             Rectangle {
-              color: Theme.inactiveColor
-              implicitHeight: Theme.fontSm + 4
-              implicitWidth: codecLabel.implicitWidth + 8
-              opacity: 0.6
-              radius: height / 2
+              color: root.codecQualityColor(hero.currentCodecQuality || "basic")
+              implicitHeight: 6
+              implicitWidth: 6
+              radius: 3
               visible: hero.currentCodec !== ""
+            }
 
-              OText {
-                id: codecLabel
-
-                anchors.centerIn: parent
-                bold: true
-                color: Theme.textContrast(parent.color)
-                size: "xs"
-                text: hero.currentCodec
-              }
+            InfoBadge {
+              badgeColor: Theme.inactiveColor
+              opacity: 0.6
+              text: hero.currentCodec
             }
           }
         }

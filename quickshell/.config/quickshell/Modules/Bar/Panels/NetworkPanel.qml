@@ -393,26 +393,14 @@ PanelContentBase {
     }
   }
 
-  component BandBadge: Rectangle {
+  component BandBadge: InfoBadge {
     property string band: ""
     readonly property string bv: String(band || "").trim()
 
-    color: bv === "6" ? Theme.powerSaveColor : bv === "5" ? Theme.activeColor : Theme.inactiveColor
-    implicitHeight: Theme.fontSm + 2
-    implicitWidth: bandText.implicitWidth + 6
+    badgeColor: bv === "6" ? Theme.powerSaveColor : bv === "5" ? Theme.activeColor : Theme.inactiveColor
     opacity: 0.7
-    radius: height / 2
+    text: bv === "2.4" ? "2.4" : bv + "G"
     visible: bv !== ""
-
-    OText {
-      id: bandText
-
-      anchors.centerIn: parent
-      bold: true
-      color: Theme.textContrast(parent.color)
-      size: "xs"
-      text: parent.bv === "2.4" ? "2.4" : parent.bv + "G"
-    }
   }
   component CredentialForm: ColumnLayout {
     id: form
@@ -590,8 +578,8 @@ PanelContentBase {
 
     signal disconnectClicked
 
-    border.color: Theme.borderLight
-    border.width: Theme.borderWidthThin
+    border.color: Theme.withOpacity(Theme.activeColor, 0.35)
+    border.width: Theme.borderWidthMedium
     color: Theme.activeSubtle
     implicitHeight: visible ? ethContent.implicitHeight + Theme.spacingSm * 2 : 0
     radius: Theme.radiusLg
@@ -663,8 +651,8 @@ PanelContentBase {
     signal disconnectClicked
     signal forgetClicked(string ssid)
 
-    border.color: Theme.borderLight
-    border.width: Theme.borderWidthThin
+    border.color: Theme.withOpacity(Theme.activeColor, 0.35)
+    border.width: Theme.borderWidthMedium
     color: Theme.activeSubtle
     implicitHeight: visible ? heroContent.implicitHeight + Theme.spacingSm * 2 : 0
     radius: Theme.radiusLg
