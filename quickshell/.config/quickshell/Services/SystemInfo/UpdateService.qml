@@ -366,7 +366,10 @@ Singleton {
     repeat: true
     running: root.ready && !root.busy
 
-    onTriggered: root.doPoll()
+    onTriggered: {
+      interval = root._pollInterval;
+      root.doPoll();
+    }
   }
 
   Process {
