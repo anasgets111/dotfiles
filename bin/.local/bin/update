@@ -3,8 +3,6 @@ set -eu
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
 export LC_ALL=C
 
-# ponytail: updates are globally serialized; use per-run unit IDs only if
-# concurrent orchestration is ever added.
 readonly PACMAN_UNIT="obelisk-shell-package-update.service"
 readonly UPDATE_UNIT="obelisk-shell-update.service"
 failure_count=0

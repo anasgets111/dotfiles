@@ -1,364 +1,116 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_NAME="$(basename "$0")"
-ACTION="${1:-}"
-TLD="${2:-test}"
-ORIGINAL_ARGS=("$@")
-SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || printf "%s" "$0")"
+readonly SCRIPT_NAME="${0##*/}"
+readonly NM_CONFIG_PATH="/etc/NetworkManager/conf.d/90-local-dev-dns.conf"
+readonly DNSMASQ_CONFIG_PATH="/etc/NetworkManager/dnsmasq.d/90-local-dev.conf"
 
-NM_DROPIN="/etc/NetworkManager/conf.d/90-local-dev-dns.conf"
-DNSMASQ_BASE_DROPIN="/etc/dnsmasq.d/90-local-dev-base.conf"
-DNSMASQ_TLD_DROPIN="/etc/dnsmasq.d/91-local-dev-tld.conf"
-RESOLVED_TLD_DROPIN="/etc/systemd/resolved.conf.d/90-local-dev-tld.conf"
-DNSMASQ_MAIN_CONF="/etc/dnsmasq.conf"
-DNSMASQ_MAIN_BLOCK_BEGIN="# BEGIN local-dev-dns"
-DNSMASQ_MAIN_BLOCK_END="# END local-dev-dns"
-RESOLV_STUB="/run/systemd/resolve/stub-resolv.conf"
-RESOLV_UPLINK="/run/systemd/resolve/resolv.conf"
-STATE_DIR="/var/lib/local-dev-dns"
-STATE_FILE="${STATE_DIR}/state.env"
-RESOLV_BACKUP_FILE="${STATE_DIR}/resolv.conf.backup"
-
-print_usage() {
+usage() {
     cat <<EOF
 Usage:
-  sudo ./${SCRIPT_NAME} setup [tld]
-  sudo ./${SCRIPT_NAME} revert [--force-reset]
-  ./${SCRIPT_NAME} status [tld]
-
-Examples:
-  sudo ./${SCRIPT_NAME} setup
-  sudo ./${SCRIPT_NAME} setup test
-  sudo ./${SCRIPT_NAME} revert
-  sudo ./${SCRIPT_NAME} revert --force-reset
-  ./${SCRIPT_NAME} status
+  ${SCRIPT_NAME} setup [tld]
+  ${SCRIPT_NAME} revert
+  ${SCRIPT_NAME} status [tld]
+  ${SCRIPT_NAME} self-test
 EOF
 }
 
-normalize_tld() {
-    local raw="${1}"
-    printf "%s" "${raw#.}"
+die() {
+    echo "${SCRIPT_NAME}: $*" >&2
+    exit 1
+}
+
+is_valid_tld() {
+    [[ "${1}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]
 }
 
 validate_tld() {
-    local tld="${1}"
-
-    if [[ ! "${tld}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
-        echo "Invalid TLD: ${tld}"
-        echo "Use lowercase letters, digits, and hyphens only."
-        exit 1
-    fi
+    is_valid_tld "${1}" || die "invalid TLD '${1}'; use lowercase letters, digits, and hyphens"
 }
 
 require_root() {
-    if [[ "${EUID}" -ne 0 ]]; then
-        if ! command -v sudo >/dev/null 2>&1; then
-            echo "This action requires root and sudo is not installed."
-            exit 1
-        fi
-
-        exec sudo -- "${SCRIPT_PATH}" "${ORIGINAL_ARGS[@]}"
-    fi
+    ((EUID == 0)) && return
+    command -v sudo >/dev/null || die "this action requires root and sudo is not installed"
+    exec sudo -- "$(readlink -f "$0")" "$@"
 }
 
-service_enabled_state() {
-    local service="${1}"
-    systemctl is-enabled "${service}" 2>/dev/null || echo "unknown"
-}
+setup_dns() {
+    local tld="${1#.}"
 
-service_active_state() {
-    local service="${1}"
-    systemctl is-active "${service}" 2>/dev/null || echo "unknown"
-}
+    validate_tld "${tld}"
+    command -v dnsmasq >/dev/null || die "dnsmasq is not installed"
 
-save_pre_setup_state() {
-    local resolv_target
-    local resolv_kind
-
-    if [[ -f "${STATE_FILE}" ]]; then
-        return
+    if systemctl is-active --quiet dnsmasq; then
+        die "the standalone dnsmasq service is active; disable it before using NetworkManager's dnsmasq plugin"
     fi
 
-    mkdir -p "${STATE_DIR}"
-    rm -f "${RESOLV_BACKUP_FILE}"
-
-    if [[ -L /etc/resolv.conf ]]; then
-        resolv_kind="symlink"
-        resolv_target="$(readlink -f /etc/resolv.conf 2>/dev/null || true)"
-    else
-        resolv_kind="file"
-        resolv_target=""
-        cp /etc/resolv.conf "${RESOLV_BACKUP_FILE}"
-    fi
-
-    {
-        printf 'RESOLV_KIND=%q\n' "${resolv_kind}"
-        printf 'RESOLV_TARGET=%q\n' "${resolv_target}"
-        printf 'RESOLV_BACKUP=%q\n' "${RESOLV_BACKUP_FILE}"
-        printf 'SYSTEMD_RESOLVED_ENABLED=%q\n' "$(service_enabled_state systemd-resolved)"
-        printf 'SYSTEMD_RESOLVED_ACTIVE=%q\n' "$(service_active_state systemd-resolved)"
-        printf 'NETWORKMANAGER_ENABLED=%q\n' "$(service_enabled_state NetworkManager)"
-        printf 'NETWORKMANAGER_ACTIVE=%q\n' "$(service_active_state NetworkManager)"
-        printf 'DNSMASQ_ENABLED=%q\n' "$(service_enabled_state dnsmasq)"
-        printf 'DNSMASQ_ACTIVE=%q\n' "$(service_active_state dnsmasq)"
-    } > "${STATE_FILE}"
-}
-
-ensure_dnsmasq_loads_dropins() {
-    if grep -q "^${DNSMASQ_MAIN_BLOCK_BEGIN}\$" "${DNSMASQ_MAIN_CONF}"; then
-        return
-    fi
-
-    if ! grep -Eq '^conf-dir=/etc/dnsmasq.d/?,\*\.conf$' "${DNSMASQ_MAIN_CONF}"; then
-        printf '\n%s\nconf-dir=/etc/dnsmasq.d/,*.conf\n%s\n' \
-            "${DNSMASQ_MAIN_BLOCK_BEGIN}" \
-            "${DNSMASQ_MAIN_BLOCK_END}" >> "${DNSMASQ_MAIN_CONF}"
-    fi
-}
-
-cleanup_dnsmasq_main_conf() {
-    local tmp_file
-
-    tmp_file="$(mktemp)"
-    awk -v begin="${DNSMASQ_MAIN_BLOCK_BEGIN}" -v end="${DNSMASQ_MAIN_BLOCK_END}" '
-        BEGIN {
-            skip = 0
-            prev = ""
-        }
-        {
-            if ($0 == begin) {
-                skip = 1
-                next
-            }
-            if ($0 == end) {
-                skip = 0
-                next
-            }
-            if (skip == 1) {
-                next
-            }
-            if (prev == "# Load local drop-in configs" && ($0 == "conf-dir=/etc/dnsmasq.d,*.conf" || $0 == "conf-dir=/etc/dnsmasq.d/,*.conf")) {
-                prev = ""
-                next
-            }
-            if (prev != "") {
-                print prev
-            }
-            prev = $0
-        }
-        END {
-            if (prev != "") {
-                print prev
-            }
-        }
-    ' "${DNSMASQ_MAIN_CONF}" > "${tmp_file}"
-
-    cat "${tmp_file}" > "${DNSMASQ_MAIN_CONF}"
-    rm -f "${tmp_file}"
-}
-
-restart_setup_services() {
-    systemctl enable --now systemd-resolved NetworkManager dnsmasq >/dev/null
-    systemctl restart systemd-resolved
-    systemctl restart NetworkManager
-    systemctl restart dnsmasq
-}
-
-apply_enabled_state() {
-    local service="${1}"
-    local desired_enabled="${2}"
-
-    case "${desired_enabled}" in
-        enabled)
-            systemctl enable "${service}" >/dev/null
-            ;;
-        disabled)
-            systemctl disable "${service}" >/dev/null
-            ;;
-        masked)
-            systemctl mask "${service}" >/dev/null
-            ;;
-        *)
-            ;;
-    esac
-}
-
-apply_active_state() {
-    local service="${1}"
-    local desired_active="${2}"
-
-    case "${desired_active}" in
-        active)
-            systemctl restart "${service}" >/dev/null
-            ;;
-        inactive|failed)
-            systemctl stop "${service}" >/dev/null 2>&1 || true
-            ;;
-        *)
-            ;;
-    esac
-}
-
-restore_pre_setup_state() {
-    local force_reset="${1:-0}"
-
-    if [[ ! -f "${STATE_FILE}" ]]; then
-        if [[ "${force_reset}" == "1" ]]; then
-            ln -sf "${RESOLV_UPLINK}" /etc/resolv.conf
-            systemctl restart systemd-resolved
-            systemctl restart NetworkManager
-            systemctl disable --now dnsmasq >/dev/null 2>&1 || true
-        else
-            echo "State file not found; skipped service and resolv.conf restoration."
-            echo "Use '${SCRIPT_NAME} revert --force-reset' to apply default reset behavior."
-        fi
-        return
-    fi
-
-    # shellcheck disable=SC1090
-    source "${STATE_FILE}"
-
-    case "${RESOLV_KIND:-}" in
-        symlink)
-            if [[ -n "${RESOLV_TARGET:-}" && "${RESOLV_TARGET}" != "/etc/resolv.conf" ]]; then
-                ln -sf "${RESOLV_TARGET}" /etc/resolv.conf
-            else
-                echo "Skipped restoring /etc/resolv.conf symlink: invalid saved target."
-            fi
-            ;;
-        file)
-            if [[ -f "${RESOLV_BACKUP:-}" ]]; then
-                rm -f /etc/resolv.conf
-                install -m 644 "${RESOLV_BACKUP}" /etc/resolv.conf
-            else
-                echo "Skipped restoring /etc/resolv.conf file: backup not found."
-            fi
-            ;;
-        *)
-            if [[ -n "${RESOLV_TARGET:-}" && "${RESOLV_TARGET}" != "/etc/resolv.conf" ]]; then
-                ln -sf "${RESOLV_TARGET}" /etc/resolv.conf
-            else
-                echo "Skipped restoring /etc/resolv.conf: no valid saved state."
-            fi
-            ;;
-    esac
-
-    apply_enabled_state systemd-resolved "${SYSTEMD_RESOLVED_ENABLED:-unknown}"
-    apply_enabled_state NetworkManager "${NETWORKMANAGER_ENABLED:-unknown}"
-    apply_enabled_state dnsmasq "${DNSMASQ_ENABLED:-unknown}"
-
-    apply_active_state systemd-resolved "${SYSTEMD_RESOLVED_ACTIVE:-unknown}"
-    apply_active_state NetworkManager "${NETWORKMANAGER_ACTIVE:-unknown}"
-    apply_active_state dnsmasq "${DNSMASQ_ACTIVE:-unknown}"
-
-    rm -f "${STATE_FILE}"
-    rm -f "${RESOLV_BACKUP:-${RESOLV_BACKUP_FILE}}"
-}
-
-setup_tld() {
-    local tld="${1}"
-
-    save_pre_setup_state
-
-    mkdir -p /etc/NetworkManager/conf.d
-    cat > "${NM_DROPIN}" <<'EOF'
+    install -d /etc/NetworkManager/conf.d /etc/NetworkManager/dnsmasq.d
+    cat >"${NM_CONFIG_PATH}" <<'EOF'
 [main]
-dns=systemd-resolved
+dns=dnsmasq
 EOF
+    printf 'address=/.%s/127.0.0.1\n' "${tld}" >"${DNSMASQ_CONFIG_PATH}"
 
-    mkdir -p /etc/dnsmasq.d
-    cat > "${DNSMASQ_BASE_DROPIN}" <<'EOF'
-listen-address=127.0.0.1
-interface=lo
-bind-interfaces
-no-resolv
-no-poll
-local-service
-EOF
+    dnsmasq --test --conf-file=/dev/null \
+        --conf-dir=/etc/NetworkManager/dnsmasq.d >/dev/null
+    systemctl restart NetworkManager
 
-    cat > "${DNSMASQ_TLD_DROPIN}" <<EOF
-address=/${tld}/127.0.0.1
-EOF
+    for _ in {1..10}; do
+        if getent ahostsv4 "anything.${tld}" | grep -q '^127\.0\.0\.1[[:space:]]'; then
+            echo "*.${tld} now resolves to 127.0.0.1."
+            return
+        fi
+        sleep 0.2
+    done
 
-    ensure_dnsmasq_loads_dropins
-
-    mkdir -p /etc/systemd/resolved.conf.d
-    cat > "${RESOLVED_TLD_DROPIN}" <<EOF
-[Resolve]
-DNS=127.0.0.1
-Domains=~${tld}
-EOF
-
-    ln -sf "${RESOLV_STUB}" /etc/resolv.conf
-
-    restart_setup_services
-    status_tld "${tld}"
+    die "DNS setup completed, but anything.${tld} does not resolve to 127.0.0.1"
 }
 
-revert_setup() {
-    local force_reset="${1:-0}"
-
-    rm -f "${NM_DROPIN}"
-    rm -f "${DNSMASQ_BASE_DROPIN}"
-    rm -f "${DNSMASQ_TLD_DROPIN}"
-    rm -f "${RESOLVED_TLD_DROPIN}"
-    cleanup_dnsmasq_main_conf
-
-    restore_pre_setup_state "${force_reset}"
-
-    echo "Reverted local dev DNS overrides."
-    echo
-    status_tld "test"
+revert_dns() {
+    rm -f "${NM_CONFIG_PATH}" "${DNSMASQ_CONFIG_PATH}"
+    systemctl reload NetworkManager
+    echo "Removed local development DNS."
 }
 
-status_tld() {
-    local tld="${1}"
+show_status() {
+    local tld="${1#.}"
+    local nm_state
 
-    echo "=== resolv.conf ==="
-    ls -l /etc/resolv.conf
-    readlink -f /etc/resolv.conf
-    grep '^nameserver' /etc/resolv.conf || true
+    validate_tld "${tld}"
+    nm_state="$(systemctl is-active NetworkManager 2>/dev/null || true)"
+    echo "NetworkManager: ${nm_state:-unknown}"
+    echo "DNS mode:       $(grep -hs '^dns=' "${NM_CONFIG_PATH}" || echo default)"
+    echo "Rule:           $(grep -hs '^address=' "${DNSMASQ_CONFIG_PATH}" || echo missing)"
     echo
-
-    echo "=== services ==="
-    systemctl is-active systemd-resolved || true
-    systemctl is-active NetworkManager || true
-    systemctl is-active dnsmasq || true
-    echo
-
-    echo "=== resolved status (summary) ==="
-    resolvectl status | sed -n '1,40p' || true
-    echo
-
-    echo "=== DNS checks ==="
-    resolvectl query "anything.${tld}" || true
-    resolvectl query google.com || true
+    getent hosts "anything.${tld}" || true
 }
 
-case "${ACTION}" in
+self_test() {
+    is_valid_tld test
+    is_valid_tld local-dev
+    ! is_valid_tld .test
+    ! is_valid_tld 'test;option'
+    echo "${SCRIPT_NAME}: self-test passed"
+}
+
+action="${1:-}"
+case "${action}" in
     setup)
-        require_root
-        NORMALIZED_TLD="$(normalize_tld "${TLD}")"
-        validate_tld "${NORMALIZED_TLD}"
-        echo "Setting up local DNS for *.${NORMALIZED_TLD}"
-        setup_tld "${NORMALIZED_TLD}"
+        require_root "$@"
+        setup_dns "${2:-test}"
         ;;
     revert)
-        require_root
-        FORCE_RESET=0
-        if [[ "${2:-}" == "--force-reset" ]]; then
-            FORCE_RESET=1
-        fi
-        revert_setup "${FORCE_RESET}"
+        require_root "$@"
+        revert_dns
         ;;
     status)
-        NORMALIZED_TLD="$(normalize_tld "${TLD}")"
-        validate_tld "${NORMALIZED_TLD}"
-        status_tld "${NORMALIZED_TLD}"
+        show_status "${2:-test}"
+        ;;
+    self-test)
+        self_test
         ;;
     *)
-        print_usage
-        exit 1
+        usage
+        [[ -z "${action}" ]] || exit 1
         ;;
 esac

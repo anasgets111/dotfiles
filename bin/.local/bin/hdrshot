@@ -12,7 +12,6 @@ screenshot_dir="$HOME/Pictures"
     exit 1
 }
 
-# ponytail: serialize monitor mutation globally; use per-output locks if captures need concurrency.
 exec {lock_fd}>"$XDG_RUNTIME_DIR/hdrshot.lock"
 flock -n "$lock_fd" || exit 0
 
