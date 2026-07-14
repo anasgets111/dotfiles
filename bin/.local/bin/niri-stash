@@ -29,17 +29,19 @@ if [[ $focused == true ]]; then
     exit
 fi
 
-output=$(niri msg -j focused-output | jq -er '.name')
+target=$(niri msg -j workspaces | jq -er '.[] | select(.is_focused) | [.output, .idx] | @tsv')
+read -r output workspace <<< "$target"
 
 if [[ -z $id ]]; then
-    niri msg action spawn -- "$cmd"
+    niri msg action spawn -- env -u XDG_ACTIVATION_TOKEN "$cmd"
     for _ in {1..25}; do
-        sleep 0.2
         find_window
         [[ $id ]] && break
+        sleep 0.2
     done
     [[ $id ]] || { printf 'niri-stash: %s did not open\n' "$1" >&2; exit 1; }
 fi
 
 niri msg action move-window-to-monitor --id "$id" "$output"
+niri msg action move-window-to-workspace --window-id "$id" --focus=false "$workspace"
 niri msg action focus-window --id "$id"

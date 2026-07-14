@@ -192,6 +192,7 @@ This section is a living record of findings from repeated interactions. When Cla
 
 ## Operational Gotchas
 
+- `niri msg action spawn` gives the child an activation token, which can focus a window despite an `open-focused false` rule. When a script must relocate a new window before focusing it, spawn through `env -u XDG_ACTIVATION_TOKEN` and focus it explicitly afterward.
 - `niri` subcommands take their own config option: validate a repository config with `niri validate --config path/to/config.kdl`, not `niri --config path/to/config.kdl validate`.
 - `systemd-run --scope` cannot be combined with `--pipe`, and a fixed-name scope may still be loaded briefly after its command exits. For streamed output with an immediately reusable fixed unit name, use a transient service with `--pipe --collect`.
 - `monitors.conf` is gitignored (host-specific) — create it manually per machine

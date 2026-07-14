@@ -131,11 +131,15 @@ workspace "10" { open-on-output "DP-2"; }
 workspace "stash" { open-on-output "DP-2"; }
 
 // --- Window Rules ---
-// Prevent startup apps from stealing focus
+// Keep session-start windows in the background and park stash apps.
 window-rule {
     match at-startup=true
-    match app-id=r#"^(Slack|slack|com\.slack\.Slack|org\.telegram\.desktop|vesktop|kitty|Alacritty|com\.mitchellh\.ghostty|org\.wezfurlong\.wezterm|foot|antigravity)$"#
     open-focused false
+}
+window-rule {
+    match at-startup=true app-id=r#"^(Slack|slack|com\.slack\.Slack|org\.telegram\.desktop|vesktop|kitty|(com\.mitchellh\.)?ghostty|Alacritty|org\.wezfurlong\.wezterm|foot)$"#
+    exclude app-id=r#"^org\.telegram\.desktop$"# title="^Media viewer$"
+    open-on-workspace "stash"
 }
 
 window-rule {
@@ -159,21 +163,10 @@ window-rule { match app-id="org.mozilla.Thunderbird"; open-on-workspace "7"; }
 window-rule { match app-id="zen"; open-on-workspace "1"; }
 window-rule { match app-id=r#"^(org\.gnome\.Nautilus|chromium)$"#; open-on-workspace "2"; }
 window-rule { match app-id=r#"^(code|antigravity|dev\.zed\.Zed)$"#; open-on-workspace "3"; }
-window-rule { match app-id=r#"^(Slack|slack|com\.slack\.Slack)$"#; open-on-workspace "stash"; }
-window-rule {
-    match app-id=r#"^org\.telegram\.desktop$"#
-    exclude title="^Media viewer$"
-    open-on-workspace "stash"
-}
 window-rule {
     match app-id=r#"^org\.telegram\.desktop$"# title="^Media viewer$"
     open-floating true
     open-focused true
-}
-window-rule { match app-id="vesktop"; open-on-workspace "stash"; }
-window-rule {
-    match app-id=r#"^(kitty|Alacritty|com\.mitchellh\.ghostty|org\.wezfurlong\.wezterm|foot)$"#
-    open-on-workspace "stash"
 }
 
 // Floating Windows (Small Dialogs)
