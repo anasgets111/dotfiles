@@ -51,7 +51,7 @@ Singleton {
   }
 
   function _allWrappers(): var {
-    return root._uniqueWrappers([root.notifications, root.visibleNotifications, root._popupQueue, root._popupOnlyWrappers]);
+    return [...root.notifications, ...root._popupOnlyWrappers];
   }
 
   function _clearVisiblePopups(): void {
@@ -59,7 +59,6 @@ Singleton {
       if (!wrapper)
         return;
       root._stopWrapperTimer(wrapper);
-      wrapper.popup = false;
       wrapper.isHidingPopup = false;
     });
     root.visibleNotifications = [];
@@ -67,7 +66,7 @@ Singleton {
 
   function _closeNotification(wrapper: var, closeReason: string): void {
     const notification = wrapper?.notification;
-    if (!notification?.valid)
+    if (!notification)
       return;
     if (closeReason === "expire")
       notification.expire();
@@ -90,13 +89,7 @@ Singleton {
       if (!group) {
         group = {
           key: wrapper.groupKey,
-          displayName: wrapper.displayName,
-          notifications: [],
-          latestNotification: wrapper,
-          count: 0,
-          urgency: NotificationUrgency.Normal,
-          latestTime: 0,
-          latestSequence: 0
+          notifications: []
         };
         groupsByKey.set(wrapper.groupKey, group);
       }
@@ -106,8 +99,8 @@ Singleton {
     return Array.from(groupsByKey.values()).map(group => {
       group.notifications.sort(root._compareWrappers);
       group.count = group.notifications.length;
-      group.latestNotification = group.notifications[0] || group.latestNotification;
-      group.displayName = group.latestNotification?.displayName || group.displayName;
+      group.latestNotification = group.notifications[0];
+      group.displayName = group.latestNotification?.displayName || "app";
       group.urgency = group.latestNotification?.notification?.urgency ?? NotificationUrgency.Normal;
       group.latestTime = group.latestNotification?.createdAt?.getTime() ?? 0;
       group.latestSequence = group.latestNotification?.sequence ?? 0;
@@ -161,9 +154,8 @@ Singleton {
   }
 
   function _expireTransientWrappers(): void {
-    const transientWrappers = root._uniqueWrappers([root.visibleNotifications, root._popupQueue, root._popupOnlyWrappers]).filter(wrapper => !wrapper.persistent);
-    if (transientWrappers.length)
-      root._removeWrappers(transientWrappers, true, "expire");
+    if (root._popupOnlyWrappers.length)
+      root._removeWrappers(root._popupOnlyWrappers, true, "expire");
   }
 
   function _hidePopup(wrapper: var): void {
@@ -171,17 +163,14 @@ Singleton {
       return;
     wrapper.isHidingPopup = true;
     root._stopWrapperTimer(wrapper);
-    wrapper.popup = false;
 
     const groupKey = wrapper.groupKey;
-    const remainingPopupCount = root._remainingGroupCount(root.visibleNotifications, wrapper, groupKey, false);
-    if (remainingPopupCount === 0)
+    if (root._remainingGroupCount(root.visibleNotifications, wrapper, groupKey, false) === 0)
       root._groupState.setDismissing(groupKey, "popup", true);
     root._queueRemoval({
       wrappers: [wrapper],
       removeFromHistory: false,
-      closeReason: wrapper.persistent ? "hide" : "expire",
-      groupKey: remainingPopupCount === 0 ? groupKey : ""
+      closeReason: wrapper.persistent ? "hide" : "expire"
     });
   }
 
@@ -190,25 +179,25 @@ Singleton {
   }
 
   function _limitNotificationsPerApp(): void {
-    const appCounts = {};
+    const appCounts = new Map();
     const wrappersToRemove = [];
 
     for (const wrapper of root.notifications) {
       if (!wrapper)
         continue;
-      appCounts[wrapper.groupKey] = (appCounts[wrapper.groupKey] || 0) + 1;
-      if (appCounts[wrapper.groupKey] > root.maxNotificationsPerApp && !root._isCritical(wrapper))
+      const appCount = (appCounts.get(wrapper.groupKey) ?? 0) + 1;
+      appCounts.set(wrapper.groupKey, appCount);
+      if (appCount > root.maxNotificationsPerApp && !root._isCritical(wrapper))
         wrappersToRemove.push(wrapper);
     }
     if (wrappersToRemove.length)
       root._removeWrappers(wrappersToRemove, true, "dismiss");
   }
 
-  function _prepareForRemoval(wrapper: var, hidePopup: bool, removeFromHistory: bool): void {
+  function _prepareForRemoval(wrapper: var, removeFromHistory: bool): void {
     wrapper.isDismissing = removeFromHistory || !wrapper.persistent;
-    wrapper.isHidingPopup = hidePopup;
+    wrapper.isHidingPopup = false;
     root._stopWrapperTimer(wrapper);
-    wrapper.popup = false;
     if (removeFromHistory || !wrapper.persistent)
       wrapper._removed = true;
   }
@@ -217,7 +206,6 @@ Singleton {
     wrapper.isDismissing = true;
     wrapper.isHidingPopup = hidePopup;
     root._stopWrapperTimer(wrapper);
-    wrapper.popup = false;
   }
 
   function _pumpPopups(): void {
@@ -261,11 +249,11 @@ Singleton {
   }
 
   function _removeWrappers(wrappers: var, removeFromHistory: bool, closeReason: string): void {
-    const uniqueWrappers = root._uniqueWrappers([wrappers]);
-    if (!uniqueWrappers.length)
+    const wrappersToRemove = new Set((wrappers || []).filter(Boolean));
+    if (!wrappersToRemove.size)
       return;
-    const wrappersToRemove = new Set(uniqueWrappers);
-    uniqueWrappers.forEach(wrapper => root._prepareForRemoval(wrapper, false, removeFromHistory));
+    const uniqueWrappers = Array.from(wrappersToRemove);
+    uniqueWrappers.forEach(wrapper => root._prepareForRemoval(wrapper, removeFromHistory));
 
     root.visibleNotifications = root.visibleNotifications.filter(wrapper => wrapper && !wrappersToRemove.has(wrapper));
     root._popupQueue = root._popupQueue.filter(wrapper => wrapper && !wrappersToRemove.has(wrapper));
@@ -281,7 +269,7 @@ Singleton {
       if (wrapper.persistent && !root.notifications.some(notificationWrapper => notificationWrapper?.groupKey === wrapper.groupKey && !notificationWrapper.isDismissing))
         root._groupState.setDismissing(wrapper.groupKey, "history", false);
       root._groupState.setDismissing(wrapper.groupKey, "popup", false);
-      root._closeNotification(wrapper, closeReason || "dismiss");
+      root._closeNotification(wrapper, closeReason);
       wrapper.destroy();
     });
     if (!root._isDestroying)
@@ -297,12 +285,7 @@ Singleton {
     if (!root._isLiveWrapper(wrapper) || root.visibleNotifications.includes(wrapper))
       return;
     root.visibleNotifications = [...root.visibleNotifications, wrapper];
-    wrapper.popup = true;
-    if (!wrapper.soundPlayed) {
-      wrapper.soundPlayed = true;
-      AudioService.playNotificationSound(wrapper.notification);
-    }
-    root._stopWrapperTimer(wrapper);
+    AudioService.playNotificationSound(wrapper.notification);
     if (wrapper.timer?.interval > 0)
       wrapper.timer.start();
   }
@@ -335,27 +318,12 @@ Singleton {
       root._removeWrappers(Array.from(wrappersToDrop), true, "dismiss");
   }
 
-  function _uniqueWrappers(wrapperLists: var): var {
-    const seenWrappers = new Set();
-    const uniqueWrappers = [];
-    for (const wrapperList of wrapperLists) {
-      for (const wrapper of (wrapperList || [])) {
-        if (!wrapper || seenWrappers.has(wrapper))
-          continue;
-        seenWrappers.add(wrapper);
-        uniqueWrappers.push(wrapper);
-      }
-    }
-    return uniqueWrappers;
-  }
-
   function _updateGroupCaches(): void {
     if (root._isDestroying)
       return;
     root._groupedNotificationsCache = root._computeGroups(root.notifications);
     root._groupedPopupsCache = root._computeGroups(root.visibleNotifications);
-    const activeKeys = new Set();
-    root._groupedPopupsCache.forEach(group => activeKeys.add(group.key));
+    const activeKeys = new Set(root._groupedPopupsCache.map(group => group.key));
     root._groupState.pruneShown(activeKeys);
   }
 
@@ -364,6 +332,7 @@ Singleton {
     const wrappersToDestroy = root._allWrappers();
     root._popupQueue = [];
     root._removalQueue = [];
+    removalTimer.stop();
     root._clearVisiblePopups();
     root.notifications = [];
     root._popupOnlyWrappers = [];
@@ -385,18 +354,14 @@ Singleton {
     if (!wrappers.length)
       return;
     wrappers.forEach(wrapper => root._beginDismissAnimation(wrapper, root.visibleNotifications.includes(wrapper)));
-    const scopes = [];
     if (wrappers.some(wrapper => wrapper.persistent))
-      scopes.push("history");
+      root._groupState.setDismissing(normalizedKey, "history", true);
     if (wrappers.some(wrapper => root.visibleNotifications.includes(wrapper)))
-      scopes.push("popup");
-    scopes.forEach(scope => root._groupState.setDismissing(normalizedKey, scope, true));
+      root._groupState.setDismissing(normalizedKey, "popup", true);
     root._queueRemoval({
       wrappers: wrappers,
       removeFromHistory: true,
-      closeReason: "dismiss",
-      groupKey: normalizedKey,
-      scopes: scopes
+      closeReason: "dismiss"
     });
   }
 
@@ -407,19 +372,15 @@ Singleton {
     const isPopupVisible = root.visibleNotifications.includes(wrapper);
     const remainingHistoryCount = root._remainingGroupCount(root.notifications, wrapper, groupKey, true);
     const remainingPopupCount = isPopupVisible ? root._remainingGroupCount(root.visibleNotifications, wrapper, groupKey, false) : 0;
-    const scopes = [];
     root._beginDismissAnimation(wrapper, isPopupVisible);
     if (wrapper.persistent && remainingHistoryCount === 0)
-      scopes.push("history");
+      root._groupState.setDismissing(groupKey, "history", true);
     if (isPopupVisible && remainingPopupCount === 0)
-      scopes.push("popup");
-    scopes.forEach(scope => root._groupState.setDismissing(groupKey, scope, true));
+      root._groupState.setDismissing(groupKey, "popup", true);
     root._queueRemoval({
       wrappers: [wrapper],
       removeFromHistory: wrapper.persistent,
-      closeReason: "dismiss",
-      groupKey: scopes.length ? groupKey : "",
-      scopes: scopes
+      closeReason: "dismiss"
     });
   }
 
@@ -463,7 +424,7 @@ Singleton {
   function resumeTimers(wrappers: var): void {
     (wrappers || []).forEach(wrapper => {
       const timer = wrapper?.timer;
-      if (wrapper?.popup && timer && timer.interval > 0 && !timer.running)
+      if (root._isLiveWrapper(wrapper) && root.visibleNotifications.includes(wrapper) && timer && timer.interval > 0 && !timer.running)
         timer.start();
     });
   }
@@ -538,9 +499,7 @@ Singleton {
       if (root._isDestroying || root._removalQueue.length === 0)
         return;
       const item = root._removalQueue.shift();
-      root._removeWrappers(item.wrappers, item.removeFromHistory, item.closeReason || "dismiss");
-      if (item.groupKey && item.scopes)
-        item.scopes.forEach(scope => root._groupState.setDismissing(item.groupKey, scope, false));
+      root._removeWrappers(item.wrappers, item.removeFromHistory, item.closeReason);
       if (root._removalQueue.length > 0)
         removalTimer.restart();
     }
@@ -573,25 +532,19 @@ Singleton {
       if (root._isDestroying)
         return;
 
-      if (notification.transient) {
-        if (root._popupsSuspended || root.doNotDisturb)
-          return;
-        notification.tracked = true;
-        const popupWrapper = root._createWrapper(notification, false);
-        if (popupWrapper) {
-          root._enqueuePopup(popupWrapper);
-          root._pumpPopups();
-        }
+      const persistent = !notification.transient;
+      if (!persistent && (root._popupsSuspended || root.doNotDisturb))
         return;
-      }
 
       notification.tracked = true;
-      const wrapper = root._createWrapper(notification, true);
+      const wrapper = root._createWrapper(notification, persistent);
       if (!wrapper)
         return;
-      root.notifications = [wrapper, ...root.notifications];
-      root._trimStoredNotifications();
-      root._limitNotificationsPerApp();
+      if (persistent) {
+        root.notifications = [wrapper, ...root.notifications];
+        root._trimStoredNotifications();
+        root._limitNotificationsPerApp();
+      }
       if (!root._popupsSuspended && !root.doNotDisturb)
         root._enqueuePopup(wrapper);
       root._pumpPopups();
@@ -732,14 +685,12 @@ Singleton {
     readonly property var renderedSummary: NotificationText.summary(wrapper.summaryText)
     readonly property var renderedBody: NotificationText.body(wrapper.bodyText)
     readonly property bool hasBody: !!(wrapper.renderedBody.plain.trim() && wrapper.renderedBody.plain.trim() !== wrapper.renderedSummary.plain.trim())
-    readonly property bool bodyHasMultipleLines: (wrapper.bodyText.match(/\n/g) || []).length > 0
+    readonly property bool bodyHasMultipleLines: wrapper.bodyText.includes("\n")
     readonly property url contentImage: Utils.normalizeImageUrl(String(wrapper.notification?.image || ""))
     readonly property bool hasInlineReply: wrapper.notification?.hasInlineReply === true
     readonly property string inlineReplyPlaceholder: wrapper.notification?.inlineReplyPlaceholder || "Reply"
-    readonly property string messageId: String(wrapper.notification?.id || "")
+    readonly property string messageId: String(wrapper.notification?.id ?? "")
     readonly property string timestampText: {
-      if (!wrapper.createdAt)
-        return "";
       const use24Hour = root.uses24HourClock();
       const formatted = Qt.formatDateTime(wrapper.createdAt, use24Hour ? "ddd HH:mm" : "ddd h:mm AP");
       return use24Hour ? formatted : formatted.replace(" AM", "am").replace(" PM", "pm");
@@ -748,29 +699,16 @@ Singleton {
     property bool isHidingPopup: false
     required property Notification notification
     property bool persistent: true
-    property bool popup: false
     property int sequence: 0
-    property bool soundPlayed: false
     readonly property Timer timer: Timer {
       interval: root._urgencyConfig[wrapper.notification?.urgency ?? NotificationUrgency.Normal]?.timeout ?? 5000
       repeat: false
       running: false
 
       onTriggered: {
-        if (wrapper.timer.interval > 0 && wrapper.popup && !wrapper.isDismissing && !wrapper.isHidingPopup && !wrapper._removed && !root._isDestroying)
+        if (root._isLiveWrapper(wrapper) && root.visibleNotifications.includes(wrapper))
           root._hidePopup(wrapper);
       }
-    }
-
-    onPopupChanged: {
-      if (wrapper.popup || wrapper.isDismissing || wrapper.isHidingPopup || wrapper._removed || root._isDestroying)
-        return;
-      if (root.visibleNotifications.includes(wrapper))
-        root.visibleNotifications = root.visibleNotifications.filter(visibleWrapper => visibleWrapper !== wrapper);
-      Qt.callLater(() => {
-        if (root && !root._isDestroying)
-          root._pumpPopups();
-      });
     }
   }
 }

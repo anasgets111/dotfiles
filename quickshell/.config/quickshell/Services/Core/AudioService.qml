@@ -17,7 +17,7 @@ Singleton {
       "portable": "󰏲"
     })
   property var _dndMutedStreamIds: []
-  readonly property var _dndTargetApps: ["slack", "vesktop", "telegram", "thunderbird"]
+  readonly property var _trackerObjects: (Pipewire.nodes?.values ?? []).concat(Pipewire.linkGroups?.values ?? [])
   property bool dndActive: false
   readonly property real maxVolume: 1.5
   readonly property bool micMuted: audioMuted(source)
@@ -34,7 +34,14 @@ Singleton {
   readonly property var sourceModels: buildAudioDevices(sources, source)
   readonly property string sourceName: displayName(source)
   readonly property list<PwNode> sources: _audioNodes.filter(node => !node.isStream && !node.isSink)
-  readonly property var streamModels: buildStreamModels()
+  readonly property var streamModels: root.streams.map(stream => {
+    const rawName = stream.name || "";
+    return {
+      id: stream.id,
+      name: Utils.lookupDesktopEntryName(rawName) || rawName || qsTr("Unknown"),
+      iconSource: Utils.resolveIconSource(rawName, nodeProperties(stream)["application.icon-name"] ?? "", "󰝚")
+    };
+  })
   readonly property list<PwNode> streams: _audioNodes.filter(node => node.isStream)
   readonly property real volume: audioVolume(sink)
 
@@ -45,11 +52,8 @@ Singleton {
       const props = nodeProperties(stream);
       if (props["media.role"] !== "Notification")
         continue;
-      const appId = `${props["application.name"] ?? ""} ${props["application.process.binary"] ?? ""}`.toLowerCase();
-      if (_dndTargetApps.some(app => appId.includes(app))) {
-        stream.audio.muted = true;
-        _dndMutedStreamIds = [..._dndMutedStreamIds, stream.id];
-      }
+      stream.audio.muted = true;
+      _dndMutedStreamIds = [..._dndMutedStreamIds, stream.id];
     }
   }
 
@@ -75,6 +79,20 @@ Singleton {
       }
     }
     return pathOrUri.startsWith("/") ? pathOrUri : "";
+  }
+
+  function _senderNotificationSoundActive(notification: var): bool {
+    const senderPid = Number(_notificationHint(notification, "sender-pid"));
+    if (!Number.isFinite(senderPid) || senderPid <= 0)
+      return false;
+
+    return (Pipewire.linkGroups?.values ?? []).some(link => {
+      if (link?.state !== PwLinkState.Active)
+        return false;
+      const source = link.source;
+      const props = nodeProperties(source);
+      return Number(props["application.process.id"]) === senderPid && props["media.role"] === "Notification" && !audioMuted(source) && audioVolume(source) > 0;
+    });
   }
 
   function _toggleError(node: var, unavailableMessage: string, notReadyMessage: string): string {
@@ -114,26 +132,11 @@ Singleton {
         }));
   }
 
-  function buildStreamModels(): var {
-    return root.streams.map(stream => {
-      const rawName = stream.name || "";
-      return {
-        id: stream.id,
-        name: Utils.lookupDesktopEntryName(rawName) || rawName || qsTr("Unknown"),
-        iconSource: Utils.resolveIconSource(rawName, nodeApplicationIconName(stream), "󰝚")
-      };
-    });
-  }
-
   function capSinkVolume(): void {
     if (!root.sinkControllable)
       return;
     if (root.sink.audio.volume > root.maxVolume)
       setNodeVolume(root.sink, root.maxVolume, root.maxVolume, false);
-  }
-
-  function clampVolume(volume: real, maximum: real): real {
-    return Math.max(0, Math.min(maximum, volume));
   }
 
   function deviceIconFor(node: var): string {
@@ -176,10 +179,6 @@ Singleton {
     return !!node?.ready && !!node?.audio;
   }
 
-  function nodeApplicationIconName(node: var): string {
-    return nodeProperties(node)["application.icon-name"] ?? "";
-  }
-
   function nodeProperties(node: var): var {
     return !!node?.ready ? (node.properties ?? {}) : ({});
   }
@@ -201,7 +200,7 @@ Singleton {
 
   function playNotificationSound(notification: var): void {
     const suppressSound = _notificationHint(notification, "suppress-sound");
-    if (suppressSound === true || String(suppressSound).toLowerCase() === "true")
+    if (suppressSound === true || String(suppressSound).toLowerCase() === "true" || _senderNotificationSoundActive(notification))
       return;
 
     const soundDir = "/usr/share/sounds/freedesktop/stereo";
@@ -239,14 +238,12 @@ Singleton {
       return false;
     if (unmute)
       node.audio.muted = false;
-    node.audio.volume = clampVolume(newVolume, maximum);
+    node.audio.volume = Math.max(0, Math.min(maximum, newVolume));
     return true;
   }
 
   function setStreamVolume(id: int, newVolume: real): void {
-    const stream = _nodeById(root.streams, id);
-    if (stream)
-      setNodeVolume(stream, newVolume, 1.0, true);
+    setNodeVolume(_nodeById(root.streams, id), newVolume, 1.0, true);
   }
 
   function setVolume(newVolume: real): void {
@@ -305,7 +302,7 @@ Singleton {
   }
 
   PwObjectTracker {
-    objects: Pipewire.nodes?.values ?? []
+    objects: root._trackerObjects
   }
 
   Connections {
