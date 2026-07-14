@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# HDR-aware screenshot for Hyprland - resets SDR brightness/saturation for accurate colors
-# Dependencies: flock, hyprctl, jq, hyprshot, satty, wl-copy
+# Screenshot capture and annotation for Hyprland
+# Dependencies: flock, hyprshot, satty, wl-copy
 
 set -euo pipefail
 
@@ -16,29 +16,7 @@ exec {lock_fd}>"$XDG_RUNTIME_DIR/hdrshot.lock"
 flock -n "$lock_fd" || exit 0
 
 tmp=$(mktemp --suffix=.png)
-restore_script=""
-
-restore_monitors() {
-    [[ -z $restore_script ]] || hyprctl eval "$restore_script" >/dev/null
-    restore_script=""
-}
-
-trap 'restore_monitors &>/dev/null || true; rm -f "$tmp"' EXIT
-
-# Change only the values needed for capture; leave the rest of each monitor rule intact.
-scripts=$(hyprctl monitors -j | jq -r '
-    def hdr: .[] | select((.currentFormat // "") | contains("10"));
-    [
-        ([hdr | "hl.monitor({ output = \(.name | @json), sdrbrightness = 1.0, sdrsaturation = 1.0 })"] | join("; ")),
-        ([hdr | "hl.monitor({ output = \(.name | @json), sdrbrightness = \(.sdrBrightness), sdrsaturation = \(.sdrSaturation) })"] | join("; "))
-    ] | @tsv
-')
-IFS=$'\t' read -r set_script restore_script <<<"$scripts"
-
-if [[ -n $set_script ]]; then
-    hyprctl eval "$set_script" >/dev/null
-    sleep .05
-fi
+trap 'rm -f "$tmp"' EXIT
 
 hyprshot --mode "$mode" --freeze --raw | tee "$tmp" >/dev/null || exit 0
 
@@ -46,8 +24,6 @@ hyprshot --mode "$mode" --freeze --raw | tee "$tmp" >/dev/null || exit 0
 head -c8 "$tmp" 2>/dev/null | grep -qa $'\x89PNG' || exit 0
 tail -c12 "$tmp" 2>/dev/null | grep -qa 'IEND' || exit 0
 
-# Restore monitors before editor opens
-restore_monitors
 flock -u "$lock_fd"
 
 # Copy and edit

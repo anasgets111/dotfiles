@@ -53,7 +53,7 @@ Optional integrations are detected at runtime:
 
 - Screen recording needs `gpu-screen-recorder` and `slurp`.
 - The keyboard and mouse input overlay needs `showmethekey-cli`.
-- `hdrshot` needs Hyprland, `hyprshot`, `satty`, `jq`, and `wl-copy`.
+- `hdrshot` needs Hyprland, `flock`, `hyprshot`, `satty`, and `wl-copy`.
 - The Arch update widget is active only on Arch-based systems.
 
 Adjust package names for your distribution. The default terminal is resolved through `xdg-terminal-exec`.
