@@ -1,21 +1,17 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
-export LANG=C
 export LC_ALL=C
 
-# ponytail: package updates are globally serialized; use per-run unit IDs only if
-# concurrent update orchestration is ever added.
-PACMAN_UNIT="obelisk-shell-package-update.service"
+# ponytail: updates are globally serialized; use per-run unit IDs only if
+# concurrent orchestration is ever added.
+readonly PACMAN_UNIT="obelisk-shell-package-update.service"
+readonly UPDATE_UNIT="obelisk-shell-update.service"
 failure_count=0
 
-# ——————————————————————————————————————————————————————————————
-# Helpers
-# ——————————————————————————————————————————————————————————————
 has_cmd() { type -P "$1" >/dev/null 2>&1; }
-pgroup_alive() { kill -0 -- "-$1" 2>/dev/null; }
 
-run_cmd() {
+run_step() {
   local desc="$1"
   shift
   printf "\n▶ %s\n" "$desc"
@@ -28,7 +24,9 @@ run_cmd() {
 }
 
 stop_pacman_unit() {
-  systemctl is-active --quiet "$PACMAN_UNIT" || return 0
+  local state
+  state=$(systemctl show --property=ActiveState --value "$PACMAN_UNIT") || return 1
+  [[ "$state" == "inactive" || "$state" == "failed" ]] && return 0
   if ! has_cmd run0; then
     printf "[ERROR] run0 not found; cannot stop %s safely.\n" "$PACMAN_UNIT" >&2
     return 1
@@ -39,72 +37,70 @@ stop_pacman_unit() {
   fi
 }
 
+stop_update_unit() {
+  local state
+  state=$(systemctl --user show --property=ActiveState --value "$UPDATE_UNIT") || return 1
+  [[ "$state" == "inactive" || "$state" == "failed" ]] && return 0
+  systemctl --user stop "$UPDATE_UNIT"
+}
+
 cancel_update() {
-  local process_group="${1:-}"
   local cancel_failed=0
 
-  if [[ ! "$process_group" =~ ^[1-9][0-9]*$ ]]; then
-    printf "[ERROR] Invalid update process group: %s\n" "$process_group" >&2
-    return 2
-  fi
-
-  printf "Cancelling update process group %s...\n" "$process_group"
-  if pgroup_alive "$process_group"; then
-    kill -TERM -- "-$process_group" 2>/dev/null || cancel_failed=1
-  fi
-
+  printf "Cancelling update...\n"
+  stop_update_unit || cancel_failed=1
   stop_pacman_unit || cancel_failed=1
-
-  for _ in {1..50}; do
-    pgroup_alive "$process_group" || break
-    sleep 0.1
-  done
-  if pgroup_alive "$process_group"; then
-    kill -KILL -- "-$process_group" 2>/dev/null || cancel_failed=1
-  fi
-  # The named unit may appear just after its run0 client receives SIGTERM.
-  stop_pacman_unit || cancel_failed=1
-
   return "$cancel_failed"
 }
 
-step_if() {
+start_update() {
+  local script_path="${BASH_SOURCE[0]}"
+  [[ "$script_path" == /* ]] || script_path=$(type -P "$script_path")
+  exec systemd-run --user --quiet --collect --pipe --same-dir \
+    --unit="${UPDATE_UNIT%.service}" --setenv=OBELISK_UPDATE_WORKER=1 \
+    --setenv=CARGO_HOME --setenv=BUN_INSTALL \
+    --setenv=BUN_INSTALL_CACHE_DIR --setenv=FNM_PATH \
+    "$script_path"
+}
+
+run_optional() {
   local desc="$1"
   local bin="$2"
   shift 2
   if has_cmd "$bin"; then
-    run_cmd "$desc" "$@"
+    run_step "$desc" "$@"
   else
-    printf "[SKIP] %s (precondition not met)\n" "$desc"
+    printf "[SKIP] %s (%s not found)\n" "$desc" "$bin"
   fi
 }
 
-# ——————————————————————————————————————————————————————————————
-# Main Update Logic
-# ——————————————————————————————————————————————————————————————
-
-if [[ "${1:-}" == "--cancel" ]]; then
-  cancel_update "${2:-}"
-  exit $?
+if (($# == 1)) && [[ "$1" == "--cancel" ]]; then
+  cancel_update
+  exit
+fi
+if (($#)); then
+  printf "Usage: %s [--cancel]\n" "${0##*/}" >&2
+  exit 2
+fi
+if [[ "${OBELISK_UPDATE_WORKER:-}" != 1 ]]; then
+  start_update
 fi
 
-# System Packages (Arch Linux)
 if has_cmd pacman; then
   if ! has_cmd run0; then
     printf "[ERROR] run0 not found - required for system updates.\n"
     failure_count=$((failure_count + 1))
   else
-    run_cmd "System Packages (pacman via run0)" \
+    run_step "System Packages (pacman via run0)" \
       run0 --unit="${PACMAN_UNIT%.service}" --pipe pacman -Syu --noconfirm
   fi
 fi
 
-# Development Tooling
-step_if "Composer" composer composer global update
-step_if "Node (fnm)" fnm bash -lc 'fnm install lts-latest && fnm default lts-latest'
-step_if "Bun Binaries" bun bun update -g --latest
-step_if "Rust Binaries" cargo-install-update cargo install-update -a
-step_if "Rust Toolchain" rustup rustup update
+run_optional "Composer" composer composer global update
+run_optional "Node (fnm)" fnm bash -lc 'fnm install lts-latest && fnm default lts-latest'
+run_optional "Bun Binaries" bun bun update -g --latest
+run_optional "Rust Binaries" cargo-install-update cargo install-update -a
+run_optional "Rust Toolchain" rustup rustup update
 
 if ((failure_count > 0)); then
   printf "\nDone with %d failed step(s).\n" "$failure_count"

@@ -193,6 +193,7 @@ This section is a living record of findings from repeated interactions. When Cla
 ## Operational Gotchas
 
 - `niri` subcommands take their own config option: validate a repository config with `niri validate --config path/to/config.kdl`, not `niri --config path/to/config.kdl validate`.
+- `systemd-run --scope` cannot be combined with `--pipe`, and a fixed-name scope may still be loaded briefly after its command exits. For streamed output with an immediately reusable fixed unit name, use a transient service with `--pipe --collect`.
 - `monitors.conf` is gitignored (host-specific) — create it manually per machine
 - Secrets in `.local_secrets/` (gitignored) — `.gitconfig` is symlinked from there
 - Waybar, swaync, swayosd, swaylock are all deprecated; Quickshell handles all UI

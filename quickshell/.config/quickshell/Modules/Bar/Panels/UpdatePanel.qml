@@ -12,8 +12,10 @@ PanelContentBase {
 
   readonly property bool hasUpdates: UpdateService.ready && UpdateService.totalUpdates > 0
   readonly property color headerColor: Qt.lighter(Theme.bgColor, 1.74)
-  readonly property bool isIdle: UpdateService.updateState === UpdateService.status.Idle
-  readonly property bool isUpdating: UpdateService.updateState === UpdateService.status.Updating
+  readonly property bool isError: UpdateService.isError
+  readonly property bool isIdle: UpdateService.isIdle
+  readonly property bool isPackageStep: UpdateService.isSystemPackageStep
+  readonly property bool isUpdating: UpdateService.isUpdating
   readonly property int itemHeight: Theme.itemHeight
   readonly property int maxItems: 10
   readonly property int pad: Theme.spacingSm
@@ -34,6 +36,17 @@ PanelContentBase {
     if (t.includes("-> running") || t.includes("build hook"))
       return "#89B4FA";
     return Theme.textInactiveColor;
+  }
+
+  function updateStatusText(): string {
+    if (!root.isUpdating) {
+      if (root.isError)
+        return UpdateService.errorMessage || qsTr("Update failed");
+      return qsTr("Update complete");
+    }
+    if (root.isPackageStep && UpdateService.totalPackagesToUpdate > 0)
+      return qsTr("Installing %1 of %2 system packages...").arg(UpdateService.currentPackageIndex).arg(UpdateService.totalPackagesToUpdate);
+    return UpdateService.currentStep ? qsTr("Running %1...").arg(UpdateService.currentStep) : qsTr("Updating system and developer tooling...");
   }
 
   preferredHeight: contentScope.implicitHeight + root.pad * 2
@@ -169,7 +182,7 @@ PanelContentBase {
           Layout.preferredHeight: root.itemHeight * 2
           color: Theme.textInactiveColor
           horizontalAlignment: Text.AlignHCenter
-          text: UpdateService.ready ? qsTr("No updates available") : qsTr("Update service unavailable")
+          text: UpdateService.ready ? qsTr("No system package updates available") : qsTr("Update service unavailable")
           verticalAlignment: Text.AlignVCenter
           visible: !root.hasUpdates
         }
@@ -201,8 +214,8 @@ PanelContentBase {
           OButton {
             Layout.fillWidth: true
             bgColor: Theme.activeColor
-            isEnabled: root.hasUpdates
-            text: qsTr("Update Now")
+            isEnabled: UpdateService.ready && !UpdateService.busy
+            text: qsTr("Update All")
 
             onClicked: UpdateService.executeUpdate()
           }
@@ -228,7 +241,7 @@ PanelContentBase {
 
           OText {
             bold: true
-            text: UpdateService.totalPackagesToUpdate > 0 ? qsTr("Installing %1 of %2 packages...").arg(UpdateService.currentPackageIndex).arg(UpdateService.totalPackagesToUpdate) : qsTr("Updating packages...")
+            text: root.updateStatusText()
           }
 
           Rectangle {
@@ -236,6 +249,7 @@ PanelContentBase {
             Layout.preferredHeight: Theme.radiusSm
             color: Theme.borderColor
             radius: Theme.radiusXs
+            visible: root.isPackageStep && UpdateService.totalPackagesToUpdate > 0
 
             Rectangle {
               color: Theme.activeColor
@@ -314,12 +328,9 @@ PanelContentBase {
             Layout.fillWidth: true
             bgColor: Theme.warning
             text: qsTr("Retry")
-            visible: UpdateService.updateState === UpdateService.status.Error
+            visible: root.isError
 
-            onClicked: {
-              UpdateService.updateState = UpdateService.status.Idle;
-              UpdateService.executeUpdate();
-            }
+            onClicked: UpdateService.executeUpdate()
           }
 
           OButton {
@@ -331,8 +342,7 @@ PanelContentBase {
               if (root.isUpdating) {
                 UpdateService.cancelUpdate();
               } else {
-                UpdateService.updateState = UpdateService.status.Idle;
-                UpdateService.closeAllNotifications();
+                UpdateService.dismissResult();
                 root.closeRequested();
               }
             }
