@@ -27,13 +27,16 @@ if monitor.icc then
             and (fullscreened(target.active_workspace) or fullscreened(target.active_special_workspace))
 
         if suppress == suppressed then return end
-        -- A desc:-keyed rule would inherit the profiled rule's ICC.
-        if suppress then unprofiled.output = assert(target).name end
-        hl.monitor(suppress and unprofiled or monitor)
         suppressed = suppress
+        if not suppress then return hl.exec_cmd("hyprctl reload") end
+        -- A desc:-keyed rule would inherit the profiled rule's ICC.
+        unprofiled.output = assert(target).name
+        hl.monitor(unprofiled)
     end
 
-    for _, event in ipairs({ "window.fullscreen", "workspace.active", "window.move_to_workspace" }) do
+    for _, event in ipairs({ "window.fullscreen", "window.destroy", "window.move_to_workspace", "workspace.active",
+        -- "workspace.special_active", -- Available after Hyprland 0.55.4.
+    }) do
         hl.on(event, sync_icc)
     end
     hl.on("monitor.added", function()

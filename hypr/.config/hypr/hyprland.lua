@@ -3,14 +3,10 @@ local hypr_config = config_home .. "/hypr"
 
 package.path = hypr_config .. "/?.lua;" .. hypr_config .. "/?/init.lua;" .. package.path
 
-for _, module_name in ipairs({
-    "config.env",
-    "config.startup",
-    "config.monitors",
-    "config.appearance",
-    "config.input",
-    "config.windowrules",
-    "config.keybinds",
-}) do
-    require(module_name)
-end
+require("config.env")
+require("config.startup")
+require("config.monitors")
+require("config.appearance")
+require("config.input")
+require("config.windowrules")
+require("config.keybinds")
