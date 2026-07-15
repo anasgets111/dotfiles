@@ -55,7 +55,6 @@ Scope {
 
           target: LockService
         }
-
         SequentialAnimation {
           id: lockInAnimation
 
@@ -64,7 +63,6 @@ Scope {
           ScriptAction {
             script: unlockAnimation.stop()
           }
-
           NumberAnimation {
             duration: 220
             easing.type: Easing.OutCubic
@@ -72,7 +70,6 @@ Scope {
             target: stage
             to: 1
           }
-
           NumberAnimation {
             duration: 220
             easing.type: Easing.OutCubic
@@ -81,7 +78,6 @@ Scope {
             to: 2
           }
         }
-
         SequentialAnimation {
           id: unlockAnimation
 
@@ -90,7 +86,6 @@ Scope {
           ScriptAction {
             script: lockInAnimation.stop()
           }
-
           NumberAnimation {
             duration: 180
             easing.type: Easing.InCubic
@@ -98,7 +93,6 @@ Scope {
             target: stage
             to: 1
           }
-
           NumberAnimation {
             duration: 180
             easing.type: Easing.InCubic
@@ -106,7 +100,6 @@ Scope {
             target: stage
             to: 0
           }
-
           ScriptAction {
             script: {
               if ((lockSurface.isMainMonitor || lockSurface.screen?.name === Quickshell.screens[0]?.name) && LockService.unlocking)
@@ -114,7 +107,6 @@ Scope {
             }
           }
         }
-
         Image {
           anchors.fill: parent
           cache: false
@@ -131,7 +123,6 @@ Scope {
             blurMultiplier: Settings.data.lockBlurMultiplier
           }
         }
-
         LockContent {
           isMainMonitor: lockSurface.isMainMonitor
           opacity: stage.contentOpacity

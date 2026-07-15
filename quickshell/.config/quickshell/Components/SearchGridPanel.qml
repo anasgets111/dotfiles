@@ -61,7 +61,6 @@ Item {
     if (entry)
       activateEntry(entry);
   }
-
   function activateEntry(entry) {
     if (!entry)
       return;
@@ -69,7 +68,6 @@ Item {
     if (root.closeOnActivate)
       root.close();
   }
-
   function arraysEqual(a, b) {
     a = Array.isArray(a) ? a : [];
     b = Array.isArray(b) ? b : [];
@@ -80,7 +78,6 @@ Item {
         return false;
     return true;
   }
-
   function buildFinder(list) {
     const builder = root.finderBuilder;
     if (typeof builder !== "function")
@@ -104,7 +101,6 @@ Item {
       return null;
     }
   }
-
   function callSelector(selector, item) {
     if (typeof selector === "function") {
       try {
@@ -116,11 +112,9 @@ Item {
     }
     return selector;
   }
-
   function clamp(v, lo, hi) {
     return Math.min(Math.max(v, lo), hi);
   }
-
   function close() {
     if (!root.active)
       return;
@@ -128,7 +122,6 @@ Item {
     root.currentIndex = -1;
     root.dismissed();
   }
-
   function ensureCurrentVisible() {
     if (root.currentIndex < 0)
       return;
@@ -137,7 +130,6 @@ Item {
         itemGrid.positionViewAtIndex(root.currentIndex, GridView.Center);
     });
   }
-
   function ensureFinder(forceRebuild) {
     const normalized = toArray(items);
     const needs = forceRebuild || !root.finder || !root.arraysEqual(root.allItems, normalized);
@@ -149,11 +141,9 @@ Item {
     if (hasBuilder && !root.finder)
       console.warn("SearchGridPanel: FZF unavailable, using substring filter");
   }
-
   function gridStride() {
     return itemGrid ? itemGrid.gridColumns : 1;
   }
-
   function handleKeyEvent(event) {
     switch (event.key) {
     case Qt.Key_Escape:
@@ -183,14 +173,12 @@ Item {
       break;
     }
   }
-
   function isPointInsidePopup(item, x, y) {
     if (!item)
       return false;
     const local = item.mapFromItem(dismissArea, x, y);
     return local.x >= 0 && local.y >= 0 && local.x <= item.width && local.y <= item.height;
   }
-
   function moveSelection(step) {
     const entries = root.filteredItems;
     if (!entries.length)
@@ -203,19 +191,16 @@ Item {
       root.ensureCurrentVisible();
     }
   }
-
   function open() {
     if (!root.active)
       root.active = true;
   }
-
   function releaseFocus() {
     if (root.showSearchField && searchField && searchField.activeFocus)
       searchField.focus = false;
     if (popupRect)
       popupRect.forceActiveFocus();
   }
-
   function resetAndFocus() {
     ensureFinder(true);
     searchField.text = "";
@@ -229,7 +214,6 @@ Item {
         popupRect.forceActiveFocus();
     });
   }
-
   function toArray(value) {
     if (!value)
       return [];
@@ -239,7 +223,6 @@ Item {
       return Array.from(value);
     return [];
   }
-
   function updateFilter(query, skipEnsure) {
     if (!skipEnsure)
       ensureFinder(false);
@@ -289,7 +272,6 @@ Item {
     anchors.fill: parent
     color: root.scrimColor
   }
-
   MouseArea {
     id: dismissArea
 
@@ -304,7 +286,6 @@ Item {
       root.close();
     }
   }
-
   Rectangle {
     id: popupRect
 
@@ -361,7 +342,6 @@ Item {
           spacing: root.headerSpacing
         }
       }
-
       TextField {
         id: searchField
 
@@ -390,7 +370,6 @@ Item {
           selectAll()
         onTextChanged: root.updateFilter(searchField.text)
       }
-
       Item {
         id: gridContainer
 
@@ -442,7 +421,6 @@ Item {
                 }
               }
             }
-
             Column {
               anchors.centerIn: parent
               spacing: Theme.spacingMd
@@ -457,7 +435,6 @@ Item {
                 visible: source !== ""
                 width: root.itemImageSize
               }
-
               OText {
                 anchors.horizontalCenter: parent.horizontalCenter
                 elide: Text.ElideRight
@@ -469,7 +446,6 @@ Item {
                 wrapMode: Text.NoWrap
               }
             }
-
             MouseArea {
               id: mouseArea
 
@@ -491,7 +467,6 @@ Item {
                 itemTooltip._mouseY = mouse.y;
               }
             }
-
             Tooltip {
               id: itemTooltip
 
@@ -502,7 +477,6 @@ Item {
             }
           }
         }
-
         GridView {
           id: itemGrid
 
@@ -529,7 +503,6 @@ Item {
           width: Math.min(maxWidth, Math.max(root.cellWidth, gridColumns * root.cellWidth))
         }
       }
-
       Item {
         id: footerWrapper
 

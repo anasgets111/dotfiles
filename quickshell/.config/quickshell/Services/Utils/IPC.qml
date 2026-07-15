@@ -26,18 +26,15 @@ Singleton {
     function islocked(): bool {
       return LockService.locked;
     }
-
     function lock(): string {
       Logger.log("IPC", "lock");
       LockService.requestLock();
       return "locked";
     }
-
     function status(): bool {
       Logger.log("IPC", `status -> ${LockService.locked}`);
       return LockService.locked;
     }
-
     function unlock(): string {
       Logger.log("IPC", "unlock");
       LockService.requestUnlock();
@@ -56,39 +53,30 @@ Singleton {
       const v = a[prop];
       return (v === undefined) ? "Invalid property" : String(v);
     }
-
     function list(): string {
       return MediaService.players.map(p => p.identity).join("\n");
     }
-
     function next(): void {
       MediaService.next();
     }
-
     function pause(): void {
       MediaService.pause();
     }
-
     function play(): void {
       MediaService.play();
     }
-
     function playPause(): void {
       MediaService.playPause();
     }
-
     function previous(): void {
       MediaService.previous();
     }
-
     function seek(position: real): void {
       MediaService.seek(position);
     }
-
     function seekByRatio(ratio: real): void {
       MediaService.seekByRatio(ratio);
     }
-
     function stop(): void {
       MediaService.stop();
     }

@@ -22,11 +22,9 @@ Singleton {
     else
       console.log(message);
   }
-
   function error() {
     root.emit("error", arguments);
   }
-
   function formatMessage(argumentList: var): string {
     if (!argumentList?.length)
       return "";
@@ -44,7 +42,6 @@ Singleton {
 
     return `${timestamp} ${modulePart} ${messageParts.join(" ")}`;
   }
-
   function formatModuleLabel(moduleName: var): string {
     const label = String(moduleName ?? "").substring(0, root.moduleLabelWidth);
     const padding = root.moduleLabelWidth - label.length;
@@ -52,11 +49,9 @@ Singleton {
     const rightPadding = padding - leftPadding;
     return `[${" ".repeat(leftPadding)}${label}${" ".repeat(rightPadding)}]`;
   }
-
   function log() {
     root.emit("log", arguments);
   }
-
   function shouldLog(moduleName: var): bool {
     if (!root.enabled)
       return false;
@@ -66,7 +61,6 @@ Singleton {
       return false;
     return root.includeModules.includes(String(moduleName).trim());
   }
-
   function warn() {
     root.emit("warn", arguments);
   }

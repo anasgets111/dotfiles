@@ -11,6 +11,44 @@ Singleton {
 
   readonly property int _maximumContiguousSlots: 100
 
+  function _selfCheck(): bool {
+    const sparse = buildDisplayWorkspaces([
+      {
+        id: 1,
+        idx: 1
+      },
+      {
+        id: 1000000,
+        idx: 1000000
+      }
+    ], 1000000, true, 1000000);
+    if (sparse.length !== _maximumContiguousSlots + 1 || sparse[sparse.length - 1]?.idx !== 1000000)
+      return false;
+    const contiguous = buildDisplayWorkspaces([
+      {
+        id: 15,
+        idx: 15
+      }
+    ], 15, true, 10);
+    if (contiguous.length !== 15 || contiguous[14]?.idx !== 15)
+      return false;
+
+    const layout = buildLayout([
+      {
+        id: 1,
+        idx: 1,
+        focused: false,
+        output: "A"
+      },
+      {
+        id: 2,
+        idx: 1,
+        focused: true,
+        output: "B"
+      }
+    ], "", ["A", "B"]);
+    return layout.focusedOutput === "B" && layout.outputsOrder[0] === "B" && layout.groupBoundaries[0] === 1 && layout.workspaces[0]?.id === 2;
+  }
   function buildDisplayWorkspaces(sourceWorkspaces: var, activeWorkspaceIndex: int, fillEmptySlots: bool, minimumSlotCount: int): var {
     const normalizedWorkspaces = Array.isArray(sourceWorkspaces) ? sourceWorkspaces : [];
 
@@ -45,7 +83,6 @@ Singleton {
       };
     });
   }
-
   function buildLayout(sourceWorkspaces: var, focusedOutputHint: string, outputOrderHint: var): var {
     const validWorkspaces = (Array.isArray(sourceWorkspaces) ? sourceWorkspaces : []).filter(workspace => (workspace?.id ?? 0) > 0);
     const workspacesByOutput = new Map();
@@ -105,37 +142,6 @@ Singleton {
       outputsOrder,
       workspaces: sortedWorkspaces
     };
-  }
-
-  function _selfCheck(): bool {
-    const sparse = buildDisplayWorkspaces([{
-      id: 1,
-      idx: 1
-    }, {
-      id: 1000000,
-      idx: 1000000
-    }], 1000000, true, 1000000);
-    if (sparse.length !== _maximumContiguousSlots + 1 || sparse[sparse.length - 1]?.idx !== 1000000)
-      return false;
-    const contiguous = buildDisplayWorkspaces([{
-      id: 15,
-      idx: 15
-    }], 15, true, 10);
-    if (contiguous.length !== 15 || contiguous[14]?.idx !== 15)
-      return false;
-
-    const layout = buildLayout([{
-      id: 1,
-      idx: 1,
-      focused: false,
-      output: "A"
-    }, {
-      id: 2,
-      idx: 1,
-      focused: true,
-      output: "B"
-    }], "", ["A", "B"]);
-    return layout.focusedOutput === "B" && layout.outputsOrder[0] === "B" && layout.groupBoundaries[0] === 1 && layout.workspaces[0]?.id === 2;
   }
 
   Component.onCompleted: console.assert(_selfCheck(), "WorkspaceArrangement self-check failed")

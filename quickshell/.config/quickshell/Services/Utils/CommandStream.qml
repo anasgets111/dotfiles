@@ -16,6 +16,11 @@ Process {
   id: root
 
   property int _restartCount: 0
+  readonly property Timer _restartTimer: Timer {
+    interval: root.restartDelay
+
+    onTriggered: root._sync()
+  }
   property bool active: false
   property int maxRestartDelay: 0
   property int maxRestarts: 0
@@ -43,6 +48,7 @@ Process {
     onRead: line => root.lineRead(line)
   }
 
+  Component.onCompleted: root._sync()
   onActiveChanged: {
     root._restartCount = 0;
     _restartTimer.stop();
@@ -59,12 +65,5 @@ Process {
     root._restartCount++;
     _restartTimer.interval = delay;
     _restartTimer.restart();
-  }
-  Component.onCompleted: root._sync()
-
-  readonly property Timer _restartTimer: Timer {
-    interval: root.restartDelay
-
-    onTriggered: root._sync()
   }
 }

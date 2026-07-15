@@ -26,7 +26,6 @@ Singleton {
     }
     return result(decodeEntities(value), Qt.PlainText, plainBody(value));
   }
-
   function decodeEntities(value: var): string {
     return typeof value !== "string" ? "" : value.replace(/&(#x[0-9a-fA-F]+|#\d+|quot|apos|amp|lt|gt);/g, (match, entity) => {
       if (htmlEntities[entity] !== undefined)
@@ -40,15 +39,12 @@ Singleton {
       }
     });
   }
-
   function escapeAttribute(value: var): string {
     return escapeHtml(value).replace(/"/g, "&quot;");
   }
-
   function escapeHtml(value: var): string {
     return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
-
   function looksLikeMarkdown(value: var): bool {
     if (typeof value !== "string")
       return false;
@@ -56,11 +52,9 @@ Singleton {
     const trimmedText = value.trim();
     return trimmedText.length > 0 && !looksLikeMarkup(trimmedText) && /(\*\*|__|~~|`|\[[^\]]+\]\([^ )]+\)|^\s{0,3}[-*+]\s|^\s{0,3}\d+\.\s|^>\s|\n>\s|^\s{0,3}#{1,6}\s|(?:https?|file):\/\/)/m.test(trimmedText);
   }
-
   function looksLikeMarkup(value: var): bool {
     return typeof value === "string" && /<\s*\/?\s*[a-zA-Z!][^>]*>/.test(value);
   }
-
   function markdownToHtml(value: var): string {
     if (!value)
       return "";
@@ -93,12 +87,10 @@ Singleton {
 
     return html.replace(/<br\/>\s*<pre>/g, "<pre>").replace(/<br\/>\s*<ul>/g, "<ul>").replace(/<br\/>\s*<(h[1-6])>/g, "<$1>").replace(/<p>\s*(<br\/>)?\s*<\/p>/g, "").replace(/(<br\/>){3,}/g, "<br/><br/>").replace(/(<\/p>)\s*(<p>)/g, "$1$2").trim();
   }
-
   function plainBody(value: var): string {
     const text = decodeEntities(value);
     return looksLikeMarkup(text) ? text.replace(/<\s*br\s*\/?\s*>/gi, "\n").replace(/<[^>]*>/g, "") : text;
   }
-
   function result(text: string, format: int, plain: string): var {
     return {
       text: text,
@@ -106,12 +98,10 @@ Singleton {
       plain: plain
     };
   }
-
   function safeUrl(value: var): string {
     const url = decodeEntities(value).trim();
     return safeUrlPattern.test(url) ? url : "";
   }
-
   function sanitizeMarkup(value: var): string {
     const source = String(value ?? "");
     const tagPattern = /<[^>]*>/g;
@@ -128,7 +118,6 @@ Singleton {
 
     return output + escapeHtml(decodeEntities(source.slice(textStart)));
   }
-
   function sanitizeTag(tag: string): string {
     const parsedTag = tag.match(/^<\s*(\/?)\s*([a-zA-Z][\w:-]*)\b([^>]*)\/?\s*>$/);
     if (!parsedTag)
@@ -149,13 +138,11 @@ Singleton {
     const href = hrefMatch ? safeUrl(hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3] ?? "") : "";
     return href ? `<a href="${escapeAttribute(href)}">` : "";
   }
-
   function storePlaceholder(values: var, prefix: string, html: string): string {
     const index = values.length;
     values.push(html);
     return `\x00${prefix}${index}\x00`;
   }
-
   function summary(value: var): var {
     const text = typeof value === "string" && value.length > 0 ? decodeEntities(value) : "(No title)";
     return result(text, Qt.PlainText, text);

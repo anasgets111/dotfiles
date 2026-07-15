@@ -72,13 +72,30 @@ Singleton {
   function _bumpRevision(): void {
     root._revision++;
   }
-
+  function _fetchCodecs(address: string, fullScan: bool, revision: int): void {
+    const cardName = root.bluezCardName(address);
+    Command.run(["pactl", "list", "cards"], result => {
+      if (root._codecRevisions[address] !== revision)
+        return;
+      if (!root.deviceForAddress(address)?.connected) {
+        root.cleanupCodecData(address);
+        return;
+      }
+      const parsed = root._parseCodecs(result.stdout, cardName);
+      if (fullScan) {
+        root.deviceAvailableCodecs[address] = parsed.parsedCodecs;
+        root.deviceAvailableCodecsChanged();
+      }
+      const activeCodec = parsed.parsedCodecs.find(codec => codec.profile === parsed.activeProfile);
+      root.deviceCodecs[address] = activeCodec?.name ?? "";
+      root.deviceCodecsChanged();
+    });
+  }
   function _nextCodecRevision(address: string): int {
     const revision = (root._codecRevisions[address] ?? 0) + 1;
     root._codecRevisions[address] = revision;
     return revision;
   }
-
   function _parseCodecs(output: string, cardName: string): var {
     let inCard = false;
     let activeProfile = "";
@@ -117,27 +134,6 @@ Singleton {
       activeProfile
     };
   }
-
-  function _fetchCodecs(address: string, fullScan: bool, revision: int): void {
-    const cardName = root.bluezCardName(address);
-    Command.run(["pactl", "list", "cards"], result => {
-      if (root._codecRevisions[address] !== revision)
-        return;
-      if (!root.deviceForAddress(address)?.connected) {
-        root.cleanupCodecData(address);
-        return;
-      }
-      const parsed = root._parseCodecs(result.stdout, cardName);
-      if (fullScan) {
-        root.deviceAvailableCodecs[address] = parsed.parsedCodecs;
-        root.deviceAvailableCodecsChanged();
-      }
-      const activeCodec = parsed.parsedCodecs.find(codec => codec.profile === parsed.activeProfile);
-      root.deviceCodecs[address] = activeCodec?.name ?? "";
-      root.deviceCodecsChanged();
-    });
-  }
-
   function _runPendingCodecSwitch(address: string): void {
     if (root._codecSwitchActive[address])
       return;
@@ -160,11 +156,9 @@ Singleton {
       Qt.callLater(() => root._fetchCodecs(address, false, revision));
     }, `bt.codecSwitch.${address}`);
   }
-
   function bluezCardName(address: string): string {
     return `bluez_card.${address.replace(/:/g, "_")}`;
   }
-
   function buildDeviceModels(revision: int): var {
     return root.devices.map(device => root.toDeviceModel(device)).sort((leftModel, rightModel) => {
       if (leftModel.connected !== rightModel.connected)
@@ -174,15 +168,12 @@ Singleton {
       return leftModel.name.localeCompare(rightModel.name);
     });
   }
-
   function canConnect(device: BluetoothDevice): bool {
     return !!device?.paired && !device.connected && !isDeviceBusy(device) && !device.blocked;
   }
-
   function canPair(device: BluetoothDevice): bool {
     return !!device && !device.paired && !device.blocked && !isDeviceBusy(device);
   }
-
   function cleanupCodecData(address: string): void {
     if (!address)
       return;
@@ -194,12 +185,10 @@ Singleton {
     deviceCodecsChanged();
     deviceAvailableCodecsChanged();
   }
-
   function clearPendingPair(device: BluetoothDevice): void {
     if (device?.address === connectAfterPairAddress)
       connectAfterPairAddress = "";
   }
-
   function connectDevice(address: string): void {
     const device = root.deviceForAddress(address);
     if (!device || device.blocked || isDeviceBusy(device) || device.connected || !device.paired)
@@ -207,16 +196,13 @@ Singleton {
     device.trusted = true;
     device.connect();
   }
-
   function deviceForAddress(address: string): BluetoothDevice {
     return (root.adapter?.devices?.values ?? []).find(device => device?.address === address) ?? null;
   }
-
   function deviceMatchesKeywords(device: BluetoothDevice, keywords: var): bool {
     const searchText = `${device?.icon || ""} ${getDeviceName(device)}`.toLowerCase();
     return keywords.some(keyword => searchText.includes(keyword));
   }
-
   function disconnectDevice(address: string): void {
     const device = root.deviceForAddress(address);
     if (!device)
@@ -225,7 +211,6 @@ Singleton {
     device.disconnect();
     cleanupCodecData(address);
   }
-
   function fetchCodecs(address: string, fullScan = true): void {
     const device = root.deviceForAddress(address);
     if (!device?.connected || !isAudioDevice(device))
@@ -233,7 +218,6 @@ Singleton {
     const revision = root._nextCodecRevision(address);
     root._fetchCodecs(address, fullScan, revision);
   }
-
   function forgetDevice(address: string): void {
     const device = root.deviceForAddress(address);
     if (!device)
@@ -243,11 +227,9 @@ Singleton {
     device.forget();
     cleanupCodecData(address);
   }
-
   function getBattery(device: BluetoothDevice): string {
     return device?.batteryAvailable ? `${Math.round(device.battery * 100)}%` : "";
   }
-
   function getCodecInfo(name: string): var {
     const key = (name || "").replace(/-/g, "_").toUpperCase();
     return codecMap[key] ?? {
@@ -256,7 +238,6 @@ Singleton {
       qualityTier: "basic"
     };
   }
-
   function getDeviceIcon(device: BluetoothDevice): string {
     if (!device)
       return "󰂯";
@@ -266,11 +247,9 @@ Singleton {
     }
     return "󰂯";
   }
-
   function getDeviceName(device: BluetoothDevice): string {
     return device?.name || device?.deviceName || "";
   }
-
   function getStatusString(device: BluetoothDevice): string {
     if (!device)
       return "";
@@ -282,15 +261,12 @@ Singleton {
       return "Blocked";
     return "";
   }
-
   function isAudioDevice(device: BluetoothDevice): bool {
     return !!device && deviceMatchesKeywords(device, audioKeywords);
   }
-
   function isDeviceBusy(device: BluetoothDevice): bool {
     return device?.pairing || device?.state === BluetoothDeviceState.Disconnecting || device?.state === BluetoothDeviceState.Connecting;
   }
-
   function pairDevice(address: string): void {
     const device = root.deviceForAddress(address);
     if (!device || device.blocked || device.paired || device.pairing)
@@ -299,13 +275,11 @@ Singleton {
     device.trusted = true;
     device.pair();
   }
-
   function setDiscoverable(value: bool): void {
     Logger.log("BluetoothService", `Set discoverable: ${value} (available=${available})`);
     if (adapter)
       adapter.discoverable = value;
   }
-
   function setEnabled(value: bool): void {
     Logger.log("BluetoothService", `Set enabled: ${value} (available=${available})`);
     if (!adapter)
@@ -321,20 +295,17 @@ Singleton {
         root.adapter.enabled = false;
     });
   }
-
   function startDiscovery(): void {
     if (!adapter?.enabled || adapter.discovering)
       return;
     discoveryOwned = true;
     adapter.discovering = true;
   }
-
   function stopDiscovery(): void {
     if (adapter?.enabled && adapter.discovering && discoveryOwned)
       adapter.discovering = false;
     discoveryOwned = false;
   }
-
   function switchCodec(address: string, profile: string): void {
     if (!address || !profile || !root.deviceForAddress(address)?.connected)
       return;
@@ -342,7 +313,6 @@ Singleton {
     root._pendingCodecProfiles[address] = profile;
     root._runPendingCodecSwitch(address);
   }
-
   function toDeviceModel(device: BluetoothDevice): var {
     const address = device?.address || "";
     return {
@@ -371,7 +341,6 @@ Singleton {
       if (!root.adapter?.discovering)
         root.discoveryOwned = false;
     }
-
     function onEnabledChanged() {
       if (!root.adapter?.enabled)
         root.discoveryOwned = false;
@@ -379,7 +348,6 @@ Singleton {
 
     target: root.adapter
   }
-
   Connections {
     function onDefaultAdapterChanged() {
       const defaultAdapter = Bluetooth.defaultAdapter;
@@ -388,7 +356,6 @@ Singleton {
 
     target: Bluetooth
   }
-
   Instantiator {
     model: root.devices
 
@@ -400,15 +367,12 @@ Singleton {
         function onBatteryAvailableChanged() {
           root._bumpRevision();
         }
-
         function onBatteryChanged() {
           root._bumpRevision();
         }
-
         function onBlockedChanged() {
           root._bumpRevision();
         }
-
         function onConnectedChanged() {
           root._bumpRevision();
           if (deviceEntry.modelData?.connected && root.isAudioDevice(deviceEntry.modelData))
@@ -416,11 +380,9 @@ Singleton {
           else
             root.cleanupCodecData(deviceEntry.address);
         }
-
         function onPairedChanged() {
           root._bumpRevision();
         }
-
         function onPairingChanged() {
           root._bumpRevision();
           if (deviceEntry.modelData?.pairing || deviceEntry.address !== root.connectAfterPairAddress)
@@ -429,7 +391,6 @@ Singleton {
           if (deviceEntry.modelData?.paired)
             Qt.callLater(() => root.connectDevice(deviceEntry.address));
         }
-
         function onStateChanged() {
           root._bumpRevision();
         }

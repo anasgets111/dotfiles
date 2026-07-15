@@ -43,7 +43,6 @@ Singleton {
     cacheEntry.dailyForecast = dailyForecast ? JSON.stringify(dailyForecast) : "";
     cacheEntry.lastPollTimestamp = lastUpdated.toISOString();
   }
-
   function _fetch(): void {
     if (_requestInFlight)
       return;
@@ -53,13 +52,6 @@ Singleton {
     }
     _fetchGeoLocation();
   }
-
-  function _startRefreshCycle(): void {
-    _retryCount = 0;
-    retryTimer.stop();
-    _fetch();
-  }
-
   function _fetchGeoLocation(): void {
     _httpGet("https://ipapi.co/json/", data => {
       const resolvedLatitude = data?.latitude;
@@ -74,12 +66,10 @@ Singleton {
       _fetchWeather(resolvedLatitude, resolvedLongitude);
     });
   }
-
   function _fetchWeather(requestLatitude: real, requestLongitude: real): void {
     const requestUrl = "https://api.open-meteo.com/v1/forecast" + `?latitude=${requestLatitude}` + `&longitude=${requestLongitude}` + "&current_weather=true" + "&timezone=auto" + "&forecast_days=10" + "&past_days=1" + "&daily=temperature_2m_max,temperature_2m_min,weathercode";
     _httpGet(requestUrl, data => _applyWeatherData(data));
   }
-
   function _formatTimeAgo(): string {
     if (!lastUpdated)
       return "";
@@ -92,7 +82,6 @@ Singleton {
       return `${Math.floor(elapsedSeconds / (60 * 60))}h ago`;
     return `${Math.floor(elapsedSeconds / (24 * 60 * 60))}d ago`;
   }
-
   function _handleRequestError(): void {
     hasError = true;
     if (_retryCount >= 2)
@@ -103,11 +92,9 @@ Singleton {
     retryTimer.interval = retryDelay;
     retryTimer.start();
   }
-
   function _hasCoordinates(candidateLatitude: real, candidateLongitude: real): bool {
     return candidateLatitude != null && candidateLongitude != null && !isNaN(candidateLatitude) && !isNaN(candidateLongitude);
   }
-
   function _httpGet(url: string, onSuccess: var): void {
     _requestInFlight = true;
     const request = new XMLHttpRequest();
@@ -145,7 +132,6 @@ Singleton {
     request.open("GET", url);
     request.send();
   }
-
   function _init(): void {
     if (_initialized || !Settings.isLoaded || !Settings.isStateLoaded || !weatherLocation)
       return;
@@ -175,14 +161,17 @@ Singleton {
     updateTimer.interval = refreshInterval;
     updateTimer.start();
   }
-
+  function _startRefreshCycle(): void {
+    _retryCount = 0;
+    retryTimer.stop();
+    _fetch();
+  }
   function refresh(): void {
     if (lastUpdated && (Date.now() - lastUpdated.getTime()) < 30 * 1000)
       return;
     Logger.log("WeatherService", "Manual refresh");
     _startRefreshCycle();
   }
-
   function weatherInfo(code = currentWeatherCode): var {
     return WeatherCodes.get(code);
   }
@@ -195,7 +184,6 @@ Singleton {
       if (Settings.isLoaded && Settings.isStateLoaded)
         root._init();
     }
-
     function onIsStateLoadedChanged(): void {
       if (Settings.isLoaded && Settings.isStateLoaded)
         root._init();
@@ -203,7 +191,6 @@ Singleton {
 
     target: Settings
   }
-
   Timer {
     id: updateTimer
 
@@ -215,7 +202,6 @@ Singleton {
       root._startRefreshCycle();
     }
   }
-
   Timer {
     id: retryTimer
 

@@ -109,7 +109,6 @@ Rectangle {
       }
     }
   }
-
   MouseArea {
     id: toggleArea
 

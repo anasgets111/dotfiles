@@ -21,12 +21,10 @@ Singleton {
         font.pixelSize: Theme.fontXs
         text: qsTr("Calculator")
       }
-
       OText {
         font.pixelSize: Theme.fontLg
         text: root._expression + " = " + root._resultText
       }
-
       LauncherHint {
         text: qsTr("Enter to copy")
       }
@@ -37,7 +35,6 @@ Singleton {
   function activate(): void {
     Utils.copyText(_resultText);
   }
-
   function claims(query: string): bool {
     const input = String(query || "").trim();
     if (!/^[\d\s+\-*/().,%^]+$/.test(input) || !/\d/.test(input) || !/[+\-*/^%]/.test(input) || /^\d+\.?\d*$/.test(input))
@@ -58,7 +55,6 @@ Singleton {
       return false;
     }
   }
-
   function reset(): void {
     _expression = "";
     _resultText = "";

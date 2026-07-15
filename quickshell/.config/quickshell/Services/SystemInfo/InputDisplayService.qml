@@ -121,7 +121,6 @@ Singleton {
     comboLabel = "";
     comboRepeatCount = 0;
   }
-
   function handleBackendLine(line: string): void {
     const raw = String(line ?? "").trim();
     const jsonStart = raw.indexOf("{");
@@ -134,7 +133,6 @@ Singleton {
       Logger.warn("InputDisplayService", `Parse error: ${error}`);
     }
   }
-
   function handleEvent(event: var): void {
     const eventName = String(event?.event_name ?? "").trim().toUpperCase();
     const rawName = String(event?.key_name ?? "").trim().toUpperCase();
@@ -152,7 +150,6 @@ Singleton {
 
     root.handlePointerPulse(rawName);
   }
-
   function handleKeyboardEvent(rawName: string, pressed: bool): void {
     const label = root.normalizeKeyboardKey(rawName);
     if (!label)
@@ -171,7 +168,6 @@ Singleton {
 
     root.showCombo(label);
   }
-
   function handlePointerButton(rawName: string, pressed: bool): void {
     const label = root._mouseNames[rawName] ?? "";
     if (!label)
@@ -182,7 +178,6 @@ Singleton {
     if (pressed)
       root.showCombo(label);
   }
-
   function handlePointerPulse(rawName: string): void {
     const label = root._wheelNames[rawName] ?? "";
     if (!label)
@@ -190,18 +185,15 @@ Singleton {
 
     root.showCombo(label);
   }
-
   function isModifierKey(label: string): bool {
     return root._modifierOrder[label] !== undefined;
   }
-
   function isPrintableKey(label: string): bool {
     if (/^[A-Z]$/.test(label) || /^[0-9]$/.test(label))
       return true;
 
     return root._printableSymbols[label] ?? false;
   }
-
   function normalizeKeyboardKey(rawName: string): string {
     if (root._keyNames[rawName])
       return root._keyNames[rawName];
@@ -221,7 +213,6 @@ Singleton {
 
     return "";
   }
-
   function orderedTokens(values: var, order: var): var {
     return values.slice().sort((left, right) => {
       const leftOrder = order[left] ?? 99;
@@ -231,14 +222,12 @@ Singleton {
       return String(left).localeCompare(String(right));
     });
   }
-
   function persistPositionRatios(xRatio: real, yRatio: real): void {
     if (!Settings.data?.inputDisplay)
       return;
     Settings.data.inputDisplay.positionXRatio = root.sanitizeRatio(xRatio, 0.06);
     Settings.data.inputDisplay.positionYRatio = root.sanitizeRatio(yRatio, 0.74);
   }
-
   function refreshBackendAvailability(): void {
     backendCheckComplete = false;
     Command.run(["sh", "-c", "command -v showmethekey-cli >/dev/null 2>&1 && printf yes || printf no"], result => {
@@ -249,33 +238,28 @@ Singleton {
         Logger.warn("InputDisplayService", "showmethekey-cli not found; input display disabled");
     });
   }
-
   function sanitizeRatio(value: real, fallback: real): real {
     const num = Number(value);
     if (!Number.isFinite(num))
       return fallback;
     return Math.max(0, Math.min(1, num));
   }
-
   function setEnabled(value: bool): void {
     if (!Settings.data?.inputDisplay)
       return;
     Settings.data.inputDisplay.enabled = !!value;
   }
-
   function setShowPrintableKeys(value: bool): void {
     if (!Settings.data?.inputDisplay)
       return;
     Settings.data.inputDisplay.showPrintableKeys = !!value;
   }
-
   function showCombo(label: string): void {
     const nextLabel = [...root.activeKeys, label].join("+");
     comboRepeatCount = comboHideTimer.running && comboLabel === nextLabel ? comboRepeatCount + 1 : 1;
     comboLabel = nextLabel;
     comboHideTimer.restart();
   }
-
   function syncRetainedState(): void {
     if (activeKeys.length > 0)
       retainedKeys = activeKeys.slice();
@@ -287,14 +271,12 @@ Singleton {
     else if (!overlayHovered)
       retainedMouseButtons = [];
   }
-
   function updatedList(list: var, label: string, pressed: bool, order: var): var {
     const next = list.filter(entry => entry !== label);
     if (pressed)
       next.push(label);
     return root.orderedTokens(next, order);
   }
-
   function validRatio(value: real): bool {
     const num = Number(value);
     return Number.isFinite(num) && num >= 0 && num <= 1;
@@ -333,7 +315,6 @@ Singleton {
     }
     onLineRead: line => root.handleBackendLine(line)
   }
-
   Timer {
     id: comboHideTimer
 

@@ -247,27 +247,21 @@ Singleton {
   function controlHeightFor(size) {
     return _controlHeights[size] ?? controlHeightMd;
   }
-
   function fontSizeFor(size) {
     return _fontSizes[size] ?? fontMd;
   }
-
   function iconSizeFor(size) {
     return _iconSizes[size] ?? iconSizeMd;
   }
-
   function radiusFor(size) {
     return _radii[size] ?? radiusMd;
   }
-
   function s(base, min = 0) {
     return Math.max(min, Math.round(base * internal.scaleFactor));
   }
-
   function spacingFor(size) {
     return _spacings[size] ?? spacingMd;
   }
-
   function textContrast(bgColor) {
     if (bgColor === powerSaveColor)
       return textActiveColor;
@@ -276,7 +270,6 @@ Singleton {
     const lum = 0.299 * bgColor.r + 0.587 * bgColor.g + 0.114 * bgColor.b;
     return lum > 0.6 ? "#4C4F69" : textActiveColor;
   }
-
   function withOpacity(color, opacity) {
     if (!color)
       return "transparent";

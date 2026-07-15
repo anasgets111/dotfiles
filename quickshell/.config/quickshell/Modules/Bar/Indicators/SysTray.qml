@@ -20,7 +20,6 @@ Item {
     color: Theme.inactiveColor
     radius: Theme.itemRadius
   }
-
   RowLayout {
     id: trayRow
 
@@ -64,7 +63,6 @@ Item {
 
           onWheel: w => btn.modelData && btn.modelData.scroll(Math.abs(w.angleDelta.y) > Math.abs(w.angleDelta.x) ? w.angleDelta.y : w.angleDelta.x, Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y))
         }
-
         Item {
           anchors.fill: parent
 
@@ -80,7 +78,6 @@ Item {
             source: btn.modelData && btn.modelData.icon || ""
             visible: status !== Image.Error && status !== Image.Null
           }
-
           OText {
             anchors.centerIn: parent
             bold: true
@@ -95,7 +92,6 @@ Item {
       }
     }
   }
-
   OText {
     anchors.centerIn: parent
     color: Theme.bgColor

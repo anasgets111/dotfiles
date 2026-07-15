@@ -43,7 +43,6 @@ Item {
     offset: Qt.vector2d(0, Theme.shadowOffsetY)
     radius: Theme.radiusXl
   }
-
   Rectangle {
     id: bg
 
@@ -53,7 +52,6 @@ Item {
     color: Theme.bgColor
     radius: Theme.radiusXl
   }
-
   RowLayout {
     anchors.centerIn: parent
     spacing: Theme.spacingLg
@@ -66,7 +64,6 @@ Item {
       font.pixelSize: Theme.fontXxl
       text: root.icon || "󰕾"
     }
-
     Rectangle {
       Layout.fillWidth: true
       Layout.preferredHeight: Theme.osdSliderTrackHeight
@@ -84,14 +81,12 @@ Item {
         value: Math.min(root.value / (root.type === "volume-output" ? 150 : 100), 1)
       }
     }
-
     OText {
       bold: true
       size: "lg"
       text: `${Math.round(root.value)}%`
     }
   }
-
   RowLayout {
     anchors.centerIn: parent
     spacing: Theme.spacingLg
@@ -113,7 +108,6 @@ Item {
         text: root.icon || "󰣽"
       }
     }
-
     OText {
       id: labelText
 

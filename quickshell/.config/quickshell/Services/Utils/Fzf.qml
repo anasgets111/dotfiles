@@ -44,7 +44,6 @@ Singleton {
     }
     return firstMatchStart;
   }
-
   function bonusFor(previousClass: int, currentClass: int): int {
     if (previousClass === root.charClassNonWord && currentClass !== root.charClassNonWord)
       return root.bonusBoundary;
@@ -52,7 +51,6 @@ Singleton {
       return root.bonusCamelOrNumber;
     return currentClass === root.charClassNonWord ? root.bonusNonWord : 0;
   }
-
   function byLengthAsc(leftMatch: var, rightMatch: var, selector: var): int {
     if (!selector)
       return 0;
@@ -61,11 +59,9 @@ Singleton {
     const rightLength = rightMatch?.item ? selector(rightMatch.item).length : 0;
     return leftLength - rightLength;
   }
-
   function byStartAsc(leftMatch: var, rightMatch: var): int {
     return (leftMatch?.start ?? 0) - (rightMatch?.start ?? 0);
   }
-
   function charClassOf(rune: int): int {
     if (rune <= root.asciiMax) {
       if (rune >= root.smallARune && rune <= root.smallZRune)
@@ -84,7 +80,6 @@ Singleton {
       return root.charClassUpper;
     return root.charClassNonWord;
   }
-
   function createFinder(list: var, options: var): var {
     const settings = Object.assign({
       limit: Infinity,
@@ -103,7 +98,6 @@ Singleton {
     finderInstance.find = query => root.find(finderInstance, String(query ?? ""));
     return finderInstance;
   }
-
   function emptyResult(item: var): var {
     return {
       item: item,
@@ -113,7 +107,6 @@ Singleton {
       positions: new Set()
     };
   }
-
   function failedMatch(): var {
     return [
       {
@@ -123,7 +116,6 @@ Singleton {
       },
       null];
   }
-
   function find(finderInstance: var, query: string): var {
     const items = finderInstance.items;
     const options = finderInstance.options;
@@ -151,18 +143,19 @@ Singleton {
       root.sortResults(results, options);
     return Number.isFinite(options.limit) ? results.slice(0, options.limit) : results;
   }
-
   function fuzzyMatchUnicode(caseSensitive: bool, inputText: string, patternText: string): var {
     // ponytail: Unicode fallback uses locale-aware subsequence scoring rather than
     // full fzf normalization. Upgrade only if localized ranking needs exact parity.
     const input = Array.from(caseSensitive ? inputText : inputText.toLocaleLowerCase());
     const pattern = Array.from(caseSensitive ? patternText : patternText.toLocaleLowerCase());
     if (pattern.length === 0)
-      return [{
+      return [
+        {
           start: 0,
           end: 0,
           score: 0
-        }, new Set()];
+        },
+        new Set()];
 
     const positions = new Set();
     let inputIndex = 0;
@@ -191,13 +184,14 @@ Singleton {
       inputIndex++;
     }
 
-    return [{
+    return [
+      {
         start: firstIndex,
         end: previousIndex + 1,
         score
-      }, positions];
+      },
+      positions];
   }
-
   function fuzzyMatchV2(caseSensitive: bool, input: var, pattern: var, withPositions: bool): var {
     const inputRunes = Array.isArray(input) ? input : [];
     const patternRunes = Array.isArray(pattern) ? pattern : [];
@@ -274,11 +268,9 @@ Singleton {
 
     return root.scoreMultiRuneMatch(patternRunes, normalizedRunes, bonuses, firstRowScores, firstRowConsecutive, firstMatchByPattern, lastMatchIndex, maxScore, maxScoreIndex, withPositions);
   }
-
   function isAscii(runes: var): bool {
     return runes.every(rune => rune < 128);
   }
-
   function scoreMultiRuneMatch(patternRunes: var, inputRunes: var, bonuses: var, firstRowScores: var, firstRowConsecutive: var, firstMatchByPattern: var, lastMatchIndex: int, initialMaxScore: int, initialMaxScoreIndex: int, withPositions: bool): var {
     const patternLength = patternRunes.length;
     const firstMatchIndex = firstMatchByPattern[0];
@@ -337,7 +329,6 @@ Singleton {
       },
       positions];
   }
-
   function singleRuneMatch(maxScoreIndex: int, maxScore: int, withPositions: bool): var {
     return [
       {
@@ -347,7 +338,6 @@ Singleton {
       },
       withPositions ? new Set([maxScoreIndex]) : null];
   }
-
   function sortResults(results: var, options: var): void {
     results.sort((leftMatch, rightMatch) => {
       if (leftMatch.score !== rightMatch.score)
@@ -361,7 +351,6 @@ Singleton {
       return 0;
     });
   }
-
   function stringToRunes(text: var): var {
     const runes = [];
     const source = String(text ?? "");
@@ -373,7 +362,6 @@ Singleton {
     }
     return runes;
   }
-
   function tracePositions(scores: var, firstMatchByPattern: var, patternLength: int, matrixWidth: int, firstMatchIndex: int, maxScoreIndex: int): var {
     const positions = new Set();
     let patternIndex = patternLength - 1;
@@ -396,7 +384,6 @@ Singleton {
     }
     return positions;
   }
-
   function trySkip(inputRunes: var, caseSensitive: bool, rune: int, startIndex: int): int {
     const upperRune = !caseSensitive && rune >= root.smallARune && rune <= root.smallZRune ? rune - 32 : -1;
     for (let inputIndex = startIndex; inputIndex < inputRunes.length; inputIndex++) {

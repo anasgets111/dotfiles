@@ -24,7 +24,6 @@ Singleton {
   function nextLayout(): void {
     backend?.nextLayout?.();
   }
-
   function setLayoutByIndex(targetIndex: int): void {
     if (targetIndex < 0 || targetIndex >= layouts.length || targetIndex === currentLayoutIndex)
       return;

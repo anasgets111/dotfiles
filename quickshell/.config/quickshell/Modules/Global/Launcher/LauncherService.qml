@@ -2,6 +2,7 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import qs.Modules.Global.Launcher
 
 Singleton {
   id: root
@@ -15,18 +16,15 @@ Singleton {
     if (_active)
       _active.activate();
   }
-
   function refresh(): void {
     CurrencyProvider.refreshIfStale();
   }
-
   function reset(): void {
     for (const p of providers)
       p.reset();
     WebProvider.reset();
     _active = null;
   }
-
   function route(query: string, appCount: int, maxAppScore: real): void {
     reset();
 

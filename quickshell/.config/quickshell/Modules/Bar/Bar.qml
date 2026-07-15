@@ -24,7 +24,6 @@ Item {
       right: parent.right
       top: parent.top
     }
-
     Rectangle {
       id: panelRect
 
@@ -45,7 +44,6 @@ Item {
           verticalCenter: parent.verticalCenter
         }
       }
-
       RightSide {
         normalWorkspacesExpanded: root.rightSideExpanded
         screenName: root.screen?.name ?? ""
@@ -58,7 +56,6 @@ Item {
           verticalCenter: parent.verticalCenter
         }
       }
-
       CenterSide {
         anchors.centerIn: parent
         normalWorkspacesExpanded: root.centerShouldHide
@@ -73,7 +70,6 @@ Item {
         }
       }
     }
-
     Item {
       height: Theme.panelRadius
       width: parent.width
@@ -84,7 +80,6 @@ Item {
         radius: Theme.panelRadius
         width: radius
       }
-
       RoundCorner {
         anchors.right: parent.right
         color: Theme.bgColor

@@ -11,9 +11,9 @@ OPopup {
   property int barOffset: Theme.itemHeight
   property int margin: Theme.spacingMd
 
+  maskItem: popupColumn
   popupNamespace: "obelisk-notification-popup"
   visible: NotificationService.visibleNotifications.length > 0
-  maskItem: popupColumn
 
   ScrollView {
     id: popupScroll
@@ -31,7 +31,6 @@ OPopup {
       top: parent.top
       topMargin: root.margin + root.barOffset
     }
-
     Column {
       id: popupColumn
 

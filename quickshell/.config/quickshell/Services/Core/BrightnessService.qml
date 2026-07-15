@@ -20,11 +20,9 @@ Singleton {
   function decrease() {
     setBrightness(Math.max(1, percentage - step));
   }
-
   function increase() {
     setBrightness(percentage + step);
   }
-
   function setBrightness(percent: real): string {
     if (!available)
       return "Brightness control not available";
@@ -41,13 +39,13 @@ Singleton {
     if (available && ready)
       Logger.log("BrightnessService", `brightness: ${percentage}%`);
   }
-  on_DevicePathChanged: {
-    if (!_devicePath)
-      Logger.log("BrightnessService", "device lost");
-  }
   onReadyChanged: {
     if (ready)
       Logger.log("BrightnessService", `ready | device: ${_devicePath} | brightness: ${percentage}%`);
+  }
+  on_DevicePathChanged: {
+    if (!_devicePath)
+      Logger.log("BrightnessService", "device lost");
   }
 
   FolderListModel {
@@ -57,20 +55,17 @@ Singleton {
     showDirs: true
     showFiles: false
   }
-
   SysfsValue {
     id: maxBrightnessFile
 
     fallback: 100
     path: root._devicePath ? `${root._devicePath}/max_brightness` : ""
   }
-
   SysfsValue {
     id: brightnessFile
 
     path: root._devicePath ? `${root._devicePath}/brightness` : ""
   }
-
   Timer {
     interval: 100
     repeat: true

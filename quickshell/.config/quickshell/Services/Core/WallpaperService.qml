@@ -46,7 +46,6 @@ Singleton {
         mode: defaultMode
       });
   }
-
   function hydrateFromSettings(): void {
     if (!Settings?.data || hydrated)
       return;
@@ -63,11 +62,9 @@ Singleton {
     hydrated = true;
     persistMonitors();
   }
-
   function modeToFillMode(mode: string): int {
     return fillModes[validate(mode, availableModes, defaultMode)] ?? Image.PreserveAspectCrop;
   }
-
   function persistMonitors(): void {
     if (!hydrated || !Settings?.data)
       return;
@@ -85,7 +82,6 @@ Singleton {
     }
     Settings.data.wallpapers = persisted;
   }
-
   function randomizeAllMonitors(): void {
     if (!ready || !wallpaperFilesReady || !wallpaperFiles.length)
       return;
@@ -94,7 +90,6 @@ Singleton {
       setWallpaper(name, wallpaperFiles[Math.floor(Math.random() * wallpaperFiles.length)].path);
     }
   }
-
   function setModePref(monitorName: string, mode: string): void {
     if (!monitorName)
       return;
@@ -106,7 +101,6 @@ Singleton {
     _prefsVersion++;
     persistDebounce.restart();
   }
-
   function setWallpaper(monitorName: string, path: string): void {
     if (!monitorName)
       return;
@@ -118,7 +112,6 @@ Singleton {
     _prefsVersion++;
     persistDebounce.restart();
   }
-
   function setWallpaperFolder(folder: string): void {
     const rawPath = String(folder || "").trim();
     const path = rawPath === "/" ? rawPath : rawPath.replace(/\/+$/, "");
@@ -126,7 +119,6 @@ Singleton {
       return;
     Settings.data.wallpaperFolder = path;
   }
-
   function setWallpaperTransition(transition: string): void {
     const validated = validate(transition, availableTransitions, defaultTransition);
     if (wallpaperTransition === validated)
@@ -134,17 +126,14 @@ Singleton {
     wallpaperTransition = validated;
     persistDebounce.restart();
   }
-
   function validate(value: string, allowed: list<string>, fallback: string): string {
     const normalized = String(value ?? "").toLowerCase();
     return allowed.includes(normalized) ? normalized : fallback;
   }
-
   function wallpaperMode(monitorName: string): string {
     void _prefsVersion;
     return monitorName ? (monitorPrefs[monitorName]?.mode ?? defaultMode) : defaultMode;
   }
-
   function wallpaperPath(monitorName: string): string {
     void _prefsVersion;
     return monitorName ? (monitorPrefs[monitorName]?.wallpaper ?? defaultWallpaper) : defaultWallpaper;
@@ -178,7 +167,6 @@ Singleton {
       });
     }
   }
-
   Timer {
     id: persistDebounce
 
@@ -187,7 +175,6 @@ Singleton {
 
     onTriggered: root.persistMonitors()
   }
-
   Connections {
     function onIsLoadedChanged(): void {
       if (Settings.isLoaded && !root.hydrated)
@@ -196,7 +183,6 @@ Singleton {
 
     target: Settings
   }
-
   Connections {
     function onMonitorsUpdated(): void {
       if (MonitorService.ready && root.hydrated)

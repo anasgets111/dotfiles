@@ -30,30 +30,24 @@ Singleton {
     if (KeyboardBacklightService.ready)
       KeyboardBacklightService.setLevel(onBattery ? kbdOnBattery : kbdOnAC);
   }
-
   function logout(): void {
     CompositorService.exitSession();
   }
-
   function poweroff(): void {
     Command.detached(["systemctl", "poweroff"]);
   }
-
   function reboot(): void {
     Command.detached(["systemctl", "reboot"]);
   }
-
   function refreshPowerInfo(): void {
     refreshDebounce.restart();
   }
-
+  function suspend(): void {
+    Command.detached(["systemctl", "suspend"]);
+  }
   function suspendIfBatteryCritical(): void {
     if (BatteryService.isSuspendingAndNotCharging)
       root.suspend();
-  }
-
-  function suspend(): void {
-    Command.detached(["systemctl", "suspend"]);
   }
 
   Component.onCompleted: {
@@ -67,19 +61,16 @@ Singleton {
       root.refreshPowerInfo();
       root.adjustBrightness();
     }
-
     function onIsOnBatteryChanged() {
       root.refreshPowerInfo();
       root.adjustBrightness();
     }
-
     function onIsSuspendingAndNotChargingChanged() {
       root.suspendIfBatteryCritical();
     }
 
     target: BatteryService
   }
-
   Connections {
     function onReadyChanged(): void {
       if (BrightnessService.ready)
@@ -88,7 +79,6 @@ Singleton {
 
     target: BrightnessService
   }
-
   Connections {
     function onReadyChanged(): void {
       if (KeyboardBacklightService.ready)
@@ -97,7 +87,6 @@ Singleton {
 
     target: KeyboardBacklightService
   }
-
   Timer {
     id: refreshDebounce
 
@@ -111,7 +100,6 @@ Singleton {
         Command.run(["powerprofilesctl", "get"], result => root._ppdRaw = result.stdout.trim(), "power.ppd");
     }
   }
-
   FileView {
     id: platformFile
 
@@ -119,7 +107,6 @@ Singleton {
 
     onLoaded: root.platformProfile = text().trim() || "Unknown"
   }
-
   FileView {
     id: governorFile
 
@@ -127,7 +114,6 @@ Singleton {
 
     onLoaded: root.cpuGovernor = text().trim() || "Unknown"
   }
-
   FileView {
     id: eppFile
 

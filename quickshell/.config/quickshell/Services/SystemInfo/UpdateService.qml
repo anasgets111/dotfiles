@@ -19,14 +19,13 @@ Singleton {
   readonly property bool _hasPackageCache: Settings.isStateLoaded && Array.isArray(Settings.state.updates.packages)
   readonly property double _lastSync: Settings.isStateLoaded ? Settings.state.updates.lastSync : 0
   readonly property string _notificationAppName: "System Updates"
+  property var _packageSizes: ({})
   property var _pendingActionArgs: null
   readonly property int _pollInterval: 15 * 60 * 1000
   readonly property int _pollTimerInterval: _hasPackageCache && _lastSync > 0 ? Math.max(1, _pollInterval - Math.max(0, Date.now() - _lastSync)) : 1
-  property var _packageSizes: ({})
   readonly property string _runUpdatesAction: "run-updates"
   property string _state: "idle"
   property bool _updateProcessStarted: false
-
   readonly property bool busy: _checking || updateProcess.running || cancelProcess.running || isUpdating
   property int currentPackageIndex: 0
   property string currentStep: ""
@@ -42,13 +41,22 @@ Singleton {
   readonly property int totalUpdates: updatePackages.length
   readonly property var updatePackages: _hasPackageCache ? Settings.state.updates.packages : []
 
+  function _completeCancellation(): void {
+    if (!_cancelCommandDone || updateProcess.running)
+      return;
+    _cancelCommandDone = false;
+    _cancelledUpdateExitCode = -1;
+    _cancellingUpdate = false;
+    _state = "idle";
+    _resetUpdateProgress();
+    doPoll();
+  }
   function _completionMessage(packageCount: int): string {
     if (packageCount === 0)
       return "Developer tooling update completed";
     const packageMessage = packageCount === 1 ? "1 system package updated" : `${packageCount} system packages updated`;
     return `${packageMessage}; developer tooling completed`;
   }
-
   function _detectErrorMessage(lineText: string): string {
     const normalizedLine = lineText.toLowerCase();
     if (["failed retrieving", "download timeout", "connection refused", "could not resolve host"].some(messagePart => normalizedLine.includes(messagePart)))
@@ -59,77 +67,6 @@ Singleton {
       return "Authentication failed";
     return "";
   }
-
-  function _launchPendingActionNotification(): void {
-    if (!_pendingActionArgs || actionNotifyProcess.running)
-      return;
-    const launchArgs = _pendingActionArgs;
-    _pendingActionArgs = null;
-    actionNotifyProcess.command = ["notify-send"].concat(launchArgs);
-    actionNotifyProcess.running = true;
-  }
-
-  function _notify(title: string, message: string, urgency = "normal", actionable = false): void {
-    Logger.log("UpdateService", `Sending notification: ${title} - ${message}`);
-    const baseArgs = ["-u", urgency, "-a", _notificationAppName, "-n", "system-software-update"];
-    // --wait keeps stdout open so the clicked action can be read.
-    if (actionable) {
-      _showActionNotification(baseArgs.concat("--print-id", "--replace-id", "8001", "--wait", "-A", `${_runUpdatesAction}=${qsTr("Run updates")}`, title, message));
-      return;
-    }
-    Command.detached(["notify-send"].concat(baseArgs, "--replace-id", "8002", title, message));
-  }
-
-  function _notifyIfIncreased(packages: var): void {
-    if (!ready || packages.length === 0) {
-      Settings.state.updates.notifiedPackagesKey = "";
-      return;
-    }
-    const packageNames = packages.map(packageInfo => packageInfo.name).filter(Boolean).sort();
-    const previousKey = Settings.state.updates.notifiedPackagesKey;
-    const previousNames = new Set(previousKey ? previousKey.split("\n") : []);
-    const newPackageCount = packageNames.filter(packageName => !previousNames.has(packageName)).length;
-    Settings.state.updates.notifiedPackagesKey = packageNames.join("\n");
-    if (newPackageCount === 0)
-      return;
-    const notificationMessage = newPackageCount === 1 ? `${qsTr("One new package can be upgraded")} (${packages.length})` : `${newPackageCount} ${qsTr("new packages can be upgraded")} (${packages.length})`;
-    _notify(qsTr("Updates Available"), notificationMessage, "normal", true);
-  }
-
-  function _parsePackageSizes(outputText: string): var {
-    return (outputText ?? "").trim().split("\n").reduce((sizeMap, outputLine) => {
-      const [sizeInBytes, packageName] = outputLine.split("|");
-      const sizeValue = parseFloat(sizeInBytes);
-      if (packageName && isFinite(sizeValue))
-        sizeMap[packageName] = Math.round(sizeValue / 1024);
-      return sizeMap;
-    }, {});
-  }
-
-  function _parseUpdatePackages(outputText: string): var {
-    const packagePattern = /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/;
-    return (outputText ?? "").trim().split(/\r?\n/).reduce((packageList, outputLine) => {
-      const packageMatch = outputLine.match(packagePattern);
-      if (packageMatch) {
-        packageList.push({
-          name: packageMatch[1],
-          oldVersion: packageMatch[2],
-          newVersion: packageMatch[3]
-        });
-      }
-      return packageList;
-    }, []);
-  }
-
-  function _recordFailure(sourceName: string, message: string, exitCode: int): void {
-    Logger.warn("UpdateService", `${sourceName} error (code: ${exitCode}): ${message}`);
-    _failureCount += 1;
-    if (_failureCount < _failureThreshold)
-      return;
-    _notify(qsTr("Update check failed"), message, "critical");
-    _failureCount = 0;
-  }
-
   function _fetchPackageSizes(packages: var): void {
     const packageNames = packages.map(packageInfo => packageInfo.name).filter(Boolean);
     if (!packageNames.length) {
@@ -143,35 +80,6 @@ Singleton {
         root._packageSizes = root._parsePackageSizes(result.stdout ?? "");
     });
   }
-
-  function _resetUpdateProgress(): void {
-    currentPackageIndex = 0;
-    currentStep = "";
-    errorMessage = "";
-    outputLines = [];
-    totalPackagesToUpdate = 0;
-  }
-
-  function _showActionNotification(args: var): void {
-    NotificationService.dismissNotificationsByAppName(_notificationAppName);
-    _pendingActionArgs = args;
-    if (actionNotifyProcess.running)
-      actionNotifyProcess.running = false;
-    else
-      _launchPendingActionNotification();
-  }
-
-  function _completeCancellation(): void {
-    if (!_cancelCommandDone || updateProcess.running)
-      return;
-    _cancelCommandDone = false;
-    _cancelledUpdateExitCode = -1;
-    _cancellingUpdate = false;
-    _state = "idle";
-    _resetUpdateProgress();
-    doPoll();
-  }
-
   function _finishUpdate(exitCode: int): void {
     _state = exitCode === 0 ? "completed" : "error";
     if (exitCode === 0) {
@@ -185,7 +93,6 @@ Singleton {
     }
     Qt.callLater(root.doPoll);
   }
-
   function _handleCancelExit(exitCode: int): void {
     _cancelCommandDone = true;
     if (exitCode === 0) {
@@ -201,7 +108,6 @@ Singleton {
     if (!updateProcess.running)
       _finishUpdate(_cancelledUpdateExitCode >= 0 ? _cancelledUpdateExitCode : exitCode);
   }
-
   function _handleUpdateExit(exitCode: int): void {
     _updateProcessStarted = false;
     if (_cancellingUpdate) {
@@ -211,40 +117,85 @@ Singleton {
     }
     _finishUpdate(exitCode);
   }
-
-  function doPoll(): void {
-    if (!ready || busy)
+  function _launchPendingActionNotification(): void {
+    if (!_pendingActionArgs || actionNotifyProcess.running)
       return;
-    Settings.state.updates.lastSync = Date.now();
-    _checking = true;
-    Command.run(["checkupdates", "--nocolor"], result => {
-      root._checking = false;
-      if (!root.isError)
-        root._state = "idle";
-      if (result.exitCode === 0 || result.exitCode === 2) {
-        const packages = root._parseUpdatePackages(result.stdout);
-        root._failureCount = 0;
-        Settings.state.updates.packages = packages;
-        root._notifyIfIncreased(packages);
-      } else {
-        root._recordFailure("checkupdates", (result.stderr || "").trim() || `Exit code: ${result.exitCode}`, result.exitCode);
-      }
-    }, "update.check");
-  }
-
-  function executeUpdate(): void {
-    if (!ready || busy)
-      return;
+    const launchArgs = _pendingActionArgs;
     _pendingActionArgs = null;
-    NotificationService.dismissNotificationsByAppName(_notificationAppName);
-    _resetUpdateProgress();
-    totalPackagesToUpdate = totalUpdates;
-    _updateProcessStarted = false;
-    _state = "updating";
-    updateProcess.command = ["update"];
-    updateProcess.running = true;
+    actionNotifyProcess.command = ["notify-send"].concat(launchArgs);
+    actionNotifyProcess.running = true;
   }
-
+  function _notify(title: string, message: string, urgency = "normal", actionable = false): void {
+    Logger.log("UpdateService", `Sending notification: ${title} - ${message}`);
+    const baseArgs = ["-u", urgency, "-a", _notificationAppName, "-n", "system-software-update"];
+    // --wait keeps stdout open so the clicked action can be read.
+    if (actionable) {
+      _showActionNotification(baseArgs.concat("--print-id", "--replace-id", "8001", "--wait", "-A", `${_runUpdatesAction}=${qsTr("Run updates")}`, title, message));
+      return;
+    }
+    Command.detached(["notify-send"].concat(baseArgs, "--replace-id", "8002", title, message));
+  }
+  function _notifyIfIncreased(packages: var): void {
+    if (!ready || packages.length === 0) {
+      Settings.state.updates.notifiedPackagesKey = "";
+      return;
+    }
+    const packageNames = packages.map(packageInfo => packageInfo.name).filter(Boolean).sort();
+    const previousKey = Settings.state.updates.notifiedPackagesKey;
+    const previousNames = new Set(previousKey ? previousKey.split("\n") : []);
+    const newPackageCount = packageNames.filter(packageName => !previousNames.has(packageName)).length;
+    Settings.state.updates.notifiedPackagesKey = packageNames.join("\n");
+    if (newPackageCount === 0)
+      return;
+    const notificationMessage = newPackageCount === 1 ? `${qsTr("One new package can be upgraded")} (${packages.length})` : `${newPackageCount} ${qsTr("new packages can be upgraded")} (${packages.length})`;
+    _notify(qsTr("Updates Available"), notificationMessage, "normal", true);
+  }
+  function _parsePackageSizes(outputText: string): var {
+    return (outputText ?? "").trim().split("\n").reduce((sizeMap, outputLine) => {
+      const [sizeInBytes, packageName] = outputLine.split("|");
+      const sizeValue = parseFloat(sizeInBytes);
+      if (packageName && isFinite(sizeValue))
+        sizeMap[packageName] = Math.round(sizeValue / 1024);
+      return sizeMap;
+    }, {});
+  }
+  function _parseUpdatePackages(outputText: string): var {
+    const packagePattern = /^(\S+)\s+([^\s]+)\s+->\s+([^\s]+)$/;
+    return (outputText ?? "").trim().split(/\r?\n/).reduce((packageList, outputLine) => {
+      const packageMatch = outputLine.match(packagePattern);
+      if (packageMatch) {
+        packageList.push({
+          name: packageMatch[1],
+          oldVersion: packageMatch[2],
+          newVersion: packageMatch[3]
+        });
+      }
+      return packageList;
+    }, []);
+  }
+  function _recordFailure(sourceName: string, message: string, exitCode: int): void {
+    Logger.warn("UpdateService", `${sourceName} error (code: ${exitCode}): ${message}`);
+    _failureCount += 1;
+    if (_failureCount < _failureThreshold)
+      return;
+    _notify(qsTr("Update check failed"), message, "critical");
+    _failureCount = 0;
+  }
+  function _resetUpdateProgress(): void {
+    currentPackageIndex = 0;
+    currentStep = "";
+    errorMessage = "";
+    outputLines = [];
+    totalPackagesToUpdate = 0;
+  }
+  function _showActionNotification(args: var): void {
+    NotificationService.dismissNotificationsByAppName(_notificationAppName);
+    _pendingActionArgs = args;
+    if (actionNotifyProcess.running)
+      actionNotifyProcess.running = false;
+    else
+      _launchPendingActionNotification();
+  }
   function cancelUpdate(): void {
     if (_cancellingUpdate || cancelProcess.running)
       return;
@@ -267,7 +218,6 @@ Singleton {
     cancelProcess.command = ["update", "--cancel"];
     cancelProcess.running = true;
   }
-
   function dismissResult(): void {
     if (isUpdating)
       return;
@@ -277,6 +227,37 @@ Singleton {
     if (actionNotifyProcess.running)
       actionNotifyProcess.running = false;
     NotificationService.dismissNotificationsByAppName(_notificationAppName);
+  }
+  function doPoll(): void {
+    if (!ready || busy)
+      return;
+    Settings.state.updates.lastSync = Date.now();
+    _checking = true;
+    Command.run(["checkupdates", "--nocolor"], result => {
+      root._checking = false;
+      if (!root.isError)
+        root._state = "idle";
+      if (result.exitCode === 0 || result.exitCode === 2) {
+        const packages = root._parseUpdatePackages(result.stdout);
+        root._failureCount = 0;
+        Settings.state.updates.packages = packages;
+        root._notifyIfIncreased(packages);
+      } else {
+        root._recordFailure("checkupdates", (result.stderr || "").trim() || `Exit code: ${result.exitCode}`, result.exitCode);
+      }
+    }, "update.check");
+  }
+  function executeUpdate(): void {
+    if (!ready || busy)
+      return;
+    _pendingActionArgs = null;
+    NotificationService.dismissNotificationsByAppName(_notificationAppName);
+    _resetUpdateProgress();
+    totalPackagesToUpdate = totalUpdates;
+    _updateProcessStarted = false;
+    _state = "updating";
+    updateProcess.command = ["update"];
+    updateProcess.running = true;
   }
 
   Component.onCompleted: {
@@ -328,14 +309,13 @@ Singleton {
       }
     }
 
+    onExited: exitCode => root._handleUpdateExit(exitCode)
     onRunningChanged: {
       if (!running && root.isUpdating && !root._updateProcessStarted && !root._cancellingUpdate)
         root._finishUpdate(-1);
     }
     onStarted: root._updateProcessStarted = true
-    onExited: exitCode => root._handleUpdateExit(exitCode)
   }
-
   Process {
     id: cancelProcess
 
@@ -348,17 +328,16 @@ Singleton {
       onRead: data => updateProcess.appendOutputLine(data)
     }
 
+    onExited: exitCode => {
+      _started = false;
+      root._handleCancelExit(exitCode);
+    }
     onRunningChanged: {
       if (!running && root._cancellingUpdate && !_started)
         root._handleCancelExit(-1);
     }
     onStarted: _started = true
-    onExited: exitCode => {
-      _started = false;
-      root._handleCancelExit(exitCode);
-    }
   }
-
   Timer {
     id: pollTimer
 
@@ -371,7 +350,6 @@ Singleton {
       root.doPoll();
     }
   }
-
   Process {
     id: actionNotifyProcess
 

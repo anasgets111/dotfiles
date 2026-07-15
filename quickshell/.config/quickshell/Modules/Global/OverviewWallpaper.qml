@@ -25,7 +25,6 @@ WlrLayershell {
     right: true
     top: true
   }
-
   Image {
     id: wallpaperSource
 
@@ -35,7 +34,6 @@ WlrLayershell {
     sourceSize: Qt.size(width, height)
     visible: false  // Source only, not displayed directly
   }
-
   MultiEffect {
     anchors.fill: parent
     blur: Settings.data.overviewBlurStrength

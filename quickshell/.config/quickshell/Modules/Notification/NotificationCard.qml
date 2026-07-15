@@ -10,8 +10,8 @@ Item {
   id: root
 
   property bool _animReady: root.isGroup || root.groupScope !== "popup" || !(root.svc?.isPopupNew(root.group?.key || "") ?? false)
-  readonly property bool _isGroupDismissing: root.items.length > 0 && root.items.every(wrapper => (wrapper?.isDismissing ?? false) || (root.groupScope === "popup" && (wrapper?.isHidingPopup ?? false)))
   readonly property bool _isDismissing: root._isGroupDismissing || (root.primaryWrapper?.isHidingPopup ?? false) || (root.primaryWrapper?.isDismissing ?? false)
+  readonly property bool _isGroupDismissing: root.items.length > 0 && root.items.every(wrapper => (wrapper?.isDismissing ?? false) || (root.groupScope === "popup" && (wrapper?.isHidingPopup ?? false)))
   property var _messageExpansion: ({})
   property var _shownMessageIds: ({})
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
@@ -39,22 +39,18 @@ Item {
   function isMessageNew(id) {
     return id && !root._shownMessageIds[id];
   }
-
   function markMessageShown(id) {
     if (id)
       root._shownMessageIds[id] = true;
   }
-
   function messageExpanded(id) {
     return !!root._messageExpansion[id];
   }
-
   function openBodyLink(url) {
     const safeUrl = NotificationText.safeUrl(String(url || ""));
     if (safeUrl)
       Qt.openUrlExternally(safeUrl);
   }
-
   function toggleMessageExpansion(id) {
     if (!id)
       return;
@@ -91,7 +87,6 @@ Item {
     accentColor: root.accentColor
     anchors.fill: parent
   }
-
   ColumnLayout {
     id: cardColumn
 
@@ -104,7 +99,6 @@ Item {
       rightMargin: root.paddingHorizontal
       topMargin: root.paddingVertical
     }
-
     RowLayout {
       Layout.fillWidth: true
       spacing: Theme.cardPadding
@@ -128,7 +122,6 @@ Item {
           width: Theme.itemHeight
         }
       }
-
       OText {
         Layout.fillWidth: true
         bold: true
@@ -137,7 +130,6 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         text: root.headerTitle
       }
-
       RowLayout {
         spacing: Theme.spacingXs
 
@@ -149,7 +141,6 @@ Item {
 
           onClicked: root.svc?.toggleGroupExpansion(root.group?.key)
         }
-
         StandardButton {
           Accessible.name: root.isGroup ? "Dismiss group" : "Dismiss notification"
           buttonType: "control"
@@ -159,7 +150,6 @@ Item {
         }
       }
     }
-
     ColumnLayout {
       id: messagesLayout
 
@@ -204,7 +194,6 @@ Item {
 
             enabled: messageItem.isMultipleItems
           }
-
           Item {
             id: messageContent
 
@@ -225,7 +214,6 @@ Item {
 
               onClicked: root.svc?.invokeDefaultAction(messageColumn.wrapper)
             }
-
             Rectangle {
               anchors.fill: parent
               border.color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.4) : Qt.rgba(1, 1, 1, 0.1)) : "transparent"
@@ -244,7 +232,6 @@ Item {
                 }
               }
             }
-
             ColumnLayout {
               id: messageColumn
 
@@ -268,7 +255,6 @@ Item {
                 top: parent.top
                 topMargin: topPadding
               }
-
               RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.spacingSm
@@ -282,7 +268,6 @@ Item {
                   sourceSize: Qt.size(Theme.notificationInlineImageSize, Theme.notificationInlineImageSize)
                   visible: String(messageColumn.wrapper?.contentImage || "") !== "" && status !== Image.Error
                 }
-
                 Text {
                   id: summaryText
 
@@ -304,7 +289,6 @@ Item {
                   onLineCountChanged: updateTruncation()
                   onTruncatedChanged: updateTruncation()
                 }
-
                 OText {
                   color: Theme.textInactiveColor
                   opacity: 0.7
@@ -312,7 +296,6 @@ Item {
                   text: messageItem.modelData?.timestampText || ""
                   visible: root.showTimestamp && text
                 }
-
                 RowLayout {
                   spacing: Theme.spacingXs
 
@@ -324,7 +307,6 @@ Item {
 
                     onClicked: root.toggleMessageExpansion(messageColumn.messageId)
                   }
-
                   StandardButton {
                     Accessible.name: "Dismiss notification"
                     buttonType: "control"
@@ -335,7 +317,6 @@ Item {
                   }
                 }
               }
-
               Loader {
                 Layout.fillWidth: true
                 active: messageColumn.wrapper?.hasBody ?? false
@@ -364,13 +345,11 @@ Item {
                     onLineCountChanged: updateTruncation()
                     onTruncatedChanged: updateTruncation()
                   }
-
                   HoverHandler {
                     id: linkHover
 
                     cursorShape: bodyText.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
                   }
-
                   TapHandler {
                     acceptedButtons: Qt.LeftButton
 
@@ -386,7 +365,6 @@ Item {
                 onActiveChanged: if (!active)
                   messageColumn.bodyTruncated = false
               }
-
               Loader {
                 Layout.bottomMargin: Theme.spacingXs
                 Layout.fillWidth: true
@@ -424,7 +402,6 @@ Item {
                         root.inputFocusReleased();
                     }
                   }
-
                   StandardButton {
                     id: sendBtn
 
@@ -438,7 +415,6 @@ Item {
                   }
                 }
               }
-
               ColumnLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: visible ? implicitHeight : 0
@@ -475,7 +451,6 @@ Item {
       }
     }
   }
-
   HoverHandler {
     onHoveredChanged: hovered ? root.svc?.pauseTimers(root.items) : root.svc?.resumeTimers(root.items)
   }

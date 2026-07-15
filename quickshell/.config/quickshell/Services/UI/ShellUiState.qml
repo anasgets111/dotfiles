@@ -21,7 +21,6 @@ Singleton {
     const point = item.mapToItem(null, 0, 0);
     return Qt.rect(point.x, point.y, item.width || 0, item.height || 0);
   }
-
   function closeModal(modalId) {
     if (modalId && activeModal !== modalId)
       return;
@@ -30,7 +29,6 @@ Singleton {
     if (!isAnyPanelOpen)
       activeScreenName = "";
   }
-
   function closePanel() {
     activePanelId = "";
     anchorRect = Qt.rect(0, 0, 0, 0);
@@ -38,19 +36,15 @@ Singleton {
     if (!isAnyModalOpen)
       activeScreenName = "";
   }
-
   function isModalOpenOn(screenName, modalId) {
     return activeScreenName === (screenName || "") && activeModal === (modalId || "");
   }
-
   function isPanelOpen(panelId, screenName) {
     return activePanelId === (panelId || "") && activeScreenName === (screenName || "");
   }
-
   function isPanelOpenOn(screenName) {
     return isAnyPanelOpen && activeScreenName === (screenName || "");
   }
-
   function openModal(modalId, screenName, data) {
     if (!modalId)
       return;
@@ -60,7 +54,6 @@ Singleton {
     activeModal = modalId;
     modalData = data ?? null;
   }
-
   function openPanel(panelId, screenName, anchor, data) {
     if (!panelId)
       return;
@@ -71,7 +64,6 @@ Singleton {
     anchorRect = anchor ?? Qt.rect(0, 0, 0, 0);
     panelData = data ?? null;
   }
-
   function togglePanel(panelId, screenName, anchor, data) {
     if (activePanelId === panelId && activeScreenName === (screenName || "")) {
       closePanel();
@@ -79,7 +71,6 @@ Singleton {
     }
     openPanel(panelId, screenName, anchor, data);
   }
-
   function togglePanelForItem(panelId, screenName, item, data) {
     togglePanel(panelId, screenName, anchorRectForItem(item), data);
   }

@@ -36,41 +36,34 @@ Singleton {
     if (canGoNext)
       active.next();
   }
-
   function pause(): void {
     if (canPause)
       active.pause();
   }
-
   function play(): void {
     if (canPlay)
       active.play();
   }
-
   function playPause(): void {
     if (canTogglePlaying)
       active.togglePlaying();
   }
-
   function previous(): void {
     if (canGoPrevious)
       active.previous();
   }
-
   function seek(position: real): void {
     if (!canSeek || !active?.positionSupported || !Number.isFinite(position))
       return;
     const target = trackLength > 0 ? Math.max(0, Math.min(trackLength, position)) : Math.max(0, position);
     logic.safeSeek(active, target - active.position);
   }
-
   function seekByRatio(positionRatio: real): void {
     if (!canSeek || !active?.positionSupported || !active?.lengthSupported || trackLength <= 0 || !Number.isFinite(positionRatio))
       return;
     const ratio = Math.max(0, Math.min(1, positionRatio));
     logic.safeSeek(active, ratio * trackLength - active.position);
   }
-
   function stop(): void {
     if (active?.canControl)
       active.stop();
@@ -79,7 +72,6 @@ Singleton {
   PwObjectTracker {
     objects: Pipewire.linkGroups?.values ?? []
   }
-
   QtObject {
     id: logic
 
@@ -92,7 +84,6 @@ Singleton {
     function getUrl(player: var): string {
       return player?.metadata?.["xesam:url"] ?? player?.metadata?.["xesam:URL"] ?? "";
     }
-
     function isVideo(player: var): bool {
       if (!player)
         return false;
@@ -110,7 +101,6 @@ Singleton {
       const extensionMatch = mediaUrl.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/);
       return !!(extensionMatch && videoExts.includes(extensionMatch[1]));
     }
-
     function safeSeek(player: var, deltaPosition: real): void {
       if (Number.isFinite(deltaPosition) && Math.abs(deltaPosition) > 0.005)
         player.seek(deltaPosition);

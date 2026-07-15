@@ -22,7 +22,6 @@ Singleton {
     if (unlocking)
       locked = false;
   }
-
   function handleGlobalKeyPress(event: var): bool {
     if (!locked || authenticating || unlocking)
       return false;
@@ -51,12 +50,10 @@ Singleton {
     }
     return false;
   }
-
   function requestLock(): void {
     unlocking = false;
     locked = true;
   }
-
   function requestUnlock(): void {
     if (locked)
       unlocking = true;
@@ -97,7 +94,6 @@ Singleton {
       }
     }
   }
-
   Timer {
     id: pamResultResetTimer
 

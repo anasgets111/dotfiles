@@ -62,7 +62,6 @@ PanelWindow {
       intersection: Intersection.Subtract
       item: barClickableRegion
     }
-
     Region {
       id: backgroundMaskRegion
 
@@ -81,7 +80,6 @@ PanelWindow {
     right: true
     top: true
   }
-
   Item {
     anchors.fill: parent
 
@@ -95,7 +93,6 @@ PanelWindow {
         ShellUiState.closeModal();
       }
     }
-
     Item {
       id: barClickableRegion
 
@@ -114,7 +111,6 @@ PanelWindow {
         onWallpaperPickerRequested: ShellUiState.openModal("wallpaperPicker", root.screenName)
       }
     }
-
     OPanel {
       id: panelContainer
 
@@ -127,7 +123,6 @@ PanelWindow {
 
       onCloseRequested: ShellUiState.closePanel()
     }
-
     Loader {
       id: launcherLoader
 
@@ -141,7 +136,6 @@ PanelWindow {
         onDismissed: ShellUiState.closeModal("launcher")
       }
     }
-
     Loader {
       active: root.isWallpaperPickerOpen
       anchors.fill: parent
@@ -155,7 +149,6 @@ PanelWindow {
         onDismissed: ShellUiState.closeModal("wallpaperPicker")
       }
     }
-
     Loader {
       active: root.isIdleSettingsOpen
       anchors.fill: parent

@@ -4,9 +4,9 @@ import qs.Services.SystemInfo
 import qs.Config
 
 OPopup {
+  maskItem: card
   popupNamespace: "obelisk-osd-overlay"
   visible: OSDService.visible
-  maskItem: card
 
   OSDCard {
     id: card

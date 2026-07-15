@@ -29,7 +29,6 @@ Item {
       return Theme.onHoverColor;
     return (workspace?.populated ?? false) ? Theme.inactiveColor : Theme.disabledColor;
   }
-
   function slotKey(slot: var): string {
     const workspaceId = slot?.workspace?.id;
     if (workspaceId !== undefined && workspaceId !== null)

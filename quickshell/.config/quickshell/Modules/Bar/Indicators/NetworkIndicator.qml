@@ -97,7 +97,6 @@ Item {
         }
       }
     }
-
     Text {
       anchors.bottom: mainIcon.bottom
       anchors.left: mainIcon.right

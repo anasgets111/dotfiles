@@ -29,7 +29,6 @@ PanelContentBase {
       return Theme.activeColor;
     return Theme.inactiveColor;
   }
-
   function handleAction(action: string, device: var): void {
     const address = device?.address || "";
     switch (action) {
@@ -91,7 +90,6 @@ PanelContentBase {
         BluetoothService.setEnabled(c);
       }
     }
-
     RowLayout {
       Layout.bottomMargin: Theme.spacingMd
       Layout.fillWidth: true
@@ -105,7 +103,6 @@ PanelContentBase {
 
         onToggled: c => BluetoothService.setDiscoverable(c)
       }
-
       PanelTogglePill {
         checked: BluetoothService.discovering
         icon: "󰀘"
@@ -115,7 +112,6 @@ PanelContentBase {
         onToggled: c => c ? BluetoothService.startDiscovery() : BluetoothService.stopDiscovery()
       }
     }
-
     Repeater {
       model: root.connectedDevices
 
@@ -130,7 +126,6 @@ PanelContentBase {
         onAction: (a, d) => root.handleAction(a, d)
       }
     }
-
     ColumnLayout {
       Layout.fillWidth: true
       spacing: 0
@@ -143,7 +138,6 @@ PanelContentBase {
         size: "xs"
         text: qsTr("Devices").toUpperCase()
       }
-
       Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: Math.min(deviceList.contentHeight, Theme.itemHeight * 6)
@@ -197,13 +191,11 @@ PanelContentBase {
         }
       }
     }
-
     StateMessage {
       iconOpacity: 0.4
       text: BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices found")
       visible: root.active && root.connectedDevices.length === 0 && root.otherDevices.length === 0
     }
-
     StateMessage {
       iconOpacity: 0.3
       text: !root.ready ? qsTr("Bluetooth unavailable") : qsTr("Bluetooth off")
@@ -254,7 +246,6 @@ PanelContentBase {
       onClicked: if (row.canConnect)
         row.action("connect", row.device)
     }
-
     RowLayout {
       anchors.fill: parent
       anchors.leftMargin: Theme.spacingSm
@@ -267,7 +258,6 @@ PanelContentBase {
         font.pixelSize: Theme.fontSize
         text: row.icon
       }
-
       ColumnLayout {
         Layout.fillWidth: true
         spacing: 0
@@ -278,7 +268,6 @@ PanelContentBase {
           elide: Text.ElideRight
           text: row.name
         }
-
         OText {
           color: Theme.textInactiveColor
           size: "xs"
@@ -286,12 +275,10 @@ PanelContentBase {
           visible: text !== ""
         }
       }
-
       BatteryBadge {
         device: row.device
         opacity: 0.7
       }
-
       Rectangle {
         color: Theme.activeColor
         implicitHeight: 6
@@ -300,7 +287,6 @@ PanelContentBase {
         radius: 3
         visible: row.isPaired && !rowMa.containsMouse
       }
-
       PanelActionIcon {
         id: forgetBtn
 
@@ -312,7 +298,6 @@ PanelContentBase {
 
         onClicked: row.action("forget", row.device)
       }
-
       OButton {
         id: pairBtn
 
@@ -326,7 +311,6 @@ PanelContentBase {
 
         onClicked: row.action("pair", row.device)
       }
-
       Text {
         color: Theme.activeColor
         font.family: Theme.fontFamily
@@ -393,7 +377,6 @@ PanelContentBase {
           font.pixelSize: Theme.fontSize * 1.2
           text: hero.icon
         }
-
         ColumnLayout {
           Layout.fillWidth: true
           spacing: 2
@@ -405,7 +388,6 @@ PanelContentBase {
             elide: Text.ElideRight
             text: hero.name
           }
-
           RowLayout {
             spacing: Theme.spacingXs
 
@@ -414,12 +396,10 @@ PanelContentBase {
               size: "xs"
               text: qsTr("Connected")
             }
-
             BatteryBadge {
               device: hero.device
               opacity: 0.85
             }
-
             Rectangle {
               color: root.codecQualityColor(hero.currentCodecQuality || "basic")
               implicitHeight: 6
@@ -427,7 +407,6 @@ PanelContentBase {
               radius: 3
               visible: hero.currentCodec !== ""
             }
-
             InfoBadge {
               badgeColor: Theme.inactiveColor
               opacity: 0.6
@@ -435,7 +414,6 @@ PanelContentBase {
             }
           }
         }
-
         PanelActionIcon {
           Layout.preferredHeight: 30
           Layout.preferredWidth: 30
@@ -446,7 +424,6 @@ PanelContentBase {
 
           onClicked: hero.action("toggle-codec", hero.device)
         }
-
         PanelActionIcon {
           Layout.preferredHeight: 30
           Layout.preferredWidth: 30
@@ -456,7 +433,6 @@ PanelContentBase {
 
           onClicked: hero.action("forget", hero.device)
         }
-
         PanelActionIcon {
           Layout.preferredHeight: 30
           Layout.preferredWidth: 30
@@ -466,7 +442,6 @@ PanelContentBase {
           onClicked: hero.action("disconnect", hero.device)
         }
       }
-
       ColumnLayout {
         Layout.fillWidth: true
         Layout.leftMargin: Theme.spacingMd
@@ -504,7 +479,6 @@ PanelContentBase {
               onClicked: if (!codecRow.isCurrent)
                 hero.action("codec:" + codecRow.modelData.profile, hero.device)
             }
-
             RowLayout {
               anchors.fill: parent
               anchors.leftMargin: Theme.spacingSm
@@ -517,7 +491,6 @@ PanelContentBase {
                 implicitWidth: 6
                 radius: 3
               }
-
               OText {
                 Layout.fillWidth: true
                 bold: codecRow.isCurrent
@@ -525,13 +498,11 @@ PanelContentBase {
                 size: "xs"
                 text: codecRow.modelData.name || ""
               }
-
               OText {
                 color: Theme.textInactiveColor
                 size: "xs"
                 text: codecRow.modelData.description || ""
               }
-
               Text {
                 color: Theme.activeColor
                 font.family: Theme.fontFamily
@@ -567,7 +538,6 @@ PanelContentBase {
         opacity: stateMessage.iconOpacity
         text: "󰂲"
       }
-
       OText {
         Layout.alignment: Qt.AlignHCenter
         color: Theme.textInactiveColor

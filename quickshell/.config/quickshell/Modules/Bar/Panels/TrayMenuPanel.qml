@@ -19,7 +19,6 @@ PanelContentBase {
 
     menu: root.menuItem?.menu ?? null
   }
-
   Component {
     id: menuRowComponent
 
@@ -38,7 +37,6 @@ PanelContentBase {
         visible: rowItem.entry?.isSeparator ?? false
         width: parent.width - Theme.spacingSm
       }
-
       Rectangle {
         anchors.fill: parent
         color: rowMouse.containsMouse ? Theme.onHoverColor : "transparent"
@@ -59,7 +57,6 @@ PanelContentBase {
             sourceSize: Qt.size(Theme.iconSizeSm, Theme.iconSizeSm)
             visible: rowItem.iconSource !== ""
           }
-
           OText {
             Layout.fillWidth: true
             color: rowMouse.containsMouse ? Theme.textContrast(Theme.onHoverColor) : Theme.textActiveColor
@@ -68,13 +65,11 @@ PanelContentBase {
             text: rowItem.entry?.text ?? ""
             verticalAlignment: Text.AlignVCenter
           }
-
           OText {
             color: rowMouse.containsMouse ? Theme.textContrast(Theme.onHoverColor) : Theme.textActiveColor
             text: rowItem.entry?.hasChildren ? "›" : rowItem.entry?.buttonType === QsMenuButtonType.CheckBox && rowItem.entry?.checkState === Qt.Checked ? "✓" : rowItem.entry?.buttonType === QsMenuButtonType.RadioButton && rowItem.entry?.checkState === Qt.Checked ? "●" : ""
           }
         }
-
         MouseArea {
           id: rowMouse
 
@@ -95,7 +90,6 @@ PanelContentBase {
           onExited: subTimer.start()
         }
       }
-
       Loader {
         id: subLoader
 
@@ -109,7 +103,6 @@ PanelContentBase {
           item.visible = true;
         }
       }
-
       Timer {
         id: subTimer
 
@@ -118,7 +111,6 @@ PanelContentBase {
         onTriggered: if (!rowMouse.containsMouse)
           subLoader.active = false
       }
-
       Connections {
         function onIsOpenChanged() {
           if (!root.isOpen)
@@ -129,7 +121,6 @@ PanelContentBase {
       }
     }
   }
-
   Component {
     id: submenuPopupComponent
 
@@ -151,7 +142,6 @@ PanelContentBase {
 
         menu: subPopup.submenuHandle
       }
-
       Rectangle {
         anchors.fill: parent
         border.color: Theme.borderColor
@@ -184,14 +174,12 @@ PanelContentBase {
           }
         }
       }
-
       HoverHandler {
         onHoveredChanged: if (hovered)
           subPopup.enterCallback?.()
       }
     }
   }
-
   ColumnLayout {
     id: menuContent
 
@@ -216,7 +204,6 @@ PanelContentBase {
         onLoaded: item["entry"] = menuRowLoader.modelData
       }
     }
-
     OText {
       Layout.fillWidth: true
       Layout.preferredHeight: Theme.itemHeight

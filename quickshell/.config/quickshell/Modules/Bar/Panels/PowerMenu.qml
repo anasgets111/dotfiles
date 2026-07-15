@@ -36,13 +36,11 @@ Item {
     selectedIndex = -1;
     tickTimer.stop();
   }
-
   function commitSelected() {
     if (selectedIndex >= 0)
       actions[selectedIndex].callback();
     cancelCountdown();
   }
-
   function startCountdown(index) {
     selectedIndex = index;
     countdown = initialCountdown;
@@ -68,7 +66,6 @@ Item {
       }
     }
   }
-
   Timer {
     id: tickTimer
 
@@ -83,7 +80,6 @@ Item {
       }
     }
   }
-
   ExpandingPill {
     id: pill
 
@@ -117,7 +113,6 @@ Item {
             from: 1.0
             to: 0.4
           }
-
           NumberAnimation {
             duration: 300
             easing.type: Easing.InOutQuad
@@ -144,7 +139,6 @@ Item {
           progress: btn.isSelected ? (powerMenu.initialCountdown - powerMenu.countdown) / powerMenu.initialCountdown : 0
           radius: Theme.itemHeight / 2
         }
-
         OText {
           anchors.centerIn: parent
           bold: true

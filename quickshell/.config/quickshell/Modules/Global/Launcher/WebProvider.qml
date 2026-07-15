@@ -23,7 +23,6 @@ Singleton {
         font.pixelSize: Theme.fontXs
         text: root._isUrl ? qsTr("Open link") : qsTr("Web search")
       }
-
       RowLayout {
         spacing: Theme.spacingMd
 
@@ -32,14 +31,12 @@ Singleton {
           font.pixelSize: Theme.fontLg
           text: root._isUrl ? "󰖟" : "󰍉"
         }
-
         OText {
           Layout.fillWidth: true
           font.pixelSize: Theme.fontLg
           text: root._isUrl ? root._url : root._query
         }
       }
-
       LauncherHint {
         text: qsTr("Enter to open")
       }
@@ -50,7 +47,6 @@ Singleton {
   function activate(): void {
     Command.detached(["xdg-open", _url]);
   }
-
   function claims(query: string, appsWeak: bool): bool {
     const input = String(query || "").trim();
     _query = input;
@@ -65,7 +61,6 @@ Singleton {
     }
     return _isUrl || appsWeak;
   }
-
   function reset(): void {
     _query = "";
     _url = "";

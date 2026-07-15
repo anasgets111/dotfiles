@@ -21,7 +21,6 @@ RowLayout {
   function capitalize(text: string): string {
     return text.length > 0 ? text.charAt(0).toUpperCase() + text.slice(1) : "";
   }
-
   function getIcon(name: string): string {
     const lower = name.toLowerCase();
     const key = Object.keys(iconMap).find(k => lower.includes(k));

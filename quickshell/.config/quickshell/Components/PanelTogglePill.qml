@@ -48,7 +48,6 @@ Rectangle {
 
     onClicked: pill.toggled(!pill.checked)
   }
-
   RowLayout {
     anchors.fill: parent
     anchors.leftMargin: pill.detail !== "" ? Theme.spacingMd : 0
@@ -59,7 +58,6 @@ Rectangle {
       Layout.fillWidth: true
       visible: pill.detail === ""
     }
-
     ColumnLayout {
       spacing: Theme.spacingXs
 
@@ -83,7 +81,6 @@ Rectangle {
           to: 360
         }
       }
-
       OText {
         Layout.alignment: Qt.AlignHCenter
         bold: pill.checked
@@ -98,11 +95,9 @@ Rectangle {
         }
       }
     }
-
     Item {
       Layout.fillWidth: true
     }
-
     OText {
       Layout.maximumWidth: pill.width / 2
       color: pill.checked && pill.active ? Theme.textActiveColor : Theme.textInactiveColor

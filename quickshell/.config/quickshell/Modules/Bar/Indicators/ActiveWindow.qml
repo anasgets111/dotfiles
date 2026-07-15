@@ -44,7 +44,6 @@ Item {
       visible: !!source
       width: Theme.controlHeightSm
     }
-
     OText {
       anchors.verticalCenter: parent.verticalCenter
       bold: true

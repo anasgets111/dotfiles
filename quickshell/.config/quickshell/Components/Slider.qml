@@ -31,20 +31,17 @@ Item {
   function clamp01(v) {
     return Math.max(0, Math.min(1, v));
   }
-
   function commit(v) {
     const vv = step(clamp01(v));
     slider.value = vv;
     slider.committed(vv);
   }
-
   function step(v) {
     if (steps <= 0)
       return v;
     const s = Math.max(1, steps);
     return Math.round(v * s) / s;
   }
-
   function updateFromX(x) {
     const raw = clamp01(x / width);
     pending = step(raw);
@@ -95,7 +92,6 @@ Item {
       }
     }
   }
-
   MouseArea {
     anchors.fill: parent
     cursorShape: slider.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor

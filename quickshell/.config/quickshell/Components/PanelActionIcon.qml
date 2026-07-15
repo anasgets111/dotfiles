@@ -31,7 +31,6 @@ Rectangle {
     opacity: ma.containsMouse ? 1.0 : 0.5
     text: btn.icon
   }
-
   MouseArea {
     id: ma
 

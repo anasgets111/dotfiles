@@ -45,7 +45,6 @@ WlrLayershell {
     transitionParams.randomize(transitionType);
     nextImgLoader.pendingSource = url;
   }
-
   function resetTransition(): void {
     transitionAnim.stop();
     shaderLoader.active = false;
@@ -72,7 +71,6 @@ WlrLayershell {
     right: true
     top: true
   }
-
   QtObject {
     id: transitionParams
 
@@ -94,7 +92,6 @@ WlrLayershell {
       }
     }
   }
-
   Image {
     id: currentImg
 
@@ -149,7 +146,6 @@ WlrLayershell {
       }
     }
   }
-
   Loader {
     id: shaderLoader
 
@@ -180,7 +176,6 @@ WlrLayershell {
       fragmentShader: Qt.resolvedUrl(`../../Shaders/qsb/wp_${root.safeTransitionType}.frag.qsb`)
     }
   }
-
   NumberAnimation {
     id: transitionAnim
 

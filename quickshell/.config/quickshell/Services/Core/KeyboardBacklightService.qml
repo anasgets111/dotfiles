@@ -27,11 +27,9 @@ Singleton {
   function decrease() {
     setLevel(Math.max(0, brightness - 1));
   }
-
   function increase() {
     setLevel(Math.min(maxBrightness, brightness + 1));
   }
-
   function setLevel(level: int): string {
     if (!available || !_deviceName)
       return "Keyboard backlight not available";
@@ -49,13 +47,13 @@ Singleton {
     if (available && ready)
       Logger.log("KeyboardBacklightService", `keyboard backlight: ${brightness}/${maxBrightness} (${levelName})`);
   }
-  on_DevicePathChanged: {
-    if (!_devicePath)
-      Logger.log("KeyboardBacklightService", "device lost");
-  }
   onReadyChanged: {
     if (ready)
       Logger.log("KeyboardBacklightService", `ready | device: ${_deviceName} (${_devicePath}) | level: ${brightness}/${maxBrightness} (${levelName})`);
+  }
+  on_DevicePathChanged: {
+    if (!_devicePath)
+      Logger.log("KeyboardBacklightService", "device lost");
   }
 
   FolderListModel {
@@ -65,20 +63,17 @@ Singleton {
     showDirs: true
     showFiles: false
   }
-
   SysfsValue {
     id: maxBrightnessFile
 
     fallback: 3
     path: root._devicePath ? `${root._devicePath}/max_brightness` : ""
   }
-
   SysfsValue {
     id: brightnessFile
 
     path: root._devicePath ? `${root._devicePath}/brightness` : ""
   }
-
   Timer {
     interval: 100
     repeat: true

@@ -38,8 +38,8 @@ Item {
   property real retainedPanelHeight: 1
   property real retainedPanelWidth: 350
   property int screenMargin: Theme.spacingSm
-  readonly property bool useFlatContainer: root.effectivePanelComponent === audioPanelComponent || root.effectivePanelComponent === bluetoothPanelComponent || root.effectivePanelComponent === networkPanelComponent
   property bool showInverseCorners: true
+  readonly property bool useFlatContainer: root.effectivePanelComponent === audioPanelComponent || root.effectivePanelComponent === bluetoothPanelComponent || root.effectivePanelComponent === networkPanelComponent
 
   signal closeRequested
 
@@ -50,7 +50,6 @@ Item {
     const maxX = root.width - panelBackground.width - root.screenMargin - cornerInset;
     return Math.max(minX, Math.min(centerX, maxX));
   }
-
   function calculateY() {
     const belowY = Theme.panelHeight;
     const aboveY = root.effectiveAnchorRect.y - panelBackground.height - 4;
@@ -104,7 +103,6 @@ Item {
       root.retainedPanelWidth = 350;
     }
   }
-
   MouseArea {
     id: dismissArea
 
@@ -122,7 +120,6 @@ Item {
       root.closeRequested();
     }
   }
-
   Item {
     anchors.fill: parent
     anchors.topMargin: Theme.panelHeight
@@ -164,7 +161,6 @@ Item {
         color: Theme.borderLight
         width: root.useFlatContainer ? 0 : 1
       }
-
       Loader {
         id: panelLoader
 
@@ -182,7 +178,6 @@ Item {
         }
       }
     }
-
     Loader {
       active: root.showInverseCorners && root.visible
       anchors.right: panelBackground.left
@@ -196,7 +191,6 @@ Item {
         radius: Theme.panelRadius * 3
       }
     }
-
     Loader {
       active: root.showInverseCorners && root.visible
       anchors.left: panelBackground.right
@@ -210,7 +204,6 @@ Item {
       }
     }
   }
-
   Connections {
     function onCloseRequested() {
       root.closeRequested();
@@ -218,42 +211,36 @@ Item {
 
     target: root.panelItem
   }
-
   Component {
     id: audioPanelComponent
 
     AudioPanel {
     }
   }
-
   Component {
     id: bluetoothPanelComponent
 
     BluetoothPanel {
     }
   }
-
   Component {
     id: networkPanelComponent
 
     NetworkPanel {
     }
   }
-
   Component {
     id: notificationPanelComponent
 
     NotificationHistoryPanel {
     }
   }
-
   Component {
     id: updatesPanelComponent
 
     UpdatePanel {
     }
   }
-
   Component {
     id: trayPanelComponent
 

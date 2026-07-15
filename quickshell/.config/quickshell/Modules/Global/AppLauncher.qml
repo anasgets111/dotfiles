@@ -42,7 +42,6 @@ Item {
     if (selectedAppIdx >= 0)
       launch(filteredApps[selectedAppIdx]);
   }
-
   function close(): void {
     if (!_shown || _closing)
       return;
@@ -50,7 +49,6 @@ Item {
     _shown = false;
     closeDelay.restart();
   }
-
   function ensureFinder(force: bool): void {
     if (!force && finder)
       return;
@@ -64,7 +62,6 @@ Item {
       tiebreakers: [Fzf.byStartAsc, Fzf.byLengthAsc]
     });
   }
-
   function filterApps(text: string): real {
     ensureFinder(false);
     if (!text) {
@@ -75,7 +72,6 @@ Item {
     filteredApps = results.map(result => result.item);
     return results[0]?.score ?? 0;
   }
-
   function handleHoverMove(pos: point, targetIndex: int): void {
     if (_lastPointerX >= 0 && (pos.x !== _lastPointerX || pos.y !== _lastPointerY))
       hoverSelectionArmed = true;
@@ -84,7 +80,6 @@ Item {
     if (hoverSelectionArmed)
       currentIndex = targetIndex;
   }
-
   function launch(entry: var): void {
     const id = String(entry?.id || "").replace(/\.desktop$/, "");
     if (!id)
@@ -92,7 +87,6 @@ Item {
     Quickshell.execDetached(["gtk-launch", id]);
     close();
   }
-
   function move(delta: int): void {
     if (totalRows <= 0)
       return;
@@ -101,7 +95,6 @@ Item {
     if (!specialSelected && selectedAppIdx >= 0)
       list.positionViewAtIndex(selectedAppIdx, ListView.Contain);
   }
-
   function open(): void {
     closeDelay.stop();
     _closing = false;
@@ -109,7 +102,6 @@ Item {
       return;
     Qt.callLater(() => root._shown = true);
   }
-
   function processInput(text: string): void {
     hoverSelectionArmed = false;
     const trimmed = text.trim();
@@ -163,13 +155,11 @@ Item {
       root.dismissed();
     }
   }
-
   MouseArea {
     anchors.fill: parent
 
     onClicked: root.close()
   }
-
   Rectangle {
     anchors.fill: parent
     color: Theme.bgOverlay
@@ -182,7 +172,6 @@ Item {
       }
     }
   }
-
   Rectangle {
     id: panel
 
@@ -214,7 +203,6 @@ Item {
 
       onPressed: m => m.accepted = true
     }
-
     ColumnLayout {
       id: content
 
@@ -241,7 +229,6 @@ Item {
             font.pixelSize: Theme.iconSizeLg
             text: "󰍉"
           }
-
           TextInput {
             id: search
 
@@ -286,7 +273,6 @@ Item {
               text: qsTr("Search apps, calculate, convert currency…")
             }
           }
-
           OText {
             color: Theme.withOpacity(Theme.activeColor, 0.8)
             font.pixelSize: Theme.fontXs
@@ -294,7 +280,6 @@ Item {
           }
         }
       }
-
       Rectangle {
         Layout.fillWidth: true
         color: Theme.withOpacity(Theme.bgElevated, 0.65)
@@ -327,14 +312,12 @@ Item {
               }
               onPositionChanged: mouse => root.handleHoverMove(mapToItem(root, mouse.x, mouse.y), 0)
             }
-
             Loader {
               anchors.fill: parent
               anchors.margins: Theme.spacingMd
               sourceComponent: LauncherService.activeProvider?.delegate ?? null
             }
           }
-
           ListView {
             id: list
 
@@ -367,7 +350,6 @@ Item {
                   }
                 }
               }
-
               RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.spacingMd
@@ -388,7 +370,6 @@ Item {
                     }
                   }
                 }
-
                 ColumnLayout {
                   Layout.fillWidth: true
                   spacing: 0
@@ -398,7 +379,6 @@ Item {
                     font.pixelSize: Theme.fontMd
                     text: modelData?.name || ""
                   }
-
                   OText {
                     Layout.fillWidth: true
                     color: Theme.textInactiveColor
@@ -409,7 +389,6 @@ Item {
                   }
                 }
               }
-
               MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
@@ -422,7 +401,6 @@ Item {
           }
         }
       }
-
       OText {
         Layout.alignment: Qt.AlignHCenter
         color: Theme.textInactiveColor

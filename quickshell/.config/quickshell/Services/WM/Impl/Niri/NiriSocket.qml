@@ -9,23 +9,15 @@ import Quickshell.Io
 Scope {
   id: root
 
+  readonly property int _baseReconnectDelay: 500
+  property bool _enabled: path !== ""
+  readonly property int _maxReconnectDelay: 10000
+  property int _reconnectAttempts: 0
   readonly property alias connected: sock.connected
   property bool eventStream: false
   property string path: ""
-  property bool _enabled: path !== ""
-  property int _reconnectAttempts: 0
-  readonly property int _baseReconnectDelay: 500
-  readonly property int _maxReconnectDelay: 10000
 
   signal lineRead(string message)
-
-  function flush(): void {
-    sock.flush();
-  }
-
-  function write(data: string): void {
-    sock.write(data);
-  }
 
   function _reconnect(): void {
     if (path === "")
@@ -34,6 +26,12 @@ Scope {
     reconnectTimer.interval = Math.min(_baseReconnectDelay * Math.pow(2, _reconnectAttempts), _maxReconnectDelay);
     _reconnectAttempts++;
     reconnectTimer.restart();
+  }
+  function flush(): void {
+    sock.flush();
+  }
+  function write(data: string): void {
+    sock.write(data);
   }
 
   onPathChanged: _reconnectAttempts = 0
@@ -63,7 +61,6 @@ Scope {
     }
     onError: root._reconnect()
   }
-
   Timer {
     id: reconnectTimer
 

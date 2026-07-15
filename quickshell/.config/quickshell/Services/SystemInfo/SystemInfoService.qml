@@ -14,9 +14,9 @@ Singleton {
   property real bootTimeMs: 0
   property real cpuPerc: 0
   property real cpuTemp: 0
-  property real gpuPerc: 0
   property real gpuMemTotalKib: 0
   property real gpuMemUsedKib: 0
+  property real gpuPerc: 0
   property real gpuTemp: 0
   property string gpuType: "NONE"
   readonly property real memPerc: memTotal > 0 ? memUsed / memTotal : 0
@@ -38,7 +38,6 @@ Singleton {
     gpuMemUsedKib = 0;
     gpuMemTotalKib = 0;
   }
-
   function _pollGpuUsage(): void {
     Command.run(["nvtop", "-s"], result => {
       try {
@@ -59,7 +58,6 @@ Singleton {
       }
     }, "sysinfo.gpu");
   }
-
   function _pollSensors(): void {
     Command.run(["env", "LANG=C", "LC_ALL=C", "sensors"], result => {
       const text = result.stdout;
@@ -71,7 +69,6 @@ Singleton {
       }
     }, "sysinfo.sensors");
   }
-
   function _pollStorage(): void {
     Command.run(["lsblk", "--json", "--bytes", "--output", "NAME,PATH,TYPE,MOUNTPOINT,FSUSED,FSAVAIL"], result => {
       try {
@@ -138,7 +135,6 @@ Singleton {
       root.bootTimeMs = Date.now() - uptimeSec * 1000;
     }
   }
-
   FileView {
     id: cpuStatFile
 
@@ -163,7 +159,6 @@ Singleton {
       root._lastCpuIdle = idle;
     }
   }
-
   FileView {
     id: meminfoFile
 
@@ -179,7 +174,6 @@ Singleton {
       }
     }
   }
-
   Timer {
     interval: 3000
     repeat: true
@@ -193,7 +187,6 @@ Singleton {
       root._pollSensors();
     }
   }
-
   Timer {
     interval: 60000
     repeat: true

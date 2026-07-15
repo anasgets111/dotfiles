@@ -36,7 +36,6 @@ PanelContentBase {
     root.expandedSsid = "";
     NetworkService.cancelConnect();
   }
-
   function connectToNetwork(ssid: string): void {
     const ap = networkForSsid(ssid);
     if (!ap || ap.connected)
@@ -49,12 +48,10 @@ PanelContentBase {
       root.expandedSsid = root.expandedSsid === ssid ? "" : ssid;
     }
   }
-
   function networkForSsid(ssid: string): var {
     const aps = NetworkService.wifiAps ?? [];
     return aps.find(a => a?.ssid === ssid) || null;
   }
-
   function resetConnectionState(): void {
     isHiddenTarget = false;
     targetSsid = "";
@@ -64,7 +61,6 @@ PanelContentBase {
     if (credentialSheet)
       credentialSheet.clearInputs();
   }
-
   function submitHiddenPassword(password: string): void {
     if (!targetSsid || (showPasswordInput && String(password || "").trim() === ""))
       return;
@@ -105,12 +101,10 @@ PanelContentBase {
 
     onTriggered: root.scanning = false
   }
-
   Connections {
     function onConnectFailed() {
       root.errorDismissed = false;
     }
-
     function onConnectSucceeded() {
       root.resetConnectionState();
       root.closeRequested();
@@ -118,7 +112,6 @@ PanelContentBase {
 
     target: NetworkService
   }
-
   ColumnLayout {
     id: mainLayout
 
@@ -136,7 +129,6 @@ PanelContentBase {
 
       onToggled: c => NetworkService.setNetworkingEnabled(c)
     }
-
     RowLayout {
       Layout.bottomMargin: Theme.spacingMd
       Layout.fillWidth: true
@@ -151,7 +143,6 @@ PanelContentBase {
 
         onToggled: c => NetworkService.setWifiRadioEnabled(c)
       }
-
       PanelTogglePill {
         active: root.ready && root.ethernetInterface !== ""
         checked: NetworkService.ethernetOnline
@@ -161,7 +152,6 @@ PanelContentBase {
         onToggled: c => c ? NetworkService.connectEthernet() : NetworkService.disconnectEthernet()
       }
     }
-
     EthernetHeroCard {
       Layout.bottomMargin: visible ? Theme.spacingMd : 0
       Layout.fillWidth: true
@@ -172,7 +162,6 @@ PanelContentBase {
 
       onDisconnectClicked: NetworkService.disconnectEthernet()
     }
-
     HeroCard {
       Layout.bottomMargin: visible ? Theme.spacingMd : 0
       Layout.fillWidth: true
@@ -183,7 +172,6 @@ PanelContentBase {
       onDisconnectClicked: NetworkService.disconnectWifi()
       onForgetClicked: ssid => NetworkService.forgetWifi(ssid)
     }
-
     CredentialSheet {
       id: credentialSheet
 
@@ -209,7 +197,6 @@ PanelContentBase {
         }
       }
     }
-
     ColumnLayout {
       Layout.fillWidth: true
       spacing: 0
@@ -227,11 +214,9 @@ PanelContentBase {
           text: qsTr("Networks").toUpperCase()
           visible: root.savedNetworks.length > 0 || root.availableNetworks.length > 0
         }
-
         Item {
           Layout.fillWidth: true
         }
-
         Item {
           id: rescanBtn
 
@@ -270,7 +255,6 @@ PanelContentBase {
           }
         }
       }
-
       Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: Math.min(networkList.contentHeight, Theme.itemHeight * 7)
@@ -331,7 +315,6 @@ PanelContentBase {
           }
         }
       }
-
       HoverButton {
         Layout.bottomMargin: Theme.spacingSm
         Layout.fillWidth: true
@@ -358,11 +341,9 @@ PanelContentBase {
             color: Theme.activeColor
             text: qsTr("Hidden Network…")
           }
-
           Item {
             Layout.fillWidth: true
           }
-
           Text {
             color: Theme.textInactiveColor
             font.family: Theme.fontFamily
@@ -373,7 +354,6 @@ PanelContentBase {
         }
       }
     }
-
     StateMessage {
       Layout.fillHeight: true
       Layout.fillWidth: true
@@ -382,7 +362,6 @@ PanelContentBase {
       text: root.scanning ? qsTr("Scanning…") : qsTr("No networks found")
       visible: !root.isHiddenTarget && root.wifiEnabled && root.networkingEnabled && root.savedNetworks.length === 0 && root.availableNetworks.length === 0
     }
-
     StateMessage {
       Layout.fillHeight: true
       Layout.fillWidth: true
@@ -432,14 +411,12 @@ PanelContentBase {
       onCancelled: form.cancelled()
       onTextEdited: form.edited()
     }
-
     OText {
       color: Theme.critical
       size: "xs"
       text: "⚠ " + form.errorMessage
       visible: form.errorMessage !== "" && !form.connecting
     }
-
     RowLayout {
       Layout.fillWidth: true
       spacing: Theme.spacingSm
@@ -459,18 +436,15 @@ PanelContentBase {
           to: 360
         }
       }
-
       OText {
         color: Theme.textInactiveColor
         size: "xs"
         text: qsTr("Connecting…")
         visible: form.connecting
       }
-
       Item {
         Layout.fillWidth: true
       }
-
       OButton {
         size: form.buttonSize
         text: qsTr("Cancel")
@@ -478,7 +452,6 @@ PanelContentBase {
 
         onClicked: form.cancelled()
       }
-
       OButton {
         icon: form.errorMessage !== "" ? "󰀦" : ""
         isEnabled: pwField.text.trim() !== ""
@@ -518,7 +491,6 @@ PanelContentBase {
       size: "sm"
       text: sheet.ssidMode ? qsTr("Hidden Network") : sheet.waitingMode ? qsTr("Connecting to “%1”").arg(sheet.targetName) : qsTr("Connect to “%1”").arg(sheet.targetName)
     }
-
     SheetField {
       id: ssidField
 
@@ -529,7 +501,6 @@ PanelContentBase {
       onAccepted: val => sheet.ssidSubmitted(val)
       onCancelled: sheet.cancelled()
     }
-
     RowLayout {
       Layout.fillWidth: true
       spacing: Theme.spacingSm
@@ -538,14 +509,12 @@ PanelContentBase {
       Item {
         Layout.fillWidth: true
       }
-
       OButton {
         text: qsTr("Cancel")
         variant: "ghost"
 
         onClicked: sheet.cancelled()
       }
-
       OButton {
         isEnabled: ssidField.text.trim() !== ""
         text: qsTr("Next")
@@ -554,7 +523,6 @@ PanelContentBase {
         onClicked: sheet.ssidSubmitted(ssidField.text)
       }
     }
-
     CredentialForm {
       id: credForm
 
@@ -605,7 +573,6 @@ PanelContentBase {
         font.pixelSize: Theme.fontSize * 1.2
         text: "󰈀"
       }
-
       ColumnLayout {
         Layout.fillWidth: true
         spacing: 2
@@ -617,13 +584,11 @@ PanelContentBase {
           elide: Text.ElideRight
           text: ethHero.interfaceName || qsTr("Ethernet")
         }
-
         OText {
           color: Theme.textInactiveColor
           size: "xs"
           text: ethHero.speed > 0 ? ethHero.speedText : qsTr("Connected")
         }
-
         OText {
           Layout.fillWidth: true
           color: Theme.textInactiveColor
@@ -633,7 +598,6 @@ PanelContentBase {
           visible: ethHero.ip !== ""
         }
       }
-
       PanelActionIcon {
         icon: "󱘖"
         tint: Theme.critical
@@ -677,7 +641,6 @@ PanelContentBase {
         activeColor: Theme.activeColor
         signal_: hero.network?.signal || 0
       }
-
       ColumnLayout {
         Layout.fillWidth: true
         spacing: 2
@@ -689,7 +652,6 @@ PanelContentBase {
           elide: Text.ElideRight
           text: hero.network?.ssid || ""
         }
-
         RowLayout {
           Layout.fillWidth: true
           spacing: Theme.spacingXs
@@ -699,16 +661,13 @@ PanelContentBase {
             size: "xs"
             text: qsTr("Connected")
           }
-
           BandBadge {
             band: hero.network?.band || ""
           }
-
           Item {
             Layout.fillWidth: true
           }
         }
-
         OText {
           Layout.fillWidth: true
           color: Theme.textInactiveColor
@@ -718,7 +677,6 @@ PanelContentBase {
           visible: hero.ip !== ""
         }
       }
-
       PanelActionIcon {
         icon: "󰩺"
         tint: Theme.critical
@@ -726,7 +684,6 @@ PanelContentBase {
 
         onClicked: hero.forgetClicked(hero.network?.ssid || "")
       }
-
       PanelActionIcon {
         icon: "󱘖"
         tint: Theme.critical
@@ -753,7 +710,6 @@ PanelContentBase {
       opacity: 0.5
       visible: hbtn.showTopBorder
     }
-
     MouseArea {
       id: hma
 
@@ -834,7 +790,6 @@ PanelContentBase {
           onClicked: if (!row.connecting)
             row.clicked()
         }
-
         RowLayout {
           anchors.fill: parent
           anchors.leftMargin: Theme.spacingSm
@@ -845,14 +800,12 @@ PanelContentBase {
             activeColor: Theme.textInactiveColor
             signal_: row.network?.signal || 0
           }
-
           OText {
             Layout.fillWidth: true
             color: Theme.textActiveColor
             elide: Text.ElideRight
             text: row.network?.ssid || ""
           }
-
           Rectangle {
             color: Theme.activeColor
             implicitHeight: 6
@@ -861,11 +814,9 @@ PanelContentBase {
             radius: 3
             visible: row.isSaved && !rowMa.containsMouse && !row.connecting && !row.expanded
           }
-
           BandBadge {
             band: row.network?.band || ""
           }
-
           Text {
             color: Theme.textInactiveColor
             font.family: Theme.fontFamily
@@ -874,7 +825,6 @@ PanelContentBase {
             text: "󰌾"
             visible: row.secured && !row.connecting
           }
-
           Text {
             color: Theme.activeColor
             font.family: Theme.fontFamily
@@ -890,7 +840,6 @@ PanelContentBase {
               to: 360
             }
           }
-
           PanelActionIcon {
             id: forgetBtn
 
@@ -902,7 +851,6 @@ PanelContentBase {
           }
         }
       }
-
       CredentialForm {
         Layout.bottomMargin: row.expanded ? Theme.spacingSm : 0
         Layout.fillWidth: true
@@ -1043,7 +991,6 @@ PanelContentBase {
         opacity: 0.4
         text: stateMessage.icon
       }
-
       OText {
         Layout.alignment: Qt.AlignHCenter
         color: Theme.textInactiveColor

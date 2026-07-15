@@ -9,8 +9,8 @@ Singleton {
   id: root
 
   property var _bandMap: ({})
-  property var _connectHandle: null
   property string _connectError: ""
+  property var _connectHandle: null
   property string _connectingSsid: ""
   property string _ethernetIp: ""
   property bool _networkingEnabled: true
@@ -63,7 +63,6 @@ Singleton {
       return qsTr("Connection timeout");
     return qsTr("Connection failed");
   }
-
   function _runAction(command: var): void {
     Command.run(root.nmcliCommand(command), result => {
       const error = (result.stderr || "").trim();
@@ -73,7 +72,6 @@ Singleton {
       root.refreshNetworkingStatus();
     }, "net.action");
   }
-
   function cancelConnect(): void {
     const wasConnecting = root._connectingSsid !== "";
     root._connectHandle?.cancel();
@@ -83,11 +81,9 @@ Singleton {
     if (wasConnecting)
       root.wifiDevice?.disconnect();
   }
-
   function connectEthernet(): void {
     root.wiredNetwork?.connect();
   }
-
   function connectToSsid(ssid: string, password: string): void {
     const target = String(ssid ?? "");
     if (!target || !root.wifiInterface || root._connectingSsid !== "")
@@ -121,7 +117,6 @@ Singleton {
     root._connectError = "";
     root._connectingSsid = target;
   }
-
   function deviceOfType(deviceType: int): var {
     for (const device of Networking.devices.values) {
       if (device.type === deviceType)
@@ -129,24 +124,19 @@ Singleton {
     }
     return null;
   }
-
   function disconnectEthernet(): void {
     root.wiredDevice?.disconnect();
   }
-
   function disconnectWifi(): void {
     root.wifiDevice?.disconnect();
   }
-
   function forgetWifi(ssid: string): void {
     root.wifiNetworkForSsid(ssid)?.forget();
   }
-
   function getWifiIcon(signal: int): string {
     const normalizedSignal = Math.max(0, Math.min(100, signal | 0));
     return normalizedSignal >= 95 ? "󰤨" : normalizedSignal >= 80 ? "󰤥" : normalizedSignal >= 50 ? "󰤢" : "󰤟";
   }
-
   function inferBandLabel(frequencyText: string): string {
     const frequencyMhz = parseInt(String(frequencyText || "").split(" ")[0], 10);
     if (frequencyMhz >= 5925 && frequencyMhz <= 7200)
@@ -157,15 +147,12 @@ Singleton {
       return "2.4";
     return "";
   }
-
   function isSecured(securityType: int): bool {
     return securityType !== WifiSecurityType.Open && securityType !== WifiSecurityType.Owe && securityType !== WifiSecurityType.Unknown;
   }
-
   function nmcliCommand(args: var): var {
     return ["env", "LC_ALL=C"].concat(args);
   }
-
   function parseInterfaceAddresses(nmcliOutput: string): var {
     const addressesByInterface = {};
     let currentInterface = "";
@@ -181,7 +168,6 @@ Singleton {
     }
     return addressesByInterface;
   }
-
   function parseNmcliTerseLine(line: string): var {
     const fields = [];
     let field = "";
@@ -197,7 +183,6 @@ Singleton {
     fields.push(field);
     return fields;
   }
-
   function parseWifiBands(nmcliOutput: string): var {
     const bandsBySsid = {};
     for (const line of (nmcliOutput || "").split("\n")) {
@@ -211,14 +196,12 @@ Singleton {
     }
     return bandsBySsid;
   }
-
   function refreshBandData(): void {
     const interfaceName = root.wifiInterface;
     if (!interfaceName)
       return;
     Command.run(root.nmcliCommand(["nmcli", "-t", "-f", "SSID,FREQ", "device", "wifi", "list", "ifname", interfaceName]), result => root._bandMap = root.parseWifiBands(result.stdout), "net.band");
   }
-
   function refreshIpData(): void {
     Command.run(root.nmcliCommand(["nmcli", "-t", "-f", "GENERAL.DEVICE,IP4.ADDRESS", "device", "show"]), result => {
       const addressesByInterface = root.parseInterfaceAddresses(result.stdout);
@@ -226,11 +209,9 @@ Singleton {
       root._wifiIp = addressesByInterface[root.wifiInterface] ?? "";
     }, "net.ip");
   }
-
   function refreshNetworkingStatus(): void {
     Command.run(root.nmcliCommand(["nmcli", "-t", "-f", "NETWORKING", "general"]), result => root._networkingEnabled = (result.stdout || "").trim() === "enabled", "net.status");
   }
-
   function rescanWifi(): void {
     const interfaceName = root.wifiInterface;
     if (!interfaceName)
@@ -238,26 +219,21 @@ Singleton {
     root._runAction(["nmcli", "device", "wifi", "rescan", "ifname", interfaceName]);
     root.refreshBandData();
   }
-
   function setNetworkingEnabled(enabled: bool): void {
     root._runAction(["nmcli", "networking", enabled ? "on" : "off"]);
   }
-
   function setWifiRadioEnabled(enabled: bool): void {
     Networking.wifiEnabled = enabled;
   }
-
   function startWifiScan(): void {
     if (root.wifiDevice)
       root.wifiDevice.scannerEnabled = true;
     root.refreshBandData();
   }
-
   function stopWifiScan(): void {
     if (root.wifiDevice)
       root.wifiDevice.scannerEnabled = false;
   }
-
   function wifiNetworkForSsid(ssid: string): var {
     return (root.wifiDevice?.networks.values ?? []).find(network => network.name === ssid) ?? null;
   }
@@ -285,7 +261,6 @@ Singleton {
 
     onLineRead: refreshTimer.restart()
   }
-
   Timer {
     id: refreshTimer
 

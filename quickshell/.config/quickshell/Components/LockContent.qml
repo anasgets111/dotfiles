@@ -78,7 +78,6 @@ Item {
       target: shell
       to: 1
     }
-
     NumberAnimation {
       duration: 360
       easing.overshoot: 1.1
@@ -88,7 +87,6 @@ Item {
       to: 1
     }
   }
-
   SequentialAnimation {
     id: shakeAnimation
 
@@ -100,7 +98,6 @@ Item {
       target: shakeTransform
       to: 6
     }
-
     PropertyAnimation {
       duration: 88
       easing.type: Easing.InOutQuad
@@ -108,7 +105,6 @@ Item {
       target: shakeTransform
       to: -6
     }
-
     PropertyAnimation {
       duration: 64
       easing.type: Easing.InOutQuad
@@ -116,7 +112,6 @@ Item {
       target: shakeTransform
       to: 4
     }
-
     PropertyAnimation {
       duration: 52
       easing.type: Easing.InQuad
@@ -125,7 +120,6 @@ Item {
       to: 0
     }
   }
-
   Connections {
     function onAuthFailed() {
       shakeAnimation.restart();
@@ -166,7 +160,6 @@ Item {
       color: "transparent"
       radius: Math.max(0, shell.radius - 1)
     }
-
     ColumnLayout {
       id: outerColumn
 
@@ -183,7 +176,6 @@ Item {
         text: TimeService.format("time", TimeService.use24Hour ? "HH:mm" : "h:mm AP")
         weight: "bold"
       }
-
       OText {
         Layout.fillWidth: true
         Layout.topMargin: root.spaceSm * 0.5
@@ -223,7 +215,6 @@ Item {
             shadowEnabled: true
           }
         }
-
         Rectangle {
           anchors.fill: parent
           color: Theme.withOpacity(Theme.activeColor, 0.22)
@@ -249,7 +240,6 @@ Item {
         text: MainService.fullName || "User"
         weight: "semibold"
       }
-
       OText {
         Layout.fillWidth: true
         Layout.topMargin: root.spaceSm * 0.3
@@ -305,7 +295,6 @@ Item {
             font.pixelSize: Math.round(Theme.iconSizeMd * root.readableScale)
             text: "󰌋"
           }
-
           OText {
             Layout.fillWidth: true
             color: passwordInput.passwordRejected ? Theme.critical : passwordInput.hasPassword ? Theme.textActiveColor : Theme.withOpacity(Theme.textActiveColor, 0.4)
@@ -333,7 +322,6 @@ Item {
                 font.pixelSize: Math.round(Theme.iconSizeSm * root.rightTextScale)
                 text: "󰘲"
               }
-
               OText {
                 bold: true
                 color: Theme.bgColor
@@ -369,7 +357,6 @@ Item {
         Layout.preferredWidth: parent.width * 0.6
         color: Theme.withOpacity("#ffffff", 0.08)
       }
-
       Item {
         Layout.preferredHeight: root.spaceSm
       }
@@ -396,7 +383,6 @@ Item {
               text: statusItem.modelData[0]
               verticalAlignment: Text.AlignVCenter
             }
-
             OText {
               color: Theme.withOpacity(Theme.textActiveColor, 0.5)
               font.pixelSize: Math.round(Theme.fontSm * root.readableScale)

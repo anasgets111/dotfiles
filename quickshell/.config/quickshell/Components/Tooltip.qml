@@ -131,17 +131,14 @@ Item {
       if (root.visible)
         root._computePosition(root.width, root.height);
     }
-
     function onWidthChanged() {
       if (root.visible)
         root._computePosition(root.width, root.height);
     }
-
     function onXChanged() {
       if (root.visible)
         root._computePosition(root.width, root.height);
     }
-
     function onYChanged() {
       if (root.visible)
         root._computePosition(root.width, root.height);
@@ -149,7 +146,6 @@ Item {
 
     target: root.target
   }
-
   Rectangle {
     id: tooltipRect
 

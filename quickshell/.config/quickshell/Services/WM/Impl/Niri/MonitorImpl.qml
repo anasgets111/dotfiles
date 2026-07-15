@@ -43,7 +43,6 @@ Singleton {
       });
     });
   }
-
   function parseJson(text: string): var {
     try {
       return JSON.parse(text);
@@ -51,7 +50,6 @@ Singleton {
       return null;
     }
   }
-
   function sendRaw(message: string, callback: var): void {
     if (!requestSocket.connected) {
       if (callback)
@@ -87,7 +85,6 @@ Singleton {
         callback(root.parseJson(message));
     }
   }
-
   NiriSocket {
     eventStream: true
     path: root.socketPath

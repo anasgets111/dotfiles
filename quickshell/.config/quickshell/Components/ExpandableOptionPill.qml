@@ -40,7 +40,6 @@ Rectangle {
     font.family: Theme.fontFamily
     font.pixelSize: root.fontSize
   }
-
   ExpandingPill {
     id: pill
 
@@ -84,7 +83,6 @@ Rectangle {
             }
           }
         }
-
         MouseArea {
           anchors.fill: parent
           cursorShape: Qt.PointingHandCursor

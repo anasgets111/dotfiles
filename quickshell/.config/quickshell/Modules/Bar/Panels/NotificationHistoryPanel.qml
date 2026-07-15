@@ -44,7 +44,6 @@ PanelContentBase {
       Layout.fillWidth: true
       Layout.margins: root.padding
     }
-
     SystemInfoWidget {
       id: systemInfoWidget
 
@@ -54,7 +53,6 @@ PanelContentBase {
       Layout.rightMargin: root.padding
       active: root.isOpen
     }
-
     Rectangle {
       id: header
 
@@ -76,11 +74,9 @@ PanelContentBase {
           size: "lg"
           text: root.hasNotifications ? qsTr("Notifications") + ` (${NotificationService.notifications.length})` : qsTr("Notifications")
         }
-
         Item {
           Layout.fillWidth: true
         }
-
         IconButton {
           Layout.preferredHeight: Theme.itemHeight * 0.9
           Layout.preferredWidth: Theme.itemHeight * 0.9
@@ -93,7 +89,6 @@ PanelContentBase {
             root.closeRequested();
           }
         }
-
         Rectangle {
           Layout.leftMargin: Theme.spacingXs
           Layout.preferredHeight: Theme.itemHeight * 0.6
@@ -103,14 +98,12 @@ PanelContentBase {
           opacity: 0.2
           visible: root.hasNotifications
         }
-
         OText {
           accent: NotificationService.doNotDisturb
           opacity: NotificationService.doNotDisturb ? 1.0 : 0.5
           size: "sm"
           text: qsTr("DND")
         }
-
         OToggle {
           Layout.preferredHeight: Theme.itemHeight * 0.55
           Layout.preferredWidth: Theme.itemHeight * 1.2
@@ -120,7 +113,6 @@ PanelContentBase {
         }
       }
     }
-
     Flickable {
       id: notificationFlickable
 
@@ -162,7 +154,6 @@ PanelContentBase {
         }
       }
     }
-
     ColumnLayout {
       Layout.alignment: Qt.AlignHCenter
       Layout.fillWidth: true
@@ -175,7 +166,6 @@ PanelContentBase {
       Item {
         Layout.fillHeight: true
       }
-
       Text {
         Layout.alignment: Qt.AlignHCenter
         color: Theme.textInactiveColor
@@ -184,14 +174,12 @@ PanelContentBase {
         opacity: 0.5
         text: "󰂚"
       }
-
       OText {
         Layout.alignment: Qt.AlignHCenter
         bold: true
         size: "xl"
         text: qsTr("No Notifications")
       }
-
       OText {
         Layout.alignment: Qt.AlignHCenter
         horizontalAlignment: Text.AlignHCenter
@@ -199,7 +187,6 @@ PanelContentBase {
         opacity: 0.7
         text: qsTr("You're all caught up!")
       }
-
       Item {
         Layout.fillHeight: true
       }

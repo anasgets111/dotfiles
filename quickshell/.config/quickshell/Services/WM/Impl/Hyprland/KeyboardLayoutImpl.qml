@@ -15,7 +15,6 @@ Singleton {
   function nextLayout(): void {
     Command.detached(["hyprctl", "switchxkblayout", keyboardDeviceName || "at-translated-set-2-keyboard", "next"]);
   }
-
   function requestLayoutSync(): void {
     Command.run(["hyprctl", "-j", "devices"], result => {
       try {
@@ -25,13 +24,11 @@ Singleton {
       }
     }, "hypr.layoutSync");
   }
-
   function setLayoutByIndex(layoutIndex: int): void {
     if (layoutIndex < 0 || layoutIndex >= layouts.length)
       return;
     Command.detached(["hyprctl", "switchxkblayout", keyboardDeviceName || "at-translated-set-2-keyboard", `${layoutIndex}`]);
   }
-
   function syncLayoutState(jsonText: string): void {
     if (!jsonText)
       return;

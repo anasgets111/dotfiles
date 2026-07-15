@@ -66,12 +66,6 @@ Singleton {
       property bool _started: false
       property string _stdin: ""
 
-      function cancelRun(): void {
-        _callback = null;
-        _stdin = "";
-        running = false;
-      }
-
       function _finish(exitCode: int): void {
         const callback = _callback;
         const result = {
@@ -87,6 +81,11 @@ Singleton {
         if (callback)
           callback(result);
       }
+      function cancelRun(): void {
+        _callback = null;
+        _stdin = "";
+        running = false;
+      }
 
       stderr: StdioCollector {
         id: errCollector
@@ -95,6 +94,7 @@ Singleton {
         id: outCollector
       }
 
+      onExited: exitCode => _finish(exitCode)
       onRunningChanged: if (_busy && !running && !_started)
         _finish(-1)
       onStarted: {
@@ -105,7 +105,6 @@ Singleton {
         }
         stdinEnabled = false;
       }
-      onExited: exitCode => _finish(exitCode)
     }
   }
 }

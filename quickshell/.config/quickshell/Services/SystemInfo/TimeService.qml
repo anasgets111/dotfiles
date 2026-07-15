@@ -5,9 +5,9 @@ import Quickshell
 Singleton {
   id: dateTime
 
+  readonly property string localeTimeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
   readonly property var minuteNow: minuteClock.date
   readonly property var now: clock.date
-  readonly property string localeTimeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
   property int precision: SystemClock.Seconds
   property bool use24Hour: !/\bAP\b/i.test(localeTimeFormat)
   property int weekStart: Qt.locale().firstDayOfWeek
@@ -27,7 +27,6 @@ Singleton {
       return fn(d, fmt24);
     return fn(d, fmt12);
   }
-
   function formatHM(sec) {
     if (sec <= 0)
       return "Calculating…";
@@ -39,7 +38,6 @@ Singleton {
     }
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   }
-
   function timestamp() {
     return Qt.formatTime(clock.date, use24Hour ? "HH:mm:ss" : "h:mm:ss AP");
   }
@@ -54,7 +52,6 @@ Singleton {
 
     precision: dateTime.precision
   }
-
   SystemClock {
     id: minuteClock
 

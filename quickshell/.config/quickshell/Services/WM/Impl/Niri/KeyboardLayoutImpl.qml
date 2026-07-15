@@ -26,11 +26,9 @@ Singleton {
         currentLayout = layout;
     }
   }
-
   function nextLayout(): void {
     Command.detached(["niri", "msg", "action", "switch-layout", "next"]);
   }
-
   function setLayoutByIndex(layoutIndex: int): void {
     if (layoutIndex >= 0 && layoutIndex < layouts.length)
       Command.detached(["niri", "msg", "action", "switch-layout", `${layoutIndex}`]);

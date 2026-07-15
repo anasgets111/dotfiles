@@ -10,7 +10,6 @@ Singleton {
   function exitSession(): void {
     backend?.exitSession?.();
   }
-
   function setDisplaysPowered(powered: bool): bool {
     if (!backend?.setDpms)
       return false;

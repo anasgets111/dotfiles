@@ -56,17 +56,14 @@ Singleton {
       _dndMutedStreamIds = [..._dndMutedStreamIds, stream.id];
     }
   }
-
   function _nodeById(nodes: var, id: int): var {
     return nodes.find(node => node.id === id) ?? null;
   }
-
   function _notificationHint(notification: var, key: string): var {
     const hints = notification?.hints ?? ({});
     const value = hints[key];
     return value?.value ?? value;
   }
-
   function _notificationSoundFile(pathOrUri: var): string {
     if (typeof pathOrUri !== "string" || pathOrUri.length === 0)
       return "";
@@ -80,7 +77,6 @@ Singleton {
     }
     return pathOrUri.startsWith("/") ? pathOrUri : "";
   }
-
   function _senderNotificationSoundActive(notification: var): bool {
     const senderPid = Number(_notificationHint(notification, "sender-pid"));
     if (!Number.isFinite(senderPid) || senderPid <= 0)
@@ -94,7 +90,6 @@ Singleton {
       return Number(props["application.process.id"]) === senderPid && props["media.role"] === "Notification" && !audioMuted(source) && audioVolume(source) > 0;
     });
   }
-
   function _toggleError(node: var, unavailableMessage: string, notReadyMessage: string): string {
     if (!node)
       return unavailableMessage;
@@ -104,25 +99,21 @@ Singleton {
       return unavailableMessage;
     return "";
   }
-
   function _unmuteDndStreams(): void {
     for (const stream of streams)
       if (_dndMutedStreamIds.includes(stream.id))
         stream.audio.muted = false;
     _dndMutedStreamIds = [];
   }
-
   function audioMuted(node: var): bool {
     return hasControllableAudio(node) ? !!node.audio.muted : false;
   }
-
   function audioVolume(node: var): real {
     if (!hasControllableAudio(node))
       return 0;
     const volume = node.audio.volume;
     return Number.isFinite(volume) ? Math.max(0, volume) : 0;
   }
-
   function buildAudioDevices(nodes: var, activeNode: var): var {
     return nodes.map(node => ({
           id: node.id,
@@ -131,14 +122,12 @@ Singleton {
           active: node === activeNode
         }));
   }
-
   function capSinkVolume(): void {
     if (!root.sinkControllable)
       return;
     if (root.sink.audio.volume > root.maxVolume)
       setNodeVolume(root.sink, root.maxVolume, root.maxVolume, false);
   }
-
   function deviceIconFor(node: var): string {
     if (!node)
       return "";
@@ -157,7 +146,6 @@ Singleton {
       return _deviceIconMap["headset"];
     return "";
   }
-
   function displayName(node: var): string {
     if (!node)
       return "";
@@ -174,15 +162,12 @@ Singleton {
 
     return normalizeDeviceName(name);
   }
-
   function hasControllableAudio(node: var): bool {
     return !!node?.ready && !!node?.audio;
   }
-
   function nodeProperties(node: var): var {
     return !!node?.ready ? (node.properties ?? {}) : ({});
   }
-
   function normalizeDeviceName(raw: string): string {
     if (!raw)
       return raw;
@@ -197,7 +182,6 @@ Singleton {
     cleaned = cleaned.replace(/\s+/g, " ");
     return cleaned.trim() || raw;
   }
-
   function playNotificationSound(notification: var): void {
     const suppressSound = _notificationHint(notification, "suppress-sound");
     if (suppressSound === true || String(suppressSound).toLowerCase() === "true" || _senderNotificationSoundActive(notification))
@@ -209,30 +193,25 @@ Singleton {
 
     Command.detached(["pw-play", "--media-role", "Notification", "--volume", "0.8", soundPath]);
   }
-
   function setAudioSink(id: int): void {
     const node = _nodeById(root.sinks, id);
     if (node)
       Pipewire.preferredDefaultAudioSink = node;
   }
-
   function setAudioSource(id: int): void {
     const node = _nodeById(root.sources, id);
     if (node)
       Pipewire.preferredDefaultAudioSource = node;
   }
-
   function setInputVolume(newVolume: real): void {
     setNodeVolume(root.source, newVolume, 1.0, true);
   }
-
   function setNodeMuted(node: var, mutedState: bool): bool {
     if (!hasControllableAudio(node))
       return false;
     node.audio.muted = !!mutedState;
     return true;
   }
-
   function setNodeVolume(node: var, newVolume: real, maximum: real, unmute: bool): bool {
     if (!hasControllableAudio(node) || !Number.isFinite(newVolume))
       return false;
@@ -241,23 +220,18 @@ Singleton {
     node.audio.volume = Math.max(0, Math.min(maximum, newVolume));
     return true;
   }
-
   function setStreamVolume(id: int, newVolume: real): void {
     setNodeVolume(_nodeById(root.streams, id), newVolume, 1.0, true);
   }
-
   function setVolume(newVolume: real): void {
     setNodeVolume(root.sink, newVolume, root.maxVolume, true);
   }
-
   function streamReady(id: int): bool {
     return hasControllableAudio(_nodeById(root.streams, id));
   }
-
   function streamVolume(id: int): real {
     return audioVolume(_nodeById(root.streams, id));
   }
-
   function toggleMicMute(): string {
     const error = _toggleError(root.source, "No audio source available", "Audio source is not ready");
     if (error)
@@ -266,7 +240,6 @@ Singleton {
     setNodeMuted(root.source, nextMuted);
     return nextMuted ? "Microphone muted" : "Microphone unmuted";
   }
-
   function toggleMute(): string {
     const error = _toggleError(root.sink, "No audio sink available", "Audio sink is not ready");
     if (error)
@@ -304,7 +277,6 @@ Singleton {
   PwObjectTracker {
     objects: root._trackerObjects
   }
-
   Connections {
     function onReadyChanged() {
       if (root.sinkControllable)
@@ -313,7 +285,6 @@ Singleton {
 
     target: root.sink ?? null
   }
-
   Connections {
     function onVolumeChanged() {
       root.capSinkVolume();

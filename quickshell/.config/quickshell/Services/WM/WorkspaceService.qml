@@ -21,11 +21,9 @@ Singleton {
     if (workspace)
       backend?.focusWorkspace(workspace);
   }
-
   function focusWorkspaceByIndex(workspaceIndex: int): void {
     backend?.focusWorkspaceByIndex(workspaceIndex);
   }
-
   function toggleSpecial(name: string): void {
     backend?.toggleSpecial?.(name);
   }

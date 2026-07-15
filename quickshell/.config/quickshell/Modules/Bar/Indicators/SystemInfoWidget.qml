@@ -10,9 +10,9 @@ import qs.Services.Utils
 Item {
   id: root
 
+  property bool _polling: false
   property bool active: false
   property bool expanded: false
-  property bool _polling: false
   readonly property real storageProgress: {
     let used = 0;
     let total = 0;
@@ -30,11 +30,9 @@ Item {
     const minutes = totalMinutes % 60;
     return days > 0 ? qsTr("%1d %2h").arg(days).arg(hours) : hours > 0 ? qsTr("%1h %2m").arg(hours).arg(minutes) : qsTr("%1m").arg(minutes);
   }
-
   function statusColor(progress: real, fallback: color): color {
     return progress >= 0.9 ? Theme.critical : progress >= 0.75 ? Theme.warning : fallback;
   }
-
   function syncPolling(): void {
     const shouldPoll = active;
     if (shouldPoll === _polling)
@@ -81,7 +79,6 @@ Item {
           color: expandButton.textColor
           text: qsTr("System")
         }
-
         Item {
           Layout.fillWidth: true
           Layout.preferredHeight: summaryRow.implicitHeight
@@ -93,7 +90,6 @@ Item {
             text: qsTr("live")
             visible: root.expanded
           }
-
           RowLayout {
             id: summaryRow
 
@@ -107,21 +103,18 @@ Item {
               size: "xs"
               text: qsTr("CPU %1%").arg((SystemInfoService.cpuPerc * 100).toFixed(0))
             }
-
             OText {
               bold: true
               color: root.statusColor(SystemInfoService.memPerc, Theme.powerSaveColor)
               size: "xs"
               text: qsTr("RAM %1%").arg((SystemInfoService.memPerc * 100).toFixed(0))
             }
-
             OText {
               bold: true
               color: root.statusColor(SystemInfoService.gpuPerc, Theme.warning)
               size: "xs"
               text: SystemInfoService.gpuType === "NONE" ? qsTr("GPU —") : qsTr("GPU %1%").arg((SystemInfoService.gpuPerc * 100).toFixed(0))
             }
-
             OText {
               bold: true
               color: root.statusColor(root.storageProgress, Theme.activeColor)
@@ -130,14 +123,12 @@ Item {
             }
           }
         }
-
         OText {
           color: expandButton.textColor
           text: root.expanded ? "󰅀" : "󰅂"
         }
       }
     }
-
     Item {
       Layout.fillWidth: true
       Layout.preferredHeight: root.expanded ? details.implicitHeight : 0
@@ -171,7 +162,6 @@ Item {
             secondary: SystemInfoService.cpuTemp > 0 ? `${SystemInfoService.cpuTemp.toFixed(0)}°C` : qsTr("No temperature")
             value: `${(SystemInfoService.cpuPerc * 100).toFixed(0)}%`
           }
-
           MetricTile {
             accentColor: Theme.powerSaveColor
             icon: "󰘚"
@@ -180,11 +170,9 @@ Item {
             secondary: `${Utils.fmtKib(SystemInfoService.memUsed)} / ${Utils.fmtKib(SystemInfoService.memTotal)}`
             value: `${(SystemInfoService.memPerc * 100).toFixed(0)}%`
           }
-
           GpuTile {
             Layout.columnSpan: 2
           }
-
           Repeater {
             model: SystemInfoService.storageDisks
 
@@ -198,7 +186,6 @@ Item {
             }
           }
         }
-
         RowLayout {
           Layout.fillWidth: true
           spacing: Theme.spacingSm
@@ -208,11 +195,9 @@ Item {
             size: "sm"
             text: qsTr("Uptime %1").arg(root.formatDuration(SystemInfoService.uptime))
           }
-
           Item {
             Layout.fillWidth: true
           }
-
           OText {
             color: Theme.textInactiveColor
             size: "sm"
@@ -220,67 +205,6 @@ Item {
             visible: text !== ""
           }
         }
-      }
-    }
-  }
-
-  component MetricTile: Rectangle {
-    id: tile
-
-    required property color accentColor
-    required property string icon
-    required property string label
-    required property real progress
-    required property string secondary
-    required property string value
-
-    Layout.fillWidth: true
-    Layout.preferredHeight: Theme.itemHeight * 2.2
-    border.color: Qt.alpha(tile.accentColor, 0.22)
-    border.width: Theme.borderWidthThin
-    color: Theme.bgElevatedAlt
-    radius: Theme.radiusMd
-
-    ColumnLayout {
-      anchors.fill: parent
-      anchors.margins: Theme.spacingSm
-      spacing: Theme.spacingXs
-
-      RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.spacingXs
-
-        OText {
-          color: tile.accentColor
-          text: tile.icon
-        }
-
-        OText {
-          Layout.fillWidth: true
-          bold: true
-          elide: Text.ElideRight
-          size: "sm"
-          text: tile.label
-        }
-
-        OText {
-          bold: true
-          color: root.statusColor(tile.progress, tile.accentColor)
-          text: tile.value
-        }
-      }
-
-      ProgressTrack {
-        accentColor: tile.accentColor
-        progress: tile.progress
-      }
-
-      OText {
-        Layout.fillWidth: true
-        color: Theme.textInactiveColor
-        elide: Text.ElideRight
-        size: "xs"
-        text: tile.secondary
       }
     }
   }
@@ -315,20 +239,17 @@ Item {
           color: Theme.activeColor
           text: "󰋊"
         }
-
         OText {
           Layout.fillWidth: true
           bold: true
           text: diskTile.disk.name
         }
-
         OText {
           color: Theme.textInactiveColor
           size: "sm"
           text: `${Utils.fmtKib(diskTile.disk.usedKib)} / ${Utils.fmtKib(diskTile.disk.totalKib)}`
         }
       }
-
       Repeater {
         model: diskTile.disk.partitions
 
@@ -351,13 +272,11 @@ Item {
               size: "sm"
               text: partitionDelegate.modelData.mountPoint === "/" ? qsTr("Root") : partitionDelegate.modelData.mountPoint
             }
-
             OText {
               color: Theme.textInactiveColor
               size: "xs"
               text: `${Utils.fmtKib(partitionDelegate.modelData.usedKib)} / ${Utils.fmtKib(partitionDelegate.modelData.totalKib)}`
             }
-
             OText {
               bold: true
               color: root.statusColor(partitionDelegate.modelData.percentage, Theme.textActiveColor)
@@ -365,7 +284,6 @@ Item {
               text: `${(partitionDelegate.modelData.percentage * 100).toFixed(0)}%`
             }
           }
-
           ProgressTrack {
             accentColor: Theme.activeColor
             progress: partitionDelegate.modelData.percentage
@@ -374,7 +292,6 @@ Item {
       }
     }
   }
-
   component GpuTile: Rectangle {
     id: gpuTile
 
@@ -402,7 +319,6 @@ Item {
           color: Theme.warning
           text: "󰢮"
         }
-
         OText {
           Layout.fillWidth: true
           bold: true
@@ -411,7 +327,6 @@ Item {
           text: SystemInfoService.gpuType === "NONE" ? qsTr("GPU") : qsTr("GPU · %1").arg(SystemInfoService.gpuType)
         }
       }
-
       RowLayout {
         Layout.fillWidth: true
         spacing: Theme.spacingSm
@@ -421,12 +336,10 @@ Item {
           size: "xs"
           text: qsTr("Usage")
         }
-
         ProgressTrack {
           accentColor: Theme.warning
           progress: SystemInfoService.gpuPerc
         }
-
         OText {
           Layout.preferredWidth: Theme.itemWidth
           bold: true
@@ -436,7 +349,6 @@ Item {
           text: SystemInfoService.gpuType === "NONE" ? "—" : `${(SystemInfoService.gpuPerc * 100).toFixed(0)}%`
         }
       }
-
       RowLayout {
         Layout.fillWidth: true
         spacing: Theme.spacingSm
@@ -447,12 +359,10 @@ Item {
           size: "xs"
           text: qsTr("VRAM")
         }
-
         ProgressTrack {
           accentColor: Theme.onHoverColor
           progress: gpuTile.memoryProgress
         }
-
         OText {
           bold: true
           color: root.statusColor(gpuTile.memoryProgress, Theme.onHoverColor)
@@ -461,7 +371,6 @@ Item {
           text: SystemInfoService.gpuMemTotalKib > 0 ? `${Utils.fmtKib(SystemInfoService.gpuMemUsedKib)} · ${(gpuTile.memoryProgress * 100).toFixed(0)}%` : "—"
         }
       }
-
       OText {
         color: SystemInfoService.gpuTemp >= 85 ? Theme.critical : SystemInfoService.gpuTemp >= 70 ? Theme.warning : Theme.textInactiveColor
         size: "xs"
@@ -470,7 +379,62 @@ Item {
       }
     }
   }
+  component MetricTile: Rectangle {
+    id: tile
 
+    required property color accentColor
+    required property string icon
+    required property string label
+    required property real progress
+    required property string secondary
+    required property string value
+
+    Layout.fillWidth: true
+    Layout.preferredHeight: Theme.itemHeight * 2.2
+    border.color: Qt.alpha(tile.accentColor, 0.22)
+    border.width: Theme.borderWidthThin
+    color: Theme.bgElevatedAlt
+    radius: Theme.radiusMd
+
+    ColumnLayout {
+      anchors.fill: parent
+      anchors.margins: Theme.spacingSm
+      spacing: Theme.spacingXs
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingXs
+
+        OText {
+          color: tile.accentColor
+          text: tile.icon
+        }
+        OText {
+          Layout.fillWidth: true
+          bold: true
+          elide: Text.ElideRight
+          size: "sm"
+          text: tile.label
+        }
+        OText {
+          bold: true
+          color: root.statusColor(tile.progress, tile.accentColor)
+          text: tile.value
+        }
+      }
+      ProgressTrack {
+        accentColor: tile.accentColor
+        progress: tile.progress
+      }
+      OText {
+        Layout.fillWidth: true
+        color: Theme.textInactiveColor
+        elide: Text.ElideRight
+        size: "xs"
+        text: tile.secondary
+      }
+    }
+  }
   component ProgressTrack: Rectangle {
     id: track
 

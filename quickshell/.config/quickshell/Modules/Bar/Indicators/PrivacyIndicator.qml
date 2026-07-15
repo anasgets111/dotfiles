@@ -22,7 +22,6 @@ RowLayout {
 
     onClicked: AudioService.toggleMicMute()
   }
-
   IconButton {
     Layout.preferredHeight: Theme.itemHeight
     Layout.preferredWidth: Theme.itemHeight
@@ -32,7 +31,6 @@ RowLayout {
     tooltipText: qsTr("Camera in use")
     visible: PrivacyService.cameraActive
   }
-
   IconButton {
     Layout.preferredHeight: Theme.itemHeight
     Layout.preferredWidth: Theme.itemHeight

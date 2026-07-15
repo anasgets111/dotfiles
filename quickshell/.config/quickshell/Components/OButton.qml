@@ -93,7 +93,6 @@ Rectangle {
       text: root.icon
       visible: root.icon !== ""
     }
-
     OText {
       bold: true
       color: root.textColor
@@ -110,7 +109,6 @@ Rectangle {
     anchors.fill: parent
     visible: !simpleContent.visible
   }
-
   MouseArea {
     id: mouseArea
 

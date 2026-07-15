@@ -23,7 +23,6 @@ OPopup {
       y: availableHeight > 0 ? Math.max(0, Math.min(1, card.y / availableHeight)) : 0
     };
   }
-
   function syncCardToSavedPosition(): void {
     if (dragArea.drag.active)
       return;
@@ -33,9 +32,9 @@ OPopup {
     card.y = availableHeight > 0 ? Math.round(InputDisplayService.positionYRatio * availableHeight) : 0;
   }
 
+  maskItem: root.shouldStayVisible ? card : null
   popupNamespace: "obelisk-input-display-overlay"
   visible: true
-  maskItem: root.shouldStayVisible ? card : null
 
   Component.onCompleted: Qt.callLater(root.syncCardToSavedPosition)
   onHeightChanged: Qt.callLater(root.syncCardToSavedPosition)
@@ -76,13 +75,11 @@ OPopup {
     HoverHandler {
       id: cardHover
     }
-
     Binding {
       property: "overlayHovered"
       target: InputDisplayService
       value: cardHover.hovered
     }
-
     RectangularShadow {
       anchors.fill: parent
       blur: Theme.shadowBlurMd
@@ -91,7 +88,6 @@ OPopup {
       radius: parent.radius
       z: -1
     }
-
     ColumnLayout {
       id: content
 
@@ -128,7 +124,6 @@ OPopup {
             InputDisplayService.persistPositionRatios(ratios.x, ratios.y);
           }
         }
-
         Row {
           anchors.centerIn: parent
           spacing: Theme.spacingXs
@@ -197,7 +192,6 @@ OPopup {
               color: Theme.activeMedium
               height: Theme.borderWidthMedium
             }
-
             OText {
               id: keyLabel
 

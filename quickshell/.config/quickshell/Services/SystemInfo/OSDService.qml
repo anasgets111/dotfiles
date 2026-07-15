@@ -33,9 +33,7 @@ Singleton {
       volumeOutput: "volume-output",
       wifi: "wifi"
     })
-
   property bool visible: false
-
 
   function show(type: string, value: var, icon: string, label: string, debounce = false, maxValue = 100) {
     const entry = {
@@ -44,26 +42,22 @@ Singleton {
       icon: icon,
       label: label,
       maxValue: maxValue,
-      priority: _.config[type]?.prio ?? 99
+      priority: osdState.config[type]?.prio ?? 99
     };
 
     if (debounce) {
-      _.debounceEntry = entry;
+      osdState.debounceEntry = entry;
       debounceTimer.restart();
     } else {
-      _.push(entry);
+      osdState.push(entry);
     }
   }
-
   function showToggle(type: string, enabled: bool, iconOn: string, iconOff: string, label: string) {
     show(type, null, enabled ? iconOn : iconOff, `${label} ${enabled ? "On" : "Off"}`);
   }
 
   QtObject {
-    id: _
-
-    property bool wasCharging: false
-    property bool wasPendingCharge: false
+    id: osdState
 
     readonly property var config: ({
         [root.types.battery]: {
@@ -142,16 +136,17 @@ Singleton {
           suppress: []
         }
       })
-
     property var current: null
     property var debounceEntry: null
     readonly property int debounceMs: 150
     property bool initialized: false
     property var pending: null
     readonly property int timeoutMs: 2000
+    property bool wasCharging: false
+    property bool wasPendingCharge: false
 
     function apply(entry) {
-      _.current = entry;
+      osdState.current = entry;
       root.osdType = entry.type;
       root.osdValue = entry.value;
       root.osdIcon = entry.icon;
@@ -160,102 +155,92 @@ Singleton {
       root.visible = true;
       hideTimer.restart();
 
-      if (_.pending && _.config[entry.type]?.suppress.includes(_.pending.type)) {
-        _.pending = null;
+      if (osdState.pending && osdState.config[entry.type]?.suppress.includes(osdState.pending.type)) {
+        osdState.pending = null;
       }
     }
-
     function close() {
       if (!root.visible)
         return;
       root.visible = false;
       hideTimer.stop();
-      _.current = null;
+      osdState.current = null;
 
-      if (_.pending) {
-        const next = _.pending;
-        _.pending = null;
-        _.apply(next);
+      if (osdState.pending) {
+        const next = osdState.pending;
+        osdState.pending = null;
+        osdState.apply(next);
       }
     }
-
     function push(entry) {
-      if (!_.initialized)
+      if (!osdState.initialized)
         return;
 
-      if (_.current && _.config[_.current.type]?.suppress.includes(entry.type))
+      if (osdState.current && osdState.config[osdState.current.type]?.suppress.includes(entry.type))
         return;
 
-      const sameGroup = _.config[entry.type]?.group !== "" && _.config[entry.type]?.group === _.config[_.current?.type]?.group;
-      if (_.current && (_.current.type === entry.type || sameGroup)) {
-        _.apply(entry);
+      const sameGroup = osdState.config[entry.type]?.group !== "" && osdState.config[entry.type]?.group === osdState.config[osdState.current?.type]?.group;
+      if (osdState.current && (osdState.current.type === entry.type || sameGroup)) {
+        osdState.apply(entry);
         return;
       }
 
-      if (_.current && entry.priority < _.current.priority) {
-        _.pending = _.current; // Save current for later
-        _.apply(entry);
+      if (osdState.current && entry.priority < osdState.current.priority) {
+        osdState.pending = osdState.current; // Save current for later
+        osdState.apply(entry);
         return;
       }
 
       if (!root.visible) {
-        _.apply(entry);
+        osdState.apply(entry);
         return;
       }
 
-      if (!_.pending || entry.priority <= _.pending.priority) {
-        _.pending = entry;
+      if (!osdState.pending || entry.priority <= osdState.pending.priority) {
+        osdState.pending = entry;
       }
     }
   }
-
-
   Timer {
     id: hideTimer
 
-    interval: _.timeoutMs
+    interval: osdState.timeoutMs
 
-    onTriggered: _.close()
+    onTriggered: osdState.close()
   }
-
   Timer {
     id: debounceTimer
 
-    interval: _.debounceMs
+    interval: osdState.debounceMs
 
     onTriggered: {
-      if (_.debounceEntry) {
-        _.push(_.debounceEntry);
-        _.debounceEntry = null;
+      if (osdState.debounceEntry) {
+        osdState.push(osdState.debounceEntry);
+        osdState.debounceEntry = null;
       }
     }
   }
-
   Timer {
     interval: 1000
     running: true
 
     onTriggered: {
-      _.initialized = true;
-      _.wasCharging = BatteryService.isCharging;
-      _.wasPendingCharge = BatteryService.isPendingCharge;
+      osdState.initialized = true;
+      osdState.wasCharging = BatteryService.isCharging;
+      osdState.wasPendingCharge = BatteryService.isPendingCharge;
     }
   }
-
-
   Connections {
     function onMutedChanged() {
       const vol = Math.round(AudioService.volume * 100);
       root.show(root.types.volumeOutput, AudioService.muted ? 0 : vol, AudioService.muted ? "󰖁" : (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿"), AudioService.muted ? "Muted" : `${vol}%`, false, Math.round(AudioService.maxVolume * 100));
     }
-
     function onSinkChanged() {
       const deviceName = AudioService.sinkName;
       if (!deviceName)
         return;
       root.show(root.types.audioDevice, null, AudioService.sinkIcon || "󰓃", deviceName);
     }
-
     function onVolumeChanged() {
       const vol = Math.round(AudioService.volume * 100);
       root.show(root.types.volumeOutput, vol, (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿"), `${vol}%`, false, Math.round(AudioService.maxVolume * 100));
@@ -263,7 +248,6 @@ Singleton {
 
     target: AudioService
   }
-
   Connections {
     function onMicMutedChanged() {
       const muted = AudioService.micMuted;
@@ -272,19 +256,16 @@ Singleton {
 
     target: AudioService
   }
-
   Connections {
     function onNetworkingEnabledChanged() {
       root.showToggle(root.types.networking, NetworkService.networkingEnabled, "󰈀", "󰪎", "Networking");
     }
-
     function onWifiRadioEnabledChanged() {
       root.showToggle(root.types.wifi, NetworkService.wifiRadioEnabled, "󰖩", "󰖪", "WiFi");
     }
 
     target: NetworkService
   }
-
   Connections {
     function onEnabledChanged() {
       root.showToggle(root.types.bluetooth, BluetoothService.enabled, "󰂯", "󰂲", "Bluetooth");
@@ -292,13 +273,12 @@ Singleton {
 
     target: BluetoothService
   }
-
   Connections {
     function onDeviceStateChanged() {
-      const wasCharging = _.wasCharging;
-      const wasPendingCharge = _.wasPendingCharge;
-      _.wasCharging = BatteryService.isCharging;
-      _.wasPendingCharge = BatteryService.isPendingCharge;
+      const wasCharging = osdState.wasCharging;
+      const wasPendingCharge = osdState.wasPendingCharge;
+      osdState.wasCharging = BatteryService.isCharging;
+      osdState.wasPendingCharge = BatteryService.isPendingCharge;
 
       if (!BatteryService.isLaptopBattery || !BatteryService.device?.ready || !BatteryService.isACPowered)
         return;
@@ -308,7 +288,6 @@ Singleton {
       else if (wasCharging && !BatteryService.isCharging && (BatteryService.isFullyCharged || BatteryService.percentage >= 100))
         root.show(root.types.battery, null, "󰚥", "Fully Charged");
     }
-
     function onIsACPoweredChanged() {
       if (BatteryService.isLaptopBattery && BatteryService.device?.ready)
         root.show(root.types.battery, null, BatteryService.isACPowered ? "󰂄" : "󰂃", BatteryService.isACPowered ? "Charger Connected" : "Charger Disconnected");
@@ -316,7 +295,6 @@ Singleton {
 
     target: BatteryService
   }
-
   Connections {
     function onPercentageChanged() {
       if (!BrightnessService.ready)
@@ -327,7 +305,6 @@ Singleton {
 
     target: BrightnessService
   }
-
   Connections {
     function onBrightnessChanged() {
       if (KeyboardBacklightService.ready)
@@ -336,7 +313,6 @@ Singleton {
 
     target: KeyboardBacklightService
   }
-
   Connections {
     function onDoNotDisturbChanged() {
       root.showToggle(root.types.dnd, NotificationService.doNotDisturb, "󰂛", "󰂚", "Do Not Disturb");
@@ -344,40 +320,32 @@ Singleton {
 
     target: NotificationService
   }
-
   Connections {
     function onCapsOnChanged() {
       root.showToggle(root.types.capsLock, KeyboardLayoutService.capsOn, "󰘲", "󰘲", "Caps Lock");
     }
-
     function onCurrentLayoutChanged() {
       root.show(root.types.keyboardLayout, null, "󰌌", `Layout: ${KeyboardLayoutService.currentLayout || "??"}`);
     }
-
     function onNumOnChanged() {
       root.showToggle(root.types.numLock, KeyboardLayoutService.numOn, "󰎠", "󰎠", "Num Lock");
     }
-
     function onScrollOnChanged() {
       root.showToggle(root.types.scrollLock, KeyboardLayoutService.scrollOn, "󰌐", "󰌐", "Scroll Lock");
     }
 
     target: KeyboardLayoutService
   }
-
   Connections {
     function onRecordingPaused(_) {
       root.show(root.types.recording, null, "󰏤", "Recording Paused");
     }
-
     function onRecordingResumed(_) {
       root.show(root.types.recording, null, "󰐊", "Recording Resumed");
     }
-
     function onRecordingStarted(_) {
       root.show(root.types.recording, null, "󰑊", "Recording Started");
     }
-
     function onRecordingStopped(_) {
       root.show(root.types.recording, null, "󰓛", "Recording Stopped");
     }

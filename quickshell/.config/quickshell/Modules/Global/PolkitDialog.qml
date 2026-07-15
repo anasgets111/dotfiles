@@ -38,7 +38,6 @@ PanelWindow {
     right: true
     top: true
   }
-
   PolkitAgent {
     id: agent
 
@@ -47,7 +46,6 @@ PanelWindow {
       passwordField.text = "";
     }
   }
-
   Rectangle {
     id: background
 
@@ -74,7 +72,6 @@ PanelWindow {
           Layout.preferredWidth: Theme.panelHeight
           source: Utils.resolveIconSource(window.flow?.iconName ?? "", "dialog-password")
         }
-
         ColumnLayout {
           spacing: Theme.spacingXs
 
@@ -84,7 +81,6 @@ PanelWindow {
             text: window.flow?.message ?? ""
             wrapMode: Text.Wrap
           }
-
           OText {
             Layout.fillWidth: true
             elide: Text.ElideMiddle
@@ -94,7 +90,6 @@ PanelWindow {
           }
         }
       }
-
       ColumnLayout {
         id: inputArea
 
@@ -109,7 +104,6 @@ PanelWindow {
           text: window.flow?.inputPrompt ?? ""
           visible: text !== ""
         }
-
         OInput {
           id: passwordField
 
@@ -121,14 +115,12 @@ PanelWindow {
           Keys.onEscapePressed: window.flow?.cancelAuthenticationRequest()
           onInputAccepted: window.submit()
         }
-
         OText {
           color: Theme.critical
           text: qsTr("Authentication Failed")
           visible: window.flow?.failed ?? false
         }
       }
-
       RowLayout {
         Layout.alignment: Qt.AlignRight
         spacing: Theme.spacingSm
@@ -139,7 +131,6 @@ PanelWindow {
 
           onClicked: window.flow?.cancelAuthenticationRequest()
         }
-
         OButton {
           isEnabled: !(window.flow?.isResponseRequired ?? false) || passwordField.text.length > 0
           text: qsTr("Authenticate")

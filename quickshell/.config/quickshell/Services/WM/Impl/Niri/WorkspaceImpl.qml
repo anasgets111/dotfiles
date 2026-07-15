@@ -42,14 +42,12 @@ Singleton {
     else
       Qt.callLater(rebuildWorkspaceList);
   }
-
   function _indexById(items: var): var {
     const indexedItems = {};
     for (const item of Array.isArray(items) ? items : [])
       indexedItems[item.id] = item;
     return indexedItems;
   }
-
   function _updateWorkspaces(rawWorkspaces: var): void {
     const sourceWorkspaces = Array.isArray(rawWorkspaces) ? rawWorkspaces : [];
     workspacesById = _indexById(sourceWorkspaces);
@@ -60,15 +58,12 @@ Singleton {
     else
       Qt.callLater(rebuildWorkspaceList);
   }
-
   function _windowKey(appId: string, title: string): string {
     return JSON.stringify([appId ?? "", title ?? ""]);
   }
-
   function focusWorkspace(workspace: var): void {
     focusWorkspaceById(workspace?.id ?? null);
   }
-
   function focusWorkspaceById(workspaceId: var): void {
     if (workspaceId === null || workspaceId === undefined)
       return;
@@ -82,7 +77,6 @@ Singleton {
       }
     });
   }
-
   function focusWorkspaceByIndex(workspaceIndex: int): void {
     const workspace = workspaces.find(candidate => candidate?.idx === workspaceIndex);
     if (!workspace) {
@@ -91,7 +85,6 @@ Singleton {
     }
     focusWorkspaceById(workspace.id);
   }
-
   function handleEvent(line: string): void {
     if (!line)
       return;
@@ -119,7 +112,6 @@ Singleton {
       Logger.warn("WorkspaceImpl(Niri)", `Parse error: ${error}`);
     }
   }
-
   function rebuildWorkspaceList(): void {
     const populatedWorkspaceIds = new Set(windows.filter(window => window.workspace_id !== null && window.workspace_id !== undefined).map(window => window.workspace_id));
 
@@ -135,7 +127,6 @@ Singleton {
     const activeWorkspaceIds = new Set(Object.values(workspacesById).filter(workspace => workspace.is_active).map(workspace => workspace.id));
     visibleWindowKeys = new Set(windows.filter(window => activeWorkspaceIds.has(window.workspace_id)).map(window => _windowKey(window.app_id, window.title)));
   }
-
   function sendAction(request: var): void {
     if (requestSocket.connected) {
       requestSocket.write(JSON.stringify(request) + "\n");
@@ -151,7 +142,6 @@ Singleton {
 
     onLineRead: line => root.handleEvent(line)
   }
-
   NiriSocket {
     id: requestSocket
 

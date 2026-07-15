@@ -27,7 +27,6 @@ SearchGridPanel {
     const paths = (WallpaperService.monitors ?? []).map(m => m?.name ? WallpaperService.wallpaperPath(m.name) : "").filter(Boolean);
     return paths.length > 0 && paths.length === (WallpaperService.monitors ?? []).length && paths.every(path => path === paths[0]) ? paths[0] : "";
   }
-
   readonly property var fillModeOptions: (WallpaperService?.availableModes ?? []).map(m => ({
         label: {
           fill: qsTr("Fill"),
@@ -39,6 +38,21 @@ SearchGridPanel {
         value: m
       }))
   property bool loadingFromService: false
+  readonly property var monitorOptions: {
+    const list = [
+      {
+        label: qsTr("All"),
+        value: "all"
+      }
+    ];
+    for (const m of WallpaperService?.monitors ?? [])
+      if (m?.name)
+        list.push({
+          label: m.name,
+          value: m.name
+        });
+    return list;
+  }
   readonly property bool pendingChanges: {
     if (!WallpaperService?.ready)
       return false;
@@ -56,21 +70,6 @@ SearchGridPanel {
         return true;
     }
     return false;
-  }
-  readonly property var monitorOptions: {
-    const list = [
-      {
-        label: qsTr("All"),
-        value: "all"
-      }
-    ];
-    for (const m of WallpaperService?.monitors ?? [])
-      if (m?.name)
-        list.push({
-          label: m.name,
-          value: m.name
-        });
-    return list;
   }
   property string selectedMonitor: "all"
   property var stagedModes: ({})
@@ -119,7 +118,6 @@ SearchGridPanel {
     loadFromService(selectedMonitor);
     applyRequested();
   }
-
   function loadFromService(preferredMonitor) {
     loadingFromService = true;
     const monitors = WallpaperService?.monitors ?? [];
@@ -149,7 +147,6 @@ SearchGridPanel {
     updateSelection();
     loadingFromService = false;
   }
-
   function stageFillMode(mode) {
     if (selectedMonitor === "all") {
       const monitorNames = monitorOptions.map(option => option.value).filter(value => value !== "all");
@@ -171,7 +168,11 @@ SearchGridPanel {
     }
     stagedModes = modes;
   }
-
+  function stageTransition(transition) {
+    if (stagedTransition === transition)
+      return;
+    stagedTransition = transition;
+  }
   function stageWallpaper(entry) {
     if (!entry?.path)
       return;
@@ -183,13 +184,6 @@ SearchGridPanel {
     });
     updateSelection();
   }
-
-  function stageTransition(transition) {
-    if (stagedTransition === transition)
-      return;
-    stagedTransition = transition;
-  }
-
   function updateSelection() {
     const items = WallpaperService?.wallpaperFiles ?? [];
     const expected = stagedWallpapers[selectedMonitor] || stagedWallpapers.all || "";
@@ -227,11 +221,9 @@ SearchGridPanel {
         opacity: picker.pendingChanges ? 0.9 : 0.65
         text: picker.pendingChanges ? qsTr("Changes are ready to apply") : qsTr("No pending changes")
       }
-
       Item {
         Layout.fillWidth: true
       }
-
       OButton {
         Layout.preferredWidth: 110
         size: "lg"
@@ -240,7 +232,6 @@ SearchGridPanel {
 
         onClicked: picker.cancelRequested()
       }
-
       OButton {
         Layout.preferredWidth: 126
         isEnabled: picker.pendingChanges
@@ -251,7 +242,6 @@ SearchGridPanel {
       }
     }
   ]
-
   headerContent: [
     ColumnLayout {
       spacing: Theme.spacingMd
@@ -274,7 +264,6 @@ SearchGridPanel {
             text: "󰸉"
           }
         }
-
         ColumnLayout {
           spacing: Theme.spacingXs
 
@@ -284,7 +273,6 @@ SearchGridPanel {
             font.pixelSize: Theme.fontXxl
             text: qsTr("Wallpaper")
           }
-
           OText {
             color: Theme.textContrast(Theme.bgColor)
             font.pixelSize: Theme.fontSm
@@ -292,11 +280,9 @@ SearchGridPanel {
             text: picker.selectedMonitor === "all" ? qsTr("Choose a wallpaper for all displays") : qsTr("Choose a wallpaper for %1").arg(picker.selectedMonitor)
           }
         }
-
         Item {
           Layout.fillWidth: true
         }
-
         Rectangle {
           border.color: Theme.borderSubtle
           border.width: Theme.borderWidthThin
@@ -333,7 +319,6 @@ SearchGridPanel {
           }
         }
       }
-
       Rectangle {
         Layout.fillWidth: true
         border.color: Theme.borderSubtle
@@ -359,7 +344,6 @@ SearchGridPanel {
               opacity: 0.75
               text: "󰉋  " + qsTr("Library")
             }
-
             OInput {
               Layout.fillWidth: true
               size: "md"
@@ -369,7 +353,6 @@ SearchGridPanel {
                 WallpaperService.setWallpaperFolder(text)
             }
           }
-
           RowLayout {
             Layout.fillWidth: true
             spacing: Theme.spacingMd
@@ -380,7 +363,6 @@ SearchGridPanel {
               opacity: 0.75
               text: qsTr("Display mode")
             }
-
             OComboBox {
               Layout.preferredWidth: 110
               currentIndex: picker.activeFillModeIndex
@@ -390,14 +372,12 @@ SearchGridPanel {
 
               onActivated: index => picker.stageFillMode(picker.fillModeOptions[index]?.value ?? "fill")
             }
-
             OText {
               color: Theme.textContrast(Theme.bgElevated)
               font.pixelSize: Theme.fontSm
               opacity: 0.75
               text: qsTr("Transition")
             }
-
             OComboBox {
               Layout.preferredWidth: 120
               currentIndex: picker.activeTransitionIndex
@@ -407,18 +387,15 @@ SearchGridPanel {
 
               onActivated: index => picker.stageTransition(picker.transitionOptions[index]?.value ?? "disc")
             }
-
             Item {
               Layout.fillWidth: true
             }
-
             OText {
               color: Theme.textContrast(Theme.bgElevated)
               font.pixelSize: Theme.fontSm
               opacity: 0.75
               text: qsTr("Theme")
             }
-
             OComboBox {
               Layout.preferredWidth: 150
               currentIndex: Math.max(0, picker.themeOptions.findIndex(o => o.value === (Settings?.data?.themeName ?? "")))
@@ -428,14 +405,12 @@ SearchGridPanel {
 
               onActivated: index => Settings?.setThemeName(picker.themeOptions[index]?.value ?? "")
             }
-
             OText {
               color: Theme.textContrast(Theme.bgElevated)
               font.pixelSize: Theme.fontSm
               opacity: 0.75
               text: qsTr("Dark")
             }
-
             OToggle {
               checked: (Settings?.data?.themeMode ?? "dark") === "dark"
               size: "lg"
@@ -510,7 +485,6 @@ SearchGridPanel {
           margins: -3
         }
       }
-
       ClippingRectangle {
         id: card
 
@@ -521,7 +495,6 @@ SearchGridPanel {
           fill: parent
           margins: 5
         }
-
         Image {
           anchors.fill: parent
           asynchronous: true
@@ -542,7 +515,6 @@ SearchGridPanel {
             }
           }
         }
-
         Rectangle {
           color: Theme.activeColor
           height: 20
@@ -556,7 +528,6 @@ SearchGridPanel {
             top: parent.top
             topMargin: 8
           }
-
           OText {
             anchors.centerIn: parent
             color: Theme.textContrast(parent.color)
@@ -583,7 +554,6 @@ SearchGridPanel {
             left: parent.left
             right: parent.right
           }
-
           OText {
             color: Theme.textContrast(parent.color)
             elide: Text.ElideRight
@@ -602,7 +572,6 @@ SearchGridPanel {
           }
         }
       }
-
       MouseArea {
         id: mouse
 

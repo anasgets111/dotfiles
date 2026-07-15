@@ -23,7 +23,6 @@ Text {
         "bold": Font.Bold
       })[weight] ?? Font.Normal;
   }
-
   property bool accent: false
   property bool bold: false
   property bool muted: false
@@ -39,5 +38,6 @@ Text {
   font.weight: _computedWeight
   verticalAlignment: Text.AlignVCenter
 
-  onUseActiveColorChanged: if (!useActiveColor) muted = true
+  onUseActiveColorChanged: if (!useActiveColor)
+    muted = true
 }

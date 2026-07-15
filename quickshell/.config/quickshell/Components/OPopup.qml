@@ -11,21 +11,21 @@ import Quickshell.Wayland
 PanelWindow {
   id: root
 
+  // Exclusive keyboard focus is held while any caller has claimed it; informative
+  // popups simply never claim, so they rest at None.
+  property int keyboardFocusCount: 0
+  // Geometry that forms the input/mask region — the Card. Leave null to make the
+  // surface fully click-through (e.g. while a Card fades out).
+  property Item maskItem: null
+
   // The screen this surface renders on (passed through to PanelWindow.screen).
   required property var modelData
   // Base layer-shell namespace; the screen name is appended per surface.
   property string popupNamespace: ""
-  // Geometry that forms the input/mask region — the Card. Leave null to make the
-  // surface fully click-through (e.g. while a Card fades out).
-  property Item maskItem: null
-  // Exclusive keyboard focus is held while any caller has claimed it; informative
-  // popups simply never claim, so they rest at None.
-  property int keyboardFocusCount: 0
 
   function claimKeyboardFocus(): void {
     root.keyboardFocusCount++;
   }
-
   function releaseKeyboardFocus(): void {
     root.keyboardFocusCount = Math.max(0, root.keyboardFocusCount - 1);
   }

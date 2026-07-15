@@ -43,13 +43,11 @@ Singleton {
     if (isStateLoaded)
       stateFileView.writeAdapter();
   }
-
   function setThemeMode(mode: string): void {
     const validMode = mode === "light" ? "light" : "dark";
     if (root.data?.themeMode !== validMode)
       root.data.themeMode = validMode;
   }
-
   function setThemeName(name: string): void {
     if (!name || root.data?.themeName === name)
       return;
@@ -113,7 +111,6 @@ Singleton {
       root.availableThemes = themes;
     }
   }
-
   JsonAdapter {
     id: settingsAdapter
 
@@ -152,7 +149,6 @@ Singleton {
       property string placeName: "Cairo, Egypt"
     }
   }
-
   JsonAdapter {
     id: cacheAdapter
 
@@ -183,7 +179,6 @@ Singleton {
 
     onTriggered: settingsFileView.writeAdapter()
   }
-
   FileView {
     id: settingsFileView
 
@@ -216,7 +211,6 @@ Singleton {
 
     onTriggered: stateFileView.writeAdapter()
   }
-
   FileView {
     id: stateFileView
 

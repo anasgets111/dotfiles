@@ -64,23 +64,19 @@ Singleton {
       workspaces: layout.workspaces
     };
   }
-
   function focusWorkspace(workspace: var): void {
     if ((workspace?.idx ?? 0) > 0)
       focusWorkspaceByIndex(workspace.idx);
   }
-
   function focusWorkspaceByIndex(workspaceIndex: int): void {
     if (workspaceIndex > 0)
       Hyprland.dispatch(`hl.dsp.focus({ workspace = ${workspaceIndex} })`);
   }
-
   function refresh(): void {
     Hyprland.refreshMonitors();
     Hyprland.refreshWorkspaces();
     _revision++;
   }
-
   function toggleSpecial(name: string): void {
     if (name)
       Hyprland.dispatch(`hl.dsp.workspace.toggle_special(${JSON.stringify(name)})`);
@@ -99,7 +95,6 @@ Singleton {
 
     target: Quickshell
   }
-
   Connections {
     function onRawEvent(event: var): void {
       if (root._structuralEvents.includes(event.name))

@@ -35,7 +35,6 @@ Item {
     active = false;
     dismissed();
   }
-
   function formatDuration(value: real): string {
     const totalSeconds = Math.max(0, Math.round((Number(value) || 0) * 60));
     if (totalSeconds === 0)
@@ -46,7 +45,6 @@ Item {
       return qsTr("%1 min %2 sec").arg(minutes).arg(seconds);
     return minutes > 0 ? qsTr("%1 min").arg(minutes) : qsTr("%1 sec").arg(seconds);
   }
-
   function open(): void {
     active = true;
   }
@@ -63,7 +61,6 @@ Item {
     color: Theme.bgOverlay
     opacity: 0.88
   }
-
   MouseArea {
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     anchors.fill: parent
@@ -78,7 +75,6 @@ Item {
       root.close();
     }
   }
-
   Rectangle {
     id: panel
 
@@ -136,7 +132,6 @@ Item {
               text: "󰾪"
             }
           }
-
           ColumnLayout {
             spacing: Theme.spacingXs
 
@@ -145,25 +140,21 @@ Item {
               font.pixelSize: Theme.fontXxl
               text: qsTr("Idle & Power")
             }
-
             OText {
               color: Theme.textInactiveColor
               font.pixelSize: Theme.fontMd
               text: root.idleEnabled ? qsTr("%1 automatic actions enabled").arg(root.enabledActionCount) : qsTr("Automatic actions are paused")
             }
           }
-
           Item {
             Layout.fillWidth: true
           }
-
           OText {
             Layout.alignment: Qt.AlignVCenter
             color: root.idleEnabled ? Theme.activeColor : Theme.textInactiveColor
             font.pixelSize: Theme.fontSm
             text: qsTr("Idle Service")
           }
-
           OToggle {
             Layout.alignment: Qt.AlignVCenter
             checked: root.idleEnabled
@@ -171,7 +162,6 @@ Item {
 
             onToggled: checked => IdleService.setIdleEnabled(checked)
           }
-
           IconButton {
             Layout.alignment: Qt.AlignVCenter
             colorBg: Theme.withOpacity(Theme.bgColor, 0.5)
@@ -183,13 +173,11 @@ Item {
           }
         }
       }
-
       Rectangle {
         Layout.fillWidth: true
         color: Theme.borderSubtle
         implicitHeight: Theme.borderWidthThin
       }
-
       ScrollView {
         id: scrollView
 
@@ -206,11 +194,9 @@ Item {
           Item {
             Layout.preferredHeight: Theme.spacingSm
           }
-
           FlowSummary {
             Layout.fillWidth: true
           }
-
           SettingsSection {
             Layout.fillWidth: true
             description: qsTr("Choose what happens when the session is inactive.")
@@ -233,7 +219,6 @@ Item {
                 IdleService.setLockEnabled(checked);
               }
             }
-
             SettingRow {
               checked: root.displayPowerOffEnabled
               description: qsTr("Power down displays until activity resumes.")
@@ -250,7 +235,6 @@ Item {
                 IdleService.setDisplayPowerOffEnabled(checked);
               }
             }
-
             SettingRow {
               checked: root.suspendEnabled
               description: qsTr("Suspend the device to reduce power use.")
@@ -269,7 +253,6 @@ Item {
               }
             }
           }
-
           RowLayout {
             Layout.fillWidth: true
             spacing: Theme.spacingLg
@@ -295,7 +278,6 @@ Item {
                   font.pixelSize: Theme.fontLg
                   text: qsTr("Action order")
                 }
-
                 RowLayout {
                   Layout.fillWidth: true
                   spacing: Theme.spacingXs
@@ -309,7 +291,6 @@ Item {
 
                     onClicked: IdleService.setLockAfterDisplayPowerOff(false)
                   }
-
                   OButton {
                     Layout.fillWidth: true
                     bgColor: root.lockAfterDisplayPowerOff ? Theme.activeColor : Theme.withOpacity(Theme.bgColor, 0.55)
@@ -321,7 +302,6 @@ Item {
                   }
                 }
               }
-
               Rectangle {
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.spacingLg
@@ -329,7 +309,6 @@ Item {
                 implicitHeight: Theme.borderWidthThin
                 opacity: 0.4
               }
-
               SettingRow {
                 checked: IdleService.respectInhibitorsEnabled
                 description: qsTr("Honor application wake requests.")
@@ -339,7 +318,6 @@ Item {
 
                 onToggled: checked => IdleService.setRespectInhibitors(checked)
               }
-
               SettingRow {
                 checked: IdleService.videoAutoInhibitEnabled
                 description: qsTr("Stay awake during active media.")
@@ -351,7 +329,6 @@ Item {
                 onToggled: checked => IdleService.setVideoAutoInhibit(checked)
               }
             }
-
             SettingsSection {
               Layout.alignment: Qt.AlignTop
               Layout.fillWidth: true
@@ -365,7 +342,6 @@ Item {
                 text: root.inputDisplayStatusText
                 visible: !root.inputDisplayBackendReady
               }
-
               SettingRow {
                 checked: InputDisplayService.enabled
                 description: qsTr("Show input events on screen.")
@@ -375,7 +351,6 @@ Item {
 
                 onToggled: checked => InputDisplayService.setEnabled(checked)
               }
-
               SettingRow {
                 checked: InputDisplayService.showPrintableKeys
                 description: qsTr("Include letters and punctuation.")
@@ -389,7 +364,6 @@ Item {
               }
             }
           }
-
           Item {
             Layout.preferredHeight: Theme.spacingMd
           }
@@ -418,28 +392,25 @@ Item {
         font.pixelSize: Theme.fontLg
         text: root.idleEnabled ? "󰐊" : "󰏤"
       }
-
       OText {
         bold: true
         color: root.idleEnabled ? Theme.textActiveColor : Theme.textInactiveColor
         font.pixelSize: Theme.fontSm
         text: root.idleEnabled ? qsTr("Current flow") : qsTr("Automation paused")
       }
-
       Item {
         Layout.fillWidth: true
       }
-
       Repeater {
         model: root.flowSteps
 
         delegate: RowLayout {
           required property int index
-          required property var modelData
           readonly property bool isDisplay: modelData === "displayPowerOff"
           readonly property bool isLock: modelData === "lock"
-          readonly property string stepLabel: isLock ? qsTr("Lock") : isDisplay ? qsTr("Display") : qsTr("Suspend")
+          required property var modelData
           readonly property bool stepEnabled: root.idleEnabled && (isLock ? root.lockEnabled : isDisplay ? root.displayPowerOffEnabled : root.suspendEnabled)
+          readonly property string stepLabel: isLock ? qsTr("Lock") : isDisplay ? qsTr("Display") : qsTr("Suspend")
           readonly property real timeout: isLock ? root.lockTimeout : isDisplay ? root.displayPowerOffTimeout : root.suspendTimeout
 
           spacing: Theme.spacingSm
@@ -450,14 +421,12 @@ Item {
             opacity: parent.stepEnabled ? 1 : 0.45
             text: parent.isLock ? "󰌾" : parent.isDisplay ? "󰍹" : "󰒚"
           }
-
           OText {
             color: parent.stepEnabled ? Theme.textActiveColor : Theme.textInactiveColor
             font.pixelSize: Theme.fontSm
             opacity: parent.stepEnabled ? 1 : 0.45
             text: parent.stepEnabled ? qsTr("%1 · %2").arg(parent.stepLabel).arg(root.formatDuration(parent.timeout)) : qsTr("%1 · Off").arg(parent.stepLabel)
           }
-
           OText {
             color: Theme.textInactiveColor
             font.pixelSize: Theme.fontSm
@@ -469,79 +438,46 @@ Item {
       }
     }
   }
+  component InlineMessage: Rectangle {
+    id: messageRoot
 
-  component SettingsSection: Rectangle {
-    id: sectionRoot
-
-    default property alias content: sectionContent.data
-    property string description: ""
     property string icon: ""
-    property string title: ""
+    property string text: ""
 
-    border.color: Theme.borderSubtle
-    border.width: Theme.borderWidthThin
-    color: Theme.bgElevated
-    implicitHeight: sectionLayout.implicitHeight + Theme.spacingLg * 2
-    radius: Theme.radiusLg
+    Layout.leftMargin: Theme.spacingLg
+    Layout.rightMargin: Theme.spacingLg
+    color: Theme.withOpacity(Theme.bgColor, 0.45)
+    implicitHeight: messageRow.implicitHeight + Theme.spacingMd * 2
+    radius: Theme.radiusMd
 
-    ColumnLayout {
-      id: sectionLayout
+    RowLayout {
+      id: messageRow
 
       anchors.fill: parent
-      anchors.topMargin: Theme.spacingLg
-      anchors.bottomMargin: Theme.spacingLg
-      spacing: Theme.spacingMd
+      anchors.leftMargin: Theme.spacingMd
+      anchors.rightMargin: Theme.spacingMd
+      spacing: Theme.spacingSm
 
-      RowLayout {
-        Layout.fillWidth: true
-        Layout.leftMargin: Theme.spacingLg
-        Layout.rightMargin: Theme.spacingLg
-        spacing: Theme.spacingSm
-
-        OText {
-          color: Theme.activeColor
-          font.pixelSize: Theme.fontLg
-          text: sectionRoot.icon
-        }
-
-        ColumnLayout {
-          Layout.fillWidth: true
-          spacing: Theme.spacingXs
-
-          OText {
-            bold: true
-            font.pixelSize: Theme.fontXl
-            text: sectionRoot.title
-          }
-
-          OText {
-            Layout.fillWidth: true
-            color: Theme.textInactiveColor
-            font.pixelSize: Theme.fontSm
-            text: sectionRoot.description
-            wrapMode: Text.Wrap
-          }
-        }
+      OText {
+        color: Theme.textInactiveColor
+        font.pixelSize: Theme.fontMd
+        text: messageRoot.icon
       }
-
-      ColumnLayout {
-        id: sectionContent
-
+      OText {
         Layout.fillWidth: true
-        spacing: 0
+        color: Theme.textInactiveColor
+        font.pixelSize: Theme.fontSm
+        text: messageRoot.text
+        wrapMode: Text.Wrap
       }
     }
   }
-
   component SettingRow: ColumnLayout {
     id: rowRoot
 
     property bool checked: false
     property string description: ""
     property bool disabled: false
-    property string icon: ""
-    property string label: ""
-    property bool showSeparator: true
     readonly property var effectiveTimeoutValues: {
       const values = timeoutValues.slice();
       if (timeoutValue > 0 && !values.some(value => Math.abs(value - timeoutValue) < 0.001)) {
@@ -550,6 +486,9 @@ Item {
       }
       return values;
     }
+    property string icon: ""
+    property string label: ""
+    property bool showSeparator: true
     property real timeoutValue: 0
     property var timeoutValues: []
 
@@ -583,11 +522,11 @@ Item {
     }
 
     RowLayout {
+      Layout.bottomMargin: Theme.spacingMd
       Layout.fillWidth: true
       Layout.leftMargin: Theme.spacingLg
       Layout.rightMargin: Theme.spacingLg
       Layout.topMargin: Theme.spacingMd
-      Layout.bottomMargin: Theme.spacingMd
       spacing: Theme.spacingMd
 
       OText {
@@ -598,7 +537,6 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         text: rowRoot.icon
       }
-
       ColumnLayout {
         Layout.fillWidth: true
         spacing: Theme.spacingXs
@@ -610,7 +548,6 @@ Item {
           font.pixelSize: Theme.fontLg
           text: rowRoot.label
         }
-
         OText {
           Layout.fillWidth: true
           color: Theme.textInactiveColor
@@ -619,7 +556,6 @@ Item {
           wrapMode: Text.Wrap
         }
       }
-
       OComboBox {
         Layout.alignment: Qt.AlignVCenter
         Layout.preferredWidth: 108
@@ -629,7 +565,6 @@ Item {
 
         onActivated: index => rowRoot.timeoutChanged(rowRoot.effectiveTimeoutValues[index])
       }
-
       OToggle {
         Layout.alignment: Qt.AlignVCenter
         checked: rowRoot.checked
@@ -639,7 +574,6 @@ Item {
         onToggled: checked => rowRoot.toggled(checked)
       }
     }
-
     Rectangle {
       Layout.fillWidth: true
       Layout.leftMargin: Theme.spacingLg + Theme.controlHeightMd + Theme.spacingMd
@@ -649,39 +583,62 @@ Item {
       visible: rowRoot.showSeparator
     }
   }
+  component SettingsSection: Rectangle {
+    id: sectionRoot
 
-  component InlineMessage: Rectangle {
-    id: messageRoot
-
+    default property alias content: sectionContent.data
+    property string description: ""
     property string icon: ""
-    property string text: ""
+    property string title: ""
 
-    Layout.leftMargin: Theme.spacingLg
-    Layout.rightMargin: Theme.spacingLg
-    color: Theme.withOpacity(Theme.bgColor, 0.45)
-    implicitHeight: messageRow.implicitHeight + Theme.spacingMd * 2
-    radius: Theme.radiusMd
+    border.color: Theme.borderSubtle
+    border.width: Theme.borderWidthThin
+    color: Theme.bgElevated
+    implicitHeight: sectionLayout.implicitHeight + Theme.spacingLg * 2
+    radius: Theme.radiusLg
 
-    RowLayout {
-      id: messageRow
+    ColumnLayout {
+      id: sectionLayout
 
+      anchors.bottomMargin: Theme.spacingLg
       anchors.fill: parent
-      anchors.leftMargin: Theme.spacingMd
-      anchors.rightMargin: Theme.spacingMd
-      spacing: Theme.spacingSm
+      anchors.topMargin: Theme.spacingLg
+      spacing: Theme.spacingMd
 
-      OText {
-        color: Theme.textInactiveColor
-        font.pixelSize: Theme.fontMd
-        text: messageRoot.icon
-      }
-
-      OText {
+      RowLayout {
         Layout.fillWidth: true
-        color: Theme.textInactiveColor
-        font.pixelSize: Theme.fontSm
-        text: messageRoot.text
-        wrapMode: Text.Wrap
+        Layout.leftMargin: Theme.spacingLg
+        Layout.rightMargin: Theme.spacingLg
+        spacing: Theme.spacingSm
+
+        OText {
+          color: Theme.activeColor
+          font.pixelSize: Theme.fontLg
+          text: sectionRoot.icon
+        }
+        ColumnLayout {
+          Layout.fillWidth: true
+          spacing: Theme.spacingXs
+
+          OText {
+            bold: true
+            font.pixelSize: Theme.fontXl
+            text: sectionRoot.title
+          }
+          OText {
+            Layout.fillWidth: true
+            color: Theme.textInactiveColor
+            font.pixelSize: Theme.fontSm
+            text: sectionRoot.description
+            wrapMode: Text.Wrap
+          }
+        }
+      }
+      ColumnLayout {
+        id: sectionContent
+
+        Layout.fillWidth: true
+        spacing: 0
       }
     }
   }

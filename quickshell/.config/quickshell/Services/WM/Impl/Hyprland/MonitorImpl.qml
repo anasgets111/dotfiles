@@ -19,12 +19,10 @@ Singleton {
       return 8;
     return null;
   }
-
   function _findMonitor(name: string): var {
     const monitors = Hyprland.monitors?.values || [];
     return monitors.find(monitor => monitor?.name === name) || null;
   }
-
   function fetchFeatures(name: string, callback: var): void {
     const monitor = _findMonitor(name);
     if (!monitor) {
@@ -68,7 +66,6 @@ Singleton {
 
     onTriggered: root.featuresChanged()
   }
-
   Connections {
     function onRawEvent(event: var): void {
       if (!["configreloaded", "fullscreen", "monitoradded", "monitoraddedv2", "monitorremoved", "monitorremovedv2"].includes(event?.name))

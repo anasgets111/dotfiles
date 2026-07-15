@@ -43,7 +43,6 @@ Item {
       text: Qt.formatDate(new Date(root.year, root.month), "MMMM yyyy")
       width: root.implicitWidth
     }
-
     Row {
       spacing: Theme.spacingXs
 
@@ -64,7 +63,6 @@ Item {
         }
       }
     }
-
     Grid {
       columns: 7
       spacing: Theme.spacingXs
@@ -90,7 +88,6 @@ Item {
             radius: width / 2
             visible: cell.isToday
           }
-
           OText {
             anchors.centerIn: parent
             bold: cell.isToday

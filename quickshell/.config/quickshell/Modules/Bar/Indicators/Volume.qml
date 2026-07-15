@@ -48,23 +48,23 @@ Rectangle {
     return Theme.textContrast(center > width * volumeSlider.splitAt ? Theme.critical : trackColor);
   }
 
-  clip: true
   border.color: isMuted ? Theme.borderLight : "transparent"
   border.width: Theme.borderWidthThin
+  clip: true
   color: isMuted ? Theme.bgElevated : Theme.inactiveColor
   height: Theme.itemHeight
   radius: Theme.itemRadius
   width: expanded ? Theme.volumeExpandedWidth : Theme.itemHeight
 
+  Behavior on border.color {
+    ColorAnimation {
+      duration: Theme.animationDuration
+    }
+  }
   Behavior on width {
     NumberAnimation {
       duration: Theme.animationDuration
       easing.type: Easing.InOutQuad
-    }
-  }
-  Behavior on border.color {
-    ColorAnimation {
-      duration: Theme.animationDuration
     }
   }
 
@@ -74,7 +74,6 @@ Rectangle {
   HoverHandler {
     id: hoverHandler
   }
-
   Slider {
     id: volumeSlider
 
@@ -97,7 +96,6 @@ Rectangle {
 
     onCommitted: normalizedValue => AudioService.setVolume(normalizedValue * root.maxVolume)
   }
-
   MouseArea {
     acceptedButtons: Qt.MiddleButton | Qt.RightButton
     anchors.fill: parent
@@ -109,7 +107,6 @@ Rectangle {
         ShellUiState.togglePanelForItem("audio", root.screenName, root);
     }
   }
-
   RowLayout {
     id: contentRow
 
@@ -125,7 +122,6 @@ Rectangle {
       horizontalAlignment: Text.AlignHCenter
       text: root.volumeIcon
     }
-
     OText {
       id: percentageText
 

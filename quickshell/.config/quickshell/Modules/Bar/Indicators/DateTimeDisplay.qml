@@ -28,7 +28,6 @@ Item {
       }
     }
   }
-
   Row {
     id: mainRow
 
@@ -52,7 +51,6 @@ Item {
         }
       }
     }
-
     OText {
       id: textItem
 
@@ -70,7 +68,6 @@ Item {
       }
     }
   }
-
   MouseArea {
     id: mouseArea
 
@@ -106,7 +103,6 @@ Item {
           color: tooltipColumn.textColor
           text: (WeatherService.weatherInfo() || {}).desc || ""
         }
-
         OText {
           color: tooltipColumn.textColor
           size: "sm"

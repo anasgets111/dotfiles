@@ -51,7 +51,6 @@ Item {
     color: root.bgColor
     radius: height / 2
   }
-
   ClippingRectangle {
     id: fillClip
 
@@ -85,7 +84,6 @@ Item {
       }
     }
   }
-
   SequentialAnimation {
     id: plugFlash
 
@@ -96,22 +94,18 @@ Item {
       target: fillRect
       value: 0
     }
-
     PauseAnimation {
       duration: Theme.animationFast
     }
-
     PropertyAction {
       property: "opacity"
       target: fillRect
       value: 1
     }
-
     PauseAnimation {
       duration: Theme.animationFast
     }
   }
-
   MouseArea {
     id: mouseArea
 
@@ -133,7 +127,6 @@ Item {
         }
       }
     }
-
     Rectangle {
       id: flashOverlay
 
@@ -142,7 +135,6 @@ Item {
       opacity: 0
       radius: height / 2
     }
-
     SequentialAnimation {
       id: clickFlash
 
@@ -152,7 +144,6 @@ Item {
         target: flashOverlay
         to: 1
       }
-
       NumberAnimation {
         duration: 400
         easing.type: Easing.OutCubic
@@ -161,7 +152,6 @@ Item {
         to: 0
       }
     }
-
     Row {
       anchors.centerIn: parent
       spacing: Theme.spacingXs
@@ -171,7 +161,6 @@ Item {
         color: root.textColor
         text: root.batteryIcon
       }
-
       OText {
         anchors.verticalCenter: parent.verticalCenter
         bold: true
@@ -180,7 +169,6 @@ Item {
       }
     }
   }
-
   Loader {
     active: mouseArea.containsMouse
 

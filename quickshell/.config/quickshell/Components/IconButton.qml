@@ -122,7 +122,6 @@ Item {
         iconButton.exited();
       }
     }
-
     Text {
       id: iconLabel
 
@@ -146,7 +145,6 @@ Item {
       }
     }
   }
-
   Loader {
     id: tooltipLoader
 

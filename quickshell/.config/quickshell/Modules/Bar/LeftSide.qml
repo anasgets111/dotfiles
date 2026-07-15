@@ -27,7 +27,6 @@ Row {
     sourceComponent: PowerMenu {
     }
   }
-
   Loader {
     active: UpdateService.ready
     anchors.verticalCenter: parent.verticalCenter
@@ -37,18 +36,15 @@ Row {
       screenName: leftSide.screenName
     }
   }
-
   IdleInhibitor {
     id: idleInhibitor
 
     anchors.verticalCenter: leftSide.verticalCenter
     screenName: leftSide.screenName
   }
-
   KeyboardLayoutIndicator {
     anchors.verticalCenter: leftSide.verticalCenter
   }
-
   Loader {
     active: BatteryService.isLaptopBattery
     asynchronous: true
@@ -57,7 +53,6 @@ Row {
       anchors.verticalCenter: parent.verticalCenter
     }
   }
-
   IconButton {
     id: launcherButton
 
@@ -68,7 +63,6 @@ Row {
 
     onClicked: IPC.toggleLauncher()
   }
-
   WallpaperButton {
     id: wallpaperButton
 
@@ -77,7 +71,6 @@ Row {
 
     onPickerRequested: leftSide.wallpaperPickerRequested()
   }
-
   Loader {
     active: WorkspaceService.supportsSpecialWorkspaces
     asynchronous: true
@@ -88,7 +81,6 @@ Row {
       anchors.verticalCenter: parent.verticalCenter
     }
   }
-
   Loader {
     id: workspaceStripLoader
 

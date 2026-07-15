@@ -27,25 +27,19 @@ ShellRoot {
   MainScreen {
     modelData: MonitorService.effectiveMainScreen
   }
-
   NotificationPopup {
     modelData: MonitorService.effectiveMainScreen
   }
-
   OSDPopup {
     modelData: MonitorService.effectiveMainScreen
   }
-
   InputDisplayPopup {
     modelData: MonitorService.effectiveMainScreen
   }
-
   LockScreen {
   }
-
   PolkitDialog {
   }
-
   Variants {
     model: WallpaperService.monitors
 

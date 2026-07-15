@@ -13,7 +13,6 @@ Row {
   PrivacyIndicator {
     anchors.verticalCenter: parent.verticalCenter
   }
-
   Volume {
     id: volume
 
@@ -22,26 +21,21 @@ Row {
 
     onExpandedChanged: rightSide.normalWorkspacesExpanded = expanded
   }
-
   ScreenRecorder {
     anchors.verticalCenter: parent.verticalCenter
   }
-
   NetworkIndicator {
     anchors.verticalCenter: parent.verticalCenter
     screenName: rightSide.screenName
   }
-
   BluetoothIndicator {
     anchors.verticalCenter: parent.verticalCenter
     screenName: rightSide.screenName
   }
-
   SysTray {
     anchors.verticalCenter: parent.verticalCenter
     screenName: rightSide.screenName
   }
-
   DateTimeDisplay {
     anchors.verticalCenter: parent.verticalCenter
     screenName: rightSide.screenName

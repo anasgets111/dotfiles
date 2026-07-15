@@ -59,7 +59,6 @@ Item {
       }
     }
   }
-
   Timer {
     id: collapseTimer
 
@@ -133,8 +132,8 @@ Item {
 
         Component.onCompleted: {
           const child = (pill.delegate && pill.delegate.createObject(cell, {
-            index: cell.index
-          })) as Item;
+              index: cell.index
+            })) as Item;
           if (child)
             child.anchors.fill = cell;
         }

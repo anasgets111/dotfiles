@@ -9,11 +9,11 @@ import qs.Services.Core
 PanelContentBase {
   id: root
 
-  readonly property string inputName: AudioService.sourceName || qsTr("No input device")
   property bool inputDevicesExpanded: false
+  readonly property string inputName: AudioService.sourceName || qsTr("No input device")
   property bool mixerExpanded: false
-  readonly property string outputName: AudioService.sinkName || qsTr("No output device")
   property bool outputDevicesExpanded: false
+  readonly property string outputName: AudioService.sinkName || qsTr("No output device")
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
 
   preferredHeight: contentLayout.implicitHeight + Theme.spacingMd * 2
@@ -50,7 +50,6 @@ PanelContentBase {
           text: "󰕾"
         }
       }
-
       ColumnLayout {
         Layout.fillWidth: true
         spacing: 0
@@ -61,7 +60,6 @@ PanelContentBase {
           size: "lg"
           text: qsTr("Audio")
         }
-
         OText {
           color: Theme.textInactiveColor
           size: "xs"
@@ -69,7 +67,6 @@ PanelContentBase {
         }
       }
     }
-
     AudioControl {
       Layout.bottomMargin: Theme.spacingMd
       Layout.fillWidth: true
@@ -96,7 +93,6 @@ PanelContentBase {
         onToggled: root.outputDevicesExpanded = !root.outputDevicesExpanded
       }
     }
-
     AudioControl {
       Layout.bottomMargin: Theme.spacingMd
       Layout.fillWidth: true
@@ -123,173 +119,11 @@ PanelContentBase {
         onToggled: root.inputDevicesExpanded = !root.inputDevicesExpanded
       }
     }
-
     MixerSection {
       Layout.fillWidth: true
     }
   }
 
-  component DeviceItem: Rectangle {
-    id: deviceItem
-
-    property string defaultIcon: ""
-    readonly property string displayIcon: (deviceItem.entry?.icon ?? "") || deviceItem.defaultIcon
-    readonly property string displayName: deviceItem.entry?.name ?? ""
-    property var entry
-    readonly property bool isActive: deviceItem.entry?.active ?? false
-
-    signal clicked
-
-    Layout.fillWidth: true
-    Layout.preferredHeight: Theme.itemHeight
-    color: hoverHandler.hovered ? Theme.onHoverColor : (deviceItem.isActive ? Theme.activeSubtle : "transparent")
-    radius: Theme.radiusMd
-
-    Behavior on color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
-    }
-
-    HoverHandler {
-      id: hoverHandler
-    }
-
-    TapHandler {
-      onTapped: deviceItem.clicked()
-    }
-
-    RowLayout {
-      anchors.fill: parent
-      anchors.leftMargin: Theme.spacingSm
-      anchors.rightMargin: Theme.spacingSm
-      spacing: Theme.spacingSm
-
-      OText {
-        color: deviceItem.isActive ? Theme.activeColor : Theme.textInactiveColor
-        text: deviceItem.displayIcon
-      }
-
-      OText {
-        Layout.fillWidth: true
-        bold: deviceItem.isActive
-        color: deviceItem.isActive ? Theme.activeColor : (hoverHandler.hovered ? Theme.textOnHoverColor : Theme.textActiveColor)
-        elide: Text.ElideRight
-        text: deviceItem.displayName
-      }
-
-      OText {
-        color: Theme.activeColor
-        size: "sm"
-        text: "󰄬"
-        visible: deviceItem.isActive
-      }
-    }
-  }
-  component DevicePicker: ColumnLayout {
-    id: picker
-
-    property string defaultIcon
-    property bool expanded: false
-    property alias model: deviceRepeater.model
-
-    signal deviceSelected(int id)
-    signal toggled
-
-    Layout.fillWidth: true
-    spacing: 0
-
-    Rectangle {
-      Layout.fillWidth: true
-      Layout.preferredHeight: Theme.controlHeightLg
-      color: devicePickerHover.hovered ? Theme.withOpacity(Theme.activeColor, 0.08) : Theme.bgElevatedAlt
-      radius: Theme.radiusMd
-
-      Behavior on color {
-        ColorAnimation {
-          duration: Theme.animationDuration
-        }
-      }
-
-      HoverHandler {
-        id: devicePickerHover
-      }
-
-      TapHandler {
-        onTapped: picker.toggled()
-      }
-
-      RowLayout {
-        anchors.fill: parent
-        anchors.leftMargin: Theme.spacingSm
-        anchors.rightMargin: Theme.spacingSm
-        spacing: Theme.spacingSm
-
-        OText {
-          color: Theme.textInactiveColor
-          size: "xs"
-          text: qsTr("Choose device")
-        }
-
-        Item {
-          Layout.fillWidth: true
-        }
-
-        OText {
-          color: Theme.textInactiveColor
-          rotation: picker.expanded ? 180 : 0
-          text: "󰅀"
-
-          Behavior on rotation {
-            NumberAnimation {
-              duration: Theme.animationDuration
-              easing.type: Easing.OutCubic
-            }
-          }
-        }
-      }
-    }
-
-    Item {
-      Layout.fillWidth: true
-      Layout.preferredHeight: picker.expanded ? deviceLayout.implicitHeight + Theme.spacingXs : 0
-      clip: true
-
-      Behavior on Layout.preferredHeight {
-        NumberAnimation {
-          duration: Theme.animationDuration
-          easing.type: Easing.OutCubic
-        }
-      }
-
-      ColumnLayout {
-        id: deviceLayout
-
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.topMargin: Theme.spacingXs
-        spacing: Theme.spacingXs
-
-        Repeater {
-          id: deviceRepeater
-
-          delegate: DeviceItem {
-            required property var modelData
-
-            Layout.fillWidth: true
-            defaultIcon: picker.defaultIcon
-            entry: modelData
-
-            onClicked: {
-              picker.deviceSelected(modelData.id);
-              picker.toggled();
-            }
-          }
-        }
-      }
-    }
-  }
   component AudioControl: Rectangle {
     id: hero
 
@@ -331,7 +165,6 @@ PanelContentBase {
           size: "lg"
           text: hero.muted ? hero.iconOff : hero.iconOn
         }
-
         ColumnLayout {
           Layout.fillWidth: true
           spacing: 0
@@ -341,7 +174,6 @@ PanelContentBase {
             color: Theme.textActiveColor
             text: hero.title
           }
-
           OText {
             Layout.fillWidth: true
             color: Theme.textInactiveColor
@@ -350,13 +182,11 @@ PanelContentBase {
             text: hero.subtitle
           }
         }
-
         OText {
           bold: true
           color: hero.ready ? Theme.activeColor : Theme.textInactiveColor
           text: hero.ready ? Math.round(hero.volume * (1.0 / hero.splitAt) * 100) + "%" : "--"
         }
-
         IconButton {
           Layout.preferredHeight: Theme.controlHeightMd
           Layout.preferredWidth: Theme.controlHeightMd
@@ -368,7 +198,6 @@ PanelContentBase {
           onClicked: hero.toggled()
         }
       }
-
       Item {
         Layout.fillWidth: true
         Layout.preferredHeight: root.sliderHeight
@@ -394,12 +223,163 @@ PanelContentBase {
           }
         }
       }
-
       ColumnLayout {
         id: extensionArea
 
         Layout.fillWidth: true
         spacing: Theme.spacingXs
+      }
+    }
+  }
+  component DeviceItem: Rectangle {
+    id: deviceItem
+
+    property string defaultIcon: ""
+    readonly property string displayIcon: (deviceItem.entry?.icon ?? "") || deviceItem.defaultIcon
+    readonly property string displayName: deviceItem.entry?.name ?? ""
+    property var entry
+    readonly property bool isActive: deviceItem.entry?.active ?? false
+
+    signal clicked
+
+    Layout.fillWidth: true
+    Layout.preferredHeight: Theme.itemHeight
+    color: hoverHandler.hovered ? Theme.onHoverColor : (deviceItem.isActive ? Theme.activeSubtle : "transparent")
+    radius: Theme.radiusMd
+
+    Behavior on color {
+      ColorAnimation {
+        duration: Theme.animationDuration
+      }
+    }
+
+    HoverHandler {
+      id: hoverHandler
+    }
+    TapHandler {
+      onTapped: deviceItem.clicked()
+    }
+    RowLayout {
+      anchors.fill: parent
+      anchors.leftMargin: Theme.spacingSm
+      anchors.rightMargin: Theme.spacingSm
+      spacing: Theme.spacingSm
+
+      OText {
+        color: deviceItem.isActive ? Theme.activeColor : Theme.textInactiveColor
+        text: deviceItem.displayIcon
+      }
+      OText {
+        Layout.fillWidth: true
+        bold: deviceItem.isActive
+        color: deviceItem.isActive ? Theme.activeColor : (hoverHandler.hovered ? Theme.textOnHoverColor : Theme.textActiveColor)
+        elide: Text.ElideRight
+        text: deviceItem.displayName
+      }
+      OText {
+        color: Theme.activeColor
+        size: "sm"
+        text: "󰄬"
+        visible: deviceItem.isActive
+      }
+    }
+  }
+  component DevicePicker: ColumnLayout {
+    id: picker
+
+    property string defaultIcon
+    property bool expanded: false
+    property alias model: deviceRepeater.model
+
+    signal deviceSelected(int id)
+    signal toggled
+
+    Layout.fillWidth: true
+    spacing: 0
+
+    Rectangle {
+      Layout.fillWidth: true
+      Layout.preferredHeight: Theme.controlHeightLg
+      color: devicePickerHover.hovered ? Theme.withOpacity(Theme.activeColor, 0.08) : Theme.bgElevatedAlt
+      radius: Theme.radiusMd
+
+      Behavior on color {
+        ColorAnimation {
+          duration: Theme.animationDuration
+        }
+      }
+
+      HoverHandler {
+        id: devicePickerHover
+      }
+      TapHandler {
+        onTapped: picker.toggled()
+      }
+      RowLayout {
+        anchors.fill: parent
+        anchors.leftMargin: Theme.spacingSm
+        anchors.rightMargin: Theme.spacingSm
+        spacing: Theme.spacingSm
+
+        OText {
+          color: Theme.textInactiveColor
+          size: "xs"
+          text: qsTr("Choose device")
+        }
+        Item {
+          Layout.fillWidth: true
+        }
+        OText {
+          color: Theme.textInactiveColor
+          rotation: picker.expanded ? 180 : 0
+          text: "󰅀"
+
+          Behavior on rotation {
+            NumberAnimation {
+              duration: Theme.animationDuration
+              easing.type: Easing.OutCubic
+            }
+          }
+        }
+      }
+    }
+    Item {
+      Layout.fillWidth: true
+      Layout.preferredHeight: picker.expanded ? deviceLayout.implicitHeight + Theme.spacingXs : 0
+      clip: true
+
+      Behavior on Layout.preferredHeight {
+        NumberAnimation {
+          duration: Theme.animationDuration
+          easing.type: Easing.OutCubic
+        }
+      }
+
+      ColumnLayout {
+        id: deviceLayout
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.topMargin: Theme.spacingXs
+        spacing: Theme.spacingXs
+
+        Repeater {
+          id: deviceRepeater
+
+          delegate: DeviceItem {
+            required property var modelData
+
+            Layout.fillWidth: true
+            defaultIcon: picker.defaultIcon
+            entry: modelData
+
+            onClicked: {
+              picker.deviceSelected(modelData.id);
+              picker.toggled();
+            }
+          }
+        }
       }
     }
   }
@@ -449,11 +429,9 @@ PanelContentBase {
         HoverHandler {
           id: mixerHover
         }
-
         TapHandler {
           onTapped: root.mixerExpanded = !root.mixerExpanded
         }
-
         RowLayout {
           anchors.fill: parent
           anchors.leftMargin: Theme.spacingSm
@@ -465,7 +443,6 @@ PanelContentBase {
             size: "lg"
             text: "󰓡"
           }
-
           ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
@@ -475,14 +452,12 @@ PanelContentBase {
               color: Theme.textActiveColor
               text: qsTr("Application mixer")
             }
-
             OText {
               color: Theme.textInactiveColor
               size: "xs"
               text: mixer.streamCount === 0 ? qsTr("No applications playing audio") : qsTr("%1 active").arg(mixer.streamCount)
             }
           }
-
           OText {
             color: Theme.textInactiveColor
             rotation: root.mixerExpanded ? 180 : 0
@@ -497,7 +472,6 @@ PanelContentBase {
           }
         }
       }
-
       Item {
         Layout.fillWidth: true
         Layout.preferredHeight: root.mixerExpanded ? streamLayout.implicitHeight + Theme.spacingSm : 0
@@ -555,14 +529,12 @@ PanelContentBase {
           height: Theme.fontLg
           width: Theme.fontLg
         }
-
         OText {
           anchors.centerIn: parent
           text: "󰝚"
           visible: parent.status === Image.Error || parent.status === Image.Null
         }
       }
-
       OText {
         Layout.fillWidth: true
         color: Theme.textActiveColor
@@ -570,14 +542,12 @@ PanelContentBase {
         size: "sm"
         text: streamItem.modelData.name
       }
-
       OText {
         color: Theme.activeColor
         size: "sm"
         text: Math.round(streamItem.volume * 100) + "%"
       }
     }
-
     Item {
       Layout.fillWidth: true
       Layout.preferredHeight: root.sliderHeight * 0.8

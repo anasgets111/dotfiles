@@ -36,7 +36,6 @@ Singleton {
   PwObjectTracker {
     objects: root._trackerObjects
   }
-
   Timer {
     interval: 1000
     repeat: true

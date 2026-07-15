@@ -19,7 +19,10 @@ Singleton {
     const escaped = String(text || "").replace(/'/g, "'\\''");
     Command.detached(["sh", "-c", "printf %s '" + escaped + "' | wl-copy"]);
   }
-
+  function fmtKib(kib: real): string {
+    const formatted = formatKib(kib || 0);
+    return `${formatted.value.toFixed(1)} ${formatted.unit}`;
+  }
   function formatKib(kib: real): var {
     const units = ["TiB", "GiB", "MiB", "KiB"];
     const thresholds = [1024 ** 3, 1024 ** 2, 1024, 0];
@@ -36,19 +39,12 @@ Singleton {
       unit: "KiB"
     };
   }
-
-  function fmtKib(kib: real): string {
-    const formatted = formatKib(kib || 0);
-    return `${formatted.value.toFixed(1)} ${formatted.unit}`;
-  }
-
   function lookupDesktopEntryName(appId: string): string {
     if (typeof DesktopEntries === "undefined" || !appId)
       return "";
     const entry = DesktopEntries.heuristicLookup?.(appId) || DesktopEntries.byId?.(appId);
     return entry?.name || "";
   }
-
   function normalizeImageUrl(imageSource: string): string {
     if (!imageSource)
       return "";
@@ -103,7 +99,6 @@ Singleton {
     showDirs: true
     showFiles: true // sysfs entries are symlinks — strict filters would hide them
   }
-
   Instantiator {
     id: ledInstantiator
 

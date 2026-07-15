@@ -46,18 +46,15 @@ Item {
             right: parent.right
             verticalCenter: parent.verticalCenter
           }
-
           OText {
             Layout.alignment: Qt.AlignVCenter
             bold: true
             color: expandBtn.textColor
             text: root.expanded ? "Show Less" : "10 Day Forecast"
           }
-
           Item {
             Layout.fillWidth: true
           }
-
           OText {
             Layout.alignment: Qt.AlignVCenter
             color: Qt.alpha(expandBtn.textColor, 0.7)
@@ -66,12 +63,10 @@ Item {
           }
         }
       }
-
       Item {
         Layout.fillWidth: true
         visible: !root.hasData
       }
-
       IconButton {
         Layout.preferredHeight: Theme.itemHeight
         Layout.preferredWidth: Theme.itemHeight
@@ -101,7 +96,6 @@ Item {
           opacity: 0.6
           showLabel: !root.expanded
         }
-
         WeatherDayCard {
           Layout.fillWidth: true
           Layout.preferredWidth: 1
@@ -110,7 +104,6 @@ Item {
           label: "Today"
           showLabel: !root.expanded
         }
-
         WeatherDayCard {
           Layout.fillWidth: true
           Layout.preferredWidth: 1
@@ -147,7 +140,6 @@ Item {
             right: parent.right
             top: parent.top
           }
-
           Repeater {
             model: root.hasData ? Math.max(0, root.forecast.time.length - 3) : 0
 
@@ -173,7 +165,6 @@ Item {
           opacity: 0.7
           text: WeatherService.hasError ? "Weather Unavailable" : "Loading Forecast..."
         }
-
         OButton {
           text: "Retry"
           visible: WeatherService.hasError
@@ -238,7 +229,6 @@ Item {
             }
           }
         }
-
         OText {
           id: l2
 
@@ -257,7 +247,6 @@ Item {
           }
         }
       }
-
       Text {
         Layout.alignment: Qt.AlignHCenter
         color: Theme.textActiveColor
@@ -265,14 +254,12 @@ Item {
         font.pixelSize: Theme.fontXl
         text: card.wInfo.icon
       }
-
       OText {
         Layout.alignment: Qt.AlignHCenter
         bold: true
         size: "lg"
         text: Math.round(card.maxTemp) + "°"
       }
-
       OText {
         Layout.alignment: Qt.AlignHCenter
         opacity: 0.6

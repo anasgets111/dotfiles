@@ -19,11 +19,11 @@ Singleton {
   property var _edidQueue: []
   property bool _edidRunning: false
   property int _featuresRunId: 0
-  readonly property var activeMainScreen: Quickshell.screens.find(screen => screen?.name === preferredMain) || Quickshell.screens[0] || null
+  readonly property var _screenKeyFields: ["name", "width", "height", "scale", "orientation"]
   readonly property string activeMain: activeMainScreen?.name ?? ""
+  readonly property var activeMainScreen: Quickshell.screens.find(screen => screen?.name === preferredMain) || Quickshell.screens[0] || null
   readonly property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
   readonly property var effectiveMainScreen: activeMainScreen
-  readonly property var _screenKeyFields: ["name", "width", "height", "scale", "orientation"]
   property ListModel monitors: ListModel {
     dynamicRoles: true
   }
@@ -52,24 +52,20 @@ Singleton {
       root._processEdidQueue();
     });
   }
-
   function emitChangedDebounced(): void {
     changeDebounce.restart();
   }
-
   function findMonitorIndexByName(name: string): int {
     for (let monitorIndex = 0; monitorIndex < monitors.count; monitorIndex++)
       if (monitors.get(monitorIndex).name === name)
         return monitorIndex;
     return -1;
   }
-
   function isSameMonitor(leftMonitor: var, rightMonitor: var): bool {
     if (!leftMonitor || !rightMonitor)
       return false;
     return _screenKeyFields.every(key => leftMonitor[key] === rightMonitor[key]);
   }
-
   function normalizeScreens(screens: var): var {
     return Array.from(screens).map(screen => ({
           name: screen.name,
@@ -91,7 +87,6 @@ Singleton {
           hdrActive: false
         }));
   }
-
   function readDrmEntries(callback: var): void {
     if (_drmEntries) {
       callback(_drmEntries);
@@ -108,7 +103,6 @@ Singleton {
       root._drmCallbacks.splice(0).forEach(cb => cb(root._drmEntries));
     });
   }
-
   function readEdidCaps(connectorName: string, callback: var): void {
     const defaultCaps = {
       vrr: {
@@ -129,7 +123,6 @@ Singleton {
       _processEdidQueue();
     });
   }
-
   function refreshFeatures(monitorsList: var): void {
     if (!backend?.fetchFeatures)
       return;
@@ -182,21 +175,6 @@ Singleton {
       });
     }
   }
-
-  function setMonitorPropertyIfChanged(monitorIndex: int, propertyName: string, value: var): bool {
-    if (monitors.get(monitorIndex)[propertyName] === value)
-      return false;
-    monitors.setProperty(monitorIndex, propertyName, value);
-    return true;
-  }
-
-  function toArray(): var {
-    const result = [];
-    for (let monitorIndex = 0; monitorIndex < monitors.count; monitorIndex++)
-      result.push(monitors.get(monitorIndex));
-    return result;
-  }
-
   function refreshScreens(invalidateCaps: bool): void {
     if (invalidateCaps) {
       _capsCache = ({});
@@ -207,7 +185,18 @@ Singleton {
     if (backend)
       refreshFeatures(normalizedScreens);
   }
-
+  function setMonitorPropertyIfChanged(monitorIndex: int, propertyName: string, value: var): bool {
+    if (monitors.get(monitorIndex)[propertyName] === value)
+      return false;
+    monitors.setProperty(monitorIndex, propertyName, value);
+    return true;
+  }
+  function toArray(): var {
+    const result = [];
+    for (let monitorIndex = 0; monitorIndex < monitors.count; monitorIndex++)
+      result.push(monitors.get(monitorIndex));
+    return result;
+  }
   function updateMonitors(newScreens: var): void {
     const oldCount = monitors.count;
     const newCount = newScreens.length;
@@ -253,7 +242,6 @@ Singleton {
 
     onTriggered: root.monitorsUpdated()
   }
-
   Connections {
     function onScreensChanged() {
       root.refreshScreens(true);
@@ -261,7 +249,6 @@ Singleton {
 
     target: Quickshell
   }
-
   Connections {
     function onFeaturesChanged() {
       root.refreshScreens(false);
@@ -269,26 +256,23 @@ Singleton {
 
     target: root.backend
   }
-
   Instantiator {
     model: Quickshell.screens
 
     delegate: Connections {
       required property ShellScreen modelData
 
-      target: modelData
-
       function onGeometryChanged(): void {
         root.refreshScreens(false);
       }
-
       function onOrientationChanged(): void {
         root.refreshScreens(false);
       }
-
       function onPhysicalPixelDensityChanged(): void {
         root.refreshScreens(false);
       }
+
+      target: modelData
     }
   }
 }

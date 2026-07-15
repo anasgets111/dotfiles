@@ -37,7 +37,6 @@ PanelContentBase {
       return "#89B4FA";
     return Theme.textInactiveColor;
   }
-
   function updateStatusText(): string {
     if (!root.isUpdating) {
       if (root.isError)
@@ -93,14 +92,12 @@ PanelContentBase {
               color: Theme.textContrast(root.headerColor)
               text: qsTr("Package")
             }
-
             OText {
               Layout.preferredWidth: 120
               bold: true
               color: Theme.textContrast(root.headerColor)
               text: qsTr("Old Version")
             }
-
             OText {
               Layout.preferredWidth: 120
               bold: true
@@ -109,7 +106,6 @@ PanelContentBase {
             }
           }
         }
-
         ListView {
           id: packageList
 
@@ -147,7 +143,6 @@ PanelContentBase {
               anchors.fill: parent
               hoverEnabled: true
             }
-
             RowLayout {
               anchors.fill: parent
               anchors.leftMargin: root.pad
@@ -159,14 +154,12 @@ PanelContentBase {
                 elide: Text.ElideRight
                 text: pkgRow.modelData.name ?? ""
               }
-
               OText {
                 Layout.preferredWidth: 120
                 color: Theme.textInactiveColor
                 elide: Text.ElideRight
                 text: pkgRow.modelData.oldVersion ?? ""
               }
-
               OText {
                 Layout.preferredWidth: 120
                 color: Theme.activeColor
@@ -176,7 +169,6 @@ PanelContentBase {
             }
           }
         }
-
         OText {
           Layout.fillWidth: true
           Layout.preferredHeight: root.itemHeight * 2
@@ -186,7 +178,6 @@ PanelContentBase {
           verticalAlignment: Text.AlignVCenter
           visible: !root.hasUpdates
         }
-
         RowLayout {
           Layout.alignment: Qt.AlignHCenter
           Layout.topMargin: Theme.spacingXs
@@ -198,14 +189,12 @@ PanelContentBase {
             opacity: 0.7
             text: "󰇚"
           }
-
           OText {
             opacity: 0.8
             size: "sm"
             text: qsTr("Total download: %1").arg(Utils.fmtKib(UpdateService.totalDownloadSize))
           }
         }
-
         RowLayout {
           Layout.fillWidth: true
           Layout.topMargin: Theme.spacingSm
@@ -219,7 +208,6 @@ PanelContentBase {
 
             onClicked: UpdateService.executeUpdate()
           }
-
           OButton {
             Layout.fillWidth: true
             bgColor: Theme.inactiveColor
@@ -243,7 +231,6 @@ PanelContentBase {
             bold: true
             text: root.updateStatusText()
           }
-
           Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.radiusSm
@@ -265,13 +252,11 @@ PanelContentBase {
             }
           }
         }
-
         Rectangle {
           Layout.fillWidth: true
           Layout.preferredHeight: 1
           color: Theme.borderColor
         }
-
         Rectangle {
           Layout.fillWidth: true
           Layout.preferredHeight: Theme.itemHeight * 15
@@ -312,13 +297,11 @@ PanelContentBase {
               Qt.callLater(positionViewAtEnd)
           }
         }
-
         Rectangle {
           Layout.fillWidth: true
           Layout.preferredHeight: 1
           color: Theme.borderColor
         }
-
         RowLayout {
           Layout.fillWidth: true
           Layout.topMargin: Theme.spacingSm
@@ -332,7 +315,6 @@ PanelContentBase {
 
             onClicked: UpdateService.executeUpdate()
           }
-
           OButton {
             Layout.fillWidth: true
             bgColor: root.isUpdating ? Theme.inactiveColor : Theme.activeColor
