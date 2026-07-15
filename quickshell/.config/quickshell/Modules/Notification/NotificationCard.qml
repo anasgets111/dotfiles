@@ -10,7 +10,8 @@ Item {
   id: root
 
   property bool _animReady: root.isGroup || root.groupScope !== "popup" || !(root.svc?.isPopupNew(root.group?.key || "") ?? false)
-  readonly property bool _isDismissing: (root.svc?.isGroupDismissing(root.group?.key, root.groupScope) ?? false) || (root.primaryWrapper?.isHidingPopup ?? false) || (root.primaryWrapper?.isDismissing ?? false)
+  readonly property bool _isGroupDismissing: root.items.length > 0 && root.items.every(wrapper => (wrapper?.isDismissing ?? false) || (root.groupScope === "popup" && (wrapper?.isHidingPopup ?? false)))
+  readonly property bool _isDismissing: root._isGroupDismissing || (root.primaryWrapper?.isHidingPopup ?? false) || (root.primaryWrapper?.isDismissing ?? false)
   property var _messageExpansion: ({})
   property var _shownMessageIds: ({})
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
@@ -64,7 +65,7 @@ Item {
 
   implicitHeight: cardColumn.implicitHeight + (root.paddingVertical * 2)
   implicitWidth: root.cardWidth
-  x: ((root._isDismissing && (!root.isGroup || messagesLayout.renderedItems.length === 0)) || !root._animReady) ? root.width + (Theme.popupOffset || 12) : 0
+  x: ((root._isDismissing && (!root.isGroup || root._isGroupDismissing)) || !root._animReady) ? root.width + (Theme.popupOffset || 12) : 0
 
   Behavior on x {
     NumberAnimation {
