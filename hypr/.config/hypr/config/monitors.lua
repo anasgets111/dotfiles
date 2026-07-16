@@ -39,10 +39,6 @@ if monitor.icc then
     }) do
         hl.on(event, sync_icc)
     end
-    hl.on("monitor.added", function()
-        suppressed = nil -- rule precedence after a replug is unknowable; force one re-apply
-        sync_icc()
-    end)
     sync_icc()
 end
 

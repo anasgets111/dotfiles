@@ -17,7 +17,7 @@ Scope {
 
       readonly property string currentPath: screen?.name ? WallpaperService.wallpaperPath(screen.name) : ""
       readonly property bool isMainMonitor: MonitorService.activeMain === screen?.name
-      readonly property url wallpaperSource: currentPath
+      readonly property url wallpaperSource: IdleService.displaysPoweredOff ? "" : currentPath
 
       color: "transparent"
 
@@ -123,10 +123,17 @@ Scope {
             blurMultiplier: Settings.data.lockBlurMultiplier
           }
         }
-        LockContent {
-          isMainMonitor: lockSurface.isMainMonitor
+        Loader {
+          active: !IdleService.displaysPoweredOff
+          anchors.fill: parent
           opacity: stage.contentOpacity
           scale: 0.96 + (0.04 * stage.contentOpacity)
+
+          sourceComponent: Item {
+            LockContent {
+              isMainMonitor: lockSurface.isMainMonitor
+            }
+          }
         }
       }
     }

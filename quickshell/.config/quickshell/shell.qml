@@ -41,7 +41,7 @@ ShellRoot {
   PolkitDialog {
   }
   Variants {
-    model: WallpaperService.monitors
+    model: IdleService.displaysPoweredOff ? [] : WallpaperService.monitors
 
     AnimatedWallpaper {
       required property var modelData
@@ -55,7 +55,7 @@ ShellRoot {
     activeAsync: MainService.ready && WorkspaceService.hasOverview
 
     component: Variants {
-      model: WallpaperService.monitors
+      model: IdleService.displaysPoweredOff ? [] : WallpaperService.monitors
 
       OverviewWallpaper {
         required property var modelData
