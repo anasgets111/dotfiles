@@ -71,6 +71,7 @@ Target = nvidia-lts
 Target = nvidia-open-lts
 
 [Trigger]
+Operation = Install
 Operation = Upgrade
 Type = Path
 Target = usr/lib/modules/*/vmlinuz
