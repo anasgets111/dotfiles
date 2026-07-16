@@ -41,6 +41,7 @@ Singleton {
   readonly property int maxStoredNotifications: 100
   readonly property int maxVisibleNotifications: 3
   property var notifications: []
+  readonly property bool _popupsBlocked: root._popupsSuspended || LockService.locked || IdleService.displaysPoweredOff
   property var visibleNotifications: []
 
   function _allWrappers(): var {
@@ -119,6 +120,8 @@ Singleton {
       return null;
     if (!persistent)
       root._popupOnlyWrappers = [wrapper, ...root._popupOnlyWrappers];
+    if (root._popupOnlyWrappers.length > root.maxStoredNotifications)
+      root._removeWrappers(root._popupOnlyWrappers.slice(root.maxStoredNotifications), true, "expire");
     return wrapper;
   }
   function _enqueuePopup(wrapper: var): void {
@@ -188,7 +191,7 @@ Singleton {
       wrapper._removed = true;
   }
   function _pumpPopups(): void {
-    if (root._popupsSuspended || root.doNotDisturb || root._isDestroying)
+    if (root._popupsBlocked || root.doNotDisturb || root._isDestroying)
       return;
     let visiblePopupCount = root._visiblePopupCount();
     const nextQueue = [];
@@ -408,6 +411,11 @@ Singleton {
     if (!root._isDestroying)
       root._groupState.pruneShown(new Set(root.groupedPopups.map(group => group.key)));
   }
+  on_PopupsBlockedChanged: if (root._popupsBlocked) {
+    root._popupQueue = [];
+    root._clearVisiblePopups();
+    root._expireTransientWrappers();
+  }
 
   Timer {
     id: removalTimer
@@ -443,7 +451,7 @@ Singleton {
         return;
 
       const persistent = !notification.transient;
-      if (!persistent && (root._popupsSuspended || root.doNotDisturb))
+      if (!persistent && (root._popupsBlocked || root.doNotDisturb))
         return;
 
       notification.tracked = true;
@@ -455,7 +463,7 @@ Singleton {
         root._trimStoredNotifications();
         root._limitNotificationsPerApp();
       }
-      if (!root._popupsSuspended && !root.doNotDisturb)
+      if (!root._popupsBlocked && !root.doNotDisturb)
         root._enqueuePopup(wrapper);
       root._pumpPopups();
     }
