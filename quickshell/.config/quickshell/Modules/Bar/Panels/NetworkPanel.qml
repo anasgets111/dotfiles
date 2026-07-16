@@ -73,14 +73,6 @@ PanelContentBase {
   preferredWidth: 340
 
   Component.onDestruction: resetConnectionState()
-  onExpandedSsidChanged: {
-    if (!isOpen)
-      return;
-    if (expandedSsid !== "")
-      NetworkService.stopWifiScan();
-    else if (wifiEnabled && networkingEnabled)
-      NetworkService.startWifiScan();
-  }
   onIsOpenChanged: {
     if (!isOpen) {
       resetConnectionState();
