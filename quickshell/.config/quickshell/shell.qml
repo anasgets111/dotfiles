@@ -33,8 +33,12 @@ ShellRoot {
   OSDPopup {
     modelData: MonitorService.effectiveMainScreen
   }
-  InputDisplayPopup {
-    modelData: MonitorService.effectiveMainScreen
+  LazyLoader {
+    activeAsync: InputDisplayService.enabled
+
+    component: InputDisplayPopup {
+      modelData: MonitorService.effectiveMainScreen
+    }
   }
   LockScreen {
   }

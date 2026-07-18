@@ -125,7 +125,7 @@ Singleton {
   Timer {
     interval: 100
     repeat: true
-    running: true
+    running: ledFolder.count > 0
 
     onTriggered: {
       for (let index = 0; index < ledInstantiator.count; index++)
