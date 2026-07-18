@@ -24,8 +24,8 @@ Singleton {
   readonly property bool microphoneMuted: AudioService.micMuted
   readonly property bool screenshareActive: _activeLinks.some(link => {
     const source = link.source;
-    return (source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource && /xdg-desktop-portal|xdpw|screencast|screen|gnome shell|kwin|obs|wf-recorder|grim|slurp|screen.?share|display.?capture/.test(_describe(source));
-  })
+    return (source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource && /xdg-desktop-portal|xdpw|screencast|screen|niri|gnome shell|kwin|obs|wf-recorder|grim|slurp|screen.?share|display.?capture/.test(_describe(source));
+  }) || (Pipewire.nodes?.values ?? []).some(node => /\bniri\b/.test(_describe(node)))
 
   function _describe(node: var): string {
     if (!node)
