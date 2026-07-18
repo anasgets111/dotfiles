@@ -13,7 +13,7 @@ Item {
   required property string screenName
 
   height: Theme.itemHeight
-  width: trayRow.implicitWidth
+  width: trayRepeater.count === 0 ? emptyLabel.implicitWidth : trayRow.implicitWidth
 
   Rectangle {
     anchors.fill: parent
@@ -93,6 +93,8 @@ Item {
     }
   }
   OText {
+    id: emptyLabel
+
     anchors.centerIn: parent
     color: Theme.bgColor
     opacity: 0.7

@@ -9,7 +9,6 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  property int _prefsVersion: 0
   readonly property list<string> availableModes: ["fill", "fit", "center", "stretch", "tile"]
   readonly property list<string> availableTransitions: ["fade", "wipe", "disc", "stripes", "portal"]
   readonly property string defaultMode: "fill"
@@ -22,8 +21,6 @@ Singleton {
       tile: Image.Tile,
       center: Image.Pad
     })
-  property bool hydrated: false
-  property var monitorPrefs: ({})
   readonly property var monitors: ready ? Array.from({
     length: MonitorService.monitors.count
   }, (_unused, index) => {
@@ -34,53 +31,14 @@ Singleton {
     };
   }) : []
   readonly property string overviewNamespace: "quickshell-overview-wallpaper"
-  readonly property bool ready: hydrated && MonitorService?.ready && (MonitorService.monitors?.count ?? 0) > 0
+  readonly property bool ready: Settings.isLoaded && MonitorService?.ready && (MonitorService.monitors?.count ?? 0) > 0
   property var wallpaperFiles: []
   readonly property bool wallpaperFilesReady: folderModel.status === FolderListModel.Ready
   readonly property string wallpaperFolder: Settings.data?.wallpaperFolder ?? ""
-  property string wallpaperTransition: defaultTransition
+  readonly property string wallpaperTransition: validate(Settings.data?.wallpaperTransition, availableTransitions, defaultTransition)
 
-  function ensurePrefs(monitorName: string): var {
-    return monitorPrefs[monitorName] ?? (monitorPrefs[monitorName] = {
-        wallpaper: defaultWallpaper,
-        mode: defaultMode
-      });
-  }
-  function hydrateFromSettings(): void {
-    if (!Settings?.data || hydrated)
-      return;
-    const saved = Settings.data.wallpapers ?? {};
-    for (const name of Object.keys(saved)) {
-      const entry = saved[name] ?? {};
-      monitorPrefs[name] = {
-        wallpaper: Utils.normalizeImageUrl(entry.wallpaper || defaultWallpaper),
-        mode: validate(entry.mode, availableModes, defaultMode)
-      };
-    }
-    if (Settings.data.wallpaperTransition)
-      wallpaperTransition = validate(Settings.data.wallpaperTransition, availableTransitions, defaultTransition);
-    hydrated = true;
-    persistMonitors();
-  }
   function modeToFillMode(mode: string): int {
     return fillModes[validate(mode, availableModes, defaultMode)] ?? Image.PreserveAspectCrop;
-  }
-  function persistMonitors(): void {
-    if (!hydrated || !Settings?.data)
-      return;
-    Settings.data.wallpaperTransition = wallpaperTransition;
-    if (!MonitorService?.ready)
-      return;
-    const persisted = Object.assign({}, Settings.data.wallpapers ?? {});
-    for (let index = 0; index < (MonitorService.monitors?.count ?? 0); index++) {
-      const name = MonitorService.monitors.get(index).name;
-      const prefs = monitorPrefs[name] ?? {};
-      persisted[name] = {
-        wallpaper: prefs.wallpaper || defaultWallpaper,
-        mode: validate(prefs.mode, availableModes, defaultMode)
-      };
-    }
-    Settings.data.wallpapers = persisted;
   }
   function randomizeAllMonitors(): void {
     if (!ready || !wallpaperFilesReady || !wallpaperFiles.length)
@@ -91,26 +49,34 @@ Singleton {
     }
   }
   function setModePref(monitorName: string, mode: string): void {
-    if (!monitorName)
+    if (!monitorName || !Settings?.data)
       return;
-    const prefs = ensurePrefs(monitorName);
+    const saved = Settings.data.wallpapers ?? {};
+    const prefs = saved[monitorName] ?? {};
     const validated = validate(mode, availableModes, defaultMode);
-    if (prefs.mode === validated)
+    if (validate(prefs.mode, availableModes, defaultMode) === validated)
       return;
-    prefs.mode = validated;
-    _prefsVersion++;
-    persistDebounce.restart();
+    const updated = Object.assign({}, saved);
+    updated[monitorName] = {
+      wallpaper: Utils.normalizeImageUrl(prefs.wallpaper || defaultWallpaper),
+      mode: validated
+    };
+    Settings.data.wallpapers = updated;
   }
   function setWallpaper(monitorName: string, path: string): void {
-    if (!monitorName)
+    if (!monitorName || !Settings?.data)
       return;
-    const prefs = ensurePrefs(monitorName);
+    const saved = Settings.data.wallpapers ?? {};
+    const prefs = saved[monitorName] ?? {};
     const resolved = Utils.normalizeImageUrl(path || defaultWallpaper);
-    if (prefs.wallpaper === resolved)
+    if (Utils.normalizeImageUrl(prefs.wallpaper || defaultWallpaper) === resolved)
       return;
-    prefs.wallpaper = resolved;
-    _prefsVersion++;
-    persistDebounce.restart();
+    const updated = Object.assign({}, saved);
+    updated[monitorName] = {
+      wallpaper: resolved,
+      mode: validate(prefs.mode, availableModes, defaultMode)
+    };
+    Settings.data.wallpapers = updated;
   }
   function setWallpaperFolder(folder: string): void {
     const rawPath = String(folder || "").trim();
@@ -120,27 +86,24 @@ Singleton {
     Settings.data.wallpaperFolder = path;
   }
   function setWallpaperTransition(transition: string): void {
+    if (!Settings?.data)
+      return;
     const validated = validate(transition, availableTransitions, defaultTransition);
     if (wallpaperTransition === validated)
       return;
-    wallpaperTransition = validated;
-    persistDebounce.restart();
+    Settings.data.wallpaperTransition = validated;
   }
   function validate(value: string, allowed: list<string>, fallback: string): string {
     const normalized = String(value ?? "").toLowerCase();
     return allowed.includes(normalized) ? normalized : fallback;
   }
   function wallpaperMode(monitorName: string): string {
-    void _prefsVersion;
-    return monitorName ? (monitorPrefs[monitorName]?.mode ?? defaultMode) : defaultMode;
+    return monitorName ? validate(Settings.data?.wallpapers?.[monitorName]?.mode, availableModes, defaultMode) : defaultMode;
   }
   function wallpaperPath(monitorName: string): string {
-    void _prefsVersion;
-    return monitorName ? (monitorPrefs[monitorName]?.wallpaper ?? defaultWallpaper) : defaultWallpaper;
+    return monitorName ? Utils.normalizeImageUrl(Settings.data?.wallpapers?.[monitorName]?.wallpaper || defaultWallpaper) : defaultWallpaper;
   }
 
-  Component.onCompleted: if (Settings?.isLoaded)
-    hydrateFromSettings()
   onWallpaperFolderChanged: wallpaperFiles = []
 
   FolderListModel {
@@ -166,29 +129,5 @@ Singleton {
         };
       });
     }
-  }
-  Timer {
-    id: persistDebounce
-
-    interval: 80
-    repeat: false
-
-    onTriggered: root.persistMonitors()
-  }
-  Connections {
-    function onIsLoadedChanged(): void {
-      if (Settings.isLoaded && !root.hydrated)
-        root.hydrateFromSettings();
-    }
-
-    target: Settings
-  }
-  Connections {
-    function onMonitorsUpdated(): void {
-      if (MonitorService.ready && root.hydrated)
-        root.persistMonitors();
-    }
-
-    target: MonitorService
   }
 }

@@ -150,7 +150,6 @@ Singleton {
         rates: data.usd,
         lastUpdate: lastUpdated.toISOString()
       };
-      Settings.saveState();
       Logger.log("CurrencyProvider", `Rates updated (date: ${data.date})`);
     };
     xhr.open("GET", "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json");

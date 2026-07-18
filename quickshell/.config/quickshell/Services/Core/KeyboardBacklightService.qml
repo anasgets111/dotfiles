@@ -24,12 +24,6 @@ Singleton {
   readonly property int maxBrightness: maxBrightnessFile.value
   readonly property bool ready: available && brightnessFile.valid && maxBrightnessFile.valid
 
-  function decrease() {
-    setLevel(Math.max(0, brightness - 1));
-  }
-  function increase() {
-    setLevel(Math.min(maxBrightness, brightness + 1));
-  }
   function setLevel(level: int): string {
     if (!available || !_deviceName)
       return "Keyboard backlight not available";

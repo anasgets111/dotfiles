@@ -34,7 +34,7 @@ PanelContentBase {
     if (/\(\d+\/\d+\)/.test(raw) || t.includes("installing") || t.includes("upgrading"))
       return Theme.activeColor;
     if (t.includes("-> running") || t.includes("build hook"))
-      return "#89B4FA";
+      return Theme.activeColor;
     return Theme.textInactiveColor;
   }
   function updateStatusText(): string {

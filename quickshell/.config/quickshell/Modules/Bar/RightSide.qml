@@ -5,8 +5,8 @@ import qs.Modules.Bar.Indicators
 Row {
   id: rightSide
 
-  required property bool normalWorkspacesExpanded
   required property string screenName
+  readonly property bool expanded: volume.expanded
 
   spacing: Theme.spacingSm
 
@@ -19,7 +19,6 @@ Row {
     anchors.verticalCenter: parent.verticalCenter
     screenName: rightSide.screenName
 
-    onExpandedChanged: rightSide.normalWorkspacesExpanded = expanded
   }
   ScreenRecorder {
     anchors.verticalCenter: parent.verticalCenter

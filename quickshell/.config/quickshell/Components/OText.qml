@@ -28,7 +28,6 @@ Text {
   property bool muted: false
   property string size: "md"
   property real sizeMultiplier: 1.0
-  property bool useActiveColor: true
   property string weight: "normal"
 
   color: _computedColor
@@ -38,6 +37,4 @@ Text {
   font.weight: _computedWeight
   verticalAlignment: Text.AlignVCenter
 
-  onUseActiveColorChanged: if (!useActiveColor)
-    muted = true
 }

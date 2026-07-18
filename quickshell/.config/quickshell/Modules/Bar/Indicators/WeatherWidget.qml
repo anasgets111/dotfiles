@@ -220,7 +220,7 @@ Item {
           opacity: visible ? 1 : 0
           size: "sm"
           text: card.label
-          useActiveColor: card.isToday
+          muted: !card.isToday
           visible: card.showLabel && card.label !== ""
 
           Behavior on opacity {
@@ -237,7 +237,7 @@ Item {
           opacity: visible ? 1 : 0
           size: "sm"
           text: card.dateStr ? new Date(card.dateStr).toLocaleDateString(Qt.locale(), "ddd") : ""
-          useActiveColor: card.isToday
+          muted: !card.isToday
           visible: !l1.visible
 
           Behavior on opacity {

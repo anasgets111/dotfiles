@@ -39,10 +39,6 @@ Singleton {
   // ═══════════════════════════════════════════════════════════════════════════
   // PUBLIC API
   // ═══════════════════════════════════════════════════════════════════════════
-  function saveState(): void {
-    if (isStateLoaded)
-      stateFileView.writeAdapter();
-  }
   function setThemeMode(mode: string): void {
     const validMode = mode === "light" ? "light" : "dark";
     if (root.data?.themeMode !== validMode)

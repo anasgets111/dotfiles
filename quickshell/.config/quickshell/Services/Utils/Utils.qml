@@ -16,8 +16,7 @@ Singleton {
   property bool scrollLock: false
 
   function copyText(text: string): void {
-    const escaped = String(text || "").replace(/'/g, "'\\''");
-    Command.detached(["sh", "-c", "printf %s '" + escaped + "' | wl-copy"]);
+    Command.run(["wl-copy"], null, "clipboard", String(text ?? ""));
   }
   function fmtKib(kib: real): string {
     const formatted = formatKib(kib || 0);

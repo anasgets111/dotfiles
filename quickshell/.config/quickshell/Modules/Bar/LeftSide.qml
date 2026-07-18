@@ -13,19 +13,15 @@ import qs.Modules.Bar.Panels
 Row {
   id: leftSide
 
-  required property bool normalWorkspacesExpanded
   required property string screenName
+  readonly property bool workspacesExpanded: workspaceStripLoader.item?.expanded ?? false
 
   signal wallpaperPickerRequested
 
   spacing: Theme.spacingSm
 
-  Loader {
+  PowerMenu {
     anchors.verticalCenter: parent.verticalCenter
-    asynchronous: true
-
-    sourceComponent: PowerMenu {
-    }
   }
   Loader {
     active: UpdateService.ready
@@ -89,12 +85,6 @@ Row {
 
     sourceComponent: WorkspaceStrip {
       anchors.verticalCenter: parent.verticalCenter
-    }
-
-    onItemChanged: {
-      const workspaces = item as WorkspaceStrip;
-      if (workspaces)
-        leftSide.normalWorkspacesExpanded = Qt.binding(() => workspaces.expanded);
     }
   }
 }

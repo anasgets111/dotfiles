@@ -10,7 +10,6 @@ Item {
   id: root
 
   property bool active: false
-  property var allItems: []
   property int cellHeight: Theme.launcherCellSize
   property int cellPadding: Theme.spacingXl + Theme.spacingSm
   property int cellWidth: Theme.launcherCellSize
@@ -20,8 +19,6 @@ Item {
   property int currentIndex: -1
   property Component delegateComponent: null
   property var filteredItems: []
-  property var finder: null
-  property var finderBuilder: null
   property alias footerContent: footerSlot.data
   property int footerSpacing: Theme.spacingSm
   property alias gridView: itemGrid
@@ -68,39 +65,6 @@ Item {
     if (root.closeOnActivate)
       root.close();
   }
-  function arraysEqual(a, b) {
-    a = Array.isArray(a) ? a : [];
-    b = Array.isArray(b) ? b : [];
-    if (a.length !== b.length)
-      return false;
-    for (let i = 0; i < a.length; i++)
-      if (a[i] !== b[i])
-        return false;
-    return true;
-  }
-  function buildFinder(list) {
-    const builder = root.finderBuilder;
-    if (typeof builder !== "function")
-      return null;
-    try {
-      return builder({
-        list,
-        selector: entry => {
-          try {
-            const field = root.callSelector(root.searchSelector, entry);
-            return typeof field === "string" ? field : String(field ?? "");
-          } catch (e) {
-            console.warn("SearchGridPanel: selector failed", e);
-            return "";
-          }
-        },
-        limit: root.maxResults
-      });
-    } catch (e) {
-      console.warn("SearchGridPanel finderBuilder failed:", e);
-      return null;
-    }
-  }
   function callSelector(selector, item) {
     if (typeof selector === "function") {
       try {
@@ -129,17 +93,6 @@ Item {
       if (itemGrid)
         itemGrid.positionViewAtIndex(root.currentIndex, GridView.Center);
     });
-  }
-  function ensureFinder(forceRebuild) {
-    const normalized = toArray(items);
-    const needs = forceRebuild || !root.finder || !root.arraysEqual(root.allItems, normalized);
-    if (!needs)
-      return;
-    root.allItems = normalized.slice();
-    const hasBuilder = typeof root.finderBuilder === "function";
-    root.finder = hasBuilder ? root.buildFinder(root.allItems) : null;
-    if (hasBuilder && !root.finder)
-      console.warn("SearchGridPanel: FZF unavailable, using substring filter");
   }
   function gridStride() {
     return itemGrid ? itemGrid.gridColumns : 1;
@@ -202,9 +155,8 @@ Item {
       popupRect.forceActiveFocus();
   }
   function resetAndFocus() {
-    ensureFinder(true);
     searchField.text = "";
-    updateFilter("", true);
+    updateFilter("");
     Qt.callLater(() => {
       if (!root.active)
         return;
@@ -223,30 +175,19 @@ Item {
       return Array.from(value);
     return [];
   }
-  function updateFilter(query, skipEnsure) {
-    if (!skipEnsure)
-      ensureFinder(false);
+  function updateFilter(query) {
     const text = String(query || "");
-    if (root.finder) {
+    const lower = text.toLowerCase();
+    const base = root.toArray(root.items);
+    const filtered = lower.length ? base.filter(entry => {
       try {
-        root.filteredItems = root.finder.find(text).map(r => r.item);
+        return String(root.callSelector(root.searchSelector, entry) || "").toLowerCase().includes(lower);
       } catch (e) {
-        console.warn("SearchGridPanel FZF search failed:", e);
-        root.filteredItems = [];
+        console.warn("SearchGridPanel substring filter failed:", e);
+        return false;
       }
-    } else {
-      const lower = text.toLowerCase();
-      const base = root.allItems;
-      const filtered = lower.length ? base.filter(entry => {
-        try {
-          return String(root.callSelector(root.searchSelector, entry) || "").toLowerCase().includes(lower);
-        } catch (e) {
-          console.warn("SearchGridPanel substring filter failed:", e);
-          return false;
-        }
-      }) : base.slice();
-      root.filteredItems = filtered.slice(0, root.maxResults);
-    }
+    }) : base.slice();
+    root.filteredItems = filtered.slice(0, root.maxResults);
     if (text.length > 0)
       root.currentIndex = 0;
     else if (root.currentIndex < 0 || root.currentIndex >= root.filteredItems.length)
@@ -264,8 +205,7 @@ Item {
       root.releaseFocus();
   }
   onItemsChanged: {
-    ensureFinder(true);
-    updateFilter(searchField.text, true);
+    updateFilter(searchField.text);
   }
 
   Rectangle {

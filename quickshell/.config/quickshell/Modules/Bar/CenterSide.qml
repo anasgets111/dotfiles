@@ -7,8 +7,6 @@ import qs.Modules.Bar.Indicators
 Row {
   id: centerSide
 
-  required property bool normalWorkspacesExpanded
-
   spacing: Theme.spacingSm
 
   ActiveWindow {

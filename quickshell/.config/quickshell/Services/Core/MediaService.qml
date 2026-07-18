@@ -16,22 +16,15 @@ Singleton {
   readonly property bool canPlay: active?.canPlay ?? false
   readonly property bool canSeek: active?.canSeek ?? false
   readonly property bool canTogglePlaying: active?.canTogglePlaying ?? false
-  readonly property bool hasActive: !!active
   readonly property bool hasPlayingVideo: players.some(player => player?.playbackState === MprisPlaybackState.Playing && logic.isVideo(player))
-  readonly property bool isPlaying: active?.isPlaying ?? false
   readonly property bool pipewireVideoActive: (Pipewire.linkGroups?.values ?? []).some(linkGroup => linkGroup?.state === PwLinkState.Active && (linkGroup?.source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource)
   readonly property list<MprisPlayer> players: Mpris.players?.values.filter(player => !!player?.canControl) ?? []
-  readonly property string trackAlbum: active?.trackAlbum ?? ""
-  readonly property string trackArtUrl: active?.trackArtUrl ?? ""
-  readonly property string trackArtist: active?.trackArtist ?? ""
   readonly property real trackLength: {
     if (!active?.lengthSupported)
       return 0;
     const rawLength = active?.length ?? 0;
     return Number.isFinite(rawLength) && rawLength > 0 && rawLength < 9e12 ? rawLength : 0;
   }
-  readonly property string trackTitle: active?.trackTitle ?? ""
-
   function next(): void {
     if (canGoNext)
       active.next();

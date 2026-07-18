@@ -111,15 +111,9 @@ Item {
       tooltipRect.opacity = 0;
     }
   }
-  onMaxWidthChanged: if (root.visible)
-    root._computePosition(root.width, root.height)
   onParentChanged: if (root.visible)
     root._computePosition(root.width, root.height)
-  onTextChanged: if (root.visible)
-    root._computePosition(root.width, root.height)
   onWidthChanged: if (root.visible)
-    root._computePosition(root.width, root.height)
-  onWrapTextChanged: if (root.visible)
     root._computePosition(root.width, root.height)
   on_MouseXChanged: if (root.visible && root.positionAtMouse)
     root._computePosition(root.width, root.height)
@@ -192,10 +186,6 @@ Item {
       implicitWidth: childrenRect.width
       visible: root.hasCustomContent
 
-      onImplicitHeightChanged: if (root.visible)
-        root._computePosition(root.width, root.height)
-      onImplicitWidthChanged: if (root.visible)
-        root._computePosition(root.width, root.height)
     }
   }
 }

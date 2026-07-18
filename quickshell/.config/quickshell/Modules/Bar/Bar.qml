@@ -6,10 +6,8 @@ import qs.Config
 Item {
   id: root
 
-  readonly property bool centerShouldHide: workspacesExpanded || rightSideExpanded
-  property bool rightSideExpanded: false
+  readonly property bool centerShouldHide: leftSide.workspacesExpanded || rightSide.expanded
   required property ShellScreen screen
-  property bool workspacesExpanded: false
 
   signal wallpaperPickerRequested
 
@@ -32,10 +30,10 @@ Item {
       width: parent.width
 
       LeftSide {
-        normalWorkspacesExpanded: root.workspacesExpanded
+        id: leftSide
+
         screenName: root.screen?.name ?? ""
 
-        onNormalWorkspacesExpandedChanged: root.workspacesExpanded = normalWorkspacesExpanded
         onWallpaperPickerRequested: root.wallpaperPickerRequested()
 
         anchors {
@@ -45,10 +43,9 @@ Item {
         }
       }
       RightSide {
-        normalWorkspacesExpanded: root.rightSideExpanded
-        screenName: root.screen?.name ?? ""
+        id: rightSide
 
-        onNormalWorkspacesExpandedChanged: root.rightSideExpanded = normalWorkspacesExpanded
+        screenName: root.screen?.name ?? ""
 
         anchors {
           right: parent.right
@@ -58,7 +55,6 @@ Item {
       }
       CenterSide {
         anchors.centerIn: parent
-        normalWorkspacesExpanded: root.centerShouldHide
         opacity: root.centerShouldHide ? 0 : 1
         visible: opacity > 0
 

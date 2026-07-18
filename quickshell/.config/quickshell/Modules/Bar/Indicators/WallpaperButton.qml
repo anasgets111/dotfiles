@@ -10,10 +10,6 @@ IconButton {
 
   signal pickerRequested
 
-  function openPicker() {
-    controlButton.pickerRequested();
-  }
-
   colorBg: Theme.inactiveColor
   icon: ""
   tooltipText: qsTr("Manage wallpapers")
@@ -22,7 +18,7 @@ IconButton {
     if (!mouse)
       return;
     if (mouse.button === Qt.LeftButton)
-      controlButton.openPicker();
+      controlButton.pickerRequested();
     else if (mouse.button === Qt.RightButton)
       WallpaperService.randomizeAllMonitors();
 

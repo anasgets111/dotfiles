@@ -27,7 +27,6 @@ Item {
     return Theme.radiusFor(size === "xs" || size === "sm" ? "sm" : size === "xl" ? "lg" : "md");
   }
   readonly property int _size: Theme.controlHeightFor(size)
-  property bool allowClickWhenDisabled: false
 
   // Color customization
   property color colorBg: Theme.inactiveColor
@@ -105,12 +104,10 @@ Item {
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       anchors.fill: parent
       cursorShape: iconButton.isEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-      enabled: iconButton.allowClickWhenDisabled || iconButton.isEnabled
+      enabled: iconButton.isEnabled
       hoverEnabled: true
 
       onClicked: function (mouse) {
-        if (!iconButton.isEnabled && !iconButton.allowClickWhenDisabled)
-          return;
         if ((tooltipLoader.item as Tooltip)?.isVisible)
           (tooltipLoader.item as Tooltip).isVisible = false;
         iconButton.clicked(mouse);

@@ -50,22 +50,6 @@ Item {
   height: pill.height
   width: pill.width
 
-  // Click-away handler while counting
-  MouseArea {
-    acceptedButtons: Qt.LeftButton | Qt.RightButton
-    anchors.fill: parent
-    visible: powerMenu.counting
-
-    onPressed: mouse => {
-      const p = pill.mapFromItem(this, mouse.x, mouse.y);
-      if (p.x < 0 || p.y < 0 || p.x > pill.width || p.y > pill.height) {
-        powerMenu.cancelCountdown();
-        mouse.accepted = true;
-      } else {
-        mouse.accepted = false;
-      }
-    }
-  }
   Timer {
     id: tickTimer
 
