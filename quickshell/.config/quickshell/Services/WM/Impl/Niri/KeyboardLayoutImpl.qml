@@ -1,52 +1,18 @@
 pragma Singleton
-import QtQuick
 import Quickshell
 import qs.Services.Utils
+import qs.Services.WM.Impl.Niri
 
 Singleton {
-  id: impl
+  readonly property string currentLayout: NiriService.currentLayout
+  readonly property int currentLayoutIndex: NiriService.currentLayoutIndex
+  readonly property var layouts: NiriService.layouts
 
-  property string currentLayout: ""
-  property int currentLayoutIndex: -1
-  property var layouts: []
-  readonly property string socketPath: Quickshell.env("NIRI_SOCKET") ?? ""
-
-  function handleLayoutEvent(event: var): void {
-    const layoutInfo = event?.KeyboardLayoutsChanged?.keyboard_layouts;
-    const layoutNames = Array.isArray(layoutInfo?.names) ? layoutInfo.names.map(name => String(name ?? "").trim()).filter(Boolean) : null;
-    if (layoutNames)
-      layouts = layoutNames;
-    const rawIndex = layoutInfo?.current_idx ?? event?.KeyboardLayoutSwitched?.idx;
-    if (!Number.isInteger(rawIndex))
-      return;
-    currentLayoutIndex = rawIndex >= 0 && rawIndex < layouts.length ? rawIndex : -1;
-    if (currentLayoutIndex >= 0) {
-      const layout = String(layouts[currentLayoutIndex] ?? "").trim();
-      if (layout)
-        currentLayout = layout;
-    }
-  }
   function nextLayout(): void {
     Command.detached(["niri", "msg", "action", "switch-layout", "next"]);
   }
   function setLayoutByIndex(layoutIndex: int): void {
     if (layoutIndex >= 0 && layoutIndex < layouts.length)
       Command.detached(["niri", "msg", "action", "switch-layout", `${layoutIndex}`]);
-  }
-
-  NiriSocket {
-    eventStream: true
-    path: impl.socketPath
-
-    onLineRead: line => {
-      const message = String(line ?? "").trim();
-      if (!message)
-        return;
-      try {
-        impl.handleLayoutEvent(JSON.parse(message));
-      } catch (error) {
-        Logger.warn("KeyboardLayoutImpl(Niri)", `Parse error: ${error}`);
-      }
-    }
   }
 }

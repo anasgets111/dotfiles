@@ -4,26 +4,22 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import qs.Services.WM
 
 Singleton {
   id: root
 
-  readonly property var _layoutState: _revision >= 0 ? _buildLayoutState() : null
+  readonly property var _state: _revision >= 0 ? _buildState() : null
   property int _revision: 0
   readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "focusedmonv2", "fullscreen", "monitoradded", "monitoraddedv2", "monitorremoved", "monitorremovedv2", "moveworkspace", "moveworkspacev2", "activespecial", "activespecialv2", "configreloaded", "openwindow", "closewindow", "movewindow", "movewindowv2"]
-  readonly property int currentWorkspaceIndex: focusedWorkspace?.idx ?? -1
   readonly property bool fillsEmptyWorkspaceSlots: true
-  readonly property string focusedOutput: _layoutState.focusedOutput
-  readonly property var focusedWorkspace: _layoutState.focusedWorkspace
+  readonly property string focusedOutput: Hyprland.focusedMonitor?.name ?? ""
   readonly property bool fullscreenVisible: _revision >= 0 && Array.from(Hyprland.workspaces.values).some(ws => ws.active && ws.hasFullscreen)
-  readonly property var specialWorkspaces: _layoutState.specialWorkspaces
+  readonly property var specialWorkspaces: _state.specialWorkspaces
   readonly property bool supportsSpecialWorkspaces: true
-  readonly property var workspaces: _layoutState.workspaces
+  readonly property var workspaces: _state.workspaces
 
-  function _buildLayoutState(): var {
+  function _buildState(): var {
     const monitors = Array.from(Hyprland.monitors.values);
-    const outputOrderHint = monitors.slice().sort((leftMonitor, rightMonitor) => (rightMonitor.focused - leftMonitor.focused) || leftMonitor.name.localeCompare(rightMonitor.name)).map(monitor => monitor.name);
     const activeSpecialNames = new Set(monitors.map(monitor => String(monitor.lastIpcObject?.specialWorkspace?.name ?? "")).filter(Boolean));
 
     const regularWorkspaces = [];
@@ -49,19 +45,13 @@ Singleton {
         idx: rawWorkspace.id,
         focused: rawWorkspace.focused,
         populated: windowCount > 0,
-        output: outputName,
-        name: rawWorkspace.name ?? ""
+        output: outputName
       });
     }
 
-    const layout = WorkspaceArrangement.buildLayout(regularWorkspaces, Hyprland.focusedMonitor?.name ?? "", outputOrderHint);
     return {
-      focusedOutput: layout.focusedOutput,
-      focusedWorkspace: layout.focusedWorkspace,
-      groupBoundaries: layout.groupBoundaries,
-      outputsOrder: layout.outputsOrder,
       specialWorkspaces,
-      workspaces: layout.workspaces
+      workspaces: regularWorkspaces
     };
   }
   function focusWorkspace(workspace: var): void {
