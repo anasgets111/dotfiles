@@ -118,7 +118,7 @@ PanelContentBase {
 
       Layout.fillWidth: true
       Layout.margins: root.padding
-      Layout.preferredHeight: Math.min(root.cardHeight * Math.min(root.maxVisibleCards, count), root.availableContentHeight)
+      Layout.preferredHeight: Math.min(contentHeight, root.cardHeight * root.maxVisibleCards, root.availableContentHeight)
       Layout.topMargin: Theme.spacingSm
       boundsBehavior: Flickable.StopAtBounds
       clip: true

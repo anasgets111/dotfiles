@@ -14,7 +14,6 @@ import qs.Modules.Shell
 import qs.Services
 import qs.Services.Core
 import qs.Services.SystemInfo
-import qs.Services.UI
 import qs.Services.Utils
 import qs.Services.WM
 
@@ -27,11 +26,19 @@ ShellRoot {
   MainScreen {
     modelData: MonitorService.effectiveMainScreen
   }
-  NotificationPopup {
-    modelData: MonitorService.effectiveMainScreen
+  LazyLoader {
+    active: NotificationService.visibleNotifications.length > 0
+
+    component: NotificationPopup {
+      modelData: MonitorService.effectiveMainScreen
+    }
   }
-  OSDPopup {
-    modelData: MonitorService.effectiveMainScreen
+  LazyLoader {
+    active: OSDService.visible
+
+    component: OSDPopup {
+      modelData: MonitorService.effectiveMainScreen
+    }
   }
   LazyLoader {
     // Settings load after the QML defaults. Synchronous activation avoids an
