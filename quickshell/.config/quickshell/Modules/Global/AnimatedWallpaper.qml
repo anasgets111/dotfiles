@@ -97,7 +97,6 @@ WlrLayershell {
 
     anchors.fill: parent
     asynchronous: true
-    cache: false
     fillMode: root.imageFillMode
     sourceSize: root.maxSourceSize
     visible: !transitionAnim.running && root.transitionProgress === 0
