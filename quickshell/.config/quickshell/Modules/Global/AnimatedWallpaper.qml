@@ -97,6 +97,7 @@ WlrLayershell {
 
     anchors.fill: parent
     asynchronous: true
+    cache: false
     fillMode: root.imageFillMode
     sourceSize: root.maxSourceSize
     visible: !transitionAnim.running && root.transitionProgress === 0
@@ -125,6 +126,8 @@ WlrLayershell {
     sourceComponent: Image {
       anchors.fill: parent
       asynchronous: true
+      // Keep this cached while staging so currentImg can adopt the decoded
+      // pixels without decoding the new wallpaper a second time.
       fillMode: root.imageFillMode
       source: nextImgLoader.pendingSource
       sourceSize: root.maxSourceSize

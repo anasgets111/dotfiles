@@ -413,7 +413,7 @@ binds {
     Mod+Shift+Equal { set-window-height "+5%"; }
 }
 
-// Overview wallpaper support - places quickshell layer in backdrop
+// Keep the pre-rendered overview wallpaper inside Niri's backdrop.
 layer-rule {
     match namespace="^quickshell-overview-wallpaper$"
     place-within-backdrop true

@@ -362,6 +362,7 @@ Item {
                   fillMode: Image.PreserveAspectFit
                   scale: row.selected ? 1.3 : 1.0
                   source: Utils.resolveIconSource(modelData?.id || modelData?.name || "", modelData?.icon, "application-x-executable")
+                  sourceSize: Qt.size(Theme.s(34), Theme.s(34))
 
                   Behavior on scale {
                     NumberAnimation {

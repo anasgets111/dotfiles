@@ -34,7 +34,9 @@ ShellRoot {
     modelData: MonitorService.effectiveMainScreen
   }
   LazyLoader {
-    activeAsync: InputDisplayService.enabled
+    // Settings load after the QML defaults. Synchronous activation avoids an
+    // activeAsync cancellation race leaving the default-enabled surface alive.
+    active: InputDisplayService.enabled
 
     component: InputDisplayPopup {
       modelData: MonitorService.effectiveMainScreen
@@ -56,7 +58,7 @@ ShellRoot {
 
   // Niri overview wallpaper - static, shown only in overview via layer-rule
   LazyLoader {
-    activeAsync: MainService.ready && WorkspaceService.hasOverview
+    active: MainService.ready && WorkspaceService.hasOverview
 
     component: Variants {
       model: IdleService.displaysPoweredOff ? [] : WallpaperService.monitors

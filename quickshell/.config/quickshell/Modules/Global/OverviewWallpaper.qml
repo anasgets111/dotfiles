@@ -29,13 +29,15 @@ WlrLayershell {
     id: wallpaperSource
 
     anchors.fill: parent
+    cache: false
     fillMode: Image.PreserveAspectCrop
     source: root.wallpaperPath
-    sourceSize: Qt.size(width, height)
-    visible: false  // Source only, not displayed directly
+    sourceSize: Qt.size(Math.ceil(width / 2), Math.ceil(height / 2))
+    visible: false
   }
   MultiEffect {
     anchors.fill: parent
+    autoPaddingEnabled: false
     blur: Settings.data.overviewBlurStrength
     blurEnabled: true
     blurMax: Settings.data.overviewBlurMax

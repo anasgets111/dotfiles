@@ -87,46 +87,40 @@ Item {
     isVisible: mouseArea.containsMouse && !dateTimeDisplay.panelOpen
     target: dateTimeDisplay
 
-    Column {
-      id: tooltipColumn
+    Loader {
+      active: tooltip.isVisible
 
-      readonly property color textColor: Theme.textContrast(Theme.onHoverColor)
+      sourceComponent: Column {
+        id: tooltipColumn
 
-      spacing: Theme.spacingXs
+        readonly property color textColor: Theme.textContrast(Theme.onHoverColor)
 
-      // First row: description and place
-      Row {
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: Theme.spacingSm
+        spacing: Theme.spacingXs
 
-        OText {
-          color: tooltipColumn.textColor
-          text: (WeatherService.weatherInfo() || {}).desc || ""
+        Row {
+          anchors.horizontalCenter: parent.horizontalCenter
+          spacing: Theme.spacingSm
+
+          OText {
+            color: tooltipColumn.textColor
+            text: (WeatherService.weatherInfo() || {}).desc || ""
+          }
+          OText {
+            color: tooltipColumn.textColor
+            size: "sm"
+            text: "in " + WeatherService.locationName
+            visible: WeatherService.locationName.length > 0
+          }
         }
         OText {
+          anchors.horizontalCenter: parent.horizontalCenter
           color: tooltipColumn.textColor
+          opacity: 0.7
           size: "sm"
-          text: "in " + WeatherService.locationName
-          visible: WeatherService.locationName.length > 0
+          text: WeatherService.timeAgo ? "Last updated " + WeatherService.timeAgo : ""
+          visible: WeatherService.timeAgo.length > 0
         }
-      }
-
-      // Last updated row
-      OText {
-        anchors.horizontalCenter: parent.horizontalCenter
-        color: tooltipColumn.textColor
-        opacity: 0.7
-        size: "sm"
-        text: WeatherService.timeAgo ? "Last updated " + WeatherService.timeAgo : ""
-        visible: WeatherService.timeAgo.length > 0
-      }
-
-      // Load the calendar
-      Loader {
-        active: mouseArea.containsMouse
-        asynchronous: true
-
-        sourceComponent: MinimalCalendar {
+        MinimalCalendar {
           today: TimeService.now
           weekStart: 6
         }

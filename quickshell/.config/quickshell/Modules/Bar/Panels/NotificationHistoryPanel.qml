@@ -113,45 +113,38 @@ PanelContentBase {
         }
       }
     }
-    Flickable {
-      id: notificationFlickable
+    ListView {
+      id: notificationList
 
       Layout.fillWidth: true
       Layout.margins: root.padding
-      Layout.preferredHeight: Math.min(root.cardHeight * root.maxVisibleCards, notificationColumn.implicitHeight, root.availableContentHeight)
+      Layout.preferredHeight: Math.min(root.cardHeight * Math.min(root.maxVisibleCards, count), root.availableContentHeight)
       Layout.topMargin: Theme.spacingSm
+      boundsBehavior: Flickable.StopAtBounds
       clip: true
-      contentHeight: notificationColumn.implicitHeight
-      contentWidth: width
+      model: NotificationService.groupedNotifications
+      reuseItems: true
+      spacing: Theme.spacingSm
       visible: root.hasNotifications
 
       ScrollBar.vertical: ScrollBar {
-        policy: notificationFlickable.contentHeight > notificationFlickable.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+        policy: notificationList.contentHeight > notificationList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
       }
 
-      Column {
-        id: notificationColumn
+      delegate: NotificationCard {
+        required property int index
+        required property var modelData
 
-        spacing: Theme.spacingSm
-        width: parent.width
+        group: modelData
+        groupScope: "history"
+        showTimestamp: true
+        svc: NotificationService
+        width: ListView.view.width
 
-        Repeater {
-          model: NotificationService.groupedNotifications
-
-          NotificationCard {
-            required property int index
-            required property var modelData
-
-            group: modelData
-            groupScope: "history"
-            showTimestamp: true
-            svc: NotificationService
-            width: parent.width
-
-            onInputFocusReleased: root.needsKeyboardFocus = false
-            onInputFocusRequested: root.needsKeyboardFocus = true
-          }
-        }
+        ListView.onPooled: root.needsKeyboardFocus = false
+        ListView.onReused: resetReuseState()
+        onInputFocusReleased: root.needsKeyboardFocus = false
+        onInputFocusRequested: root.needsKeyboardFocus = true
       }
     }
     ColumnLayout {

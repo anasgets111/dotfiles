@@ -51,6 +51,10 @@ Item {
     if (safeUrl)
       Qt.openUrlExternally(safeUrl);
   }
+  function resetReuseState(): void {
+    _messageExpansion = {};
+    _shownMessageIds = {};
+  }
   function toggleMessageExpansion(id) {
     if (!id)
       return;

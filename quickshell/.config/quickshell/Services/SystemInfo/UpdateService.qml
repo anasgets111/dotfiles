@@ -103,7 +103,7 @@ Singleton {
     _cancelCommandDone = false;
     _cancellingUpdate = false;
     errorMessage = "Failed to cancel the update safely";
-    outputLines = outputLines.concat(errorMessage);
+    updateProcess.appendOutputLine(errorMessage);
     Logger.error("UpdateService", `${errorMessage} (code: ${exitCode})`);
     if (!updateProcess.running)
       _finishUpdate(_cancelledUpdateExitCode >= 0 ? _cancelledUpdateExitCode : exitCode);
@@ -214,7 +214,7 @@ Singleton {
     _cancellingUpdate = true;
     _cancelCommandDone = false;
     _cancelledUpdateExitCode = -1;
-    outputLines = outputLines.concat(qsTr("Cancelling update safely..."));
+    updateProcess.appendOutputLine(qsTr("Cancelling update safely..."));
     cancelProcess.command = ["update", "--cancel"];
     cancelProcess.running = true;
   }
@@ -277,7 +277,7 @@ Singleton {
       const trimmedLine = lineText.trim();
       if (!trimmedLine)
         return;
-      root.outputLines = root.outputLines.concat(trimmedLine);
+      root.outputLines = root.outputLines.slice(-299).concat(trimmedLine);
       const stepMatch = trimmedLine.match(/^▶\s+(.+)$/);
       if (stepMatch)
         root.currentStep = stepMatch[1];

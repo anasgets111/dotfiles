@@ -114,6 +114,7 @@ Scope {
           layer.enabled: !!lockSurface.wallpaperSource
           opacity: stage.backgroundOpacity
           source: lockSurface.wallpaperSource
+          sourceSize: Qt.size(Math.ceil(width * (lockSurface.screen?.devicePixelRatio ?? 1)), Math.ceil(height * (lockSurface.screen?.devicePixelRatio ?? 1)))
 
           layer.effect: MultiEffect {
             autoPaddingEnabled: false

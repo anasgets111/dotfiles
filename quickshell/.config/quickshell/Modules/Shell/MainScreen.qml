@@ -44,7 +44,7 @@ PanelWindow {
   WlrLayershell.layer: WlrLayer.Top
   WlrLayershell.namespace: "obelisk-main-screen-" + (root.screenName || "unknown")
   color: "transparent"
-  implicitHeight: screen ? screen.height : Theme.panelHeight
+  implicitHeight: root.shouldCaptureBackground && screen ? screen.height : Theme.panelHeight
   screen: root.modelData
   surfaceFormat.opaque: false
 

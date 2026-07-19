@@ -1,18 +1,17 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import qs.Config
 
-Item {
+PopupWindow {
   id: root
 
-  readonly property real _hMargin: Theme.spacingMd
   readonly property real _hPadding: Theme.spacingSm
-  readonly property real _minHeight: Theme.controlHeightMd
-  readonly property real _minWidth: Theme.controlWidthLg
+  readonly property int _minHeight: Theme.controlHeightMd
+  readonly property int _minWidth: Theme.controlWidthLg
   property real _mouseX: 0
   property real _mouseY: 0
-  readonly property real _vMargin: Theme.spacingMd
   readonly property real _vPadding: Theme.spacingXs
   readonly property color bgColor: Theme.onHoverColor
   readonly property color borderColor: Theme.inactiveColor
@@ -26,13 +25,6 @@ Item {
   property int maxWidth: 420
   property real mouseOffsetX: 8
   property real mouseOffsetY: 8
-  readonly property Item overlayParent: {
-    if (!root.target)
-      return null;
-    const attached = root.target.Window;
-    const win = attached ? attached.window : null;
-    return win ? win.contentItem : null;
-  }
   property bool positionAbove: false
   property bool positionAtMouse: false
   property bool positionLeft: false
@@ -41,101 +33,56 @@ Item {
   property string text: ""
   property bool wrapText: false
 
-  function _computePosition(w, h) {
-    if (!root.target || !root.parent)
-      return;
-    let p;
-    if (root.positionAtMouse) {
-      p = root.target.mapToItem(root.parent, root._mouseX, root._mouseY);
-      root.x = p.x + root.mouseOffsetX;
-      root.y = p.y + root.mouseOffsetY;
-    } else if (root.positionLeft) {
-      p = root.target.mapToItem(root.parent, 0, 0);
-      root.x = p.x - w - root._hMargin;
-      root.y = p.y + (root.target.height - h) / 2;
-    } else if (root.positionRight) {
-      p = root.target.mapToItem(root.parent, root.target.width, 0);
-      root.x = p.x + root._hMargin;
-      root.y = p.y + (root.target.height - h) / 2;
-    } else if (root.positionAbove) {
-      p = root.target.mapToItem(root.parent, 0, 0);
-      root.x = p.x + (root.target.width - w) / 2;
-      root.y = p.y - h - root._vMargin;
-    } else {
-      p = root.target.mapToItem(root.parent, 0, root.target.height);
-      root.x = p.x + (root.target.width - w) / 2;
-      root.y = p.y + root._vMargin;
-    }
-
-    const parentItem = root.parent;
-    if (!parentItem || parentItem.width <= 0 || parentItem.height <= 0)
-      return;
-
-    const minX = root._hMargin;
-    const maxX = parentItem.width - w - root._hMargin;
-    const minY = root._vMargin;
-    const maxY = parentItem.height - h - root._vMargin;
-
-    function clamp(value, min, max) {
-      if (max < min)
-        return min;
-      if (value < min)
-        return min;
-      if (value > max)
-        return max;
-      return value;
-    }
-
-    root.x = clamp(root.x, minX, maxX);
-    root.y = clamp(root.y, minY, maxY);
+  // Quickshell._Window exposes this as PopupAnchor from its parent module, but
+  // qmllint disable unresolved-type missing-type
+  function updateAnchor(): void {
+    if (root.visible)
+      root.anchor.updateAnchor();
   }
 
-  height: root.hasCustomContent ? Math.max(root._minHeight, contentContainer.implicitHeight + root._vPadding * 2) : Math.max(root._minHeight, tooltipText.implicitHeight + root._vPadding * 2)
-  parent: overlayParent
+  anchor.adjustment: PopupAdjustment.Flip | PopupAdjustment.Slide
+  anchor.edges: root.positionAtMouse ? Edges.Top | Edges.Left : root.positionLeft ? Edges.Left : root.positionRight ? Edges.Right : root.positionAbove ? Edges.Top : Edges.Bottom
+  anchor.gravity: root.positionAtMouse ? Edges.Bottom | Edges.Right : root.positionLeft ? Edges.Left : root.positionRight ? Edges.Right : root.positionAbove ? Edges.Top : Edges.Bottom
+  anchor.item: root.target
+  anchor.rect: root.positionAtMouse ? Qt.rect(root._mouseX + root.mouseOffsetX, root._mouseY + root.mouseOffsetY, 1, 1) : root.positionLeft ? Qt.rect(-Theme.spacingMd, (root.target?.height ?? 0) / 2, 1, 1) : root.positionRight ? Qt.rect((root.target?.width ?? 0) + Theme.spacingMd, (root.target?.height ?? 0) / 2, 1, 1) : root.positionAbove ? Qt.rect((root.target?.width ?? 0) / 2, -Theme.spacingMd, 1, 1) : Qt.rect((root.target?.width ?? 0) / 2, (root.target?.height ?? 0) + Theme.spacingMd, 1, 1)
+  // qmllint enable unresolved-type missing-type
+  color: "transparent"
+  implicitHeight: root.hasCustomContent ? Math.max(root._minHeight, contentContainer.implicitHeight + root._vPadding * 2) : Math.max(root._minHeight, tooltipText.implicitHeight + root._vPadding * 2)
+  implicitWidth: root.hasCustomContent ? Math.max(root._minWidth, contentContainer.implicitWidth + root._hPadding * 2) : Math.max(root._minWidth, tooltipText.implicitWidth + root._hPadding * 2)
+  surfaceFormat.opaque: false
   visible: false
-  width: root.hasCustomContent ? Math.max(root._minWidth, contentContainer.implicitWidth + root._hPadding * 2) : Math.max(root._minWidth, tooltipText.implicitWidth + root._hPadding * 2)
 
-  onHeightChanged: if (root.visible)
-    root._computePosition(root.width, root.height)
+  onHeightChanged: root.updateAnchor()
   onIsVisibleChanged: {
-    if (!root.target)
-      return;
-    if (root.isVisible) {
-      root._computePosition(root.width, root.height);
+    if (root.isVisible && root.target !== null) {
       if (!root.visible) {
         root.visible = true;
         tooltipRect.opacity = 0;
       }
+      root.updateAnchor();
       tooltipRect.opacity = 1;
     } else if (root.visible) {
       tooltipRect.opacity = 0;
     }
   }
-  onParentChanged: if (root.visible)
-    root._computePosition(root.width, root.height)
-  onWidthChanged: if (root.visible)
-    root._computePosition(root.width, root.height)
-  on_MouseXChanged: if (root.visible && root.positionAtMouse)
-    root._computePosition(root.width, root.height)
-  on_MouseYChanged: if (root.visible && root.positionAtMouse)
-    root._computePosition(root.width, root.height)
+  onWidthChanged: root.updateAnchor()
+  on_MouseXChanged: if (root.positionAtMouse)
+    root.updateAnchor()
+  on_MouseYChanged: if (root.positionAtMouse)
+    root.updateAnchor()
 
   Connections {
-    function onHeightChanged() {
-      if (root.visible)
-        root._computePosition(root.width, root.height);
+    function onHeightChanged(): void {
+      root.updateAnchor();
     }
-    function onWidthChanged() {
-      if (root.visible)
-        root._computePosition(root.width, root.height);
+    function onWidthChanged(): void {
+      root.updateAnchor();
     }
-    function onXChanged() {
-      if (root.visible)
-        root._computePosition(root.width, root.height);
+    function onXChanged(): void {
+      root.updateAnchor();
     }
-    function onYChanged() {
-      if (root.visible)
-        root._computePosition(root.width, root.height);
+    function onYChanged(): void {
+      root.updateAnchor();
     }
 
     target: root.target
@@ -176,8 +123,6 @@ Item {
       width: root.wrapText ? (root.maxWidth - root._hPadding * 2) : implicitWidth
       wrapMode: root.wrapText ? Text.Wrap : Text.NoWrap
     }
-
-    // Container for custom content
     Item {
       id: contentContainer
 
@@ -185,7 +130,6 @@ Item {
       implicitHeight: childrenRect.height
       implicitWidth: childrenRect.width
       visible: root.hasCustomContent
-
     }
   }
 }
