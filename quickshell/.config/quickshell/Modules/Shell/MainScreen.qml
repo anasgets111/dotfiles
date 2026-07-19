@@ -49,28 +49,10 @@ PanelWindow {
   surfaceFormat.opaque: false
 
   mask: Region {
-    height: root.height
-    intersection: Intersection.Xor
-    regions: [barMaskRegion, backgroundMaskRegion]
+    height: root.shouldCaptureBackground ? root.height : Theme.panelHeight
     width: root.width
     x: 0
     y: 0
-
-    Region {
-      id: barMaskRegion
-
-      intersection: Intersection.Subtract
-      item: barClickableRegion
-    }
-    Region {
-      id: backgroundMaskRegion
-
-      height: root.shouldCaptureBackground ? root.height : 0
-      intersection: Intersection.Subtract
-      width: root.shouldCaptureBackground ? root.width : 0
-      x: 0
-      y: 0
-    }
   }
 
   Component.onCompleted: IdleService.window = root

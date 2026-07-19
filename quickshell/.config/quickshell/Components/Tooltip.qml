@@ -49,6 +49,8 @@ PopupWindow {
   color: "transparent"
   implicitHeight: root.hasCustomContent ? Math.max(root._minHeight, contentContainer.implicitHeight + root._vPadding * 2) : Math.max(root._minHeight, tooltipText.implicitHeight + root._vPadding * 2)
   implicitWidth: root.hasCustomContent ? Math.max(root._minWidth, contentContainer.implicitWidth + root._hPadding * 2) : Math.max(root._minWidth, tooltipText.implicitWidth + root._hPadding * 2)
+  mask: Region {
+  }
   surfaceFormat.opaque: false
   visible: false
 
