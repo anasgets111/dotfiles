@@ -11,135 +11,135 @@ import qs.Modules.Global
 import qs.Services.Core
 import qs.Services.UI
 
-PanelWindow {
+Scope {
   id: root
 
-  readonly property int effectiveKeyboardFocus: {
-    if (!ShellUiState.isAnyInteractiveOpen)
-      return WlrKeyboardFocus.None;
+  required property var modelData
+  readonly property bool overlayRequested: ShellUiState.isAnyInteractiveOpen
+  property bool overlayRetained: false
 
-    if (root.hasInteractiveHere) {
-      if (!root.wantsKeyboardHere)
-        return WlrKeyboardFocus.None;
-      return WlrKeyboardFocus.Exclusive;
+  onOverlayRequestedChanged: {
+    if (overlayRequested) {
+      overlayDestroyTimer.stop();
+      overlayRetained = true;
+    } else if (overlayRetained) {
+      overlayDestroyTimer.restart();
     }
-
-    return WlrKeyboardFocus.None;
-  }
-  readonly property bool hasInteractiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyInteractiveOpen
-  readonly property bool isIdleSettingsOpen: ShellUiState.isModalOpenOn(root.screenName, "idleSettings")
-  readonly property bool isModalActiveHere: ShellUiState.activeScreenName === root.screenName && ShellUiState.isAnyModalOpen
-  readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(root.screenName)
-  readonly property bool isWallpaperPickerOpen: ShellUiState.isModalOpenOn(root.screenName, "wallpaperPicker")
-  readonly property bool launcherOpen: ShellUiState.isModalOpenOn(root.screenName, "launcher")
-  property var modelData: null
-  readonly property bool panelNeedsKeyboardFocus: panelContainer.active && panelContainer.needsKeyboardFocus
-  readonly property string screenName: screen?.name ?? ""
-  readonly property bool shouldCaptureBackground: ShellUiState.isAnyPanelOpen || ShellUiState.isAnyModalOpen
-  readonly property bool wantsKeyboardHere: panelNeedsKeyboardFocus || launcherOpen || isWallpaperPickerOpen || isIdleSettingsOpen
-
-  WlrLayershell.exclusionMode: ExclusionMode.Normal
-  WlrLayershell.exclusiveZone: Theme.panelHeight
-  WlrLayershell.keyboardFocus: root.effectiveKeyboardFocus
-  WlrLayershell.layer: WlrLayer.Top
-  WlrLayershell.namespace: "obelisk-main-screen-" + (root.screenName || "unknown")
-  color: "transparent"
-  implicitHeight: root.shouldCaptureBackground && screen ? screen.height : Theme.panelHeight
-  screen: root.modelData
-  surfaceFormat.opaque: false
-
-  mask: Region {
-    height: root.shouldCaptureBackground ? root.height : Theme.panelHeight
-    width: root.width
-    x: 0
-    y: 0
   }
 
-  Component.onCompleted: IdleService.window = root
+  Component.onCompleted: overlayRetained = overlayRequested
 
-  anchors {
-    left: true
-    right: true
-    top: true
+  Timer {
+    id: overlayDestroyTimer
+
+    interval: Theme.animationDuration
+
+    onTriggered: if (!root.overlayRequested)
+      root.overlayRetained = false
   }
-  Item {
-    anchors.fill: parent
+  PanelWindow {
+    id: barWindow
 
-    MouseArea {
-      acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+    WlrLayershell.exclusionMode: ExclusionMode.Normal
+    WlrLayershell.exclusiveZone: Theme.panelHeight
+    WlrLayershell.layer: WlrLayer.Top
+    WlrLayershell.namespace: "obelisk-bar"
+    color: "transparent"
+    implicitHeight: barHost.implicitHeight
+    screen: root.modelData
+
+    mask: Region {
+      height: Theme.panelHeight
+      width: barWindow.width
+    }
+
+    Component.onCompleted: IdleService.window = barWindow
+
+    anchors {
+      left: true
+      right: true
+      top: true
+    }
+    Bar {
+      id: barHost
+
       anchors.fill: parent
-      enabled: root.shouldCaptureBackground && !root.isPanelActiveHere && !root.isModalActiveHere
+      screen: barWindow.screen
 
-      onClicked: {
-        ShellUiState.closePanel();
-        ShellUiState.closeModal();
+      onWallpaperPickerRequested: ShellUiState.openModal("wallpaperPicker", barWindow.screen?.name ?? "")
+    }
+  }
+  LazyLoader {
+    active: root.overlayRetained
+
+    component: PanelWindow {
+      id: overlayWindow
+
+      readonly property string activeModal: ShellUiState.activeScreenName === screenName ? ShellUiState.activeModal : ""
+      readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(screenName)
+      readonly property string screenName: screen?.name ?? ""
+
+      WlrLayershell.exclusionMode: ExclusionMode.Ignore
+      WlrLayershell.keyboardFocus: (panelContainer.active && panelContainer.needsKeyboardFocus) || activeModal !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+      WlrLayershell.layer: WlrLayer.Top
+      WlrLayershell.namespace: "obelisk-overlay"
+      color: "transparent"
+      screen: root.modelData
+
+      mask: Region {
+        height: overlayWindow.activeModal !== "" ? overlayWindow.height : overlayWindow.isPanelActiveHere ? Math.max(0, overlayWindow.height - Theme.panelHeight) : 0
+        width: overlayWindow.width
+        y: overlayWindow.isPanelActiveHere ? Theme.panelHeight : 0
       }
-    }
-    Item {
-      id: barClickableRegion
 
-      height: barHost.height
-      width: root.width
-      z: 10
-
-      Bar {
-        id: barHost
-
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        screen: root.screen
-
-        onWallpaperPickerRequested: ShellUiState.openModal("wallpaperPicker", root.screenName)
+      anchors {
+        bottom: true
+        left: true
+        right: true
+        top: true
       }
-    }
-    OPanel {
-      id: panelContainer
+      OPanel {
+        id: panelContainer
 
-      active: root.isPanelActiveHere
-      anchorRect: ShellUiState.anchorRect
-      anchors.fill: parent
-      panelData: ShellUiState.panelData
-      panelId: ShellUiState.activePanelId
-      z: 60
+        active: overlayWindow.isPanelActiveHere
+        anchorRect: ShellUiState.anchorRect
+        anchors.fill: parent
+        panelData: ShellUiState.panelData
+        panelId: ShellUiState.activePanelId
 
-      onCloseRequested: ShellUiState.closePanel()
-    }
-    Loader {
-      id: launcherLoader
-
-      active: root.launcherOpen
-      anchors.fill: parent
-      z: 70
-
-      sourceComponent: AppLauncher {
-        active: true
-
-        onDismissed: ShellUiState.closeModal("launcher")
+        onCloseRequested: ShellUiState.closePanel()
       }
-    }
-    Loader {
-      active: root.isWallpaperPickerOpen
-      anchors.fill: parent
-      z: 75
+      Loader {
+        active: overlayWindow.activeModal === "launcher"
+        anchors.fill: parent
 
-      sourceComponent: WallpaperPicker {
-        active: true
+        sourceComponent: AppLauncher {
+          active: true
 
-        onApplyRequested: ShellUiState.closeModal("wallpaperPicker")
-        onCancelRequested: ShellUiState.closeModal("wallpaperPicker")
-        onDismissed: ShellUiState.closeModal("wallpaperPicker")
+          onDismissed: ShellUiState.closeModal("launcher")
+        }
       }
-    }
-    Loader {
-      active: root.isIdleSettingsOpen
-      anchors.fill: parent
-      z: 75
+      Loader {
+        active: overlayWindow.activeModal === "wallpaperPicker"
+        anchors.fill: parent
 
-      sourceComponent: IdleSettingsPanel {
-        active: true
+        sourceComponent: WallpaperPicker {
+          active: true
 
-        onDismissed: ShellUiState.closeModal("idleSettings")
+          onApplyRequested: ShellUiState.closeModal("wallpaperPicker")
+          onCancelRequested: ShellUiState.closeModal("wallpaperPicker")
+          onDismissed: ShellUiState.closeModal("wallpaperPicker")
+        }
+      }
+      Loader {
+        active: overlayWindow.activeModal === "idleSettings"
+        anchors.fill: parent
+
+        sourceComponent: IdleSettingsPanel {
+          active: true
+
+          onDismissed: ShellUiState.closeModal("idleSettings")
+        }
       }
     }
   }
