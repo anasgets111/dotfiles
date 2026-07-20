@@ -14,8 +14,6 @@ if monitor.icc then
     local unprofiled = {}
     for key, value in pairs(monitor) do unprofiled[key] = value end
     unprofiled.icc = nil
-    -- An ICC-only change hits Hyprland's fast path; this HDR-only nudge forces an update.
-    unprofiled.sdrbrightness = (monitor.sdrbrightness or 1) + 0.0001
 
     local function fullscreened(workspace)
         return workspace ~= nil and (workspace.fullscreen_mode & 2) ~= 0
@@ -34,8 +32,7 @@ if monitor.icc then
         hl.monitor(unprofiled)
     end
 
-    for _, event in ipairs({ "window.fullscreen", "window.destroy", "window.move_to_workspace", "workspace.active",
-        -- "workspace.special_active", -- Available after Hyprland 0.55.4.
+    for _, event in ipairs({ "window.fullscreen", "window.destroy", "window.move_to_workspace", "workspace.active", "workspace.special_active"
     }) do
         hl.on(event, sync_icc)
     end
