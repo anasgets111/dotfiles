@@ -108,21 +108,24 @@ Scope {
           }
         }
         Image {
+          id: lockWallpaper
+
           anchors.fill: parent
           cache: false
-          fillMode: WallpaperService.modeToFillMode(lockSurface.screen?.name ? WallpaperService.wallpaperMode(lockSurface.screen.name) : "fill")
-          layer.enabled: !!lockSurface.wallpaperSource
-          opacity: stage.backgroundOpacity
+          fillMode: WallpaperService.modeToFillMode(WallpaperService.wallpaperMode(lockSurface.screen?.name ?? ""))
           source: lockSurface.wallpaperSource
-          sourceSize: Qt.size(Math.ceil(width * (lockSurface.screen?.devicePixelRatio ?? 1)), Math.ceil(height * (lockSurface.screen?.devicePixelRatio ?? 1)))
-
-          layer.effect: MultiEffect {
-            autoPaddingEnabled: false
-            blur: Settings.data.lockBlurAmount * stage.backgroundOpacity
-            blurEnabled: stage.backgroundOpacity > 0
-            blurMax: Settings.data.lockBlurMax
-            blurMultiplier: Settings.data.lockBlurMultiplier
-          }
+          sourceSize: Qt.size(Math.ceil(width / 2), Math.ceil(height / 2))
+          visible: false
+        }
+        MultiEffect {
+          anchors.fill: parent
+          autoPaddingEnabled: false
+          blur: Settings.data.lockBlurAmount * stage.backgroundOpacity
+          blurEnabled: !!lockSurface.wallpaperSource && stage.backgroundOpacity > 0
+          blurMax: Settings.data.lockBlurMax
+          blurMultiplier: Settings.data.lockBlurMultiplier
+          opacity: stage.backgroundOpacity
+          source: lockWallpaper
         }
         Loader {
           active: !IdleService.displaysPoweredOff
