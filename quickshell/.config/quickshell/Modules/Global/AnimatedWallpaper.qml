@@ -8,47 +8,40 @@ import qs.Services.Core
 WlrLayershell {
   id: root
 
-  readonly property string currentMode: screenName ? WallpaperService.wallpaperMode(screenName) : "fill"
   readonly property string currentPath: screenName ? WallpaperService.wallpaperPath(screenName) : ""
-  readonly property string currentTransition: WallpaperService.wallpaperTransition
-  property string displayMode: currentMode
-  readonly property int imageFillMode: WallpaperService.modeToFillMode(displayMode)
+  readonly property int imageFillMode: WallpaperService.modeToFillMode(WallpaperService.wallpaperMode(screenName))
   readonly property size maxSourceSize: {
     const scale = monitor?.scale ?? 1;
     return Qt.size(width * scale, height * scale);
   }
   required property var monitor
   property string pendingUrl: ""
-  readonly property string safeTransitionType: WallpaperService.availableTransitions.includes(transitionType) ? transitionType : "fade"
   readonly property string screenName: monitor?.name ?? ""
   readonly property var screenObject: screenName ? Quickshell.screens.find(screen => screen?.name === screenName) : null
   property real transitionProgress: 0.0
-  property string transitionType: currentTransition
 
   function changeWallpaper(newPath: string): void {
-    if (!screenObject)
+    if (!screenObject || !newPath)
       return;
-    const url = newPath;
-    if (!url)
+    if (newPath === currentImg.source.toString() || newPath === nextImgLoader.pendingSource)
       return;
-    if (currentImg.source === "" || currentImg.status === Image.Loading) {
-      currentImg.source = url;
+    if (transitionAnim.running || transitionProgress > 0) {
+      pendingUrl = newPath;
       return;
     }
-    if (url === currentImg.source.toString() || url === nextImgLoader.pendingSource)
-      return;
-    if (transitionAnim.running) {
-      pendingUrl = url;
+    if (currentImg.status !== Image.Ready) {
+      currentImg.source = newPath;
       return;
     }
     pendingUrl = "";
-    transitionParams.randomize(transitionType);
-    nextImgLoader.pendingSource = url;
+    transitionParams.randomize(WallpaperService.wallpaperTransition);
+    nextImgLoader.pendingSource = newPath;
   }
   function resetTransition(): void {
     transitionAnim.stop();
-    shaderLoader.active = false;
     nextImgLoader.pendingSource = "";
+    pendingUrl = "";
+    transitionProgress = 0.0;
   }
 
   exclusionMode: ExclusionMode.Ignore
@@ -58,10 +51,8 @@ WlrLayershell {
   Component.onCompleted: if (currentPath)
     currentImg.source = currentPath
   Component.onDestruction: resetTransition()
-  onCurrentModeChanged: displayMode = currentMode
   onCurrentPathChanged: if (currentPath)
     changeWallpaper(currentPath)
-  onCurrentTransitionChanged: transitionType = currentTransition
   onScreenObjectChanged: if (!screenObject)
     resetTransition()
 
@@ -106,6 +97,12 @@ WlrLayershell {
         return;
       if (status === Image.Error)
         console.warn("AnimatedWallpaper: Failed to load", source);
+      else if (status === Image.Ready && !transitionAnim.running && root.transitionProgress > 0) {
+        root.transitionProgress = 0.0;
+        nextImgLoader.pendingSource = "";
+        if (root.pendingUrl)
+          Qt.callLater(() => root.changeWallpaper(root.pendingUrl));
+      }
     }
   }
 
@@ -113,10 +110,6 @@ WlrLayershell {
   Loader {
     id: nextImgLoader
 
-    readonly property Image nextImage: item as Image
-    readonly property real nextPaintedHeight: nextImage ? nextImage.paintedHeight : 0
-    readonly property real nextPaintedWidth: nextImage ? nextImage.paintedWidth : 0
-    readonly property int nextStatus: nextImage ? nextImage.status : Image.Null
     property string pendingSource: ""
 
     active: pendingSource !== ""
@@ -125,8 +118,7 @@ WlrLayershell {
     sourceComponent: Image {
       anchors.fill: parent
       asynchronous: true
-      // Keep this cached while staging so currentImg can adopt the decoded
-      // pixels without decoding the new wallpaper a second time.
+      cache: false
       fillMode: root.imageFillMode
       source: nextImgLoader.pendingSource
       sourceSize: root.maxSourceSize
@@ -135,23 +127,17 @@ WlrLayershell {
       onStatusChanged: {
         if (!root.screenObject || status === Image.Loading)
           return;
-        if (status === Image.Error) {
+        if (status === Image.Error)
           nextImgLoader.pendingSource = "";
-        } else if (status === Image.Ready) {
-          if (currentImg.source === "") {
-            currentImg.source = nextImgLoader.pendingSource;
-            nextImgLoader.pendingSource = "";
-          } else if (!transitionAnim.running && currentImg.status === Image.Ready) {
-            transitionAnim.start();
-          }
-        }
+        else if (status === Image.Ready && !transitionAnim.running)
+          transitionAnim.start();
       }
     }
   }
   Loader {
     id: shaderLoader
 
-    active: root.visible && root.screenObject && (transitionAnim.running || root.transitionProgress > 0) && ((currentImg.status === Image.Ready && currentImg.source !== "") || nextImgLoader.nextStatus === Image.Ready)
+    active: root.visible && root.screenObject && (transitionAnim.running || root.transitionProgress > 0)
     anchors.fill: parent
 
     sourceComponent: ShaderEffect {
@@ -162,20 +148,20 @@ WlrLayershell {
       readonly property real direction: transitionParams.direction
       readonly property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
       readonly property real fillMode: 1.0
-      readonly property real imageHeight1: currentImg.status === Image.Ready ? currentImg.paintedHeight : height
-      readonly property real imageHeight2: nextImgLoader.nextPaintedHeight
-      readonly property real imageWidth1: currentImg.status === Image.Ready ? currentImg.paintedWidth : width
-      readonly property real imageWidth2: nextImgLoader.nextPaintedWidth
-      readonly property real progress: root.transitionProgress
-      readonly property real screenHeight: height * (root.monitor?.scale ?? 1)
-      readonly property real screenWidth: width * (root.monitor?.scale ?? 1)
-      readonly property real smoothness: 0.1
       readonly property Image source1: currentImg
       readonly property Image source2: nextImgLoader.item as Image
+      readonly property real imageHeight1: currentImg.status === Image.Ready ? currentImg.paintedHeight : height
+      readonly property real imageHeight2: source2?.paintedHeight ?? 0
+      readonly property real imageWidth1: currentImg.status === Image.Ready ? currentImg.paintedWidth : width
+      readonly property real imageWidth2: source2?.paintedWidth ?? 0
+      readonly property real progress: root.transitionProgress
+      readonly property real screenHeight: root.maxSourceSize.height
+      readonly property real screenWidth: root.maxSourceSize.width
+      readonly property real smoothness: 0.1
       readonly property real stripeCount: transitionParams.count
 
       anchors.fill: parent
-      fragmentShader: Qt.resolvedUrl(`../../Shaders/qsb/wp_${root.safeTransitionType}.frag.qsb`)
+      fragmentShader: Qt.resolvedUrl(`../../Shaders/qsb/wp_${WallpaperService.wallpaperTransition}.frag.qsb`)
     }
   }
   NumberAnimation {
@@ -188,14 +174,7 @@ WlrLayershell {
     target: root
     to: 1.0
 
-    onFinished: {
-      if (nextImgLoader.pendingSource !== "") {
-        currentImg.source = nextImgLoader.pendingSource;
-        nextImgLoader.pendingSource = "";
-      }
-      root.transitionProgress = 0.0;
-      if (root.pendingUrl)
-        Qt.callLater(() => root.changeWallpaper(root.pendingUrl));
-    }
+    onFinished: if (nextImgLoader.pendingSource !== "")
+      currentImg.source = nextImgLoader.pendingSource
   }
 }

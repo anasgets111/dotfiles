@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import qs.Components
 import qs.Config
@@ -10,8 +12,7 @@ Item {
 
   readonly property color bgColor: mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor
   readonly property bool hasNotifications: notificationCount > 0
-  readonly property int notificationCount: NotificationService.notifications?.length || 0
-  readonly property bool panelOpen: ShellUiState.isPanelOpen("notifications", dateTimeDisplay.screenName)
+  readonly property int notificationCount: NotificationService.notifications.length
   required property string screenName
 
   height: Theme.itemHeight
@@ -43,7 +44,6 @@ Item {
       font.pixelSize: Theme.fontSize
       leftPadding: Theme.spacingSm
       text: NotificationService.doNotDisturb ? "󰂛 " : (dateTimeDisplay.hasNotifications ? "󱅫 " + dateTimeDisplay.notificationCount : " ")
-      verticalAlignment: Text.AlignVCenter
 
       Behavior on color {
         ColorAnimation {
@@ -52,14 +52,11 @@ Item {
       }
     }
     OText {
-      id: textItem
-
       anchors.verticalCenter: parent.verticalCenter
       bold: true
       color: Theme.textContrast(dateTimeDisplay.bgColor)
       rightPadding: Theme.spacingSm
       text: WeatherService.currentTemp + " " + TimeService.format("datetime")
-      verticalAlignment: Text.AlignVCenter
 
       Behavior on color {
         ColorAnimation {
@@ -75,25 +72,29 @@ Item {
     cursorShape: Qt.PointingHandCursor
     hoverEnabled: true
 
-    onClicked: function (mouse) {
-      ShellUiState.togglePanelForItem("notifications", dateTimeDisplay.screenName, dateTimeDisplay);
-    }
+    onClicked: ShellUiState.togglePanelForItem("notifications", dateTimeDisplay.screenName, dateTimeDisplay)
   }
 
-  // Tooltip with weather info and calendar
-  Tooltip {
-    id: tooltip
+  Loader {
+    id: tooltipLoader
 
-    isVisible: mouseArea.containsMouse && !dateTimeDisplay.panelOpen
-    target: dateTimeDisplay
+    readonly property bool requested: mouseArea.containsMouse && !ShellUiState.isPanelOpen("notifications", dateTimeDisplay.screenName)
+    property bool retained: false
 
-    Loader {
-      active: tooltip.isVisible
+    active: requested || retained
 
-      sourceComponent: Column {
+    sourceComponent: Tooltip {
+      id: tip
+
+      isVisible: tooltipLoader.requested
+      target: dateTimeDisplay
+
+      onVisibleChanged: tooltipLoader.retained = visible
+
+      Column {
         id: tooltipColumn
 
-        readonly property color textColor: Theme.textContrast(Theme.onHoverColor)
+        readonly property color textColor: tip.fgColor
 
         spacing: Theme.spacingXs
 
@@ -103,7 +104,7 @@ Item {
 
           OText {
             color: tooltipColumn.textColor
-            text: (WeatherService.weatherInfo() || {}).desc || ""
+            text: WeatherService.weatherInfo()?.desc ?? ""
           }
           OText {
             color: tooltipColumn.textColor
