@@ -11,6 +11,9 @@ import Quickshell.Wayland
 PanelWindow {
   id: root
 
+  // Region blurred behind the surface via ext-background-effect; shaped by each
+  // Popup to match its Card silhouette. Leave null for no blur.
+  property Region blurRegion: null
   // Exclusive keyboard focus is held while any caller has claimed it; informative
   // popups simply never claim, so they rest at None.
   property int keyboardFocusCount: 0
@@ -30,6 +33,7 @@ PanelWindow {
     root.keyboardFocusCount = Math.max(0, root.keyboardFocusCount - 1);
   }
 
+  BackgroundEffect.blurRegion: root.blurRegion
   WlrLayershell.exclusiveZone: -1
   WlrLayershell.keyboardFocus: root.keyboardFocusCount > 0 ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
   WlrLayershell.layer: WlrLayer.Overlay

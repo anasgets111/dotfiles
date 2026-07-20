@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import qs.Config
 import qs.Components
 import qs.Modules.Bar.Panels
@@ -10,6 +11,50 @@ Item {
 
   property bool active: false
   property rect anchorRect: Qt.rect(0, 0, 0, 0)
+  readonly property Region blurRegion: Region {
+    regions: [
+      Region {
+        item: leftCorner
+
+        regions: [
+          Region {
+            height: root.cornerCutRadius * 2 + 4
+            intersection: Intersection.Subtract
+            shape: RegionShape.Ellipse
+            width: root.cornerCutRadius * 2 + 4
+            x: panelBackground.x - root.cornerCutRadius * 2 - 2
+            y: Theme.panelHeight + panelBackground.y - 2
+          }
+        ]
+      },
+      Region {
+        item: rightCorner
+
+        regions: [
+          Region {
+            height: root.cornerCutRadius * 2 + 4
+            intersection: Intersection.Subtract
+            shape: RegionShape.Ellipse
+            width: root.cornerCutRadius * 2 + 4
+            x: panelBackground.x + panelBackground.width - 2
+            y: Theme.panelHeight + panelBackground.y - 2
+          }
+        ]
+      },
+      Region {
+        bottomLeftRadius: panelBackground.bottomLeftRadius + 2
+        bottomRightRadius: panelBackground.bottomRightRadius + 2
+        height: root.visible ? panelBackground.height - 2 : 0
+        width: root.visible ? panelBackground.width - 4 : 0
+        x: panelBackground.x + 2
+        y: Theme.panelHeight + panelBackground.y
+      },
+      Region {
+        intersection: Intersection.Intersect
+        item: panelClipArea
+      }
+    ]
+  }
   readonly property bool contentActive: root.active || closeHoldTimer.running
   readonly property rect effectiveAnchorRect: root.active ? root.anchorRect : root.retainedAnchorRect
   readonly property var effectivePanelComponent: root.active ? root.panelComponent : (root.contentActive ? root.retainedPanelComponent : null)
@@ -27,6 +72,7 @@ Item {
       "updates": updatesPanelComponent,
       "tray": trayPanelComponent
     })
+  readonly property real cornerCutRadius: Math.min(Theme.panelRadius * 3, Theme.panelHeight)
   readonly property real panelContentHeight: Math.max(1, root.panelItem?.preferredHeight ?? 0)
   readonly property real panelContentWidth: Math.max(1, root.panelItem?.preferredWidth ?? 350)
   property var panelData: null
@@ -44,7 +90,7 @@ Item {
   signal closeRequested
 
   function calculateX() {
-    const cornerInset = root.showInverseCorners ? Theme.panelRadius * 3 : 0;
+    const cornerInset = root.showInverseCorners ? root.cornerCutRadius : 0;
     const centerX = root.effectiveAnchorRect.x + root.effectiveAnchorRect.width / 2 - panelBackground.width / 2;
     const minX = root.screenMargin + cornerInset;
     const maxX = root.width - panelBackground.width - root.screenMargin - cornerInset;
@@ -121,6 +167,8 @@ Item {
     }
   }
   Item {
+    id: panelClipArea
+
     anchors.fill: parent
     anchors.topMargin: Theme.panelHeight
     clip: true
@@ -129,12 +177,12 @@ Item {
       id: panelBackground
 
       readonly property real hiddenY: -height
-      readonly property real targetY: root.calculateY() - Theme.panelHeight
+      readonly property real targetY: root.calculateY() - Theme.panelHeight - border.width
 
       bottomLeftRadius: root.useFlatContainer ? Theme.panelRadius * 2 : Theme.itemRadius
       bottomRightRadius: root.useFlatContainer ? Theme.panelRadius * 2 : Theme.itemRadius
       clip: true
-      color: Theme.bgColor
+      color: Theme.bgPanel
       height: root.effectivePanelHeight
       radius: root.useFlatContainer ? 0 : Theme.itemRadius
       topLeftRadius: 0
@@ -179,28 +227,36 @@ Item {
       }
     }
     Loader {
+      id: leftCorner
+
       active: root.showInverseCorners && root.visible
       anchors.right: panelBackground.left
       anchors.rightMargin: -1
       y: panelBackground.y
 
       sourceComponent: RoundCorner {
-        color: Theme.bgColor
+        color: Theme.bgPanel
+        height: root.cornerCutRadius
         invertH: true
         orientation: 0
-        radius: Theme.panelRadius * 3
+        radius: root.cornerCutRadius
+        width: root.cornerCutRadius
       }
     }
     Loader {
+      id: rightCorner
+
       active: root.showInverseCorners && root.visible
       anchors.left: panelBackground.right
       anchors.leftMargin: -1
       y: panelBackground.y
 
       sourceComponent: RoundCorner {
-        color: Theme.bgColor
+        color: Theme.bgPanel
+        height: root.cornerCutRadius
         orientation: 0
-        radius: Theme.panelRadius * 3
+        radius: root.cornerCutRadius
+        width: root.cornerCutRadius
       }
     }
   }

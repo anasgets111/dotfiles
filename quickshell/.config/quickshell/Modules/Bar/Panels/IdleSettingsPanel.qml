@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Quickshell
 import qs.Components
 import qs.Config
 import qs.Services.Core
@@ -12,6 +13,13 @@ Item {
   id: root
 
   property bool active: false
+  readonly property Region blurRegion: Region {
+    height: root.active ? panel.height - 4 : 0
+    radius: Theme.radiusXl
+    width: root.active ? panel.width - 4 : 0
+    x: panel.x + 2
+    y: panel.y + 2
+  }
   readonly property bool displayPowerOffEnabled: IdleService.displayPowerOffEnabled
   readonly property real displayPowerOffTimeout: IdleService.displayPowerOffTimeoutMin
   readonly property int enabledActionCount: IdleService.enabledActionCount
@@ -82,7 +90,7 @@ Item {
     border.color: Theme.borderLight
     border.width: Theme.borderWidthThin
     clip: true
-    color: Theme.bgElevatedAlt
+    color: Theme.withOpacity(Theme.bgElevatedAlt, Theme.opacityStrong)
     focus: true
     height: Math.min(root.windowHeight, parent.height - Theme.spacingXl * 2)
     radius: Theme.radiusXl
@@ -593,7 +601,7 @@ Item {
 
     border.color: Theme.borderSubtle
     border.width: Theme.borderWidthThin
-    color: Theme.bgElevated
+    color: Theme.withOpacity(Theme.bgElevated, 0.35)
     implicitHeight: sectionLayout.implicitHeight + Theme.spacingLg * 2
     radius: Theme.radiusLg
 

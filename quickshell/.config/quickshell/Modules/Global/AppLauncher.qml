@@ -17,6 +17,13 @@ Item {
   property bool _shown: false
   property bool active: false
   readonly property var allApps: Array.from(DesktopEntries.applications?.values ?? [])
+  readonly property Region blurRegion: Region {
+    height: root.active ? panel.height - 4 : 0
+    radius: Theme.radiusLg
+    width: root.active ? panel.width - 4 : 0
+    x: panel.x + 2
+    y: panel.y + 2
+  }
   property int currentIndex: 0
   property var filteredApps: []
   property var finder: null
@@ -178,7 +185,7 @@ Item {
     anchors.horizontalCenter: parent.horizontalCenter
     border.color: Theme.withOpacity(Theme.borderColor, 0.45)
     border.width: Theme.borderWidthThin
-    color: Theme.withOpacity(Theme.bgColor, 0.95)
+    color: Theme.bgPanel
     height: Math.min(parent.height * 0.75, content.implicitHeight + Theme.spacingLg * 2)
     opacity: root._shown ? 1 : 0
     radius: Theme.radiusLg

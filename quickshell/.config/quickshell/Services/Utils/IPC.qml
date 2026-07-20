@@ -21,6 +21,23 @@ Singleton {
     return ShellUiState.activeModal === "launcher";
   }
 
+  // ----- Panels -----
+  IpcHandler {
+    function close(): void {
+      ShellUiState.closePanel();
+    }
+    function open(id: string): string {
+      ShellUiState.openPanel(id, MonitorService.effectiveMainScreen?.name ?? "", Qt.rect(600, 0, 30, 30));
+      return ShellUiState.activePanelId;
+    }
+    function toggle(id: string): string {
+      ShellUiState.togglePanel(id, MonitorService.effectiveMainScreen?.name ?? "", Qt.rect(600, 0, 30, 30));
+      return ShellUiState.activePanelId;
+    }
+
+    target: "panels"
+  }
+
   // ----- Lock -----
   IpcHandler {
     function islocked(): bool {

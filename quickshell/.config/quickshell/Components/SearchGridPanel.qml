@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import Quickshell
 import qs.Config
 import qs.Components
 
@@ -10,6 +11,13 @@ Item {
   id: root
 
   property bool active: false
+  readonly property Region blurRegion: Region {
+    height: root.active ? popupRect.height - 4 : 0
+    radius: root.popupRadius
+    width: root.active ? popupRect.width - 4 : 0
+    x: popupRect.x + 2
+    y: popupRect.y + 2
+  }
   property int cellHeight: Theme.launcherCellSize
   property int cellPadding: Theme.spacingXl + Theme.spacingSm
   property int cellWidth: Theme.launcherCellSize
@@ -232,7 +240,7 @@ Item {
     anchors.centerIn: parent
     border.color: root.popupBorderColor
     border.width: 1
-    color: Theme.bgColor
+    color: Theme.bgPanel
     focus: true
     height: root.windowHeight
     radius: root.popupRadius

@@ -40,6 +40,7 @@ Scope {
   PanelWindow {
     id: barWindow
 
+    BackgroundEffect.blurRegion: barHost.blurRegion
     WlrLayershell.exclusionMode: ExclusionMode.Normal
     WlrLayershell.exclusiveZone: Theme.panelHeight
     WlrLayershell.layer: WlrLayer.Top
@@ -79,6 +80,17 @@ Scope {
       readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(screenName)
       readonly property string screenName: screen?.name ?? ""
 
+      BackgroundEffect.blurRegion: {
+        switch (overlayWindow.activeModal) {
+        case "launcher":
+          return launcherLoader.item?.blurRegion ?? null;
+        case "wallpaperPicker":
+          return wallpaperLoader.item?.blurRegion ?? null;
+        case "idleSettings":
+          return idleLoader.item?.blurRegion ?? null;
+        }
+        return panelContainer.blurRegion;
+      }
       WlrLayershell.exclusionMode: ExclusionMode.Ignore
       WlrLayershell.keyboardFocus: (panelContainer.active && panelContainer.needsKeyboardFocus) || activeModal !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
       WlrLayershell.layer: WlrLayer.Top
@@ -110,6 +122,8 @@ Scope {
         onCloseRequested: ShellUiState.closePanel()
       }
       Loader {
+        id: launcherLoader
+
         active: overlayWindow.activeModal === "launcher"
         anchors.fill: parent
 
@@ -120,6 +134,8 @@ Scope {
         }
       }
       Loader {
+        id: wallpaperLoader
+
         active: overlayWindow.activeModal === "wallpaperPicker"
         anchors.fill: parent
 
@@ -132,6 +148,8 @@ Scope {
         }
       }
       Loader {
+        id: idleLoader
+
         active: overlayWindow.activeModal === "idleSettings"
         anchors.fill: parent
 

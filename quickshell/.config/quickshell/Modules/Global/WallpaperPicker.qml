@@ -323,7 +323,7 @@ SearchGridPanel {
         Layout.fillWidth: true
         border.color: Theme.borderSubtle
         border.width: Theme.borderWidthThin
-        color: Theme.bgElevated
+        color: Theme.withOpacity(Theme.bgElevated, 0.35)
         implicitHeight: settingsLayout.implicitHeight + Theme.spacingLg * 2
         radius: Theme.radiusLg
 
@@ -488,7 +488,7 @@ SearchGridPanel {
       ClippingRectangle {
         id: card
 
-        color: Theme.bgElevated
+        color: Theme.withOpacity(Theme.bgElevated, 0.35)
         radius: Theme.radiusLg
 
         anchors {

@@ -7,10 +7,13 @@ Item {
   id: base
 
   property color accentColor: Theme.activeColor
+  property color backgroundColor: Theme.bgColor
   property real radius: Theme.panelRadius
+  property bool showShadow: true
 
   // Shadow (fast rectangular shadow)
   RectangularShadow {
+    visible: base.showShadow
     anchors.fill: parent
     antialiasing: true
     blur: Theme.shadowBlurLg
@@ -25,7 +28,7 @@ Item {
     anchors.fill: parent
     border.color: Theme.borderColor
     border.width: 2
-    color: Theme.bgColor
+    color: base.backgroundColor
     radius: base.radius
   }
 

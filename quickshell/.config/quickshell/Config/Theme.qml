@@ -99,6 +99,7 @@ Singleton {
   readonly property color bgElevatedHover: c.bgElevatedHover ?? Qt.lighter(bgColor, 1.47)
   readonly property color bgInput: c.bgInput ?? withOpacity(bgColor, opacityStrong)
   readonly property color bgOverlay: withOpacity(c.bgOverlay ?? "#000000", 0.5)
+  readonly property color bgPanel: c.bgPanel ?? withOpacity(bgColor, opacityStrong)
   readonly property color bgSubtle: c.bgSubtle ?? withOpacity(bgColor, opacitySubtle)
   readonly property color borderColor: c.borderColor ?? "#313244"
   readonly property color borderLight: c.borderLight ?? withOpacity(borderColor, opacityMedium)

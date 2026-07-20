@@ -6,6 +6,41 @@ import qs.Config
 Item {
   id: root
 
+  readonly property Region blurRegion: Region {
+    regions: [
+      Region {
+        item: barCornerLeft
+
+        regions: [
+          Region {
+            height: Theme.panelRadius * 2 + 4
+            intersection: Intersection.Subtract
+            shape: RegionShape.Ellipse
+            width: Theme.panelRadius * 2 + 4
+            x: -2
+            y: Theme.panelHeight - 2
+          }
+        ]
+      },
+      Region {
+        item: barCornerRight
+
+        regions: [
+          Region {
+            height: Theme.panelRadius * 2 + 4
+            intersection: Intersection.Subtract
+            shape: RegionShape.Ellipse
+            width: Theme.panelRadius * 2 + 4
+            x: root.width - Theme.panelRadius * 2 - 2
+            y: Theme.panelHeight - 2
+          }
+        ]
+      },
+      Region {
+        item: panelRect
+      }
+    ]
+  }
   readonly property bool centerShouldHide: leftSide.workspacesExpanded || rightSide.expanded
   required property ShellScreen screen
 
@@ -25,7 +60,7 @@ Item {
     Rectangle {
       id: panelRect
 
-      color: Theme.bgColor
+      color: Theme.bgPanel
       height: Theme.panelHeight
       width: parent.width
 
@@ -71,14 +106,18 @@ Item {
       width: parent.width
 
       RoundCorner {
-        color: Theme.bgColor
+        id: barCornerLeft
+
+        color: Theme.bgPanel
         height: radius
         radius: Theme.panelRadius
         width: radius
       }
       RoundCorner {
+        id: barCornerRight
+
         anchors.right: parent.right
-        color: Theme.bgColor
+        color: Theme.bgPanel
         height: radius
         orientation: 1
         radius: Theme.panelRadius

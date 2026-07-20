@@ -49,7 +49,7 @@ Item {
     anchors.fill: parent
     border.color: Theme.withOpacity(Theme.activeColor, 0.3)
     border.width: 1
-    color: Theme.bgColor
+    color: Theme.bgPanel
     radius: Theme.radiusXl
   }
   RowLayout {
