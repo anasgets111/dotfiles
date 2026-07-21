@@ -334,15 +334,6 @@ PanelContentBase {
     }
   }
 
-  component BandBadge: InfoBadge {
-    property string band: ""
-    readonly property string bv: String(band || "").trim()
-
-    badgeColor: bv === "6" ? Theme.powerSaveColor : bv === "5" ? Theme.activeColor : Theme.inactiveColor
-    opacity: Theme.opacityMuted
-    text: bv === "2.4" ? "2.4" : bv + "G"
-    visible: bv !== ""
-  }
   component CredentialForm: ColumnLayout {
     id: form
 
@@ -494,6 +485,7 @@ PanelContentBase {
   component NetworkRow: PanelRow {
     id: row
 
+    readonly property string bandValue: String(network?.band ?? "").trim()
     property bool connecting: false
     property bool blockedByOtherConnection: false
     property string errorMessage: ""
@@ -507,16 +499,21 @@ PanelContentBase {
 
     busy: connecting
     enabled: !blockedByOtherConnection
-    icon: NetworkService.getWifiIcon(row.network?.signal || 0)
+    leading: [
+      Item {
+        implicitHeight: Math.max(signalIcon.implicitHeight, bandLabel.implicitHeight)
+        implicitWidth: Theme.controlHeightLg
+
+        OText { id: signalIcon; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; color: row.bandValue !== "" ? Theme.networkBandColor(row.bandValue) : row.selected ? Theme.activeColor : Theme.textActiveColor; font.family: Theme.iconFontFamily; font.pixelSize: Theme.iconSizeMd; text: NetworkService.getWifiIcon(row.network?.signal || 0) }
+        OText { id: bandLabel; anchors.bottom: signalIcon.bottom; anchors.left: signalIcon.right; anchors.leftMargin: row.bandValue === "2.4" ? -Theme.spacingXs : -Theme.spacingXs / 2; bold: true; color: Theme.networkBandColor(row.bandValue); font.family: "Roboto Condensed"; font.letterSpacing: row.bandValue === "2.4" ? -1.5 : -1; size: "xs"; text: row.bandValue === "2.4" ? "2.4" : row.bandValue + "G"; visible: row.bandValue !== "" }
+      }
+    ]
     rowActionEnabled: !row.network?.connected
     selected: row.network?.connected === true
     subtitle: row.network?.connected ? qsTr("Connected") : ""
     title: row.network?.ssid || ""
 
-    badges: [
-      BandBadge { band: row.network?.band || "" },
-      OText { color: Theme.textInactiveColor; size: "xs"; text: "󰌾"; visible: row.network?.secured === true }
-    ]
+    badges: [OText { color: Theme.textInactiveColor; size: "xs"; text: "󰌾"; visible: row.network?.secured === true }]
     actions: [
       PanelActionIcon {
         icon: "󱘖"

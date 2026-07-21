@@ -11,11 +11,7 @@ import qs.Modules.Bar.Indicators
 PanelContentBase {
   id: root
 
-  readonly property real availableContentHeight: {
-    const footerHeight = clearButton.visible ? clearButton.implicitHeight + clearButton.Layout.bottomMargin + Theme.spacingSm : 0;
-    const usedHeight = weatherWidget.implicitHeight + systemInfoWidget.implicitHeight + header.Layout.preferredHeight + footerHeight + root.padding * 2 + Theme.spacingSm * 3;
-    return Math.max(0, root.maxHeight - usedHeight);
-  }
+  readonly property real availableContentHeight: Math.max(0, root.maxHeight - weatherWidget.implicitHeight - systemInfoWidget.implicitHeight - header.Layout.preferredHeight - root.padding * 2 - Theme.spacingSm * 3)
   readonly property real cardHeight: Theme.itemHeight * 5.5
   readonly property bool hasNotifications: NotificationService.notifications.length > 0
   property int maxHeight: 600
@@ -89,6 +85,7 @@ PanelContentBase {
 
           onToggled: NotificationService.toggleDoNotDisturb()
         }
+        PanelActionIcon { icon: "󰆴"; tint: Theme.critical; tooltipText: qsTr("Dismiss all notifications"); visible: root.hasNotifications; onClicked: NotificationService.clearAllNotifications() }
       }
     }
     ListView {
@@ -158,19 +155,6 @@ PanelContentBase {
       Item {
         Layout.fillHeight: true
       }
-    }
-    OButton {
-      id: clearButton
-
-      Layout.alignment: Qt.AlignRight
-      Layout.bottomMargin: root.padding
-      Layout.rightMargin: root.padding
-      bgColor: Theme.critical
-      text: qsTr("Clear all")
-      variant: "secondary"
-      visible: root.hasNotifications
-
-      onClicked: NotificationService.clearAllNotifications()
     }
   }
 }

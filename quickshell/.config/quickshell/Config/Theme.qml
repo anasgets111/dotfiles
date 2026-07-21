@@ -163,7 +163,7 @@ Singleton {
   readonly property int audioPanelWidth: 380
   readonly property int audioMixerVisibleRows: 4
   readonly property int bluetoothPanelWidth: 360
-  readonly property int idleModalHeight: s(760)
+  readonly property int idleModalHeight: s(820)
   readonly property int idleModalWidth: s(780)
   readonly property int idleTimeoutControlWidth: s(108)
 
@@ -284,6 +284,7 @@ Singleton {
   function iconSizeFor(size) {
     return _iconSizes[size] ?? iconSizeMd;
   }
+  function networkBandColor(value: string): color { return value === "6" ? powerSaveColor : value === "5" ? activeColor : inactiveColor; }
   function s(base, min = 0) {
     return Math.max(min, Math.round(base * internal.scaleFactor));
   }

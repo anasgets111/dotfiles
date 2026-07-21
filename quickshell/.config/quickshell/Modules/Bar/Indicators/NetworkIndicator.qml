@@ -58,10 +58,6 @@ Item {
   }
   readonly property string tooltipText: [title, detail1, secondary].filter(t => t).join("\n")
 
-  function bandColor(value: string): color {
-    return value === "6" ? Theme.powerSaveColor : value === "5" ? Theme.activeColor : Theme.inactiveColor;
-  }
-
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, iconButton.implicitWidth)
   visible: ready
@@ -84,7 +80,7 @@ Item {
       id: mainIcon
 
       anchors.centerIn: parent
-      color: iconButton.hovered ? Theme.textContrast(iconButton.colorBgHover) : root.link === "wifi" && root.band ? root.bandColor(root.band) : Theme.textContrast(iconButton.colorBg)
+      color: iconButton.hovered ? Theme.textContrast(iconButton.colorBgHover) : root.link === "wifi" && root.band ? Theme.networkBandColor(root.band) : Theme.textContrast(iconButton.colorBg)
       font.bold: true
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
@@ -101,7 +97,7 @@ Item {
       anchors.bottom: mainIcon.bottom
       anchors.left: mainIcon.right
       anchors.leftMargin: root.band === "2.4" ? -Theme.spacingXs : -Theme.spacingXs / 2
-      color: iconButton.hovered ? Theme.textContrast(iconButton.colorBgHover) : root.bandColor(root.band)
+      color: iconButton.hovered ? Theme.textContrast(iconButton.colorBgHover) : Theme.networkBandColor(root.band)
       font.bold: true
       font.family: "Roboto Condensed"
       font.letterSpacing: root.band === "2.4" ? -1.5 : -1

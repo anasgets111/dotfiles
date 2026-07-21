@@ -95,10 +95,6 @@ Rectangle {
           visible: text !== ""
         }
       }
-      RowLayout {
-        id: badgeSlot
-        spacing: Theme.spacingXs
-      }
       Item {
         Layout.preferredHeight: Math.max(Theme.spinnerSize, actionSlot.implicitHeight)
         Layout.preferredWidth: Math.max(Theme.spinnerSize, actionSlot.implicitWidth)
@@ -117,6 +113,10 @@ Rectangle {
           anchors.centerIn: parent
           running: root.busy
         }
+      }
+      RowLayout {
+        id: badgeSlot
+        spacing: Theme.spacingXs
       }
     }
     Item {
