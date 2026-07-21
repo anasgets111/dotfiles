@@ -11,8 +11,10 @@ FileView {
 
   onLoadFailed: valid = false
   onLoaded: {
-    value = parseInt(text().trim(), 10) || fallback;
-    valid = true;
+    const parsed = parseInt(text().trim(), 10);
+    const parsedValid = Number.isFinite(parsed);
+    value = parsedValid ? parsed : fallback;
+    valid = parsedValid;
   }
   onPathChanged: valid = false
 }

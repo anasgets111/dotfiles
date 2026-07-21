@@ -3,23 +3,14 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Quickshell
 import qs.Components
 import qs.Config
 import qs.Services.Core
 import qs.Services.SystemInfo
 
-Item {
+OModal {
   id: root
 
-  property bool active: false
-  readonly property Region blurRegion: Region {
-    height: root.active ? panel.height - 4 : 0
-    radius: Theme.radiusXl
-    width: root.active ? panel.width - 4 : 0
-    x: panel.x + 2
-    y: panel.y + 2
-  }
   readonly property bool displayPowerOffEnabled: IdleService.displayPowerOffEnabled
   readonly property real displayPowerOffTimeout: IdleService.displayPowerOffTimeoutMin
   readonly property int enabledActionCount: IdleService.enabledActionCount
@@ -32,17 +23,9 @@ Item {
   readonly property real lockTimeout: IdleService.lockTimeoutMin
   readonly property bool suspendEnabled: IdleService.suspendEnabled
   readonly property real suspendTimeout: IdleService.suspendTimeoutMin
-  property int windowHeight: 760
-  property int windowWidth: 780
+  preferredHeight: Theme.idleModalHeight
+  preferredWidth: Theme.idleModalWidth
 
-  signal dismissed
-
-  function close(): void {
-    if (!active)
-      return;
-    active = false;
-    dismissed();
-  }
   function formatDuration(value: real): string {
     const totalSeconds = Math.max(0, Math.round((Number(value) || 0) * 60));
     if (totalSeconds === 0)
@@ -53,67 +36,12 @@ Item {
       return qsTr("%1 min %2 sec").arg(minutes).arg(seconds);
     return minutes > 0 ? qsTr("%1 min").arg(minutes) : qsTr("%1 sec").arg(seconds);
   }
-  function open(): void {
-    active = true;
-  }
-
-  anchors.fill: parent
-  focus: active
-  visible: active
-
   onActiveChanged: if (active)
     InputDisplayService.refreshBackendAvailability()
 
-  Rectangle {
+  ColumnLayout {
     anchors.fill: parent
-    color: Theme.bgOverlay
-    opacity: 0.88
-  }
-  MouseArea {
-    acceptedButtons: Qt.LeftButton | Qt.RightButton
-    anchors.fill: parent
-
-    onPressed: mouse => {
-      const local = panel.mapFromItem(root, mouse.x, mouse.y);
-      const inside = local.x >= 0 && local.y >= 0 && local.x <= panel.width && local.y <= panel.height;
-      if (inside) {
-        mouse.accepted = false;
-        return;
-      }
-      root.close();
-    }
-  }
-  Rectangle {
-    id: panel
-
-    anchors.centerIn: parent
-    border.color: Theme.borderLight
-    border.width: Theme.borderWidthThin
-    clip: true
-    color: Theme.bgPanel
-    focus: true
-    height: Math.min(root.windowHeight, parent.height - Theme.spacingXl * 2)
-    radius: Theme.radiusXl
-    scale: root.active ? 1 : 0.97
-    width: Math.min(root.windowWidth, parent.width - Theme.spacingXl * 2)
-
-    Behavior on scale {
-      NumberAnimation {
-        duration: Theme.animationDuration
-        easing.type: Easing.OutCubic
-      }
-    }
-
-    Keys.onPressed: event => {
-      if (event.key === Qt.Key_Escape) {
-        root.close();
-        event.accepted = true;
-      }
-    }
-
-    ColumnLayout {
-      anchors.fill: parent
-      spacing: 0
+    spacing: 0
 
       Item {
         Layout.fillWidth: true
@@ -156,28 +84,6 @@ Item {
           }
           Item {
             Layout.fillWidth: true
-          }
-          OText {
-            Layout.alignment: Qt.AlignVCenter
-            color: root.idleEnabled ? Theme.activeColor : Theme.textInactiveColor
-            font.pixelSize: Theme.fontSm
-            text: qsTr("Idle Service")
-          }
-          OToggle {
-            Layout.alignment: Qt.AlignVCenter
-            checked: root.idleEnabled
-            size: "lg"
-
-            onToggled: checked => IdleService.setIdleEnabled(checked)
-          }
-          IconButton {
-            Layout.alignment: Qt.AlignVCenter
-            colorBg: Theme.bgCard
-            icon: "󰅖"
-            shape: "rounded"
-            tooltipText: qsTr("Close")
-
-            onClicked: root.close()
           }
         }
       }
@@ -315,7 +221,7 @@ Item {
                 Layout.leftMargin: Theme.spacingLg
                 color: Theme.borderSubtle
                 implicitHeight: Theme.borderWidthThin
-                opacity: 0.4
+                opacity: Theme.opacityMedium
               }
               SettingRow {
                 checked: IdleService.respectInhibitorsEnabled
@@ -377,15 +283,14 @@ Item {
           }
         }
       }
-    }
   }
 
-  component FlowSummary: Rectangle {
+  component FlowSummary: PanelCard {
     id: flowRoot
 
-    color: root.idleEnabled ? Theme.activeSubtle : Theme.bgCard
+    tone: root.idleEnabled ? "active" : "standard"
+    padding: 0
     implicitHeight: flowLayout.implicitHeight + Theme.spacingMd * 2
-    radius: Theme.radiusLg
 
     RowLayout {
       id: flowLayout
@@ -438,11 +343,17 @@ Item {
           OText {
             color: Theme.textInactiveColor
             font.pixelSize: Theme.fontSm
-            opacity: 0.45
+            opacity: Theme.opacityDisabled
             text: "→"
             visible: parent.index < root.flowSteps.length - 1
           }
         }
+      }
+      OToggle {
+        Layout.alignment: Qt.AlignVCenter
+        checked: root.idleEnabled
+        size: "lg"
+        onToggled: checked => IdleService.setIdleEnabled(checked)
       }
     }
   }
@@ -566,7 +477,7 @@ Item {
       }
       OComboBox {
         Layout.alignment: Qt.AlignVCenter
-        Layout.preferredWidth: 108
+        Layout.preferredWidth: Theme.idleTimeoutControlWidth
         currentIndex: rowRoot.timeoutIndex()
         model: rowRoot.effectiveTimeoutValues.map(value => root.formatDuration(value))
         visible: rowRoot.timeoutValues.length > 0 && rowRoot.checked
@@ -587,23 +498,20 @@ Item {
       Layout.leftMargin: Theme.spacingLg + Theme.controlHeightMd + Theme.spacingMd
       color: Theme.borderSubtle
       implicitHeight: Theme.borderWidthThin
-      opacity: 0.4
+      opacity: Theme.opacityMedium
       visible: rowRoot.showSeparator
     }
   }
-  component SettingsSection: Rectangle {
+  component SettingsSection: PanelCard {
     id: sectionRoot
 
-    default property alias content: sectionContent.data
+    default property alias sectionItems: sectionContent.data
     property string description: ""
     property string icon: ""
     property string title: ""
 
-    border.color: Theme.borderSubtle
-    border.width: Theme.borderWidthThin
-    color: Theme.bgCard
+    padding: 0
     implicitHeight: sectionLayout.implicitHeight + Theme.spacingLg * 2
-    radius: Theme.radiusLg
 
     ColumnLayout {
       id: sectionLayout

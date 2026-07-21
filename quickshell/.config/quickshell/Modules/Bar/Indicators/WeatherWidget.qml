@@ -93,7 +93,7 @@ Item {
           Layout.preferredWidth: 1
           dayIndex: 0
           label: "Yesterday"
-          opacity: 0.6
+          opacity: Theme.opacitySolid
           showLabel: !root.expanded
         }
         WeatherDayCard {
@@ -109,7 +109,7 @@ Item {
           Layout.preferredWidth: 1
           dayIndex: 2
           label: "Tomorrow"
-          opacity: 0.8
+          opacity: Theme.opacityStrong
           showLabel: !root.expanded
         }
       }
@@ -162,7 +162,7 @@ Item {
 
         OText {
           anchors.centerIn: parent
-          opacity: 0.7
+          opacity: Theme.opacityMuted
           text: WeatherService.hasError ? "Weather Unavailable" : "Loading Forecast..."
         }
         OButton {
@@ -180,7 +180,7 @@ Item {
     }
   }
 
-  component WeatherDayCard: Rectangle {
+  component WeatherDayCard: PanelCard {
     id: card
 
     readonly property string dateStr: hasData ? forecast.time[dayIndex] : ""
@@ -195,9 +195,9 @@ Item {
     readonly property int wCode: hasData ? forecast.weathercode[dayIndex] : -1
     readonly property var wInfo: WeatherService.weatherInfo(wCode)
 
-    color: isToday ? Theme.activeSubtle : Theme.bgCard
+    padding: 0
+    tone: isToday ? "active" : "standard"
     implicitHeight: col.implicitHeight + Theme.spacingLg
-    radius: Theme.itemRadius
 
     ColumnLayout {
       id: col
@@ -262,7 +262,7 @@ Item {
       }
       OText {
         Layout.alignment: Qt.AlignHCenter
-        opacity: 0.6
+        opacity: Theme.opacitySolid
         size: "sm"
         text: Math.round(card.minTemp) + "°"
       }

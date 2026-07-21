@@ -6,7 +6,7 @@ import qs.Config
 import qs.Components
 import qs.Modules.Bar.Panels
 
-Item {
+FocusScope {
   id: root
 
   property bool active: false
@@ -27,7 +27,7 @@ Item {
   readonly property var effectivePanelData: root.active ? (root.panelComponent !== null ? root.panelData : null) : root.retainedPanelData
   readonly property real effectivePanelHeight: root.active ? root.livePanelHeight : root.retainedPanelHeight
   readonly property real effectivePanelWidth: root.active ? root.panelContentWidth : root.retainedPanelWidth
-  readonly property real livePanelHeight: Math.min(root.panelContentHeight, root.height - Theme.panelHeight - 8)
+  readonly property real livePanelHeight: Math.min(root.panelContentHeight, root.height - Theme.panelHeight - Theme.panelScreenInset)
   readonly property bool needsKeyboardFocus: root.panelItem?.needsKeyboardFocus ?? false
   readonly property var panelComponent: panelComponentMap[panelId] ?? null
   readonly property var panelComponentMap: ({
@@ -40,7 +40,7 @@ Item {
     })
   readonly property real cornerCutRadius: Math.min(Theme.panelRadius * 3, Theme.panelHeight)
   readonly property real panelContentHeight: Math.max(1, root.panelItem?.preferredHeight ?? 0)
-  readonly property real panelContentWidth: Math.max(1, root.panelItem?.preferredWidth ?? 350)
+  readonly property real panelContentWidth: Math.max(1, root.panelItem?.preferredWidth ?? Theme.panelDefaultWidth)
   property var panelData: null
   property string panelId: ""
   readonly property PanelContentBase panelItem: panelLoader.item as PanelContentBase
@@ -48,7 +48,7 @@ Item {
   property var retainedPanelComponent: null
   property var retainedPanelData: null
   property real retainedPanelHeight: 1
-  property real retainedPanelWidth: 350
+  property real retainedPanelWidth: Theme.panelDefaultWidth
   property int screenMargin: Theme.spacingSm
   property bool showInverseCorners: true
   readonly property bool useFlatContainer: root.effectivePanelComponent === audioPanelComponent || root.effectivePanelComponent === bluetoothPanelComponent || root.effectivePanelComponent === networkPanelComponent
@@ -64,17 +64,25 @@ Item {
   }
   function calculateY() {
     const belowY = Theme.panelHeight;
-    const aboveY = root.effectiveAnchorRect.y - panelBackground.height - 4;
-    const maxY = root.height - panelBackground.height - 8;
+    const aboveY = root.effectiveAnchorRect.y - panelBackground.height - Theme.panelAnchorGap;
+    const maxY = root.height - panelBackground.height - Theme.panelScreenInset;
 
-    if (belowY + panelBackground.height <= root.height - 8)
+    if (belowY + panelBackground.height <= root.height - Theme.panelScreenInset)
       return Math.round(belowY);
-    if (aboveY >= 8)
+    if (aboveY >= Theme.panelScreenInset)
       return Math.round(aboveY);
     return Math.round(Math.min(belowY, maxY));
   }
 
   visible: root.contentActive || panelBackground.y > panelBackground.hiddenY
+  focus: root.active
+
+  Keys.onPressed: event => {
+    if (root.active && event.key === Qt.Key_Escape) {
+      root.closeRequested();
+      event.accepted = true;
+    }
+  }
 
   onActiveChanged: {
     if (root.active) {
@@ -112,7 +120,7 @@ Item {
       root.retainedPanelComponent = null;
       root.retainedPanelData = null;
       root.retainedPanelHeight = 1;
-      root.retainedPanelWidth = 350;
+      root.retainedPanelWidth = Theme.panelDefaultWidth;
     }
   }
   MouseArea {
@@ -160,7 +168,7 @@ Item {
 
       Behavior on height {
         NumberAnimation {
-          duration: 300
+          duration: Theme.animationSlow
           easing.type: Easing.OutCubic
         }
       }

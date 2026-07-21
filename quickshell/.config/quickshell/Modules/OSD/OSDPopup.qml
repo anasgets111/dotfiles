@@ -30,7 +30,7 @@ OPopup {
 
     anchors {
       bottom: parent.bottom
-      bottomMargin: Theme.popupOffset * 11
+      bottomMargin: Theme.osdBottomMargin
       horizontalCenter: parent.horizontalCenter
     }
   }

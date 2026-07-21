@@ -2,8 +2,6 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import qs.Components
-import qs.Config
 import qs.Services.Utils
 
 Singleton {
@@ -11,26 +9,13 @@ Singleton {
 
   property string _expression: ""
   property string _resultText: ""
-  readonly property Component delegate: Component {
-    Column {
-      anchors.fill: parent
-      spacing: Theme.spacingXs
-
-      OText {
-        color: Theme.activeColor
-        font.pixelSize: Theme.fontXs
-        text: qsTr("Calculator")
-      }
-      OText {
-        font.pixelSize: Theme.fontLg
-        text: root._expression + " = " + root._resultText
-      }
-      LauncherHint {
-        text: qsTr("Enter to copy")
-      }
-    }
-  }
   readonly property string statusLabel: "CALC"
+  readonly property string rowBadge: statusLabel
+  readonly property string rowHint: qsTr("Enter to copy")
+  readonly property string rowIcon: "󰃬"
+  readonly property bool rowIconIsText: false
+  readonly property string rowSubtitle: qsTr("Calculator")
+  readonly property string rowTitle: _expression + " = " + _resultText
 
   function activate(): void {
     Utils.copyText(_resultText);

@@ -92,6 +92,7 @@ Singleton {
   // SCALED DIMENSIONS
   // ═══════════════════════════════════════════════════════════════════════════
   readonly property int batteryPillWidth: s(baseBatteryPillWidth, 60)
+  readonly property color barHoverBorder: c.barHoverBorder ?? textActiveColor
   readonly property color bgColor: c.bgColor ?? "#1e1e2e"
   readonly property color bgElevated: c.bgElevated ?? Qt.lighter(bgColor, 1.35)
   readonly property color bgElevatedAlt: c.bgElevatedAlt ?? Qt.lighter(bgColor, 1.25)
@@ -108,6 +109,11 @@ Singleton {
   readonly property color borderStrong: c.borderStrong ?? withOpacity(borderColor, opacityDisabled)
   readonly property color borderSubtle: c.borderSubtle ?? withOpacity(borderColor, 0.22)
   readonly property int borderWidthMedium: 2
+  readonly property real modalClosedScale: 0.97
+  readonly property color modalScrimColor: c.modalScrimColor ?? bgOverlay
+  readonly property real modalScrimOpacity: 0.88
+  readonly property int modalMargin: spacingXl
+  readonly property int modalRadius: radiusXl
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BORDER
@@ -167,14 +173,23 @@ Singleton {
   // ═══════════════════════════════════════════════════════════════════════════
   // WIDGET SPECIFICS
   // ═══════════════════════════════════════════════════════════════════════════
+  readonly property int audioPanelWidth: 380
+  readonly property int bluetoothPanelWidth: 360
+  readonly property int idleModalHeight: s(760)
+  readonly property int idleModalWidth: s(780)
+  readonly property int idleTimeoutControlWidth: s(108)
+
   // Launcher
-  readonly property int launcherCellSize: s(150)
-  readonly property int launcherIconSize: s(72)
-  readonly property int launcherWindowHeight: s(471)
-  readonly property int launcherWindowWidth: s(741)
+  readonly property int launcherWindowHeight: s(680)
+  readonly property int launcherWindowWidth: s(860)
 
   // Lock Screen
+  readonly property real lockClosedScale: 0.96
+  readonly property color lockDividerColor: withOpacity("#ffffff", 0.08)
+  readonly property color lockInnerBorderColor: withOpacity("#ffffff", 0.10)
+  readonly property color lockInputBorderColor: withOpacity("#ffffff", 0.18)
   readonly property real lockScale: internal.lockScale
+  readonly property color lockSurfaceBorderColor: withOpacity("#ffffff", 0.22)
 
   // Notifications
   readonly property int notificationAppIconSize: s(40)
@@ -189,20 +204,27 @@ Singleton {
   readonly property real opacityFull: 0.95
   readonly property real opacityLight: 0.25
   readonly property real opacityMedium: 0.35
+  readonly property real opacityMuted: 0.7
   readonly property real opacitySolid: 0.6
   readonly property real opacityStrong: 0.8
   readonly property real opacitySubtle: 0.15
 
   // OSD
   readonly property int osdAnimationOffset: s(60)
+  readonly property int osdBottomMargin: s(132)
   readonly property int osdCardHeight: s(80)
   readonly property int osdSliderTrackHeight: s(12)
   readonly property int osdSliderWidth: s(300)
   readonly property int osdToggleIconContainerSize: s(48)
   readonly property int osdToggleMinWidth: s(220)
+  readonly property int panelDefaultWidth: 350
   readonly property int panelHeight: s(basePanelHeight, 28)
+  readonly property int panelAnchorGap: 4
   readonly property int panelMargin: spacingMd
   readonly property int panelRadius: radiusMd
+  readonly property int panelScreenInset: 8
+  readonly property int panelToggleCompactThreshold: s(220)
+  readonly property int panelToggleCardHeight: s(56)
   readonly property color panelWindowColor: c.panelWindowColor ?? "transparent"
   readonly property int popupOffset: spacingMd
   readonly property color powerSaveColor: c.powerSaveColor ?? "#a6e3a1"
@@ -229,6 +251,8 @@ Singleton {
   readonly property color shadowColor: withOpacity(c.shadowColor ?? "#000000", 0.2)
   readonly property color shadowColorStrong: withOpacity(c.shadowColorStrong ?? "#000000", 0.55)
   readonly property int shadowOffsetY: 2
+  readonly property int spinnerDuration: 1000
+  readonly property int spinnerSize: controlHeightSm
   readonly property int spacingLg: s(16)
   readonly property int spacingMd: s(12)
   readonly property int spacingSm: s(8)
@@ -241,6 +265,19 @@ Singleton {
   readonly property color textInactiveColor: c.textInactiveColor ?? "#a6adc8"
   readonly property color textOnHoverColor: c.textOnHoverColor ?? "#cba6f7"
   readonly property int volumeExpandedWidth: s(baseVolumeExpandedWidth, 140)
+  readonly property int wallpaperAnimationDuration: 900
+  readonly property int wallpaperModalHeight: s(650)
+  readonly property int wallpaperModalWidth: s(1040)
+  readonly property int wallpaperSidebarWidth: s(250)
+  readonly property int wallpaperTileWidth: s(230)
+  readonly property int networkPanelWidth: 340
+  readonly property int notificationPanelWidth: 420
+  readonly property int trayMenuWidth: 300
+  readonly property int updateLogVisibleRows: 15
+  readonly property int updateOldVersionColumnWidth: 125
+  readonly property int updatePackageColumnWidth: 190
+  readonly property int updateTableVisibleRows: 11
+  readonly property int updatePanelWidth: 500
   readonly property color warning: c.warning ?? "#fab387"
 
   // ═══════════════════════════════════════════════════════════════════════════

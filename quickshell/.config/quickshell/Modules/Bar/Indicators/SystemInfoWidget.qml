@@ -12,6 +12,7 @@ Item {
 
   property bool _polling: false
   property bool active: false
+  property string expandedDiskKey: ""
   property bool expanded: false
   readonly property real storageProgress: {
     let used = 0;
@@ -48,7 +49,13 @@ Item {
     if (_polling)
       SystemInfoService.refCount = Math.max(0, SystemInfoService.refCount - 1);
   }
-  onActiveChanged: syncPolling()
+  onExpandedChanged: if (!expanded)
+    expandedDiskKey = ""
+  onActiveChanged: {
+    syncPolling();
+    if (!active)
+      expandedDiskKey = "";
+  }
 
   ColumnLayout {
     id: layout
@@ -83,13 +90,6 @@ Item {
           Layout.fillWidth: true
           Layout.preferredHeight: summaryRow.implicitHeight
 
-          OText {
-            anchors.right: parent.right
-            color: Qt.alpha(expandButton.textColor, 0.7)
-            size: "sm"
-            text: qsTr("live")
-            visible: root.expanded
-          }
           RowLayout {
             id: summaryRow
 
@@ -209,100 +209,51 @@ Item {
     }
   }
 
-  component DiskTile: Rectangle {
+  component DiskTile: PanelRow {
     id: diskTile
 
     required property var disk
+    readonly property string diskKey: disk.name ?? ""
 
     Layout.fillWidth: true
-    Layout.preferredHeight: diskLayout.implicitHeight + Theme.spacingSm * 2
-    border.color: Qt.alpha(Theme.activeColor, 0.18)
-    border.width: Theme.borderWidthThin
-    color: Theme.bgCard
-    radius: Theme.radiusMd
-
-    ColumnLayout {
-      id: diskLayout
-
-      anchors.left: parent.left
-      anchors.leftMargin: Theme.spacingSm
-      anchors.right: parent.right
-      anchors.rightMargin: Theme.spacingSm
-      anchors.verticalCenter: parent.verticalCenter
-      spacing: Theme.spacingSm
-
-      RowLayout {
-        Layout.fillWidth: true
+    expanded: root.expandedDiskKey === diskKey
+    icon: "󰋊"
+    rowActionEnabled: (disk.partitions?.length ?? 0) > 0
+    subtitle: `${Utils.fmtKib(disk.usedKib)} / ${Utils.fmtKib(disk.totalKib)}`
+    title: disk.name
+    onClicked: root.expandedDiskKey = expanded ? "" : diskKey
+    badges: [OText { color: Theme.activeColor; text: diskTile.expanded ? "󰅀" : "󰅂" }]
+    expandedContent: [
+      ColumnLayout {
+        width: parent?.width ?? 0
         spacing: Theme.spacingXs
 
-        OText {
-          color: Theme.activeColor
-          text: "󰋊"
-        }
-        OText {
-          Layout.fillWidth: true
-          bold: true
-          text: diskTile.disk.name
-        }
-        OText {
-          color: Theme.textInactiveColor
-          size: "sm"
-          text: `${Utils.fmtKib(diskTile.disk.usedKib)} / ${Utils.fmtKib(diskTile.disk.totalKib)}`
-        }
-      }
       Repeater {
         model: diskTile.disk.partitions
 
-        ColumnLayout {
+        PanelRow {
           id: partitionDelegate
 
           required property var modelData
 
-          Layout.fillWidth: true
-          spacing: Theme.spacingXs
-
-          RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacingSm
-
-            OText {
-              Layout.fillWidth: true
-              bold: true
-              elide: Text.ElideMiddle
-              size: "sm"
-              text: partitionDelegate.modelData.mountPoint === "/" ? qsTr("Root") : partitionDelegate.modelData.mountPoint
-            }
-            OText {
-              color: Theme.textInactiveColor
-              size: "xs"
-              text: `${Utils.fmtKib(partitionDelegate.modelData.usedKib)} / ${Utils.fmtKib(partitionDelegate.modelData.totalKib)}`
-            }
-            OText {
-              bold: true
-              color: root.statusColor(partitionDelegate.modelData.percentage, Theme.textActiveColor)
-              size: "sm"
-              text: `${(partitionDelegate.modelData.percentage * 100).toFixed(0)}%`
-            }
-          }
-          ProgressTrack {
-            accentColor: Theme.activeColor
-            progress: partitionDelegate.modelData.percentage
-          }
+          width: parent?.width ?? 0
+          rowActionEnabled: false
+          subtitle: `${Utils.fmtKib(modelData.usedKib)} / ${Utils.fmtKib(modelData.totalKib)}`
+          title: modelData.mountPoint === "/" ? qsTr("Root") : modelData.mountPoint
+          badges: [OText { bold: true; color: root.statusColor(partitionDelegate.modelData.percentage, Theme.textActiveColor); size: "sm"; text: `${(partitionDelegate.modelData.percentage * 100).toFixed(0)}%` }]
         }
       }
-    }
+      }
+    ]
   }
-  component GpuTile: Rectangle {
+  component GpuTile: PanelCard {
     id: gpuTile
 
     readonly property real memoryProgress: SystemInfoService.gpuMemTotalKib > 0 ? SystemInfoService.gpuMemUsedKib / SystemInfoService.gpuMemTotalKib : 0
 
     Layout.fillWidth: true
     Layout.preferredHeight: gpuLayout.implicitHeight + Theme.spacingSm * 2
-    border.color: Qt.alpha(Theme.warning, 0.22)
-    border.width: Theme.borderWidthThin
-    color: Theme.bgCard
-    radius: Theme.radiusMd
+    padding: 0
 
     ColumnLayout {
       id: gpuLayout
@@ -379,7 +330,7 @@ Item {
       }
     }
   }
-  component MetricTile: Rectangle {
+  component MetricTile: PanelCard {
     id: tile
 
     required property color accentColor
@@ -391,10 +342,7 @@ Item {
 
     Layout.fillWidth: true
     Layout.preferredHeight: Theme.itemHeight * 2.2
-    border.color: Qt.alpha(tile.accentColor, 0.22)
-    border.width: Theme.borderWidthThin
-    color: Theme.bgCard
-    radius: Theme.radiusMd
+    padding: 0
 
     ColumnLayout {
       anchors.fill: parent

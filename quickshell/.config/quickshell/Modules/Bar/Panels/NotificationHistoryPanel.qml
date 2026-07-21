@@ -12,7 +12,8 @@ PanelContentBase {
   id: root
 
   readonly property real availableContentHeight: {
-    const usedHeight = weatherWidget.implicitHeight + systemInfoWidget.implicitHeight + header.Layout.preferredHeight + root.padding * 2 + Theme.spacingSm * 3;
+    const footerHeight = clearButton.visible ? clearButton.implicitHeight + clearButton.Layout.bottomMargin + Theme.spacingSm : 0;
+    const usedHeight = weatherWidget.implicitHeight + systemInfoWidget.implicitHeight + header.Layout.preferredHeight + footerHeight + root.padding * 2 + Theme.spacingSm * 3;
     return Math.max(0, root.maxHeight - usedHeight);
   }
   readonly property real cardHeight: Theme.itemHeight * 5.5
@@ -22,7 +23,7 @@ PanelContentBase {
   readonly property int padding: Theme.spacingLg
 
   preferredHeight: contentLayout.implicitHeight
-  preferredWidth: 420
+  preferredWidth: Theme.notificationPanelWidth
 
   Component.onDestruction: NotificationService.onOverlayClose()
   onIsOpenChanged: {
@@ -53,15 +54,14 @@ PanelContentBase {
       Layout.rightMargin: root.padding
       active: root.isOpen
     }
-    Rectangle {
+    PanelCard {
       id: header
 
       Layout.fillWidth: true
       Layout.leftMargin: root.padding
       Layout.preferredHeight: Theme.itemHeight * 1.2
       Layout.rightMargin: root.padding
-      color: Theme.bgCard
-      radius: Theme.itemRadius
+      padding: 0
 
       RowLayout {
         anchors.fill: parent
@@ -76,27 +76,6 @@ PanelContentBase {
         }
         Item {
           Layout.fillWidth: true
-        }
-        IconButton {
-          Layout.preferredHeight: Theme.itemHeight * 0.9
-          Layout.preferredWidth: Theme.itemHeight * 0.9
-          icon: "󰩹"
-          tooltipText: qsTr("Clear All")
-          visible: root.hasNotifications
-
-          onClicked: {
-            NotificationService.clearAllNotifications();
-            root.closeRequested();
-          }
-        }
-        Rectangle {
-          Layout.leftMargin: Theme.spacingXs
-          Layout.preferredHeight: Theme.itemHeight * 0.6
-          Layout.preferredWidth: 1
-          Layout.rightMargin: Theme.spacingXs
-          color: Theme.textInactiveColor
-          opacity: 0.2
-          visible: root.hasNotifications
         }
         OText {
           accent: NotificationService.doNotDisturb
@@ -164,7 +143,7 @@ PanelContentBase {
         color: Theme.textInactiveColor
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontXl
-        opacity: 0.5
+        opacity: Theme.opacityDisabled
         text: "󰂚"
       }
       OText {
@@ -177,12 +156,25 @@ PanelContentBase {
         Layout.alignment: Qt.AlignHCenter
         horizontalAlignment: Text.AlignHCenter
         muted: true
-        opacity: 0.7
+        opacity: Theme.opacityMuted
         text: qsTr("You're all caught up!")
       }
       Item {
         Layout.fillHeight: true
       }
+    }
+    OButton {
+      id: clearButton
+
+      Layout.alignment: Qt.AlignRight
+      Layout.bottomMargin: root.padding
+      Layout.rightMargin: root.padding
+      bgColor: Theme.critical
+      text: qsTr("Clear all")
+      variant: "secondary"
+      visible: root.hasNotifications
+
+      onClicked: NotificationService.clearAllNotifications()
     }
   }
 }

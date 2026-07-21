@@ -9,48 +9,47 @@ import qs.Services.Utils
 Singleton {
   id: root
 
-  property bool _cancelCommandDone: false
-  property int _cancelledUpdateExitCode: -1
-  property bool _cancellingUpdate: false
   property bool _checkUpdatesAvailable: false
   property bool _checking: false
   property int _failureCount: 0
   readonly property int _failureThreshold: 5
   readonly property bool _hasPackageCache: Settings.isStateLoaded && Array.isArray(Settings.state.updates.packages)
-  readonly property double _lastSync: Settings.isStateLoaded ? Settings.state.updates.lastSync : 0
+  readonly property double _lastSuccessfulCheck: Settings.isStateLoaded ? Settings.state.updates.lastSuccessfulCheck : 0
   readonly property string _notificationAppName: "System Updates"
   property var _packageSizes: ({})
   property var _pendingActionArgs: null
   readonly property int _pollInterval: 15 * 60 * 1000
-  readonly property int _pollTimerInterval: _hasPackageCache && _lastSync > 0 ? Math.max(1, _pollInterval - Math.max(0, Date.now() - _lastSync)) : 1
+  readonly property int _pollTimerInterval: _hasPackageCache && _lastSuccessfulCheck > 0 ? Math.max(1, _pollInterval - Math.max(0, Date.now() - _lastSuccessfulCheck)) : 1
   readonly property string _runUpdatesAction: "run-updates"
   property string _state: "idle"
   property bool _updateProcessStarted: false
-  readonly property bool busy: _checking || updateProcess.running || cancelProcess.running || isUpdating
+  readonly property bool busy: _checking || updateProcess.running || isUpdating
+  readonly property string checkError: Settings.isStateLoaded ? Settings.state.updates.lastCheckError : ""
+  property int completedPackageCount: 0
   property int currentPackageIndex: 0
+  property string currentPackage: ""
   property string currentStep: ""
   property string errorMessage: ""
+  readonly property bool isChecking: _checking
+  readonly property bool isCompleted: _state === "completed"
   readonly property bool isError: _state === "error"
   readonly property bool isIdle: _state === "idle"
   readonly property bool isSystemPackageStep: currentStep.startsWith("System Packages")
   readonly property bool isUpdating: _state === "updating"
+  readonly property bool isStale: !Settings.isStateLoaded || checkError !== "" || _lastSuccessfulCheck <= 0 || Date.now() - _lastSuccessfulCheck > _pollInterval
+  readonly property double lastSuccessfulCheck: _lastSuccessfulCheck
   property var outputLines: []
+  property bool progressDeterminate: false
   readonly property bool ready: MainService.isArchBased && _checkUpdatesAvailable && Settings.isStateLoaded
+  property bool rebootRequired: false
+  property double updateDurationMs: 0
+  property double updateStartedAt: 0
+  property int warningCount: 0
   readonly property int totalDownloadSize: updatePackages.reduce((totalSize, packageInfo) => totalSize + (_packageSizes[packageInfo.name] ?? 0), 0)
   property int totalPackagesToUpdate: 0
   readonly property int totalUpdates: updatePackages.length
   readonly property var updatePackages: _hasPackageCache ? Settings.state.updates.packages : []
 
-  function _completeCancellation(): void {
-    if (!_cancelCommandDone || updateProcess.running)
-      return;
-    _cancelCommandDone = false;
-    _cancelledUpdateExitCode = -1;
-    _cancellingUpdate = false;
-    _state = "idle";
-    _resetUpdateProgress();
-    doPoll();
-  }
   function _completionMessage(packageCount: int): string {
     if (packageCount === 0)
       return "Developer tooling update completed";
@@ -82,8 +81,9 @@ Singleton {
   }
   function _finishUpdate(exitCode: int): void {
     _state = exitCode === 0 ? "completed" : "error";
+    updateDurationMs = updateStartedAt > 0 ? Date.now() - updateStartedAt : 0;
+    completedPackageCount = currentPackageIndex || totalPackagesToUpdate;
     if (exitCode === 0) {
-      const completedPackageCount = totalPackagesToUpdate || updatePackages.length;
       Logger.log("UpdateService", `Updates completed (${completedPackageCount}): ${updatePackages.map(packageInfo => packageInfo.name).join(", ")}`);
       _notify("Update Complete", _completionMessage(completedPackageCount));
     } else {
@@ -93,28 +93,8 @@ Singleton {
     }
     Qt.callLater(root.doPoll);
   }
-  function _handleCancelExit(exitCode: int): void {
-    _cancelCommandDone = true;
-    if (exitCode === 0) {
-      _completeCancellation();
-      return;
-    }
-
-    _cancelCommandDone = false;
-    _cancellingUpdate = false;
-    errorMessage = "Failed to cancel the update safely";
-    updateProcess.appendOutputLine(errorMessage);
-    Logger.error("UpdateService", `${errorMessage} (code: ${exitCode})`);
-    if (!updateProcess.running)
-      _finishUpdate(_cancelledUpdateExitCode >= 0 ? _cancelledUpdateExitCode : exitCode);
-  }
   function _handleUpdateExit(exitCode: int): void {
     _updateProcessStarted = false;
-    if (_cancellingUpdate) {
-      _cancelledUpdateExitCode = exitCode;
-      _completeCancellation();
-      return;
-    }
     _finishUpdate(exitCode);
   }
   function _launchPendingActionNotification(): void {
@@ -182,11 +162,18 @@ Singleton {
     _failureCount = 0;
   }
   function _resetUpdateProgress(): void {
+    completedPackageCount = 0;
     currentPackageIndex = 0;
+    currentPackage = "";
     currentStep = "";
     errorMessage = "";
     outputLines = [];
+    progressDeterminate = false;
+    rebootRequired = false;
     totalPackagesToUpdate = 0;
+    updateDurationMs = 0;
+    updateStartedAt = 0;
+    warningCount = 0;
   }
   function _showActionNotification(args: var): void {
     NotificationService.dismissNotificationsByAppName(_notificationAppName);
@@ -195,28 +182,6 @@ Singleton {
       actionNotifyProcess.running = false;
     else
       _launchPendingActionNotification();
-  }
-  function cancelUpdate(): void {
-    if (_cancellingUpdate || cancelProcess.running)
-      return;
-    if (!updateProcess.running) {
-      _state = "idle";
-      _resetUpdateProgress();
-      return;
-    }
-    if (!_updateProcessStarted) {
-      _cancellingUpdate = true;
-      _cancelCommandDone = true;
-      updateProcess.running = false;
-      Qt.callLater(root._completeCancellation);
-      return;
-    }
-    _cancellingUpdate = true;
-    _cancelCommandDone = false;
-    _cancelledUpdateExitCode = -1;
-    updateProcess.appendOutputLine(qsTr("Cancelling update safely..."));
-    cancelProcess.command = ["update", "--cancel"];
-    cancelProcess.running = true;
   }
   function dismissResult(): void {
     if (isUpdating)
@@ -231,19 +196,20 @@ Singleton {
   function doPoll(): void {
     if (!ready || busy)
       return;
-    Settings.state.updates.lastSync = Date.now();
     _checking = true;
     Command.run(["checkupdates", "--nocolor"], result => {
       root._checking = false;
-      if (!root.isError)
-        root._state = "idle";
       if (result.exitCode === 0 || result.exitCode === 2) {
         const packages = root._parseUpdatePackages(result.stdout);
         root._failureCount = 0;
+        Settings.state.updates.lastCheckError = "";
+        Settings.state.updates.lastSuccessfulCheck = Date.now();
         Settings.state.updates.packages = packages;
         root._notifyIfIncreased(packages);
       } else {
-        root._recordFailure("checkupdates", (result.stderr || "").trim() || `Exit code: ${result.exitCode}`, result.exitCode);
+        const message = (result.stderr || "").trim() || `Exit code: ${result.exitCode}`;
+        Settings.state.updates.lastCheckError = message;
+        root._recordFailure("checkupdates", message, result.exitCode);
       }
     }, "update.check");
   }
@@ -255,6 +221,7 @@ Singleton {
     _resetUpdateProgress();
     totalPackagesToUpdate = totalUpdates;
     _updateProcessStarted = false;
+    updateStartedAt = Date.now();
     _state = "updating";
     updateProcess.command = ["update"];
     updateProcess.running = true;
@@ -274,69 +241,48 @@ Singleton {
     id: updateProcess
 
     function appendOutputLine(lineText: string): void {
-      const trimmedLine = lineText.trim();
-      if (!trimmedLine)
-        return;
-      root.outputLines = root.outputLines.slice(-299).concat(trimmedLine);
-      const stepMatch = trimmedLine.match(/^▶\s+(.+)$/);
-      if (stepMatch)
+      const cleanLine = String(lineText ?? "").replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/\r$/, "");
+      root.outputLines = root.outputLines.concat(cleanLine);
+      const stepMatch = cleanLine.trim().match(/^▶\s+(.+)$/);
+      if (stepMatch) {
         root.currentStep = stepMatch[1];
-      const failureMatch = trimmedLine.match(/^\[FAIL\]\s+(.+)$/);
+        root.progressDeterminate = false;
+      }
+      const normalized = cleanLine.toLowerCase();
+      const detectedMessage = root._detectErrorMessage(cleanLine);
+      if (detectedMessage && !root.errorMessage)
+        root.errorMessage = detectedMessage;
+      if (normalized.includes("warning"))
+        root.warningCount++;
+      if (/^(?:==>\s+|⚠\s+)?Reboot (?:required due to:|is recommended after system updates\.)/.test(cleanLine.trim()))
+        root.rebootRequired = true;
+      const failureMatch = cleanLine.trim().match(/^\[FAIL\]\s+(.+)$/);
       if (failureMatch && !root.errorMessage)
         root.errorMessage = `${failureMatch[1]} update failed`;
-      const progressMatch = trimmedLine.match(/^\(\s*(\d+)\/\d+\)\s+(?:installing|upgrading)\s+/i);
-      if (root.isSystemPackageStep && progressMatch)
+      const progressMatch = cleanLine.trim().match(/^\(\s*(\d+)\/(\d+)\)\s+(?:installing|upgrading)\s+(\S+)/i);
+      if (root.isSystemPackageStep && progressMatch) {
+        root.totalPackagesToUpdate = Number(progressMatch[2]);
         root.currentPackageIndex = Math.min(Number(progressMatch[1]), root.totalPackagesToUpdate);
+        root.currentPackage = progressMatch[3];
+        root.progressDeterminate = true;
+      }
     }
 
     stderr: SplitParser {
-      onRead: data => {
-        const lineText = data.trim();
-        if (!lineText)
-          return;
-        updateProcess.appendOutputLine(lineText);
-        const detectedMessage = root._detectErrorMessage(lineText);
-        if (detectedMessage && !root.errorMessage)
-          root.errorMessage = detectedMessage;
-      }
+      onRead: data => updateProcess.appendOutputLine(data)
     }
     stdout: SplitParser {
       onRead: data => {
-        const lineText = data.trim();
-        if (!lineText)
-          return;
-        updateProcess.appendOutputLine(lineText);
+        updateProcess.appendOutputLine(data);
       }
     }
 
     onExited: exitCode => root._handleUpdateExit(exitCode)
     onRunningChanged: {
-      if (!running && root.isUpdating && !root._updateProcessStarted && !root._cancellingUpdate)
+      if (!running && root.isUpdating && !root._updateProcessStarted)
         root._finishUpdate(-1);
     }
     onStarted: root._updateProcessStarted = true
-  }
-  Process {
-    id: cancelProcess
-
-    property bool _started: false
-
-    stderr: SplitParser {
-      onRead: data => updateProcess.appendOutputLine(data)
-    }
-    stdout: SplitParser {
-      onRead: data => updateProcess.appendOutputLine(data)
-    }
-
-    onExited: exitCode => {
-      _started = false;
-      root._handleCancelExit(exitCode);
-    }
-    onRunningChanged: {
-      if (!running && root._cancellingUpdate && !_started)
-        root._handleCancelExit(-1);
-    }
-    onStarted: _started = true
   }
   Timer {
     id: pollTimer

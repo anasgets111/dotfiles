@@ -153,7 +153,8 @@ Singleton {
         rates: {}
       })
     property JsonObject updates: JsonObject {
-      property double lastSync: 0
+      property string lastCheckError: ""
+      property double lastSuccessfulCheck: 0
       property string notifiedPackagesKey: ""
       property var packages: null
     }

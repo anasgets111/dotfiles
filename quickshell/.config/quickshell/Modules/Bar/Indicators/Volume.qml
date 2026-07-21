@@ -48,7 +48,7 @@ Rectangle {
     return Theme.textContrast(center > width * volumeSlider.splitAt ? Theme.critical : trackColor);
   }
 
-  border.color: isMuted ? Theme.borderLight : "transparent"
+  border.color: "transparent"
   border.width: Theme.borderWidthThin
   clip: true
   color: isMuted ? Theme.bgElevated : Theme.inactiveColor
@@ -132,5 +132,14 @@ Rectangle {
       verticalAlignment: Text.AlignVCenter
       visible: root.expanded
     }
+  }
+  Rectangle {
+    anchors.fill: parent
+    border.color: hoverHandler.hovered ? Theme.barHoverBorder : "transparent"
+    border.width: Theme.borderWidthThin
+    color: "transparent"
+    radius: root.radius
+    z: 2
+    Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
   }
 }

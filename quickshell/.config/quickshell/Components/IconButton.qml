@@ -30,11 +30,11 @@ Item {
 
   // Color customization
   property color colorBg: Theme.inactiveColor
-  readonly property color colorBgHover: Theme.onHoverColor
-  readonly property color colorBorder: Theme.onHoverColor
-  readonly property color colorBorderHover: Theme.onHoverColor
+  property color colorBgHover: Theme.onHoverColor
+  property color colorBorder: "transparent"
+  property color colorBorderHover: Theme.barHoverBorder
   property color colorFg: Theme.textContrast(colorBg)
-  readonly property color colorFgHover: Theme.textContrast(colorBgHover)
+  property color colorFgHover: Theme.textContrast(colorBgHover)
 
   // Computed colors
   readonly property color effectiveBg: !isEnabled ? colorBg : (hovered ? colorBgHover : colorBg)
@@ -81,7 +81,7 @@ Item {
 
     anchors.fill: parent
     border.color: iconButton.effectiveBorderColor
-    border.width: iconButton.showBorder ? Theme.borderWidthThin : 0
+    border.width: Theme.borderWidthThin
     color: mouseArea.containsPress ? iconButton.colorBgHover : iconButton.effectiveBg
     radius: iconButton._radius
 

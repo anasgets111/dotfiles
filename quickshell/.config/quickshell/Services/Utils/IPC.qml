@@ -13,12 +13,15 @@ import qs.Services.WM
 Singleton {
   id: ipc
 
+  signal launcherCloseRequested
+
   function toggleLauncher(): bool {
-    if (ShellUiState.activeModal === "launcher")
-      ShellUiState.closeModal("launcher");
-    else
-      ShellUiState.openModal("launcher", MonitorService.effectiveMainScreen?.name ?? "");
-    return ShellUiState.activeModal === "launcher";
+    if (ShellUiState.activeModal === "launcher") {
+      ipc.launcherCloseRequested();
+      return false;
+    }
+    ShellUiState.openModal("launcher", MonitorService.effectiveMainScreen?.name ?? "");
+    return true;
   }
 
   // ----- Lock -----

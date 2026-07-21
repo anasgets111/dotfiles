@@ -3,13 +3,13 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import qs.Components
 import qs.Config
 import qs.Modules.Bar
 import qs.Modules.Bar.Panels
 import qs.Modules.Global
 import qs.Services.Core
 import qs.Services.UI
+import qs.Services.Utils
 
 Scope {
   id: root
@@ -83,7 +83,7 @@ Scope {
 
       BackgroundEffect.blurRegion: overlayWindow.activeModalItem?.blurRegion ?? panelContainer.blurRegion
       WlrLayershell.exclusionMode: ExclusionMode.Ignore
-      WlrLayershell.keyboardFocus: (panelContainer.active && panelContainer.needsKeyboardFocus) || activeModal !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+      WlrLayershell.keyboardFocus: panelContainer.active || activeModal !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
       WlrLayershell.layer: WlrLayer.Top
       WlrLayershell.namespace: "obelisk-overlay"
       color: "transparent"
@@ -101,7 +101,7 @@ Scope {
         right: true
         top: true
       }
-      OPanel {
+      PanelHost {
         id: panelContainer
 
         active: overlayWindow.isPanelActiveHere
@@ -112,6 +112,19 @@ Scope {
 
         onCloseRequested: ShellUiState.closePanel()
       }
+      Connections {
+        function onLauncherCloseRequested() {
+          if (overlayWindow.activeModal !== "launcher")
+            return;
+          const launcher = launcherLoader.item as AppLauncher;
+          if (launcher)
+            launcher.close();
+          else
+            ShellUiState.closeModal("launcher");
+        }
+
+        target: IPC
+      }
       Loader {
         id: launcherLoader
 
@@ -119,7 +132,9 @@ Scope {
         anchors.fill: parent
 
         sourceComponent: AppLauncher {
-          active: true
+          active: false
+
+          Component.onCompleted: open()
 
           onDismissed: ShellUiState.closeModal("launcher")
         }
@@ -131,10 +146,10 @@ Scope {
         anchors.fill: parent
 
         sourceComponent: WallpaperPicker {
-          active: true
+          active: false
 
-          onApplyRequested: ShellUiState.closeModal("wallpaperPicker")
-          onCancelRequested: ShellUiState.closeModal("wallpaperPicker")
+          Component.onCompleted: open()
+
           onDismissed: ShellUiState.closeModal("wallpaperPicker")
         }
       }
@@ -145,7 +160,9 @@ Scope {
         anchors.fill: parent
 
         sourceComponent: IdleSettingsPanel {
-          active: true
+          active: false
+
+          Component.onCompleted: open()
 
           onDismissed: ShellUiState.closeModal("idleSettings")
         }

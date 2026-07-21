@@ -11,17 +11,15 @@ PanelContentBase {
 
   property bool inputDevicesExpanded: false
   readonly property string inputName: AudioService.sourceName || qsTr("No input device")
-  property bool mixerExpanded: false
   property bool outputDevicesExpanded: false
   readonly property string outputName: AudioService.sinkName || qsTr("No output device")
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
 
   preferredHeight: contentLayout.implicitHeight + Theme.spacingMd * 2
-  preferredWidth: 380
+  preferredWidth: Theme.audioPanelWidth
 
   onIsOpenChanged: if (!isOpen) {
     inputDevicesExpanded = false;
-    mixerExpanded = false;
     outputDevicesExpanded = false;
   }
 
@@ -124,10 +122,10 @@ PanelContentBase {
     }
   }
 
-  component AudioControl: Rectangle {
+  component AudioControl: PanelCard {
     id: hero
 
-    default property alias content: extensionArea.data
+    default property alias extensionContent: extensionArea.data
     property color headroomColor: "transparent"
     property string iconOff
     property string iconOn
@@ -142,12 +140,9 @@ PanelContentBase {
     signal committed(real v)
     signal toggled
 
+    padding: 0
     Layout.fillWidth: true
-    border.color: Theme.borderLight
-    border.width: Theme.borderWidthThin
-    color: Theme.bgCard
     implicitHeight: heroLayout.implicitHeight + Theme.spacingMd * 2
-    radius: Theme.radiusLg
 
     ColumnLayout {
       id: heroLayout
@@ -383,27 +378,13 @@ PanelContentBase {
       }
     }
   }
-  component MixerSection: Rectangle {
+  component MixerSection: PanelCard {
     id: mixer
 
     readonly property int streamCount: AudioService.streamModels.length
 
-    border.color: root.mixerExpanded ? Theme.borderLight : "transparent"
-    border.width: Theme.borderWidthThin
-    color: root.mixerExpanded ? Theme.bgCard : "transparent"
-    implicitHeight: mixerContent.implicitHeight + (root.mixerExpanded ? Theme.spacingSm * 2 : 0)
-    radius: Theme.radiusLg
-
-    Behavior on border.color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
-    }
-    Behavior on color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
-    }
+    padding: 0
+    implicitHeight: mixerContent.implicitHeight + Theme.spacingSm * 2
 
     ColumnLayout {
       id: mixerContent
@@ -411,13 +392,13 @@ PanelContentBase {
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.top: parent.top
-      anchors.topMargin: root.mixerExpanded ? Theme.spacingSm : 0
+      anchors.topMargin: Theme.spacingSm
       spacing: 0
 
       Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.itemHeight
-        color: mixerHover.hovered ? Theme.withOpacity(Theme.activeColor, 0.08) : "transparent"
+        color: "transparent"
         radius: Theme.radiusMd
 
         Behavior on color {
@@ -426,12 +407,6 @@ PanelContentBase {
           }
         }
 
-        HoverHandler {
-          id: mixerHover
-        }
-        TapHandler {
-          onTapped: root.mixerExpanded = !root.mixerExpanded
-        }
         RowLayout {
           anchors.fill: parent
           anchors.leftMargin: Theme.spacingSm
@@ -458,23 +433,11 @@ PanelContentBase {
               text: mixer.streamCount === 0 ? qsTr("No applications playing audio") : qsTr("%1 active").arg(mixer.streamCount)
             }
           }
-          OText {
-            color: Theme.textInactiveColor
-            rotation: root.mixerExpanded ? 180 : 0
-            text: "󰅀"
-
-            Behavior on rotation {
-              NumberAnimation {
-                duration: Theme.animationDuration
-                easing.type: Easing.OutCubic
-              }
-            }
-          }
         }
       }
       Item {
         Layout.fillWidth: true
-        Layout.preferredHeight: root.mixerExpanded ? streamLayout.implicitHeight + Theme.spacingSm : 0
+        Layout.preferredHeight: streamLayout.implicitHeight + Theme.spacingSm
         clip: true
 
         Behavior on Layout.preferredHeight {
@@ -508,6 +471,7 @@ PanelContentBase {
 
     required property var modelData
     readonly property bool ready: AudioService.streamReady(modelData.id)
+    readonly property bool muted: modelData.muted ?? false
     readonly property real volume: AudioService.streamVolume(modelData.id)
 
     Layout.fillWidth: true
@@ -524,6 +488,7 @@ PanelContentBase {
         cache: false
         fillMode: Image.PreserveAspectFit
         source: streamItem.modelData.iconSource
+        opacity: streamItem.muted ? Theme.opacityDisabled : 1
 
         sourceSize {
           height: Theme.fontLg
@@ -533,6 +498,10 @@ PanelContentBase {
           anchors.centerIn: parent
           text: "󰝚"
           visible: parent.status === Image.Error || parent.status === Image.Null
+        }
+        TapHandler {
+          enabled: streamItem.ready
+          onTapped: AudioService.toggleStreamMute(streamItem.modelData.id)
         }
       }
       OText {

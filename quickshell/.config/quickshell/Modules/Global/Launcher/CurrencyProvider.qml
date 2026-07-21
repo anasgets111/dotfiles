@@ -1,9 +1,7 @@
 pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Layouts
 import Quickshell
-import qs.Components
 import qs.Config
 import qs.Services.SystemInfo
 import qs.Services.Utils
@@ -24,82 +22,6 @@ Singleton {
       "₿": "btc"
     })
   property string _toCode: ""
-  readonly property Component delegate: Component {
-    ColumnLayout {
-      anchors.fill: parent
-      spacing: Theme.spacingXs
-
-      RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.spacingSm
-
-        OText {
-          bold: true
-          color: Theme.activeColor
-          font.pixelSize: Theme.fontXs
-          text: qsTr("Currency")
-        }
-        Rectangle {
-          color: Theme.inactiveColor
-          implicitHeight: Theme.controlHeightXs
-          implicitWidth: staticLabel.implicitWidth + Theme.spacingSm
-          radius: height / 2
-          visible: !root.ratesLive
-
-          OText {
-            id: staticLabel
-
-            anchors.centerIn: parent
-            color: Theme.textInactiveColor
-            size: "xs"
-            text: qsTr("Static rates")
-          }
-        }
-        Item {
-          Layout.fillWidth: true
-        }
-        OText {
-          color: Theme.textInactiveColor
-          font.pixelSize: Theme.fontXs
-          opacity: 0.8
-          text: root.lastUpdatedText
-          visible: text !== ""
-        }
-      }
-      RowLayout {
-        Layout.fillWidth: true
-        spacing: Theme.spacingSm
-
-        OText {
-          font.pixelSize: Theme.fontLg
-          text: root.fromFlag
-        }
-        OText {
-          bold: true
-          font.pixelSize: Theme.fontLg
-          text: root._inputAmount + " " + root._fromCode.toUpperCase()
-        }
-        OText {
-          color: Theme.textInactiveColor
-          font.pixelSize: Theme.fontLg
-          text: "→"
-        }
-        OText {
-          font.pixelSize: Theme.fontLg
-          text: root.toFlag
-        }
-        OText {
-          bold: true
-          color: Theme.activeColor
-          font.pixelSize: Theme.fontLg
-          text: root._resultText + " " + root._toCode.toUpperCase()
-        }
-      }
-      LauncherHint {
-        text: qsTr("Enter to copy result")
-      }
-    }
-  }
   readonly property string fromFlag: _getFlag(_fromCode)
   property var lastUpdated: null
   readonly property string lastUpdatedText: _formatLastUpdated(lastUpdated)
@@ -110,6 +32,12 @@ Singleton {
   readonly property int refreshInterval: 86400000 // 24 hours
 
   readonly property string statusLabel: ratesLive ? "FX" : "FX-STATIC"
+  readonly property string rowBadge: statusLabel
+  readonly property string rowHint: qsTr("Enter to copy result")
+  readonly property string rowIcon: fromFlag
+  readonly property bool rowIconIsText: true
+  readonly property string rowSubtitle: ratesLive ? lastUpdatedText : qsTr("Static rates")
+  readonly property string rowTitle: `${_inputAmount} ${_fromCode.toUpperCase()} → ${_resultText} ${_toCode.toUpperCase()}`
   readonly property string toFlag: _getFlag(_toCode)
 
   function _currencyCode(token: string): string {

@@ -41,16 +41,14 @@ Item {
     blur: Theme.shadowBlurMd
     color: Theme.bgOverlay
     offset: Qt.vector2d(0, Theme.shadowOffsetY)
-    radius: Theme.radiusXl
+    radius: bg.radius
   }
-  Rectangle {
+  PanelCard {
     id: bg
 
     anchors.fill: parent
-    border.color: Theme.withOpacity(Theme.activeColor, 0.3)
-    border.width: Theme.borderWidthThin
-    color: Theme.bgPanel
-    radius: Theme.radiusXl
+    padding: 0
+    tone: "active"
   }
   RowLayout {
     anchors.centerIn: parent

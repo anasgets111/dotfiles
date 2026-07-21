@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import qs.Config
 import qs.Services.Core
 
 WlrLayershell {
@@ -167,7 +168,7 @@ WlrLayershell {
   NumberAnimation {
     id: transitionAnim
 
-    duration: 900
+    duration: Theme.wallpaperAnimationDuration
     easing.type: Easing.InOutCubic
     from: 0.0
     property: "transitionProgress"

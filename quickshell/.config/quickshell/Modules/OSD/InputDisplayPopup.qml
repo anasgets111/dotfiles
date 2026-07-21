@@ -13,7 +13,7 @@ OPopup {
 
   blurRegion: Region {
     height: card.opacity > 0 ? Math.max(0, card.height - 4) : 0
-    radius: Theme.radiusMd
+    radius: card.radius
     width: card.opacity > 0 ? Math.max(0, card.width - 4) : 0
     x: card.x + 2
     y: card.y + 2
@@ -48,18 +48,15 @@ OPopup {
   onHeightChanged: Qt.callLater(root.syncCardToSavedPosition)
   onWidthChanged: Qt.callLater(root.syncCardToSavedPosition)
 
-  Rectangle {
+  PanelCard {
     id: card
 
     readonly property int hpad: Theme.spacingLg
     readonly property int vpad: Theme.spacingMd
 
-    border.color: Theme.borderColor
-    border.width: Theme.borderWidthThin
-    color: Theme.bgPanel
     height: content.implicitHeight + vpad * 2
     opacity: root.shouldStayVisible ? 1 : 0
-    radius: Theme.radiusMd
+    padding: 0
     width: Math.max(Theme.s(150), content.implicitWidth + hpad * 2)
 
     Behavior on opacity {
@@ -91,7 +88,7 @@ OPopup {
       blur: Theme.shadowBlurMd
       color: Theme.bgOverlay
       offset: Qt.vector2d(0, Theme.shadowOffsetY)
-      radius: parent.radius
+      radius: card.radius
       z: -1
     }
     ColumnLayout {

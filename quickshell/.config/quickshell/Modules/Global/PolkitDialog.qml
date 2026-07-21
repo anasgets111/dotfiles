@@ -57,15 +57,13 @@ Scope {
       right: true
       top: true
     }
-    Rectangle {
+    PanelCard {
       id: dialogCard
 
       anchors.centerIn: parent
-      border.color: Theme.activeColor
-      border.width: Theme.borderWidthThin
-      color: Theme.bgPanel
       height: layout.implicitHeight + Theme.dialogPadding * 2
-      radius: Theme.itemRadius
+      padding: 0
+      tone: "active"
       width: Theme.dialogWidth
 
       ColumnLayout {

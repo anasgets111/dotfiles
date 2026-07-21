@@ -1,10 +1,7 @@
 pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Layouts
 import Quickshell
-import qs.Components
-import qs.Config
 import qs.Services.Utils
 
 Singleton {
@@ -13,36 +10,13 @@ Singleton {
   property bool _isUrl: false
   property string _query: ""
   property string _url: ""
-  readonly property Component delegate: Component {
-    Column {
-      anchors.fill: parent
-      spacing: Theme.spacingXs
-
-      OText {
-        color: Theme.activeColor
-        font.pixelSize: Theme.fontXs
-        text: root._isUrl ? qsTr("Open link") : qsTr("Web search")
-      }
-      RowLayout {
-        spacing: Theme.spacingMd
-
-        OText {
-          color: Theme.activeColor
-          font.pixelSize: Theme.fontLg
-          text: root._isUrl ? "󰖟" : "󰍉"
-        }
-        OText {
-          Layout.fillWidth: true
-          font.pixelSize: Theme.fontLg
-          text: root._isUrl ? root._url : root._query
-        }
-      }
-      LauncherHint {
-        text: qsTr("Enter to open")
-      }
-    }
-  }
   readonly property string statusLabel: _isUrl ? "URL" : "WEB"
+  readonly property string rowBadge: statusLabel
+  readonly property string rowHint: qsTr("Enter to open")
+  readonly property string rowIcon: _isUrl ? "󰖟" : "󰍉"
+  readonly property bool rowIconIsText: false
+  readonly property string rowSubtitle: _isUrl ? qsTr("Open link") : qsTr("Web search")
+  readonly property string rowTitle: _isUrl ? _url : _query
 
   function activate(): void {
     Command.detached(["xdg-open", _url]);

@@ -3,7 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import QtQuick.Effects
-import qs.Components
 import qs.Config
 import qs.Services.Core
 import qs.Services.WM
@@ -64,14 +63,14 @@ Scope {
             script: unlockAnimation.stop()
           }
           NumberAnimation {
-            duration: 220
+            duration: Theme.animationSlow
             easing.type: Easing.OutCubic
             property: "phase"
             target: stage
             to: 1
           }
           NumberAnimation {
-            duration: 220
+            duration: Theme.animationSlow
             easing.type: Easing.OutCubic
             property: "phase"
             target: stage
@@ -87,14 +86,14 @@ Scope {
             script: lockInAnimation.stop()
           }
           NumberAnimation {
-            duration: 180
+            duration: Theme.animationDuration
             easing.type: Easing.InCubic
             property: "phase"
             target: stage
             to: 1
           }
           NumberAnimation {
-            duration: 180
+            duration: Theme.animationDuration
             easing.type: Easing.InCubic
             property: "phase"
             target: stage
@@ -131,7 +130,7 @@ Scope {
           active: !IdleService.displaysPoweredOff
           anchors.fill: parent
           opacity: stage.contentOpacity
-          scale: 0.96 + (0.04 * stage.contentOpacity)
+          scale: Theme.lockClosedScale + ((1 - Theme.lockClosedScale) * stage.contentOpacity)
 
           sourceComponent: Item {
             LockContent {

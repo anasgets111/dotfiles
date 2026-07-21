@@ -41,6 +41,15 @@ Item {
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Theme.batteryPillWidth
+  Rectangle {
+    anchors.fill: parent
+    border.color: mouseArea.containsMouse ? Theme.barHoverBorder : "transparent"
+    border.width: Theme.borderWidthThin
+    color: "transparent"
+    radius: height / 2
+    z: 2
+    Behavior on border.color { ColorAnimation { duration: Theme.animationFast } }
+  }
   visible: BatteryService.isReady
 
   onIsPluggedInChanged: if (isPluggedIn)
@@ -139,13 +148,13 @@ Item {
       id: clickFlash
 
       NumberAnimation {
-        duration: 50
+        duration: Theme.animationFast / 2
         property: "opacity"
         target: flashOverlay
         to: 1
       }
       NumberAnimation {
-        duration: 400
+        duration: Theme.animationVerySlow
         easing.type: Easing.OutCubic
         property: "opacity"
         target: flashOverlay

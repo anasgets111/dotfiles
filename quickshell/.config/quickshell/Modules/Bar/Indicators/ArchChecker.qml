@@ -29,7 +29,7 @@ Item {
     tooltipText: isUpdating ? qsTr("Updating system and developer tooling...") : isError ? qsTr("Update failed - click for details") : UpdateService.busy ? qsTr("Checking for updates…") : UpdateService.totalUpdates === 0 ? qsTr("No system package updates - right-click for updater") : UpdateService.totalUpdates === 1 ? qsTr("One package can be upgraded") : qsTr("%1 packages can be upgraded").arg(UpdateService.totalUpdates)
 
     NumberAnimation on spinAngle {
-      duration: 1000
+      duration: Theme.spinnerDuration
       from: 0
       loops: Animation.Infinite
       running: button.isUpdating

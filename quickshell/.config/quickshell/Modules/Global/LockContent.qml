@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
+import qs.Components
 import qs.Config
 import qs.Services
 import qs.Services.Core
@@ -72,14 +73,14 @@ Item {
     id: enterAnim
 
     NumberAnimation {
-      duration: 300
+      duration: Theme.animationSlow
       easing.type: Easing.OutCubic
       property: "opacity"
       target: shell
       to: 1
     }
     NumberAnimation {
-      duration: 360
+      duration: Theme.animationVerySlow
       easing.overshoot: 1.1
       easing.type: Easing.OutBack
       property: "scale"
@@ -91,7 +92,7 @@ Item {
     id: shakeAnimation
 
     PropertyAnimation {
-      duration: 44
+      duration: Theme.animationFast / 2
       easing.type: Easing.OutQuad
       from: 0
       property: "x"
@@ -99,21 +100,21 @@ Item {
       to: 6
     }
     PropertyAnimation {
-      duration: 88
+      duration: Theme.animationFast
       easing.type: Easing.InOutQuad
       property: "x"
       target: shakeTransform
       to: -6
     }
     PropertyAnimation {
-      duration: 64
+      duration: Theme.animationDuration / 2
       easing.type: Easing.InOutQuad
       property: "x"
       target: shakeTransform
       to: 4
     }
     PropertyAnimation {
-      duration: 52
+      duration: Theme.animationFast / 2
       easing.type: Easing.InQuad
       property: "x"
       target: shakeTransform
@@ -132,15 +133,15 @@ Item {
   Rectangle {
     id: shell
 
-    border.color: Theme.withOpacity("#ffffff", 0.22)
-    border.width: 1
+    border.color: Theme.lockSurfaceBorderColor
+    border.width: Theme.borderWidthThin
     color: Theme.withOpacity(Theme.bgColor, 0.30)
     implicitHeight: outerColumn.implicitHeight + root.spaceXl * 2
     implicitWidth: Math.max(480, Math.min(Math.round((root.parent ? root.parent.width : root.absoluteMinWidth) * 0.38), 720))
     layer.enabled: true
     opacity: 0
     radius: Theme.radiusXl * 1.2
-    scale: 0.96
+    scale: Theme.lockClosedScale
     transformOrigin: Item.Center
 
     layer.effect: MultiEffect {
@@ -154,11 +155,11 @@ Item {
     // Inner highlight border
     Rectangle {
       anchors.fill: parent
-      anchors.margins: 1
-      border.color: Theme.withOpacity("#ffffff", 0.10)
-      border.width: 1
+      anchors.margins: Theme.borderWidthThin
+      border.color: Theme.lockInnerBorderColor
+      border.width: Theme.borderWidthThin
       color: "transparent"
-      radius: Math.max(0, shell.radius - 1)
+      radius: Math.max(0, shell.radius - Theme.borderWidthThin)
     }
     ColumnLayout {
       id: outerColumn
@@ -202,7 +203,7 @@ Item {
         Rectangle {
           anchors.centerIn: parent
           border.color: Theme.withOpacity(Theme.activeColor, 0.5)
-          border.width: 2
+          border.width: Theme.borderWidthMedium
           color: "transparent"
           height: parent.avatarSize + 6
           layer.enabled: true
@@ -265,8 +266,8 @@ Item {
         Layout.fillWidth: true
         Layout.maximumWidth: Math.round(shell.implicitWidth * 0.82)
         Layout.preferredHeight: Math.round(Theme.controlHeightLg * 1.1 * root.roundedScale)
-        border.color: passwordInput.passwordRejected ? Theme.critical : LockService.authenticating ? Theme.activeColor : Theme.withOpacity("#ffffff", 0.18)
-        border.width: 2
+        border.color: passwordInput.passwordRejected ? Theme.critical : LockService.authenticating ? Theme.activeColor : Theme.lockInputBorderColor
+        border.width: Theme.borderWidthMedium
         color: Theme.withOpacity(Theme.bgInput, 0.85)
         layer.enabled: LockService.authenticating
         radius: Theme.radiusFull
@@ -353,9 +354,9 @@ Item {
       // ── Thin separator ────────────────────────────────────
       Rectangle {
         Layout.alignment: Qt.AlignHCenter
-        Layout.preferredHeight: 1
+        Layout.preferredHeight: Theme.borderWidthThin
         Layout.preferredWidth: parent.width * 0.6
-        color: Theme.withOpacity("#ffffff", 0.08)
+        color: Theme.lockDividerColor
       }
       Item {
         Layout.preferredHeight: root.spaceSm

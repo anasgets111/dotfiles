@@ -92,13 +92,13 @@ Item {
             btn.opacity = 1.0
 
           NumberAnimation {
-            duration: 300
+            duration: Theme.animationSlow
             easing.type: Easing.InOutQuad
             from: 1.0
             to: 0.4
           }
           NumberAnimation {
-            duration: 300
+            duration: Theme.animationSlow
             easing.type: Easing.InOutQuad
             from: 0.4
             to: 1.0

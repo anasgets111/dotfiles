@@ -2,6 +2,7 @@
 set -eu
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
 export LC_ALL=C
+exec 2>&1
 
 readonly PACMAN_UNIT="obelisk-shell-package-update.service"
 readonly UPDATE_UNIT="obelisk-shell-update.service"
@@ -19,36 +20,6 @@ run_step() {
     printf "[FAIL] %s\n" "$desc"
     failure_count=$((failure_count + 1))
   fi
-}
-
-stop_pacman_unit() {
-  local state
-  state=$(systemctl show --property=ActiveState --value "$PACMAN_UNIT") || return 1
-  [[ "$state" == "inactive" || "$state" == "failed" ]] && return 0
-  if ! has_cmd run0; then
-    printf "[ERROR] run0 not found; cannot stop %s safely.\n" "$PACMAN_UNIT" >&2
-    return 1
-  fi
-  if ! run0 --pipe systemctl stop "$PACMAN_UNIT"; then
-    printf "[ERROR] Failed to stop %s.\n" "$PACMAN_UNIT" >&2
-    return 1
-  fi
-}
-
-stop_update_unit() {
-  local state
-  state=$(systemctl --user show --property=ActiveState --value "$UPDATE_UNIT") || return 1
-  [[ "$state" == "inactive" || "$state" == "failed" ]] && return 0
-  systemctl --user stop "$UPDATE_UNIT"
-}
-
-cancel_update() {
-  local cancel_failed=0
-
-  printf "Cancelling update...\n"
-  stop_update_unit || cancel_failed=1
-  stop_pacman_unit || cancel_failed=1
-  return "$cancel_failed"
 }
 
 start_update() {
@@ -72,12 +43,8 @@ run_optional() {
   fi
 }
 
-if (($# == 1)) && [[ "$1" == "--cancel" ]]; then
-  cancel_update
-  exit
-fi
 if (($#)); then
-  printf "Usage: %s [--cancel]\n" "${0##*/}" >&2
+  printf "Usage: %s\n" "${0##*/}" >&2
   exit 2
 fi
 if [[ "${OBELISK_UPDATE_WORKER:-}" != 1 ]]; then

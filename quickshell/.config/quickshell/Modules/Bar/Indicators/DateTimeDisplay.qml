@@ -20,9 +20,16 @@ Item {
 
   Rectangle {
     anchors.fill: parent
+    border.color: mouseArea.containsMouse ? Theme.barHoverBorder : "transparent"
+    border.width: Theme.borderWidthThin
     color: dateTimeDisplay.bgColor
     radius: Theme.itemRadius
 
+    Behavior on border.color {
+      ColorAnimation {
+        duration: Theme.animationDuration
+      }
+    }
     Behavior on color {
       ColorAnimation {
         duration: Theme.animationDuration

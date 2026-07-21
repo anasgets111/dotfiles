@@ -172,7 +172,7 @@ Singleton {
     return !!device?.paired && !device.connected && !isDeviceBusy(device) && !device.blocked;
   }
   function canPair(device: BluetoothDevice): bool {
-    return !!device && !device.paired && !device.blocked && !isDeviceBusy(device);
+    return !!device && connectAfterPairAddress === "" && !device.paired && !device.blocked && !isDeviceBusy(device);
   }
   function cleanupCodecData(address: string): void {
     if (!address)
@@ -186,8 +186,10 @@ Singleton {
     deviceAvailableCodecsChanged();
   }
   function clearPendingPair(device: BluetoothDevice): void {
-    if (device?.address === connectAfterPairAddress)
+    if (device?.address === connectAfterPairAddress) {
       connectAfterPairAddress = "";
+      root._bumpRevision();
+    }
   }
   function connectDevice(address: string): void {
     const device = root.deviceForAddress(address);
@@ -269,9 +271,10 @@ Singleton {
   }
   function pairDevice(address: string): void {
     const device = root.deviceForAddress(address);
-    if (!device || device.blocked || device.paired || device.pairing)
+    if (!device || connectAfterPairAddress !== "" || device.blocked || device.paired || device.pairing)
       return;
     connectAfterPairAddress = address;
+    root._bumpRevision();
     device.trusted = true;
     device.pair();
   }
@@ -322,7 +325,7 @@ Singleton {
       statusText: root.getStatusString(device),
       connected: !!device?.connected,
       paired: !!device?.paired,
-      busy: root.isDeviceBusy(device),
+      busy: root.isDeviceBusy(device) || address === root.connectAfterPairAddress,
       isAudio: root.isAudioDevice(device),
       hasBattery: !!device?.batteryAvailable,
       battery: device?.batteryAvailable ? Math.round(device.battery * 100) : 0,
@@ -342,8 +345,13 @@ Singleton {
         root.discoveryOwned = false;
     }
     function onEnabledChanged() {
-      if (!root.adapter?.enabled)
+      if (!root.adapter?.enabled) {
         root.discoveryOwned = false;
+        if (root.connectAfterPairAddress !== "") {
+          root.connectAfterPairAddress = "";
+          root._bumpRevision();
+        }
+      }
     }
 
     target: root.adapter
@@ -384,10 +392,12 @@ Singleton {
           root._bumpRevision();
         }
         function onPairingChanged() {
-          root._bumpRevision();
-          if (deviceEntry.modelData?.pairing || deviceEntry.address !== root.connectAfterPairAddress)
+          if (deviceEntry.modelData?.pairing || deviceEntry.address !== root.connectAfterPairAddress) {
+            root._bumpRevision();
             return;
+          }
           root.connectAfterPairAddress = "";
+          root._bumpRevision();
           if (deviceEntry.modelData?.paired)
             Qt.callLater(() => root.connectDevice(deviceEntry.address));
         }
@@ -400,7 +410,13 @@ Singleton {
       }
       required property BluetoothDevice modelData
 
-      Component.onDestruction: root.cleanupCodecData(address)
+      Component.onDestruction: {
+        if (address === root.connectAfterPairAddress) {
+          root.connectAfterPairAddress = "";
+          root._bumpRevision();
+        }
+        root.cleanupCodecData(address);
+      }
     }
   }
 }

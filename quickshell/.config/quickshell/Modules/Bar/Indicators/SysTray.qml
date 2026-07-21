@@ -38,7 +38,6 @@ Item {
 
         Layout.alignment: Qt.AlignVCenter
         icon: ""
-        showBorder: false
         suppressTooltip: ShellUiState.isPanelOpen("tray", tray.screenName) && ShellUiState.panelData?.menuItem === modelData
         tooltipText: modelData && (modelData.tooltipTitle || modelData.title) || ""
         visible: modelData !== null
@@ -97,7 +96,7 @@ Item {
 
     anchors.centerIn: parent
     color: Theme.textInactiveColor
-    opacity: 0.7
+    opacity: Theme.opacityMuted
     size: "xs"
     text: "No tray items"
     visible: trayRepeater.count === 0

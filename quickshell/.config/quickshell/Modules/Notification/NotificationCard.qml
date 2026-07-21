@@ -83,7 +83,11 @@ Item {
     if (!root._animReady)
       Qt.callLater(() => root._animReady = true);
   }
-  Keys.onEscapePressed: {
+  Keys.onEscapePressed: event => {
+    if (root.groupScope === "history") {
+      event.accepted = false;
+      return;
+    }
     if (root.isGroup)
       root.svc?.dismissGroup(root.group?.key);
     else if (root.primaryWrapper)
@@ -409,6 +413,11 @@ Item {
                     }
 
                     Keys.onEnterPressed: sendBtn.clicked()
+                    Keys.onEscapePressed: event => {
+                      replyField.text = "";
+                      replyField.focus = false;
+                      event.accepted = true;
+                    }
                     Keys.onReturnPressed: sendBtn.clicked()
                     onActiveFocusChanged: {
                       if (activeFocus)

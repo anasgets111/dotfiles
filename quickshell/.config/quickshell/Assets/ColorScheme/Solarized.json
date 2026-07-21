@@ -1,6 +1,7 @@
 {
   "dark": {
     "activeColor": "#b58900",
+    "barHoverBorder": "#fdf6e3",
     "bgColor": "#002b36",
     "bgElevated": "#003a49",
     "bgElevatedAlt": "#003644",
@@ -19,6 +20,7 @@
   },
   "light": {
     "activeColor": "#b58900",
+    "barHoverBorder": "#002b36",
     "bgColor": "#fdf6e3",
     "bgElevated": "#eee8d5",
     "bgElevatedAlt": "#e6dfcb",

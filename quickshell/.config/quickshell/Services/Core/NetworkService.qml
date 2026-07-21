@@ -13,6 +13,7 @@ Singleton {
   property var _connectHandle: null
   property string _connectingSsid: ""
   property string _ethernetIp: ""
+  property string _defaultInterface: ""
   property bool _networkingEnabled: true
   property string _wifiIp: ""
   readonly property var availableWifiAps: {
@@ -26,7 +27,7 @@ Singleton {
   readonly property alias ethernetIpAddress: root._ethernetIp
   readonly property bool ethernetOnline: root.wiredNetwork?.connected ?? false
   readonly property int ethernetSpeed: root.wiredDevice?.linkSpeed ?? 0
-  readonly property string linkType: root.ethernetOnline ? "ethernet" : (root.wifiOnline ? "wifi" : "disconnected")
+  readonly property string linkType: root._defaultInterface === root.wifiInterface && root.wifiOnline ? "wifi" : root._defaultInterface === root.ethernetInterface && root.ethernetOnline ? "ethernet" : root.wifiOnline ? "wifi" : root.ethernetOnline ? "ethernet" : "disconnected"
   readonly property alias networkingEnabled: root._networkingEnabled
   readonly property bool ready: Networking.backend !== NetworkBackendType.None
   readonly property var savedWifiAps: root.wifiAps.filter(accessPoint => accessPoint.saved && (accessPoint.signal > 0 || accessPoint.connected))
@@ -73,13 +74,10 @@ Singleton {
     }, "net.action");
   }
   function cancelConnect(): void {
-    const wasConnecting = root._connectingSsid !== "";
     root._connectHandle?.cancel();
     root._connectHandle = null;
     root._connectingSsid = "";
     root._connectError = "";
-    if (wasConnecting)
-      root.wifiDevice?.disconnect();
   }
   function connectEthernet(): void {
     root.wiredNetwork?.connect();
@@ -208,6 +206,10 @@ Singleton {
       root._ethernetIp = addressesByInterface[root.ethernetInterface] ?? "";
       root._wifiIp = addressesByInterface[root.wifiInterface] ?? "";
     }, "net.ip");
+    Command.run(root.nmcliCommand(["ip", "route", "show", "default"]), result => {
+      const match = (result.stdout || "").match(/\bdev\s+(\S+)/);
+      root._defaultInterface = match?.[1] ?? "";
+    }, "net.route");
   }
   function refreshNetworkingStatus(): void {
     Command.run(root.nmcliCommand(["nmcli", "-t", "-f", "NETWORKING", "general"]), result => root._networkingEnabled = (result.stdout || "").trim() === "enabled", "net.status");

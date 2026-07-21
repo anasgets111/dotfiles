@@ -13,7 +13,7 @@ PanelContentBase {
   readonly property var menuItem: panelData?.menuItem ?? null
 
   preferredHeight: menuContent.implicitHeight + Theme.spacingSm * 2
-  preferredWidth: 300
+  preferredWidth: Theme.trayMenuWidth
 
   QsMenuOpener {
     id: menuOpener
