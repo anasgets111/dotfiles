@@ -18,9 +18,9 @@ Item {
   property bool active: false
   readonly property var allApps: Array.from(DesktopEntries.applications?.values ?? [])
   readonly property Region blurRegion: Region {
-    height: root.active ? panel.height - 4 : 0
+    height: panel.visible ? panel.height - 4 : 0
     radius: Theme.radiusLg
-    width: root.active ? panel.width - 4 : 0
+    width: panel.visible ? panel.width - 4 : 0
     x: panel.x + 2
     y: panel.y + 2
   }
@@ -187,17 +187,11 @@ Item {
     border.width: Theme.borderWidthThin
     color: Theme.bgPanel
     height: Math.min(parent.height * 0.75, content.implicitHeight + Theme.spacingLg * 2)
-    opacity: root._shown ? 1 : 0
     radius: Theme.radiusLg
+    visible: root._shown || root._closing
     width: Math.min(860, parent.width * 0.62)
     y: root._shown ? parent.height * 0.13 : parent.height * 0.11
 
-    Behavior on opacity {
-      NumberAnimation {
-        duration: Theme.animationDuration
-        easing.type: Easing.OutCubic
-      }
-    }
     Behavior on y {
       NumberAnimation {
         duration: Theme.animationSlow
