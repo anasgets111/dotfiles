@@ -2,8 +2,8 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import qs.Config
 import qs.Components
+import qs.Config
 import qs.Modules.Bar.Panels
 
 FocusScope {
@@ -231,38 +231,31 @@ FocusScope {
   }
   Component {
     id: audioPanelComponent
-
-    AudioPanel {
-    }
+    AudioPanel {}
   }
   Component {
     id: bluetoothPanelComponent
 
-    BluetoothPanel {
-    }
+    BluetoothPanel {}
   }
   Component {
     id: networkPanelComponent
 
-    NetworkPanel {
-    }
+    NetworkPanel {}
   }
   Component {
     id: notificationPanelComponent
 
-    NotificationHistoryPanel {
-    }
+    NotificationHistoryPanel {}
   }
   Component {
     id: updatesPanelComponent
 
-    UpdatePanel {
-    }
+    UpdatePanel {}
   }
   Component {
     id: trayPanelComponent
 
-    TrayMenuPanel {
-    }
+    TrayMenuPanel {}
   }
 }

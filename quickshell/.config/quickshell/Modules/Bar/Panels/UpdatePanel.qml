@@ -182,7 +182,6 @@ PanelContentBase {
 
     PanelCard {
       Layout.fillWidth: true
-      visible: UpdateService.isCompleted || UpdateService.isError || UpdateService.totalUpdates > 0 || (UpdateService.isIdle && UpdateService.isStale)
       Layout.preferredHeight: Theme.itemHeight * Theme.updateLogVisibleRows + padding * 2
       tone: UpdateService.isError ? "error" : "standard"
       visible: root.showLog

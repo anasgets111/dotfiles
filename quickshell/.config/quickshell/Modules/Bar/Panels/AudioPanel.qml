@@ -251,38 +251,10 @@ PanelContentBase {
     Layout.fillWidth: true
     spacing: 0
 
-    Rectangle {
+    PanelRow {
       Layout.fillWidth: true
-      Layout.preferredHeight: Theme.controlHeightLg
-      color: devicePickerHover.hovered ? Theme.activeSubtle : Theme.bgCard
-      radius: Theme.radiusMd
-
-      Behavior on color {
-        ColorAnimation {
-          duration: Theme.animationDuration
-        }
-      }
-
-      HoverHandler {
-        id: devicePickerHover
-      }
-      TapHandler {
-        onTapped: picker.toggled()
-      }
-      RowLayout {
-        anchors.fill: parent
-        anchors.leftMargin: Theme.spacingSm
-        anchors.rightMargin: Theme.spacingSm
-        spacing: Theme.spacingSm
-
-        OText {
-          color: Theme.textInactiveColor
-          size: "xs"
-          text: qsTr("Choose device")
-        }
-        Item {
-          Layout.fillWidth: true
-        }
+      title: qsTr("Choose device")
+      badges: [
         OText {
           color: Theme.textInactiveColor
           rotation: picker.expanded ? 180 : 0
@@ -295,7 +267,9 @@ PanelContentBase {
             }
           }
         }
-      }
+      ]
+
+      onClicked: picker.toggled()
     }
     Item {
       Layout.fillWidth: true
@@ -354,39 +328,12 @@ PanelContentBase {
       anchors.topMargin: Theme.spacingSm
       spacing: 0
 
-      Rectangle {
+      PanelRow {
         Layout.fillWidth: true
-        Layout.preferredHeight: Theme.itemHeight
-        color: "transparent"
-        radius: Theme.radiusMd
-
-        RowLayout {
-          anchors.fill: parent
-          anchors.leftMargin: Theme.spacingSm
-          anchors.rightMargin: Theme.spacingSm
-          spacing: Theme.spacingSm
-
-          OText {
-            color: Theme.activeColor
-            size: "lg"
-            text: "󰓡"
-          }
-          ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 0
-
-            OText {
-              bold: true
-              color: Theme.textActiveColor
-              text: qsTr("Application mixer")
-            }
-            OText {
-              color: Theme.textInactiveColor
-              size: "xs"
-              text: mixer.streamCount === 0 ? qsTr("No applications playing audio") : qsTr("%1 active").arg(mixer.streamCount)
-            }
-          }
-        }
+        icon: "󰓡"
+        rowActionEnabled: false
+        subtitle: mixer.streamCount === 0 ? qsTr("No applications playing audio") : qsTr("%1 active").arg(mixer.streamCount)
+        title: qsTr("Application mixer")
       }
       Item {
         Layout.fillWidth: true

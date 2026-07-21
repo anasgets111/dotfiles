@@ -16,14 +16,12 @@ PanelContentBase {
   property bool errorDismissed: false
   readonly property string ethernetInterface: NetworkService.ethernetInterface
   property string expandedSsid: ""
-  readonly property bool hiddenConnecting: isHiddenTarget && targetSsid !== "" && connectingSsid === targetSsid
   property bool isHiddenTarget: false
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
-  readonly property var pendingAp: (isHiddenTarget && targetSsid !== "") ? networkForSsid(targetSsid) : null
   readonly property bool ready: NetworkService.ready
   readonly property var savedNetworks: NetworkService.savedWifiAps
   property bool scanning: false
-  readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && !hiddenConnecting && (pendingAp ? pendingAp.secured : true)
+  readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && connectingSsid !== targetSsid && (networkForSsid(targetSsid)?.secured ?? true)
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
   property string targetSsid: ""
   readonly property string statusDetail: {
@@ -267,7 +265,6 @@ PanelContentBase {
             blockedByOtherConnection: root.connectingSsid !== "" && root.connectingSsid !== modelData.ssid
             errorMessage: root.expandedSsid === modelData.ssid ? root.connectError : ""
             expanded: root.expandedSsid === modelData.ssid
-            isSaved: modelData.saved
             network: modelData
             width: ListView.view.width
 
@@ -500,9 +497,7 @@ PanelContentBase {
     property bool connecting: false
     property bool blockedByOtherConnection: false
     property string errorMessage: ""
-    property bool isSaved: false
     property var network: null
-    readonly property bool secured: network?.secured === true
 
     signal cancelExpand
     signal disconnectClicked
@@ -520,7 +515,7 @@ PanelContentBase {
 
     badges: [
       BandBadge { band: row.network?.band || "" },
-      OText { color: Theme.textInactiveColor; size: "xs"; text: "󰌾"; visible: row.secured }
+      OText { color: Theme.textInactiveColor; size: "xs"; text: "󰌾"; visible: row.network?.secured === true }
     ]
     actions: [
       PanelActionIcon {
@@ -534,7 +529,7 @@ PanelContentBase {
         icon: "󰩺"
         tint: Theme.critical
         tooltipText: qsTr("Forget")
-        visible: row.isSaved
+        visible: row.network?.saved === true
         onClicked: row.forgetClicked()
       }
     ]

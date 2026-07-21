@@ -1,18 +1,13 @@
 pragma ComponentBehavior: Bound
 import Quickshell
 import qs.Components
-import qs.Services.SystemInfo
 import qs.Config
+import qs.Services.SystemInfo
 
 OPopup {
-  id: root
-
   blurRegion: Region {
-    height: Math.max(0, card.height - 4)
-    radius: card.surfaceRadius
-    width: Math.max(0, card.width - 4)
-    x: card.x + 2
-    y: card.y + 2
+    item: card
+    radius: Theme.radiusLg
   }
   maskItem: card
   popupNamespace: "obelisk-osd-overlay"

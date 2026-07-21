@@ -2,8 +2,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
-import qs.Config
 import qs.Components
+import qs.Config
 
 Item {
   id: root
@@ -13,7 +13,6 @@ Item {
   property string icon: ""
   readonly property bool isSlider: typeof value === "number" && value >= 0
   property string label: ""
-  readonly property real surfaceRadius: bg.radius
   property bool showing: false
   property string type: ""
   property var value: null

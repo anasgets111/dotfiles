@@ -19,27 +19,16 @@ Rectangle {
 
   Layout.fillWidth: true
   Layout.preferredHeight: Theme.panelToggleCardHeight
+  Layout.preferredWidth: 0
   border.color: card.checked && card.active ? Theme.withOpacity(Theme.activeColor, Theme.opacityMedium) : "transparent"
   border.width: Theme.borderWidthThin
   color: card.checked && card.active ? Theme.activeSubtle : Theme.bgCard
   opacity: card.active ? 1.0 : Theme.opacityDisabled
   radius: Theme.radiusLg
 
-  Behavior on border.color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
-  }
-  Behavior on color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
-  }
-  Behavior on opacity {
-    NumberAnimation {
-      duration: Theme.animationDuration
-    }
-  }
+  Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
+  Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
+  Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
 
   MouseArea {
     anchors.fill: parent
@@ -50,13 +39,13 @@ Rectangle {
   }
   RowLayout {
     anchors.fill: parent
-    anchors.leftMargin: card.detail !== "" ? Theme.spacingMd : 0
-    anchors.rightMargin: card.detail !== "" ? Theme.spacingMd : 0
+    anchors.leftMargin: card.compact || card.detail !== "" ? Theme.spacingMd : 0
+    anchors.rightMargin: card.compact || card.detail !== "" ? Theme.spacingMd : 0
     spacing: Theme.spacingSm
 
     Item {
       Layout.fillWidth: true
-      visible: card.detail === "" && !card.compact
+      visible: card.compact || card.detail === ""
     }
     ColumnLayout {
       spacing: Theme.spacingXs
@@ -69,16 +58,12 @@ Rectangle {
         Text {
           anchors.centerIn: parent
           color: card.checked && card.active ? Theme.activeColor : Theme.textInactiveColor
-          font.family: Theme.fontFamily
+          font.family: Theme.iconFontFamily
           font.pixelSize: Theme.iconSizeMd
           text: card.icon
           visible: !card.spinning
 
-          Behavior on color {
-            ColorAnimation {
-              duration: Theme.animationDuration
-            }
-          }
+          Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
         }
         OSpinner {
           anchors.centerIn: parent
@@ -94,11 +79,7 @@ Rectangle {
         size: "xs"
         text: card.label
 
-        Behavior on color {
-          ColorAnimation {
-            duration: Theme.animationDuration
-          }
-        }
+        Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
       }
       OText {
         Layout.alignment: Qt.AlignHCenter
@@ -121,11 +102,7 @@ Rectangle {
       text: card.detail
       visible: !card.compact && card.detail !== ""
 
-      Behavior on color {
-        ColorAnimation {
-          duration: Theme.animationDuration
-        }
-      }
+      Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
     }
   }
 }

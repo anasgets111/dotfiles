@@ -1,11 +1,10 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
-import QtQuick.Effects
 import qs.Config
 import qs.Services.Core
-import qs.Services.WM
 
 Scope {
   WlSessionLock {

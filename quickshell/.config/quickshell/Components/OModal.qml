@@ -34,6 +34,7 @@ Item {
   visible: active || closeTimer.running
 
   onActiveChanged: if (active) {
+    closeTimer.stop();
     searchInput?.clear?.();
     Qt.callLater(() => (searchInput ?? modalSurface).forceActiveFocus?.());
   }
@@ -57,7 +58,7 @@ Item {
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     onPressed: mouse => {
       const local = modalSurface.mapFromItem(root, mouse.x, mouse.y);
-      if (local.x >= 0 && local.y >= 0 && local.x <= modalSurface.width && local.y <= modalSurface.height) {
+      if (modalSurface.contains(local)) {
         mouse.accepted = false;
         return;
       }
@@ -92,7 +93,6 @@ Item {
       if (event.key === Qt.Key_Escape) {
         root.close();
         event.accepted = true;
-        return;
       }
     }
 

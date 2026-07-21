@@ -12,11 +12,8 @@ OPopup {
   id: root
 
   blurRegion: Region {
-    height: card.opacity > 0 ? Math.max(0, card.height - 4) : 0
+    item: card.opacity > 0 ? card : null
     radius: card.radius
-    width: card.opacity > 0 ? Math.max(0, card.width - 4) : 0
-    x: card.x + 2
-    y: card.y + 2
   }
   readonly property string pressedSignature: visibleTokens.join("+")
   readonly property bool shouldStayVisible: InputDisplayService.visible || dragArea.drag.active

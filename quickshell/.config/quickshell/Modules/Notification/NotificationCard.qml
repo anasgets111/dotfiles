@@ -5,8 +5,8 @@ import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import qs.Components
-import qs.Services.Utils
 import qs.Config
+import qs.Services.Utils
 
 Item {
   id: root
@@ -36,8 +36,6 @@ Item {
 
   signal inputFocusReleased
   signal inputFocusRequested
-
-  onAccentColorChanged: borderCanvas.requestPaint()
 
   function openBodyLink(url) {
     const safeUrl = NotificationText.safeUrl(String(url || ""));
@@ -102,45 +100,10 @@ Item {
   }
   Rectangle {
     anchors.fill: parent
-    border.color: Theme.borderColor
+    border.color: Theme.withOpacity(root.accentColor, Theme.opacityMedium)
     border.width: Theme.borderWidthMedium
     color: root.groupScope === "popup" ? Theme.bgPanel : Theme.bgCard
     radius: Theme.panelRadius
-  }
-  Canvas {
-    id: borderCanvas
-
-    readonly property color borderColor: Theme.borderColor
-
-    anchors.fill: parent
-
-    onBorderColorChanged: requestPaint()
-    onHeightChanged: requestPaint()
-    onPaint: {
-      const ctx = getContext("2d");
-      const w = width, h = height, r = Theme.panelRadius;
-      ctx.clearRect(0, 0, w, h);
-      ctx.beginPath();
-      ctx.moveTo(r, 0);
-      ctx.lineTo(w - r, 0);
-      ctx.quadraticCurveTo(w, 0, w, r);
-      ctx.lineTo(w, h - r);
-      ctx.quadraticCurveTo(w, h, w - r, h);
-      ctx.lineTo(r, h);
-      ctx.quadraticCurveTo(0, h, 0, h - r);
-      ctx.lineTo(0, r);
-      ctx.quadraticCurveTo(0, 0, r, 0);
-      ctx.closePath();
-      const grad = ctx.createLinearGradient(0, 0, w, 0);
-      grad.addColorStop(0, root.accentColor);
-      grad.addColorStop(0.15, root.accentColor);
-      grad.addColorStop(0.4, borderColor);
-      grad.addColorStop(1, borderColor);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = grad;
-      ctx.stroke();
-    }
-    onWidthChanged: requestPaint()
   }
   ColumnLayout {
     id: cardColumn
@@ -188,17 +151,15 @@ Item {
       RowLayout {
         spacing: Theme.spacingXs
 
-        StandardButton {
+        ControlButton {
           Accessible.name: root.groupExpanded ? "Collapse group" : "Expand group"
-          buttonType: "control"
           text: root.groupExpanded ? "▴" : "▾"
           visible: root.isGroup && root.items.length > 1
 
           onClicked: root.svc?.toggleGroupExpansion(root.group?.key)
         }
-        StandardButton {
+        ControlButton {
           Accessible.name: root.isGroup ? "Dismiss group" : "Dismiss notification"
-          buttonType: "control"
           text: "x"
 
           onClicked: root.isGroup ? root.svc?.dismissGroup(root.group?.key) : root.svc?.dismissNotification(root.primaryWrapper)
@@ -355,17 +316,15 @@ Item {
                 RowLayout {
                   spacing: Theme.spacingXs
 
-                  StandardButton {
+                  ControlButton {
                     Accessible.name: messageColumn.expanded ? "Collapse message" : "Expand message"
-                    buttonType: "control"
                     text: messageColumn.expanded ? "▴" : "▾"
                     visible: messageColumn.summaryTruncated || messageColumn.bodyTruncated || messageColumn.expanded
 
                     onClicked: root.toggleMessageExpansion(messageColumn.messageId)
                   }
-                  StandardButton {
+                  ControlButton {
                     Accessible.name: "Dismiss notification"
-                    buttonType: "control"
                     text: "x"
                     visible: messageItem.isMultipleItems
 
@@ -463,10 +422,9 @@ Item {
                         root.inputFocusReleased();
                     }
                   }
-                  StandardButton {
+                  ActionButton {
                     id: sendBtn
 
-                    buttonType: "action"
                     text: "Send"
 
                     onClicked: {
@@ -494,10 +452,9 @@ Item {
                   Repeater {
                     model: messageColumn.wrapper?.visibleActions || []
 
-                    delegate: StandardButton {
+                    delegate: ActionButton {
                       required property var modelData
 
-                      buttonType: "action"
                       icon.source: modelData?.icon || ""
                       text: modelData?.label || ""
 
@@ -515,27 +472,28 @@ Item {
   HoverHandler {
     onHoveredChanged: hovered ? root.svc?.pauseTimers(root.items) : root.svc?.resumeTimers(root.items)
   }
-  component StandardButton: ToolButton {
+  component ControlButton: OButton {
+    bgColor: Theme.bgCard
+    hoverColor: Theme.bgCardHover
+    radius: Theme.radiusSm
+    size: "xs"
+    textColor: Theme.textActiveColor
+  }
+  component ActionButton: ToolButton {
     id: button
 
-    property string buttonType: "control"
-
-    display: {
-      const hasIcon = !!(icon.source && icon.source.toString() !== "");
-      const hasText = !!String(text || "");
-      return hasIcon && hasText ? AbstractButton.TextBesideIcon : hasIcon ? AbstractButton.IconOnly : AbstractButton.TextOnly;
-    }
+    display: icon.source && text ? AbstractButton.TextBesideIcon : icon.source ? AbstractButton.IconOnly : AbstractButton.TextOnly
     font.pixelSize: Theme.fontSm
-    leftPadding: buttonType === "action" ? Theme.spacingMd : Theme.spacingSm
-    padding: buttonType === "action" ? Theme.spacingXs + 2 : Theme.spacingXs
+    leftPadding: Theme.spacingMd
+    padding: Theme.spacingXs + 2
     palette.buttonText: Theme.textActiveColor
-    rightPadding: buttonType === "action" ? Theme.spacingMd : Theme.spacingSm
+    rightPadding: Theme.spacingMd
 
     background: Rectangle {
       border.color: Theme.borderSubtle
       border.width: Theme.borderWidthThin
       color: button.hovered ? Theme.bgCardHover : Theme.bgCard
-      radius: button.buttonType === "action" ? Theme.radiusMd : Theme.radiusSm
+      radius: Theme.radiusMd
     }
   }
 }

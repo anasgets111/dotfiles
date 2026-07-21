@@ -24,14 +24,8 @@ PanelContentBase {
   preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: Theme.bluetoothPanelWidth
 
-  onActiveChanged: {
-    if (!isOpen)
-      return;
-    if (active)
-      BluetoothService.startDiscovery();
-    else
-      BluetoothService.stopDiscovery();
-  }
+  onActiveChanged: if (isOpen)
+    active ? BluetoothService.startDiscovery() : BluetoothService.stopDiscovery()
   onIsOpenChanged: {
     if (isOpen && active) {
       BluetoothService.startDiscovery();
@@ -149,7 +143,7 @@ PanelContentBase {
     }
     StateMessage {
       text: BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices found")
-      visible: root.active && root.connectedDevices.length === 0 && root.otherDevices.length === 0
+      visible: root.active && root.otherDevices.length === 0
     }
     StateMessage {
       iconOpacity: 0.3
@@ -176,18 +170,13 @@ PanelContentBase {
     readonly property bool canConnect: !!device?.canConnect
     readonly property string currentCodec: device?.currentCodec || ""
     property var device: null
-    readonly property bool isBusy: !!device?.busy
-    readonly property bool isPaired: !!device?.paired
-    readonly property string name: device?.name || qsTr("Unknown")
-    readonly property string statusText: device?.statusText || ""
-
-    busy: row.isBusy
+    busy: !!row.device?.busy
     expanded: root.showCodecFor === row.addr
     icon: row.device?.icon || "󰂯"
     rowActionEnabled: row.canConnect || (!!row.device?.connected && !!row.device?.isAudio)
     selected: !!row.device?.connected
-    subtitle: row.statusText
-    title: row.name
+    subtitle: row.device?.statusText || ""
+    title: row.device?.name || qsTr("Unknown")
 
     onClicked: {
       if (row.device?.connected && row.device?.isAudio) {
@@ -212,7 +201,7 @@ PanelContentBase {
         icon: "󰩺"
         tint: Theme.critical
         tooltipText: qsTr("Forget")
-        visible: row.isPaired
+        visible: !!row.device?.paired
         onClicked: BluetoothService.forgetDevice(row.addr)
       },
       OButton {

@@ -90,7 +90,7 @@ Singleton {
   readonly property color bgCardHover: c.bgCardHover ?? withOpacity(bgElevatedHover, opacityStrong)
   readonly property color bgInput: c.bgInput ?? withOpacity(bgColor, opacityStrong)
   readonly property color bgOverlay: withOpacity(c.bgOverlay ?? "#000000", 0.5)
-  readonly property color bgPanel: c.bgPanel ?? withOpacity(bgColor, 0.9)
+  readonly property color bgPanel: c.bgPanel ?? withOpacity(bgColor, opacityStrong)
   readonly property color bgSubtle: c.bgSubtle ?? withOpacity(bgColor, opacitySubtle)
   readonly property color borderColor: c.borderColor ?? "#313244"
   readonly property color borderLight: c.borderLight ?? withOpacity(borderColor, opacityMedium)
@@ -247,7 +247,6 @@ Singleton {
   readonly property color textActiveColor: c.textActiveColor ?? "#cdd6f4"
   readonly property color textDisabled: c.textDisabled ?? withOpacity(textInactiveColor, opacityMedium)
   readonly property color textInactiveColor: c.textInactiveColor ?? "#a6adc8"
-  readonly property color textOnHoverColor: c.textOnHoverColor ?? "#cba6f7"
   readonly property int volumeExpandedWidth: s(baseVolumeExpandedWidth, 140)
   readonly property int wallpaperAnimationDuration: 900
   readonly property int wallpaperModalHeight: s(650)
