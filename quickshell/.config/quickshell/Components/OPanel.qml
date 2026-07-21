@@ -16,12 +16,9 @@ Item {
     item: panelClipArea
   }
   readonly property Region blurPanelRegion: Region {
-    bottomLeftRadius: panelBackground.bottomLeftRadius + 2
-    bottomRightRadius: panelBackground.bottomRightRadius + 2
-    height: root.visible ? panelBackground.height - 2 : 0
-    width: root.visible ? panelBackground.width - 4 : 0
-    x: panelBackground.x + 2
-    y: Theme.panelHeight + panelBackground.y
+    bottomLeftRadius: panelBackground.bottomLeftRadius
+    bottomRightRadius: panelBackground.bottomRightRadius
+    item: panelBackground
   }
   readonly property Region blurRegion: Region {
     regions: [(leftCorner.item as RoundCorner)?.region, (rightCorner.item as RoundCorner)?.region, root.blurPanelRegion, root.blurClipRegion]
@@ -148,7 +145,7 @@ Item {
       id: panelBackground
 
       readonly property real hiddenY: -height
-      readonly property real targetY: root.calculateY() - Theme.panelHeight - border.width
+      readonly property real targetY: root.calculateY() - Theme.panelHeight
 
       bottomLeftRadius: root.useFlatContainer ? Theme.panelRadius * 2 : Theme.itemRadius
       bottomRightRadius: root.useFlatContainer ? Theme.panelRadius * 2 : Theme.itemRadius
@@ -176,10 +173,6 @@ Item {
         }
       }
 
-      border {
-        color: Theme.borderLight
-        width: root.useFlatContainer ? 0 : 1
-      }
       Loader {
         id: panelLoader
 
@@ -202,16 +195,13 @@ Item {
 
       active: root.showInverseCorners && root.visible
       anchors.right: panelBackground.left
-      anchors.rightMargin: -1
       y: panelBackground.y
 
       sourceComponent: RoundCorner {
         color: Theme.bgPanel
         height: root.cornerCutRadius
-        invertH: true
-        orientation: 0
+        orientation: 1
         radius: root.cornerCutRadius
-        regionOffsetX: -1
         width: root.cornerCutRadius
       }
     }
@@ -220,7 +210,6 @@ Item {
 
       active: root.showInverseCorners && root.visible
       anchors.left: panelBackground.right
-      anchors.leftMargin: -1
       y: panelBackground.y
 
       sourceComponent: RoundCorner {
@@ -228,7 +217,6 @@ Item {
         height: root.cornerCutRadius
         orientation: 0
         radius: root.cornerCutRadius
-        regionOffsetX: 1
         width: root.cornerCutRadius
       }
     }

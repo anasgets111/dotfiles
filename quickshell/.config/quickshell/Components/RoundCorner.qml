@@ -12,7 +12,6 @@ Item {
   property bool invertV: false
   property int orientation: 0 // 0=TOP_LEFT, 1=TOP_RIGHT, 2=BOTTOM_LEFT, 3=BOTTOM_RIGHT
   property int radius: Theme.radiusLg
-  property int regionOffsetX: 0
   readonly property real effectiveRadius: Math.max(0, Math.min(cornerShape.radius, Math.min(cornerShape.width, cornerShape.height)))
   readonly property Region region: Region {
     item: cornerShape
@@ -32,7 +31,7 @@ Item {
 
     height: width
     width: cornerShape.effectiveRadius * 2 + 4
-    x: ((cornerShape.orientation === 0 || cornerShape.orientation === 2) !== cornerShape.invertH ? -2 : cornerShape.width - width + 2) + cornerShape.regionOffsetX
+    x: (cornerShape.orientation === 0 || cornerShape.orientation === 2) !== cornerShape.invertH ? -2 : cornerShape.width - width + 2
     y: ((cornerShape.orientation < 2) !== cornerShape.invertV ? -2 : cornerShape.height - height + 2)
   }
   Canvas {
