@@ -46,7 +46,7 @@ Item {
     // Notification indicator
     Text {
       anchors.verticalCenter: parent.verticalCenter
-      color: dateTimeDisplay.hasNotifications ? Theme.activeColor : Theme.textContrast(dateTimeDisplay.bgColor)
+      color: !mouseArea.containsMouse && dateTimeDisplay.hasNotifications ? Theme.activeColor : Theme.textContrast(dateTimeDisplay.bgColor)
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize
       leftPadding: Theme.spacingSm
