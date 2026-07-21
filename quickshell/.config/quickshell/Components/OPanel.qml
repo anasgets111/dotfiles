@@ -15,13 +15,11 @@ Item {
     intersection: Intersection.Intersect
     item: panelClipArea
   }
-  readonly property Region blurPanelRegion: Region {
+  readonly property Region blurRegion: Region {
     bottomLeftRadius: panelBackground.bottomLeftRadius
     bottomRightRadius: panelBackground.bottomRightRadius
     item: panelBackground
-  }
-  readonly property Region blurRegion: Region {
-    regions: [(leftCorner.item as RoundCorner)?.region, (rightCorner.item as RoundCorner)?.region, root.blurPanelRegion, root.blurClipRegion]
+    regions: [(leftCorner.item as RoundCorner)?.region, (rightCorner.item as RoundCorner)?.region, root.blurClipRegion]
   }
   readonly property bool contentActive: root.active || closeHoldTimer.running
   readonly property rect effectiveAnchorRect: root.active ? root.anchorRect : root.retainedAnchorRect

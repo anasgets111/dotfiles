@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Wayland
 import qs.Components
 import qs.Config
 
@@ -131,6 +132,14 @@ PanelContentBase {
       property var enterCallback: null
       property QsMenuHandle submenuHandle: null
 
+      BackgroundEffect.blurRegion: Region {
+        bottomLeftRadius: Theme.itemRadius
+        bottomRightRadius: Theme.itemRadius
+        height: Math.max(0, subPopup.height - 4)
+        width: Math.max(0, subPopup.width - 4)
+        x: 2
+        y: 2
+      }
       anchor.item: anchorTo
       anchor.rect.x: (anchorTo?.width ?? 0) + Theme.spacingSm
       color: "transparent"
@@ -148,7 +157,7 @@ PanelContentBase {
         border.width: Theme.borderWidthThin
         bottomLeftRadius: Theme.itemRadius
         bottomRightRadius: Theme.itemRadius
-        color: Theme.bgColor
+        color: Theme.bgPanel
 
         ColumnLayout {
           id: subLayout

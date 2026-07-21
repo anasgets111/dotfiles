@@ -6,11 +6,9 @@ import qs.Config
 Item {
   id: root
 
-  readonly property Region barPanelRegion: Region {
-    item: panelRect
-  }
   readonly property Region blurRegion: Region {
-    regions: [barCornerLeft.region, barCornerRight.region, root.barPanelRegion]
+    item: panelRect
+    regions: [barCornerLeft.region, barCornerRight.region]
   }
   readonly property bool centerShouldHide: leftSide.workspacesExpanded || rightSide.expanded
   required property ShellScreen screen
