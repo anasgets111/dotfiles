@@ -314,6 +314,7 @@ PanelContentBase {
   component MixerSection: PanelCard {
     id: mixer
 
+    property bool expanded: false
     readonly property int streamCount: AudioService.streamModels.length
 
     padding: 0
@@ -330,14 +331,15 @@ PanelContentBase {
 
       PanelRow {
         Layout.fillWidth: true
+        badges: [OText { text: mixer.expanded ? "󰅀" : "󰅂" }]
         icon: "󰓡"
-        rowActionEnabled: false
         subtitle: mixer.streamCount === 0 ? qsTr("No applications playing audio") : qsTr("%1 active").arg(mixer.streamCount)
         title: qsTr("Application mixer")
+        onClicked: mixer.expanded = !mixer.expanded
       }
       Item {
         Layout.fillWidth: true
-        Layout.preferredHeight: mixer.streamCount > 0 ? Math.min(streamList.contentHeight, Theme.controlHeightLg * Theme.audioMixerVisibleRows) + Theme.spacingSm : 0
+        Layout.preferredHeight: mixer.expanded && mixer.streamCount > 0 ? Math.min(streamList.contentHeight, Theme.controlHeightLg * Theme.audioMixerVisibleRows) + Theme.spacingSm : 0
         clip: true
 
         Behavior on Layout.preferredHeight {
