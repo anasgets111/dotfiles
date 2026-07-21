@@ -9,7 +9,7 @@ import qs.Services.Core
 Item {
   id: root
 
-  readonly property color batteryColor: percentage <= 0.1 ? Theme.critical : percentage <= 0.2 ? Theme.warning : Theme.powerSaveColor
+  readonly property color batteryColor: percentage <= 0.1 ? Theme.critical : percentage <= 0.2 ? Theme.warning : Theme.activeColor
   readonly property string batteryIcon: {
     if (BatteryService.isPendingCharge)
       return "󰂄";
