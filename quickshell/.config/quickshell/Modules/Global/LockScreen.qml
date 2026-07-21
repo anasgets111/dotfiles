@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Config
 import qs.Services.Core
+import qs.Services.WM
 
 Scope {
   WlSessionLock {
