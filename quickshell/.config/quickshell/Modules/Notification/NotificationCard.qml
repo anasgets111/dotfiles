@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import qs.Components
@@ -18,11 +19,9 @@ Item {
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
   readonly property alias blurInsetItem: blurInset
   property Region popupBlurRegion: null
-  readonly property real cardWidth: Theme.notificationCardWidth
   required property var group
   readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group?.key] || false) : false)
   property string groupScope: "history"
-  readonly property bool headerHasExpand: root.isGroup && root.items.length > 1
   readonly property string headerTitle: root.isGroup ? `${root.group?.displayName || "app"} (${root.group?.count || root.items.length})` : (root.primaryWrapper?.displayName || "app")
   readonly property bool isGroup: root.group?.count > 1
   readonly property var items: root.group?.notifications || []
@@ -33,22 +32,13 @@ Item {
   property bool showTimestamp: false
   readonly property int slideAnimDuration: root.svc?.animationDuration ?? 0
   readonly property int spacingContent: Theme.spacingXs + 2
-  readonly property int spacingMessages: Theme.spacingSm
   required property var svc
 
   signal inputFocusReleased
   signal inputFocusRequested
 
-  function isMessageNew(id) {
-    return id && !root._shownMessageIds[id];
-  }
-  function markMessageShown(id) {
-    if (id)
-      root._shownMessageIds[id] = true;
-  }
-  function messageExpanded(id) {
-    return !!root._messageExpansion[id];
-  }
+  onAccentColorChanged: borderCanvas.requestPaint()
+
   function openBodyLink(url) {
     const safeUrl = NotificationText.safeUrl(String(url || ""));
     if (safeUrl)
@@ -67,7 +57,7 @@ Item {
   }
 
   implicitHeight: cardColumn.implicitHeight + (root.paddingVertical * 2)
-  implicitWidth: root.cardWidth
+  implicitWidth: Theme.notificationCardWidth
   x: ((root._isDismissing && (!root.isGroup || root._isGroupDismissing)) || !root._animReady) ? root.width + (Theme.popupOffset || 12) : 0
 
   Behavior on x {
@@ -100,11 +90,57 @@ Item {
     anchors.fill: parent
     anchors.margins: 2
   }
-  CardStyling {
-    accentColor: root.accentColor
+  RectangularShadow {
     anchors.fill: parent
-    backgroundColor: root.groupScope === "popup" ? Theme.bgPanel : Theme.bgCard
-    showShadow: root.groupScope === "popup"
+    antialiasing: true
+    blur: Theme.shadowBlurLg
+    color: Theme.shadowColorStrong
+    offset: Qt.vector2d(0, 3)
+    radius: Theme.panelRadius
+    spread: 0
+    visible: root.groupScope === "popup"
+  }
+  Rectangle {
+    anchors.fill: parent
+    border.color: Theme.borderColor
+    border.width: Theme.borderWidthMedium
+    color: root.groupScope === "popup" ? Theme.bgPanel : Theme.bgCard
+    radius: Theme.panelRadius
+  }
+  Canvas {
+    id: borderCanvas
+
+    readonly property color borderColor: Theme.borderColor
+
+    anchors.fill: parent
+
+    onBorderColorChanged: requestPaint()
+    onHeightChanged: requestPaint()
+    onPaint: {
+      const ctx = getContext("2d");
+      const w = width, h = height, r = Theme.panelRadius;
+      ctx.clearRect(0, 0, w, h);
+      ctx.beginPath();
+      ctx.moveTo(r, 0);
+      ctx.lineTo(w - r, 0);
+      ctx.quadraticCurveTo(w, 0, w, r);
+      ctx.lineTo(w, h - r);
+      ctx.quadraticCurveTo(w, h, w - r, h);
+      ctx.lineTo(r, h);
+      ctx.quadraticCurveTo(0, h, 0, h - r);
+      ctx.lineTo(0, r);
+      ctx.quadraticCurveTo(0, 0, r, 0);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, 0, w, 0);
+      grad.addColorStop(0, root.accentColor);
+      grad.addColorStop(0.15, root.accentColor);
+      grad.addColorStop(0.4, borderColor);
+      grad.addColorStop(1, borderColor);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = grad;
+      ctx.stroke();
+    }
+    onWidthChanged: requestPaint()
   }
   ColumnLayout {
     id: cardColumn
@@ -156,7 +192,7 @@ Item {
           Accessible.name: root.groupExpanded ? "Collapse group" : "Expand group"
           buttonType: "control"
           text: root.groupExpanded ? "▴" : "▾"
-          visible: root.headerHasExpand
+          visible: root.isGroup && root.items.length > 1
 
           onClicked: root.svc?.toggleGroupExpansion(root.group?.key)
         }
@@ -175,7 +211,7 @@ Item {
       readonly property var renderedItems: root.isGroup && !root.groupExpanded ? (root.items.length > 0 ? [root.items[0]] : []) : root.items
 
       Layout.fillWidth: true
-      spacing: root.spacingMessages
+      spacing: Theme.spacingSm
 
       Repeater {
         model: parent.renderedItems
@@ -183,7 +219,7 @@ Item {
         delegate: Item {
           id: messageItem
 
-          property bool _animReady: !root.isMessageNew(messageColumn.messageId)
+          property bool _animReady: !messageColumn.messageId || !!root._shownMessageIds[messageColumn.messageId]
           readonly property real _contentHeight: messageColumn.implicitHeight + messageColumn.topPadding + messageColumn.bottomPadding
           readonly property bool _isDismissing: messageItem.modelData?.isDismissing ?? false
           required property int index
@@ -203,7 +239,8 @@ Item {
           }
 
           Component.onCompleted: {
-            root.markMessageShown(messageColumn.messageId);
+            if (messageColumn.messageId)
+              root._shownMessageIds[messageColumn.messageId] = true;
             if (!messageItem._animReady)
               Qt.callLater(() => messageItem._animReady = true);
           }
@@ -256,7 +293,7 @@ Item {
 
               property bool bodyTruncated: false
               readonly property int bottomPadding: messageItem.isMultipleItems ? root.messagePadding : 0
-              readonly property bool expanded: root.messageExpanded(messageColumn.messageId)
+              readonly property bool expanded: !!root._messageExpansion[messageColumn.messageId]
               readonly property int horizontalPadding: messageItem.isMultipleItems ? root.messagePadding : 0
               readonly property string messageId: wrapper?.messageId || ""
               property bool summaryTruncated: false
@@ -477,5 +514,28 @@ Item {
   }
   HoverHandler {
     onHoveredChanged: hovered ? root.svc?.pauseTimers(root.items) : root.svc?.resumeTimers(root.items)
+  }
+  component StandardButton: ToolButton {
+    id: button
+
+    property string buttonType: "control"
+
+    display: {
+      const hasIcon = !!(icon.source && icon.source.toString() !== "");
+      const hasText = !!String(text || "");
+      return hasIcon && hasText ? AbstractButton.TextBesideIcon : hasIcon ? AbstractButton.IconOnly : AbstractButton.TextOnly;
+    }
+    font.pixelSize: Theme.fontSm
+    leftPadding: buttonType === "action" ? Theme.spacingMd : Theme.spacingSm
+    padding: buttonType === "action" ? Theme.spacingXs + 2 : Theme.spacingXs
+    palette.buttonText: Theme.textActiveColor
+    rightPadding: buttonType === "action" ? Theme.spacingMd : Theme.spacingSm
+
+    background: Rectangle {
+      border.color: Theme.borderSubtle
+      border.width: Theme.borderWidthThin
+      color: button.hovered ? Theme.bgCardHover : Theme.bgCard
+      radius: button.buttonType === "action" ? Theme.radiusMd : Theme.radiusSm
+    }
   }
 }

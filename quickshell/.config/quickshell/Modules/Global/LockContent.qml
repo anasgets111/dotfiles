@@ -41,12 +41,8 @@ Item {
   }
   readonly property string weatherIcon: {
     const code = WeatherService.currentWeatherCode;
-    if (code < 0)
-      return "󰖐";
     if (code === 0 || code === 1)
       return "󰖙";
-    if (code === 2 || code === 3)
-      return "󰖐";
     if (code === 45 || code === 48)
       return "󰖑";
     if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code))

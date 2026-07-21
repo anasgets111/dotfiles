@@ -16,7 +16,12 @@ OModal {
     const paths = (WallpaperService.monitors ?? []).filter(monitor => monitor?.name).map(monitor => WallpaperService.wallpaperPath(monitor.name));
     return paths.length > 0 && paths.every(path => path === paths[0]) ? paths[0] : "";
   }
-  readonly property string currentMode: selectedMonitor === "all" ? WallpaperService.defaultMode : WallpaperService.wallpaperMode(selectedMonitor)
+  readonly property string currentMode: {
+    if (selectedMonitor !== "all")
+      return WallpaperService.wallpaperMode(selectedMonitor);
+    const modes = targetMonitorNames.map(name => WallpaperService.wallpaperMode(name));
+    return modes.length === 0 ? WallpaperService.defaultMode : modes.every(mode => mode === modes[0]) ? modes[0] : "";
+  }
   readonly property var fillModeOptions: (WallpaperService.availableModes ?? []).map(mode => ({label: ({fill: qsTr("Fill"), fit: qsTr("Fit"), center: qsTr("Center"), stretch: qsTr("Stretch"), tile: qsTr("Tile")})[mode] ?? mode, value: mode}))
   readonly property var filteredWallpapers: {
     const query = search.text.trim().toLowerCase();
@@ -188,6 +193,21 @@ OModal {
             }
           }
         }
+        ColumnLayout {
+          anchors.centerIn: parent
+          spacing: Theme.spacingSm
+          visible: root.filteredWallpapers.length === 0
+
+          OSpinner {
+            Layout.alignment: Qt.AlignHCenter
+            running: !WallpaperService.wallpaperFilesReady
+          }
+          OText {
+            Layout.alignment: Qt.AlignHCenter
+            color: Theme.textInactiveColor
+            text: WallpaperService.wallpaperFilesReady ? qsTr("No wallpapers found") : qsTr("Loading wallpapers…")
+          }
+        }
       }
       PanelCard {
         Layout.alignment: Qt.AlignTop
@@ -209,7 +229,8 @@ OModal {
           OText { color: Theme.textInactiveColor; size: "xs"; text: qsTr("Fill mode") }
           OComboBox {
             Layout.fillWidth: true
-            currentIndex: Math.max(0, root.fillModeOptions.findIndex(option => option.value === root.currentMode))
+            currentIndex: root.fillModeOptions.findIndex(option => option.value === root.currentMode)
+            displayText: currentIndex < 0 ? qsTr("Mixed") : currentText
             model: root.fillModeOptions
             textRole: "label"
             onActivated: index => {
@@ -231,6 +252,15 @@ OModal {
             currentIndex: Math.max(0, Settings.availableThemes.indexOf(Settings.data.themeName))
             model: Settings.availableThemes
             onActivated: index => Settings.setThemeName(Settings.availableThemes[index] ?? "")
+          }
+          RowLayout {
+            Layout.fillWidth: true
+
+            OText { Layout.fillWidth: true; color: Theme.textInactiveColor; size: "xs"; text: qsTr("Dark mode") }
+            OToggle {
+              checked: Settings.data.themeMode === "dark"
+              onToggled: checked => Settings.setThemeMode(checked ? "dark" : "light")
+            }
           }
         }
       }

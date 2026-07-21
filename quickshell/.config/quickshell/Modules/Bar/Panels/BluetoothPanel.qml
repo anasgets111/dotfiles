@@ -21,34 +21,6 @@ PanelContentBase {
   property string showCodecFor: ""
   readonly property bool showDeviceGroups: otherDevices.some(d => d.paired) && otherDevices.some(d => !d.paired)
 
-  function handleAction(action: string, device: var): void {
-    const address = device?.address || "";
-    switch (action) {
-    case "connect":
-      BluetoothService.connectDevice(address);
-      break;
-    case "pair":
-      BluetoothService.pairDevice(address);
-      break;
-    case "disconnect":
-      BluetoothService.disconnectDevice(address);
-      break;
-    case "forget":
-      BluetoothService.forgetDevice(address);
-      break;
-    case "toggle-codec":
-      showCodecFor = showCodecFor === address ? "" : address;
-      if (showCodecFor)
-        BluetoothService.fetchCodecs(address);
-      break;
-    default:
-      if (action.startsWith("codec:")) {
-        BluetoothService.switchCodec(address, action.substring(6));
-        showCodecFor = "";
-      }
-    }
-  }
-
   preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: Theme.bluetoothPanelWidth
 
@@ -150,8 +122,6 @@ PanelContentBase {
 
             device: modelData
             width: ListView.view.width
-
-            onAction: (a, d) => root.handleAction(a, d)
           }
           section.delegate: Item {
             id: sectionRoot
@@ -178,7 +148,6 @@ PanelContentBase {
       }
     }
     StateMessage {
-      iconOpacity: 0.4
       text: BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices found")
       visible: root.active && root.connectedDevices.length === 0 && root.otherDevices.length === 0
     }
@@ -212,8 +181,6 @@ PanelContentBase {
     readonly property string name: device?.name || qsTr("Unknown")
     readonly property string statusText: device?.statusText || ""
 
-    signal action(string act, var dev)
-
     busy: row.isBusy
     expanded: root.showCodecFor === row.addr
     icon: row.device?.icon || "󰂯"
@@ -223,10 +190,13 @@ PanelContentBase {
     title: row.name
 
     onClicked: {
-      if (row.device?.connected && row.device?.isAudio)
-        row.action("toggle-codec", row.device);
-      else if (row.canConnect)
-        row.action("connect", row.device);
+      if (row.device?.connected && row.device?.isAudio) {
+        root.showCodecFor = root.showCodecFor === row.addr ? "" : row.addr;
+        if (root.showCodecFor)
+          BluetoothService.fetchCodecs(row.addr);
+      } else if (row.canConnect) {
+        BluetoothService.connectDevice(row.addr);
+      }
     }
 
     badges: [BatteryBadge { device: row.device; opacity: Theme.opacityStrong }]
@@ -236,14 +206,14 @@ PanelContentBase {
         tint: Theme.critical
         tooltipText: qsTr("Disconnect")
         visible: !!row.device?.connected
-        onClicked: row.action("disconnect", row.device)
+        onClicked: BluetoothService.disconnectDevice(row.addr)
       },
       PanelActionIcon {
         icon: "󰩺"
         tint: Theme.critical
         tooltipText: qsTr("Forget")
         visible: row.isPaired
-        onClicked: row.action("forget", row.device)
+        onClicked: BluetoothService.forgetDevice(row.addr)
       },
       OButton {
         bgColor: "transparent"
@@ -253,7 +223,7 @@ PanelContentBase {
         textColor: Theme.activeColor
         variant: "ghost"
         visible: !!row.device?.canPair
-        onClicked: row.action("pair", row.device)
+        onClicked: BluetoothService.pairDevice(row.addr)
       }
     ]
     expandedContent: [
@@ -271,7 +241,10 @@ PanelContentBase {
             selected: modelData.name === row.currentCodec
             subtitle: modelData.description || ""
             title: modelData.name || ""
-            onClicked: row.action("codec:" + modelData.profile, row.device)
+            onClicked: {
+              BluetoothService.switchCodec(row.addr, modelData.profile);
+              root.showCodecFor = "";
+            }
           }
         }
       }

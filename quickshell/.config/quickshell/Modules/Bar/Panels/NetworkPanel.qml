@@ -82,7 +82,6 @@ PanelContentBase {
     NetworkService.connectToSsid(targetSsid, password);
   }
 
-  needsKeyboardFocus: showSsidInput || showPasswordInput || (expandedSsid !== "" && connectingSsid === "")
   preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: Theme.networkPanelWidth
 
@@ -302,12 +301,13 @@ PanelContentBase {
           }
         }
       }
-      HoverButton {
+      PanelRow {
         Layout.bottomMargin: Theme.spacingSm
         Layout.fillWidth: true
-        Layout.preferredHeight: Theme.itemHeight * 0.85
         Layout.topMargin: Theme.spacingXs
-        showTopBorder: true
+        icon: "󰖪"
+        title: qsTr("Hidden Network…")
+        actions: [OText { color: Theme.textInactiveColor; text: "󰁔" }]
 
         onClicked: {
           root.isHiddenTarget = true;
@@ -316,28 +316,6 @@ PanelContentBase {
           if (credentialSheet)
             credentialSheet.clearInputs();
           NetworkService.cancelConnect();
-        }
-
-        RowLayout {
-          anchors.fill: parent
-          anchors.leftMargin: Theme.spacingSm
-          anchors.rightMargin: Theme.spacingSm
-          anchors.topMargin: Theme.borderWidthThin
-
-          OText {
-            color: Theme.activeColor
-            text: qsTr("Hidden Network…")
-          }
-          Item {
-            Layout.fillWidth: true
-          }
-          Text {
-            color: Theme.textInactiveColor
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize * 0.85
-            opacity: Theme.opacityDisabled
-            text: "󰁔"
-          }
         }
       }
     }
@@ -389,14 +367,15 @@ PanelContentBase {
       id: pwField
 
       Layout.fillWidth: true
+      echoMode: TextInput.Password
       hasError: form.errorMessage !== ""
-      isPassword: true
-      placeholder: qsTr("Password")
+      placeholderText: qsTr("Password")
       visible: !form.connecting
 
-      onAccepted: val => form.submitted(val)
       onCancelled: form.cancelled()
-      onTextEdited: form.edited()
+      onInputAccepted: if (text !== "")
+        form.submitted(text)
+      onInputChanged: form.edited()
     }
     OText {
       color: Theme.critical
@@ -473,11 +452,12 @@ PanelContentBase {
       id: ssidField
 
       Layout.fillWidth: true
-      placeholder: qsTr("Network name")
+      placeholderText: qsTr("Network name")
       visible: sheet.ssidMode
 
-      onAccepted: val => sheet.ssidSubmitted(val)
       onCancelled: sheet.cancelled()
+      onInputAccepted: if (text !== "")
+        sheet.ssidSubmitted(text)
     }
     RowLayout {
       Layout.fillWidth: true
@@ -512,47 +492,6 @@ PanelContentBase {
       onCancelled: sheet.cancelled()
       onEdited: sheet.errorCleared()
       onSubmitted: pw => sheet.passwordSubmitted(pw)
-    }
-  }
-  component HoverButton: Item {
-    id: hbtn
-
-    property bool showTopBorder: false
-
-    signal clicked
-
-    implicitHeight: Theme.itemHeight
-
-    Rectangle {
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: parent.top
-      color: Theme.borderLight
-      height: Theme.borderWidthThin
-      opacity: Theme.opacityDisabled
-      visible: hbtn.showTopBorder
-    }
-    MouseArea {
-      id: hma
-
-      anchors.fill: parent
-      cursorShape: Qt.PointingHandCursor
-      hoverEnabled: true
-
-      onClicked: parent.clicked()
-
-      Rectangle {
-        anchors.fill: parent
-        anchors.topMargin: hbtn.showTopBorder ? 1 : 0
-        color: hma.containsMouse ? Theme.withOpacity(Theme.activeColor, 0.08) : "transparent"
-        radius: Theme.itemRadius
-
-        Behavior on color {
-          ColorAnimation {
-            duration: Theme.animationDuration
-          }
-        }
-      }
     }
   }
   component NetworkRow: PanelRow {
@@ -616,19 +555,9 @@ PanelContentBase {
   component SheetField: OInput {
     id: sf
 
-    property bool isPassword: false
-    property string placeholder: ""
-    signal accepted(string val)
     signal cancelled
-    signal textEdited
 
     autoFocus: visible
-    echoMode: sf.isPassword ? TextInput.Password : TextInput.Normal
-    placeholderText: sf.placeholder
-
-    onInputAccepted: if (sf.text !== "")
-      sf.accepted(sf.text)
-    onInputChanged: sf.textEdited()
     onKeyPressed: event => {
       if (event.key === Qt.Key_Escape) {
         event.accepted = true;

@@ -13,7 +13,6 @@ PanelContentBase {
 
   property bool showCompletedLog: false
   readonly property bool showLog: UpdateService.isUpdating || UpdateService.isError || (UpdateService.isCompleted && showCompletedLog)
-  readonly property real progress: UpdateService.totalPackagesToUpdate > 0 ? UpdateService.currentPackageIndex / UpdateService.totalPackagesToUpdate : 0
 
   function durationText(milliseconds: real): string {
     const seconds = Math.max(0, Math.round(milliseconds / 1000));
@@ -31,23 +30,21 @@ PanelContentBase {
       return Theme.critical;
     if (text.includes("warning") || text.includes("[skip]"))
       return Theme.warning;
-    if (text.includes("downloading") || text.includes("retrieving"))
-      return Theme.activeColor;
-    if (text.includes("installing") || text.includes("upgrading") || /\(\s*\d+\/\d+\)/.test(text))
+    if (text.includes("downloading") || text.includes("retrieving") || text.includes("installing") || text.includes("upgrading") || /\(\s*\d+\/\d+\)/.test(text))
       return Theme.activeColor;
     if (text.includes("[ ok ]") || text.includes("complete") || text.includes("up to date"))
       return Theme.powerSaveColor;
     return raw.startsWith("▶") || raw.startsWith("::") || raw.startsWith("==>") ? Theme.textActiveColor : Theme.textInactiveColor;
   }
   function statusText(): string {
-    if (UpdateService.isChecking)
-      return qsTr("Checking…");
     if (UpdateService.isUpdating)
       return UpdateService.currentStep || qsTr("Preparing update…");
     if (UpdateService.isError)
       return qsTr("Update failed");
     if (UpdateService.isCompleted)
       return qsTr("Update complete");
+    if (UpdateService.isChecking)
+      return qsTr("Checking…");
     if (UpdateService.isStale && UpdateService.checkError)
       return qsTr("Check failed · results stale");
     return UpdateService.totalUpdates > 0 ? qsTr("%1 updates available").arg(UpdateService.totalUpdates) : qsTr("Up to date");
@@ -107,7 +104,7 @@ PanelContentBase {
             color: Theme.activeColor
             height: parent.height
             radius: parent.radius
-            width: parent.width * root.progress
+            width: parent.width * (UpdateService.totalPackagesToUpdate > 0 ? UpdateService.currentPackageIndex / UpdateService.totalPackagesToUpdate : 0)
             Behavior on width { NumberAnimation { duration: Theme.animationDuration } }
           }
         }
@@ -124,7 +121,7 @@ PanelContentBase {
     PanelCard {
       Layout.fillWidth: true
       Layout.preferredHeight: Theme.itemHeight * Theme.updateTableVisibleRows + padding * 2
-      visible: !root.showLog && !UpdateService.isCompleted
+      visible: !root.showLog && !UpdateService.isCompleted && (UpdateService.isChecking || UpdateService.totalUpdates > 0)
 
       Item {
         height: parent?.height ?? 0
@@ -180,19 +177,12 @@ PanelContentBase {
             }
           }
         }
-        ColumnLayout {
-          anchors.centerIn: parent
-          spacing: Theme.spacingXs
-          visible: !UpdateService.isChecking && UpdateService.totalUpdates === 0
-          OText { Layout.alignment: Qt.AlignHCenter; color: Theme.powerSaveColor; font.pixelSize: Theme.fontXl; text: "󰄬" }
-          OText { bold: true; text: qsTr("Up to date") }
-          OText { color: Theme.textInactiveColor; size: "xs"; text: root.lastCheckText() }
-        }
       }
     }
 
     PanelCard {
       Layout.fillWidth: true
+      visible: UpdateService.isCompleted || UpdateService.isError || UpdateService.totalUpdates > 0 || (UpdateService.isIdle && UpdateService.isStale)
       Layout.preferredHeight: Theme.itemHeight * Theme.updateLogVisibleRows + padding * 2
       tone: UpdateService.isError ? "error" : "standard"
       visible: root.showLog
@@ -210,8 +200,6 @@ PanelContentBase {
           wrapMode: Text.Wrap
         }
         ListView {
-          id: logView
-
           property bool followOutput: true
           Layout.fillHeight: true
           Layout.fillWidth: true
@@ -264,7 +252,7 @@ PanelContentBase {
           isEnabled: UpdateService.ready && !UpdateService.busy
           text: qsTr("Check")
           variant: "secondary"
-          visible: UpdateService.isStale && !UpdateService.isUpdating
+          visible: UpdateService.isIdle && UpdateService.isStale
           onClicked: UpdateService.doPoll()
         }
         OButton {

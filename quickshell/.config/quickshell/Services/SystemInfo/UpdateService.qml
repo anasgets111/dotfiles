@@ -12,7 +12,6 @@ Singleton {
   property bool _checkUpdatesAvailable: false
   property bool _checking: false
   property int _failureCount: 0
-  readonly property int _failureThreshold: 5
   readonly property bool _hasPackageCache: Settings.isStateLoaded && Array.isArray(Settings.state.updates.packages)
   readonly property double _lastSuccessfulCheck: Settings.isStateLoaded ? Settings.state.updates.lastSuccessfulCheck : 0
   readonly property string _notificationAppName: "System Updates"
@@ -34,7 +33,6 @@ Singleton {
   readonly property bool isCompleted: _state === "completed"
   readonly property bool isError: _state === "error"
   readonly property bool isIdle: _state === "idle"
-  readonly property bool isSystemPackageStep: currentStep.startsWith("System Packages")
   readonly property bool isUpdating: _state === "updating"
   readonly property bool isStale: !Settings.isStateLoaded || checkError !== "" || _lastSuccessfulCheck <= 0 || Date.now() - _lastSuccessfulCheck > _pollInterval
   readonly property double lastSuccessfulCheck: _lastSuccessfulCheck
@@ -50,12 +48,6 @@ Singleton {
   readonly property int totalUpdates: updatePackages.length
   readonly property var updatePackages: _hasPackageCache ? Settings.state.updates.packages : []
 
-  function _completionMessage(packageCount: int): string {
-    if (packageCount === 0)
-      return "Developer tooling update completed";
-    const packageMessage = packageCount === 1 ? "1 system package updated" : `${packageCount} system packages updated`;
-    return `${packageMessage}; developer tooling completed`;
-  }
   function _detectErrorMessage(lineText: string): string {
     const normalizedLine = lineText.toLowerCase();
     if (["failed retrieving", "download timeout", "connection refused", "could not resolve host"].some(messagePart => normalizedLine.includes(messagePart)))
@@ -85,7 +77,8 @@ Singleton {
     completedPackageCount = currentPackageIndex || totalPackagesToUpdate;
     if (exitCode === 0) {
       Logger.log("UpdateService", `Updates completed (${completedPackageCount}): ${updatePackages.map(packageInfo => packageInfo.name).join(", ")}`);
-      _notify("Update Complete", _completionMessage(completedPackageCount));
+      const packageMessage = completedPackageCount === 1 ? "1 system package updated" : `${completedPackageCount} system packages updated`;
+      _notify("Update Complete", completedPackageCount === 0 ? "Developer tooling update completed" : `${packageMessage}; developer tooling completed`);
     } else {
       if (!errorMessage)
         errorMessage = exitCode < 0 ? "Failed to start the update command" : `Update failed with code ${exitCode}`;
@@ -156,7 +149,7 @@ Singleton {
   function _recordFailure(sourceName: string, message: string, exitCode: int): void {
     Logger.warn("UpdateService", `${sourceName} error (code: ${exitCode}): ${message}`);
     _failureCount += 1;
-    if (_failureCount < _failureThreshold)
+    if (_failureCount < 5)
       return;
     _notify(qsTr("Update check failed"), message, "critical");
     _failureCount = 0;
@@ -246,6 +239,7 @@ Singleton {
       const stepMatch = cleanLine.trim().match(/^▶\s+(.+)$/);
       if (stepMatch) {
         root.currentStep = stepMatch[1];
+        root.currentPackage = "";
         root.progressDeterminate = false;
       }
       const normalized = cleanLine.toLowerCase();
@@ -260,7 +254,7 @@ Singleton {
       if (failureMatch && !root.errorMessage)
         root.errorMessage = `${failureMatch[1]} update failed`;
       const progressMatch = cleanLine.trim().match(/^\(\s*(\d+)\/(\d+)\)\s+(?:installing|upgrading)\s+(\S+)/i);
-      if (root.isSystemPackageStep && progressMatch) {
+      if (root.currentStep.startsWith("System Packages") && progressMatch) {
         root.totalPackagesToUpdate = Number(progressMatch[2]);
         root.currentPackageIndex = Math.min(Number(progressMatch[1]), root.totalPackagesToUpdate);
         root.currentPackage = progressMatch[3];

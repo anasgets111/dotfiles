@@ -135,7 +135,7 @@ Rectangle {
   }
   Rectangle {
     anchors.fill: parent
-    border.color: hoverHandler.hovered ? Theme.barHoverBorder : "transparent"
+    border.color: hoverHandler.hovered ? Theme.textContrast(root.trackColor) : "transparent"
     border.width: Theme.borderWidthThin
     color: "transparent"
     radius: root.radius

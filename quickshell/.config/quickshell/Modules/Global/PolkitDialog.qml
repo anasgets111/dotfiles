@@ -11,32 +11,25 @@ import qs.Config
 import qs.Services.Utils
 
 Scope {
-  id: root
-
-  readonly property var flow: polkitAgent.flow
-
   PolkitAgent {
     id: polkitAgent
 
-    onAuthenticationRequestStarted: Logger.log("PolkitDialog", `Auth started: ${root.flow?.message ?? '<no flow>'} for ${root.flow?.actionId ?? '<no-action>'}`)
+    onAuthenticationRequestStarted: Logger.log("PolkitDialog", `Auth started: ${polkitAgent.flow?.message ?? '<no flow>'} for ${polkitAgent.flow?.actionId ?? '<no-action>'}`)
   }
   LazyLoader {
     active: polkitAgent.isActive
 
-    component: DialogWindow {
-      agent: polkitAgent
-    }
+    component: DialogWindow {}
   }
 
   component DialogWindow: PanelWindow {
     id: window
 
-    required property var agent
     readonly property Region blurRegion: Region {
       item: dialogCard
       radius: dialogCard.radius
     }
-    readonly property var flow: agent.flow
+    readonly property var flow: polkitAgent.flow
 
     function submit(): void {
       if (flow && (passwordField.text || !flow.isResponseRequired)) {
@@ -61,10 +54,17 @@ Scope {
       id: dialogCard
 
       anchors.centerIn: parent
+      focus: true
       height: layout.implicitHeight + Theme.dialogPadding * 2
       padding: 0
       tone: "active"
       width: Theme.dialogWidth
+
+      Keys.onEnterPressed: if (!(window.flow?.isResponseRequired ?? false))
+        window.submit()
+      Keys.onEscapePressed: window.flow?.cancelAuthenticationRequest()
+      Keys.onReturnPressed: if (!(window.flow?.isResponseRequired ?? false))
+        window.submit()
 
       ColumnLayout {
         id: layout
@@ -74,6 +74,7 @@ Scope {
         spacing: Theme.spacingLg
 
         RowLayout {
+          Layout.fillWidth: true
           spacing: Theme.spacingLg
 
           IconImage {
@@ -82,6 +83,7 @@ Scope {
             source: Utils.resolveIconSource(window.flow?.iconName ?? "", "dialog-password")
           }
           ColumnLayout {
+            Layout.fillWidth: true
             spacing: Theme.spacingXs
 
             OText {

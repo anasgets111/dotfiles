@@ -8,8 +8,6 @@ Item {
   id: cornerShape
 
   property color color: "black"
-  property bool invertH: false
-  property bool invertV: false
   property int orientation: 0 // 0=TOP_LEFT, 1=TOP_RIGHT, 2=BOTTOM_LEFT, 3=BOTTOM_RIGHT
   property int radius: Theme.radiusLg
   readonly property real effectiveRadius: Math.max(0, Math.min(cornerShape.radius, Math.min(cornerShape.width, cornerShape.height)))
@@ -31,8 +29,8 @@ Item {
 
     height: width
     width: cornerShape.effectiveRadius * 2 + 4
-    x: (cornerShape.orientation === 0 || cornerShape.orientation === 2) !== cornerShape.invertH ? -2 : cornerShape.width - width + 2
-    y: ((cornerShape.orientation < 2) !== cornerShape.invertV ? -2 : cornerShape.height - height + 2)
+    x: cornerShape.orientation === 0 || cornerShape.orientation === 2 ? -2 : cornerShape.width - width + 2
+    y: cornerShape.orientation < 2 ? -2 : cornerShape.height - height + 2
   }
   Canvas {
     anchors.fill: parent
@@ -46,9 +44,6 @@ Item {
       const r = cornerShape.effectiveRadius;
       const k = 0.552285;
       ctx.reset();
-      ctx.save();
-      ctx.translate(cornerShape.invertH ? w : 0, cornerShape.invertV ? h : 0);
-      ctx.scale(cornerShape.invertH ? -1 : 1, cornerShape.invertV ? -1 : 1);
       // draw full rect
       ctx.beginPath();
       ctx.rect(0, 0, w, h);
@@ -86,7 +81,6 @@ Item {
       // fill remaining shape
       ctx.fillStyle = cornerShape.color;
       ctx.fillRect(0, 0, w, h);
-      ctx.restore();
     }
     onWidthChanged: requestPaint()
   }

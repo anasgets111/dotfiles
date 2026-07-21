@@ -40,7 +40,9 @@ Singleton {
       id: stream.id,
       name: Utils.lookupDesktopEntryName(rawName) || rawName || qsTr("Unknown"),
       iconSource: Utils.resolveIconSource(rawName, nodeProperties(stream)["application.icon-name"] ?? "", "󰝚"),
-      muted: root.audioMuted(stream)
+      muted: root.audioMuted(stream),
+      ready: root.hasControllableAudio(stream),
+      volume: root.audioVolume(stream)
     };
   })
   readonly property list<PwNode> streams: _audioNodes.filter(node => node.isStream)
@@ -231,12 +233,6 @@ Singleton {
   }
   function setVolume(newVolume: real): void {
     setNodeVolume(root.sink, newVolume, root.maxVolume, true);
-  }
-  function streamReady(id: int): bool {
-    return hasControllableAudio(_nodeById(root.streams, id));
-  }
-  function streamVolume(id: int): real {
-    return audioVolume(_nodeById(root.streams, id));
   }
   function toggleMicMute(): string {
     const error = _toggleError(root.source, "No audio source available", "Audio source is not ready");

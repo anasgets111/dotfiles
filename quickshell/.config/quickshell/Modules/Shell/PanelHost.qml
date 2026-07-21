@@ -28,16 +28,14 @@ FocusScope {
   readonly property real effectivePanelHeight: root.active ? root.livePanelHeight : root.retainedPanelHeight
   readonly property real effectivePanelWidth: root.active ? root.panelContentWidth : root.retainedPanelWidth
   readonly property real livePanelHeight: Math.min(root.panelContentHeight, root.height - Theme.panelHeight - Theme.panelScreenInset)
-  readonly property bool needsKeyboardFocus: root.panelItem?.needsKeyboardFocus ?? false
-  readonly property var panelComponent: panelComponentMap[panelId] ?? null
-  readonly property var panelComponentMap: ({
+  readonly property var panelComponent: ({
       "audio": audioPanelComponent,
       "bluetooth": bluetoothPanelComponent,
       "network": networkPanelComponent,
       "notifications": notificationPanelComponent,
       "updates": updatesPanelComponent,
       "tray": trayPanelComponent
-    })
+    })[panelId] ?? null
   readonly property real cornerCutRadius: Math.min(Theme.panelRadius * 3, Theme.panelHeight)
   readonly property real panelContentHeight: Math.max(1, root.panelItem?.preferredHeight ?? 0)
   readonly property real panelContentWidth: Math.max(1, root.panelItem?.preferredWidth ?? Theme.panelDefaultWidth)
@@ -49,17 +47,14 @@ FocusScope {
   property var retainedPanelData: null
   property real retainedPanelHeight: 1
   property real retainedPanelWidth: Theme.panelDefaultWidth
-  property int screenMargin: Theme.spacingSm
-  property bool showInverseCorners: true
   readonly property bool useFlatContainer: root.effectivePanelComponent === audioPanelComponent || root.effectivePanelComponent === bluetoothPanelComponent || root.effectivePanelComponent === networkPanelComponent
 
   signal closeRequested
 
   function calculateX() {
-    const cornerInset = root.showInverseCorners ? root.cornerCutRadius : 0;
     const centerX = root.effectiveAnchorRect.x + root.effectiveAnchorRect.width / 2 - panelBackground.width / 2;
-    const minX = root.screenMargin + cornerInset;
-    const maxX = root.width - panelBackground.width - root.screenMargin - cornerInset;
+    const minX = Theme.spacingSm + root.cornerCutRadius;
+    const maxX = root.width - panelBackground.width - Theme.spacingSm - root.cornerCutRadius;
     return Math.max(minX, Math.min(centerX, maxX));
   }
   function calculateY() {
@@ -199,7 +194,7 @@ FocusScope {
     Loader {
       id: leftCorner
 
-      active: root.showInverseCorners && root.visible
+      active: root.visible
       anchors.right: panelBackground.left
       y: panelBackground.y
 
@@ -214,7 +209,7 @@ FocusScope {
     Loader {
       id: rightCorner
 
-      active: root.showInverseCorners && root.visible
+      active: root.visible
       anchors.left: panelBackground.right
       y: panelBackground.y
 

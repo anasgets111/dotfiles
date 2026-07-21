@@ -6,11 +6,12 @@ ComboBox {
   id: root
 
   background: Rectangle {
-    border.color: Theme.borderColor
+    border.color: root.activeFocus ? Theme.activeColor : Theme.borderColor
     border.width: Theme.borderWidthThin
     color: Theme.bgInput
     radius: Theme.itemRadius
   }
+  opacity: enabled ? 1 : Theme.opacityDisabled
   contentItem: OText {
     bottomPadding: Theme.spacingSm
     leftPadding: Theme.spacingMd

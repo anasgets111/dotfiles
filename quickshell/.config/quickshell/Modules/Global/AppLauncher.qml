@@ -24,8 +24,6 @@ OModal {
   readonly property bool specialSelected: hasSpecial && currentIndex === 0
   readonly property int totalRows: filteredApps.length + (hasSpecial ? 1 : 0)
 
-  preferredHeight: Math.min(Theme.launcherWindowHeight, parent?.height ? parent.height - Theme.modalMargin * 2 : Theme.launcherWindowHeight)
-  preferredWidth: Theme.launcherWindowWidth
   searchInput: search
 
   function activateCurrent(): void {

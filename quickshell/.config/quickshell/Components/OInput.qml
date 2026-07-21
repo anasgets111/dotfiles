@@ -39,9 +39,7 @@ ColumnLayout {
 
   signal inputAccepted
   signal inputChanged
-  signal inputFinished
   signal keyPressed(var event)
-  signal keyReleased(var event)
 
   function clear(): void {
     textField.clear();
@@ -51,6 +49,7 @@ ColumnLayout {
     textField.forceActiveFocus();
   }
 
+  opacity: enabled ? 1 : Theme.opacityDisabled
   spacing: Theme.spacingXs
 
   Rectangle {
@@ -96,10 +95,8 @@ ColumnLayout {
           });
       }
       onAccepted: root.inputAccepted()
-      onEditingFinished: root.inputFinished()
       onTextChanged: root.inputChanged()
       Keys.onPressed: event => root.keyPressed(event)
-      Keys.onReleased: event => root.keyReleased(event)
     }
   }
 

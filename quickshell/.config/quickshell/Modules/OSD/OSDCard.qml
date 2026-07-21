@@ -13,7 +13,7 @@ Item {
   property string icon: ""
   readonly property bool isSlider: typeof value === "number" && value >= 0
   property string label: ""
-  property int maxValue: 100
+  readonly property real surfaceRadius: bg.radius
   property bool showing: false
   property string type: ""
   property var value: null

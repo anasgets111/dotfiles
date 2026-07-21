@@ -19,7 +19,6 @@ PanelContentBase {
   readonly property real cardHeight: Theme.itemHeight * 5.5
   readonly property bool hasNotifications: NotificationService.notifications.length > 0
   property int maxHeight: 600
-  readonly property int maxVisibleCards: 3
   readonly property int padding: Theme.spacingLg
 
   preferredHeight: contentLayout.implicitHeight
@@ -97,7 +96,7 @@ PanelContentBase {
 
       Layout.fillWidth: true
       Layout.margins: root.padding
-      Layout.preferredHeight: Math.min(contentHeight, root.cardHeight * root.maxVisibleCards, root.availableContentHeight)
+      Layout.preferredHeight: Math.min(contentHeight, root.cardHeight * 3, root.availableContentHeight)
       Layout.topMargin: Theme.spacingSm
       boundsBehavior: Flickable.StopAtBounds
       clip: true
@@ -120,10 +119,7 @@ PanelContentBase {
         svc: NotificationService
         width: ListView.view.width
 
-        ListView.onPooled: root.needsKeyboardFocus = false
         ListView.onReused: resetReuseState()
-        onInputFocusReleased: root.needsKeyboardFocus = false
-        onInputFocusRequested: root.needsKeyboardFocus = true
       }
     }
     ColumnLayout {

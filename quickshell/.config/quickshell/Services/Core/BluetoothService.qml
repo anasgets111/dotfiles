@@ -168,12 +168,6 @@ Singleton {
       return leftModel.name.localeCompare(rightModel.name);
     });
   }
-  function canConnect(device: BluetoothDevice): bool {
-    return !!device?.paired && !device.connected && !isDeviceBusy(device) && !device.blocked;
-  }
-  function canPair(device: BluetoothDevice): bool {
-    return !!device && connectAfterPairAddress === "" && !device.paired && !device.blocked && !isDeviceBusy(device);
-  }
   function cleanupCodecData(address: string): void {
     if (!address)
       return;
@@ -229,9 +223,6 @@ Singleton {
     device.forget();
     cleanupCodecData(address);
   }
-  function getBattery(device: BluetoothDevice): string {
-    return device?.batteryAvailable ? `${Math.round(device.battery * 100)}%` : "";
-  }
   function getCodecInfo(name: string): var {
     const key = (name || "").replace(/-/g, "_").toUpperCase();
     return codecMap[key] ?? {
@@ -251,17 +242,6 @@ Singleton {
   }
   function getDeviceName(device: BluetoothDevice): string {
     return device?.name || device?.deviceName || "";
-  }
-  function getStatusString(device: BluetoothDevice): string {
-    if (!device)
-      return "";
-    if (device.state === BluetoothDeviceState.Connecting)
-      return "Connecting...";
-    if (device.pairing)
-      return "Pairing...";
-    if (device.blocked)
-      return "Blocked";
-    return "";
   }
   function isAudioDevice(device: BluetoothDevice): bool {
     return !!device && deviceMatchesKeywords(device, audioKeywords);
@@ -322,16 +302,16 @@ Singleton {
       address,
       name: root.getDeviceName(device) || qsTr("Unknown"),
       icon: root.getDeviceIcon(device),
-      statusText: root.getStatusString(device),
+      statusText: !device ? "" : device.state === BluetoothDeviceState.Connecting ? "Connecting..." : device.pairing ? "Pairing..." : device.blocked ? "Blocked" : "",
       connected: !!device?.connected,
       paired: !!device?.paired,
       busy: root.isDeviceBusy(device) || address === root.connectAfterPairAddress,
       isAudio: root.isAudioDevice(device),
       hasBattery: !!device?.batteryAvailable,
       battery: device?.batteryAvailable ? Math.round(device.battery * 100) : 0,
-      batteryText: root.getBattery(device),
-      canConnect: root.canConnect(device),
-      canPair: root.canPair(device),
+      batteryText: device?.batteryAvailable ? `${Math.round(device.battery * 100)}%` : "",
+      canConnect: !!device?.paired && !device.connected && !root.isDeviceBusy(device) && !device.blocked,
+      canPair: !!device && root.connectAfterPairAddress === "" && !device.paired && !device.blocked && !root.isDeviceBusy(device),
       currentCodec: root.deviceCodecs[address] || "",
       availableCodecs: root.deviceAvailableCodecs[address] || []
     };

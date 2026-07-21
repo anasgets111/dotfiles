@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Config
 import qs.Components
@@ -10,9 +11,7 @@ PanelContentBase {
   id: root
 
   property bool inputDevicesExpanded: false
-  readonly property string inputName: AudioService.sourceName || qsTr("No input device")
   property bool outputDevicesExpanded: false
-  readonly property string outputName: AudioService.sinkName || qsTr("No output device")
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
 
   preferredHeight: contentLayout.implicitHeight + Theme.spacingMd * 2
@@ -67,14 +66,13 @@ PanelContentBase {
     }
     AudioControl {
       Layout.bottomMargin: Theme.spacingMd
-      Layout.fillWidth: true
       headroomColor: Theme.critical
       iconOff: "󰝟"
       iconOn: "󰕾"
       muted: AudioService.muted
       ready: AudioService.sinkControllable
       splitAt: 1.0 / AudioService.maxVolume
-      subtitle: root.outputName
+      subtitle: AudioService.sinkName || qsTr("No output device")
       title: qsTr("Output")
       volume: AudioService.volume / AudioService.maxVolume
 
@@ -93,13 +91,12 @@ PanelContentBase {
     }
     AudioControl {
       Layout.bottomMargin: Theme.spacingMd
-      Layout.fillWidth: true
       iconOff: "󰍭"
       iconOn: "󰍬"
       muted: AudioService.micMuted
       ready: AudioService.sourceControllable
       sliderSteps: 20
-      subtitle: root.inputName
+      subtitle: AudioService.sourceName || qsTr("No input device")
       title: qsTr("Microphone")
       visible: AudioService.source !== null
       volume: AudioService.micVolume
@@ -212,10 +209,7 @@ PanelContentBase {
           value: hero.ready ? hero.volume : 0
           wheelStep: 1 / steps
 
-          onCommitted: v => {
-            if (hero.ready)
-              hero.committed(v);
-          }
+          onCommitted: v => hero.committed(v)
         }
       }
       ColumnLayout {
@@ -226,58 +220,23 @@ PanelContentBase {
       }
     }
   }
-  component DeviceItem: Rectangle {
+  component DeviceItem: PanelRow {
     id: deviceItem
 
     property string defaultIcon: ""
-    readonly property string displayIcon: (deviceItem.entry?.icon ?? "") || deviceItem.defaultIcon
-    readonly property string displayName: deviceItem.entry?.name ?? ""
     property var entry
-    readonly property bool isActive: deviceItem.entry?.active ?? false
-
-    signal clicked
 
     Layout.fillWidth: true
-    Layout.preferredHeight: Theme.itemHeight
-    color: hoverHandler.hovered ? Theme.onHoverColor : (deviceItem.isActive ? Theme.activeSubtle : "transparent")
-    radius: Theme.radiusMd
-
-    Behavior on color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
-    }
-
-    HoverHandler {
-      id: hoverHandler
-    }
-    TapHandler {
-      onTapped: deviceItem.clicked()
-    }
-    RowLayout {
-      anchors.fill: parent
-      anchors.leftMargin: Theme.spacingSm
-      anchors.rightMargin: Theme.spacingSm
-      spacing: Theme.spacingSm
-
+    icon: (entry?.icon ?? "") || defaultIcon
+    selected: entry?.active ?? false
+    title: entry?.name ?? ""
+    actions: [
       OText {
-        color: deviceItem.isActive ? Theme.activeColor : Theme.textInactiveColor
-        text: deviceItem.displayIcon
-      }
-      OText {
-        Layout.fillWidth: true
-        bold: deviceItem.isActive
-        color: deviceItem.isActive ? Theme.activeColor : (hoverHandler.hovered ? Theme.textOnHoverColor : Theme.textActiveColor)
-        elide: Text.ElideRight
-        text: deviceItem.displayName
-      }
-      OText {
-        color: Theme.activeColor
+        color: deviceItem.selected ? Theme.activeColor : "transparent"
         size: "sm"
         text: "󰄬"
-        visible: deviceItem.isActive
       }
-    }
+    ]
   }
   component DevicePicker: ColumnLayout {
     id: picker
@@ -401,12 +360,6 @@ PanelContentBase {
         color: "transparent"
         radius: Theme.radiusMd
 
-        Behavior on color {
-          ColorAnimation {
-            duration: Theme.animationDuration
-          }
-        }
-
         RowLayout {
           anchors.fill: parent
           anchors.leftMargin: Theme.spacingSm
@@ -437,7 +390,7 @@ PanelContentBase {
       }
       Item {
         Layout.fillWidth: true
-        Layout.preferredHeight: streamLayout.implicitHeight + Theme.spacingSm
+        Layout.preferredHeight: mixer.streamCount > 0 ? Math.min(streamList.contentHeight, Theme.controlHeightLg * Theme.audioMixerVisibleRows) + Theme.spacingSm : 0
         clip: true
 
         Behavior on Layout.preferredHeight {
@@ -447,20 +400,20 @@ PanelContentBase {
           }
         }
 
-        ColumnLayout {
-          id: streamLayout
+        ListView {
+          id: streamList
 
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.top: parent.top
+          anchors.fill: parent
           anchors.topMargin: Theme.spacingSm
+          boundsBehavior: Flickable.StopAtBounds
+          clip: true
+          model: AudioService.streamModels
           spacing: Theme.spacingSm
 
-          Repeater {
-            model: AudioService.streamModels
+          ScrollBar.vertical: ScrollBar { policy: streamList.contentHeight > streamList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
 
-            delegate: StreamItem {
-            }
+          delegate: StreamItem {
+            width: ListView.view.width
           }
         }
       }
@@ -470,9 +423,9 @@ PanelContentBase {
     id: streamItem
 
     required property var modelData
-    readonly property bool ready: AudioService.streamReady(modelData.id)
+    readonly property bool ready: modelData.ready ?? false
     readonly property bool muted: modelData.muted ?? false
-    readonly property real volume: AudioService.streamVolume(modelData.id)
+    readonly property real volume: modelData.volume ?? 0
 
     Layout.fillWidth: true
     spacing: Theme.spacingXs
@@ -534,10 +487,7 @@ PanelContentBase {
         value: streamItem.ready ? streamItem.volume : 0
         wheelStep: 1 / steps
 
-        onCommitted: v => {
-          if (streamItem.ready)
-            AudioService.setStreamVolume(streamItem.modelData.id, v);
-        }
+        onCommitted: v => AudioService.setStreamVolume(streamItem.modelData.id, v)
       }
     }
   }

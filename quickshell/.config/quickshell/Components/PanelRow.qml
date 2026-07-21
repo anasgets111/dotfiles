@@ -28,7 +28,7 @@ Rectangle {
   border.color: selected ? Theme.activeColor : activeFocus ? Theme.activeColor : "transparent"
   border.width: Theme.borderWidthThin
   color: selected ? Theme.activeSubtle : hovered ? Theme.bgCardHover : "transparent"
-  implicitHeight: rowLayout.implicitHeight + (expanded ? expandedSlot.implicitHeight + Theme.spacingSm : 0) + Theme.spacingSm * 2
+  implicitHeight: rowLayout.implicitHeight + (expanded ? expandedSlot.implicitHeight + Theme.spacingSm : 0) + Theme.spacingXs * 2
   opacity: enabled ? 1 : Theme.opacityDisabled
   radius: Theme.radiusMd
 
@@ -50,7 +50,7 @@ Rectangle {
     anchors.fill: parent
     anchors.leftMargin: Theme.spacingSm
     anchors.rightMargin: Theme.spacingSm
-    anchors.topMargin: Theme.spacingSm
+    anchors.topMargin: Theme.spacingXs
     spacing: Theme.spacingSm
 
     RowLayout {
@@ -64,6 +64,7 @@ Rectangle {
 
         Layout.preferredHeight: Math.max(Theme.iconSizeMd, childrenRect.height)
         Layout.preferredWidth: Math.max(Theme.iconSizeMd, childrenRect.width)
+        visible: children.length > 1 || root.icon !== ""
 
         OText {
           anchors.centerIn: parent
@@ -101,6 +102,7 @@ Rectangle {
       Item {
         Layout.preferredHeight: Math.max(Theme.spinnerSize, actionSlot.implicitHeight)
         Layout.preferredWidth: Math.max(Theme.spinnerSize, actionSlot.implicitWidth)
+        visible: root.busy || actionSlot.children.length > 0
 
         RowLayout {
           id: actionSlot
@@ -114,7 +116,6 @@ Rectangle {
         OSpinner {
           anchors.centerIn: parent
           running: root.busy
-          visible: root.busy
         }
       }
     }

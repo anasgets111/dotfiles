@@ -9,7 +9,7 @@ import qs.Services.Core
 Item {
   id: root
 
-  readonly property color batteryColor: percentage <= 0.1 ? Theme.critical : percentage <= 0.2 ? Theme.warning : Theme.activeColor
+  readonly property color batteryColor: percentage <= 0.1 ? Theme.critical : percentage <= 0.2 ? Theme.warning : Theme.powerSaveColor
   readonly property string batteryIcon: {
     if (BatteryService.isPendingCharge)
       return "󰂄";
@@ -43,7 +43,7 @@ Item {
   implicitWidth: Theme.batteryPillWidth
   Rectangle {
     anchors.fill: parent
-    border.color: mouseArea.containsMouse ? Theme.barHoverBorder : "transparent"
+    border.color: mouseArea.containsMouse ? Theme.textContrast(Theme.onHoverColor) : "transparent"
     border.width: Theme.borderWidthThin
     color: "transparent"
     radius: height / 2

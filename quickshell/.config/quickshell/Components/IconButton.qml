@@ -24,7 +24,7 @@ Item {
   readonly property int _radius: {
     if (shape === "circle")
       return Math.min(width, height) / 2;
-    return Theme.radiusFor(size === "xs" || size === "sm" ? "sm" : size === "xl" ? "lg" : "md");
+    return size === "xs" || size === "sm" ? Theme.radiusSm : size === "xl" ? Theme.radiusLg : Theme.radiusMd;
   }
   readonly property int _size: Theme.controlHeightFor(size)
 
@@ -32,7 +32,7 @@ Item {
   property color colorBg: Theme.inactiveColor
   property color colorBgHover: Theme.onHoverColor
   property color colorBorder: "transparent"
-  property color colorBorderHover: Theme.barHoverBorder
+  property color colorBorderHover: Theme.textContrast(colorBgHover)
   property color colorFg: Theme.textContrast(colorBg)
   property color colorFgHover: Theme.textContrast(colorBgHover)
 
@@ -64,6 +64,7 @@ Item {
 
   implicitHeight: _size
   implicitWidth: _size
+  opacity: enabled && isEnabled ? 1 : Theme.opacityDisabled
 
   onIsEnabledChanged: if (!isEnabled && (tooltipLoader.item as Tooltip)?.isVisible)
     (tooltipLoader.item as Tooltip).isVisible = false

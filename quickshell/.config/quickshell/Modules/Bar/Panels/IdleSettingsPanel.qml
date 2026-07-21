@@ -286,8 +286,6 @@ OModal {
   }
 
   component FlowSummary: PanelCard {
-    id: flowRoot
-
     tone: root.idleEnabled ? "active" : "standard"
     padding: 0
     implicitHeight: flowLayout.implicitHeight + Theme.spacingMd * 2

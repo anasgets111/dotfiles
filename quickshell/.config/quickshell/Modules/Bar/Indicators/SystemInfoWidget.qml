@@ -35,11 +35,10 @@ Item {
     return progress >= 0.9 ? Theme.critical : progress >= 0.75 ? Theme.warning : fallback;
   }
   function syncPolling(): void {
-    const shouldPoll = active;
-    if (shouldPoll === _polling)
+    if (active === _polling)
       return;
-    _polling = shouldPoll;
-    SystemInfoService.refCount = Math.max(0, SystemInfoService.refCount + (shouldPoll ? 1 : -1));
+    _polling = active;
+    SystemInfoService.refCount = Math.max(0, SystemInfoService.refCount + (active ? 1 : -1));
   }
 
   implicitHeight: layout.implicitHeight
@@ -228,21 +227,21 @@ Item {
         width: parent?.width ?? 0
         spacing: Theme.spacingXs
 
-      Repeater {
-        model: diskTile.disk.partitions
+        Repeater {
+          model: diskTile.disk.partitions
 
-        PanelRow {
-          id: partitionDelegate
+          delegate: PanelRow {
+            id: partitionDelegate
 
-          required property var modelData
+            required property var modelData
 
-          width: parent?.width ?? 0
-          rowActionEnabled: false
-          subtitle: `${Utils.fmtKib(modelData.usedKib)} / ${Utils.fmtKib(modelData.totalKib)}`
-          title: modelData.mountPoint === "/" ? qsTr("Root") : modelData.mountPoint
-          badges: [OText { bold: true; color: root.statusColor(partitionDelegate.modelData.percentage, Theme.textActiveColor); size: "sm"; text: `${(partitionDelegate.modelData.percentage * 100).toFixed(0)}%` }]
+            width: parent?.width ?? 0
+            rowActionEnabled: false
+            subtitle: `${Utils.fmtKib(modelData.usedKib)} / ${Utils.fmtKib(modelData.totalKib)}`
+            title: modelData.mountPoint === "/" ? qsTr("Root") : modelData.mountPoint
+            badges: [OText { bold: true; color: root.statusColor(partitionDelegate.modelData.percentage, Theme.textActiveColor); size: "sm"; text: `${(partitionDelegate.modelData.percentage * 100).toFixed(0)}%` }]
+          }
         }
-      }
       }
     ]
   }

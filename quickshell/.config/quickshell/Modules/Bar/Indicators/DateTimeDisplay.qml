@@ -20,7 +20,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    border.color: mouseArea.containsMouse ? Theme.barHoverBorder : "transparent"
+    border.color: mouseArea.containsMouse ? Theme.textContrast(dateTimeDisplay.bgColor) : "transparent"
     border.width: Theme.borderWidthThin
     color: dateTimeDisplay.bgColor
     radius: Theme.itemRadius

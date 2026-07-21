@@ -15,12 +15,9 @@ Item {
 
   signal wallpaperPickerRequested
 
-  height: implicitHeight
   implicitHeight: Theme.panelHeight + Theme.panelRadius
 
   Column {
-    id: barContent
-
     anchors {
       left: parent.left
       right: parent.right

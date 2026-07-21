@@ -77,7 +77,7 @@ Scope {
       id: overlayWindow
 
       readonly property string activeModal: ShellUiState.activeScreenName === screenName ? ShellUiState.activeModal : ""
-      readonly property var activeModalItem: ({launcher: launcherLoader.item, wallpaperPicker: wallpaperLoader.item, idleSettings: idleLoader.item})[activeModal] ?? null
+      readonly property var activeModalItem: modalLoader.item
       readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(screenName)
       readonly property string screenName: screen?.name ?? ""
 
@@ -116,7 +116,7 @@ Scope {
         function onLauncherCloseRequested() {
           if (overlayWindow.activeModal !== "launcher")
             return;
-          const launcher = launcherLoader.item as AppLauncher;
+          const launcher = modalLoader.item as AppLauncher;
           if (launcher)
             launcher.close();
           else
@@ -126,47 +126,24 @@ Scope {
         target: IPC
       }
       Loader {
-        id: launcherLoader
+        id: modalLoader
 
-        active: overlayWindow.activeModal === "launcher"
+        active: overlayWindow.activeModal !== ""
         anchors.fill: parent
+        sourceComponent: ({launcher: launcherComponent, wallpaperPicker: wallpaperComponent, idleSettings: idleComponent})[overlayWindow.activeModal] ?? null
 
-        sourceComponent: AppLauncher {
-          active: false
-
-          Component.onCompleted: open()
-
-          onDismissed: ShellUiState.closeModal("launcher")
-        }
+        onLoaded: item.active = true
       }
-      Loader {
-        id: wallpaperLoader
-
-        active: overlayWindow.activeModal === "wallpaperPicker"
-        anchors.fill: parent
-
-        sourceComponent: WallpaperPicker {
-          active: false
-
-          Component.onCompleted: open()
-
-          onDismissed: ShellUiState.closeModal("wallpaperPicker")
+      Connections {
+        function onDismissed() {
+          ShellUiState.closeModal(overlayWindow.activeModal);
         }
+
+        target: modalLoader.item
       }
-      Loader {
-        id: idleLoader
-
-        active: overlayWindow.activeModal === "idleSettings"
-        anchors.fill: parent
-
-        sourceComponent: IdleSettingsPanel {
-          active: false
-
-          Component.onCompleted: open()
-
-          onDismissed: ShellUiState.closeModal("idleSettings")
-        }
-      }
+      Component { id: launcherComponent; AppLauncher {} }
+      Component { id: wallpaperComponent; WallpaperPicker {} }
+      Component { id: idleComponent; IdleSettingsPanel {} }
     }
   }
 }

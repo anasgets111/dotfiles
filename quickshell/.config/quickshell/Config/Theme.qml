@@ -34,15 +34,6 @@ Singleton {
       xl: iconSizeXl
     })
   readonly property bool _isUltrawide: internal.isUltrawide
-  readonly property var _radii: ({
-      none: radiusNone,
-      xs: radiusXs,
-      sm: radiusSm,
-      md: radiusMd,
-      lg: radiusLg,
-      xl: radiusXl,
-      full: radiusFull
-    })
   readonly property var _spacings: ({
       xs: spacingXs,
       sm: spacingSm,
@@ -92,10 +83,8 @@ Singleton {
   // SCALED DIMENSIONS
   // ═══════════════════════════════════════════════════════════════════════════
   readonly property int batteryPillWidth: s(baseBatteryPillWidth, 60)
-  readonly property color barHoverBorder: c.barHoverBorder ?? textActiveColor
   readonly property color bgColor: c.bgColor ?? "#1e1e2e"
   readonly property color bgElevated: c.bgElevated ?? Qt.lighter(bgColor, 1.35)
-  readonly property color bgElevatedAlt: c.bgElevatedAlt ?? Qt.lighter(bgColor, 1.25)
   readonly property color bgElevatedHover: c.bgElevatedHover ?? Qt.lighter(bgColor, 1.47)
   readonly property color bgCard: c.bgCard ?? withOpacity(bgElevated, opacitySolid)
   readonly property color bgCardHover: c.bgCardHover ?? withOpacity(bgElevatedHover, opacityStrong)
@@ -106,7 +95,6 @@ Singleton {
   readonly property color borderColor: c.borderColor ?? "#313244"
   readonly property color borderLight: c.borderLight ?? withOpacity(borderColor, opacityMedium)
   readonly property color borderMedium: c.borderMedium ?? withOpacity(borderColor, 0.4)
-  readonly property color borderStrong: c.borderStrong ?? withOpacity(borderColor, opacityDisabled)
   readonly property color borderSubtle: c.borderSubtle ?? withOpacity(borderColor, 0.22)
   readonly property int borderWidthMedium: 2
   readonly property real modalClosedScale: 0.97
@@ -155,7 +143,6 @@ Singleton {
   // Font Sizes
   readonly property int fontXs: s(10, 8)
   readonly property int fontXxl: s(28, 20)
-  readonly property string formatDateTime: " dd dddd hh:mm AP"
   readonly property string iconFontFamily: "JetBrainsMono Nerd Font Mono"
   readonly property int iconSize: s(baseIconSize, 12)
   readonly property int iconSizeLg: s(24, 18)
@@ -174,6 +161,7 @@ Singleton {
   // WIDGET SPECIFICS
   // ═══════════════════════════════════════════════════════════════════════════
   readonly property int audioPanelWidth: 380
+  readonly property int audioMixerVisibleRows: 4
   readonly property int bluetoothPanelWidth: 360
   readonly property int idleModalHeight: s(760)
   readonly property int idleModalWidth: s(780)
@@ -225,7 +213,6 @@ Singleton {
   readonly property int panelScreenInset: 8
   readonly property int panelToggleCompactThreshold: s(220)
   readonly property int panelToggleCardHeight: s(56)
-  readonly property color panelWindowColor: c.panelWindowColor ?? "transparent"
   readonly property int popupOffset: spacingMd
   readonly property color powerSaveColor: c.powerSaveColor ?? "#a6e3a1"
   readonly property int radiusFull: 9999
@@ -233,7 +220,6 @@ Singleton {
   readonly property int radiusMd: s(12, 8)
 
   // Radii
-  readonly property int radiusNone: 0
   readonly property int radiusSm: s(6, 4)
   readonly property int radiusXl: s(40, 20)
   readonly property int radiusXs: s(3, 2)
@@ -241,14 +227,12 @@ Singleton {
   // SCALE PRESETS
   // ═══════════════════════════════════════════════════════════════════════════
   readonly property real scaleSmall: 0.7
-  readonly property int scrollBarWidth: spacingSm
   readonly property int shadowBlurLg: 32
   readonly property int shadowBlurMd: 20
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SHADOW
   // ═══════════════════════════════════════════════════════════════════════════
-  readonly property color shadowColor: withOpacity(c.shadowColor ?? "#000000", 0.2)
   readonly property color shadowColorStrong: withOpacity(c.shadowColorStrong ?? "#000000", 0.55)
   readonly property int shadowOffsetY: 2
   readonly property int spinnerDuration: 1000
@@ -286,28 +270,23 @@ Singleton {
   function controlHeightFor(size) {
     return _controlHeights[size] ?? controlHeightMd;
   }
+  function textContrast(background: color): color {
+    const value = Qt.color(background);
+    const linear = channel => channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+    const luminance = 0.2126 * linear(value.r) + 0.7152 * linear(value.g) + 0.0722 * linear(value.b);
+    return luminance > 0.179 ? "#000000" : "#ffffff";
+  }
   function fontSizeFor(size) {
     return _fontSizes[size] ?? fontMd;
   }
   function iconSizeFor(size) {
     return _iconSizes[size] ?? iconSizeMd;
   }
-  function radiusFor(size) {
-    return _radii[size] ?? radiusMd;
-  }
   function s(base, min = 0) {
     return Math.max(min, Math.round(base * internal.scaleFactor));
   }
   function spacingFor(size) {
     return _spacings[size] ?? spacingMd;
-  }
-  function textContrast(bgColor) {
-    if (bgColor === powerSaveColor)
-      return textActiveColor;
-    if (bgColor === onHoverColor)
-      return "#FFFFFF";
-    const lum = 0.299 * bgColor.r + 0.587 * bgColor.g + 0.114 * bgColor.b;
-    return lum > 0.6 ? "#4C4F69" : textActiveColor;
   }
   function withOpacity(color, opacity) {
     if (!color)

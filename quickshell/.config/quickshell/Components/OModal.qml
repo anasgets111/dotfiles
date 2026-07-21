@@ -9,14 +9,13 @@ Item {
 
   property bool active: false
   readonly property Region blurRegion: Region {
-    height: root.visible ? modalSurface.height - Theme.borderWidthMedium * 2 : 0
-    radius: Theme.modalRadius
-    width: root.visible ? modalSurface.width - Theme.borderWidthMedium * 2 : 0
-    x: modalSurface.x + Theme.borderWidthMedium
-    y: modalSurface.y + Theme.borderWidthMedium
+    height: modalSurface.opacity > 0 ? modalSurface.height * modalSurface.scale : 0
+    radius: modalSurface.radius * modalSurface.scale
+    width: modalSurface.opacity > 0 ? modalSurface.width * modalSurface.scale : 0
+    x: modalSurface.x + (modalSurface.width - width) / 2
+    y: modalSurface.y + (modalSurface.height - height) / 2 + modalTranslate.y
   }
   default property alias content: contentSlot.data
-  property Item initialFocusItem: null
   property int preferredHeight: Theme.launcherWindowHeight
   property int preferredWidth: Theme.launcherWindowWidth
   property color scrimColor: Theme.modalScrimColor
@@ -24,33 +23,20 @@ Item {
   property var searchInput: null
 
   signal dismissed
-  signal keyPressed(var event)
-
   function close(): void {
     if (!active)
       return;
     active = false;
     closeTimer.restart();
   }
-  function open(): void {
-    closeTimer.stop();
-    active = true;
-  }
-  function resetFocus(): void {
-    if (searchInput) {
-      searchInput.clear?.();
-      if (searchInput.text !== undefined)
-        searchInput.text = "";
-    }
-    Qt.callLater(() => (initialFocusItem ?? searchInput ?? modalSurface).forceActiveFocus?.());
-  }
-
   anchors.fill: parent
   focus: active
   visible: active || closeTimer.running
 
-  onActiveChanged: if (active)
-    resetFocus()
+  onActiveChanged: if (active) {
+    searchInput?.clear?.();
+    Qt.callLater(() => (searchInput ?? modalSurface).forceActiveFocus?.());
+  }
 
   Timer {
     id: closeTimer
@@ -92,6 +78,8 @@ Item {
     radius: Theme.modalRadius
     scale: root.active ? 1 : Theme.modalClosedScale
     transform: Translate {
+      id: modalTranslate
+
       y: root.active ? 0 : -Theme.spacingMd
       Behavior on y { NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutCubic } }
     }
@@ -106,7 +94,6 @@ Item {
         event.accepted = true;
         return;
       }
-      root.keyPressed(event);
     }
 
     Item {
