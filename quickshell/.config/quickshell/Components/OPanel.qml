@@ -11,49 +11,20 @@ Item {
 
   property bool active: false
   property rect anchorRect: Qt.rect(0, 0, 0, 0)
+  readonly property Region blurClipRegion: Region {
+    intersection: Intersection.Intersect
+    item: panelClipArea
+  }
+  readonly property Region blurPanelRegion: Region {
+    bottomLeftRadius: panelBackground.bottomLeftRadius + 2
+    bottomRightRadius: panelBackground.bottomRightRadius + 2
+    height: root.visible ? panelBackground.height - 2 : 0
+    width: root.visible ? panelBackground.width - 4 : 0
+    x: panelBackground.x + 2
+    y: Theme.panelHeight + panelBackground.y
+  }
   readonly property Region blurRegion: Region {
-    regions: [
-      Region {
-        item: leftCorner
-
-        regions: [
-          Region {
-            height: root.cornerCutRadius * 2 + 4
-            intersection: Intersection.Subtract
-            shape: RegionShape.Ellipse
-            width: root.cornerCutRadius * 2 + 4
-            x: panelBackground.x - root.cornerCutRadius * 2 - 2
-            y: Theme.panelHeight + panelBackground.y - 2
-          }
-        ]
-      },
-      Region {
-        item: rightCorner
-
-        regions: [
-          Region {
-            height: root.cornerCutRadius * 2 + 4
-            intersection: Intersection.Subtract
-            shape: RegionShape.Ellipse
-            width: root.cornerCutRadius * 2 + 4
-            x: panelBackground.x + panelBackground.width - 2
-            y: Theme.panelHeight + panelBackground.y - 2
-          }
-        ]
-      },
-      Region {
-        bottomLeftRadius: panelBackground.bottomLeftRadius + 2
-        bottomRightRadius: panelBackground.bottomRightRadius + 2
-        height: root.visible ? panelBackground.height - 2 : 0
-        width: root.visible ? panelBackground.width - 4 : 0
-        x: panelBackground.x + 2
-        y: Theme.panelHeight + panelBackground.y
-      },
-      Region {
-        intersection: Intersection.Intersect
-        item: panelClipArea
-      }
-    ]
+    regions: [(leftCorner.item as RoundCorner)?.region, (rightCorner.item as RoundCorner)?.region, root.blurPanelRegion, root.blurClipRegion]
   }
   readonly property bool contentActive: root.active || closeHoldTimer.running
   readonly property rect effectiveAnchorRect: root.active ? root.anchorRect : root.retainedAnchorRect
@@ -240,6 +211,7 @@ Item {
         invertH: true
         orientation: 0
         radius: root.cornerCutRadius
+        regionOffsetX: -1
         width: root.cornerCutRadius
       }
     }
@@ -256,6 +228,7 @@ Item {
         height: root.cornerCutRadius
         orientation: 0
         radius: root.cornerCutRadius
+        regionOffsetX: 1
         width: root.cornerCutRadius
       }
     }

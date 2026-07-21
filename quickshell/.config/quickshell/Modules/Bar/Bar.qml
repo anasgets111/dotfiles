@@ -6,40 +6,11 @@ import qs.Config
 Item {
   id: root
 
+  readonly property Region barPanelRegion: Region {
+    item: panelRect
+  }
   readonly property Region blurRegion: Region {
-    regions: [
-      Region {
-        item: barCornerLeft
-
-        regions: [
-          Region {
-            height: Theme.panelRadius * 2 + 4
-            intersection: Intersection.Subtract
-            shape: RegionShape.Ellipse
-            width: Theme.panelRadius * 2 + 4
-            x: -2
-            y: Theme.panelHeight - 2
-          }
-        ]
-      },
-      Region {
-        item: barCornerRight
-
-        regions: [
-          Region {
-            height: Theme.panelRadius * 2 + 4
-            intersection: Intersection.Subtract
-            shape: RegionShape.Ellipse
-            width: Theme.panelRadius * 2 + 4
-            x: root.width - Theme.panelRadius * 2 - 2
-            y: Theme.panelHeight - 2
-          }
-        ]
-      },
-      Region {
-        item: panelRect
-      }
-    ]
+    regions: [barCornerLeft.region, barCornerRight.region, root.barPanelRegion]
   }
   readonly property bool centerShouldHide: leftSide.workspacesExpanded || rightSide.expanded
   required property ShellScreen screen

@@ -1,4 +1,7 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
+import Quickshell
 import qs.Config
 
 Item {
@@ -9,10 +12,29 @@ Item {
   property bool invertV: false
   property int orientation: 0 // 0=TOP_LEFT, 1=TOP_RIGHT, 2=BOTTOM_LEFT, 3=BOTTOM_RIGHT
   property int radius: Theme.radiusLg
+  property int regionOffsetX: 0
+  readonly property real effectiveRadius: Math.max(0, Math.min(cornerShape.radius, Math.min(cornerShape.width, cornerShape.height)))
+  readonly property Region region: Region {
+    item: cornerShape
+
+    regions: Region {
+      intersection: Intersection.Subtract
+      item: regionCutout
+      shape: RegionShape.Ellipse
+    }
+  }
 
   height: Theme.panelHeight
   width: Theme.panelHeight
 
+  Item {
+    id: regionCutout
+
+    height: width
+    width: cornerShape.effectiveRadius * 2 + 4
+    x: ((cornerShape.orientation === 0 || cornerShape.orientation === 2) !== cornerShape.invertH ? -2 : cornerShape.width - width + 2) + cornerShape.regionOffsetX
+    y: ((cornerShape.orientation < 2) !== cornerShape.invertV ? -2 : cornerShape.height - height + 2)
+  }
   Canvas {
     anchors.fill: parent
 
@@ -22,7 +44,7 @@ Item {
       const ctx = getContext("2d");
       const w = width;
       const h = height;
-      const r = Math.max(0, Math.min(cornerShape.radius, Math.min(w, h)));
+      const r = cornerShape.effectiveRadius;
       const k = 0.552285;
       ctx.reset();
       ctx.save();

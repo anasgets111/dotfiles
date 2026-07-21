@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Quickshell
 import qs.Components
 import qs.Services.Utils
 import qs.Config
@@ -16,6 +17,7 @@ Item {
   property var _shownMessageIds: ({})
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
   readonly property alias blurInsetItem: blurInset
+  property Region popupBlurRegion: null
   readonly property real cardWidth: Theme.notificationCardWidth
   required property var group
   readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group?.key] || false) : false)

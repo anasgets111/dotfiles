@@ -9,56 +9,17 @@ import qs.Services.SystemInfo
 OPopup {
   id: root
 
-  property var _cardRegions: []
   property int barOffset: Theme.itemHeight
   property int margin: Theme.spacingMd
 
-  function rebuildBlurRegions() {
-    for (const region of root._cardRegions)
-      region.destroy();
-    const regions = [];
-    for (let i = 0; i < cardRepeater.count; i++) {
-      const card = cardRepeater.itemAt(i);
-      if (card)
-        regions.push(cardBlurComponent.createObject(popupBlurRegion, {
-          card
-        }));
-    }
-    root._cardRegions = regions;
-    popupBlurRegion.regions = regions;
+  function rebuildBlurRegions(): void {
+    root.blurRegion.regions = Array.from({ length: cardRepeater.count }, (_, i) => (cardRepeater.itemAt(i) as NotificationCard)?.popupBlurRegion).filter(Boolean);
   }
 
-  blurRegion: Region {
-    id: popupBlurRegion
-
-  }
+  blurRegion: Region {}
   maskItem: popupColumn
   popupNamespace: "obelisk-notification-popup"
   visible: NotificationService.visibleNotifications.length > 0
-
-  Component {
-    id: cardBlurComponent
-
-    Region {
-      id: cardRegion
-
-      required property NotificationCard card
-
-      item: cardRegion.card
-
-      regions: [
-        Region {
-          intersection: Intersection.Intersect
-          item: cardRegion.card?.blurInsetItem ?? null
-          radius: Theme.panelRadius
-        },
-        Region {
-          intersection: Intersection.Intersect
-          item: popupScroll
-        }
-      ]
-    }
-  }
 
   ScrollView {
     id: popupScroll
@@ -90,7 +51,24 @@ OPopup {
         onItemRemoved: Qt.callLater(root.rebuildBlurRegions)
 
         NotificationCard {
+          id: notificationCard
+
           required property var modelData
+          popupBlurRegion: Region {
+            item: notificationCard
+
+            regions: [
+              Region {
+                intersection: Intersection.Intersect
+                item: notificationCard.blurInsetItem
+                radius: Theme.panelRadius
+              },
+              Region {
+                intersection: Intersection.Intersect
+                item: popupScroll
+              }
+            ]
+          }
 
           group: modelData
           groupScope: "popup"

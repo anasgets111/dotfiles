@@ -77,20 +77,11 @@ Scope {
       id: overlayWindow
 
       readonly property string activeModal: ShellUiState.activeScreenName === screenName ? ShellUiState.activeModal : ""
+      readonly property var activeModalItem: ({launcher: launcherLoader.item, wallpaperPicker: wallpaperLoader.item, idleSettings: idleLoader.item})[activeModal] ?? null
       readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(screenName)
       readonly property string screenName: screen?.name ?? ""
 
-      BackgroundEffect.blurRegion: {
-        switch (overlayWindow.activeModal) {
-        case "launcher":
-          return launcherLoader.item?.blurRegion ?? null;
-        case "wallpaperPicker":
-          return wallpaperLoader.item?.blurRegion ?? null;
-        case "idleSettings":
-          return idleLoader.item?.blurRegion ?? null;
-        }
-        return panelContainer.blurRegion;
-      }
+      BackgroundEffect.blurRegion: overlayWindow.activeModalItem?.blurRegion ?? panelContainer.blurRegion
       WlrLayershell.exclusionMode: ExclusionMode.Ignore
       WlrLayershell.keyboardFocus: (panelContainer.active && panelContainer.needsKeyboardFocus) || activeModal !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
       WlrLayershell.layer: WlrLayer.Top
