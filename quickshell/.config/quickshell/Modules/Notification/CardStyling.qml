@@ -27,7 +27,7 @@ Item {
   Rectangle {
     anchors.fill: parent
     border.color: Theme.borderColor
-    border.width: 2
+    border.width: Theme.borderWidthMedium
     color: base.backgroundColor
     radius: base.radius
   }
@@ -36,8 +36,11 @@ Item {
   Canvas {
     id: borderCanvas
 
+    readonly property color borderColor: Theme.borderColor
+
     anchors.fill: parent
 
+    onBorderColorChanged: requestPaint()
     onHeightChanged: requestPaint()
     onPaint: {
       const ctx = getContext("2d");
@@ -59,8 +62,8 @@ Item {
       const grad = ctx.createLinearGradient(0, 0, w, 0);
       grad.addColorStop(0.0, base.accentColor);
       grad.addColorStop(0.15, base.accentColor);
-      grad.addColorStop(0.4, Theme.borderColor);
-      grad.addColorStop(1.0, Theme.borderColor);
+      grad.addColorStop(0.4, borderCanvas.borderColor);
+      grad.addColorStop(1.0, borderCanvas.borderColor);
 
       ctx.lineWidth = 2;
       ctx.strokeStyle = grad;

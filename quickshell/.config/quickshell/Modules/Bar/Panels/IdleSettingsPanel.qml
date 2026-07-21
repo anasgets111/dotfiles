@@ -90,7 +90,7 @@ Item {
     border.color: Theme.borderLight
     border.width: Theme.borderWidthThin
     clip: true
-    color: Theme.withOpacity(Theme.bgElevatedAlt, Theme.opacityStrong)
+    color: Theme.bgPanel
     focus: true
     height: Math.min(root.windowHeight, parent.height - Theme.spacingXl * 2)
     radius: Theme.radiusXl
@@ -172,7 +172,7 @@ Item {
           }
           IconButton {
             Layout.alignment: Qt.AlignVCenter
-            colorBg: Theme.withOpacity(Theme.bgColor, 0.5)
+            colorBg: Theme.bgCard
             icon: "󰅖"
             shape: "rounded"
             tooltipText: qsTr("Close")
@@ -292,7 +292,7 @@ Item {
 
                   OButton {
                     Layout.fillWidth: true
-                    bgColor: root.lockAfterDisplayPowerOff ? Theme.withOpacity(Theme.bgColor, 0.55) : Theme.activeColor
+                    bgColor: root.lockAfterDisplayPowerOff ? Theme.bgCard : Theme.activeColor
                     size: "sm"
                     text: qsTr("Lock first")
                     textColor: root.lockAfterDisplayPowerOff ? Theme.textInactiveColor : Theme.textContrast(bgColor)
@@ -301,7 +301,7 @@ Item {
                   }
                   OButton {
                     Layout.fillWidth: true
-                    bgColor: root.lockAfterDisplayPowerOff ? Theme.activeColor : Theme.withOpacity(Theme.bgColor, 0.55)
+                    bgColor: root.lockAfterDisplayPowerOff ? Theme.activeColor : Theme.bgCard
                     size: "sm"
                     text: qsTr("Display first")
                     textColor: root.lockAfterDisplayPowerOff ? Theme.textContrast(bgColor) : Theme.textInactiveColor
@@ -383,7 +383,7 @@ Item {
   component FlowSummary: Rectangle {
     id: flowRoot
 
-    color: root.idleEnabled ? Theme.activeSubtle : Theme.withOpacity(Theme.bgColor, 0.35)
+    color: root.idleEnabled ? Theme.activeSubtle : Theme.bgCard
     implicitHeight: flowLayout.implicitHeight + Theme.spacingMd * 2
     radius: Theme.radiusLg
 
@@ -454,7 +454,7 @@ Item {
 
     Layout.leftMargin: Theme.spacingLg
     Layout.rightMargin: Theme.spacingLg
-    color: Theme.withOpacity(Theme.bgColor, 0.45)
+    color: Theme.bgCard
     implicitHeight: messageRow.implicitHeight + Theme.spacingMd * 2
     radius: Theme.radiusMd
 
@@ -601,7 +601,7 @@ Item {
 
     border.color: Theme.borderSubtle
     border.width: Theme.borderWidthThin
-    color: Theme.withOpacity(Theme.bgElevated, 0.35)
+    color: Theme.bgCard
     implicitHeight: sectionLayout.implicitHeight + Theme.spacingLg * 2
     radius: Theme.radiusLg
 

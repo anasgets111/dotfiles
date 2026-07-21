@@ -99,7 +99,7 @@ Item {
   CardStyling {
     accentColor: root.accentColor
     anchors.fill: parent
-    backgroundColor: root.groupScope === "popup" ? Theme.bgPanel : Theme.withOpacity(Theme.bgColor, 0.3)
+    backgroundColor: root.groupScope === "popup" ? Theme.bgPanel : Theme.bgCard
     showShadow: root.groupScope === "popup"
   }
   ColumnLayout {
@@ -121,9 +121,9 @@ Item {
       Rectangle {
         Layout.preferredHeight: Theme.notificationAppIconSize
         Layout.preferredWidth: Theme.notificationAppIconSize
-        border.color: Qt.rgba(255, 255, 255, Theme.opacitySubtle / 3)
+        border.color: Theme.borderSubtle
         border.width: Theme.borderWidthThin
-        color: Qt.rgba(1, 1, 1, Theme.opacitySubtle / 2)
+        color: Theme.bgSubtle
         radius: Theme.radiusSm
         visible: !!root.primaryWrapper
 
@@ -140,7 +140,7 @@ Item {
       OText {
         Layout.fillWidth: true
         bold: true
-        color: "white"
+        color: Theme.textActiveColor
         elide: Text.ElideRight
         horizontalAlignment: Text.AlignHCenter
         text: root.headerTitle
@@ -231,9 +231,9 @@ Item {
             }
             Rectangle {
               anchors.fill: parent
-              border.color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.4) : Qt.rgba(1, 1, 1, 0.1)) : "transparent"
+              border.color: messageItem.isMultipleItems ? (messageItem.isHovered ? Theme.withOpacity(root.accentColor, 0.4) : Theme.borderSubtle) : "transparent"
               border.width: messageItem.isMultipleItems ? 1 : 0
-              color: messageItem.isMultipleItems ? (messageItem.isHovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03)) : "transparent"
+              color: messageItem.isMultipleItems ? (messageItem.isHovered ? Theme.activeSubtle : Theme.bgSubtle) : "transparent"
               radius: Theme.radiusSm
 
               Behavior on border.color {
@@ -403,8 +403,8 @@ Item {
                     background: Rectangle {
                       anchors.fill: parent
                       border.color: replyField.activeFocus ? Theme.activeColor : Theme.borderColor
-                      border.width: 1
-                      color: Theme.bgColor
+                      border.width: Theme.borderWidthThin
+                      color: Theme.bgInput
                       radius: Theme.itemRadius
                     }
 

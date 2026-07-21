@@ -286,7 +286,7 @@ SearchGridPanel {
         Rectangle {
           border.color: Theme.borderSubtle
           border.width: Theme.borderWidthThin
-          color: Theme.withOpacity(Theme.bgColor, 0.45)
+          color: Theme.bgCard
           implicitHeight: Theme.controlHeightLg
           implicitWidth: monitorChips.implicitWidth + Theme.spacingSm
           radius: Theme.radiusFull
@@ -323,7 +323,7 @@ SearchGridPanel {
         Layout.fillWidth: true
         border.color: Theme.borderSubtle
         border.width: Theme.borderWidthThin
-        color: Theme.withOpacity(Theme.bgElevated, 0.35)
+        color: Theme.bgCard
         implicitHeight: settingsLayout.implicitHeight + Theme.spacingLg * 2
         radius: Theme.radiusLg
 
@@ -339,7 +339,6 @@ SearchGridPanel {
             spacing: Theme.spacingSm
 
             OText {
-              color: Theme.textContrast(Theme.bgElevated)
               font.pixelSize: Theme.fontSm
               opacity: 0.75
               text: "󰉋  " + qsTr("Library")
@@ -358,7 +357,6 @@ SearchGridPanel {
             spacing: Theme.spacingMd
 
             OText {
-              color: Theme.textContrast(Theme.bgElevated)
               font.pixelSize: Theme.fontSm
               opacity: 0.75
               text: qsTr("Display mode")
@@ -373,7 +371,6 @@ SearchGridPanel {
               onActivated: index => picker.stageFillMode(picker.fillModeOptions[index]?.value ?? "fill")
             }
             OText {
-              color: Theme.textContrast(Theme.bgElevated)
               font.pixelSize: Theme.fontSm
               opacity: 0.75
               text: qsTr("Transition")
@@ -391,7 +388,6 @@ SearchGridPanel {
               Layout.fillWidth: true
             }
             OText {
-              color: Theme.textContrast(Theme.bgElevated)
               font.pixelSize: Theme.fontSm
               opacity: 0.75
               text: qsTr("Theme")
@@ -406,7 +402,6 @@ SearchGridPanel {
               onActivated: index => Settings?.setThemeName(picker.themeOptions[index]?.value ?? "")
             }
             OText {
-              color: Theme.textContrast(Theme.bgElevated)
               font.pixelSize: Theme.fontSm
               opacity: 0.75
               text: qsTr("Dark")
@@ -488,7 +483,7 @@ SearchGridPanel {
       ClippingRectangle {
         id: card
 
-        color: Theme.withOpacity(Theme.bgElevated, 0.35)
+        color: Theme.bgCard
         radius: Theme.radiusLg
 
         anchors {

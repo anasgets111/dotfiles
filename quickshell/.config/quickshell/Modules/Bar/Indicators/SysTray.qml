@@ -96,7 +96,7 @@ Item {
     id: emptyLabel
 
     anchors.centerIn: parent
-    color: Theme.bgColor
+    color: Theme.textInactiveColor
     opacity: 0.7
     size: "xs"
     text: "No tray items"

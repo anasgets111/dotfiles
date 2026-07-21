@@ -21,7 +21,7 @@ Rectangle {
   Layout.preferredHeight: 56
   border.color: pill.checked && pill.active ? Theme.withOpacity(Theme.activeColor, 0.3) : "transparent"
   border.width: Theme.borderWidthThin
-  color: pill.checked && pill.active ? Theme.activeSubtle : Theme.bgElevated
+  color: pill.checked && pill.active ? Theme.activeSubtle : Theme.bgCard
   opacity: pill.active ? 1.0 : Theme.opacityDisabled
   radius: Theme.radiusLg
 

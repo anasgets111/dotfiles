@@ -52,7 +52,7 @@ ColumnLayout {
     Layout.preferredHeight: root._height
     border.color: root.hasError ? Theme.critical : (textField.activeFocus ? Theme.activeColor : Theme.borderColor)
     border.width: root.hasError ? Theme.borderWidthMedium : Theme.borderWidthThin
-    color: Theme.bgColor
+    color: Theme.bgInput
     radius: Theme.radiusMd
 
     Behavior on border.color {
@@ -81,9 +81,7 @@ ColumnLayout {
       selectionColor: Theme.activeColor
       verticalAlignment: Text.AlignVCenter
 
-      background: Rectangle {
-        color: "transparent"
-      }
+      background: null
 
       Component.onCompleted: {
         if (root.autoFocus)

@@ -60,7 +60,7 @@ PanelContentBase {
       Layout.leftMargin: root.padding
       Layout.preferredHeight: Theme.itemHeight * 1.2
       Layout.rightMargin: root.padding
-      color: Theme.bgElevatedAlt
+      color: Theme.bgCard
       radius: Theme.itemRadius
 
       RowLayout {

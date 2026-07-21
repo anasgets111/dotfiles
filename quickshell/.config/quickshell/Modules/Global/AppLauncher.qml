@@ -216,7 +216,7 @@ Item {
         Layout.preferredHeight: Theme.s(56)
         border.color: search.activeFocus ? Theme.withOpacity(Theme.activeColor, 0.5) : Theme.withOpacity(Theme.borderColor, 0.4)
         border.width: search.activeFocus ? Theme.borderWidthMedium : Theme.borderWidthThin
-        color: Theme.withOpacity(Theme.bgElevated, 0.75)
+        color: Theme.bgCard
         radius: Theme.radiusMd
 
         RowLayout {
@@ -283,7 +283,7 @@ Item {
       }
       Rectangle {
         Layout.fillWidth: true
-        color: Theme.withOpacity(Theme.bgElevated, 0.65)
+        color: Theme.bgCard
         implicitHeight: (hasSpecial || visibleAppCount > 0) ? results.implicitHeight + Theme.spacingSm * 2 : 0
         radius: Theme.radiusMd
         visible: implicitHeight > 0

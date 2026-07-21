@@ -13,13 +13,9 @@ OPopup {
   property int margin: Theme.spacingMd
 
   function rebuildBlurRegions(): void {
-    root.blurRegion.regions = Array.from({ length: cardRepeater.count }, (_, i) => (cardRepeater.itemAt(i) as NotificationCard)?.popupBlurRegion).filter(Boolean).concat(root.blurClipRegion);
+    root.blurRegion.regions = Array.from({ length: cardRepeater.count }, (_, i) => (cardRepeater.itemAt(i) as NotificationCard)?.popupBlurRegion).filter(Boolean);
   }
 
-  readonly property Region blurClipRegion: Region {
-    intersection: Intersection.Intersect
-    item: popupScroll
-  }
   blurRegion: Region {}
   maskItem: popupColumn
   popupNamespace: "obelisk-notification-popup"
@@ -59,8 +55,19 @@ OPopup {
 
           required property var modelData
           popupBlurRegion: Region {
-            item: notificationCard.blurInsetItem
-            radius: Theme.panelRadius
+            item: notificationCard
+
+            regions: [
+              Region {
+                intersection: Intersection.Intersect
+                item: notificationCard.blurInsetItem
+                radius: Theme.panelRadius
+              },
+              Region {
+                intersection: Intersection.Intersect
+                item: popupScroll
+              }
+            ]
           }
 
           group: modelData

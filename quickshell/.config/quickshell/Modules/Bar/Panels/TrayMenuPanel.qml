@@ -132,7 +132,7 @@ PanelContentBase {
       property var enterCallback: null
       property QsMenuHandle submenuHandle: null
 
-      BackgroundEffect.blurRegion: Region {
+      readonly property Region blurRegion: Region {
         bottomLeftRadius: Theme.itemRadius
         bottomRightRadius: Theme.itemRadius
         height: Math.max(0, subPopup.height - 4)
@@ -140,6 +140,8 @@ PanelContentBase {
         x: 2
         y: 2
       }
+
+      BackgroundEffect.blurRegion: subPopup.blurRegion
       anchor.item: anchorTo
       anchor.rect.x: (anchorTo?.width ?? 0) + Theme.spacingSm
       color: "transparent"

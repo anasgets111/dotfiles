@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
+import Quickshell
 import qs.Components
 import qs.Config
 import qs.Services.SystemInfo
@@ -10,6 +11,13 @@ import qs.Services.SystemInfo
 OPopup {
   id: root
 
+  blurRegion: Region {
+    height: card.opacity > 0 ? Math.max(0, card.height - 4) : 0
+    radius: Theme.radiusMd
+    width: card.opacity > 0 ? Math.max(0, card.width - 4) : 0
+    x: card.x + 2
+    y: card.y + 2
+  }
   readonly property string pressedSignature: visibleTokens.join("+")
   readonly property bool shouldStayVisible: InputDisplayService.visible || dragArea.drag.active
   readonly property bool showComboLabel: InputDisplayService.comboDisplayLabel.length > 0 && InputDisplayService.comboLabel !== pressedSignature
@@ -48,13 +56,11 @@ OPopup {
 
     border.color: Theme.borderColor
     border.width: Theme.borderWidthThin
-    color: Theme.bgElevated
+    color: Theme.bgPanel
     height: content.implicitHeight + vpad * 2
     opacity: root.shouldStayVisible ? 1 : 0
     radius: Theme.radiusMd
     width: Math.max(Theme.s(150), content.implicitWidth + hpad * 2)
-    x: 0
-    y: 0
 
     Behavior on opacity {
       NumberAnimation {
@@ -178,7 +184,7 @@ OPopup {
             border.color: Theme.borderColor
             border.width: Theme.borderWidthThin
             clip: true
-            color: Theme.bgElevatedAlt
+            color: Theme.bgCard
             height: keyLabel.implicitHeight + Theme.spacingXs * 2
             radius: Theme.radiusSm
             width: keyLabel.implicitWidth + Theme.spacingSm * 2

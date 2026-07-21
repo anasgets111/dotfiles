@@ -145,7 +145,7 @@ PanelContentBase {
     Layout.fillWidth: true
     border.color: Theme.borderLight
     border.width: Theme.borderWidthThin
-    color: Theme.bgElevated
+    color: Theme.bgCard
     implicitHeight: heroLayout.implicitHeight + Theme.spacingMd * 2
     radius: Theme.radiusLg
 
@@ -300,7 +300,7 @@ PanelContentBase {
     Rectangle {
       Layout.fillWidth: true
       Layout.preferredHeight: Theme.controlHeightLg
-      color: devicePickerHover.hovered ? Theme.withOpacity(Theme.activeColor, 0.08) : Theme.bgElevatedAlt
+      color: devicePickerHover.hovered ? Theme.activeSubtle : Theme.bgCard
       radius: Theme.radiusMd
 
       Behavior on color {
@@ -390,7 +390,7 @@ PanelContentBase {
 
     border.color: root.mixerExpanded ? Theme.borderLight : "transparent"
     border.width: Theme.borderWidthThin
-    color: root.mixerExpanded ? Theme.bgElevated : "transparent"
+    color: root.mixerExpanded ? Theme.bgCard : "transparent"
     implicitHeight: mixerContent.implicitHeight + (root.mixerExpanded ? Theme.spacingSm * 2 : 0)
     radius: Theme.radiusLg
 

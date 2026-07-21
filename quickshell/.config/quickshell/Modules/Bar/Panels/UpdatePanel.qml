@@ -11,7 +11,7 @@ PanelContentBase {
   id: root
 
   readonly property bool hasUpdates: UpdateService.ready && UpdateService.totalUpdates > 0
-  readonly property color headerColor: Qt.lighter(Theme.bgColor, 1.74)
+  readonly property color headerColor: Theme.bgCardHover
   readonly property bool isError: UpdateService.isError
   readonly property bool isIdle: UpdateService.isIdle
   readonly property bool isPackageStep: UpdateService.isSystemPackageStep
@@ -126,7 +126,7 @@ PanelContentBase {
 
             required property var modelData
 
-            color: pkgHover.containsMouse ? Theme.bgElevatedHover : Theme.bgColor
+            color: pkgHover.containsMouse ? Theme.bgCardHover : Theme.bgCard
             height: root.itemHeight
             radius: Theme.itemRadius * 0.5
             width: ListView.view.width
@@ -260,7 +260,7 @@ PanelContentBase {
         Rectangle {
           Layout.fillWidth: true
           Layout.preferredHeight: Theme.itemHeight * 15
-          color: Qt.darker(Theme.bgColor, 1.05)
+          color: Theme.bgInput
 
           ListView {
             id: logView

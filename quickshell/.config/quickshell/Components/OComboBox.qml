@@ -7,8 +7,8 @@ ComboBox {
 
   background: Rectangle {
     border.color: Theme.borderColor
-    border.width: 1
-    color: Theme.bgColor
+    border.width: Theme.borderWidthThin
+    color: Theme.bgInput
     radius: Theme.itemRadius
   }
   contentItem: OText {
@@ -25,8 +25,8 @@ ComboBox {
 
     background: Rectangle {
       border.color: Theme.borderColor
-      border.width: 1
-      color: Theme.bgColor
+      border.width: Theme.borderWidthThin
+      color: Theme.bgCard
       radius: Theme.itemRadius
     }
     contentItem: ListView {

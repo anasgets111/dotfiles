@@ -881,7 +881,7 @@ PanelContentBase {
       anchors.fill: parent
       border.color: sf.hasError ? Theme.critical : innerField.activeFocus ? Theme.activeColor : Theme.borderColor
       border.width: sf.hasError ? Theme.borderWidthMedium : Theme.borderWidthThin
-      color: Theme.bgColor
+      color: Theme.bgInput
       radius: Theme.radiusMd
 
       Behavior on border.color {
@@ -903,9 +903,7 @@ PanelContentBase {
         placeholderText: sf.placeholder
         selectionColor: Theme.activeColor
 
-        background: Rectangle {
-          color: "transparent"
-        }
+        background: null
 
         Component.onCompleted: if (sf.visible)
           Qt.callLater(() => innerField.forceActiveFocus())

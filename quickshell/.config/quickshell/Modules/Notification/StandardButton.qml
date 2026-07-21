@@ -23,13 +23,13 @@ ToolButton {
 
   // Spacing and paddings tuned per role
   padding: btn.buttonType === "action" ? Theme.spacingXs + 2 : Theme.spacingXs
-  palette.buttonText: btn.buttonType === "action" ? "#e0e0e0" : "white"
+  palette.buttonText: Theme.textActiveColor
   rightPadding: btn.buttonType === "action" ? Theme.spacingMd : Theme.spacingSm
 
   background: Rectangle {
-    border.color: Qt.rgba(255, 255, 255, btn.buttonType === "action" ? 0.07 : 0.08)
-    border.width: 1
-    color: btn.hovered ? Qt.rgba(1, 1, 1, btn.buttonType === "action" ? 0.12 : 0.16) : Qt.rgba(1, 1, 1, btn.buttonType === "action" ? 0.08 : 0.10)
+    border.color: Theme.borderSubtle
+    border.width: Theme.borderWidthThin
+    color: btn.hovered ? Theme.bgCardHover : Theme.bgCard
     radius: btn.buttonType === "action" ? Theme.radiusMd : Theme.radiusSm
   }
 }

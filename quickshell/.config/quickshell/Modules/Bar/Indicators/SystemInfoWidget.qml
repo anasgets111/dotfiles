@@ -62,7 +62,7 @@ Item {
 
       Layout.fillWidth: true
       Layout.preferredHeight: Theme.itemHeight
-      bgColor: root.expanded ? Theme.activeColor : Theme.bgElevatedAlt
+      bgColor: root.expanded ? Theme.activeColor : Theme.bgCard
 
       onClicked: root.expanded = !root.expanded
 
@@ -218,7 +218,7 @@ Item {
     Layout.preferredHeight: diskLayout.implicitHeight + Theme.spacingSm * 2
     border.color: Qt.alpha(Theme.activeColor, 0.18)
     border.width: Theme.borderWidthThin
-    color: Theme.bgElevatedAlt
+    color: Theme.bgCard
     radius: Theme.radiusMd
 
     ColumnLayout {
@@ -301,7 +301,7 @@ Item {
     Layout.preferredHeight: gpuLayout.implicitHeight + Theme.spacingSm * 2
     border.color: Qt.alpha(Theme.warning, 0.22)
     border.width: Theme.borderWidthThin
-    color: Theme.bgElevatedAlt
+    color: Theme.bgCard
     radius: Theme.radiusMd
 
     ColumnLayout {
@@ -393,7 +393,7 @@ Item {
     Layout.preferredHeight: Theme.itemHeight * 2.2
     border.color: Qt.alpha(tile.accentColor, 0.22)
     border.width: Theme.borderWidthThin
-    color: Theme.bgElevatedAlt
+    color: Theme.bgCard
     radius: Theme.radiusMd
 
     ColumnLayout {

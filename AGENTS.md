@@ -187,6 +187,8 @@ This section is a living record of findings from repeated interactions. When Cla
 - Quickshell `Process.stdinEnabled: false` closes the QProcess write channel before startup, which can leave children such as `slurp` blocked reading an open pipe. Enable stdin before each run and disable it in `onStarted`; also clean up from `onRunningChanged` because failed starts do not emit `exited`.
 - Quickshell `ObjectModel.get(i)` takes a numeric **index**, not a key. To look up by identity (e.g. a Bluetooth device by MAC), search `model.values.find(x => x.key === …)` — `model.get(address)` silently returns null, which makes every action routed through it (connect/forget/…) a no-op.
 - Qt 6.11.1 `qmlformat` is not a reliable verifier for every service file here: it exits 1 on `NotificationService.qml`/`OSDService.qml` and segfaults on `PrivacyService.qml`/`NotificationText.qml` even when `qmllint` accepts them. Use `qmllint` for syntax verification on those files.
+- Quickshell `Region.item` listens to that item's own geometry changes, not movement inherited from an animated ancestor. When a child item defines an inset region inside a sliding card, wrap it in an outer `Region { item: slidingCard }` so the region rebuilds on every animation frame; pointing directly at the inset child leaves the blur behind.
+- An inline `BackgroundEffect.blurRegion: Region { ... }` inside a `PopupWindow` makes references such as `subPopup.width` lint as unqualified. Declare a typed `readonly property Region blurRegion` on the window and assign `BackgroundEffect.blurRegion: subPopup.blurRegion` instead.
 
 ---
 

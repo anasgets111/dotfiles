@@ -48,7 +48,7 @@ Item {
 
     anchors.fill: parent
     border.color: Theme.withOpacity(Theme.activeColor, 0.3)
-    border.width: 1
+    border.width: Theme.borderWidthThin
     color: Theme.bgPanel
     radius: Theme.radiusXl
   }
@@ -67,7 +67,7 @@ Item {
     Rectangle {
       Layout.fillWidth: true
       Layout.preferredHeight: Theme.osdSliderTrackHeight
-      color: Qt.rgba(1, 1, 1, Theme.opacityLight)
+      color: Theme.withOpacity(Theme.textActiveColor, Theme.opacityLight)
       radius: Theme.radiusSm
 
       Slider {

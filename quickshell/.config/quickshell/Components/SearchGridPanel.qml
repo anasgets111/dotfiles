@@ -239,7 +239,7 @@ Item {
 
     anchors.centerIn: parent
     border.color: root.popupBorderColor
-    border.width: 1
+    border.width: Theme.borderWidthThin
     color: Theme.bgPanel
     focus: true
     height: root.windowHeight
@@ -308,8 +308,8 @@ Item {
 
         background: Rectangle {
           border.color: searchField.activeFocus ? Theme.activeColor : Theme.borderColor
-          border.width: searchField.activeFocus ? 2 : 1
-          color: Theme.bgColor
+          border.width: searchField.activeFocus ? Theme.borderWidthMedium : Theme.borderWidthThin
+          color: Theme.bgInput
           radius: Theme.itemRadius
         }
 

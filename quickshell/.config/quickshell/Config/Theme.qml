@@ -92,14 +92,15 @@ Singleton {
   // SCALED DIMENSIONS
   // ═══════════════════════════════════════════════════════════════════════════
   readonly property int batteryPillWidth: s(baseBatteryPillWidth, 60)
-  readonly property color bgCard: c.bgCard ?? withOpacity(bgColor, opacitySolid)
   readonly property color bgColor: c.bgColor ?? "#1e1e2e"
   readonly property color bgElevated: c.bgElevated ?? Qt.lighter(bgColor, 1.35)
   readonly property color bgElevatedAlt: c.bgElevatedAlt ?? Qt.lighter(bgColor, 1.25)
   readonly property color bgElevatedHover: c.bgElevatedHover ?? Qt.lighter(bgColor, 1.47)
+  readonly property color bgCard: c.bgCard ?? withOpacity(bgElevated, opacitySolid)
+  readonly property color bgCardHover: c.bgCardHover ?? withOpacity(bgElevatedHover, opacityStrong)
   readonly property color bgInput: c.bgInput ?? withOpacity(bgColor, opacityStrong)
   readonly property color bgOverlay: withOpacity(c.bgOverlay ?? "#000000", 0.5)
-  readonly property color bgPanel: c.bgPanel ?? withOpacity(bgColor, opacityStrong)
+  readonly property color bgPanel: c.bgPanel ?? withOpacity(bgColor, 0.9)
   readonly property color bgSubtle: c.bgSubtle ?? withOpacity(bgColor, opacitySubtle)
   readonly property color borderColor: c.borderColor ?? "#313244"
   readonly property color borderLight: c.borderLight ?? withOpacity(borderColor, opacityMedium)

@@ -195,7 +195,7 @@ Item {
     readonly property int wCode: hasData ? forecast.weathercode[dayIndex] : -1
     readonly property var wInfo: WeatherService.weatherInfo(wCode)
 
-    color: isToday ? Qt.alpha(Theme.activeColor, 0.2) : Qt.lighter(Theme.bgColor, 1.3)
+    color: isToday ? Theme.activeSubtle : Theme.bgCard
     implicitHeight: col.implicitHeight + Theme.spacingLg
     radius: Theme.itemRadius
 
