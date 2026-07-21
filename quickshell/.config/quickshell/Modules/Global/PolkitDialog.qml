@@ -32,6 +32,10 @@ Scope {
     id: window
 
     required property var agent
+    readonly property Region blurRegion: Region {
+      item: dialogCard
+      radius: dialogCard.radius
+    }
     readonly property var flow: agent.flow
 
     function submit(): void {
@@ -41,6 +45,7 @@ Scope {
       }
     }
 
+    BackgroundEffect.blurRegion: window.blurRegion
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "polkit-dialog"
@@ -53,10 +58,12 @@ Scope {
       top: true
     }
     Rectangle {
+      id: dialogCard
+
       anchors.centerIn: parent
       border.color: Theme.activeColor
-      border.width: 1
-      color: Theme.bgColor
+      border.width: Theme.borderWidthThin
+      color: Theme.bgPanel
       height: layout.implicitHeight + Theme.dialogPadding * 2
       radius: Theme.itemRadius
       width: Theme.dialogWidth
