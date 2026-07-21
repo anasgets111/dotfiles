@@ -51,6 +51,7 @@ OPopup {
     readonly property int hpad: Theme.spacingLg
     readonly property int vpad: Theme.spacingMd
 
+    color: Theme.bgPanel
     height: content.implicitHeight + vpad * 2
     opacity: root.shouldStayVisible ? 1 : 0
     padding: 0

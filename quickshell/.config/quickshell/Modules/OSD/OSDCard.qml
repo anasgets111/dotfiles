@@ -46,6 +46,7 @@ Item {
     id: bg
 
     anchors.fill: parent
+    color: Theme.bgPanel
     padding: 0
     tone: "active"
   }

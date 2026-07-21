@@ -168,6 +168,9 @@ Singleton {
   readonly property int idleTimeoutControlWidth: s(108)
 
   // Launcher
+  readonly property int launcherIconSize: s(42)
+  readonly property int launcherRowHeight: s(64)
+  readonly property int launcherSpecialRowHeight: s(86)
   readonly property int launcherWindowHeight: s(680)
   readonly property int launcherWindowWidth: s(860)
 

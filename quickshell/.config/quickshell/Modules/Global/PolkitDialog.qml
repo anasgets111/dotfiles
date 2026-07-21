@@ -54,6 +54,7 @@ Scope {
       id: dialogCard
 
       anchors.centerIn: parent
+      color: Theme.bgPanel
       focus: true
       height: layout.implicitHeight + Theme.dialogPadding * 2
       padding: 0

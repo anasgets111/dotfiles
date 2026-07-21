@@ -119,7 +119,7 @@ OModal {
 
       Layout.fillWidth: true
       placeholderText: qsTr("Search apps, calculate, convert currency…")
-      size: "lg"
+      size: "xl"
       onInputChanged: root.processInput(text)
       onKeyPressed: event => root.handleSearchKey(event)
     }
@@ -136,6 +136,7 @@ OModal {
           id: specialRow
 
           Layout.fillWidth: true
+          Layout.preferredHeight: Theme.launcherSpecialRowHeight
           selected: root.specialSelected
           subtitle: LauncherService.activeProvider?.rowSubtitle ?? ""
           title: LauncherService.activeProvider?.rowTitle ?? ""
@@ -144,7 +145,7 @@ OModal {
             OText {
               anchors.centerIn: parent
               font.family: LauncherService.activeProvider?.rowIconIsText ? Theme.fontFamily : Theme.iconFontFamily
-              font.pixelSize: Theme.iconSizeMd
+              font.pixelSize: Theme.launcherIconSize
               text: LauncherService.activeProvider?.rowIcon ?? ""
             }
           ]
@@ -174,6 +175,7 @@ OModal {
             required property int index
             required property var modelData
             readonly property int composedIndex: root.hasSpecial ? index + 1 : index
+            height: Theme.launcherRowHeight
             width: ListView.view.width
             selected: composedIndex === root.currentIndex
             subtitle: modelData?.comment || ""
@@ -182,11 +184,14 @@ OModal {
             leading: [
               Image {
                 anchors.centerIn: parent
-                height: Theme.iconSizeLg
-                width: Theme.iconSizeLg
+                height: Theme.launcherIconSize
+                width: Theme.launcherIconSize
                 fillMode: Image.PreserveAspectFit
+                scale: appRow.selected ? 1.3 : 1
                 source: Utils.resolveIconSource(appRow.modelData?.id || appRow.modelData?.name || "", appRow.modelData?.icon, "application-x-executable")
                 sourceSize: Qt.size(width, height)
+
+                Behavior on scale { NumberAnimation { duration: Theme.animationFast; easing.type: Easing.OutCubic } }
               }
             ]
             onClicked: root.launch(modelData)

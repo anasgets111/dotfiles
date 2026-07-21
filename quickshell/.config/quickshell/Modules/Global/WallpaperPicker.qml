@@ -136,6 +136,7 @@ OModal {
               anchors.margins: Theme.spacingXs
               border.color: tile.selected ? Theme.activeColor : Theme.borderLight
               border.width: tile.selected ? Theme.borderWidthMedium : Theme.borderWidthThin
+              color: Theme.bgCard
               radius: Theme.radiusLg
 
               Image {

@@ -8,10 +8,11 @@ Item {
   id: root
 
   property bool active: false
+  property real progress: 0
   readonly property Region blurRegion: Region {
-    height: modalSurface.opacity > 0 ? modalSurface.height * modalSurface.scale : 0
+    height: root.visible ? modalSurface.height * modalSurface.scale : 0
     radius: modalSurface.radius * modalSurface.scale
-    width: modalSurface.opacity > 0 ? modalSurface.width * modalSurface.scale : 0
+    width: root.visible ? modalSurface.width * modalSurface.scale : 0
     x: modalSurface.x + (modalSurface.width - width) / 2
     y: modalSurface.y + (modalSurface.height - height) / 2 + modalTranslate.y
   }
@@ -27,31 +28,38 @@ Item {
     if (!active)
       return;
     active = false;
-    closeTimer.restart();
   }
   anchors.fill: parent
   focus: active
-  visible: active || closeTimer.running
+  visible: active || progressAnimation.running || progress > 0
 
-  onActiveChanged: if (active) {
-    closeTimer.stop();
-    searchInput?.clear?.();
-    Qt.callLater(() => (searchInput ?? modalSurface).forceActiveFocus?.());
+  onActiveChanged: {
+    progressAnimation.easing.type = active ? Easing.OutCubic : Easing.InCubic;
+    progressAnimation.to = active ? 1 : 0;
+    progressAnimation.restart();
+    if (active) {
+      searchInput?.clear?.();
+      Qt.callLater(() => {
+        if (active)
+          (searchInput ?? modalSurface).forceActiveFocus?.();
+      });
+    }
   }
 
-  Timer {
-    id: closeTimer
+  NumberAnimation {
+    id: progressAnimation
 
-    interval: Theme.animationDuration
-    onTriggered: root.dismissed()
+    duration: Theme.animationDuration
+    property: "progress"
+    target: root
+    onFinished: if (!root.active)
+      root.dismissed()
   }
 
   Rectangle {
     anchors.fill: parent
     color: root.scrimColor
-    opacity: root.active ? root.scrimOpacity : 0
-
-    Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+    opacity: root.scrimOpacity * root.progress
   }
   MouseArea {
     anchors.fill: parent
@@ -75,19 +83,14 @@ Item {
     color: Theme.bgPanel
     focus: true
     height: Math.min(root.preferredHeight, root.height - Theme.modalMargin * 2)
-    opacity: root.active ? 1 : 0
     radius: Theme.modalRadius
-    scale: root.active ? 1 : Theme.modalClosedScale
+    scale: Theme.modalClosedScale + (1 - Theme.modalClosedScale) * root.progress
     transform: Translate {
       id: modalTranslate
 
-      y: root.active ? 0 : -Theme.spacingMd
-      Behavior on y { NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutCubic } }
+      y: -Theme.spacingMd * (1 - root.progress)
     }
     width: Math.min(root.preferredWidth, root.width - Theme.modalMargin * 2)
-
-    Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
-    Behavior on scale { NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutCubic } }
 
     Keys.onPressed: event => {
       if (event.key === Qt.Key_Escape) {
