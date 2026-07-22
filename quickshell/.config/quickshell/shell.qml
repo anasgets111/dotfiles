@@ -41,8 +41,7 @@ ShellRoot {
     }
   }
   LazyLoader {
-    // Settings load after the QML defaults. Synchronous activation avoids an
-    // activeAsync cancellation race leaving the default-enabled surface alive.
+    // Settings load after QML defaults; synchronous activation avoids an activeAsync cancellation race.
     active: InputDisplayService.enabled
 
     component: InputDisplayPopup {
@@ -63,7 +62,6 @@ ShellRoot {
     }
   }
 
-  // Niri overview wallpaper - static, shown only in overview via layer-rule
   LazyLoader {
     active: MainService.ready && WorkspaceService.hasOverview
 

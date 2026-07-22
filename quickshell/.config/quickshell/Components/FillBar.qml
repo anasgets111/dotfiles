@@ -9,7 +9,7 @@ Item {
 
   property int animMs: Theme.animationDuration
   property color fillColor: Theme.activeColor
-  property real progress: 0      // 0..1
+  property real progress: 0 // 0..1
   property real radius: Theme.itemRadius
 
   anchors.fill: parent

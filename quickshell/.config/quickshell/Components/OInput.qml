@@ -3,37 +3,20 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Config
 
-/**
- * OInput - Obelisk themed text input component
- *
- * A TextField wrapper with error states, placeholder support,
- * and Theme-based styling including focus indicators.
- *
- * Size presets: "sm", "md" (default), "lg"
- *
- * Examples:
- *   OInput { placeholderText: "Enter name" }
- *   OInput { size: "sm"; placeholderText: "Search..." }
- *   OInput { size: "lg"; hasError: true; errorMessage: "Invalid" }
- */
 ColumnLayout {
   id: root
 
-  // Computed from size using Theme helper functions
   readonly property int _fontSize: Theme.fontSizeFor(size)
   readonly property int _height: Theme.controlHeightFor(size)
   readonly property int _padding: Theme.spacingFor(size)
 
-  // Input properties
   property bool autoFocus: false
   property alias echoMode: textField.echoMode
   property string errorMessage: ""
 
-  // Error state
   property bool hasError: false
   property alias placeholderText: textField.placeholderText
 
-  // Size preset: "sm", "md", "lg"
   property string size: "md"
   property alias text: textField.text
 
@@ -98,7 +81,6 @@ ColumnLayout {
     }
   }
 
-  // Error message
   OText {
     Layout.fillWidth: true
     color: Theme.critical

@@ -73,9 +73,7 @@ Singleton {
           height: screen.height,
           scale: screen.devicePixelRatio || 1,
           orientation: screen.orientation,
-          // ponytail: ShellScreen has no refresh/format fields. Adapters fill
-          // these when their compositor version exposes them; values stay null
-          // otherwise. Add a DRM-property probe only if a consumer needs more.
+          // ponytail: ShellScreen lacks these fields; adapters fill them when supported.
           fps: null,
           bitDepth: null,
           modes: [],

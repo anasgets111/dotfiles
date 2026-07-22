@@ -9,9 +9,6 @@ import qs.Services.Utils
 Singleton {
   id: root
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // COLOR SCHEME
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property string _colorSchemePath: Qt.resolvedUrl("../Assets/ColorScheme/" + (root.data?.themeName ?? "Catppuccin") + ".json")
   property var _loadedScheme: ({})
   readonly property string _xdgConfig: Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
@@ -22,23 +19,14 @@ Singleton {
   property alias data: settingsAdapter
   property string defaultWallpaper: Qt.resolvedUrl("../Assets/3.webp")
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // STATE
-  // ═══════════════════════════════════════════════════════════════════════════
   property bool isLoaded: false
   property bool isStateLoaded: false
   property string settingsFile: Quickshell.env("OBELISK_SETTINGS_FILE") || (configDir + "settings.json")
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PATHS
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property string shellName: "Obelisk"
   property alias state: cacheAdapter
   property string stateFile: cacheDir + "state.json"
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PUBLIC API
-  // ═══════════════════════════════════════════════════════════════════════════
   function setThemeMode(mode: string): void {
     const validMode = mode === "light" ? "light" : "dark";
     if (root.data?.themeMode !== validMode)
@@ -54,16 +42,10 @@ Singleton {
     root.data.themeName = name;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // INITIALIZATION
-  // ═══════════════════════════════════════════════════════════════════════════
   Component.onCompleted: {
     Command.detached(["mkdir", "-p", configDir, cacheDir]);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // COLOR SCHEME LOADER
-  // ═══════════════════════════════════════════════════════════════════════════
   FileView {
     id: colorSchemeFileView
 
@@ -90,9 +72,6 @@ Singleton {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // THEME ENUMERATOR
-  // ═══════════════════════════════════════════════════════════════════════════
   FolderListModel {
     id: themeEnumerator
 
@@ -166,9 +145,6 @@ Singleton {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SETTINGS PERSISTENCE
-  // ═══════════════════════════════════════════════════════════════════════════
   Timer {
     id: saveTimer
 
@@ -198,9 +174,6 @@ Singleton {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // STATE PERSISTENCE
-  // ═══════════════════════════════════════════════════════════════════════════
   Timer {
     id: saveStateTimer
 

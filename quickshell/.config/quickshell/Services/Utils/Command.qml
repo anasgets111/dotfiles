@@ -8,20 +8,16 @@ import Quickshell.Io
 Singleton {
   id: root
 
-  // Reusable Process instances. Grown on demand, never destroyed: destroying a
-  // Quickshell Process from within its own exit handler is a use-after-free.
-  // In-flight lanes are tracked by scanning this pool rather than mutating a
-  // shared JS object — repeated key add/delete on a `property var` object churns
-  // V4 internal classes and crashes under high-frequency calls.
+  // Processes stay pooled: destroying one in its exit handler is a use-after-free.
+  // Scanning lanes also avoids V4 crashes from frequent key churn on a shared JS object.
   property var _pool: []
 
   function detached(argv: var): void {
     Quickshell.execDetached(argv);
   }
 
-  // Returns a {cancel()} handle, or null when the lane is already busy.
-  // Cancelling kills the process and suppresses the callback; `stdinText`
-  // is written once on start (for secrets that must not appear in argv).
+  // Returns a cancel handle, or null when the requested lane is already busy.
+  // stdinText is written after start so secrets need not appear in argv.
   function run(argv: var, callback: var, lane: var, stdinText: var): var {
     let idle = null;
     for (let i = 0; i < root._pool.length; i++) {

@@ -3,13 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Io
 
-// The Watch shape of the Command seam: a long-running, line-streamed command.
-// Drive it with `active` (the caller's intent to be running) rather than `running`
-// directly. When `restartDelay` > 0 the process is respawned that many ms after it
-// dies while still active.
-// Connect `onLineRead` / `onErrorRead` for stdout / stderr lines, and
-// `onExited` if needed. Callers must NOT override `onRunningChanged`,
-// `onActiveChanged` or `Component.onCompleted` — those own the start/restart lifecycle.
+// `active` owns start/restart lifecycle; callers must not override the three handlers below.
 Process {
   id: root
 

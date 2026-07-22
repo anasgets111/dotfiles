@@ -2,10 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Line-oriented socket on the Niri IPC path that subscribes to the event
-// stream when `eventStream` is set and reconnects after any error or
-// unexpected disconnect, with exponential backoff (capped) so a socket that
-// never comes back doesn't spin forever. Instances handle onLineRead / onConnectedChanged.
 Scope {
   id: root
 

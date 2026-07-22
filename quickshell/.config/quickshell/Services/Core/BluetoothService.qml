@@ -58,8 +58,8 @@ Singleton {
       }
     })
   property string connectAfterPairAddress: ""
-  // Consumers bind to deviceCodecs[address]; emit change signals after object mutation.
   property var deviceAvailableCodecs: ({})
+  // Object-key mutation needs explicit change signals for consumers to rebind.
   property var deviceCodecs: ({})
   readonly property var deviceIconMap: [[["display", "tv", "[tv]", "television"], "󰔂"], [["watch"], "󰥔"], [["mouse"], "󰍽"], [["keyboard"], "󰌌"], [["phone", "iphone", "android", "samsung"], "󰄜"], [audioKeywords, "󰋋"]]
   readonly property var deviceModels: root.buildDeviceModels(root._revision)

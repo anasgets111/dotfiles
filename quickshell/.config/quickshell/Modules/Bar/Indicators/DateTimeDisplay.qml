@@ -43,7 +43,6 @@ Item {
     height: parent.height
     spacing: Theme.spacingXs
 
-    // Notification indicator
     Text {
       anchors.verticalCenter: parent.verticalCenter
       color: !mouseArea.containsMouse && dateTimeDisplay.hasNotifications ? Theme.activeColor : Theme.textContrast(dateTimeDisplay.bgColor)

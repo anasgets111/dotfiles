@@ -1,5 +1,4 @@
-// Fzf for JavaScript (QML port for Quickshell)
-// BSD 3-Clause License - Copyright (c) 2021, Ajit
+// Fzf JavaScript port for Quickshell; BSD-3-Clause, copyright 2021 Ajit.
 pragma Singleton
 import Quickshell
 
@@ -143,9 +142,8 @@ Singleton {
       root.sortResults(results, options);
     return Number.isFinite(options.limit) ? results.slice(0, options.limit) : results;
   }
+  // ponytail: Unicode uses locale-aware subsequence scoring; upgrade if exact fzf parity is needed.
   function fuzzyMatchUnicode(caseSensitive: bool, inputText: string, patternText: string): var {
-    // ponytail: Unicode fallback uses locale-aware subsequence scoring rather than
-    // full fzf normalization. Upgrade only if localized ranking needs exact parity.
     const input = Array.from(caseSensitive ? inputText : inputText.toLocaleLowerCase());
     const pattern = Array.from(caseSensitive ? patternText : patternText.toLocaleLowerCase());
     if (pattern.length === 0)

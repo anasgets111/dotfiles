@@ -27,7 +27,7 @@ PopupWindow {
   property Item target: null
   property string text: ""
 
-  // Quickshell._Window exposes this as PopupAnchor from its parent module, but
+  // PopupAnchor is provided dynamically by Quickshell._Window.
   // qmllint disable unresolved-type missing-type
   function updateAnchor(): void {
     if (root.visible)
@@ -41,6 +41,7 @@ PopupWindow {
   anchor.item: root.target
   anchor.rect: root.positionAtMouse ? Qt.rect(root._mouseX + root.mouseOffsetX, root._mouseY + root.mouseOffsetY, 1, 1) : Qt.rect((root.target?.width ?? 0) / 2, (root.target?.height ?? 0) + Theme.spacingMd, 1, 1)
   // qmllint enable unresolved-type missing-type
+
   color: "transparent"
   implicitHeight: Math.max(Theme.controlHeightMd, (root.hasCustomContent ? contentContainer.implicitHeight : tooltipText.implicitHeight) + root._vPadding * 2)
   implicitWidth: Math.max(Theme.controlWidthLg, (root.hasCustomContent ? contentContainer.implicitWidth : tooltipText.implicitWidth) + root._hPadding * 2)

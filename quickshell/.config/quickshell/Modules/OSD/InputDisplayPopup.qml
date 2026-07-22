@@ -103,7 +103,6 @@ OPopup {
         topMargin: card.vpad
       }
 
-      // ── Drag strip ─────────────────────────────────────────────
       Item {
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.spacingMd
@@ -149,7 +148,6 @@ OPopup {
         }
       }
 
-      // ── Combo label ────────────────────────────────────────────
       OText {
         Layout.alignment: Qt.AlignHCenter
         Layout.fillWidth: true
@@ -162,7 +160,6 @@ OPopup {
         wrapMode: Text.Wrap
       }
 
-      // ── Held key chips ─────────────────────────────────────────
       Flow {
         Layout.alignment: Qt.AlignHCenter
         Layout.fillWidth: true
@@ -185,7 +182,6 @@ OPopup {
             radius: Theme.radiusSm
             width: keyLabel.implicitWidth + Theme.spacingSm * 2
 
-            // Keycap depth: accent bar along the bottom edge
             Rectangle {
               anchors.bottom: parent.bottom
               anchors.left: parent.left

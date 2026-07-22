@@ -39,9 +39,9 @@ Singleton {
     gpuMemTotalKib = 0;
   }
   function _pollGpuUsage(): void {
+    // ponytail: this widget reports one GPU; add a selector before supporting multi-GPU hosts.
     Command.run(["nvtop", "-s"], result => {
       try {
-        // ponytail: the widget shows one GPU; add a selector before supporting multi-GPU hosts.
         const gpu = JSON.parse(result.stdout)?.[0];
         if (!gpu) {
           root._clearGpuSnapshot();

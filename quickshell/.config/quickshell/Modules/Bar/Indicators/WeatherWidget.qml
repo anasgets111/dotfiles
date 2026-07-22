@@ -25,7 +25,6 @@ Item {
       top: parent.top
     }
 
-    // Header
     RowLayout {
       Layout.fillWidth: true
       spacing: Theme.spacingSm
@@ -77,12 +76,10 @@ Item {
       }
     }
 
-    // Content
     ColumnLayout {
       Layout.fillWidth: true
       spacing: Theme.spacingSm
 
-      // Summary Row
       RowLayout {
         Layout.fillWidth: true
         spacing: Theme.spacingSm
@@ -114,7 +111,6 @@ Item {
         }
       }
 
-      // Expanded Grid
       Item {
         Layout.fillWidth: true
         Layout.preferredHeight: root.expanded ? gridLayout.implicitHeight : 0
@@ -154,7 +150,6 @@ Item {
         }
       }
 
-      // Loading / Error
       Item {
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.itemHeight * 2

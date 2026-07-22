@@ -110,8 +110,8 @@ Singleton {
       "usdc": "₵"
     };
     const country = specials[lower] || lower.substring(0, 2);
-    // Regional Indicator Symbol conversion (A=127462)
     if (country.length === 2 && /^[a-z]{2}$/i.test(country)) {
+      // Unicode regional indicators start 127397 code points after ASCII letters.
       return String.fromCodePoint(...[...country.toUpperCase()].map(c => c.charCodeAt(0) + 127397));
     }
     return country.toUpperCase();

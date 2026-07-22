@@ -3,8 +3,6 @@ import QtQuick
 import Quickshell
 import qs.Services.Utils
 
-// Canonical state replicated from Niri's event stream, plus its serialized
-// request channel. Consumers bind to the current state and can load at any time.
 Singleton {
   id: root
 

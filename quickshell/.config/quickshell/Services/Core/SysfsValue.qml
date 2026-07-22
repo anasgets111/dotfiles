@@ -1,7 +1,5 @@
 import Quickshell.Io
 
-// Integer sysfs attribute read through a FileView; `valid` drops on path
-// change or read failure so owners can gate readiness on it.
 FileView {
   id: view
 

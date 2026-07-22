@@ -10,23 +10,20 @@ Item {
   property real __wheelAccum: 0
   property int animMs: Theme.animationDuration
 
-  // Internal
   property bool dragging: false
-  // Visual customization
-  property color fillColor: Theme.activeColor        // base fill color (0..splitAt)
-  property color headroomColor: Theme.onHoverColor   // color for segment beyond splitAt
+  property color fillColor: Theme.activeColor
+  property color headroomColor: Theme.onHoverColor
   property bool interactive: true
   property real pending: value
   property real radius: Theme.itemRadius
-  property real splitAt: 1.0                         // normalized split (0..1). 1.0 => single color
-  property int steps: 0        // 0 => continuous; >0 => stepped
+  property real splitAt: 1.0 // normalized; 1 disables the headroom segment
+  property int steps: 0 // 0 is continuous
 
-  // Public API
-  property real value: 0.0     // 0..1
+  property real value: 0.0 // 0..1
   property real wheelStep: 0.05
 
-  signal changing(real v)      // while dragging
-  signal committed(real v)     // on release or wheel
+  signal changing(real v)
+  signal committed(real v)
 
   function clamp01(v) {
     return Math.max(0, Math.min(1, v));
@@ -48,7 +45,6 @@ Item {
     slider.changing(pending);
   }
 
-  // Visual track: two-tone fill (0..splitAt) and (splitAt..1)
   Item {
     id: track
 
@@ -57,7 +53,6 @@ Item {
 
     anchors.fill: parent
 
-    // Base segment (0 .. eff). We overlay headroom on top to avoid a seam.
     FillBar {
       anchors.fill: parent
       animMs: slider.animMs
@@ -66,8 +61,6 @@ Item {
       radius: slider.radius
     }
 
-    // Excess segment (s .. eff) drawn as an overlay within a full-width clipping rect
-    // to avoid rounding at the internal split boundary
     ClippingRectangle {
       anchors.fill: parent
       color: "transparent"
@@ -113,7 +106,7 @@ Item {
       slider.commit(slider.pending);
     }
     onWheel: e => {
-      // Pixel if available, else angle (120 per notch)
+      // angleDelta uses 120 units per wheel notch.
       const hasPixel = !!(e.pixelDelta && e.pixelDelta.y);
       const eff = hasPixel ? e.pixelDelta.y : e.angleDelta.y;
       if (!eff || Math.abs(eff) < 1) {

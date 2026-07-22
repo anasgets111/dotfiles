@@ -9,9 +9,8 @@ Singleton {
   id: root
 
   property bool _cleanupInFlight: false
-  // Detached recording survives hot reload. PID + kernel start time prevents
-  // signalling a recycled PID. ponytail: gpu-screen-recorder must stay foreground;
-  // consume a recorder-provided pidfile if it ever starts daemonizing.
+  // PID plus kernel start time prevents signalling a recycled process after hot reload.
+  // ponytail: gpu-screen-recorder must stay foreground; use its pidfile if it ever daemonizes.
   readonly property string _launchScript: 'lock_path="$1"; output_path="$2"; shift 2; "$@" </dev/null >/dev/null 2>&1 & pid=$!; for _ in 1 2 3 4 5 6 7 8 9 10; do exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null || true); [ "${exe##*/}" = gpu-screen-recorder ] && break; kill -0 "$pid" 2>/dev/null || exit 1; sleep 0.02; done; [ "${exe##*/}" = gpu-screen-recorder ] || { kill -TERM "$pid" 2>/dev/null || true; exit 1; }; start_time=$(awk "{print \\$22}" "/proc/$pid/stat" 2>/dev/null); [ -n "$start_time" ] || { kill -INT "$pid" 2>/dev/null || true; exit 1; }; lock_tmp="$lock_path.$$"; { printf "%s\\n%s\\n%s\\n" "$pid" "$start_time" "$output_path" > "$lock_tmp" && mv -f "$lock_tmp" "$lock_path"; } || { rm -f "$lock_tmp"; kill -INT "$pid" 2>/dev/null || true; exit 1; }; printf "%s\\n%s\\n" "$pid" "$start_time" || { rm -f "$lock_path"; kill -INT "$pid" 2>/dev/null || true; exit 1; }'
   readonly property string _probeScript: 'pid="$1"; expected_start="$2"; case "$pid" in ""|*[!0-9]*) exit 2;; esac; current_start=$(awk "{print \\$22}" "/proc/$pid/stat" 2>/dev/null) || exit 3; [ "$current_start" = "$expected_start" ] || exit 4; exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null) || exit 5; [ "${exe##*/}" = gpu-screen-recorder ] || exit 6'
   property int _recorderPid: 0

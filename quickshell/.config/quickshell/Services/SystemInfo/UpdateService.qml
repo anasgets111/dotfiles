@@ -100,8 +100,8 @@ Singleton {
   function _notify(title: string, message: string, urgency = "normal", actionable = false): void {
     Logger.log("UpdateService", `Sending notification: ${title} - ${message}`);
     const baseArgs = ["-u", urgency, "-a", _notificationAppName, "-n", "system-software-update"];
-    // --wait keeps stdout open so the clicked action can be read.
     if (actionable) {
+      // --wait keeps stdout open for the selected action.
       _showActionNotification(baseArgs.concat("--print-id", "--replace-id", "8001", "--wait", "-A", `${_runUpdatesAction}=${qsTr("Run updates")}`, title, message));
       return;
     }

@@ -125,7 +125,6 @@ Item {
     target: LockService
   }
 
-  // ── Main Shell ──────────────────────────────────────────────
   Rectangle {
     id: shell
 
@@ -148,7 +147,6 @@ Item {
       shadowVerticalOffset: Theme.shadowOffsetY * 2.5
     }
 
-    // Inner highlight border
     Rectangle {
       anchors.fill: parent
       anchors.margins: Theme.borderWidthThin
@@ -164,7 +162,6 @@ Item {
       anchors.margins: root.spaceXl
       spacing: 0
 
-      // ── Hero Clock ────────────────────────────────────────
       OText {
         Layout.fillWidth: true
         color: Theme.textActiveColor
@@ -182,12 +179,10 @@ Item {
         text: TimeService.format("date", "dddd, MMMM d")
       }
 
-      // ── Spacer ────────────────────────────────────────────
       Item {
         Layout.preferredHeight: root.spaceXl
       }
 
-      // ── Avatar ────────────────────────────────────────────
       Item {
         readonly property int avatarSize: Math.round(Theme.controlHeightLg * 2.4 * root.roundedScale)
 
@@ -195,7 +190,6 @@ Item {
         Layout.preferredHeight: avatarSize
         Layout.preferredWidth: avatarSize
 
-        // Glow ring behind avatar
         Rectangle {
           anchors.centerIn: parent
           border.color: Theme.withOpacity(Theme.activeColor, 0.5)
@@ -227,7 +221,6 @@ Item {
         }
       }
 
-      // ── User Identity ─────────────────────────────────────
       OText {
         Layout.fillWidth: true
         Layout.topMargin: root.spaceMd
@@ -246,12 +239,10 @@ Item {
         text: (MainService.username || "user") + "@" + (MainService.hostname || "localhost")
       }
 
-      // ── Spacer ────────────────────────────────────────────
       Item {
         Layout.preferredHeight: root.spaceLg
       }
 
-      // ── Password Field (bare, no card wrapper) ────────────
       Rectangle {
         id: passwordInput
 
@@ -299,7 +290,6 @@ Item {
             text: passwordInput.hasPassword ? "●".repeat(Math.min(LockService.passwordBuffer.length, 32)) : "Password"
           }
 
-          // Caps lock badge
           Rectangle {
             Layout.preferredHeight: Math.round(Theme.controlHeightXs * root.lockScale)
             Layout.preferredWidth: capsRow.implicitWidth + root.spaceSm * 2
@@ -331,7 +321,6 @@ Item {
         }
       }
 
-      // ── Auth Hint ─────────────────────────────────────────
       OText {
         Layout.fillWidth: true
         Layout.topMargin: root.spaceSm
@@ -342,12 +331,10 @@ Item {
         wrapMode: Text.WordWrap
       }
 
-      // ── Spacer (push footer down) ────────────────────────
       Item {
         Layout.preferredHeight: root.spaceXl
       }
 
-      // ── Thin separator ────────────────────────────────────
       Rectangle {
         Layout.alignment: Qt.AlignHCenter
         Layout.preferredHeight: Theme.borderWidthThin
@@ -358,7 +345,6 @@ Item {
         Layout.preferredHeight: root.spaceSm
       }
 
-      // ── Status Footer ─────────────────────────────────────
       RowLayout {
         Layout.alignment: Qt.AlignHCenter
         spacing: root.spaceMd

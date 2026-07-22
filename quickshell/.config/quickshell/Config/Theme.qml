@@ -7,9 +7,6 @@ import qs.Services.WM
 Singleton {
   id: theme
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LOOKUP MAPS (for *For functions)
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property var _controlHeights: ({
       xs: controlHeightXs,
       sm: controlHeightSm,
@@ -42,36 +39,21 @@ Singleton {
       xl: spacingXl
     })
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // BASE COLORS
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property color activeColor: c.activeColor ?? "#cba6f7"
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // DERIVED COLORS
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property color activeFull: c.activeFull ?? withOpacity(activeColor, opacityFull)
   readonly property color activeLight: c.activeLight ?? withOpacity(activeColor, opacityLight)
   readonly property color activeMedium: c.activeMedium ?? withOpacity(activeColor, opacityMedium)
   readonly property color activeSubtle: c.activeSubtle ?? withOpacity(activeColor, opacitySubtle)
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ANIMATION
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property int animationDuration: 147
   readonly property int animationFast: 100
   readonly property int animationSlow: 250
   readonly property int animationVerySlow: 400
   readonly property int audioMixerVisibleRows: 4
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // WIDGET SPECIFICS
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property int audioPanelWidth: 380
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // BASE SIZES (Unscaled)
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property int baseBatteryPillWidth: 80
   readonly property int baseFontSize: 16
   readonly property int baseIconSize: 24
@@ -80,14 +62,8 @@ Singleton {
   readonly property int baseItemWidth: 34
   readonly property int basePanelHeight: 42
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SCALING
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property int baseVolumeExpandedWidth: 220
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SCALED DIMENSIONS
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property int batteryPillWidth: s(baseBatteryPillWidth, 60)
   readonly property color bgColor: c.bgColor ?? "#1e1e2e"
   readonly property color bgElevated: c.bgElevated ?? Qt.lighter(bgColor, 1.35)
@@ -101,14 +77,8 @@ Singleton {
   readonly property color borderSubtle: c.borderSubtle ?? withOpacity(borderColor, 0.22)
   readonly property int borderWidthMedium: 2
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // BORDER
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property int borderWidthThin: 1
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // CONFIG ACCESSOR
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property var c: Settings?.colors ?? {}
   readonly property int cardPadding: s(10)
   readonly property int controlHeightLg: s(basePanelHeight, 34)
@@ -116,20 +86,15 @@ Singleton {
   readonly property int controlHeightSm: s(28, 24)
   readonly property int controlHeightXl: s(52, 42)
 
-  // Control Heights
   readonly property int controlHeightXs: s(24, 20)
   readonly property int controlWidthLg: s(48, 40)
   readonly property int controlWidthSm: s(32, 24)
 
-  // Control Widths
   readonly property color critical: c.critical ?? "#f38ba8"
   readonly property int dialogPadding: s(20)
   readonly property int dialogWidth: s(450)
   readonly property color disabledColor: c.disabledColor ?? "#232634"
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // TYPOGRAPHY
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property string fontFamily: "CaskaydiaCove Nerd Font Propo"
   readonly property int fontHero: s(48, 32)
   readonly property int fontLg: s(16, 14)
@@ -138,15 +103,11 @@ Singleton {
   readonly property int fontSm: s(12, 10)
   readonly property int fontXl: s(20, 16)
 
-  // Font Sizes
   readonly property int fontXs: s(10, 8)
   readonly property int fontXxl: s(28, 20)
   readonly property color glassBorderColor: withOpacity(c.glassBorderColor ?? textActiveColor, glassBorderOpacity)
   readonly property color glassBorderHoverColor: withOpacity(c.glassBorderHoverColor ?? textActiveColor, glassBorderHoverOpacity)
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // OPACITY CONSTANTS
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property real glassBorderHoverOpacity: 0.34
   readonly property real glassBorderOpacity: 0.18
   readonly property color glassContentColor: withOpacity(c.glassContentColor ?? bgElevated, glassContentOpacity)
@@ -168,7 +129,6 @@ Singleton {
   readonly property int iconSizeSm: s(14, 12)
   readonly property int iconSizeXl: s(32, 24)
 
-  // Icon Sizes
   readonly property int iconSizeXs: s(12, 10)
   readonly property int idleModalHeight: s(820)
   readonly property int idleModalWidth: s(780)
@@ -178,14 +138,12 @@ Singleton {
   readonly property int itemRadius: s(baseItemRadius, 6)
   readonly property int itemWidth: s(baseItemWidth, 20)
 
-  // Launcher
   readonly property int launcherIconSize: s(42)
   readonly property int launcherRowHeight: s(64)
   readonly property int launcherSpecialRowHeight: s(86)
   readonly property int launcherWindowHeight: s(680)
   readonly property int launcherWindowWidth: s(860)
 
-  // Lock Screen
   readonly property real lockClosedScale: 0.96
   readonly property color lockDividerColor: withOpacity("#ffffff", 0.08)
   readonly property color lockInnerBorderColor: withOpacity("#ffffff", 0.10)
@@ -199,7 +157,6 @@ Singleton {
   readonly property real modalScrimOpacity: 0.88
   readonly property int networkPanelWidth: 340
 
-  // Notifications
   readonly property int notificationAppIconSize: s(40)
   readonly property int notificationCardWidth: s(380)
   readonly property int notificationInlineImageSize: s(24)
@@ -214,7 +171,6 @@ Singleton {
   readonly property real opacityStrong: 0.8
   readonly property real opacitySubtle: 0.15
 
-  // OSD
   readonly property int osdAnimationOffset: s(60)
   readonly property int osdBottomMargin: s(132)
   readonly property int osdCardHeight: s(80)
@@ -236,20 +192,13 @@ Singleton {
   readonly property int radiusLg: s(baseItemRadius, 12)
   readonly property int radiusMd: s(12, 8)
 
-  // Radii
   readonly property int radiusSm: s(6, 4)
   readonly property int radiusXl: s(40, 20)
   readonly property int radiusXs: s(3, 2)
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SCALE PRESETS
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property real scaleSmall: 0.7
   readonly property int shadowBlurLg: 32
   readonly property int shadowBlurMd: 20
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SHADOW
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property color shadowColorStrong: withOpacity(c.shadowColorStrong ?? "#000000", 0.55)
   readonly property int shadowOffsetY: 2
   readonly property int spacingLg: s(16)
@@ -257,7 +206,6 @@ Singleton {
   readonly property int spacingSm: s(8)
   readonly property int spacingXl: s(24)
 
-  // Spacing
   readonly property int spacingXs: s(4)
   readonly property int spinnerDuration: 1000
   readonly property int spinnerSize: controlHeightSm
@@ -278,9 +226,6 @@ Singleton {
   readonly property int wallpaperTileWidth: s(230)
   readonly property color warning: c.warning ?? "#fab387"
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PUBLIC FUNCTIONS
-  // ═══════════════════════════════════════════════════════════════════════════
   function controlHeightFor(size) {
     return _controlHeights[size] ?? controlHeightMd;
   }
@@ -312,17 +257,14 @@ Singleton {
     return Qt.rgba(c.r, c.g, c.b, opacity);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // INTERNAL STATE
-  // ═══════════════════════════════════════════════════════════════════════════
   QtObject {
     id: internal
 
+    // Scale from logical height; raw pixels would apply DPR twice.
     readonly property real dpr: mainScreen?.devicePixelRatio ?? mainScreen?.scale ?? 1
     readonly property int height: mainScreen?.height ?? 1080
     readonly property bool isUltrawide: (width / Math.max(1, height)) > 2.1
     readonly property real lockScale: {
-      // Lock screen scaling uses effective (perceived) height so dpr doesn't double-boost.
       const effectiveHeight = height / dpr;
       if (effectiveHeight >= 1440) {
         const normalized = Math.min(1, (effectiveHeight - 1440) / 720);
@@ -333,14 +275,8 @@ Singleton {
     }
     readonly property var mainScreen: MonitorService?.activeMainScreen ?? null
     readonly property real scaleFactor: {
-      // Calculate perceived height to avoid double-scaling on high-DPI screens.
-      // Example: 4K (2160p) at 2x -> 1080 effective height.
       const effectiveHeight = height / dpr;
-      // Map effective height to a scale preference:
-      // 1080p effective -> 0.9 (compact), 1440p effective -> 1.0 (standard).
-      // Formula: 0.9 + (diff_from_1080 / 360) * 0.1
       const hScale = 0.9 + ((effectiveHeight - 1080) / 360) * 0.1;
-      // Clamp to keep layouts stable on extreme sizes.
       return Math.max(0.75, Math.min(1.4, hScale));
     }
     readonly property int width: mainScreen?.width ?? 1920

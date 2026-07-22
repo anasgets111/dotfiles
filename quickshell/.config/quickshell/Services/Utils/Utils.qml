@@ -54,8 +54,7 @@ Singleton {
     return imageSource;
   }
 
-  // Priorities when 3 args given: iconHint > appId > fallbackIcon.
-  // When 2 args given: appId > iconHint > "application-x-executable".
+  // With two arguments appId wins; providing fallbackIcon makes iconHint win.
   function resolveIconSource(appId: string, iconHint: var, fallbackIcon: var): string {
     const hasFallback = fallbackIcon !== undefined;
     const fallback = hasFallback ? String(fallbackIcon ?? "") : "application-x-executable";
@@ -96,7 +95,7 @@ Singleton {
     folder: "file:///sys/class/leds"
     nameFilters: ["*lock"]
     showDirs: true
-    showFiles: true // sysfs entries are symlinks — strict filters would hide them
+    showFiles: true // sysfs entries are symlinks and strict filters hide them
   }
   Instantiator {
     id: ledInstantiator
@@ -121,7 +120,7 @@ Singleton {
     }
   }
 
-  // sysfs virtual files don't emit inotify events, polling is required
+  // sysfs virtual files do not emit inotify events.
   Timer {
     interval: 100
     repeat: true

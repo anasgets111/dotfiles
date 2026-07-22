@@ -8,8 +8,6 @@ import qs.Services.SystemInfo
 import qs.Services.UI
 import qs.Services.WM
 
-// Centralized IPC handlers. Each target delegates to its service singleton.
-// This consolidates scattered IpcHandler blocks from services/components.
 Singleton {
   id: ipc
 
@@ -24,7 +22,6 @@ Singleton {
     return true;
   }
 
-  // ----- Lock -----
   IpcHandler {
     function islocked(): bool {
       return LockService.locked;
@@ -47,7 +44,6 @@ Singleton {
     target: "lock"
   }
 
-  // ----- Media (MPRIS) -----
   IpcHandler {
     function getActive(prop: string): string {
       const a = MediaService.active;
@@ -87,7 +83,6 @@ Singleton {
     target: "mpris"
   }
 
-  // ----- Screen Recording -----
   IpcHandler {
     function toggle(): string {
       Logger.log("IPC", "rec.toggle");
@@ -98,7 +93,6 @@ Singleton {
     target: "rec"
   }
 
-  // ----- Application Launcher -----
   IpcHandler {
     function toggle(): string {
       const active = ipc.toggleLauncher();
@@ -109,7 +103,6 @@ Singleton {
     target: "launcher"
   }
 
-  // ----- Notifications -----
   IpcHandler {
     function clear(): string {
       Logger.log("IPC", "notifications.clear");
@@ -120,7 +113,6 @@ Singleton {
     target: "notifs"
   }
 
-  // ----- Microphone -----
   IpcHandler {
     function mute(): string {
       Logger.log("IPC", "mic.mute");

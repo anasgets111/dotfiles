@@ -107,7 +107,7 @@ WlrLayershell {
     }
   }
 
-  // Only exists during transitions — destroyed after completion to guarantee GPU texture release
+  // Exists only during transitions so its GPU texture is released afterward.
   Loader {
     id: nextImgLoader
 

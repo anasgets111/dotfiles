@@ -2,8 +2,6 @@ pragma Singleton
 import QtQml
 import Quickshell
 
-// Pure workspace display math. Adapters normalize compositor state; this
-// orders it for the shared workspace strip and adds Hyprland's empty slots.
 Singleton {
   id: root
 
@@ -46,6 +44,7 @@ Singleton {
 
     const workspacesByIndex = new Map(workspaces.filter(workspace => Number.isInteger(workspace?.idx) && workspace.idx > 0).map(workspace => [workspace.idx, workspace]));
     const highestWorkspaceIndex = Array.from(workspacesByIndex.keys()).reduce((highest, index) => Math.max(highest, index), 0);
+    // ponytail: contiguous empty navigation is capped at 100; add paging if higher slots become navigable.
     const slotCount = Math.max(0, Math.min(_maximumContiguousSlots, Math.trunc(Math.max(Number(minimumSlotCount) || 0, Number(activeWorkspaceIndex) || 0, highestWorkspaceIndex))));
     const indexes = new Set(Array.from({
       length: slotCount
@@ -56,8 +55,6 @@ Singleton {
     if (Number.isInteger(activeWorkspaceIndex) && activeWorkspaceIndex > 0)
       indexes.add(activeWorkspaceIndex);
 
-    // ponytail: contiguous empty navigation is capped at 100; arbitrary high
-    // IDs stay sparse. Add paging if empty slots above that become navigable.
     return Array.from(indexes).sort((left, right) => left - right).map(index => {
       const workspace = workspacesByIndex.get(index) ?? null;
       return workspace ? {

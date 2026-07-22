@@ -9,7 +9,7 @@ Item {
 
   property color color: "black"
   readonly property real effectiveRadius: Math.max(0, Math.min(cornerShape.radius, Math.min(cornerShape.width, cornerShape.height)))
-  property int orientation: 0 // 0=TOP_LEFT, 1=TOP_RIGHT, 2=BOTTOM_LEFT, 3=BOTTOM_RIGHT
+  property int orientation: 0 // 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right
   property int radius: Theme.radiusLg
   readonly property Region region: Region {
     item: cornerShape
@@ -44,11 +44,9 @@ Item {
       const r = cornerShape.effectiveRadius;
       const k = 0.552285;
       ctx.reset();
-      // draw full rect
       ctx.beginPath();
       ctx.rect(0, 0, w, h);
       ctx.closePath();
-      // draw quarter-circle as negative cutout
       ctx.beginPath();
       switch (cornerShape.orientation) {
       case 0:
@@ -77,8 +75,8 @@ Item {
         break;
       }
       ctx.closePath();
-      ctx.clip("evenodd"); // <-- subtracts the corner curve from the rectangle
-      // fill remaining shape
+      // Even-odd clipping subtracts the corner curve from the full rectangle.
+      ctx.clip("evenodd");
       ctx.fillStyle = cornerShape.color;
       ctx.fillRect(0, 0, w, h);
     }

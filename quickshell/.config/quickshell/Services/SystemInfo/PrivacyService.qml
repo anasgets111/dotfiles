@@ -37,8 +37,7 @@ Singleton {
   PwObjectTracker {
     objects: root._trackerObjects
   }
-  // Device nodes are invisible to file models, so a shell glob probes them:
-  // 1 s in-use polling while /dev/video* exists, slow existence checks otherwise.
+  // Device nodes are invisible to file models, so poll a shell glob while any exist.
   Timer {
     interval: root._v4l2DevicesPresent ? 1000 : 5000
     repeat: true

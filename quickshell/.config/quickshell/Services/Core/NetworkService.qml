@@ -91,6 +91,7 @@ Singleton {
       return;
 
     const secret = String(password ?? "");
+    // ponytail: password-only prompting supports PSK; add a secret agent for enterprise auth.
     const command = ["nmcli"];
     if (secret)
       command.push("--ask");
@@ -98,8 +99,6 @@ Singleton {
     const hidden = !root.wifiNetworkForSsid(target);
     if (hidden)
       command.push("hidden", "yes");
-    // ponytail: this password-only UI supports PSK networks. Add a NetworkManager
-    // secret agent before expanding it to multi-prompt enterprise authentication.
     const handle = Command.run(root.nmcliCommand(command), result => {
       root._connectHandle = null;
       root.refreshIpData();

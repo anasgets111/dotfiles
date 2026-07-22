@@ -28,7 +28,6 @@ Item {
   property int countdown: initialCountdown
   readonly property bool counting: selectedIndex >= 0
 
-  // Countdown state - counting is derived from selectedIndex
   readonly property int initialCountdown: 10
   property int selectedIndex: -1
 

@@ -13,7 +13,7 @@ Singleton {
   property string osdIcon: ""
   property string osdLabel: ""
   property string osdType: ""
-  property var osdValue: null // Can be int or null
+  property var osdValue: null
 
   readonly property var types: ({
       audioDevice: "audio-device",
@@ -183,7 +183,7 @@ Singleton {
       }
 
       if (osdState.current && entry.priority < osdState.current.priority) {
-        osdState.pending = osdState.current; // Save current for later
+        osdState.pending = osdState.current;
         osdState.apply(entry);
         return;
       }

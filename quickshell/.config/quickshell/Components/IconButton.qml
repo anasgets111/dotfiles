@@ -2,24 +2,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Config
 
-/**
- * IconButton - Circular icon button with hover states and tooltip
- *
- * Size presets: "xs", "sm", "md" (default), "lg", "xl"
- * Shape: "circle" (default), "rounded"
- *
- * Examples:
- *   IconButton { icon: "󰅖" }
- *   IconButton { icon: "󰅖"; size: "sm" }
- *   IconButton { icon: "󰐊"; colorBg: Theme.activeColor }
- *   IconButton { icon: "󰐊"; shape: "rounded"; tooltipText: "Play" }
- */
 Item {
   id: iconButton
 
   readonly property bool _canShowTooltip: iconButton.isEnabled && !iconButton.suppressTooltip && iconButton.tooltipText.length > 0
 
-  // Computed dimensions from size using Theme helper functions
   readonly property int _iconSize: Theme.iconSizeFor(size)
   readonly property int _radius: {
     if (shape === "circle")
@@ -28,7 +15,6 @@ Item {
   }
   readonly property int _size: Theme.controlHeightFor(size)
 
-  // Color customization
   property color colorBg: Theme.glassControlColor
   property color colorBgHover: Theme.glassControlHoverColor
   property color colorBorder: Theme.glassBorderColor
@@ -36,24 +22,19 @@ Item {
   property color colorFg: Theme.textContrast(colorBg)
   property color colorFgHover: Theme.textContrast(colorBgHover)
 
-  // Computed colors
   readonly property color effectiveBg: !isEnabled ? colorBg : (hovered ? colorBgHover : colorBg)
   readonly property color effectiveBorderColor: showBorder ? (hovered ? colorBorderHover : colorBorder) : "transparent"
   readonly property color effectiveFg: !isEnabled ? Theme.textContrast(colorBg) : (hovered ? colorFgHover : colorFg)
   readonly property bool hovered: mouseArea.containsMouse && iconButton.isEnabled
 
-  // Content
   property string icon: ""
   property real iconRotation: 0
 
-  // Behavior
   property bool isEnabled: true
 
-  // Shape: "circle", "rounded"
   property string shape: "circle"
   property bool showBorder: true
 
-  // Size preset: "xs", "sm", "md", "lg", "xl"
   property string size: "md"
   property bool suppressTooltip: false
   property string tooltipText: ""
