@@ -490,9 +490,9 @@ Item {
     rightPadding: Theme.spacingMd
 
     background: Rectangle {
-      border.color: Theme.borderSubtle
+      border.color: Theme.activeMedium
       border.width: Theme.borderWidthThin
-      color: button.hovered ? Theme.bgCardHover : Theme.bgCard
+      color: button.hovered ? Theme.activeLight : Theme.activeSubtle
       radius: Theme.radiusMd
     }
   }
