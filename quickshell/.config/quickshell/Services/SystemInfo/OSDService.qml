@@ -12,7 +12,6 @@ Singleton {
 
   property string osdIcon: ""
   property string osdLabel: ""
-  property int osdMaxValue: 100
   property string osdType: ""
   property var osdValue: null // Can be int or null
 
@@ -35,13 +34,12 @@ Singleton {
     })
   property bool visible: false
 
-  function show(type: string, value: var, icon: string, label: string, debounce = false, maxValue = 100) {
+  function show(type: string, value: var, icon: string, label: string, debounce = false) {
     const entry = {
       type: type,
       value: value,
       icon: icon,
       label: label,
-      maxValue: maxValue,
       priority: osdState.config[type]?.prio ?? 99
     };
 
@@ -151,7 +149,6 @@ Singleton {
       root.osdValue = entry.value;
       root.osdIcon = entry.icon;
       root.osdLabel = entry.label;
-      root.osdMaxValue = entry.maxValue;
       root.visible = true;
       hideTimer.restart();
 
@@ -233,7 +230,7 @@ Singleton {
   Connections {
     function onMutedChanged() {
       const vol = Math.round(AudioService.volume * 100);
-      root.show(root.types.volumeOutput, AudioService.muted ? 0 : vol, AudioService.muted ? "󰖁" : (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿"), AudioService.muted ? "Muted" : `${vol}%`, false, Math.round(AudioService.maxVolume * 100));
+      root.show(root.types.volumeOutput, AudioService.muted ? 0 : vol, AudioService.muted ? "󰖁" : (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿"), AudioService.muted ? "Muted" : `${vol}%`);
     }
     function onSinkChanged() {
       const deviceName = AudioService.sinkName;
@@ -243,7 +240,7 @@ Singleton {
     }
     function onVolumeChanged() {
       const vol = Math.round(AudioService.volume * 100);
-      root.show(root.types.volumeOutput, vol, (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿"), `${vol}%`, false, Math.round(AudioService.maxVolume * 100));
+      root.show(root.types.volumeOutput, vol, (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿"), `${vol}%`);
     }
 
     target: AudioService

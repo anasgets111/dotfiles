@@ -10,8 +10,7 @@ Singleton {
   property bool _isUrl: false
   property string _query: ""
   property string _url: ""
-  readonly property string statusLabel: _isUrl ? "URL" : "WEB"
-  readonly property string rowBadge: statusLabel
+  readonly property string rowBadge: _isUrl ? "URL" : "WEB"
   readonly property string rowHint: qsTr("Enter to open")
   readonly property string rowIcon: _isUrl ? "󰖟" : "󰍉"
   readonly property bool rowIconIsText: false

@@ -9,8 +9,7 @@ Singleton {
 
   property string _expression: ""
   property string _resultText: ""
-  readonly property string statusLabel: "CALC"
-  readonly property string rowBadge: statusLabel
+  readonly property string rowBadge: "CALC"
   readonly property string rowHint: qsTr("Enter to copy")
   readonly property string rowIcon: "󰃬"
   readonly property bool rowIconIsText: false

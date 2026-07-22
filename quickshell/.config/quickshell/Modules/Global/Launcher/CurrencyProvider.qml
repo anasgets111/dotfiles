@@ -31,8 +31,7 @@ Singleton {
   property bool ratesLive: false
   readonly property int refreshInterval: 86400000 // 24 hours
 
-  readonly property string statusLabel: ratesLive ? "FX" : "FX-STATIC"
-  readonly property string rowBadge: statusLabel
+  readonly property string rowBadge: ratesLive ? "FX" : "FX-STATIC"
   readonly property string rowHint: qsTr("Enter to copy result")
   readonly property string rowIcon: fromFlag
   readonly property bool rowIconIsText: true

@@ -13,12 +13,11 @@ Singleton {
   property bool _checking: false
   property int _failureCount: 0
   readonly property bool _hasPackageCache: Settings.isStateLoaded && Array.isArray(Settings.state.updates.packages)
-  readonly property double _lastSuccessfulCheck: Settings.isStateLoaded ? Settings.state.updates.lastSuccessfulCheck : 0
   readonly property string _notificationAppName: "System Updates"
   property var _packageSizes: ({})
   property var _pendingActionArgs: null
   readonly property int _pollInterval: 15 * 60 * 1000
-  readonly property int _pollTimerInterval: _hasPackageCache && _lastSuccessfulCheck > 0 ? Math.max(1, _pollInterval - Math.max(0, Date.now() - _lastSuccessfulCheck)) : 1
+  readonly property int _pollTimerInterval: _hasPackageCache && lastSuccessfulCheck > 0 ? Math.max(1, _pollInterval - Math.max(0, Date.now() - lastSuccessfulCheck)) : 1
   readonly property string _runUpdatesAction: "run-updates"
   property string _state: "idle"
   property bool _updateProcessStarted: false
@@ -34,8 +33,8 @@ Singleton {
   readonly property bool isError: _state === "error"
   readonly property bool isIdle: _state === "idle"
   readonly property bool isUpdating: _state === "updating"
-  readonly property bool isStale: !Settings.isStateLoaded || checkError !== "" || _lastSuccessfulCheck <= 0 || Date.now() - _lastSuccessfulCheck > _pollInterval
-  readonly property double lastSuccessfulCheck: _lastSuccessfulCheck
+  readonly property bool isStale: !Settings.isStateLoaded || checkError !== "" || lastSuccessfulCheck <= 0 || Date.now() - lastSuccessfulCheck > _pollInterval
+  readonly property double lastSuccessfulCheck: Settings.isStateLoaded ? Settings.state.updates.lastSuccessfulCheck : 0
   property var outputLines: []
   property bool progressDeterminate: false
   readonly property bool ready: MainService.isArchBased && _checkUpdatesAvailable && Settings.isStateLoaded

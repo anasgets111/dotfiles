@@ -37,6 +37,8 @@ PanelContentBase {
     return raw.startsWith("▶") || raw.startsWith("::") || raw.startsWith("==>") ? Theme.textActiveColor : Theme.textInactiveColor;
   }
   function statusText(): string {
+    if (!UpdateService.ready)
+      return qsTr("Update service unavailable");
     if (UpdateService.isUpdating)
       return UpdateService.currentStep || qsTr("Preparing update…");
     if (UpdateService.isError)
@@ -91,7 +93,7 @@ PanelContentBase {
           Layout.fillWidth: true
           color: Theme.textInactiveColor
           size: "sm"
-          text: UpdateService.isUpdating ? [UpdateService.currentPackage, UpdateService.progressDeterminate ? `${UpdateService.currentPackageIndex}/${UpdateService.totalPackagesToUpdate}` : ""].filter(Boolean).join(" · ") : UpdateService.isCompleted ? qsTr("%1 packages · %2 · %3 warnings%4").arg(UpdateService.completedPackageCount).arg(root.durationText(UpdateService.updateDurationMs)).arg(UpdateService.warningCount).arg(UpdateService.rebootRequired ? qsTr(" · Reboot required") : "") : UpdateService.isStale && UpdateService.checkError ? qsTr("Last successful result retained · %1").arg(UpdateService.checkError) : UpdateService.totalUpdates > 0 ? qsTr("%1 download · %2 packages").arg(Utils.fmtKib(UpdateService.totalDownloadSize)).arg(UpdateService.totalUpdates) : qsTr("No package updates available")
+          text: !UpdateService.ready ? qsTr("Package checks are not available") : UpdateService.isUpdating ? [UpdateService.currentPackage, UpdateService.progressDeterminate ? `${UpdateService.currentPackageIndex}/${UpdateService.totalPackagesToUpdate}` : ""].filter(Boolean).join(" · ") : UpdateService.isCompleted ? qsTr("%1 packages · %2 · %3 warnings%4").arg(UpdateService.completedPackageCount).arg(root.durationText(UpdateService.updateDurationMs)).arg(UpdateService.warningCount).arg(UpdateService.rebootRequired ? qsTr(" · Reboot required") : "") : UpdateService.isStale && UpdateService.checkError ? qsTr("Last successful result retained · %1").arg(UpdateService.checkError) : UpdateService.totalUpdates > 0 ? qsTr("%1 download · %2 packages").arg(Utils.fmtKib(UpdateService.totalDownloadSize)).arg(UpdateService.totalUpdates) : qsTr("No package updates available")
         }
         Rectangle {
           Layout.fillWidth: true
@@ -241,6 +243,7 @@ PanelContentBase {
 
     PanelCard {
       Layout.fillWidth: true
+      visible: (UpdateService.ready && (UpdateService.isStale || UpdateService.totalUpdates > 0)) || UpdateService.isCompleted || UpdateService.isError
 
       ColumnLayout {
         width: parent?.width ?? 0
@@ -251,7 +254,7 @@ PanelContentBase {
           isEnabled: UpdateService.ready && !UpdateService.busy
           text: qsTr("Check")
           variant: "secondary"
-          visible: UpdateService.isIdle && UpdateService.isStale
+          visible: UpdateService.ready && UpdateService.isIdle && UpdateService.isStale
           onClicked: UpdateService.doPoll()
         }
         OButton {
