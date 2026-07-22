@@ -15,6 +15,7 @@ Singleton {
   property bool _isDestroying: false
   property var _popupOnlyWrappers: []
   property var _popupQueue: []
+  readonly property bool _popupsBlocked: root._popupsSuspended || LockService.locked || IdleService.displaysPoweredOff
   property bool _popupsSuspended: false
   property var _removalQueue: []
   property int _sequence: 0
@@ -41,7 +42,6 @@ Singleton {
   readonly property int maxStoredNotifications: 100
   readonly property int maxVisibleNotifications: 3
   property var notifications: []
-  readonly property bool _popupsBlocked: root._popupsSuspended || LockService.locked || IdleService.displaysPoweredOff
   property var visibleNotifications: []
 
   function _allWrappers(): var {

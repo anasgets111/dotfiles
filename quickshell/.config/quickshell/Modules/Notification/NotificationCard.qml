@@ -18,7 +18,6 @@ Item {
   property var _shownMessageIds: ({})
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
   readonly property alias blurInsetItem: blurInset
-  property Region popupBlurRegion: null
   required property var group
   readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group?.key] || false) : false)
   property string groupScope: "history"
@@ -28,6 +27,7 @@ Item {
   readonly property int messagePadding: Theme.spacingSm
   readonly property int paddingHorizontal: Theme.spacingMd
   readonly property int paddingVertical: Theme.spacingMd
+  property Region popupBlurRegion: null
   readonly property var primaryWrapper: root.items[0] ?? null
   property bool showTimestamp: false
   readonly property int slideAnimDuration: root.svc?.animationDuration ?? 0
@@ -102,7 +102,7 @@ Item {
     anchors.fill: parent
     border.color: Theme.withOpacity(root.accentColor, Theme.opacityMedium)
     border.width: Theme.borderWidthMedium
-    color: root.groupScope === "popup" ? Theme.bgPanel : Theme.bgCard
+    color: root.groupScope === "popup" ? Theme.glassSurfaceColor : Theme.glassContentColor
     radius: Theme.panelRadius
   }
   ColumnLayout {
@@ -403,9 +403,9 @@ Item {
 
                     background: Rectangle {
                       anchors.fill: parent
-                      border.color: replyField.activeFocus ? Theme.activeColor : Theme.borderColor
+                      border.color: replyField.activeFocus ? Theme.activeColor : Theme.glassBorderColor
                       border.width: Theme.borderWidthThin
-                      color: Theme.bgInput
+                      color: Theme.glassInputColor
                       radius: Theme.itemRadius
                     }
 
@@ -473,13 +473,7 @@ Item {
   HoverHandler {
     onHoveredChanged: hovered ? root.svc?.pauseTimers(root.items) : root.svc?.resumeTimers(root.items)
   }
-  component ControlButton: OButton {
-    bgColor: Theme.bgCard
-    hoverColor: Theme.bgCardHover
-    radius: Theme.radiusSm
-    size: "xs"
-    textColor: Theme.textActiveColor
-  }
+
   component ActionButton: ToolButton {
     id: button
 
@@ -496,5 +490,12 @@ Item {
       color: button.hovered ? Theme.activeLight : Theme.activeSubtle
       radius: Theme.radiusMd
     }
+  }
+  component ControlButton: OButton {
+    bgColor: Theme.glassContentColor
+    hoverColor: Theme.glassContentHoverColor
+    radius: Theme.radiusSm
+    size: "xs"
+    textColor: Theme.textActiveColor
   }
 }

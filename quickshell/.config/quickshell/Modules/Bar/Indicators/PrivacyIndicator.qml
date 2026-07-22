@@ -27,7 +27,6 @@ RowLayout {
     Layout.preferredWidth: Theme.itemHeight
     colorBg: Theme.critical
     icon: "\uF030"
-    isEnabled: true
     tooltipText: qsTr("Camera in use")
     visible: PrivacyService.cameraActive
   }
@@ -36,7 +35,6 @@ RowLayout {
     Layout.preferredWidth: Theme.itemHeight
     colorBg: Theme.critical
     icon: "\uF108"
-    isEnabled: true
     tooltipText: qsTr("Screen sharing in progress")
     visible: PrivacyService.screenshareActive
   }

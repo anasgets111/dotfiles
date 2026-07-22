@@ -46,9 +46,8 @@ Item {
   IconButton {
     id: iconButton
 
-    colorFg: root.connectedDevices.length > 0 ? Theme.activeColor : Theme.textContrast(Theme.inactiveColor)
+    colorFg: root.connectedDevices.length > 0 ? Theme.activeColor : Theme.textContrast(Theme.glassControlColor)
     icon: root.btIcon
-    isEnabled: true
     suppressTooltip: root.panelOpen
     tooltipText: [root.titleText, root.detailText1, root.detailText2].filter(t => t?.length > 0).join("\n")
 

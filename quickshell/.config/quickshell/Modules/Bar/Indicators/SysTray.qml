@@ -17,7 +17,9 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Theme.inactiveColor
+    border.color: Theme.glassBorderColor
+    border.width: Theme.borderWidthThin
+    color: Theme.glassControlColor
     radius: Theme.itemRadius
   }
   RowLayout {
@@ -37,7 +39,8 @@ Item {
         required property SystemTrayItem modelData
 
         Layout.alignment: Qt.AlignVCenter
-        icon: ""
+        colorBg: "transparent"
+        showBorder: false
         suppressTooltip: ShellUiState.isPanelOpen("tray", tray.screenName) && ShellUiState.panelData?.menuItem === modelData
         tooltipText: modelData && (modelData.tooltipTitle || modelData.title) || ""
         visible: modelData !== null
@@ -80,7 +83,7 @@ Item {
           OText {
             anchors.centerIn: parent
             bold: true
-            color: Theme.textContrast(btn.effectiveBg)
+            color: Theme.textContrast(btn.hovered ? btn.colorBgHover : Theme.glassControlColor)
             text: {
               const label = btn.modelData && (btn.modelData.tooltipTitle || btn.modelData.title || btn.modelData.id) || "?";
               return String(label).charAt(0).toUpperCase();

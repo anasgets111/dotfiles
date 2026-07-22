@@ -11,10 +11,6 @@ import qs.Services.SystemInfo
 OPopup {
   id: root
 
-  blurRegion: Region {
-    item: card.opacity > 0 ? card : null
-    radius: card.radius
-  }
   readonly property string pressedSignature: visibleTokens.join("+")
   readonly property bool shouldStayVisible: InputDisplayService.visible || dragArea.drag.active
   readonly property bool showComboLabel: InputDisplayService.comboDisplayLabel.length > 0 && InputDisplayService.comboLabel !== pressedSignature
@@ -41,6 +37,11 @@ OPopup {
   popupNamespace: "obelisk-input-display-overlay"
   visible: true
 
+  blurRegion: Region {
+    item: card.opacity > 0 ? card : null
+    radius: card.radius
+  }
+
   Component.onCompleted: Qt.callLater(root.syncCardToSavedPosition)
   onHeightChanged: Qt.callLater(root.syncCardToSavedPosition)
   onWidthChanged: Qt.callLater(root.syncCardToSavedPosition)
@@ -51,7 +52,7 @@ OPopup {
     readonly property int hpad: Theme.spacingLg
     readonly property int vpad: Theme.spacingMd
 
-    color: Theme.bgPanel
+    color: Theme.glassSurfaceColor
     height: content.implicitHeight + vpad * 2
     opacity: root.shouldStayVisible ? 1 : 0
     padding: 0
@@ -176,10 +177,10 @@ OPopup {
 
             required property string modelData
 
-            border.color: Theme.borderColor
+            border.color: Theme.glassBorderColor
             border.width: Theme.borderWidthThin
             clip: true
-            color: Theme.bgCard
+            color: Theme.glassContentColor
             height: keyLabel.implicitHeight + Theme.spacingXs * 2
             radius: Theme.radiusSm
             width: keyLabel.implicitWidth + Theme.spacingSm * 2

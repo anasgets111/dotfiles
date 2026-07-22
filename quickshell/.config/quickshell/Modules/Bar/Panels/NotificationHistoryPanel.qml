@@ -85,7 +85,14 @@ PanelContentBase {
 
           onToggled: NotificationService.toggleDoNotDisturb()
         }
-        PanelActionIcon { icon: "󰆴"; tint: Theme.critical; tooltipText: qsTr("Dismiss all notifications"); visible: root.hasNotifications; onClicked: NotificationService.clearAllNotifications() }
+        PanelActionIcon {
+          icon: "󰆴"
+          tint: Theme.critical
+          tooltipText: qsTr("Dismiss all notifications")
+          visible: root.hasNotifications
+
+          onClicked: NotificationService.clearAllNotifications()
+        }
       }
     }
     ListView {
@@ -105,7 +112,6 @@ PanelContentBase {
       ScrollBar.vertical: ScrollBar {
         policy: notificationList.contentHeight > notificationList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
       }
-
       delegate: NotificationCard {
         required property int index
         required property var modelData

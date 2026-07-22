@@ -29,10 +29,10 @@ Item {
   readonly property int _size: Theme.controlHeightFor(size)
 
   // Color customization
-  property color colorBg: Theme.inactiveColor
-  property color colorBgHover: Theme.onHoverColor
-  property color colorBorder: "transparent"
-  property color colorBorderHover: Theme.textContrast(colorBgHover)
+  property color colorBg: Theme.glassControlColor
+  property color colorBgHover: Theme.glassControlHoverColor
+  property color colorBorder: Theme.glassBorderColor
+  property color colorBorderHover: Theme.glassBorderHoverColor
   property color colorFg: Theme.textContrast(colorBg)
   property color colorFgHover: Theme.textContrast(colorBgHover)
 

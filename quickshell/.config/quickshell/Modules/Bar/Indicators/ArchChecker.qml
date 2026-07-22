@@ -22,7 +22,7 @@ Item {
     property real spinAngle: 0
 
     anchors.fill: parent
-    colorBg: isError ? Theme.critical : isUpdating ? Theme.activeColor : UpdateService.busy ? Theme.inactiveColor : UpdateService.totalUpdates > 0 ? Theme.activeColor : Theme.inactiveColor
+    colorBg: isError ? Theme.critical : isUpdating ? Theme.activeColor : UpdateService.busy ? Theme.glassControlColor : UpdateService.totalUpdates > 0 ? Theme.activeColor : Theme.glassControlColor
     icon: isUpdating ? "󰦖" : isError ? "󰅙" : UpdateService.busy ? "" : UpdateService.totalUpdates > 0 ? "" : "󰂪"
     iconRotation: isUpdating ? spinAngle : 0
     suppressTooltip: root.panelOpen

@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Config
 import qs.Components
 import qs.Services.Core
 
@@ -10,7 +9,6 @@ IconButton {
 
   signal pickerRequested
 
-  colorBg: Theme.inactiveColor
   icon: ""
   tooltipText: qsTr("Manage wallpapers")
 

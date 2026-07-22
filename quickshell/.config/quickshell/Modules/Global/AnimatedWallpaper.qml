@@ -149,8 +149,6 @@ WlrLayershell {
       readonly property real direction: transitionParams.direction
       readonly property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
       readonly property real fillMode: 1.0
-      readonly property Image source1: currentImg
-      readonly property Image source2: nextImgLoader.item as Image
       readonly property real imageHeight1: currentImg.status === Image.Ready ? currentImg.paintedHeight : height
       readonly property real imageHeight2: source2?.paintedHeight ?? 0
       readonly property real imageWidth1: currentImg.status === Image.Ready ? currentImg.paintedWidth : width
@@ -159,6 +157,8 @@ WlrLayershell {
       readonly property real screenHeight: root.maxSourceSize.height
       readonly property real screenWidth: root.maxSourceSize.width
       readonly property real smoothness: 0.1
+      readonly property Image source1: currentImg
+      readonly property Image source2: nextImgLoader.item as Image
       readonly property real stripeCount: transitionParams.count
 
       anchors.fill: parent

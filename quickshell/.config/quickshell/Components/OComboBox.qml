@@ -5,13 +5,14 @@ import qs.Config
 ComboBox {
   id: root
 
+  opacity: enabled ? 1 : Theme.opacityDisabled
+
   background: Rectangle {
-    border.color: root.activeFocus ? Theme.activeColor : Theme.borderColor
+    border.color: root.activeFocus ? Theme.activeColor : Theme.glassBorderColor
     border.width: Theme.borderWidthThin
-    color: Theme.bgInput
+    color: Theme.glassInputColor
     radius: Theme.itemRadius
   }
-  opacity: enabled ? 1 : Theme.opacityDisabled
   contentItem: OText {
     bottomPadding: Theme.spacingSm
     leftPadding: Theme.spacingMd
@@ -25,9 +26,9 @@ ComboBox {
     y: root.height + Theme.spacingXs
 
     background: Rectangle {
-      border.color: Theme.borderColor
+      border.color: Theme.glassBorderColor
       border.width: Theme.borderWidthThin
-      color: Theme.bgCard
+      color: Theme.glassContentColor
       radius: Theme.itemRadius
     }
     contentItem: ListView {

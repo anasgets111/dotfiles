@@ -23,8 +23,6 @@ OModal {
   readonly property real lockTimeout: IdleService.lockTimeoutMin
   readonly property bool suspendEnabled: IdleService.suspendEnabled
   readonly property real suspendTimeout: IdleService.suspendTimeoutMin
-  preferredHeight: Theme.idleModalHeight
-  preferredWidth: Theme.idleModalWidth
 
   function formatDuration(value: real): string {
     const totalSeconds = Math.max(0, Math.round((Number(value) || 0) * 60));
@@ -36,6 +34,10 @@ OModal {
       return qsTr("%1 min %2 sec").arg(minutes).arg(seconds);
     return minutes > 0 ? qsTr("%1 min").arg(minutes) : qsTr("%1 sec").arg(seconds);
   }
+
+  preferredHeight: Theme.idleModalHeight
+  preferredWidth: Theme.idleModalWidth
+
   onActiveChanged: if (active)
     InputDisplayService.refreshBackendAvailability()
 
@@ -43,252 +45,252 @@ OModal {
     anchors.fill: parent
     spacing: 0
 
-      Item {
-        Layout.fillWidth: true
-        Layout.preferredHeight: headerLayout.implicitHeight + Theme.spacingXl * 2
+    Item {
+      Layout.fillWidth: true
+      Layout.preferredHeight: headerLayout.implicitHeight + Theme.spacingXl * 2
 
-        RowLayout {
-          id: headerLayout
+      RowLayout {
+        id: headerLayout
 
-          anchors.fill: parent
-          anchors.leftMargin: Theme.spacingXl
-          anchors.rightMargin: Theme.spacingXl
-          spacing: Theme.spacingMd
+        anchors.fill: parent
+        anchors.leftMargin: Theme.spacingXl
+        anchors.rightMargin: Theme.spacingXl
+        spacing: Theme.spacingMd
 
-          Rectangle {
-            Layout.preferredHeight: Theme.controlHeightXl
-            Layout.preferredWidth: Theme.controlHeightXl
-            color: Theme.activeSubtle
-            radius: Theme.radiusLg
+        Rectangle {
+          Layout.preferredHeight: Theme.controlHeightXl
+          Layout.preferredWidth: Theme.controlHeightXl
+          color: Theme.activeSubtle
+          radius: Theme.radiusLg
 
-            OText {
-              anchors.centerIn: parent
-              color: Theme.activeColor
-              font.pixelSize: Theme.fontXl
-              text: "󰾪"
-            }
-          }
-          ColumnLayout {
-            spacing: Theme.spacingXs
-
-            OText {
-              bold: true
-              font.pixelSize: Theme.fontXxl
-              text: qsTr("Idle & Power")
-            }
-            OText {
-              color: Theme.textInactiveColor
-              font.pixelSize: Theme.fontMd
-              text: root.idleEnabled ? qsTr("%1 automatic actions enabled").arg(root.enabledActionCount) : qsTr("Automatic actions are paused")
-            }
-          }
-          Item {
-            Layout.fillWidth: true
+          OText {
+            anchors.centerIn: parent
+            color: Theme.activeColor
+            font.pixelSize: Theme.fontXl
+            text: "󰾪"
           }
         }
-      }
-      Rectangle {
-        Layout.fillWidth: true
-        color: Theme.borderSubtle
-        implicitHeight: Theme.borderWidthThin
-      }
-      ScrollView {
-        id: scrollView
-
-        Layout.fillHeight: true
-        Layout.fillWidth: true
-        ScrollBar.vertical.policy: ScrollBar.AsNeeded
-        contentWidth: availableWidth
-
         ColumnLayout {
-          spacing: Theme.spacingLg
-          width: scrollView.availableWidth - Theme.spacingXl * 2
-          x: Theme.spacingXl
+          spacing: Theme.spacingXs
 
-          Item {
-            Layout.preferredHeight: Theme.spacingSm
+          OText {
+            bold: true
+            font.pixelSize: Theme.fontXxl
+            text: qsTr("Idle & Power")
           }
-          FlowSummary {
+          OText {
+            color: Theme.textInactiveColor
+            font.pixelSize: Theme.fontMd
+            text: root.idleEnabled ? qsTr("%1 automatic actions enabled").arg(root.enabledActionCount) : qsTr("Automatic actions are paused")
+          }
+        }
+        Item {
+          Layout.fillWidth: true
+        }
+      }
+    }
+    Rectangle {
+      Layout.fillWidth: true
+      color: Theme.borderSubtle
+      implicitHeight: Theme.borderWidthThin
+    }
+    ScrollView {
+      id: scrollView
+
+      Layout.fillHeight: true
+      Layout.fillWidth: true
+      ScrollBar.vertical.policy: ScrollBar.AsNeeded
+      contentWidth: availableWidth
+
+      ColumnLayout {
+        spacing: Theme.spacingLg
+        width: scrollView.availableWidth - Theme.spacingXl * 2
+        x: Theme.spacingXl
+
+        Item {
+          Layout.preferredHeight: Theme.spacingSm
+        }
+        FlowSummary {
+          Layout.fillWidth: true
+        }
+        SettingsSection {
+          Layout.fillWidth: true
+          description: qsTr("Choose what happens when the session is inactive.")
+          icon: "󰒲"
+          title: qsTr("Automation")
+
+          SettingRow {
+            checked: root.lockEnabled
+            description: qsTr("Secure the session after inactivity.")
+            disabled: !root.idleEnabled
+            icon: "󰌾"
+            label: qsTr("Lock screen")
+            timeoutValue: root.lockTimeout
+            timeoutValues: [0.5, 1, 2, 5, 10, 15, 30]
+
+            onTimeoutChanged: value => IdleService.setLockTimeoutMin(value)
+            onToggled: checked => {
+              if (checked && root.lockTimeout <= 0)
+                IdleService.setLockTimeoutMin(5);
+              IdleService.setLockEnabled(checked);
+            }
+          }
+          SettingRow {
+            checked: root.displayPowerOffEnabled
+            description: qsTr("Power down displays until activity resumes.")
+            disabled: !root.idleEnabled
+            icon: "󰍹"
+            label: qsTr("Turn off displays")
+            timeoutValue: root.displayPowerOffTimeout
+            timeoutValues: [0.5, 1, 2, 5, 10, 15]
+
+            onTimeoutChanged: value => IdleService.setDisplayPowerOffTimeoutMin(value)
+            onToggled: checked => {
+              if (checked && root.displayPowerOffTimeout <= 0)
+                IdleService.setDisplayPowerOffTimeoutMin(1);
+              IdleService.setDisplayPowerOffEnabled(checked);
+            }
+          }
+          SettingRow {
+            checked: root.suspendEnabled
+            description: qsTr("Suspend the device to reduce power use.")
+            disabled: !root.idleEnabled
+            icon: "󰒚"
+            label: qsTr("Suspend system")
+            showSeparator: false
+            timeoutValue: root.suspendTimeout
+            timeoutValues: [5, 10, 15, 30, 60, 120]
+
+            onTimeoutChanged: value => IdleService.setSuspendTimeoutMin(value)
+            onToggled: checked => {
+              if (checked && root.suspendTimeout <= 0)
+                IdleService.setSuspendTimeoutMin(10);
+              IdleService.setSuspendEnabled(checked);
+            }
+          }
+        }
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Theme.spacingLg
+
+          SettingsSection {
+            Layout.alignment: Qt.AlignTop
             Layout.fillWidth: true
+            description: qsTr("Action order and wake requests.")
+            icon: "󰒓"
+            title: qsTr("Behavior")
+
+            ColumnLayout {
+              Layout.fillWidth: true
+              Layout.leftMargin: Theme.spacingLg
+              Layout.rightMargin: Theme.spacingLg
+              Layout.topMargin: Theme.spacingSm
+              enabled: root.idleEnabled && root.lockEnabled && root.displayPowerOffEnabled
+              opacity: enabled ? 1 : Theme.opacityDisabled
+              spacing: Theme.spacingSm
+
+              OText {
+                bold: true
+                font.pixelSize: Theme.fontLg
+                text: qsTr("Action order")
+              }
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spacingXs
+
+                OButton {
+                  Layout.fillWidth: true
+                  bgColor: root.lockAfterDisplayPowerOff ? Theme.glassContentColor : Theme.activeColor
+                  size: "sm"
+                  text: qsTr("Lock first")
+                  textColor: root.lockAfterDisplayPowerOff ? Theme.textInactiveColor : Theme.textContrast(bgColor)
+
+                  onClicked: IdleService.setLockAfterDisplayPowerOff(false)
+                }
+                OButton {
+                  Layout.fillWidth: true
+                  bgColor: root.lockAfterDisplayPowerOff ? Theme.activeColor : Theme.glassContentColor
+                  size: "sm"
+                  text: qsTr("Display first")
+                  textColor: root.lockAfterDisplayPowerOff ? Theme.textContrast(bgColor) : Theme.textInactiveColor
+
+                  onClicked: IdleService.setLockAfterDisplayPowerOff(true)
+                }
+              }
+            }
+            Rectangle {
+              Layout.fillWidth: true
+              Layout.leftMargin: Theme.spacingLg
+              color: Theme.borderSubtle
+              implicitHeight: Theme.borderWidthThin
+              opacity: Theme.opacityMedium
+            }
+            SettingRow {
+              checked: IdleService.respectInhibitorsEnabled
+              description: qsTr("Honor application wake requests.")
+              disabled: !root.idleEnabled
+              icon: "󰈑"
+              label: qsTr("Respect inhibitors")
+
+              onToggled: checked => IdleService.setRespectInhibitors(checked)
+            }
+            SettingRow {
+              checked: IdleService.videoAutoInhibitEnabled
+              description: qsTr("Stay awake during active media.")
+              disabled: !root.idleEnabled
+              icon: "󰀈"
+              label: qsTr("Keep awake for media")
+              showSeparator: false
+
+              onToggled: checked => IdleService.setVideoAutoInhibit(checked)
+            }
           }
           SettingsSection {
+            Layout.alignment: Qt.AlignTop
             Layout.fillWidth: true
-            description: qsTr("Choose what happens when the session is inactive.")
-            icon: "󰒲"
-            title: qsTr("Automation")
+            description: qsTr("Show pressed keys and mouse buttons.")
+            icon: "󰖳"
+            title: qsTr("Input overlay")
 
-            SettingRow {
-              checked: root.lockEnabled
-              description: qsTr("Secure the session after inactivity.")
-              disabled: !root.idleEnabled
-              icon: "󰌾"
-              label: qsTr("Lock screen")
-              timeoutValue: root.lockTimeout
-              timeoutValues: [0.5, 1, 2, 5, 10, 15, 30]
-
-              onTimeoutChanged: value => IdleService.setLockTimeoutMin(value)
-              onToggled: checked => {
-                if (checked && root.lockTimeout <= 0)
-                  IdleService.setLockTimeoutMin(5);
-                IdleService.setLockEnabled(checked);
-              }
+            InlineMessage {
+              Layout.fillWidth: true
+              icon: InputDisplayService.backendCheckComplete ? "󰅚" : "󰔟"
+              text: root.inputDisplayStatusText
+              visible: !root.inputDisplayBackendReady
             }
             SettingRow {
-              checked: root.displayPowerOffEnabled
-              description: qsTr("Power down displays until activity resumes.")
-              disabled: !root.idleEnabled
-              icon: "󰍹"
-              label: qsTr("Turn off displays")
-              timeoutValue: root.displayPowerOffTimeout
-              timeoutValues: [0.5, 1, 2, 5, 10, 15]
+              checked: InputDisplayService.enabled
+              description: qsTr("Show input events on screen.")
+              icon: "󰌌"
+              label: qsTr("Show input overlay")
+              visible: root.inputDisplayBackendReady
 
-              onTimeoutChanged: value => IdleService.setDisplayPowerOffTimeoutMin(value)
-              onToggled: checked => {
-                if (checked && root.displayPowerOffTimeout <= 0)
-                  IdleService.setDisplayPowerOffTimeoutMin(1);
-                IdleService.setDisplayPowerOffEnabled(checked);
-              }
+              onToggled: checked => InputDisplayService.setEnabled(checked)
             }
             SettingRow {
-              checked: root.suspendEnabled
-              description: qsTr("Suspend the device to reduce power use.")
-              disabled: !root.idleEnabled
-              icon: "󰒚"
-              label: qsTr("Suspend system")
+              checked: InputDisplayService.showPrintableKeys
+              description: qsTr("Include letters and punctuation.")
+              disabled: !InputDisplayService.enabled
+              icon: "󰌌"
+              label: qsTr("Printable keys")
               showSeparator: false
-              timeoutValue: root.suspendTimeout
-              timeoutValues: [5, 10, 15, 30, 60, 120]
+              visible: root.inputDisplayBackendReady
 
-              onTimeoutChanged: value => IdleService.setSuspendTimeoutMin(value)
-              onToggled: checked => {
-                if (checked && root.suspendTimeout <= 0)
-                  IdleService.setSuspendTimeoutMin(10);
-                IdleService.setSuspendEnabled(checked);
-              }
+              onToggled: checked => InputDisplayService.setShowPrintableKeys(checked)
             }
-          }
-          RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacingLg
-
-            SettingsSection {
-              Layout.alignment: Qt.AlignTop
-              Layout.fillWidth: true
-              description: qsTr("Action order and wake requests.")
-              icon: "󰒓"
-              title: qsTr("Behavior")
-
-              ColumnLayout {
-                Layout.fillWidth: true
-                Layout.leftMargin: Theme.spacingLg
-                Layout.rightMargin: Theme.spacingLg
-                Layout.topMargin: Theme.spacingSm
-                enabled: root.idleEnabled && root.lockEnabled && root.displayPowerOffEnabled
-                opacity: enabled ? 1 : Theme.opacityDisabled
-                spacing: Theme.spacingSm
-
-                OText {
-                  bold: true
-                  font.pixelSize: Theme.fontLg
-                  text: qsTr("Action order")
-                }
-                RowLayout {
-                  Layout.fillWidth: true
-                  spacing: Theme.spacingXs
-
-                  OButton {
-                    Layout.fillWidth: true
-                    bgColor: root.lockAfterDisplayPowerOff ? Theme.bgCard : Theme.activeColor
-                    size: "sm"
-                    text: qsTr("Lock first")
-                    textColor: root.lockAfterDisplayPowerOff ? Theme.textInactiveColor : Theme.textContrast(bgColor)
-
-                    onClicked: IdleService.setLockAfterDisplayPowerOff(false)
-                  }
-                  OButton {
-                    Layout.fillWidth: true
-                    bgColor: root.lockAfterDisplayPowerOff ? Theme.activeColor : Theme.bgCard
-                    size: "sm"
-                    text: qsTr("Display first")
-                    textColor: root.lockAfterDisplayPowerOff ? Theme.textContrast(bgColor) : Theme.textInactiveColor
-
-                    onClicked: IdleService.setLockAfterDisplayPowerOff(true)
-                  }
-                }
-              }
-              Rectangle {
-                Layout.fillWidth: true
-                Layout.leftMargin: Theme.spacingLg
-                color: Theme.borderSubtle
-                implicitHeight: Theme.borderWidthThin
-                opacity: Theme.opacityMedium
-              }
-              SettingRow {
-                checked: IdleService.respectInhibitorsEnabled
-                description: qsTr("Honor application wake requests.")
-                disabled: !root.idleEnabled
-                icon: "󰈑"
-                label: qsTr("Respect inhibitors")
-
-                onToggled: checked => IdleService.setRespectInhibitors(checked)
-              }
-              SettingRow {
-                checked: IdleService.videoAutoInhibitEnabled
-                description: qsTr("Stay awake during active media.")
-                disabled: !root.idleEnabled
-                icon: "󰀈"
-                label: qsTr("Keep awake for media")
-                showSeparator: false
-
-                onToggled: checked => IdleService.setVideoAutoInhibit(checked)
-              }
-            }
-            SettingsSection {
-              Layout.alignment: Qt.AlignTop
-              Layout.fillWidth: true
-              description: qsTr("Show pressed keys and mouse buttons.")
-              icon: "󰖳"
-              title: qsTr("Input overlay")
-
-              InlineMessage {
-                Layout.fillWidth: true
-                icon: InputDisplayService.backendCheckComplete ? "󰅚" : "󰔟"
-                text: root.inputDisplayStatusText
-                visible: !root.inputDisplayBackendReady
-              }
-              SettingRow {
-                checked: InputDisplayService.enabled
-                description: qsTr("Show input events on screen.")
-                icon: "󰌌"
-                label: qsTr("Show input overlay")
-                visible: root.inputDisplayBackendReady
-
-                onToggled: checked => InputDisplayService.setEnabled(checked)
-              }
-              SettingRow {
-                checked: InputDisplayService.showPrintableKeys
-                description: qsTr("Include letters and punctuation.")
-                disabled: !InputDisplayService.enabled
-                icon: "󰌌"
-                label: qsTr("Printable keys")
-                showSeparator: false
-                visible: root.inputDisplayBackendReady
-
-                onToggled: checked => InputDisplayService.setShowPrintableKeys(checked)
-              }
-            }
-          }
-          Item {
-            Layout.preferredHeight: Theme.spacingMd
           }
         }
+        Item {
+          Layout.preferredHeight: Theme.spacingMd
+        }
       }
+    }
   }
 
   component FlowSummary: PanelCard {
-    tone: root.idleEnabled ? "active" : "standard"
-    padding: 0
     implicitHeight: flowLayout.implicitHeight + Theme.spacingMd * 2
+    padding: 0
+    tone: root.idleEnabled ? "active" : "standard"
 
     RowLayout {
       id: flowLayout
@@ -351,6 +353,7 @@ OModal {
         Layout.alignment: Qt.AlignVCenter
         checked: root.idleEnabled
         size: "lg"
+
         onToggled: checked => IdleService.setIdleEnabled(checked)
       }
     }
@@ -500,13 +503,13 @@ OModal {
   component SettingsSection: PanelCard {
     id: sectionRoot
 
-    default property alias sectionItems: sectionContent.data
     property string description: ""
     property string icon: ""
+    default property alias sectionItems: sectionContent.data
     property string title: ""
 
-    padding: 0
     implicitHeight: sectionLayout.implicitHeight + Theme.spacingLg * 2
+    padding: 0
 
     ColumnLayout {
       id: sectionLayout

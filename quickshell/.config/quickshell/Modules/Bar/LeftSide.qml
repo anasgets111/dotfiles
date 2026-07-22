@@ -53,7 +53,6 @@ Row {
     id: launcherButton
 
     anchors.verticalCenter: parent.verticalCenter
-    colorBg: Theme.inactiveColor
     icon: "󰍜"
     tooltipText: qsTr("Open application launcher")
 

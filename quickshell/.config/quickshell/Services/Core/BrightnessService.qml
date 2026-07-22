@@ -15,6 +15,7 @@ Singleton {
   readonly property int maxBrightness: maxBrightnessFile.value
   readonly property int percentage: maxBrightness > 0 ? Math.round((brightness / maxBrightness) * 100) : 0
   readonly property bool ready: available && brightnessFile.valid && maxBrightnessFile.valid
+
   function setBrightness(percent: real): string {
     if (!available)
       return "Brightness control not available";

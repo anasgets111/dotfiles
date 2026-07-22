@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 import qs.Config
 
 PopupWindow {
@@ -11,7 +12,11 @@ PopupWindow {
   property real _mouseX: 0
   property real _mouseY: 0
   readonly property real _vPadding: Theme.spacingXs
-  readonly property color bgColor: Theme.onHoverColor
+  readonly property color bgColor: Theme.glassSurfaceColor
+  readonly property Region blurRegion: Region {
+    item: tooltipRect
+    radius: tooltipRect.radius
+  }
   default property alias content: contentContainer.data
   readonly property color fgColor: Theme.textContrast(bgColor)
   readonly property bool hasCustomContent: contentContainer.children.length > 0
@@ -29,6 +34,7 @@ PopupWindow {
       root.anchor.updateAnchor();
   }
 
+  BackgroundEffect.blurRegion: root.blurRegion
   anchor.adjustment: PopupAdjustment.Flip | PopupAdjustment.Slide
   anchor.edges: root.positionAtMouse ? Edges.Top | Edges.Left : Edges.Bottom
   anchor.gravity: root.positionAtMouse ? Edges.Bottom | Edges.Right : Edges.Bottom
@@ -38,10 +44,11 @@ PopupWindow {
   color: "transparent"
   implicitHeight: Math.max(Theme.controlHeightMd, (root.hasCustomContent ? contentContainer.implicitHeight : tooltipText.implicitHeight) + root._vPadding * 2)
   implicitWidth: Math.max(Theme.controlWidthLg, (root.hasCustomContent ? contentContainer.implicitWidth : tooltipText.implicitWidth) + root._hPadding * 2)
-  mask: Region {
-  }
   surfaceFormat.opaque: false
   visible: false
+
+  mask: Region {
+  }
 
   onHeightChanged: root.updateAnchor()
   onIsVisibleChanged: {
@@ -82,14 +89,11 @@ PopupWindow {
     id: tooltipRect
 
     anchors.fill: parent
-    border.color: Theme.inactiveColor
+    border.color: Theme.glassBorderColor
     border.width: Theme.borderWidthThin
     color: root.bgColor
     opacity: 0
     radius: Theme.radiusMd
-
-    onOpacityChanged: if (opacity === 0 && !root.isVisible)
-      root.visible = false
 
     Behavior on opacity {
       NumberAnimation {
@@ -97,6 +101,9 @@ PopupWindow {
         easing.type: Easing.OutCubic
       }
     }
+
+    onOpacityChanged: if (opacity === 0 && !root.isVisible)
+      root.visible = false
 
     OText {
       id: tooltipText

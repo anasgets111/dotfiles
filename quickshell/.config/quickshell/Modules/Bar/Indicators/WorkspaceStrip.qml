@@ -26,8 +26,8 @@ Item {
     if ((workspace?.focused ?? slot.focused) ?? false)
       return Theme.activeColor;
     if (slotKey(slot) === hoveredSlotKey)
-      return Theme.onHoverColor;
-    return (workspace?.populated ?? false) ? Theme.inactiveColor : Theme.disabledColor;
+      return Theme.glassControlHoverColor;
+    return (workspace?.populated ?? false) ? Theme.glassControlColor : Theme.disabledColor;
   }
   function slotKey(slot: var): string {
     const workspaceId = slot?.workspace?.id;

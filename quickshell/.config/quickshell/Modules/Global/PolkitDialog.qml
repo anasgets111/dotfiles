@@ -19,7 +19,8 @@ Scope {
   LazyLoader {
     active: polkitAgent.isActive
 
-    component: DialogWindow {}
+    component: DialogWindow {
+    }
   }
 
   component DialogWindow: PanelWindow {
@@ -54,7 +55,7 @@ Scope {
       id: dialogCard
 
       anchors.centerIn: parent
-      color: Theme.bgPanel
+      color: Theme.glassSurfaceColor
       focus: true
       height: layout.implicitHeight + Theme.dialogPadding * 2
       padding: 0

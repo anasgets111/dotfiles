@@ -44,7 +44,6 @@ ColumnLayout {
   function clear(): void {
     textField.clear();
   }
-
   function forceActiveFocus(): void {
     textField.forceActiveFocus();
   }
@@ -55,9 +54,9 @@ ColumnLayout {
   Rectangle {
     Layout.fillWidth: true
     Layout.preferredHeight: root._height
-    border.color: root.hasError ? Theme.critical : (textField.activeFocus ? Theme.activeColor : Theme.borderColor)
+    border.color: root.hasError ? Theme.critical : (textField.activeFocus ? Theme.activeColor : Theme.glassBorderColor)
     border.width: root.hasError ? Theme.borderWidthMedium : Theme.borderWidthThin
-    color: Theme.bgInput
+    color: Theme.glassInputColor
     radius: Theme.radiusMd
 
     Behavior on border.color {
@@ -79,6 +78,7 @@ ColumnLayout {
       anchors.leftMargin: root._padding
       anchors.rightMargin: root._padding
       anchors.topMargin: Theme.spacingXs
+      background: null
       color: Theme.textActiveColor
       font.family: Theme.fontFamily
       font.pixelSize: root._fontSize
@@ -86,17 +86,15 @@ ColumnLayout {
       selectionColor: Theme.activeColor
       verticalAlignment: Text.AlignVCenter
 
-      background: null
-
       Component.onCompleted: {
         if (root.autoFocus)
           Qt.callLater(() => {
             textField.forceActiveFocus();
           });
       }
+      Keys.onPressed: event => root.keyPressed(event)
       onAccepted: root.inputAccepted()
       onTextChanged: root.inputChanged()
-      Keys.onPressed: event => root.keyPressed(event)
     }
   }
 

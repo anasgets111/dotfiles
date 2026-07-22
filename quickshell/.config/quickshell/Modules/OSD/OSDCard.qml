@@ -46,7 +46,7 @@ Item {
     id: bg
 
     anchors.fill: parent
-    color: Theme.bgPanel
+    color: Theme.glassSurfaceColor
     padding: 0
     tone: "active"
   }

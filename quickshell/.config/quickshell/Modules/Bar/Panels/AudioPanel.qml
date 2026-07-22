@@ -138,9 +138,9 @@ PanelContentBase {
     signal committed(real v)
     signal toggled
 
-    padding: 0
     Layout.fillWidth: true
     implicitHeight: heroLayout.implicitHeight + Theme.spacingMd * 2
+    padding: 0
 
     ColumnLayout {
       id: heroLayout
@@ -183,7 +183,7 @@ PanelContentBase {
         IconButton {
           Layout.preferredHeight: Theme.controlHeightMd
           Layout.preferredWidth: Theme.controlHeightMd
-          colorBg: hero.muted ? Theme.inactiveColor : Theme.activeColor
+          colorBg: hero.muted ? Theme.glassControlColor : Theme.activeColor
           icon: hero.muted ? hero.iconOff : hero.iconOn
           isEnabled: hero.ready
           tooltipText: hero.muted ? qsTr("Unmute") : qsTr("Mute")
@@ -231,6 +231,7 @@ PanelContentBase {
     icon: (entry?.icon ?? "") || defaultIcon
     selected: entry?.active ?? false
     title: entry?.name ?? ""
+
     actions: [
       OText {
         color: deviceItem.selected ? Theme.activeColor : "transparent"
@@ -251,8 +252,6 @@ PanelContentBase {
     Layout.fillWidth: true
     title: qsTr("Choose device")
 
-    onClicked: picker.toggled()
-
     badges: [
       OText {
         color: Theme.textInactiveColor
@@ -269,8 +268,8 @@ PanelContentBase {
     ]
     expandedContent: [
       ColumnLayout {
-        width: parent?.width ?? 0
         spacing: Theme.spacingXs
+        width: parent?.width ?? 0
 
         Repeater {
           id: deviceRepeater
@@ -290,6 +289,8 @@ PanelContentBase {
         }
       }
     ]
+
+    onClicked: picker.toggled()
   }
   component MixerSection: PanelCard {
     id: mixer
@@ -297,8 +298,8 @@ PanelContentBase {
     property bool expanded: false
     readonly property int streamCount: AudioService.streamModels.length
 
-    padding: 0
     implicitHeight: mixerContent.implicitHeight + Theme.spacingSm * 2
+    padding: 0
 
     ColumnLayout {
       id: mixerContent
@@ -311,10 +312,16 @@ PanelContentBase {
 
       PanelRow {
         Layout.fillWidth: true
-        badges: [OText { text: mixer.expanded ? "󰅀" : "󰅂" }]
         icon: "󰓡"
         subtitle: mixer.streamCount === 0 ? qsTr("No applications playing audio") : qsTr("%1 active").arg(mixer.streamCount)
         title: qsTr("Application mixer")
+
+        badges: [
+          OText {
+            text: mixer.expanded ? "󰅀" : "󰅂"
+          }
+        ]
+
         onClicked: mixer.expanded = !mixer.expanded
       }
       Item {
@@ -341,8 +348,9 @@ PanelContentBase {
           model: AudioService.streamModels
           spacing: Theme.spacingSm
 
-          ScrollBar.vertical: ScrollBar { policy: streamList.contentHeight > streamList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
-
+          ScrollBar.vertical: ScrollBar {
+            policy: streamList.contentHeight > streamList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+          }
           delegate: StreamItem {
             width: ListView.view.width
           }
@@ -354,8 +362,8 @@ PanelContentBase {
     id: streamItem
 
     required property var modelData
-    readonly property bool ready: modelData.ready ?? false
     readonly property bool muted: modelData.muted ?? false
+    readonly property bool ready: modelData.ready ?? false
     readonly property real volume: modelData.volume ?? 0
 
     Layout.fillWidth: true
@@ -371,8 +379,8 @@ PanelContentBase {
         asynchronous: true
         cache: false
         fillMode: Image.PreserveAspectFit
-        source: streamItem.modelData.iconSource
         opacity: streamItem.muted ? Theme.opacityDisabled : 1
+        source: streamItem.modelData.iconSource
 
         sourceSize {
           height: Theme.fontLg
@@ -385,6 +393,7 @@ PanelContentBase {
         }
         TapHandler {
           enabled: streamItem.ready
+
           onTapped: AudioService.toggleStreamMute(streamItem.modelData.id)
         }
       }

@@ -30,8 +30,8 @@ Rectangle {
 
   // Computed dimensions from size using Theme helper function
   readonly property int _trackHeight: Math.round(Theme.controlHeightFor(size) * Theme.scaleSmall)
-  readonly property color _trackHover: Theme.withOpacity(Theme.onHoverColor, 0.65)
-  readonly property color _trackOff: Theme.withOpacity(Theme.textInactiveColor, 0.38)
+  readonly property color _trackHover: Theme.glassControlHoverColor
+  readonly property color _trackOff: Theme.glassControlColor
   readonly property color _trackOn: Theme.activeFull
   readonly property int _trackWidth: Math.round(_trackHeight * 2.3)
 
@@ -53,7 +53,7 @@ Rectangle {
     root.toggled(root.checked);
   }
 
-  border.color: disabled ? Theme.borderSubtle : Theme.borderLight
+  border.color: disabled ? Theme.borderSubtle : Theme.glassBorderColor
   border.width: Theme.borderWidthThin
   color: root.disabled ? _trackDisabled : (root.checked ? _trackOn : root.hovered ? _trackHover : _trackOff)
   focus: !root.disabled

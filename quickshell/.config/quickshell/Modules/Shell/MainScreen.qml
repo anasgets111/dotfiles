@@ -18,6 +18,7 @@ Scope {
   readonly property bool overlayRequested: ShellUiState.isAnyInteractiveOpen
   property bool overlayRetained: false
 
+  Component.onCompleted: overlayRetained = overlayRequested
   onOverlayRequestedChanged: {
     if (overlayRequested) {
       overlayDestroyTimer.stop();
@@ -26,8 +27,6 @@ Scope {
       overlayDestroyTimer.restart();
     }
   }
-
-  Component.onCompleted: overlayRetained = overlayRequested
 
   Timer {
     id: overlayDestroyTimer
@@ -130,7 +129,11 @@ Scope {
 
         active: overlayWindow.activeModal !== ""
         anchors.fill: parent
-        sourceComponent: ({launcher: launcherComponent, wallpaperPicker: wallpaperComponent, idleSettings: idleComponent})[overlayWindow.activeModal] ?? null
+        sourceComponent: ({
+            launcher: launcherComponent,
+            wallpaperPicker: wallpaperComponent,
+            idleSettings: idleComponent
+          })[overlayWindow.activeModal] ?? null
 
         onLoaded: item.active = true
       }
@@ -141,9 +144,24 @@ Scope {
 
         target: modalLoader.item
       }
-      Component { id: launcherComponent; AppLauncher {} }
-      Component { id: wallpaperComponent; WallpaperPicker {} }
-      Component { id: idleComponent; IdleSettingsPanel {} }
+      Component {
+        id: launcherComponent
+
+        AppLauncher {
+        }
+      }
+      Component {
+        id: wallpaperComponent
+
+        WallpaperPicker {
+        }
+      }
+      Component {
+        id: idleComponent
+
+        IdleSettingsPanel {
+        }
+      }
     }
   }
 }

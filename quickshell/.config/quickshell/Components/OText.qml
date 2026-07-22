@@ -36,5 +36,4 @@ Text {
   font.pixelSize: _computedSize
   font.weight: _computedWeight
   verticalAlignment: Text.AlignVCenter
-
 }

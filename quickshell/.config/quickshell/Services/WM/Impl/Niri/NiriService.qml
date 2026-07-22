@@ -24,9 +24,9 @@ Singleton {
     if (!activated)
       return source;
     return source.map(workspace => Object.assign({}, workspace, {
-          is_active: workspace.output === activated.output ? workspace.id === activation.id : workspace.is_active,
-          is_focused: activation.focused ? workspace.id === activation.id : workspace.is_focused
-        }));
+        is_active: workspace.output === activated.output ? workspace.id === activation.id : workspace.is_active,
+        is_focused: activation.focused ? workspace.id === activation.id : workspace.is_focused
+      }));
   }
   function _parse(message: string): var {
     if (!message)
@@ -37,9 +37,6 @@ Singleton {
       Logger.warn("NiriService", `Parse error: ${error}`);
       return null;
     }
-  }
-  function _setLayoutIndex(index: var): void {
-    currentLayoutIndex = Number.isInteger(index) && index >= 0 && index < layouts.length ? index : -1;
   }
   function _selfCheck(): bool {
     const workspaces = _activateWorkspaces([
@@ -66,6 +63,9 @@ Singleton {
       focused: true
     });
     return workspaces[0].is_active && !workspaces[0].is_focused && workspaces[1].is_active && workspaces[1].is_focused && !workspaces[2].is_active;
+  }
+  function _setLayoutIndex(index: var): void {
+    currentLayoutIndex = Number.isInteger(index) && index >= 0 && index < layouts.length ? index : -1;
   }
   function handleEvent(event: var): void {
     if (event.WorkspacesChanged) {

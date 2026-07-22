@@ -25,6 +25,7 @@ Singleton {
     const rawLength = active?.length ?? 0;
     return Number.isFinite(rawLength) && rawLength > 0 && rawLength < 9e12 ? rawLength : 0;
   }
+
   function next(): void {
     if (canGoNext)
       active.next();

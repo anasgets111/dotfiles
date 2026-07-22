@@ -5,8 +5,8 @@ import qs.Modules.Bar.Indicators
 Row {
   id: rightSide
 
-  required property string screenName
   readonly property bool expanded: volume.expanded
+  required property string screenName
 
   spacing: Theme.spacingSm
 
@@ -18,7 +18,6 @@ Row {
 
     anchors.verticalCenter: parent.verticalCenter
     screenName: rightSide.screenName
-
   }
   ScreenRecorder {
     anchors.verticalCenter: parent.verticalCenter

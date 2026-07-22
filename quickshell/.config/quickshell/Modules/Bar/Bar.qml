@@ -26,7 +26,7 @@ Item {
     Rectangle {
       id: panelRect
 
-      color: Theme.bgPanel
+      color: Theme.glassSurfaceColor
       height: Theme.panelHeight
       width: parent.width
 
@@ -74,7 +74,7 @@ Item {
       RoundCorner {
         id: barCornerLeft
 
-        color: Theme.bgPanel
+        color: Theme.glassSurfaceColor
         height: radius
         radius: Theme.panelRadius
         width: radius
@@ -83,7 +83,7 @@ Item {
         id: barCornerRight
 
         anchors.right: parent.right
-        color: Theme.bgPanel
+        color: Theme.glassSurfaceColor
         height: radius
         orientation: 1
         radius: Theme.panelRadius

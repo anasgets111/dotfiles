@@ -22,6 +22,7 @@ FocusScope {
     regions: [(leftCorner.item as RoundCorner)?.region, (rightCorner.item as RoundCorner)?.region, root.blurClipRegion]
   }
   readonly property bool contentActive: root.active || closeHoldTimer.running
+  readonly property real cornerCutRadius: Math.min(Theme.panelRadius * 3, Theme.panelHeight)
   readonly property rect effectiveAnchorRect: root.active ? root.anchorRect : root.retainedAnchorRect
   readonly property var effectivePanelComponent: root.active ? root.panelComponent : (root.contentActive ? root.retainedPanelComponent : null)
   readonly property var effectivePanelData: root.active ? (root.panelComponent !== null ? root.panelData : null) : root.retainedPanelData
@@ -37,7 +38,6 @@ FocusScope {
       "updates": updatesPanelComponent,
       "tray": trayPanelComponent
     })[panelId] ?? null
-  readonly property real cornerCutRadius: Math.min(Theme.panelRadius * 3, Theme.panelHeight)
   readonly property real panelContentHeight: Math.max(1, root.panelItem?.preferredHeight ?? 0)
   readonly property real panelContentWidth: Math.max(1, root.panelItem?.preferredWidth ?? Theme.panelDefaultWidth)
   property var panelData: null
@@ -70,8 +70,8 @@ FocusScope {
     return Math.round(Math.min(belowY, maxY));
   }
 
-  visible: root.contentActive || panelBackground.y > panelBackground.hiddenY
   focus: root.active
+  visible: root.contentActive || panelBackground.y > panelBackground.hiddenY
 
   Keys.onPressed: event => {
     if (root.active && event.key === Qt.Key_Escape) {
@@ -79,7 +79,6 @@ FocusScope {
       event.accepted = true;
     }
   }
-
   onActiveChanged: {
     if (root.active) {
       root.retainedAnchorRect = root.anchorRect;
@@ -152,7 +151,7 @@ FocusScope {
       bottomLeftRadius: root.useFlatContainer ? Theme.panelRadius * 2 : Theme.itemRadius
       bottomRightRadius: root.useFlatContainer ? Theme.panelRadius * 2 : Theme.itemRadius
       clip: true
-      color: Theme.bgPanel
+      color: Theme.glassSurfaceColor
       height: root.effectivePanelHeight
       radius: root.useFlatContainer ? 0 : Theme.itemRadius
       topLeftRadius: 0
@@ -200,7 +199,7 @@ FocusScope {
       y: panelBackground.y
 
       sourceComponent: RoundCorner {
-        color: Theme.bgPanel
+        color: Theme.glassSurfaceColor
         height: root.cornerCutRadius
         orientation: 1
         radius: root.cornerCutRadius
@@ -215,7 +214,7 @@ FocusScope {
       y: panelBackground.y
 
       sourceComponent: RoundCorner {
-        color: Theme.bgPanel
+        color: Theme.glassSurfaceColor
         height: root.cornerCutRadius
         orientation: 0
         radius: root.cornerCutRadius
@@ -232,31 +231,38 @@ FocusScope {
   }
   Component {
     id: audioPanelComponent
-    AudioPanel {}
+
+    AudioPanel {
+    }
   }
   Component {
     id: bluetoothPanelComponent
 
-    BluetoothPanel {}
+    BluetoothPanel {
+    }
   }
   Component {
     id: networkPanelComponent
 
-    NetworkPanel {}
+    NetworkPanel {
+    }
   }
   Component {
     id: notificationPanelComponent
 
-    NotificationHistoryPanel {}
+    NotificationHistoryPanel {
+    }
   }
   Component {
     id: updatesPanelComponent
 
-    UpdatePanel {}
+    UpdatePanel {
+    }
   }
   Component {
     id: trayPanelComponent
 
-    TrayMenuPanel {}
+    TrayMenuPanel {
+    }
   }
 }

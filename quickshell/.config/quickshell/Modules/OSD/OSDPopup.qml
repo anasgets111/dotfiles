@@ -5,13 +5,14 @@ import qs.Config
 import qs.Services.SystemInfo
 
 OPopup {
+  maskItem: card
+  popupNamespace: "obelisk-osd-overlay"
+  visible: OSDService.visible
+
   blurRegion: Region {
     item: card
     radius: Theme.radiusLg
   }
-  maskItem: card
-  popupNamespace: "obelisk-osd-overlay"
-  visible: OSDService.visible
 
   OSDCard {
     id: card

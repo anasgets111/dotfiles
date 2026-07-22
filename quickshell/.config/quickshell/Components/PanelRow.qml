@@ -7,11 +7,13 @@ import qs.Config
 Rectangle {
   id: root
 
+  readonly property bool actionable: enabled && !busy && rowActionEnabled
   property alias actions: actionSlot.data
   property alias badges: badgeSlot.data
   property bool busy: false
   property bool expanded: false
   property alias expandedContent: expandedSlot.data
+  readonly property bool hovered: rowMouse.containsMouse && actionable
   property string icon: ""
   property alias leading: leadingSlot.data
   property bool rowActionEnabled: true
@@ -22,18 +24,24 @@ Rectangle {
   signal clicked
   signal pointerMoved(point position)
 
-  readonly property bool actionable: enabled && !busy && rowActionEnabled
-  readonly property bool hovered: rowMouse.containsMouse && actionable
-
   border.color: selected ? Theme.activeColor : activeFocus ? Theme.activeColor : "transparent"
   border.width: Theme.borderWidthThin
-  color: selected ? Theme.activeSubtle : hovered ? Theme.bgCardHover : "transparent"
+  color: selected ? Theme.activeSubtle : hovered ? Theme.glassContentHoverColor : "transparent"
   implicitHeight: rowLayout.implicitHeight + (expanded ? expandedSlot.implicitHeight + Theme.spacingSm : 0) + Theme.spacingXs * 2
   opacity: enabled ? 1 : Theme.opacityDisabled
   radius: Theme.radiusMd
 
-  Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
-  Behavior on implicitHeight { NumberAnimation { duration: Theme.animationDuration; easing.type: Easing.OutCubic } }
+  Behavior on color {
+    ColorAnimation {
+      duration: Theme.animationDuration
+    }
+  }
+  Behavior on implicitHeight {
+    NumberAnimation {
+      duration: Theme.animationDuration
+      easing.type: Easing.OutCubic
+    }
+  }
 
   MouseArea {
     id: rowMouse
@@ -42,10 +50,10 @@ Rectangle {
     cursorShape: root.actionable ? Qt.PointingHandCursor : Qt.ArrowCursor
     enabled: root.actionable
     hoverEnabled: true
+
     onClicked: root.clicked()
     onPositionChanged: mouse => root.pointerMoved(Qt.point(mouse.x, mouse.y))
   }
-
   ColumnLayout {
     anchors.fill: parent
     anchors.leftMargin: Theme.spacingSm
@@ -116,6 +124,7 @@ Rectangle {
       }
       RowLayout {
         id: badgeSlot
+
         spacing: Theme.spacingXs
       }
     }
@@ -129,7 +138,11 @@ Rectangle {
       opacity: root.expanded ? 1 : 0
       visible: opacity > 0
 
-      Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+      Behavior on opacity {
+        NumberAnimation {
+          duration: Theme.animationDuration
+        }
+      }
     }
   }
 }

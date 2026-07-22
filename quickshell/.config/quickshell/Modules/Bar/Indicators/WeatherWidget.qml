@@ -195,9 +195,9 @@ Item {
     readonly property int wCode: hasData ? forecast.weathercode[dayIndex] : -1
     readonly property var wInfo: WeatherService.weatherInfo(wCode)
 
+    implicitHeight: col.implicitHeight + Theme.spacingLg
     padding: 0
     tone: isToday ? "active" : "standard"
-    implicitHeight: col.implicitHeight + Theme.spacingLg
 
     ColumnLayout {
       id: col
@@ -217,10 +217,10 @@ Item {
 
           anchors.centerIn: parent
           bold: true
+          muted: !card.isToday
           opacity: visible ? 1 : 0
           size: "sm"
           text: card.label
-          muted: !card.isToday
           visible: card.showLabel && card.label !== ""
 
           Behavior on opacity {
@@ -234,10 +234,10 @@ Item {
 
           anchors.centerIn: parent
           bold: true
+          muted: !card.isToday
           opacity: visible ? 1 : 0
           size: "sm"
           text: card.dateStr ? new Date(card.dateStr).toLocaleDateString(Qt.locale(), "ddd") : ""
-          muted: !card.isToday
           visible: !l1.visible
 
           Behavior on opacity {

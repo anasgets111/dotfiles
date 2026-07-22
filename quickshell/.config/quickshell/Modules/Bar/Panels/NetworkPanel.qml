@@ -23,7 +23,6 @@ PanelContentBase {
   property bool scanning: false
   readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && connectingSsid !== targetSsid && (networkForSsid(targetSsid)?.secured ?? true)
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
-  property string targetSsid: ""
   readonly property string statusDetail: {
     if (!root.ready)
       return qsTr("Unavailable");
@@ -37,19 +36,11 @@ PanelContentBase {
     }
     return qsTr("Not connected");
   }
+  property string targetSsid: ""
   readonly property var viewList: (root.connectedNetwork ? [root.connectedNetwork] : []).concat(NetworkService.viewWifiAps).map(ap => Object.assign({}, ap, {
       group: ap.saved ? "saved" : "available"
     }))
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
-
-  function formatBandLabel(band: string): string {
-    return band ? `${band}G` : "";
-  }
-  function formatEthernetSpeed(mbps: real): string {
-    if (mbps <= 0)
-      return "";
-    return mbps >= 1000 ? `${mbps / 1000} Gb/s` : `${mbps} Mb/s`;
-  }
 
   function cancelInline(): void {
     root.expandedSsid = "";
@@ -66,6 +57,14 @@ PanelContentBase {
     } else {
       root.expandedSsid = root.expandedSsid === ssid ? "" : ssid;
     }
+  }
+  function formatBandLabel(band: string): string {
+    return band ? `${band}G` : "";
+  }
+  function formatEthernetSpeed(mbps: real): string {
+    if (mbps <= 0)
+      return "";
+    return mbps >= 1000 ? `${mbps / 1000} Gb/s` : `${mbps} Mb/s`;
   }
   function networkForSsid(ssid: string): var {
     const aps = NetworkService.wifiAps ?? [];
@@ -270,8 +269,8 @@ PanelContentBase {
           delegate: NetworkRow {
             required property var modelData
 
-            connecting: root.connectingSsid !== "" && root.connectingSsid === modelData.ssid
             blockedByOtherConnection: root.connectingSsid !== "" && root.connectingSsid !== modelData.ssid
+            connecting: root.connectingSsid !== "" && root.connectingSsid === modelData.ssid
             errorMessage: root.expandedSsid === modelData.ssid ? root.connectError : ""
             expanded: root.expandedSsid === modelData.ssid
             network: modelData
@@ -313,7 +312,13 @@ PanelContentBase {
         Layout.topMargin: Theme.spacingXs
         icon: "󰖪"
         title: qsTr("Hidden Network…")
-        actions: [OText { color: Theme.textInactiveColor; text: "󰁔" }]
+
+        actions: [
+          OText {
+            color: Theme.textInactiveColor
+            text: "󰁔"
+          }
+        ]
 
         onClicked: {
           root.isHiddenTarget = true;
@@ -386,7 +391,6 @@ PanelContentBase {
 
       OSpinner {
         Layout.alignment: Qt.AlignVCenter
-        color: Theme.activeColor
         running: form.connecting
         spinnerSize: Theme.iconSizeMd
       }
@@ -411,7 +415,6 @@ PanelContentBase {
         isEnabled: pwField.text.trim() !== ""
         size: form.buttonSize
         text: form.errorMessage !== "" ? qsTr("Retry") : qsTr("Connect")
-        variant: "primary"
         visible: !form.connecting
 
         onClicked: form.submitted(pwField.text)
@@ -473,7 +476,6 @@ PanelContentBase {
       OButton {
         isEnabled: ssidField.text.trim() !== ""
         text: qsTr("Next")
-        variant: "primary"
 
         onClicked: sheet.ssidSubmitted(ssidField.text)
       }
@@ -495,8 +497,8 @@ PanelContentBase {
     id: row
 
     readonly property string bandValue: String(network?.band ?? "").trim()
-    property bool connecting: false
     property bool blockedByOtherConnection: false
+    property bool connecting: false
     property string errorMessage: ""
     property var network: null
 
@@ -508,26 +510,17 @@ PanelContentBase {
 
     busy: connecting
     enabled: !blockedByOtherConnection
-    leading: [
-      Item {
-        implicitHeight: Math.max(signalIcon.implicitHeight, bandLabel.implicitHeight)
-        implicitWidth: Theme.controlHeightLg
-
-        OText { id: signalIcon; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; color: row.bandValue !== "" ? Theme.networkBandColor(row.bandValue) : row.selected ? Theme.activeColor : Theme.textActiveColor; font.family: Theme.iconFontFamily; font.pixelSize: Theme.iconSizeMd; text: NetworkService.getWifiIcon(row.network?.signal || 0) }
-        OText { id: bandLabel; anchors.bottom: signalIcon.bottom; anchors.left: signalIcon.right; anchors.leftMargin: row.bandValue === "2.4" ? -Theme.spacingXs : -Theme.spacingXs / 2; bold: true; color: Theme.networkBandColor(row.bandValue); font.family: "Roboto Condensed"; font.letterSpacing: row.bandValue === "2.4" ? -1.5 : -1; size: "xs"; text: row.bandValue === "2.4" ? "2.4" : row.bandValue + "G"; visible: row.bandValue !== "" }
-      }
-    ]
     rowActionEnabled: !row.network?.connected
     selected: row.network?.connected === true
     title: row.network?.ssid || ""
 
-    badges: [OText { color: Theme.textInactiveColor; size: "xs"; text: "󰌾"; visible: row.network?.secured === true }]
     actions: [
       PanelActionIcon {
         icon: "󱘖"
         tint: Theme.critical
         tooltipText: qsTr("Disconnect")
         visible: row.network?.connected === true
+
         onClicked: row.disconnectClicked()
       },
       PanelActionIcon {
@@ -535,20 +528,60 @@ PanelContentBase {
         tint: Theme.critical
         tooltipText: qsTr("Forget")
         visible: row.network?.saved === true
+
         onClicked: row.forgetClicked()
+      }
+    ]
+    badges: [
+      OText {
+        color: Theme.textInactiveColor
+        size: "xs"
+        text: "󰌾"
+        visible: row.network?.secured === true
       }
     ]
     expandedContent: [
       CredentialForm {
-        width: parent?.width ?? 0
         buttonSize: "sm"
         connecting: row.connecting
         errorMessage: row.errorMessage
         visible: row.expanded
+        width: parent?.width ?? 0
 
         onCancelled: row.cancelExpand()
         onEdited: row.passwordEdited()
         onSubmitted: pw => row.passwordSubmitted(pw)
+      }
+    ]
+    leading: [
+      Item {
+        implicitHeight: Math.max(signalIcon.implicitHeight, bandLabel.implicitHeight)
+        implicitWidth: Theme.controlHeightLg
+
+        OText {
+          id: signalIcon
+
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          color: row.bandValue !== "" ? Theme.networkBandColor(row.bandValue) : row.selected ? Theme.activeColor : Theme.textActiveColor
+          font.family: Theme.iconFontFamily
+          font.pixelSize: Theme.iconSizeMd
+          text: NetworkService.getWifiIcon(row.network?.signal || 0)
+        }
+        OText {
+          id: bandLabel
+
+          anchors.bottom: signalIcon.bottom
+          anchors.left: signalIcon.right
+          anchors.leftMargin: row.bandValue === "2.4" ? -Theme.spacingXs : -Theme.spacingXs / 2
+          bold: true
+          color: Theme.networkBandColor(row.bandValue)
+          font.family: "Roboto Condensed"
+          font.letterSpacing: row.bandValue === "2.4" ? -1.5 : -1
+          size: "xs"
+          text: row.bandValue === "2.4" ? "2.4" : row.bandValue + "G"
+          visible: row.bandValue !== ""
+        }
       }
     ]
   }
@@ -558,6 +591,7 @@ PanelContentBase {
     signal cancelled
 
     autoFocus: visible
+
     onKeyPressed: event => {
       if (event.key === Qt.Key_Escape) {
         event.accepted = true;

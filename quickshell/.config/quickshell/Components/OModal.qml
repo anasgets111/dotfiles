@@ -8,7 +8,6 @@ Item {
   id: root
 
   property bool active: false
-  property real progress: 0
   readonly property Region blurRegion: Region {
     height: root.visible ? modalSurface.height * modalSurface.scale : 0
     radius: modalSurface.radius * modalSurface.scale
@@ -19,16 +18,17 @@ Item {
   default property alias content: contentSlot.data
   property int preferredHeight: Theme.launcherWindowHeight
   property int preferredWidth: Theme.launcherWindowWidth
-  property color scrimColor: Theme.modalScrimColor
-  property real scrimOpacity: Theme.modalScrimOpacity
+  property real progress: 0
   property var searchInput: null
 
   signal dismissed
+
   function close(): void {
     if (!active)
       return;
     active = false;
   }
+
   anchors.fill: parent
   focus: active
   visible: active || progressAnimation.running || progress > 0
@@ -52,18 +52,19 @@ Item {
     duration: Theme.animationDuration
     property: "progress"
     target: root
+
     onFinished: if (!root.active)
       root.dismissed()
   }
-
   Rectangle {
     anchors.fill: parent
-    color: root.scrimColor
-    opacity: root.scrimOpacity * root.progress
+    color: Theme.modalScrimColor
+    opacity: Theme.modalScrimOpacity * root.progress
   }
   MouseArea {
-    anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.RightButton
+    anchors.fill: parent
+
     onPressed: mouse => {
       const local = modalSurface.mapFromItem(root, mouse.x, mouse.y);
       if (modalSurface.contains(local)) {
@@ -77,20 +78,21 @@ Item {
     id: modalSurface
 
     anchors.centerIn: parent
-    border.color: Theme.borderLight
+    border.color: Theme.glassBorderColor
     border.width: Theme.borderWidthThin
     clip: true
-    color: Theme.bgPanel
+    color: Theme.glassSurfaceColor
     focus: true
     height: Math.min(root.preferredHeight, root.height - Theme.modalMargin * 2)
     radius: Theme.modalRadius
     scale: Theme.modalClosedScale + (1 - Theme.modalClosedScale) * root.progress
+    width: Math.min(root.preferredWidth, root.width - Theme.modalMargin * 2)
+
     transform: Translate {
       id: modalTranslate
 
       y: -Theme.spacingMd * (1 - root.progress)
     }
-    width: Math.min(root.preferredWidth, root.width - Theme.modalMargin * 2)
 
     Keys.onPressed: event => {
       if (event.key === Qt.Key_Escape) {
@@ -101,6 +103,7 @@ Item {
 
     Item {
       id: contentSlot
+
       anchors.fill: parent
     }
   }

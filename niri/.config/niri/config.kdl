@@ -418,3 +418,12 @@ layer-rule {
     match namespace="^quickshell-overview-wallpaper$"
     place-within-backdrop true
 }
+
+// Obelisk requests blur through ext-background-effect. Show the live scene
+// behind its top/overlay surfaces instead of Niri's wallpaper-only xray blur.
+layer-rule {
+    match namespace=r#"^(obelisk-|polkit-dialog$)"#
+    background-effect {
+        xray false
+    }
+}

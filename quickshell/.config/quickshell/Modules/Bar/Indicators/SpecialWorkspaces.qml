@@ -42,7 +42,7 @@ RowLayout {
       Layout.alignment: Qt.AlignVCenter
       Layout.preferredHeight: Theme.itemHeight
       Layout.preferredWidth: Theme.itemHeight
-      colorBg: isActive ? Theme.activeColor : Theme.inactiveColor
+      colorBg: isActive ? Theme.activeColor : Theme.glassControlColor
       icon: root.getIcon(cleanName)
       tooltipText: root.capitalize(cleanName)
 

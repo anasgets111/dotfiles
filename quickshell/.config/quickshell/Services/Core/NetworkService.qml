@@ -12,8 +12,8 @@ Singleton {
   property string _connectError: ""
   property var _connectHandle: null
   property string _connectingSsid: ""
-  property string _ethernetIp: ""
   property string _defaultInterface: ""
+  property string _ethernetIp: ""
   property bool _networkingEnabled: true
   property string _wifiIp: ""
   readonly property var availableWifiAps: {

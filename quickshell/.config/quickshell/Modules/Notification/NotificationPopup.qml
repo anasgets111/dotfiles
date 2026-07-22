@@ -13,13 +13,17 @@ OPopup {
   property int margin: Theme.spacingMd
 
   function rebuildBlurRegions(): void {
-    root.blurRegion.regions = Array.from({ length: cardRepeater.count }, (_, i) => (cardRepeater.itemAt(i) as NotificationCard)?.popupBlurRegion).filter(Boolean);
+    root.blurRegion.regions = Array.from({
+      length: cardRepeater.count
+    }, (_, i) => (cardRepeater.itemAt(i) as NotificationCard)?.popupBlurRegion).filter(Boolean);
   }
 
-  blurRegion: Region {}
   maskItem: popupColumn
   popupNamespace: "obelisk-notification-popup"
   visible: NotificationService.visibleNotifications.length > 0
+
+  blurRegion: Region {
+  }
 
   ScrollView {
     id: popupScroll
@@ -54,6 +58,11 @@ OPopup {
           id: notificationCard
 
           required property var modelData
+
+          group: modelData
+          groupScope: "popup"
+          svc: NotificationService
+
           popupBlurRegion: Region {
             item: notificationCard
 
@@ -69,10 +78,6 @@ OPopup {
               }
             ]
           }
-
-          group: modelData
-          groupScope: "popup"
-          svc: NotificationService
 
           onInputFocusReleased: root.releaseKeyboardFocus()
           onInputFocusRequested: root.claimKeyboardFocus()

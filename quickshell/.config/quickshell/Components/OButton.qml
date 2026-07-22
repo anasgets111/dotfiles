@@ -32,7 +32,7 @@ Rectangle {
     case "primary":
       return Theme.activeColor;
     case "secondary":
-      return Theme.inactiveColor;
+      return Theme.glassControlColor;
     case "ghost":
       return "transparent";
     default:
@@ -48,7 +48,7 @@ Rectangle {
 
   // Computed properties
   readonly property color currentBackground: !isEnabled ? Theme.disabledColor : (hovered ? hoverColor : bgColor)
-  property color hoverColor: Qt.lighter(bgColor, 1.2)
+  property color hoverColor: variant === "secondary" ? Theme.glassControlHoverColor : Qt.lighter(bgColor, 1.2)
   property alias hovered: mouseArea.containsMouse
 
   // Content properties
@@ -67,6 +67,8 @@ Rectangle {
 
   signal clicked
 
+  border.color: variant === "secondary" ? Theme.glassBorderColor : "transparent"
+  border.width: Theme.borderWidthThin
   color: currentBackground
   implicitHeight: _height
   implicitWidth: simpleContent.visible ? simpleContent.implicitWidth + _padding * 2 : contentContainer.implicitWidth

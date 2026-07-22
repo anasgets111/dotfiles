@@ -8,9 +8,9 @@ import qs.Services.WM.Impl.Niri
 Singleton {
   id: root
 
+  readonly property var _populatedWorkspaceIds: new Set(NiriService.windows.filter(window => window.workspace_id !== null && window.workspace_id !== undefined).map(window => window.workspace_id))
   readonly property bool fullscreenVisible: visibleWindowKeys.size > 0 && ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen && visibleWindowKeys.has(root._windowKey(toplevel.appId, toplevel.title)))
   readonly property bool hasOverview: true
-  readonly property var _populatedWorkspaceIds: new Set(NiriService.windows.filter(window => window.workspace_id !== null && window.workspace_id !== undefined).map(window => window.workspace_id))
   // ponytail: Niri IPC IDs are not exposed by foreign-toplevel handles, so
   // appId/title matching can conservatively collide. Replace this bridge when
   // either API exposes a shared stable window identity.

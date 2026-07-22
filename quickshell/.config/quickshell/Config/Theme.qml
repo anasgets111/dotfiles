@@ -62,6 +62,12 @@ Singleton {
   readonly property int animationFast: 100
   readonly property int animationSlow: 250
   readonly property int animationVerySlow: 400
+  readonly property int audioMixerVisibleRows: 4
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WIDGET SPECIFICS
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property int audioPanelWidth: 380
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BASE SIZES (Unscaled)
@@ -86,22 +92,14 @@ Singleton {
   readonly property color bgColor: c.bgColor ?? "#1e1e2e"
   readonly property color bgElevated: c.bgElevated ?? Qt.lighter(bgColor, 1.35)
   readonly property color bgElevatedHover: c.bgElevatedHover ?? Qt.lighter(bgColor, 1.47)
-  readonly property color bgCard: c.bgCard ?? withOpacity(bgElevated, opacitySolid)
-  readonly property color bgCardHover: c.bgCardHover ?? withOpacity(bgElevatedHover, opacityStrong)
   readonly property color bgInput: c.bgInput ?? withOpacity(bgColor, opacityStrong)
   readonly property color bgOverlay: withOpacity(c.bgOverlay ?? "#000000", 0.5)
-  readonly property color bgPanel: c.bgPanel ?? withOpacity(bgColor, opacityStrong)
   readonly property color bgSubtle: c.bgSubtle ?? withOpacity(bgColor, opacitySubtle)
+  readonly property int bluetoothPanelWidth: 360
   readonly property color borderColor: c.borderColor ?? "#313244"
-  readonly property color borderLight: c.borderLight ?? withOpacity(borderColor, opacityMedium)
   readonly property color borderMedium: c.borderMedium ?? withOpacity(borderColor, 0.4)
   readonly property color borderSubtle: c.borderSubtle ?? withOpacity(borderColor, 0.22)
   readonly property int borderWidthMedium: 2
-  readonly property real modalClosedScale: 0.97
-  readonly property color modalScrimColor: c.modalScrimColor ?? bgOverlay
-  readonly property real modalScrimOpacity: 0.88
-  readonly property int modalMargin: spacingXl
-  readonly property int modalRadius: radiusXl
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BORDER
@@ -143,6 +141,26 @@ Singleton {
   // Font Sizes
   readonly property int fontXs: s(10, 8)
   readonly property int fontXxl: s(28, 20)
+  readonly property color glassBorderColor: withOpacity(c.glassBorderColor ?? textActiveColor, glassBorderOpacity)
+  readonly property color glassBorderHoverColor: withOpacity(c.glassBorderHoverColor ?? textActiveColor, glassBorderHoverOpacity)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OPACITY CONSTANTS
+  // ═══════════════════════════════════════════════════════════════════════════
+  readonly property real glassBorderHoverOpacity: 0.34
+  readonly property real glassBorderOpacity: 0.18
+  readonly property color glassContentColor: withOpacity(c.glassContentColor ?? bgElevated, glassContentOpacity)
+  readonly property color glassContentHoverColor: withOpacity(c.glassContentHoverColor ?? bgElevatedHover, glassContentHoverOpacity)
+  readonly property real glassContentHoverOpacity: 0.62
+  readonly property real glassContentOpacity: 0.46
+  readonly property color glassControlColor: withOpacity(c.glassControlColor ?? inactiveColor, glassControlOpacity)
+  readonly property color glassControlHoverColor: withOpacity(c.glassControlHoverColor ?? onHoverColor, glassControlHoverOpacity)
+  readonly property real glassControlHoverOpacity: 0.68
+  readonly property real glassControlOpacity: 0.42
+  readonly property color glassInputColor: withOpacity(c.glassInputColor ?? bgColor, glassInputOpacity)
+  readonly property real glassInputOpacity: 0.62
+  readonly property color glassSurfaceColor: withOpacity(c.glassSurfaceColor ?? bgColor, glassSurfaceOpacity)
+  readonly property real glassSurfaceOpacity: 0.5
   readonly property string iconFontFamily: "JetBrainsMono Nerd Font Mono"
   readonly property int iconSize: s(baseIconSize, 12)
   readonly property int iconSizeLg: s(24, 18)
@@ -152,20 +170,13 @@ Singleton {
 
   // Icon Sizes
   readonly property int iconSizeXs: s(12, 10)
+  readonly property int idleModalHeight: s(820)
+  readonly property int idleModalWidth: s(780)
+  readonly property int idleTimeoutControlWidth: s(108)
   readonly property color inactiveColor: c.inactiveColor ?? "#494d64"
   readonly property int itemHeight: s(baseItemHeight, 20)
   readonly property int itemRadius: s(baseItemRadius, 6)
   readonly property int itemWidth: s(baseItemWidth, 20)
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // WIDGET SPECIFICS
-  // ═══════════════════════════════════════════════════════════════════════════
-  readonly property int audioPanelWidth: 380
-  readonly property int audioMixerVisibleRows: 4
-  readonly property int bluetoothPanelWidth: 360
-  readonly property int idleModalHeight: s(820)
-  readonly property int idleModalWidth: s(780)
-  readonly property int idleTimeoutControlWidth: s(108)
 
   // Launcher
   readonly property int launcherIconSize: s(42)
@@ -181,16 +192,19 @@ Singleton {
   readonly property color lockInputBorderColor: withOpacity("#ffffff", 0.18)
   readonly property real lockScale: internal.lockScale
   readonly property color lockSurfaceBorderColor: withOpacity("#ffffff", 0.22)
+  readonly property real modalClosedScale: 0.97
+  readonly property int modalMargin: spacingXl
+  readonly property int modalRadius: radiusXl
+  readonly property color modalScrimColor: c.modalScrimColor ?? bgOverlay
+  readonly property real modalScrimOpacity: 0.88
+  readonly property int networkPanelWidth: 340
 
   // Notifications
   readonly property int notificationAppIconSize: s(40)
   readonly property int notificationCardWidth: s(380)
   readonly property int notificationInlineImageSize: s(24)
+  readonly property int notificationPanelWidth: 420
   readonly property color onHoverColor: c.onHoverColor ?? "#a28dcd"
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // OPACITY CONSTANTS
-  // ═══════════════════════════════════════════════════════════════════════════
   readonly property real opacityDisabled: 0.5
   readonly property real opacityFull: 0.95
   readonly property real opacityLight: 0.25
@@ -208,14 +222,14 @@ Singleton {
   readonly property int osdSliderWidth: s(300)
   readonly property int osdToggleIconContainerSize: s(48)
   readonly property int osdToggleMinWidth: s(220)
+  readonly property int panelAnchorGap: 4
   readonly property int panelDefaultWidth: 350
   readonly property int panelHeight: s(basePanelHeight, 28)
-  readonly property int panelAnchorGap: 4
   readonly property int panelMargin: spacingMd
   readonly property int panelRadius: radiusMd
   readonly property int panelScreenInset: 8
-  readonly property int panelToggleCompactThreshold: s(220)
   readonly property int panelToggleCardHeight: s(56)
+  readonly property int panelToggleCompactThreshold: s(220)
   readonly property int popupOffset: spacingMd
   readonly property color powerSaveColor: c.powerSaveColor ?? "#a6e3a1"
   readonly property int radiusFull: 9999
@@ -238,8 +252,6 @@ Singleton {
   // ═══════════════════════════════════════════════════════════════════════════
   readonly property color shadowColorStrong: withOpacity(c.shadowColorStrong ?? "#000000", 0.55)
   readonly property int shadowOffsetY: 2
-  readonly property int spinnerDuration: 1000
-  readonly property int spinnerSize: controlHeightSm
   readonly property int spacingLg: s(16)
   readonly property int spacingMd: s(12)
   readonly property int spacingSm: s(8)
@@ -247,23 +259,23 @@ Singleton {
 
   // Spacing
   readonly property int spacingXs: s(4)
+  readonly property int spinnerDuration: 1000
+  readonly property int spinnerSize: controlHeightSm
   readonly property color textActiveColor: c.textActiveColor ?? "#cdd6f4"
   readonly property color textDisabled: c.textDisabled ?? withOpacity(textInactiveColor, opacityMedium)
   readonly property color textInactiveColor: c.textInactiveColor ?? "#a6adc8"
+  readonly property int trayMenuWidth: 300
+  readonly property int updateLogVisibleRows: 15
+  readonly property int updateOldVersionColumnWidth: 125
+  readonly property int updatePackageColumnWidth: 190
+  readonly property int updatePanelWidth: 500
+  readonly property int updateTableVisibleRows: 11
   readonly property int volumeExpandedWidth: s(baseVolumeExpandedWidth, 140)
   readonly property int wallpaperAnimationDuration: 900
   readonly property int wallpaperModalHeight: s(650)
   readonly property int wallpaperModalWidth: s(1040)
   readonly property int wallpaperSidebarWidth: s(250)
   readonly property int wallpaperTileWidth: s(230)
-  readonly property int networkPanelWidth: 340
-  readonly property int notificationPanelWidth: 420
-  readonly property int trayMenuWidth: 300
-  readonly property int updateLogVisibleRows: 15
-  readonly property int updateOldVersionColumnWidth: 125
-  readonly property int updatePackageColumnWidth: 190
-  readonly property int updateTableVisibleRows: 11
-  readonly property int updatePanelWidth: 500
   readonly property color warning: c.warning ?? "#fab387"
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -272,24 +284,26 @@ Singleton {
   function controlHeightFor(size) {
     return _controlHeights[size] ?? controlHeightMd;
   }
-  function textContrast(background: color): color {
-    const value = Qt.color(background);
-    const linear = channel => channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
-    const luminance = 0.2126 * linear(value.r) + 0.7152 * linear(value.g) + 0.0722 * linear(value.b);
-    return luminance > 0.179 ? "#000000" : "#ffffff";
-  }
   function fontSizeFor(size) {
     return _fontSizes[size] ?? fontMd;
   }
   function iconSizeFor(size) {
     return _iconSizes[size] ?? iconSizeMd;
   }
-  function networkBandColor(value: string): color { return value === "6" ? powerSaveColor : value === "5" ? activeColor : inactiveColor; }
+  function networkBandColor(value: string): color {
+    return value === "6" ? powerSaveColor : value === "5" ? activeColor : inactiveColor;
+  }
   function s(base, min = 0) {
     return Math.max(min, Math.round(base * internal.scaleFactor));
   }
   function spacingFor(size) {
     return _spacings[size] ?? spacingMd;
+  }
+  function textContrast(background: color): color {
+    const value = Qt.color(background);
+    const linear = channel => channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+    const luminance = 0.2126 * linear(value.r) + 0.7152 * linear(value.g) + 0.0722 * linear(value.b);
+    return luminance > 0.179 ? "#000000" : "#ffffff";
   }
   function withOpacity(color, opacity) {
     if (!color)

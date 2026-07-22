@@ -8,8 +8,8 @@ import Quickshell.Hyprland
 Singleton {
   id: root
 
-  readonly property var _state: _revision >= 0 ? _buildState() : null
   property int _revision: 0
+  readonly property var _state: _revision >= 0 ? _buildState() : null
   readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "focusedmonv2", "fullscreen", "monitoradded", "monitoraddedv2", "monitorremoved", "monitorremovedv2", "moveworkspace", "moveworkspacev2", "activespecial", "activespecialv2", "configreloaded", "openwindow", "closewindow", "movewindow", "movewindowv2"]
   readonly property bool fillsEmptyWorkspaceSlots: true
   readonly property string focusedOutput: Hyprland.focusedMonitor?.name ?? ""

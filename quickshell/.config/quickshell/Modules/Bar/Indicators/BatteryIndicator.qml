@@ -18,7 +18,7 @@ Item {
     const icons = ["", "", "", "", ""];
     return icons[Math.min(Math.floor(percentage * 5), 4)];
   }
-  readonly property color bgColor: Theme.inactiveColor
+  readonly property color bgColor: Theme.glassControlColor
   readonly property bool isPluggedIn: BatteryService.isACPowered
   readonly property real percentage: BatteryService.percentageFraction
   readonly property var power: PowerManagementService
@@ -41,20 +41,25 @@ Item {
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Theme.batteryPillWidth
-  Rectangle {
-    anchors.fill: parent
-    border.color: mouseArea.containsMouse ? Theme.textContrast(Theme.onHoverColor) : "transparent"
-    border.width: Theme.borderWidthThin
-    color: "transparent"
-    radius: height / 2
-    z: 2
-    Behavior on border.color { ColorAnimation { duration: Theme.animationFast } }
-  }
   visible: BatteryService.isReady
 
   onIsPluggedInChanged: if (isPluggedIn)
     plugFlash.restart()
 
+  Rectangle {
+    anchors.fill: parent
+    border.color: mouseArea.containsMouse ? Theme.glassBorderHoverColor : Theme.glassBorderColor
+    border.width: Theme.borderWidthThin
+    color: "transparent"
+    radius: height / 2
+    z: 2
+
+    Behavior on border.color {
+      ColorAnimation {
+        duration: Theme.animationFast
+      }
+    }
+  }
   Rectangle {
     anchors.fill: parent
     color: root.bgColor
@@ -126,7 +131,7 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      color: mouseArea.containsMouse ? Theme.onHoverColor : "transparent"
+      color: mouseArea.containsMouse ? Theme.glassControlHoverColor : "transparent"
       radius: height / 2
 
       Behavior on color {

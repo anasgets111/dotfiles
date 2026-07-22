@@ -18,8 +18,8 @@ PanelContentBase {
     }))
   readonly property var primaryDevice: connectedDevices[0] ?? null
   readonly property bool ready: BluetoothService.available
-  property string showCodecFor: ""
   readonly property bool shouldDiscover: root.isOpen && root.active
+  property string showCodecFor: ""
   readonly property bool showDeviceGroups: otherDevices.some(d => d.paired) && otherDevices.some(d => !d.paired)
 
   flatContainer: true
@@ -174,6 +174,7 @@ PanelContentBase {
     readonly property bool canConnect: !!device?.canConnect
     readonly property string currentCodec: device?.currentCodec || ""
     property var device: null
+
     busy: !!row.device?.busy
     expanded: root.showCodecFor === row.addr
     icon: row.device?.icon || "󰂯"
@@ -182,23 +183,13 @@ PanelContentBase {
     subtitle: row.device?.statusText || ""
     title: row.device?.name || qsTr("Unknown")
 
-    onClicked: {
-      if (row.device?.connected && row.device?.isAudio) {
-        root.showCodecFor = root.showCodecFor === row.addr ? "" : row.addr;
-        if (root.showCodecFor)
-          BluetoothService.fetchCodecs(row.addr);
-      } else if (row.canConnect) {
-        BluetoothService.connectDevice(row.addr);
-      }
-    }
-
-    badges: [BatteryBadge { device: row.device; opacity: Theme.opacityStrong }]
     actions: [
       PanelActionIcon {
         icon: "󱘖"
         tint: Theme.critical
         tooltipText: qsTr("Disconnect")
         visible: !!row.device?.connected
+
         onClicked: BluetoothService.disconnectDevice(row.addr)
       },
       PanelActionIcon {
@@ -206,6 +197,7 @@ PanelContentBase {
         tint: Theme.critical
         tooltipText: qsTr("Forget")
         visible: !!row.device?.paired
+
         onClicked: BluetoothService.forgetDevice(row.addr)
       },
       OButton {
@@ -216,24 +208,33 @@ PanelContentBase {
         textColor: Theme.activeColor
         variant: "ghost"
         visible: !!row.device?.canPair
+
         onClicked: BluetoothService.pairDevice(row.addr)
+      }
+    ]
+    badges: [
+      BatteryBadge {
+        device: row.device
+        opacity: Theme.opacityStrong
       }
     ]
     expandedContent: [
       ColumnLayout {
-        width: parent?.width ?? 0
         spacing: Theme.spacingXs
+        width: parent?.width ?? 0
 
         Repeater {
           model: row.availableCodecs
 
           delegate: PanelRow {
             required property var modelData
-            width: parent?.width ?? 0
+
             rowActionEnabled: modelData.name !== row.currentCodec
             selected: modelData.name === row.currentCodec
             subtitle: modelData.description || ""
             title: modelData.name || ""
+            width: parent?.width ?? 0
+
             onClicked: {
               BluetoothService.switchCodec(row.addr, modelData.profile);
               root.showCodecFor = "";
@@ -242,5 +243,15 @@ PanelContentBase {
         }
       }
     ]
+
+    onClicked: {
+      if (row.device?.connected && row.device?.isAudio) {
+        root.showCodecFor = root.showCodecFor === row.addr ? "" : row.addr;
+        if (root.showCodecFor)
+          BluetoothService.fetchCodecs(row.addr);
+      } else if (row.canConnect) {
+        BluetoothService.connectDevice(row.addr);
+      }
+    }
   }
 }

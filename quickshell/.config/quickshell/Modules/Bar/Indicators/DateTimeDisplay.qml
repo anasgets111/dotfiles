@@ -10,7 +10,7 @@ import qs.Services.UI
 Item {
   id: dateTimeDisplay
 
-  readonly property color bgColor: mouseArea.containsMouse ? Theme.onHoverColor : Theme.inactiveColor
+  readonly property color bgColor: mouseArea.containsMouse ? Theme.glassControlHoverColor : Theme.glassControlColor
   readonly property bool hasNotifications: notificationCount > 0
   readonly property int notificationCount: NotificationService.notifications.length
   required property string screenName
@@ -20,7 +20,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    border.color: mouseArea.containsMouse ? Theme.textContrast(dateTimeDisplay.bgColor) : "transparent"
+    border.color: mouseArea.containsMouse ? Theme.glassBorderHoverColor : Theme.glassBorderColor
     border.width: Theme.borderWidthThin
     color: dateTimeDisplay.bgColor
     radius: Theme.itemRadius
@@ -81,7 +81,6 @@ Item {
 
     onClicked: ShellUiState.togglePanelForItem("notifications", dateTimeDisplay.screenName, dateTimeDisplay)
   }
-
   Loader {
     id: tooltipLoader
 

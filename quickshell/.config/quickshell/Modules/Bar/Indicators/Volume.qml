@@ -51,7 +51,7 @@ Rectangle {
   border.color: "transparent"
   border.width: Theme.borderWidthThin
   clip: true
-  color: isMuted ? Theme.bgElevated : Theme.inactiveColor
+  color: isMuted ? Theme.glassContentColor : Theme.glassControlColor
   height: Theme.itemHeight
   radius: Theme.itemRadius
   width: expanded ? Theme.volumeExpandedWidth : Theme.itemHeight
@@ -135,11 +135,16 @@ Rectangle {
   }
   Rectangle {
     anchors.fill: parent
-    border.color: hoverHandler.hovered ? Theme.textContrast(root.trackColor) : "transparent"
+    border.color: hoverHandler.hovered ? Theme.glassBorderHoverColor : Theme.glassBorderColor
     border.width: Theme.borderWidthThin
     color: "transparent"
     radius: root.radius
     z: 2
-    Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
+
+    Behavior on border.color {
+      ColorAnimation {
+        duration: Theme.animationDuration
+      }
+    }
   }
 }

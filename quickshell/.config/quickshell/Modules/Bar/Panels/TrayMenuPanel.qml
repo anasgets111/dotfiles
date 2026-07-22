@@ -40,7 +40,7 @@ PanelContentBase {
       }
       Rectangle {
         anchors.fill: parent
-        color: rowMouse.containsMouse ? Theme.onHoverColor : "transparent"
+        color: rowMouse.containsMouse ? Theme.glassControlHoverColor : "transparent"
         radius: Theme.itemRadius
         visible: !(rowItem.entry?.isSeparator ?? false)
 
@@ -60,14 +60,14 @@ PanelContentBase {
           }
           OText {
             Layout.fillWidth: true
-            color: rowMouse.containsMouse ? Theme.textContrast(Theme.onHoverColor) : Theme.textActiveColor
+            color: rowMouse.containsMouse ? Theme.textContrast(Theme.glassControlHoverColor) : Theme.textActiveColor
             elide: Text.ElideRight
             opacity: rowItem.entry?.enabled ? 1.0 : 0.5
             text: rowItem.entry?.text ?? ""
             verticalAlignment: Text.AlignVCenter
           }
           OText {
-            color: rowMouse.containsMouse ? Theme.textContrast(Theme.onHoverColor) : Theme.textActiveColor
+            color: rowMouse.containsMouse ? Theme.textContrast(Theme.glassControlHoverColor) : Theme.textActiveColor
             text: rowItem.entry?.hasChildren ? "›" : rowItem.entry?.buttonType === QsMenuButtonType.CheckBox && rowItem.entry?.checkState === Qt.Checked ? "✓" : rowItem.entry?.buttonType === QsMenuButtonType.RadioButton && rowItem.entry?.checkState === Qt.Checked ? "●" : ""
           }
         }
@@ -129,9 +129,6 @@ PanelContentBase {
       id: subPopup
 
       property Item anchorTo: null
-      property var enterCallback: null
-      property QsMenuHandle submenuHandle: null
-
       readonly property Region blurRegion: Region {
         bottomLeftRadius: Theme.itemRadius
         bottomRightRadius: Theme.itemRadius
@@ -140,6 +137,8 @@ PanelContentBase {
         x: 2
         y: 2
       }
+      property var enterCallback: null
+      property QsMenuHandle submenuHandle: null
 
       BackgroundEffect.blurRegion: subPopup.blurRegion
       anchor.item: anchorTo
@@ -155,11 +154,11 @@ PanelContentBase {
       }
       Rectangle {
         anchors.fill: parent
-        border.color: Theme.borderColor
+        border.color: Theme.glassBorderColor
         border.width: Theme.borderWidthThin
         bottomLeftRadius: Theme.itemRadius
         bottomRightRadius: Theme.itemRadius
-        color: Theme.bgPanel
+        color: Theme.glassSurfaceColor
 
         ColumnLayout {
           id: subLayout

@@ -70,8 +70,8 @@ PanelContentBase {
       tone: UpdateService.isError ? "error" : UpdateService.isStale && UpdateService.checkError ? "warning" : UpdateService.isCompleted ? "active" : "standard"
 
       ColumnLayout {
-        width: parent?.width ?? 0
         spacing: Theme.spacingXs
+        width: parent?.width ?? 0
 
         RowLayout {
           Layout.fillWidth: true
@@ -107,19 +107,29 @@ PanelContentBase {
             height: parent.height
             radius: parent.radius
             width: parent.width * (UpdateService.totalPackagesToUpdate > 0 ? UpdateService.currentPackageIndex / UpdateService.totalPackagesToUpdate : 0)
-            Behavior on width { NumberAnimation { duration: Theme.animationDuration } }
+
+            Behavior on width {
+              NumberAnimation {
+                duration: Theme.animationDuration
+              }
+            }
           }
         }
         RowLayout {
           spacing: Theme.spacingSm
           visible: UpdateService.isUpdating && !UpdateService.progressDeterminate
 
-          OSpinner { running: visible }
-          OText { color: Theme.textInactiveColor; size: "xs"; text: qsTr("Working…") }
+          OSpinner {
+            running: visible
+          }
+          OText {
+            color: Theme.textInactiveColor
+            size: "xs"
+            text: qsTr("Working…")
+          }
         }
       }
     }
-
     PanelCard {
       Layout.fillWidth: true
       Layout.preferredHeight: Theme.itemHeight * Theme.updateTableVisibleRows + padding * 2
@@ -134,8 +144,13 @@ PanelContentBase {
           spacing: Theme.spacingSm
           visible: UpdateService.isChecking
 
-          OSpinner { Layout.alignment: Qt.AlignHCenter; running: visible }
-          OText { text: qsTr("Checking…") }
+          OSpinner {
+            Layout.alignment: Qt.AlignHCenter
+            running: visible
+          }
+          OText {
+            text: qsTr("Checking…")
+          }
         }
         ListView {
           id: packageList
@@ -147,41 +162,69 @@ PanelContentBase {
           model: UpdateService.updatePackages.slice().sort((left, right) => left.name.localeCompare(right.name))
           visible: !UpdateService.isChecking && UpdateService.totalUpdates > 0
 
-          header: Rectangle {
-            width: packageList.width
+          delegate: Item {
+            id: packageRow
+
+            required property var modelData
+
             height: Theme.itemHeight
-            color: Theme.bgCardHover
+            width: ListView.view.width
+
+            RowLayout {
+              anchors.fill: parent
+              anchors.leftMargin: Theme.spacingSm
+              anchors.rightMargin: Theme.spacingSm
+
+              OText {
+                Layout.preferredWidth: Theme.updatePackageColumnWidth
+                elide: Text.ElideRight
+                text: packageRow.modelData.name ?? ""
+              }
+              OText {
+                Layout.preferredWidth: Theme.updateOldVersionColumnWidth
+                color: Theme.textInactiveColor
+                elide: Text.ElideRight
+                text: packageRow.modelData.oldVersion ?? ""
+              }
+              OText {
+                Layout.fillWidth: true
+                color: Theme.activeColor
+                elide: Text.ElideRight
+                text: packageRow.modelData.newVersion ?? ""
+              }
+            }
+          }
+          header: Rectangle {
+            color: Theme.glassContentHoverColor
+            height: Theme.itemHeight
+            width: packageList.width
             z: 2
 
             RowLayout {
               anchors.fill: parent
               anchors.leftMargin: Theme.spacingSm
               anchors.rightMargin: Theme.spacingSm
-              OText { Layout.preferredWidth: Theme.updatePackageColumnWidth; bold: true; text: qsTr("Package") }
-              OText { Layout.preferredWidth: Theme.updateOldVersionColumnWidth; bold: true; text: qsTr("Old Version") }
-              OText { Layout.fillWidth: true; bold: true; text: qsTr("New Version") }
-            }
-          }
-          delegate: Item {
-            id: packageRow
 
-            required property var modelData
-            width: ListView.view.width
-            height: Theme.itemHeight
-
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: Theme.spacingSm
-              anchors.rightMargin: Theme.spacingSm
-              OText { Layout.preferredWidth: Theme.updatePackageColumnWidth; elide: Text.ElideRight; text: packageRow.modelData.name ?? "" }
-              OText { Layout.preferredWidth: Theme.updateOldVersionColumnWidth; color: Theme.textInactiveColor; elide: Text.ElideRight; text: packageRow.modelData.oldVersion ?? "" }
-              OText { Layout.fillWidth: true; color: Theme.activeColor; elide: Text.ElideRight; text: packageRow.modelData.newVersion ?? "" }
+              OText {
+                Layout.preferredWidth: Theme.updatePackageColumnWidth
+                bold: true
+                text: qsTr("Package")
+              }
+              OText {
+                Layout.preferredWidth: Theme.updateOldVersionColumnWidth
+                bold: true
+                text: qsTr("Old Version")
+              }
+              OText {
+                Layout.fillWidth: true
+                bold: true
+                text: qsTr("New Version")
+              }
             }
           }
         }
       }
     }
-
     PanelCard {
       Layout.fillWidth: true
       Layout.preferredHeight: Theme.itemHeight * Theme.updateLogVisibleRows + padding * 2
@@ -190,8 +233,8 @@ PanelContentBase {
 
       ColumnLayout {
         height: parent?.height ?? 0
-        width: parent?.width ?? 0
         spacing: Theme.spacingSm
+        width: parent?.width ?? 0
 
         OText {
           Layout.fillWidth: true
@@ -202,22 +245,27 @@ PanelContentBase {
         }
         ListView {
           property bool followOutput: true
+
           Layout.fillHeight: true
           Layout.fillWidth: true
           clip: true
           model: UpdateService.outputLines
           spacing: Theme.spacingXs
 
-          ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+          ScrollBar.vertical: ScrollBar {
+            policy: ScrollBar.AsNeeded
+          }
           delegate: OText {
             required property var modelData
-            width: ListView.view.width
+
             color: root.logColor(modelData)
             font.family: "Monospace"
             font.pixelSize: Theme.fontSm
             text: modelData
+            width: ListView.view.width
             wrapMode: Text.Wrap
           }
+
           onContentYChanged: if (moving || flicking)
             followOutput = atYEnd
           onCountChanged: if (followOutput)
@@ -225,29 +273,33 @@ PanelContentBase {
         }
       }
     }
-
     PanelCard {
       Layout.fillWidth: true
       visible: UpdateService.isCompleted && !root.showCompletedLog
 
       RowLayout {
         width: parent?.width ?? 0
+
         OText {
           Layout.fillWidth: true
           color: Theme.textInactiveColor
           text: UpdateService.rebootRequired ? qsTr("Update finished. A reboot is required.") : qsTr("Update finished successfully.")
         }
-        OButton { text: qsTr("View log"); variant: "secondary"; onClicked: root.showCompletedLog = true }
+        OButton {
+          text: qsTr("View log")
+          variant: "secondary"
+
+          onClicked: root.showCompletedLog = true
+        }
       }
     }
-
     PanelCard {
       Layout.fillWidth: true
       visible: (UpdateService.ready && (UpdateService.isStale || UpdateService.totalUpdates > 0)) || UpdateService.isCompleted || UpdateService.isError
 
       ColumnLayout {
-        width: parent?.width ?? 0
         spacing: Theme.spacingSm
+        width: parent?.width ?? 0
 
         OButton {
           Layout.fillWidth: true
@@ -255,6 +307,7 @@ PanelContentBase {
           text: qsTr("Check")
           variant: "secondary"
           visible: UpdateService.ready && UpdateService.isIdle && UpdateService.isStale
+
           onClicked: UpdateService.doPoll()
         }
         OButton {
@@ -262,6 +315,7 @@ PanelContentBase {
           isEnabled: UpdateService.ready && !UpdateService.busy && (UpdateService.totalUpdates > 0 || UpdateService.isError)
           text: UpdateService.isError ? qsTr("Retry") : qsTr("Update")
           visible: (UpdateService.totalUpdates > 0 || UpdateService.isError) && !UpdateService.isCompleted
+
           onClicked: UpdateService.executeUpdate()
         }
         OButton {
@@ -269,6 +323,7 @@ PanelContentBase {
           text: qsTr("Close")
           variant: "secondary"
           visible: UpdateService.isCompleted || UpdateService.isError
+
           onClicked: {
             UpdateService.dismissResult();
             root.closeRequested();

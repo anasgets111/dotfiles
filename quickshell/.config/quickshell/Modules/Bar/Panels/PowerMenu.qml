@@ -126,7 +126,7 @@ Item {
         OText {
           anchors.centerIn: parent
           bold: true
-          color: btn.effectiveFg ?? Theme.textContrast(Theme.inactiveColor)
+          color: btn.effectiveFg ?? Theme.textContrast(Theme.glassControlColor)
           horizontalAlignment: Text.AlignHCenter
           text: btn.isSelected ? String(powerMenu.countdown) : btn.action.icon
           verticalAlignment: Text.AlignVCenter

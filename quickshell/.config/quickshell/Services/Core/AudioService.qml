@@ -226,11 +226,6 @@ Singleton {
   function setStreamVolume(id: int, newVolume: real): void {
     setNodeVolume(_nodeById(root.streams, id), newVolume, 1.0, true);
   }
-  function toggleStreamMute(id: int): void {
-    const stream = _nodeById(root.streams, id);
-    if (hasControllableAudio(stream))
-      setNodeMuted(stream, !stream.audio.muted);
-  }
   function setVolume(newVolume: real): void {
     setNodeVolume(root.sink, newVolume, root.maxVolume, true);
   }
@@ -249,6 +244,11 @@ Singleton {
     const nextMuted = !root.sink.audio.muted;
     setNodeMuted(root.sink, nextMuted);
     return nextMuted ? "Audio muted" : "Audio unmuted";
+  }
+  function toggleStreamMute(id: int): void {
+    const stream = _nodeById(root.streams, id);
+    if (hasControllableAudio(stream))
+      setNodeMuted(stream, !stream.audio.muted);
   }
 
   Component.onCompleted: {

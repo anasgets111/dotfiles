@@ -24,28 +24,28 @@ Singleton {
   readonly property bool busy: _checking || updateProcess.running || isUpdating
   readonly property string checkError: Settings.isStateLoaded ? Settings.state.updates.lastCheckError : ""
   property int completedPackageCount: 0
-  property int currentPackageIndex: 0
   property string currentPackage: ""
+  property int currentPackageIndex: 0
   property string currentStep: ""
   property string errorMessage: ""
   readonly property bool isChecking: _checking
   readonly property bool isCompleted: _state === "completed"
   readonly property bool isError: _state === "error"
   readonly property bool isIdle: _state === "idle"
-  readonly property bool isUpdating: _state === "updating"
   readonly property bool isStale: !Settings.isStateLoaded || checkError !== "" || lastSuccessfulCheck <= 0 || Date.now() - lastSuccessfulCheck > _pollInterval
+  readonly property bool isUpdating: _state === "updating"
   readonly property double lastSuccessfulCheck: Settings.isStateLoaded ? Settings.state.updates.lastSuccessfulCheck : 0
   property var outputLines: []
   property bool progressDeterminate: false
   readonly property bool ready: MainService.isArchBased && _checkUpdatesAvailable && Settings.isStateLoaded
   property bool rebootRequired: false
-  property double updateDurationMs: 0
-  property double updateStartedAt: 0
-  property int warningCount: 0
   readonly property int totalDownloadSize: updatePackages.reduce((totalSize, packageInfo) => totalSize + (_packageSizes[packageInfo.name] ?? 0), 0)
   property int totalPackagesToUpdate: 0
   readonly property int totalUpdates: updatePackages.length
+  property double updateDurationMs: 0
   readonly property var updatePackages: _hasPackageCache ? Settings.state.updates.packages : []
+  property double updateStartedAt: 0
+  property int warningCount: 0
 
   function _detectErrorMessage(lineText: string): string {
     const normalizedLine = lineText.toLowerCase();

@@ -11,7 +11,7 @@ IconButton {
   readonly property string reason: !anyInhibit ? "" : [IdleService.manualInhibit ? qsTr("manual") : "", IdleService.fullscreenInhibitorActive ? qsTr("fullscreen") : "", IdleService.videoInhibitorActive ? qsTr("video") : ""].filter(r => r).join(" + ")
   required property string screenName
 
-  colorBg: anyInhibit ? Theme.activeColor : Theme.inactiveColor
+  colorBg: anyInhibit ? Theme.activeColor : Theme.glassControlColor
   icon: IdleService.manualInhibit ? "󰅶" : "󰾪"
   implicitHeight: Theme.itemHeight
   implicitWidth: Theme.itemWidth

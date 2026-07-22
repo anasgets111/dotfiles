@@ -12,8 +12,8 @@ Item {
 
   property bool _polling: false
   property bool active: false
-  property string expandedDiskKey: ""
   property bool expanded: false
+  property string expandedDiskKey: ""
   readonly property real storageProgress: {
     let used = 0;
     let total = 0;
@@ -48,13 +48,13 @@ Item {
     if (_polling)
       SystemInfoService.refCount = Math.max(0, SystemInfoService.refCount - 1);
   }
-  onExpandedChanged: if (!expanded)
-    expandedDiskKey = ""
   onActiveChanged: {
     syncPolling();
     if (!active)
       expandedDiskKey = "";
   }
+  onExpandedChanged: if (!expanded)
+    expandedDiskKey = ""
 
   ColumnLayout {
     id: layout
@@ -68,7 +68,7 @@ Item {
 
       Layout.fillWidth: true
       Layout.preferredHeight: Theme.itemHeight
-      bgColor: root.expanded ? Theme.activeColor : Theme.bgCard
+      bgColor: root.expanded ? Theme.activeColor : Theme.glassContentColor
 
       onClicked: root.expanded = !root.expanded
 
@@ -220,12 +220,17 @@ Item {
     rowActionEnabled: (disk.partitions?.length ?? 0) > 0
     subtitle: `${Utils.fmtKib(disk.usedKib)} / ${Utils.fmtKib(disk.totalKib)}`
     title: disk.name
-    onClicked: root.expandedDiskKey = expanded ? "" : diskKey
-    badges: [OText { color: Theme.activeColor; text: diskTile.expanded ? "󰅀" : "󰅂" }]
+
+    badges: [
+      OText {
+        color: Theme.activeColor
+        text: diskTile.expanded ? "󰅀" : "󰅂"
+      }
+    ]
     expandedContent: [
       ColumnLayout {
-        width: parent?.width ?? 0
         spacing: Theme.spacingXs
+        width: parent?.width ?? 0
 
         Repeater {
           model: diskTile.disk.partitions
@@ -235,15 +240,25 @@ Item {
 
             required property var modelData
 
-            width: parent?.width ?? 0
             rowActionEnabled: false
             subtitle: `${Utils.fmtKib(modelData.usedKib)} / ${Utils.fmtKib(modelData.totalKib)}`
             title: modelData.mountPoint === "/" ? qsTr("Root") : modelData.mountPoint
-            badges: [OText { bold: true; color: root.statusColor(partitionDelegate.modelData.percentage, Theme.textActiveColor); size: "sm"; text: `${(partitionDelegate.modelData.percentage * 100).toFixed(0)}%` }]
+            width: parent?.width ?? 0
+
+            badges: [
+              OText {
+                bold: true
+                color: root.statusColor(partitionDelegate.modelData.percentage, Theme.textActiveColor)
+                size: "sm"
+                text: `${(partitionDelegate.modelData.percentage * 100).toFixed(0)}%`
+              }
+            ]
           }
         }
       }
     ]
+
+    onClicked: root.expandedDiskKey = expanded ? "" : diskKey
   }
   component GpuTile: PanelCard {
     id: gpuTile
