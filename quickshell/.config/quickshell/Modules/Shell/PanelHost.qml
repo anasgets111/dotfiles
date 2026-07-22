@@ -47,7 +47,7 @@ FocusScope {
   property var retainedPanelData: null
   property real retainedPanelHeight: 1
   property real retainedPanelWidth: Theme.panelDefaultWidth
-  readonly property bool useFlatContainer: root.effectivePanelComponent === audioPanelComponent || root.effectivePanelComponent === bluetoothPanelComponent || root.effectivePanelComponent === networkPanelComponent
+  readonly property bool useFlatContainer: root.panelItem?.flatContainer ?? false
 
   signal closeRequested
 

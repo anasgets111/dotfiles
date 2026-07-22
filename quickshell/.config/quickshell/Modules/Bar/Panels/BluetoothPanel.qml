@@ -19,21 +19,16 @@ PanelContentBase {
   readonly property var primaryDevice: connectedDevices[0] ?? null
   readonly property bool ready: BluetoothService.available
   property string showCodecFor: ""
+  readonly property bool shouldDiscover: root.isOpen && root.active
   readonly property bool showDeviceGroups: otherDevices.some(d => d.paired) && otherDevices.some(d => !d.paired)
 
+  flatContainer: true
   preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: Theme.bluetoothPanelWidth
 
-  onActiveChanged: if (isOpen)
-    active ? BluetoothService.startDiscovery() : BluetoothService.stopDiscovery()
-  onIsOpenChanged: {
-    if (isOpen && active) {
-      BluetoothService.startDiscovery();
-      return;
-    }
-    showCodecFor = "";
-    BluetoothService.stopDiscovery();
-  }
+  onIsOpenChanged: if (!isOpen)
+    showCodecFor = ""
+  onShouldDiscoverChanged: shouldDiscover ? BluetoothService.startDiscovery() : BluetoothService.stopDiscovery()
 
   ColumnLayout {
     id: mainLayout
@@ -141,11 +136,20 @@ PanelContentBase {
         }
       }
     }
-    StateMessage {
+    PanelEmptyState {
+      Layout.fillHeight: true
+      Layout.fillWidth: true
+      Layout.minimumHeight: 120
+      icon: "󰂲"
+      iconOpacity: 0.4
       text: BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices found")
       visible: root.active && root.otherDevices.length === 0
     }
-    StateMessage {
+    PanelEmptyState {
+      Layout.fillHeight: true
+      Layout.fillWidth: true
+      Layout.minimumHeight: 120
+      icon: "󰂲"
       iconOpacity: 0.3
       text: !root.ready ? qsTr("Bluetooth unavailable") : qsTr("Bluetooth off")
       visible: !root.active
@@ -238,34 +242,5 @@ PanelContentBase {
         }
       }
     ]
-  }
-  component StateMessage: Item {
-    id: stateMessage
-
-    property real iconOpacity: 0.4
-    property string text: ""
-
-    Layout.fillHeight: true
-    Layout.fillWidth: true
-    Layout.minimumHeight: 120
-
-    ColumnLayout {
-      anchors.centerIn: parent
-      spacing: Theme.spacingSm
-
-      Text {
-        Layout.alignment: Qt.AlignHCenter
-        color: Theme.textInactiveColor
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize * 2
-        opacity: stateMessage.iconOpacity
-        text: "󰂲"
-      }
-      OText {
-        Layout.alignment: Qt.AlignHCenter
-        color: Theme.textInactiveColor
-        text: stateMessage.text
-      }
-    }
   }
 }

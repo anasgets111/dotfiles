@@ -14,6 +14,7 @@ PanelContentBase {
   property bool outputDevicesExpanded: false
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
 
+  flatContainer: true
   preferredHeight: contentLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: Theme.audioPanelWidth
 

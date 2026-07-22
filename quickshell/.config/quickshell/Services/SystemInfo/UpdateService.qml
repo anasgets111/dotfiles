@@ -234,7 +234,7 @@ Singleton {
 
     function appendOutputLine(lineText: string): void {
       const cleanLine = String(lineText ?? "").replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/\r$/, "");
-      root.outputLines = root.outputLines.concat(cleanLine);
+      root.outputLines = root.outputLines.slice(-299).concat(cleanLine);
       const stepMatch = cleanLine.trim().match(/^▶\s+(.+)$/);
       if (stepMatch) {
         root.currentStep = stepMatch[1];

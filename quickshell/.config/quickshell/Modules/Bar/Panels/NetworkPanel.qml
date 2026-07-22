@@ -30,12 +30,10 @@ PanelContentBase {
     if (!root.networkingEnabled)
       return qsTr("Off");
     if (NetworkService.linkType === "ethernet") {
-      const speed = NetworkService.ethernetSpeed > 0 ? (NetworkService.ethernetSpeed >= 1000 ? `${NetworkService.ethernetSpeed / 1000} Gb/s` : `${NetworkService.ethernetSpeed} Mb/s`) : "";
-      return [root.ethernetInterface || qsTr("Ethernet"), NetworkService.ethernetIpAddress, speed].filter(Boolean).join(" · ");
+      return [root.ethernetInterface || qsTr("Ethernet"), NetworkService.ethernetIpAddress, root.formatEthernetSpeed(NetworkService.ethernetSpeed)].filter(Boolean).join(" · ");
     }
     if (root.connectedNetwork) {
-      const band = root.connectedNetwork.band ? `${root.connectedNetwork.band}G` : "";
-      return [root.connectedNetwork.ssid, NetworkService.wifiIpAddress, band, `${root.connectedNetwork.signal}%`].filter(Boolean).join(" · ");
+      return [root.connectedNetwork.ssid, NetworkService.wifiIpAddress, root.formatBandLabel(root.connectedNetwork.band), `${root.connectedNetwork.signal}%`].filter(Boolean).join(" · ");
     }
     return qsTr("Not connected");
   }
@@ -43,6 +41,15 @@ PanelContentBase {
       group: ap.saved ? "saved" : "available"
     }))
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
+
+  function formatBandLabel(band: string): string {
+    return band ? `${band}G` : "";
+  }
+  function formatEthernetSpeed(mbps: real): string {
+    if (mbps <= 0)
+      return "";
+    return mbps >= 1000 ? `${mbps / 1000} Gb/s` : `${mbps} Mb/s`;
+  }
 
   function cancelInline(): void {
     root.expandedSsid = "";
@@ -80,6 +87,7 @@ PanelContentBase {
     NetworkService.connectToSsid(targetSsid, password);
   }
 
+  flatContainer: true
   preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: Theme.networkPanelWidth
 
@@ -143,7 +151,7 @@ PanelContentBase {
       PanelToggleCard {
         active: root.ready
         checked: root.wifiEnabled
-        detail: root.connectedNetwork ? [NetworkService.wifiIpAddress, root.connectedNetwork.band ? `${root.connectedNetwork.band}G` : ""].filter(Boolean).join(" · ") : ""
+        detail: root.connectedNetwork ? [NetworkService.wifiIpAddress, root.formatBandLabel(root.connectedNetwork.band)].filter(Boolean).join(" · ") : ""
         icon: "󰤨"
         label: qsTr("Wi-Fi")
 
@@ -152,7 +160,7 @@ PanelContentBase {
       PanelToggleCard {
         active: root.ready && root.ethernetInterface !== ""
         checked: NetworkService.ethernetOnline
-        detail: NetworkService.ethernetOnline ? [NetworkService.ethernetIpAddress, NetworkService.ethernetSpeed > 0 ? (NetworkService.ethernetSpeed >= 1000 ? `${NetworkService.ethernetSpeed / 1000} Gb/s` : `${NetworkService.ethernetSpeed} Mb/s`) : ""].filter(Boolean).join(" · ") : ""
+        detail: NetworkService.ethernetOnline ? [NetworkService.ethernetIpAddress, root.formatEthernetSpeed(NetworkService.ethernetSpeed)].filter(Boolean).join(" · ") : ""
         icon: "󰈀"
         label: root.ethernetInterface !== "" ? qsTr("Ethernet") : qsTr("No Ethernet")
 
@@ -316,7 +324,7 @@ PanelContentBase {
         }
       }
     }
-    StateMessage {
+    PanelEmptyState {
       Layout.fillHeight: true
       Layout.fillWidth: true
       Layout.minimumHeight: 120
@@ -324,7 +332,7 @@ PanelContentBase {
       text: root.scanning ? qsTr("Scanning…") : qsTr("No networks found")
       visible: !root.isHiddenTarget && root.wifiEnabled && root.networkingEnabled && root.savedNetworks.length === 0 && root.availableNetworks.length === 0
     }
-    StateMessage {
+    PanelEmptyState {
       Layout.fillHeight: true
       Layout.fillWidth: true
       Layout.minimumHeight: 120
@@ -557,34 +565,5 @@ PanelContentBase {
     }
     onVisibleChanged: if (visible)
       Qt.callLater(() => sf.forceActiveFocus())
-  }
-  component StateMessage: Item {
-    id: stateMessage
-
-    property string icon: ""
-    property string text: ""
-
-    implicitHeight: stateContent.implicitHeight
-
-    ColumnLayout {
-      id: stateContent
-
-      anchors.centerIn: parent
-      spacing: Theme.spacingSm
-
-      Text {
-        Layout.alignment: Qt.AlignHCenter
-        color: Theme.textInactiveColor
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSize * 2
-        opacity: Theme.opacityMedium
-        text: stateMessage.icon
-      }
-      OText {
-        Layout.alignment: Qt.AlignHCenter
-        color: Theme.textInactiveColor
-        text: stateMessage.text
-      }
-    }
   }
 }

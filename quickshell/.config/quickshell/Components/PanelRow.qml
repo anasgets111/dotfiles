@@ -67,7 +67,7 @@ Rectangle {
         visible: children.length > 1 || root.icon !== ""
 
         OText {
-          anchors.centerIn: parent
+          anchors.centerIn: leadingSlot.children.length === 1 ? parent : null
           color: root.selected ? Theme.activeColor : Theme.textActiveColor
           font.family: Theme.iconFontFamily
           font.pixelSize: Theme.iconSizeMd
