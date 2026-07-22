@@ -353,6 +353,8 @@ PanelContentBase {
           id: streamList
 
           anchors.fill: parent
+          anchors.leftMargin: Theme.spacingSm
+          anchors.rightMargin: Theme.spacingSm
           anchors.topMargin: Theme.spacingSm
           boundsBehavior: Flickable.StopAtBounds
           clip: true

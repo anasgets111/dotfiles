@@ -37,72 +37,65 @@ Rectangle {
 
     onClicked: card.toggled(!card.checked)
   }
+  LabelContent {
+    anchors.centerIn: parent
+    visible: card.compact || card.detail === ""
+  }
   RowLayout {
     anchors.fill: parent
-    anchors.leftMargin: card.compact || card.detail !== "" ? Theme.spacingMd : 0
-    anchors.rightMargin: card.compact || card.detail !== "" ? Theme.spacingMd : 0
+    anchors.margins: Theme.spacingMd
     spacing: Theme.spacingSm
+    visible: !card.compact && card.detail !== ""
+
+    LabelContent {}
+    DetailText { Layout.fillWidth: true }
+  }
+  component LabelContent: ColumnLayout {
+    spacing: Theme.spacingXs
 
     Item {
-      Layout.fillWidth: true
-      visible: card.compact || card.detail === ""
-    }
-    ColumnLayout {
-      spacing: Theme.spacingXs
+      Layout.alignment: Qt.AlignHCenter
+      Layout.preferredHeight: Theme.iconSizeMd
+      Layout.preferredWidth: Theme.iconSizeMd
 
-      Item {
-        Layout.alignment: Qt.AlignHCenter
-        Layout.preferredHeight: Theme.iconSizeMd
-        Layout.preferredWidth: Theme.iconSizeMd
-
-        Text {
-          anchors.centerIn: parent
-          color: card.checked && card.active ? Theme.activeColor : Theme.textInactiveColor
-          font.family: Theme.iconFontFamily
-          font.pixelSize: Theme.iconSizeMd
-          text: card.icon
-          visible: !card.spinning
-
-          Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
-        }
-        OSpinner {
-          anchors.centerIn: parent
-          color: card.checked && card.active ? Theme.activeColor : Theme.textInactiveColor
-          running: card.spinning
-          spinnerSize: Theme.iconSizeMd
-        }
-      }
-      OText {
-        Layout.alignment: Qt.AlignHCenter
-        bold: card.checked
+      Text {
+        anchors.centerIn: parent
         color: card.checked && card.active ? Theme.activeColor : Theme.textInactiveColor
-        size: "xs"
-        text: card.label
+        font.family: Theme.iconFontFamily
+        font.pixelSize: Theme.iconSizeMd
+        text: card.icon
+        visible: !card.spinning
 
         Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
       }
-      OText {
-        Layout.alignment: Qt.AlignHCenter
-        Layout.maximumWidth: card.width - Theme.spacingMd * 2
-        color: card.checked && card.active ? Theme.textActiveColor : Theme.textInactiveColor
-        elide: Text.ElideRight
-        size: "xs"
-        text: card.detail
-        visible: card.compact && card.detail !== ""
+      OSpinner {
+        anchors.centerIn: parent
+        color: card.checked && card.active ? Theme.activeColor : Theme.textInactiveColor
+        running: card.spinning
+        spinnerSize: Theme.iconSizeMd
       }
     }
-    Item {
-      Layout.fillWidth: true
-    }
     OText {
-      Layout.maximumWidth: card.width / 2
-      color: card.checked && card.active ? Theme.textActiveColor : Theme.textInactiveColor
-      elide: Text.ElideRight
+      Layout.alignment: Qt.AlignHCenter
+      bold: card.checked
+      color: card.checked && card.active ? Theme.activeColor : Theme.textInactiveColor
       size: "xs"
-      text: card.detail
-      visible: !card.compact && card.detail !== ""
+      text: card.label
 
       Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
     }
+    DetailText {
+      Layout.alignment: Qt.AlignHCenter
+      Layout.maximumWidth: card.width - Theme.spacingMd * 2
+      visible: card.compact && card.detail !== ""
+    }
+  }
+  component DetailText: OText {
+    color: card.checked && card.active ? Theme.textActiveColor : Theme.textInactiveColor
+    elide: Text.ElideRight
+    size: "xs"
+    text: card.detail
+
+    Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
   }
 }

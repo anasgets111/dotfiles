@@ -510,7 +510,6 @@ PanelContentBase {
     ]
     rowActionEnabled: !row.network?.connected
     selected: row.network?.connected === true
-    subtitle: row.network?.connected ? qsTr("Connected") : ""
     title: row.network?.ssid || ""
 
     badges: [OText { color: Theme.textInactiveColor; size: "xs"; text: "󰌾"; visible: row.network?.secured === true }]
