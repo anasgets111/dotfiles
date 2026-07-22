@@ -11,20 +11,16 @@ Rectangle {
     const sizeBoost = widthRatio > 1.2 ? Math.min(1.15, 0.9 + (widthRatio - 1.2) * 0.35) : 1;
     return Math.min(baseSize * sizeBoost, root.height - _thumbPadding * 2);
   }
-
   readonly property color _trackDisabled: Theme.withOpacity(Theme.disabledColor, 0.75)
-
   readonly property int _trackHeight: Math.round(Theme.controlHeightFor(size) * Theme.scaleSmall)
   readonly property color _trackHover: Theme.glassControlHoverColor
   readonly property color _trackOff: Theme.glassControlColor
   readonly property color _trackOn: Theme.activeFull
   readonly property int _trackWidth: Math.round(_trackHeight * 2.3)
-
   property bool checked: false
   property bool disabled: false
   property bool hovered: false
   property bool pressed: false
-
   property string size: "md"
 
   signal toggled(bool checked)

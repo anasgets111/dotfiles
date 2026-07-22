@@ -61,7 +61,6 @@ ShellRoot {
       monitor: modelData
     }
   }
-
   LazyLoader {
     active: MainService.ready && WorkspaceService.hasOverview
 

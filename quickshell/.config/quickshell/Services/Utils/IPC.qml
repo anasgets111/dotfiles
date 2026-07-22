@@ -43,7 +43,6 @@ Singleton {
 
     target: "lock"
   }
-
   IpcHandler {
     function getActive(prop: string): string {
       const a = MediaService.active;
@@ -82,7 +81,6 @@ Singleton {
 
     target: "mpris"
   }
-
   IpcHandler {
     function toggle(): string {
       Logger.log("IPC", "rec.toggle");
@@ -92,7 +90,6 @@ Singleton {
 
     target: "rec"
   }
-
   IpcHandler {
     function toggle(): string {
       const active = ipc.toggleLauncher();
@@ -102,7 +99,6 @@ Singleton {
 
     target: "launcher"
   }
-
   IpcHandler {
     function clear(): string {
       Logger.log("IPC", "notifications.clear");
@@ -112,7 +108,6 @@ Singleton {
 
     target: "notifs"
   }
-
   IpcHandler {
     function mute(): string {
       Logger.log("IPC", "mic.mute");

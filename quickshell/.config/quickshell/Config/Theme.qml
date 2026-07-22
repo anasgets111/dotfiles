@@ -38,22 +38,17 @@ Singleton {
       lg: spacingLg,
       xl: spacingXl
     })
-
   readonly property color activeColor: c.activeColor ?? "#cba6f7"
-
   readonly property color activeFull: c.activeFull ?? withOpacity(activeColor, opacityFull)
   readonly property color activeLight: c.activeLight ?? withOpacity(activeColor, opacityLight)
   readonly property color activeMedium: c.activeMedium ?? withOpacity(activeColor, opacityMedium)
   readonly property color activeSubtle: c.activeSubtle ?? withOpacity(activeColor, opacitySubtle)
-
   readonly property int animationDuration: 147
   readonly property int animationFast: 100
   readonly property int animationSlow: 250
   readonly property int animationVerySlow: 400
   readonly property int audioMixerVisibleRows: 4
-
   readonly property int audioPanelWidth: 380
-
   readonly property int baseBatteryPillWidth: 80
   readonly property int baseFontSize: 16
   readonly property int baseIconSize: 24
@@ -61,9 +56,7 @@ Singleton {
   readonly property int baseItemRadius: 18
   readonly property int baseItemWidth: 34
   readonly property int basePanelHeight: 42
-
   readonly property int baseVolumeExpandedWidth: 220
-
   readonly property int batteryPillWidth: s(baseBatteryPillWidth, 60)
   readonly property color bgColor: c.bgColor ?? "#1e1e2e"
   readonly property color bgElevated: c.bgElevated ?? Qt.lighter(bgColor, 1.35)
@@ -76,25 +69,20 @@ Singleton {
   readonly property color borderMedium: c.borderMedium ?? withOpacity(borderColor, 0.4)
   readonly property color borderSubtle: c.borderSubtle ?? withOpacity(borderColor, 0.22)
   readonly property int borderWidthMedium: 2
-
   readonly property int borderWidthThin: 1
-
   readonly property var c: Settings?.colors ?? {}
   readonly property int cardPadding: s(10)
   readonly property int controlHeightLg: s(basePanelHeight, 34)
   readonly property int controlHeightMd: s(baseItemHeight, 28)
   readonly property int controlHeightSm: s(28, 24)
   readonly property int controlHeightXl: s(52, 42)
-
   readonly property int controlHeightXs: s(24, 20)
   readonly property int controlWidthLg: s(48, 40)
   readonly property int controlWidthSm: s(32, 24)
-
   readonly property color critical: c.critical ?? "#f38ba8"
   readonly property int dialogPadding: s(20)
   readonly property int dialogWidth: s(450)
   readonly property color disabledColor: c.disabledColor ?? "#232634"
-
   readonly property string fontFamily: "CaskaydiaCove Nerd Font Propo"
   readonly property int fontHero: s(48, 32)
   readonly property int fontLg: s(16, 14)
@@ -102,12 +90,10 @@ Singleton {
   readonly property int fontSize: s(baseFontSize, 10)
   readonly property int fontSm: s(12, 10)
   readonly property int fontXl: s(20, 16)
-
   readonly property int fontXs: s(10, 8)
   readonly property int fontXxl: s(28, 20)
   readonly property color glassBorderColor: withOpacity(c.glassBorderColor ?? textActiveColor, glassBorderOpacity)
   readonly property color glassBorderHoverColor: withOpacity(c.glassBorderHoverColor ?? textActiveColor, glassBorderHoverOpacity)
-
   readonly property real glassBorderHoverOpacity: 0.34
   readonly property real glassBorderOpacity: 0.18
   readonly property color glassContentColor: withOpacity(c.glassContentColor ?? bgElevated, glassContentOpacity)
@@ -128,7 +114,6 @@ Singleton {
   readonly property int iconSizeMd: s(18, 14)
   readonly property int iconSizeSm: s(14, 12)
   readonly property int iconSizeXl: s(32, 24)
-
   readonly property int iconSizeXs: s(12, 10)
   readonly property int idleModalHeight: s(820)
   readonly property int idleModalWidth: s(780)
@@ -137,13 +122,11 @@ Singleton {
   readonly property int itemHeight: s(baseItemHeight, 20)
   readonly property int itemRadius: s(baseItemRadius, 6)
   readonly property int itemWidth: s(baseItemWidth, 20)
-
   readonly property int launcherIconSize: s(42)
   readonly property int launcherRowHeight: s(64)
   readonly property int launcherSpecialRowHeight: s(86)
   readonly property int launcherWindowHeight: s(680)
   readonly property int launcherWindowWidth: s(860)
-
   readonly property real lockClosedScale: 0.96
   readonly property color lockDividerColor: withOpacity("#ffffff", 0.08)
   readonly property color lockInnerBorderColor: withOpacity("#ffffff", 0.10)
@@ -156,7 +139,6 @@ Singleton {
   readonly property color modalScrimColor: c.modalScrimColor ?? bgOverlay
   readonly property real modalScrimOpacity: 0.88
   readonly property int networkPanelWidth: 340
-
   readonly property int notificationAppIconSize: s(40)
   readonly property int notificationCardWidth: s(380)
   readonly property int notificationInlineImageSize: s(24)
@@ -170,7 +152,6 @@ Singleton {
   readonly property real opacitySolid: 0.6
   readonly property real opacityStrong: 0.8
   readonly property real opacitySubtle: 0.15
-
   readonly property int osdAnimationOffset: s(60)
   readonly property int osdBottomMargin: s(132)
   readonly property int osdCardHeight: s(80)
@@ -191,21 +172,18 @@ Singleton {
   readonly property int radiusFull: 9999
   readonly property int radiusLg: s(baseItemRadius, 12)
   readonly property int radiusMd: s(12, 8)
-
   readonly property int radiusSm: s(6, 4)
   readonly property int radiusXl: s(40, 20)
   readonly property int radiusXs: s(3, 2)
   readonly property real scaleSmall: 0.7
   readonly property int shadowBlurLg: 32
   readonly property int shadowBlurMd: 20
-
   readonly property color shadowColorStrong: withOpacity(c.shadowColorStrong ?? "#000000", 0.55)
   readonly property int shadowOffsetY: 2
   readonly property int spacingLg: s(16)
   readonly property int spacingMd: s(12)
   readonly property int spacingSm: s(8)
   readonly property int spacingXl: s(24)
-
   readonly property int spacingXs: s(4)
   readonly property int spinnerDuration: 1000
   readonly property int spinnerSize: controlHeightSm

@@ -102,7 +102,6 @@ OPopup {
         rightMargin: card.hpad
         topMargin: card.vpad
       }
-
       Item {
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.spacingMd
@@ -147,7 +146,6 @@ OPopup {
           }
         }
       }
-
       OText {
         Layout.alignment: Qt.AlignHCenter
         Layout.fillWidth: true
@@ -159,7 +157,6 @@ OPopup {
         visible: root.showComboLabel
         wrapMode: Text.Wrap
       }
-
       Flow {
         Layout.alignment: Qt.AlignHCenter
         Layout.fillWidth: true

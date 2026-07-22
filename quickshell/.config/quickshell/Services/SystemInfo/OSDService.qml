@@ -14,7 +14,6 @@ Singleton {
   property string osdLabel: ""
   property string osdType: ""
   property var osdValue: null
-
   readonly property var types: ({
       audioDevice: "audio-device",
       battery: "battery",

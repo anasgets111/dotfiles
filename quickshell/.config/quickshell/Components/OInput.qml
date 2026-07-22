@@ -9,14 +9,11 @@ ColumnLayout {
   readonly property int _fontSize: Theme.fontSizeFor(size)
   readonly property int _height: Theme.controlHeightFor(size)
   readonly property int _padding: Theme.spacingFor(size)
-
   property bool autoFocus: false
   property alias echoMode: textField.echoMode
   property string errorMessage: ""
-
   property bool hasError: false
   property alias placeholderText: textField.placeholderText
-
   property string size: "md"
   property alias text: textField.text
 
@@ -80,7 +77,6 @@ ColumnLayout {
       onTextChanged: root.inputChanged()
     }
   }
-
   OText {
     Layout.fillWidth: true
     color: Theme.critical

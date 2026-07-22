@@ -18,11 +18,9 @@ Singleton {
   property string configDir: Quickshell.env("OBELISK_CONFIG_DIR") || (_xdgConfig + "/" + shellName + "/")
   property alias data: settingsAdapter
   property string defaultWallpaper: Qt.resolvedUrl("../Assets/3.webp")
-
   property bool isLoaded: false
   property bool isStateLoaded: false
   property string settingsFile: Quickshell.env("OBELISK_SETTINGS_FILE") || (configDir + "settings.json")
-
   readonly property string shellName: "Obelisk"
   property alias state: cacheAdapter
   property string stateFile: cacheDir + "state.json"
@@ -71,7 +69,6 @@ Singleton {
       }
     }
   }
-
   FolderListModel {
     id: themeEnumerator
 
@@ -144,7 +141,6 @@ Singleton {
       property int weatherCode: -1
     }
   }
-
   Timer {
     id: saveTimer
 
@@ -173,7 +169,6 @@ Singleton {
       }
     }
   }
-
   Timer {
     id: saveStateTimer
 

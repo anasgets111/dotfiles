@@ -9,7 +9,6 @@ Rectangle {
   readonly property int _height: Theme.controlHeightFor(size)
   readonly property int _iconSize: Theme.iconSizeFor(size)
   readonly property int _padding: Theme.spacingFor(size)
-
   readonly property color _variantBgColor: {
     switch (variant) {
     case "primary":
@@ -22,23 +21,16 @@ Rectangle {
       return Theme.activeColor;
     }
   }
-
   property color bgColor: _variantBgColor
-
   default property alias content: contentContainer.data
-
   readonly property color currentBackground: !isEnabled ? Theme.disabledColor : (hovered ? hoverColor : bgColor)
   property color hoverColor: variant === "secondary" ? Theme.glassControlHoverColor : Qt.lighter(bgColor, 1.2)
   property alias hovered: mouseArea.containsMouse
-
   property string icon: ""
-
   property bool isEnabled: true
-
   property string size: "md"
   property string text: ""
   property color textColor: Theme.textContrast(currentBackground)
-
   property string variant: "primary"
 
   signal clicked
@@ -78,7 +70,6 @@ Rectangle {
       visible: root.text !== ""
     }
   }
-
   Item {
     id: contentContainer
 

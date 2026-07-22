@@ -12,14 +12,12 @@ Item {
   property int count: 0
   property Component delegate // receives required property int index
   readonly property int effectiveCollapsedIndex: Math.max(0, Math.min(pill.collapsedIndex, Math.max(0, pill.count - 1)))
-
   property bool expandOnHover: true
   property bool expanded: false
   readonly property int expandedWidth: (pill.count * pill.slotW) + (Math.max(0, pill.count - 1) * pill.spacing)
   property bool holdOpen: false
   property bool rightAligned: true
   property int slotH: Theme.itemHeight
-
   property int slotW: Theme.itemWidth
   property int spacing: Theme.spacingSm
 
@@ -62,7 +60,6 @@ Item {
         pill.expanded = false;
     }
   }
-
   Item {
     id: viewport
 
@@ -70,7 +67,6 @@ Item {
     readonly property real collapsedOffset: (pill.rightAligned ? (pill.width - pill.slotW) : 0) - expandedX(pill.effectiveCollapsedIndex)
     property real contentOffset: collapsedOffset * (1 - progress) + expandedOffset * progress
     readonly property real expandedOffset: (pill.rightAligned ? (pill.width - pill.expandedWidth) : 0)
-
     readonly property real progress: Math.max(0, Math.min(1, (pill.width - pill.slotW) / Math.max(1, (pill.expandedWidth - pill.slotW))))
 
     function expandedX(idx) {
@@ -126,7 +122,6 @@ Item {
       }
     }
   }
-
   Timer {
     id: indexSlideGuard
 

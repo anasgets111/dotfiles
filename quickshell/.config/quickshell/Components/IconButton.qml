@@ -6,7 +6,6 @@ Item {
   id: iconButton
 
   readonly property bool _canShowTooltip: iconButton.isEnabled && !iconButton.suppressTooltip && iconButton.tooltipText.length > 0
-
   readonly property int _iconSize: Theme.iconSizeFor(size)
   readonly property int _radius: {
     if (shape === "circle")
@@ -14,27 +13,21 @@ Item {
     return size === "xs" || size === "sm" ? Theme.radiusSm : size === "xl" ? Theme.radiusLg : Theme.radiusMd;
   }
   readonly property int _size: Theme.controlHeightFor(size)
-
   property color colorBg: Theme.glassControlColor
   property color colorBgHover: Theme.glassControlHoverColor
   property color colorBorder: Theme.glassBorderColor
   property color colorBorderHover: Theme.glassBorderHoverColor
   property color colorFg: Theme.textContrast(colorBg)
   property color colorFgHover: Theme.textContrast(colorBgHover)
-
   readonly property color effectiveBg: !isEnabled ? colorBg : (hovered ? colorBgHover : colorBg)
   readonly property color effectiveBorderColor: showBorder ? (hovered ? colorBorderHover : colorBorder) : "transparent"
   readonly property color effectiveFg: !isEnabled ? Theme.textContrast(colorBg) : (hovered ? colorFgHover : colorFg)
   readonly property bool hovered: mouseArea.containsMouse && iconButton.isEnabled
-
   property string icon: ""
   property real iconRotation: 0
-
   property bool isEnabled: true
-
   property string shape: "circle"
   property bool showBorder: true
-
   property string size: "md"
   property bool suppressTooltip: false
   property string tooltipText: ""

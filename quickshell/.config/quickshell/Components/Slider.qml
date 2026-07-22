@@ -9,7 +9,6 @@ Item {
 
   property real __wheelAccum: 0
   property int animMs: Theme.animationDuration
-
   property bool dragging: false
   property color fillColor: Theme.activeColor
   property color headroomColor: Theme.onHoverColor
@@ -60,7 +59,6 @@ Item {
       progress: track.eff
       radius: slider.radius
     }
-
     ClippingRectangle {
       anchors.fill: parent
       color: "transparent"

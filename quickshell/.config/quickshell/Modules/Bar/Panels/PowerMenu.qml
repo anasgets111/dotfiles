@@ -27,7 +27,6 @@ Item {
   ]
   property int countdown: initialCountdown
   readonly property bool counting: selectedIndex >= 0
-
   readonly property int initialCountdown: 10
   property int selectedIndex: -1
 

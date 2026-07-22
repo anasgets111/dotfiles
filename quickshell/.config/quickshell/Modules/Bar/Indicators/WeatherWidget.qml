@@ -24,7 +24,6 @@ Item {
       right: parent.right
       top: parent.top
     }
-
     RowLayout {
       Layout.fillWidth: true
       spacing: Theme.spacingSm
@@ -75,7 +74,6 @@ Item {
         onClicked: WeatherService.refresh()
       }
     }
-
     ColumnLayout {
       Layout.fillWidth: true
       spacing: Theme.spacingSm
@@ -110,7 +108,6 @@ Item {
           showLabel: !root.expanded
         }
       }
-
       Item {
         Layout.fillWidth: true
         Layout.preferredHeight: root.expanded ? gridLayout.implicitHeight : 0
@@ -149,7 +146,6 @@ Item {
           }
         }
       }
-
       Item {
         Layout.fillWidth: true
         Layout.preferredHeight: Theme.itemHeight * 2

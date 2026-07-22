@@ -11,7 +11,6 @@ PanelWindow {
   property int keyboardFocusCount: 0
   // null keeps the layer-shell surface click-through during card dismissal.
   property Item maskItem: null
-
   required property var modelData
   property string popupNamespace: ""
 

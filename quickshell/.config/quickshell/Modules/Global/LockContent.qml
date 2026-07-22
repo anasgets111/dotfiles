@@ -124,7 +124,6 @@ Item {
 
     target: LockService
   }
-
   Rectangle {
     id: shell
 
@@ -178,11 +177,9 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         text: TimeService.format("date", "dddd, MMMM d")
       }
-
       Item {
         Layout.preferredHeight: root.spaceXl
       }
-
       Item {
         readonly property int avatarSize: Math.round(Theme.controlHeightLg * 2.4 * root.roundedScale)
 
@@ -220,7 +217,6 @@ Item {
           }
         }
       }
-
       OText {
         Layout.fillWidth: true
         Layout.topMargin: root.spaceMd
@@ -238,11 +234,9 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         text: (MainService.username || "user") + "@" + (MainService.hostname || "localhost")
       }
-
       Item {
         Layout.preferredHeight: root.spaceLg
       }
-
       Rectangle {
         id: passwordInput
 
@@ -289,7 +283,6 @@ Item {
             font.pixelSize: Math.round(Theme.fontLg * root.readableScale)
             text: passwordInput.hasPassword ? "●".repeat(Math.min(LockService.passwordBuffer.length, 32)) : "Password"
           }
-
           Rectangle {
             Layout.preferredHeight: Math.round(Theme.controlHeightXs * root.lockScale)
             Layout.preferredWidth: capsRow.implicitWidth + root.spaceSm * 2
@@ -320,7 +313,6 @@ Item {
           }
         }
       }
-
       OText {
         Layout.fillWidth: true
         Layout.topMargin: root.spaceSm
@@ -330,11 +322,9 @@ Item {
         text: root.isMainMonitor ? root.authHint : "Unlock on main monitor"
         wrapMode: Text.WordWrap
       }
-
       Item {
         Layout.preferredHeight: root.spaceXl
       }
-
       Rectangle {
         Layout.alignment: Qt.AlignHCenter
         Layout.preferredHeight: Theme.borderWidthThin
@@ -344,7 +334,6 @@ Item {
       Item {
         Layout.preferredHeight: root.spaceSm
       }
-
       RowLayout {
         Layout.alignment: Qt.AlignHCenter
         spacing: root.spaceMd
