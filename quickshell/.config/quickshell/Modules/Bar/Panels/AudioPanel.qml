@@ -239,58 +239,37 @@ PanelContentBase {
       }
     ]
   }
-  component DevicePicker: ColumnLayout {
+  component DevicePicker: PanelRow {
     id: picker
 
     property string defaultIcon
-    property bool expanded: false
     property alias model: deviceRepeater.model
 
     signal deviceSelected(int id)
     signal toggled
 
     Layout.fillWidth: true
-    spacing: 0
+    title: qsTr("Choose device")
 
-    PanelRow {
-      Layout.fillWidth: true
-      title: qsTr("Choose device")
-      badges: [
-        OText {
-          color: Theme.textInactiveColor
-          rotation: picker.expanded ? 180 : 0
-          text: "󰅀"
+    onClicked: picker.toggled()
 
-          Behavior on rotation {
-            NumberAnimation {
-              duration: Theme.animationDuration
-              easing.type: Easing.OutCubic
-            }
+    badges: [
+      OText {
+        color: Theme.textInactiveColor
+        rotation: picker.expanded ? 180 : 0
+        text: "󰅀"
+
+        Behavior on rotation {
+          NumberAnimation {
+            duration: Theme.animationDuration
+            easing.type: Easing.OutCubic
           }
         }
-      ]
-
-      onClicked: picker.toggled()
-    }
-    Item {
-      Layout.fillWidth: true
-      Layout.preferredHeight: picker.expanded ? deviceLayout.implicitHeight + Theme.spacingXs : 0
-      clip: true
-
-      Behavior on Layout.preferredHeight {
-        NumberAnimation {
-          duration: Theme.animationDuration
-          easing.type: Easing.OutCubic
-        }
       }
-
+    ]
+    expandedContent: [
       ColumnLayout {
-        id: deviceLayout
-
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.topMargin: Theme.spacingXs
+        width: parent?.width ?? 0
         spacing: Theme.spacingXs
 
         Repeater {
@@ -310,7 +289,7 @@ PanelContentBase {
           }
         }
       }
-    }
+    ]
   }
   component MixerSection: PanelCard {
     id: mixer

@@ -149,6 +149,7 @@ Item {
         text: root.headerTitle
       }
       RowLayout {
+        Layout.alignment: Qt.AlignTop
         spacing: Theme.spacingXs
 
         ControlButton {

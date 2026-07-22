@@ -88,6 +88,7 @@ PanelContentBase {
   }
 
   flatContainer: true
+  needsKeyboardFocus: showSsidInput || showPasswordInput || (expandedSsid !== "" && connectingSsid === "")
   preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: Theme.networkPanelWidth
 

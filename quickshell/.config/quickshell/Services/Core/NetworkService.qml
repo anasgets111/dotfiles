@@ -74,10 +74,13 @@ Singleton {
     }, "net.action");
   }
   function cancelConnect(): void {
+    const wasConnecting = root._connectingSsid !== "";
     root._connectHandle?.cancel();
     root._connectHandle = null;
     root._connectingSsid = "";
     root._connectError = "";
+    if (wasConnecting)
+      root.wifiDevice?.disconnect();
   }
   function connectEthernet(): void {
     root.wiredNetwork?.connect();

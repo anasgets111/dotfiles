@@ -83,7 +83,7 @@ Scope {
 
       BackgroundEffect.blurRegion: overlayWindow.activeModalItem?.blurRegion ?? panelContainer.blurRegion
       WlrLayershell.exclusionMode: ExclusionMode.Ignore
-      WlrLayershell.keyboardFocus: panelContainer.active || activeModal !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+      WlrLayershell.keyboardFocus: (panelContainer.active && panelContainer.needsKeyboardFocus) || activeModal !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
       WlrLayershell.layer: WlrLayer.Top
       WlrLayershell.namespace: "obelisk-overlay"
       color: "transparent"

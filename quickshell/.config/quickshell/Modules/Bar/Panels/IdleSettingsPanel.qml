@@ -355,7 +355,7 @@ OModal {
       }
     }
   }
-  component InlineMessage: Rectangle {
+  component InlineMessage: PanelCard {
     id: messageRoot
 
     property string icon: ""
@@ -363,16 +363,13 @@ OModal {
 
     Layout.leftMargin: Theme.spacingLg
     Layout.rightMargin: Theme.spacingLg
-    color: Theme.bgCard
-    implicitHeight: messageRow.implicitHeight + Theme.spacingMd * 2
-    radius: Theme.radiusMd
+    implicitHeight: messageRow.implicitHeight + padding * 2
+    padding: Theme.spacingMd
 
     RowLayout {
       id: messageRow
 
       anchors.fill: parent
-      anchors.leftMargin: Theme.spacingMd
-      anchors.rightMargin: Theme.spacingMd
       spacing: Theme.spacingSm
 
       OText {

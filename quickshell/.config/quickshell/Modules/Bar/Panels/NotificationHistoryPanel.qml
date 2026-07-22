@@ -116,7 +116,10 @@ PanelContentBase {
         svc: NotificationService
         width: ListView.view.width
 
+        ListView.onPooled: root.needsKeyboardFocus = false
         ListView.onReused: resetReuseState()
+        onInputFocusReleased: root.needsKeyboardFocus = false
+        onInputFocusRequested: root.needsKeyboardFocus = true
       }
     }
     ColumnLayout {

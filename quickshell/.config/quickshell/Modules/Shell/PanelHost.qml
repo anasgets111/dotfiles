@@ -28,6 +28,7 @@ FocusScope {
   readonly property real effectivePanelHeight: root.active ? root.livePanelHeight : root.retainedPanelHeight
   readonly property real effectivePanelWidth: root.active ? root.panelContentWidth : root.retainedPanelWidth
   readonly property real livePanelHeight: Math.min(root.panelContentHeight, root.height - Theme.panelHeight - Theme.panelScreenInset)
+  readonly property bool needsKeyboardFocus: root.panelItem?.needsKeyboardFocus ?? false
   readonly property var panelComponent: ({
       "audio": audioPanelComponent,
       "bluetooth": bluetoothPanelComponent,
