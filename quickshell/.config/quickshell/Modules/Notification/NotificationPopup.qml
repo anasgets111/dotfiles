@@ -68,9 +68,12 @@ OPopup {
 
             regions: [
               Region {
+                height: notificationCard.height - 4
                 intersection: Intersection.Intersect
-                item: notificationCard.blurInsetItem
                 radius: Theme.panelRadius
+                width: notificationCard.width - 4
+                x: 2
+                y: 2
               },
               Region {
                 intersection: Intersection.Intersect

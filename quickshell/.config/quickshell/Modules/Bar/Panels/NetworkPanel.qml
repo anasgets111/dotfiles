@@ -283,26 +283,9 @@ PanelContentBase {
             onPasswordEdited: root.errorDismissed = true
             onPasswordSubmitted: pw => NetworkService.connectToSsid(modelData.ssid, pw)
           }
-          section.delegate: Item {
-            id: sectionRoot
-
-            required property string section
-
-            implicitHeight: sectionLabel.implicitHeight + Theme.spacingXs
+          section.delegate: PanelSectionHeader {
+            sectionLabel: section === "saved" ? qsTr("Saved") : qsTr("Available")
             width: ListView.view.width
-
-            OText {
-              id: sectionLabel
-
-              anchors.bottom: parent.bottom
-              anchors.left: parent.left
-              anchors.leftMargin: Theme.spacingSm
-              bold: true
-              color: Theme.textInactiveColor
-              opacity: Theme.opacityMuted
-              size: "xs"
-              text: sectionRoot.section === "saved" ? qsTr("Saved") : qsTr("Available")
-            }
           }
         }
       }
@@ -334,17 +317,9 @@ PanelContentBase {
       Layout.fillHeight: true
       Layout.fillWidth: true
       Layout.minimumHeight: 120
-      icon: "󰤭"
-      text: root.scanning ? qsTr("Scanning…") : qsTr("No networks found")
-      visible: !root.isHiddenTarget && root.wifiEnabled && root.networkingEnabled && root.savedNetworks.length === 0 && root.availableNetworks.length === 0
-    }
-    PanelEmptyState {
-      Layout.fillHeight: true
-      Layout.fillWidth: true
-      Layout.minimumHeight: 120
-      icon: root.networkingEnabled ? "󰤮" : "󱘖"
-      text: !root.networkingEnabled ? qsTr("Networking disabled") : qsTr("Wi-Fi off")
-      visible: !root.networkingEnabled || !root.wifiEnabled
+      icon: !root.networkingEnabled ? "󱘖" : !root.wifiEnabled ? "󰤮" : "󰤭"
+      text: !root.networkingEnabled ? qsTr("Networking disabled") : !root.wifiEnabled ? qsTr("Wi-Fi off") : root.scanning ? qsTr("Scanning…") : qsTr("No networks found")
+      visible: !root.networkingEnabled || !root.wifiEnabled || (!root.isHiddenTarget && root.savedNetworks.length === 0 && root.availableNetworks.length === 0)
     }
   }
 

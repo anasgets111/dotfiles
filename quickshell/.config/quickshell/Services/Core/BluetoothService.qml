@@ -180,10 +180,8 @@ Singleton {
     deviceAvailableCodecsChanged();
   }
   function clearPendingPair(device: BluetoothDevice): void {
-    if (device?.address === connectAfterPairAddress) {
+    if (device?.address === connectAfterPairAddress)
       connectAfterPairAddress = "";
-      root._bumpRevision();
-    }
   }
   function connectDevice(address: string): void {
     const device = root.deviceForAddress(address);
@@ -254,7 +252,6 @@ Singleton {
     if (!device || connectAfterPairAddress !== "" || device.blocked || device.paired || device.pairing)
       return;
     connectAfterPairAddress = address;
-    root._bumpRevision();
     device.trusted = true;
     device.pair();
   }
@@ -317,6 +314,8 @@ Singleton {
     };
   }
 
+  onConnectAfterPairAddressChanged: root._bumpRevision()
+
   Component.onCompleted: Logger.log("BluetoothService", `Init: defaultAdapter=${Bluetooth.defaultAdapter ? "yes" : "no"}`)
 
   Connections {
@@ -327,10 +326,8 @@ Singleton {
     function onEnabledChanged() {
       if (!root.adapter?.enabled) {
         root.discoveryOwned = false;
-        if (root.connectAfterPairAddress !== "") {
+        if (root.connectAfterPairAddress !== "")
           root.connectAfterPairAddress = "";
-          root._bumpRevision();
-        }
       }
     }
 
@@ -377,7 +374,6 @@ Singleton {
             return;
           }
           root.connectAfterPairAddress = "";
-          root._bumpRevision();
           if (deviceEntry.modelData?.paired)
             Qt.callLater(() => root.connectDevice(deviceEntry.address));
         }
@@ -391,10 +387,8 @@ Singleton {
       required property BluetoothDevice modelData
 
       Component.onDestruction: {
-        if (address === root.connectAfterPairAddress) {
+        if (address === root.connectAfterPairAddress)
           root.connectAfterPairAddress = "";
-          root._bumpRevision();
-        }
         root.cleanupCodecData(address);
       }
     }

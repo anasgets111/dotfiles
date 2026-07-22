@@ -14,6 +14,17 @@ PanelContentBase {
   property bool showCompletedLog: false
   readonly property bool showLog: UpdateService.isUpdating || UpdateService.isError || (UpdateService.isCompleted && showCompletedLog)
 
+  function descriptionText(): string {
+    if (!UpdateService.ready)
+      return qsTr("Package checks are not available");
+    if (UpdateService.isUpdating)
+      return [UpdateService.currentPackage, UpdateService.progressDeterminate ? `${UpdateService.currentPackageIndex}/${UpdateService.totalPackagesToUpdate}` : ""].filter(Boolean).join(" · ");
+    if (UpdateService.isCompleted)
+      return qsTr("%1 packages · %2 · %3 warnings%4").arg(UpdateService.completedPackageCount).arg(root.durationText(UpdateService.updateDurationMs)).arg(UpdateService.warningCount).arg(UpdateService.rebootRequired ? qsTr(" · Reboot required") : "");
+    if (UpdateService.isStale && UpdateService.checkError)
+      return qsTr("Last successful result retained · %1").arg(UpdateService.checkError);
+    return UpdateService.totalUpdates > 0 ? qsTr("%1 download · %2 packages").arg(Utils.fmtKib(UpdateService.totalDownloadSize)).arg(UpdateService.totalUpdates) : qsTr("No package updates available");
+  }
   function durationText(milliseconds: real): string {
     const seconds = Math.max(0, Math.round(milliseconds / 1000));
     const minutes = Math.floor(seconds / 60);
@@ -93,7 +104,7 @@ PanelContentBase {
           Layout.fillWidth: true
           color: Theme.textInactiveColor
           size: "sm"
-          text: !UpdateService.ready ? qsTr("Package checks are not available") : UpdateService.isUpdating ? [UpdateService.currentPackage, UpdateService.progressDeterminate ? `${UpdateService.currentPackageIndex}/${UpdateService.totalPackagesToUpdate}` : ""].filter(Boolean).join(" · ") : UpdateService.isCompleted ? qsTr("%1 packages · %2 · %3 warnings%4").arg(UpdateService.completedPackageCount).arg(root.durationText(UpdateService.updateDurationMs)).arg(UpdateService.warningCount).arg(UpdateService.rebootRequired ? qsTr(" · Reboot required") : "") : UpdateService.isStale && UpdateService.checkError ? qsTr("Last successful result retained · %1").arg(UpdateService.checkError) : UpdateService.totalUpdates > 0 ? qsTr("%1 download · %2 packages").arg(Utils.fmtKib(UpdateService.totalDownloadSize)).arg(UpdateService.totalUpdates) : qsTr("No package updates available")
+          text: root.descriptionText()
         }
         Rectangle {
           Layout.fillWidth: true
@@ -135,91 +146,86 @@ PanelContentBase {
       Layout.preferredHeight: Theme.itemHeight * Theme.updateTableVisibleRows + padding * 2
       visible: !root.showLog && !UpdateService.isCompleted && (UpdateService.isChecking || UpdateService.totalUpdates > 0)
 
-      Item {
-        height: parent?.height ?? 0
-        width: parent?.width ?? 0
+      ColumnLayout {
+        anchors.centerIn: parent
+        spacing: Theme.spacingSm
+        visible: UpdateService.isChecking
 
-        ColumnLayout {
-          anchors.centerIn: parent
-          spacing: Theme.spacingSm
-          visible: UpdateService.isChecking
-
-          OSpinner {
-            Layout.alignment: Qt.AlignHCenter
-            running: visible
-          }
-          OText {
-            text: qsTr("Checking…")
-          }
+        OSpinner {
+          Layout.alignment: Qt.AlignHCenter
+          running: visible
         }
-        ListView {
-          id: packageList
+        OText {
+          text: qsTr("Checking…")
+        }
+      }
+      ListView {
+        id: packageList
 
-          anchors.fill: parent
-          boundsBehavior: Flickable.StopAtBounds
-          clip: true
-          headerPositioning: ListView.OverlayHeader
-          model: UpdateService.updatePackages.slice().sort((left, right) => left.name.localeCompare(right.name))
-          visible: !UpdateService.isChecking && UpdateService.totalUpdates > 0
+        anchors.fill: parent
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+        headerPositioning: ListView.OverlayHeader
+        model: UpdateService.updatePackages.slice().sort((left, right) => left.name.localeCompare(right.name))
+        visible: !UpdateService.isChecking && UpdateService.totalUpdates > 0
 
-          delegate: Item {
-            id: packageRow
+        delegate: Item {
+          id: packageRow
 
-            required property var modelData
+          required property var modelData
 
-            height: Theme.itemHeight
-            width: ListView.view.width
+          height: Theme.itemHeight
+          width: ListView.view.width
 
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: Theme.spacingSm
-              anchors.rightMargin: Theme.spacingSm
+          RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: Theme.spacingSm
+            anchors.rightMargin: Theme.spacingSm
 
-              OText {
-                Layout.preferredWidth: Theme.updatePackageColumnWidth
-                elide: Text.ElideRight
-                text: packageRow.modelData.name ?? ""
-              }
-              OText {
-                Layout.preferredWidth: Theme.updateOldVersionColumnWidth
-                color: Theme.textInactiveColor
-                elide: Text.ElideRight
-                text: packageRow.modelData.oldVersion ?? ""
-              }
-              OText {
-                Layout.fillWidth: true
-                color: Theme.activeColor
-                elide: Text.ElideRight
-                text: packageRow.modelData.newVersion ?? ""
-              }
+            OText {
+              Layout.preferredWidth: Theme.updatePackageColumnWidth
+              elide: Text.ElideRight
+              text: packageRow.modelData.name ?? ""
+            }
+            OText {
+              Layout.preferredWidth: Theme.updateOldVersionColumnWidth
+              color: Theme.textInactiveColor
+              elide: Text.ElideRight
+              text: packageRow.modelData.oldVersion ?? ""
+            }
+            OText {
+              Layout.fillWidth: true
+              color: Theme.activeColor
+              elide: Text.ElideRight
+              text: packageRow.modelData.newVersion ?? ""
             }
           }
-          header: Rectangle {
-            color: Theme.glassContentHoverColor
-            height: Theme.itemHeight
-            width: packageList.width
-            z: 2
+        }
+        header: Rectangle {
+          color: Theme.glassContentHoverColor
+          height: Theme.itemHeight
+          width: packageList.width
+          z: 2
 
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: Theme.spacingSm
-              anchors.rightMargin: Theme.spacingSm
+          RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: Theme.spacingSm
+            anchors.rightMargin: Theme.spacingSm
 
-              OText {
-                Layout.preferredWidth: Theme.updatePackageColumnWidth
-                bold: true
-                text: qsTr("Package")
-              }
-              OText {
-                Layout.preferredWidth: Theme.updateOldVersionColumnWidth
-                bold: true
-                text: qsTr("Old Version")
-              }
-              OText {
-                Layout.fillWidth: true
-                bold: true
-                text: qsTr("New Version")
-              }
+            OText {
+              Layout.preferredWidth: Theme.updatePackageColumnWidth
+              bold: true
+              text: qsTr("Package")
+            }
+            OText {
+              Layout.preferredWidth: Theme.updateOldVersionColumnWidth
+              bold: true
+              text: qsTr("Old Version")
+            }
+            OText {
+              Layout.fillWidth: true
+              bold: true
+              text: qsTr("New Version")
             }
           }
         }

@@ -112,26 +112,9 @@ PanelContentBase {
             device: modelData
             width: ListView.view.width
           }
-          section.delegate: Item {
-            id: sectionRoot
-
-            required property string section
-
-            implicitHeight: sectionLabel.implicitHeight + Theme.spacingXs
+          section.delegate: PanelSectionHeader {
+            sectionLabel: section === "paired" ? qsTr("Paired") : qsTr("Available")
             width: ListView.view.width
-
-            OText {
-              id: sectionLabel
-
-              anchors.bottom: parent.bottom
-              anchors.left: parent.left
-              anchors.leftMargin: Theme.spacingSm
-              bold: true
-              color: Theme.textInactiveColor
-              opacity: Theme.opacityMuted
-              size: "xs"
-              text: sectionRoot.section === "paired" ? qsTr("Paired") : qsTr("Available")
-            }
           }
         }
       }
@@ -141,18 +124,9 @@ PanelContentBase {
       Layout.fillWidth: true
       Layout.minimumHeight: 120
       icon: "󰂲"
-      iconOpacity: 0.4
-      text: BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices found")
-      visible: root.active && root.otherDevices.length === 0
-    }
-    PanelEmptyState {
-      Layout.fillHeight: true
-      Layout.fillWidth: true
-      Layout.minimumHeight: 120
-      icon: "󰂲"
-      iconOpacity: 0.3
-      text: !root.ready ? qsTr("Bluetooth unavailable") : qsTr("Bluetooth off")
-      visible: !root.active
+      iconOpacity: root.active ? 0.4 : 0.3
+      text: root.active ? (BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices found")) : (!root.ready ? qsTr("Bluetooth unavailable") : qsTr("Bluetooth off"))
+      visible: !root.active || root.otherDevices.length === 0
     }
   }
 

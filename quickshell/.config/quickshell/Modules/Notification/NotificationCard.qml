@@ -17,7 +17,6 @@ Item {
   property var _messageExpansion: ({})
   property var _shownMessageIds: ({})
   readonly property color accentColor: root.primaryWrapper?.accentColor || Theme.activeColor
-  readonly property alias blurInsetItem: blurInset
   required property var group
   readonly property bool groupExpanded: !root.isGroup || (root.svc?.expandedGroups ? (root.svc.expandedGroups[root.group?.key] || false) : false)
   property string groupScope: "history"
@@ -82,12 +81,6 @@ Item {
       root.svc?.dismissNotification(root.primaryWrapper);
   }
 
-  Item {
-    id: blurInset
-
-    anchors.fill: parent
-    anchors.margins: 2
-  }
   RectangularShadow {
     anchors.fill: parent
     antialiasing: true

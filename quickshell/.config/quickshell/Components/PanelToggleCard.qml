@@ -11,9 +11,12 @@ Rectangle {
   property bool checked: false
   readonly property bool compact: width < Theme.panelToggleCompactThreshold
   property string detail: ""
+  readonly property color detailColor: checked && active ? Theme.textActiveColor : Theme.textInactiveColor
   required property string icon
+  readonly property color labelColor: checked && active ? Theme.activeColor : Theme.textInactiveColor
   required property string label
   property bool spinning: false
+  readonly property bool wide: !compact && detail !== ""
 
   signal toggled(bool checked)
 
@@ -49,46 +52,26 @@ Rectangle {
 
     onClicked: card.toggled(!card.checked)
   }
-  LabelContent {
-    anchors.centerIn: parent
-    visible: card.compact || card.detail === ""
-  }
-  RowLayout {
-    anchors.fill: parent
-    anchors.margins: Theme.spacingMd
-    spacing: Theme.spacingSm
-    visible: !card.compact && card.detail !== ""
-
-    LabelContent {
-    }
-    DetailText {
-      Layout.fillWidth: true
-    }
-  }
-
-  component DetailText: OText {
-    color: card.checked && card.active ? Theme.textActiveColor : Theme.textInactiveColor
-    elide: Text.ElideRight
-    size: "xs"
-    text: card.detail
-
-    Behavior on color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
-    }
-  }
-  component LabelContent: ColumnLayout {
-    spacing: Theme.spacingXs
+  GridLayout {
+    anchors.left: parent.left
+    anchors.leftMargin: Theme.spacingMd
+    anchors.right: parent.right
+    anchors.rightMargin: Theme.spacingMd
+    anchors.verticalCenter: parent.verticalCenter
+    columnSpacing: Theme.spacingSm
+    columns: card.wide ? 2 : 1
+    rowSpacing: Theme.spacingXs
 
     Item {
+      Layout.column: 0
       Layout.alignment: Qt.AlignHCenter
       Layout.preferredHeight: Theme.iconSizeMd
       Layout.preferredWidth: Theme.iconSizeMd
+      Layout.row: 0
 
       Text {
         anchors.centerIn: parent
-        color: card.checked && card.active ? Theme.activeColor : Theme.textInactiveColor
+        color: card.labelColor
         font.family: Theme.iconFontFamily
         font.pixelSize: Theme.iconSizeMd
         text: card.icon
@@ -102,15 +85,17 @@ Rectangle {
       }
       OSpinner {
         anchors.centerIn: parent
-        color: card.checked && card.active ? Theme.activeColor : Theme.textInactiveColor
+        color: card.labelColor
         running: card.spinning
         spinnerSize: Theme.iconSizeMd
       }
     }
     OText {
+      Layout.column: 0
       Layout.alignment: Qt.AlignHCenter
+      Layout.row: 1
       bold: card.checked
-      color: card.checked && card.active ? Theme.activeColor : Theme.textInactiveColor
+      color: card.labelColor
       size: "xs"
       text: card.label
 
@@ -120,10 +105,24 @@ Rectangle {
         }
       }
     }
-    DetailText {
-      Layout.alignment: Qt.AlignHCenter
+    OText {
+      Layout.alignment: card.wide ? Qt.AlignVCenter : Qt.AlignHCenter
+      Layout.column: card.wide ? 1 : 0
+      Layout.fillWidth: card.wide
       Layout.maximumWidth: card.width - Theme.spacingMd * 2
-      visible: card.compact && card.detail !== ""
+      Layout.row: card.wide ? 0 : 2
+      Layout.rowSpan: card.wide ? 2 : 1
+      color: card.detailColor
+      elide: Text.ElideRight
+      size: "xs"
+      text: card.detail
+      visible: card.detail !== ""
+
+      Behavior on color {
+        ColorAnimation {
+          duration: Theme.animationDuration
+        }
+      }
     }
   }
 }

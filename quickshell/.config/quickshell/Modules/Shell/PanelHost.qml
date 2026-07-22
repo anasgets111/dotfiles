@@ -19,7 +19,7 @@ FocusScope {
     bottomLeftRadius: panelBackground.bottomLeftRadius
     bottomRightRadius: panelBackground.bottomRightRadius
     item: panelBackground
-    regions: [(leftCorner.item as RoundCorner)?.region, (rightCorner.item as RoundCorner)?.region, root.blurClipRegion]
+    regions: [leftCorner.region, rightCorner.region, root.blurClipRegion]
   }
   readonly property bool contentActive: root.active || closeHoldTimer.running
   readonly property real cornerCutRadius: Math.min(Theme.panelRadius * 3, Theme.panelHeight)
@@ -191,35 +191,29 @@ FocusScope {
         }
       }
     }
-    Loader {
+    RoundCorner {
       id: leftCorner
 
-      active: root.visible
       anchors.right: panelBackground.left
+      color: Theme.glassSurfaceColor
+      height: root.cornerCutRadius
+      orientation: 1
+      radius: root.cornerCutRadius
+      visible: root.visible
+      width: root.cornerCutRadius
       y: panelBackground.y
-
-      sourceComponent: RoundCorner {
-        color: Theme.glassSurfaceColor
-        height: root.cornerCutRadius
-        orientation: 1
-        radius: root.cornerCutRadius
-        width: root.cornerCutRadius
-      }
     }
-    Loader {
+    RoundCorner {
       id: rightCorner
 
-      active: root.visible
       anchors.left: panelBackground.right
+      color: Theme.glassSurfaceColor
+      height: root.cornerCutRadius
+      orientation: 0
+      radius: root.cornerCutRadius
+      visible: root.visible
+      width: root.cornerCutRadius
       y: panelBackground.y
-
-      sourceComponent: RoundCorner {
-        color: Theme.glassSurfaceColor
-        height: root.cornerCutRadius
-        orientation: 0
-        radius: root.cornerCutRadius
-        width: root.cornerCutRadius
-      }
     }
   }
   Connections {

@@ -15,23 +15,20 @@ Item {
     item: cornerShape
 
     regions: Region {
+      readonly property int cutoutSize: cornerShape.effectiveRadius * 2 + 4
+
+      height: cutoutSize
       intersection: Intersection.Subtract
-      item: regionCutout
       shape: RegionShape.Ellipse
+      width: cutoutSize
+      x: cornerShape.orientation === 0 || cornerShape.orientation === 2 ? -2 : cornerShape.width - cutoutSize + 2
+      y: cornerShape.orientation < 2 ? -2 : cornerShape.height - cutoutSize + 2
     }
   }
 
   height: Theme.panelHeight
   width: Theme.panelHeight
 
-  Item {
-    id: regionCutout
-
-    height: width
-    width: cornerShape.effectiveRadius * 2 + 4
-    x: cornerShape.orientation === 0 || cornerShape.orientation === 2 ? -2 : cornerShape.width - width + 2
-    y: cornerShape.orientation < 2 ? -2 : cornerShape.height - height + 2
-  }
   Canvas {
     anchors.fill: parent
 
