@@ -16,7 +16,6 @@ Scope {
 
       readonly property string currentPath: screen?.name ? WallpaperService.wallpaperPath(screen.name) : ""
       readonly property bool isMainMonitor: MonitorService.activeMain === screen?.name
-      readonly property url wallpaperSource: IdleService.displaysPoweredOff ? "" : currentPath
 
       color: "transparent"
 
@@ -112,7 +111,7 @@ Scope {
           anchors.fill: parent
           cache: false
           fillMode: WallpaperService.modeToFillMode(WallpaperService.wallpaperMode(lockSurface.screen?.name ?? ""))
-          source: lockSurface.wallpaperSource
+          source: lockSurface.currentPath
           sourceSize: Qt.size(Math.ceil(width / 2), Math.ceil(height / 2))
           visible: false
         }
@@ -120,7 +119,7 @@ Scope {
           anchors.fill: parent
           autoPaddingEnabled: false
           blur: Settings.data.lockBlurAmount * stage.backgroundOpacity
-          blurEnabled: !!lockSurface.wallpaperSource && stage.backgroundOpacity > 0
+          blurEnabled: !!lockSurface.currentPath && stage.backgroundOpacity > 0
           blurMax: Settings.data.lockBlurMax
           blurMultiplier: Settings.data.lockBlurMultiplier
           opacity: stage.backgroundOpacity
