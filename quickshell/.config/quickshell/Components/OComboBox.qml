@@ -28,7 +28,8 @@ ComboBox {
     background: Rectangle {
       border.color: Theme.glassBorderColor
       border.width: Theme.borderWidthThin
-      color: Theme.glassContentColor
+      // Opaque: inline Qt popups can't be compositor-blurred over their host.
+      color: Theme.bgElevated
       radius: Theme.itemRadius
     }
     contentItem: ListView {
