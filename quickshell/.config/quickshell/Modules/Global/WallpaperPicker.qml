@@ -170,7 +170,7 @@ OModal {
               Image {
                 anchors.fill: parent
                 asynchronous: true
-                cache: false
+                cache: true
                 fillMode: Image.PreserveAspectCrop
                 scale: tileMouse.containsMouse ? 1.04 : 1
                 source: tile.modelData?.previewSource ?? ""
