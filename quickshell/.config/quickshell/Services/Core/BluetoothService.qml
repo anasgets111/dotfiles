@@ -314,9 +314,8 @@ Singleton {
     };
   }
 
-  onConnectAfterPairAddressChanged: root._bumpRevision()
-
   Component.onCompleted: Logger.log("BluetoothService", `Init: defaultAdapter=${Bluetooth.defaultAdapter ? "yes" : "no"}`)
+  onConnectAfterPairAddressChanged: root._bumpRevision()
 
   Connections {
     function onDiscoveringChanged() {

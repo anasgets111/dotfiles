@@ -182,6 +182,9 @@ OModal {
                     easing.type: Easing.OutCubic
                   }
                 }
+
+                onStatusChanged: if (status === Image.Error)
+                  source = tile.modelData?.path ?? ""
               }
               Rectangle {
                 anchors.bottom: parent.bottom

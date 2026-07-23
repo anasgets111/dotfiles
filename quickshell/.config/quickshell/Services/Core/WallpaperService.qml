@@ -122,10 +122,11 @@ Singleton {
         length: count
       }, (_unused, index) => {
         const filePath = get(index, "filePath");
+        const fileUrl = String(get(index, "fileUrl"));
         return {
-          path: String(get(index, "fileUrl")),
+          path: fileUrl,
           displayName: filePath.split("/").pop(),
-          previewSource: get(index, "fileUrl")
+          previewSource: Utils.normalizeImageUrl(`${Quickshell.env("XDG_CACHE_HOME") || Quickshell.env("HOME") + "/.cache"}/thumbnails/large/${Qt.md5(fileUrl)}.png`)
         };
       });
     }

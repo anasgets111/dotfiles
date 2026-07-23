@@ -13,8 +13,8 @@ Rectangle {
   property string detail: ""
   readonly property color detailColor: checked && active ? Theme.textActiveColor : Theme.textInactiveColor
   required property string icon
-  readonly property color labelColor: checked && active ? Theme.activeColor : Theme.textInactiveColor
   required property string label
+  readonly property color labelColor: checked && active ? Theme.activeColor : Theme.textInactiveColor
   property bool spinning: false
   readonly property bool wide: !compact && detail !== ""
 
@@ -63,8 +63,8 @@ Rectangle {
     rowSpacing: Theme.spacingXs
 
     Item {
-      Layout.column: 0
       Layout.alignment: Qt.AlignHCenter
+      Layout.column: 0
       Layout.preferredHeight: Theme.iconSizeMd
       Layout.preferredWidth: Theme.iconSizeMd
       Layout.row: 0
@@ -91,8 +91,8 @@ Rectangle {
       }
     }
     OText {
-      Layout.column: 0
       Layout.alignment: Qt.AlignHCenter
+      Layout.column: 0
       Layout.row: 1
       bold: card.checked
       color: card.labelColor
