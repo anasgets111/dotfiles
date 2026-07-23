@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts
 import qs.Config
 
 Rectangle {
@@ -15,7 +14,7 @@ Rectangle {
   border.color: tone === "standard" ? Theme.glassBorderColor : Theme.withOpacity(toneColor, Theme.opacityMedium)
   border.width: Theme.borderWidthThin
   color: tone === "active" ? Theme.activeSubtle : tone === "warning" || tone === "error" ? Theme.withOpacity(toneColor, Theme.opacitySubtle) : Theme.glassContentColor
-  implicitHeight: Layout.fillHeight ? 0 : contentSlot.childrenRect.height + padding * 2
+  implicitHeight: contentSlot.children.reduce((height, child) => Math.max(height, child.implicitHeight), 0) + padding * 2
   radius: Theme.radiusLg
 
   Behavior on border.color {
