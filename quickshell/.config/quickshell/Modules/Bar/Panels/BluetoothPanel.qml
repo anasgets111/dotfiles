@@ -13,6 +13,7 @@ PanelContentBase {
   readonly property bool active: BluetoothService.available && BluetoothService.enabled
   readonly property var connectedDevices: ready ? BluetoothService.deviceModels.filter(d => d.connected) : []
   readonly property var otherDevices: ready ? BluetoothService.deviceModels : []
+  readonly property int expandedCodecRows: root.showCodecFor === "" ? 0 : (root.otherDevices.find(d => d.address === root.showCodecFor)?.availableCodecs.length ?? 0)
   readonly property var otherDevicesView: otherDevices.map(d => Object.assign({}, d, {
       group: d.paired ? "paired" : "available"
     }))
@@ -87,7 +88,7 @@ PanelContentBase {
       }
       Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: Math.min(deviceList.contentHeight, Theme.itemHeight * 6)
+        Layout.preferredHeight: Math.min(deviceList.contentHeight, Theme.itemHeight * (6 + root.expandedCodecRows))
         clip: true
         color: "transparent"
 

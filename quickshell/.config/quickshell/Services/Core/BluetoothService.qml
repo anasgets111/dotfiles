@@ -63,11 +63,11 @@ Singleton {
   property var deviceCodecs: ({})
   readonly property var deviceIconMap: [[["display", "tv", "[tv]", "television"], "󰔂"], [["watch"], "󰥔"], [["mouse"], "󰍽"], [["keyboard"], "󰌌"], [["phone", "iphone", "android", "samsung"], "󰄜"], [audioKeywords, "󰋋"]]
   readonly property var deviceModels: root.buildDeviceModels(root._revision)
-  readonly property var devices: available ? adapter.devices.values : []
-  readonly property bool discoverable: available && adapter.discoverable
-  readonly property bool discovering: available && adapter.discovering
+  readonly property var devices: adapter?.devices.values ?? []
+  readonly property bool discoverable: adapter?.discoverable ?? false
+  readonly property bool discovering: adapter?.discovering ?? false
   property bool discoveryOwned: false
-  readonly property bool enabled: available && adapter.enabled
+  readonly property bool enabled: adapter?.enabled ?? false
 
   function _bumpRevision(): void {
     root._revision++;
@@ -100,7 +100,7 @@ Singleton {
     let inCard = false;
     let activeProfile = "";
     const parsedCodecs = [];
-    for (const rawLine of (output || "").split("\n")) {
+    for (const rawLine of output.split("\n")) {
       const line = rawLine.trim();
       if (line.startsWith("Name: ")) {
         inCard = line.includes(cardName);
@@ -118,7 +118,7 @@ Singleton {
       if (parts.length < 2)
         continue;
       const profile = parts[0].trim();
-      const codecMatch = parts[1].match(/codec ([^\)\s]+)/i);
+      const codecMatch = parts[1].match(/codec ([^)\s]+)/i);
       const codecName = codecMatch ? codecMatch[1].toUpperCase() : "UNKNOWN";
       const codecInfo = getCodecInfo(codecName);
       if (!parsedCodecs.some(codec => codec.profile === profile))
@@ -169,7 +169,7 @@ Singleton {
     });
   }
   function cleanupCodecData(address: string): void {
-    if (!address)
+    if (!address || (root._codecRevisions[address] === undefined && root._codecSwitchActive[address] === undefined))
       return;
     delete root._codecRevisions[address];
     delete root._codecSwitchActive[address];
@@ -179,31 +179,26 @@ Singleton {
     deviceCodecsChanged();
     deviceAvailableCodecsChanged();
   }
-  function clearPendingPair(device: BluetoothDevice): void {
-    if (device?.address === connectAfterPairAddress)
-      connectAfterPairAddress = "";
-  }
   function connectDevice(address: string): void {
     const device = root.deviceForAddress(address);
-    if (!device || device.blocked || isDeviceBusy(device) || device.connected || !device.paired)
+    if (!device || device.blocked || isDeviceBusy(device) || !device.paired)
       return;
     device.trusted = true;
-    device.connect();
+    if (!device.connected)
+      device.connect();
   }
   function deviceForAddress(address: string): BluetoothDevice {
-    return (root.adapter?.devices?.values ?? []).find(device => device?.address === address) ?? null;
+    return root.devices.find(device => device.address === address) ?? null;
   }
   function deviceMatchesKeywords(device: BluetoothDevice, keywords: var): bool {
-    const searchText = `${device?.icon || ""} ${getDeviceName(device)}`.toLowerCase();
+    const searchText = `${device.icon || ""} ${getDeviceName(device)}`.toLowerCase();
     return keywords.some(keyword => searchText.includes(keyword));
   }
   function disconnectDevice(address: string): void {
     const device = root.deviceForAddress(address);
     if (!device)
       return;
-    clearPendingPair(device);
     device.disconnect();
-    cleanupCodecData(address);
   }
   function fetchCodecs(address: string, fullScan = true): void {
     const device = root.deviceForAddress(address);
@@ -216,22 +211,17 @@ Singleton {
     const device = root.deviceForAddress(address);
     if (!device)
       return;
-    clearPendingPair(device);
-    device.trusted = false;
     device.forget();
-    cleanupCodecData(address);
   }
   function getCodecInfo(name: string): var {
-    const key = (name || "").replace(/-/g, "_").toUpperCase();
+    const key = name.replace(/-/g, "_").toUpperCase();
     return codecMap[key] ?? {
-      name: name || "",
+      name,
       desc: "Unknown",
       qualityTier: "basic"
     };
   }
   function getDeviceIcon(device: BluetoothDevice): string {
-    if (!device)
-      return "󰂯";
     for (const [keywords, glyph] of deviceIconMap) {
       if (deviceMatchesKeywords(device, keywords))
         return glyph;
@@ -239,29 +229,26 @@ Singleton {
     return "󰂯";
   }
   function getDeviceName(device: BluetoothDevice): string {
-    return device?.name || device?.deviceName || "";
+    return device.name || device.deviceName || "";
   }
   function isAudioDevice(device: BluetoothDevice): bool {
-    return !!device && deviceMatchesKeywords(device, audioKeywords);
+    return deviceMatchesKeywords(device, audioKeywords);
   }
   function isDeviceBusy(device: BluetoothDevice): bool {
-    return device?.pairing || device?.state === BluetoothDeviceState.Disconnecting || device?.state === BluetoothDeviceState.Connecting;
+    return device.pairing || device.state === BluetoothDeviceState.Disconnecting || device.state === BluetoothDeviceState.Connecting;
   }
   function pairDevice(address: string): void {
     const device = root.deviceForAddress(address);
-    if (!device || connectAfterPairAddress !== "" || device.blocked || device.paired || device.pairing)
+    if (!device || connectAfterPairAddress !== "" || device.blocked || device.paired || isDeviceBusy(device))
       return;
     connectAfterPairAddress = address;
-    device.trusted = true;
     device.pair();
   }
   function setDiscoverable(value: bool): void {
-    Logger.log("BluetoothService", `Set discoverable: ${value} (available=${available})`);
     if (adapter)
       adapter.discoverable = value;
   }
   function setEnabled(value: bool): void {
-    Logger.log("BluetoothService", `Set enabled: ${value} (available=${available})`);
     if (!adapter)
       return;
     if (!value && adapter.discovering)
@@ -294,51 +281,54 @@ Singleton {
     root._runPendingCodecSwitch(address);
   }
   function toDeviceModel(device: BluetoothDevice): var {
-    const address = device?.address || "";
+    const address = device.address;
     return {
       address,
       name: root.getDeviceName(device) || qsTr("Unknown"),
       icon: root.getDeviceIcon(device),
-      statusText: !device ? "" : device.state === BluetoothDeviceState.Connecting ? "Connecting..." : device.pairing ? "Pairing..." : device.blocked ? "Blocked" : "",
-      connected: !!device?.connected,
-      paired: !!device?.paired,
+      statusText: device.state === BluetoothDeviceState.Connecting ? "Connecting..." : device.pairing ? "Pairing..." : device.blocked ? "Blocked" : "",
+      connected: device.connected,
+      paired: device.paired,
       busy: root.isDeviceBusy(device) || address === root.connectAfterPairAddress,
       isAudio: root.isAudioDevice(device),
-      hasBattery: !!device?.batteryAvailable,
-      battery: device?.batteryAvailable ? Math.round(device.battery * 100) : 0,
-      batteryText: device?.batteryAvailable ? `${Math.round(device.battery * 100)}%` : "",
-      canConnect: !!device?.paired && !device.connected && !root.isDeviceBusy(device) && !device.blocked,
-      canPair: !!device && root.connectAfterPairAddress === "" && !device.paired && !device.blocked && !root.isDeviceBusy(device),
+      hasBattery: device.batteryAvailable,
+      battery: device.batteryAvailable ? Math.round(device.battery * 100) : 0,
+      batteryText: device.batteryAvailable ? `${Math.round(device.battery * 100)}%` : "",
+      canConnect: device.paired && !device.connected && !root.isDeviceBusy(device) && !device.blocked,
+      canPair: root.connectAfterPairAddress === "" && !device.paired && !device.blocked && !root.isDeviceBusy(device),
       currentCodec: root.deviceCodecs[address] || "",
       availableCodecs: root.deviceAvailableCodecs[address] || []
     };
   }
 
-  Component.onCompleted: Logger.log("BluetoothService", `Init: defaultAdapter=${Bluetooth.defaultAdapter ? "yes" : "no"}`)
   onConnectAfterPairAddressChanged: root._bumpRevision()
 
   Connections {
     function onDiscoveringChanged() {
-      if (!root.adapter?.discovering)
+      if (!root.discovering)
         root.discoveryOwned = false;
     }
     function onEnabledChanged() {
-      if (!root.adapter?.enabled) {
+      if (!root.enabled) {
         root.discoveryOwned = false;
-        if (root.connectAfterPairAddress !== "")
-          root.connectAfterPairAddress = "";
+        root.connectAfterPairAddress = "";
       }
     }
 
     target: root.adapter
   }
-  Connections {
-    function onDefaultAdapterChanged() {
-      const defaultAdapter = Bluetooth.defaultAdapter;
-      Logger.log("BluetoothService", `Default adapter changed: ${defaultAdapter ? "set" : "none"}`);
-    }
+  CommandStream {
+    id: pairingAgent
 
-    target: Bluetooth
+    active: root.enabled
+    command: ["bluetoothctl", "--agent", "NoInputNoOutput"]
+    restartDelay: 1000
+    stdinEnabled: true
+
+    onLineRead: line => {
+      if (line.includes("Agent registered"))
+        pairingAgent.write("default-agent\n");
+    }
   }
   Instantiator {
     model: root.devices
@@ -346,7 +336,7 @@ Singleton {
     delegate: QtObject {
       id: deviceEntry
 
-      readonly property string address: modelData?.address || ""
+      readonly property string address: modelData.address
       readonly property Connections deviceConn: Connections {
         function onBatteryAvailableChanged() {
           root._bumpRevision();
@@ -359,7 +349,7 @@ Singleton {
         }
         function onConnectedChanged() {
           root._bumpRevision();
-          if (deviceEntry.modelData?.connected && root.isAudioDevice(deviceEntry.modelData))
+          if (deviceEntry.modelData.connected && root.isAudioDevice(deviceEntry.modelData))
             Qt.callLater(() => root.fetchCodecs(deviceEntry.address));
           else
             root.cleanupCodecData(deviceEntry.address);
@@ -368,19 +358,18 @@ Singleton {
           root._bumpRevision();
         }
         function onPairingChanged() {
-          if (deviceEntry.modelData?.pairing || deviceEntry.address !== root.connectAfterPairAddress) {
+          if (deviceEntry.modelData.pairing || deviceEntry.address !== root.connectAfterPairAddress) {
             root._bumpRevision();
             return;
           }
           root.connectAfterPairAddress = "";
-          if (deviceEntry.modelData?.paired)
+          if (deviceEntry.modelData.paired)
             Qt.callLater(() => root.connectDevice(deviceEntry.address));
         }
         function onStateChanged() {
           root._bumpRevision();
         }
 
-        ignoreUnknownSignals: true
         target: deviceEntry.modelData
       }
       required property BluetoothDevice modelData

@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/94bd03cf-6e94-4d71-bf62-9ba58eac3954
 
 Deployment requires Git and GNU Stow. The shell requires Quickshell, either Hyprland or Niri, and the `CaskaydiaCove Nerd Font Propo` and `JetBrainsMono Nerd Font Mono` font families.
 
-Desktop integrations use NetworkManager, PipeWire/WirePlumber, BlueZ, UPower, power-profiles-daemon, Polkit, `brightnessctl`, `wl-clipboard`, `libnotify`, and `xdg-terminal-exec`.
+Desktop integrations use NetworkManager, PipeWire/WirePlumber, BlueZ and `bluez-utils`, UPower, power-profiles-daemon, Polkit, `brightnessctl`, `wl-clipboard`, `libnotify`, and `xdg-terminal-exec`.
 
 Optional features are detected at runtime:
 
