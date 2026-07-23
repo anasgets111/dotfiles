@@ -174,7 +174,7 @@ OModal {
                 fillMode: Image.PreserveAspectCrop
                 scale: tileMouse.containsMouse ? 1.04 : 1
                 source: tile.modelData?.previewSource ?? ""
-                sourceSize: Qt.size(width, height)
+                sourceSize: Qt.size(tile.width, tile.height)
 
                 Behavior on scale {
                   NumberAnimation {
