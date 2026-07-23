@@ -44,6 +44,7 @@ FocusScope {
   property var panelData: null
   property string panelId: ""
   readonly property PanelContentBase panelItem: panelLoader.item as PanelContentBase
+  property bool _revealed: false
   property rect retainedAnchorRect: Qt.rect(0, 0, 0, 0)
   property var retainedPanelComponent: null
   property var retainedPanelData: null
@@ -70,6 +71,10 @@ FocusScope {
       return Math.round(aboveY);
     return Math.round(Math.min(belowY, maxY));
   }
+  function revealPanel(): void {
+    if (root.active && root.panelItem)
+      root._revealed = true;
+  }
 
   focus: root.active
   visible: root.contentActive || panelBackground.y > panelBackground.hiddenY
@@ -87,16 +92,26 @@ FocusScope {
       root.retainedPanelWidth = root.panelContentWidth;
       if (closeHoldTimer.running)
         closeHoldTimer.stop();
-    } else if (panelBackground.y > panelBackground.hiddenY) {
-      root.retainedPanelHeight = panelBackground.height;
-      root.retainedPanelWidth = panelBackground.width;
-      closeHoldTimer.restart();
+      if (panelLoader.status === Loader.Ready)
+        Qt.callLater(root.revealPanel);
+    } else {
+      root._revealed = false;
+      if (panelBackground.y > panelBackground.hiddenY) {
+        root.retainedPanelHeight = panelBackground.height;
+        root.retainedPanelWidth = panelBackground.width;
+        closeHoldTimer.restart();
+      }
     }
   }
   onAnchorRectChanged: if (root.active && root.panelComponent !== null)
     root.retainedAnchorRect = root.anchorRect
-  onPanelComponentChanged: if (root.panelComponent !== null)
-    root.retainedPanelComponent = root.panelComponent
+  onPanelComponentChanged: {
+    if (root.panelComponent === null)
+      return;
+    root.retainedPanelComponent = root.panelComponent;
+    if (root.active)
+      root._revealed = false;
+  }
   onPanelContentHeightChanged: if (root.active && root.panelComponent !== null)
     root.retainedPanelHeight = root.livePanelHeight
   onPanelContentWidthChanged: if (root.active && root.panelComponent !== null)
@@ -147,6 +162,7 @@ FocusScope {
       id: panelBackground
 
       readonly property real hiddenY: -height
+      property real revealProgress: root._revealed ? 1 : 0
       readonly property real targetY: root.calculateY() - Theme.panelHeight
 
       bottomLeftRadius: root.useFlatContainer ? Theme.panelRadius * 2 : Theme.itemRadius
@@ -160,15 +176,17 @@ FocusScope {
       visible: panelLoader.active
       width: root.effectivePanelWidth
       x: root.calculateX()
-      y: root.active ? targetY : hiddenY
+      y: hiddenY + (targetY - hiddenY) * revealProgress
 
       Behavior on height {
+        enabled: root._revealed
+
         NumberAnimation {
           duration: Theme.animationSlow
           easing.type: Easing.OutCubic
         }
       }
-      Behavior on y {
+      Behavior on revealProgress {
         NumberAnimation {
           duration: Theme.animationDuration
           easing.type: Easing.OutQuad
@@ -189,6 +207,7 @@ FocusScope {
           root.panelItem.height = Qt.binding(() => panelLoader.height);
           root.panelItem.isOpen = Qt.binding(() => root.active);
           root.panelItem.panelData = Qt.binding(() => root.effectivePanelData);
+          Qt.callLater(root.revealPanel);
         }
       }
     }

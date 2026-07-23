@@ -1,5 +1,5 @@
 [general]
-bars = 64
+bars = 256
 framerate = 30
 overshoot = 0
 

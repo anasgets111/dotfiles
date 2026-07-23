@@ -5,7 +5,7 @@ import qs.Config
 import qs.Services.Core
 import qs.Services.UI
 
-Rectangle {
+Item {
   id: root
 
   readonly property bool panelOpen: ShellUiState.isPanelOpen("media", root.screenName)
@@ -26,17 +26,20 @@ Rectangle {
   Accessible.role: Accessible.Button
   Component.onDestruction: if (panelOpen)
     ShellUiState.closePanel()
-  border.color: panelOpen ? Theme.glassBorderHoverColor : Theme.glassBorderColor
-  border.width: Theme.borderWidthThin
-  color: panelOpen ? Theme.glassControlHoverColor : Theme.glassControlColor
-  radius: Theme.radiusMd
 
   Row {
     id: bars
 
     anchors.fill: parent
     anchors.margins: Theme.spacingXs
+    opacity: MediaService.playing ? Theme.opacityMedium : Theme.opacitySubtle
     spacing: Theme.borderWidthThin
+
+    Behavior on opacity {
+      NumberAnimation {
+        duration: Theme.animationDuration
+      }
+    }
 
     Repeater {
       model: CavaService.barCount
@@ -53,15 +56,8 @@ Rectangle {
           anchors.bottom: parent.bottom
           color: Theme.activeColor
           height: Math.max(Theme.borderWidthMedium, parent.height * CavaService.values[barSlot.index])
-          opacity: MediaService.playing ? Theme.opacityMedium : Theme.opacitySubtle
           radius: width / 2
           width: parent.width
-
-          Behavior on opacity {
-            NumberAnimation {
-              duration: Theme.animationDuration
-            }
-          }
         }
       }
     }

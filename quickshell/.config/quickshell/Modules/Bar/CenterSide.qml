@@ -10,16 +10,14 @@ Item {
 
   required property string screenName
 
-  implicitHeight: activeWindowTitle.implicitHeight
-  implicitWidth: Math.max(activeWindowTitle.implicitWidth, mediaIndicatorLoader.active ? Theme.mediaIndicatorWidth : 0)
+  implicitHeight: mediaIndicatorLoader.active ? Theme.panelHeight : activeWindowTitle.implicitHeight
+  implicitWidth: mediaIndicatorLoader.active ? Math.round(parent.width / 3) : activeWindowTitle.implicitWidth
 
   Loader {
     id: mediaIndicatorLoader
 
     active: MediaService.playbackAvailable
-    anchors.centerIn: parent
-    height: parent.height
-    width: Theme.mediaIndicatorWidth
+    anchors.fill: parent
 
     sourceComponent: MediaIndicator {
       screenName: centerSide.screenName
