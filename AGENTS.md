@@ -8,6 +8,11 @@ This file provides guidance for coding agents working in this repository.
 
 Primary technologies: QML (Quickshell), Fish shell, Bash scripts.
 
+## Platform Scope
+
+- Arch Linux is authoritative for packages, dependencies, runtime, and installation.
+- `NixConfig/` is inactive. Ignore it unless explicitly requested; never use it as context or sync it with Arch.
+
 ## Commands
 
 ### Shell Scripts
@@ -110,7 +115,7 @@ import qs.Config
 import qs.Services.Utils
 ```
 
-- Files in the same folder don't need imports
+- Files in the same folder don't need imports, except when referencing a singleton from that folder; import the folder's `qs` namespace so the singleton is resolved
 - Use namespace `qs` for project subfolders: `qs.Services.Core` → `Services/Core/`
 - Never use `import "."` — always use namespace
 
@@ -154,7 +159,7 @@ Do not be lazy about understanding the problem, trust-boundary validation, data-
 - `home/.profile` — XDG dirs, NVIDIA env vars, Wayland toolkit config, PATH
 - `fish/.config/fish/conf.d/various.fish` — Custom fish functions
 - `quickshell/.config/quickshell/.qmlformat.ini` — QML formatting rules
-- `NixConfig/` — NixOS flake for hosts Wolverine (NVIDIA/Hyprland) and Mentalist (Intel/Niri)
+- `NixConfig/` — Inactive NixOS experiment; ignore unless explicitly requested
 
 ## Agent Memory & Lessons Learned
 

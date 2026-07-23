@@ -21,7 +21,7 @@ https://github.com/user-attachments/assets/94bd03cf-6e94-4d71-bf62-9ba58eac3954
 - Freedesktop notifications, system tray, OSD, application launcher, Polkit agent, and WlSessionLock screen.
 - Per-monitor wallpapers with animated transitions, plus the Niri overview wallpaper.
 - Audio, privacy, power, brightness, networking, Bluetooth, weather, updates, recording, and input-overlay controls.
-- MPRIS media control through Quickshell IPC.
+- MPRIS media controls with optional Cava visualization.
 
 ## Requirements
 
@@ -33,6 +33,7 @@ Optional features are detected at runtime:
 
 - Screen recording: `gpu-screen-recorder` and `slurp`.
 - Input overlay: `showmethekey-cli`.
+- Media visualization: `cava`.
 - System information: `nvtop`, `lm_sensors`, and `edid-decode`.
 - Arch updates: `checkupdates` from `pacman-contrib` and `expac`.
 - Clipboard persistence: `cliphist` on Hyprland or `wl-clip-persist` on Niri.
@@ -87,10 +88,6 @@ These are personal dotfiles, not generic compositor defaults. Review them before
 | `mpv/` | mpv configuration and scripts. |
 | `bin/` | Local utilities, including update, backup, screenshot, logging, and setup helpers. |
 | `NixConfig/` | NixOS flake with Wolverine (NVIDIA/Hyprland) and Mentalist (Intel/Niri) hosts. |
-
-## Work in progress
-
-- Media playback UI.
 
 ## Notes
 
