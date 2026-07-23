@@ -11,7 +11,8 @@ Modular Wayland desktop dotfiles centered on Quickshell with Hyprland and Niri, 
 
 ## Preview
 
-https://github.com/user-attachments/assets/56cffffa-cbbf-4fe1-ad97-7aef8fed57e4
+https://github.com/user-attachments/assets/94bd03cf-6e94-4d71-bf62-9ba58eac3954
+
 
 ## Quick start
 
