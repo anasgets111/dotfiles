@@ -199,7 +199,7 @@ FocusScope {
       height: root.cornerCutRadius
       orientation: 1
       radius: root.cornerCutRadius
-      visible: root.visible
+      visible: panelBackground.visible
       width: root.cornerCutRadius
       y: panelBackground.y
     }
@@ -211,7 +211,7 @@ FocusScope {
       height: root.cornerCutRadius
       orientation: 0
       radius: root.cornerCutRadius
-      visible: root.visible
+      visible: panelBackground.visible
       width: root.cornerCutRadius
       y: panelBackground.y
     }
