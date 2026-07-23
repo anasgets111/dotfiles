@@ -68,12 +68,9 @@ OPopup {
 
             regions: [
               Region {
-                height: notificationCard.height - 4
                 intersection: Intersection.Intersect
+                item: blurInset
                 radius: Theme.panelRadius
-                width: notificationCard.width - 4
-                x: 2
-                y: 2
               },
               Region {
                 intersection: Intersection.Intersect
@@ -84,6 +81,13 @@ OPopup {
 
           onInputFocusReleased: root.releaseKeyboardFocus()
           onInputFocusRequested: root.claimKeyboardFocus()
+
+          Item {
+            id: blurInset
+
+            anchors.fill: parent
+            anchors.margins: 2
+          }
         }
       }
     }
