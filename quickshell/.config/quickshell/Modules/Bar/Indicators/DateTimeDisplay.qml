@@ -127,6 +127,7 @@ Item {
           visible: WeatherService.timeAgo.length > 0
         }
         MinimalCalendar {
+          textColor: tooltipColumn.textColor
           today: TimeService.now
           weekStart: 6
         }

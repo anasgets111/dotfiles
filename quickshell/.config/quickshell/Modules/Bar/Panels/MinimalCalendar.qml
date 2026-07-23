@@ -9,12 +9,12 @@ Item {
 
   readonly property int cellHeight: Theme.fontXl
   readonly property int cellWidth: Theme.controlWidthSm
-  readonly property color contrastColor: Theme.textContrast(Theme.onHoverColor)
   readonly property int daysInMonth: new Date(year, month + 1, 0).getDate()
   readonly property int firstDayOffset: ((new Date(year, month, 1).getDay() - weekStart + 7) % 7)
   readonly property int month: (today ?? new Date()).getMonth()
   readonly property int rowCount: Math.ceil((firstDayOffset + daysInMonth) / 7)
   readonly property int saturdayCol: (6 - weekStart + 7) % 7
+  property color textColor: Theme.textActiveColor
   property var today: null
   readonly property int todayDate: today?.getDate() ?? 0
   readonly property var weekDays: {
@@ -37,7 +37,7 @@ Item {
 
     OText {
       bold: true
-      color: root.contrastColor
+      color: root.textColor
       height: root.cellHeight
       horizontalAlignment: Text.AlignHCenter
       text: Qt.formatDate(new Date(root.year, root.month), "MMMM yyyy")
@@ -54,7 +54,7 @@ Item {
           required property string modelData
 
           bold: true
-          color: index === root.saturdayCol ? Theme.textContrast(Theme.bgColor) : root.contrastColor
+          color: index === root.saturdayCol ? Theme.textContrast(Theme.bgColor) : root.textColor
           height: root.cellHeight
           horizontalAlignment: Text.AlignHCenter
           text: modelData
@@ -91,7 +91,7 @@ Item {
           OText {
             anchors.centerIn: parent
             bold: cell.isToday
-            color: cell.isToday ? Theme.textContrast(Theme.activeColor) : cell.isSaturday ? Theme.textContrast(Theme.bgColor) : root.contrastColor
+            color: cell.isToday ? Theme.textContrast(Theme.activeColor) : cell.isSaturday ? Theme.textContrast(Theme.bgColor) : root.textColor
             size: "sm"
             text: cell.day > 0 ? cell.day : ""
           }
