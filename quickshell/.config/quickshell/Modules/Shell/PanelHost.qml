@@ -182,7 +182,7 @@ FocusScope {
         enabled: root._revealed
 
         NumberAnimation {
-          duration: Theme.animationSlow
+          duration: Theme.animationDuration
           easing.type: Easing.OutCubic
         }
       }

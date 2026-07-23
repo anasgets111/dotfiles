@@ -10,10 +10,9 @@ import qs.Services.Core
 PanelContentBase {
   id: root
 
-  readonly property bool active: BluetoothService.available && BluetoothService.enabled
-  readonly property var connectedDevices: ready ? BluetoothService.deviceModels.filter(d => d.connected) : []
-  readonly property var otherDevices: ready ? BluetoothService.deviceModels : []
-  readonly property int expandedCodecRows: root.showCodecFor === "" ? 0 : (root.otherDevices.find(d => d.address === root.showCodecFor)?.availableCodecs.length ?? 0)
+  readonly property bool active: root.ready && BluetoothService.enabled
+  readonly property var otherDevices: BluetoothService.deviceModels
+  readonly property var connectedDevices: root.otherDevices.filter(d => d.connected)
   readonly property var otherDevicesView: otherDevices.map(d => Object.assign({}, d, {
       group: d.paired ? "paired" : "available"
     }))
@@ -34,8 +33,10 @@ PanelContentBase {
   ColumnLayout {
     id: mainLayout
 
-    anchors.fill: parent
+    anchors.left: parent.left
     anchors.margins: Theme.spacingMd
+    anchors.right: parent.right
+    anchors.top: parent.top
     spacing: 0
 
     PanelToggleCard {
@@ -88,7 +89,7 @@ PanelContentBase {
       }
       Rectangle {
         Layout.fillWidth: true
-        Layout.preferredHeight: Math.min(deviceList.contentHeight, Theme.itemHeight * (6 + root.expandedCodecRows))
+        Layout.preferredHeight: Math.min(deviceList.contentHeight, Theme.itemHeight * 10)
         clip: true
         color: "transparent"
 

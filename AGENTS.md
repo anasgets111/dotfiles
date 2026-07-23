@@ -183,6 +183,7 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 - Declare complex `BackgroundEffect.blurRegion` values as typed properties instead of inline objects that produce unqualified-reference warnings.
 - `Animation.finished()` only fires for standalone top-level animations, not animations inside a `Behavior`, `Transition`, or group.
 - Follow the active instance's plain `log.log`; `quickshell log -f` can abort independently of a healthy shell.
+- In content-sized panels, top-anchor the root layout instead of filling the animated host height; `anchors.fill` compresses every child while the panel resizes.
 
 ## Operational Gotchas
 

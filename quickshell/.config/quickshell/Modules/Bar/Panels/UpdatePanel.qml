@@ -72,8 +72,10 @@ PanelContentBase {
   ColumnLayout {
     id: mainLayout
 
-    anchors.fill: parent
+    anchors.left: parent.left
     anchors.margins: Theme.spacingMd
+    anchors.right: parent.right
+    anchors.top: parent.top
     spacing: Theme.spacingMd
 
     PanelCard {

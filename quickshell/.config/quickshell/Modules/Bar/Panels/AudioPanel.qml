@@ -26,8 +26,10 @@ PanelContentBase {
   ColumnLayout {
     id: contentLayout
 
-    anchors.fill: parent
+    anchors.left: parent.left
     anchors.margins: Theme.spacingMd
+    anchors.right: parent.right
+    anchors.top: parent.top
     spacing: 0
 
     RowLayout {
