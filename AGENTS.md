@@ -190,6 +190,7 @@ This section is a living record of findings from repeated interactions. When Cla
 - Quickshell `Region.item` listens to that item's own geometry changes, not movement inherited from an animated ancestor. When a child item defines an inset region inside a sliding card, wrap it in an outer `Region { item: slidingCard }` so the region rebuilds on every animation frame; pointing directly at the inset child leaves the blur behind.
 - An inline `BackgroundEffect.blurRegion: Region { ... }` inside a `PopupWindow` makes references such as `subPopup.width` lint as unqualified. Declare a typed `readonly property Region blurRegion` on the window and assign `BackgroundEffect.blurRegion: subPopup.blurRegion` instead.
 - Qt only emits `Animation.finished()` for top-level standalone animations, never for animations inside a `Behavior`, `Transition`, or animation group. When modal dismissal owns a layer-shell input mask or exclusive keyboard focus, drive the transition with a standalone animation and release ownership from its `onFinished`; a handler inside `Behavior` will never run.
+- `quickshell log -f` can abort while the shell remains healthy because its `LogFollower` may destroy a thread still blocked on the encoded log lock. For terminal log helpers, follow the live instance's plain `log.log` directly instead of launching the encoded-log follower.
 
 ---
 
