@@ -57,6 +57,7 @@ Item {
       CenterSide {
         anchors.centerIn: parent
         opacity: root.centerShouldHide ? 0 : 1
+        screenName: root.screen?.name ?? ""
         visible: opacity > 0
 
         Behavior on opacity {

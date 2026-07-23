@@ -133,6 +133,9 @@ Singleton {
   readonly property color lockInputBorderColor: withOpacity("#ffffff", 0.18)
   readonly property real lockScale: internal.lockScale
   readonly property color lockSurfaceBorderColor: withOpacity("#ffffff", 0.22)
+  readonly property int mediaArtworkSize: s(96, 80)
+  readonly property int mediaIndicatorWidth: s(360, 320)
+  readonly property int mediaPanelWidth: s(460, 380)
   readonly property real modalClosedScale: 0.97
   readonly property int modalMargin: spacingXl
   readonly property int modalRadius: radiusXl

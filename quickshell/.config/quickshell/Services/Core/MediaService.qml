@@ -7,7 +7,7 @@ import Quickshell.Services.Mpris
 Singleton {
   id: root
 
-  readonly property MprisPlayer active: players.find(player => player.playbackState === MprisPlaybackState.Playing) ?? players.find(player => player.canPlay) ?? players[0] ?? null
+  readonly property MprisPlayer active: players.find(player => player.playbackState === MprisPlaybackState.Playing) ?? players.find(player => player.playbackState !== MprisPlaybackState.Stopped) ?? players.find(player => player.canPlay) ?? players[0] ?? null
   readonly property bool activeIsVideo: logic.isVideo(active)
   readonly property bool anyVideoPlaying: hasPlayingVideo || (pipewireVideoActive && activeIsVideo)
   readonly property bool canGoNext: active?.canGoNext ?? false
@@ -18,11 +18,13 @@ Singleton {
   readonly property bool canTogglePlaying: active?.canTogglePlaying ?? false
   readonly property bool hasPlayingVideo: players.some(player => player?.playbackState === MprisPlaybackState.Playing && logic.isVideo(player))
   readonly property bool pipewireVideoActive: (Pipewire.linkGroups?.values ?? []).some(linkGroup => linkGroup?.state === PwLinkState.Active && (linkGroup?.source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource)
+  readonly property bool playbackAvailable: !!active && active.playbackState !== MprisPlaybackState.Stopped
   readonly property list<MprisPlayer> players: Mpris.players?.values.filter(player => !!player?.canControl) ?? []
+  readonly property bool playing: active?.isPlaying ?? false
   readonly property real trackLength: {
     if (!active?.lengthSupported)
       return 0;
-    const rawLength = active?.length ?? 0;
+    const rawLength = active.length;
     return Number.isFinite(rawLength) && rawLength > 0 && rawLength < 9e12 ? rawLength : 0;
   }
 
@@ -53,7 +55,7 @@ Singleton {
     logic.safeSeek(active, target - active.position);
   }
   function seekByRatio(positionRatio: real): void {
-    if (!canSeek || !active?.positionSupported || !active?.lengthSupported || trackLength <= 0 || !Number.isFinite(positionRatio))
+    if (!canSeek || !active?.positionSupported || trackLength <= 0 || !Number.isFinite(positionRatio))
       return;
     const ratio = Math.max(0, Math.min(1, positionRatio));
     logic.safeSeek(active, ratio * trackLength - active.position);

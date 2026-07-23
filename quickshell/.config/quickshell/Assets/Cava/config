@@ -1,0 +1,19 @@
+[general]
+bars = 64
+framerate = 30
+overshoot = 0
+
+[input]
+method = pipewire
+
+[output]
+method = raw
+raw_target = /dev/stdout
+data_format = ascii
+ascii_max_range = 1000
+bar_delimiter = 59
+frame_delimiter = 10
+channels = stereo
+
+[smoothing]
+gravity = 100

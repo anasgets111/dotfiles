@@ -33,6 +33,7 @@ FocusScope {
   readonly property var panelComponent: ({
       "audio": audioPanelComponent,
       "bluetooth": bluetoothPanelComponent,
+      "media": mediaPanelComponent,
       "network": networkPanelComponent,
       "notifications": notificationPanelComponent,
       "updates": updatesPanelComponent,
@@ -233,6 +234,12 @@ FocusScope {
     id: bluetoothPanelComponent
 
     BluetoothPanel {
+    }
+  }
+  Component {
+    id: mediaPanelComponent
+
+    MediaPanel {
     }
   }
   Component {
