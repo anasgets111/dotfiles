@@ -90,7 +90,7 @@ COMMON_PACKAGES=(
 	telegram-desktop thunderbird
 
 	# Media & Design
-	mpv-mpris satty zed
+	cava mpv-mpris satty zed
 
 	# Theming
 	kvantum qt6ct tela-circle-icon-theme-dracula
