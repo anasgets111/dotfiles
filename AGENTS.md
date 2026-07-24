@@ -23,7 +23,9 @@ shellcheck path/to/script.sh    # Lint bash scripts
 
 ### Quickshell (QML)
 
-- **Never run `quickshell` or `stow`** — the user handles these
+- **Never run `stow`**, and never launch the user's live config (`quickshell` bare, `-c`, or `-p` at the real `shell.qml`) — the user handles those
+- `quickshell log` (reads the running instance's output) and headless smoke tests are fine
+- Headless smoke test: copy the config to a temp dir, add a root QML there that instantiates the component under test inside a `ShellRoot`, and run `quickshell -p /tmp/<copy>/test.qml`. It creates no windows; exit with a `Timer` calling `Qt.quit()`. Bindings still evaluate, so `console.log` of computed properties works. Such a run instantiates the real singletons and touches shared state (`Quickshell.statePath` locks, DBus, PipeWire) — check nothing is in flight first
 - Quickshell **hot reloads** on file changes; edits take effect immediately
 - For debugging: instrument QML to write output to a file, then read that file — or ask the user to share logs
 - Do **not** touch `qmldir`, `.qmlls.ini`, or any Quickshell-managed metadata files
@@ -181,7 +183,7 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 - Avoid high-frequency add/delete churn on shared JS objects; V4 can crash. Use stable QObject state or scans instead.
 - Reuse `Process` objects through `Command`; destroying a process from its own exit handler can use freed memory.
 - For commands that need EOF, enable stdin before start and disable it in `onStarted`; failed starts may only report through `onRunningChanged`.
-- Use `qmllint` for syntax verification. `qmlformat` is a formatter and can fail on valid files.
+- Verify with `/usr/lib/qt6/bin/qmllint -I <.qmlls.ini buildDir> -I /usr/lib/qt6/qml File.qml`; `qs.*` resolves only via that VFS path, and the `PATH` `qmllint` is Qt5's (silent exit 255). `qmlformat` is a formatter and can fail on valid files.
 - `Region.item` tracks only that item's geometry; bind an outer region to the animated ancestor when inherited movement matters.
 - Declare complex `BackgroundEffect.blurRegion` values as typed properties instead of inline objects that produce unqualified-reference warnings.
 - `Animation.finished()` only fires for standalone top-level animations, not animations inside a `Behavior`, `Transition`, or group.
