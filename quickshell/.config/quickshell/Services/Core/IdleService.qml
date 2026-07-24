@@ -106,6 +106,13 @@ Singleton {
     enabled: root.inhibited
     window: root.window
   }
+  IdleMonitor {
+    respectInhibitors: false
+    timeout: 1
+
+    onIsIdleChanged: if (!isIdle)
+      root.wakeDisplays()
+  }
   IdleStage {
     enabled: root.canLock
     idleAction: () => LockService.requestLock()
@@ -115,7 +122,6 @@ Singleton {
     enabled: root.canPowerOffDisplays
     idleAction: () => root.setDisplaysPowered(false)
     timeout: root._displayPowerOffTimeoutSec
-    wakesDisplays: true
   }
   IdleStage {
     enabled: root.canSuspend
@@ -133,15 +139,10 @@ Singleton {
 
   component IdleStage: IdleMonitor {
     required property var idleAction
-    property bool wakesDisplays: false
 
     respectInhibitors: root.respectInhibitors
 
-    onIsIdleChanged: {
-      if (isIdle)
-        idleAction();
-      else if (enabled && wakesDisplays)
-        root.wakeDisplays();
-    }
+    onIsIdleChanged: if (isIdle)
+      idleAction()
   }
 }
