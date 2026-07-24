@@ -7,12 +7,11 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  property bool authenticating: false
-  property int layoutBeforeLockIndex: -1
+  property int _layoutBeforeLockIndex: -1
+  readonly property bool authenticating: pamContext.active
   property bool locked: false
-  property int pamResult: PamResult.Success
   property string passwordBuffer: ""
-  readonly property bool passwordRejected: pamResult === PamResult.Failed
+  readonly property bool passwordRejected: rejectionTimer.running
   property bool unlocking: false
 
   signal authFailed
@@ -38,10 +37,7 @@ Singleton {
       return true;
     }
     const text = event.text;
-    if (!text)
-      return false;
-    const code = text.charCodeAt(0);
-    if (code >= 32 && code !== 127) {
+    if (text && text.charCodeAt(0) >= 32 && text.charCodeAt(0) !== 127) {
       passwordBuffer += text;
       return true;
     }
@@ -52,50 +48,44 @@ Singleton {
     locked = true;
   }
   function requestUnlock(): void {
-    if (locked)
-      unlocking = true;
+    unlocking = locked;
   }
 
   onLockedChanged: {
     unlocking = false;
-
-    if (locked) {
-      layoutBeforeLockIndex = KeyboardLayoutService.currentLayoutIndex;
-      KeyboardLayoutService.setLayoutByIndex(0);
-      return;
+    if (locked)
+      _layoutBeforeLockIndex = KeyboardLayoutService.currentLayoutIndex;
+    else {
+      passwordBuffer = "";
+      rejectionTimer.stop();
     }
-
-    passwordBuffer = "";
-    pamResult = PamResult.Success;
-    KeyboardLayoutService.setLayoutByIndex(layoutBeforeLockIndex);
-    layoutBeforeLockIndex = -1;
+    KeyboardLayoutService.setLayoutByIndex(locked ? 0 : _layoutBeforeLockIndex);
   }
 
   PamContext {
     id: pamContext
 
-    onActiveChanged: root.authenticating = active
     onCompleted: result => {
       if (result === PamResult.Success) {
         root.requestUnlock();
-      } else {
-        root.pamResult = result;
-        root.authFailed();
-        pamResultResetTimer.restart();
+        return;
       }
+      if (result === PamResult.Failed)
+        rejectionTimer.restart();
+      else
+        rejectionTimer.stop();
+      root.authFailed();
     }
     onResponseRequiredChanged: {
-      if (responseRequired) {
-        respond(root.passwordBuffer);
-        root.passwordBuffer = "";
-      }
+      if (!responseRequired)
+        return;
+      respond(root.passwordBuffer);
+      root.passwordBuffer = "";
     }
   }
   Timer {
-    id: pamResultResetTimer
+    id: rejectionTimer
 
     interval: 1000
-
-    onTriggered: root.pamResult = PamResult.Success
   }
 }
