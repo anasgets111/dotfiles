@@ -19,9 +19,6 @@ Singleton {
   readonly property bool _lockDone: !lockActionEnabled || LockService.locked
   readonly property bool armed: idleEnabled && !inhibited
   readonly property bool autoInhibitorActive: MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive
-  readonly property bool canLock: armed && lockActionEnabled && !LockService.locked && (!lockAfterDisplayPowerOff || _dpmsDone)
-  readonly property bool canPowerOffDisplays: armed && displayPowerOffActionEnabled && (lockAfterDisplayPowerOff || _lockDone)
-  readonly property bool canSuspend: armed && suspendActionEnabled && _lockDone && _dpmsDone
   readonly property bool displayPowerOffActionEnabled: displayPowerOffEnabled && _displayPowerOffTimeoutSec > 0
   readonly property bool displayPowerOffEnabled: settings?.dpmsEnabled ?? true
   readonly property real displayPowerOffTimeoutMin: _secToMin(_displayPowerOffTimeoutSec)
@@ -36,7 +33,6 @@ Singleton {
   readonly property bool lockEnabled: settings?.lockEnabled ?? true
   readonly property real lockTimeoutMin: _secToMin(_lockTimeoutSec)
   property bool manualInhibit: false
-  readonly property bool respectInhibitors: !LockService.locked && respectInhibitorsEnabled
   readonly property bool respectInhibitorsEnabled: settings?.respectInhibitors ?? true
   readonly property var settings: Settings.data?.idleService ?? null
   readonly property bool suspendActionEnabled: suspendEnabled && _suspendTimeoutSec > 0
@@ -98,8 +94,7 @@ Singleton {
     root._setIdleSetting("videoAutoInhibit", value);
   }
   function wakeDisplays(): void {
-    if (root.displaysPoweredOff)
-      root.setDisplaysPowered(true);
+    root.setDisplaysPowered(true);
   }
 
   IdleInhibitor {
@@ -114,17 +109,17 @@ Singleton {
       root.wakeDisplays()
   }
   IdleStage {
-    enabled: root.canLock
+    enabled: root.armed && root.lockActionEnabled && !LockService.locked && (!root.lockAfterDisplayPowerOff || root._dpmsDone)
     idleAction: () => LockService.requestLock()
     timeout: root._lockTimeoutSec
   }
   IdleStage {
-    enabled: root.canPowerOffDisplays
+    enabled: root.armed && root.displayPowerOffActionEnabled && (root.lockAfterDisplayPowerOff || root._lockDone)
     idleAction: () => root.setDisplaysPowered(false)
     timeout: root._displayPowerOffTimeoutSec
   }
   IdleStage {
-    enabled: root.canSuspend
+    enabled: root.armed && root.suspendActionEnabled && root._lockDone && root._dpmsDone
     idleAction: () => PowerManagementService.suspend()
     timeout: root._suspendTimeoutSec
   }
@@ -140,7 +135,7 @@ Singleton {
   component IdleStage: IdleMonitor {
     required property var idleAction
 
-    respectInhibitors: root.respectInhibitors
+    respectInhibitors: !LockService.locked && root.respectInhibitorsEnabled
 
     onIsIdleChanged: if (isIdle)
       idleAction()
