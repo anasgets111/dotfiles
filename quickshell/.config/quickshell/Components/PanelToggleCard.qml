@@ -11,10 +11,11 @@ Rectangle {
   property bool checked: false
   readonly property bool compact: width < Theme.panelToggleCompactThreshold
   property string detail: ""
-  readonly property color detailColor: checked && active ? Theme.textActiveColor : Theme.textInactiveColor
+  readonly property color detailColor: (checked || hovered) && active ? Theme.textActiveColor : Theme.textInactiveColor
+  readonly property bool hovered: cardMouse.containsMouse && active
   required property string icon
   required property string label
-  readonly property color labelColor: checked && active ? Theme.activeColor : Theme.textInactiveColor
+  readonly property color labelColor: checked && active ? Theme.activeColor : hovered ? Theme.textActiveColor : Theme.textInactiveColor
   property bool spinning: false
   readonly property bool wide: !compact && detail !== ""
 
@@ -23,9 +24,9 @@ Rectangle {
   Layout.fillWidth: true
   Layout.preferredHeight: Theme.panelToggleCardHeight
   Layout.preferredWidth: 0
-  border.color: card.checked && card.active ? Theme.withOpacity(Theme.activeColor, Theme.opacityMedium) : Theme.glassBorderColor
+  border.color: card.checked && card.active ? Theme.withOpacity(Theme.activeColor, Theme.opacityMedium) : card.hovered ? Theme.glassBorderHoverColor : Theme.glassBorderColor
   border.width: Theme.borderWidthThin
-  color: card.checked && card.active ? Theme.activeSubtle : Theme.glassContentColor
+  color: card.checked && card.active ? (card.hovered ? Theme.activeLight : Theme.activeSubtle) : card.hovered ? Theme.glassContentHoverColor : Theme.glassContentColor
   opacity: card.active ? 1.0 : Theme.opacityDisabled
   radius: Theme.radiusLg
 
@@ -46,9 +47,12 @@ Rectangle {
   }
 
   MouseArea {
+    id: cardMouse
+
     anchors.fill: parent
     cursorShape: card.active ? Qt.PointingHandCursor : Qt.ArrowCursor
     enabled: card.active
+    hoverEnabled: true
 
     onClicked: card.toggled(!card.checked)
   }
@@ -68,6 +72,7 @@ Rectangle {
       Layout.preferredHeight: Theme.iconSizeMd
       Layout.preferredWidth: Theme.iconSizeMd
       Layout.row: 0
+      visible: card.icon !== "" || card.spinning
 
       Text {
         anchors.centerIn: parent

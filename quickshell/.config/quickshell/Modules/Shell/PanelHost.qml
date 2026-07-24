@@ -36,6 +36,7 @@ FocusScope {
       "media": mediaPanelComponent,
       "network": networkPanelComponent,
       "notifications": notificationPanelComponent,
+      "screenRecorder": screenRecorderPanelComponent,
       "updates": updatesPanelComponent,
       "tray": trayPanelComponent
     })[panelId] ?? null
@@ -271,6 +272,12 @@ FocusScope {
     id: notificationPanelComponent
 
     NotificationHistoryPanel {
+    }
+  }
+  Component {
+    id: screenRecorderPanelComponent
+
+    ScreenRecorderPanel {
     }
   }
   Component {

@@ -110,6 +110,12 @@ Singleton {
     property int overviewBlurMax: 64
     property real overviewBlurMultiplier: 2.0
     property real overviewBlurStrength: 0.6
+    property JsonObject screenRecorder: JsonObject {
+      property string audio: "desktop"
+      property string container: "mp4"
+      property int fps: 60
+      property string quality: "high"
+    }
     property string themeMode: "dark"
     property string themeName: "Catppuccin"
     property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"

@@ -2,23 +2,32 @@ pragma Singleton
 import Qt.labs.platform
 import QtQuick
 import Quickshell
+import qs.Config
 import qs.Services.Utils
 import qs.Services.WM
 
 Singleton {
   id: root
 
+  readonly property var _audioArgs: ({off: [], desktop: ["-a", "default_output"], mic: ["-a", "default_output|default_input"]})
   property bool _cleanupInFlight: false
+  // Seconds banked by previous run segments; the live segment is measured from _segmentStart.
+  property double _elapsedBase: 0
   // PID plus kernel start time prevents signalling a recycled process after hot reload.
   // ponytail: gpu-screen-recorder must stay foreground; use its pidfile if it ever daemonizes.
-  readonly property string _launchScript: 'lock_path="$1"; output_path="$2"; shift 2; "$@" </dev/null >/dev/null 2>&1 & pid=$!; for _ in 1 2 3 4 5 6 7 8 9 10; do exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null || true); [ "${exe##*/}" = gpu-screen-recorder ] && break; kill -0 "$pid" 2>/dev/null || exit 1; sleep 0.02; done; [ "${exe##*/}" = gpu-screen-recorder ] || { kill -TERM "$pid" 2>/dev/null || true; exit 1; }; start_time=$(awk "{print \\$22}" "/proc/$pid/stat" 2>/dev/null); [ -n "$start_time" ] || { kill -INT "$pid" 2>/dev/null || true; exit 1; }; lock_tmp="$lock_path.$$"; { printf "%s\\n%s\\n%s\\n" "$pid" "$start_time" "$output_path" > "$lock_tmp" && mv -f "$lock_tmp" "$lock_path"; } || { rm -f "$lock_tmp"; kill -INT "$pid" 2>/dev/null || true; exit 1; }; printf "%s\\n%s\\n" "$pid" "$start_time" || { rm -f "$lock_path"; kill -INT "$pid" 2>/dev/null || true; exit 1; }'
+  readonly property string _launchScript: 'lock_path="$1"; output_path="$2"; launched_at="$3"; shift 3; "$@" </dev/null >/dev/null 2>&1 & pid=$!; for _ in 1 2 3 4 5 6 7 8 9 10; do exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null || true); [ "${exe##*/}" = gpu-screen-recorder ] && break; kill -0 "$pid" 2>/dev/null || exit 1; sleep 0.02; done; [ "${exe##*/}" = gpu-screen-recorder ] || { kill -TERM "$pid" 2>/dev/null || true; exit 1; }; start_time=$(awk "{print \\$22}" "/proc/$pid/stat" 2>/dev/null); [ -n "$start_time" ] || { kill -INT "$pid" 2>/dev/null || true; exit 1; }; lock_tmp="$lock_path.$$"; { printf "%s\\n%s\\n%s\\n%s\\n" "$pid" "$start_time" "$output_path" "$launched_at" > "$lock_tmp" && mv -f "$lock_tmp" "$lock_path"; } || { rm -f "$lock_tmp"; kill -INT "$pid" 2>/dev/null || true; exit 1; }; printf "%s\\n%s\\n" "$pid" "$start_time" || { rm -f "$lock_path"; kill -INT "$pid" 2>/dev/null || true; exit 1; }'
   readonly property string _probeScript: 'pid="$1"; expected_start="$2"; case "$pid" in ""|*[!0-9]*) exit 2;; esac; current_start=$(awk "{print \\$22}" "/proc/$pid/stat" 2>/dev/null) || exit 3; [ "$current_start" = "$expected_start" ] || exit 4; exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null) || exit 5; [ "${exe##*/}" = gpu-screen-recorder ] || exit 6'
+  // Maps the user-facing presets onto gpu-screen-recorder's -q values.
+  readonly property var _qualityPresets: ({low: "medium", medium: "high", high: "very_high"})
   property int _recorderPid: 0
   property string _recorderStartTime: ""
+  property double _segmentStart: 0
   property bool _signalInFlight: false
   readonly property string _signalScript: _probeScript + '; kill "-$3" "$1"'
   property bool _starting: false
+  property string captureLabel: ""
   readonly property string directory: String(StandardPaths.writableLocation(StandardPaths.MoviesLocation)).replace(/^file:\/\//, "")
+  readonly property string elapsedText: isRecording ? _formatElapsed(Math.max(0, Math.floor(_elapsedBase + (isPaused ? 0 : (TimeService.now.getTime() - _segmentStart) / 1000)))) : ""
   property bool isPaused: false
   property bool isRecording: false
   readonly property string lockPath: Quickshell.statePath("screen-recording.lock")
@@ -34,6 +43,7 @@ Singleton {
   function _clearRecording(emitStopped: bool): void {
     const stoppedPath = outputPath;
     const wasRecording = isRecording;
+    const duration = elapsedText;
     _recorderPid = 0;
     _recorderStartTime = "";
     _signalInFlight = false;
@@ -43,16 +53,31 @@ Singleton {
     isPaused = false;
     Command.run(["rm", "-f", lockPath], () => root._cleanupInFlight = false);
     syncPersist();
-    if (emitStopped && wasRecording)
+    if (emitStopped && wasRecording) {
+      // -A implies --wait, so this process lives until the popup expires; the identifier must not be
+      // "default", which NotificationService hides from the action row.
+      Command.run(["notify-send", "-a", "Screen Recorder", "-i", "media-record", "-t", "5000", "-e", "-A", `play=${qsTr("Play")}`, qsTr("Recording saved"), `${duration} · ${stoppedPath.split("/").pop()}`], result => {
+        if ((result.stdout ?? "").trim() === "play")
+          Command.detached(["xdg-open", stoppedPath]);
+      });
       recordingStopped(stoppedPath);
+    }
   }
-  function _launchRecorder(captureArgs: var): void {
-    const filename = TimeService.format("datetime", "yyyyMMdd_HHmmss") + ".mp4";
+  function _formatElapsed(seconds: int): string {
+    const pad = value => String(value).padStart(2, "0");
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor(seconds / 60) % 60;
+    return (hours > 0 ? `${hours}:${pad(minutes)}` : `${minutes}`) + `:${pad(seconds % 60)}`;
+  }
+  function _launchRecorder(captureArgs: var, label: string): void {
+    const config = Settings.data?.screenRecorder;
+    const filename = TimeService.format("datetime", "yyyyMMdd_HHmmss") + "." + (config?.container || "mp4");
     const dir = directory.endsWith("/") ? directory : directory + "/";
     outputPath = dir + filename;
+    captureLabel = label;
     _starting = true;
-    const recorderCommand = ["gpu-screen-recorder", ...captureArgs, "-o", outputPath, "-a", "default_output", "-cursor", "yes"];
-    Command.run(["sh", "-c", _launchScript, "sh", lockPath, outputPath, ...recorderCommand], result => {
+    const recorderCommand = ["gpu-screen-recorder", ...captureArgs, "-o", outputPath, "-q", _qualityPresets[config?.quality] ?? "very_high", "-f", String(config?.fps || 60), ...(_audioArgs[config?.audio] ?? _audioArgs.desktop), "-cursor", "yes"];
+    Command.run(["sh", "-c", _launchScript, "sh", lockPath, outputPath, String(Date.now()), ...recorderCommand], result => {
       root._starting = false;
       const launchInfo = (result.stdout ?? "").trim().split(/\r?\n/);
       const pid = parseInt(launchInfo[0] ?? "0", 10);
@@ -64,6 +89,8 @@ Singleton {
       }
       root._recorderPid = pid;
       root._recorderStartTime = startTime;
+      root._elapsedBase = 0;
+      root._segmentStart = Date.now();
       root.isRecording = true;
       root.isPaused = false;
       root.syncPersist();
@@ -73,7 +100,7 @@ Singleton {
   function _probeRecorder(pid: int, startTime: string, callback: var): void {
     Command.run(["sh", "-c", _probeScript, "sh", String(pid), startTime], callback, "screen-recording.probe");
   }
-  function _restoreRecorder(pid: int, startTime: string, path: string): void {
+  function _restoreRecorder(pid: int, startTime: string, path: string, launchedAt: real): void {
     _starting = true;
     if (pid <= 0 || !startTime) {
       _clearRecording(false);
@@ -87,6 +114,11 @@ Singleton {
       }
       root._recorderPid = pid;
       root._recorderStartTime = startTime;
+      // persist survives hot reloads and knows paused time; after a process restart only the lock
+      // file's launch epoch remains, which counts paused seconds as recorded ones.
+      root._elapsedBase = persist.segmentStart > 0 ? persist.elapsedBase : launchedAt > 0 ? Math.max(0, (Date.now() - launchedAt) / 1000) : 0;
+      root._segmentStart = persist.segmentStart || Date.now();
+      root.captureLabel = persist.captureLabel;
       root.outputPath = path || persist.lastOutputPath;
       root.isRecording = true;
       root.isPaused = !!persist.wasPaused;
@@ -113,11 +145,11 @@ Singleton {
           root._starting = false;
           return;
         }
-        root._launchRecorder(["-w", "region", "-region", region]);
+        root._launchRecorder(["-w", "region", "-region", region], qsTr("Region %1").arg(region.split("+")[0]));
       }, "screen-recording.selection");
       return;
     }
-    _launchRecorder(["-w", monitor]);
+    _launchRecorder(["-w", monitor], monitor);
   }
   function stopRecording(): void {
     if (!isRecording || _signalInFlight)
@@ -131,6 +163,9 @@ Singleton {
   function syncPersist(): void {
     persist.wasPaused = isPaused;
     persist.lastOutputPath = outputPath;
+    persist.captureLabel = captureLabel;
+    persist.elapsedBase = _elapsedBase;
+    persist.segmentStart = _segmentStart;
   }
   function togglePause(): void {
     if (!isRecording || _signalInFlight)
@@ -141,6 +176,10 @@ Singleton {
         root._clearRecording(true);
         return;
       }
+      if (root.isPaused)
+        root._segmentStart = Date.now();
+      else
+        root._elapsedBase += (Date.now() - root._segmentStart) / 1000;
       root.isPaused = !root.isPaused;
       root.syncPersist();
       if (root.isPaused)
@@ -166,14 +205,17 @@ Singleton {
   PersistentProperties {
     id: persist
 
+    property string captureLabel: ""
+    property double elapsedBase: 0
     property string lastOutputPath: ""
+    property double segmentStart: 0
     property bool wasPaused: false
 
     reloadableId: "ScreenRecordingServiceState"
 
-    onLoaded: Command.run(["sh", "-c", '[ -r "$1" ] && sed -n "1,3p" "$1"', "sh", root.lockPath], result => {
+    onLoaded: Command.run(["sh", "-c", '[ -r "$1" ] && sed -n "1,4p" "$1"', "sh", root.lockPath], result => {
       const lockData = (result.stdout ?? "").split(/\r?\n/);
-      root._restoreRecorder(parseInt(lockData[0] ?? "0", 10), lockData[1] ?? "", lockData[2] ?? persist.lastOutputPath);
+      root._restoreRecorder(parseInt(lockData[0] ?? "0", 10), lockData[1] ?? "", lockData[2] ?? persist.lastOutputPath, parseFloat(lockData[3] ?? "0"));
     }, "screen-recording.restore")
   }
 }

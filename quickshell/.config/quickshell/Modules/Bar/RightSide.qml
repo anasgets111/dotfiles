@@ -21,6 +21,7 @@ Row {
   }
   ScreenRecorder {
     anchors.verticalCenter: parent.verticalCenter
+    screenName: rightSide.screenName
   }
   NetworkIndicator {
     anchors.verticalCenter: parent.verticalCenter
