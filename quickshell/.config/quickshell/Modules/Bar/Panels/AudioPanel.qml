@@ -10,8 +10,6 @@ import qs.Services.Core
 PanelContentBase {
   id: root
 
-  property bool inputDevicesExpanded: false
-  property bool outputDevicesExpanded: false
   readonly property int sliderHeight: Math.round(Theme.itemHeight * 0.6)
 
   flatContainer: true
@@ -19,8 +17,8 @@ PanelContentBase {
   preferredWidth: Theme.audioPanelWidth
 
   onIsOpenChanged: if (!isOpen) {
-    inputDevicesExpanded = false;
-    outputDevicesExpanded = false;
+    inputPicker.expanded = false;
+    outputPicker.expanded = false;
   }
 
   ColumnLayout {
@@ -30,10 +28,9 @@ PanelContentBase {
     anchors.margins: Theme.spacingMd
     anchors.right: parent.right
     anchors.top: parent.top
-    spacing: 0
+    spacing: Theme.spacingMd
 
     RowLayout {
-      Layout.bottomMargin: Theme.spacingMd
       Layout.fillWidth: true
       spacing: Theme.spacingSm
 
@@ -68,7 +65,6 @@ PanelContentBase {
       }
     }
     AudioControl {
-      Layout.bottomMargin: Theme.spacingMd
       headroomColor: Theme.critical
       iconOff: "󰝟"
       iconOn: "󰕾"
@@ -83,17 +79,16 @@ PanelContentBase {
       onToggled: AudioService.toggleMute()
 
       DevicePicker {
+        id: outputPicker
+
         defaultIcon: "󰓃"
-        expanded: root.outputDevicesExpanded
         model: AudioService.sinkModels
         visible: model.length > 1
 
         onDeviceSelected: id => AudioService.setAudioSink(id)
-        onToggled: root.outputDevicesExpanded = !root.outputDevicesExpanded
       }
     }
     AudioControl {
-      Layout.bottomMargin: Theme.spacingMd
       iconOff: "󰍭"
       iconOn: "󰍬"
       muted: AudioService.micMuted
@@ -108,13 +103,13 @@ PanelContentBase {
       onToggled: AudioService.toggleMicMute()
 
       DevicePicker {
+        id: inputPicker
+
         defaultIcon: "󰍬"
-        expanded: root.inputDevicesExpanded
         model: AudioService.sourceModels
         visible: model.length > 1
 
         onDeviceSelected: id => AudioService.setAudioSource(id)
-        onToggled: root.inputDevicesExpanded = !root.inputDevicesExpanded
       }
     }
     MixerSection {
@@ -141,14 +136,12 @@ PanelContentBase {
     signal toggled
 
     Layout.fillWidth: true
-    implicitHeight: heroLayout.implicitHeight + Theme.spacingMd * 2
-    padding: 0
+    padding: Theme.spacingMd
 
     ColumnLayout {
       id: heroLayout
 
       anchors.fill: parent
-      anchors.margins: Theme.spacingMd
       spacing: Theme.spacingSm
 
       RowLayout {
@@ -198,21 +191,16 @@ PanelContentBase {
         Layout.preferredHeight: root.sliderHeight
 
         Slider {
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
+          anchors.fill: parent
           animMs: 0
-          fillColor: Theme.activeColor
           headroomColor: hero.headroomColor
-          height: parent.height
           interactive: hero.ready
-          radius: Theme.itemRadius
           splitAt: hero.splitAt
           steps: hero.sliderSteps
           value: hero.ready ? hero.volume : 0
           wheelStep: 1 / steps
 
-          onCommitted: v => hero.committed(v)
+          onCommitted: v => { hero.committed(v); value = Qt.binding(() => hero.ready ? hero.volume : 0); }
         }
       }
       ColumnLayout {
@@ -223,25 +211,6 @@ PanelContentBase {
       }
     }
   }
-  component DeviceItem: PanelRow {
-    id: deviceItem
-
-    property string defaultIcon: ""
-    property var entry
-
-    Layout.fillWidth: true
-    icon: (entry?.icon ?? "") || defaultIcon
-    selected: entry?.active ?? false
-    title: entry?.name ?? ""
-
-    actions: [
-      OText {
-        color: deviceItem.selected ? Theme.activeColor : "transparent"
-        size: "sm"
-        text: "󰄬"
-      }
-    ]
-  }
   component DevicePicker: PanelRow {
     id: picker
 
@@ -249,7 +218,6 @@ PanelContentBase {
     property alias model: deviceRepeater.model
 
     signal deviceSelected(int id)
-    signal toggled
 
     Layout.fillWidth: true
     title: qsTr("Choose device")
@@ -276,23 +244,34 @@ PanelContentBase {
         Repeater {
           id: deviceRepeater
 
-          delegate: DeviceItem {
+          delegate: PanelRow {
+            id: deviceItem
+
             required property var modelData
 
             Layout.fillWidth: true
-            defaultIcon: picker.defaultIcon
-            entry: modelData
+            icon: (modelData?.icon ?? "") || picker.defaultIcon
+            selected: modelData?.active ?? false
+            title: modelData?.name ?? ""
+
+            actions: [
+              OText {
+                color: deviceItem.selected ? Theme.activeColor : "transparent"
+                size: "sm"
+                text: "󰄬"
+              }
+            ]
 
             onClicked: {
               picker.deviceSelected(modelData.id);
-              picker.toggled();
+              picker.expanded = false;
             }
           }
         }
       }
     ]
 
-    onClicked: picker.toggled()
+    onClicked: picker.expanded = !picker.expanded
   }
   component MixerSection: PanelCard {
     id: mixer
@@ -314,6 +293,7 @@ PanelContentBase {
 
       PanelRow {
         Layout.fillWidth: true
+        expanded: mixer.expanded && mixer.streamCount > 0
         icon: "󰓡"
         subtitle: mixer.streamCount === 0 ? qsTr("No applications playing audio") : qsTr("%1 active").arg(mixer.streamCount)
         title: qsTr("Application mixer")
@@ -324,39 +304,27 @@ PanelContentBase {
           }
         ]
 
+        expandedContent: [
+          ListView {
+            id: streamList
+
+            boundsBehavior: Flickable.StopAtBounds
+            clip: true
+            height: Math.min(contentHeight, Theme.controlHeightLg * Theme.audioMixerVisibleRows)
+            model: AudioService.streamModels
+            spacing: Theme.spacingSm
+            width: parent?.width ?? 0
+
+            ScrollBar.vertical: ScrollBar {
+              policy: streamList.contentHeight > streamList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+            }
+            delegate: StreamItem {
+              width: ListView.view.width
+            }
+          }
+        ]
+
         onClicked: mixer.expanded = !mixer.expanded
-      }
-      Item {
-        Layout.fillWidth: true
-        Layout.preferredHeight: mixer.expanded && mixer.streamCount > 0 ? Math.min(streamList.contentHeight, Theme.controlHeightLg * Theme.audioMixerVisibleRows) + Theme.spacingSm : 0
-        clip: true
-
-        Behavior on Layout.preferredHeight {
-          NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.OutCubic
-          }
-        }
-
-        ListView {
-          id: streamList
-
-          anchors.fill: parent
-          anchors.leftMargin: Theme.spacingSm
-          anchors.rightMargin: Theme.spacingSm
-          anchors.topMargin: Theme.spacingSm
-          boundsBehavior: Flickable.StopAtBounds
-          clip: true
-          model: AudioService.streamModels
-          spacing: Theme.spacingSm
-
-          ScrollBar.vertical: ScrollBar {
-            policy: streamList.contentHeight > streamList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-          }
-          delegate: StreamItem {
-            width: ListView.view.width
-          }
-        }
       }
     }
   }
@@ -368,7 +336,6 @@ PanelContentBase {
     readonly property bool ready: modelData.ready ?? false
     readonly property real volume: modelData.volume ?? 0
 
-    Layout.fillWidth: true
     spacing: Theme.spacingXs
 
     RowLayout {
@@ -417,19 +384,14 @@ PanelContentBase {
       Layout.preferredHeight: root.sliderHeight * 0.8
 
       Slider {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.fill: parent
         animMs: 0
-        fillColor: Theme.activeColor
-        height: parent.height
         interactive: streamItem.ready
         radius: Theme.itemRadius * 0.5
         steps: 20
         value: streamItem.ready ? streamItem.volume : 0
-        wheelStep: 1 / steps
 
-        onCommitted: v => AudioService.setStreamVolume(streamItem.modelData.id, v)
+        onCommitted: v => { AudioService.setStreamVolume(streamItem.modelData.id, v); value = Qt.binding(() => streamItem.ready ? streamItem.volume : 0); }
       }
     }
   }
