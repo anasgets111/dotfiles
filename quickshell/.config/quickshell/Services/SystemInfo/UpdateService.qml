@@ -22,7 +22,7 @@ Singleton {
   property string _state: "idle"
   property bool _updateProcessStarted: false
   readonly property bool busy: _checking || updateProcess.running || isUpdating
-  readonly property string checkError: Settings.isStateLoaded ? Settings.state.updates.lastCheckError : ""
+  readonly property string checkError: Settings.isStateLoaded ? (Settings.state.updates.lastCheckError ?? "") : ""
   property int completedPackageCount: 0
   property string currentPackage: ""
   property int currentPackageIndex: 0
@@ -34,8 +34,9 @@ Singleton {
   readonly property bool isIdle: _state === "idle"
   readonly property bool isStale: !Settings.isStateLoaded || checkError !== "" || lastSuccessfulCheck <= 0 || Date.now() - lastSuccessfulCheck > _pollInterval
   readonly property bool isUpdating: _state === "updating"
-  readonly property double lastSuccessfulCheck: Settings.isStateLoaded ? Settings.state.updates.lastSuccessfulCheck : 0
-  property var outputLines: []
+  readonly property double lastSuccessfulCheck: Settings.isStateLoaded ? (Settings.state.updates.lastSuccessfulCheck ?? 0) : 0
+  property ListModel outputLines: ListModel {
+  }
   property bool progressDeterminate: false
   readonly property bool ready: MainService.isArchBased && _checkUpdatesAvailable && Settings.isStateLoaded
   property bool rebootRequired: false
@@ -84,10 +85,6 @@ Singleton {
       _notify("Update Failed", errorMessage, "critical");
     }
     Qt.callLater(root.doPoll);
-  }
-  function _handleUpdateExit(exitCode: int): void {
-    _updateProcessStarted = false;
-    _finishUpdate(exitCode);
   }
   function _launchPendingActionNotification(): void {
     if (!_pendingActionArgs || actionNotifyProcess.running)
@@ -159,7 +156,7 @@ Singleton {
     currentPackage = "";
     currentStep = "";
     errorMessage = "";
-    outputLines = [];
+    outputLines.clear();
     progressDeterminate = false;
     rebootRequired = false;
     totalPackagesToUpdate = 0;
@@ -219,13 +216,9 @@ Singleton {
     updateProcess.running = true;
   }
 
-  Component.onCompleted: {
-    Command.run(["sh", "-c", "command -v checkupdates"], result => root._checkUpdatesAvailable = result.exitCode === 0);
-  }
-  onReadyChanged: {
-    if (ready)
-      _fetchPackageSizes(updatePackages);
-  }
+  Component.onCompleted: Command.run(["sh", "-c", "command -v checkupdates"], result => root._checkUpdatesAvailable = result.exitCode === 0)
+  onReadyChanged: if (ready)
+    _fetchPackageSizes(updatePackages)
   onUpdatePackagesChanged: if (ready)
     _fetchPackageSizes(updatePackages)
 
@@ -234,7 +227,10 @@ Singleton {
 
     function appendOutputLine(lineText: string): void {
       const cleanLine = String(lineText ?? "").replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/\r$/, "");
-      root.outputLines = root.outputLines.slice(-299).concat(cleanLine);
+      // ponytail: Retain one run's full log for stable paused scrolling; add disk-backed paging if update output becomes unbounded.
+      root.outputLines.append({
+        lineText: cleanLine
+      });
       const stepMatch = cleanLine.trim().match(/^▶\s+(.+)$/);
       if (stepMatch) {
         root.currentStep = stepMatch[1];
@@ -265,12 +261,13 @@ Singleton {
       onRead: data => updateProcess.appendOutputLine(data)
     }
     stdout: SplitParser {
-      onRead: data => {
-        updateProcess.appendOutputLine(data);
-      }
+      onRead: data => updateProcess.appendOutputLine(data)
     }
 
-    onExited: exitCode => root._handleUpdateExit(exitCode)
+    onExited: exitCode => {
+      root._updateProcessStarted = false;
+      root._finishUpdate(exitCode);
+    }
     onRunningChanged: {
       if (!running && root.isUpdating && !root._updateProcessStarted)
         root._finishUpdate(-1);
@@ -293,10 +290,8 @@ Singleton {
     id: actionNotifyProcess
 
     stdout: StdioCollector {
-      onStreamFinished: {
-        if ((text || "").trim().split(/\s+/).includes(root._runUpdatesAction))
-          root.executeUpdate();
-      }
+      onStreamFinished: if ((text || "").trim().split(/\s+/).includes(root._runUpdatesAction))
+        root.executeUpdate()
     }
 
     onExited: Qt.callLater(root._launchPendingActionNotification)

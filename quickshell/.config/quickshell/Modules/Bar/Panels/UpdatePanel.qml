@@ -31,9 +31,7 @@ PanelContentBase {
     return minutes > 0 ? qsTr("%1 min %2 sec").arg(minutes).arg(seconds % 60) : qsTr("%1 sec").arg(seconds);
   }
   function lastCheckText(): string {
-    if (UpdateService.lastSuccessfulCheck <= 0)
-      return qsTr("Never checked");
-    return Qt.formatDateTime(new Date(UpdateService.lastSuccessfulCheck), "MMM d, h:mm AP");
+    return UpdateService.lastSuccessfulCheck > 0 ? Qt.formatDateTime(new Date(UpdateService.lastSuccessfulCheck), "MMM d, h:mm AP") : qsTr("Never checked");
   }
   function logColor(raw: string): color {
     const text = raw.toLowerCase();
@@ -264,20 +262,19 @@ PanelContentBase {
             policy: ScrollBar.AsNeeded
           }
           delegate: OText {
-            required property var modelData
+            required property string lineText
 
-            color: root.logColor(modelData)
+            color: root.logColor(lineText)
             font.family: "Monospace"
             font.pixelSize: Theme.fontSm
-            text: modelData
+            text: lineText
             width: ListView.view.width
             wrapMode: Text.Wrap
           }
 
-          onContentYChanged: if (moving || flicking)
-            followOutput = atYEnd
-          onCountChanged: if (followOutput)
-            Qt.callLater(positionViewAtEnd)
+          onCountChanged: Qt.callLater(() => followOutput && positionViewAtEnd())
+          onMovementEnded: followOutput = atYEnd
+          onMovementStarted: followOutput = false
         }
       }
     }
