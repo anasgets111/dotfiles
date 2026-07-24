@@ -15,11 +15,13 @@ Singleton {
   readonly property int _displayPowerOffTimeoutSec: settings?.dpmsTimeoutSec ?? 30
   readonly property int _lockTimeoutSec: settings?.lockTimeoutSec ?? 300
   readonly property int _suspendTimeoutSec: settings?.suspendTimeoutSec ?? 120
+  readonly property bool _dpmsDone: !displayPowerOffActionEnabled || displaysPoweredOff
+  readonly property bool _lockDone: !lockActionEnabled || LockService.locked
   readonly property bool armed: idleEnabled && !inhibited
   readonly property bool autoInhibitorActive: MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive
-  readonly property bool canLock: armed && lockActionEnabled && !LockService.locked && (!lockAfterDisplayPowerOff || !displayPowerOffActionEnabled || displaysPoweredOff)
-  readonly property bool canPowerOffDisplays: armed && displayPowerOffActionEnabled && (lockAfterDisplayPowerOff || LockService.locked || !lockActionEnabled)
-  readonly property bool canSuspend: armed && suspendActionEnabled && (!displayPowerOffActionEnabled || displaysPoweredOff) && (!lockActionEnabled || LockService.locked)
+  readonly property bool canLock: armed && lockActionEnabled && !LockService.locked && (!lockAfterDisplayPowerOff || _dpmsDone)
+  readonly property bool canPowerOffDisplays: armed && displayPowerOffActionEnabled && (lockAfterDisplayPowerOff || _lockDone)
+  readonly property bool canSuspend: armed && suspendActionEnabled && _lockDone && _dpmsDone
   readonly property bool displayPowerOffActionEnabled: displayPowerOffEnabled && _displayPowerOffTimeoutSec > 0
   readonly property bool displayPowerOffEnabled: settings?.dpmsEnabled ?? true
   readonly property real displayPowerOffTimeoutMin: _secToMin(_displayPowerOffTimeoutSec)
@@ -45,12 +47,10 @@ Singleton {
   property QsWindow window
 
   function _minToSec(value: real): int {
-    const num = Number(value);
-    return Math.round(Math.max(0, Number.isFinite(num) ? num : 0) * 60);
+    return Math.round(Math.max(0, value || 0) * 60);
   }
   function _secToMin(value: int): real {
-    const num = Number(value);
-    return Math.max(0, Number.isFinite(num) ? num : 0) / 60;
+    return Math.max(0, value || 0) / 60;
   }
   function _setIdleSetting(key: string, value: var): void {
     if (!root.settings)
@@ -58,7 +58,7 @@ Singleton {
     root.settings[key] = value;
   }
   function setDisplayPowerOffEnabled(value: bool): void {
-    root._setIdleSetting("dpmsEnabled", !!value);
+    root._setIdleSetting("dpmsEnabled", value);
   }
   function setDisplayPowerOffTimeoutMin(value: real): void {
     root._setIdleSetting("dpmsTimeoutSec", root._minToSec(value));
@@ -74,28 +74,28 @@ Singleton {
     root.displaysPoweredOff = shouldBePoweredOff;
   }
   function setIdleEnabled(value: bool): void {
-    root._setIdleSetting("enabled", !!value);
+    root._setIdleSetting("enabled", value);
   }
   function setLockAfterDisplayPowerOff(value: bool): void {
-    root._setIdleSetting("lockAfterDpms", !!value);
+    root._setIdleSetting("lockAfterDpms", value);
   }
   function setLockEnabled(value: bool): void {
-    root._setIdleSetting("lockEnabled", !!value);
+    root._setIdleSetting("lockEnabled", value);
   }
   function setLockTimeoutMin(value: real): void {
     root._setIdleSetting("lockTimeoutSec", root._minToSec(value));
   }
   function setRespectInhibitors(value: bool): void {
-    root._setIdleSetting("respectInhibitors", !!value);
+    root._setIdleSetting("respectInhibitors", value);
   }
   function setSuspendEnabled(value: bool): void {
-    root._setIdleSetting("suspendEnabled", !!value);
+    root._setIdleSetting("suspendEnabled", value);
   }
   function setSuspendTimeoutMin(value: real): void {
     root._setIdleSetting("suspendTimeoutSec", root._minToSec(value));
   }
   function setVideoAutoInhibit(value: bool): void {
-    root._setIdleSetting("videoAutoInhibit", !!value);
+    root._setIdleSetting("videoAutoInhibit", value);
   }
   function wakeDisplays(): void {
     if (root.displaysPoweredOff)
