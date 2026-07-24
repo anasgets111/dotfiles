@@ -17,22 +17,17 @@ Singleton {
   readonly property bool _dpmsDone: !displayPowerOffActionEnabled || displaysPoweredOff
   readonly property bool _lockDone: !lockActionEnabled || LockService.locked
   readonly property bool armed: idleEnabled && !inhibited
-  readonly property bool automaticInhibitorActive: videoAutoInhibitEnabled && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive)
-  readonly property bool displayPowerOffActionEnabled: displayPowerOffEnabled && _displayPowerOffTimeoutSec > 0
-  readonly property bool displayPowerOffEnabled: settings?.dpmsEnabled ?? true
+  readonly property bool automaticInhibitorActive: (settings?.videoAutoInhibit ?? true) && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive)
+  readonly property bool displayPowerOffActionEnabled: (settings?.dpmsEnabled ?? true) && _displayPowerOffTimeoutSec > 0
   property bool displaysPoweredOff: false
   readonly property bool fullscreenInhibitorActive: WorkspaceService.fullscreenVisible
   readonly property bool idleEnabled: Settings.isLoaded && settings !== null && (settings.enabled ?? true)
   readonly property bool inhibited: manualInhibit || fullscreenInhibitorActive || automaticInhibitorActive
-  readonly property bool lockActionEnabled: lockEnabled && _lockTimeoutSec > 0
+  readonly property bool lockActionEnabled: (settings?.lockEnabled ?? true) && _lockTimeoutSec > 0
   readonly property bool lockAfterDisplayPowerOff: settings?.lockAfterDpms ?? false
-  readonly property bool lockEnabled: settings?.lockEnabled ?? true
   property bool manualInhibit: false
-  readonly property bool respectInhibitorsEnabled: settings?.respectInhibitors ?? true
   readonly property var settings: Settings.data?.idleService ?? null
-  readonly property bool suspendActionEnabled: suspendEnabled && _suspendTimeoutSec > 0
-  readonly property bool suspendEnabled: settings?.suspendEnabled ?? false
-  readonly property bool videoAutoInhibitEnabled: settings?.videoAutoInhibit ?? true
+  readonly property bool suspendActionEnabled: (settings?.suspendEnabled ?? false) && _suspendTimeoutSec > 0
   property QsWindow window
 
   function setDisplaysPowered(powered: bool): void {
@@ -74,7 +69,7 @@ Singleton {
 
   component IdleStage: IdleMonitor {
     required property var idleAction
-    readonly property bool stageRespectInhibitors: !LockService.locked && root.respectInhibitorsEnabled
+    readonly property bool stageRespectInhibitors: !LockService.locked && (root.settings?.respectInhibitors ?? true)
     required property int stageTimeout
 
     // Quickshell exposes timeout and respectInhibitors as Qt bindable properties, and a
