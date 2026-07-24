@@ -54,10 +54,10 @@ Singleton {
     Command.run(["rm", "-f", lockPath], () => root._cleanupInFlight = false);
     syncPersist();
     if (emitStopped && wasRecording) {
-      // -A implies --wait, so this process lives until the popup expires; the identifier must not be
-      // "default", which NotificationService hides from the action row.
-      Command.run(["notify-send", "-a", "Screen Recorder", "-i", "media-record", "-t", "5000", "-e", "-A", `play=${qsTr("Play")}`, qsTr("Recording saved"), `${duration} · ${stoppedPath.split("/").pop()}`], result => {
-        if ((result.stdout ?? "").trim() === "play")
+      // -A implies --wait, so this process lives until the popup expires. "default" arms the
+      // click-the-popup path and is hidden from the action row, so "play" draws the button.
+      Command.run(["notify-send", "-a", "Screen Recorder", "-i", "media-record", "-t", "5000", "-e", "-A", `default=${qsTr("Play")}`, "-A", `play=${qsTr("Play")}`, qsTr("Recording saved"), `${duration} · ${stoppedPath.split("/").pop()}`], result => {
+        if (["default", "play"].includes((result.stdout ?? "").trim()))
           Command.detached(["xdg-open", stoppedPath]);
       });
       recordingStopped(stoppedPath);
