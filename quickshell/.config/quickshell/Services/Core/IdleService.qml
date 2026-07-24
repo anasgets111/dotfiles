@@ -59,25 +59,35 @@ Singleton {
   IdleStage {
     idleAction: () => LockService.requestLock()
     enabled: root.armed && root.lockActionEnabled && !LockService.locked && (!root.lockAfterDisplayPowerOff || root._dpmsDone)
-    timeout: root._lockTimeoutSec
+    stageTimeout: root._lockTimeoutSec
   }
   IdleStage {
     idleAction: () => root.setDisplaysPowered(false)
     enabled: root.armed && root.displayPowerOffActionEnabled && (root.lockAfterDisplayPowerOff || root._lockDone)
-    timeout: root._displayPowerOffTimeoutSec
+    stageTimeout: root._displayPowerOffTimeoutSec
   }
   IdleStage {
     idleAction: () => PowerManagementService.suspend()
     enabled: root.armed && root.suspendActionEnabled && root._lockDone && root._dpmsDone
-    timeout: root._suspendTimeoutSec
+    stageTimeout: root._suspendTimeoutSec
   }
 
   component IdleStage: IdleMonitor {
     required property var idleAction
+    readonly property bool stageRespectInhibitors: !LockService.locked && root.respectInhibitorsEnabled
+    required property int stageTimeout
 
-    respectInhibitors: !LockService.locked && root.respectInhibitorsEnabled
+    // Quickshell exposes timeout and respectInhibitors as Qt bindable properties, and a
+    // QML binding on those never reaches IdleMonitor::updateNotification, so the wayland
+    // notification is never re-registered and isIdle stops firing. Assigning them
+    // imperatively does re-register. These bindings only seed the first value; the
+    // handlers below replace them.
+    respectInhibitors: stageRespectInhibitors
+    timeout: stageTimeout
 
     onIsIdleChanged: if (isIdle)
       idleAction()
+    onStageRespectInhibitorsChanged: respectInhibitors = stageRespectInhibitors
+    onStageTimeoutChanged: timeout = stageTimeout
   }
 }
