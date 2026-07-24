@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 pragma Singleton
-import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.Services.Core
@@ -18,83 +17,32 @@ Singleton {
   readonly property bool _dpmsDone: !displayPowerOffActionEnabled || displaysPoweredOff
   readonly property bool _lockDone: !lockActionEnabled || LockService.locked
   readonly property bool armed: idleEnabled && !inhibited
-  readonly property bool autoInhibitorActive: MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive
+  readonly property bool automaticInhibitorActive: videoAutoInhibitEnabled && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive)
   readonly property bool displayPowerOffActionEnabled: displayPowerOffEnabled && _displayPowerOffTimeoutSec > 0
   readonly property bool displayPowerOffEnabled: settings?.dpmsEnabled ?? true
-  readonly property real displayPowerOffTimeoutMin: _secToMin(_displayPowerOffTimeoutSec)
   property bool displaysPoweredOff: false
-  readonly property int enabledActionCount: (lockActionEnabled ? 1 : 0) + (suspendActionEnabled ? 1 : 0) + (displayPowerOffActionEnabled ? 1 : 0)
-  readonly property var flowSteps: lockAfterDisplayPowerOff ? ["displayPowerOff", "lock", "suspend"] : ["lock", "displayPowerOff", "suspend"]
   readonly property bool fullscreenInhibitorActive: WorkspaceService.fullscreenVisible
   readonly property bool idleEnabled: Settings.isLoaded && settings !== null && (settings.enabled ?? true)
-  readonly property bool inhibited: manualInhibit || fullscreenInhibitorActive || videoInhibitorActive
+  readonly property bool inhibited: manualInhibit || fullscreenInhibitorActive || automaticInhibitorActive
   readonly property bool lockActionEnabled: lockEnabled && _lockTimeoutSec > 0
   readonly property bool lockAfterDisplayPowerOff: settings?.lockAfterDpms ?? false
   readonly property bool lockEnabled: settings?.lockEnabled ?? true
-  readonly property real lockTimeoutMin: _secToMin(_lockTimeoutSec)
   property bool manualInhibit: false
   readonly property bool respectInhibitorsEnabled: settings?.respectInhibitors ?? true
   readonly property var settings: Settings.data?.idleService ?? null
   readonly property bool suspendActionEnabled: suspendEnabled && _suspendTimeoutSec > 0
   readonly property bool suspendEnabled: settings?.suspendEnabled ?? false
-  readonly property real suspendTimeoutMin: _secToMin(_suspendTimeoutSec)
   readonly property bool videoAutoInhibitEnabled: settings?.videoAutoInhibit ?? true
-  readonly property bool videoInhibitorActive: videoAutoInhibitEnabled && autoInhibitorActive
   property QsWindow window
 
-  function _minToSec(value: real): int {
-    return Math.round(Math.max(0, value || 0) * 60);
-  }
-  function _secToMin(value: int): real {
-    return Math.max(0, value || 0) / 60;
-  }
-  function _setIdleSetting(key: string, value: var): void {
-    if (!root.settings)
-      return;
-    root.settings[key] = value;
-  }
-  function setDisplayPowerOffEnabled(value: bool): void {
-    root._setIdleSetting("dpmsEnabled", value);
-  }
-  function setDisplayPowerOffTimeoutMin(value: real): void {
-    root._setIdleSetting("dpmsTimeoutSec", root._minToSec(value));
-  }
   function setDisplaysPowered(powered: bool): void {
-    const shouldBePoweredOff = !powered;
-    if (root.displaysPoweredOff === shouldBePoweredOff)
+    if (root.displaysPoweredOff === !powered)
       return;
     if (!CompositorService.setDisplaysPowered(powered)) {
       Logger.warn("IdleService", "DPMS not supported by the current compositor");
       return;
     }
-    root.displaysPoweredOff = shouldBePoweredOff;
-  }
-  function setIdleEnabled(value: bool): void {
-    root._setIdleSetting("enabled", value);
-  }
-  function setLockAfterDisplayPowerOff(value: bool): void {
-    root._setIdleSetting("lockAfterDpms", value);
-  }
-  function setLockEnabled(value: bool): void {
-    root._setIdleSetting("lockEnabled", value);
-  }
-  function setLockTimeoutMin(value: real): void {
-    root._setIdleSetting("lockTimeoutSec", root._minToSec(value));
-  }
-  function setRespectInhibitors(value: bool): void {
-    root._setIdleSetting("respectInhibitors", value);
-  }
-  function setSuspendEnabled(value: bool): void {
-    root._setIdleSetting("suspendEnabled", value);
-  }
-  function setSuspendTimeoutMin(value: real): void {
-    root._setIdleSetting("suspendTimeoutSec", root._minToSec(value));
-  }
-  function setVideoAutoInhibit(value: bool): void {
-    root._setIdleSetting("videoAutoInhibit", value);
-  }
-  function wakeDisplays(): void {
-    root.setDisplaysPowered(true);
+    root.displaysPoweredOff = !powered;
   }
 
   IdleInhibitor {
@@ -106,30 +54,22 @@ Singleton {
     timeout: 1
 
     onIsIdleChanged: if (!isIdle)
-      root.wakeDisplays()
+      root.setDisplaysPowered(true)
   }
   IdleStage {
-    enabled: root.armed && root.lockActionEnabled && !LockService.locked && (!root.lockAfterDisplayPowerOff || root._dpmsDone)
     idleAction: () => LockService.requestLock()
+    enabled: root.armed && root.lockActionEnabled && !LockService.locked && (!root.lockAfterDisplayPowerOff || root._dpmsDone)
     timeout: root._lockTimeoutSec
   }
   IdleStage {
-    enabled: root.armed && root.displayPowerOffActionEnabled && (root.lockAfterDisplayPowerOff || root._lockDone)
     idleAction: () => root.setDisplaysPowered(false)
+    enabled: root.armed && root.displayPowerOffActionEnabled && (root.lockAfterDisplayPowerOff || root._lockDone)
     timeout: root._displayPowerOffTimeoutSec
   }
   IdleStage {
-    enabled: root.armed && root.suspendActionEnabled && root._lockDone && root._dpmsDone
     idleAction: () => PowerManagementService.suspend()
+    enabled: root.armed && root.suspendActionEnabled && root._lockDone && root._dpmsDone
     timeout: root._suspendTimeoutSec
-  }
-  Connections {
-    function onLockedChanged(): void {
-      if (!LockService.locked)
-        root.wakeDisplays();
-    }
-
-    target: LockService
   }
 
   component IdleStage: IdleMonitor {

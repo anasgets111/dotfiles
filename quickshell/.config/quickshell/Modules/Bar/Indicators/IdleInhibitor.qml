@@ -8,7 +8,7 @@ IconButton {
   id: root
 
   readonly property bool anyInhibit: IdleService.inhibited
-  readonly property string reason: !anyInhibit ? "" : [IdleService.manualInhibit ? qsTr("manual") : "", IdleService.fullscreenInhibitorActive ? qsTr("fullscreen") : "", IdleService.videoInhibitorActive ? qsTr("video") : ""].filter(r => r).join(" + ")
+  readonly property string reason: !anyInhibit ? "" : [IdleService.manualInhibit ? qsTr("manual") : "", IdleService.fullscreenInhibitorActive ? qsTr("fullscreen") : "", IdleService.automaticInhibitorActive ? qsTr("video") : ""].filter(r => r).join(" + ")
   required property string screenName
 
   colorBg: anyInhibit ? Theme.activeColor : Theme.glassControlColor

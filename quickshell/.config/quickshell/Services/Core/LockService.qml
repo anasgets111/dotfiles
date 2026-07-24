@@ -25,8 +25,7 @@ Singleton {
   function handleGlobalKeyPress(event: var): bool {
     if (!locked || authenticating || unlocking)
       return false;
-    if (IdleService.displaysPoweredOff)
-      IdleService.wakeDisplays();
+    IdleService.setDisplaysPowered(true);
     switch (event.key) {
     case Qt.Key_Enter:
     case Qt.Key_Return:
@@ -72,6 +71,7 @@ Singleton {
     pamResult = PamResult.Success;
     KeyboardLayoutService.setLayoutByIndex(layoutBeforeLockIndex);
     layoutBeforeLockIndex = -1;
+    IdleService.setDisplaysPowered(true);
   }
 
   PamContext {

@@ -12,27 +12,34 @@ OModal {
   id: root
 
   readonly property bool displayPowerOffEnabled: IdleService.displayPowerOffEnabled
-  readonly property real displayPowerOffTimeout: IdleService.displayPowerOffTimeoutMin
-  readonly property int enabledActionCount: IdleService.enabledActionCount
-  readonly property var flowSteps: IdleService.flowSteps
+  readonly property real displayPowerOffTimeoutMin: secondsToMinutes(idleSettings.dpmsTimeoutSec)
+  readonly property int enabledActionCount: (IdleService.lockActionEnabled ? 1 : 0) + (IdleService.suspendActionEnabled ? 1 : 0) + (IdleService.displayPowerOffActionEnabled ? 1 : 0)
+  readonly property list<string> flowSteps: lockAfterDisplayPowerOff ? ["displayPowerOff", "lock", "suspend"] : ["lock", "displayPowerOff", "suspend"]
   readonly property bool idleEnabled: IdleService.idleEnabled
+  readonly property var idleSettings: Settings.data.idleService
   readonly property bool inputDisplayBackendReady: InputDisplayService.backendAvailable
   readonly property string inputDisplayStatusText: InputDisplayService.backendCheckComplete ? qsTr("Install showmethekey-cli to use the input overlay.") : qsTr("Checking input overlay availability…")
   readonly property bool lockAfterDisplayPowerOff: IdleService.lockAfterDisplayPowerOff
   readonly property bool lockEnabled: IdleService.lockEnabled
-  readonly property real lockTimeout: IdleService.lockTimeoutMin
+  readonly property real lockTimeoutMin: secondsToMinutes(idleSettings.lockTimeoutSec)
   readonly property bool suspendEnabled: IdleService.suspendEnabled
-  readonly property real suspendTimeout: IdleService.suspendTimeoutMin
+  readonly property real suspendTimeoutMin: secondsToMinutes(idleSettings.suspendTimeoutSec)
 
-  function formatDuration(value: real): string {
-    const totalSeconds = Math.max(0, Math.round((Number(value) || 0) * 60));
+  function formatDuration(durationMin: real): string {
+    const totalSeconds = Math.max(0, Math.round((durationMin || 0) * 60));
     if (totalSeconds === 0)
       return qsTr("Not set");
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    if (minutes > 0 && seconds > 0)
-      return qsTr("%1 min %2 sec").arg(minutes).arg(seconds);
-    return minutes > 0 ? qsTr("%1 min").arg(minutes) : qsTr("%1 sec").arg(seconds);
+    const wholeMinutes = Math.floor(totalSeconds / 60);
+    const remainingSeconds = totalSeconds % 60;
+    if (wholeMinutes > 0 && remainingSeconds > 0)
+      return qsTr("%1 min %2 sec").arg(wholeMinutes).arg(remainingSeconds);
+    return wholeMinutes > 0 ? qsTr("%1 min").arg(wholeMinutes) : qsTr("%1 sec").arg(remainingSeconds);
+  }
+  function minutesToSeconds(value: real): int {
+    return Math.round(Math.max(0, value || 0) * 60);
+  }
+  function secondsToMinutes(value: int): real {
+    return Math.max(0, value || 0) / 60;
   }
 
   preferredHeight: Theme.idleModalHeight
@@ -122,50 +129,50 @@ OModal {
           SettingRow {
             checked: root.lockEnabled
             description: qsTr("Secure the session after inactivity.")
-            disabled: !root.idleEnabled
+            enabled: root.idleEnabled
             icon: "󰌾"
             label: qsTr("Lock screen")
-            timeoutValue: root.lockTimeout
-            timeoutValues: [0.5, 1, 2, 5, 10, 15, 30]
+            timeoutMin: root.lockTimeoutMin
+            timeoutOptionsMin: [0.5, 1, 2, 5, 10, 15, 30]
 
-            onTimeoutChanged: value => IdleService.setLockTimeoutMin(value)
+            onTimeoutSelected: minutes => root.idleSettings.lockTimeoutSec = root.minutesToSeconds(minutes)
             onToggled: checked => {
-              if (checked && root.lockTimeout <= 0)
-                IdleService.setLockTimeoutMin(5);
-              IdleService.setLockEnabled(checked);
+              if (checked && root.lockTimeoutMin <= 0)
+                root.idleSettings.lockTimeoutSec = root.minutesToSeconds(5);
+              root.idleSettings.lockEnabled = checked;
             }
           }
           SettingRow {
             checked: root.displayPowerOffEnabled
             description: qsTr("Power down displays until activity resumes.")
-            disabled: !root.idleEnabled
+            enabled: root.idleEnabled
             icon: "󰍹"
             label: qsTr("Turn off displays")
-            timeoutValue: root.displayPowerOffTimeout
-            timeoutValues: [0.5, 1, 2, 5, 10, 15]
+            timeoutMin: root.displayPowerOffTimeoutMin
+            timeoutOptionsMin: [0.5, 1, 2, 5, 10, 15]
 
-            onTimeoutChanged: value => IdleService.setDisplayPowerOffTimeoutMin(value)
+            onTimeoutSelected: minutes => root.idleSettings.dpmsTimeoutSec = root.minutesToSeconds(minutes)
             onToggled: checked => {
-              if (checked && root.displayPowerOffTimeout <= 0)
-                IdleService.setDisplayPowerOffTimeoutMin(1);
-              IdleService.setDisplayPowerOffEnabled(checked);
+              if (checked && root.displayPowerOffTimeoutMin <= 0)
+                root.idleSettings.dpmsTimeoutSec = root.minutesToSeconds(1);
+              root.idleSettings.dpmsEnabled = checked;
             }
           }
           SettingRow {
             checked: root.suspendEnabled
             description: qsTr("Suspend the device to reduce power use.")
-            disabled: !root.idleEnabled
+            enabled: root.idleEnabled
             icon: "󰒚"
             label: qsTr("Suspend system")
             showSeparator: false
-            timeoutValue: root.suspendTimeout
-            timeoutValues: [5, 10, 15, 30, 60, 120]
+            timeoutMin: root.suspendTimeoutMin
+            timeoutOptionsMin: [5, 10, 15, 30, 60, 120]
 
-            onTimeoutChanged: value => IdleService.setSuspendTimeoutMin(value)
+            onTimeoutSelected: minutes => root.idleSettings.suspendTimeoutSec = root.minutesToSeconds(minutes)
             onToggled: checked => {
-              if (checked && root.suspendTimeout <= 0)
-                IdleService.setSuspendTimeoutMin(10);
-              IdleService.setSuspendEnabled(checked);
+              if (checked && root.suspendTimeoutMin <= 0)
+                root.idleSettings.suspendTimeoutSec = root.minutesToSeconds(10);
+              root.idleSettings.suspendEnabled = checked;
             }
           }
         }
@@ -205,7 +212,7 @@ OModal {
                   text: qsTr("Lock first")
                   textColor: root.lockAfterDisplayPowerOff ? Theme.textInactiveColor : Theme.textContrast(bgColor)
 
-                  onClicked: IdleService.setLockAfterDisplayPowerOff(false)
+                  onClicked: root.idleSettings.lockAfterDpms = false
                 }
                 OButton {
                   Layout.fillWidth: true
@@ -214,7 +221,7 @@ OModal {
                   text: qsTr("Display first")
                   textColor: root.lockAfterDisplayPowerOff ? Theme.textContrast(bgColor) : Theme.textInactiveColor
 
-                  onClicked: IdleService.setLockAfterDisplayPowerOff(true)
+                  onClicked: root.idleSettings.lockAfterDpms = true
                 }
               }
             }
@@ -228,21 +235,21 @@ OModal {
             SettingRow {
               checked: IdleService.respectInhibitorsEnabled
               description: qsTr("Honor application wake requests.")
-              disabled: !root.idleEnabled
+              enabled: root.idleEnabled
               icon: "󰈑"
               label: qsTr("Respect inhibitors")
 
-              onToggled: checked => IdleService.setRespectInhibitors(checked)
+              onToggled: checked => root.idleSettings.respectInhibitors = checked
             }
             SettingRow {
               checked: IdleService.videoAutoInhibitEnabled
               description: qsTr("Stay awake during active media.")
-              disabled: !root.idleEnabled
+              enabled: root.idleEnabled
               icon: "󰀈"
               label: qsTr("Keep awake for media")
               showSeparator: false
 
-              onToggled: checked => IdleService.setVideoAutoInhibit(checked)
+              onToggled: checked => root.idleSettings.videoAutoInhibit = checked
             }
           }
           SettingsSection {
@@ -252,11 +259,33 @@ OModal {
             icon: "󰖳"
             title: qsTr("Input overlay")
 
-            InlineMessage {
+            PanelCard {
               Layout.fillWidth: true
-              icon: InputDisplayService.backendCheckComplete ? "󰅚" : "󰔟"
-              text: root.inputDisplayStatusText
+              Layout.leftMargin: Theme.spacingLg
+              Layout.rightMargin: Theme.spacingLg
+              implicitHeight: backendStatusRow.implicitHeight + padding * 2
+              padding: Theme.spacingMd
               visible: !root.inputDisplayBackendReady
+
+              RowLayout {
+                id: backendStatusRow
+
+                anchors.fill: parent
+                spacing: Theme.spacingSm
+
+                OText {
+                  color: Theme.textInactiveColor
+                  font.pixelSize: Theme.fontMd
+                  text: InputDisplayService.backendCheckComplete ? "󰅚" : "󰔟"
+                }
+                OText {
+                  Layout.fillWidth: true
+                  color: Theme.textInactiveColor
+                  font.pixelSize: Theme.fontSm
+                  text: root.inputDisplayStatusText
+                  wrapMode: Text.Wrap
+                }
+              }
             }
             SettingRow {
               checked: InputDisplayService.enabled
@@ -270,7 +299,7 @@ OModal {
             SettingRow {
               checked: InputDisplayService.showPrintableKeys
               description: qsTr("Include letters and punctuation.")
-              disabled: !InputDisplayService.enabled
+              enabled: InputDisplayService.enabled
               icon: "󰌌"
               label: qsTr("Printable keys")
               showSeparator: false
@@ -321,10 +350,10 @@ OModal {
           required property int index
           readonly property bool isDisplay: modelData === "displayPowerOff"
           readonly property bool isLock: modelData === "lock"
-          required property var modelData
+          required property string modelData
           readonly property bool stepEnabled: root.idleEnabled && (isLock ? root.lockEnabled : isDisplay ? root.displayPowerOffEnabled : root.suspendEnabled)
           readonly property string stepLabel: isLock ? qsTr("Lock") : isDisplay ? qsTr("Display") : qsTr("Suspend")
-          readonly property real timeout: isLock ? root.lockTimeout : isDisplay ? root.displayPowerOffTimeout : root.suspendTimeout
+          readonly property real timeoutMin: isLock ? root.lockTimeoutMin : isDisplay ? root.displayPowerOffTimeoutMin : root.suspendTimeoutMin
 
           spacing: Theme.spacingSm
 
@@ -338,7 +367,7 @@ OModal {
             color: parent.stepEnabled ? Theme.textActiveColor : Theme.textInactiveColor
             font.pixelSize: Theme.fontSm
             opacity: parent.stepEnabled ? 1 : 0.45
-            text: parent.stepEnabled ? qsTr("%1 · %2").arg(parent.stepLabel).arg(root.formatDuration(parent.timeout)) : qsTr("%1 · Off").arg(parent.stepLabel)
+            text: parent.stepEnabled ? qsTr("%1 · %2").arg(parent.stepLabel).arg(root.formatDuration(parent.timeoutMin)) : qsTr("%1 · Off").arg(parent.stepLabel)
           }
           OText {
             color: Theme.textInactiveColor
@@ -354,38 +383,7 @@ OModal {
         checked: root.idleEnabled
         size: "lg"
 
-        onToggled: checked => IdleService.setIdleEnabled(checked)
-      }
-    }
-  }
-  component InlineMessage: PanelCard {
-    id: messageRoot
-
-    property string icon: ""
-    property string text: ""
-
-    Layout.leftMargin: Theme.spacingLg
-    Layout.rightMargin: Theme.spacingLg
-    implicitHeight: messageRow.implicitHeight + padding * 2
-    padding: Theme.spacingMd
-
-    RowLayout {
-      id: messageRow
-
-      anchors.fill: parent
-      spacing: Theme.spacingSm
-
-      OText {
-        color: Theme.textInactiveColor
-        font.pixelSize: Theme.fontMd
-        text: messageRoot.icon
-      }
-      OText {
-        Layout.fillWidth: true
-        color: Theme.textInactiveColor
-        font.pixelSize: Theme.fontSm
-        text: messageRoot.text
-        wrapMode: Text.Wrap
+        onToggled: checked => root.idleSettings.enabled = checked
       }
     }
   }
@@ -394,42 +392,19 @@ OModal {
 
     property bool checked: false
     property string description: ""
-    property bool disabled: false
-    readonly property var effectiveTimeoutValues: {
-      const values = timeoutValues.slice();
-      if (timeoutValue > 0 && !values.some(value => Math.abs(value - timeoutValue) < 0.001)) {
-        values.push(timeoutValue);
-        values.sort((left, right) => left - right);
-      }
-      return values;
-    }
+    readonly property var effectiveTimeoutOptionsMin: timeoutMin <= 0 || timeoutOptionsMin.some(value => Math.abs(value - timeoutMin) < 0.001) ? timeoutOptionsMin : [...timeoutOptionsMin, timeoutMin].sort((left, right) => left - right)
     property string icon: ""
     property string label: ""
     property bool showSeparator: true
-    property real timeoutValue: 0
-    property var timeoutValues: []
+    readonly property int timeoutIndex: effectiveTimeoutOptionsMin.length ? Math.max(0, effectiveTimeoutOptionsMin.findIndex(value => Math.abs(value - timeoutMin) < 0.001)) : -1
+    property real timeoutMin: 0
+    property var timeoutOptionsMin: []
 
-    signal timeoutChanged(real value)
+    signal timeoutSelected(real minutes)
     signal toggled(bool checked)
 
-    function timeoutIndex(): int {
-      if (effectiveTimeoutValues.length === 0)
-        return -1;
-      let closestIndex = 0;
-      let closestDistance = Math.abs(effectiveTimeoutValues[0] - timeoutValue);
-      for (let i = 1; i < effectiveTimeoutValues.length; i++) {
-        const distance = Math.abs(effectiveTimeoutValues[i] - timeoutValue);
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          closestIndex = i;
-        }
-      }
-      return closestIndex;
-    }
-
     Layout.fillWidth: true
-    enabled: !disabled
-    opacity: disabled ? Theme.opacityDisabled : 1
+    opacity: enabled ? 1 : Theme.opacityDisabled
     spacing: 0
 
     Behavior on opacity {
@@ -476,16 +451,16 @@ OModal {
       OComboBox {
         Layout.alignment: Qt.AlignVCenter
         Layout.preferredWidth: Theme.idleTimeoutControlWidth
-        currentIndex: rowRoot.timeoutIndex()
-        model: rowRoot.effectiveTimeoutValues.map(value => root.formatDuration(value))
-        visible: rowRoot.timeoutValues.length > 0 && rowRoot.checked
+        currentIndex: rowRoot.timeoutIndex
+        model: rowRoot.effectiveTimeoutOptionsMin.map(value => root.formatDuration(value))
+        visible: rowRoot.timeoutOptionsMin.length > 0 && rowRoot.checked
 
-        onActivated: index => rowRoot.timeoutChanged(rowRoot.effectiveTimeoutValues[index])
+        onActivated: index => rowRoot.timeoutSelected(rowRoot.effectiveTimeoutOptionsMin[index])
       }
       OToggle {
         Layout.alignment: Qt.AlignVCenter
         checked: rowRoot.checked
-        disabled: rowRoot.disabled
+        disabled: !rowRoot.enabled
         size: "lg"
 
         onToggled: checked => rowRoot.toggled(checked)

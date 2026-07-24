@@ -170,6 +170,7 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 ### Known QML / Quickshell Pitfalls
 
 <!-- Add entries below as they are discovered -->
+- A `JsonObject`'s declared properties can still read `undefined` while settings load, even though the object itself is non-null. Keep the `settings?.key ?? default` guards on every read: an unguarded read assigns `undefined` (`Unable to assign [undefined] to "x"`) and, having bound to a property that did not yet exist, never re-evaluates once the real value arrives. The `?? default` fallbacks are load-bearing, not duplicates of the schema defaults.
 - Quickshell PipeWire nodes expose `PwNode.properties` and `PwNode.audio` fields only after binding, and they can still be incomplete until `node.ready`; guard bound-property reads and never write volume/mute before readiness.
 - Quickshell `BluetoothDevice.pair()` only forwards BlueZ's `Pair()` call; keep a default BlueZ agent registered before offering pairing in the UI.
 - Quickshell `Hyprland.dispatch(...)` takes one Lua dispatcher string in this shell. Use forms such as ``Hyprland.dispatch(`hl.dsp.focus({ workspace = 3 })`)``.
