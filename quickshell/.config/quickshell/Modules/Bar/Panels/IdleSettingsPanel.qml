@@ -14,7 +14,6 @@ OModal {
   readonly property bool displayPowerOffEnabled: idleSettings.dpmsEnabled
   readonly property real displayPowerOffTimeoutMin: secondsToMinutes(idleSettings.dpmsTimeoutSec)
   readonly property int enabledActionCount: (IdleService.lockActionEnabled ? 1 : 0) + (IdleService.suspendActionEnabled ? 1 : 0) + (IdleService.displayPowerOffActionEnabled ? 1 : 0)
-  readonly property list<string> flowSteps: lockAfterDisplayPowerOff ? ["displayPowerOff", "lock", "suspend"] : ["lock", "displayPowerOff", "suspend"]
   readonly property bool idleEnabled: IdleService.idleEnabled
   readonly property var idleSettings: Settings.data.idleService
   readonly property bool inputDisplayBackendReady: InputDisplayService.backendAvailable
@@ -344,7 +343,7 @@ OModal {
         Layout.fillWidth: true
       }
       Repeater {
-        model: root.flowSteps
+        model: IdleService.flowSteps
 
         delegate: RowLayout {
           required property int index
@@ -374,7 +373,7 @@ OModal {
             font.pixelSize: Theme.fontSm
             opacity: Theme.opacityDisabled
             text: "→"
-            visible: parent.index < root.flowSteps.length - 1
+            visible: parent.index < IdleService.flowSteps.length - 1
           }
         }
       }

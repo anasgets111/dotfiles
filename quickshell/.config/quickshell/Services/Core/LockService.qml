@@ -2,7 +2,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Services.Pam
-import qs.Services.Core
 import qs.Services.WM
 
 Singleton {
@@ -25,7 +24,6 @@ Singleton {
   function handleGlobalKeyPress(event: var): bool {
     if (!locked || authenticating || unlocking)
       return false;
-    IdleService.setDisplaysPowered(true);
     switch (event.key) {
     case Qt.Key_Enter:
     case Qt.Key_Return:
@@ -71,7 +69,6 @@ Singleton {
     pamResult = PamResult.Success;
     KeyboardLayoutService.setLayoutByIndex(layoutBeforeLockIndex);
     layoutBeforeLockIndex = -1;
-    IdleService.setDisplaysPowered(true);
   }
 
   PamContext {

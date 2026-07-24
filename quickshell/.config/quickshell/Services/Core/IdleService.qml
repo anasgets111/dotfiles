@@ -20,6 +20,7 @@ Singleton {
   readonly property bool automaticInhibitorActive: (settings?.videoAutoInhibit ?? true) && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive)
   readonly property bool displayPowerOffActionEnabled: (settings?.dpmsEnabled ?? true) && _displayPowerOffTimeoutSec > 0
   property bool displaysPoweredOff: false
+  readonly property var flowSteps: lockAfterDisplayPowerOff ? ["displayPowerOff", "lock", "suspend"] : ["lock", "displayPowerOff", "suspend"]
   readonly property bool fullscreenInhibitorActive: WorkspaceService.fullscreenVisible
   readonly property bool idleEnabled: Settings.isLoaded && settings !== null && (settings.enabled ?? true)
   readonly property bool inhibited: manualInhibit || fullscreenInhibitorActive || automaticInhibitorActive
@@ -51,6 +52,8 @@ Singleton {
     onIsIdleChanged: if (!isIdle)
       root.setDisplaysPowered(true)
   }
+  // Idle is counted from when a monitor subscribes, so each stage waits its own timeout
+  // after its gate opens: the gates are the sequencing, not redundant with the timeouts.
   IdleStage {
     idleAction: () => LockService.requestLock()
     enabled: root.armed && root.lockActionEnabled && !LockService.locked && (!root.lockAfterDisplayPowerOff || root._dpmsDone)
@@ -72,11 +75,8 @@ Singleton {
     readonly property bool stageRespectInhibitors: !LockService.locked && (root.settings?.respectInhibitors ?? true)
     required property int stageTimeout
 
-    // Quickshell exposes timeout and respectInhibitors as Qt bindable properties, and a
-    // QML binding on those never reaches IdleMonitor::updateNotification, so the wayland
-    // notification is never re-registered and isIdle stops firing. Assigning them
-    // imperatively does re-register. These bindings only seed the first value; the
-    // handlers below replace them.
+    // timeout/respectInhibitors are Qt bindable: binding them never re-registers the
+    // wayland notification, so isIdle silently stops. These seed; the handlers must assign.
     respectInhibitors: stageRespectInhibitors
     timeout: stageTimeout
 
