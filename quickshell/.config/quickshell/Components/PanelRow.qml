@@ -49,9 +49,11 @@ Rectangle {
     onPositionChanged: mouse => root.pointerMoved(Qt.point(mouse.x, mouse.y))
   }
   ColumnLayout {
-    anchors.fill: parent
+    anchors.left: parent.left
     anchors.leftMargin: Theme.spacingSm
+    anchors.right: parent.right
     anchors.rightMargin: Theme.spacingSm
+    anchors.top: parent.top
     anchors.topMargin: Theme.spacingXs
     spacing: Theme.spacingSm
 
