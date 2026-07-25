@@ -17,7 +17,6 @@ PanelContentBase {
   readonly property bool ready: BluetoothService.available
   readonly property bool shouldDiscover: root.isOpen && root.active
   property string showCodecFor: ""
-  readonly property bool showDeviceGroups: otherDevices.some(d => d.paired) && otherDevices.some(d => !d.paired)
 
   flatContainer: true
   preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
@@ -81,17 +80,6 @@ PanelContentBase {
       spacing: 0
       visible: root.active && root.otherDevices.length > 0
 
-      PanelSectionHeader {
-        Layout.bottomMargin: Theme.spacingXs
-        Layout.fillWidth: true
-        section: qsTr("Devices")
-
-        OSpinner {
-          color: Theme.textInactiveColor
-          running: BluetoothService.discovering
-          spinnerSize: Theme.iconSizeMd
-        }
-      }
       Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: Math.min(deviceList.contentHeight, Theme.itemHeight * 10)
@@ -106,7 +94,7 @@ PanelContentBase {
           interactive: contentHeight > height
           model: root.otherDevices
           section.criteria: ViewSection.FullString
-          section.property: root.showDeviceGroups ? "group" : ""
+          section.property: "group"
           spacing: Theme.borderWidthMedium
 
           ScrollBar.vertical: ScrollBar {

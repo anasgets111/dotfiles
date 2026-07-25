@@ -27,7 +27,6 @@ PanelContentBase {
   readonly property bool ready: NetworkService.ready
   readonly property var savedNetworks: NetworkService.savedWifiAps
   property bool scanning: false
-  readonly property bool showNetworkGroups: root.savedNetworks.length > 0 && root.availableNetworks.length > 0
   readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && connectingSsid !== targetSsid && (networkForSsid(targetSsid)?.secured ?? true)
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
   readonly property string statusDetail: {
@@ -143,6 +142,23 @@ PanelContentBase {
       subtitle: root.statusDetail
       title: qsTr("Network")
 
+      PanelActionIcon {
+        icon: "󰑐"
+        tint: Theme.textInactiveColor
+        tooltipText: qsTr("Rescan")
+        visible: root.wifiEnabled && root.networkingEnabled && !root.scanning
+
+        onClicked: {
+          NetworkService.rescanWifi();
+          root.scanning = true;
+          scanGraceTimer.restart();
+        }
+      }
+      OSpinner {
+        color: Theme.textInactiveColor
+        running: root.scanning
+        spinnerSize: Theme.iconSizeMd
+      }
       OToggle {
         checked: root.networkingEnabled
         disabled: !root.ready
@@ -231,29 +247,6 @@ PanelContentBase {
       spacing: 0
       visible: !root.isHiddenTarget && root.wifiEnabled && root.networkingEnabled
 
-      PanelSectionHeader {
-        Layout.bottomMargin: Theme.spacingXs
-        Layout.fillWidth: true
-        section: qsTr("Networks")
-
-        PanelActionIcon {
-          icon: "󰑐"
-          tint: Theme.textInactiveColor
-          tooltipText: qsTr("Rescan")
-          visible: !root.scanning
-
-          onClicked: {
-            NetworkService.rescanWifi();
-            root.scanning = true;
-            scanGraceTimer.restart();
-          }
-        }
-        OSpinner {
-          color: Theme.textInactiveColor
-          running: root.scanning
-          spinnerSize: Theme.iconSizeMd
-        }
-      }
       Rectangle {
         Layout.fillWidth: true
         Layout.preferredHeight: Math.min(networkList.contentHeight, Theme.itemHeight * 7)
@@ -268,7 +261,7 @@ PanelContentBase {
           interactive: contentHeight > height
           model: root.viewList
           section.criteria: ViewSection.FullString
-          section.property: root.showNetworkGroups ? "group" : ""
+          section.property: "group"
           spacing: Theme.borderWidthMedium
 
           ScrollBar.vertical: ScrollBar {
