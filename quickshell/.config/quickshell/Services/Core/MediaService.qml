@@ -10,8 +10,9 @@ Singleton {
   readonly property var _audioPatterns: ["music.youtube.com", "spotify.com", "soundcloud.com", "music.apple.com", "deezer.com", "tidal.com", "bandcamp.com", "pocketcasts.com", "audible.com", "mixcloud.com", "tunein.com"]
   readonly property var _browserHints: ["firefox", "zen", "chrome", "chromium", "brave", "vivaldi", "edge", "opera"]
   property bool _resumeAfterSeek: false
-  property string _cachedArtTrackKey: ""
+  property string _cachedTrackKey: ""
   property string _cachedArtUrl: ""
+  property real _cachedTrackLength: 0
   property real _seekFallbackLength: 0
   property var _seekPlayer: null
   property int _seekTrackId: -1
@@ -32,12 +33,17 @@ Singleton {
   readonly property bool playing: active?.isPlaying ?? false
   readonly property string trackArtUrl: {
     const player = active;
-    return player?.trackArtUrl || (player && _trackKey(player) === _cachedArtTrackKey ? _cachedArtUrl : "");
+    return player?.trackArtUrl || (player && _trackKey(player) === _cachedTrackKey ? _cachedArtUrl : "");
   }
   readonly property real trackLength: {
-    const rawLength = active?.length;
-    if (active?.lengthSupported && Number.isFinite(rawLength) && rawLength > 0 && rawLength < 9e12)
-      return rawLength;
+    const metadataLength = _metadataTrackLength(active);
+    if (metadataLength)
+      return metadataLength;
+    if (active && _trackKey(active) === _cachedTrackKey)
+      return _cachedTrackLength;
+    const length = active?.length;
+    if (active?.lengthSupported && Number.isFinite(length) && length > 0 && length < 9e12)
+      return length;
     // Zen temporarily invalidates length metadata after SetPosition.
     return active && active === _seekPlayer && active.uniqueId === _seekTrackId ? _seekFallbackLength : 0;
   }
@@ -61,19 +67,27 @@ Singleton {
   function _trackKey(player: var): string {
     if (!player)
       return "";
-    return `${player.dbusName}\u0000${player.uniqueId}\u0000${player.metadata?.["xesam:url"] ?? ""}\u0000${player.trackTitle}`;
+    return JSON.stringify([player.dbusName, player.metadata?.["xesam:url"] ?? "", player.trackTitle]);
   }
-  function _refreshTrackArt(): void {
+  function _metadataTrackLength(player: var): real {
+    const lengthUs = Number(player?.metadata?.["mpris:length"]);
+    return Number.isFinite(lengthUs) && lengthUs > 0 && lengthUs <= Number.MAX_SAFE_INTEGER ? lengthUs / 1e6 : 0;
+  }
+  function _refreshTrackCache(): void {
     const player = active;
     const trackKey = _trackKey(player);
-    if (trackKey !== _cachedArtTrackKey) {
-      _cachedArtTrackKey = trackKey;
+    if (trackKey !== _cachedTrackKey) {
+      _cachedTrackKey = trackKey;
       _cachedArtUrl = "";
+      _cachedTrackLength = 0;
     }
+    // Zen can omit mpris:artUrl and mpris:length in later updates for the same track.
     const artUrl = player?.trackArtUrl ?? "";
-    // Zen can omit mpris:artUrl in later updates for the same track.
     if (artUrl)
       _cachedArtUrl = artUrl;
+    const length = _metadataTrackLength(player);
+    if (length)
+      _cachedTrackLength = length;
   }
   function next(): void {
     if (canGoNext)
@@ -132,13 +146,13 @@ Singleton {
       active.stop();
   }
 
-  onActiveChanged: _refreshTrackArt()
+  onActiveChanged: _refreshTrackCache()
 
   Connections {
     target: root.active
 
     function onMetadataChanged(): void {
-      root._refreshTrackArt();
+      root._refreshTrackCache();
     }
   }
 
