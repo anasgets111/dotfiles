@@ -82,17 +82,17 @@ OModal {
       return;
     event.accepted = true;
   }
-  function positionSelection(index: int): void {
+  function positionSelection(): void {
     Qt.callLater(() => {
       grid.forceLayout();
-      if (index < grid.count)
-        grid.positionViewAtIndex(index, GridView.Beginning);
+      if (grid.currentIndex >= 0 && grid.currentIndex < grid.count)
+        grid.positionViewAtIndex(grid.currentIndex, GridView.Center);
     });
   }
   function updateSelection(): void {
     const index = filteredWallpapers.findIndex(entry => entry?.path === currentWallpaperPath);
     grid.currentIndex = Math.max(0, index);
-    positionSelection(grid.currentIndex);
+    positionSelection();
   }
 
   preferredHeight: Theme.wallpaperModalHeight
@@ -109,7 +109,7 @@ OModal {
       return;
     }
     grid.currentIndex = 0;
-    positionSelection(0);
+    positionSelection();
   }
   onMonitorOptionsChanged: if (!monitorOptions.some(option => option.value === selectedMonitor))
     selectedMonitor = "all"
@@ -232,6 +232,11 @@ OModal {
               }
             }
           }
+
+          onHeightChanged: if (root.active)
+            root.positionSelection()
+          onWidthChanged: if (root.active)
+            root.positionSelection()
         }
         ColumnLayout {
           anchors.centerIn: parent
