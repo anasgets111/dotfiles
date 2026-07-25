@@ -32,12 +32,10 @@ PanelContentBase {
       return qsTr("Unavailable");
     if (!root.networkingEnabled)
       return qsTr("Off");
-    if (NetworkService.linkType === "ethernet") {
-      return [root.ethernetInterface || qsTr("Ethernet"), NetworkService.ethernetIpAddress, root.formatEthernetSpeed(NetworkService.ethernetSpeed)].filter(Boolean).join(" · ");
-    }
-    if (root.connectedNetwork) {
-      return [root.connectedNetwork.ssid, NetworkService.wifiIpAddress, root.formatBandLabel(root.connectedNetwork.band), `${root.connectedNetwork.signal}%`].filter(Boolean).join(" · ");
-    }
+    if (NetworkService.linkType === "ethernet")
+      return qsTr("Ethernet connected");
+    if (root.connectedNetwork)
+      return root.connectedNetwork.ssid;
     return qsTr("Not connected");
   }
   property string targetSsid: ""
