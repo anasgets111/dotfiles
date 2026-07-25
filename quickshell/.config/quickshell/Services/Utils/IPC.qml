@@ -18,7 +18,7 @@ Singleton {
       ipc.launcherCloseRequested();
       return false;
     }
-    ShellUiState.openModal("launcher", MonitorService.effectiveMainScreen?.name ?? "");
+    ShellUiState.openModal("launcher", MonitorService.activeMainScreen?.name ?? "");
     return true;
   }
 

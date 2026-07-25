@@ -9,18 +9,7 @@ Rectangle {
   readonly property int _height: Theme.controlHeightFor(size)
   readonly property int _iconSize: Theme.iconSizeFor(size)
   readonly property int _padding: Theme.spacingFor(size)
-  readonly property color _variantBgColor: {
-    switch (variant) {
-    case "primary":
-      return Theme.activeColor;
-    case "secondary":
-      return Theme.glassControlColor;
-    case "ghost":
-      return "transparent";
-    default:
-      return Theme.activeColor;
-    }
-  }
+  readonly property color _variantBgColor: variant === "secondary" ? Theme.glassControlColor : variant === "ghost" ? "transparent" : Theme.activeColor
   property color bgColor: _variantBgColor
   default property alias content: contentContainer.data
   readonly property color currentBackground: !isEnabled ? Theme.disabledColor : (hovered ? hoverColor : bgColor)

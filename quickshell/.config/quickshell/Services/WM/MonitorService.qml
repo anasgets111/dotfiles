@@ -23,7 +23,6 @@ Singleton {
   readonly property string activeMain: activeMainScreen?.name ?? ""
   readonly property var activeMainScreen: Quickshell.screens.find(screen => screen?.name === preferredMain) || Quickshell.screens[0] || null
   readonly property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
-  readonly property var effectiveMainScreen: activeMainScreen
   property ListModel monitors: ListModel {
     dynamicRoles: true
   }

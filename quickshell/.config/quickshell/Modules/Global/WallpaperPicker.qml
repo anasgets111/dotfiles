@@ -312,7 +312,7 @@ OModal {
           }
           OComboBox {
             Layout.fillWidth: true
-            currentIndex: Math.max(0, Settings.availableThemes.indexOf(Settings.data.themeName))
+            currentIndex: Math.max(0, Settings.availableThemes.indexOf(Settings.data?.themeName ?? ""))
             model: Settings.availableThemes
 
             onActivated: index => Settings.setThemeName(Settings.availableThemes[index] ?? "")
@@ -327,7 +327,7 @@ OModal {
               text: qsTr("Dark mode")
             }
             OToggle {
-              checked: Settings.data.themeMode === "dark"
+              checked: (Settings.data?.themeMode ?? "dark") === "dark"
 
               onToggled: checked => Settings.setThemeMode(checked ? "dark" : "light")
             }

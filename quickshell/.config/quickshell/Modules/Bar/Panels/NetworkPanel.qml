@@ -9,7 +9,6 @@ import qs.Services.Core
 PanelContentBase {
   id: root
 
-  readonly property var availableNetworks: NetworkService.availableWifiAps
   readonly property string connectError: root.errorDismissed ? "" : NetworkService.connectError
   readonly property var connectedNetwork: NetworkService.connectedWifiAp
   readonly property string connectingSsid: NetworkService.connectingSsid
@@ -25,7 +24,6 @@ PanelContentBase {
   readonly property var liveViewList: (root.connectedNetwork ? [root.connectedNetwork] : []).concat(NetworkService.viewWifiAps)
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
   readonly property bool ready: NetworkService.ready
-  readonly property var savedNetworks: NetworkService.savedWifiAps
   property bool scanning: false
   readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && connectingSsid !== targetSsid && (networkForSsid(targetSsid)?.secured ?? true)
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
@@ -324,7 +322,7 @@ PanelContentBase {
       Layout.minimumHeight: 120
       icon: !root.networkingEnabled ? "󱘖" : !root.wifiEnabled ? "󰤮" : "󰤭"
       text: !root.networkingEnabled ? qsTr("Networking disabled") : !root.wifiEnabled ? qsTr("Wi-Fi off") : root.scanning ? qsTr("Scanning…") : qsTr("No networks found")
-      visible: !root.networkingEnabled || !root.wifiEnabled || (!root.isHiddenTarget && root.savedNetworks.length === 0 && root.availableNetworks.length === 0)
+      visible: !root.networkingEnabled || !root.wifiEnabled || (!root.isHiddenTarget && NetworkService.savedWifiAps.length === 0 && NetworkService.availableWifiAps.length === 0)
     }
   }
 

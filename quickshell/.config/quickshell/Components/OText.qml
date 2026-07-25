@@ -4,13 +4,7 @@ import qs.Config
 Text {
   id: root
 
-  readonly property color _computedColor: {
-    if (accent)
-      return Theme.activeColor;
-    if (muted)
-      return Theme.textInactiveColor;
-    return Theme.textActiveColor;
-  }
+  readonly property color _computedColor: accent ? Theme.activeColor : muted ? Theme.textInactiveColor : Theme.textActiveColor
   readonly property int _computedSize: sizeMultiplier !== 1.0 ? Math.round(Theme.fontSize * sizeMultiplier) : Theme.fontSizeFor(size)
   readonly property int _computedWeight: {
     if (bold)

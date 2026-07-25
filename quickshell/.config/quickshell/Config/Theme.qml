@@ -92,22 +92,14 @@ Singleton {
   readonly property int fontXl: s(20, 16)
   readonly property int fontXs: s(10, 8)
   readonly property int fontXxl: s(28, 20)
-  readonly property color glassBorderColor: withOpacity(c.glassBorderColor ?? textActiveColor, glassBorderOpacity)
-  readonly property color glassBorderHoverColor: withOpacity(c.glassBorderHoverColor ?? textActiveColor, glassBorderHoverOpacity)
-  readonly property real glassBorderHoverOpacity: 0.34
-  readonly property real glassBorderOpacity: 0.18
-  readonly property color glassContentColor: withOpacity(c.glassContentColor ?? bgElevated, glassContentOpacity)
-  readonly property color glassContentHoverColor: withOpacity(c.glassContentHoverColor ?? bgElevatedHover, glassContentHoverOpacity)
-  readonly property real glassContentHoverOpacity: 0.62
-  readonly property real glassContentOpacity: 0.46
-  readonly property color glassControlColor: withOpacity(c.glassControlColor ?? inactiveColor, glassControlOpacity)
-  readonly property color glassControlHoverColor: withOpacity(c.glassControlHoverColor ?? onHoverColor, glassControlHoverOpacity)
-  readonly property real glassControlHoverOpacity: 0.68
-  readonly property real glassControlOpacity: 0.42
-  readonly property color glassInputColor: withOpacity(c.glassInputColor ?? bgColor, glassInputOpacity)
-  readonly property real glassInputOpacity: 0.62
-  readonly property color glassSurfaceColor: withOpacity(c.glassSurfaceColor ?? bgColor, glassSurfaceOpacity)
-  readonly property real glassSurfaceOpacity: 0.5
+  readonly property color glassBorderColor: withOpacity(c.glassBorderColor ?? textActiveColor, 0.18)
+  readonly property color glassBorderHoverColor: withOpacity(c.glassBorderHoverColor ?? textActiveColor, 0.34)
+  readonly property color glassContentColor: withOpacity(c.glassContentColor ?? bgElevated, 0.46)
+  readonly property color glassContentHoverColor: withOpacity(c.glassContentHoverColor ?? bgElevatedHover, 0.62)
+  readonly property color glassControlColor: withOpacity(c.glassControlColor ?? inactiveColor, 0.42)
+  readonly property color glassControlHoverColor: withOpacity(c.glassControlHoverColor ?? onHoverColor, 0.68)
+  readonly property color glassInputColor: withOpacity(c.glassInputColor ?? bgColor, 0.62)
+  readonly property color glassSurfaceColor: withOpacity(c.glassSurfaceColor ?? bgColor, 0.5)
   readonly property string iconFontFamily: "JetBrainsMono Nerd Font Mono"
   readonly property int iconSize: s(baseIconSize, 12)
   readonly property int iconSizeLg: s(24, 18)

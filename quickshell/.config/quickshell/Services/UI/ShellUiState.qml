@@ -12,7 +12,6 @@ Singleton {
   readonly property bool isAnyInteractiveOpen: isAnyPanelOpen || isAnyModalOpen
   readonly property bool isAnyModalOpen: activeModal.length > 0
   readonly property bool isAnyPanelOpen: activePanelId.length > 0
-  property var modalData: null
   property var panelData: null
 
   function anchorRectForItem(item) {
@@ -25,7 +24,6 @@ Singleton {
     if (modalId && activeModal !== modalId)
       return;
     activeModal = "";
-    modalData = null;
     if (!isAnyPanelOpen)
       activeScreenName = "";
   }
@@ -42,20 +40,18 @@ Singleton {
   function isPanelOpenOn(screenName) {
     return isAnyPanelOpen && activeScreenName === (screenName || "");
   }
-  function openModal(modalId, screenName, data) {
+  function openModal(modalId, screenName) {
     if (!modalId)
       return;
     activePanelId = "";
     panelData = null;
     activeScreenName = screenName || "";
     activeModal = modalId;
-    modalData = data ?? null;
   }
   function openPanel(panelId, screenName, anchor, data) {
     if (!panelId)
       return;
     activeModal = "";
-    modalData = null;
     activePanelId = panelId;
     activeScreenName = screenName || "";
     anchorRect = anchor ?? Qt.rect(0, 0, 0, 0);

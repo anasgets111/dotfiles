@@ -24,20 +24,20 @@ ShellRoot {
   readonly property var sysInfo: SystemInfoService
 
   MainScreen {
-    modelData: MonitorService.effectiveMainScreen
+    modelData: MonitorService.activeMainScreen
   }
   LazyLoader {
     active: NotificationService.visibleNotifications.length > 0
 
     component: NotificationPopup {
-      modelData: MonitorService.effectiveMainScreen
+      modelData: MonitorService.activeMainScreen
     }
   }
   LazyLoader {
     active: OSDService.visible
 
     component: OSDPopup {
-      modelData: MonitorService.effectiveMainScreen
+      modelData: MonitorService.activeMainScreen
     }
   }
   LazyLoader {
@@ -45,7 +45,7 @@ ShellRoot {
     active: InputDisplayService.enabled
 
     component: InputDisplayPopup {
-      modelData: MonitorService.effectiveMainScreen
+      modelData: MonitorService.activeMainScreen
     }
   }
   LockScreen {

@@ -11,18 +11,18 @@ import qs.Services.SystemInfo
 OModal {
   id: root
 
-  readonly property bool displayPowerOffEnabled: idleSettings.dpmsEnabled
-  readonly property real displayPowerOffTimeoutMin: secondsToMinutes(idleSettings.dpmsTimeoutSec)
+  readonly property bool displayPowerOffEnabled: idleSettings?.dpmsEnabled ?? true
+  readonly property real displayPowerOffTimeoutMin: secondsToMinutes(idleSettings?.dpmsTimeoutSec ?? 30)
   readonly property int enabledActionCount: (IdleService.lockActionEnabled ? 1 : 0) + (IdleService.suspendActionEnabled ? 1 : 0) + (IdleService.displayPowerOffActionEnabled ? 1 : 0)
   readonly property bool idleEnabled: IdleService.idleEnabled
-  readonly property var idleSettings: Settings.data.idleService
+  readonly property var idleSettings: Settings.data?.idleService ?? null
   readonly property bool inputDisplayBackendReady: InputDisplayService.backendAvailable
   readonly property string inputDisplayStatusText: InputDisplayService.backendCheckComplete ? qsTr("Install showmethekey-cli to use the input overlay.") : qsTr("Checking input overlay availability…")
-  readonly property bool lockAfterDisplayPowerOff: idleSettings.lockAfterDpms
-  readonly property bool lockEnabled: idleSettings.lockEnabled
-  readonly property real lockTimeoutMin: secondsToMinutes(idleSettings.lockTimeoutSec)
-  readonly property bool suspendEnabled: idleSettings.suspendEnabled
-  readonly property real suspendTimeoutMin: secondsToMinutes(idleSettings.suspendTimeoutSec)
+  readonly property bool lockAfterDisplayPowerOff: idleSettings?.lockAfterDpms ?? false
+  readonly property bool lockEnabled: idleSettings?.lockEnabled ?? true
+  readonly property real lockTimeoutMin: secondsToMinutes(idleSettings?.lockTimeoutSec ?? 300)
+  readonly property bool suspendEnabled: idleSettings?.suspendEnabled ?? false
+  readonly property real suspendTimeoutMin: secondsToMinutes(idleSettings?.suspendTimeoutSec ?? 120)
 
   function formatDuration(durationMin: real): string {
     const totalSeconds = Math.max(0, Math.round((durationMin || 0) * 60));
@@ -232,7 +232,7 @@ OModal {
               opacity: Theme.opacityMedium
             }
             SettingRow {
-              checked: root.idleSettings.respectInhibitors
+              checked: root.idleSettings?.respectInhibitors ?? true
               description: qsTr("Honor application wake requests.")
               enabled: root.idleEnabled
               icon: "󰈑"
@@ -241,7 +241,7 @@ OModal {
               onToggled: checked => root.idleSettings.respectInhibitors = checked
             }
             SettingRow {
-              checked: root.idleSettings.videoAutoInhibit
+              checked: root.idleSettings?.videoAutoInhibit ?? true
               description: qsTr("Stay awake during active media.")
               enabled: root.idleEnabled
               icon: "󰀈"

@@ -9,7 +9,6 @@ Rectangle {
 
   property bool active: true
   property bool checked: false
-  readonly property bool compact: width < Theme.panelToggleCompactThreshold
   property string detail: ""
   readonly property color detailColor: (checked || hovered) && active ? Theme.textActiveColor : Theme.textInactiveColor
   readonly property bool hovered: cardMouse.containsMouse && active
@@ -17,7 +16,7 @@ Rectangle {
   required property string label
   readonly property color labelColor: checked && active ? Theme.activeColor : hovered ? Theme.textActiveColor : Theme.textInactiveColor
   property bool spinning: false
-  readonly property bool wide: !compact && detail !== ""
+  readonly property bool wide: !(width < Theme.panelToggleCompactThreshold) && detail !== ""
 
   signal toggled(bool checked)
 

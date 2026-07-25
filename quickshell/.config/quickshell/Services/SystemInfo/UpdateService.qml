@@ -269,10 +269,7 @@ Singleton {
       onRead: data => updateProcess.appendOutputLine(data)
     }
 
-    onExited: exitCode => {
-      root._updateProcessStarted = false;
-      root._finishUpdate(exitCode);
-    }
+    onExited: exitCode => root._finishUpdate(exitCode)
     onRunningChanged: {
       if (!running && root.isUpdating && !root._updateProcessStarted)
         root._finishUpdate(-1);
