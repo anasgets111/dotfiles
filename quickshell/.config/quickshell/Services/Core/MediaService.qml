@@ -10,6 +10,8 @@ Singleton {
   readonly property var _audioPatterns: ["music.youtube.com", "spotify.com", "soundcloud.com", "music.apple.com", "deezer.com", "tidal.com", "bandcamp.com", "pocketcasts.com", "audible.com", "mixcloud.com", "tunein.com"]
   readonly property var _browserHints: ["firefox", "zen", "chrome", "chromium", "brave", "vivaldi", "edge", "opera"]
   property bool _resumeAfterSeek: false
+  property string _cachedArtTrackKey: ""
+  property string _cachedArtUrl: ""
   property real _seekFallbackLength: 0
   property var _seekPlayer: null
   property int _seekTrackId: -1
@@ -28,6 +30,10 @@ Singleton {
   readonly property bool playbackAvailable: !!active && active.playbackState !== MprisPlaybackState.Stopped
   readonly property list<MprisPlayer> players: Mpris.players?.values.filter(player => !!player?.canControl) ?? []
   readonly property bool playing: active?.isPlaying ?? false
+  readonly property string trackArtUrl: {
+    const player = active;
+    return player?.trackArtUrl || (player && _trackKey(player) === _cachedArtTrackKey ? _cachedArtUrl : "");
+  }
   readonly property real trackLength: {
     const rawLength = active?.length;
     if (active?.lengthSupported && Number.isFinite(rawLength) && rawLength > 0 && rawLength < 9e12)
@@ -51,6 +57,23 @@ Singleton {
       return true;
     const extensionMatch = mediaUrl.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/);
     return !!(extensionMatch && _videoExts.includes(extensionMatch[1]));
+  }
+  function _trackKey(player: var): string {
+    if (!player)
+      return "";
+    return `${player.dbusName}\u0000${player.uniqueId}\u0000${player.metadata?.["xesam:url"] ?? ""}\u0000${player.trackTitle}`;
+  }
+  function _refreshTrackArt(): void {
+    const player = active;
+    const trackKey = _trackKey(player);
+    if (trackKey !== _cachedArtTrackKey) {
+      _cachedArtTrackKey = trackKey;
+      _cachedArtUrl = "";
+    }
+    const artUrl = player?.trackArtUrl ?? "";
+    // Zen can omit mpris:artUrl in later updates for the same track.
+    if (artUrl)
+      _cachedArtUrl = artUrl;
   }
   function next(): void {
     if (canGoNext)
@@ -93,6 +116,11 @@ Singleton {
       return;
     root.seek(Math.max(0, Math.min(1, positionRatio)) * trackLength);
   }
+  function seekBy(offset: real): void {
+    if (!canSeek || !Number.isFinite(offset) || offset === 0)
+      return;
+    active.seek(offset);
+  }
   function selectNextPlayer(): void {
     if (players.length < 2)
       return;
@@ -102,6 +130,16 @@ Singleton {
   function stop(): void {
     if (active?.canControl)
       active.stop();
+  }
+
+  onActiveChanged: _refreshTrackArt()
+
+  Connections {
+    target: root.active
+
+    function onMetadataChanged(): void {
+      root._refreshTrackArt();
+    }
   }
 
   PwObjectTracker {

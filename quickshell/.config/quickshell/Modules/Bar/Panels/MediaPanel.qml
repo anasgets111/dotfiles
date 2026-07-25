@@ -105,7 +105,7 @@ PanelContentBase {
           anchors.fill: parent
           asynchronous: true
           fillMode: Image.PreserveAspectCrop
-          source: Utils.normalizeImageUrl(root.activePlayer?.trackArtUrl ?? "")
+          source: Utils.normalizeImageUrl(MediaService.trackArtUrl)
           sourceSize: Qt.size(width, height)
           visible: status === Image.Ready
         }
@@ -138,12 +138,33 @@ PanelContentBase {
             onClicked: MediaService.previous()
           }
           PanelActionIcon {
+            icon: "󱇹"
+            isEnabled: MediaService.canSeek
+            tooltipText: qsTr("Back 5 seconds")
+
+            onClicked: MediaService.seekBy(-5)
+          }
+          PanelActionIcon {
             icon: MediaService.playing ? "󰏤" : "󰐊"
             isEnabled: MediaService.canTogglePlaying
             size: "md"
             tooltipText: MediaService.playing ? qsTr("Pause") : qsTr("Play")
 
             onClicked: MediaService.playPause()
+          }
+          PanelActionIcon {
+            icon: "󰓛"
+            isEnabled: root.activePlayer?.canControl ?? false
+            tooltipText: qsTr("Stop")
+
+            onClicked: MediaService.stop()
+          }
+          PanelActionIcon {
+            icon: "󱇸"
+            isEnabled: MediaService.canSeek
+            tooltipText: qsTr("Forward 5 seconds")
+
+            onClicked: MediaService.seekBy(5)
           }
           PanelActionIcon {
             icon: "󰒭"
