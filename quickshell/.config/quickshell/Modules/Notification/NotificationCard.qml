@@ -219,11 +219,12 @@ Item {
               }
             }
 
-            MouseArea {
-              anchors.fill: parent
+            // A handler, not a MouseArea: handlers are offered the point before item delivery, so
+            // this fires over the rich-text Text items too, which accept mouse for link handling.
+            TapHandler {
               enabled: messageColumn.wrapper?.hasDefaultAction ?? false
 
-              onClicked: root.svc?.invokeDefaultAction(messageColumn.wrapper)
+              onTapped: root.svc?.invokeDefaultAction(messageColumn.wrapper)
             }
             Rectangle {
               anchors.fill: parent
@@ -361,13 +362,12 @@ Item {
                   }
                   TapHandler {
                     acceptedButtons: Qt.LeftButton
+                    // Armed only over a link, and grabs exclusively so the tap never also reaches the
+                    // default-action handler; plain body text falls through to it instead.
+                    enabled: bodyText.hoveredLink !== ""
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
 
-                    onTapped: function (eventPoint) {
-                      const link = bodyText.linkAt(eventPoint.position.x, eventPoint.position.y);
-                      if (link) {
-                        root.openBodyLink(link);
-                      }
-                    }
+                    onTapped: root.openBodyLink(bodyText.hoveredLink)
                   }
                 }
 
