@@ -289,6 +289,7 @@ Singleton {
       statusText: device.state === BluetoothDeviceState.Connecting ? "Connecting..." : device.pairing ? "Pairing..." : device.blocked ? "Blocked" : "",
       connected: device.connected,
       paired: device.paired,
+      group: device.paired ? "paired" : "available",
       busy: root.isDeviceBusy(device) || address === root.connectAfterPairAddress,
       isAudio: root.isAudioDevice(device),
       hasBattery: device.batteryAvailable,

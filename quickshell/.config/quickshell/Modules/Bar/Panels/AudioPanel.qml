@@ -30,39 +30,10 @@ PanelContentBase {
     anchors.top: parent.top
     spacing: Theme.spacingMd
 
-    RowLayout {
-      Layout.fillWidth: true
-      spacing: Theme.spacingSm
-
-      Rectangle {
-        Layout.preferredHeight: Theme.controlHeightLg
-        Layout.preferredWidth: Theme.controlHeightLg
-        color: Theme.activeSubtle
-        radius: Theme.radiusMd
-
-        OText {
-          anchors.centerIn: parent
-          color: Theme.activeColor
-          size: "lg"
-          text: "󰕾"
-        }
-      }
-      ColumnLayout {
-        Layout.fillWidth: true
-        spacing: 0
-
-        OText {
-          bold: true
-          color: Theme.textActiveColor
-          size: "lg"
-          text: qsTr("Audio")
-        }
-        OText {
-          color: Theme.textInactiveColor
-          size: "xs"
-          text: qsTr("Volume, devices and applications")
-        }
-      }
+    PanelHeader {
+      icon: "󰕾"
+      subtitle: qsTr("Volume, devices and applications")
+      title: qsTr("Audio")
     }
     AudioControl {
       headroomColor: Theme.critical
@@ -165,7 +136,6 @@ PanelContentBase {
           OText {
             Layout.fillWidth: true
             color: Theme.textInactiveColor
-            elide: Text.ElideRight
             size: "xs"
             text: hero.subtitle
           }
@@ -200,7 +170,22 @@ PanelContentBase {
           value: hero.ready ? hero.volume : 0
           wheelStep: 1 / steps
 
-          onCommitted: v => { hero.committed(v); value = Qt.binding(() => hero.ready ? hero.volume : 0); }
+          onCommitted: v => {
+            hero.committed(v);
+            value = Qt.binding(() => hero.ready ? hero.volume : 0);
+          }
+        }
+        Rectangle {
+          color: Theme.textActiveColor
+          opacity: Theme.opacityMedium
+          visible: hero.splitAt < 1
+          width: Theme.borderWidthThin
+          x: Math.round(parent.width * hero.splitAt)
+
+          anchors {
+            bottom: parent.bottom
+            top: parent.top
+          }
         }
       }
       ColumnLayout {
@@ -220,22 +205,9 @@ PanelContentBase {
     signal deviceSelected(int id)
 
     Layout.fillWidth: true
+    expandable: true
     title: qsTr("Choose device")
 
-    badges: [
-      OText {
-        color: Theme.textInactiveColor
-        rotation: picker.expanded ? 180 : 0
-        text: "󰅀"
-
-        Behavior on rotation {
-          NumberAnimation {
-            duration: Theme.animationDuration
-            easing.type: Easing.OutCubic
-          }
-        }
-      }
-    ]
     expandedContent: [
       ColumnLayout {
         spacing: Theme.spacingXs
@@ -279,53 +251,38 @@ PanelContentBase {
     property bool expanded: false
     readonly property int streamCount: AudioService.streamModels.length
 
-    implicitHeight: mixerContent.implicitHeight + Theme.spacingSm * 2
-    padding: 0
+    padding: Theme.spacingSm
 
-    ColumnLayout {
-      id: mixerContent
-
+    PanelRow {
       anchors.left: parent.left
       anchors.right: parent.right
-      anchors.top: parent.top
-      anchors.topMargin: Theme.spacingSm
-      spacing: 0
+      expandable: true
+      expanded: mixer.expanded && mixer.streamCount > 0
+      icon: "󰓡"
+      subtitle: mixer.streamCount === 0 ? qsTr("No applications playing audio") : qsTr("%1 active").arg(mixer.streamCount)
+      title: qsTr("Application mixer")
 
-      PanelRow {
-        Layout.fillWidth: true
-        expanded: mixer.expanded && mixer.streamCount > 0
-        icon: "󰓡"
-        subtitle: mixer.streamCount === 0 ? qsTr("No applications playing audio") : qsTr("%1 active").arg(mixer.streamCount)
-        title: qsTr("Application mixer")
+      expandedContent: [
+        ListView {
+          id: streamList
 
-        badges: [
-          OText {
-            text: mixer.expanded ? "󰅀" : "󰅂"
+          boundsBehavior: Flickable.StopAtBounds
+          clip: true
+          height: Math.min(contentHeight, Theme.controlHeightLg * Theme.audioMixerVisibleRows)
+          model: AudioService.streamModels
+          spacing: Theme.spacingSm
+          width: parent?.width ?? 0
+
+          ScrollBar.vertical: ScrollBar {
+            policy: streamList.contentHeight > streamList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
           }
-        ]
-
-        expandedContent: [
-          ListView {
-            id: streamList
-
-            boundsBehavior: Flickable.StopAtBounds
-            clip: true
-            height: Math.min(contentHeight, Theme.controlHeightLg * Theme.audioMixerVisibleRows)
-            model: AudioService.streamModels
-            spacing: Theme.spacingSm
-            width: parent?.width ?? 0
-
-            ScrollBar.vertical: ScrollBar {
-              policy: streamList.contentHeight > streamList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-            }
-            delegate: StreamItem {
-              width: ListView.view.width
-            }
+          delegate: StreamItem {
+            width: ListView.view.width
           }
-        ]
+        }
+      ]
 
-        onClicked: mixer.expanded = !mixer.expanded
-      }
+      onClicked: mixer.expanded = !mixer.expanded
     }
   }
   component StreamItem: ColumnLayout {
@@ -360,23 +317,25 @@ PanelContentBase {
           text: "󰝚"
           visible: parent.status === Image.Error || parent.status === Image.Null
         }
-        TapHandler {
-          enabled: streamItem.ready
-
-          onTapped: AudioService.toggleStreamMute(streamItem.modelData.id)
-        }
       }
       OText {
         Layout.fillWidth: true
         color: Theme.textActiveColor
-        elide: Text.ElideRight
         size: "sm"
         text: streamItem.modelData.name
       }
       OText {
-        color: Theme.activeColor
+        color: streamItem.muted ? Theme.textInactiveColor : Theme.activeColor
         size: "sm"
         text: Math.round(streamItem.volume * 100) + "%"
+      }
+      PanelActionIcon {
+        icon: streamItem.muted ? "󰝟" : "󰕾"
+        isEnabled: streamItem.ready
+        tint: streamItem.muted ? Theme.textInactiveColor : Theme.activeColor
+        tooltipText: streamItem.muted ? qsTr("Unmute") : qsTr("Mute")
+
+        onClicked: AudioService.toggleStreamMute(streamItem.modelData.id)
       }
     }
     Item {
@@ -391,7 +350,10 @@ PanelContentBase {
         steps: 20
         value: streamItem.ready ? streamItem.volume : 0
 
-        onCommitted: v => { AudioService.setStreamVolume(streamItem.modelData.id, v); value = Qt.binding(() => streamItem.ready ? streamItem.volume : 0); }
+        onCommitted: v => {
+          AudioService.setStreamVolume(streamItem.modelData.id, v);
+          value = Qt.binding(() => streamItem.ready ? streamItem.volume : 0);
+        }
       }
     }
   }

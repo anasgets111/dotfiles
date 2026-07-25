@@ -215,6 +215,11 @@ Singleton {
     updateProcess.command = ["update"];
     updateProcess.running = true;
   }
+  function logText(): string {
+    return Array.from({
+      length: root.outputLines.count
+    }, (_, index) => root.outputLines.get(index).lineText).join("\n");
+  }
 
   Component.onCompleted: Command.run(["sh", "-c", "command -v checkupdates"], result => root._checkUpdatesAvailable = result.exitCode === 0)
   onReadyChanged: if (ready)

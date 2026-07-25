@@ -6,7 +6,6 @@ Item {
   id: root
 
   property string icon: ""
-  property real iconOpacity: Theme.opacityMedium
   property string text: ""
 
   ColumnLayout {
@@ -18,7 +17,7 @@ Item {
       color: Theme.textInactiveColor
       font.family: Theme.fontFamily
       font.pixelSize: Theme.fontSize * 2
-      opacity: root.iconOpacity
+      opacity: Theme.opacityMedium
       text: root.icon
     }
     OText {

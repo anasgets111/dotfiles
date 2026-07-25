@@ -11,6 +11,7 @@ Rectangle {
   property alias actions: actionSlot.data
   property alias badges: badgeSlot.data
   property bool busy: false
+  property bool expandable: false
   property bool expanded: false
   property alias expandedContent: expandedSlot.data
   readonly property bool hovered: rowMouse.containsMouse && actionable
@@ -24,23 +25,16 @@ Rectangle {
   signal clicked
   signal pointerMoved(point position)
 
-  border.color: selected ? Theme.activeColor : activeFocus ? Theme.activeColor : "transparent"
+  border.color: selected || activeFocus ? Theme.activeColor : "transparent"
   border.width: Theme.borderWidthThin
   color: selected ? Theme.activeSubtle : hovered ? Theme.glassContentHoverColor : "transparent"
   implicitHeight: rowLayout.implicitHeight + (expanded ? expandedSlot.implicitHeight + Theme.spacingSm : 0) + Theme.spacingXs * 2
   opacity: enabled ? 1 : Theme.opacityDisabled
   radius: Theme.radiusMd
 
-  Behavior on color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
+  Theme.ColorTransition on color {
   }
-  Behavior on implicitHeight {
-    NumberAnimation {
-      duration: Theme.animationDuration
-      easing.type: Easing.OutCubic
-    }
+  Theme.NumberTransition on implicitHeight {
   }
 
   MouseArea {
@@ -91,13 +85,11 @@ Rectangle {
           Layout.fillWidth: true
           bold: root.selected
           color: root.selected ? Theme.activeColor : Theme.textActiveColor
-          elide: Text.ElideRight
           text: root.title
         }
         OText {
           Layout.fillWidth: true
           color: Theme.textInactiveColor
-          elide: Text.ElideRight
           size: "xs"
           text: root.subtitle
           visible: text !== ""
@@ -126,6 +118,18 @@ Rectangle {
         id: badgeSlot
 
         spacing: Theme.spacingXs
+      }
+      OText {
+        Layout.alignment: Qt.AlignVCenter
+        color: root.hovered ? Theme.textActiveColor : Theme.textInactiveColor
+        font.family: Theme.iconFontFamily
+        font.pixelSize: Theme.iconSizeMd
+        rotation: root.expanded ? 180 : 0
+        text: "󰅀"
+        visible: root.expandable
+
+        Theme.NumberTransition on rotation {
+        }
       }
     }
     Item {

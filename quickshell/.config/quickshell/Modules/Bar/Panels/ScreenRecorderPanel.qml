@@ -15,16 +15,101 @@ PanelContentBase {
   readonly property bool paused: ScreenRecordingService.isPaused
   readonly property bool recording: ScreenRecordingService.isRecording
   readonly property string saveDirectory: ScreenRecordingService.directory.replace(Quickshell.env("HOME"), "~")
-  readonly property string statusText: root.recording ? [root.paused ? qsTr("Paused") : qsTr("Recording"), ScreenRecordingService.elapsedText, ScreenRecordingService.captureLabel].filter(Boolean).join(" · ") : qsTr("Ready · %1").arg(ScreenRecordingService.monitor || qsTr("no output"))
+  readonly property var settingGroups: [
+    {
+      key: "audio",
+      title: qsTr("Audio"),
+      fallback: "desktop",
+      options: [
+        {
+          value: "off",
+          label: qsTr("No audio"),
+          icon: "󰝟"
+        },
+        {
+          value: "desktop",
+          label: qsTr("Desktop audio"),
+          icon: "󰕾"
+        },
+        {
+          value: "mic",
+          label: qsTr("Desktop + Mic"),
+          icon: "󰍬"
+        }
+      ]
+    },
+    {
+      key: "quality",
+      title: qsTr("Quality"),
+      fallback: "high",
+      options: [
+        {
+          value: "low",
+          label: qsTr("Low"),
+          icon: "󰾆",
+          detail: qsTr("Smallest files, softest detail in motion")
+        },
+        {
+          value: "medium",
+          label: qsTr("Medium"),
+          icon: "󰾅",
+          detail: qsTr("Balanced size and detail")
+        },
+        {
+          value: "high",
+          label: qsTr("High"),
+          icon: "󰓅",
+          detail: qsTr("Sharpest detail, largest files")
+        }
+      ]
+    },
+    {
+      key: "fps",
+      title: qsTr("Frame rate"),
+      fallback: 60,
+      options: [30, 60, 120].map(rate => ({
+            value: rate,
+            label: qsTr("%1 FPS").arg(rate)
+          }))
+    },
+    {
+      key: "container",
+      title: qsTr("Format"),
+      fallback: "mp4",
+      options: [
+        {
+          value: "mp4",
+          label: qsTr("MP4"),
+          icon: "󰈫",
+          detail: qsTr("Plays and uploads anywhere")
+        },
+        {
+          value: "mkv",
+          label: qsTr("MKV"),
+          icon: "󰿎",
+          detail: qsTr("Stays playable if the session crashes mid-recording")
+        }
+      ]
+    }
+  ]
+  property bool settingsExpanded: false
+  readonly property string settingsSummary: root.settingGroups.map(group => group.options.find(option => option.value === root.selectedValue(group))?.label).filter(Boolean).join(" · ")
+  readonly property string statusText: root.recording ? [root.paused ? qsTr("Paused") : qsTr("Recording"), ScreenRecordingService.captureLabel].filter(Boolean).join(" · ") : qsTr("Ready · %1").arg(ScreenRecordingService.monitor || qsTr("no output"))
 
   function beginRecording(mode: string): void {
     root.closeRequested();
     ScreenRecordingService.startRecording(mode);
   }
+  function selectedValue(group: var): var {
+    return root.config?.[group.key] ?? group.fallback;
+  }
 
   flatContainer: true
   preferredHeight: contentLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: Theme.panelDefaultWidth
+
+  onIsOpenChanged: if (!isOpen)
+    settingsExpanded = false
 
   ColumnLayout {
     id: contentLayout
@@ -35,40 +120,16 @@ PanelContentBase {
     anchors.top: parent.top
     spacing: Theme.spacingMd
 
-    RowLayout {
-      Layout.fillWidth: true
-      spacing: Theme.spacingSm
+    PanelHeader {
+      accent: root.recording ? Theme.critical : Theme.activeColor
+      icon: "󰑊"
+      subtitle: root.statusText
+      title: qsTr("Screen Recorder")
 
-      Rectangle {
-        Layout.preferredHeight: Theme.controlHeightLg
-        Layout.preferredWidth: Theme.controlHeightLg
-        color: root.recording ? Theme.withOpacity(Theme.critical, Theme.opacitySubtle) : Theme.activeSubtle
-        radius: Theme.radiusMd
-
-        OText {
-          anchors.centerIn: parent
-          color: root.recording ? Theme.critical : Theme.activeColor
-          size: "lg"
-          text: "󰑊"
-        }
-      }
-      ColumnLayout {
-        Layout.fillWidth: true
-        spacing: 0
-
-        OText {
-          bold: true
-          color: Theme.textActiveColor
-          size: "lg"
-          text: qsTr("Screen Recorder")
-        }
-        OText {
-          Layout.fillWidth: true
-          color: Theme.textInactiveColor
-          elide: Text.ElideRight
-          size: "xs"
-          text: root.statusText
-        }
+      InfoBadge {
+        badgeColor: root.paused ? Theme.warning : Theme.critical
+        text: ScreenRecordingService.elapsedText
+        visible: root.recording
       }
     }
     RowLayout {
@@ -101,81 +162,44 @@ PanelContentBase {
       color: Theme.borderSubtle
       implicitHeight: Theme.borderWidthThin
     }
-    OptionGroup {
-      options: [{
-          value: "off",
-          label: qsTr("Off"),
-          icon: "󰝟"
-        }, {
-          value: "desktop",
-          label: qsTr("Desktop"),
-          icon: "󰕾"
-        }, {
-          value: "mic",
-          label: qsTr("Desktop + Mic"),
-          icon: "󰍬"
-        }]
-      selected: root.config?.audio ?? "desktop"
-      title: qsTr("Audio")
-
-      onPicked: value => root.config.audio = value
-    }
-    OptionGroup {
-      options: [{
-          value: "low",
-          label: qsTr("Low"),
-          icon: "󰾆",
-          detail: qsTr("Smallest files, softest detail in motion")
-        }, {
-          value: "medium",
-          label: qsTr("Medium"),
-          icon: "󰾅",
-          detail: qsTr("Balanced size and detail")
-        }, {
-          value: "high",
-          label: qsTr("High"),
-          icon: "󰓅",
-          detail: qsTr("Sharpest detail, largest files")
-        }]
-      selected: root.config?.quality ?? "high"
-      title: qsTr("Quality")
-
-      onPicked: value => root.config.quality = value
-    }
-    OptionGroup {
-      options: [30, 60, 120].map(rate => ({
-            value: rate,
-            label: qsTr("%1 FPS").arg(rate)
-          }))
-      selected: root.config?.fps ?? 60
-      title: qsTr("Frame rate")
-
-      onPicked: value => root.config.fps = value
-    }
-    OptionGroup {
-      options: [{
-          value: "mp4",
-          label: qsTr("MP4"),
-          icon: "󰈫",
-          detail: qsTr("Plays and uploads anywhere")
-        }, {
-          value: "mkv",
-          label: qsTr("MKV"),
-          icon: "󰿎",
-          detail: qsTr("Stays playable if the session crashes mid-recording")
-        }]
-      selected: root.config?.container ?? "mp4"
-      title: qsTr("Format")
-
-      onPicked: value => root.config.container = value
-    }
-    OText {
+    PanelRow {
       Layout.fillWidth: true
-      color: Theme.textInactiveColor
-      size: "xs"
-      text: qsTr("Changes apply to the next recording")
-      visible: root.recording
-      wrapMode: Text.Wrap
+      expandable: true
+      expanded: root.settingsExpanded
+      icon: "󰒓"
+      subtitle: root.settingsSummary
+      title: qsTr("Recording settings")
+
+      expandedContent: [
+        ColumnLayout {
+          spacing: Theme.spacingMd
+          width: parent?.width ?? 0
+
+          Repeater {
+            model: root.settingGroups
+
+            delegate: OptionGroup {
+              required property var modelData
+
+              options: modelData.options
+              selected: root.selectedValue(modelData)
+              title: modelData.title
+
+              onPicked: value => root.config[modelData.key] = value
+            }
+          }
+          OText {
+            Layout.fillWidth: true
+            color: Theme.textInactiveColor
+            size: "xs"
+            text: qsTr("Changes apply to the next recording")
+            visible: root.recording
+            wrapMode: Text.Wrap
+          }
+        }
+      ]
+
+      onClicked: root.settingsExpanded = !root.settingsExpanded
     }
     PanelRow {
       Layout.fillWidth: true
@@ -201,7 +225,7 @@ PanelContentBase {
 
     PanelSectionHeader {
       Layout.fillWidth: true
-      section: group.title.toUpperCase()
+      section: group.title
     }
     RowLayout {
       Layout.fillWidth: true

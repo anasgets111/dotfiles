@@ -11,7 +11,7 @@ import qs.Modules.Bar.Indicators
 PanelContentBase {
   id: root
 
-  readonly property real availableContentHeight: Math.max(0, root.maxHeight - weatherWidget.implicitHeight - systemInfoWidget.implicitHeight - header.Layout.preferredHeight - root.padding * 2 - Theme.spacingSm * 3)
+  readonly property real availableContentHeight: Math.max(0, root.maxHeight - weatherWidget.implicitHeight - systemInfoWidget.implicitHeight - header.implicitHeight - root.padding * 2 - Theme.spacingSm * 3)
   readonly property real cardHeight: Theme.itemHeight * 5.5
   readonly property bool hasNotifications: NotificationService.notifications.length > 0
   property int maxHeight: 600
@@ -49,50 +49,34 @@ PanelContentBase {
       Layout.rightMargin: root.padding
       active: root.isOpen
     }
-    PanelCard {
+    PanelHeader {
       id: header
 
-      Layout.fillWidth: true
       Layout.leftMargin: root.padding
-      Layout.preferredHeight: Theme.itemHeight * 1.2
       Layout.rightMargin: root.padding
-      padding: 0
+      accent: NotificationService.doNotDisturb ? Theme.textInactiveColor : Theme.activeColor
+      icon: NotificationService.doNotDisturb ? "󰂛" : "󰂚"
+      subtitle: qsTr("%1 in history").arg(NotificationService.notifications.length)
+      title: qsTr("Notifications")
 
-      RowLayout {
-        anchors.fill: parent
-        anchors.leftMargin: root.padding
-        anchors.rightMargin: root.padding
-        spacing: Theme.spacingSm
+      OText {
+        accent: NotificationService.doNotDisturb
+        opacity: NotificationService.doNotDisturb ? 1.0 : Theme.opacityDisabled
+        size: "sm"
+        text: qsTr("DND")
+      }
+      OToggle {
+        checked: NotificationService.doNotDisturb
 
-        OText {
-          bold: true
-          size: "lg"
-          text: root.hasNotifications ? qsTr("Notifications") + ` (${NotificationService.notifications.length})` : qsTr("Notifications")
-        }
-        Item {
-          Layout.fillWidth: true
-        }
-        OText {
-          accent: NotificationService.doNotDisturb
-          opacity: NotificationService.doNotDisturb ? 1.0 : 0.5
-          size: "sm"
-          text: qsTr("DND")
-        }
-        OToggle {
-          Layout.preferredHeight: Theme.itemHeight * 0.55
-          Layout.preferredWidth: Theme.itemHeight * 1.2
-          checked: NotificationService.doNotDisturb
+        onToggled: NotificationService.toggleDoNotDisturb()
+      }
+      PanelActionIcon {
+        icon: "󰆴"
+        tint: Theme.critical
+        tooltipText: qsTr("Dismiss all notifications")
+        visible: root.hasNotifications
 
-          onToggled: NotificationService.toggleDoNotDisturb()
-        }
-        PanelActionIcon {
-          icon: "󰆴"
-          tint: Theme.critical
-          tooltipText: qsTr("Dismiss all notifications")
-          visible: root.hasNotifications
-
-          onClicked: NotificationService.clearAllNotifications()
-        }
+        onClicked: NotificationService.clearAllNotifications()
       }
     }
     ListView {

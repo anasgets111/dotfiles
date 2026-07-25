@@ -39,10 +39,7 @@ ColumnLayout {
     color: Theme.glassInputColor
     radius: Theme.radiusMd
 
-    Behavior on border.color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
+    Theme.ColorTransition on border.color {
     }
     Behavior on border.width {
       NumberAnimation {

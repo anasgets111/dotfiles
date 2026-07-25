@@ -12,10 +12,10 @@ Singleton {
   id: root
 
   readonly property int _displayPowerOffTimeoutSec: settings?.dpmsTimeoutSec ?? 30
-  readonly property int _lockTimeoutSec: settings?.lockTimeoutSec ?? 300
-  readonly property int _suspendTimeoutSec: settings?.suspendTimeoutSec ?? 120
   readonly property bool _dpmsDone: !displayPowerOffActionEnabled || displaysPoweredOff
   readonly property bool _lockDone: !lockActionEnabled || LockService.locked
+  readonly property int _lockTimeoutSec: settings?.lockTimeoutSec ?? 300
+  readonly property int _suspendTimeoutSec: settings?.suspendTimeoutSec ?? 120
   readonly property bool armed: idleEnabled && !inhibited
   readonly property bool automaticInhibitorActive: (settings?.videoAutoInhibit ?? true) && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive)
   readonly property bool displayPowerOffActionEnabled: (settings?.dpmsEnabled ?? true) && _displayPowerOffTimeoutSec > 0
@@ -55,18 +55,18 @@ Singleton {
   // Idle is counted from when a monitor subscribes, so each stage waits its own timeout
   // after its gate opens: the gates are the sequencing, not redundant with the timeouts.
   IdleStage {
-    idleAction: () => LockService.requestLock()
     enabled: root.armed && root.lockActionEnabled && !LockService.locked && (!root.lockAfterDisplayPowerOff || root._dpmsDone)
+    idleAction: () => LockService.requestLock()
     stageTimeout: root._lockTimeoutSec
   }
   IdleStage {
-    idleAction: () => root.setDisplaysPowered(false)
     enabled: root.armed && root.displayPowerOffActionEnabled && (root.lockAfterDisplayPowerOff || root._lockDone)
+    idleAction: () => root.setDisplaysPowered(false)
     stageTimeout: root._displayPowerOffTimeoutSec
   }
   IdleStage {
-    idleAction: () => PowerManagementService.suspend()
     enabled: root.armed && root.suspendActionEnabled && root._lockDone && root._dpmsDone
+    idleAction: () => PowerManagementService.suspend()
     stageTimeout: root._suspendTimeoutSec
   }
 

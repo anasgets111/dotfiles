@@ -36,9 +36,6 @@ Singleton {
     if (!isAnyModalOpen)
       activeScreenName = "";
   }
-  function isModalOpenOn(screenName, modalId) {
-    return activeScreenName === (screenName || "") && activeModal === (modalId || "");
-  }
   function isPanelOpen(panelId, screenName) {
     return activePanelId === (panelId || "") && activeScreenName === (screenName || "");
   }

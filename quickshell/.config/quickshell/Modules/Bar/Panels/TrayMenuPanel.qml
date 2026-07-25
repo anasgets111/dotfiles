@@ -62,7 +62,7 @@ PanelContentBase {
             Layout.fillWidth: true
             color: rowMouse.containsMouse ? Theme.textContrast(Theme.glassControlHoverColor) : Theme.textActiveColor
             elide: Text.ElideRight
-            opacity: rowItem.entry?.enabled ? 1.0 : 0.5
+            opacity: rowItem.entry?.enabled ? 1 : Theme.opacityDisabled
             text: rowItem.entry?.text ?? ""
             verticalAlignment: Text.AlignVCenter
           }

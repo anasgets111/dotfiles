@@ -84,11 +84,7 @@ Item {
           easing.type: Easing.OutCubic
         }
       }
-      Behavior on width {
-        NumberAnimation {
-          duration: Theme.animationDuration
-          easing.type: Easing.OutCubic
-        }
+      Theme.NumberTransition on width {
       }
 
       anchors {

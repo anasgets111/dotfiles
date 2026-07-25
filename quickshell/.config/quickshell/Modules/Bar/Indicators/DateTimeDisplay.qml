@@ -25,15 +25,9 @@ Item {
     color: dateTimeDisplay.bgColor
     radius: Theme.itemRadius
 
-    Behavior on border.color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
+    Theme.ColorTransition on border.color {
     }
-    Behavior on color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
+    Theme.ColorTransition on color {
     }
   }
   Row {
@@ -51,10 +45,7 @@ Item {
       leftPadding: Theme.spacingSm
       text: NotificationService.doNotDisturb ? "󰂛 " : (dateTimeDisplay.hasNotifications ? "󱅫 " + dateTimeDisplay.notificationCount : " ")
 
-      Behavior on color {
-        ColorAnimation {
-          duration: Theme.animationDuration
-        }
+      Theme.ColorTransition on color {
       }
     }
     OText {
@@ -64,10 +55,7 @@ Item {
       rightPadding: Theme.spacingSm
       text: WeatherService.currentTemp + " " + TimeService.format("datetime")
 
-      Behavior on color {
-        ColorAnimation {
-          duration: Theme.animationDuration
-        }
+      Theme.ColorTransition on color {
       }
     }
   }

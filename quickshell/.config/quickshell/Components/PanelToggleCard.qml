@@ -30,15 +30,9 @@ Rectangle {
   opacity: card.active ? 1.0 : Theme.opacityDisabled
   radius: Theme.radiusLg
 
-  Behavior on border.color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
+  Theme.ColorTransition on border.color {
   }
-  Behavior on color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
+  Theme.ColorTransition on color {
   }
   Behavior on opacity {
     NumberAnimation {
@@ -82,10 +76,7 @@ Rectangle {
         text: card.icon
         visible: !card.spinning
 
-        Behavior on color {
-          ColorAnimation {
-            duration: Theme.animationDuration
-          }
+        Theme.ColorTransition on color {
         }
       }
       OSpinner {
@@ -104,10 +95,7 @@ Rectangle {
       size: "xs"
       text: card.label
 
-      Behavior on color {
-        ColorAnimation {
-          duration: Theme.animationDuration
-        }
+      Theme.ColorTransition on color {
       }
     }
     OText {
@@ -123,10 +111,7 @@ Rectangle {
       text: card.detail
       visible: card.detail !== ""
 
-      Behavior on color {
-        ColorAnimation {
-          duration: Theme.animationDuration
-        }
+      Theme.ColorTransition on color {
       }
     }
   }

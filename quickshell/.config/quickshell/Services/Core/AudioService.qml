@@ -117,11 +117,11 @@ Singleton {
   }
   function buildAudioDevices(nodes: var, activeNode: var): var {
     return nodes.map(node => ({
-        id: node.id,
-        name: displayName(node),
-        icon: deviceIconFor(node),
-        active: node === activeNode
-      }));
+          id: node.id,
+          name: displayName(node),
+          icon: deviceIconFor(node),
+          active: node === activeNode
+        }));
   }
   function capSinkVolume(): void {
     if (root.sinkControllable && root.sink.audio.volume > root.maxVolume)
@@ -162,11 +162,7 @@ Singleton {
   function normalizeDeviceName(raw: string): string {
     if (!raw)
       return raw;
-    const cleaned = raw.replace(/\s*(?:(?:High Definition|HD) )?Audio Controller\b/i, "")
-      .replace(/\s*(?:Digital|Analog) Stereo\b/i, "")
-      .replace(/\s*\(HDMI\)/i, " HDMI")
-      .replace(/\s*\(S\/PDIF\)/i, " S/PDIF")
-      .replace(/\s+/g, " ");
+    const cleaned = raw.replace(/\s*(?:(?:High Definition|HD) )?Audio Controller\b/i, "").replace(/\s*(?:Digital|Analog) Stereo\b/i, "").replace(/\s*\(HDMI\)/i, " HDMI").replace(/\s*\(S\/PDIF\)/i, " S/PDIF").replace(/\s+/g, " ");
     return cleaned.trim() || raw;
   }
   function playNotificationSound(notification: var): void {

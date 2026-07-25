@@ -22,8 +22,9 @@ Item {
   }
 
   Accessible.name: qsTr("Media controls")
-  Accessible.onPressAction: root.openPanel()
   Accessible.role: Accessible.Button
+
+  Accessible.onPressAction: root.openPanel()
   Component.onDestruction: if (panelOpen)
     ShellUiState.closePanel()
 

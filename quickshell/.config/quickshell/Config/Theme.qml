@@ -261,4 +261,16 @@ Singleton {
     }
     readonly property int width: mainScreen?.width ?? 1920
   }
+
+  component ColorTransition: Behavior {
+    ColorAnimation {
+      duration: Theme.animationDuration
+    }
+  }
+  component NumberTransition: Behavior {
+    NumberAnimation {
+      duration: Theme.animationDuration
+      easing.type: Easing.OutCubic
+    }
+  }
 }

@@ -16,11 +16,18 @@ PanelContentBase {
   property bool errorDismissed: false
   readonly property string ethernetInterface: NetworkService.ethernetInterface
   property string expandedSsid: ""
+  property var frozenViewList: null
   property bool isHiddenTarget: false
+  // ponytail: a new model array destroys every delegate, wiping the password field mid-typing, so the whole
+  // list (signal, connected state) goes stale while one row is expanded. Give delegates stable identity —
+  // an ObjectModel keyed by ssid — to let rows update live instead.
+  readonly property bool listFrozen: root.expandedSsid !== "" || root.connectingSsid !== ""
+  readonly property var liveViewList: (root.connectedNetwork ? [root.connectedNetwork] : []).concat(NetworkService.viewWifiAps)
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
   readonly property bool ready: NetworkService.ready
   readonly property var savedNetworks: NetworkService.savedWifiAps
   property bool scanning: false
+  readonly property bool showNetworkGroups: root.savedNetworks.length > 0 && root.availableNetworks.length > 0
   readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && connectingSsid !== targetSsid && (networkForSsid(targetSsid)?.secured ?? true)
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
   readonly property string statusDetail: {
@@ -37,15 +44,9 @@ PanelContentBase {
     return qsTr("Not connected");
   }
   property string targetSsid: ""
-  readonly property var viewList: (root.connectedNetwork ? [root.connectedNetwork] : []).concat(NetworkService.viewWifiAps).map(ap => Object.assign({}, ap, {
-      group: ap.saved ? "saved" : "available"
-    }))
+  readonly property var viewList: root.listFrozen && root.frozenViewList ? root.frozenViewList : root.liveViewList
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
 
-  function cancelInline(): void {
-    root.expandedSsid = "";
-    NetworkService.cancelConnect();
-  }
   function connectToNetwork(ssid: string): void {
     const ap = networkForSsid(ssid);
     if (!ap || ap.connected)
@@ -104,6 +105,7 @@ PanelContentBase {
     scanning = true;
     scanGraceTimer.restart();
   }
+  onListFrozenChanged: root.frozenViewList = root.listFrozen ? root.liveViewList : null
 
   Timer {
     id: scanGraceTimer
@@ -134,15 +136,19 @@ PanelContentBase {
     anchors.top: parent.top
     spacing: 0
 
-    PanelToggleCard {
-      Layout.bottomMargin: root.networkingEnabled ? Theme.spacingXs : Theme.spacingMd
-      active: root.ready
-      checked: root.networkingEnabled
-      detail: root.statusDetail
+    PanelHeader {
+      Layout.bottomMargin: Theme.spacingMd
+      accent: root.networkingEnabled && root.ready ? Theme.activeColor : Theme.textInactiveColor
       icon: NetworkService.linkType === "wifi" ? "󰤨" : NetworkService.linkType === "ethernet" ? "󰈀" : "󱘖"
-      label: qsTr("Network")
+      subtitle: root.statusDetail
+      title: qsTr("Network")
 
-      onToggled: c => NetworkService.setNetworkingEnabled(c)
+      OToggle {
+        checked: root.networkingEnabled
+        disabled: !root.ready
+
+        onToggled: c => NetworkService.setNetworkingEnabled(c)
+      }
     }
     RowLayout {
       Layout.bottomMargin: Theme.spacingMd
@@ -167,6 +173,32 @@ PanelContentBase {
         label: root.ethernetInterface !== "" ? qsTr("Ethernet") : qsTr("No Ethernet")
 
         onToggled: c => c ? NetworkService.connectEthernet() : NetworkService.disconnectEthernet()
+      }
+    }
+    PanelCard {
+      Layout.bottomMargin: visible ? Theme.spacingMd : 0
+      Layout.fillWidth: true
+      tone: "error"
+      visible: root.connectError !== "" && root.expandedSsid === "" && !root.isHiddenTarget
+
+      RowLayout {
+        spacing: Theme.spacingSm
+        width: parent?.width ?? 0
+
+        OText {
+          Layout.fillWidth: true
+          color: Theme.critical
+          size: "sm"
+          text: "⚠ " + root.connectError
+          wrapMode: Text.Wrap
+        }
+        PanelActionIcon {
+          icon: "󰅖"
+          tint: Theme.critical
+          tooltipText: qsTr("Dismiss")
+
+          onClicked: root.errorDismissed = true
+        }
       }
     }
     CredentialSheet {
@@ -199,52 +231,27 @@ PanelContentBase {
       spacing: 0
       visible: !root.isHiddenTarget && root.wifiEnabled && root.networkingEnabled
 
-      RowLayout {
+      PanelSectionHeader {
         Layout.bottomMargin: Theme.spacingXs
         Layout.fillWidth: true
-        spacing: Theme.spacingXs
+        section: qsTr("Networks")
 
-        OText {
-          bold: true
-          color: Theme.textInactiveColor
-          size: "xs"
-          text: qsTr("Networks").toUpperCase()
-          visible: root.savedNetworks.length > 0 || root.availableNetworks.length > 0
-        }
-        Item {
-          Layout.fillWidth: true
-        }
-        Item {
-          id: rescanBtn
+        PanelActionIcon {
+          icon: "󰑐"
+          tint: Theme.textInactiveColor
+          tooltipText: qsTr("Rescan")
+          visible: !root.scanning
 
-          Layout.preferredHeight: Theme.controlHeightXs
-          Layout.preferredWidth: Theme.controlHeightXs
-
-          MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            hoverEnabled: true
-
-            onClicked: {
-              NetworkService.rescanWifi();
-              root.scanning = true;
-              scanGraceTimer.restart();
-            }
-
-            OText {
-              anchors.centerIn: parent
-              color: Theme.textInactiveColor
-              opacity: parent.containsMouse || root.scanning ? 1.0 : 0.5
-              text: "󰑐"
-              visible: !root.scanning
-            }
-            OSpinner {
-              anchors.centerIn: parent
-              color: Theme.textInactiveColor
-              running: root.scanning
-              spinnerSize: Theme.iconSizeMd
-            }
+          onClicked: {
+            NetworkService.rescanWifi();
+            root.scanning = true;
+            scanGraceTimer.restart();
           }
+        }
+        OSpinner {
+          color: Theme.textInactiveColor
+          running: root.scanning
+          spinnerSize: Theme.iconSizeMd
         }
       }
       Rectangle {
@@ -261,7 +268,7 @@ PanelContentBase {
           interactive: contentHeight > height
           model: root.viewList
           section.criteria: ViewSection.FullString
-          section.property: "group"
+          section.property: root.showNetworkGroups ? "group" : ""
           spacing: Theme.borderWidthMedium
 
           ScrollBar.vertical: ScrollBar {
@@ -278,7 +285,10 @@ PanelContentBase {
             network: modelData
             width: ListView.view.width
 
-            onCancelExpand: root.cancelInline()
+            onCancelExpand: {
+              root.expandedSsid = "";
+              NetworkService.cancelConnect();
+            }
             onClicked: root.connectToNetwork(modelData.ssid)
             onDisconnectClicked: NetworkService.disconnectWifi()
             onForgetClicked: NetworkService.forgetWifi(modelData.ssid)
@@ -331,6 +341,9 @@ PanelContentBase {
     property string buttonSize: "md"
     property bool connecting: false
     property string errorMessage: ""
+    property string placeholder: qsTr("Password")
+    property bool secret: true
+    property string submitLabel: qsTr("Connect")
 
     signal cancelled
     signal edited
@@ -346,9 +359,9 @@ PanelContentBase {
       id: pwField
 
       Layout.fillWidth: true
-      echoMode: TextInput.Password
+      echoMode: form.secret ? TextInput.Password : TextInput.Normal
       hasError: form.errorMessage !== ""
-      placeholderText: qsTr("Password")
+      placeholderText: form.placeholder
       visible: !form.connecting
 
       onCancelled: form.cancelled()
@@ -391,7 +404,7 @@ PanelContentBase {
         icon: form.errorMessage !== "" ? "󰀦" : ""
         isEnabled: pwField.text.trim() !== ""
         size: form.buttonSize
-        text: form.errorMessage !== "" ? qsTr("Retry") : qsTr("Connect")
+        text: form.errorMessage !== "" ? qsTr("Retry") : form.submitLabel
         visible: !form.connecting
 
         onClicked: form.submitted(pwField.text)
@@ -413,7 +426,7 @@ PanelContentBase {
     signal ssidSubmitted(string ssid)
 
     function clearInputs(): void {
-      ssidField.text = "";
+      ssidForm.clear();
       credForm.clear();
     }
 
@@ -425,37 +438,17 @@ PanelContentBase {
       size: "sm"
       text: sheet.ssidMode ? qsTr("Hidden Network") : sheet.waitingMode ? qsTr("Connecting to “%1”").arg(sheet.targetName) : qsTr("Connect to “%1”").arg(sheet.targetName)
     }
-    SheetField {
-      id: ssidField
+    CredentialForm {
+      id: ssidForm
 
       Layout.fillWidth: true
-      placeholderText: qsTr("Network name")
+      placeholder: qsTr("Network name")
+      secret: false
+      submitLabel: qsTr("Next")
       visible: sheet.ssidMode
 
       onCancelled: sheet.cancelled()
-      onInputAccepted: if (text !== "")
-        sheet.ssidSubmitted(text)
-    }
-    RowLayout {
-      Layout.fillWidth: true
-      spacing: Theme.spacingSm
-      visible: sheet.ssidMode
-
-      Item {
-        Layout.fillWidth: true
-      }
-      OButton {
-        text: qsTr("Cancel")
-        variant: "ghost"
-
-        onClicked: sheet.cancelled()
-      }
-      OButton {
-        isEnabled: ssidField.text.trim() !== ""
-        text: qsTr("Next")
-
-        onClicked: sheet.ssidSubmitted(ssidField.text)
-      }
+      onSubmitted: ssid => sheet.ssidSubmitted(ssid)
     }
     CredentialForm {
       id: credForm

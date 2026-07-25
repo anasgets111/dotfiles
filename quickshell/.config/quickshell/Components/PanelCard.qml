@@ -17,15 +17,9 @@ Rectangle {
   implicitHeight: contentSlot.children.reduce((height, child) => Math.max(height, child.implicitHeight), 0) + padding * 2
   radius: Theme.radiusLg
 
-  Behavior on border.color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
+  Theme.ColorTransition on border.color {
   }
-  Behavior on color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
+  Theme.ColorTransition on color {
   }
 
   Item {

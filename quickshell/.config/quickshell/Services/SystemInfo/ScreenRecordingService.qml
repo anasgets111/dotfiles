@@ -9,7 +9,11 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  readonly property var _audioArgs: ({off: [], desktop: ["-a", "default_output"], mic: ["-a", "default_output|default_input"]})
+  readonly property var _audioArgs: ({
+      off: [],
+      desktop: ["-a", "default_output"],
+      mic: ["-a", "default_output|default_input"]
+    })
   property bool _cleanupInFlight: false
   // Seconds banked by previous run segments; the live segment is measured from _segmentStart.
   property double _elapsedBase: 0
@@ -18,7 +22,11 @@ Singleton {
   readonly property string _launchScript: 'lock_path="$1"; output_path="$2"; launched_at="$3"; shift 3; "$@" </dev/null >/dev/null 2>&1 & pid=$!; for _ in 1 2 3 4 5 6 7 8 9 10; do exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null || true); [ "${exe##*/}" = gpu-screen-recorder ] && break; kill -0 "$pid" 2>/dev/null || exit 1; sleep 0.02; done; [ "${exe##*/}" = gpu-screen-recorder ] || { kill -TERM "$pid" 2>/dev/null || true; exit 1; }; start_time=$(awk "{print \\$22}" "/proc/$pid/stat" 2>/dev/null); [ -n "$start_time" ] || { kill -INT "$pid" 2>/dev/null || true; exit 1; }; lock_tmp="$lock_path.$$"; { printf "%s\\n%s\\n%s\\n%s\\n" "$pid" "$start_time" "$output_path" "$launched_at" > "$lock_tmp" && mv -f "$lock_tmp" "$lock_path"; } || { rm -f "$lock_tmp"; kill -INT "$pid" 2>/dev/null || true; exit 1; }; printf "%s\\n%s\\n" "$pid" "$start_time" || { rm -f "$lock_path"; kill -INT "$pid" 2>/dev/null || true; exit 1; }'
   readonly property string _probeScript: 'pid="$1"; expected_start="$2"; case "$pid" in ""|*[!0-9]*) exit 2;; esac; current_start=$(awk "{print \\$22}" "/proc/$pid/stat" 2>/dev/null) || exit 3; [ "$current_start" = "$expected_start" ] || exit 4; exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null) || exit 5; [ "${exe##*/}" = gpu-screen-recorder ] || exit 6'
   // Maps the user-facing presets onto gpu-screen-recorder's -q values.
-  readonly property var _qualityPresets: ({low: "medium", medium: "high", high: "very_high"})
+  readonly property var _qualityPresets: ({
+      low: "medium",
+      medium: "high",
+      high: "very_high"
+    })
   property int _recorderPid: 0
   property string _recorderStartTime: ""
   property double _segmentStart: 0

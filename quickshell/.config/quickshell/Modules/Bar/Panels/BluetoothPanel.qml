@@ -11,11 +11,8 @@ PanelContentBase {
   id: root
 
   readonly property bool active: root.ready && BluetoothService.enabled
-  readonly property var otherDevices: BluetoothService.deviceModels
   readonly property var connectedDevices: root.otherDevices.filter(d => d.connected)
-  readonly property var otherDevicesView: otherDevices.map(d => Object.assign({}, d, {
-      group: d.paired ? "paired" : "available"
-    }))
+  readonly property var otherDevices: BluetoothService.deviceModels
   readonly property var primaryDevice: connectedDevices[0] ?? null
   readonly property bool ready: BluetoothService.available
   readonly property bool shouldDiscover: root.isOpen && root.active
@@ -39,18 +36,22 @@ PanelContentBase {
     anchors.top: parent.top
     spacing: 0
 
-    PanelToggleCard {
-      Layout.bottomMargin: root.active ? Theme.spacingXs : Theme.spacingMd
-      active: root.ready
-      checked: root.active
-      detail: !root.ready ? qsTr("Unavailable") : !root.active ? qsTr("Off") : root.primaryDevice ? [qsTr("%1 connected").arg(root.connectedDevices.length), root.primaryDevice.name, root.primaryDevice.batteryText].filter(Boolean).join(" · ") : BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices connected")
+    PanelHeader {
+      Layout.bottomMargin: Theme.spacingMd
+      accent: root.active ? Theme.activeColor : Theme.textInactiveColor
       icon: root.active ? "󰂯" : "󰂲"
-      label: qsTr("Bluetooth")
+      subtitle: !root.ready ? qsTr("Unavailable") : !root.active ? qsTr("Off") : root.primaryDevice ? [qsTr("%1 connected").arg(root.connectedDevices.length), root.primaryDevice.name, root.primaryDevice.batteryText].filter(Boolean).join(" · ") : BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices connected")
+      title: qsTr("Bluetooth")
 
-      onToggled: c => {
-        if (!c)
-          BluetoothService.stopDiscovery();
-        BluetoothService.setEnabled(c);
+      OToggle {
+        checked: root.active
+        disabled: !root.ready
+
+        onToggled: c => {
+          if (!c)
+            BluetoothService.stopDiscovery();
+          BluetoothService.setEnabled(c);
+        }
       }
     }
     RowLayout {
@@ -80,12 +81,16 @@ PanelContentBase {
       spacing: 0
       visible: root.active && root.otherDevices.length > 0
 
-      OText {
+      PanelSectionHeader {
         Layout.bottomMargin: Theme.spacingXs
-        bold: true
-        color: Theme.textInactiveColor
-        size: "xs"
-        text: qsTr("Devices").toUpperCase()
+        Layout.fillWidth: true
+        section: qsTr("Devices")
+
+        OSpinner {
+          color: Theme.textInactiveColor
+          running: BluetoothService.discovering
+          spinnerSize: Theme.iconSizeMd
+        }
       }
       Rectangle {
         Layout.fillWidth: true
@@ -99,7 +104,7 @@ PanelContentBase {
           anchors.fill: parent
           boundsBehavior: Flickable.StopAtBounds
           interactive: contentHeight > height
-          model: root.otherDevicesView
+          model: root.otherDevices
           section.criteria: ViewSection.FullString
           section.property: root.showDeviceGroups ? "group" : ""
           spacing: Theme.borderWidthMedium
@@ -126,7 +131,6 @@ PanelContentBase {
       Layout.fillWidth: true
       Layout.minimumHeight: 120
       icon: "󰂲"
-      iconOpacity: root.active ? 0.4 : 0.3
       text: root.active ? (BluetoothService.discovering ? qsTr("Scanning…") : qsTr("No devices found")) : (!root.ready ? qsTr("Bluetooth unavailable") : qsTr("Bluetooth off"))
       visible: !root.active || root.otherDevices.length === 0
     }
@@ -148,13 +152,15 @@ PanelContentBase {
     readonly property string addr: device?.address || ""
     readonly property var availableCodecs: device?.availableCodecs || []
     readonly property bool canConnect: !!device?.canConnect
+    readonly property bool canPickCodec: !!device?.connected && !!device?.isAudio
     readonly property string currentCodec: device?.currentCodec || ""
     property var device: null
 
     busy: !!row.device?.busy
+    expandable: row.canPickCodec
     expanded: root.showCodecFor === row.addr
     icon: row.device?.icon || "󰂯"
-    rowActionEnabled: row.canConnect || (!!row.device?.connected && !!row.device?.isAudio)
+    rowActionEnabled: row.canConnect || row.canPickCodec
     selected: !!row.device?.connected
     subtitle: row.device?.statusText || ""
     title: row.device?.name || qsTr("Unknown")
@@ -221,7 +227,7 @@ PanelContentBase {
     ]
 
     onClicked: {
-      if (row.device?.connected && row.device?.isAudio) {
+      if (row.canPickCodec) {
         root.showCodecFor = root.showCodecFor === row.addr ? "" : row.addr;
         if (root.showCodecFor)
           BluetoothService.fetchCodecs(row.addr);

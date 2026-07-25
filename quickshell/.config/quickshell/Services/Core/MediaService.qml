@@ -13,10 +13,11 @@ Singleton {
   property real _seekFallbackLength: 0
   property var _seekPlayer: null
   property int _seekTrackId: -1
+  property int _selectedPlayerId: -1
   readonly property var _videoExts: ["mp4", "mkv", "webm", "avi", "mov", "m4v", "mpeg", "mpg", "wmv", "flv"]
   readonly property var _videoHints: ["mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex", "freetube", "stremio", "clapper", "dragon", "hypnotix"]
   readonly property var _videoPatterns: ["youtube.com/watch", "laracasts.com", "streamimdb.ru", "youtu.be", "netflix.com", "primevideo.com", "osnplus.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "crunchyroll.com", "max.com", "hbomax.com", "udemy.com", "coursera.org", "pluralsight.com", "nebula.tv", "odysee.com", "dailymotion.com", "tv.apple.com", "tiktok.com", "instagram.com/reel", "meet.google.com", "teams.microsoft.com", "teams.live.com", "zoom.us", "discord.com", "meet.jit.si", "whereby.com", "webex.com", "gotomeeting.com"]
-  readonly property MprisPlayer active: players.find(player => player.playbackState === MprisPlaybackState.Playing) ?? players.find(player => player.playbackState !== MprisPlaybackState.Stopped) ?? players.find(player => player.canPlay) ?? players[0] ?? null
+  readonly property MprisPlayer active: players.find(player => player.uniqueId === root._selectedPlayerId) ?? players.find(player => player.playbackState === MprisPlaybackState.Playing) ?? players.find(player => player.playbackState !== MprisPlaybackState.Stopped) ?? players.find(player => player.canPlay) ?? players[0] ?? null
   readonly property bool anyVideoPlaying: hasPlayingVideo || (pipewireVideoActive && _isVideo(active))
   readonly property bool canGoNext: active?.canGoNext ?? false
   readonly property bool canGoPrevious: active?.canGoPrevious ?? false
@@ -91,6 +92,12 @@ Singleton {
     if (trackLength <= 0 || !Number.isFinite(positionRatio))
       return;
     root.seek(Math.max(0, Math.min(1, positionRatio)) * trackLength);
+  }
+  function selectNextPlayer(): void {
+    if (players.length < 2)
+      return;
+    const currentIndex = players.findIndex(player => player.uniqueId === root.active?.uniqueId);
+    root._selectedPlayerId = players[(currentIndex + 1) % players.length].uniqueId;
   }
   function stop(): void {
     if (active?.canControl)

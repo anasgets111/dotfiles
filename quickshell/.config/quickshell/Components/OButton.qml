@@ -43,10 +43,7 @@ Rectangle {
   opacity: isEnabled ? 1 : Theme.opacityDisabled
   radius: Theme.radiusMd
 
-  Behavior on color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
+  Theme.ColorTransition on color {
   }
 
   RowLayout {

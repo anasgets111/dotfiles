@@ -38,9 +38,6 @@ Singleton {
     }
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   }
-  function timestamp() {
-    return Qt.formatTime(clock.date, use24Hour ? "HH:mm:ss" : "h:mm:ss AP");
-  }
 
   Component.onCompleted: {
     if (weekStart < 1 || weekStart > 7)

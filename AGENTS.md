@@ -129,6 +129,8 @@ import qs.Services.Utils
 - Use optional chaining (`?.`) and nullish coalescing (`??`)
 - Use `try/catch` inside `onLoaded` handlers for JSON parsing
 - Use Theme constants — never hardcode colors, sizes, or spacing
+- Standard transitions are `Theme.ColorTransition on <prop> {}` and `Theme.NumberTransition on <prop> {}` (inline components in `Config/Theme.qml`). Write a raw `Behavior` only for a genuinely different duration or easing
+- `OText` already sets `elide: Text.ElideRight`, `verticalAlignment`, font family/size/weight — do not restate them
 
 ## Ponytail: Lazy Senior Dev Mode
 
@@ -161,7 +163,6 @@ Do not be lazy about understanding the problem, trust-boundary validation, data-
 - `home/.profile` — XDG dirs, NVIDIA env vars, Wayland toolkit config, PATH
 - `fish/.config/fish/conf.d/various.fish` — Custom fish functions
 - `quickshell/.config/quickshell/.qmlformat.ini` — QML formatting rules
-- `NixConfig/` — Inactive NixOS experiment; ignore unless explicitly requested
 
 ## Agent Memory & Lessons Learned
 
@@ -172,7 +173,9 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 ### Known QML / Quickshell Pitfalls
 
 <!-- Add entries below as they are discovered -->
-- A `JsonObject`'s declared properties can still read `undefined` while settings load, even though the object itself is non-null. Keep the `settings?.key ?? default` guards on every read: an unguarded read assigns `undefined` (`Unable to assign [undefined] to "x"`) and, having bound to a property that did not yet exist, never re-evaluates once the real value arrives. The `?? default` fallbacks are load-bearing, not duplicates of the schema defaults.
+- A `JsonObject`'s declared properties can still read `undefined` while settings load, even though the object itself is non-null. Keep the `settings?.key ?? default` guards on every read: an unguarded read assigns `undefined` (`Unable to assign [undefined] to "x"`) and, having bound to a property that did not yet exist, never re-evaluates once the real value arrives. The `?? default` fallbacks are load-bearing, not duplicates of the schema defaults. The same warning comes from `?.` inside a `&&` chain — `a && b?.c && d` yields `undefined`, not `false`, because `&&` returns the first falsy operand and stops. Coalesce the optional read (`(b?.c ?? false)`) rather than trusting the boolean tail.
+- Assigning a new JS array to a `ListView.model` resets the view and destroys every delegate, taking in-delegate state with it — typed text, focus, per-row scroll. A list that refreshes on a timer will therefore wipe an inline input mid-typing. Either give delegates stable identity (an `ObjectModel`/`QAbstractItemModel` keyed by a real id) or hold the array still while a delegate owns user input, as `NetworkPanel.listFrozen` does.
+- `MprisPlayer.position` only refreshes when you call `positionChanged()`, and each call is a DBus round trip. A player whose bus name has vanished can linger in `Mpris.players`, so every poll then logs `QDBusError("org.freedesktop.DBus.Error.ServiceUnknown")`. Gate position polling on something that proves the read is usable (`positionSupported` and a nonzero length), never on "the panel is open".
 - An `IdleMonitor` starts counting when it subscribes, not from the last input: a monitor enabled while the seat has already been idle past its timeout still waits the full timeout again (measured on niri). The idle stages rely on this — each stage's gate opens when the previous one completes, and the stage then waits its own timeout, which is what makes the flow sequential. Do not "simplify" those gates away or convert the timeouts to cumulative offsets; both break the ordering.
 - `IdleMonitor.timeout` and `respectInhibitors` are Qt *bindable* properties, and a QML binding on them never reaches `IdleMonitor::updateNotification`, so the wayland notification is never re-registered and `isIdle` silently stops firing — no error. This bites whenever the value depends on state: binding `respectInhibitors` to lock state killed DPMS on every lock, and binding `timeout` to settings killed that stage whenever the timeout was edited in the panel. Assign both imperatively from a change handler instead (see `IdleService.IdleStage`); `enabled` is a plain property and re-registers correctly either way. `Component.onCompleted` is unavailable on `IdleMonitor`, so seed the first value with a plain binding that the handler then replaces.
 - Quickshell PipeWire nodes expose `PwNode.properties` and `PwNode.audio` fields only after binding, and they can still be incomplete until `node.ready`; guard bound-property reads and never write volume/mute before readiness.
@@ -189,6 +192,7 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 - `Animation.finished()` only fires for standalone top-level animations, not animations inside a `Behavior`, `Transition`, or group.
 - Follow the active instance's plain `log.log`; `quickshell log -f` can abort independently of a healthy shell.
 - In content-sized panels, top-anchor the root layout instead of filling the animated host height; `anchors.fill` compresses every child while the panel resizes.
+- A headless `quickshell -p` run creates no window, so layout polish never runs and `Layout.preferredHeight`/`fillHeight` are never applied — children keep their implicit sizes. Measured: a `PanelCard` whose `Layout.preferredHeight` reads back as 370 still reports `height: 67`, and the parent `ColumnLayout` reports an `implicitHeight` smaller than its children's sum. Headless runs prove that components instantiate and bindings evaluate without warnings; they say nothing about final geometry. Check that in the live shell.
 
 ## Operational Gotchas
 
@@ -196,5 +200,4 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 - `niri` subcommands take their own config option: validate a repository config with `niri validate --config path/to/config.kdl`, not `niri --config path/to/config.kdl validate`.
 - `systemd-run --scope` cannot be combined with `--pipe`, and a fixed-name scope may still be loaded briefly after its command exits. For streamed output with an immediately reusable fixed unit name, use a transient service with `--pipe --collect`.
 - Secrets in `.local_secrets/` (gitignored) — `.gitconfig` is symlinked from there
-- Waybar, swaync, swayosd, swaylock are all deprecated; Quickshell handles all UI
 - Default terminal is resolved via `xdg-terminal-exec`

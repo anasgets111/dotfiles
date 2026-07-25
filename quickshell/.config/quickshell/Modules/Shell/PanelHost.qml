@@ -9,6 +9,7 @@ import qs.Modules.Bar.Panels
 FocusScope {
   id: root
 
+  property bool _revealed: false
   property bool active: false
   property rect anchorRect: Qt.rect(0, 0, 0, 0)
   readonly property Region blurClipRegion: Region {
@@ -45,28 +46,32 @@ FocusScope {
   property var panelData: null
   property string panelId: ""
   readonly property PanelContentBase panelItem: panelLoader.item as PanelContentBase
-  property bool _revealed: false
   property rect retainedAnchorRect: Qt.rect(0, 0, 0, 0)
   property var retainedPanelComponent: null
   property var retainedPanelData: null
   property real retainedPanelHeight: 1
   property real retainedPanelWidth: Theme.panelDefaultWidth
+  // Fully arrived. Geometry may animate now; while it is still sliding in, a late anchor rect or a newly
+  // loaded panel's own size must land instantly or the surface visibly flies into place.
+  readonly property bool settled: panelBackground.revealProgress >= 1
   readonly property bool useFlatContainer: root.panelItem?.flatContainer ?? false
 
   signal closeRequested
 
+  // Both read the target geometry, never the animating panelBackground size: a position binding that
+  // re-evaluates every frame of a size animation retargets its own Behavior every frame and never lands.
   function calculateX() {
-    const centerX = root.effectiveAnchorRect.x + root.effectiveAnchorRect.width / 2 - panelBackground.width / 2;
+    const centerX = root.effectiveAnchorRect.x + root.effectiveAnchorRect.width / 2 - root.effectivePanelWidth / 2;
     const minX = Theme.spacingSm + root.cornerCutRadius;
-    const maxX = root.width - panelBackground.width - Theme.spacingSm - root.cornerCutRadius;
+    const maxX = root.width - root.effectivePanelWidth - Theme.spacingSm - root.cornerCutRadius;
     return Math.max(minX, Math.min(centerX, maxX));
   }
   function calculateY() {
     const belowY = Theme.panelHeight;
-    const aboveY = root.effectiveAnchorRect.y - panelBackground.height - Theme.panelAnchorGap;
-    const maxY = root.height - panelBackground.height - Theme.panelScreenInset;
+    const aboveY = root.effectiveAnchorRect.y - root.effectivePanelHeight - Theme.panelAnchorGap;
+    const maxY = root.height - root.effectivePanelHeight - Theme.panelScreenInset;
 
-    if (belowY + panelBackground.height <= root.height - Theme.panelScreenInset)
+    if (belowY + root.effectivePanelHeight <= root.height - Theme.panelScreenInset)
       return Math.round(belowY);
     if (aboveY >= Theme.panelScreenInset)
       return Math.round(aboveY);
@@ -106,13 +111,10 @@ FocusScope {
   }
   onAnchorRectChanged: if (root.active && root.panelComponent !== null)
     root.retainedAnchorRect = root.anchorRect
-  onPanelComponentChanged: {
-    if (root.panelComponent === null)
-      return;
-    root.retainedPanelComponent = root.panelComponent;
-    if (root.active)
-      root._revealed = false;
-  }
+  // Deliberately does not un-reveal: switching panels morphs the surface in place instead of retracting
+  // and re-dropping it. The null check keeps the last component for the closing animation.
+  onPanelComponentChanged: if (root.panelComponent !== null)
+    root.retainedPanelComponent = root.panelComponent
   onPanelContentHeightChanged: if (root.active && root.panelComponent !== null)
     root.retainedPanelHeight = root.livePanelHeight
   onPanelContentWidthChanged: if (root.active && root.panelComponent !== null)
@@ -179,19 +181,20 @@ FocusScope {
       x: root.calculateX()
       y: hiddenY + (targetY - hiddenY) * revealProgress
 
-      Behavior on height {
-        enabled: root._revealed
-
-        NumberAnimation {
-          duration: Theme.animationDuration
-          easing.type: Easing.OutCubic
-        }
+      Theme.NumberTransition on height {
+        enabled: root.settled
       }
       Behavior on revealProgress {
         NumberAnimation {
           duration: Theme.animationDuration
           easing.type: Easing.OutQuad
         }
+      }
+      Theme.NumberTransition on width {
+        enabled: root.settled
+      }
+      Theme.NumberTransition on x {
+        enabled: root.settled
       }
 
       Loader {
@@ -208,7 +211,19 @@ FocusScope {
           root.panelItem.height = Qt.binding(() => panelLoader.height);
           root.panelItem.isOpen = Qt.binding(() => root.active);
           root.panelItem.panelData = Qt.binding(() => root.effectivePanelData);
+          contentFade.restart();
           Qt.callLater(root.revealPanel);
+        }
+
+        NumberAnimation {
+          id: contentFade
+
+          duration: Theme.animationDuration
+          easing.type: Easing.OutQuad
+          from: 0
+          property: "opacity"
+          target: panelLoader
+          to: 1
         }
       }
     }

@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Layouts
 import qs.Config
 
 Item {
@@ -8,8 +9,9 @@ Item {
 
   required property string section
   property string sectionLabel: root.section
+  default property alias trailing: trailingSlot.data
 
-  implicitHeight: label.implicitHeight + Theme.spacingXs
+  implicitHeight: Math.max(label.implicitHeight, trailingSlot.implicitHeight) + Theme.spacingXs
 
   OText {
     id: label
@@ -21,6 +23,13 @@ Item {
     color: Theme.textInactiveColor
     opacity: Theme.opacityMuted
     size: "xs"
-    text: root.sectionLabel
+    text: root.sectionLabel.toUpperCase()
+  }
+  RowLayout {
+    id: trailingSlot
+
+    anchors.right: parent.right
+    anchors.verticalCenter: label.verticalCenter
+    spacing: Theme.spacingXs
   }
 }

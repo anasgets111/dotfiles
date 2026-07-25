@@ -12,7 +12,6 @@ Item {
   property int count: 0
   property Component delegate // receives required property int index
   readonly property int effectiveCollapsedIndex: Math.max(0, Math.min(pill.collapsedIndex, Math.max(0, pill.count - 1)))
-  property bool expandOnHover: true
   property bool expanded: false
   readonly property int expandedWidth: (pill.count * pill.slotW) + (Math.max(0, pill.count - 1) * pill.spacing)
   property bool holdOpen: false
@@ -38,8 +37,6 @@ Item {
   }
 
   HoverHandler {
-    enabled: pill.expandOnHover
-
     onHoveredChanged: {
       if (hovered) {
         collapseTimer.stop();

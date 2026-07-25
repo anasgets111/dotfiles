@@ -233,15 +233,9 @@ Item {
               color: messageItem.isMultipleItems ? (messageItem.isHovered ? Theme.activeSubtle : Theme.bgSubtle) : "transparent"
               radius: Theme.radiusSm
 
-              Behavior on border.color {
-                ColorAnimation {
-                  duration: Theme.animationDuration
-                }
+              Theme.ColorTransition on border.color {
               }
-              Behavior on color {
-                ColorAnimation {
-                  duration: Theme.animationDuration
-                }
+              Theme.ColorTransition on color {
               }
             }
             ColumnLayout {

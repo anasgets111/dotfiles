@@ -13,6 +13,7 @@ PanelContentBase {
 
   property bool showCompletedLog: false
   readonly property bool showLog: UpdateService.isUpdating || UpdateService.isError || (UpdateService.isCompleted && showCompletedLog)
+  readonly property var sortedPackages: UpdateService.updatePackages.slice().sort((left, right) => left.name.localeCompare(right.name))
 
   function descriptionText(): string {
     if (!UpdateService.ready)
@@ -20,7 +21,7 @@ PanelContentBase {
     if (UpdateService.isUpdating)
       return [UpdateService.currentPackage, UpdateService.progressDeterminate ? `${UpdateService.currentPackageIndex}/${UpdateService.totalPackagesToUpdate}` : ""].filter(Boolean).join(" · ");
     if (UpdateService.isCompleted)
-      return qsTr("%1 packages · %2 · %3 warnings%4").arg(UpdateService.completedPackageCount).arg(root.durationText(UpdateService.updateDurationMs)).arg(UpdateService.warningCount).arg(UpdateService.rebootRequired ? qsTr(" · Reboot required") : "");
+      return qsTr("%1 packages · %2 · %3 warnings").arg(UpdateService.completedPackageCount).arg(root.durationText(UpdateService.updateDurationMs)).arg(UpdateService.warningCount);
     if (UpdateService.isStale && UpdateService.checkError)
       return qsTr("Last successful result retained · %1").arg(UpdateService.checkError);
     return UpdateService.totalUpdates > 0 ? qsTr("%1 download · %2 packages").arg(Utils.fmtKib(UpdateService.totalDownloadSize)).arg(UpdateService.totalUpdates) : qsTr("No package updates available");
@@ -76,6 +77,25 @@ PanelContentBase {
     anchors.top: parent.top
     spacing: Theme.spacingMd
 
+    PanelHeader {
+      accent: UpdateService.isError ? Theme.critical : Theme.activeColor
+      icon: "󰚰"
+      subtitle: root.lastCheckText()
+      title: qsTr("Updates")
+
+      InfoBadge {
+        badgeColor: Theme.warning
+        text: qsTr("Reboot required")
+        visible: UpdateService.rebootRequired
+      }
+      PanelActionIcon {
+        icon: "󰑐"
+        isEnabled: UpdateService.ready && !UpdateService.busy
+        tooltipText: qsTr("Check for updates")
+
+        onClicked: UpdateService.doPoll()
+      }
+    }
     PanelCard {
       Layout.fillWidth: true
       tone: UpdateService.isError ? "error" : UpdateService.isStale && UpdateService.checkError ? "warning" : UpdateService.isCompleted ? "active" : "standard"
@@ -84,21 +104,11 @@ PanelContentBase {
         spacing: Theme.spacingXs
         width: parent?.width ?? 0
 
-        RowLayout {
+        OText {
           Layout.fillWidth: true
-
-          OText {
-            Layout.fillWidth: true
-            bold: true
-            font.pixelSize: Theme.fontLg
-            text: root.statusText()
-          }
-          OText {
-            color: Theme.textInactiveColor
-            size: "xs"
-            text: root.lastCheckText()
-            visible: !UpdateService.isUpdating
-          }
+          bold: true
+          font.pixelSize: Theme.fontLg
+          text: root.statusText()
         }
         OText {
           Layout.fillWidth: true
@@ -108,7 +118,7 @@ PanelContentBase {
         }
         Rectangle {
           Layout.fillWidth: true
-          Layout.preferredHeight: Theme.radiusSm
+          Layout.preferredHeight: Theme.spacingSm
           color: Theme.borderColor
           radius: Theme.radiusXs
           visible: UpdateService.isUpdating && UpdateService.progressDeterminate
@@ -166,7 +176,7 @@ PanelContentBase {
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         headerPositioning: ListView.OverlayHeader
-        model: UpdateService.updatePackages.slice().sort((left, right) => left.name.localeCompare(right.name))
+        model: root.sortedPackages
         visible: !UpdateService.isChecking && UpdateService.totalUpdates > 0
 
         delegate: Item {
@@ -177,28 +187,10 @@ PanelContentBase {
           height: Theme.itemHeight
           width: ListView.view.width
 
-          RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Theme.spacingSm
-            anchors.rightMargin: Theme.spacingSm
-
-            OText {
-              Layout.preferredWidth: Theme.updatePackageColumnWidth
-              elide: Text.ElideRight
-              text: packageRow.modelData.name ?? ""
-            }
-            OText {
-              Layout.preferredWidth: Theme.updateOldVersionColumnWidth
-              color: Theme.textInactiveColor
-              elide: Text.ElideRight
-              text: packageRow.modelData.oldVersion ?? ""
-            }
-            OText {
-              Layout.fillWidth: true
-              color: Theme.activeColor
-              elide: Text.ElideRight
-              text: packageRow.modelData.newVersion ?? ""
-            }
+          PackageColumns {
+            newVersion: packageRow.modelData.newVersion ?? ""
+            oldVersion: packageRow.modelData.oldVersion ?? ""
+            packageName: packageRow.modelData.name ?? ""
           }
         }
         header: Rectangle {
@@ -207,26 +199,11 @@ PanelContentBase {
           width: packageList.width
           z: 2
 
-          RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Theme.spacingSm
-            anchors.rightMargin: Theme.spacingSm
-
-            OText {
-              Layout.preferredWidth: Theme.updatePackageColumnWidth
-              bold: true
-              text: qsTr("Package")
-            }
-            OText {
-              Layout.preferredWidth: Theme.updateOldVersionColumnWidth
-              bold: true
-              text: qsTr("Old Version")
-            }
-            OText {
-              Layout.fillWidth: true
-              bold: true
-              text: qsTr("New Version")
-            }
+          PackageColumns {
+            heading: true
+            newVersion: qsTr("New Version")
+            oldVersion: qsTr("Old Version")
+            packageName: qsTr("Package")
           }
         }
       }
@@ -242,12 +219,22 @@ PanelContentBase {
         spacing: Theme.spacingSm
         width: parent?.width ?? 0
 
-        OText {
+        RowLayout {
           Layout.fillWidth: true
-          color: Theme.critical
-          text: UpdateService.errorMessage
-          visible: UpdateService.isError
-          wrapMode: Text.Wrap
+          spacing: Theme.spacingSm
+
+          OText {
+            Layout.fillWidth: true
+            color: Theme.critical
+            text: UpdateService.isError ? UpdateService.errorMessage : ""
+            wrapMode: Text.Wrap
+          }
+          PanelActionIcon {
+            icon: "󰆏"
+            tooltipText: qsTr("Copy log")
+
+            onClicked: Utils.copyText(UpdateService.logText())
+          }
         }
         ListView {
           property bool followOutput: true
@@ -288,7 +275,7 @@ PanelContentBase {
         OText {
           Layout.fillWidth: true
           color: Theme.textInactiveColor
-          text: UpdateService.rebootRequired ? qsTr("Update finished. A reboot is required.") : qsTr("Update finished successfully.")
+          text: qsTr("Update finished successfully.")
         }
         OButton {
           text: qsTr("View log")
@@ -306,15 +293,6 @@ PanelContentBase {
         spacing: Theme.spacingSm
         width: parent?.width ?? 0
 
-        OButton {
-          Layout.fillWidth: true
-          isEnabled: UpdateService.ready && !UpdateService.busy
-          text: qsTr("Check")
-          variant: "secondary"
-          visible: UpdateService.ready && UpdateService.isIdle && UpdateService.isStale
-
-          onClicked: UpdateService.doPoll()
-        }
         OButton {
           Layout.fillWidth: true
           isEnabled: UpdateService.ready && !UpdateService.busy && (UpdateService.totalUpdates > 0 || UpdateService.isError)
@@ -335,6 +313,37 @@ PanelContentBase {
           }
         }
       }
+    }
+  }
+
+  component PackageColumns: RowLayout {
+    id: columns
+
+    property bool heading: false
+    property string newVersion: ""
+    property string oldVersion: ""
+    property string packageName: ""
+
+    anchors.fill: parent
+    anchors.leftMargin: Theme.spacingSm
+    anchors.rightMargin: Theme.spacingSm
+
+    OText {
+      Layout.preferredWidth: Theme.updatePackageColumnWidth
+      bold: columns.heading
+      text: columns.packageName
+    }
+    OText {
+      Layout.preferredWidth: Theme.updateOldVersionColumnWidth
+      bold: columns.heading
+      color: columns.heading ? Theme.textActiveColor : Theme.textInactiveColor
+      text: columns.oldVersion
+    }
+    OText {
+      Layout.fillWidth: true
+      bold: columns.heading
+      color: columns.heading ? Theme.textActiveColor : Theme.activeColor
+      text: columns.newVersion
     }
   }
 }

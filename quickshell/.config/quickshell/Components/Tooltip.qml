@@ -9,8 +9,6 @@ PopupWindow {
   id: root
 
   readonly property real _hPadding: Theme.spacingSm
-  property real _mouseX: 0
-  property real _mouseY: 0
   readonly property real _vPadding: Theme.spacingXs
   readonly property color bgColor: Theme.glassSurfaceColor
   readonly property Region blurRegion: Region {
@@ -21,9 +19,6 @@ PopupWindow {
   readonly property color fgColor: Theme.textContrast(bgColor)
   readonly property bool hasCustomContent: contentContainer.children.length > 0
   property bool isVisible: false
-  property real mouseOffsetX: 8
-  property real mouseOffsetY: 8
-  property bool positionAtMouse: false
   property Item target: null
   property string text: ""
 
@@ -36,10 +31,10 @@ PopupWindow {
 
   BackgroundEffect.blurRegion: root.blurRegion
   anchor.adjustment: PopupAdjustment.Flip | PopupAdjustment.Slide
-  anchor.edges: root.positionAtMouse ? Edges.Top | Edges.Left : Edges.Bottom
-  anchor.gravity: root.positionAtMouse ? Edges.Bottom | Edges.Right : Edges.Bottom
+  anchor.edges: Edges.Bottom
+  anchor.gravity: Edges.Bottom
   anchor.item: root.target
-  anchor.rect: root.positionAtMouse ? Qt.rect(root._mouseX + root.mouseOffsetX, root._mouseY + root.mouseOffsetY, 1, 1) : Qt.rect((root.target?.width ?? 0) / 2, (root.target?.height ?? 0) + Theme.spacingMd, 1, 1)
+  anchor.rect: Qt.rect((root.target?.width ?? 0) / 2, (root.target?.height ?? 0) + Theme.spacingMd, 1, 1)
   // qmllint enable unresolved-type missing-type
 
   color: "transparent"
@@ -65,10 +60,6 @@ PopupWindow {
     }
   }
   onWidthChanged: root.updateAnchor()
-  on_MouseXChanged: if (root.positionAtMouse)
-    root.updateAnchor()
-  on_MouseYChanged: if (root.positionAtMouse)
-    root.updateAnchor()
 
   Connections {
     function onHeightChanged(): void {
@@ -96,11 +87,7 @@ PopupWindow {
     opacity: 0
     radius: Theme.radiusMd
 
-    Behavior on opacity {
-      NumberAnimation {
-        duration: Theme.animationDuration
-        easing.type: Easing.OutCubic
-      }
+    Theme.NumberTransition on opacity {
     }
 
     onOpacityChanged: if (opacity === 0 && !root.isVisible)

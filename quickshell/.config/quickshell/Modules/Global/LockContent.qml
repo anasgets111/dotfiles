@@ -254,10 +254,7 @@ Item {
         radius: Theme.radiusFull
         visible: root.isMainMonitor
 
-        Behavior on border.color {
-          ColorAnimation {
-            duration: Theme.animationDuration
-          }
+        Theme.ColorTransition on border.color {
         }
         layer.effect: MultiEffect {
           shadowBlur: 14

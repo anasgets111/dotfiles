@@ -34,14 +34,19 @@ Singleton {
   readonly property var viewWifiAps: root.savedWifiAps.filter(accessPoint => !accessPoint.connected).concat(root.availableWifiAps.filter(accessPoint => !accessPoint.connected))
   readonly property var wifiAps: {
     const networks = root.wifiDevice?.networks.values ?? [];
-    return networks.map(network => ({
-          ssid: network.name,
-          signal: Math.round(network.signalStrength * 100),
-          band: root._bandMap[network.name] ?? "",
-          secured: root.isSecured(network.security),
-          connected: network.connected,
-          saved: network.known
-        })).sort((leftAccessPoint, rightAccessPoint) => (rightAccessPoint.connected - leftAccessPoint.connected) || (rightAccessPoint.signal - leftAccessPoint.signal));
+    return networks.map(network => {
+      const signalPercent = Math.round(network.signalStrength * 100);
+      return {
+        ssid: network.name,
+        signal: signalPercent,
+        tier: root.signalTier(signalPercent),
+        group: network.known ? "saved" : "available",
+        band: root._bandMap[network.name] ?? "",
+        secured: root.isSecured(network.security),
+        connected: network.connected,
+        saved: network.known
+      };
+    }).sort((leftAccessPoint, rightAccessPoint) => (rightAccessPoint.connected - leftAccessPoint.connected) || (rightAccessPoint.tier - leftAccessPoint.tier) || String(leftAccessPoint.ssid ?? "").localeCompare(String(rightAccessPoint.ssid ?? "")));
   }
   readonly property var wifiDevice: root.deviceOfType(DeviceType.Wifi)
   readonly property string wifiInterface: root.wifiDevice?.name ?? ""
@@ -118,11 +123,7 @@ Singleton {
     root._connectingSsid = target;
   }
   function deviceOfType(deviceType: int): var {
-    for (const device of Networking.devices.values) {
-      if (device.type === deviceType)
-        return device;
-    }
-    return null;
+    return Networking.devices.values.find(device => device.type === deviceType) ?? null;
   }
   function disconnectEthernet(): void {
     root.wiredDevice?.disconnect();
@@ -134,8 +135,7 @@ Singleton {
     root.wifiNetworkForSsid(ssid)?.forget();
   }
   function getWifiIcon(signal: int): string {
-    const normalizedSignal = Math.max(0, Math.min(100, signal | 0));
-    return normalizedSignal >= 95 ? "󰤨" : normalizedSignal >= 80 ? "󰤥" : normalizedSignal >= 50 ? "󰤢" : "󰤟";
+    return ["󰤟", "󰤢", "󰤥", "󰤨"][root.signalTier(signal)];
   }
   function inferBandLabel(frequencyText: string): string {
     const frequencyMhz = parseInt(String(frequencyText || "").split(" ")[0], 10);
@@ -228,6 +228,10 @@ Singleton {
   }
   function setWifiRadioEnabled(enabled: bool): void {
     Networking.wifiEnabled = enabled;
+  }
+  // Rows are ordered by tier, not raw signal, so scan-to-scan jitter cannot reshuffle the list under the cursor.
+  function signalTier(signal: int): int {
+    return signal >= 95 ? 3 : signal >= 80 ? 2 : signal >= 50 ? 1 : 0;
   }
   function startWifiScan(): void {
     if (root.wifiDevice)

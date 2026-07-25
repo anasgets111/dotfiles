@@ -28,8 +28,7 @@ Rectangle {
   function toggle() {
     if (disabled)
       return;
-    root.checked = !root.checked;
-    root.toggled(root.checked);
+    root.toggled(!root.checked);
   }
 
   border.color: disabled ? Theme.borderSubtle : Theme.glassBorderColor
@@ -70,10 +69,7 @@ Rectangle {
     x: root.checked ? parent.width - width - root._thumbPadding : root._thumbPadding
     y: (parent.height - height) / 2
 
-    Behavior on color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
+    Theme.ColorTransition on color {
     }
     Behavior on scale {
       NumberAnimation {

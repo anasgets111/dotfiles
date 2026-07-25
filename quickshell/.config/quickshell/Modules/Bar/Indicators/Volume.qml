@@ -56,10 +56,7 @@ Rectangle {
   radius: Theme.itemRadius
   width: expanded ? Theme.volumeExpandedWidth : Theme.itemHeight
 
-  Behavior on border.color {
-    ColorAnimation {
-      duration: Theme.animationDuration
-    }
+  Theme.ColorTransition on border.color {
   }
   Behavior on width {
     NumberAnimation {
@@ -141,10 +138,7 @@ Rectangle {
     radius: root.radius
     z: 2
 
-    Behavior on border.color {
-      ColorAnimation {
-        duration: Theme.animationDuration
-      }
+    Theme.ColorTransition on border.color {
     }
   }
 }
