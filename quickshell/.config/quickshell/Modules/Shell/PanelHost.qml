@@ -16,12 +16,8 @@ FocusScope {
     intersection: Intersection.Intersect
     item: panelClipArea
   }
-  readonly property Region blurRegion: Region {
-    bottomLeftRadius: panelBackground.bottomLeftRadius
-    bottomRightRadius: panelBackground.bottomRightRadius
-    item: panelBackground
-    regions: [leftCorner.region, rightCorner.region, root.blurClipRegion]
-  }
+  // A Region ignores item visibility, so publishing this while hidden blurs an empty panel-shaped hole.
+  readonly property Region blurRegion: root.visible ? root.surfaceRegion : null
   readonly property bool contentActive: root.active || closeHoldTimer.running
   readonly property real cornerCutRadius: Math.min(Theme.panelRadius * 3, Theme.panelHeight)
   readonly property rect effectiveAnchorRect: root.active ? root.anchorRect : root.retainedAnchorRect
@@ -54,6 +50,12 @@ FocusScope {
   // Fully arrived. Geometry may animate now; while it is still sliding in, a late anchor rect or a newly
   // loaded panel's own size must land instantly or the surface visibly flies into place.
   readonly property bool settled: panelBackground.revealProgress >= 1
+  readonly property Region surfaceRegion: Region {
+    bottomLeftRadius: panelBackground.bottomLeftRadius
+    bottomRightRadius: panelBackground.bottomRightRadius
+    item: panelBackground
+    regions: [leftCorner.region, rightCorner.region, root.blurClipRegion]
+  }
   readonly property bool useFlatContainer: root.panelItem?.flatContainer ?? false
 
   signal closeRequested
