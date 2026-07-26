@@ -19,10 +19,6 @@ PanelContentBase {
       yesterday: qsTr("Yesterday")
     })
   readonly property bool hasNotifications: NotificationService.notifications.length > 0
-  readonly property real heightCeiling: root.maxAvailableHeight
-  property var inputFocusOwner: null
-  readonly property int padding: Theme.spacingMd
-
   readonly property string historySummary: {
     const count = NotificationService.notifications.length;
     if (count === 0)
@@ -35,12 +31,15 @@ PanelContentBase {
       parts.push(qsTr("silenced"));
     return parts.join(" · ");
   }
+  property var inputFocusOwner: null
+  readonly property int padding: Theme.spacingMd
+
   function setInputFocusOwner(owner: var): void {
     root.inputFocusOwner = owner;
     root.needsKeyboardFocus = owner !== null;
   }
 
-  preferredHeight: Math.min(contentColumn.implicitHeight + root.padding * 2, root.heightCeiling)
+  preferredHeight: Math.min(contentColumn.implicitHeight + root.padding * 2, root.maxAvailableHeight)
   preferredWidth: Theme.notificationPanelWidth
 
   Component.onDestruction: NotificationService.onOverlayClose()

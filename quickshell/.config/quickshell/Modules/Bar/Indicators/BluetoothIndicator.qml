@@ -48,6 +48,7 @@ Item {
 
     colorFg: root.connectedDevices.length > 0 ? Theme.activeColor : Theme.textContrast(Theme.glassControlColor)
     icon: root.btIcon
+    selected: root.panelOpen
     suppressTooltip: root.panelOpen
     tooltipText: [root.titleText, root.detailText1, root.detailText2].filter(t => t?.length > 0).join("\n")
 

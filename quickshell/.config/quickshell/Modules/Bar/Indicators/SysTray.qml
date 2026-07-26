@@ -36,12 +36,14 @@ Item {
       delegate: IconButton {
         id: btn
 
+        readonly property bool menuOpen: ShellUiState.isPanelOpen("tray", tray.screenName) && ShellUiState.panelData?.menuItem === modelData
         required property SystemTrayItem modelData
 
         Layout.alignment: Qt.AlignVCenter
         colorBg: "transparent"
+        selected: btn.menuOpen
         showBorder: false
-        suppressTooltip: ShellUiState.isPanelOpen("tray", tray.screenName) && ShellUiState.panelData?.menuItem === modelData
+        suppressTooltip: btn.menuOpen
         tooltipText: modelData && (modelData.tooltipTitle || modelData.title) || ""
         visible: modelData !== null
 

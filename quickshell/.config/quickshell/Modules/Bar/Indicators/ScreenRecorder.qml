@@ -19,6 +19,7 @@ Item {
     anchors.fill: parent
     colorBg: ScreenRecordingService.isRecording ? (ScreenRecordingService.isPaused ? Theme.glassControlColor : Theme.activeColor) : Theme.glassControlColor
     icon: ScreenRecordingService.isRecording ? (ScreenRecordingService.isPaused ? "󰏧" : "󰓛") : "󰞡"
+    selected: root.panelOpen
     suppressTooltip: root.panelOpen
     tooltipText: ScreenRecordingService.isRecording ? qsTr("Left-click to stop, right-click for options") : qsTr("Left-click for region, middle-click for current output, right-click for options")
 

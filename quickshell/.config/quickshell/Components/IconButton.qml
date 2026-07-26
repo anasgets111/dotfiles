@@ -19,13 +19,16 @@ Item {
   property color colorBorderHover: Theme.glassBorderHoverColor
   property color colorFg: Theme.textContrast(colorBg)
   property color colorFgHover: Theme.textContrast(colorBgHover)
-  readonly property color effectiveBg: !isEnabled ? colorBg : (hovered ? colorBgHover : colorBg)
-  readonly property color effectiveBorderColor: showBorder ? (hovered ? colorBorderHover : colorBorder) : "transparent"
-  readonly property color effectiveFg: !isEnabled ? Theme.textContrast(colorBg) : (hovered ? colorFgHover : colorFg)
+  // `selected` keeps each caller's semantic colorBg intact and marks the open state with an accent
+  // border, which also shows on borderless buttons.
+  readonly property color effectiveBg: !isEnabled ? colorBg : (hovered || selected ? colorBgHover : colorBg)
+  readonly property color effectiveBorderColor: selected ? Theme.activeColor : showBorder ? (hovered ? colorBorderHover : colorBorder) : "transparent"
+  readonly property color effectiveFg: !isEnabled ? Theme.textContrast(colorBg) : (hovered || selected ? colorFgHover : colorFg)
   readonly property bool hovered: mouseArea.containsMouse && iconButton.isEnabled
   property string icon: ""
   property real iconRotation: 0
   property bool isEnabled: true
+  property bool selected: false
   property string shape: "circle"
   property bool showBorder: true
   property string size: "md"

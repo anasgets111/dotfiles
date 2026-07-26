@@ -10,9 +10,10 @@ import qs.Services.UI
 Item {
   id: dateTimeDisplay
 
-  readonly property color bgColor: mouseArea.containsMouse ? Theme.glassControlHoverColor : Theme.glassControlColor
+  readonly property color bgColor: mouseArea.containsMouse || panelOpen ? Theme.glassControlHoverColor : Theme.glassControlColor
   readonly property bool hasNotifications: notificationCount > 0
   readonly property int notificationCount: NotificationService.notifications.length
+  readonly property bool panelOpen: ShellUiState.isPanelOpen("notifications", dateTimeDisplay.screenName)
   required property string screenName
 
   height: Theme.itemHeight
@@ -20,7 +21,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    border.color: mouseArea.containsMouse ? Theme.glassBorderHoverColor : Theme.glassBorderColor
+    border.color: dateTimeDisplay.panelOpen ? Theme.activeColor : mouseArea.containsMouse ? Theme.glassBorderHoverColor : Theme.glassBorderColor
     border.width: Theme.borderWidthThin
     color: dateTimeDisplay.bgColor
     radius: Theme.itemRadius
@@ -71,7 +72,7 @@ Item {
   Loader {
     id: tooltipLoader
 
-    readonly property bool requested: mouseArea.containsMouse && !ShellUiState.isPanelOpen("notifications", dateTimeDisplay.screenName)
+    readonly property bool requested: mouseArea.containsMouse && !dateTimeDisplay.panelOpen
     property bool retained: false
 
     active: requested || retained

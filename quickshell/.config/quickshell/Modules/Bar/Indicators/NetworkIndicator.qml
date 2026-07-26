@@ -66,6 +66,7 @@ Item {
     id: iconButton
 
     isEnabled: root.ready
+    selected: root.panelOpen
     suppressTooltip: root.panelOpen
     tooltipText: root.tooltipText
 

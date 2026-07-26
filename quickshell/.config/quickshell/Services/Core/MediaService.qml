@@ -9,10 +9,10 @@ Singleton {
 
   readonly property var _audioPatterns: ["music.youtube.com", "spotify.com", "soundcloud.com", "music.apple.com", "deezer.com", "tidal.com", "bandcamp.com", "pocketcasts.com", "audible.com", "mixcloud.com", "tunein.com"]
   readonly property var _browserHints: ["firefox", "zen", "chrome", "chromium", "brave", "vivaldi", "edge", "opera"]
-  property bool _resumeAfterSeek: false
-  property string _cachedTrackKey: ""
   property string _cachedArtUrl: ""
+  property string _cachedTrackKey: ""
   property real _cachedTrackLength: 0
+  property bool _resumeAfterSeek: false
   property real _seekFallbackLength: 0
   property var _seekPlayer: null
   property int _seekTrackId: -1
@@ -64,11 +64,6 @@ Singleton {
     const extensionMatch = mediaUrl.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/);
     return !!(extensionMatch && _videoExts.includes(extensionMatch[1]));
   }
-  function _trackKey(player: var): string {
-    if (!player)
-      return "";
-    return JSON.stringify([player.dbusName, player.metadata?.["xesam:url"] ?? "", player.trackTitle]);
-  }
   function _metadataTrackLength(player: var): real {
     const lengthUs = Number(player?.metadata?.["mpris:length"]);
     return Number.isFinite(lengthUs) && lengthUs > 0 && lengthUs <= Number.MAX_SAFE_INTEGER ? lengthUs / 1e6 : 0;
@@ -88,6 +83,11 @@ Singleton {
     const length = _metadataTrackLength(player);
     if (length)
       _cachedTrackLength = length;
+  }
+  function _trackKey(player: var): string {
+    if (!player)
+      return "";
+    return JSON.stringify([player.dbusName, player.metadata?.["xesam:url"] ?? "", player.trackTitle]);
   }
   function next(): void {
     if (canGoNext)
@@ -125,15 +125,15 @@ Singleton {
     if (root._resumeAfterSeek)
       seekResume.restart();
   }
-  function seekByRatio(positionRatio: real): void {
-    if (trackLength <= 0 || !Number.isFinite(positionRatio))
-      return;
-    root.seek(Math.max(0, Math.min(1, positionRatio)) * trackLength);
-  }
   function seekBy(offset: real): void {
     if (!canSeek || !Number.isFinite(offset) || offset === 0)
       return;
     active.seek(offset);
+  }
+  function seekByRatio(positionRatio: real): void {
+    if (trackLength <= 0 || !Number.isFinite(positionRatio))
+      return;
+    root.seek(Math.max(0, Math.min(1, positionRatio)) * trackLength);
   }
   function selectNextPlayer(): void {
     if (players.length < 2)
@@ -149,13 +149,12 @@ Singleton {
   onActiveChanged: _refreshTrackCache()
 
   Connections {
-    target: root.active
-
     function onMetadataChanged(): void {
       root._refreshTrackCache();
     }
-  }
 
+    target: root.active
+  }
   PwObjectTracker {
     objects: Pipewire.linkGroups?.values ?? []
   }

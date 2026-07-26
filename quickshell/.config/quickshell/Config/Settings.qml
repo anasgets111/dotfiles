@@ -137,7 +137,6 @@ Singleton {
     property JsonObject notifications: JsonObject {
       property bool doNotDisturb: false
     }
-
     property JsonObject updates: JsonObject {
       property string lastCheckError: ""
       property double lastSuccessfulCheck: 0

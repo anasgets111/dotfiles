@@ -14,6 +14,7 @@ Rectangle {
   readonly property bool expanded: hoverHandler.hovered || volumeSlider.dragging
   readonly property bool isMuted: AudioService.muted
   readonly property real maxVolume: AudioService.maxVolume
+  readonly property bool panelOpen: ShellUiState.isPanelOpen("audio", root.screenName)
   readonly property string percentText: {
     if (!ready)
       return "--";
@@ -48,7 +49,7 @@ Rectangle {
     return Theme.textContrast(center > width * volumeSlider.splitAt ? Theme.critical : trackColor);
   }
 
-  border.color: "transparent"
+  border.color: root.panelOpen ? Theme.activeColor : "transparent"
   border.width: Theme.borderWidthThin
   clip: true
   color: isMuted ? Theme.glassContentColor : Theme.glassControlColor

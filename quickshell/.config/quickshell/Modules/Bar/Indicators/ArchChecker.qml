@@ -25,6 +25,7 @@ Item {
     colorBg: isError ? Theme.critical : isUpdating ? Theme.activeColor : UpdateService.busy ? Theme.glassControlColor : UpdateService.totalUpdates > 0 ? Theme.activeColor : Theme.glassControlColor
     icon: isUpdating ? "󰦖" : isError ? "󰅙" : UpdateService.busy ? "" : UpdateService.totalUpdates > 0 ? "" : "󰂪"
     iconRotation: isUpdating ? spinAngle : 0
+    selected: root.panelOpen
     suppressTooltip: root.panelOpen
     tooltipText: isUpdating ? qsTr("Updating system and developer tooling...") : isError ? qsTr("Update failed - click for details") : UpdateService.busy ? qsTr("Checking for updates…") : UpdateService.totalUpdates === 0 ? qsTr("No system package updates - right-click for updater") : UpdateService.totalUpdates === 1 ? qsTr("One package can be upgraded") : qsTr("%1 packages can be upgraded").arg(UpdateService.totalUpdates)
 
