@@ -194,8 +194,10 @@ PanelContentBase {
           }
         }
         header: Rectangle {
-          color: Theme.glassContentHoverColor
+          color: Theme.bgElevatedHover
           height: Theme.itemHeight
+          topLeftRadius: Theme.radiusMd
+          topRightRadius: Theme.radiusMd
           width: packageList.width
           z: 2
 
