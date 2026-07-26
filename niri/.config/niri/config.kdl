@@ -147,12 +147,6 @@ window-rule {
         blur true
         xray true
     }
-
-    popups {
-        background-effect {
-            blur true
-        }
-    }
 }
 
 // Workspace Assignments
