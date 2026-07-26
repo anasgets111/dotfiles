@@ -26,6 +26,7 @@ Item {
   readonly property color effectiveFg: !isEnabled ? Theme.textContrast(colorBg) : (hovered || selected ? colorFgHover : colorFg)
   readonly property bool hovered: mouseArea.containsMouse && iconButton.isEnabled
   property string icon: ""
+  property string iconSource: ""
   property real iconRotation: 0
   property bool isEnabled: true
   property bool selected: false
@@ -110,7 +111,7 @@ Item {
       text: iconButton.icon
       transformOrigin: Item.Center
       verticalAlignment: Text.AlignVCenter
-      visible: iconButton.icon.length > 0
+      visible: !iconButton.iconSource && iconButton.icon.length > 0
 
       Behavior on color {
         ColorAnimation {
@@ -118,6 +119,15 @@ Item {
           easing.type: Easing.InOutQuad
         }
       }
+    }
+    Image {
+      anchors.centerIn: parent
+      fillMode: Image.PreserveAspectFit
+      height: iconButton._iconSize
+      source: iconButton.iconSource
+      sourceSize: Qt.size(width, height)
+      visible: !!iconButton.iconSource
+      width: iconButton._iconSize
     }
   }
   Loader {

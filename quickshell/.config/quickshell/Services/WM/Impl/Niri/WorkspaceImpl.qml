@@ -22,9 +22,23 @@ Singleton {
         idx: workspace.idx,
         focused: workspace.is_focused,
         populated: _populatedWorkspaceIds.has(workspace.id),
+        appId: _workspaceAppId(workspace.id),
         output: workspace.output ?? ""
       }))
 
+  function _workspaceAppId(workspaceId: var): string {
+    return _workspaceAppIdFrom(NiriService.windows.filter(window => window.workspace_id === workspaceId));
+  }
+  function _selfCheck(): bool {
+    const focusedApp = _workspaceAppIdFrom([
+      {app_id: "first", is_focused: false},
+      {app_id: "focused", is_focused: true}
+    ]);
+    return focusedApp === "focused" && _workspaceAppIdFrom([{app_id: "first"}]) === "first";
+  }
+  function _workspaceAppIdFrom(windows: var): string {
+    return String(windows.find(window => window.is_focused)?.app_id ?? windows[0]?.app_id ?? "");
+  }
   function _windowKey(appId: string, title: string): string {
     return JSON.stringify([appId ?? "", title ?? ""]);
   }
@@ -42,4 +56,6 @@ Singleton {
       }
     }, null);
   }
+
+  Component.onCompleted: console.assert(_selfCheck(), "Niri workspace app selection self-check failed")
 }

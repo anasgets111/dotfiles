@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Config
 import qs.Services.WM
+import qs.Services.Utils
 import qs.Components
 
 Item {
@@ -56,9 +57,11 @@ Item {
       required property int index
       readonly property var slot: root.displayWorkspaces[index] ?? null
       readonly property var workspace: slot?.workspace ?? null
+      readonly property string appId: workspace?.appId ?? ""
 
       colorBg: root.computeWorkspaceColor(slot)
       icon: String(workspace?.idx ?? slot?.idx ?? index + 1)
+      iconSource: appId ? Utils.resolveIconSource(appId) : ""
       opacity: workspace?.populated ? 1.0 : 0.5
 
       Behavior on opacity {

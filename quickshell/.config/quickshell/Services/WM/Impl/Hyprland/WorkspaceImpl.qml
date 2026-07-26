@@ -11,6 +11,7 @@ Singleton {
   property int _revision: 0
   readonly property var _state: _revision >= 0 ? _buildState() : null
   readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "focusedmonv2", "fullscreen", "monitoradded", "monitoraddedv2", "monitorremoved", "monitorremovedv2", "moveworkspace", "moveworkspacev2", "activespecial", "activespecialv2", "configreloaded", "openwindow", "closewindow", "movewindow", "movewindowv2"]
+  readonly property var _toplevelEvents: ["configreloaded", "openwindow", "closewindow", "movewindow", "movewindowv2"]
   readonly property bool fillsEmptyWorkspaceSlots: true
   readonly property string focusedOutput: Hyprland.focusedMonitor?.name ?? ""
   readonly property bool fullscreenVisible: _revision >= 0 && Array.from(Hyprland.workspaces.values).some(ws => ws.active && ws.hasFullscreen)
@@ -38,13 +39,15 @@ Singleton {
         continue;
 
       const outputName = rawWorkspace.monitor?.name ?? "";
-      const windowCount = rawWorkspace.lastIpcObject?.windows ?? Array.from(rawWorkspace.toplevels.values).length;
+      const toplevels = Array.from(rawWorkspace.toplevels.values);
+      const windowCount = rawWorkspace.lastIpcObject?.windows ?? toplevels.length;
 
       regularWorkspaces.push({
         id: rawWorkspace.id,
         idx: rawWorkspace.id,
         focused: rawWorkspace.focused,
         populated: windowCount > 0,
+        appId: _workspaceAppIdFrom(toplevels),
         output: outputName
       });
     }
@@ -58,12 +61,25 @@ Singleton {
     if ((workspace?.idx ?? 0) > 0)
       focusWorkspaceByIndex(workspace.idx);
   }
+  function _workspaceAppIdFrom(toplevels: var): string {
+    const activeToplevel = toplevels.find(toplevel => toplevel.activated) ?? toplevels[0];
+    return activeToplevel?.wayland?.appId ?? activeToplevel?.lastIpcObject?.class ?? "";
+  }
+  function _selfCheck(): bool {
+    const focusedApp = _workspaceAppIdFrom([
+      {wayland: {appId: "first"}, activated: false},
+      {wayland: {appId: "focused"}, activated: true}
+    ]);
+    return focusedApp === "focused" && _workspaceAppIdFrom([{lastIpcObject: {class: "first"}}]) === "first";
+  }
   function focusWorkspaceByIndex(workspaceIndex: int): void {
     if (workspaceIndex > 0)
       Hyprland.dispatch(`hl.dsp.focus({ workspace = ${workspaceIndex} })`);
   }
-  function refresh(): void {
+  function refresh(includeToplevels = true): void {
     Hyprland.refreshMonitors();
+    if (includeToplevels)
+      Hyprland.refreshToplevels();
     Hyprland.refreshWorkspaces();
     _revision++;
   }
@@ -73,6 +89,7 @@ Singleton {
   }
 
   Component.onCompleted: {
+    console.assert(_selfCheck(), "Hyprland workspace app selection self-check failed");
     refresh();
     Qt.callLater(refresh);
   }
@@ -88,7 +105,7 @@ Singleton {
   Connections {
     function onRawEvent(event: var): void {
       if (root._structuralEvents.includes(event.name))
-        root.refresh();
+        root.refresh(root._toplevelEvents.includes(event.name));
     }
 
     target: Hyprland
