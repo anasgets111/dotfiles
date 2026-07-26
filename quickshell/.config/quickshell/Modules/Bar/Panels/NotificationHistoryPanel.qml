@@ -1,23 +1,46 @@
 pragma ComponentBehavior: Bound
+
 import QtQuick
-import QtQuick.Layouts
 import QtQuick.Controls
-import qs.Config
+import QtQuick.Layouts
 import qs.Components
-import qs.Services.SystemInfo
-import qs.Modules.Notification
+import qs.Config
 import qs.Modules.Bar.Indicators
+import qs.Modules.Notification
+import qs.Services.SystemInfo
 
 PanelContentBase {
   id: root
 
-  readonly property real availableContentHeight: Math.max(0, root.maxHeight - weatherWidget.implicitHeight - systemInfoWidget.implicitHeight - header.implicitHeight - root.padding * 2 - Theme.spacingSm * 3)
-  readonly property real cardHeight: Theme.itemHeight * 5.5
+  readonly property var bucketLabels: ({
+      earlier: qsTr("Earlier"),
+      today: qsTr("Today"),
+      urgent: qsTr("Urgent"),
+      yesterday: qsTr("Yesterday")
+    })
   readonly property bool hasNotifications: NotificationService.notifications.length > 0
-  property int maxHeight: 600
-  readonly property int padding: Theme.spacingLg
+  readonly property real heightCeiling: root.maxAvailableHeight
+  property var inputFocusOwner: null
+  readonly property int padding: Theme.spacingMd
 
-  preferredHeight: contentLayout.implicitHeight
+  readonly property string historySummary: {
+    const count = NotificationService.notifications.length;
+    if (count === 0)
+      return NotificationService.doNotDisturb ? qsTr("Silenced · history empty") : qsTr("History empty");
+    const parts = [qsTr("%1 in history").arg(count)];
+    const appCount = NotificationService.groupedNotifications.length;
+    if (appCount > 1)
+      parts.push(qsTr("%1 apps").arg(appCount));
+    if (NotificationService.doNotDisturb)
+      parts.push(qsTr("silenced"));
+    return parts.join(" · ");
+  }
+  function setInputFocusOwner(owner: var): void {
+    root.inputFocusOwner = owner;
+    root.needsKeyboardFocus = owner !== null;
+  }
+
+  preferredHeight: Math.min(contentColumn.implicitHeight + root.padding * 2, root.heightCeiling)
   preferredWidth: Theme.notificationPanelWidth
 
   Component.onDestruction: NotificationService.onOverlayClose()
@@ -28,125 +51,111 @@ PanelContentBase {
       NotificationService.onOverlayClose();
   }
 
-  ColumnLayout {
-    id: contentLayout
+  Flickable {
+    id: sidebarScroll
 
-    width: parent.width
+    anchors.fill: parent
+    anchors.margins: root.padding
+    boundsBehavior: Flickable.StopAtBounds
+    clip: true
+    contentHeight: contentColumn.implicitHeight
+    contentWidth: sidebarScroll.width
 
-    WeatherWidget {
-      id: weatherWidget
-
-      Layout.bottomMargin: Theme.spacingSm
-      Layout.fillWidth: true
-      Layout.margins: root.padding
+    ScrollBar.vertical: ScrollBar {
+      policy: sidebarScroll.contentHeight > sidebarScroll.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+      width: Theme.spacingXs
     }
-    SystemInfoWidget {
-      id: systemInfoWidget
 
-      Layout.bottomMargin: Theme.spacingSm
-      Layout.fillWidth: true
-      Layout.leftMargin: root.padding
-      Layout.rightMargin: root.padding
-      active: root.isOpen
-    }
-    PanelHeader {
-      id: header
+    ColumnLayout {
+      id: contentColumn
 
-      Layout.leftMargin: root.padding
-      Layout.rightMargin: root.padding
-      accent: NotificationService.doNotDisturb ? Theme.textInactiveColor : Theme.activeColor
-      icon: NotificationService.doNotDisturb ? "󰂛" : "󰂚"
-      subtitle: qsTr("%1 in history").arg(NotificationService.notifications.length)
-      title: qsTr("Notifications")
+      spacing: Theme.spacingMd
+      width: sidebarScroll.width
 
-      OText {
-        accent: NotificationService.doNotDisturb
-        opacity: NotificationService.doNotDisturb ? 1.0 : Theme.opacityDisabled
-        size: "sm"
-        text: qsTr("DND")
+      WeatherWidget {
+        Layout.fillWidth: true
       }
-      OToggle {
-        checked: NotificationService.doNotDisturb
-
-        onToggled: NotificationService.toggleDoNotDisturb()
+      SystemInfoWidget {
+        Layout.fillWidth: true
+        active: root.isOpen
       }
-      PanelActionIcon {
-        icon: "󰆴"
-        tint: Theme.critical
-        tooltipText: qsTr("Dismiss all notifications")
+      PanelHeader {
+        accent: NotificationService.doNotDisturb ? Theme.textInactiveColor : Theme.activeColor
+        icon: NotificationService.doNotDisturb ? "󰂛" : "󰂚"
+        subtitle: root.historySummary
+        title: qsTr("Notifications")
+
+        InfoBadge {
+          badgeColor: Theme.critical
+          text: qsTr("%1 urgent").arg(NotificationService.criticalCount)
+          visible: NotificationService.criticalCount > 0
+        }
+        PanelActionIcon {
+          icon: NotificationService.doNotDisturb ? "󰂚" : "󰂛"
+          tint: NotificationService.doNotDisturb ? Theme.textInactiveColor : Theme.activeColor
+          tooltipText: NotificationService.doNotDisturb ? qsTr("Disable Do Not Disturb") : qsTr("Enable Do Not Disturb")
+
+          onClicked: NotificationService.toggleDoNotDisturb()
+        }
+        PanelActionIcon {
+          icon: "󰆴"
+          tint: Theme.critical
+          tooltipText: qsTr("Dismiss all notifications")
+          visible: root.hasNotifications
+
+          onClicked: NotificationService.clearAllNotifications()
+        }
+      }
+      ColumnLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingSm
         visible: root.hasNotifications
 
-        onClicked: NotificationService.clearAllNotifications()
-      }
-    }
-    ListView {
-      id: notificationList
+        Repeater {
+          model: NotificationService.groupedNotifications
 
-      Layout.fillWidth: true
-      Layout.margins: root.padding
-      Layout.preferredHeight: Math.min(contentHeight, root.cardHeight * 3, root.availableContentHeight)
-      Layout.topMargin: Theme.spacingSm
-      boundsBehavior: Flickable.StopAtBounds
-      clip: true
-      model: NotificationService.groupedNotifications
-      reuseItems: true
-      spacing: Theme.spacingSm
-      visible: root.hasNotifications
+          delegate: ColumnLayout {
+            id: historyRow
 
-      ScrollBar.vertical: ScrollBar {
-        policy: notificationList.contentHeight > notificationList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-      }
-      delegate: NotificationCard {
-        required property int index
-        required property var modelData
+            required property int index
+            required property var modelData
+            readonly property bool startsBucket: historyRow.index === 0 || NotificationService.groupedNotifications[historyRow.index - 1]?.bucket !== historyRow.modelData?.bucket
 
-        group: modelData
-        groupScope: "history"
-        showTimestamp: true
-        svc: NotificationService
-        width: ListView.view.width
+            Layout.fillWidth: true
+            spacing: Theme.spacingXs
 
-        ListView.onPooled: root.needsKeyboardFocus = false
-        ListView.onReused: resetReuseState()
-        onInputFocusReleased: root.needsKeyboardFocus = false
-        onInputFocusRequested: root.needsKeyboardFocus = true
-      }
-    }
-    ColumnLayout {
-      Layout.alignment: Qt.AlignHCenter
-      Layout.fillWidth: true
-      Layout.margins: root.padding
-      Layout.preferredHeight: Math.min(root.cardHeight * 1.5, root.availableContentHeight)
-      Layout.topMargin: Theme.spacingSm
-      spacing: Theme.spacingLg
-      visible: !root.hasNotifications
+            PanelSectionHeader {
+              Layout.fillWidth: true
+              Layout.topMargin: historyRow.index === 0 ? 0 : Theme.spacingSm
+              section: historyRow.modelData?.bucket ?? ""
+              sectionLabel: root.bucketLabels[historyRow.modelData?.bucket] ?? ""
+              visible: historyRow.startsBucket
+            }
+            NotificationCard {
+              id: historyCard
 
-      Item {
-        Layout.fillHeight: true
+              Layout.fillWidth: true
+              group: historyRow.modelData
+              groupScope: "history"
+              showTimestamp: true
+              svc: NotificationService
+
+              Component.onDestruction: if (root.inputFocusOwner === historyCard)
+                root.setInputFocusOwner(null)
+              onInputFocusReleased: if (root.inputFocusOwner === historyCard)
+                root.setInputFocusOwner(null)
+              onInputFocusRequested: root.setInputFocusOwner(historyCard)
+            }
+          }
+        }
       }
-      Text {
-        Layout.alignment: Qt.AlignHCenter
-        color: Theme.textInactiveColor
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontXl
-        opacity: Theme.opacityDisabled
-        text: "󰂚"
-      }
-      OText {
-        Layout.alignment: Qt.AlignHCenter
-        bold: true
-        size: "xl"
+      PanelEmptyState {
+        Layout.fillWidth: true
+        Layout.preferredHeight: Theme.itemHeight * 5
+        icon: NotificationService.doNotDisturb ? "󰂛" : "󰂚"
+        subtext: NotificationService.doNotDisturb ? qsTr("Do Not Disturb is on") : qsTr("You're all caught up!")
         text: qsTr("No Notifications")
-      }
-      OText {
-        Layout.alignment: Qt.AlignHCenter
-        horizontalAlignment: Text.AlignHCenter
-        muted: true
-        opacity: Theme.opacityMuted
-        text: qsTr("You're all caught up!")
-      }
-      Item {
-        Layout.fillHeight: true
+        visible: !root.hasNotifications
       }
     }
   }

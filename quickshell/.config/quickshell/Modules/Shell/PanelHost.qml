@@ -25,7 +25,8 @@ FocusScope {
   readonly property var effectivePanelData: root.active ? (root.panelComponent !== null ? root.panelData : null) : root.retainedPanelData
   readonly property real effectivePanelHeight: root.active ? root.livePanelHeight : root.retainedPanelHeight
   readonly property real effectivePanelWidth: root.active ? root.panelContentWidth : root.retainedPanelWidth
-  readonly property real livePanelHeight: Math.min(root.panelContentHeight, root.height - Theme.panelHeight - Theme.panelScreenInset)
+  readonly property real livePanelHeight: Math.min(root.panelContentHeight, root.maxPanelHeight)
+  readonly property real maxPanelHeight: Math.max(0, root.height - Theme.panelHeight - Theme.panelScreenInset)
   readonly property bool needsKeyboardFocus: root.panelItem?.needsKeyboardFocus ?? false
   readonly property var panelComponent: ({
       "audio": audioPanelComponent,
@@ -212,6 +213,7 @@ FocusScope {
           root.panelItem.width = Qt.binding(() => panelLoader.width);
           root.panelItem.height = Qt.binding(() => panelLoader.height);
           root.panelItem.isOpen = Qt.binding(() => root.active);
+          root.panelItem.maxAvailableHeight = Qt.binding(() => root.maxPanelHeight);
           root.panelItem.panelData = Qt.binding(() => root.effectivePanelData);
           contentFade.restart();
           Qt.callLater(root.revealPanel);

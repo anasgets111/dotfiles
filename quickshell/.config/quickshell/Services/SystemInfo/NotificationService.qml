@@ -19,6 +19,11 @@ Singleton {
   property bool _popupsSuspended: false
   property var _removalQueue: []
   property int _sequence: 0
+  // Derived from a minute clock so buckets re-label themselves across midnight without polling.
+  readonly property double _todayStartMs: {
+    const reference = typeof TimeService !== "undefined" ? TimeService.minuteNow : new Date();
+    return new Date(reference.getFullYear(), reference.getMonth(), reference.getDate()).getTime();
+  }
   readonly property var _urgencyConfig: ({
       [NotificationUrgency.Low]: {
         timeout: 3000,
@@ -34,7 +39,9 @@ Singleton {
       }
     })
   readonly property int animationDuration: Math.round((Theme.animationDuration || 200) * 1.4)
-  property bool doNotDisturb: false
+  readonly property var bucketOrder: ["urgent", "today", "yesterday", "earlier"]
+  readonly property int criticalCount: root.notifications.filter(wrapper => root._isCritical(wrapper)).length
+  readonly property bool doNotDisturb: Settings.isStateLoaded && (Settings.state.notifications.doNotDisturb ?? false)
   readonly property var expandedGroups: root._groupState.expanded
   readonly property var groupedNotifications: root._isDestroying ? [] : root._computeGroups(root.notifications)
   readonly property var groupedPopups: root._isDestroying ? [] : root._computeGroups(root.visibleNotifications)
@@ -51,6 +58,15 @@ Singleton {
     wrapper.isDismissing = true;
     wrapper.isHidingPopup = hidePopup;
     root._stopWrapperTimer(wrapper);
+  }
+  function _bucketFor(urgency: int, latestTime: double): string {
+    if (urgency === NotificationUrgency.Critical)
+      return "urgent";
+    if (latestTime >= root._todayStartMs)
+      return "today";
+    if (latestTime >= root._todayStartMs - 24 * 60 * 60 * 1000)
+      return "yesterday";
+    return "earlier";
   }
   function _clearVisiblePopups(): void {
     root.visibleNotifications.forEach(wrapper => {
@@ -71,6 +87,9 @@ Singleton {
       notification.dismiss();
   }
   function _compareGroups(leftGroup: var, rightGroup: var): int {
+    const bucketDiff = root.bucketOrder.indexOf(leftGroup.bucket) - root.bucketOrder.indexOf(rightGroup.bucket);
+    if (bucketDiff)
+      return bucketDiff;
     const urgencyDiff = (rightGroup.urgency ?? 0) - (leftGroup.urgency ?? 0);
     if (urgencyDiff)
       return urgencyDiff;
@@ -106,6 +125,7 @@ Singleton {
       group.urgency = group.latestNotification?.notification?.urgency ?? NotificationUrgency.Normal;
       group.latestTime = group.latestNotification?.createdAt?.getTime() ?? 0;
       group.latestSequence = group.latestNotification?.sequence ?? 0;
+      group.bucket = root._bucketFor(group.urgency, group.latestTime);
       return group;
     }).sort(root._compareGroups);
   }
@@ -381,14 +401,8 @@ Singleton {
     }
   }
   function toggleDoNotDisturb(): void {
-    root.doNotDisturb = !root.doNotDisturb;
-    AudioService.dndActive = root.doNotDisturb;
-    if (root.doNotDisturb) {
-      root._clearVisiblePopups();
-      root._expireTransientWrappers();
-    } else {
-      root._pumpPopups();
-    }
+    if (Settings.isStateLoaded)
+      Settings.state.notifications.doNotDisturb = !root.doNotDisturb;
   }
   function toggleGroupExpansion(groupKey: string): void {
     root._groupState.toggleExpanded(groupKey || "");
@@ -406,6 +420,16 @@ Singleton {
       root._stopWrapperTimer(wrapper);
       wrapper.destroy();
     });
+  }
+  // Also runs when the cached value is restored at startup, so a reload cannot leave sound unmuted.
+  onDoNotDisturbChanged: {
+    AudioService.dndActive = root.doNotDisturb;
+    if (root.doNotDisturb) {
+      root._clearVisiblePopups();
+      root._expireTransientWrappers();
+    } else {
+      root._pumpPopups();
+    }
   }
   onGroupedPopupsChanged: {
     if (!root._isDestroying)

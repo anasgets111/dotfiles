@@ -10,7 +10,9 @@ Item {
     item: panelRect
     regions: [barCornerLeft.region, barCornerRight.region]
   }
-  readonly property bool centerShouldHide: leftSide.workspacesExpanded || rightSide.expanded
+  // The center is centred, so both sides have the same room. Yield only when a neighbour would
+  // actually reach it, rather than whenever one happens to be expanded.
+  readonly property bool centerShouldHide: (panelRect.width - centerSide.width) / 2 - Theme.spacingMd < Theme.panelMargin + Math.max(leftSide.width, rightSide.width)
   required property ShellScreen screen
 
   signal wallpaperPickerRequested
@@ -55,6 +57,8 @@ Item {
         }
       }
       CenterSide {
+        id: centerSide
+
         anchors.centerIn: parent
         opacity: root.centerShouldHide ? 0 : 1
         screenName: root.screen?.name ?? ""

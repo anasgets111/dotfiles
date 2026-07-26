@@ -6,6 +6,7 @@ Item {
   id: root
 
   property string icon: ""
+  property string subtext: ""
   property string text: ""
 
   ColumnLayout {
@@ -24,6 +25,15 @@ Item {
       Layout.alignment: Qt.AlignHCenter
       color: Theme.textInactiveColor
       text: root.text
+    }
+    OText {
+      Layout.alignment: Qt.AlignHCenter
+      color: Theme.textInactiveColor
+      horizontalAlignment: Text.AlignHCenter
+      opacity: Theme.opacityMuted
+      size: "sm"
+      text: root.subtext
+      visible: root.subtext !== ""
     }
   }
 }

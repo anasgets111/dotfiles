@@ -14,7 +14,6 @@ Row {
   id: leftSide
 
   required property string screenName
-  readonly property bool workspacesExpanded: workspaceStripLoader.item?.expanded ?? false
 
   signal wallpaperPickerRequested
 
