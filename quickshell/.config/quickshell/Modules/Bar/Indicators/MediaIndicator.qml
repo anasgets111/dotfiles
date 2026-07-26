@@ -77,7 +77,7 @@ Item {
     cursorShape: Qt.PointingHandCursor
 
     onHoveredChanged: {
-      if (hovered)
+      if (hovered && (!ShellUiState.isAnyPanelOpen || root.panelOpen))
         root.openPanel();
       else if (root.panelOpen)
         closeTimer.restart();
