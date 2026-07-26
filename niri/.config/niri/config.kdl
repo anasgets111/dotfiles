@@ -1,4 +1,4 @@
-// https://github.com/YaLTeR/niri/wiki/Configuration:-Introduction
+// https://niri-wm.github.io/niri/Configuration:-Introduction.html
 
 // --- Input Configuration ---
 input {
@@ -24,20 +24,11 @@ output "eDP-1" {
     mode "1920x1200@60"
     focus-at-startup
 }
+
 output "DP-1" {
     mode "3440x1440@165"
     focus-at-startup
     variable-refresh-rate on-demand=true
-}
-output "DP-2" {
-    mode "1920x1080@60"
-    position x=2560 y=-450
-    transform "90"
-}
-output "DP-3" {
-    mode "2560x1440@120"
-    position x=0 y=0
-    focus-at-startup
 }
 
 // --- Layout & Appearance ---
@@ -79,7 +70,7 @@ layout {
     }
 }
 
-// Global blur settings (used by window background-effect)
+// Blur
 blur {
     passes 2
     offset 4.7
@@ -110,7 +101,6 @@ spawn-at-startup "kdeconnect-indicator"
 spawn-at-startup "speech-dispatcher"
 spawn-at-startup "zeditor"
 spawn-at-startup "zen-browser"
-spawn-at-startup "chromium"
 spawn-at-startup "slack"
 spawn-at-startup "Telegram"
 spawn-at-startup "vesktop"
@@ -118,20 +108,26 @@ spawn-at-startup "thunderbird"
 spawn-at-startup "xdg-terminal-exec"
 
 // --- Workspaces ---
-workspace "1"  { open-on-output "DP-3"; }
-workspace "2"  { open-on-output "DP-3"; }
-workspace "3"  { open-on-output "DP-3"; }
-workspace "4"  { open-on-output "DP-3"; }
-workspace "5"  { open-on-output "DP-3"; }
-workspace "6"  { open-on-output "DP-3"; }
-workspace "7"  { open-on-output "DP-3"; }
-workspace "8"  { open-on-output "DP-3"; }
-workspace "9"  { open-on-output "DP-2"; }
-workspace "10" { open-on-output "DP-2"; }
-workspace "stash" { open-on-output "DP-2"; }
+// Named for app routing and niri-stash; Niri chooses outputs.
+workspace "1"
+workspace "2"
+workspace "3"
+workspace "4"
+workspace "5"
+workspace "6"
+workspace "7"
+workspace "8"
+workspace "9"
+workspace "10"
+workspace "stash"
 
 // --- Window Rules ---
-// Keep session-start windows in the background and park stash apps.
+// Maximize tiled windows; floating rules opt out.
+window-rule {
+    open-maximized-to-edges true
+}
+
+// Background session-start windows; stash selected apps.
 window-rule {
     match at-startup=true
     open-focused false
@@ -151,57 +147,68 @@ window-rule {
         blur true
         xray true
     }
+
     popups {
-            background-effect {
-                blur true
-            }
+        background-effect {
+            blur true
         }
+    }
 }
 
 // Workspace Assignments
-window-rule { match app-id="org.mozilla.Thunderbird"; open-on-workspace "7"; }
-window-rule { match app-id="zen"; open-on-workspace "1"; }
-window-rule { match app-id=r#"^(org\.gnome\.Nautilus|chromium)$"#; open-on-workspace "2"; }
-window-rule { match app-id=r#"^(code|antigravity|dev\.zed\.Zed)$"#; open-on-workspace "3"; }
+window-rule {
+    match app-id="org.mozilla.Thunderbird"
+    open-on-workspace "7"
+}
+
+window-rule {
+    match app-id="zen"
+    open-on-workspace "1"
+}
+
+window-rule {
+    match app-id="org.gnome.Nautilus"
+    open-on-workspace "2"
+}
+
+window-rule {
+    match app-id=r#"^(code|dev\.zed\.Zed)$"#
+    open-on-workspace "3"
+}
+
 window-rule {
     match app-id=r#"^org\.telegram\.desktop$"# title="^Media viewer$"
     open-floating true
+    open-maximized-to-edges false
     open-focused true
 }
 
 // Floating Windows (Small Dialogs)
 window-rule {
     match title="OpenRGB"
-    match title="Network Connections"
     match title="Do you want to retry your last request"
     match app-id="org.kde.kdeconnect.handler"
-    match app-id="waypaper"
     open-floating true
+    open-maximized-to-edges false
 }
 
 // Floating Windows (Medium Size ~74%)
 window-rule {
     match app-id="io.missioncenter.MissionCenter"
-    match app-id="gtk-pipe-viewer"
-    match app-id="org.pulseaudio.pavucontrol"
-    match app-id="blueman-manager"
     match app-id="org.gnome.DiskUtility"
-    match app-id="nm-connection-editor"
     match app-id=r#"polkit\.authentication-agent."#
     match app-id=r#"xdg-desktop-portal\..*"#
     match app-id="zenity"
-    match app-id="pavucontrol"
     match app-id="mpv"
-    match title=".*Global Updates"
     match title="Sign in - Google Accounts — Zen Browser"
     open-floating true
+    open-maximized-to-edges false
     default-column-width { proportion 0.74; }
     default-window-height { proportion 0.74; }
 }
 
 // Floating Windows (Small Size ~47%)
 window-rule {
-    match app-id="com.saivert.pwvucontrol"
     match title="Install from VSIX"
     match title="Open File"
     match title="Save File"
@@ -215,6 +222,7 @@ window-rule {
     match title="About Zen Browser"
     match title=r#"^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$"#
     open-floating true
+    open-maximized-to-edges false
     default-column-width { proportion 0.47; }
     default-window-height { proportion 0.47; }
 }
@@ -223,6 +231,7 @@ window-rule {
 window-rule {
     match app-id="org.gnome.Calculator"
     open-floating true
+    open-maximized-to-edges false
     default-column-width { proportion 0.15; }
     default-window-height { proportion 0.15; }
 }
@@ -231,12 +240,12 @@ window-rule {
 window-rule {
     match app-id=r#"^(kitty|Alacritty|com\.mitchellh\.ghostty|org\.wezfurlong\.wezterm|foot)$"#
     open-floating true
-    default-column-width  { proportion 0.8; }
+    open-maximized-to-edges false
+    default-column-width { proportion 0.8; }
     default-window-height { proportion 0.8; }
 }
 
-// Floating windows: normal blur (shows windows below)
-// Placed among other floating-window rules so it applies to the floating windows above.
+// Floating windows use non-xray blur.
 window-rule {
     match is-floating=true
     background-effect {
@@ -273,13 +282,12 @@ binds {
     Mod+KP_Enter repeat=false { spawn "niri-stash" "term"; }
     Mod+Z { spawn "zeditor"; }
     Mod+C { spawn "code"; }
-    Mod+A { spawn "antigravity.sh";}
     Mod+E { spawn "nautilus"; }
     Mod+H { spawn "heroic"; }
     Mod+B { spawn "zen-browser"; }
     Mod+S repeat=false { spawn "niri-stash" "slack"; }
     Mod+Ctrl+S { spawn "voxtype" "record" "toggle"; }
-    Mod+N  { spawn "say" "--clipboard"; }
+    Mod+N { spawn "say" "--clipboard"; }
     Mod+T repeat=false { spawn "niri-stash" "telegram"; }
     Mod+D repeat=false { spawn "niri-stash" "vesktop"; }
 
@@ -295,6 +303,7 @@ binds {
     XF86AudioNext         allow-when-locked=true { spawn-sh "playerctl next"; }
     XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+5%"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "5%-"; }
+
     // Window Management
     Mod+Q repeat=false { close-window; }
     Mod+V       { toggle-window-floating; }
@@ -413,14 +422,13 @@ binds {
     Mod+Shift+Equal { set-window-height "+5%"; }
 }
 
-// Keep the pre-rendered overview wallpaper inside Niri's backdrop.
+// Keep the overview wallpaper in Niri's backdrop.
 layer-rule {
     match namespace="^quickshell-overview-wallpaper$"
     place-within-backdrop true
 }
 
-// Obelisk requests blur through ext-background-effect. Show the live scene
-// behind its top/overlay surfaces instead of Niri's wallpaper-only xray blur.
+// Obelisk layers use live-scene blur.
 layer-rule {
     match namespace=r#"^(obelisk-|polkit-dialog$)"#
     background-effect {
