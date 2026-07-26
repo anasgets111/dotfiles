@@ -155,6 +155,7 @@ Item {
         ControlButton {
           Accessible.name: root.isGroup ? "Dismiss group" : "Dismiss notification"
           text: "x"
+          variant: "ghost"
 
           onClicked: root.isGroup ? root.svc?.dismissGroup(root.group?.key) : root.svc?.dismissNotification(root.primaryWrapper)
         }
@@ -315,6 +316,7 @@ Item {
                   ControlButton {
                     Accessible.name: "Dismiss notification"
                     text: "x"
+                    variant: "ghost"
                     visible: messageItem.isMultipleItems
 
                     onClicked: root.svc?.dismissNotification(messageItem.modelData)
@@ -479,8 +481,8 @@ Item {
     }
   }
   component ControlButton: OButton {
-    bgColor: Theme.glassContentColor
-    hoverColor: Theme.glassContentHoverColor
+    bgColor: variant === "ghost" ? "transparent" : Theme.glassContentColor
+    hoverColor: variant === "ghost" ? "transparent" : Theme.glassContentHoverColor
     radius: Theme.radiusSm
     size: "xs"
     textColor: Theme.textActiveColor
