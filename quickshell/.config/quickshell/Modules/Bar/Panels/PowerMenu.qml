@@ -27,6 +27,7 @@ Item {
   ]
   property int countdown: initialCountdown
   readonly property bool counting: selectedIndex >= 0
+  readonly property int countdownIndex: counting ? (selectedIndex === actions.length - 1 ? actions.length - 2 : actions.length - 1) : -1
   readonly property int initialCountdown: 10
   property int selectedIndex: -1
 
@@ -76,15 +77,21 @@ Item {
         id: btn
 
         readonly property var action: powerMenu.actions[index]
+        readonly property bool isActionSlot: !powerMenu.counting || powerMenu.selectedIndex === index
+        readonly property bool isCancelSlot: powerMenu.counting && !isActionSlot && !isCountdownSlot
+        readonly property bool isCountdownSlot: powerMenu.counting && powerMenu.countdownIndex === index
         required property int index
-        readonly property bool isSelected: powerMenu.counting && powerMenu.selectedIndex === index
 
         anchors.fill: parent
-        tooltipText: powerMenu.counting ? (isSelected ? `${action.tooltip} — ${powerMenu.countdown}s\nLeft click to execute now • Right click to cancel` : `${action.tooltip}\nRight click to cancel`) : action.tooltip
+        icon: isActionSlot ? action.icon : isCancelSlot ? "󰅖" : String(powerMenu.countdown)
+        isEnabled: !isCountdownSlot
+        opacity: 1
+        selected: powerMenu.counting && isActionSlot
+        tooltipText: isActionSlot ? (powerMenu.counting ? `${action.tooltip} pending\nLeft click to execute now • Right click to cancel` : action.tooltip) : isCancelSlot ? `Cancel pending ${powerMenu.actions[powerMenu.selectedIndex].tooltip}` : ""
 
         SequentialAnimation on opacity {
           loops: Animation.Infinite
-          running: btn.isSelected
+          running: powerMenu.counting && btn.isActionSlot
 
           onRunningChanged: if (!running)
             btn.opacity = 1.0
@@ -108,9 +115,11 @@ Item {
             if (powerMenu.counting)
               powerMenu.cancelCountdown();
           } else if (point.button === Qt.LeftButton) {
-            if (!powerMenu.counting || powerMenu.selectedIndex !== index)
+            if (btn.isCancelSlot)
+              powerMenu.cancelCountdown();
+            else if (!powerMenu.counting)
               powerMenu.startCountdown(index);
-            else
+            else if (btn.isActionSlot)
               powerMenu.commitSelected();
           }
         }
@@ -118,16 +127,8 @@ Item {
         FillBar {
           anchors.fill: parent
           fillColor: Theme.onHoverColor
-          progress: btn.isSelected ? (powerMenu.initialCountdown - powerMenu.countdown) / powerMenu.initialCountdown : 0
+          progress: btn.isCountdownSlot ? (powerMenu.initialCountdown - powerMenu.countdown) / powerMenu.initialCountdown : 0
           radius: Theme.itemHeight / 2
-        }
-        OText {
-          anchors.centerIn: parent
-          bold: true
-          color: btn.effectiveFg ?? Theme.textContrast(Theme.glassControlColor)
-          horizontalAlignment: Text.AlignHCenter
-          text: btn.isSelected ? String(powerMenu.countdown) : btn.action.icon
-          verticalAlignment: Text.AlignVCenter
         }
       }
     }
