@@ -11,7 +11,7 @@ WlrLayershell {
 
   required property var monitor
   readonly property string screenName: monitor?.name ?? ""
-  readonly property var screenObject: screenName ? Quickshell.screens.find(s => s?.name === screenName) : null
+  readonly property var screenObject: screenName ? Quickshell.screens.find(s => s?.name === screenName) ?? null : null
   readonly property string wallpaperPath: root.screenName ? WallpaperService.wallpaperPath(root.screenName) : ""
 
   exclusionMode: ExclusionMode.Ignore

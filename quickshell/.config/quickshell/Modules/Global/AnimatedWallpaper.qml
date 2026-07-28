@@ -18,7 +18,7 @@ WlrLayershell {
   required property var monitor
   property string pendingUrl: ""
   readonly property string screenName: monitor?.name ?? ""
-  readonly property var screenObject: screenName ? Quickshell.screens.find(screen => screen?.name === screenName) : null
+  readonly property var screenObject: screenName ? Quickshell.screens.find(screen => screen?.name === screenName) ?? null : null
   property real transitionProgress: 0.0
 
   function changeWallpaper(newPath: string): void {
