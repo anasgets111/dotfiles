@@ -306,7 +306,7 @@ Singleton {
 
   Connections {
     function onDiscoveringChanged() {
-      if (!root.discovering)
+      if (!(root.adapter?.discovering ?? false))
         root.discoveryOwned = false;
     }
     function onEnabledChanged() {
