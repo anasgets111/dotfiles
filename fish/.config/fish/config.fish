@@ -15,20 +15,18 @@ end
 
 function fish_should_add_to_history
     string match -qr '^/mnt/Work/Downloads' -- $PWD; and return 1
-    string match -qr '^\s|mnt/Work/Downloads|SDL_VIDEODRIVER=wayland' -- $argv; and return 1
-    return 0
+    not string match -qr '^\s|mnt/Work/Downloads|SDL_VIDEODRIVER=wayland' -- $argv
 end
 
 if status is-interactive
-    set -l podman_sock "/run/user/"(id -u)"/podman/podman.sock"
-    if test -S $podman_sock
-        set -gx DOCKER_HOST "unix://$podman_sock"
+    if set -q XDG_RUNTIME_DIR; and test -S "$XDG_RUNTIME_DIR/podman/podman.sock"
+        set -gx DOCKER_HOST "unix://$XDG_RUNTIME_DIR/podman/podman.sock"
     end
 
     # 3. Tool Initialization
     type -q zoxide; and zoxide init fish --cmd cd | source
     type -q starship; and starship init fish | source
-    type -q fnm; and fnm env --shell=fish --use-on-cd --version-file-strategy=recursive --resolve-engines | source
+    type -q fnm; and fnm env --shell=fish --use-on-cd --version-file-strategy=recursive | source
 
     # 5. Smart Greeting
     function fish_greeting
@@ -44,7 +42,17 @@ if status is-interactive
         abbr mirrors 'sudo rate-mirrors --protocol https --allow-root --save /etc/pacman.d/mirrorlist --disable-comments-in-file arch'
         abbr mirrors-aur 'sudo rate-mirrors --disable-comments-in-file --protocol=https --allow-root --save /etc/pacman.d/chaotic-mirrorlist chaotic-aur'
         abbr drop-cache 'sudo paccache -rk3; and sudo pacman -Sc --noconfirm'
-        abbr fixpacman 'sudo rm /var/lib/pacman/db.lck'
+        function fixpacman
+            if pgrep -x pacman >/dev/null
+                echo "fixpacman: pacman is running; refusing to remove its database lock" >&2
+                return 1
+            end
+            if not test -e /var/lib/pacman/db.lck
+                echo "fixpacman: no stale database lock found"
+                return 0
+            end
+            sudo rm -- /var/lib/pacman/db.lck
+        end
         abbr big "expac -H M '%m\t%n' | sort -h | nl"
         abbr rip "expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
     end

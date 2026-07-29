@@ -1,3 +1,3 @@
-if status is-login; and type -q bass
+if status is-login; and not set -q DOTFILES; and type -q bass
     bass source ~/.profile
 end

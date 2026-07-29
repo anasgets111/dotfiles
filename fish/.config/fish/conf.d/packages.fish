@@ -2,10 +2,16 @@ if type -q pacman
     # packages: list explicitly installed packages (by repo)
     # Usage: packages [-r|--repo <repo[,repo...]>] [-v|--version]
     function packages
-        set -l c_name (set_color green)
-        set -l c_ver (set_color blue)
-        set -l c_warn (set_color yellow)
-        set -l c_rst (set_color normal)
+        set -l c_name ""
+        set -l c_ver ""
+        set -l c_warn ""
+        set -l c_rst ""
+        if isatty stdout; and set -q TERM; and test "$TERM" != dumb
+            set c_name (set_color green)
+            set c_ver (set_color blue)
+            set c_warn (set_color yellow)
+            set c_rst (set_color normal)
+        end
         set -l missing
         for cmd in expac vercmp
             command -q $cmd; or set -a missing $cmd
@@ -45,8 +51,7 @@ if type -q pacman
                     set -a target $r
             end
         end
-        set target (printf '%s\n' $target | sort -u)
-        set target (string match -r '.+' -- $target)
+        set target (string match -r '.+' -- (printf '%s\n' $target | sort -u))
 
         set -l installed (pacman -Qqe)
         test -z "$installed"; and begin

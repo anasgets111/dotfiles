@@ -1,58 +1,235 @@
-# Configure
-complete -f -c exercism -n "__fish_use_subcommand" -a "configure" -d "Writes config values to a JSON file."
-complete -f -c exercism -n "__fish_seen_subcommand_from configure" -s t -l token -d "Set token"
-complete -f -c exercism -n "__fish_seen_subcommand_from configure" -s w -l workspace -d "Set workspace"
-complete -f -c exercism -n "__fish_seen_subcommand_from configure" -s a -l api -d "set API base url"
-complete -f -c exercism -n "__fish_seen_subcommand_from configure" -s s -l show -d "show settings"
+# fish completion for exercism                             -*- shell-script -*-
 
-# Download
-complete -f -c exercism -n "__fish_use_subcommand" -a "download" -d "Downloads and saves a specified submission into the local system"
-complete -f -c exercism -n "__fish_seen_subcommand_from download" -s e -l exercise -d "the exercise slug"
-complete -f -c exercism -n "__fish_seen_subcommand_from download" -s h -l help -d "help for download"
-complete -f -c exercism -n "__fish_seen_subcommand_from download" -s T -l team -d "the team slug"
-complete -f -c exercism -n "__fish_seen_subcommand_from download" -s t -l track -d "the track ID"
-complete -f -c exercism -n "__fish_seen_subcommand_from download" -s u -l uuid -d "the solution UUID"
+function __exercism_debug
+    set -l file "$BASH_COMP_DEBUG_FILE"
+    if test -n "$file"
+        echo "$argv" >> $file
+    end
+end
 
-# Help
-complete -f -c exercism -n "__fish_use_subcommand" -a "help" -d "Shows a list of commands or help for one command"
-complete -f -c exercism -n "__fish_seen_subcommand_from help" -a "configure download help open submit test troubleshoot upgrade version workspace"
+function __exercism_perform_completion
+    __exercism_debug "Starting __exercism_perform_completion"
 
-# Open
-complete -f -c exercism -n "__fish_use_subcommand" -a "open" -d "Opens a browser to exercism.org for the specified submission."
-complete -f -c exercism -n "__fish_seen_subcommand_from open" -s h -l help -d "help for open"
+    # Extract all args except the last one
+    set -l args (commandline -opc)
+    # Extract the last arg and escape it in case it is a space
+    set -l lastArg (string escape -- (commandline -ct))
 
-# Submit
-complete -f -c exercism -n "__fish_use_subcommand" -a "submit" -d "Submits a new iteration to a problem on exercism.org."
-complete -f -c exercism -n "__fish_seen_subcommand_from submit" -s h -l help -d "help for submit"
+    __exercism_debug "args: $args"
+    __exercism_debug "last arg: $lastArg"
 
-# Test
-complete -f -c exercism -n "__fish_use_subcommand" -a "test" -d "Run the exercise's tests."
-complete -f -c exercism -n "__fish_seen_subcommand_from submit" -s h -l help -d "help for test"
+    # Disable ActiveHelp which is not supported for fish shell
+    set -l requestComp "EXERCISM_ACTIVE_HELP=0 $args[1] __complete $args[2..-1] $lastArg"
 
-# Troubleshoot
-complete -f -c exercism -n "__fish_use_subcommand" -a "troubleshoot" -d "Outputs useful debug information."
-complete -f -c exercism -n "__fish_seen_subcommand_from troubleshoot" -s f -l full-api-key -d "display full API key (censored by default)"
-complete -f -c exercism -n "__fish_seen_subcommand_from troubleshoot" -s h -l help -d "help for troubleshoot"
+    __exercism_debug "Calling $requestComp"
+    set -l results (eval $requestComp 2> /dev/null)
 
-# Upgrade
-complete -f -c exercism -n "__fish_use_subcommand" -a "upgrade" -d "Upgrades to the latest available version."
-complete -f -c exercism -n "__fish_seen_subcommand_from help" -s h -l help -d "help for help"
+    # Some programs may output extra empty lines after the directive.
+    # Let's ignore them or else it will break completion.
+    # Ref: https://github.com/spf13/cobra/issues/1279
+    for line in $results[-1..1]
+        if test (string trim -- $line) = ""
+            # Found an empty line, remove it
+            set results $results[1..-2]
+        else
+            # Found non-empty line, we have our proper output
+            break
+        end
+    end
 
-# Version
-complete -f -c exercism -n "__fish_use_subcommand" -a "version" -d "Outputs version information."
-complete -f -c exercism -n "__fish_seen_subcommand_from version" -s l -l latest -d "check latest available version"
-complete -f -c exercism -n "__fish_seen_subcommand_from version" -s h -l help -d "help for version"
+    set -l comps $results[1..-2]
+    set -l directiveLine $results[-1]
 
-# Workspace
-complete -f -c exercism -n "__fish_use_subcommand" -a "workspace" -d "Outputs the root directory for Exercism exercises."
-complete -f -c exercism -n "__fish_seen_subcommand_from workspace" -s h -l help -d "help for workspace"
+    # For Fish, when completing a flag with an = (e.g., <program> -n=<TAB>)
+    # completions must be prefixed with the flag
+    set -l flagPrefix (string match -r -- '-.*=' "$lastArg")
 
-# Options
-complete -f -c exercism -s h -l help -d "show help"
-complete -f -c exercism -l timeout -a "10" -d "10 seconds"
-complete -f -c exercism -l timeout -a "30" -d "30 seconds"
-complete -f -c exercism -l timeout -a "60" -d "1 minute"
-complete -f -c exercism -l timeout -a "300" -d "5 minutes"
-complete -f -c exercism -l timeout -a "600" -d "10 minutes"
-complete -f -c exercism -l timeout -a "" -d "override default HTTP timeout"
-complete -f -c exercism -s v -l verbose -d "turn on verbose logging"
+    __exercism_debug "Comps: $comps"
+    __exercism_debug "DirectiveLine: $directiveLine"
+    __exercism_debug "flagPrefix: $flagPrefix"
+
+    for comp in $comps
+        printf "%s%s\n" "$flagPrefix" "$comp"
+    end
+
+    printf "%s\n" "$directiveLine"
+end
+
+# this function limits calls to __exercism_perform_completion, by caching the result behind $__exercism_perform_completion_once_result
+function __exercism_perform_completion_once
+    __exercism_debug "Starting __exercism_perform_completion_once"
+
+    if test -n "$__exercism_perform_completion_once_result"
+        __exercism_debug "Seems like a valid result already exists, skipping __exercism_perform_completion"
+        return 0
+    end
+
+    set --global __exercism_perform_completion_once_result (__exercism_perform_completion)
+    if test -z "$__exercism_perform_completion_once_result"
+        __exercism_debug "No completions, probably due to a failure"
+        return 1
+    end
+
+    __exercism_debug "Performed completions and set __exercism_perform_completion_once_result"
+    return 0
+end
+
+# this function is used to clear the $__exercism_perform_completion_once_result variable after completions are run
+function __exercism_clear_perform_completion_once_result
+    __exercism_debug ""
+    __exercism_debug "========= clearing previously set __exercism_perform_completion_once_result variable =========="
+    set --erase __exercism_perform_completion_once_result
+    __exercism_debug "Succesfully erased the variable __exercism_perform_completion_once_result"
+end
+
+function __exercism_requires_order_preservation
+    __exercism_debug ""
+    __exercism_debug "========= checking if order preservation is required =========="
+
+    __exercism_perform_completion_once
+    if test -z "$__exercism_perform_completion_once_result"
+        __exercism_debug "Error determining if order preservation is required"
+        return 1
+    end
+
+    set -l directive (string sub --start 2 $__exercism_perform_completion_once_result[-1])
+    __exercism_debug "Directive is: $directive"
+
+    set -l shellCompDirectiveKeepOrder 32
+    set -l keeporder (math (math --scale 0 $directive / $shellCompDirectiveKeepOrder) % 2)
+    __exercism_debug "Keeporder is: $keeporder"
+
+    if test $keeporder -ne 0
+        __exercism_debug "This does require order preservation"
+        return 0
+    end
+
+    __exercism_debug "This doesn't require order preservation"
+    return 1
+end
+
+
+# This function does two things:
+# - Obtain the completions and store them in the global __exercism_comp_results
+# - Return false if file completion should be performed
+function __exercism_prepare_completions
+    __exercism_debug ""
+    __exercism_debug "========= starting completion logic =========="
+
+    # Start fresh
+    set --erase __exercism_comp_results
+
+    __exercism_perform_completion_once
+    __exercism_debug "Completion results: $__exercism_perform_completion_once_result"
+
+    if test -z "$__exercism_perform_completion_once_result"
+        __exercism_debug "No completion, probably due to a failure"
+        # Might as well do file completion, in case it helps
+        return 1
+    end
+
+    set -l directive (string sub --start 2 $__exercism_perform_completion_once_result[-1])
+    set --global __exercism_comp_results $__exercism_perform_completion_once_result[1..-2]
+
+    __exercism_debug "Completions are: $__exercism_comp_results"
+    __exercism_debug "Directive is: $directive"
+
+    set -l shellCompDirectiveError 1
+    set -l shellCompDirectiveNoSpace 2
+    set -l shellCompDirectiveNoFileComp 4
+    set -l shellCompDirectiveFilterFileExt 8
+    set -l shellCompDirectiveFilterDirs 16
+
+    if test -z "$directive"
+        set directive 0
+    end
+
+    set -l compErr (math (math --scale 0 $directive / $shellCompDirectiveError) % 2)
+    if test $compErr -eq 1
+        __exercism_debug "Received error directive: aborting."
+        # Might as well do file completion, in case it helps
+        return 1
+    end
+
+    set -l filefilter (math (math --scale 0 $directive / $shellCompDirectiveFilterFileExt) % 2)
+    set -l dirfilter (math (math --scale 0 $directive / $shellCompDirectiveFilterDirs) % 2)
+    if test $filefilter -eq 1; or test $dirfilter -eq 1
+        __exercism_debug "File extension filtering or directory filtering not supported"
+        # Do full file completion instead
+        return 1
+    end
+
+    set -l nospace (math (math --scale 0 $directive / $shellCompDirectiveNoSpace) % 2)
+    set -l nofiles (math (math --scale 0 $directive / $shellCompDirectiveNoFileComp) % 2)
+
+    __exercism_debug "nospace: $nospace, nofiles: $nofiles"
+
+    # If we want to prevent a space, or if file completion is NOT disabled,
+    # we need to count the number of valid completions.
+    # To do so, we will filter on prefix as the completions we have received
+    # may not already be filtered so as to allow fish to match on different
+    # criteria than the prefix.
+    if test $nospace -ne 0; or test $nofiles -eq 0
+        set -l prefix (commandline -t | string escape --style=regex)
+        __exercism_debug "prefix: $prefix"
+
+        set -l completions (string match -r -- "^$prefix.*" $__exercism_comp_results)
+        set --global __exercism_comp_results $completions
+        __exercism_debug "Filtered completions are: $__exercism_comp_results"
+
+        # Important not to quote the variable for count to work
+        set -l numComps (count $__exercism_comp_results)
+        __exercism_debug "numComps: $numComps"
+
+        if test $numComps -eq 1; and test $nospace -ne 0
+            # We must first split on \t to get rid of the descriptions to be
+            # able to check what the actual completion will be.
+            # We don't need descriptions anyway since there is only a single
+            # real completion which the shell will expand immediately.
+            set -l split (string split --max 1 \t $__exercism_comp_results[1])
+
+            # Fish won't add a space if the completion ends with any
+            # of the following characters: @=/:.,
+            set -l lastChar (string sub -s -1 -- $split)
+            if not string match -r -q "[@=/:.,]" -- "$lastChar"
+                # In other cases, to support the "nospace" directive we trick the shell
+                # by outputting an extra, longer completion.
+                __exercism_debug "Adding second completion to perform nospace directive"
+                set --global __exercism_comp_results $split[1] $split[1].
+                __exercism_debug "Completions are now: $__exercism_comp_results"
+            end
+        end
+
+        if test $numComps -eq 0; and test $nofiles -eq 0
+            # To be consistent with bash and zsh, we only trigger file
+            # completion when there are no other completions
+            __exercism_debug "Requesting file completion"
+            return 1
+        end
+    end
+
+    return 0
+end
+
+# Since Fish completions are only loaded once the user triggers them, we trigger them ourselves
+# so we can properly delete any completions provided by another script.
+# Only do this if the program can be found, or else fish may print some errors; besides,
+# the existing completions will only be loaded if the program can be found.
+if type -q "exercism"
+    # The space after the program name is essential to trigger completion for the program
+    # and not completion of the program name itself.
+    # Also, we use '> /dev/null 2>&1' since '&>' is not supported in older versions of fish.
+    complete --do-complete "exercism " > /dev/null 2>&1
+end
+
+# Remove any pre-existing completions for the program since we will be handling all of them.
+complete -c exercism -e
+
+# this will get called after the two calls below and clear the $__exercism_perform_completion_once_result global
+complete -c exercism -n '__exercism_clear_perform_completion_once_result'
+# The call to __exercism_prepare_completions will setup __exercism_comp_results
+# which provides the program's completion choices.
+# If this doesn't require order preservation, we don't use the -k flag
+complete -c exercism -n 'not __exercism_requires_order_preservation && __exercism_prepare_completions' -f -a '$__exercism_comp_results'
+# otherwise we use the -k flag
+complete -k -c exercism -n '__exercism_requires_order_preservation && __exercism_prepare_completions' -f -a '$__exercism_comp_results'

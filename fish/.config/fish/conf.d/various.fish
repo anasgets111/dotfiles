@@ -1,36 +1,26 @@
-## User key bindings
-# Ctrl+Delete: delete next word
+# WezTerm sends custom Ctrl/Shift+Backspace sequences.
 bind ctrl-delete 'commandline -f kill-word'
-# Ctrl+Backspace: custom sequence from WezTerm
 bind \e\[7\;5~ 'commandline -f backward-kill-word'
-# Shift+Delete: delete from cursor to end of line
 bind shift-delete 'commandline -f kill-line'
-# Shift+Backspace: custom sequence from WezTerm
 bind \e\[7\;2~ 'commandline -f backward-kill-line'
 
 function sail
-    if test -x "$PWD/sail"
-        "$PWD/sail" $argv
-    else if test -x vendor/bin/sail
-        vendor/bin/sail $argv
-    else
+    set -l executable "$PWD/sail"
+    test -x "$executable"; or set executable vendor/bin/sail
+    if not test -x "$executable"
         echo "sail: no executable found in ./ or vendor/bin/" >&2
         return 1
     end
+    "$executable" $argv
 end
 
-## Backup Function
 function backup --argument filename
     cp -- "$filename" "$filename.bak"
 end
 
-## Copy Function
 function copy
-    set count (count $argv)
-    if test $count -eq 2; and test -d "$argv[1]"
-        set from (string trim --right --chars=/ -- $argv[1])
-        set to $argv[2]
-        cp -r -- "$from" "$to"
+    if test (count $argv) -eq 2; and test -d "$argv[1]"
+        cp -r -- (string trim --right --chars=/ -- $argv[1]) "$argv[2]"
     else
         cp -- $argv
     end
@@ -40,25 +30,14 @@ function ssh --wraps=ssh
     if set -q KITTY_WINDOW_ID; and type -q kitty
         echo "Using Kitty SSH kitten" >&2
         command kitty +kitten ssh $argv
-        return
+    else
+        echo "Using standard SSH" >&2
+        command ssh $argv
     end
-
-    echo "Using standard SSH" >&2
-    command ssh $argv
 end
 
 function sendText
-    # Use the first argument as the filename; default to file.txt if not provided
-    if test (count $argv) -gt 0
-        set filename $argv[1]
-    else
-        set filename "file.txt"
-    end
-
-    # Get current epoch time (seconds) and compute expiry in ms (current time*1000 + 600000)
-    set epoch (date +%s)
-    set expiry (math "($epoch * 1000) + 600000")
-
-    # Upload data from standard input, with secret=1 and expires set as calculated
-    curl -F "file=@-;filename=$filename" -F "secret=1" -F "expires=$expiry" https://0x0.st
+    set -l filename $argv[1] file.txt
+    set -l expiry (date --date='10 minutes' +%s%3N)
+    curl -F "file=@-;filename=$filename[1]" -F "secret=1" -F "expires=$expiry" https://0x0.st
 end
