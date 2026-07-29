@@ -276,14 +276,14 @@ Singleton {
 
     readonly property var batteryInterface: usable && hasPlugin("battery") ? KDEConnect.DeviceBatteryDbusInterfaceFactory.create(id) : null
     readonly property var connectivityInterface: usable && hasPlugin("connectivity_report") ? KDEConnect.DeviceConnectivityReportDbusInterfaceFactory.create(id) : null
-    readonly property string id: source.id()
+    readonly property string id: source?.id() ?? ""
     readonly property var lockInterface: usable && hasPlugin("lockdevice") ? KDEConnect.LockDeviceDbusInterfaceFactory.create(id) : null
     property var plugins: []
     required property var source
     readonly property var sftpInterface: usable && hasPlugin("sftp") ? KDEConnect.SftpDbusInterfaceFactory.create(id) : null
     property bool sftpMounted: false
     property string type: "phone"
-    readonly property bool usable: source.isPaired && source.isReachable
+    readonly property bool usable: (source?.isPaired ?? false) && (source?.isReachable ?? false)
 
     function hasPlugin(plugin: string): bool { return plugins.includes("kdeconnect_" + plugin); }
     function refreshMounted(): void {
@@ -294,15 +294,15 @@ Singleton {
     }
 
     Component.onCompleted: {
-      plugins = source.supportedPlugins;
-      type = source.type;
+      plugins = source?.supportedPlugins ?? [];
+      type = source?.type ?? "phone";
       refreshMounted();
     }
     onSftpInterfaceChanged: refreshMounted()
 
     readonly property Connections deviceConnections: Connections {
-      function onPluginsChanged(): void { state.plugins = state.source.supportedPlugins; }
-      function onTypeChanged(): void { state.type = state.source.type; }
+      function onPluginsChanged(): void { state.plugins = state.source?.supportedPlugins ?? []; }
+      function onTypeChanged(): void { state.type = state.source?.type ?? "phone"; }
 
       target: state.source
     }
