@@ -103,10 +103,10 @@ Singleton {
     };
   }
   function _refreshThreads(): void {
-    smsLoading = true;
     _smsCall("activeConversations", [], (values, callError) => {
-      root.error = callError;
-      if (!callError)
+      if (callError)
+        root.error = callError;
+      else
         root.smsThreads = (values ?? []).map(root._parseMessage).filter(Boolean).sort((a, b) => b.date - a.date);
       root.smsLoading = false;
     });
@@ -183,10 +183,12 @@ Singleton {
   function openSms(deviceId: string): void {
     closeSms();
     smsDeviceId = deviceId;
-    _refreshThreads();
+    smsLoading = true;
     _smsCall("requestAllConversationThreads", [], (value, callError) => {
       root.error = callError;
-      if (!callError)
+      if (callError)
+        root.smsLoading = false;
+      else
         smsThreadsTimer.restart();
     });
   }
@@ -243,7 +245,7 @@ Singleton {
     }
   }
   CommandStream {
-    active: true
+    active: root.smsDeviceId !== ""
     command: ["busctl", "--user", "--json=short", `--match=type='signal',sender='${root._service}',interface='${root._conversations}'`, "monitor"]
     restartDelay: 1000
 

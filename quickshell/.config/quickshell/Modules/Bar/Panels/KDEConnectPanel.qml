@@ -31,7 +31,7 @@ PanelContentBase {
   property bool shareOpen: false
   readonly property var unpairedDevices: KDEConnectService.devices.filter(device => !device.source.isPaired)
 
-  function can(plugin: string): bool { return selectedDevice?.usable && selectedDevice.hasPlugin(plugin); }
+  function can(plugin: string): bool { return (selectedDevice?.usable ?? false) && selectedDevice.hasPlugin(plugin); }
   function deviceIcon(device: var): string { return device?.type === "tablet" ? "󰓶" : device?.type === "desktop" ? "󰟀" : "󰄜"; }
   function networkText(device: var): string {
     const strength = Number(device?.connectivityInterface?.cellularNetworkStrength ?? -1);
@@ -187,7 +187,7 @@ PanelContentBase {
         icon: root.deviceIcon(root.selectedDevice)
         rowActionEnabled: false
         selected: root.selectedDevice?.usable ?? false
-        subtitle: [root.statusText(root.selectedDevice), root.networkText(root.selectedDevice), root.battery >= 100 && root.selectedDevice?.batteryInterface?.isCharging ? qsTr("Charged") : root.selectedDevice?.batteryInterface?.isCharging ? qsTr("Charging") : ""].filter(Boolean).join(" · ")
+        subtitle: [root.statusText(root.selectedDevice), root.networkText(root.selectedDevice), (root.selectedDevice?.batteryInterface?.isCharging ?? false) ? (root.battery >= 100 ? qsTr("Charged") : qsTr("Charging")) : ""].filter(Boolean).join(" · ")
         title: root.selectedDevice?.source.name ?? ""
         visible: root.selectedDevice !== null
 

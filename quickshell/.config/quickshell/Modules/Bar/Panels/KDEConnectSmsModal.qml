@@ -59,10 +59,6 @@ OModal {
       icon: "󰍦"
       subtitle: root.device?.source.name ?? ""
       title: qsTr("Messages")
-
-      OSpinner {
-        running: KDEConnectService.smsLoading
-      }
     }
     RowLayout {
       Layout.fillHeight: true
@@ -259,12 +255,16 @@ OModal {
             }
           }
         }
+        OSpinner {
+          anchors.centerIn: parent
+          running: KDEConnectService.smsLoading
+        }
         PanelEmptyState {
           anchors.centerIn: parent
           icon: "󰍦"
           subtext: qsTr("Choose a conversation or start a new message.")
           text: qsTr("Messages")
-          visible: !root.composing && root.selectedThread === null
+          visible: !KDEConnectService.smsLoading && !root.composing && root.selectedThread === null
         }
       }
     }
