@@ -190,6 +190,7 @@ Singleton {
         smsThreadsTimer.restart();
     });
   }
+  function refreshDevices(): void { Command.run(["kdeconnect-cli", "--refresh"], result => root.error = result.exitCode === 0 ? "" : root._errorText(result)); }
   function sendSms(message: string, destination: string, finished = null): void {
     error = "";
     if (smsThreadId) {

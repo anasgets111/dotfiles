@@ -12,6 +12,7 @@ Item {
   ColumnLayout {
     anchors.centerIn: parent
     spacing: Theme.spacingSm
+    width: root.width
 
     Text {
       Layout.alignment: Qt.AlignHCenter
@@ -28,12 +29,14 @@ Item {
     }
     OText {
       Layout.alignment: Qt.AlignHCenter
+      Layout.fillWidth: true
       color: Theme.textInactiveColor
       horizontalAlignment: Text.AlignHCenter
       opacity: Theme.opacityMuted
       size: "sm"
       text: root.subtext
       visible: root.subtext !== ""
+      wrapMode: Text.Wrap
     }
   }
 }

@@ -22,6 +22,7 @@ PanelContentBase {
   readonly property int battery: selectedDevice?.batteryInterface?.charge ?? -1
   readonly property color batteryColor: battery <= 10 ? Theme.critical : battery <= 20 ? Theme.warning : (selectedDevice?.batteryInterface?.isCharging ?? false) ? Theme.activeColor : Theme.textInactiveColor
   property bool confirmUnpair: false
+  property bool refreshing: false
   readonly property var pairedDevices: KDEConnectService.devices.filter(device => device.source.isPaired)
   readonly property var pairingDevice: KDEConnectService.devices.find(device => device.source.isPairRequestedByPeer || device.source.isPairRequested) ?? null
   property string preferredDeviceId: ""
@@ -102,6 +103,24 @@ PanelContentBase {
         icon: "󰄡"
         subtitle: KDEConnectService.connectedCount ? qsTr("%1 connected").arg(KDEConnectService.connectedCount) : qsTr("No connected devices")
         title: qsTr("KDE Connect")
+
+        PanelActionIcon {
+          icon: "󰑐"
+          tint: Theme.textInactiveColor
+          tooltipText: qsTr("Refresh devices")
+          visible: !root.refreshing
+
+          onClicked: {
+            KDEConnectService.refreshDevices();
+            root.refreshing = true;
+            refreshTimer.restart();
+          }
+        }
+        OSpinner {
+          color: Theme.textInactiveColor
+          running: root.refreshing
+          spinnerSize: Theme.iconSizeMd
+        }
       }
       PanelCard {
         Layout.bottomMargin: visible ? Theme.spacingMd : 0
@@ -348,5 +367,13 @@ PanelContentBase {
     interval: 4000
 
     onTriggered: root.confirmUnpair = false
+  }
+  // ponytail: discovery outlives the CLI command; 4s is feedback, not completion. Replace if KDE Connect exposes a completion signal.
+  Timer {
+    id: refreshTimer
+
+    interval: 4000
+
+    onTriggered: root.refreshing = false
   }
 }
