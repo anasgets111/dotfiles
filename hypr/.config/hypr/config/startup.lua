@@ -4,7 +4,6 @@ local startup_commands = {
     "quickshell",
     "systemctl --user enable --now cliphist.service",
     "kdeconnectd",
-    "kdeconnect-indicator",
     "speech-dispatcher",
     "chromium",
     "zeditor",

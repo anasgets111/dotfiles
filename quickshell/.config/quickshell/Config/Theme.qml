@@ -114,6 +114,7 @@ Singleton {
   readonly property int itemHeight: s(baseItemHeight, 20)
   readonly property int itemRadius: s(baseItemRadius, 6)
   readonly property int itemWidth: s(baseItemWidth, 20)
+  readonly property int kdeconnectPanelWidth: s(380, 340)
   readonly property int launcherIconSize: s(42)
   readonly property int launcherRowHeight: s(64)
   readonly property int launcherSpecialRowHeight: s(86)
@@ -174,6 +175,9 @@ Singleton {
   readonly property int shadowBlurMd: 20
   readonly property color shadowColorStrong: withOpacity(c.shadowColorStrong ?? "#000000", 0.55)
   readonly property int shadowOffsetY: 2
+  readonly property int smsModalHeight: s(760, 640)
+  readonly property int smsModalWidth: s(920, 760)
+  readonly property int smsSidebarWidth: s(300, 240)
   readonly property int spacingLg: s(16)
   readonly property int spacingMd: s(12)
   readonly property int spacingSm: s(8)

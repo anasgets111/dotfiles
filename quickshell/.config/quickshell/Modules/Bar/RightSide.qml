@@ -28,6 +28,10 @@ Row {
     anchors.verticalCenter: parent.verticalCenter
     screenName: rightSide.screenName
   }
+  KDEConnectIndicator {
+    anchors.verticalCenter: parent.verticalCenter
+    screenName: rightSide.screenName
+  }
   SysTray {
     anchors.verticalCenter: parent.verticalCenter
     screenName: rightSide.screenName

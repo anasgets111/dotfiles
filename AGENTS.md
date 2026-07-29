@@ -184,6 +184,8 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 - QML method names cannot begin with an uppercase letter; do not expose constructor-style APIs like `function Finder(...)`. Use a lowercase factory such as `createFinder(...)` instead.
 - `UPower.displayDevice.state` can flap between `Charging`, `FullyCharged`, and `PendingCharge` while AC remains connected; for battery OSD, do not trigger `Fully Charged` from aggregate terminal-state changes alone. Prefer the edge where charging stops while AC is still connected, and treat `PendingCharge` as its own entry edge.
 - Avoid high-frequency add/delete churn on shared JS objects; V4 can crash. Use stable QObject state or scans instead.
+- `String.prototype.replaceAll` is not implemented in this QML JS engine; it throws `Property 'replaceAll' of object <str> is not a function` at runtime with no lint-time warning. Use `str.replace(/pattern/g, replacement)` instead.
+- Arch's `org.kde.kdeconnect` QML module ships incomplete `.qmltypes`, and `DeviceDbusInterface.type`/`supportedPlugins` are non-bindable despite their change signals. Validate its real types with `qmlplugindump`; copy those two values from `typeChanged`/`pluginsChanged` instead of binding them directly.
 - Reuse `Process` objects through `Command`; destroying a process from its own exit handler can use freed memory.
 - For commands that need EOF, enable stdin before start and disable it in `onStarted`; failed starts may only report through `onRunningChanged`.
 - Verify with `/usr/lib/qt6/bin/qmllint -I <.qmlls.ini buildDir> -I /usr/lib/qt6/qml File.qml`; `qs.*` resolves only via that VFS path, and the `PATH` `qmllint` is Qt5's (silent exit 255). `qmlformat` is a formatter and can fail on valid files.

@@ -31,6 +31,7 @@ FocusScope {
   readonly property var panelComponent: ({
       "audio": audioPanelComponent,
       "bluetooth": bluetoothPanelComponent,
+      "kdeconnect": kdeConnectPanelComponent,
       "media": mediaPanelComponent,
       "network": networkPanelComponent,
       "notifications": notificationPanelComponent,
@@ -279,6 +280,12 @@ FocusScope {
     id: mediaPanelComponent
 
     MediaPanel {
+    }
+  }
+  Component {
+    id: kdeConnectPanelComponent
+
+    KDEConnectPanel {
     }
   }
   Component {

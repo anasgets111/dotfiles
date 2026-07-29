@@ -132,7 +132,8 @@ Scope {
         sourceComponent: ({
             launcher: launcherComponent,
             wallpaperPicker: wallpaperComponent,
-            idleSettings: idleComponent
+            idleSettings: idleComponent,
+            kdeconnectSms: kdeConnectSmsComponent
           })[overlayWindow.activeModal] ?? null
 
         onLoaded: item.active = true
@@ -160,6 +161,12 @@ Scope {
         id: idleComponent
 
         IdleSettingsPanel {
+        }
+      }
+      Component {
+        id: kdeConnectSmsComponent
+
+        KDEConnectSmsModal {
         }
       }
     }
