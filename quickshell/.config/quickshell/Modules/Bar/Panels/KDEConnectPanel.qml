@@ -187,7 +187,7 @@ PanelContentBase {
         icon: root.deviceIcon(root.selectedDevice)
         rowActionEnabled: false
         selected: root.selectedDevice?.usable ?? false
-        subtitle: [root.statusText(root.selectedDevice), root.networkText(root.selectedDevice), root.battery >= 100 ? qsTr("Charged") : root.selectedDevice?.batteryInterface?.isCharging ? qsTr("Charging") : ""].filter(Boolean).join(" · ")
+        subtitle: [root.statusText(root.selectedDevice), root.networkText(root.selectedDevice), root.battery >= 100 && root.selectedDevice?.batteryInterface?.isCharging ? qsTr("Charged") : root.selectedDevice?.batteryInterface?.isCharging ? qsTr("Charging") : ""].filter(Boolean).join(" · ")
         title: root.selectedDevice?.source.name ?? ""
         visible: root.selectedDevice !== null
 
