@@ -28,13 +28,14 @@ Item {
   Component.onDestruction: if (panelOpen)
     ShellUiState.closePanel()
 
-  Row {
+  Item {
     id: bars
+
+    readonly property real barPitch: (width + Theme.borderWidthThin) / Math.max(1, CavaService.barCount)
 
     anchors.fill: parent
     anchors.margins: Theme.spacingXs
     opacity: MediaService.playing ? Theme.opacityMedium : Theme.opacitySubtle
-    spacing: Theme.borderWidthThin
 
     Behavior on opacity {
       NumberAnimation {
@@ -45,21 +46,15 @@ Item {
     Repeater {
       model: CavaService.barCount
 
-      delegate: Item {
-        id: barSlot
-
+      // Never give these a radius: see the antialiasing note in AGENTS.md.
+      delegate: Rectangle {
         required property int index
 
-        height: parent.height
-        width: (bars.width - bars.spacing * (CavaService.barCount - 1)) / CavaService.barCount
-
-        Rectangle {
-          anchors.bottom: parent.bottom
-          color: Theme.activeColor
-          height: Math.max(Theme.borderWidthMedium, parent.height * CavaService.values[barSlot.index])
-          radius: width / 2
-          width: parent.width
-        }
+        anchors.bottom: bars.bottom
+        color: Theme.activeColor
+        height: Math.max(Theme.borderWidthMedium, bars.height * CavaService.values[index])
+        width: bars.barPitch - Theme.borderWidthThin
+        x: index * bars.barPitch
       }
     }
   }

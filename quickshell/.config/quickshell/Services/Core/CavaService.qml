@@ -2,7 +2,6 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Services.Core
 import qs.Services.Utils
 
@@ -11,49 +10,41 @@ Singleton {
 
   property bool _available: false
   readonly property int barCount: values.length
-  readonly property string configPath: Quickshell.shellPath("Assets/Cava/config")
   property var values: []
 
-  function updateValues(line: string): void {
-    const payload = line.endsWith(";") ? line.slice(0, -1) : line;
-    if (!payload)
+  // Cava emits `level;level;...;` at 30 fps, so the frame is parsed into the
+  // existing array: allocating a new one per frame is what grew the heap.
+  function updateValues(frame: string): void {
+    if (!frame.endsWith(";"))
       return;
-    const next = payload.split(";");
-    for (let i = 0; i < next.length; i++) {
-      const value = Number(next[i]);
-      if (!Number.isFinite(value))
-        return;
-      next[i] = Math.max(0, Math.min(1, value / 1000));
+    const levels = root.values;
+    let index = 0;
+    let level = 0;
+    for (let i = 0, length = frame.length; i < length; i++) {
+      const code = frame.charCodeAt(i);
+      if (code === 59) {
+        levels[index++] = Math.min(1, level / 1000);
+        level = 0;
+      } else if (code >= 48 && code <= 57) {
+        level = level * 10 + (code - 48);
+      }
     }
-    values = next;
+    levels.length = index;
+    root.valuesChanged();
   }
 
   Component.onCompleted: Command.run(["cava", "-v"], result => root._available = result.exitCode === 0)
 
-  FileView {
-    path: root.configPath
-
-    onLoaded: {
-      const bars = parseInt(text().match(/^\s*bars\s*=\s*(\d+)/m)?.[1] ?? "0", 10);
-      if (bars > 0 && root.values.length === 0)
-        root.values = Array(bars).fill(0.12);
-    }
-  }
   CommandStream {
-    id: cavaProcess
-
     active: root._available && MediaService.playing
-    command: ["cava", "-p", root.configPath]
+    command: ["cava", "-p", Quickshell.shellPath("Assets/Cava/config")]
     restartDelay: 3000
 
     onErrorRead: line => {
-      if (!line.trim())
-        return;
-      Logger.error("CavaService", line.trim());
+      const message = line.trim();
+      if (message)
+        Logger.error("CavaService", message);
     }
-    onLineRead: line => {
-      if (MediaService.playing)
-        root.updateValues(line);
-    }
+    onLineRead: line => root.updateValues(line)
   }
 }
