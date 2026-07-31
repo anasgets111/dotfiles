@@ -39,7 +39,7 @@ Singleton {
   }
   property bool progressDeterminate: false
   readonly property bool ready: MainService.isArchBased && _checkUpdatesAvailable && Settings.isStateLoaded
-  property bool rebootRequired: false
+  readonly property bool rebootRequired: rebootMarkerFile.loaded
   readonly property int totalDownloadSize: updatePackages.reduce((totalSize, packageInfo) => totalSize + (_packageSizes[packageInfo.name] ?? 0), 0)
   property int totalPackagesToUpdate: 0
   readonly property int totalUpdates: updatePackages.length
@@ -48,8 +48,7 @@ Singleton {
   property double updateStartedAt: 0
   property int warningCount: 0
 
-  function _detectErrorMessage(lineText: string): string {
-    const normalizedLine = lineText.toLowerCase();
+  function _detectErrorMessage(normalizedLine: string): string {
     if (["failed retrieving", "download timeout", "connection refused", "could not resolve host"].some(messagePart => normalizedLine.includes(messagePart)))
       return "Network error: Failed to download packages";
     if (normalizedLine.includes("not enough free disk space"))
@@ -158,7 +157,6 @@ Singleton {
     errorMessage = "";
     outputLines.clear();
     progressDeterminate = false;
-    rebootRequired = false;
     totalPackagesToUpdate = 0;
     updateDurationMs = 0;
     updateStartedAt = 0;
@@ -243,13 +241,11 @@ Singleton {
         root.progressDeterminate = false;
       }
       const normalized = cleanLine.toLowerCase();
-      const detectedMessage = root._detectErrorMessage(cleanLine);
+      const detectedMessage = root._detectErrorMessage(normalized);
       if (detectedMessage && !root.errorMessage)
         root.errorMessage = detectedMessage;
       if (normalized.includes("warning"))
         root.warningCount++;
-      if (/^(?:==>\s+|⚠\s+)?Reboot (?:required due to:|is recommended after system updates\.)/.test(cleanLine.trim()))
-        root.rebootRequired = true;
       const failureMatch = cleanLine.trim().match(/^\[FAIL\]\s+(.+)$/);
       if (failureMatch && !root.errorMessage)
         root.errorMessage = `${failureMatch[1]} update failed`;
@@ -275,6 +271,15 @@ Singleton {
         root._finishUpdate(-1);
     }
     onStarted: root._updateProcessStarted = true
+  }
+  FileView {
+    id: rebootMarkerFile
+
+    path: "/run/obelisk-shell-reboot-required"
+    printErrors: false
+    watchChanges: true
+
+    onFileChanged: reload()
   }
   Timer {
     id: pollTimer

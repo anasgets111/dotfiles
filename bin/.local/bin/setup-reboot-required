@@ -25,13 +25,13 @@ for i in "${!components[@]}"; do
   [[ ${components[i]} == usr/lib/modules/*/vmlinuz ]] && components[i]=kernel
 done
 
+install -m 644 /dev/null /run/obelisk-shell-reboot-required
+
 if ((${#components[@]})); then
-  title="Restart recommended"
   printf -v items ' • <code>%s</code><br/>' "${components[@]}"
   body="<b>Restart to finish applying these updates:</b><br/>${items}<br/><i>Restart whenever convenient.</i>"
   console="Restart recommended after updating: ${components[*]}"
 else
-  title="Restart recommended"
   body="System components were updated. Restart when convenient to finish applying them."
   console="Restart recommended after system updates."
 fi
@@ -42,7 +42,7 @@ while read -r _ user _; do
   busctl --machine="$user@.host" --user call \
     org.freedesktop.Notifications /org/freedesktop/Notifications \
     org.freedesktop.Notifications Notify susssasa{sv}i \
-    "System Update" 0 system-reboot "$title" "$body" 0 \
+    "System Update" 0 system-reboot "Restart recommended" "$body" 0 \
     3 urgency y 2 \
     category s "device.software-update" \
     resident b true \

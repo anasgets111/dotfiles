@@ -11,44 +11,44 @@ failure_count=0
 has_cmd() { type -P "$1" >/dev/null 2>&1; }
 
 run_step() {
-  local desc="$1"
-  shift
-  printf "\n▶ %s\n" "$desc"
-  if stdbuf -oL -eL "$@"; then
-    printf "[ OK ] %s\n" "$desc"
-  else
-    printf "[FAIL] %s\n" "$desc"
-    failure_count=$((failure_count + 1))
-  fi
+    local desc="$1"
+    shift
+    printf "\n▶ %s\n" "$desc"
+    if stdbuf -oL -eL "$@"; then
+        printf "[ OK ] %s\n" "$desc"
+    else
+        printf "[FAIL] %s\n" "$desc"
+        failure_count=$((failure_count + 1))
+    fi
 }
 
 start_update() {
-  local script_path="${BASH_SOURCE[0]}"
-  [[ "$script_path" == /* ]] || script_path=$(type -P "$script_path")
-  exec systemd-run --user --quiet --collect --pipe --same-dir \
-    --unit="${UPDATE_UNIT%.service}" --setenv=OBELISK_UPDATE_WORKER=1 \
-    --setenv=CARGO_HOME --setenv=BUN_INSTALL \
-    --setenv=BUN_INSTALL_CACHE_DIR --setenv=FNM_PATH \
-    "$script_path"
+    local script_path="${BASH_SOURCE[0]}"
+    [[ "$script_path" == /* ]] || script_path=$(type -P "$script_path")
+    exec systemd-run --user --quiet --collect --pipe --same-dir \
+        --unit="${UPDATE_UNIT%.service}" --setenv=OBELISK_UPDATE_WORKER=1 \
+        --setenv=CARGO_HOME --setenv=BUN_INSTALL \
+        --setenv=BUN_INSTALL_CACHE_DIR --setenv=FNM_PATH \
+        "$script_path"
 }
 
 run_optional() {
-  local desc="$1"
-  local bin="$2"
-  shift 2
-  if has_cmd "$bin"; then
-    run_step "$desc" "$@"
-  else
-    printf "[SKIP] %s (%s not found)\n" "$desc" "$bin"
-  fi
+    local desc="$1"
+    local bin="$2"
+    shift 2
+    if has_cmd "$bin"; then
+        run_step "$desc" "$@"
+    else
+        printf "[SKIP] %s (%s not found)\n" "$desc" "$bin"
+    fi
 }
 
 if [[ "${OBELISK_UPDATE_WORKER:-}" != 1 ]]; then
-  start_update
+    start_update
 fi
 
 run_step "System Packages (pacman via run0)" \
-  run0 --unit="${PACMAN_UNIT%.service}" --pipe pacman -Syu --noconfirm
+    run0 --unit="${PACMAN_UNIT%.service}" --pipe pacman -Syu --noconfirm
 
 run_optional "Composer" composer composer global update
 run_optional "Node (fnm)" fnm bash -lc 'fnm install lts-latest && fnm default lts-latest'
@@ -57,8 +57,8 @@ run_optional "Rust Binaries" cargo-install-update cargo install-update -a
 run_optional "Rust Toolchain" rustup rustup update
 
 if ((failure_count > 0)); then
-  printf "\nDone with %d failed step(s).\n" "$failure_count"
-  exit 1
+    printf "\nDone with %d failed step(s).\n" "$failure_count"
+    exit 1
 fi
 
 printf "\nDone.\n"
