@@ -145,7 +145,11 @@ FocusScope {
     id: dismissArea
 
     acceptedButtons: Qt.LeftButton | Qt.RightButton
-    anchors.fill: parent
+    anchors {
+      fill: parent
+      // The shared shell window is clickable over the bar too; leave that strip to its controls.
+      topMargin: Theme.panelHeight
+    }
     enabled: root.active
 
     onPressed: mouse => {

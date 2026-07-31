@@ -212,7 +212,7 @@ Singleton {
     return _iconSizes[size] ?? iconSizeMd;
   }
   function networkBandColor(value: string): color {
-    return value === "6" ? powerSaveColor : value === "5" ? activeColor : inactiveColor;
+    return value === "6" ? powerSaveColor : value === "5" ? activeColor : value === "2.4" ? warning : inactiveColor;
   }
   function s(base, min = 0) {
     return Math.max(min, Math.round(base * internal.scaleFactor));

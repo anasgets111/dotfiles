@@ -15,45 +15,38 @@ Scope {
   id: root
 
   required property var modelData
-  readonly property bool overlayRequested: ShellUiState.isAnyInteractiveOpen
-  property bool overlayRetained: false
 
-  Component.onCompleted: overlayRetained = overlayRequested
-  onOverlayRequestedChanged: {
-    if (overlayRequested) {
-      overlayDestroyTimer.stop();
-      overlayRetained = true;
-    } else if (overlayRetained) {
-      overlayDestroyTimer.restart();
-    }
-  }
-
-  Timer {
-    id: overlayDestroyTimer
-
-    interval: Theme.animationDuration
-
-    onTriggered: if (!root.overlayRequested)
-      root.overlayRetained = false
-  }
   PanelWindow {
-    id: barWindow
+    id: shellWindow
 
-    BackgroundEffect.blurRegion: barHost.blurRegion
+    // One surface and one backdrop-effect request keep the blur kernel continuous where a panel
+    // touches the bar. Separate layer-shell surfaces produce visibly different blurred samples.
+    readonly property string activeModal: ShellUiState.activeScreenName === screenName ? ShellUiState.activeModal : ""
+    readonly property var activeModalItem: modalLoader.item
+    readonly property Region chromeBlurRegion: Region {
+      regions: shellWindow.activeModalItem?.blurRegion ? [barHost.blurRegion, shellWindow.activeModalItem.blurRegion]
+        : panelContainer.blurRegion ? [barHost.blurRegion, panelContainer.blurRegion] : [barHost.blurRegion]
+    }
+    readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(screenName)
+    readonly property string screenName: screen?.name ?? ""
+
+    BackgroundEffect.blurRegion: chromeBlurRegion
     WlrLayershell.exclusionMode: ExclusionMode.Normal
     WlrLayershell.exclusiveZone: Theme.panelHeight
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "obelisk-bar"
+    WlrLayershell.keyboardFocus: (panelContainer.active && panelContainer.needsKeyboardFocus) || activeModal !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     color: "transparent"
-    implicitHeight: barHost.implicitHeight
+    // Three anchors retain a top-edge exclusive zone; four anchors would make it ineffective.
+    implicitHeight: screen?.height ?? 0
     screen: root.modelData
 
     mask: Region {
-      height: Theme.panelHeight
-      width: barWindow.width
+      height: shellWindow.activeModal !== "" || shellWindow.isPanelActiveHere ? shellWindow.height : Theme.panelHeight
+      width: shellWindow.width
     }
 
-    Component.onCompleted: IdleService.window = barWindow
+    Component.onCompleted: IdleService.window = shellWindow
 
     anchors {
       left: true
@@ -63,111 +56,82 @@ Scope {
     Bar {
       id: barHost
 
-      anchors.fill: parent
-      screen: barWindow.screen
-
-      onWallpaperPickerRequested: ShellUiState.openModal("wallpaperPicker", barWindow.screen?.name ?? "")
-    }
-  }
-  LazyLoader {
-    active: root.overlayRetained
-
-    component: PanelWindow {
-      id: overlayWindow
-
-      readonly property string activeModal: ShellUiState.activeScreenName === screenName ? ShellUiState.activeModal : ""
-      readonly property var activeModalItem: modalLoader.item
-      readonly property bool isPanelActiveHere: ShellUiState.isPanelOpenOn(screenName)
-      readonly property string screenName: screen?.name ?? ""
-
-      BackgroundEffect.blurRegion: overlayWindow.activeModalItem?.blurRegion ?? panelContainer.blurRegion
-      WlrLayershell.exclusionMode: ExclusionMode.Ignore
-      WlrLayershell.keyboardFocus: (panelContainer.active && panelContainer.needsKeyboardFocus) || activeModal !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-      WlrLayershell.layer: WlrLayer.Top
-      WlrLayershell.namespace: "obelisk-overlay"
-      color: "transparent"
-      screen: root.modelData
-
-      mask: Region {
-        height: overlayWindow.activeModal !== "" ? overlayWindow.height : overlayWindow.isPanelActiveHere ? Math.max(0, overlayWindow.height - Theme.panelHeight) : 0
-        width: overlayWindow.width
-        y: overlayWindow.isPanelActiveHere ? Theme.panelHeight : 0
-      }
-
       anchors {
-        bottom: true
-        left: true
-        right: true
-        top: true
+        left: parent.left
+        right: parent.right
+        top: parent.top
       }
-      PanelHost {
-        id: panelContainer
+      screen: shellWindow.screen
 
-        active: overlayWindow.isPanelActiveHere
-        anchorRect: ShellUiState.anchorRect
-        anchors.fill: parent
-        panelData: ShellUiState.panelData
-        panelId: ShellUiState.activePanelId
+      onWallpaperPickerRequested: ShellUiState.openModal("wallpaperPicker", shellWindow.screen?.name ?? "")
+    }
+    PanelHost {
+      id: panelContainer
 
-        onCloseRequested: ShellUiState.closePanel()
+      active: shellWindow.isPanelActiveHere
+      anchorRect: ShellUiState.anchorRect
+      anchors.fill: parent
+      panelData: ShellUiState.panelData
+      panelId: ShellUiState.activePanelId
+
+      onCloseRequested: ShellUiState.closePanel()
+    }
+    Connections {
+      function onLauncherCloseRequested() {
+        if (shellWindow.activeModal !== "launcher")
+          return;
+        const launcher = modalLoader.item as AppLauncher;
+        if (launcher)
+          launcher.close();
+        else
+          ShellUiState.closeModal("launcher");
       }
-      Connections {
-        function onLauncherCloseRequested() {
-          if (overlayWindow.activeModal !== "launcher")
-            return;
-          const launcher = modalLoader.item as AppLauncher;
-          if (launcher)
-            launcher.close();
-          else
-            ShellUiState.closeModal("launcher");
-        }
 
-        target: IPC
+      target: IPC
+    }
+    Loader {
+      id: modalLoader
+
+      active: shellWindow.activeModal !== ""
+      anchors.fill: parent
+      sourceComponent: ({
+          launcher: launcherComponent,
+          wallpaperPicker: wallpaperComponent,
+          idleSettings: idleComponent,
+          kdeconnectSms: kdeConnectSmsComponent
+        })[shellWindow.activeModal] ?? null
+
+      onLoaded: item.active = true
+    }
+    Connections {
+      function onDismissed() {
+        ShellUiState.closeModal(shellWindow.activeModal);
       }
-      Loader {
-        id: modalLoader
 
-        active: overlayWindow.activeModal !== ""
-        anchors.fill: parent
-        sourceComponent: ({
-            launcher: launcherComponent,
-            wallpaperPicker: wallpaperComponent,
-            idleSettings: idleComponent,
-            kdeconnectSms: kdeConnectSmsComponent
-          })[overlayWindow.activeModal] ?? null
+      target: modalLoader.item
+    }
+    Component {
+      id: launcherComponent
 
-        onLoaded: item.active = true
+      AppLauncher {
       }
-      Connections {
-        function onDismissed() {
-          ShellUiState.closeModal(overlayWindow.activeModal);
-        }
+    }
+    Component {
+      id: wallpaperComponent
 
-        target: modalLoader.item
+      WallpaperPicker {
       }
-      Component {
-        id: launcherComponent
+    }
+    Component {
+      id: idleComponent
 
-        AppLauncher {
-        }
+      IdleSettingsPanel {
       }
-      Component {
-        id: wallpaperComponent
+    }
+    Component {
+      id: kdeConnectSmsComponent
 
-        WallpaperPicker {
-        }
-      }
-      Component {
-        id: idleComponent
-
-        IdleSettingsPanel {
-        }
-      }
-      Component {
-        id: kdeConnectSmsComponent
-
-        KDEConnectSmsModal {
-        }
+      KDEConnectSmsModal {
       }
     }
   }
