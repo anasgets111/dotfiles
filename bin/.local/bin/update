@@ -43,23 +43,12 @@ run_optional() {
   fi
 }
 
-if (($#)); then
-  printf "Usage: %s\n" "${0##*/}" >&2
-  exit 2
-fi
 if [[ "${OBELISK_UPDATE_WORKER:-}" != 1 ]]; then
   start_update
 fi
 
-if has_cmd pacman; then
-  if ! has_cmd run0; then
-    printf "[ERROR] run0 not found - required for system updates.\n"
-    failure_count=$((failure_count + 1))
-  else
-    run_step "System Packages (pacman via run0)" \
-      run0 --unit="${PACMAN_UNIT%.service}" --pipe pacman -Syu --noconfirm
-  fi
-fi
+run_step "System Packages (pacman via run0)" \
+  run0 --unit="${PACMAN_UNIT%.service}" --pipe pacman -Syu --noconfirm
 
 run_optional "Composer" composer composer global update
 run_optional "Node (fnm)" fnm bash -lc 'fnm install lts-latest && fnm default lts-latest'

@@ -3,16 +3,14 @@ set -euo pipefail
 
 ((EUID == 0)) || exec sudo -- "$0" "$@"
 
-readonly green=$'\e[32m' magenta=$'\e[35m' cyan=$'\e[36m' bold=$'\e[1m' reset=$'\e[0m'
-
 install_file() {
-  local mode=$1 path=$2
-  printf '  %b→%b %-50s ' "$magenta" "$reset" "$path"
-  install -Dm "$mode" /dev/stdin "$path"
-  printf '%b✓%b\n' "$green" "$reset"
+    local mode=$1 path=$2
+    printf '  Installing %-50s ' "$path"
+    install -Dm "$mode" /dev/stdin "$path"
+    printf 'done\n'
 }
 
-printf '\n%b%b══════ Reboot Required Setup ══════%b\n\n' "$cyan" "$bold" "$reset"
+printf '\n== Reboot-required notifications ==\n\n'
 
 install_file 755 /usr/local/bin/notify-reboot-required <<'SCRIPT'
 #!/usr/bin/env bash
@@ -28,21 +26,17 @@ for i in "${!components[@]}"; do
 done
 
 if ((${#components[@]})); then
-  title="System Restart Required"
+  title="Restart recommended"
   printf -v items ' • <code>%s</code><br/>' "${components[@]}"
-  body="<b>The following components were updated:</b><br/>${items}<br/><i>A reboot is recommended to apply changes.</i>"
-  console="Reboot required due to: ${components[*]}"
+  body="<b>Restart to finish applying these updates:</b><br/>${items}<br/><i>Restart whenever convenient.</i>"
+  console="Restart recommended after updating: ${components[*]}"
 else
-  title="Reboot Recommended"
-  body="Core system components were updated. Please reboot at your convenience."
-  console="Reboot is recommended after system updates."
+  title="Restart recommended"
+  body="System components were updated. Restart when convenient to finish applying them."
+  console="Restart recommended after system updates."
 fi
 
-if [[ -t 2 ]]; then
-  printf '\n\e[1;33m⚠\e[0m \e[1m%s\e[0m\n\n' "$console" >&2
-else
-  printf '==> %s\n' "$console" >&2
-fi
+printf 'Warning: %s\n' "$console" >&2
 
 while read -r _ user _; do
   busctl --machine="$user@.host" --user call \
@@ -83,5 +77,4 @@ NeedsTargets
 Exec = /usr/local/bin/notify-reboot-required
 HOOK
 
-printf '\n  %b%b🎉 Success!%b Setup complete. Reboot notifications active.\n\n' \
-  "$green" "$bold" "$reset"
+printf '\nInstalled reboot-required notification hook.\n\n'

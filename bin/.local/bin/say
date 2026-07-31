@@ -11,22 +11,27 @@ _hash()  { printf '%s' "$1" | sha256sum | cut -d' ' -f1; }
 _cancel_timer() { kill "$(cat "$DIR/timer" 2>/dev/null)" 2>/dev/null || true; rm -f "$DIR/timer"; }
 
 _sig() {
-    local pid; pid=$(cat "$DIR/pid" 2>/dev/null) && kill -"$1" "$pid" 2>/dev/null || true
-    pkill -"$1" -u "$USER" -f "paplay|piper-tts" 2>/dev/null || true
+    local pid
+    pid=$(cat "$DIR/pid" 2>/dev/null || true)
+    [[ "$pid" =~ ^[1-9][0-9]*$ ]] && kill -"$1" -- "-$pid" 2>/dev/null || true
 }
 
-_kill() {
-    _cancel_timer; _sig KILL
-    rm -f "$DIR"/{pid,state,hash}
-}
+_kill() { _cancel_timer; _sig KILL; rm -f "$DIR"/{pid,state,hash}; }
 
 _speak() {
     _kill; _write state "playing"; _write hash "$2"
-    (printf '%s' "$1" \
-        | piper-tts --model "$MODEL" --output-raw 2>/dev/null \
-        | paplay --raw --rate=22050 --format=s16le --channels=1 --latency-msec=100
-    rm -f "$DIR"/{state,hash,pid}) 9>&- &
-    _write pid "$!"; disown $!
+    DIR="$DIR" MODEL="$MODEL" setsid bash -c '
+        cleanup() {
+            exec 9>"$DIR/lock"; flock 9 || return
+            [[ $(cat "$DIR/pid" 2>/dev/null) == "$$" ]] && rm -f "$DIR"/{pid,state,hash,timer}
+        }
+        trap cleanup EXIT
+        printf "%s" "$1" \
+            | piper-tts --model "$MODEL" --output-raw 2>/dev/null \
+            | paplay --raw --rate=22050 --format=s16le --channels=1 --latency-msec=100
+    ' say "$1" 9>&- &
+    _write pid "$!"
+    kill -0 -- "-$!" 2>/dev/null || _kill
 }
 
 # ── Input ─────────────────────────────────────────────────────────────────────
@@ -36,10 +41,8 @@ elif (( $# > 0 )); then
     text="$*"
 elif [[ ! -t 0 ]]; then
     text=$(cat)
-else
-    exit 0
 fi
-[[ -n "$text" ]] || exit 0
+[[ -n "${text:-}" ]] || exit 0
 
 # ── Lock ──────────────────────────────────────────────────────────────────────
 exec 9>"$DIR/lock"
@@ -48,7 +51,8 @@ flock -n 9 || exit 0
 incoming=$(_hash "$text")
 stored=$(cat "$DIR/hash" 2>/dev/null || true)
 state=$(cat "$DIR/state" 2>/dev/null || true)
-kill -0 "$(cat "$DIR/pid" 2>/dev/null)" 2>/dev/null || state="dead"
+pid=$(cat "$DIR/pid" 2>/dev/null || true)
+[[ "$pid" =~ ^[1-9][0-9]*$ ]] && kill -0 -- "-$pid" 2>/dev/null || state="dead"
 
 # ── Decision ──────────────────────────────────────────────────────────────────
 if [[ "$state" == "dead" || "$incoming" != "$stored" ]]; then
@@ -57,6 +61,10 @@ elif [[ "$state" == "paused" ]]; then
     _cancel_timer; _sig CONT; _write state "playing"
 else
     _sig STOP; _write state "paused"
-    (sleep 120; [[ "$(cat "$DIR/state" 2>/dev/null)" == "paused" ]] && _kill) 9>&- &
-    _write timer "$!"; disown $!
+    (sleep 120
+        exec 9>"$DIR/lock"
+        flock -n 9 || exit 0
+        [[ "$(cat "$DIR/pid" 2>/dev/null)" == "$pid" && "$(cat "$DIR/state" 2>/dev/null)" == "paused" ]] && _kill
+    ) 9>&- &
+    _write timer "$!"
 fi
