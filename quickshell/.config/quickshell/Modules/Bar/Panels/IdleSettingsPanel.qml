@@ -13,6 +13,7 @@ OModal {
 
   readonly property var acProfile: idleSettings?.acProfile ?? null
   readonly property string activeProfileLabel: BatteryService.isOnBattery ? qsTr("Battery") : qsTr("AC power")
+  readonly property bool batteryProfileAvailable: BatteryService.isLaptopBattery
   readonly property var batteryProfile: idleSettings?.batteryProfile ?? null
   readonly property real displayPowerOffTimeoutMin: secondsToMinutes(IdleService.displayPowerOffTimeoutSec)
   readonly property int enabledActionCount: (IdleService.lockActionEnabled ? 1 : 0) + (IdleService.suspendActionEnabled ? 1 : 0) + (IdleService.displayPowerOffActionEnabled ? 1 : 0)
@@ -124,7 +125,7 @@ OModal {
         }
         SettingsSection {
           Layout.fillWidth: true
-          description: qsTr("Configure AC power and battery behavior side by side.")
+          description: root.batteryProfileAvailable ? qsTr("Configure AC power and battery behavior side by side.") : qsTr("Configure idle behavior on AC power.")
           icon: "󰒲"
           title: qsTr("Automation")
 
@@ -168,13 +169,13 @@ OModal {
           SettingsSection {
             Layout.alignment: Qt.AlignTop
             Layout.fillWidth: true
-            description: qsTr("Wake requests shared by both profiles.")
+            description: qsTr("Choose when applications may keep the session awake.")
             icon: "󰒓"
             title: qsTr("Behavior")
 
             SharedSettingRow {
               checked: root.idleSettings?.respectInhibitors ?? true
-              description: qsTr("Honor application wake requests in both profiles.")
+              description: qsTr("Honor application wake requests.")
               enabled: root.idleEnabled
               icon: "󰈑"
               label: qsTr("Respect inhibitors")
@@ -183,7 +184,7 @@ OModal {
             }
             SharedSettingRow {
               checked: root.idleSettings?.videoAutoInhibit ?? true
-              description: qsTr("Stay awake during active media in both profiles.")
+              description: qsTr("Stay awake during active media.")
               enabled: root.idleEnabled
               icon: "󰀈"
               label: qsTr("Keep awake for media")
@@ -276,12 +277,13 @@ OModal {
     }
     OrderControl {
       profile: root.batteryProfile
+      visible: root.batteryProfileAvailable
     }
   }
   component ActionSettingRow: ColumnLayout {
     id: actionRow
 
-    readonly property bool anyEnabled: root.profileActionEnabled(root.acProfile, enabledKey, timeoutKey, defaultEnabled, defaultTimeoutSec) || root.profileActionEnabled(root.batteryProfile, enabledKey, timeoutKey, defaultEnabled, defaultTimeoutSec)
+    readonly property bool anyEnabled: root.profileActionEnabled(root.acProfile, enabledKey, timeoutKey, defaultEnabled, defaultTimeoutSec) || (root.batteryProfileAvailable && root.profileActionEnabled(root.batteryProfile, enabledKey, timeoutKey, defaultEnabled, defaultTimeoutSec))
     required property int defaultTimeoutSec
     property bool defaultEnabled: true
     required property string description
@@ -324,6 +326,7 @@ OModal {
         profile: root.batteryProfile
         timeoutKey: actionRow.timeoutKey
         timeoutOptionsMin: actionRow.timeoutOptionsMin
+        visible: root.batteryProfileAvailable
       }
     }
     Rectangle {
@@ -467,6 +470,7 @@ OModal {
     }
     ProfileHeading {
       battery: true
+      visible: root.batteryProfileAvailable
     }
   }
   component ProfileHeading: OText {
