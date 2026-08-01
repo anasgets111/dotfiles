@@ -105,6 +105,7 @@ Singleton {
     delegate: FileView {
       required property string modelData
 
+      printErrors: false
       path: {
         if (ledFolder.status !== FolderListModel.Ready)
           return "";
@@ -116,17 +117,20 @@ Singleton {
         return "";
       }
 
+      onLoadFailed: if (path) ledFolder.folder = ""
       onLoaded: root[modelData.replace("lock", "Lock")] = text().trim() === "1"
     }
   }
 
-  // sysfs virtual files do not emit inotify events.
+  // Poll values; a failed hotplug read resets discovery on the next tick.
   Timer {
     interval: 100
     repeat: true
-    running: ledFolder.count > 0
+    running: ledFolder.count > 0 || ledFolder.status === FolderListModel.Null
 
     onTriggered: {
+      if (ledFolder.status === FolderListModel.Null)
+        ledFolder.folder = "file:///sys/class/leds";
       for (let index = 0; index < ledInstantiator.count; index++)
         (ledInstantiator.objectAt(index) as FileView)?.reload();
     }
