@@ -86,16 +86,21 @@ Singleton {
   JsonAdapter {
     id: settingsAdapter
 
-    property JsonObject idleService: JsonObject {
+    component IdleProfile: JsonObject {
       property bool dpmsEnabled: true
       property int dpmsTimeoutSec: 30
-      property bool enabled: true
       property bool lockAfterDpms: false
       property bool lockEnabled: true
       property int lockTimeoutSec: 300
-      property bool respectInhibitors: true
       property bool suspendEnabled: false
       property int suspendTimeoutSec: 120
+    }
+
+    property JsonObject idleService: JsonObject {
+      property JsonObject acProfile: IdleProfile {}
+      property JsonObject batteryProfile: IdleProfile {}
+      property bool enabled: true
+      property bool respectInhibitors: true
       property bool videoAutoInhibit: true
     }
     property JsonObject inputDisplay: JsonObject {

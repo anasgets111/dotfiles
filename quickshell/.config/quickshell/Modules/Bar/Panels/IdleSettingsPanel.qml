@@ -11,18 +11,18 @@ import qs.Services.SystemInfo
 OModal {
   id: root
 
-  readonly property bool displayPowerOffEnabled: idleSettings?.dpmsEnabled ?? true
-  readonly property real displayPowerOffTimeoutMin: secondsToMinutes(idleSettings?.dpmsTimeoutSec ?? 30)
+  readonly property var acProfile: idleSettings?.acProfile ?? null
+  readonly property string activeProfileLabel: BatteryService.isOnBattery ? qsTr("Battery") : qsTr("AC power")
+  readonly property var batteryProfile: idleSettings?.batteryProfile ?? null
+  readonly property real displayPowerOffTimeoutMin: secondsToMinutes(IdleService.displayPowerOffTimeoutSec)
   readonly property int enabledActionCount: (IdleService.lockActionEnabled ? 1 : 0) + (IdleService.suspendActionEnabled ? 1 : 0) + (IdleService.displayPowerOffActionEnabled ? 1 : 0)
   readonly property bool idleEnabled: IdleService.idleEnabled
   readonly property var idleSettings: Settings.data?.idleService ?? null
   readonly property bool inputDisplayBackendReady: InputDisplayService.backendAvailable
   readonly property string inputDisplayStatusText: InputDisplayService.backendCheckComplete ? qsTr("Install showmethekey-cli to use the input overlay.") : qsTr("Checking input overlay availability…")
-  readonly property bool lockAfterDisplayPowerOff: idleSettings?.lockAfterDpms ?? false
-  readonly property bool lockEnabled: idleSettings?.lockEnabled ?? true
-  readonly property real lockTimeoutMin: secondsToMinutes(idleSettings?.lockTimeoutSec ?? 300)
-  readonly property bool suspendEnabled: idleSettings?.suspendEnabled ?? false
-  readonly property real suspendTimeoutMin: secondsToMinutes(idleSettings?.suspendTimeoutSec ?? 120)
+  readonly property real lockTimeoutMin: secondsToMinutes(IdleService.lockTimeoutSec)
+  readonly property int profileColumnWidth: Theme.idleTimeoutControlWidth + Theme.spacingXl
+  readonly property real suspendTimeoutMin: secondsToMinutes(IdleService.suspendTimeoutSec)
 
   function formatDuration(durationMin: real): string {
     const totalSeconds = Math.max(0, Math.round((durationMin || 0) * 60));
@@ -36,6 +36,9 @@ OModal {
   }
   function minutesToSeconds(value: real): int {
     return Math.round(Math.max(0, value || 0) * 60);
+  }
+  function profileActionEnabled(profile: var, enabledKey: string, timeoutKey: string, defaultEnabled: bool, defaultTimeoutSec: int): bool {
+    return (profile?.[enabledKey] ?? defaultEnabled) && (profile?.[timeoutKey] ?? defaultTimeoutSec) > 0;
   }
   function secondsToMinutes(value: int): real {
     return Math.max(0, value || 0) / 60;
@@ -87,7 +90,7 @@ OModal {
           OText {
             color: Theme.textInactiveColor
             font.pixelSize: Theme.fontMd
-            text: root.idleEnabled ? qsTr("%1 automatic actions enabled").arg(root.enabledActionCount) : qsTr("Automatic actions are paused")
+            text: root.idleEnabled ? qsTr("%1 actions enabled · %2").arg(root.enabledActionCount).arg(root.activeProfileLabel) : qsTr("Automatic actions are paused")
           }
         }
         Item {
@@ -121,58 +124,41 @@ OModal {
         }
         SettingsSection {
           Layout.fillWidth: true
-          description: qsTr("Choose what happens when the session is inactive.")
+          description: qsTr("Configure AC power and battery behavior side by side.")
           icon: "󰒲"
           title: qsTr("Automation")
 
-          SettingRow {
-            checked: root.lockEnabled
+          ProfileHeader {
+          }
+          ActionSettingRow {
+            defaultTimeoutSec: 300
             description: qsTr("Secure the session after inactivity.")
-            enabled: root.idleEnabled
+            enabledKey: "lockEnabled"
             icon: "󰌾"
             label: qsTr("Lock screen")
-            timeoutMin: root.lockTimeoutMin
+            timeoutKey: "lockTimeoutSec"
             timeoutOptionsMin: [0.5, 1, 2, 5, 10, 15, 30]
-
-            onTimeoutSelected: minutes => root.idleSettings.lockTimeoutSec = root.minutesToSeconds(minutes)
-            onToggled: checked => {
-              if (checked && root.lockTimeoutMin <= 0)
-                root.idleSettings.lockTimeoutSec = root.minutesToSeconds(5);
-              root.idleSettings.lockEnabled = checked;
-            }
           }
-          SettingRow {
-            checked: root.displayPowerOffEnabled
+          ActionSettingRow {
+            defaultTimeoutSec: 30
             description: qsTr("Power down displays until activity resumes.")
-            enabled: root.idleEnabled
+            enabledKey: "dpmsEnabled"
             icon: "󰍹"
             label: qsTr("Turn off displays")
-            timeoutMin: root.displayPowerOffTimeoutMin
+            timeoutKey: "dpmsTimeoutSec"
             timeoutOptionsMin: [0.5, 1, 2, 5, 10, 15]
-
-            onTimeoutSelected: minutes => root.idleSettings.dpmsTimeoutSec = root.minutesToSeconds(minutes)
-            onToggled: checked => {
-              if (checked && root.displayPowerOffTimeoutMin <= 0)
-                root.idleSettings.dpmsTimeoutSec = root.minutesToSeconds(1);
-              root.idleSettings.dpmsEnabled = checked;
-            }
           }
-          SettingRow {
-            checked: root.suspendEnabled
+          ActionSettingRow {
+            defaultTimeoutSec: 120
+            defaultEnabled: false
             description: qsTr("Suspend the device to reduce power use.")
-            enabled: root.idleEnabled
+            enabledKey: "suspendEnabled"
             icon: "󰒚"
             label: qsTr("Suspend system")
-            showSeparator: false
-            timeoutMin: root.suspendTimeoutMin
+            timeoutKey: "suspendTimeoutSec"
             timeoutOptionsMin: [5, 10, 15, 30, 60, 120]
-
-            onTimeoutSelected: minutes => root.idleSettings.suspendTimeoutSec = root.minutesToSeconds(minutes)
-            onToggled: checked => {
-              if (checked && root.suspendTimeoutMin <= 0)
-                root.idleSettings.suspendTimeoutSec = root.minutesToSeconds(10);
-              root.idleSettings.suspendEnabled = checked;
-            }
+          }
+          ActionOrderRow {
           }
         }
         RowLayout {
@@ -182,67 +168,22 @@ OModal {
           SettingsSection {
             Layout.alignment: Qt.AlignTop
             Layout.fillWidth: true
-            description: qsTr("Action order and wake requests.")
+            description: qsTr("Wake requests shared by both profiles.")
             icon: "󰒓"
             title: qsTr("Behavior")
 
-            ColumnLayout {
-              Layout.fillWidth: true
-              Layout.leftMargin: Theme.spacingLg
-              Layout.rightMargin: Theme.spacingLg
-              Layout.topMargin: Theme.spacingSm
-              enabled: root.idleEnabled && root.lockEnabled && root.displayPowerOffEnabled
-              opacity: enabled ? 1 : Theme.opacityDisabled
-              spacing: Theme.spacingSm
-
-              OText {
-                bold: true
-                font.pixelSize: Theme.fontLg
-                text: qsTr("Action order")
-              }
-              RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.spacingXs
-
-                OButton {
-                  Layout.fillWidth: true
-                  bgColor: root.lockAfterDisplayPowerOff ? Theme.glassContentColor : Theme.activeColor
-                  size: "sm"
-                  text: qsTr("Lock first")
-                  textColor: root.lockAfterDisplayPowerOff ? Theme.textInactiveColor : Theme.textContrast(bgColor)
-
-                  onClicked: root.idleSettings.lockAfterDpms = false
-                }
-                OButton {
-                  Layout.fillWidth: true
-                  bgColor: root.lockAfterDisplayPowerOff ? Theme.activeColor : Theme.glassContentColor
-                  size: "sm"
-                  text: qsTr("Display first")
-                  textColor: root.lockAfterDisplayPowerOff ? Theme.textContrast(bgColor) : Theme.textInactiveColor
-
-                  onClicked: root.idleSettings.lockAfterDpms = true
-                }
-              }
-            }
-            Rectangle {
-              Layout.fillWidth: true
-              Layout.leftMargin: Theme.spacingLg
-              color: Theme.borderSubtle
-              implicitHeight: Theme.borderWidthThin
-              opacity: Theme.opacityMedium
-            }
-            SettingRow {
+            SharedSettingRow {
               checked: root.idleSettings?.respectInhibitors ?? true
-              description: qsTr("Honor application wake requests.")
+              description: qsTr("Honor application wake requests in both profiles.")
               enabled: root.idleEnabled
               icon: "󰈑"
               label: qsTr("Respect inhibitors")
 
               onToggled: checked => root.idleSettings.respectInhibitors = checked
             }
-            SettingRow {
+            SharedSettingRow {
               checked: root.idleSettings?.videoAutoInhibit ?? true
-              description: qsTr("Stay awake during active media.")
+              description: qsTr("Stay awake during active media in both profiles.")
               enabled: root.idleEnabled
               icon: "󰀈"
               label: qsTr("Keep awake for media")
@@ -286,7 +227,7 @@ OModal {
                 }
               }
             }
-            SettingRow {
+            SharedSettingRow {
               checked: InputDisplayService.enabled
               description: qsTr("Show input events on screen.")
               icon: "󰌌"
@@ -295,7 +236,7 @@ OModal {
 
               onToggled: checked => InputDisplayService.setEnabled(checked)
             }
-            SettingRow {
+            SharedSettingRow {
               checked: InputDisplayService.showPrintableKeys
               description: qsTr("Include letters and punctuation.")
               enabled: InputDisplayService.enabled
@@ -315,6 +256,84 @@ OModal {
     }
   }
 
+  component ActionOrderRow: RowLayout {
+    Layout.bottomMargin: Theme.spacingMd
+    Layout.fillWidth: true
+    Layout.leftMargin: Theme.spacingLg
+    Layout.rightMargin: Theme.spacingLg
+    Layout.topMargin: Theme.spacingMd
+    opacity: root.idleEnabled ? 1 : Theme.opacityDisabled
+    spacing: Theme.spacingMd
+
+    SettingInfo {
+      description: qsTr("Choose whether locking or display power-off happens first.")
+      highlighted: true
+      icon: "󰒓"
+      label: qsTr("Action order")
+    }
+    OrderControl {
+      profile: root.acProfile
+    }
+    OrderControl {
+      profile: root.batteryProfile
+    }
+  }
+  component ActionSettingRow: ColumnLayout {
+    id: actionRow
+
+    readonly property bool anyEnabled: root.profileActionEnabled(root.acProfile, enabledKey, timeoutKey, defaultEnabled, defaultTimeoutSec) || root.profileActionEnabled(root.batteryProfile, enabledKey, timeoutKey, defaultEnabled, defaultTimeoutSec)
+    required property int defaultTimeoutSec
+    property bool defaultEnabled: true
+    required property string description
+    required property string enabledKey
+    required property string icon
+    required property string label
+    required property string timeoutKey
+    required property var timeoutOptionsMin
+
+    Layout.fillWidth: true
+    opacity: root.idleEnabled ? 1 : Theme.opacityDisabled
+    spacing: 0
+
+    RowLayout {
+      Layout.bottomMargin: Theme.spacingMd
+      Layout.fillWidth: true
+      Layout.leftMargin: Theme.spacingLg
+      Layout.rightMargin: Theme.spacingLg
+      Layout.topMargin: Theme.spacingMd
+      spacing: Theme.spacingMd
+
+      SettingInfo {
+        description: actionRow.description
+        highlighted: actionRow.anyEnabled
+        icon: actionRow.icon
+        label: actionRow.label
+      }
+      ProfileControl {
+        defaultEnabled: actionRow.defaultEnabled
+        defaultTimeoutSec: actionRow.defaultTimeoutSec
+        enabledKey: actionRow.enabledKey
+        profile: root.acProfile
+        timeoutKey: actionRow.timeoutKey
+        timeoutOptionsMin: actionRow.timeoutOptionsMin
+      }
+      ProfileControl {
+        defaultEnabled: actionRow.defaultEnabled
+        defaultTimeoutSec: actionRow.defaultTimeoutSec
+        enabledKey: actionRow.enabledKey
+        profile: root.batteryProfile
+        timeoutKey: actionRow.timeoutKey
+        timeoutOptionsMin: actionRow.timeoutOptionsMin
+      }
+    }
+    Rectangle {
+      Layout.fillWidth: true
+      Layout.leftMargin: Theme.spacingLg + Theme.controlHeightMd + Theme.spacingMd
+      color: Theme.borderSubtle
+      implicitHeight: Theme.borderWidthThin
+      opacity: Theme.opacityMedium
+    }
+  }
   component FlowSummary: PanelCard {
     implicitHeight: flowLayout.implicitHeight + Theme.spacingMd * 2
     padding: 0
@@ -337,7 +356,7 @@ OModal {
         bold: true
         color: root.idleEnabled ? Theme.textActiveColor : Theme.textInactiveColor
         font.pixelSize: Theme.fontSm
-        text: root.idleEnabled ? qsTr("Current flow") : qsTr("Automation paused")
+        text: root.idleEnabled ? qsTr("Current flow · %1").arg(root.activeProfileLabel) : qsTr("Automation paused")
       }
       Item {
         Layout.fillWidth: true
@@ -350,7 +369,7 @@ OModal {
           readonly property bool isDisplay: modelData === "displayPowerOff"
           readonly property bool isLock: modelData === "lock"
           required property string modelData
-          readonly property bool stepEnabled: root.idleEnabled && (isLock ? root.lockEnabled : isDisplay ? root.displayPowerOffEnabled : root.suspendEnabled)
+          readonly property bool stepEnabled: root.idleEnabled && (isLock ? IdleService.lockActionEnabled : isDisplay ? IdleService.displayPowerOffActionEnabled : IdleService.suspendActionEnabled)
           readonly property string stepLabel: isLock ? qsTr("Lock") : isDisplay ? qsTr("Display") : qsTr("Suspend")
           readonly property real timeoutMin: isLock ? root.lockTimeoutMin : isDisplay ? root.displayPowerOffTimeoutMin : root.suspendTimeoutMin
 
@@ -386,30 +405,136 @@ OModal {
       }
     }
   }
-  component SettingRow: ColumnLayout {
+  component OrderControl: OComboBox {
+    required property var profile
+    readonly property bool profileActionsEnabled: root.profileActionEnabled(profile, "lockEnabled", "lockTimeoutSec", true, 300) && root.profileActionEnabled(profile, "dpmsEnabled", "dpmsTimeoutSec", true, 30)
+
+    Layout.preferredWidth: root.profileColumnWidth
+    currentIndex: (profile?.lockAfterDpms ?? false) ? 1 : 0
+    enabled: root.idleEnabled && profileActionsEnabled
+    model: [qsTr("Lock first"), qsTr("Display first")]
+
+    onActivated: index => profile.lockAfterDpms = index === 1
+  }
+  component ProfileControl: OComboBox {
+    id: profileControl
+
+    readonly property bool actionEnabled: root.profileActionEnabled(profile, enabledKey, timeoutKey, defaultEnabled, defaultTimeoutSec)
+    required property bool defaultEnabled
+    required property int defaultTimeoutSec
+    readonly property var effectiveTimeoutOptionsMin: timeoutMin <= 0 || timeoutOptionsMin.some(value => Math.abs(value - timeoutMin) < 0.001) ? timeoutOptionsMin : [...timeoutOptionsMin, timeoutMin].sort((left, right) => left - right)
+    required property string enabledKey
+    required property var profile
+    readonly property real timeoutMin: root.secondsToMinutes(profile?.[timeoutKey] ?? defaultTimeoutSec)
+    readonly property int timeoutIndex: effectiveTimeoutOptionsMin.length ? Math.max(0, effectiveTimeoutOptionsMin.findIndex(value => Math.abs(value - timeoutMin) < 0.001)) : -1
+    required property string timeoutKey
+    required property var timeoutOptionsMin
+
+    Layout.preferredWidth: root.profileColumnWidth
+    currentIndex: actionEnabled ? timeoutIndex + 1 : 0
+    enabled: root.idleEnabled
+    model: [qsTr("Off"), ...effectiveTimeoutOptionsMin.map(value => root.formatDuration(value))]
+
+    onActivated: index => {
+      if (index === 0) {
+        profile[enabledKey] = false;
+        return;
+      }
+      profile[timeoutKey] = root.minutesToSeconds(effectiveTimeoutOptionsMin[index - 1]);
+      profile[enabledKey] = true;
+    }
+  }
+  component ProfileHeader: RowLayout {
+    Layout.bottomMargin: Theme.spacingSm
+    Layout.fillWidth: true
+    Layout.leftMargin: Theme.spacingLg
+    Layout.rightMargin: Theme.spacingLg
+    Layout.topMargin: Theme.spacingSm
+    spacing: Theme.spacingMd
+
+    Item {
+      Layout.preferredWidth: Theme.controlHeightMd
+    }
+    OText {
+      Layout.fillWidth: true
+      bold: true
+      color: Theme.textInactiveColor
+      font.pixelSize: Theme.fontSm
+      text: qsTr("Action")
+    }
+    ProfileHeading {
+      battery: false
+    }
+    ProfileHeading {
+      battery: true
+    }
+  }
+  component ProfileHeading: OText {
+    required property bool battery
+    readonly property bool isActive: battery === BatteryService.isOnBattery
+
+    Layout.preferredWidth: root.profileColumnWidth
+    bold: true
+    color: isActive ? Theme.activeColor : Theme.textInactiveColor
+    font.pixelSize: Theme.fontSm
+    horizontalAlignment: Text.AlignHCenter
+    text: battery ? (isActive ? qsTr("Battery · Active") : qsTr("Battery")) : (isActive ? qsTr("AC power · Active") : qsTr("AC power"))
+  }
+  component SettingInfo: RowLayout {
+    id: infoRoot
+
+    required property string description
+    property bool highlighted: false
+    required property string icon
+    required property string label
+
+    Layout.fillWidth: true
+    spacing: Theme.spacingMd
+
+    OText {
+      Layout.alignment: Qt.AlignTop
+      Layout.preferredWidth: Theme.controlHeightMd
+      color: infoRoot.highlighted ? Theme.activeColor : Theme.textInactiveColor
+      font.pixelSize: Theme.fontMd
+      horizontalAlignment: Text.AlignHCenter
+      text: infoRoot.icon
+    }
+    ColumnLayout {
+      Layout.fillWidth: true
+      spacing: Theme.spacingXs
+
+      OText {
+        Layout.fillWidth: true
+        bold: infoRoot.highlighted
+        color: Theme.textActiveColor
+        font.pixelSize: Theme.fontLg
+        text: infoRoot.label
+      }
+      OText {
+        Layout.fillWidth: true
+        color: Theme.textInactiveColor
+        font.pixelSize: Theme.fontSm
+        text: infoRoot.description
+        wrapMode: Text.Wrap
+      }
+    }
+  }
+  component SharedSettingRow: ColumnLayout {
     id: rowRoot
 
-    property bool checked: false
-    property string description: ""
-    readonly property var effectiveTimeoutOptionsMin: timeoutMin <= 0 || timeoutOptionsMin.some(value => Math.abs(value - timeoutMin) < 0.001) ? timeoutOptionsMin : [...timeoutOptionsMin, timeoutMin].sort((left, right) => left - right)
-    property string icon: ""
-    property string label: ""
+    required property bool checked
+    required property string description
+    required property string icon
+    required property string label
     property bool showSeparator: true
-    readonly property int timeoutIndex: effectiveTimeoutOptionsMin.length ? Math.max(0, effectiveTimeoutOptionsMin.findIndex(value => Math.abs(value - timeoutMin) < 0.001)) : -1
-    property real timeoutMin: 0
-    property var timeoutOptionsMin: []
 
-    signal timeoutSelected(real minutes)
     signal toggled(bool checked)
 
     Layout.fillWidth: true
     opacity: enabled ? 1 : Theme.opacityDisabled
     spacing: 0
 
-    Behavior on opacity {
-      NumberAnimation {
-        duration: Theme.animationDuration
-      }
+    Theme.NumberTransition on opacity {
     }
 
     RowLayout {
@@ -420,41 +545,11 @@ OModal {
       Layout.topMargin: Theme.spacingMd
       spacing: Theme.spacingMd
 
-      OText {
-        Layout.alignment: Qt.AlignTop
-        Layout.preferredWidth: Theme.controlHeightMd
-        color: rowRoot.checked ? Theme.activeColor : Theme.textInactiveColor
-        font.pixelSize: Theme.fontMd
-        horizontalAlignment: Text.AlignHCenter
-        text: rowRoot.icon
-      }
-      ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Theme.spacingXs
-
-        OText {
-          Layout.fillWidth: true
-          bold: rowRoot.checked
-          color: Theme.textActiveColor
-          font.pixelSize: Theme.fontLg
-          text: rowRoot.label
-        }
-        OText {
-          Layout.fillWidth: true
-          color: Theme.textInactiveColor
-          font.pixelSize: Theme.fontSm
-          text: rowRoot.description
-          wrapMode: Text.Wrap
-        }
-      }
-      OComboBox {
-        Layout.alignment: Qt.AlignVCenter
-        Layout.preferredWidth: Theme.idleTimeoutControlWidth
-        currentIndex: rowRoot.timeoutIndex
-        model: rowRoot.effectiveTimeoutOptionsMin.map(value => root.formatDuration(value))
-        visible: rowRoot.timeoutOptionsMin.length > 0 && rowRoot.checked
-
-        onActivated: index => rowRoot.timeoutSelected(rowRoot.effectiveTimeoutOptionsMin[index])
+      SettingInfo {
+        description: rowRoot.description
+        highlighted: rowRoot.checked
+        icon: rowRoot.icon
+        label: rowRoot.label
       }
       OToggle {
         Layout.alignment: Qt.AlignVCenter

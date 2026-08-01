@@ -108,7 +108,7 @@ Singleton {
   readonly property int iconSizeXl: s(32, 24)
   readonly property int iconSizeXs: s(12, 10)
   readonly property int idleModalHeight: s(820)
-  readonly property int idleModalWidth: s(780)
+  readonly property int idleModalWidth: s(820)
   readonly property int idleTimeoutControlWidth: s(108)
   readonly property color inactiveColor: c.inactiveColor ?? "#494d64"
   readonly property int itemHeight: s(baseItemHeight, 20)
