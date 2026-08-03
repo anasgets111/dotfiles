@@ -302,7 +302,7 @@ Singleton {
     target: BrightnessService
   }
   Connections {
-    function onBrightnessChanged() {
+    function onLevelNameChanged() {
       if (KeyboardBacklightService.ready)
         root.show(root.types.keyboardBacklight, null, "⌨", `Backlight: ${KeyboardBacklightService.levelName}`);
     }

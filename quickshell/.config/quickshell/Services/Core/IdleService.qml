@@ -39,6 +39,7 @@ Singleton {
       Logger.warn("IdleService", "DPMS not supported by the current compositor");
       return;
     }
+    KeyboardBacklightService.setBlanked(!powered);
     root.displaysPoweredOff = !powered;
   }
 

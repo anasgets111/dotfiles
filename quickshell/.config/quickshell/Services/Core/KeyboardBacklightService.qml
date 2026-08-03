@@ -9,6 +9,8 @@ import qs.Services.Utils
 Singleton {
   id: root
 
+  property bool _blanked: false
+  property int _unblankedLevel: 0
   readonly property string _deviceName: _devicePath ? _devicePath.split("/").pop() : ""
   readonly property string _devicePath: {
     for (let i = 0; i < ledsFolder.count; i++) {
@@ -24,20 +26,32 @@ Singleton {
   readonly property int maxBrightness: maxBrightnessFile.value
   readonly property bool ready: available && brightnessFile.valid && maxBrightnessFile.valid
 
-  function setLevel(level: int): string {
-    if (!available || !_deviceName)
-      return "Keyboard backlight not available";
+  function _writeLevel(level: int): void {
+    if (available)
+      Command.run(["brightnessctl", `--device=${_deviceName}`, "set", `${level}`]);
+  }
+  function setBlanked(shouldBlank: bool): void {
+    if (root._blanked === shouldBlank || (shouldBlank && !ready))
+      return;
+
+    if (shouldBlank)
+      root._unblankedLevel = brightness;
+    root._blanked = shouldBlank;
+    root._writeLevel(shouldBlank ? 0 : root._unblankedLevel);
+  }
+  function setLevel(level: int): void {
     const clamped = Math.max(0, Math.min(maxBrightness, level));
-    Command.run(["brightnessctl", `--device=${_deviceName}`, "set", `${clamped}`]);
-    const targetName = ["Off", "Low", "Medium", "High"][clamped] ?? `Level ${clamped}`;
-    return `Keyboard backlight set to ${targetName}`;
+    if (_blanked)
+      root._unblankedLevel = clamped;
+    else
+      root._writeLevel(clamped);
   }
 
   onAvailableChanged: {
     if (!available)
       Logger.log("KeyboardBacklightService", "not available");
   }
-  onBrightnessChanged: {
+  onLevelNameChanged: {
     if (available && ready)
       Logger.log("KeyboardBacklightService", `keyboard backlight: ${brightness}/${maxBrightness} (${levelName})`);
   }
