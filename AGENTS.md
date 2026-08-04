@@ -191,6 +191,7 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 - For commands that need EOF, enable stdin before start and disable it in `onStarted`; failed starts may only report through `onRunningChanged`.
 - Verify with `/usr/lib/qt6/bin/qmllint -I <.qmlls.ini buildDir> -I /usr/lib/qt6/qml File.qml`; `qs.*` resolves only via that VFS path, and the `PATH` `qmllint` is Qt5's (silent exit 255). `qmlformat` is a formatter and can fail on valid files.
 - `Region.item` tracks only that item's geometry; bind an outer region to the animated ancestor when inherited movement matters. It also ignores `item.visible`, so a region built from hidden items still blurs a hole where nothing is drawn; gate an exported region on whether its host draws (see `PanelHost.blurRegion`). Watch `??` chains picking between regions — the fallback goes live as soon as the preferred item is destroyed.
+- Hyprland 0.56.1 fades already-mapped `Top` layer surfaces when fullscreen starts, but a lazy `Top` surface mapped after fullscreen is active stays at alpha 1. Guard lazy popups through the WM facade; Niri's native `Top` ordering needs no workaround.
 - Declare complex `BackgroundEffect.blurRegion` values as typed properties instead of inline objects that produce unqualified-reference warnings.
 - `Animation.finished()` only fires for standalone top-level animations, not animations inside a `Behavior`, `Transition`, or group.
 - Follow the active instance's plain `log.log`; `quickshell log -f` can abort independently of a healthy shell.

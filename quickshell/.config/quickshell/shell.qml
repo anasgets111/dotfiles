@@ -20,6 +20,7 @@ import qs.Services.WM
 ShellRoot {
   id: root
 
+  readonly property var fullscreenPopupContentType: WorkspaceService.fullscreenPopupContentTypes.get(MonitorService.activeMain) ?? null
   readonly property var ipc: IPC
   readonly property var sysInfo: SystemInfoService
 
@@ -27,14 +28,14 @@ ShellRoot {
     modelData: MonitorService.activeMainScreen
   }
   LazyLoader {
-    active: NotificationService.visibleNotifications.length > 0
+    active: NotificationService.visibleNotifications.length > 0 && root.fullscreenPopupContentType === null
 
     component: NotificationPopup {
       modelData: MonitorService.activeMainScreen
     }
   }
   LazyLoader {
-    active: OSDService.visible
+    active: OSDService.visible && (root.fullscreenPopupContentType === null || root.fullscreenPopupContentType === "video")
 
     component: OSDPopup {
       modelData: MonitorService.activeMainScreen

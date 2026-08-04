@@ -9,6 +9,7 @@ PanelWindow {
 
   property int _keyboardFocusCount: 0
   property Region blurRegion: null
+  property bool coversFullscreen: false
   // null keeps the layer-shell surface click-through during card dismissal.
   property Item maskItem: null
   required property var modelData
@@ -24,7 +25,7 @@ PanelWindow {
   BackgroundEffect.blurRegion: root.blurRegion
   WlrLayershell.exclusiveZone: -1
   WlrLayershell.keyboardFocus: root._keyboardFocusCount > 0 ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-  WlrLayershell.layer: WlrLayer.Overlay
+  WlrLayershell.layer: root.coversFullscreen ? WlrLayer.Overlay : WlrLayer.Top
   WlrLayershell.namespace: root.popupNamespace + "-" + (root.screen?.name || "unknown")
   color: "transparent"
   screen: root.modelData

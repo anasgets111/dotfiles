@@ -11,10 +11,11 @@ Singleton {
   property int _revision: 0
   readonly property var _state: _revision >= 0 ? _buildState() : null
   readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "focusedmonv2", "fullscreen", "monitoradded", "monitoraddedv2", "monitorremoved", "monitorremovedv2", "moveworkspace", "moveworkspacev2", "activespecial", "activespecialv2", "configreloaded", "openwindow", "closewindow", "movewindow", "movewindowv2"]
-  readonly property var _toplevelEvents: ["configreloaded", "openwindow", "closewindow", "movewindow", "movewindowv2"]
+  readonly property var _toplevelEvents: ["configreloaded", "fullscreen", "openwindow", "closewindow", "movewindow", "movewindowv2"]
   readonly property bool fillsEmptyWorkspaceSlots: true
   readonly property string focusedOutput: Hyprland.focusedMonitor?.name ?? ""
-  readonly property bool fullscreenVisible: _revision >= 0 && Array.from(Hyprland.workspaces.values).some(ws => ws.active && ws.hasFullscreen)
+  readonly property var fullscreenPopupContentTypes: _revision >= 0 ? new Map(Array.from(Hyprland.workspaces.values).filter(workspace => workspace.active && workspace.hasFullscreen).map(workspace => [workspace.monitor?.name ?? "", _fullscreenContentType(workspace.toplevels.values)]).filter(entry => entry[0])) : new Map()
+  readonly property bool fullscreenVisible: fullscreenPopupContentTypes.size > 0
   readonly property var specialWorkspaces: _state.specialWorkspaces
   readonly property bool supportsSpecialWorkspaces: true
   readonly property var workspaces: _state.workspaces
@@ -57,6 +58,9 @@ Singleton {
       workspaces: regularWorkspaces
     };
   }
+  function _fullscreenContentType(toplevels: var): string {
+    return Array.from(toplevels).find(toplevel => (toplevel.lastIpcObject?.fullscreen ?? 0) > 0)?.lastIpcObject?.contentType ?? "";
+  }
   function focusWorkspace(workspace: var): void {
     if ((workspace?.idx ?? 0) > 0)
       focusWorkspaceByIndex(workspace.idx);
@@ -70,7 +74,7 @@ Singleton {
       {wayland: {appId: "first"}, activated: false},
       {wayland: {appId: "focused"}, activated: true}
     ]);
-    return focusedApp === "focused" && _workspaceAppIdFrom([{lastIpcObject: {class: "first"}}]) === "first";
+    return focusedApp === "focused" && _workspaceAppIdFrom([{lastIpcObject: {class: "first"}}]) === "first" && _fullscreenContentType([{lastIpcObject: {fullscreen: 2, contentType: "video"}}]) === "video" && _fullscreenContentType([{lastIpcObject: {fullscreen: 0, contentType: "video"}}]) === "";
   }
   function focusWorkspaceByIndex(workspaceIndex: int): void {
     if (workspaceIndex > 0)

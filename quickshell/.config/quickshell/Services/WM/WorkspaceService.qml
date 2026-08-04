@@ -11,6 +11,7 @@ Singleton {
   readonly property var displayWorkspaces: WorkspaceArrangement.buildDisplayWorkspaces(workspaces, currentWorkspaceIndex, backend?.fillsEmptyWorkspaceSlots ?? false, 10)
   readonly property string focusedOutput: focusedWorkspace?.output ?? backend?.focusedOutput ?? ""
   readonly property var focusedWorkspace: workspaces.find(workspace => workspace.focused) ?? null
+  readonly property var fullscreenPopupContentTypes: backend?.fullscreenPopupContentTypes ?? new Map()
   readonly property bool fullscreenVisible: backend?.fullscreenVisible ?? false
   readonly property bool hasOverview: backend?.hasOverview ?? false
   readonly property bool ready: backend !== null

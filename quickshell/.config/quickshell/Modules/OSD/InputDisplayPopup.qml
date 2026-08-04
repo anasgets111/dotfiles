@@ -11,6 +11,7 @@ import qs.Services.SystemInfo
 OPopup {
   id: root
 
+  coversFullscreen: true
   readonly property bool shouldStayVisible: InputDisplayService.visible || dragArea.drag.active
   readonly property bool showComboLabel: InputDisplayService.comboDisplayLabel.length > 0 && InputDisplayService.comboLabel !== visibleTokens.join("+")
   readonly property var visibleTokens: InputDisplayService.visibleKeys.concat(InputDisplayService.visibleMouseButtons)
