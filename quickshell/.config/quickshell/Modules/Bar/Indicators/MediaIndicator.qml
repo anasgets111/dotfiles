@@ -9,16 +9,14 @@ Item {
   id: root
 
   readonly property bool panelOpen: ShellUiState.isPanelOpen("media", root.screenName)
+  property bool panelHovered: false
   required property string screenName
 
   function openPanel(): void {
-    closeTimer.stop();
     ShellUiState.openPanel("media", screenName, ShellUiState.anchorRectForItem(root), root);
   }
   function setPanelHovered(hovered: bool): void {
-    closeTimer.stop();
-    if (!hovered && !trigger.hovered && panelOpen)
-      closeTimer.restart();
+    panelHovered = hovered;
   }
 
   Accessible.name: qsTr("Media controls")
@@ -59,23 +57,17 @@ Item {
     }
   }
   Timer {
-    id: closeTimer
-
     interval: Theme.animationSlow
+    running: root.panelOpen && !trigger.hovered && !root.panelHovered
 
-    onTriggered: if (!trigger.hovered && root.panelOpen)
-      ShellUiState.closePanel()
+    onTriggered: ShellUiState.closePanel()
   }
   HoverHandler {
     id: trigger
 
     cursorShape: Qt.PointingHandCursor
 
-    onHoveredChanged: {
-      if (hovered && (!ShellUiState.isAnyPanelOpen || root.panelOpen))
-        root.openPanel();
-      else if (root.panelOpen)
-        closeTimer.restart();
-    }
+    onHoveredChanged: if (hovered && (!ShellUiState.isAnyPanelOpen || root.panelOpen))
+      root.openPanel()
   }
 }
