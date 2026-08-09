@@ -8,18 +8,22 @@ RowLayout {
   id: root
 
   property color accent: Theme.activeColor
+  property bool compact: false
   property string icon: ""
   property string subtitle: ""
+  property string subtitleSize: "xs"
   property string title: ""
+  property bool titleBold: true
+  property string titleSize: "lg"
   default property alias trailing: trailingSlot.data
 
   Layout.fillWidth: true
   spacing: Theme.spacingSm
 
   Rectangle {
-    Layout.preferredHeight: Theme.controlHeightLg
-    Layout.preferredWidth: Theme.controlHeightLg
-    color: Theme.withOpacity(root.accent, Theme.opacitySubtle)
+    Layout.preferredHeight: root.compact ? Theme.controlHeightMd : Theme.controlHeightLg
+    Layout.preferredWidth: root.compact ? Theme.controlHeightMd : Theme.controlHeightLg
+    color: root.compact ? "transparent" : Theme.withOpacity(root.accent, Theme.opacitySubtle)
     radius: Theme.radiusMd
 
     Theme.ColorTransition on color {
@@ -29,7 +33,7 @@ RowLayout {
       anchors.centerIn: parent
       color: root.accent
       font.family: Theme.iconFontFamily
-      font.pixelSize: Theme.iconSizeLg
+      font.pixelSize: root.compact ? Theme.fontMd : Theme.iconSizeLg
       text: root.icon
 
       Theme.ColorTransition on color {
@@ -42,17 +46,19 @@ RowLayout {
 
     OText {
       Layout.fillWidth: true
-      bold: true
+      bold: root.titleBold
       color: Theme.textActiveColor
-      size: "lg"
+      size: root.titleSize
       text: root.title
     }
     OText {
       Layout.fillWidth: true
       color: Theme.textInactiveColor
-      size: "xs"
+      elide: Text.ElideNone
+      size: root.subtitleSize
       text: root.subtitle
       visible: text !== ""
+      wrapMode: Text.Wrap
     }
   }
   RowLayout {

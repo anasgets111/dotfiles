@@ -9,9 +9,6 @@ import qs.Services.SystemInfo
 OPopup {
   id: root
 
-  property int barOffset: Theme.itemHeight
-  property int margin: Theme.spacingMd
-
   function rebuildBlurRegions(): void {
     root.blurRegion.regions = Array.from({
       length: cardRepeater.count
@@ -35,11 +32,11 @@ OPopup {
 
     anchors {
       bottom: parent.bottom
-      bottomMargin: root.margin
+      bottomMargin: Theme.spacingMd
       right: parent.right
-      rightMargin: root.margin
+      rightMargin: Theme.spacingMd
       top: parent.top
-      topMargin: root.margin + root.barOffset
+      topMargin: Theme.spacingMd + Theme.itemHeight
     }
     Column {
       id: popupColumn

@@ -6,7 +6,7 @@ import QtQml.Models
 import Quickshell
 import qs.Services
 import qs.Services.Utils
-import qs.Services.WM.Impl.Hyprland as Hyprland
+import qs.Services.WM.Impl.Hyprland as Hypr
 import qs.Services.WM.Impl.Niri as Niri
 
 Singleton {
@@ -22,14 +22,13 @@ Singleton {
   readonly property var _screenKeyFields: ["name", "width", "height", "scale", "orientation"]
   readonly property string activeMain: activeMainScreen?.name ?? ""
   readonly property var activeMainScreen: Quickshell.screens.find(screen => screen?.name === preferredMain) || Quickshell.screens[0] || null
-  readonly property var backend: MainService.currentWM === "hyprland" ? Hyprland.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
+  readonly property var backend: MainService.currentWM === "hyprland" ? Hypr.MonitorImpl
+    : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
   property ListModel monitors: ListModel {
     dynamicRoles: true
   }
   property string preferredMain: MainService.mainMon || ""
   readonly property bool ready: backend !== null
-
-  signal monitorsUpdated
 
   function _processEdidQueue(): void {
     if (_edidRunning || !_edidQueue.length)
@@ -50,9 +49,6 @@ Singleton {
         });
       root._processEdidQueue();
     });
-  }
-  function emitChangedDebounced(): void {
-    changeDebounce.restart();
   }
   function findMonitorIndexByName(name: string): int {
     for (let monitorIndex = 0; monitorIndex < monitors.count; monitorIndex++)
@@ -137,11 +133,8 @@ Singleton {
           return;
         const vrrSupported = !!(caps?.vrr?.supported);
         const hdrSupported = !!(caps?.hdr?.supported);
-        let changed = setMonitorPropertyIfChanged(monitorIndex, "vrrSupported", vrrSupported);
-        changed = setMonitorPropertyIfChanged(monitorIndex, "hdrSupported", hdrSupported) || changed;
-        if (changed)
-          emitChangedDebounced();
-
+        setMonitorPropertyIfChanged(monitorIndex, "vrrSupported", vrrSupported);
+        setMonitorPropertyIfChanged(monitorIndex, "hdrSupported", hdrSupported);
         fetchFeatures(monitorName, features => {
           if (runId !== _featuresRunId || !features)
             return;
@@ -150,19 +143,17 @@ Singleton {
             return;
           const vrrActive = !!(features.vrr && (features.vrr.active || features.vrr.enabled));
           const hdrActive = !!(features.hdr && (features.hdr.active || features.hdr.enabled));
-          let featureChanged = setMonitorPropertyIfChanged(featureIndex, "vrrActive", vrrActive);
-          featureChanged = setMonitorPropertyIfChanged(featureIndex, "hdrActive", hdrActive) || featureChanged;
-          featureChanged = setMonitorPropertyIfChanged(featureIndex, "vrr", vrrActive ? "on" : "off") || featureChanged;
-          featureChanged = setMonitorPropertyIfChanged(featureIndex, "fps", Number.isFinite(features.fps) ? features.fps : null) || featureChanged;
-          featureChanged = setMonitorPropertyIfChanged(featureIndex, "bitDepth", Number.isFinite(features.bitDepth) ? features.bitDepth : null) || featureChanged;
-          featureChanged = setMonitorPropertyIfChanged(featureIndex, "modes", Array.isArray(features.modes) ? features.modes : []) || featureChanged;
-          featureChanged = setMonitorPropertyIfChanged(featureIndex, "mirror", !!features.mirror) || featureChanged;
+          setMonitorPropertyIfChanged(featureIndex, "vrrActive", vrrActive);
+          setMonitorPropertyIfChanged(featureIndex, "hdrActive", hdrActive);
+          setMonitorPropertyIfChanged(featureIndex, "vrr", vrrActive ? "on" : "off");
+          setMonitorPropertyIfChanged(featureIndex, "fps", Number.isFinite(features.fps) ? features.fps : null);
+          setMonitorPropertyIfChanged(featureIndex, "bitDepth", Number.isFinite(features.bitDepth) ? features.bitDepth : null);
+          setMonitorPropertyIfChanged(featureIndex, "modes", Array.isArray(features.modes) ? features.modes : []);
+          setMonitorPropertyIfChanged(featureIndex, "mirror", !!features.mirror);
           if (typeof features.vrr?.supported === "boolean")
-            featureChanged = setMonitorPropertyIfChanged(featureIndex, "vrrSupported", features.vrr.supported || monitors.get(featureIndex).vrrSupported) || featureChanged;
+            setMonitorPropertyIfChanged(featureIndex, "vrrSupported", features.vrr.supported || monitors.get(featureIndex).vrrSupported);
           if (typeof features.hdr?.supported === "boolean")
-            featureChanged = setMonitorPropertyIfChanged(featureIndex, "hdrSupported", features.hdr.supported || monitors.get(featureIndex).hdrSupported) || featureChanged;
-          if (featureChanged)
-            emitChangedDebounced();
+            setMonitorPropertyIfChanged(featureIndex, "hdrSupported", features.hdr.supported || monitors.get(featureIndex).hdrSupported);
         });
       };
 
@@ -182,11 +173,10 @@ Singleton {
     if (backend)
       refreshFeatures(normalizedScreens);
   }
-  function setMonitorPropertyIfChanged(monitorIndex: int, propertyName: string, value: var): bool {
+  function setMonitorPropertyIfChanged(monitorIndex: int, propertyName: string, value: var): void {
     if (monitors.get(monitorIndex)[propertyName] === value)
-      return false;
+      return;
     monitors.setProperty(monitorIndex, propertyName, value);
-    return true;
   }
   function toArray(): var {
     const result = [];
@@ -197,30 +187,23 @@ Singleton {
   function updateMonitors(newScreens: var): void {
     const oldCount = monitors.count;
     const newCount = newScreens.length;
-    let changed = false;
-
     const sharedCount = Math.min(oldCount, newCount);
     for (let monitorIndex = 0; monitorIndex < sharedCount; monitorIndex++) {
       const currentMonitor = monitors.get(monitorIndex);
       const nextMonitor = newScreens[monitorIndex];
       if (!isSameMonitor(currentMonitor, nextMonitor)) {
         monitors.set(monitorIndex, Object.assign({}, currentMonitor, nextMonitor));
-        changed = true;
       }
     }
     if (oldCount > newCount) {
-      changed = true;
       for (let monitorIndex = oldCount - 1; monitorIndex >= newCount; monitorIndex--) {
         monitors.remove(monitorIndex);
       }
     }
     if (newCount > oldCount) {
-      changed = true;
       for (let monitorIndex = oldCount; monitorIndex < newCount; monitorIndex++)
         monitors.append(newScreens[monitorIndex]);
     }
-    if (changed)
-      emitChangedDebounced();
   }
 
   Component.onCompleted: {
@@ -231,14 +214,6 @@ Singleton {
       refreshFeatures(toArray());
   }
 
-  Timer {
-    id: changeDebounce
-
-    interval: 0
-    repeat: false
-
-    onTriggered: root.monitorsUpdated()
-  }
   Connections {
     function onScreensChanged() {
       root.refreshScreens(true);

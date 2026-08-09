@@ -175,6 +175,7 @@ Singleton {
     onLoadFailed: error => {
       if (error.toString().includes("No such file") || error === 2)
         writeAdapter();
+      root.isLoaded = true;
     }
     onLoaded: {
       if (!root.isLoaded) {

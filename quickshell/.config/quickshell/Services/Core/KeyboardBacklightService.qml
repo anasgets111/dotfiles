@@ -2,7 +2,6 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Qt.labs.folderlistmodel
 import Quickshell
 import qs.Services.Utils
 
@@ -11,20 +10,15 @@ Singleton {
 
   property bool _blanked: false
   property int _unblankedLevel: 0
-  readonly property string _deviceName: _devicePath ? _devicePath.split("/").pop() : ""
-  readonly property string _devicePath: {
-    for (let i = 0; i < ledsFolder.count; i++) {
-      const name = ledsFolder.get(i, "fileName");
-      if (name.includes("kbd_backlight"))
-        return `/sys/class/leds/${name}`;
-    }
-    return "";
-  }
-  readonly property bool available: _devicePath !== ""
-  readonly property int brightness: brightnessFile.value
+  readonly property string _deviceName: keyboardDevice.deviceName
+  readonly property string _devicePath: keyboardDevice.devicePath
+  readonly property bool available: keyboardDevice.available
+  readonly property int brightness: keyboardDevice.brightness
   readonly property string levelName: ["Off", "Low", "Medium", "High"][brightness] ?? `Level ${brightness}`
-  readonly property int maxBrightness: maxBrightnessFile.value
-  readonly property bool ready: available && brightnessFile.valid && maxBrightnessFile.valid
+  readonly property int maxBrightness: keyboardDevice.maxBrightness
+  readonly property bool ready: keyboardDevice.ready
+  // Settle window after DPMS blank/unblank so sysfs polls don't flash OSD.
+  property bool suppressOsd: false
 
   function _writeLevel(level: int): void {
     if (available)
@@ -37,14 +31,19 @@ Singleton {
     if (shouldBlank)
       root._unblankedLevel = brightness;
     root._blanked = shouldBlank;
+    root.suppressOsd = true;
     root._writeLevel(shouldBlank ? 0 : root._unblankedLevel);
+    quietClear.restart();
   }
   function setLevel(level: int): void {
     const clamped = Math.max(0, Math.min(maxBrightness, level));
-    if (_blanked)
+    if (_blanked) {
       root._unblankedLevel = clamped;
-    else
-      root._writeLevel(clamped);
+      return;
+    }
+    root.suppressOsd = false;
+    quietClear.stop();
+    root._writeLevel(clamped);
   }
 
   onAvailableChanged: {
@@ -64,33 +63,19 @@ Singleton {
       Logger.log("KeyboardBacklightService", "device lost");
   }
 
-  FolderListModel {
-    id: ledsFolder
+  SysfsBrightnessDevice {
+    id: keyboardDevice
 
-    folder: "file:///sys/class/leds"
-    showDirs: true
-    showFiles: false
-  }
-  SysfsValue {
-    id: maxBrightnessFile
-
-    fallback: 3
-    path: root._devicePath ? `${root._devicePath}/max_brightness` : ""
-  }
-  SysfsValue {
-    id: brightnessFile
-
-    path: root._devicePath ? `${root._devicePath}/brightness` : ""
+    directory: "/sys/class/leds"
+    maxBrightnessFallback: 3
+    nameIncludes: "kbd_backlight"
   }
   Timer {
-    interval: 100
-    repeat: true
-    running: root.available
+    id: quietClear
 
-    onTriggered: {
-      if (!maxBrightnessFile.valid)
-        maxBrightnessFile.reload();
-      brightnessFile.reload();
-    }
+    // ponytail: covers a few 100ms polls after blank/unblank; raise if writes lag.
+    interval: 400
+
+    onTriggered: root.suppressOsd = false
   }
 }

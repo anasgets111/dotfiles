@@ -19,24 +19,14 @@ Singleton {
     Command.run(["wl-copy"], null, "clipboard", String(text ?? ""));
   }
   function fmtKib(kib: real): string {
-    const formatted = formatKib(kib || 0);
-    return `${formatted.value.toFixed(1)} ${formatted.unit}`;
-  }
-  function formatKib(kib: real): var {
-    const units = ["TiB", "GiB", "MiB", "KiB"];
-    const thresholds = [1024 ** 3, 1024 ** 2, 1024, 0];
-    for (let index = 0; index < thresholds.length; index++) {
-      const threshold = thresholds[index];
-      if (kib >= threshold)
-        return {
-          value: threshold > 0 ? kib / threshold : kib,
-          unit: units[index]
-        };
-    }
-    return {
-      value: kib,
-      unit: "KiB"
-    };
+    const amount = Math.max(0, kib || 0);
+    if (amount >= 1024 ** 3)
+      return `${(amount / 1024 ** 3).toFixed(1)} TiB`;
+    if (amount >= 1024 ** 2)
+      return `${(amount / 1024 ** 2).toFixed(1)} GiB`;
+    if (amount >= 1024)
+      return `${(amount / 1024).toFixed(1)} MiB`;
+    return `${amount.toFixed(1)} KiB`;
   }
   function lookupDesktopEntryName(appId: string): string {
     if (typeof DesktopEntries === "undefined" || !appId)

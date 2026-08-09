@@ -2,26 +2,24 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Qt.labs.folderlistmodel
 import Quickshell
 import qs.Services.Utils
 
 Singleton {
   id: root
 
-  readonly property string _devicePath: backlightFolder.count ? `/sys/class/backlight/${backlightFolder.get(0, "fileName")}` : ""
-  readonly property bool available: _devicePath !== ""
-  readonly property int brightness: brightnessFile.value
-  readonly property int maxBrightness: maxBrightnessFile.value
+  readonly property string _devicePath: backlightDevice.devicePath
+  readonly property bool available: backlightDevice.available
+  readonly property int brightness: backlightDevice.brightness
+  readonly property int maxBrightness: backlightDevice.maxBrightness
   readonly property int percentage: maxBrightness > 0 ? Math.round((brightness / maxBrightness) * 100) : 0
-  readonly property bool ready: available && brightnessFile.valid && maxBrightnessFile.valid
+  readonly property bool ready: backlightDevice.ready
 
-  function setBrightness(percent: real): string {
+  function setBrightness(percent: real): void {
     if (!available)
-      return "Brightness control not available";
+      return;
     const clamped = Math.max(0, Math.min(100, percent));
     Command.run(["brightnessctl", "--class=backlight", "set", `${clamped}%`]);
-    return `Brightness set to ${clamped}%`;
   }
 
   onAvailableChanged: {
@@ -41,33 +39,9 @@ Singleton {
       Logger.log("BrightnessService", "device lost");
   }
 
-  FolderListModel {
-    id: backlightFolder
+  SysfsBrightnessDevice {
+    id: backlightDevice
 
-    folder: "file:///sys/class/backlight"
-    showDirs: true
-    showFiles: false
-  }
-  SysfsValue {
-    id: maxBrightnessFile
-
-    fallback: 100
-    path: root._devicePath ? `${root._devicePath}/max_brightness` : ""
-  }
-  SysfsValue {
-    id: brightnessFile
-
-    path: root._devicePath ? `${root._devicePath}/brightness` : ""
-  }
-  Timer {
-    interval: 100
-    repeat: true
-    running: root.available
-
-    onTriggered: {
-      if (!maxBrightnessFile.valid)
-        maxBrightnessFile.reload();
-      brightnessFile.reload();
-    }
+    directory: "/sys/class/backlight"
   }
 }

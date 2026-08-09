@@ -9,26 +9,18 @@ import qs.Services.WM
 Singleton {
   id: root
 
-  property string _ppdRaw: ""
   property string cpuGovernor: "Unknown"
   property string energyPerformance: "Unknown"
-  readonly property bool hasPPD: _ppdRaw !== ""
-  readonly property bool isLaptop: BatteryService.isLaptopBattery
-  property int kbdOnAC: 3
-  property int kbdOnBattery: 1
-  property int onACBrightness: 100
-  readonly property bool onBattery: BatteryService.isOnBattery
-  property int onBatteryBrightness: 10
   property string platformProfile: "Unknown"
-  readonly property string ppdProfile: hasPPD ? _ppdRaw : "Unknown"
+  property string ppdProfile: ""
 
   function adjustBrightness(): void {
-    if (!isLaptop)
+    if (!BatteryService.isLaptopBattery)
       return;
     if (BrightnessService.ready)
-      BrightnessService.setBrightness(onBattery ? onBatteryBrightness : onACBrightness);
+      BrightnessService.setBrightness(BatteryService.isOnBattery ? 10 : 100);
     if (KeyboardBacklightService.ready)
-      KeyboardBacklightService.setLevel(onBattery ? kbdOnBattery : kbdOnAC);
+      KeyboardBacklightService.setLevel(BatteryService.isOnBattery ? 1 : 3);
   }
   function logout(): void {
     CompositorService.exitSession();
@@ -96,8 +88,8 @@ Singleton {
       platformFile.reload();
       governorFile.reload();
       eppFile.reload();
-      if (root.isLaptop)
-        Command.run(["powerprofilesctl", "get"], result => root._ppdRaw = result.stdout.trim(), "power.ppd");
+      if (BatteryService.isLaptopBattery)
+        Command.run(["powerprofilesctl", "get"], result => root.ppdProfile = result.stdout.trim(), "power.ppd");
     }
   }
   FileView {

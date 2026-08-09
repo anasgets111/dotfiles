@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Config
 import qs.Services.Core
+import qs.Services.Utils
 
 WlrLayershell {
   id: root
@@ -98,7 +99,7 @@ WlrLayershell {
       if (!root.screenObject || status === Image.Loading)
         return;
       if (status === Image.Error)
-        console.warn("AnimatedWallpaper: Failed to load", source);
+        Logger.warn("AnimatedWallpaper", `Failed to load ${source}`);
       else if (status === Image.Ready && !transitionAnim.running && root.transitionProgress > 0) {
         root.transitionProgress = 0.0;
         nextImgLoader.pendingSource = "";

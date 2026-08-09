@@ -60,7 +60,7 @@ Scope {
   Timer {
     id: reconnectTimer
 
-    interval: 500
+    interval: root._baseReconnectDelay
 
     onTriggered: root._enabled = root.path !== ""
   }

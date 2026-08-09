@@ -217,6 +217,7 @@ PanelContentBase {
     }
   }
   HoverHandler {
-    onHoveredChanged: root.panelData?.setPanelHovered(hovered)
+    onHoveredChanged: if (root.panelData)
+      root.panelData.panelHovered = hovered
   }
 }

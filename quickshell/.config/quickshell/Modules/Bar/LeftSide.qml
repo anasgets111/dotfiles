@@ -32,13 +32,11 @@ Row {
     }
   }
   IdleInhibitor {
-    id: idleInhibitor
-
-    anchors.verticalCenter: leftSide.verticalCenter
+    anchors.verticalCenter: parent.verticalCenter
     screenName: leftSide.screenName
   }
   KeyboardLayoutIndicator {
-    anchors.verticalCenter: leftSide.verticalCenter
+    anchors.verticalCenter: parent.verticalCenter
   }
   Loader {
     active: BatteryService.isLaptopBattery
@@ -49,8 +47,6 @@ Row {
     }
   }
   IconButton {
-    id: launcherButton
-
     anchors.verticalCenter: parent.verticalCenter
     icon: "󰍜"
     tooltipText: qsTr("Open application launcher")
@@ -58,8 +54,6 @@ Row {
     onClicked: IPC.toggleLauncher()
   }
   WallpaperButton {
-    id: wallpaperButton
-
     anchors.verticalCenter: parent.verticalCenter
     tooltipText: qsTr("Open wallpaper picker / right-click randomize")
 
@@ -70,14 +64,10 @@ Row {
     asynchronous: true
 
     sourceComponent: SpecialWorkspaces {
-      id: specialWorkspaces
-
       anchors.verticalCenter: parent.verticalCenter
     }
   }
   Loader {
-    id: workspaceStripLoader
-
     active: WorkspaceService.ready
     asynchronous: true
 

@@ -16,7 +16,7 @@ WlrLayershell {
 
   exclusionMode: ExclusionMode.Ignore
   layer: WlrLayer.Background
-  namespace: WallpaperService.overviewNamespace
+  namespace: "quickshell-overview-wallpaper"
   screen: screenObject
 
   anchors {

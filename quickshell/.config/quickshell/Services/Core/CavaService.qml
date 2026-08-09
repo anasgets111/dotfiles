@@ -9,7 +9,6 @@ Singleton {
   id: root
 
   property bool _available: false
-  readonly property int barCount: values.length
   property var values: []
 
   // Cava emits `level;level;...;` at 30 fps, so the frame is parsed into the

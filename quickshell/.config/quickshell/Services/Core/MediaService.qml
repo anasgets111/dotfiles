@@ -21,13 +21,13 @@ Singleton {
   readonly property var _videoHints: ["mpv", "vlc", "celluloid", "io.github.celluloid_player.celluloid", "org.gnome.totem", "smplayer", "mplayer", "haruna", "kodi", "io.github.iwalton3.jellyfin-media-player", "jellyfin", "plex", "freetube", "stremio", "clapper", "dragon", "hypnotix"]
   readonly property var _videoPatterns: ["youtube.com/watch", "laracasts.com", "streamimdb.ru", "youtu.be", "netflix.com", "primevideo.com", "osnplus.com", "vimeo.com", "twitch.tv", "hulu.com", "disneyplus.com", "crunchyroll.com", "max.com", "hbomax.com", "udemy.com", "coursera.org", "pluralsight.com", "nebula.tv", "odysee.com", "dailymotion.com", "tv.apple.com", "tiktok.com", "instagram.com/reel", "meet.google.com", "teams.microsoft.com", "teams.live.com", "zoom.us", "discord.com", "meet.jit.si", "whereby.com", "webex.com", "gotomeeting.com"]
   readonly property MprisPlayer active: players.find(player => player.uniqueId === root._selectedPlayerId) ?? players.find(player => player.playbackState === MprisPlaybackState.Playing) ?? players.find(player => player.playbackState !== MprisPlaybackState.Stopped) ?? players.find(player => player.canPlay) ?? players[0] ?? null
-  readonly property bool anyVideoPlaying: hasPlayingVideo || (pipewireVideoActive && _isVideo(active))
+  readonly property bool anyVideoPlaying: _hasPlayingVideo || (_pipewireVideoActive && _isVideo(active))
   readonly property bool canGoNext: active?.canGoNext ?? false
   readonly property bool canGoPrevious: active?.canGoPrevious ?? false
   readonly property bool canSeek: active?.canSeek ?? false
   readonly property bool canTogglePlaying: active?.canTogglePlaying ?? false
-  readonly property bool hasPlayingVideo: players.some(player => player.playbackState === MprisPlaybackState.Playing && _isVideo(player))
-  readonly property bool pipewireVideoActive: (Pipewire.linkGroups?.values ?? []).some(linkGroup => linkGroup?.state === PwLinkState.Active && (linkGroup?.source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource)
+  readonly property bool _hasPlayingVideo: players.some(player => player.playbackState === MprisPlaybackState.Playing && _isVideo(player))
+  readonly property bool _pipewireVideoActive: (Pipewire.linkGroups?.values ?? []).some(linkGroup => linkGroup?.state === PwLinkState.Active && (linkGroup?.source?.type & PwNodeType.VideoSource) === PwNodeType.VideoSource)
   readonly property bool playbackAvailable: !!active && active.playbackState !== MprisPlaybackState.Stopped
   readonly property list<MprisPlayer> players: Mpris.players?.values.filter(player => !!player?.canControl) ?? []
   readonly property bool playing: active?.isPlaying ?? false

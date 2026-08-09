@@ -12,6 +12,7 @@ Singleton {
   property bool _checkUpdatesAvailable: false
   property bool _checking: false
   property int _failureCount: 0
+  property var _actionNotifyHandle: null
   readonly property bool _hasPackageCache: Settings.isStateLoaded && Array.isArray(Settings.state.updates.packages)
   readonly property string _notificationAppName: "System Updates"
   property var _packageSizes: ({})
@@ -20,7 +21,6 @@ Singleton {
   readonly property int _pollTimerInterval: _hasPackageCache && lastSuccessfulCheck > 0 ? Math.max(1, _pollInterval - Math.max(0, Date.now() - lastSuccessfulCheck)) : 1
   readonly property string _runUpdatesAction: "run-updates"
   property string _state: "idle"
-  property bool _updateProcessStarted: false
   readonly property bool busy: _checking || updateProcess.running || isUpdating
   readonly property string checkError: Settings.isStateLoaded ? (Settings.state.updates.lastCheckError ?? "") : ""
   property int completedPackageCount: 0
@@ -86,12 +86,21 @@ Singleton {
     Qt.callLater(root.doPoll);
   }
   function _launchPendingActionNotification(): void {
-    if (!_pendingActionArgs || actionNotifyProcess.running)
+    if (!_pendingActionArgs || _actionNotifyHandle)
       return;
     const launchArgs = _pendingActionArgs;
+    const handle = Command.run(["notify-send"].concat(launchArgs), result => {
+      root._actionNotifyHandle = null;
+      if ((result.stdout || "").trim().split(/\s+/).includes(root._runUpdatesAction))
+        root.executeUpdate();
+      Qt.callLater(root._launchPendingActionNotification);
+    }, "update.action-notification");
+    if (!handle) {
+      actionNotifyRetry.restart();
+      return;
+    }
     _pendingActionArgs = null;
-    actionNotifyProcess.command = ["notify-send"].concat(launchArgs);
-    actionNotifyProcess.running = true;
+    _actionNotifyHandle = handle;
   }
   function _notify(title: string, message: string, urgency = "normal", actionable = false): void {
     Logger.log("UpdateService", `Sending notification: ${title} - ${message}`);
@@ -165,8 +174,11 @@ Singleton {
   function _showActionNotification(args: var): void {
     NotificationService.dismissNotificationsByAppName(_notificationAppName);
     _pendingActionArgs = args;
-    if (actionNotifyProcess.running)
-      actionNotifyProcess.running = false;
+    if (_actionNotifyHandle) {
+      _actionNotifyHandle.cancel();
+      _actionNotifyHandle = null;
+      actionNotifyRetry.restart();
+    }
     else
       _launchPendingActionNotification();
   }
@@ -176,8 +188,9 @@ Singleton {
     _state = "idle";
     _resetUpdateProgress();
     _pendingActionArgs = null;
-    if (actionNotifyProcess.running)
-      actionNotifyProcess.running = false;
+    _actionNotifyHandle?.cancel();
+    _actionNotifyHandle = null;
+    actionNotifyRetry.stop();
     NotificationService.dismissNotificationsByAppName(_notificationAppName);
   }
   function doPoll(): void {
@@ -207,11 +220,10 @@ Singleton {
     NotificationService.dismissNotificationsByAppName(_notificationAppName);
     _resetUpdateProgress();
     totalPackagesToUpdate = totalUpdates;
-    _updateProcessStarted = false;
     updateStartedAt = Date.now();
     _state = "updating";
     updateProcess.command = ["update"];
-    updateProcess.running = true;
+    updateProcess.active = true;
   }
   function logText(): string {
     return Array.from({
@@ -225,7 +237,7 @@ Singleton {
   onUpdatePackagesChanged: if (ready)
     _fetchPackageSizes(updatePackages)
 
-  Process {
+  CommandStream {
     id: updateProcess
 
     function appendOutputLine(lineText: string): void {
@@ -258,19 +270,18 @@ Singleton {
       }
     }
 
-    stderr: SplitParser {
-      onRead: data => updateProcess.appendOutputLine(data)
-    }
-    stdout: SplitParser {
-      onRead: data => updateProcess.appendOutputLine(data)
-    }
+    active: false
 
-    onExited: exitCode => root._finishUpdate(exitCode)
-    onRunningChanged: {
-      if (!running && root.isUpdating && !root._updateProcessStarted)
-        root._finishUpdate(-1);
+    onErrorRead: line => updateProcess.appendOutputLine(line)
+    onLineRead: line => updateProcess.appendOutputLine(line)
+    onFailedToStart: {
+      active = false;
+      root._finishUpdate(-1);
     }
-    onStarted: root._updateProcessStarted = true
+    onProcessExited: exitCode => {
+      active = false;
+      root._finishUpdate(exitCode);
+    }
   }
   FileView {
     id: rebootMarkerFile
@@ -293,14 +304,11 @@ Singleton {
       root.doPoll();
     }
   }
-  Process {
-    id: actionNotifyProcess
+  Timer {
+    id: actionNotifyRetry
 
-    stdout: StdioCollector {
-      onStreamFinished: if ((text || "").trim().split(/\s+/).includes(root._runUpdatesAction))
-        root.executeUpdate()
-    }
+    interval: 50
 
-    onExited: Qt.callLater(root._launchPendingActionNotification)
+    onTriggered: root._launchPendingActionNotification()
   }
 }

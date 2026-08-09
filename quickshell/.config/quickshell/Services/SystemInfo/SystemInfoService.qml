@@ -123,8 +123,6 @@ Singleton {
       }
     });
   }
-  onGpuTypeChanged: Logger.log("SystemInfo", `GPU type: ${gpuType}`)
-
   FileView {
     id: uptimeFile
 

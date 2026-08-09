@@ -30,7 +30,6 @@ Singleton {
       scale: monitor.scale
     };
   }) : []
-  readonly property string overviewNamespace: "quickshell-overview-wallpaper"
   readonly property bool ready: Settings.isLoaded && MonitorService?.ready && (MonitorService.monitors?.count ?? 0) > 0
   property var wallpaperFiles: []
   readonly property bool wallpaperFilesReady: folderModel.status === FolderListModel.Ready

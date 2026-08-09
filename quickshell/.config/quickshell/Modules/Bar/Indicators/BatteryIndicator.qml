@@ -21,11 +21,10 @@ Item {
   readonly property color bgColor: Theme.glassControlColor
   readonly property bool isPluggedIn: BatteryService.isACPowered
   readonly property real percentage: BatteryService.percentageFraction
-  readonly property var power: PowerManagementService
   readonly property string powerInfoText: {
     const src = BatteryService.isACPowered ? qsTr("Power: AC") : qsTr("Power: Battery");
-    const ppd = power?.hasPPD && power?.ppdProfile ? qsTr(" · PPD: %1").arg(power.ppdProfile) : "";
-    const platform = !power?.hasPPD && power?.platformProfile ? qsTr(" · Platform: %1").arg(power.platformProfile) : "";
+    const ppd = PowerManagementService.ppdProfile ? qsTr(" · PPD: %1").arg(PowerManagementService.ppdProfile) : "";
+    const platform = !PowerManagementService.ppdProfile && PowerManagementService.platformProfile ? qsTr(" · Platform: %1").arg(PowerManagementService.platformProfile) : "";
     return src + (ppd || platform);
   }
   readonly property string statusText: {
@@ -41,7 +40,7 @@ Item {
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Theme.batteryPillWidth
-  visible: BatteryService.isReady
+  visible: BatteryService.isLaptopBattery
 
   onIsPluggedInChanged: if (isPluggedIn)
     plugFlash.restart()
@@ -184,7 +183,7 @@ Item {
 
     sourceComponent: Tooltip {
       target: root
-      text: [root.statusText, root.powerInfoText, qsTr("CPU: %1 + %2").arg(root.power?.cpuGovernor ?? "Unknown").arg(root.power?.energyPerformance ?? "Unknown")].join("\n")
+      text: [root.statusText, root.powerInfoText, qsTr("CPU: %1 + %2").arg(PowerManagementService.cpuGovernor).arg(PowerManagementService.energyPerformance)].join("\n")
     }
 
     onLoaded: item.isVisible = true

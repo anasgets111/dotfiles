@@ -72,7 +72,7 @@ OModal {
     const id = String(entry?.id || "").replace(/\.desktop$/, "");
     if (!id)
       return;
-    Quickshell.execDetached(["gtk-launch", id]);
+    Command.detached(["gtk-launch", id]);
     close();
   }
   function move(delta: int): void {

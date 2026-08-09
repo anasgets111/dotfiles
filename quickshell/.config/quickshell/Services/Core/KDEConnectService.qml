@@ -270,7 +270,6 @@ Singleton {
     const mount = `${Quickshell.env("XDG_RUNTIME_DIR")}/${id}`;
     console.assert(_mountedPath(id, mount, mount + "/DCIM") && !_mountedPath(id, mount, mount + "/../bad") && !_mountedPath("../bad", mount, mount), "KDE Connect mount guard self-check failed");
   }
-
   component DeviceState: QtObject {
     id: state
 

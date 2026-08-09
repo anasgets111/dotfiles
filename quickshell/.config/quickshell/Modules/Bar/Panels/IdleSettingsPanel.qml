@@ -13,8 +13,8 @@ OModal {
 
   readonly property var acProfile: idleSettings?.acProfile ?? null
   readonly property string activeProfileLabel: BatteryService.isOnBattery ? qsTr("Battery") : qsTr("AC power")
-  readonly property bool batteryProfileAvailable: BatteryService.isLaptopBattery
   readonly property var batteryProfile: idleSettings?.batteryProfile ?? null
+  readonly property bool batteryProfileAvailable: BatteryService.isLaptopBattery
   readonly property real displayPowerOffTimeoutMin: secondsToMinutes(IdleService.displayPowerOffTimeoutSec)
   readonly property int enabledActionCount: (IdleService.lockActionEnabled ? 1 : 0) + (IdleService.suspendActionEnabled ? 1 : 0) + (IdleService.displayPowerOffActionEnabled ? 1 : 0)
   readonly property bool idleEnabled: IdleService.idleEnabled
@@ -150,8 +150,8 @@ OModal {
             timeoutOptionsMin: [0.5, 1, 2, 5, 10, 15]
           }
           ActionSettingRow {
-            defaultTimeoutSec: 120
             defaultEnabled: false
+            defaultTimeoutSec: 120
             description: qsTr("Suspend the device to reduce power use.")
             enabledKey: "suspendEnabled"
             icon: "󰒚"
@@ -266,11 +266,13 @@ OModal {
     opacity: root.idleEnabled ? 1 : Theme.opacityDisabled
     spacing: Theme.spacingMd
 
-    SettingInfo {
-      description: qsTr("Choose whether locking or display power-off happens first.")
-      highlighted: true
+    PanelHeader {
+      compact: true
       icon: "󰒓"
-      label: qsTr("Action order")
+      spacing: Theme.spacingMd
+      subtitle: qsTr("Choose whether locking or display power-off happens first.")
+      subtitleSize: "sm"
+      title: qsTr("Action order")
     }
     OrderControl {
       profile: root.acProfile
@@ -284,8 +286,8 @@ OModal {
     id: actionRow
 
     readonly property bool anyEnabled: root.profileActionEnabled(root.acProfile, enabledKey, timeoutKey, defaultEnabled, defaultTimeoutSec) || (root.batteryProfileAvailable && root.profileActionEnabled(root.batteryProfile, enabledKey, timeoutKey, defaultEnabled, defaultTimeoutSec))
-    required property int defaultTimeoutSec
     property bool defaultEnabled: true
+    required property int defaultTimeoutSec
     required property string description
     required property string enabledKey
     required property string icon
@@ -305,11 +307,15 @@ OModal {
       Layout.topMargin: Theme.spacingMd
       spacing: Theme.spacingMd
 
-      SettingInfo {
-        description: actionRow.description
-        highlighted: actionRow.anyEnabled
+      PanelHeader {
+        accent: actionRow.anyEnabled ? Theme.activeColor : Theme.textInactiveColor
+        compact: true
         icon: actionRow.icon
-        label: actionRow.label
+        spacing: Theme.spacingMd
+        subtitle: actionRow.description
+        subtitleSize: "sm"
+        title: actionRow.label
+        titleBold: actionRow.anyEnabled
       }
       ProfileControl {
         defaultEnabled: actionRow.defaultEnabled
@@ -338,6 +344,10 @@ OModal {
     }
   }
   component FlowSummary: PanelCard {
+    id: flowSummary
+
+    readonly property var flowSteps: IdleService.lockAfterDisplayPowerOff ? ["displayPowerOff", "lock", "suspend"] : ["lock", "displayPowerOff", "suspend"]
+
     implicitHeight: flowLayout.implicitHeight + Theme.spacingMd * 2
     padding: 0
     tone: root.idleEnabled ? "active" : "standard"
@@ -350,22 +360,19 @@ OModal {
       anchors.rightMargin: Theme.spacingLg
       spacing: Theme.spacingSm
 
-      OText {
-        color: root.idleEnabled ? Theme.activeColor : Theme.textInactiveColor
-        font.pixelSize: Theme.fontLg
-        text: root.idleEnabled ? "󰐊" : "󰏤"
-      }
-      OText {
-        bold: true
-        color: root.idleEnabled ? Theme.textActiveColor : Theme.textInactiveColor
-        font.pixelSize: Theme.fontSm
-        text: root.idleEnabled ? qsTr("Current flow · %1").arg(root.activeProfileLabel) : qsTr("Automation paused")
+      PanelHeader {
+        Layout.fillWidth: false
+        accent: root.idleEnabled ? Theme.activeColor : Theme.textInactiveColor
+        compact: true
+        icon: root.idleEnabled ? "󰐊" : "󰏤"
+        title: root.idleEnabled ? qsTr("Current flow · %1").arg(root.activeProfileLabel) : qsTr("Automation paused")
+        titleSize: "sm"
       }
       Item {
         Layout.fillWidth: true
       }
       Repeater {
-        model: IdleService.flowSteps
+        model: flowSummary.flowSteps
 
         delegate: RowLayout {
           required property int index
@@ -395,7 +402,7 @@ OModal {
             font.pixelSize: Theme.fontSm
             opacity: Theme.opacityDisabled
             text: "→"
-            visible: parent.index < IdleService.flowSteps.length - 1
+            visible: parent.index < flowSummary.flowSteps.length - 1
           }
         }
       }
@@ -428,9 +435,9 @@ OModal {
     readonly property var effectiveTimeoutOptionsMin: timeoutMin <= 0 || timeoutOptionsMin.some(value => Math.abs(value - timeoutMin) < 0.001) ? timeoutOptionsMin : [...timeoutOptionsMin, timeoutMin].sort((left, right) => left - right)
     required property string enabledKey
     required property var profile
-    readonly property real timeoutMin: root.secondsToMinutes(profile?.[timeoutKey] ?? defaultTimeoutSec)
     readonly property int timeoutIndex: effectiveTimeoutOptionsMin.length ? Math.max(0, effectiveTimeoutOptionsMin.findIndex(value => Math.abs(value - timeoutMin) < 0.001)) : -1
     required property string timeoutKey
+    readonly property real timeoutMin: root.secondsToMinutes(profile?.[timeoutKey] ?? defaultTimeoutSec)
     required property var timeoutOptionsMin
 
     Layout.preferredWidth: root.profileColumnWidth
@@ -484,42 +491,40 @@ OModal {
     horizontalAlignment: Text.AlignHCenter
     text: battery ? (isActive ? qsTr("Battery · Active") : qsTr("Battery")) : (isActive ? qsTr("AC power · Active") : qsTr("AC power"))
   }
-  component SettingInfo: RowLayout {
-    id: infoRoot
+  component SettingsSection: PanelCard {
+    id: sectionRoot
 
-    required property string description
-    property bool highlighted: false
-    required property string icon
-    required property string label
+    property string description: ""
+    property string icon: ""
+    default property alias sectionItems: sectionContent.data
+    property string title: ""
 
-    Layout.fillWidth: true
-    spacing: Theme.spacingMd
+    implicitHeight: sectionLayout.implicitHeight + Theme.spacingLg * 2
+    padding: 0
 
-    OText {
-      Layout.alignment: Qt.AlignTop
-      Layout.preferredWidth: Theme.controlHeightMd
-      color: infoRoot.highlighted ? Theme.activeColor : Theme.textInactiveColor
-      font.pixelSize: Theme.fontMd
-      horizontalAlignment: Text.AlignHCenter
-      text: infoRoot.icon
-    }
     ColumnLayout {
-      Layout.fillWidth: true
-      spacing: Theme.spacingXs
+      id: sectionLayout
 
-      OText {
+      anchors.bottomMargin: Theme.spacingLg
+      anchors.fill: parent
+      anchors.topMargin: Theme.spacingLg
+      spacing: Theme.spacingMd
+
+      PanelHeader {
         Layout.fillWidth: true
-        bold: infoRoot.highlighted
-        color: Theme.textActiveColor
-        font.pixelSize: Theme.fontLg
-        text: infoRoot.label
+        Layout.leftMargin: Theme.spacingLg
+        Layout.rightMargin: Theme.spacingLg
+        icon: sectionRoot.icon
+        subtitle: sectionRoot.description
+        subtitleSize: "sm"
+        title: sectionRoot.title
+        titleSize: "xl"
       }
-      OText {
+      ColumnLayout {
+        id: sectionContent
+
         Layout.fillWidth: true
-        color: Theme.textInactiveColor
-        font.pixelSize: Theme.fontSm
-        text: infoRoot.description
-        wrapMode: Text.Wrap
+        spacing: 0
       }
     }
   }
@@ -549,11 +554,15 @@ OModal {
       Layout.topMargin: Theme.spacingMd
       spacing: Theme.spacingMd
 
-      SettingInfo {
-        description: rowRoot.description
-        highlighted: rowRoot.checked
+      PanelHeader {
+        accent: rowRoot.checked ? Theme.activeColor : Theme.textInactiveColor
+        compact: true
         icon: rowRoot.icon
-        label: rowRoot.label
+        spacing: Theme.spacingMd
+        subtitle: rowRoot.description
+        subtitleSize: "sm"
+        title: rowRoot.label
+        titleBold: rowRoot.checked
       }
       OToggle {
         Layout.alignment: Qt.AlignVCenter
@@ -571,62 +580,6 @@ OModal {
       implicitHeight: Theme.borderWidthThin
       opacity: Theme.opacityMedium
       visible: rowRoot.showSeparator
-    }
-  }
-  component SettingsSection: PanelCard {
-    id: sectionRoot
-
-    property string description: ""
-    property string icon: ""
-    default property alias sectionItems: sectionContent.data
-    property string title: ""
-
-    implicitHeight: sectionLayout.implicitHeight + Theme.spacingLg * 2
-    padding: 0
-
-    ColumnLayout {
-      id: sectionLayout
-
-      anchors.bottomMargin: Theme.spacingLg
-      anchors.fill: parent
-      anchors.topMargin: Theme.spacingLg
-      spacing: Theme.spacingMd
-
-      RowLayout {
-        Layout.fillWidth: true
-        Layout.leftMargin: Theme.spacingLg
-        Layout.rightMargin: Theme.spacingLg
-        spacing: Theme.spacingSm
-
-        OText {
-          color: Theme.activeColor
-          font.pixelSize: Theme.fontLg
-          text: sectionRoot.icon
-        }
-        ColumnLayout {
-          Layout.fillWidth: true
-          spacing: Theme.spacingXs
-
-          OText {
-            bold: true
-            font.pixelSize: Theme.fontXl
-            text: sectionRoot.title
-          }
-          OText {
-            Layout.fillWidth: true
-            color: Theme.textInactiveColor
-            font.pixelSize: Theme.fontSm
-            text: sectionRoot.description
-            wrapMode: Text.Wrap
-          }
-        }
-      }
-      ColumnLayout {
-        id: sectionContent
-
-        Layout.fillWidth: true
-        spacing: 0
-      }
     }
   }
 }

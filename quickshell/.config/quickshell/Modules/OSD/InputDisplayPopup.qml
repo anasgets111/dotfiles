@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import Quickshell
+import Quickshell.Wayland
 import qs.Components
 import qs.Config
 import qs.Services.SystemInfo
@@ -11,10 +12,12 @@ import qs.Services.SystemInfo
 OPopup {
   id: root
 
-  coversFullscreen: true
   readonly property bool shouldStayVisible: InputDisplayService.visible || dragArea.drag.active
   readonly property bool showComboLabel: InputDisplayService.comboDisplayLabel.length > 0 && InputDisplayService.comboLabel !== visibleTokens.join("+")
   readonly property var visibleTokens: InputDisplayService.visibleKeys.concat(InputDisplayService.visibleMouseButtons)
+
+  // Overlay: must sit above fullscreen apps (unlike notification/OSD Top surfaces).
+  WlrLayershell.layer: WlrLayer.Overlay
 
   function positionToRatios(): var {
     const availableWidth = Math.max(0, root.width - card.width);

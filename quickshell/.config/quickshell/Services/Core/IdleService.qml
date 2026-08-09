@@ -21,7 +21,6 @@ Singleton {
   readonly property bool automaticInhibitorActive: (settings?.videoAutoInhibit ?? true) && (MediaService.anyVideoPlaying || PrivacyService.cameraActive || PrivacyService.screenshareActive || PrivacyService.audioCaptureActive)
   readonly property bool displayPowerOffActionEnabled: (_activeProfile?.dpmsEnabled ?? true) && displayPowerOffTimeoutSec > 0
   property bool displaysPoweredOff: false
-  readonly property var flowSteps: lockAfterDisplayPowerOff ? ["displayPowerOff", "lock", "suspend"] : ["lock", "displayPowerOff", "suspend"]
   readonly property bool fullscreenInhibitorActive: WorkspaceService.fullscreenVisible
   readonly property bool idleEnabled: Settings.isLoaded && settings !== null && (settings.enabled ?? true)
   readonly property bool inhibited: manualInhibit || fullscreenInhibitorActive || automaticInhibitorActive

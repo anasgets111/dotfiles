@@ -91,12 +91,8 @@ Item {
           (tooltipLoader.item as Tooltip).isVisible = false;
         iconButton.clicked(mouse);
       }
-      onEntered: {
-        iconButton.entered();
-      }
-      onExited: {
-        iconButton.exited();
-      }
+      onEntered: iconButton.entered()
+      onExited: iconButton.exited()
     }
     Text {
       id: iconLabel

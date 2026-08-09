@@ -9,7 +9,6 @@ Singleton {
   property string activePanelId: ""
   property string activeScreenName: ""
   property rect anchorRect: Qt.rect(0, 0, 0, 0)
-  readonly property bool isAnyInteractiveOpen: isAnyPanelOpen || isAnyModalOpen
   readonly property bool isAnyModalOpen: activeModal.length > 0
   readonly property bool isAnyPanelOpen: activePanelId.length > 0
   property var panelData: null

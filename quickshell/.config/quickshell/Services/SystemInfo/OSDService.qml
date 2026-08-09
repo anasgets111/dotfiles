@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import qs.Services.Core
 import qs.Services.SystemInfo
+import qs.Services.Utils
 import qs.Services.WM
 
 Singleton {
@@ -303,8 +304,9 @@ Singleton {
   }
   Connections {
     function onLevelNameChanged() {
-      if (KeyboardBacklightService.ready)
-        root.show(root.types.keyboardBacklight, null, "⌨", `Backlight: ${KeyboardBacklightService.levelName}`);
+      if (!KeyboardBacklightService.ready || KeyboardBacklightService.suppressOsd)
+        return;
+      root.show(root.types.keyboardBacklight, null, "⌨", `Backlight: ${KeyboardBacklightService.levelName}`);
     }
 
     target: KeyboardBacklightService
@@ -317,17 +319,21 @@ Singleton {
     target: NotificationService
   }
   Connections {
-    function onCapsOnChanged() {
-      root.showToggle(root.types.capsLock, KeyboardLayoutService.capsOn, "󰘲", "󰘲", "Caps Lock");
+    function onCapsLockChanged() {
+      root.showToggle(root.types.capsLock, Utils.capsLock, "󰘲", "󰘲", "Caps Lock");
     }
+    function onNumLockChanged() {
+      root.showToggle(root.types.numLock, Utils.numLock, "󰎠", "󰎠", "Num Lock");
+    }
+    function onScrollLockChanged() {
+      root.showToggle(root.types.scrollLock, Utils.scrollLock, "󰌐", "󰌐", "Scroll Lock");
+    }
+
+    target: Utils
+  }
+  Connections {
     function onCurrentLayoutChanged() {
       root.show(root.types.keyboardLayout, null, "󰌌", `Layout: ${KeyboardLayoutService.currentLayout || "??"}`);
-    }
-    function onNumOnChanged() {
-      root.showToggle(root.types.numLock, KeyboardLayoutService.numOn, "󰎠", "󰎠", "Num Lock");
-    }
-    function onScrollOnChanged() {
-      root.showToggle(root.types.scrollLock, KeyboardLayoutService.scrollOn, "󰌐", "󰌐", "Scroll Lock");
     }
 
     target: KeyboardLayoutService

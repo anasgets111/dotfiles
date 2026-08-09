@@ -131,10 +131,8 @@ Scope {
           opacity: stage.contentOpacity
           scale: Theme.lockClosedScale + ((1 - Theme.lockClosedScale) * stage.contentOpacity)
 
-          sourceComponent: Item {
-            LockContent {
-              isMainMonitor: lockSurface.isMainMonitor
-            }
+          sourceComponent: LockContent {
+            isMainMonitor: lockSurface.isMainMonitor
           }
         }
       }

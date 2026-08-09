@@ -15,21 +15,21 @@ Item {
   function openPanel(): void {
     ShellUiState.openPanel("media", screenName, ShellUiState.anchorRectForItem(root), root);
   }
-  function setPanelHovered(hovered: bool): void {
-    panelHovered = hovered;
-  }
 
   Accessible.name: qsTr("Media controls")
   Accessible.role: Accessible.Button
 
   Accessible.onPressAction: root.openPanel()
+  // Escape/outside-close can destroy the panel HoverHandler without a hovered=false edge.
+  onPanelOpenChanged: if (!panelOpen)
+    panelHovered = false
   Component.onDestruction: if (panelOpen)
     ShellUiState.closePanel()
 
   Item {
     id: bars
 
-    readonly property real barPitch: (width + Theme.borderWidthThin) / Math.max(1, CavaService.barCount)
+    readonly property real barPitch: (width + Theme.borderWidthThin) / Math.max(1, CavaService.values.length)
 
     anchors.fill: parent
     anchors.margins: Theme.spacingXs
@@ -42,7 +42,7 @@ Item {
     }
 
     Repeater {
-      model: CavaService.barCount
+      model: CavaService.values.length
 
       // Never give these a radius: see the antialiasing note in AGENTS.md.
       delegate: Rectangle {

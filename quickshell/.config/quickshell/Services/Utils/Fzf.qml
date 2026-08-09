@@ -101,19 +101,14 @@ Singleton {
     return {
       item: item,
       start: -1,
-      end: -1,
-      score: 0,
-      positions: new Set()
+      score: 0
     };
   }
   function failedMatch(): var {
-    return [
-      {
-        start: -1,
-        end: -1,
-        score: 0
-      },
-      null];
+    return {
+      start: -1,
+      score: 0
+    };
   }
   function find(finderInstance: var, query: string): var {
     const items = finderInstance.items;
@@ -130,11 +125,10 @@ Singleton {
       if (patternRunes.length > inputRunes.length)
         continue;
 
-      const [match, positions] = root.isAscii(inputRunes) && root.isAscii(patternRunes) ? root.fuzzyMatchV2(caseSensitive, inputRunes, patternRunes, true) : root.fuzzyMatchUnicode(caseSensitive, finderInstance.textByItem[itemIndex], query);
+      const match = root.isAscii(inputRunes) && root.isAscii(patternRunes) ? root.fuzzyMatchV2(caseSensitive, inputRunes, patternRunes) : root.fuzzyMatchUnicode(caseSensitive, finderInstance.textByItem[itemIndex], query);
       if (match.start !== -1)
         results.push(Object.assign({
-          item: items[itemIndex],
-          positions: positions
+          item: items[itemIndex]
         }, match));
     }
 
@@ -147,15 +141,11 @@ Singleton {
     const input = Array.from(caseSensitive ? inputText : inputText.toLocaleLowerCase());
     const pattern = Array.from(caseSensitive ? patternText : patternText.toLocaleLowerCase());
     if (pattern.length === 0)
-      return [
-        {
-          start: 0,
-          end: 0,
-          score: 0
-        },
-        new Set()];
+      return {
+        start: 0,
+        score: 0
+      };
 
-    const positions = new Set();
     let inputIndex = 0;
     let firstIndex = -1;
     let previousIndex = -2;
@@ -177,31 +167,24 @@ Singleton {
       else if (atBoundary)
         score += root.bonusBoundary;
       score += root.scoreGapExtension * Math.max(0, inputIndex - previousIndex - 1);
-      positions.add(inputIndex);
       previousIndex = inputIndex;
       inputIndex++;
     }
 
-    return [
-      {
-        start: firstIndex,
-        end: previousIndex + 1,
-        score
-      },
-      positions];
+    return {
+      start: firstIndex,
+      score
+    };
   }
-  function fuzzyMatchV2(caseSensitive: bool, input: var, pattern: var, withPositions: bool): var {
+  function fuzzyMatchV2(caseSensitive: bool, input: var, pattern: var): var {
     const inputRunes = Array.isArray(input) ? input : [];
     const patternRunes = Array.isArray(pattern) ? pattern : [];
     const patternLength = patternRunes.length;
     if (patternLength === 0)
-      return [
-        {
-          start: 0,
-          end: 0,
-          score: 0
-        },
-        withPositions ? new Set() : null];
+      return {
+        start: 0,
+        score: 0
+      };
 
     const inputLength = inputRunes.length;
     const matchStart = root.asciiFuzzyIndex(inputRunes, patternRunes, caseSensitive);
@@ -262,14 +245,17 @@ Singleton {
     if (patternIndex !== patternLength)
       return root.failedMatch();
     if (patternLength === 1)
-      return root.singleRuneMatch(maxScoreIndex, maxScore, withPositions);
+      return {
+        start: maxScoreIndex,
+        score: maxScore
+      };
 
-    return root.scoreMultiRuneMatch(patternRunes, normalizedRunes, bonuses, firstRowScores, firstRowConsecutive, firstMatchByPattern, lastMatchIndex, maxScore, maxScoreIndex, withPositions);
+    return root.scoreMultiRuneMatch(patternRunes, normalizedRunes, bonuses, firstRowScores, firstRowConsecutive, firstMatchByPattern, lastMatchIndex, maxScore, maxScoreIndex);
   }
   function isAscii(runes: var): bool {
     return runes.every(rune => rune < 128);
   }
-  function scoreMultiRuneMatch(patternRunes: var, inputRunes: var, bonuses: var, firstRowScores: var, firstRowConsecutive: var, firstMatchByPattern: var, lastMatchIndex: int, initialMaxScore: int, initialMaxScoreIndex: int, withPositions: bool): var {
+  function scoreMultiRuneMatch(patternRunes: var, inputRunes: var, bonuses: var, firstRowScores: var, firstRowConsecutive: var, firstMatchByPattern: var, lastMatchIndex: int, initialMaxScore: int, initialMaxScoreIndex: int): var {
     const patternLength = patternRunes.length;
     const firstMatchIndex = firstMatchByPattern[0];
     const matrixWidth = lastMatchIndex - firstMatchIndex + 1;
@@ -318,23 +304,10 @@ Singleton {
       }
     }
 
-    const positions = withPositions ? root.tracePositions(scores, firstMatchByPattern, patternLength, matrixWidth, firstMatchIndex, maxScoreIndex) : null;
-    return [
-      {
-        start: firstMatchIndex,
-        end: maxScoreIndex + 1,
-        score: maxScore
-      },
-      positions];
-  }
-  function singleRuneMatch(maxScoreIndex: int, maxScore: int, withPositions: bool): var {
-    return [
-      {
-        start: maxScoreIndex,
-        end: maxScoreIndex + 1,
-        score: maxScore
-      },
-      withPositions ? new Set([maxScoreIndex]) : null];
+    return {
+      start: firstMatchIndex,
+      score: maxScore
+    };
   }
   function sortResults(results: var, options: var): void {
     results.sort((leftMatch, rightMatch) => {
@@ -359,28 +332,6 @@ Singleton {
         inputIndex++;
     }
     return runes;
-  }
-  function tracePositions(scores: var, firstMatchByPattern: var, patternLength: int, matrixWidth: int, firstMatchIndex: int, maxScoreIndex: int): var {
-    const positions = new Set();
-    let patternIndex = patternLength - 1;
-    let inputIndex = maxScoreIndex;
-
-    while (patternIndex >= 0 && inputIndex >= firstMatchIndex) {
-      const rowOffset = patternIndex * matrixWidth;
-      const relativeIndex = inputIndex - firstMatchIndex;
-      const score = scores[rowOffset + relativeIndex];
-      const diagonalScore = patternIndex > 0 && inputIndex >= firstMatchByPattern[patternIndex] ? scores[rowOffset - matrixWidth + relativeIndex - 1] : 0;
-      const leftScore = inputIndex > firstMatchByPattern[patternIndex] ? scores[rowOffset + relativeIndex - 1] : 0;
-
-      if (score > diagonalScore && score > leftScore) {
-        positions.add(inputIndex);
-        if (patternIndex === 0)
-          break;
-        patternIndex--;
-      }
-      inputIndex--;
-    }
-    return positions;
   }
   function trySkip(inputRunes: var, caseSensitive: bool, rune: int, startIndex: int): int {
     const upperRune = !caseSensitive && rune >= root.smallARune && rune <= root.smallZRune ? rune - 32 : -1;

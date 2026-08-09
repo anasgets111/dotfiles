@@ -7,6 +7,7 @@ import qs.Config
 import qs.Services
 import qs.Services.Core
 import qs.Services.SystemInfo
+import qs.Services.Utils
 import qs.Services.WM
 
 Item {
@@ -55,9 +56,7 @@ Item {
   }
   readonly property string weatherLabel: (WeatherService.currentTemp || "").split(" ")[0] || "--"
 
-  anchors.centerIn: parent
-  implicitHeight: shell.implicitHeight
-  implicitWidth: shell.implicitWidth
+  anchors.fill: parent
 
   transform: Translate {
     id: shakeTransform
@@ -127,6 +126,7 @@ Item {
   Rectangle {
     id: shell
 
+    anchors.centerIn: parent
     border.color: Theme.lockSurfaceBorderColor
     border.width: Theme.borderWidthThin
     color: Theme.withOpacity(Theme.bgColor, 0.30)
@@ -285,7 +285,7 @@ Item {
             Layout.preferredWidth: capsRow.implicitWidth + root.spaceSm * 2
             color: Theme.withOpacity(Theme.warning, 0.92)
             radius: Theme.radiusFull
-            visible: KeyboardLayoutService.capsOn
+            visible: Utils.capsLock
 
             RowLayout {
               id: capsRow

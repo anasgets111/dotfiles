@@ -7,7 +7,12 @@ FileView {
   property bool valid: false
   property int value: fallback
 
-  onLoadFailed: valid = false
+  signal readFailed
+
+  onLoadFailed: {
+    valid = false;
+    readFailed();
+  }
   onLoaded: {
     const parsed = parseInt(text().trim(), 10);
     const parsedValid = Number.isFinite(parsed);
