@@ -35,7 +35,6 @@ Singleton {
     if (root.displaysPoweredOff === !powered)
       return;
     if (!CompositorService.setDisplaysPowered(powered)) {
-      Logger.warn("IdleService", "DPMS not supported by the current compositor");
       return;
     }
     KeyboardBacklightService.setBlanked(!powered);
@@ -53,8 +52,6 @@ Singleton {
     onIsIdleChanged: if (!isIdle)
       root.setDisplaysPowered(true)
   }
-  // Idle is counted from when a monitor subscribes, so each stage waits its own timeout
-  // after its gate opens: the gates are the sequencing, not redundant with the timeouts.
   IdleStage {
     enabled: root.armed && root.lockActionEnabled && !LockService.locked && (!root.lockAfterDisplayPowerOff || root._dpmsDone)
     idleAction: () => LockService.requestLock()
@@ -76,8 +73,6 @@ Singleton {
     readonly property bool stageRespectInhibitors: !LockService.locked && (root.settings?.respectInhibitors ?? true)
     required property int stageTimeout
 
-    // timeout/respectInhibitors are Qt bindable: binding them never re-registers the
-    // wayland notification, so isIdle silently stops. These seed; the handlers must assign.
     respectInhibitors: stageRespectInhibitors
     timeout: stageTimeout
 

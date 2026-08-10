@@ -219,24 +219,16 @@ Singleton {
       setNodeMuted(stream, !stream.audio.muted);
   }
 
-  Component.onCompleted: {
-    Logger.log("AudioService", `ready | sink: ${displayName(root.sink)} | volume: ${Math.round(root.volume * 100)}% | muted: ${root.muted} | source: ${displayName(root.source)}`);
-  }
   onDndActiveChanged: dndActive ? _muteDndStreams() : _unmuteDndStreams()
   onSinkChanged: {
-    const name = displayName(root.sink);
     if (!root.sink?.ready) {
-      Logger.log("AudioService", `sink changed: ${name} (waiting for binding)`);
       return;
     }
     if (!root.sink.audio) {
-      Logger.log("AudioService", `sink changed: ${name} (no audio)`);
       return;
     }
     root.capSinkVolume();
-    Logger.log("AudioService", `sink changed: ${name}`);
   }
-  onSourceChanged: Logger.log("AudioService", `source changed: ${displayName(root.source)}`)
   onStreamsChanged: {
     const liveIds = root.streams.map(stream => stream.id);
     root._dndMutedStreamIds = root._dndMutedStreamIds.filter(id => liveIds.includes(id));

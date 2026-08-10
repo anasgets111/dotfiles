@@ -27,6 +27,4 @@ Singleton {
     backend?.setLayoutByIndex?.(targetIndex);
   }
 
-  onCurrentLayoutChanged: if (currentLayout)
-    Logger.log("KeyboardLayoutService", `Layout: ${currentLayout}`)
 }

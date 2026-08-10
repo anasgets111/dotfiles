@@ -12,7 +12,6 @@ PanelContentBase {
   id: root
 
   readonly property var activePlayer: MediaService.active
-  // Every read of position costs a DBus round trip, so never ask for one the seek bar cannot use.
   readonly property bool canTrackPosition: (root.activePlayer?.positionSupported ?? false) && MediaService.trackLength > 0
   readonly property bool hasPlayer: !!root.activePlayer
   readonly property real positionRatio: MediaService.trackLength > 0 ? trackPosition / MediaService.trackLength : 0

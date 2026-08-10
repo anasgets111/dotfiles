@@ -58,7 +58,6 @@ Item {
           height: root.cellHeight
           horizontalAlignment: Text.AlignHCenter
           text: modelData
-          verticalAlignment: Text.AlignVCenter
           width: root.cellWidth
         }
       }

@@ -5,12 +5,9 @@ import Quickshell
 Singleton {
   id: dateTime
 
-  readonly property string localeTimeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
   readonly property var minuteNow: minuteClock.date
   readonly property var now: clock.date
-  property int precision: SystemClock.Seconds
-  property bool use24Hour: !/\bAP\b/i.test(localeTimeFormat)
-  property int weekStart: Qt.locale().firstDayOfWeek
+  property bool use24Hour: !/\bAP\b/i.test(Qt.locale().timeFormat(Locale.ShortFormat))
 
   function format(kind, pattern) {
     const d = clock.date;
@@ -39,15 +36,10 @@ Singleton {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   }
 
-  Component.onCompleted: {
-    if (weekStart < 1 || weekStart > 7)
-      weekStart = 7;
-  }
-
   SystemClock {
     id: clock
 
-    precision: dateTime.precision
+    precision: SystemClock.Seconds
   }
   SystemClock {
     id: minuteClock

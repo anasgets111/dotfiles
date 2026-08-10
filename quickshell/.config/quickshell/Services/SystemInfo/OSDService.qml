@@ -242,10 +242,6 @@ Singleton {
       const vol = Math.round(AudioService.volume * 100);
       root.show(root.types.volumeOutput, vol, (vol >= 70 ? "󰕾" : vol >= 30 ? "󰖀" : "󰕿"), `${vol}%`);
     }
-
-    target: AudioService
-  }
-  Connections {
     function onMicMutedChanged() {
       const muted = AudioService.micMuted;
       root.show(root.types.micMute, null, muted ? "󰍭" : "󰍬", muted ? "Microphone Muted" : "Microphone Unmuted");

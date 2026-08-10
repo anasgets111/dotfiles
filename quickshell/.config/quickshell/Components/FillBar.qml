@@ -13,7 +13,6 @@ Item {
   property real radius: Theme.itemRadius
 
   anchors.fill: parent
-  clip: false
 
   ClippingRectangle {
     anchors.fill: parent

@@ -21,7 +21,6 @@ Item {
   property real value: 0.0 // 0..1
   property real wheelStep: 0.05
 
-  signal changing(real v)
   signal committed(real v)
 
   function clamp01(v) {
@@ -41,7 +40,6 @@ Item {
   function updateFromX(x) {
     const raw = clamp01(x / width);
     pending = step(raw);
-    slider.changing(pending);
   }
 
   Item {

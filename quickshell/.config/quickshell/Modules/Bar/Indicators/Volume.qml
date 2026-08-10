@@ -86,10 +86,7 @@ Rectangle {
     steps: 30
     wheelStep: 1 / steps
 
-    Behavior on opacity {
-      NumberAnimation {
-        duration: Theme.animationDuration
-      }
+    Theme.NumberTransition on opacity {
     }
 
     onCommitted: normalizedValue => AudioService.setVolume(normalizedValue * root.maxVolume)
@@ -127,7 +124,6 @@ Rectangle {
       color: root.foregroundAt(percentageText)
       horizontalAlignment: Text.AlignHCenter
       text: root.percentText
-      verticalAlignment: Text.AlignVCenter
       visible: root.expanded
     }
   }

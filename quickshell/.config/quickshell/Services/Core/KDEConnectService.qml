@@ -67,7 +67,6 @@ Singleton {
         smsLoadTimeout.stop();
       }
     } catch (parseError) {
-      Logger.warn("KDEConnect", "Could not parse DBus signal: " + parseError);
     }
   }
   // Only KDE Connect's own runtime mount may reach xdg-open or fusermount.

@@ -75,7 +75,6 @@ Singleton {
     updateDurationMs = updateStartedAt > 0 ? Date.now() - updateStartedAt : 0;
     completedPackageCount = currentPackageIndex || totalPackagesToUpdate;
     if (exitCode === 0) {
-      Logger.log("UpdateService", `Updates completed (${completedPackageCount}): ${updatePackages.map(packageInfo => packageInfo.name).join(", ")}`);
       const packageMessage = completedPackageCount === 1 ? "1 system package updated" : `${completedPackageCount} system packages updated`;
       _notify("Update Complete", completedPackageCount === 0 ? "Developer tooling update completed" : `${packageMessage}; developer tooling completed`);
     } else {
@@ -103,7 +102,6 @@ Singleton {
     _actionNotifyHandle = handle;
   }
   function _notify(title: string, message: string, urgency = "normal", actionable = false): void {
-    Logger.log("UpdateService", `Sending notification: ${title} - ${message}`);
     const baseArgs = ["-u", urgency, "-a", _notificationAppName, "-n", "system-software-update"];
     if (actionable) {
       // --wait keeps stdout open for the selected action.
@@ -151,7 +149,6 @@ Singleton {
     }, []);
   }
   function _recordFailure(sourceName: string, message: string, exitCode: int): void {
-    Logger.warn("UpdateService", `${sourceName} error (code: ${exitCode}): ${message}`);
     _failureCount += 1;
     if (_failureCount < 5)
       return;

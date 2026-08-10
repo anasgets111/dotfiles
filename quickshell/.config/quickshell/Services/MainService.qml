@@ -31,10 +31,8 @@ Singleton {
         return;
       const key = line.slice(0, eqIndex);
       const value = line.slice(eqIndex + 1);
-      sys[key] = (key.startsWith("is") || key.startsWith("has")) ? value.trim() === "yes" : value;
-      Logger.log("MainService", `${key} = ${sys[key]}`);
+      sys[key] = key.startsWith("is") ? value.trim() === "yes" : value;
     });
     sys.ready = true;
-    Logger.log("MainService", "ready");
   })
 }

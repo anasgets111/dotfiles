@@ -41,10 +41,7 @@ ColumnLayout {
 
     Theme.ColorTransition on border.color {
     }
-    Behavior on border.width {
-      NumberAnimation {
-        duration: Theme.animationDuration
-      }
+    Theme.NumberTransition on border.width {
     }
 
     TextField {
@@ -82,10 +79,7 @@ ColumnLayout {
     text: "⚠ " + root.errorMessage
     visible: root.hasError && root.errorMessage !== ""
 
-    Behavior on opacity {
-      NumberAnimation {
-        duration: Theme.animationDuration
-      }
+    Theme.NumberTransition on opacity {
     }
   }
 }

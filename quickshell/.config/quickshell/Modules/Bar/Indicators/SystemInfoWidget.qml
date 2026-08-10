@@ -287,7 +287,6 @@ Item {
         OText {
           Layout.fillWidth: true
           bold: true
-          elide: Text.ElideRight
           size: "sm"
           text: SystemInfoService.gpuType === "NONE" ? qsTr("GPU") : qsTr("GPU · %1").arg(SystemInfoService.gpuType)
         }
@@ -374,7 +373,6 @@ Item {
         OText {
           Layout.fillWidth: true
           bold: true
-          elide: Text.ElideRight
           size: "sm"
           text: tile.label
         }
@@ -391,7 +389,6 @@ Item {
       OText {
         Layout.fillWidth: true
         color: Theme.textInactiveColor
-        elide: Text.ElideRight
         size: "xs"
         text: tile.secondary
       }

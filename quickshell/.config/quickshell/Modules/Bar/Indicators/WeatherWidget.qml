@@ -238,11 +238,9 @@ Item {
           }
         }
       }
-      Text {
+      OText {
         Layout.alignment: Qt.AlignHCenter
-        color: Theme.textActiveColor
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontXl
+        size: "xl"
         text: card.wInfo.icon
       }
       OText {

@@ -34,7 +34,6 @@ Singleton {
     if (!name || root.data?.themeName === name)
       return;
     if (availableThemes.length && !availableThemes.includes(name)) {
-      Logger.warn("Settings", `Theme "${name}" not found, keeping "${root.data?.themeName ?? "Catppuccin"}"`);
       return;
     }
     root.data.themeName = name;
@@ -53,7 +52,6 @@ Singleton {
     Component.onCompleted: reload()
     onFileChanged: reload()
     onLoadFailed: error => {
-      Logger.warn("Settings", "Failed to load color scheme '" + (root.data?.themeName ?? "Catppuccin") + "': " + error + ". Falling back to Catppuccin.");
       if (root.data?.themeName !== "Catppuccin") {
         root.data.themeName = "Catppuccin";
         root.data.themeMode = "dark";
@@ -62,9 +60,7 @@ Singleton {
     onLoaded: {
       try {
         root._loadedScheme = JSON.parse(text());
-        Logger.log("Settings", "Loaded color scheme: " + (root.data?.themeName ?? "Catppuccin") + "/" + (root.data?.themeMode ?? "dark"));
       } catch (e) {
-        Logger.warn("Settings", "Failed to parse color scheme JSON: " + e);
         root._loadedScheme = {};
       }
     }
@@ -179,7 +175,6 @@ Singleton {
     }
     onLoaded: {
       if (!root.isLoaded) {
-        Logger.log("Settings", "JSON completed loading");
         root.isLoaded = true;
       }
     }
@@ -208,7 +203,6 @@ Singleton {
     }
     onLoaded: {
       if (!root.isStateLoaded) {
-        Logger.log("Settings", "State JSON completed loading");
         root.isStateLoaded = true;
       }
     }

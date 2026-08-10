@@ -20,7 +20,6 @@ Singleton {
       try {
         impl.syncLayoutState(result.stdout);
       } catch (error) {
-        Logger.warn("KeyboardLayoutImpl(Hypr)", `Parse error: ${error}`);
       }
     }, "hypr.layoutSync");
   }

@@ -27,16 +27,13 @@ Singleton {
       return LockService.locked;
     }
     function lock(): string {
-      Logger.log("IPC", "lock");
       LockService.requestLock();
       return "locked";
     }
     function status(): bool {
-      Logger.log("IPC", `status -> ${LockService.locked}`);
       return LockService.locked;
     }
     function unlock(): string {
-      Logger.log("IPC", "unlock");
       LockService.requestUnlock();
       return LockService.locked ? "unlocking" : "unlocked";
     }
@@ -83,7 +80,6 @@ Singleton {
   }
   IpcHandler {
     function toggle(): string {
-      Logger.log("IPC", "rec.toggle");
       ScreenRecordingService.toggleRecording();
       return ScreenRecordingService.isRecording ? "recording" : ScreenRecordingService.starting ? "starting" : "stopped";
     }
@@ -93,7 +89,6 @@ Singleton {
   IpcHandler {
     function toggle(): string {
       const active = ipc.toggleLauncher();
-      Logger.log("IPC", `launcher.toggle -> ${active ? "open" : "closed"}`);
       return active ? "open" : "closed";
     }
 
@@ -101,7 +96,6 @@ Singleton {
   }
   IpcHandler {
     function clear(): string {
-      Logger.log("IPC", "notifications.clear");
       NotificationService.clearAllNotifications();
       return "cleared";
     }
@@ -110,7 +104,6 @@ Singleton {
   }
   IpcHandler {
     function mute(): string {
-      Logger.log("IPC", "mic.mute");
       return AudioService.toggleMicMute();
     }
 

@@ -34,7 +34,7 @@ PanelContentBase {
       Rectangle {
         anchors.centerIn: parent
         color: Theme.borderColor
-        height: 1
+        height: Theme.borderWidthThin
         visible: rowItem.entry?.isSeparator ?? false
         width: parent.width - Theme.spacingSm
       }
@@ -61,10 +61,8 @@ PanelContentBase {
           OText {
             Layout.fillWidth: true
             color: rowMouse.containsMouse ? Theme.textContrast(Theme.glassControlHoverColor) : Theme.textActiveColor
-            elide: Text.ElideRight
             opacity: rowItem.entry?.enabled ? 1 : Theme.opacityDisabled
             text: rowItem.entry?.text ?? ""
-            verticalAlignment: Text.AlignVCenter
           }
           OText {
             color: rowMouse.containsMouse ? Theme.textContrast(Theme.glassControlHoverColor) : Theme.textActiveColor
@@ -217,10 +215,8 @@ PanelContentBase {
     OText {
       Layout.fillWidth: true
       Layout.preferredHeight: Theme.itemHeight
-      color: Theme.textActiveColor
       horizontalAlignment: Text.AlignHCenter
       text: "No menu items"
-      verticalAlignment: Text.AlignVCenter
       visible: menuRepeater.count === 0
     }
   }

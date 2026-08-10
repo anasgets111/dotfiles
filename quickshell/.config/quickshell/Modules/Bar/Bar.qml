@@ -79,7 +79,6 @@ Item {
       RoundCorner {
         id: barCornerLeft
 
-        color: Theme.glassSurfaceColor
         height: radius
         radius: Theme.panelRadius
         width: radius
@@ -88,7 +87,6 @@ Item {
         id: barCornerRight
 
         anchors.right: parent.right
-        color: Theme.glassSurfaceColor
         height: radius
         orientation: 1
         radius: Theme.panelRadius

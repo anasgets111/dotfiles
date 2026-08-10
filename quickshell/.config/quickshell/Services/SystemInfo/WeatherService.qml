@@ -88,7 +88,6 @@ Singleton {
       return;
     _retryCount += 1;
     const retryDelay = 2000 * Math.pow(2, _retryCount - 1);
-    Logger.warn("WeatherService", `Retry ${_retryCount} in ${retryDelay}ms`);
     retryTimer.interval = retryDelay;
     retryTimer.start();
   }
@@ -117,7 +116,6 @@ Singleton {
       try {
         onSuccess(JSON.parse(request.responseText));
       } catch (error) {
-        Logger.warn("WeatherService", `Request handling failed: ${error}`);
         _handleRequestError();
       }
     };
@@ -154,7 +152,6 @@ Singleton {
           }
         }
       } catch (error) {
-        Logger.warn("WeatherService", `Cache load failed: ${error}`);
       }
     }
     _startRefreshCycle();
@@ -169,7 +166,6 @@ Singleton {
   function refresh(): void {
     if (lastUpdated && (Date.now() - lastUpdated.getTime()) < 30 * 1000)
       return;
-    Logger.log("WeatherService", "Manual refresh");
     _startRefreshCycle();
   }
   function weatherInfo(code = currentWeatherCode): var {

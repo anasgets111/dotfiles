@@ -130,7 +130,6 @@ PanelContentBase {
 
           OText {
             bold: true
-            color: Theme.textActiveColor
             text: hero.title
           }
           OText {
@@ -320,7 +319,6 @@ PanelContentBase {
       }
       OText {
         Layout.fillWidth: true
-        color: Theme.textActiveColor
         size: "sm"
         text: streamItem.modelData.name
       }

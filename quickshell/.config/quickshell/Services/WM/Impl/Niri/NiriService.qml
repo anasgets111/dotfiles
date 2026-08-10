@@ -32,7 +32,6 @@ Singleton {
     try {
       return JSON.parse(message);
     } catch (error) {
-      Logger.warn("NiriService", `Parse error: ${error}`);
       return null;
     }
   }
@@ -121,8 +120,6 @@ Singleton {
     onLineRead: message => {
       const callback = root._replyQueue.shift();
       const reply = root._parse(String(message ?? "").trim());
-      if (reply?.Err)
-        Logger.warn("NiriService", `Request failed: ${JSON.stringify(reply.Err)}`);
       callback?.(reply);
     }
   }

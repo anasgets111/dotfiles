@@ -195,7 +195,6 @@ OModal {
 
                 OText {
                   anchors.centerIn: parent
-                  elide: Text.ElideRight
                   text: tile.modelData?.displayName ?? ""
                   width: parent.width - Theme.spacingSm * 2
                 }

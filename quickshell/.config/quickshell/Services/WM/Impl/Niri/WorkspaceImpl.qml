@@ -8,7 +8,6 @@ import qs.Services.WM.Impl.Niri
 Singleton {
   id: root
 
-  // ponytail: appId/title can collide because Niri IPC and foreign-toplevel share no stable ID.
   readonly property var _populatedWorkspaceIds: new Set(NiriService.windows.filter(window => window.workspace_id !== null && window.workspace_id !== undefined).map(window => window.workspace_id))
   readonly property bool fullscreenVisible: visibleWindowKeys.size > 0 && ToplevelManager.toplevels.values.some(toplevel => toplevel.fullscreen && visibleWindowKeys.has(root._windowKey(toplevel.appId, toplevel.title)))
   readonly property bool hasOverview: true
@@ -22,13 +21,10 @@ Singleton {
         idx: workspace.idx,
         focused: workspace.is_focused,
         populated: _populatedWorkspaceIds.has(workspace.id),
-        appId: _workspaceAppId(workspace.id),
+        appId: _workspaceAppIdFrom(NiriService.windows.filter(window => window.workspace_id === workspace.id)),
         output: workspace.output ?? ""
       }))
 
-  function _workspaceAppId(workspaceId: var): string {
-    return _workspaceAppIdFrom(NiriService.windows.filter(window => window.workspace_id === workspaceId));
-  }
   function _selfCheck(): bool {
     const focusedApp = _workspaceAppIdFrom([
       {app_id: "first", is_focused: false},
@@ -39,6 +35,7 @@ Singleton {
   function _workspaceAppIdFrom(windows: var): string {
     return String(windows.find(window => window.is_focused)?.app_id ?? windows[0]?.app_id ?? "");
   }
+  // ponytail: appId/title can collide because Niri IPC and foreign-toplevel share no stable ID.
   function _windowKey(appId: string, title: string): string {
     return JSON.stringify([appId ?? "", title ?? ""]);
   }

@@ -29,7 +29,7 @@ Singleton {
       "usd": 1.0
     })
   property bool ratesLive: false
-  readonly property int refreshInterval: 86400000 // 24 hours
+  readonly property int refreshInterval: 86400000
 
   readonly property string rowBadge: ratesLive ? "FX" : "FX-STATIC"
   readonly property string rowHint: qsTr("Enter to copy result")
@@ -37,7 +37,6 @@ Singleton {
   readonly property bool rowIconIsText: true
   readonly property string rowSubtitle: ratesLive ? lastUpdatedText : qsTr("Static rates")
   readonly property string rowTitle: `${_inputAmount} ${_fromCode.toUpperCase()} → ${_resultText} ${_toCode.toUpperCase()}`
-  readonly property string toFlag: _getFlag(_toCode)
 
   function _currencyCode(token: string): string {
     return root._symbolCodes[token] ?? token.toLowerCase();
@@ -50,21 +49,18 @@ Singleton {
     xhr.timeout = 5000;
     xhr.onerror = xhr.ontimeout = () => {
       _requesting = false;
-      Logger.warn("CurrencyProvider", "Rate fetch failed");
     };
     xhr.onreadystatechange = () => {
       if (xhr.readyState !== XMLHttpRequest.DONE)
         return;
       _requesting = false;
       if (xhr.status !== 200) {
-        Logger.warn("CurrencyProvider", `Failed to fetch rates: ${xhr.status}`);
         return;
       }
       let data;
       try {
         data = JSON.parse(xhr.responseText);
       } catch (e) {
-        Logger.warn("CurrencyProvider", "Failed to parse rates JSON");
         return;
       }
       if (!data?.usd)
@@ -77,7 +73,6 @@ Singleton {
         rates: data.usd,
         lastUpdate: lastUpdated.toISOString()
       };
-      Logger.log("CurrencyProvider", `Rates updated (date: ${data.date})`);
     };
     xhr.open("GET", "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json");
     xhr.send();
@@ -126,13 +121,11 @@ Singleton {
         ratesLive = true;
 
         if (Date.now() - last.getTime() < refreshInterval) {
-          Logger.log("CurrencyProvider", "Using cached rates");
           return;
         }
       }
     }
 
-    Logger.log("CurrencyProvider", "Refreshing rates from API (cache stale or missing)");
     _fetchRates();
   }
   function _parseSource(text: string, allowImplicitAmount: bool): var {
@@ -181,7 +174,6 @@ Singleton {
     _inputAmount = parsed.a;
     _resultText = Math.abs(out) < 0.01 && out !== 0 ? out.toPrecision(6) : out.toLocaleString(Qt.locale(), "f", decimals);
 
-    Logger.log("CurrencyProvider", `Query success: ${parsed.a} ${parsed.f} -> ${out} ${parsed.t} (${root.fromFlag} -> ${root.toFlag})`);
     return true;
   }
   function refreshIfStale(): void {

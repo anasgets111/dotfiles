@@ -76,7 +76,7 @@ OModal {
           OText {
             anchors.centerIn: parent
             color: Theme.activeColor
-            font.pixelSize: Theme.fontXl
+            size: "xl"
             text: "󰾪"
           }
         }
@@ -85,12 +85,11 @@ OModal {
 
           OText {
             bold: true
-            font.pixelSize: Theme.fontXxl
+            size: "xxl"
             text: qsTr("Idle & Power")
           }
           OText {
             color: Theme.textInactiveColor
-            font.pixelSize: Theme.fontMd
             text: root.idleEnabled ? qsTr("%1 actions enabled · %2").arg(root.enabledActionCount).arg(root.activeProfileLabel) : qsTr("Automatic actions are paused")
           }
         }
@@ -216,13 +215,12 @@ OModal {
 
                 OText {
                   color: Theme.textInactiveColor
-                  font.pixelSize: Theme.fontMd
                   text: InputDisplayService.backendCheckComplete ? "󰅚" : "󰔟"
                 }
                 OText {
                   Layout.fillWidth: true
                   color: Theme.textInactiveColor
-                  font.pixelSize: Theme.fontSm
+                  size: "sm"
                   text: root.inputDisplayStatusText
                   wrapMode: Text.Wrap
                 }
@@ -387,20 +385,20 @@ OModal {
 
           OText {
             color: parent.stepEnabled ? Theme.activeColor : Theme.textInactiveColor
-            font.pixelSize: Theme.fontSm
             opacity: parent.stepEnabled ? 1 : 0.45
+            size: "sm"
             text: parent.isLock ? "󰌾" : parent.isDisplay ? "󰍹" : "󰒚"
           }
           OText {
             color: parent.stepEnabled ? Theme.textActiveColor : Theme.textInactiveColor
-            font.pixelSize: Theme.fontSm
             opacity: parent.stepEnabled ? 1 : 0.45
+            size: "sm"
             text: parent.stepEnabled ? qsTr("%1 · %2").arg(parent.stepLabel).arg(root.formatDuration(parent.timeoutMin)) : qsTr("%1 · Off").arg(parent.stepLabel)
           }
           OText {
             color: Theme.textInactiveColor
-            font.pixelSize: Theme.fontSm
             opacity: Theme.opacityDisabled
+            size: "sm"
             text: "→"
             visible: parent.index < flowSummary.flowSteps.length - 1
           }
@@ -469,7 +467,7 @@ OModal {
       Layout.fillWidth: true
       bold: true
       color: Theme.textInactiveColor
-      font.pixelSize: Theme.fontSm
+      size: "sm"
       text: qsTr("Action")
     }
     ProfileHeading {
@@ -487,8 +485,8 @@ OModal {
     Layout.preferredWidth: root.profileColumnWidth
     bold: true
     color: isActive ? Theme.activeColor : Theme.textInactiveColor
-    font.pixelSize: Theme.fontSm
     horizontalAlignment: Text.AlignHCenter
+    size: "sm"
     text: battery ? (isActive ? qsTr("Battery · Active") : qsTr("Battery")) : (isActive ? qsTr("AC power · Active") : qsTr("AC power"))
   }
   component SettingsSection: PanelCard {

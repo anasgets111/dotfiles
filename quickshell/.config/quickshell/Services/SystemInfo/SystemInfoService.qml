@@ -54,7 +54,6 @@ Singleton {
         root.gpuMemTotalKib = root.gpuMemUsedKib > 0 ? Number(gpu.mem_total) / 1024 || 0 : 0;
       } catch (error) {
         root._clearGpuSnapshot();
-        Logger.warn("SystemInfo", `GPU parse failed: ${error}`);
       }
     }, "sysinfo.gpu");
   }
@@ -109,7 +108,6 @@ Singleton {
 
         root.storageDisks = disks;
       } catch (error) {
-        Logger.warn("SystemInfo", `Storage parse failed: ${error}`);
       }
     }, "sysinfo.storage");
   }
@@ -119,7 +117,6 @@ Singleton {
       const parts = result.stdout.split("=");
       if (parts.length > 1) {
         root.bootDuration = parts[parts.length - 1].trim().split("\n")[0];
-        Logger.log("SystemInfo", `Boot Time: ${root.bootDuration}`);
       }
     });
   }

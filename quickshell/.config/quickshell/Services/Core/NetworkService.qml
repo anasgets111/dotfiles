@@ -71,9 +71,6 @@ Singleton {
   }
   function _runAction(command: var): void {
     Command.run(root.nmcliCommand(command), result => {
-      const error = (result.stderr || "").trim();
-      if (error)
-        Logger.log("NetworkService", `Error: ${error}`);
       root.refreshIpData();
       root.refreshNetworkingStatus();
     }, "net.action");
@@ -249,7 +246,6 @@ Singleton {
   Component.onCompleted: {
     root.refreshIpData();
     root.refreshNetworkingStatus();
-    Logger.log("NetworkService", "ready");
   }
   onEthernetInterfaceChanged: root.refreshIpData()
   onEthernetOnlineChanged: root.refreshIpData()

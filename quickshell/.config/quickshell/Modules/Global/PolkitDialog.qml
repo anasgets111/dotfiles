@@ -13,8 +13,6 @@ import qs.Services.Utils
 Scope {
   PolkitAgent {
     id: polkitAgent
-
-    onAuthenticationRequestStarted: Logger.log("PolkitDialog", `Auth started: ${polkitAgent.flow?.message ?? '<no flow>'} for ${polkitAgent.flow?.actionId ?? '<no-action>'}`)
   }
   LazyLoader {
     active: polkitAgent.isActive

@@ -112,7 +112,6 @@ Singleton {
     }
   }
 
-  // Poll values; a failed hotplug read resets discovery on the next tick.
   Timer {
     interval: 100
     repeat: true

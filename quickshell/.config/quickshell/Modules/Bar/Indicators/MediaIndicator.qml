@@ -55,7 +55,6 @@ Item {
     property real pxHeight: height
     property real pxWidth: width
 
-    // Reading Cava values refreshes all 16 bindings at 30 fps; reuse the packing buffer.
     function levelGroup(group: int): matrix4x4 {
       const values = CavaService.values;
       const offset = group * 16;

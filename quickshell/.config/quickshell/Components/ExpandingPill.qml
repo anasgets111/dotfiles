@@ -22,7 +22,7 @@ Item {
 
   clip: true
   height: slotH
-  width: expanded ? (count * slotW + Math.max(0, count - 1) * spacing) : slotW
+  width: expanded ? expandedWidth : slotW
 
   Behavior on width {
     NumberAnimation {

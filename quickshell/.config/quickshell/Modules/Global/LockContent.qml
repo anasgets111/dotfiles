@@ -139,7 +139,6 @@ Item {
     transformOrigin: Item.Center
 
     layer.effect: MultiEffect {
-      blurEnabled: false
       shadowBlur: Theme.shadowBlurLg * 1.2
       shadowColor: Theme.shadowColorStrong
       shadowEnabled: true

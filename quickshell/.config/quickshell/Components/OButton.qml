@@ -5,7 +5,6 @@ import qs.Config
 Rectangle {
   id: root
 
-  readonly property int _fontSize: Theme.fontSizeFor(size)
   readonly property int _height: Theme.controlHeightFor(size)
   readonly property int _iconSize: Theme.iconSizeFor(size)
   readonly property int _padding: Theme.spacingFor(size)
@@ -51,7 +50,7 @@ Rectangle {
     OText {
       bold: true
       color: root.textColor
-      font.pixelSize: root._fontSize
+      size: root.size
       text: root.text
       visible: root.text !== ""
     }

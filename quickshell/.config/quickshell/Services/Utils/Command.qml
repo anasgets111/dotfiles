@@ -8,8 +8,6 @@ import Quickshell.Io
 Singleton {
   id: root
 
-  // Processes stay pooled: destroying one in its exit handler is a use-after-free.
-  // Scanning lanes also avoids V4 crashes from frequent key churn on a shared JS object.
   property var _pool: []
 
   function detached(argv: var): void {

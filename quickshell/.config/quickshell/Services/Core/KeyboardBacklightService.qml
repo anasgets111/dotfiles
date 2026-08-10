@@ -46,23 +46,6 @@ Singleton {
     root._writeLevel(clamped);
   }
 
-  onAvailableChanged: {
-    if (!available)
-      Logger.log("KeyboardBacklightService", "not available");
-  }
-  onLevelNameChanged: {
-    if (available && ready)
-      Logger.log("KeyboardBacklightService", `keyboard backlight: ${brightness}/${maxBrightness} (${levelName})`);
-  }
-  onReadyChanged: {
-    if (ready)
-      Logger.log("KeyboardBacklightService", `ready | device: ${_deviceName} (${_devicePath}) | level: ${brightness}/${maxBrightness} (${levelName})`);
-  }
-  on_DevicePathChanged: {
-    if (!_devicePath)
-      Logger.log("KeyboardBacklightService", "device lost");
-  }
-
   SysfsBrightnessDevice {
     id: keyboardDevice
 

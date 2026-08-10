@@ -107,7 +107,7 @@ PanelContentBase {
         OText {
           Layout.fillWidth: true
           bold: true
-          font.pixelSize: Theme.fontLg
+          size: "lg"
           text: root.statusText()
         }
         OText {
@@ -129,12 +129,8 @@ PanelContentBase {
             radius: parent.radius
             width: parent.width * (UpdateService.totalPackagesToUpdate > 0 ? UpdateService.currentPackageIndex / UpdateService.totalPackagesToUpdate : 0)
 
-            Behavior on width {
-              NumberAnimation {
-                duration: Theme.animationDuration
-              }
-            }
-          }
+            Theme.NumberTransition on width {
+            }          }
         }
         RowLayout {
           spacing: Theme.spacingSm
@@ -255,7 +251,7 @@ PanelContentBase {
 
             color: root.logColor(lineText)
             font.family: "Monospace"
-            font.pixelSize: Theme.fontSm
+            size: "sm"
             text: lineText
             width: ListView.view.width
             wrapMode: Text.Wrap

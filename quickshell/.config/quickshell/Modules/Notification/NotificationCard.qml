@@ -79,12 +79,10 @@ Item {
 
   RectangularShadow {
     anchors.fill: parent
-    antialiasing: true
     blur: Theme.shadowBlurLg
     color: Theme.shadowColorStrong
     offset: Qt.vector2d(0, 3)
     radius: Theme.panelRadius
-    spread: 0
     visible: root.groupScope === "popup"
   }
   Rectangle {
@@ -123,7 +121,6 @@ Item {
           anchors.centerIn: parent
           fillMode: Image.PreserveAspectFit
           height: Theme.itemHeight
-          smooth: true
           source: root.primaryWrapper ? Utils.resolveIconSource(root.primaryWrapper.notification?.appName || "app", root.primaryWrapper.notification?.appIcon || "", "dialog-information") : ""
           sourceSize: Qt.size(Theme.itemHeight, Theme.itemHeight)
           width: Theme.itemHeight
@@ -133,7 +130,6 @@ Item {
         Layout.fillWidth: true
         bold: true
         color: Theme.textActiveColor
-        elide: Text.ElideRight
         horizontalAlignment: Text.AlignHCenter
         text: root.headerTitle
       }
@@ -263,10 +259,9 @@ Item {
                 spacing: Theme.spacingSm
 
                 Image {
-                  Layout.preferredHeight: visible ? Theme.notificationInlineImageSize : 0
-                  Layout.preferredWidth: visible ? Theme.notificationInlineImageSize : 0
+                  Layout.preferredHeight: Theme.notificationInlineImageSize
+                  Layout.preferredWidth: Theme.notificationInlineImageSize
                   fillMode: Image.PreserveAspectFit
-                  smooth: true
                   source: messageColumn.wrapper?.contentImage || ""
                   sourceSize: Qt.size(Theme.notificationInlineImageSize, Theme.notificationInlineImageSize)
                   visible: String(messageColumn.wrapper?.contentImage || "") !== "" && status !== Image.Error
@@ -420,32 +415,26 @@ Item {
                   }
                 }
               }
-              ColumnLayout {
+              RowLayout {
+                id: actionsRow
+
+                Layout.alignment: Qt.AlignHCenter
                 Layout.fillWidth: true
-                Layout.preferredHeight: visible ? implicitHeight : 0
                 Layout.topMargin: Theme.spacingXs
-                implicitHeight: actionsRow.implicitHeight
+                implicitHeight: childrenRect.height
+                spacing: Theme.spacingSm
                 visible: (messageColumn.wrapper?.visibleActions.length || 0) > 0
 
-                RowLayout {
-                  id: actionsRow
+                Repeater {
+                  model: messageColumn.wrapper?.visibleActions || []
 
-                  Layout.alignment: Qt.AlignHCenter
-                  Layout.fillWidth: true
-                  implicitHeight: childrenRect.height
-                  spacing: Theme.spacingSm
+                  delegate: ActionButton {
+                    required property var modelData
 
-                  Repeater {
-                    model: messageColumn.wrapper?.visibleActions || []
+                    icon.source: modelData?.icon || ""
+                    text: modelData?.label || ""
 
-                    delegate: ActionButton {
-                      required property var modelData
-
-                      icon.source: modelData?.icon || ""
-                      text: modelData?.label || ""
-
-                      onClicked: root.svc?.invokeAction(messageColumn.wrapper, modelData?.identifier || "")
-                    }
+                    onClicked: root.svc?.invokeAction(messageColumn.wrapper, modelData?.identifier || "")
                   }
                 }
               }

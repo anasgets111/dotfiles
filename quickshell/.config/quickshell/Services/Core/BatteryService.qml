@@ -56,8 +56,4 @@ Singleton {
     sendNotification(qsTr("Critical Battery"), qsTr("Automatic suspend at %1%!").arg(Math.round(suspendThreshold * 100)), true)
   onIsLowAndNotChargingChanged: if (isLowAndNotCharging)
     sendNotification(qsTr("Low Battery"), qsTr("Plug in soon!"), false)
-  onIsLaptopBatteryChanged: {
-    const msg = isLaptopBattery ? `Battery ready: ${device?.nativePath ?? "(no path)"}, ${percentage}%` : "Battery device lost";
-    Logger.log("BatteryService", msg);
-  }
 }

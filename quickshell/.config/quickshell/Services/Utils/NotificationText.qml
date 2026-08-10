@@ -21,7 +21,6 @@ Singleton {
       try {
         return result(markdownToHtml(decodeEntities(value)), Qt.RichText, plainBody(value));
       } catch (error) {
-        console.warn("NotificationText", "markdownToHtml failed", error);
       }
     }
     return result(decodeEntities(value), Qt.PlainText, plainBody(value));

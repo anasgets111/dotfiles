@@ -7,7 +7,7 @@ import qs.Config
 Item {
   id: cornerShape
 
-  property color color: "black"
+  property color color: Theme.glassSurfaceColor
   readonly property real effectiveRadius: Math.max(0, Math.min(cornerShape.radius, Math.min(cornerShape.width, cornerShape.height)))
   property int orientation: 0 // 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right
   property int radius: Theme.radiusLg

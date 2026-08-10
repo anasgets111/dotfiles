@@ -16,7 +16,6 @@ FocusScope {
     intersection: Intersection.Intersect
     item: panelClipArea
   }
-  // A Region ignores item visibility, so publishing this while hidden blurs an empty panel-shaped hole.
   readonly property Region blurRegion: root.visible ? root.surfaceRegion : null
   readonly property bool contentActive: root.active || closeHoldTimer.running
   readonly property real cornerCutRadius: Math.min(Theme.panelRadius * 3, Theme.panelHeight)
@@ -240,7 +239,6 @@ FocusScope {
       id: leftCorner
 
       anchors.right: panelBackground.left
-      color: Theme.glassSurfaceColor
       height: root.cornerCutRadius
       orientation: 1
       radius: root.cornerCutRadius
@@ -252,7 +250,6 @@ FocusScope {
       id: rightCorner
 
       anchors.left: panelBackground.right
-      color: Theme.glassSurfaceColor
       height: root.cornerCutRadius
       orientation: 0
       radius: root.cornerCutRadius

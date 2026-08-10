@@ -130,7 +130,6 @@ Singleton {
     try {
       root.handleEvent(JSON.parse(raw.slice(jsonStart)));
     } catch (error) {
-      Logger.warn("InputDisplayService", `Parse error: ${error}`);
     }
   }
   function handleEvent(event: var): void {
@@ -234,8 +233,6 @@ Singleton {
       const found = String(result.stdout ?? "").trim() === "yes";
       root.backendAvailable = found;
       root.backendCheckComplete = true;
-      if (!found)
-        Logger.warn("InputDisplayService", "showmethekey-cli not found; input display disabled");
     });
   }
   function sanitizeRatio(value: real, fallback: real): real {
@@ -302,16 +299,9 @@ Singleton {
     command: [root.backend]
     restartDelay: 3000
 
-    onErrorRead: line => {
-      const clean = String(line ?? "").trim();
-      if (clean.length > 0)
-        Logger.warn("InputDisplayService", clean);
-    }
     onExited: (code, exitStatus) => {
       if (!root.enabled || !root.backendAvailable)
         return;
-      if (code !== 0)
-        Logger.warn("InputDisplayService", `showmethekey-cli exited with code ${code}`);
     }
     onLineRead: line => root.handleBackendLine(line)
   }

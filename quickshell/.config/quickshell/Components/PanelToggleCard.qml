@@ -33,10 +33,7 @@ Rectangle {
   }
   Theme.ColorTransition on color {
   }
-  Behavior on opacity {
-    NumberAnimation {
-      duration: Theme.animationDuration
-    }
+  Theme.NumberTransition on opacity {
   }
 
   MouseArea {
@@ -105,7 +102,6 @@ Rectangle {
       Layout.row: card.wide ? 0 : 2
       Layout.rowSpan: card.wide ? 2 : 1
       color: card.detailColor
-      elide: Text.ElideRight
       size: "xs"
       text: card.detail
       visible: card.detail !== ""

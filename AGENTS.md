@@ -25,7 +25,7 @@ shellcheck path/to/script.sh    # Lint bash scripts
 
 - **Never run `stow`**, and never launch the user's live config (`quickshell` bare, `-c`, or `-p` at the real `shell.qml`) — the user handles those
 - `quickshell log` (reads the running instance's output) and headless smoke tests are fine
-- Headless smoke test: copy the config to a temp dir, add a root QML there that instantiates the component under test inside a `ShellRoot`, and run `quickshell -p /tmp/<copy>/test.qml`. It creates no windows; exit with a `Timer` calling `Qt.quit()`. Bindings still evaluate, so `console.log` of computed properties works. Such a run instantiates the real singletons and touches shared state (`Quickshell.statePath` locks, DBus, PipeWire) — check nothing is in flight first
+- Headless smoke test: copy the config to a temp dir, add a root QML there that instantiates the component under test inside a `ShellRoot`, and run `quickshell -p /tmp/<copy>/test.qml`. It creates no windows; exit with a `Timer` calling `Qt.quit()`. Bindings still evaluate, so a temporary `console.assert(...)` can verify computed properties. Such a run instantiates the real singletons and touches shared state (`Quickshell.statePath` locks, DBus, PipeWire) — check nothing is in flight first
 - Quickshell **hot reloads** on file changes; edits take effect immediately
 - For debugging: instrument QML to write output to a file, then read that file — or ask the user to share logs
 - Do **not** touch `qmldir`, `.qmlls.ini`, or any Quickshell-managed metadata files
@@ -95,7 +95,9 @@ JsonAdapter {
 ### Running Commands Asynchronously
 
 ```qml
-Command.run(["echo", "hello"], result => Logger.log("Example", result.stdout));
+Command.run(["echo", "hello"], result => {
+  // Handle result without logging from QML.
+});
 Command.detached(["xdg-open", url]);
 ```
 
@@ -130,7 +132,6 @@ import qs.Services.Utils
 - Property bindings over assignments (let QML handle reactivity)
 - `readonly property` for computed values
 - Explicit types: `function setThemeName(name: string): void`
-- Use `Logger.log("ServiceName", "message")`, `Logger.warn(...)`, or `Logger.error(...)` as appropriate
 - Use optional chaining (`?.`) and nullish coalescing (`??`)
 - Use `try/catch` inside `onLoaded` handlers for JSON parsing
 - Use Theme constants — never hardcode colors, sizes, or spacing
@@ -177,12 +178,12 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 
 ### Known QML / Quickshell Pitfalls
 
-<!-- Add entries below as they are discovered -->
-- A `JsonObject`'s declared properties can still read `undefined` while settings load, even though the object itself is non-null. Keep the `settings?.key ?? default` guards on every read: an unguarded read assigns `undefined` (`Unable to assign [undefined] to "x"`) and, having bound to a property that did not yet exist, never re-evaluates once the real value arrives. The `?? default` fallbacks are load-bearing, not duplicates of the schema defaults. The same warning comes from `?.` inside a `&&` chain — `a && b?.c && d` yields `undefined`, not `false`, because `&&` returns the first falsy operand and stops. Coalesce the optional read (`(b?.c ?? false)`) rather than trusting the boolean tail.
-- Assigning a new JS array to a `ListView.model` resets the view and destroys every delegate, taking in-delegate state with it — typed text, focus, per-row scroll. A list that refreshes on a timer will therefore wipe an inline input mid-typing. Either give delegates stable identity (an `ObjectModel`/`QAbstractItemModel` keyed by a real id) or hold the array still while a delegate owns user input, as `NetworkPanel.listFrozen` does.
+- A `JsonObject`'s declared properties can still read `undefined` while settings load, even though the object itself is non-null. Keep the `settings?.key ?? default` guards on every read: an unguarded read assigns `undefined` (`Unable to assign [undefined] to "x"`) and, having bound to a property that did not yet exist, never re-evaluates once the real value arrives. The `?? default` fallbacks are load-bearing, not duplicates of the schema defaults.
+- `?.` inside a `&&` chain — `a && b?.c && d` — yields `undefined`, not `false`, because `&&` returns the first falsy operand and stops. Coalesce the optional read (`(b?.c ?? false)`) rather than trusting the boolean tail.
+- Assigning a new JS array to a `ListView.model` resets the view and destroys every delegate (typed text, focus, per-row scroll). Either give delegates stable identity, or freeze the model while a delegate owns input — see `NetworkPanel.listFrozen`.
 - `MprisPlayer.position` only refreshes when you call `positionChanged()`, and each call is a DBus round trip. A player whose bus name has vanished can linger in `Mpris.players`, so every poll then logs `QDBusError("org.freedesktop.DBus.Error.ServiceUnknown")`. Gate position polling on something that proves the read is usable (`positionSupported` and a nonzero length), never on "the panel is open".
-- An `IdleMonitor` starts counting when it subscribes, not from the last input: a monitor enabled while the seat has already been idle past its timeout still waits the full timeout again (measured on niri). The idle stages rely on this — each stage's gate opens when the previous one completes, and the stage then waits its own timeout, which is what makes the flow sequential. Do not "simplify" those gates away or convert the timeouts to cumulative offsets; both break the ordering.
-- `IdleMonitor.timeout` and `respectInhibitors` are Qt *bindable* properties, and a QML binding on them never reaches `IdleMonitor::updateNotification`, so the wayland notification is never re-registered and `isIdle` silently stops firing — no error. This bites whenever the value depends on state: binding `respectInhibitors` to lock state killed DPMS on every lock, and binding `timeout` to settings killed that stage whenever the timeout was edited in the panel. Assign both imperatively from a change handler instead (see `IdleService.IdleStage`); `enabled` is a plain property and re-registers correctly either way. `Component.onCompleted` is unavailable on `IdleMonitor`, so seed the first value with a plain binding that the handler then replaces.
+- An `IdleMonitor` starts counting when it subscribes, not from the last input. Idle stages rely on that: each stage's gate opens when the previous one completes, then the stage waits its own timeout. Do not flatten the gates into cumulative offsets — see `IdleService.IdleStage`.
+- `IdleMonitor.timeout` and `respectInhibitors` are Qt *bindable* properties; a QML binding on them never reaches `IdleMonitor::updateNotification`, so `isIdle` silently stops. Assign both from change handlers (seed with a plain binding that the handler replaces). `enabled` re-registers correctly either way. `Component.onCompleted` is unavailable on `IdleMonitor`.
 - Quickshell PipeWire nodes expose `PwNode.properties` and `PwNode.audio` fields only after binding, and they can still be incomplete until `node.ready`; guard bound-property reads and never write volume/mute before readiness.
 - Quickshell `BluetoothDevice.pair()` only forwards BlueZ's `Pair()` call; keep a default BlueZ agent registered before offering pairing in the UI.
 - Quickshell `Hyprland.dispatch(...)` takes one Lua dispatcher string in this shell. Use forms such as ``Hyprland.dispatch(`hl.dsp.focus({ workspace = 3 })`)``.
@@ -191,12 +192,12 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 - Avoid high-frequency add/delete churn on shared JS objects; V4 can crash. Use stable QObject state or scans instead.
 - `String.prototype.replaceAll` is not implemented in this QML JS engine; it throws `Property 'replaceAll' of object <str> is not a function` at runtime with no lint-time warning. Use `str.replace(/pattern/g, replacement)` instead.
 - A QML import can supply bare types, enums, and singletons even when its module name is never qualified (for example, Quickshell's `Singleton`, `DesktopEntries`, and `ExclusionMode`). Do not remove it based on a text search or an "unused import" lint result; validate a live reload.
-- `FolderListModel` did not notice `/sys/class/leds` entries being replaced when a physical keyboard was unplugged and reinserted, leaving `FileView` readers on vanished `inputN` paths. On failure, clear the model's `folder` and restore it on the next polling tick to force discovery; silence that expected transient read error.
+- `FolderListModel` can miss `/sys/class/leds` entry replacement on keyboard unplug/replug; on `FileView` failure clear `folder` and restore it on the next poll tick (see `Utils.qml`), and silence that expected transient error.
 - Arch's `org.kde.kdeconnect` QML module ships incomplete `.qmltypes`, and `DeviceDbusInterface.type`/`supportedPlugins` are non-bindable despite their change signals. Validate its real types with `qmlplugindump`; copy those two values from `typeChanged`/`pluginsChanged` instead of binding them directly.
 - Reuse `Process` objects through `Command`; destroying a process from its own exit handler can use freed memory.
 - For commands that need EOF, enable stdin before start and disable it in `onStarted`; failed starts may only report through `onRunningChanged`.
 - Verify with `/usr/lib/qt6/bin/qmllint -I <.qmlls.ini buildDir> -I /usr/lib/qt6/qml File.qml`; `qs.*` resolves only via that VFS path, and the `PATH` `qmllint` is Qt5's (silent exit 255). `qmlformat` is a formatter and can fail on valid files.
-- `Region.item` tracks only that item's geometry; bind an outer region to the animated ancestor when inherited movement matters. It also ignores `item.visible`, so a region built from hidden items still blurs a hole where nothing is drawn; gate an exported region on whether its host draws (see `PanelHost.blurRegion`). Watch `??` chains picking between regions — the fallback goes live as soon as the preferred item is destroyed.
+- `Region.item` tracks only that item's geometry; bind an outer region to the animated ancestor when inherited movement matters. It also ignores `item.visible` — gate exported regions on whether the host draws (see `PanelHost.blurRegion`).
 - Hyprland 0.56.1 fades already-mapped `Top` layer surfaces when fullscreen starts, but a lazy `Top` surface mapped after fullscreen is active stays at alpha 1. Guard lazy popups through the WM facade; Niri's native `Top` ordering needs no workaround.
 - Declare complex `BackgroundEffect.blurRegion` values as typed properties instead of inline objects that produce unqualified-reference warnings.
 - `Animation.finished()` only fires for standalone top-level animations, not animations inside a `Behavior`, `Transition`, or group.
@@ -207,7 +208,7 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 - Qt 6 `ShaderEffect` has no array uniforms; pack fixed-size numeric data into `matrix4x4` uniforms. `Qt.matrix4x4()` also accepts a 16-element array, so one reused scratch array can fill them without allocating per frame. It fills **row-major** while GLSL `mat4` subscripts **column-first**, so element `i` reads back as `m[i % 4][i / 4]`. Bind every matrix to a real value: an unset `matrix4x4` property is *identity*, not zeros, and the diagonal then renders as live data.
 - `verticalItemAlignment`/`horizontalItemAlignment` exist on `Grid`, not on `Row` or `Column`. Assigning one to a `Row` makes the whole component fail to instantiate, and the `qml` runtime reports only `Did not load any objects, exiting.` with no property name — `qmllint` names it.
 - `Rectangle.antialiasing` defaults to `radius > 0`, which puts the rect on a smooth material (own alpha batch, own `QSGGeometry`). Fine for a few static rects; avoid on anything whose geometry changes every frame.
-- A headless `quickshell -p` run creates no window, so layout polish never runs and `Layout.preferredHeight`/`fillHeight` are never applied — children keep their implicit sizes. Measured: a `PanelCard` whose `Layout.preferredHeight` reads back as 370 still reports `height: 67`, and the parent `ColumnLayout` reports an `implicitHeight` smaller than its children's sum. Headless runs prove that components instantiate and bindings evaluate without warnings; they say nothing about final geometry. Check that in the live shell.
+- A headless `quickshell -p` run creates no window, so layout polish never runs and `Layout.preferredHeight`/`fillHeight` are never applied — children keep their implicit sizes. Headless runs prove instantiation and bindings; check final geometry in the live shell.
 
 ## Operational Gotchas
 

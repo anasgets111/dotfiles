@@ -38,11 +38,6 @@ Singleton {
     command: ["cava", "-p", Quickshell.shellPath("Assets/Cava/config")]
     restartDelay: 3000
 
-    onErrorRead: line => {
-      const message = line.trim();
-      if (message)
-        Logger.error("CavaService", message);
-    }
     onLineRead: line => root.updateValues(line)
   }
 }

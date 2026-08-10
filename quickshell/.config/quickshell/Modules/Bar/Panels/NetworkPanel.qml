@@ -423,7 +423,6 @@ PanelContentBase {
 
     OText {
       bold: true
-      color: Theme.textActiveColor
       size: "sm"
       text: sheet.ssidMode ? qsTr("Hidden Network") : sheet.waitingMode ? qsTr("Connecting to “%1”").arg(sheet.targetName) : qsTr("Connect to “%1”").arg(sheet.targetName)
     }

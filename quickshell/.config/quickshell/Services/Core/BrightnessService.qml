@@ -22,23 +22,6 @@ Singleton {
     Command.run(["brightnessctl", "--class=backlight", "set", `${clamped}%`]);
   }
 
-  onAvailableChanged: {
-    if (!available)
-      Logger.log("BrightnessService", "not available");
-  }
-  onPercentageChanged: {
-    if (available && ready)
-      Logger.log("BrightnessService", `brightness: ${percentage}%`);
-  }
-  onReadyChanged: {
-    if (ready)
-      Logger.log("BrightnessService", `ready | device: ${_devicePath} | brightness: ${percentage}%`);
-  }
-  on_DevicePathChanged: {
-    if (!_devicePath)
-      Logger.log("BrightnessService", "device lost");
-  }
-
   SysfsBrightnessDevice {
     id: backlightDevice
 
