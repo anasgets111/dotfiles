@@ -29,6 +29,11 @@ shellcheck path/to/script.sh    # Lint bash scripts
 - Quickshell **hot reloads** on file changes; edits take effect immediately
 - For debugging: instrument QML to write output to a file, then read that file — or ask the user to share logs
 - Do **not** touch `qmldir`, `.qmlls.ini`, or any Quickshell-managed metadata files
+- Shaders are committed as both source and compiled artifact. After editing `Shaders/frag/<name>.frag`, rebuild with the same target set as the existing ones:
+  ```bash
+  /usr/lib/qt6/bin/qsb --glsl "100 es,120,150" --hlsl 50 --msl 12 \
+    -o Shaders/qsb/<name>.frag.qsb Shaders/frag/<name>.frag
+  ```
 
 ## Architecture
 
@@ -197,8 +202,11 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 - `Animation.finished()` only fires for standalone top-level animations, not animations inside a `Behavior`, `Transition`, or group.
 - Follow the active instance's plain `log.log`; `quickshell log -f` can abort independently of a healthy shell.
 - In content-sized panels, top-anchor the root layout instead of filling the animated host height; `anchors.fill` compresses every child while the panel resizes.
-- `Rectangle.antialiasing` defaults to `radius > 0`, which puts the rect on a smooth material: its own alpha batch and its own `QSGGeometry`, regenerated whenever the geometry changes. For a few static rects that is free; for many rects animated every frame it is not. The 256-bar cava visualizer at 30 fps cost 256 draw calls and ~7700 geometry alloc/free per second, and because glibc does not return freed arena memory, the render thread's churn showed up as permanent RSS growth (290 MB at login to 585 MB) that looked exactly like a leak. Confirm the shape before chasing it: a `var`-property or JS leak grows `memfd:JSGCHeap:QtQml` in `/proc/<pid>/smaps`, while renderer churn grows plain anonymous mappings and leaves the JS heap small. Drop the radius when bars are only a couple of pixels wide.
-- `verticalItemAlignment`/`horizontalItemAlignment` exist on `Grid`, not on `Row` or `Column`. Assigning one to a `Row` makes the whole component fail to instantiate, and the `qml` runtime reports only `Did not load any objects, exiting.` with no property name — `qmllint` names it. To bottom-align bars, drop the positioner and set `x`/`y` from the delegate's `index`; that also deletes the per-bar wrapper `Item`.
+- High-frequency scene-graph geometry churn can look like a leak because glibc keeps render-thread arenas. Confirm the shape before chasing it — a `var`-property or JS leak grows `memfd:JSGCHeap:QtQml` in `/proc/<pid>/smaps`, while renderer churn grows plain anonymous mappings and leaves the JS heap small.
+- Draw many animated primitives as a single `ShaderEffect` quad rather than one item each, and bake state-dependent alpha into the color uniform — `opacity` on the host item pushes the whole subtree into a blended batch. Qt premultiplies `color` uniforms, so `barColor * qt_Opacity` composites the same as an equivalent translucent `Rectangle`. Never feed an animated shader through `Canvas`: Qt 6 ignores `Canvas.FramebufferObject`, and the `Canvas.Image` path deletes and recreates its `QSGTexture` on every paint.
+- Qt 6 `ShaderEffect` has no array uniforms; pack fixed-size numeric data into `matrix4x4` uniforms. `Qt.matrix4x4()` also accepts a 16-element array, so one reused scratch array can fill them without allocating per frame. It fills **row-major** while GLSL `mat4` subscripts **column-first**, so element `i` reads back as `m[i % 4][i / 4]`. Bind every matrix to a real value: an unset `matrix4x4` property is *identity*, not zeros, and the diagonal then renders as live data.
+- `verticalItemAlignment`/`horizontalItemAlignment` exist on `Grid`, not on `Row` or `Column`. Assigning one to a `Row` makes the whole component fail to instantiate, and the `qml` runtime reports only `Did not load any objects, exiting.` with no property name — `qmllint` names it.
+- `Rectangle.antialiasing` defaults to `radius > 0`, which puts the rect on a smooth material (own alpha batch, own `QSGGeometry`). Fine for a few static rects; avoid on anything whose geometry changes every frame.
 - A headless `quickshell -p` run creates no window, so layout polish never runs and `Layout.preferredHeight`/`fillHeight` are never applied — children keep their implicit sizes. Measured: a `PanelCard` whose `Layout.preferredHeight` reads back as 370 still reports `height: 67`, and the parent `ColumnLayout` reports an `implicitHeight` smaller than its children's sum. Headless runs prove that components instantiate and bindings evaluate without warnings; they say nothing about final geometry. Check that in the live shell.
 
 ## Operational Gotchas

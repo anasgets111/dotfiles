@@ -11,8 +11,7 @@ Singleton {
   property bool _available: false
   property var values: []
 
-  // Cava emits `level;level;...;` at 30 fps, so the frame is parsed into the
-  // existing array: allocating a new one per frame is what grew the heap.
+  // Parse Cava's 30 fps frames in-place to avoid per-frame arrays.
   function updateValues(frame: string): void {
     if (!frame.endsWith(";"))
       return;
