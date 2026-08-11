@@ -407,9 +407,6 @@ Singleton {
   function toggleGroupExpansion(groupKey: string): void {
     root._groupState.toggleExpanded(groupKey || "");
   }
-  function uses24HourClock(): bool {
-    return typeof TimeService !== "undefined" ? TimeService.use24Hour : true;
-  }
 
   Component.onDestruction: {
     root._isDestroying = true;
@@ -598,7 +595,7 @@ Singleton {
       }
     }
     readonly property string timestampText: {
-      const use24Hour = root.uses24HourClock();
+      const use24Hour = TimeService.use24Hour;
       const formatted = Qt.formatDateTime(wrapper.createdAt, use24Hour ? "ddd HH:mm" : "ddd h:mm AP");
       return use24Hour ? formatted : formatted.replace(" AM", "am").replace(" PM", "pm");
     }

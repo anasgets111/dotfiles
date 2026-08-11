@@ -74,12 +74,13 @@ WlrLayershell {
     property real direction: 0
 
     function randomize(type: string): void {
-      if (type === "wipe") {
+      const kind = String(type || "").toLowerCase();
+      if (kind === "wipe") {
         direction = Math.random() * 4;
-      } else if (type === "disc" || type === "portal") {
+      } else if (kind === "disc" || kind === "portal") {
         centerX = Math.random();
         centerY = Math.random();
-      } else if (type === "stripes") {
+      } else if (kind === "stripes") {
         count = Math.round(Math.random() * 20 + 4);
         angle = Math.random() * 360;
       }

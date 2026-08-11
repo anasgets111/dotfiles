@@ -1,4 +1,4 @@
-// ===== wp_pixelate.frag =====
+// ===== wp_Pixelate.frag =====
 #version 450
 
 layout(location = 0) in vec2 qt_TexCoord0;

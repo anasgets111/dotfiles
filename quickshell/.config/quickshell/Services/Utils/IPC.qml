@@ -23,9 +23,6 @@ Singleton {
   }
 
   IpcHandler {
-    function islocked(): bool {
-      return LockService.locked;
-    }
     function lock(): string {
       LockService.requestLock();
       return "locked";

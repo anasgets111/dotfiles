@@ -1,4 +1,4 @@
-// ===== wp_portal.frag =====
+// ===== wp_Portal.frag =====
 #version 450
 
 layout(location = 0) in vec2 qt_TexCoord0;

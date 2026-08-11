@@ -15,14 +15,12 @@ Item {
   readonly property int _size: Theme.controlHeightFor(size)
   property color colorBg: Theme.glassControlColor
   property color colorBgHover: Theme.glassControlHoverColor
-  property color colorBorder: Theme.glassBorderColor
-  property color colorBorderHover: Theme.glassBorderHoverColor
   property color colorFg: Theme.textContrast(colorBg)
   property color colorFgHover: Theme.textContrast(colorBgHover)
   // `selected` keeps each caller's semantic colorBg intact and marks the open state with an accent
   // border, which also shows on borderless buttons.
   readonly property color effectiveBg: !isEnabled ? colorBg : (hovered || selected ? colorBgHover : colorBg)
-  readonly property color effectiveBorderColor: selected ? Theme.activeColor : showBorder ? (hovered ? colorBorderHover : colorBorder) : "transparent"
+  readonly property color effectiveBorderColor: selected ? Theme.activeColor : showBorder ? (hovered ? Theme.glassBorderHoverColor : Theme.glassBorderColor) : "transparent"
   readonly property color effectiveFg: !isEnabled ? Theme.textContrast(colorBg) : (hovered || selected ? colorFgHover : colorFg)
   readonly property bool hovered: mouseArea.containsMouse && iconButton.isEnabled
   property string icon: ""

@@ -1,4 +1,4 @@
-// ===== wp_stripes.frag =====
+// ===== wp_Stripes.frag =====
 #version 450
 
 layout(location = 0) in vec2 qt_TexCoord0;

@@ -1,16 +1,18 @@
-// ===== wp_fade.frag =====
+// ===== wp_Wipe.frag =====
 #version 450
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
 
-layout(binding = 1) uniform sampler2D source1;
-layout(binding = 2) uniform sampler2D source2;
+layout(binding = 1) uniform sampler2D source1;  // Current wallpaper
+layout(binding = 2) uniform sampler2D source2;  // Next wallpaper
 
 layout(std140, binding = 0) uniform buf {
     mat4 qt_Matrix;
     float qt_Opacity;
-    float progress;
+    float progress;      // Transition progress (0.0 to 1.0)
+    float direction;     // 0=left, 1=right, 2=up, 3=down
+    float smoothness;    // Edge smoothness (0.0 to 1.0, 0=sharp, 1=very smooth)
     
     // Fill mode parameters
     float fillMode;      // 0=no(center), 1=crop(fill), 2=fit(contain), 3=stretch
@@ -83,6 +85,43 @@ void main() {
     vec4 color1 = sampleWithFillMode(source1, uv, ubuf.imageWidth1, ubuf.imageHeight1);
     vec4 color2 = sampleWithFillMode(source2, uv, ubuf.imageWidth2, ubuf.imageHeight2);
     
-    // Mix the two textures based on progress value
-    fragColor = mix(color1, color2, ubuf.progress) * ubuf.qt_Opacity;
+    // Map smoothness from 0.0-1.0 to 0.001-0.5 range
+    // Using a non-linear mapping for better control
+    float mappedSmoothness = mix(0.001, 0.5, ubuf.smoothness * ubuf.smoothness);
+    
+    float edge = 0.0;
+    float factor = 0.0;
+    
+    // Extend the progress range to account for smoothness
+    // This ensures the transition completes fully at the edges
+    float extendedProgress = ubuf.progress * (1.0 + 2.0 * mappedSmoothness) - mappedSmoothness;
+    
+    // Calculate edge position based on direction
+    // As progress goes from 0 to 1, we reveal source2 (new wallpaper)
+    if (ubuf.direction < 0.5) {
+        // Wipe from right to left (new image enters from right)
+        edge = 1.0 - extendedProgress;
+        factor = smoothstep(edge - mappedSmoothness, edge + mappedSmoothness, uv.x);
+        fragColor = mix(color1, color2, factor);
+    } 
+    else if (ubuf.direction < 1.5) {
+        // Wipe from left to right (new image enters from left)
+        edge = extendedProgress;
+        factor = smoothstep(edge - mappedSmoothness, edge + mappedSmoothness, uv.x);
+        fragColor = mix(color2, color1, factor);
+    }
+    else if (ubuf.direction < 2.5) {
+        // Wipe from bottom to top (new image enters from bottom)
+        edge = 1.0 - extendedProgress;
+        factor = smoothstep(edge - mappedSmoothness, edge + mappedSmoothness, uv.y);
+        fragColor = mix(color1, color2, factor);
+    }
+    else {
+        // Wipe from top to bottom (new image enters from top)
+        edge = extendedProgress;
+        factor = smoothstep(edge - mappedSmoothness, edge + mappedSmoothness, uv.y);
+        fragColor = mix(color2, color1, factor);
+    }
+    
+    fragColor *= ubuf.qt_Opacity;
 }

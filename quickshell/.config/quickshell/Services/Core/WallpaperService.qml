@@ -10,9 +10,9 @@ Singleton {
   id: root
 
   readonly property list<string> availableModes: ["fill", "fit", "center", "stretch", "tile"]
-  readonly property list<string> availableTransitions: ["fade", "wipe", "disc", "stripes", "portal"]
+  property list<string> availableTransitions
   readonly property string defaultMode: "fill"
-  readonly property string defaultTransition: "disc"
+  readonly property string defaultTransition: "Disc"
   readonly property string defaultWallpaper: Utils.normalizeImageUrl(Settings.defaultWallpaper)
   readonly property var fillModes: ({
       fill: Image.PreserveAspectCrop,
@@ -94,7 +94,11 @@ Singleton {
   }
   function validate(value: string, allowed: list<string>, fallback: string): string {
     const normalized = String(value ?? "").toLowerCase();
-    return allowed.includes(normalized) ? normalized : fallback;
+    for (let i = 0; i < allowed.length; i++) {
+      if (String(allowed[i]).toLowerCase() === normalized)
+        return allowed[i];
+    }
+    return fallback;
   }
   function wallpaperMode(monitorName: string): string {
     return monitorName ? validate(Settings.data?.wallpapers?.[monitorName]?.mode, availableModes, defaultMode) : defaultMode;
@@ -128,6 +132,23 @@ Singleton {
           previewSource: Utils.normalizeImageUrl(`${Quickshell.env("XDG_CACHE_HOME") || Quickshell.env("HOME") + "/.cache"}/thumbnails/large/${Qt.md5(fileUrl)}.png`)
         };
       });
+    }
+  }
+  FolderListModel {
+    id: transitionModel
+
+    folder: Qt.resolvedUrl("../../Shaders/qsb")
+    nameFilters: ["wp_*.frag.qsb"]
+    showDirs: false
+    showFiles: true
+    sortField: FolderListModel.Name
+
+    onStatusChanged: {
+      if (status !== FolderListModel.Ready)
+        return;
+      root.availableTransitions = Array.from({
+        length: count
+      }, (_unused, index) => String(get(index, "fileName")).replace(/^wp_/, "").replace(/\.frag\.qsb$/i, ""));
     }
   }
 }

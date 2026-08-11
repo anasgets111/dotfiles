@@ -48,16 +48,6 @@ OModal {
       })))
   property string selectedMonitor: "all"
   readonly property var targetMonitorNames: selectedMonitor === "all" ? (WallpaperService.monitors ?? []).map(monitor => monitor?.name).filter(Boolean) : [selectedMonitor]
-  readonly property var transitionOptions: (WallpaperService.availableTransitions ?? []).map(transition => ({
-        label: ({
-            fade: qsTr("Fade"),
-            wipe: qsTr("Wipe"),
-            disc: qsTr("Disc"),
-            stripes: qsTr("Stripes"),
-            portal: qsTr("Portal")
-          })[transition] ?? transition,
-        value: transition
-      }))
 
   function applyWallpaper(entry: var): void {
     if (!entry?.path)
@@ -303,11 +293,10 @@ OModal {
           }
           OComboBox {
             Layout.fillWidth: true
-            currentIndex: Math.max(0, root.transitionOptions.findIndex(option => option.value === WallpaperService.wallpaperTransition))
-            model: root.transitionOptions
-            textRole: "label"
+            currentIndex: Math.max(0, WallpaperService.availableTransitions.indexOf(WallpaperService.wallpaperTransition))
+            model: WallpaperService.availableTransitions
 
-            onActivated: index => WallpaperService.setWallpaperTransition(root.transitionOptions[index]?.value ?? "disc")
+            onActivated: index => WallpaperService.setWallpaperTransition(WallpaperService.availableTransitions[index] ?? "Disc")
           }
           OText {
             color: Theme.textInactiveColor
