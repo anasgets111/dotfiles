@@ -18,6 +18,29 @@ Singleton {
   function copyText(text: string): void {
     Command.run(["wl-copy"], null, "clipboard", String(text ?? ""));
   }
+  function clone(value: var): var {
+    return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+  }
+  function has(object: var, key: string): bool {
+    return Object.prototype.hasOwnProperty.call(object, key);
+  }
+  function isObject(value: var): bool {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+  }
+  function toArray(value: var): var {
+    if (Array.isArray(value))
+      return value;
+    if (value && Number.isInteger(value.count) && typeof value.get === "function")
+      return Array.from({ length: value.count }, (_unused, index) => value.get(index));
+    try {
+      return Array.from(value ?? []);
+    } catch (error) {
+      return [];
+    }
+  }
+  function modeKey(width: var, height: var, refreshRate: var): string {
+    return Number.isFinite(width) && Number.isFinite(height) && Number.isFinite(refreshRate) ? `${width}x${height}@${refreshRate.toFixed(3)}` : "";
+  }
   function fmtKib(kib: real): string {
     const amount = Math.max(0, kib || 0);
     if (amount >= 1024 ** 3)
@@ -78,6 +101,8 @@ Singleton {
 
     return fallbackPath;
   }
+
+  Component.onCompleted: console.assert(modeKey(2560, 1440, 143.9124) === "2560x1440@143.912", "Monitor mode key self-check failed")
 
   FolderListModel {
     id: ledFolder

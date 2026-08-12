@@ -196,8 +196,8 @@ Singleton {
   readonly property int updateTableVisibleRows: 11
   readonly property int volumeExpandedWidth: s(baseVolumeExpandedWidth, 140)
   readonly property int wallpaperAnimationDuration: 900
-  readonly property int wallpaperModalHeight: s(650)
-  readonly property int wallpaperModalWidth: s(1040)
+  readonly property int wallpaperModalHeight: s(880)
+  readonly property int wallpaperModalWidth: s(1180)
   readonly property int wallpaperSidebarWidth: s(250)
   readonly property int wallpaperTileWidth: s(230)
   readonly property color warning: c.warning ?? "#fab387"

@@ -21,15 +21,16 @@ Singleton {
       tile: Image.Tile,
       center: Image.Pad
     })
-  readonly property var monitors: ready ? Array.from({
-    length: MonitorService.monitors.count
-  }, (_unused, index) => {
-    const monitor = MonitorService.monitors.get(index);
-    return {
-      name: monitor.name,
-      scale: monitor.scale
-    };
-  }) : []
+  readonly property var monitors: {
+    // ListModel dynamic-role updates notify delegates, not bindings using get().
+    const revision = MonitorService.monitorsRevision;
+    if (!ready)
+      return [];
+    return MonitorService.toArray().map(monitor => ({
+        name: monitor.name,
+        scale: monitor.displayScale
+      }));
+  }
   readonly property bool ready: Settings.isLoaded && MonitorService?.ready && (MonitorService.monitors?.count ?? 0) > 0
   property var wallpaperFiles: []
   readonly property bool wallpaperFilesReady: folderModel.status === FolderListModel.Ready

@@ -2,60 +2,46 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import qs.Services.Utils
 
 Singleton {
   id: root
 
   signal featuresChanged
 
+  // Live monitorv2 field mutation is unverified on the Hyprland host.
+  readonly property var controls: []
+  readonly property var _transforms: ["normal", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"]
   function _bitDepthFromFormat(format: string): var {
-    if (/2101010|P010/i.test(format))
-      return 10;
-    if (/P012/i.test(format))
-      return 12;
-    if (/16161616|P016/i.test(format))
-      return 16;
-    if (/8888/i.test(format))
-      return 8;
-    return null;
-  }
-  function _findMonitor(name: string): var {
-    const monitors = Hyprland.monitors?.values || [];
-    return monitors.find(monitor => monitor?.name === name) || null;
+    return /2101010|P010/i.test(format) ? 10 : /P012/i.test(format) ? 12 : /16161616|P016/i.test(format) ? 16 : /8888/i.test(format) ? 8 : undefined;
   }
   function fetchFeatures(name: string, callback: var): void {
-    const monitor = _findMonitor(name);
-    if (!monitor) {
+    const state = Utils.toArray(Hyprland.monitors?.values).find(monitor => monitor?.name === name)?.lastIpcObject;
+    if (!state) {
       callback(null);
       return;
     }
 
-    const state = monitor.lastIpcObject ?? {};
-    const modes = (state.availableModes || []).map(modeText => {
+    const modeKeys = Utils.toArray(state.availableModes).map(modeText => {
       const match = modeText.match(/^(\d+)x(\d+)@([\d.]+)Hz$/);
-      return match ? {
-        width: parseInt(match[1]),
-        height: parseInt(match[2]),
-        refreshRate: parseFloat(match[3])
-      } : {
-        raw: modeText
-      };
+      return match ? Utils.modeKey(parseInt(match[1]), parseInt(match[2]), parseFloat(match[3])) : "";
     });
-
-    const hdrActive = !!state.currentFormat && /2101010|P010|P012|PQ/i.test(state.currentFormat);
-    const isMirror = !!state.mirrorOf && state.mirrorOf !== "none";
+    const scale = typeof state.scale === "number" && state.scale > 0 ? state.scale : 1;
+    const rotated = [1, 3, 5, 7].includes(state.transform);
 
     callback({
-      bitDepth: _bitDepthFromFormat(String(state.currentFormat ?? "")),
-      fps: typeof state.refreshRate === "number" ? state.refreshRate : null,
-      modes,
-      vrr: {
-        active: !!state.vrr
-      },
-      hdr: {
-        active: hdrActive
-      },
-      mirror: isMirror
+      colorMode: state.colorManagementPreset,
+      currentModeKey: Utils.modeKey(state.width, state.height, state.refreshRate),
+      displayModel: state.model,
+      logicalHeight: (rotated ? state.width : state.height) / scale,
+      logicalWidth: (rotated ? state.height : state.width) / scale,
+      logicalX: state.x,
+      logicalY: state.y,
+      maxBpc: _bitDepthFromFormat(String(state.currentFormat ?? "")),
+      modeKeys,
+      scale,
+      transformMode: _transforms[state.transform] ?? "normal",
+      vrrMode: state.vrr ? "on" : "off"
     });
   }
 

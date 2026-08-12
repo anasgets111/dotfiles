@@ -20,16 +20,7 @@ input {
 }
 
 // --- Output Configuration ---
-output "eDP-1" {
-    mode "1920x1200@60"
-    focus-at-startup
-}
-
-output "DP-1" {
-    mode "3440x1440@165"
-    focus-at-startup
-    variable-refresh-rate on-demand=true
-}
+include optional=true "~/.config/Obelisk/outputs.kdl"
 
 // --- Layout & Appearance ---
 prefer-no-csd

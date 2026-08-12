@@ -47,6 +47,7 @@ OModal {
         value: monitor.name
       })))
   property string selectedMonitor: "all"
+  property string view: "wallpaper"
   readonly property var targetMonitorNames: selectedMonitor === "all" ? (WallpaperService.monitors ?? []).map(monitor => monitor?.name).filter(Boolean) : [selectedMonitor]
 
   function applyWallpaper(entry: var): void {
@@ -56,7 +57,7 @@ OModal {
       WallpaperService.setWallpaper(monitor, entry.path);
   }
   function handleSearchKey(event: var): void {
-    const columns = Math.max(1, Math.floor(grid.width / grid.cellWidth));
+    const columns = grid.columns;
     const delta = event.key === Qt.Key_Left ? -1 : event.key === Qt.Key_Right ? 1 : event.key === Qt.Key_Up ? -columns : event.key === Qt.Key_Down ? columns : 0;
     if (delta && filteredWallpapers.length) {
       grid.currentIndex = Math.max(0, Math.min(grid.currentIndex + delta, filteredWallpapers.length - 1));
@@ -87,10 +88,14 @@ OModal {
 
   preferredHeight: Theme.wallpaperModalHeight
   preferredWidth: Theme.wallpaperModalWidth
-  searchInput: search
+  searchInput: view === "wallpaper" ? search : null
 
-  onActiveChanged: if (active)
-    updateSelection()
+  onActiveChanged: {
+    if (active && view === "wallpaper")
+      updateSelection();
+    else if (!active)
+      displaySettings.revertPreview();
+  }
   onFilteredWallpapersChanged: {
     if (!active)
       return;
@@ -104,17 +109,63 @@ OModal {
   onMonitorOptionsChanged: if (!monitorOptions.some(option => option.value === selectedMonitor))
     selectedMonitor = "all"
   onSelectedMonitorChanged: updateSelection()
+  onViewChanged: if (view === "wallpaper") {
+    displaySettings.revertPreview();
+    if (active)
+      updateSelection();
+  }
 
   ColumnLayout {
     anchors.fill: parent
     anchors.margins: Theme.spacingLg
     spacing: Theme.spacingMd
 
+    Rectangle {
+      Layout.alignment: Qt.AlignHCenter
+      Layout.preferredHeight: Theme.controlHeightLg
+      Layout.preferredWidth: Theme.s(360, 300)
+      border.color: Theme.glassBorderColor
+      border.width: Theme.borderWidthThin
+      color: Theme.glassInputColor
+      radius: Theme.radiusMd
+
+      RowLayout {
+        anchors.fill: parent
+        anchors.margins: Theme.spacingXs
+        spacing: Theme.spacingXs
+
+        Repeater {
+          model: [
+            { value: "wallpaper", icon: "󰸉", label: qsTr("Wallpapers") },
+            { value: "displays", icon: "󰍹", label: qsTr("Displays") }
+          ]
+
+          delegate: OButton {
+            required property var modelData
+
+            readonly property bool selected: root.view === modelData.value
+
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            bgColor: selected ? Theme.activeColor : "transparent"
+            hoverColor: selected ? Qt.lighter(Theme.activeColor, 1.2) : Theme.glassContentHoverColor
+            icon: modelData.icon
+            size: "sm"
+            text: modelData.label
+            textColor: selected ? Theme.textContrast(Theme.activeColor) : Theme.textInactiveColor
+            variant: "ghost"
+
+            onClicked: root.view = modelData.value
+          }
+        }
+      }
+    }
     OInput {
       id: search
 
       Layout.fillWidth: true
       placeholderText: qsTr("Search wallpapers…")
+      visible: root.view === "wallpaper"
 
       onKeyPressed: event => root.handleSearchKey(event)
     }
@@ -122,6 +173,7 @@ OModal {
       Layout.fillHeight: true
       Layout.fillWidth: true
       spacing: Theme.spacingMd
+      visible: root.view === "wallpaper"
 
       PanelCard {
         Layout.fillHeight: true
@@ -130,10 +182,14 @@ OModal {
         GridView {
           id: grid
 
+          // wallpaperTileWidth is the narrowest acceptable tile; the columns that
+          // fit then stretch to consume the row instead of leaving a gutter.
+          readonly property int columns: Math.max(1, Math.floor(width / Theme.wallpaperTileWidth))
+
           anchors.fill: parent
           boundsBehavior: Flickable.StopAtBounds
           cellHeight: Math.round(cellWidth * 9 / 16)
-          cellWidth: Theme.wallpaperTileWidth
+          cellWidth: Math.floor(width / columns)
           clip: true
           highlightFollowsCurrentItem: false
           model: root.filteredWallpapers
@@ -327,6 +383,13 @@ OModal {
           }
         }
       }
+    }
+    DisplaySettings {
+      id: displaySettings
+
+      Layout.fillHeight: true
+      Layout.fillWidth: true
+      visible: root.view === "displays"
     }
   }
 }

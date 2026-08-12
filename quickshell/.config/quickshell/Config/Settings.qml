@@ -121,6 +121,7 @@ Singleton {
     property string themeName: "Catppuccin"
     property string wallpaperFolder: "/mnt/Work/1Wallpapers/Main"
     property string wallpaperTransition: "Disc"
+    property var displays: ({})
     property var wallpapers: ({})
     property JsonObject weatherLocation: JsonObject {
       property real latitude: 30.0507
