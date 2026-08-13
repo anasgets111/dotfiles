@@ -37,6 +37,10 @@ Scope {
     WlrLayershell.namespace: "obelisk-bar"
     WlrLayershell.keyboardFocus: (panelContainer.active && panelContainer.needsKeyboardFocus) || activeModal !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     color: "transparent"
+    // A lost output force-hides this window and screen retargeting alone never re-shows it, so
+    // bind visible to a real screen existing; the placeholder Qt invents while every output is
+    // gone has an empty name, which also keeps this window off it.
+    visible: !!root.modelData && root.modelData.name !== ""
     // Three anchors retain a top-edge exclusive zone; four anchors would make it ineffective.
     implicitHeight: screen?.height ?? 0
     screen: root.modelData

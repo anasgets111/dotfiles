@@ -33,6 +33,7 @@ Item {
         label: modeLabel(key),
         value: key
       }))
+  readonly property var scaleValues: (selectedMonitorData?.scaleKeysText ?? "").split("\n").filter(Boolean).map(value => parseFloat(value))
   readonly property var transformOptions: MonitorService.controlOptions("transform").map(value => ({
         label: transformLabel(value),
         value
@@ -45,8 +46,22 @@ Item {
         label: qsTr("%1 bpc").arg(value),
         value
       }))
-  readonly property int scaleSteps: Math.max(1, Math.round((MonitorService.scaleMaximum - MonitorService.scaleMinimum) / MonitorService.scaleStep))
+  readonly property var colorModeOptions: MonitorService.controlOptions("colorMode").map(value => ({ label: colorModeLabel(value), value }))
+  readonly property int scaleSteps: Math.max(1, scaleValues.length - 1)
   readonly property bool hdrOn: ["hdr", "hdredid"].includes(selectedMonitorData?.colorMode ?? "")
+  readonly property var previewFields: ["mode", "scale", "position", "transform"]
+  readonly property bool previewEditable: !previewActive || isPreviewing(selectedMonitor)
+  readonly property bool hasIccProfile: (selectedMonitorData?.iccProfile ?? "").trim() !== ""
+  property string _lastIccPath: ""
+  readonly property string savedIccPath: (selectedMonitorData?.iccProfile || selectedMonitorData?.lastIccProfile || _lastIccPath) || ""
+  property bool _iccToggled: hasIccProfile
+  readonly property bool isIccActive: hasIccProfile || _iccToggled
+
+  onHasIccProfileChanged: {
+    _iccToggled = hasIccProfile;
+    if (!hasIccProfile && (selectedMonitorData?.lastIccProfile ?? "") === "")
+      _lastIccPath = "";
+  }
 
   function ensureSelection(): void {
     if (!monitorOptions.some(option => option.value === selectedMonitor))
@@ -57,42 +72,50 @@ Item {
     return match ? qsTr("%1 × %2 · %3 Hz").arg(match[1]).arg(match[2]).arg(Math.round(parseFloat(match[3]) * 100) / 100) : key;
   }
   function transformLabel(value: string): string {
-    return ({
-        normal: qsTr("Landscape"),
-        "90": qsTr("Portrait · 90°"),
-        "180": qsTr("Landscape · 180°"),
-        "270": qsTr("Portrait · 270°"),
-        flipped: qsTr("Flipped"),
-        "flipped-90": qsTr("Flipped · 90°"),
-        "flipped-180": qsTr("Flipped · 180°"),
-        "flipped-270": qsTr("Flipped · 270°")
-      })[value] ?? value;
+    return ({ normal: qsTr("Landscape"), "90": qsTr("Portrait · 90°"), "180": qsTr("Landscape · 180°"), "270": qsTr("Portrait · 270°"), flipped: qsTr("Flipped"), "flipped-90": qsTr("Flipped · 90°"), "flipped-180": qsTr("Flipped · 180°"), "flipped-270": qsTr("Flipped · 270°") })[value] ?? value;
   }
   function vrrLabel(value: string): string {
-    return ({
-        off: qsTr("Off"),
-        on: qsTr("Always"),
-        "on-demand": qsTr("On demand"),
-        fullscreen: qsTr("Fullscreen"),
-        "content-aware": qsTr("Content aware")
-      })[value] ?? value;
+    return ({ off: qsTr("Off"), on: qsTr("Always"), "on-demand": qsTr("On demand"), fullscreen: qsTr("Fullscreen"), "content-aware": qsTr("Content aware") })[value] ?? value;
+  }
+  function colorModeLabel(value: string): string {
+    return ({ srgb: qsTr("SDR (sRGB)"), hdr: qsTr("HDR (PQ ST2084)"), hdredid: qsTr("HDR (EDID Passthrough)") })[value] ?? value;
   }
   function optionIndex(options: var, value: var): int {
     return options.findIndex(option => option?.value === value);
   }
   function scaleFromSlider(value: real): real {
-    const minimum = MonitorService.scaleMinimum;
-    const raw = minimum + Math.max(0, Math.min(1, value)) * (MonitorService.scaleMaximum - minimum);
-    return minimum + Math.round((raw - minimum) / MonitorService.scaleStep) * MonitorService.scaleStep;
+    return scaleValues[Math.round(Math.max(0, Math.min(1, value)) * (scaleValues.length - 1))];
   }
   function scaleToSlider(value: real): real {
-    const range = MonitorService.scaleMaximum - MonitorService.scaleMinimum;
-    return range <= 0 ? 0 : Math.max(0, Math.min(1, (value - MonitorService.scaleMinimum) / range));
+    if (scaleValues.length < 2)
+      return 0;
+    const closest = scaleValues.reduce((best, scale, index) => Math.abs(scale - value) < Math.abs(scaleValues[best] - value) ? index : best, 0);
+    return closest / (scaleValues.length - 1);
   }
-  function setConfig(field: string, value: var): void {
-    const changes = {};
-    changes[field] = value;
-    MonitorService.setMonitorConfig(selectedMonitor, changes);
+  function currentValue(field: string): var {
+    if (field === "position")
+      return { x: selectedMonitorData?.logicalX ?? 0, y: selectedMonitorData?.logicalY ?? 0 };
+    return selectedMonitorData?.[MonitorService._fieldRoles[field]];
+  }
+  // Anything that can leave an output unreadable goes through the timed revert; the rest commits.
+  function applyValue(field: string, value: var): void {
+    const changes = { [field]: value };
+    if (!previewFields.includes(field)) {
+      MonitorService.setMonitorConfig(selectedMonitor, changes);
+      return;
+    }
+    // A rotation relays out the desktop, so a revert has to restore the position too.
+    const original = { position: currentValue("position"), [field]: currentValue(field) };
+    previewConfig(selectedMonitor, original, changes);
+  }
+  function applyIcc(input: var): void {
+    const raw = typeof input === "string" ? input : (input?.text ?? "");
+    const path = raw.trim();
+    if (path && !path.startsWith("/"))
+      return;
+    if (path)
+      _lastIccPath = path;
+    applyValue("icc", path);
   }
   function isPreviewing(name: string): bool {
     return preview?.name === name;
@@ -123,9 +146,11 @@ Item {
     if (previewActive && !isPreviewing(name))
       return;
     const previous = preview;
-    const base = previous ?? { name, original: Utils.clone(original), changes: {} };
+    const base = previous ?? { name, original: {}, changes: {} };
     const next = Object.assign({}, base, {
       applying: true,
+      // Keep the value each field held before the preview began; a later edit must not overwrite it.
+      original: Object.assign(Utils.clone(original), base.original),
       changes: Object.assign({}, base.changes, Utils.clone(changes))
     });
     preview = next;
@@ -158,11 +183,13 @@ Item {
     }
     preview = Object.assign({}, pending, { applying: true });
     previewTimer.stop();
-    MonitorService.previewMonitorConfig(pending.name, changes, result => root._restorePreview(result?.success ? null : pending));
+    MonitorService.previewMonitorConfig(pending.name, changes, () => root._restorePreview(null));
   }
 
-  onVisibleChanged: if (!visible)
-    revertPreview()
+  onVisibleChanged: {
+    if (!visible)
+      revertPreview();
+  }
   onMonitorOptionsChanged: {
     if (preview && !monitorOptions.some(option => option.value === preview.name))
       _restorePreview(null);
@@ -211,7 +238,11 @@ Item {
   ScrollView {
     id: scrollView
 
-    anchors.fill: parent
+    anchors.bottom: previewBar.visible ? previewBar.top : parent.bottom
+    anchors.bottomMargin: previewBar.visible ? Theme.spacingMd : 0
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: parent.top
     clip: true
     contentWidth: availableWidth
     ScrollBar.vertical.policy: ScrollBar.AsNeeded
@@ -261,8 +292,11 @@ Item {
               return originY + (logicalY - bounds.minY) * arrangementScale;
             }
 
+            readonly property real idealAspectHeight: (width - canvasPadding * 2) * logicalHeight / logicalWidth + canvasPadding * 2
+            readonly property real responsiveMaxHeight: Math.max(Theme.controlHeightXl * 2, scrollView.availableHeight * 0.32)
+
             Layout.fillWidth: true
-            Layout.preferredHeight: Theme.controlHeightXl * 5.5
+            Layout.preferredHeight: Math.max(Theme.controlHeightXl * 2, Math.min(responsiveMaxHeight, idealAspectHeight))
             clip: true
 
             Rectangle {
@@ -271,6 +305,35 @@ Item {
               border.width: Theme.borderWidthThin
               color: Theme.glassInputColor
               radius: Theme.radiusMd
+
+              Canvas {
+                id: gridCanvas
+
+                anchors.fill: parent
+                opacity: 0.12
+
+                onHeightChanged: requestPaint()
+                onPaint: {
+                  const ctx = getContext("2d");
+                  ctx.clearRect(0, 0, width, height);
+                  ctx.strokeStyle = Theme.textActiveColor;
+                  ctx.lineWidth = 1;
+                  const step = 24;
+                  for (let x = step; x < width; x += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, height);
+                    ctx.stroke();
+                  }
+                  for (let y = step; y < height; y += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(width, y);
+                    ctx.stroke();
+                  }
+                }
+                onWidthChanged: requestPaint()
+              }
             }
             Repeater {
               model: MonitorService.monitors
@@ -345,8 +408,8 @@ Item {
                     if (!editable)
                       return;
                     outputPreview.dragStartPoint = outputPreview.mapToItem(arrangementCanvas, mouse.x, mouse.y);
-                    outputPreview.dragStartPosition = Utils.clone(outputPreview.effectivePosition);
-                    outputPreview.dragPosition = Utils.clone(outputPreview.effectivePosition);
+                    outputPreview.dragStartPosition = { x: outputPreview.effectivePosition.x, y: outputPreview.effectivePosition.y };
+                    outputPreview.dragPosition = { x: outputPreview.effectivePosition.x, y: outputPreview.effectivePosition.y };
                   }
                   onPositionChanged: mouse => {
                     if (!pressed || !editable)
@@ -396,35 +459,7 @@ Item {
         }
       }
       PanelCard {
-        Layout.fillWidth: true
-        tone: "warning"
-        visible: root.previewActive
-
-        RowLayout {
-          anchors.fill: parent
-          spacing: Theme.spacingMd
-
-          OText {
-            Layout.fillWidth: true
-            text: root.preview?.applying ? qsTr("Applying display preview…") : qsTr("Keep these display settings? Reverting in %1 seconds.").arg(root.previewSecondsRemaining)
-            wrapMode: Text.Wrap
-          }
-          OButton {
-            isEnabled: !root.preview?.applying
-            text: qsTr("Revert")
-            variant: "secondary"
-
-            onClicked: root.revertPreview()
-          }
-          OButton {
-            isEnabled: !root.preview?.applying
-            text: qsTr("Keep")
-
-            onClicked: root.confirmPreview()
-          }
-        }
-      }
-      PanelCard {
+        id: controlsCard
         Layout.fillWidth: true
         implicitHeight: displayLayout.implicitHeight + padding * 2
         visible: root.selectedMonitorData !== null
@@ -438,12 +473,12 @@ Item {
           PanelHeader {
             icon: "󰍹"
             subtitle: [
-              root.selectedMonitorData?.displayModel || qsTr("Connected display"),
+              root.selectedMonitorData?.displayModel ? root.selectedMonitorData?.name : qsTr("Connected display"),
               root.modeLabel(root.selectedMonitorData?.currentModeKey ?? ""),
               qsTr("%1% scale").arg(Math.round((root.selectedMonitorData?.displayScale ?? 1) * 100)),
-              qsTr("Position %1, %2").arg(Math.round(root.selectedMonitorData?.logicalX ?? 0)).arg(Math.round(root.selectedMonitorData?.logicalY ?? 0))
+              MonitorService.monitors.count > 1 ? qsTr("Position %1, %2").arg(Math.round(root.selectedMonitorData?.logicalX ?? 0)).arg(Math.round(root.selectedMonitorData?.logicalY ?? 0)) : ""
             ].filter(Boolean).join(" · ")
-            title: root.selectedMonitorData?.name ?? ""
+            title: root.selectedMonitorData?.displayModel || root.selectedMonitorData?.name || ""
 
             OSpinner {
               running: root.selectedMonitorData?.displayBusy ?? false
@@ -470,10 +505,12 @@ Item {
             }
             InfoBadge {
               text: Number.isFinite(root.selectedMonitorData?.maxBpc) ? qsTr("%1 bpc").arg(root.selectedMonitorData.maxBpc) : ""
+              visible: Number.isFinite(root.selectedMonitorData?.maxBpc) && !root.isIccActive
             }
             InfoBadge {
-              badgeColor: Theme.activeColor
-              text: root.hdrOn ? qsTr("HDR") : ""
+              badgeColor: root.isIccActive ? Theme.warning : Theme.activeColor
+              text: root.isIccActive ? qsTr("ICC Active") : root.colorModeLabel(root.selectedMonitorData?.colorMode ?? "srgb")
+              visible: root.isIccActive || (root.selectedMonitorData?.hdrSupported ?? false)
             }
             Item {
               Layout.fillWidth: true
@@ -507,21 +544,21 @@ Item {
 
             ComboRow {
               Layout.fillWidth: true
-              currentIndex: root.optionIndex(root.modeOptions, root.selectedMonitorData?.currentModeKey)
-              inputEnabled: !root.previewActive
+              currentIndex: root.optionIndex(root.modeOptions, root.previewValue(root.selectedMonitor, "mode", root.selectedMonitorData?.currentModeKey))
+              inputEnabled: root.previewEditable
               options: root.modeOptions
               subtitle: qsTr("Resolution and refresh rate")
               title: qsTr("Display mode")
               visible: MonitorService.supportsControl("mode") && root.modeOptions.length > 0
 
-              onOptionActivated: index => root.setConfig("mode", root.modeOptions[index]?.value)
+              onOptionActivated: index => root.applyValue("mode", root.modeOptions[index]?.value)
             }
             PanelRow {
               Layout.fillWidth: true
               rowActionEnabled: false
               subtitle: qsTr("Size of text and interface elements")
               title: qsTr("Scale")
-              visible: MonitorService.supportsControl("scale")
+              visible: MonitorService.supportsControl("scale") && root.scaleValues.length > 0
 
               actions: [
                 Item {
@@ -535,21 +572,23 @@ Item {
                     Slider {
                       id: scaleSlider
 
+                      readonly property real effectiveScale: root.previewValue(root.selectedMonitor, "scale", root.selectedMonitorData?.displayScale ?? 1)
+
                       Layout.fillWidth: true
                       Layout.preferredHeight: Theme.controlHeightSm
-                      interactive: !root.previewActive
+                      interactive: root.previewEditable
                       steps: root.scaleSteps
-                      value: root.scaleToSlider(root.selectedMonitorData?.displayScale ?? 1)
+                      value: root.scaleToSlider(effectiveScale)
                       wheelStep: 1 / root.scaleSteps
 
                       onCommitted: value => {
-                        root.setConfig("scale", root.scaleFromSlider(value));
-                        scaleSlider.value = Qt.binding(() => root.scaleToSlider(root.selectedMonitorData?.displayScale ?? 1));
+                        root.applyValue("scale", root.scaleFromSlider(value));
+                        scaleSlider.value = Qt.binding(() => root.scaleToSlider(scaleSlider.effectiveScale));
                       }
                     }
                     OText {
                       color: Theme.activeColor
-                      text: qsTr("%1%").arg(Math.round((root.selectedMonitorData?.displayScale ?? 1) * 100))
+                      text: qsTr("%1%").arg(Math.round(scaleSlider.effectiveScale * 100))
                     }
                   }
                 }
@@ -557,17 +596,14 @@ Item {
             }
             ComboRow {
               Layout.fillWidth: true
-              currentIndex: root.optionIndex(root.transformOptions, root.selectedMonitorData?.transformMode)
-              inputEnabled: !root.previewActive || root.isPreviewing(root.selectedMonitor)
+              currentIndex: root.optionIndex(root.transformOptions, root.previewValue(root.selectedMonitor, "transform", root.selectedMonitorData?.transformMode))
+              inputEnabled: root.previewEditable
               options: root.transformOptions
               subtitle: qsTr("Rotate or flip this display")
               title: qsTr("Orientation")
               visible: MonitorService.supportsControl("transform")
 
-              onOptionActivated: index => root.previewConfig(root.selectedMonitor, {
-                  position: { x: root.selectedMonitorData.logicalX, y: root.selectedMonitorData.logicalY },
-                  transform: root.selectedMonitorData.transformMode
-                }, { transform: root.transformOptions[index]?.value })
+              onOptionActivated: index => root.applyValue("transform", root.transformOptions[index]?.value)
             }
             ComboRow {
               Layout.fillWidth: true
@@ -578,7 +614,52 @@ Item {
               title: qsTr("Variable refresh rate")
               visible: MonitorService.supportsControl("vrrMode") && (root.selectedMonitorData?.vrrSupported ?? false)
 
-              onOptionActivated: index => root.setConfig("vrrMode", root.vrrOptions[index]?.value)
+              onOptionActivated: index => root.applyValue("vrrMode", root.vrrOptions[index]?.value)
+            }
+
+            // Custom ICC Profile Gatekeeper Toggle (on top of moving parts)
+            PanelRow {
+              Layout.fillWidth: true
+              rowActionEnabled: false
+              subtitle: root.isIccActive ? qsTr("Using a custom .icc / .icm calibration profile") : qsTr("Enable to load custom .icc file instead of hardware HDR")
+              title: qsTr("Custom ICC profile")
+              visible: MonitorService.supportsControl("icc")
+
+              actions: [
+                OToggle {
+                  checked: root.isIccActive
+                  disabled: root.previewActive
+
+                  onToggled: checked => {
+                    root._iccToggled = checked;
+                    if (!checked) {
+                      if (root.selectedMonitorData?.iccProfile)
+                        root._lastIccPath = root.selectedMonitorData.iccProfile;
+                      root.applyValue("icc", "");
+                    } else {
+                      const target = root.savedIccPath || iccInput.text.trim();
+                      if (target && target.startsWith("/")) {
+                        root._lastIccPath = target;
+                        root.applyValue("icc", target);
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+
+            // Dynamic Moving Parts Stack Below Toggle:
+            // 1. Hardware Color / HDR Controls (When ICC is OFF)
+            ComboRow {
+              Layout.fillWidth: true
+              currentIndex: root.optionIndex(root.colorModeOptions, root.selectedMonitorData?.colorMode)
+              inputEnabled: !root.previewActive
+              options: root.colorModeOptions
+              subtitle: qsTr("SDR sRGB or HDR (PQ / EDID passthrough)")
+              title: qsTr("Color mode & HDR")
+              visible: !root.isIccActive && MonitorService.supportsControl("colorMode") && (root.selectedMonitorData?.hdrSupported ?? false)
+
+              onOptionActivated: index => root.applyValue("colorMode", root.colorModeOptions[index]?.value)
             }
             ComboRow {
               Layout.fillWidth: true
@@ -587,25 +668,161 @@ Item {
               options: root.maxBpcOptions
               subtitle: qsTr("Colour precision sent to the panel")
               title: qsTr("Bit depth")
-              visible: MonitorService.supportsControl("maxBpc") && root.maxBpcOptions.length > 1
+              visible: !root.isIccActive && MonitorService.supportsControl("maxBpc") && root.maxBpcOptions.length > 1
 
-              onOptionActivated: index => root.setConfig("maxBpc", root.maxBpcOptions[index]?.value)
+              onOptionActivated: index => root.applyValue("maxBpc", root.maxBpcOptions[index]?.value)
             }
             PanelRow {
               Layout.fillWidth: true
               rowActionEnabled: false
-              subtitle: qsTr("Use the panel's high dynamic range mode")
-              title: qsTr("High dynamic range")
-              visible: MonitorService.supportsControl("colorMode") && (root.selectedMonitorData?.hdrSupported ?? false)
+              subtitle: qsTr("SDR content brightness in HDR mode")
+              title: qsTr("SDR brightness")
+              visible: !root.isIccActive && root.hdrOn && MonitorService.supportsControl("sdrBrightness")
 
               actions: [
-                OToggle {
-                  checked: root.hdrOn
-                  disabled: root.previewActive
+                Item {
+                  implicitHeight: Theme.controlHeightSm
+                  implicitWidth: Theme.wallpaperSidebarWidth
 
-                  onToggled: checked => root.setConfig("colorMode", checked ? "hdr" : "srgb")
+                  RowLayout {
+                    anchors.fill: parent
+                    spacing: Theme.spacingSm
+
+                    Slider {
+                      id: sdrBrightnessSlider
+
+                      readonly property real effectiveVal: root.selectedMonitorData?.sdrBrightness ?? 1.0
+
+                      Layout.fillWidth: true
+                      Layout.preferredHeight: Theme.controlHeightSm
+                      interactive: root.previewEditable
+                      steps: 15
+                      value: Math.max(0, Math.min(1, (effectiveVal - 0.5) / 1.5))
+
+                      onCommitted: value => root.applyValue("sdrBrightness", Math.round((0.5 + value * 1.5) * 100) / 100)
+                    }
+                    OText {
+                      color: Theme.activeColor
+                      text: qsTr("%1%").arg(Math.round(sdrBrightnessSlider.effectiveVal * 100))
+                    }
+                  }
                 }
               ]
+            }
+            PanelRow {
+              Layout.fillWidth: true
+              rowActionEnabled: false
+              subtitle: qsTr("SDR color vibrancy in HDR mode")
+              title: qsTr("SDR saturation")
+              visible: !root.isIccActive && root.hdrOn && MonitorService.supportsControl("sdrSaturation")
+
+              actions: [
+                Item {
+                  implicitHeight: Theme.controlHeightSm
+                  implicitWidth: Theme.wallpaperSidebarWidth
+
+                  RowLayout {
+                    anchors.fill: parent
+                    spacing: Theme.spacingSm
+
+                    Slider {
+                      id: sdrSaturationSlider
+
+                      readonly property real effectiveVal: root.selectedMonitorData?.sdrSaturation ?? 1.0
+
+                      Layout.fillWidth: true
+                      Layout.preferredHeight: Theme.controlHeightSm
+                      interactive: root.previewEditable
+                      steps: 15
+                      value: Math.max(0, Math.min(1, (effectiveVal - 0.5) / 1.5))
+
+                      onCommitted: value => root.applyValue("sdrSaturation", Math.round((0.5 + value * 1.5) * 100) / 100)
+                    }
+                    OText {
+                      color: Theme.activeColor
+                      text: qsTr("%1%").arg(Math.round(sdrSaturationSlider.effectiveVal * 100))
+                    }
+                  }
+                }
+              ]
+            }
+
+            // 2. Custom ICC Profile Path & Warning Alert (When ICC is ON)
+            PanelRow {
+              Layout.fillWidth: true
+              rowActionEnabled: false
+              subtitle: qsTr("Absolute path; leave empty to disable")
+              title: qsTr("ICC profile path")
+              visible: root.isIccActive && MonitorService.supportsControl("icc")
+
+              actions: [
+                Item {
+                  implicitHeight: iccInput.implicitHeight
+                  implicitWidth: Theme.wallpaperSidebarWidth * 1.6
+
+                  RowLayout {
+                    anchors.fill: parent
+                    spacing: Theme.spacingSm
+
+                    OInput {
+                      id: iccInput
+
+                      Layout.fillWidth: true
+                      enabled: !root.previewActive
+                      errorMessage: qsTr("Use an absolute path")
+                      hasError: text.trim() !== "" && !text.trim().startsWith("/")
+                      placeholderText: qsTr("/path/to/display.icc")
+                      text: root.savedIccPath
+
+                      onInputAccepted: root.applyIcc(iccInput)
+                    }
+                    OButton {
+                      isEnabled: !root.previewActive && !iccInput.hasError && iccInput.text.trim() !== (root.selectedMonitorData?.iccProfile ?? "")
+                      text: qsTr("Save")
+
+                      onClicked: root.applyIcc(iccInput)
+                    }
+                  }
+                }
+              ]
+            }
+            PanelCard {
+              Layout.fillWidth: true
+              padding: Theme.spacingSm
+              tone: "warning"
+              visible: root.isIccActive
+
+              RowLayout {
+                anchors.fill: parent
+                spacing: Theme.spacingSm
+
+                OText {
+                  Layout.alignment: Qt.AlignVCenter
+                  color: Theme.warning
+                  font.family: Theme.iconFontFamily
+                  font.pixelSize: Theme.iconSizeMd
+                  text: "󰀪"
+                }
+                OText {
+                  Layout.alignment: Qt.AlignVCenter
+                  Layout.fillWidth: true
+                  color: Theme.warning
+                  size: "xs"
+                  text: root.hasIccProfile ? qsTr("Hardware HDR modes and PQ color mapping are disabled while custom ICC profile (%1) is loaded.").arg(root.selectedMonitorData?.iccProfile ?? "") : root.savedIccPath ? qsTr("Saved ICC profile (%1) will be applied when enabled.").arg(root.savedIccPath) : qsTr("Enter an absolute path to a .icc / .icm file above and click Save to apply.")
+                  wrapMode: Text.Wrap
+                }
+                OButton {
+                  Layout.alignment: Qt.AlignVCenter
+                  isEnabled: !root.previewActive
+                  text: qsTr("Disable & Use HDR")
+                  variant: "secondary"
+
+                  onClicked: {
+                    root._iccToggled = false;
+                    root.applyValue("icc", "");
+                  }
+                }
+              }
             }
           }
           RowLayout {
@@ -623,13 +840,51 @@ Item {
               text: qsTr("Restore defaults")
               variant: "secondary"
 
-              onClicked: MonitorService.resetMonitorConfig(root.selectedMonitor)
+              onClicked: {
+                root._lastIccPath = "";
+                root._iccToggled = false;
+                MonitorService.resetMonitorConfig(root.selectedMonitor);
+              }
             }
           }
         }
       }
       Item {
         Layout.preferredHeight: Theme.spacingXs
+      }
+    }
+  }
+  PanelCard {
+    id: previewBar
+
+    anchors.bottom: parent.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    tone: "warning"
+    visible: root.previewActive
+    z: 1
+
+    RowLayout {
+      anchors.fill: parent
+      spacing: Theme.spacingMd
+
+      OText {
+        Layout.fillWidth: true
+        text: root.preview?.applying ? qsTr("Applying display preview…") : qsTr("Keep these display settings? Reverting in %1 seconds.").arg(root.previewSecondsRemaining)
+        wrapMode: Text.Wrap
+      }
+      OButton {
+        isEnabled: !root.preview?.applying
+        text: qsTr("Revert")
+        variant: "secondary"
+
+        onClicked: root.revertPreview()
+      }
+      OButton {
+        isEnabled: !root.preview?.applying
+        text: qsTr("Keep")
+
+        onClicked: root.confirmPreview()
       }
     }
   }

@@ -35,19 +35,22 @@ Singleton {
   ].join("\n")
 
   function controlOptions(field: string): var {
-    return field === "transform" ? _transforms : field === "vrrMode" ? _vrrModes : field === "maxBpc" ? maxBpcValues : [];
+    return _options[field] ?? [];
   }
   function _safeText(value: var): bool {
     return typeof value === "string" && !!value && !/[\u0000-\u001f]/.test(value);
   }
   function _validValue(field: string, value: var): bool {
-    return field === "mode" ? _safeText(value) : field === "scale" ? Number.isFinite(value) && value > 0 : field === "position" ? Utils.isObject(value) && Number.isInteger(value.x) && Number.isInteger(value.y) && Object.keys(value).length === 2 : (_options[field] ?? []).includes(value);
+    if (field === "mode") return _safeText(value);
+    if (field === "scale") return Number.isFinite(value) && value > 0;
+    if (field === "position") return Utils.isObject(value) && Number.isInteger(value.x) && Number.isInteger(value.y) && Object.keys(value).length === 2;
+    return (_options[field] ?? []).includes(value);
   }
   function _validate(config: var, label: string): void {
     if (!Utils.isObject(config) || !_safeText(config.selector))
       throw new Error(`${label} needs a selector string`);
     for (const field of Object.keys(config))
-      if (field !== "selector" && (!controls.includes(field) || !_validValue(field, config[field])))
+      if (field !== "selector" && field !== "lastIccProfile" && field !== "icc" && (!controls.includes(field) || !_validValue(field, config[field])))
         throw new Error(`${label}.${field} is not a supported value`);
   }
   function _renderMonitor(config: var, focusedOutput: string): string {
@@ -134,6 +137,7 @@ Singleton {
     const runNext = () => {
       const command = commands.shift();
       if (!command) {
+        root.featuresChanged();
         callback({ success: true });
         return;
       }
@@ -162,10 +166,13 @@ Singleton {
       return;
     }
     const command = ["sh", "-c", _installScript, "sh", configPath, "niri", "validate", "--config", `${configPath}.candidate`];
-    const handle = Command.run(command, result => callback({
-          success: result.exitCode === 0,
-          message: result.exitCode === 0 ? "" : (result.stderr || result.stdout || "Could not save the display configuration").trim()
-        }), "niri-output-save", text);
+    const handle = Command.run(command, result => {
+      const ok = result.exitCode === 0;
+      callback({
+        success: ok,
+        message: ok ? "" : (result.stderr || result.stdout || "Could not save the display configuration").trim()
+      });
+    }, "niri-output-save", text);
     if (!handle)
       callback({ success: false, message: "A display configuration write is already in progress" });
   }

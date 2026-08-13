@@ -19,13 +19,14 @@ Singleton {
   property var _edidCallbacks: []
   property var _edidHandle: null
   property int _featuresRunId: 0
-  property bool _initialConfigWritten: false
+  property bool _savedLoaded: false
   property var _savedDisplays: ({})
   property bool busy: false
   property int monitorsRevision: 0
   readonly property var _screenKeyFields: ["name", "width", "height"]
   // ListModel turns array-valued roles into nested models, so mode keys stay text.
-  readonly property var _monitorDefaults: ({ displayModel: "", currentModeKey: "", modeKeysText: "", maxBpc: null, maxBpcSupported: null, colorMode: "srgb", transformMode: "normal", vrrMode: "off", vrrSupported: false, hdrSupported: false, displayBusy: false, errorText: "", featuresReady: false })
+  readonly property var _monitorDefaults: ({ displayModel: "", currentModeKey: "", modeKeysText: "", scaleKeysText: "", maxBpc: null, maxBpcSupported: null, colorMode: "srgb", sdrBrightness: 1.0, sdrSaturation: 1.0, transformMode: "normal", vrrMode: "off", vrrSupported: false, hdrSupported: false, iccProfile: "", lastIccProfile: "", displayBusy: false, errorText: "", featuresReady: false })
+  readonly property var _fieldRoles: ({ mode: "currentModeKey", scale: "displayScale", transform: "transformMode", vrrMode: "vrrMode", maxBpc: "maxBpc", icc: "iccProfile", lastIccProfile: "lastIccProfile", colorMode: "colorMode", sdrBrightness: "sdrBrightness", sdrSaturation: "sdrSaturation" })
   readonly property string activeMain: activeMainScreen?.name ?? ""
   readonly property var activeMainScreen: Quickshell.screens.find(screen => screen?.name === preferredMain) || Quickshell.screens[0] || null
   readonly property var backend: MainService.currentWM === "hyprland" ? Hypr.MonitorImpl : MainService.currentWM === "niri" ? Niri.MonitorImpl : null
@@ -88,40 +89,33 @@ Singleton {
     };
   }
   function snapMonitorPosition(name: string, position: var, logicalWidth: real, logicalHeight: real, threshold: real): var {
-    if (!Utils.isObject(position) || !Number.isFinite(position.x) || !Number.isFinite(position.y))
-      return position;
+    if (!Utils.isObject(position) || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return position;
     const limit = Number.isFinite(threshold) && threshold > 0 ? threshold : 24;
-    const snap = (value, edges) => {
-      let best = value;
-      let distance = Infinity;
-      for (const edge of edges) {
-        const nextDistance = Math.abs(value - edge);
-        if (nextDistance <= limit && nextDistance < distance) {
-          best = edge;
-          distance = nextDistance;
-        }
-      }
-      return Math.round(best);
-    };
-    const rects = toArray().filter(monitor => monitor.name !== name).map(monitor => _monitorRect(monitor));
-    return {
-      x: snap(position.x, rects.reduce((edges, rect) => edges.concat([rect.x, rect.x + rect.width, rect.x - logicalWidth, rect.x + rect.width - logicalWidth]), [0])),
-      y: snap(position.y, rects.reduce((edges, rect) => edges.concat([rect.y, rect.y + rect.height, rect.y - logicalHeight, rect.y + rect.height - logicalHeight]), [0]))
-    };
+    const snap = (val, edges) => edges.reduce((best, e) => Math.abs(val - e) <= limit && Math.abs(val - e) < Math.abs(val - best) ? e : best, val);
+    const xEdges = [0], yEdges = [0];
+    for (const m of toArray()) {
+      if (m.name === name) continue;
+      const r = _monitorRect(m);
+      xEdges.push(r.x, r.x + r.width, r.x - logicalWidth, r.x + r.width - logicalWidth);
+      yEdges.push(r.y, r.y + r.height, r.y - logicalHeight, r.y + r.height - logicalHeight);
+    }
+    return { x: Math.round(snap(position.x, xEdges)), y: Math.round(snap(position.y, yEdges)) };
   }
   function _storedDisplays(): var {
     const stored = Settings.data?.displays;
     return Utils.isObject(stored) ? Utils.clone(stored) : {};
   }
   function _sanitizeDisplays(displays: var): var {
+    const fields = controls.concat(["lastIccProfile"]);
     const sanitized = {};
     for (const name of Object.keys(displays)) {
-      if (!Utils.isObject(displays[name]))
+      const entry = displays[name];
+      if (!Utils.isObject(entry))
         continue;
       sanitized[name] = {};
-      for (const field of controls)
-        if (Utils.has(displays[name], field))
-          sanitized[name][field] = Utils.clone(displays[name][field]);
+      for (const field of fields)
+        if (Utils.has(entry, field))
+          sanitized[name][field] = Utils.clone(entry[field]);
     }
     return sanitized;
   }
@@ -129,6 +123,8 @@ Singleton {
     for (let index = 0; index < monitors.count; index++) {
       const config = _savedDisplays[monitors.get(index).name];
       setMonitorPropertyIfChanged(index, "vrrMode", typeof config?.vrrMode === "string" && config.vrrMode ? config.vrrMode : "off");
+      setMonitorPropertyIfChanged(index, "iccProfile", typeof config?.icc === "string" ? config.icc : "");
+      setMonitorPropertyIfChanged(index, "lastIccProfile", typeof config?.lastIccProfile === "string" ? config.lastIccProfile : (config?.icc || ""));
     }
   }
   function _setMonitorState(name: string, isBusy: bool, errorText: string): void {
@@ -162,9 +158,15 @@ Singleton {
       config.transform = monitor.transformMode;
     if (controls.includes("position") && Number.isInteger(monitor.logicalX) && Number.isInteger(monitor.logicalY))
       config.position = { x: monitor.logicalX, y: monitor.logicalY };
-    // On-demand VRR cannot be distinguished from ordinary VRR in compositor state.
+    // Hyprland and niri cannot report the configured VRR mode, only its current activity.
     if (controls.includes("maxBpc") && controlOptions("maxBpc").includes(monitor.maxBpc))
       config.maxBpc = monitor.maxBpc;
+    if (controls.includes("colorMode") && monitor.colorMode)
+      config.colorMode = monitor.colorMode;
+    if (monitor.iccProfile)
+      config.icc = monitor.iccProfile;
+    if (monitor.lastIccProfile)
+      config.lastIccProfile = monitor.lastIccProfile;
     return config;
   }
   function _withMonitorConfig(name: string, config: var): var {
@@ -180,7 +182,6 @@ Singleton {
           root._savedDisplays = Utils.clone(next);
           Settings.data.displays = Utils.clone(next);
           root._syncStoredMetadata();
-          root.refreshFeatures();
         }
         root._finishControl(name, result ?? { success: false, message: "Could not save the display configuration" }, callback);
       });
@@ -189,17 +190,13 @@ Singleton {
     }
   }
   function _applyMonitorChanges(index: int, changes: var): void {
-    const roles = {
-      mode: "currentModeKey",
-      scale: "displayScale",
-      transform: "transformMode",
-      vrrMode: "vrrMode",
-      maxBpc: "maxBpc",
-      colorMode: "colorMode"
-    };
-    for (const field of Object.keys(roles))
+    if (index < 0 || index >= monitors.count)
+      return;
+    for (const field of Object.keys(_fieldRoles))
       if (Utils.has(changes, field))
-        setMonitorPropertyIfChanged(index, roles[field], changes[field]);
+        setMonitorPropertyIfChanged(index, _fieldRoles[field], changes[field]);
+    if (Utils.has(changes, "icc") && typeof changes.icc === "string" && changes.icc.trim() !== "")
+      setMonitorPropertyIfChanged(index, "lastIccProfile", changes.icc.trim());
     if (Utils.has(changes, "position")) {
       setMonitorPropertyIfChanged(index, "logicalX", changes.position.x);
       setMonitorPropertyIfChanged(index, "logicalY", changes.position.y);
@@ -229,10 +226,8 @@ Singleton {
     if (index < 0)
       return;
     _applyConfig(name, changes, result => {
-      if (result?.success) {
+      if (result?.success)
         root._applyMonitorChanges(index, changes);
-        root.refreshFeatures();
-      }
       root._finishControl(name, result ?? { success: false, message: "The compositor rejected the display change" }, callback);
     });
   }
@@ -249,6 +244,8 @@ Singleton {
       const current = root._savedDisplays[name];
       const config = Utils.isObject(current) ? Utils.clone(current) : root._seedMonitorConfig(root.monitors.get(index));
       Object.assign(config, Utils.clone(changes));
+      if (typeof changes.icc === "string" && changes.icc.trim() !== "")
+        config.lastIccProfile = changes.icc.trim();
       root._persist(root._withMonitorConfig(name, config), name, callback);
     });
   }
@@ -258,25 +255,26 @@ Singleton {
       _failControl(name, busy ? "A display change is already in progress" : "There is no saved display override to reset", null);
       return;
     }
-    const reset = Utils.clone(current);
-    for (const field of controls)
-      delete reset[field];
+    const index = findMonitorIndexByName(name);
+    if (index >= 0) {
+      setMonitorPropertyIfChanged(index, "iccProfile", "");
+      setMonitorPropertyIfChanged(index, "lastIccProfile", "");
+    }
+    const displays = Utils.clone(_savedDisplays);
+    delete displays[name];
     busy = true;
     _setMonitorState(name, true, "");
-    _persist(_withMonitorConfig(name, reset), name, null);
+    _persist(displays, name, null);
   }
-  function _maybeInitializeDisplayConfig(): void {
-    if (_initialConfigWritten || !canPersist || busy || !monitors.count || !toArray().every(monitor => monitor.featuresReady))
+  // Nothing is written at startup: a display with no saved rule keeps whatever the compositor's
+  // own config gives it, and setMonitorConfig seeds one lazily on the first change. The adapter's
+  // field list has to be known first, or _sanitizeDisplays would silently keep nothing.
+  function _loadSavedDisplays(): void {
+    if (_savedLoaded || !Settings.isLoaded || !controls.length)
       return;
-    const displays = _sanitizeDisplays(_storedDisplays());
-    _savedDisplays = Utils.clone(displays);
+    _savedLoaded = true;
+    _savedDisplays = _sanitizeDisplays(_storedDisplays());
     _syncStoredMetadata();
-    for (const monitor of toArray())
-      if (!Utils.isObject(displays[monitor.name]))
-        displays[monitor.name] = _seedMonitorConfig(monitor);
-    _initialConfigWritten = true;
-    busy = true;
-    _persist(displays, "", null);
   }
   function normalizeScreens(screens: var): var {
     return Array.from(screens).map(screen => {
@@ -351,6 +349,7 @@ Singleton {
       displayModel: text(features.displayModel, ""),
       currentModeKey: text(features.currentModeKey, ""),
       modeKeysText: Utils.toArray(features.modeKeys).filter(Boolean).join("\n"),
+      scaleKeysText: Utils.toArray(features.scaleKeys).join("\n"),
       colorMode: text(features.colorMode, "srgb"),
       transformMode: text(features.transformMode, current.transformMode),
       vrrMode: text(features.vrrMode, current.vrrMode),
@@ -371,6 +370,9 @@ Singleton {
   function refreshFeatures(): void {
     if (!backend?.fetchFeatures)
       return;
+    // Self-guarded, so this is just the retry that covers Settings loading and the backend
+    // resolving in either order. Missing the load would let setMonitorConfig seed over a saved rule.
+    _loadSavedDisplays();
     const adapter = backend;
     const runId = ++_featuresRunId;
     _loadEdidCaps(caps => {
@@ -383,7 +385,7 @@ Singleton {
           if (runId !== root._featuresRunId || !features || index < 0)
             return;
           root._applyFeatures(index, features, caps[name] ?? {});
-          root._maybeInitializeDisplayConfig();
+          root._syncStoredMetadata();
         });
       }
     });
@@ -404,8 +406,9 @@ Singleton {
   }
 
   onBackendChanged: {
-    _initialConfigWritten = false;
+    _savedLoaded = false;
     _savedDisplays = {};
+    _loadSavedDisplays();
     if (backend)
       refreshFeatures();
   }
@@ -445,7 +448,7 @@ Singleton {
   }
   Connections {
     function onIsLoadedChanged(): void {
-      root._maybeInitializeDisplayConfig();
+      root._loadSavedDisplays();
     }
 
     target: Settings
