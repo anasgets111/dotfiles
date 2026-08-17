@@ -12,6 +12,7 @@ local startup_commands = {
     "uwsm app -- Telegram",
     "uwsm app -- vesktop",
     "uwsm app -- slack",
+    "uwsm app -- yerdd",
 }
 
 hl.on("hyprland.start", function()

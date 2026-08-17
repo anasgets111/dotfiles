@@ -83,4 +83,12 @@ if status is-interactive
     set -gx PGHOST 127.0.0.1
     set -gx PGPORT 5432
     set -gx PGUSER root
+
+# >>> yerd PATH >>>
+if not contains "/home/anas/.local/share/yerd/bin" $PATH
+    set -gx PATH "/home/anas/.local/share/yerd/bin" $PATH
+end
+set -gx PHPRC "/home/anas/.local/share/yerd/php-cli.ini"
+# <<< yerd PATH <<<
+
 end

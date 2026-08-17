@@ -95,6 +95,7 @@ spawn-at-startup "Telegram"
 spawn-at-startup "vesktop"
 spawn-at-startup "thunderbird"
 spawn-at-startup "xdg-terminal-exec"
+spawn-at-startup "yerdd"
 
 // --- Workspaces ---
 // Named for app routing and niri-stash; Niri chooses outputs.
