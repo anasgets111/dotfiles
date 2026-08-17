@@ -8,84 +8,72 @@ import Quickshell.Hyprland
 Singleton {
   id: root
 
-  property int _revision: 0
-  readonly property var _state: _revision >= 0 ? _buildState() : null
-  readonly property var _structuralEvents: ["workspace", "workspacev2", "createworkspace", "createworkspacev2", "destroyworkspace", "destroyworkspacev2", "focusedmon", "focusedmonv2", "fullscreen", "monitoradded", "monitoraddedv2", "monitorremoved", "monitorremovedv2", "moveworkspace", "moveworkspacev2", "activespecial", "activespecialv2", "configreloaded", "openwindow", "closewindow", "movewindow", "movewindowv2"]
-  readonly property var _toplevelEvents: ["configreloaded", "fullscreen", "openwindow", "closewindow", "movewindow", "movewindowv2"]
   readonly property bool fillsEmptyWorkspaceSlots: true
   readonly property string focusedOutput: Hyprland.focusedMonitor?.name ?? ""
-  readonly property var fullscreenPopupContentTypes: _revision >= 0 ? new Map(Array.from(Hyprland.workspaces.values).filter(workspace => workspace.active && workspace.hasFullscreen).map(workspace => [workspace.monitor?.name ?? "", _fullscreenContentType(workspace.toplevels.values)]).filter(entry => entry[0])) : new Map()
+  readonly property var fullscreenPopupContentTypes: new Map(Array.from(Hyprland.workspaces.values).filter(workspace => workspace.active && workspace.hasFullscreen).map(workspace => [workspace.monitor?.name ?? "", _fullscreenContentType(workspace)]).filter(entry => entry[0]))
   readonly property bool fullscreenVisible: fullscreenPopupContentTypes.size > 0
-  readonly property var specialWorkspaces: _state.specialWorkspaces
+  readonly property var specialWorkspaces: {
+    const activeSpecials = new Set(Array.from(Hyprland.monitors.values).map(monitor => monitor.lastIpcObject?.specialWorkspace?.name).filter(Boolean));
+    return Array.from(Hyprland.workspaces.values).filter(workspace => (Number(workspace.name) || workspace.id) <= 0).map(workspace => ({
+          name: workspace.name,
+          active: activeSpecials.has(workspace.name)
+        }));
+  }
   readonly property bool supportsSpecialWorkspaces: true
-  readonly property var workspaces: _state.workspaces
-
-  function _buildState(): var {
-    const monitors = Array.from(Hyprland.monitors.values);
-    const activeSpecialNames = new Set(monitors.map(monitor => String(monitor.lastIpcObject?.specialWorkspace?.name ?? "")).filter(Boolean));
-
-    const regularWorkspaces = [];
-    const specialWorkspaces = [];
-
-    for (const rawWorkspace of Hyprland.workspaces.values) {
-      if (rawWorkspace.id < -1) {
-        specialWorkspaces.push({
-          active: activeSpecialNames.has(rawWorkspace.name),
-          name: rawWorkspace.name
-        });
-        continue;
-      }
-
-      if (rawWorkspace.id <= 0)
-        continue;
-
-      const outputName = rawWorkspace.monitor?.name ?? "";
-      const toplevels = Array.from(rawWorkspace.toplevels.values);
-      const windowCount = rawWorkspace.lastIpcObject?.windows ?? toplevels.length;
-
-      regularWorkspaces.push({
-        id: rawWorkspace.id,
-        idx: rawWorkspace.id,
-        focused: rawWorkspace.focused,
-        populated: windowCount > 0,
-        appId: _workspaceAppIdFrom(toplevels),
-        output: outputName
-      });
-    }
-
+  readonly property var workspaces: Array.from(Hyprland.workspaces.values).filter(workspace => (Number(workspace.name) || workspace.id) > 0).map(workspace => {
+    const id = Number(workspace.name) || workspace.id;
+    const windowCount = workspace.lastIpcObject?.windows ?? workspace.toplevels?.values?.length ?? 0;
     return {
-      specialWorkspaces,
-      workspaces: regularWorkspaces
+      id,
+      idx: id,
+      focused: workspace.focused,
+      populated: windowCount > 0,
+      appId: _workspaceAppId(workspace),
+      output: workspace.monitor?.name ?? ""
     };
+  })
+
+  function _fullscreenContentType(workspace: var): string {
+    const toplevels = Array.from(workspace?.toplevels?.values ?? []);
+    return toplevels.find(toplevel => (toplevel.lastIpcObject?.fullscreen ?? 0) > 0)?.lastIpcObject?.contentType ?? "";
   }
-  function _fullscreenContentType(toplevels: var): string {
-    return Array.from(toplevels).find(toplevel => (toplevel.lastIpcObject?.fullscreen ?? 0) > 0)?.lastIpcObject?.contentType ?? "";
+  function _selfCheck(): bool {
+    const mock = {
+      toplevels: {
+        values: [
+          {
+            wayland: {
+              appId: "first"
+            },
+            activated: false
+          },
+          {
+            wayland: {
+              appId: "focused"
+            },
+            activated: true
+          }
+        ]
+      }
+    };
+    return _workspaceAppId(mock) === "focused";
   }
-  function focusWorkspace(workspace: var): void {
-    if ((workspace?.idx ?? 0) > 0)
-      focusWorkspaceByIndex(workspace.idx);
-  }
-  function _workspaceAppIdFrom(toplevels: var): string {
+  function _workspaceAppId(workspace: var): string {
+    const toplevels = Array.from(workspace?.toplevels?.values ?? []);
     const activeToplevel = toplevels.find(toplevel => toplevel.activated) ?? toplevels[0];
     return activeToplevel?.wayland?.appId ?? activeToplevel?.lastIpcObject?.class ?? "";
   }
-  function _selfCheck(): bool {
-    const focusedApp = _workspaceAppIdFrom([
-      {wayland: {appId: "first"}, activated: false},
-      {wayland: {appId: "focused"}, activated: true}
-    ]);
-    return focusedApp === "focused" && _workspaceAppIdFrom([{lastIpcObject: {class: "first"}}]) === "first" && _fullscreenContentType([{lastIpcObject: {fullscreen: 2, contentType: "video"}}]) === "video" && _fullscreenContentType([{lastIpcObject: {fullscreen: 0, contentType: "video"}}]) === "";
+  function focusWorkspace(workspace: var): void {
+    focusWorkspaceByIndex(workspace?.idx ?? 0);
   }
   function focusWorkspaceByIndex(workspaceIndex: int): void {
     if (workspaceIndex > 0)
       Hyprland.dispatch(`hl.dsp.focus({ workspace = ${workspaceIndex} })`);
   }
-  function refresh(includeToplevels = true): void {
+  function refresh(): void {
     Hyprland.refreshMonitors();
-    if (includeToplevels)
-      Hyprland.refreshToplevels();
+    Hyprland.refreshToplevels();
     Hyprland.refreshWorkspaces();
-    _revision++;
   }
   function toggleSpecial(name: string): void {
     if (name)
@@ -101,15 +89,13 @@ Singleton {
   Connections {
     function onReloadCompleted() {
       root.refresh();
-      Qt.callLater(root.refresh);
     }
 
     target: Quickshell
   }
   Connections {
-    function onRawEvent(event: var): void {
-      if (root._structuralEvents.includes(event.name))
-        root.refresh(root._toplevelEvents.includes(event.name));
+    function onRawEvent() {
+      root.refresh();
     }
 
     target: Hyprland
