@@ -13,8 +13,7 @@ Singleton {
   readonly property var providers: [CurrencyProvider, CalcProvider]
 
   function activateSpecial(): void {
-    if (_active)
-      _active.activate();
+    _active?.activate();
   }
   function refresh(): void {
     CurrencyProvider.refreshIfStale();

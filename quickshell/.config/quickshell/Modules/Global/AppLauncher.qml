@@ -7,6 +7,7 @@ import qs.Components
 import qs.Config
 import qs.Modules.Global.Launcher
 import qs.Services.Utils
+import qs.Services.WM
 
 OModal {
   id: root
@@ -69,10 +70,9 @@ OModal {
     }
   }
   function launch(entry: var): void {
-    const id = String(entry?.id || "").replace(/\.desktop$/, "");
-    if (!id)
+    if (!entry?.id)
       return;
-    Command.detached(["gtk-launch", id]);
+    CompositorService.launchApp(entry.id);
     close();
   }
   function move(delta: int): void {
@@ -129,9 +129,8 @@ OModal {
       Layout.fillWidth: true
 
       ColumnLayout {
-        height: parent?.height ?? 0
+        anchors.fill: parent
         spacing: Theme.spacingXs
-        width: parent?.width ?? 0
 
         PanelRow {
           id: specialRow

@@ -10,6 +10,9 @@ Singleton {
   function exitSession(): void {
     backend?.exitSession?.();
   }
+  function launchApp(desktopId: string): void {
+    backend?.launchApp?.(desktopId);
+  }
   function setDisplaysPowered(powered: bool): bool {
     if (!backend?.setDpms)
       return false;
