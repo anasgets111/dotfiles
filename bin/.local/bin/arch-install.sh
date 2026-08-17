@@ -72,10 +72,10 @@ COMMON_PACKAGES=(
 	espeak-ng pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber
 
 	# System Utilities
-	gnome-keyring ly mkcert mold pacman-contrib pkgstats wl-clipboard wtype xdg-desktop-portal-gnome xdg-user-dirs
+	gnome-keyring ly mkcert mold pacman-contrib pkgstats wl-clipboard wl-clip-persist wtype xdg-desktop-portal-gnome xdg-user-dirs
 
 	# Shell & Terminal
-	bash-completion bat btop cliphist dysk expac eza fastfetch fd fish fzf kitty starship tealdeer zoxide xsel
+	bash-completion bat btop dysk expac eza fastfetch fd fish fzf kitty starship tealdeer zoxide xsel
 
 	# CLI Tools
 	7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools jq

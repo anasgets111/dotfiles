@@ -36,7 +36,7 @@ Optional features are detected at runtime:
 - Media visualization: `cava`.
 - System information: `nvtop`, `lm_sensors`, and `edid-decode`.
 - Arch updates: `checkupdates` from `pacman-contrib` and `expac`.
-- Clipboard persistence: `cliphist` on Hyprland or `wl-clip-persist` on Niri.
+- Clipboard persistence: `wl-clip-persist --clipboard regular`.
 - `hdrshot`: Hyprland, `flock`, `hyprshot`, `satty`, and `wl-copy`.
 
 Adjust package names for your distribution.
