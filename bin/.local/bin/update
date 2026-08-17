@@ -27,8 +27,7 @@ start_update() {
     [[ "$script_path" == /* ]] || script_path=$(type -P "$script_path")
     exec systemd-run --user --quiet --collect --pipe --same-dir \
         --unit="${UPDATE_UNIT%.service}" --setenv=OBELISK_UPDATE_WORKER=1 \
-        --setenv=CARGO_HOME --setenv=BUN_INSTALL \
-        --setenv=BUN_INSTALL_CACHE_DIR --setenv=FNM_PATH \
+        --setenv=CARGO_HOME --setenv=FNM_PATH \
         "$script_path"
 }
 
@@ -52,7 +51,6 @@ run_step "System Packages (pacman via run0)" \
 
 run_optional "Composer" composer composer global update
 run_optional "Node (fnm)" fnm bash -lc 'fnm install lts-latest && fnm default lts-latest'
-run_optional "Bun Binaries" bun bun update -g --latest
 run_optional "Rust Binaries" cargo-install-update cargo install-update -a
 run_optional "Rust Toolchain" rustup rustup update
 

@@ -165,7 +165,7 @@ Do not be lazy about understanding the problem, trust-boundary validation, data-
 
 ## Notable Files
 
-- `bin/.local/bin/update` — System-wide update orchestrator (pacman, bun, cargo, fnm)
+- `bin/.local/bin/update` — System-wide update orchestrator (pacman, composer, cargo, fnm)
 - `home/.profile` — XDG dirs, NVIDIA env vars, Wayland toolkit config, PATH
 - `fish/.config/fish/conf.d/various.fish` — Custom fish functions
 - `quickshell/.config/quickshell/.qmlformat.ini` — QML formatting rules

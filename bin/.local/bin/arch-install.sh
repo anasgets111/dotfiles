@@ -2,6 +2,9 @@
 # =============================================================================
 # Arch Linux Custom Installation Script
 # Systems: Wolverine (Ryzen 5900X + RTX 3080) | Mentalist (Intel i9 13900H)
+#
+# Run from Arch Linux live ISO:
+# curl -fsSL -o arch-install.sh https://raw.githubusercontent.com/anasgets111/dotfiles/main/bin/.local/bin/arch-install.sh && bash arch-install.sh
 # =============================================================================
 
 set -euo pipefail
@@ -48,7 +51,6 @@ TARGET_ROOT="/mnt"
 declare SYSTEM_PROFILE=""
 declare HOSTNAME=""
 declare SYSTEM_DESCRIPTION=""
-declare INSTALL_PHP_STACK=false
 declare NEXT_CHECKPOINT=""
 declare INSTALL_STATE_FILE="$RUNTIME_DIR/state"
 INSTALL_COMPLETE_MARKER="complete"
@@ -61,26 +63,26 @@ declare ROOT_PARTITION=""
 
 COMMON_PACKAGES=(
 	# Base System
-	base base-devel linux linux-firmware networkmanager mandoc man
+	base base-devel linux linux-firmware networkmanager mandoc man efibootmgr
 
 	# Hardware & Firmware
-	bluez gnome-firmware i2c-tools lshw plymouth wireless-regdb zram-generator
+	bluez bluez-utils gnome-firmware i2c-tools lshw plymouth wireless-regdb zram-generator
 
 	# Audio & Accessibility
 	espeak-ng pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber
 
 	# System Utilities
-	gnome-keyring ly mkcert mold pacman-contrib pkgstats xdg-desktop-portal-gnome
+	gnome-keyring ly mkcert mold pacman-contrib pkgstats wl-clipboard xdg-desktop-portal-gnome xdg-user-dirs
 
 	# Shell & Terminal
 	bash-completion bat btop cliphist dysk expac eza fastfetch fd fish fzf kitty starship tealdeer zoxide xsel
 
 	# CLI Tools
-	7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools
-	less neovim ripgrep rsync shfmt slurp stow tokei tree-sitter-cli unrar wget zip
+	7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools jq
+	less neovim ripgrep rsync sassc shfmt slurp stow stylua tokei tree-sitter-cli unzip unrar wget zip
 
-	# Development
-	bun just rustup
+	# Development & AI
+	just opencode rustup
 
 	# Desktop Environment & Apps
 	gnome-calculator gnome-disk-utility gnome-text-editor kdeconnect
@@ -99,11 +101,6 @@ COMMON_PACKAGES=(
 	adobe-source-code-pro-fonts gnu-free-fonts inter-font noto-fonts-emoji noto-fonts-extra opendesktop-fonts
 	otf-font-awesome terminus-font ttf-bitstream-vera ttf-cascadia-code-nerd ttf-fira-code ttf-firacode-nerd ttf-liberation
 	ttf-roboto-mono-nerd ttf-scheherazade-new
-)
-
-PHP_PACKAGES=(
-	# PHP Stack
-	composer dnsmasq mariadb-clients nginx php-fpm php-gd php-imagick php-pgsql php-redis php-snmp php-sodium php-sqlite php-xsl podman-compose
 )
 
 MENTALIST_PACKAGES=(
@@ -141,9 +138,11 @@ COMMON_EXTRA_PACKAGES=(
 	# Shell
 	fish-autopair fnm
 	# Desktop
-	nautilus-code-git xdg-terminal-exec-git gpu-screen-recorder-git
+	nautilus-code-git xdg-terminal-exec-git gpu-screen-recorder-git quickshell-git
 	# Communication
 	vesktop slack-desktop rustdesk-bin
+	# AI & Voice
+	claude-code piper-tts-git voxtype-bin
 	# Apps
 	zen-browser-bin subliminal-git
 	# Fonts
@@ -240,12 +239,12 @@ apply_system_profile() {
 save_install_state() {
 	local state_file="${1:-$INSTALL_STATE_FILE}"
 	local state_tmp
-	# One field per line: checkpoint, profile, boot partition, root partition, PHP choice.
+	# One field per line: checkpoint, profile, boot partition, root partition.
 	(
 		umask 077
 		state_tmp=$(mktemp "${state_file}.tmp.XXXXXX")
 		trap 'rm -f -- "$state_tmp"' EXIT
-		printf '%s\n' "$NEXT_CHECKPOINT" "$SYSTEM_PROFILE" "$BOOT_PARTITION" "$ROOT_PARTITION" "$INSTALL_PHP_STACK" >"$state_tmp"
+		printf '%s\n' "$NEXT_CHECKPOINT" "$SYSTEM_PROFILE" "$BOOT_PARTITION" "$ROOT_PARTITION" >"$state_tmp"
 		mv -f -- "$state_tmp" "$state_file"
 		trap - EXIT
 	)
@@ -255,20 +254,17 @@ load_install_state() {
 	[[ -f "$INSTALL_STATE_FILE" && ! -L "$INSTALL_STATE_FILE" && -O "$INSTALL_STATE_FILE" ]] || return 1
 	local -a state_fields
 	mapfile -t state_fields <"$INSTALL_STATE_FILE"
-	((${#state_fields[@]} == 5)) || return 1
+	((${#state_fields[@]} == 4)) || return 1
 	local next_checkpoint="${state_fields[0]}"
 	local system_profile="${state_fields[1]}"
 	local boot_partition="${state_fields[2]}"
 	local root_partition="${state_fields[3]}"
-	local install_php_stack="${state_fields[4]}"
 	[[ "$system_profile" == wolverine || "$system_profile" == mentalist ]] || return 1
-	[[ "$install_php_stack" == true || "$install_php_stack" == false ]] || return 1
 
 	NEXT_CHECKPOINT="$next_checkpoint"
 	SYSTEM_PROFILE="$system_profile"
 	BOOT_PARTITION="$boot_partition"
 	ROOT_PARTITION="$root_partition"
-	INSTALL_PHP_STACK="$install_php_stack"
 	apply_system_profile
 }
 
@@ -423,14 +419,6 @@ ensure_network_connection() {
 	log_success "Connected to Wi-Fi"
 }
 
-choose_optional_packages() {
-	log_step "Installation options"
-
-	local response
-	read -rp "Do you want to install the PHP stack? [y/N]: " response
-	[[ "$response" =~ ^[Yy]$ ]] && INSTALL_PHP_STACK=true || INSTALL_PHP_STACK=false
-}
-
 select_partitions() {
 	log_step "Partition selection"
 
@@ -500,7 +488,6 @@ confirm_and_format_partitions() {
 	printf 'Timezone:       %s\n' "$TIMEZONE"
 	printf 'Locale:         %s\n' "$LOCALE"
 	printf 'Type:           %s\n' "$SYSTEM_DESCRIPTION"
-	printf 'PHP stack:      %s\n' "$INSTALL_PHP_STACK"
 	printf '%s\n' "$summary_separator"
 	printf '\n'
 
@@ -582,10 +569,6 @@ install_base_system() {
 	log_step "Installing base system"
 
 	local packages=("${COMMON_PACKAGES[@]}" "${PROFILE_PACKAGES[@]}")
-	if [[ "$INSTALL_PHP_STACK" == true ]]; then
-		packages+=("${PHP_PACKAGES[@]}")
-	fi
-
 	log_info "Installing ${#packages[@]} packages..."
 	pacstrap -K "$TARGET_ROOT" "${packages[@]}"
 
@@ -820,7 +803,7 @@ bootstrap_user_environment() {
 
 	local dotfiles_directory="/mnt/Work/1Progs/Dots"
 	local backup_script="$dotfiles_directory/bin/.local/bin/backup-home"
-	local stow_packages=(bin kitty quickshell fish nvim mpv "${PROFILE_STOW_PACKAGES[@]}")
+	local stow_packages=(home config bin kitty quickshell fish nvim mpv "${PROFILE_STOW_PACKAGES[@]}")
 
 	if ! mountpoint -q /mnt/Work; then
 		log_info "/mnt/Work is not mounted; attempting mount from fstab..."
@@ -839,10 +822,23 @@ bootstrap_user_environment() {
 		log_warning "backup-home restore failed (or script missing); continuing."
 	fi
 
+	# shellcheck disable=SC2016
 	run_as_user 'rm -f "$HOME/.bashrc" "$HOME/.bash_profile"'
+	# shellcheck disable=SC2016
 	run_as_user 'cd "$1" && shift && stow -t "$HOME" "$@"' \
 		"$dotfiles_directory" "${stow_packages[@]}"
-	run_as_user 'yay -S --needed --noconfirm --removemake --cleanafter antigravity quickshell-git'
+
+	install -d -m 0750 /etc/sudoers.d
+	echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" >/etc/sudoers.d/99-installer-temp
+	# shellcheck disable=SC2016
+	run_as_user 'yay -S --needed --noconfirm --removemake --cleanafter antigravity-cli'
+	rm -f /etc/sudoers.d/99-installer-temp
+
+	local reboot_hook_script="$dotfiles_directory/bin/.local/bin/setup-reboot-required"
+	if [[ -x "$reboot_hook_script" ]]; then
+		log_info "Installing reboot-required pacman hook"
+		"$reboot_hook_script" || log_warning "Failed to install reboot-required hook; continuing."
+	fi
 
 	log_success "Post-user bootstrap complete"
 }
@@ -870,7 +866,6 @@ reset_install_state() {
 	SYSTEM_PROFILE=""
 	HOSTNAME=""
 	SYSTEM_DESCRIPTION=""
-	INSTALL_PHP_STACK=false
 	BOOT_PARTITION=""
 	ROOT_PARTITION=""
 }
@@ -901,7 +896,6 @@ live_main() {
 	local -a live_step_functions=(
 		detect_system_profile
 		ensure_network_connection
-		choose_optional_packages
 		select_partitions
 		confirm_and_format_partitions
 		mount_filesystems
@@ -984,43 +978,32 @@ self_check() {
 	NEXT_CHECKPOINT=enable_system_services
 	BOOT_PARTITION=/dev/example1
 	ROOT_PARTITION=/dev/example2
-	INSTALL_PHP_STACK=true
 	save_install_state
 	[[ "$(umask)" == "$original_umask" ]]
 	[[ "$(stat -c '%a' "$INSTALL_STATE_FILE")" == 600 ]]
-	NEXT_CHECKPOINT="" SYSTEM_PROFILE="" BOOT_PARTITION="" ROOT_PARTITION="" INSTALL_PHP_STACK=false
+	NEXT_CHECKPOINT="" SYSTEM_PROFILE="" BOOT_PARTITION="" ROOT_PARTITION=""
 	load_install_state
 	[[ "$NEXT_CHECKPOINT" == enable_system_services ]]
 	[[ "$SYSTEM_PROFILE" == mentalist ]]
 	[[ "$BOOT_PARTITION" == /dev/example1 ]]
 	[[ "$ROOT_PARTITION" == /dev/example2 ]]
-	[[ "$INSTALL_PHP_STACK" == true ]]
 
 	# Invalid state must be rejected without partially replacing the current plan.
-	printf '%s\n' enable_system_services mentalist /dev/example1 /dev/example2 maybe >"$INSTALL_STATE_FILE"
-	if load_install_state; then
-		log_error "Self-check accepted an invalid state boolean"
-		return 1
-	fi
-	[[ "$NEXT_CHECKPOINT" == enable_system_services ]]
-	[[ "$SYSTEM_PROFILE" == mentalist ]]
-	[[ "$INSTALL_PHP_STACK" == true ]]
-
-	printf '%s\n' enable_system_services unknown /dev/example1 /dev/example2 true >"$INSTALL_STATE_FILE"
+	printf '%s\n' enable_system_services unknown /dev/example1 /dev/example2 >"$INSTALL_STATE_FILE"
 	if load_install_state; then
 		log_error "Self-check accepted an unknown profile"
 		return 1
 	fi
 	[[ "$SYSTEM_PROFILE" == mentalist ]]
 
-	printf '%s\n' enable_system_services mentalist /dev/example1 /dev/example2 >"$INSTALL_STATE_FILE"
+	printf '%s\n' enable_system_services mentalist /dev/example1 >"$INSTALL_STATE_FILE"
 	if load_install_state; then
 		log_error "Self-check accepted a truncated state file"
 		return 1
 	fi
 
 	local state_target="$self_check_dir/state-target"
-	printf '%s\n' enable_system_services mentalist /dev/example1 /dev/example2 true >"$state_target"
+	printf '%s\n' enable_system_services mentalist /dev/example1 /dev/example2 >"$state_target"
 	rm -f "$INSTALL_STATE_FILE"
 	ln -s "$state_target" "$INSTALL_STATE_FILE"
 	if load_install_state; then
@@ -1043,7 +1026,6 @@ self_check() {
 	apply_system_profile
 	BOOT_PARTITION=/dev/example1
 	ROOT_PARTITION=/dev/example2
-	INSTALL_PHP_STACK=true
 	NEXT_CHECKPOINT=""
 	: >"$step_log"
 	run_resumable_steps _self_check_step_one _self_check_step_two _self_check_step_three
