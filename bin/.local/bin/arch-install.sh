@@ -212,7 +212,7 @@ apply_pacman_defaults() {
 run_as_user() {
 	local command_string="$1"
 	shift
-	sudo -iu "$USERNAME" -- bash -c "$command_string" bash "$@"
+	sudo -u "$USERNAME" -H -- bash -c "$command_string" bash "$@"
 }
 
 apply_system_profile() {
