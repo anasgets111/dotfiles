@@ -1,6 +1,6 @@
 local mod = "SUPER"
-local file_manager = "nautilus"
-local browser = "zen-browser"
+local file_manager = "uwsm app -- nautilus"
+local browser = "uwsm app -- zen-browser"
 local menu = "quickshell ipc call launcher toggle"
 local lock_command = "quickshell ipc call lock lock"
 
@@ -73,13 +73,13 @@ local keybinds = {
     -- Apps and utilities
     { mod .. " + E",                                     hl.dsp.exec_cmd(file_manager) },
     { mod .. " + B",                                     hl.dsp.exec_cmd(browser) },
-    { "CTRL + ALT + Delete",                             hl.dsp.exec_cmd("missioncenter") },
+    { "CTRL + ALT + Delete",                             hl.dsp.exec_cmd("uwsm app -- missioncenter") },
     { mod .. " + space",                                 hl.dsp.exec_cmd(menu) },
-    { mod .. " + C",                                     hl.dsp.exec_cmd("cursor") },
-    { mod .. " + A",                                     hl.dsp.exec_cmd("antigravity.sh") },
-    { mod .. " + Z",                                     hl.dsp.exec_cmd("WAYLAND_DISPLAY='' zeditor") },
-    { mod .. " + H",                                     hl.dsp.exec_cmd("heroic", { workspace = "6" }) },
-    { mod .. " + G",                                     hl.dsp.exec_cmd("steam", { workspace = "6" }) },
+    { mod .. " + C",                                     hl.dsp.exec_cmd("uwsm app -- cursor") },
+    { mod .. " + A",                                     hl.dsp.exec_cmd("uwsm app -- antigravity.sh") },
+    { mod .. " + Z",                                     hl.dsp.exec_cmd("uwsm app -- env WAYLAND_DISPLAY='' zeditor") },
+    { mod .. " + H",                                     hl.dsp.exec_cmd("uwsm app -- heroic", { workspace = "6" }) },
+    { mod .. " + G",                                     hl.dsp.exec_cmd("uwsm app -- steam", { workspace = "6" }) },
     { mod .. " + n",                                     hl.dsp.exec_cmd("say --clipboard") },
     { mod .. " + CTRL + S",                              hl.dsp.exec_cmd("voxtype record toggle") },
     { mod .. " + M",                                     hl.dsp.exec_cmd("quickshell ipc call mic mute") },
@@ -103,7 +103,7 @@ local keybinds = {
     { "XF86AudioNext",                       hl.dsp.exec_cmd("playerctl next"),                               { locked = true } },
     { { "XF86AudioPause", "XF86AudioPlay" }, hl.dsp.exec_cmd("playerctl play-pause"),                         { locked = true } },
     { "XF86AudioPrev",                       hl.dsp.exec_cmd("playerctl previous"),                           { locked = true } },
-    { "XF86Calculator",                      hl.dsp.exec_cmd("gnome-calculator"),                             { locked = true } },
+    { "XF86Calculator",                      hl.dsp.exec_cmd("uwsm app -- gnome-calculator"),                             { locked = true } },
 
     -- Screenshots
     { "Print",                               hl.dsp.exec_cmd("hdrshot region") },

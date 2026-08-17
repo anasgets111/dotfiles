@@ -28,7 +28,7 @@ fi
 
 # Wayland
 export QT_QPA_PLATFORM=wayland
-export GDK_BACKEND=wayland
+export GDK_BACKEND="wayland,x11,*"
 export CLUTTER_BACKEND=wayland
 export MOZ_ENABLE_WAYLAND=1
 export ELECTRON_OZONE_PLATFORM_HINT=auto
