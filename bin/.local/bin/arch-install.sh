@@ -169,6 +169,17 @@ declare -a PROFILE_INITRAMFS_MODULES=()
 
 # HELPER FUNCTIONS
 
+is_protected_partition() {
+	local dev="$1"
+	local label
+	label=$(blkid -s LABEL -o value "$dev" 2>/dev/null || true)
+	local protected
+	for protected in "${AUXILIARY_PARTITION_LABELS[@]}" Ventoy VTOYEFI; do
+		[[ -n "$label" && "$label" == "$protected" ]] && return 0
+	done
+	return 1
+}
+
 set_password_with_retry() {
 	local target_label="$1"
 	shift
@@ -426,12 +437,19 @@ select_partitions() {
 	lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINT
 	printf '\n'
 
-	# Get list of partitions (exclude whole disks, only partitions)
-	local -a partitions
-	mapfile -t partitions < <(lsblk -lnpo NAME,SIZE,FSTYPE,LABEL | grep -E "^/dev/(nvme[0-9]+n[0-9]+p|sd[a-z]|vd[a-z])[0-9]")
+	# Get list of partitions (exclude whole disks and protected data partitions)
+	local -a raw_partitions partitions=()
+	mapfile -t raw_partitions < <(lsblk -lnpo NAME,SIZE,FSTYPE,LABEL | grep -E "^/dev/(nvme[0-9]+n[0-9]+p|sd[a-z]|vd[a-z])[0-9]")
+
+	local raw_entry raw_dev
+	for raw_entry in "${raw_partitions[@]}"; do
+		raw_dev="${raw_entry%% *}"
+		is_protected_partition "$raw_dev" && continue
+		partitions+=("$raw_entry")
+	done
 
 	if [[ ${#partitions[@]} -eq 0 ]]; then
-		log_error "No partitions found!"
+		log_error "No eligible (unprotected) partitions found!"
 		exit 1
 	fi
 
@@ -475,6 +493,10 @@ select_partitions() {
 confirm_and_format_partitions() {
 	log_step "Formatting partitions"
 
+	local boot_details root_details
+	boot_details=$(lsblk -dno SIZE,FSTYPE,LABEL "$BOOT_PARTITION" 2>/dev/null | xargs)
+	root_details=$(lsblk -dno SIZE,FSTYPE,LABEL "$ROOT_PARTITION" 2>/dev/null | xargs)
+
 	local summary_separator="=============================================="
 	local response
 	printf '\n'
@@ -482,8 +504,8 @@ confirm_and_format_partitions() {
 	printf '%s\n' "           INSTALLATION SUMMARY"
 	printf '%s\n' "$summary_separator"
 	printf 'Hostname:       %s\n' "$HOSTNAME"
-	printf 'Boot Partition: %s\n' "$BOOT_PARTITION"
-	printf 'Root Partition: %s\n' "$ROOT_PARTITION"
+	printf 'Boot Partition: %s (%s)\n' "$BOOT_PARTITION" "${boot_details:-boot}"
+	printf 'Root Partition: %s (%s)\n' "$ROOT_PARTITION" "${root_details:-root}"
 	printf 'Username:       %s\n' "$USERNAME"
 	printf 'Timezone:       %s\n' "$TIMEZONE"
 	printf 'Locale:         %s\n' "$LOCALE"
@@ -491,7 +513,12 @@ confirm_and_format_partitions() {
 	printf '%s\n' "$summary_separator"
 	printf '\n'
 
-	log_warning "This will ERASE all data on $BOOT_PARTITION and $ROOT_PARTITION!"
+	if is_protected_partition "$BOOT_PARTITION" || is_protected_partition "$ROOT_PARTITION"; then
+		log_error "Refusing to format protected partition (Work/Media/Games/Ventoy)!"
+		exit 1
+	fi
+
+	log_warning "This will ERASE all data on $BOOT_PARTITION (${boot_details:-boot}) and $ROOT_PARTITION (${root_details:-root})!"
 	read -rp "Are you sure you want to continue? [y/N]: " response
 	[[ "$response" =~ ^[Yy]$ ]] || {
 		log_error "Aborted by user"
@@ -580,18 +607,17 @@ generate_fstab() {
 
 	genfstab -L "$TARGET_ROOT" >"$TARGET_ROOT/etc/fstab"
 
-	# Auxiliary partitions
-	local mount_options="nosuid,nodev,nofail,x-gvfs-show,x-systemd.makedir,noatime"
-	local label
+	local mount_opts="nosuid,nodev,nofail,x-gvfs-show,x-systemd.makedir,noatime"
+	local label entry
 	for label in "${AUXILIARY_PARTITION_LABELS[@]}"; do
 		blkid -L "$label" &>/dev/null || continue
-		local fstab_entry="LABEL=$label  /mnt/$label  ext4  $mount_options  0 2"
+		entry="LABEL=$label  /mnt/$label  ext4  $mount_opts  0 2"
 		if grep -qE "^[[:space:]]*LABEL=${label}[[:space:]]+" "$TARGET_ROOT/etc/fstab"; then
 			log_info "Updating fstab options for $label"
-			sed -i "s|^[[:space:]]*LABEL=${label}[[:space:]].*|$fstab_entry|" "$TARGET_ROOT/etc/fstab"
+			sed -i "s|^[[:space:]]*LABEL=${label}[[:space:]].*|$entry|" "$TARGET_ROOT/etc/fstab"
 		else
 			log_info "Adding $label partition to fstab"
-			printf '%s\n' "$fstab_entry" >>"$TARGET_ROOT/etc/fstab"
+			printf '%s\n' "$entry" >>"$TARGET_ROOT/etc/fstab"
 		fi
 	done
 
