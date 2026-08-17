@@ -5,7 +5,6 @@ local startup_commands = {
     "uwsm app -- quickshell",
     "systemctl --user enable --now cliphist.service",
     "uwsm app -- kdeconnectd",
-    "uwsm app -- speech-dispatcher",
     "uwsm app -- chromium",
     "uwsm app -- zeditor",
     "uwsm app -- qbittorrent",
