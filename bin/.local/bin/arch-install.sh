@@ -63,7 +63,7 @@ declare ROOT_PARTITION=""
 
 COMMON_PACKAGES=(
 	# Base System
-	base base-devel linux linux-firmware networkmanager mandoc man efibootmgr
+	base base-devel linux linux-firmware networkmanager mandoc man-pages efibootmgr
 
 	# Hardware & Firmware
 	bluez bluez-utils gnome-firmware i2c-tools lshw plymouth wireless-regdb zram-generator
