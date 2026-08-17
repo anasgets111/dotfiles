@@ -82,7 +82,7 @@ COMMON_PACKAGES=(
 	less neovim ripgrep rsync sassc shfmt slurp stow stylua tokei tree-sitter-cli unzip unrar wget zip
 
 	# Development & AI
-	just opencode rustup
+	just openai-codex opencode rustup
 
 	# Desktop Environment & Apps
 	gnome-calculator gnome-disk-utility gnome-text-editor kdeconnect
@@ -131,8 +131,8 @@ WOLVERINE_PACKAGES=(
 # ADDITIONAL BINARY REPOSITORY PACKAGES (post-chroot pacman)
 
 COMMON_EXTRA_PACKAGES=(
-	# Package management
-	rate-mirrors yay
+	# Package management & Tools
+	rate-mirrors shellcheck-bin yay
 	# Theming
 	bibata-cursor-theme
 	# Shell
