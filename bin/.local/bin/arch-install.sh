@@ -43,7 +43,7 @@ LOCALE="en_US.UTF-8"
 VCONSOLE_KEYMAP="us"
 USERNAME="anas"
 USER_FULLNAME="Anas Khalifa"
-USER_GROUPS="wheel"
+USER_GROUPS="wheel,input"
 WIFI_SSID="Ghuzlan_5G"
 TARGET_ROOT="/mnt"
 
@@ -72,7 +72,7 @@ COMMON_PACKAGES=(
 	espeak-ng pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber
 
 	# System Utilities
-	gnome-keyring ly mkcert mold pacman-contrib pkgstats wl-clipboard xdg-desktop-portal-gnome xdg-user-dirs
+	gnome-keyring ly mkcert mold pacman-contrib pkgstats wl-clipboard wtype xdg-desktop-portal-gnome xdg-user-dirs
 
 	# Shell & Terminal
 	bash-completion bat btop cliphist dysk expac eza fastfetch fd fish fzf kitty starship tealdeer zoxide xsel
