@@ -849,9 +849,17 @@ bootstrap_user_environment() {
 	fi
 
 	# shellcheck disable=SC2016
-	run_as_user 'rm -f "$HOME/.bashrc" "$HOME/.bash_profile"'
+	run_as_user '
+		rm -f "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.bash_logout"
+		for pkg in fish kitty quickshell nvim mpv hypr niri; do
+			target="$HOME/.config/$pkg"
+			if [[ -e "$target" && ! -L "$target" ]]; then
+				rm -rf "$target"
+			fi
+		done
+	'
 	# shellcheck disable=SC2016
-	run_as_user 'cd "$1" && shift && stow -t "$HOME" "$@"' \
+	run_as_user 'cd "$1" && shift && stow -R -t "$HOME" "$@"' \
 		"$dotfiles_directory" "${stow_packages[@]}"
 
 	install -d -m 0750 /etc/sudoers.d
