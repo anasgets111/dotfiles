@@ -11,19 +11,13 @@ PanelContentBase {
   id: root
 
   readonly property string connectError: root.errorDismissed ? "" : NetworkService.connectError
-  readonly property var connectedNetwork: NetworkService.connectedWifiAp
-  readonly property string connectingSsid: NetworkService.connectingSsid
   property bool errorDismissed: false
-  readonly property string ethernetInterface: NetworkService.ethernetInterface
   property string expandedSsid: ""
   property bool isHiddenTarget: false
-  readonly property bool networkingEnabled: NetworkService.networkingEnabled
-  readonly property bool ready: NetworkService.ready
   property bool scanning: false
-  readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && connectingSsid !== targetSsid && (networkForSsid(targetSsid)?.secured ?? true)
+  readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && NetworkService.connectingSsid !== targetSsid && (networkForSsid(targetSsid)?.secured ?? true)
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
   property string targetSsid: ""
-  readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
 
   function connectToNetwork(ssid: string): void {
     const ap = networkForSsid(ssid);
@@ -46,8 +40,7 @@ PanelContentBase {
     return mbps >= 1000 ? `${mbps / 1000} Gb/s` : `${mbps} Mb/s`;
   }
   function networkForSsid(ssid: string): var {
-    const aps = NetworkService.wifiAps ?? [];
-    return aps.find(a => a?.ssid === ssid) || null;
+    return NetworkService.wifiAps.find(a => a?.ssid === ssid) || null;
   }
   function resetConnectionState(): void {
     isHiddenTarget = false;
@@ -66,7 +59,7 @@ PanelContentBase {
   }
 
   flatContainer: true
-  needsKeyboardFocus: showSsidInput || showPasswordInput || (expandedSsid !== "" && connectingSsid === "")
+  needsKeyboardFocus: showSsidInput || showPasswordInput || (expandedSsid !== "" && NetworkService.connectingSsid === "")
   preferredHeight: mainLayout.implicitHeight + Theme.spacingMd * 2
   preferredWidth: Theme.networkPanelWidth
 
@@ -114,16 +107,16 @@ PanelContentBase {
 
     PanelHeader {
       Layout.bottomMargin: Theme.spacingMd
-      accent: root.networkingEnabled && root.ready ? Theme.activeColor : Theme.textInactiveColor
+      accent: NetworkService.networkingEnabled && NetworkService.ready ? Theme.activeColor : Theme.textInactiveColor
       icon: NetworkService.linkType === "wifi" ? "󰤨" : NetworkService.linkType === "ethernet" ? "󰈀" : "󱘖"
-      subtitle: !root.ready ? qsTr("Unavailable") : !root.networkingEnabled ? qsTr("Off") : NetworkService.linkType === "ethernet" ? qsTr("Ethernet connected") : root.connectedNetwork ? root.connectedNetwork.ssid : qsTr("Not connected")
+      subtitle: !NetworkService.ready ? qsTr("Unavailable") : !NetworkService.networkingEnabled ? qsTr("Off") : NetworkService.linkType === "ethernet" ? qsTr("Ethernet connected") : NetworkService.connectedWifiAp ? NetworkService.connectedWifiAp.ssid : qsTr("Not connected")
       title: qsTr("Network")
 
       PanelActionIcon {
         icon: "󰑐"
         tint: Theme.textInactiveColor
         tooltipText: qsTr("Rescan")
-        visible: root.wifiEnabled && root.networkingEnabled && !root.scanning
+        visible: NetworkService.wifiRadioEnabled && NetworkService.networkingEnabled && !root.scanning
 
         onClicked: {
           NetworkService.rescanWifi();
@@ -137,8 +130,8 @@ PanelContentBase {
         spinnerSize: Theme.iconSizeMd
       }
       OToggle {
-        checked: root.networkingEnabled
-        disabled: !root.ready
+        checked: NetworkService.networkingEnabled
+        disabled: !NetworkService.ready
 
         onToggled: c => NetworkService.setNetworkingEnabled(c)
       }
@@ -147,23 +140,23 @@ PanelContentBase {
       Layout.bottomMargin: Theme.spacingMd
       Layout.fillWidth: true
       spacing: Theme.spacingXs
-      visible: root.networkingEnabled
+      visible: NetworkService.networkingEnabled
 
       PanelToggleCard {
-        active: root.ready
-        checked: root.wifiEnabled
-        detail: root.connectedNetwork ? [NetworkService.wifiIpAddress, root.formatBandLabel(root.connectedNetwork.band)].filter(Boolean).join(" · ") : ""
+        active: NetworkService.ready
+        checked: NetworkService.wifiRadioEnabled
+        detail: NetworkService.connectedWifiAp ? [NetworkService.wifiIpAddress, root.formatBandLabel(NetworkService.connectedWifiAp.band)].filter(Boolean).join(" · ") : ""
         icon: "󰤨"
         label: qsTr("Wi-Fi")
 
         onToggled: c => NetworkService.setWifiRadioEnabled(c)
       }
       PanelToggleCard {
-        active: root.ready && root.ethernetInterface !== ""
+        active: NetworkService.ready && NetworkService.ethernetInterface !== ""
         checked: NetworkService.ethernetOnline
         detail: NetworkService.ethernetOnline ? [NetworkService.ethernetIpAddress, root.formatEthernetSpeed(NetworkService.ethernetSpeed)].filter(Boolean).join(" · ") : ""
         icon: "󰈀"
-        label: root.ethernetInterface !== "" ? qsTr("Ethernet") : qsTr("No Ethernet")
+        label: NetworkService.ethernetInterface !== "" ? qsTr("Ethernet") : qsTr("No Ethernet")
 
         onToggled: c => c ? NetworkService.connectEthernet() : NetworkService.disconnectEthernet()
       }
@@ -222,7 +215,7 @@ PanelContentBase {
     ColumnLayout {
       Layout.fillWidth: true
       spacing: 0
-      visible: !root.isHiddenTarget && root.wifiEnabled && root.networkingEnabled
+      visible: !root.isHiddenTarget && NetworkService.wifiRadioEnabled && NetworkService.networkingEnabled
 
       Rectangle {
         Layout.fillWidth: true
@@ -238,7 +231,7 @@ PanelContentBase {
           interactive: contentHeight > height
           model: ScriptModel {
             objectProp: "ssid"
-            values: (root.connectedNetwork ? [root.connectedNetwork] : []).concat(NetworkService.viewWifiAps)
+            values: (NetworkService.connectedWifiAp ? [NetworkService.connectedWifiAp] : []).concat(NetworkService.viewWifiAps)
           }
           section.criteria: ViewSection.FullString
           section.property: "group"
@@ -251,8 +244,8 @@ PanelContentBase {
           delegate: NetworkRow {
             required property var modelData
 
-            blockedByOtherConnection: root.connectingSsid !== "" && root.connectingSsid !== modelData.ssid
-            connecting: root.connectingSsid !== "" && root.connectingSsid === modelData.ssid
+            blockedByOtherConnection: NetworkService.connectingSsid !== "" && NetworkService.connectingSsid !== modelData.ssid
+            connecting: NetworkService.connectingSsid !== "" && NetworkService.connectingSsid === modelData.ssid
             errorMessage: root.expandedSsid === modelData.ssid ? root.connectError : ""
             expanded: root.expandedSsid === modelData.ssid
             network: modelData
@@ -298,9 +291,9 @@ PanelContentBase {
       Layout.fillHeight: true
       Layout.fillWidth: true
       Layout.minimumHeight: 120
-      icon: !root.networkingEnabled ? "󱘖" : !root.wifiEnabled ? "󰤮" : "󰤭"
-      text: !root.networkingEnabled ? qsTr("Networking disabled") : !root.wifiEnabled ? qsTr("Wi-Fi off") : root.scanning ? qsTr("Scanning…") : qsTr("No networks found")
-      visible: !root.networkingEnabled || !root.wifiEnabled || (!root.isHiddenTarget && NetworkService.savedWifiAps.length === 0 && NetworkService.availableWifiAps.length === 0)
+      icon: !NetworkService.networkingEnabled ? "󱘖" : !NetworkService.wifiRadioEnabled ? "󰤮" : "󰤭"
+      text: !NetworkService.networkingEnabled ? qsTr("Networking disabled") : !NetworkService.wifiRadioEnabled ? qsTr("Wi-Fi off") : root.scanning ? qsTr("Scanning…") : qsTr("No networks found")
+      visible: !NetworkService.networkingEnabled || !NetworkService.wifiRadioEnabled || (!root.isHiddenTarget && !NetworkService.connectedWifiAp && NetworkService.viewWifiAps.length === 0)
     }
   }
 

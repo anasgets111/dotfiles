@@ -8,8 +8,8 @@ import qs.Services.UI
 Item {
   id: root
 
-  readonly property var ap: ready ? NetworkService.connectedWifiAp : null
-  readonly property string band: String(ap?.band ?? "")
+  readonly property var ap: NetworkService.connectedWifiAp
+  readonly property string band: ap?.band ?? ""
   readonly property string detail1: {
     if (!ready)
       return "";
@@ -42,8 +42,8 @@ Item {
     }
     return "";
   }
-  readonly property string ssid: String(ap?.ssid ?? "")
-  readonly property int strength: typeof ap?.signal === "number" ? ap.signal : 0
+  readonly property string ssid: ap?.ssid ?? ""
+  readonly property int strength: ap?.signal ?? 0
   readonly property string title: {
     if (!ready)
       return qsTr("Network: initializing…");
