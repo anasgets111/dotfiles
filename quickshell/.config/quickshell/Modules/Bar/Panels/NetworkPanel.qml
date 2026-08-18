@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Quickshell
 import qs.Components
 import qs.Config
 import qs.Services.Core
@@ -15,31 +16,13 @@ PanelContentBase {
   property bool errorDismissed: false
   readonly property string ethernetInterface: NetworkService.ethernetInterface
   property string expandedSsid: ""
-  property var frozenViewList: null
   property bool isHiddenTarget: false
-  // ponytail: a new model array destroys every delegate, wiping the password field mid-typing, so the whole
-  // list (signal, connected state) goes stale while one row is expanded. Give delegates stable identity —
-  // an ObjectModel keyed by ssid — to let rows update live instead.
-  readonly property bool listFrozen: root.expandedSsid !== "" || root.connectingSsid !== ""
-  readonly property var liveViewList: (root.connectedNetwork ? [root.connectedNetwork] : []).concat(NetworkService.viewWifiAps)
   readonly property bool networkingEnabled: NetworkService.networkingEnabled
   readonly property bool ready: NetworkService.ready
   property bool scanning: false
   readonly property bool showPasswordInput: isHiddenTarget && !showSsidInput && connectingSsid !== targetSsid && (networkForSsid(targetSsid)?.secured ?? true)
   readonly property bool showSsidInput: isHiddenTarget && targetSsid === ""
-  readonly property string statusDetail: {
-    if (!root.ready)
-      return qsTr("Unavailable");
-    if (!root.networkingEnabled)
-      return qsTr("Off");
-    if (NetworkService.linkType === "ethernet")
-      return qsTr("Ethernet connected");
-    if (root.connectedNetwork)
-      return root.connectedNetwork.ssid;
-    return qsTr("Not connected");
-  }
   property string targetSsid: ""
-  readonly property var viewList: root.listFrozen && root.frozenViewList ? root.frozenViewList : root.liveViewList
   readonly property bool wifiEnabled: NetworkService.wifiRadioEnabled
 
   function connectToNetwork(ssid: string): void {
@@ -100,8 +83,6 @@ PanelContentBase {
     scanning = true;
     scanGraceTimer.restart();
   }
-  onListFrozenChanged: root.frozenViewList = root.listFrozen ? root.liveViewList : null
-
   Timer {
     id: scanGraceTimer
 
@@ -135,7 +116,7 @@ PanelContentBase {
       Layout.bottomMargin: Theme.spacingMd
       accent: root.networkingEnabled && root.ready ? Theme.activeColor : Theme.textInactiveColor
       icon: NetworkService.linkType === "wifi" ? "󰤨" : NetworkService.linkType === "ethernet" ? "󰈀" : "󱘖"
-      subtitle: root.statusDetail
+      subtitle: !root.ready ? qsTr("Unavailable") : !root.networkingEnabled ? qsTr("Off") : NetworkService.linkType === "ethernet" ? qsTr("Ethernet connected") : root.connectedNetwork ? root.connectedNetwork.ssid : qsTr("Not connected")
       title: qsTr("Network")
 
       PanelActionIcon {
@@ -255,7 +236,10 @@ PanelContentBase {
           anchors.fill: parent
           boundsBehavior: Flickable.StopAtBounds
           interactive: contentHeight > height
-          model: root.viewList
+          model: ScriptModel {
+            objectProp: "ssid"
+            values: (root.connectedNetwork ? [root.connectedNetwork] : []).concat(NetworkService.viewWifiAps)
+          }
           section.criteria: ViewSection.FullString
           section.property: "group"
           spacing: Theme.borderWidthMedium
@@ -305,12 +289,8 @@ PanelContentBase {
         ]
 
         onClicked: {
+          root.resetConnectionState();
           root.isHiddenTarget = true;
-          root.targetSsid = "";
-          root.expandedSsid = "";
-          if (credentialSheet)
-            credentialSheet.clearInputs();
-          NetworkService.cancelConnect();
         }
       }
     }

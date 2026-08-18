@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Quickshell
 import qs.Config
 import qs.Components
 import qs.Services.Core
@@ -268,7 +269,10 @@ PanelContentBase {
           boundsBehavior: Flickable.StopAtBounds
           clip: true
           height: Math.min(contentHeight, Theme.controlHeightLg * Theme.audioMixerVisibleRows)
-          model: AudioService.streamModels
+          model: ScriptModel {
+            objectProp: "id"
+            values: AudioService.streamModels
+          }
           spacing: Theme.spacingSm
           width: parent?.width ?? 0
 

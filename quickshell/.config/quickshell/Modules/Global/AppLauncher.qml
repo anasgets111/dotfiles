@@ -174,7 +174,9 @@ OModal {
           Layout.fillWidth: true
           boundsBehavior: Flickable.StopAtBounds
           clip: true
-          model: root.filteredApps
+          model: ScriptModel {
+            values: root.filteredApps
+          }
           spacing: Theme.spacingXs
 
           delegate: PanelRow {

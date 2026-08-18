@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Widgets
 import qs.Components
 import qs.Config
@@ -192,7 +193,9 @@ OModal {
           cellWidth: Math.floor(width / columns)
           clip: true
           highlightFollowsCurrentItem: false
-          model: root.filteredWallpapers
+          model: ScriptModel {
+            values: root.filteredWallpapers
+          }
 
           delegate: Item {
             id: tile
