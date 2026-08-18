@@ -8,7 +8,7 @@ for key, value in pairs({
     HYPRCURSOR_SIZE                     = cursor_size,
     XCURSOR_THEME                       = cursor_theme,
     XCURSOR_SIZE                        = cursor_size,
-    GTK_THEME                           = "Catppuccin-GnomeTheme",
+    GTK_THEME                           = "Catppuccin-Mauve-Dark",
     PASSWORD_STORE                      = "secret-service",
 }) do
     hl.env(key, value)
