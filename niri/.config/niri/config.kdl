@@ -207,8 +207,8 @@ window-rule {
     match title=r#"^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$"#
     open-floating true
     open-maximized-to-edges false
-    default-column-width { proportion 0.47; }
-    default-window-height { proportion 0.47; }
+    default-column-width { proportion 0.6; }
+    default-window-height { proportion 0.6; }
 }
 
 // Calculator: tiny float (~15%)
