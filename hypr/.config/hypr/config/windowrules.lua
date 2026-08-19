@@ -91,3 +91,13 @@ float_rule(sizes.large, { initial_title = "Picture-in-Picture" }, {
     -- 60% window size leaves 38% for its origin and a 2% edge margin.
     move = { "(monitor_w*0.38)", "(monitor_h*0.38)" },
 })
+
+hl.window_rule({
+    match = {
+        class = "org.gnome.Nautilus",
+        initial_title = "^Save As.*|^Open.*|^Select.*|^Choose.*|^Attach.*|^Import.*",
+    },
+    size = sizes.large,
+    float = true,
+    center = true,
+})
