@@ -16,17 +16,17 @@ export LESSHISTFILE="$HOME/.cache/less_history"
 
 # NVIDIA
 if command -v nvidia-smi >/dev/null 2>&1; then
-  export LIBVA_DRIVER_NAME=nvidia
-  export NVD_BACKEND=direct
-  export GBM_BACKEND=nvidia-drm
-  export __GL_GSYNC_ALLOWED=1
-  export __GLX_VENDOR_LIBRARY_NAME=nvidia
-  export EGL_PLATFORM=wayland
+    export LIBVA_DRIVER_NAME=nvidia
+    export NVD_BACKEND=direct
+    export GBM_BACKEND=nvidia-drm
+    export __GL_GSYNC_ALLOWED=1
+    export __GLX_VENDOR_LIBRARY_NAME=nvidia
+    export EGL_PLATFORM=wayland
 fi
 
 # Wayland
 export QT_QPA_PLATFORM=wayland
-export GDK_BACKEND="wayland,x11,*"
+export GDK_BACKEND=wayland
 export CLUTTER_BACKEND=wayland
 export MOZ_ENABLE_WAYLAND=1
 export ELECTRON_OZONE_PLATFORM_HINT=auto
@@ -41,10 +41,10 @@ export PATH="$CARGOBIN:$BIN:$HOME/.config/composer/vendor/bin:$PATH"
 export DOTFILES="/mnt/Work/1Progs/Dots"
 CRED_FILE="$DOTFILES/.local_secrets/credentials.sh"
 if [ -r "$CRED_FILE" ]; then
-  # shellcheck disable=SC1090
-  . "$CRED_FILE" || printf 'Warning: failed to source %s\n' "$CRED_FILE" >&2
+    # shellcheck disable=SC1090
+    . "$CRED_FILE" || printf 'Warning: failed to source %s\n' "$CRED_FILE" >&2
 fi
 
 if command -v fnm >/dev/null 2>&1; then
-  eval "$(fnm env --shell=bash --use-on-cd --version-file-strategy=recursive 2>/dev/null || true)"
+    eval "$(fnm env --shell=bash --use-on-cd --version-file-strategy=recursive 2>/dev/null || true)"
 fi
