@@ -65,7 +65,7 @@ COMMON_PACKAGES=(
     7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools jq
     less neovim rate-mirrors rsync sassc shfmt stow stylua tokei tree-sitter-cli unzip unrar wget zip
     # Dev
-    just openai-codex opencode rustup
+    just openai-codex opencode rustup yaak
     # Apps
     gnome-calculator gnome-disk-utility gnome-text-editor kdeconnect
     mission-center nautilus-image-converter papers qbittorrent simple-scan
