@@ -273,7 +273,7 @@ Singleton {
       osdState.wasCharging = BatteryService.isCharging;
       osdState.wasPendingCharge = BatteryService.isPendingCharge;
 
-      if (!BatteryService.isLaptopBattery || !BatteryService.device?.ready || !BatteryService.isACPowered)
+      if (!BatteryService.isLaptopBattery || !BatteryService.isACPowered)
         return;
 
       if (!wasPendingCharge && BatteryService.isPendingCharge)
@@ -282,7 +282,7 @@ Singleton {
         root.show(root.types.battery, null, "󰚥", "Fully Charged");
     }
     function onIsACPoweredChanged() {
-      if (BatteryService.isLaptopBattery && BatteryService.device?.ready)
+      if (BatteryService.isLaptopBattery)
         root.show(root.types.battery, null, BatteryService.isACPowered ? "󰂄" : "󰂃", BatteryService.isACPowered ? "Charger Connected" : "Charger Disconnected");
     }
 
