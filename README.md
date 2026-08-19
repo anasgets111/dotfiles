@@ -51,7 +51,7 @@ Clone the repository and deploy the core configurations:
 ```bash
 git clone https://github.com/anasgets111/dotfiles.git
 cd dotfiles
-stow -t "$HOME" home config quickshell hypr niri fish nvim kitty mpv bin
+stow -t "$HOME" home config xdg-desktop-portal quickshell hypr niri fish nvim kitty mpv bin
 ```
 
 Deploy any additional terminal or shell configurations you use:

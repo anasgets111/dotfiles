@@ -132,6 +132,7 @@ EXCLUDES=(
     '.config/swayosd'
     '.config/waybar'
     '.config/wezterm'
+    '.config/xdg-desktop-portal'
     '.local/bin'
 
     # Additional app runtime caches

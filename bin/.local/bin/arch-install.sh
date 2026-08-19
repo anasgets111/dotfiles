@@ -607,10 +607,10 @@ bootstrap_user_environment() {
         log_warning "backup-home restore failed (or script missing); continuing."
     fi
 
-    run_as_user "$dots" home config bin kitty quickshell fish nvim mpv \
+    run_as_user "$dots" home config bin xdg-desktop-portal kitty quickshell fish nvim mpv \
         "${PROFILE_STOW_PACKAGES[@]}" <<'SCRIPT'
 		rm -f "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.bash_logout"
-		for pkg in fish kitty quickshell nvim mpv hypr niri; do
+		for pkg in fish kitty quickshell nvim mpv hypr niri xdg-desktop-portal; do
 			target="$HOME/.config/$pkg"
 			[[ -e "$target" && ! -L "$target" ]] && rm -rf "$target"
 		done
