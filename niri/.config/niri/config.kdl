@@ -181,7 +181,7 @@ window-rule {
     match app-id="io.missioncenter.MissionCenter"
     match app-id="org.gnome.DiskUtility"
     match app-id=r#"polkit\.authentication-agent."#
-    match app-id=r#"xdg-desktop-portal\..*"#
+    match app-id=r#"^xdg-desktop-portal[-.].*$"#
     match app-id="zenity"
     match app-id="mpv"
     match title="Sign in - Google Accounts — Zen Browser"
