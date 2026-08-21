@@ -11,8 +11,8 @@ Singleton {
 
   readonly property var _audioArgs: ({
       off: [],
-      desktop: ["-a", "default_output"],
-      mic: ["-a", "default_output|default_input"]
+      desktop: ["-a", "default_output", "-ac", "aac"],
+      mic: ["-a", "default_output|default_input", "-ac", "aac"]
     })
   property bool _cleanupInFlight: false
   property double _elapsedBase: 0

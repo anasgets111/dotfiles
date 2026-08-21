@@ -58,7 +58,7 @@ COMMON_PACKAGES=(
     espeak-ng pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber
     # System
     gnome-keyring ly mkcert mold nautilus pacman-contrib pkgstats wl-clipboard wl-clip-persist wtype
-    xdg-desktop-portal-gnome xdg-user-dirs
+    xdg-desktop-portal-gnome xdg-user-dirs qt5-wayland showmethekey cloudflared
     # Shell
     bash-completion bat btop dysk expac eza fastfetch fd fish fnm fzf kitty starship tealdeer zoxide xsel
     # CLI
@@ -88,7 +88,7 @@ WOLVERINE_PACKAGES=(
     amd-ucode lib32-gamemode lib32-nvidia-utils libva-nvidia-driver nvidia-open nvidia-settings
     hyprland hyprpicker hyprshot uwsm xdg-desktop-portal-hyprland
     gamemode mangohud steam
-    solaar
+    solaar openrgb
 )
 
 # Chaotic-AUR / Omarchy (post-chroot)
@@ -102,7 +102,7 @@ COMMON_EXTRA_PACKAGES=(
 )
 
 MENTALIST_EXTRA_PACKAGES=(asusctl)
-WOLVERINE_EXTRA_PACKAGES=(heroic-games-launcher-bin)
+WOLVERINE_EXTRA_PACKAGES=(heroic-games-launcher-bin helium-browser-bin)
 AUXILIARY_PARTITION_LABELS=(Work Media Games)
 
 LIVE_STEPS=(
