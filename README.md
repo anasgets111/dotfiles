@@ -87,7 +87,7 @@ These are personal dotfiles, not generic compositor defaults. Review them before
 | `kitty/`, `ghostty/`, `alacritty/`, `foot/`, `wezterm/` | Terminal emulator configurations. |
 | `mpv/` | mpv configuration and scripts. |
 | `bin/` | Local utilities, including update, backup, screenshot, logging, and setup helpers. |
-| `NixConfig/` | NixOS flake with Wolverine (NVIDIA/Hyprland) and Mentalist (Intel/Niri) hosts. |
+| `NixConfig/` | Inactive NixOS flake with Wolverine (NVIDIA/Hyprland) and Mentalist (Intel/Niri) hosts. |
 
 ## Notes
 
