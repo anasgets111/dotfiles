@@ -89,7 +89,7 @@ Singleton {
       governorFile.reload();
       eppFile.reload();
       if (BatteryService.isLaptopBattery)
-        Command.run(["powerprofilesctl", "get"], result => root.ppdProfile = result.stdout.trim(), "power.ppd");
+        Command.run(["powerprofilesctl", "get"], result => root.ppdProfile = result.exitCode === 0 ? String(result.stdout ?? "").trim() : "", "power.ppd");
     }
   }
   FileView {
