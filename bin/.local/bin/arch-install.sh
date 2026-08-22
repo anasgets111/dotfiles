@@ -38,6 +38,7 @@ USERNAME="anas"
 USER_FULLNAME="Anas Khalifa"
 WIFI_SSID="Ghuzlan_5G"
 TARGET_ROOT="/mnt"
+OMARCHY_SIGNING_KEY="40DFB630FF42BCFFB047046CF0134EE680CAC571"
 IN_CHROOT=0
 
 SYSTEM_PROFILE=""
@@ -80,7 +81,7 @@ COMMON_PACKAGES=(
 
 MENTALIST_PACKAGES=(
     acpi_call brightnessctl intel-media-driver intel-ucode sof-firmware vulkan-intel
-    niri pipewire-libcamera pipewire-v4l2 xwayland-satellite
+    pipewire-libcamera pipewire-v4l2
     unixodbc
 )
 
@@ -93,7 +94,7 @@ WOLVERINE_PACKAGES=(
 
 # Chaotic-AUR / Omarchy (post-chroot)
 COMMON_EXTRA_PACKAGES=(
-    shellcheck-bin yay bibata-cursor-theme fish-autopair
+    omarchy-keyring shellcheck-bin yay bibata-cursor-theme fish-autopair
     nautilus-code-git xdg-terminal-exec-git gpu-screen-recorder-git quickshell-git
     vesktop slack-desktop rustdesk-bin
     claude-code piper-tts-git voxtype-bin
@@ -101,7 +102,7 @@ COMMON_EXTRA_PACKAGES=(
     ttf-material-icons-git ttf-material-symbols-variable-git ttf-ms-fonts
 )
 
-MENTALIST_EXTRA_PACKAGES=(asusctl)
+MENTALIST_EXTRA_PACKAGES=(asusctl niri-git)
 WOLVERINE_EXTRA_PACKAGES=(heroic-games-launcher-bin helium-browser-bin)
 AUXILIARY_PARTITION_LABELS=(Work Media Games)
 
@@ -549,10 +550,12 @@ configure_package_repositories() {
         'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' \
         'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
     ensure_pacman_repo /etc/pacman.conf chaotic-aur 'Include = /etc/pacman.d/chaotic-mirrorlist'
+    pacman-key --recv-keys "$OMARCHY_SIGNING_KEY" --keyserver keys.openpgp.org
+    pacman-key --lsign-key "$OMARCHY_SIGNING_KEY"
     # shellcheck disable=SC2016  # $arch is a pacman token
     ensure_pacman_repo /etc/pacman.conf omarchy \
-        'SigLevel = Optional TrustAll' \
-        'Server = https://pkgs.omarchy.org/$arch'
+        'SigLevel = Required DatabaseOptional' \
+        'Server = https://pkgs.omarchy.org/edge/$arch'
     pacman -Syu --needed --noconfirm "${COMMON_EXTRA_PACKAGES[@]}" "${PROFILE_EXTRA_PACKAGES[@]}"
 }
 
@@ -606,6 +609,8 @@ bootstrap_user_environment() {
         ! sudo -u "$USERNAME" -H -- "$dots/bin/.local/bin/backup-home" -r; then
         log_warning "backup-home restore failed (or script missing); continuing."
     fi
+
+    sudo -u "$USERNAME" -H -- xdg-user-dirs-update
 
     run_as_user "$dots" home config bin xdg-desktop-portal kitty quickshell fish nvim mpv \
         "${PROFILE_STOW_PACKAGES[@]}" <<'SCRIPT'
