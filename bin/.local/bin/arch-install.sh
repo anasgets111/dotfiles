@@ -687,7 +687,8 @@ target_main() {
     in_steps "$NEXT_CHECKPOINT" "${TARGET_STEPS[@]}" || NEXT_CHECKPOINT=""
     run_resumable_steps "${TARGET_STEPS[@]}"
     rm -f /root/install.sh
-    clear_install_state
+    # Keep the complete marker until the live parent copies it and clears both states.
+    log_success "Target configuration complete"
 }
 
 # shellcheck disable=SC2218  # self_check intentionally shadows helpers with local test stubs.
