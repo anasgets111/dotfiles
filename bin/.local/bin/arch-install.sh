@@ -46,13 +46,15 @@ HOSTNAME=""
 NEXT_CHECKPOINT=""
 INSTALL_STATE_FILE="$RUNTIME_DIR/state"
 INSTALL_COMPLETE_MARKER="complete"
+# Resume state is layout-specific; reject state written by a previous root layout.
+INSTALL_LAYOUT="btrfs-subvolumes-v1"
 BOOT_PARTITION=""
 ROOT_PARTITION=""
 
 # Official repos (pacstrap)
 COMMON_PACKAGES=(
     # Base
-    base base-devel linux linux-firmware networkmanager dnsmasq mandoc man-pages efibootmgr
+    base base-devel linux linux-firmware btrfs-progs networkmanager dnsmasq mandoc man-pages efibootmgr
     # Firmware / hardware
     bluez bluez-utils gnome-firmware i2c-tools lshw plymouth wireless-regdb zram-generator
     # Audio
@@ -204,7 +206,7 @@ save_install_state() {
     for dest in "${dests[@]}"; do
         (
             umask 077
-            printf '%s\n' "$NEXT_CHECKPOINT" "$SYSTEM_PROFILE" "$BOOT_PARTITION" "$ROOT_PARTITION" >"$dest.tmp"
+            printf '%s\n' "$NEXT_CHECKPOINT" "$SYSTEM_PROFILE" "$BOOT_PARTITION" "$ROOT_PARTITION" "$INSTALL_LAYOUT" >"$dest.tmp"
             mv -f -- "$dest.tmp" "$dest"
         )
     done
@@ -214,8 +216,9 @@ load_install_state() {
     [[ -f "$INSTALL_STATE_FILE" && ! -L "$INSTALL_STATE_FILE" && -O "$INSTALL_STATE_FILE" ]] || return 1
     local -a state_fields
     mapfile -t state_fields <"$INSTALL_STATE_FILE"
-    ((${#state_fields[@]} == 4)) || return 1
+    ((${#state_fields[@]} == 5)) || return 1
     [[ "${state_fields[1]}" == wolverine || "${state_fields[1]}" == mentalist ]] || return 1
+    [[ "${state_fields[4]}" == "$INSTALL_LAYOUT" ]] || return 1
     NEXT_CHECKPOINT="${state_fields[0]}"
     SYSTEM_PROFILE="${state_fields[1]}"
     BOOT_PARTITION="${state_fields[2]}"
@@ -254,12 +257,13 @@ run_resumable_steps() {
 
 ensure_target_mounted() {
     [[ -b "$BOOT_PARTITION" && -b "$ROOT_PARTITION" && "$BOOT_PARTITION" != "$ROOT_PARTITION" ]] || return 1
-    mountpoint -q "$TARGET_ROOT" || mount -o noatime "$ROOT_PARTITION" "$TARGET_ROOT"
-    mountpoint -q "$TARGET_ROOT/boot" || mount --mkdir -o noatime,umask=0077 "$BOOT_PARTITION" "$TARGET_ROOT/boot"
+    mountpoint -q "$TARGET_ROOT" || mount -o noatime,compress=zstd:1,subvol=@ "$ROOT_PARTITION" "$TARGET_ROOT" || return 1
+    mountpoint -q "$TARGET_ROOT/boot" || mount --mkdir -o noatime,umask=0077 "$BOOT_PARTITION" "$TARGET_ROOT/boot" || return 1
+    mountpoint -q "$TARGET_ROOT/home" || mount --mkdir -o noatime,compress=zstd:1,subvol=@home "$ROOT_PARTITION" "$TARGET_ROOT/home" || return 1
     local work_partition
     work_partition=$(blkid -L Work || true)
     [[ -n "$work_partition" ]] || return 1
-    mountpoint -q "$TARGET_ROOT/mnt/Work" || mount --mkdir -o noatime "$work_partition" "$TARGET_ROOT/mnt/Work"
+    mountpoint -q "$TARGET_ROOT/mnt/Work" || mount --mkdir -o noatime "$work_partition" "$TARGET_ROOT/mnt/Work" || return 1
 }
 
 recover_state_from_target() {
@@ -268,7 +272,7 @@ recover_state_from_target() {
     [[ -b "$root_partition" ]] || return 1
     install -d "$TARGET_ROOT"
     if ! mountpoint -q "$TARGET_ROOT"; then
-        mount -o noatime "$root_partition" "$TARGET_ROOT" || return 1
+        mount -o noatime,compress=zstd:1,subvol=@ "$root_partition" "$TARGET_ROOT" || return 1
         mounted_here=1
     fi
     INSTALL_STATE_FILE="$TARGET_ROOT/root/install.state"
@@ -433,9 +437,13 @@ confirm_and_format_partitions() {
     if mountpoint -q "$TARGET_ROOT"; then
         unmount_target || die "Failed to unmount $TARGET_ROOT. Resolve busy mounts and retry."
     fi
-    log_info "Formatting BOOT as FAT32, ROOT as ext4"
+    log_info "Formatting BOOT as FAT32, ROOT as Btrfs with @ and @home subvolumes"
     mkfs.fat -F32 -n BOOT "$BOOT_PARTITION"
-    mkfs.ext4 -F -L Archlinux "$ROOT_PARTITION"
+    mkfs.btrfs -f -L Archlinux "$ROOT_PARTITION"
+    mount -o subvolid=5 "$ROOT_PARTITION" "$TARGET_ROOT"
+    btrfs subvolume create "$TARGET_ROOT/@"
+    btrfs subvolume create "$TARGET_ROOT/@home"
+    umount "$TARGET_ROOT"
 }
 
 mount_filesystems() {
@@ -526,7 +534,7 @@ editor no
 EOF
     # zswap.enabled=0: zram wiki — zswap in front of zram intercepts pages.
     # microcode is embedded by the mkinitcpio microcode hook; no separate initrd line.
-    local kernel_options="root=LABEL=Archlinux rw quiet splash loglevel=3 nowatchdog zswap.enabled=0"
+    local kernel_options="root=LABEL=Archlinux rootflags=subvol=@ rw quiet splash loglevel=3 nowatchdog zswap.enabled=0"
     write_loader_entry arch.conf "Arch Linux" /initramfs-linux.img "$kernel_options"
     write_loader_entry arch-fallback.conf "Arch Linux (fallback)" /initramfs-linux-fallback.img "$kernel_options"
     cat >/etc/systemd/zram-generator.conf <<'EOF'
@@ -721,7 +729,7 @@ self_check() {
     reject_state enable_system_services unknown /dev/example1 /dev/example2
     [[ "$SYSTEM_PROFILE" == mentalist ]]
     reject_state enable_system_services mentalist /dev/example1
-    printf '%s\n' enable_system_services mentalist /dev/example1 /dev/example2 >"$dir/state-target"
+    printf '%s\n' enable_system_services mentalist /dev/example1 /dev/example2 old-layout >"$dir/state-target"
     rm -f "$INSTALL_STATE_FILE"
     ln -s "$dir/state-target" "$INSTALL_STATE_FILE"
     load_install_state && die "Self-check accepted invalid state"
@@ -809,7 +817,7 @@ EOF
     }
     check_mirror() {
         mock_checkpoint=$1 mock_chroot_rc=$2
-        printf '%s\n' stale mentalist /dev/example1 /dev/example2 >"$INSTALL_STATE_FILE"
+        printf '%s\n' stale mentalist /dev/example1 /dev/example2 "$INSTALL_LAYOUT" >"$INSTALL_STATE_FILE"
         set +e
         run_target_configuration
         mirror_rc=$?
