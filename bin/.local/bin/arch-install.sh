@@ -257,9 +257,9 @@ run_resumable_steps() {
 
 ensure_target_mounted() {
     [[ -b "$BOOT_PARTITION" && -b "$ROOT_PARTITION" && "$BOOT_PARTITION" != "$ROOT_PARTITION" ]] || return 1
-    mountpoint -q "$TARGET_ROOT" || mount -o noatime,compress=zstd:1,subvol=@ "$ROOT_PARTITION" "$TARGET_ROOT" || return 1
+    mountpoint -q "$TARGET_ROOT" || mount -t btrfs -o noatime,compress=zstd:1,subvol=@ "$ROOT_PARTITION" "$TARGET_ROOT" || return 1
     mountpoint -q "$TARGET_ROOT/boot" || mount --mkdir -o noatime,umask=0077 "$BOOT_PARTITION" "$TARGET_ROOT/boot" || return 1
-    mountpoint -q "$TARGET_ROOT/home" || mount --mkdir -o noatime,compress=zstd:1,subvol=@home "$ROOT_PARTITION" "$TARGET_ROOT/home" || return 1
+    mountpoint -q "$TARGET_ROOT/home" || mount --mkdir -t btrfs -o noatime,compress=zstd:1,subvol=@home "$ROOT_PARTITION" "$TARGET_ROOT/home" || return 1
     local work_partition
     work_partition=$(blkid -L Work || true)
     [[ -n "$work_partition" ]] || return 1
@@ -272,7 +272,7 @@ recover_state_from_target() {
     [[ -b "$root_partition" ]] || return 1
     install -d "$TARGET_ROOT"
     if ! mountpoint -q "$TARGET_ROOT"; then
-        mount -o noatime,compress=zstd:1,subvol=@ "$root_partition" "$TARGET_ROOT" || return 1
+        mount -t btrfs -o noatime,compress=zstd:1,subvol=@ "$root_partition" "$TARGET_ROOT" || return 1
         mounted_here=1
     fi
     INSTALL_STATE_FILE="$TARGET_ROOT/root/install.state"
@@ -440,7 +440,7 @@ confirm_and_format_partitions() {
     log_info "Formatting BOOT as FAT32, ROOT as Btrfs with @ and @home subvolumes"
     mkfs.fat -F32 -n BOOT "$BOOT_PARTITION"
     mkfs.btrfs -f -L Archlinux "$ROOT_PARTITION"
-    mount -o subvolid=5 "$ROOT_PARTITION" "$TARGET_ROOT"
+    mount -t btrfs -o subvolid=5 "$ROOT_PARTITION" "$TARGET_ROOT"
     btrfs subvolume create "$TARGET_ROOT/@"
     btrfs subvolume create "$TARGET_ROOT/@home"
     umount "$TARGET_ROOT"
