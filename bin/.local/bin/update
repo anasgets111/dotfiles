@@ -50,7 +50,7 @@ run_step "System Packages (pacman via run0)" \
     run0 --unit="${PACMAN_UNIT%.service}" --pipe pacman -Syu --noconfirm
 
 run_optional "Composer" composer composer global update
-run_optional "Node (fnm)" fnm bash -lc 'fnm install lts-latest && fnm default lts-latest'
+run_optional "Node (fnm)" fnm bash -lc 'fnm install --use lts-latest && fnm default lts-latest && fnm ls | awk -v current="$(fnm current)" '\''$2 != "system" && $2 != current { print $2 }'\'' | xargs -r -n1 fnm uninstall'
 run_optional "Rust Binaries" cargo-install-update cargo install-update -a
 run_optional "Rust Toolchain" rustup rustup update
 
