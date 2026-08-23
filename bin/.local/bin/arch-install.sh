@@ -68,7 +68,7 @@ COMMON_PACKAGES=(
     7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools jq
     less neovim rate-mirrors rsync sassc shfmt stow stylua tokei tree-sitter-cli unzip unrar wget zip
     # Dev
-    just openai-codex opencode rustup yaak
+    just openai-codex opencode podman rustup yaak
     # Apps
     gnome-calculator gnome-disk-utility gnome-text-editor kdeconnect
     mission-center nautilus-image-converter papers qbittorrent simple-scan
@@ -611,6 +611,7 @@ create_user_account() {
         useradd -m -c "$USER_FULLNAME" -G "$PROFILE_GROUPS" -s /usr/bin/fish "$USERNAME"
     fi
     set_password_with_retry "$USERNAME" passwd "$USERNAME"
+    loginctl enable-linger "$USERNAME"
     install -d -m 0750 /etc/sudoers.d
     printf '%s\n' '%wheel ALL=(ALL:ALL) ALL' >/etc/sudoers.d/10-wheel
     chmod 440 /etc/sudoers.d/10-wheel
@@ -628,6 +629,8 @@ bootstrap_user_environment() {
     fi
 
     sudo -u "$USERNAME" -H -- xdg-user-dirs-update
+
+    run_as_user systemctl --user enable podman.socket podman-restart.service
 
     run_as_user "$dots" home config bin xdg-desktop-portal kitty quickshell fish nvim mpv \
         "${PROFILE_STOW_PACKAGES[@]}" <<'SCRIPT'
