@@ -586,6 +586,15 @@ enable_system_services() {
         -e 's/^bigclock = none/bigclock = en/' \
         -e 's/^clock = .*/clock = %c/' \
         /etc/ly/config.ini 2>/dev/null || true
+    if [[ "$SYSTEM_PROFILE" == mentalist ]]; then
+        install -d /etc/systemd/logind.conf.d
+        cat >/etc/systemd/logind.conf.d/lid.conf <<'EOF'
+[Login]
+HandleLidSwitch=ignore
+HandleLidSwitchExternalPower=ignore
+HandleLidSwitchDocked=ignore
+EOF
+    fi
     local session_src="/usr/share/wayland-sessions/${PROFILE_WAYLAND_SESSION}"
     if [[ -f "$session_src" ]]; then
         install -d /etc/ly/wayland-sessions
