@@ -31,8 +31,12 @@ Singleton {
   function reboot(): void {
     Command.detached(["systemctl", "reboot"]);
   }
-  function refreshPowerInfo(): void {
-    refreshDebounce.restart();
+  function refreshPpdProfile(): void {
+    if (!BatteryService.isLaptopBattery) {
+      ppdProfile = "";
+      return;
+    }
+    ppdRefresh.restart();
   }
   function suspend(): void {
     Command.detached(["systemctl", "suspend"]);
@@ -43,18 +47,18 @@ Singleton {
   }
 
   Component.onCompleted: {
-    refreshPowerInfo();
+    refreshPpdProfile();
     adjustBrightness();
     suspendIfBatteryCritical();
   }
 
   Connections {
     function onIsLaptopBatteryChanged() {
-      root.refreshPowerInfo();
+      root.refreshPpdProfile();
       root.adjustBrightness();
     }
     function onIsOnBatteryChanged() {
-      root.refreshPowerInfo();
+      root.refreshPpdProfile();
       root.adjustBrightness();
     }
     function onIsSuspendingAndNotChargingChanged() {
@@ -80,37 +84,43 @@ Singleton {
     target: KeyboardBacklightService
   }
   Timer {
-    id: refreshDebounce
+    id: ppdRefresh
 
     interval: 100
 
     onTriggered: {
-      platformFile.reload();
-      governorFile.reload();
-      eppFile.reload();
-      if (BatteryService.isLaptopBattery)
-        Command.run(["powerprofilesctl", "get"], result => root.ppdProfile = result.exitCode === 0 ? String(result.stdout ?? "").trim() : "", "power.ppd");
+      if (!BatteryService.isLaptopBattery) {
+        root.ppdProfile = "";
+        return;
+      }
+      Command.run(["powerprofilesctl", "get"], result => root.ppdProfile = result.exitCode === 0 ? String(result.stdout ?? "").trim() : "", "power.ppd");
     }
   }
   FileView {
     id: platformFile
 
     path: "/sys/firmware/acpi/platform_profile"
+    watchChanges: true
 
+    onFileChanged: reload()
     onLoaded: root.platformProfile = text().trim() || "Unknown"
   }
   FileView {
     id: governorFile
 
     path: "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+    watchChanges: true
 
+    onFileChanged: reload()
     onLoaded: root.cpuGovernor = text().trim() || "Unknown"
   }
   FileView {
     id: eppFile
 
     path: "/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference"
+    watchChanges: true
 
+    onFileChanged: reload()
     onLoaded: root.energyPerformance = text().trim() || "Unknown"
   }
 }

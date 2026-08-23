@@ -88,7 +88,6 @@ EXCLUDES=(
     '.config/btop'
 
     # Re-downloadable toolchains/runtimes (large, low-risk to exclude)
-    '.rustup'
     '.local/share/containers/storage'
     '.local/share/zed/external_agents'
     '.local/share/opencode/snapshot'
