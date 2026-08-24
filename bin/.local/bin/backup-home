@@ -93,13 +93,13 @@ EXCLUDES=(
     '.local/share/opencode/snapshot'
     '.gemini/tmp'
 
-    # User content folders (excluded by request)
-    '/Desktop/'
-    '/Documents/'
-    '/Music/'
-    '/Pictures/'
-    '/Public/'
-    '/Videos/'
+    # User content folders: keep the dir skeleton, skip contents (excluded by request)
+    '/Desktop/**'
+    '/Documents/**'
+    '/Music/**'
+    '/Pictures/**'
+    '/Public/**'
+    '/Videos/**'
 
     # Stow-managed files (home module)
     '.bashrc'

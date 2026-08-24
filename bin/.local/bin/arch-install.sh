@@ -572,7 +572,7 @@ configure_initramfs() {
     install -d /etc/mkinitcpio.conf.d
     cat >/etc/mkinitcpio.conf.d/99-obelisk.conf <<EOF
 MODULES=(${PROFILE_INITRAMFS_MODULES[*]})
-HOOKS=(base systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)
+HOOKS=(systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block filesystems)
 EOF
     mkinitcpio -P
 }
@@ -611,7 +611,10 @@ create_user_account() {
         useradd -m -c "$USER_FULLNAME" -G "$PROFILE_GROUPS" -s /usr/bin/fish "$USERNAME"
     fi
     set_password_with_retry "$USERNAME" passwd "$USERNAME"
-    loginctl enable-linger "$USERNAME"
+    # logind is unreachable inside the chroot; linger is just this file, which
+    # no package ships (logind mkdirs it at first boot).
+    install -d /var/lib/systemd/linger
+    touch "/var/lib/systemd/linger/$USERNAME"
     install -d -m 0750 /etc/sudoers.d
     printf '%s\n' '%wheel ALL=(ALL:ALL) ALL' >/etc/sudoers.d/10-wheel
     chmod 440 /etc/sudoers.d/10-wheel
@@ -627,8 +630,6 @@ bootstrap_user_environment() {
         ! sudo -u "$USERNAME" -H -- "$dots/bin/.local/bin/backup-home" -r; then
         log_warning "backup-home restore failed (or script missing); continuing."
     fi
-
-    sudo -u "$USERNAME" -H -- xdg-user-dirs-update
 
     run_as_user systemctl --user enable podman.socket podman-restart.service
 
@@ -813,7 +814,7 @@ EOF
 
     # Bug-1 fix: mirror chroot progress back into the live /run state.
     local mirror_dir="$dir/mirror" mirror_rc mock_checkpoint mock_chroot_rc
-    mkdir -p "$mirror_dir/target/root" "$mirror_dir/target/etc/pacman.d" \
+    install -d "$mirror_dir/target/root" "$mirror_dir/target/etc/pacman.d" \
         "$mirror_dir/target/etc/NetworkManager/system-connections" "$mirror_dir/run"
     TARGET_ROOT="$mirror_dir/target"
     RUNTIME_SCRIPT="$mirror_dir/install.sh"
