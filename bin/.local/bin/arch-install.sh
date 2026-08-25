@@ -61,7 +61,7 @@ COMMON_PACKAGES=(
     espeak-ng pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber
     # System
     gnome-keyring ly mkcert mold nautilus pacman-contrib pkgstats wl-clipboard wl-clip-persist wtype
-    xdg-desktop-portal-gnome xdg-user-dirs qt5-wayland showmethekey cloudflared
+    xdg-desktop-portal-gnome xdg-user-dirs qt5-wayland showmethekey cloudflared sshfs
     # Shell
     bash-completion bat btop dysk expac eza fastfetch fd fish fnm fzf kitty starship tealdeer zoxide xsel
     # CLI
