@@ -58,7 +58,7 @@ COMMON_PACKAGES=(
     # Firmware / hardware
     bluez bluez-utils gnome-firmware i2c-tools lshw plymouth wireless-regdb zram-generator
     # Audio
-    espeak-ng pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber
+    espeak-ng pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber playerctl
     # System
     gnome-keyring ly mkcert mold nautilus pacman-contrib pkgstats wl-clipboard wl-clip-persist wtype
     xdg-desktop-portal-gnome xdg-user-dirs qt5-wayland showmethekey cloudflared sshfs
