@@ -93,9 +93,7 @@ Item {
     return closest / (scaleValues.length - 1);
   }
   function currentValue(field: string): var {
-    if (field === "position")
-      return { x: selectedMonitorData?.logicalX ?? 0, y: selectedMonitorData?.logicalY ?? 0 };
-    return selectedMonitorData?.[MonitorService._fieldRoles[field]];
+    return MonitorService.monitorValue(selectedMonitorData, field);
   }
   // Anything that can leave an output unreadable goes through the timed revert; the rest commits.
   function applyValue(field: string, value: var): void {

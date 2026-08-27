@@ -67,6 +67,12 @@ Singleton {
   function supportsControl(field: string): bool {
     return controls.includes(field);
   }
+  // Inverse of _applyMonitorChanges: reads back a control field from a monitor record.
+  function monitorValue(monitor: var, field: string): var {
+    if (field === "position")
+      return { x: monitor?.logicalX ?? 0, y: monitor?.logicalY ?? 0 };
+    return monitor?.[_fieldRoles[field]];
+  }
   function controlOptions(field: string): var {
     return backend?.controlOptions ? Utils.toArray(backend.controlOptions(field)) : [];
   }

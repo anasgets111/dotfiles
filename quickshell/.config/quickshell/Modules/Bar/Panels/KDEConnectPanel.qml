@@ -19,26 +19,25 @@ PanelContentBase {
     { action: "share", icon: "󰒗", label: qsTr("Share"), plugin: "share" },
     { action: "browse", icon: "󰝰", label: qsTr("Files"), plugin: "sftp" }
   ]
-  readonly property int battery: selectedDevice?.batteryInterface?.charge ?? -1
-  readonly property color batteryColor: battery <= 10 ? Theme.critical : battery <= 20 ? Theme.warning : (selectedDevice?.batteryInterface?.isCharging ?? false) ? Theme.activeColor : Theme.textInactiveColor
+  readonly property int battery: selectedDevice?.battery ?? -1
+  readonly property color batteryColor: battery <= 10 ? Theme.critical : battery <= 20 ? Theme.warning : (selectedDevice?.charging ?? false) ? Theme.activeColor : Theme.textInactiveColor
   property bool confirmUnpair: false
   property bool refreshing: false
-  readonly property var pairedDevices: KDEConnectService.devices.filter(device => device.source?.isPaired ?? false)
-  readonly property var pairingDevice: KDEConnectService.devices.find(device => (device.source?.isPairRequestedByPeer ?? false) || (device.source?.isPairRequested ?? false)) ?? null
+  readonly property var pairedDevices: KDEConnectService.devices.filter(device => device.paired)
+  readonly property var pairingDevice: KDEConnectService.devices.find(device => device.pairRequested) ?? null
   property string preferredDeviceId: ""
   readonly property var selectedDevice: pairedDevices.find(device => device.id === preferredDeviceId) ?? pairedDevices.find(device => device.usable) ?? pairedDevices[0] ?? null
   readonly property string selectedDeviceId: selectedDevice?.id ?? ""
   property bool shareOpen: false
-  readonly property var unpairedDevices: KDEConnectService.devices.filter(device => !(device.source?.isPaired ?? false))
+  readonly property var unpairedDevices: KDEConnectService.devices.filter(device => !device.paired)
 
   function can(plugin: string): bool { return (selectedDevice?.usable ?? false) && selectedDevice.hasPlugin(plugin); }
   function deviceIcon(device: var): string { return device?.type === "tablet" ? "󰓶" : device?.type === "desktop" ? "󰟀" : "󰄜"; }
   function networkText(device: var): string {
-    const strength = Number(device?.connectivityInterface?.cellularNetworkStrength ?? -1);
+    const strength = device?.cellularStrength ?? -1;
     if (strength < 0)
       return "";
-    const type = device?.connectivityInterface?.cellularNetworkType === "Unknown" ? "" : device?.connectivityInterface?.cellularNetworkType ?? "";
-    return `${NetworkService.getWifiIcon([0, 25, 50, 80, 95][Math.min(4, Math.round(strength))])} ${type || qsTr("Mobile")}`;
+    return `${NetworkService.getWifiIcon([0, 25, 50, 80, 95][Math.min(4, Math.round(strength))])} ${device.cellularType || qsTr("Mobile")}`;
   }
   function sendShare(): void {
     const value = shareInput.text.trim();
@@ -49,9 +48,8 @@ PanelContentBase {
     shareOpen = false;
   }
   function statusText(device: var): string {
-    const paired = device?.source?.isPaired ?? false;
-    const reachable = device?.source?.isReachable ?? false;
-    return !paired ? (reachable ? qsTr("Available to pair") : qsTr("Unavailable")) : reachable ? qsTr("Connected") : qsTr("Offline");
+    const reachable = device?.reachable ?? false;
+    return !(device?.paired ?? false) ? (reachable ? qsTr("Available to pair") : qsTr("Unavailable")) : reachable ? qsTr("Connected") : qsTr("Offline");
   }
   function trigger(action: string): void {
     if (action === "sms") {
@@ -155,24 +153,24 @@ PanelContentBase {
         Layout.bottomMargin: visible ? Theme.spacingMd : 0
         Layout.fillWidth: true
         rowActionEnabled: false
-        subtitle: root.pairingDevice?.source?.verificationKey ? qsTr("Verification: %1").arg(root.pairingDevice.source.verificationKey) : qsTr("Confirm the code on both devices")
-        title: root.pairingDevice?.source?.isPairRequestedByPeer ? qsTr("%1 wants to pair").arg(root.pairingDevice?.source?.name ?? "") : qsTr("Pairing with %1").arg(root.pairingDevice?.source?.name ?? "")
+        subtitle: root.pairingDevice?.verificationKey ? qsTr("Verification: %1").arg(root.pairingDevice.verificationKey) : qsTr("Confirm the code on both devices")
+        title: root.pairingDevice?.pairRequestedByPeer ? qsTr("%1 wants to pair").arg(root.pairingDevice?.name ?? "") : qsTr("Pairing with %1").arg(root.pairingDevice?.name ?? "")
         visible: root.pairingDevice !== null
 
         actions: [
           OButton {
             size: "xs"
-            text: root.pairingDevice?.source?.isPairRequestedByPeer ? qsTr("Reject") : qsTr("Cancel")
+            text: root.pairingDevice?.pairRequestedByPeer ? qsTr("Reject") : qsTr("Cancel")
             variant: "secondary"
 
-            onClicked: root.pairingDevice.source?.cancelPairing()
+            onClicked: root.pairingDevice.cancelPairing()
           },
           OButton {
             size: "xs"
             text: qsTr("Pair")
-            visible: root.pairingDevice?.source?.isPairRequestedByPeer ?? false
+            visible: root.pairingDevice?.pairRequestedByPeer ?? false
 
-            onClicked: root.pairingDevice.source?.acceptPairing()
+            onClicked: root.pairingDevice.acceptPairing()
           }
         ]
       }
@@ -180,7 +178,7 @@ PanelContentBase {
         Layout.bottomMargin: visible ? Theme.spacingSm : 0
         Layout.fillWidth: true
         currentIndex: Math.max(0, root.pairedDevices.indexOf(root.selectedDevice))
-        model: root.pairedDevices.map(device => device.source?.name ?? "")
+        model: root.pairedDevices.map(device => device.name)
         visible: root.pairedDevices.length > 1
 
         onActivated: index => root.preferredDeviceId = root.pairedDevices[index].id
@@ -191,18 +189,18 @@ PanelContentBase {
         icon: root.deviceIcon(root.selectedDevice)
         rowActionEnabled: false
         selected: root.selectedDevice?.usable ?? false
-        subtitle: [root.statusText(root.selectedDevice), root.networkText(root.selectedDevice), (root.selectedDevice?.batteryInterface?.isCharging ?? false) ? (root.battery >= 100 ? qsTr("Charged") : qsTr("Charging")) : ""].filter(Boolean).join(" · ")
-        title: root.selectedDevice?.source?.name ?? ""
+        subtitle: [root.statusText(root.selectedDevice), root.networkText(root.selectedDevice), (root.selectedDevice?.charging ?? false) ? (root.battery >= 100 ? qsTr("Charged") : qsTr("Charging")) : ""].filter(Boolean).join(" · ")
+        title: root.selectedDevice?.name ?? ""
         visible: root.selectedDevice !== null
 
         actions: [
           PanelActionIcon {
-            icon: root.selectedDevice?.lockInterface?.isLocked ? "󰌾" : "󰌿"
-            tint: root.selectedDevice?.lockInterface?.isLocked ? Theme.warning : Theme.textActiveColor
-            tooltipText: root.selectedDevice?.lockInterface?.isLocked ? qsTr("Unlock device") : qsTr("Lock device")
+            icon: root.selectedDevice?.locked ? "󰌾" : "󰌿"
+            tint: root.selectedDevice?.locked ? Theme.warning : Theme.textActiveColor
+            tooltipText: root.selectedDevice?.locked ? qsTr("Unlock device") : qsTr("Lock device")
             visible: root.can("lockdevice")
 
-            onClicked: root.selectedDevice.lockInterface.isLocked = !root.selectedDevice.lockInterface.isLocked
+            onClicked: root.selectedDevice.setLocked(!root.selectedDevice.locked)
           },
           PanelActionIcon {
             icon: "󰇪"
@@ -219,7 +217,7 @@ PanelContentBase {
 
             onClicked: {
               if (root.confirmUnpair) {
-                root.selectedDevice.source?.unpair();
+                root.selectedDevice.unpair();
                 root.confirmUnpair = false;
                 confirmTimer.stop();
               } else {
@@ -336,8 +334,8 @@ PanelContentBase {
             Layout.fillWidth: true
             icon: root.deviceIcon(modelData)
             rowActionEnabled: false
-            subtitle: (modelData.source?.isReachable ?? false) ? qsTr("Ready to pair") : qsTr("Unavailable")
-            title: modelData.source?.name ?? ""
+            subtitle: modelData.reachable ? qsTr("Ready to pair") : qsTr("Unavailable")
+            title: modelData.name
 
             actions: [
               OButton {
@@ -347,9 +345,9 @@ PanelContentBase {
                 text: qsTr("Pair")
                 textColor: Theme.activeColor
                 variant: "ghost"
-                visible: deviceRow.modelData.source?.isReachable ?? false
+                visible: deviceRow.modelData.reachable
 
-                onClicked: deviceRow.modelData.source?.requestPairing()
+                onClicked: deviceRow.modelData.requestPairing()
               }
             ]
           }

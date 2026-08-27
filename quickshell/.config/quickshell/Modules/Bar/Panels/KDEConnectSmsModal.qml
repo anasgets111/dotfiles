@@ -57,7 +57,7 @@ OModal {
     PanelHeader {
       Layout.margins: Theme.spacingLg
       icon: "󰍦"
-      subtitle: root.device?.source?.name ?? ""
+      subtitle: root.device?.name ?? ""
       title: qsTr("Messages")
     }
     RowLayout {

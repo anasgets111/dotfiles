@@ -272,31 +272,53 @@ Singleton {
   component DeviceState: QtObject {
     id: state
 
-    readonly property var batteryInterface: usable && hasPlugin("battery") ? KDEConnect.DeviceBatteryDbusInterfaceFactory.create(id) : null
-    readonly property var connectivityInterface: usable && hasPlugin("connectivity_report") ? KDEConnect.DeviceConnectivityReportDbusInterfaceFactory.create(id) : null
+    readonly property var _batteryInterface: usable && hasPlugin("battery") ? KDEConnect.DeviceBatteryDbusInterfaceFactory.create(id) : null
+    readonly property var _connectivityInterface: usable && hasPlugin("connectivity_report") ? KDEConnect.DeviceConnectivityReportDbusInterfaceFactory.create(id) : null
+    readonly property var _lockInterface: usable && hasPlugin("lockdevice") ? KDEConnect.LockDeviceDbusInterfaceFactory.create(id) : null
+    readonly property var _sftpInterface: usable && hasPlugin("sftp") ? KDEConnect.SftpDbusInterfaceFactory.create(id) : null
+    readonly property int battery: _batteryInterface?.charge ?? -1
+    readonly property int cellularStrength: Number(_connectivityInterface?.cellularNetworkStrength ?? -1)
+    readonly property string cellularType: {
+      const type = _connectivityInterface?.cellularNetworkType ?? "";
+      return type === "Unknown" ? "" : type;
+    }
+    readonly property bool charging: _batteryInterface?.isCharging ?? false
     readonly property string id: source?.id() ?? ""
-    readonly property var lockInterface: usable && hasPlugin("lockdevice") ? KDEConnect.LockDeviceDbusInterfaceFactory.create(id) : null
+    readonly property bool locked: _lockInterface?.isLocked ?? false
+    readonly property string name: source?.name ?? ""
+    readonly property bool paired: source?.isPaired ?? false
+    readonly property bool pairRequested: pairRequestedByPeer || (source?.isPairRequested ?? false)
+    readonly property bool pairRequestedByPeer: source?.isPairRequestedByPeer ?? false
     property var plugins: []
-    required property var source
-    readonly property var sftpInterface: usable && hasPlugin("sftp") ? KDEConnect.SftpDbusInterfaceFactory.create(id) : null
+    readonly property bool reachable: source?.isReachable ?? false
     property bool sftpMounted: false
+    required property var source
     property string type: "phone"
-    readonly property bool usable: (source?.isPaired ?? false) && (source?.isReachable ?? false)
+    readonly property bool usable: paired && reachable
+    readonly property string verificationKey: source?.verificationKey ?? ""
 
+    function acceptPairing(): void { source?.acceptPairing(); }
+    function cancelPairing(): void { source?.cancelPairing(); }
     function hasPlugin(plugin: string): bool { return plugins.includes("kdeconnect_" + plugin); }
     function refreshMounted(): void {
-      if (sftpInterface)
-        mountedResponse.setPendingCall(sftpInterface.isMounted());
+      if (_sftpInterface)
+        mountedResponse.setPendingCall(_sftpInterface.isMounted());
       else
         sftpMounted = false;
     }
+    function requestPairing(): void { source?.requestPairing(); }
+    function setLocked(value: bool): void {
+      if (_lockInterface)
+        _lockInterface.isLocked = value;
+    }
+    function unpair(): void { source?.unpair(); }
 
     Component.onCompleted: {
       plugins = source?.supportedPlugins ?? [];
       type = source?.type ?? "phone";
       refreshMounted();
     }
-    onSftpInterfaceChanged: refreshMounted()
+    on_SftpInterfaceChanged: refreshMounted()
 
     readonly property Connections deviceConnections: Connections {
       function onPluginsChanged(): void { state.plugins = state.source?.supportedPlugins ?? []; }
@@ -314,7 +336,7 @@ Singleton {
       function onMounted(): void { state.sftpMounted = true; }
       function onUnmounted(): void { state.sftpMounted = false; }
 
-      target: state.sftpInterface
+      target: state._sftpInterface
     }
   }
 }
