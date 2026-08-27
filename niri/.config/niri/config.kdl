@@ -85,6 +85,7 @@ screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 hotkey-overlay { skip-at-startup; }
 
 // --- Startup Applications ---
+spawn-at-startup "quickshell"
 spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
 spawn-at-startup "kdeconnectd"
 spawn-at-startup "zeditor"
@@ -93,7 +94,6 @@ spawn-at-startup "slack"
 spawn-at-startup "Telegram"
 spawn-at-startup "vesktop"
 spawn-at-startup "thunderbird"
-spawn-at-startup "quickshell"
 spawn-at-startup "xdg-terminal-exec"
 spawn-at-startup "yerdd"
 
