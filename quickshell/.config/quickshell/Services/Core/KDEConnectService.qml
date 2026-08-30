@@ -13,17 +13,22 @@ Singleton {
   readonly property string _deviceInterface: "org.kde.kdeconnect.device."
   readonly property string _deviceRoot: "/modules/kdeconnect/devices/"
   readonly property string _service: "org.kde.kdeconnect.daemon"
+  property string _smsActionError: ""
   property int _smsEpoch: 0
+  property int _smsLoadEpoch: 0
+  property int _smsModalOwner: 0
+  property string _smsRefreshError: ""
+  property int _smsRefreshEpoch: 0
   readonly property int connectedCount: devices.filter(device => device.usable).length
   readonly property var devices: Array.from({ length: deviceStates.count }, (_, index) => deviceStates.objectAt(index))
   property string error: ""
-  readonly property var remoteCommands: remoteCommandsModel
   property string smsDeviceId: ""
   property bool smsLoading: false
   property var smsMessages: []
   property bool smsMessagesLoading: false
   property string smsThreadId: ""
   property var smsThreads: []
+  readonly property string smsError: _smsActionError || _smsRefreshError
 
   function _call(deviceId: string, plugin: string, method: string, args: var, callback: var): void {
     const suffix = plugin === "conversations" ? "" : "/" + plugin;
@@ -38,10 +43,11 @@ Singleton {
       callback?.(value, callError);
     });
   }
+  function _command(deviceId: string, args: var, finished = null): void { Command.run(["kdeconnect-cli", "--device", deviceId].concat(args), result => finished?.(result.exitCode === 0 ? "" : root._errorText(result))); }
   function command(deviceId: string, args: var, finished = null): void {
-    Command.run(["kdeconnect-cli", "--device", deviceId].concat(args), result => {
-      root.error = result.exitCode === 0 ? "" : root._errorText(result);
-      finished?.(root.error);
+    _command(deviceId, args, commandError => {
+      root.error = commandError;
+      finished?.(commandError);
     });
   }
   function _errorText(result: var): string { return (result?.stderr || result?.stdout || qsTr("KDE Connect command failed")).trim(); }
@@ -102,10 +108,12 @@ Singleton {
     };
   }
   function _refreshThreads(): void {
+    const refreshEpoch = ++_smsRefreshEpoch;
     _smsCall("activeConversations", [], (values, callError) => {
-      if (callError)
-        root.error = callError;
-      else
+      if (refreshEpoch !== root._smsRefreshEpoch)
+        return;
+      root._smsRefreshError = callError;
+      if (!callError)
         root.smsThreads = (values ?? []).map(root._parseMessage).filter(Boolean).sort((a, b) => b.date - a.date);
       root.smsLoading = false;
     });
@@ -123,9 +131,8 @@ Singleton {
   function _unmount(deviceId: string, mountPoint: string, finished = null): void {
     Command.run(["fusermount3", "-u", "-z", mountPoint], result => {
       const gone = result.exitCode === 0 || /invalid argument|not mounted/i.test(result.stderr);
-      const device = root.deviceForId(deviceId);
-      if (gone && device)
-        device.sftpMounted = false;
+      if (gone)
+        root.deviceForId(deviceId)?.setSftpMounted(false);
       finished?.(gone ? "" : root._errorText(result));
     });
   }
@@ -139,9 +146,7 @@ Singleton {
           root._call(deviceId, "sftp", "getMountError", [], (reason, callError) => root.error = reason || callError || qsTr("Could not mount device files"));
         return;
       }
-      const device = root.deviceForId(deviceId);
-      if (device)
-        device.sftpMounted = true;
+      root.deviceForId(deviceId)?.setSftpMounted(true);
       root._call(deviceId, "sftp", "mountPoint", [], (mountPoint, pathError) => root._call(deviceId, "sftp", "getDirectories", [], (directories, directoriesError) => {
         const path = Object.keys(directories ?? {}).concat(mountPoint ?? "").map(candidate => root._mountedPath(deviceId, mountPoint, candidate)).find(Boolean) ?? "";
         if (path)
@@ -151,32 +156,41 @@ Singleton {
       }));
     });
   }
+  function attachSmsModal(): int { return ++_smsModalOwner; }
   function closeSms(): void {
     _smsEpoch++;
     smsThreadsTimer.stop();
     smsDeviceId = "";
     smsLoading = false;
     smsThreads = [];
+    _smsRefreshError = "";
     loadSmsConversation("");
+  }
+  function detachSmsModal(owner: int): void {
+    Qt.callLater(() => {
+      if (owner === root._smsModalOwner)
+        root.closeSms();
+    });
   }
   function deviceForId(deviceId: string): var { return devices.find(device => device.id === deviceId) ?? null; }
   function loadSmsConversation(threadId: string): void {
+    const loadEpoch = ++_smsLoadEpoch;
     smsLoadTimeout.stop();
     smsThreadId = String(threadId ?? "");
     smsMessages = [];
-    error = "";
+    _smsActionError = "";
     smsMessagesLoading = smsThreadId !== "";
     if (!smsMessagesLoading || !smsDeviceId)
       return;
-    const requestedId = smsThreadId;
-    _smsCall("requestConversation", ["xii", requestedId, "0", "25"], (value, callError) => {
-      if (root.smsThreadId !== requestedId)
+    smsLoadTimeout.restart();
+    _smsCall("requestConversation", ["xii", smsThreadId, "0", "25"], (value, callError) => {
+      if (loadEpoch !== root._smsLoadEpoch)
         return;
-      root.error = callError;
-      if (callError)
+      root._smsActionError = callError;
+      if (callError) {
+        smsLoadTimeout.stop();
         root.smsMessagesLoading = false;
-      else
-        smsLoadTimeout.restart();
+      }
     });
   }
   function openSms(deviceId: string): void {
@@ -184,7 +198,7 @@ Singleton {
     smsDeviceId = deviceId;
     smsLoading = true;
     _smsCall("requestAllConversationThreads", [], (value, callError) => {
-      root.error = callError;
+      root._smsActionError = callError;
       if (callError)
         root.smsLoading = false;
       else
@@ -193,11 +207,11 @@ Singleton {
   }
   function refreshDevices(): void { Command.run(["kdeconnect-cli", "--refresh"], result => root.error = result.exitCode === 0 ? "" : root._errorText(result)); }
   function sendSms(message: string, destination: string, finished = null): void {
-    error = "";
+    _smsActionError = "";
     if (smsThreadId) {
       const threadId = smsThreadId;
       _smsCall("replyToConversation", ["xsav", threadId, message, "0"], (value, callError) => {
-        root.error = callError;
+        root._smsActionError = callError;
         finished?.(callError);
         if (!callError && root.smsThreadId === threadId)
           root.loadSmsConversation(threadId);
@@ -205,13 +219,15 @@ Singleton {
       return;
     }
     if (!smsDeviceId || !destination) {
-      finished?.(qsTr("No SMS recipient selected"));
+      _smsActionError = qsTr("No SMS recipient selected");
+      finished?.(_smsActionError);
       return;
     }
     const epoch = _smsEpoch;
-    command(smsDeviceId, ["--send-sms", message, "--destination", destination], commandError => {
+    _command(smsDeviceId, ["--send-sms", message, "--destination", destination], commandError => {
       if (epoch !== root._smsEpoch)
         return;
+      root._smsActionError = commandError;
       finished?.(commandError);
       if (!commandError)
         smsThreadsTimer.restart();
@@ -229,18 +245,15 @@ Singleton {
   KDEConnect.DevicesModel {
     id: deviceModel
   }
-  KDEConnect.RemoteCommandsModel {
-    id: remoteCommandsModel
-  }
   Instantiator {
     id: deviceStates
 
     model: deviceModel
 
     delegate: DeviceState {
-      required property var device
+      required property string deviceId
 
-      source: device
+      source: KDEConnect.DeviceDbusInterfaceFactory.create(deviceId)
     }
   }
   CommandStream {
@@ -272,6 +285,8 @@ Singleton {
   component DeviceState: QtObject {
     id: state
 
+    property int _mountEpoch: 0
+    property int _pluginsEpoch: 0
     readonly property var _batteryInterface: usable && hasPlugin("battery") ? KDEConnect.DeviceBatteryDbusInterfaceFactory.create(id) : null
     readonly property var _connectivityInterface: usable && hasPlugin("connectivity_report") ? KDEConnect.DeviceConnectivityReportDbusInterfaceFactory.create(id) : null
     readonly property var _lockInterface: usable && hasPlugin("lockdevice") ? KDEConnect.LockDeviceDbusInterfaceFactory.create(id) : null
@@ -300,13 +315,34 @@ Singleton {
     function acceptPairing(): void { source?.acceptPairing(); }
     function cancelPairing(): void { source?.cancelPairing(); }
     function hasPlugin(plugin: string): bool { return plugins.includes("kdeconnect_" + plugin); }
+    function _respond(call: var, settled: var): void {
+      const response = responseComponent.createObject(state, { settled });
+      response.setPendingCall(call);
+    }
     function refreshMounted(): void {
-      if (_sftpInterface)
-        mountedResponse.setPendingCall(_sftpInterface.isMounted());
-      else
+      const requestEpoch = ++_mountEpoch;
+      if (!_sftpInterface) {
         sftpMounted = false;
+        return;
+      }
+      _respond(_sftpInterface.isMounted(), mounted => {
+        if (requestEpoch === state._mountEpoch)
+          state.sftpMounted = mounted ?? false;
+      });
+    }
+    function refreshPlugins(): void {
+      const requestEpoch = ++_pluginsEpoch;
+      if (!source) {
+        plugins = [];
+        return;
+      }
+      _respond(source.loadedPlugins(), loadedPlugins => {
+        if (requestEpoch === state._pluginsEpoch)
+          state.plugins = loadedPlugins ?? [];
+      });
     }
     function requestPairing(): void { source?.requestPairing(); }
+    function setSftpMounted(value: bool): void { _mountEpoch++; sftpMounted = value; }
     function setLocked(value: bool): void {
       if (_lockInterface)
         _lockInterface.isLocked = value;
@@ -314,27 +350,30 @@ Singleton {
     function unpair(): void { source?.unpair(); }
 
     Component.onCompleted: {
-      plugins = source?.supportedPlugins ?? [];
+      refreshPlugins();
       type = source?.type ?? "phone";
-      refreshMounted();
     }
     on_SftpInterfaceChanged: refreshMounted()
 
     readonly property Connections deviceConnections: Connections {
-      function onPluginsChanged(): void { state.plugins = state.source?.supportedPlugins ?? []; }
+      function onPluginsChanged(): void { state.refreshPlugins(); }
       function onTypeChanged(): void { state.type = state.source?.type ?? "phone"; }
 
       target: state.source
     }
-    readonly property var mountedResponse: KDEConnect.DBusAsyncResponse {
-      autoDelete: false
+    readonly property Component responseComponent: Component {
+      KDEConnect.DBusAsyncResponse {
+        required property var settled
 
-      onError: state.sftpMounted = false
-      onSuccess: mounted => state.sftpMounted = mounted
+        autoDelete: true
+
+        onError: settled()
+        onSuccess: value => settled(value)
+      }
     }
     readonly property Connections sftpConnections: Connections {
-      function onMounted(): void { state.sftpMounted = true; }
-      function onUnmounted(): void { state.sftpMounted = false; }
+      function onMounted(): void { state.setSftpMounted(true); }
+      function onUnmounted(): void { state.setSftpMounted(false); }
 
       target: state._sftpInterface
     }

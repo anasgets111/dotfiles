@@ -11,8 +11,6 @@ Item {
 
   required property string screenName
   readonly property bool panelOpen: ShellUiState.isPanelOpen("kdeconnect", screenName)
-  readonly property string icon: KDEConnectService.connectedCount > 0 ? "󰄜" : "󰥐"
-  readonly property string title: KDEConnectService.connectedCount > 0 ? qsTr("KDE Connect · %1 connected").arg(KDEConnectService.connectedCount) : qsTr("KDE Connect · no devices connected")
 
   implicitHeight: Theme.itemHeight
   implicitWidth: Math.max(Theme.itemWidth, button.implicitWidth)
@@ -21,10 +19,10 @@ Item {
     id: button
 
     colorFg: KDEConnectService.connectedCount > 0 ? Theme.activeColor : Theme.textContrast(Theme.glassControlColor)
-    icon: root.icon
+    icon: KDEConnectService.connectedCount > 0 ? "󰄜" : "󰥐"
     selected: root.panelOpen
     suppressTooltip: root.panelOpen
-    tooltipText: root.title
+    tooltipText: KDEConnectService.connectedCount > 0 ? qsTr("KDE Connect · %1 connected").arg(KDEConnectService.connectedCount) : qsTr("KDE Connect · no devices connected")
 
     onClicked: ShellUiState.togglePanelForItem("kdeconnect", root.screenName, button)
   }

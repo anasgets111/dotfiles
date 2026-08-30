@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Quickshell
 import qs.Components
 import qs.Config
 import qs.Services.Core
@@ -11,17 +12,17 @@ OModal {
   id: root
 
   property bool composing: false
-  readonly property var device: KDEConnectService.deviceForId(KDEConnectService.smsDeviceId)
   readonly property var filteredThreads: {
     const needle = search.text.trim().toLowerCase();
     return needle ? KDEConnectService.smsThreads.filter(thread => (`${titleFor(thread)} ${thread.body}`).toLowerCase().includes(needle)) : KDEConnectService.smsThreads;
   }
   readonly property var selectedThread: KDEConnectService.smsThreads.find(thread => thread.threadId === KDEConnectService.smsThreadId) ?? null
   property bool sending: false
+  property int smsOwner: 0
 
-  function formatTime(timestamp: real): string { return timestamp > 0 ? new Date(timestamp).toLocaleString(Qt.locale(), Locale.ShortFormat) : ""; }
-  function selectThread(thread): void {
+  function selectThread(thread: var): void {
     composing = !thread;
+    messageList.stickToEnd = true;
     recipient.text = composing ? search.text.trim() : "";
     message.clear();
     KDEConnectService.loadSmsConversation(thread ? thread.threadId : "");
@@ -31,13 +32,17 @@ OModal {
   function submit(): void {
     const body = message.text.trim();
     const destination = recipient.text.trim();
+    const target = composing ? `number:${destination}` : `thread:${KDEConnectService.smsThreadId}`;
     if (!body || sending || (composing ? !destination : !KDEConnectService.smsThreadId))
       return;
     sending = true;
     KDEConnectService.sendSms(body, destination, error => {
       root.sending = false;
-      if (!error)
-        message.clear();
+      const currentTarget = root.composing ? `number:${recipient.text.trim()}` : `thread:${KDEConnectService.smsThreadId}`;
+      if (error || currentTarget !== target || message.text.trim() !== body)
+        return;
+      messageList.stickToEnd = true;
+      message.clear();
     });
   }
   function titleFor(thread: var): string { return (thread?.addresses ?? []).join(", ") || qsTr("Unknown sender"); }
@@ -46,9 +51,11 @@ OModal {
   preferredWidth: Theme.smsModalWidth
   searchInput: search
 
-  onDismissed: KDEConnectService.closeSms()
   onFilteredThreadsChanged: if (!composing && !KDEConnectService.smsThreadId && filteredThreads.length)
     selectThread(filteredThreads[0])
+
+  Component.onCompleted: smsOwner = KDEConnectService.attachSmsModal()
+  Component.onDestruction: KDEConnectService.detachSmsModal(smsOwner)
 
   ColumnLayout {
     anchors.fill: parent
@@ -57,7 +64,7 @@ OModal {
     PanelHeader {
       Layout.margins: Theme.spacingLg
       icon: "󰍦"
-      subtitle: root.device?.name ?? ""
+      subtitle: KDEConnectService.deviceForId(KDEConnectService.smsDeviceId)?.name ?? ""
       title: qsTr("Messages")
     }
     RowLayout {
@@ -105,12 +112,13 @@ OModal {
             Layout.fillWidth: true
 
             ListView {
-              id: threadList
-
               anchors.fill: parent
               boundsBehavior: Flickable.StopAtBounds
               clip: true
-              model: root.filteredThreads
+              model: ScriptModel {
+                objectProp: "threadId"
+                values: root.filteredThreads
+              }
 
               ScrollBar.vertical: ScrollBar {}
               delegate: PanelRow {
@@ -120,7 +128,7 @@ OModal {
                 selected: !root.composing && KDEConnectService.smsThreadId === modelData.threadId
                 subtitle: String(modelData.body).replace(/\s+/g, " ").trim()
                 title: root.titleFor(modelData)
-                width: threadList.width
+                width: ListView.view.width
 
                 onClicked: root.selectThread(modelData)
               }
@@ -161,7 +169,7 @@ OModal {
             Layout.fillWidth: true
             color: Theme.critical
             size: "sm"
-            text: KDEConnectService.error
+            text: KDEConnectService.smsError
             visible: text !== ""
             wrapMode: Text.Wrap
           }
@@ -172,10 +180,15 @@ OModal {
             ListView {
               id: messageList
 
+              property bool stickToEnd: true
+
               anchors.fill: parent
               boundsBehavior: Flickable.StopAtBounds
               clip: true
-              model: root.composing ? null : KDEConnectService.smsMessages
+              model: ScriptModel {
+                objectProp: "uid"
+                values: root.composing ? [] : KDEConnectService.smsMessages
+              }
               spacing: Theme.spacingSm
 
               ScrollBar.vertical: ScrollBar {}
@@ -198,11 +211,13 @@ OModal {
                   Layout.alignment: messageRow.modelData.fromMe ? Qt.AlignRight : Qt.AlignLeft
                   color: Theme.textInactiveColor
                   size: "xs"
-                  text: root.formatTime(messageRow.modelData.date)
+                  text: messageRow.modelData.date > 0 ? new Date(messageRow.modelData.date).toLocaleString(Qt.locale(), Locale.ShortFormat) : ""
                 }
               }
 
-              onCountChanged: Qt.callLater(() => positionViewAtEnd())
+              onCountChanged: if (stickToEnd)
+                Qt.callLater(() => positionViewAtEnd())
+              onMovementEnded: stickToEnd = atYEnd
             }
             OSpinner {
               anchors.centerIn: parent
@@ -262,8 +277,8 @@ OModal {
         PanelEmptyState {
           anchors.centerIn: parent
           icon: "󰍦"
-          subtext: qsTr("Choose a conversation or start a new message.")
-          text: qsTr("Messages")
+          subtext: KDEConnectService.smsError || qsTr("Choose a conversation or start a new message.")
+          text: KDEConnectService.smsError ? qsTr("KDE Connect error") : qsTr("Messages")
           visible: !KDEConnectService.smsLoading && !root.composing && root.selectedThread === null
         }
       }

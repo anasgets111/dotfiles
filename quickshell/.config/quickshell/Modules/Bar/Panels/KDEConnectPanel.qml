@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import org.kde.kdeconnect as KDEConnect
 import qs.Components
 import qs.Config
 import qs.Services.Core
@@ -21,15 +22,15 @@ PanelContentBase {
   ]
   readonly property int battery: selectedDevice?.battery ?? -1
   readonly property color batteryColor: battery <= 10 ? Theme.critical : battery <= 20 ? Theme.warning : (selectedDevice?.charging ?? false) ? Theme.activeColor : Theme.textInactiveColor
-  property bool confirmUnpair: false
-  property bool refreshing: false
+  readonly property bool canShare: can("share")
   readonly property var pairedDevices: KDEConnectService.devices.filter(device => device.paired)
   readonly property var pairingDevice: KDEConnectService.devices.find(device => device.pairRequested) ?? null
   property string preferredDeviceId: ""
   readonly property var selectedDevice: pairedDevices.find(device => device.id === preferredDeviceId) ?? pairedDevices.find(device => device.usable) ?? pairedDevices[0] ?? null
   readonly property string selectedDeviceId: selectedDevice?.id ?? ""
   property bool shareOpen: false
-  readonly property var unpairedDevices: KDEConnectService.devices.filter(device => !device.paired)
+  property bool sharing: false
+  readonly property var unpairedDevices: KDEConnectService.devices.filter(device => !device.paired && !device.pairRequested)
 
   function can(plugin: string): bool { return (selectedDevice?.usable ?? false) && selectedDevice.hasPlugin(plugin); }
   function deviceIcon(device: var): string { return device?.type === "tablet" ? "󰓶" : device?.type === "desktop" ? "󰟀" : "󰄜"; }
@@ -39,17 +40,20 @@ PanelContentBase {
       return "";
     return `${NetworkService.getWifiIcon([0, 25, 50, 80, 95][Math.min(4, Math.round(strength))])} ${device.cellularType || qsTr("Mobile")}`;
   }
+  function resetTransientState(): void { shareOpen = false; confirmTimer.stop(); }
   function sendShare(): void {
+    const deviceId = selectedDeviceId;
     const value = shareInput.text.trim();
-    if (!value)
+    if (!value || sharing || !canShare)
       return;
-    KDEConnectService.command(selectedDeviceId, [value.startsWith("/") || value.includes("://") ? "--share" : "--share-text", value]);
-    shareInput.clear();
-    shareOpen = false;
-  }
-  function statusText(device: var): string {
-    const reachable = device?.reachable ?? false;
-    return !(device?.paired ?? false) ? (reachable ? qsTr("Available to pair") : qsTr("Unavailable")) : reachable ? qsTr("Connected") : qsTr("Offline");
+    sharing = true;
+    KDEConnectService.command(deviceId, [value.startsWith("/") || value.includes("://") ? "--share" : "--share-text", value], commandError => {
+      root.sharing = false;
+      if (!commandError && root.selectedDeviceId === deviceId && shareInput.text.trim() === value) {
+        shareInput.clear();
+        root.shareOpen = false;
+      }
+    });
   }
   function trigger(action: string): void {
     if (action === "sms") {
@@ -65,18 +69,20 @@ PanelContentBase {
   }
 
   flatContainer: true
-  needsKeyboardFocus: shareOpen
+  needsKeyboardFocus: shareOpen && canShare
   preferredHeight: Math.min(content.implicitHeight + Theme.spacingMd * 2, maxAvailableHeight)
   preferredWidth: Theme.kdeconnectPanelWidth
 
-  onIsOpenChanged: if (!isOpen) {
-    shareOpen = false;
-    confirmUnpair = false;
-  }
-  onSelectedDeviceIdChanged: {
-    shareOpen = false;
-    confirmUnpair = false;
-    KDEConnectService.remoteCommands.deviceId = selectedDeviceId;
+  onIsOpenChanged: if (!isOpen)
+    resetTransientState()
+  onCanShareChanged: if (!canShare)
+    shareOpen = false
+  onSelectedDeviceIdChanged: resetTransientState()
+
+  KDEConnect.RemoteCommandsModel {
+    id: remoteCommandsModel
+
+    deviceId: root.can("remotecommands") ? root.selectedDeviceId : ""
   }
 
   Flickable {
@@ -110,17 +116,16 @@ PanelContentBase {
           icon: "󰑐"
           tint: Theme.textInactiveColor
           tooltipText: qsTr("Refresh devices")
-          visible: !root.refreshing
+          visible: !refreshTimer.running
 
           onClicked: {
             KDEConnectService.refreshDevices();
-            root.refreshing = true;
             refreshTimer.restart();
           }
         }
         OSpinner {
           color: Theme.textInactiveColor
-          running: root.refreshing
+          running: refreshTimer.running
           spinnerSize: Theme.iconSizeMd
         }
       }
@@ -189,7 +194,7 @@ PanelContentBase {
         icon: root.deviceIcon(root.selectedDevice)
         rowActionEnabled: false
         selected: root.selectedDevice?.usable ?? false
-        subtitle: [root.statusText(root.selectedDevice), root.networkText(root.selectedDevice), (root.selectedDevice?.charging ?? false) ? (root.battery >= 100 ? qsTr("Charged") : qsTr("Charging")) : ""].filter(Boolean).join(" · ")
+        subtitle: [(root.selectedDevice?.reachable ?? false) ? qsTr("Connected") : qsTr("Offline"), root.networkText(root.selectedDevice), (root.selectedDevice?.charging ?? false) ? (root.battery >= 100 ? qsTr("Charged") : qsTr("Charging")) : ""].filter(Boolean).join(" · ")
         title: root.selectedDevice?.name ?? ""
         visible: root.selectedDevice !== null
 
@@ -211,17 +216,15 @@ PanelContentBase {
             onClicked: KDEConnectService.unmountFiles(root.selectedDeviceId)
           },
           PanelActionIcon {
-            icon: root.confirmUnpair ? "󰗠" : "󰌸"
+            icon: confirmTimer.running ? "󰗠" : "󰌸"
             tint: Theme.critical
-            tooltipText: root.confirmUnpair ? qsTr("Confirm unpair") : qsTr("Unpair device")
+            tooltipText: confirmTimer.running ? qsTr("Confirm unpair") : qsTr("Unpair device")
 
             onClicked: {
-              if (root.confirmUnpair) {
+              if (confirmTimer.running) {
                 root.selectedDevice.unpair();
-                root.confirmUnpair = false;
                 confirmTimer.stop();
               } else {
-                root.confirmUnpair = true;
                 confirmTimer.restart();
               }
             }
@@ -278,7 +281,7 @@ PanelContentBase {
             onInputAccepted: root.sendShare()
           }
           OButton {
-            isEnabled: shareInput.text.trim() !== ""
+            isEnabled: !root.sharing && shareInput.text.trim() !== ""
             text: qsTr("Send")
 
             onClicked: root.sendShare()
@@ -289,7 +292,7 @@ PanelContentBase {
         Layout.bottomMargin: visible ? Theme.spacingMd : 0
         Layout.fillWidth: true
         spacing: Theme.borderWidthMedium
-        visible: root.selectedDevice !== null && commands.count > 0
+        visible: root.can("remotecommands") && commands.count > 0
 
         PanelSectionHeader {
           Layout.fillWidth: true
@@ -299,13 +302,12 @@ PanelContentBase {
         Repeater {
           id: commands
 
-          model: KDEConnectService.remoteCommands
+          model: remoteCommandsModel
 
           delegate: PanelRow {
             required property string key
             required property string name
 
-            enabled: root.selectedDevice?.usable ?? false
             icon: "󰑔"
             title: name
 
@@ -367,15 +369,11 @@ PanelContentBase {
     id: confirmTimer
 
     interval: 4000
-
-    onTriggered: root.confirmUnpair = false
   }
   // ponytail: discovery outlives the CLI command; 4s is feedback, not completion. Replace if KDE Connect exposes a completion signal.
   Timer {
     id: refreshTimer
 
     interval: 4000
-
-    onTriggered: root.refreshing = false
   }
 }

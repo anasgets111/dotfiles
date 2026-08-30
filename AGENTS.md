@@ -188,6 +188,7 @@ After edits, update or remove nearby stale comments, documentation, examples, an
 - Quickshell `BluetoothDevice.pair()` only forwards BlueZ's `Pair()` call; keep a default BlueZ agent registered before offering pairing in the UI.
 - Quickshell `Hyprland.dispatch(...)` takes one Lua dispatcher string in this shell. Use forms such as ``Hyprland.dispatch(`hl.dsp.focus({ workspace = 3 })`)``.
 - QML method names cannot begin with an uppercase letter; do not expose constructor-style APIs like `function Finder(...)`. Use a lowercase factory such as `createFinder(...)` instead.
+- QML does not support type annotations on parameters with default values; keep `callback = null` untyped or remove the default.
 - `UPower.displayDevice.state` can flap between `Charging`, `FullyCharged`, and `PendingCharge` while AC remains connected; for battery OSD, do not trigger `Fully Charged` from aggregate terminal-state changes alone. Prefer the edge where charging stops while AC is still connected, and treat `PendingCharge` as its own entry edge.
 - Avoid high-frequency add/delete churn on shared JS objects; V4 can crash. Use stable QObject state or scans instead.
 - `String.prototype.replaceAll` is not implemented in this QML JS engine; it throws `Property 'replaceAll' of object <str> is not a function` at runtime with no lint-time warning. Use `str.replace(/pattern/g, replacement)` instead.
