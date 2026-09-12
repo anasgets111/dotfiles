@@ -17,6 +17,18 @@ function fish_should_add_to_history
     not string match -qr '^\s|mnt/Work/Downloads|SDL_VIDEODRIVER=wayland' -- $argv
 end
 
+# Declared here rather than with `fish_add_path` on its own: that writes the universal
+# `fish_user_paths`, and `fish_variables` is generated, so the entry lands in Dots as a diff no one
+# wrote. `-g` keeps it out of that file.
+fish_add_path -g $HOME/.local/share/pnpm/bin
+
+# >>> yerd PATH >>>
+if not contains "/home/anas/.local/share/yerd/bin" $PATH
+    set -gx PATH "/home/anas/.local/share/yerd/bin" $PATH
+end
+set -gx PHPRC "/home/anas/.local/share/yerd/php-cli.ini"
+# <<< yerd PATH <<<
+
 if status is-interactive
     if set -q XDG_RUNTIME_DIR; and test -S "$XDG_RUNTIME_DIR/podman/podman.sock"
         set -gx DOCKER_HOST "unix://$XDG_RUNTIME_DIR/podman/podman.sock"
@@ -83,12 +95,5 @@ if status is-interactive
     set -gx PGHOST 127.0.0.1
     set -gx PGPORT 5432
     set -gx PGUSER root
-
-# >>> yerd PATH >>>
-if not contains "/home/anas/.local/share/yerd/bin" $PATH
-    set -gx PATH "/home/anas/.local/share/yerd/bin" $PATH
-end
-set -gx PHPRC "/home/anas/.local/share/yerd/php-cli.ini"
-# <<< yerd PATH <<<
 
 end
