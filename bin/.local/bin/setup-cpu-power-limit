@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+((EUID == 0)) || exec sudo -- "$0" "$@"
+
+quiet=${1:-15}
+balanced=${2:-25}
+performance=${3:-35}
+
+for watts in "$quiet" "$balanced" "$performance"; do
+    [[ $watts =~ ^[1-9][0-9]*$ ]] || {
+        echo "usage: ${0##*/} [quiet_watts] [balanced_watts] [performance_watts]" >&2
+        exit 1
+    }
+done
+
+cat >/etc/systemd/system/cpu-power-limit.service <<UNIT
+[Unit]
+Description=Apply CPU RAPL power limit for the active asusctl platform profile
+After=asusd.service
+Wants=asusd.service
+StartLimitIntervalSec=0
+
+[Service]
+Restart=always
+RestartSec=2
+ExecStart=/bin/sh -c '\\
+    rapl=/sys/class/powercap/intel-rapl-mmio:0/constraint_0_power_limit_uw; \\
+    profile=/sys/firmware/acpi/platform_profile; \\
+    apply() { \\
+        case \$\$(cat \$\$profile) in \\
+            quiet) w=$quiet ;; \\
+            balanced) w=$balanced ;; \\
+            performance) w=$performance ;; \\
+            *) return ;; \\
+        esac; \\
+        echo \$\${w}000000 >\$\$rapl; \\
+    }; \\
+    apply; \\
+    inotifywait -m -e modify,close_write -q \$\$profile | while read -r _; do apply; done'
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable cpu-power-limit
+systemctl restart cpu-power-limit
