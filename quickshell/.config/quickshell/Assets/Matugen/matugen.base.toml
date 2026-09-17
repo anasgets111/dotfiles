@@ -1,6 +1,0 @@
-# Base: only write Obelisk colors.json for the shell
-[config]
-
-[templates.Obelisk]
-input_path = "templates/obelisk.json"
-output_path = "~/.config/Obelisk/colors.json"
