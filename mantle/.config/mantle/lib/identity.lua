@@ -1,6 +1,6 @@
 -- Who is logged in.
 --
--- A config has `os.getenv` and `process.run` (ADR-0048), and the environment carries neither the
+-- A config has `os.getenv` and `process.run`, and the environment carries neither the
 -- full name nor the host, so each is read once from the tool that owns it: GECOS out of
 -- `getent passwd`, the node name out of `uname -n`. Both are decoration -- callers draw `$USER` and
 -- "localhost" until they answer, and keep them if they never do.

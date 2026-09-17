@@ -1,7 +1,6 @@
 -- Newest cards stacked in one corner on one surface.
 --
--- One scrolling surface, enabled by ADR-0069. A declared `panel` avoids one surface per card and
--- keeps a fixed ceiling.
+-- One scrolling surface. A declared `panel` avoids one surface per card and keeps a fixed ceiling.
 --
 -- `components/notification_card.lua` is shared with history. This file owns placement, height,
 -- keyboard mode, and expiry hold.
@@ -33,7 +32,7 @@ local visible_groups = computed(
     function(n, seen, panel_open, lock, applications)
         -- Any panel suspends popups, as `panel_host` does; both anchor top-right. Standing down is
         -- not retiring: only history marks entries seen (`ui.popup_seen`), so a card returns after
-        -- panel close unless its Supervisor countdown expires (ADR-0100).
+        -- panel close unless its Supervisor countdown expires.
         --
         -- Nothing while locked: a popup over the lock screen is readable without a password. Do
         -- not mark it seen, so it returns on unlock unless its Supervisor countdown expires; a
@@ -41,7 +40,7 @@ local visible_groups = computed(
         if panel_open or (lock and lock.active) then
             return {}
         end
-        -- Expiry (`expired`, Supervisor, ADR-0100), history's seen set (`ui.popup_seen`, ADR-0098),
+        -- Expiry (`expired`, Supervisor), history's seen set (`ui.popup_seen`),
         -- and DND remove a card from the stack; expiry, unlike the others, leaves it in history.
         local dnd = n and n.dnd
         local unseen = {}
@@ -75,11 +74,11 @@ return panel {
     visible = visible_groups:map(function(shown)
         return #shown > 0
     end),
-    -- On demand while the pointer is on the stack or a reply is pending (ADR-0109). Bind it because
+    -- On demand while the pointer is on the stack or a reply is pending. Bind it because
     -- niri focuses an `on_demand`/`exclusive` layer surface on map; a constant would steal the
     -- keyboard on every notification.
     --
-    -- `OnDemand`, not `Exclusive` (ADR-0108): a small surface has no outside click and must not
+    -- `OnDemand`, not `Exclusive`: a small surface has no outside click and must not
     -- keep the keyboard. Measured niri behavior focuses it on a *click* while already on demand,
     -- not on the mode flip, so hover enters the binding before a reply-field click. A pending draft
     -- keeps the request alive after the pointer leaves under click-to-focus; focus-follows-mouse
@@ -91,8 +90,8 @@ return panel {
         width = "Fill",
         -- No `height` here or on the list: content fills the surface without a parent-child sizing
         -- loop.
-        -- A pointer on any card stops countdowns; leaving releases the hold (ADR-0094, ADR-0095).
-        -- The region follows drawn input (ADR-0109), so empty space below sends no events. One
+        -- A pointer on any card stops countdowns; leaving releases the hold.
+        -- The region follows drawn input, so empty space below sends no events. One
         -- region avoids sibling enter/leave ordering that could release a newly acquired hold.
         hover = HOVER,
         on_hover = function(hovered)

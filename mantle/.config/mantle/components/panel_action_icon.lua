@@ -15,7 +15,7 @@ return function(glyph, on_activate, opts)
     -- Default `"sm"`, which the media panel overrides to `"md"` for the one control in a transport
     -- row that is the row's subject.
     local step = opts.size or "sm"
-    -- `icon_button` asks for the same registry entry under this slot (ADR-0062 decision 2), so the
+    -- `icon_button` asks for the same registry entry under this slot, so the
     -- glyph brightens with the button's hover.
     local hovered = hover(opts.slot)
     return icon_button(glyph, on_activate, {

@@ -4,13 +4,13 @@
 -- ground, timestamp, and entry motion.
 -- Structure is built because `children` takes an array, not a `Bound`. A `list`'s `itemfn` runs for
 -- every element on every pass (`layout::node::spec`), so moving reads rebuild the tree and
--- `state:set` dirties the scene (ADR-0044). Appearance stays bound because it does not change it.
--- Rust added nearly all card requirements: summary/body `wrap` and `max_lines` (ADR-0089),
--- `actions`/`invoke_action` (ADR-0090), `image_path` beside `app_icon` (ADR-0091), keyboard-reading
--- `textfield` (ADR-0092), `timestamp` (ADR-0093), and `hold_expiry`/`on_hover` so reading or
--- replying does not remove the card (ADR-0094, ADR-0095). Body spans preserve bold, italic,
--- underline, and accent links (ADR-0104); links also get opener buttons (ADR-0103). Cards and
--- messages slide/fade (ADR-0146, ADR-0150), and message hover ground eases (ADR-0145). The gap the
+-- `state:set` dirties the scene. Appearance stays bound because it does not change it.
+-- Rust added nearly all card requirements: summary/body `wrap` and `max_lines`,
+-- `actions`/`invoke_action`, `image_path` beside `app_icon`, keyboard-reading
+-- `textfield`, `timestamp`, and `hold_expiry`/`on_hover` so reading or
+-- replying does not remove the card. Body spans preserve bold, italic,
+-- underline, and accent links; links also get opener buttons. Cards and
+-- messages slide/fade, and message hover ground eases. The gap the
 -- cards below a dismissed one close still snaps: a leaving node takes no room, so what travels out
 -- of a card is clipped by the card closing over it.
 local theme = require("config.theme")
@@ -53,7 +53,7 @@ local function message(notification, ui, opts)
 
     local heading = {}
     -- `image_path`, not `app_icon`, is the message attachment; the application mark is in the
-    -- header (ADR-0091).
+    -- header.
     if notification.image_path then
         heading[#heading + 1] = icon {
             name = notification.image_path,
@@ -67,7 +67,7 @@ local function message(notification, ui, opts)
         align = opts.standalone and "Center" or "Start",
         align_v = "Center",
         wrap = "Word",
-        -- `0` means "no limit" (ADR-0089), so expansion needs no second tree.
+        -- `0` means "no limit", so expansion needs no second tree.
         max_lines = expanded and 0 or 2,
     })
     -- Only when requested: history is about when; a popup is about now.
@@ -106,7 +106,7 @@ local function message(notification, ui, opts)
             width = "Fill",
             wrap = "Word",
             max_lines = expanded and 0 or 2,
-            -- An underlined run opens without firing the message click (ADR-0106); plain words
+            -- An underlined run opens without firing the message click; plain words
             -- still do. Buttons below cover links elided before their words were drawn.
             on_link = function(href)
                 mantle.applications:invoke("open_url", href)
@@ -125,12 +125,11 @@ local function message(notification, ui, opts)
         lines[#lines + 1] = row { width = "Fill", spacing = theme.spacing.sm, children = pictures }
     end
 
-    -- Always show the reply field when supported (ADR-0109), with no Reply button. Clicking it focuses the field and
-    -- gives niri's `OnDemand` layer the keyboard; focusing a `textfield` arms no click
-    -- (ADR-0092 decision 7).
+    -- Always show the reply field when supported, with no Reply button. Clicking it focuses the field and
+    -- gives niri's `OnDemand` layer the keyboard; focusing a `textfield` arms no click.
     if notification.has_reply then
         lines[#lines + 1] = row {
-            -- `lines` is built conditionally and id-less siblings zip in order (ADR-0023), so a
+            -- `lines` is built conditionally and id-less siblings zip in order, so a
             -- body arriving shifts every row after it. Two `row`s pass the kind guard, and the
             -- reply row inherits the images row's node, taking the `NodeId` the Renderer holds
             -- keyboard focus by.
@@ -142,13 +141,12 @@ local function message(notification, ui, opts)
                 textfield {
                     width = "Fill",
                     height = theme.control.md,
-                    -- Use the sender's wording, such as "Reply to Alice", or ours if absent
-                    -- (ADR-0101).
+                    -- Use the sender's wording, such as "Reply to Alice", or ours if absent.
                     placeholder = notification.reply_placeholder or "Reply",
                     font_size = theme.font.sm,
                     foreground = theme.FG,
-                    -- Each keystroke stores text for Send and renews the 60-second hold from
-                    -- ADR-0094. Typing keeps the card alive while it continues; reload still lapses
+                    -- Each keystroke stores text for Send and renews the 60-second hold.
+                    -- Typing keeps the card alive while it continues; reload still lapses
                     -- the hold.
                     on_change = function(text)
                         ui.set_reply_draft(id, text)
@@ -158,7 +156,7 @@ local function message(notification, ui, opts)
                         ui.set_reply_draft(id, text)
                         ui.send_reply(id)
                     end,
-                    -- Escape empties the field and releases the keyboard (ADR-0102), discarding the
+                    -- Escape empties the field and releases the keyboard, discarding the
                     -- draft.
                     on_cancel = function()
                         ui.clear_reply(id)
@@ -176,16 +174,16 @@ local function message(notification, ui, opts)
         }
     end
 
-    -- Sender buttons exclude `has_reply`: the Supervisor lifts `"inline-reply"` into its own flag
-    -- (ADR-0090), and the field above draws it.
+    -- Sender buttons exclude `has_reply`: the Supervisor lifts `"inline-reply"` into its own flag,
+    -- and the field above draws it.
     local buttons = {}
     for index, action in ipairs(notification.actions or {}) do
         buttons[#buttons + 1] = action_button(action.label, function()
             mantle.notifications:invoke("invoke_action", id, action.key)
         end, string.format("notification-action-%d-%d", id, index), { icon = action.icon_name })
     end
-    -- One button per distinct body link, using `applications:open_url` (ADR-0103). Underlined words
-    -- open it too (ADR-0106); the button exposes links whose words three-line elision cuts off.
+    -- One button per distinct body link, using `applications:open_url`. Underlined words
+    -- open it too; the button exposes links whose words three-line elision cuts off.
     for index, href in ipairs(notifications.notification_links(notification.body)) do
         buttons[#buttons + 1] = action_button(notifications.link_label(href), function()
             mantle.applications:invoke("open_url", href)
@@ -223,7 +221,7 @@ local function message(notification, ui, opts)
 
     -- Clicking invokes the sender's default action or dismisses it, as the freedesktop spec
     -- defines.
-    -- `invoke_action` removes it unless the sender asked it to stay (ADR-0090).
+    -- `invoke_action` removes it unless the sender asked it to stay.
     local hovered = hover("notification-message-" .. tostring(id))
     -- Use an `if`, not `a and nil or b`, which cannot produce nil and gives lone messages a second
     -- box.
@@ -271,13 +269,13 @@ local function message(notification, ui, opts)
         translate = { x = 0 },
         opacity = 1,
         -- The message slides from the right on entry and dismissal. A leaving node
-        -- takes no room (ADR-0150), so opacity carries the exit while the card clips travel.
+        -- takes no room, so opacity carries the exit while the card clips travel.
         animate = animate,
         on_click = function(_, mouse_button)
             if mouse_button ~= "left" then
                 return
             end
-            -- Keep the body inert while this message has a nonempty draft (ADR-0108, ADR-0109); the
+            -- Keep the body inert while this message has a nonempty draft; the
             -- X still works.
             if ui.reply_draft_id:get() == id and (ui.reply_draft:get() or "") ~= "" then
                 return
@@ -293,14 +291,14 @@ local function message(notification, ui, opts)
 end
 
 -- How long one card waits behind the one above it before entering. Four cards landing on one frame
--- read as one block (ADR-0153). Only simultaneous arrivals use it; hidden subtrees stay frozen
--- (ADR-0124, `layout::scene::prepare_node`).
+-- read as one block. Only simultaneous arrivals use it; hidden subtrees stay frozen
+-- (`layout::scene::prepare_node`).
 local STAGGER_MS = 60
 
 -- The entry and exit of a whole card, which is the one thing the two scopes disagree about.
 --
 -- The card uses paint-only `translate`, not `margin`; a `Fill`-width card is laid out once at
--- full width instead of re-wrapping as its margin changes (ADR-0149).
+-- full width instead of re-wrapping as its margin changes.
 --
 -- Both edges run at `notification_slide_ms` on `OutCubic`. The bare 147 is for colour transitions.
 --
@@ -352,7 +350,7 @@ return function(group, ui, opts)
     local title = is_group and string.format("%s (%d)", group.app_name, #items) or group.app_name
     local header = {
         -- The application's icon stays artwork, not a glyph `cell` (`components/panel_row.lua`).
-        -- `icon { name = ... }` accepts a theme name or absolute path (ADR-0054 decision 2); its
+        -- `icon { name = ... }` accepts a theme name or absolute path; its
         -- plate keeps arbitrary-colour artwork off the glass.
         rect {
             width = theme.notification_app_icon,
@@ -369,7 +367,7 @@ return function(group, ui, opts)
                 align_v = "Center",
             } },
         },
-        -- Bold, centred title. `bold` lives on a `TextRun` (ADR-0104), not the node.
+        -- Bold, centred title. `bold` lives on a `TextRun`, not the node.
         cell({ { text = title, bold = true } }, theme.FG, theme.font.md, {
             width = "Fill",
             align = "Center",
@@ -430,7 +428,7 @@ return function(group, ui, opts)
         opacity = 1,
         animate = entry_animation(scope, group.rank),
         background = in_history and theme.GLASS_CONTENT or theme.GLASS,
-        -- A popup card is its own sheet and blurs the desktop behind it (ADR-0195). History sits on
+        -- A popup card is its own sheet and blurs the desktop behind it. History sits on
         -- `panel_host`'s already-blurred card, so it does not request the same region again.
         blur = not in_history,
         radius = theme.radius.md,

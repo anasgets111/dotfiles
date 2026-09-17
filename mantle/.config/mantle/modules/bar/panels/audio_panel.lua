@@ -1,6 +1,6 @@
 -- Masthead, output/microphone cards with pickers, and one slider per app stream.
 --
--- Sliders use `components/slider.lua` and `button`'s `on_drag`/`on_wheel` (ADR-0116). Device
+-- Sliders use `components/slider.lua` and `button`'s `on_drag`/`on_wheel`. Device
 -- pickers and the mixer expand on click, tracked by three `state()` signals.
 local theme = require("config.theme")
 local icons = require("config.icons")

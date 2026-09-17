@@ -113,14 +113,14 @@ weather.failed = state("weather_failed", false)
 -- `state`, not module locals: a local is rebuilt by every in-place reload, while the `process.run`
 -- child it is guarding is not. An unrelated config save would clear the guard under a live request
 -- and let the next tick start a second one. `state` has exactly the child's lifetime, surviving a
--- reload with an unchanged seed (ADR-0044 decision 5) and dying with the generation that gets the
+-- reload with an unchanged seed and dying with the generation that gets the
 -- child reaped anyway. `0` in `next_attempt` means nothing is scheduled yet.
 local in_flight = state("weather_fetching", false)
 local retries = state("weather_retries", 0)
 local next_attempt = state("weather_next_attempt", 0)
 
 -- Monotonic, not wall: a retry is a duration this session owns, and setting the clock must not
--- park the next attempt an hour out (ADR-0202). The stored-freshness deadline below is the other
+-- park the next attempt an hour out. The stored-freshness deadline below is the other
 -- kind and stays wall, so the two are never compared against the same reading.
 local function schedule(seconds)
     next_attempt:set(((mantle.system:get() or {}).monotonic or 0) + seconds)

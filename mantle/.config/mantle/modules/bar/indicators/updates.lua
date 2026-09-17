@@ -67,12 +67,12 @@ local function toast(urgency, title, body, action)
     end
 end
 
--- Updates stay dormant until configured (ADR-0034); otherwise `state_of` remains `idle` and
+-- Updates stay dormant until configured; otherwise `state_of` remains `idle` and
 -- `visible` hides the indicator. Configure here, not `shell.lua`, because this module needs the
 -- answer. The cadence is `update_panel.CHECK_INTERVAL`, which also sets what counts as stale there.
 --
--- Seed on `mantle.storage`'s first push, which carries the file `lib/store.lua` declared
--- (ADR-0115, ADR-0136). Persisted `checked_at` and its package list let a restart within the hour
+-- Seed on `mantle.storage`'s first push, which carries the file `lib/store.lua` declared.
+-- Persisted `checked_at` and its package list let a restart within the hour
 -- skip the check and still show an answer; `previous == nil` seeds once per process.
 mantle.storage:on_change(function(_, previous)
     if previous == nil then

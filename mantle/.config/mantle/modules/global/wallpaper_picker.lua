@@ -3,8 +3,8 @@
 --
 -- ## Engine pieces
 --
--- `mantle.files` follows the folder (ADR-0120), so the grid lists a `computed` without scanning.
--- Each tile uses `image` with `async = true` (ADR-0122); the pool downsizes 4K files while the card
+-- `mantle.files` follows the folder, so the grid lists a `computed` without scanning.
+-- Each tile uses `image` with `async = true`; the pool downsizes 4K files while the card
 -- is up, avoiding fifty inline decodes that held the shell for one second on open. Search reuses
 -- the launcher's autofocus/navigation/submit and two-stage Escape.
 --
@@ -16,7 +16,7 @@
 -- ## Not carried over
 --
 -- Displays tab and theme/dark-mode rows (this config has one theme). Tiles read and write
--- `~/.cache/thumbnails` through `async` (ADR-0122).
+-- `~/.cache/thumbnails` through `async`.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
@@ -249,7 +249,7 @@ local function tile(entry)
             apply(entry.path)
         end,
         children = {
-            -- The picture zooms 1.11x under the pointer, cut by the tile's rounded box (ADR-0149).
+            -- The picture zooms 1.11x under the pointer, cut by the tile's rounded box.
             image {
                 source = entry.path,
                 fit = "cover",

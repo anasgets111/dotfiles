@@ -9,7 +9,7 @@ local section_header = require("components.section_header")
 -- A real `xdg_toplevel`, opened by `power_menu.lua` and closable through its `panel_header`. A
 -- `window` gets no monitor, anchor, or size; inspect placement with `niri msg windows`.
 --
--- This holds readouts without indicators (ADR-0173): system info belongs at the top of the
+-- This holds readouts without indicators: system info belongs at the top of the
 -- notifications panel, and a second copy here would be the same numbers twice.
 --
 -- What is left is thin on purpose. This file is the config's only `window {}`, so it is also the

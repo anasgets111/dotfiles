@@ -7,9 +7,9 @@
 -- `position_updated_at` is `CLOCK_MONOTONIC`, and `mantle.system.monotonic` is the same kind of
 -- reading, so the anchor is taken from it in `on_change` -- the one place a clock reading and a
 -- payload are known to be simultaneous. `system` ticks the sum once a second. Both ends are on the
--- monotonic clock, so setting the wall clock does not jump playback (ADR-0202).
+-- monotonic clock, so setting the wall clock does not jump playback.
 --
--- Writing the anchor in a handler rather than a `:map` is deliberate: ADR-0044 may rerun a map on
+-- Writing the anchor in a handler rather than a `:map` is deliberate: the engine may rerun a map on
 -- the same inputs, so a map that recorded a time would record it repeatedly.
 --
 -- A drag adopts its own target as the reading; without that the bar counted on from the pre-seek
@@ -19,7 +19,7 @@
 --
 -- Stop: `control` takes `play`, `pause`, `play_pause`, `next` and `previous`, and nothing else
 -- (`PlayerCommand`). Nothing here checks whether a player can skip, seek, or be controlled --
--- `PlayerState` carries no such flags. See ADR-0164.
+-- `PlayerState` carries no such flags.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -75,7 +75,7 @@ local seek_base = state("media_seek_base", -1)
 
 mantle.mpris.on_change(mantle.mpris, function()
     local player = selected:get()
-    -- `-1` is "this player has never answered `Position`" (ADR-0036), not a reading, so it must not
+    -- `-1` is "this player has never answered `Position`", not a reading, so it must not
     -- become an anchor to count from.
     local position = (player and player.position) or -1
     if position == anchored_position or position < 0 then
@@ -86,7 +86,7 @@ mantle.mpris.on_change(mantle.mpris, function()
     anchor:set((mantle.system:get() or {}).monotonic or 0)
 end)
 
--- No clock read of its own: a `computed` must answer the same for the same inputs (ADR-0044), and
+-- No clock read of its own: a `computed` must answer the same for the same inputs, and
 -- reading a clock makes it answer differently every run. Before `mantle.system`'s first tick there
 -- is no "now", so the anchor is the only honest reading and the elapsed term is zero.
 local position_us = computed({ selected, mantle.system, anchor, seek_base }, function(player, s, anchored, base)
@@ -104,7 +104,7 @@ local position_us = computed({ selected, mantle.system, anchor, seek_base }, fun
     if player.play_state == "Playing" and anchored > 0 and now > anchored then
         position = position + (now - anchored) * 1000 * 1000
     end
-    -- A `-1` length is a stream, which has no end to clamp to (ADR-0036).
+    -- A `-1` length is a stream, which has no end to clamp to.
     local length = player.length or -1
     if length > 0 then
         return math.min(position, length)
@@ -183,7 +183,7 @@ local artwork = rect {
             end),
             fit = "cover",
             -- The pool downsizes a full-resolution cover while the panel is up, as the wallpaper
-            -- grid does (ADR-0122); an inline decode here would stall the frame that opens the
+            -- grid does; an inline decode here would stall the frame that opens the
             -- card.
             async = true,
             width = "Fill",
@@ -295,7 +295,7 @@ local body = {
                         return { { text = shown, bold = true } }
                     end), theme.FG, theme.font.lg, { width = "Fill" }),
                     -- Fallback is artist, album, identity; `PlayerState` has no album, so use
-                    -- artist then identity (ADR-0164).
+                    -- artist then identity.
                     cell(util.label(selected, function(player)
                         return first_nonempty(player and player.artist, player and player.identity, "Unknown artist")
                     end), theme.DIM, theme.font.sm, { width = "Fill" }),

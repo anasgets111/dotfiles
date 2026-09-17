@@ -1,5 +1,5 @@
 -- Session commands the two compositors spell differently. `systemctl reboot`/`poweroff`/`suspend`
--- are not here: logind answers to both, so they need no branch (ADR-0206).
+-- are not here: logind answers to both, so they need no branch.
 --
 -- Hyprland 0.56 parses its command socket as Lua, so a dispatcher is `hl.dsp.<name>(...)` and the
 -- pre-0.56 `dispatch exit` dies in that parser. `dpms` reads `action`, one of `on`/`off`/`toggle`,
@@ -21,8 +21,8 @@ local compositor = {}
 
 --- Detach `verb` for the running compositor.
 ---
---- `false` means nothing ran: no implementor, or `workspaces` has not answered yet (ADR-0056
---- decision 1 leaves it nil). A caller must not record the verb as done on `false`.
+--- `false` means nothing ran: no implementor, or `workspaces` has not answered yet. A caller
+--- must not record the verb as done on `false`.
 --- @param verb "logout"|"displays_on"|"displays_off"
 --- @return boolean ran
 function compositor.detach(verb)

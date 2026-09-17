@@ -16,13 +16,13 @@ local any_modal = ui_state.active_modal:map(function(kind)
     return kind ~= ""
 end)
 
--- Mapped through the last card's exit fade (ADR-0146). `keyboard_interactivity` reads this same
+-- Mapped through the last card's exit fade. `keyboard_interactivity` reads this same
 -- signal, so the two cannot drop in different passes: `None` on a still-mapped full-screen host makes
 -- Hyprland refocus the last focused window, onto its workspace.
 local shown = util.linger(any_modal, theme.animation_ms)
 
 -- Only cards open or fading out are children, which is also what hides a closed one: a hidden card is
--- frozen, not dropped (ADR-0124). The host unmaps in the pass the last linger ends, keeping that card.
+-- frozen, not dropped. The host unmaps in the pass the last linger ends, keeping that card.
 local lingering = {}
 for _, modal in ipairs(modals) do
     table.insert(lingering, util.linger(ui_state.modal_showing(modal.kind), theme.animation_ms))
@@ -62,7 +62,7 @@ return panel {
                 height = "Fill",
                 background = theme.SCRIM,
                 -- Dims, not blur. A modal that needs attention does not need the rest destroyed.
-                -- Cards request blur themselves (ADR-0195), so only the glass blurs and the scrim
+                -- Cards request blur themselves, so only the glass blurs and the scrim
                 -- dims a sharp desktop.
                 --
                 -- Blur cannot fade: `set_blur_region` carries only a region, so the step is a step.

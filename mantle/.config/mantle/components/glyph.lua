@@ -1,4 +1,4 @@
--- A Nerd Font glyph uses `theme.icon_font`, not the declared chain (ADR-0144). `cell` adds one
+-- A Nerd Font glyph uses `theme.icon_font`, not the declared chain. `cell` adds one
 -- property because repeating it at twenty call sites leaves some calls without it.
 --
 -- The declared family is Nerd-Font-patched, so it carries these private-use codepoints and wins the

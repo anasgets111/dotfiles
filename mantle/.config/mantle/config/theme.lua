@@ -1,6 +1,6 @@
 -- Catppuccin Mocha. An invented palette would be a worse version of one already balanced.
 -- Shared tokens live here because every `shell.lua` module reads them and no module owns them.
--- ADR-0047 clears the module cache before each re-evaluation, so edits recolour the bar in place.
+-- The module cache clears before each re-evaluation, so edits recolour the bar in place.
 local theme = {}
 
 -- ## The responsive scale
@@ -24,7 +24,7 @@ end
 
 -- 1080p fallback and this config's design height. Unknown and 1080p outputs share it,
 -- so an evaluation with empty screens and a live session measure the same bar. Sessions seed
--- screens first in `wayland/mod.rs` (ADR-0041 decision 2).
+-- screens first in `wayland/mod.rs`.
 local FALLBACK_HEIGHT = 1080
 
 -- Logical width of the same output, for the one token measured across the screen rather than down
@@ -141,8 +141,7 @@ theme.opacity                   = {
 -- Catppuccin swatches.
 theme.BG                        = "#1e1e2eff"
 theme.SURFACE                   = "#313244ff"
--- Catppuccin surface1, one step above SURFACE; pointer highlights use it instead of inventing blue
--- (ADR-0062).
+-- Catppuccin surface1, one step above SURFACE; pointer highlights use it instead of inventing blue.
 theme.HOVER                     = "#45475aff"
 theme.FG                        = "#cdd6f4ff"
 -- Catppuccin subtext0. Overlay0 (#6c7086) reads the keyboard
@@ -175,7 +174,7 @@ theme.BORDER                    = theme.with_opacity(theme.SURFACE, 0.75)
 theme.BORDER_SUBTLE             = theme.with_opacity(theme.SURFACE, 0.35)
 -- Shared translucent card ground for panels, menus, popups and cards. Mantle makes a card read as a
 -- sheet above the bar rather than the same tone as it. Glass that cannot be seen through is a dark
--- rectangle (ADR-0195).
+-- rectangle.
 theme.GLASS                     = theme.with_opacity("#181825", 0.88)
 theme.GLASS_CONTENT             = theme.with_opacity(theme.ELEVATED, 0.46)
 -- `GLASS_INPUT`: a text field sits on the base tone, not the elevated one, so a search box reads
@@ -222,7 +221,7 @@ theme.spacing                   = {
     xl = s(24, 16),
 }
 
--- `components/glyph.lua` names the font on every icon node (ADR-0144). `shell.lua` declares both
+-- `components/glyph.lua` names the font on every icon node. `shell.lua` declares both
 -- `Propo` and `Mono`; the latter keeps indicators to one cell, so the node names it explicitly.
 theme.icon_font                 = "JetBrainsMono Nerd Font Mono"
 
@@ -294,7 +293,7 @@ theme.item_radius               = s(18, 6)
 theme.battery_pill_width        = s(80, 60)
 -- Hovered volume control: holds "150%" plus a drag track.
 theme.volume_expanded_width     = s(220, 140)
--- In ms, for a node's `animate` table (ADR-0145). The engine's default is `InOutQuad`;
+-- In ms, for a node's `animate` table. The engine's default is `InOutQuad`;
 -- `animation_fast_ms` is for hover zooms.
 theme.animation_ms              = 147
 theme.animation_fast_ms         = 100
@@ -305,17 +304,17 @@ theme.animation_slow_ms         = 250
 -- `animation_ms`. Derive it rather than writing 206 so it follows the base.
 theme.notification_slide_ms     = math.floor(theme.animation_ms * 1.4 + 0.5)
 -- For a fill the user is scrubbing: a volume key on repeat, a brightness button held down. An
--- eased tween restarts from a standstill when its target moves (ADR-0145), so key repeat keeps the
--- fill behind the number. A spring carries velocity across the retarget (ADR-0154).
+-- eased tween restarts from a standstill when its target moves, so key repeat keeps the
+-- fill behind the number. A spring carries velocity across the retarget.
 --
 -- The 400/42 spring is critically damped: `damping` is just above the
 -- `2 * math.sqrt(stiffness)` threshold. A single press still lands in about a tenth of a second.
 theme.spring_tracking           = { spring = { stiffness = 400, damping = 42 } }
--- Bar panels share one card in `modules/shell/panel_host.lua`; ADR-0110 makes it as tall as the
+-- Bar panels share one card in `modules/shell/panel_host.lua`, as tall as the
 -- panel. Each list is capped at seven rows, then scrolls.
 theme.panel_width               = s(340, 280)
 theme.panel_list_height         = s(280, 210)
--- Where a closed panel card sits before its first layout has measured it (`geometry`, ADR-0147):
+-- Where a closed panel card sits before its first layout has measured it (`geometry`):
 -- above the bar by the tallest card. After that it drops from its own height, using `-height`.
 theme.panel_slide               = s(760, 570)
 -- Notification history holds the popup's cards, 420px wide.

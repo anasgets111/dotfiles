@@ -128,7 +128,7 @@ local heading = row {
 -- Rebuilt on each one-second clock tick, at most 42 cells of arithmetic, although the grid changes
 -- only at midnight.
 --
--- ponytail: `:map` must stay pure during scene resolution (ADR-0044 can rerun it on the same
+-- ponytail: `:map` must stay pure during scene resolution (the engine can rerun it on the same
 -- inputs), so day memoization cannot write a cache. Upgrade to a day-based `computed` input or add
 -- a date field beside `mantle.system.time`; the latter is smaller.
 local grid = column {

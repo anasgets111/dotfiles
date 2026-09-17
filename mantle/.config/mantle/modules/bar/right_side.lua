@@ -16,7 +16,7 @@ local date_time = require("modules.bar.indicators.date_time")
 local ui_state = require("lib.ui_state")
 
 -- One control holds bell and clock, and a single button fills it. The whole readout opens the
--- notifications panel; calendar detail lives in the clock's hover tooltip (ADR-0174).
+-- notifications panel; calendar detail lives in the clock's hover tooltip.
 local clock_slot = date_time.slot
 local hovered = hover(clock_slot)
 

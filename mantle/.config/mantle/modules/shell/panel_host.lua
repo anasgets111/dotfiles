@@ -3,7 +3,7 @@
 -- One screen slot shows the last-requested panel. Five surfaces would need manual mutual exclusion;
 -- one `kind` signal makes that impossible to get wrong.
 --
--- ## `panel`, not `popup` (ADR-0087)
+-- ## `panel`, not `popup`
 --
 -- A layer surface has no grab, so `keyboard_interactivity` binds only to the fact needing keys and
 -- the bar never asks, following `password_ssid`.
@@ -17,7 +17,7 @@
 --   * Cost: popups had `constraint_adjustment`; layers do not, so the clamp is hand-written
 --     `"SlideX"`.
 --
--- ## Card height follows its panel (ADR-0110)
+-- ## Card height follows its panel
 --
 -- The card has no `height`; each list owns `max_height` and scrolls at the same cap.
 local theme = require("config.theme")
@@ -39,8 +39,8 @@ local screen_recorder_panel = require("modules.bar.panels.screen_recorder_panel"
 local panels = { power_menu, network_panel, bluetooth_panel, notification_history, update_panel, audio_panel,
     media_panel, tray_menu, screen_recorder_panel }
 
--- Only the matching `kind` is a child: a hidden sibling is frozen, not dropped (ADR-0124). A
--- section's `geometry` (ADR-0147) keeps its last rect while it is gone, so a reveal knows its
+-- Only the matching `kind` is a child: a hidden sibling is frozen, not dropped. A
+-- section's `geometry` keeps its last rect while it is gone, so a reveal knows its
 -- height; a section never shown reads zero.
 local sections = {}
 local section_rects = {}
@@ -71,7 +71,7 @@ end)
 -- The inverted corners joining the card to the bar.
 local CORNER = math.min(theme.radius.md * 3, theme.bar_height)
 
--- `popup_anchor` is the indicator's `on_click` rect (ADR-0050 decision 3) in this surface's
+-- `popup_anchor` is the indicator's `on_click` rect in this surface's
 -- coordinates, so `x` needs no translation. Center under the indicator, then clamp
 -- within `spacing.sm` of either edge. Left-edge anchoring made a card under a
 -- button read as belonging to its right neighbor. The hand-written `"SlideX"` matters near the
@@ -94,7 +94,7 @@ local card_x = computed({ ui_state.popup_anchor, mantle.screens, card_width }, f
 end)
 
 -- The card drops from just above the bar's bottom edge and retracts the same way while `linger`
--- keeps it in the tree for exit (ADR-0146). No fade: only `y` moves, and the wrapper below the
+-- keeps it in the tree for exit. No fade: only `y` moves, and the wrapper below the
 -- bar's `clip` cuts the card as it moves off-screen. Travel is the shown section's measured
 -- height plus card chrome, read from the section so a closed switch retracts to the *next* card's
 -- height instead starting a taller card part-visible. An unlaid section reads zero and falls back
@@ -102,7 +102,7 @@ end)
 --
 -- Switching kinds while open does not retract: the card morphs in place, animating `width` and
 -- `height`. The card height is the shown section's measured height plus its chrome; a pass that
--- changes a measurement earns one follow-up pass (ADR-0147), keeping the card from sitting one pass
+-- changes a measurement earns one follow-up pass, keeping the card from sitting one pass
 -- behind a section that grew. An unmeasured section leaves the card content-sized, which snaps that
 -- once.
 --
@@ -182,7 +182,7 @@ return panel {
     -- (`layout::secure_submit`, `wayland::input`); the sheet shows one at a time. The sheet is
     -- raised by a click on an already-open panel.
     --
-    -- Notifications also need it: history draws the popup's always-present reply field (ADR-0109),
+    -- Notifications also need it: history draws the popup's always-present reply field,
     -- and niri focuses an `OnDemand` layer on a click while already on demand, not on the flip.
     -- Ask on demand only while history is shown: clicks there take the keyboard, other windows give
     -- it back, and the catcher closes the panel. Network and calendar never ask without a field.
@@ -196,7 +196,7 @@ return panel {
             return showing_notifications and "OnDemand" or "None"
         end
     ),
-    -- Input follows drawn and clickable nodes (ADR-0038 decision 5), so a closed panel leaves the
+    -- Input follows drawn and clickable nodes, so a closed panel leaves the
     -- bar and its corners as the only region and the rest of the screen clicks through.
     child = rect {
         width = "Fill",
@@ -251,8 +251,7 @@ return panel {
                                             height = { duration = theme.animation_ms, easing = "OutCubic" },
                                         },
                                         background = theme.GLASS_SURFACE,
-                                        -- History cards sit on this glass and do not ask again
-                                        -- (ADR-0195).
+                                        -- History cards sit on this glass and do not ask again.
                                         blur = true,
                                         padding = {
                                             top = CARD_PADDING + theme.radius.md,

@@ -1,4 +1,4 @@
--- Hover tooltip: a `popup` following one hover slot (ADR-0062). Two bindings are enough: `visible`
+-- Hover tooltip: a `popup` following one hover slot. Two bindings are enough: `visible`
 -- takes the hover boolean and `anchor_rect` takes the engine-written rect.
 --
 -- `grab = false` is required. A grabbing popup takes the pointer off its source node and flickers;

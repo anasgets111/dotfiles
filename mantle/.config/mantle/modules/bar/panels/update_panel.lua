@@ -1,11 +1,11 @@
 -- Pending updates, download size, and the install button in front of the list. The bar only
--- reports the count; installs happen here (ADR-0113 amendment).
+-- reports the count; installs happen here.
 --
 -- This file owns wording, formatting, and thresholds; `mantle.updates` stays unchanged. The
 -- Supervisor publishes `install_exit_code` and pacman's output; "failed retrieving file" becomes
 -- "could not download; check the connection". Numbers are language-neutral; that sentence is not.
 --
--- `modules/bar/indicators/updates.lua` schedules the checks (ADR-0115) on the cadence
+-- `modules/bar/indicators/updates.lua` schedules the checks on the cadence
 -- declared below and installs from the notification action through `install` here.
 local theme = require("config.theme")
 local icons = require("config.icons")
@@ -37,7 +37,7 @@ local LOG_SCROLL = scroll("update_log")
 local dismissed = state("updates_result_dismissed", false)
 
 -- Stamp the install-start click: `install_finished_at` is published, and the click is the only
--- known start. Config writes are allowed only in input callbacks (ADR-0044).
+-- known start. Config writes are allowed only in input callbacks.
 local started_at = state("updates_install_started_at", 0)
 
 -- A failed run shows its log unasked; a successful one hides it behind a button.

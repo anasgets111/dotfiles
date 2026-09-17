@@ -1,9 +1,8 @@
--- Glyphs the bar draws by name. An `icon` is a themed raster looked up by name (ADR-0054) that
+-- Glyphs the bar draws by name. An `icon` is a themed raster looked up by name that
 -- keeps its artwork colours. Private-use codepoints use `text`: `PaintStyle::Icon` has no tint, and
 -- `layout::paint` applies none. `text` accepts `foreground`, `font_size` and `opacity`.
--- `shell.lua` puts "CaskaydiaCove Nerd Font Propo" first; fallback is per glyph (ADR-0043 decision
--- 2), so codepoints choose Nerd Font and Latin text chooses Noto Sans. Without it, these render as
--- tofu.
+-- `shell.lua` puts "CaskaydiaCove Nerd Font Propo" first; fallback is per glyph, so codepoints
+-- choose Nerd Font and Latin text chooses Noto Sans. Without it, these render as tofu.
 --
 -- `\u{...}` keeps the source ASCII; the codepoint is lookupable at nerdfonts.com/cheat-sheet.
 -- Names are this config's.

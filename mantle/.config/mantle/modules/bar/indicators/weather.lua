@@ -6,7 +6,7 @@
 -- Thirteen cards read the same four parallel arrays, so the body is one `computed` over the
 -- forecast returning nodes, as `modules/bar/panels/minimal_calendar.lua` builds its month. Per-field
 -- signals would resolve that table thirteen times a pass to say the same thing. It rebuilds about
--- eighty nodes a pass while the sidebar is open, and ADR-0124's freeze takes that to zero when shut.
+-- eighty nodes a pass while the sidebar is open; the hidden-subtree freeze makes it zero when shut.
 --
 -- `visible` is this config's shape for expansion, and an invisible node takes no size or spacing
 -- gap.

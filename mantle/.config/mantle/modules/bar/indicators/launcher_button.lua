@@ -10,7 +10,7 @@ local SLOT = "launcher"
 
 local launcher_button = icon_button(icons.launcher, function()
     -- Refresh on open, not a timer: enumeration walks a directory and only this click needs it
-    -- current (ADR-0061).
+    -- current.
     if not ui_state.launcher_open:get() then
         mantle.applications:invoke("refresh")
     end

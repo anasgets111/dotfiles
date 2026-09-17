@@ -12,7 +12,7 @@
 --
 -- No `armed` or inhibitor check, and no manual-toggle reread. Any logind inhibitor, including ours
 -- or `systemd-inhibit`'s, makes the Supervisor hold threshold events and return `Resumed` for work
--- already idle (ADR-0139). `on_resume` zeros `idle.since`, so the handler returns while held; only
+-- already idle. `on_resume` zeros `idle.since`, so the handler returns while held; only
 -- the master switch is checked here.
 --
 -- ## Live testing
@@ -23,7 +23,7 @@ local idle = require("lib.idle")
 local store = require("lib.store")
 local compositor = require("lib.compositor")
 
--- No notification sound while nobody can see the popup; critical still sounds (ADR-0033).
+-- No notification sound while nobody can see the popup; critical still sounds.
 local function sync_notification_quiet()
     local lock = mantle.lock:get()
     mantle.notifications:invoke("set_quiet", idle.blanked:get() or (lock ~= nil and lock.active))

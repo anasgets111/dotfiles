@@ -1,11 +1,10 @@
--- Wallpaper is not a capability (ADR-0055): a `Background` panel with one image per output, using
--- `lib/wallpaper.lua`. `child` is keyed by output name (ADR-0121), so each screen gets its own file
+-- Wallpaper is not a capability: a `Background` panel with one image per output, using
+-- `lib/wallpaper.lua`. `child` is keyed by output name, so each screen gets its own file
 -- and fit, including monitors plugged in later without a reload.
 --
--- `async` with `transition` (ADR-0180, ADR-0181) decodes off the render thread, holds the current
--- image until replacement is ready, then cross-fades. ADR-0122 kept `async` off because a pending
--- image drew nothing and changes flashed the ground. ADR-0179 measured 162.7ms of render-thread
--- decode at every change and 114ms in release; `retain` removes the flash without that stall.
+-- `async` with `transition` decodes off the render thread, holds the current
+-- image until replacement is ready, then cross-fades. Synchronous decode stalls the render thread
+-- 162.7ms per change (114ms in release), and `async` without `retain` flashes the ground.
 local wallpaper = require("lib.wallpaper")
 
 -- Built twice: `place-within-backdrop` moves a surface into Niri's backdrop rather than copying it,
@@ -16,7 +15,7 @@ local function wallpaper_panel(id, visible)
     --
     -- Use `"Ignore"`, not `false`. Both reserve nothing, but `false` respects other reservations (a
     -- bar shrinks and displaces the surface). Layer-shell `-1` ignores them and covers the output.
-    -- `true` also reads as 0 for an all-edge surface with no single edge (ADR-0078).
+    -- `true` also reads as 0 for an all-edge surface with no single edge.
     return panel {
         id = id,
         visible = visible, -- `nil` on the desktop, which is never conditional.
@@ -36,9 +35,9 @@ local function wallpaper_panel(id, visible)
                 source = wallpaper.path_of(output),
                 fit = wallpaper.fit_of(output),
                 async = true,
-                -- `transition` implies `retain` (ADR-0181): one declaration holds the old picture and
+                -- `transition` implies `retain`: one declaration holds the old picture and
                 -- crosses with the selected `.frag` from `wallpaper.SHADER_FOLDER`, not an engine-known
-                -- name (ADR-0184).
+                -- name.
                 transition = wallpaper.transition(),
                 width = "Fill",
                 height = "Fill",
@@ -48,7 +47,7 @@ local function wallpaper_panel(id, visible)
 end
 
 -- Hyprland has no backdrop, so the second panel would decode a picture nothing draws. `false`
--- destroys the surface rather than hiding it, and reads `nil` until the first answer (ADR-0044).
+-- destroys the surface rather than hiding it, and reads `nil` until the first answer.
 local on_niri = mantle.workspaces:map(function(w)
     return w ~= nil and w.compositor == "niri"
 end)

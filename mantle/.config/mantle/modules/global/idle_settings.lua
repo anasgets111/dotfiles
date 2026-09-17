@@ -4,7 +4,7 @@
 -- Not a bar panel. Its three-action AC/battery matrix needs both profiles visible; the panel host's
 -- 340px card cannot fit it.
 --
--- Foreign inhibitors are unconditional (ADR-0139); `lib/store.lua` makes timeout order canonical.
+-- Foreign inhibitors are unconditional; `lib/store.lua` makes timeout order canonical.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")

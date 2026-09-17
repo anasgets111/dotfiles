@@ -1,7 +1,7 @@
 -- The bar pill, `power_button` below, offers log out, restart, and power off behind ten-second
 -- countdowns. A second click skips; right-click or cancel stops. `process.detach` shells out to
 -- `systemctl` and the compositor: a shutdown must not be reaped by a Renderer crash landing
--- mid-flight (ADR-0188).
+-- mid-flight.
 --
 -- The panel adds lock, sleep, settings, and a brightness slider. Settings has no other door; lock
 -- and sleep lose nothing, so need no countdown. Sleep calls `systemctl suspend`; no separate
@@ -9,7 +9,7 @@
 --
 -- Countdown is a deadline in `mantle.system.monotonic`, not a timer: it ends in `poweroff`, and a
 -- clock step must not fire it early. `system` pushes once a second;
--- seconds-left is a `computed`, and one `on_change` commits past the deadline (ADR-0115).
+-- seconds-left is a `computed`, and one `on_change` commits past the deadline.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -110,7 +110,7 @@ end
 
 -- The power-off circle expands on hover and stays open through a countdown.
 -- `components/expanding_pill.lua` owns expansion; slot ground, ring and countdown fill are its
--- own, while the pending action pulses via keyframes (ADR-0152).
+-- own, while the pending action pulses via keyframes.
 --
 -- During a countdown the chosen action keeps its glyph under an accent ring, the next slot shows
 -- seconds over a growing fill, and the third cancels. Left-click the choice to run it; click cancel
@@ -165,7 +165,7 @@ local function slot(index)
             return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
         end),
         -- The looping opacity animation makes the chosen action breathe. The entry itself gates
-        -- the sequence (ADR-0152), so no entry means no sequence and opacity falls back to
+        -- the sequence, so no entry means no sequence and opacity falls back to
         -- resolved `1`.
         animate = is_chosen:map(function(chosen)
             local eases = { background = theme.animation_ms, border_color = theme.animation_ms }

@@ -4,8 +4,8 @@ local util = require("lib.util")
 
 local notifications = {}
 
--- `notification.body` is a parsed freedesktop markup span array (ADR-0033). The Supervisor
--- parses it once, and `text.content` accepts the same run shape (ADR-0104): links become underlined
+-- `notification.body` is a parsed freedesktop markup span array. The Supervisor
+-- parses it once, and `text.content` accepts the same run shape: links become underlined
 -- `link_color` runs with `href`, while the engine draws/reports pressed runs but knows no URLs.
 -- Image spans go to `notifications.notification_images` because `text` refuses runs without
 -- `text`. Scan only unlinked text so pasted web/file addresses become pressable while `<a href>`
@@ -76,7 +76,7 @@ function notifications.notification_body(spans, link_color)
                 italic = span.italic or false,
                 underline = span.underline or is_link,
                 color = is_link and link_color or nil,
-                -- Carries `href` to `on_link` (ADR-0106). The engine never opens it; the card does.
+                -- Carries `href` to `on_link`. The engine never opens it; the card does.
                 href = is_link and span.href or nil,
             }
         end
@@ -129,18 +129,18 @@ function notifications.link_label(href)
 end
 
 -- Content identity for popup bookkeeping. Include `timestamp`, not only id: `replaces_id` reuses an
--- id for new content, while timestamp changes on every `Notify` and otherwise stays put (ADR-0093).
+-- id for new content, while timestamp changes on every `Notify` and otherwise stays put.
 function notifications.notification_key(notification)
     return string.format("%d:%d", notification.id or 0, notification.timestamp or 0)
 end
 
 -- Group the feed by sending application, turning eight chat messages into one card. Key by sender
--- `desktop_entry` (ADR-0101), or `app_name` when absent. Desktop ids avoid shared or changing
--- display names and key `applications.by_app_id` (ADR-0061), supplying installed `Name=`/ `Icon=`;
+-- `desktop_entry`, or `app_name` when absent. Desktop ids avoid shared or changing
+-- display names and key `applications.by_app_id`, supplying installed `Name=`/ `Icon=`;
 -- before the first `mantle.applications` push (`nil`), use the sender's name and icon. Critical
 -- first, then newest notification. The newest-first feed keeps a recently speaking app above one
 -- silent for an hour; key breaks equal-second ties between passes. `opts.skip_transient` omits
--- sender-marked `transient` notifications (ADR-0100): history omits them; popup does not.
+-- sender-marked `transient` notifications: history omits them; popup does not.
 function notifications.group_notifications(feed, applications, opts)
     opts = opts or {}
     local groups, by_key = {}, {}

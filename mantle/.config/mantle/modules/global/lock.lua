@@ -34,7 +34,7 @@ local SCRIM         = theme.with_opacity(theme.BG, 0.6)
 
 -- How long this screen takes to leave, and what the engine is told to wait.
 --
--- The engine removes the lock after authentication, not when the tween ends (ADR-0190), so this
+-- The engine removes the lock after authentication, not when the tween ends, so this
 -- value has to cover the exit rather than describe it, and is read off the card's animation below
 -- instead of written twice. The card is the only thing that moves on the way out; the ground holds
 -- until the compositor takes the surface away. See the ground's own note for why it cannot fade.
@@ -61,9 +61,9 @@ local full_name    = identity.full_name
 local account      = identity.account
 local initials     = identity.initials
 
--- Read from `mantle.lock`, not `rescue`, per ADR-0052 decision 4: while lock surfaces are mapped
+-- Read from `mantle.lock`, not `rescue`: while lock surfaces are mapped
 -- the bar's `rescue_cell` is unreachable. Print `attempts` because capability state is sampled at
--- layout time (ADR-0044); identical `error` strings would otherwise hide the second failure.
+-- layout time; identical `error` strings would otherwise hide the second failure.
 local hint         = util.label(mantle.lock, function(l)
     if l.error ~= nil and l.error ~= "" then
         return string.format("%s (%d)", l.error, l.attempts or 0)
@@ -117,7 +117,7 @@ end
 local function content(output)
     -- Authentication routes through a `textfield` with `secure_submit`. With `mask_character`
     -- too, keystrokes stay in a native buffer on the Renderer's Wayland thread and leave as a
-    -- `("lock", "authenticate")` envelope, never a Lua value (ADR-0005/ADR-0027). No
+    -- `("lock", "authenticate")` envelope, never a Lua value. No
     -- `on_change`/`on_submit`: either callback would reopen the closed path.
     --
     -- It is the surface's only `secure_submit` field, so compositor keyboard focus needs no click.
@@ -325,8 +325,8 @@ local function content(output)
                 height = "Fill",
             },
             rect { width = "Fill", height = "Fill", background = SCRIM },
-            -- The wallpaper is present on the first frame and the card fades and grows into it
-            -- (ADR-0146, ADR-0149). The screen-sized wrapper keeps the scale pivot centred.
+            -- The wallpaper is present on the first frame and the card fades and grows into it.
+            -- The screen-sized wrapper keeps the scale pivot centred.
             column {
                 width = "Fill",
                 height = "Fill",
@@ -353,7 +353,7 @@ end
 
 -- Declared, not open. `lock` refuses `visible`, `monitor`, `anchor`, `width`, and `height`, but
 -- otherwise takes the common and box properties like any other surface. The compositor creates one
--- per output while locked. No Wayland object exists until `mantle.lock:invoke("lock")` (ADR-0049).
+-- per output while locked. No Wayland object exists until `mantle.lock:invoke("lock")`.
 return lock {
     id = "lock_screen",
     child = content,

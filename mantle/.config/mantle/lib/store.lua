@@ -1,10 +1,10 @@
 -- Restart-persistent config in one file, not two.
 --
--- This file owns the path (ADR-0136); `persistent_table` has no default. Keep Mantle's hardcoded
+-- This file owns the path; `persistent_table` has no default. Keep Mantle's hardcoded
 -- location so existing `state.json` remains readable. Other configs can choose `$XDG_CACHE_HOME`,
 -- beside `shell.lua`, or a separate settings file.
 --
--- `config/theme.lua` and this directory hot-reload via `require` (ADR-0047). Only runtime user
+-- `config/theme.lua` and this directory hot-reload via `require`. Only runtime user
 -- changes need persistence.
 local home = os.getenv("HOME") or ""
 local state_home = os.getenv("XDG_STATE_HOME")

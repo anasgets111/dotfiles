@@ -100,7 +100,7 @@ function util.battery_glyph(b)
     return icons.battery_levels[math.max(1, math.min(5, bucket))]
 end
 
--- Resolve an `app_id` through `mantle.applications.by_app_id` (ADR-0061). Callers supply different
+-- Resolve an `app_id` through `mantle.applications.by_app_id`. Callers supply different
 -- spellings: a desktop file id (`modules/global/launcher.lua`), compositor toplevel `app_id`
 -- (`modules/bar/indicators/active_window.lua`), or StatusNotifierItem `Id`
 -- (`modules/bar/indicators/sys_tray.lua`).
@@ -281,8 +281,8 @@ function util.shown_when(signal, predicate)
 end
 
 -- `signal` or its value from up to `ms` ago: true while the source is true and for `ms` after it
--- drops. The hidden subtree keeps its content (ADR-0124) and `delay` keeps the surface mapped while
--- the exit tween runs (ADR-0146).
+-- drops. The hidden subtree keeps its content and `delay` keeps the surface mapped while
+-- the exit tween runs.
 function util.linger(signal, ms)
     return computed({ signal, delay(signal, ms) }, function(now, was)
         -- `== true` rather than `now or was`, which returns whatever `delay` holds. `delay` answers

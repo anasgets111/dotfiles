@@ -13,8 +13,8 @@
 -- `shell/`'s panel host. There is no `services/`: Supervisor-owned capabilities push signals on
 -- `mantle`; the config reads `mantle.audio`, and the data layer is not this config's job.
 --
--- `require` resolves only inside this directory and its cache clears before each re-evaluation
--- (ADR-0047), so any file below can reload the bar in place.
+-- `require` resolves only inside this directory and its cache clears before each re-evaluation,
+-- so any file below can reload the bar in place.
 
 -- Bind modules before the return. Lua 5.4 `require` returns the module and loader data, unlike 5.3;
 -- a final `require` in a table expands both, adds a path such as "/path/to/lock.lua", and produces
@@ -22,7 +22,7 @@
 -- `local x = require(...)` to keep only the module.
 -- Declare the font chain before text measurement. `femtovg` and `cosmic-text` fall back per glyph,
 -- so body text and Nerd Font private-use glyphs choose their faces independently; without it, the
--- engine resolves `sans-serif` and the glyphs become tofu (ADR-0043 decision 2).
+-- engine resolves `sans-serif` and the glyphs become tofu.
 --
 -- Read once at startup. Editing the list changes nothing until restart; see
 -- `renderer/src/lua/fonts.rs`.
@@ -40,7 +40,7 @@ local settings = require("modules.bar.panels.settings")
 local panel_host = require("modules.shell.panel_host")
 local modal_host = require("modules.global.modal_host")
 -- The bar is drawn on `panel_host`'s surface, whose id is `bar`. Each tooltip is its own surface,
--- not a bar child: `popup` is an `xdg_popup` rooted under the bar (ADR-0062). `visible = false`
+-- not a bar child: `popup` is an `xdg_popup` rooted under the bar. `visible = false`
 -- creates no Wayland object until hover.
 local battery_tooltip = require("modules.bar.indicators.battery").tooltip
 local clock_tooltip = require("modules.bar.indicators.date_time").tooltip

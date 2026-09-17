@@ -21,7 +21,7 @@ local glyph = require("components.glyph")
 local meter = require("components.meter")
 local panel_card = require("components.panel_card")
 
--- `sysinfo`'s three pollers start dormant until configured (ADR-0035); without this, the readouts
+-- `sysinfo`'s three pollers start dormant until configured; without this, the readouts
 -- stay at pre-first-sample `0%`. Configure here because this is the only module reading them.
 --
 -- CPU every 2s and RAM every 5s, about as slow as a readout can tick before it reads as frozen.

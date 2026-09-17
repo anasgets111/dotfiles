@@ -52,7 +52,7 @@ return function(settings)
 
     local function chamber(entry)
         local progress = chamber_progress(entry)
-        -- Signals resolve before `width` is parsed (ADR-0044), as in `components/meter.lua`.
+        -- Signals resolve before `width` is parsed, as in `components/meter.lua`.
         local fill = progress:map(function(fraction)
             return string.format("%d%%", math.floor(fraction * 100 + 0.5))
         end)

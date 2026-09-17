@@ -1,4 +1,4 @@
--- System changes show a card for two seconds. Push-driven (ADR-0115), so a volume key, terminal
+-- System changes show a card for two seconds. Push-driven, so a volume key, terminal
 -- `wpctl`, and bar button use the same card.
 --
 -- `level` selects the shape: volume/brightness/keyboard backlight use glyph, track, percentage;

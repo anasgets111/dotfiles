@@ -1,4 +1,4 @@
--- Rust deliberately does not answer this (ADR-0137). The Supervisor provides no video flag; config
+-- Rust deliberately does not answer this. The Supervisor provides no video flag; config
 -- uses `url`, `desktop_entry`, and fallback `identity`; four lists may go stale independently.
 -- Order is load-bearing:
 --   1. A known video application is video whatever it plays.

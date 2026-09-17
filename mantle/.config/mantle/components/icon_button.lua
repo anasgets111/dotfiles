@@ -1,5 +1,5 @@
 -- One glyph in a circle, sharing button, radius, left-button guard, and child across twelve callers.
--- State-coloured glyphs are needed: themed artwork is name-looked-up (ADR-0054), and
+-- State-coloured glyphs are needed: themed artwork is name-looked-up, and
 -- `PaintStyle::Icon` has no tint, so bluetooth cannot turn accent on connect or make the update red
 -- on failure. A Nerd Font glyph is a `text` node whose `foreground` carries the state. Codepoints
 -- live in `config/icons.lua`.
@@ -29,7 +29,7 @@ return function(glyph, on_activate, opts)
     local base_hover = opts.background_hover or theme.GLASS_CONTROL_HOVER
 
     -- Reuse one `hover(slot)` signal across four properties. The registry is name-keyed, so
-    -- repeated calls return the same signal (ADR-0062 decision 2), but repeating the slot reads
+    -- repeated calls return the same signal, but repeating the slot reads
     -- as four regions.
     local hovered = opts.slot and hover(opts.slot) or nil
 
@@ -114,7 +114,7 @@ return function(glyph, on_activate, opts)
         -- `opts.border == false` drops the ring. Use an `if`: `x and nil or y` is always `y`.
         border_width = theme.border_width,
         border_color = border_color,
-        -- The ground and ring ease under the pointer and on selection (ADR-0145).
+        -- The ground and ring ease under the pointer and on selection.
         animate = { background = theme.animation_ms, border_color = theme.animation_ms },
         children = { text {
             content = glyph,

@@ -1,7 +1,7 @@
--- Polkitd's authorization prompt (ADR-0114). Reading `mantle.polkit` registers this shell as the
--- session agent (ADR-0070).
+-- Polkitd's authorization prompt. Reading `mantle.polkit` registers this shell as the
+-- session agent.
 --
--- Escape clears the masked field and stays (ADR-0092); `mask_character` is one byte. `submit = true` makes Authenticate equal Enter; the
+-- Escape clears the masked field and stays; `mask_character` is one byte. `submit = true` makes Authenticate equal Enter; the
 -- password remains in a native buffer no callback can read.
 local theme = require("config.theme")
 local util = require("lib.util")
@@ -66,7 +66,7 @@ return panel {
                 },
                 -- polkitd's own prompt text can replace this line and hide it when empty.
                 -- `PolkitState` carries no such field, so this stays the fixed label the prompt
-                -- always is in practice; see ADR-0163.
+                -- always is in practice.
                 cell("Password:", theme.FG, theme.font.sm),
                 column {
                     width = "Fill",

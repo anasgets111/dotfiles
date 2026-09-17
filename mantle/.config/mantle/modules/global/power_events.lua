@@ -1,6 +1,5 @@
 -- Battery side effects, not drawing: charger OSD, two `notify-send`s, and automatic suspend and
--- brightness step. No surface; `shell.lua` requires two `on_change` handlers for their side effects
--- (ADR-0115).
+-- brightness step. No surface; `shell.lua` requires two `on_change` handlers for their side effects.
 --
 -- Each handler acts on a crossing. The first push (`previous == nil`) is not an edge.
 local icons = require("config.icons")

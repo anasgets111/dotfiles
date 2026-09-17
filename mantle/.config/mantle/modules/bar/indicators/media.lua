@@ -6,7 +6,7 @@
 -- Cava needs 30fps frames. The engine has no shader or canvas node; its nine node types draw no
 -- waveform.
 -- `rect`s can carry levels, but per-frame pushes are the first such path here; the bar logs
--- `exceeded the 5ms CPU budget` failures. Not attempted; see the ADR.
+-- `exceeded the 5ms CPU budget` failures. Not attempted.
 --
 -- Flat is not a placeholder shape, though: a spectrum at zero level draws exactly this row.
 local theme = require("config.theme")

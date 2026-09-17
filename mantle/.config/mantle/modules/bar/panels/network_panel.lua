@@ -222,7 +222,7 @@ end)
 -- A glass box with a ring, which `textfield` cannot draw itself. The ring is accent throughout
 -- because the sheet's field is the only thing on this surface that can hold the
 -- keyboard -- telling an error ring apart from a focus ring needs a focus state a config cannot
--- observe (ADR-0102), and the two states it would tell apart are the same state here.
+-- observe, and the two states it would tell apart are the same state here.
 local function field_box(shown, field)
     return rect {
         visible = shown,
@@ -396,12 +396,12 @@ local body = {
         },
     },
     -- The sheet's parts leave layout as the step moves; `panel_host` tweens the card's height to
-    -- the section's measurement, so each step slides into the last one's room rather than snapping
-    -- (ADR-0147). Typed passwords never reach this VM. `mask_character` plus `secure_submit` stores
+    -- the section's measurement, so each step slides into the last one's room rather than snapping.
+    -- Typed passwords never reach this VM. `mask_character` plus `secure_submit` stores
     -- keystrokes in a native buffer on the Renderer's Wayland thread and sends a `("network",
-    -- "connect")` envelope, as in `modules/global/lock.lua` (ADR-0005/ADR-0027); no `on_change` or
-    -- `on_submit` callback can reopen that hole. `submit = true` is the only password-button path
-    -- (ADR-0114). The masked field is the only `secure_submit` field across `panel_host`'s nine
+    -- "connect")` envelope, as in `modules/global/lock.lua`; no `on_change` or
+    -- `on_submit` callback can reopen that hole. `submit = true` is the only password-button path.
+    -- The masked field is the only `secure_submit` field across `panel_host`'s nine
     -- panels. The engine focuses a surface's *sole* such field and refuses to guess between two, so
     -- the name field is plain -- an SSID is an ordinary `connect` argument, which is why it can be
     -- typed. Only shown fields are counted or armed by
@@ -429,7 +429,7 @@ local body = {
                     ui.hidden_draft:set(typed or "")
                 end,
                 on_submit = submit_hidden_name,
-                -- Escape empties the field and releases the keyboard (ADR-0102); take the sheet
+                -- Escape empties the field and releases the keyboard; take the sheet
                 -- down with it rather than leaving an empty field holding focus.
                 on_cancel = ui.clear_network_prompts,
             }),
@@ -479,7 +479,7 @@ local body = {
                             return current == "name" and draft:match("^%s*(.-)%s*$") ~= ""
                         end),
                     }),
-                    -- No `on_activate`: its click *is* the field's Enter (ADR-0114), which is the
+                    -- No `on_activate`: its click *is* the field's Enter, which is the
                     -- only path a password has out of the Renderer.
                     action_button("Connect", nil, "network-sheet-connect", {
                         tone = "solid",
@@ -495,7 +495,7 @@ local body = {
             },
         },
     },
-    -- Rows up to the cap, then a scrolling viewport (ADR-0110). The sheet replaces it during a
+    -- Rows up to the cap, then a scrolling viewport. The sheet replaces it during a
     -- hidden join rather than above it; the card tweens down to the sheet's height instead of
     -- growing to hold both.
     list {

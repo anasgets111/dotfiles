@@ -1,7 +1,7 @@
 -- Shared bar text cell with default size and weight; modules use it instead of a local.
 -- `elide = "End"` only affects bounded `opts.width`; content-sized cells measure to fit. The engine
 -- (`layout::scene::fit_text_to_box`) measures before searching, and modules supply boxes to cut.
--- `opts.wrap` moves the ellipsis to the last of `opts.max_lines` lines (ADR-0089). It is off by
+-- `opts.wrap` moves the ellipsis to the last of `opts.max_lines` lines. It is off by
 -- default because a second line grows fixed-height bar slots; cards can opt in.
 -- Character counts are the wrong unit for truncation: "WWWWWWWWWW" and "iiiiiiiiii" have ten
 -- characters but different widths, so the reader sees a box.
@@ -16,7 +16,7 @@ local theme = require("config.theme")
 -- through a `list`'s `itemfn`, typed by `lua-meta/nodes.lua` as `fun(item: any)` because `Signal`
 -- has no element type. A raw span array could reach `content` and freeze the shell on its last good
 -- scene.
--- `TextRun[]` is accepted (ADR-0104), but image spans are not text;
+-- `TextRun[]` is accepted, but image spans are not text;
 -- `notifications.notification_body` converts them.
 ---@param content string|TextRun[]|Bound
 ---@param color? Color|Bound

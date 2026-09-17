@@ -1,8 +1,8 @@
 -- Wallpaper state: file and fit per output, file source, and two writes. Drawing, picking, and the
 -- bar button live in `modules/global/wallpaper.lua`,
 -- `modules/global/wallpaper_picker.lua`, and `modules/bar/indicators/wallpaper_button.lua`.
--- One `wallpapers` key in `lib/store.lua`, a `{ path, fit }` table per output. It survives reload and reboot (ADR-0055 decision 2, ADR-0136).
--- `mantle.files` (ADR-0120) watches `FOLDER` with inotify. Start watching during evaluation because
+-- One `wallpapers` key in `lib/store.lua`, a `{ path, fit }` table per output. It survives reload and reboot.
+-- `mantle.files` watches `FOLDER` with inotify. Start watching during evaluation because
 -- the folder is a setting, not state; picker and bar right-click need its list before opening.
 local store = require("lib.store")
 
@@ -11,7 +11,7 @@ local wallpaper = {}
 wallpaper.FOLDER = "/mnt/Work/1Wallpapers/Main"
 -- Exclude `gif`: decoder supports none; folders often contain it.
 wallpaper.EXTENSIONS = { "jpg", "jpeg", "png", "webp" }
--- Reduced to `image.fit` (ADR-0055 decision 3); omit `center` and `tile` because the engine draws
+-- Reduced to `image.fit`; omit `center` and `tile` because the engine draws
 -- neither.
 wallpaper.FITS = {
     { value = "cover",   label = "Fill" },
@@ -19,8 +19,8 @@ wallpaper.FITS = {
     { value = "stretch", label = "Stretch" },
 }
 wallpaper.DEFAULT_FIT = "cover"
--- Transitions come from the config's shader files (ADR-0184). The engine supplies cross-dissolve and
--- fragment-shader support and does not know this directory; `mantle.files` (ADR-0120) lists its
+-- Transitions come from the config's shader files. The engine supplies cross-dissolve and
+-- fragment-shader support and does not know this directory; `mantle.files` lists its
 -- `.frag` files before the picker opens.
 wallpaper.SHADER_FOLDER = mantle.config_dir .. "/shaders"
 wallpaper.SHADER_EXTENSIONS = { "frag" }
@@ -119,7 +119,7 @@ function wallpaper.transition()
     end)
 end
 
--- File shipped beside `shell.lua` (ADR-0055 decision 5).
+-- File shipped beside `shell.lua`.
 wallpaper.DEFAULT = mantle.config_dir .. "/wallpaper.svg"
 
 local function is_fit(value)

@@ -1,6 +1,6 @@
--- A percentage bar using `width`'s "NN%" strings. Signals resolve before property parsing
--- (ADR-0044), so mapping to "45%" makes a live-width rect without progress-bar engine support.
--- The fill eases between two percents (ADR-0145).
+-- A percentage bar using `width`'s "NN%" strings. Signals resolve before property parsing,
+-- so mapping to "45%" makes a live-width rect without progress-bar engine support.
+-- The fill eases between two percents.
 --
 -- `opts.motion` replaces that ease for a fill whose value moves while the motion is still running:
 -- a volume key on repeat retargets every few frames, and an eased tween restarts from a standstill
@@ -27,8 +27,8 @@ return function(signal, read, color, width, height, opts)
                 end
                 -- Keep `math.floor`: Lua 5.4's `%d` raises on non-integral floats, and
                 -- `audio.volume * 100` measures 45.00027.
-                -- A getter raise fails the re-resolve; the engine rolls back to the last good frame
-                -- (ADR-0044), freezing the whole bar rather than just this meter.
+                -- A getter raise fails the re-resolve; the engine rolls back to the last good frame,
+                -- freezing the whole bar rather than just this meter.
                 return string.format("%d%%", math.floor(math.max(0, math.min(100, pct)) + 0.5))
             end),
             height = "Fill",

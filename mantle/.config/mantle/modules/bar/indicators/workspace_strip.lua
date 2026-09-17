@@ -2,19 +2,19 @@
 -- It shows one circle per workspace and narrows `theme.animation_ms + 200` after the pointer leaves.
 -- `components/expanding_pill.lua` supplies the shared pill, also used by the power menu.
 --
--- Ground: accent when active, glass when populated, `DISABLED` at half opacity when empty
--- (ADR-0117). Use the standing window's icon when applications knows its `app_id`, else `idx`,
+-- Ground: accent when active, glass when populated, `DISABLED` at half opacity when empty.
+-- Use the standing window's icon when applications knows its `app_id`, else `idx`,
 -- never `name`: an elided name draws three dots, while the number is the keybind's target.
 --
 -- Collapse to the first output's `active_workspace`, not the focused workspace. Every output has an
 -- active workspace but only one has focus, so another monitor would otherwise collapse to nothing.
 --
--- Hyprland pads to ten slots (ADR-0119): it lists no empty workspaces, creates a numbered one on
+-- Hyprland pads to ten slots: it lists no empty workspaces, creates a numbered one on
 -- focus, and dims padded numbers here. Each padded slot focuses that number. Niri keeps a trailing
 -- empty workspace and needs no padding.
 -- The payload lists only existing workspaces; padding is this strip's `compositor`-keyed policy.
 --
--- The ground and border ease between states (ADR-0145); the expansion is the pill's.
+-- The ground and border ease between states; the expansion is the pill's.
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")

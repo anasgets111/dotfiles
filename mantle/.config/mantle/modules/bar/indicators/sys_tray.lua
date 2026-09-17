@@ -4,7 +4,7 @@
 -- Use themed icons, not glyphs: tray items ship artwork and cannot be recoloured, as
 -- `components/icon_button.lua` notes. The rest of this bar chooses glyphs explicitly.
 --
--- `icon.foreground` is CSS `color`, which resolves `currentColor` (ADR-0072). Symbolic icons take
+-- `icon.foreground` is CSS `color`, which resolves `currentColor`. Symbolic icons take
 -- the panel colour; Breeze bakes light-theme grey for the toolkit to rewrite. Full-colour icons
 -- ignore `currentColor`, so apply it to every item.
 --
@@ -47,7 +47,7 @@ end
 -- twice that between them. Equal slots keep the row even under fallback letters.
 local ITEM_WIDTH = theme.icon.md + theme.spacing.sm
 
--- The ceiling, not the width: six items fit, more scroll instead of taking the zone (ADR-0069). This
+-- The ceiling, not the width: six items fit, more scroll instead of taking the zone. This
 -- `row` does not shrink children, so it needs a cap.
 local TRAY_WIDTH = 6 * ITEM_WIDTH
 
@@ -108,7 +108,7 @@ local items = list {
                 end
             end,
             -- The item decides what a notch means; ours uses the vertical axis, the only one
-            -- `on_wheel` reports (ADR-0116).
+            -- `on_wheel` reports.
             on_wheel = function(_, notches)
                 mantle.tray:invoke("scroll", item.id, math.floor(notches), "vertical")
             end,

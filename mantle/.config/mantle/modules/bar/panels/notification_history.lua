@@ -1,6 +1,6 @@
 -- The feed's list half: the popup shows the newest few; this shows the whole feed.
 --
--- A feed needs scrolling; a fixed panel showed four and clipped the rest (ADR-0069).
+-- A feed needs scrolling; a fixed panel showed four and clipped the rest.
 --
 -- Rows use `components/notification_card.lua`, so actions, replies, and expanded bodies work here.
 -- This file owns the header, DND toggle, and sectioned list.
@@ -27,8 +27,8 @@ local function feed(n)
     return (n and n.feed) or {}
 end
 
--- List non-transients (ADR-0100), grouped by application into "urgent" / "today" / "yesterday" /
--- "earlier". `mantle.applications` supplies desktop-file names/icons (ADR-0101); `mantle.system`
+-- List non-transients, grouped by application into "urgent" / "today" / "yesterday" /
+-- "earlier". `mantle.applications` supplies desktop-file names/icons; `mantle.system`
 -- moves "today" at midnight.
 local sections = computed({ mantle.notifications, mantle.applications, mantle.system }, function(n, applications, s)
     local groups = notifications.group_notifications(feed(n), applications, { skip_transient = true })
@@ -136,7 +136,7 @@ local body = {
                 end),
             }),
             -- DND is a third bell state and this control is lit while on. The Supervisor
-            -- gates sound (ADR-0033), and the popup reads the same flag, standing down except for
+            -- gates sound, and the popup reads the same flag, standing down except for
             -- critical notifications.
             icon_button(icons.bell_off, function()
                 local n = mantle.notifications:get()
@@ -160,14 +160,14 @@ local body = {
     },
     column {
         width = "Fill",
-        -- Same hold as the popup (ADR-0094): expiry must not reorder the list under a pointer. The
+        -- Same hold as the popup: expiry must not reorder the list under a pointer. The
         -- history and popup regions are separate because their surfaces never overlap.
         hover = hover("notification_history_region"),
         on_hover = function(hovered)
             mantle.notifications:invoke("hold_expiry", hovered and 300 or 0)
         end,
         children = {
-            -- Card height up to the screen cap, then a scrolling viewport (ADR-0110).
+            -- Card height up to the screen cap, then a scrolling viewport.
             list {
                 width = "Fill",
                 max_height = theme.notification_list_height,

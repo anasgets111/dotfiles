@@ -82,8 +82,8 @@ local fill = rect {
     end),
     height = "Fill",
     background = mantle.battery:map(battery_color),
-    -- The level slides and threshold colour fades (ADR-0145), while the fill blinks twice when the
-    -- cable goes in. The entry's presence runs the sequence (ADR-0152).
+    -- The level slides and threshold colour fades, while the fill blinks twice when the
+    -- cable goes in. The entry's presence runs the sequence.
     animate = plug_flash:map(function(flashing)
         local eases = {
             width = theme.animation_ms,

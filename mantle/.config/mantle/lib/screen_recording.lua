@@ -1,7 +1,7 @@
 -- One `gpu-screen-recorder`, started on a region or a whole output, pausable, and saved with a
 -- notification offering to play it.
 --
--- `session_process` (ADR-0175) lets the Supervisor hold the child across reloads;
+-- `session_process` lets the Supervisor hold the child across reloads;
 -- `mantle.processes` reports it, so this file needs no launch script, lock file, or poll.
 --
 -- The config owns the argv, file name, pause arithmetic, and notification.
@@ -53,7 +53,7 @@ local cancelled = state("recorder_cancelled", false)
 --
 -- All four stamps are `mantle.system.monotonic`, including the start: every term is a duration,
 -- so they have to share one clock, and a capability's `started_at` could not join them because a
--- monotonic reading only compares against another from the same origin (ADR-0202). `recorder`'s own
+-- monotonic reading only compares against another from the same origin. `recorder`'s own
 -- `started_at` is still the Supervisor's Unix stamp and is left to callers that want a date.
 -- Pause bookkeeping is this config's, because pausing is not something a process reports:
 -- `paused_total` accumulates finished pauses and `paused_at` timestamps an open one, zero meaning
@@ -77,8 +77,8 @@ local paused = paused_at:map(function(at)
     return at > 0
 end)
 
--- The output the capture defaults to. Only the focused monitor carries `focused_workspace`
--- (ADR-0056 decision 4), which is how it is identified.
+-- The output the capture defaults to. Only the focused monitor carries `focused_workspace`,
+-- which is how it is identified.
 local monitor = mantle.workspaces:map(function(w)
     for _, out in ipairs((w and w.outputs) or {}) do
         if out.focused_workspace ~= nil then

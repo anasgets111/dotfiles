@@ -1,5 +1,5 @@
 -- Value-filled track: drag sets value anywhere; wheel steps it.
--- `button`'s `on_drag`/`on_wheel` provide track-local coordinates and wheel notches (ADR-0116).
+-- `button`'s `on_drag`/`on_wheel` provide track-local coordinates and wheel notches.
 --
 -- During a drag, `state()` `pending` keeps fill local and avoids a Supervisor round trip per pixel.
 -- Release calls `on_commit` once at the final position.

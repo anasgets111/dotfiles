@@ -2,7 +2,7 @@
 -- notification action named "Update", "Retry", or "Close".
 -- Extraction rule: one call site is a local; two agreeing call sites are a component. Offered
 -- actions use accent; "Close" should not compete with the result.
--- `opts.icon` is the theme icon named by a sender's `action-icons` key (ADR-0090), beside the label
+-- `opts.icon` is the theme icon named by a sender's `action-icons` key, beside the label
 -- or alone when there is no label. A media notification's prev/play/next are glyphs, not words.
 local theme = require("config.theme")
 local cell = require("components.cell")
@@ -50,7 +50,7 @@ return function(label, on_activate, slot, opts)
         }
     end
     -- `opts.glyph` is the Nerd Font half of the same slot. A notification action icon is a theme
-    -- name (ADR-0090) and stays an `icon` node; a panel control is a `config/icons.lua` codepoint,
+    -- name and stays an `icon` node; a panel control is a `config/icons.lua` codepoint,
     -- a `text` node that takes the button's ink like the label.
     if opts.glyph then
         children[#children + 1] = text {

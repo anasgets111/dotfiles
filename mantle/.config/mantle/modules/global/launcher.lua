@@ -1,6 +1,6 @@
 -- Autofocus search, arrow navigation, Enter launch.
 --
--- ## Engine pieces (ADR-0112)
+-- ## Engine pieces
 --
 -- A plain `textfield` with `autofocus = true` gets the keyboard on map and opens empty. `on_change`
 -- filters, `on_navigate` moves and reveals selection, `on_submit` launches, and `on_cancel` closes.
@@ -66,7 +66,7 @@ end
 
 -- ## Matching
 --
--- One string per entry, scored by `fuzzy` (ADR-0201), ordered by score and then by tiebreakers,
+-- One string per entry, scored by `fuzzy`, ordered by score and then by tiebreakers,
 -- match start and then length. The name comparison after those is ours, because `table.sort` is
 -- unstable and two entries alike on all three keys would otherwise trade places between
 -- keystrokes.
@@ -306,8 +306,8 @@ local function row_shell(id, slot, children, opts)
             return on and theme.ACCENT or "#00000000"
         end),
         -- Hover selection arms only on pointer motion, so scrolling under a parked pointer, or
-        -- opening under one, cannot steal the keyboard ring. `on_hover` has the same rule (ADR-0112
-        -- amendment), so no arming flag.
+        -- opening under one, cannot steal the keyboard ring. `on_hover` has the same rule, so
+        -- no arming flag.
         on_hover = function(inside)
             if inside then
                 selected_id:set(id)
@@ -351,7 +351,7 @@ local function app_row(app)
     end
     return row_shell(app.id, "launcher-app-" .. app.id, {
         -- Entries without `Icon=` fall back to a generic picture.
-        -- The selected row's icon grows 1.3x in place (ADR-0149).
+        -- The selected row's icon grows 1.3x in place.
         icon {
             name = app.icon or "application-x-executable",
             size = theme.launcher_icon,

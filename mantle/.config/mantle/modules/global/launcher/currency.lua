@@ -128,7 +128,7 @@ end
 -- `_requesting`: one request in flight, and a failure leaves the stored rates alone. Both live in
 -- `state`, not module locals: a local is rebuilt by every in-place reload while the `process.run`
 -- child it guards is not, so an unrelated config save would clear the guard under a live request.
--- `state` has the child's own lifetime (ADR-0044 decision 5).
+-- `state` has the child's own lifetime.
 local requesting = state("currency_fetching", false)
 -- A failure must move a deadline. Without one, `currency_updated_at` stays stale and the 1 Hz tick
 -- below starts a fresh curl every second for as long as the endpoint is down.
@@ -168,7 +168,7 @@ mantle.system:on_change(function(system)
     if not system or mantle.storage:get() == nil then
         return
     end
-    -- Two clocks on purpose (ADR-0202): the retry is a duration this session owns, while freshness
+    -- Two clocks on purpose: the retry is a duration this session owns, while freshness
     -- is measured against a stamp on disk that outlived the session and is therefore wall time.
     if system.monotonic < next_attempt:get() then
         return

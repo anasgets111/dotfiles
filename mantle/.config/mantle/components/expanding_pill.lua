@@ -1,5 +1,5 @@
 -- Collapsed shows one circle; hover shows all, and collapse waits on `delay`.
--- Each cell tweens width and opacity from zero to a slot (ADR-0145, ADR-0146); `collapse_ms` lets a
+-- Each cell tweens width and opacity from zero to a slot; `collapse_ms` lets a
 -- returning pointer cancel it, and `hold_open` keeps the pill open for a countdown.
 --
 -- The old cell shrinks as the new one grows in place when the collapsed slot changes, a hand-off

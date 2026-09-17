@@ -4,7 +4,7 @@
 -- pushes a table, not a bool; caller knows the field. `on_change` passes the flipped value.
 -- The caller routes it through `capability:invoke(...)` or local `state()`.
 -- The thumb slides: the track is a `row` whose first child is a spacer with a signal-bound, eased
--- `width` (ADR-0145). `align_h` would snap and `margin`'s edge table cannot carry a tween; a
+-- `width`. `align_h` would snap and `margin`'s edge table cannot carry a tween; a
 -- bare-number spacer width can.
 local theme = require("config.theme")
 local util = require("lib.util")

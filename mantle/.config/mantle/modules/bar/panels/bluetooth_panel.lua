@@ -307,7 +307,7 @@ local body = {
             },
         },
     },
-    -- Rows up to the cap, then a scrolling viewport (ADR-0110).
+    -- Rows up to the cap, then a scrolling viewport.
     list {
         width = "Fill",
         max_height = theme.panel_list_height,

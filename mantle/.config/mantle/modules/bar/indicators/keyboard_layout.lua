@@ -11,7 +11,7 @@ local icon_button = require("components.icon_button")
 --
 -- ponytail: this is wrong for any layout whose first two letters are not its short code, which is
 -- most non-Latin scripts spelled in their own language. The upgrade is the XKB layout code, which
--- niri knows and `mantle.keyboard` does not carry (ADR-0056 lists what the row does carry); adding
+-- niri knows and `mantle.keyboard` does not carry; adding
 -- it there is a capability change, not a config one.
 local function layout_short(k)
     local name = (k and k.active_layout) or "?"

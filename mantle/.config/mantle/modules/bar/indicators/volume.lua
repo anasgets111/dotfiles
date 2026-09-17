@@ -1,8 +1,8 @@
 -- A glyph circle expands to a slider on hover. Drag and wheel set volume; middle-click mutes, and
 -- right-click opens the audio panel.
 --
--- `hover` is an engine signal (ADR-0062); `width` and `visible` follow it or a held drag. Width and
--- ground ease through `animate` (ADR-0145); percentage appears at once because `visible` is not a
+-- `hover` is an engine signal; `width` and `visible` follow it or a held drag. Width and
+-- ground ease through `animate`; percentage appears at once because `visible` is not a
 -- property a tween carries.
 --
 -- `components/slider.lua` matches `Slider`; its accent fill runs under glyph and percentage

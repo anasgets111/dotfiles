@@ -1,6 +1,6 @@
 -- The focused window's icon and title in the centre zone.
 --
--- Both halves read `mantle.workspaces.active_client`. ADR-0056 excludes window lists;
+-- Both halves read `mantle.workspaces.active_client`. `workspaces` carries no window list;
 -- `active_client` is in every snapshot.
 local theme = require("config.theme")
 local util = require("lib.util")
@@ -34,9 +34,8 @@ local function label(applications, workspaces)
     return (entry and entry.name) or client.class or EMPTY_LABEL
 end
 
--- `active_client.class` is the toplevel `app_id` (ADR-0056 decision 5).
--- `util.app_entry` maps it to a `.desktop` entry. This is the second `mantle.applications` consumer
--- (ADR-0061, ADR-0054 decision 5).
+-- `active_client.class` is the toplevel `app_id`.
+-- `util.app_entry` maps it to a `.desktop` entry. This is the second `mantle.applications` consumer.
 local focused_icon = icon {
     name = computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
         local client = focused(workspaces)

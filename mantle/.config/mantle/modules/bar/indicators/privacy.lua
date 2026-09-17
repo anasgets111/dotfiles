@@ -1,7 +1,7 @@
 -- Red circles appear only while their device is in use, and the group disappears when none is.
 --
 -- `PrivacyState` reports `camera_users`, `microphone_users`, and `screencast_users` from the same
--- PipeWire connection (ADR-0137).
+-- PipeWire connection.
 --
 -- "In use" is PipeWire `Running`, not stream existence. A browser tab can keep a capture node open
 -- between calls, so existence would leave the microphone circle lit.

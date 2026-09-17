@@ -1,5 +1,5 @@
 -- Bottom-centered glass card with two layouts selected by the entry's level.
--- `modules/osd/service.lua` supplies the entry, lingering through exit (ADR-0146) so the fade-out
+-- `modules/osd/service.lua` supplies the entry, lingering through exit so the fade-out
 -- plays before the surface unmaps.
 --
 -- One `panel` with two `visible`-switched rows, not two panels. Each surface has its own
@@ -60,8 +60,8 @@ local level_row = row {
     children = {
         glyph(read("glyph"), theme.ACCENT, theme.font.xxl, { align_v = "Center" }),
         -- A repeated volume or brightness key moves the target every few frames. Eased retargeting
-        -- restarts from a standstill (ADR-0145), so the fill trails the percentage; a spring keeps
-        -- its velocity (ADR-0154) and arrives with the number.
+        -- restarts from a standstill, so the fill trails the percentage; a spring keeps
+        -- its velocity and arrives with the number.
         meter(osd.entry, function(e)
             return e.level or 0
         end, osd.entry:map(function(e)
@@ -137,8 +137,8 @@ return panel {
     visible = util.linger(osd.visible, FALL_MS),
     child = column {
         height = theme.osd_height,
-        -- `translate`, matching `components/modal.lua` and the notification cards, is paint-only
-        -- (ADR-0149). The card is solved once; easing `margin` re-ran the solver every frame.
+        -- `translate`, matching `components/modal.lua` and the notification cards, is paint-only.
+        -- The card is solved once; easing `margin` re-ran the solver every frame.
         translate = osd.visible:map(function(shown)
             return { y = shown and 0 or SLIDE }
         end),

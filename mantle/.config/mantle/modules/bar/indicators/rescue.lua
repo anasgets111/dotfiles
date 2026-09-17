@@ -1,5 +1,5 @@
 -- First on the bar so a config error cannot be pushed off its edge; it occupies no width unless
--- configuration failed (ADR-0046).
+-- configuration failed.
 --
 -- A red warning circle, the same size as its glyph neighbours, keeps a failed bar's shape stable.
 local theme = require("config.theme")

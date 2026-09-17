@@ -1,6 +1,6 @@
 -- One modal card and its motion, for `modules/global/modal_host.lua` to stack under one scrim. The
 -- card fades, scales from 0.97, rises by `spacing.md`, and uses OutCubic opening and InCubic
--- closing (ADR-0146, ADR-0149). `modal_host` keeps the wrapper through exit. A modal switch
+-- closing. `modal_host` keeps the wrapper through exit. A modal switch
 -- cross-fades the old card against the new one.
 local theme = require("config.theme")
 local ui_state = require("lib.ui_state")
@@ -16,7 +16,7 @@ local CLOSED_SCALE = 0.97
 ---@field node table The screen-sized wrapper carrying the card and its motion.
 
 -- `modal_host`'s outside catcher is every card's ancestor, and a hit takes the innermost handled
--- `button` (ADR-0050 decision 1), so a press on the card's own ground -- its padding, the gap
+-- `button`, so a press on the card's own ground -- its padding, the gap
 -- between two rows, an empty list -- walked up to the catcher and closed the modal under the
 -- pointer. A handled button the size of the card ends that walk. It takes the card's placement
 -- rather than sitting under it: content-sized, it would reach back to the surface origin and eat

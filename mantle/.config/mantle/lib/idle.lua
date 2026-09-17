@@ -13,7 +13,7 @@
 -- ponytail: the one-second threshold reports idle one second after last input. `idle_since`
 -- subtracts it back out, but `ext-idle-notifier-v1` has no "how long idle" call to do better.
 -- Here `mantle.idle:inhibit(reason)` takes a logind hold, and the Supervisor holds every
--- threshold event while anything holds one, ours included (ADR-0139). Manual hold, video, and
+-- threshold event while anything holds one, ours included. Manual hold, video, and
 -- `systemd-inhibit --what=idle` therefore stop stages; `idle_since` resets on entry and stages
 -- need no individual guard.
 local store = require("lib.store")
@@ -205,8 +205,8 @@ function idle.clock(sec)
 end
 
 -- ## State
--- Use named `state()` signals because registry entries survive config reloads
--- (ADR-0044 decision 5), preventing an edit from forgetting a manual hold or leaking its inhibitor.
+-- Use named `state()` signals because registry entries survive config reloads,
+-- preventing an edit from forgetting a manual hold or leaking its inhibitor.
 
 --- The `mantle.system.monotonic` reading when the seat went idle, or `0` while it is awake.
 --- Survives an in-place reload, which the clock's epoch also survives; a Supervisor restart builds
@@ -280,16 +280,17 @@ function idle.own_reasons(privacy, mpris, settings, manual)
         end
     end
     -- No fullscreen-based inhibitor. `active_client.is_fullscreen` exists but is nil under niri,
-    -- which reports no such field and does not fabricate `false` (ADR-0056 decision 5); Hyprland
-    -- reports it (ADR-0119). A fullscreen film is therefore caught by `video` or not at all.
+    -- which reports no such field and does not fabricate `false`; Hyprland
+    -- reports it. A fullscreen film is therefore caught by `video` or not at all.
     return reasons
 end
 
 --- Everything holding the session awake, ours and anyone else's, for anything drawing the list.
 ---
 --- Foreign entries are holds this config did not take: `systemd-inhibit --what=idle`, a browser
---- call, or the compositor withholding notifications for a surface inhibitor (ADR-0160, which
---- arrives with an empty `who`). ADR-0139 made the framework honor them; ADR-0141 exposed them.
+--- call, or the compositor withholding notifications for a surface inhibitor, which
+--- arrives with an empty `who`. The engine honors all of them and lists them in
+--- `mantle.idle.inhibitors`.
 idle.reasons = computed(
     { mantle.privacy, mantle.mpris, store.idle, idle.manual, mantle.idle },
     function(p, m, stored, manual, foreign)
@@ -302,7 +303,7 @@ idle.reasons = computed(
 )
 
 --- Sentence naming the holders. `inhibited` outruns [`idle.reasons`]: our own hold is excluded from
---- `mantle.idle.inhibitors`, and ADR-0160's compositor half names nothing at all. Either left the
+--- `mantle.idle.inhibitors`, and a compositor surface inhibitor names nothing at all. Either left the
 --- banner reading "held awake by" with an empty list after it.
 --- @param reasons string[]
 --- @param inhibited boolean

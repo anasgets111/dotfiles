@@ -1,6 +1,6 @@
 -- One circle per Hyprland scratchpad, accented while `shown_on` is set and glass while hidden; a
--- click invokes `toggle_special`. `mantle.workspaces.special` is `nil` without specials
--- (ADR-0119), and the row hides when empty to avoid a bar spacing gap.
+-- click invokes `toggle_special`. `mantle.workspaces.special` is `nil` without specials,
+-- and the row hides when empty to avoid a bar spacing gap.
 --
 -- Use the standing window's icon when `mantle.applications` knows its `app_id`; otherwise use the
 -- first two letters after `special:`. A keyword table (`term`, `slack`...) is omitted because the
