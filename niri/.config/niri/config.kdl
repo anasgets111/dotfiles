@@ -19,9 +19,6 @@ input {
     workspace-auto-back-and-forth
 }
 
-// --- Output Configuration ---
-include optional=true "~/.config/Obelisk/outputs.kdl"
-
 // --- Layout & Appearance ---
 prefer-no-csd
 
