@@ -1,7 +1,7 @@
 <h1 align="center">Obelisk Shell</h1>
 
 <p align="center">
-  Arch Linux dotfiles for Hyprland and Niri, with a Lua desktop shell built on the <a href="https://github.com/anasgets111/obelisk-engine">Obelisk engine</a>.
+  A Lua desktop shell for Wayland — bar, launcher, notifications, OSD, lock screen and wallpapers — built on the <a href="https://github.com/anasgets111/obelisk-engine">Obelisk engine</a>, plus the Arch Linux dotfiles that run it on Hyprland and Niri.
 </p>
 
 <p align="center">
@@ -13,15 +13,20 @@
 
 ## Preview
 
+<!-- Stills: save shots as docs/preview-bar.png and docs/preview-panels.png, then drop these markers.
+<p align="center">
+  <img alt="Bar, launcher and notifications" src="docs/preview-bar.png" width="49%" />
+  <img alt="Panels and wallpaper picker" src="docs/preview-panels.png" width="49%" />
+</p>
+-->
+
 https://github.com/user-attachments/assets/038ee763-d7b6-4df9-9f79-2f131d4f0dcd
 
 ## The shell
 
-- [`obelisk/`](obelisk/.config/obelisk/shell.lua) is my desktop shell, a Lua config for the [Obelisk engine](https://github.com/anasgets111/obelisk-engine). The engine provides the `obelisk` binary, Lua API and capabilities; this repo holds only the Lua.
+- [`obelisk/`](obelisk/.config/obelisk/shell.lua) is the shell. The engine ships the `obelisk` binary, Lua API and capabilities; this repo is only my Lua on top of them.
 - Hyprland and Niri start it at login and bind keys to `obelisk toggle` and `obelisk call`.
 - Saving a `.lua` under `~/.config/obelisk` reloads it in place. A broken edit keeps the last working shell and shows the error in the bar.
-
-## Features
 
 | Area | Includes |
 | --- | --- |
@@ -37,29 +42,40 @@ https://github.com/user-attachments/assets/038ee763-d7b6-4df9-9f79-2f131d4f0dcd
 
 | For | Needs |
 | --- | --- |
-| Deployment | Arch Linux, Git, GNU Stow |
+| Shell | [Obelisk engine](https://github.com/anasgets111/obelisk-engine) — the `obelisk` binary |
 | Compositor | Hyprland 0.56+ (Lua config) or Niri |
-| Shell | [Obelisk engine](https://github.com/anasgets111/obelisk-engine), installed per its README |
+| Deployment | Arch Linux, Git, GNU Stow |
 | Fonts | CaskaydiaCove Nerd Font Propo, JetBrainsMono Nerd Font Mono, Noto Sans, Noto Sans CJK, Noto Color Emoji |
 | Shell helpers | `curl` (weather, currency), `libnotify`, `wl-clipboard`, `xdg-utils`, `gpu-screen-recorder` and `slurp` (recording) |
-| `hdrshot` | Hyprland, `hyprshot`, `satty`, `flock`, `wl-copy` |
+| Screenshots | [`hdrshot`](bin/.local/bin/hdrshot), the `Print` script: `hyprshot` capture, `satty` annotation, `wl-copy`, `flock` |
 
 ## Installation
 
 > [!WARNING]
-> Back up existing dotfiles on these paths and read [Configuration](#configuration) before starting a session.
+> Move any existing dotfiles aside first — stow refuses to overwrite them — and read [Configuration](#configuration) for the settings that are mine, not yours.
+
+**0. [Install the engine](https://github.com/anasgets111/obelisk-engine).** Nothing here runs without it.
+
+**1. Stow the shell and its compositors.**
 
 ```bash
 git clone https://github.com/anasgets111/dotfiles.git
 cd dotfiles
-stow -t "$HOME" home config xdg-desktop-portal obelisk hypr niri fish nvim kitty mpv bin
-stow -t "$HOME" ghostty alacritty foot wezterm nushell   # optional terminals and shells
+stow -t "$HOME" obelisk hypr niri home config xdg-desktop-portal bin
 ```
 
-- `home` installs `~/.stowrc`, pointing stow at `/mnt/Work/1Progs/Dots`. Edit it if you cloned elsewhere; then `stow <package>` and `stow -D <package>` work from any directory.
-- `bin/.local/bin/arch-install.sh` installs the packages and stows these directories for this repo's two hosts.
+**2. Stow the rest, as you like.**
+
+```bash
+stow -t "$HOME" fish nvim kitty mpv                     # shell, editor, terminal, player
+stow -t "$HOME" ghostty alacritty foot wezterm nushell   # alternative terminals and shells
+```
+
+Roll a package back with `stow -D -t "$HOME" <package>`. `home` installs `~/.stowrc`, which points stow at this clone — edit it, and `stow`/`stow -D` work from any directory without `-t`. [`arch-install.sh`](bin/.local/bin/arch-install.sh) does packages and stow in one go for my two machines.
 
 ## Keybinds
+
+A subset; the full sets live in [`keybinds.lua`](hypr/.config/hypr/config/keybinds.lua) (Hyprland) and the `binds` block of [`config.kdl`](niri/.config/niri/config.kdl) (Niri).
 
 | Keys | Action |
 | --- | --- |
@@ -67,21 +83,20 @@ stow -t "$HOME" ghostty alacritty foot wezterm nushell   # optional terminals an
 | `Super+Shift+W` | Wallpaper picker |
 | `Super+Ctrl+P` | Idle settings |
 | `Super+L` | Lock (`loginctl lock-session`) |
+| `Print` / `Ctrl+Print` | Screenshot region / output |
 | `Shift+Print` | Start or stop recording |
 | `Super+M` | Mute microphone |
 
 ## Configuration
 
-Personal settings to change first:
-
 | What | Where |
 | --- | --- |
-| Monitors, including Wolverine's ICC profile | [`monitors.lua`](hypr/.config/hypr/config/monitors.lua), or outputs in [`config.kdl`](niri/.config/niri/config.kdl) |
-| Startup apps | [`startup.lua`](hypr/.config/hypr/config/startup.lua), `spawn-at-startup` in `config.kdl`. Both start `obelisk` from `~/.local/share/cargo/bin`, Niri by an absolute `/home/anas` path |
+| Monitors, including an ICC profile | [`monitors.lua`](hypr/.config/hypr/config/monitors.lua), or outputs in [`config.kdl`](niri/.config/niri/config.kdl) |
+| Startup apps | [`startup.lua`](hypr/.config/hypr/config/startup.lua), `spawn-at-startup` in `config.kdl`. Niri needs an absolute path to the `obelisk` binary |
 | Wallpaper folder | `wallpaper.FOLDER` in [`lib/wallpaper.lua`](obelisk/.config/obelisk/lib/wallpaper.lua) |
 | Colours, sizes, fonts | [`config/theme.lua`](obelisk/.config/obelisk/config/theme.lua), the `fonts` chain in [`shell.lua`](obelisk/.config/obelisk/shell.lua) |
 | Update-panel tools | [`config/dev_tools.lua`](obelisk/.config/obelisk/config/dev_tools.lua) |
-| Editor stubs | [`.luarc.json`](.luarc.json), reading `lua-meta` from `/mnt/Work/0Coding/1Rust/obelisk-shell` |
+| Editor stubs | `workspace.library` in [`.luarc.json`](.luarc.json), pointing at your engine checkout's `lua-meta` |
 | Weather location | Derived from the system timezone |
 | Runtime state | `~/.local/state/obelisk/state.json` |
 
@@ -89,14 +104,14 @@ Personal settings to change first:
 
 | Path | Contents |
 | --- | --- |
-| `obelisk/` | Obelisk shell: `components/`, `config/`, `lib/`, `modules/` and transition `shaders/` |
-| `hypr/`, `niri/` | Hyprland Lua and Niri KDL configuration |
-| `home/`, `config/` | Shell profile, `.stowrc`, and shared XDG, Starship, Fastfetch and app-flag configuration |
-| `fish/`, `nushell/`, `nvim/` | Shell and editor configuration |
-| `kitty/`, `ghostty/`, `alacritty/`, `foot/`, `wezterm/` | Terminal configuration |
-| `mpv/` | mpv configuration and scripts |
+| `obelisk/` | `components/`, `config/`, `lib/`, `modules/` and transition `shaders/` |
+| `hypr/`, `niri/` | Compositors: Hyprland Lua, Niri KDL |
+| `home/`, `config/` | Shell profile, `.stowrc`, XDG, Starship, Fastfetch, app flags |
+| `fish/`, `nushell/`, `nvim/` | Shells and editor |
+| `kitty/`, `ghostty/`, `alacritty/`, `foot/`, `wezterm/` | Terminals |
+| `mpv/` | mpv config and scripts |
 | `bin/` | Install, backup and screenshot scripts |
-| `NixConfig/` | Inactive NixOS flake for the Wolverine (NVIDIA, Hyprland) and Mentalist (Intel, Niri) hosts |
+| `NixConfig/` | Inactive NixOS flake for an NVIDIA/Hyprland and an Intel/Niri machine |
 
 ## Credits
 

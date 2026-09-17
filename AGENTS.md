@@ -29,7 +29,7 @@ Type check the repo against the root `.luarc.json` (lua-language-server ships on
 
 ## Engine reference
 
-Upstream checkout at `/mnt/Work/0Coding/1Rust/obelisk-shell`. Read it; never edit it from here.
+Upstream checkout at `/mnt/Work/0Coding/1Rust/obelisk-engine`. Read it; never edit it from here unless asked to.
 
 | Question | Read |
 | --- | --- |
