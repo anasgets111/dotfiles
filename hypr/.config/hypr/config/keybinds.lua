@@ -1,8 +1,8 @@
 local mod = "SUPER"
 local file_manager = "uwsm app -- nautilus"
 local browser = "uwsm app -- zen-browser"
-local menu = "quickshell ipc call launcher toggle"
-local lock_command = "quickshell ipc call lock lock"
+local menu = "obelisk toggle modal launcher"
+local lock_command = "loginctl lock-session"
 
 local function bind(keys, dispatcher, options)
     if type(keys) == "string" then keys = { keys } end
@@ -54,7 +54,6 @@ local keybinds = {
     { mod .. " + Q",                                     hl.dsp.window.close() },
     { mod .. " + V",                                     hl.dsp.window.float({ action = "toggle" }) },
     { mod .. " + F",                                     hl.dsp.window.fullscreen({ action = "toggle" }) },
-    { mod .. " + P",                                     hl.dsp.window.pseudo({ action = "toggle" }) },
     { mod .. " + J",                                     hl.dsp.layout("togglesplit") },
     { mod .. " + mouse:272",                             hl.dsp.window.drag(),                                  { mouse = true } },
     { mod .. " + mouse:273",                             hl.dsp.window.resize(),                                { mouse = true } },
@@ -75,6 +74,9 @@ local keybinds = {
     { mod .. " + B",                                     hl.dsp.exec_cmd(browser) },
     { "CTRL + ALT + Delete",                             hl.dsp.exec_cmd("uwsm app -- missioncenter") },
     { mod .. " + space",                                 hl.dsp.exec_cmd(menu) },
+    { mod .. " + SHIFT + W",                             hl.dsp.exec_cmd("obelisk toggle modal wallpaper_picker") },
+    { mod .. " + P",                                     hl.dsp.exec_cmd("obelisk toggle settings_open") },
+    { mod .. " + CTRL + P",                              hl.dsp.exec_cmd("obelisk toggle modal idle_settings") },
     { mod .. " + C",                                     hl.dsp.exec_cmd("uwsm app -- cursor") },
     { mod .. " + A",                                     hl.dsp.exec_cmd("uwsm app -- antigravity.sh") },
     { mod .. " + Z",                                     hl.dsp.exec_cmd("uwsm app -- env WAYLAND_DISPLAY='' zeditor") },
@@ -82,7 +84,7 @@ local keybinds = {
     { mod .. " + G",                                     hl.dsp.exec_cmd("uwsm app -- steam", { workspace = "6" }) },
     { mod .. " + n",                                     hl.dsp.exec_cmd("say --clipboard") },
     { mod .. " + CTRL + S",                              hl.dsp.exec_cmd("voxtype record toggle") },
-    { mod .. " + M",                                     hl.dsp.exec_cmd("quickshell ipc call mic mute") },
+    { mod .. " + M",                                     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle") },
 
     -- System and lock
     { mod .. " + L",                                     hl.dsp.exec_cmd(lock_command) },
@@ -108,7 +110,7 @@ local keybinds = {
     -- Screenshots
     { "Print",                               hl.dsp.exec_cmd("hdrshot region") },
     { "CTRL + Print",                        hl.dsp.exec_cmd("hdrshot output") },
-    { "SHIFT + Print",                       hl.dsp.exec_cmd("quickshell ipc call rec toggle") },
+    { "SHIFT + Print",                       hl.dsp.exec_cmd("obelisk call rec.toggle") },
 }
 
 for _, binding in ipairs(keybinds) do
