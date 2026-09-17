@@ -8,7 +8,7 @@ description: Diagnosis loop for hard bugs and performance regressions in the Obe
 A strict discipline for hard bugs. Stop guessing. Build a loop, form a hypothesis, measure, fix.
 
 ## 0. Redact & Read
-*   **Context:** Identify the layer: Obelisk shell Lua (`obelisk/.config/obelisk/`), Hyprland Lua (`hypr/.config/hypr/`), or the framework under them. For any `ADR-NNNN` a Lua comment cites, read `docs/decisions.md` and `CONTEXT.md` in the framework checkout (`/mnt/Work/0Coding/1Rust/obelisk-shell`).
+*   **Context:** Identify the layer: Obelisk shell Lua (`obelisk/.config/obelisk/`), Hyprland Lua (`hypr/.config/hypr/`), or the engine under them. For engine behavior, read `docs/lua-api.md` and `CONTEXT.md` in the engine checkout (`/mnt/Work/0Coding/1Rust/obelisk-shell`).
 *   **Security:** Redact all secrets (`<REDACTED>`) before outputting artifacts. Quote only the specific log lines carrying the signal.
 
 ## 1. Build a Feedback Loop (The Hard Part)
