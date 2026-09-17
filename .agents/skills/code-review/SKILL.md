@@ -26,24 +26,25 @@ Locate the originating requirement in this order:
 *   *If missing, ask the user. If none exists, the Spec sub-agent aborts and reports "No spec available."*
 
 ## 3. Identify the Standards
-Combine repo-specific docs (`CODING_STANDARDS.md`) with the **Baseline Smells**. 
-*Rule of Law:* Documented repo standards override the baseline. Skip anything enforced by automated tooling (e.g., PHP_CodeSniffer, ESLint).
+Combine repo-specific docs (`AGENTS.md`) with the **Baseline Smells**. 
+*Rule of Law:* Documented repo standards override the baseline. Skip anything enforced by automated tooling (e.g., the lua-language-server formatter and `--check` diagnostics).
 
 ### Baseline Smells
 | Smell | Definition | The Fix |
 | :--- | :--- | :--- |
 | **Mysterious Name** | Unclear variable, function, or type name. | Rename it. If you cannot name it, the architecture is flawed. |
-| **Duplicated Code** | Repeated logic shapes across the diff. | Extract to an Action, Trait, or Vue Composable. |
-| **Feature Envy** | A method querying another object's data heavily. | Move the method onto the Eloquent model/object it envies. |
-| **Data Clumps** | The same 3-4 parameters travel together constantly. | Extract a DTO (Data Transfer Object) or Value Object. |
-| **Primitive Obsession** | Strings/Ints acting as domain concepts. | Use Enums, Value Objects, or custom Casts. |
-| **Repeated Switches** | Identical `switch`/`if` cascades on one type. | Replace with Polymorphism or a Config/Match Map. |
+| **Duplicated Code** | Repeated logic shapes across the diff. | Extract to a `lib/` function or a `components/` widget. |
+| **Feature Envy** | A function reading another module's data heavily. | Move the function into the `lib/` module that owns that data. |
+| **Data Clumps** | The same 3-4 parameters travel together constantly. | Pass one table with named fields, typed with `---@class`. |
+| **Primitive Obsession** | Strings/Ints acting as domain concepts. | Use a named constant table or a `---@alias` string union. |
+| **Repeated Switches** | Identical `if`/`elseif` cascades on one value. | Replace with a lookup table keyed by that value (see `lib/compositor.lua`). |
 | **Shotgun Surgery** | One logical change scatters edits across 10 files. | Consolidate the logic into a cohesive domain module. |
-| **Divergent Change** | One file edits for 5 unrelated reasons. | Split the class. Enforce Single Responsibility. |
+| **Divergent Change** | One file edits for 5 unrelated reasons. | Split the module. Enforce Single Responsibility. |
 | **Speculative Generality** | Interfaces/hooks built for "future needs". | **YAGNI.** Delete it. Inline until a concrete requirement exists. |
-| **Message Chains** | `a->b()->c()->d()` navigation. | Hide the walk behind a single method on the root object. |
-| **Middle Man** | A class/function that just delegates (Shallow Module). | Delete it. Call the target directly. |
-| **Refused Bequest** | Subclass overriding/ignoring most inherited logic. | Drop inheritance. Use Composition. |
+| **Message Chains** | `a.b:c().d` navigation. | Hide the walk behind a single function on the root module. |
+| **Middle Man** | A module/function that just delegates (Shallow Module). | Delete it. Call the target directly. |
+| **Accidental Global** | An assignment missing `local`. | Declare it `local`. |
+| **Frozen Signal** | `:get()` stored where a node property should stay live. | Pass the signal itself, or derive with `:map`. |
 
 ## 4. Spawn Parallel Sub-Agents
 

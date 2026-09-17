@@ -1,6 +1,6 @@
 ---
 name: diagnosing-bugs
-description: Diagnosis loop for hard bugs and performance regressions. Forked for Laravel/Livewire and Quickshell/QML.
+description: Diagnosis loop for hard bugs and performance regressions in the Obelisk Lua shell and the Hyprland Lua config.
 ---
 
 # Diagnosing Bugs
@@ -8,34 +8,33 @@ description: Diagnosis loop for hard bugs and performance regressions. Forked fo
 A strict discipline for hard bugs. Stop guessing. Build a loop, form a hypothesis, measure, fix.
 
 ## 0. Redact & Read
-*   **Context:** Determine the project domain (Laravel/Livewire vs. Quickshell/QML). Read `CONTEXT.md` and ADRs.
+*   **Context:** Identify the layer: Obelisk shell Lua (`obelisk/.config/obelisk/`), Hyprland Lua (`hypr/.config/hypr/`), or the framework under them. For any `ADR-NNNN` a Lua comment cites, read `docs/decisions.md` and `CONTEXT.md` in the framework checkout (`/mnt/Work/0Coding/1Rust/obelisk-shell`).
 *   **Security:** Redact all secrets (`<REDACTED>`) before outputting artifacts. Quote only the specific log lines carrying the signal.
 
 ## 1. Build a Feedback Loop (The Hard Part)
 If you do not have a tight pass/fail signal that goes red on *this specific bug*, you will fail. Do not read code to guess. Build the loop.
 
-### Domain A: Laravel & Livewire (Web)
-*No bash wrappers for PHP logic.*
-1.  **Tinker REPL:** Isolate logic and run directly via `php artisan tinker --execute="dd(User::find(1)->calculate());"`.
-2.  **Failing Test:** A Pest/PHPUnit test hitting the exact class, endpoint, or Eloquent model.
-3.  **Browser Script:** Dusk or Playwright for Livewire reactivity/DOM state issues.
-4.  **Database Isolation:** A raw Postgres query proving the data state or performance bottleneck.
+### Domain A: Obelisk Shell (Lua)
+1.  **Headless Evaluation:** `obelisk check -c obelisk/.config/obelisk` evaluates the config with every capability reading `nil` and exits non-zero on a load error. Diff its output.
+2.  **LSP/Linting:** Run lua-language-server `--check` against the root `.luarc.json` (command in `AGENTS.md`) to catch type and stub mismatches.
+3.  **Live State:** `obelisk log -f` for the running shell; `obelisk set|toggle|call` to drive its named state and actions.
+4.  **Capability Source:** `busctl --user`, `dbus-monitor`, `pw-dump` or `journalctl --user` to prove whether the data feeding a signal is wrong before blaming the Lua.
 
-### Domain B: Quickshell & QML (Linux Desktop UI)
-1.  **CLI Execution:** Write `.sh` scripts to run `quickshell path/to/file.qml` or `qmlscene`. Diff stdout/stderr.
-2.  **LSP/Linting:** Run `qmlls` to catch static QML binding errors.
-3.  **IPC/State Monitoring:** Bash loops utilizing `dbus-monitor`, `hyprctl`, or `journalctl` to trace state changes feeding the UI.
+### Domain B: Hyprland (Lua)
+1.  **Config Errors:** `hyprctl reload` then `hyprctl configerrors`.
+2.  **Live Queries:** `hyprctl repl '<lua>'` evaluates Lua in the running compositor and prints the result; use it to test `hl.*` calls in isolation.
+3.  **State Diffs:** `hyprctl monitors -j` or `hyprctl clients -j` before and after the trigger.
 
 ### Tighten It
 *   Make it fast (seconds, not minutes).
-*   Make it deterministic (seed RNG, mock APIs, isolate UI components).
+*   Make it deterministic (seed `math.random`, pin inputs in a fixture config under `/tmp`, isolate one module).
 *   *Completion Criterion:* You must name **one runnable command** that reliably reproduces the exact symptom.
 
 ## 2. Reproduce & Minimize
 Watch the loop go red. Confirm it is the *user's exact symptom*.
 
 **Minimize (The Deletion Test for Bugs):**
-Cut inputs, callers, Livewire components, or QML objects one by one. Re-run. Keep only what is load-bearing for the failure. Shrink the hypothesis space.
+Cut inputs, callers, Lua modules, or nodes one by one. Re-run. Keep only what is load-bearing for the failure. Shrink the hypothesis space.
 
 ## 3. Hypothesize (3-5 Ranked)
 Before touching the code, state 3-5 falsifiable hypotheses.
@@ -44,13 +43,13 @@ Before touching the code, state 3-5 falsifiable hypotheses.
 
 ## 4. Instrument & Measure
 Map probes to the hypotheses. Change one variable at a time.
-*   **Laravel Logic:** Use Xdebug, `dd()`, or Ray.
-*   **Quickshell/QML:** `console.log()` inside QML, or examine shell stdout.
-*   **Performance:** Telescope (Laravel) or `EXPLAIN ANALYZE` (Postgres).
+*   **Obelisk Lua:** `print()` inside the module, read with `obelisk log -f`.
+*   **Hyprland Lua:** `hyprctl repl` for state, and `$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log` for errors.
+*   **Performance:** `exceeded the 5ms CPU budget` lines in `obelisk log`, and the row count of every open `list` (each item is built, none are reused).
 *   **Logging:** Tag all debug logs with `[DEBUG]`. Never "log everything."
 
 ## 5. Fix & Regression Test
-1.  Turn the minimized repro into a permanent test (Pest for Laravel, or a stable QML shell assertion).
+1.  Turn the minimized repro into a permanent check (an assert-based Lua self-check that `obelisk check` evaluates, or a `hyprctl repl` assertion).
 2.  Watch it fail.
 3.  Apply the fix.
 4.  Watch it pass.
@@ -59,5 +58,5 @@ Map probes to the hypotheses. Change one variable at a time.
 *   [ ] Original loop runs green.
 *   [ ] Regression test runs green.
 *   [ ] `grep -r "DEBUG"` is empty.
-*   [ ] `dd()`, `console.log()` and temporary routes are deleted.
+*   [ ] Temporary `print()` calls and fixture modules are deleted.
 *   [ ] The correct hypothesis is documented in the commit message.

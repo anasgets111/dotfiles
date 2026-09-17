@@ -12,7 +12,7 @@ Stress-test the plan. Map the architecture as a dependency graph. Accept no assu
 
 Operate in strict rounds. Attack the **frontier**: questions whose prerequisites are fully settled. Do not ask downstream questions until the current blockers are resolved.
 
-1. **The YAGNI Gate (Round 0):** Does this need to exist? Can standard FOSS, native features, or existing logic (e.g., in Laravel/Vue/Postgres) handle this? 
+1. **The YAGNI Gate (Round 0):** Does this need to exist? Can standard FOSS, native features, or existing logic (e.g., an Obelisk capability, the Lua API, a `lib/` helper, a compositor feature) handle this? 
 2. **Automated Fact-Finding:** Never ask the user for environment facts (code, system state, docs). Use tools to parse the reality. 
 3. **The Grill:** Output the current frontier questions. Wait for answers. Recompute the frontier.
 

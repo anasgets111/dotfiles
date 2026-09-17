@@ -10,7 +10,7 @@ Surface architectural friction. Propose **deepening opportunities** (converting 
 
 **Strict Vocabulary Definition:** 
 Always use: **module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**. 
-Never use: component, service, API, boundary. Use `CONTEXT.md` for domain terminology. Respect existing `docs/adr/`.
+Never use: component, service, API, boundary. Use the framework's `CONTEXT.md` for domain terminology and respect its ADRs (`docs/decisions.md` in `/mnt/Work/0Coding/1Rust/obelisk-shell`).
 
 ## Process
 
@@ -19,10 +19,10 @@ Never use: component, service, API, boundary. Use `CONTEXT.md` for domain termin
 Do not review stable code. Deepening only pays off if the code changes. 
 
 - **Target Hotspots:** Run `git log --oneline` to locate frequently touched files.
-- **Read Context:** Parse `CONTEXT.md` and `docs/adr/` for the target area.
+- **Read Context:** Parse `AGENTS.md`, plus the framework's `CONTEXT.md` and any ADR the target's Lua comments cite.
 - **Audit for Friction (Spawn Sub-Agent):**
   - Locate **shallow modules** (interface complexity ≈ implementation complexity).
-  - Locate leaked abstractions (e.g., Eloquent queries bleeding into Vue components).
+  - Locate leaked abstractions (e.g., capability payload parsing or `process.run` calls bleeding into `components/` widgets).
   - Identify pure functions lacking **locality** (extracted for tests, but real bugs hide in the untested callers).
 - **The Deletion Test:** Would deleting this module concentrate complexity, or just move it? If it concentrates, it is shallow. Target it.
 
@@ -43,6 +43,6 @@ Write a self-contained HTML file to the OS temp directory. Do not pollute the re
 Once the user selects a candidate, execute `grill` to stress-test the architectural decision tree.
 
 **Inline Side Effects:**
-- **Missing Domain Term?** Update `CONTEXT.md` immediately.
-- **User Rejects Candidate?** Ask to record an ADR to prevent future re-suggestions. (Skip if the reason is ephemeral).
+- **Missing Domain Term?** Tell the user; `CONTEXT.md` lives in the framework repo.
+- **User Rejects Candidate?** Ask to record the reason as a comment at the module to prevent future re-suggestions. (Skip if the reason is ephemeral).
 - **Alternative Interfaces?** Spawn parallel sub-agents to design it twice using the codebase-design principles.

@@ -17,19 +17,19 @@ Pure computation, in-memory state, zero I/O.
 *   **Testing:** Test directly through the new interface. Zero adapters required.
 
 ### 2. Local-Substitutable
-Dependencies with local test equivalents (e.g., Postgres database, Redis, local filesystem).
+Dependencies with local test equivalents (e.g., the local filesystem, a fixture config directory).
 *   **Action:** Deepenable. The seam remains internal. 
-*   **Testing:** Run the test suite against the local substitute (e.g., Laravel's `RefreshDatabase`, `Storage::fake()`). Do not extract a port/adapter for this at the module's external interface.
+*   **Testing:** Run the checks against the local substitute (e.g., a fixture config under `/tmp` evaluated with `obelisk check -c`). Do not extract a port/adapter for this at the module's external interface.
 
 ### 3. Remote but Owned (Ports & Adapters)
-Internal APIs or microservices you control across a network.
+Processes you control across a socket or D-Bus (e.g., the Obelisk Supervisor behind `obelisk.<capability>`, a helper script).
 *   **Action:** Define a **port** (interface) at the seam. The deep module owns the logic.
-*   **Testing:** Inject an **adapter**. Implement an HTTP adapter for production, and an Array/In-Memory adapter for tests. 
+*   **Testing:** Inject an **adapter**. Use the live capability in production, and a plain Lua table shaped like its payload in tests. 
 
 ### 4. True External (Mock)
-Third-party services you do not control (e.g., Stripe, Cloudflare API).
+Third-party services you do not control (e.g., open-meteo, the currency API).
 *   **Action:** The deep module accepts the external dependency as an injected port.
-*   **Testing:** Tests provide a Mock adapter.
+*   **Testing:** Tests provide a stub function returning a canned decoded JSON table.
 
 ## Seam Discipline
 
@@ -40,5 +40,5 @@ Third-party services you do not control (e.g., Stripe, Cloudflare API).
 
 *   **Delete Waste:** Old unit tests tied to the previous shallow modules are now technical debt. Delete them.
 *   **The Interface is the Test Surface:** Write new tests hitting only the deepened module's interface. 
-*   **Assert Outcomes, Not State:** Assert on observable results (database records, returned DTOs, fired events). Do not assert on internal state or use reflection.
+*   **Assert Outcomes, Not State:** Assert on observable results (returned tables, written named state, invoked actions). Do not assert on internal state or use reflection.
 *   **Implementation Agnosticism:** If an internal refactor breaks your test, you tested past the interface. Fix the test.

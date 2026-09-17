@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Ponytail HITL (Human-In-The-Loop) Loop.
-# Use ONLY when a bug requires manual interaction (Livewire DOM diffs, Quickshell rendering)
+# Use ONLY when a bug requires manual interaction (Obelisk shell rendering, Hyprland behavior)
 # and cannot be caught via headless loops.
 #
-# Usage: bash scripts/ponytail-hitl.sh
+# Usage: bash scripts/hitl.sh
 
 set -euo pipefail
 
@@ -22,31 +22,29 @@ capture() {
 printf "Ponytail HITL Diagnostics\n=========================\n"
 
 # ==============================================================================
-# TEMPLATE A: LARAVEL / LIVEWIRE
+# TEMPLATE A: OBELISK SHELL / LUA (Hyprland or Niri)
 # ==============================================================================
-# step "Open the browser to http://localhost:8000."
-# step "Clear storage/logs/laravel.log. Open DevTools Network tab."
+# step "Follow the running shell's output in a terminal: obelisk log -f"
+# step "Save the module under test to reload the shell in place."
 #
-# capture TRIGGERED "Click the Livewire action button. Did the XHR request 500? (y/n)"
-# capture DOM_STATE "Did the DOM revert or duplicate elements? (Describe/none)"
-# capture ERROR_MSG "Paste the exact exception from laravel.log (or 'none'):"
+# capture RENDERED "Did the reload apply without a rescue error in the bar? (y/n)"
+# capture STATE_SYNC "Change the workspace. Did the widget update? (y/n)"
+# capture ERROR_MSG "Paste the exact error from obelisk log (or 'none'):"
 
 
 # ==============================================================================
-# TEMPLATE B: QUICKSHELL / QML (Arch Linux / Hyprland)
+# TEMPLATE B: HYPRLAND / LUA
 # ==============================================================================
-# step "Kill existing quickshell instances: pkill quickshell"
-# step "Run the target widget in a terminal: quickshell path/to/widget.qml &"
+# step "Save the Hyprland config file under test."
 #
-# capture RENDERED "Did the QML window render without syntax errors? (y/n)"
-# capture STATE_SYNC "Change the Hyprland workspace. Did the Quickshell widget update? (y/n)"
-# capture ERROR_MSG "Paste the exact error from the quickshell stdout (or 'none'):"
+# capture CONFIG_ERRORS "Paste the output of hyprctl configerrors (or 'none'):"
+# capture BEHAVIOR "Trigger the bind or rule. Did it behave as expected? (y/n)"
 
 # --- UNCOMMENT AND EDIT ONE OF THE TEMPLATES ABOVE ---
 
 printf '\n--- [ PONYTAIL HITL RESULTS ] ---\n'
-# printf 'TRIGGERED=%s\n' "$TRIGGERED"
-# printf 'DOM_STATE=%s\n' "$DOM_STATE"
 # printf 'RENDERED=%s\n' "$RENDERED"
 # printf 'STATE_SYNC=%s\n' "$STATE_SYNC"
 # printf 'ERROR_MSG=%s\n' "$ERROR_MSG"
+# printf 'CONFIG_ERRORS=%s\n' "$CONFIG_ERRORS"
+# printf 'BEHAVIOR=%s\n' "$BEHAVIOR"
