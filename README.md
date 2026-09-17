@@ -94,7 +94,7 @@ Weather finds its location from the system timezone. Runtime state (wallpapers, 
 | `fish/`, `nushell/`, `nvim/` | Shell and editor configuration |
 | `kitty/`, `ghostty/`, `alacritty/`, `foot/`, `wezterm/` | Terminal configuration |
 | `mpv/` | mpv configuration and scripts |
-| `bin/` | Install, update, backup and screenshot scripts |
+| `bin/` | Install, backup and screenshot scripts |
 | `NixConfig/` | Inactive NixOS flake for the Wolverine (NVIDIA, Hyprland) and Mentalist (Intel, Niri) hosts |
 
 The shell owns locking and idle, so there is no Hyprlock, Swaylock, Hypridle or Swayidle configuration.

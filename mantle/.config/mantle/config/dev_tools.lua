@@ -1,5 +1,5 @@
--- Developer tooling updated behind the package manager, ported from `~/.local/bin/update`'s
--- optional steps. `modules/bar/panels/update_panel.lua` runs them and stores which are ticked.
+-- Developer tooling updated behind the package manager. `modules/bar/panels/update_panel.lua` runs
+-- them and stores which are ticked.
 --
 -- Data, not code. A tool is a name, the binary that has to exist for it to apply, and the commands
 -- to run in order. Adding one is an entry here; the Supervisor never learns these exist, so no
