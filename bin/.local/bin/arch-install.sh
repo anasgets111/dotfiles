@@ -68,7 +68,7 @@ COMMON_PACKAGES=(
     7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools jq
     less neovim rate-mirrors rsync sassc shfmt stow stylua tokei tree-sitter-cli unzip unrar wget zip
     # Dev
-    just openai-codex opencode podman rustup yaak
+    just openai-codex opencode podman rustup sccache yaak
     # Apps
     gnome-calculator gnome-disk-utility gnome-text-editor kdeconnect
     mission-center nautilus-image-converter papers qbittorrent simple-scan
@@ -97,7 +97,7 @@ WOLVERINE_PACKAGES=(
 # Chaotic-AUR / Omarchy (post-chroot)
 COMMON_EXTRA_PACKAGES=(
     omarchy-keyring shellcheck-bin yay bibata-cursor-theme fish-autopair
-    nautilus-code-git xdg-terminal-exec-git gpu-screen-recorder-git quickshell-git
+    nautilus-code-git xdg-terminal-exec-git gpu-screen-recorder-git
     vesktop slack-desktop rustdesk-bin
     claude-code piper-tts-git voxtype-bin
     zen-browser-bin subliminal-git
@@ -633,10 +633,10 @@ bootstrap_user_environment() {
 
     run_as_user systemctl --user enable podman.socket podman-restart.service
 
-    run_as_user "$dots" home config bin xdg-desktop-portal kitty quickshell fish nvim mpv \
+    run_as_user "$dots" home config bin xdg-desktop-portal kitty obelisk fish nvim mpv \
         "${PROFILE_STOW_PACKAGES[@]}" <<'SCRIPT'
 		rm -f "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.bash_logout"
-		for pkg in fish kitty quickshell nvim mpv hypr niri xdg-desktop-portal; do
+		for pkg in fish kitty obelisk nvim mpv hypr niri xdg-desktop-portal; do
 			target="$HOME/.config/$pkg"
 			[[ -e "$target" && ! -L "$target" ]] && rm -rf "$target"
 		done
