@@ -1,0 +1,222 @@
+-- Notification feed helpers with no nodes or signals: body runs and links, popup identity, grouping
+-- and history sections.
+local util = require("lib.util")
+
+local notifications = {}
+
+-- `notification.body` is a parsed freedesktop markup span array (ADR-0033). The Supervisor
+-- parses it once, and `text.content` accepts the same run shape (ADR-0104): links become underlined
+-- `link_color` runs with `href`, while the engine draws/reports pressed runs but knows no URLs.
+-- Image spans go to `notifications.notification_images` because `text` refuses runs without
+-- `text`. Scan only unlinked text so pasted web/file addresses become pressable while `<a href>`
+-- targets survive. Strip trailing sentence punctuation, which is almost never part of a URL.
+local URL_PATTERNS = { "%f[%S]https?://[^%s<>'\"]+", "%f[%S]file://[^%s<>'\"]+" }
+
+local function linkified(spans)
+    local out = {}
+    for _, span in ipairs(spans or {}) do
+        local text = span.kind == "text" and (span.href == nil or span.href == "") and span.text or nil
+        if not text then
+            out[#out + 1] = span
+        else
+            local at = 1
+            while at <= #text do
+                local first, last
+                for _, pattern in ipairs(URL_PATTERNS) do
+                    local from, to = text:find(pattern, at)
+                    if from and (not first or from < first) then
+                        first, last = from, to
+                    end
+                end
+                if not first then
+                    break
+                end
+                local href = text:sub(first, last):gsub("[.,;:!?]+$", "")
+                last = first + #href - 1
+                if first > at then
+                    local plain = {}
+                    for key, value in pairs(span) do
+                        plain[key] = value
+                    end
+                    plain.text = text:sub(at, first - 1)
+                    out[#out + 1] = plain
+                end
+                local link = {}
+                for key, value in pairs(span) do
+                    link[key] = value
+                end
+                link.text, link.href = href, href
+                out[#out + 1] = link
+                at = last + 1
+            end
+            if at == 1 then
+                out[#out + 1] = span
+            elseif at <= #text then
+                local rest = {}
+                for key, value in pairs(span) do
+                    rest[key] = value
+                end
+                rest.text = text:sub(at)
+                out[#out + 1] = rest
+            end
+        end
+    end
+    return out
+end
+
+function notifications.notification_body(spans, link_color)
+    spans = linkified(spans)
+    local runs = {}
+    for _, span in ipairs(spans or {}) do
+        if span.kind == "text" and span.text and span.text ~= "" then
+            local is_link = span.href ~= nil and span.href ~= ""
+            runs[#runs + 1] = {
+                text = span.text,
+                bold = span.bold or false,
+                italic = span.italic or false,
+                underline = span.underline or is_link,
+                color = is_link and link_color or nil,
+                -- Carries `href` to `on_link` (ADR-0106). The engine never opens it; the card does.
+                href = is_link and span.href or nil,
+            }
+        end
+    end
+    return runs
+end
+
+-- Run character count for `components/notification_card.lua`'s pre-measurement expander guess.
+function notifications.runs_length(runs)
+    local total = 0
+    for _, run in ipairs(runs or {}) do
+        total = total + utf8.len(run.text or "")
+    end
+    return total
+end
+
+-- Distinct body link targets in first-seen order; repeated pages get one button.
+function notifications.notification_links(spans)
+    local links, seen = {}, {}
+    for _, span in ipairs(linkified(spans)) do
+        local href = span.kind == "text" and span.href or nil
+        if href and href ~= "" and not seen[href] then
+            seen[href] = true
+            links[#links + 1] = href
+        end
+    end
+    return links
+end
+
+-- Inline body pictures (`<img src>`), trusted-root validated by the Supervisor; draw under text, as
+-- `notifications.notification_body` does.
+function notifications.notification_images(spans)
+    local paths = {}
+    for _, span in ipairs(spans or {}) do
+        if span.kind == "image" and span.image_path then
+            paths[#paths + 1] = span.image_path
+        end
+    end
+    return paths
+end
+
+-- Link label: web host, `mailto:` address, or the full URL otherwise. Full URLs do not fit a card
+-- button.
+function notifications.link_label(href)
+    local rest = href:match("^[%a][%w+.-]*://(.*)$")
+    if rest then
+        return (rest:match("^[^/?#]+") or rest):gsub("^www%.", "")
+    end
+    return href:match("^mailto:(.+)$") or href
+end
+
+-- Content identity for popup bookkeeping. Include `timestamp`, not only id: `replaces_id` reuses an
+-- id for new content, while timestamp changes on every `Notify` and otherwise stays put (ADR-0093).
+function notifications.notification_key(notification)
+    return string.format("%d:%d", notification.id or 0, notification.timestamp or 0)
+end
+
+-- Group the feed by sending application, turning eight chat messages into one card. Key by sender
+-- `desktop_entry` (ADR-0101), or `app_name` when absent. Desktop ids avoid shared or changing
+-- display names and key `applications.by_app_id` (ADR-0061), supplying installed `Name=`/ `Icon=`;
+-- before the first `mantle.applications` push (`nil`), use the sender's name and icon. Critical
+-- first, then newest notification. The newest-first feed keeps a recently speaking app above one
+-- silent for an hour; key breaks equal-second ties between passes. `opts.skip_transient` omits
+-- sender-marked `transient` notifications (ADR-0100): history omits them; popup does not.
+function notifications.group_notifications(feed, applications, opts)
+    opts = opts or {}
+    local groups, by_key = {}, {}
+    for _, notification in ipairs(feed or {}) do
+        if not (opts.skip_transient and notification.transient) then
+            local entry_id = notification.desktop_entry
+            local key = entry_id and string.lower(entry_id) or (notification.app_name or "?")
+            local group = by_key[key]
+            if group == nil then
+                local entry = util.app_entry(applications, entry_id)
+                group = {
+                    key = key,
+                    app_name = (entry and entry.name) or notification.app_name or "?",
+                    app_icon = (entry and entry.icon) or notification.app_icon,
+                    urgency = notification.urgency or "normal",
+                    latest = notification.timestamp or 0,
+                    items = {},
+                }
+                by_key[key] = group
+                groups[#groups + 1] = group
+            end
+            group.items[#group.items + 1] = notification
+        end
+    end
+    table.sort(groups, function(a, b)
+        local a_critical, b_critical = a.urgency == "critical", b.urgency == "critical"
+        if a_critical ~= b_critical then
+            return a_critical
+        end
+        if a.latest ~= b.latest then
+            return a.latest > b.latest
+        end
+        return a.key < b.key
+    end)
+    return groups
+end
+
+-- History groups: "urgent", "today", "yesterday", "earlier". Flatten for `list`; headers are
+-- `kind = "header"`, and colon keys cannot collide with desktop ids, which contain no colon. `now`
+-- is `mantle.system.time`; today starts at local midnight.
+function notifications.notification_sections(groups, now)
+    local today = os.date("*t", now)
+    local today_start = os.time({ year = today.year, month = today.month, day = today.day, hour = 0 })
+    local buckets = {
+        { label = "urgent",    items = {} },
+        { label = "today",     items = {} },
+        { label = "yesterday", items = {} },
+        { label = "earlier",   items = {} },
+    }
+    for _, group in ipairs(groups or {}) do
+        local index = 4
+        if group.urgency == "critical" then
+            index = 1
+        elseif group.latest >= today_start then
+            index = 2
+        elseif group.latest >= today_start - 86400 then
+            index = 3
+        end
+        local items = buckets[index].items
+        items[#items + 1] = group
+    end
+    local sections = {}
+    for _, bucket in ipairs(buckets) do
+        if #bucket.items > 0 then
+            sections[#sections + 1] = { kind = "header", key = "header:" .. bucket.label, label = bucket.label }
+            for _, group in ipairs(bucket.items) do
+                sections[#sections + 1] = group
+            end
+        end
+    end
+    return sections
+end
+
+-- History arrival as "Wed 14:32"; `%a` is enough because sections already name the day.
+function notifications.absolute_time(timestamp)
+    return os.date("%a %H:%M", timestamp or 0)
+end
+
+return notifications

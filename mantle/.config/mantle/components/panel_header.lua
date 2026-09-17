@@ -1,0 +1,102 @@
+-- Masthead: tinted glyph plate, title/state line, trailing controls.
+--
+-- The plate and glyph turn accent when the subject is on and dim when off, so "network" and
+-- "bluetooth" read as switches before their labels. The caller supplies that fact as `opts.active`.
+--
+-- `width = "Fill"` leaves title space for trailing controls. `scene.rs` sizes it from siblings;
+-- `cell`'s `elide = "End"` keeps a long title from pushing controls out.
+local theme = require("config.theme")
+local cell = require("components.cell")
+local icons = require("config.icons")
+local icon_button = require("components.icon_button")
+
+---@class PanelHeaderOpts
+---@field title string
+---@field subtitle? string|Bound One line of state under the title: the joined network, "2 connected · P30i · 90%", "off".
+---@field icon? string|Bound A glyph on a plate; the plate and glyph take `active`'s colour.
+---@field active? boolean|Bound Accent while true, dim while false. Default true. Ignored when `accent` is given.
+---@field accent? Color|Bound The plate and glyph colour outright, for a subject whose state is not on/off. The boolean `active` is the common case built on top of this; the recorder needs the parameter itself, because a live capture is red and a ready one accent -- two colours, neither of them "off".
+---@field trailing? Node[] Controls at the far edge, in order.
+---@field on_close? fun() Adds a close button after `trailing`.
+---@field title_size? integer The title's font size. Default `theme.font.lg`, which is a bar panel's masthead; a modal's is bigger, and so is a section header inside one.
+---@field subtitle_color? Color|Bound The state line's colour. Default `theme.DIM`.
+---@field subtitle_size? integer The state line's font size. Default `theme.font.xs`, which is right under a bar panel's 16px title and unreadably small under a modal's 28px one.
+---@field plate? integer The icon plate's side. Default `theme.control.lg`, and it tracks `title_size` rather than being set on its own.
+
+---@param opts PanelHeaderOpts
+return function(opts)
+    local active = opts.active
+    if active == nil then
+        active = true
+    end
+    ---@type Color|Signal
+    local accent
+    ---@type Color|Signal
+    local plate
+    if opts.accent ~= nil then
+        accent = opts.accent
+        -- The plate takes the same colour at reduced opacity; callers supply one colour, not a
+        -- pair.
+        if type(accent) == "userdata" then
+            ---@cast accent Signal
+            plate = accent:map(function(colour)
+                return theme.with_opacity(colour, theme.opacity.subtle)
+            end)
+        else
+            ---@cast accent Color
+            plate = theme.with_opacity(accent, theme.opacity.subtle)
+        end
+    elseif type(active) == "userdata" then
+        ---@cast active Signal
+        accent = active:map(function(on)
+            return on and theme.ACCENT or theme.DIM
+        end)
+        plate = active:map(function(on)
+            return on and theme.ACCENT_SUBTLE or theme.GLASS_CONTENT
+        end)
+    else
+        accent = active and theme.ACCENT or theme.DIM
+        plate = active and theme.ACCENT_SUBTLE or theme.GLASS_CONTENT
+    end
+
+    local title_size = opts.title_size or theme.font.lg
+    local plate_size = opts.plate or theme.control.lg
+
+    local children = {}
+    if opts.icon then
+        children[#children + 1] = rect {
+            width = plate_size,
+            height = plate_size,
+            radius = theme.radius.md,
+            background = plate,
+            align_v = "Center",
+            children = { cell(opts.icon, accent, math.floor(plate_size * 0.55), { align = "Center", align_v = "Center" }) },
+        }
+    end
+
+    -- Weight lives on `TextRun` (`lua-meta/nodes.lua`), not the title string's node.
+    local lines = { cell({ { text = opts.title, bold = true } }, theme.FG, title_size, { width = "Fill" }) }
+    if opts.subtitle then
+        lines[#lines + 1] = cell(opts.subtitle, opts.subtitle_color or theme.DIM,
+            opts.subtitle_size or theme.font.xs, { width = "Fill" })
+    end
+    children[#children + 1] = column { width = "Fill", align_v = "Center", children = lines }
+
+    for _, control in ipairs(opts.trailing or {}) do
+        if control.align_v == nil then
+            control.align_v = "Center"
+        end
+        children[#children + 1] = control
+    end
+    if opts.on_close then
+        children[#children + 1] = icon_button(icons.close, opts.on_close,
+            { size = theme.control.sm, icon_size = theme.icon.sm })
+    end
+
+    return row {
+        width = "Fill",
+        spacing = theme.spacing.sm,
+        align_v = "Center",
+        children = children,
+    }
+end

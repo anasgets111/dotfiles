@@ -1,10 +1,32 @@
 {
   "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
   "format.enable": true,
+  "runtime.builtin": {
+    "os": "disable",
+    "debug": "disable"
+  },
   "workspace": {
-    "library": ["/usr/share/hypr/stubs", "/usr/share/nvim/runtime/lua"]
+    "library": [
+      "/usr/share/hypr/stubs",
+      "/usr/share/nvim/runtime/lua",
+      "/mnt/Work/0Coding/1Rust/obelisk-shell/lua-meta"
+    ]
   },
   "diagnostics": {
-    "globals": ["hl", "vim", "mp"]
+    "globals": ["hl", "vim", "mp"],
+    "severity": {
+      "param-type-mismatch": "Warning",
+      "assign-type-mismatch": "Warning",
+      "return-type-mismatch": "Warning",
+      "cast-local-type": "Warning",
+      "undefined-field": "Warning"
+    },
+    "neededFileStatus": {
+      "param-type-mismatch": "Any",
+      "assign-type-mismatch": "Any",
+      "return-type-mismatch": "Any",
+      "cast-local-type": "Any",
+      "undefined-field": "Any"
+    }
   }
 }
