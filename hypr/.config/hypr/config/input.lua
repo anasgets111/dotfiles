@@ -11,6 +11,12 @@ hl.config({
     gestures = {
         workspace_swipe_distance = 700,
     },
+    -- Let input wake a blanked display on its own. Without these, a dispatched `dpms off` is undone
+    -- only by another dispatch, so a shell that dies while blanked leaves a black screen.
+    misc = {
+        mouse_move_enables_dpms = true,
+        key_press_enables_dpms = true,
+    },
 })
 
 -- Gestures
