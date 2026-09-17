@@ -1,219 +1,132 @@
 # AGENTS.md
 
-This file provides guidance for coding agents working in this repository.
+## Project
 
-## Project Overview
-
-**Obelisk Shell** — modular Wayland desktop dotfiles centered on **Quickshell** (QML-based shell), supporting **Hyprland** and **Niri** compositors. Managed via GNU Stow.
-
-Primary technologies: QML (Quickshell), Fish shell, Bash scripts.
-
-## Platform Scope
-
-- Arch Linux is authoritative for packages, dependencies, runtime, and installation.
-- `NixConfig/` is inactive. Ignore it unless explicitly requested; never use it as context or sync it with Arch.
+- Arch Linux dotfiles for Hyprland (Lua config) and Niri, deployed with GNU Stow. Arch is authoritative for packages, runtime and installation.
+- The shell is `obelisk/.config/obelisk/`, a Lua 5.4 config for the upstream [Obelisk engine](https://github.com/anasgets111/obelisk-engine). The engine ships the `obelisk` binary, Lua API and capabilities; this repo holds only the Lua.
+- `NixConfig/` is inactive. Ignore it unless asked; never use it as context or sync it with Arch.
 
 ## Commands
 
-### Shell Scripts
+- **Never run `stow` or start the shell** (`obelisk`, `obelisk -d`) unless told to.
+- Saving a `.lua` reloads the running shell in place. A failed reload keeps the last scene and shows the error in the bar.
+
+| Command | Use |
+| --- | --- |
+| `obelisk check -c obelisk/.config/obelisk` | Run after every edit. Evaluates the config with no Wayland, no subprocesses and every capability `nil`; writes no state |
+| `obelisk log [-f]` | Running shell output, `print()` included |
+| `obelisk set`, `toggle`, `call <name>` | Drive live `state` and `action` names like a keybind; changes the live UI |
+| `luac5.4 -p file.lua` | Syntax check. Plain `luac` is Lua 5.5 |
+| `hyprctl repl '<lua>'` | Evaluate `hl.*` in the running Hyprland without a reload |
+| `shellcheck script.sh` | Lint Bash |
+
+Type check the repo against the root `.luarc.json` (lua-language-server ships only with Zed). An empty `/tmp/luals/check.json` is clean:
 
 ```bash
-shellcheck path/to/script.sh    # Lint bash scripts
+"$(ls -d ~/.local/share/zed/extensions/work/lua/lua-language-server-*/bin/lua-language-server | tail -1)" \
+  --check="$PWD" --checklevel=Warning --check_format=json --logpath=/tmp/luals
 ```
 
-### Quickshell (QML)
+## Engine reference
 
-- **Never run `stow`**, and never launch the user's live config (`quickshell` bare, `-c`, or `-p` at the real `shell.qml`) — the user handles those
-- `quickshell log` (reads the running instance's output) and headless smoke tests are fine
-- Headless smoke test: copy the config to a temp dir, add a root QML there that instantiates the component under test inside a `ShellRoot`, and run `quickshell -p /tmp/<copy>/test.qml`. It creates no windows; exit with a `Timer` calling `Qt.quit()`. Bindings still evaluate, so a temporary `console.assert(...)` can verify computed properties. Such a run instantiates the real singletons and touches shared state (`Quickshell.statePath` locks, DBus, PipeWire) — check nothing is in flight first
-- Quickshell **hot reloads** on file changes; edits take effect immediately
-- For debugging: instrument QML to write output to a file, then read that file — or ask the user to share logs
-- Do **not** touch `qmldir`, `.qmlls.ini`, or any Quickshell-managed metadata files
-- Shaders are committed as both source and compiled artifact. After editing `Shaders/frag/<name>.frag`, rebuild with the same target set as the existing ones:
-  ```bash
-  /usr/lib/qt6/bin/qsb --glsl "100 es,120,150" --hlsl 50 --msl 12 \
-    -o Shaders/qsb/<name>.frag.qsb Shaders/frag/<name>.frag
-  ```
+Upstream checkout at `/mnt/Work/0Coding/1Rust/obelisk-shell`. Read it; never edit it from here.
 
-## Architecture
+| Question | Read |
+| --- | --- |
+| What a config can declare and call | `docs/lua-api.md` |
+| Capability fields and actions | `lua-meta/obelisk.lua` (generated), `docs/services.md` |
+| Node and surface properties | `lua-meta/nodes.lua`, `lua-meta/surfaces.lua` |
+| Lua change or engine gap | `docs/roadmap.md`. Flag a real engine gap instead of working around it |
+| Terms (generation, named state, capability) | `CONTEXT.md` |
 
-### Quickshell Structure
+## Shell structure
 
 ```
-quickshell/.config/quickshell/
-  shell.qml       # Entry point
-  Components/     # Reusable UI
-  Modules/        # Bar, global UI, notifications, OSD, shell hosts
-  Services/       # Core, system info, UI state, utilities, WM facades/adapters
-  Config/         # Theme and persistent settings
-  Assets/         # Color schemes and generated assets
-  Shaders/        # Fragment sources and compiled QSB shaders
+obelisk/.config/obelisk/
+  shell.lua     Entry: font chain, requires modules, returns the surface list
+  config/       Tokens: theme.lua (Catppuccin Mocha), icons.lua, dev_tools.lua
+  components/   Reusable widgets with no state of their own
+  lib/          Node-free logic and state: store, ui_state, idle, wallpaper, weather, compositor
+  modules/      bar/{indicators,panels}, global/, notification/, osd/, shell/panel_host.lua
+  shaders/      Wallpaper transition .frag sources, compiled by the engine at runtime
 ```
 
-### Service Pattern
+## Patterns
 
-Global state services use `pragma Singleton` and are accessed directly, for example `Settings.data.themeName`. Helper types under `Services/` need not be singletons. Prefer reactive bindings; use `Component.onCompleted` only for imperative startup work.
+| Topic | Rule |
+| --- | --- |
+| Signals | Pass the signal itself to keep a property live; `:get()` is a snapshot. Derive with `:map`, `computed`, `delay`, `pulse` |
+| Hydration | Capabilities read `nil` until the first push. Every map handles `nil` |
+| Actions | `obelisk.audio:invoke("set_volume", 0.5)` returns nothing. Observe state for the outcome |
+| Keybinds | Named state lives in `lib/ui_state.lua`; `action(name, fn)` backs `obelisk call`. A rename also updates `hypr/.config/hypr/config/keybinds.lua` and `niri/.config/niri/config.kdl` |
+| Persistence | One `persistent_table` in `lib/store.lua` (`~/.local/state/obelisk/state.json`). Add keys to its `defaults` |
+| Processes | `process.run` dies with the generation, `process.detach` outlives the shell, `session_process` survives reloads |
+| Compositor | Per-compositor commands go in `lib/compositor.lua`; behavior reads `obelisk.workspaces:get().compositor` |
+| Theme | `config/theme.lua` tokens and `config/icons.lua` glyphs. Never hardcode colours, sizes or spacing |
+| Shaders | A new `.frag` in `shaders/` works as is. Add a `lib/wallpaper.lua` row only for non-zero uniforms |
 
-### Compositor Detection
-
-`MainService.currentWM` (`"hyprland"`, `"niri"`, `"other"`) is the **seam**, not a tool for callers. Do **not** branch on it in services, panels, or UI.
-
-The brand may only be compared in one place: a WM facade's `backend` selector.
-
-```qml
-// In Services/WM/<X>Service.qml — the ONLY allowed currentWM comparison:
-readonly property var backend: MainService.currentWM === "hyprland" ? Hypr.XImpl
-  : MainService.currentWM === "niri" ? Niri.XImpl : null
-```
-
-Everywhere else, ask the facade *what the compositor can do*, never *which one it is*:
-
-```qml
-// Imperative compositor action → CompositorService (DPMS, session exit)
-CompositorService.setDisplaysPowered(false);
-CompositorService.exitSession();
-
-// Capability gate → a facade capability property, backed per-adapter
-Loader { active: WorkspaceService.supportsSpecialWorkspaces; /* ... */ }
-```
-
-Missing an operation or capability? Add it to the adapter interface
-(`Services/WM/Impl/{Hyprland,Niri}/*Impl.qml`) and surface it on the facade — don't
-add a `currentWM` branch at the call site.
-
-### Settings Persistence
-
-```qml
-JsonAdapter {
-  property string themeMode: "dark"
-  property JsonObject idleService: JsonObject {
-    property bool enabled: true
-  }
-}
-```
-
-### Running Commands Asynchronously
-
-```qml
-Command.run(["echo", "hello"], result => {
-  // Handle result without logging from QML.
-});
-Command.detached(["xdg-open", url]);
-```
-
-### Environment Variables
-
-```qml
-Quickshell.env("XDG_CURRENT_DESKTOP")
-Quickshell.env("HOME")
-```
-
-## QML Code Style
-
-**Pragmas:** Global services → `pragma Singleton`; reusable components → `pragma ComponentBehavior: Bound` when required
-
-**Naming:** Services/components PascalCase, properties camelCase, private `_prefix`; signals describe events (`clicked`, `loaded`, `closeRequested`) and handlers use `onClicked`, `onLoaded`, etc.
-
-**Imports order:**
-```qml
-import QtQuick
-import QtQuick.Layouts
-import Quickshell
-import Quickshell.Io
-import qs.Config
-import qs.Services.Utils
-```
-
-- Files in the same folder don't need imports, except when referencing a singleton from that folder; import the folder's `qs` namespace so the singleton is resolved
-- Use namespace `qs` for project subfolders: `qs.Services.Core` → `Services/Core/`
-- Never use `import "."` — always use namespace
-
-**Patterns:**
-- Property bindings over assignments (let QML handle reactivity)
-- `readonly property` for computed values
-- Explicit types: `function setThemeName(name: string): void`
-- Use optional chaining (`?.`) and nullish coalescing (`??`)
-- Use `try/catch` inside `onLoaded` handlers for JSON parsing
-- Use Theme constants — never hardcode colors, sizes, or spacing
-- Standard transitions are `Theme.ColorTransition on <prop> {}` and `Theme.NumberTransition on <prop> {}` (inline components in `Config/Theme.qml`). Write a raw `Behavior` only for a genuinely different duration or easing
-- `OText` already sets `elide: Text.ElideRight`, `verticalAlignment`, font family/size/weight — do not restate them
-
-## Ponytail: Lazy Senior Dev Mode
+## Ponytail: lazy senior dev mode
 
 Lazy means efficient, not careless. The best code is the code never written.
 
-Before writing code, understand the task and trace the real flow end to end. For Quickshell/QML topics, check the relevant documentation first (use Context7 MCP). Then stop at the first rung that holds:
+- **Output.** Everything an agent writes (code, chat, comments, docs, commit messages) is to the point. No walls of text: tables first, bullets second, short prose last.
+- **Diffs.** Add the fewest lines possible and remove as many as possible. Delete dead, redundant and duplicated code around the change. The smallest diff in the wrong place is a second bug.
+- **Root cause.** Fix the cause, not the symptom. Grep every caller and fix the shared function once.
+- **Boring.** No new abstractions, dependencies, boilerplate or files unless required. Between similar-sized approaches, take the edge-case-correct one.
+- **Ceilings.** Mark a deliberate simplification (global lock, O(n²) scan, naive heuristic) with a `ponytail:` comment naming its ceiling and upgrade path.
+- **Checks.** Non-trivial logic gets one runnable check; trivial one-liners get none.
+- **Full effort.** Understanding the problem, trust-boundary validation, data loss, security, accessibility, real-hardware calibration and explicit requests are never lazy.
 
-1. Does this need to be built at all? (YAGNI)
-2. Does it already exist in this codebase? Reuse the helper, utility, or pattern; do not rewrite it.
-3. Does the standard library already do this? Use it.
-4. Does a native platform feature cover it? Use it.
-5. Does an installed dependency solve it? Use it.
-6. Can this be one line? Make it one line.
-7. Only then, write the minimum code that works.
+Before writing code, trace the real flow end to end, then stop at the first rung that holds:
 
-For bug fixes, find the root cause rather than patching the reported symptom. Grep every caller of a touched function and fix the shared function once when that protects all callers; do not leave sibling paths broken.
+1. Does it need to exist? (YAGNI)
+2. Does the codebase already have it? Reuse it.
+3. Does the Lua API, a capability, the platform or an installed tool cover it? Use it.
+4. Can it be one line?
+5. Only then, the minimum code that works.
 
-- No abstractions, dependencies, boilerplate, or files unless explicitly needed.
-- Prefer deletion over addition, boring over clever, and the fewest files possible.
-- The shortest working diff wins only after understanding the problem; the smallest change in the wrong place is a second bug.
-- Question complex requests: does the requested feature need to exist, or does an existing option cover it?
-- When similarly sized standard approaches exist, choose the edge-case-correct one.
-- Mark a deliberate simplification with a real ceiling (for example, a global lock, O(n²) scan, or naive heuristic) using a `ponytail:` comment that names the ceiling and upgrade path.
+## Notable files
 
-Do not be lazy about understanding the problem, trust-boundary validation, data-loss prevention, security, accessibility, real-hardware calibration, or anything explicitly requested. Non-trivial logic needs one runnable, minimal check (an assert-based self-check or small test file); trivial one-liners do not.
+| Path | Holds |
+| --- | --- |
+| `bin/.local/bin/arch-install.sh` | Full Arch install for the Wolverine and Mentalist hosts |
+| `home/.profile` | XDG dirs, NVIDIA env, Wayland toolkit config, PATH |
+| `home/.stowrc` | Points stow at this repo and `~` |
+| `.luarc.json` | One LuaLS config for the obelisk, Hyprland, Neovim and mpv Lua |
+| `fish/.config/fish/conf.d/various.fish` | Custom fish functions |
+| `.local_secrets/` | Gitignored secrets; `.gitconfig` symlinks here |
 
-## Notable Files
+The default terminal resolves through `xdg-terminal-exec`.
 
-- `home/.profile` — XDG dirs, NVIDIA env vars, Wayland toolkit config, PATH
-- `fish/.config/fish/conf.d/various.fish` — Custom fish functions
-- `quickshell/.config/quickshell/.qmlformat.ini` — QML formatting rules
+## Lessons learned
 
-## Agent Memory & Lessons Learned
+- Record only non-obvious failures likely to recur: what fails, why, what to do instead. Name a version only when the behavior is version-bound.
+- After edits, delete the stale comments, docs and entries here that the work exposed. Delete obsolete guidance rather than adding exceptions.
 
-Record only non-obvious failures or corrections likely to recur. Keep entries concise and timeless: what fails, why, and what to do instead. Mention versions only when the behavior is genuinely version-bound.
+### Obelisk Lua
 
-After edits, update or remove nearby stale comments, documentation, examples, and AGENTS.md entries exposed by the work. Prefer deleting obsolete guidance over adding exceptions; do not expand scope into unrelated cleanup.
+| Trap | Fix |
+| --- | --- |
+| The VM has no `io`, `debug` or FFI; `os` has only `time`, `date`, `clock`, `getenv` | Shell out with `process.run` |
+| `require` returns a second value, so inside the returned surface table it adds an entry (`error converting Lua string to table`) | Bind modules to locals first |
+| `:map` and `computed` have a 5 ms CPU budget (`exceeded the 5ms CPU budget`) | Keep maps cheap |
+| Signals nested in a property table do not resolve | Derive the whole table |
+| `visible = false` keeps a frozen subtree | Switch views through `children` |
+| Named state resets when its scalar seed changes | Keep the seed stable |
+| `timer`, `action` and `on_change` last one evaluation | Expect them to re-register on every reload |
+| `obelisk.idle:register_threshold` has no cancel | Register once; see `lib/idle.lua` |
+| `fonts` is read once at startup | Restart the shell after editing it |
+| UPower's `PendingCharge` also follows `Discharging` | Only `Charging` to `PendingCharge` means charging stopped (`modules/global/power_events.lua`) |
 
-### Known QML / Quickshell Pitfalls
+### Tooling
 
-- A `JsonObject`'s declared properties can still read `undefined` while settings load, even though the object itself is non-null. Keep the `settings?.key ?? default` guards on every read: an unguarded read assigns `undefined` (`Unable to assign [undefined] to "x"`) and, having bound to a property that did not yet exist, never re-evaluates once the real value arrives. The `?? default` fallbacks are load-bearing, not duplicates of the schema defaults.
-- `?.` inside a `&&` chain — `a && b?.c && d` — yields `undefined`, not `false`, because `&&` returns the first falsy operand and stops. Coalesce the optional read (`(b?.c ?? false)`) rather than trusting the boolean tail.
-- Assigning a new JS array to a `ListView.model` resets the view and destroys every delegate (typed text, focus, per-row scroll). Wrap such an expression in `ScriptModel { values: ... }` instead — it diffs by identity, or by `objectProp` when the values are rebuilt objects (`objectProp: "ssid"` etc.). ScriptModel only works on *unique* values (duplicates are undefined behavior); `NMWirelessNetwork` aggregates APs per-SSID so `ssid` is a safe key. `NetworkPanel` relies on this (rows survive password entry and live scan updates without a frozen-list workaround).
-- `MprisPlayer.position` only refreshes when you call `positionChanged()`, and each call is a DBus round trip. A player whose bus name has vanished can linger in `Mpris.players`, so every poll then logs `QDBusError("org.freedesktop.DBus.Error.ServiceUnknown")`. Gate position polling on something that proves the read is usable (`positionSupported` and a nonzero length), never on "the panel is open".
-- An `IdleMonitor` starts counting when it subscribes, not from the last input. Idle stages rely on that: each stage's gate opens when the previous one completes, then the stage waits its own timeout. Do not flatten the gates into cumulative offsets — see `IdleService.IdleStage`.
-- `IdleMonitor.timeout` and `respectInhibitors` are Qt *bindable* properties; a QML binding on them never reaches `IdleMonitor::updateNotification`, so `isIdle` silently stops. Assign both from change handlers (seed with a plain binding that the handler replaces). `enabled` re-registers correctly either way. `Component.onCompleted` is unavailable on `IdleMonitor`.
-- Quickshell PipeWire nodes expose `PwNode.properties` and `PwNode.audio` fields only after binding, and they can still be incomplete until `node.ready`; guard bound-property reads and never write volume/mute before readiness.
-- Quickshell `BluetoothDevice.pair()` only forwards BlueZ's `Pair()` call; keep a default BlueZ agent registered before offering pairing in the UI.
-- Quickshell `Hyprland.dispatch(...)` takes one Lua dispatcher string in this shell. Use forms such as ``Hyprland.dispatch(`hl.dsp.focus({ workspace = 3 })`)``.
-- QML method names cannot begin with an uppercase letter; do not expose constructor-style APIs like `function Finder(...)`. Use a lowercase factory such as `createFinder(...)` instead.
-- QML does not support type annotations on parameters with default values; keep `callback = null` untyped or remove the default.
-- `UPower.displayDevice.state` can flap between `Charging`, `FullyCharged`, and `PendingCharge` while AC remains connected; for battery OSD, do not trigger `Fully Charged` from aggregate terminal-state changes alone. Prefer the edge where charging stops while AC is still connected, and treat `PendingCharge` as its own entry edge.
-- Avoid high-frequency add/delete churn on shared JS objects; V4 can crash. Use stable QObject state or scans instead.
-- `String.prototype.replaceAll` is not implemented in this QML JS engine; it throws `Property 'replaceAll' of object <str> is not a function` at runtime with no lint-time warning. Use `str.replace(/pattern/g, replacement)` instead.
-- A QML import can supply bare types, enums, and singletons even when its module name is never qualified (for example, Quickshell's `Singleton`, `DesktopEntries`, and `ExclusionMode`). Do not remove it based on a text search or an "unused import" lint result; validate a live reload.
-- `FolderListModel` can miss `/sys/class/leds` entry replacement on keyboard unplug/replug; on `FileView` failure clear `folder` and restore it on the next poll tick (see `Utils.qml`), and silence that expected transient error.
-- Arch's `org.kde.kdeconnect` QML module ships incomplete `.qmltypes`, and `DeviceDbusInterface.type`/`supportedPlugins` are non-bindable despite their change signals. Validate its real types with `qmlplugindump`; copy those two values from `typeChanged`/`pluginsChanged` instead of binding them directly.
-- Reuse `Process` objects through `Command`; destroying a process from its own exit handler can use freed memory.
-- For commands that need EOF, enable stdin before start and disable it in `onStarted`; failed starts may only report through `onRunningChanged`.
-- Verify with `/usr/lib/qt6/bin/qmllint -I <.qmlls.ini buildDir> -I /usr/lib/qt6/qml File.qml`; `qs.*` resolves only via that VFS path, and the `PATH` `qmllint` is Qt5's (silent exit 255). `qmlformat` is a formatter and can fail on valid files.
-- `Region.item` tracks only that item's geometry; bind an outer region to the animated ancestor when inherited movement matters. It also ignores `item.visible` — gate exported regions on whether the host draws (see `PanelHost.blurRegion`).
-- Hyprland 0.56.1 fades already-mapped `Top` layer surfaces when fullscreen starts, but a lazy `Top` surface mapped after fullscreen is active stays at alpha 1. Guard lazy popups through the WM facade; Niri's native `Top` ordering needs no workaround.
-- Declare complex `BackgroundEffect.blurRegion` values as typed properties instead of inline objects that produce unqualified-reference warnings.
-- `Animation.finished()` only fires for standalone top-level animations, not animations inside a `Behavior`, `Transition`, or group.
-- Follow the active instance's plain `log.log`; `quickshell log -f` can abort independently of a healthy shell.
-- In content-sized panels, top-anchor the root layout instead of filling the animated host height; `anchors.fill` compresses every child while the panel resizes.
-- High-frequency scene-graph geometry churn can look like a leak because glibc keeps render-thread arenas. Confirm the shape before chasing it — a `var`-property or JS leak grows `memfd:JSGCHeap:QtQml` in `/proc/<pid>/smaps`, while renderer churn grows plain anonymous mappings and leaves the JS heap small.
-- Draw many animated primitives as a single `ShaderEffect` quad rather than one item each, and bake state-dependent alpha into the color uniform — `opacity` on the host item pushes the whole subtree into a blended batch. Qt premultiplies `color` uniforms, so `barColor * qt_Opacity` composites the same as an equivalent translucent `Rectangle`. Never feed an animated shader through `Canvas`: Qt 6 ignores `Canvas.FramebufferObject`, and the `Canvas.Image` path deletes and recreates its `QSGTexture` on every paint.
-- Qt 6 `ShaderEffect` has no array uniforms; pack fixed-size numeric data into `matrix4x4` uniforms. `Qt.matrix4x4()` also accepts a 16-element array, so one reused scratch array can fill them without allocating per frame. It fills **row-major** while GLSL `mat4` subscripts **column-first**, so element `i` reads back as `m[i % 4][i / 4]`. Bind every matrix to a real value: an unset `matrix4x4` property is *identity*, not zeros, and the diagonal then renders as live data.
-- `verticalItemAlignment`/`horizontalItemAlignment` exist on `Grid`, not on `Row` or `Column`. Assigning one to a `Row` makes the whole component fail to instantiate, and the `qml` runtime reports only `Did not load any objects, exiting.` with no property name — `qmllint` names it.
-- `Rectangle.antialiasing` defaults to `radius > 0`, which puts the rect on a smooth material (own alpha batch, own `QSGGeometry`). Fine for a few static rects; avoid on anything whose geometry changes every frame.
-- A headless `quickshell -p` run creates no window, so layout polish never runs and `Layout.preferredHeight`/`fillHeight` are never applied — children keep their implicit sizes. Headless runs prove instantiation and bindings; check final geometry in the live shell.
-
-## Operational Gotchas
-
-- `niri msg action spawn` gives the child an activation token, which can focus a window despite an `open-focused false` rule. When a script must relocate a new window before focusing it, spawn through `env -u XDG_ACTIVATION_TOKEN` and focus it explicitly afterward.
-- `niri` subcommands take their own config option: validate a repository config with `niri validate --config path/to/config.kdl`, not `niri --config path/to/config.kdl validate`.
-- `systemd-run --scope` cannot be combined with `--pipe`, and a fixed-name scope may still be loaded briefly after its command exits. For streamed output with an immediately reusable fixed unit name, use a transient service with `--pipe --collect`.
-- Secrets in `.local_secrets/` (gitignored) — `.gitconfig` is symlinked from there
-- Default terminal is resolved via `xdg-terminal-exec`
+| Trap | Fix |
+| --- | --- |
+| Zed reads only the root `.luarc.json`; nested ones are ignored | Keep all Lua settings in the root file |
+| LuaLS builtin `os` types reject valid obelisk `os.time` calls | Keep builtin `os` and `debug` disabled in `.luarc.json` |
+| A running LuaLS ignores `runtime.*` changes | Restart the language server |
+| Hyprland 0.56 parses its socket as Lua, so `hyprctl dispatch exit` fails | `hyprctl dispatch 'hl.dsp.exit()'` |
+| Hyprland 0.56.1 fades mapped `Top` surfaces when fullscreen starts, but not ones mapped after | Handle both on Hyprland; Niri does neither |
+| `niri msg action spawn` passes an activation token that overrides `open-focused false` | Spawn through `env -u XDG_ACTIVATION_TOKEN`, then focus explicitly |
+| `niri --config x validate` is rejected | `niri validate --config x` |
+| `systemd-run --scope` rejects `--pipe`, and fixed-name scopes linger after exit | Transient service with `--pipe --collect` |
