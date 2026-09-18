@@ -27,11 +27,10 @@ function copy
 end
 
 function ssh --wraps=ssh
-    if set -q KITTY_WINDOW_ID; and type -q kitty
-        echo "Using Kitty SSH kitten" >&2
-        command kitty +kitten ssh $argv
+    # Multiplexers kitty spawned inherit KITTY_WINDOW_ID; only TERM is rewritten per pane.
+    if test "$TERM" = xterm-kitty; and type -q kitten
+        command kitten ssh $argv
     else
-        echo "Using standard SSH" >&2
         command ssh $argv
     end
 end
