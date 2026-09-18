@@ -122,6 +122,7 @@ icons.awake           = "\u{F0176}"
 icons.display         = "\u{F0379}"
 
 icons.refresh         = "\u{F0450}"
+icons.copy            = "\u{F018F}"
 
 -- The lock screen buckets the WMO code into six Nerd Font glyphs. The sidebar widget draws the
 -- emoji instead: one is a status line beside the battery and keyboard layout, the other is the

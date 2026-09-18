@@ -346,6 +346,10 @@ theme.update_list_height        = s(360, 260)
 theme.update_version_width      = s(116, 88)
 -- Keep the log shorter than the package list; its last dozen lines explain a failure.
 theme.update_log_height         = s(200, 150)
+-- Rescue modal: a traceback names a file per frame, and those paths wrap at the update panel's
+-- 520px. The log is capped well below the card so a long one scrolls instead of filling the screen.
+theme.rescue_modal_width        = s(720, 560)
+theme.rescue_log_height         = s(320, 240)
 -- `panel_toggle_height`: a radio tile tall enough for a glyph over a word.
 theme.panel_toggle_height       = s(56, 44)
 -- `components/panel_empty_state.lua`'s minimum height: an empty list holds a glyph and line,

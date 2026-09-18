@@ -54,6 +54,8 @@ local screen_recorder_tooltip = require("modules.bar.indicators.screen_recorder"
 local idle_tooltip = require("modules.bar.indicators.idle_inhibitor").tooltip
 -- One glyph carries five update states; the tooltip names the one it is in.
 local updates_tooltip = require("modules.bar.indicators.updates").tooltip
+-- The red circle's first line. Its full log is `modules/global/rescue_details.lua`, a modal.
+local rescue_tooltip = require("modules.bar.indicators.rescue").tooltip
 local audio_panel = require("modules.bar.panels.audio_panel")
 local lock_screen = require("modules.global.lock")
 local polkit_dialog = require("modules.global.polkit")
@@ -82,6 +84,7 @@ return {
     screen_recorder_tooltip,
     idle_tooltip,
     updates_tooltip,
+    rescue_tooltip,
     audio_panel.output_tooltip,
     audio_panel.input_tooltip,
     modal_host,

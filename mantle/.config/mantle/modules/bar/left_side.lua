@@ -4,7 +4,7 @@
 -- `rescue` has no counterpart and goes first so a config error cannot be pushed off the edge. It
 -- occupies no width unless configuration failed.
 local theme = require("config.theme")
-local rescue_cell = require("modules.bar.indicators.rescue")
+local rescue_module = require("modules.bar.indicators.rescue")
 local power_menu = require("modules.bar.panels.power_menu")
 local updates_module = require("modules.bar.indicators.updates")
 local idle_inhibitor = require("modules.bar.indicators.idle_inhibitor")
@@ -23,7 +23,7 @@ return row {
     align_v = "Center",
     spacing = theme.spacing.sm,
     children = {
-        rescue_cell,
+        rescue_module.indicator,
         power_menu.button,
         updates_module.indicator,
         idle_inhibitor.indicator,

@@ -10,6 +10,7 @@ local modals = {
     require("modules.global.launcher"),
     require("modules.global.wallpaper_picker"),
     require("modules.global.idle_settings"),
+    require("modules.global.rescue_details"),
 }
 
 local any_modal = ui_state.active_modal:map(function(kind)
