@@ -1,5 +1,8 @@
 <h1 align="center">Obelisk Shell</h1>
 
+> [!WARNING]
+> **Deprecated.** This Quickshell-based shell is no longer maintained. It has been replaced by the [Mantle engine](https://github.com/anasgets111/mantle) Lua shell, developed on the `main` branch. This branch is kept only as a historical backup.
+
 <p align="center">
   Modular Wayland dotfiles centered on Quickshell, with Hyprland and Niri support.
 </p>
