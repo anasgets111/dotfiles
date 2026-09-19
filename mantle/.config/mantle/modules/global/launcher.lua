@@ -29,6 +29,7 @@
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
+local glyph = require("components.glyph")
 local util = require("lib.util")
 local store = require("lib.store")
 local ui_state = require("lib.ui_state")
@@ -73,12 +74,18 @@ end
 --
 -- The haystack is wider than name and comment. "text editor" is Zed's `GenericName` and "image" is
 -- one of GIMP's `Keywords`; neither word is anywhere in those entries' name or comment.
-local function haystack_of(app)
-    local parts = { app.name }
-    if app.comment and app.comment ~= "" then parts[#parts + 1] = app.comment end
-    if app.generic_name and app.generic_name ~= "" then parts[#parts + 1] = app.generic_name end
-    for _, word in ipairs(app.keywords) do parts[#parts + 1] = word end
-    return table.concat(parts, " ")
+local haystack_cache = setmetatable({}, { __mode = "k" })
+local function cached_haystack(app)
+    local h = haystack_cache[app]
+    if not h then
+        local parts = { app.name }
+        if app.comment and app.comment ~= "" then parts[#parts + 1] = app.comment end
+        if app.generic_name and app.generic_name ~= "" then parts[#parts + 1] = app.generic_name end
+        for _, word in ipairs(app.keywords or {}) do parts[#parts + 1] = word end
+        h = table.concat(parts, " ")
+        haystack_cache[app] = h
+    end
+    return h
 end
 
 ---@param applications ApplicationsState|nil
@@ -96,7 +103,7 @@ local function filter(applications, text)
     local scored = {}
     local best = 0
     for _, app in ipairs(entries) do
-        local haystack = haystack_of(app)
+        local haystack = cached_haystack(app)
         local value, start = fuzzy(haystack, needle)
         if value then
             scored[#scored + 1] = { app = app, score = value, start = start, length = #haystack }
@@ -181,9 +188,13 @@ local special = computed(
         if text == "" then
             return nil
         end
-        return currency.claims(text, rates, updated_at)
+        -- A bare code claims the row only where the web row would have: `dash`, `link`, `php` and
+        -- `cad` are currencies as well as things people launch, and an application that matches
+        -- well owns the query. A code with no rate falls through here whatever the score.
+        local weak = apps_weak(text, found)
+        return currency.claims(text, rates, updated_at, weak)
             or calc.claims(text)
-            or web_claims(text, apps_weak(text, found))
+            or web_claims(text, weak)
     end
 )
 
@@ -223,8 +234,7 @@ local function rows_now()
 end
 
 local function select_first()
-    local ids = rows_now()
-    selected_id:set(ids[1] or "")
+    selected_id:set("")
     SCROLL:reveal(1)
 end
 
@@ -287,24 +297,24 @@ local function is_selected(id)
 end
 
 local function row_shell(id, slot, children, opts)
-    local hovered = hover(slot)
     local selected = is_selected(id)
     return button {
-        hover = hovered,
+        hover = hover(slot),
         width = "Fill",
         height = (opts and opts.height) or theme.launcher_row_height,
         radius = theme.radius.md,
         visible = opts and opts.visible,
-        background = computed({ selected, hovered }, function(on, hot)
-            if on then
-                return theme.ACCENT_SUBTLE
-            end
-            return hot and theme.GLASS_HOVER or nil
+        background = selected:map(function(on)
+            return on and theme.ACCENT_SUBTLE or nil
         end),
         border_width = theme.border_width,
         border_color = selected:map(function(on)
             return on and theme.ACCENT or "#00000000"
         end),
+        animate = {
+            background = theme.animation_fast_ms,
+            border_color = theme.animation_fast_ms,
+        },
         -- Hover selection arms only on pointer motion, so scrolling under a parked pointer, or
         -- opening under one, cannot steal the keyboard ring. `on_hover` has the same rule, so
         -- no arming flag.
@@ -346,8 +356,11 @@ local function app_row(app)
             return on and theme.ACCENT or theme.FG
         end), theme.font.md, { width = "Fill" }),
     }
-    if app.comment and app.comment ~= "" then
-        lines[#lines + 1] = cell(app.comment, theme.DIM, theme.font.xs, { width = "Fill" })
+    local subtitle = (app.comment and app.comment ~= "") and app.comment
+        or (app.generic_name and app.generic_name ~= "") and app.generic_name
+        or nil
+    if subtitle then
+        lines[#lines + 1] = cell(subtitle, theme.DIM, theme.font.xs, { width = "Fill" })
     end
     return row_shell(app.id, "launcher-app-" .. app.id, {
         -- Entries without `Icon=` fall back to a generic picture.
@@ -381,9 +394,10 @@ local special_title = computed({ special, special_selected }, function(row, sele
     return title
 end)
 local special_row = row_shell(SPECIAL, "launcher-special", {
-    -- The icon-is-text flag picks between the body and icon families, and `cell` takes that
-    -- choice as a signal, so this is one node here. A currency row's flag needs it: under the
-    -- icon family, regional indicators have no glyph to fall back from.
+    -- The icon-is-text flag picks between the body and icon families, and `cell` takes that choice
+    -- as a signal, so this is one node here. A currency row's flag needs it: under the icon family
+    -- a regional indicator has no glyph to fall back *from*, and the pair never reaches the colour
+    -- emoji face the chain ends with.
     cell(special_field("icon"), theme.FG, theme.launcher_icon, {
         align_v = "Center",
         font = special:map(function(row)
@@ -434,51 +448,72 @@ local search = rect {
     -- The ring shows the accent while focused, which `autofocus` below makes this field for as
     -- long as the modal is up.
     border_color = theme.ACCENT,
-    padding = { left = theme.spacing.xl, right = theme.spacing.xl },
+    padding = { left = theme.spacing.lg, right = theme.spacing.lg },
     children = {
-        textfield {
+        row {
             width = "Fill",
             height = "Fill",
-            autofocus = true,
-            placeholder = "Search apps, calculate, convert currency…",
-            font_size = theme.font.xl,
-            foreground = theme.FG,
-            on_change = function(text)
-                query:set(text)
-                select_first()
-            end,
-            on_submit = activate,
-            -- Two-stage Escape: text clears and stays; empty closes. The engine already cleared
-            -- the field and released the keyboard; autofocus takes it back.
-            on_cancel = function(cleared)
-                if not cleared then
-                    close()
-                end
-            end,
-            on_navigate = function(key)
-                if key == "up" or key == "backtab" then
-                    move(-1)
-                elseif key == "down" or key == "tab" then
-                    move(1)
-                elseif key == "page_up" then
-                    move(-PAGE)
-                elseif key == "page_down" then
-                    move(PAGE)
-                end
-            end,
+            align_v = "Center",
+            spacing = theme.spacing.md,
+            children = {
+                glyph(icons.search, theme.ACCENT, theme.icon.md, { align_v = "Center" }),
+                textfield {
+                    width = "Fill",
+                    height = "Fill",
+                    autofocus = true,
+                    placeholder = "Search apps, calculate, convert currency…",
+                    font_size = theme.font.xl,
+                    foreground = theme.FG,
+                    on_change = function(text)
+                        query:set(text)
+                        select_first()
+                    end,
+                    on_submit = activate,
+                    -- Two-stage Escape: text clears and stays; empty closes. The engine already cleared
+                    -- the field and released the keyboard; autofocus takes it back.
+                    on_cancel = function(cleared)
+                        if not cleared then
+                            close()
+                        end
+                    end,
+                    on_navigate = function(key)
+                        if key == "up" or key == "backtab" then
+                            move(-1)
+                        elseif key == "down" or key == "tab" then
+                            move(1)
+                        elseif key == "page_up" then
+                            move(-PAGE)
+                        elseif key == "page_down" then
+                            move(PAGE)
+                        end
+                    end,
+                },
+            },
         },
     },
 }
 
-local no_results = panel_empty_state("No results found",
+local no_results = panel_empty_state(
+    "No results found",
     computed({ trimmed, results, special }, function(text, found, row)
         return text ~= "" and #found == 0 and row == nil
-    end))
+    end),
+    {
+        icon = icons.search,
+        subtext = "Check spelling or try a calculation / currency query",
+    }
+)
 
-local no_apps = panel_empty_state("No applications found",
+local no_apps = panel_empty_state(
+    "No applications found",
     computed({ mantle.applications, trimmed }, function(apps, text)
         return text == "" and #entries_of(apps) == 0
-    end))
+    end),
+    {
+        icon = icons.launcher,
+        subtext = "No desktop entries available",
+    }
+)
 
 -- Center below the bar in the surface that excludes the bar's reservation; `screens[1]` follows
 -- `panel_host.lua`'s clamp.
@@ -505,24 +540,14 @@ return modal({
             radius = theme.radius.lg,
             border_width = theme.border_width,
             border_color = theme.GLASS_BORDER,
-            padding = {
-                top = theme.spacing.sm,
-                right = theme.spacing.sm,
-                bottom = theme.spacing.sm,
-                left = theme.spacing.sm,
-            },
+            padding = theme.spacing.sm,
         }),
     }, {
         width = theme.launcher_width,
         height = theme.launcher_height,
         margin = card_margin,
         spacing = theme.spacing.sm,
-        padding = {
-            top = theme.spacing.lg,
-            right = theme.spacing.lg,
-            bottom = theme.spacing.lg,
-            left = theme.spacing.lg,
-        },
+        padding = theme.spacing.lg,
         radius = theme.radius.lg,
         background = theme.GLASS,
         -- The card alone, not the scrim behind it: the scrim is drawn under this in the same

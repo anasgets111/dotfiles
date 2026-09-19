@@ -64,22 +64,39 @@ local function currency(token)
     return nil
 end
 
+---Earliest separator first, then each later one until the tail reads as a currency. `in` also
+---matches inside `inr`, and the lazy group in the QML regex this ports backtracked for exactly
+---that reason; taking the first match and stopping splits `100 inr to usd` into `100` and
+---`r to usd`. An empty tail is accepted because a trailing separator names no target and falls
+---through to the default.
 ---@return string|nil source, string|nil target
 local function split(text)
-    local first, last
+    local cuts = {}
     for _, separator in ipairs(SEPARATORS) do
-        local from, to = text:find(separator)
-        if from and (not first or from < first) then
-            first, last = from, to
+        local at = 1
+        while true do
+            local from, to = text:find(separator, at)
+            if not from then
+                break
+            end
+            cuts[#cuts + 1] = { from = from, to = to }
+            at = from + 1
         end
     end
-    if not first then
-        return nil, nil
+    table.sort(cuts, function(a, b)
+        return a.from < b.from
+    end)
+    for _, cut in ipairs(cuts) do
+        local target = text:sub(cut.to + 1)
+        if target == "" or currency(target) then
+            return text:sub(1, cut.from - 1), target
+        end
     end
-    return text:sub(1, first - 1), text:sub(last + 1)
+    return nil, nil
 end
 
----Accepts "50 usd", "$50", "50$", a bare "$", and a bare "usd" once a separator precedes it.
+---Accepts "50 usd", "$50", "50$", a bare "$", and a bare "usd" when `allow_implicit_amount`
+---says so: either a separator precedes it, or no application answered the query.
 ---@return number|nil amount, string|nil code
 local function parse_source(text, allow_implicit_amount)
     text = util.trim(text)
@@ -181,11 +198,12 @@ end)
 ---@param query string
 ---@param rates table<string, number>|nil
 ---@param updated_at integer|nil
+---@param allow_bare? boolean Whether a code with no amount and no separator may claim the row.
 ---@return LauncherRow|nil
-function M.claims(query, rates, updated_at)
+function M.claims(query, rates, updated_at, allow_bare)
     local text = util.trim(query):lower()
     local source, target = split(text)
-    local amount, from = parse_source(source or text, source ~= nil)
+    local amount, from = parse_source(source or text, source ~= nil or allow_bare == true)
     if not (amount and from) then
         return nil
     end
