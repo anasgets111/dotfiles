@@ -1,7 +1,7 @@
 <h1 align="center">Mantle Shell</h1>
 
 <p align="center">
-  A Lua desktop shell for Wayland — bar, launcher, notifications, OSD, lock screen and wallpapers — built on the <a href="https://github.com/anasgets111/mantle">Mantle engine</a>, plus the Arch Linux dotfiles that run it on Hyprland and Niri.
+  Lua desktop shell for Wayland built on the <a href="https://github.com/anasgets111/mantle">Mantle engine</a>, with Arch Linux dotfiles for Hyprland and Niri.
 </p>
 
 <p align="center">
@@ -13,20 +13,13 @@
 
 ## Preview
 
-<!-- Stills: save shots as docs/preview-bar.png and docs/preview-panels.png, then drop these markers.
-<p align="center">
-  <img alt="Bar, launcher and notifications" src="docs/preview-bar.png" width="49%" />
-  <img alt="Panels and wallpaper picker" src="docs/preview-panels.png" width="49%" />
-</p>
--->
-
 https://github.com/user-attachments/assets/038ee763-d7b6-4df9-9f79-2f131d4f0dcd
 
 ## The shell
 
-- [`mantle/`](mantle/.config/mantle/shell.lua) is the shell. The engine ships the `mantle` binary, Lua API and capabilities; this repo is only my Lua on top of them.
-- Hyprland and Niri start it at login and bind keys to `mantle toggle` and `mantle call`.
-- Saving a `.lua` under `~/.config/mantle` reloads it in place. A broken edit keeps the last working shell and shows the error in the bar.
+- [`mantle/`](mantle/.config/mantle/shell.lua) holds the shell config. The upstream engine provides the `mantle` binary, Lua API, and capabilities.
+- Hyprland and Niri launch it at login and bind shortcuts to `mantle toggle` and `mantle call`.
+- Saving any `.lua` file under `~/.config/mantle` reloads the shell in place. An invalid edit keeps the active scene running and surfaces the error in the bar.
 
 | Area | Includes |
 | --- | --- |
@@ -34,7 +27,7 @@ https://github.com/user-attachments/assets/038ee763-d7b6-4df9-9f79-2f131d4f0dcd
 | Panels | Audio mixer, network, Bluetooth, media, calendar, notification history, pacman and dev-tool updates, recording, power |
 | Launcher | Fuzzy app search, arithmetic, currency conversion |
 | Overlays | Notifications, OSD, polkit agent, Bluetooth pairing, lock screen |
-| Idle | Displays off, lock, suspend, with a settings modal. Replaces Hyprlock, Hypridle, Swaylock and Swayidle |
+| Idle | Displays off, lock, suspend, with a settings modal. Replaces Hyprlock, Hypridle, Swaylock, and Swayidle |
 | Wallpaper | Per output, shader transitions (`disc`, `pixelate`, `portal`, `stripes`, `wipe`), picker, Niri overview backdrop |
 | Power | Charger OSD, low-battery notifications, automatic suspend |
 
@@ -42,21 +35,21 @@ https://github.com/user-attachments/assets/038ee763-d7b6-4df9-9f79-2f131d4f0dcd
 
 | For | Needs |
 | --- | --- |
-| Shell | [Mantle engine](https://github.com/anasgets111/mantle) — the `mantle` binary |
+| Shell | [Mantle engine](https://github.com/anasgets111/mantle) binary |
 | Compositor | Hyprland 0.56+ (Lua config) or Niri |
 | Deployment | Arch Linux, Git, GNU Stow |
-| Fonts | CaskaydiaCove Nerd Font Propo, JetBrainsMono Nerd Font Mono, Noto Sans, Noto Sans CJK, Noto Color Emoji |
-| Shell helpers | `curl` (weather, currency), `libnotify`, `wl-clipboard`, `xdg-utils`, `gpu-screen-recorder` and `slurp` (recording) |
-| Screenshots | [`hdrshot`](bin/.local/bin/hdrshot), the `Print` script: `hyprshot` capture, `satty` annotation, `wl-copy`, `flock` |
+| Fonts | CaskaydiaCove Nerd Font Propo, Noto Sans, Noto Sans CJK JP, Noto Color Emoji |
+| Shell helpers | `curl`, `libnotify`, `wl-clipboard`, `xdg-utils`, `gpu-screen-recorder`, `slurp` |
+| Screenshots | [`hdrshot`](bin/.local/bin/hdrshot) using `hyprshot`, `satty`, `wl-copy`, `flock` |
 
 ## Installation
 
 > [!WARNING]
-> Move any existing dotfiles aside first — stow refuses to overwrite them — and read [Configuration](#configuration) for the settings that are mine, not yours.
+> Back up existing dotfiles first; GNU Stow will not overwrite conflicting files. Review [Configuration](#configuration) for hardware and user-specific paths.
 
-**0. [Install the engine](https://github.com/anasgets111/mantle).** Nothing here runs without it.
+1. **[Install the engine](https://github.com/anasgets111/mantle).** Required before launching the shell.
 
-**1. Stow the shell and its compositors.**
+2. **Stow core packages.**
 
 ```bash
 git clone https://github.com/anasgets111/dotfiles.git
@@ -64,18 +57,18 @@ cd dotfiles
 stow -t "$HOME" mantle hypr niri home config xdg-desktop-portal bin
 ```
 
-**2. Stow the rest, as you like.**
+3. **Stow optional packages.**
 
 ```bash
 stow -t "$HOME" fish nvim kitty mpv                     # shell, editor, terminal, player
 stow -t "$HOME" ghostty alacritty foot wezterm nushell   # alternative terminals and shells
 ```
 
-Roll a package back with `stow -D -t "$HOME" <package>`. `home` installs `~/.stowrc`, which points stow at this clone — edit it, and `stow`/`stow -D` work from any directory without `-t`. [`arch-install.sh`](bin/.local/bin/arch-install.sh) does packages and stow in one go for my two machines.
+Unstow packages with `stow -D -t "$HOME" <package>`. The `home` package provides `~/.stowrc` pointing at this repository, allowing `stow` and `stow -D` to run from any directory without `-t`. [`arch-install.sh`](bin/.local/bin/arch-install.sh) automates the full Arch install and stow setup for my machines.
 
 ## Keybinds
 
-A subset; the full sets live in [`keybinds.lua`](hypr/.config/hypr/config/keybinds.lua) (Hyprland) and the `binds` block of [`config.kdl`](niri/.config/niri/config.kdl) (Niri).
+Core shortcuts. Full mappings live in [`keybinds.lua`](hypr/.config/hypr/config/keybinds.lua) for Hyprland and the `binds` block of [`config.kdl`](niri/.config/niri/config.kdl) for Niri.
 
 | Keys | Action |
 | --- | --- |
@@ -92,30 +85,30 @@ A subset; the full sets live in [`keybinds.lua`](hypr/.config/hypr/config/keybin
 | What | Where |
 | --- | --- |
 | Monitors, including an ICC profile | [`monitors.lua`](hypr/.config/hypr/config/monitors.lua), or outputs in [`config.kdl`](niri/.config/niri/config.kdl) |
-| Startup apps | [`startup.lua`](hypr/.config/hypr/config/startup.lua), `spawn-at-startup` in `config.kdl`. Niri needs an absolute path to the `mantle` binary |
+| Startup apps | [`startup.lua`](hypr/.config/hypr/config/startup.lua), or `spawn-at-startup` in [`config.kdl`](niri/.config/niri/config.kdl). Niri requires an absolute path to `mantle` |
 | Wallpaper folder | `wallpaper.FOLDER` in [`lib/wallpaper.lua`](mantle/.config/mantle/lib/wallpaper.lua) |
-| Colours, sizes, fonts | [`config/theme.lua`](mantle/.config/mantle/config/theme.lua), the `fonts` chain in [`shell.lua`](mantle/.config/mantle/shell.lua) |
+| Colours, sizes, fonts | [`config/theme.lua`](mantle/.config/mantle/config/theme.lua), `fonts` table in [`shell.lua`](mantle/.config/mantle/shell.lua) |
 | Update-panel tools | [`config/dev_tools.lua`](mantle/.config/mantle/config/dev_tools.lua) |
-| Editor stubs | `workspace.library` in [`.luarc.json`](.luarc.json), pointing at your engine checkout's `lua-meta` |
-| Weather location | Derived from the system timezone |
+| Editor stubs | `workspace.library` in [`.luarc.json`](.luarc.json), pointing at the engine's `lua-meta` |
+| Weather location | Derived from system timezone |
 | Runtime state | `~/.local/state/mantle/state.json` |
 
 ## Repository layout
 
 | Path | Contents |
 | --- | --- |
-| `mantle/` | `components/`, `config/`, `lib/`, `modules/` and transition `shaders/` |
-| `hypr/`, `niri/` | Compositors: Hyprland Lua, Niri KDL |
+| `mantle/` | `components/`, `config/`, `lib/`, `modules/`, and transition `shaders/` |
+| `hypr/`, `niri/` | Compositor configurations for Hyprland and Niri |
 | `home/`, `config/` | Shell profile, `.stowrc`, XDG, Starship, Fastfetch, app flags |
 | `fish/`, `nushell/`, `nvim/` | Shells and editor |
 | `kitty/`, `ghostty/`, `alacritty/`, `foot/`, `wezterm/` | Terminals |
 | `mpv/` | mpv config and scripts |
-| `bin/` | Install, backup and screenshot scripts |
+| `bin/` | Install, backup, and screenshot scripts |
 | `NixConfig/` | Inactive NixOS flake for an NVIDIA/Hyprland and an Intel/Niri machine |
 
 ## Credits
 
-Thanks to the Linux, Hyprland, Niri and Quickshell communities, and to these shells for inspiration:
+Inspiration and reference shells:
 
 - [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell/)
 - [Noctalia](https://github.com/noctalia-dev/noctalia)
