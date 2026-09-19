@@ -45,6 +45,8 @@ local LEAVE_SLACK   = 60
 local LEAVE_MS      = EXIT_MS + LEAVE_SLACK
 mantle.lock:invoke("set_unlock_animation", LEAVE_MS)
 
+util.auto_english_layout(mantle.lock)
+
 -- True exactly while the card should be up: the compositor has granted the lock and PAM has not yet
 -- answered. Both edges of the card's motion are this one flag changing value.
 --

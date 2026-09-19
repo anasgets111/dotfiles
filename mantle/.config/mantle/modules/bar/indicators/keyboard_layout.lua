@@ -6,6 +6,8 @@
 local theme = require("config.theme")
 local icon_button = require("components.icon_button")
 
+local SLOT = "keyboard_layout"
+
 -- First two letters of the layout name, uppercased: "English (US)" -> "EN" and
 -- "Arabic (Egypt)" -> "AR".
 --
@@ -18,22 +20,25 @@ local function layout_short(k)
     return (name:gsub("[^%a]", ""):sub(1, 2)):upper()
 end
 
-local caps = mantle.keyboard:map(function(k)
-    return k ~= nil and k.caps_lock == true
-end)
+local function next_layout()
+    local k = mantle.keyboard:get()
+    if k == nil or (k.layout_count or 0) < 2 then
+        return
+    end
+    local next_index = ((k.active_layout_index or 0) + 1) % k.layout_count
+    mantle.keyboard:invoke("switch_layout", next_index)
+end
 
--- No `on_activate`, so `icon_button` returns a readout `row`, not a `button`; this indicator just
--- doesn't call `SwitchLayout`.
-return icon_button(mantle.keyboard:map(layout_short), nil, {
+action("keyboard.next_layout", next_layout)
+
+return icon_button(mantle.keyboard:map(layout_short), next_layout, {
+    slot = SLOT,
     icon_size = theme.font.md,
-    foreground = caps:map(function(on)
-        return on and theme.PEACH or theme.FG
+    foreground = mantle.keyboard:map(function(k)
+        return (k and k.caps_lock) and theme.PEACH or theme.FG
     end),
-    -- One configured layout has nothing to switch to and nothing to disambiguate, so the code is
-    -- noise; `layout_count` says so directly.
+    -- One configured layout has nothing to change and a layout indicator need not be drawn.
     visible = mantle.keyboard:map(function(k)
-        -- `or 0` because a payload that predates the compositor's answer carries no count at all,
-        -- and `nil >= 2` raises rather than reading as false. `caps` above guards the same way.
         return k ~= nil and (k.layout_count or 0) >= 2
     end),
 })

@@ -17,6 +17,8 @@ local active = util.shown_when(mantle.polkit, function(p)
     return p.active
 end)
 
+util.auto_english_layout(mantle.polkit)
+
 local pad = theme.spacing.lg
 
 return panel {

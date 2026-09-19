@@ -353,4 +353,33 @@ function util.thousands(formatted)
     return sign .. grouped .. rest
 end
 
+local auto_english_saved = -1
+local auto_english_active_count = 0
+
+-- Switches to layout 0 (English) when `capability.active` becomes true, restoring the prior layout on false.
+function util.auto_english_layout(capability)
+    capability:on_change(function(state, previous)
+        local was_active = previous ~= nil and previous.active
+        if state ~= nil and state.active and not was_active then
+            if auto_english_active_count == 0 then
+                local k = mantle.keyboard:get()
+                local idx = k and k.active_layout_index or 0
+                if idx > 0 then
+                    auto_english_saved = idx
+                    mantle.keyboard:invoke("switch_layout", 0)
+                else
+                    auto_english_saved = -1
+                end
+            end
+            auto_english_active_count = auto_english_active_count + 1
+        elseif (state == nil or not state.active) and was_active then
+            auto_english_active_count = math.max(0, auto_english_active_count - 1)
+            if auto_english_active_count == 0 and auto_english_saved >= 0 then
+                mantle.keyboard:invoke("switch_layout", auto_english_saved)
+                auto_english_saved = -1
+            end
+        end
+    end)
+end
+
 return util
