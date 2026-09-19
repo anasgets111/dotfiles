@@ -1,10 +1,10 @@
 -- Idle-seat policy, not execution: settings, three stages, and reasons holding the session awake.
 -- `modules/global/idle.lua` runs the clock. Keep this side-effect-free for bar readers, with the
 -- one-way dependency `modules/` requires `lib/`, never the reverse.
--- Registers one one-second threshold and counts on `mantle.system.monotonic`.
--- `mantle.idle:register_threshold` has no removal counterpart: changing lock from five to
--- ten minutes would leave both thresholds registered and still lock at five. One registration keeps
--- editable Lua-number timeouts and a walked stage list.
+-- Registers one one-second threshold and counts on `mantle.system.monotonic`. Not one threshold per
+-- stage, even though `cancel_threshold` could now retime them: the panel's "idle 0:42" readout
+-- needs the tick anyway, and a stage arms when its predecessor reports `done`, not at a fixed
+-- second after input.
 -- Here each stage carries `done`; `idle.eligible` generalizes the same rule to any `order`: arm a
 -- stage once every enabled predecessor is done. `modules/global/idle.lua` stamps arming, fires
 -- after that stage's delay, and clears the stamp when it is no longer armed.
