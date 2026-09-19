@@ -83,7 +83,7 @@ hotkey-overlay { skip-at-startup; }
 
 // --- Startup Applications ---
 // Absolute: at login niri's spawn env has not imported ~/.local/share/cargo/bin yet.
-spawn-at-startup "/home/anas/.local/share/cargo/bin/obelisk"
+spawn-at-startup "/home/anas/.local/share/cargo/bin/mantle"
 spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
 spawn-at-startup "kdeconnectd"
 spawn-at-startup "zeditor"
@@ -248,15 +248,15 @@ switch-events {
 binds {
     // System & Tools
     Mod+Shift+Slash { show-hotkey-overlay; }
-    Mod+Space repeat=false { spawn "obelisk" "toggle" "modal" "launcher"; }
-    Mod+Shift+W repeat=false { spawn "obelisk" "toggle" "modal" "wallpaper_picker"; }
-    Mod+P repeat=false { spawn "obelisk" "toggle" "settings_open"; }
-    Mod+Ctrl+P repeat=false { spawn "obelisk" "toggle" "modal" "idle_settings"; }
+    Mod+Space repeat=false { spawn "mantle" "toggle" "modal" "launcher"; }
+    Mod+Shift+W repeat=false { spawn "mantle" "toggle" "modal" "wallpaper_picker"; }
+    Mod+P repeat=false { spawn "mantle" "toggle" "settings_open"; }
+    Mod+Ctrl+P repeat=false { spawn "mantle" "toggle" "modal" "idle_settings"; }
     Super+L { spawn "loginctl" "lock-session"; }
     Print { screenshot; }
     Ctrl+Print { screenshot-screen; }
     Alt+Print { screenshot-window; }
-    Shift+Print repeat=false { spawn "obelisk" "call" "rec.toggle"; }
+    Shift+Print repeat=false { spawn "mantle" "call" "rec.toggle"; }
     Ctrl+Alt+Delete { spawn "missioncenter"; }
     Mod+Shift+P { power-off-monitors; }
     Mod+Shift+E { quit; }
@@ -409,13 +409,13 @@ binds {
 
 // Keep the overview wallpaper in Niri's backdrop.
 layer-rule {
-    match namespace="^obelisk-overview_wallpaper$"
+    match namespace="^mantle-overview_wallpaper$"
     place-within-backdrop true
 }
 
-// Obelisk asks for blur per region over ext-background-effect-v1; `blur true` blurs whole surfaces.
+// Mantle asks for blur per region over ext-background-effect-v1; `blur true` blurs whole surfaces.
 layer-rule {
-    match namespace=r#"^(obelisk-|polkit-dialog$)"#
+    match namespace=r#"^(mantle-|polkit-dialog$)"#
     background-effect {
         xray false
     }

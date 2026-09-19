@@ -19,10 +19,10 @@ Pure computation, in-memory state, zero I/O.
 ### 2. Local-Substitutable
 Dependencies with local test equivalents (e.g., the local filesystem, a fixture config directory).
 *   **Action:** Deepenable. The seam remains internal. 
-*   **Testing:** Run the checks against the local substitute (e.g., a fixture config under `/tmp` evaluated with `obelisk check -c`). Do not extract a port/adapter for this at the module's external interface.
+*   **Testing:** Run the checks against the local substitute (e.g., a fixture config under `/tmp` evaluated with `mantle check -c`). Do not extract a port/adapter for this at the module's external interface.
 
 ### 3. Remote but Owned (Ports & Adapters)
-Processes you control across a socket or D-Bus (e.g., the Obelisk Supervisor behind `obelisk.<capability>`, a helper script).
+Processes you control across a socket or D-Bus (e.g., the Mantle Supervisor behind `mantle.<capability>`, a helper script).
 *   **Action:** Define a **port** (interface) at the seam. The deep module owns the logic.
 *   **Testing:** Inject an **adapter**. Use the live capability in production, and a plain Lua table shaped like its payload in tests. 
 

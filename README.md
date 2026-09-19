@@ -1,7 +1,7 @@
-<h1 align="center">Obelisk Shell</h1>
+<h1 align="center">Mantle Shell</h1>
 
 <p align="center">
-  A Lua desktop shell for Wayland — bar, launcher, notifications, OSD, lock screen and wallpapers — built on the <a href="https://github.com/anasgets111/obelisk-engine">Obelisk engine</a>, plus the Arch Linux dotfiles that run it on Hyprland and Niri.
+  A Lua desktop shell for Wayland — bar, launcher, notifications, OSD, lock screen and wallpapers — built on the <a href="https://github.com/anasgets111/mantle">Mantle engine</a>, plus the Arch Linux dotfiles that run it on Hyprland and Niri.
 </p>
 
 <p align="center">
@@ -24,9 +24,9 @@ https://github.com/user-attachments/assets/038ee763-d7b6-4df9-9f79-2f131d4f0dcd
 
 ## The shell
 
-- [`obelisk/`](obelisk/.config/obelisk/shell.lua) is the shell. The engine ships the `obelisk` binary, Lua API and capabilities; this repo is only my Lua on top of them.
-- Hyprland and Niri start it at login and bind keys to `obelisk toggle` and `obelisk call`.
-- Saving a `.lua` under `~/.config/obelisk` reloads it in place. A broken edit keeps the last working shell and shows the error in the bar.
+- [`mantle/`](mantle/.config/mantle/shell.lua) is the shell. The engine ships the `mantle` binary, Lua API and capabilities; this repo is only my Lua on top of them.
+- Hyprland and Niri start it at login and bind keys to `mantle toggle` and `mantle call`.
+- Saving a `.lua` under `~/.config/mantle` reloads it in place. A broken edit keeps the last working shell and shows the error in the bar.
 
 | Area | Includes |
 | --- | --- |
@@ -42,7 +42,7 @@ https://github.com/user-attachments/assets/038ee763-d7b6-4df9-9f79-2f131d4f0dcd
 
 | For | Needs |
 | --- | --- |
-| Shell | [Obelisk engine](https://github.com/anasgets111/obelisk-engine) — the `obelisk` binary |
+| Shell | [Mantle engine](https://github.com/anasgets111/mantle) — the `mantle` binary |
 | Compositor | Hyprland 0.56+ (Lua config) or Niri |
 | Deployment | Arch Linux, Git, GNU Stow |
 | Fonts | CaskaydiaCove Nerd Font Propo, JetBrainsMono Nerd Font Mono, Noto Sans, Noto Sans CJK, Noto Color Emoji |
@@ -54,14 +54,14 @@ https://github.com/user-attachments/assets/038ee763-d7b6-4df9-9f79-2f131d4f0dcd
 > [!WARNING]
 > Move any existing dotfiles aside first — stow refuses to overwrite them — and read [Configuration](#configuration) for the settings that are mine, not yours.
 
-**0. [Install the engine](https://github.com/anasgets111/obelisk-engine).** Nothing here runs without it.
+**0. [Install the engine](https://github.com/anasgets111/mantle).** Nothing here runs without it.
 
 **1. Stow the shell and its compositors.**
 
 ```bash
 git clone https://github.com/anasgets111/dotfiles.git
 cd dotfiles
-stow -t "$HOME" obelisk hypr niri home config xdg-desktop-portal bin
+stow -t "$HOME" mantle hypr niri home config xdg-desktop-portal bin
 ```
 
 **2. Stow the rest, as you like.**
@@ -92,19 +92,19 @@ A subset; the full sets live in [`keybinds.lua`](hypr/.config/hypr/config/keybin
 | What | Where |
 | --- | --- |
 | Monitors, including an ICC profile | [`monitors.lua`](hypr/.config/hypr/config/monitors.lua), or outputs in [`config.kdl`](niri/.config/niri/config.kdl) |
-| Startup apps | [`startup.lua`](hypr/.config/hypr/config/startup.lua), `spawn-at-startup` in `config.kdl`. Niri needs an absolute path to the `obelisk` binary |
-| Wallpaper folder | `wallpaper.FOLDER` in [`lib/wallpaper.lua`](obelisk/.config/obelisk/lib/wallpaper.lua) |
-| Colours, sizes, fonts | [`config/theme.lua`](obelisk/.config/obelisk/config/theme.lua), the `fonts` chain in [`shell.lua`](obelisk/.config/obelisk/shell.lua) |
-| Update-panel tools | [`config/dev_tools.lua`](obelisk/.config/obelisk/config/dev_tools.lua) |
+| Startup apps | [`startup.lua`](hypr/.config/hypr/config/startup.lua), `spawn-at-startup` in `config.kdl`. Niri needs an absolute path to the `mantle` binary |
+| Wallpaper folder | `wallpaper.FOLDER` in [`lib/wallpaper.lua`](mantle/.config/mantle/lib/wallpaper.lua) |
+| Colours, sizes, fonts | [`config/theme.lua`](mantle/.config/mantle/config/theme.lua), the `fonts` chain in [`shell.lua`](mantle/.config/mantle/shell.lua) |
+| Update-panel tools | [`config/dev_tools.lua`](mantle/.config/mantle/config/dev_tools.lua) |
 | Editor stubs | `workspace.library` in [`.luarc.json`](.luarc.json), pointing at your engine checkout's `lua-meta` |
 | Weather location | Derived from the system timezone |
-| Runtime state | `~/.local/state/obelisk/state.json` |
+| Runtime state | `~/.local/state/mantle/state.json` |
 
 ## Repository layout
 
 | Path | Contents |
 | --- | --- |
-| `obelisk/` | `components/`, `config/`, `lib/`, `modules/` and transition `shaders/` |
+| `mantle/` | `components/`, `config/`, `lib/`, `modules/` and transition `shaders/` |
 | `hypr/`, `niri/` | Compositors: Hyprland Lua, Niri KDL |
 | `home/`, `config/` | Shell profile, `.stowrc`, XDG, Starship, Fastfetch, app flags |
 | `fish/`, `nushell/`, `nvim/` | Shells and editor |

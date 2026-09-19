@@ -16,7 +16,7 @@
   </defs>
   <rect width="1920" height="1080" fill="url(#ground)"/>
   <circle cx="960" cy="670" r="600" fill="url(#glow)"/>
-  <!-- An mantle, which is the only joke this file gets to make. -->
+  <!-- A monolith, which is the only joke this file gets to make. -->
   <path d="M 920 940 L 936 340 L 960 292 L 984 340 L 1000 940 Z" fill="#1e1e2e" stroke="#45475a" stroke-width="3"/>
   <path d="M 960 292 L 984 340 L 960 356 Z" fill="#313244"/>
   <rect x="880" y="940" width="160" height="18" rx="4" fill="#313244"/>

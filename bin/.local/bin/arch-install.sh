@@ -570,7 +570,7 @@ configure_package_repositories() {
 configure_initramfs() {
     log_step "Configuring initramfs"
     install -d /etc/mkinitcpio.conf.d
-    cat >/etc/mkinitcpio.conf.d/99-obelisk.conf <<EOF
+    cat >/etc/mkinitcpio.conf.d/99-mantle.conf <<EOF
 MODULES=(${PROFILE_INITRAMFS_MODULES[*]})
 HOOKS=(systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block filesystems)
 EOF
@@ -633,10 +633,10 @@ bootstrap_user_environment() {
 
     run_as_user systemctl --user enable podman.socket podman-restart.service
 
-    run_as_user "$dots" home config bin xdg-desktop-portal kitty obelisk fish nvim mpv \
+    run_as_user "$dots" home config bin xdg-desktop-portal kitty mantle fish nvim mpv \
         "${PROFILE_STOW_PACKAGES[@]}" <<'SCRIPT'
 		rm -f "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.bash_logout"
-		for pkg in fish kitty obelisk nvim mpv hypr niri xdg-desktop-portal; do
+		for pkg in fish kitty mantle nvim mpv hypr niri xdg-desktop-portal; do
 			target="$HOME/.config/$pkg"
 			[[ -e "$target" && ! -L "$target" ]] && rm -rf "$target"
 		done

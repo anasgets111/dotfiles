@@ -10,7 +10,7 @@ Surface architectural friction. Propose **deepening opportunities** (converting 
 
 **Strict Vocabulary Definition:** 
 Always use: **module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**. 
-Never use: component, service, API, boundary. Use the engine's `CONTEXT.md` for domain terminology and respect its ADRs (`docs/decisions.md` in `/mnt/Work/0Coding/1Rust/obelisk-engine`).
+Never use: component, service, API, boundary. Use the engine's `CONTEXT.md` for domain terminology and respect its ADRs (`docs/decisions.md` in `/mnt/Work/0Coding/1Rust/mantle`).
 
 ## Process
 

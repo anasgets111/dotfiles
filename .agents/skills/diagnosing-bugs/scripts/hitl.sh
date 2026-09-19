@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ponytail HITL (Human-In-The-Loop) Loop.
-# Use ONLY when a bug requires manual interaction (Obelisk shell rendering, Hyprland behavior)
+# Use ONLY when a bug requires manual interaction (Mantle shell rendering, Hyprland behavior)
 # and cannot be caught via headless loops.
 #
 # Usage: bash scripts/hitl.sh
@@ -22,14 +22,14 @@ capture() {
 printf "Ponytail HITL Diagnostics\n=========================\n"
 
 # ==============================================================================
-# TEMPLATE A: OBELISK SHELL / LUA (Hyprland or Niri)
+# TEMPLATE A: MANTLE SHELL / LUA (Hyprland or Niri)
 # ==============================================================================
-# step "Follow the running shell's output in a terminal: obelisk log -f"
+# step "Follow the running shell's output in a terminal: mantle log -f"
 # step "Save the module under test to reload the shell in place."
 #
 # capture RENDERED "Did the reload apply without a rescue error in the bar? (y/n)"
 # capture STATE_SYNC "Change the workspace. Did the widget update? (y/n)"
-# capture ERROR_MSG "Paste the exact error from obelisk log (or 'none'):"
+# capture ERROR_MSG "Paste the exact error from mantle log (or 'none'):"
 
 
 # ==============================================================================

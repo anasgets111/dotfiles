@@ -86,9 +86,9 @@ for _, anim in ipairs(animations) do
 end
 
 -- 4. Layer rules
--- Blur obelisk surfaces + their popups (blur_popups; Hyprland needs it, niri
+-- Blur mantle surfaces + their popups (blur_popups; Hyprland needs it, niri
 -- doesn't). ignore_alpha skips transparent corners, keeps the glass body.
-for _, namespace in ipairs({ "^obelisk-.*", "^polkit-dialog$" }) do
+for _, namespace in ipairs({ "^mantle-.*", "^polkit-dialog$" }) do
     hl.layer_rule({
         match        = { namespace = namespace },
         blur         = true,

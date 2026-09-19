@@ -65,7 +65,7 @@ end
 
 -- Garbage (Hard to test, hidden coupling to the live capability)
 local function layout_code()
-    local keyboard = obelisk.keyboard:get()
+    local keyboard = mantle.keyboard:get()
     return keyboard and keyboard.active_layout:sub(1, 2):upper() or ""
 end
 ```

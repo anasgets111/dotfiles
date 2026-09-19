@@ -1,7 +1,7 @@
 local mod = "SUPER"
 local file_manager = "uwsm app -- nautilus"
 local browser = "uwsm app -- zen-browser"
-local menu = "obelisk toggle modal launcher"
+local menu = "mantle toggle modal launcher"
 local lock_command = "loginctl lock-session"
 
 local function bind(keys, dispatcher, options)
@@ -74,9 +74,9 @@ local keybinds = {
     { mod .. " + B",                                     hl.dsp.exec_cmd(browser) },
     { "CTRL + ALT + Delete",                             hl.dsp.exec_cmd("uwsm app -- missioncenter") },
     { mod .. " + space",                                 hl.dsp.exec_cmd(menu) },
-    { mod .. " + SHIFT + W",                             hl.dsp.exec_cmd("obelisk toggle modal wallpaper_picker") },
-    { mod .. " + P",                                     hl.dsp.exec_cmd("obelisk toggle settings_open") },
-    { mod .. " + CTRL + P",                              hl.dsp.exec_cmd("obelisk toggle modal idle_settings") },
+    { mod .. " + SHIFT + W",                             hl.dsp.exec_cmd("mantle toggle modal wallpaper_picker") },
+    { mod .. " + P",                                     hl.dsp.exec_cmd("mantle toggle settings_open") },
+    { mod .. " + CTRL + P",                              hl.dsp.exec_cmd("mantle toggle modal idle_settings") },
     { mod .. " + C",                                     hl.dsp.exec_cmd("uwsm app -- cursor") },
     { mod .. " + A",                                     hl.dsp.exec_cmd("uwsm app -- antigravity.sh") },
     { mod .. " + Z",                                     hl.dsp.exec_cmd("uwsm app -- env WAYLAND_DISPLAY='' zeditor") },
@@ -110,7 +110,7 @@ local keybinds = {
     -- Screenshots
     { "Print",                               hl.dsp.exec_cmd("hdrshot region") },
     { "CTRL + Print",                        hl.dsp.exec_cmd("hdrshot output") },
-    { "SHIFT + Print",                       hl.dsp.exec_cmd("obelisk call rec.toggle") },
+    { "SHIFT + Print",                       hl.dsp.exec_cmd("mantle call rec.toggle") },
 }
 
 for _, binding in ipairs(keybinds) do

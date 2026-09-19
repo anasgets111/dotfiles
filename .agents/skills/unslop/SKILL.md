@@ -22,7 +22,7 @@ Removing patterns is half the job. Sterile, voiceless writing is just as obvious
 - **Lazy Senior Dev Mode.** Emphasize the plan. Fix the root cause, not the symptom. The best code is code never written. YAGNI. Prefer deletion, boring over clever, standard library over dependencies.
 - **Extreme Conciseness.** Zero fluff. No repetition. Bullet points. Direct answers. Short sentences. Mix in longer ones only when tracing complex data flows.
 - **Acknowledge complexity & simplifications.** If using a naive heuristic or O(n²) scan, mark it with a `ponytail:` comment naming the ceiling and upgrade path.
-- **Assume Competence.** Never define basic terms (e.g., Lua metatables, Obelisk signals, Arch Linux basics).
+- **Assume Competence.** Never define basic terms (e.g., Lua metatables, Mantle signals, Arch Linux basics).
 - **Be specific.** Not "this is concerning" but "this `list` rebuilds 500 rows on every volume tick."
 
 ## Patterns to detect and fix
@@ -73,7 +73,7 @@ Removing patterns is half the job. Sterile, voiceless writing is just as obvious
 
 ### Plain speech
 
-27. **Say what it does, not how it feels.** "the shell stays out of your way", "config you can read", "types that follow the engine" name a feeling. The fix names the mechanism or a number: "`obelisk check` exits non-zero on a load error", "a renamed capability field fails the LuaLS check". Ask what the sentence tells the reader to do or know, then write that. If you can't restate it as a concrete instruction, fact, or number, cut it. If the sentence could appear unchanged in another project's docs, cut it.
+27. **Say what it does, not how it feels.** "the shell stays out of your way", "config you can read", "types that follow the engine" name a feeling. The fix names the mechanism or a number: "`mantle check` exits non-zero on a load error", "a renamed capability field fails the LuaLS check". Ask what the sentence tells the reader to do or know, then write that. If you can't restate it as a concrete instruction, fact, or number, cut it. If the sentence could appear unchanged in another project's docs, cut it.
 28. **Shorten or split dense sentences.** If the reader has to backtrack to parse a sentence, break it in two or drop clauses. One idea per sentence.
 29. **Active voice.** Prefer it. Catch "is/are/was/were + past participle" and name the actor: "queries are validated" becomes "the compiler validates queries", "the file is parsed by the loader" becomes "the loader parses the file". Passive is fine only when the actor is unknown or genuinely doesn't matter.
 30. **Cut adverbs, or use a stronger verb.** "runs quickly" becomes "is fast" or the number (e.g., "runs in 5ms"). "significantly improves" becomes the measured delta. An adverb propping up a weak verb means the verb is wrong.

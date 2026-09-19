@@ -3,19 +3,19 @@
 ## Project
 
 - Arch Linux dotfiles for Hyprland (Lua config) and Niri, deployed with GNU Stow. Arch is authoritative for packages, runtime and installation.
-- The shell is `obelisk/.config/obelisk/`, a Lua 5.4 config for the upstream [Obelisk engine](https://github.com/anasgets111/obelisk-engine). The engine ships the `obelisk` binary, Lua API and capabilities; this repo holds only the Lua.
+- The shell is `mantle/.config/mantle/`, a Lua 5.4 config for the upstream [Mantle engine](https://github.com/anasgets111/mantle). The engine ships the `mantle` binary, Lua API and capabilities; this repo holds only the Lua.
 - `NixConfig/` is inactive. Ignore it unless asked; never use it as context or sync it with Arch.
 
 ## Commands
 
-- **Never run `stow` or start the shell** (`obelisk`, `obelisk -d`) unless told to.
+- **Never run `stow` or start the shell** (`mantle`, `mantle -d`) unless told to.
 - Saving a `.lua` reloads the running shell in place. A failed reload keeps the last scene and shows the error in the bar.
 
 | Command | Use |
 | --- | --- |
-| `obelisk check -c obelisk/.config/obelisk` | Run after every edit. Evaluates the config with no Wayland, no subprocesses and every capability `nil`; writes no state |
-| `obelisk log [-f]` | Running shell output, `print()` included |
-| `obelisk set`, `toggle`, `call <name>` | Drive live `state` and `action` names like a keybind; changes the live UI |
+| `mantle check -c mantle/.config/mantle` | Run after every edit. Evaluates the config with no Wayland, no subprocesses and every capability `nil`; writes no state |
+| `mantle log [-f]` | Running shell output, `print()` included |
+| `mantle set`, `toggle`, `call <name>` | Drive live `state` and `action` names like a keybind; changes the live UI |
 | `luac5.4 -p file.lua` | Syntax check. Plain `luac` is Lua 5.5 |
 | `hyprctl repl '<lua>'` | Evaluate `hl.*` in the running Hyprland without a reload |
 | `shellcheck script.sh` | Lint Bash |
@@ -29,12 +29,12 @@ Type check the repo against the root `.luarc.json` (lua-language-server ships on
 
 ## Engine reference
 
-Upstream checkout at `/mnt/Work/0Coding/1Rust/obelisk-engine`. Read it; never edit it from here unless asked to.
+Upstream checkout at `/mnt/Work/0Coding/1Rust/mantle`. Read it; never edit it from here unless asked to.
 
 | Question | Read |
 | --- | --- |
 | What a config can declare and call | `docs/lua-api.md` |
-| Capability fields and actions | `lua-meta/obelisk.lua` (generated), `docs/services.md` |
+| Capability fields and actions | `lua-meta/mantle.lua` (generated), `docs/services.md` |
 | Node and surface properties | `lua-meta/nodes.lua`, `lua-meta/surfaces.lua` |
 | Lua change or engine gap | `docs/roadmap.md`. Flag a real engine gap instead of working around it |
 | Terms (generation, named state, capability) | `CONTEXT.md` |
@@ -42,7 +42,7 @@ Upstream checkout at `/mnt/Work/0Coding/1Rust/obelisk-engine`. Read it; never ed
 ## Shell structure
 
 ```
-obelisk/.config/obelisk/
+mantle/.config/mantle/
   shell.lua     Entry: font chain, requires modules, returns the surface list
   config/       Tokens: theme.lua (Catppuccin Mocha), icons.lua, dev_tools.lua
   components/   Reusable widgets with no state of their own
@@ -57,11 +57,11 @@ obelisk/.config/obelisk/
 | --- | --- |
 | Signals | Pass the signal itself to keep a property live; `:get()` is a snapshot. Derive with `:map`, `computed`, `delay`, `pulse` |
 | Hydration | Capabilities read `nil` until the first push. Every map handles `nil` |
-| Actions | `obelisk.audio:invoke("set_volume", 0.5)` returns nothing. Observe state for the outcome |
-| Keybinds | Named state lives in `lib/ui_state.lua`; `action(name, fn)` backs `obelisk call`. A rename also updates `hypr/.config/hypr/config/keybinds.lua` and `niri/.config/niri/config.kdl` |
-| Persistence | One `persistent_table` in `lib/store.lua` (`~/.local/state/obelisk/state.json`). Add keys to its `defaults` |
+| Actions | `mantle.audio:invoke("set_volume", 0.5)` returns nothing. Observe state for the outcome |
+| Keybinds | Named state lives in `lib/ui_state.lua`; `action(name, fn)` backs `mantle call`. A rename also updates `hypr/.config/hypr/config/keybinds.lua` and `niri/.config/niri/config.kdl` |
+| Persistence | One `persistent_table` in `lib/store.lua` (`~/.local/state/mantle/state.json`). Add keys to its `defaults` |
 | Processes | `process.run` dies with the generation, `process.detach` outlives the shell, `session_process` survives reloads |
-| Compositor | Per-compositor commands go in `lib/compositor.lua`; behavior reads `obelisk.workspaces:get().compositor` |
+| Compositor | Per-compositor commands go in `lib/compositor.lua`; behavior reads `mantle.workspaces:get().compositor` |
 | Theme | `config/theme.lua` tokens and `config/icons.lua` glyphs. Never hardcode colours, sizes or spacing |
 | Shaders | A new `.frag` in `shaders/` works as is. Add a `lib/wallpaper.lua` row only for non-zero uniforms |
 
@@ -92,7 +92,7 @@ Before writing code, trace the real flow end to end, then stop at the first rung
 | `bin/.local/bin/arch-install.sh` | Full Arch install for the Wolverine and Mentalist hosts |
 | `home/.profile` | XDG dirs, NVIDIA env, Wayland toolkit config, PATH |
 | `home/.stowrc` | Points stow at this repo and `~` |
-| `.luarc.json` | One LuaLS config for the obelisk, Hyprland, Neovim and mpv Lua |
+| `.luarc.json` | One LuaLS config for the mantle, Hyprland, Neovim and mpv Lua |
 | `fish/.config/fish/conf.d/various.fish` | Custom fish functions |
 | `.local_secrets/` | Gitignored secrets; `.gitconfig` symlinks here |
 
@@ -103,7 +103,7 @@ The default terminal resolves through `xdg-terminal-exec`.
 - Record only non-obvious failures likely to recur: what fails, why, what to do instead. Name a version only when the behavior is version-bound.
 - After edits, delete the stale comments, docs and entries here that the work exposed. Delete obsolete guidance rather than adding exceptions.
 
-### Obelisk Lua
+### Mantle Lua
 
 | Trap | Fix |
 | --- | --- |
@@ -114,7 +114,7 @@ The default terminal resolves through `xdg-terminal-exec`.
 | `visible = false` keeps a frozen subtree | Switch views through `children` |
 | Named state resets when its scalar seed changes | Keep the seed stable |
 | `timer`, `action` and `on_change` last one evaluation | Expect them to re-register on every reload |
-| `obelisk.idle:register_threshold` has no cancel | Register once; see `lib/idle.lua` |
+| `mantle.idle:register_threshold` has no cancel | Register once; see `lib/idle.lua` |
 | `fonts` is read once at startup | Restart the shell after editing it |
 | UPower's `PendingCharge` also follows `Discharging` | Only `Charging` to `PendingCharge` means charging stopped (`modules/global/power_events.lua`) |
 
@@ -123,7 +123,7 @@ The default terminal resolves through `xdg-terminal-exec`.
 | Trap | Fix |
 | --- | --- |
 | Zed reads only the root `.luarc.json`; nested ones are ignored | Keep all Lua settings in the root file |
-| LuaLS builtin `os` types reject valid obelisk `os.time` calls | Keep builtin `os` and `debug` disabled in `.luarc.json` |
+| LuaLS builtin `os` types reject valid mantle `os.time` calls | Keep builtin `os` and `debug` disabled in `.luarc.json` |
 | A running LuaLS ignores `runtime.*` changes | Restart the language server |
 | Hyprland 0.56 parses its socket as Lua, so `hyprctl dispatch exit` fails | `hyprctl dispatch 'hl.dsp.exit()'` |
 | Hyprland 0.56.1 fades mapped `Top` surfaces when fullscreen starts, but not ones mapped after | Handle both on Hyprland; Niri does neither |
