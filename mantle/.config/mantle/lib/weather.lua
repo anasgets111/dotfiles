@@ -116,6 +116,7 @@ weather.failed = state("weather_failed", false)
 -- reload with an unchanged seed and dying with the generation that gets the
 -- child reaped anyway. `0` in `next_attempt` means nothing is scheduled yet.
 local in_flight = state("weather_fetching", false)
+weather.fetching = in_flight
 local retries = state("weather_retries", 0)
 local next_attempt = state("weather_next_attempt", 0)
 
@@ -247,6 +248,8 @@ mantle.system:on_change(function(system)
     fetch()
 end)
 
+local TIME_STEPS = { { 86400, "%dd ago" }, { 3600, "%dh ago" }, { 60, "%dm ago" } }
+
 ---@param at integer|nil
 ---@param now integer|nil
 ---@return string
@@ -255,7 +258,7 @@ function weather.time_ago(at, now)
         return ""
     end
     local seconds = math.max(0, now - at)
-    for _, step in ipairs({ { 86400, "%dd ago" }, { 3600, "%dh ago" }, { 60, "%dm ago" } }) do
+    for _, step in ipairs(TIME_STEPS) do
         if seconds >= step[1] then
             return string.format(step[2], seconds // step[1])
         end

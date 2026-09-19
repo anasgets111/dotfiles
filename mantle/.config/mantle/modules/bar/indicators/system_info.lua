@@ -20,6 +20,7 @@ local cell = require("components.cell")
 local glyph = require("components.glyph")
 local meter = require("components.meter")
 local panel_card = require("components.panel_card")
+local expander_header = require("components.expander_header")
 
 -- `sysinfo`'s three pollers start dormant until configured; without this, the readouts
 -- stay at pre-first-sample `0%`. Configure here because this is the only module reading them.
@@ -47,6 +48,29 @@ end
 local function percent_of(state_value, field)
     return (state_value and state_value[field]) or 0
 end
+
+-- `SysinfoState` carries no GPU utilization, so the tile's meter plots temperature over the span
+-- between an idle and a throttling card rather than treating Celsius as a percentage: 30°C reads
+-- empty, 90°C full.
+-- ponytail: one fixed span for every card. A GPU that idles hot or throttles early reads off by a
+-- band; take the floor and ceiling from `hwmon`'s own trip points if one ever does.
+local GPU_FLOOR = 30
+local GPU_CEILING = 90
+
+local function gpu_temp(s)
+    return (s and s.temp_gpu) or 0
+end
+
+-- Bands named by `gpu_caption` below, so the colour and the words never disagree.
+local gpu_color = mantle.sysinfo:map(function(s)
+    local celsius = gpu_temp(s)
+    if celsius >= 85 then
+        return theme.RED
+    elseif celsius >= 70 then
+        return theme.PEACH
+    end
+    return theme.GREEN
+end)
 
 local function tint(field, fallback)
     return mantle.sysinfo:map(function(s)
@@ -79,16 +103,16 @@ local function tile(children, opts)
         border_width = theme.border_width,
         border_color = theme.GLASS_BORDER,
         spacing = theme.spacing.xs,
-        padding = {
-            top = theme.spacing.sm,
-            right = theme.spacing.sm,
-            bottom = theme.spacing.sm,
-            left = theme.spacing.sm,
-        },
+        padding = theme.spacing.sm,
     })
 end
 
+local function readout(read)
+    return util.bold(util.label(mantle.sysinfo, read))
+end
+
 local function metric_tile(codepoint, label, field, accent, detail)
+    local t = tint(field, accent)
     return tile {
         row {
             width = "Fill",
@@ -100,92 +124,55 @@ local function metric_tile(codepoint, label, field, accent, detail)
                     width = "Fill",
                     align_v = "Center",
                 }),
-                cell(util.label(mantle.sysinfo, function(s)
+                cell(readout(function(s)
                     return string.format("%d%%", percent_of(s, field))
-                end):map(function(shown)
-                    return { { text = shown, bold = true } }
-                end), tint(field, accent), theme.font.md, { align_v = "Center" }),
+                end), t, theme.font.md, { align_v = "Center" }),
             },
         },
         -- The meter's fill takes the same tint, so a track turning red is the same warning as its
         -- number turning red.
         meter(mantle.sysinfo, function(s)
             return percent_of(s, field)
-        end, tint(field, accent), "Fill", theme.spacing.xs),
+        end, t, "Fill", theme.spacing.xs),
         cell(detail, theme.DIM, theme.font.xs, { width = "Fill" }),
     }
 end
 
 -- One collapsed readout: `CPU 12%`, bold and tinted.
 local function summary_readout(label, field, accent)
-    return cell(util.label(mantle.sysinfo, function(s)
+    return cell(readout(function(s)
         return string.format("%s %d%%", label, percent_of(s, field))
-    end):map(function(shown)
-        return { { text = shown, bold = true } }
     end), tint(field, accent), theme.font.xs, { align_v = "Center" })
 end
 
 ---@param id string Names this instance's `expanded` state and its hover slot.
 return function(id)
     local expanded = state("sysinfo_expanded_" .. id, false)
-    local hovered = hover("sysinfo-" .. id)
-
-    -- The ground swaps between the accent and glass content tone when expanded, and the text color
-    -- is that ground's contrast -- so the title and chevron go dark against the accent rather than
-    -- staying white on it.
-    local ground = expanded:map(function(open)
-        return open and theme.ACCENT or theme.GLASS_CONTENT
-    end)
-    local ink = expanded:map(function(open)
-        return open and theme.text_contrast(theme.ACCENT) or theme.FG
-    end)
-
-    local head = button {
+    -- The collapsed summary is the filling child, right-aligned inside it, so the chevron stays at
+    -- the far edge whether or not the readouts are showing.
+    local head = expander_header(expanded, "sysinfo-" .. id, "System", row {
         width = "Fill",
-        height = theme.item_height,
-        radius = theme.radius.md,
-        hover = hovered,
-        background = ground,
-        border_width = theme.border_width,
-        border_color = theme.GLASS_BORDER,
-        animate = { background = theme.animation_ms },
-        on_click = function(_, mouse_button)
-            if mouse_button == "left" then
-                expanded:set(not expanded:get())
-            end
-        end,
-        children = { row {
-            width = "Fill",
-            height = "Fill",
-            align_v = "Center",
-            spacing = theme.spacing.sm,
-            -- Item radius on both ends: at half the button's height the
-            -- radius is the whole end of it, and a word starting at zero runs under the curve.
-            padding = { left = theme.item_radius, right = theme.item_radius },
-            children = {
-                cell({ { text = "System", bold = true } }, ink, theme.font.sm, { align_v = "Center" }),
-                -- The summary is the filling child, right-aligned inside it, so the chevron stays
-                -- at the far edge whether or not the readouts are showing.
-                row {
-                    width = "Fill",
-                    align_h = "End",
-                    align_v = "Center",
-                    spacing = theme.spacing.sm,
-                    visible = expanded:map(function(open)
-                        return not open
-                    end),
-                    children = {
-                        summary_readout("CPU", "cpu_percent", theme.ACCENT),
-                        summary_readout("RAM", "ram_percent", theme.GREEN),
-                        summary_readout("SWAP", "swap_percent", theme.PEACH),
-                    },
-                },
-                glyph(expanded:map(function(open)
-                    return open and icons.chevron_down or icons.chevron_right
-                end), ink, theme.icon.sm, { align_v = "Center" }),
-            },
-        } },
-    }
+        align_h = "End",
+        align_v = "Center",
+        spacing = theme.spacing.sm,
+        visible = expanded:map(function(open)
+            return not open
+        end),
+        children = {
+            summary_readout("CPU", "cpu_percent", theme.ACCENT),
+            summary_readout("RAM", "ram_percent", theme.GREEN),
+            summary_readout("SWAP", "swap_percent", theme.PEACH),
+            cell(readout(function(s)
+                local t = (s and s.temp_gpu) or -1
+                return t > 0 and string.format("GPU %d°C", t) or ""
+            end), gpu_color, theme.font.xs, {
+                align_v = "Center",
+                visible = util.shown_when(mantle.sysinfo, function(s)
+                    return (s.temp_gpu or -1) > 0
+                end),
+            }),
+        },
+    })
 
     -- `visible` is the shape this config already uses for expansion
     -- (`components/notification_card.lua`), and an invisible node takes no size or spacing gap, so
@@ -211,31 +198,37 @@ return function(id)
                     end)),
                 },
             },
-            -- The GPU tile spans both columns. Only its temperature line survives; `temp_gpu` is
-            -- `-1` with no sensor, so one test covers both.
-            tile({ row {
-                width = "Fill",
-                align_v = "Center",
-                spacing = theme.spacing.xs,
-                children = {
-                    glyph(icons.gpu, theme.PEACH, theme.icon.sm, { align_v = "Center" }),
-                    cell({ { text = "GPU", bold = true } }, theme.FG, theme.font.sm, {
-                        width = "Fill",
-                        align_v = "Center",
-                    }),
-                    cell(util.label(mantle.sysinfo, function(s)
-                        return string.format("%d°C", (s and s.temp_gpu) or 0)
-                    end), mantle.sysinfo:map(function(s)
-                        local celsius = (s and s.temp_gpu) or 0
-                        if celsius >= 85 then
-                            return theme.RED
-                        elseif celsius >= 70 then
-                            return theme.PEACH
-                        end
-                        return theme.DIM
-                    end), theme.font.sm, { align_v = "Center" }),
+            -- The GPU tile spans both columns, matching CPU and Memory tile structure.
+            tile({
+                row {
+                    width = "Fill",
+                    align_v = "Center",
+                    spacing = theme.spacing.xs,
+                    children = {
+                        glyph(icons.gpu, gpu_color, theme.icon.sm, { align_v = "Center" }),
+                        cell({ { text = "GPU", bold = true } }, theme.FG, theme.font.sm, {
+                            width = "Fill",
+                            align_v = "Center",
+                        }),
+                        cell(readout(function(s)
+                            return string.format("%d°C", gpu_temp(s))
+                        end), gpu_color, theme.font.md, { align_v = "Center" }),
+                    },
                 },
-            } }, {
+                meter(mantle.sysinfo, function(s)
+                    local filled = (gpu_temp(s) - GPU_FLOOR) * 100 // (GPU_CEILING - GPU_FLOOR)
+                    return math.min(100, math.max(0, filled))
+                end, gpu_color, "Fill", theme.spacing.xs),
+                cell(util.label(mantle.sysinfo, function(s)
+                    local celsius = gpu_temp(s)
+                    if celsius >= 85 then
+                        return "Thermal throttle warning"
+                    elseif celsius >= 70 then
+                        return "Heavy thermal load"
+                    end
+                    return "Nominal temperature"
+                end), theme.DIM, theme.font.xs, { width = "Fill" }),
+            }, {
                 visible = util.shown_when(mantle.sysinfo, function(s)
                     return (s.temp_gpu or -1) > 0
                 end),

@@ -190,6 +190,9 @@ theme.ACCENT_HOVER              = lighten(theme.ACCENT, 0.16)
 -- The same lift for the one opaque `RED` ground: the stop button, which gets the same primary
 -- hover as accent.
 theme.RED_HOVER                 = lighten(theme.RED, 0.16)
+-- Ink for text on a glass control under the pointer, lifted the same 0.16 as the two grounds
+-- above. Panel headers rest at `FG` and reach this on hover; `ACCENT` marks the open state.
+theme.TEXT_ACTIVE               = lighten(theme.FG, 0.16)
 -- Used as the plate behind a notification card's application icon.
 theme.BG_SUBTLE                 = theme.with_opacity(theme.BG, theme.opacity.subtle)
 
@@ -317,9 +320,9 @@ theme.panel_list_height         = s(280, 210)
 -- Where a closed panel card sits before its first layout has measured it (`geometry`):
 -- above the bar by the tallest card. After that it drops from its own height, using `-height`.
 theme.panel_slide               = s(760, 570)
--- Notification history holds the popup's cards, 420px wide.
+-- Notification history holds the popup's cards and widgets (weather, sysinfo).
 -- The list uses most of the screen before it scrolls.
-theme.notification_panel_width  = s(420, 340)
+theme.notification_panel_width  = s(460, 380)
 theme.notification_list_height  = s(640, 480)
 -- Update rows need a name and two versions: at 340px, `ca-certificates-mozilla` and
 -- `3.128-1 -> 3.129-1` collide. At 460px the name still elided `gpu-screen-recorder-git`; use
