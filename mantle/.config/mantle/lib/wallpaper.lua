@@ -9,8 +9,8 @@ local store = require("lib.store")
 local wallpaper = {}
 
 wallpaper.FOLDER = "/mnt/Work/1Wallpapers/Main"
--- Exclude `gif`: decoder supports none; folders often contain it.
-wallpaper.EXTENSIONS = { "jpg", "jpeg", "png", "webp" }
+-- `gif` animates (ADR-0233); one too long for the engine's frame budget draws as a still.
+wallpaper.EXTENSIONS = { "jpg", "jpeg", "png", "webp", "gif" }
 -- Reduced to `image.fit`; omit `center` and `tile` because the engine draws
 -- neither.
 wallpaper.FITS = {

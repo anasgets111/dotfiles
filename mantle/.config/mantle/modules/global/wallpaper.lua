@@ -48,11 +48,14 @@ end
 
 -- Hyprland has no backdrop, so the second panel would decode a picture nothing draws. `false`
 -- destroys the surface rather than hiding it, and reads `nil` until the first answer.
-local on_niri = mantle.workspaces:map(function(w)
-    return w ~= nil and w.compositor == "niri"
+-- `overview_open` too: niri composites the backdrop only inside the overview, and an animated
+-- wallpaper repaints this surface every frame for nobody the rest of the time. The picture itself
+-- is the desktop panel's cache entry, pinned and shared, so the rebuild decodes nothing.
+local in_overview = mantle.workspaces:map(function(w)
+    return w ~= nil and w.compositor == "niri" and w.overview_open == true
 end)
 
 return {
     desktop = wallpaper_panel("wallpaper"),
-    overview = wallpaper_panel("overview_wallpaper", on_niri),
+    overview = wallpaper_panel("overview_wallpaper", in_overview),
 }
