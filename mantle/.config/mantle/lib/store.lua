@@ -61,7 +61,7 @@ return persistent_table {
         screen_recorder = { audio = "desktop", quality = "high", fps = 60, container = "mp4" },
         idle = {
             enabled = false,
-            video_auto_inhibit = true,
+            privacy_auto_inhibit = true,
             order = { "dpms", "lock", "suspend" },
             ac = { dpms_on = true, dpms_sec = 300, lock_on = true, lock_sec = 600, suspend_on = false, suspend_sec = 1800 },
             battery = { dpms_on = true, dpms_sec = 120, lock_on = true, lock_sec = 180, suspend_on = true, suspend_sec = 600 },

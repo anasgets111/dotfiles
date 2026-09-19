@@ -298,23 +298,25 @@ local stage_list = list {
 
 -- ## Behavior
 --
--- Both are non-timeout reasons the session stays up, so they share a card. Neither is per-profile:
--- media applies on AC and battery.
+-- Both are non-timeout reasons the session stays up, so they share a card. Neither is
+-- per-profile: capture applies on AC and battery.
 local behaviour_rows = {
     panel_row {
         icon = icons.play,
         title = bold_when(settings:map(function(resolved)
-            return resolved.video_auto_inhibit
-        end), "Keep awake for media"),
-        subtitle = "Video, camera, microphone, screen capture",
+            return resolved.privacy_auto_inhibit
+        end), "Keep awake while capturing"),
+        -- Not video: a player asks for that itself, over `org.freedesktop.ScreenSaver`, and the
+        -- engine honours it whatever this says.
+        subtitle = "Camera, microphone, screen capture",
         height = theme.idle_row_height,
         icon_color = settings:map(function(resolved)
-            return resolved.video_auto_inhibit and theme.ACCENT or theme.DIM
+            return resolved.privacy_auto_inhibit and theme.ACCENT or theme.DIM
         end),
         trailing = toggle(settings, function(resolved)
-            return resolved.video_auto_inhibit
+            return resolved.privacy_auto_inhibit
         end, function(on)
-            idle.write(nil, "video_auto_inhibit", on)
+            idle.write(nil, "privacy_auto_inhibit", on)
         end),
     },
     panel_row {

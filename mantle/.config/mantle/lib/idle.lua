@@ -1,6 +1,6 @@
 -- Idle-seat policy, not execution: settings, three stages, and reasons holding the session awake.
 -- `modules/global/idle.lua` runs the clock. Keep this side-effect-free for bar readers, with the
--- one-way dependency as `lib/media.lua`: `modules/` requires `lib/`, never the reverse.
+-- one-way dependency `modules/` requires `lib/`, never the reverse.
 -- Registers one one-second threshold and counts on `mantle.system.monotonic`.
 -- `mantle.idle:register_threshold` has no removal counterpart: changing lock from five to
 -- ten minutes would leave both thresholds registered and still lock at five. One registration keeps
@@ -13,11 +13,10 @@
 -- ponytail: the one-second threshold reports idle one second after last input. `idle_since`
 -- subtracts it back out, but `ext-idle-notifier-v1` has no "how long idle" call to do better.
 -- Here `mantle.idle:inhibit(reason)` takes a logind hold, and the Supervisor holds every
--- threshold event while anything holds one, ours included. Manual hold, video, and
--- `systemd-inhibit --what=idle` therefore stop stages; `idle_since` resets on entry and stages
--- need no individual guard.
+-- threshold event while anything holds one, ours included. A manual hold, a player's own
+-- `org.freedesktop.ScreenSaver` hold and `systemd-inhibit --what=idle` therefore stop stages;
+-- `idle_since` resets on entry and stages need no individual guard.
 local store = require("lib.store")
-local media = require("lib.media")
 local icons = require("config.icons")
 
 local idle = {}
@@ -79,7 +78,7 @@ local ORDER = { "dpms", "lock", "suspend" }
 ---@type table<string, any>
 local DEFAULTS = {
     enabled = false,
-    video_auto_inhibit = true,
+    privacy_auto_inhibit = true,
     ac = { dpms_on = true, dpms_sec = 300, lock_on = true, lock_sec = 600, suspend_on = false, suspend_sec = 1800 },
     battery = { dpms_on = true, dpms_sec = 120, lock_on = true, lock_sec = 180, suspend_on = true, suspend_sec = 600 },
 }
@@ -111,7 +110,7 @@ function idle.read(stored)
     ---@type table<string, any>
     local out = {
         enabled = stored.enabled == true,
-        video_auto_inhibit = stored.video_auto_inhibit ~= false,
+        privacy_auto_inhibit = stored.privacy_auto_inhibit ~= false,
         order = resolve_order(stored.order),
     }
     for _, name in ipairs({ "ac", "battery" }) do
@@ -248,26 +247,25 @@ idle.active_profile = mantle.power:map(idle.profile_of)
 ---
 --- Holds only, which is why foreign holders are absent. Taking our own inhibitor because another
 --- application holds one is a second block for one reason, and nothing releases it. The writers
---- watch privacy, mpris and storage, never `mantle.idle`; [`idle.reasons`] adds foreign holders
---- back.
+--- watch privacy and storage, never `mantle.idle`; [`idle.reasons`] adds foreign holders back.
+---
+--- Nothing here reads playback. A player that wants the screen up says so itself, over
+--- `org.freedesktop.ScreenSaver` or the Wayland inhibitor, and the engine honours both.
 --- @param privacy table? `mantle.privacy`'s payload
---- @param mpris table? `mantle.mpris`'s payload
 --- @param settings table the result of [`idle.read`]
 --- @param manual boolean
 --- @return string[]
-function idle.own_reasons(privacy, mpris, settings, manual)
+function idle.own_reasons(privacy, settings, manual)
     local reasons = {}
     if manual then
         reasons[#reasons + 1] = "manual"
     end
-    -- Video, camera, microphone and screen capture, named separately so "why is my laptop not
-    -- sleeping" gets the actual reason rather than "media".
+    -- Camera, microphone and screen capture, named separately so "why is my laptop not sleeping"
+    -- gets the actual reason rather than "media". No application declares these as an idle hold,
+    -- which is why they are ours to take.
     -- Gated on the master switch, unlike `manual` above it. These hold off *our* stages, so with
     -- automatic actions off there is nothing to hold. `manual` stays ungated as an explicit press.
-    if settings.enabled and settings.video_auto_inhibit then
-        if media.is_playing_video(mpris) then
-            reasons[#reasons + 1] = "video"
-        end
+    if settings.enabled and settings.privacy_auto_inhibit then
         privacy = privacy or {}
         if #(privacy.camera_users or {}) > 0 then
             reasons[#reasons + 1] = "camera"
@@ -279,9 +277,6 @@ function idle.own_reasons(privacy, mpris, settings, manual)
             reasons[#reasons + 1] = "screen capture"
         end
     end
-    -- No fullscreen-based inhibitor. `active_client.is_fullscreen` exists but is nil under niri,
-    -- which reports no such field and does not fabricate `false`; Hyprland
-    -- reports it. A fullscreen film is therefore caught by `video` or not at all.
     return reasons
 end
 
@@ -291,16 +286,17 @@ end
 --- call, or the compositor withholding notifications for a surface inhibitor, which
 --- arrives with an empty `who`. The engine honors all of them and lists them in
 --- `mantle.idle.inhibitors`.
-idle.reasons = computed(
-    { mantle.privacy, mantle.mpris, store.idle, idle.manual, mantle.idle },
-    function(p, m, stored, manual, foreign)
-        local reasons = idle.own_reasons(p, m, idle.read(stored), manual)
-        for _, inhibitor in ipairs((foreign or {}).inhibitors or {}) do
-            reasons[#reasons + 1] = inhibitor.who ~= "" and inhibitor.who or "another application"
-        end
-        return reasons
+idle.reasons = computed({ mantle.privacy, store.idle, idle.manual, mantle.idle }, function(p, stored, manual, foreign)
+    local reasons = idle.own_reasons(p, idle.read(stored), manual)
+    for _, inhibitor in ipairs((foreign or {}).inhibitors or {}) do
+        -- `who` is empty for anything arriving through xdg-desktop-portal, which passes no
+        -- application name, so `why` ("Playing video") is the only label there is.
+        reasons[#reasons + 1] = inhibitor.who ~= "" and inhibitor.who
+            or inhibitor.why ~= "" and inhibitor.why
+            or "another application"
     end
-)
+    return reasons
+end)
 
 --- Sentence naming the holders. `inhibited` outruns [`idle.reasons`]: our own hold is excluded from
 --- `mantle.idle.inhibitors`, and a compositor surface inhibitor names nothing at all. Either left the
@@ -310,7 +306,8 @@ idle.reasons = computed(
 --- @return string
 function idle.held_text(reasons, inhibited)
     if #reasons > 0 then
-        return "Held awake by " .. table.concat(reasons, ", ")
+        -- A list, not a sentence: a holder's own `why` is a clause, and reads as one after a colon.
+        return "Held awake by: " .. table.concat(reasons, ", ")
     end
     return inhibited and "Held awake by something that did not name itself" or "Nothing is holding this awake"
 end
@@ -330,12 +327,7 @@ end)
 function idle.sync_inhibit()
     -- Our hold is excluded from `mantle.idle.inhibitors` by `foreign_idle_inhibitors`, so readback
     -- cannot make this function think it already holds one and skip acquiring it.
-    local reasons = idle.own_reasons(
-        mantle.privacy:get(),
-        mantle.mpris:get(),
-        idle.read(store.idle:get()),
-        idle.manual:get()
-    )
+    local reasons = idle.own_reasons(mantle.privacy:get(), idle.read(store.idle:get()), idle.manual:get())
     local want = #reasons > 0
     if want == idle.holding:get() then
         return

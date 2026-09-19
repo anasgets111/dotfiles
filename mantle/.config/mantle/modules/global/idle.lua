@@ -124,8 +124,6 @@ mantle.system:on_change(function(s)
 end)
 
 -- Non-button changes to "is something holding this awake". The button uses `idle.set_manual`;
--- settings land on `mantle.storage`, so disabling "keep awake for media" drops the hold during
--- playback.
+-- settings land on `mantle.storage`, so turning the capture hold off drops it mid-call.
 mantle.privacy:on_change(idle.sync_inhibit)
-mantle.mpris:on_change(idle.sync_inhibit)
 mantle.storage:on_change(idle.sync_inhibit)
