@@ -92,9 +92,9 @@ local keybinds = {
     { "switch:on:Lid Switch",                            hl.dsp.exec_cmd(lock_command),                         { locked = true } },
 
     -- Media and hardware
-    { "XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"),
+    { "XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ && wpctl set-mute @DEFAULT_AUDIO_SINK@ 0"),
         { locked = true, repeating = true } },
-    { "XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),
+    { "XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- && wpctl set-mute @DEFAULT_AUDIO_SINK@ 0"),
         { locked = true, repeating = true } },
     { "XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl -q set 5%+"),
         { locked = true, repeating = true } },

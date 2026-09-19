@@ -72,6 +72,8 @@ return slider {
     read = volume,
     on_commit = function(value)
         mantle.audio:invoke("set_volume", value)
+        -- After the level, so an unmute is never heard at the old one.
+        mantle.audio:invoke("set_muted", false)
     end,
     max = util.MAX_VOLUME,
     split_at = SPLIT,
