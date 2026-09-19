@@ -17,7 +17,6 @@ local icons = require("config.icons")
 local cell = require("components.cell")
 local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
-local util = require("lib.util")
 local ui_state = require("lib.ui_state")
 local update_panel = require("modules.bar.panels.update_panel")
 local store = require("lib.store")
@@ -28,44 +27,6 @@ local SLOT = "updates"
 -- Without it the badge would stay red until the next install rather than until the user closes the
 -- result.
 local dismissed = state("updates_result_dismissed", false)
-
--- Two ids: the actionable offer owns 8001 and every plain toast 8002, so a completion or a
--- failed-check warning neither replaces an offer to install nor is replaced by one.
---
--- Only the actionable one is held: `--wait` keeps that process open until the toast is answered and
--- prints the chosen action key on stdout, so an unanswered one is killed before the next. A plain
--- toast exits immediately and has nothing to hold.
-local live_toast = nil
-local function toast(urgency, title, body, action)
-    local args = { "-u", urgency, "-a", "System Updates", "-i", "system-software-update",
-        "--replace-id", action and "8001" or "8002" }
-    if action then
-        args[#args + 1] = "--wait"
-        args[#args + 1] = "-A"
-        args[#args + 1] = "run-updates=" .. action
-    end
-    args[#args + 1] = title
-    args[#args + 1] = body
-    if action and live_toast then
-        live_toast:kill()
-    end
-    local handle
-    handle = process.run("notify-send", args, function(line)
-        if line:find("run-updates", 1, true) then
-            update_panel.install()
-        end
-    end, function()
-        -- The one just killed exits after its replacement is live; only clear yourself.
-        if live_toast == handle then
-            live_toast = nil
-        end
-    end)
-    -- Only the actionable one is tracked; letting a plain toast take the slot would orphan an
-    -- unanswered offer and leave `live_toast` pointing at a process that has already exited.
-    if action then
-        live_toast = handle
-    end
-end
 
 -- Updates stay dormant until configured; otherwise `state_of` remains `idle` and
 -- `visible` hides the indicator. Configure here, not `shell.lua`, because this module needs the
@@ -101,10 +62,17 @@ mantle.updates:on_change(function(u, previous)
     -- only the panel says so.
     local failures = u.consecutive_check_failures or 0
     if failures > 0 and failures % 5 == 0 and previous ~= nil and (previous.consecutive_check_failures or 0) ~= failures then
-        toast("critical", "Update check failed", u.check_error or "")
+        update_panel.toast("critical", "Update check failed", u.check_error or "")
     end
     if u.checking or previous == nil or previous.checking ~= true then
         -- Only the push that ends a check has a fresh list.
+        return
+    end
+    if (u.count or 0) == 0 then
+        if not update_panel.result_showing:get() then
+            update_panel.dismiss_notifications()
+        end
+        store:set("updates_notified", "")
         return
     end
     local announced = store.updates_notified:get() or ""
@@ -131,7 +99,7 @@ mantle.updates:on_change(function(u, previous)
     end
     local body = fresh == 1 and string.format("One new package can be upgraded (%d)", u.count)
         or string.format("%d new packages can be upgraded (%d)", fresh, u.count)
-    toast("normal", "Updates Available", body, "Run updates")
+    update_panel.toast("normal", "Updates Available", body, "Run updates")
 end)
 
 -- The order: installing, then a failed run, then a failed check, then a running check, then a

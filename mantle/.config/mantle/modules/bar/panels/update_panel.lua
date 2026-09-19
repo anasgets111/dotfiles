@@ -15,14 +15,15 @@ local panel_card = require("components.panel_card")
 local panel_header = require("components.panel_header")
 local panel_empty_state = require("components.panel_empty_state")
 local spinner = require("components.spinner")
-local icon_button = require("components.icon_button")
 local action_button = require("components.action_button")
 local panel_action_icon = require("components.panel_action_icon")
 local panel_row = require("components.panel_row")
 local section_header = require("components.section_header")
 local toggle = require("components.toggle")
 local meter = require("components.meter")
+local info_badge = require("components.info_badge")
 local store = require("lib.store")
+local ui = require("lib.ui_state")
 local dev_tools = require("config.dev_tools")
 
 local KIND = "updates"
@@ -117,20 +118,61 @@ local function any_tool_runnable()
     return false
 end
 
--- Id 8002, the plain one; `indicators/updates.lua` keeps 8001 for the offer it must replace.
-local function toast(urgency, title, body)
-    process.detach("notify-send", {
-        "-u", urgency, "-a", "System Updates", "-i", "system-software-update", "--replace-id", "8002", title, body,
-    })
+local NOTIFICATION_ID = "8001"
+local live_toast = nil
+
+local function dismiss_notifications()
+    if live_toast then
+        live_toast:kill()
+        live_toast = nil
+    end
+    local n = mantle.notifications:get()
+    for _, notif in ipairs((n and n.feed) or {}) do
+        if notif.app_name == "System Updates" then
+            mantle.notifications:invoke("dismiss", notif.id)
+        end
+    end
 end
 
--- Copies to push: mutating the held table leaves the signal's value identical and the scene clean.
+local install
+
+-- Replaces any pending update offer so completed/failed toasts never pile on top.
+local function toast(urgency, title, body, action)
+    dismiss_notifications()
+    local args = {
+        "-u", urgency,
+        "-a", "System Updates",
+        "-i", "system-software-update",
+        "--replace-id", NOTIFICATION_ID,
+    }
+    if action then
+        args[#args + 1] = "--wait"
+        args[#args + 1] = "-A"
+        args[#args + 1] = "run-updates=" .. action
+    end
+    args[#args + 1] = title
+    args[#args + 1] = body
+    if action then
+        local handle
+        handle = process.run("notify-send", args, function(line)
+            if line:find("run-updates", 1, true) then
+                install()
+            end
+        end, function()
+            if live_toast == handle then
+                live_toast = nil
+            end
+        end)
+        live_toast = handle
+    else
+        process.detach("notify-send", args)
+    end
+end
+
 -- ponytail: unbounded, unlike the Supervisor's 200-line tail. A dev run prints hundreds of lines,
 -- not thousands; cap it here if one ever does.
 local function append_dev_log(line)
-    local lines = { table.unpack(dev_log:get() or {}) }
-    lines[#lines + 1] = line
-    dev_log:set(lines)
+    dev_log:set(util.concat(dev_log:get(), { line }))
 end
 
 -- Stops at the first non-zero exit.
@@ -198,7 +240,7 @@ end
 --
 -- A retry runs with no pending count: a run that failed partway can leave the count at zero with
 -- the system still half-upgraded, and refusing there left the failure card holding a dead button.
-local function install()
+install = function()
     local u = mantle.updates:get()
     if u == nil or u.installing or dev_running:get() ~= "" then
         return
@@ -207,6 +249,7 @@ local function install()
     if not packages_pending and not any_tool_runnable() then
         return
     end
+    dismiss_notifications()
     started_at:set(os.time())
     dismissed:set(false)
     log_open:set(false)
@@ -274,13 +317,13 @@ local function status_line(u, is_dismissed, tool)
     end
     if u.installing then
         local package = u.install_current_package
-        return (package ~= nil and package ~= "") and ("Installing " .. package) or "Starting the install"
+        return (package ~= nil and package ~= "") and ("Installing " .. package) or "Preparing update…"
     end
     if not is_dismissed and install_ended(u) then
         return install_failed(u) and "Update failed" or "Update complete"
     end
     if u.checking then
-        return "Checking"
+        return "Checking…"
     end
     if u.check_error ~= nil then
         return "Check failed"
@@ -315,11 +358,16 @@ local function detail_line(u, is_dismissed, tool)
         end
         local warnings = warning_count(u)
         local noted = warnings > 0 and string.format(" · %d warning%s", warnings, warnings == 1 and "" or "s") or ""
-        local seconds = u.install_finished_at - (started_at:get() or 0)
-        if (started_at:get() or 0) > 0 and seconds >= 0 then
-            return string.format("Took %d min %d sec%s", math.floor(seconds / 60), seconds % 60, noted)
+        local start = started_at:get() or 0
+        local seconds = (u.install_finished_at or os.time()) - start
+        local count = (u.install_total_steps or 0)
+        local count_prefix = count > 0 and string.format("%d package%s · ", count, count == 1 and "" or "s") or ""
+        if start > 0 and seconds >= 0 then
+            local time_str = seconds < 60 and string.format("took %d sec", seconds)
+                or string.format("took %d min %d sec", math.floor(seconds / 60), seconds % 60)
+            return count_prefix .. time_str .. noted
         end
-        return "Finished" .. noted
+        return count_prefix .. "Finished" .. noted
     end
     -- A failed check keeps the last good list, so say which list is shown.
     if u.check_error ~= nil then
@@ -363,11 +411,7 @@ end)
 
 -- Two owners, one view: the capability clears `install_log` per install, the chain appends after.
 local log_lines = computed({ mantle.updates, dev_log }, function(u, lines)
-    local combined = { table.unpack((u and u.install_log) or {}) }
-    for _, line in ipairs(lines or {}) do
-        combined[#combined + 1] = line
-    end
-    return combined
+    return util.concat(u and u.install_log, lines)
 end)
 
 -- Red failures are findable in two hundred lines of pacman output.
@@ -508,15 +552,13 @@ local body = {
             return ((u and u.count) or 0) > 0 and icons.updates or icons.up_to_date
         end),
         active = mantle.updates:map(function(u)
-            return ((u and u.count) or 0) > 0 or (u ~= nil and u.installing)
+            return ((u and u.count) or 0) > 0 or (u ~= nil and (u.installing or u.checking))
         end),
         subtitle = computed({ mantle.updates, mantle.system }, function(u, clock)
             return last_check_line(u, (clock and clock.time) or os.time())
         end),
         trailing = {
-            -- Show only when relevant; a reboot badge after no install warns about nothing.
-            cell("Reboot pending", theme.PEACH, theme.font.xs, {
-                align_v = "Center",
+            info_badge("Reboot required", theme.PEACH, {
                 visible = util.shown_when(mantle.updates, function(u)
                     return u.reboot_required == true
                 end),
@@ -524,13 +566,9 @@ local body = {
             panel_action_icon(icons.settings, function()
                 settings_open:set(not settings_open:get())
             end, { slot = "updates-settings" }),
-            -- Hide refresh while checking/installing; `icon_button` has no disabled state, and a
-            -- visible no-op control is worse than a hidden one.
-            icon_button(icons.refresh, function()
+            panel_action_icon(icons.refresh, function()
                 mantle.updates:invoke("check")
             end, {
-                size = theme.control.sm,
-                icon_size = theme.icon.sm,
                 slot = "updates-refresh",
                 visible = mantle.updates:map(function(u)
                     return u == nil or not (u.checking or u.installing)
@@ -539,10 +577,10 @@ local body = {
         },
     },
     panel_card({
-        cell(computed({ mantle.updates, dismissed, dev_running }, status_line), theme.FG, theme.font.md),
+        cell(computed({ mantle.updates, dismissed, dev_running }, function(u, is_dismissed, tool)
+            return { { text = status_line(u, is_dismissed, tool), bold = true } }
+        end), theme.FG, theme.font.md),
         cell(computed({ mantle.updates, dismissed, dev_running }, detail_line), theme.DIM, theme.font.xs),
-        -- Determinate only while pacman counts packages. An unanimated indeterminate bar only
-        -- repeats "wait"; wrap it because `meter` has no `visible` property.
         row {
             width = "Fill",
             visible = util.shown_when(mantle.updates, function(u)
@@ -562,16 +600,9 @@ local body = {
             spacing = theme.spacing.sm,
             align_v = "Center",
             visible = working,
-            children = { spinner(working, theme.control.sm), cell("Working…", theme.DIM, theme.font.xs) },
+            children = { spinner(working, theme.control.xs), cell("Working…", theme.DIM, theme.font.xs) },
         },
     }, { background = theme.GLASS_CONTENT, width = "Fill", spacing = theme.spacing.xs }),
-    -- List: name left, old/new versions in fixed columns, arrow between them. A heading row would
-    -- duplicate the table's headings.
-    --
-    -- Fixed columns keep versions readable down the table; the name takes the remainder and elides.
-    --
-    -- Own card, like every mirror section: a list directly on the glass lets package names float
-    -- over the window behind it.
     panel_card({
         list {
             width = "Fill",
@@ -587,7 +618,6 @@ local body = {
                     spacing = theme.spacing.sm,
                     children = {
                         cell(package.name or "?", theme.FG, theme.font.sm, { width = "Fill", align_v = "Center" }),
-                        -- Old version ends at the arrow and new starts there, regardless of length.
                         cell(package.old_version or "", theme.DIM, theme.font.xs, {
                             width = theme.update_version_width,
                             align = "End",
@@ -606,14 +636,26 @@ local body = {
             end,
         },
     }, { background = theme.GLASS_CONTENT, width = "Fill", visible = packages_showing }),
-    -- Pacman's output explains failures. Keep it in a card; two hundred lines over live wallpaper
-    -- are unreadable without that boundary.
     panel_card({
+        row {
+            width = "Fill",
+            align_v = "Center",
+            children = {
+                cell({ { text = "Install log", bold = true } }, theme.DIM, theme.font.xs, { width = "Fill" }),
+                panel_action_icon(icons.copy, function()
+                    local lines = log_lines:get() or {}
+                    if #lines > 0 then
+                        process.detach("wl-copy", { table.concat(lines, "\n") })
+                    end
+                end, { slot = "updates-copy-log" }),
+            },
+        },
         list {
             width = "Fill",
             max_height = theme.update_log_height,
             scroll = LOG_SCROLL,
             source = log_lines,
+            spacing = theme.spacing.xs,
             itemfn = function(line)
                 return cell(line, log_colour(line), theme.font.xs, { width = "Fill", wrap = "Word", max_lines = 3 })
             end,
@@ -646,18 +688,27 @@ local body = {
                     end),
                 }
             ),
-            action_button("View log", function()
-                log_open:set(true)
-            end, "updates-log", {
-                tone = "quiet",
-                width = "Fill",
-                visible = computed({ result_showing, mantle.updates, log_open }, function(showing, u, open)
-                    return showing and not open and not install_failed(u)
+            action_button(
+                log_open:map(function(open)
+                    return open and "Hide log" or "View log"
                 end),
-            }),
+                function()
+                    log_open:set(not log_open:get())
+                end,
+                "updates-log",
+                {
+                    tone = "quiet",
+                    width = "Fill",
+                    visible = computed({ result_showing, mantle.updates }, function(showing, u)
+                        return showing and not install_failed(u)
+                    end),
+                }
+            ),
             action_button("Close", function()
+                dismiss_notifications()
                 dismissed:set(true)
                 log_open:set(false)
+                ui.close_panel()
             end, "updates-dismiss", { tone = "quiet", width = "Fill", visible = result_showing }),
         },
     },
@@ -669,5 +720,8 @@ return {
     install = install,
     install_failed = install_failed,
     install_ended = install_ended,
+    dismiss_notifications = dismiss_notifications,
+    toast = toast,
+    result_showing = result_showing,
     CHECK_INTERVAL = CHECK_INTERVAL,
 }
