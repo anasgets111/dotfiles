@@ -13,7 +13,7 @@ local cell = require("components.cell")
 local section_header = require("components.section_header")
 local panel_header = require("components.panel_header")
 local panel_empty_state = require("components.panel_empty_state")
-local icon_button = require("components.icon_button")
+local panel_action_icon = require("components.panel_action_icon")
 local notification_card = require("components.notification_card")
 local info_badge = require("components.info_badge")
 local identity = require("lib.identity")
@@ -95,22 +95,47 @@ end
 
 -- The panel has room to spell out the day and month; the bar's clock is abbreviated to fit a pill.
 local function long_date(seconds)
-    local day = tonumber(os.date("%d", seconds)) or 0
-    return string.format("%s%s of %s", os.date("%A %d", seconds), ordinal(day),
+    local t = os.date("*t", seconds)
+    return string.format("%s %d%s of %s", os.date("%A", seconds), t.day, ordinal(t.day),
         os.date("%B %Y %I:%M %p", seconds))
 end
 
 local body = {
-    -- This sidebar identifies the session and date before the feed.
-    column {
+    -- Session identity and date header.
+    row {
         width = "Fill",
+        spacing = theme.spacing.md,
+        align_v = "Center",
         children = {
-            cell(identity.full_name:map(function(name)
-                return { { text = name, bold = true } }
-            end), theme.FG, theme.font.lg, { width = "Fill" }),
-            cell(util.label(mantle.system, function(s)
-                return long_date(s.time)
-            end), theme.DIM, theme.font.xs, { width = "Fill" }),
+            rect {
+                width = theme.control.md,
+                height = theme.control.md,
+                radius = math.floor(theme.control.md / 2),
+                background = theme.ACCENT_LIGHT,
+                border_width = theme.border_width,
+                border_color = theme.with_opacity(theme.ACCENT, 0.45),
+                children = {
+                    cell(identity.initials:map(function(s)
+                        return { { text = s, bold = true } }
+                    end), theme.ACCENT, theme.font.sm, {
+                        width = "Fill",
+                        align = "Center",
+                        align_v = "Center",
+                    }),
+                },
+            },
+            column {
+                width = "Fill",
+                spacing = theme.spacing.xs,
+                children = {
+                    cell(identity.full_name:map(function(name)
+                        return { { text = name, bold = true } }
+                    end), theme.FG, theme.font.md, { width = "Fill" }),
+                    cell(util.label(mantle.system, function(s)
+                        return long_date(s.time)
+                    end), theme.DIM, theme.font.xs, { width = "Fill" }),
+                },
+            },
         },
     },
     -- Order: weather, system info, then the notifications masthead.
@@ -135,27 +160,28 @@ local body = {
                     return critical_count(n) > 0
                 end),
             }),
-            -- DND is a third bell state and this control is lit while on. The Supervisor
-            -- gates sound, and the popup reads the same flag, standing down except for
-            -- critical notifications.
-            icon_button(icons.bell_off, function()
+            -- DND is a third bell state, using standard panel action icon.
+            panel_action_icon(mantle.notifications:map(function(n)
+                return (n and n.dnd) and icons.bell or icons.bell_off
+            end), function()
                 local n = mantle.notifications:get()
                 mantle.notifications:invoke("set_dnd", not (n and n.dnd))
             end, {
-                size = theme.control.sm,
-                icon_size = theme.icon.sm,
-                background = mantle.notifications:map(function(n)
-                    return (n and n.dnd) and theme.ACCENT_MEDIUM or theme.GLASS_CONTROL
-                end),
                 slot = "notification-dnd",
+                tint = theme.PEACH,
             }),
-            -- One `dismiss` per entry; there is no `dismiss_all`. The feed cannot push until this
-            -- callback returns, unlike `network_panel.lua`.
-            icon_button(icons.clear_all, function()
+            -- Clear all notifications with red destructive tint, hidden when history is empty.
+            panel_action_icon(icons.clear_all, function()
                 for _, notification in ipairs(feed(mantle.notifications:get())) do
                     mantle.notifications:invoke("dismiss", notification.id)
                 end
-            end, { size = theme.control.sm, icon_size = theme.icon.sm }),
+            end, {
+                slot = "notification-clear-all",
+                tint = theme.RED,
+                visible = util.shown_when(mantle.notifications, function(n)
+                    return kept(n) > 0
+                end),
+            }),
         },
     },
     column {
@@ -208,4 +234,4 @@ local body = {
     ),
 }
 
-return { kind = KIND, body = body }
+return { kind = KIND, body = body, spacing = theme.spacing.md }

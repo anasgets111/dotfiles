@@ -47,7 +47,12 @@ local section_rects = {}
 for _, panel in ipairs(panels) do
     local rect = geometry("panel-section-" .. panel.kind)
     table.insert(section_rects, rect)
-    sections[panel.kind] = column { width = "Fill", spacing = theme.spacing.xs, geometry = rect, children = panel.body }
+    sections[panel.kind] = column {
+        width = "Fill",
+        spacing = panel.spacing or theme.spacing.xs,
+        geometry = rect,
+        children = panel.body,
+    }
 end
 local shown_section = ui_state.panel_kind:map(function(kind)
     return { sections[kind] }
