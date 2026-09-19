@@ -9,3 +9,5 @@ nushell/.config/nushell/history.txt
 # Nix build results
 result
 result-*
+# Agent worktrees, which `git add -A` would otherwise offer as an embedded repository.
+/.claude/worktrees
