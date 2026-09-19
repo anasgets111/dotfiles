@@ -216,6 +216,10 @@ idle.since = state("idle_since", 0)
 --- stamp makes delay relative, and clearing it makes unlock undo the sequence.
 idle.armed_at = state("idle_armed_at", {})
 
+--- Which profile [`idle.armed_at`]'s stamp was taken under, so `modules/global/idle.lua` can
+--- re-stamp on a switch instead of measuring one profile's timeout against the other's stamp.
+idle.armed_profile = state("idle_armed_profile", "")
+
 --- Whether the displays are off because `modules/global/idle.lua` turned them off.
 idle.blanked = state("idle_blanked", false)
 

@@ -98,12 +98,19 @@ mantle.system:on_change(function(s)
         end
         return
     end
-    local plan = idle.plan(settings, idle.profile_of(mantle.power:get()))
+    local profile = idle.profile_of(mantle.power:get())
+    local plan = idle.plan(settings, profile)
     local armed = idle.armed(plan)
+
+    -- Re-stamp the armed stage when the profile changes. Its stamp was taken against the other
+    -- profile's timeout, so unplugging at 250s idle with a 180s battery lock fired in the same
+    -- tick, with no countdown and nothing on screen first.
+    local switched = idle.armed_profile:get() ~= profile
+    idle.armed_profile:set(profile)
 
     -- Rebuild rather than mutate (`lib/ui_state.lua`): `set` compares table identity, and a fresh
     -- table cannot mutate a value under an unfinished resolve. At most one key survives.
-    local stamps = idle.armed_at:get() or {}
+    local stamps = (not switched and idle.armed_at:get()) or {}
     local next_stamps = {}
     if armed then
         -- Use the later of "when this armed" and "when the seat went idle"; active time must not
