@@ -289,11 +289,9 @@ local body = {
                 spacing = theme.spacing.xs,
                 children = {
                     -- An empty title is normal between tracks, not a failure.
-                    cell(util.label(selected, function(player)
+                    cell(util.bold(util.label(selected, function(player)
                         return first_nonempty(player and player.title, player and player.identity, "Unknown track")
-                    end):map(function(shown)
-                        return { { text = shown, bold = true } }
-                    end), theme.FG, theme.font.lg, { width = "Fill" }),
+                    end)), theme.FG, theme.font.lg, { width = "Fill" }),
                     -- Fallback is artist, album, identity; `PlayerState` has no album, so use
                     -- artist then identity.
                     cell(util.label(selected, function(player)

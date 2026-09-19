@@ -16,6 +16,37 @@ function util.label(signal, read)
     end)
 end
 
+--- The `TextRun` list a bold `cell` takes. `cell` has no `bold` property, and a signal has to be
+--- mapped into the run rather than dropped inside one, so every bold readout repeated this map.
+---@param label string|Bound
+---@return TextRun[]|Bound
+function util.bold(label)
+    if type(label) == "string" then
+        return { { text = label, bold = true } }
+    end
+    ---@cast label Signal
+    return label:map(function(shown)
+        return { { text = shown, bold = true } }
+    end)
+end
+
+--- A fresh list holding `first` then `second`. Mutating a table a signal already holds leaves the
+--- signal's value identical and the scene clean, so every push needs a copy, and `{table.unpack(t)}`
+--- cannot make one: it is bounded by the Lua stack, which a long install log reaches.
+---@param first table|nil
+---@param second table|nil
+---@return table
+function util.concat(first, second)
+    local out = {}
+    for _, value in ipairs(first or {}) do
+        out[#out + 1] = value
+    end
+    for _, value in ipairs(second or {}) do
+        out[#out + 1] = value
+    end
+    return out
+end
+
 -- Human-readable words for `mantle.battery.state`'s seven UPower names, shared by the pill tooltip,
 -- power menu, and lock screen.
 -- `PendingCharge` matters when a laptop with `charge_control_end_threshold` set sits plugged in at

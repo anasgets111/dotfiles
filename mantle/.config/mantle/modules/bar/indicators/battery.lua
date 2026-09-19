@@ -52,11 +52,9 @@ end)
 local GLYPH = mantle.battery:map(function(b)
     return { { text = util.battery_glyph(b), bold = true } }
 end)
-local PERCENT = util.label(mantle.battery, function(b)
+local PERCENT = util.bold(util.label(mantle.battery, function(b)
     return string.format("%d%%", b.percent)
-end):map(function(shown)
-    return { { text = shown, bold = true } }
-end)
+end))
 
 -- `width` is the pill's, so the copy inside the fill lines up with the one under it.
 local function readout(color, width)

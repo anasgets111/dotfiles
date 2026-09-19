@@ -9,6 +9,7 @@
 -- peach, red -- and white on peach is unreadable.
 local theme = require("config.theme")
 local cell = require("components.cell")
+local util = require("lib.util")
 
 ---@param label string|Bound
 ---@param ground? Color|Bound The capsule's fill. Default `theme.GLASS_CONTROL`.
@@ -27,18 +28,7 @@ return function(label, ground, opts)
         ---@cast ground Color
         ink = theme.text_contrast(ground)
     end
-    -- A `TextRun` carries the weight, and its `text` is a plain string: a signal has to be mapped
-    -- into the run rather than dropped inside one.
-    ---@type TextRun[]|Bound
-    local content
-    if type(label) == "string" then
-        content = { { text = label, bold = true } }
-    else
-        ---@cast label Signal
-        content = label:map(function(shown)
-            return { { text = shown, bold = true } }
-        end)
-    end
+    local content = util.bold(label)
     return row {
         height = theme.control.xs,
         align_v = opts.align_v or "Center",
