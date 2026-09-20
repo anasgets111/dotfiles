@@ -1,7 +1,9 @@
 -- The wallpaper under a scrim, one glass card centred on every output, and a password pill that
 -- says what PAM is doing.
 --
--- The blur is absent because the engine has no effect node; the scrim separates it instead.
+-- The wallpaper is blurred once at decode (`source_blur`, mantle ADR-0240), so the scrim below is
+-- the ordinary `theme.SCRIM` and the card lighter than `theme.GLASS_CONTENT`, not the heavier ones
+-- a lock over a sharp photograph needed to keep text readable.
 local theme         = require("config.theme")
 local icons         = require("config.icons")
 local util          = require("lib.util")
@@ -28,9 +30,9 @@ local BADGE_HEIGHT  = theme.control.xs
 local CLOCK_SIZE    = theme.s(72, 44)
 local INITIALS_SIZE = theme.s(36, 26)
 local NAME_SIZE     = theme.s(24, 18)
--- Heavier than `theme.SCRIM` at 0.45. This wallpaper is scenery, so the card needs contrast against
--- a photograph with no blur to soften it.
-local SCRIM         = theme.with_opacity(theme.BG, 0.6)
+-- In the wallpaper's own stored pixels (its "cover" fit stores at the output's resolution), not
+-- screen pixels -- exact only under that default fit (mantle ADR-0240 decision 3).
+local WALLPAPER_BLUR = 24
 
 -- How long this screen takes to leave, and what the engine is told to wait.
 --
@@ -300,10 +302,9 @@ local function content(output)
         -- One gap between the four groups; tighter internal spacing pairs date/clock and
         -- hint/field.
         spacing = theme.spacing.xl,
-        -- Lighter than its surround. At 0.30 it works over blurred wallpaper, but on a sharp image
-        -- it lets the scene run through the name. `ELEVATED` keeps the card lit against the dimmed
-        -- screen while text clears the photograph.
-        background = theme.with_opacity(theme.ELEVATED, 0.62),
+        -- `ELEVATED` keeps the card lit against the dimmed screen while text clears the blurred
+        -- photograph at a lighter opacity than `theme.GLASS_CONTENT` (0.46) needs over a sharp one.
+        background = theme.with_opacity(theme.ELEVATED, 0.3),
         radius = theme.radius.xl,
         -- With no shadow node, the edge is the only thing separating the card from the picture.
         border_width = theme.border_width_medium,
@@ -325,8 +326,14 @@ local function content(output)
                 fit = wallpaper.fit_of(output),
                 width = "Fill",
                 height = "Fill",
+                source_blur = WALLPAPER_BLUR,
+                -- A wallpaper is large enough that the blur pass costs real time (mantle
+                -- ADR-0240 decision 1); `async` moves it off the frame that maps this surface
+                -- instead of stalling the lock's first frame on it. `background = theme.BG`
+                -- above covers the gap until it lands.
+                async = true,
             },
-            rect { width = "Fill", height = "Fill", background = SCRIM },
+            rect { width = "Fill", height = "Fill", background = theme.SCRIM },
             -- The wallpaper is present on the first frame and the card fades and grows into it.
             -- The screen-sized wrapper keeps the scale pivot centred.
             column {
