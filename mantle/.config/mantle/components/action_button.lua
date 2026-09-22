@@ -32,7 +32,7 @@ local GROUND = {
 ---@param label string|Bound
 ---@param on_activate? fun() Absent on a `submit` button, whose click is the field's Enter.
 ---@param slot string A `hover` slot unique to this button; two buttons sharing one light up together.
----@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"solid"|"danger", width?: integer|"Fill", height?: integer, visible?: boolean|Bound, submit?: boolean, on_button?: fun(rect: Rect, button: string) }
+---@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"solid"|"danger", width?: integer|"Fill", height?: integer, visible?: boolean|Bound, disabled?: Signal, submit?: boolean, on_button?: fun(rect: Rect, button: string) }
 return function(label, on_activate, slot, opts)
     opts = opts or {}
     local ground = GROUND[opts.tone or "accent"]
@@ -76,6 +76,10 @@ return function(label, on_activate, slot, opts)
         align_v = "Center",
         radius = theme.radius.md,
         visible = opts.visible,
+        -- Dims and ignores clicks, keeping the button's place in the row.
+        opacity = opts.disabled and opts.disabled:map(function(off)
+            return off and theme.opacity.disabled or 1
+        end),
         hover = hovered,
         background = hovered:map(function(is_hovered)
             return is_hovered and ground.hover or ground.rest
@@ -85,7 +89,7 @@ return function(label, on_activate, slot, opts)
         padding = { left = theme.spacing.md, right = theme.spacing.md },
         animate = { background = theme.animation_ms },
         on_click = function(_, mouse_button)
-            if mouse_button == "left" and on_activate then
+            if mouse_button == "left" and on_activate and not (opts.disabled and opts.disabled:get()) then
                 on_activate()
             end
         end,

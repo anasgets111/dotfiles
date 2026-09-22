@@ -9,7 +9,7 @@ local CLEAR = "#00000000"
 
 ---@param glyph string|Bound A `text` glyph, or a signal of one for a control whose icon follows state.
 ---@param on_activate fun()?
----@param opts { slot: string, tint?: Color, visible?: boolean|Bound, size?: "sm"|"md" }
+---@param opts { slot: string, tint?: Color, visible?: boolean|Bound, size?: "sm"|"md", disabled?: Signal }
 return function(glyph, on_activate, opts)
     local tint = opts.tint or theme.FG
     -- Default `"sm"`, which the media panel overrides to `"md"` for the one control in a transport
@@ -18,7 +18,13 @@ return function(glyph, on_activate, opts)
     -- `icon_button` asks for the same registry entry under this slot, so the
     -- glyph brightens with the button's hover.
     local hovered = hover(opts.slot)
-    return icon_button(glyph, on_activate, {
+    -- `disabled` dims and ignores clicks, keeping the control's place in the row.
+    local disabled = opts.disabled
+    return icon_button(glyph, on_activate and function()
+        if not (disabled and disabled:get()) then
+            on_activate()
+        end
+    end, {
         slot = opts.slot,
         size = theme.control[step],
         icon_size = theme.icon[step],
@@ -30,5 +36,8 @@ return function(glyph, on_activate, opts)
             return is_hovered and tint or theme.with_opacity(tint, theme.opacity.disabled)
         end),
         visible = opts.visible,
+        opacity = disabled and disabled:map(function(off)
+            return off and theme.opacity.disabled or 1
+        end),
     })
 end

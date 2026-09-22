@@ -13,7 +13,6 @@ local util = require("lib.util")
 local cell = require("components.cell")
 local panel_card = require("components.panel_card")
 local panel_header = require("components.panel_header")
-local panel_empty_state = require("components.panel_empty_state")
 local spinner = require("components.spinner")
 local action_button = require("components.action_button")
 local panel_action_icon = require("components.panel_action_icon")
@@ -437,24 +436,23 @@ local function unless_settings(showing)
     end)
 end
 
-local packages_showing = unless_settings(computed({ mantle.updates, result_showing }, function(u, showing)
-    return not showing and u ~= nil and not u.installing and #packages(u) > 0
-end))
+-- One fixed-height card holds the spinner and then the list, so a check does not resize the panel.
+-- With nothing pending the status card alone says so.
+local packages_showing = unless_settings(computed({ mantle.updates, result_showing, dev_running },
+    function(u, showing, tool)
+        return not showing and tool == "" and u ~= nil and not u.installing and (u.checking or #packages(u) > 0)
+    end))
+local checking = util.shown_when(mantle.updates, function(u)
+    return u.checking
+end)
+local listing = util.shown_when(mantle.updates, function(u)
+    return not u.checking
+end)
 
 local log_showing = unless_settings(computed({ mantle.updates, result_showing, log_open, dev_running },
     function(u, showing, open, tool)
         return u ~= nil and (u.installing or tool ~= "" or (showing and (install_failed(u) or open)))
     end))
-
--- `result_showing`, not `install_ended`: the latter stays true for the rest of the session once one
--- install finishes, and the empty state never came back after it.
-local empty_showing = unless_settings(computed({ mantle.updates, result_showing }, function(u, showing)
-    return u ~= nil and not showing and not u.installing and not u.checking and (u.count or 0) == 0
-end))
-
-local checking_showing = unless_settings(computed({ mantle.updates, result_showing }, function(u, showing)
-    return u ~= nil and not showing and not u.installing and u.checking == true
-end))
 
 -- Follow the newest line. Every push reveals, not only the lengthening ones: the log is a 200-line
 -- tail, so past that the content changes while the length does not.
@@ -529,6 +527,12 @@ for _, tool in ipairs(dev_tools) do
     }
 end
 
+-- Busy dims the header's refresh and the install button rather than hiding them, so the row keeps
+-- its layout.
+local busy = computed({ mantle.updates, dev_running }, function(u, tool)
+    return u == nil or u.checking or u.installing or tool ~= ""
+end)
+
 -- "Working…": installing before pacman has counted the packages.
 local working = util.shown_when(mantle.updates, function(u)
     return u.installing and (u.install_total_steps or 0) == 0
@@ -563,12 +567,7 @@ local body = {
             end, { slot = "updates-settings" }),
             panel_action_icon(icons.refresh, function()
                 mantle.updates:invoke("check")
-            end, {
-                slot = "updates-refresh",
-                visible = mantle.updates:map(function(u)
-                    return u == nil or not (u.checking or u.installing)
-                end),
-            }),
+            end, { slot = "updates-refresh", disabled = busy }),
         },
     },
     panel_card({
@@ -599,9 +598,17 @@ local body = {
         },
     }, { tone = status_tone, width = "Fill", spacing = theme.spacing.xs }),
     panel_card({
+        column {
+            width = "Fill",
+            height = theme.update_list_height,
+            align_v = "Center",
+            visible = checking,
+            children = { spinner(checking, theme.control.sm) },
+        },
         list {
             width = "Fill",
-            max_height = theme.update_list_height,
+            height = theme.update_list_height,
+            visible = listing,
             scroll = PACKAGE_SCROLL,
             spacing = theme.spacing.xs,
             source = sorted_packages,
@@ -647,7 +654,7 @@ local body = {
         },
         list {
             width = "Fill",
-            max_height = theme.update_log_height,
+            height = theme.update_log_height,
             scroll = LOG_SCROLL,
             source = log_lines,
             spacing = theme.spacing.xs,
@@ -662,8 +669,6 @@ local body = {
         width = "Fill",
         visible = log_showing,
     }),
-    panel_empty_state("Nothing to update", empty_showing, { icon = icons.up_to_date }),
-    panel_empty_state("Checking…", checking_showing, { icon = spinner(checking_showing, theme.control.sm) }),
     panel_card({ section_header("run with package updates"), column {
         width = "Fill",
         children = tool_rows,
@@ -673,7 +678,10 @@ local body = {
         spacing = theme.spacing.sm,
         children = {
             action_button(
-                computed({ mantle.updates, result_showing }, function(u, showing)
+                computed({ mantle.updates, result_showing, dev_running }, function(u, showing, tool)
+                    if u ~= nil and (u.installing or tool ~= "") then
+                        return "Updating…"
+                    end
                     return (showing and install_failed(u)) and "Retry" or "Update"
                 end),
                 install,
@@ -681,11 +689,12 @@ local body = {
                 {
                     tone = "solid",
                     width = "Fill",
+                    disabled = busy,
                     visible = computed({ mantle.updates, result_showing, dev_running }, function(u, showing, tool)
-                        if u == nil or u.installing or tool ~= "" then
+                        if u == nil or (showing and not install_failed(u)) then
                             return false
                         end
-                        return (u.count or 0) > 0 or (showing and install_failed(u)) or any_tool_runnable()
+                        return u.installing or tool ~= "" or (u.count or 0) > 0 or showing or any_tool_runnable()
                     end),
                 }
             ),
