@@ -2,6 +2,7 @@ local theme = require("config.theme")
 local left = require("modules.bar.left_side")
 local center = require("modules.bar.center_side")
 local right = require("modules.bar.right_side")
+local power_menu = require("modules.bar.panels.power_menu")
 local battery = require("modules.bar.indicators.battery")
 local date_time = require("modules.bar.indicators.date_time")
 local launcher = require("modules.bar.indicators.launcher_button")
@@ -47,5 +48,6 @@ local tooltips = {
     audio_panel.output_tooltip,
     audio_panel.input_tooltip,
 }
+table.move(power_menu.tooltips, 1, #power_menu.tooltips, #tooltips + 1, tooltips)
 
 return { indicator = indicator, tooltips = tooltips }

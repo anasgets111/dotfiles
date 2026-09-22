@@ -269,6 +269,15 @@ function util.truncate(value, limit)
     return s:sub(1, utf8.offset(s, limit + 1) - 1) .. "..."
 end
 
+--- The hovered button's rect, for a group sharing one tooltip: `key` names the one last entered and
+--- `prefix .. key` is its hover slot, whose rect survives the exit so the card stays put while it
+--- fades. `""` is before the first hover, where a popup still refuses a zero rect.
+function util.hover_anchor(key, prefix)
+    return key:map(function(name)
+        return name ~= "" and hover_rect(prefix .. name):get() or { x = 0, y = 0, width = 1, height = 1 }
+    end)
+end
+
 function util.shown_when(signal, predicate)
     return signal:map(function(value)
         if value == nil then

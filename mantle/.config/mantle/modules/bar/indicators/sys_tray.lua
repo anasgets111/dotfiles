@@ -7,23 +7,35 @@ local tray_menu = require("modules.bar.panels.tray_menu")
 local SCROLL = scroll("sys_tray")
 local SLOT = "sys_tray"
 local hovered_id = state("sys_tray_tooltip", "")
--- The pill is one hover slot, so the card would point at the middle of the row. Record the entered
--- item's rect instead, and only on the entering edge: clearing it on leave moves the card while it
--- fades. A popup refuses a zero rect, so the seed is 1x1.
-local hovered_rect = state("sys_tray_anchor", { x = 0, y = 0, width = 1, height = 1 })
+-- The pill is one hover slot, so the card would name and point at the middle of the row. The entered
+-- item is recorded instead, on the entering edge only: clearing on leave would blank the card and
+-- move it while it fades.
+local hovered_anchor = util.hover_anchor(hovered_id, SLOT .. "-")
 
-local function item_label(item)
-    return item.name ~= nil and item.name ~= "" and item.name or item.id or "Tray item"
+-- `name` is SNI `Title`, which senders fill with a widget id (`vesktop_status_icon_1`). Strip that
+-- and ask `applications` for the installed name.
+-- ponytail: a suffix match. An id shaped differently keeps whatever the sender wrote.
+local function item_label(item, applications)
+    local base = (item.name or ""):gsub("[_%-]?status[_%-]?icon[_%-]?%d*$", "")
+    local entry = util.app_entry(applications, base) or util.app_entry(applications, item.name)
+    return (entry and entry.name) or (base ~= "" and base) or item.id or "Tray item"
 end
 
-local tooltip_text = computed({ hovered_id, mantle.tray }, function(id, tray)
+-- The hovered item's two lines. `said` is the sender's own `ToolTip` -- the name again for some
+-- ("Vesktop"), live state for others ("DL speed: 0 B/s") -- kept only when it adds something.
+local hovered = computed({ hovered_id, mantle.tray, mantle.applications }, function(id, tray, applications)
+    local found
     for _, item in ipairs((tray and tray.items) or {}) do
         if item.id == id then
-            return item_label(item)
+            found = item
         end
     end
-    return id ~= "" and id or "Tray item"
+    local label = found and item_label(found, applications) or (id ~= "" and id or "Tray item")
+    local said = (found and found.tooltip) or ""
+    return { label = label, said = not said:lower():find(label:lower(), 1, true) and said or "" }
 end)
+
+local tooltip_detail = hovered:map(function(lines) return lines.said end)
 
 -- Hide `Passive`: the spec treats it as no presentation, so disabling an application's tray icon
 -- removes it.
@@ -62,6 +74,9 @@ end)
 -- `min(count * ITEM_WIDTH, TRAY_WIDTH)`, with `spacing = 0` and every child a fixed `ITEM_WIDTH`.
 local items = list {
     max_width = TRAY_WIDTH,
+    -- Full height: a content-height row hangs the card 8px above every other tooltip's, and gives
+    -- the pointer a shorter target.
+    height = "Fill",
     direction = "Horizontal",
     spacing = 0,
     align_v = "Center",
@@ -100,9 +115,6 @@ local items = list {
             on_hover = function(is_hovered)
                 if is_hovered then
                     hovered_id:set(item.id)
-                    hovered_rect:set(hover_rect(item_slot):get())
-                elseif hovered_id:get() == item.id then
-                    hovered_id:set("")
                 end
             end,
             on_click = function(rect_, mouse_button)
@@ -149,6 +161,14 @@ local indicator = row {
     children = { items, empty_label },
 }
 
-local tray_tooltip = tooltip({ id = "sys_tray_tooltip", slot = SLOT, anchor = hovered_rect, text = tooltip_text })
+local tray_tooltip = tooltip({
+    id = "sys_tray_tooltip",
+    slot = SLOT,
+    anchor = hovered_anchor,
+    text = hovered:map(function(lines) return lines.label end),
+    detail = tooltip_detail,
+    -- A hidden node takes no room, so a sender with nothing to add draws a one-line card.
+    detail_options = { visible = tooltip_detail:map(function(said) return said ~= "" end) },
+})
 
 return { indicator = indicator, tooltip = tray_tooltip }

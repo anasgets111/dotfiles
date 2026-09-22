@@ -4,7 +4,12 @@ local panel_card = require("components.panel_card")
 local util = require("lib.util")
 local ui_state = require("lib.ui_state")
 
+-- Centred, because the card is a column of content-sized lines: a short title beside a longer state
+-- line would otherwise pack against the left edge. `column` reads a child's `align_h` on the cross
+-- axis, which `cell`'s `align` sets.
 local function text_line(content, color, font, options)
+    options = options or {}
+    options.align = options.align or "Center"
     return cell(content, color or theme.TOOLTIP_FG, font or theme.font.sm, options)
 end
 

@@ -10,6 +10,7 @@ local cell = require("components.cell")
 local panel_row = require("components.panel_row")
 local meter = require("components.meter")
 local icon_button = require("components.icon_button")
+local tooltip = require("components.tooltip")
 local section_header = require("components.section_header")
 local expanding_pill = require("components.expanding_pill")
 local ui_state = require("lib.ui_state")
@@ -36,6 +37,7 @@ end)
 local ACTIONS = {
     {
         key = "logout",
+        label = "Log out",
         icon = icons.logout,
         run = function()
             compositor.detach("logout")
@@ -43,6 +45,7 @@ local ACTIONS = {
     },
     {
         key = "reboot",
+        label = "Restart",
         icon = icons.power,
         run = function()
             process.detach("systemctl", { "reboot" })
@@ -50,12 +53,18 @@ local ACTIONS = {
     },
     {
         key = "poweroff",
+        label = "Power off",
         icon = icons.shutdown,
         run = function()
             process.detach("systemctl", { "poweroff" })
         end
     },
 }
+
+-- Also keyed, so `pending` looks its action up without a search; `ipairs` still sees the three.
+for _, action in ipairs(ACTIONS) do
+    ACTIONS[action.key] = action
+end
 
 local function cancel_countdown()
     pending:set("")
@@ -116,16 +125,21 @@ local function countdown_index(key)
     return SLOT_COUNT
 end
 
+-- What slot `index` is while `chosen` counts down: its own action, the seconds circle, or the
+-- cancel cross.
+local function role_of(index, chosen)
+    if chosen == "" or chosen == ACTIONS[index].key then
+        return "action"
+    elseif countdown_index(chosen) == index then
+        return "countdown"
+    end
+    return "cancel"
+end
+
 local function slot(index)
     local action = ACTIONS[index]
-    -- `"action"`, `"countdown"` or `"cancel"`, off the pending key alone.
     local role = pending:map(function(key)
-        if key == "" or key == action.key then
-            return "action"
-        elseif countdown_index(key) == index then
-            return "countdown"
-        end
-        return "cancel"
+        return role_of(index, key)
     end)
     local is_chosen = pending:map(function(key)
         return key == action.key
@@ -233,6 +247,33 @@ end
 
 local power_button = pill.row(slots)
 
+-- What each role's circle does under the pointer while a countdown runs.
+local HINTS = {
+    action = "Left click runs it now · Right click cancels",
+    countdown = "Right click cancels",
+    cancel = "Click to cancel",
+}
+
+-- One card per circle, each hanging from its own slot, so none has to chase the pointer across the
+-- pill's gaps. The circles are glyphs, so the card names the action and says what the buttons do --
+-- including that a right click at rest is the only door to the panel.
+local power_tooltips = {}
+for index, action in ipairs(ACTIONS) do
+    power_tooltips[index] = tooltip({
+        id = "power_tooltip_" .. action.key,
+        slot = "power-" .. action.key,
+        text = computed({ pending, seconds_left }, function(chosen, left)
+            if role_of(index, chosen) == "cancel" then
+                return "Cancel"
+            end
+            return chosen ~= "" and string.format("%s in %ds", ACTIONS[chosen].label, left) or action.label
+        end),
+        detail = pending:map(function(chosen)
+            return chosen == "" and "Right click opens the panel" or HINTS[role_of(index, chosen)]
+        end),
+    })
+end
+
 local body = {
     section_header("session"),
     cell(util.label(mantle.battery, function(b)
@@ -295,4 +336,4 @@ local body = {
     },
 }
 
-return { kind = KIND, button = power_button, body = body }
+return { kind = KIND, button = power_button, tooltips = power_tooltips, body = body }

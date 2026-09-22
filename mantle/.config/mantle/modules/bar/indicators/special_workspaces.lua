@@ -5,10 +5,8 @@ local tooltip = require("components.tooltip")
 
 local SLOT = "special_workspaces"
 local hovered_name = state("special_workspace_tooltip", "")
--- The row is one hover slot, so the card would point at the middle of the group. Record the entered
--- button's rect instead, and only on the entering edge: clearing it on leave moves the card while it
--- fades. A popup refuses a zero rect, so the seed is 1x1.
-local hovered_rect = state("special_workspace_anchor", { x = 0, y = 0, width = 1, height = 1 })
+-- The row is one hover slot, so the card would point at the middle of the group.
+local hovered_anchor = util.hover_anchor(hovered_name, "special-")
 
 local function specials_of(w)
     return (w and w.special) or {}
@@ -63,7 +61,6 @@ local function special_button(special)
         on_hover = function(is_hovered)
             if is_hovered then
                 hovered_name:set(name)
-                hovered_rect:set(hover_rect("special-" .. name):get())
             elseif hovered_name:get() == name then
                 hovered_name:set("")
             end
@@ -95,7 +92,7 @@ local indicator = row {
 local special_tooltip = tooltip({
     id = "special_workspaces_tooltip",
     slot = SLOT,
-    anchor = hovered_rect,
+    anchor = hovered_anchor,
     text = hovered_name:map(function(name)
         return capitalize(short_name(name))
     end),
