@@ -1,10 +1,14 @@
 local theme = require("config.theme")
 local util = require("lib.util")
-local cell = require("components.cell")
+local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
 
 local SLOT = "special_workspaces"
 local hovered_name = state("special_workspace_tooltip", "")
+-- The row is one hover slot, so the card would point at the middle of the group. Record the entered
+-- button's rect instead, and only on the entering edge: clearing it on leave moves the card while it
+-- fades. A popup refuses a zero rect, so the seed is 1x1.
+local hovered_rect = state("special_workspace_anchor", { x = 0, y = 0, width = 1, height = 1 })
 
 local function specials_of(w)
     return (w and w.special) or {}
@@ -42,52 +46,29 @@ local function special_button(special)
         local app = util.app_entry(applications, current.app_id)
         return (app and app.icon) or ""
     end)
-    local has_icon = icon_name:map(function(icon)
-        return icon ~= ""
-    end)
     local short = short_name(name)
     local letters = #short > 2 and short:sub(1, 2):upper() or short:upper()
-    return button {
+    -- `ground` already folds the pointer in, so it is both states.
+    return icon_button(letters, function()
+        mantle.workspaces:invoke("toggle_special", name)
+    end, {
+        slot = "special-" .. name,
+        art = icon_name,
+        art_size = theme.icon.md,
+        icon_size = theme.font.xs,
         width = theme.item_width,
-        height = theme.item_height,
-        align_v = "Center",
         radius = theme.item_radius,
-        hover = slot_hovered,
+        background = ground,
+        background_hover = ground,
         on_hover = function(is_hovered)
             if is_hovered then
                 hovered_name:set(name)
+                hovered_rect:set(hover_rect("special-" .. name):get())
             elseif hovered_name:get() == name then
                 hovered_name:set("")
             end
         end,
-        background = ground,
-        border_width = theme.border_width,
-        border_color = slot_hovered:map(function(is_hovered)
-            return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
-        end),
-        children = {
-            icon {
-                name = icon_name,
-                size = theme.icon.md,
-                align_h = "Center",
-                align_v = "Center",
-                visible = has_icon,
-            },
-            cell(letters, ground:map(theme.text_contrast), theme.font.xs, {
-                align = "Center",
-                align_v = "Center",
-                visible = has_icon:map(function(shown)
-                    return not shown
-                end),
-            }),
-        },
-        on_click = function(_, mouse_button)
-            if mouse_button ~= "left" then
-                return
-            end
-            mantle.workspaces:invoke("toggle_special", name)
-        end,
-    }
+    })
 end
 
 local indicator = row {
@@ -111,8 +92,13 @@ local indicator = row {
     },
 }
 
-local special_tooltip = tooltip({ id = "special_workspaces_tooltip", slot = SLOT, text = hovered_name:map(function(name)
-    return capitalize(short_name(name))
-end) })
+local special_tooltip = tooltip({
+    id = "special_workspaces_tooltip",
+    slot = SLOT,
+    anchor = hovered_rect,
+    text = hovered_name:map(function(name)
+        return capitalize(short_name(name))
+    end),
+})
 
 return { indicator = indicator, tooltip = special_tooltip }

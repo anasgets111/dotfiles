@@ -67,17 +67,35 @@ return function(glyph, on_activate, opts)
         end)
     end
 
-    local icon_node = text {
-        content = glyph,
-        foreground = foreground,
-        font_size = opts.icon_size or theme.icon.md,
-        font = opts.icon_font,
-        animate = { foreground = theme.animation_ms },
-        align_h = "Center",
-        align_v = "Center",
-    }
+    local function glyph_node()
+        return text {
+            content = glyph,
+            foreground = foreground,
+            font_size = opts.icon_size or theme.icon.md,
+            font = opts.icon_font,
+            animate = { foreground = theme.animation_ms },
+            align_h = "Center",
+            align_v = "Center",
+        }
+    end
 
-    local children = { icon_node }
+    -- `opts.art` is a themed name or path drawn in place of the glyph, the split
+    -- `components/panel_row.lua` makes: `PaintStyle::Icon` takes no tint, so artwork and a tintable
+    -- glyph are two nodes, not one property. An empty name falls back to the glyph, which is what
+    -- lets a workspace draw its window's icon and its number from one button.
+    local function face(art)
+        if art == nil or art == "" then
+            return glyph_node()
+        end
+        return icon {
+            name = art,
+            size = opts.art_size or opts.icon_size or theme.icon.md,
+            align_h = "Center",
+            align_v = "Center",
+        }
+    end
+
+    local badge_node
     if opts.badge then
         local badge = opts.badge
         if is_signal(badge) then
@@ -88,23 +106,35 @@ return function(glyph, on_activate, opts)
         else
             badge = { { text = badge, bold = true } }
         end
-        children = { rect {
-            width = side,
-            height = side,
-            children = {
-                icon_node,
-                text {
-                    content = badge,
-                    foreground = opts.badge_foreground or foreground,
-                    font = opts.badge_font,
-                    font_size = opts.badge_size or theme.font.xs,
-                    align_h = "End",
-                    align_v = "End",
-                    translate = { x = -theme.spacing.xs, y = -theme.spacing.xs },
-                    animate = { foreground = theme.animation_ms },
-                },
-            },
-        } }
+        badge_node = text {
+            content = badge,
+            foreground = opts.badge_foreground or foreground,
+            font = opts.badge_font,
+            font_size = opts.badge_size or theme.font.xs,
+            align_h = "End",
+            align_v = "End",
+            translate = { x = -theme.spacing.xs, y = -theme.spacing.xs },
+            animate = { foreground = theme.animation_ms },
+        }
+    end
+
+    local function content(art)
+        if not badge_node then
+            return face(art)
+        end
+        return rect { width = side, height = side, children = { face(art), badge_node } }
+    end
+
+    ---@type Node[]|Bound
+    local children
+    if is_signal(opts.art) then
+        -- Through `children`, not two `visible` siblings: a hidden subtree stays resolved
+        -- (`lua-meta/nodes.lua`).
+        children = opts.art:map(function(art)
+            return { content(art) }
+        end)
+    else
+        children = { content(opts.art) }
     end
 
     local node = {
@@ -113,6 +143,7 @@ return function(glyph, on_activate, opts)
         align_h = "Center",
         align_v = "Center",
         hover = hovered,
+        on_hover = opts.on_hover,
         radius = radius,
         background = ground,
         opacity = opts.opacity,
@@ -120,8 +151,13 @@ return function(glyph, on_activate, opts)
         -- Cleared below when `opts.border == false`: `x and nil or y` is always `y`.
         border_width = theme.border_width,
         border_color = border_color,
-        -- The ground and ring ease under the pointer and on selection.
-        animate = { background = theme.animation_ms, border_color = theme.animation_ms },
+        -- The ground and ring ease under the pointer and on selection; a constant `opacity` never
+        -- moves, so easing it costs a button that does not dim nothing.
+        animate = {
+            background = theme.animation_ms,
+            border_color = theme.animation_ms,
+            opacity = theme.animation_ms,
+        },
         children = children,
     }
 

@@ -39,7 +39,9 @@ return function(opts)
     return popup {
         id = opts.id,
         parent = "bar",
-        anchor_rect = hover_rect(opts.slot),
+        -- `opts.anchor` is for a slot that covers several buttons: the caller records the rect of
+        -- the one entered, so the card points at that button rather than the middle of the group.
+        anchor_rect = opts.anchor or hover_rect(opts.slot),
         visible = lingering,
         min_width = theme.control_width_lg,
         min_height = theme.control.md,

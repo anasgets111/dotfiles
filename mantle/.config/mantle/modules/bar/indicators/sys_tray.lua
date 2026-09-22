@@ -7,6 +7,10 @@ local tray_menu = require("modules.bar.panels.tray_menu")
 local SCROLL = scroll("sys_tray")
 local SLOT = "sys_tray"
 local hovered_id = state("sys_tray_tooltip", "")
+-- The pill is one hover slot, so the card would point at the middle of the row. Record the entered
+-- item's rect instead, and only on the entering edge: clearing it on leave moves the card while it
+-- fades. A popup refuses a zero rect, so the seed is 1x1.
+local hovered_rect = state("sys_tray_anchor", { x = 0, y = 0, width = 1, height = 1 })
 
 local function item_label(item)
     return item.name ~= nil and item.name ~= "" and item.name or item.id or "Tray item"
@@ -96,6 +100,7 @@ local items = list {
             on_hover = function(is_hovered)
                 if is_hovered then
                     hovered_id:set(item.id)
+                    hovered_rect:set(hover_rect(item_slot):get())
                 elseif hovered_id:get() == item.id then
                     hovered_id:set("")
                 end
@@ -144,6 +149,6 @@ local indicator = row {
     children = { items, empty_label },
 }
 
-local tray_tooltip = tooltip({ id = "sys_tray_tooltip", slot = SLOT, text = tooltip_text })
+local tray_tooltip = tooltip({ id = "sys_tray_tooltip", slot = SLOT, anchor = hovered_rect, text = tooltip_text })
 
 return { indicator = indicator, tooltip = tray_tooltip }

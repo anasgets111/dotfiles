@@ -11,7 +11,7 @@
 -- slots; Niri keeps a trailing empty workspace and needs none.
 local theme = require("config.theme")
 local util = require("lib.util")
-local cell = require("components.cell")
+local icon_button = require("components.icon_button")
 local expanding_pill = require("components.expanding_pill")
 
 local PADDED_SLOTS = 10
@@ -71,44 +71,24 @@ local function workspace_button(ws)
         local app = util.app_entry(applications, current.app_id)
         return (app and app.icon) or ""
     end)
-    local has_icon = icon_name:map(function(name)
-        return name ~= ""
-    end)
-    return pill.cell(button {
+    -- `ground` already folds the pointer in, so it is both states; the ring and the contrast ink
+    -- come from `icon_button`'s defaults.
+    return pill.cell(icon_button(tostring(ws.idx), function()
+        if not is_active:get() then
+            mantle.workspaces:invoke("focus", id)
+        end
+    end, {
+        slot = "workspace-" .. tostring(id),
+        art = icon_name,
+        art_size = theme.icon.md,
+        icon_size = theme.font.sm,
         radius = theme.item_radius,
-        hover = slot_hovered,
         background = ground,
-        border_width = theme.border_width,
-        border_color = slot_hovered:map(function(is_hovered)
-            return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
-        end),
+        background_hover = ground,
         opacity = entry:map(function(current)
             return current.populated and 1 or theme.opacity.disabled
         end),
-        animate = { background = theme.animation_ms, border_color = theme.animation_ms, opacity = theme.animation_ms },
-        children = {
-            icon {
-                name = icon_name,
-                size = theme.icon.md,
-                align_h = "Center",
-                align_v = "Center",
-                visible = has_icon,
-            },
-            cell(tostring(ws.idx), ground:map(theme.text_contrast), theme.font.sm, {
-                align = "Center",
-                align_v = "Center",
-                visible = has_icon:map(function(shown)
-                    return not shown
-                end),
-            }),
-        },
-        on_click = function(_, mouse_button)
-            if mouse_button ~= "left" or is_active:get() then
-                return
-            end
-            mantle.workspaces:invoke("focus", id)
-        end,
-    }, is_active)
+    }), is_active)
 end
 
 -- No ground of its own; the circles sit directly on the bar.
