@@ -193,7 +193,7 @@ local body = {
 local function open(item, anchor)
     item_id:set(item.id)
     expanded:set({})
-    ui_state.toggle_panel(KIND, anchor)
+    ui_state.open_panel(KIND, anchor)
 end
 
 return { kind = KIND, body = body, open = open }
