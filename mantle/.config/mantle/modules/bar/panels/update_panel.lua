@@ -13,6 +13,7 @@ local util = require("lib.util")
 local cell = require("components.cell")
 local panel_card = require("components.panel_card")
 local panel_header = require("components.panel_header")
+local panel_empty_state = require("components.panel_empty_state")
 local spinner = require("components.spinner")
 local action_button = require("components.action_button")
 local panel_action_icon = require("components.panel_action_icon")
@@ -55,6 +56,9 @@ local tools_present = state("updates_tools_present", {})
 -- `install_log` stays the capability's; the two are concatenated for display.
 local dev_running = state("updates_dev_tool", "")
 local dev_log = state("updates_dev_log", {})
+-- Empty until this run's tools finish, then when they did and which failed. A table seed, since
+-- named state refuses a value of another type.
+local dev_result = state("updates_dev_result", {})
 
 local function packages(u)
     return (u and u.packages) or {}
@@ -91,9 +95,17 @@ end
 
 -- True while a finished install's result remains on screen. The capability deliberately has no
 -- "completed" state, which would end when read.
-local result_showing = computed({ mantle.updates, dismissed }, function(u, is_dismissed)
-    return not is_dismissed and u ~= nil and not u.installing and install_ended(u)
-end)
+--
+-- A tools-only run has a result too, and the tools after an install are still part of its run.
+local result_showing = computed({ mantle.updates, dismissed, dev_running, dev_result },
+    function(u, is_dismissed, tool, dev)
+        return not is_dismissed and tool == "" and u ~= nil and not u.installing and (install_ended(u) or dev.finished_at ~= nil)
+    end)
+
+-- Whether this run included packages: a tools-only run leaves the last install's count and log.
+local function ran_packages(u)
+    return u ~= nil and (u.install_finished_at or 0) >= (started_at:get() or 0)
+end
 
 -- A manager killed by a signal publishes no exit code, so an absent one on a run the manager
 -- answered is a failure, not a success.
@@ -101,14 +113,14 @@ local function install_failed(u)
     return install_ended(u) and (u.install_error ~= nil or u.install_exit_code ~= 0)
 end
 
-local status_tone = computed({ mantle.updates, dismissed, dev_running }, function(u, is_dismissed, tool)
+local status_tone = computed({ mantle.updates, dismissed, dev_running, dev_result }, function(u, is_dismissed, tool, dev)
     if not is_dismissed and install_failed(u) then
         return "error"
     end
-    if u ~= nil and u.check_error ~= nil then
+    if (u ~= nil and u.check_error ~= nil) or (not is_dismissed and #(dev.failures or {}) > 0) then
         return "warning"
     end
-    if tool == "" and u ~= nil and u.install_finished_at ~= nil and not install_failed(u) then
+    if tool == "" and u ~= nil and (u.install_finished_at ~= nil or dev.finished_at) and not install_failed(u) then
         return "active"
     end
     return "standard"
@@ -128,6 +140,21 @@ local function any_tool_runnable()
         end
     end
     return false
+end
+
+-- `name`'s place among the tools this run will actually start.
+local function tool_step(name)
+    local present = tools_present:get() or {}
+    local step, total = 0, 0
+    for _, tool in ipairs(dev_tools) do
+        if tool_enabled(tool.name) and present[tool.requires] then
+            total = total + 1
+            if tool.name == name then
+                step = total
+            end
+        end
+    end
+    return step, total
 end
 
 local NOTIFICATION_ID = "8001"
@@ -190,9 +217,10 @@ local function report_run(u, failures)
     if #failures > 0 then
         return toast("critical", "Update finished with failures", table.concat(failures, ", "))
     end
-    local count = (u and u.install_total_steps) or 0
+    local count = ran_packages(u) and u.install_total_steps or 0
+    local tools = any_tool_runnable() and " and developer tooling" or ""
     toast("normal", "Update complete", count > 0
-        and string.format("%d package%s updated", count, count == 1 and "" or "s")
+        and string.format("%d package%s%s updated", count, count == 1 and "" or "s", tools)
         or "Developer tooling updated")
 end
 
@@ -202,6 +230,7 @@ local function run_tools(index, failures)
     local tool = dev_tools[index]
     if tool == nil then
         dev_running:set("")
+        dev_result:set({ finished_at = os.time(), failures = failures })
         return report_run(mantle.updates:get(), failures)
     end
     if not tool_enabled(tool.name) then
@@ -245,6 +274,7 @@ local function install()
     dismiss_notifications()
     started_at:set(os.time())
     dismissed:set(false)
+    dev_result:set({})
     log_open:set(false)
     settings_open:set(false)
     if packages_pending then
@@ -302,7 +332,7 @@ end
 
 -- `is_dismissed` is a parameter, not a `dismissed:get()`: a signal read inside a map over
 -- `mantle.updates` alone never re-runs on close.
-local function status_line(u, is_dismissed, tool)
+local function status_line(u, is_dismissed, tool, dev)
     if u == nil then
         return "Waiting for the updater"
     end
@@ -313,8 +343,11 @@ local function status_line(u, is_dismissed, tool)
         local package = u.install_current_package
         return (package ~= nil and package ~= "") and ("Installing " .. package) or "Preparing update…"
     end
-    if not is_dismissed and install_ended(u) then
-        return install_failed(u) and "Update failed" or "Update complete"
+    if not is_dismissed and (install_ended(u) or dev.finished_at) then
+        if install_failed(u) then
+            return "Update failed"
+        end
+        return #(dev.failures or {}) > 0 and "Update finished with failures" or "Update complete"
     end
     if u.checking then
         return "Checking…"
@@ -328,12 +361,12 @@ local function status_line(u, is_dismissed, tool)
     return "Up to date"
 end
 
-local function detail_line(u, is_dismissed, tool)
+local function detail_line(u, is_dismissed, tool, dev)
     if u == nil then
         return ""
     end
     if tool ~= "" then
-        return "Developer tooling"
+        return string.format("Developer tooling · %d of %d", tool_step(tool))
     end
     if u.installing then
         local total = u.install_total_steps or 0
@@ -346,20 +379,22 @@ local function detail_line(u, is_dismissed, tool)
         return string.format("Downloading %d package%s · %s", u.count, u.count == 1 and "" or "s",
             human_bytes(download_total(u)))
     end
-    if not is_dismissed and install_ended(u) then
+    if not is_dismissed and (install_ended(u) or dev.finished_at) then
         -- The reason heads the log card, beside the output it came from.
         local start = started_at:get() or 0
-        local seconds = (u.install_finished_at or os.time()) - start
+        local seconds = (dev.finished_at or u.install_finished_at or os.time()) - start
         local time_str = (start > 0 and seconds >= 0) and (seconds < 60 and string.format("%d sec", seconds)
             or string.format("%d min %d sec", math.floor(seconds / 60), seconds % 60))
         if install_failed(u) then
             return time_str and ("Failed after " .. time_str) or "See the log below"
         end
-        local warnings = warning_count(u)
+        local ran = ran_packages(u)
+        local warnings = ran and warning_count(u) or 0
         local noted = warnings > 0 and string.format(" · %d warning%s", warnings, warnings == 1 and "" or "s") or ""
-        local count = (u.install_total_steps or 0)
+        local failed = #(dev.failures or {}) > 0 and (" · " .. table.concat(dev.failures, ", ") .. " failed") or ""
+        local count = ran and (u.install_total_steps or 0) or 0
         local count_prefix = count > 0 and string.format("%d package%s · ", count, count == 1 and "" or "s") or ""
-        return count_prefix .. (time_str and ("took " .. time_str) or "Finished") .. noted
+        return count_prefix .. (time_str and ("took " .. time_str) or "Finished") .. noted .. failed
     end
     -- A failed check keeps the last good list, so say which list is shown.
     if u.check_error ~= nil then
@@ -444,6 +479,15 @@ local packages_showing = unless_settings(computed({ mantle.updates, result_showi
     function(u, showing, tool)
         return not showing and tool == "" and u ~= nil and not u.installing and (u.checking or #packages(u) > 0)
     end))
+-- Nothing pending and nothing to report: the empty state stands in for the status card.
+local empty_showing = unless_settings(computed({ mantle.updates, result_showing, dev_running },
+    function(u, showing, tool)
+        return not showing and tool == "" and u ~= nil and not u.installing and not u.checking
+            and u.check_error == nil and (u.count or 0) == 0
+    end))
+local status_showing = computed({ settings_open, empty_showing }, function(settings, empty)
+    return not settings and not empty
+end)
 local checking = util.shown_when(mantle.updates, function(u)
     return u.checking
 end)
@@ -535,6 +579,32 @@ local busy = computed({ mantle.updates, dev_running }, function(u, tool)
     return u == nil or u.checking or u.installing or tool ~= ""
 end)
 
+-- Percent through this run's packages, then its tools; `false` while there is no count to show.
+local progress = computed({ mantle.updates, dev_running }, function(u, tool)
+    if tool ~= "" then
+        local step, total = tool_step(tool)
+        return total > 0 and 100 * step / total or false
+    end
+    local total = (u and u.installing and u.install_total_steps) or 0
+    return total > 0 and 100 * (u.install_current_step or 0) / total or false
+end)
+
+-- Config files pacman would not overwrite, from `warning: X installed as X.pacnew`; each wants a
+-- merge by hand, which a warning count alone does not say.
+local pacnew = computed({ mantle.updates, result_showing }, function(u, showing)
+    local files = {}
+    if not (showing and ran_packages(u)) then
+        return files
+    end
+    for _, line in ipairs(u.install_log or {}) do
+        local path = line:match("installed as (%S+%.pacnew)") or line:match("saved as (%S+%.pacsave)")
+        if path then
+            files[#files + 1] = path
+        end
+    end
+    return files
+end)
+
 -- "Working…": installing before pacman has counted the packages.
 local working = util.shown_when(mantle.updates, function(u)
     return u.installing and (u.install_total_steps or 0) == 0
@@ -573,22 +643,18 @@ local body = {
         },
     },
     panel_card({
-        cell(computed({ mantle.updates, dismissed, dev_running }, function(u, is_dismissed, tool)
-            return { { text = status_line(u, is_dismissed, tool), bold = true } }
+        cell(computed({ mantle.updates, dismissed, dev_running, dev_result }, function(u, is_dismissed, tool, dev)
+            return { { text = status_line(u, is_dismissed, tool, dev), bold = true } }
         end), theme.FG, theme.font.md),
-        cell(computed({ mantle.updates, dismissed, dev_running }, detail_line), theme.DIM, theme.font.xs),
+        cell(computed({ mantle.updates, dismissed, dev_running, dev_result }, detail_line), theme.DIM, theme.font.xs),
         row {
             width = "Fill",
-            visible = util.shown_when(mantle.updates, function(u)
-                return u.installing and (u.install_total_steps or 0) > 0
+            visible = progress:map(function(percent)
+                return percent ~= false
             end),
             children = {
-                meter(mantle.updates, function(u)
-                    local total = u.install_total_steps or 0
-                    if total <= 0 then
-                        return 0
-                    end
-                    return 100 * (u.install_current_step or 0) / total
+                meter(progress, function(percent)
+                    return percent or 0
                 end, theme.ACCENT, "Fill"),
             },
         },
@@ -598,7 +664,28 @@ local body = {
             visible = working,
             children = { spinner(working, theme.control.xs), cell("Working…", theme.DIM, theme.font.xs) },
         },
-    }, { tone = status_tone, width = "Fill", spacing = theme.spacing.xs, visible = not_settings }),
+    }, { tone = status_tone, width = "Fill", spacing = theme.spacing.xs, visible = status_showing }),
+    panel_empty_state("Nothing to update", empty_showing, { icon = icons.up_to_date }),
+    panel_card({
+        section_header("config files to merge"),
+        column {
+            width = "Fill",
+            spacing = theme.spacing.xs,
+            children = pacnew:map(function(files)
+                local rows = {}
+                for _, path in ipairs(files) do
+                    rows[#rows + 1] = cell(path, theme.PEACH, theme.font.xs, { width = "Fill", font = theme.mono_font })
+                end
+                return rows
+            end),
+        },
+    }, {
+        tone = "warning",
+        width = "Fill",
+        visible = unless_settings(pacnew:map(function(files)
+            return #files > 0
+        end)),
+    }),
     panel_card({
         -- Shown over the spinner too, so the table's frame is already there when the list lands.
         row {
