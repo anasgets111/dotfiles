@@ -30,7 +30,7 @@ function compositor.detach(verb)
     local name = workspaces and workspaces.compositor
     local command = name and COMMANDS[name] and COMMANDS[name][verb]
     if command == nil then
-        print(("mantle: no `%s` command for compositor %s; nothing ran"):format(verb, tostring(name)))
+        log.warn(("no `%s` command for compositor %s; nothing ran"):format(verb, tostring(name)))
         return false
     end
     process.detach(command.cmd, command.args)

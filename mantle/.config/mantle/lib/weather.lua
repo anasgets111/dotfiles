@@ -151,6 +151,7 @@ local function http_get(url, apply)
         -- `apply` raising is caught into the same retry as a dead socket. A half-applied reading
         -- cannot result: both writers write last.
         if type(data) ~= "table" or not pcall(apply, data) then
+            log.warn(("weather: fetch failed (curl exited %s), retrying"):format(tostring(code)))
             failed()
         end
     end)
@@ -170,6 +171,7 @@ local function fetch_weather(latitude, longitude)
         store:set("weather_updated_at", os.time())
         weather.failed:set(false)
         retries:set(0)
+        log.debug("weather:", current.temperature, "C, code", current.weathercode)
         schedule(REFRESH_SECONDS)
     end)
 end

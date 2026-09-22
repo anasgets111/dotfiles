@@ -196,6 +196,7 @@ local function run_commands(commands, index, done)
     end
     process.run(command[1], { table.unpack(command, 2) }, append_dev_log, function(code)
         if code ~= 0 then
+            log.error("update:", table.concat(command, " "), "exited", code)
             return done(false)
         end
         run_commands(commands, index + 1, done)

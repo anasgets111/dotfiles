@@ -167,6 +167,7 @@ local function fetch()
         local decoded = code == 0 and json.decode(table.concat(body)) or nil
         local rates = decoded and decoded.usd
         if type(rates) ~= "table" then
+            log.warn(("currency: fetch failed (curl exited %s), retrying in %ds"):format(tostring(code), RETRY_SECONDS))
             next_attempt:set(((mantle.system:get() or {}).monotonic or 0) + RETRY_SECONDS)
             return
         end
