@@ -424,6 +424,19 @@ local function last_check_line(u, now)
     return "Checked " .. when .. (now - at > CHECK_INTERVAL * 2 and " · stale" or "")
 end
 
+-- Packages whose new version only runs after a reboot, tinted in the list so that is known before
+-- installing rather than from the badge after.
+local REBOOT_PATTERNS = { "^linux", "^nvidia", "^systemd$", "^glibc$", "^amd%-ucode$", "^intel%-ucode$" }
+
+local function needs_reboot(name)
+    for _, pattern in ipairs(REBOOT_PATTERNS) do
+        if name:find(pattern) then
+            return true
+        end
+    end
+    return false
+end
+
 -- Sort by name; `alpm`'s installed-database order has no useful reading order.
 local sorted_packages = mantle.updates:map(function(u)
     local list = {}
@@ -721,7 +734,7 @@ local body = {
                     align_v = "Center",
                     spacing = theme.spacing.sm,
                     children = {
-                        cell(package.name or "?", theme.FG, theme.font.sm, { width = "Fill", align_v = "Center" }),
+                        cell(package.name or "?", needs_reboot(package.name or "") and theme.PEACH or theme.FG, theme.font.sm, { width = "Fill", align_v = "Center" }),
                         cell(package.old_version or "", theme.DIM, theme.font.xs, {
                             width = theme.update_version_width,
                             align = "End",
