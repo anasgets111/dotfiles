@@ -21,10 +21,11 @@ local bluetooth_module = icon_button(mantle.bluetooth:map(function(b)
         return icons.bt_off
     end
     return #connected(b) > 0 and icons.bt_conn or icons.bt_on
-end), function(rect)
-    ui_state.toggle_panel(bluetooth_panel.kind, rect)
-end, {
+end), nil, {
     slot = SLOT,
+    on_button = function(rect, _)
+        ui_state.toggle_panel(bluetooth_panel.kind, rect)
+    end,
     selected = ui_state.panel_showing(bluetooth_panel.kind),
     foreground = mantle.bluetooth:map(function(b)
         if b == nil or not b.enabled then

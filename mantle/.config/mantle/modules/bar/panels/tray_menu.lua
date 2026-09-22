@@ -173,8 +173,9 @@ local function row_for(row_entry)
     }
 end
 
-local body = {
-    list {
+local function menu_list(id)
+    return list {
+        id = "tray-menu-" .. tostring(id),
         width = "Fill",
         spacing = 0,
         source = rows,
@@ -184,8 +185,12 @@ local body = {
         key = function(row_entry)
             return tostring(row_entry.entry.id) .. ":" .. tostring(row_entry.depth)
         end,
-    },
-}
+    }
+end
+
+local body = item_id:map(function(id)
+    return { menu_list(id) }
+end)
 
 ---Show `item`'s menu, anchored under its icon.
 ---@param item TrayItem

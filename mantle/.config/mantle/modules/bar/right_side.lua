@@ -41,8 +41,11 @@ local clock_pill = button {
     end),
     animate = { background = theme.animation_ms },
     on_click = function(rect, mouse_button)
-        if mouse_button == "left" then
+        if mouse_button == "left" or mouse_button == "right" then
             bell.open(rect)
+        elseif mouse_button == "middle" then
+            local notifications = mantle.notifications:get()
+            mantle.notifications:invoke("set_dnd", not (notifications and notifications.dnd))
         end
     end,
     children = { row {

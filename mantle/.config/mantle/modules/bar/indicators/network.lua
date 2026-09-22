@@ -16,11 +16,14 @@ local network_colour = mantle.network:map(function(n)
     return colour
 end)
 
-local network_module = icon_button(mantle.network:map(util.network_glyph), function(rect)
-    ui_state.toggle_panel(network_panel.kind, rect)
-    network_panel.scan_while_open()
-end, {
+local network_module = icon_button(mantle.network:map(util.network_glyph), nil, {
     slot = SLOT,
+    on_button = function(rect, mouse_button)
+        if mouse_button == "left" or mouse_button == "right" then
+            ui_state.toggle_panel(network_panel.kind, rect)
+            network_panel.scan_while_open()
+        end
+    end,
     selected = ui_state.panel_showing(network_panel.kind),
     -- Lit for a link carrying the default route, not a bare association: `connected` answers the
     -- question the bar asks. A wifi link then takes its band's colour: the band is the one fact
