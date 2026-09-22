@@ -6,7 +6,7 @@
 -- "could not download; check the connection". Numbers are language-neutral; that sentence is not.
 --
 -- `modules/bar/indicators/updates.lua` schedules the checks on the cadence
--- declared below and installs from the notification action through `install` here.
+-- declared below; the notification's action installs through the `updates.install` action here.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -76,7 +76,6 @@ local function human_bytes(bytes)
             return string.format("%.1f %s", size, unit)
         end
     end
-    return string.format("%d B", bytes or 0)
 end
 
 local function download_total(u)
@@ -113,17 +112,14 @@ local function install_failed(u)
     return install_ended(u) and (u.install_error ~= nil or u.install_exit_code ~= 0)
 end
 
-local status_tone = computed({ mantle.updates, dismissed, dev_running, dev_result }, function(u, is_dismissed, tool, dev)
-    if not is_dismissed and install_failed(u) then
+local status_tone = computed({ mantle.updates, result_showing, dev_result }, function(u, showing, dev)
+    if showing and install_failed(u) then
         return "error"
     end
-    if (u ~= nil and u.check_error ~= nil) or (not is_dismissed and #(dev.failures or {}) > 0) then
+    if (u ~= nil and u.check_error ~= nil) or (showing and #(dev.failures or {}) > 0) then
         return "warning"
     end
-    if tool == "" and u ~= nil and (u.install_finished_at ~= nil or dev.finished_at) and not install_failed(u) then
-        return "active"
-    end
-    return "standard"
+    return showing and "active" or "standard"
 end)
 
 -- Absent means on, so a tool added to `config/dev_tools.lua` runs without a `state.json` edit.
@@ -131,18 +127,8 @@ local function tool_enabled(name)
     return (store.updates_dev_tools:get() or {})[name] ~= false
 end
 
--- Present as well as ticked: a run of nothing but `[SKIP]` lines is not worth a button.
-local function any_tool_runnable()
-    local present = tools_present:get() or {}
-    for _, tool in ipairs(dev_tools) do
-        if tool_enabled(tool.name) and present[tool.requires] then
-            return true
-        end
-    end
-    return false
-end
-
--- `name`'s place among the tools this run will actually start.
+-- `name`'s place among the tools a run will start: ticked and present, since a run of nothing but
+-- `[SKIP]` lines is not worth a button.
 local function tool_step(name)
     local present = tools_present:get() or {}
     local step, total = 0, 0
@@ -155,6 +141,10 @@ local function tool_step(name)
         end
     end
     return step, total
+end
+
+local function any_tool_runnable()
+    return select(2, tool_step()) > 0
 end
 
 local NOTIFICATION_ID = "8001"
@@ -224,8 +214,8 @@ local function report_run(u, failures)
         or "Developer tooling updated")
 end
 
--- Walks `config/dev_tools.lua`, carrying the failures so far. `command -v` takes the name as `$1`
--- rather than interpolated. `[SKIP]`, `▶` and `[ OK ]` are the markers `log_colour` already tints.
+-- Walks `config/dev_tools.lua`, carrying the failures so far. `[SKIP]`, `▶` and `[ OK ]` are the
+-- markers `log_colour` already tints.
 local function run_tools(index, failures)
     local tool = dev_tools[index]
     if tool == nil then
@@ -236,20 +226,18 @@ local function run_tools(index, failures)
     if not tool_enabled(tool.name) then
         return run_tools(index + 1, failures)
     end
-    process.run("sh", { "-c", 'command -v "$1" >/dev/null', "sh", tool.requires }, function() end, function(code)
-        if code ~= 0 then
-            append_dev_log(string.format("[SKIP] %s (%s not found)", tool.name, tool.requires))
-            return run_tools(index + 1, failures)
+    if not (tools_present:get() or {})[tool.requires] then
+        append_dev_log(string.format("[SKIP] %s (%s not found)", tool.name, tool.requires))
+        return run_tools(index + 1, failures)
+    end
+    dev_running:set(tool.name)
+    append_dev_log("▶ " .. tool.name)
+    run_commands(tool.run, 1, function(ok)
+        append_dev_log((ok and "[ OK ] " or "[FAIL] ") .. tool.name)
+        if not ok then
+            failures[#failures + 1] = tool.name
         end
-        dev_running:set(tool.name)
-        append_dev_log("▶ " .. tool.name)
-        run_commands(tool.run, 1, function(ok)
-            append_dev_log((ok and "[ OK ] " or "[FAIL] ") .. tool.name)
-            if not ok then
-                failures[#failures + 1] = tool.name
-            end
-            run_tools(index + 1, failures)
-        end)
+        run_tools(index + 1, failures)
     end)
 end
 
@@ -330,9 +318,8 @@ local function warning_count(u)
     return count
 end
 
--- `is_dismissed` is a parameter, not a `dismissed:get()`: a signal read inside a map over
--- `mantle.updates` alone never re-runs on close.
-local function status_line(u, is_dismissed, tool, dev)
+-- `showing` is `result_showing`, passed in: a signal read inside a map never re-runs it.
+local function status_line(u, showing, tool, dev)
     if u == nil then
         return "Waiting for the updater"
     end
@@ -343,7 +330,7 @@ local function status_line(u, is_dismissed, tool, dev)
         local package = u.install_current_package
         return (package ~= nil and package ~= "") and ("Installing " .. package) or "Preparing update…"
     end
-    if not is_dismissed and (install_ended(u) or dev.finished_at) then
+    if showing then
         if install_failed(u) then
             return "Update failed"
         end
@@ -361,7 +348,7 @@ local function status_line(u, is_dismissed, tool, dev)
     return "Up to date"
 end
 
-local function detail_line(u, is_dismissed, tool, dev)
+local function detail_line(u, showing, tool, dev)
     if u == nil then
         return ""
     end
@@ -379,7 +366,7 @@ local function detail_line(u, is_dismissed, tool, dev)
         return string.format("Downloading %d package%s · %s", u.count, u.count == 1 and "" or "s",
             human_bytes(download_total(u)))
     end
-    if not is_dismissed and (install_ended(u) or dev.finished_at) then
+    if showing then
         -- The reason heads the log card, beside the output it came from.
         local start = started_at:get() or 0
         local seconds = (dev.finished_at or u.install_finished_at or os.time()) - start
@@ -656,10 +643,10 @@ local body = {
         },
     },
     panel_card({
-        cell(computed({ mantle.updates, dismissed, dev_running, dev_result }, function(u, is_dismissed, tool, dev)
-            return { { text = status_line(u, is_dismissed, tool, dev), bold = true } }
+        cell(computed({ mantle.updates, result_showing, dev_running, dev_result }, function(u, showing, tool, dev)
+            return { { text = status_line(u, showing, tool, dev), bold = true } }
         end), theme.FG, theme.font.md),
-        cell(computed({ mantle.updates, dismissed, dev_running, dev_result }, detail_line), theme.DIM, theme.font.xs),
+        cell(computed({ mantle.updates, result_showing, dev_running, dev_result }, detail_line), theme.DIM, theme.font.xs),
         row {
             width = "Fill",
             visible = progress:map(function(percent)
@@ -847,7 +834,6 @@ local body = {
             action_button("Close", function()
                 dismiss_notifications()
                 dismissed:set(true)
-                log_open:set(false)
                 ui.close_panel()
             end, "updates-dismiss", { tone = "quiet", width = "Fill", visible = result_showing }),
         },
@@ -857,9 +843,7 @@ local body = {
 return {
     kind = KIND,
     body = body,
-    install = install,
     install_failed = install_failed,
-    install_ended = install_ended,
     dismiss_notifications = dismiss_notifications,
     toast = toast,
     result_showing = result_showing,
