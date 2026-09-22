@@ -1,6 +1,4 @@
--- The focused window's icon and title in the centre zone.
---
--- Both halves read `mantle.workspaces.active_client`. `workspaces` carries no window list;
+-- The focused window's icon and title in the centre zone. `workspaces` carries no window list, but
 -- `active_client` is in every snapshot.
 local theme = require("config.theme")
 local util = require("lib.util")
@@ -18,9 +16,8 @@ local EMPTY_LABEL = "Desktop"
 -- Fallback icon name when nothing is focused.
 local EMPTY_ICON = "applications-system"
 
--- Falls back from title to the desktop entry's name and then the raw `app_id`. A window that sets
--- no title -- a splash, a freshly mapped terminal -- otherwise captions as nothing at all while
--- still holding focus.
+-- Title, then the desktop entry's name, then the raw `app_id`: a splash or a freshly mapped terminal
+-- sets no title and would otherwise caption as nothing while holding focus.
 local function label(applications, workspaces)
     local client = focused(workspaces)
     if client == nil then
@@ -34,8 +31,7 @@ local function label(applications, workspaces)
     return (entry and entry.name) or client.class or EMPTY_LABEL
 end
 
--- `active_client.class` is the toplevel `app_id`.
--- `util.app_entry` maps it to a `.desktop` entry. This is the second `mantle.applications` consumer.
+-- `active_client.class` is the toplevel `app_id`, which `util.app_entry` maps to a `.desktop` entry.
 local focused_icon = icon {
     name = computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
         local client = focused(workspaces)
@@ -45,8 +41,7 @@ local focused_icon = icon {
         local entry = util.app_entry(applications, client.class)
         return (entry and entry.icon) or EMPTY_ICON
     end),
-    -- The centre caption is the bar's one piece of prose and its
-    -- icon reads as an app rather than a status glyph.
+    -- The centre caption is the bar's one piece of prose, so its icon reads as an app.
     size = theme.control.sm,
     align_v = "Center",
 }
@@ -57,8 +52,8 @@ return row {
     spacing = theme.spacing.xs,
     children = {
         focused_icon,
-        cell(computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
-            return { { text = util.truncate(label(applications, workspaces), theme.title_limit), bold = true } }
-        end), theme.FG, theme.font.sm, { align_v = "Center" }),
+        cell(util.bold(computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
+            return util.truncate(label(applications, workspaces), theme.title_limit)
+        end)), theme.FG, theme.font.sm, { align_v = "Center" }),
     },
 }

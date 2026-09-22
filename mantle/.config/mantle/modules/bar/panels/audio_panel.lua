@@ -1,7 +1,5 @@
--- Masthead, output/microphone cards with pickers, and one slider per app stream.
---
--- Sliders use `components/slider.lua` and `button`'s `on_drag`/`on_wheel`. Device
--- pickers and the mixer expand on click, tracked by three `state()` signals.
+-- Masthead, output/microphone cards with pickers, and one slider per app stream. Device pickers and
+-- the mixer expand on click, tracked by three `state()` signals.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -95,15 +93,15 @@ local function audio_control(opts)
                     width = "Fill",
                     align_v = "Center",
                     children = {
-                        cell({ { text = opts.title, bold = true } }, theme.FG, theme.font.sm, { width = "Fill" }),
+                        cell(util.bold(opts.title), theme.FG, theme.font.sm, { width = "Fill" }),
                         cell(util.label(mantle.audio, function(a)
                             return device_name(opts.device(a)) or "No device"
                         end), theme.DIM, theme.font.xs, { width = "Fill" }),
                     },
                 },
-                cell(computed({ mantle.audio, held }, function(a, h)
-                    return { { text = percent(h >= 0 and h or a and opts.volume(a)), bold = true } }
-                end), tint, theme.font.sm, { align_v = "Center" }),
+                cell(util.bold(computed({ mantle.audio, held }, function(a, h)
+                    return percent(h >= 0 and h or a and opts.volume(a))
+                end)), tint, theme.font.sm, { align_v = "Center" }),
                 icon_button(mute_glyph, function()
                     mantle.audio:invoke(opts.toggle_mute)
                 end, {
@@ -148,12 +146,11 @@ local function audio_control(opts)
         visible = opts.visible,
         spacing = theme.spacing.sm,
         background = theme.GLASS_CONTENT,
-        padding = { top = theme.spacing.md, right = theme.spacing.md, bottom = theme.spacing.md, left = theme.spacing.md },
+        padding = theme.spacing.md,
     })
 end
 
--- A "choose device" row expands to one row per device, with the active one
--- ringed and ticked. Show it only when there is a choice.
+-- A "choose device" row expanding to one row per device, shown only when there is a choice.
 local function device_picker(opts)
     local devices = mantle.audio:map(function(a)
         return (a and opts.list(a)) or {}
@@ -257,12 +254,12 @@ local function stream_row(app)
     }
 end
 
+-- speech-dispatcher's `sd_*` output modules hold idle streams open forever.
 local streams = mantle.audio:map(function(a)
     local shown = {}
     for _, app in ipairs((a and a.apps) or {}) do
-        -- speech-dispatcher's `sd_*` output modules hold idle streams open forever.
         if not (app.binary or ""):match("^sd_") then
-            table.insert(shown, app)
+            shown[#shown + 1] = app
         end
     end
     return shown
@@ -366,7 +363,6 @@ local body = {
         },
     },
     -- Application count, expanding to one slider per stream, capped and scrollable.
-    -- Hidden with no streams.
     panel_card({
         panel_row {
             slot = "audio-mixer",
@@ -401,7 +397,7 @@ local body = {
         end),
         spacing = theme.spacing.sm,
         background = theme.GLASS_CONTENT,
-        padding = { top = theme.spacing.sm, right = theme.spacing.sm, bottom = theme.spacing.sm, left = theme.spacing.sm },
+        padding = theme.spacing.sm,
     }),
 }
 

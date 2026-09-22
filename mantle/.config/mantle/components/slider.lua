@@ -1,16 +1,10 @@
--- Value-filled track: drag sets value anywhere; wheel steps it.
--- `button`'s `on_drag`/`on_wheel` provide track-local coordinates and wheel notches.
+-- Value-filled track: a drag sets the value anywhere, the wheel steps it, and `on_commit` fires once
+-- per drag or notch.
 --
--- During a drag, `state()` `pending` keeps fill local and avoids a Supervisor round trip per pixel.
--- Release calls `on_commit` once at the final position.
---
--- Keep `pending` until the capability snapshot carries the value.
--- Clear it with one `on_change` per slider name; clearing on release flashes new, old, new during a
--- PipeWire round trip.
--- A one-second timer releases it if the snapshot never matches: another writer or a clamped write.
--- Plain `state` without `on_change` clears on release.
--- `pending` is numeric because `state()` fixes its type at creation; `nil` has none.
--- `-1` means "nothing held", outside the value range.
+-- `pending` holds the dragged value locally, sparing a Supervisor round trip per pixel, and is kept
+-- until the snapshot carries it: clearing on release flashes new, old, new. One `on_change` per
+-- slider name clears it, with a one-second timer for a write another writer or a clamp never lands.
+-- It is numeric (`state()` fixes the type) with `-1` meaning nothing held.
 local theme = require("config.theme")
 
 ---@class SliderOpts
@@ -64,7 +58,7 @@ local function value_of(read, payload, max)
     return clamp(value, max)
 end
 
--- Per name, as `list` rebuilds rows: `on_change` registers once; `timer` and wheel `rest` persist.
+-- Per name, since `list` rebuilds rows: `on_change` registers once, `timer` and wheel `rest` persist.
 local per_name = {}
 
 ---@param opts SliderOpts
@@ -87,7 +81,7 @@ return function(opts)
                 if dragging:get() or held < 0 then
                     return
                 end
-                -- Landed, or another writer moved away from `held`; ours move toward it.
+                -- Landed, or another writer moved away from `held`; our own writes move toward it.
                 local now, before = value_of(opts.read, current, max), value_of(opts.read, previous, max)
                 if now == nil or before == nil then
                     return

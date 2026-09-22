@@ -1,32 +1,47 @@
--- One application's notifications as one card.
--- The popup stack (`modules/notification/popup.lua`) and history panel
--- (`modules/bar/panels/notification_history.lua`) share it; `opts.scope` carries their different
--- ground, timestamp, and entry motion.
--- Structure is built because `children` takes an array, not a `Bound`. A `list`'s `itemfn` runs for
--- every element on every pass (`layout::node::spec`), so moving reads rebuild the tree and
--- `state:set` dirties the scene. Appearance stays bound because it does not change it.
--- Rust added nearly all card requirements: summary/body `wrap` and `max_lines`,
--- `actions`/`invoke_action`, `image_path` beside `app_icon`, keyboard-reading
--- `textfield`, `timestamp`, and `hold_expiry`/`on_hover` so reading or
--- replying does not remove the card. Body spans preserve bold, italic,
--- underline, and accent links; links also get opener buttons. Cards and
--- messages slide/fade, and message hover ground eases. The gap the
--- cards below a dismissed one close still snaps: a leaving node takes no room, so what travels out
--- of a card is clipped by the card closing over it.
+-- One application's notifications as one card, shared by the popup stack and the history panel;
+-- `opts.scope` carries their different ground, timestamp and entry motion.
+--
+-- Structure is built, not bound: `children` takes an array, and a `list`'s `itemfn` re-runs for every
+-- element on every pass, so reads here rebuild the tree. Appearance stays bound.
+--
+-- ponytail: the cards below a dismissed one still close its gap on one frame; the engine has no move
+-- transition (`docs/roadmap.md`).
 local theme = require("config.theme")
 local icons = require("config.icons")
 local notifications = require("lib.notifications")
+local util = require("lib.util")
 local cell = require("components.cell")
 local icon_button = require("components.icon_button")
 local action_button = require("components.action_button")
 
--- Card border by urgency: low fades into glass, normal uses accent, critical is red. Read the
--- group's newest notification, which leads the card.
+-- Card border by urgency, read from the group's newest notification.
 local BORDER_BY_URGENCY = {
     low = theme.BORDER,
     normal = theme.ACCENT_MEDIUM,
     critical = theme.with_opacity(theme.RED, 0.6),
 }
+
+-- Both scopes leave the same way: travel off the right edge, faded out. This surface is one card
+-- wide, so travel clips quickly and the fade is what makes the exit legible.
+local SLIDE_EXIT = {
+    duration = theme.notification_slide_ms,
+    easing = "OutCubic",
+    translate = { x = theme.notification_width },
+    opacity = 0,
+}
+
+-- The glyph is the control, with no filled circle behind it.
+local function ghost_close(slot, on_activate)
+    return icon_button(icons.close, on_activate, {
+        size = theme.control.xs,
+        icon_size = theme.icon.xs,
+        background = "#00000000",
+        background_hover = "#00000000",
+        border = false,
+        foreground = theme.FG,
+        slot = slot,
+    })
+end
 
 -- Shared chevron for groups and messages, with the same three properties in both places.
 local function expander(is_open, on_activate, slot)
@@ -81,17 +96,9 @@ local function message(notification, ui, opts)
         end, "notification-expand-" .. tostring(id))
     end
     if not opts.standalone then
-        heading[#heading + 1] = icon_button(icons.close, function()
+        heading[#heading + 1] = ghost_close("notification-close-" .. tostring(id), function()
             mantle.notifications:invoke("dismiss", id)
-        end, {
-            size = theme.control.xs,
-            icon_size = theme.icon.xs,
-            background = "#00000000",
-            background_hover = "#00000000",
-            border = false,
-            foreground = theme.FG,
-            slot = "notification-close-" .. tostring(id),
-        })
+        end)
     end
 
     local lines = { row {
@@ -125,14 +132,12 @@ local function message(notification, ui, opts)
         lines[#lines + 1] = row { width = "Fill", spacing = theme.spacing.sm, children = pictures }
     end
 
-    -- Always show the reply field when supported, with no Reply button. Clicking it focuses the field and
-    -- gives niri's `OnDemand` layer the keyboard; focusing a `textfield` arms no click.
+    -- Always shown when supported, with no Reply button: clicking the field focuses it and gives
+    -- niri's `OnDemand` layer the keyboard.
     if notification.has_reply then
         lines[#lines + 1] = row {
-            -- `lines` is built conditionally and id-less siblings zip in order, so a
-            -- body arriving shifts every row after it. Two `row`s pass the kind guard, and the
-            -- reply row inherits the images row's node, taking the `NodeId` the Renderer holds
-            -- keyboard focus by.
+            -- `lines` is conditional and id-less siblings zip in order, so an arriving body would
+            -- hand this row the images row's node -- and with it the focused `NodeId`.
             id = "notification-reply-" .. tostring(id),
             width = "Fill",
             align_v = "Center",
@@ -145,9 +150,7 @@ local function message(notification, ui, opts)
                     placeholder = notification.reply_placeholder or "Reply",
                     font_size = theme.font.sm,
                     foreground = theme.FG,
-                    -- Each keystroke stores text for Send and renews the 60-second hold.
-                    -- Typing keeps the card alive while it continues; reload still lapses
-                    -- the hold.
+                    -- Each keystroke stores the text for Send and renews the 60-second hold.
                     on_change = function(text)
                         ui.set_reply_draft(id, text)
                         mantle.notifications:invoke("hold_expiry", 60)
@@ -156,8 +159,7 @@ local function message(notification, ui, opts)
                         ui.set_reply_draft(id, text)
                         ui.send_reply(id)
                     end,
-                    -- Escape empties the field and releases the keyboard, discarding the
-                    -- draft.
+                    -- Escape discards the draft and releases the keyboard.
                     on_cancel = function()
                         ui.clear_reply(id)
                     end,
@@ -174,16 +176,14 @@ local function message(notification, ui, opts)
         }
     end
 
-    -- Sender buttons exclude `has_reply`: the Supervisor lifts `"inline-reply"` into its own flag,
-    -- and the field above draws it.
+    -- `"inline-reply"` is lifted into `has_reply` by the Supervisor and drawn as the field above.
     local buttons = {}
     for index, action in ipairs(notification.actions or {}) do
         buttons[#buttons + 1] = action_button(action.label, function()
             mantle.notifications:invoke("invoke_action", id, action.key)
         end, string.format("notification-action-%d-%d", id, index), { icon = action.icon_name })
     end
-    -- One button per distinct body link, using `applications:open_url`. Underlined words
-    -- open it too; the button exposes links whose words three-line elision cuts off.
+    -- One button per distinct body link, for the ones elision cut off; the words open them too.
     for index, href in ipairs(notifications.notification_links(notification.body)) do
         buttons[#buttons + 1] = action_button(notifications.link_label(href), function()
             mantle.applications:invoke("open_url", href)
@@ -210,21 +210,12 @@ local function message(notification, ui, opts)
     local content = column {
         width = "Fill",
         spacing = theme.spacing.sm,
-        padding = not opts.standalone and {
-            top = theme.spacing.sm,
-            right = theme.spacing.sm,
-            bottom = theme.spacing.sm,
-            left = theme.spacing.sm,
-        } or nil,
+        padding = not opts.standalone and theme.spacing.sm or nil,
         children = lines,
     }
 
-    -- Clicking invokes the sender's default action or dismisses it, as the freedesktop spec
-    -- defines.
-    -- `invoke_action` removes it unless the sender asked it to stay.
     local hovered = hover("notification-message-" .. tostring(id))
-    -- Use an `if`, not `a and nil or b`, which cannot produce nil and gives lone messages a second
-    -- box.
+    -- An `if`, not `a and nil or b`, which cannot produce nil and would box a lone message twice.
     local ground, ring = nil, nil
     if not opts.standalone then
         -- Subtle ground and hairline, accent under the pointer. Content glass is the history
@@ -243,20 +234,15 @@ local function message(notification, ui, opts)
             from = { x = theme.notification_width },
         },
         opacity = { duration = theme.notification_slide_ms, from = 0 },
-        exit = {
-            duration = theme.notification_slide_ms,
-            easing = "OutCubic",
-            translate = { x = theme.notification_width },
-            opacity = 0,
-        },
+        exit = SLIDE_EXIT,
     }
     if ground then
         animate.background = theme.animation_ms
         animate.border_color = theme.animation_ms
     end
     return button {
-        -- Named for the notification it draws. A collapsed group reuses the newest message's slot;
-        -- without this id, the reply field's `NodeId` and draft can move under another summary.
+        -- Named for its notification: a collapsed group reuses the newest message's slot, and
+        -- without the id the reply field's `NodeId` and draft move under another summary.
         id = "notification-message-" .. tostring(id),
         width = "Fill",
         hover = hovered,
@@ -264,19 +250,16 @@ local function message(notification, ui, opts)
         background = ground,
         border_width = ring and theme.border_width or nil,
         border_color = ring,
-        -- Resting pose: an exit eases from what the node holds, and an unset property has
-        -- nothing to leave from.
+        -- Resting pose: an exit eases from what the node holds.
         translate = { x = 0 },
         opacity = 1,
-        -- The message slides from the right on entry and dismissal. A leaving node
-        -- takes no room, so opacity carries the exit while the card clips travel.
+        -- A leaving node takes no room, so opacity carries the exit while the card clips travel.
         animate = animate,
         on_click = function(_, mouse_button)
             if mouse_button ~= "left" then
                 return
             end
-            -- Keep the body inert while this message has a nonempty draft; the
-            -- X still works.
+            -- Inert while this message has a draft; the X still works.
             if ui.reply_draft_id:get() == id and (ui.reply_draft:get() or "") ~= "" then
                 return
             end
@@ -290,36 +273,18 @@ local function message(notification, ui, opts)
     }
 end
 
--- How long one card waits behind the one above it before entering. Four cards landing on one frame
--- read as one block. Only simultaneous arrivals use it; hidden subtrees stay frozen
--- (`layout::scene::prepare_node`).
+-- How long a card waits behind the one above it, so four arriving at once do not read as one block.
 local STAGGER_MS = 60
 
--- The entry and exit of a whole card, which is the one thing the two scopes disagree about.
---
--- The card uses paint-only `translate`, not `margin`; a `Fill`-width card is laid out once at
--- full width instead of re-wrapping as its margin changes.
---
--- Both edges run at `notification_slide_ms` on `OutCubic`. The bare 147 is for colour transitions.
---
--- This surface is one card wide (`modules/notification/popup.lua`), so travel clips quickly and
--- the fade makes the exit legible.
---
--- Cards below still close the gap on one frame; the engine has no move transition
--- (`docs/roadmap.md`).
+-- Card entry, the one thing the two scopes disagree about. Paint-only `translate`, not `margin`, so
+-- a `Fill`-width card is laid out once instead of re-wrapping as it moves.
 local function entry_animation(scope, rank)
-    local exit = {
-        duration = theme.notification_slide_ms,
-        easing = "OutCubic",
-        translate = { x = theme.notification_width },
-        opacity = 0,
-    }
     if scope == "history" then
-        -- A history card fades without travel. It records what happened; popup travel says an event
-        -- came from outside.
+        -- History records what happened, so it fades without travel; popup travel says an event came
+        -- from outside.
         return {
             opacity = { duration = theme.animation_ms, from = 0 },
-            exit = exit,
+            exit = SLIDE_EXIT,
         }
     end
     local delay = math.max(0, ((rank or 1) - 1)) * STAGGER_MS
@@ -332,7 +297,7 @@ local function entry_animation(scope, rank)
         },
         -- Hold the opacity too, so a waiting card is invisible where it waits.
         opacity = { duration = theme.notification_slide_ms, delay = delay, from = 0 },
-        exit = exit,
+        exit = SLIDE_EXIT,
     }
 end
 
@@ -349,9 +314,7 @@ return function(group, ui, opts)
 
     local title = is_group and string.format("%s (%d)", group.app_name, #items) or group.app_name
     local header = {
-        -- The application's icon stays artwork, not a glyph `cell` (`components/panel_row.lua`).
-        -- `icon { name = ... }` accepts a theme name or absolute path; its
-        -- plate keeps arbitrary-colour artwork off the glass.
+        -- Artwork, not a glyph: the plate keeps arbitrary-colour icons off the glass.
         rect {
             width = theme.notification_app_icon,
             height = theme.notification_app_icon,
@@ -367,8 +330,7 @@ return function(group, ui, opts)
                 align_v = "Center",
             } },
         },
-        -- Bold, centred title. `bold` lives on a `TextRun`, not the node.
-        cell({ { text = title, bold = true } }, theme.FG, theme.font.md, {
+        cell(util.bold(title), theme.FG, theme.font.md, {
             width = "Fill",
             align = "Center",
             align_v = "Center",
@@ -379,21 +341,12 @@ return function(group, ui, opts)
             ui.toggle_group(group.key)
         end, "notification-group-" .. group.key)
     end
-    -- Dismiss each member because there is neither `dismiss_all` nor `dismiss_group`. Ghost style
-    -- matches `variant: "ghost"`: the glyph is the control, not a filled circle beside the title.
-    header[#header + 1] = icon_button(icons.close, function()
+    -- Member by member: there is neither `dismiss_all` nor `dismiss_group`.
+    header[#header + 1] = ghost_close("notification-group-close-" .. group.key, function()
         for _, notification in ipairs(items) do
             mantle.notifications:invoke("dismiss", notification.id)
         end
-    end, {
-        size = theme.control.xs,
-        icon_size = theme.icon.xs,
-        background = "#00000000",
-        background_hover = "#00000000",
-        border = false,
-        foreground = theme.FG,
-        slot = "notification-group-close-" .. group.key,
-    })
+    end)
 
     local children = { row {
         width = "Fill",
@@ -402,8 +355,7 @@ return function(group, ui, opts)
         children = header,
     } }
 
-    -- Collapsed groups show the newest and count the rest in the header; expanded groups show all.
-    -- The feed caps `#items` at twenty, so no runaway guard is needed.
+    -- Collapsed groups show the newest and count the rest in the header. The feed caps `#items` at 20.
     local shown = (is_group and not expanded) and { items[1] } or items
     for _, notification in ipairs(shown) do
         children[#children + 1] = message(notification, ui, {
@@ -417,19 +369,13 @@ return function(group, ui, opts)
     return column {
         width = "Fill",
         spacing = theme.spacing.sm,
-        padding = {
-            top = theme.spacing.md,
-            right = theme.spacing.md,
-            bottom = theme.spacing.md,
-            left = theme.spacing.md,
-        },
+        padding = theme.spacing.md,
         -- Resting pose. History does not move in, but its exit still slides the card from here.
         translate = { x = 0, y = 0 },
         opacity = 1,
         animate = entry_animation(scope, group.rank),
         background = in_history and theme.GLASS_CONTENT or theme.GLASS,
-        -- A popup card is its own sheet and blurs the desktop behind it. History sits on
-        -- `panel_host`'s already-blurred card, so it does not request the same region again.
+        -- A popup card is its own sheet; history sits on `panel_host`'s already-blurred card.
         blur = not in_history,
         radius = theme.radius.md,
         border_width = theme.border_width_medium,

@@ -4,13 +4,18 @@ local util = require("lib.util")
 
 local notifications = {}
 
--- `notification.body` is a parsed freedesktop markup span array. The Supervisor
--- parses it once, and `text.content` accepts the same run shape: links become underlined
--- `link_color` runs with `href`, while the engine draws/reports pressed runs but knows no URLs.
--- Image spans go to `notifications.notification_images` because `text` refuses runs without
--- `text`. Scan only unlinked text so pasted web/file addresses become pressable while `<a href>`
--- targets survive. Strip trailing sentence punctuation, which is almost never part of a URL.
+-- Bare web and file addresses in unlinked text become links; `<a href>` targets are kept. Trailing
+-- sentence punctuation is stripped.
 local URL_PATTERNS = { "%f[%S]https?://[^%s<>'\"]+", "%f[%S]file://[^%s<>'\"]+" }
+
+local function with_text(span, text, href)
+    local copy = {}
+    for key, value in pairs(span) do
+        copy[key] = value
+    end
+    copy.text, copy.href = text, href or span.href
+    return copy
+end
 
 local function linkified(spans)
     local out = {}
@@ -34,40 +39,26 @@ local function linkified(spans)
                 local href = text:sub(first, last):gsub("[.,;:!?]+$", "")
                 last = first + #href - 1
                 if first > at then
-                    local plain = {}
-                    for key, value in pairs(span) do
-                        plain[key] = value
-                    end
-                    plain.text = text:sub(at, first - 1)
-                    out[#out + 1] = plain
+                    out[#out + 1] = with_text(span, text:sub(at, first - 1))
                 end
-                local link = {}
-                for key, value in pairs(span) do
-                    link[key] = value
-                end
-                link.text, link.href = href, href
-                out[#out + 1] = link
+                out[#out + 1] = with_text(span, href, href)
                 at = last + 1
             end
             if at == 1 then
                 out[#out + 1] = span
             elseif at <= #text then
-                local rest = {}
-                for key, value in pairs(span) do
-                    rest[key] = value
-                end
-                rest.text = text:sub(at)
-                out[#out + 1] = rest
+                out[#out + 1] = with_text(span, text:sub(at))
             end
         end
     end
     return out
 end
 
+-- Parsed markup spans to `text.content` runs. Links carry `href` for the card's `on_link`; image
+-- spans go through `notification_images`, since `text` refuses runs without text.
 function notifications.notification_body(spans, link_color)
-    spans = linkified(spans)
     local runs = {}
-    for _, span in ipairs(spans or {}) do
+    for _, span in ipairs(linkified(spans)) do
         if span.kind == "text" and span.text and span.text ~= "" then
             local is_link = span.href ~= nil and span.href ~= ""
             runs[#runs + 1] = {
@@ -76,7 +67,6 @@ function notifications.notification_body(spans, link_color)
                 italic = span.italic or false,
                 underline = span.underline or is_link,
                 color = is_link and link_color or nil,
-                -- Carries `href` to `on_link`. The engine never opens it; the card does.
                 href = is_link and span.href or nil,
             }
         end
@@ -134,13 +124,9 @@ function notifications.notification_key(notification)
     return string.format("%d:%d", notification.id or 0, notification.timestamp or 0)
 end
 
--- Group the feed by sending application, turning eight chat messages into one card. Key by sender
--- `desktop_entry`, or `app_name` when absent. Desktop ids avoid shared or changing
--- display names and key `applications.by_app_id`, supplying installed `Name=`/ `Icon=`;
--- before the first `mantle.applications` push (`nil`), use the sender's name and icon. Critical
--- first, then newest notification. The newest-first feed keeps a recently speaking app above one
--- silent for an hour; key breaks equal-second ties between passes. `opts.skip_transient` omits
--- sender-marked `transient` notifications: history omits them; popup does not.
+-- One card per sending app, keyed by `desktop_entry` (stable, and looks up the installed name and
+-- icon), else `app_name`. Critical first, then newest; the key breaks equal-second ties.
+-- `opts.skip_transient` drops `transient` notifications (history does, popups do not).
 function notifications.group_notifications(feed, applications, opts)
     opts = opts or {}
     local groups, by_key = {}, {}
@@ -178,9 +164,8 @@ function notifications.group_notifications(feed, applications, opts)
     return groups
 end
 
--- History groups: "urgent", "today", "yesterday", "earlier". Flatten for `list`; headers are
--- `kind = "header"`, and colon keys cannot collide with desktop ids, which contain no colon. `now`
--- is `mantle.system.time`; today starts at local midnight.
+-- History sections flattened for `list`, with `kind = "header"` rows. Colon keys cannot collide with
+-- desktop ids.
 function notifications.notification_sections(groups, now)
     local today = os.date("*t", now)
     local today_start = os.time({ year = today.year, month = today.month, day = today.day, hour = 0 })

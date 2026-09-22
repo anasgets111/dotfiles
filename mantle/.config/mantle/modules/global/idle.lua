@@ -1,24 +1,9 @@
--- Three idle thresholds, as one threshold plus handler.
+-- Three idle stages driven by one threshold and the `mantle.system` tick; no surface, like
+-- `modules/global/power_events.lua`. Timeouts are editable numbers in `lib/idle.lua` because a
+-- registered threshold cannot be cancelled.
 --
--- No surface, like `modules/global/power_events.lua`. `shell.lua` requires this for side effects;
--- `lib/idle.lua` holds shared facts so the bar need not require this file.
---
--- ## Why the clock
---
--- `lib/idle.lua` has the clock: thresholds cannot be unregistered, so editable timeouts must be
--- numbers rather than registrations.
---
--- ## What is not guarded here
---
--- No `armed` or inhibitor check, and no manual-toggle reread. Any logind inhibitor, including ours
--- or `systemd-inhibit`'s, makes the Supervisor hold threshold events and return `Resumed` for work
--- already idle. `on_resume` zeros `idle.since`, so the handler returns while held; only
--- the master switch is checked here.
---
--- ## Live testing
---
--- Test with the shortest thresholds and `suspend` off. A stage suspending the machine thirty
--- seconds after typing stops cannot be watched firing.
+-- No inhibitor check here: an inhibitor makes the Supervisor hold threshold events and resume,
+-- which zeroes `idle.since`, so only the master switch is read.
 local idle = require("lib.idle")
 local store = require("lib.store")
 local compositor = require("lib.compositor")
@@ -30,9 +15,8 @@ local function sync_notification_quiet()
 end
 mantle.lock:on_change(sync_notification_quiet)
 
--- Spelled per compositor in `lib.compositor`. Pair display power with keyboard backlight: a lit
--- keyboard under a dark screen means blanking stopped halfway. `backlight_pct` is `-1` without a
--- device; setting it is a dropped write.
+-- Display power and keyboard backlight move together: a lit keyboard under a dark screen means
+-- blanking stopped halfway.
 local function set_displays_powered(powered)
     if idle.blanked:get() == (not powered) then
         return
@@ -74,15 +58,9 @@ end, function()
     idle.fired_at:set({})
 end)
 
--- One pass per `mantle.system` tick, once a second; the bar clock and `power_menu.lua` countdown
--- already use it. Idle work is one comparison, with an early return otherwise.
---
--- Not a scheduler: find the stage armed *now*, stamp it once, and fire after its delay. Clear every
--- other stamp, tearing down a timer.
---
--- After unlock, the lock stage arms again and its successor loses its stamp, so the screen does not
--- blank a minute after a lock the user already answered. No unlock watcher is needed; recompute it
--- each second.
+-- Once a second, on the tick the bar clock already uses. Not a scheduler: find the stage armed
+-- *now*, stamp it once, fire after its delay, and clear every other stamp. Recomputing each second
+-- is also what makes unlock re-arm the lock stage with no unlock watcher.
 mantle.system:on_change(function(s)
     local since = idle.since:get()
     if since == 0 then

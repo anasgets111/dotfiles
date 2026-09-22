@@ -1,8 +1,6 @@
--- Order: power, left-side status modules, launcher, wallpaper, special workspaces (Hyprland only),
--- then the workspace strip.
---
--- `rescue` has no counterpart and goes first so a config error cannot be pushed off the edge. It
--- occupies no width unless configuration failed.
+-- Order: power, status modules, launcher, wallpaper, special workspaces (Hyprland only), then the
+-- workspace strip. `rescue` goes first so a config error cannot be pushed off the edge; it takes no
+-- width unless configuration failed.
 local theme = require("config.theme")
 local rescue_module = require("modules.bar.indicators.rescue")
 local power_menu = require("modules.bar.panels.power_menu")

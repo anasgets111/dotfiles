@@ -1,67 +1,48 @@
--- One `gpu-screen-recorder`, started on a region or a whole output, pausable, and saved with a
--- notification offering to play it.
---
--- `session_process` lets the Supervisor hold the child across reloads;
--- `mantle.processes` reports it, so this file needs no launch script, lock file, or poll.
---
--- The config owns the argv, file name, pause arithmetic, and notification.
+-- One `gpu-screen-recorder` on a region or a whole output, pausable, saved with a notification
+-- offering to play it. `session_process` holds the child across reloads and `mantle.processes`
+-- reports it, so no launch script, lock file or poll. The config owns the argv, file name, pause
+-- arithmetic and notification.
 local store = require("lib.store")
+local util = require("lib.util")
 
 local RECORDER = "screen-recorder"
 
--- `SIGINT` is how `gpu-screen-recorder` is told to finish: it writes the container's index on the
--- way out. `SIGTERM`, the default, would leave an unplayable file, and this is also the signal the
--- Supervisor uses when the session ends underneath a live recording.
+-- `SIGINT` makes it write the container's index on the way out; the default `SIGTERM` would leave an
+-- unplayable file. The Supervisor uses it too when the session ends under a live recording.
 local recorder = session_process { name = RECORDER, stop_signal = "INT" }
 
--- `QUALITY`: the panel's three words are not the encoder's five levels.
+-- The panel's three words are not the encoder's five levels.
 local QUALITY = { low = "medium", medium = "high", high = "very_high" }
 
--- `AUDIO`. `default_output|default_input` is one argument: gpu-screen-recorder mixes the two
--- sources itself, which is why "Desktop + Mic" is a preset here rather than two recordings.
+-- `default_output|default_input` is one argument: the recorder mixes both sources itself.
 local AUDIO = {
     off = {},
     desktop = { "-a", "default_output", "-ac", "aac" },
     mic = { "-a", "default_output|default_input", "-ac", "aac" },
 }
 
--- Config-side view facts. `capture_label` is what the panel calls this capture -- an output name or
--- "Region 1920x1080" -- and `output_path` the file being written; neither is anything the
--- Supervisor could know, since it was handed an argv.
+-- View facts the Supervisor cannot know, having been handed an argv: what the panel calls this
+-- capture, and the file being written.
 local capture_label = state("recorder_label", "")
 local output_path = state("recorder_path", "")
 
--- True between asking for a capture and the recorder answering: `slurp` is a whole subprocess of
--- user interaction, and the buttons must not offer a second start while it is up.
+-- Between asking for a capture and the recorder answering; `slurp` alone is a whole subprocess of
+-- user interaction.
 local starting = state("recorder_starting", false)
 
 -- The `slurp` in flight, so `stop` has something to cancel. Not `state`: a handle is this
 -- generation's, and an in-place reload re-requires this module and loses it.
 local selecting = nil
 
--- A stop asked for while `starting`, which is `state` because the press that asks and the moment it
--- can be obeyed are not the same moment, and may not even be the same evaluation.
---
--- Three things outlast a press: `slurp` may have exited successfully before the kill landed, so its
--- callback is pending with a good region; `launch` may already have asked the Supervisor to start,
--- and there is nothing to signal until it reports `running`; and an in-place reload drops
--- `selecting` while leaving both the child and its callback alive. Each is read here rather than
--- inferred from `starting`, which cannot say which of them is true.
+-- A stop asked for while `starting`. `state`, because the press and the moment it can be obeyed are
+-- not the same evaluation: `slurp` may exit with a good region after the kill, the Supervisor may not
+-- have reported `running` yet, and a reload drops `selecting` while the child lives on.
 local cancelled = state("recorder_cancelled", false)
 
--- ## Pause arithmetic
---
--- All four stamps are `mantle.system.monotonic`, including the start: every term is a duration,
--- so they have to share one clock, and a capability's `started_at` could not join them because a
--- monotonic reading only compares against another from the same origin. `recorder`'s own
--- `started_at` is still the Supervisor's Unix stamp and is left to callers that want a date.
--- Pause bookkeeping is this config's, because pausing is not something a process reports:
--- `paused_total` accumulates finished pauses and `paused_at` timestamps an open one, zero meaning
--- none. Elapsed time is the difference.
---
--- Both are `state`, so they survive a reload and reset when a crashed Renderer is replaced -- after
--- which paused seconds count as recorded ones. A debounced disk write per pause is not worth
--- closing it.
+-- Pause arithmetic, which no process reports: `paused_total` banks finished pauses and `paused_at`
+-- stamps an open one, elapsed being the difference. Every stamp is `mantle.system.monotonic`,
+-- including the start, since durations only compare within one origin. `state`, so they survive a
+-- reload; a replaced Renderer resets them and its paused seconds count as recorded.
 local paused_total = state("recorder_paused_total", 0)
 local paused_at = state("recorder_paused_at", 0)
 local began_at = state("recorder_began_at", 0)
@@ -77,8 +58,7 @@ local paused = paused_at:map(function(at)
     return at > 0
 end)
 
--- The output the capture defaults to. Only the focused monitor carries `focused_workspace`,
--- which is how it is identified.
+-- The default output: only the focused monitor carries `focused_workspace`.
 local monitor = mantle.workspaces:map(function(w)
     for _, out in ipairs((w and w.outputs) or {}) do
         if out.focused_workspace ~= nil then
@@ -88,9 +68,8 @@ local monitor = mantle.workspaces:map(function(w)
     return ""
 end)
 
--- A config has no XDG lookup, so ask the tool that owns it, once per session behind the same
--- `state` guard `lib/identity.lua` uses. `$HOME/Videos` is the fallback, which is what
--- `xdg-user-dir` itself answers when the user has no `user-dirs.dirs`.
+-- A config has no XDG lookup, so ask the tool, once per session. `$HOME/Videos` is `xdg-user-dir`'s
+-- own answer without `user-dirs.dirs`.
 local directory = state("recorder_directory", "")
 if directory:get() == "" then
     process.run("xdg-user-dir", { "VIDEOS" }, function(line)
@@ -163,20 +142,14 @@ local function launch(capture_args, label)
     end
     local path = string.format("%s/%s.%s", dir:gsub("/$", ""), os.date("%Y%m%d_%H%M%S"), container)
 
-    local args = {}
-    local function append(list)
-        for _, value in ipairs(list) do
-            args[#args + 1] = value
-        end
-    end
-    append(capture_args)
-    append({ "-o", path })
-    append({ "-q", QUALITY[setting("quality", "high")] or "very_high" })
-    -- `math.floor` before `tostring`: a frame rate that made a round trip through JSON can come
-    -- back as a float, and gpu-screen-recorder refuses `-f 60.0`.
-    append({ "-f", tostring(math.floor(tonumber(setting("fps", 60)) or 60)) })
-    append(AUDIO[setting("audio", "desktop")] or AUDIO.desktop)
-    append({ "-cursor", "yes" })
+    local args = util.concat(capture_args, {
+        "-o", path,
+        "-q", QUALITY[setting("quality", "high")] or "very_high",
+        -- `math.floor`: a rate round-tripped through JSON comes back a float, and `-f 60.0` is refused.
+        "-f", tostring(math.floor(tonumber(setting("fps", 60)) or 60)),
+    })
+    args = util.concat(util.concat(args, AUDIO[setting("audio", "desktop")] or AUDIO.desktop),
+        { "-cursor", "yes" })
 
     capture_label:set(label)
     output_path:set(path)
@@ -212,8 +185,7 @@ local function start(mode)
         selecting = nil
         starting:set(false)
         local selected = region:match("^%s*(.-)%s*$")
-        -- Checked before the exit status, not after: killing `slurp` does not guarantee a non-zero
-        -- exit, because it may have exited cleanly with a region while the kill was in flight.
+        -- Before the exit status: a killed `slurp` may still have exited cleanly with a region.
         if cancelled:get() then
             cancelled:set(false)
             return
@@ -221,10 +193,7 @@ local function start(mode)
         if code ~= 0 or selected == "" or recording:get() then
             return
         end
-        -- `-w <WxH+X+Y>` rather than `-w region -region <WxH+X+Y>`. The installed
-        -- gpu-screen-recorder deprecates the second form -- "use -w with region directly instead"
-        -- -- and it also fails on this version, writing nothing; the same geometry through `-w`
-        -- records cleanly.
+        -- `-w <WxH+X+Y>`: this version deprecates `-w region -region ...` and writes nothing for it.
         launch({ "-w", selected }, string.format("Region %s", selected:match("^[^+]*")))
     end)
 end
@@ -234,8 +203,7 @@ local function stop()
         recorder:signal("INT")
         return
     end
-    -- Nothing is up yet, so record the refusal instead of dropping it: the selection callback and
-    -- the `running` edge below both look here before they let a capture through.
+    -- Nothing is up yet, so record the refusal: the selection callback and the `running` edge read it.
     if starting:get() then
         cancelled:set(true)
         if selecting then
@@ -244,11 +212,8 @@ local function stop()
     end
 end
 
--- One press, whatever is in flight. Here and not in the indicator, which cannot see `starting`.
---
--- Returns what the press did, not the state after it: `stop` kills `slurp` and the exit callback
--- that clears `starting` has not run yet, so reading the signal back would report "starting" for a
--- press that just cancelled.
+-- One press, whatever is in flight; the indicator cannot see `starting`. Returns what the press did,
+-- not the state after it, which still reads "starting" until `slurp`'s exit callback runs.
 local function toggle()
     if recording:get() then
         stop()
@@ -258,21 +223,17 @@ local function toggle()
         stop()
         return "cancelled"
     end
-    -- A press with nothing in flight clears a cancel nothing consumed, so a stale flag cannot eat
-    -- the capture after it.
+    -- Clear a cancel nothing consumed, so a stale flag cannot eat this capture.
     cancelled:set(false)
     start("selection")
     return "starting"
 end
 
--- `mantle call rec.toggle`, so a compositor keybind reaches the same decision the indicator makes.
--- Returns what the press left behind, which is the only feedback a terminal caller gets.
--- The word names the press, not the recording: a capture that dies a second later still started
--- here, and nothing synchronous could have known.
+-- `mantle call rec.toggle`: the same decision the indicator makes. The returned word names the
+-- press, not the recording, which is all a terminal caller can be told synchronously.
 action("rec.toggle", toggle)
 
--- `toggle_pause` is `SIGUSR2` either way; which edge it was is this config's bookkeeping, since the
--- recorder reports only that it is still up.
+-- `SIGUSR2` either way; which edge it was is this config's bookkeeping.
 local function toggle_pause()
     if not recording:get() then
         return
@@ -287,17 +248,10 @@ local function toggle_pause()
     end
 end
 
--- Notify on every end, not only a requested one: a recorder that died on its own still
--- wrote a file; saying nothing loses the capture.
---
--- Exit status decides the notification. `gpu-screen-recorder` answers `SIGINT` by writing the
--- container's index and exiting 0, so zero means there is a file worth offering. Anything else is a
--- refusal -- a codec it cannot open or an audio device that is not there -- and it happens fast
--- enough that an unconditional "Recording saved" would land on a missing file.
---
--- `-A default=Play` arms clicking the popup itself and is hidden from the action row, so one button
--- is drawn; `notify-send` then blocks until the popup expires and prints the chosen key. That
--- process outliving a reload is fine -- it is a `process.run` child with nothing to finish.
+-- Every end, not only a requested one: a recorder that died on its own still wrote a file. Exit zero
+-- means the index was written and there is something to offer; anything else is a refusal that would
+-- otherwise announce a missing file. `-A default=Play` arms the popup body and draws no second
+-- button; `notify-send` blocks until the popup expires and prints the chosen key.
 local function announce_saved(finished_at, began, exit_code)
     local path = output_path:get()
     if path == "" then
@@ -343,8 +297,7 @@ local function session_of(payload)
     return ((payload or {}).sessions or {})[RECORDER]
 end
 
--- One handler for both edges the Supervisor can report. `starting` is cleared by whichever arrives:
--- the recorder came up, or it never did and `start_error` says why.
+-- Both edges the Supervisor can report: it came up, or `start_error` says why it did not.
 mantle.processes:on_change(function(current, previous)
     local was = session_of(previous)
     local now = session_of(current)
@@ -353,17 +306,15 @@ mantle.processes:on_change(function(current, previous)
     end
     if now.running then
         starting:set(false)
-        -- The press that asked arrived before there was a process to signal. This is the first
-        -- moment there is one.
+        -- The press arrived before there was a process to signal; this is the first moment there is.
         if cancelled:get() then
             cancelled:set(false)
             recorder:signal("INT")
         end
         return
     end
-    -- The *edge*, not the field: `start_error` stays set until the next `start` clears it, and any
-    -- later push -- a reload republishing the declaration, most easily -- would otherwise read an
-    -- old failure as this attempt's and retire a cancel belonging to the selection now in flight.
+    -- The edge, not the field: `start_error` stays set until the next `start`, so a later push would
+    -- read an old failure as this attempt's.
     if now.start_error ~= "" and now.start_error ~= ((was or {}).start_error or "") then
         starting:set(false)
         -- It never came up, so there is nothing left for a pending cancel to stop.

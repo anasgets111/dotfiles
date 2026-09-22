@@ -59,8 +59,8 @@ return function(opts)
             border_color = theme.GLASS_BORDER,
             padding = {
                 top = opts.padding_v or theme.spacing.xs,
-                right = theme.spacing.sm,
                 bottom = opts.padding_v or theme.spacing.xs,
+                right = theme.spacing.sm,
                 left = theme.spacing.sm,
             },
         }),

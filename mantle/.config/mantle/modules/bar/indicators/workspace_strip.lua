@@ -1,20 +1,14 @@
--- Active workspace collapses to one circle; pointer expands it.
--- It shows one circle per workspace and narrows `theme.animation_ms + 200` after the pointer leaves.
--- `components/expanding_pill.lua` supplies the shared pill, also used by the power menu.
+-- One circle per workspace, collapsing to the active one and re-narrowing `theme.animation_ms + 200`
+-- after the pointer leaves (`components/expanding_pill.lua`). Ground: accent when active, glass when
+-- populated, `DISABLED` at half opacity when empty. A circle draws the standing window's icon when
+-- `applications` knows its `app_id`, else `idx` -- never `name`, which elides to three dots while
+-- the number is the keybind's target.
 --
--- Ground: accent when active, glass when populated, `DISABLED` at half opacity when empty.
--- Use the standing window's icon when applications knows its `app_id`, else `idx`,
--- never `name`: an elided name draws three dots, while the number is the keybind's target.
+-- It collapses to the first output's `active_workspace`, not the focused one: every output has an
+-- active workspace but only one has focus, so another monitor would collapse to nothing.
 --
--- Collapse to the first output's `active_workspace`, not the focused workspace. Every output has an
--- active workspace but only one has focus, so another monitor would otherwise collapse to nothing.
---
--- Hyprland pads to ten slots: it lists no empty workspaces, creates a numbered one on
--- focus, and dims padded numbers here. Each padded slot focuses that number. Niri keeps a trailing
--- empty workspace and needs no padding.
--- The payload lists only existing workspaces; padding is this strip's `compositor`-keyed policy.
---
--- The ground and border ease between states; the expansion is the pill's.
+-- Hyprland lists no empty workspaces and creates a numbered one on focus, so this pads to ten dimmed
+-- slots; Niri keeps a trailing empty workspace and needs none.
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
@@ -26,9 +20,8 @@ local function output_of(w)
     return w and (w.outputs or {})[1]
 end
 
--- Pad listed workspaces with `{ id = n, idx = n, populated = false }` up to `PADDED_SLOTS` or the
--- highest number in use. On a compositor where `id` is the number, focusing a missing one
--- creates it. The padded entry matches a real one, and its `id` is sent to `focus`.
+-- Pad up to `PADDED_SLOTS` or the highest number in use. On a compositor where `id` is the number,
+-- focusing a missing one creates it, so a padded entry carries the same `id` a real one would.
 local function workspaces_of(w)
     local out = output_of(w)
     local listed = out and (out.workspaces or {}) or {}

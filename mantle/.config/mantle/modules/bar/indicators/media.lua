@@ -1,15 +1,8 @@
--- ## Why the bars are flat
---
--- Cava needs 30fps frames. The engine has no shader or canvas node; its nine node types draw no
--- waveform.
--- `rect`s can carry levels, but per-frame pushes are the first such path here; the bar logs
--- `exceeded the 5ms CPU budget` failures. Not attempted.
---
--- Flat is not a placeholder shape, though: a spectrum at zero level draws exactly this row.
+-- The bars are flat because cava needs 30fps frames and the engine has no shader or canvas node:
+-- pushing `rect` levels per frame trips the 5ms CPU budget. A spectrum at zero draws this same row.
 local theme = require("config.theme")
 
--- Cava's configured bar count is 256. Fewer here because each is a real node, not a shader lane.
--- At rest it reads as the same fine rule; 256 static children buy nothing until they carry levels.
+-- Cava is configured for 256, but each bar here is a real node and at rest they read as one rule.
 local BARS = 48
 
 local GAP = theme.border_width
@@ -41,7 +34,7 @@ return rect {
         width = "Fill",
         height = "Fill",
         align_v = "End",
-        padding = { top = theme.spacing.xs, right = theme.spacing.xs, bottom = theme.spacing.xs, left = theme.spacing.xs },
+        padding = theme.spacing.xs,
         spacing = GAP,
         animate = { background = { duration = theme.animation_ms, easing = "OutCubic" } },
         children = children,

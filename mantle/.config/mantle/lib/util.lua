@@ -1,8 +1,7 @@
 -- Pure helpers with no nodes, kept out of `components/`.
 local util = {}
 
--- Capability signals are `nil` until the first Supervisor snapshot, and payload readers may raise.
--- Map `nil` to "--" and reader errors to "!", leaving each module one line for its payload.
+-- `nil` payload to "--" and a raising reader to "!", so each module needs one line for its readout.
 function util.label(signal, read)
     return signal:map(function(value)
         if value == nil then
@@ -16,8 +15,7 @@ function util.label(signal, read)
     end)
 end
 
---- The `TextRun` list a bold `cell` takes. `cell` has no `bold` property, and a signal has to be
---- mapped into the run rather than dropped inside one, so every bold readout repeated this map.
+--- The `TextRun` list a bold `cell` takes; `cell` has no `bold` property.
 ---@param label string|Bound
 ---@return TextRun[]|Bound
 function util.bold(label)
@@ -30,9 +28,8 @@ function util.bold(label)
     end)
 end
 
---- A fresh list holding `first` then `second`. Mutating a table a signal already holds leaves the
---- signal's value identical and the scene clean, so every push needs a copy, and `{table.unpack(t)}`
---- cannot make one: it is bounded by the Lua stack, which a long install log reaches.
+--- A fresh list holding `first` then `second`. Every signal push needs a copy, and
+--- `{table.unpack(t)}` is bounded by the Lua stack, which a long install log reaches.
 ---@param first table|nil
 ---@param second table|nil
 ---@return table
@@ -47,15 +44,9 @@ function util.concat(first, second)
     return out
 end
 
--- Human-readable words for `mantle.battery.state`'s seven UPower names, shared by the pill tooltip,
--- power menu, and lock screen.
--- `PendingCharge` matters when a laptop with `charge_control_end_threshold` set sits plugged in at
--- the limit. Neither pending state *means* the limit, though. UPower says only "plugged in and not
--- charging", and this machine reports it for a few seconds at every plug-in while the asus driver
--- still reads `Not charging`. The number is not available to say otherwise: UPower 1.91 carries
--- `ChargeEndThreshold` but reports 80 with `ChargeThresholdEnabled` false here, against sysfs's 70,
--- because asusd writes it behind UPower. So both phrases say what UPower observed and leave the
--- cause to whoever set the limit.
+-- Words for `mantle.battery.state`'s seven UPower names. The pending phrases say only what UPower
+-- observed: it reports `PendingCharge` at every plug-in, and its `ChargeEndThreshold` disagrees with
+-- sysfs here, so neither state can claim a charge limit.
 local BATTERY_PHRASES = {
     Charging = "charging",
     Discharging = "discharging",
@@ -70,11 +61,8 @@ function util.battery_phrase(state)
     return BATTERY_PHRASES[state] or "state unknown"
 end
 
--- Battery display helpers: warnings use `Discharging` and `Empty`. `PendingDischarge` does not warn
--- because it is not draining -- by its name the discharge is pending, and UPower defines it no
--- further. `battery_eta` returns `", 2h 14m left"` or `""`. UPower
--- UPower estimates one duration at a time and neither while learning the rate, so the empty string
--- is common during the first minute after a plug or a boot, not an error.
+-- `", 2h 14m left"`, or `""`: UPower estimates one duration at a time and neither while learning the
+-- rate, so an empty answer is ordinary in the first minute after a plug or a boot.
 function util.battery_eta(b)
     local seconds, suffix
     if b.time_to_empty then
@@ -106,20 +94,15 @@ function util.battery_at_most(b, percent)
     return b ~= nil and b.present and util.battery_is_draining(b.state) and b.percent <= percent
 end
 
--- Five-level glyph plus the two cable states, shared by `modules/bar/indicators/battery.lua` and
--- the lock card's status row. It takes the raw payload so a caller with a `nil` battery still gets
--- the AC glyph rather than a branch of its own.
--- `PendingCharge` gets the bolt; `Charging` and `FullyCharged` get the plug. That is not the obvious
--- order, explained at the branch below.
+-- Five-level glyph plus the two cable states. Takes the raw payload, so a `nil` battery draws the AC
+-- glyph rather than needing a branch at the caller.
 function util.battery_glyph(b)
     local icons = require("config.icons")
     if b == nil or not b.present then
         return icons.battery_ac
     end
-    -- Not the obvious order: `PendingCharge` is tested *first* and gets the charging bolt, and
-    -- everything else on mains gets the plug -- so a battery that is actually charging draws the
-    -- plug, and only a stopped one draws the bolt. That reads correctly on a machine with a limit
-    -- set, where charging is the ordinary state and stopped is the one worth a distinct glyph.
+    -- Deliberately inverted: charging is the ordinary state on a machine with a charge limit, so it
+    -- draws the plug and only a stopped charge gets the distinct bolt.
     if b.state == "PendingCharge" then
         return icons.battery_pending
     end
@@ -131,12 +114,9 @@ function util.battery_glyph(b)
     return icons.battery_levels[math.max(1, math.min(5, bucket))]
 end
 
--- Resolve an `app_id` through `mantle.applications.by_app_id`. Callers supply different
--- spellings: a desktop file id (`modules/global/launcher.lua`), compositor toplevel `app_id`
--- (`modules/bar/indicators/active_window.lua`), or StatusNotifierItem `Id`
--- (`modules/bar/indicators/sys_tray.lua`).
--- Fold only the caller's spelling here; the map already carries case-folded keys. Doing it in Rust
--- would make the capability guess which caller key was intended.
+-- An `app_id` through `mantle.applications.by_app_id`. Callers spell it as a desktop file id, a
+-- toplevel `app_id` or a StatusNotifierItem `Id`, so fold the caller's spelling; the map's keys are
+-- already folded.
 function util.app_entry(applications, app_id)
     if applications == nil or app_id == nil or app_id == "" then
         return nil
@@ -186,10 +166,8 @@ function util.audio_device_glyph(device, is_input)
     end
 end
 
--- Shared icon mapping for `modules/bar/indicators/volume.lua` and `modules/osd/popup.lua`. It
--- takes raw `mantle.audio`, not a signal, so callers choose their `nil` behavior. `--` without a
--- volume, muted, then four steps by level, as Nerd Font glyphs rather than themed icon names: the
--- OSD accent-tints them and themed icons cannot be tinted.
+-- Raw `mantle.audio`, not a signal, so callers choose their `nil` behavior. Nerd Font glyphs rather
+-- than themed icons, which the OSD could not tint.
 function util.volume_glyph(a)
     local icons = require("config.icons")
     if a == nil or a.volume == nil then
@@ -217,8 +195,7 @@ function util.network_glyph(n)
     if n.ssid == "Ethernet" then
         return icons.ethernet
     end
-    -- A dead radio and a live one joined to nothing are different pictures. `wifi_enabled` was
-    -- added to `NetworkState` so the first can be drawn.
+    -- A dead radio and a live one joined to nothing are different pictures.
     if not n.networking_enabled or not n.wifi_enabled then
         return icons.wifi_off
     end
@@ -235,9 +212,8 @@ function util.signal_tier(strength)
     return percent >= 95 and 4 or percent >= 80 and 3 or percent >= 50 and 2 or 1
 end
 
--- Bluetooth devices by shown name, then MAC. The Supervisor builds both lists from a `HashMap`, so
--- their order can change on any rebuild and rows would swap under the pointer. `"\0"` sorts below
--- every name character, so a name that prefixes another still sorts first.
+-- Bluetooth devices by shown name, then MAC: the Supervisor builds the lists from a `HashMap`, whose
+-- order changes on any rebuild. `"\0"` sorts below every name character.
 function util.sorted_devices(devices)
     local function key(device)
         return (device.name ~= "" and device.name:lower() or device.mac) .. "\0" .. device.mac
@@ -249,11 +225,8 @@ function util.sorted_devices(devices)
     return out
 end
 
--- A band's colour plus the short label the panel draws beside the bars: "6G", "5G", "2.4".
--- Shared because the bar tints its glyph by the associated band and the panel tints every row; two
--- copies drift apart. Like
--- `volume_glyph`, it takes raw payload with no signal, and the caller decides about `nil`. A `nil`
--- label with `FG` is the honest answer for ethernet and for a band nothing reported.
+-- A band's short label and colour: "6G", "5G", "2.4". `nil` with `FG` covers ethernet and a band
+-- nothing reported.
 ---@param ap AccessPointInfo?
 ---@return string? # Short band label, or `nil` when there is no band to name.
 ---@return Color # The band's colour, or `FG`.
@@ -270,9 +243,8 @@ function util.band_of(ap)
     return nil, theme.FG
 end
 
--- The `available_networks` entry the link is actually on. `NetworkState` carries `ssid` and
--- `strength` for the association but not its band, so anything band-shaped has to come back through
--- the AP list. A wired link has no entry here, which is why callers need no separate ethernet case.
+-- The `available_networks` entry the link is on: `NetworkState` carries no band, so band-shaped
+-- questions come back through the AP list. A wired link has no entry, so callers need no branch.
 ---@param n NetworkState?
 ---@return AccessPointInfo? # The associated access point, or `nil`.
 function util.active_access_point(n)
@@ -284,14 +256,10 @@ function util.active_access_point(n)
     return nil
 end
 
--- Hide a module with no content instead of showing a "--" pill. `visible` is a signal-bound base
--- property, so hidden children are skipped by row positioning rather than laid out at zero
--- width. Use a codepoint budget here, the exception to `components/cell.lua`'s pixel-box rule.
--- Centre-zone modules need content-sized nodes between two `Fill` sides; bounding them made short
--- "(1) WhatsApp" sit a hundred pixels left of centre. ponytail: "WWWW" and "iiii" share four
--- codepoints but differ in width, so this cuts to a ragged pixel width. Upgrade with
--- `text.max_width`, letting the engine measure/elide while reporting the string's own width when it
--- fits; that requires a layout change, not config.
+-- A codepoint budget, the exception to `components/cell.lua`'s pixel-box rule: centre-zone modules
+-- need content-sized nodes between two `Fill` sides, and bounding them pushed short labels off
+-- centre. ponytail: codepoints are a ragged pixel width. Wants a `text.max_width` that measures and
+-- elides while reporting the string's own width when it fits -- a layout change, not config.
 function util.truncate(value, limit)
     local s = tostring(value or "")
     local count = utf8.len(s)
@@ -311,16 +279,12 @@ function util.shown_when(signal, predicate)
     end)
 end
 
--- `signal` or its value from up to `ms` ago: true while the source is true and for `ms` after it
--- drops. The hidden subtree keeps its content and `delay` keeps the surface mapped while
--- the exit tween runs.
+-- True while the source is true and for `ms` after it drops, keeping the surface mapped through an
+-- exit tween.
 function util.linger(signal, ms)
     return computed({ signal, delay(signal, ms) }, function(now, was)
-        -- `== true` rather than `now or was`, which returns whatever `delay` holds. `delay` answers
-        -- the source's older value, and before the first change settles that is the property's
-        -- identity, `0` -- a number Lua calls truthy and the engine refuses, so `modal_host`'s
-        -- `visible` would get `Integer(0)` and the whole re-resolve would be dropped. Every caller
-        -- here feeds a `visible`, so the boolean is the helper's job to guarantee.
+        -- `== true`, not `now or was`: before the first change `delay` holds the property's identity,
+        -- `0`, which Lua calls truthy and a `visible` refuses.
         return now == true or was == true
     end)
 end
@@ -335,15 +299,13 @@ function util.read_bool(value, read)
     return ok and result == true
 end
 
--- Whitespace off both ends. Parenthesised because `gsub` also returns its count, and a caller
--- writing `return util.trim(x)` would otherwise return two values.
+-- Whitespace off both ends. Parenthesised: `gsub` also returns its count.
 function util.trim(text)
     return (tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
--- Thousands separators into an already-formatted number, for the launcher's calculator and
--- currency rows. Reverse, group, reverse, because grouping from the right is what makes "1234"
--- read as "1,234" rather than "123,4".
+-- Thousands separators into an already-formatted number. Reversed, because grouping runs from the
+-- right: "1234" is "1,234", not "123,4".
 function util.thousands(formatted)
     local sign, digits, rest = formatted:match("^(%-?)(%d+)(.*)$")
     if not digits then

@@ -1,7 +1,5 @@
--- Two capture buttons, four encoder choices in one expandable row, and a folder action.
---
--- This panel names each capture, shows capture status, and exposes encoder settings without a
--- keybind.
+-- Two capture buttons, four encoder choices in one expandable row, and a folder action: the only
+-- way to reach the encoder settings without a keybind.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
@@ -113,8 +111,7 @@ local status_text = computed(
     end
 )
 
--- The detail line follows the selected tile, not every tile. Only the current choice needs an
--- explanation.
+-- The detail line follows the selected tile: only the current choice needs an explanation.
 local function option_group(group)
     local tiles = {}
     for _, option in ipairs(group.options) do
@@ -168,6 +165,23 @@ settings_children[#settings_children + 1] = cell("Changes apply to the next reco
     visible = recorder.recording,
 })
 
+local idle = recorder.recording:map(function(up)
+    return not up
+end)
+
+local function capture_button(label, slot, icon, target)
+    return action_button(label, function()
+        ui_state.close_panel()
+        recorder.start(target)
+    end, slot, {
+        tone = "solid",
+        width = "Fill",
+        height = theme.control.xl,
+        glyph = icon,
+        visible = idle,
+    })
+end
+
 local body = {
     panel_header {
         title = "Screen recorder",
@@ -185,40 +199,16 @@ local body = {
         },
     },
 
-    -- Four buttons in two slots, not two colour-changing buttons. `components/action_button.lua` fixes its three grounds from static
-    -- `tone`. Making `tone` live would map rest, hover, border, and ink through one signal each for
-    -- one caller. Invisible nodes take no size or spacing gap (`layout/scene.rs`), so a pair per
-    -- state costs the same row and each button keeps one label, one tone, and one job.
+    -- Four buttons in two slots, not two colour-changing ones: `action_button` fixes its grounds
+    -- from a static `tone`, and an invisible node takes no size or spacing gap (`layout/scene.rs`),
+    -- so a pair per state costs the same row and each button keeps one label and one job.
     row {
         width = "Fill",
         spacing = theme.spacing.sm,
         children = {
-            action_button("Region", function()
-                ui_state.close_panel()
-                recorder.start("selection")
-            end, "recorder-region", {
-                tone = "solid",
-                width = "Fill",
-                height = theme.control.xl,
-                glyph = icons.region,
-                visible = recorder.recording:map(function(up)
-                    return not up
-                end),
-            }),
-            action_button("Screen", function()
-                ui_state.close_panel()
-                recorder.start()
-            end, "recorder-screen", {
-                tone = "solid",
-                width = "Fill",
-                height = theme.control.xl,
-                glyph = icons.display,
-                visible = recorder.recording:map(function(up)
-                    return not up
-                end),
-            }),
-            -- This control ends a running capture, so it uses the alert colour instead of the
-            -- accent.
+            capture_button("Region", "recorder-region", icons.region, "selection"),
+            capture_button("Screen", "recorder-screen", icons.display),
+            -- Ending a running capture takes the alert colour, not the accent.
             action_button("Stop", recorder.stop, "recorder-stop", {
                 tone = "danger",
                 width = "Fill",
@@ -255,8 +245,7 @@ local body = {
             settings_expanded:set(not settings_expanded:get())
         end,
     },
-    -- Invisible children take no size or spacing gap (`layout/scene.rs`), so the collapsed row
-    -- costs nothing and the card's measured height follows the reveal.
+    -- An invisible child takes no size or spacing gap, so the card's height follows the reveal.
     column {
         width = "Fill",
         spacing = theme.spacing.md,

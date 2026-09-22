@@ -1,31 +1,13 @@
--- Autofocus search, arrow navigation, Enter launch.
+-- Autofocus search, arrow navigation, Enter launch. A layer surface, not an `xdg_toplevel`, which
+-- niri would tile beside other windows.
 --
--- ## Engine pieces
+-- `selected_id` holds the last key or hover choice; `effective_selected` keeps it when its row is
+-- visible and falls back to the first, computed once for the whole list so three hundred rows stay
+-- inside the 5ms budget. Mouse and arrows move the same ring.
 --
--- A plain `textfield` with `autofocus = true` gets the keyboard on map and opens empty. `on_change`
--- filters, `on_navigate` moves and reveals selection, `on_submit` launches, and `on_cancel` closes.
--- A compositor keybind toggles the shared `modal` state (`mantle toggle modal launcher`,
--- `lib/ui_state.lua`), so it must be a named `state`.
---
--- ## Layer surface, not `window`
---
--- An `xdg_toplevel` would be tiled by niri beside other windows at the column's size. A screen-sized
--- `panel` bound to `launcher_open` takes and returns the keyboard on map/unmap and closes through
--- its outside catcher.
---
--- ## Selection
---
--- `selected_id` stores the last key/hover choice: app id, `SPECIAL`, or empty. `effective_selected`
--- keeps that row if visible, else the first row, computed once for the list so each row maps one
--- signal. This keeps three hundred rows within the 5ms graph budget. Hover selection means mouse and
--- arrows move the same ring.
---
--- ## The special row
---
--- A query routes through providers and keeps at most one, drawn as a single row above the apps,
--- carrying whichever provider claimed: currency, then calculator, then the web fallback. Providers
--- return plain tables rather than closures, because a `computed` value is marshalled and a function
--- is not; `activate` switches on `kind`.
+-- A query routes through the providers -- currency, calculator, then the web fallback -- and the
+-- first to claim draws the special row above the apps. They return plain tables because a
+-- `computed` marshals a value and cannot carry a closure.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
@@ -65,15 +47,9 @@ local function entries_of(applications)
     return (applications and applications.entries) or {}
 end
 
--- ## Matching
---
--- One string per entry, scored by `fuzzy`, ordered by score and then by tiebreakers,
--- match start and then length. The name comparison after those is ours, because `table.sort` is
--- unstable and two entries alike on all three keys would otherwise trade places between
--- keystrokes.
---
--- The haystack is wider than name and comment. "text editor" is Zed's `GenericName` and "image" is
--- one of GIMP's `Keywords`; neither word is anywhere in those entries' name or comment.
+-- One string per entry, scored by `fuzzy` and ordered by score, match start, then length. The name
+-- comparison last is ours: `table.sort` is unstable, so entries alike on all three would trade
+-- places between keystrokes. The haystack takes keywords too -- "image" is only in GIMP's.
 local haystack_cache = setmetatable({}, { __mode = "k" })
 local function cached_haystack(app)
     local h = haystack_cache[app]
@@ -136,9 +112,7 @@ local results = matches:map(function(found)
     return found.apps
 end)
 
--- ## Web row
---
--- Hostname-shaped input opens as a link; other input searches. Show for a URL always, otherwise
+-- Hostname-shaped input opens as a link, other input searches. Always shown for a URL, otherwise
 -- only when the apps matched weakly.
 local function looks_like_url(text)
     return text:match("^https?://[^%s]+$") ~= nil or text:match("^[%w%-]+%.[%w%-%.]+[%w]/?[^%s]*$") ~= nil
@@ -198,9 +172,8 @@ local special = computed(
     end
 )
 
--- Ring `selected_id` when its row shows, else the first row. That is the launch target before input
--- and after filtering removes the hovered row. One `computed` serves the list; each row asks it
--- once.
+-- `selected_id` when its row shows, else the first: the launch target before any input, and after
+-- filtering drops the hovered row.
 local effective_selected = computed({ selected_id, results, special }, function(id, found, row)
     local first = row and SPECIAL or (found and found[1] and found[1].id) or ""
     if id == "" then
@@ -217,10 +190,7 @@ local effective_selected = computed({ selected_id, results, special }, function(
     return first
 end)
 
--- ## Selection
---
--- Read arrow-key order when the key arrives, never inside a `computed`: the visible special row
--- first, then results.
+-- Arrow-key order, read when the key arrives and never inside a `computed`.
 local function rows_now()
     local found = results:get() or {}
     local ids = {}
@@ -276,10 +246,8 @@ local function activate()
         if row.kind == "web" then
             mantle.applications:invoke("open_url", row.payload)
         else
-            -- A Wayland selection belongs to a process that stays alive to serve
-            -- it, which is what `process.detach` gives `wl-copy` and what a generation cannot
-            -- promise: a `process.run` child's group is reaped when its Renderer is replaced, and the
-            -- selection goes with it.
+            -- A Wayland selection lives as long as its owner, and a `process.run` child is
+            -- reaped with its Renderer, taking the clipboard with it.
             process.detach("wl-copy", { row.payload })
         end
     else
@@ -287,8 +255,6 @@ local function activate()
     end
     close()
 end
-
--- ## Rows
 
 local function is_selected(id)
     return effective_selected:map(function(selected)
@@ -315,8 +281,7 @@ local function row_shell(id, slot, children, opts)
             background = theme.animation_fast_ms,
             border_color = theme.animation_fast_ms,
         },
-        -- `on_hover` runs on pointer enter and leave as well as motion crossings; the selected
-        -- row therefore follows the pointer even when the launcher opens under it.
+        -- Enter and leave count as crossings, so the ring follows a pointer already in place.
         on_hover = function(inside)
             if inside then
                 selected_id:set(id)
@@ -344,11 +309,7 @@ end
 local function app_row(app)
     local selected = is_selected(app.id)
     local title = selected:map(function(on)
-        if on then
-            return { { text = app.name, bold = true } }
-        else
-            return app.name
-        end
+        return on and { { text = app.name, bold = true } } or app.name
     end)
     local lines = {
         cell(title, selected:map(function(on)
@@ -362,8 +323,7 @@ local function app_row(app)
         lines[#lines + 1] = cell(subtitle, theme.DIM, theme.font.xs, { width = "Fill" })
     end
     return row_shell(app.id, "launcher-app-" .. app.id, {
-        -- Entries without `Icon=` fall back to a generic picture.
-        -- The selected row's icon grows 1.3x in place.
+        -- A generic picture for entries without `Icon=`; the selected one grows in place.
         icon {
             name = app.icon or "application-x-executable",
             size = theme.launcher_icon,
@@ -387,16 +347,11 @@ end
 local special_selected = is_selected(SPECIAL)
 local special_title = computed({ special, special_selected }, function(row, selected)
     local title = row and row.title or ""
-    if selected then
-        return { { text = title, bold = true } }
-    end
-    return title
+    return selected and { { text = title, bold = true } } or title
 end)
 local special_row = row_shell(SPECIAL, "launcher-special", {
-    -- The icon-is-text flag picks between the body and icon families, and `cell` takes that choice
-    -- as a signal, so this is one node here. A currency row's flag needs it: under the icon family
-    -- a regional indicator has no glyph to fall back *from*, and the pair never reaches the colour
-    -- emoji face the chain ends with.
+    -- One node, the family chosen by signal: under the Icon family a regional indicator never
+    -- reaches the colour emoji face at the end of the fallback chain.
     cell(special_field("icon"), theme.FG, theme.launcher_icon, {
         align_v = "Center",
         font = special:map(function(row)
@@ -434,18 +389,14 @@ local app_list = list {
     end,
 }
 
--- ## Search box
---
--- A glass, hairlined field taller than bar controls. The engine paints
--- text/caret; this `rect` paints its ground and ring because `textfield` has no box.
+-- The engine paints text and caret; this `rect` is the ground and ring, which `textfield` has not.
 local search = rect {
     width = "Fill",
     height = theme.control.xl,
     radius = theme.radius.md,
     background = theme.GLASS_INPUT,
     border_width = theme.border_width,
-    -- The ring shows the accent while focused, which `autofocus` below makes this field for as
-    -- long as the modal is up.
+    -- Always accent: `autofocus` keeps this field focused for as long as the modal is up.
     border_color = theme.ACCENT,
     padding = { left = theme.spacing.lg, right = theme.spacing.lg },
     children = {
@@ -468,8 +419,7 @@ local search = rect {
                         select_first()
                     end,
                     on_submit = activate,
-                    -- Two-stage Escape: text clears and stays; empty closes. The engine already cleared
-                    -- the field and released the keyboard; autofocus takes it back.
+                    -- Two-stage Escape: text clears and stays, empty closes.
                     on_cancel = function(cleared)
                         if not cleared then
                             close()
@@ -514,8 +464,7 @@ local no_apps = panel_empty_state(
     }
 )
 
--- Center below the bar in the surface that excludes the bar's reservation; `screens[1]` follows
--- `panel_host.lua`'s clamp.
+-- Centred in the space below the bar; `screens[1]` guesses the head like `panel_host.lua`.
 local card_margin = mantle.screens:map(function(screens)
     local screen = screens and screens[1]
     if not (screen and screen.width and screen.height) then
@@ -549,8 +498,7 @@ return modal({
         padding = theme.spacing.lg,
         radius = theme.radius.lg,
         background = theme.GLASS,
-        -- The card alone, not the scrim behind it: the scrim is drawn under this in the same
-        -- surface, so what reaches the eye here is the blurred desktop seen through both.
+        -- The card alone; the scrim under it in the same surface already dims the rest.
         blur = true,
         border_width = theme.border_width,
         border_color = theme.BORDER,

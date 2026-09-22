@@ -1,10 +1,6 @@
--- The bell half of DateTimeDisplay: the readout, and the panel the whole control opens. Returned as
--- parts rather than a finished node because `right_side.lua` builds the pill -- one ground, one
--- click target over bell and clock together.
---
--- The readout is a glyph with an inline count while waiting, or the plain bell.
---
--- DND (`notifications.dnd`) wins over the count. Its toggle is in the history panel.
+-- The bell half of the clock pill: a glyph with an inline count while notifications wait, or the
+-- plain bell, with DND winning over the count. Returned as parts because `right_side.lua` builds one
+-- ground and one click target over bell and clock together.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")

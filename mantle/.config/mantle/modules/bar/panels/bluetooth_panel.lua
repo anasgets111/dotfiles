@@ -13,6 +13,7 @@ local panel_action_icon = require("components.panel_action_icon")
 local info_badge = require("components.info_badge")
 local panel_empty_state = require("components.panel_empty_state")
 local spinner = require("components.spinner")
+local ui = require("lib.ui_state")
 
 local KIND = "bluetooth"
 local SCROLL = scroll("bluetooth_devices")
@@ -36,8 +37,6 @@ local function battery_text(device)
     end
     return string.format("%d%%", device.battery)
 end
-
-local ui = require("lib.ui_state")
 
 local function enabled(b)
     return b ~= nil and b.enabled
@@ -211,14 +210,12 @@ local function device_row(item)
             mantle.bluetooth:invoke("disconnect", device.mac)
         end, { slot = "bluetooth-disconnect-" .. tostring(device.mac), tint = theme.RED })
     end
-    if item.status == "available" then
-        if not device.blocked then
-            trailing[#trailing + 1] = pair_button(device)
-        end
-    else
+    if item.status ~= "available" then
         trailing[#trailing + 1] = panel_action_icon(icons.trash, function()
             mantle.bluetooth:invoke("forget", device.mac)
         end, { slot = "bluetooth-forget-" .. tostring(device.mac), tint = theme.RED })
+    elseif not device.blocked then
+        trailing[#trailing + 1] = pair_button(device)
     end
     -- A blocked row offers nothing BlueZ would refuse.
     local subtitle = nil

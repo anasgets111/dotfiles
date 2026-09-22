@@ -1,10 +1,5 @@
--- A modal, a full-screen layer over a scrim with one centred glass card, like
--- `modules/global/launcher.lua` and `wallpaper_picker.lua`.
---
--- Not a bar panel. Its three-action AC/battery matrix needs both profiles visible; the panel host's
--- 340px card cannot fit it.
---
--- Foreign inhibitors are unconditional; `lib/store.lua` makes timeout order canonical.
+-- A modal, not a bar panel: the three-action AC/battery matrix needs both profiles visible, which
+-- the panel host's 340px card cannot fit.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
@@ -22,11 +17,18 @@ local timeline_section = require("modules.global.idle_settings.timeline")
 
 local settings = store.idle:map(idle.read)
 
+-- Shared by the flow card and each section.
+local CARD_PADDING = {
+    top = theme.spacing.md,
+    right = theme.spacing.lg,
+    bottom = theme.spacing.md,
+    left = theme.spacing.lg,
+}
+
 -- Whether UPower reports a battery. `present` is false on desktops, so no battery column.
 local has_battery = mantle.battery:map(function(b)
     return b ~= nil and b.present
 end)
-
 
 local subtitle = computed(
     { store.idle, idle.active_profile, idle.elapsed, idle.reasons, idle.arming },
@@ -47,8 +49,7 @@ local subtitle = computed(
             local first = plan.list[1]
             return string.format("%s · %s after %s", where, first.title, idle.format(first.at))
         end
-        -- Count down the armed stage's delay, not the running total. Its clock starts when the
-        -- prior stage finishes, and only this answers "how long have I got".
+        -- The armed stage's own delay, not the running total: it answers "how long have I got".
         for _, entry in ipairs(plan.list) do
             if entry.key == arming.key then
                 return string.format(
@@ -78,42 +79,33 @@ local row_rule = rect {
 local header = panel_header {
     title = "Idle & power",
     subtitle = subtitle,
-    -- Reuse the bar circle's glyph so opener and modal read as one control.
+    -- The bar circle's glyph, so opener and modal read as one control.
     icon = idle.manual:map(function(manual)
         return manual and icons.awake or icons.idle
     end),
-    -- A bar panel's half-sized default looks like a window at 820px wide.
+    -- A bar panel's half-sized default looks lost on an 820px-wide window.
     title_size = theme.font.xxl,
     plate = theme.control.xl,
-    -- The live count is not put under a 28px title at 10px.
     subtitle_size = theme.font.md,
     subtitle_color = theme.DIM,
     active = computed({ settings, idle.inhibited }, function(resolved, held)
         return resolved.enabled and not held
     end),
-    -- The master switch sits beside the flow it controls; no label needed.
     on_close = function()
         ui_state.close_modal("idle_settings")
     end,
 }
 
--- ## Timeline
-
 local timeline, held_banner, paused_banner = timeline_section(settings)
 
--- ## Matrix
---
--- One row per stage in stored `order`; chevrons move the stage and its row. Use a `list`, since
--- declared children cannot be reordered.
-
+-- One row per stage in stored `order`, as a `list` because declared children cannot be reordered.
 local function setting(profile, key, suffix)
     return settings:map(function(resolved)
         return resolved[profile][key .. suffix]
     end)
 end
 
--- Click cycles forward through seven options; right-click cycles back. This interaction is enough
--- without building a combo box.
+-- Click cycles forward through the options, right-click back; enough without a combo box.
 local function duration_button(profile, stage)
     local slot = "idle-sec-" .. profile .. "-" .. stage.key
     local hovered = hover(slot)
@@ -133,8 +125,7 @@ local function duration_button(profile, stage)
             local current = idle.read(store.idle:get())[profile][stage.key .. "_sec"]
             idle.write(profile, stage.key .. "_sec", idle.cycle(stage, current, mouse_button == "right" and -1 or 1))
         end,
-        -- A chevron makes the numbered plate visibly interactive. It advances the value instead of
-        -- opening a list, but the affordance is clear.
+        -- The chevron marks the plate as interactive, though it advances rather than opens.
         children = {
             row {
                 width = "Fill",
@@ -172,9 +163,8 @@ local function profile_control(profile, stage)
     }
 end
 
--- Title weight ties to on-state here, like `panel_header`'s (`:316`, `:563`).
--- `components/panel_row.lua` bolds a title too, but only for its static `selected` boolean; these
--- rows follow a signal, so the weight has to be decided inside the map.
+-- `components/panel_row.lua` bolds a title only for its static `selected`; these rows follow a
+-- signal, so the weight is decided inside the map.
 ---@param on Signal<boolean>
 ---@param title string
 local function bold_when(on, title)
@@ -183,7 +173,7 @@ local function bold_when(on, title)
     end)
 end
 
--- Marks the active column so desk-side configuration shows the running profile.
+-- Marks the running profile's column.
 local function column_heading(profile, label)
     return cell(
         idle.active_profile:map(function(active)
@@ -247,9 +237,8 @@ local function stage_row(item)
     end)
     local body = panel_row {
         title = bold_when(any, stage.title),
-        -- Use the stage's description, not "after <the row above>": the prior row may be off in one
-        -- profile. The section states the rule, row order shows it, and the timeline gives the
-        -- total.
+        -- The stage's own description, not "after <the row above>": that row may be off in one
+        -- profile.
         subtitle = stage.detail,
         height = theme.idle_row_height,
         leading = row {
@@ -269,8 +258,7 @@ local function stage_row(item)
     return column { width = "Fill", children = { body, row_rule } }
 end
 
--- Row descriptors carry the stage, order position, and predecessor name. They rebuild only when
--- stored settings change; a reorder rebuilds three rows, a tick none.
+-- Descriptors rebuild only when stored settings change: a reorder rebuilds rows, a tick none.
 local stage_source = settings:map(function(resolved)
     local items = {}
     for index, key in ipairs(resolved.order) do
@@ -296,18 +284,14 @@ local stage_list = list {
     itemfn = stage_row,
 }
 
--- ## Behavior
---
--- Both are non-timeout reasons the session stays up, so they share a card. Neither is
--- per-profile: capture applies on AC and battery.
+-- Non-timeout reasons the session stays up, neither of them per-profile.
 local behaviour_rows = {
     panel_row {
         icon = icons.play,
         title = bold_when(settings:map(function(resolved)
             return resolved.privacy_auto_inhibit
         end), "Keep awake while capturing"),
-        -- Not video: a player asks for that itself, over `org.freedesktop.ScreenSaver`, and the
-        -- engine honours it whatever this says.
+        -- Not video: a player asks for that itself and the engine honours it either way.
         subtitle = "Camera, microphone, screen capture",
         height = theme.idle_row_height,
         icon_color = settings:map(function(resolved)
@@ -333,11 +317,7 @@ local behaviour_rows = {
     },
 }
 
--- ## Assembly
---
--- Three cards: titled sections show which settings belong together.
-
--- One compact line, not `panel_header`: the masthead already has a plate and 16px bold title.
+-- One compact line, not `panel_header`: the masthead already has a plate and bold title.
 local flow_strip = row {
     width = "Fill",
     align_v = "Center",
@@ -368,19 +348,13 @@ local flow_strip = row {
 local flow_card = panel_card({ flow_strip, timeline, held_banner, paused_banner }, {
     width = "Fill",
     spacing = theme.spacing.md,
-    padding = {
-        top = theme.spacing.md,
-        right = theme.spacing.lg,
-        bottom = theme.spacing.md,
-        left = theme.spacing.lg,
-    },
+    padding = CARD_PADDING,
     tone = computed({ settings, idle.inhibited }, function(resolved, held)
         return resolved.enabled and not held and "active" or "standard"
     end),
 })
 
--- Glyph-on-plate, title, description, rows. `panel_header` already has that shape, so each
--- section is a header plus card children.
+-- `panel_header` already has the glyph-on-plate shape, so a section is a header plus rows.
 local function section(codepoint, title, description, children)
     local nodes = { panel_header { title = title, subtitle = description, icon = codepoint, title_size = theme.font.xl } }
     for _, node in ipairs(children) do
@@ -389,19 +363,12 @@ local function section(codepoint, title, description, children)
     return panel_card(nodes, {
         width = "Fill",
         spacing = theme.spacing.sm,
-        padding = {
-            top = theme.spacing.md,
-            right = theme.spacing.lg,
-            bottom = theme.spacing.md,
-            left = theme.spacing.lg,
-        },
+        padding = CARD_PADDING,
         background = theme.GLASS_CONTENT,
         border_width = theme.border_width,
         border_color = theme.GLASS_BORDER,
     })
 end
-
-local behaviour_children = { behaviour_rows[1], row_rule, behaviour_rows[2] }
 
 local card_children = {
     header,
@@ -413,7 +380,8 @@ local card_children = {
         "Each stage waits for the one above it",
         { matrix_heading, stage_list }
     ),
-    section(icons.settings, "Behaviour", "What may keep the session awake", behaviour_children),
+    section(icons.settings, "Behaviour", "What may keep the session awake",
+        { behaviour_rows[1], row_rule, behaviour_rows[2] }),
 }
 
 return modal({
@@ -423,16 +391,10 @@ return modal({
         align_h = "Center",
         align_v = "Center",
         spacing = theme.spacing.lg,
-        padding = {
-            top = theme.spacing.xl,
-            right = theme.spacing.xl,
-            bottom = theme.spacing.xl,
-            left = theme.spacing.xl,
-        },
+        padding = theme.spacing.xl,
         radius = theme.radius.lg,
         background = theme.GLASS,
-        -- The card alone, not the scrim behind it: the scrim is drawn under this in the same
-        -- surface, so what reaches the eye here is the blurred desktop seen through both.
+        -- The card alone; the scrim under it in the same surface already dims the rest.
         blur = true,
         border_width = theme.border_width,
         border_color = theme.BORDER,

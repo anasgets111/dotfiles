@@ -1,15 +1,11 @@
--- Battery side effects, not drawing: charger OSD, two `notify-send`s, and automatic suspend and
--- brightness step. No surface; `shell.lua` requires two `on_change` handlers for their side effects.
---
--- Each handler acts on a crossing. The first push (`previous == nil`) is not an edge.
+-- Battery side effects with no surface: charger OSD, low-battery toasts, brightness and suspend.
+-- Each acts on a crossing; the first push (`previous == nil`) is not one.
 local icons = require("config.icons")
 local util = require("lib.util")
 local osd = require("modules.osd.service")
 
 local thresholds = util.battery_thresholds
 
--- `notify-send` routes through our daemon, so it becomes a normal card. No 15-second dedupe; an
--- edge fires once.
 local function notify(summary, body, critical)
     local urgency = critical and "critical" or "normal"
     process.run("notify-send", { "-a", "Battery", "-u", urgency, "-t", "5000", "-e", summary, body }, function() end,
@@ -25,7 +21,6 @@ mantle.power:on_change(function(p, previous)
     if not (b and b.present) then
         return
     end
-    -- Plug when connected, bolt-through-battery when disconnected.
     osd.show("battery", {
         glyph = p.on_battery and icons.battery_levels[2] or icons.battery_ac,
         text = p.on_battery and "Charger disconnected" or "Charger connected",
@@ -38,28 +33,25 @@ mantle.battery:on_change(function(b, previous)
     if previous == nil or not b.present then
         return
     end
-    -- Two charge events. Both imply mains, so no `on_battery` guard.
-    -- `Charging` to `PendingCharge` is the moment charging stopped, which is all it proves: a
-    -- reached limit is the usual cause on this machine, but a weak charger or a thermal pause looks
-    -- identical, so the card says what happened rather than why.
-    -- The edge matters as much as the wording. `PendingCharge` also arrives from `Discharging` for
-    -- a few seconds at every plug-in, while the asus driver still reads `Not charging`. Gating on
-    -- the crossing out of `Charging` drops that one. It also drops a plug-in that lands already at
-    -- the limit, which is the price: an unobserved charging interval leaves nothing to cross.
+    -- `Charging` to `PendingCharge` proves only that charging stopped (limit, weak charger or thermal
+    -- pause), so the card says what, not why. `PendingCharge` also follows `Discharging` briefly at
+    -- every plug-in; gating on leaving `Charging` drops that, and a plug-in already at the limit.
     if b.state == "PendingCharge" and previous.state == "Charging" then
         osd.show("battery", { glyph = icons.battery_ac, text = "Charging paused" })
     elseif previous.state == "Charging" and b.state ~= "Charging" and (b.state == "FullyCharged" or b.percent >= 100) then
         osd.show("battery", { glyph = icons.battery_ac, text = "Fully charged" })
     end
-    -- Three draining thresholds, each on a downward crossing. Plugging in and unplugging at 15%
-    -- crosses `low` again and reports it again.
-    if util.battery_at_most(b, thresholds.low) and not util.battery_at_most(previous, thresholds.low) then
+    -- Downward crossings; unplugging again at 15% reports `low` again.
+    local function crossed(percent)
+        return util.battery_at_most(b, percent) and not util.battery_at_most(previous, percent)
+    end
+    if crossed(thresholds.low) then
         notify("Low Battery", "Plug in soon!", false)
     end
-    if util.battery_at_most(b, thresholds.critical) and not util.battery_at_most(previous, thresholds.critical) then
+    if crossed(thresholds.critical) then
         notify("Critical Battery", string.format("Automatic suspend at %d%%!", thresholds.suspend), true)
     end
-    if util.battery_at_most(b, thresholds.suspend) and not util.battery_at_most(previous, thresholds.suspend) then
+    if crossed(thresholds.suspend) then
         process.run("systemctl", { "suspend" }, function() end, function() end)
     end
 end)

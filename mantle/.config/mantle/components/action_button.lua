@@ -1,15 +1,10 @@
--- A labelled button, unlike `icon_button`: use it when the word is the point, such as a
--- notification action named "Update", "Retry", or "Close".
--- Extraction rule: one call site is a local; two agreeing call sites are a component. Offered
--- actions use accent; "Close" should not compete with the result.
--- `opts.icon` is the theme icon named by a sender's `action-icons` key, beside the label
--- or alone when there is no label. A media notification's prev/play/next are glyphs, not words.
+-- A labelled button, for when the word is the point: "Update", "Retry", "Close". `opts.icon` is the
+-- theme icon a sender's `action-icons` key names, beside the label or alone without one.
 local theme = require("config.theme")
 local cell = require("components.cell")
 
--- `solid` mirrors `variant: "primary"` and is the only opaque ground. At 15% alpha, other tints
--- show panel glass behind "update". It also picks foreground, preventing background/text
--- mismatches.
+-- `solid` is the only opaque ground -- other tints show panel glass through the label -- and picks
+-- its own foreground.
 local GROUND = {
     accent = { rest = theme.ACCENT_SUBTLE, hover = theme.ACCENT_LIGHT, border = theme.ACCENT_MEDIUM },
     quiet = { rest = theme.GLASS_CONTROL, hover = theme.GLASS_CONTROL_HOVER, border = theme.GLASS_BORDER },
@@ -19,8 +14,7 @@ local GROUND = {
         border = theme.ACCENT,
         text = theme.text_contrast(theme.ACCENT),
     },
-    -- Solid's shape with the alert colour, for the one action in a panel that ends something already
-    -- running.
+    -- Solid's shape in alert colour, for the one action that ends something already running.
     danger = {
         rest = theme.RED,
         hover = theme.RED_HOVER,
@@ -37,8 +31,7 @@ return function(label, on_activate, slot, opts)
     opts = opts or {}
     local ground = GROUND[opts.tone or "accent"]
     local hovered = hover(slot)
-    -- `button` centres one child with `align_h`; `row` starts its children. On a filling button
-    -- that leaves "update" against the padding, so fill the row and label for `cell` to centre.
+    -- A `row` starts its children, so a filling button needs the row and label to fill too.
     local fill = opts.width == "Fill" and "Fill" or nil
     local children = {}
     if opts.icon then
@@ -49,9 +42,7 @@ return function(label, on_activate, slot, opts)
             foreground = ground.text,
         }
     end
-    -- `opts.glyph` is the Nerd Font half of the same slot. A notification action icon is a theme
-    -- name and stays an `icon` node; a panel control is a `config/icons.lua` codepoint,
-    -- a `text` node that takes the button's ink like the label.
+    -- The Nerd Font half of the same slot: a `text` node, so it takes the button's ink.
     if opts.glyph then
         children[#children + 1] = text {
             content = opts.glyph,

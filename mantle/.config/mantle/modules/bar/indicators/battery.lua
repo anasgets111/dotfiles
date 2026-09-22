@@ -5,8 +5,7 @@ local tooltip = require("components.tooltip")
 
 local SLOT = "battery"
 
--- Only the draining check changes colour. The glyph shows cable state; gating colour on both would
--- put a plugged-in battery at 90% in the same green.
+-- Colour follows the draining check alone; the glyph shows cable state.
 local function battery_color(b)
     if b == nil then
         return theme.DIM
@@ -38,12 +37,9 @@ local plug_flash = computed({ pulse(plugged, theme.animation_fast_ms * 4), plugg
     return fired and on
 end)
 
--- Use `cell`, not `glyph`: both lines are in the text font; `components/glyph.lua` would force the
--- icon font and mismatch the circles beside it. Both are bold, which keeps dark ink readable over
--- the opaque accent fill.
-local GLYPH = mantle.battery:map(function(b)
-    return { { text = util.battery_glyph(b), bold = true } }
-end)
+-- `cell`, not `glyph`: `components/glyph.lua` forces the icon font and would mismatch the circles
+-- beside it. Bold keeps dark ink readable over the opaque accent fill.
+local GLYPH = util.bold(mantle.battery:map(util.battery_glyph))
 local PERCENT = util.bold(util.label(mantle.battery, function(b)
     return string.format("%d%%", b.percent)
 end))
@@ -72,8 +68,8 @@ local fill = rect {
     end),
     height = "Fill",
     background = mantle.battery:map(battery_color),
-    -- The level slides and threshold colour fades, while the fill blinks twice when the
-    -- cable goes in. The entry's presence runs the sequence.
+    -- The level slides and the threshold colour fades; the entry's presence blinks the fill twice
+    -- when the cable goes in.
     animate = plug_flash:map(function(flashing)
         local eases = {
             width = { duration = theme.animation_ms, easing = "OutCubic" },
@@ -101,10 +97,8 @@ local battery_module = rect {
     border_width = theme.border_width,
     border_color = theme.GLASS_BORDER,
     hover = hover(SLOT),
-    -- A desktop's UPower `DisplayDevice` answers `present = false`; unguarded, that shows a dim AC
-    -- glyph and the word "ac" -- a percentage pill reporting that there is no percentage. Hidden
-    -- nodes take no width and no spacing gap, so the zone closes up, and `shown_when` keeps it down
-    -- until the first snapshot rather than flashing an empty pill.
+    -- A desktop's UPower `DisplayDevice` answers `present = false`, and a percentage pill reporting
+    -- no percentage is worse than none. `shown_when` also keeps it down until the first snapshot.
     visible = util.shown_when(mantle.battery, function(b)
         return b.present
     end),

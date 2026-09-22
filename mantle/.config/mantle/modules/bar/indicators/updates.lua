@@ -9,17 +9,11 @@ local store = require("lib.store")
 local SLOT = "updates"
 
 -- The panel owns "I have read the result"; `state(...)` is name-keyed, so this is that same signal.
--- Without it the badge would stay red until the next install rather than until the user closes the
--- result.
 local dismissed = state("updates_result_dismissed", false)
 
--- Updates stay dormant until configured; otherwise `state_of` remains `idle` and
--- `visible` hides the indicator. Configure here, not `shell.lua`, because this module needs the
--- answer. The cadence is `update_panel.CHECK_INTERVAL`, which also sets what counts as stale there.
---
--- Seed on `mantle.storage`'s first push, which carries the file `lib/store.lua` declared.
--- Persisted `checked_at` and its package list let a restart within the hour
--- skip the check and still show an answer; `previous == nil` seeds once per process.
+-- Updates stay dormant until configured, on the cadence `update_panel.CHECK_INTERVAL` also uses for
+-- staleness. Seeding from `mantle.storage`'s first push lets a restart within the hour skip the
+-- check and still show an answer.
 mantle.storage:on_change(function(_, previous)
     if previous == nil then
         mantle.updates:invoke("configure", {
@@ -30,12 +24,9 @@ mantle.storage:on_change(function(_, previous)
     end
 end)
 
--- On a completed check, remember its time and packages, and announce what is new. The install's
--- own outcome is reported by `panels/update_panel.lua`, which is the only file that knows when the
--- developer tooling behind it has finished too.
---
--- "New" compares package names with the stored announced key: restarts do not repeat the same
--- twelve packages, and upgraded packages drop out on the next check.
+-- On a completed check, remember its time and packages and announce what is new, comparing names
+-- with the stored key so a restart does not repeat the same twelve packages. The install's own
+-- outcome belongs to `panels/update_panel.lua`, which also knows when its tooling finished.
 mantle.updates:on_change(function(u, previous)
     -- Compare with the store, not the previous push: the first post-restart push carries seeded
     -- time.
@@ -43,8 +34,7 @@ mantle.updates:on_change(function(u, previous)
         store:set("updates_checked_at", u.last_successful_check)
         store:set("updates_packages", u.packages)
     end
-    -- Every fifth consecutive failure: the count on the bar is no longer the system's answer, and
-    -- only the panel says so.
+    -- Every fifth consecutive failure: the bar's count is no longer the system's answer.
     local failures = u.consecutive_check_failures or 0
     if failures > 0 and failures % 5 == 0 and previous ~= nil and (previous.consecutive_check_failures or 0) ~= failures then
         update_panel.toast("critical", "Update check failed", u.check_error or "")
@@ -87,8 +77,8 @@ mantle.updates:on_change(function(u, previous)
     update_panel.toast("normal", "Updates Available", body, "Run updates")
 end)
 
--- The order: installing, then a failed run, then a failed check, then a running check, then a
--- count. A failed install owns the glyph until the result is read.
+-- In order: installing, a failed run, a failed check, a running check, then a count. A failed
+-- install owns the glyph until the result is read.
 local function state_of(u, is_dismissed)
     if u == nil then
         return "idle"
@@ -142,8 +132,8 @@ end), nil, {
     slot = SLOT,
     -- Accent while this indicator's panel is open.
     selected = ui_state.panel_showing(update_panel.kind),
-    -- Hide when the Supervisor has no supported package manager; `package_manager` stays nil, and
-    -- an indicator that can only report its own failure is worse than none.
+    -- No supported package manager leaves `package_manager` nil; an indicator that can only report
+    -- its own failure is worse than none.
     visible = mantle.updates:map(function(u)
         return u ~= nil and u.package_manager ~= nil
     end),

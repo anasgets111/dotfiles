@@ -6,15 +6,10 @@ local panel_card = require("components.panel_card")
 local panel_header = require("components.panel_header")
 local section_header = require("components.section_header")
 
--- A real `xdg_toplevel`, opened by `power_menu.lua` and closable through its `panel_header`. A
--- `window` gets no monitor, anchor, or size; inspect placement with `niri msg windows`.
---
--- This holds readouts without indicators: system info belongs at the top of the
--- notifications panel, and a second copy here would be the same numbers twice.
---
--- What is left is thin on purpose. This file is the config's only `window {}`, so it is also the
--- only exercise of the toplevel -- surviving a compositor that gives it no monitor, anchor or
--- size. Deleting it for being thin would delete that.
+-- A real `xdg_toplevel`, opened by `power_menu.lua` and closed through its `panel_header`; a
+-- `window` gets no monitor, anchor or size. Thin on purpose: system info belongs at the top of the
+-- notifications panel, and this is the config's only `window {}`, so it is also the only exercise
+-- of the toplevel.
 return window {
     id = "settings",
     title = "Mantle settings",
@@ -22,8 +17,7 @@ return window {
     min_size = { width = 320, height = 240 },
     max_size = { width = 1280, height = 800 },
     visible = ui_state.settings_open,
-    -- This opaque toplevel has no edge to round.
-    -- Set `radius = 0`.
+    -- An opaque toplevel has no edge to round, hence `radius = 0`.
     child = panel_card({
         panel_header {
             title = "Mantle settings",
@@ -44,12 +38,7 @@ return window {
     }, {
         width = "Fill",
         height = "Fill",
-        padding = {
-            top = theme.spacing.lg,
-            right = theme.spacing.lg,
-            bottom = theme.spacing.lg,
-            left = theme.spacing.lg,
-        },
+        padding = theme.spacing.lg,
         spacing = theme.spacing.sm,
         radius = 0,
     }),

@@ -22,7 +22,7 @@ local tooltip_text = computed({ hovered_id, mantle.tray }, function(id, tray)
 end)
 
 -- Hide `Passive`: the spec treats it as no presentation, so disabling an application's tray icon
--- removes it. This is presentation policy in Lua; other bars may dim Passive items.
+-- removes it.
 local function items_of(t)
     local out = {}
     for _, item in ipairs((t and t.items) or {}) do
@@ -42,8 +42,8 @@ local function artwork(item)
     return item.icon_name or item.icon_path
 end
 
--- One slot per item: the icon plus `spacing.sm`, so icons sit that far apart. `control.md` left
--- twice that between them. Equal slots keep the row even under fallback letters.
+-- One slot per item, the icon plus `spacing.sm`; equal slots keep the row even under fallback
+-- letters.
 local ITEM_WIDTH = theme.icon.md + theme.spacing.sm
 
 -- The ceiling, not the width: six items fit, more scroll instead of taking the zone. This
@@ -71,9 +71,8 @@ local items = list {
         local art = artwork(item) or (entry and entry.icon)
         local face
         if art then
-            -- Without `align_h`, artwork sits at the square's left
-            -- edge, lops spacing onto one end and pushes the first icon under the pill's corner
-            -- radius.
+            -- Without `align_h`, artwork sits at the square's left edge and the first icon lands
+            -- under the pill's corner radius.
             face = icon {
                 name = art,
                 size = theme.icon.md,
@@ -82,18 +81,13 @@ local items = list {
                 foreground = theme.FG,
             }
         else
-            -- No artwork happens. Two 9px `DIM` letters beside 22px glyphs looked like a rendering
-            -- fault between Bluetooth and the clock, so match the icon weight.
-            face = cell(
-                (item.name or item.id or "?"):sub(1, 2),
-                theme.FG,
-                theme.font.sm,
-                { align = "Center", align_v = "Center" }
-            )
+            -- No artwork happens. Two 9px `DIM` letters beside 22px glyphs read as a rendering
+            -- fault, so match the icon weight.
+            face = cell((item.name or item.id or "?"):sub(1, 2), theme.FG, theme.font.sm,
+                { align = "Center", align_v = "Center" })
         end
-        -- Right opens a menu, left activates, and anything else is secondary activation.
-        -- `item_is_menu` makes left click open the menu when one exists instead of becoming a
-        -- no-op.
+        -- Right opens a menu, left activates, middle is secondary activation. `item_is_menu` makes
+        -- a left click open the menu instead of becoming a no-op.
         return button {
             width = ITEM_WIDTH,
             height = "Fill",
@@ -129,19 +123,13 @@ local items = list {
     end,
 }
 
--- Muted opacity on a `DIM` line, folded into the colour: `cell` takes no opacity,
--- so alpha supplies the opacity for one run of text.
-local empty_label = cell(
-    "No tray items",
-    theme.with_opacity(theme.DIM, theme.opacity.muted),
-    theme.font.xs,
-    {
-        align_v = "Center",
-        visible = has_items:map(function(any)
-            return not any
-        end)
-    }
-)
+-- `cell` takes no opacity, so the muted level is folded into the colour.
+local empty_label = cell("No tray items", theme.with_opacity(theme.DIM, theme.opacity.muted), theme.font.xs, {
+    align_v = "Center",
+    visible = has_items:map(function(any)
+        return not any
+    end),
+})
 
 local indicator = row {
     height = theme.item_height,

@@ -3,60 +3,20 @@
 -- The module cache clears before each re-evaluation, so edits recolour the bar in place.
 local theme = {}
 
--- ## The responsive scale
+-- The responsive scale: `s(base)` scales non-colour tokens from 1080p values, read once during
+-- evaluation from the first output. `mantle.screens` is the only signal available then; every other
+-- capability reads `nil` until its first snapshot. Logical pixels, so a 3840x2160 panel at scale 2
+-- arrives as 1080 and `screen.scale` is not a second divisor.
 --
--- `s(base)` scales non-colour tokens from 1080p values so a 4K panel
--- does not use 1080p pixels.
--- Read once during evaluation: `mantle.screens` is the only signal available then, while
--- capabilities read nil until the first snapshot, so other module-scope reads would use fallback.
---
--- ponytail: hotplug is not followed. Tokens are numbers baked into node maps at evaluation;
--- moving monitors leaves the old scale until touched. Upgrade `s()` to return a signal, which
--- consumers already accept, at one `computed` per token when a second monitor matters.
-local function main_screen()
-    -- The only module-scope signal read. Component tests in `renderer/src/lua/mod.rs` load
-    -- `components/` through a bare `Loader` with no `mantle` namespace, so other capabilities are
-    -- read inside node properties after evaluation.
-    local screens = mantle and mantle.screens and mantle.screens:get() or {}
-    -- First output, on one head; focused-output selection is not available here.
-    return screens[1]
-end
+-- ponytail: hotplug is not followed, since tokens are numbers baked into node maps at evaluation.
+-- Upgrade `s()` to return a signal, which consumers already accept, when a second monitor matters.
+local SCREEN = (mantle and mantle.screens and mantle.screens:get() or {})[1] or {}
 
--- 1080p fallback and this config's design height. Unknown and 1080p outputs share it,
--- so an evaluation with empty screens and a live session measure the same bar. Sessions seed
--- screens first in `wayland/mod.rs`.
-local FALLBACK_HEIGHT = 1080
+-- 1080p is this config's design height, so an evaluation with no screens measures the live bar.
+local MAIN_WIDTH = SCREEN.width or 1920
+local MAIN_HEIGHT = SCREEN.height or 1080
 
--- Logical width of the same output, for the one token measured across the screen rather than down
--- it. Same 1080p-era fallback reasoning as `FALLBACK_HEIGHT`.
-local MAIN_WIDTH = (function()
-    local screen = main_screen()
-    if screen ~= nil and screen.width ~= nil then
-        return screen.width
-    end
-    return 1920
-end)()
-
--- Only for the aspect ratio behind `title_limit`; every vertical token comes from `SCALE` below.
-local MAIN_HEIGHT = (function()
-    local screen = main_screen()
-    if screen ~= nil and screen.height ~= nil then
-        return screen.height
-    end
-    return FALLBACK_HEIGHT
-end)()
-
-local SCALE = (function()
-    local screen = main_screen()
-    -- Use `screen.height` directly. `wayland/output.rs` reports logical pixels, so a 3840x2160
-    -- panel at scale 2 arrives as 1080; `screen.scale` is not another divisor.
-    local logical_height = FALLBACK_HEIGHT
-    if screen ~= nil and screen.height ~= nil then
-        logical_height = screen.height
-    end
-    local factor = 0.9 + ((logical_height - 1080) / 360) * 0.1
-    return math.max(0.75, math.min(1.4, factor))
-end)()
+local SCALE = math.max(0.75, math.min(1.4, 0.9 + ((MAIN_HEIGHT - 1080) / 360) * 0.1))
 
 -- `min` is a small-screen floor, not a default: a 10px label at 0.75 is 8px and legible; an 8px
 -- icon becomes an illegible 6px smudge.
@@ -66,10 +26,7 @@ end
 
 local s = theme.s
 
--- ## Colour helpers
---
--- Helpers use the engine's `#RRGGBB`/`#RRGGBBAA` strings, checked by
--- `layout::node::parse_hex_color`, so results feed `background` directly.
+-- Colour helpers speak the engine's `#RRGGBB`/`#RRGGBBAA` strings, so results feed `background`.
 
 local function channels(hex)
     local digits = hex:gsub("^#", "")
@@ -99,10 +56,8 @@ local function lighten(hex, amount)
     return string.format("#%02x%02x%02xff", mix(r), mix(g), mix(b))
 end
 
--- WCAG relative luminance, 0.179 black/white threshold. Composite translucent colours over `BG`
--- first. Measuring the swatch alone would read every hover glyph as black: light-purple `ON_HOVER`
--- at 45% alpha reaches the screen dark; alpha 1 is a no-op. Callers get the matching foreground
--- with the background.
+-- WCAG relative luminance at the 0.179 threshold, compositing translucent colours over `BG` first:
+-- the swatch alone reads light-purple `ON_HOVER` at 45% as bright, when it reaches the screen dark.
 function theme.text_contrast(hex)
     local function linear(byte)
         local c = byte / 255
@@ -121,10 +76,7 @@ function theme.text_contrast(hex)
     return luminance > 0.179 and "#000000ff" or "#ffffffff"
 end
 
--- ## Opacity steps
---
--- `opacity` is a base property that multiplies down the subtree, so disabling a control
--- needs one property rather than dimmer colours on each part.
+-- `opacity` multiplies down the subtree, so dimming a control is one property, not a colour per part.
 theme.opacity                   = {
     subtle   = 0.15,
     light    = 0.25,
@@ -135,23 +87,16 @@ theme.opacity                   = {
     full     = 0.95,
 }
 
--- ## Colours
---
--- Keep the ten original names: renaming them would touch thirty files for the same eleven
--- Catppuccin swatches.
+-- The eleven swatches everything else derives from.
 theme.BG                        = "#1e1e2eff"
 theme.SURFACE                   = "#313244ff"
 -- Catppuccin surface1, one step above SURFACE; pointer highlights use it instead of inventing blue.
 theme.HOVER                     = "#45475aff"
 theme.FG                        = "#cdd6f4ff"
--- Catppuccin subtext0. Overlay0 (#6c7086) reads the keyboard
--- layout and date as disabled instead of secondary.
---
--- This is the one secondary-text colour: 73 uses against a single `TEXT_OFF`. Faded
--- controls use node `opacity`.
+-- Catppuccin subtext0; overlay0 reads as disabled rather than secondary. The one secondary-text
+-- colour -- faded controls use node `opacity`.
 theme.DIM                       = "#a6adc8ff"
--- Mauve, not blue: every accent is #cba6f7. `MAUVE` exposes the
--- swatch by colour name.
+-- Mauve, not blue; `MAUVE` is the same swatch under its colour name.
 theme.ACCENT                    = "#cba6f7ff"
 theme.GREEN                     = "#a6e3a1ff"
 theme.YELLOW                    = "#f9e2afff"
@@ -172,9 +117,7 @@ theme.ELEVATED_HOVER            = lighten(theme.BG, 0.18)
 theme.TEXT_OFF                  = theme.with_opacity(theme.DIM, theme.opacity.medium)
 theme.BORDER                    = theme.with_opacity(theme.SURFACE, 0.75)
 theme.BORDER_SUBTLE             = theme.with_opacity(theme.SURFACE, 0.35)
--- Shared translucent card ground for panels, menus, popups and cards. Mantle makes a card read as a
--- sheet above the bar rather than the same tone as it. Glass that cannot be seen through is a dark
--- rectangle.
+-- The shared card ground, so a card reads as a sheet above the bar rather than the same tone.
 theme.GLASS                     = theme.with_opacity("#181825", 0.88)
 theme.GLASS_CONTENT             = theme.with_opacity(theme.ELEVATED, 0.46)
 -- `GLASS_INPUT`: a text field sits on the base tone, not the elevated one, so a search box reads
@@ -196,12 +139,8 @@ theme.TEXT_ACTIVE               = lighten(theme.FG, 0.16)
 -- Used as the plate behind a notification card's application icon.
 theme.BG_SUBTLE                 = theme.with_opacity(theme.BG, theme.opacity.subtle)
 
--- ## The glass layer
---
--- The chrome is translucent: the bar is background at 0.5 over wallpaper, controls are surface2 at
--- 0.42, and near-white 0.18 borders separate them. Painting controls opaque turns floating pills
--- into filled rectangles; radius cannot fix it. Alpha reaches the compositor, so the layer
--- surface composites against the wallpaper, not black.
+-- The chrome is translucent throughout: opaque controls turn floating pills into filled rectangles,
+-- and radius cannot fix it. Alpha reaches the compositor, so the layer composites against wallpaper.
 theme.GLASS_SURFACE             = theme.with_opacity(theme.BG, 0.5)
 theme.GLASS_CONTROL             = theme.with_opacity(theme.INACTIVE, 0.42)
 theme.TOOLTIP_FG               = theme.text_contrast(theme.GLASS_SURFACE)
@@ -214,9 +153,7 @@ theme.ALERT_BG                  = "#45253aff"
 -- `SCRIM` is 0.45 rather than 0.88: it lays over wallpaper, where 0.88 is a blackout.
 theme.SCRIM                     = theme.with_opacity(theme.BG, 0.45)
 
--- ## Scales
---
--- Named steps keep `spacing.sm` at the same 8px in bar and panel, and let one edit change both.
+-- Named steps keep `spacing.sm` the same in bar and panel, and let one edit change both.
 theme.spacing                   = {
     xs = s(4, 2),
     sm = s(8, 4),
@@ -225,8 +162,7 @@ theme.spacing                   = {
     xl = s(24, 16),
 }
 
--- `components/glyph.lua` names the font on every icon node. `shell.lua` declares both
--- `Propo` and `Mono`; the latter keeps indicators to one cell, so the node names it explicitly.
+-- Named on every icon node: `Mono` keeps an indicator to one cell, unlike the `Propo` body face.
 theme.icon_font                 = "JetBrainsMono Nerd Font Mono"
 -- Command output, so columns in a log line up.
 theme.mono_font                 = theme.icon_font
@@ -256,10 +192,7 @@ theme.icon                      = {
     xl = s(32, 24),
 }
 
--- Control heights keep adjacent toggles and buttons aligned without pixel literals.
---
--- Control heights step for step. `components/icon_button.lua`'s `size = "sm"` is 28px here
--- because the call sites already named the intended step.
+-- Keeps adjacent toggles and buttons aligned without pixel literals.
 theme.control                   = {
     xs = s(24, 20),
     sm = s(28, 24),
@@ -274,25 +207,18 @@ theme.border_width              = 1
 -- `border_width_medium`: twice the hairline, for cards floating over wallpaper.
 theme.border_width_medium       = 2
 
--- ## Surface geometry
---
--- Shared surface sizes replace values duplicated in each module and opener.
+-- Surface geometry, shared so a module and its opener cannot disagree.
 theme.bar_height                = s(42, 28)
 theme.panel_toggle_compact_threshold = s(220)
 
--- ## The item scale
+-- `control` sizes panel contents, `item` sizes bar controls. `item_radius` is half `item_height`
+-- with its own `s()`, since rounding it separately keeps a circle from a round square.
 --
--- `control` sizes panel contents; `item` sizes bar controls such as icon buttons, battery pills and
--- the clock. `item_radius` is half of `item_height`
--- by construction and has its own `s()` call: rounding it independently keeps 18 vs 15.5
--- separating a circle from a round square.
--- A character budget rather than a box: "WWWW" and "iiii" are both four characters and twice the
--- width apart, and the centre zone must stay content-sized so its midpoint is the bar's.
+-- `title_limit` is a character budget, not a box: the centre zone stays content-sized so its
+-- midpoint is the bar's.
 theme.title_limit               = (MAIN_WIDTH / math.max(1, MAIN_HEIGHT)) > 2.1 and 74 or 47
 
--- The zone is a third of the screen width while media is up, so the spectrum has a span
--- to fill. Static: `s()` does not follow hotplug either, and the note at the top of this file
--- covers both.
+-- A third of the screen while media is up, so the spectrum has a span to fill.
 theme.center_zone_width         = math.floor(MAIN_WIDTH / 3)
 
 theme.item_height               = s(34, 20)
@@ -302,45 +228,34 @@ theme.item_radius               = s(18, 6)
 theme.battery_pill_width        = s(80, 60)
 -- Hovered volume control: holds "150%" plus a drag track.
 theme.volume_expanded_width     = s(220, 140)
--- In ms, for a node's `animate` table. The engine's default is `InOutQuad`;
--- `animation_fast_ms` is for hover zooms.
+-- Milliseconds for a node's `animate` table; the engine eases `InOutQuad` by default.
 theme.animation_ms              = 147
 theme.animation_fast_ms         = 100
--- `animation_slow_ms`, the pace of a pulse rather than a transition: slow enough to
--- read as breathing.
+-- A pulse rather than a transition: slow enough to read as breathing.
 theme.animation_slow_ms         = 250
 theme.animation_very_slow_ms    = 400
--- Notification travel uses it; colour transitions use
--- `animation_ms`. Derive it rather than writing 206 so it follows the base.
+-- Notification travel, derived so it follows the base rather than pinning 206.
 theme.notification_slide_ms     = math.floor(theme.animation_ms * 1.4 + 0.5)
--- For a fill the user is scrubbing: a volume key on repeat, a brightness button held down. An
--- eased tween restarts from a standstill when its target moves, so key repeat keeps the
--- fill behind the number. A spring carries velocity across the retarget.
---
--- The 400/42 spring is critically damped: `damping` is just above the
--- `2 * math.sqrt(stiffness)` threshold. A single press still lands in about a tenth of a second.
+-- For a fill being scrubbed by key repeat: an eased tween restarts from a standstill on every
+-- retarget and falls behind, where a spring carries its velocity across. 400/42 is critically
+-- damped, and a single press still lands in about a tenth of a second.
 theme.spring_tracking           = { spring = { stiffness = 400, damping = 42 } }
--- Bar panels share one card in `modules/shell/panel_host.lua`, as tall as the
--- panel. Each list is capped at seven rows, then scrolls.
+-- Bar panels share one card in `modules/shell/panel_host.lua`; each list holds seven rows, then scrolls.
 theme.panel_width               = s(340, 280)
 theme.panel_list_height         = s(280, 210)
--- Where a closed panel card sits before its first layout has measured it (`geometry`):
--- above the bar by the tallest card. After that it drops from its own height, using `-height`.
+-- Where a closed panel sits before `geometry` has measured it; after that it uses `-height`.
 theme.panel_slide               = s(760, 570)
--- Notification history holds the popup's cards and widgets (weather, sysinfo).
--- The list uses most of the screen before it scrolls.
+-- History holds the popup's cards plus the weather and sysinfo widgets.
 theme.notification_panel_width  = s(460, 380)
 theme.notification_list_height  = s(640, 480)
--- Update rows need a name and two versions: at 340px, `ca-certificates-mozilla` and
--- `3.128-1 -> 3.129-1` collide. At 460px the name still elided `gpu-screen-recorder-git`; use
--- 520px for fixed version columns.
+-- A name and two version columns: 460px still elided `gpu-screen-recorder-git`.
 theme.update_panel_width        = s(520, 400)
 
 -- Two named sliders and a mixer.
 theme.audio_panel_width         = s(380, 300)
 
--- `tray_menu_width`. A tray menu is an application's own words, so it needs more room than the
--- shell's own panels: "Preferences and settings" is a normal entry and the 340px card elides it.
+-- An application's own words need more room than the shell's: the 340px card elides
+-- "Preferences and settings".
 theme.tray_menu_width           = s(300, 240)
 -- Idle modal: action rows plus AC and battery columns, each with a timeout and switch, at 820px.
 theme.idle_modal_width          = s(820, 640)
@@ -351,13 +266,11 @@ theme.idle_row_height           = s(60, 46)
 -- 6px `components/meter.lua` percentage meter.
 theme.idle_track_height         = s(36, 28)
 theme.update_list_height        = s(360, 260)
--- `update_version_width`: fixed column so versions align down the table rather than ragged
--- content-sized cells. Wide enough for `6.1.0.r4.gc8f50c4-1`.
+-- Fixed, so versions align down the table; wide enough for `6.1.0.r4.gc8f50c4-1`.
 theme.update_version_width      = s(116, 88)
 -- Keep the log shorter than the package list; its last dozen lines explain a failure.
 theme.update_log_height         = s(200, 150)
--- Rescue modal: a traceback names a file per frame, and those paths wrap at the update panel's
--- 520px. The log is capped well below the card so a long one scrolls instead of filling the screen.
+-- Rescue modal: a traceback's paths wrap at 520px, and its log scrolls rather than fills the screen.
 theme.rescue_modal_width        = s(720, 560)
 theme.rescue_log_height         = s(320, 240)
 -- `panel_toggle_height`: a radio tile tall enough for a glyph over a word.
@@ -369,17 +282,14 @@ theme.panel_gap                 = 4
 theme.notification_width        = s(380, 300)
 -- `notification_app_icon`: an `item_height` icon square with a few pixels of plate around it.
 theme.notification_app_icon     = s(40, 32)
--- Popup stack surface height, not card height: up to four cards grow when groups/bodies expand, and
--- the fixed layer surface clips overflow. It is generous rather than measured; the inner column
--- sizes to content and only needs to fit inside.
+-- The stack surface, not a card: generous, because the fixed layer clips what four expanded cards
+-- overflow, and the inner column sizes to content.
 theme.notification_stack_height = s(560, 420)
--- `osd_width`. The track layout is a fixed width: its content is a glyph, a bar and a
--- percentage, none of which changes length, so a card that resized under a volume key would be
--- the only thing on screen moving while the user holds it still.
+-- Fixed: a glyph, a bar and a percentage never change length, and a card resizing under a held
+-- volume key would be the only thing moving on screen.
 theme.osd_width                 = s(300, 240)
--- `osd_toggle_min`. The toggle layout has no bar to fill the middle, and its text is whatever
--- the system had to say -- a sink name, a keyboard layout. So that card is sized to its content
--- and this is only its floor, keeping "num lock on" from drawing a card as narrow as the words.
+-- The toggle layout has no bar and holds whatever the system said, so it is content-sized; this
+-- floor keeps "num lock on" from drawing a card as narrow as the words.
 theme.osd_toggle_min            = s(220, 176)
 theme.osd_height                = s(80, 60)
 theme.osd_tile                  = s(48, 36)
@@ -388,24 +298,17 @@ theme.osd_track                 = s(12, 8)
 -- it holds one sentence, one field and two buttons.
 theme.dialog_width              = s(450, 360)
 
--- ## The lock card (`modules/global/lock.lua`)
---
--- A formula, not a fixed size: 38% of the output, clamped to 480..720. This
--- is the one token measured from screen *width*, because the card is landscape: a height-scaled
--- `s(480)` token produces a card narrower than it is tall.
---
--- ponytail: sampled once at evaluation, like `SCALE`. Moving the shell to a narrower output leaves
--- the old width until the next edit.
+-- The lock card is landscape, so it is the one token measured from screen width: 38% clamped to
+-- 480..720, where a height-scaled `s(480)` would be narrower than it is tall.
 theme.lock_card_width           = math.max(480, math.min(math.floor(MAIN_WIDTH * 0.38), 720))
 -- `control.lg * 2.4`, the initials disc, measured at 106px on a 1200px-tall screen.
 theme.lock_avatar               = s(112, 72)
 
--- `media_panel_width`/`media_artwork`. Wider than the shared 340px card because the artwork sits
--- beside the title, transport row and seek bar rather than above them.
+-- Wider than the shared card: the artwork sits beside the title and transport rows, not above them.
 theme.media_panel_width         = s(460, 380)
 theme.media_artwork             = s(96, 80)
 
--- ## The launcher (`modules/global/launcher.lua`)
+-- The launcher (`modules/global/launcher.lua`).
 theme.launcher_width            = s(860, 645)
 theme.launcher_height           = s(680, 510)
 theme.launcher_row_height       = s(64, 48)
@@ -414,9 +317,7 @@ theme.launcher_row_height       = s(64, 48)
 theme.launcher_special_height   = s(86, 65)
 theme.launcher_icon             = s(42, 32)
 
--- ## The wallpaper picker (`modules/global/wallpaper_picker.lua`)
---
--- This fixed-width card uses four columns; the remaining card width determines each tile.
+-- The wallpaper picker: a fixed-width card of four columns, which size the tiles.
 theme.wallpaper_picker_width    = s(1180, 900)
 theme.wallpaper_picker_height   = s(880, 660)
 theme.wallpaper_sidebar_width   = s(250, 200)

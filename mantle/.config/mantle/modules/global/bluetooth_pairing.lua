@@ -25,18 +25,12 @@ local function text(read)
     end)
 end
 
-local TITLES = {
-    confirm = "Pair with %s?",
-    authorize = "%s wants to pair",
-    service = "%s wants to connect",
-    display = "Type this code on %s",
-}
-
-local DETAILS = {
-    confirm = "Pair only if the device shows the same code",
-    authorize = "Accept only a device you are pairing right now",
-    service = "The device is paired but not trusted",
-    display = "Then press Enter on the device",
+-- Kind to `{ title format, detail }`.
+local PROMPTS = {
+    confirm = { "Pair with %s?", "Pair only if the device shows the same code" },
+    authorize = { "%s wants to pair", "Accept only a device you are pairing right now" },
+    service = { "%s wants to connect", "The device is paired but not trusted" },
+    display = { "Type this code on %s", "Then press Enter on the device" },
 }
 
 -- Answers by MAC; the Supervisor ignores a yes in a request's first moments (`ACCEPT_GRACE`).
@@ -52,7 +46,6 @@ end
 local asks = when(function(r)
     return r.kind ~= "display"
 end)
-local pad = theme.spacing.lg
 
 return panel {
     id = "bluetooth_pairing",
@@ -71,7 +64,7 @@ return panel {
         cell(text(function(r)
             -- The name is the device's own choice, so the MAC stays beside it.
             local name = r.name ~= "" and string.format("%s (%s)", r.name, r.mac) or r.mac
-            return { { text = string.format(TITLES[r.kind] or "%s", name), bold = true } }
+            return { { text = string.format((PROMPTS[r.kind] or {})[1] or "%s", name), bold = true } }
         end), theme.FG, theme.font.md, { width = "Fill", wrap = "Word" }),
         cell(text(function(r)
             return r.code or ""
@@ -83,7 +76,7 @@ return panel {
             end),
         }),
         cell(text(function(r)
-            return DETAILS[r.kind] or ""
+            return (PROMPTS[r.kind] or {})[2] or ""
         end), theme.DIM, theme.font.sm, { width = "Fill", wrap = "Word" }),
         row {
             width = "Fill",
@@ -113,7 +106,7 @@ return panel {
     }, {
         width = theme.dialog_width,
         spacing = theme.spacing.md,
-        padding = { top = pad, right = pad, bottom = pad, left = pad },
+        padding = theme.spacing.lg,
         radius = theme.radius.lg,
         background = theme.GLASS,
         blur = true,

@@ -18,9 +18,8 @@ local function alert(glyph, field, slot)
     })
 end
 
--- The microphone has two states: `warning` ground and a struck-through glyph when muted, `critical`
--- and the plain glyph when live, shown while active or muted. A muted microphone therefore stays
--- available to unmute.
+-- The microphone shows while active *or* muted, so a muted one stays available to unmute: peach and
+-- a struck-through glyph when muted, red and the plain glyph when live.
 local mic_muted = mantle.audio:map(function(a)
     return a ~= nil and a.source_muted == true
 end)
@@ -45,10 +44,8 @@ local screenshare_tooltip = tooltip({ id = "privacy_screenshare_tooltip", slot =
 local indicator = row {
     align_v = "Center",
     spacing = theme.spacing.sm,
-    -- Invisible children leave layout, but the row still contributes spacing. Hide the group, or
-    -- `left_side.lua` still gives the empty row that gap.
-    -- Use `mic_shown`, not `microphone_users`: a muted microphone appears without a user.
-    -- Hiding the row would hide it too.
+    -- Invisible children leave layout, but the row still takes `left_side.lua`'s gap, so the group
+    -- hides itself. Keyed on `mic_shown`: a muted microphone appears without a user.
     visible = computed({ mantle.privacy, mic_shown }, function(p, mic)
         return mic or users_of("camera_users")(p) or users_of("screencast_users")(p)
     end),

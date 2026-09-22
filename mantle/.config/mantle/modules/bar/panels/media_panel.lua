@@ -1,25 +1,14 @@
 -- Artwork beside the track, a transport row, and a seek bar with elapsed and total either side.
 --
--- `position` is only valid at `position_updated_at`, and nothing polls it while a player runs, so a
--- payload alone gives a bar that jumps once a track and sits still between. This anchors the last
--- push against a clock and adds elapsed time.
+-- `position` is only valid at `position_updated_at` and nothing polls it, so the bar would jump once
+-- a track and sit still between. Both that stamp and `mantle.system.monotonic` are
+-- `CLOCK_MONOTONIC`, so `on_change` -- the one place a clock reading and a payload are known
+-- simultaneous -- anchors the push and `system` ticks the elapsed term once a second. A `:map` would
+-- re-record the anchor, since the engine may rerun a map on the same inputs.
 --
--- `position_updated_at` is `CLOCK_MONOTONIC`, and `mantle.system.monotonic` is the same kind of
--- reading, so the anchor is taken from it in `on_change` -- the one place a clock reading and a
--- payload are known to be simultaneous. `system` ticks the sum once a second. Both ends are on the
--- monotonic clock, so setting the wall clock does not jump playback.
---
--- Writing the anchor in a handler rather than a `:map` is deliberate: the engine may rerun a map on
--- the same inputs, so a map that recorded a time would record it repeatedly.
---
--- A drag adopts its own target as the reading; without that the bar counted on from the pre-seek
--- position for as long as the player stayed quiet, which for a browser is indefinitely. A step
--- button estimates instead: `seek_relative` is relative at the player, so the config never learns
--- exactly where it landed; the next real reading corrects it.
---
--- Stop: `control` takes `play`, `pause`, `play_pause`, `next` and `previous`, and nothing else
--- (`PlayerCommand`). Nothing here checks whether a player can skip, seek, or be controlled --
--- `PlayerState` carries no such flags.
+-- A drag adopts its own target as the reading, because a quiet player (a browser, indefinitely)
+-- would otherwise leave the bar counting from the pre-seek position; the next real reading corrects
+-- it. Nothing here checks whether a player can skip or seek: `PlayerState` carries no such flags.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -49,12 +38,8 @@ local selected = computed({ mantle.mpris, chosen }, function(m, index)
     return players[(index - 1) % #players + 1]
 end)
 
--- Keyed on the `position` value rather than on the push. A player that answers `Position` with the
--- same number for the whole track -- which browsers publishing through the media session API do --
--- otherwise reset the elapsed term on every push and pinned the bar to wherever playback began.
---
--- A repeated number means "no news", so keep counting from the existing anchor; a changed one is
--- a real reading. `position_updated_at` is the moment of the *read*, not of the value.
+-- Keyed on the `position` value, not the push: a browser answering `Position` with the same number
+-- all track would otherwise reset the elapsed term on every push. A repeat means "no news".
 local anchor = state("media_anchor", 0)
 
 --- Stamps the anchor from the same clock `position_us` adds elapsed time against. Every writer goes
@@ -66,29 +51,26 @@ end
 local anchored_position = -1
 
 -- Where we last asked the track to move to, or `-1` while the player's own reading is
--- authoritative. `seek` returns before the move lands and the Supervisor then waits for a real
--- `Seeked`/`PropertiesChanged` (`controller.rs`); a browser publishing MPRIS through the media
--- session API often emits neither, so waiting for one means never re-anchoring -- the video jumps
--- and the bar counts from the old position. Adopt the requested position immediately; the first
--- fresh reading takes it back.
+-- authoritative. A browser often emits neither `Seeked` nor `PropertiesChanged`, so waiting for one
+-- means never re-anchoring; adopt the requested position and let the first fresh reading take it
+-- back.
 local seek_base = state("media_seek_base", -1)
 
-mantle.mpris.on_change(mantle.mpris, function()
+mantle.mpris:on_change(function()
     local player = selected:get()
-    -- `-1` is "this player has never answered `Position`", not a reading, so it must not
-    -- become an anchor to count from.
+    -- `-1` is "this player has never answered `Position`", not a reading, so it must not become an
+    -- anchor to count from.
     local position = (player and player.position) or -1
     if position == anchored_position or position < 0 then
         return
     end
     anchored_position = position
     seek_base:set(-1)
-    anchor:set((mantle.system:get() or {}).monotonic or 0)
+    anchor_now()
 end)
 
--- No clock read of its own: a `computed` must answer the same for the same inputs, and
--- reading a clock makes it answer differently every run. Before `mantle.system`'s first tick there
--- is no "now", so the anchor is the only honest reading and the elapsed term is zero.
+-- No clock read of its own: a `computed` must answer the same for the same inputs. Before
+-- `mantle.system`'s first tick there is no "now", so the elapsed term is zero.
 local position_us = computed({ selected, mantle.system, anchor, seek_base }, function(player, s, anchored, base)
     if not player then
         return -1
@@ -136,12 +118,9 @@ local function first_nonempty(...)
     return ""
 end
 
----One transport control. `command` runs `control`; `offset` moves by that many microseconds.
----
----A step uses `seek_relative`: the offset goes to the player, which is the only party that knows
----where the track actually is.
----The optimistic base is an estimate for the bar to show meanwhile, and the next real reading
----replaces it.
+---One transport control. `command` runs `control`; `offset` seeks by that many microseconds through
+---`seek_relative`, since only the player knows where the track actually is. `seek_base` is the
+---estimate the bar shows meanwhile.
 ---@param slot string
 ---@param icon string|Bound
 ---@param command PlayerCommand?
@@ -173,18 +152,15 @@ local artwork = rect {
     background = theme.GLASS_CONTROL,
     align_v = "Start",
     children = {
-        -- The note shows through until a cover lands. `album_art_path` is empty when none is
-        -- published or when the Supervisor cannot canonicalize a remote URL; an empty
-        -- `image.source` draws nothing, so the glyph needs no separate gate.
+        -- The note shows through until a cover lands: an empty `image.source` draws nothing, so the
+        -- glyph needs no gate of its own.
         glyph(icons.media, theme.DIM, theme.icon.xl, { align = "Center", align_v = "Center" }),
         image {
             source = selected:map(function(player)
                 return (player and player.album_art_path) or ""
             end),
             fit = "cover",
-            -- The pool downsizes a full-resolution cover while the panel is up, as the wallpaper
-            -- grid does; an inline decode here would stall the frame that opens the
-            -- card.
+            -- An inline decode would stall the frame that opens the card.
             async = true,
             width = "Fill",
             height = "Fill",

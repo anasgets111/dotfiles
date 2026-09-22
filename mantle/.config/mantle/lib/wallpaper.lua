@@ -1,9 +1,6 @@
--- Wallpaper state: file and fit per output, file source, and two writes. Drawing, picking, and the
--- bar button live in `modules/global/wallpaper.lua`,
--- `modules/global/wallpaper_picker.lua`, and `modules/bar/indicators/wallpaper_button.lua`.
--- One `wallpapers` key in `lib/store.lua`, a `{ path, fit }` table per output. It survives reload and reboot.
--- `mantle.files` watches `FOLDER` with inotify. Start watching during evaluation because
--- the folder is a setting, not state; picker and bar right-click need its list before opening.
+-- File and fit per output, stored as one `{ path, fit }` table per output under `wallpapers`.
+-- Drawing and picking live in `modules/global/wallpaper{,_picker}.lua`. The `mantle.files` watches
+-- start during evaluation, so the picker and the bar's right-click have their listings before they open.
 local store = require("lib.store")
 
 local wallpaper = {}
@@ -11,17 +8,14 @@ local wallpaper = {}
 wallpaper.FOLDER = "/mnt/Work/1Wallpapers/Main"
 -- `gif` animates (ADR-0233); one too long for the engine's frame budget draws as a still.
 wallpaper.EXTENSIONS = { "jpg", "jpeg", "png", "webp", "gif" }
--- Reduced to `image.fit`; omit `center` and `tile` because the engine draws
--- neither.
+-- `image.fit` values; the engine draws neither `center` nor `tile`.
 wallpaper.FITS = {
     { value = "cover",   label = "Fill" },
     { value = "contain", label = "Fit" },
     { value = "stretch", label = "Stretch" },
 }
 wallpaper.DEFAULT_FIT = "cover"
--- Transitions come from the config's shader files. The engine supplies cross-dissolve and
--- fragment-shader support and does not know this directory; `mantle.files` lists its
--- `.frag` files before the picker opens.
+-- The engine supplies cross-dissolve and fragment-shader support but knows nothing of this folder.
 wallpaper.SHADER_FOLDER = mantle.config_dir .. "/shaders"
 wallpaper.SHADER_EXTENSIONS = { "frag" }
 wallpaper.NO_SHADER = "fade"
@@ -29,19 +23,18 @@ wallpaper.TRANSITION_MS = 1500
 -- Not `InOutCubic`: 99.6% done at t=0.9, so its last 150ms stalls.
 wallpaper.TRANSITION_EASING = "InOutSine"
 
--- A wipe picks a side; a disc and portal a centre; stripes pick a count and angle. A shader with
--- no row here -- anything dropped into the folder -- runs with every uniform at zero; adding a row
--- gives it knobs.
+-- A shader with no row here -- anything dropped into the folder -- runs with every uniform at zero;
+-- a row gives it knobs.
+local function random_center()
+    return { center_x = math.random(), center_y = math.random(), softness = 0.1 }
+end
+
 local RANDOM_PARAMS = {
     wipe = function()
         return { direction = math.floor(math.random() * 4), softness = 0.1 }
     end,
-    disc = function()
-        return { center_x = math.random(), center_y = math.random(), softness = 0.1 }
-    end,
-    portal = function()
-        return { center_x = math.random(), center_y = math.random(), softness = 0.1 }
-    end,
+    disc = random_center,
+    portal = random_center,
     stripes = function()
         return { count = math.random(4, 24), angle = math.random() * 360, softness = 0.1 }
     end,
@@ -57,8 +50,7 @@ function wallpaper.shader_folder_in(f)
     return f and f.folders and f.folders[wallpaper.SHADER_FOLDER] or nil
 end
 
----Effect names from one `mantle.files` push: the built-in first, then a name per `.frag`. These
----files carry no affix to strip.
+---Effect names from one `mantle.files` push: the built-in first, then a name per `.frag`.
 ---@param f FilesState|nil
 ---@return string[]
 function wallpaper.effects_in(f)
@@ -100,10 +92,8 @@ function wallpaper.set_effect(name)
     end
 end
 
----The `transition` table for the wallpaper `image`, as a signal.
----Depends on the stored wallpapers as well as the effect, so the parameters are drawn again on
----every wallpaper change the way `randomize` is called per change. A run already under way keeps
----the parameters it started with, because the engine copies the spec when it starts.
+---The `transition` table for the wallpaper `image`. It depends on the stored wallpapers too, so
+---every change draws fresh parameters; a run under way keeps the spec the engine copied.
 function wallpaper.transition()
     return computed({ wallpaper.effect(), store.wallpapers }, function(effect, _w)
         if effect == wallpaper.NO_SHADER then
@@ -187,8 +177,8 @@ function wallpaper.fit_of(output)
     end)
 end
 
----Merge `changes` into one output and store a copied whole table. Mutating the signal's last-pushed
----table would change `computed` input without marking the scene dirty.
+---Merge `changes` into one output, copying: mutating the pushed table changes `computed` input
+---without marking the scene dirty.
 ---@param output string
 ---@param changes table
 local function write(output, changes)

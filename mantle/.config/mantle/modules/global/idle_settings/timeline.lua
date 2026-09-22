@@ -1,15 +1,7 @@
--- One equal-width chamber per runnable stage fills over its own window and shows how close the
--- screen is to going dark.
---
--- Chambers are not delay-proportional: with a 30-second stage followed by 15 minutes, the first
--- would be 3% of the card and its glyph would not fit. Each prints its delay, so proportions are
--- readable but not to scale.
---
--- A chamber prints its stage delay, not the running total. The masthead keeps the total by
--- counting down to the next stage.
---
--- Replace the timeline, rather than dim it, when a hold blocks countdown or no action is scheduled;
--- a bar that can never fill is worse than the reason.
+-- One chamber per runnable stage, filling over its own delay. Equal widths, not proportional ones:
+-- a 30-second stage before a 15-minute one would be 3% of the card. Each prints its own delay; the
+-- masthead keeps the running total. A hold or an empty plan replaces the timeline with a banner,
+-- since a bar that can never fill says less than the reason.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
@@ -79,10 +71,8 @@ return function(settings)
         }
     end
 
-    -- Wrap the `list` in a `row`: `list` is `NodeBase`, not `BoxBase` (`lua-meta/nodes.lua`,
-    -- `nodes.rs` `BOX_KINDS`), so it places but does not paint. Put `background`, `radius`, and `clip`
-    -- on the parent. `just types` misses unknown table keys; the engine rejects the re-resolve at
-    -- runtime.
+    -- `list` is `NodeBase`, not `BoxBase`: it places but does not paint, so `background`, `radius`
+    -- and `clip` go on this parent. The types do not catch the mistake; the engine does, at runtime.
     local timeline = row {
         width = "Fill",
         height = theme.idle_track_height,

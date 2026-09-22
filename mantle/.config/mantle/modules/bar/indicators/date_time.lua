@@ -1,12 +1,6 @@
--- One control holds the notification state and clock.
---
--- Date and time share `%a %d %b  %I:%M %p`; separate cells read as two modules.
---
--- Seconds are omitted. A per-second clock re-resolves for a digit nobody reads; `system.time`
--- still pushes at its own cadence.
---
--- Twelve-hour with AM/PM, fixed: a config has no locale to ask, so the choice is made here instead
--- of guessed.
+-- One control holds the notification state and clock. Date and time share one cell, since two read
+-- as two modules, and seconds are omitted: a per-second clock re-resolves for a digit nobody reads.
+-- Twelve-hour with AM/PM is fixed, because a config has no locale to ask.
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
@@ -16,27 +10,21 @@ local weather = require("lib.weather")
 
 local SLOT = "clock"
 
--- The clock is `bold: true`: it is the bar's one always-on readout and the weight is what
--- separates it from the indicators either side.
---
--- The weather reading sits in front of the time; the clock stands alone until there is a reading,
--- which `weather_code`'s `-1` default says.
-local clock = cell(computed({ mantle.system, weather.code, weather.temperature },
+-- Bold: it is the bar's one always-on readout, and the weight is what separates it from the
+-- indicators either side. The weather reading sits in front of the time once there is one, which
+-- `weather.code`'s `-1` default says.
+local clock = cell(util.bold(computed({ mantle.system, weather.code, weather.temperature },
     function(s, code, celsius)
         local shown = os.date("%a %d %b  %I:%M %p", s and s.time)
         if (code or -1) >= 0 then
             shown = string.format("%d°C %s %s", celsius or 0, weather.info(code).icon, shown)
         end
-        return { { text = shown, bold = true } }
-    end), theme.text_contrast(theme.GLASS_CONTROL), theme.font.sm, { align_v = "Center" })
+        return shown
+    end)), theme.text_contrast(theme.GLASS_CONTROL), theme.font.sm, { align_v = "Center" })
 
--- The whole control opens notifications; a click on the always-visible readout should not open a
--- calendar panel.
---
--- This is the only tooltip with explicit `width`/`height`; other tooltips are measured
--- (`components/tooltip.lua`). Its `width = "Fill"` rows and fixed-cell grid leave no content-sized
--- extent to measure. Height adds the calendar's signal, the two lines, `panel_card` spacing and
--- padding; a month is four to six weeks tall.
+-- The only tooltip with an explicit `width`/`height`: its `width = "Fill"` rows and fixed-cell grid
+-- leave `components/tooltip.lua` no content-sized extent to measure, and a month is four to six
+-- weeks tall.
 local DATE_LINE = math.ceil(theme.font.sm * 1.2)
 local TIME_LINE = math.ceil(theme.font.xs * 1.2)
 -- Two more `sm`/`xs` lines and the two gaps they add, on a tip whose height is declared rather than
@@ -47,17 +35,14 @@ local clock_tooltip = tooltip({
     id = "clock_tooltip",
     slot = SLOT,
     width = calendar.width + theme.spacing.sm * 2,
-    -- The grid's bottom row is a `DAY_SIDE` cell around a smaller glyph, so it carries its own air.
-    -- The date line has none; shared `xs` left it against the border, while `md` matches the card.
+    -- The date line carries no air of its own, and shared `xs` left it against the border.
     padding_v = theme.spacing.md,
     height = calendar.height:map(function(grid)
         return grid + DATE_LINE + TIME_LINE + WEATHER_LINES + theme.spacing.md * 2 + theme.spacing.xs * 2
     end),
     children = {
-        -- The description and where it was measured: two runs in one cell is the same two colours
-        -- in a box that can elide, which a content-sized row cannot. This tip declares its width,
-        -- and "Thunderstorm: Slight or moderate in Giza, Egypt" is half again wider than a month
-        -- grid.
+        -- Two runs in one cell, not a row: this tip declares its width, and "Thunderstorm: Slight
+        -- or moderate in Giza, Egypt" is half again wider than a month grid, so it must elide.
         cell(computed({ weather.code, weather.location }, function(code, where)
             if (code or -1) < 0 then
                 return ""

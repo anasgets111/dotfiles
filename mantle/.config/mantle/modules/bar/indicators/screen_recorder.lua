@@ -26,8 +26,7 @@ end), nil, {
     background = state_of:map(function(current)
         return current == "recording" and theme.ACCENT or theme.GLASS_CONTROL
     end),
-    -- `on_button` rather than `on_activate`: this is one of the three indicators whose extra mouse
-    -- buttons are part of the design, so it takes the raw name.
+    -- `on_button`: the extra mouse buttons are part of this indicator's design.
     on_button = function(rect, mouse_button)
         if mouse_button == "right" then
             ui_state.toggle_panel(screen_recorder_panel.kind, rect)
@@ -43,8 +42,7 @@ end), nil, {
     end,
 })
 
--- Two lines rather than mirror's one tooltip: three buttons. At `font.xs`, it is 400px wide or
--- wraps into something nobody reads; first line is state, second is actions, facts stay sorted.
+-- Two lines, state then actions: three buttons on one `font.xs` line is 400px wide.
 local screen_recorder_tooltip = tooltip({
     id = "screen_recorder_tooltip",
     slot = SLOT,

@@ -1,9 +1,6 @@
--- The wallpaper under a scrim, one glass card centred on every output, and a password pill that
--- says what PAM is doing.
---
--- The wallpaper is blurred once at decode (`source_blur`, mantle ADR-0240), so the scrim below is
--- the ordinary `theme.SCRIM` and the card lighter than `theme.GLASS_CONTENT`, not the heavier ones
--- a lock over a sharp photograph needed to keep text readable.
+-- The wallpaper under a scrim, one glass card per output, and a password pill that says what PAM is
+-- doing. The wallpaper is blurred at decode (`source_blur`, ADR-0240), so the scrim and card can be
+-- lighter than a lock over a sharp photograph needs.
 local theme         = require("config.theme")
 local icons         = require("config.icons")
 local util          = require("lib.util")
@@ -34,27 +31,19 @@ local NAME_SIZE     = theme.s(24, 18)
 -- screen pixels -- exact only under that default fit (mantle ADR-0240 decision 3).
 local WALLPAPER_BLUR = 24
 
--- How long this screen takes to leave, and what the engine is told to wait.
---
--- The engine removes the lock after authentication, not when the tween ends, so this
--- value has to cover the exit rather than describe it, and is read off the card's animation below
--- instead of written twice. The card is the only thing that moves on the way out; the ground holds
--- until the compositor takes the surface away. See the ground's own note for why it cannot fade.
+-- The engine removes the lock after authentication, not when the tween ends, so it must be told to
+-- wait out the card's exit. Read off the card's own animation rather than written twice.
 local EXIT_MS       = theme.animation_slow_ms
--- Slack for the Supervisor-to-Renderer state push and first frame before motion begins. Without it,
--- the exit loses that round trip and looks like a rendering bug.
+-- Slack for the state push and first frame; without it the exit loses that round trip.
 local LEAVE_SLACK   = 60
 local LEAVE_MS      = EXIT_MS + LEAVE_SLACK
 mantle.lock:invoke("set_unlock_animation", LEAVE_MS)
 
 util.auto_english_layout(mantle.lock)
 
--- True exactly while the card should be up: the compositor has granted the lock and PAM has not yet
--- answered. Both edges of the card's motion are this one flag changing value.
---
--- `animate.from` only applies when a node has no displayed value. This subtree outlives the lock,
--- so entry needs the `active` value change as well as exit. Keying on `active` avoids finishing the
--- fade before `ext_session_lock_v1` has presented every output and set `locked`.
+-- The compositor has granted the lock and PAM has not answered; both edges of the card's motion are
+-- this flag. `animate.from` applies only to a node with no displayed value, and this subtree
+-- outlives the lock, so entry needs the value change too.
 local up           = mantle.lock:map(function(l)
     return l ~= nil and l.active and not l.unlocking
 end)
@@ -65,9 +54,8 @@ local full_name    = identity.full_name
 local account      = identity.account
 local initials     = identity.initials
 
--- Read from `mantle.lock`, not `rescue`: while lock surfaces are mapped
--- the bar's `rescue_cell` is unreachable. Print `attempts` because capability state is sampled at
--- layout time; identical `error` strings would otherwise hide the second failure.
+-- `attempts` is printed because state is sampled at layout time: two identical `error` strings
+-- would otherwise look like one failure.
 local hint         = util.label(mantle.lock, function(l)
     if l.error ~= nil and l.error ~= "" then
         return string.format("%s (%d)", l.error, l.attempts or 0)
@@ -119,15 +107,10 @@ end
 -- its wallpaper and field. The field is on every output, so the compositor can focus the sole
 -- `secure_submit` field on whichever screen has keyboard focus.
 local function content(output)
-    -- Authentication routes through a `textfield` with `secure_submit`. With `mask_character`
-    -- too, keystrokes stay in a native buffer on the Renderer's Wayland thread and leave as a
-    -- `("lock", "authenticate")` envelope, never a Lua value. No
-    -- `on_change`/`on_submit`: either callback would reopen the closed path.
-    --
-    -- It is the surface's only `secure_submit` field, so compositor keyboard focus needs no click.
-    --
-    -- Two fields would make the engine refuse to guess. `mask_character` draws one glyph per key.
-    -- The one-byte mask uses `*`.
+    -- `secure_submit` keeps keystrokes in a native buffer on the Renderer's Wayland thread; they
+    -- leave as a `("lock", "authenticate")` envelope, never a Lua value. No `on_change`/`on_submit`:
+    -- either would reopen that path. As the surface's only such field it is armed on compositor
+    -- focus, so unlocking needs no click.
     local password_field = textfield {
         width = "Fill",
         height = FIELD_HEIGHT,
@@ -168,8 +151,7 @@ local function content(output)
             width = "Fill",
             spacing = theme.spacing.md,
             children = {
-                -- One disc. Without blur, two hard circles read as a button with a focus outline, so
-                -- the ring is a border.
+                -- One disc: two hard circles read as a button with a focus outline.
                 rect {
                     width = theme.lock_avatar,
                     height = theme.lock_avatar,
@@ -186,8 +168,7 @@ local function content(output)
                         }),
                     },
                 },
-                -- Its own column: the name sits a `spacing.md` under the disc and the account
-                -- tighter still under the name, which one shared spacing cannot do.
+                -- Its own column: the account sits tighter under the name than the name under the disc.
                 column {
                     width = "Fill",
                     spacing = theme.spacing.sm,
@@ -211,8 +192,7 @@ local function content(output)
                     align_h = "Center",
                     padding = { right = theme.spacing.md, left = theme.spacing.md },
                     spacing = theme.spacing.sm,
-                    -- At 0.85 this is a well, not a raised control. `GLASS_CONTROL` sits above
-                    -- this card's ground and made the field the lightest thing on the card.
+                    -- A well, not a raised control: `GLASS_CONTROL` made it the lightest thing here.
                     background = theme.GLASS,
                     radius = FIELD_RADIUS,
                     border_width = theme.border_width_medium,
@@ -223,8 +203,7 @@ local function content(output)
                             align_v = "Center",
                         }),
                         password_field,
-                        -- Put the warning inside the pill; the bar's indicator is across the
-                        -- screen.
+                        -- Inside the pill; the bar's indicator is across the screen.
                         row {
                             height = BADGE_HEIGHT,
                             align_v = "Center",
@@ -240,8 +219,7 @@ local function content(output)
                         },
                     },
                 },
-                -- Wrap: the unavailable-authentication line once clipped to
-                -- "could not start authentication: pam worker f".
+                -- Wrap: "could not start authentication: pam worker failed" once clipped mid-word.
                 cell(hint, failed:map(function(f)
                     return f and theme.RED or theme.with_opacity(theme.FG, 0.5)
                 end), theme.font.sm, { width = "Fill", align = "Center", wrap = "Word", max_lines = 4 }),
@@ -265,9 +243,7 @@ local function content(output)
                     children = {
                         status_item(
                             weather.code:map(weather.glyph),
-                            -- The degrees without the emoji beside them. Read against the code, not
-                            -- against a zero temperature, which is a real winter reading in most
-                            -- of the world.
+                            -- Gated on the code: zero degrees is a real reading.
                             computed({ weather.code, weather.temperature }, function(code, celsius)
                                 return (code or -1) >= 0 and string.format("%d°C", celsius or 0) or "--"
                             end)
@@ -298,12 +274,10 @@ local function content(output)
         width = theme.lock_card_width,
         align_h = "Center",
         align_v = "Center",
-        padding = { top = PAD, right = PAD, bottom = PAD, left = PAD },
-        -- One gap between the four groups; tighter internal spacing pairs date/clock and
-        -- hint/field.
+        padding = PAD,
+        -- One gap between the four groups; each pairs its own rows more tightly.
         spacing = theme.spacing.xl,
-        -- `ELEVATED` keeps the card lit against the dimmed screen while text clears the blurred
-        -- photograph at a lighter opacity than `theme.GLASS_CONTENT` (0.46) needs over a sharp one.
+        -- Lighter than `theme.GLASS_CONTENT` (0.46), which is sized for a sharp photograph.
         background = theme.with_opacity(theme.ELEVATED, 0.3),
         radius = theme.radius.xl,
         -- With no shadow node, the edge is the only thing separating the card from the picture.
@@ -314,11 +288,8 @@ local function content(output)
     return rect {
         width = "Fill",
         height = "Fill",
-        -- Opaque for the whole lock, including exit: `ext_session_lock_v1` hides every client and
-        -- niri paints solid red before unlock. Fading would reveal that colour during `LEAVE_SLACK`.
-        --
-        -- `modules/global/wallpaper.lua` also leaves a failed decode dark rather than transparent,
-        -- so the lock never becomes a hole through to the session.
+        -- Opaque through the exit: `ext_session_lock_v1` hides every client and niri paints solid
+        -- red underneath, which a fade would reveal during `LEAVE_SLACK`.
         background = theme.BG,
         children = {
             image {
@@ -327,23 +298,18 @@ local function content(output)
                 width = "Fill",
                 height = "Fill",
                 source_blur = WALLPAPER_BLUR,
-                -- A wallpaper is large enough that the blur pass costs real time (mantle
-                -- ADR-0240 decision 1); `async` moves it off the frame that maps this surface
-                -- instead of stalling the lock's first frame on it. `background = theme.BG`
-                -- above covers the gap until it lands.
+                -- The blur pass costs real time, so it stays off the frame that maps this
+                -- surface; `theme.BG` covers the gap until it lands.
                 async = true,
             },
             rect { width = "Fill", height = "Fill", background = theme.SCRIM },
-            -- The wallpaper is present on the first frame and the card fades and grows into it.
-            -- The screen-sized wrapper keeps the scale pivot centred.
+            -- Screen-sized, so the scale pivots on the centre.
             column {
                 width = "Fill",
                 height = "Fill",
                 align_h = "Center",
                 align_v = "Center",
-                -- Both properties need targets; an absent property skips the entry
-                -- (`Animatable::from_value` answers "nothing to animate"). On exit, the card
-                -- shrinks to `CLOSED_SCALE` and fades over a stationary wallpaper.
+                -- Both need targets; an absent property skips the entry entirely.
                 opacity = up:map(function(on)
                     return on and 1 or 0
                 end),
@@ -360,9 +326,8 @@ local function content(output)
     }
 end
 
--- Declared, not open. `lock` refuses `visible`, `monitor`, `anchor`, `width`, and `height`, but
--- otherwise takes the common and box properties like any other surface. The compositor creates one
--- per output while locked. No Wayland object exists until `mantle.lock:invoke("lock")`.
+-- Declared, not open: no Wayland object exists until `mantle.lock:invoke("lock")`, and then the
+-- compositor creates one surface per output.
 return lock {
     id = "lock_screen",
     child = content,

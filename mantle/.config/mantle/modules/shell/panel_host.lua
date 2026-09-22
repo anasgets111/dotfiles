@@ -1,25 +1,8 @@
--- One surface displays every bar panel.
+-- One surface and one `kind` signal for every bar panel, so mutual exclusion cannot be got wrong.
 --
--- One screen slot shows the last-requested panel. Five surfaces would need manual mutual exclusion;
--- one `kind` signal makes that impossible to get wrong.
---
--- ## `panel`, not `popup`
---
--- A layer surface has no grab, so `keyboard_interactivity` binds only to the fact needing keys and
--- the bar never asks, following `password_ssid`.
---
--- Three things return, one is paid for:
---
---   * The catcher handles click-outside instead of compositor `popup_done`, so it knows which panel
---     closed and resolves `lib/ui_state.lua`'s `toggle_panel` ambiguity.
---   * Switching panels is one click; no grab needs breaking and re-arming.
---   * `linger` shows and hides the card, so no armed grab serial is needed
---   * Cost: popups had `constraint_adjustment`; layers do not, so the clamp is hand-written
---     `"SlideX"`.
---
--- ## Card height follows its panel
---
--- The card has no `height`; each list owns `max_height` and scrolls at the same cap.
+-- A layer surface, not a popup: the catcher handles click-outside itself, so it knows which panel
+-- closed and resolves `ui_state.toggle_panel`'s ambiguity, switching panels takes one click, and no
+-- grab serial is armed. The cost is the clamp below, which `constraint_adjustment` used to do.
 local theme = require("config.theme")
 local util = require("lib.util")
 local panel_card = require("components.panel_card")
@@ -39,9 +22,8 @@ local screen_recorder_panel = require("modules.bar.panels.screen_recorder_panel"
 local panels = { power_menu, network_panel, bluetooth_panel, notification_history, update_panel, audio_panel,
     media_panel, tray_menu, screen_recorder_panel }
 
--- Only the matching `kind` is a child: a hidden sibling is frozen, not dropped. A
--- section's `geometry` keeps its last rect while it is gone, so a reveal knows its
--- height; a section never shown reads zero.
+-- Only the matching `kind` is a child: a hidden sibling would be frozen, not dropped. `geometry`
+-- keeps a gone section's last rect, so a reveal knows its height; one never shown reads zero.
 local sections = {}
 local section_rects = {}
 for _, panel in ipairs(panels) do
@@ -63,9 +45,7 @@ local shown_section = ui_state.panel_kind:map(function(kind)
     return { sections[kind] }
 end)
 
--- Shared width except history, updates, audio, and media. Those use their own widths because
--- history is a list, package rows need two version strings, audio sliders need length, and media
--- puts artwork beside the track rather than above it.
+-- Shared width except where content dictates: a list, two version columns, slider length, artwork.
 local PANEL_WIDTHS = {
     [notification_history.kind] = theme.notification_panel_width,
     [update_panel.kind] = theme.update_panel_width,
@@ -81,16 +61,10 @@ end)
 -- The inverted corners joining the card to the bar.
 local CORNER = math.min(theme.radius.md * 3, theme.bar_height)
 
--- `popup_anchor` is the indicator's `on_click` rect in this surface's
--- coordinates, so `x` needs no translation. Center under the indicator, then clamp
--- within `spacing.sm` of either edge. Left-edge anchoring made a card under a
--- button read as belonging to its right neighbor. The hand-written `"SlideX"` matters near the
--- clock/tray: a 340px card centered on a 1920px output would otherwise run off by half its width.
---
--- No `"FlipY"`: this starts below the bar. `screens[1]` on a hotplugged second head is the same
--- guess as `config/theme.lua`'s `main_screen`. This follows the signal, so resolution changes move
--- the clamp instead of stranding boot values. Empty `mantle.screens` (first evaluation) clamps
--- only at zero.
+-- `popup_anchor` is the indicator's rect in this surface's coordinates, so centring needs no
+-- translation. The hand-written clamp matters near the clock and tray, where a centred card would
+-- otherwise run off the edge. `screens[1]` guesses the head like `theme.main_screen`, and follows
+-- the signal so a resolution change moves the clamp; an empty list clamps only at zero.
 local card_x = computed({ ui_state.popup_anchor, mantle.screens, card_width }, function(anchor, screens, width)
     local anchor_x = (anchor and anchor.x) or 0
     local anchor_width = (anchor and anchor.width) or 0
@@ -103,18 +77,10 @@ local card_x = computed({ ui_state.popup_anchor, mantle.screens, card_width }, f
     return math.floor(math.max(0, x))
 end)
 
--- The card drops from just above the bar's bottom edge and retracts the same way while `linger`
--- keeps it in the tree for exit. No fade: only `y` moves, and the wrapper below the
--- bar's `clip` cuts the card as it moves off-screen. Travel is the shown section's measured
--- height plus card chrome, read from the section so a closed switch retracts to the *next* card's
--- height instead starting a taller card part-visible. An unlaid section reads zero and falls back
--- to the tallest card, so its first open in a session drops from further up.
---
--- Switching kinds while open does not retract: the card morphs in place, animating `width` and
--- `height`. The card height is the shown section's measured height plus its chrome; a pass that
--- changes a measurement earns one follow-up pass, keeping the card from sitting one pass
--- behind a section that grew. An unmeasured section leaves the card content-sized, which snaps that
--- once.
+-- The card drops from behind the bar and retracts the same way, `linger` keeping it for the exit.
+-- Travel is the shown section's measured height plus chrome, so a switch while closed retracts to
+-- the *next* card's height; an unmeasured section falls back to the slide distance and snaps once.
+-- Switching while open morphs in place, animating `width` and `height` instead.
 local CARD_PADDING = theme.spacing.md
 -- The card starts `radius.md` above the bar's bottom edge, which cuts its top corners square.
 local CARD_CHROME = CARD_PADDING * 2 + theme.radius.md
@@ -178,22 +144,11 @@ return panel {
     width = "Fill",
     -- Screen-tall: Hyprland animates a layer resize by stretching the old buffer.
     height = "100%",
-    -- The network panel's credential sheet asks for the keyboard at every step: a name, then a
-    -- password. `ui_state.credential_step` is the whole question, and `clear_network_prompts` ends
-    -- the sheet on every closing edge, so it cannot leave this surface holding the keyboard.
-    --
-    -- Hold it across the wait between the two. `"None"` in the gap would hand the keyboard back to
-    -- whatever is behind the panel for as long as the Supervisor takes to answer.
-    --
-    -- `"Exclusive"`, not `"OnDemand"`: both fields must be typable without a click. The engine arms
-    -- a scope's *sole* `secure_submit` field and first `autofocus` plain field on compositor focus
-    -- (`layout::secure_submit`, `wayland::input`); the sheet shows one at a time. The sheet is
-    -- raised by a click on an already-open panel.
-    --
-    -- Notifications also need it: history draws the popup's always-present reply field,
-    -- and niri focuses an `OnDemand` layer on a click while already on demand, not on the flip.
-    -- Ask on demand only while history is shown: clicks there take the keyboard, other windows give
-    -- it back, and the catcher closes the panel. Network and calendar never ask without a field.
+    -- The credential sheet asks for a name, then a password, and `ui_state.credential_step` covers
+    -- both including the wait between them: `"None"` in that gap would hand the keyboard back.
+    -- `"Exclusive"` because either field must be typable without a click, the engine arming the
+    -- scope's sole field on compositor focus. History's reply field needs only `"OnDemand"`, since a
+    -- click there takes the keyboard and other windows give it back.
     keyboard_interactivity = computed(
         { ui_state.credential_step, ui_state.panel_showing("notifications") },
         function(step, showing_notifications)
@@ -204,8 +159,7 @@ return panel {
             return showing_notifications and "OnDemand" or "None"
         end
     ),
-    -- Input follows drawn and clickable nodes, so a closed panel leaves the
-    -- bar and its corners as the only region and the rest of the screen clicks through.
+    -- Input follows drawn nodes, so a closed panel leaves only the bar and its corners clickable.
     child = rect {
         width = "Fill",
         height = "Fill",
@@ -228,8 +182,8 @@ return panel {
                 margin = { top = theme.bar_height },
                 children = ui_state.panel_instance:map(function(instance)
                     return {
-                        -- `close_panel` answers pending passwords, not this catcher. Outside click and
-                        -- a second indicator click are the same edge; one writer keeps them in sync.
+                        -- `close_panel`, not a local handler: an outside click and a second
+                        -- indicator click are the same edge, and it also answers pending passwords.
                         button {
                             width = "Fill",
                             height = "Fill",

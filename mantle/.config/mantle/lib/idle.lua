@@ -1,21 +1,16 @@
--- Idle-seat policy, not execution: settings, three stages, and reasons holding the session awake.
--- `modules/global/idle.lua` runs the clock. Keep this side-effect-free for bar readers, with the
--- one-way dependency `modules/` requires `lib/`, never the reverse.
--- Registers one one-second threshold and counts on `mantle.system.monotonic`. Not one threshold per
--- stage, even though `cancel_threshold` could now retime them: the panel's "idle 0:42" readout
--- needs the tick anyway, and a stage arms when its predecessor reports `done`, not at a fixed
--- second after input.
--- Here each stage carries `done`; `idle.eligible` generalizes the same rule to any `order`: arm a
--- stage once every enabled predecessor is done. `modules/global/idle.lua` stamps arming, fires
--- after that stage's delay, and clears the stamp when it is no longer armed.
--- Stages use the bar's existing one-second readout clock, so resolution is one second with no new
--- cadence. `mantle.system` pushes are load-bearing; if that timer stops, stages stop too.
--- ponytail: the one-second threshold reports idle one second after last input. `idle_since`
--- subtracts it back out, but `ext-idle-notifier-v1` has no "how long idle" call to do better.
--- Here `mantle.idle:inhibit(reason)` takes a logind hold, and the Supervisor holds every
--- threshold event while anything holds one, ours included. A manual hold, a player's own
--- `org.freedesktop.ScreenSaver` hold and `systemd-inhibit --what=idle` therefore stop stages;
--- `idle_since` resets on entry and stages need no individual guard.
+-- Idle-seat policy, not execution: settings, the three stages, and what holds the session awake.
+-- `modules/global/idle.lua` runs the clock, stamps each arming and fires. Side-effect-free, so bar
+-- readers can require it; `modules/` requires `lib/`, never the reverse.
+--
+-- One one-second threshold counted on `mantle.system.monotonic`, not one per stage: the panel's
+-- "idle 0:42" readout needs the tick anyway, and a stage arms when its predecessor reports `done`
+-- rather than at a fixed second. If those pushes stop, stages stop too.
+--
+-- Any hold -- ours, a player's `org.freedesktop.ScreenSaver`, `systemd-inhibit --what=idle` --
+-- withholds every threshold event, so stages need no guard of their own.
+--
+-- ponytail: the threshold reports idle one second after the last input, which `idle_since` subtracts
+-- back out; `ext-idle-notifier-v1` has no "how long idle" call to do better.
 local store = require("lib.store")
 local icons = require("config.icons")
 
@@ -24,8 +19,7 @@ local idle = {}
 -- One registration; this threshold handles both display wake and counting.
 idle.TICK = 1
 
--- Stages are listed in panel order, not run order, which follows timeouts. `options` is in
--- seconds; hand-edited `state.json` values still read.
+-- Panel order, not run order, which follows the timeouts. `options` is in seconds.
 idle.STAGES = {
     {
         key = "dpms",
@@ -83,8 +77,8 @@ local DEFAULTS = {
     battery = { dpms_on = true, dpms_sec = 120, lock_on = true, lock_sec = 180, suspend_on = true, suspend_sec = 600 },
 }
 
--- Normalize to each stage exactly once: drop unknown/duplicate names, then append missing stages in
--- declaration order, repairing hand-edited `state.json` and files predating a new stage.
+-- Each stage exactly once: drop unknown and duplicate names, append missing ones in declaration
+-- order. Repairs a hand-edited `state.json` and files predating a new stage.
 local function resolve_order(stored)
     local seen, out = {}, {}
     for _, key in ipairs(type(stored) == "table" and stored or {}) do
@@ -101,8 +95,8 @@ local function resolve_order(stored)
     return out
 end
 
---- Fill every missing key. `persistent_table` seeds only top-level `idle` once, so an older
---- `state.json` would otherwise yield a missing stage timeout and divide by `nil`.
+--- Fill every missing key: `persistent_table` seeds only the top-level `idle`, so an older
+--- `state.json` can be missing a stage timeout.
 --- @param stored table? `store.idle`'s payload
 --- @return table
 function idle.read(stored)
@@ -130,8 +124,7 @@ function idle.read(stored)
     return out
 end
 
--- Copy-on-write like `lib/ui_state.lua`'s `toggle_key`: table identity makes a fresh table
--- necessary for the write and prevents mutating a value under an unfinished resolve.
+-- Copy-on-write: identity drives the push, and mutating a value under an unfinished resolve loses it.
 local function with(source, key, value)
     local next_table = {}
     for k, v in pairs(source or {}) do
@@ -155,17 +148,15 @@ function idle.write(profile, key, value)
     store:set("idle", with(current, profile, with(current[profile], key, value)))
 end
 
---- Next `stage.options` value from `sec`, wrapping; `step = -1` goes down. This follows
---- `modules/bar/panels/power_menu.lua`'s brightness rule: stopping at an end reads as broken, and
---- either end is safe.
+--- Next `stage.options` value from `sec`, wrapping; `step = -1` goes down. Wraps rather than stops,
+--- like the power menu's brightness: stopping at an end reads as broken.
 --- @param stage table one entry of `idle.STAGES`
 --- @param sec integer
 --- @param step integer
 --- @return integer
 function idle.cycle(stage, sec, step)
     local options = stage.options
-    -- Choose the nearest option at or above the stored value, so hand-edited 45s steps to 60s
-    -- rather than the list's start.
+    -- Nearest option at or above the stored value, so a hand-edited 45s steps to 60s.
     local index = #options
     for position, value in ipairs(options) do
         if value >= sec then
@@ -203,13 +194,11 @@ function idle.clock(sec)
     return string.format("%d:%02d", math.max(0, sec) // 60, math.max(0, sec) % 60)
 end
 
--- ## State
--- Use named `state()` signals because registry entries survive config reloads,
--- preventing an edit from forgetting a manual hold or leaking its inhibitor.
+-- Named `state()` throughout: registry entries survive a reload, so an edit cannot forget a manual
+-- hold or leak its inhibitor.
 
---- The `mantle.system.monotonic` reading when the seat went idle, or `0` while it is awake.
---- Survives an in-place reload, which the clock's epoch also survives; a Supervisor restart builds
---- both afresh, so the two can never be read against different epochs.
+--- The `mantle.system.monotonic` reading when the seat went idle, or `0` while awake. It and the
+--- clock's epoch survive a reload together, and a Supervisor restart rebuilds both.
 idle.since = state("idle_since", 0)
 
 --- Arming time in `mantle.system.monotonic`, keyed by `stage.key`. Missing means not armed; the
@@ -223,17 +212,15 @@ idle.armed_profile = state("idle_armed_profile", "")
 --- Whether the displays are off because `modules/global/idle.lua` turned them off.
 idle.blanked = state("idle_blanked", false)
 
---- The arming stamp each stage has already fired for, keyed by `stage.key`. `dpms` and `lock`
---- report `done` once they act, so the walk moves past them. `suspend` is terminal and observes
---- nothing, so without this it re-ran `systemctl suspend` every tick from the moment it came due
---- until something ended the idle period.
+--- The arming stamp each stage has fired for. `dpms` and `lock` report `done` and the walk moves
+--- past them; terminal `suspend` observes nothing, and without this re-ran every tick.
 idle.fired_at = state("idle_fired_at", {})
 
 --- The bar button's own hold.
 idle.manual = state("idle_manual", false)
 
---- Whether a logind inhibitor is out in our name right now. Not derived from [`idle.reasons`]:
---- `inhibit`/`release_inhibit` are counted, so this is the count, and a wrong one leaks.
+--- Whether a logind inhibitor is out in our name. Not derived from [`idle.reasons`]: the calls are
+--- counted, and a wrong count leaks one.
 idle.holding = state("idle_holding", false)
 
 --- @param power table? `mantle.power`'s payload
@@ -242,19 +229,16 @@ function idle.profile_of(power)
     return (power ~= nil and power.on_battery == true) and "battery" or "ac"
 end
 
---- Which profile's numbers are in force. `on_battery` is `nil` on a host with no UPower, which is
---- the AC answer: a machine that cannot tell you it is on battery is plugged in.
+--- Which profile's numbers are in force. No UPower means AC: a machine that cannot say it is on
+--- battery is plugged in.
 idle.active_profile = mantle.power:map(idle.profile_of)
 
---- Reasons *this config* would take a logind hold for, or an empty list. Pure and payload-based so
---- `modules/global/idle.lua` can use `on_change`'s value instead of a possibly stale `computed`.
+--- Reasons *this config* would take a logind hold for. Pure and payload-based, so
+--- `modules/global/idle.lua` can pass `on_change`'s value rather than read a stale `computed`.
 ---
---- Holds only, which is why foreign holders are absent. Taking our own inhibitor because another
---- application holds one is a second block for one reason, and nothing releases it. The writers
---- watch privacy and storage, never `mantle.idle`; [`idle.reasons`] adds foreign holders back.
----
---- Nothing here reads playback. A player that wants the screen up says so itself, over
---- `org.freedesktop.ScreenSaver` or the Wayland inhibitor, and the engine honours both.
+--- Foreign holders are absent on purpose: holding because someone else holds is a second block for
+--- one reason that nothing releases. [`idle.reasons`] adds them back. Playback is not read here --
+--- a player that wants the screen up says so itself, and the engine honours it.
 --- @param privacy table? `mantle.privacy`'s payload
 --- @param settings table the result of [`idle.read`]
 --- @param manual boolean
@@ -264,11 +248,9 @@ function idle.own_reasons(privacy, settings, manual)
     if manual then
         reasons[#reasons + 1] = "manual"
     end
-    -- Camera, microphone and screen capture, named separately so "why is my laptop not sleeping"
-    -- gets the actual reason rather than "media". No application declares these as an idle hold,
-    -- which is why they are ours to take.
-    -- Gated on the master switch, unlike `manual` above it. These hold off *our* stages, so with
-    -- automatic actions off there is nothing to hold. `manual` stays ungated as an explicit press.
+    -- Named separately, so "why is my laptop not sleeping" gets the real reason. No application
+    -- declares these, which is why they are ours. Gated on the master switch, unlike the explicit
+    -- `manual` press: with automatic actions off there are no stages to hold off.
     if settings.enabled and settings.privacy_auto_inhibit then
         privacy = privacy or {}
         if #(privacy.camera_users or {}) > 0 then
@@ -284,17 +266,11 @@ function idle.own_reasons(privacy, settings, manual)
     return reasons
 end
 
---- Everything holding the session awake, ours and anyone else's, for anything drawing the list.
----
---- Foreign entries are holds this config did not take: `systemd-inhibit --what=idle`, a browser
---- call, or the compositor withholding notifications for a surface inhibitor, which
---- arrives with an empty `who`. The engine honors all of them and lists them in
---- `mantle.idle.inhibitors`.
+--- Everything holding the session awake, ours and anyone else's, for whatever draws the list.
 idle.reasons = computed({ mantle.privacy, store.idle, idle.manual, mantle.idle }, function(p, stored, manual, foreign)
     local reasons = idle.own_reasons(p, idle.read(stored), manual)
     for _, inhibitor in ipairs((foreign or {}).inhibitors or {}) do
-        -- `who` is empty for anything arriving through xdg-desktop-portal, which passes no
-        -- application name, so `why` ("Playing video") is the only label there is.
+        -- `who` is empty through xdg-desktop-portal, so `why` ("Playing video") is the only label.
         reasons[#reasons + 1] = inhibitor.who ~= "" and inhibitor.who
             or inhibitor.why ~= "" and inhibitor.why
             or "another application"
@@ -302,9 +278,8 @@ idle.reasons = computed({ mantle.privacy, store.idle, idle.manual, mantle.idle }
     return reasons
 end)
 
---- Sentence naming the holders. `inhibited` outruns [`idle.reasons`]: our own hold is excluded from
---- `mantle.idle.inhibitors`, and a compositor surface inhibitor names nothing at all. Either left the
---- banner reading "held awake by" with an empty list after it.
+--- Sentence naming the holders. `inhibited` outruns [`idle.reasons`] -- our own hold is excluded
+--- from `mantle.idle.inhibitors` and a surface inhibitor names nothing -- which left an empty list.
 --- @param reasons string[]
 --- @param inhibited boolean
 --- @return string
@@ -316,21 +291,17 @@ function idle.held_text(reasons, inhibited)
     return inhibited and "Held awake by something that did not name itself" or "Nothing is holding this awake"
 end
 
---- Whether anything holds the session awake, including unnamed holders. `mantle.idle`'s `inhibited`
---- is the authoritative `BlockInhibited` gate, so an unreadable `who` still stops the countdown
---- instead of leaving a modal bar that can never fill.
+--- Anything holding the session awake, unnamed holders included: `inhibited` is the authoritative
+--- `BlockInhibited` gate, so an unreadable `who` still stops the countdown.
 idle.inhibited = computed({ idle.reasons, mantle.idle }, function(reasons, foreign)
     return #reasons > 0 or (foreign ~= nil and foreign.inhibited == true)
 end)
 
---- Make the logind hold match [`idle.reasons`], with no-op convergence. Every caller that can
---- change the answer calls this one writer.
----
---- Keep the capability call in `lib/`, like `lib/ui_state.lua`'s `close_panel`; three module
---- callers remembering take/drop/count would eventually disagree.
+--- Make the logind hold match the reasons. One writer, called by everything that can change the
+--- answer; three callers counting take/drop themselves would disagree.
 function idle.sync_inhibit()
-    -- Our hold is excluded from `mantle.idle.inhibitors` by `foreign_idle_inhibitors`, so readback
-    -- cannot make this function think it already holds one and skip acquiring it.
+    -- Our hold is excluded from `mantle.idle.inhibitors`, so readback cannot mistake it for a foreign
+    -- one and skip acquiring.
     local reasons = idle.own_reasons(mantle.privacy:get(), idle.read(store.idle:get()), idle.manual:get())
     local want = #reasons > 0
     if want == idle.holding:get() then
@@ -351,8 +322,8 @@ function idle.set_manual(on)
     idle.sync_inhibit()
 end
 
---- Runnable stages in order and their post-arming delays. `at` is a display total only; no stage
---- fires from it because its clock starts when it arms.
+--- Runnable stages in order with their post-arming delays. `at` is a display total; a stage's clock
+--- starts when it arms.
 --- @param settings table the result of [`idle.read`]
 --- @param profile string `"ac"` or `"battery"`
 --- @return { list: table[], total: integer }
@@ -377,13 +348,8 @@ function idle.plan(settings, profile)
     return { list = list, total = from }
 end
 
---- Currently armed stage from `plan`, or `nil`.
----
---- Chooses the first stage whose predecessors report [`done`](idle.STAGES), skipping stages
---- already done. A stage without `done` satisfies no successor, so it terminates the chain.
----
---- Recomputed every tick, not latched: when `mantle.lock.active` goes false, lock becomes undone
---- and the next stage stops being armed on the next tick without an unlock listener.
+--- Currently armed stage from `plan`, or `nil`: the first one not yet [`done`](idle.STAGES). A stage
+--- without `done` ends the chain. Recomputed every tick, so an unlock disarms the rest by itself.
 --- @param plan table the result of [`idle.plan`]
 --- @return table? one entry of `plan.list`
 function idle.armed(plan)
@@ -397,8 +363,7 @@ function idle.armed(plan)
     return nil
 end
 
---- Move one stage `step` places and store it. Out-of-range is a no-op, so the modal can wire both
---- chevrons unconditionally and hide them rather than guard.
+--- Move one stage `step` places. Out-of-range is a no-op, so the modal can wire both chevrons.
 --- @param key string
 --- @param step integer `-1` earlier, `1` later
 function idle.move(key, step)

@@ -1,13 +1,9 @@
--- Collapsed shows one circle; hover shows all, and collapse waits on `delay`.
--- Each cell tweens width and opacity from zero to a slot; `collapse_ms` lets a
--- returning pointer cancel it, and `hold_open` keeps the pill open for a countdown.
+-- Collapsed shows one circle, hover shows all, and collapsing waits out `collapse_ms` so a returning
+-- pointer cancels it; `hold_open` keeps it open for a countdown. A changed collapsed slot is a
+-- hand-off in place, needing no offset arithmetic.
 --
--- The old cell shrinks as the new one grows in place when the collapsed slot changes, a hand-off
--- rather than a scroll. It needs no offset arithmetic.
---
--- Each cell owns right padding instead of row `spacing`: a zero-width cell still earns `spacing`.
--- A collapsed strip is one circle plus every gap. The last gap trails the expanded pill by one
--- `spacing.sm`, but nothing sits close enough to notice.
+-- Each cell owns its right padding rather than using row `spacing`, which a zero-width cell would
+-- still earn. The expanded pill trails one `spacing.sm`, with nothing close enough to notice.
 local theme = require("config.theme")
 local util = require("lib.util")
 

@@ -1,17 +1,12 @@
--- Three day cards that open into a ten-day grid.
+-- Three day cards that open into a ten-day grid. Like `indicators/system_info.lua` this lives under
+-- `indicators/` but never reaches the bar: `panels/notification_history.lua` is the only caller.
 --
--- Like `modules/bar/indicators/system_info.lua`, this lives under `indicators/`, but nothing puts
--- it on the bar: `modules/bar/panels/notification_history.lua` is the only caller.
---
--- Thirteen cards read the same four parallel arrays, so the body is one `computed` over the
--- forecast returning nodes, as `modules/bar/panels/minimal_calendar.lua` builds its month. Per-field
--- signals would resolve that table thirteen times a pass to say the same thing. It rebuilds about
--- eighty nodes a pass while the sidebar is open; the hidden-subtree freeze makes it zero when shut.
---
--- `visible` is this config's shape for expansion, and an invisible node takes no size or spacing
--- gap.
+-- Thirteen cards read the same four parallel arrays, so the body is one `computed` over the forecast
+-- returning nodes; per-field signals would resolve that table thirteen times a pass to say the same
+-- thing. The hidden-subtree freeze makes the rebuild free while the sidebar is shut.
 local theme = require("config.theme")
 local icons = require("config.icons")
+local util = require("lib.util")
 local weather = require("lib.weather")
 local cell = require("components.cell")
 local icon_button = require("components.icon_button")
@@ -40,14 +35,13 @@ local CENTRED = { width = "Fill", align = "Center" }
 ---@param opts { label?: string, today?: boolean, height?: integer }
 local function day_card(daily, index, opts)
     local code = math.floor((daily.weathercode or {})[index] or -1)
-    -- The three named days lose their names once the grid is open, because then every card is a
-    -- weekday and "Today" beside "Wed" reads as two scales at once.
+    -- The named days lose their names once the grid is open: "Today" beside "Wed" reads as two
+    -- scales at once.
     local heading = opts.label or weather.weekday((daily.time or {})[index])
     return panel_card({
-        cell({ { text = heading, bold = true } }, opts.today and theme.FG or theme.DIM, theme.font.sm, CENTRED),
+        cell(util.bold(heading), opts.today and theme.FG or theme.DIM, theme.font.sm, CENTRED),
         cell(weather.info(code).icon, theme.FG, theme.font.xl, CENTRED),
-        cell({ { text = degrees((daily.temperature_2m_max or {})[index]), bold = true } }, theme.FG, theme.font.lg,
-            CENTRED),
+        cell(util.bold(degrees((daily.temperature_2m_max or {})[index])), theme.FG, theme.font.lg, CENTRED),
         cell(degrees((daily.temperature_2m_min or {})[index]), theme.DIM, theme.font.sm, CENTRED),
     }, {
         width = "Fill",
@@ -70,7 +64,7 @@ return function(id)
             width = "Fill",
             spacing = theme.spacing.sm,
             children = {
-                -- Yesterday and tomorrow sit behind today; a named day keeps its name only while the grid is shut.
+                -- A named day keeps its name only while the grid is shut.
                 day_card(daily, YESTERDAY, { label = not open and "Yesterday" or nil }),
                 day_card(daily, TODAY, { label = not open and "Today" or nil, today = true }),
                 day_card(daily, TOMORROW, { label = not open and "Tomorrow" or nil }),
@@ -79,8 +73,8 @@ return function(id)
         if not open then
             return rows
         end
-        -- `model: forecast.time.length - 3`, four to a row, with the last row short rather than
-        -- stretched: a lone Thursday card three columns wide is not a grid.
+        -- Four to a row, the last row short rather than stretched: a lone Thursday card three
+        -- columns wide is not a grid.
         local days = #daily.time
         for first = TOMORROW + 1, days, COLUMNS do
             local children = {}
@@ -97,8 +91,8 @@ return function(id)
 
     local ready = weather.daily:map(has_data)
     local blank = ready:map(function(yes) return not yes end)
-    -- The label toggles the grid; the middle carries the age of the reading, in accent while the
-    -- grid is open so it reads as part of the open header rather than dimmed beside it.
+    -- The label toggles the grid; the middle carries the age of the reading, accented while open so
+    -- it reads as part of the header.
     local toggle = expander_header(expanded, "weather-toggle-" .. id, expanded:map(function(open)
         return open and "Show Less" or "10 Day Forecast"
     end), cell(computed({ weather.updated_at, mantle.system }, function(at, system)

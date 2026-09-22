@@ -1,24 +1,13 @@
--- One hourly reading of open-meteo.
+-- One hourly reading of open-meteo over `curl`, decoded in the exit callback, which is the only one
+-- that knows the body is complete. Coordinates come from the timezone's city, not `ipapi.co` (429s
+-- on its free tier); write `weather_location` to pin a place instead.
 --
--- Coordinates come from the timezone, not `ipapi.co`, which answers 429 on its free tier. It is
--- the timezone's city, not yours; write `weather_location` to pin one instead.
+-- Retries and the refresh share one deadline, `next_attempt`, compared on `mantle.system`'s 1 Hz
+-- push, so no config timer is needed. `launcher/currency.lua` refreshes the same way.
 --
--- `process.run("curl", ...)`, decoded in the exit callback because only it knows the body is
--- complete. `docs/roadmap.md` routes weather through an HTTP CLI rather than a capability, and
--- open-meteo needs no key, so the whole service is two requests and a cache.
---
--- ## One deadline instead of two timers
---
--- There is no config-owned timer here, so both collapse into `next_attempt`, a wall-clock second
--- compared on `mantle.system`'s 1 Hz push. Success schedules the next hour; the first two failures
--- schedule seconds away, and the third gives up until the hour.
--- `modules/global/launcher/currency.lua` refreshes the same way.
---
--- Nothing is owed until `mantle.storage` has pushed, because the stored timestamp is what says
--- whether a launch owes a request at all, and its `0` default would spend one every time. That is a
--- level test on the signal rather than a handler watching for its first push: a push is an edge,
--- and an in-place reload installs the new handler after the capability has already pushed, so an
--- edge gate would arm on a cold start and never again.
+-- Nothing is owed until `mantle.storage` has pushed, since the stored stamp says whether a launch
+-- owes a request and its `0` default would spend one every time. A level test, not an edge: a reload
+-- installs its handler after the capability has already pushed.
 local icons = require("config.icons")
 local store = require("lib.store")
 local util = require("lib.util")
@@ -33,9 +22,7 @@ local MANUAL_FLOOR_SECONDS = 30
 
 local GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search?count=5&name="
 
--- WMO codes are sparse, so this is a lookup rather than a range test, and an unlisted one is
--- "Unknown" rather than a nil a caller has to test for. The forecast cards draw the icon;
--- `modules/bar/indicators/date_time.lua` draws both halves.
+-- WMO codes are sparse, so a lookup, and an unlisted one is "Unknown" rather than a `nil` to test.
 local CODES = {
     [0] = { icon = "☀️", desc = "Clear sky" },
     [1] = { icon = "🌤️", desc = "Mainly clear" },
@@ -75,8 +62,7 @@ function weather.info(code)
     return CODES[code or -1] or UNKNOWN
 end
 
--- The lock screen has one line for weather, so the same codes collapse into six glyphs rather than
--- twenty-eight pictures.
+-- The lock screen has one line, so the same codes collapse into six glyphs.
 local GLYPH_BUCKETS = {
     [icons.weather_sunny] = { 0, 1 },
     [icons.weather_fog] = { 45, 48 },
@@ -98,31 +84,25 @@ function weather.glyph(code)
     return GLYPHS[code or -1] or icons.weather_cloud
 end
 
--- The reading, straight off `lib/store.lua` so a restart inside the hour draws before any request.
--- `weather_location` is written once by the geocode lookup and read back for its place name.
+-- Straight off `lib/store.lua`, so a restart inside the hour draws before any request.
 weather.code = store.weather_code
 weather.temperature = store.weather_temperature
 weather.daily = store.weather_daily
 weather.updated_at = store.weather_updated_at
 weather.location = store.weather_location
 
--- `failed` is not cached: it describes this session's last attempt, and a stale one read back at
--- launch would show "Weather Unavailable" over a forecast that is on screen.
+-- Not cached: a stale failure would read back as "Weather Unavailable" over a forecast on screen.
 weather.failed = state("weather_failed", false)
 
--- `state`, not module locals: a local is rebuilt by every in-place reload, while the `process.run`
--- child it is guarding is not. An unrelated config save would clear the guard under a live request
--- and let the next tick start a second one. `state` has exactly the child's lifetime, surviving a
--- reload with an unchanged seed and dying with the generation that gets the
--- child reaped anyway. `0` in `next_attempt` means nothing is scheduled yet.
+-- `state`, not locals: a reload rebuilds a local while the `process.run` child it guards lives on,
+-- so a save would let the next tick start a second request. `0` means nothing is scheduled yet.
 local in_flight = state("weather_fetching", false)
 weather.fetching = in_flight
 local retries = state("weather_retries", 0)
 local next_attempt = state("weather_next_attempt", 0)
 
--- Monotonic, not wall: a retry is a duration this session owns, and setting the clock must not
--- park the next attempt an hour out. The stored-freshness deadline below is the other
--- kind and stays wall, so the two are never compared against the same reading.
+-- Monotonic, not wall: setting the clock must not park the next attempt an hour out. The stored
+-- freshness deadline below is wall, and the two are never compared.
 local function schedule(seconds)
     next_attempt:set(((mantle.system:get() or {}).monotonic or 0) + seconds)
 end
@@ -148,8 +128,7 @@ local function http_get(url, apply)
     end, function(code)
         in_flight:set(false)
         local data = code == 0 and json.decode(table.concat(body)) or nil
-        -- `apply` raising is caught into the same retry as a dead socket. A half-applied reading
-        -- cannot result: both writers write last.
+        -- `apply` raising retries like a dead socket.
         if type(data) ~= "table" or not pcall(apply, data) then
             log.warn(("weather: fetch failed (curl exited %s), retrying"):format(tostring(code)))
             failed()
@@ -238,8 +217,7 @@ mantle.system:on_change(function(system)
     end
     local due = next_attempt:get()
     if due == 0 then
-        -- Nothing scheduled yet, so the deadline is the stored reading's own hour. That stamp
-        -- outlived the session, so it is wall time and only `time` can be compared with it.
+        -- Nothing scheduled: the deadline is the stored reading's own hour, in wall time.
         local stale_at = (store.weather_updated_at:get() or 0) + REFRESH_SECONDS
         if system.time < stale_at then
             return
@@ -268,8 +246,7 @@ function weather.time_ago(at, now)
     return "just now"
 end
 
----The weekday an ISO `YYYY-MM-DD` from `daily.time` names. `os.date` needs seconds, and the
----engine's clock is the only other date source a config has.
+---The weekday an ISO `YYYY-MM-DD` from `daily.time` names.
 ---@param iso string|nil
 ---@return string
 function weather.weekday(iso)

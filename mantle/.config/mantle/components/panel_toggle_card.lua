@@ -73,6 +73,9 @@ return function(opts)
             return { { text = opts.label, bold = on } }
         end)
     end
+    local detail_ink = computed({ checked, hovered }, function(on, hot)
+        return (on or hot) and theme.TEXT_ACTIVE or theme.DIM
+    end)
 
     local function icon_node()
         if opts.icon == nil or opts.icon == "" then
@@ -90,10 +93,6 @@ return function(opts)
             animate = { foreground = theme.animation_ms },
         })
     end
-
-    local detail_ink = computed({ checked, hovered }, function(on, hot)
-        return (on or hot) and theme.TEXT_ACTIVE or theme.DIM
-    end)
 
     local function detail_node(wide_mode)
         return cell(detail, detail_ink, theme.font.xs, {

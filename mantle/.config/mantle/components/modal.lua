@@ -1,7 +1,5 @@
--- One modal card and its motion, for `modules/global/modal_host.lua` to stack under one scrim. The
--- card fades, scales from 0.97, rises by `spacing.md`, and uses OutCubic opening and InCubic
--- closing. `modal_host` keeps the wrapper through exit. A modal switch
--- cross-fades the old card against the new one.
+-- One modal card and its motion, for `modules/global/modal_host.lua` to stack under one scrim: it
+-- fades, scales from 0.97 and rises by `spacing.md`, OutCubic in and InCubic out.
 local theme = require("config.theme")
 local ui_state = require("lib.ui_state")
 
@@ -15,12 +13,10 @@ local CLOSED_SCALE = 0.97
 ---@field kind string
 ---@field node table The screen-sized wrapper carrying the card and its motion.
 
--- `modal_host`'s outside catcher is every card's ancestor, and a hit takes the innermost handled
--- `button`, so a press on the card's own ground -- its padding, the gap
--- between two rows, an empty list -- walked up to the catcher and closed the modal under the
--- pointer. A handled button the size of the card ends that walk. It takes the card's placement
--- rather than sitting under it: content-sized, it would reach back to the surface origin and eat
--- the scrim's clicks along the top and left. `cursor` undoes the pointing hand it otherwise wears.
+-- `modal_host`'s outside catcher is every card's ancestor, so a press on the card's own ground --
+-- padding, a gap between rows, an empty list -- used to walk up to it and close the modal. A handled
+-- button the size of the card ends that walk. It takes the card's placement rather than sitting
+-- under it, since content-sized it would reach back to the origin and eat the scrim's clicks.
 local function swallow_presses(card)
     local box = button {
         on_click = function() end,
@@ -51,9 +47,8 @@ return function(opts)
     end)
     return {
         kind = opts.kind,
-        -- Screen-sized, so the card keeps its own `margin` or centre alignment, and scale pivots on
-        -- the screen's centre. Stacking, not a column: columns control child placement, which would
-        -- drop a card's own `align_v` and hang every card from the top.
+        -- Screen-sized, so the card keeps its own placement and scale pivots on the screen's centre.
+        -- Stacking, not a column, which would control child placement and hang every card from the top.
         node = rect {
             width = "Fill",
             height = "Fill",

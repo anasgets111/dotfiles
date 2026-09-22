@@ -1,19 +1,15 @@
--- Panel-list row: leading icon, title, optional subtitle, and trailing action slot. Every
--- bar-panel list uses it for access points, bluetooth devices, and notifications.
--- `width = "Fill"` leaves the trailing slot at the right edge and elides the title; it matches
--- `components/panel_header.lua` and the `scene.rs` fix.
--- `selected` gets an accent ring, tinted ground, and accent title. A coloured title alone reads as
--- a different row, not the selected one.
--- Without `on_activate`, return a `rect`, not a no-op `button` that takes the pointer and looks
--- clickable. Both shapes share the look, so an unclickable selected device row still wears its ring
--- and trailing actions.
+-- Panel-list row: leading icon, title, optional subtitle, trailing action slot. `width = "Fill"`
+-- keeps the trailing slot at the right edge and elides the title.
+--
+-- `selected` gets a ring, a tinted ground and an accent title; colour alone reads as a different
+-- kind of row. Without `on_activate` this is a `rect`, not a no-op `button` that would take the
+-- pointer and look clickable, and both shapes share the look.
 local theme = require("config.theme")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 
--- Like `components/cell.lua`, payload fields become text here and `title`/`subtitle` go straight to
--- `cell`. Without these shapes, `list` `itemfn`'s `any` reaches `text.content` unchanged, including
--- a notification span array.
+-- Typed like `components/cell.lua`: without these shapes a `list` `itemfn`'s `any` reaches
+-- `text.content` unchanged, a notification span array included.
 ---@class PanelRowOpts
 ---@field title string|Bound
 ---@field subtitle? string|Bound
@@ -50,8 +46,7 @@ return function(opts)
     if opts.leading then
         children[#children + 1] = opts.leading
     elseif opts.icon then
-        -- A glyph, not a themed icon: `PaintStyle::Icon` has no tint. `opts.art` is for unchosen
-        -- artwork such as an application's icon.
+        -- A glyph, not a themed icon, which `PaintStyle::Icon` cannot tint; `opts.art` is artwork.
         children[#children + 1] = glyph(opts.icon, opts.icon_color or title_color, theme.icon.md, {
             align_v = "Center",
             animate = { foreground = theme.animation_ms },

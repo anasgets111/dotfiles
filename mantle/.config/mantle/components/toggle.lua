@@ -1,16 +1,12 @@
--- On/off switch for boolean writes, including `bluetooth:set_enabled`, `network:set_wifi_enabled`,
--- and `audio:set_muted`. The next capability snapshot is the only readback.
--- Takes the raw signal plus `read`, as `components/meter.lua` does, because `mantle.bluetooth`
--- pushes a table, not a bool; caller knows the field. `on_change` passes the flipped value.
--- The caller routes it through `capability:invoke(...)` or local `state()`.
--- The thumb slides: the track is a `row` whose first child is a spacer with a signal-bound, eased
--- `width`. `align_h` would snap and `margin`'s edge table cannot carry a tween; a
--- bare-number spacer width can.
+-- On/off switch for boolean writes, with the next capability snapshot as the only readback. Takes
+-- the raw signal plus `read` (the caller knows which field), and hands `on_change` the flipped value.
+--
+-- The thumb slides on a spacer's eased `width`: `align_h` would snap, and `margin`'s edge table
+-- cannot carry a tween.
 local theme = require("config.theme")
 local util = require("lib.util")
 
--- The switch derives from `control.xs`. Width is `round(TRACK_HEIGHT * 2.3)`, padding is
--- `max(3, round(TRACK_HEIGHT * 0.12))`. Width scales proportionally.
+-- Everything derives from `control.xs`, so the switch scales with it.
 local TRACK_HEIGHT = theme.control.xs
 local TRACK_WIDTH = math.floor(TRACK_HEIGHT * 2.3 + 0.5)
 local PAD = math.max(3, math.floor(TRACK_HEIGHT * 0.12 + 0.5))
@@ -34,9 +30,8 @@ return function(signal, read, on_change)
             width = "Fill",
             height = "Fill",
             radius = TRACK_HEIGHT / 2,
-            padding = { top = PAD, right = PAD, bottom = PAD, left = PAD },
-            -- Green over flat surface reads as a status light, not a switch, and adds a second
-            -- accent in a shell whose every other lit control is mauve.
+            padding = PAD,
+            -- Not green: a status light, not a switch, and a second accent in a mauve shell.
             background = on:map(function(v)
                 return v and theme.with_opacity(theme.ACCENT, theme.opacity.full) or theme.GLASS_CONTROL
             end),

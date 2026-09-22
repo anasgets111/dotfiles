@@ -42,8 +42,8 @@ local function radio_on(n)
     return n ~= nil and n.networking_enabled and n.wifi_present and n.wifi_enabled
 end
 
--- Header subtitle, in priority order: an off stack speaks before its radios. No payload at all means
--- NetworkManager never answered (the capability stays down for the run).
+-- Header subtitle, in priority order: an off stack speaks before its radios. No payload means
+-- NetworkManager never answered.
 local function state_line(n)
     if n == nil then
         return "Unavailable"
@@ -76,16 +76,12 @@ local function header_glyph(n)
     return n.wifi_enabled and icons.wifi[4] or icons.wifi_off
 end
 
--- Enrich each row with joined state and blocked-by-other-connection status; `parse_list_children`
--- already calls `itemfn` for every element each pass.
--- Both the scanned list and the hidden-network row appear under the same condition, so they share
--- one signal rather than each recomputing it on every network push.
+-- The scanned list and the hidden-network row share one condition.
 local radio_up_and_idle = computed({ mantle.network, ui.hidden_join }, function(n, joining)
     return radio_on(n) and not joining
 end)
 
--- The error card's close button. `connect_error` itself stays until the next attempt, so the
--- dismissal is view state and a new attempt re-arms it.
+-- `connect_error` stays until the next attempt, so the dismissal is view state.
 local error_dismissed = state("network_error_dismissed", false)
 
 mantle.network:on_change(function(n, previous)
@@ -152,7 +148,7 @@ local function access_point_row(entry)
 
     local leading = { glyph(icons.wifi[util.signal_tier(ap.strength)], color, theme.icon.md, { align_v = "Center" }) }
     if band then
-        leading[#leading + 1] = cell({ { text = band, bold = true } }, color, theme.font.xs, { align_v = "End" })
+        leading[#leading + 1] = cell(util.bold(band), color, theme.font.xs, { align_v = "End" })
     end
 
     local trailing = {}
@@ -187,56 +183,38 @@ local function access_point_row(entry)
 end
 
 -- ## The credential sheet
--- One block that walks a join from a typed name through the wait to the password, retitled at each
--- step, rather than two prompts stacked in the card. `lib/ui_state.lua`'s `credential_step` says
--- which step is on screen and `hidden_join` whether the list should stand aside for it.
---
--- It answers the plain row click too, whose `password_ssid` is `"password"` with no name step in
--- front of it. One sheet is the shape this surface can hold, because a form per row would put a
--- `secure_submit` field in every one of them.
+-- One sheet walks a join from a typed name through the wait to the password, retitled at each step:
+-- a form per row would put a `secure_submit` field in every one. `lib/ui_state.lua`'s
+-- `credential_step` says which step is on screen, `hidden_join` whether the list stands aside.
 local step = ui.credential_step
 
-local function during(...)
-    local wanted = {}
-    for _, name in ipairs({ ... }) do
-        wanted[name] = true
-    end
+local function during(name)
     return step:map(function(current)
-        return wanted[current] == true
+        return current == name
     end)
 end
 
--- Four titles: a failure keeps the sheet up here, rather than returning the error to the row it
--- came from.
-local sheet_title = computed({ step, ui.hidden_ssid, mantle.network }, function(current, name, n)
+-- A failure keeps the sheet up here, rather than returning the error to the row it came from.
+local sheet_title = util.bold(computed({ step, ui.hidden_ssid, mantle.network }, function(current, name, n)
     local target = (n and n.password_ssid) or name
     if current == "name" then
-        return { { text = "Hidden network", bold = true } }
+        return "Hidden network"
     elseif current == "waiting" then
-        return { { text = string.format("Connecting to “%s”", target), bold = true } }
+        return string.format("Connecting to “%s”", target)
     elseif current == "failed" then
-        return { { text = string.format("Could not join “%s”", target), bold = true } }
+        return string.format("Could not join “%s”", target)
     end
-    return { { text = string.format("Connect to “%s”", target), bold = true } }
+    return string.format("Connect to “%s”", target)
+end))
+
+local error_message = util.label(mantle.network, function(n)
+    return n.connect_error and n.connect_error.message or ""
 end)
 
--- `textfield` owns only text and the caret. The shared wrapper owns the QML input box.
-local function field_box(shown, field)
-    return input {
-        visible = shown,
-        field = field,
-    }
-end
-
--- Enter, or Next. `hidden = true` is what makes the Supervisor write `802-11-wireless.hidden` --
--- and what makes it treat the target as secured even though no scanned row says so, since a
--- network it cannot see is one it cannot ask about. So either a saved profile answers and the join
--- goes through, or `password_ssid` comes back and this same sheet asks for the rest.
---
--- The name is kept because the sheet is titled with it and a Retry reconnects to it; the Supervisor
--- has its own copy parked under the intent.
---
--- Submitting nothing is not an attempt to join "": leave the step where it is.
+-- Enter, or Next. `hidden = true` makes the Supervisor write `802-11-wireless.hidden` and treat the
+-- target as secured, since a network it cannot see is one it cannot ask about: either a saved
+-- profile answers or `password_ssid` comes back and this sheet asks for the rest. The name is kept
+-- for the title and Retry. Submitting nothing is not an attempt to join "".
 local function submit_hidden_name()
     local name = ui.hidden_draft:get():match("^%s*(.-)%s*$")
     if name == "" then
@@ -246,16 +224,13 @@ local function submit_hidden_name()
     mantle.network:invoke("connect", name, true)
 end
 
--- A failed attempt leaves no pending intent: `connect` consumes it and `begin_connect` clears the
--- prompt before `finish_connect` records the verdict. Retry starts a fresh `connect`, not a
--- resubmission; it takes the sheet from "failed" back to "password" with the name it already knows.
+-- A failed attempt leaves no pending intent, so Retry is a fresh `connect`, not a resubmission.
 local function retry_hidden()
     mantle.network:invoke("connect", ui.hidden_ssid:get(), true)
 end
 
--- Scans repeat for as long as the panel is open. The indicator calls this on every toggle: an
--- open scans now and every `RESCAN_MS` after, and a close cancels the chain. Cancelling first
--- also keeps a quick close and reopen from running two.
+-- Called by the indicator on every toggle: an open scans now and every `RESCAN_MS` after, a close
+-- cancels the chain. Cancelling first keeps a quick close and reopen from running two.
 local RESCAN_MS = 10000
 local rescan = nil
 
@@ -295,8 +270,7 @@ local body = {
             spinner(util.shown_when(mantle.network, function(n)
                 return n.scanning
             end), theme.icon.md),
-            -- Controls the whole stack; off hides the tiles, avoiding a radio control that does
-            -- nothing.
+            -- Controls the whole stack; off hides the tiles.
             toggle(mantle.network, function(n)
                 return n.networking_enabled
             end, function(new_value)
@@ -366,7 +340,7 @@ local body = {
         width = "Fill",
         spacing = theme.spacing.sm,
         align_v = "Center",
-        padding = { top = theme.spacing.sm, right = theme.spacing.sm, bottom = theme.spacing.sm, left = theme.spacing.sm },
+        padding = theme.spacing.sm,
         radius = theme.radius.md,
         background = theme.ALERT_BG,
         visible = computed({ mantle.network, step, error_dismissed }, function(n, current, dismissed)
@@ -378,26 +352,17 @@ local body = {
         end),
         children = {
             glyph(icons.warning, theme.RED, theme.icon.sm, { align_v = "Center" }),
-            cell(util.label(mantle.network, function(n)
-                return n.connect_error and n.connect_error.message or ""
-            end), theme.RED, theme.font.sm, { width = "Fill", wrap = "Word", max_lines = 2 }),
+            cell(error_message, theme.RED, theme.font.sm, { width = "Fill", wrap = "Word", max_lines = 2 }),
             panel_action_icon(icons.close, function()
                 error_dismissed:set(true)
             end, { slot = "network-error-dismiss", tint = theme.RED }),
         },
     },
-    -- The sheet's parts leave layout as the step moves; `panel_host` tweens the card's height to
-    -- the section's measurement, so each step slides into the last one's room rather than snapping.
-    -- Typed passwords never reach this VM. `mask_character` plus `secure_submit` stores
-    -- keystrokes in a native buffer on the Renderer's Wayland thread and sends a `("network",
-    -- "connect")` envelope, as in `modules/global/lock.lua`; no `on_change` or
-    -- `on_submit` callback can reopen that hole. `submit = true` is the only password-button path.
-    -- The masked field is the only `secure_submit` field across `panel_host`'s nine
-    -- panels. The engine focuses a surface's *sole* such field and refuses to guess between two, so
-    -- the name field is plain -- an SSID is an ordinary `connect` argument, which is why it can be
-    -- typed. Only shown fields are counted or armed by
-    -- `layout::secure_submit::typable_secure_submit_targets`, letting each step take the keyboard
-    -- while the other field is down.
+    -- Typed passwords never reach this VM: `mask_character` plus `secure_submit` keeps keystrokes in
+    -- a native buffer and sends a `("network", "connect")` envelope, so `submit = true` is the only
+    -- password path. The engine focuses a surface's *sole* secure field and refuses to guess between
+    -- two, so the name field is plain; only shown fields are armed, letting each step take the
+    -- keyboard while the other is down.
     column {
         width = "Fill",
         spacing = theme.spacing.sm,
@@ -406,42 +371,45 @@ local body = {
         end),
         children = {
             cell(sheet_title, theme.FG, theme.font.sm, { width = "Fill" }),
-            -- `autofocus` rather than a click: the row that raises this sheet is the last thing the
-            -- pointer touches, and `panel_host` turns keyboard `Exclusive` on the same edge. The
-            -- draft is stored on every keystroke because Next has no other way to read the field.
-            field_box(during("name"), textfield {
-                width = "Fill",
-                height = "Fill",
-                autofocus = true,
-                placeholder = "Network name",
-                font_size = theme.font.sm,
-                foreground = theme.FG,
-                on_change = function(typed)
-                    ui.hidden_draft:set(typed or "")
-                end,
-                on_submit = submit_hidden_name,
-                -- Escape empties the field and releases the keyboard; take the sheet
-                -- down with it rather than leaving an empty field holding focus.
-                on_cancel = ui.clear_network_prompts,
-            }),
-            field_box(during("password"), textfield {
-                width = "Fill",
-                height = "Fill",
-                placeholder = "Password",
-                mask_character = "*",
-                secure_submit = { capability = "network", action = "connect" },
-                font_size = theme.font.sm,
-                foreground = theme.FG,
-            }),
+            -- `autofocus` rather than a click: `panel_host` turns keyboard `Exclusive` on the same
+            -- edge. The draft is stored per keystroke because Next has no other way to read it.
+            input {
+                visible = during("name"),
+                field = textfield {
+                    width = "Fill",
+                    height = "Fill",
+                    autofocus = true,
+                    placeholder = "Network name",
+                    font_size = theme.font.sm,
+                    foreground = theme.FG,
+                    on_change = function(typed)
+                        ui.hidden_draft:set(typed or "")
+                    end,
+                    on_submit = submit_hidden_name,
+                    -- Escape empties the field and releases the keyboard; take the sheet down too.
+                    on_cancel = ui.clear_network_prompts,
+                },
+            },
+            input {
+                visible = during("password"),
+                field = textfield {
+                    width = "Fill",
+                    height = "Fill",
+                    placeholder = "Password",
+                    mask_character = "*",
+                    secure_submit = { capability = "network", action = "connect" },
+                    font_size = theme.font.sm,
+                    foreground = theme.FG,
+                },
+            },
             row {
                 spacing = theme.spacing.xs,
                 align_v = "Center",
                 visible = during("waiting"),
                 children = { spinner(during("waiting"), theme.icon.md), cell("Connecting…", theme.DIM, theme.font.xs) },
             },
-            -- `⚠ errorMessage` under the field, not at the card's top: the error belongs to the
-            -- network being asked about. A password step carries one
-            -- when NetworkManager rejected the last key and the Supervisor asked again.
+            -- Under the field, not at the card's top: the error belongs to the network being asked
+            -- about. A password step carries one when NetworkManager rejected the last key.
             row {
                 width = "Fill",
                 spacing = theme.spacing.xs,
@@ -451,9 +419,7 @@ local body = {
                 end),
                 children = {
                     glyph(icons.warning, theme.RED, theme.icon.sm, { align_v = "Center" }),
-                    cell(util.label(mantle.network, function(n)
-                        return n.connect_error and n.connect_error.message or ""
-                    end), theme.RED, theme.font.xs, { width = "Fill", wrap = "Word", max_lines = 2 }),
+                    cell(error_message, theme.RED, theme.font.xs, { width = "Fill", wrap = "Word", max_lines = 2 }),
                 },
             },
             row {
@@ -463,16 +429,15 @@ local body = {
                 children = {
                     action_button("Cancel", ui.cancel_network_join, "network-sheet-cancel", { tone = "quiet" }),
                     -- Hidden rather than disabled while the name is empty: `action_button` has no
-                    -- disabled tone, and a useless button is better absent than greyed.
-                    -- Enter does the same thing for anyone already typing.
+                    -- disabled tone. Enter does the same for anyone already typing.
                     action_button("Next", submit_hidden_name, "network-sheet-next", {
                         tone = "solid",
                         visible = computed({ step, ui.hidden_draft }, function(current, draft)
                             return current == "name" and draft:match("^%s*(.-)%s*$") ~= ""
                         end),
                     }),
-                    -- No `on_activate`: its click *is* the field's Enter, which is the
-                    -- only path a password has out of the Renderer.
+                    -- No `on_activate`: its click *is* the field's Enter, the only path a password
+                    -- has out of the Renderer.
                     action_button("Connect", nil, "network-sheet-connect", {
                         tone = "solid",
                         submit = true,
@@ -487,9 +452,8 @@ local body = {
             },
         },
     },
-    -- Rows up to the cap, then a scrolling viewport. The sheet replaces it during a
-    -- hidden join rather than above it; the card tweens down to the sheet's height instead of
-    -- growing to hold both.
+    -- Rows up to the cap, then a scrolling viewport. The sheet replaces it during a hidden join
+    -- rather than stacking above it.
     list {
         width = "Fill",
         max_height = theme.panel_list_height,
@@ -502,9 +466,8 @@ local body = {
             return entry.key
         end,
     },
-    -- The one row nothing scanned put there, last. A network broadcasting no SSID is dropped from
-    -- `available_networks`, so this stands in for it and asks for the name instead.
-    -- It leaves with the list while the sheet is asking.
+    -- A network broadcasting no SSID is dropped from `available_networks`, so this row stands in for
+    -- it and asks for the name. It leaves with the list while the sheet is asking.
     panel_row {
         slot = "network-hidden",
         icon = icons.wifi_hidden,

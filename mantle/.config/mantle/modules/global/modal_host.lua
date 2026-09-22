@@ -1,7 +1,5 @@
--- One surface holds the scrim, outside-click catcher, and every modal; `ui_state.active_modal`
--- chooses the card. One surface, not one per modal: two cross-fading surfaces each brought a scrim,
--- nearly doubling darkness on frames never in step. A separate scrim above the modal also took
--- outside clicks, since same-layer order is the compositor's to decide.
+-- One surface for the scrim, outside-click catcher and every modal: a surface per modal doubled the
+-- scrim while cross-fading, and same-layer order is the compositor's, so a separate scrim ate clicks.
 local theme = require("config.theme")
 local util = require("lib.util")
 local ui_state = require("lib.ui_state")
@@ -17,13 +15,11 @@ local any_modal = ui_state.active_modal:map(function(kind)
     return kind ~= ""
 end)
 
--- Mapped through the last card's exit fade. `keyboard_interactivity` reads this same
--- signal, so the two cannot drop in different passes: `None` on a still-mapped full-screen host makes
--- Hyprland refocus the last focused window, onto its workspace.
+-- Mapped through the last card's exit fade. `keyboard_interactivity` reads the same signal: `None`
+-- on a still-mapped host makes Hyprland refocus the last window, onto its workspace.
 local shown = util.linger(any_modal, theme.animation_ms)
 
--- Only cards open or fading out are children, which is also what hides a closed one: a hidden card is
--- frozen, not dropped. The host unmaps in the pass the last linger ends, keeping that card.
+-- Only cards open or fading out are children: a hidden card would be frozen, not dropped.
 local lingering = {}
 for _, modal in ipairs(modals) do
     table.insert(lingering, util.linger(ui_state.modal_showing(modal.kind), theme.animation_ms))
@@ -59,9 +55,8 @@ return panel {
     width = "Fill",
     height = "Fill",
     visible = shown,
-    -- Any modal, not only the ones with a field, and released by the unmap rather than on a live
-    -- surface: which kind is fading is not knowable in the same pass as the unmap. Costs
-    -- `theme.animation_ms` of swallowed typing; a stray workspace switch is worse.
+    -- Released by the unmap, costing `theme.animation_ms` of swallowed typing; a stray workspace
+    -- switch is worse.
     keyboard_interactivity = shown:map(function(open)
         return open and "Exclusive" or "None"
     end),
@@ -69,17 +64,11 @@ return panel {
         width = "Fill",
         height = "Fill",
         children = {
-            -- The scrim's opacity follows the open progress, OutCubic in and InCubic out.
+            -- Dims, not blurs: cards blur themselves, and a blur region cannot fade.
             rect {
                 width = "Fill",
                 height = "Fill",
                 background = theme.SCRIM,
-                -- Dims, not blur. A modal that needs attention does not need the rest destroyed.
-                -- Cards request blur themselves, so only the glass blurs and the scrim
-                -- dims a sharp desktop.
-                --
-                -- Blur cannot fade: `set_blur_region` carries only a region, so the step is a step.
-                -- Keeping it inside the card's box makes it unnoticeable.
                 opacity = any_modal:map(function(open)
                     return open and 1 or 0
                 end),
@@ -89,9 +78,8 @@ return panel {
                     }
                 end),
             },
-            -- Outside catcher and cards' parent in one screen-sized node: `hit::descend` stops at
-            -- the first child containing the point, so the catcher must contain cards, not sit
-            -- under them. Card clicks stop at the card.
+            -- The catcher contains the cards rather than sitting under them: `hit::descend` stops at
+            -- the first child containing the point.
             button {
                 width = "Fill",
                 height = "Fill",

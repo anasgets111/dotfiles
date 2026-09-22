@@ -11,7 +11,6 @@ local ui_state = require("lib.ui_state")
 local error_log = require("lib.rescue")
 
 local LOG_SCROLL = scroll("rescue_log")
-local card_padding = theme.spacing.lg
 
 -- Evaluating at all means the config loaded, so an open card is showing a fixed error.
 -- ponytail: a failure in a file required after this one closes the card early; the circle stays, so
@@ -26,8 +25,7 @@ local header = panel_header {
     title_size = theme.font.xl,
     subtitle_size = theme.font.sm,
     trailing = {
-        -- Nothing here is selectable, so copying is the only way out. `detach`, because `wl-copy`
-        -- owns the selection for as long as it lives.
+        -- Nothing is selectable. `detach`: `wl-copy` owns the selection while it lives.
         icon_button(icons.copy, function()
             process.detach("wl-copy", { error_log:get() })
         end, { slot = "rescue-copy", size = theme.control.sm, icon_size = theme.icon.sm }),
@@ -65,7 +63,7 @@ return modal({
         align_h = "Center",
         align_v = "Center",
         spacing = theme.spacing.md,
-        padding = { top = card_padding, right = card_padding, bottom = card_padding, left = card_padding },
+        padding = theme.spacing.lg,
         radius = theme.radius.lg,
         background = theme.GLASS,
         blur = true,

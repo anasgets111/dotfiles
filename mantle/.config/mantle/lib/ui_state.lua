@@ -1,10 +1,8 @@
--- Bar-indicator rect for the panel host. It routes through config, since `on_click` receives the
--- button rect and writes the named `state` read by the surface.
--- Only `x` is read: `modules/shell/panel_host.lua` is a layer surface, placing the card below the
--- bar and clamping it to the output instead of a popup's `anchor_rect`/`gravity`. Keep the other
--- fields because `on_click` still supplies this shape; narrowing it only hides destructuring.
--- The initial is the indicator's declared size. The sole require is one-way: pure
--- `lib/notifications` has no nodes/signals and cannot create a cycle.
+-- Shared view state: panels, modals, the network sheet and the notification cards. `on_click` hands
+-- an indicator its rect, and the panel host reads it back from here.
+--
+-- `popup_anchor`: only `x` is read, since `panel_host` is a layer surface that clamps the card to the
+-- output rather than a popup with `anchor_rect`/`gravity`. The shape is what `on_click` supplies.
 local notifications = require("lib.notifications")
 local theme = require("config.theme")
 
@@ -17,20 +15,13 @@ local panel_open = state("panel_open", false)
 local panel_kind = state("panel_kind", "")
 local panel_instance = state("panel_instance", 0)
 
--- The one modal on screen: `"launcher"`, `"wallpaper_picker"`, `"idle_settings"` or `""`. One
--- string rather than a boolean per modal, so two can never be open
--- at once and opening one is what closes the last. Shared `state`
--- because each modal's own close and its bar button both write it, and so one compositor keybind
--- opens and closes one: `mantle toggle modal launcher` sets it, or clears it when it already is.
+-- The one modal on screen, or `""`. One string, so two can never be open at once and
+-- `mantle toggle modal launcher` is a single keybind.
 local active_modal = state("modal", "")
 
--- ## Which notifications have already had their turn as a popup
--- Popup and history are two presentations of one Supervisor notification; `dismiss` removes both,
--- with no third "stop popping but keep listed" state. The config therefore tracks this view fact.
--- Key by `notifications.notification_key`, id plus timestamp, so `replaces_id` content gets a new
--- turn.
--- Replace the set wholesale, pruning expired/dismissed entries and keeping it within the feed's cap
--- of twenty.
+-- Which notifications have had their popup turn -- a view fact, since `dismiss` removes popup and
+-- history together. Keyed by id plus timestamp, so `replaces_id` content pops again. Replaced
+-- wholesale, which prunes gone entries.
 local popup_seen = state("notification_popup_seen", {})
 
 local function mark_popups_seen()
@@ -42,33 +33,18 @@ local function mark_popups_seen()
     popup_seen:set(seen)
 end
 
--- ## Joining a network that broadcasts no name
--- The Supervisor drops empty-SSID access points from `available_networks`, so a hidden network has
--- no row to click: the join starts from a typed name instead. The sheet walks one flow through three
--- steps -- name, then a wait, then the password -- and these are the three signals it is drawn from.
---
--- `hidden_prompt` is true while the flow is running. `hidden_draft` is what is in the name field
--- this instant, kept because the Next button needs the text a `textfield` only ever hands to
--- `on_change`. `hidden_ssid` is the name once it has been submitted, which
--- titles the rest of the sheet and is what a Retry reconnects to. None of them is a secret; the
--- password half never passes through Lua at all.
+-- Joining a hidden network, which has no row to click: name, wait, password. `hidden_draft` is the
+-- live field text, which a `textfield` only ever hands to `on_change`; `hidden_ssid` is it once
+-- submitted. No secrets here -- the password never passes through Lua.
 local hidden_prompt = state("network_hidden_prompt", false)
 local hidden_draft = state("network_hidden_draft", "")
 local hidden_ssid = state("network_hidden_ssid", "")
 
--- Which step of the credential sheet is on screen, `""` for none, as one string because they are
--- points on one path and never two at once. `panel_host` reads it for keyboard focus, and the panel
--- reads it for drawing.
---
--- A password prompt outranks the hidden steps because it answers a plain click on a secured row,
--- where no name was typed. `password_ssid` names whichever network is being asked about.
---
--- The end of a hidden join is *read*, not latched. A `computed` may not have side effects,
--- so `n.ssid` reaching the typed name finishes the sheet instead of a callback.
---
--- A failure counts only when `connect_error` names the typed network. The Supervisor clears an old
--- error only once it answers the new name, so another join's leftover would otherwise flash
--- "could not join" first.
+-- Which step of the credential sheet is on screen, `""` for none; `panel_host` reads it for keyboard
+-- focus. A password prompt outranks the hidden steps, since it answers a click on a listed row. The
+-- end is read, not latched: a `computed` has no side effects, so `n.ssid` reaching the typed name
+-- ends the sheet. A failure counts only when `connect_error` names that network, or another join's
+-- leftover would flash first.
 local credential_step = computed({ hidden_prompt, hidden_ssid, mantle.network }, function(active, name, n)
     if n and n.password_ssid ~= nil then
         return "password"
@@ -88,16 +64,13 @@ local credential_step = computed({ hidden_prompt, hidden_ssid, mantle.network },
     return "waiting"
 end)
 
--- Whether the sheet on screen belongs to a hidden join, which is what stands in for the access
--- point list while it runs. A password asked for a row that *is* listed leaves the list alone,
--- since that row is the thing being asked about.
+-- A hidden join's sheet replaces the access point list; a password for a listed row leaves it up.
 local hidden_join = computed({ hidden_prompt, credential_step }, function(active, step)
     return active and step ~= ""
 end)
 
--- Every way out of the sheet, from Escape to closing the panel. `cancel_connect` clears a parked
--- intent and is a no-op otherwise, so this is safe on every closing edge, including ones where
--- nothing was pending.
+-- Every way out of the sheet. `cancel_connect` is a no-op with nothing parked, so this is safe on
+-- any closing edge.
 local function clear_network_prompts()
     hidden_prompt:set(false)
     hidden_draft:set("")
@@ -105,8 +78,7 @@ local function clear_network_prompts()
     mantle.network:invoke("cancel_connect")
 end
 
--- The sheet's Cancel, which also stops a join already in flight (`abort_connect`). Closing the
--- panel stays `clear_network_prompts` alone, so a join survives the panel going away.
+-- Cancel also stops a join in flight; closing the panel does not, so a join survives it.
 local function cancel_network_join()
     mantle.network:invoke("abort_connect")
     clear_network_prompts()
@@ -142,11 +114,8 @@ local function leave_panel()
     end
 end
 
--- The panel host's single close path, including prompts. `network:connect` on an unsaved secured
--- network parks intent and raises `password_ssid`; `cancel_connect` clears it and
--- is a no-op otherwise, so generic close cannot clear `connect_error` accidentally.
--- Keep it here rather than in `panel_host`'s click-outside catcher and the toggle.
--- One writer per edge costs one capability call in `ui_state`.
+-- The single close path, prompts included, rather than one in the click-outside catcher and one in
+-- the toggle.
 local function close_panel()
     -- Reading history counts as seeing its notifications. Mark on the way out, not only in, so
     -- arrivals while the panel was open do not get another popup turn.
@@ -167,8 +136,7 @@ local function open_panel(kind, rect)
     if kind == "notifications" then
         mark_popups_seen()
     end
-    -- Switching panels ends the network panel's prompts as surely as closing does. Left standing,
-    -- a pending password would keep this surface `Exclusive` over a panel that has no field in it.
+    -- A pending password left standing would keep the surface `Exclusive` over a fieldless panel.
     clear_network_prompts()
     leave_panel()
     -- A panel and a modal never share the screen (`toggle_panel` clears `active_modal`).
@@ -222,8 +190,7 @@ local function set_media_hover(region, inside)
     end)
 end
 
--- Whether `kind` is on screen; drives indicator rings. Both signals matter: `panel_kind` survives
--- close, so reading it alone leaves the former indicator ringed.
+-- Drives the indicator rings. Both signals: `panel_kind` survives close.
 local function panel_showing(kind)
     return computed({ panel_open, panel_kind }, function(open, current)
         return open and current == kind
@@ -264,24 +231,18 @@ local launcher_open = modal_showing("launcher")
 local wallpaper_picker_open = modal_showing("wallpaper_picker")
 local idle_settings_open = modal_showing("idle_settings")
 
--- ## The notification card's own state
--- Three view signals say which card/group is open; the Supervisor neither knows nor should know.
--- Keep them here because the card is drawn in both `modules/notification/popup.lua` and
--- `modules/bar/panels/notification_history.lua`, and expansion must match between them.
--- Use tables, not one signal per group: application keys appear only when notifications arrive, and
--- Minting registry entries at resolve time would grow the session. Table `initial` is not edited
--- on reload, so open state survives config saves.
+-- Which cards are open, shared so popup and history agree. Tables rather than a signal per group:
+-- keys appear as notifications arrive, and minting registry entries at resolve time would grow the
+-- session.
 local expanded_groups = state("notification_expanded_groups", {})
 local expanded_messages = state("notification_expanded_messages", {})
 
--- Reply draft: id (`0` means none) and text. One slot matches the Renderer's plain-field buffer.
--- The id keeps Send honest, so Send on A with B's draft sends nothing.
--- Every inline-reply card draws its field, so there is no open state.
+-- Reply draft, id (`0` for none) plus text. One slot, matching the Renderer's field buffer; the id
+-- keeps Send on A from sending B's draft.
 local reply_draft_id = state("notification_reply_draft_id", 0)
 local reply_draft = state("notification_reply_draft", "")
 
--- Toggle one table key. Copy first so identity comparison does not mutate the previous value during
--- resolve that may roll back.
+-- Copy first: a resolve may roll back, and mutating the held value hides the change.
 local function toggle_key(signal, key)
     local next_open = {}
     for k, open in pairs(signal:get() or {}) do
@@ -313,9 +274,8 @@ local function clear_reply(id)
     end
 end
 
--- Whether nonempty draft text belongs to a notification still in the feed. A surface binds
--- `keyboard_interactivity` to this and its hover, so click-to-focus compositors do not
--- drop the keyboard when the pointer leaves mid-sentence. Pure, so it can be `computed`.
+-- Draft text belonging to a notification still in the feed. A surface binds
+-- `keyboard_interactivity` to this, so the keyboard survives the pointer leaving mid-sentence.
 local reply_pending = computed({ reply_draft_id, reply_draft, mantle.notifications }, function(id, text, n)
     if id == 0 or text == nil or text == "" then
         return false
@@ -328,8 +288,7 @@ local reply_pending = computed({ reply_draft_id, reply_draft, mantle.notificatio
     return false
 end)
 
--- Send the draft and close the field. Empty is a no-op because `notifications:reply` removes the
--- notification regardless of text, losing the card while sending the sender nothing.
+-- Empty is a no-op: `reply` removes the notification either way, losing the card and sending nothing.
 local function send_reply(id)
     local text = reply_draft:get()
     if reply_draft_id:get() ~= id or text == nil or text == "" then

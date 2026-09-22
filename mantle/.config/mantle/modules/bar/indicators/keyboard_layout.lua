@@ -4,13 +4,10 @@ local tooltip = require("components.tooltip")
 
 local SLOT = "keyboard_layout"
 
--- First two letters of the layout name, uppercased: "English (US)" -> "EN" and
--- "Arabic (Egypt)" -> "AR".
---
--- ponytail: this is wrong for any layout whose first two letters are not its short code, which is
--- most non-Latin scripts spelled in their own language. The upgrade is the XKB layout code, which
--- niri knows and `mantle.keyboard` does not carry; adding
--- it there is a capability change, not a config one.
+-- First two letters of the layout name, uppercased: "English (US)" -> "EN".
+-- ponytail: wrong for any layout whose first two letters are not its short code, which is most
+-- non-Latin scripts named in their own language. The fix is the XKB code, which `mantle.keyboard`
+-- would have to carry.
 local function layout_short(k)
     local name = (k and k.active_layout) or "?"
     return (name:gsub("[^%a]", ""):sub(1, 2)):upper()
@@ -33,7 +30,7 @@ local indicator = icon_button(mantle.keyboard:map(layout_short), next_layout, {
     foreground = mantle.keyboard:map(function(k)
         return (k and k.caps_lock) and theme.PEACH or theme.FG
     end),
-    -- One configured layout has nothing to change and a layout indicator need not be drawn.
+    -- One configured layout has nothing to switch to.
     visible = mantle.keyboard:map(function(k)
         return k ~= nil and (k.layout_count or 0) >= 2
     end),

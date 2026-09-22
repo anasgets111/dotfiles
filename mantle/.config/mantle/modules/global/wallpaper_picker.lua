@@ -1,22 +1,10 @@
--- Searchable file grid, settings beside it, click/Enter applies to the chosen screen or all
--- screens.
+-- A searchable file grid with settings beside it; a click or Enter applies to the chosen screen or
+-- to all of them.
 --
--- ## Engine pieces
---
--- `mantle.files` follows the folder, so the grid lists a `computed` without scanning.
--- Each tile uses `image` with `async = true`; the pool downsizes 4K files while the card
--- is up, avoiding fifty inline decodes that held the shell for one second on open. Search reuses
--- the launcher's autofocus/navigation/submit and two-stage Escape.
---
--- ## Grid rows
---
--- No wrapping layout: `rows` chunks into `theme.wallpaper_columns`, then `list` stacks them. Tab /
--- Shift-Tab move one tile; Up/Down move a row because `on_navigate` has no left/right.
---
--- ## Not carried over
---
--- Displays tab and theme/dark-mode rows (this config has one theme). Tiles read and write
--- `~/.cache/thumbnails` through `async`.
+-- `mantle.files` follows the folder, so the grid is a `computed` and scans nothing. Tiles decode
+-- `async`, which downsizes 4K files off-thread instead of holding the shell for a second on open.
+-- There is no wrapping layout, so `rows` chunks into `theme.wallpaper_columns`; Tab moves one tile
+-- and Up/Down a row, `on_navigate` having no left/right.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
@@ -39,10 +27,7 @@ local query = state("wallpaper_query", "")
 local selected_path = state("wallpaper_selected", "")
 local monitor = state("wallpaper_monitor", ALL)
 
--- ## Sizes
---
--- Tile width is the grid card's inner width divided across four columns, so no right gutter. Height
--- is 16:9.
+-- Tile width divides the grid card's inner width across the columns, leaving no right gutter.
 local card_padding = theme.spacing.lg
 local grid_padding = theme.spacing.sm
 local tile_gap = theme.spacing.xs
@@ -53,7 +38,6 @@ local grid_inner = theme.wallpaper_picker_width
     - 2 * grid_padding
 local TILE_WIDTH = math.floor((grid_inner - (COLUMNS - 1) * tile_gap) / COLUMNS)
 local TILE_HEIGHT = math.floor(TILE_WIDTH * 9 / 16)
-
 
 local function entries_of(f)
     local folder = wallpaper.folder_in(f)
@@ -87,11 +71,7 @@ local rows = filtered:map(function(entries)
     return chunks
 end)
 
--- ## Click target and current display state
---
--- "all" targets every screen, otherwise one. The current path is the common path or `""` when
--- screens differ, so the badge and ring do not choose among conflicting answers. An unplugged
--- selection reads as "all" because `mantle.screens` has no `on_change`.
+-- An unplugged selection reads as "all", since `mantle.screens` has no `on_change`.
 local function choice_among(chosen, screens)
     for _, screen in ipairs(screens or {}) do
         if screen.name == chosen then
@@ -124,28 +104,24 @@ local function common(values)
     return first
 end
 
-local current_path = computed({ wallpaper.all(), mantle.screens, effective_monitor }, function(w, screens, chosen)
-    local paths = {}
-    for _, screen in ipairs(screens or {}) do
-        if chosen == ALL or chosen == screen.name then
-            paths[#paths + 1] = wallpaper.path_in(w, screen.name)
+-- `read`'s answer for the targeted screens, or `""` where they disagree, so the badge and the ring
+-- never pick between conflicting answers.
+local function targeted(read)
+    return computed({ wallpaper.all(), mantle.screens, effective_monitor }, function(w, screens, chosen)
+        local values = {}
+        for _, screen in ipairs(screens or {}) do
+            if chosen == ALL or chosen == screen.name then
+                values[#values + 1] = read(w, screen.name)
+            end
         end
-    end
-    return common(paths)
-end)
+        return common(values)
+    end)
+end
 
-local current_fit = computed({ wallpaper.all(), mantle.screens, effective_monitor }, function(w, screens, chosen)
-    local fits = {}
-    for _, screen in ipairs(screens or {}) do
-        if chosen == ALL or chosen == screen.name then
-            fits[#fits + 1] = wallpaper.fit_in(w, screen.name)
-        end
-    end
-    return common(fits)
-end)
+local current_path = targeted(wallpaper.path_in)
+local current_fit = targeted(wallpaper.fit_in)
 
--- Ring `selected_path` if visible, else the applied file, else the first tile. One `computed`
--- serves the grid; each tile asks it once.
+-- `selected_path` if visible, else the applied file, else the first tile.
 local effective_selected = computed({ selected_path, current_path, filtered }, function(chosen, applied, entries)
     local first = ""
     for _, entry in ipairs(entries or {}) do
@@ -209,8 +185,6 @@ local function apply_selected()
     apply(effective_selected:get())
 end
 
--- ## Tiles
-
 ---@param entry FileEntry
 local function tile(entry)
     local hovered = hover("wallpaper-tile-" .. entry.path)
@@ -249,7 +223,7 @@ local function tile(entry)
             apply(entry.path)
         end,
         children = {
-            -- The picture zooms 1.11x under the pointer, cut by the tile's rounded box.
+            -- Zooms under the pointer, cut by the tile's rounded box.
             image {
                 source = entry.path,
                 fit = "cover",
@@ -320,8 +294,7 @@ local folder_state = computed({ mantle.files, filtered }, function(f, shown)
     elseif #folder.entries == 0 then
         return "empty"
     elseif #shown == 0 then
-        -- Only reachable with a query: an empty needle leaves `filtered` holding every entry, and
-        -- the empty folder is already answered above.
+        -- Only reachable with a query: an empty needle keeps every entry.
         return "no_match"
     end
     return "ok"
@@ -346,8 +319,6 @@ local empty_states = {
     panel_empty_state("No wallpapers found", state_is("empty"), { icon = icons.wallpaper }),
     panel_empty_state("No results found", state_is("no_match")),
 }
-
--- ## Search box, at the top of the card
 
 local search = rect {
     width = "Fill",
@@ -394,10 +365,8 @@ local search = rect {
     },
 }
 
--- ## Sidebar, combo-box rows as segments
---
--- This config has no combo popup. Each small option set is a segmented row of buttons; `choice`
--- builds one. The monitor row is a `list` because screens can change.
+-- No combo popup here, so each option set is a segmented row of buttons. The monitor row is a
+-- `list` because screens can change.
 local function choice(value, label, current, on_pick, slot)
     local hovered = hover(slot)
     local chosen = current:map(function(now)
@@ -463,14 +432,11 @@ for _, fit in ipairs(wallpaper.FITS) do
 end
 local fit_row = row { width = "Fill", spacing = theme.spacing.xs, children = fit_buttons }
 
--- Match Monitor and Fill mode's segmented buttons, but wrap effects into rows of three. This
--- sidebar has no combo popup; three across matches Fill/Fit/Stretch and preserves one-column rhythm
--- for any effect count.
+-- Three across, matching Fill/Fit/Stretch above, whatever the effect count.
 local EFFECTS_PER_ROW = 3
 local current_effect = wallpaper.effect()
 
--- Rows of names, padded with `false` so a short last row leaves gaps rather than stretching two
--- buttons across three slots and breaking the grid the rows above it establish.
+-- Padded with `false` so a short last row leaves gaps instead of stretching across the slots.
 local effect_rows = wallpaper.effects():map(function(names)
     local rows = {}
     for index = 1, #names, EFFECTS_PER_ROW do
@@ -524,7 +490,7 @@ local sidebar = panel_card({
         align_v = "Center",
         spacing = theme.spacing.sm,
         children = {
-            cell({ { text = "Wallpaper settings", bold = true } }, theme.FG, theme.font.lg, { width = "Fill" }),
+            cell(util.bold("Wallpaper settings"), theme.FG, theme.font.lg, { width = "Fill" }),
             icon_button(icons.close, close, { slot = "wallpaper-close", size = theme.control.sm, icon_size = theme.icon.sm }),
         },
     },
@@ -548,7 +514,7 @@ local sidebar = panel_card({
     background = theme.GLASS_CONTENT,
     border_width = theme.border_width,
     border_color = theme.GLASS_BORDER,
-    padding = { top = theme.spacing.md, right = theme.spacing.md, bottom = theme.spacing.md, left = theme.spacing.md },
+    padding = theme.spacing.md,
 })
 
 -- A `rect` stacks, so an empty state centres over the grid instead of under its `Fill`.
@@ -565,7 +531,7 @@ local body = row {
             background = theme.GLASS_CONTENT,
             border_width = theme.border_width,
             border_color = theme.GLASS_BORDER,
-            padding = { top = grid_padding, right = grid_padding, bottom = grid_padding, left = grid_padding },
+            padding = grid_padding,
         }),
         sidebar,
     },
@@ -590,11 +556,10 @@ return modal({
         height = theme.wallpaper_picker_height,
         margin = card_margin,
         spacing = theme.spacing.md,
-        padding = { top = card_padding, right = card_padding, bottom = card_padding, left = card_padding },
+        padding = card_padding,
         radius = theme.radius.lg,
         background = theme.GLASS,
-        -- The card alone, not the scrim behind it: the scrim is drawn under this in the same
-        -- surface, so what reaches the eye here is the blurred desktop seen through both.
+        -- The card alone; the scrim under it in the same surface already dims the rest.
         blur = true,
         border_width = theme.border_width,
         border_color = theme.BORDER,

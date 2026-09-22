@@ -1,9 +1,6 @@
--- The feed's list half: the popup shows the newest few; this shows the whole feed.
---
--- A feed needs scrolling; a fixed panel showed four and clipped the rest.
---
--- Rows use `components/notification_card.lua`, so actions, replies, and expanded bodies work here.
--- This file owns the header, DND toggle, and sectioned list.
+-- The feed's list half: the popup shows the newest few, this shows the whole feed, scrolling. Rows
+-- are `components/notification_card.lua`, so actions, replies and expanded bodies work here; this
+-- file owns the header, DND toggle and sectioned list.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -35,10 +32,11 @@ local sections = computed({ mantle.notifications, mantle.applications, mantle.sy
     return notifications.notification_sections(groups, (s and s.time) or 0)
 end)
 
-local function kept(n)
+-- Transients never reach this list, so neither count includes them.
+local function kept(n, urgent)
     local count = 0
     for _, notification in ipairs(feed(n)) do
-        if not notification.transient then
+        if not notification.transient and (not urgent or notification.urgency == "critical") then
             count = count + 1
         end
     end
@@ -70,17 +68,6 @@ local function summary(n)
         parts[#parts + 1] = "silenced"
     end
     return table.concat(parts, " · ")
-end
-
--- Drives the urgent badge; exclude transients like `kept` because they never reach this list.
-local function critical_count(n)
-    local count = 0
-    for _, notification in ipairs(feed(n)) do
-        if not notification.transient and notification.urgency == "critical" then
-            count = count + 1
-        end
-    end
-    return count
 end
 
 -- "1st", "2nd", "3rd", "4th"; the teens are the exception, all "th".
@@ -115,9 +102,7 @@ local body = {
                 border_width = theme.border_width,
                 border_color = theme.with_opacity(theme.ACCENT, 0.45),
                 children = {
-                    cell(identity.initials:map(function(s)
-                        return { { text = s, bold = true } }
-                    end), theme.ACCENT, theme.font.sm, {
+                    cell(util.bold(identity.initials), theme.ACCENT, theme.font.sm, {
                         width = "Fill",
                         align = "Center",
                         align_v = "Center",
@@ -128,9 +113,7 @@ local body = {
                 width = "Fill",
                 spacing = theme.spacing.xs,
                 children = {
-                    cell(identity.full_name:map(function(name)
-                        return { { text = name, bold = true } }
-                    end), theme.FG, theme.font.md, { width = "Fill" }),
+                    cell(util.bold(identity.full_name), theme.FG, theme.font.md, { width = "Fill" }),
                     cell(util.label(mantle.system, function(s)
                         return long_date(s.time)
                     end), theme.DIM, theme.font.xs, { width = "Fill" }),
@@ -151,16 +134,14 @@ local body = {
         end),
         subtitle = util.label(mantle.notifications, summary),
         trailing = {
-            -- Shows the urgent count before the two controls. Critical notifications bypass DND
-            -- and never expire.
+            -- Critical notifications bypass DND and never expire, so they get their own count.
             info_badge(mantle.notifications:map(function(n)
-                return string.format("%d urgent", critical_count(n))
+                return string.format("%d urgent", kept(n, true))
             end), theme.RED, {
                 visible = util.shown_when(mantle.notifications, function(n)
-                    return critical_count(n) > 0
+                    return kept(n, true) > 0
                 end),
             }),
-            -- DND is a third bell state, using standard panel action icon.
             panel_action_icon(mantle.notifications:map(function(n)
                 return (n and n.dnd) and icons.bell or icons.bell_off
             end), function()
@@ -170,7 +151,6 @@ local body = {
                 slot = "notification-dnd",
                 tint = theme.PEACH,
             }),
-            -- Clear all notifications with red destructive tint, hidden when history is empty.
             panel_action_icon(icons.clear_all, function()
                 for _, notification in ipairs(feed(mantle.notifications:get())) do
                     mantle.notifications:invoke("dismiss", notification.id)
@@ -186,8 +166,8 @@ local body = {
     },
     column {
         width = "Fill",
-        -- Same hold as the popup: expiry must not reorder the list under a pointer. The
-        -- history and popup regions are separate because their surfaces never overlap.
+        -- Same hold as the popup: expiry must not reorder the list under a pointer. The regions are
+        -- separate because the two surfaces never overlap.
         hover = hover("notification_history_region"),
         on_hover = function(hovered)
             mantle.notifications:invoke("hold_expiry", hovered and 300 or 0)
@@ -204,10 +184,8 @@ local body = {
                     if item.kind == "header" then
                         return section_header(item.label)
                     end
-                    -- Lighter ground inside the glass panel, because the popup's heavier ground
-                    -- would read as a second sheet; a timestamp, because this list is about when;
-                    -- and no flight in from the right, because there is no screen edge here to
-                    -- fly in from.
+                    -- The history scope: lighter ground than the popup's, a timestamp, and no
+                    -- flight in from an edge this surface does not touch.
                     return notification_card(item, ui, { scope = "history" })
                 end,
                 key = function(item)

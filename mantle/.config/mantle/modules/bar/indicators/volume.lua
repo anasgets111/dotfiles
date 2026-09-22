@@ -1,12 +1,6 @@
 -- A glyph circle expands to a slider on hover. Drag and wheel set volume; middle-click mutes, and
--- right-click opens the audio panel.
---
--- `hover` is an engine signal; `width` and `visible` follow it or a held drag. Width and
--- ground ease through `animate`; percentage appears at once because `visible` is not a
--- property a tween carries.
---
--- `components/slider.lua` matches `Slider`; its accent fill runs under glyph and percentage
--- only while expanded.
+-- right-click opens the audio panel. Width and ground ease through `animate`, while the percentage
+-- appears at once, because `visible` is not a property a tween carries.
 local theme = require("config.theme")
 local util = require("lib.util")
 local ui_state = require("lib.ui_state")
@@ -116,8 +110,7 @@ return slider {
             animate = { width = theme.animation_ms },
             children = {
                 glyph(volume_glyph, ink, theme.icon.lg, { align_v = "Center" }),
-                -- A hidden percentage costs no width or spacing: `layout::scene` sums visible child
-                -- footprints and multiplies spacing by their count.
+                -- A hidden percentage costs no width or spacing gap.
                 cell(readout, ink, theme.font.sm, { align_v = "Center", visible = expanded }),
             },
         }

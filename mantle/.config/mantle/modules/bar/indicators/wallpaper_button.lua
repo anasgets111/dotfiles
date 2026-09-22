@@ -1,6 +1,5 @@
 -- One glyph, left click opens the picker, right click deals every screen a new file from the
 -- folder without opening anything.
-local theme = require("config.theme")
 local icons = require("config.icons")
 local icon_button = require("components.icon_button")
 local ui_state = require("lib.ui_state")

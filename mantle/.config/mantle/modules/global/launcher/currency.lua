@@ -1,17 +1,9 @@
 -- "50 usd to egp" becomes one row whose Enter copies the converted amount.
 --
--- `process.run("curl", ...)` decodes in `exit_cb` because only that callback knows the body is
--- complete. `docs/roadmap.md` routes currency through an HTTP CLI rather than a capability, and the
--- engine has no HTTP to offer either way.
---
--- Rates live in `lib/store.lua`, so a restart inside the day reuses them.
---
--- No config-owned timer exists, so staleness is checked on `mantle.system`'s 1 Hz push: one
--- integer compare a second. `modules/bar/indicators/updates.lua` seeds from storage's first push;
--- this needs no seed branch, because the tick a second later does the same work.
---
--- `rates` starts empty, and a query whose target is missing claims nothing, so no row shows before
--- the first fetch lands.
+-- The engine has no HTTP, so rates come from `curl` and decode in `exit_cb`, the only callback that
+-- knows the body is complete. They are stored in `lib/store.lua`, so a restart inside the day
+-- reuses them, and staleness is checked on `mantle.system`'s 1 Hz push for want of a config timer.
+-- A query whose target has no rate claims nothing, so nothing shows before the first fetch.
 local util = require("lib.util")
 local store = require("lib.store")
 
@@ -142,13 +134,11 @@ local function updated_text(at, now)
     return "Updated " .. os.date(same_day and "%I:%M %p" or "%b %d, %I:%M %p", at)
 end
 
--- `_requesting`: one request in flight, and a failure leaves the stored rates alone. Both live in
--- `state`, not module locals: a local is rebuilt by every in-place reload while the `process.run`
--- child it guards is not, so an unrelated config save would clear the guard under a live request.
--- `state` has the child's own lifetime.
+-- One request in flight. `state`, not a local: a reload rebuilds locals while the `process.run`
+-- child it guards outlives them, so a save would clear the guard under a live request.
 local requesting = state("currency_fetching", false)
--- A failure must move a deadline. Without one, `currency_updated_at` stays stale and the 1 Hz tick
--- below starts a fresh curl every second for as long as the endpoint is down.
+-- A failure leaves `currency_updated_at` stale, so without a deadline the tick would curl every
+-- second for as long as the endpoint is down.
 local next_attempt = state("currency_next_attempt", 0)
 local RETRY_SECONDS = 3600
 
@@ -178,16 +168,14 @@ local function fetch()
     end)
 end
 
--- Until storage pushes, `currency_updated_at` reads its `0` default, and fetching on that would
--- spend a request the stored rates were about to answer. A level test on the signal, not a handler
--- watching for its first push: an in-place reload installs the new handler after the capability has
--- already pushed, so an edge gate would arm on a cold start and never again.
+-- Wait for storage: `currency_updated_at` reads its `0` default first, and fetching on that spends
+-- a request the stored rates were about to answer. A level test, not a first-push edge, which a
+-- reload would install too late to ever see.
 mantle.system:on_change(function(system)
     if not system or mantle.storage:get() == nil then
         return
     end
-    -- Two clocks on purpose: the retry is a duration this session owns, while freshness
-    -- is measured against a stamp on disk that outlived the session and is therefore wall time.
+    -- Two clocks: the retry is this session's duration, freshness a wall-clock stamp on disk.
     if system.monotonic < next_attempt:get() then
         return
     end

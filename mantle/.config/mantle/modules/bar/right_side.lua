@@ -1,9 +1,5 @@
--- Status indicators, tray, then the clock at the edge.
---
--- No brightness module. Its level and controls live in
--- `modules/bar/panels/power_menu.lua`, where there is room for labels.
---
--- `privacy` leads this row.
+-- Status indicators, tray, then the clock at the edge, led by `privacy`. Brightness has no module:
+-- it lives in `modules/bar/panels/power_menu.lua`, where there is room for labels.
 local theme = require("config.theme")
 local privacy_module = require("modules.bar.indicators.privacy")
 local volume_module = require("modules.bar.indicators.volume")
@@ -20,8 +16,7 @@ local ui_state = require("lib.ui_state")
 local clock_slot = date_time.slot
 local hovered = hover(clock_slot)
 
--- Whether the panel is showing is the third state above hover: rings the border while the panel is
--- up; the pill says which panel is showing, not the panel's position.
+-- A third state above hover: the border rings while the panel is up.
 local panel_showing = ui_state.panel_showing(bell.kind)
 
 local clock_pill = button {
@@ -52,8 +47,7 @@ local clock_pill = button {
         height = "Fill",
         align_v = "Center",
         spacing = theme.spacing.xs,
-        -- Row padding is the same inset and survives either child changing.
-        -- Without it, bell and minutes run under its radius at half height; its end is exposed.
+        -- Without this inset, bell and minutes run under the pill's radius.
         padding = { left = theme.spacing.sm, right = theme.spacing.sm },
         children = { bell.bell, date_time.clock },
     } },

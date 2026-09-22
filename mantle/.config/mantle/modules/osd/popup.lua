@@ -1,9 +1,6 @@
--- Bottom-centered glass card with two layouts selected by the entry's level.
--- `modules/osd/service.lua` supplies the entry, lingering through exit so the fade-out
--- plays before the surface unmaps.
---
--- One `panel` with two `visible`-switched rows, not two panels. Each surface has its own
--- compositor identity; otherwise a volume change during a toggle would overlap at one position.
+-- Bottom-centred glass card, two layouts chosen by the entry's `level`, fed by
+-- `modules/osd/service.lua` and lingering so the fade-out plays before the unmap. One panel with
+-- two switched rows: separate surfaces would overlap at the same position.
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
@@ -11,26 +8,16 @@ local glyph = require("components.glyph")
 local meter = require("components.meter")
 local osd = require("modules.osd.service")
 
--- Card travel and entry/exit durations.
---
--- This card acknowledges a key already pressed, so a 60px swoop several dozen times a day spends
--- time not reading it.
--- Its short settle says "here is the readout"; arrival motion belongs to the notification stack
--- (`components/notification_card.lua`).
+-- A short settle, not a swoop: this card acknowledges a key already pressed, dozens of times a day.
 local SLIDE = theme.s(12, 8)
--- Arrival uses the shell's beat; exit is quicker because a card whose two seconds are up is not
--- news.
+-- Exit is quicker: a card whose two seconds are up is not news.
 local RISE_MS = theme.animation_ms
 local FALL_MS = theme.animation_fast_ms
 
 -- Both layouts inset their content by the same amount.
 local PADDING = theme.spacing.xl
 
--- The toggle row sizes to its content, so the card, surface and `set_size` follow it without a
--- settling pass.
---
--- Add half of `theme.spacing.lg` on each side so a text-tight card does not look cramped without
--- moving its contents off centre.
+-- Half of `theme.spacing.lg` each side, so a text-tight card is not cramped but stays centred.
 local SLACK = theme.spacing.lg / 2
 
 local function read(field)
@@ -59,9 +46,8 @@ local level_row = row {
     end),
     children = {
         glyph(read("glyph"), theme.ACCENT, theme.font.xxl, { align_v = "Center" }),
-        -- A repeated volume or brightness key moves the target every few frames. Eased retargeting
-        -- restarts from a standstill, so the fill trails the percentage; a spring keeps
-        -- its velocity and arrives with the number.
+        -- A held volume key retargets every few frames: easing restarts from a standstill and
+        -- trails the number, a spring keeps its velocity.
         meter(osd.entry, function(e)
             return e.level or 0
         end, osd.entry:map(function(e)
@@ -123,13 +109,10 @@ local fact_row = row {
 return panel {
     id = "osd",
     layer = "Overlay",
-    -- No `left`/`right`: anchors map directly to `zwlr_layer_surface_v1`; the
-    -- `renderer/src/wayland/layer.rs` `anchor_for` is a bare bitflag map. The protocol centres an
-    -- axis with neither edge anchored, leaving its width measurable; two anchored edges span it.
+    -- No `left`/`right`: the protocol centres an axis with neither edge anchored and leaves its
+    -- width measurable, where two anchored edges would span the output.
     anchor = { bottom = true },
-    -- The surface is `SLIDE` taller and sits that much lower, so the card can rise from below
-    -- without leaving the surface. `translate` is painted, not laid out, but the surface still
-    -- clips it.
+    -- `SLIDE` taller and that much lower, so the rise stays inside the surface that clips it.
     margin = { bottom = theme.s(132, 90) - SLIDE },
     -- No `width`: the surface is the card, and the card is its content.
     height = theme.osd_height + SLIDE,
@@ -137,8 +120,7 @@ return panel {
     visible = util.linger(osd.visible, FALL_MS),
     child = column {
         height = theme.osd_height,
-        -- `translate`, matching `components/modal.lua` and the notification cards, is paint-only.
-        -- The card is solved once; easing `margin` re-ran the solver every frame.
+        -- `translate` is paint-only, so the card is solved once; easing `margin` re-ran the solver.
         translate = osd.visible:map(function(shown)
             return { y = shown and 0 or SLIDE }
         end),

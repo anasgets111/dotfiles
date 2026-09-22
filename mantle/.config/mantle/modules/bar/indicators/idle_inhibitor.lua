@@ -1,10 +1,6 @@
--- One circle shows session holds and adds a manual hold on click.
---
--- Two glyphs swap on the *manual* hold: the cup means "I asked for this", crossed-out zeds mean
--- "the shell is watching". The accent ground means any hold, so media can light the circle without
--- changing its glyph; a clicked hold survives media ending.
---
--- Right-click opens `modules/global/idle_settings.lua`.
+-- One circle shows session holds and adds a manual hold on click; right-click opens
+-- `modules/global/idle_settings.lua`. The glyph swaps on the *manual* hold -- the cup means "I asked
+-- for this" -- while the accent ground means any hold, so media can light it without a glyph change.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local icon_button = require("components.icon_button")
@@ -34,8 +30,7 @@ end), nil, {
     end,
 })
 
--- Two lines say what holds it and what happens next if nothing does. This config's second line
--- makes the circle worth hovering when nothing is held.
+-- What holds it, then what happens next if nothing does.
 local idle_tooltip = tooltip({
     id = "idle_tooltip",
     slot = SLOT,

@@ -1,19 +1,9 @@
--- An arithmetic query becomes one row whose Enter copies the result.
+-- An arithmetic query becomes one row whose Enter copies the result, with JavaScript's arithmetic.
 --
--- The config VM has `load`: mlua opens the base library whatever `config_stdlib()` lists. Two guards
--- rather than one, because the allowlist admits no letters and so no identifier, and the empty
--- `_ENV` leaves nothing to reach if one ever got through.
---
--- `--` and `//` are refused. Both pass the allowlist, and Lua reads them as a comment and as
--- floor division: `2--3` would answer 2 and `10//3` would answer 3. A wrong number is worse than no
--- row.
---
--- Three rewrites put JavaScript's arithmetic back. `**` becomes `^`; a leading unary `+` goes, Lua
--- having none; and every integer literal gains a `.0`, because Lua 5.4 integers wrap where
--- JavaScript Numbers do not, and `4294967296*4294967296` otherwise answers 0 rather than 1.8e19.
---
--- The percent rewrite is kept verbatim, which is why `%` means percent rather than Lua's modulo
--- and `10%3` is refused by both configs.
+-- `load` is guarded twice: the allowlist admits no identifier, and the empty `_ENV` leaves nothing
+-- to reach. `--` and `//` pass the allowlist but Lua reads them as a comment and floor division, so
+-- they are refused. Rewrites: `**` to `^`, a leading unary `+` dropped, `N%` to `(N/100)`, and
+-- integers gain `.0` because Lua integers wrap (`4294967296*4294967296` would answer 0).
 local icons = require("config.icons")
 local util = require("lib.util")
 
@@ -46,17 +36,13 @@ function M.claims(query)
         return nil
     end
     local ok, value = pcall(chunk)
-    -- `!Number.isFinite(value)` covers both infinities and NaN; `value ~= value` is the NaN half.
-    if not ok or type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then
+    -- NaN or infinite.
+    if not ok or type(value) ~= "number" or value ~= value or math.abs(value) == math.huge then
         return nil
     end
-    local result
-    if value == math.floor(value) then
-        result = util.thousands(string.format("%.0f", value))
-    else
-        -- Twelve significant digits; `%g` also drops the trailing zeros.
-        result = string.format("%.12g", value)
-    end
+    -- Twelve significant digits; `%g` drops trailing zeros.
+    local result = value == math.floor(value) and util.thousands(string.format("%.0f", value))
+        or string.format("%.12g", value)
     return {
         kind = "calc",
         badge = "CALC",

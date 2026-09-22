@@ -1,15 +1,8 @@
 -- The bar pill, `power_button` below, offers log out, restart, and power off behind ten-second
--- countdowns. A second click skips; right-click or cancel stops. `process.detach` shells out to
--- `systemctl` and the compositor: a shutdown must not be reaped by a Renderer crash landing
--- mid-flight.
---
--- The panel adds lock, sleep, settings, and a brightness slider. Settings has no other door; lock
--- and sleep lose nothing, so need no countdown. Sleep calls `systemctl suspend`; no separate
--- suspend service exists here.
---
--- Countdown is a deadline in `mantle.system.monotonic`, not a timer: it ends in `poweroff`, and a
--- clock step must not fire it early. `system` pushes once a second;
--- seconds-left is a `computed`, and one `on_change` commits past the deadline.
+-- countdowns. `process.detach` shells out, so a Renderer crash mid-flight cannot reap a shutdown.
+-- The panel adds lock, sleep, settings and brightness; those lose nothing, so they need no
+-- countdown. The countdown is a deadline in `mantle.system.monotonic`, not a timer, so a clock step
+-- cannot fire it early.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -108,16 +101,10 @@ local function step_brightness(delta)
     mantle.brightness:invoke("set", stepped)
 end
 
--- The power-off circle expands on hover and stays open through a countdown.
--- `components/expanding_pill.lua` owns expansion; slot ground, ring and countdown fill are its
--- own, while the pending action pulses via keyframes.
---
--- During a countdown the chosen action keeps its glyph under an accent ring, the next slot shows
--- seconds over a growing fill, and the third cancels. Left-click the choice to run it; click cancel
--- or right-click anywhere to stop.
---
--- Right-click with no countdown opens the panel below, which adds lock, sleep, settings, and
--- brightness. Settings has no other door.
+-- The power-off circle expands on hover and stays open through a countdown
+-- (`components/expanding_pill.lua`). During one the chosen action pulses, the next slot shows
+-- seconds over a growing fill, and the third cancels. Right-click with no countdown opens the
+-- panel, which is the only door to Settings.
 local SLOT_COUNT = #ACTIONS
 local pill = expanding_pill.new({ slot = "power-pill", hold_open = counting })
 
@@ -282,12 +269,8 @@ local body = {
         end,
     },
     section_header("brightness"),
-    -- No brightness module, so `mantle.brightness` is driven here. Two buttons are clearer than
-    -- left-up/right-down semantics.
-    --
-    -- One row, not three: the level bar sits between two buttons, like `components/meter.lua` for
-    -- battery/volume. No drag: a press supplies a rect and button name; nothing tracks motion into
-    -- a value.
+    -- No brightness module, so `mantle.brightness` is driven here. No drag: a press supplies a rect
+    -- and button name, and nothing tracks motion into a value.
     row {
         width = "Fill",
         height = theme.control.sm,

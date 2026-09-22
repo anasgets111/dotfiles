@@ -117,7 +117,7 @@ return function(glyph, on_activate, opts)
         background = ground,
         opacity = opts.opacity,
         visible = opts.visible,
-        -- `opts.border == false` drops the ring. Use an `if`: `x and nil or y` is always `y`.
+        -- Cleared below when `opts.border == false`: `x and nil or y` is always `y`.
         border_width = theme.border_width,
         border_color = border_color,
         -- The ground and ring ease under the pointer and on selection.

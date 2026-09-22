@@ -1,13 +1,6 @@
--- The head of an expandable widget: a bold title on the left, a filling middle the caller supplies,
--- and a chevron that follows `expanded`. Clicking it toggles that flag.
---
--- Extraction rule: one call site is a local; two agreeing call sites are a component. The weather
--- forecast and the system readout are the two, and their three state colours -- ground, ring and
--- ink -- have to agree or an open header reads as half open.
---
--- Accent while open, glass while closed, each lifting one step under the pointer. `ink` is the
--- title and the chevron only; a middle child brings its own colour, because the age of a weather
--- reading and a CPU percentage are not the same kind of text.
+-- The head of an expandable widget: bold title, a filling middle the caller supplies, and a chevron
+-- following `expanded`, which a click toggles. Accent while open, glass while closed, each lifting
+-- under the pointer. `ink` is the title and chevron only; a middle child brings its own colour.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")

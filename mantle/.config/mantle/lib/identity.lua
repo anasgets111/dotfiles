@@ -1,15 +1,5 @@
--- Who is logged in.
---
--- A config has `os.getenv` and `process.run`, and the environment carries neither the
--- full name nor the host, so each is read once from the tool that owns it: GECOS out of
--- `getent passwd`, the node name out of `uname -n`. Both are decoration -- callers draw `$USER` and
--- "localhost" until they answer, and keep them if they never do.
---
--- Shared with `modules/global/lock.lua` and the notifications panel. Two process calls run once per
--- session, not per module that asks.
---
--- Kept in `state`, not a module local. Reload re-runs this file; guard stops a save spawning two
--- more processes. The value outlives its evaluation; a table `initial` never re-seeds.
+-- Who is logged in: GECOS from `getent passwd`, host from `uname -n`, read once per session.
+-- Callers draw `$USER` and "localhost" until they answer. Named state so a reload spawns nothing.
 local identity = state("lock_identity", { name = "", host = "" })
 
 local USER = os.getenv("USER") or "user"
@@ -28,8 +18,7 @@ local function remember(field, value)
 end
 
 if identity:get().name == "" then
-    -- `anas:x:1000:1000:Anas Khalifa:/home/anas:/usr/bin/fish`. Field five is GECOS, whose first
-    -- comma-separated part is the full name; the rest is office and phone numbers nobody fills in.
+    -- Field five is GECOS; its first comma-separated part is the full name.
     process.run("getent", { "passwd", USER }, function(line)
         local fields = {}
         for field in (line .. ":"):gmatch("([^:]*):") do
@@ -53,19 +42,13 @@ return {
     account = identity:map(function(i)
         return string.format("%s@%s", USER, i.host ~= "" and i.host or "localhost")
     end),
-    -- The first letter of each of the first two words, so "Anas Khalifa" is "AK" and a
-    -- single-word name is one letter.
+    -- First letters of the first two words: "Anas Khalifa" is "AK".
     initials = identity:map(function(i)
         local name = i.name ~= "" and i.name or USER
         local letters = ""
         local taken = 0
         for word in name:gmatch("%S+") do
-            -- One *character*, not one byte: `sub(1, 1)` splits a multibyte letter in half, and
-            -- counting bytes to stop ends the loop mid-name. Count words instead.
-            --
-            -- `upper` is byte-oriented, so a non-ASCII initial keeps its own case: "eclair Dupont"
-            -- spelled with a leading accent gives "eD", not "ED". A whole-codepoint lowercase
-            -- letter is the readable answer; half a sequence was not.
+            -- One codepoint, not one byte. `upper` is byte-oriented, so a non-ASCII initial keeps its case.
             local stop = utf8.offset(word, 2)
             letters = letters .. word:sub(1, stop and stop - 1 or #word):upper()
             taken = taken + 1

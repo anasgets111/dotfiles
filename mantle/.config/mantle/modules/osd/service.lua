@@ -1,12 +1,7 @@
--- System changes show a card for two seconds. Push-driven, so a volume key, terminal
--- `wpctl`, and bar button use the same card.
---
--- `level` selects the shape: volume/brightness/keyboard backlight use glyph, track, percentage;
--- toggles/devices/layout/charger use a glyph tile and text. `modules/osd/popup.lua` only draws.
---
--- A less important card arriving during a higher-priority one is dropped; an equal or higher one
--- replaces it. This covers the charger edge's brightness step while "charger connected" is visible,
--- which is not useful to read.
+-- A card for two seconds on a system change. Push-driven, so a volume key, `wpctl` and the bar
+-- button share it. `level` selects the shape (track versus glyph tile); `modules/osd/popup.lua`
+-- only draws. A less important card is dropped while a higher-priority one shows, which is what
+-- keeps the charger edge's brightness step from replacing "charger connected".
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -63,8 +58,8 @@ mantle.audio:on_change(function(a, previous)
             color = theme.ACCENT,
         })
     end
-    local sink, was = util.active_device(a.sinks), util.active_device(previous.sinks)
-    if sink and sink.name ~= (was and was.name) then
+    local sink, previous_sink = util.active_device(a.sinks), util.active_device(previous.sinks)
+    if sink and sink.name ~= (previous_sink and previous_sink.name) then
         osd.show("audio_device", { glyph = util.audio_device_glyph(sink, false) or icons.speaker, text = sink.name })
     end
 end)

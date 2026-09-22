@@ -1,8 +1,6 @@
--- Polkitd's authorization prompt. Reading `mantle.polkit` registers this shell as the
--- session agent.
---
--- Escape clears the masked field and stays; `mask_character` is one byte. `submit = true` makes Authenticate equal Enter; the
--- password remains in a native buffer no callback can read.
+-- Polkitd's authorization prompt; reading `mantle.polkit` registers this shell as the session
+-- agent. `secure_submit` keeps the password in a native buffer no callback can read, and
+-- `submit = true` makes Authenticate equal Enter.
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
@@ -19,8 +17,6 @@ local active = util.shown_when(mantle.polkit, function(p)
 end)
 
 util.auto_english_layout(mantle.polkit)
-
-local pad = theme.spacing.lg
 
 return panel {
     id = "polkit_dialog",
@@ -67,9 +63,7 @@ return panel {
                         },
                     },
                 },
-                -- polkitd's own prompt text can replace this line and hide it when empty.
-                -- `PolkitState` carries no such field, so this stays the fixed label the prompt
-                -- always is in practice.
+                -- `PolkitState` carries no prompt text, so the label is fixed.
                 cell("Password:", theme.FG, theme.font.sm),
                 input {
                     field = textfield {
@@ -107,7 +101,7 @@ return panel {
                 align_h = "Center",
                 align_v = "Center",
                 spacing = theme.spacing.md,
-                padding = { top = pad, right = pad, bottom = pad, left = pad },
+                padding = theme.spacing.lg,
                 radius = theme.radius.lg,
                 background = theme.GLASS,
                 blur = true,

@@ -1,17 +1,9 @@
--- The DBusMenu attached to a tray icon, opened by right-clicking it.
+-- The DBusMenu attached to a tray icon, opened by right-clicking it. `mantle.tray` carries the whole
+-- tree from one `GetLayout(0, -1)` at registration, so a submenu needs no `tray:menu_will_show`
+-- round trip; that command stays for applications that populate menus lazily.
 --
--- `mantle.tray` already carries the whole tree. `MenuItem.children` comes from one
--- `GetLayout(0, -1)` at registration, so drawing a submenu needs no
--- `tray:menu_will_show` round trip.
--- That command remains available for applications that populate menus lazily.
---
--- ## Submenus expand in place
---
--- A submenu popup revealed on hover and retired by a timer is not available here: a popup per
--- submenu is a surface per level, and hover reveal cannot be exercised. A click expands the row,
--- drawing indented children as in `modules/bar/panels/audio_panel.lua`.
---
--- Depth follows the application up to the Supervisor's `MAX_MENU_DEPTH`; rows flatten the tree.
+-- Submenus expand in place, since a popup per submenu would be a surface per level. Depth follows
+-- the application up to the Supervisor's `MAX_MENU_DEPTH`; rows flatten the tree.
 local theme = require("config.theme")
 local cell = require("components.cell")
 local ui_state = require("lib.ui_state")
@@ -19,11 +11,10 @@ local ui_state = require("lib.ui_state")
 local KIND = "tray_menu"
 
 -- Every tray item shares one card and one `panel_host` section, so its id travels beside
--- `panel_kind`.
+-- `panel_kind`. `expanded` is a set of open submenu ids, keeping descendants when an ancestor
+-- collapses.
 local item_id = state("tray_menu_item", "")
 
--- A set of opened submenu ids supports trees deeper than two levels without losing descendants when
--- an ancestor collapses.
 local expanded = state("tray_menu_expanded", {})
 
 -- `components/panel_action_icon.lua` uses the same literal for the same reason.
@@ -74,14 +65,9 @@ local function marker(entry)
     return entry.toggle_type == "radio" and SELECTED or CHECKED
 end
 
--- DBusMenu puts `_` before a mnemonic, and `MenuItem.label` carries it literally, so `"_Quit"`
--- arrives with the underscore. Drawing it literally is wrong.
---
--- This panel takes no keyboard focus and listens only to pointer clicks. Advertising an
--- accelerator that does nothing is worse than omitting it, so the marker is removed. Underline it
--- once the key works.
---
--- `__` is DBusMenu's escape for a real underscore, so a pair collapses to one plain character.
+-- DBusMenu marks a mnemonic with `_`, so `"_Quit"` arrives with the underscore. This panel takes no
+-- keyboard focus, and advertising an accelerator that does nothing is worse than omitting it, so the
+-- marker is dropped; underline it once the key works. `__` is its escape for a real underscore.
 ---@param label string?
 ---@return string
 local function strip_mnemonics(label)
