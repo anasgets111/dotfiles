@@ -1,12 +1,6 @@
--- Pending updates, download size, and the install button in front of the list. The bar only
--- reports the count; installs happen here.
---
--- This file owns wording, formatting, and thresholds; `mantle.updates` stays unchanged. The
--- Supervisor publishes `install_exit_code` and pacman's output; "failed retrieving file" becomes
--- "could not download; check the connection". Numbers are language-neutral; that sentence is not.
---
--- `modules/bar/indicators/updates.lua` schedules the checks on the cadence
--- declared below; the notification's action installs through the `updates.install` action here.
+-- Pending updates and the install run. `mantle.updates` publishes raw state; this file owns the
+-- wording and thresholds. `indicators/updates.lua` schedules checks every `CHECK_INTERVAL`, and
+-- its notification installs through the `updates.install` action.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -27,55 +21,48 @@ local ui = require("lib.ui_state")
 local dev_tools = require("config.dev_tools")
 
 local KIND = "updates"
--- Check hourly: a badge is read on that scale, and each check is a real `-Sy` against a mirror. The
--- indicator schedules on it and `last_check_line` calls twice this stale.
+-- Hourly: each check is a real `-Sy` against a mirror. Twice this is stale.
 local CHECK_INTERVAL = 3600
 local PACKAGE_SCROLL = scroll("update_packages")
 local LOG_SCROLL = scroll("update_log")
 
--- Close clears this and the next install sets it. "I have read the result" belongs to the panel,
--- not pacman.
+-- "I have read the result": Close sets it, the next install clears it.
 local dismissed = state("updates_result_dismissed", false)
 
--- Stamp the install-start click: `install_finished_at` is published, and the click is the only
--- known start. Config writes are allowed only in input callbacks.
+-- The capability publishes only the finish; the click is the only known start.
 local started_at = state("updates_install_started_at", 0)
 
 -- A failed run shows its log unasked; a successful one hides it behind a button.
 local log_open = state("updates_log_open", false)
 
--- The tick list replaces the body, as every other view here does.
 local settings_open = state("updates_settings_open", false)
 
--- Which `requires` binaries are on `PATH`. Lua cannot stat `PATH`, so this is probed once per
--- process from the first capability push below; `state` is name-keyed, so an in-place reload keeps
--- the answer rather than blanking the list until the probe re-answers.
+-- Which `requires` binaries are on `PATH`, probed on the first push. Named state keeps the answer
+-- across reloads.
 local tools_present = state("updates_tools_present", {})
 
--- The dev chain's only state: which `config/dev_tools.lua` entry is running, and its output.
--- `install_log` stays the capability's; the two are concatenated for display.
+-- The running `config/dev_tools.lua` entry and its output, shown after `install_log`.
 local dev_running = state("updates_dev_tool", "")
 local dev_log = state("updates_dev_log", {})
--- Empty until this run's tools finish, then when they did and which failed. A table seed, since
--- named state refuses a value of another type.
+-- `{ finished_at, failures }` once this run's tools finish. A table seed: named state keeps its type.
 local dev_result = state("updates_dev_result", {})
 
 local function packages(u)
     return (u and u.packages) or {}
 end
 
+local function plural(count, word)
+    return string.format("%d %s%s", count, word, count == 1 and "" or "s")
+end
+
 -- KiB, MiB, GiB use 1024, matching pacman's package sizes.
+local BYTE_UNITS = { "B", "KiB", "MiB", "GiB" }
 local function human_bytes(bytes)
-    local size = bytes or 0
-    if size < 1024 then
-        return string.format("%d B", size)
+    local size, unit = bytes or 0, 1
+    while size >= 1024 and unit < #BYTE_UNITS do
+        size, unit = size / 1024, unit + 1
     end
-    for _, unit in ipairs({ "KiB", "MiB", "GiB" }) do
-        size = size / 1024
-        if size < 1024 or unit == "GiB" then
-            return string.format("%.1f %s", size, unit)
-        end
-    end
+    return string.format(unit == 1 and "%d %s" or "%.1f %s", size, BYTE_UNITS[unit])
 end
 
 local function download_total(u)
@@ -86,16 +73,12 @@ local function download_total(u)
     return total
 end
 
--- A run that ended. `install_finished_at` marks one the manager answered; a spawn failure publishes
--- only `install_error` and never stamps it (`controller.rs` returns early).
+-- A spawn failure publishes only `install_error`, never `install_finished_at`.
 local function install_ended(u)
     return u ~= nil and (u.install_finished_at ~= nil or u.install_error ~= nil)
 end
 
--- True while a finished install's result remains on screen. The capability deliberately has no
--- "completed" state, which would end when read.
---
--- A tools-only run has a result too, and the tools after an install are still part of its run.
+-- A finished run's result is on screen. Tools after an install are part of its run.
 local result_showing = computed({ mantle.updates, dismissed, dev_running, dev_result },
     function(u, is_dismissed, tool, dev)
         return not is_dismissed and tool == "" and u ~= nil and not u.installing and (install_ended(u) or dev.finished_at ~= nil)
@@ -106,8 +89,7 @@ local function ran_packages(u)
     return u ~= nil and (u.install_finished_at or 0) >= (started_at:get() or 0)
 end
 
--- A manager killed by a signal publishes no exit code, so an absent one on a run the manager
--- answered is a failure, not a success.
+-- A manager killed by a signal publishes no exit code, which is a failure.
 local function install_failed(u)
     return install_ended(u) and (u.install_error ~= nil or u.install_exit_code ~= 0)
 end
@@ -127,8 +109,7 @@ local function tool_enabled(name)
     return (store.updates_dev_tools:get() or {})[name] ~= false
 end
 
--- `name`'s place among the tools a run will start: ticked and present, since a run of nothing but
--- `[SKIP]` lines is not worth a button.
+-- `name`'s place among the tools a run will start (ticked and present), and their count.
 local function tool_step(name)
     local present = tools_present:get() or {}
     local step, total = 0, 0
@@ -159,9 +140,8 @@ local function dismiss_notifications()
     end
 end
 
--- Replaces any pending update offer so completed/failed toasts never pile on top. The action's
--- listener is detached and calls back through `mantle call`: a `process.run` listener died with the
--- generation, so after any reload the button reached nobody.
+-- Replaces any pending toast. The action listener is detached and calls back through `mantle call`,
+-- since a `process.run` listener dies on reload.
 local function toast(urgency, title, body, action)
     dismiss_notifications()
     local args = {
@@ -178,8 +158,7 @@ local function toast(urgency, title, body, action)
     }, util.concat(args, { "--wait", "-A", "run-updates=" .. action, title, body })))
 end
 
--- ponytail: unbounded, unlike the Supervisor's 200-line tail. A dev run prints hundreds of lines,
--- not thousands; cap it here if one ever does.
+-- ponytail: unbounded, unlike the Supervisor's 200-line tail. Cap it if a run ever prints thousands.
 local function append_dev_log(line)
     dev_log:set(util.concat(dev_log:get(), { line }))
 end
@@ -199,7 +178,6 @@ local function run_commands(commands, index, done)
     end)
 end
 
--- Only this file knows when the last tool exited.
 local function report_run(u, failures)
     if install_failed(u) then
         return toast("critical", "Update failed", "The updates panel has pacman's output")
@@ -209,13 +187,11 @@ local function report_run(u, failures)
     end
     local count = ran_packages(u) and u.install_total_steps or 0
     local tools = any_tool_runnable() and " and developer tooling" or ""
-    toast("normal", "Update complete", count > 0
-        and string.format("%d package%s%s updated", count, count == 1 and "" or "s", tools)
+    toast("normal", "Update complete", count > 0 and (plural(count, "package") .. tools .. " updated")
         or "Developer tooling updated")
 end
 
--- Walks `config/dev_tools.lua`, carrying the failures so far. `[SKIP]`, `▶` and `[ OK ]` are the
--- markers `log_colour` already tints.
+-- Walks `config/dev_tools.lua`; `log_colour` tints the markers it logs.
 local function run_tools(index, failures)
     local tool = dev_tools[index]
     if tool == nil then
@@ -246,10 +222,8 @@ local function start_dev_tools()
     run_tools(1, {})
 end
 
--- Exported, and `updates.install` for the notification's detached action listener.
---
--- A retry runs with no pending count: a run that failed partway can leave the count at zero with
--- the system still half-upgraded, and refusing there left the failure card holding a dead button.
+-- A retry runs with no pending count: a partial failure can leave zero pending on a half-upgraded
+-- system.
 local function install()
     local u = mantle.updates:get()
     if u == nil or u.installing or dev_running:get() ~= "" then
@@ -272,17 +246,13 @@ local function install()
 end
 action("updates.install", install)
 
--- Pacman's output supplies the reason, and this file turns it into actionable wording. Falls back
--- to the exit code, which is at least true.
+-- Pacman output to actionable wording, `{ wording, match... }`, strongest first.
 local FAILURE_PHRASES = {
-    { match = "failed retrieving",            say = "Could not download; check the connection" },
-    { match = "could not resolve host",       say = "Could not download; check the connection" },
-    { match = "connection refused",           say = "Could not download; check the connection" },
-    { match = "not enough free disk space",   say = "Not enough disk space" },
-    { match = "invalid or corrupted package", say = "A package failed its signature check" },
-    { match = "signature from",               say = "A package failed its signature check" },
-    { match = "conflicting files",            say = "Files conflict with another package" },
-    { match = "authentication",               say = "Authentication failed" },
+    { "Could not download; check the connection", "failed retrieving", "could not resolve host", "connection refused" },
+    { "Not enough disk space",                    "not enough free disk space" },
+    { "A package failed its signature check",     "invalid or corrupted package", "signature from" },
+    { "Files conflict with another package",      "conflicting files" },
+    { "Authentication failed",                    "authentication" },
 }
 
 local function failure_reason(u)
@@ -292,8 +262,10 @@ local function failure_reason(u)
     for _, line in ipairs(u.install_log or {}) do
         local lowered = line:lower()
         for _, phrase in ipairs(FAILURE_PHRASES) do
-            if lowered:find(phrase.match, 1, true) then
-                return phrase.say
+            for index = 2, #phrase do
+                if lowered:find(phrase[index], 1, true) then
+                    return phrase[1]
+                end
             end
         end
     end
@@ -306,8 +278,7 @@ local function failure_reason(u)
     return string.format("pacman exited with %d", u.install_exit_code)
 end
 
--- ponytail: `install_log` is the last 200 lines, so a run longer than that undercounts. The
--- Supervisor would have to keep the counter for an exact one.
+-- ponytail: `install_log` is a 200-line tail, so long runs undercount. Exact needs a Supervisor counter.
 local function warning_count(u)
     local count = 0
     for _, line in ipairs(u.install_log or {}) do
@@ -343,7 +314,7 @@ local function status_line(u, showing, tool, dev)
         return "Check failed"
     end
     if (u.count or 0) > 0 then
-        return string.format("%d update%s available", u.count, u.count == 1 and "" or "s")
+        return plural(u.count, "update") .. " available"
     end
     return "Up to date"
 end
@@ -360,11 +331,8 @@ local function detail_line(u, showing, tool, dev)
         if total > 0 then
             return string.format("Package %d of %d", u.install_current_step or 0, total)
         end
-        -- No step line yet means pacman is downloading, and it prints nothing per package without a
-        -- tty. `alpm` already sized the transaction, so say what is being fetched rather than that
-        -- we were not told.
-        return string.format("Downloading %d package%s · %s", u.count, u.count == 1 and "" or "s",
-            human_bytes(download_total(u)))
+        -- No step line yet: pacman is downloading silently (no tty), so show what `alpm` sized.
+        return string.format("Downloading %s · %s", plural(u.count, "package"), human_bytes(download_total(u)))
     end
     if showing then
         -- The reason heads the log card, beside the output it came from.
@@ -377,10 +345,10 @@ local function detail_line(u, showing, tool, dev)
         end
         local ran = ran_packages(u)
         local warnings = ran and warning_count(u) or 0
-        local noted = warnings > 0 and string.format(" · %d warning%s", warnings, warnings == 1 and "" or "s") or ""
+        local noted = warnings > 0 and (" · " .. plural(warnings, "warning")) or ""
         local failed = #(dev.failures or {}) > 0 and (" · " .. table.concat(dev.failures, ", ") .. " failed") or ""
         local count = ran and (u.install_total_steps or 0) or 0
-        local count_prefix = count > 0 and string.format("%d package%s · ", count, count == 1 and "" or "s") or ""
+        local count_prefix = count > 0 and (plural(count, "package") .. " · ") or ""
         return count_prefix .. (time_str and ("took " .. time_str) or "Finished") .. noted .. failed
     end
     -- A failed check keeps the last good list, so say which list is shown.
@@ -396,11 +364,8 @@ local function detail_line(u, showing, tool, dev)
     return "Nothing pending"
 end
 
--- Include the date when the check is not today. "checked 07:08" in a shell running since Tuesday
--- falsely reads as this morning.
---
--- Past two intervals, say so: a suspended laptop otherwise shows an old count with nothing marking
--- it old. Errors are not handled here; `detail_line` already covers them.
+-- Dated unless today, and marked stale past two intervals (a suspended laptop). `detail_line` covers
+-- errors.
 local function last_check_line(u, now)
     if u == nil or u.last_successful_check == nil then
         return "Never checked"
@@ -411,8 +376,7 @@ local function last_check_line(u, now)
     return "Checked " .. when .. (now - at > CHECK_INTERVAL * 2 and " · stale" or "")
 end
 
--- Packages whose new version only runs after a reboot, tinted in the list so that is known before
--- installing rather than from the badge after.
+-- Packages whose new version only runs after a reboot; tinted in the list.
 local REBOOT_PATTERNS = { "^linux", "^nvidia", "^systemd$", "^glibc$", "^amd%-ucode$", "^intel%-ucode$" }
 
 local function needs_reboot(name)
@@ -426,17 +390,13 @@ end
 
 -- Sort by name; `alpm`'s installed-database order has no useful reading order.
 local sorted_packages = mantle.updates:map(function(u)
-    local list = {}
-    for _, package in ipairs(packages(u)) do
-        list[#list + 1] = package
-    end
+    local list = util.concat(packages(u))
     table.sort(list, function(left, right)
         return (left.name or "") < (right.name or "")
     end)
     return list
 end)
 
--- Two owners, one view: the capability clears `install_log` per install, the chain appends after.
 local log_lines = computed({ mantle.updates, dev_log }, function(u, lines)
     return util.concat(u and u.install_log, lines)
 end)
@@ -466,20 +426,19 @@ local not_settings = settings_open:map(function(open)
     return not open
 end)
 
--- The tick list takes the whole body, so every other view yields to it.
+-- The settings list takes the whole body.
 local function unless_settings(showing)
     return computed({ showing, settings_open }, function(visible, settings)
         return visible and not settings
     end)
 end
 
--- One fixed-height card holds the spinner and then the list, so a check does not resize the panel.
--- With nothing pending the status card alone says so.
+-- One fixed-height card holds the spinner, then the list, so a check does not resize the panel.
 local packages_showing = unless_settings(computed({ mantle.updates, result_showing, dev_running },
     function(u, showing, tool)
         return not showing and tool == "" and u ~= nil and not u.installing and (u.checking or #packages(u) > 0)
     end))
--- Nothing pending and nothing to report: the empty state stands in for the status card.
+-- Nothing pending or to report: the empty state replaces the status card.
 local empty_showing = unless_settings(computed({ mantle.updates, result_showing, dev_running },
     function(u, showing, tool)
         return not showing and tool == "" and u ~= nil and not u.installing and not u.checking
@@ -500,21 +459,14 @@ local log_showing = unless_settings(computed({ mantle.updates, result_showing, l
         return u ~= nil and (u.installing or tool ~= "" or (showing and (install_failed(u) or open)))
     end))
 
--- Follow the newest line. Every push reveals, not only the lengthening ones: the log is a 200-line
--- tail, so past that the content changes while the length does not.
+-- Follow the newest line on every push: past 200 lines the tail changes but its length does not,
+-- and the exit push carries the failure's stderr.
 --
--- Not gated on `installing`: the exit push carries the drained stderr, which is where a failure says
--- why.
---
--- ponytail: scrolling back during an install does not stop the follow, so a user reading an
--- earlier line is dragged to the end by the next one. Pausing on scroll needs detecting
--- user-initiated movement; the offset alone cannot stand in for that, because `reveal` lands in a
--- later layout pass than the read (`lua-meta/signals.lua`), so a recorded offset always trails the
--- real one by a reveal and a scroll back above it is indistinguishable from sitting at the end.
--- Wants an engine-side "the wheel moved this viewport" signal.
+-- ponytail: scrolling back does not pause the follow. The offset trails `reveal` by a layout pass,
+-- so user scrolls are undetectable; needs an engine "wheel moved this viewport" signal.
 mantle.updates:on_change(function(u, previous)
     if previous == nil then
-        -- One shell for every tool, not one per tool: this runs on each process start.
+        -- One shell for every tool.
         local names = {}
         for _, tool in ipairs(dev_tools) do
             names[#names + 1] = tool.requires
@@ -531,16 +483,14 @@ mantle.updates:on_change(function(u, previous)
     if lines > 0 then
         LOG_SCROLL:reveal(lines)
     end
-    -- Keyed on the stamp moving, like `indicators/updates.lua`: pushes coalesce, and a spawn
-    -- failure raises and clears `installing` too fast for an edge watcher to see the rise.
+    -- Keyed on the stamp moving: pushes coalesce, so an `installing` edge can be missed.
     if previous == nil or u == nil or u.installing or not install_ended(u) then
         return
     end
     if u.install_finished_at == previous.install_finished_at and u.install_error == previous.install_error then
         return
     end
-    -- Whatever just installed is still in `packages`, and nothing else clears it until the hourly
-    -- tick. A half-finished run leaves a stale list too, so re-check on failure as well.
+    -- `packages` is stale after any run, failed or not.
     mantle.updates:invoke("check")
     if install_failed(u) then
         -- A half-upgraded system is the wrong place to rebuild a toolchain against.
@@ -549,8 +499,7 @@ mantle.updates:on_change(function(u, previous)
     start_dev_tools()
 end)
 
--- One row per `config/dev_tools.lua` entry; the subtitle is the binary it needs, so a row ticked on
--- a machine without it reads as the `[SKIP]` it will produce.
+-- One row per `config/dev_tools.lua` entry, subtitled with the binary it needs.
 local tool_rows = {}
 for _, tool in ipairs(dev_tools) do
     tool_rows[#tool_rows + 1] = panel_row {
@@ -573,8 +522,7 @@ for _, tool in ipairs(dev_tools) do
     }
 end
 
--- Busy dims the header's refresh and the install button rather than hiding them, so the row keeps
--- its layout.
+-- Dims rather than hides, so the row keeps its layout.
 local busy = computed({ mantle.updates, dev_running }, function(u, tool)
     return u == nil or u.checking or u.installing or tool ~= ""
 end)
@@ -589,8 +537,7 @@ local progress = computed({ mantle.updates, dev_running }, function(u, tool)
     return total > 0 and 100 * (u.install_current_step or 0) / total or false
 end)
 
--- Config files pacman would not overwrite, from `warning: X installed as X.pacnew`; each wants a
--- merge by hand, which a warning count alone does not say.
+-- `.pacnew` and `.pacsave` files from this run, each wanting a manual merge.
 local pacnew = computed({ mantle.updates, result_showing }, function(u, showing)
     local files = {}
     if not (showing and ran_packages(u)) then
@@ -643,9 +590,8 @@ local body = {
         },
     },
     panel_card({
-        cell(computed({ mantle.updates, result_showing, dev_running, dev_result }, function(u, showing, tool, dev)
-            return { { text = status_line(u, showing, tool, dev), bold = true } }
-        end), theme.FG, theme.font.md),
+        cell(util.bold(computed({ mantle.updates, result_showing, dev_running, dev_result }, status_line)), theme.FG,
+            theme.font.md),
         cell(computed({ mantle.updates, result_showing, dev_running, dev_result }, detail_line), theme.DIM, theme.font.xs),
         row {
             width = "Fill",
@@ -692,12 +638,9 @@ local body = {
             width = "Fill",
             spacing = theme.spacing.sm,
             children = {
-                cell({ { text = "Package", bold = true } }, theme.DIM, theme.font.xs, { width = "Fill" }),
-                cell({ { text = "Current", bold = true } }, theme.DIM, theme.font.xs, {
-                    width = theme.update_version_width,
-                    align = "End",
-                }),
-                cell({ { text = "New", bold = true } }, theme.DIM, theme.font.xs, { width = theme.update_version_width }),
+                cell(util.bold("Package"), theme.DIM, theme.font.xs, { width = "Fill" }),
+                cell(util.bold("Current"), theme.DIM, theme.font.xs, { width = theme.update_version_width, align = "End" }),
+                cell(util.bold("New"), theme.DIM, theme.font.xs, { width = theme.update_version_width }),
             },
         },
         column {
@@ -744,9 +687,9 @@ local body = {
             width = "Fill",
             align_v = "Center",
             children = {
-                cell(mantle.updates:map(function(u)
-                    return { { text = install_failed(u) and failure_reason(u) or "Install log", bold = true } }
-                end), mantle.updates:map(function(u)
+                cell(util.bold(mantle.updates:map(function(u)
+                    return install_failed(u) and failure_reason(u) or "Install log"
+                end)), mantle.updates:map(function(u)
                     return install_failed(u) and theme.RED or theme.DIM
                 end), theme.font.xs, { width = "Fill" }),
                 panel_action_icon(icons.copy, function()
@@ -774,7 +717,7 @@ local body = {
         },
     }, {
         tone = mantle.updates:map(function(u)
-            return u ~= nil and install_failed(u) and "error" or "standard"
+            return install_failed(u) and "error" or "standard"
         end),
         width = "Fill",
         visible = log_showing,
