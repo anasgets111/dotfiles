@@ -132,13 +132,9 @@ local function any_tool_runnable()
 end
 
 local NOTIFICATION_ID = "8001"
-local live_toast = nil
 
+-- Dismissing closes the card, which also ends a waiting `notify-send --wait`.
 local function dismiss_notifications()
-    if live_toast then
-        live_toast:kill()
-        live_toast = nil
-    end
     local n = mantle.notifications:get()
     for _, notif in ipairs((n and n.feed) or {}) do
         if notif.app_name == "System Updates" then
@@ -147,9 +143,9 @@ local function dismiss_notifications()
     end
 end
 
-local install
-
--- Replaces any pending update offer so completed/failed toasts never pile on top.
+-- Replaces any pending update offer so completed/failed toasts never pile on top. The action's
+-- listener is detached and calls back through `mantle call`: a `process.run` listener died with the
+-- generation, so after any reload the button reached nobody.
 local function toast(urgency, title, body, action)
     dismiss_notifications()
     local args = {
@@ -158,28 +154,12 @@ local function toast(urgency, title, body, action)
         "-i", "system-software-update",
         "--replace-id", NOTIFICATION_ID,
     }
-    if action then
-        args[#args + 1] = "--wait"
-        args[#args + 1] = "-A"
-        args[#args + 1] = "run-updates=" .. action
+    if not action then
+        return process.detach("notify-send", util.concat(args, { title, body }))
     end
-    args[#args + 1] = title
-    args[#args + 1] = body
-    if action then
-        local handle
-        handle = process.run("notify-send", args, function(line)
-            if line:find("run-updates", 1, true) then
-                install()
-            end
-        end, function()
-            if live_toast == handle then
-                live_toast = nil
-            end
-        end)
-        live_toast = handle
-    else
-        process.detach("notify-send", args)
-    end
+    process.detach("sh", util.concat({
+        "-c", 'notify-send "$@" | grep -q run-updates && mantle call updates.install', "sh",
+    }, util.concat(args, { "--wait", "-A", "run-updates=" .. action, title, body })))
 end
 
 -- ponytail: unbounded, unlike the Supervisor's 200-line tail. A dev run prints hundreds of lines,
@@ -250,11 +230,11 @@ local function start_dev_tools()
     run_tools(1, {})
 end
 
--- Exported: the notification's action button in `indicators/updates.lua` is this same click.
+-- Exported, and `updates.install` for the notification's detached action listener.
 --
 -- A retry runs with no pending count: a run that failed partway can leave the count at zero with
 -- the system still half-upgraded, and refusing there left the failure card holding a dead button.
-install = function()
+local function install()
     local u = mantle.updates:get()
     if u == nil or u.installing or dev_running:get() ~= "" then
         return
@@ -273,6 +253,7 @@ install = function()
     end
     start_dev_tools()
 end
+action("updates.install", install)
 
 -- Pacman's output supplies the reason, and this file turns it into actionable wording. Falls back
 -- to the exit code, which is at least true.
