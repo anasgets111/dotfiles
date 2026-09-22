@@ -347,28 +347,26 @@ local function detail_line(u, is_dismissed, tool)
             human_bytes(download_total(u)))
     end
     if not is_dismissed and install_ended(u) then
+        -- The reason heads the log card, beside the output it came from.
+        local start = started_at:get() or 0
+        local seconds = (u.install_finished_at or os.time()) - start
+        local time_str = (start > 0 and seconds >= 0) and (seconds < 60 and string.format("%d sec", seconds)
+            or string.format("%d min %d sec", math.floor(seconds / 60), seconds % 60))
         if install_failed(u) then
-            return failure_reason(u)
+            return time_str and ("Failed after " .. time_str) or "See the log below"
         end
         local warnings = warning_count(u)
         local noted = warnings > 0 and string.format(" · %d warning%s", warnings, warnings == 1 and "" or "s") or ""
-        local start = started_at:get() or 0
-        local seconds = (u.install_finished_at or os.time()) - start
         local count = (u.install_total_steps or 0)
         local count_prefix = count > 0 and string.format("%d package%s · ", count, count == 1 and "" or "s") or ""
-        if start > 0 and seconds >= 0 then
-            local time_str = seconds < 60 and string.format("took %d sec", seconds)
-                or string.format("took %d min %d sec", math.floor(seconds / 60), seconds % 60)
-            return count_prefix .. time_str .. noted
-        end
-        return count_prefix .. "Finished" .. noted
+        return count_prefix .. (time_str and ("took " .. time_str) or "Finished") .. noted
     end
     -- A failed check keeps the last good list, so say which list is shown.
     if u.check_error ~= nil then
         local failures = u.consecutive_check_failures or 0
         -- Five consecutive failures is the warning threshold.
         local repeated = failures >= 5 and string.format(" · %d in a row", failures) or ""
-        return "Showing the last result" .. repeated
+        return "Last result kept · " .. u.check_error:match("[^\n]*") .. repeated
     end
     if (u.count or 0) > 0 then
         return string.format("%s to download", human_bytes(download_total(u)))
@@ -428,6 +426,10 @@ local function log_colour(line)
     end
     return theme.DIM
 end
+
+local not_settings = settings_open:map(function(open)
+    return not open
+end)
 
 -- The tick list takes the whole body, so every other view yields to it.
 local function unless_settings(showing)
@@ -596,8 +598,21 @@ local body = {
             visible = working,
             children = { spinner(working, theme.control.xs), cell("Working…", theme.DIM, theme.font.xs) },
         },
-    }, { tone = status_tone, width = "Fill", spacing = theme.spacing.xs }),
+    }, { tone = status_tone, width = "Fill", spacing = theme.spacing.xs, visible = not_settings }),
     panel_card({
+        -- Shown over the spinner too, so the table's frame is already there when the list lands.
+        row {
+            width = "Fill",
+            spacing = theme.spacing.sm,
+            children = {
+                cell({ { text = "Package", bold = true } }, theme.DIM, theme.font.xs, { width = "Fill" }),
+                cell({ { text = "Current", bold = true } }, theme.DIM, theme.font.xs, {
+                    width = theme.update_version_width,
+                    align = "End",
+                }),
+                cell({ { text = "New", bold = true } }, theme.DIM, theme.font.xs, { width = theme.update_version_width }),
+            },
+        },
         column {
             width = "Fill",
             height = theme.update_list_height,
@@ -625,7 +640,6 @@ local body = {
                             align = "End",
                             align_v = "Center",
                         }),
-                        cell("→", theme.DIM, theme.font.xs, { align_v = "Center" }),
                         cell(package.new_version or "", theme.ACCENT, theme.font.xs, {
                             width = theme.update_version_width,
                             align_v = "Center",
@@ -643,7 +657,11 @@ local body = {
             width = "Fill",
             align_v = "Center",
             children = {
-                cell({ { text = "Install log", bold = true } }, theme.DIM, theme.font.xs, { width = "Fill" }),
+                cell(mantle.updates:map(function(u)
+                    return { { text = install_failed(u) and failure_reason(u) or "Install log", bold = true } }
+                end), mantle.updates:map(function(u)
+                    return install_failed(u) and theme.RED or theme.DIM
+                end), theme.font.xs, { width = "Fill" }),
                 panel_action_icon(icons.copy, function()
                     local lines = log_lines:get() or {}
                     if #lines > 0 then
@@ -659,7 +677,12 @@ local body = {
             source = log_lines,
             spacing = theme.spacing.xs,
             itemfn = function(line)
-                return cell(line, log_colour(line), theme.font.xs, { width = "Fill", wrap = "Word", max_lines = 3 })
+                return cell(line, log_colour(line), theme.font.xs, {
+                    width = "Fill",
+                    wrap = "Word",
+                    max_lines = 3,
+                    font = theme.mono_font,
+                })
             end,
         },
     }, {
@@ -673,16 +696,23 @@ local body = {
         width = "Fill",
         children = tool_rows,
     } }, { background = theme.GLASS_CONTENT, width = "Fill", visible = settings_open }),
+    action_button("Done", function()
+        settings_open:set(false)
+    end, "updates-settings-done", { tone = "quiet", width = "Fill", visible = settings_open }),
     row {
         width = "Fill",
         spacing = theme.spacing.sm,
+        visible = not_settings,
         children = {
             action_button(
                 computed({ mantle.updates, result_showing, dev_running }, function(u, showing, tool)
                     if u ~= nil and (u.installing or tool ~= "") then
                         return "Updating…"
                     end
-                    return (showing and install_failed(u)) and "Retry" or "Update"
+                    if showing and install_failed(u) then
+                        return "Retry"
+                    end
+                    return ((u and u.count) or 0) > 0 and "Update" or "Update dev tools"
                 end),
                 install,
                 "updates-install",

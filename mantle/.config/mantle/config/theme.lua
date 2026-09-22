@@ -228,6 +228,8 @@ theme.spacing                   = {
 -- `components/glyph.lua` names the font on every icon node. `shell.lua` declares both
 -- `Propo` and `Mono`; the latter keeps indicators to one cell, so the node names it explicitly.
 theme.icon_font                 = "JetBrainsMono Nerd Font Mono"
+-- Command output, so columns in a log line up.
+theme.mono_font                 = theme.icon_font
 
 theme.font                      = {
     xs   = s(10, 8),
