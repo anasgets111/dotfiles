@@ -1,42 +1,71 @@
--- Shared background, padding, and radius for dropdowns and panel bodies.
--- `modules/shell/panel_host.lua` and `modules/bar/panels/settings.lua` share the same six
--- properties, the two-call-site bar for a shared component.
---
--- `opts` overrides defaults. By default, dropdowns use `theme.radius.md` and `theme.spacing.sm`.
--- The opaque settings toplevel passes `radius = 0` and its own padding because it has no edge to
--- round against.
---
--- Pass through `margin`, `align_h`, `align_v`, and `visible`: they locate the card. The panel host
--- positions it manually because a layer surface has no `anchor_rect`; its indicator offset is this
--- node's outer `card_margin`. The content-sized polkit prompt centres with the two aligns.
---
--- `modules/bar/panels/update_panel.lua` hides whole package/log cards; hiding children alone leaves
--- their ground and padding as a rounded empty rectangle.
 local theme = require("config.theme")
+
+local tones = {
+    standard = { background = theme.GLASS_CONTENT, border = theme.GLASS_BORDER },
+    active = { background = theme.ACCENT_SUBTLE, border = theme.ACCENT_MEDIUM },
+    warning = {
+        background = theme.with_opacity(theme.PEACH, theme.opacity.subtle),
+        border = theme.with_opacity(theme.PEACH, theme.opacity.medium),
+    },
+    error = {
+        background = theme.with_opacity(theme.RED, theme.opacity.subtle),
+        border = theme.with_opacity(theme.RED, theme.opacity.medium),
+    },
+}
+
+local function tone_style(tone)
+    return tones[tone] or tones.standard
+end
 
 return function(children, opts)
     opts = opts or {}
+    ---@type string|Signal
+    local tone = opts.tone or "standard"
+    ---@type Color|Signal
+    local background
+    ---@type Color|Signal
+    local border_color
+    if type(tone) == "userdata" then
+        ---@cast tone Signal
+        background = tone:map(function(name)
+            return tone_style(name).background
+        end)
+        border_color = tone:map(function(name)
+            return tone_style(name).border
+        end)
+    else
+        local style = tone_style(tone)
+        background = style.background
+        border_color = style.border
+    end
+    local animate = opts.animate
+    if animate == nil then
+        animate = { background = theme.animation_ms, border_color = theme.animation_ms }
+    elseif type(animate) == "table" then
+        local with_tone = {}
+        for key, value in pairs(animate) do
+            with_tone[key] = value
+        end
+        with_tone.background = with_tone.background or theme.animation_ms
+        with_tone.border_color = with_tone.border_color or theme.animation_ms
+        animate = with_tone
+    end
     return column {
         width = opts.width,
         height = opts.height,
-        padding = opts.padding or {
-            top = theme.spacing.sm,
-            right = theme.spacing.md,
-            bottom = theme.spacing.sm,
-            left = theme.spacing.md,
-        },
+        padding = opts.padding or theme.card_padding,
         margin = opts.margin,
         align_h = opts.align_h,
         align_v = opts.align_v,
         visible = opts.visible,
         opacity = opts.opacity,
-        animate = opts.animate,
+        animate = animate,
         spacing = opts.spacing or theme.spacing.xs,
-        background = opts.background or theme.BG,
+        background = opts.background or background,
         -- Passed through rather than defaulted: a card on an already-blurred sheet asking again
         -- would union into a region that covers it, which is work for no pixels.
         blur = opts.blur,
-        radius = opts.radius or theme.radius.md,
+        radius = opts.radius or theme.radius.lg,
         border_width = opts.border_width,
         border_color = opts.border_color,
         children = children,

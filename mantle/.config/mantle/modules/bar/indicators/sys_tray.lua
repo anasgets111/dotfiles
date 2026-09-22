@@ -1,26 +1,25 @@
--- Registered `StatusNotifierItem`s laid out horizontally as borderless buttons carrying their
--- applications' icons.
---
--- Use themed icons, not glyphs: tray items ship artwork and cannot be recoloured, as
--- `components/icon_button.lua` notes. The rest of this bar chooses glyphs explicitly.
---
--- `icon.foreground` is CSS `color`, which resolves `currentColor`. Symbolic icons take
--- the panel colour; Breeze bakes light-theme grey for the toolkit to rewrite. Full-colour icons
--- ignore `currentColor`, so apply it to every item.
---
--- The ground fills the tray, glass control tone behind a glass border hairline at the item radius,
--- with a centred row and no padding -- the gap around each icon is the button's width, not the
--- pill's.
---
--- A `list` without `width` sizes to content, so a fixed width would be both floor and ceiling;
--- item-count sizing keeps the ground matching content width. The empty state shrinks to the
--- label's width and says "No tray items" rather than hide or stand empty.
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
+local tooltip = require("components.tooltip")
 local tray_menu = require("modules.bar.panels.tray_menu")
 
 local SCROLL = scroll("sys_tray")
+local SLOT = "sys_tray"
+local hovered_id = state("sys_tray_tooltip", "")
+
+local function item_label(item)
+    return item.name ~= nil and item.name ~= "" and item.name or item.id or "Tray item"
+end
+
+local tooltip_text = computed({ hovered_id, mantle.tray }, function(id, tray)
+    for _, item in ipairs((tray and tray.items) or {}) do
+        if item.id == id then
+            return item_label(item)
+        end
+    end
+    return id ~= "" and id or "Tray item"
+end)
 
 -- Hide `Passive`: the spec treats it as no presentation, so disabling an application's tray icon
 -- removes it. This is presentation policy in Lua; other bars may dim Passive items.
@@ -66,6 +65,8 @@ local items = list {
     visible = has_items,
     source = computed({ mantle.tray, mantle.applications }, items_of),
     itemfn = function(item)
+        local item_slot = SLOT .. "-" .. tostring(item.id)
+        local item_hovered = hover(item_slot)
         local entry = util.app_entry(mantle.applications:get(), item.name or item.id)
         local art = artwork(item) or (entry and entry.icon)
         local face
@@ -97,6 +98,14 @@ local items = list {
             width = ITEM_WIDTH,
             height = "Fill",
             align_v = "Center",
+            hover = item_hovered,
+            on_hover = function(is_hovered)
+                if is_hovered then
+                    hovered_id:set(item.id)
+                elseif hovered_id:get() == item.id then
+                    hovered_id:set("")
+                end
+            end,
             on_click = function(rect_, mouse_button)
                 local wants_menu = mouse_button == "right" or item.item_is_menu
                 if wants_menu and item.menu ~= nil then
@@ -134,9 +143,10 @@ local empty_label = cell(
     }
 )
 
-return row {
+local indicator = row {
     height = theme.item_height,
     align_v = "Center",
+    hover = hover(SLOT),
     radius = theme.item_radius,
     background = theme.GLASS_CONTROL,
     border_width = theme.border_width,
@@ -145,3 +155,7 @@ return row {
     -- measures whichever is showing.
     children = { items, empty_label },
 }
+
+local tray_tooltip = tooltip({ id = "sys_tray_tooltip", slot = SLOT, text = tooltip_text })
+
+return { indicator = indicator, tooltip = tray_tooltip }

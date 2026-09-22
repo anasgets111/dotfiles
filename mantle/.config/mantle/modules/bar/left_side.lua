@@ -27,11 +27,11 @@ return row {
         power_menu.button,
         updates_module.indicator,
         idle_inhibitor.indicator,
-        keyboard_module,
+        keyboard_module.indicator,
         battery.indicator,
         launcher.button,
         wallpaper_button.button,
-        special_workspaces,
+        special_workspaces.indicator,
         workspaces_module,
     },
 }

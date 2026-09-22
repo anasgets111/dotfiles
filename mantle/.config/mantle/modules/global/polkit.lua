@@ -8,6 +8,7 @@ local util = require("lib.util")
 local cell = require("components.cell")
 local panel_card = require("components.panel_card")
 local action_button = require("components.action_button")
+local input = require("components.input")
 
 local function read(fn)
     return util.label(mantle.polkit, fn)
@@ -70,33 +71,24 @@ return panel {
                 -- `PolkitState` carries no such field, so this stays the fixed label the prompt
                 -- always is in practice.
                 cell("Password:", theme.FG, theme.font.sm),
-                column {
-                    width = "Fill",
-                    padding = { top = 0, right = theme.spacing.sm, bottom = 0, left = theme.spacing.sm },
-                    background = theme.GLASS_CONTROL,
-                    radius = theme.radius.md,
-                    border_width = theme.border_width,
-                    border_color = theme.ACCENT,
-                    children = {
-                        textfield {
-                            width = "Fill",
-                            height = theme.control.md,
-                            placeholder = "Password",
-                            mask_character = "*",
-                            secure_submit = { capability = "polkit", action = "authenticate" },
-                            font_size = theme.font.sm,
-                        },
+                input {
+                    field = textfield {
+                        width = "Fill",
+                        height = "Fill",
+                        placeholder = "Password",
+                        mask_character = "*",
+                        secure_submit = { capability = "polkit", action = "authenticate" },
+                        font_size = theme.font.sm,
+                        foreground = theme.FG,
                     },
+                    error = mantle.polkit:map(function(p)
+                        return p and p.error or ""
+                    end),
                 },
-                -- This carries PAM's reason. With no animation, "checking" is the spinner's text.
-                cell(read(function(p)
-                    return p.authenticating and "Checking..." or p.error
-                end), mantle.polkit:map(function(p)
-                    return (p and p.authenticating) and theme.DIM or theme.RED
-                end), theme.font.sm, {
+                cell("Checking...", theme.DIM, theme.font.sm, {
                     width = "Fill",
                     visible = util.shown_when(mantle.polkit, function(p)
-                        return p.authenticating or p.error ~= ""
+                        return p.authenticating
                     end),
                 }),
                 row {

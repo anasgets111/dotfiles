@@ -1,7 +1,6 @@
 -- A circular icon button between the battery and workspaces.
 local theme = require("config.theme")
 local icons = require("config.icons")
-local cell = require("components.cell")
 local icon_button = require("components.icon_button")
 local ui_state = require("lib.ui_state")
 local tooltip = require("components.tooltip")
@@ -20,13 +19,11 @@ end, { slot = SLOT, selected = ui_state.launcher_open })
 local launcher_tooltip = tooltip({
     id = "launcher_tooltip",
     slot = SLOT,
-    children = {
-        cell("Open the app launcher", theme.FG, theme.font.sm),
-        cell(mantle.applications:map(function(applications)
-            local entries = applications and applications.entries
-            return string.format("%d application(s)", entries and #entries or 0)
-        end), theme.DIM, theme.font.xs),
-    },
+    text = "Open application launcher",
+    detail = mantle.applications:map(function(applications)
+        local entries = applications and applications.entries
+        return string.format("%d application(s)", entries and #entries or 0)
+    end),
 })
 
 return { button = launcher_button, tooltip = launcher_tooltip }

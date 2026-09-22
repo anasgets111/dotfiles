@@ -51,7 +51,6 @@ local focused_icon = icon {
     align_v = "Center",
 }
 
--- No pill or button. No ground makes it a caption.
 return row {
     height = theme.item_height,
     align_v = "Center",

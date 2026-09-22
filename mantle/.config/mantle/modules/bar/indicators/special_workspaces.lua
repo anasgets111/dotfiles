@@ -1,16 +1,10 @@
--- One circle per Hyprland scratchpad, accented while `shown_on` is set and glass while hidden; a
--- click invokes `toggle_special`. `mantle.workspaces.special` is `nil` without specials,
--- and the row hides when empty to avoid a bar spacing gap.
---
--- Use the standing window's icon when `mantle.applications` knows its `app_id`; otherwise use the
--- first two letters after `special:`. A keyword table (`term`, `slack`...) is omitted because the
--- standing icon covers what that guess would provide.
---
--- No tooltip: it would require one `popup` per special mounted in `shell.lua`, one per changing
--- scratchpad. Two letters carry the name.
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
+local tooltip = require("components.tooltip")
+
+local SLOT = "special_workspaces"
+local hovered_name = state("special_workspace_tooltip", "")
 
 local function specials_of(w)
     return (w and w.special) or {}
@@ -18,6 +12,10 @@ end
 
 local function short_name(name)
     return name:gsub("^special:?", "")
+end
+
+local function capitalize(name)
+    return name ~= "" and name:sub(1, 1):upper() .. name:sub(2) or "Special workspace"
 end
 
 local function special_button(special)
@@ -55,6 +53,13 @@ local function special_button(special)
         align_v = "Center",
         radius = theme.item_radius,
         hover = slot_hovered,
+        on_hover = function(is_hovered)
+            if is_hovered then
+                hovered_name:set(name)
+            elseif hovered_name:get() == name then
+                hovered_name:set("")
+            end
+        end,
         background = ground,
         border_width = theme.border_width,
         border_color = slot_hovered:map(function(is_hovered)
@@ -85,9 +90,10 @@ local function special_button(special)
     }
 end
 
-return row {
+local indicator = row {
     height = theme.item_height,
     align_v = "Center",
+    hover = hover(SLOT),
     visible = mantle.workspaces:map(function(w)
         return #specials_of(w) > 0
     end),
@@ -104,3 +110,9 @@ return row {
         },
     },
 }
+
+local special_tooltip = tooltip({ id = "special_workspaces_tooltip", slot = SLOT, text = hovered_name:map(function(name)
+    return capitalize(short_name(name))
+end) })
+
+return { indicator = indicator, tooltip = special_tooltip }

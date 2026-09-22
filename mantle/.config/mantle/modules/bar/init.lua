@@ -2,25 +2,23 @@ local theme = require("config.theme")
 local left = require("modules.bar.left_side")
 local center = require("modules.bar.center_side")
 local right = require("modules.bar.right_side")
+local battery = require("modules.bar.indicators.battery")
+local date_time = require("modules.bar.indicators.date_time")
+local launcher = require("modules.bar.indicators.launcher_button")
+local wallpaper = require("modules.bar.indicators.wallpaper_button")
+local network = require("modules.bar.indicators.network")
+local bluetooth = require("modules.bar.indicators.bluetooth")
+local screen_recorder = require("modules.bar.indicators.screen_recorder")
+local idle_inhibitor = require("modules.bar.indicators.idle_inhibitor")
+local updates = require("modules.bar.indicators.updates")
+local rescue = require("modules.bar.indicators.rescue")
+local keyboard_layout = require("modules.bar.indicators.keyboard_layout")
+local privacy = require("modules.bar.indicators.privacy")
+local special_workspaces = require("modules.bar.indicators.special_workspaces")
+local sys_tray = require("modules.bar.indicators.sys_tray")
+local audio_panel = require("modules.bar.panels.audio_panel")
 
--- Three zones: two `Fill` sides share spare space equally, while each side uses its own `align_h`.
--- That keeps the centre's midpoint at the bar's midpoint.
---
--- `scene.rs` sizes `Fill` from the siblings' remainder rather than the whole parent.
---
--- Power, updates, keyboard, battery, launcher and workspaces left; media or the focused title
--- centre; status, tray and clock right. Registered
--- `StatusNotifierItem`s and the independently growing workspace strip occupy opposite sides.
---
--- `row` still does not shrink children to fit siblings, so an overfull left zone paints past its
--- edge. The budget follows content.
---
--- `GLASS_SURFACE` is half-alpha, so the bar composites over the wallpaper; an opaque ground reads
--- as a black strip with boxes instead of glass.
---
--- No vertical padding: a 31px item in a 38px bar already leaves 3.5px each side. Horizontal
--- padding is `spacing.md`.
-return row {
+local indicator = row {
     width = "Fill",
     height = theme.bar_height,
     background = theme.GLASS_SURFACE,
@@ -28,3 +26,26 @@ return row {
     padding = { left = theme.spacing.md, right = theme.spacing.md },
     children = { left, center, right },
 }
+
+local tooltips = {
+    battery.tooltip,
+    date_time.tooltip,
+    launcher.tooltip,
+    wallpaper.tooltip,
+    network.tooltip,
+    bluetooth.tooltip,
+    screen_recorder.tooltip,
+    idle_inhibitor.tooltip,
+    updates.tooltip,
+    rescue.tooltip,
+    keyboard_layout.tooltip,
+    privacy.camera_tooltip,
+    privacy.microphone_tooltip,
+    privacy.screenshare_tooltip,
+    special_workspaces.tooltip,
+    sys_tray.tooltip,
+    audio_panel.output_tooltip,
+    audio_panel.input_tooltip,
+}
+
+return { indicator = indicator, tooltips = tooltips }

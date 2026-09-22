@@ -17,6 +17,7 @@ local panel_action_icon = require("components.panel_action_icon")
 local panel_empty_state = require("components.panel_empty_state")
 local spinner = require("components.spinner")
 local action_button = require("components.action_button")
+local input = require("components.input")
 local ui = require("lib.ui_state")
 
 local KIND = "network"
@@ -219,21 +220,11 @@ local sheet_title = computed({ step, ui.hidden_ssid, mantle.network }, function(
     return { { text = string.format("Connect to “%s”", target), bold = true } }
 end)
 
--- A glass box with a ring, which `textfield` cannot draw itself. The ring is accent throughout
--- because the sheet's field is the only thing on this surface that can hold the
--- keyboard -- telling an error ring apart from a focus ring needs a focus state a config cannot
--- observe, and the two states it would tell apart are the same state here.
+-- `textfield` owns only text and the caret. The shared wrapper owns the QML input box.
 local function field_box(shown, field)
-    return rect {
+    return input {
         visible = shown,
-        width = "Fill",
-        height = theme.control.md,
-        radius = theme.radius.md,
-        background = theme.GLASS_CONTROL,
-        border_width = theme.border_width,
-        border_color = theme.ACCENT,
-        padding = { left = theme.spacing.sm, right = theme.spacing.sm },
-        children = { field },
+        field = field,
     }
 end
 
@@ -440,6 +431,7 @@ local body = {
                 mask_character = "*",
                 secure_submit = { capability = "network", action = "connect" },
                 font_size = theme.font.sm,
+                foreground = theme.FG,
             }),
             row {
                 spacing = theme.spacing.xs,

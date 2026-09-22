@@ -28,6 +28,17 @@ local lingering = {}
 for _, modal in ipairs(modals) do
     table.insert(lingering, util.linger(ui_state.modal_showing(modal.kind), theme.animation_ms))
 end
+
+local escape_sink = textfield {
+    width = 0,
+    height = 0,
+    autofocus = true,
+    on_change = function() end,
+    on_cancel = function()
+        ui_state.close_modal(ui_state.active_modal:get())
+    end,
+}
+
 local cards = computed(lingering, function(...)
     local open = {}
     for index, modal in ipairs(modals) do
@@ -35,6 +46,7 @@ local cards = computed(lingering, function(...)
             table.insert(open, modal.node)
         end
     end
+    table.insert(open, escape_sink)
     return open
 end)
 

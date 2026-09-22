@@ -38,7 +38,10 @@ return function(opts)
     if opts.selected and type(title) == "string" then
         title = { { text = title, bold = true } }
     end
-    local title_lines = { cell(title, title_color, theme.font.sm, { width = "Fill" }) }
+    local title_lines = { cell(title, title_color, theme.font.sm, {
+        width = "Fill",
+        animate = { foreground = theme.animation_ms },
+    }) }
     if opts.subtitle then
         title_lines[#title_lines + 1] = cell(opts.subtitle, theme.DIM, theme.font.xs, { width = "Fill" })
     end
@@ -49,7 +52,10 @@ return function(opts)
     elseif opts.icon then
         -- A glyph, not a themed icon: `PaintStyle::Icon` has no tint. `opts.art` is for unchosen
         -- artwork such as an application's icon.
-        children[#children + 1] = glyph(opts.icon, opts.icon_color or title_color, theme.icon.md, { align_v = "Center" })
+        children[#children + 1] = glyph(opts.icon, opts.icon_color or title_color, theme.icon.md, {
+            align_v = "Center",
+            animate = { foreground = theme.animation_ms },
+        })
     elseif opts.art then
         children[#children + 1] = icon { name = opts.art, size = theme.icon.md, align_v = "Center" }
     end
@@ -94,6 +100,11 @@ return function(opts)
         background = ground,
         border_width = opts.selected and theme.border_width or nil,
         border_color = opts.selected and theme.ACCENT or nil,
+        animate = {
+            background = theme.animation_ms,
+            border_color = theme.animation_ms,
+            opacity = { duration = theme.animation_ms, easing = "OutCubic" },
+        },
         children = { body },
     }
     if opts.on_activate == nil then

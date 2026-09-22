@@ -61,11 +61,17 @@ return function(expanded, slot, title, middle, opts)
             spacing = theme.spacing.sm,
             padding = { left = theme.spacing.md, right = theme.spacing.md },
             children = {
-                cell(util.bold(title), ink, theme.font.sm, { align_v = "Center" }),
+                cell(util.bold(title), ink, theme.font.sm, {
+                    align_v = "Center",
+                    animate = { foreground = theme.animation_ms },
+                }),
                 middle or rect { width = "Fill" },
                 glyph(expanded:map(function(open)
                     return open and icons.chevron_down or icons.chevron_right
-                end), ink, theme.icon.sm, { align_v = "Center" }),
+                end), ink, theme.icon.sm, {
+                    align_v = "Center",
+                    animate = { foreground = theme.animation_ms },
+                }),
             },
         } },
     }

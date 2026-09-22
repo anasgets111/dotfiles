@@ -21,7 +21,7 @@ local theme = require("config.theme")
 ---@param content string|TextRun[]|Bound
 ---@param color? Color|Bound
 ---@param size? integer
----@param opts? { width?: integer|"Fill", align?: "Start"|"Center"|"End", align_v?: "Start"|"Center"|"End", visible?: boolean|Bound, wrap?: "None"|"Word"|Bound, max_lines?: integer|Bound, on_link?: fun(href: string), font?: "Body"|"Icon"|Bound }
+---@param opts? { width?: integer|"Fill", align?: "Start"|"Center"|"End", align_v?: "Start"|"Center"|"End", visible?: boolean|Bound, wrap?: "None"|"Word"|Bound, max_lines?: integer|Bound, on_link?: fun(href: string), font?: "Body"|"Icon"|Bound, animate?: Animations|Bound }
 return function(content, color, size, opts)
     opts = opts or {}
     return text {
@@ -38,5 +38,6 @@ return function(content, color, size, opts)
         wrap = opts.wrap,
         max_lines = opts.max_lines,
         on_link = opts.on_link,
+        animate = opts.animate,
     }
 end

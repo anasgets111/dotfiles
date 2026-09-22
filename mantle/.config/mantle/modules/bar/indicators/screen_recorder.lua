@@ -1,16 +1,5 @@
--- One circle with three states, and three mouse buttons that do different things.
---
--- Left starts a region or stops a capture; middle records focused output; right opens the panel.
--- Three buttons on one indicator are unusual here: every other one is left-click only, and
--- `components/icon_button.lua` deliberately guards that. Each capture is one click because they
--- differ only in extent; that beats a panel round trip.
--- The panel keeps every choice reachable without remembering which button is which.
---
--- Ground says recording; glyph says click action. The accent color while recording; plain control
--- ground while paused: a paused capture consumes nothing, so the bar need not stay lit.
 local theme = require("config.theme")
 local icons = require("config.icons")
-local cell = require("components.cell")
 local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
 local ui_state = require("lib.ui_state")
@@ -59,20 +48,18 @@ end), nil, {
 local screen_recorder_tooltip = tooltip({
     id = "screen_recorder_tooltip",
     slot = SLOT,
-    children = {
-        cell(computed({ state_of, recorder.elapsed_text }, function(current, elapsed)
-            if current == "idle" then
-                return "Not recording"
-            end
-            return string.format("%s %s", current == "paused" and "Paused at" or "Recording", elapsed)
-        end), theme.FG, theme.font.sm),
-        cell(recorder.recording:map(function(up)
-            if up then
-                return "Left stop · right options"
-            end
-            return "Left region · middle screen · right options"
-        end), theme.DIM, theme.font.xs),
-    },
+    text = computed({ state_of, recorder.elapsed_text }, function(current, elapsed)
+        if current == "idle" then
+            return "Not recording"
+        end
+        return string.format("%s %s", current == "paused" and "Paused at" or "Recording", elapsed)
+    end),
+    detail = recorder.recording:map(function(up)
+        if up then
+            return "Left-click to stop, right-click for options"
+        end
+        return "Left-click for region, middle-click for current output, right-click for options"
+    end),
 })
 
 return { indicator = screen_recorder_module, tooltip = screen_recorder_tooltip }

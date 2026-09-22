@@ -315,9 +315,8 @@ local function row_shell(id, slot, children, opts)
             background = theme.animation_fast_ms,
             border_color = theme.animation_fast_ms,
         },
-        -- Hover selection arms only on pointer motion, so scrolling under a parked pointer, or
-        -- opening under one, cannot steal the keyboard ring. `on_hover` has the same rule, so
-        -- no arming flag.
+        -- `on_hover` runs on pointer enter and leave as well as motion crossings; the selected
+        -- row therefore follows the pointer even when the launcher opens under it.
         on_hover = function(inside)
             if inside then
                 selected_id:set(id)

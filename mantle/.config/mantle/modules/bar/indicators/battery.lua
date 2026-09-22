@@ -1,11 +1,3 @@
--- A left-to-right fill, five-level glyph, and percentage. The only pill on this bar carries a
--- number.
---
--- The percentage-sized `rect` applies `components/meter.lua`'s stacking trick to the whole control.
--- It is not a 6px bar. A `rect` has no main axis, so children stack at its origin.
---
--- `clip = "Rounded"` on the pill cuts the square-cornered fill to its arc; the engine clips only
--- to rectangles, so the radius has to sit on the pill, not the fill.
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
@@ -84,7 +76,7 @@ local fill = rect {
     -- cable goes in. The entry's presence runs the sequence.
     animate = plug_flash:map(function(flashing)
         local eases = {
-            width = theme.animation_ms,
+            width = { duration = theme.animation_ms, easing = "OutCubic" },
             background = { duration = theme.animation_ms, easing = "OutCubic" },
         }
         if flashing then
@@ -120,27 +112,35 @@ local battery_module = rect {
     children = { readout(ON_PILL, "Fill"), fill },
 }
 
+local function status_text(b)
+    if b == nil then
+        return "Battery unavailable"
+    end
+    if b.state == "FullyCharged" then
+        return "Fully Charged"
+    end
+    local eta = util.battery_eta(b)
+    if eta ~= "" then
+        return eta:sub(3)
+    end
+    local phrase = util.battery_phrase(b.state)
+    return phrase:sub(1, 1):upper() .. phrase:sub(2)
+end
+
 local battery_tooltip = tooltip({
     id = "battery_tooltip",
     slot = SLOT,
-    children = {
-        cell(util.label(mantle.battery, function(b)
-            return string.format("%d%% %s%s", b.percent, util.battery_phrase(b.state), util.battery_eta(b))
-        end), theme.FG, theme.font.sm),
-        cell(util.label(mantle.power, function(p)
-            local parts = {}
-            if p.on_battery ~= nil then
-                parts[#parts + 1] = p.on_battery and "On battery" or "On AC"
-            end
-            if p.energy_rate ~= nil then
-                parts[#parts + 1] = string.format("%.1f W", p.energy_rate)
-            end
-            if p.active_profile ~= nil then
-                parts[#parts + 1] = p.active_profile
-            end
-            return #parts > 0 and table.concat(parts, ", ") or "No power detail"
-        end), theme.DIM, theme.font.xs),
-    },
+    text = mantle.battery:map(status_text),
+    detail = util.label(mantle.power, function(p)
+        local parts = {}
+        if p.on_battery ~= nil then
+            parts[#parts + 1] = p.on_battery and "Power: Battery" or "Power: AC"
+        end
+        if p.active_profile ~= nil then
+            parts[#parts + 1] = "PPD: " .. p.active_profile
+        end
+        return #parts > 0 and table.concat(parts, " · ") or "No power detail"
+    end),
 })
 
 return { indicator = battery_module, tooltip = battery_tooltip }

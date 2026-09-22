@@ -69,8 +69,13 @@ return function(opts)
             height = plate_size,
             radius = theme.radius.md,
             background = plate,
+            animate = { background = theme.animation_ms },
             align_v = "Center",
-            children = { cell(opts.icon, accent, math.floor(plate_size * 0.55), { align = "Center", align_v = "Center" }) },
+            children = { cell(opts.icon, accent, math.floor(plate_size * 0.55), {
+                align = "Center",
+                align_v = "Center",
+                animate = { foreground = theme.animation_ms },
+            }) },
         }
     end
 

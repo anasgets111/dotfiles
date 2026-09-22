@@ -24,7 +24,7 @@ local theme = require("config.theme")
 local util = require("lib.util")
 local panel_card = require("components.panel_card")
 local ui_state = require("lib.ui_state")
-local bar = require("modules.bar")
+local bar = require("modules.bar").indicator
 
 local power_menu = require("modules.bar.panels.power_menu")
 local network_panel = require("modules.bar.panels.network_panel")
@@ -46,11 +46,16 @@ local sections = {}
 local section_rects = {}
 for _, panel in ipairs(panels) do
     local rect = geometry("panel-section-" .. panel.kind)
+    local panel_hover = panel.kind == media_panel.kind and hover("media_panel") or nil
     table.insert(section_rects, rect)
     sections[panel.kind] = column {
         width = "Fill",
         spacing = panel.spacing or theme.spacing.xs,
         geometry = rect,
+        hover = panel_hover,
+        on_hover = panel_hover and function(is_hovered)
+            ui_state.set_media_hover("panel", is_hovered)
+        end or nil,
         children = panel.body,
     }
 end
@@ -110,10 +115,6 @@ end)
 -- changes a measurement earns one follow-up pass, keeping the card from sitting one pass
 -- behind a section that grew. An unmeasured section leaves the card content-sized, which snaps that
 -- once.
---
--- `panel_card`'s default is `sm` top and bottom, `md` left and right, which left every panel's
--- first line -- the greeting, a section heading -- on the card's top edge. This uses `md` on every
--- edge.
 local CARD_PADDING = theme.spacing.md
 -- The card starts `radius.md` above the bar's bottom edge, which cuts its top corners square.
 local CARD_CHROME = CARD_PADDING * 2 + theme.radius.md
@@ -156,15 +157,17 @@ local function inverted_corner(corner, glass_on_right, margin)
         children = { scoop(corner, true), scoop(corner + 2, false) },
     }
 end
--- A signal makes `from` carry the hidden position, so the first open of a kind slides rather
--- than appears (a first value is taken as it is without one).
-local card_animate = hidden_top:map(function(hidden)
-    return { margin = { duration = theme.animation_ms, easing = "OutQuad", from = { top = hidden } } }
-end)
-
 -- Bar and panels share one surface: niri blurs each surface on its own, so a card on a second
 -- surface met the bar at a visible seam.
 local shown = util.linger(ui_state.panel_open, theme.animation_ms)
+
+local card_animate = computed({ hidden_top, shown }, function(hidden, visible)
+    if not visible then
+        return {}
+    end
+    return { margin = { duration = theme.animation_ms, easing = "OutQuad", from = { top = hidden } } }
+end)
+
 return panel {
     id = "bar",
     -- Under `Overlay`, so notifications and OSD still draw and click over an open panel.
@@ -223,54 +226,61 @@ return panel {
                 width = "Fill",
                 height = "Fill",
                 margin = { top = theme.bar_height },
-                visible = shown,
-                children = {
-                    -- `close_panel` answers pending passwords, not this catcher. Outside click and
-                    -- a second indicator click are the same edge; one writer keeps them in sync.
-                    button {
-                        width = "Fill",
-                        height = "Fill",
-                        cursor = "default",
-                        -- Not lingering: clicks reach windows while the card retracts.
-                        visible = ui_state.panel_open,
-                        on_click = ui_state.close_panel,
-                    },
-                    -- The column's margin is the horizontal placement, the row's the vertical: a
-                    -- tween carries a whole edge table, so one node holding both would slide the
-                    -- card sideways from the last indicator.
-                    column {
-                        margin = card_x:map(function(x)
-                            return { left = x - CORNER }
-                        end),
-                        children = {
-                            row {
-                                margin = card_margin,
-                                animate = card_animate,
-                                children = {
-                                    inverted_corner(CORNER, true, { top = theme.radius.md }),
-                                    panel_card(shown_section, {
-                                        width = card_width,
-                                        height = card_height,
-                                        animate = {
-                                            width = { duration = theme.animation_ms, easing = "OutCubic" },
-                                            height = { duration = theme.animation_ms, easing = "OutCubic" },
+                children = ui_state.panel_instance:map(function(instance)
+                    return {
+                        -- `close_panel` answers pending passwords, not this catcher. Outside click and
+                        -- a second indicator click are the same edge; one writer keeps them in sync.
+                        button {
+                            width = "Fill",
+                            height = "Fill",
+                            cursor = "default",
+                            -- Not lingering: clicks reach windows while the card retracts.
+                            visible = ui_state.panel_open,
+                            on_click = ui_state.close_panel,
+                        },
+                        -- The column's margin is the horizontal placement, the row's the vertical: a
+                        -- tween carries a whole edge table, so one node holding both would slide the
+                        -- card sideways from the last indicator.
+                        column {
+                            id = "panel-" .. tostring(instance),
+                            margin = card_x:map(function(x)
+                                return { left = x - CORNER }
+                            end),
+                            animate = { margin = { duration = theme.animation_ms, easing = "OutCubic" } },
+                            children = {
+                                row {
+                                    margin = card_margin,
+                                    animate = card_animate,
+                                    children = {
+                                        row {
+                                            visible = shown,
+                                            children = {
+                                                inverted_corner(CORNER, true, { top = theme.radius.md }),
+                                                panel_card(shown_section, {
+                                                    width = card_width,
+                                                    height = card_height,
+                                                    animate = {
+                                                        width = { duration = theme.animation_ms, easing = "OutCubic" },
+                                                        height = { duration = theme.animation_ms, easing = "OutCubic" },
+                                                    },
+                                                    background = theme.GLASS_SURFACE,
+                                                    blur = true,
+                                                    padding = {
+                                                        top = CARD_PADDING + theme.radius.md,
+                                                        right = CARD_PADDING,
+                                                        bottom = CARD_PADDING,
+                                                        left = CARD_PADDING,
+                                                    },
+                                                }),
+                                                inverted_corner(CORNER, false, { top = theme.radius.md }),
+                                            },
                                         },
-                                        background = theme.GLASS_SURFACE,
-                                        -- History cards sit on this glass and do not ask again.
-                                        blur = true,
-                                        padding = {
-                                            top = CARD_PADDING + theme.radius.md,
-                                            right = CARD_PADDING,
-                                            bottom = CARD_PADDING,
-                                            left = CARD_PADDING,
-                                        },
-                                    }),
-                                    inverted_corner(CORNER, false, { top = theme.radius.md }),
+                                    },
                                 },
                             },
                         },
-                    },
-                },
+                    }
+                end),
             },
             -- Last, so it paints over the catcher and hit-testing reaches its indicators first.
             bar,

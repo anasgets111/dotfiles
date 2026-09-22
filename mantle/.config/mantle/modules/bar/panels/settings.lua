@@ -22,7 +22,7 @@ return window {
     min_size = { width = 320, height = 240 },
     max_size = { width = 1280, height = 800 },
     visible = ui_state.settings_open,
-    -- `panel_card` defaults to `theme.radius.md`; this opaque toplevel has no edge to round.
+    -- This opaque toplevel has no edge to round.
     -- Set `radius = 0`.
     child = panel_card({
         panel_header {

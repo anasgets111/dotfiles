@@ -4,7 +4,6 @@
 -- Hover names the failure; click opens the whole log in `modules/global/rescue_details.lua`.
 local theme = require("config.theme")
 local icons = require("config.icons")
-local cell = require("components.cell")
 local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
 local util = require("lib.util")
@@ -28,13 +27,10 @@ end, {
 local rescue_tooltip = tooltip({
     id = "rescue_tooltip",
     slot = SLOT,
-    children = {
-        -- mlua puts the message first and the traceback under it.
-        cell(error_log:map(function(text)
-            return util.truncate(text:match("^[^\n]*"), 90)
-        end), theme.FG, theme.font.sm),
-        cell("Click for the full error", theme.DIM, theme.font.xs),
-    },
+    text = error_log:map(function(text)
+        return util.truncate(text:match("^[^\n]*"), 90)
+    end),
+    detail = "Click for the full error",
 })
 
 return { indicator = indicator, tooltip = rescue_tooltip }

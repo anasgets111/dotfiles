@@ -204,6 +204,7 @@ theme.BG_SUBTLE                 = theme.with_opacity(theme.BG, theme.opacity.sub
 -- surface composites against the wallpaper, not black.
 theme.GLASS_SURFACE             = theme.with_opacity(theme.BG, 0.5)
 theme.GLASS_CONTROL             = theme.with_opacity(theme.INACTIVE, 0.42)
+theme.TOOLTIP_FG               = theme.text_contrast(theme.GLASS_SURFACE)
 -- 0.45, not 0.68: on a glass control over wallpaper, 0.68 makes hover the bar's
 -- brightest element. 0.45 keeps the glyph white instead of inverting it.
 theme.GLASS_CONTROL_HOVER       = theme.with_opacity(theme.ON_HOVER, 0.45)
@@ -264,6 +265,8 @@ theme.control                   = {
     lg = s(42, 34),
     xl = s(52, 42),
 }
+theme.control_width_lg           = s(48, 40)
+theme.card_padding               = s(10, 8)
 
 theme.border_width              = 1
 -- `border_width_medium`: twice the hairline, for cards floating over wallpaper.
@@ -273,6 +276,7 @@ theme.border_width_medium       = 2
 --
 -- Shared surface sizes replace values duplicated in each module and opener.
 theme.bar_height                = s(42, 28)
+theme.panel_toggle_compact_threshold = s(220)
 
 -- ## The item scale
 --
@@ -303,6 +307,7 @@ theme.animation_fast_ms         = 100
 -- `animation_slow_ms`, the pace of a pulse rather than a transition: slow enough to
 -- read as breathing.
 theme.animation_slow_ms         = 250
+theme.animation_very_slow_ms    = 400
 -- Notification travel uses it; colour transitions use
 -- `animation_ms`. Derive it rather than writing 206 so it follows the base.
 theme.notification_slide_ms     = math.floor(theme.animation_ms * 1.4 + 0.5)

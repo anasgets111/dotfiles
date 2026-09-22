@@ -52,11 +52,7 @@ local function day_card(daily, index, opts)
     }, {
         width = "Fill",
         height = opts.height,
-        -- `tone: isToday ? "active" : "standard"`.
-        background = opts.today and theme.ACCENT_SUBTLE or theme.GLASS_CONTENT,
-        radius = theme.radius.lg,
-        border_width = theme.border_width,
-        border_color = opts.today and theme.ACCENT or theme.GLASS_BORDER,
+        tone = opts.today and "active" or "standard",
         spacing = theme.spacing.xs,
         padding = theme.spacing.sm,
     })

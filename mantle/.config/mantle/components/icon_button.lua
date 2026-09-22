@@ -1,49 +1,20 @@
--- One glyph in a circle, sharing button, radius, left-button guard, and child across twelve callers.
--- State-coloured glyphs are needed: themed artwork is name-looked-up, and
--- `PaintStyle::Icon` has no tint, so bluetooth cannot turn accent on connect or make the update red
--- on failure. A Nerd Font glyph is a `text` node whose `foreground` carries the state. Codepoints
--- live in `config/icons.lua`.
--- Themed icons remain for unchosen artwork, such as tray or application icons; those callers use
--- `icon` nodes.
--- Derive foreground with `theme.text_contrast(background)`, which picks black or white by WCAG
--- luminance. Red alert backgrounds stay legible by default; `opts.foreground`
--- overrides this for the special case of a state-tinted glyph on an unchanged ground.
--- Left button only, matching `components/panel_row.lua`: a close or toggle one stray right-click
--- away is worse than a no-op. `opts.on_button` gets the raw button for three right-click modules.
--- Nil `on_activate` returns a `row`, matching `components/panel_row.lua`: a no-op button still
--- takes the pointer and reads clickable. Two mirror-clickable indicators expose no command, so they
--- must look like readouts.
 local theme = require("config.theme")
 
 return function(glyph, on_activate, opts)
     opts = opts or {}
     local side = opts.size or theme.item_height
-    -- A circle by default. Use half the side instead of a radius token because a token below half
-    -- paints a rounded square.
     local radius = opts.radius or (opts.shape == "rounded" and theme.item_radius or side / 2)
-    -- A theme token is a `Signal` on a scaled display and a string otherwise; inference cannot
-    -- narrow the union without these annotations and casts.
     ---@type Color|Signal
     local base = opts.background or theme.GLASS_CONTROL
     ---@type Color|Signal
     local base_hover = opts.background_hover or theme.GLASS_CONTROL_HOVER
 
-    -- Reuse one `hover(slot)` signal across four properties. The registry is name-keyed, so
-    -- repeated calls return the same signal, but repeating the slot reads
-    -- as four regions.
     local hovered = opts.slot and hover(opts.slot) or nil
 
-    -- Either ground may be a signal: updates turn accent while packages wait; the keyboard turns
-    -- peach under caps lock. Resolve it before `text_contrast`: passing it to `channels` fails on
-    -- signal userdata in `theme.lua`.
     local function is_signal(value)
         return type(value) == "userdata"
     end
 
-    -- `---@type` and `---@cast` are needed because the language server cannot follow
-    -- `type(x) == "userdata"` as a type guard. Without them it narrows the union and flags it.
-    -- This is the only `dev-config` site needing them, so keep the annotations rather than
-    -- disable diagnostics.
     ---@type Color|Signal
     local ground
     if not hovered then
@@ -90,17 +61,52 @@ return function(glyph, on_activate, opts)
         end)
     end
 
-    -- `selected` marks which of five indicators owns the open panel's popup. Its accent ring
-    -- replaces the hover border so selection remains legible under the pointer.
     if opts.selected ~= nil then
         border_color = opts.selected:map(function(is_selected)
             return is_selected and theme.ACCENT or theme.GLASS_BORDER
         end)
     end
 
-    -- `align_h` is needed on node and glyph. `layout::scene` uses it for stacking parents; a `row`
-    -- uses its main axis. A nil `on_activate` returns a `row` that ignores child `align_h`, leaving
-    -- keyboard "EN" against the edge. Set both to centre either.
+    local icon_node = text {
+        content = glyph,
+        foreground = foreground,
+        font_size = opts.icon_size or theme.icon.md,
+        font = opts.icon_font,
+        animate = { foreground = theme.animation_ms },
+        align_h = "Center",
+        align_v = "Center",
+    }
+
+    local children = { icon_node }
+    if opts.badge then
+        local badge = opts.badge
+        if is_signal(badge) then
+            ---@cast badge Signal
+            badge = badge:map(function(label)
+                return { { text = label or "", bold = true } }
+            end)
+        else
+            badge = { { text = badge, bold = true } }
+        end
+        children = { rect {
+            width = side,
+            height = side,
+            children = {
+                icon_node,
+                text {
+                    content = badge,
+                    foreground = opts.badge_foreground or foreground,
+                    font = opts.badge_font,
+                    font_size = opts.badge_size or theme.font.xs,
+                    align_h = "End",
+                    align_v = "End",
+                    translate = { x = -theme.spacing.xs, y = -theme.spacing.xs },
+                    animate = { foreground = theme.animation_ms },
+                },
+            },
+        } }
+    end
+
     local node = {
         width = opts.width or side,
         height = side,
@@ -116,22 +122,7 @@ return function(glyph, on_activate, opts)
         border_color = border_color,
         -- The ground and ring ease under the pointer and on selection.
         animate = { background = theme.animation_ms, border_color = theme.animation_ms },
-        children = { text {
-            content = glyph,
-            foreground = foreground,
-            -- The glyph's own size, not an icon box. A `text` node measures the string, so this is
-            -- the face's rasterised em size.
-            -- No bar indicator overrides `icon.md`, which is `s(18, 14)`; `icon.lg` is `s(24, 18)`,
-            -- a third too large for a bar circle.
-            font_size = opts.icon_size or theme.icon.md,
-            -- Use the declared chain, *not* `theme.icon_font`: bar circles use CaskaydiaCove Nerd
-            -- Font Propo; panel components use JetBrainsMono Nerd Font Mono. The split is bar
-            -- versus panel, not glyph versus text.
-            -- `components/glyph.lua` keeps `icon_font`, because its callers are the panel
-            -- components that use it there.
-            align_h = "Center",
-            align_v = "Center",
-        } },
+        children = children,
     }
 
     if opts.border == false then

@@ -67,14 +67,14 @@ local clock_tooltip = tooltip({
                 { text = weather.info(code).desc },
                 { text = place ~= "" and (" in " .. place) or "", color = theme.DIM },
             }
-        end), theme.FG, theme.font.sm, { width = "Fill", align = "Center" }),
+        end), theme.TOOLTIP_FG, theme.font.sm, { width = "Fill", align = "Center" }),
         cell(computed({ weather.updated_at, mantle.system }, function(at, s)
             local ago = weather.time_ago(at, s and s.time)
             return ago ~= "" and ("Last updated " .. ago) or ""
         end), theme.DIM, theme.font.xs, { width = "Fill", align = "Center" }),
         cell(util.label(mantle.system, function(s)
             return os.date("%A %d %B %Y", s.time)
-        end), theme.FG, theme.font.sm, { width = "Fill", align = "Center" }),
+        end), theme.TOOLTIP_FG, theme.font.sm, { width = "Fill", align = "Center" }),
         cell(util.label(mantle.system, function(s)
             return os.date("%I:%M:%S %p", s.time)
         end), theme.DIM, theme.font.xs, { width = "Fill", align = "Center" }),

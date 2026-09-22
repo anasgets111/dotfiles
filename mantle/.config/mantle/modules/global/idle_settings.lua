@@ -374,9 +374,9 @@ local flow_card = panel_card({ flow_strip, timeline, held_banner, paused_banner 
         bottom = theme.spacing.md,
         left = theme.spacing.lg,
     },
-    background = theme.GLASS_CONTENT,
-    border_width = theme.border_width,
-    border_color = theme.GLASS_BORDER,
+    tone = computed({ settings, idle.inhibited }, function(resolved, held)
+        return resolved.enabled and not held and "active" or "standard"
+    end),
 })
 
 -- Glyph-on-plate, title, description, rows. `panel_header` already has that shape, so each

@@ -25,7 +25,7 @@ local theme = require("config.theme")
 ---@field marker? boolean A 1px line at `split_at`.
 ---@field color? Color|Bound The fill. Default accent.
 ---@field track? Color|Bound The ground under the fill. Default `theme.SURFACE`.
----@field fill_visible? boolean|Bound Hides the fill and keeps the track and the input.
+---@field fill_visible? boolean|Bound Fades the fill while keeping the track and input.
 ---@field width? Length|Bound
 ---@field height? integer|Bound
 ---@field radius? integer|Bound
@@ -124,6 +124,23 @@ return function(opts)
         return value_of(opts.read, payload, max) or 0
     end)
 
+    local fill_visible = opts.fill_visible
+    ---@type number|Signal|nil
+    local fill_opacity
+    if fill_visible ~= nil then
+        if type(fill_visible) == "userdata" then
+            ---@cast fill_visible Signal
+            fill_opacity = fill_visible:map(function(shown)
+                return shown and 1 or 0
+            end)
+        else
+            fill_opacity = fill_visible and 1 or 0
+        end
+    end
+    local fill_animate = fill_opacity ~= nil and {
+        opacity = { duration = theme.animation_ms, easing = "OutCubic" },
+    } or nil
+
     -- `%d` raises on a float in Lua 5.4; see `components/meter.lua`.
     local function percent(value)
         return string.format("%d%%", math.floor(value / max * 100 + 0.5))
@@ -135,7 +152,8 @@ return function(opts)
             height = "Fill",
             radius = opts.radius or theme.radius.sm,
             background = color,
-            visible = opts.fill_visible,
+            opacity = fill_opacity,
+            animate = fill_animate,
             -- ponytail: the bar's square box clips its copy, so ink overhangs a pill's rounded end
             -- by ~1.5px; `clip = "Rounded"` is exact for an offscreen target per bar.
             children = { opts.label and opts.label(color) or nil },

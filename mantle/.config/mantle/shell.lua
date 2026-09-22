@@ -36,27 +36,10 @@ fonts {
 local wallpaper = require("modules.global.wallpaper")
 local notifications = require("modules.notification.popup")
 local osd = require("modules.osd.popup")
+local bar = require("modules.bar")
 local settings = require("modules.bar.panels.settings")
 local panel_host = require("modules.shell.panel_host")
 local modal_host = require("modules.global.modal_host")
--- The bar is drawn on `panel_host`'s surface, whose id is `bar`. Each tooltip is its own surface,
--- not a bar child: `popup` is an `xdg_popup` rooted under the bar. `visible = false`
--- creates no Wayland object until hover.
-local battery_tooltip = require("modules.bar.indicators.battery").tooltip
-local clock_tooltip = require("modules.bar.indicators.date_time").tooltip
-local launcher_tooltip = require("modules.bar.indicators.launcher_button").tooltip
-local wallpaper_tooltip = require("modules.bar.indicators.wallpaper_button").tooltip
--- Icon-only wifi/Bluetooth indicators show strength; tooltips restore network/device labels.
-local network_tooltip = require("modules.bar.indicators.network").tooltip
-local bluetooth_tooltip = require("modules.bar.indicators.bluetooth").tooltip
-local screen_recorder_tooltip = require("modules.bar.indicators.screen_recorder").tooltip
--- The idle tooltip counts down to the next stage, which the bar has no room to show.
-local idle_tooltip = require("modules.bar.indicators.idle_inhibitor").tooltip
--- One glyph carries five update states; the tooltip names the one it is in.
-local updates_tooltip = require("modules.bar.indicators.updates").tooltip
--- The red circle's first line. Its full log is `modules/global/rescue_details.lua`, a modal.
-local rescue_tooltip = require("modules.bar.indicators.rescue").tooltip
-local audio_panel = require("modules.bar.panels.audio_panel")
 local lock_screen = require("modules.global.lock")
 local polkit_dialog = require("modules.global.polkit")
 local bluetooth_pairing = require("modules.global.bluetooth_pairing")
@@ -68,27 +51,18 @@ require("modules.global.power_events")
 -- same facts without requiring this module.
 require("modules.global.idle")
 
-return {
+local surfaces = {
     wallpaper.desktop,
     wallpaper.overview,
     notifications,
     osd,
     settings,
     panel_host,
-    battery_tooltip,
-    clock_tooltip,
-    launcher_tooltip,
-    wallpaper_tooltip,
-    network_tooltip,
-    bluetooth_tooltip,
-    screen_recorder_tooltip,
-    idle_tooltip,
-    updates_tooltip,
-    rescue_tooltip,
-    audio_panel.output_tooltip,
-    audio_panel.input_tooltip,
-    modal_host,
-    lock_screen,
-    polkit_dialog,
-    bluetooth_pairing,
 }
+table.move(bar.tooltips, 1, #bar.tooltips, #surfaces + 1, surfaces)
+surfaces[#surfaces + 1] = modal_host
+surfaces[#surfaces + 1] = lock_screen
+surfaces[#surfaces + 1] = polkit_dialog
+surfaces[#surfaces + 1] = bluetooth_pairing
+
+return surfaces

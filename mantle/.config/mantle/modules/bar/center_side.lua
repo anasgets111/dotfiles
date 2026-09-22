@@ -1,23 +1,16 @@
--- Layers rather than swaps: the active-window indicator is anchored unconditionally and the media
--- indicator fills the same box on top of it, so the spectrum plays over the window title instead of
--- replacing it.
---
--- A `rect` is the stacking parent -- `modules/global/modal_host.lua` uses the same shape for its
--- scrim and click catcher. The zone stays content-sized because invisible children contribute no
--- size (`resolve_sizes` in scene.rs), so with nothing playing it is exactly the title's width, and
--- with the overlay up it is `theme.center_zone_width`.
 local media = require("modules.bar.indicators.media")
 local window_title_module = require("modules.bar.indicators.active_window")
+local media_panel = require("modules.bar.panels.media_panel")
+local ui_state = require("lib.ui_state")
 
--- A stopped player stays on the bus with its metadata intact, so checking only for a player's
--- existence would leave the spectrum up over an unplayed track.
+local MEDIA_SLOT = "media_indicator"
+local media_hovered = hover(MEDIA_SLOT)
+
 local playback_available = mantle.mpris:map(function(m)
     local player = ((m and m.players) or {})[1]
     return player ~= nil and player.play_state ~= "Stopped"
 end)
 
--- The zone itself stays a `row` with one child. `modules/bar/init.lua` lays the three zones out
--- side by side, so a stacking parent used directly as the zone reads as two modules end to end.
 return row {
     height = "Fill",
     align_h = "Center",
@@ -25,6 +18,15 @@ return row {
     children = { rect {
         height = "Fill",
         align_v = "Center",
+        hover = media_hovered,
+        on_hover = function(is_hovered)
+            ui_state.set_media_hover("trigger", is_hovered)
+            if is_hovered and playback_available:get() then
+                if not ui_state.panel_open:get() or ui_state.panel_kind:get() == media_panel.kind then
+                    ui_state.open_panel(media_panel.kind, hover_rect(MEDIA_SLOT):get())
+                end
+            end
+        end,
         children = {
             row {
                 height = "Fill",

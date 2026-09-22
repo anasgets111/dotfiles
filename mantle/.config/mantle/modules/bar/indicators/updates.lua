@@ -1,20 +1,5 @@
--- The glyph says what the updater does; the ground says whether it wants attention.
---
--- Five overlapping states share an order: a check error beats a stale count and a later spinner.
--- First match wins.
---
--- Here colour carries the state.
---
--- Visible when a package manager exists. `mantle.updates.package_manager` answers it before the
--- first check.
---
--- Keep it visible when up to date so its idle click can re-check.
---
--- The click never installs. Install happens only from the panel, where the package list makes
--- that decision visible. The notification's action button is the one exception.
 local theme = require("config.theme")
 local icons = require("config.icons")
-local cell = require("components.cell")
 local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
 local ui_state = require("lib.ui_state")
@@ -175,32 +160,26 @@ end), nil, {
 local update_tooltip = tooltip({
     id = "updates_tooltip",
     slot = SLOT,
-    children = {
-        cell(computed({ mantle.updates, dismissed }, function(u, is_dismissed)
-            if u == nil then
-                return "--"
-            end
-            local current = state_of(u, is_dismissed)
-            if current == "installing" then
-                local package = u.install_current_package
-                return (package ~= nil and package ~= "") and ("Installing " .. package) or "Installing"
-            end
-            if current == "install_failed" then
-                return "Update failed, click for details"
-            end
-            if current == "error" then
-                return "Check failed, click for details"
-            end
-            if current == "checking" then
-                return "Checking for updates"
-            end
-            if current == "pending" then
-                return u.count == 1 and "One package can be upgraded"
-                    or string.format("%d packages can be upgraded", u.count)
-            end
-            return "Up to date, right-click for the updater"
-        end), theme.FG, theme.font.sm),
-    },
+    text = computed({ mantle.updates, dismissed }, function(u, is_dismissed)
+        if u == nil then
+            return "--"
+        end
+        local current = state_of(u, is_dismissed)
+        if current == "installing" then
+            return "Updating system and developer tooling..."
+        end
+        if current == "install_failed" or current == "error" then
+            return "Update failed - click for details"
+        end
+        if current == "checking" then
+            return "Checking for updates…"
+        end
+        if current == "pending" then
+            return u.count == 1 and "One package can be upgraded"
+                or string.format("%d packages can be upgraded", u.count)
+        end
+        return "No system package updates - right-click for updater"
+    end),
 })
 
 return { indicator = indicator, tooltip = update_tooltip }

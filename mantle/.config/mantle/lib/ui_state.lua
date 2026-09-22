@@ -6,6 +6,7 @@
 -- The initial is the indicator's declared size. The sole require is one-way: pure
 -- `lib/notifications` has no nodes/signals and cannot create a cycle.
 local notifications = require("lib.notifications")
+local theme = require("config.theme")
 
 local popup_anchor = state("popup_anchor", { x = 0, y = 0, width = 70, height = 24 })
 local settings_open = state("settings_open", false)
@@ -14,6 +15,7 @@ local settings_open = state("settings_open", false)
 -- One surface serves every bar panel; one slot enforces that rather than five files coordinating.
 local panel_open = state("panel_open", false)
 local panel_kind = state("panel_kind", "")
+local panel_instance = state("panel_instance", 0)
 
 -- The one modal on screen: `"launcher"`, `"wallpaper_picker"`, `"idle_settings"` or `""`. One
 -- string rather than a boolean per modal, so two can never be open
@@ -149,12 +151,10 @@ local function close_panel()
     clear_network_prompts()
 end
 
--- Clicking an indicator opens its panel; clicking it again closes it.
--- A layer surface: nothing dismisses it behind our back and switching clicks reach the indicator
--- directly. The showing panel closes, a different one replaces it, or a closed host opens.
-local function toggle_panel(kind, rect)
-    if panel_open:get() and panel_kind:get() == kind then
-        close_panel()
+local function open_panel(kind, rect)
+    local was_open = panel_open:get()
+    if was_open and panel_kind:get() == kind then
+        popup_anchor:set(rect)
         return
     end
     if kind == "notifications" then
@@ -168,10 +168,51 @@ local function toggle_panel(kind, rect)
     active_modal:set("")
     popup_anchor:set(rect)
     panel_kind:set(kind)
+    if not was_open then
+        panel_instance:set(panel_instance:get() + 1)
+    end
     panel_open:set(true)
     if kind == "bluetooth" then
         mantle.bluetooth:invoke("start_discovery")
     end
+end
+
+local function toggle_panel(kind, rect)
+    if panel_open:get() and panel_kind:get() == kind then
+        close_panel()
+        return
+    end
+    open_panel(kind, rect)
+end
+
+local media_hover = state("media_hover", { trigger = false, panel = false })
+local media_close_timer
+
+local function set_media_hover(region, inside)
+    local current = media_hover:get() or {}
+    local next = { trigger = current.trigger == true, panel = current.panel == true }
+    next[region] = inside == true
+    media_hover:set(next)
+    if inside then
+        if media_close_timer then
+            media_close_timer:cancel()
+            media_close_timer = nil
+        end
+        return
+    end
+    if not panel_open:get() or panel_kind:get() ~= "media" then
+        return
+    end
+    if media_close_timer then
+        media_close_timer:cancel()
+    end
+    media_close_timer = timer(theme.animation_slow_ms, function()
+        media_close_timer = nil
+        local hovered = media_hover:get() or {}
+        if not hovered.trigger and not hovered.panel and panel_open:get() and panel_kind:get() == "media" then
+            close_panel()
+        end
+    end)
 end
 
 -- Whether `kind` is on screen; drives indicator rings. Both signals matter: `panel_kind` survives
@@ -307,8 +348,11 @@ return {
     settings_open = settings_open,
     panel_open = panel_open,
     panel_kind = panel_kind,
+    panel_instance = panel_instance,
+    open_panel = open_panel,
     toggle_panel = toggle_panel,
     close_panel = close_panel,
+    set_media_hover = set_media_hover,
     bluetooth_codec_for = bluetooth_codec_for,
     audio_output_picker = audio_output_picker,
     audio_input_picker = audio_input_picker,

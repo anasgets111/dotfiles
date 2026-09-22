@@ -7,7 +7,6 @@
 -- Right-click opens `modules/global/idle_settings.lua`.
 local theme = require("config.theme")
 local icons = require("config.icons")
-local cell = require("components.cell")
 local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
 local ui_state = require("lib.ui_state")
@@ -40,30 +39,21 @@ end), nil, {
 local idle_tooltip = tooltip({
     id = "idle_tooltip",
     slot = SLOT,
-    children = {
-        cell(computed({ idle.reasons, idle.inhibited }, idle.held_text), theme.FG, theme.font.sm),
-        cell(
-            computed({ idle.schedule, idle.arming, idle.manual, idle.enabled }, function(plan, arming, manual, on)
-                if not on or plan.total == 0 then
-                    return "Click to hold · right-click for settings"
-                end
-                -- `manual`, not `inhibited`: offering to drop a hold a camera took does nothing.
-                if manual then
-                    return "Click to drop the manual hold"
-                end
-                -- The armed stage's countdown, matching the modal masthead.
-                for _, entry in ipairs(plan.list) do
-                    if entry.key == arming.key then
-                        return string.format("%s in %s", entry.title,
-                            idle.clock(math.max(0, entry.delay - arming.elapsed)))
-                    end
-                end
-                return "Nothing is counting down"
-            end),
-            theme.DIM,
-            theme.font.xs
-        ),
-    },
+    text = computed({ idle.reasons, idle.inhibited }, idle.held_text),
+    detail = computed({ idle.schedule, idle.arming, idle.manual, idle.enabled }, function(plan, arming, manual, on)
+        if not on or plan.total == 0 then
+            return "Click to hold · right-click for settings"
+        end
+        if manual then
+            return "Click to drop the manual hold"
+        end
+        for _, entry in ipairs(plan.list) do
+            if entry.key == arming.key then
+                return string.format("%s in %s", entry.title, idle.clock(math.max(0, entry.delay - arming.elapsed)))
+            end
+        end
+        return "Nothing is counting down"
+    end),
 })
 
 return { indicator = indicator, tooltip = idle_tooltip }

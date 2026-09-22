@@ -63,12 +63,12 @@ return row {
     align_v = "Center",
     spacing = theme.spacing.sm,
     children = {
-        privacy_module,
+        privacy_module.indicator,
         volume_module,
         screen_recorder.indicator,
         network.indicator,
         bluetooth.indicator,
-        tray_module,
+        tray_module.indicator,
         -- The clock row owns the tooltip hover region, so the whole control triggers it.
         clock_pill,
     },

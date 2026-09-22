@@ -1,6 +1,3 @@
--- A pointer target opens the media panel. It has no glyph or track text; the track belongs to the
--- panel.
---
 -- ## Why the bars are flat
 --
 -- Cava needs 30fps frames. The engine has no shader or canvas node; its nine node types draw no
@@ -10,8 +7,6 @@
 --
 -- Flat is not a placeholder shape, though: a spectrum at zero level draws exactly this row.
 local theme = require("config.theme")
-local ui_state = require("lib.ui_state")
-local media_panel = require("modules.bar.panels.media_panel")
 
 -- Cava's configured bar count is 256. Fewer here because each is a real node, not a shader lane.
 -- At rest it reads as the same fine rule; 256 static children buy nothing until they carry levels.
@@ -39,16 +34,9 @@ for index = 1, BARS do
     }
 end
 
--- Click toggles the panel, matching every other indicator.
-return button {
+return rect {
     width = theme.center_zone_width,
     height = "Fill",
-    on_click = function(rect_, mouse_button)
-        if mouse_button ~= "left" then
-            return
-        end
-        ui_state.toggle_panel(media_panel.kind, rect_)
-    end,
     children = { row {
         width = "Fill",
         height = "Fill",

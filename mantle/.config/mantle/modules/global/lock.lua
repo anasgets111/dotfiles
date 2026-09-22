@@ -352,7 +352,7 @@ local function content(output)
                 end),
                 animate = {
                     opacity = { duration = theme.animation_slow_ms, easing = "OutCubic", from = 0 },
-                    scale = { duration = theme.animation_slow_ms, easing = "OutBack", from = CLOSED_SCALE },
+                    scale = { duration = theme.animation_very_slow_ms, easing = "OutBack", from = CLOSED_SCALE },
                 },
                 children = { card },
             },

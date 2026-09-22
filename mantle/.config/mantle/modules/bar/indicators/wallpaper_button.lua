@@ -2,7 +2,6 @@
 -- folder without opening anything.
 local theme = require("config.theme")
 local icons = require("config.icons")
-local cell = require("components.cell")
 local icon_button = require("components.icon_button")
 local ui_state = require("lib.ui_state")
 local wallpaper = require("lib.wallpaper")
@@ -22,13 +21,6 @@ local wallpaper_button = icon_button(icons.wallpaper, nil, {
     end,
 })
 
-local wallpaper_tooltip = tooltip({
-    id = "wallpaper_tooltip",
-    slot = SLOT,
-    children = {
-        cell("Open the wallpaper picker", theme.FG, theme.font.sm),
-        cell("Right-click for a random one everywhere", theme.DIM, theme.font.xs),
-    },
-})
+local wallpaper_tooltip = tooltip({ id = "wallpaper_tooltip", slot = SLOT, text = "Open wallpaper picker / right-click randomize" })
 
 return { button = wallpaper_button, tooltip = wallpaper_tooltip }

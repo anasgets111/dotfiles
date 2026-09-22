@@ -102,6 +102,19 @@ local function install_failed(u)
     return install_ended(u) and (u.install_error ~= nil or u.install_exit_code ~= 0)
 end
 
+local status_tone = computed({ mantle.updates, dismissed, dev_running }, function(u, is_dismissed, tool)
+    if not is_dismissed and install_failed(u) then
+        return "error"
+    end
+    if u ~= nil and u.check_error ~= nil then
+        return "warning"
+    end
+    if tool == "" and u ~= nil and u.install_finished_at ~= nil and not install_failed(u) then
+        return "active"
+    end
+    return "standard"
+end)
+
 -- Absent means on, so a tool added to `config/dev_tools.lua` runs without a `state.json` edit.
 local function tool_enabled(name)
     return (store.updates_dev_tools:get() or {})[name] ~= false
@@ -602,7 +615,7 @@ local body = {
             visible = working,
             children = { spinner(working, theme.control.xs), cell("Working…", theme.DIM, theme.font.xs) },
         },
-    }, { background = theme.GLASS_CONTENT, width = "Fill", spacing = theme.spacing.xs }),
+    }, { tone = status_tone, width = "Fill", spacing = theme.spacing.xs }),
     panel_card({
         list {
             width = "Fill",
@@ -660,7 +673,13 @@ local body = {
                 return cell(line, log_colour(line), theme.font.xs, { width = "Fill", wrap = "Word", max_lines = 3 })
             end,
         },
-    }, { background = theme.GLASS_CONTENT, width = "Fill", visible = log_showing }),
+    }, {
+        tone = mantle.updates:map(function(u)
+            return u ~= nil and install_failed(u) and "error" or "standard"
+        end),
+        width = "Fill",
+        visible = log_showing,
+    }),
     panel_empty_state("Nothing to update", empty_showing, { icon = icons.up_to_date }),
     panel_empty_state("Checking…", checking_showing, { icon = spinner(checking_showing, theme.control.sm) }),
     panel_card({ section_header("run with package updates"), column {

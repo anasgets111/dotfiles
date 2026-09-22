@@ -13,7 +13,7 @@ local theme = require("config.theme")
 ---@param content string|Bound
 ---@param color? Color|Bound
 ---@param size? integer
----@param opts? { width?: integer|"Fill", align?: "Start"|"Center"|"End", align_v?: "Start"|"Center"|"End", visible?: boolean|Bound, wrap?: "None"|"Word"|Bound, max_lines?: integer|Bound, on_link?: fun(href: string) }
+---@param opts? { width?: integer|"Fill", align?: "Start"|"Center"|"End", align_v?: "Start"|"Center"|"End", visible?: boolean|Bound, wrap?: "None"|"Word"|Bound, max_lines?: integer|Bound, on_link?: fun(href: string), animate?: Animations|Bound }
 return function(content, color, size, opts)
     -- Copy the inline options so each call gets `font` without mutating a shared table.
     local with_font = { font = theme.icon_font }
