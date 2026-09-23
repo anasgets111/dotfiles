@@ -5,6 +5,7 @@ local icons = require("config.icons")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 local panel_row = require("components.panel_row")
+local divider = require("components.divider")
 local panel_header = require("components.panel_header")
 local panel_toggle_card = require("components.panel_toggle_card")
 local section_header = require("components.section_header")
@@ -217,19 +218,14 @@ local body = {
         },
     },
 
-    rect { width = "Fill", height = theme.border_width, background = theme.BORDER_SUBTLE },
+    divider(),
 
     panel_row {
         title = "Recording settings",
         subtitle = settings_summary,
         icon = icons.settings,
         slot = "recorder-settings",
-        trailing = glyph(settings_expanded:map(function(open)
-            return open and icons.chevron_down or icons.chevron_right
-        end), theme.DIM, theme.icon.sm),
-        on_activate = function()
-            settings_expanded:set(not settings_expanded:get())
-        end,
+        expanded = settings_expanded,
     },
     -- An invisible child takes no size or spacing gap, so the card's height follows the reveal.
     column {

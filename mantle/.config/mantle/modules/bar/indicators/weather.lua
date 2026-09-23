@@ -146,8 +146,7 @@ return function(id)
             }, {
                 width = "Fill",
                 visible = blank,
-                border_width = theme.border_width,
-                border_color = theme.GLASS_BORDER,
+                outlined = true,
                 padding = theme.spacing.md,
             }),
         },

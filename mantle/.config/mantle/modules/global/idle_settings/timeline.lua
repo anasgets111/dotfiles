@@ -6,6 +6,7 @@ local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
+local callout = require("components.callout")
 local idle = require("lib.idle")
 
 ---@param settings Signal<table> `store.idle` resolved through `idle.read`
@@ -61,23 +62,6 @@ return function(settings)
         }
     end
 
-    local function banner(codepoint, content, tint, ground, visible)
-        return row {
-            width = "Fill",
-            height = theme.idle_track_height,
-            align_v = "Center",
-            radius = theme.radius.sm,
-            background = ground,
-            spacing = theme.spacing.sm,
-            padding = { left = theme.spacing.md, right = theme.spacing.md },
-            visible = visible,
-            children = {
-                glyph(codepoint, tint, theme.icon.sm, { align_v = "Center" }),
-                cell(content, tint, theme.font.xs, { width = "Fill", align_v = "Center" }),
-            },
-        }
-    end
-
     return {
         -- `list` is `NodeBase`, not `BoxBase`: it places but does not paint, so `background`, `radius`
         -- and `clip` go on this parent. The types do not catch the mistake; the engine does, at runtime.
@@ -105,12 +89,17 @@ return function(settings)
                 },
             },
         },
-        banner(icons.awake, computed({ idle.reasons, idle.inhibited }, idle.held_text), theme.ACCENT,
-            theme.ACCENT_SUBTLE, idle.inhibited),
-        banner(icons.idle, settings:map(function(resolved)
+        callout(icons.awake, computed({ idle.reasons, idle.inhibited }, idle.held_text), {
+            tone = "active", height = theme.idle_track_height, visible = idle.inhibited,
+        }),
+        callout(icons.idle, settings:map(function(resolved)
             return resolved.enabled and "Nothing is scheduled on this profile" or "Automatic actions are off"
-        end), theme.DIM, theme.GLASS_CONTENT, computed({ counting_down, idle.inhibited }, function(counting, held)
-            return not counting and not held
-        end)),
+        end), {
+            tone = "neutral",
+            height = theme.idle_track_height,
+            visible = computed({ counting_down, idle.inhibited }, function(counting, held)
+                return not counting and not held
+            end),
+        }),
     }
 end

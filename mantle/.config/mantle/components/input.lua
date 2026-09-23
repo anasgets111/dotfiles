@@ -1,5 +1,6 @@
 local theme = require("config.theme")
-local cell = require("components.cell")
+local icons = require("config.icons")
+local callout = require("components.callout")
 local util = require("lib.util")
 
 ---@class InputOpts
@@ -42,9 +43,9 @@ return function(opts)
                 return has_error and 1 or 0
             end),
             animate = { opacity = theme.animation_ms },
-            children = { cell(error:map(function(message)
-                return message and message ~= "" and ("⚠ " .. message) or ""
-            end), theme.RED, theme.font.sm, { width = "Fill", wrap = "Word" }) },
+            children = { callout(icons.warning, error:map(function(message)
+                return message or ""
+            end)) },
         }
     end
 

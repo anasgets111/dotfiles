@@ -65,13 +65,9 @@ local function device_picker(opts)
         children = {
             panel_row {
                 slot = "audio-picker-" .. opts.name,
-                icon = opts.picker:map(function(open)
-                    return open and icons.chevron_up or icons.chevron_down
-                end),
+                icon = opts.is_input and icons.mic_on or icons.speaker,
                 title = "Choose device",
-                on_activate = function()
-                    opts.picker:set(not opts.picker:get())
-                end,
+                expanded = opts.picker,
             },
             list {
                 width = "Fill",
@@ -325,12 +321,7 @@ local body = {
             subtitle = util.label(streams, function(list)
                 return string.format("%d active", #list)
             end),
-            trailing = cell(mixer_open:map(function(open)
-                return open and icons.chevron_up or icons.chevron_down
-            end), theme.DIM, theme.font.sm),
-            on_activate = function()
-                mixer_open:set(not mixer_open:get())
-            end,
+            expanded = mixer_open,
         },
         list {
             width = "Fill",

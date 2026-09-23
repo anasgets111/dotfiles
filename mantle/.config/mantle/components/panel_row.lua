@@ -5,6 +5,7 @@
 -- kind of row. Without `on_activate` this is a `rect`, not a no-op `button` that would take the
 -- pointer and look clickable, and both shapes share the look.
 local theme = require("config.theme")
+local icons = require("config.icons")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 
@@ -23,10 +24,20 @@ local glyph = require("components.glyph")
 ---@field slot? string
 ---@field visible? boolean|Bound
 ---@field trailing? Node
+---@field expanded? StateSignal<boolean> A disclosure row: a chevron in `trailing`, and a click toggles it.
 ---@field on_activate? fun()
 
 ---@param opts PanelRowOpts
 return function(opts)
+    local expanded = opts.expanded
+    if expanded then
+        opts.trailing = glyph(expanded:map(function(open)
+            return open and icons.chevron_down or icons.chevron_right
+        end), theme.DIM, theme.icon.sm)
+        opts.on_activate = function()
+            expanded:set(not expanded:get())
+        end
+    end
     local title_color = opts.selected and theme.ACCENT or (opts.color or theme.FG)
     ---@type string|TextRun[]|Bound
     local title = opts.title

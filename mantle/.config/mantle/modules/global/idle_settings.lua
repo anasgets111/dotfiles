@@ -8,6 +8,7 @@ local toggle = require("components.toggle")
 local panel_card = require("components.panel_card")
 local panel_header = require("components.panel_header")
 local panel_row = require("components.panel_row")
+local divider = require("components.divider")
 local panel_action_icon = require("components.panel_action_icon")
 local ui_state = require("lib.ui_state")
 local modal = require("components.modal")
@@ -37,13 +38,7 @@ local has_battery = mantle.battery:map(function(battery)
 end)
 
 -- Between section rows, inset past the leading glyph.
-local row_rule = rect {
-    width = "Fill",
-    height = theme.border_width,
-    margin = { left = theme.icon.md + theme.spacing.sm * 2 },
-    -- `BORDER`, not `BORDER_SUBTLE`: subtle is 35% of a near-card colour, too faint for a 1px line.
-    background = theme.BORDER,
-}
+local row_rule = divider { margin = { left = theme.icon.md + theme.spacing.sm * 2 } }
 
 local header = panel_header {
     title = "Idle & power",
@@ -318,8 +313,7 @@ local function section(codepoint, title, description, children)
         width = "Fill",
         spacing = theme.spacing.sm,
         padding = CARD_PADDING,
-        border_width = theme.border_width,
-        border_color = theme.GLASS_BORDER,
+        outlined = true,
     })
 end
 
@@ -328,7 +322,7 @@ local idle_modal = modal({
     card = panel_card({
         header,
         -- Rule under the masthead: header is state, below is settings.
-        rect { width = "Fill", height = theme.border_width, background = theme.BORDER_SUBTLE },
+        divider(),
         flow_card,
         section(icons.sleep, "Automation", "Each stage waits for the one above it", { matrix_heading, stage_list }),
         section(icons.settings, "Behaviour", "What may keep the session awake", behaviour_rows),

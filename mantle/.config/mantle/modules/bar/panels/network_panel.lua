@@ -16,6 +16,7 @@ local panel_empty_state = require("components.panel_empty_state")
 local spinner = require("components.spinner")
 local action_button = require("components.action_button")
 local input = require("components.input")
+local callout = require("components.callout")
 local ui = require("lib.ui_state")
 
 local KIND = "network"
@@ -308,25 +309,15 @@ local body = {
         },
     },
     -- Closed by its button or the next attempt. It yields to the sheet, so one failure never shows twice.
-    row {
-        width = "Fill",
-        spacing = theme.spacing.sm,
-        align_v = "Center",
-        padding = theme.spacing.sm,
-        radius = theme.radius.md,
-        background = theme.ALERT_BG,
+    callout(icons.warning, error_message, {
         visible = computed({ mantle.network, step, error_dismissed }, function(network, current, dismissed)
             return current == "" and not dismissed
                 and network ~= nil and network.connect_error ~= nil and network.connecting_ssid == nil
         end),
-        children = {
-            glyph(icons.warning, theme.RED, theme.icon.sm, { align_v = "Center" }),
-            cell(error_message, theme.RED, theme.font.sm, { width = "Fill", wrap = "Word", max_lines = 2 }),
-            panel_action_icon(icons.close, function()
-                error_dismissed:set(true)
-            end, { slot = "network-error-dismiss", tint = theme.RED }),
-        },
-    },
+        trailing = panel_action_icon(icons.close, function()
+            error_dismissed:set(true)
+        end, { slot = "network-error-dismiss", tint = theme.RED }),
+    }),
     -- Typed passwords never reach this VM: `mask_character` plus `secure_submit` keeps keystrokes in
     -- a native buffer and sends a `("network", "connect")` envelope, so `submit = true` is the only
     -- password path. The engine focuses a surface's *sole* secure field and refuses to guess between
@@ -379,19 +370,12 @@ local body = {
             },
             -- Under the field, not at the card's top: the error belongs to the network being asked
             -- about. A password step carries one when NetworkManager rejected the last key.
-            row {
-                width = "Fill",
-                spacing = theme.spacing.xs,
-                align_v = "Center",
+            callout(icons.warning, error_message, {
                 visible = computed({ step, mantle.network }, function(current, network)
                     return current == "failed"
                         or (current == "password" and network ~= nil and network.connect_error ~= nil)
                 end),
-                children = {
-                    glyph(icons.warning, theme.RED, theme.icon.sm, { align_v = "Center" }),
-                    cell(error_message, theme.RED, theme.font.xs, { width = "Fill", wrap = "Word", max_lines = 2 }),
-                },
-            },
+            }),
             row {
                 width = "Fill",
                 align_h = "End",

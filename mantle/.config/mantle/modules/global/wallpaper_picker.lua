@@ -459,8 +459,7 @@ local sidebar = panel_card({
     width = theme.wallpaper_sidebar_width,
     align_v = "Start",
     spacing = theme.spacing.md,
-    border_width = theme.border_width,
-    border_color = theme.GLASS_BORDER,
+    outlined = true,
     padding = theme.spacing.md,
 })
 
@@ -473,8 +472,7 @@ local body = row {
         panel_card({ rect { width = "Fill", height = "Fill", children = { grid, table.unpack(empty_states) } } }, {
             width = "Fill",
             height = "Fill",
-            border_width = theme.border_width,
-            border_color = theme.GLASS_BORDER,
+            outlined = true,
             padding = grid_padding,
         }),
         sidebar,

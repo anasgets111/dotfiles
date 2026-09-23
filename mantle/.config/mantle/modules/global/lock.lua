@@ -8,6 +8,7 @@ local wallpaper      = require("lib.wallpaper")
 local cell           = require("components.cell")
 local glyph          = require("components.glyph")
 local panel_card     = require("components.panel_card")
+local divider        = require("components.divider")
 local identity       = require("lib.identity")
 local weather        = require("lib.weather")
 
@@ -209,13 +210,7 @@ local function content(output)
             width = "Fill",
             spacing = theme.spacing.md,
             children = {
-                -- Not `theme.BORDER`: surface2 at 0.75 disappears between these greys.
-                rect {
-                    width = math.floor((theme.lock_card_width - PAD * 2) * 0.6),
-                    height = theme.border_width,
-                    align_h = "Center",
-                    background = theme.with_opacity(theme.FG, 0.15),
-                },
+                divider { width = math.floor((theme.lock_card_width - PAD * 2) * 0.6), align_h = "Center" },
                 row {
                     width = "Fill",
                     align_h = "Center",

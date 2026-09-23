@@ -145,7 +145,6 @@ theme.TOOLTIP_FG                = theme.text_contrast(theme.GLASS_SURFACE)
 theme.GLASS_CONTROL_HOVER       = theme.with_opacity(theme.ON_HOVER, 0.45)
 theme.GLASS_BORDER              = theme.with_opacity(theme.FG, 0.18)
 theme.GLASS_BORDER_HOVER        = theme.with_opacity(theme.FG, 0.34)
-theme.ALERT_BG                  = "#45253aff"
 
 -- 0.45, not 0.88, because the scrim lies over wallpaper, where 0.88 is a blackout.
 theme.SCRIM                     = theme.with_opacity(theme.BG, 0.45)

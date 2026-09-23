@@ -409,8 +409,7 @@ return modal({
         panel_card({ special_row, app_list, no_results, no_apps }, {
             width = "Fill",
             height = "Fill",
-            border_width = theme.border_width,
-            border_color = theme.GLASS_BORDER,
+            outlined = true,
             padding = theme.spacing.sm,
         }),
     }, {

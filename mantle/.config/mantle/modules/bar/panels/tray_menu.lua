@@ -7,6 +7,7 @@
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
+local divider = require("components.divider")
 local ui_state = require("lib.ui_state")
 
 local KIND = "tray_menu"
@@ -82,15 +83,7 @@ local function row_for(row_entry)
         return rect {
             width = "Fill",
             height = theme.spacing.sm,
-            children = {
-                rect {
-                    width = "Fill",
-                    height = theme.border_width,
-                    align_v = "Center",
-                    background = theme.BORDER,
-                    margin = { left = pad, right = theme.spacing.sm },
-                },
-            },
+            children = { divider { margin = { left = pad, right = theme.spacing.sm } } },
         }
     end
     local hovered = hover("tray-menu-" .. tostring(entry.id))

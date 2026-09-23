@@ -84,7 +84,8 @@ return function(glyph, on_activate, opts)
     }
 
     local node = {
-        width = opts.width or side,
+        -- `content` is a caller's node in place of the glyph, sized by what it holds.
+        width = opts.width or (opts.content == nil and side or nil),
         height = side,
         align_h = "Center",
         align_v = "Center",
@@ -105,7 +106,7 @@ return function(glyph, on_activate, opts)
         },
         -- Through `children`, not two `visible` siblings: a hidden subtree stays resolved
         -- (`lua-meta/nodes.lua`).
-        children = util.lift(opts.art, function(art)
+        children = opts.content and { opts.content } or util.lift(opts.art, function(art)
             return { badge_node and rect { width = side, height = side, children = { face(art), badge_node } } or
             face(art) }
         end),

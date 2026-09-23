@@ -62,8 +62,7 @@ local function tile(children, visible)
     return panel_card(children, {
         width = "Fill",
         visible = visible,
-        border_width = theme.border_width,
-        border_color = theme.GLASS_BORDER,
+        outlined = true,
         padding = theme.spacing.sm,
     })
 end
