@@ -82,6 +82,8 @@ return pill.row({
     list {
         direction = "Horizontal",
         align_v = "Center",
+        spacing = pill.spacing,
+        animate = pill.animate,
         source = mantle.workspaces:map(workspaces_of),
         itemfn = workspace_button,
         key = function(workspace)

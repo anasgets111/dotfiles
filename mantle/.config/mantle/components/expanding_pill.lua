@@ -2,8 +2,7 @@
 -- pointer cancels it, and `hold_open` keeps it open for a countdown. A changed collapsed slot hands
 -- off in place with no offset arithmetic.
 --
--- Each cell owns its right padding, because row `spacing` would still gap a zero-width cell. The
--- expanded pill trails one `spacing.sm` that nothing sits close enough to show.
+-- The row's `spacing` eases to zero on collapse, since it would still gap a zero-width cell.
 local theme = require("config.theme")
 local util = require("lib.util")
 
@@ -23,7 +22,11 @@ function pill.new(opts)
             return open or held
         end)
         or lingering
-    local self = { expanded = expanded }
+    -- Between cells; a `list` of cells takes it as its own `spacing`, with `animate`.
+    local spacing = expanded:map(function(open)
+        return open and theme.spacing.sm or 0
+    end)
+    local self = { expanded = expanded, spacing = spacing, animate = { spacing = theme.animation_ms } }
 
     --- One cell. `circle` fills it, so a cell narrowing to zero narrows its circle too.
     --- `shown` marks the circle the collapsed pill keeps.
@@ -34,20 +37,14 @@ function pill.new(opts)
         circle.height = "Fill"
         return row {
             width = computed({ expanded, shown }, function(open, kept)
-                if open then
-                    return theme.item_width + theme.spacing.sm
-                end
-                return kept and theme.item_width or 0
+                return (open or kept) and theme.item_width or 0
             end),
             height = theme.item_height,
             align_v = "Center",
-            padding = expanded:map(function(open)
-                return { right = open and theme.spacing.sm or 0 }
-            end),
             opacity = computed({ expanded, shown }, function(open, kept)
                 return (open or kept) and 1 or 0
             end),
-            animate = { width = theme.animation_ms, padding = theme.animation_ms, opacity = theme.animation_ms },
+            animate = { width = theme.animation_ms, opacity = theme.animation_ms },
             children = { circle },
         }
     end
@@ -59,6 +56,8 @@ function pill.new(opts)
             height = theme.item_height,
             align_v = "Center",
             hover = hovered,
+            spacing = spacing,
+            animate = self.animate,
             children = children,
         }
     end
