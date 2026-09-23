@@ -32,6 +32,7 @@ return persistent_table {
         updates_notified = "",
         -- Keyed by `config/dev_tools.lua` name. Absent means on; only an explicit `false` holds one back.
         updates_dev_tools = {},
+        updates_aur = true,
         screen_recorder = { audio = "desktop", quality = "high", fps = 60, container = "mp4" },
         -- Two profiles keyed by mains state, sharing `order`. `lib/idle.lua` holds every default.
         idle = {},

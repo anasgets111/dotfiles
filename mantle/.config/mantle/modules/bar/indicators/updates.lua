@@ -20,6 +20,7 @@ mantle.storage:on_change(function(_, previous)
             interval = update_panel.CHECK_INTERVAL,
             checked_at = store.updates_checked_at:get(),
             packages = store.updates_packages:get(),
+            aur = store.updates_aur:get(),
         })
     end
 end)

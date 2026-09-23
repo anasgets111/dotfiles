@@ -89,6 +89,19 @@ local function ran_packages(updates)
     return updates ~= nil and (updates.install_finished_at or 0) >= started_at:get()
 end
 
+local function aur_count(updates)
+    local count = 0
+    for _, package in ipairs(packages(updates)) do
+        count = count + (package.repository == "aur" and 1 or 0)
+    end
+    return count
+end
+
+-- With `aur = true`, installs run through the helper when one exists.
+local function manager(updates)
+    return updates.aur_helper or "pacman"
+end
+
 -- A manager killed by a signal publishes no exit code, which is a failure.
 local function install_failed(updates)
     return install_ended(updates) and (updates.install_error ~= nil or updates.install_exit_code ~= 0)
@@ -98,7 +111,8 @@ local status_tone = computed({ mantle.updates, result_showing, dev_result }, fun
     if showing and install_failed(updates) then
         return "error"
     end
-    if (updates ~= nil and updates.check_error ~= nil) or (showing and #(dev.failures or {}) > 0) then
+    if (updates ~= nil and (updates.check_error ~= nil or updates.aur_error ~= nil)) or
+        (showing and #(dev.failures or {}) > 0) then
         return "warning"
     end
     return showing and "active" or "standard"
@@ -180,7 +194,7 @@ end
 
 local function report_run(updates, failures)
     if install_failed(updates) then
-        return toast("critical", "Update failed", "The updates panel has pacman's output")
+        return toast("critical", "Update failed", "The updates panel has " .. manager(updates) .. "'s output")
     end
     if #failures > 0 then
         return toast("critical", "Update finished with failures", table.concat(failures, ", "))
@@ -278,9 +292,9 @@ local function failure_reason(updates)
         return "The updater could not be started"
     end
     if updates.install_exit_code == nil then
-        return "pacman was killed before it finished"
+        return manager(updates) .. " was killed before it finished"
     end
-    return string.format("pacman exited with %d", updates.install_exit_code)
+    return string.format("%s exited with %d", manager(updates), updates.install_exit_code)
 end
 
 -- ponytail: `install_log` is a 200-line tail, so long runs undercount. Exact needs a Supervisor counter.
@@ -364,6 +378,9 @@ local function detail_line(updates, showing, tool, dev)
         local repeated = failures >= 5 and string.format(" · %d in a row", failures) or ""
         return "Last result kept · " .. updates.check_error:match("[^\n]*") .. repeated
     end
+    if updates.aur_error ~= nil then
+        return "AUR not checked · " .. updates.aur_error:match("[^\n]*")
+    end
     if (updates.count or 0) > 0 then
         return string.format("%s to download", human_bytes(download_total(updates)))
     end
@@ -394,12 +411,23 @@ local function needs_reboot(name)
     return false
 end
 
--- Sort by name; `alpm`'s installed-database order has no useful reading order.
+-- Repo packages, then AUR builds under a header, each by name; `alpm`'s installed-database order has
+-- no useful reading order.
 local sorted_packages = mantle.updates:map(function(updates)
     local list = util.concat(packages(updates))
     table.sort(list, function(left, right)
+        local left_aur, right_aur = left.repository == "aur", right.repository == "aur"
+        if left_aur ~= right_aur then
+            return right_aur
+        end
         return (left.name or "") < (right.name or "")
     end)
+    for index, package in ipairs(list) do
+        if package.repository == "aur" then
+            table.insert(list, index, { header = "AUR" })
+            break
+        end
+    end
     return list
 end)
 
@@ -504,6 +532,22 @@ for _, tool in ipairs(dev_tools) do
         end),
     }
 end
+
+-- The capability learns the switch through `configure`; the check then adds or drops AUR rows.
+local aur_row = panel_row {
+    title = "AUR packages",
+    subtitle = mantle.updates:map(function(updates)
+        local helper = updates and updates.aur_helper
+        return helper and ("Builds with " .. helper) or "No helper found (paru, yay)"
+    end),
+    trailing = toggle(store.updates_aur, function(on)
+        return on
+    end, function(on)
+        store:set("updates_aur", on)
+        mantle.updates:invoke("configure", { interval = CHECK_INTERVAL, aur = on })
+        mantle.updates:invoke("check")
+    end),
+}
 
 -- Dims rather than hides, so the row keeps its layout.
 local busy = computed({ mantle.updates, dev_running }, function(updates, tool)
@@ -641,6 +685,9 @@ local body = {
             spacing = theme.spacing.xs,
             source = sorted_packages,
             itemfn = function(package)
+                if package.header then
+                    return section_header(package.header)
+                end
                 return row {
                     width = "Fill",
                     height = theme.control.sm,
@@ -648,6 +695,9 @@ local body = {
                     spacing = theme.spacing.sm,
                     children = {
                         cell(package.name or "?", needs_reboot(package.name or "") and theme.PEACH or theme.FG, theme.font.sm, { width = "Fill", align_v = "Center" }),
+                        cell(package.repository ~= "aur" and package.repository or "", theme.DIM, theme.font.xs, {
+                            align_v = "Center",
+                        }),
                         cell(package.old_version or "", theme.DIM, theme.font.xs, {
                             width = theme.update_version_width,
                             align_v = "Center",
@@ -660,7 +710,7 @@ local body = {
                 }
             end,
             key = function(package)
-                return package.name or "?"
+                return package.header or package.name or "?"
             end,
         },
     }, { width = "Fill", visible = packages_showing }),
@@ -704,6 +754,7 @@ local body = {
         width = "Fill",
         visible = log_showing,
     }),
+    panel_card({ section_header("aur"), aur_row }, { width = "Fill", visible = settings_open }),
     panel_card({ section_header("run with package updates"), column {
         width = "Fill",
         children = tool_rows,
@@ -726,7 +777,11 @@ local body = {
                     if showing and install_failed(updates) then
                         return "Retry"
                     end
-                    return ((updates and updates.count) or 0) > 0 and "Update" or "Update dev tools"
+                    if ((updates and updates.count) or 0) == 0 then
+                        return "Update dev tools"
+                    end
+                    local builds = aur_count(updates)
+                    return builds > 0 and string.format("Update · builds %d from AUR", builds) or "Update"
                 end),
                 install,
                 "updates-install",
