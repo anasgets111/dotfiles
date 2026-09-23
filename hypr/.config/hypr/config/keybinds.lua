@@ -75,7 +75,6 @@ local keybinds = {
     { "CTRL + ALT + Delete",                             hl.dsp.exec_cmd("uwsm app -- missioncenter") },
     { mod .. " + space",                                 hl.dsp.exec_cmd(menu) },
     { mod .. " + SHIFT + W",                             hl.dsp.exec_cmd("mantle toggle modal wallpaper_picker") },
-    { mod .. " + P",                                     hl.dsp.exec_cmd("mantle toggle settings_open") },
     { mod .. " + CTRL + P",                              hl.dsp.exec_cmd("mantle toggle modal idle_settings") },
     { mod .. " + C",                                     hl.dsp.exec_cmd("uwsm app -- cursor") },
     { mod .. " + A",                                     hl.dsp.exec_cmd("uwsm app -- antigravity.sh") },

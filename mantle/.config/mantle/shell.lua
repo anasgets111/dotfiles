@@ -21,7 +21,6 @@ local wallpaper = require("modules.global.wallpaper")
 local notifications = require("modules.notification.popup")
 local osd = require("modules.osd.popup")
 local bar = require("modules.bar")
-local settings = require("modules.bar.panels.settings")
 local panel_host = require("modules.shell.panel_host")
 local modal_host = require("modules.global.modal_host")
 local idle_settings = require("modules.global.idle_settings")
@@ -37,7 +36,6 @@ local surfaces = {
     wallpaper.overview,
     notifications,
     osd,
-    settings,
     panel_host,
 }
 table.move(bar.tooltips, 1, #bar.tooltips, #surfaces + 1, surfaces)

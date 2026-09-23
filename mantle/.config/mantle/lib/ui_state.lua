@@ -8,7 +8,6 @@ local util = require("lib.util")
 local theme = require("config.theme")
 
 local popup_anchor = state("popup_anchor", { x = 0, y = 0, width = 70, height = 24 })
-local settings_open = state("settings_open", false)
 
 -- `modules/shell/panel_host.lua`'s shared-surface signals: whether it is up and its current panel.
 -- One surface serves every bar panel; one slot enforces that rather than five files coordinating.
@@ -293,7 +292,6 @@ return {
     set_reply_draft = set_reply_draft,
     clear_reply = clear_reply,
     send_reply = send_reply,
-    settings_open = settings_open,
     panel_open = panel_open,
     panel_kind = panel_kind,
     panel_instance = panel_instance,

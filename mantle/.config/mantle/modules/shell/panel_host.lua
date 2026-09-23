@@ -9,7 +9,6 @@ local panel_card = require("components.panel_card")
 local ui_state = require("lib.ui_state")
 local bar = require("modules.bar").indicator
 
-local power_menu = require("modules.bar.panels.power_menu")
 local network_panel = require("modules.bar.panels.network_panel")
 local bluetooth_panel = require("modules.bar.panels.bluetooth_panel")
 local notification_history = require("modules.bar.panels.notification_history")
@@ -19,7 +18,7 @@ local media_panel = require("modules.bar.panels.media_panel")
 local tray_menu = require("modules.bar.panels.tray_menu")
 local screen_recorder_panel = require("modules.bar.panels.screen_recorder_panel")
 
-local panels = { power_menu, network_panel, bluetooth_panel, notification_history, update_panel, audio_panel,
+local panels = { network_panel, bluetooth_panel, notification_history, update_panel, audio_panel,
     media_panel, tray_menu, screen_recorder_panel }
 
 -- Only the matching `kind` is a child: a hidden sibling would be frozen, not dropped. `geometry`

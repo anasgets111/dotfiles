@@ -1,5 +1,3 @@
--- Brightness has no bar module. It lives in `modules/bar/panels/power_menu.lua`, which has room for
--- labels.
 local theme = require("config.theme")
 local privacy_module = require("modules.bar.indicators.privacy")
 local volume_module = require("modules.bar.indicators.volume")

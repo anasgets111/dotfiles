@@ -1,21 +1,12 @@
 -- The bar pill runs log out, restart and power off after a ten-second countdown. `process.detach`
--- shells out, so a Renderer crash mid-flight cannot reap a shutdown. The panel's lock, sleep,
--- settings and brightness lose nothing, so they run at once. The countdown is a
+-- shells out, so a Renderer crash mid-flight cannot reap a shutdown. The countdown is a
 -- `mantle.system.monotonic` deadline, not a timer, so a clock step cannot fire it early.
 local theme = require("config.theme")
 local icons = require("config.icons")
-local util = require("lib.util")
-local cell = require("components.cell")
-local panel_row = require("components.panel_row")
-local meter = require("components.meter")
-local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
-local section_header = require("components.section_header")
 local expanding_pill = require("components.expanding_pill")
-local ui_state = require("lib.ui_state")
 local compositor = require("lib.compositor")
 
-local KIND = "power"
 local COUNTDOWN = 10
 
 -- Pending action (`""` for none) and its `mantle.system.monotonic` deadline.
@@ -74,25 +65,9 @@ mantle.system:on_change(function(system)
     end
 end)
 
--- Wraps rather than clamps, stopping at `BRIGHTNESS_STEP` instead of 0. `brightness:set(0)` blacks
--- an `intel_backlight` panel, so a control that can do that gets no second click.
-local BRIGHTNESS_STEP = 10
-
-local function brightness_button(glyph, delta)
-    return icon_button(glyph, function()
-        local brightness = mantle.brightness:get()
-        if brightness then
-            local stepped = brightness.percent + delta
-            mantle.brightness:invoke("set",
-                stepped > 100 and BRIGHTNESS_STEP or stepped < BRIGHTNESS_STEP and 100 or stepped)
-        end
-    end, { size = theme.control.xs, icon_size = theme.icon.xs })
-end
-
 -- The power-off circle expands on hover and stays open through a countdown
 -- (`components/expanding_pill.lua`). During one the chosen action pulses, the next slot shows
--- seconds over a growing fill, and the third cancels. Right-click with no countdown opens the
--- panel, which is the only door to Settings.
+-- seconds over a growing fill, and the third cancels.
 local SLOT_COUNT = #ACTIONS
 local pill = expanding_pill.new({
     slot = "power-pill",
@@ -188,14 +163,10 @@ local function slot(index)
                 align_v = "Center",
             },
         },
-        on_click = function(rect, mouse_button)
+        on_click = function(_, mouse_button)
             local key = pending:get()
             if mouse_button == "right" then
-                if key ~= "" then
-                    pending:set("")
-                else
-                    ui_state.toggle_panel(KIND, rect)
-                end
+                pending:set("")
             elseif mouse_button == "left" then
                 if key == "" then
                     local system = mantle.system:get()
@@ -227,8 +198,7 @@ local HINTS = {
 }
 
 -- One card per circle, each hanging from its own slot, so none chases the pointer across the pill's
--- gaps. The circles are glyphs, so the card names the action and its clicks. A right click at rest
--- is the only door to the panel.
+-- gaps. The circles are glyphs, so the card names the action and, during a countdown, its clicks.
 local power_tooltips = {}
 for index, action in ipairs(ACTIONS) do
     power_tooltips[index] = tooltip({
@@ -241,67 +211,9 @@ for index, action in ipairs(ACTIONS) do
             return chosen ~= "" and string.format("%s in %ds", ACTIONS[chosen].label, left) or action.label
         end),
         detail = pending:map(function(chosen)
-            return chosen == "" and "Right click opens the panel" or HINTS[role_of(index, chosen)]
+            return chosen == "" and "" or HINTS[role_of(index, chosen)]
         end),
     })
 end
 
-local body = {
-    section_header("session"),
-    cell(util.label(mantle.battery, function(battery)
-        if not battery.present then
-            return "On AC power"
-        end
-        return string.format("Battery %d%% %s%s", battery.percent, util.battery_phrase(battery.state),
-            util.battery_eta(battery))
-    end), theme.DIM, theme.font.xs),
-    panel_row {
-        slot = "power-lock",
-        icon = icons.lock,
-        title = "Lock session",
-        color = theme.ACCENT,
-        on_activate = function()
-            mantle.lock:invoke("lock")
-        end,
-    },
-    panel_row {
-        slot = "power-sleep",
-        icon = icons.sleep,
-        title = "Sleep",
-        color = theme.ACCENT,
-        on_activate = function()
-            process.detach("systemctl", { "suspend" })
-        end,
-    },
-    panel_row {
-        slot = "power-settings",
-        icon = icons.settings,
-        title = "Settings",
-        on_activate = function()
-            ui_state.settings_open:set(true)
-        end,
-    },
-    section_header("brightness"),
-    -- No brightness module, so `mantle.brightness` is driven here. No drag: a press supplies a rect
-    -- and button name, and nothing tracks motion into a value.
-    row {
-        width = "Fill",
-        height = theme.control.sm,
-        align_v = "Center",
-        spacing = theme.spacing.sm,
-        children = {
-            brightness_button(icons.minus, -BRIGHTNESS_STEP),
-            -- Springs rather than eases: the two buttons either side of this repeat while held,
-            -- so the fill's target moves while the fill is still moving.
-            meter(mantle.brightness, function(brightness)
-                return brightness.percent
-            end, theme.YELLOW, nil, { motion = theme.spring_tracking }),
-            brightness_button(icons.plus, BRIGHTNESS_STEP),
-            cell(util.label(mantle.brightness, function(brightness)
-                return string.format("%d%%", brightness.percent)
-            end), theme.DIM, theme.font.xs),
-        },
-    },
-}
-
-return { kind = KIND, button = pill.row(slots), tooltips = power_tooltips, body = body }
+return { button = pill.row(slots), tooltips = power_tooltips }

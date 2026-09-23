@@ -250,7 +250,6 @@ binds {
     Mod+Shift+Slash { show-hotkey-overlay; }
     Mod+Space repeat=false { spawn "mantle" "toggle" "modal" "launcher"; }
     Mod+Shift+W repeat=false { spawn "mantle" "toggle" "modal" "wallpaper_picker"; }
-    Mod+P repeat=false { spawn "mantle" "toggle" "settings_open"; }
     Mod+Ctrl+P repeat=false { spawn "mantle" "toggle" "modal" "idle_settings"; }
     Super+L { spawn "loginctl" "lock-session"; }
     Print { screenshot; }

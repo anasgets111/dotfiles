@@ -1,6 +1,6 @@
 local theme = require("config.theme")
 local rescue_module = require("modules.bar.indicators.rescue")
-local power_menu = require("modules.bar.panels.power_menu")
+local power_menu = require("modules.bar.indicators.power_menu")
 local updates_module = require("modules.bar.indicators.updates")
 local idle_inhibitor = require("modules.bar.indicators.idle_inhibitor")
 local keyboard_module = require("modules.bar.indicators.keyboard_layout")
