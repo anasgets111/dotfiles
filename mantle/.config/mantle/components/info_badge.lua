@@ -11,16 +11,7 @@ return function(label, ground, opts)
     opts = opts or {}
     ground = ground or theme.GLASS_CONTROL
     -- A live ground maps contrast over itself: the recorder's badge swaps peach for red mid-capture.
-    ---@type Color|Signal
-    local ink
-    if type(ground) == "userdata" then
-        ---@cast ground Signal
-        ink = ground:map(theme.text_contrast)
-    else
-        ---@cast ground Color
-        ink = theme.text_contrast(ground)
-    end
-    local content = util.bold(label)
+    local ink = util.lift(ground, theme.text_contrast)
     return row {
         height = theme.control.xs,
         align_v = opts.align_v or "Center",
@@ -31,7 +22,7 @@ return function(label, ground, opts)
         background = ground,
         border_width = theme.border_width,
         border_color = theme.GLASS_BORDER,
-        children = { cell(content, ink, theme.font.xs, {
+        children = { cell(util.bold(label), ink, theme.font.xs, {
             align = "Center",
             align_v = "Center",
         }) },

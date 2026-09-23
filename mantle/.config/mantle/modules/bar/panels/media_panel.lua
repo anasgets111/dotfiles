@@ -88,10 +88,7 @@ local position_us = computed({ selected, mantle.system, anchor, seek_base }, fun
     end
     -- A `-1` length is a stream, which has no end to clamp to.
     local length = player.length or -1
-    if length > 0 then
-        return math.min(position, length)
-    end
-    return position
+    return length > 0 and math.min(position, length) or position
 end)
 
 -- Minutes and zero-padded seconds, and never a negative or a fabricated zero for the `-1` a
@@ -191,10 +188,7 @@ local seek_bar = slider {
     read = function(microseconds)
         local player = selected:get()
         local length = (player and player.length) or -1
-        if length <= 0 or microseconds < 0 then
-            return 0
-        end
-        return microseconds / length
+        return length > 0 and microseconds >= 0 and microseconds / length or 0
     end,
     on_commit = function(fraction)
         local player = selected:get()
@@ -217,7 +211,7 @@ local seek_bar = slider {
     steps = 0,
     height = theme.spacing.md,
     radius = theme.radius.sm,
-    track = theme.GLASS_CONTROL,
+    background = theme.GLASS_CONTROL,
     -- The bar is draggable only when the track has a known length; a stream reports `-1` and has no
     -- fraction to drag to.
     fill_visible = selected:map(function(player)

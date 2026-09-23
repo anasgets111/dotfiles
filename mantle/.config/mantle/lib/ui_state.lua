@@ -4,6 +4,7 @@
 -- `popup_anchor`: only `x` is read, since `panel_host` is a layer surface that clamps the card to the
 -- output rather than a popup with `anchor_rect`/`gravity`. The shape is what `on_click` supplies.
 local notifications = require("lib.notifications")
+local util = require("lib.util")
 local theme = require("config.theme")
 
 local popup_anchor = state("popup_anchor", { x = 0, y = 0, width = 70, height = 24 })
@@ -26,8 +27,7 @@ local popup_seen = state("notification_popup_seen", {})
 
 local function mark_popups_seen()
     local seen = {}
-    local n = mantle.notifications:get()
-    for _, notification in ipairs((n and n.feed) or {}) do
+    for _, notification in ipairs((mantle.notifications:get() or {}).feed or {}) do
         seen[notifications.notification_key(notification)] = true
     end
     popup_seen:set(seen)
@@ -45,8 +45,8 @@ local hidden_ssid = state("network_hidden_ssid", "")
 -- end is read, not latched: a `computed` has no side effects, so `n.ssid` reaching the typed name
 -- ends the sheet. A failure counts only when `connect_error` names that network, or another join's
 -- leftover would flash first.
-local credential_step = computed({ hidden_prompt, hidden_ssid, mantle.network }, function(active, name, n)
-    if n and n.password_ssid ~= nil then
+local credential_step = computed({ hidden_prompt, hidden_ssid, mantle.network }, function(active, name, network)
+    if network and network.password_ssid ~= nil then
         return "password"
     end
     if not active then
@@ -55,10 +55,10 @@ local credential_step = computed({ hidden_prompt, hidden_ssid, mantle.network },
     if name == "" then
         return "name"
     end
-    if n and n.ssid == name then
+    if network and network.ssid == name then
         return ""
     end
-    if n and n.connect_error ~= nil and n.connect_error.ssid == name then
+    if network and network.connect_error ~= nil and network.connect_error.ssid == name then
         return "failed"
     end
     return "waiting"
@@ -165,21 +165,16 @@ local media_close_timer
 
 local function set_media_hover(region, inside)
     local current = media_hover:get() or {}
-    local next = { trigger = current.trigger == true, panel = current.panel == true }
-    next[region] = inside == true
-    media_hover:set(next)
-    if inside then
-        if media_close_timer then
-            media_close_timer:cancel()
-            media_close_timer = nil
-        end
-        return
-    end
-    if not panel_open:get() or panel_kind:get() ~= "media" then
-        return
-    end
-    if media_close_timer then
+    local hovered = { trigger = current.trigger == true, panel = current.panel == true }
+    hovered[region] = inside == true
+    media_hover:set(hovered)
+    local media_open = panel_open:get() and panel_kind:get() == "media"
+    if media_close_timer and (inside or media_open) then
         media_close_timer:cancel()
+        media_close_timer = nil
+    end
+    if inside or not media_open then
+        return
     end
     media_close_timer = timer(theme.animation_slow_ms, function()
         media_close_timer = nil
@@ -242,14 +237,9 @@ local expanded_messages = state("notification_expanded_messages", {})
 local reply_draft_id = state("notification_reply_draft_id", 0)
 local reply_draft = state("notification_reply_draft", "")
 
--- Copy first: a resolve may roll back, and mutating the held value hides the change.
 local function toggle_key(signal, key)
-    local next_open = {}
-    for k, open in pairs(signal:get() or {}) do
-        next_open[k] = open
-    end
-    next_open[key] = not next_open[key]
-    signal:set(next_open)
+    local open = signal:get() or {}
+    signal:set(util.with(open, key, not open[key]))
 end
 
 local function toggle_group(key)
@@ -276,11 +266,11 @@ end
 
 -- Draft text belonging to a notification still in the feed. A surface binds
 -- `keyboard_interactivity` to this, so the keyboard survives the pointer leaving mid-sentence.
-local reply_pending = computed({ reply_draft_id, reply_draft, mantle.notifications }, function(id, text, n)
+local reply_pending = computed({ reply_draft_id, reply_draft, mantle.notifications }, function(id, text, inbox)
     if id == 0 or text == nil or text == "" then
         return false
     end
-    for _, notification in ipairs((n and n.feed) or {}) do
+    for _, notification in ipairs((inbox and inbox.feed) or {}) do
         if notification.id == id then
             return true
         end
@@ -322,7 +312,6 @@ return {
     bluetooth_codec_for = bluetooth_codec_for,
     audio_output_picker = audio_output_picker,
     audio_input_picker = audio_input_picker,
-    hidden_prompt = hidden_prompt,
     hidden_draft = hidden_draft,
     hidden_ssid = hidden_ssid,
     credential_step = credential_step,

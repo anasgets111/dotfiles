@@ -22,40 +22,22 @@ local icon_button = require("components.icon_button")
 
 ---@param opts PanelHeaderOpts
 return function(opts)
-    local active = opts.active
-    if active == nil then
-        active = true
+    local active = opts.active == nil or opts.active
+    local function by_active(on_value, off_value)
+        return util.lift(active, function(on)
+            return on and on_value or off_value
+        end)
+    end
+    local function faded(colour)
+        return theme.with_opacity(colour, theme.opacity.subtle)
     end
     ---@type Color|Signal
-    local accent
+    local accent = opts.accent or by_active(theme.ACCENT, theme.DIM)
+    -- An explicit accent's plate is the same colour at reduced opacity, so callers supply one, not a pair.
     ---@type Color|Signal
-    local plate
-    if opts.accent ~= nil then
-        accent = opts.accent
-        -- The plate is the same colour at reduced opacity, so callers supply one, not a pair.
-        if type(accent) == "userdata" then
-            ---@cast accent Signal
-            plate = accent:map(function(colour)
-                return theme.with_opacity(colour, theme.opacity.subtle)
-            end)
-        else
-            ---@cast accent Color
-            plate = theme.with_opacity(accent, theme.opacity.subtle)
-        end
-    elseif type(active) == "userdata" then
-        ---@cast active Signal
-        accent = active:map(function(on)
-            return on and theme.ACCENT or theme.DIM
-        end)
-        plate = active:map(function(on)
-            return on and theme.ACCENT_SUBTLE or theme.GLASS_CONTENT
-        end)
-    else
-        accent = active and theme.ACCENT or theme.DIM
-        plate = active and theme.ACCENT_SUBTLE or theme.GLASS_CONTENT
-    end
+    local plate = opts.accent == nil and by_active(theme.ACCENT_SUBTLE, theme.GLASS_CONTENT)
+        or util.lift(accent, faded)
 
-    local title_size = opts.title_size or theme.font.lg
     local plate_size = opts.plate or theme.control.lg
 
     local children = {}
@@ -75,7 +57,7 @@ return function(opts)
         }
     end
 
-    local lines = { cell(util.bold(opts.title), theme.FG, title_size, { width = "Fill" }) }
+    local lines = { cell(util.bold(opts.title), theme.FG, opts.title_size or theme.font.lg, { width = "Fill" }) }
     if opts.subtitle then
         lines[#lines + 1] = cell(opts.subtitle, opts.subtitle_color or theme.DIM,
             opts.subtitle_size or theme.font.xs, { width = "Fill" })
@@ -83,9 +65,7 @@ return function(opts)
     children[#children + 1] = column { width = "Fill", align_v = "Center", children = lines }
 
     for _, control in ipairs(opts.trailing or {}) do
-        if control.align_v == nil then
-            control.align_v = "Center"
-        end
+        control.align_v = control.align_v or "Center"
         children[#children + 1] = control
     end
     if opts.on_close then

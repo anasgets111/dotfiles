@@ -107,10 +107,6 @@ return panel {
         width = theme.dialog_width,
         spacing = theme.spacing.md,
         padding = theme.spacing.lg,
-        radius = theme.radius.lg,
-        background = theme.GLASS,
-        blur = true,
-        border_width = theme.border_width,
-        border_color = theme.BORDER,
+        tone = "dialog",
     }),
 }

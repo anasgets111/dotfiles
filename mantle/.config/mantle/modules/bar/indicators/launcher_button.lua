@@ -1,4 +1,3 @@
--- A circular icon button between the battery and workspaces.
 local icons = require("config.icons")
 local icon_button = require("components.icon_button")
 local ui_state = require("lib.ui_state")

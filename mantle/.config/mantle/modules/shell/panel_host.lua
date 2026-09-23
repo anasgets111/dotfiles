@@ -66,9 +66,7 @@ local CORNER = math.min(theme.radius.md * 3, theme.bar_height)
 -- otherwise run off the edge. `screens[1]` guesses the head like `theme.main_screen`, and follows
 -- the signal so a resolution change moves the clamp; an empty list clamps only at zero.
 local card_x = computed({ ui_state.popup_anchor, mantle.screens, card_width }, function(anchor, screens, width)
-    local anchor_x = (anchor and anchor.x) or 0
-    local anchor_width = (anchor and anchor.width) or 0
-    local x = anchor_x + anchor_width / 2 - width / 2
+    local x = ((anchor and anchor.x) or 0) + ((anchor and anchor.width) or 0) / 2 - width / 2
     local screen = screens and screens[1]
     if screen and screen.width then
         x = math.min(x, screen.width - width - theme.spacing.sm - CORNER)
@@ -128,10 +126,7 @@ end
 local shown = util.linger(ui_state.panel_open, theme.animation_ms)
 
 local card_animate = computed({ hidden_top, shown }, function(hidden, visible)
-    if not visible then
-        return {}
-    end
-    return { margin = { duration = theme.animation_ms, easing = "OutQuad", from = { top = hidden } } }
+    return visible and { margin = { duration = theme.animation_ms, easing = "OutQuad", from = { top = hidden } } } or {}
 end)
 
 return panel {
@@ -153,10 +148,7 @@ return panel {
         { ui_state.credential_step, ui_state.panel_showing("notifications") },
         function(step, showing_notifications)
             -- The sheet stays `Exclusive`: this panel's click raised it and the catcher ends it.
-            if step ~= "" then
-                return "Exclusive"
-            end
-            return showing_notifications and "OnDemand" or "None"
+            return step ~= "" and "Exclusive" or showing_notifications and "OnDemand" or "None"
         end
     ),
     -- Input follows drawn nodes, so a closed panel leaves only the bar and its corners clickable.
@@ -219,12 +211,8 @@ return panel {
                                                     },
                                                     background = theme.GLASS_SURFACE,
                                                     blur = true,
-                                                    padding = {
-                                                        top = CARD_PADDING + theme.radius.md,
-                                                        right = CARD_PADDING,
-                                                        bottom = CARD_PADDING,
-                                                        left = CARD_PADDING,
-                                                    },
+                                                    padding = { top = CARD_PADDING + theme.radius.md, right = CARD_PADDING,
+                                                        bottom = CARD_PADDING, left = CARD_PADDING },
                                                 }),
                                                 inverted_corner(CORNER, false, { top = theme.radius.md }),
                                             },

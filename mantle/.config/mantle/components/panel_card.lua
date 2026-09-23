@@ -1,54 +1,29 @@
 local theme = require("config.theme")
 
-local tones = {
-    standard = { background = theme.GLASS_CONTENT, border = theme.GLASS_BORDER },
-    active = { background = theme.ACCENT_SUBTLE, border = theme.ACCENT_MEDIUM },
-    warning = {
-        background = theme.with_opacity(theme.PEACH, theme.opacity.subtle),
-        border = theme.with_opacity(theme.PEACH, theme.opacity.medium),
-    },
-    error = {
-        background = theme.with_opacity(theme.RED, theme.opacity.subtle),
-        border = theme.with_opacity(theme.RED, theme.opacity.medium),
-    },
+local GROUND = {
+    standard = theme.GLASS_CONTENT,
+    active = theme.ACCENT_SUBTLE,
+    warning = theme.with_opacity(theme.PEACH, theme.opacity.subtle),
+    error = theme.with_opacity(theme.RED, theme.opacity.subtle),
+    -- A modal's own card: blurred and ringed too, the scrim under it already dims the rest.
+    dialog = theme.GLASS,
 }
 
-local function tone_style(tone)
-    return tones[tone] or tones.standard
+local function ground_of(tone)
+    return GROUND[tone] or GROUND.standard
 end
 
 return function(children, opts)
     opts = opts or {}
-    ---@type string|Signal
     local tone = opts.tone or "standard"
+    local dialog = tone == "dialog" or nil
     ---@type Color|Signal
-    local background
-    ---@type Color|Signal
-    local border_color
-    if type(tone) == "userdata" then
-        ---@cast tone Signal
-        background = tone:map(function(name)
-            return tone_style(name).background
-        end)
-        border_color = tone:map(function(name)
-            return tone_style(name).border
-        end)
-    else
-        local style = tone_style(tone)
-        background = style.background
-        border_color = style.border
-    end
-    local animate = opts.animate
-    if animate == nil then
-        animate = { background = theme.animation_ms, border_color = theme.animation_ms }
-    elseif type(animate) == "table" then
-        local with_tone = {}
-        for key, value in pairs(animate) do
-            with_tone[key] = value
-        end
-        with_tone.background = with_tone.background or theme.animation_ms
-        with_tone.border_color = with_tone.border_color or theme.animation_ms
-        animate = with_tone
+    ---@diagnostic disable-next-line: undefined-field
+    local background = type(tone) == "userdata" and tone:map(ground_of) or ground_of(tone)
+    -- The ground and ring ease unless the caller times them itself.
+    local animate = { background = theme.animation_ms, border_color = theme.animation_ms }
+    for key, value in pairs(opts.animate or {}) do
+        animate[key] = value
     end
     return column {
         width = opts.width,
@@ -62,11 +37,11 @@ return function(children, opts)
         animate = animate,
         spacing = opts.spacing or theme.spacing.xs,
         background = opts.background or background,
-        -- Not defaulted: a card on an already-blurred sheet would union into a covering region.
-        blur = opts.blur,
+        -- Only a dialog's: a card on an already-blurred sheet would union into a covering region.
+        blur = opts.blur or dialog,
         radius = opts.radius or theme.radius.lg,
-        border_width = opts.border_width,
-        border_color = opts.border_color,
+        border_width = opts.border_width or dialog and theme.border_width,
+        border_color = opts.border_color or dialog and theme.BORDER,
         children = children,
     }
 end

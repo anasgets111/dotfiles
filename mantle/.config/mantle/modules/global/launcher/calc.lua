@@ -12,10 +12,9 @@ local M = {}
 -- `/^[\d\s+\-*/().,%^]+$/`, in the order that pattern lists them.
 local ALLOWED = "^[%d%s%+%-%*/%(%)%.,%%%^]+$"
 
----@param query string
+---@param input string Already trimmed by the launcher.
 ---@return LauncherRow|nil
-function M.claims(query)
-    local input = util.trim(query)
+function M.claims(input)
     if not input:match(ALLOWED) or not input:match("%d") or not input:match("[%+%-%*/%^%%]") then
         return nil
     end

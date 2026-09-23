@@ -12,11 +12,9 @@ local CLEAR = "#00000000"
 ---@param opts { slot: string, tint?: Color, visible?: boolean|Bound, size?: "sm"|"md", disabled?: Signal }
 return function(glyph, on_activate, opts)
     local tint = opts.tint or theme.FG
-    -- Default `"sm"`, which the media panel overrides to `"md"` for the one control in a transport
-    -- row that is the row's subject.
+    -- `"md"` is the media panel's one transport control that is the row's subject.
     local step = opts.size or "sm"
-    -- `icon_button` asks for the same registry entry under this slot, so the
-    -- glyph brightens with the button's hover.
+    -- The same slot as `icon_button`'s, so the glyph brightens with the button's hover.
     local hovered = hover(opts.slot)
     -- `disabled` dims and ignores clicks, keeping the control's place in the row.
     local disabled = opts.disabled

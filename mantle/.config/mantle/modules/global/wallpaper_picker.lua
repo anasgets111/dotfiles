@@ -39,18 +39,14 @@ local grid_inner = theme.wallpaper_picker_width
 local TILE_WIDTH = math.floor((grid_inner - (COLUMNS - 1) * tile_gap) / COLUMNS)
 local TILE_HEIGHT = math.floor(TILE_WIDTH * 9 / 16)
 
-local function entries_of(f)
-    local folder = wallpaper.folder_in(f)
-    return folder and folder.entries or {}
-end
-
 local trimmed = query:map(function(text)
     return util.trim(text):lower()
 end)
 
 ---@return FileEntry[]
 local filtered = computed({ mantle.files, trimmed }, function(f, needle)
-    local entries = entries_of(f)
+    local folder = wallpaper.folder_in(f)
+    local entries = folder and folder.entries or {}
     if needle == "" then
         return entries
     end
@@ -91,30 +87,21 @@ local function targets_now()
     return { chosen }
 end
 
-local function common(values)
-    local first = values[1]
-    if first == nil then
-        return ""
-    end
-    for _, value in ipairs(values) do
-        if value ~= first then
-            return ""
-        end
-    end
-    return first
-end
-
 -- `read`'s answer for the targeted screens, or `""` where they disagree, so the badge and the ring
 -- never pick between conflicting answers.
 local function targeted(read)
-    return computed({ wallpaper.all(), mantle.screens, effective_monitor }, function(w, screens, chosen)
-        local values = {}
+    return computed({ require("lib.store").wallpapers, mantle.screens, effective_monitor }, function(w, screens, chosen)
+        local first
         for _, screen in ipairs(screens or {}) do
             if chosen == ALL or chosen == screen.name then
-                values[#values + 1] = read(w, screen.name)
+                local value = read(w, screen.name)
+                if first ~= nil and value ~= first then
+                    return ""
+                end
+                first = value
             end
         end
-        return common(values)
+        return first or ""
     end)
 end
 
@@ -179,10 +166,6 @@ local function apply(path)
     for _, output in ipairs(targets_now()) do
         wallpaper.set(output, path)
     end
-end
-
-local function apply_selected()
-    apply(effective_selected:get())
 end
 
 ---@param entry FileEntry
@@ -340,7 +323,9 @@ local search = rect {
                 query:set(text)
                 reset_selection()
             end,
-            on_submit = apply_selected,
+            on_submit = function()
+                apply(effective_selected:get())
+            end,
             on_cancel = function(cleared)
                 if not cleared then
                     close()
@@ -511,24 +496,20 @@ local sidebar = panel_card({
     width = theme.wallpaper_sidebar_width,
     align_v = "Start",
     spacing = theme.spacing.md,
-    background = theme.GLASS_CONTENT,
     border_width = theme.border_width,
     border_color = theme.GLASS_BORDER,
     padding = theme.spacing.md,
 })
-
--- A `rect` stacks, so an empty state centres over the grid instead of under its `Fill`.
-local grid_card_children = { rect { width = "Fill", height = "Fill", children = { grid, table.unpack(empty_states) } } }
 
 local body = row {
     width = "Fill",
     height = "Fill",
     spacing = theme.spacing.md,
     children = {
-        panel_card(grid_card_children, {
+        -- A `rect` stacks, so an empty state centres over the grid instead of under its `Fill`.
+        panel_card({ rect { width = "Fill", height = "Fill", children = { grid, table.unpack(empty_states) } } }, {
             width = "Fill",
             height = "Fill",
-            background = theme.GLASS_CONTENT,
             border_width = theme.border_width,
             border_color = theme.GLASS_BORDER,
             padding = grid_padding,
@@ -537,31 +518,14 @@ local body = row {
     },
 }
 
-local card_margin = mantle.screens:map(function(screens)
-    local screen = screens and screens[1]
-    if not (screen and screen.width and screen.height) then
-        return { left = 0, top = 0 }
-    end
-    local free_height = screen.height - theme.bar_height
-    return {
-        left = math.max(0, math.floor((screen.width - theme.wallpaper_picker_width) / 2)),
-        top = math.max(0, math.floor((free_height - theme.wallpaper_picker_height) / 2)),
-    }
-end)
-
 return modal({
     kind = "wallpaper_picker",
+    below_bar = true,
     card = panel_card({ search, body }, {
         width = theme.wallpaper_picker_width,
         height = theme.wallpaper_picker_height,
-        margin = card_margin,
         spacing = theme.spacing.md,
         padding = card_padding,
-        radius = theme.radius.lg,
-        background = theme.GLASS,
-        -- The card alone; the scrim under it in the same surface already dims the rest.
-        blur = true,
-        border_width = theme.border_width,
-        border_color = theme.BORDER,
+        tone = "dialog",
     }),
 })

@@ -9,12 +9,7 @@ local notifications = {}
 local URL_PATTERNS = { "%f[%S]https?://[^%s<>'\"]+", "%f[%S]file://[^%s<>'\"]+" }
 
 local function with_text(span, text, href)
-    local copy = {}
-    for key, value in pairs(span) do
-        copy[key] = value
-    end
-    copy.text, copy.href = text, href or span.href
-    return copy
+    return util.with(util.with(span, "text", text), "href", href or span.href)
 end
 
 local function linkified(spans)
@@ -151,15 +146,15 @@ function notifications.group_notifications(feed, applications, opts)
             group.items[#group.items + 1] = notification
         end
     end
-    table.sort(groups, function(a, b)
-        local a_critical, b_critical = a.urgency == "critical", b.urgency == "critical"
-        if a_critical ~= b_critical then
-            return a_critical
+    table.sort(groups, function(left, right)
+        local left_critical, right_critical = left.urgency == "critical", right.urgency == "critical"
+        if left_critical ~= right_critical then
+            return left_critical
         end
-        if a.latest ~= b.latest then
-            return a.latest > b.latest
+        if left.latest ~= right.latest then
+            return left.latest > right.latest
         end
-        return a.key < b.key
+        return left.key < right.key
     end)
     return groups
 end

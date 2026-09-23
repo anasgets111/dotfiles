@@ -30,27 +30,10 @@ local function rows_in(now)
     return math.ceil((lead + days_in_month) / COLUMNS)
 end
 
--- `rows_in * COLUMNS` entries in reading order; leading blanks are `nil`, so the first week uses
--- the same loop as the rest. Trailing blanks exist only inside the last week the month reaches.
-local function month_grid(now)
-    local today, lead, days_in_month = month_of(now)
-    local cells = {}
-    for index = 1, rows_in(now) * COLUMNS do
-        local day = index - lead
-        cells[index] = {
-            index = index,
-            day = (day >= 1 and day <= days_in_month) and day or nil,
-            is_today = day == today.day,
-            -- `DAY_NAMES` is 1-based from Sunday, so the last column is Saturday. The heading marks
-            -- it, and each day cell in that column marks itself the same way.
-            is_saturday = (index - 1) % COLUMNS == COLUMNS - 1,
-        }
-    end
-    return cells
-end
-
-local function day_cell(entry)
-    if entry.day == nil then
+-- `day` is `nil` for a blank. `DAY_NAMES` is 1-based from Sunday, so the last column is Saturday;
+-- the heading marks it, and each day cell in that column marks itself the same way.
+local function day_cell(day, is_today, is_saturday)
+    if day == nil then
         -- Keep the blank in its column; an absent child would shift the week left.
         return rect { width = DAY_SIDE, height = DAY_SIDE }
     end
@@ -58,38 +41,38 @@ local function day_cell(entry)
         width = DAY_SIDE,
         height = DAY_SIDE,
         radius = DAY_SIDE / 2,
-        background = entry.is_today and theme.ACCENT or nil,
+        background = is_today and theme.ACCENT or nil,
         children = {
             -- Today is the one date read at a glance, so it carries the weight as well as the disc.
-            cell({ { text = tostring(entry.day), bold = entry.is_today } },
-                entry.is_today and theme.text_contrast(theme.ACCENT)
-                or entry.is_saturday and theme.text_contrast(theme.BG)
+            cell({ { text = tostring(day), bold = is_today } },
+                is_today and theme.text_contrast(theme.ACCENT)
+                or is_saturday and theme.text_contrast(theme.BG)
                 or theme.FG,
                 theme.font.sm, { width = "Fill", align = "Center", align_v = "Center" }),
         },
     }
 end
 
+-- Leading blanks are `nil` days, so the first week uses the same loop as the rest. Trailing blanks
+-- exist only inside the last week the month reaches.
 local function week_rows(now)
-    local cells = month_grid(now)
+    local today, lead, days_in_month = month_of(now)
     local rows = {}
     for week = 0, rows_in(now) - 1 do
         local days = {}
         for column = 1, COLUMNS do
-            days[column] = day_cell(cells[week * COLUMNS + column])
+            local day = week * COLUMNS + column - lead
+            local in_month = day >= 1 and day <= days_in_month
+            days[column] = day_cell(in_month and day or nil, day == today.day, column == COLUMNS)
         end
-        rows[#rows + 1] = row {
-            width = "Fill",
-            spacing = theme.spacing.xs,
-            children = days,
-        }
+        rows[#rows + 1] = row { width = "Fill", spacing = theme.spacing.xs, children = days }
     end
     return rows
 end
 
 local day_names = {}
 for column, name in ipairs(DAY_NAMES) do
-    day_names[column] = cell(util.bold(name), column == 7 and theme.text_contrast(theme.BG) or theme.FG,
+    day_names[column] = cell(util.bold(name), column == COLUMNS and theme.text_contrast(theme.BG) or theme.FG,
         theme.font.xs, { width = DAY_SIDE, align = "Center" })
 end
 

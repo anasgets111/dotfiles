@@ -13,8 +13,7 @@ local ui_state = require("lib.ui_state")
 
 -- One control holds bell and clock, and a single button fills it. The whole readout opens the
 -- notifications panel; calendar detail lives in the clock's hover tooltip.
-local clock_slot = date_time.slot
-local hovered = hover(clock_slot)
+local hovered = hover(date_time.slot)
 
 -- A third state above hover: the border rings while the panel is up.
 local panel_showing = ui_state.panel_showing(bell.kind)

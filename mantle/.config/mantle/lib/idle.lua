@@ -12,6 +12,7 @@
 -- ponytail: the threshold reports idle one second after the last input, which `idle_since` subtracts
 -- back out; `ext-idle-notifier-v1` has no "how long idle" call to do better.
 local store = require("lib.store")
+local util = require("lib.util")
 local icons = require("config.icons")
 
 local idle = {}
@@ -40,8 +41,8 @@ idle.STAGES = {
         options = { 30, 60, 120, 300, 600, 900, 1800 },
         -- Unlocking makes it false and disarms every following stage.
         done = function()
-            local l = mantle.lock:get()
-            return l ~= nil and l.active
+            local lock = mantle.lock:get()
+            return lock ~= nil and lock.active
         end,
     },
     {
@@ -64,15 +65,10 @@ function idle.stage(key)
             return stage
         end
     end
-    return nil
 end
 
-local ORDER = { "dpms", "lock", "suspend" }
-
----@type table<string, any>
+-- Profile fallbacks; `idle.read` spells out the shared keys' own.
 local DEFAULTS = {
-    enabled = false,
-    privacy_auto_inhibit = true,
     ac = { dpms_on = true, dpms_sec = 300, lock_on = true, lock_sec = 600, suspend_on = false, suspend_sec = 1800 },
     battery = { dpms_on = true, dpms_sec = 120, lock_on = true, lock_sec = 180, suspend_on = true, suspend_sec = 600 },
 }
@@ -87,9 +83,9 @@ local function resolve_order(stored)
             out[#out + 1] = key
         end
     end
-    for _, key in ipairs(ORDER) do
-        if not seen[key] then
-            out[#out + 1] = key
+    for _, stage in ipairs(idle.STAGES) do
+        if not seen[stage.key] then
+            out[#out + 1] = stage.key
         end
     end
     return out
@@ -107,31 +103,19 @@ function idle.read(stored)
         privacy_auto_inhibit = stored.privacy_auto_inhibit ~= false,
         order = resolve_order(stored.order),
     }
-    for _, name in ipairs({ "ac", "battery" }) do
-        local fallback = DEFAULTS[name]
+    for name, fallback in pairs(DEFAULTS) do
         local held = type(stored[name]) == "table" and stored[name] or {}
         local profile = {}
         for key, default in pairs(fallback) do
             local value = held[key]
-            if type(value) == type(default) then
-                profile[key] = value
-            else
-                profile[key] = default
+            if type(value) ~= type(default) then
+                value = default
             end
+            profile[key] = value
         end
         out[name] = profile
     end
     return out
-end
-
--- Copy-on-write: identity drives the push, and mutating a value under an unfinished resolve loses it.
-local function with(source, key, value)
-    local next_table = {}
-    for k, v in pairs(source or {}) do
-        next_table[k] = v
-    end
-    next_table[key] = value
-    return next_table
 end
 
 --- Write one setting to `lib/store.lua`; `profile` is `"ac"`, `"battery"`, or `nil` for shared
@@ -142,10 +126,10 @@ end
 function idle.write(profile, key, value)
     local current = idle.read(store.idle:get())
     if profile == nil then
-        store:set("idle", with(current, key, value))
+        store:set("idle", util.with(current, key, value))
         return
     end
-    store:set("idle", with(current, profile, with(current[profile], key, value)))
+    store:set("idle", util.with(current, profile, util.with(current[profile], key, value)))
 end
 
 --- Next `stage.options` value from `sec`, wrapping; `step = -1` goes down. Wraps rather than stops,
@@ -233,6 +217,9 @@ end
 --- battery is plugged in.
 idle.active_profile = mantle.power:map(idle.profile_of)
 
+local PRIVACY_REASONS = { { "camera_users", "camera" }, { "microphone_users", "microphone" },
+    { "screencast_users", "screen capture" } }
+
 --- Reasons *this config* would take a logind hold for. Pure and payload-based, so
 --- `modules/global/idle.lua` can pass `on_change`'s value rather than read a stale `computed`.
 ---
@@ -252,31 +239,27 @@ function idle.own_reasons(privacy, settings, manual)
     -- declares these, which is why they are ours. Gated on the master switch, unlike the explicit
     -- `manual` press: with automatic actions off there are no stages to hold off.
     if settings.enabled and settings.privacy_auto_inhibit then
-        privacy = privacy or {}
-        if #(privacy.camera_users or {}) > 0 then
-            reasons[#reasons + 1] = "camera"
-        end
-        if #(privacy.microphone_users or {}) > 0 then
-            reasons[#reasons + 1] = "microphone"
-        end
-        if #(privacy.screencast_users or {}) > 0 then
-            reasons[#reasons + 1] = "screen capture"
+        for _, source in ipairs(PRIVACY_REASONS) do
+            if #((privacy or {})[source[1]] or {}) > 0 then
+                reasons[#reasons + 1] = source[2]
+            end
         end
     end
     return reasons
 end
 
 --- Everything holding the session awake, ours and anyone else's, for whatever draws the list.
-idle.reasons = computed({ mantle.privacy, store.idle, idle.manual, mantle.idle }, function(p, stored, manual, foreign)
-    local reasons = idle.own_reasons(p, idle.read(stored), manual)
-    for _, inhibitor in ipairs((foreign or {}).inhibitors or {}) do
-        -- `who` is empty through xdg-desktop-portal, so `why` ("Playing video") is the only label.
-        reasons[#reasons + 1] = inhibitor.who ~= "" and inhibitor.who
-            or inhibitor.why ~= "" and inhibitor.why
-            or "another application"
-    end
-    return reasons
-end)
+idle.reasons = computed({ mantle.privacy, store.idle, idle.manual, mantle.idle },
+    function(privacy, stored, manual, foreign)
+        local reasons = idle.own_reasons(privacy, idle.read(stored), manual)
+        for _, inhibitor in ipairs((foreign or {}).inhibitors or {}) do
+            -- `who` is empty through xdg-desktop-portal, so `why` ("Playing video") is the only label.
+            reasons[#reasons + 1] = inhibitor.who ~= "" and inhibitor.who
+                or inhibitor.why ~= "" and inhibitor.why
+                or "another application"
+        end
+        return reasons
+    end)
 
 --- Sentence naming the holders. `inhibited` outruns [`idle.reasons`] -- our own hold is excluded
 --- from `mantle.idle.inhibitors` and a surface inhibitor names nothing -- which left an empty list.
@@ -335,14 +318,8 @@ function idle.plan(settings, profile)
         local stage = idle.stage(key)
         local delay = stage and numbers[key .. "_sec"] or 0
         if stage and numbers[key .. "_on"] and delay > 0 then
-            list[#list + 1] = {
-                key = key,
-                icon = stage.icon,
-                title = stage.title,
-                at = from + delay,
-                delay = delay,
-            }
             from = from + delay
+            list[#list + 1] = { key = key, icon = stage.icon, title = stage.title, at = from, delay = delay }
         end
     end
     return { list = list, total = from }
@@ -355,12 +332,10 @@ end
 function idle.armed(plan)
     for _, entry in ipairs(plan.list) do
         local stage = idle.stage(entry.key)
-        local done = stage and stage.done ~= nil and stage.done() == true
-        if not done then
+        if not (stage and stage.done and stage.done() == true) then
             return entry
         end
     end
-    return nil
 end
 
 --- Move one stage `step` places. Out-of-range is a no-op, so the modal can wire both chevrons.
@@ -393,19 +368,19 @@ end)
 
 --- Armed stage and elapsed time from the stamp `modules/global/idle.lua` writes. No stage is
 --- `{ key = "", elapsed = 0 }`.
-idle.arming = computed({ mantle.system, idle.armed_at }, function(s, stamps)
+idle.arming = computed({ mantle.system, idle.armed_at }, function(system, stamps)
     for key, at in pairs(stamps or {}) do
-        return { key = key, elapsed = math.max(0, ((s and s.monotonic) or 0) - at) }
+        return { key = key, elapsed = math.max(0, ((system and system.monotonic) or 0) - at) }
     end
     return { key = "", elapsed = 0 }
 end)
 
 --- Seat idle duration in seconds, or `0` while awake.
-idle.elapsed = computed({ mantle.system, idle.since }, function(s, since)
+idle.elapsed = computed({ mantle.system, idle.since }, function(system, since)
     if since == 0 then
         return 0
     end
-    return math.max(0, ((s and s.monotonic) or 0) - since)
+    return math.max(0, ((system and system.monotonic) or 0) - since)
 end)
 
 return idle

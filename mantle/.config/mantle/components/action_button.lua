@@ -5,22 +5,16 @@ local cell = require("components.cell")
 
 -- `solid` is the only opaque ground -- other tints show panel glass through the label -- and picks
 -- its own foreground.
+local function opaque(colour, lifted)
+    return { rest = colour, hover = lifted, border = colour, text = theme.text_contrast(colour) }
+end
+
 local GROUND = {
     accent = { rest = theme.ACCENT_SUBTLE, hover = theme.ACCENT_LIGHT, border = theme.ACCENT_MEDIUM },
     quiet = { rest = theme.GLASS_CONTROL, hover = theme.GLASS_CONTROL_HOVER, border = theme.GLASS_BORDER },
-    solid = {
-        rest = theme.ACCENT,
-        hover = theme.ACCENT_HOVER,
-        border = theme.ACCENT,
-        text = theme.text_contrast(theme.ACCENT),
-    },
+    solid = opaque(theme.ACCENT, theme.ACCENT_HOVER),
     -- Solid's shape in alert colour, for the one action that ends something already running.
-    danger = {
-        rest = theme.RED,
-        hover = theme.RED_HOVER,
-        border = theme.RED,
-        text = theme.text_contrast(theme.RED),
-    },
+    danger = opaque(theme.RED, theme.RED_HOVER),
 }
 
 ---@param label string|Bound

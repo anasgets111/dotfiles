@@ -2,6 +2,7 @@
 -- Drawing and picking live in `modules/global/wallpaper{,_picker}.lua`. The `mantle.files` watches
 -- start during evaluation, so the picker and the bar's right-click have their listings before they open.
 local store = require("lib.store")
+local util = require("lib.util")
 
 local wallpaper = {}
 
@@ -43,19 +44,13 @@ local RANDOM_PARAMS = {
     end,
 }
 
----The watched shader folder from the last `mantle.files` push, or `nil` before the first.
----@param f FilesState|nil
----@return Folder|nil
-function wallpaper.shader_folder_in(f)
-    return f and f.folders and f.folders[wallpaper.SHADER_FOLDER] or nil
-end
-
 ---Effect names from one `mantle.files` push: the built-in first, then a name per `.frag`.
----@param f FilesState|nil
+---@param files FilesState|nil
 ---@return string[]
-function wallpaper.effects_in(f)
+function wallpaper.effects_in(files)
     local names = { wallpaper.NO_SHADER }
-    local folder = wallpaper.shader_folder_in(f)
+    ---@type Folder?
+    local folder = files and files.folders and files.folders[wallpaper.SHADER_FOLDER]
     for _, entry in ipairs(folder and folder.entries or {}) do
         names[#names + 1] = (entry.name:gsub("%.frag$", ""))
     end
@@ -80,8 +75,8 @@ function wallpaper.effects()
 end
 
 function wallpaper.effect()
-    return computed({ store.wallpaper_transition, mantle.files }, function(stored, f)
-        return wallpaper.effect_in(stored, wallpaper.effects_in(f))
+    return computed({ store.wallpaper_transition, mantle.files }, function(stored, files)
+        return wallpaper.effect_in(stored, wallpaper.effects_in(files))
     end)
 end
 
@@ -95,17 +90,14 @@ end
 ---The `transition` table for the wallpaper `image`. It depends on the stored wallpapers too, so
 ---every change draws fresh parameters; a run under way keeps the spec the engine copied.
 function wallpaper.transition()
-    return computed({ wallpaper.effect(), store.wallpapers }, function(effect, _w)
-        if effect == wallpaper.NO_SHADER then
-            return { duration = wallpaper.TRANSITION_MS, easing = wallpaper.TRANSITION_EASING }
+    return computed({ wallpaper.effect(), store.wallpapers }, function(effect)
+        local spec = { duration = wallpaper.TRANSITION_MS, easing = wallpaper.TRANSITION_EASING }
+        if effect ~= wallpaper.NO_SHADER then
+            local params = RANDOM_PARAMS[effect]
+            spec.shader = wallpaper.SHADER_FOLDER .. "/" .. effect .. ".frag"
+            spec.params = params and params() or nil
         end
-        local params = RANDOM_PARAMS[effect]
-        return {
-            duration = wallpaper.TRANSITION_MS,
-            easing = wallpaper.TRANSITION_EASING,
-            shader = wallpaper.SHADER_FOLDER .. "/" .. effect .. ".frag",
-            params = params and params() or nil,
-        }
+        return spec
     end)
 end
 
@@ -122,8 +114,8 @@ local function is_fit(value)
 end
 
 -- ponytail: a deleted file draws only the ground; the VM has no `io`, so only `FOLDER` is checked.
-local function missing_in(f, path)
-    local folder = wallpaper.folder_in(f)
+local function missing_in(files, path)
+    local folder = wallpaper.folder_in(files)
     if not folder or not folder.ready or path:match("^(.*)/") ~= wallpaper.FOLDER then
         return false
     end
@@ -136,66 +128,48 @@ local function missing_in(f, path)
 end
 
 ---Path for `output` from one stored `wallpapers` table. Pure for one `computed` over every screen.
----@param w table|nil The `wallpapers` table, or `nil` before the first push.
+---@param wallpapers table|nil The `wallpapers` table, or `nil` before the first push.
 ---@param output string
----@param f FilesState|nil
+---@param files FilesState|nil
 ---@return string
-function wallpaper.path_in(w, output, f)
-    local stored = w and w[output] and w[output].path
-    if type(stored) == "string" and stored ~= "" and not missing_in(f, stored) then
+function wallpaper.path_in(wallpapers, output, files)
+    local stored = wallpapers and wallpapers[output] and wallpapers[output].path
+    if type(stored) == "string" and stored ~= "" and not missing_in(files, stored) then
         return stored
     end
     return wallpaper.DEFAULT
 end
 
----@param w table|nil
+---@param wallpapers table|nil
 ---@param output string
 ---@return string
-function wallpaper.fit_in(w, output)
-    local stored = w and w[output] and w[output].fit
+function wallpaper.fit_in(wallpapers, output)
+    local stored = wallpapers and wallpapers[output] and wallpapers[output].fit
     if type(stored) == "string" and is_fit(stored) then
         return stored
     end
     return wallpaper.DEFAULT_FIT
 end
 
-function wallpaper.all()
-    return store.wallpapers
-end
-
 ---@param output string
 function wallpaper.path_of(output)
-    return computed({ store.wallpapers, mantle.files }, function(w, f)
-        return wallpaper.path_in(w, output, f)
+    return computed({ store.wallpapers, mantle.files }, function(wallpapers, files)
+        return wallpaper.path_in(wallpapers, output, files)
     end)
 end
 
 ---@param output string
 function wallpaper.fit_of(output)
-    return store.wallpapers:map(function(w)
-        return wallpaper.fit_in(w, output)
+    return store.wallpapers:map(function(wallpapers)
+        return wallpaper.fit_in(wallpapers, output)
     end)
 end
 
----Merge `changes` into one output, copying: mutating the pushed table changes `computed` input
----without marking the scene dirty.
----@param output string
----@param changes table
-local function write(output, changes)
+---Set one output's `key`, copying: mutating the pushed table changes `computed` input without
+---marking the scene dirty.
+local function write(output, key, value)
     local stored = store.wallpapers:get() or {}
-    local merged = {}
-    for name, entry in pairs(stored) do
-        merged[name] = entry
-    end
-    local entry = {}
-    for key, value in pairs(merged[output] or {}) do
-        entry[key] = value
-    end
-    for key, value in pairs(changes) do
-        entry[key] = value
-    end
-    merged[output] = entry
-    store:set("wallpapers", merged)
+    store:set("wallpapers", util.with(stored, output, util.with(stored[output], key, value)))
 end
 
 ---Skip unchanged writes because every write pushes.
@@ -205,7 +179,7 @@ function wallpaper.set(output, path)
     if path == "" or missing_in(mantle.files:get(), path) or wallpaper.path_in(store.wallpapers:get(), output) == path then
         return
     end
-    write(output, { path = path })
+    write(output, "path", path)
 end
 
 ---@param output string
@@ -214,14 +188,14 @@ function wallpaper.set_fit(output, fit)
     if not is_fit(fit) or wallpaper.fit_in(store.wallpapers:get(), output) == fit then
         return
     end
-    write(output, { fit = fit })
+    write(output, "fit", fit)
 end
 
 ---Watched folder from the last `mantle.files` push, or `nil` before the first.
----@param f FilesState|nil
+---@param files FilesState|nil
 ---@return Folder|nil
-function wallpaper.folder_in(f)
-    return f and f.folders and f.folders[wallpaper.FOLDER] or nil
+function wallpaper.folder_in(files)
+    return files and files.folders and files.folders[wallpaper.FOLDER] or nil
 end
 
 ---Connector names of every screen.

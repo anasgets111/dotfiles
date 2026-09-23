@@ -1,11 +1,6 @@
--- A percentage bar using `width`'s "NN%" strings. Signals resolve before property parsing,
--- so mapping to "45%" makes a live-width rect without progress-bar engine support.
--- The fill eases between two percents.
---
--- `opts.motion` replaces that ease for a fill whose value moves while the motion is still running:
--- a volume key on repeat retargets every few frames, and an eased tween restarts from a standstill
--- each time, so the fill crawls. `theme.spring_tracking` is the answer those call sites pass.
--- Polled readouts and progress bars keep the ease; nothing retargets them mid-flight.
+-- A percentage bar: signals resolve before property parsing, so a "45%" `width` makes a live fill.
+-- `opts.motion` replaces the ease for a fill retargeted mid-flight, like a volume key on repeat,
+-- where an eased tween restarts from a standstill each time; those sites pass `theme.spring_tracking`.
 local theme = require("config.theme")
 
 ---@param opts? { motion?: Animation }
@@ -25,10 +20,8 @@ return function(signal, read, color, width, height, opts)
                 if not ok or pct == nil then
                     return "0%"
                 end
-                -- Keep `math.floor`: Lua 5.4's `%d` raises on non-integral floats, and
-                -- `audio.volume * 100` measures 45.00027.
-                -- A getter raise fails the re-resolve; the engine rolls back to the last good frame,
-                -- freezing the whole bar rather than just this meter.
+                -- `math.floor`: `%d` raises on 45.00027, and a raise here freezes the whole bar on its
+                -- last good frame, not just this meter.
                 return string.format("%d%%", math.floor(math.max(0, math.min(100, pct)) + 0.5))
             end),
             height = "Fill",

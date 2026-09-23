@@ -36,8 +36,12 @@ local indicator = icon_button(mantle.keyboard:map(layout_short), next_layout, {
     end),
 })
 
-local layout_tooltip = tooltip({ id = "keyboard_layout_tooltip", slot = SLOT, text = mantle.keyboard:map(function(k)
-    return k ~= nil and k.active_layout ~= "" and k.active_layout or "Keyboard layout unavailable"
-end) })
+local layout_tooltip = tooltip({
+    id = "keyboard_layout_tooltip",
+    slot = SLOT,
+    text = mantle.keyboard:map(function(k)
+        return k ~= nil and k.active_layout ~= "" and k.active_layout or "Keyboard layout unavailable"
+    end)
+})
 
 return { indicator = indicator, tooltip = layout_tooltip }

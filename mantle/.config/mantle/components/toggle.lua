@@ -21,10 +21,9 @@ return function(signal, read, on_change)
         width = TRACK_WIDTH,
         height = TRACK_HEIGHT,
         on_click = function(_, mouse_button)
-            if mouse_button ~= "left" then
-                return
+            if mouse_button == "left" then
+                on_change(not util.read_bool(signal:get(), read))
             end
-            on_change(not util.read_bool(signal:get(), read))
         end,
         children = { row {
             width = "Fill",
@@ -32,8 +31,8 @@ return function(signal, read, on_change)
             radius = TRACK_HEIGHT / 2,
             padding = PAD,
             -- Not green: a status light, not a switch, and a second accent in a mauve shell.
-            background = on:map(function(v)
-                return v and theme.with_opacity(theme.ACCENT, theme.opacity.full) or theme.GLASS_CONTROL
+            background = on:map(function(checked)
+                return checked and theme.with_opacity(theme.ACCENT, theme.opacity.full) or theme.GLASS_CONTROL
             end),
             -- The same hairline all other glass controls carry.
             border_width = theme.border_width,
@@ -41,8 +40,8 @@ return function(signal, read, on_change)
             animate = { background = { duration = theme.animation_ms, easing = "OutCubic" } },
             children = {
                 rect {
-                    width = on:map(function(v)
-                        return v and TRAVEL or 0
+                    width = on:map(function(checked)
+                        return checked and TRAVEL or 0
                     end),
                     height = "Fill",
                     animate = { width = { duration = theme.animation_ms, easing = "OutQuad" } },

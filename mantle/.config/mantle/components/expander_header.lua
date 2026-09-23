@@ -14,33 +14,25 @@ local util = require("lib.util")
 ---@param opts? { visible?: boolean|Bound }
 return function(expanded, slot, title, middle, opts)
     local hovered = hover(slot)
-    local ground = computed({ expanded, hovered }, function(open, hot)
-        if open then
-            return hot and theme.ACCENT_LIGHT or theme.ACCENT_SUBTLE
-        end
-        return hot and theme.GLASS_HOVER or theme.GLASS_CONTENT
-    end)
-    local ring = computed({ expanded, hovered }, function(open, hot)
-        if open then
-            return theme.ACCENT_MEDIUM
-        end
-        return hot and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
-    end)
-    local ink = computed({ expanded, hovered }, function(open, hot)
-        if open then
-            return theme.ACCENT
-        end
-        return hot and theme.TEXT_ACTIVE or theme.FG
-    end)
+    -- Open picks the first pair, closed the second; each pair is hovered, then resting.
+    local function tint(open_hot, open_rest, hot, rest)
+        return computed({ expanded, hovered }, function(open, is_hot)
+            if open then
+                return is_hot and open_hot or open_rest
+            end
+            return is_hot and hot or rest
+        end)
+    end
+    local ink = tint(theme.ACCENT, theme.ACCENT, theme.TEXT_ACTIVE, theme.FG)
     return button {
         width = "Fill",
         height = theme.item_height,
         radius = theme.radius.md,
         visible = opts and opts.visible,
         hover = hovered,
-        background = ground,
+        background = tint(theme.ACCENT_LIGHT, theme.ACCENT_SUBTLE, theme.GLASS_HOVER, theme.GLASS_CONTENT),
         border_width = theme.border_width,
-        border_color = ring,
+        border_color = tint(theme.ACCENT_MEDIUM, theme.ACCENT_MEDIUM, theme.GLASS_BORDER_HOVER, theme.GLASS_BORDER),
         animate = { background = theme.animation_ms, border_color = theme.animation_ms },
         on_click = function(_, mouse_button)
             if mouse_button == "left" then

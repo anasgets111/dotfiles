@@ -1,43 +1,40 @@
 -- The wallpaper under a scrim, one glass card per output, and a password pill that says what PAM is
 -- doing. The wallpaper is blurred at decode (`source_blur`, ADR-0240), so the scrim and card can be
 -- lighter than a lock over a sharp photograph needs.
-local theme         = require("config.theme")
-local icons         = require("config.icons")
-local util          = require("lib.util")
-local wallpaper     = require("lib.wallpaper")
-local cell          = require("components.cell")
-local glyph         = require("components.glyph")
-local panel_card    = require("components.panel_card")
-local identity      = require("lib.identity")
-local weather       = require("lib.weather")
+local theme          = require("config.theme")
+local icons          = require("config.icons")
+local util           = require("lib.util")
+local wallpaper      = require("lib.wallpaper")
+local cell           = require("components.cell")
+local glyph          = require("components.glyph")
+local panel_card     = require("components.panel_card")
+local identity       = require("lib.identity")
+local weather        = require("lib.weather")
 
-local PAD           = theme.spacing.xl
+local PAD            = theme.spacing.xl
 -- What the card's children have to share, for the nodes that need a number rather than "Fill".
-local CONTENT       = theme.lock_card_width - PAD * 2
-local FIELD_HEIGHT  = theme.control.xl
+local CONTENT        = theme.lock_card_width - PAD * 2
+local FIELD_HEIGHT   = theme.control.xl
 -- The pill stops short of the card's own edges on both sides; using `CONTENT` makes it read as a
 -- search bar rather than a card control.
-local FIELD_WIDTH   = math.floor(theme.lock_card_width * 0.82)
+local FIELD_WIDTH    = math.floor(theme.lock_card_width * 0.82)
 -- Half the height, the way `theme.item_radius` is half `item_height`. `radius.xl` is the fully
 -- round token, sized for the card's corner and only close to this box by coincidence.
-local FIELD_RADIUS  = math.floor(FIELD_HEIGHT / 2)
-local BADGE_HEIGHT  = theme.control.xs
+local FIELD_RADIUS   = math.floor(FIELD_HEIGHT / 2)
+local BADGE_HEIGHT   = theme.control.xs
 -- Multipliers: a 68px clock, 36px initials, and a 23px name on a 1200px-tall screen. Shared steps
 -- are sized for the bar, not this card.
-local CLOCK_SIZE    = theme.s(72, 44)
-local INITIALS_SIZE = theme.s(36, 26)
-local NAME_SIZE     = theme.s(24, 18)
+local CLOCK_SIZE     = theme.s(72, 44)
+local INITIALS_SIZE  = theme.s(36, 26)
+local NAME_SIZE      = theme.s(24, 18)
 -- In the wallpaper's own stored pixels (its "cover" fit stores at the output's resolution), not
 -- screen pixels -- exact only under that default fit (mantle ADR-0240 decision 3).
 local WALLPAPER_BLUR = 24
 
 -- The engine removes the lock after authentication, not when the tween ends, so it must be told to
--- wait out the card's exit. Read off the card's own animation rather than written twice.
-local EXIT_MS       = theme.animation_slow_ms
--- Slack for the state push and first frame; without it the exit loses that round trip.
-local LEAVE_SLACK   = 60
-local LEAVE_MS      = EXIT_MS + LEAVE_SLACK
-mantle.lock:invoke("set_unlock_animation", LEAVE_MS)
+-- wait out the card's exit plus slack for the state push and first frame.
+local LEAVE_SLACK    = 60
+mantle.lock:invoke("set_unlock_animation", theme.animation_slow_ms + LEAVE_SLACK)
 
 util.auto_english_layout(mantle.lock)
 
@@ -49,10 +46,6 @@ local up           = mantle.lock:map(function(l)
 end)
 -- Where the card starts its entry.
 local CLOSED_SCALE = 0.94
-
-local full_name    = identity.full_name
-local account      = identity.account
-local initials     = identity.initials
 
 -- `attempts` is printed because state is sampled at layout time: two identical `error` strings
 -- would otherwise look like one failure.
@@ -75,13 +68,10 @@ end)
 
 -- Border and hint colours change together, so failure is one state change.
 local field_border = mantle.lock:map(function(l)
-    if l == nil then
-        return theme.GLASS_BORDER
-    end
-    if l.error ~= nil and l.error ~= "" then
+    if l ~= nil and l.error ~= nil and l.error ~= "" then
         return theme.RED
     end
-    return l.authenticating and theme.ACCENT or theme.GLASS_BORDER
+    return l ~= nil and l.authenticating and theme.ACCENT or theme.GLASS_BORDER
 end)
 
 local caps         = mantle.keyboard:map(function(k)
@@ -129,17 +119,11 @@ local function content(output)
             children = {
                 -- Build the 12-hour clock from `os.date("*t")` rather than `%I` (which pads to
                 -- "01:40") or `%p` (which follows the locale).
-                cell(util.label(mantle.system, function(s)
+                cell(util.bold(util.label(mantle.system, function(s)
                     local t = os.date("*t", s.time)
                     local hour = t.hour % 12
-                    return {
-                        {
-                            text = string.format("%d:%02d %s", hour == 0 and 12 or hour, t.min,
-                                t.hour < 12 and "AM" or "PM"),
-                            bold = true,
-                        },
-                    }
-                end), theme.FG, CLOCK_SIZE, { width = "Fill", align = "Center" }),
+                    return string.format("%d:%02d %s", hour == 0 and 12 or hour, t.min, t.hour < 12 and "AM" or "PM")
+                end)), theme.FG, CLOCK_SIZE, { width = "Fill", align = "Center" }),
                 -- Build the day in two calls. `%-d` is glibc-specific, and Lua rejected it before
                 -- strftime saw it, returning `util.label`'s "!".
                 cell(util.label(mantle.system, function(s)
@@ -161,7 +145,7 @@ local function content(output)
                     border_width = theme.border_width,
                     border_color = theme.with_opacity(theme.ACCENT, 0.45),
                     children = {
-                        cell(initials, theme.FG, INITIALS_SIZE, {
+                        cell(identity.initials, theme.FG, INITIALS_SIZE, {
                             width = "Fill",
                             align = "Center",
                             align_v = "Center",
@@ -173,8 +157,8 @@ local function content(output)
                     width = "Fill",
                     spacing = theme.spacing.sm,
                     children = {
-                        cell(full_name, theme.FG, NAME_SIZE, { width = "Fill", align = "Center" }),
-                        cell(account, theme.with_opacity(theme.FG, 0.55), theme.font.sm, {
+                        cell(identity.full_name, theme.FG, NAME_SIZE, { width = "Fill", align = "Center" }),
+                        cell(identity.account, theme.with_opacity(theme.FG, 0.55), theme.font.sm, {
                             width = "Fill",
                             align = "Center",
                         }),

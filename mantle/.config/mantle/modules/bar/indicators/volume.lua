@@ -14,8 +14,8 @@ local hovered = hover(SLOT)
 local dragging = state("volume_dragging", false)
 -- The slider's held value, `-1` when none; the readout follows a drag before PipeWire answers.
 local held = state("volume_pending", -1)
-local expanded = computed({ hovered, dragging }, function(h, d)
-    return h or d
+local expanded = computed({ hovered, dragging }, function(is_hovered, is_dragging)
+    return is_hovered or is_dragging
 end)
 local panel_open = ui_state.panel_showing("audio")
 
@@ -43,8 +43,8 @@ local headroom = mantle.audio:map(function(a)
     return muted(a) and theme.INACTIVE or theme.RED
 end)
 
-local level = computed({ mantle.audio, held }, function(a, h)
-    return h >= 0 and h or volume(a) or 0
+local level = computed({ mantle.audio, held }, function(a, pending)
+    return pending >= 0 and pending or volume(a) or 0
 end)
 
 local width = expanded:map(function(is_expanded)

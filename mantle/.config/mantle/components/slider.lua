@@ -18,13 +18,12 @@ local theme = require("config.theme")
 ---@field headroom_color? Color|Bound The fill past `split_at`. Default `theme.RED`.
 ---@field marker? boolean A 1px line at `split_at`.
 ---@field color? Color|Bound The fill. Default accent.
----@field track? Color|Bound The ground under the fill. Default `theme.SURFACE`.
----@field fill_visible? boolean|Bound Fades the fill while keeping the track and input.
+---@field fill_visible? Signal<boolean> Fades the fill while keeping the track and input.
 ---@field width? Length|Bound
 ---@field height? integer|Bound
 ---@field radius? integer|Bound
 ---@field align_v? Align
----@field background? Color|Bound Overrides `track`.
+---@field background? Color|Bound The ground under the fill. Default `theme.SURFACE`.
 ---@field border_width? integer
 ---@field border_color? Color|Bound
 ---@field animate? Animations|Bound Eases the track's own properties; the fill follows the value and is not eased.
@@ -118,22 +117,10 @@ return function(opts)
         return value_of(opts.read, payload, max) or 0
     end)
 
-    local fill_visible = opts.fill_visible
-    ---@type number|Signal|nil
-    local fill_opacity
-    if fill_visible ~= nil then
-        if type(fill_visible) == "userdata" then
-            ---@cast fill_visible Signal
-            fill_opacity = fill_visible:map(function(shown)
-                return shown and 1 or 0
-            end)
-        else
-            fill_opacity = fill_visible and 1 or 0
-        end
-    end
-    local fill_animate = fill_opacity ~= nil and {
-        opacity = { duration = theme.animation_ms, easing = "OutCubic" },
-    } or nil
+    local fill_opacity = opts.fill_visible and opts.fill_visible:map(function(shown)
+        return shown and 1 or 0
+    end)
+    local fill_animate = fill_opacity and { opacity = { duration = theme.animation_ms, easing = "OutCubic" } }
 
     -- `%d` raises on a float in Lua 5.4; see `components/meter.lua`.
     local function percent(value)
@@ -154,7 +141,7 @@ return function(opts)
         }
     end
     local split = opts.split_at or max
-    local track = opts.background or opts.track or theme.SURFACE
+    local track = opts.background or theme.SURFACE
     local children = {
         -- Headroom under the fill, drawn only past `split`: the fill's rounded end caps it.
         bar(fill:map(function(value)

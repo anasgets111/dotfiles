@@ -7,47 +7,50 @@ local ui_state = require("lib.ui_state")
 -- Centred, because the card is a column of content-sized lines: a short title beside a longer state
 -- line would otherwise pack against the left edge. `column` reads a child's `align_h` on the cross
 -- axis, which `cell`'s `align` sets.
-local function text_line(content, color, font, options)
-    options = options or {}
-    options.align = options.align or "Center"
-    return cell(content, color or theme.TOOLTIP_FG, font or theme.font.sm, options)
+local function text_line(content, color, font, visible)
+    return cell(content, color, font, { align = "Center", visible = visible })
 end
 
 local function children_for(opts)
     if opts.children ~= nil then
         return opts.children
     end
-    local children = { text_line(opts.text) }
+    local children = { text_line(opts.text, theme.TOOLTIP_FG, theme.font.sm) }
+    -- An empty `detail` or `secondary` hides rather than leaving a blank row.
     for _, name in ipairs({ "detail", "secondary" }) do
-        local content = opts[name]
-        if content ~= nil then
-            children[#children + 1] = text_line(
-                content,
-                opts[name .. "_color"] or theme.DIM,
-                opts[name .. "_font"] or theme.font.xs,
-                opts[name .. "_options"]
-            )
+        if opts[name] ~= nil then
+            children[#children + 1] = text_line(opts[name], theme.DIM, theme.font.xs,
+                util.lift(opts[name], function(line)
+                    return line ~= ""
+                end))
         end
     end
     return children
 end
 
+-- `opts.group` is for a slot of buttons sharing one card: the key `util.track_hover` holds for the
+-- button under the pointer, `""` between them, with `opts.group_prefix .. key` its hover slot. The
+-- held key keeps the card on the last button while it fades.
 return function(opts)
+    local group = opts.group
     local hovered = hover(opts.slot)
-    local shown = computed({ hovered, ui_state.panel_open, ui_state.active_modal }, function(is_hovered, panel_open, active_modal)
-        return is_hovered and active_modal == "" and (opts.in_panel or not panel_open)
-    end)
-    local lingering = util.linger(shown, theme.animation_ms)
-    local shown_opacity = shown:map(function(is_shown)
-        return is_shown and 1 or 0
-    end)
+    if group then
+        hovered = computed({ hovered, group }, function(is_hovered, name)
+            return is_hovered and name ~= ""
+        end)
+    end
+    local shown = computed({ hovered, ui_state.panel_open, ui_state.active_modal },
+        function(is_hovered, panel_open, active_modal)
+            return is_hovered and active_modal == "" and (opts.in_panel or not panel_open)
+        end)
     return popup {
         id = opts.id,
         parent = "bar",
-        -- `opts.anchor` is for a slot that covers several buttons: the caller records the rect of
-        -- the one entered, so the card points at that button rather than the middle of the group.
-        anchor_rect = opts.anchor or hover_rect(opts.slot),
-        visible = lingering,
+        -- Before the first hover a popup still refuses a zero rect.
+        anchor_rect = group and util.hold(group):map(function(name)
+            return name ~= "" and hover_rect(opts.group_prefix .. name):get() or { x = 0, y = 0, width = 1, height = 1 }
+        end) or hover_rect(opts.slot),
+        visible = util.linger(shown, theme.animation_ms),
         min_width = theme.control_width_lg,
         min_height = theme.control.md,
         width = opts.width,
@@ -58,7 +61,9 @@ return function(opts)
         constraint_adjustment = { "FlipY", "SlideX" },
         offset = { x = 0, y = theme.panel_gap },
         child = panel_card(children_for(opts), {
-            opacity = shown_opacity,
+            opacity = shown:map(function(is_shown)
+                return is_shown and 1 or 0
+            end),
             animate = { opacity = theme.animation_ms },
             background = theme.GLASS_SURFACE,
             blur = true,

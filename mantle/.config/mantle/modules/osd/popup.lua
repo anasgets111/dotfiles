@@ -20,17 +20,12 @@ local PADDING = theme.spacing.xl
 -- Half of `theme.spacing.lg` each side, so a text-tight card is not cramped but stays centred.
 local SLACK = theme.spacing.lg / 2
 
-local function read(field)
-    return osd.entry:map(function(e)
-        return e[field]
-    end)
-end
-
-local function bold(field)
-    return osd.entry:map(function(e)
-        return { { text = e[field] or "", bold = true } }
-    end)
-end
+local entry_glyph = osd.entry:map(function(entry)
+    return entry.glyph
+end)
+local entry_text = osd.entry:map(function(entry)
+    return { { text = entry.text or "", bold = true } }
+end)
 
 -- Slider layout: accent glyph, filling track, bold readout.
 local level_row = row {
@@ -45,7 +40,7 @@ local level_row = row {
         return e.level ~= nil
     end),
     children = {
-        glyph(read("glyph"), theme.ACCENT, theme.font.xxl, { align_v = "Center" }),
+        glyph(entry_glyph, theme.ACCENT, theme.font.xxl, { align_v = "Center" }),
         -- A held volume key retargets every few frames: easing restarts from a standstill and
         -- trails the number, a spring keeps its velocity.
         meter(osd.entry, function(e)
@@ -54,7 +49,7 @@ local level_row = row {
             return e.color or theme.ACCENT
         end), "Fill", theme.osd_track, { motion = theme.spring_tracking }),
         text {
-            content = bold("text"),
+            content = entry_text,
             foreground = theme.FG,
             font_size = theme.font.lg,
             width = theme.s(52, 40),
@@ -93,12 +88,12 @@ local fact_row = row {
                 height = "Fill",
                 align_h = "Center",
                 align_v = "Center",
-                children = { glyph(read("glyph"), theme.ACCENT, theme.font.xl, { align_v = "Center" }) },
+                children = { glyph(entry_glyph, theme.ACCENT, theme.font.xl, { align_v = "Center" }) },
             } },
         },
         -- No `width`, so it sizes to its own words and everything above measures it.
         text {
-            content = bold("text"),
+            content = entry_text,
             foreground = theme.FG,
             font_size = theme.font.lg,
             align_v = "Center",

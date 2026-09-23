@@ -54,15 +54,9 @@ return function(opts)
     elseif opts.art then
         children[#children + 1] = icon { name = opts.art, size = theme.icon.md, align_v = "Center" }
     end
-    children[#children + 1] = column {
-        width = "Fill",
-        align_v = "Center",
-        children = title_lines,
-    }
+    children[#children + 1] = column { width = "Fill", align_v = "Center", children = title_lines }
     if opts.trailing then
-        if opts.trailing.align_v == nil then
-            opts.trailing.align_v = "Center"
-        end
+        opts.trailing.align_v = opts.trailing.align_v or "Center"
         children[#children + 1] = opts.trailing
     end
 
@@ -106,10 +100,9 @@ return function(opts)
         return rect(shell)
     end
     shell.on_click = function(_, mouse_button)
-        if mouse_button ~= "left" then
-            return
+        if mouse_button == "left" then
+            opts.on_activate()
         end
-        opts.on_activate()
     end
     return button(shell)
 end

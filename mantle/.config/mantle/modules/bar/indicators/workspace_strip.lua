@@ -44,16 +44,7 @@ local pill = expanding_pill.new({ slot = "workspace-pill", collapse_ms = theme.a
 
 local function workspace_button(ws)
     local id = ws.id
-    -- Read the current snapshot, not the build-time `ws`. Key reconciliation keeps the button while
-    -- its windows change.
-    local entry = mantle.workspaces:map(function(w)
-        for _, candidate in ipairs(workspaces_of(w)) do
-            if candidate.id == id then
-                return candidate
-            end
-        end
-        return ws
-    end)
+    local entry = util.live_entry(mantle.workspaces, workspaces_of, ws, "id")
     local is_active = mantle.workspaces:map(function(w)
         local out = output_of(w)
         return out ~= nil and out.active_workspace == id
@@ -67,10 +58,6 @@ local function workspace_button(ws)
         end
         return current.populated and theme.GLASS_CONTROL or theme.DISABLED
     end)
-    local icon_name = computed({ mantle.applications, entry }, function(applications, current)
-        local app = util.app_entry(applications, current.app_id)
-        return (app and app.icon) or ""
-    end)
     -- `ground` already folds the pointer in, so it is both states; the ring and the contrast ink
     -- come from `icon_button`'s defaults.
     return pill.cell(icon_button(tostring(ws.idx), function()
@@ -79,7 +66,7 @@ local function workspace_button(ws)
         end
     end, {
         slot = "workspace-" .. tostring(id),
-        art = icon_name,
+        art = util.app_icon(entry),
         art_size = theme.icon.md,
         icon_size = theme.font.sm,
         radius = theme.item_radius,

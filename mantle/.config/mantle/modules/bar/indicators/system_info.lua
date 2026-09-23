@@ -58,6 +58,9 @@ local gpu_color = mantle.sysinfo:map(function(s)
     end
     return theme.GREEN
 end)
+local has_gpu = util.shown_when(mantle.sysinfo, function(s)
+    return (s.temp_gpu or -1) > 0
+end)
 
 local function tint(field, fallback)
     return mantle.sysinfo:map(function(s)
@@ -78,11 +81,10 @@ local function hottest_core(s)
 end
 
 -- Glass content behind a hairline, not `panel_card`'s opaque whole-panel ground.
-local function tile(children, opts)
-    opts = opts or {}
+local function tile(children, visible)
     return panel_card(children, {
         width = "Fill",
-        visible = opts.visible,
+        visible = visible,
         background = theme.GLASS_CONTENT,
         radius = theme.radius.lg,
         border_width = theme.border_width,
@@ -149,14 +151,8 @@ return function(id)
             summary_readout("RAM", "ram_percent", theme.GREEN),
             summary_readout("SWAP", "swap_percent", theme.PEACH),
             cell(readout(function(s)
-                local t = (s and s.temp_gpu) or -1
-                return t > 0 and string.format("GPU %d°C", t) or ""
-            end), gpu_color, theme.font.xs, {
-                align_v = "Center",
-                visible = util.shown_when(mantle.sysinfo, function(s)
-                    return (s.temp_gpu or -1) > 0
-                end),
-            }),
+                return gpu_temp(s) > 0 and string.format("GPU %d°C", gpu_temp(s)) or ""
+            end), gpu_color, theme.font.xs, { align_v = "Center", visible = has_gpu }),
         },
     })
 
@@ -200,11 +196,7 @@ return function(id)
                     end
                     return "Nominal temperature"
                 end), theme.DIM, theme.font.xs, { width = "Fill" }),
-            }, {
-                visible = util.shown_when(mantle.sysinfo, function(s)
-                    return (s.temp_gpu or -1) > 0
-                end),
-            }),
+            }, has_gpu),
         },
     }
 

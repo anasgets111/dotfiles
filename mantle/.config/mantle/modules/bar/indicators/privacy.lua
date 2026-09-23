@@ -37,7 +37,12 @@ local mic_tooltip = tooltip({
 
 local camera_tooltip = tooltip({ id = "privacy_camera_tooltip", slot = "privacy_camera", text = "Camera in use" })
 
-local screenshare_tooltip = tooltip({ id = "privacy_screenshare_tooltip", slot = "privacy_screenshare", text = "Screen sharing in progress" })
+local screenshare_tooltip = tooltip({
+    id = "privacy_screenshare_tooltip",
+    slot = "privacy_screenshare",
+    text =
+    "Screen sharing in progress"
+})
 
 -- Camera and screencast are readouts; their circles do nothing. The microphone is the control.
 -- It uses `audio:toggle_source_mute`; muting does not end capture, so the circle stays up.

@@ -5,9 +5,6 @@ local theme = require("config.theme")
 -- Cava is configured for 256, but each bar here is a real node and at rest they read as one rule.
 local BARS = 48
 
-local GAP = theme.border_width
-local BAR_HEIGHT = theme.border_width_medium
-
 local tint = mantle.mpris:map(function(m)
     for _, player in ipairs((m and m.players) or {}) do
         if player.play_state == "Playing" then
@@ -21,7 +18,7 @@ local children = {}
 for index = 1, BARS do
     children[index] = rect {
         width = "Fill",
-        height = BAR_HEIGHT,
+        height = theme.border_width_medium,
         align_v = "End",
         background = tint,
     }
@@ -35,8 +32,7 @@ return rect {
         height = "Fill",
         align_v = "End",
         padding = theme.spacing.xs,
-        spacing = GAP,
-        animate = { background = { duration = theme.animation_ms, easing = "OutCubic" } },
+        spacing = theme.border_width,
         children = children,
     } },
 }

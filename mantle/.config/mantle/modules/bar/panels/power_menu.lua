@@ -24,10 +24,6 @@ local COUNTDOWN = 10
 local pending = state("power_pending", "")
 local deadline = state("power_deadline", 0)
 
-local counting = pending:map(function(key)
-    return key ~= ""
-end)
-
 local seconds_left = computed({ mantle.system, deadline }, function(s, at)
     return math.max(0, at - ((s and s.monotonic) or 0))
 end)
@@ -71,12 +67,10 @@ local function cancel_countdown()
 end
 
 local function commit_pending()
-    local key = pending:get()
+    local action = ACTIONS[pending:get()]
     cancel_countdown()
-    for _, action in ipairs(ACTIONS) do
-        if action.key == key then
-            action.run()
-        end
+    if action then
+        action.run()
     end
 end
 
@@ -97,17 +91,19 @@ end)
 local BRIGHTNESS_STEP = 10
 
 local function step_brightness(delta)
-    local b = mantle.brightness:get()
-    if b == nil then
-        return
+    return function()
+        local b = mantle.brightness:get()
+        if b == nil then
+            return
+        end
+        local stepped = b.percent + delta
+        if stepped > 100 then
+            stepped = BRIGHTNESS_STEP
+        elseif stepped < BRIGHTNESS_STEP then
+            stepped = 100
+        end
+        mantle.brightness:invoke("set", stepped)
     end
-    local stepped = b.percent + delta
-    if stepped > 100 then
-        stepped = BRIGHTNESS_STEP
-    elseif stepped < BRIGHTNESS_STEP then
-        stepped = 100
-    end
-    mantle.brightness:invoke("set", stepped)
 end
 
 -- The power-off circle expands on hover and stays open through a countdown
@@ -115,7 +111,12 @@ end
 -- seconds over a growing fill, and the third cancels. Right-click with no countdown opens the
 -- panel, which is the only door to Settings.
 local SLOT_COUNT = #ACTIONS
-local pill = expanding_pill.new({ slot = "power-pill", hold_open = counting })
+local pill = expanding_pill.new({
+    slot = "power-pill",
+    hold_open = pending:map(function(key)
+        return key ~= ""
+    end),
+})
 
 -- Countdown circle: the last slot unless it is the chosen action.
 local function countdown_index(key)
@@ -145,19 +146,15 @@ local function slot(index)
         return key == action.key
     end)
     local slot_hovered = hover("power-" .. action.key)
-    local ground = computed({ slot_hovered, role }, function(is_hovered, what)
-        if what == "countdown" then
-            return theme.GLASS_CONTROL
-        end
-        return is_hovered and theme.GLASS_CONTROL_HOVER or theme.GLASS_CONTROL
-    end)
     return pill.cell(button {
         align_h = "Center",
         hover = slot_hovered,
         radius = theme.item_radius,
         -- Plain fill bar cut by the circle's arc, under a clip.
         clip = "Rounded",
-        background = ground,
+        background = computed({ slot_hovered, role }, function(is_hovered, what)
+            return (is_hovered and what ~= "countdown") and theme.GLASS_CONTROL_HOVER or theme.GLASS_CONTROL
+        end),
         border_width = theme.border_width,
         border_color = computed({ is_chosen, slot_hovered }, function(chosen, is_hovered)
             if chosen then
@@ -165,9 +162,7 @@ local function slot(index)
             end
             return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
         end),
-        -- The looping opacity animation makes the chosen action breathe. The entry itself gates
-        -- the sequence, so no entry means no sequence and opacity falls back to
-        -- resolved `1`.
+        -- The chosen action breathes; without the `opacity` entry the loop stops at `1`.
         animate = is_chosen:map(function(chosen)
             local eases = { background = theme.animation_ms, border_color = theme.animation_ms }
             if chosen then
@@ -288,7 +283,6 @@ local body = {
         title = "Lock session",
         color = theme.MAUVE,
         on_activate = function()
-            -- Direct capability call, with no confirmation or countdown: locking loses nothing.
             mantle.lock:invoke("lock")
         end,
     },
@@ -318,17 +312,13 @@ local body = {
         align_v = "Center",
         spacing = theme.spacing.sm,
         children = {
-            icon_button(icons.minus, function()
-                step_brightness(-BRIGHTNESS_STEP)
-            end, { size = theme.control.xs, icon_size = theme.icon.xs }),
+            icon_button(icons.minus, step_brightness(-BRIGHTNESS_STEP), { size = theme.control.xs, icon_size = theme.icon.xs }),
             -- Springs rather than eases: the two buttons either side of this repeat while held,
             -- so the fill's target moves while the fill is still moving.
             meter(mantle.brightness, function(b)
                 return b.percent
             end, theme.YELLOW, "Fill", nil, { motion = theme.spring_tracking }),
-            icon_button(icons.plus, function()
-                step_brightness(BRIGHTNESS_STEP)
-            end, { size = theme.control.xs, icon_size = theme.icon.xs }),
+            icon_button(icons.plus, step_brightness(BRIGHTNESS_STEP), { size = theme.control.xs, icon_size = theme.icon.xs }),
             cell(util.label(mantle.brightness, function(b)
                 return string.format("%d%%", b.percent)
             end), theme.DIM, theme.font.xs),

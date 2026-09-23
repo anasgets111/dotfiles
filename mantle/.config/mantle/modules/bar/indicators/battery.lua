@@ -61,10 +61,7 @@ end
 
 local fill = rect {
     width = mantle.battery:map(function(b)
-        if b == nil then
-            return "0%"
-        end
-        return string.format("%d%%", math.floor(math.max(0, math.min(100, b.percent or 0)) + 0.5))
+        return string.format("%d%%", math.floor(math.max(0, math.min(100, (b and b.percent) or 0)) + 0.5))
     end),
     height = "Fill",
     background = mantle.battery:map(battery_color),

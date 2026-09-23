@@ -201,10 +201,7 @@ end
 
 ---`refresh()`: the widget's button. A reading younger than 30s is left alone.
 function weather.refresh()
-    if in_flight:get() then
-        return
-    end
-    if os.time() - (store.weather_updated_at:get() or 0) < MANUAL_FLOOR_SECONDS then
+    if in_flight:get() or os.time() - (store.weather_updated_at:get() or 0) < MANUAL_FLOOR_SECONDS then
         return
     end
     retries:set(0)
@@ -216,16 +213,12 @@ mantle.system:on_change(function(system)
         return
     end
     local due = next_attempt:get()
-    if due == 0 then
-        -- Nothing scheduled: the deadline is the stored reading's own hour, in wall time.
-        local stale_at = (store.weather_updated_at:get() or 0) + REFRESH_SECONDS
-        if system.time < stale_at then
-            return
-        end
-    elseif system.monotonic < due then
-        return
+    -- Nothing scheduled: the deadline is the stored reading's own hour, in wall time.
+    local waiting = due == 0 and system.time < (store.weather_updated_at:get() or 0) + REFRESH_SECONDS
+        or due ~= 0 and system.monotonic < due
+    if not waiting then
+        fetch()
     end
-    fetch()
 end)
 
 local TIME_STEPS = { { 86400, "%dd ago" }, { 3600, "%dh ago" }, { 60, "%dm ago" } }

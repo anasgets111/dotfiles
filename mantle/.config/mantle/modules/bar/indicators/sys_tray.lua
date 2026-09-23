@@ -7,10 +7,6 @@ local tray_menu = require("modules.bar.panels.tray_menu")
 local SCROLL = scroll("sys_tray")
 local SLOT = "sys_tray"
 local hovered_id = state("sys_tray_tooltip", "")
--- The pill is one hover slot, so the card would name and point at the middle of the row. The entered
--- item is recorded instead, on the entering edge only: clearing on leave would blank the card and
--- move it while it fades.
-local hovered_anchor = util.hover_anchor(hovered_id, SLOT .. "-")
 
 -- `name` is SNI `Title`, which senders fill with a widget id (`vesktop_status_icon_1`). Strip that
 -- and ask `applications` for the installed name.
@@ -23,7 +19,7 @@ end
 
 -- The hovered item's two lines. `said` is the sender's own `ToolTip` -- the name again for some
 -- ("Vesktop"), live state for others ("DL speed: 0 B/s") -- kept only when it adds something.
-local hovered = computed({ hovered_id, mantle.tray, mantle.applications }, function(id, tray, applications)
+local hovered = computed({ util.hold(hovered_id), mantle.tray, mantle.applications }, function(id, tray, applications)
     local found
     for _, item in ipairs((tray and tray.items) or {}) do
         if item.id == id then
@@ -34,8 +30,6 @@ local hovered = computed({ hovered_id, mantle.tray, mantle.applications }, funct
     local said = (found and found.tooltip) or ""
     return { label = label, said = not said:lower():find(label:lower(), 1, true) and said or "" }
 end)
-
-local tooltip_detail = hovered:map(function(lines) return lines.said end)
 
 -- Hide `Passive`: the spec treats it as no presentation, so disabling an application's tray icon
 -- removes it.
@@ -112,11 +106,7 @@ local items = list {
             height = "Fill",
             align_v = "Center",
             hover = item_hovered,
-            on_hover = function(is_hovered)
-                if is_hovered then
-                    hovered_id:set(item.id)
-                end
-            end,
+            on_hover = util.track_hover(hovered_id, item.id),
             on_click = function(rect_, mouse_button)
                 local wants_menu = mouse_button == "right" or item.item_is_menu
                 if wants_menu and item.menu ~= nil then
@@ -164,11 +154,10 @@ local indicator = row {
 local tray_tooltip = tooltip({
     id = "sys_tray_tooltip",
     slot = SLOT,
-    anchor = hovered_anchor,
+    group = hovered_id,
+    group_prefix = SLOT .. "-",
     text = hovered:map(function(lines) return lines.label end),
-    detail = tooltip_detail,
-    -- A hidden node takes no room, so a sender with nothing to add draws a one-line card.
-    detail_options = { visible = tooltip_detail:map(function(said) return said ~= "" end) },
+    detail = hovered:map(function(lines) return lines.said end),
 })
 
 return { indicator = indicator, tooltip = tray_tooltip }

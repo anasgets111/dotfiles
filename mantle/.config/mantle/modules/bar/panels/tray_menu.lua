@@ -5,6 +5,7 @@
 -- Submenus expand in place, since a popup per submenu would be a surface per level. Depth follows
 -- the application up to the Supervisor's `MAX_MENU_DEPTH`; rows flatten the tree.
 local theme = require("config.theme")
+local util = require("lib.util")
 local cell = require("components.cell")
 local ui_state = require("lib.ui_state")
 
@@ -20,15 +21,12 @@ local expanded = state("tray_menu_expanded", {})
 -- `components/panel_action_icon.lua` uses the same literal for the same reason.
 local CLEAR = "#00000000"
 
-local INDENT = theme.spacing.md
-
 local function menu_of(t, id)
     for _, item in ipairs((t and t.items) or {}) do
         if item.id == id then
             return item.menu
         end
     end
-    return nil
 end
 
 -- Flatten depth-first so `list` gets one row shape and carries each row's indent.
@@ -77,13 +75,8 @@ end
 local function activate(entry)
     if #(entry.children or {}) > 0 then
         local open = expanded:get() or {}
-        local next_open = {}
-        for key, value in pairs(open) do
-            next_open[key] = value
-        end
         local key = tostring(entry.id)
-        next_open[key] = not open[key] or nil
-        expanded:set(next_open)
+        expanded:set(util.with(open, key, not open[key] or nil))
         return
     end
     -- Draw disabled entries so the application's layout survives; the Supervisor refuses their
@@ -96,7 +89,7 @@ end
 
 local function row_for(row_entry)
     local entry = row_entry.entry
-    local pad = theme.spacing.sm + row_entry.depth * INDENT
+    local pad = theme.spacing.sm + row_entry.depth * theme.spacing.md
     if entry.menu_type == "separator" then
         return rect {
             width = "Fill",
@@ -136,12 +129,10 @@ local function row_for(row_entry)
         height = theme.item_height,
         radius = theme.item_radius,
         hover = hovered,
-        -- `color: containsMouse ? glassControlHoverColor : "transparent"`, so use transparent, not
-        -- `nil`.
+        -- Transparent rather than `nil`, as the QML original drew it.
         background = hovered:map(function(on)
             return on and theme.GLASS_CONTROL_HOVER or CLEAR
         end),
-        -- Opacity applies to the row, dimming icon and word.
         opacity = entry.enabled and 1 or theme.opacity.disabled,
         on_click = function(_, mouse_button)
             if mouse_button == "left" then
@@ -159,8 +150,8 @@ local function row_for(row_entry)
     }
 end
 
-local function menu_list(id)
-    return list {
+local body = item_id:map(function(id)
+    return { list {
         id = "tray-menu-" .. tostring(id),
         width = "Fill",
         spacing = 0,
@@ -171,11 +162,7 @@ local function menu_list(id)
         key = function(row_entry)
             return tostring(row_entry.entry.id) .. ":" .. tostring(row_entry.depth)
         end,
-    }
-end
-
-local body = item_id:map(function(id)
-    return { menu_list(id) }
+    } }
 end)
 
 ---Show `item`'s menu, anchored under its icon.

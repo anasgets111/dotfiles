@@ -6,6 +6,8 @@ local store = require("lib.store")
 local util = require("lib.util")
 
 local RECORDER = "screen-recorder"
+-- `xdg-user-dir`'s own answer without `user-dirs.dirs`.
+local FALLBACK_DIRECTORY = (os.getenv("HOME") or "") .. "/Videos"
 
 -- `SIGINT` makes it write the container's index on the way out; the default `SIGTERM` would leave an
 -- unplayable file. The Supervisor uses it too when the session ends under a live recording.
@@ -59,8 +61,8 @@ local paused = paused_at:map(function(at)
 end)
 
 -- The default output: only the focused monitor carries `focused_workspace`.
-local monitor = mantle.workspaces:map(function(w)
-    for _, out in ipairs((w and w.outputs) or {}) do
+local monitor = mantle.workspaces:map(function(workspaces)
+    for _, out in ipairs((workspaces and workspaces.outputs) or {}) do
         if out.focused_workspace ~= nil then
             return out.name
         end
@@ -68,8 +70,7 @@ local monitor = mantle.workspaces:map(function(w)
     return ""
 end)
 
--- A config has no XDG lookup, so ask the tool, once per session. `$HOME/Videos` is `xdg-user-dir`'s
--- own answer without `user-dirs.dirs`.
+-- A config has no XDG lookup, so ask the tool, once per session.
 local directory = state("recorder_directory", "")
 if directory:get() == "" then
     process.run("xdg-user-dir", { "VIDEOS" }, function(line)
@@ -79,7 +80,7 @@ if directory:get() == "" then
         end
     end, function()
         if directory:get() == "" then
-            directory:set((os.getenv("HOME") or "") .. "/Videos")
+            directory:set(FALLBACK_DIRECTORY)
         end
     end)
 end
@@ -93,15 +94,7 @@ local function setting(key, fallback)
 end
 
 local function set_setting(key, value)
-    local current = store.screen_recorder:get()
-    local next_settings = {}
-    if type(current) == "table" then
-        for k, v in pairs(current) do
-            next_settings[k] = v
-        end
-    end
-    next_settings[key] = value
-    store:set("screen_recorder", next_settings)
+    store:set("screen_recorder", util.with(store.screen_recorder:get(), key, value))
 end
 
 local function format_elapsed(seconds)
@@ -124,11 +117,8 @@ end
 
 local elapsed_text = computed(
     { mantle.system, began_at, paused_total, paused_at, recording },
-    function(s, began, banked, open_since, up)
-        if not up then
-            return ""
-        end
-        return format_elapsed(elapsed_of((s and s.monotonic) or 0, began, banked, open_since))
+    function(system, began, banked, open_since, up)
+        return up and format_elapsed(elapsed_of((system and system.monotonic) or 0, began, banked, open_since)) or ""
     end
 )
 
@@ -136,10 +126,7 @@ local elapsed_text = computed(
 -- extension follows the container the panel chose.
 local function launch(capture_args, label)
     local container = setting("container", "mp4")
-    local dir = directory:get()
-    if dir == "" then
-        dir = (os.getenv("HOME") or "") .. "/Videos"
-    end
+    local dir = directory:get() ~= "" and directory:get() or FALLBACK_DIRECTORY
     local path = string.format("%s/%s.%s", dir:gsub("/$", ""), os.date("%Y%m%d_%H%M%S"), container)
 
     local args = util.concat(capture_args, {
@@ -215,13 +202,10 @@ end
 -- One press, whatever is in flight; the indicator cannot see `starting`. Returns what the press did,
 -- not the state after it, which still reads "starting" until `slurp`'s exit callback runs.
 local function toggle()
-    if recording:get() then
+    if recording:get() or starting:get() then
+        local did = recording:get() and "stopped" or "cancelled"
         stop()
-        return "stopped"
-    end
-    if starting:get() then
-        stop()
-        return "cancelled"
+        return did
     end
     -- Clear a cancel nothing consumed, so a stale flag cannot eat this capture.
     cancelled:set(false)

@@ -20,6 +20,11 @@ local wallpaper_button = icon_button(icons.wallpaper, nil, {
     end,
 })
 
-local wallpaper_tooltip = tooltip({ id = "wallpaper_tooltip", slot = SLOT, text = "Open wallpaper picker / right-click randomize" })
+local wallpaper_tooltip = tooltip({
+    id = "wallpaper_tooltip",
+    slot = SLOT,
+    text =
+    "Open wallpaper picker / right-click randomize"
+})
 
 return { button = wallpaper_button, tooltip = wallpaper_tooltip }

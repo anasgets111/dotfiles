@@ -42,6 +42,10 @@ local function toggle(kind, on, glyph_on, glyph_off, what)
     osd.show(kind, { glyph = on and glyph_on or glyph_off, text = what .. (on and " on" or " off") })
 end
 
+local function percent_level(kind, glyph, percent)
+    osd.show(kind, { glyph = glyph, text = string.format("%d%%", percent), level = percent, color = theme.YELLOW })
+end
+
 -- Every handler skips the first push (`previous == nil`): it reports learned state, not a change.
 
 mantle.audio:on_change(function(a, previous)
@@ -66,12 +70,7 @@ end)
 
 mantle.brightness:on_change(function(b, previous)
     if previous and b.percent ~= previous.percent then
-        osd.show("brightness", {
-            glyph = icons.brightness,
-            text = string.format("%d%%", b.percent),
-            level = b.percent,
-            color = theme.YELLOW,
-        })
+        percent_level("brightness", icons.brightness, b.percent)
     end
 end)
 
@@ -110,12 +109,7 @@ mantle.keyboard:on_change(function(k, previous)
         toggle("locks", k.scroll_lock, icons.keyboard, icons.keyboard, "Scroll lock")
     end
     if k.backlight_pct >= 0 and k.backlight_pct ~= previous.backlight_pct then
-        osd.show("backlight", {
-            glyph = icons.keyboard,
-            text = string.format("%d%%", k.backlight_pct),
-            level = k.backlight_pct,
-            color = theme.YELLOW,
-        })
+        percent_level("backlight", icons.keyboard, k.backlight_pct)
     end
 end)
 

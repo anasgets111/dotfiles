@@ -10,16 +10,14 @@ local idle = require("lib.idle")
 
 ---@param settings Signal<table> `store.idle` resolved through `idle.read`
 return function(settings)
-    local plan_now = idle.schedule
-
-    local counting_down = computed({ settings, plan_now, idle.inhibited }, function(resolved, plan, held)
+    local counting_down = computed({ settings, idle.schedule, idle.inhibited }, function(resolved, plan, held)
         return resolved.enabled and plan.total > 0 and not held
     end)
 
-    -- Chamber state comes from `idle.arming`: earlier stages are full, later stages are empty, and
-    -- the stage fills over its delay.
-    local function chamber_progress(entry)
-        return computed({ idle.arming, plan_now }, function(arming, plan)
+    local function chamber(entry)
+        -- Chamber state comes from `idle.arming`: earlier stages are full, later stages are empty,
+        -- and the stage fills over its delay.
+        local progress = computed({ idle.arming, idle.schedule }, function(arming, plan)
             local position, armed_position
             for index, item in ipairs(plan.list) do
                 if item.key == entry.key then
@@ -29,21 +27,14 @@ return function(settings)
                     armed_position = index
                 end
             end
-            if position == nil or armed_position == nil then
+            if position == nil or armed_position == nil or position > armed_position then
                 return 0
             end
             if position < armed_position then
                 return 1
             end
-            if position > armed_position then
-                return 0
-            end
             return math.max(0, math.min(1, arming.elapsed / math.max(1, entry.delay)))
         end)
-    end
-
-    local function chamber(entry)
-        local progress = chamber_progress(entry)
         -- Signals resolve before `width` is parsed, as in `components/meter.lua`.
         local fill = progress:map(function(fraction)
             return string.format("%d%%", math.floor(fraction * 100 + 0.5))
@@ -87,7 +78,7 @@ return function(settings)
                 width = "Fill",
                 height = "Fill",
                 direction = "Horizontal",
-                source = plan_now:map(function(plan)
+                source = idle.schedule:map(function(plan)
                     return plan.list
                 end),
                 key = function(entry)

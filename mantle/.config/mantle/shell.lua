@@ -40,9 +40,6 @@ local surfaces = {
     panel_host,
 }
 table.move(bar.tooltips, 1, #bar.tooltips, #surfaces + 1, surfaces)
-surfaces[#surfaces + 1] = modal_host
-surfaces[#surfaces + 1] = lock_screen
-surfaces[#surfaces + 1] = polkit_dialog
-surfaces[#surfaces + 1] = bluetooth_pairing
+table.move({ modal_host, lock_screen, polkit_dialog, bluetooth_pairing }, 1, 4, #surfaces + 1, surfaces)
 
 return surfaces

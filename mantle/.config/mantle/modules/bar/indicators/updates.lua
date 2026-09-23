@@ -103,17 +103,19 @@ end
 
 local status = computed({ mantle.updates, dismissed }, state_of)
 
-local indicator = icon_button(status:map(function(s)
-    if s == "installing" then
-        return icons.updating
-    elseif s == "error" or s == "install_failed" then
-        return icons.update_err
-    elseif s == "checking" then
-        return icons.checking
-    elseif s == "pending" then
-        return icons.updates
-    end
-    return icons.up_to_date
+-- Glyph, colour and tooltip per state; the glyph and colour leave five states sharing two grounds,
+-- so the tooltip names which. `pending`'s text carries the count, so it is built below.
+local LOOKS = {
+    installing = { icons.updating, theme.ACCENT, "Updating system and developer tooling..." },
+    install_failed = { icons.update_err, theme.RED, "Update failed - click for details" },
+    error = { icons.update_err, theme.RED, "Update failed - click for details" },
+    checking = { icons.checking, theme.ACCENT, "Checking for updates…" },
+    pending = { icons.updates, theme.ACCENT },
+    idle = { icons.up_to_date, theme.DIM, "No system package updates - right-click for updater" },
+}
+
+local indicator = icon_button(status:map(function(current)
+    return LOOKS[current][1]
 end), nil, {
     -- Right-click always opens the panel: at idle it is otherwise unreachable, and with it the
     -- reboot badge, the last check time, and the empty state.
@@ -137,16 +139,11 @@ end), nil, {
     visible = mantle.updates:map(function(u)
         return u ~= nil and u.package_manager ~= nil
     end),
-    foreground = status:map(function(s)
-        if s == "error" or s == "install_failed" then
-            return theme.RED
-        end
-        -- Dim while idle, accent while pending.
-        return s == "idle" and theme.DIM or theme.ACCENT
+    foreground = status:map(function(current)
+        return LOOKS[current][2]
     end),
 })
 
--- The glyph and its colour leave five states sharing two grounds; the tooltip text names which.
 local update_tooltip = tooltip({
     id = "updates_tooltip",
     slot = SLOT,
@@ -155,20 +152,11 @@ local update_tooltip = tooltip({
             return "--"
         end
         local current = state_of(u, is_dismissed)
-        if current == "installing" then
-            return "Updating system and developer tooling..."
-        end
-        if current == "install_failed" or current == "error" then
-            return "Update failed - click for details"
-        end
-        if current == "checking" then
-            return "Checking for updates…"
-        end
         if current == "pending" then
             return u.count == 1 and "One package can be upgraded"
                 or string.format("%d packages can be upgraded", u.count)
         end
-        return "No system package updates - right-click for updater"
+        return LOOKS[current][3]
     end),
 })
 

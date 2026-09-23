@@ -82,7 +82,6 @@ local function selected_option(group, settings)
             return option
         end
     end
-    return nil
 end
 
 -- Keeps the four choices visible in the row without opening it.
@@ -122,8 +121,7 @@ local function option_group(group)
             height = theme.control.lg,
             signal = store.screen_recorder,
             read = function(settings)
-                local option_of = selected_option(group, settings)
-                return option_of ~= nil and option_of.value == option.value
+                return selected_option(group, settings) == option
             end,
             -- A radio, not a switch: ignore the tile's checked state so clicking the lit one cannot
             -- turn every option off.
@@ -169,16 +167,20 @@ local idle = recorder.recording:map(function(up)
     return not up
 end)
 
-local function capture_button(label, slot, icon, target)
-    return action_button(label, function()
+local function capture(target)
+    return function()
         ui_state.close_panel()
         recorder.start(target)
-    end, slot, {
-        tone = "solid",
+    end
+end
+
+local function wide_button(label, on_activate, slot, tone, icon, visible)
+    return action_button(label, on_activate, slot, {
+        tone = tone,
         width = "Fill",
         height = theme.control.xl,
         glyph = icon,
-        visible = idle,
+        visible = visible,
     })
 end
 
@@ -206,27 +208,15 @@ local body = {
         width = "Fill",
         spacing = theme.spacing.sm,
         children = {
-            capture_button("Region", "recorder-region", icons.region, "selection"),
-            capture_button("Screen", "recorder-screen", icons.display),
+            wide_button("Region", capture("selection"), "recorder-region", "solid", icons.region, idle),
+            wide_button("Screen", capture(), "recorder-screen", "solid", icons.display, idle),
             -- Ending a running capture takes the alert colour, not the accent.
-            action_button("Stop", recorder.stop, "recorder-stop", {
-                tone = "danger",
-                width = "Fill",
-                height = theme.control.xl,
-                glyph = icons.record_stop,
-                visible = recorder.recording,
-            }),
-            action_button(recorder.paused:map(function(held)
+            wide_button("Stop", recorder.stop, "recorder-stop", "danger", icons.record_stop, recorder.recording),
+            wide_button(recorder.paused:map(function(held)
                 return held and "Resume" or "Pause"
-            end), recorder.toggle_pause, "recorder-pause", {
-                tone = "accent",
-                width = "Fill",
-                height = theme.control.xl,
-                glyph = recorder.paused:map(function(held)
-                    return held and icons.play or icons.pause
-                end),
-                visible = recorder.recording,
-            }),
+            end), recorder.toggle_pause, "recorder-pause", "accent", recorder.paused:map(function(held)
+                return held and icons.play or icons.pause
+            end), recorder.recording),
         },
     },
 

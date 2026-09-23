@@ -1,22 +1,12 @@
--- Shared bar text cell with default size and weight; modules use it instead of a local.
--- `elide = "End"` only affects bounded `opts.width`; content-sized cells measure to fit. The engine
--- (`layout::scene::fit_text_to_box`) measures before searching, and modules supply boxes to cut.
--- `opts.wrap` moves the ellipsis to the last of `opts.max_lines` lines. It is off by
--- default because a second line grows fixed-height bar slots; cards can opt in.
--- Character counts are the wrong unit for truncation: "WWWWWWWWWW" and "iiiiiiiiii" have ten
--- characters but different widths, so the reader sees a box.
--- `opts.align` sets `text_align` and `align_h`: centring depends on the parent.
--- `text_align` centres inside the cell; `align_h` places a content-sized box in its parent.
--- Stacking parents read it (`rect`, `button`, a surface; `layout::scene`'s catch-all arm).
--- `text_align` alone leaves a content-sized box at x=0 in the parent (e.g. workspace digits at
--- the dot's left edge). `row` ignores child `align_h`; `column` uses it on the cross axis.
+-- Shared text cell with default size and weight. `elide = "End"` only cuts a bounded `opts.width`:
+-- character counts are the wrong unit, since "WWWWW" and "iiiii" differ in width. `opts.wrap` moves
+-- the ellipsis to the last of `opts.max_lines`; off by default, as a second line grows bar slots.
+-- `opts.align` sets both `text_align` (inside the cell) and `align_h` (a content-sized box in a
+-- stacking parent or `column`; `row` ignores it). `text_align` alone leaves the box at x=0.
 local theme = require("config.theme")
 
--- Last hop before `text.content`: a wrong shape fails re-resolve. `notification` payloads pass
--- through a `list`'s `itemfn`, typed by `lua-meta/nodes.lua` as `fun(item: any)` because `Signal`
--- has no element type. A raw span array could reach `content` and freeze the shell on its last good
--- scene.
--- `TextRun[]` is accepted, but image spans are not text;
+-- Last hop before `text.content`: a `list` `itemfn` is typed `fun(item: any)`, so a raw span array
+-- could reach `content` and freeze the shell on its last good scene. Image spans are not text;
 -- `notifications.notification_body` converts them.
 ---@param content string|TextRun[]|Bound
 ---@param color? Color|Bound

@@ -30,8 +30,7 @@ local network_module = icon_button(mantle.network:map(util.network_glyph), nil, 
     -- about a connection worth a glance, and ethernet carries none.
     foreground = network_colour,
     badge = mantle.network:map(function(n)
-        local label = util.band_of(util.active_access_point(n))
-        return label or ""
+        return (util.band_of(util.active_access_point(n))) or ""
     end),
     badge_foreground = network_colour,
     badge_font = "Roboto Condensed",
@@ -41,28 +40,20 @@ local network_module = icon_button(mantle.network:map(util.network_glyph), nil, 
     end),
 })
 
-local function is_ethernet(n)
-    return n ~= nil and n.ssid == "Ethernet"
-end
-
-local function has_wifi_connection(n)
-    return n ~= nil and n.ssid ~= nil and n.ssid ~= ""
-end
-
 local network_text = mantle.network:map(function(n)
     if n == nil then
         return { title = "Network: initializing…", detail = "", secondary = "" }
     end
-    if is_ethernet(n) then
-        local ap = util.active_access_point(n)
+    local ap = util.active_access_point(n)
+    if n.ssid == "Ethernet" then
         return {
             title = "Ethernet",
             detail = string.format("IP: %s", n.ethernet_ip or "--"),
-            secondary = ap and string.format("Wi-Fi: %s (%d%%) · IP: %s", ap.ssid, ap.strength or 0, n.wifi_ip or "--") or "",
+            secondary = ap and string.format("Wi-Fi: %s (%d%%) · IP: %s", ap.ssid, ap.strength or 0, n.wifi_ip or "--") or
+                "",
         }
     end
-    if has_wifi_connection(n) then
-        local ap = util.active_access_point(n)
+    if n.ssid ~= nil and n.ssid ~= "" then
         local strength = (n.strength or 0) > 0 and string.format("%d%%", n.strength) or "--"
         local band = ap and ap.band or ""
         return {
@@ -77,18 +68,13 @@ local network_text = mantle.network:map(function(n)
         secondary = "",
     }
 end)
-local network_title = network_text:map(function(t) return t.title end)
-local network_detail = network_text:map(function(t) return t.detail end)
-local network_secondary = network_text:map(function(t) return t.secondary end)
 
 local network_tooltip = tooltip({
     id = "network_tooltip",
     slot = SLOT,
-    text = network_title,
-    detail = network_detail,
-    detail_options = { visible = network_detail:map(function(text) return text ~= "" end) },
-    secondary = network_secondary,
-    secondary_options = { visible = network_secondary:map(function(text) return text ~= "" end) },
+    text = network_text:map(function(t) return t.title end),
+    detail = network_text:map(function(t) return t.detail end),
+    secondary = network_text:map(function(t) return t.secondary end),
 })
 
 return { indicator = network_module, tooltip = network_tooltip }

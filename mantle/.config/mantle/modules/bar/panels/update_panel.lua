@@ -58,7 +58,7 @@ end
 -- KiB, MiB, GiB use 1024, matching pacman's package sizes.
 local BYTE_UNITS = { "B", "KiB", "MiB", "GiB" }
 local function human_bytes(bytes)
-    local size, unit = bytes or 0, 1
+    local size, unit = bytes, 1
     while size >= 1024 and unit < #BYTE_UNITS do
         size, unit = size / 1024, unit + 1
     end
@@ -81,12 +81,13 @@ end
 -- A finished run's result is on screen. Tools after an install are part of its run.
 local result_showing = computed({ mantle.updates, dismissed, dev_running, dev_result },
     function(u, is_dismissed, tool, dev)
-        return not is_dismissed and tool == "" and u ~= nil and not u.installing and (install_ended(u) or dev.finished_at ~= nil)
+        return not is_dismissed and tool == "" and u ~= nil and not u.installing and
+            (install_ended(u) or dev.finished_at ~= nil)
     end)
 
 -- Whether this run included packages: a tools-only run leaves the last install's count and log.
 local function ran_packages(u)
-    return u ~= nil and (u.install_finished_at or 0) >= (started_at:get() or 0)
+    return u ~= nil and (u.install_finished_at or 0) >= started_at:get()
 end
 
 -- A manager killed by a signal publishes no exit code, which is a failure.
@@ -111,7 +112,7 @@ end
 
 -- `name`'s place among the tools a run will start (ticked and present), and their count.
 local function tool_step(name)
-    local present = tools_present:get() or {}
+    local present = tools_present:get()
     local step, total = 0, 0
     for _, tool in ipairs(dev_tools) do
         if tool_enabled(tool.name) and present[tool.requires] then
@@ -202,7 +203,7 @@ local function run_tools(index, failures)
     if not tool_enabled(tool.name) then
         return run_tools(index + 1, failures)
     end
-    if not (tools_present:get() or {})[tool.requires] then
+    if not tools_present:get()[tool.requires] then
         append_dev_log(string.format("[SKIP] %s (%s not found)", tool.name, tool.requires))
         return run_tools(index + 1, failures)
     end
@@ -248,17 +249,15 @@ action("updates.install", install)
 
 -- Pacman output to actionable wording, `{ wording, match... }`, strongest first.
 local FAILURE_PHRASES = {
-    { "Could not download; check the connection", "failed retrieving", "could not resolve host", "connection refused" },
+    { "Could not download; check the connection", "failed retrieving",            "could not resolve host", "connection refused" },
     { "Not enough disk space",                    "not enough free disk space" },
     { "A package failed its signature check",     "invalid or corrupted package", "signature from" },
     { "Files conflict with another package",      "conflicting files" },
     { "Authentication failed",                    "authentication" },
 }
 
+-- Only asked once `install_failed(u)`, so `u` is set.
 local function failure_reason(u)
-    if u == nil then
-        return "The install failed"
-    end
     for _, line in ipairs(u.install_log or {}) do
         local lowered = line:lower()
         for _, phrase in ipairs(FAILURE_PHRASES) do
@@ -336,7 +335,7 @@ local function detail_line(u, showing, tool, dev)
     end
     if showing then
         -- The reason heads the log card, beside the output it came from.
-        local start = started_at:get() or 0
+        local start = started_at:get()
         local seconds = (dev.finished_at or u.install_finished_at or os.time()) - start
         local time_str = (start > 0 and seconds >= 0) and (seconds < 60 and string.format("%d sec", seconds)
             or string.format("%d min %d sec", math.floor(seconds / 60), seconds % 60))
@@ -422,10 +421,6 @@ local function log_colour(line)
     return theme.DIM
 end
 
-local not_settings = settings_open:map(function(open)
-    return not open
-end)
-
 -- The settings list takes the whole body.
 local function unless_settings(showing)
     return computed({ showing, settings_open }, function(visible, settings)
@@ -507,17 +502,12 @@ for _, tool in ipairs(dev_tools) do
         subtitle = tool.requires,
         -- Nothing to decide about a tool this machine cannot run.
         visible = tools_present:map(function(present)
-            return (present or {})[tool.requires] == true
+            return present[tool.requires] == true
         end),
         trailing = toggle(store.updates_dev_tools, function(ticked)
             return (ticked or {})[tool.name] ~= false
         end, function(on)
-            local ticked = {}
-            for key, value in pairs(store.updates_dev_tools:get() or {}) do
-                ticked[key] = value
-            end
-            ticked[tool.name] = on
-            store:set("updates_dev_tools", ticked)
+            store:set("updates_dev_tools", util.with(store.updates_dev_tools:get(), tool.name, on))
         end),
     }
 end
@@ -561,13 +551,9 @@ local body = {
     panel_header {
         title = "Updates",
         icon = mantle.updates:map(function(u)
-            if u ~= nil and u.installing then
-                return icons.updating
-            end
-            if u ~= nil and u.checking then
-                return icons.checking
-            end
-            return ((u and u.count) or 0) > 0 and icons.updates or icons.up_to_date
+            u = u or {}
+            return u.installing and icons.updating or u.checking and icons.checking
+                or (u.count or 0) > 0 and icons.updates or icons.up_to_date
         end),
         active = mantle.updates:map(function(u)
             return ((u and u.count) or 0) > 0 or (u ~= nil and (u.installing or u.checking))
@@ -592,7 +578,8 @@ local body = {
     panel_card({
         cell(util.bold(computed({ mantle.updates, result_showing, dev_running, dev_result }, status_line)), theme.FG,
             theme.font.md),
-        cell(computed({ mantle.updates, result_showing, dev_running, dev_result }, detail_line), theme.DIM, theme.font.xs),
+        cell(computed({ mantle.updates, result_showing, dev_running, dev_result }, detail_line), theme.DIM, theme.font
+            .xs),
         row {
             width = "Fill",
             visible = progress:map(function(percent)
@@ -732,7 +719,9 @@ local body = {
     row {
         width = "Fill",
         spacing = theme.spacing.sm,
-        visible = not_settings,
+        visible = settings_open:map(function(open)
+            return not open
+        end),
         children = {
             action_button(
                 computed({ mantle.updates, result_showing, dev_running }, function(u, showing, tool)

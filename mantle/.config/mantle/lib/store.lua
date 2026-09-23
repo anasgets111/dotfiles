@@ -1,9 +1,8 @@
 -- Restart-persistent config in one file. Mantle's hardcoded location keeps existing `state.json`
 -- readable. Only runtime user changes live here; `config/` hot-reloads through `require`.
-local home = os.getenv("HOME") or ""
 local state_home = os.getenv("XDG_STATE_HOME")
 if not state_home or state_home == "" then
-    state_home = home .. "/.local/state"
+    state_home = (os.getenv("HOME") or "") .. "/.local/state"
 end
 
 -- `defaults` fills missing keys and creates the file on first run; existing values are kept.

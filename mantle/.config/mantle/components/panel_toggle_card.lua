@@ -24,7 +24,10 @@ return function(opts)
     ---@type string|Signal
     local detail = opts.detail or ""
     ---@type boolean|Signal
-    local detail_visible
+    local detail_visible = detail ~= ""
+    local function fits(rect)
+        return rect ~= nil and (rect.width or 0) >= theme.panel_toggle_compact_threshold
+    end
     local wide
     if type(detail) == "userdata" then
         ---@cast detail Signal
@@ -32,66 +35,53 @@ return function(opts)
             return text ~= ""
         end)
         wide = computed({ size, detail_visible }, function(rect, shown)
-            return shown and rect ~= nil and (rect.width or 0) >= theme.panel_toggle_compact_threshold
+            return shown and fits(rect)
         end)
     else
-        detail_visible = type(detail) == "string" and detail ~= ""
         wide = size:map(function(rect)
-            return detail_visible and rect ~= nil and (rect.width or 0) >= theme.panel_toggle_compact_threshold
+            return detail_visible and fits(rect)
         end)
     end
 
-    local ground = computed({ checked, hovered }, function(on, hot)
-        if on then
-            return hot and theme.ACCENT_LIGHT or theme.ACCENT_SUBTLE
-        end
-        return hot and theme.GLASS_HOVER or theme.GLASS_CONTENT
-    end)
-    local ring = computed({ checked, hovered }, function(on, hot)
-        if on then
-            return theme.ACCENT_MEDIUM
-        end
-        return hot and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
-    end)
-    local ink = computed({ checked, hovered }, function(on, hot)
-        if on then
-            return theme.ACCENT
-        end
-        return hot and theme.FG or theme.DIM
-    end)
+    -- Checked picks the first pair, unchecked the second; each pair is hovered, then resting.
+    local function tint(on_hot, on_rest, hot, rest)
+        return computed({ checked, hovered }, function(on, is_hot)
+            if on then
+                return is_hot and on_hot or on_rest
+            end
+            return is_hot and hot or rest
+        end)
+    end
+    local ink = tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM)
+    local detail_ink = tint(theme.TEXT_ACTIVE, theme.TEXT_ACTIVE, theme.TEXT_ACTIVE, theme.DIM)
 
     ---@type string|TextRun[]|Bound
     local label_content
-    if type(opts.label) == "userdata" then
-        local label = opts.label
+    local label = opts.label
+    if type(label) == "userdata" then
         ---@cast label Signal
         label_content = computed({ checked, label }, function(on, text_value)
             return { { text = text_value or "", bold = on } }
         end)
     else
         label_content = checked:map(function(on)
-            return { { text = opts.label, bold = on } }
+            return { { text = label, bold = on } }
         end)
     end
-    local detail_ink = computed({ checked, hovered }, function(on, hot)
-        return (on or hot) and theme.TEXT_ACTIVE or theme.DIM
-    end)
 
-    local function icon_node()
-        if opts.icon == nil or opts.icon == "" then
-            return nil
+    local function leading_nodes()
+        local leading = {}
+        if opts.icon ~= nil and opts.icon ~= "" then
+            leading[1] = glyph(opts.icon, ink, theme.icon.md, {
+                align = "Center",
+                animate = { foreground = theme.animation_ms },
+            })
         end
-        return glyph(opts.icon, ink, theme.icon.md, {
+        leading[#leading + 1] = cell(label_content, ink, theme.font.xs, {
             align = "Center",
             animate = { foreground = theme.animation_ms },
         })
-    end
-
-    local function label_node()
-        return cell(label_content, ink, theme.font.xs, {
-            align = "Center",
-            animate = { foreground = theme.animation_ms },
-        })
+        return leading
     end
 
     local function detail_node(wide_mode)
@@ -103,52 +93,17 @@ return function(opts)
         })
     end
 
-    local function leading_nodes()
-        local leading = {}
-        local icon = icon_node()
-        if icon then
-            leading[#leading + 1] = icon
-        end
-        leading[#leading + 1] = label_node()
-        return leading
-    end
-
-    local function compact_layout()
-        local lines = leading_nodes()
-        if opts.detail ~= nil then
-            lines[#lines + 1] = detail_node(false)
-        end
-        return column {
-            align_h = "Center",
-            align_v = "Center",
-            spacing = theme.spacing.xs,
-            children = lines,
-        }
-    end
-
-    local function wide_layout()
-        return row {
-            width = "Fill",
-            align_v = "Center",
-            spacing = theme.spacing.sm,
-            children = {
-                column { align_h = "Center", align_v = "Center", children = leading_nodes() },
-                detail_node(true),
-            },
-        }
-    end
-
     return button {
         width = "Fill",
         height = opts.height or theme.panel_toggle_height,
         radius = theme.radius.lg,
         hover = hovered,
-        background = ground,
+        background = tint(theme.ACCENT_LIGHT, theme.ACCENT_SUBTLE, theme.GLASS_HOVER, theme.GLASS_CONTENT),
         border_width = theme.border_width,
-        border_color = ring,
+        border_color = tint(theme.ACCENT_MEDIUM, theme.ACCENT_MEDIUM, theme.GLASS_BORDER_HOVER, theme.GLASS_BORDER),
         opacity = opts.disabled and opts.disabled:map(function(off)
             return off and theme.opacity.disabled or 1
-        end) or nil,
+        end),
         animate = {
             background = theme.animation_ms,
             border_color = theme.animation_ms,
@@ -161,7 +116,22 @@ return function(opts)
             opts.on_change(not util.read_bool(opts.signal:get(), opts.read))
         end,
         children = wide:map(function(is_wide)
-            return { is_wide and wide_layout() or compact_layout() }
+            if is_wide then
+                return { row {
+                    width = "Fill",
+                    align_v = "Center",
+                    spacing = theme.spacing.sm,
+                    children = {
+                        column { align_h = "Center", align_v = "Center", children = leading_nodes() },
+                        detail_node(true),
+                    },
+                } }
+            end
+            local lines = leading_nodes()
+            if opts.detail ~= nil then
+                lines[#lines + 1] = detail_node(false)
+            end
+            return { column { align_h = "Center", align_v = "Center", spacing = theme.spacing.xs, children = lines } }
         end),
     }
 end

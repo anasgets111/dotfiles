@@ -114,23 +114,11 @@ end)
 
 -- Hostname-shaped input opens as a link, other input searches. Always shown for a URL, otherwise
 -- only when the apps matched weakly.
-local function looks_like_url(text)
-    return text:match("^https?://[^%s]+$") ~= nil or text:match("^[%w%-]+%.[%w%-%.]+[%w]/?[^%s]*$") ~= nil
-end
-
--- True with no matched apps, or when the best score is under a threshold that grows with query
--- length, in fzf's own units.
----@param text string
----@param found { apps: AppSummary[], best: integer }
-local function apps_weak(text, found)
-    return #found.apps == 0 or found.best < math.max(32, #text * 25)
-end
-
 ---@param text string
 ---@param apps_weak boolean
 ---@return LauncherRow|nil
 local function web_claims(text, apps_weak)
-    local is_url = looks_like_url(text)
+    local is_url = text:match("^https?://[^%s]+$") ~= nil or text:match("^[%w%-]+%.[%w%-%.]+[%w]/?[^%s]*$") ~= nil
     if not (is_url or apps_weak) then
         return nil
     end
@@ -164,8 +152,9 @@ local special = computed(
         end
         -- A bare code claims the row only where the web row would have: `dash`, `link`, `php` and
         -- `cad` are currencies as well as things people launch, and an application that matches
-        -- well owns the query. A code with no rate falls through here whatever the score.
-        local weak = apps_weak(text, found)
+        -- well owns the query. A code with no rate falls through here whatever the score. Weak is no
+        -- matched apps, or a best score under a threshold that grows with query length, in fzf's units.
+        local weak = #found.apps == 0 or found.best < math.max(32, #text * 25)
         return currency.claims(text, rates, updated_at, weak)
             or calc.claims(text)
             or web_claims(text, weak)
@@ -192,12 +181,11 @@ end)
 
 -- Arrow-key order, read when the key arrives and never inside a `computed`.
 local function rows_now()
-    local found = results:get() or {}
     local ids = {}
     if special:get() then
         ids[#ids + 1] = SPECIAL
     end
-    for _, app in ipairs(found) do
+    for _, app in ipairs(results:get() or {}) do
         ids[#ids + 1] = app.id
     end
     return ids
@@ -277,10 +265,7 @@ local function row_shell(id, slot, children, opts)
         border_color = selected:map(function(on)
             return on and theme.ACCENT or "#00000000"
         end),
-        animate = {
-            background = theme.animation_fast_ms,
-            border_color = theme.animation_fast_ms,
-        },
+        animate = { background = theme.animation_fast_ms, border_color = theme.animation_fast_ms },
         -- Enter and leave count as crossings, so the ring follows a pointer already in place.
         on_hover = function(inside)
             if inside then
@@ -308,11 +293,8 @@ end
 ---@param app AppSummary
 local function app_row(app)
     local selected = is_selected(app.id)
-    local title = selected:map(function(on)
-        return on and { { text = app.name, bold = true } } or app.name
-    end)
     local lines = {
-        cell(title, selected:map(function(on)
+        cell(util.bold_when(selected, app.name), selected:map(function(on)
             return on and theme.ACCENT or theme.FG
         end), theme.font.md, { width = "Fill" }),
     }
@@ -347,7 +329,7 @@ end
 local special_selected = is_selected(SPECIAL)
 local special_title = computed({ special, special_selected }, function(row, selected)
     local title = row and row.title or ""
-    return selected and { { text = title, bold = true } } or title
+    return selected and util.bold(title) or title
 end)
 local special_row = row_shell(SPECIAL, "launcher-special", {
     -- One node, the family chosen by signal: under the Icon family a regional indicator never
@@ -447,10 +429,7 @@ local no_results = panel_empty_state(
     computed({ trimmed, results, special }, function(text, found, row)
         return text ~= "" and #found == 0 and row == nil
     end),
-    {
-        icon = icons.search,
-        subtext = "Check spelling or try a calculation / currency query",
-    }
+    { icon = icons.search, subtext = "Check spelling or try a calculation / currency query" }
 )
 
 local no_apps = panel_empty_state(
@@ -458,34 +437,17 @@ local no_apps = panel_empty_state(
     computed({ mantle.applications, trimmed }, function(apps, text)
         return text == "" and #entries_of(apps) == 0
     end),
-    {
-        icon = icons.launcher,
-        subtext = "No desktop entries available",
-    }
+    { icon = icons.launcher, subtext = "No desktop entries available" }
 )
-
--- Centred in the space below the bar; `screens[1]` guesses the head like `panel_host.lua`.
-local card_margin = mantle.screens:map(function(screens)
-    local screen = screens and screens[1]
-    if not (screen and screen.width and screen.height) then
-        return { left = 0, top = 0 }
-    end
-    local free_height = screen.height - theme.bar_height
-    return {
-        left = math.max(0, math.floor((screen.width - theme.launcher_width) / 2)),
-        top = math.max(0, math.floor((free_height - theme.launcher_height) / 2)),
-    }
-end)
 
 return modal({
     kind = "launcher",
+    below_bar = true,
     card = panel_card({
         search,
         panel_card({ special_row, app_list, no_results, no_apps }, {
             width = "Fill",
             height = "Fill",
-            background = theme.GLASS_CONTENT,
-            radius = theme.radius.lg,
             border_width = theme.border_width,
             border_color = theme.GLASS_BORDER,
             padding = theme.spacing.sm,
@@ -493,14 +455,8 @@ return modal({
     }, {
         width = theme.launcher_width,
         height = theme.launcher_height,
-        margin = card_margin,
         spacing = theme.spacing.sm,
         padding = theme.spacing.lg,
-        radius = theme.radius.lg,
-        background = theme.GLASS,
-        -- The card alone; the scrim under it in the same surface already dims the rest.
-        blur = true,
-        border_width = theme.border_width,
-        border_color = theme.BORDER,
+        tone = "dialog",
     }),
 })

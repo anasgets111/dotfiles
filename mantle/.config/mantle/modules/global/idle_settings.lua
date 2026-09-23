@@ -14,15 +14,20 @@ local modal = require("components.modal")
 local idle = require("lib.idle")
 local store = require("lib.store")
 local timeline_section = require("modules.global.idle_settings.timeline")
+local util = require("lib.util")
 
 local settings = store.idle:map(idle.read)
+local running = computed({ settings, idle.inhibited }, function(resolved, held)
+    return resolved.enabled and not held
+end)
 
 -- Shared by the flow card and each section.
 local CARD_PADDING = {
     top = theme.spacing.md,
     right = theme.spacing.lg,
     bottom = theme.spacing.md,
-    left = theme.spacing.lg,
+    left = theme.spacing
+        .lg
 }
 
 -- Whether UPower reports a battery. `present` is false on desktops, so no battery column.
@@ -31,16 +36,14 @@ local has_battery = mantle.battery:map(function(b)
 end)
 
 local subtitle = computed(
-    { store.idle, idle.active_profile, idle.elapsed, idle.reasons, idle.arming },
-    function(stored, profile, elapsed, reasons, arming)
+    { settings, idle.active_profile, idle.schedule, idle.elapsed, idle.reasons, idle.arming },
+    function(resolved, profile, plan, elapsed, reasons, arming)
         if #reasons > 0 then
             return "Held awake · " .. table.concat(reasons, ", ")
         end
-        local resolved = idle.read(stored)
         if not resolved.enabled then
             return "Automatic actions are paused"
         end
-        local plan = idle.plan(resolved, profile)
         if plan.total == 0 then
             return "No actions enabled on this profile"
         end
@@ -88,9 +91,7 @@ local header = panel_header {
     plate = theme.control.xl,
     subtitle_size = theme.font.md,
     subtitle_color = theme.DIM,
-    active = computed({ settings, idle.inhibited }, function(resolved, held)
-        return resolved.enabled and not held
-    end),
+    active = running,
     on_close = function()
         ui_state.close_modal("idle_settings")
     end,
@@ -146,7 +147,6 @@ local function duration_button(profile, stage)
 end
 
 local function profile_control(profile, stage)
-    local on = setting(profile, stage.key, "_on")
     return row {
         width = theme.idle_profile_column,
         align_v = "Center",
@@ -154,23 +154,13 @@ local function profile_control(profile, stage)
         visible = profile == "battery" and has_battery or nil,
         children = {
             duration_button(profile, stage),
-            toggle(on, function(enabled)
+            toggle(setting(profile, stage.key, "_on"), function(enabled)
                 return enabled
             end, function(enabled)
                 idle.write(profile, stage.key .. "_on", enabled)
             end),
         },
     }
-end
-
--- `components/panel_row.lua` bolds a title only for its static `selected`; these rows follow a
--- signal, so the weight is decided inside the map.
----@param on Signal<boolean>
----@param title string
-local function bold_when(on, title)
-    return on:map(function(enabled)
-        return enabled and { { text = title, bold = true } } or title
-    end)
 end
 
 -- Marks the running profile's column.
@@ -236,7 +226,7 @@ local function stage_row(item)
         return enabled and theme.ACCENT or theme.DIM
     end)
     local body = panel_row {
-        title = bold_when(any, stage.title),
+        title = util.bold_when(any, stage.title),
         -- The stage's own description, not "after <the row above>": that row may be off in one
         -- profile.
         subtitle = stage.detail,
@@ -262,15 +252,8 @@ end
 local stage_source = settings:map(function(resolved)
     local items = {}
     for index, key in ipairs(resolved.order) do
-        local stage = idle.stage(key)
-        if stage then
-            items[#items + 1] = {
-                key = key,
-                stage = stage,
-                first = index == 1,
-                last = index == #resolved.order,
-            }
-        end
+        -- `idle.read` resolved `order` to known stages only.
+        items[#items + 1] = { key = key, stage = idle.stage(key), first = index == 1, last = index == #resolved.order }
     end
     return items
 end)
@@ -288,7 +271,7 @@ local stage_list = list {
 local behaviour_rows = {
     panel_row {
         icon = icons.play,
-        title = bold_when(settings:map(function(resolved)
+        title = util.bold_when(settings:map(function(resolved)
             return resolved.privacy_auto_inhibit
         end), "Keep awake while capturing"),
         -- Not video: a player asks for that itself and the engine honours it either way.
@@ -305,7 +288,7 @@ local behaviour_rows = {
     },
     panel_row {
         icon = icons.awake,
-        title = bold_when(idle.manual, "Keep awake now"),
+        title = util.bold_when(idle.manual, "Keep awake now"),
         subtitle = "The same hold the bar circle takes",
         height = theme.idle_row_height,
         icon_color = idle.manual:map(function(manual)
@@ -323,8 +306,8 @@ local flow_strip = row {
     align_v = "Center",
     spacing = theme.spacing.sm,
     children = {
-        glyph(icons.play, computed({ settings, idle.inhibited }, function(resolved, held)
-            return (resolved.enabled and not held) and theme.ACCENT or theme.DIM
+        glyph(icons.play, running:map(function(on)
+            return on and theme.ACCENT or theme.DIM
         end), theme.icon.sm, { align_v = "Center" }),
         cell(
             computed({ settings, idle.active_profile }, function(resolved, profile)
@@ -349,54 +332,38 @@ local flow_card = panel_card({ flow_strip, timeline, held_banner, paused_banner 
     width = "Fill",
     spacing = theme.spacing.md,
     padding = CARD_PADDING,
-    tone = computed({ settings, idle.inhibited }, function(resolved, held)
-        return resolved.enabled and not held and "active" or "standard"
+    tone = running:map(function(on)
+        return on and "active" or "standard"
     end),
 })
 
 -- `panel_header` already has the glyph-on-plate shape, so a section is a header plus rows.
 local function section(codepoint, title, description, children)
-    local nodes = { panel_header { title = title, subtitle = description, icon = codepoint, title_size = theme.font.xl } }
-    for _, node in ipairs(children) do
-        nodes[#nodes + 1] = node
-    end
-    return panel_card(nodes, {
+    local heading = panel_header { title = title, subtitle = description, icon = codepoint, title_size = theme.font.xl }
+    return panel_card(util.concat({ heading }, children), {
         width = "Fill",
         spacing = theme.spacing.sm,
         padding = CARD_PADDING,
-        background = theme.GLASS_CONTENT,
         border_width = theme.border_width,
         border_color = theme.GLASS_BORDER,
     })
 end
 
-local card_children = {
-    header,
-    header_rule,
-    flow_card,
-    section(
-        icons.sleep,
-        "Automation",
-        "Each stage waits for the one above it",
-        { matrix_heading, stage_list }
-    ),
-    section(icons.settings, "Behaviour", "What may keep the session awake",
-        { behaviour_rows[1], row_rule, behaviour_rows[2] }),
-}
-
 return modal({
     kind = "idle_settings",
-    card = panel_card(card_children, {
+    card = panel_card({
+        header,
+        header_rule,
+        flow_card,
+        section(icons.sleep, "Automation", "Each stage waits for the one above it", { matrix_heading, stage_list }),
+        section(icons.settings, "Behaviour", "What may keep the session awake",
+            { behaviour_rows[1], row_rule, behaviour_rows[2] }),
+    }, {
         width = theme.idle_modal_width,
         align_h = "Center",
         align_v = "Center",
         spacing = theme.spacing.lg,
         padding = theme.spacing.xl,
-        radius = theme.radius.lg,
-        background = theme.GLASS,
-        -- The card alone; the scrim under it in the same surface already dims the rest.
-        blur = true,
-        border_width = theme.border_width,
-        border_color = theme.BORDER,
+        tone = "dialog",
     }),
 })

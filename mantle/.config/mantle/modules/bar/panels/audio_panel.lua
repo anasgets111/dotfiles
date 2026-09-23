@@ -39,50 +39,102 @@ local function device_name(device)
     return name ~= "" and name or device.name
 end
 
--- Title/device, percentage, mute button, slider, and caller-supplied rows.
+-- Title/device, percentage, mute button, slider, caller-supplied rows, and the device picker.
 ---@class AudioControlOpts
 ---@field name string The slider's state name.
 ---@field title string
 ---@field glyph_on string
 ---@field glyph_off string
----@field volume fun(a: AudioState): number?
----@field muted fun(a: AudioState): boolean
----@field device fun(a: AudioState): AudioDevice? The active device, for the subtitle and leading glyph.
+---@field volume string The `AudioState` field holding the volume.
+---@field muted string The `AudioState` field holding the mute flag.
+---@field devices string The `AudioState` device list, for the subtitle, leading glyph and picker.
 ---@field is_input? boolean
 ---@field set_volume string The `mantle.audio` action taking one volume.
+---@field set_default string The `mantle.audio` action taking one device id.
 ---@field headroom? boolean Past 100%: a red fill and a marker at 100%.
 ---@field toggle_mute string The `mantle.audio` action taking nothing.
+---@field picker StateSignal<boolean> Whether the device picker is open.
 ---@field visible? Bound
 ---@field under? Node[]
+
+-- A "choose device" row expanding to one row per device, shown only when there is a choice.
+---@param opts AudioControlOpts
+local function device_picker(opts)
+    local devices = mantle.audio:map(function(a)
+        return (a and a[opts.devices]) or {}
+    end)
+    return column {
+        width = "Fill",
+        spacing = theme.spacing.xs,
+        visible = devices:map(function(list)
+            return #list > 1
+        end),
+        children = {
+            panel_row {
+                slot = "audio-picker-" .. opts.name,
+                icon = opts.picker:map(function(open)
+                    return open and icons.chevron_up or icons.chevron_down
+                end),
+                title = "Choose device",
+                on_activate = function()
+                    opts.picker:set(not opts.picker:get())
+                end,
+            },
+            list {
+                width = "Fill",
+                spacing = theme.spacing.xs,
+                visible = opts.picker,
+                source = devices,
+                itemfn = function(device)
+                    return panel_row {
+                        slot = "audio-device-" .. opts.name .. "-" .. tostring(device.id),
+                        icon = util.audio_device_glyph(device, opts.is_input)
+                            or (opts.is_input and icons.mic_on or icons.speaker),
+                        title = device_name(device) or "?",
+                        selected = device.active,
+                        trailing = glyph(icons.check, device.active and theme.ACCENT or "#00000000", theme.font.sm),
+                        on_activate = function()
+                            mantle.audio:invoke(opts.set_default, device.id)
+                            opts.picker:set(false)
+                        end,
+                    }
+                end,
+                key = function(device)
+                    return tostring(device.id)
+                end,
+            },
+        },
+    }
+end
 
 ---@param opts AudioControlOpts
 local function audio_control(opts)
     local is_muted = mantle.audio:map(function(a)
-        return a ~= nil and opts.muted(a)
+        return a ~= nil and a[opts.muted]
     end)
+    local function when_muted(muted_value, unmuted_value)
+        return is_muted:map(function(muted)
+            return muted and muted_value or unmuted_value
+        end)
+    end
     local ready = mantle.audio:map(function(a)
-        return a ~= nil and opts.volume(a) ~= nil
+        return a ~= nil and a[opts.volume] ~= nil
     end)
-    local mute_glyph = is_muted:map(function(m)
-        return m and opts.glyph_off or opts.glyph_on
-    end)
-    local tint = is_muted:map(function(m)
-        return m and theme.DIM or theme.ACCENT
-    end)
+    local mute_glyph = when_muted(opts.glyph_off, opts.glyph_on)
+    local tint = when_muted(theme.DIM, theme.ACCENT)
     local leading_glyph = computed({ mantle.audio, mute_glyph }, function(a, fallback)
-        return a and not opts.muted(a) and util.audio_device_glyph(opts.device(a), opts.is_input) or fallback
+        return a and not a[opts.muted] and util.audio_device_glyph(util.active_device(a[opts.devices]), opts.is_input)
+            or fallback
     end)
     local held = state("audio_pending_" .. opts.name, -1)
     tooltips[opts.name] = tooltip({
         id = "audio_mute_" .. opts.name .. "_tooltip",
         in_panel = true,
         slot = "audio-mute-" .. opts.name,
-        children = { cell(is_muted:map(function(m)
-            return m and "Unmute" or "Mute"
-        end), theme.FG, theme.font.sm) },
+        children = { cell(when_muted("Unmute", "Mute"), theme.FG, theme.font.sm) },
     })
 
-    local children = {
+    local children = util.concat({
         row {
             width = "Fill",
             spacing = theme.spacing.sm,
@@ -95,12 +147,12 @@ local function audio_control(opts)
                     children = {
                         cell(util.bold(opts.title), theme.FG, theme.font.sm, { width = "Fill" }),
                         cell(util.label(mantle.audio, function(a)
-                            return device_name(opts.device(a)) or "No device"
+                            return device_name(util.active_device(a[opts.devices])) or "No device"
                         end), theme.DIM, theme.font.xs, { width = "Fill" }),
                     },
                 },
                 cell(util.bold(computed({ mantle.audio, held }, function(a, h)
-                    return percent(h >= 0 and h or a and opts.volume(a))
+                    return percent(h >= 0 and h or a and a[opts.volume])
                 end)), tint, theme.font.sm, { align_v = "Center" }),
                 icon_button(mute_glyph, function()
                     mantle.audio:invoke(opts.toggle_mute)
@@ -111,16 +163,16 @@ local function audio_control(opts)
                     opacity = ready:map(function(r)
                         return r and 1 or theme.opacity.disabled
                     end),
-                    background = is_muted:map(function(m)
-                        return m and theme.GLASS_CONTROL or theme.ACCENT
-                    end),
+                    background = when_muted(theme.GLASS_CONTROL, theme.ACCENT),
                 }),
             },
         },
         slider {
             name = "audio_pending_" .. opts.name,
             signal = mantle.audio,
-            read = opts.volume,
+            read = function(a)
+                return a[opts.volume]
+            end,
             on_commit = function(value)
                 mantle.audio:invoke(opts.set_volume, value)
             end,
@@ -128,18 +180,12 @@ local function audio_control(opts)
             max = opts.headroom and util.MAX_VOLUME or nil,
             split_at = opts.headroom and 1 or nil,
             marker = opts.headroom,
-            headroom_color = is_muted:map(function(m)
-                return m and theme.INACTIVE or theme.RED
-            end),
+            headroom_color = when_muted(theme.INACTIVE, theme.RED),
             height = SLIDER_HEIGHT,
-            color = is_muted:map(function(m)
-                return m and theme.INACTIVE or theme.ACCENT
-            end),
+            color = when_muted(theme.INACTIVE, theme.ACCENT),
         },
-    }
-    for _, node in ipairs(opts.under or {}) do
-        children[#children + 1] = node
-    end
+    }, opts.under)
+    children[#children + 1] = device_picker(opts)
 
     return panel_card(children, {
         width = "Fill",
@@ -148,56 +194,6 @@ local function audio_control(opts)
         background = theme.GLASS_CONTENT,
         padding = theme.spacing.md,
     })
-end
-
--- A "choose device" row expanding to one row per device, shown only when there is a choice.
-local function device_picker(opts)
-    local devices = mantle.audio:map(function(a)
-        return (a and opts.list(a)) or {}
-    end)
-    local has_choice = devices:map(function(list)
-        return #list > 1
-    end)
-    return column {
-        width = "Fill",
-        spacing = theme.spacing.xs,
-        visible = has_choice,
-        children = {
-            panel_row {
-                slot = "audio-picker-" .. opts.name,
-                icon = opts.open:map(function(open)
-                    return open and icons.chevron_up or icons.chevron_down
-                end),
-                title = "Choose device",
-                on_activate = function()
-                    opts.open:set(not opts.open:get())
-                end,
-            },
-            list {
-                width = "Fill",
-                spacing = theme.spacing.xs,
-                visible = opts.open,
-                source = devices,
-                itemfn = function(device)
-                    return panel_row {
-                        slot = "audio-device-" .. opts.name .. "-" .. tostring(device.id),
-                        icon = util.audio_device_glyph(device, opts.is_input)
-                            or (opts.is_input and icons.mic_on or icons.speaker),
-                        title = device_name(device) or "?",
-                        selected = device.active,
-                        trailing = glyph(icons.check, device.active and theme.ACCENT or "#00000000", theme.font.sm),
-                        on_activate = function()
-                            mantle.audio:invoke(opts.set_default, device.id)
-                            opts.open:set(false)
-                        end,
-                    }
-                end,
-                key = function(device)
-                    return tostring(device.id)
-                end,
-            },
-        },
-    }
 end
 
 -- One mixer stream: app icon/name, percentage, mute glyph, and thin slider.
@@ -279,18 +275,14 @@ local body = {
         title = "Output",
         glyph_on = icons.vol_high,
         glyph_off = icons.vol_muted,
-        volume = function(a)
-            return a.volume
-        end,
-        muted = function(a)
-            return a.muted
-        end,
-        device = function(a)
-            return util.active_device(a.sinks)
-        end,
+        volume = "volume",
+        muted = "muted",
+        devices = "sinks",
         set_volume = "set_volume",
+        set_default = "set_default_sink",
         toggle_mute = "toggle_mute",
         headroom = true,
+        picker = ui_state.audio_output_picker,
         under = {
             row {
                 width = "Fill",
@@ -320,14 +312,6 @@ local body = {
                     cell("R", theme.DIM, theme.font.xs),
                 },
             },
-            device_picker {
-                name = "output",
-                open = ui_state.audio_output_picker,
-                list = function(a)
-                    return a.sinks
-                end,
-                set_default = "set_default_sink",
-            },
         },
     },
     audio_control {
@@ -335,32 +319,17 @@ local body = {
         title = "Microphone",
         glyph_on = icons.mic_on,
         glyph_off = icons.mic_off,
-        volume = function(a)
-            return a.source_volume
-        end,
-        muted = function(a)
-            return a.source_muted
-        end,
-        device = function(a)
-            return util.active_device(a.sources)
-        end,
+        volume = "source_volume",
+        muted = "source_muted",
+        devices = "sources",
         is_input = true,
         set_volume = "set_source_volume",
+        set_default = "set_default_source",
         toggle_mute = "toggle_source_mute",
+        picker = ui_state.audio_input_picker,
         visible = util.shown_when(mantle.audio, function(a)
             return util.active_device(a.sources) ~= nil
         end),
-        under = {
-            device_picker {
-                name = "input",
-                open = ui_state.audio_input_picker,
-                is_input = true,
-                list = function(a)
-                    return a.sources
-                end,
-                set_default = "set_default_source",
-            },
-        },
     },
     -- Application count, expanding to one slider per stream, capped and scrollable.
     panel_card({

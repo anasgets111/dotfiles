@@ -1,30 +1,49 @@
 -- Pure helpers with no nodes, kept out of `components/`.
+local icons = require("config.icons")
+local theme = require("config.theme")
 local util = {}
+
+-- `pcall(read, value)`, or `nil` for a `nil` payload, which `read` never sees.
+local function try(read, value)
+    if value ~= nil then
+        return pcall(read, value)
+    end
+end
 
 -- `nil` payload to "--" and a raising reader to "!", so each module needs one line for its readout.
 function util.label(signal, read)
     return signal:map(function(value)
-        if value == nil then
-            return "--"
-        end
-        local ok, text = pcall(read, value)
-        if not ok then
-            return "!"
-        end
-        return text or "--"
+        local ok, text = try(read, value)
+        return ok == false and "!" or (ok and text) or "--"
     end)
+end
+
+--- `fn` mapped over a signal, or applied once to a plain value.
+---@param value any
+---@param fn fun(value: any): any
+---@return any
+function util.lift(value, fn)
+    if type(value) == "userdata" then
+        return value:map(fn)
+    end
+    return fn(value)
 end
 
 --- The `TextRun` list a bold `cell` takes; `cell` has no `bold` property.
 ---@param label string|Bound
 ---@return TextRun[]|Bound
 function util.bold(label)
-    if type(label) == "string" then
-        return { { text = label, bold = true } }
-    end
-    ---@cast label Signal
-    return label:map(function(shown)
+    return util.lift(label, function(shown)
         return { { text = shown, bold = true } }
+    end)
+end
+
+--- `label` bold while `on` holds, for a weight that follows a signal.
+---@param on Signal<boolean>
+---@param label string
+function util.bold_when(on, label)
+    return on:map(function(enabled)
+        return enabled and util.bold(label) or label
     end)
 end
 
@@ -42,6 +61,17 @@ function util.concat(first, second)
         out[#out + 1] = value
     end
     return out
+end
+
+--- A copy of `source` with `key` set to `value`. Copy-on-write: identity drives the push, and
+--- mutating a held value under an unfinished resolve loses the change.
+function util.with(source, key, value)
+    local copy = {}
+    for name, held in pairs(type(source) == "table" and source or {}) do
+        copy[name] = held
+    end
+    copy[key] = value
+    return copy
 end
 
 -- Words for `mantle.battery.state`'s seven UPower names. The pending phrases say only what UPower
@@ -63,15 +93,12 @@ end
 
 -- `", 2h 14m left"`, or `""`: UPower estimates one duration at a time and neither while learning the
 -- rate, so an empty answer is ordinary in the first minute after a plug or a boot.
-function util.battery_eta(b)
-    local seconds, suffix
-    if b.time_to_empty then
-        seconds, suffix = b.time_to_empty, "left"
-    elseif b.time_to_full then
-        seconds, suffix = b.time_to_full, "to full"
-    else
+function util.battery_eta(battery)
+    local seconds = battery.time_to_empty or battery.time_to_full
+    if not seconds then
         return ""
     end
+    local suffix = battery.time_to_empty and "left" or "to full"
     local hours = math.floor(seconds / 3600)
     local minutes = math.floor((seconds % 3600) / 60)
     if hours > 0 then
@@ -88,29 +115,29 @@ end
 -- in agreement.
 util.battery_thresholds = { low = 20, critical = 10, suspend = 8 }
 
--- Whether `b` drains at or under `percent`. Every threshold uses this gate, so 14% with the charger
+-- Whether `battery` drains at or under `percent`. Every threshold uses this gate, so 14% with the charger
 -- in cannot turn red.
-function util.battery_at_most(b, percent)
-    return b ~= nil and b.present and util.battery_is_draining(b.state) and b.percent <= percent
+function util.battery_at_most(battery, percent)
+    return battery ~= nil and battery.present and util.battery_is_draining(battery.state)
+        and battery.percent <= percent
 end
 
 -- Five-level glyph plus the two cable states. Takes the raw payload, so a `nil` battery draws the AC
 -- glyph rather than needing a branch at the caller.
-function util.battery_glyph(b)
-    local icons = require("config.icons")
-    if b == nil or not b.present then
+function util.battery_glyph(battery)
+    if battery == nil or not battery.present then
         return icons.battery_ac
     end
     -- Deliberately inverted: charging is the ordinary state on a machine with a charge limit, so it
     -- draws the plug and only a stopped charge gets the distinct bolt.
-    if b.state == "PendingCharge" then
+    if battery.state == "PendingCharge" then
         return icons.battery_pending
     end
-    if b.state == "Charging" or b.state == "FullyCharged" then
+    if battery.state == "Charging" or battery.state == "FullyCharged" then
         return icons.battery_ac
     end
     -- Five buckets over 0..100. Lua's 1-based indexing makes 100% bucket 5, not an out-of-range 6.
-    local bucket = math.floor((b.percent or 0) / 20) + 1
+    local bucket = math.floor((battery.percent or 0) / 20) + 1
     return icons.battery_levels[math.max(1, math.min(5, bucket))]
 end
 
@@ -118,14 +145,32 @@ end
 -- toplevel `app_id` or a StatusNotifierItem `Id`, so fold the caller's spelling; the map's keys are
 -- already folded.
 function util.app_entry(applications, app_id)
-    if applications == nil or app_id == nil or app_id == "" then
-        return nil
-    end
-    local by_app_id = applications.by_app_id
-    if by_app_id == nil then
+    local by_app_id = applications and applications.by_app_id
+    if by_app_id == nil or app_id == nil or app_id == "" then
         return nil
     end
     return by_app_id[app_id] or by_app_id[string.lower(app_id)]
+end
+
+-- The themed icon for `entry`'s `app_id`, or `""`.
+function util.app_icon(entry)
+    return computed({ mantle.applications, entry }, function(applications, current)
+        local app = util.app_entry(applications, current.app_id)
+        return (app and app.icon) or ""
+    end)
+end
+
+-- The current entry of `list_of(signal)` whose `field` matches `built`'s, else `built`: key
+-- reconciliation keeps an `itemfn` node, built from its first snapshot, while that entry changes.
+function util.live_entry(signal, list_of, built, field)
+    return signal:map(function(value)
+        for _, candidate in ipairs(list_of(value)) do
+            if candidate[field] == built[field] then
+                return candidate
+            end
+        end
+        return built
+    end)
 end
 
 -- The engine's `set_volume` clamp.
@@ -157,7 +202,6 @@ local AUDIO_DEVICE_HINTS = {
 
 -- Glyph for an `AudioDevice`, or `nil` when nothing names one; callers supply the fallback.
 function util.audio_device_glyph(device, is_input)
-    local icons = require("config.icons")
     for _, hint in ipairs(AUDIO_DEVICE_HINTS) do
         local value = device and device[hint[1]]
         if value and value:find(hint[2]) then
@@ -168,14 +212,13 @@ end
 
 -- Raw `mantle.audio`, not a signal, so callers choose their `nil` behavior. Nerd Font glyphs rather
 -- than themed icons, which the OSD could not tint.
-function util.volume_glyph(a)
-    local icons = require("config.icons")
-    if a == nil or a.volume == nil then
+function util.volume_glyph(audio)
+    if audio == nil or audio.volume == nil then
         return "--"
-    elseif a.muted then
+    elseif audio.muted then
         return icons.vol_muted
     end
-    local percent = a.volume * 100
+    local percent = audio.volume * 100
     if percent < 1 then
         return icons.vol_zero
     elseif percent < 33 then
@@ -187,22 +230,21 @@ function util.volume_glyph(a)
 end
 
 -- Four strength buckets over 0..100, shared by the bar indicator and the lock card's status row.
-function util.network_glyph(n)
-    local icons = require("config.icons")
-    if n == nil then
+function util.network_glyph(network)
+    if network == nil then
         return icons.wifi_none
     end
-    if n.ssid == "Ethernet" then
+    if network.ssid == "Ethernet" then
         return icons.ethernet
     end
     -- A dead radio and a live one joined to nothing are different pictures.
-    if not n.networking_enabled or not n.wifi_enabled then
+    if not network.networking_enabled or not network.wifi_enabled then
         return icons.wifi_off
     end
-    if n.ssid == nil then
+    if network.ssid == nil then
         return icons.wifi_none
     end
-    return icons.wifi[util.signal_tier(n.strength)]
+    return icons.wifi[util.signal_tier(network.strength)]
 end
 
 -- Four strength buckets, 1-indexed. The bars in the bar, the bars in the list, and the list's
@@ -231,7 +273,6 @@ end
 ---@return string? # Short band label, or `nil` when there is no band to name.
 ---@return Color # The band's colour, or `FG`.
 function util.band_of(ap)
-    local theme = require("config.theme")
     local number = ap and ap.band and ap.band:match("^[%d%.]+")
     if number == "6" then
         return "6G", theme.GREEN
@@ -245,15 +286,14 @@ end
 
 -- The `available_networks` entry the link is on: `NetworkState` carries no band, so band-shaped
 -- questions come back through the AP list. A wired link has no entry, so callers need no branch.
----@param n NetworkState?
+---@param network NetworkState?
 ---@return AccessPointInfo? # The associated access point, or `nil`.
-function util.active_access_point(n)
-    for _, ap in ipairs((n and n.available_networks) or {}) do
+function util.active_access_point(network)
+    for _, ap in ipairs((network and network.available_networks) or {}) do
         if ap.active then
             return ap
         end
     end
-    return nil
 end
 
 -- A codepoint budget, the exception to `components/cell.lua`'s pixel-box rule: centre-zone modules
@@ -269,21 +309,30 @@ function util.truncate(value, limit)
     return s:sub(1, utf8.offset(s, limit + 1) - 1) .. "..."
 end
 
---- The hovered button's rect, for a group sharing one tooltip: `key` names the one last entered and
---- `prefix .. key` is its hover slot, whose rect survives the exit so the card stays put while it
---- fades. `""` is before the first hover, where a popup still refuses a zero rect.
-function util.hover_anchor(key, prefix)
-    return key:map(function(name)
-        return name ~= "" and hover_rect(prefix .. name):get() or { x = 0, y = 0, width = 1, height = 1 }
+-- An `on_hover` that holds `name` in `key` while the pointer is on its button, else `""`: a row of
+-- buttons sharing one tooltip passes `key` as the tooltip's `group`.
+function util.track_hover(key, name)
+    return function(is_hovered)
+        if is_hovered then
+            key:set(name)
+        elseif key:get() == name then
+            key:set("")
+        end
+    end
+end
+
+-- `signal`'s last non-empty string, so a card fading out after its key clears keeps its text and place.
+function util.hold(signal)
+    local last = ""
+    return signal:map(function(value)
+        last = value ~= "" and value or last
+        return last
     end)
 end
 
 function util.shown_when(signal, predicate)
     return signal:map(function(value)
-        if value == nil then
-            return false
-        end
-        local ok, shown = pcall(predicate, value)
+        local ok, shown = try(predicate, value)
         return ok and shown or false
     end)
 end
@@ -301,11 +350,8 @@ end
 -- `read(value)` as a strict boolean for a toggle: a nil payload, a throwing `read` or a non-`true`
 -- answer all read as off.
 function util.read_bool(value, read)
-    if value == nil then
-        return false
-    end
-    local ok, result = pcall(read, value)
-    return ok and result == true
+    local ok, result = try(read, value)
+    return ok == true and result == true
 end
 
 -- Whitespace off both ends. Parenthesised: `gsub` also returns its count.
@@ -333,13 +379,11 @@ function util.auto_english_layout(capability)
         local was_active = previous ~= nil and previous.active
         if state ~= nil and state.active and not was_active then
             if auto_english_active_count == 0 then
-                local k = mantle.keyboard:get()
-                local idx = k and k.active_layout_index or 0
-                if idx > 0 then
-                    auto_english_saved = idx
+                local keyboard = mantle.keyboard:get()
+                local index = keyboard and keyboard.active_layout_index or 0
+                auto_english_saved = index > 0 and index or -1
+                if index > 0 then
                     mantle.keyboard:invoke("switch_layout", 0)
-                else
-                    auto_english_saved = -1
                 end
             end
             auto_english_active_count = auto_english_active_count + 1

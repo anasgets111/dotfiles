@@ -38,6 +38,28 @@ local function speed_text(mbps)
     return mbps >= 1000 and string.format("%g Gb/s", mbps / 1000) or mbps > 0 and string.format("%d Mb/s", mbps) or nil
 end
 
+-- A radio's toggle tile: `radio` prefixes its `_present`/`_enabled` fields and `set_*_enabled` action.
+local function radio_tile(radio, name, tile_icon, detail)
+    return panel_toggle_card {
+        slot = "network-" .. radio .. "-tile",
+        icon = tile_icon,
+        label = util.label(mantle.network, function(n)
+            return n[radio .. "_present"] and name or "No " .. name
+        end),
+        disabled = util.shown_when(mantle.network, function(n)
+            return not n[radio .. "_present"]
+        end),
+        detail = util.label(mantle.network, detail),
+        signal = mantle.network,
+        read = function(n)
+            return n[radio .. "_enabled"]
+        end,
+        on_change = function(new_value)
+            mantle.network:invoke("set_" .. radio .. "_enabled", new_value)
+        end,
+    }
+end
+
 local function radio_on(n)
     return n ~= nil and n.networking_enabled and n.wifi_present and n.wifi_enabled
 end
@@ -216,17 +238,12 @@ end)
 -- profile answers or `password_ssid` comes back and this sheet asks for the rest. The name is kept
 -- for the title and Retry. Submitting nothing is not an attempt to join "".
 local function submit_hidden_name()
-    local name = ui.hidden_draft:get():match("^%s*(.-)%s*$")
+    local name = util.trim(ui.hidden_draft:get())
     if name == "" then
         return
     end
     ui.hidden_ssid:set(name)
     mantle.network:invoke("connect", name, true)
-end
-
--- A failed attempt leaves no pending intent, so Retry is a fresh `connect`, not a resubmission.
-local function retry_hidden()
-    mantle.network:invoke("connect", ui.hidden_ssid:get(), true)
 end
 
 -- Called by the indicator on every toggle: an open scans now and every `RESCAN_MS` after, a close
@@ -286,52 +303,15 @@ local body = {
             return n.networking_enabled
         end),
         children = {
-            panel_toggle_card {
-                slot = "network-wifi-tile",
-                icon = icons.wifi[4],
-                label = util.label(mantle.network, function(n)
-                    return n.wifi_present and "Wi-Fi" or "No Wi-Fi"
-                end),
-                disabled = util.shown_when(mantle.network, function(n)
-                    return not n.wifi_present
-                end),
+            radio_tile("wifi", "Wi-Fi", icons.wifi[4], function(n)
                 -- Keyed on the association, not `ssid`. A docked laptop's joined radio still has an
                 -- address while `ssid` names the cable.
-                detail = util.label(mantle.network, function(n)
-                    local ap = util.active_access_point(n)
-                    if ap == nil then
-                        return ""
-                    end
-                    return detail_line(n.wifi_ip, (util.band_of(ap)))
-                end),
-                signal = mantle.network,
-                read = function(n)
-                    return n.wifi_enabled
-                end,
-                on_change = function(new_value)
-                    mantle.network:invoke("set_wifi_enabled", new_value)
-                end,
-            },
-            panel_toggle_card {
-                slot = "network-ethernet-tile",
-                icon = icons.ethernet,
-                label = util.label(mantle.network, function(n)
-                    return n.ethernet_present and "Ethernet" or "No Ethernet"
-                end),
-                disabled = util.shown_when(mantle.network, function(n)
-                    return not n.ethernet_present
-                end),
-                detail = util.label(mantle.network, function(n)
-                    return n.ethernet_enabled and detail_line(n.ethernet_ip, speed_text(n.ethernet_speed)) or ""
-                end),
-                signal = mantle.network,
-                read = function(n)
-                    return n.ethernet_enabled
-                end,
-                on_change = function(new_value)
-                    mantle.network:invoke("set_ethernet_enabled", new_value)
-                end,
-            },
+                local ap = util.active_access_point(n)
+                return ap and detail_line(n.wifi_ip, (util.band_of(ap))) or ""
+            end),
+            radio_tile("ethernet", "Ethernet", icons.ethernet, function(n)
+                return n.ethernet_enabled and detail_line(n.ethernet_ip, speed_text(n.ethernet_speed)) or ""
+            end),
         },
     },
     -- Error card, red on a red-tinted ground, closed by its own button or the next attempt. It
@@ -433,7 +413,7 @@ local body = {
                     action_button("Next", submit_hidden_name, "network-sheet-next", {
                         tone = "solid",
                         visible = computed({ step, ui.hidden_draft }, function(current, draft)
-                            return current == "name" and draft:match("^%s*(.-)%s*$") ~= ""
+                            return current == "name" and util.trim(draft) ~= ""
                         end),
                     }),
                     -- No `on_activate`: its click *is* the field's Enter, the only path a password
@@ -443,7 +423,10 @@ local body = {
                         submit = true,
                         visible = during("password"),
                     }),
-                    action_button("Retry", retry_hidden, "network-sheet-retry", {
+                    -- A failed attempt leaves no pending intent, so Retry is a fresh `connect`.
+                    action_button("Retry", function()
+                        mantle.network:invoke("connect", ui.hidden_ssid:get(), true)
+                    end, "network-sheet-retry", {
                         tone = "solid",
                         glyph = icons.warning,
                         visible = during("failed"),

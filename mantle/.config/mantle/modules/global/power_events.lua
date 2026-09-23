@@ -7,9 +7,9 @@ local osd = require("modules.osd.service")
 local thresholds = util.battery_thresholds
 
 local function notify(summary, body, critical)
-    local urgency = critical and "critical" or "normal"
-    process.run("notify-send", { "-a", "Battery", "-u", urgency, "-t", "5000", "-e", summary, body }, function() end,
-        function() end)
+    process.run("notify-send",
+        { "-a", "Battery", "-u", critical and "critical" or "normal", "-t", "5000", "-e", summary, body },
+        function() end, function() end)
 end
 
 -- Mains state is `mantle.power` (UPower manager `OnBattery`), not the battery capability.

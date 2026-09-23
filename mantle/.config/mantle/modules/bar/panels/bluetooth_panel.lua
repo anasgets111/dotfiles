@@ -25,17 +25,11 @@ end
 
 -- An empty string is truthy in Lua, so `name or mac` would keep it instead of falling back.
 local function display_name(device)
-    if device.name == nil or device.name == "" then
-        return device.mac or "?"
-    end
-    return device.name
+    return (device.name or "") ~= "" and device.name or device.mac or "?"
 end
 
 local function battery_text(device)
-    if device.battery == nil or device.battery < 0 then
-        return nil
-    end
-    return string.format("%d%%", device.battery)
+    return device.battery ~= nil and device.battery >= 0 and string.format("%d%%", device.battery) or nil
 end
 
 local function enabled(b)
@@ -52,12 +46,8 @@ local function state_line(b)
     local joined = util.sorted_devices(b.connected_devices)
     local first = joined[1]
     if first then
-        local parts = { string.format("%d connected", #joined), display_name(first) }
         local battery = battery_text(first)
-        if battery then
-            parts[#parts + 1] = battery
-        end
-        return table.concat(parts, " · ")
+        return string.format("%d connected · %s", #joined, display_name(first)) .. (battery and " · " .. battery or "")
     end
     return b.discovering and "Scanning…" or "No devices connected"
 end
@@ -69,8 +59,9 @@ local function battery_badge(device)
         return nil
     end
     local level = device.battery
-    local color = level <= 10 and theme.RED or (level <= 20 and theme.YELLOW or theme.ACCENT)
-    return info_badge(text, color, { opacity = theme.opacity.strong })
+    return info_badge(text, level <= 10 and theme.RED or level <= 20 and theme.YELLOW or theme.ACCENT, {
+        opacity = theme.opacity.strong,
+    })
 end
 
 -- An accented word whose ground appears on hover.
@@ -162,17 +153,6 @@ local SPINNING = mantle.bluetooth:map(function()
     return true
 end)
 
--- No click, so a second pair or connect cannot start over the first.
-local function busy_row(device)
-    return panel_row {
-        slot = "bluetooth-device-" .. tostring(device.mac),
-        icon = device_icon(device),
-        title = display_name(device),
-        subtitle = device.busy .. "…",
-        trailing = spinner(SPINNING, theme.icon.md),
-    }
-end
-
 -- One codec under its device; picking another switches to it and closes the list.
 local function codec_row(item)
     local option = item.option
@@ -197,8 +177,16 @@ local function device_row(item)
         return codec_row(item)
     end
     local device = item.device
+    local slot = "bluetooth-device-" .. tostring(device.mac)
     if device.busy ~= nil then
-        return busy_row(device)
+        -- No click, so a second pair or connect cannot start over the first.
+        return panel_row {
+            slot = slot,
+            icon = device_icon(device),
+            title = display_name(device),
+            subtitle = device.busy .. "…",
+            trailing = spinner(SPINNING, theme.icon.md),
+        }
     end
     local trailing = {}
     if item.status == "connected" then
@@ -218,12 +206,10 @@ local function device_row(item)
         trailing[#trailing + 1] = pair_button(device)
     end
     -- A blocked row offers nothing BlueZ would refuse.
-    local subtitle = nil
+    local codec = active_codec(item.card)
+    local subtitle = device.blocked and "Blocked" or nil
     if item.status == "connected" then
-        local codec = active_codec(item.card)
         subtitle = codec and ("Connected · " .. codec) or "Connected"
-    elseif device.blocked then
-        subtitle = "Blocked"
     end
     local on_activate = nil
     if item.status == "paired" and not device.blocked then
@@ -237,7 +223,7 @@ local function device_row(item)
         end
     end
     return panel_row {
-        slot = "bluetooth-device-" .. tostring(device.mac),
+        slot = slot,
         icon = device_icon(device),
         title = display_name(device),
         subtitle = subtitle,

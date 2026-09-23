@@ -26,17 +26,12 @@ end), nil, {
     background = state_of:map(function(current)
         return current == "recording" and theme.ACCENT or theme.GLASS_CONTROL
     end),
-    -- `on_button`: the extra mouse buttons are part of this indicator's design.
     on_button = function(rect, mouse_button)
         if mouse_button == "right" then
             ui_state.toggle_panel(screen_recorder_panel.kind, rect)
-            return
-        end
-        if mouse_button == "left" then
+        elseif mouse_button == "left" then
             recorder.toggle()
-            return
-        end
-        if mouse_button == "middle" and not recorder.recording:get() then
+        elseif mouse_button == "middle" and not recorder.recording:get() then
             recorder.start()
         end
     end,

@@ -1,20 +1,17 @@
 -- Who is logged in: GECOS from `getent passwd`, host from `uname -n`, read once per session.
 -- Callers draw `$USER` and "localhost" until they answer. Named state so a reload spawns nothing.
+local util = require("lib.util")
+
 local identity = state("lock_identity", { name = "", host = "" })
 
 local USER = os.getenv("USER") or "user"
 
 local function remember(field, value)
-    value = value:match("^%s*(.-)%s*$")
-    if value == "" then
-        return
-    end
-    local current = identity:get()
+    value = util.trim(value)
     -- Field at a time: the two processes finish in either order.
-    identity:set({
-        name = field == "name" and value or current.name,
-        host = field == "host" and value or current.host,
-    })
+    if value ~= "" then
+        identity:set(util.with(identity:get(), field, value))
+    end
 end
 
 if identity:get().name == "" then
@@ -36,15 +33,15 @@ end
 
 return {
     user = USER,
-    full_name = identity:map(function(i)
-        return i.name ~= "" and i.name or USER
+    full_name = identity:map(function(who)
+        return who.name ~= "" and who.name or USER
     end),
-    account = identity:map(function(i)
-        return string.format("%s@%s", USER, i.host ~= "" and i.host or "localhost")
+    account = identity:map(function(who)
+        return string.format("%s@%s", USER, who.host ~= "" and who.host or "localhost")
     end),
     -- First letters of the first two words: "Anas Khalifa" is "AK".
-    initials = identity:map(function(i)
-        local name = i.name ~= "" and i.name or USER
+    initials = identity:map(function(who)
+        local name = who.name ~= "" and who.name or USER
         local letters = ""
         local taken = 0
         for word in name:gmatch("%S+") do

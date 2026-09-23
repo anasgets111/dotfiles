@@ -8,19 +8,11 @@ local bluetooth_panel = require("modules.bar.panels.bluetooth_panel")
 
 local SLOT = "bluetooth"
 
-local function connected(b)
-    return util.sorted_devices((b or {}).connected_devices)
-end
-
-local function device_name(device)
-    return device.name ~= nil and device.name ~= "" and device.name or device.mac or "?"
-end
-
 local bluetooth_module = icon_button(mantle.bluetooth:map(function(b)
     if b == nil or not b.enabled then
         return icons.bt_off
     end
-    return #connected(b) > 0 and icons.bt_conn or icons.bt_on
+    return #(b.connected_devices or {}) > 0 and icons.bt_conn or icons.bt_on
 end), nil, {
     slot = SLOT,
     on_button = function(rect, _)
@@ -31,7 +23,7 @@ end), nil, {
         if b == nil or not b.enabled then
             return theme.TEXT_OFF
         end
-        return #connected(b) > 0 and theme.ACCENT or theme.FG
+        return #(b.connected_devices or {}) > 0 and theme.ACCENT or theme.FG
     end),
 })
 
@@ -42,12 +34,13 @@ local bluetooth_text = mantle.bluetooth:map(function(b)
     if not b.enabled then
         return { title = "Bluetooth: off", detail = "", secondary = "" }
     end
-    local devices = connected(b)
+    local devices = util.sorted_devices(b.connected_devices)
     local first = devices[1]
     local detail
     if first ~= nil then
         local battery = first.battery and first.battery >= 0 and string.format(" · Battery: %d%%", first.battery) or ""
-        detail = string.format("Top: %s%s", device_name(first), battery)
+        local name = first.name ~= nil and first.name ~= "" and first.name or first.mac or "?"
+        detail = string.format("Top: %s%s", name, battery)
     elseif b.discovering then
         detail = "Discovering devices…"
     else
@@ -68,18 +61,13 @@ local bluetooth_text = mantle.bluetooth:map(function(b)
         secondary = secondary,
     }
 end)
-local bluetooth_title = bluetooth_text:map(function(t) return t.title end)
-local bluetooth_detail_one = bluetooth_text:map(function(t) return t.detail end)
-local bluetooth_detail_two = bluetooth_text:map(function(t) return t.secondary end)
 
 local bluetooth_tooltip = tooltip({
     id = "bluetooth_tooltip",
     slot = SLOT,
-    text = bluetooth_title,
-    detail = bluetooth_detail_one,
-    detail_options = { visible = bluetooth_detail_one:map(function(text) return text ~= "" end) },
-    secondary = bluetooth_detail_two,
-    secondary_options = { visible = bluetooth_detail_two:map(function(text) return text ~= "" end) },
+    text = bluetooth_text:map(function(t) return t.title end),
+    detail = bluetooth_text:map(function(t) return t.detail end),
+    secondary = bluetooth_text:map(function(t) return t.secondary end),
 })
 
 return { indicator = bluetooth_module, tooltip = bluetooth_tooltip }

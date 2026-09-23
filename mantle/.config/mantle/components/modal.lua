@@ -8,6 +8,7 @@ local CLOSED_SCALE = 0.97
 ---@class ModalOpts
 ---@field kind string The `modal` state value that shows this one, e.g. `"launcher"`.
 ---@field card table The card node, positioned by its own `margin` or aligns within the screen.
+---@field below_bar? boolean Centre the card, by its numeric width and height, in the space below the bar.
 
 ---@class Modal
 ---@field kind string
@@ -32,9 +33,26 @@ local function swallow_presses(card)
     return box
 end
 
+-- `screens[1]` guesses the head like `panel_host.lua`.
+local function below_bar_margin(width, height)
+    return mantle.screens:map(function(screens)
+        local screen = screens and screens[1]
+        if not (screen and screen.width and screen.height) then
+            return { left = 0, top = 0 }
+        end
+        return {
+            left = math.max(0, math.floor((screen.width - width) / 2)),
+            top = math.max(0, math.floor((screen.height - theme.bar_height - height) / 2)),
+        }
+    end)
+end
+
 ---@param opts ModalOpts
 ---@return Modal
 return function(opts)
+    if opts.below_bar then
+        opts.card.margin = below_bar_margin(opts.card.width, opts.card.height)
+    end
     local showing = ui_state.modal_showing(opts.kind)
     -- The easing follows the direction, so the table is a signal; `from` is the entry.
     local animate = showing:map(function(open)

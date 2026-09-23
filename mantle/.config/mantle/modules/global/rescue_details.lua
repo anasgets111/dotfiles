@@ -57,17 +57,13 @@ return modal({
     kind = "rescue",
     card = panel_card({
         header,
-        panel_card({ log }, { width = "Fill", background = theme.GLASS_CONTENT }),
+        panel_card({ log }, { width = "Fill" }),
     }, {
         width = theme.rescue_modal_width,
         align_h = "Center",
         align_v = "Center",
         spacing = theme.spacing.md,
         padding = theme.spacing.lg,
-        radius = theme.radius.lg,
-        background = theme.GLASS,
-        blur = true,
-        border_width = theme.border_width,
-        border_color = theme.BORDER,
+        tone = "dialog",
     }),
 })

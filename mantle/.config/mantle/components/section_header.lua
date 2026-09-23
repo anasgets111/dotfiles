@@ -1,8 +1,5 @@
--- Small dim section label. `modules/bar/panels/settings.lua` is easier to scan as "system" and
--- "bluetooth" than as one column, and other panels use the same split.
--- Sets the word itself: uppercased, bold, muted opacity, indented by `spacing.sm`. The
--- `spacing.xs` padding on top is headroom, not a gap underneath, so the label sits tight against
--- the list it introduces.
+-- Small dim uppercase section label. Padding on top only is headroom, so the label sits tight
+-- against the list it introduces.
 local theme = require("config.theme")
 
 return function(content)

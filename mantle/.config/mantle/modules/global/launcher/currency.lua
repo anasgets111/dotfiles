@@ -12,14 +12,7 @@ local M = {}
 local REFRESH_SECONDS = 86400
 local URL = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json"
 
-local SYMBOLS = {
-    ["$"] = "usd",
-    ["€"] = "eur",
-    ["£"] = "gbp",
-    ["¥"] = "jpy",
-    ["₹"] = "inr",
-    ["₿"] = "btc",
-}
+local SYMBOLS = { ["$"] = "usd", ["€"] = "eur", ["£"] = "gbp", ["¥"] = "jpy", ["₹"] = "inr", ["₿"] = "btc" }
 
 -- Three countries whose code is not their first two letters, and the cryptocurrencies that have
 -- a sign instead of a flag.
@@ -196,17 +189,9 @@ function M.claims(query, rates, updated_at, allow_bare)
     if not (amount and from) then
         return nil
     end
-    local to
-    if target and target ~= "" then
-        to = currency(target)
-        if not to then
-            return nil
-        end
-    else
-        -- `parsed.f === "egp" ? "usd" : "egp"`.
-        to = from == "egp" and "usd" or "egp"
-    end
-    if from == to then
+    -- No target is `parsed.f === "egp" ? "usd" : "egp"`.
+    local to = (target or "") == "" and (from == "egp" and "usd" or "egp") or currency(target or "")
+    if not to or from == to then
         return nil
     end
     local from_rate = tonumber((rates or {})[from])

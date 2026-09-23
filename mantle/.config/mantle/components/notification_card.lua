@@ -30,30 +30,45 @@ local SLIDE_EXIT = {
     opacity = 0,
 }
 
--- The glyph is the control, with no filled circle behind it.
-local function ghost_close(slot, on_activate)
-    return icon_button(icons.close, on_activate, {
+-- How long a card waits behind the one above it, so four arriving at once do not read as one block.
+local STAGGER_MS = 60
+
+-- Popup entry: travel in from the right edge. Paint-only `translate`, not `margin`, so a
+-- `Fill`-width card is laid out once instead of re-wrapping as it moves.
+local function slide_in(delay)
+    return {
+        translate = {
+            duration = theme.notification_slide_ms,
+            easing = "OutCubic",
+            delay = delay,
+            from = { x = theme.notification_width },
+        },
+        -- Hold the opacity too, so a waiting card is invisible where it waits.
+        opacity = { duration = theme.notification_slide_ms, delay = delay, from = 0 },
+        exit = SLIDE_EXIT,
+    }
+end
+
+-- The card's small controls. `rest` and `lit` are the ground; a close is only its glyph.
+local function small_button(glyph, on_activate, slot, rest, lit)
+    return icon_button(glyph, on_activate, {
         size = theme.control.xs,
         icon_size = theme.icon.xs,
-        background = "#00000000",
-        background_hover = "#00000000",
+        background = rest,
+        background_hover = lit,
         border = false,
         foreground = theme.FG,
         slot = slot,
     })
 end
 
--- Shared chevron for groups and messages, with the same three properties in both places.
+local function ghost_close(slot, on_activate)
+    return small_button(icons.close, on_activate, slot, "#00000000", "#00000000")
+end
+
 local function expander(is_open, on_activate, slot)
-    return icon_button(is_open and icons.chevron_up or icons.chevron_down, on_activate, {
-        size = theme.control.xs,
-        icon_size = theme.icon.xs,
-        background = theme.GLASS_CONTENT,
-        background_hover = theme.GLASS_HOVER,
-        border = false,
-        foreground = theme.FG,
-        slot = slot,
-    })
+    return small_button(is_open and icons.chevron_up or icons.chevron_down, on_activate, slot,
+        theme.GLASS_CONTENT, theme.GLASS_HOVER)
 end
 
 -- One notification inside its group card.
@@ -215,8 +230,9 @@ local function message(notification, ui, opts)
     }
 
     local hovered = hover("notification-message-" .. tostring(id))
+    local animate = slide_in(0)
     -- An `if`, not `a and nil or b`, which cannot produce nil and would box a lone message twice.
-    local ground, ring = nil, nil
+    local ground, ring
     if not opts.standalone then
         -- Subtle ground and hairline, accent under the pointer. Content glass is the history
         -- card's ground, so a second card ground would disappear into it.
@@ -226,17 +242,6 @@ local function message(notification, ui, opts)
         ring = hovered:map(function(is_hovered)
             return is_hovered and theme.ACCENT_MEDIUM or theme.BORDER_SUBTLE
         end)
-    end
-    local animate = {
-        translate = {
-            duration = theme.notification_slide_ms,
-            easing = "OutCubic",
-            from = { x = theme.notification_width },
-        },
-        opacity = { duration = theme.notification_slide_ms, from = 0 },
-        exit = SLIDE_EXIT,
-    }
-    if ground then
         animate.background = theme.animation_ms
         animate.border_color = theme.animation_ms
     end
@@ -273,32 +278,13 @@ local function message(notification, ui, opts)
     }
 end
 
--- How long a card waits behind the one above it, so four arriving at once do not read as one block.
-local STAGGER_MS = 60
-
--- Card entry, the one thing the two scopes disagree about. Paint-only `translate`, not `margin`, so
--- a `Fill`-width card is laid out once instead of re-wrapping as it moves.
+-- Card entry, the one thing the two scopes disagree about. History records what happened, so it
+-- fades without travel; popup travel says an event came from outside.
 local function entry_animation(scope, rank)
     if scope == "history" then
-        -- History records what happened, so it fades without travel; popup travel says an event came
-        -- from outside.
-        return {
-            opacity = { duration = theme.animation_ms, from = 0 },
-            exit = SLIDE_EXIT,
-        }
+        return { opacity = { duration = theme.animation_ms, from = 0 }, exit = SLIDE_EXIT }
     end
-    local delay = math.max(0, ((rank or 1) - 1)) * STAGGER_MS
-    return {
-        translate = {
-            duration = theme.notification_slide_ms,
-            easing = "OutCubic",
-            delay = delay,
-            from = { x = theme.notification_width },
-        },
-        -- Hold the opacity too, so a waiting card is invisible where it waits.
-        opacity = { duration = theme.notification_slide_ms, delay = delay, from = 0 },
-        exit = SLIDE_EXIT,
-    }
+    return slide_in(math.max(0, ((rank or 1) - 1)) * STAGGER_MS)
 end
 
 -- `group` is one entry of `notifications.group_notifications`; `ui` is `lib/ui_state`.

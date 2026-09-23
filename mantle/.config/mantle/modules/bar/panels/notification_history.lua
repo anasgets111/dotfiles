@@ -24,6 +24,10 @@ local function feed(n)
     return (n and n.feed) or {}
 end
 
+local bell_glyph = mantle.notifications:map(function(n)
+    return (n and n.dnd) and icons.bell_off or icons.bell
+end)
+
 -- List non-transients, grouped by application into "urgent" / "today" / "yesterday" /
 -- "earlier". `mantle.applications` supplies desktop-file names/icons; `mantle.system`
 -- moves "today" at midnight.
@@ -126,9 +130,7 @@ local body = {
     system_info("notifications"),
     panel_header {
         title = "Notifications",
-        icon = mantle.notifications:map(function(n)
-            return (n and n.dnd) and icons.bell_off or icons.bell
-        end),
+        icon = bell_glyph,
         active = mantle.notifications:map(function(n)
             return not (n and n.dnd)
         end),
@@ -200,9 +202,7 @@ local body = {
             return kept(n) == 0
         end),
         {
-            icon = mantle.notifications:map(function(n)
-                return (n and n.dnd) and icons.bell_off or icons.bell
-            end),
+            icon = bell_glyph,
             -- An empty feed under DND means something different from an empty feed without it, and
             -- the struck-through bell alone does not say which.
             subtext = mantle.notifications:map(function(n)

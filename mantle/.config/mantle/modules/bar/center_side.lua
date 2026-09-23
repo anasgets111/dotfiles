@@ -4,7 +4,6 @@ local media_panel = require("modules.bar.panels.media_panel")
 local ui_state = require("lib.ui_state")
 
 local MEDIA_SLOT = "media_indicator"
-local media_hovered = hover(MEDIA_SLOT)
 
 local playback_available = mantle.mpris:map(function(m)
     local player = ((m and m.players) or {})[1]
@@ -18,13 +17,12 @@ return row {
     children = { rect {
         height = "Fill",
         align_v = "Center",
-        hover = media_hovered,
+        hover = hover(MEDIA_SLOT),
         on_hover = function(is_hovered)
             ui_state.set_media_hover("trigger", is_hovered)
-            if is_hovered and playback_available:get() then
-                if not ui_state.panel_open:get() or ui_state.panel_kind:get() == media_panel.kind then
-                    ui_state.open_panel(media_panel.kind, hover_rect(MEDIA_SLOT):get())
-                end
+            if is_hovered and playback_available:get()
+                and (not ui_state.panel_open:get() or ui_state.panel_kind:get() == media_panel.kind) then
+                ui_state.open_panel(media_panel.kind, hover_rect(MEDIA_SLOT):get())
             end
         end,
         children = {
