@@ -3,8 +3,8 @@
 local theme = require("config.theme")
 local cell = require("components.cell")
 
--- `solid` is the only opaque ground -- other tints show panel glass through the label -- and picks
--- its own foreground.
+-- `solid` and `danger` are the only opaque grounds and pick their own ink. The other tints show panel
+-- glass through the label.
 local function opaque(colour, lifted)
     return { rest = colour, hover = lifted, border = colour, text = theme.text_contrast(colour) }
 end
@@ -13,14 +13,14 @@ local GROUND = {
     accent = { rest = theme.ACCENT_SUBTLE, hover = theme.ACCENT_LIGHT, border = theme.ACCENT_MEDIUM },
     quiet = { rest = theme.GLASS_CONTROL, hover = theme.GLASS_CONTROL_HOVER, border = theme.GLASS_BORDER },
     solid = opaque(theme.ACCENT, theme.ACCENT_HOVER),
-    -- Solid's shape in alert colour, for the one action that ends something already running.
+    -- The recorder's Stop, the one action that ends something already running.
     danger = opaque(theme.RED, theme.RED_HOVER),
 }
 
 ---@param label string|Bound
 ---@param on_activate? fun() Absent on a `submit` button, whose click is the field's Enter.
 ---@param slot string A `hover` slot unique to this button; two buttons sharing one light up together.
----@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"solid"|"danger", width?: integer|"Fill", height?: integer, visible?: boolean|Bound, disabled?: Signal, submit?: boolean, on_button?: fun(rect: Rect, button: string) }
+---@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"solid"|"danger", width?: integer|"Fill", height?: integer, visible?: boolean|Bound, disabled?: Signal, submit?: boolean }
 return function(label, on_activate, slot, opts)
     opts = opts or {}
     local ground = GROUND[opts.tone or "accent"]
@@ -36,7 +36,7 @@ return function(label, on_activate, slot, opts)
             foreground = ground.text,
         }
     end
-    -- The Nerd Font half of the same slot: a `text` node, so it takes the button's ink.
+    -- A Nerd Font glyph in the same slot, a `text` node, so it takes the button's ink.
     if opts.glyph then
         children[#children + 1] = text {
             content = opts.glyph,

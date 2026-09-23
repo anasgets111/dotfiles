@@ -5,9 +5,9 @@
 -- visible and falls back to the first, computed once for the whole list so three hundred rows stay
 -- inside the 5ms budget. Mouse and arrows move the same ring.
 --
--- A query routes through the providers -- currency, calculator, then the web fallback -- and the
--- first to claim draws the special row above the apps. They return plain tables because a
--- `computed` marshals a value and cannot carry a closure.
+-- A query routes through currency, calculator, then the web fallback. The first to claim draws the
+-- special row above the apps. Providers return plain tables because a `computed` marshals a value
+-- and cannot carry a closure.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
@@ -36,7 +36,7 @@ local currency = require("modules.global.launcher.currency")
 
 local SCROLL = scroll("launcher_list")
 local MAX_RESULTS = 200
-local PAGE = 8
+local STEPS = { up = -1, backtab = -1, down = 1, tab = 1, page_up = -8, page_down = 8 }
 -- Special-row id in `selected_id`, not a desktop-file id; desktop-file ids never start with a space.
 local SPECIAL = " special"
 
@@ -48,26 +48,22 @@ local function entries_of(applications)
 end
 
 -- One string per entry, scored by `fuzzy` and ordered by score, match start, then length. The name
--- comparison last is ours: `table.sort` is unstable, so entries alike on all three would trade
--- places between keystrokes. The haystack takes keywords too -- "image" is only in GIMP's.
-local haystack_cache = setmetatable({}, { __mode = "k" })
-local function cached_haystack(app)
-    local h = haystack_cache[app]
-    if not h then
+-- comparison last is ours. `table.sort` is unstable, so entries alike on all three would trade
+-- places between keystrokes. The haystack takes keywords too, since "image" is only in GIMP's.
+local haystacks = setmetatable({}, { __mode = "k" })
+local function haystack_of(app)
+    if not haystacks[app] then
         local parts = { app.name }
         if app.comment and app.comment ~= "" then parts[#parts + 1] = app.comment end
         if app.generic_name and app.generic_name ~= "" then parts[#parts + 1] = app.generic_name end
         for _, word in ipairs(app.keywords or {}) do parts[#parts + 1] = word end
-        h = table.concat(parts, " ")
-        haystack_cache[app] = h
+        haystacks[app] = table.concat(parts, " ")
     end
-    return h
+    return haystacks[app]
 end
 
----@param applications ApplicationsState|nil
----@param text string
----@return { apps: AppSummary[], best: integer } `best` is the top score, the one thing the web row
----needs that a sorted list does not carry.
+-- `best` is the top score, the one thing the web row needs that a sorted list does not carry.
+---@return { apps: AppSummary[], best: integer }
 local function filter(applications, text)
     local entries = entries_of(applications)
     -- No `lower()`: `fuzzy` is smart-case, so an uppercase letter in the query is the user asking
@@ -79,7 +75,7 @@ local function filter(applications, text)
     local scored = {}
     local best = 0
     for _, app in ipairs(entries) do
-        local haystack = cached_haystack(app)
+        local haystack = haystack_of(app)
         local value, start = fuzzy(haystack, needle)
         if value then
             scored[#scored + 1] = { app = app, score = value, start = start, length = #haystack }
@@ -88,17 +84,17 @@ local function filter(applications, text)
             end
         end
     end
-    table.sort(scored, function(a, b)
-        if a.score ~= b.score then
-            return a.score > b.score
+    table.sort(scored, function(left, right)
+        if left.score ~= right.score then
+            return left.score > right.score
         end
-        if a.start ~= b.start then
-            return a.start < b.start
+        if left.start ~= right.start then
+            return left.start < right.start
         end
-        if a.length ~= b.length then
-            return a.length < b.length
+        if left.length ~= right.length then
+            return left.length < right.length
         end
-        return a.app.name < b.app.name
+        return left.app.name < right.app.name
     end)
     local apps = {}
     for i = 1, math.min(#scored, MAX_RESULTS) do
@@ -114,8 +110,6 @@ end)
 
 -- Hostname-shaped input opens as a link, other input searches. Always shown for a URL, otherwise
 -- only when the apps matched weakly.
----@param text string
----@param apps_weak boolean
 ---@return LauncherRow|nil
 local function web_claims(text, apps_weak)
     local is_url = text:match("^https?://[^%s]+$") ~= nil or text:match("^[%w%-]+%.[%w%-%.]+[%w]/?[^%s]*$") ~= nil
@@ -126,8 +120,8 @@ local function web_claims(text, apps_weak)
     if is_url then
         target = text:match("^https?://") and text or ("https://" .. text)
     else
-        target = "https://duckduckgo.com/?q=" .. text:gsub("[^%w%-_%.~]", function(c)
-            return string.format("%%%02X", c:byte())
+        target = "https://duckduckgo.com/?q=" .. text:gsub("[^%w%-_%.~]", function(char)
+            return string.format("%%%02X", char:byte())
         end)
     end
     return {
@@ -263,7 +257,7 @@ local function row_shell(id, slot, children, opts)
         end),
         border_width = theme.border_width,
         border_color = selected:map(function(on)
-            return on and theme.ACCENT or "#00000000"
+            return on and theme.ACCENT or theme.CLEAR
         end),
         animate = { background = theme.animation_fast_ms, border_color = theme.animation_fast_ms },
         -- Enter and leave count as crossings, so the ring follows a pointer already in place.
@@ -408,14 +402,8 @@ local search = rect {
                         end
                     end,
                     on_navigate = function(key)
-                        if key == "up" or key == "backtab" then
-                            move(-1)
-                        elseif key == "down" or key == "tab" then
-                            move(1)
-                        elseif key == "page_up" then
-                            move(-PAGE)
-                        elseif key == "page_down" then
-                            move(PAGE)
+                        if STEPS[key] then
+                            move(STEPS[key])
                         end
                     end,
                 },

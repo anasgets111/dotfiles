@@ -1,7 +1,6 @@
--- Glyphs the bar draws by name, as private-use codepoints for `text`, which takes `foreground` --
--- a themed `icon` raster keeps its own colours and cannot be tinted. `shell.lua`'s font chain picks
--- Nerd Font per glyph; without it these are tofu. `\u{...}` keeps the source ASCII, and the names
--- are this config's.
+-- Glyphs the bar draws by name, as private-use codepoints for `text`, which takes `foreground`. A
+-- themed `icon` raster keeps its own colours and cannot be tinted. `shell.lua`'s font chain picks
+-- Nerd Font per glyph, and without it these are tofu. `\u{...}` keeps the source ASCII.
 local icons           = {}
 
 -- Left zone.
@@ -24,14 +23,11 @@ icons.checking        = "\u{F085}"
 icons.updates         = "\u{F019}"
 icons.up_to_date      = "\u{F00AA}"
 
--- Battery: `levels` is 1..5, empty to full, indexed by
--- `icons[min(floor(fraction * 5), 4)]` after Lua's 1-based indexing.
+-- `battery_levels` runs 1..5, empty to full.
 icons.battery_ac      = "\u{F1E6}"
 icons.battery_pending = "\u{F0084}"
 icons.battery_levels  = { "\u{F244}", "\u{F243}", "\u{F242}", "\u{F241}", "\u{F240}" }
 
--- OSD glyphs used by themed icons. The OSD tints its icon with the accent; themed icons cannot be
--- tinted.
 icons.brightness      = "\u{F00DE}"
 icons.keyboard        = "\u{F030C}"
 icons.caps_lock       = "\u{F0A9B}"
@@ -56,7 +52,7 @@ icons.vol_low         = "\u{F057F}"
 icons.vol_mid         = "\u{F0580}"
 icons.vol_high        = "\u{F057E}"
 
--- Network: `wifi` is indexed 1..4, weakest to strongest.
+-- `wifi` runs 1..4, weakest to strongest.
 icons.wifi            = { "\u{F091F}", "\u{F0922}", "\u{F0925}", "\u{F0928}" }
 icons.wifi_off        = "\u{F092E}"
 icons.wifi_none       = "\u{F092D}"
@@ -85,8 +81,8 @@ icons.screenshare     = "\u{F108}"
 
 icons.play            = "\u{F040A}"
 icons.pause           = "\u{F03E4}"
--- The transport row's note glyph is F0386, not the F075A `music_note` an audio stream row uses:
--- the panel means "the media player", the stream row means "a sound".
+-- The transport row's note is F0386, not the F075A `music_note` of an audio stream row. The panel
+-- means "the media player", and the stream row means "a sound".
 icons.media           = "\u{F0386}"
 icons.previous        = "\u{F04AE}"
 icons.next            = "\u{F04AD}"
@@ -98,8 +94,7 @@ icons.cpu             = "\u{F035B}"
 icons.ram             = "\u{F061A}"
 icons.gpu             = "\u{F08AE}"
 
--- Bluetooth device categories, one per `category`, avoid using the generic glyph for a mouse
--- or headset.
+-- One per Bluetooth `category`, so a mouse or headset does not get the generic glyph.
 icons.device          = {
     keyboard   = "\u{F030C}",
     mouse      = "\u{F037D}",
@@ -110,9 +105,8 @@ icons.device          = {
     generic    = "\u{F00AF}",
 }
 
--- Idle: `idle` means nothing holds the system awake; `awake` is the coffee cup used during a manual
--- hold. `display` is the monitor DPMS state; suspend reuses `sleep` instead of adding a near-
--- duplicate power-sleep glyph.
+-- `idle` means nothing holds the system awake, and `awake` is the coffee cup of a manual hold.
+-- `display` is the monitor DPMS state. Suspend reuses `sleep` rather than a near-duplicate glyph.
 icons.idle            = "\u{F0FAA}"
 icons.awake           = "\u{F0176}"
 icons.display         = "\u{F0379}"
@@ -120,9 +114,8 @@ icons.display         = "\u{F0379}"
 icons.refresh         = "\u{F0450}"
 icons.copy            = "\u{F018F}"
 
--- The lock screen buckets the WMO code into six Nerd Font glyphs. The sidebar widget draws the
--- emoji instead: one is a status line beside the battery and keyboard layout, the other is the
--- picture on a forecast card.
+-- The lock screen buckets the WMO code into six Nerd Font glyphs for its status line. The sidebar
+-- widget draws the emoji instead, as the picture on a forecast card.
 icons.weather_sunny   = "\u{F0599}"
 icons.weather_fog     = "\u{F0591}"
 icons.weather_rain    = "\u{F0597}"
@@ -131,22 +124,22 @@ icons.weather_storm   = "\u{F0593}"
 icons.weather_cloud   = "\u{F0590}"
 icons.clear_all       = "\u{F0234}"
 
--- List-row actions, `components/panel_action_icon.lua`: delete a saved network or paired device,
--- or cut a live connection.
+-- `components/panel_action_icon.lua` row actions that delete a saved network or paired device, or cut
+-- a live connection.
 icons.trash           = "\u{F0A7A}"
 icons.disconnect      = "\u{F1616}"
 
--- Screen recorder. The bar uses three states -- idle, recording, paused -- and the panel names
--- the two captures it can start. `record` is the header's glyph; `record_start` is the bar's idle
--- circle, which is the one that says "this button records".
+-- Screen recorder. The bar has three states, idle, recording and paused, and the panel names the two
+-- captures it can start. `record` is the header's glyph. `record_start` is the bar's idle circle, the
+-- one that says "this button records".
 icons.record          = "\u{F044A}"
 icons.record_start    = "\u{F07A1}"
 icons.record_stop     = "\u{F04DB}"
 icons.record_paused   = "\u{F03E7}"
 icons.region          = "\u{F019E}"
 icons.folder          = "\u{F024B}"
--- The three quality words, ranked by a needle: a slow gauge for the
--- smallest files, a fast one for the sharpest.
+-- The three quality words, ranked by a needle. A slow gauge is the smallest files, a fast one the
+-- sharpest.
 icons.quality_low     = "\u{F0F86}"
 icons.quality_medium  = "\u{F0F85}"
 icons.quality_high    = "\u{F04C5}"
@@ -156,8 +149,7 @@ icons.file_mkv        = "\u{F0FCE}"
 icons.warning         = "\u{F0026}"
 icons.close           = "\u{F0156}"
 
--- Notification card controls: chevrons expand/collapse a group or message; `send` submits the
--- inline reply field's text.
+-- Chevrons expand and collapse a notification group or message. `send` submits the inline reply.
 icons.chevron_up      = "\u{F0143}"
 icons.chevron_down    = "\u{F0140}"
 -- Collapsed rows point right rather than up, because the row opens downwards and nothing above it

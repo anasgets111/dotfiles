@@ -21,12 +21,11 @@ local ui = require("lib.ui_state")
 local dev_tools = require("config.dev_tools")
 
 local KIND = "updates"
--- Hourly: each check is a real `-Sy` against a mirror. Twice this is stale.
+-- Hourly, since each check is a real `-Sy` against a mirror. Twice this is stale.
 local CHECK_INTERVAL = 3600
-local PACKAGE_SCROLL = scroll("update_packages")
 local LOG_SCROLL = scroll("update_log")
 
--- "I have read the result": Close sets it, the next install clears it.
+-- The user has read the result. Close sets it, the next install clears it.
 local dismissed = state("updates_result_dismissed", false)
 
 -- The capability publishes only the finish; the click is the only known start.
@@ -47,8 +46,8 @@ local dev_log = state("updates_dev_log", {})
 -- `{ finished_at, failures }` once this run's tools finish. A table seed: named state keeps its type.
 local dev_result = state("updates_dev_result", {})
 
-local function packages(u)
-    return (u and u.packages) or {}
+local function packages(updates)
+    return (updates and updates.packages) or {}
 end
 
 local function plural(count, word)
@@ -65,41 +64,41 @@ local function human_bytes(bytes)
     return string.format(unit == 1 and "%d %s" or "%.1f %s", size, BYTE_UNITS[unit])
 end
 
-local function download_total(u)
+local function download_total(updates)
     local total = 0
-    for _, package in ipairs(packages(u)) do
+    for _, package in ipairs(packages(updates)) do
         total = total + (package.download_size or 0)
     end
     return total
 end
 
 -- A spawn failure publishes only `install_error`, never `install_finished_at`.
-local function install_ended(u)
-    return u ~= nil and (u.install_finished_at ~= nil or u.install_error ~= nil)
+local function install_ended(updates)
+    return updates ~= nil and (updates.install_finished_at ~= nil or updates.install_error ~= nil)
 end
 
 -- A finished run's result is on screen. Tools after an install are part of its run.
 local result_showing = computed({ mantle.updates, dismissed, dev_running, dev_result },
-    function(u, is_dismissed, tool, dev)
-        return not is_dismissed and tool == "" and u ~= nil and not u.installing and
-            (install_ended(u) or dev.finished_at ~= nil)
+    function(updates, is_dismissed, tool, dev)
+        return not is_dismissed and tool == "" and updates ~= nil and not updates.installing and
+            (install_ended(updates) or dev.finished_at ~= nil)
     end)
 
--- Whether this run included packages: a tools-only run leaves the last install's count and log.
-local function ran_packages(u)
-    return u ~= nil and (u.install_finished_at or 0) >= started_at:get()
+-- Whether this run included packages. A tools-only run leaves the last install's count and log.
+local function ran_packages(updates)
+    return updates ~= nil and (updates.install_finished_at or 0) >= started_at:get()
 end
 
 -- A manager killed by a signal publishes no exit code, which is a failure.
-local function install_failed(u)
-    return install_ended(u) and (u.install_error ~= nil or u.install_exit_code ~= 0)
+local function install_failed(updates)
+    return install_ended(updates) and (updates.install_error ~= nil or updates.install_exit_code ~= 0)
 end
 
-local status_tone = computed({ mantle.updates, result_showing, dev_result }, function(u, showing, dev)
-    if showing and install_failed(u) then
+local status_tone = computed({ mantle.updates, result_showing, dev_result }, function(updates, showing, dev)
+    if showing and install_failed(updates) then
         return "error"
     end
-    if (u ~= nil and u.check_error ~= nil) or (showing and #(dev.failures or {}) > 0) then
+    if (updates ~= nil and updates.check_error ~= nil) or (showing and #(dev.failures or {}) > 0) then
         return "warning"
     end
     return showing and "active" or "standard"
@@ -133,10 +132,10 @@ local NOTIFICATION_ID = "8001"
 
 -- Dismissing closes the card, which also ends a waiting `notify-send --wait`.
 local function dismiss_notifications()
-    local n = mantle.notifications:get()
-    for _, notif in ipairs((n and n.feed) or {}) do
-        if notif.app_name == "System Updates" then
-            mantle.notifications:invoke("dismiss", notif.id)
+    local notifications = mantle.notifications:get()
+    for _, notification in ipairs((notifications and notifications.feed) or {}) do
+        if notification.app_name == "System Updates" then
+            mantle.notifications:invoke("dismiss", notification.id)
         end
     end
 end
@@ -179,20 +178,20 @@ local function run_commands(commands, index, done)
     end)
 end
 
-local function report_run(u, failures)
-    if install_failed(u) then
+local function report_run(updates, failures)
+    if install_failed(updates) then
         return toast("critical", "Update failed", "The updates panel has pacman's output")
     end
     if #failures > 0 then
         return toast("critical", "Update finished with failures", table.concat(failures, ", "))
     end
-    local count = ran_packages(u) and u.install_total_steps or 0
+    local count = ran_packages(updates) and updates.install_total_steps or 0
     local tools = any_tool_runnable() and " and developer tooling" or ""
     toast("normal", "Update complete", count > 0 and (plural(count, "package") .. tools .. " updated")
         or "Developer tooling updated")
 end
 
--- Walks `config/dev_tools.lua`; `log_colour` tints the markers it logs.
+-- Walks `config/dev_tools.lua`; `LOG_COLOURS` tints the markers it logs.
 local function run_tools(index, failures)
     local tool = dev_tools[index]
     if tool == nil then
@@ -226,11 +225,11 @@ end
 -- A retry runs with no pending count: a partial failure can leave zero pending on a half-upgraded
 -- system.
 local function install()
-    local u = mantle.updates:get()
-    if u == nil or u.installing or dev_running:get() ~= "" then
+    local updates = mantle.updates:get()
+    if updates == nil or updates.installing or dev_running:get() ~= "" then
         return
     end
-    local packages_pending = (u.count or 0) > 0 or install_failed(u)
+    local packages_pending = (updates.count or 0) > 0 or install_failed(updates)
     if not packages_pending and not any_tool_runnable() then
         return
     end
@@ -247,7 +246,18 @@ local function install()
 end
 action("updates.install", install)
 
--- Pacman output to actionable wording, `{ wording, match... }`, strongest first.
+-- `rows`' first answer with a pattern in `lowered`, each row `{ answer, pattern... }`.
+local function first_match(lowered, rows)
+    for _, entry in ipairs(rows) do
+        for index = 2, #entry do
+            if lowered:find(entry[index]) then
+                return entry[1]
+            end
+        end
+    end
+end
+
+-- Pacman output to actionable wording, strongest first.
 local FAILURE_PHRASES = {
     { "Could not download; check the connection", "failed retrieving",            "could not resolve host", "connection refused" },
     { "Not enough disk space",                    "not enough free disk space" },
@@ -256,31 +266,27 @@ local FAILURE_PHRASES = {
     { "Authentication failed",                    "authentication" },
 }
 
--- Only asked once `install_failed(u)`, so `u` is set.
-local function failure_reason(u)
-    for _, line in ipairs(u.install_log or {}) do
-        local lowered = line:lower()
-        for _, phrase in ipairs(FAILURE_PHRASES) do
-            for index = 2, #phrase do
-                if lowered:find(phrase[index], 1, true) then
-                    return phrase[1]
-                end
-            end
+-- Only asked once `install_failed(updates)`, so `updates` is set.
+local function failure_reason(updates)
+    for _, line in ipairs(updates.install_log or {}) do
+        local reason = first_match(line:lower(), FAILURE_PHRASES)
+        if reason then
+            return reason
         end
     end
-    if u.install_error ~= nil then
+    if updates.install_error ~= nil then
         return "The updater could not be started"
     end
-    if u.install_exit_code == nil then
+    if updates.install_exit_code == nil then
         return "pacman was killed before it finished"
     end
-    return string.format("pacman exited with %d", u.install_exit_code)
+    return string.format("pacman exited with %d", updates.install_exit_code)
 end
 
 -- ponytail: `install_log` is a 200-line tail, so long runs undercount. Exact needs a Supervisor counter.
-local function warning_count(u)
+local function warning_count(updates)
     local count = 0
-    for _, line in ipairs(u.install_log or {}) do
+    for _, line in ipairs(updates.install_log or {}) do
         if line:lower():find("warning", 1, true) then
             count = count + 1
         end
@@ -288,88 +294,89 @@ local function warning_count(u)
     return count
 end
 
--- `showing` is `result_showing`, passed in: a signal read inside a map never re-runs it.
-local function status_line(u, showing, tool, dev)
-    if u == nil then
+-- `showing` is `result_showing`, passed in, because a signal read inside a map never re-runs it.
+local function status_line(updates, showing, tool, dev)
+    if updates == nil then
         return "Waiting for the updater"
     end
     if tool ~= "" then
         return "Updating " .. tool
     end
-    if u.installing then
-        local package = u.install_current_package
+    if updates.installing then
+        local package = updates.install_current_package
         return (package ~= nil and package ~= "") and ("Installing " .. package) or "Preparing update…"
     end
     if showing then
-        if install_failed(u) then
+        if install_failed(updates) then
             return "Update failed"
         end
         return #(dev.failures or {}) > 0 and "Update finished with failures" or "Update complete"
     end
-    if u.checking then
+    if updates.checking then
         return "Checking…"
     end
-    if u.check_error ~= nil then
+    if updates.check_error ~= nil then
         return "Check failed"
     end
-    if (u.count or 0) > 0 then
-        return plural(u.count, "update") .. " available"
+    if (updates.count or 0) > 0 then
+        return plural(updates.count, "update") .. " available"
     end
     return "Up to date"
 end
 
-local function detail_line(u, showing, tool, dev)
-    if u == nil then
+local function detail_line(updates, showing, tool, dev)
+    if updates == nil then
         return ""
     end
     if tool ~= "" then
         return string.format("Developer tooling · %d of %d", tool_step(tool))
     end
-    if u.installing then
-        local total = u.install_total_steps or 0
+    if updates.installing then
+        local total = updates.install_total_steps or 0
         if total > 0 then
-            return string.format("Package %d of %d", u.install_current_step or 0, total)
+            return string.format("Package %d of %d", updates.install_current_step or 0, total)
         end
-        -- No step line yet: pacman is downloading silently (no tty), so show what `alpm` sized.
-        return string.format("Downloading %s · %s", plural(u.count, "package"), human_bytes(download_total(u)))
+        -- No step line yet. Without a tty pacman downloads silently, so show what `alpm` sized.
+        return string.format("Downloading %s · %s", plural(updates.count, "package"),
+            human_bytes(download_total(updates)))
     end
     if showing then
         -- The reason heads the log card, beside the output it came from.
         local start = started_at:get()
-        local seconds = (dev.finished_at or u.install_finished_at or os.time()) - start
+        local seconds = (dev.finished_at or updates.install_finished_at or os.time()) - start
         local time_str = (start > 0 and seconds >= 0) and (seconds < 60 and string.format("%d sec", seconds)
             or string.format("%d min %d sec", math.floor(seconds / 60), seconds % 60))
-        if install_failed(u) then
+        if install_failed(updates) then
             return time_str and ("Failed after " .. time_str) or "See the log below"
         end
-        local ran = ran_packages(u)
-        local warnings = ran and warning_count(u) or 0
+        local ran = ran_packages(updates)
+        local warnings = ran and warning_count(updates) or 0
         local noted = warnings > 0 and (" · " .. plural(warnings, "warning")) or ""
         local failed = #(dev.failures or {}) > 0 and (" · " .. table.concat(dev.failures, ", ") .. " failed") or ""
-        local count = ran and (u.install_total_steps or 0) or 0
+        local count = ran and (updates.install_total_steps or 0) or 0
         local count_prefix = count > 0 and (plural(count, "package") .. " · ") or ""
         return count_prefix .. (time_str and ("took " .. time_str) or "Finished") .. noted .. failed
     end
     -- A failed check keeps the last good list, so say which list is shown.
-    if u.check_error ~= nil then
-        local failures = u.consecutive_check_failures or 0
+    if updates.check_error ~= nil then
+        local failures = updates.consecutive_check_failures or 0
         -- Five consecutive failures is the warning threshold.
         local repeated = failures >= 5 and string.format(" · %d in a row", failures) or ""
-        return "Last result kept · " .. u.check_error:match("[^\n]*") .. repeated
+        return "Last result kept · " .. updates.check_error:match("[^\n]*") .. repeated
     end
-    if (u.count or 0) > 0 then
-        return string.format("%s to download", human_bytes(download_total(u)))
+    if (updates.count or 0) > 0 then
+        return string.format("%s to download", human_bytes(download_total(updates)))
     end
     return "Nothing pending"
 end
 
 -- Dated unless today, and marked stale past two intervals (a suspended laptop). `detail_line` covers
 -- errors.
-local function last_check_line(u, now)
-    if u == nil or u.last_successful_check == nil then
+local function last_check_line(updates, now)
+    if updates == nil or updates.last_successful_check == nil then
         return "Never checked"
     end
-    local at = u.last_successful_check
+    local at = updates.last_successful_check
     local when = os.date("%Y-%m-%d", at) == os.date("%Y-%m-%d") and os.date("%H:%M", at)
         or os.date("%b %d, %H:%M", at)
     return "Checked " .. when .. (now - at > CHECK_INTERVAL * 2 and " · stale" or "")
@@ -388,38 +395,26 @@ local function needs_reboot(name)
 end
 
 -- Sort by name; `alpm`'s installed-database order has no useful reading order.
-local sorted_packages = mantle.updates:map(function(u)
-    local list = util.concat(packages(u))
+local sorted_packages = mantle.updates:map(function(updates)
+    local list = util.concat(packages(updates))
     table.sort(list, function(left, right)
         return (left.name or "") < (right.name or "")
     end)
     return list
 end)
 
-local log_lines = computed({ mantle.updates, dev_log }, function(u, lines)
-    return util.concat(u and u.install_log, lines)
+local log_lines = computed({ mantle.updates, dev_log }, function(updates, lines)
+    return util.concat(updates and updates.install_log, lines)
 end)
 
--- Red failures are findable in two hundred lines of pacman output.
-local function log_colour(line)
-    local lowered = line:lower()
-    if lowered:find("[fail]", 1, true) or lowered:find("error", 1, true) or lowered:find("failed", 1, true) then
-        return theme.RED
-    end
-    if lowered:find("warning", 1, true) or lowered:find("[skip]", 1, true) then
-        return theme.PEACH
-    end
-    if lowered:find("downloading", 1, true) or lowered:find("retrieving", 1, true) or lowered:find("installing", 1, true) or lowered:find("upgrading", 1, true) or lowered:find("%(%s*%d+/%d+%)") then
-        return theme.ACCENT
-    end
-    if lowered:find("[ ok ]", 1, true) or lowered:find("complete", 1, true) or lowered:find("up to date", 1, true) then
-        return theme.GREEN
-    end
-    if line:sub(1, 1) == "▶" or line:sub(1, 2) == "::" or line:sub(1, 3) == "==>" then
-        return theme.FG
-    end
-    return theme.DIM
-end
+-- Strongest first, so red failures are findable in two hundred lines of pacman output.
+local LOG_COLOURS = {
+    { theme.RED, "%[fail%]", "error", "failed" },
+    { theme.PEACH, "warning", "%[skip%]" },
+    { theme.ACCENT, "downloading", "retrieving", "installing", "upgrading", "%(%s*%d+/%d+%)" },
+    { theme.GREEN, "%[ ok %]", "complete", "up to date" },
+    { theme.FG, "^▶", "^::", "^==>" },
+}
 
 -- The settings list takes the whole body.
 local function unless_settings(showing)
@@ -430,36 +425,34 @@ end
 
 -- One fixed-height card holds the spinner, then the list, so a check does not resize the panel.
 local packages_showing = unless_settings(computed({ mantle.updates, result_showing, dev_running },
-    function(u, showing, tool)
-        return not showing and tool == "" and u ~= nil and not u.installing and (u.checking or #packages(u) > 0)
+    function(updates, showing, tool)
+        return not showing and tool == "" and updates ~= nil and not updates.installing and
+            (updates.checking or #packages(updates) > 0)
     end))
--- Nothing pending or to report: the empty state replaces the status card.
+-- With nothing pending or to report, the empty state replaces the status card.
 local empty_showing = unless_settings(computed({ mantle.updates, result_showing, dev_running },
-    function(u, showing, tool)
-        return not showing and tool == "" and u ~= nil and not u.installing and not u.checking
-            and u.check_error == nil and (u.count or 0) == 0
+    function(updates, showing, tool)
+        return not showing and tool == "" and updates ~= nil and not updates.installing and not updates.checking
+            and updates.check_error == nil and (updates.count or 0) == 0
     end))
 local status_showing = computed({ settings_open, empty_showing }, function(settings, empty)
     return not settings and not empty
 end)
-local checking = util.shown_when(mantle.updates, function(u)
-    return u.checking
-end)
-local listing = util.shown_when(mantle.updates, function(u)
-    return not u.checking
+local checking = util.shown_when(mantle.updates, function(updates)
+    return updates.checking
 end)
 
 local log_showing = unless_settings(computed({ mantle.updates, result_showing, log_open, dev_running },
-    function(u, showing, open, tool)
-        return u ~= nil and (u.installing or tool ~= "" or (showing and (install_failed(u) or open)))
+    function(updates, showing, open, tool)
+        return updates ~= nil and (updates.installing or tool ~= "" or (showing and (install_failed(updates) or open)))
     end))
 
--- Follow the newest line on every push: past 200 lines the tail changes but its length does not,
+-- Follow the newest line on every push. Past 200 lines the tail changes but its length does not,
 -- and the exit push carries the failure's stderr.
 --
 -- ponytail: scrolling back does not pause the follow. The offset trails `reveal` by a layout pass,
 -- so user scrolls are undetectable; needs an engine "wheel moved this viewport" signal.
-mantle.updates:on_change(function(u, previous)
+mantle.updates:on_change(function(updates, previous)
     if previous == nil then
         -- One shell for every tool.
         local names = {}
@@ -474,22 +467,22 @@ mantle.updates:on_change(function(u, previous)
                 tools_present:set(found)
             end)
     end
-    local lines = u ~= nil and #(u.install_log or {}) or 0
+    local lines = updates ~= nil and #(updates.install_log or {}) or 0
     if lines > 0 then
         LOG_SCROLL:reveal(lines)
     end
     -- Keyed on the stamp moving: pushes coalesce, so an `installing` edge can be missed.
-    if previous == nil or u == nil or u.installing or not install_ended(u) then
+    if previous == nil or updates == nil or updates.installing or not install_ended(updates) then
         return
     end
-    if u.install_finished_at == previous.install_finished_at and u.install_error == previous.install_error then
+    if updates.install_finished_at == previous.install_finished_at and updates.install_error == previous.install_error then
         return
     end
     -- `packages` is stale after any run, failed or not.
     mantle.updates:invoke("check")
-    if install_failed(u) then
+    if install_failed(updates) then
         -- A half-upgraded system is the wrong place to rebuild a toolchain against.
-        return report_run(u, {})
+        return report_run(updates, {})
     end
     start_dev_tools()
 end)
@@ -513,27 +506,27 @@ for _, tool in ipairs(dev_tools) do
 end
 
 -- Dims rather than hides, so the row keeps its layout.
-local busy = computed({ mantle.updates, dev_running }, function(u, tool)
-    return u == nil or u.checking or u.installing or tool ~= ""
+local busy = computed({ mantle.updates, dev_running }, function(updates, tool)
+    return updates == nil or updates.checking or updates.installing or tool ~= ""
 end)
 
 -- Percent through this run's packages, then its tools; `false` while there is no count to show.
-local progress = computed({ mantle.updates, dev_running }, function(u, tool)
+local progress = computed({ mantle.updates, dev_running }, function(updates, tool)
     if tool ~= "" then
         local step, total = tool_step(tool)
         return total > 0 and 100 * step / total or false
     end
-    local total = (u and u.installing and u.install_total_steps) or 0
-    return total > 0 and 100 * (u.install_current_step or 0) / total or false
+    local total = (updates and updates.installing and updates.install_total_steps) or 0
+    return total > 0 and 100 * (updates.install_current_step or 0) / total or false
 end)
 
 -- `.pacnew` and `.pacsave` files from this run, each wanting a manual merge.
-local pacnew = computed({ mantle.updates, result_showing }, function(u, showing)
+local pacnew = computed({ mantle.updates, result_showing }, function(updates, showing)
     local files = {}
-    if not (showing and ran_packages(u)) then
+    if not (showing and ran_packages(updates)) then
         return files
     end
-    for _, line in ipairs(u.install_log or {}) do
+    for _, line in ipairs(updates.install_log or {}) do
         local path = line:match("installed as (%S+%.pacnew)") or line:match("saved as (%S+%.pacsave)")
         if path then
             files[#files + 1] = path
@@ -542,29 +535,30 @@ local pacnew = computed({ mantle.updates, result_showing }, function(u, showing)
     return files
 end)
 
--- "Working…": installing before pacman has counted the packages.
-local working = util.shown_when(mantle.updates, function(u)
-    return u.installing and (u.install_total_steps or 0) == 0
+-- Installing before pacman has counted the packages.
+local working = util.shown_when(mantle.updates, function(updates)
+    return updates.installing and (updates.install_total_steps or 0) == 0
 end)
 
 local body = {
     panel_header {
         title = "Updates",
-        icon = mantle.updates:map(function(u)
-            u = u or {}
-            return u.installing and icons.updating or u.checking and icons.checking
-                or (u.count or 0) > 0 and icons.updates or icons.up_to_date
+        icon = mantle.updates:map(function(updates)
+            updates = updates or {}
+            return updates.installing and icons.updating or updates.checking and icons.checking
+                or (updates.count or 0) > 0 and icons.updates or icons.up_to_date
         end),
-        active = mantle.updates:map(function(u)
-            return ((u and u.count) or 0) > 0 or (u ~= nil and (u.installing or u.checking))
+        active = mantle.updates:map(function(updates)
+            return ((updates and updates.count) or 0) > 0 or
+                (updates ~= nil and (updates.installing or updates.checking))
         end),
-        subtitle = computed({ mantle.updates, mantle.system }, function(u, clock)
-            return last_check_line(u, (clock and clock.time) or os.time())
+        subtitle = computed({ mantle.updates, mantle.system }, function(updates, clock)
+            return last_check_line(updates, (clock and clock.time) or os.time())
         end),
         trailing = {
             info_badge("Reboot required", theme.PEACH, {
-                visible = util.shown_when(mantle.updates, function(u)
-                    return u.reboot_required == true
+                visible = util.shown_when(mantle.updates, function(updates)
+                    return updates.reboot_required == true
                 end),
             }),
             panel_action_icon(icons.settings, function()
@@ -588,7 +582,7 @@ local body = {
             children = {
                 meter(progress, function(percent)
                     return percent or 0
-                end, theme.ACCENT, "Fill"),
+                end, theme.ACCENT),
             },
         },
         row {
@@ -640,8 +634,10 @@ local body = {
         list {
             width = "Fill",
             height = theme.update_list_height,
-            visible = listing,
-            scroll = PACKAGE_SCROLL,
+            visible = util.shown_when(mantle.updates, function(updates)
+                return not updates.checking
+            end),
+            scroll = scroll("update_packages"),
             spacing = theme.spacing.xs,
             source = sorted_packages,
             itemfn = function(package)
@@ -668,16 +664,16 @@ local body = {
                 return package.name or "?"
             end,
         },
-    }, { background = theme.GLASS_CONTENT, width = "Fill", visible = packages_showing }),
+    }, { width = "Fill", visible = packages_showing }),
     panel_card({
         row {
             width = "Fill",
             align_v = "Center",
             children = {
-                cell(util.bold(mantle.updates:map(function(u)
-                    return install_failed(u) and failure_reason(u) or "Install log"
-                end)), mantle.updates:map(function(u)
-                    return install_failed(u) and theme.RED or theme.DIM
+                cell(util.bold(mantle.updates:map(function(updates)
+                    return install_failed(updates) and failure_reason(updates) or "Install log"
+                end)), mantle.updates:map(function(updates)
+                    return install_failed(updates) and theme.RED or theme.DIM
                 end), theme.font.xs, { width = "Fill" }),
                 panel_action_icon(icons.copy, function()
                     local lines = log_lines:get() or {}
@@ -694,7 +690,7 @@ local body = {
             source = log_lines,
             spacing = theme.spacing.xs,
             itemfn = function(line)
-                return cell(line, log_colour(line), theme.font.xs, {
+                return cell(line, first_match(line:lower(), LOG_COLOURS) or theme.DIM, theme.font.xs, {
                     width = "Fill",
                     wrap = "Word",
                     max_lines = 3,
@@ -703,8 +699,8 @@ local body = {
             end,
         },
     }, {
-        tone = mantle.updates:map(function(u)
-            return install_failed(u) and "error" or "standard"
+        tone = mantle.updates:map(function(updates)
+            return install_failed(updates) and "error" or "standard"
         end),
         width = "Fill",
         visible = log_showing,
@@ -712,7 +708,7 @@ local body = {
     panel_card({ section_header("run with package updates"), column {
         width = "Fill",
         children = tool_rows,
-    } }, { background = theme.GLASS_CONTENT, width = "Fill", visible = settings_open }),
+    } }, { width = "Fill", visible = settings_open }),
     action_button("Done", function()
         settings_open:set(false)
     end, "updates-settings-done", { tone = "quiet", width = "Fill", visible = settings_open }),
@@ -724,14 +720,14 @@ local body = {
         end),
         children = {
             action_button(
-                computed({ mantle.updates, result_showing, dev_running }, function(u, showing, tool)
-                    if u ~= nil and (u.installing or tool ~= "") then
+                computed({ mantle.updates, result_showing, dev_running }, function(updates, showing, tool)
+                    if updates ~= nil and (updates.installing or tool ~= "") then
                         return "Updating…"
                     end
-                    if showing and install_failed(u) then
+                    if showing and install_failed(updates) then
                         return "Retry"
                     end
-                    return ((u and u.count) or 0) > 0 and "Update" or "Update dev tools"
+                    return ((updates and updates.count) or 0) > 0 and "Update" or "Update dev tools"
                 end),
                 install,
                 "updates-install",
@@ -739,11 +735,12 @@ local body = {
                     tone = "solid",
                     width = "Fill",
                     disabled = busy,
-                    visible = computed({ mantle.updates, result_showing, dev_running }, function(u, showing, tool)
-                        if u == nil or (showing and not install_failed(u)) then
+                    visible = computed({ mantle.updates, result_showing, dev_running }, function(updates, showing, tool)
+                        if updates == nil or (showing and not install_failed(updates)) then
                             return false
                         end
-                        return u.installing or tool ~= "" or (u.count or 0) > 0 or showing or any_tool_runnable()
+                        return updates.installing or tool ~= "" or (updates.count or 0) > 0 or showing or
+                            any_tool_runnable()
                     end),
                 }
             ),
@@ -758,8 +755,8 @@ local body = {
                 {
                     tone = "quiet",
                     width = "Fill",
-                    visible = computed({ result_showing, mantle.updates }, function(showing, u)
-                        return showing and not install_failed(u)
+                    visible = computed({ result_showing, mantle.updates }, function(showing, updates)
+                        return showing and not install_failed(updates)
                     end),
                 }
             ),

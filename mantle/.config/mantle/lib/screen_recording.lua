@@ -74,7 +74,7 @@ end)
 local directory = state("recorder_directory", "")
 if directory:get() == "" then
     process.run("xdg-user-dir", { "VIDEOS" }, function(line)
-        local trimmed = line:match("^%s*(.-)%s*$")
+        local trimmed = util.trim(line)
         if trimmed ~= "" then
             directory:set(trimmed)
         end
@@ -87,10 +87,8 @@ end
 
 local function setting(key, fallback)
     local value = store.screen_recorder:get()
-    if type(value) ~= "table" or value[key] == nil then
-        return fallback
-    end
-    return value[key]
+    -- No setting is a boolean, so `or` is safe.
+    return type(value) == "table" and value[key] or fallback
 end
 
 local function set_setting(key, value)
@@ -129,14 +127,13 @@ local function launch(capture_args, label)
     local dir = directory:get() ~= "" and directory:get() or FALLBACK_DIRECTORY
     local path = string.format("%s/%s.%s", dir:gsub("/$", ""), os.date("%Y%m%d_%H%M%S"), container)
 
-    local args = util.concat(capture_args, {
+    local args = util.concat(util.concat(capture_args, {
         "-o", path,
         "-q", QUALITY[setting("quality", "high")] or "very_high",
         -- `math.floor`: a rate round-tripped through JSON comes back a float, and `-f 60.0` is refused.
         "-f", tostring(math.floor(tonumber(setting("fps", 60)) or 60)),
-    })
-    args = util.concat(util.concat(args, AUDIO[setting("audio", "desktop")] or AUDIO.desktop),
-        { "-cursor", "yes" })
+        "-cursor", "yes",
+    }), AUDIO[setting("audio", "desktop")] or AUDIO.desktop)
 
     capture_label:set(label)
     output_path:set(path)
@@ -171,7 +168,7 @@ local function start(mode)
     end, function(code)
         selecting = nil
         starting:set(false)
-        local selected = region:match("^%s*(.-)%s*$")
+        local selected = util.trim(region)
         -- Before the exit status: a killed `slurp` may still have exited cleanly with a region.
         if cancelled:get() then
             cancelled:set(false)
@@ -270,7 +267,7 @@ local function announce_saved(finished_at, began, exit_code)
             chosen = chosen .. line
         end
     end, function()
-        local key = chosen:match("^%s*(.-)%s*$")
+        local key = util.trim(chosen)
         if key == "default" or key == "play" then
             process.detach("xdg-open", { path })
         end

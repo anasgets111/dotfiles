@@ -1,4 +1,4 @@
--- One modal card and its motion, for `modules/global/modal_host.lua` to stack under one scrim: it
+-- One modal card and its motion, for `modules/global/modal_host.lua` to stack under one scrim. It
 -- fades, scales from 0.97 and rises by `spacing.md`, OutCubic in and InCubic out.
 local theme = require("config.theme")
 local ui_state = require("lib.ui_state")
@@ -14,10 +14,10 @@ local CLOSED_SCALE = 0.97
 ---@field kind string
 ---@field node table The screen-sized wrapper carrying the card and its motion.
 
--- `modal_host`'s outside catcher is every card's ancestor, so a press on the card's own ground --
--- padding, a gap between rows, an empty list -- used to walk up to it and close the modal. A handled
--- button the size of the card ends that walk. It takes the card's placement rather than sitting
--- under it, since content-sized it would reach back to the origin and eat the scrim's clicks.
+-- `modal_host`'s outside catcher is every card's ancestor, so a press on the card's own ground, such as
+-- padding, a gap between rows or an empty list, walks up to it and closes the modal. A handled button
+-- the size of the card ends that walk. It takes the card's placement rather than sitting under it,
+-- because a content-sized one reaches back to the origin and eats the scrim's clicks.
 local function swallow_presses(card)
     local box = button {
         on_click = function() end,

@@ -1,5 +1,5 @@
--- Status indicators, tray, then the clock at the edge, led by `privacy`. Brightness has no module:
--- it lives in `modules/bar/panels/power_menu.lua`, where there is room for labels.
+-- Brightness has no bar module. It lives in `modules/bar/panels/power_menu.lua`, which has room for
+-- labels.
 local theme = require("config.theme")
 local privacy_module = require("modules.bar.indicators.privacy")
 local volume_module = require("modules.bar.indicators.volume")
@@ -15,7 +15,7 @@ local ui_state = require("lib.ui_state")
 -- notifications panel; calendar detail lives in the clock's hover tooltip.
 local hovered = hover(date_time.slot)
 
--- A third state above hover: the border rings while the panel is up.
+-- The border rings accent while the panel is up, a third state above hover.
 local panel_showing = ui_state.panel_showing(bell.kind)
 
 local clock_pill = button {
@@ -65,7 +65,6 @@ return row {
         network.indicator,
         bluetooth.indicator,
         tray_module.indicator,
-        -- The clock row owns the tooltip hover region, so the whole control triggers it.
         clock_pill,
     },
 }

@@ -1,7 +1,7 @@
 -- On/off switch for boolean writes, with the next capability snapshot as the only readback. Takes
 -- the raw signal plus `read` (the caller knows which field), and hands `on_change` the flipped value.
 --
--- The thumb slides on a spacer's eased `width`: `align_h` would snap, and `margin`'s edge table
+-- The thumb slides on a spacer's eased `width`, because `align_h` would snap and `margin`'s edge table
 -- cannot carry a tween.
 local theme = require("config.theme")
 local util = require("lib.util")
@@ -30,7 +30,7 @@ return function(signal, read, on_change)
             height = "Fill",
             radius = TRACK_HEIGHT / 2,
             padding = PAD,
-            -- Not green: a status light, not a switch, and a second accent in a mauve shell.
+            -- Not green, which reads as a status light and adds a second accent to a mauve shell.
             background = on:map(function(checked)
                 return checked and theme.with_opacity(theme.ACCENT, theme.opacity.full) or theme.GLASS_CONTROL
             end),

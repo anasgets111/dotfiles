@@ -10,8 +10,6 @@ local modal = require("components.modal")
 local ui_state = require("lib.ui_state")
 local error_log = require("lib.rescue")
 
-local LOG_SCROLL = scroll("rescue_log")
-
 -- Evaluating at all means the config loaded, so an open card is showing a fixed error.
 -- ponytail: a failure in a file required after this one closes the card early; the circle stays, so
 -- a click reopens it. Upgrade: `on_change` for bare signals.
@@ -40,7 +38,7 @@ local header = panel_header {
 local log = list {
     width = "Fill",
     max_height = theme.rescue_log_height,
-    scroll = LOG_SCROLL,
+    scroll = scroll("rescue_log"),
     source = error_log:map(function(text)
         local lines = {}
         for line in text:gmatch("[^\n]+") do

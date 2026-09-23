@@ -31,44 +31,9 @@ local CARD_PADDING = {
 }
 
 -- Whether UPower reports a battery. `present` is false on desktops, so no battery column.
-local has_battery = mantle.battery:map(function(b)
-    return b ~= nil and b.present
+local has_battery = mantle.battery:map(function(battery)
+    return battery ~= nil and battery.present
 end)
-
-local subtitle = computed(
-    { settings, idle.active_profile, idle.schedule, idle.elapsed, idle.reasons, idle.arming },
-    function(resolved, profile, plan, elapsed, reasons, arming)
-        if #reasons > 0 then
-            return "Held awake · " .. table.concat(reasons, ", ")
-        end
-        if not resolved.enabled then
-            return "Automatic actions are paused"
-        end
-        if plan.total == 0 then
-            return "No actions enabled on this profile"
-        end
-        local where = profile == "battery" and "On battery" or "On AC power"
-        if elapsed == 0 then
-            local first = plan.list[1]
-            return string.format("%s · %s after %s", where, first.title, idle.format(first.at))
-        end
-        -- The armed stage's own delay, not the running total: it answers "how long have I got".
-        for _, entry in ipairs(plan.list) do
-            if entry.key == arming.key then
-                return string.format(
-                    "Idle %s · %s in %s",
-                    idle.clock(elapsed),
-                    entry.title,
-                    idle.clock(math.max(0, entry.delay - arming.elapsed))
-                )
-            end
-        end
-        return string.format("Idle %s · every stage has run", idle.clock(elapsed))
-    end
-)
-
--- Rule under the masthead: header is state, below is settings.
-local header_rule = rect { width = "Fill", height = theme.border_width, background = theme.BORDER_SUBTLE }
 
 -- Between section rows, inset past the leading glyph.
 local row_rule = rect {
@@ -81,7 +46,33 @@ local row_rule = rect {
 
 local header = panel_header {
     title = "Idle & power",
-    subtitle = subtitle,
+    subtitle = computed(
+        { settings, idle.active_profile, idle.schedule, idle.elapsed, idle.reasons, idle.arming },
+        function(resolved, profile, plan, elapsed, reasons, arming)
+            if #reasons > 0 then
+                return "Held awake · " .. table.concat(reasons, ", ")
+            end
+            if not resolved.enabled then
+                return "Automatic actions are paused"
+            end
+            if plan.total == 0 then
+                return "No actions enabled on this profile"
+            end
+            local where = profile == "battery" and "On battery" or "On AC power"
+            if elapsed == 0 then
+                local first = plan.list[1]
+                return string.format("%s · %s after %s", where, first.title, idle.format(first.at))
+            end
+            -- The armed stage's own delay, not the running total: it answers "how long have I got".
+            for _, entry in ipairs(plan.list) do
+                if entry.key == arming.key then
+                    return string.format("Idle %s · %s in %s", idle.clock(elapsed), entry.title,
+                        idle.clock(math.max(0, entry.delay - arming.elapsed)))
+                end
+            end
+            return string.format("Idle %s · every stage has run", idle.clock(elapsed))
+        end
+    ),
     -- The bar circle's glyph, so opener and modal read as one control.
     icon = idle.manual:map(function(manual)
         return manual and icons.awake or icons.idle
@@ -90,26 +81,22 @@ local header = panel_header {
     title_size = theme.font.xxl,
     plate = theme.control.xl,
     subtitle_size = theme.font.md,
-    subtitle_color = theme.DIM,
     active = running,
     on_close = function()
         ui_state.close_modal("idle_settings")
     end,
 }
 
-local timeline, held_banner, paused_banner = timeline_section(settings)
-
--- One row per stage in stored `order`, as a `list` because declared children cannot be reordered.
-local function setting(profile, key, suffix)
-    return settings:map(function(resolved)
-        return resolved[profile][key .. suffix]
+-- Accent while `on` holds, else dim.
+local function ink(on)
+    return on:map(function(lit)
+        return lit and theme.ACCENT or theme.DIM
     end)
 end
 
 -- Click cycles forward through the options, right-click back; enough without a combo box.
 local function duration_button(profile, stage)
-    local slot = "idle-sec-" .. profile .. "-" .. stage.key
-    local hovered = hover(slot)
+    local hovered = hover("idle-sec-" .. profile .. "-" .. stage.key)
     return button {
         width = "Fill",
         height = theme.control.sm,
@@ -135,7 +122,9 @@ local function duration_button(profile, stage)
                 spacing = theme.spacing.xs,
                 padding = { left = theme.spacing.sm, right = theme.spacing.xs },
                 children = {
-                    cell(setting(profile, stage.key, "_sec"):map(idle.format), theme.FG, theme.font.xs, {
+                    cell(settings:map(function(resolved)
+                        return idle.format(resolved[profile][stage.key .. "_sec"])
+                    end), theme.FG, theme.font.xs, {
                         width = "Fill",
                         align_v = "Center",
                     }),
@@ -154,8 +143,8 @@ local function profile_control(profile, stage)
         visible = profile == "battery" and has_battery or nil,
         children = {
             duration_button(profile, stage),
-            toggle(setting(profile, stage.key, "_on"), function(enabled)
-                return enabled
+            toggle(settings, function(resolved)
+                return resolved[profile][stage.key .. "_on"]
             end, function(enabled)
                 idle.write(profile, stage.key .. "_on", enabled)
             end),
@@ -166,15 +155,14 @@ end
 -- Marks the running profile's column.
 local function column_heading(profile, label)
     return cell(
-        idle.active_profile:map(function(active)
-            local text = active == profile and label .. " · live" or label
-            return { { text = text, bold = true } }
-        end),
+        util.bold(idle.active_profile:map(function(active)
+            return active == profile and label .. " · live" or label
+        end)),
         idle.active_profile:map(function(active)
             return active == profile and theme.ACCENT or theme.DIM
         end),
         theme.font.xs,
-        { width = theme.idle_profile_column, align = "Center" }
+        { width = theme.idle_profile_column, align = "Center", visible = profile == "battery" and has_battery or nil }
     )
 end
 
@@ -184,13 +172,9 @@ local matrix_heading = row {
     spacing = theme.spacing.sm,
     padding = { left = theme.spacing.sm, right = theme.spacing.sm },
     children = {
-        cell({ { text = "Action · in order", bold = true } }, theme.DIM, theme.font.xs, { width = "Fill" }),
+        cell(util.bold("Action · in order"), theme.DIM, theme.font.xs, { width = "Fill" }),
         column_heading("ac", "AC power"),
-        row {
-            width = theme.idle_profile_column,
-            visible = has_battery,
-            children = { column_heading("battery", "Battery") },
-        },
+        column_heading("battery", "Battery"),
     },
 }
 
@@ -222,9 +206,6 @@ local function stage_row(item)
         end
         return false
     end)
-    local ink = any:map(function(enabled)
-        return enabled and theme.ACCENT or theme.DIM
-    end)
     local body = panel_row {
         title = util.bold_when(any, stage.title),
         -- The stage's own description, not "after <the row above>": that row may be off in one
@@ -234,7 +215,7 @@ local function stage_row(item)
         leading = row {
             align_v = "Center",
             spacing = theme.spacing.xs,
-            children = { reorder(item), glyph(stage.icon, ink, theme.icon.md, { align_v = "Center" }) },
+            children = { reorder(item), glyph(stage.icon, ink(any), theme.icon.md, { align_v = "Center" }) },
         },
         trailing = row {
             spacing = theme.spacing.sm,
@@ -242,25 +223,27 @@ local function stage_row(item)
             children = { profile_control("ac", stage), profile_control("battery", stage) },
         },
     }
-    if item.last then
-        return body
-    end
-    return column { width = "Fill", children = { body, row_rule } }
+    return item.last and body or column { width = "Fill", children = { body, row_rule } }
 end
 
+-- One row per stage in stored `order`, as a `list` because declared children cannot be reordered.
 -- Descriptors rebuild only when stored settings change: a reorder rebuilds rows, a tick none.
-local stage_source = settings:map(function(resolved)
-    local items = {}
-    for index, key in ipairs(resolved.order) do
-        -- `idle.read` resolved `order` to known stages only.
-        items[#items + 1] = { key = key, stage = idle.stage(key), first = index == 1, last = index == #resolved.order }
-    end
-    return items
-end)
-
 local stage_list = list {
     width = "Fill",
-    source = stage_source,
+    source = settings:map(function(resolved)
+        local items = {}
+        for index, key in ipairs(resolved.order) do
+            -- `idle.read` resolved `order` to known stages only.
+            items[#items + 1] = {
+                key = key,
+                stage = idle.stage(key),
+                first = index == 1,
+                last = index == #resolved
+                    .order
+            }
+        end
+        return items
+    end),
     key = function(item)
         return item.key
     end,
@@ -268,32 +251,30 @@ local stage_list = list {
 }
 
 -- Non-timeout reasons the session stays up, neither of them per-profile.
+local capture_hold = settings:map(function(resolved)
+    return resolved.privacy_auto_inhibit
+end)
 local behaviour_rows = {
     panel_row {
         icon = icons.play,
-        title = util.bold_when(settings:map(function(resolved)
-            return resolved.privacy_auto_inhibit
-        end), "Keep awake while capturing"),
+        title = util.bold_when(capture_hold, "Keep awake while capturing"),
         -- Not video: a player asks for that itself and the engine honours it either way.
         subtitle = "Camera, microphone, screen capture",
         height = theme.idle_row_height,
-        icon_color = settings:map(function(resolved)
-            return resolved.privacy_auto_inhibit and theme.ACCENT or theme.DIM
-        end),
+        icon_color = ink(capture_hold),
         trailing = toggle(settings, function(resolved)
             return resolved.privacy_auto_inhibit
         end, function(on)
             idle.write(nil, "privacy_auto_inhibit", on)
         end),
     },
+    row_rule,
     panel_row {
         icon = icons.awake,
         title = util.bold_when(idle.manual, "Keep awake now"),
         subtitle = "The same hold the bar circle takes",
         height = theme.idle_row_height,
-        icon_color = idle.manual:map(function(manual)
-            return manual and theme.ACCENT or theme.DIM
-        end),
+        icon_color = ink(idle.manual),
         trailing = toggle(idle.manual, function(manual)
             return manual
         end, idle.set_manual),
@@ -306,9 +287,7 @@ local flow_strip = row {
     align_v = "Center",
     spacing = theme.spacing.sm,
     children = {
-        glyph(icons.play, running:map(function(on)
-            return on and theme.ACCENT or theme.DIM
-        end), theme.icon.sm, { align_v = "Center" }),
+        glyph(icons.play, ink(running), theme.icon.sm, { align_v = "Center" }),
         cell(
             computed({ settings, idle.active_profile }, function(resolved, profile)
                 if not resolved.enabled then
@@ -328,7 +307,7 @@ local flow_strip = row {
     },
 }
 
-local flow_card = panel_card({ flow_strip, timeline, held_banner, paused_banner }, {
+local flow_card = panel_card(util.concat({ flow_strip }, timeline_section(settings)), {
     width = "Fill",
     spacing = theme.spacing.md,
     padding = CARD_PADDING,
@@ -353,11 +332,11 @@ return modal({
     kind = "idle_settings",
     card = panel_card({
         header,
-        header_rule,
+        -- Rule under the masthead: header is state, below is settings.
+        rect { width = "Fill", height = theme.border_width, background = theme.BORDER_SUBTLE },
         flow_card,
         section(icons.sleep, "Automation", "Each stage waits for the one above it", { matrix_heading, stage_list }),
-        section(icons.settings, "Behaviour", "What may keep the session awake",
-            { behaviour_rows[1], row_rule, behaviour_rows[2] }),
+        section(icons.settings, "Behaviour", "What may keep the session awake", behaviour_rows),
     }, {
         width = theme.idle_modal_width,
         align_h = "Center",

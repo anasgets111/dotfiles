@@ -20,7 +20,7 @@ local panel_instance = state("panel_instance", 0)
 -- `mantle toggle modal launcher` is a single keybind.
 local active_modal = state("modal", "")
 
--- Which notifications have had their popup turn -- a view fact, since `dismiss` removes popup and
+-- Which notifications have had their popup turn. A view fact, since `dismiss` removes popup and
 -- history together. Keyed by id plus timestamp, so `replaces_id` content pops again. Replaced
 -- wholesale, which prunes gone entries.
 local popup_seen = state("notification_popup_seen", {})
@@ -35,14 +35,14 @@ end
 
 -- Joining a hidden network, which has no row to click: name, wait, password. `hidden_draft` is the
 -- live field text, which a `textfield` only ever hands to `on_change`; `hidden_ssid` is it once
--- submitted. No secrets here -- the password never passes through Lua.
+-- submitted. The password never passes through Lua.
 local hidden_prompt = state("network_hidden_prompt", false)
 local hidden_draft = state("network_hidden_draft", "")
 local hidden_ssid = state("network_hidden_ssid", "")
 
 -- Which step of the credential sheet is on screen, `""` for none; `panel_host` reads it for keyboard
 -- focus. A password prompt outranks the hidden steps, since it answers a click on a listed row. The
--- end is read, not latched: a `computed` has no side effects, so `n.ssid` reaching the typed name
+-- end is read, not latched: a `computed` has no side effects, so `network.ssid` reaching the typed name
 -- ends the sheet. A failure counts only when `connect_error` names that network, or another join's
 -- leftover would flash first.
 local credential_step = computed({ hidden_prompt, hidden_ssid, mantle.network }, function(active, name, network)
@@ -98,6 +98,10 @@ local audio_input_picker = state("audio_input_picker", false)
 local updates_log_open = state("updates_log_open", false)
 local updates_settings_open = state("updates_settings_open", false)
 
+local function panel_is(kind)
+    return panel_open:get() and panel_kind:get() == kind
+end
+
 -- Leaving bluetooth stops discovery and closes its codec list; leaving audio collapses its pickers;
 -- leaving updates closes its log and settings.
 local function leave_panel()
@@ -119,7 +123,7 @@ end
 local function close_panel()
     -- Reading history counts as seeing its notifications. Mark on the way out, not only in, so
     -- arrivals while the panel was open do not get another popup turn.
-    if panel_open:get() and panel_kind:get() == "notifications" then
+    if panel_is("notifications") then
         mark_popups_seen()
     end
     leave_panel()
@@ -153,7 +157,7 @@ local function open_panel(kind, rect)
 end
 
 local function toggle_panel(kind, rect)
-    if panel_open:get() and panel_kind:get() == kind then
+    if panel_is(kind) then
         close_panel()
         return
     end
@@ -164,11 +168,8 @@ local media_hover = state("media_hover", { trigger = false, panel = false })
 local media_close_timer
 
 local function set_media_hover(region, inside)
-    local current = media_hover:get() or {}
-    local hovered = { trigger = current.trigger == true, panel = current.panel == true }
-    hovered[region] = inside == true
-    media_hover:set(hovered)
-    local media_open = panel_open:get() and panel_kind:get() == "media"
+    media_hover:set(util.with(media_hover:get(), region, inside == true))
+    local media_open = panel_is("media")
     if media_close_timer and (inside or media_open) then
         media_close_timer:cancel()
         media_close_timer = nil
@@ -178,8 +179,8 @@ local function set_media_hover(region, inside)
     end
     media_close_timer = timer(theme.animation_slow_ms, function()
         media_close_timer = nil
-        local hovered = media_hover:get() or {}
-        if not hovered.trigger and not hovered.panel and panel_open:get() and panel_kind:get() == "media" then
+        local hovered = media_hover:get()
+        if not hovered.trigger and not hovered.panel and panel_is("media") then
             close_panel()
         end
     end)
@@ -222,10 +223,6 @@ local function toggle_modal(kind)
     end
 end
 
-local launcher_open = modal_showing("launcher")
-local wallpaper_picker_open = modal_showing("wallpaper_picker")
-local idle_settings_open = modal_showing("idle_settings")
-
 -- Which cards are open, shared so popup and history agree. Tables rather than a signal per group:
 -- keys appear as notifications arrive, and minting registry entries at resolve time would grow the
 -- session.
@@ -238,16 +235,7 @@ local reply_draft_id = state("notification_reply_draft_id", 0)
 local reply_draft = state("notification_reply_draft", "")
 
 local function toggle_key(signal, key)
-    local open = signal:get() or {}
-    signal:set(util.with(open, key, not open[key]))
-end
-
-local function toggle_group(key)
-    toggle_key(expanded_groups, key)
-end
-
-local function toggle_message(id)
-    toggle_key(expanded_messages, tostring(id))
+    signal:set(util.with(signal:get(), key, not signal:get()[key]))
 end
 
 -- Store each keystroke (`textfield.on_change`), stamped with its card.
@@ -267,7 +255,7 @@ end
 -- Draft text belonging to a notification still in the feed. A surface binds
 -- `keyboard_interactivity` to this, so the keyboard survives the pointer leaving mid-sentence.
 local reply_pending = computed({ reply_draft_id, reply_draft, mantle.notifications }, function(id, text, inbox)
-    if id == 0 or text == nil or text == "" then
+    if id == 0 or text == "" then
         return false
     end
     for _, notification in ipairs((inbox and inbox.feed) or {}) do
@@ -281,7 +269,7 @@ end)
 -- Empty is a no-op: `reply` removes the notification either way, losing the card and sending nothing.
 local function send_reply(id)
     local text = reply_draft:get()
-    if reply_draft_id:get() ~= id or text == nil or text == "" then
+    if reply_draft_id:get() ~= id or text == "" then
         return
     end
     mantle.notifications:invoke("reply", id, text)
@@ -296,8 +284,12 @@ return {
     reply_draft_id = reply_draft_id,
     reply_draft = reply_draft,
     reply_pending = reply_pending,
-    toggle_group = toggle_group,
-    toggle_message = toggle_message,
+    toggle_group = function(key)
+        toggle_key(expanded_groups, key)
+    end,
+    toggle_message = function(id)
+        toggle_key(expanded_messages, tostring(id))
+    end,
     set_reply_draft = set_reply_draft,
     clear_reply = clear_reply,
     send_reply = send_reply,
@@ -320,9 +312,7 @@ return {
     clear_network_prompts = clear_network_prompts,
     cancel_network_join = cancel_network_join,
     panel_showing = panel_showing,
-    launcher_open = launcher_open,
-    wallpaper_picker_open = wallpaper_picker_open,
-    idle_settings_open = idle_settings_open,
+    panel_is = panel_is,
     active_modal = active_modal,
     modal_showing = modal_showing,
     toggle_modal = toggle_modal,

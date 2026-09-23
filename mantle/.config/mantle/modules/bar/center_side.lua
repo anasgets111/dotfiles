@@ -5,8 +5,8 @@ local ui_state = require("lib.ui_state")
 
 local MEDIA_SLOT = "media_indicator"
 
-local playback_available = mantle.mpris:map(function(m)
-    local player = ((m and m.players) or {})[1]
+local playback_available = mantle.mpris:map(function(mpris)
+    local player = ((mpris and mpris.players) or {})[1]
     return player ~= nil and player.play_state ~= "Stopped"
 end)
 
@@ -26,12 +26,7 @@ return row {
             end
         end,
         children = {
-            row {
-                height = "Fill",
-                align_h = "Center",
-                align_v = "Center",
-                children = { window_title_module },
-            },
+            window_title_module,
             row {
                 height = "Fill",
                 align_h = "Center",

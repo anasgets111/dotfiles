@@ -1,5 +1,3 @@
--- Masthead, two radio tiles, and access points with the joined one first.
---
 -- `layout::secure_submit` counts only reachable fields, so an `autofocus` name field arms
 -- normally; `modules/shell/panel_host.lua` asks for the keyboard for both.
 local theme = require("config.theme")
@@ -21,14 +19,12 @@ local input = require("components.input")
 local ui = require("lib.ui_state")
 
 local KIND = "network"
-local SCROLL = scroll("network_aps")
 
 -- Payload order is connected, saved, then descending raw signal. The list re-sorts by tier.
-local function access_points(n)
-    return (n and n.available_networks) or {}
+local function access_points(network)
+    return (network and network.available_networks) or {}
 end
 
--- A tile's second line.
 local function detail_line(first, second)
     return first and second and (first .. " · " .. second) or first or second or ""
 end
@@ -43,16 +39,16 @@ local function radio_tile(radio, name, tile_icon, detail)
     return panel_toggle_card {
         slot = "network-" .. radio .. "-tile",
         icon = tile_icon,
-        label = util.label(mantle.network, function(n)
-            return n[radio .. "_present"] and name or "No " .. name
+        label = util.label(mantle.network, function(network)
+            return network[radio .. "_present"] and name or "No " .. name
         end),
-        disabled = util.shown_when(mantle.network, function(n)
-            return not n[radio .. "_present"]
+        disabled = util.shown_when(mantle.network, function(network)
+            return not network[radio .. "_present"]
         end),
         detail = util.label(mantle.network, detail),
         signal = mantle.network,
-        read = function(n)
-            return n[radio .. "_enabled"]
+        read = function(network)
+            return network[radio .. "_enabled"]
         end,
         on_change = function(new_value)
             mantle.network:invoke("set_" .. radio .. "_enabled", new_value)
@@ -60,64 +56,63 @@ local function radio_tile(radio, name, tile_icon, detail)
     }
 end
 
-local function radio_on(n)
-    return n ~= nil and n.networking_enabled and n.wifi_present and n.wifi_enabled
+local function radio_on(network)
+    return network ~= nil and network.networking_enabled and network.wifi_present and network.wifi_enabled
 end
 
 -- Header subtitle, in priority order: an off stack speaks before its radios. No payload means
 -- NetworkManager never answered.
-local function state_line(n)
-    if n == nil then
+local function state_line(network)
+    if network == nil then
         return "Unavailable"
     end
-    if not n.networking_enabled then
+    if not network.networking_enabled then
         return "Off"
     end
-    if n.connecting_ssid then
-        return "Connecting to " .. n.connecting_ssid
+    if network.connecting_ssid then
+        return "Connecting to " .. network.connecting_ssid
     end
-    if n.ssid == "Ethernet" then
+    if network.ssid == "Ethernet" then
         return "Ethernet connected"
     end
-    if n.ssid then
-        return n.ssid
+    if network.ssid then
+        return network.ssid
     end
-    if not n.wifi_enabled then
+    if not network.wifi_enabled then
         return "Wi-Fi off"
     end
-    return n.scanning and "Scanning…" or "Not connected"
+    return network.scanning and "Scanning…" or "Not connected"
 end
 
-local function header_glyph(n)
-    if n == nil or not n.networking_enabled then
+local function header_glyph(network)
+    if network == nil or not network.networking_enabled then
         return icons.wifi_off
     end
-    if n.ssid == "Ethernet" then
+    if network.ssid == "Ethernet" then
         return icons.ethernet
     end
-    return n.wifi_enabled and icons.wifi[4] or icons.wifi_off
+    return network.wifi_enabled and icons.wifi[4] or icons.wifi_off
 end
 
 -- The scanned list and the hidden-network row share one condition.
-local radio_up_and_idle = computed({ mantle.network, ui.hidden_join }, function(n, joining)
-    return radio_on(n) and not joining
+local radio_up_and_idle = computed({ mantle.network, ui.hidden_join }, function(network, joining)
+    return radio_on(network) and not joining
 end)
 
 -- `connect_error` stays until the next attempt, so the dismissal is view state.
 local error_dismissed = state("network_error_dismissed", false)
 
-mantle.network:on_change(function(n, previous)
+mantle.network:on_change(function(network, previous)
     if previous == nil then
         return
     end
-    if n.connecting_ssid ~= nil and previous.connecting_ssid == nil then
+    if network.connecting_ssid ~= nil and previous.connecting_ssid == nil then
         error_dismissed:set(false)
-    elseif previous.connecting_ssid ~= nil and n.connecting_ssid == nil and n.connect_error == nil then
+    elseif previous.connecting_ssid ~= nil and network.connecting_ssid == nil and network.connect_error == nil then
         -- An aborted join also clears `connecting_ssid` with no error, so success is the radio now
         -- holding that network, not the spinner stopping.
-        local joined = util.active_access_point(n)
-        local succeeded = joined ~= nil and joined.ssid == previous.connecting_ssid
-        if succeeded and ui.panel_open:get() and ui.panel_kind:get() == KIND then
+        local joined = util.active_access_point(network)
+        if joined ~= nil and joined.ssid == previous.connecting_ssid and ui.panel_is(KIND) then
             ui.close_panel()
         end
     end
@@ -136,10 +131,10 @@ local function before(left, right)
     return tostring(left.ap.ssid):lower() < tostring(right.ap.ssid):lower()
 end
 
-local rows = mantle.network:map(function(n)
-    local connecting = n and n.connecting_ssid
+local rows = mantle.network:map(function(network)
+    local connecting = network and network.connecting_ssid
     local sections = { saved = {}, available = {} }
-    for _, ap in ipairs(access_points(n)) do
+    for _, ap in ipairs(access_points(network)) do
         local group = (ap.saved or ap.active) and sections.saved or sections.available
         group[#group + 1] = {
             kind = "ap",
@@ -168,17 +163,15 @@ local function access_point_row(entry)
     local ap = entry.ap
     local band, color = util.band_of(ap)
 
-    local leading = { glyph(icons.wifi[util.signal_tier(ap.strength)], color, theme.icon.md, { align_v = "Center" }) }
-    if band then
-        leading[#leading + 1] = cell(util.bold(band), color, theme.font.xs, { align_v = "End" })
-    end
-
-    local trailing = {}
-    if ap.active then
-        trailing[#trailing + 1] = panel_action_icon(icons.disconnect, function()
+    local leading = {
+        glyph(icons.wifi[util.signal_tier(ap.strength)], color, theme.icon.md, { align_v = "Center" }),
+        band and cell(util.bold(band), color, theme.font.xs, { align_v = "End" }) or nil,
+    }
+    local trailing = {
+        ap.active and panel_action_icon(icons.disconnect, function()
             mantle.network:invoke("disconnect_wifi")
-        end, { slot = "network-disconnect-" .. tostring(ap.ssid), tint = theme.RED })
-    end
+        end, { slot = "network-disconnect-" .. tostring(ap.ssid), tint = theme.RED }) or nil,
+    }
     if ap.saved or ap.active then
         trailing[#trailing + 1] = panel_action_icon(icons.trash, function()
             mantle.network:invoke("forget", ap.ssid)
@@ -187,8 +180,6 @@ local function access_point_row(entry)
     if ap.secure then
         trailing[#trailing + 1] = glyph(icons.lock, theme.DIM, theme.font.xs, { align_v = "Center" })
     end
-
-    local clickable = not ap.active and not entry.blocked
     return panel_row {
         slot = "network-ap-" .. tostring(ap.ssid),
         leading = row { align_v = "Center", children = leading },
@@ -197,7 +188,7 @@ local function access_point_row(entry)
         selected = ap.active,
         opacity = entry.blocked and theme.opacity.disabled or nil,
         trailing = row { spacing = theme.spacing.xs, align_v = "Center", children = trailing },
-        on_activate = clickable and function()
+        on_activate = not ap.active and not entry.blocked and function()
             -- `hidden` is required; scanned `available_networks` entries are not hidden.
             mantle.network:invoke("connect", ap.ssid, false)
         end or nil,
@@ -217,8 +208,8 @@ local function during(name)
 end
 
 -- A failure keeps the sheet up here, rather than returning the error to the row it came from.
-local sheet_title = util.bold(computed({ step, ui.hidden_ssid, mantle.network }, function(current, name, n)
-    local target = (n and n.password_ssid) or name
+local sheet_title = util.bold(computed({ step, ui.hidden_ssid, mantle.network }, function(current, name, network)
+    local target = (network and network.password_ssid) or name
     if current == "name" then
         return "Hidden network"
     elseif current == "waiting" then
@@ -229,8 +220,8 @@ local sheet_title = util.bold(computed({ step, ui.hidden_ssid, mantle.network },
     return string.format("Connect to “%s”", target)
 end))
 
-local error_message = util.label(mantle.network, function(n)
-    return n.connect_error and n.connect_error.message or ""
+local error_message = util.label(mantle.network, function(network)
+    return network.connect_error and network.connect_error.message or ""
 end)
 
 -- Enter, or Next. `hidden = true` makes the Supervisor write `802-11-wireless.hidden` and treat the
@@ -246,30 +237,29 @@ local function submit_hidden_name()
     mantle.network:invoke("connect", name, true)
 end
 
--- Called by the indicator on every toggle: an open scans now and every `RESCAN_MS` after, a close
--- cancels the chain. Cancelling first keeps a quick close and reopen from running two.
-local RESCAN_MS = 10000
+-- Called by the indicator on every toggle: an open scans now and every 10 s after, a close cancels
+-- the chain. Cancelling first keeps a quick close and reopen from running two.
 local rescan = nil
 
 local function scan_while_open()
     if rescan ~= nil then
         rescan:cancel()
     end
-    if not (ui.panel_open:get() and ui.panel_kind:get() == KIND) then
+    if not ui.panel_is(KIND) then
         return
     end
     if radio_on(mantle.network:get()) then
         mantle.network:invoke("scan")
     end
-    rescan = timer(RESCAN_MS, scan_while_open)
+    rescan = timer(10000, scan_while_open)
 end
 
 local body = {
     panel_header {
         title = "Network",
         icon = mantle.network:map(header_glyph),
-        active = mantle.network:map(function(n)
-            return n ~= nil and n.networking_enabled
+        active = mantle.network:map(function(network)
+            return network ~= nil and network.networking_enabled
         end),
         subtitle = mantle.network:map(state_line),
         trailing = {
@@ -280,42 +270,41 @@ local body = {
                 slot = "network-rescan",
                 size = theme.control.sm,
                 icon_size = theme.icon.sm,
-                visible = util.shown_when(mantle.network, function(n)
-                    return radio_on(n) and not n.scanning
+                visible = util.shown_when(mantle.network, function(network)
+                    return radio_on(network) and not network.scanning
                 end),
             }),
-            spinner(util.shown_when(mantle.network, function(n)
-                return n.scanning
+            spinner(util.shown_when(mantle.network, function(network)
+                return network.scanning
             end), theme.icon.md),
             -- Controls the whole stack; off hides the tiles.
-            toggle(mantle.network, function(n)
-                return n.networking_enabled
+            toggle(mantle.network, function(network)
+                return network.networking_enabled
             end, function(new_value)
                 mantle.network:invoke("set_networking_enabled", new_value)
             end),
         },
     },
-    -- Two radio tiles, each with its address under the label; Wi-Fi adds the joined band.
     row {
         width = "Fill",
         spacing = theme.spacing.xs,
-        visible = util.shown_when(mantle.network, function(n)
-            return n.networking_enabled
+        visible = util.shown_when(mantle.network, function(network)
+            return network.networking_enabled
         end),
         children = {
-            radio_tile("wifi", "Wi-Fi", icons.wifi[4], function(n)
+            radio_tile("wifi", "Wi-Fi", icons.wifi[4], function(network)
                 -- Keyed on the association, not `ssid`. A docked laptop's joined radio still has an
                 -- address while `ssid` names the cable.
-                local ap = util.active_access_point(n)
-                return ap and detail_line(n.wifi_ip, (util.band_of(ap))) or ""
+                local ap = util.active_access_point(network)
+                return ap and detail_line(network.wifi_ip, (util.band_of(ap))) or ""
             end),
-            radio_tile("ethernet", "Ethernet", icons.ethernet, function(n)
-                return n.ethernet_enabled and detail_line(n.ethernet_ip, speed_text(n.ethernet_speed)) or ""
+            radio_tile("ethernet", "Ethernet", icons.ethernet, function(network)
+                return network.ethernet_enabled
+                    and detail_line(network.ethernet_ip, speed_text(network.ethernet_speed)) or ""
             end),
         },
     },
-    -- Error card, red on a red-tinted ground, closed by its own button or the next attempt. It
-    -- yields to the sheet, preventing two copies reading as two failures.
+    -- Closed by its button or the next attempt. It yields to the sheet, so one failure never shows twice.
     row {
         width = "Fill",
         spacing = theme.spacing.sm,
@@ -323,12 +312,9 @@ local body = {
         padding = theme.spacing.sm,
         radius = theme.radius.md,
         background = theme.ALERT_BG,
-        visible = computed({ mantle.network, step, error_dismissed }, function(n, current, dismissed)
-            return current == ""
-                and not dismissed
-                and n ~= nil
-                and n.connect_error ~= nil
-                and n.connecting_ssid == nil
+        visible = computed({ mantle.network, step, error_dismissed }, function(network, current, dismissed)
+            return current == "" and not dismissed
+                and network ~= nil and network.connect_error ~= nil and network.connecting_ssid == nil
         end),
         children = {
             glyph(icons.warning, theme.RED, theme.icon.sm, { align_v = "Center" }),
@@ -394,8 +380,9 @@ local body = {
                 width = "Fill",
                 spacing = theme.spacing.xs,
                 align_v = "Center",
-                visible = computed({ step, mantle.network }, function(current, n)
-                    return current == "failed" or (current == "password" and n ~= nil and n.connect_error ~= nil)
+                visible = computed({ step, mantle.network }, function(current, network)
+                    return current == "failed"
+                        or (current == "password" and network ~= nil and network.connect_error ~= nil)
                 end),
                 children = {
                     glyph(icons.warning, theme.RED, theme.icon.sm, { align_v = "Center" }),
@@ -418,29 +405,21 @@ local body = {
                     }),
                     -- No `on_activate`: its click *is* the field's Enter, the only path a password
                     -- has out of the Renderer.
-                    action_button("Connect", nil, "network-sheet-connect", {
-                        tone = "solid",
-                        submit = true,
-                        visible = during("password"),
-                    }),
+                    action_button("Connect", nil, "network-sheet-connect",
+                        { tone = "solid", submit = true, visible = during("password") }),
                     -- A failed attempt leaves no pending intent, so Retry is a fresh `connect`.
                     action_button("Retry", function()
                         mantle.network:invoke("connect", ui.hidden_ssid:get(), true)
-                    end, "network-sheet-retry", {
-                        tone = "solid",
-                        glyph = icons.warning,
-                        visible = during("failed"),
-                    }),
+                    end, "network-sheet-retry", { tone = "solid", glyph = icons.warning, visible = during("failed") }),
                 },
             },
         },
     },
-    -- Rows up to the cap, then a scrolling viewport. The sheet replaces it during a hidden join
-    -- rather than stacking above it.
+    -- The sheet replaces the list during a hidden join rather than stacking above it.
     list {
         width = "Fill",
         max_height = theme.panel_list_height,
-        scroll = SCROLL,
+        scroll = scroll("network_aps"),
         spacing = theme.spacing.xs,
         visible = radio_up_and_idle,
         source = rows,
@@ -460,27 +439,27 @@ local body = {
         on_activate = ui.open_hidden_prompt,
     },
     panel_empty_state(
-        mantle.network:map(function(n)
-            if n == nil then
+        mantle.network:map(function(network)
+            if network == nil then
                 return "Network unavailable"
-            elseif not n.networking_enabled then
+            elseif not network.networking_enabled then
                 return "Networking off"
-            elseif not n.wifi_present then
+            elseif not network.wifi_present then
                 return "No Wi-Fi adapter"
-            elseif not n.wifi_enabled then
+            elseif not network.wifi_enabled then
                 return "Wi-Fi off"
-            elseif n.scanning then
+            elseif network.scanning then
                 return "Scanning…"
             end
             return "No networks found"
         end),
-        computed({ mantle.network, ui.hidden_join }, function(n, joining)
-            return not radio_on(n) or (not joining and #access_points(n) == 0)
+        computed({ mantle.network, ui.hidden_join }, function(network, joining)
+            return not radio_on(network) or (not joining and #access_points(network) == 0)
         end),
         {
-            icon = mantle.network:map(function(n)
-                return radio_on(n) and icons.wifi_none or icons.wifi_off
-            end),
+            icon = mantle.network:map(function(network)
+                return radio_on(network) and icons.wifi_none or icons.wifi_off
+            end)
         }
     ),
 }

@@ -7,24 +7,21 @@ local cell = require("components.cell")
 local ui_state = require("lib.ui_state")
 local notification_history = require("modules.bar.panels.notification_history")
 
-local function waiting(n)
-    return #((n and n.feed) or {})
+local function waiting(notifications)
+    return #((notifications and notifications.feed) or {})
 end
 
-local bell = cell(mantle.notifications:map(function(n)
-    if n and n.dnd then
+local bell = cell(mantle.notifications:map(function(notifications)
+    if notifications and notifications.dnd then
         return icons.bell_off
     end
-    local count = waiting(n)
-    if count > 0 then
-        return icons.bell_active .. " " .. tostring(count)
-    end
-    return icons.bell
-end), mantle.notifications:map(function(n)
-    if n and n.dnd then
+    local count = waiting(notifications)
+    return count > 0 and icons.bell_active .. " " .. count or icons.bell
+end), mantle.notifications:map(function(notifications)
+    if notifications and notifications.dnd then
         return theme.DIM
     end
-    return waiting(n) > 0 and theme.ACCENT or theme.text_contrast(theme.GLASS_CONTROL)
+    return waiting(notifications) > 0 and theme.ACCENT or theme.text_contrast(theme.GLASS_CONTROL)
 end), theme.font.md, { align_v = "Center" })
 
 return {

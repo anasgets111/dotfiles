@@ -4,7 +4,6 @@ local cell = require("components.cell")
 local tooltip = require("components.tooltip")
 local tray_menu = require("modules.bar.panels.tray_menu")
 
-local SCROLL = scroll("sys_tray")
 local SLOT = "sys_tray"
 local hovered_id = state("sys_tray_tooltip", "")
 
@@ -17,8 +16,8 @@ local function item_label(item, applications)
     return (entry and entry.name) or (base ~= "" and base) or item.id or "Tray item"
 end
 
--- The hovered item's two lines. `said` is the sender's own `ToolTip` -- the name again for some
--- ("Vesktop"), live state for others ("DL speed: 0 B/s") -- kept only when it adds something.
+-- The hovered item's two lines. `said` is the sender's own `ToolTip`, kept only when it adds to the
+-- label. Some repeat the name ("Vesktop"), others carry live state ("DL speed: 0 B/s").
 local hovered = computed({ util.hold(hovered_id), mantle.tray, mantle.applications }, function(id, tray, applications)
     local found
     for _, item in ipairs((tray and tray.items) or {}) do
@@ -33,9 +32,9 @@ end)
 
 -- Hide `Passive`: the spec treats it as no presentation, so disabling an application's tray icon
 -- removes it.
-local function items_of(t)
+local function items_of(tray)
     local out = {}
-    for _, item in ipairs((t and t.items) or {}) do
+    for _, item in ipairs((tray and tray.items) or {}) do
         if item.status ~= "Passive" then
             out[#out + 1] = item
         end
@@ -43,8 +42,8 @@ local function items_of(t)
     return out
 end
 
--- `NeedsAttention` uses supplied attention artwork. Telegram instead rewrites `icon_name` to
--- `-attention-symbolic`, so fallback to the base pair rather than drawing nothing.
+-- `NeedsAttention` uses the attention artwork when sent. Telegram instead rewrites `icon_name` to
+-- `-attention-symbolic`, so fall back to the base pair rather than draw nothing.
 local function artwork(item)
     if item.status == "NeedsAttention" and (item.attention_icon_name or item.attention_icon_path) then
         return item.attention_icon_name or item.attention_icon_path
@@ -56,30 +55,24 @@ end
 -- letters.
 local ITEM_WIDTH = theme.icon.md + theme.spacing.sm
 
--- The ceiling, not the width: six items fit, more scroll instead of taking the zone. This
--- `row` does not shrink children, so it needs a cap.
-local TRAY_WIDTH = 6 * ITEM_WIDTH
-
-local has_items = util.shown_when(mantle.tray, function(t)
-    return #items_of(t) > 0
+local has_items = util.shown_when(mantle.tray, function(tray)
+    return #items_of(tray) > 0
 end)
 
--- No `width`: the row measures its own children and stops at `max_width`, equivalent to
--- `min(count * ITEM_WIDTH, TRAY_WIDTH)`, with `spacing = 0` and every child a fixed `ITEM_WIDTH`.
+-- No `width`: the row measures its fixed-width children and stops at `max_width`. Six items fit and
+-- more scroll rather than take the zone; the row does not shrink children, so it needs the cap.
 local items = list {
-    max_width = TRAY_WIDTH,
+    max_width = 6 * ITEM_WIDTH,
     -- Full height: a content-height row hangs the card 8px above every other tooltip's, and gives
     -- the pointer a shorter target.
     height = "Fill",
     direction = "Horizontal",
     spacing = 0,
     align_v = "Center",
-    scroll = SCROLL,
+    scroll = scroll("sys_tray"),
     visible = has_items,
     source = computed({ mantle.tray, mantle.applications }, items_of),
     itemfn = function(item)
-        local item_slot = SLOT .. "-" .. tostring(item.id)
-        local item_hovered = hover(item_slot)
         local entry = util.app_entry(mantle.applications:get(), item.name or item.id)
         local art = artwork(item) or (entry and entry.icon)
         local face
@@ -94,8 +87,7 @@ local items = list {
                 foreground = theme.FG,
             }
         else
-            -- No artwork happens. Two 9px `DIM` letters beside 22px glyphs read as a rendering
-            -- fault, so match the icon weight.
+            -- Two 9px `DIM` letters beside 22px glyphs read as a rendering fault, so match the icon weight.
             face = cell((item.name or item.id or "?"):sub(1, 2), theme.FG, theme.font.sm,
                 { align = "Center", align_v = "Center" })
         end
@@ -105,7 +97,7 @@ local items = list {
             width = ITEM_WIDTH,
             height = "Fill",
             align_v = "Center",
-            hover = item_hovered,
+            hover = hover(SLOT .. "-" .. tostring(item.id)),
             on_hover = util.track_hover(hovered_id, item.id),
             on_click = function(rect_, mouse_button)
                 local wants_menu = mouse_button == "right" or item.item_is_menu

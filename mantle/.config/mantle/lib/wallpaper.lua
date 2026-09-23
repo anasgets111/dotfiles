@@ -7,25 +7,18 @@ local util = require("lib.util")
 local wallpaper = {}
 
 wallpaper.FOLDER = "/mnt/Work/1Wallpapers/Main"
--- `gif` animates (ADR-0233); one too long for the engine's frame budget draws as a still.
-wallpaper.EXTENSIONS = { "jpg", "jpeg", "png", "webp", "gif" }
 -- `image.fit` values; the engine draws neither `center` nor `tile`.
 wallpaper.FITS = {
     { value = "cover",   label = "Fill" },
     { value = "contain", label = "Fit" },
     { value = "stretch", label = "Stretch" },
 }
-wallpaper.DEFAULT_FIT = "cover"
 -- The engine supplies cross-dissolve and fragment-shader support but knows nothing of this folder.
 wallpaper.SHADER_FOLDER = mantle.config_dir .. "/shaders"
-wallpaper.SHADER_EXTENSIONS = { "frag" }
 wallpaper.NO_SHADER = "fade"
-wallpaper.TRANSITION_MS = 1500
--- Not `InOutCubic`: 99.6% done at t=0.9, so its last 150ms stalls.
-wallpaper.TRANSITION_EASING = "InOutSine"
 
--- A shader with no row here -- anything dropped into the folder -- runs with every uniform at zero;
--- a row gives it knobs.
+-- A shader with no row here, such as anything dropped into the folder, runs with every uniform at
+-- zero. A row gives it knobs.
 local function random_center()
     return { center_x = math.random(), center_y = math.random(), softness = 0.1 }
 end
@@ -57,30 +50,22 @@ function wallpaper.effects_in(files)
     return names
 end
 
----The stored effect if the folder still holds it, else the built-in.
----@param stored string|nil
----@param available string[]
----@return string
-function wallpaper.effect_in(stored, available)
-    for _, name in ipairs(available) do
-        if name == stored then
-            return name
-        end
-    end
-    return wallpaper.NO_SHADER
-end
-
 function wallpaper.effects()
     return mantle.files:map(wallpaper.effects_in)
 end
 
+-- The stored effect if the folder still holds it, else the built-in.
 function wallpaper.effect()
     return computed({ store.wallpaper_transition, mantle.files }, function(stored, files)
-        return wallpaper.effect_in(stored, wallpaper.effects_in(files))
+        for _, name in ipairs(wallpaper.effects_in(files)) do
+            if name == stored then
+                return name
+            end
+        end
+        return wallpaper.NO_SHADER
     end)
 end
 
----@param name string
 function wallpaper.set_effect(name)
     if type(name) == "string" and name ~= "" and store.wallpaper_transition:get() ~= name then
         store:set("wallpaper_transition", name)
@@ -91,7 +76,8 @@ end
 ---every change draws fresh parameters; a run under way keeps the spec the engine copied.
 function wallpaper.transition()
     return computed({ wallpaper.effect(), store.wallpapers }, function(effect)
-        local spec = { duration = wallpaper.TRANSITION_MS, easing = wallpaper.TRANSITION_EASING }
+        -- Not `InOutCubic`: 99.6% done at t=0.9, so its last 150ms stalls.
+        local spec = { duration = 1500, easing = "InOutSine" }
         if effect ~= wallpaper.NO_SHADER then
             local params = RANDOM_PARAMS[effect]
             spec.shader = wallpaper.SHADER_FOLDER .. "/" .. effect .. ".frag"
@@ -100,9 +86,6 @@ function wallpaper.transition()
         return spec
     end)
 end
-
--- File shipped beside `shell.lua`.
-wallpaper.DEFAULT = mantle.config_dir .. "/wallpaper.svg"
 
 local function is_fit(value)
     for _, fit in ipairs(wallpaper.FITS) do
@@ -137,28 +120,24 @@ function wallpaper.path_in(wallpapers, output, files)
     if type(stored) == "string" and stored ~= "" and not missing_in(files, stored) then
         return stored
     end
-    return wallpaper.DEFAULT
+    -- Shipped beside `shell.lua`.
+    return mantle.config_dir .. "/wallpaper.svg"
 end
 
----@param wallpapers table|nil
----@param output string
----@return string
 function wallpaper.fit_in(wallpapers, output)
     local stored = wallpapers and wallpapers[output] and wallpapers[output].fit
     if type(stored) == "string" and is_fit(stored) then
         return stored
     end
-    return wallpaper.DEFAULT_FIT
+    return "cover"
 end
 
----@param output string
 function wallpaper.path_of(output)
     return computed({ store.wallpapers, mantle.files }, function(wallpapers, files)
         return wallpaper.path_in(wallpapers, output, files)
     end)
 end
 
----@param output string
 function wallpaper.fit_of(output)
     return store.wallpapers:map(function(wallpapers)
         return wallpaper.fit_in(wallpapers, output)
@@ -173,8 +152,6 @@ local function write(output, key, value)
 end
 
 ---Skip unchanged writes because every write pushes.
----@param output string
----@param path string
 function wallpaper.set(output, path)
     if path == "" or missing_in(mantle.files:get(), path) or wallpaper.path_in(store.wallpapers:get(), output) == path then
         return
@@ -182,8 +159,6 @@ function wallpaper.set(output, path)
     write(output, "path", path)
 end
 
----@param output string
----@param fit string
 function wallpaper.set_fit(output, fit)
     if not is_fit(fit) or wallpaper.fit_in(store.wallpapers:get(), output) == fit then
         return
@@ -232,7 +207,8 @@ action("wallpaper.set", function(path)
     end
 end)
 
-mantle.files:invoke("watch", wallpaper.FOLDER, wallpaper.EXTENSIONS)
-mantle.files:invoke("watch", wallpaper.SHADER_FOLDER, wallpaper.SHADER_EXTENSIONS)
+-- `gif` animates (ADR-0233); one too long for the engine's frame budget draws as a still.
+mantle.files:invoke("watch", wallpaper.FOLDER, { "jpg", "jpeg", "png", "webp", "gif" })
+mantle.files:invoke("watch", wallpaper.SHADER_FOLDER, { "frag" })
 
 return wallpaper

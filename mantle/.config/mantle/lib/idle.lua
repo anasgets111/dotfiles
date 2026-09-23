@@ -6,8 +6,8 @@
 -- "idle 0:42" readout needs the tick anyway, and a stage arms when its predecessor reports `done`
 -- rather than at a fixed second. If those pushes stop, stages stop too.
 --
--- Any hold -- ours, a player's `org.freedesktop.ScreenSaver`, `systemd-inhibit --what=idle` --
--- withholds every threshold event, so stages need no guard of their own.
+-- Any hold withholds every threshold event, so stages need no guard of their own. That covers ours,
+-- a player's `org.freedesktop.ScreenSaver` and `systemd-inhibit --what=idle`.
 --
 -- ponytail: the threshold reports idle one second after the last input, which `idle_since` subtracts
 -- back out; `ext-idle-notifier-v1` has no "how long idle" call to do better.
@@ -67,7 +67,10 @@ function idle.stage(key)
     end
 end
 
--- Profile fallbacks; `idle.read` spells out the shared keys' own.
+-- Profile fallbacks; `idle.read` spells out the shared keys' own. `lib/store.lua` seeds `idle = {}`,
+-- so these are the only defaults. Stage seconds count from the preceding stage, so lowering the
+-- blank timeout cannot shorten the lock gap. `enabled` defaults false: true could blank a screen
+-- while its owner reads.
 local DEFAULTS = {
     ac = { dpms_on = true, dpms_sec = 300, lock_on = true, lock_sec = 600, suspend_on = false, suspend_sec = 1800 },
     battery = { dpms_on = true, dpms_sec = 120, lock_on = true, lock_sec = 180, suspend_on = true, suspend_sec = 600 },
@@ -125,11 +128,8 @@ end
 --- @param value any
 function idle.write(profile, key, value)
     local current = idle.read(store.idle:get())
-    if profile == nil then
-        store:set("idle", util.with(current, key, value))
-        return
-    end
-    store:set("idle", util.with(current, profile, util.with(current[profile], key, value)))
+    store:set("idle", profile and util.with(current, profile, util.with(current[profile], key, value))
+        or util.with(current, key, value))
 end
 
 --- Next `stage.options` value from `sec`, wrapping; `step = -1` goes down. Wraps rather than stops,
@@ -207,8 +207,7 @@ idle.manual = state("idle_manual", false)
 --- counted, and a wrong count leaks one.
 idle.holding = state("idle_holding", false)
 
---- @param power table? `mantle.power`'s payload
---- @return string `"ac"` or `"battery"`
+--- `"ac"` or `"battery"` for a `mantle.power` payload.
 function idle.profile_of(power)
     return (power ~= nil and power.on_battery == true) and "battery" or "ac"
 end
@@ -224,8 +223,8 @@ local PRIVACY_REASONS = { { "camera_users", "camera" }, { "microphone_users", "m
 --- `modules/global/idle.lua` can pass `on_change`'s value rather than read a stale `computed`.
 ---
 --- Foreign holders are absent on purpose: holding because someone else holds is a second block for
---- one reason that nothing releases. [`idle.reasons`] adds them back. Playback is not read here --
---- a player that wants the screen up says so itself, and the engine honours it.
+--- one reason that nothing releases. [`idle.reasons`] adds them back. Playback is not read here. A
+--- player that wants the screen up says so itself, and the engine honours it.
 --- @param privacy table? `mantle.privacy`'s payload
 --- @param settings table the result of [`idle.read`]
 --- @param manual boolean
@@ -248,7 +247,7 @@ function idle.own_reasons(privacy, settings, manual)
     return reasons
 end
 
---- Everything holding the session awake, ours and anyone else's, for whatever draws the list.
+--- Everything holding the session awake, ours and foreign.
 idle.reasons = computed({ mantle.privacy, store.idle, idle.manual, mantle.idle },
     function(privacy, stored, manual, foreign)
         local reasons = idle.own_reasons(privacy, idle.read(stored), manual)
@@ -261,8 +260,8 @@ idle.reasons = computed({ mantle.privacy, store.idle, idle.manual, mantle.idle }
         return reasons
     end)
 
---- Sentence naming the holders. `inhibited` outruns [`idle.reasons`] -- our own hold is excluded
---- from `mantle.idle.inhibitors` and a surface inhibitor names nothing -- which left an empty list.
+--- Sentence naming the holders. `inhibited` outruns [`idle.reasons`], which left an empty list: our
+--- own hold is excluded from `mantle.idle.inhibitors`, and a surface inhibitor names nothing.
 --- @param reasons string[]
 --- @param inhibited boolean
 --- @return string
@@ -357,7 +356,6 @@ function idle.move(key, step)
     idle.write(nil, "order", order)
 end
 
---- The master switch on its own, for anything drawing "is automation running".
 idle.enabled = store.idle:map(function(stored)
     return idle.read(stored).enabled
 end)

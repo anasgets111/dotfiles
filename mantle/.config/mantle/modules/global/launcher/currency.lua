@@ -36,52 +36,30 @@ local FLAGS = {
 -- The earliest match wins.
 local SEPARATORS = { "%s+to%s*", "%s+in%s*", "%s*%->%s*", "%s*=>%s*", "%s*=%s*" }
 
----A currency code is three to five letters, or one of the symbols.
----@param token string
----@return string|nil
+-- A currency code is three to five letters, or one of the symbols.
 local function currency(token)
-    if SYMBOLS[token] then
-        return SYMBOLS[token]
-    end
-    if token:match("^%a+$") and #token >= 3 and #token <= 5 then
-        return token:lower()
-    end
-    return nil
+    return SYMBOLS[token] or (token:match("^%a%a%a%a?%a?$") and token:lower())
 end
 
----Earliest separator first, then each later one until the tail reads as a currency. `in` also
----matches inside `inr`, and the lazy group in the QML regex this ports backtracked for exactly
----that reason; taking the first match and stopping splits `100 inr to usd` into `100` and
----`r to usd`. An empty tail is accepted because a trailing separator names no target and falls
----through to the default.
+-- Every separator position, earliest first, until the tail reads as a currency. `in` also matches
+-- inside `inr`, and the lazy group in the QML regex this ports backtracked for exactly that reason.
+-- Stopping at the first match would split `100 inr to usd` into `100` and `r to usd`. An empty tail
+-- passes because a trailing separator names no target and falls through to the default.
 ---@return string|nil source, string|nil target
 local function split(text)
-    local cuts = {}
-    for _, separator in ipairs(SEPARATORS) do
-        local at = 1
-        while true do
-            local from, to = text:find(separator, at)
-            if not from then
-                break
+    for at = 1, #text do
+        for _, separator in ipairs(SEPARATORS) do
+            local from, to = text:find("^" .. separator, at)
+            local target = from and text:sub(to + 1)
+            if target and (target == "" or currency(target)) then
+                return text:sub(1, from - 1), target
             end
-            cuts[#cuts + 1] = { from = from, to = to }
-            at = from + 1
         end
     end
-    table.sort(cuts, function(a, b)
-        return a.from < b.from
-    end)
-    for _, cut in ipairs(cuts) do
-        local target = text:sub(cut.to + 1)
-        if target == "" or currency(target) then
-            return text:sub(1, cut.from - 1), target
-        end
-    end
-    return nil, nil
 end
 
----Accepts "50 usd", "$50", "50$", a bare "$", and a bare "usd" when `allow_implicit_amount`
----says so: either a separator precedes it, or no application answered the query.
+-- Accepts "50 usd", "$50", "50$", a bare "$", and a bare "usd" when `allow_implicit_amount` says
+-- so. That needs a separator before it, or no application answering the query.
 ---@return number|nil amount, string|nil code
 local function parse_source(text, allow_implicit_amount)
     text = util.trim(text)
@@ -108,7 +86,7 @@ local function parse_source(text, allow_implicit_amount)
     return nil, nil
 end
 
----Unicode regional indicators start 127397 code points after ASCII letters.
+-- Unicode regional indicators start 127397 code points after ASCII letters.
 local function flag(code)
     local country = FLAGS[code] or code:sub(1, 2)
     if not country:match("^%a%a$") then
@@ -118,7 +96,7 @@ local function flag(code)
     return utf8.char(0x1F1E6 + first - 65, 0x1F1E6 + second - 65)
 end
 
----Formats against `date_time.lua`'s fixed twelve-hour clock.
+-- Matches `date_time.lua`'s fixed twelve-hour clock.
 local function updated_text(at, now)
     if not at or at == 0 then
         return ""
@@ -177,15 +155,12 @@ mantle.system:on_change(function(system)
     end
 end)
 
----@param query string
----@param rates table<string, number>|nil
----@param updated_at integer|nil
----@param allow_bare? boolean Whether a code with no amount and no separator may claim the row.
+-- `allow_bare` lets a code with no amount and no separator claim the row.
 ---@return LauncherRow|nil
 function M.claims(query, rates, updated_at, allow_bare)
     local text = util.trim(query):lower()
     local source, target = split(text)
-    local amount, from = parse_source(source or text, source ~= nil or allow_bare == true)
+    local amount, from = parse_source(source or text, source ~= nil or allow_bare)
     if not (amount and from) then
         return nil
     end
@@ -194,8 +169,8 @@ function M.claims(query, rates, updated_at, allow_bare)
     if not to or from == to then
         return nil
     end
-    local from_rate = tonumber((rates or {})[from])
-    local to_rate = tonumber((rates or {})[to])
+    rates = rates or {}
+    local from_rate, to_rate = tonumber(rates[from]), tonumber(rates[to])
     if not from_rate or not to_rate or from_rate <= 0 or to_rate <= 0 then
         return nil
     end

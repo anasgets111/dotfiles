@@ -10,15 +10,12 @@ local osd = require("modules.osd.service")
 
 -- A short settle, not a swoop: this card acknowledges a key already pressed, dozens of times a day.
 local SLIDE = theme.s(12, 8)
--- Exit is quicker: a card whose two seconds are up is not news.
+-- Exit is quicker. A card whose two seconds are up is not news.
 local RISE_MS = theme.animation_ms
 local FALL_MS = theme.animation_fast_ms
 
 -- Both layouts inset their content by the same amount.
 local PADDING = theme.spacing.xl
-
--- Half of `theme.spacing.lg` each side, so a text-tight card is not cramped but stays centred.
-local SLACK = theme.spacing.lg / 2
 
 local entry_glyph = osd.entry:map(function(entry)
     return entry.glyph
@@ -36,18 +33,18 @@ local level_row = row {
     align_v = "Center",
     spacing = theme.spacing.lg,
     padding = { left = PADDING, right = PADDING },
-    visible = osd.entry:map(function(e)
-        return e.level ~= nil
+    visible = osd.entry:map(function(entry)
+        return entry.level ~= nil
     end),
     children = {
         glyph(entry_glyph, theme.ACCENT, theme.font.xxl, { align_v = "Center" }),
         -- A held volume key retargets every few frames: easing restarts from a standstill and
         -- trails the number, a spring keeps its velocity.
-        meter(osd.entry, function(e)
-            return e.level or 0
-        end, osd.entry:map(function(e)
-            return e.color or theme.ACCENT
-        end), "Fill", theme.osd_track, { motion = theme.spring_tracking }),
+        meter(osd.entry, function(entry)
+            return entry.level or 0
+        end, osd.entry:map(function(entry)
+            return entry.color or theme.ACCENT
+        end), theme.osd_track, { motion = theme.spring_tracking }),
         text {
             content = entry_text,
             foreground = theme.FG,
@@ -68,10 +65,10 @@ local fact_row = row {
     align_h = "Center",
     align_v = "Center",
     spacing = theme.spacing.lg,
-    -- Without it, the words reach the card edge and can run past it.
-    padding = { left = PADDING + SLACK, right = PADDING + SLACK },
-    visible = osd.entry:map(function(e)
-        return e.level == nil
+    -- Half of `spacing.lg` more each side, or the words reach the card edge and can run past it.
+    padding = { left = PADDING + theme.spacing.lg / 2, right = PADDING + theme.spacing.lg / 2 },
+    visible = osd.entry:map(function(entry)
+        return entry.level == nil
     end),
     children = {
         -- `align_*` places the box, not its child; a filling row centers the glyph inside the tile.

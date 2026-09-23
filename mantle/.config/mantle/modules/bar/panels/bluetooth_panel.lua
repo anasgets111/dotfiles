@@ -15,10 +15,6 @@ local panel_empty_state = require("components.panel_empty_state")
 local spinner = require("components.spinner")
 local ui = require("lib.ui_state")
 
-local KIND = "bluetooth"
-local SCROLL = scroll("bluetooth_devices")
-
--- One glyph per `category`, from `config/icons.lua`; missing categories use `generic`.
 local function device_icon(device)
     return icons.device[device.category or "generic"] or icons.device.generic
 end
@@ -32,39 +28,36 @@ local function battery_text(device)
     return device.battery ~= nil and device.battery >= 0 and string.format("%d%%", device.battery) or nil
 end
 
-local function enabled(b)
-    return b ~= nil and b.enabled
+local function enabled(bluetooth)
+    return bluetooth ~= nil and bluetooth.enabled
 end
 
-local function state_line(b)
-    if not b.available then
+local function state_line(bluetooth)
+    if not bluetooth.available then
         return "Unavailable"
     end
-    if not b.enabled then
+    if not bluetooth.enabled then
         return "Off"
     end
-    local joined = util.sorted_devices(b.connected_devices)
+    local joined = util.sorted_devices(bluetooth.connected_devices)
     local first = joined[1]
     if first then
         local battery = battery_text(first)
         return string.format("%d connected · %s", #joined, display_name(first)) .. (battery and " · " .. battery or "")
     end
-    return b.discovering and "Scanning…" or "No devices connected"
+    return bluetooth.discovering and "Scanning…" or "No devices connected"
 end
 
--- Red under 10%, amber under 20%, and accent above; its capsule is `components/info_badge.lua`.
 local function battery_badge(device)
     local text = battery_text(device)
     if not text then
         return nil
     end
     local level = device.battery
-    return info_badge(text, level <= 10 and theme.RED or level <= 20 and theme.YELLOW or theme.ACCENT, {
-        opacity = theme.opacity.strong,
-    })
+    return info_badge(text, level <= 10 and theme.RED or level <= 20 and theme.YELLOW or theme.ACCENT,
+        { opacity = theme.opacity.strong })
 end
 
--- An accented word whose ground appears on hover.
 local function pair_button(device)
     local slot = "bluetooth-pair-" .. tostring(device.mac)
     local hovered = hover(slot)
@@ -87,8 +80,8 @@ local function pair_button(device)
 end
 
 -- The `mantle.audio` entry for `mac`, or `nil` when PipeWire has no codec to offer for it.
-local function codec_card(a, mac)
-    for _, card in ipairs((a and a.bluetooth) or {}) do
+local function codec_card(audio, mac)
+    for _, card in ipairs((audio and audio.bluetooth) or {}) do
         if card.mac == mac and #card.codecs > 0 then
             return card
         end
@@ -105,21 +98,21 @@ end
 
 -- Paired and available rows share one list, empty while the radio is off. A row keeps its key
 -- across connect and disconnect, so it changes in place rather than leaving and arriving.
-local rows = computed({ mantle.bluetooth, mantle.audio, ui.bluetooth_codec_for }, function(b, a, open_for)
+local rows = computed({ mantle.bluetooth, mantle.audio, ui.bluetooth_codec_for }, function(bluetooth, audio, open_for)
     local out = {}
-    if not enabled(b) then
+    if not enabled(bluetooth) then
         return out
     end
     -- An open codec list follows its device as rows of its own, keeping one flat source.
     local function add(devices, status)
         for _, device in ipairs(devices) do
-            local card = status == "connected" and codec_card(a, device.mac) or nil
+            local card = status == "connected" and codec_card(audio, device.mac) or nil
             out[#out + 1] = {
                 kind = "device",
                 device = device,
                 status = status,
                 card = card,
-                key = "device-" .. tostring(device.mac),
+                key = "device-" .. tostring(device.mac)
             }
             if card and open_for == device.mac then
                 for _, option in ipairs(card.codecs) do
@@ -128,14 +121,15 @@ local rows = computed({ mantle.bluetooth, mantle.audio, ui.bluetooth_codec_for }
                         device = device,
                         card = card,
                         option = option,
-                        key = "codec-" .. tostring(device.mac) .. "-" .. option.index,
+                        key = "codec-" .. tostring(device.mac) .. "-" .. option.index
                     }
                 end
             end
         end
     end
-    local joined = util.sorted_devices(b.connected_devices)
-    local known, found = util.sorted_devices(b.paired_devices), util.sorted_devices(b.discovered_devices)
+    local joined = util.sorted_devices(bluetooth.connected_devices)
+    local known = util.sorted_devices(bluetooth.paired_devices)
+    local found = util.sorted_devices(bluetooth.discovered_devices)
     if #joined + #known > 0 then
         out[#out + 1] = { kind = "header", label = "paired", key = "header-paired" }
         add(joined, "connected")
@@ -188,12 +182,9 @@ local function device_row(item)
             trailing = spinner(SPINNING, theme.icon.md),
         }
     end
-    local trailing = {}
-    if item.status == "connected" then
-        local badge = battery_badge(device)
-        if badge then
-            trailing[#trailing + 1] = badge
-        end
+    local connected = item.status == "connected"
+    local trailing = { connected and battery_badge(device) or nil }
+    if connected then
         trailing[#trailing + 1] = panel_action_icon(icons.disconnect, function()
             mantle.bluetooth:invoke("disconnect", device.mac)
         end, { slot = "bluetooth-disconnect-" .. tostring(device.mac), tint = theme.RED })
@@ -207,10 +198,6 @@ local function device_row(item)
     end
     -- A blocked row offers nothing BlueZ would refuse.
     local codec = active_codec(item.card)
-    local subtitle = device.blocked and "Blocked" or nil
-    if item.status == "connected" then
-        subtitle = codec and ("Connected · " .. codec) or "Connected"
-    end
     local on_activate = nil
     if item.status == "paired" and not device.blocked then
         on_activate = function()
@@ -226,8 +213,9 @@ local function device_row(item)
         slot = slot,
         icon = device_icon(device),
         title = display_name(device),
-        subtitle = subtitle,
-        selected = item.status == "connected",
+        subtitle = connected and (codec and "Connected · " .. codec or "Connected")
+            or device.blocked and "Blocked" or nil,
+        selected = connected,
         trailing = row { spacing = theme.spacing.xs, align_v = "Center", children = trailing },
         on_activate = on_activate,
     }
@@ -236,8 +224,8 @@ end
 local body = {
     panel_header {
         title = "Bluetooth",
-        icon = mantle.bluetooth:map(function(b)
-            return enabled(b) and icons.bt_on or icons.bt_off
+        icon = mantle.bluetooth:map(function(bluetooth)
+            return enabled(bluetooth) and icons.bt_on or icons.bt_off
         end),
         active = mantle.bluetooth:map(enabled),
         subtitle = util.label(mantle.bluetooth, state_line),
@@ -245,12 +233,12 @@ local body = {
             -- No adapter means no switch to flip. Hidden rather than greyed, because `toggle` has
             -- no disabled look.
             rect {
-                visible = util.shown_when(mantle.bluetooth, function(b)
-                    return b.available
+                visible = util.shown_when(mantle.bluetooth, function(bluetooth)
+                    return bluetooth.available
                 end),
                 children = {
-                    toggle(mantle.bluetooth, function(b)
-                        return b.enabled
+                    toggle(mantle.bluetooth, function(bluetooth)
+                        return bluetooth.enabled
                     end, function(new_value)
                         mantle.bluetooth:invoke("set_enabled", new_value)
                     end),
@@ -269,8 +257,8 @@ local body = {
                 icon = icons.bt_visible,
                 label = "Visible",
                 signal = mantle.bluetooth,
-                read = function(b)
-                    return b.discoverable
+                read = function(bluetooth)
+                    return bluetooth.discoverable
                 end,
                 on_change = function(on)
                     mantle.bluetooth:invoke("set_discoverable", on)
@@ -281,8 +269,8 @@ local body = {
                 icon = icons.bt_scan,
                 label = "Scan",
                 signal = mantle.bluetooth,
-                read = function(b)
-                    return b.discovering
+                read = function(bluetooth)
+                    return bluetooth.discovering
                 end,
                 on_change = function(on)
                     mantle.bluetooth:invoke(on and "start_discovery" or "stop_discovery")
@@ -290,11 +278,10 @@ local body = {
             },
         },
     },
-    -- Rows up to the cap, then a scrolling viewport.
     list {
         width = "Fill",
         max_height = theme.panel_list_height,
-        scroll = SCROLL,
+        scroll = scroll("bluetooth_devices"),
         spacing = theme.spacing.xs,
         source = rows,
         itemfn = device_row,
@@ -303,20 +290,20 @@ local body = {
         end,
     },
     panel_empty_state(
-        util.label(mantle.bluetooth, function(b)
-            if not b.available then
+        util.label(mantle.bluetooth, function(bluetooth)
+            if not bluetooth.available then
                 return "Bluetooth unavailable"
-            elseif not b.enabled then
+            elseif not bluetooth.enabled then
                 return "Bluetooth off"
             end
-            return b.discovering and "Scanning…" or "No devices found"
+            return bluetooth.discovering and "Scanning…" or "No devices found"
         end),
         -- `rows` is empty exactly when the radio is off or every device list is.
-        computed({ mantle.bluetooth, rows }, function(b, out)
-            return b ~= nil and #out == 0
+        computed({ mantle.bluetooth, rows }, function(bluetooth, out)
+            return bluetooth ~= nil and #out == 0
         end),
         { icon = icons.bt_off }
     ),
 }
 
-return { kind = KIND, body = body }
+return { kind = "bluetooth", body = body }

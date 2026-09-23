@@ -2,7 +2,6 @@ local theme = require("config.theme")
 local util = require("lib.util")
 
 return function(glyph, on_activate, opts)
-    opts = opts or {}
     local side = opts.size or theme.item_height
     local base = opts.background or theme.GLASS_CONTROL
     local base_hover = opts.background_hover or theme.GLASS_CONTROL_HOVER
@@ -23,11 +22,7 @@ return function(glyph, on_activate, opts)
             end)
     end
 
-    ---@type Color|Signal
-    local foreground = opts.foreground
-    if foreground == nil then
-        foreground = util.lift(ground, theme.text_contrast)
-    end
+    local foreground = opts.foreground or util.lift(ground, theme.text_contrast)
 
     local border_color = opts.selected and opts.selected:map(function(is_selected)
         return is_selected and theme.ACCENT or theme.GLASS_BORDER
@@ -35,10 +30,9 @@ return function(glyph, on_activate, opts)
         return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
     end) or theme.GLASS_BORDER
 
-    -- `opts.art` is a themed name or path drawn in place of the glyph, the split
-    -- `components/panel_row.lua` makes: `PaintStyle::Icon` takes no tint, so artwork and a tintable
-    -- glyph are two nodes, not one property. An empty name falls back to the glyph, which is what
-    -- lets a workspace draw its window's icon and its number from one button.
+    -- `opts.art` is a themed name or path drawn in place of the glyph. `PaintStyle::Icon` takes no
+    -- tint, so artwork and a tintable glyph are two nodes, not one property. An empty name falls back to the glyph, so a workspace draws its
+    -- window's icon or its number from one button.
     local function face(art)
         if art == nil or art == "" then
             return text {
@@ -52,7 +46,7 @@ return function(glyph, on_activate, opts)
         end
         return icon {
             name = art,
-            size = opts.art_size or opts.icon_size or theme.icon.md,
+            size = theme.icon.md,
             align_h = "Center",
             align_v = "Center",
         }
@@ -60,21 +54,14 @@ return function(glyph, on_activate, opts)
 
     local badge_node = opts.badge and text {
         content = util.bold(opts.badge),
-        foreground = opts.badge_foreground or foreground,
+        foreground = foreground,
         font = opts.badge_font,
-        font_size = opts.badge_size or theme.font.xs,
+        font_size = theme.font.xs,
         align_h = "End",
         align_v = "End",
         translate = { x = -theme.spacing.xs, y = -theme.spacing.xs },
         animate = { foreground = theme.animation_ms },
     }
-
-    local function content(art)
-        if not badge_node then
-            return face(art)
-        end
-        return rect { width = side, height = side, children = { face(art), badge_node } }
-    end
 
     local node = {
         width = opts.width or side,
@@ -89,8 +76,8 @@ return function(glyph, on_activate, opts)
         visible = opts.visible,
         border_width = opts.border ~= false and theme.border_width or nil,
         border_color = opts.border ~= false and border_color or nil,
-        -- The ground and ring ease under the pointer and on selection; a constant `opacity` never
-        -- moves, so easing it costs a button that does not dim nothing.
+        -- The ground and ring ease under the pointer and on selection. A constant `opacity` never
+        -- moves, so easing it costs a button that never dims nothing.
         animate = {
             background = theme.animation_ms,
             border_color = theme.animation_ms,
@@ -99,7 +86,8 @@ return function(glyph, on_activate, opts)
         -- Through `children`, not two `visible` siblings: a hidden subtree stays resolved
         -- (`lua-meta/nodes.lua`).
         children = util.lift(opts.art, function(art)
-            return { content(art) }
+            return { badge_node and rect { width = side, height = side, children = { face(art), badge_node } } or
+            face(art) }
         end),
     }
 

@@ -40,6 +40,7 @@ local focused_icon = icon {
 
 return row {
     height = theme.item_height,
+    align_h = "Center",
     align_v = "Center",
     spacing = theme.spacing.xs,
     children = {

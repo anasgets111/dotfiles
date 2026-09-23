@@ -22,6 +22,7 @@ local SCROLL = scroll("wallpaper_grid")
 local COLUMNS = theme.wallpaper_columns
 -- `"all"` is the "All displays" option; no connector has that name.
 local ALL = "all"
+local STEPS = { backtab = -1, tab = 1, up = -COLUMNS, down = COLUMNS, page_up = -COLUMNS * 3, page_down = COLUMNS * 3 }
 
 local query = state("wallpaper_query", "")
 local selected_path = state("wallpaper_selected", "")
@@ -44,8 +45,8 @@ local trimmed = query:map(function(text)
 end)
 
 ---@return FileEntry[]
-local filtered = computed({ mantle.files, trimmed }, function(f, needle)
-    local folder = wallpaper.folder_in(f)
+local filtered = computed({ mantle.files, trimmed }, function(files, needle)
+    local folder = wallpaper.folder_in(files)
     local entries = folder and folder.entries or {}
     if needle == "" then
         return entries
@@ -68,73 +69,61 @@ local rows = filtered:map(function(entries)
 end)
 
 -- An unplugged selection reads as "all", since `mantle.screens` has no `on_change`.
-local function choice_among(chosen, screens)
+local effective_monitor = computed({ monitor, mantle.screens }, function(chosen, screens)
     for _, screen in ipairs(screens or {}) do
         if screen.name == chosen then
             return chosen
         end
     end
     return ALL
-end
-
-local effective_monitor = computed({ monitor, mantle.screens }, choice_among)
+end)
 
 local function targets_now()
-    local chosen = choice_among(monitor:get(), mantle.screens:get())
-    if chosen == ALL then
-        return wallpaper.outputs()
-    end
-    return { chosen }
+    local chosen = effective_monitor:get()
+    return chosen == ALL and wallpaper.outputs() or { chosen }
 end
 
 -- `read`'s answer for the targeted screens, or `""` where they disagree, so the badge and the ring
 -- never pick between conflicting answers.
 local function targeted(read)
-    return computed({ require("lib.store").wallpapers, mantle.screens, effective_monitor }, function(w, screens, chosen)
-        local first
-        for _, screen in ipairs(screens or {}) do
-            if chosen == ALL or chosen == screen.name then
-                local value = read(w, screen.name)
-                if first ~= nil and value ~= first then
-                    return ""
+    return computed({ require("lib.store").wallpapers, mantle.screens, effective_monitor },
+        function(wallpapers, screens, chosen)
+            local first
+            for _, screen in ipairs(screens or {}) do
+                if chosen == ALL or chosen == screen.name then
+                    local value = read(wallpapers, screen.name)
+                    if first ~= nil and value ~= first then
+                        return ""
+                    end
+                    first = value
                 end
-                first = value
             end
-        end
-        return first or ""
-    end)
+            return first or ""
+        end)
 end
 
 local current_path = targeted(wallpaper.path_in)
 local current_fit = targeted(wallpaper.fit_in)
 
--- `selected_path` if visible, else the applied file, else the first tile.
-local effective_selected = computed({ selected_path, current_path, filtered }, function(chosen, applied, entries)
-    local first = ""
-    for _, entry in ipairs(entries or {}) do
-        if first == "" then
-            first = entry.path
-        end
-        if entry.path == chosen then
-            return chosen
-        end
-    end
-    for _, entry in ipairs(entries or {}) do
-        if entry.path == applied then
-            return applied
-        end
-    end
-    return first
-end)
-
 local function index_of(entries, path)
-    for i, entry in ipairs(entries) do
+    for index, entry in ipairs(entries) do
         if entry.path == path then
-            return i
+            return index
         end
     end
     return 0
 end
+
+-- `selected_path` if visible, else the applied file, else the first tile.
+local effective_selected = computed({ selected_path, current_path, filtered }, function(chosen, applied, entries)
+    entries = entries or {}
+    for _, path in ipairs({ chosen, applied }) do
+        if index_of(entries, path) > 0 then
+            return path
+        end
+    end
+    return entries[1] and entries[1].path or ""
+end)
 
 local function move(delta)
     local entries = filtered:get() or {}
@@ -268,8 +257,8 @@ local grid = list {
     end,
 }
 
-local folder_state = computed({ mantle.files, filtered }, function(f, shown)
-    local folder = wallpaper.folder_in(f)
+local folder_state = computed({ mantle.files, filtered }, function(files, shown)
+    local folder = wallpaper.folder_in(files)
     if folder == nil or not folder.ready then
         return "loading"
     elseif folder.error then
@@ -292,8 +281,8 @@ end
 local empty_states = {
     panel_empty_state("Loading wallpapers…", state_is("loading"), { icon = spinner(state_is("loading"), theme.icon.xl) }),
     panel_empty_state(
-        mantle.files:map(function(f)
-            local folder = wallpaper.folder_in(f)
+        mantle.files:map(function(files)
+            local folder = wallpaper.folder_in(files)
             return string.format("Cannot read %s: %s", wallpaper.FOLDER, folder and folder.error or "")
         end),
         state_is("error"),
@@ -332,18 +321,8 @@ local search = rect {
                 end
             end,
             on_navigate = function(key)
-                if key == "backtab" then
-                    move(-1)
-                elseif key == "tab" then
-                    move(1)
-                elseif key == "up" then
-                    move(-COLUMNS)
-                elseif key == "down" then
-                    move(COLUMNS)
-                elseif key == "page_up" then
-                    move(-COLUMNS * 3)
-                elseif key == "page_down" then
-                    move(COLUMNS * 3)
+                if STEPS[key] then
+                    move(STEPS[key])
                 end
             end,
         },
@@ -421,13 +400,13 @@ local fit_row = row { width = "Fill", spacing = theme.spacing.xs, children = fit
 local EFFECTS_PER_ROW = 3
 local current_effect = wallpaper.effect()
 
--- Padded with `false` so a short last row leaves gaps instead of stretching across the slots.
+-- Padded with `""`, an empty slot that keeps its share so a short last row does not stretch.
 local effect_rows = wallpaper.effects():map(function(names)
     local rows = {}
     for index = 1, #names, EFFECTS_PER_ROW do
         local slots = {}
         for offset = 0, EFFECTS_PER_ROW - 1 do
-            slots[offset + 1] = names[index + offset] or false
+            slots[offset + 1] = names[index + offset] or ""
         end
         rows[#rows + 1] = slots
     end
@@ -442,7 +421,7 @@ local effect_grid = list {
     itemfn = function(slots)
         local buttons = {}
         for _, name in ipairs(slots) do
-            if name then
+            if name ~= "" then
                 buttons[#buttons + 1] = choice(
                     name,
                     -- The file's name is the value; its title is what a person reads.
@@ -452,20 +431,13 @@ local effect_grid = list {
                     "wallpaper-effect-" .. name
                 )
             else
-                -- Keep an empty slot's share of the row so a short last row does not stretch.
                 buttons[#buttons + 1] = rect { width = "Fill", height = theme.control.md }
             end
         end
         return row { width = "Fill", spacing = theme.spacing.xs, children = buttons }
     end,
     key = function(slots)
-        -- `slots` pads a short last row with `false`, which `table.concat` refuses. It only stays
-        -- unhit because there are six effects today and six divides by three.
-        local names = {}
-        for index, name in ipairs(slots) do
-            names[index] = name or ""
-        end
-        return table.concat(names, "|")
+        return table.concat(slots, "|")
     end,
 }
 

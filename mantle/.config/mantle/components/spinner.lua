@@ -1,4 +1,4 @@
--- A theme icon, not the refresh glyph: femtovg fills a rotated glyph's outline solid, while an
+-- A theme icon, not the refresh glyph, because femtovg fills a rotated glyph's outline solid and an
 -- icon rotates as a texture. `animate` follows `visible`, so a hidden spinner stops asking for a
 -- frame every frame.
 local theme = require("config.theme")

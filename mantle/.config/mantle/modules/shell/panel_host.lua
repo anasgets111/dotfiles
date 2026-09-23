@@ -89,7 +89,6 @@ local card_height = computed({ ui_state.panel_kind, table.unpack(section_rects) 
             return height > 0 and height + CARD_CHROME or nil
         end
     end
-    return nil
 end)
 local hidden_top = card_height:map(function(height)
     return height and -(height + theme.panel_gap) or -theme.panel_slide

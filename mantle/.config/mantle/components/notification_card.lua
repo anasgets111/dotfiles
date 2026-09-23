@@ -1,7 +1,7 @@
--- One application's notifications as one card, shared by the popup stack and the history panel;
+-- One application's notifications as one card, shared by the popup stack and the history panel.
 -- `opts.scope` carries their different ground, timestamp and entry motion.
 --
--- Structure is built, not bound: `children` takes an array, and a `list`'s `itemfn` re-runs for every
+-- Structure is built, not bound. `children` takes an array, and a `list`'s `itemfn` re-runs for every
 -- element on every pass, so reads here rebuild the tree. Appearance stays bound.
 --
 -- ponytail: the cards below a dismissed one still close its gap on one frame; the engine has no move
@@ -21,8 +21,8 @@ local BORDER_BY_URGENCY = {
     critical = theme.with_opacity(theme.RED, 0.6),
 }
 
--- Both scopes leave the same way: travel off the right edge, faded out. This surface is one card
--- wide, so travel clips quickly and the fade is what makes the exit legible.
+-- Both scopes leave the same way, travelling off the right edge as they fade. This surface is one card
+-- wide, so travel clips quickly and the fade makes the exit legible.
 local SLIDE_EXIT = {
     duration = theme.notification_slide_ms,
     easing = "OutCubic",
@@ -33,8 +33,8 @@ local SLIDE_EXIT = {
 -- How long a card waits behind the one above it, so four arriving at once do not read as one block.
 local STAGGER_MS = 60
 
--- Popup entry: travel in from the right edge. Paint-only `translate`, not `margin`, so a
--- `Fill`-width card is laid out once instead of re-wrapping as it moves.
+-- Popup entry travels in from the right edge. Paint-only `translate`, not `margin`, lays a `Fill`-width
+-- card out once instead of re-wrapping it as it moves.
 local function slide_in(delay)
     return {
         translate = {
@@ -63,7 +63,7 @@ local function small_button(glyph, on_activate, slot, rest, lit)
 end
 
 local function ghost_close(slot, on_activate)
-    return small_button(icons.close, on_activate, slot, "#00000000", "#00000000")
+    return small_button(icons.close, on_activate, slot, theme.CLEAR, theme.CLEAR)
 end
 
 local function expander(is_open, on_activate, slot)
@@ -76,14 +76,13 @@ end
 -- its ground because there is nothing to distinguish.
 local function message(notification, ui, opts)
     local id = notification.id
-    local expanded = (ui.expanded_messages:get() or {})[tostring(id)] or false
+    local expanded = ui.expanded_messages:get()[tostring(id)] or false
     local body = notifications.notification_body(notification.body, theme.ACCENT)
     local body_length = notifications.runs_length(body)
     local summary = notification.summary or ""
 
     local heading = {}
-    -- `image_path`, not `app_icon`, is the message attachment; the application mark is in the
-    -- header.
+    -- `image_path`, not `app_icon`, is the message attachment. The application mark is in the header.
     if notification.image_path then
         heading[#heading + 1] = icon {
             name = notification.image_path,
@@ -152,7 +151,7 @@ local function message(notification, ui, opts)
     if notification.has_reply then
         lines[#lines + 1] = row {
             -- `lines` is conditional and id-less siblings zip in order, so an arriving body would
-            -- hand this row the images row's node -- and with it the focused `NodeId`.
+            -- hand this row the images row's node, and with it the focused `NodeId`.
             id = "notification-reply-" .. tostring(id),
             width = "Fill",
             align_v = "Center",
@@ -192,33 +191,32 @@ local function message(notification, ui, opts)
     end
 
     -- `"inline-reply"` is lifted into `has_reply` by the Supervisor and drawn as the field above.
+    -- Push buttons to the card edges. A `row` only distributes `Start`/`Center`/`End`, so a filling
+    -- spacer goes in each gap. A lone button has no gap and stays centred.
     local buttons = {}
+    local function add(control)
+        if #buttons > 0 then
+            buttons[#buttons + 1] = rect { width = "Fill" }
+        end
+        buttons[#buttons + 1] = control
+    end
     for index, action in ipairs(notification.actions or {}) do
-        buttons[#buttons + 1] = action_button(action.label, function()
+        add(action_button(action.label, function()
             mantle.notifications:invoke("invoke_action", id, action.key)
-        end, string.format("notification-action-%d-%d", id, index), { icon = action.icon_name })
+        end, string.format("notification-action-%d-%d", id, index), { icon = action.icon_name }))
     end
     -- One button per distinct body link, for the ones elision cut off; the words open them too.
     for index, href in ipairs(notifications.notification_links(notification.body)) do
-        buttons[#buttons + 1] = action_button(notifications.link_label(href), function()
+        add(action_button(notifications.link_label(href), function()
             mantle.applications:invoke("open_url", href)
-        end, string.format("notification-link-%d-%d", id, index))
+        end, string.format("notification-link-%d-%d", id, index)))
     end
     if #buttons > 0 then
-        -- Push buttons to the card edges. A `row` only distributes `Start`/`Center`/`End`, so add a
-        -- filling spacer per gap; a lone button has no gap and stays centred.
-        local spread = {}
-        for index, control in ipairs(buttons) do
-            if index > 1 then
-                spread[#spread + 1] = rect { width = "Fill" }
-            end
-            spread[#spread + 1] = control
-        end
         lines[#lines + 1] = row {
             width = "Fill",
             align_h = "Center",
             spacing = theme.spacing.sm,
-            children = spread,
+            children = buttons,
         }
     end
 
@@ -265,7 +263,7 @@ local function message(notification, ui, opts)
                 return
             end
             -- Inert while this message has a draft; the X still works.
-            if ui.reply_draft_id:get() == id and (ui.reply_draft:get() or "") ~= "" then
+            if ui.reply_draft_id:get() == id and ui.reply_draft:get() ~= "" then
                 return
             end
             if notification.has_default_action then
@@ -278,29 +276,18 @@ local function message(notification, ui, opts)
     }
 end
 
--- Card entry, the one thing the two scopes disagree about. History records what happened, so it
--- fades without travel; popup travel says an event came from outside.
-local function entry_animation(scope, rank)
-    if scope == "history" then
-        return { opacity = { duration = theme.animation_ms, from = 0 }, exit = SLIDE_EXIT }
-    end
-    return slide_in(math.max(0, ((rank or 1) - 1)) * STAGGER_MS)
-end
-
--- `group` is one entry of `notifications.group_notifications`; `ui` is `lib/ui_state`.
--- `opts.scope`: popup cards use heavier glass, no clock, and edge travel; history uses the
--- lighter ground, "Wed 14:32", and no travel.
+-- `group` is one entry of `notifications.group_notifications`, and `ui` is `lib/ui_state`. A popup card
+-- has heavier glass, no clock and edge travel. `opts.scope = "history"` has the lighter ground,
+-- "Wed 14:32" and no travel.
 return function(group, ui, opts)
-    opts = opts or {}
-    local scope = opts.scope or "popup"
-    local in_history = scope == "history"
-    local items = group.items or {}
-    local expanded = (ui.expanded_groups:get() or {})[group.key] or false
+    local in_history = opts ~= nil and opts.scope == "history"
+    local items = group.items
+    local expanded = ui.expanded_groups:get()[group.key] or false
     local is_group = #items > 1
 
     local title = is_group and string.format("%s (%d)", group.app_name, #items) or group.app_name
     local header = {
-        -- Artwork, not a glyph: the plate keeps arbitrary-colour icons off the glass.
+        -- Artwork, not a glyph. The plate keeps arbitrary-colour icons off the glass.
         rect {
             width = theme.notification_app_icon,
             height = theme.notification_app_icon,
@@ -327,7 +314,7 @@ return function(group, ui, opts)
             ui.toggle_group(group.key)
         end, "notification-group-" .. group.key)
     end
-    -- Member by member: there is neither `dismiss_all` nor `dismiss_group`.
+    -- Member by member, since there is neither `dismiss_all` nor `dismiss_group`.
     header[#header + 1] = ghost_close("notification-group-close-" .. group.key, function()
         for _, notification in ipairs(items) do
             mantle.notifications:invoke("dismiss", notification.id)
@@ -345,8 +332,7 @@ return function(group, ui, opts)
     local shown = (is_group and not expanded) and { items[1] } or items
     for _, notification in ipairs(shown) do
         children[#children + 1] = message(notification, ui, {
-            -- Use rendered count: a collapsed group renders one card-level message, not a list
-            -- entry.
+            -- The rendered count, because a collapsed group renders one card-level message.
             standalone = #shown == 1,
             age = in_history and notifications.absolute_time(notification.timestamp) or nil,
         })
@@ -359,9 +345,12 @@ return function(group, ui, opts)
         -- Resting pose. History does not move in, but its exit still slides the card from here.
         translate = { x = 0, y = 0 },
         opacity = 1,
-        animate = entry_animation(scope, group.rank),
+        -- The one thing the scopes disagree on. History records what happened, so it fades without
+        -- travel. Popup travel says an event came from outside, staggered by `rank`.
+        animate = in_history and { opacity = { duration = theme.animation_ms, from = 0 }, exit = SLIDE_EXIT }
+            or slide_in((group.rank - 1) * STAGGER_MS),
         background = in_history and theme.GLASS_CONTENT or theme.GLASS,
-        -- A popup card is its own sheet; history sits on `panel_host`'s already-blurred card.
+        -- A popup card is its own sheet. History sits on `panel_host`'s already-blurred card.
         blur = not in_history,
         radius = theme.radius.md,
         border_width = theme.border_width_medium,

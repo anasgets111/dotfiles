@@ -5,8 +5,8 @@ local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
 
 local function users_of(field)
-    return function(p)
-        return #((p or {})[field] or {}) > 0
+    return function(privacy)
+        return #((privacy or {})[field] or {}) > 0
     end
 end
 
@@ -18,13 +18,13 @@ local function alert(glyph, field, slot)
     })
 end
 
--- The microphone shows while active *or* muted, so a muted one stays available to unmute: peach and
--- a struck-through glyph when muted, red and the plain glyph when live.
-local mic_muted = mantle.audio:map(function(a)
-    return a ~= nil and a.source_muted == true
+-- The microphone shows while active or muted, so a muted one stays reachable to unmute. Muted is
+-- peach with a struck-through glyph, live is red with the plain one.
+local mic_muted = mantle.audio:map(function(audio)
+    return audio ~= nil and audio.source_muted == true
 end)
-local mic_shown = computed({ mantle.privacy, mic_muted }, function(p, muted)
-    return users_of("microphone_users")(p) or muted
+local mic_shown = computed({ mantle.privacy, mic_muted }, function(privacy, muted)
+    return users_of("microphone_users")(privacy) or muted
 end)
 
 local mic_tooltip = tooltip({
@@ -38,21 +38,18 @@ local mic_tooltip = tooltip({
 local camera_tooltip = tooltip({ id = "privacy_camera_tooltip", slot = "privacy_camera", text = "Camera in use" })
 
 local screenshare_tooltip = tooltip({
-    id = "privacy_screenshare_tooltip",
-    slot = "privacy_screenshare",
-    text =
-    "Screen sharing in progress"
+    id = "privacy_screenshare_tooltip", slot = "privacy_screenshare", text = "Screen sharing in progress",
 })
 
--- Camera and screencast are readouts; their circles do nothing. The microphone is the control.
--- It uses `audio:toggle_source_mute`; muting does not end capture, so the circle stays up.
+-- Camera and screencast circles are readouts. The microphone circle toggles source mute, which does
+-- not end capture, so it stays up.
 local indicator = row {
     align_v = "Center",
     spacing = theme.spacing.sm,
     -- Invisible children leave layout, but the row still takes `left_side.lua`'s gap, so the group
     -- hides itself. Keyed on `mic_shown`: a muted microphone appears without a user.
-    visible = computed({ mantle.privacy, mic_shown }, function(p, mic)
-        return mic or users_of("camera_users")(p) or users_of("screencast_users")(p)
+    visible = computed({ mantle.privacy, mic_shown }, function(privacy, mic)
+        return mic or users_of("camera_users")(privacy) or users_of("screencast_users")(privacy)
     end),
     children = {
         alert(icons.camera, "camera_users", "privacy_camera"),

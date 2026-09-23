@@ -1,9 +1,9 @@
--- The DBusMenu attached to a tray icon, opened by right-clicking it. `mantle.tray` carries the whole
--- tree from one `GetLayout(0, -1)` at registration, so a submenu needs no `tray:menu_will_show`
--- round trip; that command stays for applications that populate menus lazily.
+-- A tray icon's DBusMenu, opened by right-clicking it. `mantle.tray` carries the whole tree from one
+-- `GetLayout(0, -1)` at registration, so a submenu needs no `tray:menu_will_show` round trip. That
+-- command stays for applications that populate menus lazily.
 --
 -- Submenus expand in place, since a popup per submenu would be a surface per level. Depth follows
--- the application up to the Supervisor's `MAX_MENU_DEPTH`; rows flatten the tree.
+-- the application up to the Supervisor's `MAX_MENU_DEPTH`.
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
@@ -12,24 +12,20 @@ local ui_state = require("lib.ui_state")
 local KIND = "tray_menu"
 
 -- Every tray item shares one card and one `panel_host` section, so its id travels beside
--- `panel_kind`. `expanded` is a set of open submenu ids, keeping descendants when an ancestor
+-- `panel_kind`. `expanded` is a set of open submenu ids, so descendants stay open when an ancestor
 -- collapses.
 local item_id = state("tray_menu_item", "")
-
 local expanded = state("tray_menu_expanded", {})
 
--- `components/panel_action_icon.lua` uses the same literal for the same reason.
-local CLEAR = "#00000000"
-
-local function menu_of(t, id)
-    for _, item in ipairs((t and t.items) or {}) do
+local function menu_of(tray, id)
+    for _, item in ipairs((tray and tray.items) or {}) do
         if item.id == id then
             return item.menu
         end
     end
 end
 
--- Flatten depth-first so `list` gets one row shape and carries each row's indent.
+-- Depth-first, so `list` gets one row shape that carries its indent.
 local function flatten(entries, depth, open, out)
     for _, entry in ipairs(entries or {}) do
         out[#out + 1] = { entry = entry, depth = depth }
@@ -39,42 +35,34 @@ local function flatten(entries, depth, open, out)
     end
 end
 
-local rows = computed({ mantle.tray, item_id, expanded }, function(t, id, open)
+local rows = computed({ mantle.tray, item_id, expanded }, function(tray, id, open)
     local out = {}
-    flatten(menu_of(t, id), 0, open or {}, out)
+    flatten(menu_of(tray, id), 0, open, out)
     return out
 end)
 
--- Three plain-character markers, not glyphs from `config/icons.lua`, preserve what the
--- application's toolkit would draw.
-local SUBMENU = "\u{203A}"
-local CHECKED = "\u{2713}"
-local SELECTED = "\u{25CF}"
-
--- A submenu marker takes priority over a toggle's check mark; off and indeterminate toggles draw
--- nothing.
+-- Plain characters, not `config/icons.lua` glyphs, draw what the application's toolkit would. A
+-- submenu marker outranks a check mark; off and indeterminate toggles draw nothing.
 local function marker(entry)
     if #(entry.children or {}) > 0 then
-        return SUBMENU
+        return "\u{203A}"
     end
     if entry.toggle_state ~= 1 then
         return ""
     end
-    return entry.toggle_type == "radio" and SELECTED or CHECKED
+    return entry.toggle_type == "radio" and "\u{25CF}" or "\u{2713}"
 end
 
 -- DBusMenu marks a mnemonic with `_`, so `"_Quit"` arrives with the underscore. This panel takes no
--- keyboard focus, and advertising an accelerator that does nothing is worse than omitting it, so the
--- marker is dropped; underline it once the key works. `__` is its escape for a real underscore.
----@param label string?
----@return string
+-- keyboard focus, and an accelerator that does nothing is worse than none, so the marker goes.
+-- Underline it once the key works. `__` escapes a real underscore.
 local function strip_mnemonics(label)
     return ((label or ""):gsub("__", "\0"):gsub("_", ""):gsub("%z", "_"))
 end
 
 local function activate(entry)
     if #(entry.children or {}) > 0 then
-        local open = expanded:get() or {}
+        local open = expanded:get()
         local key = tostring(entry.id)
         expanded:set(util.with(open, key, not open[key] or nil))
         return
@@ -105,8 +93,7 @@ local function row_for(row_entry)
             },
         }
     end
-    local slot = "tray-menu-" .. tostring(entry.id)
-    local hovered = hover(slot)
+    local hovered = hover("tray-menu-" .. tostring(entry.id))
     local children = {}
     if entry.icon_name then
         children[#children + 1] = icon {
@@ -131,7 +118,7 @@ local function row_for(row_entry)
         hover = hovered,
         -- Transparent rather than `nil`, as the QML original drew it.
         background = hovered:map(function(on)
-            return on and theme.GLASS_CONTROL_HOVER or CLEAR
+            return on and theme.GLASS_CONTROL_HOVER or theme.CLEAR
         end),
         opacity = entry.enabled and 1 or theme.opacity.disabled,
         on_click = function(_, mouse_button)
@@ -165,9 +152,7 @@ local body = item_id:map(function(id)
     } }
 end)
 
----Show `item`'s menu, anchored under its icon.
----@param item TrayItem
----@param anchor Rect
+-- `item`'s menu, anchored under its icon.
 local function open(item, anchor)
     item_id:set(item.id)
     expanded:set({})

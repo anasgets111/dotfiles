@@ -1,11 +1,8 @@
--- A row's small control: tinted by what it does, red to disconnect or forget, with no ground until
--- hover. It stays quieter than `components/icon_button.lua`; two per six-row list must not read as
--- eighteen buttons.
+-- A row's small control, tinted by what it does, with no ground until hover. Red disconnects or
+-- forgets. It stays quieter than `components/icon_button.lua`, so a six-row list with two per row
+-- does not read as a wall of buttons.
 local theme = require("config.theme")
 local icon_button = require("components.icon_button")
-
--- Fully transparent; `border = false` also disables `icon_button`'s ring.
-local CLEAR = "#00000000"
 
 ---@param glyph string|Bound A `text` glyph, or a signal of one for a control whose icon follows state.
 ---@param on_activate fun()?
@@ -28,7 +25,7 @@ return function(glyph, on_activate, opts)
         icon_size = theme.icon[step],
         radius = theme.radius.sm,
         border = false,
-        background = CLEAR,
+        background = theme.CLEAR,
         background_hover = theme.with_opacity(tint, theme.opacity.subtle),
         foreground = hovered:map(function(is_hovered)
             return is_hovered and tint or theme.with_opacity(tint, theme.opacity.disabled)

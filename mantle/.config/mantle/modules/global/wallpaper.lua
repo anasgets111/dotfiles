@@ -2,6 +2,7 @@
 -- plugged in later gets its own file and fit. `async` decodes off the render thread (a synchronous
 -- decode stalls it ~160ms per change) and `transition` holds the old image until the cross-fade.
 local wallpaper = require("lib.wallpaper")
+local theme = require("config.theme")
 
 -- Built twice: Niri's `place-within-backdrop` moves a surface rather than copying it. Unblurred:
 -- an `image` takes no shader outside a `transition`.
@@ -16,7 +17,7 @@ local function wallpaper_panel(id, visible)
         width = "Fill",
         height = "Fill",
         -- A failed decode shows dark rather than looking like an unmapped surface.
-        background = "#11111bff",
+        background = theme.CRUST,
         child = function(output)
             return image {
                 -- `retain` holds the last picture across a source change, so keep the node's `id`
@@ -37,8 +38,8 @@ end
 -- Hyprland has no backdrop and niri draws it only in the overview, so the surface exists only then
 -- (`false` destroys it); otherwise an animated wallpaper repaints it for nobody. The picture is the
 -- desktop panel's shared cache entry, so the rebuild decodes nothing.
-local in_overview = mantle.workspaces:map(function(w)
-    return w ~= nil and w.compositor == "niri" and w.overview_open == true
+local in_overview = mantle.workspaces:map(function(workspaces)
+    return workspaces ~= nil and workspaces.compositor == "niri" and workspaces.overview_open == true
 end)
 
 return {

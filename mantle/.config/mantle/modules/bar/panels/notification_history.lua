@@ -17,29 +17,25 @@ local identity = require("lib.identity")
 local system_info = require("modules.bar.indicators.system_info")
 local weather_widget = require("modules.bar.indicators.weather")
 
-local KIND = "notifications"
-local SCROLL = scroll("notification_feed")
-
-local function feed(n)
-    return (n and n.feed) or {}
+local function feed(payload)
+    return (payload and payload.feed) or {}
 end
 
-local bell_glyph = mantle.notifications:map(function(n)
-    return (n and n.dnd) and icons.bell_off or icons.bell
+local bell_glyph = mantle.notifications:map(function(payload)
+    return (payload and payload.dnd) and icons.bell_off or icons.bell
 end)
 
--- List non-transients, grouped by application into "urgent" / "today" / "yesterday" /
--- "earlier". `mantle.applications` supplies desktop-file names/icons; `mantle.system`
--- moves "today" at midnight.
-local sections = computed({ mantle.notifications, mantle.applications, mantle.system }, function(n, applications, s)
-    local groups = notifications.group_notifications(feed(n), applications, { skip_transient = true })
-    return notifications.notification_sections(groups, (s and s.time) or 0)
-end)
+-- `mantle.applications` supplies desktop-file names and icons. `mantle.system` moves "today" at midnight.
+local sections = computed({ mantle.notifications, mantle.applications, mantle.system },
+    function(payload, applications, system)
+        local groups = notifications.group_notifications(feed(payload), applications, { skip_transient = true })
+        return notifications.notification_sections(groups, (system and system.time) or 0)
+    end)
 
 -- Transients never reach this list, so neither count includes them.
-local function kept(n, urgent)
+local function kept(payload, urgent)
     local count = 0
-    for _, notification in ipairs(feed(n)) do
+    for _, notification in ipairs(feed(payload)) do
         if not notification.transient and (not urgent or notification.urgency == "critical") then
             count = count + 1
         end
@@ -47,37 +43,26 @@ local function kept(n, urgent)
     return count
 end
 
--- Count, application count, and DND state.
-local function summary(n)
-    local count, apps, seen = 0, 0, {}
-    for _, notification in ipairs(feed(n)) do
-        if not notification.transient then
-            count = count + 1
-            local app = notification.app_name or ""
-            if not seen[app] then
-                seen[app] = true
-                apps = apps + 1
-            end
+local function summary(payload)
+    local count, apps, seen = kept(payload), 0, {}
+    for _, notification in ipairs(feed(payload)) do
+        local app = notification.app_name or ""
+        if not notification.transient and not seen[app] then
+            seen[app] = true
+            apps = apps + 1
         end
     end
-    local dnd = n and n.dnd
+    local dnd = payload and payload.dnd
     if count == 0 then
         return dnd and "Silenced · history empty" or "History empty"
     end
-    local parts = { string.format("%d in history", count) }
-    if apps > 1 then
-        parts[#parts + 1] = string.format("%d apps", apps)
-    end
-    if dnd then
-        parts[#parts + 1] = "silenced"
-    end
-    return table.concat(parts, " · ")
+    return string.format("%d in history", count) .. (apps > 1 and string.format(" · %d apps", apps) or "")
+        .. (dnd and " · silenced" or "")
 end
 
--- "1st", "2nd", "3rd", "4th"; the teens are the exception, all "th".
+-- "1st", "2nd", "3rd", "4th", with the teens all "th". `day` is a day of the month.
 local function ordinal(day)
-    local tens = day % 100
-    if tens >= 11 and tens <= 13 then
+    if day >= 11 and day <= 13 then
         return "th"
     end
     local ones = day % 10
@@ -86,13 +71,12 @@ end
 
 -- The panel has room to spell out the day and month; the bar's clock is abbreviated to fit a pill.
 local function long_date(seconds)
-    local t = os.date("*t", seconds)
-    return string.format("%s %d%s of %s", os.date("%A", seconds), t.day, ordinal(t.day),
+    local day = os.date("*t", seconds).day
+    return string.format("%s %d%s of %s", os.date("%A", seconds), day, ordinal(day),
         os.date("%B %Y %I:%M %p", seconds))
 end
 
 local body = {
-    -- Session identity and date header.
     row {
         width = "Fill",
         spacing = theme.spacing.md,
@@ -106,11 +90,8 @@ local body = {
                 border_width = theme.border_width,
                 border_color = theme.with_opacity(theme.ACCENT, 0.45),
                 children = {
-                    cell(util.bold(identity.initials), theme.ACCENT, theme.font.sm, {
-                        width = "Fill",
-                        align = "Center",
-                        align_v = "Center",
-                    }),
+                    cell(util.bold(identity.initials), theme.ACCENT, theme.font.sm,
+                        { width = "Fill", align = "Center", align_v = "Center" }),
                 },
             },
             column {
@@ -118,41 +99,37 @@ local body = {
                 spacing = theme.spacing.xs,
                 children = {
                     cell(util.bold(identity.full_name), theme.FG, theme.font.md, { width = "Fill" }),
-                    cell(util.label(mantle.system, function(s)
-                        return long_date(s.time)
+                    cell(util.label(mantle.system, function(system)
+                        return long_date(system.time)
                     end), theme.DIM, theme.font.xs, { width = "Fill" }),
                 },
             },
         },
     },
-    -- Order: weather, system info, then the notifications masthead.
     weather_widget("notifications"),
     system_info("notifications"),
     panel_header {
         title = "Notifications",
         icon = bell_glyph,
-        active = mantle.notifications:map(function(n)
-            return not (n and n.dnd)
+        active = mantle.notifications:map(function(payload)
+            return not (payload and payload.dnd)
         end),
         subtitle = util.label(mantle.notifications, summary),
         trailing = {
             -- Critical notifications bypass DND and never expire, so they get their own count.
-            info_badge(mantle.notifications:map(function(n)
-                return string.format("%d urgent", kept(n, true))
+            info_badge(mantle.notifications:map(function(payload)
+                return string.format("%d urgent", kept(payload, true))
             end), theme.RED, {
-                visible = util.shown_when(mantle.notifications, function(n)
-                    return kept(n, true) > 0
+                visible = util.shown_when(mantle.notifications, function(payload)
+                    return kept(payload, true) > 0
                 end),
             }),
-            panel_action_icon(mantle.notifications:map(function(n)
-                return (n and n.dnd) and icons.bell or icons.bell_off
+            panel_action_icon(mantle.notifications:map(function(payload)
+                return (payload and payload.dnd) and icons.bell or icons.bell_off
             end), function()
-                local n = mantle.notifications:get()
-                mantle.notifications:invoke("set_dnd", not (n and n.dnd))
-            end, {
-                slot = "notification-dnd",
-                tint = theme.PEACH,
-            }),
+                local payload = mantle.notifications:get()
+                mantle.notifications:invoke("set_dnd", not (payload and payload.dnd))
+            end, { slot = "notification-dnd", tint = theme.PEACH }),
             panel_action_icon(icons.clear_all, function()
                 for _, notification in ipairs(feed(mantle.notifications:get())) do
                     mantle.notifications:invoke("dismiss", notification.id)
@@ -160,56 +137,50 @@ local body = {
             end, {
                 slot = "notification-clear-all",
                 tint = theme.RED,
-                visible = util.shown_when(mantle.notifications, function(n)
-                    return kept(n) > 0
+                visible = util.shown_when(mantle.notifications, function(payload)
+                    return kept(payload) > 0
                 end),
             }),
         },
     },
-    column {
+    list {
         width = "Fill",
+        max_height = theme.notification_list_height,
+        scroll = scroll("notification_feed"),
+        spacing = theme.spacing.sm,
         -- Same hold as the popup: expiry must not reorder the list under a pointer. The regions are
         -- separate because the two surfaces never overlap.
         hover = hover("notification_history_region"),
         on_hover = function(hovered)
             mantle.notifications:invoke("hold_expiry", hovered and 300 or 0)
         end,
-        children = {
-            -- Card height up to the screen cap, then a scrolling viewport.
-            list {
-                width = "Fill",
-                max_height = theme.notification_list_height,
-                scroll = SCROLL,
-                spacing = theme.spacing.sm,
-                source = sections,
-                itemfn = function(item)
-                    if item.kind == "header" then
-                        return section_header(item.label)
-                    end
-                    -- The history scope: lighter ground than the popup's, a timestamp, and no
-                    -- flight in from an edge this surface does not touch.
-                    return notification_card(item, ui, { scope = "history" })
-                end,
-                key = function(item)
-                    return item.key
-                end,
-            },
-        },
+        source = sections,
+        itemfn = function(item)
+            if item.kind == "header" then
+                return section_header(item.label)
+            end
+            -- The history scope: lighter ground than the popup's, a timestamp, and no flight in from
+            -- an edge this surface does not touch.
+            return notification_card(item, ui, { scope = "history" })
+        end,
+        key = function(item)
+            return item.key
+        end,
     },
     panel_empty_state(
         "No notifications",
-        util.shown_when(mantle.notifications, function(n)
-            return kept(n) == 0
+        util.shown_when(mantle.notifications, function(payload)
+            return kept(payload) == 0
         end),
         {
             icon = bell_glyph,
             -- An empty feed under DND means something different from an empty feed without it, and
             -- the struck-through bell alone does not say which.
-            subtext = mantle.notifications:map(function(n)
-                return (n and n.dnd) and "Do not disturb is on" or "You're all caught up"
+            subtext = mantle.notifications:map(function(payload)
+                return (payload and payload.dnd) and "Do not disturb is on" or "You're all caught up"
             end),
         }
     ),
 }
 
-return { kind = KIND, body = body, spacing = theme.spacing.md }
+return { kind = "notifications", body = body, spacing = theme.spacing.md }

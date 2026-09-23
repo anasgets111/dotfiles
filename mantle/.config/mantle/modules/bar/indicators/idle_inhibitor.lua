@@ -1,6 +1,6 @@
 -- One circle shows session holds and adds a manual hold on click; right-click opens
--- `modules/global/idle_settings.lua`. The glyph swaps on the *manual* hold -- the cup means "I asked
--- for this" -- while the accent ground means any hold, so media can light it without a glyph change.
+-- `modules/global/idle_settings.lua`. The glyph swaps on the manual hold, since the cup means "I asked
+-- for this". The accent ground means any hold, so media can light it without a glyph change.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local icon_button = require("components.icon_button")
@@ -14,7 +14,7 @@ local indicator = icon_button(idle.manual:map(function(manual)
     return manual and icons.awake or icons.idle
 end), nil, {
     slot = SLOT,
-    selected = ui_state.idle_settings_open,
+    selected = ui_state.modal_showing("idle_settings"),
     background = idle.inhibited:map(function(held)
         return held and theme.ACCENT or theme.GLASS_CONTROL
     end),

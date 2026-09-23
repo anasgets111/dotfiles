@@ -10,19 +10,11 @@ local util = require("lib.util")
 ---@param expanded StateSignal<boolean> The widget's own `state`, toggled by a left click.
 ---@param slot string A `hover` slot unique to this header.
 ---@param title string|Bound
----@param middle? table The filling child between title and chevron; a spacer without one.
+---@param middle table The filling child between title and chevron.
 ---@param opts? { visible?: boolean|Bound }
 return function(expanded, slot, title, middle, opts)
     local hovered = hover(slot)
-    -- Open picks the first pair, closed the second; each pair is hovered, then resting.
-    local function tint(open_hot, open_rest, hot, rest)
-        return computed({ expanded, hovered }, function(open, is_hot)
-            if open then
-                return is_hot and open_hot or open_rest
-            end
-            return is_hot and hot or rest
-        end)
-    end
+    local tint = util.tint(expanded, hovered)
     local ink = tint(theme.ACCENT, theme.ACCENT, theme.TEXT_ACTIVE, theme.FG)
     return button {
         width = "Fill",
@@ -50,7 +42,7 @@ return function(expanded, slot, title, middle, opts)
                     align_v = "Center",
                     animate = { foreground = theme.animation_ms },
                 }),
-                middle or rect { width = "Fill" },
+                middle,
                 glyph(expanded:map(function(open)
                     return open and icons.chevron_down or icons.chevron_right
                 end), ink, theme.icon.sm, {

@@ -91,8 +91,7 @@ function notifications.notification_links(spans)
     return links
 end
 
--- Inline body pictures (`<img src>`), trusted-root validated by the Supervisor; draw under text, as
--- `notifications.notification_body` does.
+-- Inline body pictures (`<img src>`), which the Supervisor has checked against its trusted roots.
 function notifications.notification_images(spans)
     local paths = {}
     for _, span in ipairs(spans or {}) do
@@ -123,10 +122,9 @@ end
 -- icon), else `app_name`. Critical first, then newest; the key breaks equal-second ties.
 -- `opts.skip_transient` drops `transient` notifications (history does, popups do not).
 function notifications.group_notifications(feed, applications, opts)
-    opts = opts or {}
     local groups, by_key = {}, {}
     for _, notification in ipairs(feed or {}) do
-        if not (opts.skip_transient and notification.transient) then
+        if not (opts and opts.skip_transient and notification.transient) then
             local entry_id = notification.desktop_entry
             local key = entry_id and string.lower(entry_id) or (notification.app_name or "?")
             local group = by_key[key]
@@ -171,16 +169,9 @@ function notifications.notification_sections(groups, now)
         { label = "earlier",   items = {} },
     }
     for _, group in ipairs(groups or {}) do
-        local index = 4
-        if group.urgency == "critical" then
-            index = 1
-        elseif group.latest >= today_start then
-            index = 2
-        elseif group.latest >= today_start - 86400 then
-            index = 3
-        end
-        local items = buckets[index].items
-        items[#items + 1] = group
+        local index = group.urgency == "critical" and 1 or group.latest >= today_start and 2
+            or group.latest >= today_start - 86400 and 3 or 4
+        table.insert(buckets[index].items, group)
     end
     local sections = {}
     for _, bucket in ipairs(buckets) do

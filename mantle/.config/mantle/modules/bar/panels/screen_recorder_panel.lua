@@ -16,8 +16,8 @@ local recorder = require("lib.screen_recording")
 
 local KIND = "screen_recorder"
 
--- This order: capture, quality, frame rate, and format. `fallback` repeats `lib/store.lua`'s
--- default because an older `state.json` can lack a key, leaving a group with no selected tile.
+-- `fallback` repeats `lib/store.lua`'s default, because an older `state.json` can lack a key and
+-- leave a group with no selected tile.
 local GROUPS = {
     {
         key = "audio",
@@ -48,7 +48,6 @@ local GROUPS = {
         key = "fps",
         title = "frame rate",
         fallback = 60,
-        -- No glyphs: a frame rate is a number.
         options = {
             { value = 30,  label = "30 fps" },
             { value = 60,  label = "60 fps" },
@@ -71,8 +70,8 @@ local GROUPS = {
     },
 }
 
--- This stays expanded across close, matching `modules/bar/indicators/system_info.lua`;
--- `lib/ui_state.lua` has no close hook to reset it.
+-- Stays expanded across close, like `modules/bar/indicators/system_info.lua`. `lib/ui_state.lua` has
+-- no close hook to reset it.
 local settings_expanded = state("recorder_settings_expanded", false)
 
 local function selected_option(group, settings)
@@ -110,7 +109,7 @@ local status_text = computed(
     end
 )
 
--- The detail line follows the selected tile: only the current choice needs an explanation.
+-- The detail line explains only the selected tile.
 local function option_group(group)
     local tiles = {}
     for _, option in ipairs(group.options) do
@@ -194,7 +193,6 @@ local body = {
             return up and theme.RED or theme.ACCENT
         end),
         trailing = {
-            -- Red while frames are written, peach while they are not.
             info_badge(recorder.elapsed_text, recorder.paused:map(function(held)
                 return held and theme.PEACH or theme.RED
             end), { visible = recorder.recording }),
@@ -210,7 +208,6 @@ local body = {
         children = {
             wide_button("Region", capture("selection"), "recorder-region", "solid", icons.region, idle),
             wide_button("Screen", capture(), "recorder-screen", "solid", icons.display, idle),
-            -- Ending a running capture takes the alert colour, not the accent.
             wide_button("Stop", recorder.stop, "recorder-stop", "danger", icons.record_stop, recorder.recording),
             wide_button(recorder.paused:map(function(held)
                 return held and "Resume" or "Pause"
@@ -220,7 +217,6 @@ local body = {
         },
     },
 
-    -- A hairline separates capture actions from configuration.
     rect { width = "Fill", height = theme.border_width, background = theme.BORDER_SUBTLE },
 
     panel_row {
@@ -246,7 +242,6 @@ local body = {
 
     panel_row {
         title = "Open recordings folder",
-        -- Collapse the home prefix to `~`; it tells the reader nothing when repeated on every path.
         subtitle = recorder.directory:map(function(dir)
             local home = os.getenv("HOME") or ""
             if home ~= "" and dir:sub(1, #home) == home then

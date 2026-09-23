@@ -33,15 +33,7 @@ return persistent_table {
         -- Keyed by `config/dev_tools.lua` name. Absent means on; only an explicit `false` holds one back.
         updates_dev_tools = {},
         screen_recorder = { audio = "desktop", quality = "high", fps = 60, container = "mp4" },
-        -- Two profiles keyed by mains state, sharing `order`. Stage seconds count from the preceding
-        -- stage, so lowering the blank timeout cannot shorten the lock gap. `enabled` defaults false:
-        -- true could blank a screen while its owner reads.
-        idle = {
-            enabled = false,
-            privacy_auto_inhibit = true,
-            order = { "dpms", "lock", "suspend" },
-            ac = { dpms_on = true, dpms_sec = 300, lock_on = true, lock_sec = 600, suspend_on = false, suspend_sec = 1800 },
-            battery = { dpms_on = true, dpms_sec = 120, lock_on = true, lock_sec = 180, suspend_on = true, suspend_sec = 600 },
-        },
+        -- Two profiles keyed by mains state, sharing `order`. `lib/idle.lua` holds every default.
+        idle = {},
     },
 }

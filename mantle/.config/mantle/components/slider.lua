@@ -1,10 +1,10 @@
--- Value-filled track: a drag sets the value anywhere, the wheel steps it, and `on_commit` fires once
+-- Value-filled track. A drag sets the value anywhere, the wheel steps it, and `on_commit` fires once
 -- per drag or notch.
 --
--- `pending` holds the dragged value locally, sparing a Supervisor round trip per pixel, and is kept
--- until the snapshot carries it: clearing on release flashes new, old, new. One `on_change` per
--- slider name clears it, with a one-second timer for a write another writer or a clamp never lands.
--- It is numeric (`state()` fixes the type) with `-1` meaning nothing held.
+-- `pending` holds the dragged value locally, sparing a Supervisor round trip per pixel. It stays
+-- until the snapshot carries it, because clearing on release flashes new, old, new. One `on_change`
+-- per slider name clears it, with a one-second timer for a write that another writer or a clamp
+-- never lands. `state()` fixes its type as numeric, so `-1` means nothing held.
 local theme = require("config.theme")
 
 ---@class SliderOpts
@@ -13,7 +13,7 @@ local theme = require("config.theme")
 ---@field read fun(payload: any): number? The value, `0` to `max`, off one payload; `nil` ignores drag and wheel.
 ---@field on_commit fun(value: number) Called once per drag, on release, and once per wheel step.
 ---@field max? number The full track's value. Default `1`.
----@field steps? number How many positions the track has across `0` to `max`: a drag lands on the nearest one and a wheel notch moves one. Default `20 * max`, 5% steps; `0` is continuous.
+---@field steps? number How many positions the track has across `0` to `max`. A drag lands on the nearest one and a wheel notch moves one. Default `20 * max`, 5% steps; `0` is continuous.
 ---@field split_at? number The value past which the fill takes `headroom_color`. Default `max`.
 ---@field headroom_color? Color|Bound The fill past `split_at`. Default `theme.RED`.
 ---@field marker? boolean A 1px line at `split_at`.
@@ -38,7 +38,7 @@ local function clamp(value, max)
     return math.max(0, math.min(max, value))
 end
 
--- Snap to the nearest `steps` position: a 79% drag commits 80%.
+-- Snap to the nearest `steps` position, so a 79% drag commits 80%.
 local function quantize(value, steps, max)
     if steps <= 0 then
         return clamp(value, max)
@@ -47,14 +47,10 @@ local function quantize(value, steps, max)
 end
 
 local function value_of(read, payload, max)
-    if payload == nil then
-        return nil
-    end
     local ok, value = pcall(read, payload)
-    if not ok or type(value) ~= "number" then
-        return nil
+    if payload ~= nil and ok and type(value) == "number" then
+        return clamp(value, max)
     end
-    return clamp(value, max)
 end
 
 -- Per name, since `list` rebuilds rows: `on_change` registers once, `timer` and wheel `rest` persist.

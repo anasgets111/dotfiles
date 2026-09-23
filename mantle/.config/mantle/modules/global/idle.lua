@@ -1,6 +1,5 @@
--- Three idle stages driven by one threshold and the `mantle.system` tick; no surface, like
--- `modules/global/power_events.lua`. Timeouts are editable numbers in `lib/idle.lua` because a
--- registered threshold cannot be cancelled.
+-- Three idle stages driven by one threshold and the `mantle.system` tick. Timeouts are editable
+-- numbers in `lib/idle.lua` because a registered threshold cannot be cancelled.
 --
 -- No inhibitor check here: an inhibitor makes the Supervisor hold threshold events and resume,
 -- which zeroes `idle.since`, so only the master switch is read.
@@ -47,9 +46,9 @@ local ACTIONS = {
 
 -- Register once at top level. A registration inside a repeated callback duplicates it permanently.
 mantle.idle:register_threshold(idle.TICK, function()
-    local s = mantle.system:get()
+    local system = mantle.system:get()
     -- Back-date by the threshold so "idle 0:42" means since the last keystroke, not the push.
-    idle.since:set(((s and s.monotonic) or 0) - idle.TICK)
+    idle.since:set(((system and system.monotonic) or 0) - idle.TICK)
 end, function()
     -- Any input wakes it. An inhibitor taken while dark must not leave the screen dark.
     set_displays_powered(true)
@@ -61,7 +60,7 @@ end)
 -- Once a second, on the tick the bar clock already uses. Not a scheduler: find the stage armed
 -- *now*, stamp it once, fire after its delay, and clear every other stamp. Recomputing each second
 -- is also what makes unlock re-arm the lock stage with no unlock watcher.
-mantle.system:on_change(function(s)
+mantle.system:on_change(function(system)
     local since = idle.since:get()
     if since == 0 then
         return
@@ -70,7 +69,7 @@ mantle.system:on_change(function(s)
     if not settings.enabled then
         -- Clear on the way out: disabling automation mid-countdown must not leave a stamp that
         -- makes re-enabling resume from where it stopped rather than from now.
-        if next(idle.armed_at:get() or {}) ~= nil then
+        if next(idle.armed_at:get()) ~= nil then
             idle.armed_at:set({})
             idle.fired_at:set({})
         end
@@ -93,15 +92,14 @@ mantle.system:on_change(function(s)
     if armed then
         -- Use the later of "when this armed" and "when the seat went idle"; active time must not
         -- count toward the stage.
-        next_stamps[armed.key] = stamps[armed.key] or math.max(s.monotonic, since)
+        next_stamps[armed.key] = stamps[armed.key] or math.max(system.monotonic, since)
     end
     idle.armed_at:set(next_stamps)
 
-    if armed and s.monotonic - next_stamps[armed.key] >= armed.delay then
+    if armed and system.monotonic - next_stamps[armed.key] >= armed.delay then
         -- Fire once per arming. A stage with `done` is walked past next tick; a terminal stage
         -- stays armed after acting and would otherwise fire every second.
-        local fired = idle.fired_at:get() or {}
-        if fired[armed.key] ~= next_stamps[armed.key] then
+        if idle.fired_at:get()[armed.key] ~= next_stamps[armed.key] then
             idle.fired_at:set({ [armed.key] = next_stamps[armed.key] })
             ACTIONS[armed.key]()
         end

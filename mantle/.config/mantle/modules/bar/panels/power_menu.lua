@@ -1,8 +1,7 @@
--- The bar pill, `power_button` below, offers log out, restart, and power off behind ten-second
--- countdowns. `process.detach` shells out, so a Renderer crash mid-flight cannot reap a shutdown.
--- The panel adds lock, sleep, settings and brightness; those lose nothing, so they need no
--- countdown. The countdown is a deadline in `mantle.system.monotonic`, not a timer, so a clock step
--- cannot fire it early.
+-- The bar pill runs log out, restart and power off after a ten-second countdown. `process.detach`
+-- shells out, so a Renderer crash mid-flight cannot reap a shutdown. The panel's lock, sleep,
+-- settings and brightness lose nothing, so they run at once. The countdown is a
+-- `mantle.system.monotonic` deadline, not a timer, so a clock step cannot fire it early.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -17,15 +16,14 @@ local ui_state = require("lib.ui_state")
 local compositor = require("lib.compositor")
 
 local KIND = "power"
-
 local COUNTDOWN = 10
 
 -- Pending action (`""` for none) and its `mantle.system.monotonic` deadline.
 local pending = state("power_pending", "")
 local deadline = state("power_deadline", 0)
 
-local seconds_left = computed({ mantle.system, deadline }, function(s, at)
-    return math.max(0, at - ((s and s.monotonic) or 0))
+local seconds_left = computed({ mantle.system, deadline }, function(system, at)
+    return math.max(0, at - ((system and system.monotonic) or 0))
 end)
 
 -- In order. `logout` is the compositor's own exit, so it goes through `lib.compositor`; reboot
@@ -62,26 +60,16 @@ for _, action in ipairs(ACTIONS) do
     ACTIONS[action.key] = action
 end
 
-local function cancel_countdown()
-    pending:set("")
-end
-
 local function commit_pending()
     local action = ACTIONS[pending:get()]
-    cancel_countdown()
+    pending:set("")
     if action then
         action.run()
     end
 end
 
-local function start_countdown(key)
-    local s = mantle.system:get()
-    deadline:set(((s and s.monotonic) or 0) + COUNTDOWN)
-    pending:set(key)
-end
-
-mantle.system:on_change(function(s)
-    if pending:get() ~= "" and s.monotonic >= deadline:get() then
+mantle.system:on_change(function(system)
+    if pending:get() ~= "" and system.monotonic >= deadline:get() then
         commit_pending()
     end
 end)
@@ -90,20 +78,15 @@ end)
 -- an `intel_backlight` panel, so a control that can do that gets no second click.
 local BRIGHTNESS_STEP = 10
 
-local function step_brightness(delta)
-    return function()
-        local b = mantle.brightness:get()
-        if b == nil then
-            return
+local function brightness_button(glyph, delta)
+    return icon_button(glyph, function()
+        local brightness = mantle.brightness:get()
+        if brightness then
+            local stepped = brightness.percent + delta
+            mantle.brightness:invoke("set",
+                stepped > 100 and BRIGHTNESS_STEP or stepped < BRIGHTNESS_STEP and 100 or stepped)
         end
-        local stepped = b.percent + delta
-        if stepped > 100 then
-            stepped = BRIGHTNESS_STEP
-        elseif stepped < BRIGHTNESS_STEP then
-            stepped = 100
-        end
-        mantle.brightness:invoke("set", stepped)
-    end
+    end, { size = theme.control.xs, icon_size = theme.icon.xs })
 end
 
 -- The power-off circle expands on hover and stays open through a countdown
@@ -118,12 +101,9 @@ local pill = expanding_pill.new({
     end),
 })
 
--- Countdown circle: the last slot unless it is the chosen action.
+-- The countdown circle is the last slot, unless that slot is the chosen action.
 local function countdown_index(key)
-    if key == ACTIONS[SLOT_COUNT].key then
-        return SLOT_COUNT - 1
-    end
-    return SLOT_COUNT
+    return key == ACTIONS[SLOT_COUNT].key and SLOT_COUNT - 1 or SLOT_COUNT
 end
 
 -- What slot `index` is while `chosen` counts down: its own action, the seconds circle, or the
@@ -157,10 +137,7 @@ local function slot(index)
         end),
         border_width = theme.border_width,
         border_color = computed({ is_chosen, slot_hovered }, function(chosen, is_hovered)
-            if chosen then
-                return theme.ACCENT
-            end
-            return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
+            return chosen and theme.ACCENT or is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
         end),
         -- The chosen action breathes; without the `opacity` entry the loop stops at `1`.
         animate = is_chosen:map(function(chosen)
@@ -182,7 +159,7 @@ local function slot(index)
                     if what ~= "countdown" then
                         return "0%"
                     end
-                    local gone = math.max(0, math.min(COUNTDOWN, COUNTDOWN - left))
+                    local gone = math.max(0, COUNTDOWN - left)
                     return string.format("%d%%", math.floor(gone * 100 / COUNTDOWN + 0.5))
                 end),
                 height = "Fill",
@@ -215,17 +192,19 @@ local function slot(index)
             local key = pending:get()
             if mouse_button == "right" then
                 if key ~= "" then
-                    cancel_countdown()
+                    pending:set("")
                 else
                     ui_state.toggle_panel(KIND, rect)
                 end
             elseif mouse_button == "left" then
                 if key == "" then
-                    start_countdown(action.key)
+                    local system = mantle.system:get()
+                    deadline:set(((system and system.monotonic) or 0) + COUNTDOWN)
+                    pending:set(action.key)
                 elseif key == action.key then
                     commit_pending()
                 elseif countdown_index(key) ~= index then
-                    cancel_countdown()
+                    pending:set("")
                 end
             end
         end,
@@ -240,8 +219,6 @@ for index = 1, SLOT_COUNT do
     slots[index] = slot(index)
 end
 
-local power_button = pill.row(slots)
-
 -- What each role's circle does under the pointer while a countdown runs.
 local HINTS = {
     action = "Left click runs it now · Right click cancels",
@@ -249,9 +226,9 @@ local HINTS = {
     cancel = "Click to cancel",
 }
 
--- One card per circle, each hanging from its own slot, so none has to chase the pointer across the
--- pill's gaps. The circles are glyphs, so the card names the action and says what the buttons do --
--- including that a right click at rest is the only door to the panel.
+-- One card per circle, each hanging from its own slot, so none chases the pointer across the pill's
+-- gaps. The circles are glyphs, so the card names the action and its clicks. A right click at rest
+-- is the only door to the panel.
 local power_tooltips = {}
 for index, action in ipairs(ACTIONS) do
     power_tooltips[index] = tooltip({
@@ -271,17 +248,18 @@ end
 
 local body = {
     section_header("session"),
-    cell(util.label(mantle.battery, function(b)
-        if not b.present then
+    cell(util.label(mantle.battery, function(battery)
+        if not battery.present then
             return "On AC power"
         end
-        return string.format("Battery %d%% %s%s", b.percent, util.battery_phrase(b.state), util.battery_eta(b))
+        return string.format("Battery %d%% %s%s", battery.percent, util.battery_phrase(battery.state),
+            util.battery_eta(battery))
     end), theme.DIM, theme.font.xs),
     panel_row {
         slot = "power-lock",
         icon = icons.lock,
         title = "Lock session",
-        color = theme.MAUVE,
+        color = theme.ACCENT,
         on_activate = function()
             mantle.lock:invoke("lock")
         end,
@@ -290,7 +268,7 @@ local body = {
         slot = "power-sleep",
         icon = icons.sleep,
         title = "Sleep",
-        color = theme.MAUVE,
+        color = theme.ACCENT,
         on_activate = function()
             process.detach("systemctl", { "suspend" })
         end,
@@ -312,18 +290,18 @@ local body = {
         align_v = "Center",
         spacing = theme.spacing.sm,
         children = {
-            icon_button(icons.minus, step_brightness(-BRIGHTNESS_STEP), { size = theme.control.xs, icon_size = theme.icon.xs }),
+            brightness_button(icons.minus, -BRIGHTNESS_STEP),
             -- Springs rather than eases: the two buttons either side of this repeat while held,
             -- so the fill's target moves while the fill is still moving.
-            meter(mantle.brightness, function(b)
-                return b.percent
-            end, theme.YELLOW, "Fill", nil, { motion = theme.spring_tracking }),
-            icon_button(icons.plus, step_brightness(BRIGHTNESS_STEP), { size = theme.control.xs, icon_size = theme.icon.xs }),
-            cell(util.label(mantle.brightness, function(b)
-                return string.format("%d%%", b.percent)
+            meter(mantle.brightness, function(brightness)
+                return brightness.percent
+            end, theme.YELLOW, nil, { motion = theme.spring_tracking }),
+            brightness_button(icons.plus, BRIGHTNESS_STEP),
+            cell(util.label(mantle.brightness, function(brightness)
+                return string.format("%d%%", brightness.percent)
             end), theme.DIM, theme.font.xs),
         },
     },
 }
 
-return { kind = KIND, button = power_button, tooltips = power_tooltips, body = body }
+return { kind = KIND, button = pill.row(slots), tooltips = power_tooltips, body = body }

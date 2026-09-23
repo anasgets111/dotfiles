@@ -15,8 +15,7 @@ return function(settings)
     end)
 
     local function chamber(entry)
-        -- Chamber state comes from `idle.arming`: earlier stages are full, later stages are empty,
-        -- and the stage fills over its delay.
+        -- Stages before the armed one are full and later ones empty. The armed one fills over its delay.
         local progress = computed({ idle.arming, idle.schedule }, function(arming, plan)
             local position, armed_position
             for index, item in ipairs(plan.list) do
@@ -62,33 +61,6 @@ return function(settings)
         }
     end
 
-    -- `list` is `NodeBase`, not `BoxBase`: it places but does not paint, so `background`, `radius`
-    -- and `clip` go on this parent. The types do not catch the mistake; the engine does, at runtime.
-    local timeline = row {
-        width = "Fill",
-        height = theme.idle_track_height,
-        radius = theme.radius.sm,
-        -- Square chambers butt together; the parent rounds the outer ends. `clip` is needed because
-        -- children do not inherit the parent's arc.
-        clip = "Rounded",
-        background = theme.GLASS_CONTENT,
-        visible = counting_down,
-        children = {
-            list {
-                width = "Fill",
-                height = "Fill",
-                direction = "Horizontal",
-                source = idle.schedule:map(function(plan)
-                    return plan.list
-                end),
-                key = function(entry)
-                    return entry.key
-                end,
-                itemfn = chamber,
-            },
-        },
-    }
-
     local function banner(codepoint, content, tint, ground, visible)
         return row {
             width = "Fill",
@@ -106,25 +78,39 @@ return function(settings)
         }
     end
 
-    local held_banner = banner(
-        icons.awake,
-        computed({ idle.reasons, idle.inhibited }, idle.held_text),
-        theme.ACCENT,
-        theme.ACCENT_SUBTLE,
-        idle.inhibited
-    )
-
-    local paused_banner = banner(
-        icons.idle,
-        settings:map(function(resolved)
+    return {
+        -- `list` is `NodeBase`, not `BoxBase`: it places but does not paint, so `background`, `radius`
+        -- and `clip` go on this parent. The types do not catch the mistake; the engine does, at runtime.
+        row {
+            width = "Fill",
+            height = theme.idle_track_height,
+            radius = theme.radius.sm,
+            -- Square chambers butt together; the parent rounds the outer ends. `clip` is needed because
+            -- children do not inherit the parent's arc.
+            clip = "Rounded",
+            background = theme.GLASS_CONTENT,
+            visible = counting_down,
+            children = {
+                list {
+                    width = "Fill",
+                    height = "Fill",
+                    direction = "Horizontal",
+                    source = idle.schedule:map(function(plan)
+                        return plan.list
+                    end),
+                    key = function(entry)
+                        return entry.key
+                    end,
+                    itemfn = chamber,
+                },
+            },
+        },
+        banner(icons.awake, computed({ idle.reasons, idle.inhibited }, idle.held_text), theme.ACCENT,
+            theme.ACCENT_SUBTLE, idle.inhibited),
+        banner(icons.idle, settings:map(function(resolved)
             return resolved.enabled and "Nothing is scheduled on this profile" or "Automatic actions are off"
-        end),
-        theme.DIM,
-        theme.GLASS_CONTENT,
-        computed({ counting_down, idle.inhibited }, function(counting, held)
+        end), theme.DIM, theme.GLASS_CONTENT, computed({ counting_down, idle.inhibited }, function(counting, held)
             return not counting and not held
-        end)
-    )
-
-    return timeline, held_banner, paused_banner
+        end)),
+    }
 end

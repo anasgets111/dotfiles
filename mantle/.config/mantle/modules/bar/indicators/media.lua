@@ -5,8 +5,8 @@ local theme = require("config.theme")
 -- Cava is configured for 256, but each bar here is a real node and at rest they read as one rule.
 local BARS = 48
 
-local tint = mantle.mpris:map(function(m)
-    for _, player in ipairs((m and m.players) or {}) do
+local tint = mantle.mpris:map(function(mpris)
+    for _, player in ipairs((mpris and mpris.players) or {}) do
         if player.play_state == "Playing" then
             return theme.ACCENT_MEDIUM
         end

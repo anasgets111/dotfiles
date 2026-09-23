@@ -54,12 +54,10 @@ local CODES = {
     [99] = { icon = "⛈️🧊", desc = "Thunderstorm with heavy hail" },
 }
 
-local UNKNOWN = { icon = "❓", desc = "Unknown" }
-
 ---@param code integer|nil
 ---@return { icon: string, desc: string }
 function weather.info(code)
-    return CODES[code or -1] or UNKNOWN
+    return CODES[code or -1] or { icon = "❓", desc = "Unknown" }
 end
 
 -- The lock screen has one line, so the same codes collapse into six glyphs.
@@ -78,8 +76,6 @@ for glyph, codes in pairs(GLYPH_BUCKETS) do
     end
 end
 
----@param code integer|nil
----@return string
 function weather.glyph(code)
     return GLYPHS[code or -1] or icons.weather_cloud
 end
@@ -116,8 +112,6 @@ local function failed()
     schedule(backoff or REFRESH_SECONDS)
 end
 
----@param url string
----@param apply fun(data: table)
 local function http_get(url, apply)
     in_flight:set(true)
     local body = {}
@@ -223,9 +217,6 @@ end)
 
 local TIME_STEPS = { { 86400, "%dd ago" }, { 3600, "%dh ago" }, { 60, "%dm ago" } }
 
----@param at integer|nil
----@param now integer|nil
----@return string
 function weather.time_ago(at, now)
     if not at or at == 0 or not now then
         return ""

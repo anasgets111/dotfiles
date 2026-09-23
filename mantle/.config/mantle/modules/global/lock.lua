@@ -12,11 +12,9 @@ local identity       = require("lib.identity")
 local weather        = require("lib.weather")
 
 local PAD            = theme.spacing.xl
--- What the card's children have to share, for the nodes that need a number rather than "Fill".
-local CONTENT        = theme.lock_card_width - PAD * 2
 local FIELD_HEIGHT   = theme.control.xl
--- The pill stops short of the card's own edges on both sides; using `CONTENT` makes it read as a
--- search bar rather than a card control.
+-- The pill stops short of the card's own edges on both sides; the full content width makes it read
+-- as a search bar rather than a card control.
 local FIELD_WIDTH    = math.floor(theme.lock_card_width * 0.82)
 -- Half the height, the way `theme.item_radius` is half `item_height`. `radius.xl` is the fully
 -- round token, sized for the card's corner and only close to this box by coincidence.
@@ -27,8 +25,8 @@ local BADGE_HEIGHT   = theme.control.xs
 local CLOCK_SIZE     = theme.s(72, 44)
 local INITIALS_SIZE  = theme.s(36, 26)
 local NAME_SIZE      = theme.s(24, 18)
--- In the wallpaper's own stored pixels (its "cover" fit stores at the output's resolution), not
--- screen pixels -- exact only under that default fit (mantle ADR-0240 decision 3).
+-- In the wallpaper's own stored pixels, not screen pixels. Its "cover" fit stores at the output's
+-- resolution, so the two match only under that default fit (mantle ADR-0240 decision 3).
 local WALLPAPER_BLUR = 24
 
 -- The engine removes the lock after authentication, not when the tween ends, so it must be told to
@@ -41,41 +39,37 @@ util.auto_english_layout(mantle.lock)
 -- The compositor has granted the lock and PAM has not answered; both edges of the card's motion are
 -- this flag. `animate.from` applies only to a node with no displayed value, and this subtree
 -- outlives the lock, so entry needs the value change too.
-local up           = mantle.lock:map(function(l)
-    return l ~= nil and l.active and not l.unlocking
+local up           = mantle.lock:map(function(lock)
+    return lock ~= nil and lock.active and not lock.unlocking
 end)
 -- Where the card starts its entry.
 local CLOSED_SCALE = 0.94
 
 -- `attempts` is printed because state is sampled at layout time: two identical `error` strings
 -- would otherwise look like one failure.
-local hint         = util.label(mantle.lock, function(l)
-    if l.error ~= nil and l.error ~= "" then
-        return string.format("%s (%d)", l.error, l.attempts or 0)
+local hint         = util.label(mantle.lock, function(lock)
+    if lock.error ~= nil and lock.error ~= "" then
+        return string.format("%s (%d)", lock.error, lock.attempts or 0)
     end
-    if l.authenticating then
+    if lock.authenticating then
         return "Authenticating..."
     end
-    if not l.active then
+    if not lock.active then
         return "Locking..."
     end
     return "Press Enter to unlock"
 end)
 
-local failed       = util.shown_when(mantle.lock, function(l)
-    return l.error ~= nil and l.error ~= ""
+local failed       = util.shown_when(mantle.lock, function(lock)
+    return lock.error ~= nil and lock.error ~= ""
 end)
 
 -- Border and hint colours change together, so failure is one state change.
-local field_border = mantle.lock:map(function(l)
-    if l ~= nil and l.error ~= nil and l.error ~= "" then
+local field_border = computed({ failed, mantle.lock }, function(error_shown, lock)
+    if error_shown then
         return theme.RED
     end
-    return l ~= nil and l.authenticating and theme.ACCENT or theme.GLASS_BORDER
-end)
-
-local caps         = mantle.keyboard:map(function(k)
-    return k ~= nil and k.caps_lock == true
+    return lock ~= nil and lock.authenticating and theme.ACCENT or theme.GLASS_BORDER
 end)
 
 -- Black on yellow, chosen by the same helper the bar's buttons use.
@@ -119,15 +113,15 @@ local function content(output)
             children = {
                 -- Build the 12-hour clock from `os.date("*t")` rather than `%I` (which pads to
                 -- "01:40") or `%p` (which follows the locale).
-                cell(util.bold(util.label(mantle.system, function(s)
-                    local t = os.date("*t", s.time)
-                    local hour = t.hour % 12
-                    return string.format("%d:%02d %s", hour == 0 and 12 or hour, t.min, t.hour < 12 and "AM" or "PM")
+                cell(util.bold(util.label(mantle.system, function(system)
+                    local now = os.date("*t", system.time)
+                    local hour = now.hour % 12
+                    return string.format("%d:%02d %s", hour == 0 and 12 or hour, now.min, now.hour < 12 and "AM" or "PM")
                 end)), theme.FG, CLOCK_SIZE, { width = "Fill", align = "Center" }),
                 -- Build the day in two calls. `%-d` is glibc-specific, and Lua rejected it before
                 -- strftime saw it, returning `util.label`'s "!".
-                cell(util.label(mantle.system, function(s)
-                    return string.format("%s %d", os.date("%A, %B", s.time), os.date("*t", s.time).day)
+                cell(util.label(mantle.system, function(system)
+                    return string.format("%s %d", os.date("%A, %B", system.time), os.date("*t", system.time).day)
                 end), theme.DIM, theme.font.lg, { width = "Fill", align = "Center" }),
             },
         },
@@ -195,7 +189,9 @@ local function content(output)
                             spacing = theme.spacing.xs,
                             background = theme.YELLOW,
                             radius = math.floor(BADGE_HEIGHT / 2),
-                            visible = caps,
+                            visible = mantle.keyboard:map(function(keyboard)
+                                return keyboard ~= nil and keyboard.caps_lock == true
+                            end),
                             children = {
                                 glyph(icons.caps_lock, BADGE_FG, theme.icon.xs, { align_v = "Center" }),
                                 cell("Caps lock", BADGE_FG, theme.font.xs, { align_v = "Center" }),
@@ -204,8 +200,8 @@ local function content(output)
                     },
                 },
                 -- Wrap: "could not start authentication: pam worker failed" once clipped mid-word.
-                cell(hint, failed:map(function(f)
-                    return f and theme.RED or theme.with_opacity(theme.FG, 0.5)
+                cell(hint, failed:map(function(error_shown)
+                    return error_shown and theme.RED or theme.with_opacity(theme.FG, 0.5)
                 end), theme.font.sm, { width = "Fill", align = "Center", wrap = "Word", max_lines = 4 }),
             },
         },
@@ -215,7 +211,7 @@ local function content(output)
             children = {
                 -- Not `theme.BORDER`: surface2 at 0.75 disappears between these greys.
                 rect {
-                    width = math.floor(CONTENT * 0.6),
+                    width = math.floor((theme.lock_card_width - PAD * 2) * 0.6),
                     height = theme.border_width,
                     align_h = "Center",
                     background = theme.with_opacity(theme.FG, 0.15),
@@ -234,21 +230,21 @@ local function content(output)
                         ),
                         status_item(
                             mantle.battery:map(util.battery_glyph),
-                            util.label(mantle.battery, function(b)
-                                return string.format("%d%%", b.percent)
+                            util.label(mantle.battery, function(battery)
+                                return string.format("%d%%", battery.percent)
                             end),
-                            util.shown_when(mantle.battery, function(b)
-                                return b.present
+                            util.shown_when(mantle.battery, function(battery)
+                                return battery.present
                             end)
                         ),
                         status_item(
                             mantle.network:map(util.network_glyph),
-                            util.label(mantle.network, function(n)
-                                return n.ssid or "Offline"
+                            util.label(mantle.network, function(network)
+                                return network.ssid or "Offline"
                             end)
                         ),
-                        status_item(icons.keyboard, util.label(mantle.keyboard, function(k)
-                            return k.active_layout ~= "" and k.active_layout or "N/A"
+                        status_item(icons.keyboard, util.label(mantle.keyboard, function(keyboard)
+                            return keyboard.active_layout ~= "" and keyboard.active_layout or "N/A"
                         end)),
                     },
                 },

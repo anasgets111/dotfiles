@@ -6,8 +6,8 @@ local tooltip = require("components.tooltip")
 local SLOT = "special_workspaces"
 local hovered_name = state("special_workspace_tooltip", "")
 
-local function specials_of(w)
-    return (w and w.special) or {}
+local function specials_of(workspaces)
+    return (workspaces and workspaces.special) or {}
 end
 
 local function short_name(name)
@@ -29,9 +29,7 @@ local function special_button(special)
     end, {
         slot = "special-" .. name,
         art = util.app_icon(entry),
-        art_size = theme.icon.md,
         icon_size = theme.font.xs,
-        width = theme.item_width,
         radius = theme.item_radius,
         background = ground,
         background_hover = ground,
@@ -43,8 +41,8 @@ local indicator = row {
     height = theme.item_height,
     align_v = "Center",
     hover = hover(SLOT),
-    visible = mantle.workspaces:map(function(w)
-        return #specials_of(w) > 0
+    visible = mantle.workspaces:map(function(workspaces)
+        return #specials_of(workspaces) > 0
     end),
     children = {
         list {

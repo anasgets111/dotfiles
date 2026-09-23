@@ -5,23 +5,23 @@ local cell = require("components.cell")
 local panel_card = require("components.panel_card")
 local action_button = require("components.action_button")
 
-local function request(b)
-    return b and b.pairing_request
+local function request(bluetooth)
+    return bluetooth and bluetooth.pairing_request
 end
 
 -- A signal of `predicate(request)`, false while nothing is asked.
 local function when(predicate)
-    return mantle.bluetooth:map(function(b)
-        local r = request(b)
-        return r ~= nil and predicate(r)
+    return mantle.bluetooth:map(function(bluetooth)
+        local asked = request(bluetooth)
+        return asked ~= nil and predicate(asked)
     end)
 end
 
 -- A signal of `read(request)`, empty while nothing is asked.
 local function text(read)
-    return mantle.bluetooth:map(function(b)
-        local r = request(b)
-        return r and read(r) or ""
+    return mantle.bluetooth:map(function(bluetooth)
+        local asked = request(bluetooth)
+        return asked and read(asked) or ""
     end)
 end
 
@@ -36,15 +36,15 @@ local PROMPTS = {
 -- Answers by MAC; the Supervisor ignores a yes in a request's first moments (`ACCEPT_GRACE`).
 local function answer(accept)
     return function()
-        local r = request(mantle.bluetooth:get())
-        if r ~= nil then
-            mantle.bluetooth:invoke("answer_pairing", r.mac, accept)
+        local asked = request(mantle.bluetooth:get())
+        if asked ~= nil then
+            mantle.bluetooth:invoke("answer_pairing", asked.mac, accept)
         end
     end
 end
 
-local asks = when(function(r)
-    return r.kind ~= "display"
+local asks = when(function(asked)
+    return asked.kind ~= "display"
 end)
 
 return panel {
@@ -61,22 +61,22 @@ return panel {
     end),
     keyboard_interactivity = "None",
     child = panel_card({
-        cell(text(function(r)
+        cell(text(function(asked)
             -- The name is the device's own choice, so the MAC stays beside it.
-            local name = r.name ~= "" and string.format("%s (%s)", r.name, r.mac) or r.mac
-            return { { text = string.format((PROMPTS[r.kind] or {})[1] or "%s", name), bold = true } }
+            local name = asked.name ~= "" and string.format("%s (%s)", asked.name, asked.mac) or asked.mac
+            return { { text = string.format((PROMPTS[asked.kind] or {})[1] or "%s", name), bold = true } }
         end), theme.FG, theme.font.md, { width = "Fill", wrap = "Word" }),
-        cell(text(function(r)
-            return r.code or ""
+        cell(text(function(asked)
+            return asked.code or ""
         end), theme.ACCENT, theme.font.xxl, {
             width = "Fill",
             align = "Center",
-            visible = when(function(r)
-                return r.code ~= nil
+            visible = when(function(asked)
+                return asked.code ~= nil
             end),
         }),
-        cell(text(function(r)
-            return (PROMPTS[r.kind] or {})[2] or ""
+        cell(text(function(asked)
+            return (PROMPTS[asked.kind] or {})[2] or ""
         end), theme.DIM, theme.font.sm, { width = "Fill", wrap = "Word" }),
         row {
             width = "Fill",
@@ -88,8 +88,8 @@ return panel {
                     visible = asks,
                 }),
                 action_button(
-                    text(function(r)
-                        return r.kind == "service" and "Allow" or "Pair"
+                    text(function(asked)
+                        return asked.kind == "service" and "Allow" or "Pair"
                     end),
                     answer(true),
                     "bluetooth-pairing-accept",
@@ -97,8 +97,8 @@ return panel {
                 ),
                 action_button("Done", answer(false), "bluetooth-pairing-done", {
                     tone = "solid",
-                    visible = when(function(r)
-                        return r.kind == "display"
+                    visible = when(function(asked)
+                        return asked.kind == "display"
                     end),
                 }),
             },

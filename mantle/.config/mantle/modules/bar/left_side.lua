@@ -1,5 +1,3 @@
--- Order: rescue (see its header), power, status modules, launcher, wallpaper, special workspaces
--- (Hyprland only), then the workspace strip.
 local theme = require("config.theme")
 local rescue_module = require("modules.bar.indicators.rescue")
 local power_menu = require("modules.bar.panels.power_menu")

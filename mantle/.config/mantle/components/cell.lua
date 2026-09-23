@@ -1,12 +1,12 @@
--- Shared text cell with default size and weight. `elide = "End"` only cuts a bounded `opts.width`:
--- character counts are the wrong unit, since "WWWWW" and "iiiii" differ in width. `opts.wrap` moves
--- the ellipsis to the last of `opts.max_lines`; off by default, as a second line grows bar slots.
--- `opts.align` sets both `text_align` (inside the cell) and `align_h` (a content-sized box in a
--- stacking parent or `column`; `row` ignores it). `text_align` alone leaves the box at x=0.
+-- `text` with the shell's defaults. `elide = "End"` cuts only a bounded `opts.width`, because
+-- "WWWWW" and "iiiii" differ in width and a character count is the wrong unit. `opts.wrap` moves the
+-- ellipsis to the last of `opts.max_lines`. It is off by default, since a second line grows bar slots.
+-- `opts.align` sets `text_align` inside the cell and `align_h` for a content-sized box in a stacking
+-- parent or `column`; `row` ignores `align_h`. `text_align` alone leaves the box at x=0.
 local theme = require("config.theme")
 
--- Last hop before `text.content`: a `list` `itemfn` is typed `fun(item: any)`, so a raw span array
--- could reach `content` and freeze the shell on its last good scene. Image spans are not text;
+-- The last typed hop before `text.content`. A `list` `itemfn` is `fun(item: any)`, so a raw span array
+-- could reach `content` and freeze the shell on its last good scene. Image spans are not text, and
 -- `notifications.notification_body` converts them.
 ---@param content string|TextRun[]|Bound
 ---@param color? Color|Bound

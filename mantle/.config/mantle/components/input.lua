@@ -25,12 +25,7 @@ return function(opts)
             border_color = error_shown and error_shown:map(function(has_error)
                 return has_error and theme.RED or theme.ACCENT
             end) or theme.ACCENT,
-            padding = {
-                top = theme.spacing.xs,
-                right = theme.spacing.sm,
-                bottom = theme.spacing.xs,
-                left = theme.spacing.sm,
-            },
+            padding = { top = theme.spacing.xs, right = theme.spacing.sm, bottom = theme.spacing.xs, left = theme.spacing.sm },
             animate = {
                 border_color = theme.animation_ms,
                 border_width = theme.animation_ms,
@@ -42,7 +37,6 @@ return function(opts)
     if error and error_shown then
         children[2] = row {
             width = "Fill",
-            spacing = theme.spacing.xs,
             visible = util.linger(error_shown, theme.animation_ms),
             opacity = error_shown:map(function(has_error)
                 return has_error and 1 or 0

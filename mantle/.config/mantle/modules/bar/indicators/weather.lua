@@ -2,8 +2,8 @@
 -- `indicators/` but never reaches the bar: `panels/notification_history.lua` is the only caller.
 --
 -- Thirteen cards read the same four parallel arrays, so the body is one `computed` over the forecast
--- returning nodes; per-field signals would resolve that table thirteen times a pass to say the same
--- thing. The hidden-subtree freeze makes the rebuild free while the sidebar is shut.
+-- returning nodes. Per-field signals would resolve that table thirteen times a pass. The
+-- hidden-subtree freeze makes the rebuild free while the sidebar is shut.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -47,7 +47,6 @@ local function day_card(daily, index, opts)
         width = "Fill",
         height = opts.height,
         tone = opts.today and "active" or "standard",
-        spacing = theme.spacing.xs,
         padding = theme.spacing.sm,
     })
 end
@@ -64,7 +63,6 @@ return function(id)
             width = "Fill",
             spacing = theme.spacing.sm,
             children = {
-                -- A named day keeps its name only while the grid is shut.
                 day_card(daily, YESTERDAY, { label = not open and "Yesterday" or nil }),
                 day_card(daily, TODAY, { label = not open and "Today" or nil, today = true }),
                 day_card(daily, TOMORROW, { label = not open and "Tomorrow" or nil }),
@@ -147,7 +145,6 @@ return function(id)
             }, {
                 width = "Fill",
                 visible = blank,
-                background = theme.GLASS_CONTENT,
                 border_width = theme.border_width,
                 border_color = theme.GLASS_BORDER,
                 padding = theme.spacing.md,

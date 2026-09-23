@@ -1,8 +1,8 @@
 -- One circle per workspace, collapsing to the active one and re-narrowing `theme.animation_ms + 200`
 -- after the pointer leaves (`components/expanding_pill.lua`). Ground: accent when active, glass when
 -- populated, `DISABLED` at half opacity when empty. A circle draws the standing window's icon when
--- `applications` knows its `app_id`, else `idx` -- never `name`, which elides to three dots while
--- the number is the keybind's target.
+-- `applications` knows its `app_id`, else `idx`. Never `name`, which elides to three dots, while the
+-- number is the keybind's target.
 --
 -- It collapses to the first output's `active_workspace`, not the focused one: every output has an
 -- active workspace but only one has focus, so another monitor would collapse to nothing.
@@ -16,37 +16,37 @@ local expanding_pill = require("components.expanding_pill")
 
 local PADDED_SLOTS = 10
 
-local function output_of(w)
-    return w and (w.outputs or {})[1]
+local function output_of(workspaces)
+    return workspaces and (workspaces.outputs or {})[1]
 end
 
 -- Pad up to `PADDED_SLOTS` or the highest number in use. On a compositor where `id` is the number,
 -- focusing a missing one creates it, so a padded entry carries the same `id` a real one would.
-local function workspaces_of(w)
-    local out = output_of(w)
+local function workspaces_of(workspaces)
+    local out = output_of(workspaces)
     local listed = out and (out.workspaces or {}) or {}
-    if not (w and w.compositor == "hyprland") then
+    if not (workspaces and workspaces.compositor == "hyprland") then
         return listed
     end
     local by_idx, highest = {}, PADDED_SLOTS
-    for _, ws in ipairs(listed) do
-        by_idx[ws.idx] = ws
-        highest = math.max(highest, ws.idx)
+    for _, workspace in ipairs(listed) do
+        by_idx[workspace.idx] = workspace
+        highest = math.max(highest, workspace.idx)
     end
     local padded = {}
-    for n = 1, highest do
-        padded[n] = by_idx[n] or { id = n, idx = n, populated = false }
+    for number = 1, highest do
+        padded[number] = by_idx[number] or { id = number, idx = number, populated = false }
     end
     return padded
 end
 
 local pill = expanding_pill.new({ slot = "workspace-pill", collapse_ms = theme.animation_ms + 200 })
 
-local function workspace_button(ws)
-    local id = ws.id
-    local entry = util.live_entry(mantle.workspaces, workspaces_of, ws, "id")
-    local is_active = mantle.workspaces:map(function(w)
-        local out = output_of(w)
+local function workspace_button(workspace)
+    local id = workspace.id
+    local entry = util.live_entry(mantle.workspaces, workspaces_of, workspace, "id")
+    local is_active = mantle.workspaces:map(function(workspaces)
+        local out = output_of(workspaces)
         return out ~= nil and out.active_workspace == id
     end)
     local slot_hovered = hover("workspace-" .. tostring(id))
@@ -60,14 +60,13 @@ local function workspace_button(ws)
     end)
     -- `ground` already folds the pointer in, so it is both states; the ring and the contrast ink
     -- come from `icon_button`'s defaults.
-    return pill.cell(icon_button(tostring(ws.idx), function()
+    return pill.cell(icon_button(tostring(workspace.idx), function()
         if not is_active:get() then
             mantle.workspaces:invoke("focus", id)
         end
     end, {
         slot = "workspace-" .. tostring(id),
         art = util.app_icon(entry),
-        art_size = theme.icon.md,
         icon_size = theme.font.sm,
         radius = theme.item_radius,
         background = ground,
@@ -85,8 +84,8 @@ return pill.row({
         align_v = "Center",
         source = mantle.workspaces:map(workspaces_of),
         itemfn = workspace_button,
-        key = function(ws)
-            return tostring(ws.id)
+        key = function(workspace)
+            return tostring(workspace.id)
         end,
     },
 })

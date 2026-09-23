@@ -27,32 +27,32 @@ end)
 -- On a completed check, remember its time and packages and announce what is new, comparing names
 -- with the stored key so a restart does not repeat the same twelve packages. The install's own
 -- outcome belongs to `panels/update_panel.lua`, which also knows when its tooling finished.
-mantle.updates:on_change(function(u, previous)
+mantle.updates:on_change(function(updates, previous)
     -- Compare with the store, not the previous push: the first post-restart push carries seeded
     -- time.
-    if u.last_successful_check and u.last_successful_check ~= store.updates_checked_at:get() then
-        store:set("updates_checked_at", u.last_successful_check)
-        store:set("updates_packages", u.packages)
+    if updates.last_successful_check and updates.last_successful_check ~= store.updates_checked_at:get() then
+        store:set("updates_checked_at", updates.last_successful_check)
+        store:set("updates_packages", updates.packages)
     end
     -- Every fifth consecutive failure: the bar's count is no longer the system's answer.
-    local failures = u.consecutive_check_failures or 0
+    local failures = updates.consecutive_check_failures or 0
     if failures > 0 and failures % 5 == 0 and previous ~= nil and (previous.consecutive_check_failures or 0) ~= failures then
-        update_panel.toast("critical", "Update check failed", u.check_error or "")
+        update_panel.toast("critical", "Update check failed", updates.check_error or "")
     end
-    if u.checking or previous == nil or previous.checking ~= true then
-        -- Only the push that ends a check has a fresh list.
+    -- Only the push that ends a check has a fresh list.
+    if updates.checking or previous == nil or previous.checking ~= true then
         return
     end
-    if (u.count or 0) == 0 then
+    if (updates.count or 0) == 0 then
         if not update_panel.result_showing:get() then
             update_panel.dismiss_notifications()
         end
         store:set("updates_notified", "")
         return
     end
-    local announced = store.updates_notified:get() or ""
+    local announced = store.updates_notified:get()
     local names = {}
-    for _, package in ipairs(u.packages) do
+    for _, package in ipairs(updates.packages) do
         names[#names + 1] = package.name
     end
     table.sort(names)
@@ -72,30 +72,25 @@ mantle.updates:on_change(function(u, previous)
     if fresh == 0 then
         return
     end
-    local body = fresh == 1 and string.format("One new package can be upgraded (%d)", u.count)
-        or string.format("%d new packages can be upgraded (%d)", fresh, u.count)
+    local body = fresh == 1 and string.format("One new package can be upgraded (%d)", updates.count)
+        or string.format("%d new packages can be upgraded (%d)", fresh, updates.count)
     update_panel.toast("normal", "Updates Available", body, "Run updates")
 end)
 
 -- In order: installing, a failed run, a failed check, a running check, then a count. A failed
 -- install owns the glyph until the result is read.
-local function state_of(u, is_dismissed)
-    if u == nil then
+local function state_of(updates, is_dismissed)
+    if updates == nil then
         return "idle"
-    end
-    if u.installing then
+    elseif updates.installing then
         return "installing"
-    end
-    if not is_dismissed and update_panel.install_failed(u) then
+    elseif not is_dismissed and update_panel.install_failed(updates) then
         return "install_failed"
-    end
-    if u.check_error and u.check_error ~= "" then
+    elseif updates.check_error and updates.check_error ~= "" then
         return "error"
-    end
-    if u.checking then
+    elseif updates.checking then
         return "checking"
-    end
-    if (u.count or 0) > 0 then
+    elseif (updates.count or 0) > 0 then
         return "pending"
     end
     return "idle"
@@ -123,8 +118,7 @@ end), nil, {
         if mouse_button ~= "left" and mouse_button ~= "right" then
             return
         end
-        -- Read at click time: this handler is registered once, while `status` changes.
-        if mouse_button == "right" or state_of(mantle.updates:get(), dismissed:get()) ~= "idle" then
+        if mouse_button == "right" or status:get() ~= "idle" then
             ui_state.toggle_panel(update_panel.kind, rect)
             return
         end
@@ -132,12 +126,11 @@ end), nil, {
         mantle.updates:invoke("check")
     end,
     slot = SLOT,
-    -- Accent while this indicator's panel is open.
     selected = ui_state.panel_showing(update_panel.kind),
     -- No supported package manager leaves `package_manager` nil; an indicator that can only report
     -- its own failure is worse than none.
-    visible = mantle.updates:map(function(u)
-        return u ~= nil and u.package_manager ~= nil
+    visible = mantle.updates:map(function(updates)
+        return updates ~= nil and updates.package_manager ~= nil
     end),
     foreground = status:map(function(current)
         return LOOKS[current][2]
@@ -147,14 +140,12 @@ end), nil, {
 local update_tooltip = tooltip({
     id = "updates_tooltip",
     slot = SLOT,
-    text = computed({ mantle.updates, dismissed }, function(u, is_dismissed)
-        if u == nil then
+    text = computed({ mantle.updates, status }, function(updates, current)
+        if updates == nil then
             return "--"
-        end
-        local current = state_of(u, is_dismissed)
-        if current == "pending" then
-            return u.count == 1 and "One package can be upgraded"
-                or string.format("%d packages can be upgraded", u.count)
+        elseif current == "pending" then
+            return updates.count == 1 and "One package can be upgraded"
+                or string.format("%d packages can be upgraded", updates.count)
         end
         return LOOKS[current][3]
     end),

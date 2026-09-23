@@ -23,29 +23,28 @@ local HOVER = hover("notification_stack_region")
 -- The newest unseen cards. One signal, so `visible` and the list cannot disagree.
 local visible_groups = computed(
     { mantle.notifications, ui.popup_seen, ui.panel_open, mantle.lock, mantle.applications },
-    function(n, seen, panel_open, lock, applications)
+    function(service, seen, panel_open, lock, applications)
         -- A panel shares this corner, and a popup over the lock screen is readable without a
         -- password. Neither marks the card seen, so it returns unless its countdown expires first.
         if panel_open or (lock and lock.active) then
             return {}
         end
         -- Expiry, history's seen set and DND each drop a card; only expiry leaves it in history.
-        local dnd = n and n.dnd
+        local dnd = service and service.dnd
         local unseen = {}
-        for _, notification in ipairs((n and n.feed) or {}) do
+        for _, notification in ipairs((service and service.feed) or {}) do
             local quiet = dnd and notification.urgency ~= "critical"
             if not notification.expired and not quiet
-                and not (seen or {})[notifications.notification_key(notification)] then
+                and not seen[notifications.notification_key(notification)] then
                 unseen[#unseen + 1] = notification
             end
         end
         local all = notifications.group_notifications(unseen, applications)
         local shown = {}
         for index = 1, math.min(#all, MAX_CARDS) do
-            local group = all[index]
             -- The card staggers entry by rank. `all` is fresh, so this is not the capability's data.
-            group.rank = index
-            shown[index] = group
+            all[index].rank = index
+            shown[index] = all[index]
         end
         return shown
     end

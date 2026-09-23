@@ -48,68 +48,68 @@ end
 
 -- Every handler skips the first push (`previous == nil`): it reports learned state, not a change.
 
-mantle.audio:on_change(function(a, previous)
+mantle.audio:on_change(function(audio, previous)
     if previous == nil then
         return
     end
-    local percent = a.volume and math.floor(a.volume * 100 + 0.5)
+    local percent = audio.volume and math.floor(audio.volume * 100 + 0.5)
     local was = previous.volume and math.floor(previous.volume * 100 + 0.5)
-    if percent and was and (a.muted ~= previous.muted or percent ~= was) then
+    if percent and was and (audio.muted ~= previous.muted or percent ~= was) then
         osd.show("volume", {
-            glyph = util.volume_glyph(a),
-            text = a.muted and "Muted" or string.format("%d%%", percent),
-            level = a.muted and 0 or percent / util.MAX_VOLUME,
+            glyph = util.volume_glyph(audio),
+            text = audio.muted and "Muted" or string.format("%d%%", percent),
+            level = audio.muted and 0 or percent / util.MAX_VOLUME,
             color = theme.ACCENT,
         })
     end
-    local sink, previous_sink = util.active_device(a.sinks), util.active_device(previous.sinks)
+    local sink, previous_sink = util.active_device(audio.sinks), util.active_device(previous.sinks)
     if sink and sink.name ~= (previous_sink and previous_sink.name) then
         osd.show("audio_device", { glyph = util.audio_device_glyph(sink, false) or icons.speaker, text = sink.name })
     end
 end)
 
-mantle.brightness:on_change(function(b, previous)
-    if previous and b.percent ~= previous.percent then
-        percent_level("brightness", icons.brightness, b.percent)
+mantle.brightness:on_change(function(brightness, previous)
+    if previous and brightness.percent ~= previous.percent then
+        percent_level("brightness", icons.brightness, brightness.percent)
     end
 end)
 
-mantle.network:on_change(function(n, previous)
-    if previous and n.networking_enabled ~= previous.networking_enabled then
-        toggle("networking", n.networking_enabled, icons.lan, icons.lan_off, "Networking")
+mantle.network:on_change(function(network, previous)
+    if previous and network.networking_enabled ~= previous.networking_enabled then
+        toggle("networking", network.networking_enabled, icons.lan, icons.lan_off, "Networking")
     end
 end)
 
-mantle.bluetooth:on_change(function(b, previous)
-    if previous and b.enabled ~= previous.enabled then
-        toggle("bluetooth", b.enabled, icons.bt_on, icons.bt_off, "Bluetooth")
+mantle.bluetooth:on_change(function(bluetooth, previous)
+    if previous and bluetooth.enabled ~= previous.enabled then
+        toggle("bluetooth", bluetooth.enabled, icons.bt_on, icons.bt_off, "Bluetooth")
     end
 end)
 
-mantle.notifications:on_change(function(n, previous)
-    if previous and n.dnd ~= previous.dnd then
-        toggle("dnd", n.dnd, icons.bell_off, icons.bell, "Do not disturb")
+mantle.notifications:on_change(function(notifications, previous)
+    if previous and notifications.dnd ~= previous.dnd then
+        toggle("dnd", notifications.dnd, icons.bell_off, icons.bell, "Do not disturb")
     end
 end)
 
-mantle.keyboard:on_change(function(k, previous)
+mantle.keyboard:on_change(function(keyboard, previous)
     if previous == nil then
         return
     end
-    if k.active_layout ~= previous.active_layout and k.active_layout ~= "" then
-        osd.show("layout", { glyph = icons.keyboard, text = "Layout: " .. k.active_layout })
+    if keyboard.active_layout ~= previous.active_layout and keyboard.active_layout ~= "" then
+        osd.show("layout", { glyph = icons.keyboard, text = "Layout: " .. keyboard.active_layout })
     end
-    if k.caps_lock ~= previous.caps_lock then
-        toggle("locks", k.caps_lock, icons.caps_lock, icons.caps_lock, "Caps lock")
+    if keyboard.caps_lock ~= previous.caps_lock then
+        toggle("locks", keyboard.caps_lock, icons.caps_lock, icons.caps_lock, "Caps lock")
     end
-    if k.num_lock ~= previous.num_lock then
-        toggle("locks", k.num_lock, icons.num_lock, icons.num_lock, "Num lock")
+    if keyboard.num_lock ~= previous.num_lock then
+        toggle("locks", keyboard.num_lock, icons.num_lock, icons.num_lock, "Num lock")
     end
-    if k.scroll_lock ~= previous.scroll_lock then
-        toggle("locks", k.scroll_lock, icons.keyboard, icons.keyboard, "Scroll lock")
+    if keyboard.scroll_lock ~= previous.scroll_lock then
+        toggle("locks", keyboard.scroll_lock, icons.keyboard, icons.keyboard, "Scroll lock")
     end
-    if k.backlight_pct >= 0 and k.backlight_pct ~= previous.backlight_pct then
-        percent_level("backlight", icons.keyboard, k.backlight_pct)
+    if keyboard.backlight_pct >= 0 and keyboard.backlight_pct ~= previous.backlight_pct then
+        percent_level("backlight", icons.keyboard, keyboard.backlight_pct)
     end
 end)
 

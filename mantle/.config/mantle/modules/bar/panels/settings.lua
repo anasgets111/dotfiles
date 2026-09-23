@@ -6,10 +6,9 @@ local panel_card = require("components.panel_card")
 local panel_header = require("components.panel_header")
 local section_header = require("components.section_header")
 
--- A real `xdg_toplevel`, opened by `power_menu.lua` and closed through its `panel_header`; a
--- `window` gets no monitor, anchor or size. Thin on purpose: system info belongs at the top of the
--- notifications panel, and this is the config's only `window {}`, so it is also the only exercise
--- of the toplevel.
+-- A real `xdg_toplevel`, opened from `power_menu.lua`. A `window` gets no monitor, anchor or size.
+-- Thin on purpose: system info belongs in the notifications panel. This is the config's only
+-- `window {}`, so it is also the only exercise of the toplevel.
 return window {
     id = "settings",
     title = "Mantle settings",
@@ -26,14 +25,14 @@ return window {
             end,
         },
         section_header("system"),
-        cell(util.label(mantle.system, function(s)
-            return "Up since " .. os.date("%H:%M:%S", s.time)
+        cell(util.label(mantle.system, function(system)
+            return "Up since " .. os.date("%H:%M:%S", system.time)
         end), theme.DIM, theme.font.xs),
-        cell(util.label(mantle.audio, function(a)
-            return string.format("%d audio stream(s)", #(a.apps or {}))
+        cell(util.label(mantle.audio, function(audio)
+            return string.format("%d audio stream(s)", #(audio.apps or {}))
         end), theme.DIM, theme.font.xs),
-        cell(util.label(mantle.screens, function(s)
-            return string.format("%d output(s)", #s)
+        cell(util.label(mantle.screens, function(screens)
+            return string.format("%d output(s)", #screens)
         end), theme.DIM, theme.font.xs),
     }, {
         width = "Fill",

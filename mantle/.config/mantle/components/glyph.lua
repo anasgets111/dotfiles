@@ -1,6 +1,6 @@
--- `cell` in `theme.icon_font`, with `cell`'s signature. The family must be named: the `Mono` face
--- fits each private-use glyph into one cell, while the chain's `Propo` face spaces and sizes them
--- differently at the same `theme.icon.*`.
+-- `cell` in `theme.icon_font`, with `cell`'s signature. The family must be named. The `Mono` face fits
+-- each private-use glyph into one cell, and the chain's `Propo` face spaces and sizes them differently
+-- at the same `theme.icon.*`.
 local cell = require("components.cell")
 local theme = require("config.theme")
 local util = require("lib.util")

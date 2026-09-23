@@ -21,7 +21,7 @@ if identity:get().name == "" then
         for field in (line .. ":"):gmatch("([^:]*):") do
             fields[#fields + 1] = field
         end
-        remember("name", (fields[5] or ""):match("^[^,]*") or "")
+        remember("name", (fields[5] or ""):match("^[^,]*"))
     end, function() end)
 end
 

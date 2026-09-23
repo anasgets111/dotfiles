@@ -1,5 +1,5 @@
--- Panel-list row: leading icon, title, optional subtitle, trailing action slot. `width = "Fill"`
--- keeps the trailing slot at the right edge and elides the title.
+-- Panel-list row with a leading icon, title, optional subtitle and trailing action slot.
+-- `width = "Fill"` keeps the trailing slot at the right edge and elides the title.
 --
 -- `selected` gets a ring, a tinted ground and an accent title; colour alone reads as a different
 -- kind of row. Without `on_activate` this is a `rect`, not a no-op `button` that would take the
@@ -8,14 +8,13 @@ local theme = require("config.theme")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 
--- Typed like `components/cell.lua`: without these shapes a `list` `itemfn`'s `any` reaches
+-- Typed like `components/cell.lua`. Without these shapes a `list` `itemfn`'s `any` reaches
 -- `text.content` unchanged, a notification span array included.
 ---@class PanelRowOpts
 ---@field title string|Bound
 ---@field subtitle? string|Bound
 ---@field icon? string|Bound A glyph drawn as text and recoloured with the row.
----@field art? string|Bound A theme name or absolute path drawn as an `icon`, never recoloured.
----@field leading? Node A composed leading slot in place of `icon`/`art`: a glyph with a badge beside it.
+---@field leading? Node A composed leading slot in place of `icon`, such as a glyph with a badge beside it.
 ---@field color? Color|Bound
 ---@field icon_color? Color|Bound
 ---@field selected? boolean
@@ -46,13 +45,11 @@ return function(opts)
     if opts.leading then
         children[#children + 1] = opts.leading
     elseif opts.icon then
-        -- A glyph, not a themed icon, which `PaintStyle::Icon` cannot tint; `opts.art` is artwork.
+        -- A glyph, not a themed icon, which `PaintStyle::Icon` cannot tint.
         children[#children + 1] = glyph(opts.icon, opts.icon_color or title_color, theme.icon.md, {
             align_v = "Center",
             animate = { foreground = theme.animation_ms },
         })
-    elseif opts.art then
-        children[#children + 1] = icon { name = opts.art, size = theme.icon.md, align_v = "Center" }
     end
     children[#children + 1] = column { width = "Fill", align_v = "Center", children = title_lines }
     if opts.trailing then

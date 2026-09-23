@@ -1,9 +1,9 @@
--- Collapsed shows one circle, hover shows all, and collapsing waits out `collapse_ms` so a returning
--- pointer cancels it; `hold_open` keeps it open for a countdown. A changed collapsed slot is a
--- hand-off in place, needing no offset arithmetic.
+-- Collapsed shows one circle and hover shows all. Collapsing waits out `collapse_ms`, so a returning
+-- pointer cancels it, and `hold_open` keeps it open for a countdown. A changed collapsed slot hands
+-- off in place with no offset arithmetic.
 --
--- Each cell owns its right padding rather than using row `spacing`, which a zero-width cell would
--- still earn. The expanded pill trails one `spacing.sm`, with nothing close enough to notice.
+-- Each cell owns its right padding, because row `spacing` would still gap a zero-width cell. The
+-- expanded pill trails one `spacing.sm` that nothing sits close enough to show.
 local theme = require("config.theme")
 local util = require("lib.util")
 
@@ -25,21 +25,20 @@ function pill.new(opts)
         or lingering
     local self = { expanded = expanded }
 
-    --- One cell: `circle` fills it, so a cell narrowing to zero narrows its circle with it.
-    --- `shown` is whether this is the circle the collapsed pill keeps.
+    --- One cell. `circle` fills it, so a cell narrowing to zero narrows its circle too.
+    --- `shown` marks the circle the collapsed pill keeps.
     ---@param circle table
     ---@param shown Signal<boolean>
     function self.cell(circle, shown)
         circle.width = "Fill"
         circle.height = "Fill"
-        local width = computed({ expanded, shown }, function(open, kept)
-            if open then
-                return theme.item_width + theme.spacing.sm
-            end
-            return kept and theme.item_width or 0
-        end)
         return row {
-            width = width,
+            width = computed({ expanded, shown }, function(open, kept)
+                if open then
+                    return theme.item_width + theme.spacing.sm
+                end
+                return kept and theme.item_width or 0
+            end),
             height = theme.item_height,
             align_v = "Center",
             padding = expanded:map(function(open)
@@ -53,7 +52,7 @@ function pill.new(opts)
         }
     end
 
-    --- The pill: the hover region for every cell and the gaps between them.
+    --- The pill, the hover region for every cell and the gaps between them.
     ---@param children table Cells, or a `list` of them.
     function self.row(children)
         return row {

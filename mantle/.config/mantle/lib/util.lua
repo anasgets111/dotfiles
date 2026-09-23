@@ -53,14 +53,8 @@ end
 ---@param second table|nil
 ---@return table
 function util.concat(first, second)
-    local out = {}
-    for _, value in ipairs(first or {}) do
-        out[#out + 1] = value
-    end
-    for _, value in ipairs(second or {}) do
-        out[#out + 1] = value
-    end
-    return out
+    first, second = first or {}, second or {}
+    return table.move(second, 1, #second, #first + 1, table.move(first, 1, #first, 1, {}))
 end
 
 --- A copy of `source` with `key` set to `value`. Copy-on-write: identity drives the push, and
@@ -74,7 +68,7 @@ function util.with(source, key, value)
     return copy
 end
 
--- Words for `mantle.battery.state`'s seven UPower names. The pending phrases say only what UPower
+-- Words for `mantle.battery.state`'s UPower names; `Unknown` is the fallback. The pending phrases say only what UPower
 -- observed: it reports `PendingCharge` at every plug-in, and its `ChargeEndThreshold` disagrees with
 -- sysfs here, so neither state can claim a charge limit.
 local BATTERY_PHRASES = {
@@ -84,7 +78,6 @@ local BATTERY_PHRASES = {
     FullyCharged = "full",
     PendingCharge = "waiting to charge",
     PendingDischarge = "waiting to discharge",
-    Unknown = "state unknown",
 }
 
 function util.battery_phrase(state)
@@ -99,12 +92,9 @@ function util.battery_eta(battery)
         return ""
     end
     local suffix = battery.time_to_empty and "left" or "to full"
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    if hours > 0 then
-        return string.format(", %dh %02dm %s", hours, minutes, suffix)
-    end
-    return string.format(", %dm %s", minutes, suffix)
+    local hours, minutes = seconds // 3600, seconds % 3600 // 60
+    return hours > 0 and string.format(", %dh %02dm %s", hours, minutes, suffix)
+        or string.format(", %dm %s", minutes, suffix)
 end
 
 function util.battery_is_draining(state)
@@ -289,24 +279,20 @@ end
 ---@param network NetworkState?
 ---@return AccessPointInfo? # The associated access point, or `nil`.
 function util.active_access_point(network)
-    for _, ap in ipairs((network and network.available_networks) or {}) do
-        if ap.active then
-            return ap
-        end
-    end
+    return util.active_device(network and network.available_networks)
 end
 
 -- A codepoint budget, the exception to `components/cell.lua`'s pixel-box rule: centre-zone modules
 -- need content-sized nodes between two `Fill` sides, and bounding them pushed short labels off
 -- centre. ponytail: codepoints are a ragged pixel width. Wants a `text.max_width` that measures and
--- elides while reporting the string's own width when it fits -- a layout change, not config.
+-- elides while reporting the string's own width when it fits. That is a layout change, not config.
 function util.truncate(value, limit)
-    local s = tostring(value or "")
-    local count = utf8.len(s)
+    local text = tostring(value or "")
+    local count = utf8.len(text)
     if count == nil or count <= limit then
-        return s
+        return text
     end
-    return s:sub(1, utf8.offset(s, limit + 1) - 1) .. "..."
+    return text:sub(1, utf8.offset(text, limit + 1) - 1) .. "..."
 end
 
 -- An `on_hover` that holds `name` in `key` while the pointer is on its button, else `""`: a row of
@@ -318,6 +304,18 @@ function util.track_hover(key, name)
         elseif key:get() == name then
             key:set("")
         end
+    end
+end
+
+-- A picker of four colours: `on` picks the first pair, off the second; each pair is hovered, then resting.
+function util.tint(on, hovered)
+    return function(on_hot, on_rest, hot, rest)
+        return computed({ on, hovered }, function(is_on, is_hot)
+            if is_on then
+                return is_hot and on_hot or on_rest
+            end
+            return is_hot and hot or rest
+        end)
     end
 end
 
@@ -370,28 +368,29 @@ function util.thousands(formatted)
     return sign .. grouped .. rest
 end
 
-local auto_english_saved = -1
-local auto_english_active_count = 0
+-- The layout to restore, `-1` for none, and how many capabilities are active.
+local saved_layout, active_count = -1, 0
 
--- Switches to layout 0 (English) when `capability.active` becomes true, restoring the prior layout on false.
+-- Layout 0 (English) while any `capability.active` holds, then the prior layout back.
 function util.auto_english_layout(capability)
     capability:on_change(function(state, previous)
-        local was_active = previous ~= nil and previous.active
-        if state ~= nil and state.active and not was_active then
-            if auto_english_active_count == 0 then
+        local now = state ~= nil and state.active
+        local was = previous ~= nil and previous.active
+        if now and not was then
+            if active_count == 0 then
                 local keyboard = mantle.keyboard:get()
                 local index = keyboard and keyboard.active_layout_index or 0
-                auto_english_saved = index > 0 and index or -1
+                saved_layout = index > 0 and index or -1
                 if index > 0 then
                     mantle.keyboard:invoke("switch_layout", 0)
                 end
             end
-            auto_english_active_count = auto_english_active_count + 1
-        elseif (state == nil or not state.active) and was_active then
-            auto_english_active_count = math.max(0, auto_english_active_count - 1)
-            if auto_english_active_count == 0 and auto_english_saved >= 0 then
-                mantle.keyboard:invoke("switch_layout", auto_english_saved)
-                auto_english_saved = -1
+            active_count = active_count + 1
+        elseif was and not now then
+            active_count = math.max(0, active_count - 1)
+            if active_count == 0 and saved_layout >= 0 then
+                mantle.keyboard:invoke("switch_layout", saved_layout)
+                saved_layout = -1
             end
         end
     end)

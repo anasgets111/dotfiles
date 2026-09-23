@@ -4,7 +4,7 @@ local panel_card = require("components.panel_card")
 local util = require("lib.util")
 local ui_state = require("lib.ui_state")
 
--- Centred, because the card is a column of content-sized lines: a short title beside a longer state
+-- Centred, because the card is a column of content-sized lines, and a short title over a longer state
 -- line would otherwise pack against the left edge. `column` reads a child's `align_h` on the cross
 -- axis, which `cell`'s `align` sets.
 local function text_line(content, color, font, visible)
@@ -14,6 +14,9 @@ end
 local function children_for(opts)
     if opts.children ~= nil then
         return opts.children
+    end
+    for _, name in ipairs(opts.lines and { "text", "detail", "secondary" } or {}) do
+        opts[name] = opts.lines:map(function(lines) return lines[name] end)
     end
     local children = { text_line(opts.text, theme.TOOLTIP_FG, theme.font.sm) }
     -- An empty `detail` or `secondary` hides rather than leaving a blank row.
@@ -28,9 +31,9 @@ local function children_for(opts)
     return children
 end
 
--- `opts.group` is for a slot of buttons sharing one card: the key `util.track_hover` holds for the
--- button under the pointer, `""` between them, with `opts.group_prefix .. key` its hover slot. The
--- held key keeps the card on the last button while it fades.
+-- `opts.group` serves a slot of buttons sharing one card. It is the key `util.track_hover` holds for
+-- the button under the pointer, `""` between them, and `opts.group_prefix .. key` is that button's
+-- hover slot. The held key keeps the card on the last button while it fades.
 return function(opts)
     local group = opts.group
     local hovered = hover(opts.slot)

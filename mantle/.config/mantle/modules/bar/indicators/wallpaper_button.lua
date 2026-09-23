@@ -1,5 +1,4 @@
--- One glyph, left click opens the picker, right click deals every screen a new file from the
--- folder without opening anything.
+-- Left click opens the picker. Right click deals every screen a new file from the folder.
 local icons = require("config.icons")
 local icon_button = require("components.icon_button")
 local ui_state = require("lib.ui_state")
@@ -10,7 +9,7 @@ local SLOT = "wallpaper"
 
 local wallpaper_button = icon_button(icons.wallpaper, nil, {
     slot = SLOT,
-    selected = ui_state.wallpaper_picker_open,
+    selected = ui_state.modal_showing("wallpaper_picker"),
     on_button = function(_, mouse_button)
         if mouse_button == "left" then
             ui_state.toggle_modal("wallpaper_picker")
@@ -21,10 +20,7 @@ local wallpaper_button = icon_button(icons.wallpaper, nil, {
 })
 
 local wallpaper_tooltip = tooltip({
-    id = "wallpaper_tooltip",
-    slot = SLOT,
-    text =
-    "Open wallpaper picker / right-click randomize"
+    id = "wallpaper_tooltip", slot = SLOT, text = "Open wallpaper picker / right-click randomize",
 })
 
 return { button = wallpaper_button, tooltip = wallpaper_tooltip }

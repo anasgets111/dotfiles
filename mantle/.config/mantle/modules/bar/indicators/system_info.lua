@@ -22,19 +22,8 @@ local expander_header = require("components.expander_header")
 -- is polling always or never.
 mantle.sysinfo:invoke("configure", { cpu_interval = 2, ram_interval = 5, temp_interval = 5 })
 
--- Red past 90%, peach past 75%, and the readout's own colour below that. `sysinfo` pushes whole
--- percents, so the thresholds are 90 and 75 rather than 0.9 and 0.75.
-local function status_color(percent, fallback)
-    if percent >= 90 then
-        return theme.RED
-    elseif percent >= 75 then
-        return theme.PEACH
-    end
-    return fallback
-end
-
-local function percent_of(state_value, field)
-    return (state_value and state_value[field]) or 0
+local function percent_of(sysinfo, field)
+    return (sysinfo and sysinfo[field]) or 0
 end
 
 -- `SysinfoState` carries no GPU utilization, so the meter plots temperature over an idle-to-
@@ -44,52 +33,37 @@ end
 local GPU_FLOOR = 30
 local GPU_CEILING = 90
 
-local function gpu_temp(s)
-    return (s and s.temp_gpu) or 0
+local function gpu_temp(sysinfo)
+    return (sysinfo and sysinfo.temp_gpu) or 0
 end
 
--- Bands named by `gpu_caption` below, so the colour and the words never disagree.
-local gpu_color = mantle.sysinfo:map(function(s)
-    local celsius = gpu_temp(s)
-    if celsius >= 85 then
-        return theme.RED
-    elseif celsius >= 70 then
-        return theme.PEACH
-    end
-    return theme.GREEN
+-- One set of bands for the GPU's colour and caption, so the two never disagree.
+local function gpu_band(sysinfo)
+    local celsius = gpu_temp(sysinfo)
+    return celsius >= 85 and 3 or celsius >= 70 and 2 or 1
+end
+local gpu_color = mantle.sysinfo:map(function(sysinfo)
+    return ({ theme.GREEN, theme.PEACH, theme.RED })[gpu_band(sysinfo)]
 end)
-local has_gpu = util.shown_when(mantle.sysinfo, function(s)
-    return (s.temp_gpu or -1) > 0
+local has_gpu = util.shown_when(mantle.sysinfo, function(sysinfo)
+    return (sysinfo.temp_gpu or -1) > 0
 end)
 
+-- Red from 90%, peach from 75%, else `fallback`. `sysinfo` pushes whole percents.
 local function tint(field, fallback)
-    return mantle.sysinfo:map(function(s)
-        return status_color(percent_of(s, field), fallback)
+    return mantle.sysinfo:map(function(sysinfo)
+        local percent = percent_of(sysinfo, field)
+        return percent >= 90 and theme.RED or percent >= 75 and theme.PEACH or fallback
     end)
 end
 
--- `temp_cores` is one entry per hwmon sensor, not per core, and a mean over them (a chipset probe
--- included) reads cooler than any core is.
-local function hottest_core(s)
-    local hottest = 0
-    for _, celsius in ipairs((s and s.temp_cores) or {}) do
-        if celsius > hottest then
-            hottest = celsius
-        end
-    end
-    return hottest
-end
-
--- Glass content behind a hairline, not `panel_card`'s opaque whole-panel ground.
+-- `panel_card`'s glass content ground behind a hairline.
 local function tile(children, visible)
     return panel_card(children, {
         width = "Fill",
         visible = visible,
-        background = theme.GLASS_CONTENT,
-        radius = theme.radius.lg,
         border_width = theme.border_width,
         border_color = theme.GLASS_BORDER,
-        spacing = theme.spacing.xs,
         padding = theme.spacing.sm,
     })
 end
@@ -113,24 +87,24 @@ local function tile_header(codepoint, glyph_color, label, value, value_color)
 end
 
 local function metric_tile(codepoint, label, field, accent, detail)
-    local t = tint(field, accent)
+    local color = tint(field, accent)
     return tile {
-        tile_header(codepoint, accent, label, readout(function(s)
-            return string.format("%d%%", percent_of(s, field))
-        end), t),
+        tile_header(codepoint, accent, label, readout(function(sysinfo)
+            return string.format("%d%%", percent_of(sysinfo, field))
+        end), color),
         -- The meter's fill takes the same tint, so a track turning red is the same warning as its
         -- number turning red.
-        meter(mantle.sysinfo, function(s)
-            return percent_of(s, field)
-        end, t, "Fill", theme.spacing.xs),
+        meter(mantle.sysinfo, function(sysinfo)
+            return percent_of(sysinfo, field)
+        end, color, theme.spacing.xs),
         cell(detail, theme.DIM, theme.font.xs, { width = "Fill" }),
     }
 end
 
 -- One collapsed readout: `CPU 12%`, bold and tinted.
 local function summary_readout(label, field, accent)
-    return cell(readout(function(s)
-        return string.format("%s %d%%", label, percent_of(s, field))
+    return cell(readout(function(sysinfo)
+        return string.format("%s %d%%", label, percent_of(sysinfo, field))
     end), tint(field, accent), theme.font.xs, { align_v = "Center" })
 end
 
@@ -150,8 +124,8 @@ return function(id)
             summary_readout("CPU", "cpu_percent", theme.ACCENT),
             summary_readout("RAM", "ram_percent", theme.GREEN),
             summary_readout("SWAP", "swap_percent", theme.PEACH),
-            cell(readout(function(s)
-                return gpu_temp(s) > 0 and string.format("GPU %d°C", gpu_temp(s)) or ""
+            cell(readout(function(sysinfo)
+                return gpu_temp(sysinfo) > 0 and string.format("GPU %d°C", gpu_temp(sysinfo)) or ""
             end), gpu_color, theme.font.xs, { align_v = "Center", visible = has_gpu }),
         },
     })
@@ -166,35 +140,34 @@ return function(id)
                 width = "Fill",
                 spacing = theme.spacing.sm,
                 children = {
-                    metric_tile(icons.cpu, "CPU", "cpu_percent", theme.ACCENT, util.label(mantle.sysinfo, function(s)
-                        local celsius = hottest_core(s)
+                    metric_tile(icons.cpu, "CPU", "cpu_percent", theme.ACCENT, util.label(mantle.sysinfo, function(
+                        sysinfo)
+                        -- One entry per hwmon sensor, not per core; a mean over them, a chipset
+                        -- probe included, reads cooler than any core.
+                        local celsius = math.max(0, table.unpack(sysinfo.temp_cores or {}))
                         return celsius > 0 and string.format("%d°C", celsius) or "No temperature"
                     end)),
-                    -- `sysinfo` pushes percentages only. Swap is the memory fact it does push, and
-                    -- it has no tile of its own.
-                    metric_tile(icons.ram, "Memory", "ram_percent", theme.GREEN, util.label(mantle.sysinfo, function(s)
-                        local swap = percent_of(s, "swap_percent")
+                    -- `sysinfo` pushes percentages only, so swap is the memory detail. It has no
+                    -- tile of its own.
+                    metric_tile(icons.ram, "Memory", "ram_percent", theme.GREEN, util.label(mantle.sysinfo, function(
+                        sysinfo)
+                        local swap = percent_of(sysinfo, "swap_percent")
                         return swap > 0 and string.format("Swap %d%%", swap) or "No swap in use"
                     end)),
                 },
             },
-            -- The GPU tile spans both columns, matching CPU and Memory tile structure.
+            -- The GPU tile spans both columns.
             tile({
-                tile_header(icons.gpu, gpu_color, "GPU", readout(function(s)
-                    return string.format("%d°C", gpu_temp(s))
+                tile_header(icons.gpu, gpu_color, "GPU", readout(function(sysinfo)
+                    return string.format("%d°C", gpu_temp(sysinfo))
                 end), gpu_color),
-                meter(mantle.sysinfo, function(s)
-                    local filled = (gpu_temp(s) - GPU_FLOOR) * 100 // (GPU_CEILING - GPU_FLOOR)
+                meter(mantle.sysinfo, function(sysinfo)
+                    local filled = (gpu_temp(sysinfo) - GPU_FLOOR) * 100 // (GPU_CEILING - GPU_FLOOR)
                     return math.min(100, math.max(0, filled))
-                end, gpu_color, "Fill", theme.spacing.xs),
-                cell(util.label(mantle.sysinfo, function(s)
-                    local celsius = gpu_temp(s)
-                    if celsius >= 85 then
-                        return "Thermal throttle warning"
-                    elseif celsius >= 70 then
-                        return "Heavy thermal load"
-                    end
-                    return "Nominal temperature"
+                end, gpu_color, theme.spacing.xs),
+                cell(util.label(mantle.sysinfo, function(sysinfo)
+                    return ({ "Nominal temperature", "Heavy thermal load", "Thermal throttle warning" })
+                        [gpu_band(sysinfo)]
                 end), theme.DIM, theme.font.xs, { width = "Fill" }),
             }, has_gpu),
         },

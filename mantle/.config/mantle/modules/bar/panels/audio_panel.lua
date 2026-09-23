@@ -14,11 +14,6 @@ local slider = require("components.slider")
 local tooltip = require("components.tooltip")
 local ui_state = require("lib.ui_state")
 
-local KIND = "audio"
-local SLIDER_HEIGHT = theme.s(20, 16)
-local STREAM_SLIDER_HEIGHT = theme.s(16, 12)
-local MIXER_SCROLL = scroll("audio_mixer")
-
 local tooltips = {}
 local mixer_open = state("audio_mixer_open", false)
 
@@ -39,7 +34,6 @@ local function device_name(device)
     return name ~= "" and name or device.name
 end
 
--- Title/device, percentage, mute button, slider, caller-supplied rows, and the device picker.
 ---@class AudioControlOpts
 ---@field name string The slider's state name.
 ---@field title string
@@ -57,11 +51,10 @@ end
 ---@field visible? Bound
 ---@field under? Node[]
 
--- A "choose device" row expanding to one row per device, shown only when there is a choice.
 ---@param opts AudioControlOpts
 local function device_picker(opts)
-    local devices = mantle.audio:map(function(a)
-        return (a and a[opts.devices]) or {}
+    local devices = mantle.audio:map(function(audio)
+        return (audio and audio[opts.devices]) or {}
     end)
     return column {
         width = "Fill",
@@ -92,7 +85,7 @@ local function device_picker(opts)
                             or (opts.is_input and icons.mic_on or icons.speaker),
                         title = device_name(device) or "?",
                         selected = device.active,
-                        trailing = glyph(icons.check, device.active and theme.ACCENT or "#00000000", theme.font.sm),
+                        trailing = glyph(icons.check, device.active and theme.ACCENT or theme.CLEAR, theme.font.sm),
                         on_activate = function()
                             mantle.audio:invoke(opts.set_default, device.id)
                             opts.picker:set(false)
@@ -109,22 +102,19 @@ end
 
 ---@param opts AudioControlOpts
 local function audio_control(opts)
-    local is_muted = mantle.audio:map(function(a)
-        return a ~= nil and a[opts.muted]
+    local is_muted = mantle.audio:map(function(audio)
+        return audio ~= nil and audio[opts.muted]
     end)
     local function when_muted(muted_value, unmuted_value)
         return is_muted:map(function(muted)
             return muted and muted_value or unmuted_value
         end)
     end
-    local ready = mantle.audio:map(function(a)
-        return a ~= nil and a[opts.volume] ~= nil
-    end)
     local mute_glyph = when_muted(opts.glyph_off, opts.glyph_on)
     local tint = when_muted(theme.DIM, theme.ACCENT)
-    local leading_glyph = computed({ mantle.audio, mute_glyph }, function(a, fallback)
-        return a and not a[opts.muted] and util.audio_device_glyph(util.active_device(a[opts.devices]), opts.is_input)
-            or fallback
+    local leading_glyph = computed({ mantle.audio, mute_glyph }, function(audio, fallback)
+        return audio and not audio[opts.muted]
+            and util.audio_device_glyph(util.active_device(audio[opts.devices]), opts.is_input) or fallback
     end)
     local held = state("audio_pending_" .. opts.name, -1)
     tooltips[opts.name] = tooltip({
@@ -146,13 +136,13 @@ local function audio_control(opts)
                     align_v = "Center",
                     children = {
                         cell(util.bold(opts.title), theme.FG, theme.font.sm, { width = "Fill" }),
-                        cell(util.label(mantle.audio, function(a)
-                            return device_name(util.active_device(a[opts.devices])) or "No device"
+                        cell(util.label(mantle.audio, function(audio)
+                            return device_name(util.active_device(audio[opts.devices])) or "No device"
                         end), theme.DIM, theme.font.xs, { width = "Fill" }),
                     },
                 },
-                cell(util.bold(computed({ mantle.audio, held }, function(a, h)
-                    return percent(h >= 0 and h or a and a[opts.volume])
+                cell(util.bold(computed({ mantle.audio, held }, function(audio, held_value)
+                    return percent(held_value >= 0 and held_value or audio and audio[opts.volume])
                 end)), tint, theme.font.sm, { align_v = "Center" }),
                 icon_button(mute_glyph, function()
                     mantle.audio:invoke(opts.toggle_mute)
@@ -160,8 +150,8 @@ local function audio_control(opts)
                     slot = "audio-mute-" .. opts.name,
                     size = theme.control.md,
                     icon_size = theme.icon.sm,
-                    opacity = ready:map(function(r)
-                        return r and 1 or theme.opacity.disabled
+                    opacity = mantle.audio:map(function(audio)
+                        return audio ~= nil and audio[opts.volume] ~= nil and 1 or theme.opacity.disabled
                     end),
                     background = when_muted(theme.GLASS_CONTROL, theme.ACCENT),
                 }),
@@ -170,8 +160,8 @@ local function audio_control(opts)
         slider {
             name = "audio_pending_" .. opts.name,
             signal = mantle.audio,
-            read = function(a)
-                return a[opts.volume]
+            read = function(audio)
+                return audio[opts.volume]
             end,
             on_commit = function(value)
                 mantle.audio:invoke(opts.set_volume, value)
@@ -181,7 +171,7 @@ local function audio_control(opts)
             split_at = opts.headroom and 1 or nil,
             marker = opts.headroom,
             headroom_color = when_muted(theme.INACTIVE, theme.RED),
-            height = SLIDER_HEIGHT,
+            height = theme.s(20, 16),
             color = when_muted(theme.INACTIVE, theme.ACCENT),
         },
     }, opts.under)
@@ -191,12 +181,10 @@ local function audio_control(opts)
         width = "Fill",
         visible = opts.visible,
         spacing = theme.spacing.sm,
-        background = theme.GLASS_CONTENT,
         padding = theme.spacing.md,
     })
 end
 
--- One mixer stream: app icon/name, percentage, mute glyph, and thin slider.
 local function stream_row(app)
     local applications = mantle.applications:get()
     local entry = util.app_entry(applications, app.binary)
@@ -233,8 +221,8 @@ local function stream_row(app)
             slider {
                 name = "audio_pending_app_" .. tostring(app.id),
                 signal = mantle.audio,
-                read = function(a)
-                    for _, stream in ipairs(a.apps or {}) do
+                read = function(audio)
+                    for _, stream in ipairs(audio.apps or {}) do
                         if stream.id == app.id then
                             return stream.volume
                         end
@@ -243,7 +231,6 @@ local function stream_row(app)
                 on_commit = function(value)
                     mantle.audio:invoke("set_app_volume", app.id, value)
                 end,
-                height = STREAM_SLIDER_HEIGHT,
                 color = tint,
             },
         },
@@ -251,9 +238,9 @@ local function stream_row(app)
 end
 
 -- speech-dispatcher's `sd_*` output modules hold idle streams open forever.
-local streams = mantle.audio:map(function(a)
+local streams = mantle.audio:map(function(audio)
     local shown = {}
-    for _, app in ipairs((a and a.apps) or {}) do
+    for _, app in ipairs((audio and audio.apps) or {}) do
         if not (app.binary or ""):match("^sd_") then
             shown[#shown + 1] = app
         end
@@ -265,8 +252,8 @@ local body = {
     panel_header {
         title = "Audio",
         icon = mantle.audio:map(util.volume_glyph),
-        active = mantle.audio:map(function(a)
-            return a ~= nil and a.volume ~= nil and not a.muted
+        active = mantle.audio:map(function(audio)
+            return audio ~= nil and audio.volume ~= nil and not audio.muted
         end),
         subtitle = "Volume, devices and applications",
     },
@@ -288,8 +275,8 @@ local body = {
                 width = "Fill",
                 spacing = theme.spacing.sm,
                 align_v = "Center",
-                visible = util.shown_when(mantle.audio, function(a)
-                    return a.balance ~= nil
+                visible = util.shown_when(mantle.audio, function(audio)
+                    return audio.balance ~= nil
                 end),
                 children = {
                     cell("L", theme.DIM, theme.font.xs),
@@ -297,8 +284,8 @@ local body = {
                     slider {
                         name = "audio_pending_balance",
                         signal = mantle.audio,
-                        read = function(a)
-                            return a.balance and a.balance + 1
+                        read = function(audio)
+                            return audio.balance and audio.balance + 1
                         end,
                         on_commit = function(value)
                             mantle.audio:invoke("set_balance", value - 1)
@@ -307,7 +294,6 @@ local body = {
                         split_at = 1,
                         marker = true,
                         headroom_color = theme.ACCENT,
-                        height = STREAM_SLIDER_HEIGHT,
                     },
                     cell("R", theme.DIM, theme.font.xs),
                 },
@@ -327,11 +313,10 @@ local body = {
         set_default = "set_default_source",
         toggle_mute = "toggle_source_mute",
         picker = ui_state.audio_input_picker,
-        visible = util.shown_when(mantle.audio, function(a)
-            return util.active_device(a.sources) ~= nil
+        visible = util.shown_when(mantle.audio, function(audio)
+            return util.active_device(audio.sources) ~= nil
         end),
     },
-    -- Application count, expanding to one slider per stream, capped and scrollable.
     panel_card({
         panel_row {
             slot = "audio-mixer",
@@ -350,7 +335,7 @@ local body = {
         list {
             width = "Fill",
             max_height = theme.control.lg * 4 + theme.spacing.sm * 3,
-            scroll = MIXER_SCROLL,
+            scroll = scroll("audio_mixer"),
             spacing = theme.spacing.sm,
             visible = mixer_open,
             source = streams,
@@ -365,9 +350,8 @@ local body = {
             return #list > 0
         end),
         spacing = theme.spacing.sm,
-        background = theme.GLASS_CONTENT,
         padding = theme.spacing.sm,
     }),
 }
 
-return { kind = KIND, body = body, output_tooltip = tooltips.output, input_tooltip = tooltips.input }
+return { kind = "audio", body = body, output_tooltip = tooltips.output, input_tooltip = tooltips.input }
