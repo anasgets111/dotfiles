@@ -80,12 +80,16 @@ function weather.glyph(code)
     return GLYPHS[code or -1] or icons.weather_cloud
 end
 
--- Straight off `lib/store.lua`, so a restart inside the hour draws before any request.
-weather.code = store.weather_code
-weather.temperature = store.weather_temperature
-weather.daily = store.weather_daily
-weather.updated_at = store.weather_updated_at
-weather.location = store.weather_location
+-- Off `lib/store.lua`, so a restart inside the hour draws before any request. Store keys read `nil`
+-- until storage's first push, so each carries its default.
+local function cached(signal, default)
+    return signal:map(function(v) return v or default end)
+end
+weather.code = cached(store.weather_code, -1)
+weather.temperature = cached(store.weather_temperature, 0)
+weather.daily = cached(store.weather_daily, {})
+weather.updated_at = cached(store.weather_updated_at, 0)
+weather.location = cached(store.weather_location, {})
 
 -- Not cached: a stale failure would read back as "Weather Unavailable" over a forecast on screen.
 weather.failed = state("weather_failed", false)
