@@ -26,6 +26,7 @@ for _, modal in ipairs(modals) do
 end
 
 local escape_sink = textfield {
+    id = "escape_sink",
     width = 0,
     height = 0,
     autofocus = true,
@@ -56,9 +57,10 @@ return panel {
     height = "Fill",
     visible = shown,
     -- Released by the unmap, costing `theme.animation_ms` of swallowed typing; a stray workspace
-    -- switch is worse.
+    -- switch is worse. `OnDemand`, not `Exclusive`: Hyprland sends the pointer only to an exclusive
+    -- layer, so the bar went dead. Both compositors still focus an on-demand layer when it maps.
     keyboard_interactivity = shown:map(function(open)
-        return open and "Exclusive" or "None"
+        return open and "OnDemand" or "None"
     end),
     child = rect {
         width = "Fill",

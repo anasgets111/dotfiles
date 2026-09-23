@@ -69,6 +69,9 @@ return function(opts)
         -- Screen-sized, so the card keeps its own placement and scale pivots on the screen's centre.
         -- Stacking, not a column, which would control child placement and hang every card from the top.
         node = rect {
+            -- Keyed, since siblings otherwise match by position: opening a modal listed earlier
+            -- would hand a closing card's slot to it and replay the entry.
+            id = opts.kind,
             width = "Fill",
             height = "Fill",
             scale = showing:map(function(open)

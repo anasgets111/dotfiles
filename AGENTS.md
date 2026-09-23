@@ -121,6 +121,7 @@ The default terminal resolves through `xdg-terminal-exec`.
 | A running LuaLS ignores `runtime.*` changes | Restart the language server |
 | Hyprland 0.56 parses its socket as Lua, so `hyprctl dispatch exit` fails | `hyprctl dispatch 'hl.dsp.exit()'` |
 | Hyprland 0.56.1 fades mapped `Top` surfaces when fullscreen starts, but not ones mapped after | Handle both on Hyprland; Niri does neither |
+| Hyprland sends the pointer only to a layer with `Exclusive` keyboard interactivity, so other surfaces stop taking clicks | `OnDemand`; it still takes focus when it maps |
 | `niri msg action spawn` passes an activation token that overrides `open-focused false` | Spawn through `env -u XDG_ACTIVATION_TOKEN`, then focus explicitly |
 | `niri --config x validate` is rejected | `niri validate --config x` |
 | `systemd-run --scope` rejects `--pipe`, and fixed-name scopes linger after exit | Transient service with `--pipe --collect` |
