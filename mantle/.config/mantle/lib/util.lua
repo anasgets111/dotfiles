@@ -131,15 +131,16 @@ function util.battery_glyph(battery)
     return icons.battery_levels[math.max(1, math.min(5, bucket))]
 end
 
--- An `app_id` through `mantle.applications.by_app_id`. Callers spell it as a desktop file id, a
--- toplevel `app_id` or a StatusNotifierItem `Id`, so fold the caller's spelling; the map's keys are
--- already folded.
+-- An `app_id`'s entry, through `mantle.applications.by_app_id`'s index into `entries`. Callers
+-- spell it as a desktop file id, a toplevel `app_id` or a StatusNotifierItem `Id`, so fold the
+-- caller's spelling; the map's keys are already folded.
 function util.app_entry(applications, app_id)
     local by_app_id = applications and applications.by_app_id
     if by_app_id == nil or app_id == nil or app_id == "" then
         return nil
     end
-    return by_app_id[app_id] or by_app_id[string.lower(app_id)]
+    local index = by_app_id[app_id] or by_app_id[string.lower(app_id)]
+    return index and applications.entries[index]
 end
 
 -- The themed icon for `entry`'s `app_id`, or `""`.
