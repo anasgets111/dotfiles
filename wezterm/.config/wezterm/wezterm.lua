@@ -33,20 +33,20 @@ config.tab_max_width = 64
 
 -- 6. Color Overrides
 config.colors = {
-  tab_bar = {
-    background = "#11111b",
-    active_tab = { bg_color = "#1e1e2e", fg_color = "#cba6f7", intensity = "Bold" },
-    inactive_tab = { bg_color = "#11111b", fg_color = "#a6adc8" },
-    inactive_tab_hover = { bg_color = "#181825", fg_color = "#cdd6f4" },
-    new_tab = { bg_color = "#11111b", fg_color = "#a6adc8" },
-    new_tab_hover = { bg_color = "#181825", fg_color = "#cdd6f4" },
-  },
+    tab_bar = {
+        background = "#11111b",
+        active_tab = { bg_color = "#1e1e2e", fg_color = "#cba6f7", intensity = "Bold" },
+        inactive_tab = { bg_color = "#11111b", fg_color = "#a6adc8" },
+        inactive_tab_hover = { bg_color = "#181825", fg_color = "#cdd6f4" },
+        new_tab = { bg_color = "#11111b", fg_color = "#a6adc8" },
+        new_tab_hover = { bg_color = "#181825", fg_color = "#cdd6f4" },
+    },
 }
 config.window_frame = {
-  active_titlebar_bg = "#11111b",
-  inactive_titlebar_bg = "#11111b",
-  font = wezterm.font({ family = "CaskaydiaCove Nerd Font Mono", weight = "Bold" }),
-  font_size = 11.0,
+    active_titlebar_bg = "#11111b",
+    inactive_titlebar_bg = "#11111b",
+    font = wezterm.font({ family = "CaskaydiaCove Nerd Font Mono", weight = "Bold" }),
+    font_size = 11.0,
 }
 
 -- 7. Cursor & Bell
@@ -57,18 +57,18 @@ config.audible_bell = "Disabled"
 
 -- 8. Keybindings
 config.keys = {
-  { key = "{", mods = "CTRL|SHIFT", action = act.ActivateTabRelative(-1) },
-  { key = "}", mods = "CTRL|SHIFT", action = act.ActivateTabRelative(1) },
-  { key = ";", mods = "CTRL", action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
-  { key = "_", mods = "CTRL|SHIFT", action = act.SplitVertical { domain = 'CurrentPaneDomain' } },
-  { key = "W", mods = "CTRL|SHIFT", action = act.CloseCurrentPane { confirm = false } },
-  { key = "d", mods = "CTRL|SHIFT", action = act.ScrollByPage(1) },
-  { key = "u", mods = "CTRL|SHIFT", action = act.ScrollByPage(-1) },
-  { key = "(", mods = "CTRL|SHIFT", action = act.ScrollToTop },
-  { key = ")", mods = "CTRL|SHIFT", action = act.ScrollToBottom },
-  { key = "<", mods = "CTRL|SHIFT", action = act.ReloadConfiguration },
-  { key = "Backspace", mods = "SHIFT", action = act.SendString "\x1b[7;2~" },
-  { key = "Backspace", mods = "CTRL", action = act.SendString "\x1b[7;5~" },
+    { key = "{",         mods = "CTRL|SHIFT", action = act.ActivateTabRelative(-1) },
+    { key = "}",         mods = "CTRL|SHIFT", action = act.ActivateTabRelative(1) },
+    { key = ";",         mods = "CTRL",       action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
+    { key = "_",         mods = "CTRL|SHIFT", action = act.SplitVertical { domain = 'CurrentPaneDomain' } },
+    { key = "W",         mods = "CTRL|SHIFT", action = act.CloseCurrentPane { confirm = false } },
+    { key = "d",         mods = "CTRL|SHIFT", action = act.ScrollByPage(1) },
+    { key = "u",         mods = "CTRL|SHIFT", action = act.ScrollByPage(-1) },
+    { key = "(",         mods = "CTRL|SHIFT", action = act.ScrollToTop },
+    { key = ")",         mods = "CTRL|SHIFT", action = act.ScrollToBottom },
+    { key = "<",         mods = "CTRL|SHIFT", action = act.ReloadConfiguration },
+    { key = "Backspace", mods = "SHIFT",      action = act.SendString "\x1b[7;2~" },
+    { key = "Backspace", mods = "CTRL",       action = act.SendString "\x1b[7;5~" },
 }
 
 return config

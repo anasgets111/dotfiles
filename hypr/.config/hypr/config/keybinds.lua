@@ -55,8 +55,8 @@ local keybinds = {
     { mod .. " + V",                                     hl.dsp.window.float({ action = "toggle" }) },
     { mod .. " + F",                                     hl.dsp.window.fullscreen({ action = "toggle" }) },
     { mod .. " + J",                                     hl.dsp.layout("togglesplit") },
-    { mod .. " + mouse:272",                             hl.dsp.window.drag(),                                  { mouse = true } },
-    { mod .. " + mouse:273",                             hl.dsp.window.resize(),                                { mouse = true } },
+    { mod .. " + mouse:272",                             hl.dsp.window.drag(),                                           { mouse = true } },
+    { mod .. " + mouse:273",                             hl.dsp.window.resize(),                                         { mouse = true } },
 
     -- Special workspaces
     { { mod .. " + Return", mod .. " + KP_Enter" },      hl.dsp.workspace.toggle_special("terminal") },
@@ -89,12 +89,14 @@ local keybinds = {
     -- System and lock
     { mod .. " + L",                                     hl.dsp.exec_cmd(lock_command) },
     { mod .. " + SHIFT + L",                             hl.dsp.exec_cmd("uwsm stop") },
-    { "switch:on:Lid Switch",                            hl.dsp.exec_cmd(lock_command),                         { locked = true } },
+    { "switch:on:Lid Switch",                            hl.dsp.exec_cmd(lock_command),                                  { locked = true } },
 
     -- Media and hardware
-    { "XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ && wpctl set-mute @DEFAULT_AUDIO_SINK@ 0"),
+    { "XF86AudioRaiseVolume", hl.dsp.exec_cmd(
+        "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ && wpctl set-mute @DEFAULT_AUDIO_SINK@ 0"),
         { locked = true, repeating = true } },
-    { "XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- && wpctl set-mute @DEFAULT_AUDIO_SINK@ 0"),
+    { "XF86AudioLowerVolume", hl.dsp.exec_cmd(
+        "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- && wpctl set-mute @DEFAULT_AUDIO_SINK@ 0"),
         { locked = true, repeating = true } },
     { "XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl -q set 5%+"),
         { locked = true, repeating = true } },
@@ -105,7 +107,7 @@ local keybinds = {
     { "XF86AudioNext",                       hl.dsp.exec_cmd("playerctl next"),                               { locked = true } },
     { { "XF86AudioPause", "XF86AudioPlay" }, hl.dsp.exec_cmd("playerctl play-pause"),                         { locked = true } },
     { "XF86AudioPrev",                       hl.dsp.exec_cmd("playerctl previous"),                           { locked = true } },
-    { "XF86Calculator",                      hl.dsp.exec_cmd("uwsm app -- gnome-calculator"),                             { locked = true } },
+    { "XF86Calculator",                      hl.dsp.exec_cmd("uwsm app -- gnome-calculator"),                 { locked = true } },
 
     -- Screenshots
     { "Print",                               hl.dsp.exec_cmd("hdrshot region") },

@@ -11,20 +11,20 @@ local subliminal = '/sbin/subliminal'
 --          { 'language name', 'ISO-639-1', 'ISO-639-2' } !
 --          (See: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)
 local languages = {
---          If subtitles are found for the first language,
---          other languages will NOT be downloaded,
---          so put your preferred language first:
-            { 'English', 'en', 'eng' },
---          { 'Dutch', 'nl', 'dut' },
---          { 'Spanish', 'es', 'spa' },
---          { 'French', 'fr', 'fre' },
---          { 'German', 'de', 'ger' },
---          { 'Italian', 'it', 'ita' },
---          { 'Portuguese', 'pt', 'por' },
---          { 'Polish', 'pl', 'pol' },
---          { 'Russian', 'ru', 'rus' },
---          { 'Chinese', 'zh', 'chi' },
-          { 'Arabic', 'ar', 'ara' },
+    --          If subtitles are found for the first language,
+    --          other languages will NOT be downloaded,
+    --          so put your preferred language first:
+    { 'English', 'en', 'eng' },
+    --          { 'Dutch', 'nl', 'dut' },
+    --          { 'Spanish', 'es', 'spa' },
+    --          { 'French', 'fr', 'fre' },
+    --          { 'German', 'de', 'ger' },
+    --          { 'Italian', 'it', 'ita' },
+    --          { 'Portuguese', 'pt', 'por' },
+    --          { 'Polish', 'pl', 'pol' },
+    --          { 'Russian', 'ru', 'rus' },
+    --          { 'Chinese', 'zh', 'chi' },
+    { 'Arabic',  'ar', 'ara' },
 }
 --=============================================================================
 -->>    PROVIDER LOGINS:
@@ -159,7 +159,9 @@ function control_downloads()
     for _, language in ipairs(languages) do
         if should_download_subs_in(language) then
             if download_subs(language) then return end -- Download successful!
-        else return end -- No need to download!
+        else
+            return
+        end -- No need to download!
     end
     log('No subtitles were found')
 end
@@ -174,7 +176,7 @@ function autosub_allowed()
         return false
     elseif duration < 900 then
         mp.msg.warn('Video is less than 15 minutes\n' ..
-                      '=> NOT auto-downloading subtitles')
+            '=> NOT auto-downloading subtitles')
         return false
     elseif directory:find('^http') then
         mp.msg.warn('Automatic subtitle downloading is disabled for web streaming')
@@ -183,7 +185,7 @@ function autosub_allowed()
         mp.msg.warn('Automatic subtitle downloading is disabled for cue files')
         return false
     else
-        local not_allowed = {'aiff', 'ape', 'flac', 'mp3', 'ogg', 'wav', 'wv', 'tta'}
+        local not_allowed = { 'aiff', 'ape', 'flac', 'mp3', 'ogg', 'wav', 'wv', 'tta' }
 
         for _, file_format in pairs(not_allowed) do
             if file_format == active_format then
@@ -193,7 +195,7 @@ function autosub_allowed()
         end
 
         for _, exclude in pairs(excludes) do
-            local escaped_exclude = exclude:gsub('%W','%%%0')
+            local escaped_exclude = exclude:gsub('%W', '%%%0')
             local excluded = directory:find(escaped_exclude)
 
             if excluded then
@@ -203,10 +205,11 @@ function autosub_allowed()
         end
 
         for i, include in ipairs(includes) do
-            local escaped_include = include:gsub('%W','%%%0')
+            local escaped_include = include:gsub('%W', '%%%0')
             local included = directory:find(escaped_include)
 
-            if included then break
+            if included then
+                break
             elseif i == #includes then
                 mp.msg.warn('This path is not included for auto-downloading subs')
                 return false
@@ -221,16 +224,16 @@ end
 function should_download_subs_in(language)
     for i, track in ipairs(sub_tracks) do
         local subtitles = track['external'] and
-          'subtitle file' or 'embedded subtitles'
+            'subtitle file' or 'embedded subtitles'
 
         if not track['lang'] and (track['external'] or not track['title'])
-          and i == #sub_tracks then
+            and i == #sub_tracks then
             local status = track['selected'] and ' active' or ' present'
             log('Unknown ' .. subtitles .. status)
             mp.msg.warn('=> NOT downloading new subtitles')
             return false -- Don't download if 'lang' key is absent
         elseif track['lang'] == language[3] or track['lang'] == language[2] or
-          (track['title'] and track['title']:lower():find(language[3])) then
+            (track['title'] and track['title']:lower():find(language[3])) then
             if not track['selected'] then
                 mp.set_property('sid', track['id'])
                 log('Enabled ' .. language[1] .. ' ' .. subtitles .. '!')
@@ -242,17 +245,16 @@ function should_download_subs_in(language)
         end
     end
     mp.msg.warn('No ' .. language[1] .. ' subtitles were detected\n' ..
-                '=> Proceeding to download:')
+        '=> Proceeding to download:')
     return true
 end
 
 -- Log function: log to both terminal and MPV OSD (On-Screen Display)
 function log(string, secs)
-    secs = secs or 2.5  -- secs defaults to 2.5 when secs parameter is absent
+    secs = secs or 2.5           -- secs defaults to 2.5 when secs parameter is absent
     mp.msg.warn(string)          -- This logs to the terminal
     mp.osd_message(string, secs) -- This logs to MPV screen
 end
-
 
 mp.add_key_binding('b', 'download_subs', download_subs)
 mp.add_key_binding('n', 'download_subs2', download_subs2)
