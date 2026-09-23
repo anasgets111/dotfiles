@@ -156,6 +156,9 @@ local rows = mantle.network:map(function(network)
     return out
 end)
 
+-- Fixed, so titles line up whether a row's badge reads "2.4", "5G" or nothing.
+local LEADING_WIDTH = theme.control.md
+
 local function access_point_row(entry)
     if entry.kind == "header" then
         return section_header(entry.label)
@@ -182,7 +185,7 @@ local function access_point_row(entry)
     end
     return panel_row {
         slot = "network-ap-" .. tostring(ap.ssid),
-        leading = row { align_v = "Center", children = leading },
+        leading = row { width = LEADING_WIDTH, align_v = "Center", children = leading },
         title = ap.ssid or "?",
         subtitle = entry.connecting and "Connecting…" or nil,
         selected = ap.active,
@@ -418,7 +421,11 @@ local body = {
     -- The sheet replaces the list during a hidden join rather than stacking above it.
     list {
         width = "Fill",
-        max_height = theme.panel_list_height,
+        max_height = rows:map(function(items)
+            return util.fit_height(items, theme.panel_list_height, theme.spacing.xs, function(item)
+                return item.kind == "header" and theme.section_header_height or theme.control.lg
+            end)
+        end),
         scroll = scroll("network_aps"),
         spacing = theme.spacing.xs,
         visible = radio_up_and_idle,
@@ -432,7 +439,11 @@ local body = {
     -- it and asks for the name. It leaves with the list while the sheet is asking.
     panel_row {
         slot = "network-hidden",
-        icon = icons.wifi_hidden,
+        leading = row {
+            width = LEADING_WIDTH,
+            align_v = "Center",
+            children = { glyph(icons.wifi_hidden, theme.FG, theme.icon.md, { align_v = "Center" }) },
+        },
         title = "Hidden network…",
         visible = radio_up_and_idle,
         trailing = glyph(icons.chevron_right, theme.DIM, theme.font.sm, { align_v = "Center" }),

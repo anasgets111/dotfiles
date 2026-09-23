@@ -335,6 +335,20 @@ function util.shown_when(signal, predicate)
     end)
 end
 
+-- The height of the longest run of `items` that fits `budget` whole, `spacing` apart, so a scrolling
+-- list's edge falls between rows instead of through one.
+function util.fit_height(items, budget, spacing, height_of)
+    local total = 0
+    for index, item in ipairs(items) do
+        local grown = total + (index > 1 and spacing or 0) + height_of(item)
+        if grown > budget then
+            break
+        end
+        total = grown
+    end
+    return total
+end
+
 -- True while the source is true and for `ms` after it drops, keeping the surface mapped through an
 -- exit tween.
 function util.linger(signal, ms)

@@ -8,6 +8,7 @@ return function(content)
         foreground = theme.DIM,
         font_size = theme.font.xs,
         opacity = theme.opacity.muted,
+        height = theme.section_header_height,
         padding = { top = theme.spacing.xs, left = theme.spacing.sm },
     }
 end

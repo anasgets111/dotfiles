@@ -280,7 +280,11 @@ local body = {
     },
     list {
         width = "Fill",
-        max_height = theme.panel_list_height,
+        max_height = rows:map(function(items)
+            return util.fit_height(items, theme.panel_list_height, theme.spacing.xs, function(item)
+                return item.kind == "header" and theme.section_header_height or theme.control.lg
+            end)
+        end),
         scroll = scroll("bluetooth_devices"),
         spacing = theme.spacing.xs,
         source = rows,

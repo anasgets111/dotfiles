@@ -226,9 +226,11 @@ theme.notification_slide_ms     = math.floor(theme.animation_ms * 1.4 + 0.5)
 -- falls behind, and a spring carries its velocity across. 400/42 is critically
 -- damped, and a single press still lands in about a tenth of a second.
 theme.spring_tracking           = { spring = { stiffness = 400, damping = 42 } }
--- Bar panels share one card in `modules/shell/panel_host.lua`; each list holds seven rows, then scrolls.
+-- Bar panels share one card in `modules/shell/panel_host.lua`. A list scrolls past `panel_list_height`,
+-- cut between rows by `util.fit_height`, so it needs each row's height: headers take a fixed one.
 theme.panel_width               = s(340, 280)
 theme.panel_list_height         = s(280, 210)
+theme.section_header_height     = s(22, 18)
 -- Where a closed panel sits before `geometry` has measured it; after that it uses `-height`.
 theme.panel_slide               = s(760, 570)
 -- History holds the popup's cards plus the weather and sysinfo widgets.
