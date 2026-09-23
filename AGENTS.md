@@ -13,19 +13,13 @@
 
 | Command | Use |
 | --- | --- |
-| `mantle check -c mantle/.config/mantle` | Run after every edit. Evaluates the config with no Wayland, no subprocesses and every capability `nil`; writes no state |
+| `just` | Gate before done: `lua` (parse + format), `types` (LuaLS on the root `.luarc.json`), `mantle`. `just fmt` formats |
+| `mantle check -c mantle/.config/mantle` | Run after every edit (`just mantle`). Evaluates the config with no Wayland, no subprocesses and every capability `nil`; writes no state |
 | `mantle log [-f]` | Running shell output, `print()` included |
 | `mantle set`, `toggle`, `call <name>` | Drive live `state` and `action` names like a keybind; changes the live UI |
 | `luac5.4 -p file.lua` | Syntax check. Plain `luac` is Lua 5.5 |
 | `hyprctl repl '<lua>'` | Evaluate `hl.*` in the running Hyprland without a reload |
 | `shellcheck script.sh` | Lint Bash |
-
-Type check the repo against the root `.luarc.json` (lua-language-server ships only with Zed). An empty `/tmp/luals/check.json` is clean:
-
-```bash
-"$(ls -d ~/.local/share/zed/extensions/work/lua/lua-language-server-*/bin/lua-language-server | tail -1)" \
-  --check="$PWD" --checklevel=Warning --check_format=json --logpath=/tmp/luals
-```
 
 ## Engine reference
 
