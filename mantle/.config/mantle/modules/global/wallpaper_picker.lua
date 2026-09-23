@@ -9,6 +9,7 @@ local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
+local search_bar = require("components.search_bar")
 local ui_state = require("lib.ui_state")
 local modal = require("components.modal")
 local wallpaper = require("lib.wallpaper")
@@ -39,6 +40,12 @@ local grid_inner = theme.wallpaper_picker_width
     - 2 * grid_padding
 local TILE_WIDTH = math.floor((grid_inner - (COLUMNS - 1) * tile_gap) / COLUMNS)
 local TILE_HEIGHT = math.floor(TILE_WIDTH * 9 / 16)
+-- The grid shows whole rows, and the card shrinks to fit them, so `reveal`'s least move lands on a
+-- row edge instead of cutting the top row.
+local rows_budget = theme.wallpaper_picker_height - 2 * card_padding - theme.control.xl - theme.spacing.md
+    - 2 * grid_padding
+local VISIBLE_ROWS = math.floor((rows_budget + tile_gap) / (TILE_HEIGHT + tile_gap))
+local GRID_HEIGHT = VISIBLE_ROWS * (TILE_HEIGHT + tile_gap) - tile_gap
 
 local trimmed = query:map(function(text)
     return util.trim(text):lower()
@@ -243,7 +250,7 @@ end
 
 local grid = list {
     width = "Fill",
-    height = "Fill",
+    height = GRID_HEIGHT,
     scroll = SCROLL,
     spacing = tile_gap,
     source = rows,
@@ -292,44 +299,28 @@ local empty_states = {
     panel_empty_state("No results found", state_is("no_match")),
 }
 
-local search = rect {
-    width = "Fill",
-    height = theme.control.xl,
-    radius = theme.radius.md,
-    background = theme.GLASS_CONTENT,
-    border_width = theme.border_width,
-    border_color = theme.GLASS_BORDER,
-    padding = { left = theme.spacing.md, right = theme.spacing.md },
-    children = {
-        textfield {
-            width = "Fill",
-            height = "Fill",
-            autofocus = true,
-            placeholder = "Search wallpapers…",
-            font_size = theme.font.lg,
-            foreground = theme.FG,
-            on_change = function(text)
-                query:set(text)
-                reset_selection()
-            end,
-            on_submit = function()
-                apply(effective_selected:get())
-            end,
-            on_cancel = function(cleared)
-                if not cleared then
-                    close()
-                end
-            end,
-            on_navigate = function(key)
-                if STEPS[key] then
-                    move(STEPS[key])
-                end
-            end,
-        },
-    },
-}
+local search = search_bar(textfield {
+    placeholder = "Search wallpapers…",
+    on_change = function(text)
+        query:set(text)
+        reset_selection()
+    end,
+    on_submit = function()
+        apply(effective_selected:get())
+    end,
+    on_cancel = function(cleared)
+        if not cleared then
+            close()
+        end
+    end,
+    on_navigate = function(key)
+        if STEPS[key] then
+            move(STEPS[key])
+        end
+    end,
+})
 
--- No combo popup here, so each option set is a segmented row of buttons. The monitor row is a
+-- Each option set is a segmented row of buttons, visible at a glance. The monitor row is a
 -- `list` because screens can change.
 local function choice(value, label, current, on_pick, slot)
     local hovered = hover(slot)
@@ -495,7 +486,7 @@ return modal({
     below_bar = true,
     card = panel_card({ search, body }, {
         width = theme.wallpaper_picker_width,
-        height = theme.wallpaper_picker_height,
+        height = theme.wallpaper_picker_height - (rows_budget - GRID_HEIGHT),
         spacing = theme.spacing.md,
         padding = card_padding,
         tone = "dialog",

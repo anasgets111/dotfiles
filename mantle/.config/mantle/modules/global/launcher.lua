@@ -11,7 +11,7 @@
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
-local glyph = require("components.glyph")
+local search_bar = require("components.search_bar")
 local util = require("lib.util")
 local store = require("lib.store")
 local ui_state = require("lib.ui_state")
@@ -365,52 +365,25 @@ local app_list = list {
     end,
 }
 
--- The engine paints text and caret; this `rect` is the ground and ring, which `textfield` has not.
-local search = rect {
-    width = "Fill",
-    height = theme.control.xl,
-    radius = theme.radius.md,
-    background = theme.GLASS_INPUT,
-    border_width = theme.border_width,
-    -- Always accent: `autofocus` keeps this field focused for as long as the modal is up.
-    border_color = theme.ACCENT,
-    padding = { left = theme.spacing.lg, right = theme.spacing.lg },
-    children = {
-        row {
-            width = "Fill",
-            height = "Fill",
-            align_v = "Center",
-            spacing = theme.spacing.md,
-            children = {
-                glyph(icons.search, theme.ACCENT, theme.icon.md, { align_v = "Center" }),
-                textfield {
-                    width = "Fill",
-                    height = "Fill",
-                    autofocus = true,
-                    placeholder = "Search apps, calculate, convert currency…",
-                    font_size = theme.font.xl,
-                    foreground = theme.FG,
-                    on_change = function(text)
-                        query:set(text)
-                        select_first()
-                    end,
-                    on_submit = activate,
-                    -- Two-stage Escape: text clears and stays, empty closes.
-                    on_cancel = function(cleared)
-                        if not cleared then
-                            close()
-                        end
-                    end,
-                    on_navigate = function(key)
-                        if STEPS[key] then
-                            move(STEPS[key])
-                        end
-                    end,
-                },
-            },
-        },
-    },
-}
+local search = search_bar(textfield {
+    placeholder = "Search apps, calculate, convert currency…",
+    on_change = function(text)
+        query:set(text)
+        select_first()
+    end,
+    on_submit = activate,
+    -- Two-stage Escape: text clears and stays, empty closes.
+    on_cancel = function(cleared)
+        if not cleared then
+            close()
+        end
+    end,
+    on_navigate = function(key)
+        if STEPS[key] then
+            move(STEPS[key])
+        end
+    end,
+})
 
 local no_results = panel_empty_state(
     "No results found",
