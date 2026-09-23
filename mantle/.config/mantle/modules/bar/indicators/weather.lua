@@ -115,6 +115,7 @@ return function(id)
                         slot = "weather-refresh-" .. id,
                         size = theme.item_height,
                         icon_size = theme.icon.sm,
+                        spinning = weather.fetching,
                     }),
                 },
             },

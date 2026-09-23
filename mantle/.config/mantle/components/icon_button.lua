@@ -1,8 +1,13 @@
 local theme = require("config.theme")
 local util = require("lib.util")
+local spinner = require("components.spinner")
 
 return function(glyph, on_activate, opts)
     local side = opts.size or theme.item_height
+    local icon_size = opts.icon_size or theme.icon.md
+    local idle_visible = opts.spinning and opts.spinning:map(function(on)
+        return not on
+    end)
     local base = opts.background or theme.GLASS_CONTROL
     local base_hover = opts.background_hover or theme.GLASS_CONTROL_HOVER
     local hovered = opts.slot and hover(opts.slot) or nil
@@ -35,13 +40,22 @@ return function(glyph, on_activate, opts)
     -- window's icon or its number from one button.
     local function face(art)
         if art == nil or art == "" then
-            return text {
+            local idle_glyph = text {
                 content = glyph,
                 foreground = foreground,
-                font_size = opts.icon_size or theme.icon.md,
+                font_size = icon_size,
+                visible = idle_visible,
                 animate = { foreground = theme.animation_ms },
                 align_h = "Center",
                 align_v = "Center",
+            }
+            if opts.spinning == nil then
+                return idle_glyph
+            end
+            return rect {
+                width = side,
+                height = side,
+                children = { idle_glyph, spinner(opts.spinning, icon_size, foreground) },
             }
         end
         return icon {
@@ -95,7 +109,7 @@ return function(glyph, on_activate, opts)
         return row(node)
     end
     node.on_click = opts.on_button or function(rect, mouse_button)
-        if mouse_button == "left" then
+        if mouse_button == "left" and not (opts.spinning and opts.spinning:get()) then
             on_activate(rect, mouse_button)
         end
     end

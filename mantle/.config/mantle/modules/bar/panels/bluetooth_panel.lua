@@ -268,6 +268,9 @@ local body = {
                 slot = "bluetooth-scan-tile",
                 icon = icons.bt_scan,
                 label = "Scan",
+                spinning = mantle.bluetooth:map(function(bluetooth)
+                    return bluetooth ~= nil and bluetooth.discovering
+                end),
                 signal = mantle.bluetooth,
                 read = function(bluetooth)
                     return bluetooth.discovering

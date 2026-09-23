@@ -1,6 +1,7 @@
 local theme = require("config.theme")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
+local spinner = require("components.spinner")
 local util = require("lib.util")
 
 ---@class PanelToggleCardOpts
@@ -11,6 +12,7 @@ local util = require("lib.util")
 ---@field detail? string|Bound A second line, hidden while empty.
 ---@field signal Signal The capability whose payload `read` inspects.
 ---@field read fun(payload: any): boolean
+---@field spinning? Signal Replaces the icon while an action runs.
 ---@field on_change fun(checked: boolean)
 ---@field disabled? Signal The tile dims and ignores clicks, for hardware that is not there.
 
@@ -40,10 +42,20 @@ return function(opts)
 
     local lines = {}
     if opts.icon ~= nil and opts.icon ~= "" then
-        lines[1] = glyph(opts.icon, ink, theme.icon.md, {
+        local icon = glyph(opts.icon, ink, theme.icon.md, {
             align = "Center",
+            visible = opts.spinning and opts.spinning:map(function(on)
+                return not on
+            end),
             animate = { foreground = theme.animation_ms },
         })
+        lines[1] = opts.spinning and rect {
+            width = theme.icon.md,
+            height = theme.icon.md,
+            align_h = "Center",
+            align_v = "Center",
+            children = { icon, spinner(opts.spinning, theme.icon.md, ink) },
+        } or icon
     end
     lines[#lines + 1] = cell(label_content, ink, theme.font.xs, {
         align = "Center",

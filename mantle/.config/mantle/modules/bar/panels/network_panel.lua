@@ -266,20 +266,20 @@ local body = {
         end),
         subtitle = mantle.network:map(state_line),
         trailing = {
-            -- Rescan swaps for a spinner while scanning; `scanning` flips on click.
+            -- The rescan glyph spins inside its button while a scan is in flight.
             icon_button(icons.refresh, function()
                 mantle.network:invoke("scan")
             end, {
                 slot = "network-rescan",
                 size = theme.control.sm,
                 icon_size = theme.icon.sm,
+                spinning = util.shown_when(mantle.network, function(network)
+                    return network.scanning
+                end),
                 visible = util.shown_when(mantle.network, function(network)
-                    return radio_on(network) and not network.scanning
+                    return network ~= nil and (radio_on(network) or network.scanning)
                 end),
             }),
-            spinner(util.shown_when(mantle.network, function(network)
-                return network.scanning
-            end), theme.icon.md),
             -- Controls the whole stack; off hides the tiles.
             toggle(mantle.network, function(network)
                 return network.networking_enabled
