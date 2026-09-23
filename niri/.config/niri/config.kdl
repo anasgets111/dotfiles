@@ -83,7 +83,7 @@ hotkey-overlay { skip-at-startup; }
 
 // --- Startup Applications ---
 // Absolute: at login niri's spawn env has not imported ~/.local/share/cargo/bin yet.
-spawn-at-startup "/home/anas/.local/share/cargo/bin/mantle"
+spawn-at-startup "/home/anas/.local/share/cargo/bin/mantle" "-vvv" "--profile=5"
 spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
 spawn-at-startup "kdeconnectd"
 spawn-at-startup "zeditor"
