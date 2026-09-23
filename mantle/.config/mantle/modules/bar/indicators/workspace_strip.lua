@@ -1,6 +1,6 @@
 -- One circle per workspace, collapsing to the active one and re-narrowing `theme.animation_ms + 200`
 -- after the pointer leaves (`components/expanding_pill.lua`). Ground: accent when active, glass when
--- populated, `DISABLED` at half opacity when empty. A circle draws the standing window's icon when
+-- populated, an empty ring when empty. A circle draws the standing window's icon when
 -- `applications` knows its `app_id`, else `idx`. Never `name`, which elides to three dots, while the
 -- number is the keybind's target.
 --
@@ -56,7 +56,7 @@ local function workspace_button(workspace)
         elseif is_hovered then
             return theme.GLASS_CONTROL_HOVER
         end
-        return current.populated and theme.GLASS_CONTROL or theme.DISABLED
+        return current.populated and theme.GLASS_CONTROL or theme.CLEAR
     end)
     -- `ground` already folds the pointer in, so it is both states; the ring and the contrast ink
     -- come from `icon_button`'s defaults.
@@ -72,7 +72,7 @@ local function workspace_button(workspace)
         background = ground,
         background_hover = ground,
         opacity = entry:map(function(current)
-            return current.populated and 1 or theme.opacity.disabled
+            return current.populated and 1 or theme.opacity.muted
         end),
     }), is_active)
 end

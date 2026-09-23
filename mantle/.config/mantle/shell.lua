@@ -13,7 +13,6 @@
 fonts {
     "CaskaydiaCove Nerd Font Propo",
     "Noto Sans",
-    "Noto Sans CJK JP",
     "Noto Color Emoji",
 }
 

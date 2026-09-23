@@ -62,7 +62,7 @@ return function(opts)
         anchor = "Bottom",
         gravity = "Bottom",
         constraint_adjustment = { "FlipY", "SlideX" },
-        offset = { x = 0, y = theme.panel_gap },
+        offset = { x = 0, y = theme.spacing.xs },
         child = panel_card(children_for(opts), {
             opacity = shown:map(function(is_shown)
                 return is_shown and 1 or 0

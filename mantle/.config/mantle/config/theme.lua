@@ -41,13 +41,14 @@ function theme.with_opacity(hex, alpha)
     return string.format("#%02x%02x%02x%02x", r, g, b, math.floor(math.max(0, math.min(1, alpha)) * 255 + 0.5))
 end
 
--- Linear blend toward white, like `Qt.lighter`. HSV is unnecessary for these small steps.
+-- Linear blend toward white, like `Qt.lighter`. HSV is unnecessary for these small steps. Alpha is
+-- kept, so a translucent ground lifts without turning opaque.
 local function lighten(hex, amount)
-    local r, g, b = channels(hex)
+    local r, g, b, alpha = channels(hex)
     local mix = function(channel)
         return math.floor(channel + (255 - channel) * amount + 0.5)
     end
-    return string.format("#%02x%02x%02xff", mix(r), mix(g), mix(b))
+    return string.format("#%02x%02x%02x%02x", mix(r), mix(g), mix(b), math.floor(alpha * 255 + 0.5))
 end
 
 -- WCAG relative luminance at the 0.179 threshold, compositing translucent colours over `BG` first.
@@ -69,6 +70,11 @@ function theme.text_contrast(hex)
     return luminance > 0.179 and "#000000ff" or "#ffffffff"
 end
 
+-- The hover ground for any `background`: glass takes its own tint, anything else the 0.16 lift.
+function theme.hover(color)
+    return color == theme.GLASS_CONTROL and theme.GLASS_CONTROL_HOVER or lighten(color, 0.16)
+end
+
 -- `opacity` multiplies down the subtree, so dimming a control is one property, not a colour per part.
 theme.opacity                   = {
     subtle   = 0.15,
@@ -82,6 +88,7 @@ theme.opacity                   = {
 
 -- The swatches everything else derives from.
 theme.BG                        = "#1e1e2eff"
+theme.MANTLE                    = "#181825ff"
 theme.CRUST                     = "#11111bff"
 theme.SURFACE                   = "#313244ff"
 theme.FG                        = "#cdd6f4ff"
@@ -94,9 +101,8 @@ theme.GREEN                     = "#a6e3a1ff"
 theme.YELLOW                    = "#f9e2afff"
 theme.PEACH                     = "#fab387ff"
 theme.RED                       = "#f38ba8ff"
-theme.INACTIVE                  = "#494d64ff"
+theme.INACTIVE                  = "#45475aff"
 theme.ON_HOVER                  = "#a28dcdff"
-theme.DISABLED                  = "#232634ff"
 theme.CLEAR                     = "#00000000"
 
 -- Derived steps from the swatches, so a scheme swap edits only those.
@@ -104,10 +110,12 @@ theme.ELEVATED                  = lighten(theme.BG, 0.12)
 theme.ELEVATED_HOVER            = lighten(theme.BG, 0.18)
 -- Dimmer than DIM, for a bar indicator with nothing connected.
 theme.TEXT_OFF                  = theme.with_opacity(theme.DIM, theme.opacity.medium)
+-- Tertiary text: section labels and empty-state hints, a step below `DIM`.
+theme.TEXT_MUTED                = theme.with_opacity(theme.DIM, theme.opacity.muted)
 theme.BORDER                    = theme.with_opacity(theme.SURFACE, 0.75)
 theme.BORDER_SUBTLE             = theme.with_opacity(theme.SURFACE, 0.35)
 -- The shared card ground, so a card reads as a sheet above the bar rather than the same tone.
-theme.GLASS                     = theme.with_opacity("#181825", 0.88)
+theme.GLASS                     = theme.with_opacity(theme.MANTLE, 0.88)
 theme.GLASS_CONTENT             = theme.with_opacity(theme.ELEVATED, 0.46)
 -- A text field sits on the base tone, not the elevated one, so a search box reads as a well cut into
 -- its card rather than a second card.
@@ -119,7 +127,7 @@ theme.ACCENT_MEDIUM             = theme.with_opacity(theme.ACCENT, theme.opacity
 -- Hover for an opaque `ACCENT` ground. The three alpha tints cannot lift an opaque colour, so it
 -- is lightened instead.
 theme.ACCENT_HOVER              = lighten(theme.ACCENT, 0.16)
--- The same lift for the one opaque `RED` ground, the stop button.
+-- The same lift for an opaque `RED` ground.
 theme.RED_HOVER                 = lighten(theme.RED, 0.16)
 -- Ink for text on a glass control under the pointer, lifted the same 0.16 as the two grounds
 -- above. Panel headers rest at `FG` and reach this on hover; `ACCENT` marks the open state.
@@ -138,6 +146,7 @@ theme.GLASS_CONTROL_HOVER       = theme.with_opacity(theme.ON_HOVER, 0.45)
 theme.GLASS_BORDER              = theme.with_opacity(theme.FG, 0.18)
 theme.GLASS_BORDER_HOVER        = theme.with_opacity(theme.FG, 0.34)
 theme.ALERT_BG                  = "#45253aff"
+
 -- 0.45, not 0.88, because the scrim lies over wallpaper, where 0.88 is a blackout.
 theme.SCRIM                     = theme.with_opacity(theme.BG, 0.45)
 
@@ -188,7 +197,6 @@ theme.control                   = {
     xl = s(52, 42),
 }
 theme.control_width_lg          = s(48, 40)
-theme.card_padding              = s(10, 8)
 
 theme.border_width              = 1
 -- Twice the hairline, for cards floating over wallpaper.
@@ -266,7 +274,6 @@ theme.panel_toggle_height       = s(56, 44)
 -- `components/panel_empty_state.lua`'s height with a glyph, so an empty list reads as a state
 -- rather than a gap.
 theme.panel_empty_height        = s(120, 90)
-theme.panel_gap                 = 4
 theme.notification_width        = s(380, 300)
 -- An `item_height` icon square with a few pixels of plate around it.
 theme.notification_app_icon     = s(40, 32)

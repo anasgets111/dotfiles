@@ -21,7 +21,7 @@ return function(children, opts)
     return column {
         width = opts.width,
         height = opts.height,
-        padding = opts.padding or theme.card_padding,
+        padding = opts.padding or theme.spacing.md,
         align_h = opts.align_h,
         align_v = opts.align_v,
         visible = opts.visible,

@@ -18,9 +18,6 @@ end), nil, {
     background = idle.inhibited:map(function(held)
         return held and theme.ACCENT or theme.GLASS_CONTROL
     end),
-    background_hover = idle.inhibited:map(function(held)
-        return held and theme.ACCENT_HOVER or theme.GLASS_CONTROL_HOVER
-    end),
     on_button = function(_, mouse_button)
         if mouse_button == "right" then
             ui_state.toggle_modal("idle_settings")

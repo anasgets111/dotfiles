@@ -5,9 +5,8 @@ local theme = require("config.theme")
 return function(content)
     return text {
         content = { { text = content:upper(), bold = true } },
-        foreground = theme.DIM,
+        foreground = theme.TEXT_MUTED,
         font_size = theme.font.xs,
-        opacity = theme.opacity.muted,
         height = theme.section_header_height,
         padding = { top = theme.spacing.xs, left = theme.spacing.sm },
     }

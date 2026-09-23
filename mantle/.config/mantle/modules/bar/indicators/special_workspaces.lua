@@ -29,7 +29,7 @@ local function special_button(special)
     end, {
         slot = "special-" .. name,
         art = util.app_icon(entry),
-        icon_size = theme.font.xs,
+        icon_size = theme.font.sm,
         radius = theme.item_radius,
         background = ground,
         background_hover = ground,

@@ -17,7 +17,6 @@ local indicator = icon_button(icons.warning, function()
 end, {
     slot = SLOT,
     background = theme.RED,
-    background_hover = theme.RED_HOVER,
     selected = ui_state.modal_showing("rescue"),
     visible = error_log:map(function(text)
         return text ~= ""

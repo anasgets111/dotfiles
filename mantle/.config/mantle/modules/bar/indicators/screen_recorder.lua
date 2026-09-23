@@ -24,7 +24,7 @@ end), nil, {
     slot = SLOT,
     selected = ui_state.panel_showing(screen_recorder_panel.kind),
     background = state_of:map(function(current)
-        return current == "recording" and theme.ACCENT or theme.GLASS_CONTROL
+        return current == "recording" and theme.RED or current == "paused" and theme.PEACH or theme.GLASS_CONTROL
     end),
     on_button = function(rect, mouse_button)
         if mouse_button == "right" then

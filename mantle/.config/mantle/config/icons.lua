@@ -156,7 +156,5 @@ icons.chevron_down    = "\u{F0140}"
 -- moves.
 icons.chevron_right   = "\u{F0142}"
 icons.send            = "\u{F048A}"
-icons.plus            = "\u{F0415}"
-icons.minus           = "\u{F0374}"
 
 return icons

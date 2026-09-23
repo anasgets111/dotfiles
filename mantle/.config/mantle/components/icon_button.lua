@@ -9,7 +9,8 @@ return function(glyph, on_activate, opts)
         return not on
     end)
     local base = opts.background or theme.GLASS_CONTROL
-    local base_hover = opts.background_hover or theme.GLASS_CONTROL_HOVER
+    -- A custom ground lifts on hover by default, so a coloured state survives the pointer.
+    local base_hover = opts.background_hover or util.lift(base, theme.hover)
     local hovered = opts.slot and hover(opts.slot) or nil
 
     ---@type Color|Signal
@@ -29,11 +30,16 @@ return function(glyph, on_activate, opts)
 
     local foreground = opts.foreground or util.lift(ground, theme.text_contrast)
 
-    local border_color = opts.selected and opts.selected:map(function(is_selected)
-        return is_selected and theme.ACCENT or theme.GLASS_BORDER
-    end) or hovered and hovered:map(function(is_hovered)
-        return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
-    end) or theme.GLASS_BORDER
+    -- Selection wins the ring; otherwise it follows the pointer.
+    local border_color = theme.GLASS_BORDER
+    if opts.selected or hovered then
+        border_color = computed({ opts.selected or hovered, hovered or opts.selected }, function(is_selected, is_hovered)
+            if opts.selected and is_selected then
+                return theme.ACCENT
+            end
+            return hovered and is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
+        end)
+    end
 
     -- `opts.art` is a themed name or path drawn in place of the glyph. `PaintStyle::Icon` takes no
     -- tint, so artwork and a tintable glyph are two nodes, not one property. An empty name falls back to the glyph, so a workspace draws its

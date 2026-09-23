@@ -123,7 +123,7 @@ local items = list {
 }
 
 -- `cell` takes no opacity, so the muted level is folded into the colour.
-local empty_label = cell("No tray items", theme.with_opacity(theme.DIM, theme.opacity.muted), theme.font.xs, {
+local empty_label = cell("No tray items", theme.TEXT_MUTED, theme.font.xs, {
     align_v = "Center",
     visible = has_items:map(function(any)
         return not any

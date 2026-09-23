@@ -270,7 +270,7 @@ function util.band_of(ap)
     elseif number == "5" then
         return "5G", theme.ACCENT
     elseif number == "2.4" then
-        return "2.4", theme.PEACH
+        return "2.4", theme.FG
     end
     return nil, theme.FG
 end

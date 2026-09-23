@@ -20,7 +20,7 @@ return function(message, visible, opts)
     if opts.subtext then
         -- Says whether nothing arrived or something suppresses the list. A colour at that alpha,
         -- since `cell` takes no node `opacity`.
-        lines[#lines + 1] = cell(opts.subtext, theme.with_opacity(theme.DIM, theme.opacity.muted), theme.font.sm, {
+        lines[#lines + 1] = cell(opts.subtext, theme.TEXT_MUTED, theme.font.sm, {
             align = "Center",
             width = "Fill",
             wrap = "Word",

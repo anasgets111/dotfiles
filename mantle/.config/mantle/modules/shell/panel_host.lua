@@ -90,7 +90,7 @@ local card_height = computed({ ui_state.panel_kind, table.unpack(section_rects) 
     end
 end)
 local hidden_top = card_height:map(function(height)
-    return height and -(height + theme.panel_gap) or -theme.panel_slide
+    return height and -(height + theme.spacing.xs) or -theme.panel_slide
 end)
 local card_margin = computed({ hidden_top, ui_state.panel_open }, function(hidden, open)
     return { top = open and -theme.radius.md or hidden }
