@@ -24,6 +24,7 @@ local bar = require("modules.bar")
 local settings = require("modules.bar.panels.settings")
 local panel_host = require("modules.shell.panel_host")
 local modal_host = require("modules.global.modal_host")
+local idle_settings = require("modules.global.idle_settings")
 local lock_screen = require("modules.global.lock")
 local polkit_dialog = require("modules.global.polkit")
 local bluetooth_pairing = require("modules.global.bluetooth_pairing")
@@ -40,6 +41,7 @@ local surfaces = {
     panel_host,
 }
 table.move(bar.tooltips, 1, #bar.tooltips, #surfaces + 1, surfaces)
+table.move(idle_settings.popups, 1, #idle_settings.popups, #surfaces + 1, surfaces)
 table.move({ modal_host, lock_screen, polkit_dialog, bluetooth_pairing }, 1, 4, #surfaces + 1, surfaces)
 
 return surfaces

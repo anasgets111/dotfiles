@@ -11,6 +11,7 @@ local panel_row = require("components.panel_row")
 local panel_action_icon = require("components.panel_action_icon")
 local ui_state = require("lib.ui_state")
 local modal = require("components.modal")
+local dropdown = require("components.dropdown")
 local idle = require("lib.idle")
 local store = require("lib.store")
 local timeline_section = require("modules.global.idle_settings.timeline")
@@ -94,45 +95,39 @@ local function ink(on)
     end)
 end
 
--- Click cycles forward through the options, right-click back; enough without a combo box.
-local function duration_button(profile, stage)
-    local hovered = hover("idle-sec-" .. profile .. "-" .. stage.key)
-    return button {
-        width = "Fill",
-        height = theme.control.sm,
-        align_v = "Center",
-        radius = theme.radius.sm,
-        hover = hovered,
-        background = hovered:map(function(hot)
-            return hot and theme.GLASS_HOVER or theme.GLASS_CONTENT
-        end),
-        on_click = function(_, mouse_button)
-            if mouse_button == "middle" then
-                return
-            end
-            local current = idle.read(store.idle:get())[profile][stage.key .. "_sec"]
-            idle.write(profile, stage.key .. "_sec", idle.cycle(stage, current, mouse_button == "right" and -1 or 1))
-        end,
-        -- The chevron marks the plate as interactive, though it advances rather than opens.
-        children = {
-            row {
-                width = "Fill",
-                height = "Fill",
-                align_v = "Center",
-                spacing = theme.spacing.xs,
-                padding = { left = theme.spacing.sm, right = theme.spacing.xs },
-                children = {
-                    cell(settings:map(function(resolved)
-                        return idle.format(resolved[profile][stage.key .. "_sec"])
-                    end), theme.FG, theme.font.xs, {
-                        width = "Fill",
-                        align_v = "Center",
-                    }),
-                    glyph(icons.chevron_down, theme.DIM, theme.icon.xs, { align_v = "Center" }),
-                },
-            },
-        },
-    }
+-- One per profile and stage, built here because a popup is a surface and `stage_row` is rebuilt
+-- on every reorder. A hand-edited stored value joins the options so the list still marks it.
+local durations = {}
+local popups = {}
+for _, profile in ipairs({ "ac", "battery" }) do
+    durations[profile] = {}
+    for _, stage in ipairs(idle.STAGES) do
+        local field = stage.key .. "_sec"
+        local value = settings:map(function(resolved)
+            return resolved[profile][field]
+        end)
+        local picker = dropdown {
+            id = "idle-" .. profile .. "-" .. stage.key,
+            parent = "modal_host",
+            value = value,
+            options = value:map(function(current)
+                for _, sec in ipairs(stage.options) do
+                    if sec == current then
+                        return stage.options
+                    end
+                end
+                local options = util.concat(stage.options, { current })
+                table.sort(options)
+                return options
+            end),
+            format = idle.format,
+            on_select = function(sec)
+                idle.write(profile, field, sec)
+            end,
+        }
+        durations[profile][stage.key] = picker.trigger
+        popups[#popups + 1] = picker.popup
+    end
 end
 
 local function profile_control(profile, stage)
@@ -142,7 +137,7 @@ local function profile_control(profile, stage)
         spacing = theme.spacing.sm,
         visible = profile == "battery" and has_battery or nil,
         children = {
-            duration_button(profile, stage),
+            durations[profile][stage.key](),
             toggle(settings, function(resolved)
                 return resolved[profile][stage.key .. "_on"]
             end, function(enabled)
@@ -328,7 +323,7 @@ local function section(codepoint, title, description, children)
     })
 end
 
-return modal({
+local idle_modal = modal({
     kind = "idle_settings",
     card = panel_card({
         header,
@@ -346,3 +341,5 @@ return modal({
         tone = "dialog",
     }),
 })
+idle_modal.popups = popups
+return idle_modal

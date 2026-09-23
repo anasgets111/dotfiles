@@ -132,29 +132,6 @@ function idle.write(profile, key, value)
         or util.with(current, key, value))
 end
 
---- Next `stage.options` value from `sec`, wrapping; `step = -1` goes down. Wraps rather than stops,
---- like the power menu's brightness: stopping at an end reads as broken.
---- @param stage table one entry of `idle.STAGES`
---- @param sec integer
---- @param step integer
---- @return integer
-function idle.cycle(stage, sec, step)
-    local options = stage.options
-    -- Nearest option at or above the stored value, so a hand-edited 45s steps to 60s.
-    local index = #options
-    for position, value in ipairs(options) do
-        if value >= sec then
-            index = position
-            break
-        end
-    end
-    if options[index] ~= sec then
-        -- Land on that neighbour first; an off-list value is one press from a listed value.
-        return step > 0 and options[index] or options[math.max(1, index - 1)]
-    end
-    return options[(index - 1 + step) % #options + 1]
-end
-
 --- Timeout words: `"Off"`, `"45s"`, `"5m"`, `"1m 30s"`.
 --- @param sec integer?
 --- @return string
