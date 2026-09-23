@@ -620,7 +620,7 @@ local body = {
             spacing = theme.spacing.sm,
             children = {
                 cell(util.bold("Package"), theme.DIM, theme.font.xs, { width = "Fill" }),
-                cell(util.bold("Current"), theme.DIM, theme.font.xs, { width = theme.update_version_width, align = "End" }),
+                cell(util.bold("Current"), theme.DIM, theme.font.xs, { width = theme.update_version_width }),
                 cell(util.bold("New"), theme.DIM, theme.font.xs, { width = theme.update_version_width }),
             },
         },
@@ -650,7 +650,6 @@ local body = {
                         cell(package.name or "?", needs_reboot(package.name or "") and theme.PEACH or theme.FG, theme.font.sm, { width = "Fill", align_v = "Center" }),
                         cell(package.old_version or "", theme.DIM, theme.font.xs, {
                             width = theme.update_version_width,
-                            align = "End",
                             align_v = "Center",
                         }),
                         cell(package.new_version or "", theme.ACCENT, theme.font.xs, {
