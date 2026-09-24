@@ -8,7 +8,7 @@ description: Diagnosis loop for hard bugs and performance regressions in the Man
 A strict discipline for hard bugs. Stop guessing. Build a loop, form a hypothesis, measure, fix.
 
 ## 0. Redact & Read
-*   **Context:** Identify the layer: Mantle shell Lua (`mantle/.config/mantle/`), Hyprland Lua (`hypr/.config/hypr/`), or the engine under them. For engine behavior, read `docs/lua-api.md` and `CONTEXT.md` in the engine checkout (`/mnt/Work/0Coding/1Rust/mantle`).
+*   **Context:** Identify the layer: Mantle shell Lua (`mantle/.config/mantle/`), Hyprland Lua (`hypr/.config/hypr/`), or the engine under them. For engine behavior, read `docs/introduction.md` (the docs site source) and `CONTEXT.md` in the engine checkout (`/mnt/Work/0Coding/1Rust/mantle`).
 *   **Security:** Redact all secrets (`<REDACTED>`) before outputting artifacts. Quote only the specific log lines carrying the signal.
 
 ## 1. Build a Feedback Loop (The Hard Part)

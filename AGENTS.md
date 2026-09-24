@@ -27,11 +27,11 @@ Upstream checkout at `/mnt/Work/0Coding/1Rust/mantle`. Read it; never edit it fr
 
 | Question | Read |
 | --- | --- |
-| What a config can declare and call | `docs/lua-api.md` |
-| Capability fields and actions | `lua-meta/mantle.lua` (generated), `docs/services.md` |
+| What a config can declare and call | `docs/introduction.md`, then `docs/guide/`, `docs/nodes/`, `docs/surfaces/` |
+| Capability fields and actions | `lua-meta/mantle.lua` (generated), `docs/capabilities/<name>.md` |
 | Node and surface properties | `lua-meta/nodes.lua`, `lua-meta/surfaces.lua` |
 | Lua change or engine gap | `docs/roadmap.md`. Flag a real engine gap instead of working around it |
-| Terms (generation, named state, capability) | `CONTEXT.md` |
+| Terms (generation, named state, capability) | `docs/glossary.md`; engine-internal ones in `CONTEXT.md` |
 
 ## Shell structure
 
@@ -109,7 +109,6 @@ The default terminal resolves through `xdg-terminal-exec`.
 | `visible = false` keeps a frozen subtree | Switch views through `children` |
 | Named state resets when its scalar seed changes | Keep the seed stable |
 | `timer`, `action` and `on_change` last one evaluation | Expect them to re-register on every reload |
-| `mantle.idle:register_threshold` has no cancel | Register once; see `lib/idle.lua` |
 | `fonts` is read once at startup | Restart the shell after editing it |
 | UPower's `PendingCharge` also follows `Discharging` | Only `Charging` to `PendingCharge` means charging stopped (`modules/global/power_events.lua`) |
 
