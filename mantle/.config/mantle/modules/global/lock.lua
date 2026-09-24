@@ -1,6 +1,6 @@
 -- The wallpaper under a scrim, one glass card per output, and a password pill that says what PAM is
--- doing. The wallpaper is blurred at decode (`source_blur`, ADR-0240), so the scrim and card can be
--- lighter than a lock over a sharp photograph needs.
+-- doing. The scrim frosts the wallpaper (`backdrop_blur`), so the scrim and card can be lighter than
+-- a lock over a sharp photograph needs.
 local theme          = require("config.theme")
 local icons          = require("config.icons")
 local util           = require("lib.util")
@@ -26,8 +26,6 @@ local BADGE_HEIGHT   = theme.control.xs
 local CLOCK_SIZE     = theme.s(72, 44)
 local INITIALS_SIZE  = theme.s(36, 26)
 local NAME_SIZE      = theme.s(24, 18)
--- In the wallpaper's own stored pixels, not screen pixels. Its "cover" fit stores at the output's
--- resolution, so the two match only under that default fit (mantle ADR-0240 decision 3).
 local WALLPAPER_BLUR = 24
 
 -- The engine removes the lock after authentication, not when the tween ends, so it must be told to
@@ -272,12 +270,11 @@ local function content(output)
                 fit = wallpaper.fit_of(output),
                 width = "Fill",
                 height = "Fill",
-                source_blur = WALLPAPER_BLUR,
-                -- The blur pass costs real time, so it stays off the frame that maps this
-                -- surface; `theme.BG` covers the gap until it lands.
+                -- The desktop's own texture, so it draws on the first frame; unblurred, since a
+                -- `source_blur` would key a second copy that decodes after the lock maps.
                 async = true,
             },
-            rect { width = "Fill", height = "Fill", background = theme.SCRIM },
+            rect { width = "Fill", height = "Fill", background = theme.SCRIM, backdrop_blur = WALLPAPER_BLUR },
             -- Screen-sized, so the scale pivots on the centre.
             column {
                 width = "Fill",
