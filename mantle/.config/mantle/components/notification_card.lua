@@ -14,12 +14,11 @@ local cell = require("components.cell")
 local icon_button = require("components.icon_button")
 local action_button = require("components.action_button")
 
--- Card border by urgency, read from the group's newest notification.
-local BORDER_BY_URGENCY = {
-    low = theme.BORDER,
-    normal = theme.ACCENT_MEDIUM,
-    critical = theme.with_opacity(theme.RED, 0.6),
-}
+-- Only critical rings red; low and normal share the glass hairline, so accent keeps meaning "active".
+-- Read from the group's newest notification.
+local function border_for(urgency)
+    return urgency == "critical" and theme.RED or theme.GLASS_BORDER
+end
 
 -- Both scopes leave the same way, travelling off the right edge as they fade. This surface is one card
 -- wide, so travel clips quickly and the fade makes the exit legible.
@@ -52,7 +51,7 @@ end
 -- The card's small controls. `rest` and `lit` are the ground; a close is only its glyph.
 local function small_button(glyph, on_activate, slot, rest, lit)
     return icon_button(glyph, on_activate, {
-        size = theme.control.xs,
+        size = theme.control.sm,
         icon_size = theme.icon.xs,
         background = rest,
         background_hover = lit,
@@ -92,8 +91,6 @@ local function message(notification, ui, opts)
     end
     heading[#heading + 1] = cell(summary, theme.FG, theme.font.md, {
         width = "Fill",
-        -- Centre a lone card title, but left-align a grouped message.
-        align = opts.standalone and "Center" or "Start",
         align_v = "Center",
         wrap = "Word",
         -- `0` means "no limit", so expansion needs no second tree.
@@ -191,30 +188,23 @@ local function message(notification, ui, opts)
     end
 
     -- `"inline-reply"` is lifted into `has_reply` by the Supervisor and drawn as the field above.
-    -- Push buttons to the card edges. A `row` only distributes `Start`/`Center`/`End`, so a filling
-    -- spacer goes in each gap. A lone button has no gap and stays centred.
+    -- Right-aligned, as dialogs place theirs.
     local buttons = {}
-    local function add(control)
-        if #buttons > 0 then
-            buttons[#buttons + 1] = rect { width = "Fill" }
-        end
-        buttons[#buttons + 1] = control
-    end
     for index, action in ipairs(notification.actions or {}) do
-        add(action_button(action.label, function()
+        buttons[#buttons + 1] = action_button(action.label, function()
             mantle.notifications:invoke("invoke_action", id, action.key)
-        end, string.format("notification-action-%d-%d", id, index), { icon = action.icon_name }))
+        end, string.format("notification-action-%d-%d", id, index), { icon = action.icon_name })
     end
     -- One button per distinct body link, for the ones elision cut off; the words open them too.
     for index, href in ipairs(notifications.notification_links(notification.body)) do
-        add(action_button(notifications.link_label(href), function()
+        buttons[#buttons + 1] = action_button(notifications.link_label(href), function()
             mantle.applications:invoke("open_url", href)
-        end, string.format("notification-link-%d-%d", id, index)))
+        end, string.format("notification-link-%d-%d", id, index))
     end
     if #buttons > 0 then
         lines[#lines + 1] = row {
             width = "Fill",
-            align_h = "Center",
+            align_h = "End",
             spacing = theme.spacing.sm,
             children = buttons,
         }
@@ -305,7 +295,6 @@ return function(group, ui, opts)
         },
         cell(util.bold(title), theme.FG, theme.font.md, {
             width = "Fill",
-            align = "Center",
             align_v = "Center",
         }),
     }
@@ -354,7 +343,7 @@ return function(group, ui, opts)
         blur = not in_history,
         radius = theme.radius.md,
         border_width = theme.border_width_medium,
-        border_color = BORDER_BY_URGENCY[group.urgency] or theme.BORDER,
+        border_color = border_for(group.urgency),
         children = children,
     }
 end

@@ -100,7 +100,7 @@ local function content(output)
         width = "Fill",
         height = FIELD_HEIGHT,
         placeholder = "Password",
-        mask_character = "*",
+        mask_character = "•",
         secure_submit = { capability = "lock", action = "authenticate" },
         font_size = theme.font.lg,
         foreground = theme.with_opacity(theme.FG, 0.7),
@@ -293,7 +293,7 @@ local function content(output)
                 end),
                 animate = {
                     opacity = { duration = theme.animation_slow_ms, easing = "OutCubic", from = 0 },
-                    scale = { duration = theme.animation_very_slow_ms, easing = "OutBack", from = CLOSED_SCALE },
+                    scale = { duration = theme.animation_very_slow_ms, easing = "OutCubic", from = CLOSED_SCALE },
                 },
                 children = { card },
             },

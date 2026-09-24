@@ -305,7 +305,7 @@ local function app_row(app)
             size = theme.launcher_icon,
             align_v = "Center",
             scale = selected:map(function(on)
-                return on and 1.3 or 1
+                return on and theme.selected_scale or 1
             end),
             animate = { scale = { duration = theme.animation_fast_ms, easing = "OutCubic" } },
         },
@@ -403,7 +403,6 @@ local no_apps = panel_empty_state(
 
 return modal({
     kind = "launcher",
-    below_bar = true,
     card = panel_card({
         search,
         panel_card({ special_row, app_list, no_results, no_apps }, {
@@ -415,6 +414,8 @@ return modal({
     }, {
         width = theme.launcher_width,
         height = theme.launcher_height,
+        align_h = "Center",
+        align_v = "Center",
         spacing = theme.spacing.sm,
         padding = theme.spacing.lg,
         tone = "dialog",

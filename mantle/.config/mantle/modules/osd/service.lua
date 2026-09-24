@@ -8,8 +8,20 @@ local util = require("lib.util")
 
 local osd = {}
 
--- Priority order, lower first. Unlisted kinds are least important.
-local PRIORITY = { battery = 0, audio_device = 1, networking = 2, bluetooth = 2, volume = 3, brightness = 3 }
+-- Priority order, lower first. Toggles a key press asked for outrank levels, so a held volume key
+-- cannot swallow caps lock. Unlisted kinds are least important.
+local PRIORITY = {
+    battery = 0,
+    audio_device = 1,
+    networking = 2,
+    bluetooth = 2,
+    dnd = 2,
+    locks = 2,
+    layout = 2,
+    volume = 3,
+    brightness = 3,
+    backlight = 3,
+}
 
 osd.entry = state("osd_entry", { kind = "", glyph = "", text = "" })
 osd.visible = state("osd_visible", false)

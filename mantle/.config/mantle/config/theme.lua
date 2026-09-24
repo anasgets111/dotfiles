@@ -232,6 +232,8 @@ theme.notification_slide_ms     = math.floor(theme.animation_ms * 1.4 + 0.5)
 -- For a fill scrubbed by key repeat. An eased tween restarts from a standstill on every retarget and
 -- falls behind, and a spring carries its velocity across. 400/42 is critically
 -- damped, and a single press still lands in about a tenth of a second.
+-- How far a selected item's picture grows, shared by the launcher and wallpaper picker.
+theme.selected_scale            = 1.1
 theme.spring_tracking           = { spring = { stiffness = 400, damping = 42 } }
 -- Bar panels share one card in `modules/shell/panel_host.lua`. A list scrolls past `panel_list_height`,
 -- cut between rows by `util.fit_height`, so it needs each row's height: headers take a fixed one.

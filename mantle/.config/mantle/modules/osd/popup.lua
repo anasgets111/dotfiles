@@ -23,8 +23,12 @@ end)
 local entry_text = osd.entry:map(function(entry)
     return { { text = entry.text or "", bold = true } }
 end)
+-- The glyph and the fill share one colour, so brightness is yellow end to end.
+local level_color = osd.entry:map(function(entry)
+    return entry.color or theme.ACCENT
+end)
 
--- Slider layout: accent glyph, filling track, bold readout.
+-- Slider layout: tinted glyph, filling track, bold readout.
 local level_row = row {
     -- A track has no intrinsic width, so this layout states one. The toggle row measures instead;
     -- only one is visible, and an invisible child takes no space.
@@ -37,14 +41,12 @@ local level_row = row {
         return entry.level ~= nil
     end),
     children = {
-        glyph(entry_glyph, theme.ACCENT, theme.font.xxl, { align_v = "Center" }),
+        glyph(entry_glyph, level_color, theme.font.xxl, { align_v = "Center" }),
         -- A held volume key retargets every few frames: easing restarts from a standstill and
         -- trails the number, a spring keeps its velocity.
         meter(osd.entry, function(entry)
             return entry.level or 0
-        end, osd.entry:map(function(entry)
-            return entry.color or theme.ACCENT
-        end), theme.osd_track, { motion = theme.spring_tracking }),
+        end, level_color, theme.osd_track, { motion = theme.spring_tracking }),
         text {
             content = entry_text,
             foreground = theme.FG,

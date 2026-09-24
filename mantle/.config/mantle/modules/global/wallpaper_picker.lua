@@ -202,15 +202,15 @@ local function tile(entry)
             apply(entry.path)
         end,
         children = {
-            -- Zooms under the pointer, cut by the tile's rounded box.
+            -- Zooms with the selection, so keys and pointer show the same tile; cut by the rounded box.
             image {
                 source = entry.path,
                 fit = "cover",
                 async = true,
                 width = "Fill",
                 height = "Fill",
-                scale = hovered:map(function(on)
-                    return on and 1.11 or 1
+                scale = selected:map(function(on)
+                    return on and theme.selected_scale or 1
                 end),
                 animate = { scale = { duration = theme.animation_fast_ms, easing = "OutCubic" } },
             },
@@ -481,10 +481,11 @@ local body = row {
 
 return modal({
     kind = "wallpaper_picker",
-    below_bar = true,
     card = panel_card({ search, body }, {
         width = theme.wallpaper_picker_width,
         height = theme.wallpaper_picker_height - (rows_budget - GRID_HEIGHT),
+        align_h = "Center",
+        align_v = "Center",
         spacing = theme.spacing.md,
         padding = card_padding,
         tone = "dialog",
