@@ -9,6 +9,8 @@ local cell           = require("components.cell")
 local glyph          = require("components.glyph")
 local panel_card     = require("components.panel_card")
 local divider        = require("components.divider")
+local callout        = require("components.callout")
+local info_badge     = require("components.info_badge")
 local identity       = require("lib.identity")
 local weather        = require("lib.weather")
 
@@ -20,7 +22,6 @@ local FIELD_WIDTH    = math.floor(theme.lock_card_width * 0.82)
 -- Half the height, the way `theme.item_radius` is half `item_height`. `radius.xl` is the fully
 -- round token, sized for the card's corner and only close to this box by coincidence.
 local FIELD_RADIUS   = math.floor(FIELD_HEIGHT / 2)
-local BADGE_HEIGHT   = theme.control.xs
 -- Multipliers: a 68px clock, 36px initials, and a 23px name on a 1200px-tall screen. Shared steps
 -- are sized for the bar, not this card.
 local CLOCK_SIZE     = theme.s(72, 44)
@@ -44,12 +45,7 @@ end)
 -- Where the card starts its entry.
 local CLOSED_SCALE = 0.94
 
--- `attempts` is printed because state is sampled at layout time: two identical `error` strings
--- would otherwise look like one failure.
 local hint         = util.label(mantle.lock, function(lock)
-    if lock.error ~= nil and lock.error ~= "" then
-        return string.format("%s (%d)", lock.error, lock.attempts or 0)
-    end
     if lock.authenticating then
         return "Authenticating…"
     end
@@ -71,8 +67,11 @@ local field_border = computed({ failed, mantle.lock }, function(error_shown, loc
     return lock ~= nil and lock.authenticating and theme.ACCENT or theme.GLASS_BORDER
 end)
 
--- Black on yellow, chosen by the same helper the bar's buttons use.
-local BADGE_FG     = theme.text_contrast(theme.YELLOW)
+-- `attempts` is printed because state is sampled at layout time: two identical `error` strings
+-- would otherwise look like one failure.
+local error_text   = util.label(mantle.lock, function(lock)
+    return string.format("%s (%d)", lock.error, lock.attempts or 0)
+end)
 
 -- One icon-and-reading pair from the divider row. Three literal children need no `list`.
 local function status_item(icon_glyph, label, visible)
@@ -181,27 +180,21 @@ local function content(output)
                         }),
                         password_field,
                         -- Inside the pill; the bar's indicator is across the screen.
-                        row {
-                            height = BADGE_HEIGHT,
-                            align_v = "Center",
-                            padding = { right = theme.spacing.sm, left = theme.spacing.sm },
-                            spacing = theme.spacing.xs,
-                            background = theme.YELLOW,
-                            radius = math.floor(BADGE_HEIGHT / 2),
-                            visible = mantle.keyboard:map(function(keyboard)
-                                return keyboard ~= nil and keyboard.caps_lock == true
+                        info_badge("Caps lock", theme.YELLOW, {
+                            visible = util.shown_when(mantle.keyboard, function(keyboard)
+                                return keyboard.caps_lock == true
                             end),
-                            children = {
-                                glyph(icons.caps_lock, BADGE_FG, theme.icon.xs, { align_v = "Center" }),
-                                cell("Caps lock", BADGE_FG, theme.font.xs, { align_v = "Center" }),
-                            },
-                        },
+                        }),
                     },
                 },
-                -- Wrap: "could not start authentication: pam worker failed" once clipped mid-word.
-                cell(hint, failed:map(function(error_shown)
-                    return error_shown and theme.RED or theme.TEXT_MUTED
-                end), theme.font.sm, { width = "Fill", align = "Center", wrap = "Word", max_lines = 4 }),
+                callout(icons.warning, error_text, { visible = failed }),
+                cell(hint, theme.TEXT_MUTED, theme.font.sm, {
+                    width = "Fill",
+                    align = "Center",
+                    visible = failed:map(function(error_shown)
+                        return not error_shown
+                    end),
+                }),
             },
         },
         column {
@@ -216,9 +209,12 @@ local function content(output)
                     children = {
                         status_item(
                             weather.code:map(weather.glyph),
+                            weather.temperature:map(function(celsius)
+                                return string.format("%d°C", celsius or 0)
+                            end),
                             -- Gated on the code: zero degrees is a real reading.
-                            computed({ weather.code, weather.temperature }, function(code, celsius)
-                                return (code or -1) >= 0 and string.format("%d°C", celsius or 0) or "--"
+                            weather.code:map(function(code)
+                                return (code or -1) >= 0
                             end)
                         ),
                         status_item(
@@ -236,9 +232,15 @@ local function content(output)
                                 return network.ssid or "Offline"
                             end)
                         ),
-                        status_item(icons.keyboard, util.label(mantle.keyboard, function(keyboard)
-                            return keyboard.active_layout ~= "" and keyboard.active_layout or "N/A"
-                        end)),
+                        status_item(
+                            icons.keyboard,
+                            util.label(mantle.keyboard, function(keyboard)
+                                return keyboard.active_layout
+                            end),
+                            util.shown_when(mantle.keyboard, function(keyboard)
+                                return keyboard.active_layout ~= ""
+                            end)
+                        ),
                     },
                 },
             },
@@ -288,9 +290,14 @@ local function content(output)
                 scale = up:map(function(on)
                     return on and 1 or CLOSED_SCALE
                 end),
+                -- The modals' drop, over the lock's slower timing.
+                translate = up:map(function(on)
+                    return { y = on and 0 or -theme.spacing.md }
+                end),
                 animate = {
                     opacity = { duration = theme.animation_slow_ms, easing = "OutCubic", from = 0 },
                     scale = { duration = theme.animation_very_slow_ms, easing = "OutCubic", from = CLOSED_SCALE },
+                    translate = { duration = theme.animation_very_slow_ms, easing = "OutCubic", from = { y = -theme.spacing.md } },
                 },
                 children = { card },
             },
