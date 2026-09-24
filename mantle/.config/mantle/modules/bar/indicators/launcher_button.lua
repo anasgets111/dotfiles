@@ -6,10 +6,6 @@ local tooltip = require("components.tooltip")
 local SLOT = "launcher"
 
 local launcher_button = icon_button(icons.launcher, function()
-    -- Refresh on open, not a timer: only this click needs the directory walked.
-    if ui_state.active_modal:get() ~= "launcher" then
-        mantle.applications:invoke("refresh")
-    end
     ui_state.toggle_modal("launcher")
 end, { slot = SLOT, selected = ui_state.modal_showing("launcher") })
 
