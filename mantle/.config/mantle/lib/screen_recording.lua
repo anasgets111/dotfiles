@@ -70,19 +70,42 @@ local monitor = mantle.workspaces:map(function(workspaces)
     return ""
 end)
 
--- A config has no XDG lookup, so ask the tool, once per session.
+-- A config has no XDG lookup, so ask the tool, once per session. Watching the folder lets a new
+-- file's number count past the ones already there.
 local directory = state("recorder_directory", "")
+local function use_directory(dir)
+    dir = dir:gsub("/$", "")
+    directory:set(dir)
+    -- `mantle.files` never watches a folder missing at `watch`, so make it first.
+    process.run("mkdir", { "-p", dir }, function() end, function()
+        mantle.files:invoke("watch", dir)
+    end)
+end
 if directory:get() == "" then
     process.run("xdg-user-dir", { "VIDEOS" }, function(line)
         local trimmed = util.trim(line)
         if trimmed ~= "" then
-            directory:set(trimmed)
+            use_directory(trimmed)
         end
     end, function()
         if directory:get() == "" then
-            directory:set(FALLBACK_DIRECTORY)
+            use_directory(FALLBACK_DIRECTORY)
         end
     end)
+else
+    use_directory(directory:get())
+end
+
+-- `<output>_<day>-<n>`: one past the highest `n` this output already has today.
+local function file_stem(dir, output)
+    local prefix = string.format("%s_%s-", output, os.date("%Y%m%d"))
+    local pattern = "^" .. prefix:gsub("%p", "%%%0") .. "(%d+)%."
+    local highest = 0
+    local listing = ((mantle.files:get() or {}).folders or {})[dir]
+    for _, entry in ipairs((listing and listing.entries) or {}) do
+        highest = math.max(highest, tonumber(entry.name:match(pattern)) or 0)
+    end
+    return prefix .. (highest + 1)
 end
 
 local function setting(key, fallback)
@@ -106,7 +129,7 @@ local function format_elapsed(seconds)
 end
 
 local function elapsed_of(now, began, banked, open_since)
-    if began == nil or began <= 0 then
+    if began <= 0 then
         return 0
     end
     local held = banked + (open_since > 0 and (now - open_since) or 0)
@@ -120,12 +143,12 @@ local elapsed_text = computed(
     end
 )
 
--- The file name is the launch time, so two captures in one session cannot collide, and the
--- extension follows the container the panel chose.
-local function launch(capture_args, label)
+-- Name the file after the capture's output, with the extension of the container the panel chose.
+-- The label defaults to the output.
+local function launch(capture_args, output, label)
     local container = setting("container", "mp4")
     local dir = directory:get() ~= "" and directory:get() or FALLBACK_DIRECTORY
-    local path = string.format("%s/%s.%s", dir:gsub("/$", ""), os.date("%Y%m%d_%H%M%S"), container)
+    local path = string.format("%s/%s.%s", dir, file_stem(dir, output), container)
 
     local args = util.concat(util.concat(capture_args, {
         "-o", path,
@@ -135,7 +158,7 @@ local function launch(capture_args, label)
         "-cursor", "yes",
     }), AUDIO[setting("audio", "desktop")] or AUDIO.desktop)
 
-    capture_label:set(label)
+    capture_label:set(label or output)
     output_path:set(path)
     paused_total:set(0)
     paused_at:set(0)
@@ -144,8 +167,8 @@ local function launch(capture_args, label)
     recorder:start("gpu-screen-recorder", args)
 end
 
--- `"selection"` puts `slurp` on screen first; its stdout is the region and a non-zero exit is the
--- user pressing Escape, which is a cancel rather than a failure.
+-- `"selection"` puts `slurp` on screen first; `-o` makes a click take the whole output. Its stdout
+-- is the output and region, and a non-zero exit is Escape, a cancel rather than a failure.
 local function start(mode)
     if recording:get() or starting:get() then
         return
@@ -161,24 +184,31 @@ local function start(mode)
 
     starting:set(true)
     local region = ""
-    selecting = process.run("slurp", { "-f", "%wx%h+%x+%y" }, function(line, stream)
+    selecting = process.run("slurp", { "-o", "-f", "%o %wx%h+%x+%y" }, function(line, stream)
         if stream == "stdout" then
             region = region .. line
         end
     end, function(code)
         selecting = nil
         starting:set(false)
-        local selected = util.trim(region)
+        local output, box = util.trim(region):match("^(%S+) (%S+)$")
         -- Before the exit status: a killed `slurp` may still have exited cleanly with a region.
         if cancelled:get() then
             cancelled:set(false)
             return
         end
-        if code ~= 0 or selected == "" or recording:get() then
+        if code ~= 0 or box == nil then
             return
         end
+        -- A click is exactly an output's logical box; capture that output by name.
+        for _, screen in ipairs(mantle.screens:get() or {}) do
+            if box == string.format("%dx%d+%d+%d", screen.width, screen.height, screen.x, screen.y) then
+                launch({ "-w", output }, output)
+                return
+            end
+        end
         -- `-w <WxH+X+Y>`: this version deprecates `-w region -region ...` and writes nothing for it.
-        launch({ "-w", selected }, string.format("Region %s", selected:match("^[^+]*")))
+        launch({ "-w", box }, output, string.format("Region %s", box:match("^[^+]*")))
     end)
 end
 
@@ -233,12 +263,12 @@ end
 -- means the index was written and there is something to offer; anything else is a refusal that would
 -- otherwise announce a missing file. `-A default=Play` arms the popup body and draws no second
 -- button; `notify-send` blocks until the popup expires and prints the chosen key.
-local function announce_saved(finished_at, began, exit_code)
+local function announce_saved(exit_code)
     local path = output_path:get()
     if path == "" then
         return
     end
-    local name = path:match("[^/]+$") or path
+    local name = path:match("[^/]+$")
 
     if exit_code ~= nil and exit_code ~= 0 then
         process.run("notify-send", {
@@ -251,7 +281,7 @@ local function announce_saved(finished_at, began, exit_code)
         return
     end
 
-    local duration = format_elapsed(elapsed_of(finished_at, began, paused_total:get(), paused_at:get()))
+    local duration = format_elapsed(elapsed_of(monotonic_now(), began_at:get(), paused_total:get(), paused_at:get()))
     local chosen = ""
     process.run("notify-send", {
         "-a", "Screen Recorder",
@@ -302,7 +332,7 @@ mantle.processes:on_change(function(current, previous)
         cancelled:set(false)
     end
     if was ~= nil and was.running then
-        announce_saved(monotonic_now(), began_at:get(), now.exit_code)
+        announce_saved(now.exit_code)
         paused_total:set(0)
         paused_at:set(0)
     end

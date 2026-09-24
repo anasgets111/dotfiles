@@ -31,7 +31,7 @@ end), nil, {
             ui_state.toggle_panel(screen_recorder_panel.kind, rect)
         elseif mouse_button == "left" then
             recorder.toggle()
-        elseif mouse_button == "middle" and not recorder.recording:get() then
+        elseif mouse_button == "middle" then
             recorder.start()
         end
     end,
