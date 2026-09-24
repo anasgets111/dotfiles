@@ -3,8 +3,7 @@
 --
 -- `mantle.files` follows the folder, so the grid is a `computed` and scans nothing. Tiles decode
 -- `async`, which downsizes 4K files off-thread instead of holding the shell for a second on open.
--- There is no wrapping layout, so `rows` chunks into `theme.wallpaper_columns`; Tab moves one tile
--- and Up/Down a row, `on_navigate` having no left/right.
+-- There is no wrapping layout, so `rows` chunks into `theme.wallpaper_columns`.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
@@ -23,7 +22,16 @@ local SCROLL = scroll("wallpaper_grid")
 local COLUMNS = theme.wallpaper_columns
 -- `"all"` is the "All displays" option; no connector has that name.
 local ALL = "all"
-local STEPS = { backtab = -1, tab = 1, up = -COLUMNS, down = COLUMNS, page_up = -COLUMNS * 3, page_down = COLUMNS * 3 }
+local STEPS = {
+    backtab = -1,
+    tab = 1,
+    left = -1,
+    right = 1,
+    up = -COLUMNS,
+    down = COLUMNS,
+    page_up = -COLUMNS * 3,
+    page_down = COLUMNS * 3,
+}
 
 local query = state("wallpaper_query", "")
 local selected_path = state("wallpaper_selected", "")
