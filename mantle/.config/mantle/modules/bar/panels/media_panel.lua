@@ -134,7 +134,7 @@ local body = {
         icon = icons.media,
         active = has_player,
         subtitle = util.label(selected, function(player)
-            return first_nonempty(player and player.identity, "No media player running")
+            return first_nonempty(player and player.identity, "No player open")
         end),
         trailing = {
             panel_action_icon(icons.player_switch, function()
@@ -246,7 +246,7 @@ local body = {
             },
         },
     },
-    panel_empty_state("Nothing playing", has_player:map(function(on)
+    panel_empty_state("Play something to control it here", has_player:map(function(on)
         return not on
     end), { icon = icons.media }),
 }

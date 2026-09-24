@@ -33,7 +33,7 @@ local function day_cell(day, is_today, is_saturday)
             -- Today is the one date read at a glance, so it carries the weight as well as the disc.
             day and cell({ { text = tostring(day), bold = is_today } },
                 is_today and theme.text_contrast(theme.ACCENT)
-                or is_saturday and theme.text_contrast(theme.BG)
+                or is_saturday and theme.ACCENT
                 or theme.FG,
                 theme.font.sm, { width = "Fill", align = "Center", align_v = "Center" }) or nil,
         },
@@ -59,7 +59,7 @@ end
 
 local day_names = {}
 for column, name in ipairs(DAY_NAMES) do
-    day_names[column] = cell(util.bold(name), column == COLUMNS and theme.text_contrast(theme.BG) or theme.FG,
+    day_names[column] = cell(util.bold(name), column == COLUMNS and theme.ACCENT or theme.FG,
         theme.font.xs, { width = DAY_SIDE, align = "Center" })
 end
 

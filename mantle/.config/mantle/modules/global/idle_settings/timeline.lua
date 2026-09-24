@@ -93,7 +93,7 @@ return function(settings)
             tone = "active", height = theme.idle_track_height, visible = idle.inhibited,
         }),
         callout(icons.idle, settings:map(function(resolved)
-            return resolved.enabled and "Nothing is scheduled on this profile" or "Automatic actions are off"
+            return resolved.enabled and "Nothing is scheduled on this profile" or "Automatic actions are paused"
         end), {
             tone = "neutral",
             height = theme.idle_track_height,

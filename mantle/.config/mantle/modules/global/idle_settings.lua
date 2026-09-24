@@ -162,7 +162,7 @@ local matrix_heading = row {
     spacing = theme.spacing.sm,
     padding = { left = theme.spacing.sm, right = theme.spacing.sm },
     children = {
-        cell(util.bold("Action · in order"), theme.DIM, theme.font.xs, { width = "Fill" }),
+        cell(util.bold("Stage"), theme.DIM, theme.font.xs, { width = "Fill" }),
         column_heading("ac", "AC power"),
         column_heading("battery", "Battery"),
     },
@@ -262,7 +262,7 @@ local behaviour_rows = {
     panel_row {
         icon = icons.awake,
         title = util.bold_when(idle.manual, "Keep awake now"),
-        subtitle = "The same hold the bar circle takes",
+        subtitle = "Same as clicking the idle button in the bar",
         height = theme.idle_row_height,
         icon_color = ink(idle.manual),
         trailing = toggle(idle.manual, function(manual)
@@ -279,11 +279,8 @@ local flow_strip = row {
     children = {
         glyph(icons.play, ink(running), theme.icon.sm, { align_v = "Center" }),
         cell(
-            computed({ settings, idle.active_profile }, function(resolved, profile)
-                if not resolved.enabled then
-                    return "Automation paused"
-                end
-                return "Current flow · " .. (profile == "battery" and "battery" or "AC power")
+            idle.active_profile:map(function(profile)
+                return "Automatic actions · " .. (profile == "battery" and "Battery" or "AC power")
             end),
             theme.FG,
             theme.font.sm,

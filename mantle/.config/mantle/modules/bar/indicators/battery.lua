@@ -104,7 +104,7 @@ local battery_tooltip = tooltip({
         if battery == nil then
             return "Battery unavailable"
         elseif battery.state == "FullyCharged" then
-            return "Fully Charged"
+            return "Fully charged"
         end
         local eta = util.battery_eta(battery)
         if eta ~= "" then

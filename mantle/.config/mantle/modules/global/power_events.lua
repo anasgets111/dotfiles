@@ -46,10 +46,10 @@ mantle.battery:on_change(function(battery, previous)
         return util.battery_at_most(battery, percent) and not util.battery_at_most(previous, percent)
     end
     if crossed(thresholds.low) then
-        notify("Low Battery", "Plug in soon!", false)
+        notify("Battery low", "Plug in soon", false)
     end
     if crossed(thresholds.critical) then
-        notify("Critical Battery", string.format("Automatic suspend at %d%%!", thresholds.suspend), true)
+        notify("Battery critical", string.format("Suspends at %d%%", thresholds.suspend), true)
     end
     if crossed(thresholds.suspend) then
         process.detach("systemctl", { "suspend" })

@@ -53,10 +53,10 @@ local hint         = util.label(mantle.lock, function(lock)
         return string.format("%s (%d)", lock.error, lock.attempts or 0)
     end
     if lock.authenticating then
-        return "Authenticating..."
+        return "Authenticating…"
     end
     if not lock.active then
-        return "Locking..."
+        return "Locking…"
     end
     return "Press Enter to unlock"
 end)
@@ -103,7 +103,7 @@ local function content(output)
         mask_character = "•",
         secure_submit = { capability = "lock", action = "authenticate" },
         font_size = theme.font.lg,
-        foreground = theme.with_opacity(theme.FG, 0.7),
+        foreground = theme.FG,
         align_v = "Center",
     }
 
@@ -153,7 +153,7 @@ local function content(output)
                     spacing = theme.spacing.sm,
                     children = {
                         cell(identity.full_name, theme.FG, NAME_SIZE, { width = "Fill", align = "Center" }),
-                        cell(identity.account, theme.with_opacity(theme.FG, 0.55), theme.font.sm, {
+                        cell(identity.account, theme.DIM, theme.font.sm, {
                             width = "Fill",
                             align = "Center",
                         }),
@@ -202,7 +202,7 @@ local function content(output)
                 },
                 -- Wrap: "could not start authentication: pam worker failed" once clipped mid-word.
                 cell(hint, failed:map(function(error_shown)
-                    return error_shown and theme.RED or theme.with_opacity(theme.FG, 0.5)
+                    return error_shown and theme.RED or theme.TEXT_MUTED
                 end), theme.font.sm, { width = "Fill", align = "Center", wrap = "Word", max_lines = 4 }),
             },
         },

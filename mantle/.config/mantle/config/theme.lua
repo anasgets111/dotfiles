@@ -108,8 +108,9 @@ theme.CLEAR                     = "#00000000"
 -- Derived steps from the swatches, so a scheme swap edits only those.
 theme.ELEVATED                  = lighten(theme.BG, 0.12)
 theme.ELEVATED_HOVER            = lighten(theme.BG, 0.18)
--- Dimmer than DIM, for a bar indicator with nothing connected.
-theme.TEXT_OFF                  = theme.with_opacity(theme.DIM, theme.opacity.medium)
+-- Dimmer than DIM, for a bar indicator with nothing connected. Half, not a third: on glass over a
+-- bright wallpaper a third vanished.
+theme.TEXT_OFF                  = theme.with_opacity(theme.DIM, theme.opacity.disabled)
 -- Tertiary text: section labels and empty-state hints, a step below `DIM`.
 theme.TEXT_MUTED                = theme.with_opacity(theme.DIM, theme.opacity.muted)
 theme.BORDER                    = theme.with_opacity(theme.SURFACE, 0.75)

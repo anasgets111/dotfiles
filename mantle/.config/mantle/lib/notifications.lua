@@ -185,9 +185,9 @@ function notifications.notification_sections(groups, now)
     return sections
 end
 
--- History arrival as "Wed 14:32"; `%a` is enough because sections already name the day.
+-- History arrival as "Wed 02:32 PM"; `%a` is enough because sections already name the day.
 function notifications.absolute_time(timestamp)
-    return os.date("%a %H:%M", timestamp or 0)
+    return os.date("%a %I:%M %p", timestamp or 0)
 end
 
 return notifications

@@ -54,10 +54,10 @@ local function summary(payload)
     end
     local dnd = payload and payload.dnd
     if count == 0 then
-        return dnd and "Silenced · history empty" or "History empty"
+        return dnd and "Do not disturb" or "All caught up"
     end
     return string.format("%d in history", count) .. (apps > 1 and string.format(" · %d apps", apps) or "")
-        .. (dnd and " · silenced" or "")
+        .. (dnd and " · Do not disturb" or "")
 end
 
 -- "1st", "2nd", "3rd", "4th", with the teens all "th". `day` is a day of the month.
@@ -172,14 +172,8 @@ local body = {
         util.shown_when(mantle.notifications, function(payload)
             return kept(payload) == 0
         end),
-        {
-            icon = bell_glyph,
-            -- An empty feed under DND means something different from an empty feed without it, and
-            -- the struck-through bell alone does not say which.
-            subtext = mantle.notifications:map(function(payload)
-                return (payload and payload.dnd) and "Do not disturb is on" or "You're all caught up"
-            end),
-        }
+        -- The header already says whether do not disturb is on.
+        { icon = bell_glyph }
     ),
 }
 

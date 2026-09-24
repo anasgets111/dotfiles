@@ -28,7 +28,7 @@ return function(glyph, on_activate, opts)
         background = theme.CLEAR,
         background_hover = theme.with_opacity(tint, theme.opacity.subtle),
         foreground = hovered:map(function(is_hovered)
-            return is_hovered and tint or theme.with_opacity(tint, theme.opacity.disabled)
+            return is_hovered and tint or theme.with_opacity(tint, theme.opacity.muted)
         end),
         visible = opts.visible,
         spinning = opts.spinning,

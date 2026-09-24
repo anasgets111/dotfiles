@@ -219,7 +219,8 @@ local function tile(entry)
                 width = "Fill",
                 height = theme.control.md,
                 align_v = "End",
-                background = theme.SCRIM,
+                -- Card glass, not the scrim: xs text over a bright photo needs the near-opaque ground.
+                background = theme.GLASS,
                 padding = { left = theme.spacing.sm, right = theme.spacing.sm },
                 children = {
                     cell(entry.name, theme.FG, theme.font.xs, { width = "Fill", align = "Center", align_v = "Center" }),
@@ -453,7 +454,7 @@ local sidebar = panel_card({
     cell("Folder", theme.DIM, theme.font.xs),
     cell(wallpaper.FOLDER, theme.DIM, theme.font.xs, { width = "Fill" }),
     cell(filtered:map(function(entries)
-        return string.format("%d file(s)", #entries)
+        return #entries == 1 and "1 file" or string.format("%d files", #entries)
     end), theme.DIM, theme.font.xs, { width = "Fill" }),
 }, {
     width = theme.wallpaper_sidebar_width,

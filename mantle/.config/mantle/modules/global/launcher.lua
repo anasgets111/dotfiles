@@ -398,7 +398,7 @@ local no_apps = panel_empty_state(
     computed({ mantle.applications, trimmed }, function(apps, text)
         return text == "" and #entries_of(apps) == 0
     end),
-    { icon = icons.launcher, subtext = "No desktop entries available" }
+    { icon = icons.launcher }
 )
 
 return modal({

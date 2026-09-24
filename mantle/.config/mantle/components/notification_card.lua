@@ -268,7 +268,7 @@ end
 
 -- `group` is one entry of `notifications.group_notifications`, and `ui` is `lib/ui_state`. A popup card
 -- has heavier glass, no clock and edge travel. `opts.scope = "history"` has the lighter ground,
--- "Wed 14:32" and no travel.
+-- "Wed 02:32 PM" and no travel.
 return function(group, ui, opts)
     local in_history = opts ~= nil and opts.scope == "history"
     local items = group.items

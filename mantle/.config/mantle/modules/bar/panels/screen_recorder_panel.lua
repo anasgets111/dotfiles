@@ -103,7 +103,7 @@ local status_text = computed(
             if failure ~= nil and failure ~= "" then
                 return failure
             end
-            return string.format("Ready · %s", output ~= "" and output or "no output")
+            return string.format("Ready · %s", output ~= "" and output or "No output")
         end
         local words = held and "Paused" or "Recording"
         return label ~= "" and string.format("%s · %s", words, label) or words

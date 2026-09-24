@@ -301,7 +301,7 @@ local function announce_check(updates, previous)
     end
     local body = fresh == 1 and string.format("One new package can be upgraded (%d)", updates.count)
         or string.format("%d new packages can be upgraded (%d)", fresh, updates.count)
-    toast("normal", "Updates Available", body, "Run updates")
+    toast("normal", "Updates available", body, "Run updates")
 end
 
 mantle.updates:on_change(function(updates, previous)

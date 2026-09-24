@@ -299,17 +299,21 @@ local body = {
     panel_empty_state(
         util.label(mantle.bluetooth, function(bluetooth)
             if not bluetooth.available then
-                return "Bluetooth unavailable"
+                return "No Bluetooth adapter found"
             elseif not bluetooth.enabled then
-                return "Bluetooth off"
+                return "Turn on Bluetooth to see devices"
             end
-            return bluetooth.discovering and "Scanning…" or "No devices found"
+            return bluetooth.discovering and "Looking for devices…" or "No devices found"
         end),
         -- `rows` is empty exactly when the radio is off or every device list is.
         computed({ mantle.bluetooth, rows }, function(bluetooth, out)
             return bluetooth ~= nil and #out == 0
         end),
-        { icon = icons.bt_off }
+        {
+            icon = mantle.bluetooth:map(function(bluetooth)
+                return (bluetooth and bluetooth.enabled) and icons.bt_scan or icons.bt_off
+            end),
+        }
     ),
 }
 

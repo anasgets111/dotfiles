@@ -293,7 +293,7 @@ function util.truncate(value, limit)
     if count == nil or count <= limit then
         return text
     end
-    return text:sub(1, utf8.offset(text, limit + 1) - 1) .. "..."
+    return text:sub(1, utf8.offset(text, limit + 1) - 1) .. "…"
 end
 
 -- An `on_hover` that holds `name` in `key` while the pointer is on its button, else `""`: a row of

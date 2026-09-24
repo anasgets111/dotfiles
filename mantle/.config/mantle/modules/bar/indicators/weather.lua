@@ -92,7 +92,7 @@ return function(id)
     -- The label toggles the grid; the middle carries the age of the reading, accented while open so
     -- it reads as part of the header.
     local toggle = expander_header(expanded, "weather-toggle-" .. id, expanded:map(function(open)
-        return open and "Show Less" or "10 Day Forecast"
+        return open and "Show less" or "10-day forecast"
     end), cell(computed({ weather.updated_at, mantle.system }, function(at, system)
         return "Updated " .. weather.time_ago(at, system and system.time)
     end), expanded:map(function(open)
@@ -133,7 +133,7 @@ return function(id)
                             children = {
                                 spinner(weather.fetching, theme.control.xs),
                                 cell(weather.failed:map(function(bad)
-                                    return bad and "Weather Unavailable" or "Loading Forecast…"
+                                    return bad and "Weather unavailable" or "Loading forecast…"
                                 end), theme.DIM, theme.font.sm, { align = "Center", align_v = "Center" }),
                             },
                         },

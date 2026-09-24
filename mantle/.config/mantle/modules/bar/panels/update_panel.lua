@@ -144,7 +144,7 @@ local function detail_line(updates, showing, tool, dev)
         local failures = updates.consecutive_check_failures or 0
         -- Five consecutive failures is the warning threshold.
         local repeated = failures >= 5 and string.format(" · %d in a row", failures) or ""
-        return "Last result kept · " .. updates.check_error:match("[^\n]*") .. repeated
+        return "Showing the last list · " .. updates.check_error:match("[^\n]*") .. repeated
     end
     if updates.aur_error ~= nil then
         return "AUR not checked · " .. updates.aur_error:match("[^\n]*")
@@ -162,8 +162,8 @@ local function last_check_line(updates, now)
         return "Never checked"
     end
     local at = updates.last_successful_check
-    local when = os.date("%Y-%m-%d", at) == os.date("%Y-%m-%d") and os.date("%H:%M", at)
-        or os.date("%b %d, %H:%M", at)
+    local when = os.date("%Y-%m-%d", at) == os.date("%Y-%m-%d") and os.date("%I:%M %p", at)
+        or os.date("%b %d, %I:%M %p", at)
     return "Checked " .. when .. (now - at > service.CHECK_INTERVAL * 2 and " · stale" or "")
 end
 
@@ -525,7 +525,7 @@ local body = {
                         return "Update dev tools"
                     end
                     local builds = aur_count(updates)
-                    return builds > 0 and string.format("Update · builds %d from AUR", builds) or "Update"
+                    return builds > 0 and string.format("Update (%d from AUR)", builds) or "Update"
                 end),
                 service.install,
                 "updates-install",

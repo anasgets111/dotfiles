@@ -437,15 +437,15 @@ local body = {
     panel_empty_state(
         mantle.network:map(function(network)
             if network == nil then
-                return "Network unavailable"
+                return "NetworkManager is not responding"
             elseif not network.networking_enabled then
-                return "Networking off"
+                return "Turn on networking to see networks"
             elseif not network.wifi_present then
-                return "No Wi-Fi adapter"
+                return "No Wi-Fi adapter found"
             elseif not network.wifi_enabled then
-                return "Wi-Fi off"
+                return "Turn on Wi-Fi to see networks"
             elseif network.scanning then
-                return "Scanning…"
+                return "Looking for networks…"
             end
             return "No networks found"
         end),

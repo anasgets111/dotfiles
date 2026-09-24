@@ -32,12 +32,12 @@ local status = computed({ mantle.updates, service.dismissed }, state_of)
 -- Glyph, colour and tooltip per state; the glyph and colour leave five states sharing two grounds,
 -- so the tooltip names which. `pending`'s text carries the count, so it is built below.
 local LOOKS = {
-    installing = { icons.updating, theme.ACCENT, "Updating system and developer tooling..." },
-    install_failed = { icons.update_err, theme.RED, "Update failed - click for details" },
-    error = { icons.update_err, theme.RED, "Update failed - click for details" },
+    installing = { icons.updating, theme.ACCENT, "Updating system and developer tooling…" },
+    install_failed = { icons.update_err, theme.RED, "Update failed · Click for details" },
+    error = { icons.update_err, theme.RED, "Update check failed · Click for details" },
     checking = { icons.checking, theme.ACCENT, "Checking for updates…" },
     pending = { icons.updates, theme.ACCENT },
-    idle = { icons.up_to_date, theme.DIM, "No system package updates - right-click for updater" },
+    idle = { icons.up_to_date, theme.DIM, "Up to date · Click to check, right-click to open" },
 }
 
 local indicator = icon_button(status:map(function(current)
