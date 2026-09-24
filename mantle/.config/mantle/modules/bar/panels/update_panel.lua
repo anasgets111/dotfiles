@@ -25,6 +25,7 @@ local LOG_SCROLL = scroll("update_log")
 
 local log_open = ui.updates_log_open
 local settings_open = ui.updates_settings_open
+local phase = service.phase
 
 -- KiB, MiB, GiB use 1024, matching pacman's package sizes.
 local BYTE_UNITS = { "B", "KiB", "MiB", "GiB" }
@@ -52,17 +53,15 @@ local function aur_count(updates)
     return count
 end
 
-local status_tone = computed({ mantle.updates, service.result_showing, service.dev_result },
-    function(updates, showing, dev)
-        if showing and service.install_failed(updates) then
-            return "error"
-        end
-        if (updates ~= nil and (updates.check_error ~= nil or updates.aur_error ~= nil)) or
-            (showing and #(dev.failures or {}) > 0) then
-            return "warning"
-        end
-        return showing and "active" or "standard"
-    end)
+local status_tone = computed({ phase, mantle.updates, service.dev_result }, function(current, updates, dev)
+    if current == "failed" then
+        return "error"
+    elseif (updates ~= nil and (updates.check_error ~= nil or updates.aur_error ~= nil)) or
+        (current == "done" and #(dev.failures or {}) > 0) then
+        return "warning"
+    end
+    return current == "done" and "active" or "standard"
+end)
 
 -- ponytail: `install_log` is a 200-line tail, so long runs undercount. Exact needs a Supervisor counter.
 local function warning_count(updates)
@@ -75,28 +74,22 @@ local function warning_count(updates)
     return count
 end
 
--- `showing` is `service.result_showing`, passed in, because a signal read inside a map never re-runs it.
-local function status_line(updates, showing, tool, dev)
-    if updates == nil then
+-- `current` is the phase, passed in, because a signal read inside a map never re-runs it.
+local function status_line(updates, current, tool, dev)
+    if current == "loading" then
         return "Waiting for the updater"
-    end
-    if tool ~= "" then
+    elseif tool ~= "" then
         return "Updating " .. tool
-    end
-    if updates.installing then
+    elseif current == "running" then
         local package = updates.install_current_package
         return (package ~= nil and package ~= "") and ("Installing " .. package) or "Preparing update…"
-    end
-    if showing then
-        if service.install_failed(updates) then
-            return "Update failed"
-        end
+    elseif current == "failed" then
+        return "Update failed"
+    elseif current == "done" then
         return #(dev.failures or {}) > 0 and "Update finished with failures" or "Update complete"
-    end
-    if updates.checking then
+    elseif current == "checking" then
         return "Checking…"
-    end
-    if updates.check_error ~= nil then
+    elseif updates.check_error ~= nil then
         return "Check failed"
     end
     if (updates.count or 0) > 0 then
@@ -105,14 +98,12 @@ local function status_line(updates, showing, tool, dev)
     return "Up to date"
 end
 
-local function detail_line(updates, showing, tool, dev)
-    if updates == nil then
+local function detail_line(updates, current, tool, dev)
+    if current == "loading" then
         return ""
-    end
-    if tool ~= "" then
+    elseif tool ~= "" then
         return string.format("Developer tooling · %d of %d", service.tool_step(tool))
-    end
-    if updates.installing then
+    elseif current == "running" then
         local total = updates.install_total_steps or 0
         if total > 0 then
             return string.format("Package %d of %d", updates.install_current_step or 0, total)
@@ -121,13 +112,13 @@ local function detail_line(updates, showing, tool, dev)
         return string.format("Downloading %s · %s", service.plural(updates.count, "package"),
             human_bytes(download_total(updates)))
     end
-    if showing then
+    if current == "done" or current == "failed" then
         -- The reason heads the log card, beside the output it came from.
         local start = service.started_at:get()
         local seconds = (dev.finished_at or updates.install_finished_at or os.time()) - start
         local time_str = (start > 0 and seconds >= 0) and (seconds < 60 and string.format("%d sec", seconds)
             or string.format("%d min %d sec", math.floor(seconds / 60), seconds % 60))
-        if service.install_failed(updates) then
+        if current == "failed" then
             return time_str and ("Failed after " .. time_str) or "See the log below"
         end
         local ran = service.ran_packages(updates)
@@ -212,37 +203,19 @@ local LOG_COLOURS = {
     { theme.FG, "^▶", "^::", "^==>" },
 }
 
--- The settings list takes the whole body.
-local function unless_settings(showing)
-    return computed({ showing, settings_open }, function(visible, settings)
-        return visible and not settings
-    end)
-end
-
--- One fixed-height card holds the spinner, then the list, so a check does not resize the panel.
-local packages_showing = unless_settings(computed({ mantle.updates, service.result_showing, service.dev_running },
-    function(updates, showing, tool)
-        return not showing and tool == "" and updates ~= nil and not updates.installing and
-            (updates.checking or #service.packages(updates) > 0)
-    end))
--- With nothing pending or to report, the empty state replaces the status card.
-local empty_showing = unless_settings(computed({ mantle.updates, service.result_showing, service.dev_running },
-    function(updates, showing, tool)
-        return not showing and tool == "" and updates ~= nil and not updates.installing and not updates.checking
-            and updates.check_error == nil and (updates.count or 0) == 0
-    end))
-local status_showing = computed({ settings_open, empty_showing }, function(settings, empty)
-    return not settings and not empty
+-- The settings list takes the whole body, so it is a view above every phase.
+local view = computed({ phase, settings_open }, function(current, settings)
+    return settings and "settings" or current
 end)
+
+-- Not a phase: a finished run's re-check spins the list while its result is still the view.
 local checking = util.shown_when(mantle.updates, function(updates)
     return updates.checking
 end)
 
-local log_showing = unless_settings(computed({ mantle.updates, service.result_showing, log_open, service.dev_running },
-    function(updates, showing, open, tool)
-        return updates ~= nil and
-            (updates.installing or tool ~= "" or (showing and (service.install_failed(updates) or open)))
-    end))
+local log_showing = computed({ view, log_open }, function(current, open)
+    return current == "running" or current == "failed" or (current == "done" and open)
+end)
 
 -- Follow the newest line on every push. Past 200 lines the tail changes but its length does not,
 -- and the exit push carries the failure's stderr.
@@ -356,10 +329,10 @@ local body = {
     },
     panel_card({
         cell(
-            util.bold(computed({ mantle.updates, service.result_showing, service.dev_running, service.dev_result },
+            util.bold(computed({ mantle.updates, phase, service.dev_running, service.dev_result },
                 status_line)), theme.FG,
             theme.font.md),
-        cell(computed({ mantle.updates, service.result_showing, service.dev_running, service.dev_result }, detail_line),
+        cell(computed({ mantle.updates, phase, service.dev_running, service.dev_result }, detail_line),
             theme.DIM, theme.font
             .xs),
         row {
@@ -379,8 +352,17 @@ local body = {
             visible = working,
             children = { spinner(working, theme.control.xs), cell("Working…", theme.DIM, theme.font.xs) },
         },
-    }, { tone = status_tone, width = "Fill", spacing = theme.spacing.xs, visible = status_showing }),
-    panel_empty_state("Nothing to update", empty_showing, { icon = icons.up_to_date }),
+    }, {
+        tone = status_tone,
+        width = "Fill",
+        spacing = theme.spacing.xs,
+        visible = view:map(function(current)
+            return current ~= "settings" and current ~= "empty"
+        end),
+    }),
+    panel_empty_state("Nothing to update", view:map(function(current)
+        return current == "empty"
+    end), { icon = icons.up_to_date }),
     panel_card({
         section_header("config files to merge"),
         column {
@@ -397,9 +379,9 @@ local body = {
     }, {
         tone = "warning",
         width = "Fill",
-        visible = unless_settings(pacnew:map(function(files)
-            return #files > 0
-        end)),
+        visible = computed({ pacnew, settings_open }, function(files, settings)
+            return #files > 0 and not settings
+        end),
     }),
     panel_card({
         -- Shown over the spinner too, so the table's frame is already there when the list lands.
@@ -457,7 +439,13 @@ local body = {
                 return package.header or package.name or "?"
             end,
         },
-    }, { width = "Fill", visible = packages_showing }),
+        -- One fixed-height card holds the spinner, then the list, so a check does not resize the panel.
+    }, {
+        width = "Fill",
+        visible = view:map(function(current)
+            return current == "checking" or current == "pending"
+        end)
+    }),
     panel_card({
         row {
             width = "Fill",
@@ -514,14 +502,12 @@ local body = {
         end),
         children = {
             action_button(
-                computed({ mantle.updates, service.result_showing, service.dev_running }, function(updates, showing, tool)
-                    if updates ~= nil and (updates.installing or tool ~= "") then
+                computed({ phase, mantle.updates }, function(current, updates)
+                    if current == "running" then
                         return "Updating…"
-                    end
-                    if showing and service.install_failed(updates) then
+                    elseif current == "failed" then
                         return "Retry"
-                    end
-                    if ((updates and updates.count) or 0) == 0 then
+                    elseif ((updates and updates.count) or 0) == 0 then
                         return "Update dev tools"
                     end
                     local builds = aur_count(updates)
@@ -533,14 +519,14 @@ local body = {
                     tone = "solid",
                     width = "Fill",
                     disabled = busy,
-                    visible = computed({ mantle.updates, service.result_showing, service.dev_running }, function(updates,
-                                                                                                                 showing,
-                                                                                                                 tool)
-                        if updates == nil or (showing and not service.install_failed(updates)) then
+                    -- A retry needs no count: a partial failure can leave zero pending.
+                    visible = computed({ phase, mantle.updates }, function(current, updates)
+                        if current == "running" or current == "failed" then
+                            return true
+                        elseif current == "loading" or current == "done" then
                             return false
                         end
-                        return updates.installing or tool ~= "" or (updates.count or 0) > 0 or showing or
-                            service.any_tool_runnable()
+                        return (updates.count or 0) > 0 or service.any_tool_runnable()
                     end),
                 }
             ),
@@ -555,8 +541,8 @@ local body = {
                 {
                     tone = "quiet",
                     width = "Fill",
-                    visible = computed({ service.result_showing, mantle.updates }, function(showing, updates)
-                        return showing and not service.install_failed(updates)
+                    visible = view:map(function(current)
+                        return current == "done"
                     end),
                 }
             ),

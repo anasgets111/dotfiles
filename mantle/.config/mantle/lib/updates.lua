@@ -60,6 +60,24 @@ local function install_failed(updates)
     return install_ended(updates) and (updates.install_error ~= nil or updates.install_exit_code ~= 0)
 end
 
+-- Where the run is, strongest first; the panel's cards and the bar glyph both ask it by name. Tools
+-- after an install are `running` too, since the manager has exited but the run has not. A failed
+-- check with a stale list is `pending`: the list still shows.
+local phase = computed({ mantle.updates, result_showing, dev_running }, function(updates, showing, tool)
+    if updates == nil then
+        return "loading"
+    elseif updates.installing or tool ~= "" then
+        return "running"
+    elseif showing then
+        return install_failed(updates) and "failed" or "done"
+    elseif updates.checking then
+        return "checking"
+    elseif #packages(updates) > 0 then
+        return "pending"
+    end
+    return updates.check_error ~= nil and "check_failed" or "empty"
+end)
+
 -- Absent means on, so a tool added to `config/dev_tools.lua` runs without a `state.json` edit.
 local function tool_enabled(name)
     return (store.updates_dev_tools:get() or {})[name] ~= false
@@ -350,6 +368,7 @@ return {
     packages = packages,
     plural = plural,
     result_showing = result_showing,
+    phase = phase,
     ran_packages = ran_packages,
     manager = manager,
     install_failed = install_failed,

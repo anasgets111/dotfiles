@@ -8,15 +8,15 @@ local service = require("lib.updates")
 
 local SLOT = "updates"
 
--- In order: installing, a failed run, a failed check, a running check, then a count. A failed
--- install owns the glyph until the result is read.
-local function state_of(updates, is_dismissed)
-    if updates == nil then
-        return "idle"
-    elseif updates.installing then
+-- The run's phase, then a failed check, a running check and a count. A run owns the glyph through
+-- its developer tooling, and a failed one until the result is read.
+local status = computed({ service.phase, mantle.updates }, function(phase, updates)
+    if phase == "running" then
         return "installing"
-    elseif not is_dismissed and service.install_failed(updates) then
+    elseif phase == "failed" then
         return "install_failed"
+    elseif phase == "loading" then
+        return "idle"
     elseif updates.check_error and updates.check_error ~= "" then
         return "error"
     elseif updates.checking then
@@ -25,9 +25,7 @@ local function state_of(updates, is_dismissed)
         return "pending"
     end
     return "idle"
-end
-
-local status = computed({ mantle.updates, service.dismissed }, state_of)
+end)
 
 -- Glyph, colour and tooltip per state; the glyph and colour leave five states sharing two grounds,
 -- so the tooltip names which. `pending`'s text carries the count, so it is built below.
