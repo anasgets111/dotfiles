@@ -59,6 +59,7 @@ local function float_rule(size, match, options)
 end
 
 float_rule(nil, { modal = true })
+float_rule(nil, { class = "mantle-fx-demo" })
 float_rule(sizes.tiny, { class = [[org\.gnome\.Calculator]] })
 float_rule(sizes.small, { class = [[org\.kde\.kdeconnect\.handler]] })
 float_rule(sizes.medium, {

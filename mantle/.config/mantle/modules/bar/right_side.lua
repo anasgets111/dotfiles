@@ -10,6 +10,12 @@ local date_time = require("modules.bar.indicators.date_time")
 local ui_state = require("lib.ui_state")
 local icon_button = require("components.icon_button")
 
+-- TEMP: opens the effects demo (modules/probe_fx.lua). Remove with it.
+local fx_probe = state("fx_probe", false)
+local fx_button = icon_button("\u{f0d0}", function()
+    fx_probe:set(not fx_probe:get())
+end, { slot = "fx_probe_button", selected = fx_probe })
+
 -- One control holds bell and clock, and a single button fills it. The whole readout opens the
 -- notifications panel; calendar detail lives in the clock's hover tooltip.
 local clock_pill = icon_button(nil, nil, {
@@ -47,6 +53,7 @@ return row {
         network.indicator,
         bluetooth.indicator,
         tray_module.indicator,
+        fx_button, -- TEMP effects demo
         clock_pill,
     },
 }
