@@ -62,23 +62,44 @@ local function haystack_of(app)
     return haystacks[app]
 end
 
--- `best` is the top score, the one thing the web row needs that a sorted list does not carry.
+-- Launch count plus a stepped recency bonus: a log keeps a hundred launches from burying last
+-- hour's, and the steps need no decay job.
+local function usage_of(usage, now, id)
+    local entry = usage[id]
+    if not entry then
+        return 0
+    end
+    local age = now - entry.last
+    local recency = age < 3600 and 8 or age < 86400 and 6 or age < 604800 and 4 or age < 2592000 and 2 or 0
+    return math.log(entry.count + 1, 2) + recency
+end
+
+-- `best` is the top score, the one thing the web row needs that a sorted list does not carry. Usage
+-- breaks score ties and orders the empty query, but never outranks a better match.
 ---@return { apps: AppSummary[], best: integer }
-local function filter(applications, text)
-    local entries = entries_of(applications)
+local function filter(applications, text, usage)
+    usage = usage or {}
+    local now = os.time()
     -- No `lower()`: `fuzzy` is smart-case, so an uppercase letter in the query is the user asking
     -- for an exact match.
     local needle = util.trim(text)
-    if needle == "" then
-        return { apps = { table.unpack(entries, 1, math.min(#entries, MAX_RESULTS)) }, best = 0 }
-    end
     local scored = {}
     local best = 0
-    for _, app in ipairs(entries) do
+    for _, app in ipairs(entries_of(applications)) do
         local haystack = haystack_of(app)
-        local value, start = fuzzy(haystack, needle)
+        ---@type integer?, integer?
+        local value, start = 0, 0
+        if needle ~= "" then
+            value, start = fuzzy(haystack, needle)
+        end
         if value then
-            scored[#scored + 1] = { app = app, score = value, start = start, length = #haystack }
+            scored[#scored + 1] = {
+                app = app,
+                score = value,
+                usage = usage_of(usage, now, app.id),
+                start = start,
+                length = needle == "" and 0 or #haystack,
+            }
             if value > best then
                 best = value
             end
@@ -87,6 +108,9 @@ local function filter(applications, text)
     table.sort(scored, function(left, right)
         if left.score ~= right.score then
             return left.score > right.score
+        end
+        if left.usage ~= right.usage then
+            return left.usage > right.usage
         end
         if left.start ~= right.start then
             return left.start < right.start
@@ -103,7 +127,7 @@ local function filter(applications, text)
     return { apps = apps, best = best }
 end
 
-local matches = computed({ mantle.applications, query }, filter)
+local matches = computed({ mantle.applications, query, store.app_usage }, filter)
 local results = matches:map(function(found)
     return found.apps
 end)
@@ -234,6 +258,10 @@ local function activate()
         end
     else
         mantle.applications:invoke("launch", id)
+        local usage = store.app_usage:get() or {}
+        local count = usage[id] and usage[id].count or 0
+        usage[id] = { count = count + 1, last = os.time() }
+        store:set("app_usage", usage)
     end
     close()
 end

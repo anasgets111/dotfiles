@@ -25,6 +25,8 @@ return persistent_table {
         -- Rates keyed by lowercase code; a restart inside the day reuses them.
         currency_rates = {},
         currency_updated_at = 0,
+        -- Launcher launches by desktop id, `{ count = n, last = os.time() }`.
+        app_usage = {},
         -- The list travels with the check time: a restart inside the interval skips its check, and
         -- without the list it would say "up to date" for the rest of the hour.
         updates_checked_at = 0,
