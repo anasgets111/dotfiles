@@ -261,8 +261,9 @@ theme.tray_menu_width           = s(300, 240)
 theme.tray_menu_height          = s(560, 420)
 -- The idle modal's action rows plus AC and battery columns, each with a timeout and switch.
 theme.idle_modal_width          = s(820, 640)
--- `idle_profile_column` plus its switch.
-theme.idle_profile_column       = s(190, 150)
+-- A stage's duration bar, eight segments wide enough for "120m"; and the AC/battery picker.
+theme.idle_bar_width            = s(440, 340)
+theme.idle_picker_width         = s(220, 170)
 theme.idle_row_height           = s(60, 46)
 -- Timeline track, wide as the card and tall enough for a glyph plus duration per stage, unlike the
 -- 6px `components/meter.lua` percentage meter.

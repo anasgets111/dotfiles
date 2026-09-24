@@ -15,7 +15,7 @@ local wallpaper = require("lib.wallpaper")
 local util = require("lib.util")
 local panel_card = require("components.panel_card")
 local panel_empty_state = require("components.panel_empty_state")
-local panel_toggle_card = require("components.panel_toggle_card")
+local segmented = require("components.segmented")
 local section_header = require("components.section_header")
 local spinner = require("components.spinner")
 
@@ -330,73 +330,55 @@ local search = search_bar(textfield {
     end,
 })
 
--- Each option set is a row of radio tiles, the recorder's short kind. The monitor row is a `list`
--- because screens can change.
-local function choice(value, label, current, on_pick, slot)
-    return panel_toggle_card {
-        slot = slot,
-        label = label,
-        height = theme.control.md,
-        signal = current,
-        read = function(now)
-            return now == value
-        end,
-        -- A radio: the lit tile stays lit when clicked again.
-        on_change = function()
-            on_pick(value)
-        end,
-    }
-end
-
-local monitor_options = mantle.screens:map(function(screens)
-    local options = { { value = ALL, label = "All displays" } }
-    for _, screen in ipairs(screens or {}) do
-        if screen.name and screen.name ~= "" then
-            options[#options + 1] = { value = screen.name, label = screen.name }
+-- Each option set is one segmented bar. The monitor bar's options are a signal, since screens change.
+local monitor_row = segmented {
+    slot = "wallpaper-monitor",
+    options = mantle.screens:map(function(screens)
+        local options = { ALL }
+        for _, screen in ipairs(screens or {}) do
+            if screen.name and screen.name ~= "" then
+                options[#options + 1] = screen.name
+            end
         end
-    end
-    return options
-end)
-
-local monitor_row = list {
-    width = "Fill",
-    direction = "Horizontal",
-    spacing = theme.spacing.xs,
-    source = monitor_options,
-    itemfn = function(option)
-        return choice(option.value, option.label, effective_monitor, function(value)
-            monitor:set(value)
-            reset_selection()
-        end, "wallpaper-monitor-" .. option.value)
+        return options
+    end),
+    value = effective_monitor,
+    format = function(value)
+        return value == ALL and "All displays" or value
     end,
-    key = function(option)
-        return option.value
+    on_select = function(value)
+        monitor:set(value)
+        reset_selection()
     end,
 }
 
-local fit_buttons = {}
+local fit_labels, fit_values = {}, {}
 for _, fit in ipairs(wallpaper.FITS) do
-    fit_buttons[#fit_buttons + 1] = choice(fit.value, fit.label, current_fit, function(value)
+    fit_labels[fit.value] = fit.label
+    fit_values[#fit_values + 1] = fit.value
+end
+local fit_row = segmented {
+    slot = "wallpaper-fit",
+    options = fit_values,
+    value = current_fit,
+    format = function(value)
+        return fit_labels[value]
+    end,
+    on_select = function(value)
         for _, output in ipairs(targets_now()) do
             wallpaper.set_fit(output, value)
         end
-    end, "wallpaper-fit-" .. fit.value)
-end
-local fit_row = row { width = "Fill", spacing = theme.spacing.xs, children = fit_buttons }
+    end,
+}
 
--- Three across, matching Fill/Fit/Stretch above, whatever the effect count.
+-- Three to a bar, as many bars as the effects need: six names in one 220px bar would not fit.
 local EFFECTS_PER_ROW = 3
 local current_effect = wallpaper.effect()
 
--- Padded with `""`, an empty slot that keeps its share so a short last row does not stretch.
 local effect_rows = wallpaper.effects():map(function(names)
     local rows = {}
     for index = 1, #names, EFFECTS_PER_ROW do
-        local slots = {}
-        for offset = 0, EFFECTS_PER_ROW - 1 do
-            slots[offset + 1] = names[index + offset] or ""
-        end
-        rows[#rows + 1] = slots
+        rows[#rows + 1] = { table.unpack(names, index, math.min(index + EFFECTS_PER_ROW - 1, #names)) }
     end
     return rows
 end)
@@ -406,26 +388,20 @@ local effect_grid = list {
     direction = "Vertical",
     spacing = theme.spacing.xs,
     source = effect_rows,
-    itemfn = function(slots)
-        local buttons = {}
-        for _, name in ipairs(slots) do
-            if name ~= "" then
-                buttons[#buttons + 1] = choice(
-                    name,
-                    -- The file's name is the value; its title is what a person reads.
-                    name:sub(1, 1):upper() .. name:sub(2),
-                    current_effect,
-                    wallpaper.set_effect,
-                    "wallpaper-effect-" .. name
-                )
-            else
-                buttons[#buttons + 1] = rect { width = "Fill", height = theme.control.md }
-            end
-        end
-        return row { width = "Fill", spacing = theme.spacing.xs, children = buttons }
+    itemfn = function(names)
+        return segmented {
+            slot = "wallpaper-effect-" .. names[1],
+            options = names,
+            value = current_effect,
+            -- The file's name is the value; its title is what a person reads.
+            format = function(name)
+                return name:sub(1, 1):upper() .. name:sub(2)
+            end,
+            on_select = wallpaper.set_effect,
+        }
     end,
-    key = function(slots)
-        return table.concat(slots, "|")
+    key = function(names)
+        return table.concat(names, "|")
     end,
 }
 

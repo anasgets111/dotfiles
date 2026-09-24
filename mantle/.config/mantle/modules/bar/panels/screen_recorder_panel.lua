@@ -1,12 +1,12 @@
--- Two capture buttons, four encoder choices in one expandable row, and a folder action: the only
--- way to reach the encoder settings without a keybind.
+-- Two capture buttons, four encoder bars in one expandable row, and a folder action: the only way
+-- to reach the encoder settings without a keybind.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 local panel_row = require("components.panel_row")
 local panel_header = require("components.panel_header")
-local panel_toggle_card = require("components.panel_toggle_card")
+local segmented = require("components.segmented")
 local section_header = require("components.section_header")
 local action_button = require("components.action_button")
 local info_badge = require("components.info_badge")
@@ -24,9 +24,9 @@ local GROUPS = {
         title = "audio",
         fallback = "desktop",
         options = {
-            { value = "off",     label = "No audio",      icon = icons.vol_muted },
-            { value = "desktop", label = "Desktop",       icon = icons.vol_high },
-            { value = "mic",     label = "Desktop + mic", icon = icons.mic_on },
+            { value = "off",     label = "No audio" },
+            { value = "desktop", label = "Desktop" },
+            { value = "mic",     label = "Desktop + mic" },
         },
     },
     {
@@ -37,11 +37,10 @@ local GROUPS = {
             {
                 value = "low",
                 label = "Low",
-                icon = icons.quality_low,
                 detail = "Smallest files, softest detail in motion"
             },
-            { value = "medium", label = "Medium", icon = icons.quality_medium, detail = "Balanced size and detail" },
-            { value = "high",   label = "High",   icon = icons.quality_high,   detail = "Sharpest detail, largest files" },
+            { value = "medium", label = "Medium", detail = "Balanced size and detail" },
+            { value = "high",   label = "High",   detail = "Sharpest detail, largest files" },
         },
     },
     {
@@ -59,11 +58,10 @@ local GROUPS = {
         title = "format",
         fallback = "mp4",
         options = {
-            { value = "mp4", label = "MP4", icon = icons.file_mp4, detail = "Plays and uploads anywhere" },
+            { value = "mp4", label = "MP4", detail = "Plays and uploads anywhere" },
             {
                 value = "mkv",
                 label = "MKV",
-                icon = icons.file_mkv,
                 detail = "Stays playable if the session crashes mid-recording"
             },
         },
@@ -109,26 +107,32 @@ local status_text = computed(
     end
 )
 
--- The detail line explains only the selected tile.
+-- One bar per group; the detail line explains only the chosen segment.
 local function option_group(group)
-    local tiles = {}
+    local labels = {}
     for _, option in ipairs(group.options) do
-        tiles[#tiles + 1] = panel_toggle_card({
-            slot = string.format("recorder-%s-%s", group.key, tostring(option.value)),
-            icon = option.icon,
-            label = option.label,
-            height = theme.control.lg,
-            signal = store.screen_recorder,
-            read = function(settings)
-                return selected_option(group, settings) == option
-            end,
-            -- A radio, not a switch: ignore the tile's checked state so clicking the lit one cannot
-            -- turn every option off.
-            on_change = function()
-                recorder.set_setting(group.key, option.value)
-            end,
-        })
+        labels[option.value] = option.label
     end
+    local bar = segmented {
+        slot = "recorder-" .. group.key,
+        options = (function()
+            local values = {}
+            for _, option in ipairs(group.options) do
+                values[#values + 1] = option.value
+            end
+            return values
+        end)(),
+        value = store.screen_recorder:map(function(settings)
+            local option = selected_option(group, settings)
+            return option and option.value
+        end),
+        format = function(value)
+            return labels[value]
+        end,
+        on_select = function(value)
+            recorder.set_setting(group.key, value)
+        end,
+    }
 
     local detail = store.screen_recorder:map(function(settings)
         local option = selected_option(group, settings)
@@ -140,7 +144,7 @@ local function option_group(group)
         spacing = theme.spacing.xs,
         children = {
             section_header(group.title),
-            row { width = "Fill", spacing = theme.spacing.xs, children = tiles },
+            bar,
             cell(detail, theme.DIM, theme.font.xs, {
                 width = "Fill",
                 wrap = "Word",
@@ -186,7 +190,6 @@ end
 local body = {
     panel_header {
         title = "Screen recorder",
-        icon = icons.record,
         subtitle = status_text,
         -- Red marks an active capture, not "off".
         accent = recorder.recording:map(function(up)
@@ -223,7 +226,6 @@ local body = {
     panel_row {
         title = "Recording settings",
         subtitle = settings_summary,
-        icon = icons.settings,
         slot = "recorder-settings",
         expanded = settings_expanded,
     },
@@ -245,7 +247,6 @@ local body = {
             end
             return dir
         end),
-        icon = icons.folder,
         slot = "recorder-folder",
         on_activate = function()
             ui_state.close_panel()

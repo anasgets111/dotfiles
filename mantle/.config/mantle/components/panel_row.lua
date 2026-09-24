@@ -21,6 +21,8 @@ local glyph = require("components.glyph")
 ---@field selected? boolean
 ---@field opacity? number|Bound
 ---@field height? integer
+---@field title_size? integer Default `theme.font.sm`, a bar panel's row. A modal's rows take `md`.
+---@field subtitle_size? integer Default `theme.font.xs`; `sm` under an `md` title.
 ---@field slot? string
 ---@field visible? boolean|Bound
 ---@field trailing? Node
@@ -47,12 +49,13 @@ return function(opts)
     if opts.selected and type(title) == "string" then
         title = { { text = title, bold = true } }
     end
-    local title_lines = { cell(title, title_color, theme.font.sm, {
+    local title_lines = { cell(title, title_color, opts.title_size or theme.font.sm, {
         width = "Fill",
         animate = { foreground = theme.animation_ms },
     }) }
     if opts.subtitle then
-        title_lines[#title_lines + 1] = cell(opts.subtitle, theme.DIM, theme.font.xs, { width = "Fill" })
+        title_lines[#title_lines + 1] = cell(opts.subtitle, theme.DIM, opts.subtitle_size or theme.font.xs,
+            { width = "Fill" })
     end
 
     local children = {}

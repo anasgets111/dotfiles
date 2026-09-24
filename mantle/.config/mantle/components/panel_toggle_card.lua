@@ -6,8 +6,7 @@ local util = require("lib.util")
 
 ---@class PanelToggleCardOpts
 ---@field slot string The hover region's name; one per tile.
----@field icon? string|Bound Omitted draws the label alone, since a group whose options have no glyph, such as the recorder's frame rates, needs no empty line.
----@field height? integer The tile's height. Default `theme.panel_toggle_height`, the power menu's radio pair. A four-across settings group is `control.lg`.
+---@field icon? string|Bound Omitted draws the label alone.
 ---@field label string|Bound
 ---@field detail? string|Bound A second line, hidden while empty.
 ---@field signal Signal The capability whose payload `read` inspects.
@@ -74,7 +73,7 @@ return function(opts)
 
     return button {
         width = "Fill",
-        height = opts.height or theme.panel_toggle_height,
+        height = theme.panel_toggle_height,
         radius = theme.radius.lg,
         hover = hovered,
         background = tint(theme.ACCENT_LIGHT, theme.ACCENT_SUBTLE, theme.GLASS_HOVER, theme.GLASS_CONTENT),

@@ -1,5 +1,5 @@
--- A modal, not a bar panel: the three-action AC/battery matrix needs both profiles visible, which
--- the panel host's 340px card cannot fit.
+-- A modal, not a bar panel: each stage shows every duration for AC and battery at once, which the
+-- panel host's 340px card cannot fit.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
@@ -12,7 +12,7 @@ local section_header = require("components.section_header")
 local panel_action_icon = require("components.panel_action_icon")
 local ui_state = require("lib.ui_state")
 local modal = require("components.modal")
-local dropdown = require("components.dropdown")
+local segmented = require("components.segmented")
 local idle = require("lib.idle")
 local store = require("lib.store")
 local timeline_section = require("modules.global.idle_settings.timeline")
@@ -77,83 +77,75 @@ local function ink(on)
     end)
 end
 
--- One per profile and stage, built here because a popup is a surface and `stage_row` is rebuilt
--- on every reorder. A hand-edited stored value joins the options so the list still marks it.
-local durations = {}
-local popups = {}
-for _, profile in ipairs({ "ac", "battery" }) do
-    durations[profile] = {}
-    for _, stage in ipairs(idle.STAGES) do
-        local field = stage.key .. "_sec"
-        local value = settings:map(function(resolved)
-            return resolved[profile][field]
-        end)
-        local picker = dropdown {
-            id = "idle-" .. profile .. "-" .. stage.key,
-            parent = "modal_host",
-            value = value,
-            options = value:map(function(current)
-                for _, sec in ipairs(stage.options) do
-                    if sec == current then
-                        return stage.options
-                    end
-                end
-                local options = util.concat(stage.options, { current })
-                table.sort(options)
-                return options
-            end),
-            format = idle.format,
-            on_select = function(sec)
-                idle.write(profile, field, sec)
-            end,
-        }
-        durations[profile][stage.key] = picker.trigger
-        popups[#popups + 1] = picker.popup
+-- Which profile the bars edit: the live one until a click on the picker says otherwise. A desktop
+-- has no battery, so no picker, and the bars are AC.
+local PROFILES = { "ac", "battery" }
+local picked = state("idle_profile_picked", "")
+local shown_profile = computed({ picked, idle.active_profile, has_battery }, function(chosen, active, battery)
+    if not battery then
+        return "ac"
     end
-end
+    return chosen ~= "" and chosen or active
+end)
 
-local function profile_control(profile, stage)
-    return row {
-        width = theme.idle_profile_column,
-        align_v = "Center",
-        spacing = theme.spacing.sm,
-        visible = profile == "battery" and has_battery or nil,
-        children = {
-            durations[profile][stage.key](),
-            toggle(settings, function(resolved)
-                return resolved[profile][stage.key .. "_on"]
-            end, function(enabled)
-                idle.write(profile, stage.key .. "_on", enabled)
-            end, "idle-" .. profile .. "-" .. stage.key .. "-on"),
-        },
+local profile_picker = segmented {
+    slot = "idle-profile",
+    -- A fresh list per profile change, so the segments rebuild and `format`'s "· live" moves with it.
+    options = idle.active_profile:map(function()
+        return { table.unpack(PROFILES) }
+    end),
+    value = shown_profile,
+    format = function(profile)
+        local label = profile == "battery" and "Battery" or "AC power"
+        return idle.active_profile:get() == profile and label .. " · live" or label
+    end,
+    on_select = function(profile)
+        picked:set(profile)
+    end,
+    width = theme.idle_picker_width,
+    visible = has_battery,
+}
+
+-- One bar per stage, "Off" first: the bar is both the switch and the timeout. The stage's options
+-- plus whatever either profile stores, so a value from an older list still lights a segment.
+local function duration_bar(stage)
+    local on_key, sec_key = stage.key .. "_on", stage.key .. "_sec"
+    local options = settings:map(function(resolved)
+        local seen, out = {}, {}
+        local function add(sec)
+            if not seen[sec] then
+                seen[sec] = true
+                out[#out + 1] = sec
+            end
+        end
+        add(0)
+        for _, sec in ipairs(stage.options) do
+            add(sec)
+        end
+        for _, profile in ipairs(PROFILES) do
+            add(resolved[profile][sec_key])
+        end
+        table.sort(out)
+        return out
+    end)
+    return segmented {
+        slot = "idle-" .. stage.key,
+        options = options,
+        value = computed({ settings, shown_profile }, function(resolved, profile)
+            local held = resolved[profile]
+            return held[on_key] and held[sec_key] or 0
+        end),
+        format = idle.format,
+        on_select = function(sec)
+            local profile = shown_profile:get()
+            if sec > 0 then
+                idle.write(profile, sec_key, sec)
+            end
+            idle.write(profile, on_key, sec > 0)
+        end,
+        width = theme.idle_bar_width,
     }
 end
-
--- Marks the running profile's column.
-local function column_heading(profile, label)
-    return cell(
-        util.bold(idle.active_profile:map(function(active)
-            return active == profile and label .. " · live" or label
-        end)),
-        idle.active_profile:map(function(active)
-            return active == profile and theme.ACCENT or theme.DIM
-        end),
-        theme.font.xs,
-        { width = theme.idle_profile_column, align = "Center", visible = profile == "battery" and has_battery or nil }
-    )
-end
-
-local matrix_heading = row {
-    width = "Fill",
-    align_v = "Center",
-    spacing = theme.spacing.sm,
-    padding = { left = theme.spacing.sm, right = theme.spacing.sm },
-    children = {
-        cell(util.bold("Stage"), theme.DIM, theme.font.xs, { width = "Fill" }),
-        column_heading("ac", "AC power"),
-        column_heading("battery", "Battery"),
-    },
-}
 
 -- Chevrons move a stage through `order`. Hide them at the ends instead of showing no-op disabled
 -- controls; `idle.move` already treats out-of-range moves as no-ops.
@@ -173,34 +165,30 @@ end
 
 local function stage_row(item)
     local stage = item.stage
-    -- Accent while either profile enables this stage; dim in both columns means the stage never
-    -- runs.
+    -- Accent while either profile enables this stage; dim in both means the stage never runs.
     local any = settings:map(function(resolved)
-        for _, profile in ipairs({ "ac", "battery" }) do
+        for _, profile in ipairs(PROFILES) do
             if resolved[profile][item.key .. "_on"] and resolved[profile][item.key .. "_sec"] > 0 then
                 return true
             end
         end
         return false
     end)
-    local body = panel_row {
+    return panel_row {
         title = util.bold_when(any, stage.title),
         -- The stage's own description, not "after <the row above>": that row may be off in one
         -- profile.
         subtitle = stage.detail,
+        title_size = theme.font.md,
+        subtitle_size = theme.font.sm,
         height = theme.idle_row_height,
         leading = row {
             align_v = "Center",
             spacing = theme.spacing.xs,
             children = { reorder(item), glyph(stage.icon, ink(any), theme.icon.md, { align_v = "Center" }) },
         },
-        trailing = row {
-            spacing = theme.spacing.sm,
-            align_v = "Center",
-            children = { profile_control("ac", stage), profile_control("battery", stage) },
-        },
+        trailing = duration_bar(stage),
     }
-    return body
 end
 
 -- One row per stage in stored `order`, as a `list` because declared children cannot be reordered.
@@ -237,6 +225,8 @@ local behaviour_rows = {
         title = util.bold_when(capture_hold, "Keep awake while capturing"),
         -- Not video: a player asks for that itself and the engine honours it either way.
         subtitle = "Camera, microphone, screen capture",
+        title_size = theme.font.md,
+        subtitle_size = theme.font.sm,
         height = theme.idle_row_height,
         icon_color = ink(capture_hold),
         trailing = toggle(settings, function(resolved)
@@ -249,6 +239,8 @@ local behaviour_rows = {
         icon = icons.awake,
         title = util.bold_when(idle.manual, "Keep awake now"),
         subtitle = "Same as clicking the idle button in the bar",
+        title_size = theme.font.md,
+        subtitle_size = theme.font.sm,
         height = theme.idle_row_height,
         icon_color = ink(idle.manual),
         trailing = toggle(idle.manual, function(manual)
@@ -265,6 +257,8 @@ local flow_card = panel_card(util.concat({ panel_row {
     subtitle = idle.active_profile:map(function(profile)
         return profile == "battery" and "On battery" or "On AC power"
     end),
+    title_size = theme.font.md,
+    subtitle_size = theme.font.sm,
     trailing = toggle(settings, function(resolved)
         return resolved.enabled
     end, function(on)
@@ -278,13 +272,17 @@ local flow_card = panel_card(util.concat({ panel_row {
     end),
 })
 
-local idle_modal = modal({
+return modal({
     kind = "idle_settings",
     card = panel_card(util.concat({
         header,
         flow_card,
-        section_header("automation"),
-        matrix_heading,
+        -- The label and the picker share a line; the picker names which profile the bars edit.
+        row {
+            width = "Fill",
+            align_v = "Center",
+            children = { section_header("automation"), rect { width = "Fill" }, profile_picker },
+        },
         stage_list,
         section_header("behaviour"),
     }, behaviour_rows), {
@@ -296,5 +294,3 @@ local idle_modal = modal({
         tone = "dialog",
     }),
 })
-idle_modal.popups = popups
-return idle_modal

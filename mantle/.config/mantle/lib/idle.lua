@@ -132,7 +132,7 @@ function idle.write(profile, key, value)
         or util.with(current, key, value))
 end
 
---- Timeout words: `"Off"`, `"45s"`, `"5m"`, `"1m 30s"`.
+--- Timeout words: `"Off"`, `"45s"`, `"5m"`, `"1m 30s"`, `"2h"`.
 --- @param sec integer?
 --- @return string
 function idle.format(sec)
@@ -141,6 +141,9 @@ function idle.format(sec)
     end
     if sec < 60 then
         return string.format("%ds", sec)
+    end
+    if sec % 3600 == 0 then
+        return string.format("%dh", sec // 3600)
     end
     if sec % 60 == 0 then
         return string.format("%dm", sec // 60)

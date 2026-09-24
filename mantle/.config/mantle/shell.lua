@@ -38,7 +38,6 @@ local surfaces = {
     panel_host,
 }
 table.move(bar.tooltips, 1, #bar.tooltips, #surfaces + 1, surfaces)
-table.move(idle_settings.popups, 1, #idle_settings.popups, #surfaces + 1, surfaces)
 table.move({ modal_host, lock_screen, polkit_dialog, bluetooth_pairing }, 1, 4, #surfaces + 1, surfaces)
 
 return surfaces

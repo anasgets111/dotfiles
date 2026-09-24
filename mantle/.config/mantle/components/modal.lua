@@ -13,7 +13,6 @@ local CLOSED_SCALE = 0.97
 ---@class Modal
 ---@field kind string
 ---@field node table The screen-sized wrapper carrying the card and its motion.
----@field popups? table[] Popups the card opens, for `shell.lua` to add to the surface set.
 
 -- `modal_host`'s outside catcher is every card's ancestor, so a press on the card's own ground, such as
 -- padding, a gap between rows or an empty list, walks up to it and closes the modal. A handled button
