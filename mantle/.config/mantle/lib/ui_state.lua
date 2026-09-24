@@ -302,6 +302,8 @@ return {
     bluetooth_codec_for = bluetooth_codec_for,
     audio_output_picker = audio_output_picker,
     audio_input_picker = audio_input_picker,
+    updates_log_open = updates_log_open,
+    updates_settings_open = updates_settings_open,
     hidden_draft = hidden_draft,
     hidden_ssid = hidden_ssid,
     credential_step = credential_step,

@@ -237,6 +237,8 @@ theme.spring_tracking           = { spring = { stiffness = 400, damping = 42 } }
 -- cut between rows by `util.fit_height`, so it needs each row's height: headers take a fixed one.
 theme.panel_width               = s(340, 280)
 theme.panel_list_height         = s(280, 210)
+-- A drag track, so a list of them can be cut between rows.
+theme.slider_height             = s(16, 12)
 theme.section_header_height     = s(22, 18)
 -- Where a closed panel sits before `geometry` has measured it; after that it uses `-height`.
 theme.panel_slide               = s(760, 570)
@@ -252,6 +254,8 @@ theme.audio_panel_width         = s(380, 300)
 -- An application's own words need more room than the shell's. The 340px card elides
 -- "Preferences and settings".
 theme.tray_menu_width           = s(300, 240)
+-- A guard against runaway menus, not a list budget: an ordinary menu never scrolls its Quit away.
+theme.tray_menu_height          = s(560, 420)
 -- The idle modal's action rows plus AC and battery columns, each with a timeout and switch.
 theme.idle_modal_width          = s(820, 640)
 -- `idle_profile_column` plus its switch.

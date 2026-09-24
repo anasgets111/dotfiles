@@ -12,7 +12,7 @@ local glyph = require("components.glyph")
 -- Typed like `components/cell.lua`. Without these shapes a `list` `itemfn`'s `any` reaches
 -- `text.content` unchanged, a notification span array included.
 ---@class PanelRowOpts
----@field title string|Bound
+---@field title string|TextRun[]|Bound
 ---@field subtitle? string|Bound
 ---@field icon? string|Bound A glyph drawn as text and recoloured with the row.
 ---@field leading? Node A composed leading slot in place of `icon`, such as a glyph with a badge beside it.

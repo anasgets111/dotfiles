@@ -6,7 +6,7 @@ local icon_button = require("components.icon_button")
 
 ---@param glyph string|Bound A `text` glyph, or a signal of one for a control whose icon follows state.
 ---@param on_activate fun()?
----@param opts { slot: string, tint?: Color, visible?: boolean|Bound, size?: "sm"|"md", disabled?: Signal }
+---@param opts { slot: string, tint?: Color, visible?: boolean|Bound, size?: "sm"|"md", disabled?: Signal, spinning?: Signal }
 return function(glyph, on_activate, opts)
     local tint = opts.tint or theme.FG
     -- `"md"` is the media panel's one transport control that is the row's subject.
@@ -31,6 +31,7 @@ return function(glyph, on_activate, opts)
             return is_hovered and tint or theme.with_opacity(tint, theme.opacity.disabled)
         end),
         visible = opts.visible,
+        spinning = opts.spinning,
         opacity = disabled and disabled:map(function(off)
             return off and theme.opacity.disabled or 1
         end),

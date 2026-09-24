@@ -40,7 +40,7 @@ mantle/.config/mantle/
   shell.lua     Entry: font chain, requires modules, returns the surface list
   config/       Tokens: theme.lua (Catppuccin Mocha), icons.lua, dev_tools.lua
   components/   Reusable widgets with no state of their own
-  lib/          Node-free logic and state: store, ui_state, idle, wallpaper, weather, compositor
+  lib/          Node-free logic and state: store, ui_state, idle, wallpaper, weather, updates, compositor
   modules/      bar/{indicators,panels}, global/, notification/, osd/, shell/panel_host.lua
   shaders/      Wallpaper transition .frag sources, compiled by the engine at runtime
 ```

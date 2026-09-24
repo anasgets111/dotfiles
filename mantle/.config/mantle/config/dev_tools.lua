@@ -1,4 +1,4 @@
--- Developer tooling that `modules/bar/panels/update_panel.lua` updates after the package manager.
+-- Developer tooling that `lib/updates.lua` updates after the package manager.
 -- Each entry has a name, the binary that must exist, and argv commands run in order until the first
 -- non-zero exit. Commands resolve against the `PATH` the shell started with, and a tool the session
 -- cannot see hides its row. Everything runs as the user, because `composer global update` under

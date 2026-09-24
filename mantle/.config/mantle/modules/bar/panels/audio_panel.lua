@@ -121,36 +121,32 @@ local function audio_control(opts)
     })
 
     local children = util.concat({
-        row {
-            width = "Fill",
-            spacing = theme.spacing.sm,
-            align_v = "Center",
-            children = {
-                glyph(leading_glyph, tint, theme.icon.lg, { align_v = "Center" }),
-                column {
-                    width = "Fill",
-                    align_v = "Center",
-                    children = {
-                        cell(util.bold(opts.title), theme.FG, theme.font.sm, { width = "Fill" }),
-                        cell(util.label(mantle.audio, function(audio)
-                            return device_name(util.active_device(audio[opts.devices])) or "No device"
-                        end), theme.DIM, theme.font.xs, { width = "Fill" }),
-                    },
+        panel_row {
+            icon = leading_glyph,
+            icon_color = tint,
+            title = util.bold(opts.title),
+            subtitle = util.label(mantle.audio, function(audio)
+                return device_name(util.active_device(audio[opts.devices])) or "No device"
+            end),
+            trailing = row {
+                spacing = theme.spacing.sm,
+                align_v = "Center",
+                children = {
+                    cell(util.bold(computed({ mantle.audio, held }, function(audio, held_value)
+                        return percent(held_value >= 0 and held_value or audio and audio[opts.volume])
+                    end)), tint, theme.font.sm, { align_v = "Center" }),
+                    icon_button(mute_glyph, function()
+                        mantle.audio:invoke(opts.toggle_mute)
+                    end, {
+                        slot = "audio-mute-" .. opts.name,
+                        size = theme.control.md,
+                        icon_size = theme.icon.sm,
+                        opacity = mantle.audio:map(function(audio)
+                            return audio ~= nil and audio[opts.volume] ~= nil and 1 or theme.opacity.disabled
+                        end),
+                        background = when_muted(theme.GLASS_CONTROL, theme.ACCENT),
+                    }),
                 },
-                cell(util.bold(computed({ mantle.audio, held }, function(audio, held_value)
-                    return percent(held_value >= 0 and held_value or audio and audio[opts.volume])
-                end)), tint, theme.font.sm, { align_v = "Center" }),
-                icon_button(mute_glyph, function()
-                    mantle.audio:invoke(opts.toggle_mute)
-                end, {
-                    slot = "audio-mute-" .. opts.name,
-                    size = theme.control.md,
-                    icon_size = theme.icon.sm,
-                    opacity = mantle.audio:map(function(audio)
-                        return audio ~= nil and audio[opts.volume] ~= nil and 1 or theme.opacity.disabled
-                    end),
-                    background = when_muted(theme.GLASS_CONTROL, theme.ACCENT),
-                }),
             },
         },
         slider {
@@ -191,28 +187,27 @@ local function stream_row(app)
     local leading = icon_name and icon { name = icon_name, size = theme.icon.md, align_v = "Center" }
         or glyph(app.recording and icons.mic_on or icons.music_note, theme.FG, theme.icon.md, { align_v = "Center" })
     local tint = app.muted and theme.DIM or theme.ACCENT
-    local controls = {
-        leading,
-        cell(name, theme.FG, theme.font.sm, { width = "Fill", align_v = "Center" }),
-        cell(percent(app.volume), tint, theme.font.sm, { align_v = "Center" }),
-        panel_action_icon(app.muted and icons.vol_muted or icons.vol_high, app.volume and function()
-            mantle.audio:invoke("set_app_muted", app.id, not app.muted)
-        end, { slot = "audio-stream-mute-" .. tostring(app.id), tint = tint }),
-    }
-    if app.recording and icon_name then
-        table.insert(controls, 3, glyph(icons.mic_on, theme.DIM, theme.font.sm, { align_v = "Center" }))
-    end
     return column {
         width = "Fill",
         spacing = theme.spacing.xs,
-        padding = { left = theme.spacing.sm, right = theme.spacing.sm },
         children = {
-            row {
-                width = "Fill",
-                spacing = theme.spacing.sm,
-                align_v = "Center",
+            panel_row {
+                leading = leading,
+                title = name,
+                height = theme.control.md,
                 opacity = (app.muted or app.volume == nil) and theme.opacity.muted or nil,
-                children = controls,
+                trailing = row {
+                    spacing = theme.spacing.sm,
+                    align_v = "Center",
+                    children = {
+                        glyph(icons.mic_on, theme.DIM, theme.icon.sm,
+                            { align_v = "Center", visible = app.recording and icon_name ~= nil }),
+                        cell(percent(app.volume), tint, theme.font.sm, { align_v = "Center" }),
+                        panel_action_icon(app.muted and icons.vol_muted or icons.vol_high, app.volume and function()
+                            mantle.audio:invoke("set_app_muted", app.id, not app.muted)
+                        end, { slot = "audio-stream-mute-" .. tostring(app.id), tint = tint }),
+                    },
+                },
             },
             slider {
                 name = "audio_pending_app_" .. tostring(app.id),
@@ -232,6 +227,9 @@ local function stream_row(app)
         },
     }
 end
+
+-- A stream is its row plus its track, so the list is cut between streams, not through a slider.
+local STREAM_HEIGHT = theme.control.md + theme.spacing.xs + theme.slider_height
 
 -- speech-dispatcher's `sd_*` output modules hold idle streams open forever.
 local streams = mantle.audio:map(function(audio)
@@ -325,7 +323,11 @@ local body = {
         },
         list {
             width = "Fill",
-            max_height = theme.control.lg * 4 + theme.spacing.sm * 3,
+            max_height = streams:map(function(list)
+                return util.fit_height(list, theme.panel_list_height, theme.spacing.sm, function()
+                    return STREAM_HEIGHT
+                end)
+            end),
             scroll = scroll("audio_mixer"),
             spacing = theme.spacing.sm,
             visible = mixer_open,

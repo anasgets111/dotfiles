@@ -68,13 +68,15 @@ local function activate(entry)
         expanded:set(util.with(open, key, not open[key] or nil))
         return
     end
-    -- Draw disabled entries so the application's layout survives; the Supervisor refuses their
-    -- action anyway.
+    -- Disabled entries are drawn so the application's layout survives, and a click on one does
+    -- nothing rather than closing the menu.
     if entry.enabled then
         mantle.tray:invoke("activate_menu_item", item_id:get(), entry.id)
+        ui_state.close_panel()
     end
-    ui_state.close_panel()
 end
+
+local SEPARATOR_HEIGHT = theme.spacing.sm
 
 local function row_for(row_entry)
     local entry = row_entry.entry
@@ -82,7 +84,7 @@ local function row_for(row_entry)
     if entry.menu_type == "separator" then
         return rect {
             width = "Fill",
-            height = theme.spacing.sm,
+            height = SEPARATOR_HEIGHT,
             children = { divider { margin = { left = pad, right = theme.spacing.sm } } },
         }
     end
@@ -106,12 +108,12 @@ local function row_for(row_entry)
     end
     return button {
         width = "Fill",
-        height = theme.item_height,
-        radius = theme.item_radius,
+        height = theme.control.md,
+        radius = theme.radius.md,
         hover = hovered,
-        -- Transparent rather than `nil`, as the QML original drew it.
+        -- `panel_row`'s hover, so a menu reads like the panels it opens beside.
         background = hovered:map(function(on)
-            return on and theme.GLASS_CONTROL_HOVER or theme.CLEAR
+            return on and theme.GLASS_HOVER or theme.CLEAR
         end),
         opacity = entry.enabled and 1 or theme.opacity.disabled,
         on_click = function(_, mouse_button)
@@ -135,6 +137,12 @@ local body = item_id:map(function(id)
         id = "tray-menu-" .. tostring(id),
         width = "Fill",
         spacing = 0,
+        max_height = rows:map(function(list)
+            return util.fit_height(list, theme.tray_menu_height, 0, function(row_entry)
+                return row_entry.entry.menu_type == "separator" and SEPARATOR_HEIGHT or theme.control.md
+            end)
+        end),
+        scroll = scroll("tray_menu"),
         source = rows,
         itemfn = row_for,
         -- Depth is part of the key: the same entry drawn at two levels is two rows, and reconciling
@@ -145,8 +153,11 @@ local body = item_id:map(function(id)
     } }
 end)
 
--- `item`'s menu, anchored under its icon.
+-- `item`'s menu, anchored under its icon. The same icon again closes it, like every other panel.
 local function open(item, anchor)
+    if ui_state.panel_is(KIND) and item_id:get() == item.id then
+        return ui_state.close_panel()
+    end
     item_id:set(item.id)
     expanded:set({})
     ui_state.open_panel(KIND, anchor)

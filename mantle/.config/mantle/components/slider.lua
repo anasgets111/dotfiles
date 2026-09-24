@@ -163,7 +163,7 @@ return function(opts)
 
     return button {
         width = opts.width or "Fill",
-        height = opts.height or theme.s(16, 12),
+        height = opts.height or theme.slider_height,
         align_v = opts.align_v,
         radius = opts.radius or theme.radius.sm,
         clip = "Rounded",
