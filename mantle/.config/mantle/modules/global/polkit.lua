@@ -17,7 +17,7 @@ end)
 util.auto_english_layout(mantle.polkit)
 
 local function cancel()
-    mantle.polkit:invoke("cancel")
+    mantle.polkit:cancel()
 end
 
 -- Mapped through the card's exit fade.

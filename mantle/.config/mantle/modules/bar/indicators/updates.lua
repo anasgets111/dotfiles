@@ -52,7 +52,7 @@ end), nil, {
             return
         end
         -- The Supervisor refuses `check` while one is running, so no guard is needed.
-        mantle.updates:invoke("check")
+        mantle.updates:check()
     end,
     slot = SLOT,
     selected = ui_state.panel_showing(update_panel.kind),

@@ -62,7 +62,7 @@ local function workspace_button(workspace)
     -- come from `icon_button`'s defaults.
     return pill.cell(icon_button(tostring(workspace.idx), function()
         if not is_active:get() then
-            mantle.workspaces:invoke("focus", id)
+            mantle.workspaces:focus(id)
         end
     end, {
         slot = "workspace-" .. tostring(id),

@@ -56,7 +56,7 @@ local indicator = row {
         icon_button(mic_muted:map(function(muted)
             return muted and icons.mic_off or icons.mic_on
         end), function()
-            mantle.audio:invoke("toggle_source_mute")
+            mantle.audio:toggle_source_mute()
         end, {
             slot = "privacy_microphone",
             background = mic_muted:map(function(muted)

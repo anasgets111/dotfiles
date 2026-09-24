@@ -46,7 +46,7 @@ local function answer(accept)
     return function()
         local asked = request(mantle.bluetooth:get())
         if asked ~= nil then
-            mantle.bluetooth:invoke("answer_pairing", asked.mac, accept)
+            mantle.bluetooth:answer_pairing(asked.mac, accept)
         end
     end
 end

@@ -250,14 +250,14 @@ local function activate()
             return
         end
         if row.kind == "web" then
-            mantle.applications:invoke("open_url", row.payload)
+            mantle.applications:open_url(row.payload)
         else
             -- A Wayland selection lives as long as its owner, and a `process.run` child is
             -- reaped with its Renderer, taking the clipboard with it.
             process.detach("wl-copy", { row.payload })
         end
     else
-        mantle.applications:invoke("launch", id)
+        mantle.applications:launch(id)
         local usage = store.app_usage:get() or {}
         local count = usage[id] and usage[id].count or 0
         usage[id] = { count = count + 1, last = os.time() }

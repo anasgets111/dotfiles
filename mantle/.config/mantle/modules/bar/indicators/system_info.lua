@@ -20,7 +20,7 @@ local panel_row = require("components.panel_row")
 -- every 2s and RAM every 5s is about as slow as a readout can tick before it reads as frozen;
 -- temperatures ride with RAM in the same hwmon pass. `configure` has no ref-counting, so the choice
 -- is polling always or never.
-mantle.sysinfo:invoke("configure", { cpu_interval = 2, ram_interval = 5, temp_interval = 5 })
+mantle.sysinfo:configure({ cpu_interval = 2, ram_interval = 5, temp_interval = 5 })
 
 local function percent_of(sysinfo, field)
     return (sysinfo and sysinfo[field]) or 0

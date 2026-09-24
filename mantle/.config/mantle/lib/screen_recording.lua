@@ -78,7 +78,7 @@ local function use_directory(dir)
     directory:set(dir)
     -- `mantle.files` never watches a folder missing at `watch`, so make it first.
     process.run("mkdir", { "-p", dir }, function() end, function()
-        mantle.files:invoke("watch", dir)
+        mantle.files:watch(dir)
     end)
 end
 if directory:get() == "" then

@@ -17,7 +17,7 @@ local function next_layout()
     if keyboard == nil or (keyboard.layout_count or 0) < 2 then
         return
     end
-    mantle.keyboard:invoke("switch_layout", ((keyboard.active_layout_index or 0) + 1) % keyboard.layout_count)
+    mantle.keyboard:switch_layout(((keyboard.active_layout_index or 0) + 1) % keyboard.layout_count)
 end
 
 action("keyboard.next_layout", next_layout)

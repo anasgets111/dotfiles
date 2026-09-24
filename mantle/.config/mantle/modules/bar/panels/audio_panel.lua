@@ -84,7 +84,7 @@ local function device_picker(opts)
                         selected = device.active,
                         trailing = glyph(icons.check, device.active and theme.ACCENT or theme.CLEAR, theme.font.sm),
                         on_activate = function()
-                            mantle.audio:invoke(opts.set_default, device.id)
+                            mantle.audio[opts.set_default](mantle.audio, device.id)
                             opts.picker:set(false)
                         end,
                     }
@@ -137,7 +137,7 @@ local function audio_control(opts)
                         return percent(held_value >= 0 and held_value or audio and audio[opts.volume])
                     end)), tint, theme.font.sm, { align_v = "Center" }),
                     icon_button(mute_glyph, function()
-                        mantle.audio:invoke(opts.toggle_mute)
+                        mantle.audio[opts.toggle_mute](mantle.audio)
                     end, {
                         slot = "audio-mute-" .. opts.name,
                         size = theme.control.md,
@@ -157,7 +157,7 @@ local function audio_control(opts)
                 return audio[opts.volume]
             end,
             on_commit = function(value)
-                mantle.audio:invoke(opts.set_volume, value)
+                mantle.audio[opts.set_volume](mantle.audio, value)
             end,
             pending = held,
             max = opts.headroom and util.MAX_VOLUME or nil,
@@ -205,7 +205,7 @@ local function stream_row(app)
                             { align_v = "Center", visible = app.recording and icon_name ~= nil }),
                         cell(percent(app.volume), tint, theme.font.sm, { align_v = "Center" }),
                         panel_action_icon(app.muted and icons.vol_muted or icons.vol_high, app.volume and function()
-                            mantle.audio:invoke("set_app_muted", app.id, not app.muted)
+                            mantle.audio:set_app_muted(app.id, not app.muted)
                         end, { slot = "audio-stream-mute-" .. tostring(app.id), tint = tint }),
                     },
                 },
@@ -221,7 +221,7 @@ local function stream_row(app)
                     end
                 end,
                 on_commit = function(value)
-                    mantle.audio:invoke("set_app_volume", app.id, value)
+                    mantle.audio:set_app_volume(app.id, value)
                 end,
                 color = tint,
             },
@@ -289,7 +289,7 @@ local body = {
                             return audio.balance and audio.balance + 1
                         end,
                         on_commit = function(value)
-                            mantle.audio:invoke("set_balance", value - 1)
+                            mantle.audio:set_balance(value - 1)
                         end,
                         max = 2,
                         split_at = 1,

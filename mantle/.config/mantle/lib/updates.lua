@@ -109,7 +109,7 @@ local function dismiss_notifications()
     local notifications = mantle.notifications:get()
     for _, notification in ipairs((notifications and notifications.feed) or {}) do
         if notification.app_name == "System Updates" then
-            mantle.notifications:invoke("dismiss", notification.id)
+            mantle.notifications:dismiss(notification.id)
         end
     end
 end
@@ -213,7 +213,7 @@ local function install()
     dev_result:set({})
     ui.updates_log_open:set(false)
     if packages_pending then
-        return mantle.updates:invoke("install")
+        return mantle.updates:install()
     end
     start_dev_tools()
 end
@@ -260,7 +260,7 @@ end
 -- within the hour skip the check and still show an answer.
 mantle.storage:on_change(function(_, previous)
     if previous == nil then
-        mantle.updates:invoke("configure", {
+        mantle.updates:configure({
             interval = CHECK_INTERVAL,
             checked_at = store.updates_checked_at:get(),
             packages = store.updates_packages:get(),
@@ -348,7 +348,7 @@ mantle.updates:on_change(function(updates, previous)
         return
     end
     -- `packages` is stale after any run, failed or not.
-    mantle.updates:invoke("check")
+    mantle.updates:check()
     if install_failed(updates) then
         -- A half-upgraded system is the wrong place to rebuild a toolchain against.
         return report_run(updates, {})

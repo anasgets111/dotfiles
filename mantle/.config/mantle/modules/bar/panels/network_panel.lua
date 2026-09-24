@@ -51,7 +51,7 @@ local function radio_tile(radio, name, tile_icon, detail)
             return network[radio .. "_enabled"]
         end,
         on_change = function(new_value)
-            mantle.network:invoke("set_" .. radio .. "_enabled", new_value)
+            mantle.network["set_" .. radio .. "_enabled"](mantle.network, new_value)
         end,
     }
 end
@@ -172,12 +172,12 @@ local function access_point_row(entry)
     }
     local trailing = {
         ap.active and panel_action_icon(icons.disconnect, function()
-            mantle.network:invoke("disconnect_wifi")
+            mantle.network:disconnect_wifi()
         end, { slot = "network-disconnect-" .. tostring(ap.ssid), tint = theme.RED }) or nil,
     }
     if ap.saved or ap.active then
         trailing[#trailing + 1] = panel_action_icon(icons.trash, function()
-            mantle.network:invoke("forget", ap.ssid)
+            mantle.network:forget(ap.ssid)
         end, { slot = "network-forget-" .. tostring(ap.ssid), tint = theme.RED })
     end
     if ap.secure then
@@ -193,7 +193,7 @@ local function access_point_row(entry)
         trailing = row { spacing = theme.spacing.xs, align_v = "Center", children = trailing },
         on_activate = not ap.active and not entry.blocked and function()
             -- `hidden` is required; scanned `available_networks` entries are not hidden.
-            mantle.network:invoke("connect", ap.ssid, false)
+            mantle.network:connect(ap.ssid, false)
         end or nil,
     }
 end
@@ -237,7 +237,7 @@ local function submit_hidden_name()
         return
     end
     ui.hidden_ssid:set(name)
-    mantle.network:invoke("connect", name, true)
+    mantle.network:connect(name, true)
 end
 
 -- Called by the indicator on every toggle: an open scans now and every 10 s after, a close cancels
@@ -252,7 +252,7 @@ local function scan_while_open()
         return
     end
     if radio_on(mantle.network:get()) then
-        mantle.network:invoke("scan")
+        mantle.network:scan()
     end
     rescan = timer(10000, scan_while_open)
 end
@@ -268,7 +268,7 @@ local body = {
         trailing = {
             -- The rescan glyph spins in place while a scan is in flight.
             panel_action_icon(icons.refresh, function()
-                mantle.network:invoke("scan")
+                mantle.network:scan()
             end, {
                 slot = "network-rescan",
                 spinning = util.shown_when(mantle.network, function(network)
@@ -282,7 +282,7 @@ local body = {
             toggle(mantle.network, function(network)
                 return network.networking_enabled
             end, function(new_value)
-                mantle.network:invoke("set_networking_enabled", new_value)
+                mantle.network:set_networking_enabled(new_value)
             end, "network-power"),
         },
     },
@@ -394,7 +394,7 @@ local body = {
                         { tone = "accent", submit = true, visible = during("password") }),
                     -- A failed attempt leaves no pending intent, so Retry is a fresh `connect`.
                     action_button("Retry", function()
-                        mantle.network:invoke("connect", ui.hidden_ssid:get(), true)
+                        mantle.network:connect(ui.hidden_ssid:get(), true)
                     end, "network-sheet-retry", { tone = "accent", glyph = icons.warning, visible = during("failed") }),
                 },
             },

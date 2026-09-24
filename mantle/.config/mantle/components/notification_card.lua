@@ -108,7 +108,7 @@ local function message(notification, ui, opts)
     end
     if not opts.standalone then
         heading[#heading + 1] = ghost_close("notification-close-" .. tostring(id), function()
-            mantle.notifications:invoke("dismiss", id)
+            mantle.notifications:dismiss(id)
         end)
     end
 
@@ -127,7 +127,7 @@ local function message(notification, ui, opts)
             -- An underlined run opens without firing the message click; plain words
             -- still do. Buttons below cover links elided before their words were drawn.
             on_link = function(href)
-                mantle.applications:invoke("open_url", href)
+                mantle.applications:open_url(href)
             end,
         })
     end
@@ -164,7 +164,7 @@ local function message(notification, ui, opts)
                     -- Each keystroke stores the text for Send and renews the 60-second hold.
                     on_change = function(text)
                         ui.set_reply_draft(id, text)
-                        mantle.notifications:invoke("hold_expiry", 60)
+                        mantle.notifications:hold_expiry(60)
                     end,
                     on_submit = function(text)
                         ui.set_reply_draft(id, text)
@@ -192,13 +192,13 @@ local function message(notification, ui, opts)
     local buttons = {}
     for index, action in ipairs(notification.actions or {}) do
         buttons[#buttons + 1] = action_button(action.label, function()
-            mantle.notifications:invoke("invoke_action", id, action.key)
+            mantle.notifications:invoke_action(id, action.key)
         end, string.format("notification-action-%d-%d", id, index), { icon = action.icon_name })
     end
     -- One button per distinct body link, for the ones elision cut off; the words open them too.
     for index, href in ipairs(notifications.notification_links(notification.body)) do
         buttons[#buttons + 1] = action_button(notifications.link_label(href), function()
-            mantle.applications:invoke("open_url", href)
+            mantle.applications:open_url(href)
         end, string.format("notification-link-%d-%d", id, index))
     end
     if #buttons > 0 then
@@ -257,9 +257,9 @@ local function message(notification, ui, opts)
                 return
             end
             if notification.has_default_action then
-                mantle.notifications:invoke("invoke_action", id, "default")
+                mantle.notifications:invoke_action(id, "default")
             else
-                mantle.notifications:invoke("dismiss", id)
+                mantle.notifications:dismiss(id)
             end
         end,
         children = { content },
@@ -306,7 +306,7 @@ return function(group, ui, opts)
     -- Member by member, since there is neither `dismiss_all` nor `dismiss_group`.
     header[#header + 1] = ghost_close("notification-group-close-" .. group.key, function()
         for _, notification in ipairs(items) do
-            mantle.notifications:invoke("dismiss", notification.id)
+            mantle.notifications:dismiss(notification.id)
         end
     end)
 

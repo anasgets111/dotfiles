@@ -108,7 +108,7 @@ local body = {
                 }),
                 panel_action_icon(icons.clear_all, function()
                     for _, notification in ipairs(feed(mantle.notifications:get())) do
-                        mantle.notifications:invoke("dismiss", notification.id)
+                        mantle.notifications:dismiss(notification.id)
                     end
                 end, {
                     slot = "notification-clear-all",
@@ -120,7 +120,7 @@ local body = {
                 toggle(mantle.notifications, function(payload)
                     return payload.dnd
                 end, function(on)
-                    mantle.notifications:invoke("set_dnd", on)
+                    mantle.notifications:set_dnd(on)
                 end, "notifications-dnd", "Do not disturb"),
             },
         },
@@ -134,7 +134,7 @@ local body = {
         -- separate because the two surfaces never overlap.
         hover = hover("notification_history_region"),
         on_hover = function(hovered)
-            mantle.notifications:invoke("hold_expiry", hovered and 300 or 0)
+            mantle.notifications:hold_expiry(hovered and 300 or 0)
         end,
         source = sections,
         itemfn = function(item)

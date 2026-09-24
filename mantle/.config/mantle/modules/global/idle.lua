@@ -10,7 +10,7 @@ local compositor = require("lib.compositor")
 -- No notification sound while nobody can see the popup; critical still sounds.
 local function sync_notification_quiet()
     local lock = mantle.lock:get()
-    mantle.notifications:invoke("set_quiet", idle.blanked:get() or (lock ~= nil and lock.active))
+    mantle.notifications:set_quiet(idle.blanked:get() or (lock ~= nil and lock.active))
 end
 mantle.lock:on_change(sync_notification_quiet)
 
@@ -27,7 +27,7 @@ local function set_displays_powered(powered)
     end
     idle.blanked:set(not powered)
     sync_notification_quiet()
-    mantle.keyboard:invoke("set_backlight", powered and 100 or 0)
+    mantle.keyboard:set_backlight(powered and 100 or 0)
 end
 
 local ACTIONS = {
@@ -37,7 +37,7 @@ local ACTIONS = {
     -- No "already locked?" guard: `idle.armed` cannot return this stage while locked, its `done`
     -- predicate.
     lock = function()
-        mantle.lock:invoke("lock")
+        mantle.lock:lock()
     end,
     suspend = function()
         process.detach("systemctl", { "suspend" })

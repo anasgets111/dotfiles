@@ -25,7 +25,7 @@ local function special_button(special)
     end)
     -- `ground` already folds the pointer in, so it is both states.
     return icon_button(short_name(name):sub(1, 2):upper(), function()
-        mantle.workspaces:invoke("toggle_special", name)
+        mantle.workspaces:toggle_special(name)
     end, {
         slot = "special-" .. name,
         art = util.app_icon(entry),

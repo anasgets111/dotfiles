@@ -59,9 +59,9 @@ return slider {
     signal = mantle.audio,
     read = volume,
     on_commit = function(value)
-        mantle.audio:invoke("set_volume", value)
+        mantle.audio:set_volume(value)
         -- After the level, so an unmute is never heard at the old one.
-        mantle.audio:invoke("set_muted", false)
+        mantle.audio:set_muted(false)
     end,
     max = util.MAX_VOLUME,
     split_at = 1,
@@ -86,7 +86,7 @@ return slider {
     end),
     on_click = function(rect, mouse_button)
         if mouse_button == "middle" then
-            mantle.audio:invoke("toggle_mute")
+            mantle.audio:toggle_mute()
         elseif mouse_button == "right" then
             ui_state.toggle_panel("audio", rect)
         end

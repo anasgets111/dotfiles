@@ -72,7 +72,7 @@ local function pair_button(device)
         end),
         on_click = function(_, mouse_button)
             if mouse_button == "left" then
-                mantle.bluetooth:invoke("pair", device.mac)
+                mantle.bluetooth:pair(device.mac)
             end
         end,
         children = { cell("Pair", theme.ACCENT, theme.font.xs, { align = "Center", align_v = "Center" }) },
@@ -157,7 +157,7 @@ local function codec_row(item)
         subtitle = option.description,
         selected = active,
         on_activate = not active and function()
-            mantle.audio:invoke("set_bluetooth_profile", item.card.device, option.index)
+            mantle.audio:set_bluetooth_profile(item.card.device, option.index)
             ui.bluetooth_codec_for:set("")
         end or nil,
     }
@@ -186,12 +186,12 @@ local function device_row(item)
     local trailing = { connected and battery_badge(device) or nil }
     if connected then
         trailing[#trailing + 1] = panel_action_icon(icons.disconnect, function()
-            mantle.bluetooth:invoke("disconnect", device.mac)
+            mantle.bluetooth:disconnect(device.mac)
         end, { slot = "bluetooth-disconnect-" .. tostring(device.mac), tint = theme.RED })
     end
     if item.status ~= "available" then
         trailing[#trailing + 1] = panel_action_icon(icons.trash, function()
-            mantle.bluetooth:invoke("forget", device.mac)
+            mantle.bluetooth:forget(device.mac)
         end, { slot = "bluetooth-forget-" .. tostring(device.mac), tint = theme.RED })
     elseif not device.blocked then
         trailing[#trailing + 1] = pair_button(device)
@@ -201,7 +201,7 @@ local function device_row(item)
     local on_activate = nil
     if item.status == "paired" and not device.blocked then
         on_activate = function()
-            mantle.bluetooth:invoke("connect", device.mac)
+            mantle.bluetooth:connect(device.mac)
         end
     elseif item.card ~= nil then
         on_activate = function()
@@ -240,7 +240,7 @@ local body = {
                     toggle(mantle.bluetooth, function(bluetooth)
                         return bluetooth.enabled
                     end, function(new_value)
-                        mantle.bluetooth:invoke("set_enabled", new_value)
+                        mantle.bluetooth:set_enabled(new_value)
                     end, "bluetooth-power"),
                 },
             },
@@ -261,7 +261,7 @@ local body = {
                     return bluetooth.discoverable
                 end,
                 on_change = function(on)
-                    mantle.bluetooth:invoke("set_discoverable", on)
+                    mantle.bluetooth:set_discoverable(on)
                 end,
             },
             panel_toggle_card {
@@ -276,7 +276,11 @@ local body = {
                     return bluetooth.discovering
                 end,
                 on_change = function(on)
-                    mantle.bluetooth:invoke(on and "start_discovery" or "stop_discovery")
+                    if on then
+                        mantle.bluetooth:start_discovery()
+                    else
+                        mantle.bluetooth:stop_discovery()
+                    end
                 end,
             },
         },

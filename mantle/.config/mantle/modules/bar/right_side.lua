@@ -27,7 +27,7 @@ local clock_pill = icon_button(nil, nil, {
             bell.open(rect)
         elseif mouse_button == "middle" then
             local notifications = mantle.notifications:get()
-            mantle.notifications:invoke("set_dnd", not (notifications and notifications.dnd))
+            mantle.notifications:set_dnd(not (notifications and notifications.dnd))
         end
     end,
     content = row {

@@ -254,8 +254,8 @@ local aur_row = panel_row {
         return on
     end, function(on)
         store:set("updates_aur", on)
-        mantle.updates:invoke("configure", { interval = service.CHECK_INTERVAL, aur = on })
-        mantle.updates:invoke("check")
+        mantle.updates:configure({ interval = service.CHECK_INTERVAL, aur = on })
+        mantle.updates:check()
     end, "updates-aur"),
 }
 
@@ -328,7 +328,7 @@ local body = {
                 end),
             }),
             panel_action_icon(icons.refresh, function()
-                mantle.updates:invoke("check")
+                mantle.updates:check()
             end, { slot = "updates-refresh", disabled = busy, spinning = checking }),
         },
     },

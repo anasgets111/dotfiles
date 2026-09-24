@@ -104,15 +104,15 @@ local items = list {
                 if wants_menu and item.menu ~= nil then
                     tray_menu.open(item, rect_)
                 elseif mouse_button == "left" then
-                    mantle.tray:invoke("activate", item.id, 0, 0)
+                    mantle.tray:activate(item.id, 0, 0)
                 elseif mouse_button == "middle" then
-                    mantle.tray:invoke("secondary_activate", item.id, 0, 0)
+                    mantle.tray:secondary_activate(item.id, 0, 0)
                 end
             end,
             -- The item decides what a notch means; ours uses the vertical axis, the only one
             -- `on_wheel` reports.
             on_wheel = function(_, notches)
-                mantle.tray:invoke("scroll", item.id, math.floor(notches), "vertical")
+                mantle.tray:scroll(item.id, math.floor(notches), "vertical")
             end,
             children = { face },
         }

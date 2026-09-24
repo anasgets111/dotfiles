@@ -121,9 +121,9 @@ local function transport(slot, icon, command, offset, size)
             estimate = math.max(0, length > 0 and math.min(estimate, length) or estimate)
             seek_base:set(math.floor(estimate))
             anchor_now()
-            mantle.mpris:invoke("seek_relative", player.id, offset)
+            mantle.mpris:seek_relative(player.id, offset)
         elseif command then
-            mantle.mpris:invoke("control", player.id, command)
+            mantle.mpris:control(player.id, command)
         end
     end, { slot = slot, size = size })
 end
@@ -223,7 +223,7 @@ local body = {
                             end
                             seek_base:set(target)
                             anchor_now()
-                            mantle.mpris:invoke("seek", player.id, target)
+                            mantle.mpris:seek(player.id, target)
                         end,
                         steps = 0,
                         height = theme.spacing.md,

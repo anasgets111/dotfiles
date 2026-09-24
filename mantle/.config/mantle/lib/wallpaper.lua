@@ -208,7 +208,7 @@ action("wallpaper.set", function(path)
 end)
 
 -- `gif` animates (ADR-0233); one too long for the engine's frame budget draws as a still.
-mantle.files:invoke("watch", wallpaper.FOLDER, { "jpg", "jpeg", "png", "webp", "gif" })
-mantle.files:invoke("watch", wallpaper.SHADER_FOLDER, { "frag" })
+mantle.files:watch(wallpaper.FOLDER, { "jpg", "jpeg", "png", "webp", "gif" })
+mantle.files:watch(wallpaper.SHADER_FOLDER, { "frag" })
 
 return wallpaper

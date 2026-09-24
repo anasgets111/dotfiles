@@ -71,7 +71,7 @@ local function activate(entry)
     -- Disabled entries are drawn so the application's layout survives, and a click on one does
     -- nothing rather than closing the menu.
     if entry.enabled then
-        mantle.tray:invoke("activate_menu_item", item_id:get(), entry.id)
+        mantle.tray:activate_menu_item(item_id:get(), entry.id)
         ui_state.close_panel()
     end
 end

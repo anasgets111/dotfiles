@@ -37,7 +37,7 @@ local SHAKE          = {
 -- The engine removes the lock after authentication, not when the tween ends, so it must be told to
 -- wait out the card's exit plus slack for the state push and first frame.
 local LEAVE_SLACK    = 60
-mantle.lock:invoke("set_unlock_animation", theme.animation_slow_ms + LEAVE_SLACK)
+mantle.lock:set_unlock_animation(theme.animation_slow_ms + LEAVE_SLACK)
 
 util.auto_english_layout(mantle.lock)
 
@@ -344,7 +344,7 @@ local function content(output)
     }
 end
 
--- Declared, not open: no Wayland object exists until `mantle.lock:invoke("lock")`, and then the
+-- Declared, not open: no Wayland object exists until `mantle.lock:lock()`, and then the
 -- compositor creates one surface per output.
 return lock {
     id = "lock_screen",

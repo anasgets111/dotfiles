@@ -25,7 +25,7 @@ mantle.power:on_change(function(power, previous)
         text = power.on_battery and "Charger disconnected" or "Charger connected",
     })
     -- Two brightness levels, not dimming. Keyboard backlight has no capability for it.
-    mantle.brightness:invoke("set", power.on_battery and 10 or 100)
+    mantle.brightness:set(power.on_battery and 10 or 100)
 end)
 
 mantle.battery:on_change(function(battery, previous)

@@ -74,12 +74,12 @@ local function clear_network_prompts()
     hidden_prompt:set(false)
     hidden_draft:set("")
     hidden_ssid:set("")
-    mantle.network:invoke("cancel_connect")
+    mantle.network:cancel_connect()
 end
 
 -- Cancel also stops a join in flight; closing the panel does not, so a join survives it.
 local function cancel_network_join()
-    mantle.network:invoke("abort_connect")
+    mantle.network:abort_connect()
     clear_network_prompts()
 end
 
@@ -105,7 +105,7 @@ end
 local function leave_panel()
     local kind = panel_open:get() and panel_kind:get()
     if kind == "bluetooth" then
-        mantle.bluetooth:invoke("stop_discovery")
+        mantle.bluetooth:stop_discovery()
         bluetooth_codec_for:set("")
     elseif kind == "audio" then
         audio_output_picker:set(false)
@@ -149,7 +149,7 @@ local function open_panel(kind, rect)
     end
     panel_open:set(true)
     if kind == "bluetooth" then
-        mantle.bluetooth:invoke("start_discovery")
+        mantle.bluetooth:start_discovery()
     end
 end
 
@@ -269,7 +269,7 @@ local function send_reply(id)
     if reply_draft_id:get() ~= id or text == "" then
         return
     end
-    mantle.notifications:invoke("reply", id, text)
+    mantle.notifications:reply(id, text)
     clear_reply(id)
 end
 

@@ -397,14 +397,14 @@ function util.auto_english_layout(capability)
                 local index = keyboard and keyboard.active_layout_index or 0
                 saved_layout = index > 0 and index or -1
                 if index > 0 then
-                    mantle.keyboard:invoke("switch_layout", 0)
+                    mantle.keyboard:switch_layout(0)
                 end
             end
             active_count = active_count + 1
         elseif was and not now then
             active_count = math.max(0, active_count - 1)
             if active_count == 0 and saved_layout >= 0 then
-                mantle.keyboard:invoke("switch_layout", saved_layout)
+                mantle.keyboard:switch_layout(saved_layout)
                 saved_layout = -1
             end
         end
