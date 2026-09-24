@@ -94,8 +94,8 @@ weather.location = cached(store.weather_location, {})
 -- Not cached: a stale failure would read back as "Weather Unavailable" over a forecast on screen.
 weather.failed = state("weather_failed", false)
 
--- `state`, not locals: a reload rebuilds a local while the `process.run` child it guards lives on,
--- so a save would let the next tick start a second request. `0` means nothing is scheduled yet.
+-- `state`, not locals: a save keeps the backoff. A reload kills a live fetch, and its `exit_cb(nil)`
+-- clears `in_flight` before the new evaluation runs. `0` means nothing is scheduled yet.
 local in_flight = state("weather_fetching", false)
 weather.fetching = in_flight
 local retries = state("weather_retries", 0)

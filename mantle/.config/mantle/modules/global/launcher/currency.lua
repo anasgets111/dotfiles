@@ -105,13 +105,13 @@ local function updated_text(at, now)
     return "Updated " .. os.date(same_day and "%I:%M %p" or "%b %d, %I:%M %p", at)
 end
 
--- One request in flight. `state`, not a local: a reload rebuilds locals while the `process.run`
--- child it guards outlives them, so a save would clear the guard under a live request.
+-- One request in flight. A reload kills a live one, and its `exit_cb(nil)` clears this guard.
 local requesting = state("currency_fetching", false)
 -- A failure leaves `currency_updated_at` stale, so without a deadline the tick would curl every
--- second for as long as the endpoint is down.
+-- second for as long as the endpoint is down. `nil` is a reload's kill or a failed spawn: retry soon.
 local next_attempt = state("currency_next_attempt", 0)
 local RETRY_SECONDS = 3600
+local KILLED_RETRY_SECONDS = 5
 
 local function fetch()
     if requesting:get() then
@@ -128,8 +128,9 @@ local function fetch()
         local decoded = code == 0 and json.decode(table.concat(body)) or nil
         local rates = decoded and decoded.usd
         if type(rates) ~= "table" then
-            log.warn(("currency: fetch failed (curl exited %s), retrying in %ds"):format(tostring(code), RETRY_SECONDS))
-            next_attempt:set(((mantle.system:get() or {}).monotonic or 0) + RETRY_SECONDS)
+            local wait = code and RETRY_SECONDS or KILLED_RETRY_SECONDS
+            log.warn(("currency: fetch failed (curl exited %s), retrying in %ds"):format(tostring(code), wait))
+            next_attempt:set(((mantle.system:get() or {}).monotonic or 0) + wait)
             return
         end
         -- `data.usd["usd"] = 1.0`: the base is absent from its own table.
