@@ -14,10 +14,10 @@ mantle.notifications:invoke("set_sound", "critical", SOUNDS .. "bell.oga")
 -- Discord plays its own message sound; ours on top doubles it.
 mantle.notifications:invoke("set_app_muted", "vesktop", true)
 
--- The feed carries twenty, too many for a screen; the rest belong one click away in history.
+-- The feed carries twenty, too many for a screen; the rest belong one click away in history. The
+-- count is the only bound: a height cap would clip the last card mid-way.
 local MAX_CARDS = 4
 
-local SCROLL = scroll("notification_stack")
 local HOVER = hover("notification_stack_region")
 
 -- The newest unseen cards. One signal, so `visible` and the list cannot disagree.
@@ -56,7 +56,6 @@ return panel {
     anchor = { top = true, right = true },
     margin = { top = theme.bar_height + theme.spacing.md, right = theme.spacing.md },
     width = theme.notification_width,
-    -- No `height`: the surface is the stack; `max_height` bounds the list instead.
     visible = visible_groups:map(function(shown)
         return #shown > 0
     end),
@@ -69,7 +68,7 @@ return panel {
     end),
     child = column {
         width = "Fill",
-        -- No `height` here or on the list: content sizes the surface with no sizing loop.
+        -- No `height` anywhere: content sizes the surface with no sizing loop.
         -- One region for the stack: per-card regions would order enter/leave against each other and
         -- release a hold just acquired.
         hover = HOVER,
@@ -79,9 +78,6 @@ return panel {
         children = {
             list {
                 width = "Fill",
-                -- The only bounded box in the chain; past it `SCROLL` takes the remainder.
-                max_height = theme.notification_stack_height,
-                scroll = SCROLL,
                 spacing = theme.spacing.sm,
                 source = visible_groups,
                 itemfn = function(group)
