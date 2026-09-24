@@ -5,7 +5,7 @@ local icons = require("config.icons")
 local cell = require("components.cell")
 local panel_card = require("components.panel_card")
 local panel_header = require("components.panel_header")
-local icon_button = require("components.icon_button")
+local panel_action_icon = require("components.panel_action_icon")
 local modal = require("components.modal")
 local ui_state = require("lib.ui_state")
 local error_log = require("lib.rescue")
@@ -24,9 +24,9 @@ local header = panel_header {
     subtitle_size = theme.font.sm,
     trailing = {
         -- Nothing is selectable. `detach`: `wl-copy` owns the selection while it lives.
-        icon_button(icons.copy, function()
+        panel_action_icon(icons.copy, function()
             process.detach("wl-copy", { error_log:get() })
-        end, { slot = "rescue-copy", size = theme.control.sm, icon_size = theme.icon.sm }),
+        end, { slot = "rescue-copy" }),
     },
     on_close = function()
         ui_state.close_modal("rescue")
@@ -55,7 +55,7 @@ return modal({
     kind = "rescue",
     card = panel_card({
         header,
-        panel_card({ log }, { width = "Fill" }),
+        panel_card({ log }, { width = "Fill", outlined = true }),
     }, {
         width = theme.rescue_modal_width,
         align_h = "Center",

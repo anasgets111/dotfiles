@@ -15,8 +15,9 @@ local wallpaper = require("lib.wallpaper")
 local util = require("lib.util")
 local panel_card = require("components.panel_card")
 local panel_empty_state = require("components.panel_empty_state")
+local panel_toggle_card = require("components.panel_toggle_card")
+local section_header = require("components.section_header")
 local spinner = require("components.spinner")
-local icon_button = require("components.icon_button")
 
 local SCROLL = scroll("wallpaper_grid")
 local COLUMNS = theme.wallpaper_columns
@@ -329,34 +330,21 @@ local search = search_bar(textfield {
     end,
 })
 
--- Each option set is a segmented row of buttons, visible at a glance. The monitor row is a
--- `list` because screens can change.
+-- Each option set is a row of radio tiles, the recorder's short kind. The monitor row is a `list`
+-- because screens can change.
 local function choice(value, label, current, on_pick, slot)
-    local hovered = hover(slot)
-    local chosen = current:map(function(now)
-        return now == value
-    end)
-    return button {
-        width = "Fill",
+    return panel_toggle_card {
+        slot = slot,
+        label = label,
         height = theme.control.md,
-        radius = theme.radius.sm,
-        hover = hovered,
-        background = computed({ chosen, hovered }, function(on, hot)
-            if on then
-                return theme.ACCENT
-            end
-            return hot and theme.GLASS_HOVER or theme.GLASS_CONTENT
-        end),
-        on_click = function(_, mouse_button)
-            if mouse_button == "left" then
-                on_pick(value)
-            end
+        signal = current,
+        read = function(now)
+            return now == value
         end,
-        children = {
-            cell(label, chosen:map(function(on)
-                return on and theme.text_contrast(theme.ACCENT) or theme.FG
-            end), theme.font.xs, { width = "Fill", align = "Center", align_v = "Center" }),
-        },
+        -- A radio: the lit tile stays lit when clicked again.
+        on_change = function()
+            on_pick(value)
+        end,
     }
 end
 
@@ -441,25 +429,19 @@ local effect_grid = list {
     end,
 }
 
+-- Escape and a click outside close the picker, as they do the launcher, so the sidebar has no ×.
 local sidebar = panel_card({
-    row {
-        width = "Fill",
-        align_v = "Center",
-        spacing = theme.spacing.sm,
-        children = {
-            cell(util.bold("Wallpaper settings"), theme.FG, theme.font.lg, { width = "Fill" }),
-            icon_button(icons.close, close, { slot = "wallpaper-close", size = theme.control.sm, icon_size = theme.icon.sm }),
-        },
-    },
-    cell("Monitor", theme.DIM, theme.font.xs),
+    cell(util.bold("Wallpaper settings"), theme.FG, theme.font.lg, { width = "Fill" }),
+    section_header("monitor"),
     monitor_row,
-    cell(current_fit:map(function(fit)
-        return fit == "" and "Fill mode · mixed" or "Fill mode"
-    end), theme.DIM, theme.font.xs),
+    -- Mixed fits across the targeted screens light no tile, so the label says so.
+    section_header(current_fit:map(function(fit)
+        return fit == "" and "fill mode · mixed" or "fill mode"
+    end)),
     fit_row,
-    cell("Transition", theme.DIM, theme.font.xs),
+    section_header("transition"),
     effect_grid,
-    cell("Folder", theme.DIM, theme.font.xs),
+    section_header("folder"),
     cell(wallpaper.FOLDER, theme.DIM, theme.font.xs, { width = "Fill" }),
     cell(filtered:map(function(entries)
         return #entries == 1 and "1 file" or string.format("%d files", #entries)

@@ -8,7 +8,7 @@ local toggle = require("components.toggle")
 local panel_card = require("components.panel_card")
 local panel_header = require("components.panel_header")
 local panel_row = require("components.panel_row")
-local divider = require("components.divider")
+local section_header = require("components.section_header")
 local panel_action_icon = require("components.panel_action_icon")
 local ui_state = require("lib.ui_state")
 local modal = require("components.modal")
@@ -23,22 +23,10 @@ local running = computed({ settings, idle.inhibited }, function(resolved, held)
     return resolved.enabled and not held
 end)
 
--- Shared by the flow card and each section.
-local CARD_PADDING = {
-    top = theme.spacing.md,
-    right = theme.spacing.lg,
-    bottom = theme.spacing.md,
-    left = theme.spacing
-        .lg
-}
-
 -- Whether UPower reports a battery. `present` is false on desktops, so no battery column.
 local has_battery = mantle.battery:map(function(battery)
     return battery ~= nil and battery.present
 end)
-
--- Between section rows, inset past the leading glyph.
-local row_rule = divider { margin = { left = theme.icon.md + theme.spacing.sm * 2 } }
 
 local header = panel_header {
     title = "Idle & power",
@@ -73,10 +61,9 @@ local header = panel_header {
     icon = idle.manual:map(function(manual)
         return manual and icons.awake or icons.idle
     end),
-    -- A bar panel's half-sized default looks lost on an 820px-wide window.
-    title_size = theme.font.xxl,
-    plate = theme.control.xl,
-    subtitle_size = theme.font.md,
+    -- A modal's masthead: one step up from a bar panel's.
+    title_size = theme.font.xl,
+    subtitle_size = theme.font.sm,
     active = running,
     on_close = function()
         ui_state.close_modal("idle_settings")
@@ -213,7 +200,7 @@ local function stage_row(item)
             children = { profile_control("ac", stage), profile_control("battery", stage) },
         },
     }
-    return item.last and body or column { width = "Fill", children = { body, row_rule } }
+    return body
 end
 
 -- One row per stage in stored `order`, as a `list` because declared children cannot be reordered.
@@ -258,7 +245,6 @@ local behaviour_rows = {
             idle.write(nil, "privacy_auto_inhibit", on)
         end, "idle-capture-hold"),
     },
-    row_rule,
     panel_row {
         icon = icons.awake,
         title = util.bold_when(idle.manual, "Keep awake now"),
@@ -271,64 +257,42 @@ local behaviour_rows = {
     },
 }
 
--- One compact line, not `panel_header`: the masthead already has a plate and bold title.
-local flow_strip = row {
+-- The master switch and its timeline share a card: a composite control, like an audio slider's.
+local flow_card = panel_card(util.concat({ panel_row {
+    icon = icons.play,
+    icon_color = ink(running),
+    title = "Automatic actions",
+    subtitle = idle.active_profile:map(function(profile)
+        return profile == "battery" and "On battery" or "On AC power"
+    end),
+    trailing = toggle(settings, function(resolved)
+        return resolved.enabled
+    end, function(on)
+        idle.write(nil, "enabled", on)
+    end, "idle-enabled"),
+} }, timeline_section(settings)), {
     width = "Fill",
-    align_v = "Center",
     spacing = theme.spacing.sm,
-    children = {
-        glyph(icons.play, ink(running), theme.icon.sm, { align_v = "Center" }),
-        cell(
-            idle.active_profile:map(function(profile)
-                return "Automatic actions · " .. (profile == "battery" and "Battery" or "AC power")
-            end),
-            theme.FG,
-            theme.font.sm,
-            { width = "Fill", align_v = "Center" }
-        ),
-        toggle(settings, function(resolved)
-            return resolved.enabled
-        end, function(on)
-            idle.write(nil, "enabled", on)
-        end, "idle-enabled"),
-    },
-}
-
-local flow_card = panel_card(util.concat({ flow_strip }, timeline_section(settings)), {
-    width = "Fill",
-    spacing = theme.spacing.md,
-    padding = CARD_PADDING,
     tone = running:map(function(on)
         return on and "active" or "standard"
     end),
 })
 
--- `panel_header` already has the glyph-on-plate shape, so a section is a header plus rows.
-local function section(codepoint, title, description, children)
-    local heading = panel_header { title = title, subtitle = description, icon = codepoint, title_size = theme.font.xl }
-    return panel_card(util.concat({ heading }, children), {
-        width = "Fill",
-        spacing = theme.spacing.sm,
-        padding = CARD_PADDING,
-        outlined = true,
-    })
-end
-
 local idle_modal = modal({
     kind = "idle_settings",
-    card = panel_card({
+    card = panel_card(util.concat({
         header,
-        -- Rule under the masthead: header is state, below is settings.
-        divider(),
         flow_card,
-        section(icons.sleep, "Automation", "Each stage waits for the one above it", { matrix_heading, stage_list }),
-        section(icons.settings, "Behaviour", "What may keep the session awake", behaviour_rows),
-    }, {
+        section_header("automation"),
+        matrix_heading,
+        stage_list,
+        section_header("behaviour"),
+    }, behaviour_rows), {
         width = theme.idle_modal_width,
         align_h = "Center",
         align_v = "Center",
-        spacing = theme.spacing.lg,
-        padding = theme.spacing.xl,
+        spacing = theme.spacing.md,
+        padding = theme.spacing.lg,
         tone = "dialog",
     }),
 })

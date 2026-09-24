@@ -5,7 +5,7 @@ local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
 local icons = require("config.icons")
-local icon_button = require("components.icon_button")
+local panel_action_icon = require("components.panel_action_icon")
 
 ---@class PanelHeaderOpts
 ---@field title string|Bound
@@ -14,9 +14,9 @@ local icon_button = require("components.icon_button")
 ---@field active? boolean|Bound Accent while true, dim while false. Default true. Ignored when `accent` is given.
 ---@field accent? Color|Bound The plate and glyph colour outright, for a subject whose state is not on/off. A live capture is red and a ready one accent, and neither is "off".
 ---@field trailing? Node[] Controls at the far edge, in order.
----@field on_close? fun() Adds a close button after `trailing`.
----@field title_size? integer The title's font size. Default `theme.font.lg`, a bar panel's masthead. A modal's is bigger.
----@field subtitle_size? integer The state line's font size. Default `theme.font.xs`, which suits a 16px title and is unreadable under a modal's 28px one.
+---@field on_close? fun() Adds a ghost close icon after `trailing`, the same weight as the other verbs there.
+---@field title_size? integer The title's font size. Default `theme.font.lg`, a bar panel's masthead. A modal's is `theme.font.xl`.
+---@field subtitle_size? integer The state line's font size. Default `theme.font.xs`, which suits a 16px title; a modal's `xl` title takes `sm`.
 ---@field plate? integer The icon plate's side. Default `theme.control.lg`, which tracks `title_size`.
 
 ---@param opts PanelHeaderOpts
@@ -66,8 +66,7 @@ return function(opts)
         children[#children + 1] = control
     end
     if opts.on_close then
-        children[#children + 1] = icon_button(icons.close, opts.on_close,
-            { size = theme.control.sm, icon_size = theme.icon.sm })
+        children[#children + 1] = panel_action_icon(icons.close, opts.on_close, { slot = "panel-header-close" })
     end
 
     return row {
