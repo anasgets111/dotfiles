@@ -11,7 +11,7 @@ local TONES = {
 
 ---@param codepoint string|Bound
 ---@param content string|Bound
----@param opts? { tone?: "error"|"active"|"neutral", height?: integer, visible?: boolean|Bound, trailing?: table }
+---@param opts? { tone?: "error"|"active"|"neutral", height?: integer, radius?: integer, visible?: boolean|Bound, trailing?: table }
 return function(codepoint, content, opts)
     opts = opts or {}
     local ink, ground = table.unpack(TONES[opts.tone or "error"])
@@ -21,7 +21,7 @@ return function(codepoint, content, opts)
         align_v = "Center",
         spacing = theme.spacing.sm,
         padding = { left = theme.spacing.md, right = theme.spacing.sm, top = theme.spacing.xs, bottom = theme.spacing.xs },
-        radius = theme.radius.sm,
+        radius = opts.radius or theme.radius.sm,
         background = ground,
         visible = opts.visible,
         children = {

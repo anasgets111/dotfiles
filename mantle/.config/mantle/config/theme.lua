@@ -293,15 +293,11 @@ theme.osd_toggle_min           = s(220, 176)
 theme.osd_height               = s(80, 60)
 theme.osd_tile                 = s(48, 36)
 theme.osd_track                = s(12, 8)
--- The polkit card, narrower than the launcher because it holds one sentence, one field and two
--- buttons.
+-- The polkit and lock cards, narrower than the launcher because each holds a line or two and one field.
 theme.dialog_width             = s(450, 360)
 
--- The lock card is landscape, so it is the one token measured from screen width, 38% clamped to
--- 480..720. A height-scaled `s(480)` would be narrower than it is tall.
-theme.lock_card_width          = math.max(480, math.min(math.floor(MAIN_WIDTH * 0.38), 720))
--- `control.lg * 2.4`, the initials disc, measured at 106px on a 1200px-tall screen.
-theme.lock_avatar              = s(112, 72)
+-- The lock screen's clock, set on the wallpaper as the one large thing on it.
+theme.lock_clock               = s(160, 96)
 
 -- Wider than the shared card, because the artwork sits beside the title and transport rows.
 theme.media_panel_width        = s(460, 380)

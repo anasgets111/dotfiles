@@ -1,6 +1,7 @@
--- The wallpaper under a scrim, one glass card per output, and a password pill that says what PAM is
--- doing. The scrim frosts the wallpaper (`backdrop_blur`), so the scrim and card can be lighter than
--- a lock over a sharp photograph needs.
+-- The wallpaper under a scrim, the time set large on it, one glass card per output holding who is
+-- locked and a password pill that says what PAM is doing, and the status readings along the bottom.
+-- The scrim frosts the wallpaper (`backdrop_blur`), so the scrim and card can be lighter than a lock
+-- over a sharp photograph needs.
 local theme          = require("config.theme")
 local icons          = require("config.icons")
 local util           = require("lib.util")
@@ -8,7 +9,6 @@ local wallpaper      = require("lib.wallpaper")
 local cell           = require("components.cell")
 local glyph          = require("components.glyph")
 local panel_card     = require("components.panel_card")
-local divider        = require("components.divider")
 local callout        = require("components.callout")
 local info_badge     = require("components.info_badge")
 local identity       = require("lib.identity")
@@ -16,18 +16,23 @@ local weather        = require("lib.weather")
 
 local PAD            = theme.spacing.xl
 local FIELD_HEIGHT   = theme.control.xl
--- The pill stops short of the card's own edges on both sides; the full content width makes it read
--- as a search bar rather than a card control.
-local FIELD_WIDTH    = math.floor(theme.lock_card_width * 0.82)
 -- Half the height, the way `theme.item_radius` is half `item_height`. `radius.xl` is the fully
 -- round token, sized for the card's corner and only close to this box by coincidence.
 local FIELD_RADIUS   = math.floor(FIELD_HEIGHT / 2)
--- Multipliers: a 68px clock, 36px initials, and a 23px name on a 1200px-tall screen. Shared steps
--- are sized for the bar, not this card.
-local CLOCK_SIZE     = theme.s(72, 44)
-local INITIALS_SIZE  = theme.s(36, 26)
-local NAME_SIZE      = theme.s(24, 18)
+-- The disc matches the pill below it, so the card's two rows share one height.
+local AVATAR         = FIELD_HEIGHT
 local WALLPAPER_BLUR = 24
+-- A second frost under the card, over the already-blurred wallpaper, so the glass reads thicker
+-- than the ground around it.
+local CARD_BLUR      = 16
+-- Between the clock, the card and the status row arriving, so the eye lands on the time first.
+local STAGGER        = 90
+-- A wrong password shakes the pill left and right, damping out.
+local SHAKE          = {
+    duration = 60,
+    easing = "InOutQuad",
+    keyframes = { { x = 0 }, { x = -10 }, { x = 10 }, { x = -6 }, { x = 6 }, { x = -2 }, { x = 0 } },
+}
 
 -- The engine removes the lock after authentication, not when the tween ends, so it must be told to
 -- wait out the card's exit plus slack for the state push and first frame.
@@ -44,6 +49,32 @@ local up           = mantle.lock:map(function(lock)
 end)
 -- Where the card starts its entry.
 local CLOSED_SCALE = 0.94
+
+-- `props` fading and sliding in from `offset` px, `order` steps after the lock is granted. Exit drops
+-- the delay, so everything leaves inside the engine's unlock window. `scale` grows it from
+-- `CLOSED_SCALE` too; both edges need a target, since an absent property skips the entry.
+local function entering(props, order, offset, scale)
+    props.opacity = up:map(function(on)
+        return on and 1 or 0
+    end)
+    props.translate = up:map(function(on)
+        return { y = on and 0 or offset }
+    end)
+    props.scale = scale and up:map(function(on)
+        return on and 1 or CLOSED_SCALE
+    end) or nil
+    props.animate = up:map(function(on)
+        local delay = on and order * STAGGER or 0
+        return {
+            opacity = { duration = theme.animation_slow_ms, easing = "OutCubic", delay = delay, from = 0 },
+            translate = { duration = theme.animation_very_slow_ms, easing = "OutCubic", delay = delay, from = { y = offset } },
+            scale = scale and
+                { duration = theme.animation_very_slow_ms, easing = "OutCubic", delay = delay, from = CLOSED_SCALE } or
+                nil,
+        }
+    end)
+    return props
+end
 
 local hint         = util.label(mantle.lock, function(lock)
     if lock.authenticating then
@@ -73,17 +104,35 @@ local error_text   = util.label(mantle.lock, function(lock)
     return string.format("%s (%d)", lock.error, lock.attempts or 0)
 end)
 
--- One icon-and-reading pair from the divider row. Three literal children need no `list`.
+-- Each new failure replays the shake; `failed` keeps a reset count at lock start from playing it.
+local shaking      = computed({ pulse(mantle.lock:map(function(lock)
+    return lock and lock.attempts or 0
+end), SHAKE.duration * #SHAKE.keyframes), failed }, function(fresh, error_shown)
+    return fresh and error_shown
+end)
+
+-- One icon-and-reading pair from the status row. Three literal children need no `list`.
 local function status_item(icon_glyph, label, visible)
     return row {
         spacing = theme.spacing.xs,
         visible = visible,
         children = {
-            glyph(icon_glyph, theme.with_opacity(theme.ACCENT, 0.6), theme.icon.sm, { align_v = "Center" }),
-            cell(label, theme.DIM, theme.font.sm, { align_v = "Center" }),
+            glyph(icon_glyph, theme.ACCENT, theme.icon.md, { align_v = "Center" }),
+            cell(label, theme.FG, theme.font.md, { align_v = "Center" }),
         },
     }
 end
+
+-- Hours bold and minutes regular in one run pair. No meridiem: beside numerals this size it floated
+-- off their baseline, and a lock screen is read at a glance.
+local clock = mantle.system:map(function(system)
+    local now = os.date("*t", system and system.time)
+    local hour = now.hour % 12
+    return {
+        { text = tostring(hour == 0 and 12 or hour), bold = true },
+        { text = string.format(":%02d", now.min) },
+    }
+end)
 
 -- Built per output because the compositor calls `child` for each lock surface. Each surface owns
 -- its wallpaper and field. The field is on every output, so the compositor can focus the sole
@@ -104,161 +153,145 @@ local function content(output)
         align_v = "Center",
     }
 
-    local card = panel_card({
-        column {
-            width = "Fill",
-            spacing = theme.spacing.xs,
-            children = {
-                -- Build the 12-hour clock from `os.date("*t")` rather than `%I` (which pads to
-                -- "01:40") or `%p` (which follows the locale).
-                cell(util.bold(util.label(mantle.system, function(system)
-                    local now = os.date("*t", system.time)
-                    local hour = now.hour % 12
-                    return string.format("%d:%02d %s", hour == 0 and 12 or hour, now.min, now.hour < 12 and "AM" or "PM")
-                end)), theme.FG, CLOCK_SIZE, { width = "Fill", align = "Center" }),
-                -- Build the day in two calls. `%-d` is glibc-specific, and Lua rejected it before
-                -- strftime saw it, returning `util.label`'s "!".
-                cell(util.label(mantle.system, function(system)
-                    return string.format("%s %d", os.date("%A, %B", system.time), os.date("*t", system.time).day)
-                end), theme.DIM, theme.font.lg, { width = "Fill", align = "Center" }),
-            },
+    -- Build the 12-hour clock from `os.date("*t")` rather than `%I`, which pads to "01:40". Build the day in two calls: `%-d` is glibc-specific, and Lua
+    -- rejected it before strftime saw it, returning `util.label`'s "!".
+    local time = column(entering({
+        align_h = "Center",
+        spacing = theme.spacing.xs,
+        children = {
+            cell(clock, theme.FG, theme.lock_clock, { align = "Center" }),
+            cell(util.label(mantle.system, function(system)
+                return string.format("%s %d", os.date("%A, %B", system.time), os.date("*t", system.time).day)
+            end), theme.DIM, theme.font.xl, { align = "Center" }),
         },
-        column {
+    }, 0, -theme.spacing.md))
+
+    local card = panel_card({
+        row {
             width = "Fill",
             spacing = theme.spacing.md,
             children = {
                 -- One disc: two hard circles read as a button with a focus outline.
                 rect {
-                    width = theme.lock_avatar,
-                    height = theme.lock_avatar,
-                    radius = math.floor(theme.lock_avatar / 2),
-                    align_h = "Center",
+                    width = AVATAR,
+                    height = AVATAR,
+                    radius = math.floor(AVATAR / 2),
                     background = theme.ACCENT_LIGHT,
                     border_width = theme.border_width,
                     border_color = theme.with_opacity(theme.ACCENT, 0.45),
                     children = {
-                        cell(identity.initials, theme.FG, INITIALS_SIZE, {
+                        cell(util.bold(identity.initials), theme.FG, theme.font.lg, {
                             width = "Fill",
                             align = "Center",
                             align_v = "Center",
                         }),
                     },
                 },
-                -- Its own column: the account sits tighter under the name than the name under the disc.
                 column {
                     width = "Fill",
-                    spacing = theme.spacing.sm,
+                    align_v = "Center",
+                    spacing = theme.spacing.xs,
                     children = {
-                        cell(identity.full_name, theme.FG, NAME_SIZE, { width = "Fill", align = "Center" }),
-                        cell(identity.account, theme.DIM, theme.font.sm, {
-                            width = "Fill",
-                            align = "Center",
-                        }),
+                        cell(util.bold(identity.full_name), theme.FG, theme.font.xl, { width = "Fill" }),
+                        cell(identity.account, theme.DIM, theme.font.sm, { width = "Fill" }),
                     },
                 },
             },
         },
-        column {
+        row {
             width = "Fill",
-            spacing = theme.spacing.md,
+            height = FIELD_HEIGHT,
+            padding = { right = theme.spacing.md, left = theme.spacing.md },
+            spacing = theme.spacing.sm,
+            -- A well, not a raised control: `GLASS_CONTROL` made it the lightest thing here, and
+            -- `GLASS` a black bar on the frosted card.
+            background = theme.GLASS_INPUT,
+            radius = FIELD_RADIUS,
+            border_width = theme.border_width_medium,
+            border_color = field_border,
+            translate = { x = 0, y = 0 },
+            animate = shaking:map(function(on)
+                return { border_color = theme.animation_ms, translate = on and SHAKE or nil }
+            end),
             children = {
-                row {
-                    width = FIELD_WIDTH,
-                    height = FIELD_HEIGHT,
-                    align_h = "Center",
-                    padding = { right = theme.spacing.md, left = theme.spacing.md },
-                    spacing = theme.spacing.sm,
-                    -- A well, not a raised control: `GLASS_CONTROL` made it the lightest thing here.
-                    background = theme.GLASS,
-                    radius = FIELD_RADIUS,
-                    border_width = theme.border_width_medium,
-                    border_color = field_border,
-                    animate = { border_color = theme.animation_ms },
-                    children = {
-                        glyph(icons.lock, theme.with_opacity(theme.ACCENT, 0.8), theme.icon.md, {
-                            align_v = "Center",
-                        }),
-                        password_field,
-                        -- Inside the pill; the bar's indicator is across the screen.
-                        info_badge("Caps lock", theme.YELLOW, {
-                            visible = util.shown_when(mantle.keyboard, function(keyboard)
-                                return keyboard.caps_lock == true
-                            end),
-                        }),
-                    },
-                },
-                callout(icons.warning, error_text, { visible = failed }),
-                cell(hint, theme.TEXT_MUTED, theme.font.sm, {
-                    width = "Fill",
-                    align = "Center",
-                    visible = failed:map(function(error_shown)
-                        return not error_shown
+                glyph(icons.lock, theme.with_opacity(theme.ACCENT, 0.8), theme.icon.md, {
+                    align_v = "Center",
+                }),
+                password_field,
+                -- Inside the pill; the bar's indicator is across the screen.
+                info_badge("Caps lock", theme.YELLOW, {
+                    visible = util.shown_when(mantle.keyboard, function(keyboard)
+                        return keyboard.caps_lock == true
                     end),
                 }),
             },
         },
-        column {
+        -- Round like the pill above it; the panels' `radius.sm` read as a stray box here.
+        callout(icons.warning, error_text, { visible = failed, radius = theme.radius.xl }),
+        cell(hint, theme.TEXT_MUTED, theme.font.sm, {
             width = "Fill",
-            spacing = theme.spacing.md,
-            children = {
-                divider { width = math.floor((theme.lock_card_width - PAD * 2) * 0.6), align_h = "Center" },
-                row {
-                    width = "Fill",
-                    align_h = "Center",
-                    spacing = theme.spacing.lg,
-                    children = {
-                        status_item(
-                            weather.code:map(weather.glyph),
-                            weather.temperature:map(function(celsius)
-                                return string.format("%d°C", celsius or 0)
-                            end),
-                            -- Gated on the code: zero degrees is a real reading.
-                            weather.code:map(function(code)
-                                return (code or -1) >= 0
-                            end)
-                        ),
-                        status_item(
-                            mantle.battery:map(util.battery_glyph),
-                            util.label(mantle.battery, function(battery)
-                                return string.format("%d%%", battery.percent)
-                            end),
-                            util.shown_when(mantle.battery, function(battery)
-                                return battery.present
-                            end)
-                        ),
-                        status_item(
-                            mantle.network:map(util.network_glyph),
-                            util.label(mantle.network, function(network)
-                                return network.ssid or "Offline"
-                            end)
-                        ),
-                        status_item(
-                            icons.keyboard,
-                            util.label(mantle.keyboard, function(keyboard)
-                                return keyboard.active_layout
-                            end),
-                            util.shown_when(mantle.keyboard, function(keyboard)
-                                return keyboard.active_layout ~= ""
-                            end)
-                        ),
-                    },
-                },
-            },
-        },
+            align = "Center",
+            visible = failed:map(function(error_shown)
+                return not error_shown
+            end),
+        }),
     }, {
-        width = theme.lock_card_width,
+        width = theme.dialog_width,
         align_h = "Center",
-        align_v = "Center",
         padding = PAD,
-        -- One gap between the four groups; each pairs its own rows more tightly.
-        spacing = theme.spacing.xl,
+        spacing = theme.spacing.lg,
         -- Lighter than `theme.GLASS_CONTENT` (0.46), which is sized for a sharp photograph.
         background = theme.with_opacity(theme.ELEVATED, 0.3),
         radius = theme.radius.xl,
+        backdrop_blur = CARD_BLUR,
         -- With no shadow node, the edge is the only thing separating the card from the picture.
         border_width = theme.border_width_medium,
         border_color = theme.GLASS_BORDER,
     })
+
+    -- Context, not a control, so it sits on the wallpaper at the bottom edge.
+    local status = row(entering({
+        align_h = "Center",
+        align_v = "End",
+        margin = { bottom = theme.spacing.xl * 2 },
+        spacing = theme.spacing.xl,
+        children = {
+            status_item(
+                weather.code:map(weather.glyph),
+                weather.temperature:map(function(celsius)
+                    return string.format("%d°C", celsius or 0)
+                end),
+                -- Gated on the code: zero degrees is a real reading.
+                weather.code:map(function(code)
+                    return (code or -1) >= 0
+                end)
+            ),
+            status_item(
+                mantle.battery:map(util.battery_glyph),
+                util.label(mantle.battery, function(battery)
+                    return string.format("%d%%", battery.percent)
+                end),
+                util.shown_when(mantle.battery, function(battery)
+                    return battery.present
+                end)
+            ),
+            status_item(
+                mantle.network:map(util.network_glyph),
+                util.label(mantle.network, function(network)
+                    return network.ssid or "Offline"
+                end)
+            ),
+            status_item(
+                icons.keyboard,
+                util.label(mantle.keyboard, function(keyboard)
+                    return keyboard.active_layout
+                end),
+                util.shown_when(mantle.keyboard, function(keyboard)
+                    return keyboard.active_layout ~= ""
+                end)
+            ),
+        },
+    }, 2, theme.spacing.md))
 
     return rect {
         width = "Fill",
@@ -276,30 +309,36 @@ local function content(output)
                 -- `source_blur` would key a second copy that decodes after the lock maps.
                 async = true,
             },
-            rect { width = "Fill", height = "Fill", background = theme.SCRIM, backdrop_blur = WALLPAPER_BLUR },
-            -- Screen-sized, so the scale pivots on the centre.
-            column {
+            -- The desktop frosts over as the lock arrives and thaws halfway as it leaves: clearing
+            -- fully under the fading card read as a glitch.
+            rect {
                 width = "Fill",
                 height = "Fill",
-                align_h = "Center",
-                align_v = "Center",
-                -- Both need targets; an absent property skips the entry entirely.
-                opacity = up:map(function(on)
-                    return on and 1 or 0
+                background = theme.SCRIM,
+                backdrop_blur = util.lift(mantle.lock, function(lock)
+                    if lock == nil or not lock.active then
+                        return 0
+                    end
+                    return lock.unlocking and WALLPAPER_BLUR / 2 or WALLPAPER_BLUR
                 end),
-                scale = up:map(function(on)
-                    return on and 1 or CLOSED_SCALE
-                end),
-                -- The modals' drop, over the lock's slower timing.
-                translate = up:map(function(on)
-                    return { y = on and 0 or -theme.spacing.md }
-                end),
-                animate = {
-                    opacity = { duration = theme.animation_slow_ms, easing = "OutCubic", from = 0 },
-                    scale = { duration = theme.animation_very_slow_ms, easing = "OutCubic", from = CLOSED_SCALE },
-                    translate = { duration = theme.animation_very_slow_ms, easing = "OutCubic", from = { y = -theme.spacing.md } },
+                animate = { backdrop_blur = { duration = theme.animation_slow_ms, easing = "OutCubic", from = 0 } },
+            },
+            -- Screen-sized and stacking, so each child keeps its own placement.
+            rect {
+                width = "Fill",
+                height = "Fill",
+                children = {
+                    column {
+                        align_h = "Center",
+                        align_v = "Center",
+                        spacing = theme.spacing.xl * 2,
+                        children = {
+                            time,
+                            column(entering({ align_h = "Center", children = { card } }, 1, -theme.spacing.md, true)),
+                        },
+                    },
+                    status,
                 },
-                children = { card },
             },
         },
     }

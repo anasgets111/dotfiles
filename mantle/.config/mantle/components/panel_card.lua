@@ -33,6 +33,7 @@ return function(children, opts)
         end),
         -- Only a dialog's. A card on an already-blurred sheet would union into a covering region.
         blur = opts.blur or dialog,
+        backdrop_blur = opts.backdrop_blur,
         radius = opts.radius or theme.radius.lg,
         -- `outlined` rings a card that sits on another card, where ground alone would not separate it.
         border_width = opts.border_width or (dialog or opts.outlined) and theme.border_width or nil,
