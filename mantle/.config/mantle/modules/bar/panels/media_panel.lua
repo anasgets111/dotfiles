@@ -1,6 +1,6 @@
 -- `position` is valid only at `position_updated_at` and nothing polls it, so the bar would sit still
--- between pushes. That stamp and `mantle.system.monotonic` are both `CLOCK_MONOTONIC`. `on_change` is
--- the one place a clock reading and a payload are simultaneous, so it anchors each push and `system`
+-- between pushes. That stamp is `CLOCK_MONOTONIC`, which `mantle.system.monotonic` is not. `on_change`
+-- is the one place a clock reading and a payload are simultaneous, so it anchors each push and `system`
 -- ticks the elapsed term once a second. A `:map` would re-record the anchor, since the engine may rerun
 -- a map on the same inputs.
 --
