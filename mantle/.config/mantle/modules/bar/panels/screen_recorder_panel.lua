@@ -5,7 +5,6 @@ local icons = require("config.icons")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 local panel_row = require("components.panel_row")
-local divider = require("components.divider")
 local panel_header = require("components.panel_header")
 local panel_toggle_card = require("components.panel_toggle_card")
 local section_header = require("components.section_header")
@@ -178,7 +177,7 @@ local function wide_button(label, on_activate, slot, tone, icon, visible)
     return action_button(label, on_activate, slot, {
         tone = tone,
         width = "Fill",
-        height = theme.control.xl,
+        height = theme.panel_toggle_height,
         glyph = icon,
         visible = visible,
     })
@@ -202,13 +201,15 @@ local body = {
 
     -- Four buttons in two slots, not two colour-changing ones: `action_button` fixes its grounds
     -- from a static `tone`, and an invisible node takes no size or spacing gap (`layout/scene.rs`),
-    -- so a pair per state costs the same row and each button keeps one label and one job.
+    -- so a pair per state costs the same row and each button keeps one label and one job. Tinted
+    -- glass at tile height, like the switch tiles other panels keep in this band; solid is for a
+    -- footer's conclusion, and red for the one action that ends a capture.
     row {
         width = "Fill",
         spacing = theme.spacing.sm,
         children = {
-            wide_button("Region", capture("selection"), "recorder-region", "solid", icons.region, idle),
-            wide_button("Screen", capture(), "recorder-screen", "solid", icons.display, idle),
+            wide_button("Region", capture("selection"), "recorder-region", "accent", icons.region, idle),
+            wide_button("Screen", capture(), "recorder-screen", "accent", icons.display, idle),
             wide_button("Stop", recorder.stop, "recorder-stop", "danger", icons.record_stop, recorder.recording),
             wide_button(recorder.paused:map(function(held)
                 return held and "Resume" or "Pause"
@@ -218,7 +219,6 @@ local body = {
         },
     },
 
-    divider(),
 
     panel_row {
         title = "Recording settings",

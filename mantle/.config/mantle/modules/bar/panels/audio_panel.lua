@@ -1,5 +1,6 @@
 -- Masthead, output/microphone cards with pickers, and one slider per app stream. Device pickers and
--- the mixer expand on click, tracked by three `state()` signals.
+-- the mixer expand on click, tracked by three `state()` signals. The two cards are composite controls
+-- (label row, slider, picker); the mixer is a list, so it sits on the panel.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -249,7 +250,13 @@ local body = {
         active = mantle.audio:map(function(audio)
             return audio ~= nil and audio.volume ~= nil and not audio.muted
         end),
-        subtitle = "Volume, devices and applications",
+        subtitle = util.label(mantle.audio, function(audio)
+            if audio.muted then
+                return "Muted"
+            end
+            local device = device_name(util.active_device(audio.sinks))
+            return percent(audio.volume) .. (device and " · " .. device or "")
+        end),
     },
     audio_control {
         name = "output",
@@ -311,40 +318,41 @@ local body = {
             return util.active_device(audio.sources) ~= nil
         end),
     },
-    panel_card({
-        panel_row {
-            slot = "audio-mixer",
-            icon = icons.mixer,
-            title = "Application mixer",
-            subtitle = util.label(streams, function(list)
-                return string.format("%d active", #list)
-            end),
-            expanded = mixer_open,
-        },
-        list {
-            width = "Fill",
-            max_height = streams:map(function(list)
-                return util.fit_height(list, theme.panel_list_height, theme.spacing.sm, function()
-                    return STREAM_HEIGHT
-                end)
-            end),
-            scroll = scroll("audio_mixer"),
-            spacing = theme.spacing.sm,
-            visible = mixer_open,
-            source = streams,
-            itemfn = stream_row,
-            key = function(app)
-                return tostring(app.id)
-            end,
-        },
-    }, {
+    -- Flat, like the device pickers: a disclosure row and its list, not a third card.
+    column {
         width = "Fill",
+        spacing = theme.spacing.xs,
         visible = streams:map(function(list)
             return #list > 0
         end),
-        spacing = theme.spacing.sm,
-        padding = theme.spacing.sm,
-    }),
+        children = {
+            panel_row {
+                slot = "audio-mixer",
+                icon = icons.mixer,
+                title = "Application mixer",
+                subtitle = util.label(streams, function(list)
+                    return string.format("%d active", #list)
+                end),
+                expanded = mixer_open,
+            },
+            list {
+                width = "Fill",
+                max_height = streams:map(function(list)
+                    return util.fit_height(list, theme.panel_list_height, theme.spacing.sm, function()
+                        return STREAM_HEIGHT
+                    end)
+                end),
+                scroll = scroll("audio_mixer"),
+                spacing = theme.spacing.sm,
+                visible = mixer_open,
+                source = streams,
+                itemfn = stream_row,
+                key = function(app)
+                    return tostring(app.id)
+                end,
+            },
+        },
+    },
 }
 
 return { kind = "audio", body = body, output_tooltip = tooltips.output, input_tooltip = tooltips.input }

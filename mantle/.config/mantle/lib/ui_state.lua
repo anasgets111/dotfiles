@@ -93,16 +93,15 @@ local bluetooth_codec_for = state("bluetooth_codec_for", "")
 -- Whether the audio panel's device pickers are expanded.
 local audio_output_picker = state("audio_output_picker", false)
 local audio_input_picker = state("audio_input_picker", false)
--- The updates panel's log and settings views, so a reopened panel starts on its list.
+-- The updates panel's log view, so a reopened panel starts on its list.
 local updates_log_open = state("updates_log_open", false)
-local updates_settings_open = state("updates_settings_open", false)
 
 local function panel_is(kind)
     return panel_open:get() and panel_kind:get() == kind
 end
 
 -- Leaving bluetooth stops discovery and closes its codec list; leaving audio collapses its pickers;
--- leaving updates closes its log and settings.
+-- leaving updates closes its log.
 local function leave_panel()
     local kind = panel_open:get() and panel_kind:get()
     if kind == "bluetooth" then
@@ -113,7 +112,6 @@ local function leave_panel()
         audio_input_picker:set(false)
     elseif kind == "updates" then
         updates_log_open:set(false)
-        updates_settings_open:set(false)
     end
 end
 
@@ -303,7 +301,6 @@ return {
     audio_output_picker = audio_output_picker,
     audio_input_picker = audio_input_picker,
     updates_log_open = updates_log_open,
-    updates_settings_open = updates_settings_open,
     hidden_draft = hidden_draft,
     hidden_ssid = hidden_ssid,
     credential_step = credential_step,

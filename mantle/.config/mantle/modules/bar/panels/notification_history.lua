@@ -1,14 +1,15 @@
 -- The feed's list half: the popup shows the newest few, this shows the whole feed, scrolling. Rows
 -- are `components/notification_card.lua`, so actions, replies and expanded bodies work here; this
--- file owns the header, DND toggle and sectioned list.
+-- file owns the masthead (who, when, the DND switch), the weather and system rows and the sectioned list.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
 local notifications = require("lib.notifications")
 local ui = require("lib.ui_state")
-local cell = require("components.cell")
+local toggle = require("components.toggle")
 local section_header = require("components.section_header")
 local panel_header = require("components.panel_header")
+local panel_row = require("components.panel_row")
 local panel_empty_state = require("components.panel_empty_state")
 local panel_action_icon = require("components.panel_action_icon")
 local notification_card = require("components.notification_card")
@@ -77,70 +78,51 @@ local function long_date(seconds)
 end
 
 local body = {
-    row {
-        width = "Fill",
-        spacing = theme.spacing.md,
-        align_v = "Center",
-        children = {
-            rect {
-                width = theme.control.md,
-                height = theme.control.md,
-                radius = math.floor(theme.control.md / 2),
-                background = theme.ACCENT_LIGHT,
-                border_width = theme.border_width,
-                border_color = theme.with_opacity(theme.ACCENT, 0.45),
-                children = {
-                    cell(util.bold(identity.initials), theme.ACCENT, theme.font.sm,
-                        { width = "Fill", align = "Center", align_v = "Center" }),
-                },
-            },
-            column {
-                width = "Fill",
-                spacing = theme.spacing.xs,
-                children = {
-                    cell(util.bold(identity.full_name), theme.FG, theme.font.md, { width = "Fill" }),
-                    cell(util.label(mantle.system, function(system)
-                        return long_date(system.time)
-                    end), theme.DIM, theme.font.xs, { width = "Fill" }),
-                },
-            },
-        },
+    -- The masthead is the person, not the feed: initials on the plate, the date as the state line.
+    panel_header {
+        title = identity.full_name,
+        icon = identity.initials,
+        subtitle = util.label(mantle.system, function(system)
+            return long_date(system.time)
+        end),
     },
     weather_widget("notifications"),
     system_info("notifications"),
-    panel_header {
-        title = "Notifications",
+    -- The feed's section row, shaped like the two above it but with nothing to unfold: its controls
+    -- sit beside its name. The switch is named, since "Notifications · On" would read as the panel.
+    panel_row {
         icon = bell_glyph,
-        active = mantle.notifications:map(function(payload)
-            return not (payload and payload.dnd)
-        end),
+        title = "Notifications",
         subtitle = util.label(mantle.notifications, summary),
-        trailing = {
-            -- Critical notifications bypass DND and never expire, so they get their own count.
-            info_badge(mantle.notifications:map(function(payload)
-                return string.format("%d urgent", kept(payload, true))
-            end), theme.RED, {
-                visible = util.shown_when(mantle.notifications, function(payload)
-                    return kept(payload, true) > 0
-                end),
-            }),
-            panel_action_icon(mantle.notifications:map(function(payload)
-                return (payload and payload.dnd) and icons.bell or icons.bell_off
-            end), function()
-                local payload = mantle.notifications:get()
-                mantle.notifications:invoke("set_dnd", not (payload and payload.dnd))
-            end, { slot = "notification-dnd", tint = theme.PEACH }),
-            panel_action_icon(icons.clear_all, function()
-                for _, notification in ipairs(feed(mantle.notifications:get())) do
-                    mantle.notifications:invoke("dismiss", notification.id)
-                end
-            end, {
-                slot = "notification-clear-all",
-                tint = theme.RED,
-                visible = util.shown_when(mantle.notifications, function(payload)
-                    return kept(payload) > 0
-                end),
-            }),
+        trailing = row {
+            spacing = theme.spacing.sm,
+            align_v = "Center",
+            children = {
+                -- Critical notifications bypass DND and never expire, so they get their own count.
+                info_badge(mantle.notifications:map(function(payload)
+                    return string.format("%d urgent", kept(payload, true))
+                end), theme.RED, {
+                    visible = util.shown_when(mantle.notifications, function(payload)
+                        return kept(payload, true) > 0
+                    end),
+                }),
+                panel_action_icon(icons.clear_all, function()
+                    for _, notification in ipairs(feed(mantle.notifications:get())) do
+                        mantle.notifications:invoke("dismiss", notification.id)
+                    end
+                end, {
+                    slot = "notification-clear-all",
+                    tint = theme.RED,
+                    visible = util.shown_when(mantle.notifications, function(payload)
+                        return kept(payload) > 0
+                    end),
+                }),
+                toggle(mantle.notifications, function(payload)
+                    return payload.dnd
+                end, function(on)
+                    mantle.notifications:invoke("set_dnd", on)
+                end, "notifications-dnd", "Do not disturb"),
+            },
         },
     },
     list {
@@ -172,7 +154,7 @@ local body = {
         util.shown_when(mantle.notifications, function(payload)
             return kept(payload) == 0
         end),
-        -- The header already says whether do not disturb is on.
+        -- The section row already says whether do not disturb is on.
         { icon = bell_glyph }
     ),
 }

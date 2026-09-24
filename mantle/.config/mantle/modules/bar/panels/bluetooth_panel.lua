@@ -241,7 +241,7 @@ local body = {
                         return bluetooth.enabled
                     end, function(new_value)
                         mantle.bluetooth:invoke("set_enabled", new_value)
-                    end),
+                    end, "bluetooth-power"),
                 },
             },
         },

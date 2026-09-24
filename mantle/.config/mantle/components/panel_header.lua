@@ -8,9 +8,9 @@ local icons = require("config.icons")
 local icon_button = require("components.icon_button")
 
 ---@class PanelHeaderOpts
----@field title string
+---@field title string|Bound
 ---@field subtitle? string|Bound One line of state under the title, such as the joined network, "2 connected · P30i · 90%" or "off".
----@field icon? string|Bound A glyph on a plate; the plate and glyph take `active`'s colour.
+---@field icon? string|Bound A glyph on a plate; the plate and glyph take `active`'s colour. Initials work too.
 ---@field active? boolean|Bound Accent while true, dim while false. Default true. Ignored when `accent` is given.
 ---@field accent? Color|Bound The plate and glyph colour outright, for a subject whose state is not on/off. A live capture is red and a ready one accent, and neither is "off".
 ---@field trailing? Node[] Controls at the far edge, in order.

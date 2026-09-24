@@ -24,7 +24,8 @@ local KIND = "updates"
 local LOG_SCROLL = scroll("update_log")
 
 local log_open = ui.updates_log_open
-local settings_open = ui.updates_settings_open
+-- Stays expanded across close, like the recorder's settings.
+local settings_expanded = state("updates_settings_expanded", false)
 local phase = service.phase
 
 -- KiB, MiB, GiB use 1024, matching pacman's package sizes.
@@ -203,17 +204,12 @@ local LOG_COLOURS = {
     { theme.FG, "^▶", "^::", "^==>" },
 }
 
--- The settings list takes the whole body, so it is a view above every phase.
-local view = computed({ phase, settings_open }, function(current, settings)
-    return settings and "settings" or current
-end)
-
 -- Not a phase: a finished run's re-check spins the list while its result is still the view.
 local checking = util.shown_when(mantle.updates, function(updates)
     return updates.checking
 end)
 
-local log_showing = computed({ view, log_open }, function(current, open)
+local log_showing = computed({ phase, log_open }, function(current, open)
     return current == "running" or current == "failed" or (current == "done" and open)
 end)
 
@@ -230,7 +226,7 @@ mantle.updates:on_change(function(updates)
 end)
 
 -- One row per `config/dev_tools.lua` entry, subtitled with the binary it needs.
-local tool_rows = {}
+local tool_rows = { section_header("run with package updates") }
 for _, tool in ipairs(dev_tools) do
     tool_rows[#tool_rows + 1] = panel_row {
         title = tool.name,
@@ -243,7 +239,7 @@ for _, tool in ipairs(dev_tools) do
             return (ticked or {})[tool.name] ~= false
         end, function(on)
             store:set("updates_dev_tools", util.with(store.updates_dev_tools:get(), tool.name, on))
-        end),
+        end, "updates-tool-" .. tool.name),
     }
 end
 
@@ -260,8 +256,20 @@ local aur_row = panel_row {
         store:set("updates_aur", on)
         mantle.updates:invoke("configure", { interval = service.CHECK_INTERVAL, aur = on })
         mantle.updates:invoke("check")
-    end),
+    end, "updates-aur"),
 }
+
+-- What the settings hold, on the disclosure row: "AUR · node · rust toolchain".
+local settings_summary = computed({ store.updates_aur, store.updates_dev_tools, service.tools_present },
+    function(aur, ticked, present)
+        local words = { aur and "AUR" or nil }
+        for _, tool in ipairs(dev_tools) do
+            if present[tool.requires] == true and (ticked or {})[tool.name] ~= false then
+                words[#words + 1] = tool.name
+            end
+        end
+        return #words > 0 and table.concat(words, " · ") or "Repositories only"
+    end)
 
 -- Dims rather than hides, so the row keeps its layout.
 local busy = computed({ mantle.updates, service.dev_running }, function(updates, tool)
@@ -319,9 +327,6 @@ local body = {
                     return updates.reboot_required == true
                 end),
             }),
-            panel_action_icon(icons.settings, function()
-                settings_open:set(not settings_open:get())
-            end, { slot = "updates-settings" }),
             panel_action_icon(icons.refresh, function()
                 mantle.updates:invoke("check")
             end, { slot = "updates-refresh", disabled = busy, spinning = checking }),
@@ -356,11 +361,11 @@ local body = {
         tone = status_tone,
         width = "Fill",
         spacing = theme.spacing.xs,
-        visible = view:map(function(current)
-            return current ~= "settings" and current ~= "empty"
+        visible = phase:map(function(current)
+            return current ~= "empty"
         end),
     }),
-    panel_empty_state("Nothing to update", view:map(function(current)
+    panel_empty_state("Nothing to update", phase:map(function(current)
         return current == "empty"
     end), { icon = icons.up_to_date }),
     panel_card({
@@ -379,8 +384,8 @@ local body = {
     }, {
         tone = "warning",
         width = "Fill",
-        visible = computed({ pacnew, settings_open }, function(files, settings)
-            return #files > 0 and not settings
+        visible = pacnew:map(function(files)
+            return #files > 0
         end),
     }),
     panel_card({
@@ -442,7 +447,7 @@ local body = {
         -- One fixed-height card holds the spinner, then the list, so a check does not resize the panel.
     }, {
         width = "Fill",
-        visible = view:map(function(current)
+        visible = phase:map(function(current)
             return current == "checking" or current == "pending"
         end)
     }),
@@ -486,20 +491,21 @@ local body = {
         width = "Fill",
         visible = log_showing,
     }),
-    panel_card({ section_header("aur"), aur_row }, { width = "Fill", visible = settings_open }),
-    panel_card({ section_header("run with package updates"), column {
+    panel_row {
+        slot = "updates-settings",
+        icon = icons.settings,
+        title = "Settings",
+        subtitle = settings_summary,
+        expanded = settings_expanded,
+    },
+    column {
         width = "Fill",
-        children = tool_rows,
-    } }, { width = "Fill", visible = settings_open }),
-    action_button("Done", function()
-        settings_open:set(false)
-    end, "updates-settings-done", { tone = "quiet", width = "Fill", visible = settings_open }),
+        visible = settings_expanded,
+        children = util.concat({ section_header("aur"), aur_row }, tool_rows),
+    },
     row {
         width = "Fill",
         spacing = theme.spacing.sm,
-        visible = settings_open:map(function(open)
-            return not open
-        end),
         children = {
             action_button(
                 computed({ phase, mantle.updates }, function(current, updates)
@@ -516,7 +522,7 @@ local body = {
                 service.install,
                 "updates-install",
                 {
-                    tone = "solid",
+                    tone = "accent",
                     width = "Fill",
                     disabled = busy,
                     -- A retry needs no count: a partial failure can leave zero pending.
@@ -541,7 +547,7 @@ local body = {
                 {
                     tone = "quiet",
                     width = "Fill",
-                    visible = view:map(function(current)
+                    visible = phase:map(function(current)
                         return current == "done"
                     end),
                 }

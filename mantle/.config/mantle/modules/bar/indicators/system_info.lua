@@ -14,7 +14,7 @@ local cell = require("components.cell")
 local glyph = require("components.glyph")
 local meter = require("components.meter")
 local panel_card = require("components.panel_card")
-local expander_header = require("components.expander_header")
+local panel_row = require("components.panel_row")
 
 -- `sysinfo`'s pollers stay dormant until configured, and this is the only module reading them. CPU
 -- every 2s and RAM every 5s is about as slow as a readout can tick before it reads as frozen;
@@ -50,10 +50,13 @@ local has_gpu = util.shown_when(mantle.sysinfo, function(sysinfo)
 end)
 
 -- Red from 90%, peach from 75%, else `fallback`. `sysinfo` pushes whole percents.
+local function tint_of(percent, fallback)
+    return percent >= 90 and theme.RED or percent >= 75 and theme.PEACH or fallback
+end
+
 local function tint(field, fallback)
     return mantle.sysinfo:map(function(sysinfo)
-        local percent = percent_of(sysinfo, field)
-        return percent >= 90 and theme.RED or percent >= 75 and theme.PEACH or fallback
+        return tint_of(percent_of(sysinfo, field), fallback)
     end)
 end
 
@@ -100,34 +103,42 @@ local function metric_tile(codepoint, label, field, accent, detail)
     }
 end
 
--- One collapsed readout: `CPU 12%`, bold and tinted.
-local function summary_readout(label, field, accent)
-    return cell(readout(function(sysinfo)
-        return string.format("%s %d%%", label, percent_of(sysinfo, field))
-    end), tint(field, accent), theme.font.xs, { align_v = "Center" })
-end
+-- The summary line: `CPU 12% · RAM 55%`, each readout tinted by its own load.
+local SUMMARY = {
+    { "CPU",  "cpu_percent",  theme.ACCENT },
+    { "RAM",  "ram_percent",  theme.GREEN },
+    { "SWAP", "swap_percent", theme.PEACH },
+}
+
+local summary = mantle.sysinfo:map(function(sysinfo)
+    local runs = {}
+    for _, metric in ipairs(SUMMARY) do
+        local label, field, accent = table.unpack(metric)
+        local percent = percent_of(sysinfo, field)
+        runs[#runs + 1] = { text = #runs > 0 and " · " or "" }
+        runs[#runs + 1] = { text = string.format("%s %d%%", label, percent), color = tint_of(percent, accent) }
+    end
+    local celsius = gpu_temp(sysinfo)
+    if celsius > 0 then
+        runs[#runs + 1] = { text = " · " }
+        runs[#runs + 1] = {
+            text = string.format("GPU %d°C", celsius),
+            color = ({ theme.GREEN, theme.PEACH, theme.RED })[gpu_band(sysinfo)],
+        }
+    end
+    return runs
+end)
 
 ---@param id string Names this instance's `expanded` state and its hover slot.
 return function(id)
     local expanded = state("sysinfo_expanded_" .. id, false)
-    -- The summary fills, right-aligned, so the chevron keeps the far edge either way.
-    local head = expander_header(expanded, "sysinfo-" .. id, "System", row {
-        width = "Fill",
-        align_h = "End",
-        align_v = "Center",
-        spacing = theme.spacing.sm,
-        visible = expanded:map(function(open)
-            return not open
-        end),
-        children = {
-            summary_readout("CPU", "cpu_percent", theme.ACCENT),
-            summary_readout("RAM", "ram_percent", theme.GREEN),
-            summary_readout("SWAP", "swap_percent", theme.PEACH),
-            cell(readout(function(sysinfo)
-                return gpu_temp(sysinfo) > 0 and string.format("GPU %d°C", gpu_temp(sysinfo)) or ""
-            end), gpu_color, theme.font.xs, { align_v = "Center", visible = has_gpu }),
-        },
-    })
+    local head = panel_row {
+        slot = "sysinfo-" .. id,
+        icon = icons.cpu,
+        title = "System",
+        subtitle = summary,
+        expanded = expanded,
+    }
 
     -- An invisible node takes no size or spacing gap, so the card retracts cleanly without a clip.
     local details = column {

@@ -137,7 +137,7 @@ local function profile_control(profile, stage)
                 return resolved[profile][stage.key .. "_on"]
             end, function(enabled)
                 idle.write(profile, stage.key .. "_on", enabled)
-            end),
+            end, "idle-" .. profile .. "-" .. stage.key .. "-on"),
         },
     }
 end
@@ -256,7 +256,7 @@ local behaviour_rows = {
             return resolved.privacy_auto_inhibit
         end, function(on)
             idle.write(nil, "privacy_auto_inhibit", on)
-        end),
+        end, "idle-capture-hold"),
     },
     row_rule,
     panel_row {
@@ -267,7 +267,7 @@ local behaviour_rows = {
         icon_color = ink(idle.manual),
         trailing = toggle(idle.manual, function(manual)
             return manual
-        end, idle.set_manual),
+        end, idle.set_manual, "idle-manual"),
     },
 }
 
@@ -290,7 +290,7 @@ local flow_strip = row {
             return resolved.enabled
         end, function(on)
             idle.write(nil, "enabled", on)
-        end),
+        end, "idle-enabled"),
     },
 }
 

@@ -212,7 +212,6 @@ local function install()
     dismissed:set(false)
     dev_result:set({})
     ui.updates_log_open:set(false)
-    ui.updates_settings_open:set(false)
     if packages_pending then
         return mantle.updates:invoke("install")
     end

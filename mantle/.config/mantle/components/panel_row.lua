@@ -13,7 +13,7 @@ local glyph = require("components.glyph")
 -- `text.content` unchanged, a notification span array included.
 ---@class PanelRowOpts
 ---@field title string|TextRun[]|Bound
----@field subtitle? string|Bound
+---@field subtitle? string|TextRun[]|Bound Runs let a summary tint its parts, such as a hot CPU readout.
 ---@field icon? string|Bound A glyph drawn as text and recoloured with the row.
 ---@field leading? Node A composed leading slot in place of `icon`, such as a glyph with a badge beside it.
 ---@field color? Color|Bound
@@ -24,16 +24,19 @@ local glyph = require("components.glyph")
 ---@field slot? string
 ---@field visible? boolean|Bound
 ---@field trailing? Node
----@field expanded? StateSignal<boolean> A disclosure row: a chevron in `trailing`, and a click toggles it.
+---@field expanded? StateSignal<boolean> A disclosure row: a chevron after `trailing`, and a click toggles it.
 ---@field on_activate? fun()
 
 ---@param opts PanelRowOpts
 return function(opts)
     local expanded = opts.expanded
     if expanded then
-        opts.trailing = glyph(expanded:map(function(open)
+        local chevron = glyph(expanded:map(function(open)
             return open and icons.chevron_down or icons.chevron_right
-        end), theme.DIM, theme.icon.sm)
+        end), theme.DIM, theme.icon.sm, { align_v = "Center" })
+        opts.trailing = opts.trailing
+            and row { spacing = theme.spacing.xs, align_v = "Center", children = { opts.trailing, chevron } }
+            or chevron
         opts.on_activate = function()
             expanded:set(not expanded:get())
         end

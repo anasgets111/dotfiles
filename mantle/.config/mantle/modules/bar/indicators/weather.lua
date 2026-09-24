@@ -9,11 +9,9 @@ local icons = require("config.icons")
 local util = require("lib.util")
 local weather = require("lib.weather")
 local cell = require("components.cell")
-local icon_button = require("components.icon_button")
-local expander_header = require("components.expander_header")
+local panel_row = require("components.panel_row")
+local panel_action_icon = require("components.panel_action_icon")
 local panel_card = require("components.panel_card")
-local action_button = require("components.action_button")
-local spinner = require("components.spinner")
 
 local COLUMNS = 4
 -- `past_days=1` puts yesterday first, so today is the second entry rather than the first.
@@ -88,67 +86,32 @@ return function(id)
     end)
 
     local ready = weather.daily:map(has_data)
-    local blank = ready:map(function(yes) return not yes end)
-    -- The label toggles the grid; the middle carries the age of the reading, accented while open so
-    -- it reads as part of the header.
-    local toggle = expander_header(expanded, "weather-toggle-" .. id, expanded:map(function(open)
-        return open and "Show less" or "10-day forecast"
-    end), cell(computed({ weather.updated_at, mantle.system }, function(at, system)
-        return "Updated " .. weather.time_ago(at, system and system.time)
-    end), expanded:map(function(open)
-        return open and theme.with_opacity(theme.ACCENT, 0.75) or theme.DIM
-    end), theme.font.xs, { width = "Fill", align = "End", align_v = "Center" }), { visible = ready })
 
     return column {
         width = "Fill",
         spacing = theme.spacing.sm,
         children = {
-            row {
-                width = "Fill",
-                spacing = theme.spacing.sm,
-                align_v = "Center",
-                children = {
-                    toggle,
-                    -- Holds the right edge while the toggle is hidden.
-                    rect { width = "Fill", visible = blank },
-                    icon_button(icons.refresh, weather.refresh, {
-                        slot = "weather-refresh-" .. id,
-                        size = theme.item_height,
-                        icon_size = theme.icon.sm,
-                        spinning = weather.fetching,
-                    }),
-                },
+            -- The section's disclosure row: the reading now and its age, opening the ten-day grid.
+            -- With no forecast the line says why, and the refresh icon is the retry.
+            panel_row {
+                slot = "weather-toggle-" .. id,
+                icon = weather.code:map(weather.glyph),
+                title = "Weather",
+                subtitle = computed({ ready, weather.failed, weather.temperature, weather.updated_at, mantle.system },
+                    function(has, bad, now, at, system)
+                        if not has then
+                            return bad and "Weather unavailable" or "Loading forecast…"
+                        end
+                        return string.format("%s · Updated %s", degrees(now),
+                            weather.time_ago(at, system and system.time))
+                    end),
+                expanded = expanded,
+                trailing = panel_action_icon(icons.refresh, weather.refresh, {
+                    slot = "weather-refresh-" .. id,
+                    spinning = weather.fetching,
+                }),
             },
             column { width = "Fill", spacing = theme.spacing.sm, children = body },
-            panel_card({
-                column {
-                    width = "Fill",
-                    spacing = theme.spacing.sm,
-                    align_h = "Center",
-                    children = {
-                        row {
-                            align_h = "Center",
-                            align_v = "Center",
-                            spacing = theme.spacing.sm,
-                            children = {
-                                spinner(weather.fetching, theme.control.xs),
-                                cell(weather.failed:map(function(bad)
-                                    return bad and "Weather unavailable" or "Loading forecast…"
-                                end), theme.DIM, theme.font.sm, { align = "Center", align_v = "Center" }),
-                            },
-                        },
-                        action_button("Retry", weather.refresh, "weather-retry-" .. id, {
-                            tone = "quiet",
-                            visible = weather.failed,
-                        }),
-                    },
-                },
-            }, {
-                width = "Fill",
-                visible = blank,
-                outlined = true,
-                padding = theme.spacing.md,
-            }),
         },
     }
 end

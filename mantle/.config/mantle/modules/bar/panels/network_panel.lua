@@ -6,7 +6,6 @@ local util = require("lib.util")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 local toggle = require("components.toggle")
-local icon_button = require("components.icon_button")
 local panel_header = require("components.panel_header")
 local panel_toggle_card = require("components.panel_toggle_card")
 local panel_row = require("components.panel_row")
@@ -267,13 +266,11 @@ local body = {
         end),
         subtitle = mantle.network:map(state_line),
         trailing = {
-            -- The rescan glyph spins inside its button while a scan is in flight.
-            icon_button(icons.refresh, function()
+            -- The rescan glyph spins in place while a scan is in flight.
+            panel_action_icon(icons.refresh, function()
                 mantle.network:invoke("scan")
             end, {
                 slot = "network-rescan",
-                size = theme.control.sm,
-                icon_size = theme.icon.sm,
                 spinning = util.shown_when(mantle.network, function(network)
                     return network.scanning
                 end),
@@ -286,7 +283,7 @@ local body = {
                 return network.networking_enabled
             end, function(new_value)
                 mantle.network:invoke("set_networking_enabled", new_value)
-            end),
+            end, "network-power"),
         },
     },
     row {
@@ -386,7 +383,7 @@ local body = {
                     -- Hidden rather than disabled while the name is empty: `action_button` has no
                     -- disabled tone. Enter does the same for anyone already typing.
                     action_button("Next", submit_hidden_name, "network-sheet-next", {
-                        tone = "solid",
+                        tone = "accent",
                         visible = computed({ step, ui.hidden_draft }, function(current, draft)
                             return current == "name" and util.trim(draft) ~= ""
                         end),
@@ -394,11 +391,11 @@ local body = {
                     -- No `on_activate`: its click *is* the field's Enter, the only path a password
                     -- has out of the Renderer.
                     action_button("Connect", nil, "network-sheet-connect",
-                        { tone = "solid", submit = true, visible = during("password") }),
+                        { tone = "accent", submit = true, visible = during("password") }),
                     -- A failed attempt leaves no pending intent, so Retry is a fresh `connect`.
                     action_button("Retry", function()
                         mantle.network:invoke("connect", ui.hidden_ssid:get(), true)
-                    end, "network-sheet-retry", { tone = "solid", glyph = icons.warning, visible = during("failed") }),
+                    end, "network-sheet-retry", { tone = "accent", glyph = icons.warning, visible = during("failed") }),
                 },
             },
         },
