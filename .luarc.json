@@ -15,18 +15,22 @@
   "diagnostics": {
     "globals": ["hl", "vim", "mp"],
     "severity": {
-      "param-type-mismatch": "Warning",
-      "assign-type-mismatch": "Warning",
-      "return-type-mismatch": "Warning",
-      "cast-local-type": "Warning",
-      "undefined-field": "Warning"
+      "unused-local": "Warning"
     },
     "neededFileStatus": {
-      "param-type-mismatch": "Any",
-      "assign-type-mismatch": "Any",
-      "return-type-mismatch": "Any",
-      "cast-local-type": "Any",
-      "undefined-field": "Any"
+      "unused-local": "Any"
+    },
+    "groupSeverity": {
+      "type-check": "Warning",
+      "unbalanced": "Warning",
+      "strict": "Warning",
+      "global": "Warning"
+    },
+    "groupFileStatus": {
+      "type-check": "Any",
+      "unbalanced": "Any",
+      "strict": "Any",
+      "global": "Any"
     }
   }
 }

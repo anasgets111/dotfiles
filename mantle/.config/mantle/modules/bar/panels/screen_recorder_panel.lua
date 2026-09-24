@@ -3,7 +3,6 @@
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
-local glyph = require("components.glyph")
 local panel_row = require("components.panel_row")
 local panel_header = require("components.panel_header")
 local segmented = require("components.segmented")

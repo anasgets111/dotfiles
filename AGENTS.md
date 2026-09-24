@@ -14,7 +14,7 @@
 | Command | Use |
 | --- | --- |
 | `just` | Gate before done: `lua` (parse + format), `types` (LuaLS on the root `.luarc.json`), `mantle`. `just fmt` formats |
-| `mantle check -c mantle/.config/mantle` | Run after every edit (`just mantle`). Evaluates the config with no Wayland, no subprocesses and every capability `nil`; writes no state |
+| `mantle check -c mantle/.config/mantle` | Run after every edit (`just mantle`). Evaluates and lays out the config with no Wayland, no subprocesses and every capability `nil`; writes no state |
 | `mantle log [-f]` | Running shell output, `print()` included |
 | `mantle set`, `toggle`, `call <name>` | Drive live `state` and `action` names like a keybind; changes the live UI |
 | `luac5.4 -p file.lua` | Syntax check. Plain `luac` is Lua 5.5 |

@@ -2,7 +2,6 @@
 -- panel host's 340px card cannot fit.
 local theme = require("config.theme")
 local icons = require("config.icons")
-local cell = require("components.cell")
 local glyph = require("components.glyph")
 local toggle = require("components.toggle")
 local panel_card = require("components.panel_card")

@@ -44,6 +44,6 @@ types:
     echo "lua type-checks"
 
 # No Wayland, no subprocesses, every capability `nil`; writes no state.
-[doc('The shell config evaluates.')]
+[doc('The shell config evaluates and lays out.')]
 mantle:
     mantle check -c mantle/.config/mantle

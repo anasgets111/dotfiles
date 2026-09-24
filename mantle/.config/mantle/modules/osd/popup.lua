@@ -3,7 +3,6 @@
 -- two switched rows: separate surfaces would overlap at the same position.
 local theme = require("config.theme")
 local util = require("lib.util")
-local cell = require("components.cell")
 local glyph = require("components.glyph")
 local meter = require("components.meter")
 local osd = require("modules.osd.service")
