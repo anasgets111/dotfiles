@@ -4,6 +4,7 @@
 local theme = require("config.theme")
 local notifications = require("lib.notifications")
 local ui = require("lib.ui_state")
+local util = require("lib.util")
 local notification_card = require("components.notification_card")
 
 -- The Supervisor is silent until a tier is set.
@@ -18,19 +19,24 @@ mantle.notifications:set_app_muted("vesktop", true)
 -- count is the only bound: a height cap would clip the last card mid-way.
 local MAX_CARDS = 4
 
+-- The engine never expires a critical card. After this long unread it retires to history's urgent
+-- section, red ring and count intact, instead of holding the corner.
+local CRITICAL_POPUP_SECONDS = 60
+
 local HOVER = hover("notification_stack_region")
 
 -- The newest unseen cards. One signal, so `visible` and the list cannot disagree.
 local visible_groups = computed(
-    { mantle.notifications, ui.popup_seen, ui.panel_open, mantle.lock, mantle.applications },
-    function(service, seen, panel_open, lock, applications)
+    { mantle.notifications, ui.popup_seen, ui.panel_open, mantle.lock, mantle.applications, ui.sharing },
+    function(service, seen, panel_open, lock, applications, is_sharing)
         -- A panel shares this corner, and a popup over the lock screen is readable without a
         -- password. Neither marks the card seen, so it returns unless its countdown expires first.
         if panel_open or (lock and lock.active) then
             return {}
         end
         -- Expiry, history's seen set and DND each drop a card; only expiry leaves it in history.
-        local dnd = service and service.dnd
+        -- A screen capture is DND for its length.
+        local dnd = (service and service.dnd) or is_sharing
         local unseen = {}
         for _, notification in ipairs((service and service.feed) or {}) do
             local quiet = dnd and notification.urgency ~= "critical"
@@ -50,6 +56,20 @@ local visible_groups = computed(
     end
 )
 
+-- Once a second. A hovered stack is being read, so it waits like the expiry hold does.
+mantle.system:on_change(function(system)
+    if HOVER:get() then
+        return
+    end
+    local seen = ui.popup_seen:get()
+    for _, notification in ipairs((mantle.notifications:get() or {}).feed or {}) do
+        if notification.urgency == "critical" and not seen[notifications.notification_key(notification)]
+            and system.time - notification.timestamp >= CRITICAL_POPUP_SECONDS then
+            ui.hide_popup(notification)
+        end
+    end
+end)
+
 return panel {
     id = "notification_area",
     -- One instance, on the output the compositor picks at each show.
@@ -58,9 +78,10 @@ return panel {
     anchor = { top = true, right = true },
     margin = { top = theme.bar_height + theme.spacing.md, right = theme.spacing.md },
     width = theme.notification_width,
-    visible = visible_groups:map(function(shown)
+    -- Held past the last card, since hiding the surface would skip its exit.
+    visible = util.linger(visible_groups:map(function(shown)
         return #shown > 0
-    end),
+    end), theme.notification_slide_ms),
     -- Bound, not constant: niri focuses an `on_demand` surface on map, which would steal the
     -- keyboard on every notification. `OnDemand` because a small surface has no outside click to
     -- release `Exclusive`; niri focuses it on the click, so hover arms the binding first, and a

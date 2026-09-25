@@ -36,6 +36,8 @@ return persistent_table {
         updates_dev_tools = {},
         updates_aur = true,
         screen_recorder = { audio = "desktop", quality = "high", fps = 60, container = "mp4" },
+        -- Popups and sounds pause while an app captures the screen, so a chat never lands in a stream.
+        notifications_dnd_while_sharing = true,
         -- Two profiles keyed by mains state, sharing `order`. `lib/idle.lua` holds every default.
         idle = {},
     },

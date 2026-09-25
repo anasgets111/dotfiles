@@ -15,7 +15,7 @@
 | --- | --- |
 | `just` | Gate before done: `lua` (parse + format), `types` (LuaLS on the root `.luarc.json`), `mantle`. `just fmt` formats |
 | `mantle check -c mantle/.config/mantle` | Run after every edit (`just mantle`). Evaluates the config with no Wayland and no subprocesses, then lays it out twice: every capability `nil`, then one sample push each (one-entry lists). Writes no state |
-| `mantle log [-f]` | Running shell output, `print()` included |
+| `mantle log [-f]` | Running shell output. Debug from Lua with `log.debug(...)`, `log.info(...)`, `log.warn(...)`: stamped with time and level, unlike a bare `print()` |
 | `mantle set`, `toggle`, `call <name>` | Drive live `state` and `action` names like a keybind; changes the live UI |
 | `luac5.4 -p file.lua` | Syntax check. Plain `luac` is Lua 5.5 |
 | `hyprctl repl '<lua>'` | Evaluate `hl.*` in the running Hyprland without a reload |

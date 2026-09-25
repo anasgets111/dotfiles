@@ -5,10 +5,18 @@ local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
 local ui_state = require("lib.ui_state")
+local notifications = require("lib.notifications")
 local notification_history = require("modules.bar.panels.notification_history")
 
-local function waiting(notifications)
-    return #((notifications and notifications.feed) or {})
+-- What the panel would list, so the count never names entries the panel does not show.
+local function waiting(payload)
+    local count = 0
+    for _, notification in ipairs((payload and payload.feed) or {}) do
+        if notifications.kept_in_history(notification) then
+            count = count + 1
+        end
+    end
+    return count
 end
 
 local bell = cell(mantle.notifications:map(function(notifications)

@@ -118,15 +118,46 @@ function notifications.notification_key(notification)
     return string.format("%d:%d", notification.id or 0, notification.timestamp or 0)
 end
 
--- One card per sending app, keyed by `desktop_entry` (stable, and looks up the installed name and
--- icon), else `app_name`. Critical first, then newest; the key breaks equal-second ties.
--- `opts.skip_transient` drops `transient` notifications (history does, popups do not).
+-- Whether history keeps a notification once its popup is over. `transient` asks to be popup-only,
+-- and low urgency is chatter ("now playing", "download started") nobody returns to.
+function notifications.kept_in_history(notification)
+    return not notification.transient and notification.urgency ~= "low"
+end
+
+-- Whether history should still hold it at `now`: critical until acted on, the rest for a day.
+local HISTORY_SECONDS = 86400
+function notifications.stale(notification, now)
+    return notification.urgency ~= "critical" and (notification.timestamp or 0) < now - HISTORY_SECONDS
+end
+
+-- A held popup's age: nothing under a minute, then minutes, hours or days.
+function notifications.age(now, timestamp)
+    local seconds = now - (timestamp or now)
+    if seconds < 60 then
+        return ""
+    elseif seconds < 3600 then
+        return string.format("%d min", seconds // 60)
+    elseif seconds < 86400 then
+        return string.format("%d h", seconds // 3600)
+    end
+    return string.format("%d d", seconds // 86400)
+end
+
+-- The card a notification joins: `desktop_entry` (stable, and looks up the installed name and icon),
+-- else `app_name`.
+function notifications.group_key(notification)
+    local entry_id = notification.desktop_entry
+    return entry_id and string.lower(entry_id) or (notification.app_name or "?")
+end
+
+-- One card per sending app. Critical first, then newest; the key breaks equal-second ties.
+-- `opts.history` keeps only what `kept_in_history` allows; popups take everything.
 function notifications.group_notifications(feed, applications, opts)
     local groups, by_key = {}, {}
     for _, notification in ipairs(feed or {}) do
-        if not (opts and opts.skip_transient and notification.transient) then
+        if not (opts and opts.history) or notifications.kept_in_history(notification) then
             local entry_id = notification.desktop_entry
-            local key = entry_id and string.lower(entry_id) or (notification.app_name or "?")
+            local key = notifications.group_key(notification)
             local group = by_key[key]
             if group == nil then
                 local entry = util.app_entry(applications, entry_id)

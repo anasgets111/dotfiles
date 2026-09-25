@@ -6,6 +6,7 @@
 local notifications = require("lib.notifications")
 local util = require("lib.util")
 local theme = require("config.theme")
+local store = require("lib.store")
 
 local popup_anchor = state("popup_anchor", { x = 0, y = 0, width = 70, height = 24 })
 
@@ -30,6 +31,28 @@ local function mark_popups_seen()
         seen[notifications.notification_key(notification)] = true
     end
     popup_seen:set(seen)
+end
+
+-- Do not disturb for the length of a screen capture, without touching the persisted switch: the
+-- popup reads this as DND and `set_quiet` mutes the sounds the same way. The switch's handler
+-- requiets too, since the store is not a capability and has no `on_change`.
+local sharing = computed({ mantle.privacy, store.notifications_dnd_while_sharing }, function(privacy, wanted)
+    return wanted == true and privacy ~= nil and #privacy.screencast_users > 0
+end)
+local function requiet()
+    mantle.notifications:set_quiet(sharing:get())
+end
+mantle.privacy:on_change(requiet)
+
+local function set_dnd_while_sharing(on)
+    store:set("notifications_dnd_while_sharing", on)
+    requiet()
+end
+
+-- One popup's turn is over; history keeps it. A long-held critical card retires this way, where a
+-- close removes it from both surfaces.
+local function hide_popup(notification)
+    popup_seen:set(util.with(popup_seen:get(), notifications.notification_key(notification), true))
 end
 
 -- Joining a hidden network, which has no row to click: name, wait, password. `hidden_draft` is the
@@ -135,6 +158,13 @@ local function open_panel(kind, rect)
         return
     end
     if kind == "notifications" then
+        -- Opening is the moment to prune: a day-old normal entry is noise by then.
+        local now = os.time()
+        for _, notification in ipairs((mantle.notifications:get() or {}).feed or {}) do
+            if notifications.stale(notification, now) then
+                mantle.notifications:dismiss(notification.id)
+            end
+        end
         mark_popups_seen()
     end
     -- A pending password left standing would keep the surface `Exclusive` over a fieldless panel.
@@ -235,6 +265,33 @@ local function toggle_key(signal, key)
     signal:set(util.with(signal:get(), key, not signal:get()[key]))
 end
 
+-- Drop keys whose notification left the feed, so the three maps stay as small as the feed.
+local function prune(signal, live)
+    local kept, changed = {}, false
+    for key, value in pairs(signal:get()) do
+        if live[key] then
+            kept[key] = value
+        else
+            changed = true
+        end
+    end
+    if changed then
+        signal:set(kept)
+    end
+end
+
+mantle.notifications:on_change(function(inbox)
+    local ids, keys, groups = {}, {}, {}
+    for _, notification in ipairs((inbox and inbox.feed) or {}) do
+        ids[tostring(notification.id)] = true
+        keys[notifications.notification_key(notification)] = true
+        groups[notifications.group_key(notification)] = true
+    end
+    prune(expanded_messages, ids)
+    prune(popup_seen, keys)
+    prune(expanded_groups, groups)
+end)
+
 -- Store each keystroke (`textfield.on_change`), stamped with its card.
 local function set_reply_draft(id, text)
     reply_draft_id:set(id)
@@ -276,6 +333,9 @@ end
 return {
     popup_anchor = popup_anchor,
     popup_seen = popup_seen,
+    hide_popup = hide_popup,
+    sharing = sharing,
+    set_dnd_while_sharing = set_dnd_while_sharing,
     expanded_groups = expanded_groups,
     expanded_messages = expanded_messages,
     reply_draft_id = reply_draft_id,

@@ -6,6 +6,7 @@ local icons = require("config.icons")
 local util = require("lib.util")
 local notifications = require("lib.notifications")
 local ui = require("lib.ui_state")
+local store = require("lib.store")
 local toggle = require("components.toggle")
 local section_header = require("components.section_header")
 local panel_header = require("components.panel_header")
@@ -29,15 +30,15 @@ end)
 -- `mantle.applications` supplies desktop-file names and icons. `util.today` moves "today" at midnight.
 local sections = computed({ mantle.notifications, mantle.applications, util.today },
     function(payload, applications, today)
-        local groups = notifications.group_notifications(feed(payload), applications, { skip_transient = true })
+        local groups = notifications.group_notifications(feed(payload), applications, { history = true })
         return notifications.notification_sections(groups, today)
     end)
 
--- Transients never reach this list, so neither count includes them.
+-- Transient and low never reach this list, so neither count includes them.
 local function kept(payload, urgent)
     local count = 0
     for _, notification in ipairs(feed(payload)) do
-        if not notification.transient and (not urgent or notification.urgency == "critical") then
+        if notifications.kept_in_history(notification) and (not urgent or notification.urgency == "critical") then
             count = count + 1
         end
     end
@@ -48,7 +49,7 @@ local function summary(payload)
     local count, apps, seen = kept(payload), 0, {}
     for _, notification in ipairs(feed(payload)) do
         local app = notification.app_name or ""
-        if not notification.transient and not seen[app] then
+        if notifications.kept_in_history(notification) and not seen[app] then
             seen[app] = true
             apps = apps + 1
         end
@@ -124,6 +125,14 @@ local body = {
                 end, "notifications-dnd", "Do not disturb"),
             },
         },
+    },
+    panel_row {
+        icon = icons.screenshare,
+        title = "Do not disturb while sharing",
+        subtitle = "Popups and sounds pause while an app captures the screen",
+        trailing = toggle(store.notifications_dnd_while_sharing, function(on)
+            return on == true
+        end, ui.set_dnd_while_sharing, "notifications-dnd-sharing"),
     },
     list {
         width = "Fill",

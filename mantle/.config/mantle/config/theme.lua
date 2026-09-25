@@ -227,8 +227,9 @@ theme.animation_fast_ms        = 100
 -- A pulse rather than a transition, slow enough to read as breathing.
 theme.animation_slow_ms        = 250
 theme.animation_very_slow_ms   = 400
--- Notification travel, derived so it follows the base rather than pinning 206.
-theme.notification_slide_ms    = math.floor(theme.animation_ms * 1.4 + 0.5)
+-- Notification travel: a card crosses its own width, so twice the base, with the tail of an
+-- `OutQuint` settle. Derived so it follows the base rather than pinning 294.
+theme.notification_slide_ms    = theme.animation_ms * 2
 -- How far a selected item's picture grows, shared by the launcher and wallpaper picker.
 theme.selected_scale           = 1.1
 -- For a fill scrubbed by key repeat. An eased tween restarts from a standstill on every retarget and
@@ -286,6 +287,8 @@ theme.panel_empty_height       = s(120, 90)
 theme.notification_width       = s(380, 300)
 -- An `item_height` icon square with a few pixels of plate around it.
 theme.notification_app_icon    = s(40, 32)
+-- An attached picture (album art, an avatar), larger than the plate so it reads as a picture.
+theme.notification_image       = s(48, 36)
 -- Fixed, because a glyph, a bar and a percentage never change length, and a card resizing under a
 -- held volume key would be the only thing moving on screen.
 theme.osd_width                = s(300, 240)
