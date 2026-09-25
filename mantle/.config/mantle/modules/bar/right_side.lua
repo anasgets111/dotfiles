@@ -45,15 +45,20 @@ return row {
     height = "Fill",
     align_h = "End",
     align_v = "Center",
-    spacing = theme.spacing.sm,
-    children = {
-        privacy_module.indicator,
-        volume_module,
-        screen_recorder.indicator,
-        network.indicator,
-        bluetooth.indicator,
-        tray_module.indicator,
-        fx_button, -- TEMP effects demo
-        clock_pill,
-    },
+    children = { row {
+        geometry = geometry("bar-right"),
+        height = "Fill",
+        align_v = "Center",
+        spacing = theme.spacing.sm,
+        children = {
+            privacy_module.indicator,
+            volume_module,
+            screen_recorder.indicator,
+            network.indicator,
+            bluetooth.indicator,
+            tray_module.indicator,
+            fx_button, -- TEMP effects demo
+            clock_pill,
+        },
+    } },
 }

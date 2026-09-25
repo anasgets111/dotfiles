@@ -1,3 +1,4 @@
+local theme = require("config.theme")
 local media = require("modules.bar.indicators.media")
 local window_title_module = require("modules.bar.indicators.active_window")
 local media_panel = require("modules.bar.panels.media_panel")
@@ -10,10 +11,31 @@ local playback_available = mantle.mpris:map(function(mpris)
     return player ~= nil and player.play_state ~= "Stopped"
 end)
 
+-- Hidden, the row measures zero, so the test uses its last shown rect.
+local center_geometry = geometry("bar-center")
+local shown_rect
+local center_rect = center_geometry:map(function(rect)
+    if rect.width > 0 then
+        shown_rect = rect
+    end
+    return shown_rect
+end)
+
+-- Hides when a side's indicators reach it, as an expanded workspace strip or volume slider can.
+-- ponytail: every output's bar shares these nodes, so monitors of different widths overwrite one
+-- measurement. Upgrade: a per-output `child` in `panel_host.lua` with per-output geometry names.
+local clear = computed({ center_rect, geometry("bar-left"), geometry("bar-right") }, function(center, left, right)
+    local gap = theme.spacing.sm
+    return center == nil
+        or (left.x + left.width + gap <= center.x and center.x + center.width + gap <= right.x)
+end)
+
 return row {
+    geometry = center_geometry,
     height = "Fill",
     align_h = "Center",
     align_v = "Center",
+    visible = clear,
     children = { rect {
         height = "Fill",
         align_v = "Center",
