@@ -37,7 +37,8 @@ end
 -- popup reads this as DND and `set_quiet` mutes the sounds the same way. The switch's handler
 -- requiets too, since the store is not a capability and has no `on_change`.
 local sharing = computed({ mantle.privacy, store.notifications_dnd_while_sharing }, function(privacy, wanted)
-    return wanted == true and privacy ~= nil and #privacy.screencast_users > 0
+    -- `~= false`: the store reads nil before its first push, and the default is on.
+    return wanted ~= false and privacy ~= nil and #privacy.screencast_users > 0
 end)
 local function requiet()
     mantle.notifications:set_quiet(sharing:get())

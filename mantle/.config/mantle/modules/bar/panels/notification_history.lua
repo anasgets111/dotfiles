@@ -45,6 +45,10 @@ local function kept(payload, urgent)
     return count
 end
 
+local empty = util.shown_when(mantle.notifications, function(payload)
+    return kept(payload) == 0
+end)
+
 local function summary(payload)
     local count, apps, seen = kept(payload), 0, {}
     for _, notification in ipairs(feed(payload)) do
@@ -131,7 +135,7 @@ local body = {
         title = "Do not disturb while sharing",
         subtitle = "Popups and sounds pause while an app captures the screen",
         trailing = toggle(store.notifications_dnd_while_sharing, function(on)
-            return on == true
+            return on ~= false
         end, ui.set_dnd_while_sharing, "notifications-dnd-sharing"),
     },
     list {
@@ -160,8 +164,11 @@ local body = {
     },
     panel_empty_state(
         "No notifications",
-        util.shown_when(mantle.notifications, function(payload)
-            return kept(payload) == 0
+        -- Only once the last card's fade has played: a leaving card keeps its room, so the state
+        -- arriving beside it grew the card down before it shrank. `delay` reads non-boolean before its
+        -- first change, which counts as settled.
+        computed({ empty, delay(empty, theme.animation_ms) }, function(now, was)
+            return now == true and was ~= false
         end),
         -- The section row already says whether do not disturb is on.
         { icon = bell_glyph }
