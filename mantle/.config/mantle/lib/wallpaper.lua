@@ -144,26 +144,33 @@ function wallpaper.fit_of(output)
     end)
 end
 
----Set one output's `key`, copying: mutating the pushed table changes `computed` input without
----marking the scene dirty.
-local function write(output, key, value)
+---Set all outputs in one write: the stored signal updates only on the next push.
+local function write(outputs, key, value, read)
     local stored = store.wallpapers:get() or {}
-    store:set("wallpapers", util.with(stored, output, util.with(stored[output], key, value)))
+    local next_value = stored
+    for _, output in ipairs(outputs) do
+        local selected = type(value) == "function" and value() or value
+        if read(stored, output) ~= selected then
+            next_value = util.with(next_value, output, util.with(next_value[output], key, selected))
+        end
+    end
+    if next_value ~= stored then
+        store:set("wallpapers", next_value)
+    end
 end
 
----Skip unchanged writes because every write pushes.
-function wallpaper.set(output, path)
-    if path == "" or missing_in(mantle.files:get(), path) or wallpaper.path_in(store.wallpapers:get(), output) == path then
+function wallpaper.set(outputs, path)
+    if path == "" or missing_in(mantle.files:get(), path) then
         return
     end
-    write(output, "path", path)
+    write(outputs, "path", path, wallpaper.path_in)
 end
 
-function wallpaper.set_fit(output, fit)
-    if not is_fit(fit) or wallpaper.fit_in(store.wallpapers:get(), output) == fit then
+function wallpaper.set_fit(outputs, fit)
+    if not is_fit(fit) then
         return
     end
-    write(output, "fit", fit)
+    write(outputs, "fit", fit, wallpaper.fit_in)
 end
 
 ---Watched folder from the last `mantle.files` push, or `nil` before the first.
@@ -192,9 +199,9 @@ function wallpaper.randomize_all()
     if #entries == 0 then
         return
     end
-    for _, output in ipairs(wallpaper.outputs()) do
-        wallpaper.set(output, entries[math.random(#entries)].path)
-    end
+    write(wallpaper.outputs(), "path", function()
+        return entries[math.random(#entries)].path
+    end, wallpaper.path_in)
 end
 
 -- `mantle call wallpaper.set [PATH]` sets PATH on every screen, or a random wallpaper per screen.
@@ -202,9 +209,7 @@ action("wallpaper.set", function(path)
     if not path then
         return wallpaper.randomize_all()
     end
-    for _, output in ipairs(wallpaper.outputs()) do
-        wallpaper.set(output, path)
-    end
+    wallpaper.set(wallpaper.outputs(), path)
 end)
 
 -- `gif` animates (ADR-0233); one too long for the engine's frame budget draws as a still.

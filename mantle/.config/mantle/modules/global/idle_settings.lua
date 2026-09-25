@@ -137,10 +137,9 @@ local function duration_bar(stage)
         format = idle.format,
         on_select = function(sec)
             local profile = shown_profile:get()
-            if sec > 0 then
-                idle.write(profile, sec_key, sec)
-            end
-            idle.write(profile, on_key, sec > 0)
+            local held = idle.read(store.idle:get())[profile]
+            idle.write(nil, profile, util.with(util.with(held, on_key, sec > 0), sec_key,
+                sec > 0 and sec or held[sec_key]))
         end,
         width = theme.idle_bar_width,
     }

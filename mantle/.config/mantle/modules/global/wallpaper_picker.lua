@@ -168,9 +168,7 @@ local function apply(path)
     if path == nil or path == "" then
         return
     end
-    for _, output in ipairs(targets_now()) do
-        wallpaper.set(output, path)
-    end
+    wallpaper.set(targets_now(), path)
 end
 
 ---@param entry FileEntry
@@ -365,9 +363,7 @@ local fit_row = segmented {
         return fit_labels[value]
     end,
     on_select = function(value)
-        for _, output in ipairs(targets_now()) do
-            wallpaper.set_fit(output, value)
-        end
+        wallpaper.set_fit(targets_now(), value)
     end,
 }
 

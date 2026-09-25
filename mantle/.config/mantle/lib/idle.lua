@@ -121,8 +121,7 @@ function idle.read(stored)
     return out
 end
 
---- Write one setting to `lib/store.lua`; `profile` is `"ac"`, `"battery"`, or `nil` for shared
---- keys.
+--- Write one setting to `lib/store.lua`; `profile` is `"ac"`, `"battery"`, or `nil` for a top-level key.
 --- @param profile string?
 --- @param key string
 --- @param value any
