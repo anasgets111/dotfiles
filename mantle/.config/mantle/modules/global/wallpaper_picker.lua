@@ -152,10 +152,10 @@ local function move(delta)
     SCROLL:reveal(math.ceil(next_index / COLUMNS))
 end
 
--- With no query, ring the applied file and scroll to it; else the first match.
-local function reset_selection()
+-- With no query, ring `applied` (default the applied file) and scroll to it; else the first match.
+local function reset_selection(applied)
     local entries = filtered:get() or {}
-    local index = math.max(1, trimmed:get() == "" and index_of(entries, current_path:get()) or 1)
+    local index = math.max(1, trimmed:get() == "" and index_of(entries, applied or current_path:get()) or 1)
     selected_path:set(entries[index] and entries[index].path or "")
     SCROLL:reveal(math.ceil(index / COLUMNS))
 end
@@ -307,14 +307,19 @@ local empty_states = {
     panel_empty_state("No results found", state_is("no_match")),
 }
 
+-- Enter calls `on_submit`, then `on_change("")` as the field clears. `current_path` still holds the
+-- old file until the store pushes, so that `on_change` rings the path just submitted.
+local submitted
 local search = search_bar(textfield {
     placeholder = "Search wallpapers…",
     on_change = function(text)
         query:set(text)
-        reset_selection()
+        reset_selection(submitted)
+        submitted = nil
     end,
     on_submit = function()
-        apply(effective_selected:get())
+        submitted = effective_selected:get()
+        apply(submitted)
     end,
     on_cancel = function(cleared)
         if not cleared then
