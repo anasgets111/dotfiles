@@ -52,7 +52,7 @@ return row {
         spacing = theme.spacing.sm,
         children = {
             privacy_module.indicator,
-            volume_module,
+            volume_module.indicator,
             screen_recorder.indicator,
             network.indicator,
             bluetooth.indicator,

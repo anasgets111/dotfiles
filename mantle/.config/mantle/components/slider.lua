@@ -28,6 +28,7 @@ local theme = require("config.theme")
 ---@field border_color? Color|Bound
 ---@field animate? ButtonAnimations|Bound Eases the track's own properties; the fill follows the value and is not eased.
 ---@field hover? Signal
+---@field geometry? Signal The track's measured rect, for a layout that makes room for it.
 ---@field pending? StateSignal<number> The held value, `-1` when none. Default `state(name)`.
 ---@field dragging? StateSignal<boolean> True while a drag is held. Default `state(name .. "_dragging")`.
 ---@field visible? boolean|Bound
@@ -172,6 +173,7 @@ return function(opts)
         border_color = opts.border_color,
         animate = opts.animate,
         hover = opts.hover,
+        geometry = opts.geometry,
         visible = opts.visible,
         on_click = opts.on_click,
         on_drag = function(rect, pointer, phase)

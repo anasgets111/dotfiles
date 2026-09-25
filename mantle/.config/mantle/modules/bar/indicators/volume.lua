@@ -54,59 +54,67 @@ local readout = computed({ mantle.audio, held }, function(audio, pending)
     return string.format("%d%%", math.floor((pending >= 0 and pending or audio.volume) * 100 + 0.5))
 end)
 
-return slider {
-    name = "volume_pending",
-    signal = mantle.audio,
-    read = volume,
-    on_commit = function(value)
-        mantle.audio:set_volume(value)
-        -- After the level, so an unmute is never heard at the old one.
-        mantle.audio:set_muted(false)
-    end,
-    max = util.MAX_VOLUME,
-    split_at = 1,
-    pending = held,
-    headroom_color = headroom,
+local rect = geometry("bar-volume")
+
+return {
+    --- Where the slider is heading: `center_side.lua` makes room before the ease reaches it.
     width = width,
-    height = theme.item_height,
-    align_v = "Center",
-    hover = hovered,
-    dragging = dragging,
-    radius = theme.item_radius,
-    background = ground,
-    color = fill,
-    fill_visible = expanded,
-    animate = { width = theme.animation_ms, background = theme.animation_ms, border_color = theme.animation_ms },
-    border_width = theme.border_width,
-    border_color = computed({ hovered, ui_state.panel_showing("audio") }, function(is_hovered, open)
-        if open then
-            return theme.ACCENT
-        end
-        return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
-    end),
-    on_click = function(rect, mouse_button)
-        if mouse_button == "middle" then
-            mantle.audio:toggle_mute()
-        elseif mouse_button == "right" then
-            ui_state.toggle_panel("audio", rect)
-        end
-    end,
-    -- Eases with the control, so the copies inside the bars stay on the one under them.
-    label = function(under)
-        ---@cast under Signal<Color>
-        local ink = under:map(theme.text_contrast)
-        return row {
-            width = width,
-            height = "Fill",
-            align_h = "Center",
-            align_v = "Center",
-            spacing = theme.spacing.xs,
-            animate = { width = theme.animation_ms },
-            children = {
-                glyph(volume_glyph, ink, theme.icon.lg, { align_v = "Center" }),
-                -- A hidden percentage costs no width or spacing gap.
-                cell(readout, ink, theme.font.sm, { align_v = "Center", visible = expanded }),
-            },
-        }
-    end,
+    geometry = rect,
+    indicator = slider {
+        geometry = rect,
+        name = "volume_pending",
+        signal = mantle.audio,
+        read = volume,
+        on_commit = function(value)
+            mantle.audio:set_volume(value)
+            -- After the level, so an unmute is never heard at the old one.
+            mantle.audio:set_muted(false)
+        end,
+        max = util.MAX_VOLUME,
+        split_at = 1,
+        pending = held,
+        headroom_color = headroom,
+        width = width,
+        height = theme.item_height,
+        align_v = "Center",
+        hover = hovered,
+        dragging = dragging,
+        radius = theme.item_radius,
+        background = ground,
+        color = fill,
+        fill_visible = expanded,
+        animate = { width = theme.animation_ms, background = theme.animation_ms, border_color = theme.animation_ms },
+        border_width = theme.border_width,
+        border_color = computed({ hovered, ui_state.panel_showing("audio") }, function(is_hovered, open)
+            if open then
+                return theme.ACCENT
+            end
+            return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
+        end),
+        on_click = function(rect, mouse_button)
+            if mouse_button == "middle" then
+                mantle.audio:toggle_mute()
+            elseif mouse_button == "right" then
+                ui_state.toggle_panel("audio", rect)
+            end
+        end,
+        -- Eases with the control, so the copies inside the bars stay on the one under them.
+        label = function(under)
+            ---@cast under Signal<Color>
+            local ink = under:map(theme.text_contrast)
+            return row {
+                width = width,
+                height = "Fill",
+                align_h = "Center",
+                align_v = "Center",
+                spacing = theme.spacing.xs,
+                animate = { width = theme.animation_ms },
+                children = {
+                    glyph(volume_glyph, ink, theme.icon.lg, { align_v = "Center" }),
+                    -- A hidden percentage costs no width or spacing gap.
+                    cell(readout, ink, theme.font.sm, { align_v = "Center", visible = expanded }),
+                },
+            }
+        end,
+    },
 }

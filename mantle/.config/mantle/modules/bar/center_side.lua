@@ -1,5 +1,6 @@
 local theme = require("config.theme")
 local media = require("modules.bar.indicators.media")
+local volume = require("modules.bar.indicators.volume")
 local window_title_module = require("modules.bar.indicators.active_window")
 local media_panel = require("modules.bar.panels.media_panel")
 local ui_state = require("lib.ui_state")
@@ -24,11 +25,15 @@ end)
 -- Hides when a side's indicators reach it, as an expanded workspace strip or volume slider can.
 -- ponytail: every output's bar shares these nodes, so monitors of different widths overwrite one
 -- measurement. Upgrade: a per-output `child` in `panel_host.lua` with per-output geometry names.
-local clear = computed({ center_rect, geometry("bar-left"), geometry("bar-right") }, function(center, left, right)
-    local gap = theme.spacing.sm
-    return center == nil
-        or (left.x + left.width + gap <= center.x and center.x + center.width + gap <= right.x)
-end)
+-- The volume slider's growth counts from the pass that starts it, not the one after its ease, so
+-- the centre hides before the slider reaches it; a shrink waits for the ease to settle.
+local clear = computed({ center_rect, geometry("bar-left"), geometry("bar-right"), volume.geometry, volume.width },
+    function(center, left, right, slider, target)
+        local gap = theme.spacing.sm
+        local growth = slider.width > 0 and math.max(0, target - slider.width) or 0
+        return center == nil
+            or (left.x + left.width + gap <= center.x and center.x + center.width + gap <= right.x - growth)
+    end)
 
 return row {
     geometry = center_geometry,
