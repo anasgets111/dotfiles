@@ -71,6 +71,7 @@ end)
 local SLOT_COUNT = #ACTIONS
 local pill = expanding_pill.new({
     slot = "power-pill",
+    count = SLOT_COUNT,
     hold_open = pending:map(function(key)
         return key ~= ""
     end),
@@ -216,4 +217,4 @@ for index, action in ipairs(ACTIONS) do
     })
 end
 
-return { button = pill.row(slots), tooltips = power_tooltips }
+return { pill = pill, button = pill.row(slots), tooltips = power_tooltips }

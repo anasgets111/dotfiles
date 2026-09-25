@@ -12,6 +12,7 @@ local pill = {}
 ---@field slot string The hover slot the whole row declares.
 ---@field collapse_ms? integer How long after the pointer leaves the pill stays open. Default `theme.animation_ms`.
 ---@field hold_open? Signal<boolean> Keeps the pill open while true.
+---@field count integer|Signal<integer> How many cells it holds, for the width it heads to.
 
 ---@param opts ExpandingPillOpts
 function pill.new(opts)
@@ -26,7 +27,19 @@ function pill.new(opts)
     local spacing = expanded:map(function(open)
         return open and theme.spacing.sm or 0
     end)
-    local self = { expanded = expanded, spacing = spacing, animate = { spacing = theme.animation_ms } }
+    local function heading(open, cells)
+        return open and cells * theme.item_width + math.max(0, cells - 1) * theme.spacing.sm or theme.item_width
+    end
+    local self = {
+        expanded = expanded,
+        spacing = spacing,
+        animate = { spacing = theme.animation_ms },
+        geometry = geometry(opts.slot),
+        --- Where the pill is heading: `center_side.lua` makes room before the ease reaches it.
+        width = type(opts.count) == "number" and expanded:map(function(open)
+            return heading(open, opts.count)
+        end) or computed({ expanded, opts.count }, heading),
+    }
 
     --- One cell. `circle` fills it, so a cell narrowing to zero narrows its circle too.
     --- `shown` marks the circle the collapsed pill keeps.
@@ -55,6 +68,7 @@ function pill.new(opts)
         return row {
             height = theme.item_height,
             align_v = "Center",
+            geometry = self.geometry,
             hover = hovered,
             spacing = spacing,
             animate = self.animate,

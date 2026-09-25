@@ -32,7 +32,7 @@ return row {
             launcher.button,
             wallpaper_button.button,
             special_workspaces.indicator,
-            workspaces_module,
+            workspaces_module.indicator,
         },
     } },
 }

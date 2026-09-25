@@ -1,6 +1,8 @@
 local theme = require("config.theme")
 local media = require("modules.bar.indicators.media")
 local volume = require("modules.bar.indicators.volume")
+local power_menu = require("modules.bar.indicators.power_menu")
+local workspaces = require("modules.bar.indicators.workspace_strip")
 local window_title_module = require("modules.bar.indicators.active_window")
 local media_panel = require("modules.bar.panels.media_panel")
 local ui_state = require("lib.ui_state")
@@ -22,18 +24,31 @@ local center_rect = center_geometry:map(function(rect)
     return shown_rect
 end)
 
--- Hides when a side's indicators reach it, as an expanded workspace strip or volume slider can.
+-- Hides when a side's indicators reach it, as an expanded pill or volume slider can.
 -- ponytail: every output's bar shares these nodes, so monitors of different widths overwrite one
 -- measurement. Upgrade: a per-output `child` in `panel_host.lua` with per-output geometry names.
--- The volume slider's growth counts from the pass that starts it, not the one after its ease, so
--- the centre hides before the slider reaches it; a shrink waits for the ease to settle.
-local clear = computed({ center_rect, geometry("bar-left"), geometry("bar-right"), volume.geometry, volume.width },
-    function(center, left, right, slider, target)
-        local gap = theme.spacing.sm
-        local growth = slider.width > 0 and math.max(0, target - slider.width) or 0
-        return center == nil
-            or (left.x + left.width + gap <= center.x and center.x + center.width + gap <= right.x - growth)
-    end)
+-- Growth counts from the pass that starts an ease, not the one after it, so the centre hides before
+-- an indicator reaches it; a shrink waits for the ease to settle.
+local function growth(rect, target)
+    return rect.width > 0 and math.max(0, target - rect.width) or 0
+end
+
+local clear = computed({
+    center_rect,
+    geometry("bar-left"),
+    geometry("bar-right"),
+    power_menu.pill.geometry,
+    power_menu.pill.width,
+    workspaces.pill.geometry,
+    workspaces.pill.width,
+    volume.geometry,
+    volume.width,
+}, function(center, left, right, power, power_width, strip, strip_width, slider, slider_width)
+    local gap = theme.spacing.sm
+    local left_end = left.x + left.width + growth(power, power_width) + growth(strip, strip_width)
+    return center == nil
+        or (left_end + gap <= center.x and center.x + center.width + gap <= right.x - growth(slider, slider_width))
+end)
 
 return row {
     geometry = center_geometry,

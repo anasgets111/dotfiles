@@ -40,7 +40,13 @@ local function workspaces_of(workspaces)
     return padded
 end
 
-local pill = expanding_pill.new({ slot = "workspace-pill", collapse_ms = theme.animation_ms + 200 })
+local pill = expanding_pill.new({
+    slot = "workspace-pill",
+    collapse_ms = theme.animation_ms + 200,
+    count = mantle.workspaces:map(function(workspaces)
+        return #workspaces_of(workspaces)
+    end),
+})
 
 local function workspace_button(workspace)
     local id = workspace.id
@@ -78,7 +84,7 @@ local function workspace_button(workspace)
 end
 
 -- No ground of its own; the circles sit directly on the bar.
-return pill.row({
+local strip = pill.row({
     list {
         direction = "Horizontal",
         align_v = "Center",
@@ -91,3 +97,5 @@ return pill.row({
         end,
     },
 })
+
+return { pill = pill, indicator = strip }
