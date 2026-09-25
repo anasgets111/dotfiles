@@ -244,7 +244,7 @@ local function content(output)
         background = theme.with_opacity(theme.ELEVATED, 0.3),
         radius = theme.radius.xl,
         backdrop_blur = CARD_BLUR,
-        -- With no shadow node, the edge is the only thing separating the card from the picture.
+        -- The edge, not a shadow, separates the card from the picture.
         border_width = theme.border_width_medium,
         border_color = theme.GLASS_BORDER,
     })

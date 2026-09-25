@@ -137,14 +137,16 @@ local function append_dev_log(line)
     dev_log:set(util.concat(dev_log:get(), { line }))
 end
 
--- Stops at the first non-zero exit.
+-- Stops at the first non-zero exit. A reload kills the child with `nil` and ends the chain.
 local function run_commands(commands, index, done)
     local command = commands[index]
     if command == nil then
         return done(true)
     end
     process.run(command[1], { table.unpack(command, 2) }, append_dev_log, function(code)
-        if code ~= 0 then
+        if code == nil then
+            return dev_running:set("")
+        elseif code ~= 0 then
             log.error("update:", table.concat(command, " "), "exited", code)
             return done(false)
         end
@@ -369,7 +371,6 @@ return {
     result_showing = result_showing,
     phase = phase,
     ran_packages = ran_packages,
-    manager = manager,
     install_failed = install_failed,
     tool_step = tool_step,
     any_tool_runnable = any_tool_runnable,

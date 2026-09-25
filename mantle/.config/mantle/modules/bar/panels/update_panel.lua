@@ -75,7 +75,7 @@ local function warning_count(updates)
     return count
 end
 
--- `current` is the phase, passed in, because a signal read inside a map never re-runs it.
+-- `current` is the phase, passed in.
 local function status_line(updates, current, tool, dev)
     if current == "loading" then
         return "Waiting for the updater"
@@ -154,7 +154,7 @@ local function last_check_line(updates, now)
         return "Never checked"
     end
     local at = updates.last_successful_check
-    local when = os.date("%Y-%m-%d", at) == os.date("%Y-%m-%d") and os.date("%I:%M %p", at)
+    local when = os.date("%Y-%m-%d", at) == os.date("%Y-%m-%d", now) and os.date("%I:%M %p", at)
         or os.date("%b %d, %I:%M %p", at)
     return "Checked " .. when .. (now - at > service.CHECK_INTERVAL * 2 and " · stale" or "")
 end

@@ -164,7 +164,7 @@ local function audio_control(opts)
             split_at = opts.headroom and 1 or nil,
             marker = opts.headroom,
             headroom_color = when_muted(theme.INACTIVE, theme.RED),
-            height = theme.s(20, 16),
+            height = theme.audio_slider_height,
             color = when_muted(theme.INACTIVE, theme.ACCENT),
         },
     }, opts.under)

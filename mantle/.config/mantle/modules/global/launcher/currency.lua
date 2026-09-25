@@ -2,7 +2,7 @@
 --
 -- The engine has no HTTP, so rates come from `curl` and decode in `exit_cb`, the only callback that
 -- knows the body is complete. They are stored in `lib/store.lua`, so a restart inside the day
--- reuses them, and staleness is checked on `mantle.system`'s 1 Hz push for want of a config timer.
+-- reuses them, and staleness is checked on `mantle.system`'s 1 Hz push, which a reload cannot drop.
 -- A query whose target has no rate claims nothing, so nothing shows before the first fetch.
 local util = require("lib.util")
 local store = require("lib.store")
@@ -158,7 +158,7 @@ end)
 
 -- `allow_bare` lets a code with no amount and no separator claim the row.
 ---@return LauncherRow|nil
-function M.claims(query, rates, updated_at, allow_bare)
+function M.claims(query, rates, updated_at, allow_bare, today)
     local text = util.trim(query):lower()
     local source, target = split(text)
     local amount, from = parse_source(source or text, source ~= nil or allow_bare)
@@ -193,7 +193,7 @@ function M.claims(query, rates, updated_at, allow_bare)
         icon = flag(from),
         icon_is_text = true,
         title = string.format("%s %s → %s %s", string.format("%.14g", amount), from:upper(), result, to:upper()),
-        subtitle = updated_text(updated_at, os.time()),
+        subtitle = updated_text(updated_at, today),
         payload = result,
     }
 end

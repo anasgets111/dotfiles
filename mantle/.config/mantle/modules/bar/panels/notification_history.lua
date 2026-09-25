@@ -26,11 +26,11 @@ local bell_glyph = mantle.notifications:map(function(payload)
     return (payload and payload.dnd) and icons.bell_off or icons.bell
 end)
 
--- `mantle.applications` supplies desktop-file names and icons. `mantle.system` moves "today" at midnight.
-local sections = computed({ mantle.notifications, mantle.applications, mantle.system },
-    function(payload, applications, system)
+-- `mantle.applications` supplies desktop-file names and icons. `util.today` moves "today" at midnight.
+local sections = computed({ mantle.notifications, mantle.applications, util.today },
+    function(payload, applications, today)
         local groups = notifications.group_notifications(feed(payload), applications, { skip_transient = true })
-        return notifications.notification_sections(groups, (system and system.time) or 0)
+        return notifications.notification_sections(groups, today)
     end)
 
 -- Transients never reach this list, so neither count includes them.

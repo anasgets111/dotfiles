@@ -7,8 +7,7 @@ local glyph = require("components.glyph")
 local meter = require("components.meter")
 local osd = require("modules.osd.service")
 
--- A short settle, not a swoop: this card acknowledges a key already pressed, dozens of times a day.
-local SLIDE = theme.s(12, 8)
+local SLIDE = theme.osd_slide
 -- Exit is quicker. A card whose two seconds are up is not news.
 local RISE_MS = theme.animation_ms
 local FALL_MS = theme.animation_fast_ms
@@ -50,7 +49,7 @@ local level_row = row {
             content = entry_text,
             foreground = theme.FG,
             font_size = theme.font.lg,
-            width = theme.s(52, 40),
+            width = theme.osd_value_width,
             text_align = "End",
             align_v = "Center",
         },
@@ -101,12 +100,14 @@ local fact_row = row {
 
 return panel {
     id = "osd",
+    -- One instance, on the output the compositor picks at each show.
+    monitor = "Active",
     layer = "Overlay",
     -- No `left`/`right`: the protocol centres an axis with neither edge anchored and leaves its
     -- width measurable, where two anchored edges would span the output.
     anchor = { bottom = true },
     -- `SLIDE` taller and that much lower, so the rise stays inside the surface that clips it.
-    margin = { bottom = theme.s(132, 90) - SLIDE },
+    margin = { bottom = theme.osd_bottom_margin - SLIDE },
     -- No `width`: the surface is the card, and the card is its content.
     height = theme.osd_height + SLIDE,
     -- Map until exit completes at `FALL_MS`; holding it for the entry's beat left an idle overlay.

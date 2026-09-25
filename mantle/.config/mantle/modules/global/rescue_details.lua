@@ -10,10 +10,12 @@ local modal = require("components.modal")
 local ui_state = require("lib.ui_state")
 local error_log = require("lib.rescue")
 
--- Evaluating at all means the config loaded, so an open card is showing a fixed error.
--- ponytail: a failure in a file required after this one closes the card early; the circle stays, so
--- a click reopens it. Upgrade: `on_change` for bare signals.
-ui_state.close_modal("rescue")
+-- The error is fixed once a reload applies, so the card has nothing left to show.
+mantle.rescue:on_change(function(rescue)
+    if not (rescue and rescue.error_log ~= "") then
+        ui_state.close_modal("rescue")
+    end
+end)
 
 local header = panel_header {
     title = "Configuration error",

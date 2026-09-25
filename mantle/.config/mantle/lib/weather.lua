@@ -3,7 +3,7 @@
 -- on its free tier); write `weather_location` to pin a place instead.
 --
 -- Retries and the refresh share one deadline, `next_attempt`, compared on `mantle.system`'s 1 Hz
--- push, so no config timer is needed. `launcher/currency.lua` refreshes the same way.
+-- push, which survives a reload where a `timer` would not. `launcher/currency.lua` refreshes the same way.
 --
 -- Nothing is owed until `mantle.storage` has pushed, since the stored stamp says whether a launch
 -- owes a request and its `0` default would spend one every time. A level test, not an edge: a reload

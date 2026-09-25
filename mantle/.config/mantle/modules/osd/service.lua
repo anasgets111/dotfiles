@@ -26,7 +26,7 @@ local PRIORITY = {
 osd.entry = state("osd_entry", { kind = "", glyph = "", text = "" })
 osd.visible = state("osd_visible", false)
 
--- `process.run("sleep", ...)` is the only timer. `ProcessHandle:kill()` does not cancel queued
+-- A `process.run("sleep", ...)` times the card. `ProcessHandle:kill()` does not cancel queued
 -- `exit_cb`, so a request counter distinguishes a newer card from the older sleep; killing alone
 -- would let the old callback hide the new card.
 local SECONDS = "2"

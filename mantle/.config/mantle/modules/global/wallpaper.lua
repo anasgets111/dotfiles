@@ -4,8 +4,7 @@
 local wallpaper = require("lib.wallpaper")
 local theme = require("config.theme")
 
--- Built twice: Niri's `place-within-backdrop` moves a surface rather than copying it. Unblurred:
--- an `image` takes no shader outside a `transition`.
+-- Built twice: Niri's `place-within-backdrop` moves a surface rather than copying it.
 local function wallpaper_panel(id, visible)
     -- `"Ignore"` (layer-shell `-1`) covers the output; `false` would yield to the bar's reservation.
     return panel {

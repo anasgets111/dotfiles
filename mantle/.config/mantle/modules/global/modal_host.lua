@@ -8,7 +8,7 @@ local modals = {
     require("modules.global.launcher"),
     require("modules.global.wallpaper_picker"),
     require("modules.global.idle_settings"),
-    require("modules.global.rescue_details"),
+    (require("modules.global.rescue_details")),
 }
 
 local any_modal = ui_state.active_modal:map(function(kind)
@@ -49,6 +49,8 @@ end)
 
 return panel {
     id = "modal_host",
+    -- One instance, on the output the compositor picks at each show.
+    monitor = "Active",
     namespace = "mantle-modal-host",
     layer = "Top",
     anchor = { top = true, bottom = true, left = true, right = true },

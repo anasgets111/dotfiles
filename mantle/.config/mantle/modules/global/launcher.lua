@@ -79,6 +79,8 @@ end
 ---@return { apps: AppSummary[], best: integer }
 local function filter(applications, text, usage)
     usage = usage or {}
+    -- ponytail: read when the query, apps or usage change, so recency can lag while the launcher
+    -- sits idle. Feed an hourly clock signal if the buckets ever look wrong.
     local now = os.time()
     -- No `lower()`: `fuzzy` is smart-case, so an uppercase letter in the query is the user asking
     -- for an exact match.
@@ -163,8 +165,8 @@ local trimmed = query:map(util.trim)
 
 -- The first provider that claims wins, and the web row is only reached when neither does.
 local special = computed(
-    { trimmed, matches, store.currency_rates, store.currency_updated_at },
-    function(text, found, rates, updated_at)
+    { trimmed, matches, store.currency_rates, store.currency_updated_at, util.today },
+    function(text, found, rates, updated_at, today)
         if text == "" then
             return nil
         end
@@ -173,7 +175,7 @@ local special = computed(
         -- well owns the query. A code with no rate falls through here whatever the score. Weak is no
         -- matched apps, or a best score under a threshold that grows with query length, in fzf's units.
         local weak = #found.apps == 0 or found.best < math.max(32, #text * 25)
-        return currency.claims(text, rates, updated_at, weak)
+        return currency.claims(text, rates, updated_at, weak, today)
             or calc.claims(text)
             or web_claims(text, weak)
     end

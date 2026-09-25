@@ -18,6 +18,7 @@ local panel_empty_state = require("components.panel_empty_state")
 local segmented = require("components.segmented")
 local section_header = require("components.section_header")
 local spinner = require("components.spinner")
+local store = require("lib.store")
 
 local SCROLL = scroll("wallpaper_grid")
 local COLUMNS = theme.wallpaper_columns
@@ -84,7 +85,7 @@ local rows = filtered:map(function(entries)
     return chunks
 end)
 
--- An unplugged selection reads as "all", since `mantle.screens` has no `on_change`.
+-- An unplugged selection reads as "all" but is kept, so a replugged screen gets it back.
 local effective_monitor = computed({ monitor, mantle.screens }, function(chosen, screens)
     for _, screen in ipairs(screens or {}) do
         if screen.name == chosen then
@@ -102,7 +103,7 @@ end
 -- `read`'s answer for the targeted screens, or `""` where they disagree, so the badge and the ring
 -- never pick between conflicting answers.
 local function targeted(read)
-    return computed({ require("lib.store").wallpapers, mantle.screens, effective_monitor },
+    return computed({ store.wallpapers, mantle.screens, effective_monitor },
         function(wallpapers, screens, chosen)
             local first
             for _, screen in ipairs(screens or {}) do
@@ -377,11 +378,11 @@ local EFFECTS_PER_ROW = 3
 local current_effect = wallpaper.effect()
 
 local effect_rows = wallpaper.effects():map(function(names)
-    local rows = {}
+    local bars = {}
     for index = 1, #names, EFFECTS_PER_ROW do
-        rows[#rows + 1] = { table.unpack(names, index, math.min(index + EFFECTS_PER_ROW - 1, #names)) }
+        bars[#bars + 1] = { table.unpack(names, index, math.min(index + EFFECTS_PER_ROW - 1, #names)) }
     end
-    return rows
+    return bars
 end)
 
 local effect_grid = list {

@@ -46,7 +46,7 @@ local screenshare_tooltip = tooltip({
 local indicator = row {
     align_v = "Center",
     spacing = theme.spacing.sm,
-    -- Invisible children leave layout, but the row still takes `left_side.lua`'s gap, so the group
+    -- Invisible children leave layout, but the row still takes `right_side.lua`'s gap, so the group
     -- hides itself. Keyed on `mic_shown`: a muted microphone appears without a user.
     visible = computed({ mantle.privacy, mic_shown }, function(privacy, mic)
         return mic or users_of("camera_users")(privacy) or users_of("screencast_users")(privacy)

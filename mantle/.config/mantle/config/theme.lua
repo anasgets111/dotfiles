@@ -83,7 +83,6 @@ theme.opacity                  = {
     disabled = 0.5,
     muted    = 0.7,
     strong   = 0.8,
-    full     = 0.95,
 }
 
 -- The swatches everything else derives from.
@@ -230,11 +229,11 @@ theme.animation_slow_ms        = 250
 theme.animation_very_slow_ms   = 400
 -- Notification travel, derived so it follows the base rather than pinning 206.
 theme.notification_slide_ms    = math.floor(theme.animation_ms * 1.4 + 0.5)
+-- How far a selected item's picture grows, shared by the launcher and wallpaper picker.
+theme.selected_scale           = 1.1
 -- For a fill scrubbed by key repeat. An eased tween restarts from a standstill on every retarget and
 -- falls behind, and a spring carries its velocity across. 400/42 is critically
 -- damped, and a single press still lands in about a tenth of a second.
--- How far a selected item's picture grows, shared by the launcher and wallpaper picker.
-theme.selected_scale           = 1.1
 theme.spring_tracking          = { spring = { stiffness = 400, damping = 42 } }
 -- Bar panels share one card in `modules/shell/panel_host.lua`. A list scrolls past `panel_list_height`,
 -- cut between rows by `util.fit_height`, so it needs each row's height: headers take a fixed one.
@@ -242,6 +241,9 @@ theme.panel_width              = s(340, 280)
 theme.panel_list_height        = s(280, 210)
 -- A drag track, so a list of them can be cut between rows.
 theme.slider_height            = s(16, 12)
+-- The audio panel's device sliders, taller so the label inside stays readable.
+theme.audio_slider_height      = s(20, 16)
+theme.meter_height             = s(6, 4)
 theme.section_header_height    = s(22, 18)
 -- Where a closed panel sits before `geometry` has measured it; after that it uses `-height`.
 theme.panel_slide              = s(760, 570)
@@ -293,8 +295,17 @@ theme.osd_toggle_min           = s(220, 176)
 theme.osd_height               = s(80, 60)
 theme.osd_tile                 = s(48, 36)
 theme.osd_track                = s(12, 8)
+-- Fits "100%" beside the bar, so the bar never jumps as the number changes length.
+theme.osd_value_width          = s(52, 40)
+-- A short settle, not a swoop: the card acknowledges a key already pressed, dozens of times a day.
+theme.osd_slide                = s(12, 8)
+theme.osd_bottom_margin        = s(132, 90)
 -- The polkit and lock cards, narrower than the launcher because each holds a line or two and one field.
 theme.dialog_width             = s(450, 360)
+-- A dialog that is not a modal sits this far below the top edge, clear of the bar.
+theme.dialog_top_margin        = s(96, 64)
+-- One calendar day cell, square.
+theme.calendar_day             = s(30, 24)
 
 -- The lock screen's clock, set on the wallpaper as the one large thing on it.
 theme.lock_clock               = s(160, 96)

@@ -52,6 +52,8 @@ local visible_groups = computed(
 
 return panel {
     id = "notification_area",
+    -- One instance, on the output the compositor picks at each show.
+    monitor = "Active",
     layer = "Overlay",
     anchor = { top = true, right = true },
     margin = { top = theme.bar_height + theme.spacing.md, right = theme.spacing.md },

@@ -32,7 +32,6 @@ if identity:get().host == "" then
 end
 
 return {
-    user = USER,
     full_name = identity:map(function(who)
         return who.name ~= "" and who.name or USER
     end),

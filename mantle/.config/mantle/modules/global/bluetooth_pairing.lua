@@ -68,12 +68,14 @@ end)
 
 return panel {
     id = "bluetooth_pairing",
+    -- One instance, on the output the compositor picks at each show.
+    monitor = "Active",
     namespace = "mantle-bluetooth-pairing",
     layer = "Overlay",
     -- Top edge only. The protocol centres an axis with neither edge anchored, and with no `width` or
     -- `height` the surface is the card.
     anchor = { top = true },
-    margin = { top = theme.s(96, 64) },
+    margin = { top = theme.dialog_top_margin },
     exclusive = false,
     visible = util.linger(showing, theme.animation_ms),
     keyboard_interactivity = "None",

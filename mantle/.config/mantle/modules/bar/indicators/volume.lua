@@ -54,14 +54,14 @@ local readout = computed({ mantle.audio, held }, function(audio, pending)
     return string.format("%d%%", math.floor((pending >= 0 and pending or audio.volume) * 100 + 0.5))
 end)
 
-local rect = geometry("bar-volume")
+local track = geometry("bar-volume")
 
 return {
     --- Where the slider is heading: `center_side.lua` makes room before the ease reaches it.
     width = width,
-    geometry = rect,
+    geometry = track,
     indicator = slider {
-        geometry = rect,
+        geometry = track,
         name = "volume_pending",
         signal = mantle.audio,
         read = volume,

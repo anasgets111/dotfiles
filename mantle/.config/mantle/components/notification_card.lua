@@ -1,8 +1,8 @@
 -- One application's notifications as one card, shared by the popup stack and the history panel.
 -- `opts.scope` carries their different ground, timestamp and entry motion.
 --
--- Structure is built, not bound. `children` takes an array, and a `list`'s `itemfn` re-runs for every
--- element on every pass, so reads here rebuild the tree. Appearance stays bound.
+-- Structure is built, not bound: `children` takes an array, so a read here rebuilds the item. Appearance
+-- stays bound.
 --
 -- ponytail: the cards below a dismissed one still close its gap on one frame; the engine has no move
 -- transition (`docs/roadmap.md`).

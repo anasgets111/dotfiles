@@ -77,8 +77,10 @@ local function use_directory(dir)
     dir = dir:gsub("/$", "")
     directory:set(dir)
     -- `mantle.files` never watches a folder missing at `watch`, so make it first.
-    process.run("mkdir", { "-p", dir }, function() end, function()
-        mantle.files:watch(dir)
+    process.run("mkdir", { "-p", dir }, function() end, function(code)
+        if code ~= nil then
+            mantle.files:watch(dir)
+        end
     end)
 end
 if directory:get() == "" then
@@ -87,8 +89,8 @@ if directory:get() == "" then
         if trimmed ~= "" then
             use_directory(trimmed)
         end
-    end, function()
-        if directory:get() == "" then
+    end, function(code)
+        if code ~= nil and directory:get() == "" then
             use_directory(FALLBACK_DIRECTORY)
         end
     end)
@@ -341,7 +343,6 @@ end)
 return {
     recording = recording,
     paused = paused,
-    starting = starting,
     elapsed_text = elapsed_text,
     capture_label = capture_label,
     start_error = recorder.start_error,

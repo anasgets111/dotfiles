@@ -145,27 +145,20 @@ end
 
 -- The themed icon for `entry`'s `app_id`, or `""`.
 function util.app_icon(entry)
-    return computed({ mantle.applications, entry }, function(applications, current)
-        local app = util.app_entry(applications, current.app_id)
+    return mantle.applications:map(function(applications)
+        local app = util.app_entry(applications, entry.app_id)
         return (app and app.icon) or ""
-    end)
-end
-
--- The current entry of `list_of(signal)` whose `field` matches `built`'s, else `built`: key
--- reconciliation keeps an `itemfn` node, built from its first snapshot, while that entry changes.
-function util.live_entry(signal, list_of, built, field)
-    return signal:map(function(value)
-        for _, candidate in ipairs(list_of(value)) do
-            if candidate[field] == built[field] then
-                return candidate
-            end
-        end
-        return built
     end)
 end
 
 -- The engine's `set_volume` clamp.
 util.MAX_VOLUME = 1.5
+
+-- Noon today: it changes once a day, so a reader re-resolves at midnight, not on each clock tick.
+util.today = mantle.system:map(function(system)
+    local now = os.date("*t", system and system.time)
+    return os.time({ year = now.year, month = now.month, day = now.day, hour = 12 })
+end)
 
 -- The `active` entry of `mantle.audio.sinks` or `sources`, or `nil`.
 function util.active_device(devices)

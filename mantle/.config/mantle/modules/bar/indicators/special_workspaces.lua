@@ -16,9 +16,8 @@ end
 
 local function special_button(special)
     local name = special.name
-    local entry = util.live_entry(mantle.workspaces, specials_of, special, "name")
-    local ground = computed({ entry, hover("special-" .. name) }, function(current, is_hovered)
-        if current.shown_on ~= nil then
+    local ground = hover("special-" .. name):map(function(is_hovered)
+        if special.shown_on ~= nil then
             return theme.ACCENT
         end
         return is_hovered and theme.GLASS_CONTROL_HOVER or theme.GLASS_CONTROL
@@ -28,7 +27,7 @@ local function special_button(special)
         mantle.workspaces:toggle_special(name)
     end, {
         slot = "special-" .. name,
-        art = util.app_icon(entry),
+        art = util.app_icon(special),
         icon_size = theme.font.sm,
         radius = theme.item_radius,
         background = ground,

@@ -47,3 +47,4 @@ types:
 [doc('The shell config evaluates and lays out.')]
 mantle:
     mantle check -c mantle/.config/mantle
+    mantle check -c mantle/.config/mantle/demo

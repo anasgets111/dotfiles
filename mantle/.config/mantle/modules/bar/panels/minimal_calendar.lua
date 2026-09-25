@@ -8,7 +8,7 @@ local cell = require("components.cell")
 
 local COLUMNS = 7
 local DAY_NAMES = { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" }
-local DAY_SIDE = theme.s(30, 24)
+local DAY_SIDE = theme.calendar_day
 
 -- Today, the month's lead-in blanks, its length and its week count. Lua's normalizing `os.time`
 -- makes `day = 0` the previous month's last day, avoiding a month-length table and a leap-year branch.
@@ -72,27 +72,22 @@ end
 
 return {
     width = COLUMNS * DAY_SIDE + (COLUMNS - 1) * theme.spacing.xs,
-    height = mantle.system:map(function(system)
-        local rows = select(4, month_of((system and system.time) or os.time()))
+    height = util.today:map(function(today)
+        local rows = select(4, month_of(today))
         return line_of(theme.font.sm) + line_of(theme.font.xs) + rows * DAY_SIDE + (rows + 1) * theme.spacing.xs
     end),
     node = column {
         width = "Fill",
         spacing = theme.spacing.xs,
         children = {
-            cell(util.bold(mantle.system:map(function(system)
-                return os.date("%B %Y", (system and system.time) or os.time())
+            cell(util.bold(util.today:map(function(today)
+                return os.date("%B %Y", today)
             end)), theme.FG, theme.font.sm, { width = "Fill", align = "Center" }),
             row { width = "Fill", spacing = theme.spacing.xs, children = day_names },
-            -- Rebuilt on each clock tick, at most 42 cells of arithmetic, although it changes at midnight.
-            -- ponytail: `:map` must stay pure, so memoizing the day cannot write a cache. Add a date field
-            -- beside `mantle.system.time` and key on that.
             column {
                 width = "Fill",
                 spacing = theme.spacing.xs,
-                children = mantle.system:map(function(system)
-                    return week_rows(system and system.time or os.time())
-                end),
+                children = util.today:map(week_rows),
             },
         },
     },

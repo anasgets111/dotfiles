@@ -1,8 +1,8 @@
--- The bars are flat because cava needs 30fps frames and the engine has no shader or canvas node:
--- pushing `rect` levels per frame trips the 5ms CPU budget. A spectrum at zero draws this same row.
+-- Flat bars: a spectrum at zero draws this same row. A live one would need 30fps levels, which a
+-- `shader` node's `params` could take in one node rather than per-frame `rect` resolves.
 local theme = require("config.theme")
 
--- Cava is configured for 256, but each bar here is a real node and at rest they read as one rule.
+-- Each bar is a real node, and at rest they read as one rule.
 local BARS = 48
 
 local tint = mantle.mpris:map(function(mpris)

@@ -1,13 +1,20 @@
 -- Effects demo: one floating window that is one viewport. The wallpaper sits under everything,
 -- each feature is an island with its controls in a glass strip right under it, and a frosted pane
--- drags over all of it. Open it with the bar's wand button or `mantle toggle fx_probe`. Temporary.
+-- drags over all of it. Its own instance, `mantle -c ~/.config/mantle/demo`, sharing the shell's
+-- `config/`, `components/` and `lib/` through symlinks. `mantle -c <dir> toggle demo_open` reopens it.
+fonts {
+    "CaskaydiaCove Nerd Font Propo",
+    "Noto Sans",
+    "Noto Color Emoji",
+}
+
 local theme = require("config.theme")
 local slider = require("components.slider")
 local segmented = require("components.segmented")
 local store = require("lib.store")
 local wallpaper = require("lib.wallpaper")
 
-local open = state("fx_probe", false)
+local open = state("demo_open", true)
 
 -- Two rows of three islands on one set of columns. An island is a title, a stage and a strip.
 local WIN_W, WIN_H = 1280, 760
@@ -449,8 +456,8 @@ timer(1000, sample)
 ---------------------------------------------------------------------------------------------------
 -- Window: a compositor-moved toplevel (Super+drag); Hyprland floats it by its app_id.
 
-return window {
-    id = "fx_probe",
+return { window {
+    id = "fx_demo",
     title = "Mantle effects demo",
     app_id = "mantle-fx-demo",
     visible = open,
@@ -490,4 +497,4 @@ return window {
             pane,
         },
     },
-}
+} }

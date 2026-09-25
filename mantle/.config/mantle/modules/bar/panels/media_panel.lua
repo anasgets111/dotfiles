@@ -1,8 +1,7 @@
 -- `position` is valid only at `position_updated_at` and nothing polls it, so the bar would sit still
 -- between pushes. That stamp is `CLOCK_MONOTONIC`, which `mantle.system.monotonic` is not. `on_change`
 -- is the one place a clock reading and a payload are simultaneous, so it anchors each push and `system`
--- ticks the elapsed term once a second. A `:map` would re-record the anchor, since the engine may rerun
--- a map on the same inputs.
+-- ticks the elapsed term once a second. A `:map` may not `:set`, so it cannot record the anchor.
 --
 -- A quiet player, such as a browser, may never report a seek, so a drag adopts its target as the
 -- reading until the next real one. `PlayerState` has no can-skip or can-seek flags to check.
@@ -22,8 +21,6 @@ local SEEK_STEP_US = 5 * 1000 * 1000
 -- notice, so the index wraps on read instead of clamping on write.
 local chosen = state("media_player", 1)
 
--- Reading `chosen:get()` inside a `:map` hides a dependency: selection changes while declared
--- inputs stay fixed, so switching players would move the index without redrawing.
 local selected = computed({ mantle.mpris, chosen }, function(mpris, index)
     local players = (mpris and mpris.players) or {}
     if #players == 0 then

@@ -40,29 +40,29 @@ local function workspaces_of(workspaces)
     return padded
 end
 
+local listed = mantle.workspaces:map(workspaces_of)
 local pill = expanding_pill.new({
     slot = "workspace-pill",
     collapse_ms = theme.animation_ms + 200,
-    count = mantle.workspaces:map(function(workspaces)
-        return #workspaces_of(workspaces)
+    count = listed:map(function(entries)
+        return #entries
     end),
 })
 
 local function workspace_button(workspace)
     local id = workspace.id
-    local entry = util.live_entry(mantle.workspaces, workspaces_of, workspace, "id")
     local is_active = mantle.workspaces:map(function(workspaces)
         local out = output_of(workspaces)
         return out ~= nil and out.active_workspace == id
     end)
     local slot_hovered = hover("workspace-" .. tostring(id))
-    local ground = computed({ is_active, slot_hovered, entry }, function(active, is_hovered, current)
+    local ground = computed({ is_active, slot_hovered }, function(active, is_hovered)
         if active then
             return theme.ACCENT
         elseif is_hovered then
             return theme.GLASS_CONTROL_HOVER
         end
-        return current.populated and theme.GLASS_CONTROL or theme.CLEAR
+        return workspace.populated and theme.GLASS_CONTROL or theme.CLEAR
     end)
     -- `ground` already folds the pointer in, so it is both states; the ring and the contrast ink
     -- come from `icon_button`'s defaults.
@@ -72,14 +72,12 @@ local function workspace_button(workspace)
         end
     end, {
         slot = "workspace-" .. tostring(id),
-        art = util.app_icon(entry),
+        art = util.app_icon(workspace),
         icon_size = theme.font.sm,
         radius = theme.item_radius,
         background = ground,
         background_hover = ground,
-        opacity = entry:map(function(current)
-            return current.populated and 1 or theme.opacity.muted
-        end),
+        opacity = workspace.populated and 1 or theme.opacity.muted,
     }), is_active)
 end
 
@@ -90,7 +88,7 @@ local strip = pill.row({
         align_v = "Center",
         spacing = pill.spacing,
         animate = pill.animate,
-        source = mantle.workspaces:map(workspaces_of),
+        source = listed,
         itemfn = workspace_button,
         key = function(workspace)
             return tostring(workspace.id)

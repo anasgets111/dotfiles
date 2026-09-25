@@ -14,7 +14,7 @@
 | Command | Use |
 | --- | --- |
 | `just` | Gate before done: `lua` (parse + format), `types` (LuaLS on the root `.luarc.json`), `mantle`. `just fmt` formats |
-| `mantle check -c mantle/.config/mantle` | Run after every edit (`just mantle`). Evaluates and lays out the config with no Wayland, no subprocesses and every capability `nil`; writes no state |
+| `mantle check -c mantle/.config/mantle` | Run after every edit (`just mantle`). Evaluates the config with no Wayland and no subprocesses, then lays it out twice: every capability `nil`, then one sample push each (one-entry lists). Writes no state |
 | `mantle log [-f]` | Running shell output, `print()` included |
 | `mantle set`, `toggle`, `call <name>` | Drive live `state` and `action` names like a keybind; changes the live UI |
 | `luac5.4 -p file.lua` | Syntax check. Plain `luac` is Lua 5.5 |
@@ -51,7 +51,7 @@ mantle/.config/mantle/
 | --- | --- |
 | Signals | Pass the signal itself to keep a property live; `:get()` is a snapshot. Derive with `:map`, `computed`, `delay`, `pulse` |
 | Hydration | Capabilities read `nil` until the first push. Every map handles `nil` |
-| Actions | `mantle.audio:invoke("set_volume", 0.5)` returns nothing. Observe state for the outcome |
+| Actions | `mantle.audio:set_volume(0.5)` returns nothing. Observe state for the outcome |
 | Keybinds | Named state lives in `lib/ui_state.lua`; `action(name, fn)` backs `mantle call`. A rename also updates `hypr/.config/hypr/config/keybinds.lua` and `niri/.config/niri/config.kdl` |
 | Persistence | One `persistent_table` in `lib/store.lua` (`~/.local/state/mantle/state.json`). Add keys to its `defaults` |
 | Processes | `process.run` dies with the generation, `process.detach` outlives the shell, `session_process` survives reloads |
@@ -84,6 +84,7 @@ Before writing code, trace the real flow end to end, then stop at the first rung
 
 | Path | Holds |
 | --- | --- |
+| `mantle/.config/mantle/demo/` | Effects demo run as its own instance (`mantle -c`), sharing `config/`, `components/` and `lib/` through symlinks. Not required by `shell.lua`, but its edits still reload the main shell |
 | `bin/.local/bin/arch-install.sh` | Full Arch install for the Wolverine and Mentalist hosts |
 | `home/.profile` | XDG dirs, NVIDIA env, Wayland toolkit config, PATH |
 | `home/.stowrc` | Points stow at this repo and `~` |
@@ -103,8 +104,9 @@ The default terminal resolves through `xdg-terminal-exec`.
 | Trap | Fix |
 | --- | --- |
 | The VM has no `io`, `debug` or FFI; `os` has only `time`, `date`, `clock`, `getenv` | Shell out with `process.run` |
-| `require` returns a second value, so inside the returned surface table it adds an entry (`error converting Lua string to table`) | Bind modules to locals first |
-| `:map` and `computed` have a 5 ms CPU budget (`exceeded the 5ms CPU budget`) | Keep maps cheap |
+| `require` returns a second value, the path, so as the last item of a table constructor it adds a string entry | Bind modules to locals first, or wrap the call: `(require(...))` |
+| `:map`, `computed`, `on_change`, `action` and `timer` bodies have a 5 ms CPU budget (`exceeded the 5ms CPU budget`) | Keep them cheap |
+| A node keeps its properties until a signal it read is written. `os.time()`, `os.date()` with no time, or a local read in a map stays at its last answer | Derive time from `mantle.system`; keep changing values in a `state` |
 | Signals nested in a property table do not resolve | Derive the whole table |
 | `visible = false` keeps a frozen subtree | Switch views through `children` |
 | Named state resets when its scalar seed changes | Keep the seed stable |
