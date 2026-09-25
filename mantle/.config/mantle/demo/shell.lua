@@ -1,7 +1,7 @@
 -- Effects demo: one floating window that is one viewport. The wallpaper sits under everything,
 -- each feature is an island with its controls in a glass strip right under it, and a frosted pane
 -- drags over all of it. Its own instance, `mantle -c ~/.config/mantle/demo`, sharing the shell's
--- `config/`, `components/` and `lib/` through symlinks. `mantle -c <dir> toggle demo_open` reopens it.
+-- `config/`, `components/` and `lib/` through symlinks. Closing the window stops the instance.
 fonts {
     "CaskaydiaCove Nerd Font Propo",
     "Noto Sans",
@@ -13,8 +13,6 @@ local slider = require("components.slider")
 local segmented = require("components.segmented")
 local store = require("lib.store")
 local wallpaper = require("lib.wallpaper")
-
-local open = state("demo_open", true)
 
 -- Two rows of three islands on one set of columns. An island is a title, a stage and a strip.
 local WIN_W, WIN_H = 1280, 760
@@ -424,30 +422,29 @@ local pane = button {
 }
 
 ---------------------------------------------------------------------------------------------------
--- Once a second while open: the renderer's CPU, and a new palette when the wallpaper changed.
+-- Once a second: the renderer's CPU, and a new palette when the wallpaper changed.
 
 local cpu = state("fx_cpu", "renderer CPU …")
 local last_ticks, last_picture
 local function sample()
-    if open:get() then
-        local stat = ""
-        process.run("sh", { "-c", "cat /proc/$(pgrep -x mantle-renderer | head -1)/stat" },
-            function(line) stat = line end, function()
-                -- utime and stime, the 14th and 15th fields, counted after the parenthesised name.
-                local fields = {}
-                for field in stat:gsub("^.*%) ", ""):gmatch("%S+") do
-                    fields[#fields + 1] = field
-                end
-                local ticks = (tonumber(fields[12]) or 0) + (tonumber(fields[13]) or 0)
-                if last_ticks then
-                    cpu:set(string.format("renderer CPU %.0f%%", ticks - last_ticks))
-                end
-                last_ticks = ticks
-            end)
-        if picture:get() ~= last_picture then
-            last_picture = picture:get()
-            quantize()
-        end
+    local stat = ""
+    -- This instance's renderer, not whichever `mantle-renderer` pgrep finds first.
+    process.run("sh", { "-c", "cat /proc/$(pgrep -P " .. mantle.pid .. " -x mantle-renderer)/stat" },
+        function(line) stat = line end, function()
+            -- utime and stime, the 14th and 15th fields, counted after the parenthesised name.
+            local fields = {}
+            for field in stat:gsub("^.*%) ", ""):gmatch("%S+") do
+                fields[#fields + 1] = field
+            end
+            local ticks = (tonumber(fields[12]) or 0) + (tonumber(fields[13]) or 0)
+            if last_ticks then
+                cpu:set(string.format("renderer CPU %.0f%%", ticks - last_ticks))
+            end
+            last_ticks = ticks
+        end)
+    if picture:get() ~= last_picture then
+        last_picture = picture:get()
+        quantize()
     end
     timer(1000, sample)
 end
@@ -460,8 +457,7 @@ return { window {
     id = "fx_demo",
     title = "Mantle effects demo",
     app_id = "mantle-fx-demo",
-    visible = open,
-    on_close = function() open:set(false) end,
+    on_close = function() process.detach("mantle", { "stop", "--pid", tostring(mantle.pid) }) end,
     min_size = { width = WIN_W, height = WIN_H },
     background = theme.CRUST,
     child = rect {
