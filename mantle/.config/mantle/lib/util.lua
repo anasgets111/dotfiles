@@ -161,6 +161,19 @@ util.today = mantle.system:map(function(system)
 end)
 
 -- The `active` entry of `mantle.audio.sinks` or `sources`, or `nil`.
+-- A device's name without the redundant ALSA description words, for the audio panel and the OSD.
+function util.device_name(device)
+    if device == nil then
+        return nil
+    end
+    local name = device.name or ""
+    name = name:gsub("%s*[Hh]igh [Dd]efinition [Aa]udio [Cc]ontroller", ""):gsub("%s*H?D? ?[Aa]udio [Cc]ontroller", "")
+    name = name:gsub("%s*[Dd]igital [Ss]tereo", ""):gsub("%s*[Aa]nalog [Ss]tereo", "")
+    name = name:gsub("%s*%(HDMI%)", " HDMI"):gsub("%s*%(S/PDIF%)", " S/PDIF"):gsub("%s*%(IEC958%)", " S/PDIF")
+    name = name:gsub("%s+", " "):match("^%s*(.-)%s*$")
+    return name ~= "" and name or device.name
+end
+
 function util.active_device(devices)
     for _, device in ipairs(devices or {}) do
         if device.active then

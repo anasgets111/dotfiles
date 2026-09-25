@@ -22,19 +22,6 @@ local function percent(value)
     return value and string.format("%d%%", math.floor(value * 100 + 0.5)) or "--"
 end
 
--- Remove redundant ALSA description words.
-local function device_name(device)
-    if device == nil then
-        return nil
-    end
-    local name = device.name or ""
-    name = name:gsub("%s*[Hh]igh [Dd]efinition [Aa]udio [Cc]ontroller", ""):gsub("%s*H?D? ?[Aa]udio [Cc]ontroller", "")
-    name = name:gsub("%s*[Dd]igital [Ss]tereo", ""):gsub("%s*[Aa]nalog [Ss]tereo", "")
-    name = name:gsub("%s*%(HDMI%)", " HDMI"):gsub("%s*%(S/PDIF%)", " S/PDIF"):gsub("%s*%(IEC958%)", " S/PDIF")
-    name = name:gsub("%s+", " "):match("^%s*(.-)%s*$")
-    return name ~= "" and name or device.name
-end
-
 ---@class AudioControlOpts
 ---@field name string The slider's state name.
 ---@field title string
@@ -80,7 +67,7 @@ local function device_picker(opts)
                         slot = "audio-device-" .. opts.name .. "-" .. tostring(device.id),
                         icon = util.audio_device_glyph(device, opts.is_input)
                             or (opts.is_input and icons.mic_on or icons.speaker),
-                        title = device_name(device) or "?",
+                        title = util.device_name(device) or "?",
                         selected = device.active,
                         trailing = glyph(icons.check, device.active and theme.ACCENT or theme.CLEAR, theme.font.sm),
                         on_activate = function()
@@ -127,7 +114,7 @@ local function audio_control(opts)
             icon_color = tint,
             title = util.bold(opts.title),
             subtitle = util.label(mantle.audio, function(audio)
-                return device_name(util.active_device(audio[opts.devices])) or "No device"
+                return util.device_name(util.active_device(audio[opts.devices])) or "No device"
             end),
             trailing = row {
                 spacing = theme.spacing.sm,
@@ -254,7 +241,7 @@ local body = {
             if audio.muted then
                 return "Muted"
             end
-            local device = device_name(util.active_device(audio.sinks))
+            local device = util.device_name(util.active_device(audio.sinks))
             return percent(audio.volume) .. (device and " · " .. device or "")
         end),
     },

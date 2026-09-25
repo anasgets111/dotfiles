@@ -5,12 +5,13 @@ local theme = require("config.theme")
 
 ---@param opts? { motion?: Animation }
 return function(signal, read, color, height, opts)
+    height = height or theme.meter_height
     return row {
         width = "Fill",
-        height = height or theme.meter_height,
+        height = height,
         align_v = "Center",
         background = theme.SURFACE,
-        radius = theme.meter_height / 2,
+        radius = height / 2,
         children = { rect {
             width = signal:map(function(value)
                 local ok, pct = pcall(read, value)
@@ -21,7 +22,7 @@ return function(signal, read, color, height, opts)
             end),
             height = "Fill",
             background = color,
-            radius = theme.meter_height / 2,
+            radius = height / 2,
             animate = { width = (opts and opts.motion) or theme.animation_ms },
         } },
     }

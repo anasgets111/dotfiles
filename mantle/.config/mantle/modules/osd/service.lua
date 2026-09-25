@@ -24,13 +24,9 @@ local PRIORITY = {
 }
 
 osd.entry = state("osd_entry", { kind = "", glyph = "", text = "" })
-osd.visible = state("osd_visible", false)
-
--- A `process.run("sleep", ...)` times the card. `ProcessHandle:kill()` does not cancel queued
--- `exit_cb`, so a request counter distinguishes a newer card from the older sleep; killing alone
--- would let the old callback hide the new card.
-local SECONDS = "2"
-local request = 0
+-- Every `show` writes a fresh table, which `pulse` counts as a change, so each card restarts the two
+-- seconds. It starts false, so a card up at reload hides rather than lingering with no timer.
+osd.visible = pulse(osd.entry, 2000)
 
 -- `entry` is `{ glyph, text, level?, color? }`; `level` in 0..100 selects the track layout.
 function osd.show(kind, entry)
@@ -40,18 +36,15 @@ function osd.show(kind, entry)
     end
     entry.kind = kind
     osd.entry:set(entry)
-    osd.visible:set(true)
-    request = request + 1
-    local this_request = request
-    process.run("sleep", { SECONDS }, function() end, function()
-        if this_request == request then
-            osd.visible:set(false)
-        end
-    end)
 end
 
+-- An off state greys the tile, so "Caps lock off" and "Caps lock on" differ before the words.
 local function toggle(kind, on, glyph_on, glyph_off, what)
-    osd.show(kind, { glyph = on and glyph_on or glyph_off, text = what .. (on and " on" or " off") })
+    osd.show(kind, {
+        glyph = on and glyph_on or glyph_off,
+        text = what .. (on and " on" or " off"),
+        color = not on and theme.DIM or nil,
+    })
 end
 
 local function percent_level(kind, glyph, percent)
@@ -67,16 +60,20 @@ mantle.audio:on_change(function(audio, previous)
     local percent = audio.volume and math.floor(audio.volume * 100 + 0.5)
     local was = previous.volume and math.floor(previous.volume * 100 + 0.5)
     if percent and was and (audio.muted ~= previous.muted or percent ~= was) then
+        -- Muted keeps the level and greys it: the volume is still set, only silenced.
         osd.show("volume", {
             glyph = util.volume_glyph(audio),
             text = audio.muted and "Muted" or string.format("%d%%", percent),
-            level = audio.muted and 0 or percent / util.MAX_VOLUME,
-            color = theme.ACCENT,
+            level = percent / util.MAX_VOLUME,
+            color = audio.muted and theme.DIM or theme.ACCENT,
         })
     end
     local sink, previous_sink = util.active_device(audio.sinks), util.active_device(previous.sinks)
     if sink and sink.name ~= (previous_sink and previous_sink.name) then
-        osd.show("audio_device", { glyph = util.audio_device_glyph(sink, false) or icons.speaker, text = sink.name })
+        osd.show("audio_device", {
+            glyph = util.audio_device_glyph(sink, false) or icons.speaker,
+            text = util.device_name(sink),
+        })
     end
 end)
 
@@ -109,7 +106,7 @@ mantle.keyboard:on_change(function(keyboard, previous)
         return
     end
     if keyboard.active_layout ~= previous.active_layout and keyboard.active_layout ~= "" then
-        osd.show("layout", { glyph = icons.keyboard, text = "Layout: " .. keyboard.active_layout })
+        osd.show("layout", { glyph = icons.keyboard, text = keyboard.active_layout })
     end
     if keyboard.caps_lock ~= previous.caps_lock then
         toggle("locks", keyboard.caps_lock, icons.caps_lock, icons.caps_lock, "Caps lock")

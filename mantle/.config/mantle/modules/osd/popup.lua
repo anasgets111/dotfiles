@@ -21,12 +21,37 @@ end)
 local entry_text = osd.entry:map(function(entry)
     return { { text = entry.text or "", bold = true } }
 end)
--- The glyph and the fill share one colour, so brightness is yellow end to end.
+-- The tile and the fill share one colour, so brightness is yellow end to end.
 local level_color = osd.entry:map(function(entry)
     return entry.color or theme.ACCENT
 end)
 
--- Slider layout: tinted glyph, filling track, bold readout.
+-- The glyph on a tinted tile, leading both layouts, so the card is one shape whose trailing half
+-- changes. `align_*` places the box, not its child; a filling row centres the glyph inside.
+local function tile()
+    return rect {
+        width = theme.osd_tile,
+        height = theme.osd_tile,
+        align_v = "Center",
+        background = level_color:map(function(color)
+            return theme.with_opacity(color, theme.opacity.light)
+        end),
+        border_width = theme.border_width,
+        border_color = level_color:map(function(color)
+            return theme.with_opacity(color, theme.opacity.medium)
+        end),
+        radius = theme.radius.md,
+        children = { row {
+            width = "Fill",
+            height = "Fill",
+            align_h = "Center",
+            align_v = "Center",
+            children = { glyph(entry_glyph, level_color, theme.font.xl, { align_v = "Center" }) },
+        } },
+    }
+end
+
+-- Slider layout: tile, filling track, bold readout.
 local level_row = row {
     -- A track has no intrinsic width, so this layout states one. The toggle row measures instead;
     -- only one is visible, and an invisible child takes no space.
@@ -39,7 +64,7 @@ local level_row = row {
         return entry.level ~= nil
     end),
     children = {
-        glyph(entry_glyph, level_color, theme.font.xxl, { align_v = "Center" }),
+        tile(),
         -- A held volume key retargets every few frames: easing restarts from a standstill and
         -- trails the number, a spring keeps its velocity.
         meter(osd.entry, function(entry)
@@ -56,7 +81,7 @@ local level_row = row {
     },
 }
 
--- Toggle layout: glyph in an accent-tinted tile and bold text beside it, centered.
+-- Toggle layout: the tile and bold text beside it, centred.
 local fact_row = row {
     -- No `width`: the card is these words. `theme.osd_toggle_min` is their floor; `align_h`
     -- centres the pair on a card sized by that floor rather than by the text.
@@ -71,23 +96,7 @@ local fact_row = row {
         return entry.level == nil
     end),
     children = {
-        -- `align_*` places the box, not its child; a filling row centers the glyph inside the tile.
-        rect {
-            width = theme.osd_tile,
-            height = theme.osd_tile,
-            align_v = "Center",
-            background = theme.ACCENT_LIGHT,
-            border_width = theme.border_width,
-            border_color = theme.ACCENT_MEDIUM,
-            radius = theme.radius.md,
-            children = { row {
-                width = "Fill",
-                height = "Fill",
-                align_h = "Center",
-                align_v = "Center",
-                children = { glyph(entry_glyph, theme.ACCENT, theme.font.xl, { align_v = "Center" }) },
-            } },
-        },
+        tile(),
         -- No `width`, so it sizes to its own words and everything above measures it.
         text {
             content = entry_text,
@@ -133,11 +142,12 @@ return panel {
                 },
             }
         end),
+        -- The same sheet and edge as a notification card: both float over wallpaper.
         background = theme.GLASS,
         blur = true,
         radius = theme.radius.md,
-        border_width = theme.border_width,
-        border_color = theme.BORDER,
+        border_width = theme.border_width_medium,
+        border_color = theme.GLASS_BORDER,
         children = { level_row, fact_row },
     },
 }
