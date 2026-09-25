@@ -26,7 +26,7 @@ local theme = require("config.theme")
 ---@field background? Color|Bound The ground under the fill. Default `theme.SURFACE`.
 ---@field border_width? integer
 ---@field border_color? Color|Bound
----@field animate? Animations|Bound Eases the track's own properties; the fill follows the value and is not eased.
+---@field animate? ButtonAnimations|Bound Eases the track's own properties; the fill follows the value and is not eased.
 ---@field hover? Signal
 ---@field pending? StateSignal<number> The held value, `-1` when none. Default `state(name)`.
 ---@field dragging? StateSignal<boolean> True while a drag is held. Default `state(name .. "_dragging")`.
