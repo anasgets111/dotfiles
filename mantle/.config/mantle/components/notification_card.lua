@@ -9,6 +9,7 @@
 local theme = require("config.theme")
 local icons = require("config.icons")
 local notifications = require("lib.notifications")
+local updates = require("lib.updates")
 local util = require("lib.util")
 local cell = require("components.cell")
 local icon_button = require("components.icon_button")
@@ -191,7 +192,9 @@ local function message(notification, ui, opts)
     local buttons = {}
     for index, action in ipairs(notification.actions or {}) do
         buttons[#buttons + 1] = action_button(action.label, function()
-            mantle.notifications:invoke_action(id, action.key)
+            if not updates.notification_action(notification, action.key) then
+                mantle.notifications:invoke_action(id, action.key)
+            end
         end, string.format("notification-action-%d-%d", id, index), { icon = action.icon_name })
     end
     -- One button per distinct body link, for the ones elision cut off; the words open them too.

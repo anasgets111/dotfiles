@@ -114,8 +114,7 @@ local function dismiss_notifications()
     end
 end
 
--- Replaces any pending toast. The action listener is detached and calls back through `mantle call`,
--- since a `process.run` listener dies on reload.
+-- Replaces any pending toast. The card handles its action, including after the toast expires into history.
 local function toast(urgency, title, body, action)
     dismiss_notifications()
     local args = {
@@ -127,9 +126,7 @@ local function toast(urgency, title, body, action)
     if not action then
         return process.detach("notify-send", util.concat(args, { title, body }))
     end
-    process.detach("sh", util.concat({
-        "-c", 'notify-send "$@" | grep -q run-updates && mantle call updates.install', "sh",
-    }, util.concat(args, { "--wait", "-A", "run-updates=" .. action, title, body })))
+    process.detach("notify-send", util.concat(args, { "-A", "run-updates=" .. action, title, body }))
 end
 
 -- ponytail: unbounded, unlike the Supervisor's 200-line tail. Cap it if a run ever prints thousands.
@@ -220,6 +217,14 @@ local function install()
     start_dev_tools()
 end
 action("updates.install", install)
+
+local function notification_action(notification, key)
+    if notification.id ~= tonumber(NOTIFICATION_ID) or notification.app_name ~= "System Updates" or key ~= "run-updates" then
+        return false
+    end
+    install()
+    return true
+end
 
 -- `rows`' first answer with a pattern in `lowered`, each row `{ answer, pattern... }`.
 local function first_match(lowered, rows)
@@ -376,6 +381,7 @@ return {
     any_tool_runnable = any_tool_runnable,
     dismiss_notifications = dismiss_notifications,
     install = install,
+    notification_action = notification_action,
     first_match = first_match,
     failure_reason = failure_reason,
 }
