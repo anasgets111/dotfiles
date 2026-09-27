@@ -77,9 +77,10 @@ return function(glyph, on_activate, opts)
         foreground = foreground,
         font = opts.badge_font,
         font_size = theme.font.xs,
+        letter_spacing = opts.badge_letter_spacing,
         align_h = "End",
         align_v = "End",
-        translate = { x = -theme.spacing.xs, y = -theme.spacing.xs },
+        translate = opts.badge_translate or { x = -theme.spacing.xs, y = -theme.spacing.xs },
         animate = { foreground = theme.animation_ms },
     }
 

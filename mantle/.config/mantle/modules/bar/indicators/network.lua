@@ -14,6 +14,9 @@ local network_colour = mantle.network:map(function(network)
     end
     return select(2, util.band_of(util.active_access_point(network)))
 end)
+local band = mantle.network:map(function(network)
+    return (util.band_of(util.active_access_point(network))) or ""
+end)
 
 local network_module = icon_button(mantle.network:map(util.network_glyph), nil, {
     slot = SLOT,
@@ -27,10 +30,14 @@ local network_module = icon_button(mantle.network:map(util.network_glyph), nil, 
     -- Lit for a link carrying the default route, which `connected` means, not a bare association.
     -- A wifi link takes its band's colour, the one fact about it worth a glance. Ethernet has none.
     foreground = network_colour,
-    badge = mantle.network:map(function(network)
-        return (util.band_of(util.active_access_point(network))) or ""
-    end),
+    badge = band,
     badge_font = "Roboto Condensed",
+    badge_letter_spacing = band:map(function(label)
+        return label == "2.4" and -1.5 or -1
+    end),
+    badge_translate = band:map(function(label)
+        return { x = label == "2.4" and -2 * theme.spacing.xs or -theme.spacing.xs, y = -theme.spacing.xs }
+    end),
     visible = mantle.network:map(function(network)
         return network ~= nil
     end),

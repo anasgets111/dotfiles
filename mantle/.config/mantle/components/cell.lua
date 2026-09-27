@@ -11,7 +11,7 @@ local theme = require("config.theme")
 ---@param content string|TextRun[]|Bound
 ---@param color? Color|Bound
 ---@param size? integer
----@param opts? { width?: integer|"Fill", align?: "Start"|"Center"|"End", align_v?: "Start"|"Center"|"End", visible?: boolean|Bound, wrap?: "None"|"Word"|Bound, max_lines?: integer|Bound, on_link?: fun(href: string), font?: string|Bound, animate?: TextAnimations|Bound }
+---@param opts? { width?: integer|"Fill", align?: "Start"|"Center"|"End", align_v?: "Start"|"Center"|"End", visible?: boolean|Bound, wrap?: "None"|"Word"|Bound, max_lines?: integer|Bound, on_link?: fun(href: string), font?: string|Bound, letter_spacing?: number|Bound, animate?: TextAnimations|Bound }
 return function(content, color, size, opts)
     opts = opts or {}
     return text {
@@ -19,6 +19,7 @@ return function(content, color, size, opts)
         foreground = color or theme.FG,
         font_size = size or theme.font.md,
         font = opts.font,
+        letter_spacing = opts.letter_spacing,
         width = opts.width,
         align_v = opts.align_v,
         align_h = opts.align,

@@ -168,7 +168,11 @@ local function access_point_row(entry)
 
     local leading = {
         glyph(icons.wifi[util.signal_tier(ap.strength)], color, theme.icon.md, { align_v = "Center" }),
-        band and cell(util.bold(band), color, theme.font.xs, { align_v = "End" }) or nil,
+        band and cell(util.bold(band), color, theme.font.xs, {
+            align_v = "End",
+            font = "Roboto Condensed",
+            letter_spacing = band == "2.4" and -1.5 or -1,
+        }) or nil,
     }
     local trailing = {
         ap.active and panel_action_icon(icons.disconnect, function()
@@ -185,7 +189,12 @@ local function access_point_row(entry)
     end
     return panel_row {
         slot = "network-ap-" .. tostring(ap.ssid),
-        leading = row { width = LEADING_WIDTH, align_v = "Center", children = leading },
+        leading = row {
+            width = LEADING_WIDTH,
+            spacing = band == "2.4" and -theme.spacing.xs or -theme.spacing.xs / 2,
+            align_v = "Center",
+            children = leading,
+        },
         title = ap.ssid or "?",
         subtitle = entry.connecting and "Connecting…" or nil,
         selected = ap.active,
