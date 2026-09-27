@@ -6,7 +6,7 @@ local icon_button = require("components.icon_button")
 
 ---@param glyph string|Bound A `text` glyph, or a signal of one for a control whose icon follows state.
 ---@param on_activate fun()?
----@param opts { slot: string, tint?: Color, visible?: boolean|Bound, size?: "sm"|"md", disabled?: Signal, spinning?: Signal }
+---@param opts { slot: string, tint?: Color, visible?: boolean|Bound, size?: "sm"|"md", disabled?: Signal|boolean, spinning?: Signal, active?: Signal|boolean }
 return function(glyph, on_activate, opts)
     local tint = opts.tint or theme.FG
     -- `"md"` is the media panel's one transport control that is the row's subject.
@@ -15,8 +15,43 @@ return function(glyph, on_activate, opts)
     local hovered = hover(opts.slot)
     -- `disabled` dims and ignores clicks, keeping the control's place in the row.
     local disabled = opts.disabled
+    local disabled_live = type(disabled) == "userdata"
+
+    local active = opts.active
+    local foreground
+    if type(active) == "userdata" then
+        foreground = computed({ hovered, active }, function(is_hovered, is_active)
+            local base = is_active and theme.ACCENT_MEDIUM or tint
+            local opacity = is_active and theme.opacity.light or theme.opacity.muted
+            return is_hovered and base or theme.with_opacity(base, opacity)
+        end)
+    elseif active then
+        foreground = hovered:map(function(is_hovered)
+            return is_hovered and theme.ACCENT_MEDIUM or theme.with_opacity(theme.ACCENT_MEDIUM, theme.opacity.light)
+        end)
+    else
+        foreground = hovered:map(function(is_hovered)
+            return is_hovered and tint or theme.with_opacity(tint, theme.opacity.muted)
+        end)
+    end
+
+    local opacity
+    if disabled_live then
+        opacity = disabled:map(function(off)
+            return off and theme.opacity.disabled or 1
+        end)
+    elseif disabled then
+        opacity = theme.opacity.disabled
+    end
+
     return icon_button(glyph, on_activate and function()
-        if not (disabled and disabled:get()) then
+        local off = false
+        if disabled_live then
+            off = disabled:get() == true
+        elseif disabled then
+            off = true
+        end
+        if not off then
             on_activate()
         end
     end, {
@@ -27,13 +62,9 @@ return function(glyph, on_activate, opts)
         border = false,
         background = theme.CLEAR,
         background_hover = theme.with_opacity(tint, theme.opacity.subtle),
-        foreground = hovered:map(function(is_hovered)
-            return is_hovered and tint or theme.with_opacity(tint, theme.opacity.muted)
-        end),
+        foreground = foreground,
         visible = opts.visible,
         spinning = opts.spinning,
-        opacity = disabled and disabled:map(function(off)
-            return off and theme.opacity.disabled or 1
-        end),
+        opacity = opacity,
     })
 end

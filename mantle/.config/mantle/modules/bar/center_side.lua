@@ -10,8 +10,13 @@ local ui_state = require("lib.ui_state")
 local MEDIA_SLOT = "media_indicator"
 
 local playback_available = mantle.mpris:map(function(mpris)
-    local player = ((mpris and mpris.players) or {})[1]
-    return player ~= nil and player.play_state ~= "Stopped"
+    local players = (mpris and mpris.players) or {}
+    for _, player in ipairs(players) do
+        if player.play_state == "Playing" then
+            return true
+        end
+    end
+    return players[1] ~= nil and players[1].play_state ~= "Stopped"
 end)
 
 -- Hidden, the row measures zero, so the test uses its last shown rect.

@@ -4,7 +4,7 @@
 -- ticks the elapsed term once a second. A `:map` may not `:set`, so it cannot record the anchor.
 --
 -- A quiet player, such as a browser, may never report a seek, so a drag adopts its target as the
--- reading until the next real one. `PlayerState` has no can-skip or can-seek flags to check.
+-- reading until the next real one. Controls disable reactively from `PlayerState` capability flags.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -16,6 +16,8 @@ local panel_action_icon = require("components.panel_action_icon")
 local panel_empty_state = require("components.panel_empty_state")
 
 local SEEK_STEP_US = 5 * 1000 * 1000
+local NEXT_LOOP = { None = "Playlist", Playlist = "Track", Track = "None" }
+local LOOP_ICONS = { Track = icons.repeat_one, Playlist = icons.repeat_all }
 
 -- `players` is longest-running first and stable across position updates. The list shrinks without
 -- notice, so the index wraps on read instead of clamping on write.
@@ -94,6 +96,10 @@ local has_player = selected:map(function(player)
     return player ~= false
 end)
 
+local cannot_seek = selected:map(function(player)
+    return not (player and player.can_seek)
+end)
+
 -- `identity` is the empty-string sentinel, so fallbacks test `""`, not a plain `or` chain.
 local function first_nonempty(...)
     for _, candidate in ipairs({ ... }) do
@@ -106,7 +112,7 @@ end
 
 -- `offset` seeks through `seek_relative`, since only the player knows where the track is.
 -- `seek_base` is the estimate the bar shows meanwhile.
-local function transport(slot, icon, command, offset, size)
+local function transport(slot, icon, command, offset, size, disabled)
     return panel_action_icon(icon, function()
         local player = selected:get()
         if not player then
@@ -122,7 +128,7 @@ local function transport(slot, icon, command, offset, size)
         elseif command then
             mantle.mpris:control(player.id, command)
         end
-    end, { slot = slot, size = size })
+    end, { slot = slot, size = size, disabled = disabled })
 end
 
 local body = {
@@ -134,6 +140,17 @@ local body = {
             return first_nonempty(player and player.identity, "No player open")
         end),
         trailing = {
+            panel_action_icon(icons.raise, function()
+                local player = selected:get()
+                if player and player.can_raise then
+                    mantle.mpris:raise(player.id)
+                end
+            end, {
+                slot = "media-raise",
+                visible = selected:map(function(player)
+                    return player ~= false and player.can_raise
+                end),
+            }),
             panel_action_icon(icons.player_switch, function()
                 chosen:set(chosen:get() + 1)
             end, {
@@ -178,23 +195,66 @@ local body = {
                     cell(util.bold(util.label(selected, function(player)
                         return first_nonempty(player and player.title, player and player.identity, "Unknown track")
                     end)), theme.FG, theme.font.lg, { width = "Fill" }),
-                    -- `PlayerState` has no album, so the fallback skips it.
+                    -- PlayerState exposes album: show artist and album, falling back cleanly.
                     cell(util.label(selected, function(player)
-                        return first_nonempty(player and player.artist, player and player.identity, "Unknown artist")
+                        if not player then
+                            return "Unknown artist"
+                        end
+                        if player.artist ~= "" and player.album ~= "" then
+                            return player.artist .. " • " .. player.album
+                        end
+                        return first_nonempty(player.artist, player.album, player.identity, "Unknown artist")
                     end), theme.DIM, theme.font.sm, { width = "Fill" }),
                     row {
                         width = "Fill",
                         -- Main-axis on a `row`, so the controls centre in the column, not against the artwork.
                         align_h = "Center",
-                        spacing = theme.spacing.sm,
+                        spacing = theme.spacing.xs,
                         children = {
-                            transport("media-previous", icons.previous, "previous"),
-                            transport("media-rewind", icons.rewind, nil, -SEEK_STEP_US),
+                            panel_action_icon(icons.shuffle, function()
+                                local player = selected:get()
+                                if player then
+                                    mantle.mpris:set_shuffle(player.id, not player.shuffle)
+                                end
+                            end, {
+                                slot = "media-shuffle",
+                                active = selected:map(function(player)
+                                    return player ~= false and player.shuffle
+                                end),
+                            }),
+                            transport("media-previous", icons.previous, "previous", nil, nil, selected:map(function(p)
+                                return not (p and p.can_go_previous)
+                            end)),
+                            transport("media-rewind", icons.rewind, nil, -SEEK_STEP_US, nil, cannot_seek),
                             transport("media-playpause", selected:map(function(player)
                                 return (player and player.play_state == "Playing") and icons.pause or icons.play
-                            end), "play_pause", nil, "md"),
-                            transport("media-forward", icons.fast_forward, nil, SEEK_STEP_US),
-                            transport("media-next", icons.next, "next"),
+                            end), "play_pause", nil, "md", selected:map(function(p)
+                                if not p then
+                                    return true
+                                end
+                                return (p.play_state == "Playing" and not p.can_pause)
+                                    or (p.play_state ~= "Playing" and not p.can_play)
+                            end)),
+                            transport("media-stop", icons.stop, "stop", nil, nil, selected:map(function(p)
+                                return not p or p.play_state == "Stopped"
+                            end)),
+                            transport("media-forward", icons.fast_forward, nil, SEEK_STEP_US, nil, cannot_seek),
+                            transport("media-next", icons.next, "next", nil, nil, selected:map(function(p)
+                                return not (p and p.can_go_next)
+                            end)),
+                            panel_action_icon(selected:map(function(player)
+                                return LOOP_ICONS[player and player.loop_status] or icons.repeat_off
+                            end), function()
+                                local player = selected:get()
+                                if player then
+                                    mantle.mpris:set_loop_status(player.id, NEXT_LOOP[player.loop_status] or "Playlist")
+                                end
+                            end, {
+                                slot = "media-loop",
+                                active = selected:map(function(player)
+                                    return player ~= false and player.loop_status ~= "None"
+                                end),
+                            }),
                         },
                     },
                     slider {
@@ -202,12 +262,18 @@ local body = {
                         signal = position_us,
                         read = function(microseconds)
                             local player = selected:get()
-                            local length = (player and player.length) or -1
-                            return length > 0 and microseconds >= 0 and microseconds / length or 0
+                            local length = player and player.length or -1
+                            if not (player and player.can_seek) or length <= 0 or microseconds < 0 then
+                                return nil
+                            end
+                            return microseconds / length
                         end,
                         on_commit = function(fraction)
                             local player = selected:get()
-                            local length = (player and player.length) or -1
+                            if not player or not player.can_seek then
+                                return
+                            end
+                            local length = player.length or -1
                             if length <= 0 then
                                 return
                             end
@@ -227,7 +293,7 @@ local body = {
                         background = theme.GLASS_CONTROL,
                         -- A stream reports a `-1` length, so it has no fraction to drag to.
                         fill_visible = selected:map(function(player)
-                            return player ~= false and (player.length or -1) > 0
+                            return player ~= false and player.can_seek and (player.length or -1) > 0
                         end),
                     },
                     row {
