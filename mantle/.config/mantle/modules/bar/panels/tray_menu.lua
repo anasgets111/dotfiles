@@ -65,7 +65,11 @@ local function activate(entry)
     if #(entry.children or {}) > 0 then
         local open = expanded:get()
         local key = tostring(entry.id)
-        expanded:set(util.with(open, key, not open[key] or nil))
+        local opening = not open[key]
+        expanded:set(util.with(open, key, opening or nil))
+        if opening then
+            mantle.tray:menu_will_show(item_id:get(), entry.id)
+        end
         return
     end
     -- Disabled entries are drawn so the application's layout survives, and a click on one does
@@ -90,7 +94,7 @@ local function row_for(row_entry)
     end
     local hovered = hover("tray-menu-" .. tostring(entry.id))
     local children = {}
-    if entry.icon_name then
+    if entry.icon_name and entry.icon_name ~= "" then
         children[#children + 1] = icon {
             name = entry.icon_name,
             size = theme.icon.sm,
@@ -153,8 +157,18 @@ local body = item_id:map(function(id)
     } }
 end)
 
+local tray_menu
+
 -- `item`'s menu, anchored under its icon. The same icon again closes it, like every other panel.
-local function open(item, anchor)
+local function open(...)
+    local first = select(1, ...)
+    local is_method = first == tray_menu or (type(first) == "table" and first.kind == KIND)
+    local item = is_method and select(2, ...) or first
+    local anchor = is_method and select(3, ...) or select(2, ...)
+    if type(anchor) == "number" then
+        local cy = is_method and select(4, ...) or select(3, ...) or 0
+        anchor = { x = anchor, y = cy, width = 0, height = 0 }
+    end
     if ui_state.panel_is(KIND) and item_id:get() == item.id then
         return ui_state.close_panel()
     end
@@ -163,4 +177,5 @@ local function open(item, anchor)
     ui_state.open_panel(KIND, anchor)
 end
 
-return { kind = KIND, body = body, open = open }
+tray_menu = { kind = KIND, body = body, open = open }
+return tray_menu
