@@ -36,7 +36,7 @@ return function(glyph, on_activate, opts)
     end
 
     local opacity
-    if disabled_live then
+    if disabled_live and disabled then
         opacity = disabled:map(function(off)
             return off and theme.opacity.disabled or 1
         end)
@@ -46,7 +46,7 @@ return function(glyph, on_activate, opts)
 
     return icon_button(glyph, on_activate and function()
         local off = false
-        if disabled_live then
+        if disabled_live and disabled then
             off = disabled:get() == true
         elseif disabled then
             off = true
