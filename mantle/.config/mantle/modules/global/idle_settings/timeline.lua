@@ -89,8 +89,15 @@ return function(settings)
                 },
             },
         },
-        callout(icons.awake, computed({ idle.reasons, idle.inhibited }, idle.held_text), {
-            tone = "active", height = theme.idle_track_height, visible = idle.inhibited,
+        callout(icons.awake, computed({ idle.reasons, idle.inhibited, idle.stale }, idle.held_text), {
+            tone = "active",
+            height = theme.idle_track_height,
+            visible = computed({ idle.inhibited, idle.unconfirmed }, function(held, uncertain)
+                return held and not uncertain
+            end),
+        }),
+        callout(icons.idle, computed({ idle.reasons, idle.inhibited, idle.stale }, idle.held_text), {
+            tone = "neutral", height = theme.idle_track_height, visible = idle.unconfirmed,
         }),
         callout(icons.idle, settings:map(function(resolved)
             return resolved.enabled and "Nothing is scheduled on this profile" or "Automatic actions are paused"

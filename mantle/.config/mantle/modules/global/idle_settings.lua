@@ -30,10 +30,13 @@ end)
 local header = panel_header {
     title = "Idle & power",
     subtitle = computed(
-        { settings, idle.active_profile, idle.schedule, idle.elapsed, idle.reasons, idle.arming },
-        function(resolved, profile, plan, elapsed, reasons, arming)
+        { settings, idle.active_profile, idle.schedule, idle.elapsed, idle.reasons, idle.stale, idle.arming },
+        function(resolved, profile, plan, elapsed, reasons, stale, arming)
             if #reasons > 0 then
                 return "Held awake · " .. table.concat(reasons, ", ")
+            end
+            if stale then
+                return "Compositor hold last seen · checking after input stops"
             end
             if not resolved.enabled then
                 return "Automatic actions are paused"

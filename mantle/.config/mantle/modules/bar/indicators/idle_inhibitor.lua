@@ -1,6 +1,6 @@
 -- One circle shows session holds and adds a manual hold on click; right-click opens
 -- `modules/global/idle_settings.lua`. The glyph swaps on the manual hold, since the cup means "I asked
--- for this". The accent ground means any hold, so media can light it without a glyph change.
+-- for this". The accent ground means a confirmed hold; a tint marks an old compositor answer.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local icon_button = require("components.icon_button")
@@ -15,8 +15,8 @@ local indicator = icon_button(idle.manual:map(function(manual)
 end), nil, {
     slot = SLOT,
     selected = ui_state.modal_showing("idle_settings"),
-    background = idle.inhibited:map(function(held)
-        return held and theme.ACCENT or theme.GLASS_CONTROL
+    background = computed({ idle.inhibited, idle.unconfirmed }, function(held, uncertain)
+        return uncertain and theme.ACCENT_SUBTLE or held and theme.ACCENT or theme.GLASS_CONTROL
     end),
     on_button = function(_, mouse_button)
         if mouse_button == "right" then
@@ -31,7 +31,7 @@ end), nil, {
 local idle_tooltip = tooltip({
     id = "idle_tooltip",
     slot = SLOT,
-    text = computed({ idle.reasons, idle.inhibited }, idle.held_text),
+    text = computed({ idle.reasons, idle.inhibited, idle.stale }, idle.held_text),
     detail = computed({ idle.schedule, idle.arming, idle.manual, idle.enabled }, function(plan, arming, manual, on)
         if not on or plan.total == 0 then
             return "Click to hold · right-click for settings"

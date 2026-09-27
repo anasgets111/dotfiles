@@ -226,7 +226,12 @@ function idle.own_reasons(privacy, settings, manual)
     return reasons
 end
 
---- Everything holding the session awake, ours and foreign.
+--- The compositor's last hold has not been confirmed since input resumed.
+idle.stale = mantle.idle:map(function(foreign)
+    return foreign ~= nil and foreign.compositor_hold_stale == true
+end)
+
+--- Everything currently named as holding the session awake, ours and foreign.
 idle.reasons = computed({ mantle.privacy, store.idle, idle.manual, mantle.idle },
     function(privacy, stored, manual, foreign)
         local reasons = idle.own_reasons(privacy, idle.read(stored), manual)
@@ -239,15 +244,24 @@ idle.reasons = computed({ mantle.privacy, store.idle, idle.manual, mantle.idle }
         return reasons
     end)
 
+--- Only the compositor's old answer remains; no current holder is named.
+idle.unconfirmed = computed({ idle.stale, idle.reasons }, function(stale, reasons)
+    return stale and #reasons == 0
+end)
+
 --- Sentence naming the holders. `inhibited` outruns [`idle.reasons`], which left an empty list: our
 --- own hold is excluded from `mantle.idle.inhibitors`, and a surface inhibitor names nothing.
 --- @param reasons string[]
 --- @param inhibited boolean
+--- @param stale boolean
 --- @return string
-function idle.held_text(reasons, inhibited)
+function idle.held_text(reasons, inhibited, stale)
     if #reasons > 0 then
         -- A list, not a sentence: a holder's own `why` is a clause, and reads as one after a colon.
         return "Held awake by: " .. table.concat(reasons, ", ")
+    end
+    if stale then
+        return "Compositor hold last seen · checking after input stops"
     end
     return inhibited and "Held awake by something that did not name itself" or "Nothing is holding this awake"
 end
