@@ -99,6 +99,7 @@ icons.player_switch   = "\u{F0CB0}"
 icons.cpu             = "\u{F035B}"
 icons.ram             = "\u{F061A}"
 icons.gpu             = "\u{F08AE}"
+icons.disk            = "\u{F02CA}"
 
 -- One per Bluetooth `category`, so a mouse or headset does not get the generic glyph.
 icons.device          = {

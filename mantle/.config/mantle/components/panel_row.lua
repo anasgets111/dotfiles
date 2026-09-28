@@ -6,6 +6,7 @@
 -- pointer and look clickable, and both shapes share the look.
 local theme = require("config.theme")
 local icons = require("config.icons")
+local util = require("lib.util")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 
@@ -23,11 +24,12 @@ local glyph = require("components.glyph")
 ---@field height? integer
 ---@field title_size? integer Default `theme.font.sm`, a bar panel's row. A modal's rows take `md`.
 ---@field subtitle_size? integer Default `theme.font.xs`; `sm` under an `md` title.
----@field slot? string
+---@field slot? string Required with animated details; names the measurement and hover.
 ---@field visible? boolean|Bound
 ---@field trailing? Node
 ---@field expanded? StateSignal<boolean> A disclosure row: a chevron after `trailing`, and a click toggles it. Required when `details` is set.
 ---@field details? Node Under the row while `expanded` is true, outside the button.
+---@field animate_details? boolean Reveals details through an animated clipped height; the parent must size to content.
 ---@field details_spacing? integer Gap above `details`. Default `theme.spacing.xs`.
 ---@field on_activate? fun()
 
@@ -126,11 +128,35 @@ return function(opts)
     if opts.details == nil then
         return control
     end
-    opts.details.visible = expanded
+    assert(expanded, "panel_row details require expanded")
+    if not opts.animate_details then
+        opts.details.visible = expanded
+        return column {
+            width = "Fill",
+            spacing = opts.details_spacing or theme.spacing.xs,
+            visible = opts.visible,
+            children = { control, opts.details },
+        }
+    end
+    assert(opts.slot, "panel_row details require a slot")
+    local detail_rect = geometry(opts.slot .. "-details")
+    opts.details.geometry = detail_rect
+    opts.details.visible = util.linger(expanded, theme.animation_ms)
     return column {
         width = "Fill",
-        spacing = opts.details_spacing or theme.spacing.xs,
+        spacing = expanded:map(function(open)
+            return open and (opts.details_spacing or theme.spacing.xs) or 0
+        end),
         visible = opts.visible,
-        children = { control, opts.details },
+        animate = { spacing = theme.animation_ms },
+        children = { control, rect {
+            width = "Fill",
+            height = computed({ expanded, detail_rect }, function(open, rect)
+                return open and rect.height or 0
+            end),
+            clip = "Box",
+            animate = { height = { duration = theme.animation_ms, easing = "OutCubic" } },
+            children = { opts.details },
+        } },
     }
 end

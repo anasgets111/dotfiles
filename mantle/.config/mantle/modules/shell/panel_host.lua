@@ -79,7 +79,7 @@ end)
 -- The card drops from behind the bar and retracts the same way, `linger` keeping it for the exit.
 -- Travel is the shown section's measured height plus chrome, so a switch while closed retracts to
 -- the *next* card's height; an unmeasured section falls back to the slide distance and snaps once.
--- Switching while open morphs in place, animating `width` and `height` instead.
+-- Switching while open morphs in place; System's disclosure temporarily follows content height.
 local CARD_PADDING = theme.spacing.md
 -- The card starts `radius.md` above the bar's bottom edge, which cuts its top corners square.
 local CARD_CHROME = CARD_PADDING * 2 + theme.radius.md
@@ -91,6 +91,8 @@ local card_height = computed({ ui_state.panel_kind, table.unpack(section_rects) 
         end
     end
 end)
+-- Keep content sizing for two frames after collapse, until geometry reports the settled height.
+local system_content_height = util.linger(state("sysinfo_expanded_notifications", false), theme.animation_ms + 32)
 local hidden_top = card_height:map(function(height)
     return height and -(height + theme.spacing.xs) or -theme.panel_slide
 end)
@@ -204,7 +206,15 @@ return panel {
                                                 inverted_corner(CORNER, true, { top = theme.radius.md }),
                                                 panel_card(shown_section, {
                                                     width = card_width,
-                                                    height = card_height,
+                                                    -- Geometry publishes after the disclosure tween settles, so
+                                                    -- content sizing carries the card while System opens or closes.
+                                                    height = computed({ ui_state.panel_kind, card_height, system_content_height }, function(
+                                                        kind, height, content_height)
+                                                        if kind == notification_history.kind and content_height then
+                                                            return nil
+                                                        end
+                                                        return height
+                                                    end),
                                                     animate = {
                                                         width = { duration = theme.animation_ms, easing = "OutCubic" },
                                                         height = { duration = theme.animation_ms, easing = "OutCubic" },
