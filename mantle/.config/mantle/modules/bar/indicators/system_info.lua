@@ -74,7 +74,7 @@ local function readout(read)
     return util.bold(util.label(mantle.sysinfo, read))
 end
 
--- Glyph, label, and the big number; the GPU tile tints its glyph live, the metric tiles do not.
+-- The GPU tile tints its glyph live; the metric tiles do not.
 local function tile_header(codepoint, glyph_color, label, value, value_color)
     return row {
         width = "Fill",
@@ -103,7 +103,6 @@ local function metric_tile(codepoint, label, field, accent, detail)
     }
 end
 
--- The summary line: `CPU 12% · RAM 55%`, each readout tinted by its own load.
 local SUMMARY = {
     { "CPU",  "cpu_percent",  theme.ACCENT },
     { "RAM",  "ram_percent",  theme.GREEN },
@@ -132,19 +131,9 @@ end)
 ---@param id string Names this instance's `expanded` state and its hover slot.
 return function(id)
     local expanded = state("sysinfo_expanded_" .. id, false)
-    local head = panel_row {
-        slot = "sysinfo-" .. id,
-        icon = icons.cpu,
-        title = "System",
-        subtitle = summary,
-        expanded = expanded,
-    }
-
-    -- An invisible node takes no size or spacing gap, so the card retracts cleanly without a clip.
     local details = column {
         width = "Fill",
         spacing = theme.spacing.sm,
-        visible = expanded,
         children = {
             row {
                 width = "Fill",
@@ -166,7 +155,6 @@ return function(id)
                     end)),
                 },
             },
-            -- The GPU tile spans both columns.
             tile({
                 tile_header(icons.gpu, gpu_color, "GPU", readout(function(sysinfo)
                     return string.format("%d°C", gpu_temp(sysinfo))
@@ -183,9 +171,13 @@ return function(id)
         },
     }
 
-    return column {
-        width = "Fill",
-        spacing = theme.spacing.sm,
-        children = { head, details },
+    return panel_row {
+        slot = "sysinfo-" .. id,
+        icon = icons.cpu,
+        title = "System",
+        subtitle = summary,
+        expanded = expanded,
+        details_spacing = theme.spacing.sm,
+        details = details,
     }
 end

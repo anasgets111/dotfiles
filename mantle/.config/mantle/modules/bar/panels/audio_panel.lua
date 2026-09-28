@@ -44,42 +44,35 @@ local function device_picker(opts)
     local devices = mantle.audio:map(function(audio)
         return (audio and audio[opts.devices]) or {}
     end)
-    return column {
-        width = "Fill",
-        spacing = theme.spacing.xs,
+    return panel_row {
+        slot = "audio-picker-" .. opts.name,
+        icon = opts.is_input and icons.mic_on or icons.speaker,
+        title = "Choose device",
+        expanded = opts.picker,
         visible = devices:map(function(list)
             return #list > 1
         end),
-        children = {
-            panel_row {
-                slot = "audio-picker-" .. opts.name,
-                icon = opts.is_input and icons.mic_on or icons.speaker,
-                title = "Choose device",
-                expanded = opts.picker,
-            },
-            list {
-                width = "Fill",
-                spacing = theme.spacing.xs,
-                visible = opts.picker,
-                source = devices,
-                itemfn = function(device)
-                    return panel_row {
-                        slot = "audio-device-" .. opts.name .. "-" .. tostring(device.id),
-                        icon = util.audio_device_glyph(device, opts.is_input)
-                            or (opts.is_input and icons.mic_on or icons.speaker),
-                        title = util.device_name(device) or "?",
-                        selected = device.active,
-                        trailing = glyph(icons.check, device.active and theme.ACCENT or theme.CLEAR, theme.font.sm),
-                        on_activate = function()
-                            mantle.audio[opts.set_default](mantle.audio, device.id)
-                            opts.picker:set(false)
-                        end,
-                    }
-                end,
-                key = function(device)
-                    return tostring(device.id)
-                end,
-            },
+        details = list {
+            width = "Fill",
+            spacing = theme.spacing.xs,
+            source = devices,
+            itemfn = function(device)
+                return panel_row {
+                    slot = "audio-device-" .. opts.name .. "-" .. tostring(device.id),
+                    icon = util.audio_device_glyph(device, opts.is_input)
+                        or (opts.is_input and icons.mic_on or icons.speaker),
+                    title = util.device_name(device) or "?",
+                    selected = device.active,
+                    trailing = glyph(icons.check, device.active and theme.ACCENT or theme.CLEAR, theme.font.sm),
+                    on_activate = function()
+                        mantle.audio[opts.set_default](mantle.audio, device.id)
+                        opts.picker:set(false)
+                    end,
+                }
+            end,
+            key = function(device)
+                return tostring(device.id)
+            end,
         },
     }
 end
@@ -305,39 +298,32 @@ local body = {
             return util.active_device(audio.sources) ~= nil
         end),
     },
-    -- Flat, like the device pickers: a disclosure row and its list, not a third card.
-    column {
-        width = "Fill",
-        spacing = theme.spacing.xs,
+    -- Flat: a disclosure row and its list, not a third card.
+    panel_row {
+        slot = "audio-mixer",
+        icon = icons.mixer,
+        title = "Application mixer",
+        subtitle = util.label(streams, function(list)
+            return string.format("%d active", #list)
+        end),
+        expanded = mixer_open,
         visible = streams:map(function(list)
             return #list > 0
         end),
-        children = {
-            panel_row {
-                slot = "audio-mixer",
-                icon = icons.mixer,
-                title = "Application mixer",
-                subtitle = util.label(streams, function(list)
-                    return string.format("%d active", #list)
-                end),
-                expanded = mixer_open,
-            },
-            list {
-                width = "Fill",
-                max_height = streams:map(function(list)
-                    return util.fit_height(list, theme.panel_list_height, theme.spacing.sm, function()
-                        return STREAM_HEIGHT
-                    end)
-                end),
-                scroll = scroll("audio_mixer"),
-                spacing = theme.spacing.sm,
-                visible = mixer_open,
-                source = streams,
-                itemfn = stream_row,
-                key = function(app)
-                    return tostring(app.id)
-                end,
-            },
+        details = list {
+            width = "Fill",
+            max_height = streams:map(function(list)
+                return util.fit_height(list, theme.panel_list_height, theme.spacing.sm, function()
+                    return STREAM_HEIGHT
+                end)
+            end),
+            scroll = scroll("audio_mixer"),
+            spacing = theme.spacing.sm,
+            source = streams,
+            itemfn = stream_row,
+            key = function(app)
+                return tostring(app.id)
+            end,
         },
     },
 }

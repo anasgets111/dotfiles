@@ -118,15 +118,9 @@ local function fetch()
         return
     end
     requesting:set(true)
-    local body = {}
-    process.run("curl", { "-fsS", "--max-time", "5", URL }, function(line, stream)
-        if stream == "stdout" then
-            body[#body + 1] = line
-        end
-    end, function(code)
+    util.fetch_json(URL, function(data, code)
         requesting:set(false)
-        local decoded = code == 0 and json.decode(table.concat(body)) or nil
-        local rates = decoded and decoded.usd
+        local rates = data and data.usd
         if type(rates) ~= "table" then
             local wait = code and RETRY_SECONDS or KILLED_RETRY_SECONDS
             log.warn(("currency: fetch failed (curl exited %s), retrying in %ds"):format(tostring(code), wait))

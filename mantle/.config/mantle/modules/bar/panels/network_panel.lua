@@ -170,8 +170,8 @@ local function access_point_row(entry)
         glyph(icons.wifi[util.signal_tier(ap.strength)], color, theme.icon.md, { align_v = "Center" }),
         band and cell(util.bold(band), color, theme.font.xs, {
             align_v = "End",
-            font = "Roboto Condensed",
-            letter_spacing = band == "2.4" and -1.5 or -1,
+            font = theme.condensed_font,
+            letter_spacing = theme.band_tracking(band),
         }) or nil,
     }
     local trailing = {

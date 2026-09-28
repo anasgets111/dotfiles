@@ -5,8 +5,36 @@ local tooltip = require("components.tooltip")
 
 local SLOT = "battery"
 
--- Colour follows the draining check alone; the glyph shows cable state. Accent, not green, which
--- would add a fourth state.
+-- UPower's names. `PendingCharge` is every plug-in, and its charge-end threshold disagrees with
+-- sysfs here, so neither pending state claims a charge limit.
+local BATTERY_PHRASES = {
+    Charging = "charging",
+    Discharging = "discharging",
+    Empty = "empty",
+    FullyCharged = "full",
+    PendingCharge = "waiting to charge",
+    PendingDischarge = "waiting to discharge",
+}
+
+local function battery_phrase(state)
+    return BATTERY_PHRASES[state] or "state unknown"
+end
+
+-- `", 2h 14m left"`, or `""`. UPower estimates one duration at a time, and neither while it learns
+-- the rate, so an empty answer is ordinary in the first minute after a plug or a boot.
+local function battery_eta(battery)
+    local seconds = battery.time_to_empty or battery.time_to_full
+    if not seconds then
+        return ""
+    end
+    local suffix = battery.time_to_empty and "left" or "to full"
+    local hours, minutes = seconds // 3600, seconds % 3600 // 60
+    return hours > 0 and string.format(", %dh %02dm %s", hours, minutes, suffix)
+        or string.format(", %dm %s", minutes, suffix)
+end
+
+-- Colour follows the draining check; the glyph shows cable state. Accent, not green, which would
+-- add a fourth state.
 local function battery_color(battery)
     if battery == nil then
         return theme.DIM
@@ -106,11 +134,11 @@ local battery_tooltip = tooltip({
         elseif battery.state == "FullyCharged" then
             return "Fully charged"
         end
-        local eta = util.battery_eta(battery)
+        local eta = battery_eta(battery)
         if eta ~= "" then
             return eta:sub(3)
         end
-        local phrase = util.battery_phrase(battery.state)
+        local phrase = battery_phrase(battery.state)
         return phrase:sub(1, 1):upper() .. phrase:sub(2)
     end),
     detail = util.label(mantle.power, function(power)

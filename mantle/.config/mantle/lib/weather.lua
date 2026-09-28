@@ -14,10 +14,10 @@ local util = require("lib.util")
 
 local weather = {}
 
--- Refresh every hour; retries wait 2s then 4s before giving up until the hour.
 local REFRESH_SECONDS = 3600
 local RETRY_SECONDS = { 2, 4 }
--- `refresh()` ignores a click inside 30s of the last reading.
+-- A reload's kill exits nil. Counting that as a failure spends the two short rungs, then the hour.
+local KILLED_RETRY_SECONDS = 5
 local MANUAL_FLOOR_SECONDS = 30
 
 local GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search?count=5&name="
@@ -107,6 +107,11 @@ local function schedule(seconds)
     next_attempt:set(((mantle.system:get() or {}).monotonic or 0) + seconds)
 end
 
+local function retry_soon()
+    in_flight:set(false)
+    schedule(KILLED_RETRY_SECONDS)
+end
+
 local function failed()
     weather.failed:set(true)
     local attempt = retries:get() + 1
@@ -118,16 +123,12 @@ end
 
 local function http_get(url, apply)
     in_flight:set(true)
-    local body = {}
-    process.run("curl", { "-fsS", "--max-time", "5", url }, function(line, stream)
-        if stream == "stdout" then
-            body[#body + 1] = line
+    util.fetch_json(url, function(data, code)
+        if code == nil then
+            return retry_soon()
         end
-    end, function(code)
         in_flight:set(false)
-        local data = code == 0 and json.decode(table.concat(body)) or nil
-        -- `apply` raising retries like a dead socket.
-        if type(data) ~= "table" or not pcall(apply, data) then
+        if data == nil or not pcall(apply, data) then
             log.warn(("weather: fetch failed (curl exited %s), retrying"):format(tostring(code)))
             failed()
         end
@@ -153,7 +154,6 @@ local function fetch_weather(latitude, longitude)
     end)
 end
 
--- The zone's last segment is its city.
 local function fetch_location(zone)
     local city = zone:match("([^/]+)$"):gsub("_", "%%20")
     http_get(GEOCODING_URL .. city, function(data)
@@ -183,6 +183,9 @@ local function fetch()
             zone = util.trim(line)
         end
     end, function(code)
+        if code == nil then
+            return retry_soon()
+        end
         if code ~= 0 or zone == "" then
             in_flight:set(false)
             failed()
@@ -197,7 +200,6 @@ local function fetch()
     end)
 end
 
----`refresh()`: the widget's button. A reading younger than 30s is left alone.
 function weather.refresh()
     if in_flight:get() or os.time() - (store.weather_updated_at:get() or 0) < MANUAL_FLOOR_SECONDS then
         return

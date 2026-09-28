@@ -26,7 +26,9 @@ local glyph = require("components.glyph")
 ---@field slot? string
 ---@field visible? boolean|Bound
 ---@field trailing? Node
----@field expanded? StateSignal<boolean> A disclosure row: a chevron after `trailing`, and a click toggles it.
+---@field expanded? StateSignal<boolean> A disclosure row: a chevron after `trailing`, and a click toggles it. Required when `details` is set.
+---@field details? Node Under the row while `expanded` is true, outside the button.
+---@field details_spacing? integer Gap above `details`. Default `theme.spacing.xs`.
 ---@field on_activate? fun()
 
 ---@param opts PanelRowOpts
@@ -98,7 +100,7 @@ return function(opts)
         height = opts.height or theme.control.lg,
         align_v = "Center",
         radius = theme.radius.md,
-        visible = opts.visible,
+        visible = opts.details == nil and opts.visible or nil,
         opacity = opts.opacity,
         background = ground,
         border_width = opts.selected and theme.border_width or nil,
@@ -110,13 +112,25 @@ return function(opts)
         },
         children = { body },
     }
+    local control
     if opts.on_activate == nil then
-        return rect(shell)
-    end
-    shell.on_click = function(_, mouse_button)
-        if mouse_button == "left" then
-            opts.on_activate()
+        control = rect(shell)
+    else
+        shell.on_click = function(_, mouse_button)
+            if mouse_button == "left" then
+                opts.on_activate()
+            end
         end
+        control = button(shell)
     end
-    return button(shell)
+    if opts.details == nil then
+        return control
+    end
+    opts.details.visible = expanded
+    return column {
+        width = "Fill",
+        spacing = opts.details_spacing or theme.spacing.xs,
+        visible = opts.visible,
+        children = { control, opts.details },
+    }
 end

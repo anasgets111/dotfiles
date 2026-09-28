@@ -72,7 +72,6 @@ local header = panel_header {
     end,
 }
 
--- Accent while `on` holds, else dim.
 local function ink(on)
     return on:map(function(lit)
         return lit and theme.ACCENT or theme.DIM
@@ -139,10 +138,12 @@ local function duration_bar(stage)
         end),
         format = idle.format,
         on_select = function(sec)
-            local profile = shown_profile:get()
-            local held = idle.read(store.idle:get())[profile]
-            idle.write(nil, profile, util.with(util.with(held, on_key, sec > 0), sec_key,
-                sec > 0 and sec or held[sec_key]))
+            -- Off keeps the stored seconds. `write_profile` only replaces keys it is given.
+            local patch = { [on_key] = sec > 0 }
+            if sec > 0 then
+                patch[sec_key] = sec
+            end
+            idle.write_profile(shown_profile:get(), patch)
         end,
         width = theme.idle_bar_width,
     }
@@ -233,7 +234,7 @@ local behaviour_rows = {
         trailing = toggle(settings, function(resolved)
             return resolved.privacy_auto_inhibit
         end, function(on)
-            idle.write(nil, "privacy_auto_inhibit", on)
+            idle.write({ privacy_auto_inhibit = on })
         end, "idle-capture-hold"),
     },
     panel_row {
@@ -263,7 +264,7 @@ local flow_card = panel_card(util.concat({ panel_row {
     trailing = toggle(settings, function(resolved)
         return resolved.enabled
     end, function(on)
-        idle.write(nil, "enabled", on)
+        idle.write({ enabled = on })
     end, "idle-enabled"),
 } }, timeline_section(settings)), {
     width = "Fill",
@@ -278,7 +279,6 @@ return modal({
     card = panel_card(util.concat({
         header,
         flow_card,
-        -- The label and the picker share a line; the picker names which profile the bars edit.
         row {
             width = "Fill",
             align_v = "Center",

@@ -227,14 +227,12 @@ local body = {
         subtitle = settings_summary,
         slot = "recorder-settings",
         expanded = settings_expanded,
-    },
-    -- An invisible child takes no size or spacing gap, so the card's height follows the reveal.
-    column {
-        width = "Fill",
-        spacing = theme.spacing.md,
-        visible = settings_expanded,
-        padding = { left = theme.spacing.sm, right = theme.spacing.sm },
-        children = settings_children,
+        details = column {
+            width = "Fill",
+            spacing = theme.spacing.md,
+            padding = { left = theme.spacing.sm, right = theme.spacing.sm },
+            children = settings_children,
+        },
     },
 
     panel_row {

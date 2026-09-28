@@ -5,6 +5,7 @@
 local theme          = require("config.theme")
 local icons          = require("config.icons")
 local util           = require("lib.util")
+local ui_state       = require("lib.ui_state")
 local wallpaper      = require("lib.wallpaper")
 local cell           = require("components.cell")
 local glyph          = require("components.glyph")
@@ -39,7 +40,7 @@ local SHAKE          = {
 local LEAVE_SLACK    = 60
 mantle.lock:set_unlock_animation(theme.animation_slow_ms + LEAVE_SLACK)
 
-util.auto_english_layout(mantle.lock)
+ui_state.auto_english_layout(mantle.lock)
 
 -- The compositor has granted the lock and PAM has not answered; both edges of the card's motion are
 -- this flag. `animate.from` applies only to a node with no displayed value, and this subtree

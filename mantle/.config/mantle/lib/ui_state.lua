@@ -7,6 +7,7 @@ local notifications = require("lib.notifications")
 local util = require("lib.util")
 local theme = require("config.theme")
 local store = require("lib.store")
+local idle = require("lib.idle")
 
 local popup_anchor = state("popup_anchor", { x = 0, y = 0, width = 70, height = 24 })
 
@@ -33,21 +34,63 @@ local function mark_popups_seen()
     popup_seen:set(seen)
 end
 
--- Do not disturb for the length of a screen capture, without touching the persisted switch: the
--- popup reads this as DND and `set_quiet` mutes the sounds the same way. The switch's handler
--- requiets too, since the store is not a capability and has no `on_change`.
-local sharing = computed({ mantle.privacy, store.notifications_dnd_while_sharing }, function(privacy, wanted)
+-- A derived signal has no `on_change`. Blanking calls `sync_notification_quiet` after it sets
+-- `idle.blanked`. The store is not a capability, so `set_dnd_while_sharing` writes quiet itself.
+local function screencast(privacy, wanted)
     -- `~= false`: the store reads nil before its first push, and the default is on.
     return wanted ~= false and privacy ~= nil and #privacy.screencast_users > 0
-end)
-local function requiet()
-    mantle.notifications:set_quiet(sharing:get())
 end
-mantle.privacy:on_change(requiet)
+
+local sharing = computed({ mantle.privacy, store.notifications_dnd_while_sharing }, screencast)
+
+local function notification_quiet(is_sharing)
+    local lock = mantle.lock:get()
+    return (is_sharing or idle.blanked:get() or (lock ~= nil and lock.active)) and true or false
+end
+
+local function sync_notification_quiet()
+    mantle.notifications:set_quiet(notification_quiet(sharing:get()))
+end
+
+mantle.privacy:on_change(sync_notification_quiet)
+mantle.lock:on_change(sync_notification_quiet)
 
 local function set_dnd_while_sharing(on)
     store:set("notifications_dnd_while_sharing", on)
-    requiet()
+    -- `sharing:get()` is still the previous push. `on` is the value just written.
+    mantle.notifications:set_quiet(notification_quiet(screencast(mantle.privacy:get(), on)))
+end
+
+-- Table seed, so a reload keeps the layout to restore. `-1` means there is none.
+local layout_restore = state("layout_restore", { saved = -1, count = 0 })
+
+local function auto_english_layout(capability)
+    capability:on_change(function(current, previous)
+        local now = current ~= nil and current.active
+        local was = previous ~= nil and previous.active
+        local held = layout_restore:get()
+        local saved, count = held.saved, held.count
+        if now and not was then
+            if count == 0 then
+                local keyboard = mantle.keyboard:get()
+                local index = keyboard and keyboard.active_layout_index or 0
+                saved = index > 0 and index or -1
+                if index > 0 then
+                    mantle.keyboard:switch_layout(0)
+                end
+            end
+            count = count + 1
+        elseif was and not now then
+            count = math.max(0, count - 1)
+            if count == 0 and saved >= 0 then
+                mantle.keyboard:switch_layout(saved)
+                saved = -1
+            end
+        else
+            return
+        end
+        layout_restore:set({ saved = saved, count = count })
+    end)
 end
 
 -- One popup's turn is over; history keeps it. A long-held critical card retires this way, where a
@@ -125,7 +168,8 @@ local function panel_is(kind)
 end
 
 -- Leaving bluetooth stops discovery and closes its codec list; leaving audio collapses its pickers;
--- leaving updates closes its log.
+-- leaving updates closes its log. Leaving history marks the open feed seen, so a switch to another
+-- panel counts as reading it.
 local function leave_panel()
     local kind = panel_open:get() and panel_kind:get()
     if kind == "bluetooth" then
@@ -136,17 +180,14 @@ local function leave_panel()
         audio_input_picker:set(false)
     elseif kind == "updates" then
         updates_log_open:set(false)
+    elseif kind == "notifications" then
+        mark_popups_seen()
     end
 end
 
 -- The single close path, prompts included, rather than one in the click-outside catcher and one in
 -- the toggle.
 local function close_panel()
-    -- Reading history counts as seeing its notifications. Mark on the way out, not only in, so
-    -- arrivals while the panel was open do not get another popup turn.
-    if panel_is("notifications") then
-        mark_popups_seen()
-    end
     leave_panel()
     panel_open:set(false)
     clear_network_prompts()
@@ -337,6 +378,8 @@ return {
     hide_popup = hide_popup,
     sharing = sharing,
     set_dnd_while_sharing = set_dnd_while_sharing,
+    sync_notification_quiet = sync_notification_quiet,
+    auto_english_layout = auto_english_layout,
     expanded_groups = expanded_groups,
     expanded_messages = expanded_messages,
     reply_draft_id = reply_draft_id,

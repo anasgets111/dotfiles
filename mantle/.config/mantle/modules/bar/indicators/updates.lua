@@ -8,20 +8,18 @@ local service = require("lib.updates")
 
 local SLOT = "updates"
 
--- The run's phase, then a failed check, a running check and a count. A run owns the glyph through
--- its developer tooling, and a failed one until the result is read.
-local status = computed({ service.phase, mantle.updates }, function(phase, updates)
+-- Follows `phase`. A run owns the glyph through its developer tooling, and a failed one until the
+-- result is read.
+local status = service.phase:map(function(phase)
     if phase == "running" then
         return "installing"
     elseif phase == "failed" then
         return "install_failed"
-    elseif phase == "loading" then
-        return "idle"
-    elseif updates.check_error and updates.check_error ~= "" then
+    elseif phase == "check_failed" then
         return "error"
-    elseif updates.checking then
+    elseif phase == "checking" then
         return "checking"
-    elseif (updates.count or 0) > 0 then
+    elseif phase == "pending" then
         return "pending"
     end
     return "idle"

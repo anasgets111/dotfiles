@@ -121,14 +121,25 @@ function idle.read(stored)
     return out
 end
 
---- Write one setting to `lib/store.lua`; `profile` is `"ac"`, `"battery"`, or `nil` for a top-level key.
---- @param profile string?
---- @param key string
---- @param value any
-function idle.write(profile, key, value)
+--- One `store:set`. `order` is a list; a merge would keep stale keys.
+--- @param patch table
+function idle.write(patch)
     local current = idle.read(store.idle:get())
-    store:set("idle", profile and util.with(current, profile, util.with(current[profile], key, value))
-        or util.with(current, key, value))
+    for key, value in pairs(patch) do
+        current = util.with(current, key, value)
+    end
+    store:set("idle", current)
+end
+
+--- Merge `patch` into `"ac"` or `"battery"` and write that one key.
+--- @param name string
+--- @param patch table
+function idle.write_profile(name, patch)
+    local merged = idle.read(store.idle:get())[name]
+    for key, value in pairs(patch) do
+        merged = util.with(merged, key, value)
+    end
+    idle.write({ [name] = merged })
 end
 
 --- Timeout words: `"Off"`, `"45s"`, `"5m"`, `"1m 30s"`, `"2h"`.
@@ -346,7 +357,7 @@ function idle.move(key, step)
         return
     end
     order[at], order[to] = order[to], order[at]
-    idle.write(nil, "order", order)
+    idle.write({ order = order })
 end
 
 idle.enabled = store.idle:map(function(stored)

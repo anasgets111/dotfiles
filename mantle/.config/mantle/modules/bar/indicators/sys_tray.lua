@@ -100,13 +100,15 @@ local items = list {
             hover = hover(SLOT .. "-" .. tostring(item.id)),
             on_hover = util.track_hover(hovered_id, item.id),
             on_click = function(rect_, mouse_button)
-                local cx = math.floor(rect_.x + rect_.width / 2)
-                local cy = math.floor(rect_.y + rect_.height)
                 local is_right = mouse_button == "right" or mouse_button == 3
                 if item.menu ~= nil and (is_right or item.item_is_menu) then
                     mantle.tray:menu_will_show(item.id, 0)
-                    tray_menu:open(item, cx, cy)
-                elseif is_right then
+                    tray_menu.open(item, rect_)
+                    return
+                end
+                local cx = math.floor(rect_.x + rect_.width / 2)
+                local cy = math.floor(rect_.y + rect_.height)
+                if is_right then
                     mantle.tray:context_menu(item.id, cx, cy)
                 elseif mouse_button == "left" or mouse_button == 1 then
                     mantle.tray:activate(item.id, cx, cy)

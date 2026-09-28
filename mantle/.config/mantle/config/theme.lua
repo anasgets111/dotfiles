@@ -162,6 +162,8 @@ theme.spacing                  = {
 theme.icon_font                = "JetBrainsMono Nerd Font Mono"
 -- Command output, so columns in a log line up.
 theme.mono_font                = theme.icon_font
+-- Band badges ("2.4", "5G") sit beside a glyph, so they take a condensed face.
+theme.condensed_font           = "Roboto Condensed"
 
 theme.font                     = {
     xs  = s(10, 8),
@@ -251,8 +253,6 @@ theme.panel_slide              = s(760, 570)
 -- History holds the popup's cards plus the weather and sysinfo widgets.
 theme.notification_panel_width = s(460, 380)
 theme.notification_list_height = s(640, 480)
--- A name and two version columns. 460px still elided `gpu-screen-recorder-git`.
-theme.update_panel_width       = s(520, 400)
 
 -- Two named sliders and a mixer.
 theme.audio_panel_width        = s(380, 300)
@@ -274,6 +274,9 @@ theme.idle_track_height        = s(36, 28)
 theme.update_list_height       = s(360, 260)
 -- Fixed, so versions align down the table; wide enough for `6.1.0.r4.gc8f50c4-1`.
 theme.update_version_width     = s(116, 88)
+theme.update_repo_width        = s(76, 58)
+-- Name plus repo plus two versions; the extra is the repo column and its gap.
+theme.update_panel_width       = s(520, 400) + theme.update_repo_width + theme.spacing.sm
 -- Keep the log shorter than the package list; its last dozen lines explain a failure.
 theme.update_log_height        = s(200, 150)
 -- A traceback's paths wrap at 520px, and the rescue log scrolls rather than filling the screen.
@@ -330,5 +333,10 @@ theme.wallpaper_picker_width   = s(1180, 900)
 theme.wallpaper_picker_height  = s(880, 660)
 theme.wallpaper_sidebar_width  = s(250, 200)
 theme.wallpaper_columns        = 4
+
+-- "2.4" is wider than "5G" and "6G" in the condensed face, so it tracks tighter.
+function theme.band_tracking(label)
+    return label == "2.4" and -1.5 or -1
+end
 
 return theme

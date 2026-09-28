@@ -157,18 +157,8 @@ local body = item_id:map(function(id)
     } }
 end)
 
-local tray_menu
-
 -- `item`'s menu, anchored under its icon. The same icon again closes it, like every other panel.
-local function open(...)
-    local first = select(1, ...)
-    local is_method = first == tray_menu or (type(first) == "table" and first.kind == KIND)
-    local item = is_method and select(2, ...) or first
-    local anchor = is_method and select(3, ...) or select(2, ...)
-    if type(anchor) == "number" then
-        local cy = is_method and select(4, ...) or select(3, ...) or 0
-        anchor = { x = anchor, y = cy, width = 0, height = 0 }
-    end
+local function open(item, anchor)
     if ui_state.panel_is(KIND) and item_id:get() == item.id then
         return ui_state.close_panel()
     end
@@ -177,5 +167,5 @@ local function open(...)
     ui_state.open_panel(KIND, anchor)
 end
 
-tray_menu = { kind = KIND, body = body, open = open }
+local tray_menu = { kind = KIND, body = body, open = open }
 return tray_menu

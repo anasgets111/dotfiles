@@ -31,10 +31,8 @@ local network_module = icon_button(mantle.network:map(util.network_glyph), nil, 
     -- A wifi link takes its band's colour, the one fact about it worth a glance. Ethernet has none.
     foreground = network_colour,
     badge = band,
-    badge_font = "Roboto Condensed",
-    badge_letter_spacing = band:map(function(label)
-        return label == "2.4" and -1.5 or -1
-    end),
+    badge_font = theme.condensed_font,
+    badge_letter_spacing = band:map(theme.band_tracking),
     badge_translate = band:map(function(label)
         return { x = label == "2.4" and -2 * theme.spacing.xs or -theme.spacing.xs, y = -theme.spacing.xs }
     end),

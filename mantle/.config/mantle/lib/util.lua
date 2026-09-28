@@ -68,35 +68,6 @@ function util.with(source, key, value)
     return copy
 end
 
--- Words for `mantle.battery.state`'s UPower names; `Unknown` is the fallback. The pending phrases say only what UPower
--- observed: it reports `PendingCharge` at every plug-in, and its `ChargeEndThreshold` disagrees with
--- sysfs here, so neither state can claim a charge limit.
-local BATTERY_PHRASES = {
-    Charging = "charging",
-    Discharging = "discharging",
-    Empty = "empty",
-    FullyCharged = "full",
-    PendingCharge = "waiting to charge",
-    PendingDischarge = "waiting to discharge",
-}
-
-function util.battery_phrase(state)
-    return BATTERY_PHRASES[state] or "state unknown"
-end
-
--- `", 2h 14m left"`, or `""`: UPower estimates one duration at a time and neither while learning the
--- rate, so an empty answer is ordinary in the first minute after a plug or a boot.
-function util.battery_eta(battery)
-    local seconds = battery.time_to_empty or battery.time_to_full
-    if not seconds then
-        return ""
-    end
-    local suffix = battery.time_to_empty and "left" or "to full"
-    local hours, minutes = seconds // 3600, seconds % 3600 // 60
-    return hours > 0 and string.format(", %dh %02dm %s", hours, minutes, suffix)
-        or string.format(", %dm %s", minutes, suffix)
-end
-
 function util.battery_is_draining(state)
     return state == "Discharging" or state == "Empty"
 end
@@ -389,31 +360,16 @@ function util.thousands(formatted)
     return sign .. grouped .. rest
 end
 
--- The layout to restore, `-1` for none, and how many capabilities are active.
-local saved_layout, active_count = -1, 0
-
--- Layout 0 (English) while any `capability.active` holds, then the prior layout back.
-function util.auto_english_layout(capability)
-    capability:on_change(function(state, previous)
-        local now = state ~= nil and state.active
-        local was = previous ~= nil and previous.active
-        if now and not was then
-            if active_count == 0 then
-                local keyboard = mantle.keyboard:get()
-                local index = keyboard and keyboard.active_layout_index or 0
-                saved_layout = index > 0 and index or -1
-                if index > 0 then
-                    mantle.keyboard:switch_layout(0)
-                end
-            end
-            active_count = active_count + 1
-        elseif was and not now then
-            active_count = math.max(0, active_count - 1)
-            if active_count == 0 and saved_layout >= 0 then
-                mantle.keyboard:switch_layout(saved_layout)
-                saved_layout = -1
-            end
+-- No log and no retry. `on_done` gets a table only on exit 0 with a decoded body.
+function util.fetch_json(url, on_done)
+    local body = {}
+    process.run("curl", { "-fsS", "--max-time", "5", url }, function(line, stream)
+        if stream == "stdout" then
+            body[#body + 1] = line
         end
+    end, function(code)
+        local decoded = code == 0 and json.decode(table.concat(body)) or nil
+        on_done(type(decoded) == "table" and decoded or nil, code)
     end)
 end
 

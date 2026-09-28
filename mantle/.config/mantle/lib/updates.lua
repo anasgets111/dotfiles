@@ -79,8 +79,11 @@ local phase = computed({ mantle.updates, result_showing, dev_running }, function
 end)
 
 -- Absent means on, so a tool added to `config/dev_tools.lua` runs without a `state.json` edit.
-local function tool_enabled(name)
-    return (store.updates_dev_tools:get() or {})[name] ~= false
+local function tool_enabled(name, flags)
+    if flags == nil then
+        flags = store.updates_dev_tools:get()
+    end
+    return (flags or {})[name] ~= false
 end
 
 -- `name`'s place among the tools a run will start (ticked and present), and their count.
@@ -377,6 +380,7 @@ return {
     phase = phase,
     ran_packages = ran_packages,
     install_failed = install_failed,
+    tool_enabled = tool_enabled,
     tool_step = tool_step,
     any_tool_runnable = any_tool_runnable,
     dismiss_notifications = dismiss_notifications,

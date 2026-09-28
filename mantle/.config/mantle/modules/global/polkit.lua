@@ -4,6 +4,7 @@
 -- keyboard over anything, with `modal.lua`'s motion so it opens like every other dialog.
 local theme = require("config.theme")
 local util = require("lib.util")
+local ui_state = require("lib.ui_state")
 local cell = require("components.cell")
 local panel_card = require("components.panel_card")
 local action_button = require("components.action_button")
@@ -14,7 +15,7 @@ local active = util.shown_when(mantle.polkit, function(polkit)
     return polkit.active
 end)
 
-util.auto_english_layout(mantle.polkit)
+ui_state.auto_english_layout(mantle.polkit)
 
 local function cancel()
     mantle.polkit:cancel()

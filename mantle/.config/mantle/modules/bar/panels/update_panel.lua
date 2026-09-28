@@ -90,11 +90,10 @@ local function status_line(updates, current, tool, dev)
         return #(dev.failures or {}) > 0 and "Update finished with failures" or "Update complete"
     elseif current == "checking" then
         return "Checking…"
-    elseif updates.check_error ~= nil then
+    elseif current == "pending" then
+        return service.plural(updates.count or 0, "update") .. " available"
+    elseif current == "check_failed" then
         return "Check failed"
-    end
-    if (updates.count or 0) > 0 then
-        return service.plural(updates.count, "update") .. " available"
     end
     return "Up to date"
 end
@@ -236,7 +235,7 @@ for _, tool in ipairs(dev_tools) do
             return present[tool.requires] == true
         end),
         trailing = toggle(store.updates_dev_tools, function(ticked)
-            return (ticked or {})[tool.name] ~= false
+            return service.tool_enabled(tool.name, ticked)
         end, function(on)
             store:set("updates_dev_tools", util.with(store.updates_dev_tools:get(), tool.name, on))
         end, "updates-tool-" .. tool.name),
@@ -264,7 +263,7 @@ local settings_summary = computed({ store.updates_aur, store.updates_dev_tools, 
     function(aur, ticked, present)
         local words = { aur and "AUR" or nil }
         for _, tool in ipairs(dev_tools) do
-            if present[tool.requires] == true and (ticked or {})[tool.name] ~= false then
+            if present[tool.requires] == true and service.tool_enabled(tool.name, ticked) then
                 words[#words + 1] = tool.name
             end
         end
@@ -305,6 +304,15 @@ end)
 local working = util.shown_when(mantle.updates, function(updates)
     return updates.installing and (updates.install_total_steps or 0) == 0
 end)
+
+local function package_columns(name, repo, current, new, name_color, new_color, name_size)
+    return {
+        cell(name, name_color, name_size or theme.font.sm, { width = "Fill", align_v = "Center" }),
+        cell(repo, theme.DIM, theme.font.xs, { width = theme.update_repo_width, align_v = "Center" }),
+        cell(current, theme.DIM, theme.font.xs, { width = theme.update_version_width, align_v = "Center" }),
+        cell(new, new_color, theme.font.xs, { width = theme.update_version_width, align_v = "Center" }),
+    }
+end
 
 local body = {
     panel_header {
@@ -393,11 +401,9 @@ local body = {
         row {
             width = "Fill",
             spacing = theme.spacing.sm,
-            children = {
-                cell(util.bold("Package"), theme.DIM, theme.font.xs, { width = "Fill" }),
-                cell(util.bold("Current"), theme.DIM, theme.font.xs, { width = theme.update_version_width }),
-                cell(util.bold("New"), theme.DIM, theme.font.xs, { width = theme.update_version_width }),
-            },
+            children = package_columns(
+                util.bold("Package"), util.bold("Repo"), util.bold("Current"), util.bold("New"),
+                theme.DIM, theme.DIM, theme.font.xs),
         },
         column {
             width = "Fill",
@@ -424,20 +430,13 @@ local body = {
                     height = theme.control.sm,
                     align_v = "Center",
                     spacing = theme.spacing.sm,
-                    children = {
-                        cell(package.name or "?", needs_reboot(package.name or "") and theme.PEACH or theme.FG, theme.font.sm, { width = "Fill", align_v = "Center" }),
-                        cell(package.repository ~= "aur" and package.repository or "", theme.DIM, theme.font.xs, {
-                            align_v = "Center",
-                        }),
-                        cell(package.old_version or "", theme.DIM, theme.font.xs, {
-                            width = theme.update_version_width,
-                            align_v = "Center",
-                        }),
-                        cell(package.new_version or "", theme.ACCENT, theme.font.xs, {
-                            width = theme.update_version_width,
-                            align_v = "Center",
-                        }),
-                    },
+                    children = package_columns(
+                        package.name or "?",
+                        package.repository or "",
+                        package.old_version or "",
+                        package.new_version or "",
+                        needs_reboot(package.name or "") and theme.PEACH or theme.FG,
+                        theme.ACCENT),
                 }
             end,
             key = function(package)
@@ -497,11 +496,10 @@ local body = {
         title = "Settings",
         subtitle = settings_summary,
         expanded = settings_expanded,
-    },
-    column {
-        width = "Fill",
-        visible = settings_expanded,
-        children = util.concat({ section_header("aur"), aur_row }, tool_rows),
+        details = column {
+            width = "Fill",
+            children = util.concat({ section_header("aur"), aur_row }, tool_rows),
+        },
     },
     row {
         width = "Fill",

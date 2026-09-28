@@ -6,13 +6,7 @@
 local idle = require("lib.idle")
 local store = require("lib.store")
 local compositor = require("lib.compositor")
-
--- No notification sound while nobody can see the popup; critical still sounds.
-local function sync_notification_quiet()
-    local lock = mantle.lock:get()
-    mantle.notifications:set_quiet(idle.blanked:get() or (lock ~= nil and lock.active))
-end
-mantle.lock:on_change(sync_notification_quiet)
+local ui_state = require("lib.ui_state")
 
 -- Display power and keyboard backlight move together: a lit keyboard under a dark screen means
 -- blanking stopped halfway.
@@ -26,7 +20,7 @@ local function set_displays_powered(powered)
         return
     end
     idle.blanked:set(not powered)
-    sync_notification_quiet()
+    ui_state.sync_notification_quiet()
     mantle.keyboard:set_backlight(powered and 100 or 0)
 end
 
