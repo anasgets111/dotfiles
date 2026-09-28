@@ -7,7 +7,9 @@ local theme = require("config.theme")
 local util = require("lib.util")
 local panel_card = require("components.panel_card")
 local ui_state = require("lib.ui_state")
-local bar = require("modules.bar").indicator
+local bar_mod = require("modules.bar")
+local bar = bar_mod.indicator
+local drag_ghost = bar_mod.drag_ghost
 
 local network_panel = require("modules.bar.panels.network_panel")
 local bluetooth_panel = require("modules.bar.panels.bluetooth_panel")
@@ -224,6 +226,7 @@ return panel {
             },
             -- Last, so it paints over the catcher and hit-testing reaches its indicators first.
             bar,
+            drag_ghost,
         },
     },
 }

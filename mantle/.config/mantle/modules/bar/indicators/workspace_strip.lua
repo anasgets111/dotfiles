@@ -40,9 +40,47 @@ local function workspaces_of(workspaces)
     return padded
 end
 
+local dragging_from = state("workspace_drag_from", nil)
+local drag_target = state("workspace_drag_target", nil)
+local drag_pos = state("workspace_drag_pos", { x = -200, y = -200 })
+local drag_icon = state("workspace_drag_icon", "")
+local drag_glyph = state("workspace_drag_glyph", "")
+local is_dragging = dragging_from:map(function(from)
+    return from ~= nil
+end)
+
+local hold_timer = nil
+local drag_armed = false
+local start_cx, start_cy = 0, 0
+
+local function arm_drag(ws, cx, cy)
+    if drag_armed then return end
+    drag_armed = true
+    dragging_from:set(ws.id)
+    drag_target:set(ws.id)
+    drag_pos:set({ x = cx - theme.item_width / 2, y = cy - theme.item_height / 2 })
+    local art_sig = util.app_icon(ws)
+    drag_icon:set((art_sig and art_sig:get()) or "")
+    drag_glyph:set(tostring(ws.idx))
+end
+
+local function reset_drag()
+    if hold_timer then
+        hold_timer:cancel()
+        hold_timer = nil
+    end
+    dragging_from:set(nil)
+    drag_target:set(nil)
+    drag_icon:set("")
+    drag_glyph:set("")
+    drag_pos:set({ x = -200, y = -200 })
+    drag_armed = false
+end
+
 local listed = mantle.workspaces:map(workspaces_of)
 local pill = expanding_pill.new({
     slot = "workspace-pill",
+    hold_open = is_dragging,
     collapse_ms = theme.animation_ms + 200,
     count = listed:map(function(entries)
         return #entries
@@ -55,15 +93,90 @@ local function workspace_button(workspace)
         local out = output_of(workspaces)
         return out ~= nil and out.active_workspace == id
     end)
+    local is_drop_target = computed({ dragging_from, drag_target }, function(from, target)
+        return target == id and from ~= nil and from ~= id
+    end)
     local slot_hovered = hover("workspace-" .. tostring(id))
-    local ground = computed({ is_active, slot_hovered }, function(active, is_hovered)
+    local ground = computed({ is_active, slot_hovered, is_drop_target }, function(active, is_hovered, drop)
         if active then
-            return theme.ACCENT
-        elseif is_hovered then
+            return drop and util.lift(theme.ACCENT, theme.hover) or theme.ACCENT
+        elseif drop or is_hovered then
             return theme.GLASS_CONTROL_HOVER
         end
         return workspace.populated and theme.GLASS_CONTROL or theme.CLEAR
     end)
+    local border_color = computed({ is_drop_target, slot_hovered }, function(drop, is_hovered)
+        return drop and theme.ACCENT or (is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER)
+    end)
+    local opacity = dragging_from:map(function(from)
+        if from == id then return 0.4 end
+        return workspace.populated and 1 or theme.opacity.muted
+    end)
+    local cursor = workspace.populated and is_dragging:map(function(dragging)
+        return dragging and "grabbing" or "grab"
+    end) or nil
+
+    local on_drag = nil
+    if workspace.populated and workspace.window_id ~= nil then
+        on_drag = function(rect, pointer, phase)
+            local cx, cy = rect.x + pointer.x, rect.y + pointer.y
+
+            if phase == "start" then
+                drag_armed = false
+                start_cx, start_cy = cx, cy
+                if hold_timer then hold_timer:cancel() end
+                hold_timer = timer(200, function()
+                    hold_timer = nil
+                    arm_drag(workspace, cx, cy)
+                end)
+            elseif phase == "move" then
+                if not drag_armed and (math.abs(cx - start_cx) > 10 or math.abs(cy - start_cy) > 10) then
+                    if hold_timer then
+                        hold_timer:cancel()
+                        hold_timer = nil
+                    end
+                    arm_drag(workspace, cx, cy)
+                end
+                if drag_armed then
+                    drag_pos:set({ x = cx - theme.item_width / 2, y = cy - theme.item_height / 2 })
+                    local best_id, best_dist = nil, math.huge
+                    for _, ws in ipairs(listed:get() or {}) do
+                        local geom = geometry("workspace-btn-" .. tostring(ws.id)):get()
+                        if geom and geom.width and geom.width > 0 then
+                            local center_x = geom.x + geom.width / 2
+                            local center_y = geom.y + geom.height / 2
+                            local dist = math.abs(cx - center_x)
+                            if math.abs(cy - center_y) < 40 and dist < best_dist then
+                                best_dist, best_id = dist, ws.id
+                            end
+                        end
+                    end
+                    drag_target:set(best_dist < 40 and best_id or nil)
+                end
+            elseif phase == "end" then
+                if not drag_armed then
+                    if hold_timer then
+                        hold_timer:cancel()
+                        hold_timer = nil
+                    end
+                    if not is_active:get() then
+                        mantle.workspaces:focus(id)
+                    end
+                else
+                    local from, target = dragging_from:get(), drag_target:get()
+                    reset_drag()
+                    if from and target then
+                        if from ~= target then
+                            mantle.windows:move_to_workspace(workspace.window_id, target)
+                        elseif not is_active:get() then
+                            mantle.workspaces:focus(id)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     -- `ground` already folds the pointer in, so it is both states; the ring and the contrast ink
     -- come from `icon_button`'s defaults.
     return pill.cell(icon_button(tostring(workspace.idx), function()
@@ -71,13 +184,17 @@ local function workspace_button(workspace)
             mantle.workspaces:focus(id)
         end
     end, {
+        geometry = geometry("workspace-btn-" .. tostring(id)),
+        cursor = cursor,
+        on_drag = on_drag,
         slot = "workspace-" .. tostring(id),
         art = util.app_icon(workspace),
         icon_size = theme.font.sm,
         radius = theme.item_radius,
         background = ground,
         background_hover = ground,
-        opacity = workspace.populated and 1 or theme.opacity.muted,
+        border_color = border_color,
+        opacity = opacity,
     }), is_active)
 end
 
@@ -96,4 +213,33 @@ local strip = pill.row({
     },
 })
 
-return { pill = pill, indicator = strip }
+local drag_ghost = rect {
+    width = theme.item_width,
+    height = theme.item_height,
+    visible = is_dragging,
+    cursor = "grabbing",
+    translate = drag_pos,
+    children = computed({ drag_icon, drag_glyph }, function(name, glyph)
+        local child = (name and name ~= "") and icon {
+            name = name,
+            size = theme.icon.lg,
+            align_h = "Center",
+            align_v = "Center",
+            shadow_color = "#000000aa",
+            shadow_blur = 8,
+            shadow_offset = { x = 0, y = 2 },
+        } or text {
+            content = glyph or "",
+            font_size = theme.font.md,
+            foreground = theme.FG,
+            align_h = "Center",
+            align_v = "Center",
+            shadow_color = "#000000aa",
+            shadow_blur = 6,
+            shadow_offset = { x = 0, y = 2 },
+        }
+        return { child }
+    end),
+}
+
+return { pill = pill, indicator = strip, drag_ghost = drag_ghost }

@@ -16,6 +16,7 @@ local rescue = require("modules.bar.indicators.rescue")
 local keyboard_layout = require("modules.bar.indicators.keyboard_layout")
 local privacy = require("modules.bar.indicators.privacy")
 local special_workspaces = require("modules.bar.indicators.special_workspaces")
+local workspaces = require("modules.bar.indicators.workspace_strip")
 local sys_tray = require("modules.bar.indicators.sys_tray")
 local audio_panel = require("modules.bar.panels.audio_panel")
 
@@ -50,4 +51,4 @@ local tooltips = {
 }
 table.move(power_menu.tooltips, 1, #power_menu.tooltips, #tooltips + 1, tooltips)
 
-return { indicator = indicator, tooltips = tooltips }
+return { indicator = indicator, tooltips = tooltips, drag_ghost = workspaces.drag_ghost }

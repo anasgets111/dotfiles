@@ -31,8 +31,8 @@ return function(glyph, on_activate, opts)
     local foreground = opts.foreground or util.lift(ground, theme.text_contrast)
 
     -- Selection wins the ring; otherwise it follows the pointer.
-    local border_color = theme.GLASS_BORDER
-    if opts.selected or hovered then
+    local border_color = opts.border_color or theme.GLASS_BORDER
+    if opts.border_color == nil and (opts.selected or hovered) then
         border_color = computed({ opts.selected or hovered, hovered or opts.selected }, function(is_selected, is_hovered)
             if opts.selected and is_selected then
                 return theme.ACCENT
@@ -90,8 +90,12 @@ return function(glyph, on_activate, opts)
         height = side,
         align_h = "Center",
         align_v = "Center",
+        geometry = opts.geometry,
+        cursor = opts.cursor,
         hover = hovered,
         on_hover = opts.on_hover,
+        on_drag = opts.on_drag,
+        on_wheel = opts.on_wheel,
         radius = opts.radius or side / 2,
         background = ground,
         opacity = opts.opacity,
@@ -113,13 +117,16 @@ return function(glyph, on_activate, opts)
         end),
     }
 
-    if on_activate == nil and opts.on_button == nil then
-        return row(node)
-    end
-    node.on_click = opts.on_button or function(rect, mouse_button)
-        if mouse_button == "left" and not (opts.spinning and opts.spinning:get()) then
-            on_activate(rect, mouse_button)
+    if on_activate or opts.on_button then
+        node.on_click = opts.on_button or function(rect, mouse_button)
+            if mouse_button == "left" and not (opts.spinning and opts.spinning:get()) then
+                on_activate(rect, mouse_button)
+            end
         end
     end
-    return button(node)
+
+    if node.on_click or opts.on_drag or opts.on_wheel then
+        return button(node)
+    end
+    return row(node)
 end
