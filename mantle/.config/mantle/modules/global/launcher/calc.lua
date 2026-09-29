@@ -44,7 +44,6 @@ function M.claims(input)
         or string.format("%.12g", value)
     return {
         kind = "calc",
-        badge = "CALC",
         hint = "Enter to copy",
         icon = icons.calc,
         title = input .. " = " .. result,

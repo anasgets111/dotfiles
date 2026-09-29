@@ -14,16 +14,21 @@ local modals = {
 local any_modal = ui_state.active_modal:map(function(kind)
     return kind ~= ""
 end)
-
--- Mapped through the last card's exit fade. `keyboard_interactivity` reads the same signal: `None`
--- on a still-mapped host makes Hyprland refocus the last window, onto its workspace.
-local shown = util.linger(any_modal, theme.animation_ms)
+local scrim_color = ui_state.active_modal:map(function(kind)
+    return kind == "launcher" and theme.LAUNCHER_SCRIM or theme.SCRIM
+end)
 
 -- Only cards open or fading out are children: a hidden card would be frozen, not dropped.
 local lingering = {}
+local exit_ms = 0
 for _, modal in ipairs(modals) do
-    table.insert(lingering, util.linger(ui_state.modal_showing(modal.kind), theme.animation_ms))
+    table.insert(lingering, util.linger(ui_state.modal_showing(modal.kind), modal.exit_ms))
+    exit_ms = math.max(exit_ms, modal.exit_ms)
 end
+
+-- Mapped through the last card's exit fade. `keyboard_interactivity` reads the same signal: `None`
+-- on a still-mapped host makes Hyprland refocus the last window, onto its workspace.
+local shown = util.linger(any_modal, exit_ms)
 
 local escape_sink = textfield {
     id = "escape_sink",
@@ -72,7 +77,7 @@ return panel {
             rect {
                 width = "Fill",
                 height = "Fill",
-                background = theme.SCRIM,
+                background = scrim_color,
                 opacity = any_modal:map(function(open)
                     return open and 1 or 0
                 end),

@@ -416,6 +416,7 @@ return {
     panel_is = panel_is,
     active_modal = active_modal,
     modal_showing = modal_showing,
+    open_modal = open_modal,
     toggle_modal = toggle_modal,
     close_modal = close_modal,
 }

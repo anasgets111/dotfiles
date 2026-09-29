@@ -182,7 +182,6 @@ function M.claims(query, rates, updated_at, allow_bare, today)
     end
     return {
         kind = "currency",
-        badge = "FX",
         hint = "Enter to copy result",
         icon = flag(from),
         icon_is_text = true,

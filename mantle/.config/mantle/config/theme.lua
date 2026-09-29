@@ -34,6 +34,12 @@ local function channels(hex)
         (tonumber(digits:sub(7, 8), 16) or 255) / 255
 end
 
+-- A shader `vec4` uniform, premultiplied as the engine's output expects.
+function theme.rgba(hex)
+    local r, g, b, a = channels(hex)
+    return { r / 255 * a, g / 255 * a, b / 255 * a, a }
+end
+
 -- Replaces rather than multiplies alpha; otherwise
 -- `with_opacity(BG_SUBTLE, 0.5)` would differ from `with_opacity(BG, 0.5)`.
 function theme.with_opacity(hex, alpha)
@@ -148,6 +154,10 @@ theme.GLASS_BORDER_HOVER       = theme.with_opacity(theme.FG, 0.34)
 
 -- 0.45, not 0.88, because the scrim lies over wallpaper, where 0.88 is a blackout.
 theme.SCRIM                    = theme.with_opacity(theme.BG, 0.45)
+theme.LAUNCHER_SCRIM           = theme.with_opacity(theme.CRUST, 0.22)
+theme.LAUNCHER_FILL            = theme.with_opacity(theme.ELEVATED, 0.84)
+theme.LAUNCHER_RESULTS         = theme.with_opacity(theme.SURFACE, 0.88)
+theme.LAUNCHER_SHADOW          = theme.with_opacity(theme.CRUST, 0.56)
 
 -- Named steps keep `spacing.sm` the same in bar and panel, and let one edit change both.
 theme.spacing                  = {
@@ -320,13 +330,17 @@ theme.lock_clock               = s(160, 96)
 theme.media_panel_width        = s(460, 380)
 theme.media_artwork            = s(96, 80)
 
-theme.launcher_width           = s(860, 645)
-theme.launcher_height          = s(680, 510)
-theme.launcher_row_height      = s(64, 48)
--- Taller than an app row because the provider row carries a badge and an "Enter to copy" hint
--- beside the two text lines.
-theme.launcher_special_height  = s(86, 65)
-theme.launcher_icon            = s(42, 32)
+theme.launcher_width           = s(760, 480)
+theme.launcher_top_margin      = s(205, 125)
+-- The search pill's height and each rail button's diameter.
+theme.launcher_search_height   = s(64, 48)
+theme.launcher_mode_gap        = s(10, 8)
+theme.launcher_radius          = s(28, 20)
+theme.launcher_tile_width      = s(104, 84)
+theme.launcher_tile_height     = s(88, 72)
+theme.launcher_tooltip_width   = s(110, 90)
+theme.launcher_shadow_blur     = s(24, 16)
+theme.launcher_shadow_y        = s(7, 5)
 
 -- The wallpaper picker is a fixed-width card of four columns, which size the tiles.
 theme.wallpaper_picker_width   = s(1180, 900)
