@@ -190,20 +190,20 @@ local function move(key)
     end
 end
 
--- ponytail: a scrim click or keybind close skips this, so the mode survives to the next open.
--- Named state has no change hook; move this reset there once the engine has one.
-local function close()
-    ui_state.close_modal("launcher")
+-- The query and selection reset themselves: `autofocus` re-arms the field empty on the next open.
+ui_state.on_modal_close("launcher", function()
     mode:set("search")
     rail:set(false)
+end)
+
+local function close()
+    ui_state.close_modal("launcher")
 end
 
 local function choose_mode(target)
     rail:set(false)
     if target == "wallpapers" then
-        close()
-        ui_state.open_modal("wallpaper_picker")
-        return
+        return ui_state.active_modal:set("wallpaper_picker")
     end
     mode:set(target)
     selected_id:set("")
@@ -548,6 +548,7 @@ end
 
 return modal({
     kind = "launcher",
+    reset_on_close = { SCROLL },
     motion = {
         enter_ms = 210,
         exit_ms = 175,

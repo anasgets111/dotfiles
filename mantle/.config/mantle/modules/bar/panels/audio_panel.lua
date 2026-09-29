@@ -16,7 +16,7 @@ local tooltip = require("components.tooltip")
 local ui_state = require("lib.ui_state")
 
 local tooltips = {}
-local mixer_open = state("audio_mixer_open", false)
+local mixer_open = ui_state.panel_state("audio_mixer_open", false)
 
 local function percent(value)
     return value and string.format("%d%%", math.floor(value * 100 + 0.5)) or "--"
@@ -250,7 +250,7 @@ local body = {
         set_default = "set_default_sink",
         toggle_mute = "toggle_mute",
         headroom = true,
-        picker = ui_state.audio_output_picker,
+        picker = ui_state.panel_state("audio_output_picker", false),
         under = {
             row {
                 width = "Fill",
@@ -293,7 +293,7 @@ local body = {
         set_volume = "set_source_volume",
         set_default = "set_default_source",
         toggle_mute = "toggle_source_mute",
-        picker = ui_state.audio_input_picker,
+        picker = ui_state.panel_state("audio_input_picker", false),
         visible = util.shown_when(mantle.audio, function(audio)
             return util.active_device(audio.sources) ~= nil
         end),

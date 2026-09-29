@@ -67,9 +67,7 @@ local GROUPS = {
     },
 }
 
--- Stays expanded across close, like `modules/bar/indicators/system_info.lua`. `lib/ui_state.lua` has
--- no close hook to reset it.
-local settings_expanded = state("recorder_settings_expanded", false)
+local settings_expanded = ui_state.panel_state("recorder_settings_expanded", false)
 
 local function selected_option(group, settings)
     local chosen = (type(settings) == "table" and settings[group.key]) or group.fallback

@@ -27,11 +27,13 @@ local DEFAULT_MOTION = {
 ---@field card table The card node, placed by its own aligns in the screen below the bar.
 ---@field showing? Signal<boolean> What shows it, for a card on its own surface; `modal_showing(kind)` by default.
 ---@field motion? ModalMotion
+---@field reset_on_close? ScrollSignal[] Scrolls `modal_host` returns to the top once it closes.
 
 ---@class Modal
 ---@field kind string
 ---@field node table The screen-sized wrapper carrying the card and its motion.
 ---@field exit_ms integer How long `modal_host` keeps the card after it closes.
+---@field reset_on_close ScrollSignal[]
 
 -- `modal_host`'s outside catcher is every card's ancestor, so a press on the card's own ground, such as
 -- padding, a gap between rows or an empty list, walks up to it and closes the modal. A handled button
@@ -94,5 +96,6 @@ return function(opts)
             children = { card },
         },
         exit_ms = motion.exit_ms,
+        reset_on_close = opts.reset_on_close or {},
     }
 end

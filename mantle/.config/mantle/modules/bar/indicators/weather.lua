@@ -8,6 +8,7 @@ local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
 local weather = require("lib.weather")
+local ui_state = require("lib.ui_state")
 local cell = require("components.cell")
 local panel_row = require("components.panel_row")
 local panel_action_icon = require("components.panel_action_icon")
@@ -51,7 +52,7 @@ end
 
 ---@param id string Names this instance's `expanded` state and its hover slots.
 return function(id)
-    local expanded = state("weather_expanded_" .. id, false)
+    local expanded = ui_state.panel_state("weather_expanded_" .. id, false)
 
     local body = computed({ weather.daily, expanded }, function(daily, open)
         if not has_data(daily) then

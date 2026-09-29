@@ -6,6 +6,7 @@
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
+local ui_state = require("lib.ui_state")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 local meter = require("components.meter")
@@ -172,7 +173,7 @@ end)
 
 ---@param id string Names this instance's `expanded` state and its hover slot.
 return function(id)
-    local expanded = state("sysinfo_expanded_" .. id, false)
+    local expanded = ui_state.panel_state("sysinfo_expanded_" .. id, false)
     local details = panel_card({
         row {
             width = "Fill",

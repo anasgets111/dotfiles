@@ -78,10 +78,13 @@ local function ink(on)
     end)
 end
 
--- Which profile the bars edit: the live one until a click on the picker says otherwise. A desktop
--- has no battery, so no picker, and the bars are AC.
+-- Which profile the bars edit: the live one unless the picker chose another since the modal
+-- opened. A desktop has no battery, so no picker, and the bars are AC.
 local PROFILES = { "ac", "battery" }
 local picked = state("idle_profile_picked", "")
+ui_state.on_modal_close("idle_settings", function()
+    picked:set("")
+end)
 local shown_profile = computed({ picked, idle.active_profile, has_battery }, function(chosen, active, battery)
     if not battery then
         return "ac"

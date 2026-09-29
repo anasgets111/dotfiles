@@ -155,31 +155,33 @@ local function open_hidden_prompt()
     hidden_prompt:set(true)
 end
 
--- The MAC whose codec list is open in the bluetooth panel, or `""`; cleared when the panel closes.
-local bluetooth_codec_for = state("bluetooth_codec_for", "")
--- Whether the audio panel's device pickers are expanded.
-local audio_output_picker = state("audio_output_picker", false)
-local audio_input_picker = state("audio_input_picker", false)
+-- Disclosures every panel opens with collapsed, set back to their seed on each open. On open, not
+-- close: the card is still retracting then, and `panel_host` is the always-shown bar, so the
+-- engine's `reset_on_close` never fires for it.
+local panel_resets = {}
+
+---@generic T
+---@param initial T
+---@return StateSignal<T>
+local function panel_state(name, initial)
+    local signal = state(name, initial)
+    panel_resets[#panel_resets + 1] = { signal, initial }
+    return signal
+end
+
 -- The updates panel's log view, so a reopened panel starts on its list.
-local updates_log_open = state("updates_log_open", false)
+local updates_log_open = panel_state("updates_log_open", false)
 
 local function panel_is(kind)
     return panel_open:get() and panel_kind:get() == kind
 end
 
--- Leaving bluetooth stops discovery and closes its codec list; leaving audio collapses its pickers;
--- leaving updates closes its log. Leaving history marks the open feed seen, so a switch to another
--- panel counts as reading it.
+-- Leaving bluetooth stops discovery. Leaving history marks the open feed seen, so a switch to
+-- another panel counts as reading it.
 local function leave_panel()
     local kind = panel_open:get() and panel_kind:get()
     if kind == "bluetooth" then
         mantle.bluetooth:stop_discovery()
-        bluetooth_codec_for:set("")
-    elseif kind == "audio" then
-        audio_output_picker:set(false)
-        audio_input_picker:set(false)
-    elseif kind == "updates" then
-        updates_log_open:set(false)
     elseif kind == "notifications" then
         mark_popups_seen()
     end
@@ -212,6 +214,9 @@ local function open_panel(kind, rect)
     -- A pending password left standing would keep the surface `Exclusive` over a fieldless panel.
     clear_network_prompts()
     leave_panel()
+    for _, entry in ipairs(panel_resets) do
+        entry[1]:set(entry[2])
+    end
     -- A panel and a modal never share the screen (`toggle_panel` clears `active_modal`).
     active_modal:set("")
     popup_anchor:set(rect)
@@ -268,13 +273,21 @@ local function modal_showing(kind)
     end)
 end
 
--- Opening a modal closes any panel; nothing else about the panel changes, so a re-open lands where
--- it was.
-local function open_modal(kind)
-    if panel_open:get() then
+-- Opening a modal closes any panel, `mantle toggle modal` included; nothing else about the panel
+-- changes, so a re-open lands where it was.
+active_modal:on_change(function(kind)
+    if kind ~= "" and panel_open:get() then
         close_panel()
     end
-    active_modal:set(kind)
+end)
+
+-- Runs `fn` when `kind` stops showing, however: a click, Escape, `mantle toggle` or another modal.
+local function on_modal_close(kind, fn)
+    active_modal:on_change(function(_, before)
+        if before == kind then
+            fn()
+        end
+    end)
 end
 
 -- Closes `kind` only if it is the one showing, so a modal's own close cannot dismiss a later one.
@@ -285,18 +298,14 @@ local function close_modal(kind)
 end
 
 local function toggle_modal(kind)
-    if active_modal:get() == kind then
-        close_modal(kind)
-    else
-        open_modal(kind)
-    end
+    active_modal:set(active_modal:get() == kind and "" or kind)
 end
 
 -- Which cards are open, shared so popup and history agree. Tables rather than a signal per group:
 -- keys appear as notifications arrive, and minting registry entries at resolve time would grow the
 -- session.
-local expanded_groups = state("notification_expanded_groups", {})
-local expanded_messages = state("notification_expanded_messages", {})
+local expanded_groups = panel_state("notification_expanded_groups", {})
+local expanded_messages = panel_state("notification_expanded_messages", {})
 
 -- Reply draft, id (`0` for none) plus text. One slot, matching the Renderer's field buffer; the id
 -- keeps Send on A from sending B's draft.
@@ -394,6 +403,7 @@ return {
     set_reply_draft = set_reply_draft,
     clear_reply = clear_reply,
     send_reply = send_reply,
+    panel_state = panel_state,
     panel_open = panel_open,
     panel_kind = panel_kind,
     panel_instance = panel_instance,
@@ -401,9 +411,6 @@ return {
     toggle_panel = toggle_panel,
     close_panel = close_panel,
     set_media_hover = set_media_hover,
-    bluetooth_codec_for = bluetooth_codec_for,
-    audio_output_picker = audio_output_picker,
-    audio_input_picker = audio_input_picker,
     updates_log_open = updates_log_open,
     hidden_draft = hidden_draft,
     hidden_ssid = hidden_ssid,
@@ -416,7 +423,7 @@ return {
     panel_is = panel_is,
     active_modal = active_modal,
     modal_showing = modal_showing,
-    open_modal = open_modal,
+    on_modal_close = on_modal_close,
     toggle_modal = toggle_modal,
     close_modal = close_modal,
 }

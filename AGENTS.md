@@ -53,6 +53,7 @@ mantle/.config/mantle/
 | Hydration | Capabilities read `nil` until the first push. Every map handles `nil` |
 | Actions | `mantle.audio:set_volume(0.5)` returns nothing. Observe state for the outcome |
 | Keybinds | Named state lives in `lib/ui_state.lua`; `action(name, fn)` backs `mantle call`. A rename also updates `hypr/.config/hypr/config/keybinds.lua` and `niri/.config/niri/config.kdl` |
+| Transient UI | Bar panels share the always-shown `bar` surface, so `reset_on_close` never fires there: declare a disclosure with `ui_state.panel_state`, which resets on every panel open. A modal resets its state in `ui_state.on_modal_close` and lists its scrolls in `modal { reset_on_close }` |
 | Persistence | One `persistent_table` in `lib/store.lua` (`~/.local/state/mantle/state.json`). Add keys to its `defaults` |
 | Processes | `process.run` dies with the generation, `process.detach` outlives the shell, `session_process` survives reloads |
 | Compositor | Per-compositor commands go in `lib/compositor.lua`; behavior reads `mantle.workspaces:get().compositor` |

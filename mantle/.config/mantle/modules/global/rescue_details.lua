@@ -37,10 +37,11 @@ local header = panel_header {
 
 -- One entry per line, not one wrapped block: a traceback's indentation is its structure, and Lua
 -- indents it with tabs, which a shaper advances by rather than aligning to.
+local log_scroll = scroll("rescue_log")
 local log = list {
     width = "Fill",
     max_height = theme.rescue_log_height,
-    scroll = scroll("rescue_log"),
+    scroll = log_scroll,
     source = error_log:map(function(text)
         local lines = {}
         for line in text:gmatch("[^\n]+") do
@@ -55,6 +56,7 @@ local log = list {
 
 return modal({
     kind = "rescue",
+    reset_on_close = { log_scroll },
     card = panel_card({
         header,
         panel_card({ log }, { width = "Fill", outlined = true }),

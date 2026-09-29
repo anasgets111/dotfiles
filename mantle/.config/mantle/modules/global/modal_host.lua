@@ -21,9 +21,13 @@ end)
 -- Only cards open or fading out are children: a hidden card would be frozen, not dropped.
 local lingering = {}
 local exit_ms = 0
+-- Scrolls only: a state reset here would miss a switch between modals, so each modal resets its
+-- state with `ui_state.on_modal_close`.
+local reset = {}
 for _, modal in ipairs(modals) do
     table.insert(lingering, util.linger(ui_state.modal_showing(modal.kind), modal.exit_ms))
     exit_ms = math.max(exit_ms, modal.exit_ms)
+    reset = util.concat(reset, modal.reset_on_close)
 end
 
 -- Mapped through the last card's exit fade. `keyboard_interactivity` reads the same signal: `None`
@@ -63,6 +67,7 @@ return panel {
     width = "Fill",
     height = "Fill",
     visible = shown,
+    reset_on_close = reset,
     -- Released by the unmap, costing `theme.animation_ms` of swallowed typing; a stray workspace
     -- switch is worse. `Exclusive` on niri, where a workspace switch hands an on-demand layer's keys
     -- to a window. `OnDemand` on Hyprland, which sends the pointer only to an exclusive layer and

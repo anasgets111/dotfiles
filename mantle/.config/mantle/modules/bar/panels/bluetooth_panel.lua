@@ -96,9 +96,12 @@ local function active_codec(card)
     end
 end
 
+-- The MAC whose codec list is open, or `""`.
+local codec_for = ui.panel_state("bluetooth_codec_for", "")
+
 -- Paired and available rows share one list, empty while the radio is off. A row keeps its key
 -- across connect and disconnect, so it changes in place rather than leaving and arriving.
-local rows = computed({ mantle.bluetooth, mantle.audio, ui.bluetooth_codec_for }, function(bluetooth, audio, open_for)
+local rows = computed({ mantle.bluetooth, mantle.audio, codec_for }, function(bluetooth, audio, open_for)
     local out = {}
     if not enabled(bluetooth) then
         return out
@@ -158,7 +161,7 @@ local function codec_row(item)
         selected = active,
         on_activate = not active and function()
             mantle.audio:set_bluetooth_profile(item.card.device, option.index)
-            ui.bluetooth_codec_for:set("")
+            codec_for:set("")
         end or nil,
     }
 end
@@ -205,8 +208,8 @@ local function device_row(item)
         end
     elseif item.card ~= nil then
         on_activate = function()
-            local open_for = ui.bluetooth_codec_for:get()
-            ui.bluetooth_codec_for:set(open_for == device.mac and "" or device.mac)
+            local open_for = codec_for:get()
+            codec_for:set(open_for == device.mac and "" or device.mac)
         end
     end
     return panel_row {

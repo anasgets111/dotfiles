@@ -24,8 +24,7 @@ local KIND = "updates"
 local LOG_SCROLL = scroll("update_log")
 
 local log_open = ui.updates_log_open
--- Stays expanded across close, like the recorder's settings.
-local settings_expanded = state("updates_settings_expanded", false)
+local settings_expanded = ui.panel_state("updates_settings_expanded", false)
 local phase = service.phase
 
 -- KiB, MiB, GiB use 1024, matching pacman's package sizes.
