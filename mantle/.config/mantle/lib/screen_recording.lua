@@ -158,6 +158,8 @@ local function launch(capture_args, output, label)
         -- `math.floor`: a rate round-tripped through JSON comes back a float, and `-f 60.0` is refused.
         "-f", tostring(math.floor(tonumber(setting("fps", 60)) or 60)),
         "-cursor", "yes",
+        -- Otherwise it logs fps once a second; errors still reach the log.
+        "-v", "no",
     }), AUDIO[setting("audio", "desktop")] or AUDIO.desktop)
 
     capture_label:set(label or output)
