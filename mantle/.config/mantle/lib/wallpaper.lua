@@ -15,6 +15,8 @@ wallpaper.FITS = {
 }
 -- The engine supplies cross-dissolve and fragment-shader support but knows nothing of this folder.
 wallpaper.SHADER_FOLDER = mantle.config_dir .. "/shaders"
+-- Only `wallpaper_<name>.frag` is a transition; the folder also holds the launcher's shader.
+local SHADER_PREFIX = "wallpaper_"
 wallpaper.NO_SHADER = "fade"
 
 -- A shader with no row here, such as anything dropped into the folder, runs with every uniform at
@@ -37,7 +39,7 @@ local RANDOM_PARAMS = {
     end,
 }
 
----Effect names from one `mantle.files` push: the built-in first, then a name per `.frag`.
+---Effect names from one `mantle.files` push: the built-in first, then `<name>` per `wallpaper_<name>.frag`.
 ---@param files FilesState|nil
 ---@return string[]
 function wallpaper.effects_in(files)
@@ -45,7 +47,7 @@ function wallpaper.effects_in(files)
     ---@type Folder?
     local folder = files and files.folders and files.folders[wallpaper.SHADER_FOLDER]
     for _, entry in ipairs(folder and folder.entries or {}) do
-        names[#names + 1] = (entry.name:gsub("%.frag$", ""))
+        names[#names + 1] = entry.name:match("^" .. SHADER_PREFIX .. "(.+)%.frag$")
     end
     return names
 end
@@ -80,7 +82,7 @@ function wallpaper.transition()
         local spec = { duration = 1500, easing = "InOutSine" }
         if effect ~= wallpaper.NO_SHADER then
             local params = RANDOM_PARAMS[effect]
-            spec.shader = wallpaper.SHADER_FOLDER .. "/" .. effect .. ".frag"
+            spec.shader = wallpaper.SHADER_FOLDER .. "/" .. SHADER_PREFIX .. effect .. ".frag"
             spec.params = params and params() or nil
         end
         return spec

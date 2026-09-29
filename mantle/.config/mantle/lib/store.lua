@@ -12,7 +12,7 @@ return persistent_table {
     defaults = {
         -- One entry per output, `{ path = ..., fit = ... }`.
         wallpapers = {},
-        -- A `.frag` name from `wallpaper.SHADER_FOLDER`, or `"fade"` for the built-in cross-dissolve.
+        -- `<name>` of a `wallpaper_<name>.frag` in `wallpaper.SHADER_FOLDER`, or `"fade"` for the built-in.
         wallpaper_transition = "fade",
         -- Cached whole so a restart inside the hour draws before any request. `weather_location`
         -- carries the `timezone` it was resolved from, telling "same place" from "moved"; write it by
