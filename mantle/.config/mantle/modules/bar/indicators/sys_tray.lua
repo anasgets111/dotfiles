@@ -93,7 +93,7 @@ local items = list {
         end
         -- Right opens a menu, left activates, middle is secondary activation. `item_is_menu` makes
         -- a left click open the menu instead of becoming a no-op.
-        return button {
+        return rect {
             width = ITEM_WIDTH,
             height = "Fill",
             align_v = "Center",

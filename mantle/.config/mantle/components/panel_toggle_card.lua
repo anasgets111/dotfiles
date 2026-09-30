@@ -71,7 +71,7 @@ return function(opts)
             })
     end
 
-    return button {
+    return rect {
         width = "Fill",
         height = theme.panel_toggle_height,
         radius = theme.radius.lg,

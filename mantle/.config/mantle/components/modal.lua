@@ -40,7 +40,7 @@ local DEFAULT_MOTION = {
 -- the size of the card ends that walk. It takes the card's placement rather than sitting under it,
 -- because a content-sized one reaches back to the origin and eats the scrim's clicks.
 local function swallow_presses(card)
-    local box = button {
+    local box = rect {
         on_click = function() end,
         cursor = "default",
         width = card.width,

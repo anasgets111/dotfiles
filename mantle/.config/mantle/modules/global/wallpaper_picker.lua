@@ -181,7 +181,7 @@ local function tile(entry)
     local applied = current_path:map(function(path)
         return path == entry.path
     end)
-    return button {
+    return rect {
         width = TILE_WIDTH,
         height = TILE_HEIGHT,
         radius = theme.radius.lg,

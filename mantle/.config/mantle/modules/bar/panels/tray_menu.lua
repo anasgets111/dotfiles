@@ -110,7 +110,7 @@ local function row_for(row_entry)
     if trailing ~= "" then
         children[#children + 1] = cell(trailing, theme.FG, theme.font.sm, { align_v = "Center" })
     end
-    return button {
+    return row {
         width = "Fill",
         height = theme.control.md,
         radius = theme.radius.md,
@@ -125,14 +125,9 @@ local function row_for(row_entry)
                 activate(entry)
             end
         end,
-        children = { row {
-            width = "Fill",
-            height = "Fill",
-            align_v = "Center",
-            spacing = theme.spacing.sm,
-            padding = { left = pad, right = theme.spacing.sm },
-            children = children,
-        } },
+        spacing = theme.spacing.sm,
+        padding = { left = pad, right = theme.spacing.sm },
+        children = children,
     }
 end
 

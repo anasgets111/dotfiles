@@ -162,7 +162,7 @@ return function(opts)
         table.insert(children, 1, opts.label(track))
     end
 
-    return button {
+    return rect {
         width = opts.width or "Fill",
         height = opts.height or theme.slider_height,
         align_v = opts.align_v,

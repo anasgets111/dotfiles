@@ -102,7 +102,7 @@ local function slot(index)
         return key == action.key
     end)
     local slot_hovered = hover("power-" .. action.key)
-    return pill.cell(button {
+    return pill.cell(rect {
         align_h = "Center",
         hover = slot_hovered,
         radius = theme.item_radius,

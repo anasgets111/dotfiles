@@ -212,13 +212,6 @@ local function message(notification, ui, opts)
         }
     end
 
-    local content = column {
-        width = "Fill",
-        spacing = theme.spacing.sm,
-        padding = not opts.standalone and theme.spacing.sm or nil,
-        children = lines,
-    }
-
     -- A message fades in, never slides: a second slide inside a sliding card doubled the travel. The
     -- fade is what shows a message joining a card already on screen, where the card itself is not
     -- new and the newest message swaps in under the count. A group member also fades out when
@@ -239,11 +232,13 @@ local function message(notification, ui, opts)
         animate.border_color = theme.animation_ms
         animate.exit = FADE_EXIT
     end
-    return button {
+    return column {
         -- Named for its notification: a collapsed group reuses the newest message's slot, and
         -- without the id the reply field's `NodeId` and draft move under another summary.
         id = "notification-message-" .. tostring(id),
         width = "Fill",
+        spacing = theme.spacing.sm,
+        padding = not opts.standalone and theme.spacing.sm or nil,
         hover = hovered,
         radius = theme.radius.sm,
         background = ground,
@@ -265,7 +260,7 @@ local function message(notification, ui, opts)
                 mantle.notifications:dismiss(id)
             end
         end,
-        children = { content },
+        children = lines,
     }
 end
 

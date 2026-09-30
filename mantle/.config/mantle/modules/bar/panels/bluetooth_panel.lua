@@ -61,7 +61,7 @@ end
 local function pair_button(device)
     local slot = "bluetooth-pair-" .. tostring(device.mac)
     local hovered = hover(slot)
-    return button {
+    return rect {
         height = theme.control.sm,
         align_v = "Center",
         radius = theme.radius.sm,

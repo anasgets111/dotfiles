@@ -17,7 +17,7 @@ return function(signal, read, on_change, slot, label)
     end)
     local hovered = hover(slot)
     local tint = util.tint(on, hovered)
-    return button {
+    return rect {
         width = label == nil and theme.control_width_lg or nil,
         height = theme.control.sm,
         padding = label and { left = theme.spacing.md, right = theme.spacing.md } or nil,

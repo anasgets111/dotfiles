@@ -178,7 +178,7 @@ return panel {
                     return {
                         -- `close_panel`, not a local handler: an outside click and a second
                         -- indicator click are the same edge, and it also answers pending passwords.
-                        button {
+                        rect {
                             width = "Fill",
                             height = "Fill",
                             cursor = "default",

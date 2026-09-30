@@ -123,7 +123,7 @@ return function(opts)
                 opts.on_activate()
             end
         end
-        control = button(shell)
+        control = rect(shell)
     end
     if opts.details == nil then
         return control

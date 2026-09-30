@@ -257,36 +257,32 @@ local function selectable(id, node)
             activate()
         end
     end
-    return button(node)
+    return node
 end
 
 ---@param app AppSummary
 local function app_tile(app)
-    return selectable(app.id, {
+    return column(selectable(app.id, {
         hover = hover("launcher-app-" .. app.id),
         width = theme.launcher_tile_width,
         height = theme.launcher_tile_height,
         radius = theme.radius.md,
-        children = { column {
-            width = "Fill",
-            height = "Fill",
-            align_v = "Center",
-            spacing = theme.spacing.xs,
-            padding = theme.spacing.xs,
-            children = {
-                icon {
-                    name = app.icon or "application-x-executable",
-                    size = theme.icon.xl,
-                    align_h = "Center",
-                    scale = effective_selected:map(function(selected)
-                        return selected == app.id and theme.selected_scale or 1
-                    end),
-                    animate = { scale = { duration = theme.animation_fast_ms, easing = "OutCubic" } },
-                },
-                cell(app.name, theme.FG, theme.font.md, { width = "Fill", align = "Center" }),
+        align_v = "Center",
+        spacing = theme.spacing.xs,
+        padding = theme.spacing.xs,
+        children = {
+            icon {
+                name = app.icon or "application-x-executable",
+                size = theme.icon.xl,
+                align_h = "Center",
+                scale = effective_selected:map(function(selected)
+                    return selected == app.id and theme.selected_scale or 1
+                end),
+                animate = { scale = { duration = theme.animation_fast_ms, easing = "OutCubic" } },
             },
-        } },
-    })
+            cell(app.name, theme.FG, theme.font.md, { width = "Fill", align = "Center" }),
+        },
+    }))
 end
 
 local grid = list {
@@ -319,39 +315,34 @@ local function special_field(key)
 end
 
 -- Leading glyph, title over subtitle, then the action hint.
-local special_row = selectable(SPECIAL, {
+local special_row = row(selectable(SPECIAL, {
     hover = hover("launcher-special"),
     width = "Fill",
     height = theme.control.xl,
     radius = theme.radius.md,
     visible = special_shown,
-    children = { row {
-        width = "Fill",
-        height = "Fill",
-        spacing = theme.spacing.sm,
-        align_v = "Center",
-        padding = { left = theme.spacing.sm, right = theme.spacing.sm },
-        children = {
-            -- One node, the family chosen by signal: under the Icon family a regional indicator never
-            -- reaches the colour emoji face at the end of the fallback chain.
-            cell(special_field("icon"), theme.FG, theme.icon.xl, {
-                align_v = "Center",
-                font = special:map(function(row)
-                    return (row and row.icon_is_text) and "Body" or "Icon"
-                end),
-            }),
-            column {
-                width = "Fill",
-                align_v = "Center",
-                children = {
-                    cell(special_field("title"), theme.FG, theme.font.lg, { width = "Fill" }),
-                    cell(special_field("subtitle"), theme.DIM, theme.font.sm, { width = "Fill" }),
-                },
+    spacing = theme.spacing.sm,
+    padding = { left = theme.spacing.sm, right = theme.spacing.sm },
+    children = {
+        -- One node, the family chosen by signal: under the Icon family a regional indicator never
+        -- reaches the colour emoji face at the end of the fallback chain.
+        cell(special_field("icon"), theme.FG, theme.icon.xl, {
+            align_v = "Center",
+            font = special:map(function(row)
+                return (row and row.icon_is_text) and "Body" or "Icon"
+            end),
+        }),
+        column {
+            width = "Fill",
+            align_v = "Center",
+            children = {
+                cell(special_field("title"), theme.FG, theme.font.lg, { width = "Fill" }),
+                cell(special_field("subtitle"), theme.DIM, theme.font.sm, { width = "Fill" }),
             },
-            cell(special_field("hint"), theme.DIM, theme.font.sm, { align_v = "Center" }),
         },
-    } },
-})
+        cell(special_field("hint"), theme.DIM, theme.font.sm, { align_v = "Center" }),
+    },
+}))
 
 local body_height = computed({ rows, special_shown }, function(chunks, has_row)
     local height = #chunks > 0 and theme.section_header_height + math.min(#chunks, VISIBLE_ROWS) *
@@ -399,7 +390,7 @@ local search = on_rail(row {
     spacing = theme.spacing.sm,
     padding = { left = SEARCH_PADDING, right = SEARCH_PADDING },
     children = {
-        button {
+        rect {
             hover = return_hover,
             width = theme.icon.lg,
             height = theme.icon.lg,
@@ -437,7 +428,7 @@ local search = on_rail(row {
                 padding = { left = theme.spacing.md },
                 children = {
                     cell(web_provider.ENGINE, theme.FG, theme.font.md, { width = "Fill", align_v = "Center" }),
-                    button {
+                    rect {
                         hover = pill_close_hover,
                         width = theme.control.sm,
                         height = "Fill",

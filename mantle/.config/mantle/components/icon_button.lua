@@ -125,8 +125,5 @@ return function(glyph, on_activate, opts)
         end
     end
 
-    if node.on_click or opts.on_drag or opts.on_wheel then
-        return button(node)
-    end
     return row(node)
 end

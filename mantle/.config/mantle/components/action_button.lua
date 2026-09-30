@@ -25,9 +25,6 @@ return function(label, on_activate, slot, opts)
     opts = opts or {}
     local ground = GROUND[opts.tone or "accent"]
     local hovered = hover(slot)
-    -- A `row` starts its children, so a filling button needs the row to fill and centre them: a
-    -- filling label would centre only its text and leave the glyph at the edge.
-    local fill = opts.width == "Fill" and "Fill" or nil
     local children = {}
     if opts.icon then
         children[#children + 1] = icon {
@@ -54,7 +51,7 @@ return function(label, on_activate, slot, opts)
             align_v = "Center",
         })
     end
-    return button {
+    return row {
         submit = opts.submit,
         width = opts.width,
         height = opts.height or theme.control.md,
@@ -78,13 +75,8 @@ return function(label, on_activate, slot, opts)
                 on_activate()
             end
         end,
-        children = { row {
-            width = fill,
-            height = "Fill",
-            align_h = "Center",
-            align_v = "Center",
-            spacing = theme.spacing.xs,
-            children = children,
-        } },
+        align_h = "Center",
+        spacing = theme.spacing.xs,
+        children = children,
     }
 end

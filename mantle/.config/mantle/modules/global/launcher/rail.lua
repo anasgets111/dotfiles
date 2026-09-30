@@ -127,7 +127,7 @@ function M.buttons(opts)
                         return growth(index, progress)
                     end,
                 }),
-                bind(button {
+                bind(rect {
                     hover = hovered,
                     width = SIZE,
                     height = SIZE,

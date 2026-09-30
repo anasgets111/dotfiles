@@ -384,7 +384,7 @@ local pane_x = state("fx_lab_x", 170)
 local pane_y = state("fx_lab_y", 570)
 local grab = { x = 0, y = 0, from_x = 0, from_y = 0 }
 
-local pane = button {
+local pane = rect {
     width = PANE_W,
     height = PANE_H,
     margin = computed({ pane_x, pane_y }, function(x, y) return { left = x, top = y } end),

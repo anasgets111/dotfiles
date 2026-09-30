@@ -98,7 +98,7 @@ return panel {
             },
             -- The catcher contains the cards rather than sitting under them: `hit::descend` stops at
             -- the first child containing the point.
-            button {
+            rect {
                 width = "Fill",
                 height = "Fill",
                 cursor = "default",

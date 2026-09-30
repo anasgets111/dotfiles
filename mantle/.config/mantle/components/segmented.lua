@@ -24,7 +24,7 @@ return function(opts)
             return current == value
         end)
         local tint = util.tint(chosen, hovered)
-        return button {
+        return rect {
             width = "Fill",
             height = "Fill",
             hover = hovered,
