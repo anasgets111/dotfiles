@@ -19,7 +19,7 @@ float response(float delayTime, float decay, float frequency, float phase) {
 float growth(int index) {
     if (index == 0) return response(0.055, 10.5, 10.5, 1.0);
     float rates[3] = float[3](3.8, 3.1, 2.7);
-    float rate = rates[index - 1];
+    float rate = rates[max(index - 1, 0)];
     return response(0.0, rate, rate, 0.0);
 }
 
@@ -30,7 +30,7 @@ vec4 buttonShape(int index, float expandedRight, float diameter) {
         float delays[3] = float[3](0.06, 0.036, 0.032);
         float decays[3] = float[3](7.2, 5.4, 5.4);
         float frequencies[3] = float[3](8.9, 6.2, 5.35);
-        int trailing = index - 1;
+        int trailing = max(index - 1, 0);
         float decay = decays[trailing];
         float frequency = frequencies[trailing];
         center += float(index) * (diameter + gap)
