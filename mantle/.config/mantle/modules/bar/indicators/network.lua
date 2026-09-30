@@ -57,9 +57,9 @@ local network_text = mantle.network:map(function(network)
     end
     if network.ssid ~= nil and network.ssid ~= "" then
         local strength = (network.strength or 0) > 0 and string.format("%d%%", network.strength) or "--"
-        local band = ap and ap.band or ""
+        local ap_band = ap and ap.band or ""
         return {
-            text = string.format("%s (%s)%s", network.ssid, strength, band ~= "" and " • " .. band or ""),
+            text = string.format("%s (%s)%s", network.ssid, strength, ap_band ~= "" and " • " .. ap_band or ""),
             detail = string.format("IP: %s", network.wifi_ip or "--"),
             secondary = network.ethernet_ip and string.format("Ethernet: IP: %s", network.ethernet_ip) or "",
         }

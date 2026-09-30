@@ -17,7 +17,7 @@ local util = require("lib.util")
 local store = require("lib.store")
 local ui_state = require("lib.ui_state")
 local modal = require("components.modal")
-local apps = require("modules.global.launcher.apps")
+local app_provider = require("modules.global.launcher.apps")
 local calc = require("modules.global.launcher.calc")
 local currency = require("modules.global.launcher.currency")
 local mode_rail = require("modules.global.launcher.rail")
@@ -105,7 +105,7 @@ local pill_motion = web:map(function(on)
 end)
 
 local trimmed = query:map(util.trim)
-local matches = computed({ mantle.applications, query, store.app_usage }, apps.rank)
+local matches = computed({ mantle.applications, query, store.app_usage }, app_provider.rank)
 local results = computed({ matches, mode, trimmed }, function(found, current, text)
     if current == "apps" then
         return found.apps

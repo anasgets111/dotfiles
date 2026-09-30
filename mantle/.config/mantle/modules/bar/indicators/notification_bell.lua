@@ -19,17 +19,17 @@ local function waiting(payload)
     return count
 end
 
-local bell = cell(mantle.notifications:map(function(notifications)
-    if notifications and notifications.dnd then
+local bell = cell(mantle.notifications:map(function(payload)
+    if payload and payload.dnd then
         return icons.bell_off
     end
-    local count = waiting(notifications)
+    local count = waiting(payload)
     return count > 0 and icons.bell_active .. " " .. count or icons.bell
-end), mantle.notifications:map(function(notifications)
-    if notifications and notifications.dnd then
+end), mantle.notifications:map(function(payload)
+    if payload and payload.dnd then
         return theme.DIM
     end
-    return waiting(notifications) > 0 and theme.ACCENT or theme.text_contrast(theme.GLASS_CONTROL)
+    return waiting(payload) > 0 and theme.ACCENT or theme.text_contrast(theme.GLASS_CONTROL)
 end), theme.font.md, { align_v = "Center" })
 
 return {
