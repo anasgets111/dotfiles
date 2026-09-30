@@ -36,9 +36,8 @@ local glyph = require("components.glyph")
 return function(opts)
     local expanded = opts.expanded
     if expanded then
-        local chevron = glyph(expanded:map(function(open)
-            return open and icons.chevron_down or icons.chevron_right
-        end), theme.DIM, theme.icon.sm, { align_v = "Center" })
+        local chevron = glyph(util.choose(expanded, icons.chevron_down, icons.chevron_right), theme.DIM, theme.icon.sm,
+            { align_v = "Center" })
         opts.trailing = opts.trailing
             and row { spacing = theme.spacing.xs, align_v = "Center", children = { opts.trailing, chevron } }
             or chevron
@@ -90,9 +89,7 @@ return function(opts)
     local ground = opts.selected and theme.ACCENT_SUBTLE or nil
     -- Selection outranks the pointer, so a selected row keeps one ground and never lifts on hover.
     if hovered and not opts.selected then
-        ground = hovered:map(function(is_hovered)
-            return is_hovered and theme.GLASS_HOVER or nil
-        end)
+        ground = util.choose(hovered, theme.GLASS_HOVER, nil)
     end
 
     local shell = {
@@ -140,9 +137,7 @@ return function(opts)
     opts.details.visible = util.linger(expanded, theme.animation_ms)
     return column {
         width = "Fill",
-        spacing = expanded:map(function(open)
-            return open and (opts.details_spacing or theme.spacing.xs) or 0
-        end),
+        spacing = util.choose(expanded, opts.details_spacing or theme.spacing.xs, 0),
         visible = opts.visible,
         animate = { spacing = theme.animation_ms },
         children = { control, rect {

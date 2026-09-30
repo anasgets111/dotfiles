@@ -192,7 +192,6 @@ theme.radius                   = {
 }
 
 theme.icon                     = {
-    xs = s(12, 10),
     sm = s(14, 12),
     md = s(18, 14),
     lg = s(24, 18),

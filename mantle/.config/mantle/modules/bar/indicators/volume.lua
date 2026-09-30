@@ -41,9 +41,7 @@ local headroom = mantle.audio:map(function(audio)
     return muted(audio) and theme.INACTIVE or theme.RED
 end)
 
-local width = expanded:map(function(is_expanded)
-    return is_expanded and theme.volume_expanded_width or theme.item_width
-end)
+local width = util.choose(expanded, theme.volume_expanded_width, theme.item_width)
 local volume_glyph = mantle.audio:map(util.volume_glyph)
 local readout = computed({ mantle.audio, held }, function(audio, pending)
     if volume(audio) == nil then

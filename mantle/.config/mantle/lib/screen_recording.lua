@@ -184,12 +184,7 @@ local function start(mode)
     end
 
     starting:set(true)
-    local region = ""
-    selecting = process.run("slurp", { "-o", "-f", "%o %wx%h+%x+%y" }, function(line, stream)
-        if stream == "stdout" then
-            region = region .. line
-        end
-    end, function(code)
+    selecting = util.capture("slurp", { "-o", "-f", "%o %wx%h+%x+%y" }, function(region, code)
         selecting = nil
         starting:set(false)
         local output, box = util.trim(region):match("^(%S+) (%S+)$")
@@ -283,8 +278,7 @@ local function announce_saved(exit_code)
     end
 
     local duration = format_elapsed(elapsed_of(monotonic_now(), began_at:get(), paused_total:get(), paused_at:get()))
-    local chosen = ""
-    process.run("notify-send", {
+    util.capture("notify-send", {
         "-a", "Screen Recorder",
         "-i", "media-record",
         "-t", "5000",
@@ -293,11 +287,7 @@ local function announce_saved(exit_code)
         "-A", "play=Play",
         "Recording saved",
         string.format("%s · %s", duration, name),
-    }, function(line, stream)
-        if stream == "stdout" then
-            chosen = chosen .. line
-        end
-    end, function()
+    }, function(chosen)
         local key = util.trim(chosen)
         if key == "default" or key == "play" then
             process.detach("xdg-open", { path })

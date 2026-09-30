@@ -1,54 +1,41 @@
 local theme = require("config.theme")
-local left = require("modules.bar.left_side")
 local center = require("modules.bar.center_side")
-local right = require("modules.bar.right_side")
-local power_menu = require("modules.bar.indicators.power_menu")
-local battery = require("modules.bar.indicators.battery")
-local date_time = require("modules.bar.indicators.date_time")
-local launcher = require("modules.bar.indicators.launcher_button")
-local wallpaper = require("modules.bar.indicators.wallpaper_button")
-local network = require("modules.bar.indicators.network")
-local bluetooth = require("modules.bar.indicators.bluetooth")
-local screen_recorder = require("modules.bar.indicators.screen_recorder")
-local idle_inhibitor = require("modules.bar.indicators.idle_inhibitor")
-local updates = require("modules.bar.indicators.updates")
-local rescue = require("modules.bar.indicators.rescue")
-local keyboard_layout = require("modules.bar.indicators.keyboard_layout")
-local privacy = require("modules.bar.indicators.privacy")
-local special_workspaces = require("modules.bar.indicators.special_workspaces")
 local workspaces = require("modules.bar.indicators.workspace_strip")
-local sys_tray = require("modules.bar.indicators.sys_tray")
 local audio_panel = require("modules.bar.panels.audio_panel")
 
-local indicator = row {
-    width = "Fill",
-    height = theme.bar_height,
-    background = theme.GLASS_SURFACE,
-    blur = true,
-    padding = { left = theme.spacing.md, right = theme.spacing.md },
-    children = { left, center, right },
+local LEFT = {
+    "rescue", "power_menu", "updates", "idle_inhibitor", "keyboard_layout", "battery",
+    "launcher_button", "wallpaper_button", "special_workspaces", "workspace_strip",
 }
+local RIGHT = { "privacy", "volume", "screen_recorder", "network", "bluetooth", "sys_tray", "date_time" }
+local tooltips = {}
 
-local tooltips = {
-    battery.tooltip,
-    date_time.tooltip,
-    launcher.tooltip,
-    wallpaper.tooltip,
-    network.tooltip,
-    bluetooth.tooltip,
-    screen_recorder.tooltip,
-    idle_inhibitor.tooltip,
-    updates.tooltip,
-    rescue.tooltip,
-    keyboard_layout.tooltip,
-    privacy.camera_tooltip,
-    privacy.microphone_tooltip,
-    privacy.screenshare_tooltip,
-    special_workspaces.tooltip,
-    sys_tray.tooltip,
-    audio_panel.output_tooltip,
-    audio_panel.input_tooltip,
+local function side(names, name, align)
+    local children = {}
+    for _, module in ipairs(names) do
+        local indicator = require("modules.bar.indicators." .. module)
+        children[#children + 1] = indicator.indicator
+        for _, tip in ipairs(indicator.tooltips or {}) do
+            tooltips[#tooltips + 1] = tip
+        end
+    end
+    -- Fill sides share the remainder; the centre measures each content-sized inner row.
+    return row {
+        width = "Fill", height = "Fill", align_h = align, align_v = "Center",
+        children = { row {
+            geometry = geometry("bar-" .. name), height = "Fill", align_v = "Center",
+            spacing = theme.spacing.sm, children = children,
+        } },
+    }
+end
+
+local indicator = row {
+    width = "Fill", height = theme.bar_height,
+    background = theme.GLASS_SURFACE, blur = true,
+    padding = { left = theme.spacing.md, right = theme.spacing.md },
+    children = { side(LEFT, "left", "Start"), center, side(RIGHT, "right", "End") },
 }
-table.move(power_menu.tooltips, 1, #power_menu.tooltips, #tooltips + 1, tooltips)
+tooltips[#tooltips + 1] = audio_panel.output_tooltip
+tooltips[#tooltips + 1] = audio_panel.input_tooltip
 
 return { indicator = indicator, tooltips = tooltips, drag_ghost = workspaces.drag_ghost }

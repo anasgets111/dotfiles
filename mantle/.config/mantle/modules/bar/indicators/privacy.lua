@@ -28,17 +28,16 @@ local mic_shown = computed({ mantle.privacy, mic_muted }, function(privacy, mute
 end)
 
 local mic_tooltip = tooltip({
-    id = "privacy_microphone_tooltip",
     slot = "privacy_microphone",
     text = mic_muted:map(function(muted)
         return muted and "Microphone muted" or "Microphone in use"
     end),
 })
 
-local camera_tooltip = tooltip({ id = "privacy_camera_tooltip", slot = "privacy_camera", text = "Camera in use" })
+local camera_tooltip = tooltip({ slot = "privacy_camera", text = "Camera in use" })
 
 local screenshare_tooltip = tooltip({
-    id = "privacy_screenshare_tooltip", slot = "privacy_screenshare", text = "Screen sharing in progress",
+    slot = "privacy_screenshare", text = "Screen sharing in progress",
 })
 
 -- Camera and screencast circles are readouts. The microphone circle toggles source mute, which does
@@ -46,22 +45,18 @@ local screenshare_tooltip = tooltip({
 local indicator = row {
     align_v = "Center",
     spacing = theme.spacing.sm,
-    -- Invisible children leave layout, but the row still takes `right_side.lua`'s gap, so the group
+    -- Invisible children leave layout, but the row still takes the bar's gap, so the group
     -- hides itself. Keyed on `mic_shown`: a muted microphone appears without a user.
     visible = computed({ mantle.privacy, mic_shown }, function(privacy, mic)
         return mic or users_of("camera_users")(privacy) or users_of("screencast_users")(privacy)
     end),
     children = {
         alert(icons.camera, "camera_users", "privacy_camera"),
-        icon_button(mic_muted:map(function(muted)
-            return muted and icons.mic_off or icons.mic_on
-        end), function()
+        icon_button(util.choose(mic_muted, icons.mic_off, icons.mic_on), function()
             mantle.audio:toggle_source_mute()
         end, {
             slot = "privacy_microphone",
-            background = mic_muted:map(function(muted)
-                return muted and theme.PEACH or theme.RED
-            end),
+            background = util.choose(mic_muted, theme.PEACH, theme.RED),
             visible = mic_shown,
         }),
         alert(icons.screenshare, "screencast_users", "privacy_screenshare"),
@@ -70,7 +65,5 @@ local indicator = row {
 
 return {
     indicator = indicator,
-    camera_tooltip = camera_tooltip,
-    microphone_tooltip = mic_tooltip,
-    screenshare_tooltip = screenshare_tooltip,
+    tooltips = { camera_tooltip, mic_tooltip, screenshare_tooltip },
 }

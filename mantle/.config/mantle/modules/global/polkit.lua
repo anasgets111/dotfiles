@@ -4,7 +4,6 @@
 -- keyboard over anything, with `modal.lua`'s motion so it opens like every other dialog.
 local theme = require("config.theme")
 local util = require("lib.util")
-local ui_state = require("lib.ui_state")
 local cell = require("components.cell")
 local panel_card = require("components.panel_card")
 local action_button = require("components.action_button")
@@ -15,7 +14,7 @@ local active = util.shown_when(mantle.polkit, function(polkit)
     return polkit.active
 end)
 
-ui_state.auto_english_layout(mantle.polkit)
+util.auto_english_layout(mantle.polkit)
 
 local function cancel()
     mantle.polkit:cancel()
@@ -37,16 +36,12 @@ return panel {
     visible = shown,
     -- Exclusive while open: the sole `secure_submit` field is armed on keyboard focus, so no click
     -- is needed (see `modules/global/lock.lua`).
-    keyboard_interactivity = shown:map(function(open)
-        return open and "Exclusive" or "None"
-    end),
+    keyboard_interactivity = util.choose(shown, "Exclusive", "None"),
     child = rect {
         width = "Fill",
         height = "Fill",
         background = theme.SCRIM,
-        opacity = active:map(function(open)
-            return open and 1 or 0
-        end),
+        opacity = util.choose(active, 1, 0),
         animate = { opacity = theme.animation_ms },
         children = {
             modal({ kind = "polkit", showing = active, card = panel_card({
@@ -68,14 +63,10 @@ return panel {
                 },
                 input {
                     field = textfield {
-                        width = "Fill",
-                        height = "Fill",
                         placeholder = "Password",
                         mask_character = "•",
                         secure_submit = { capability = "polkit", action = "authenticate" },
                         on_cancel = cancel,
-                        font_size = theme.font.sm,
-                        foreground = theme.FG,
                     },
                     error = mantle.polkit:map(function(polkit)
                         return polkit and polkit.error or ""
@@ -98,10 +89,6 @@ return panel {
                 },
             }, {
                 width = theme.dialog_width,
-                align_h = "Center",
-                align_v = "Center",
-                spacing = theme.spacing.md,
-                padding = theme.spacing.lg,
                 tone = "dialog",
             }) }).node,
         },

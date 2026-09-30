@@ -116,11 +116,7 @@ local results = computed({ matches, mode, trimmed }, function(found, current, te
     return { table.unpack(found.apps, 1, math.min(#found.apps, COLUMNS)) }
 end)
 local rows = results:map(function(apps)
-    local chunks = {}
-    for i = 1, #apps, COLUMNS do
-        chunks[#chunks + 1] = { table.unpack(apps, i, math.min(i + COLUMNS - 1, #apps)) }
-    end
-    return chunks
+    return util.chunk(apps, COLUMNS)
 end)
 
 -- The first provider that claims wins; web takes every other query.
@@ -152,10 +148,8 @@ local effective_selected = computed({ selected_id, results, special }, function(
     if id == SPECIAL and row then
         return id
     end
-    for _, app in ipairs(apps) do
-        if app.id == id then
-            return id
-        end
+    if util.find(apps, function(app) return app.id == id end) then
+        return id
     end
     if row and (row.kind ~= "web" or #apps == 0) then
         return SPECIAL
@@ -366,9 +360,7 @@ local function tip(label, hovered, x)
         translate = util.lift(x, function(left)
             return { x = left, y = -theme.control.xs - theme.spacing.sm }
         end),
-        opacity = hovered:map(function(over)
-            return over and 1 or 0
-        end),
+        opacity = util.choose(hovered, 1, 0),
         animate = { opacity = theme.animation_fast_ms },
         radius = theme.radius.md,
         background = theme.ELEVATED,
@@ -396,9 +388,7 @@ local search = on_rail(row {
             height = theme.icon.lg,
             align_v = "Center",
             radius = theme.icon.lg / 2,
-            background = return_hover:map(function(over)
-                return over and theme.ACCENT_SUBTLE or theme.CLEAR
-            end),
+            background = util.choose(return_hover, theme.ACCENT_SUBTLE, theme.CLEAR),
             animate = { background = theme.animation_fast_ms },
             on_click = function()
                 choose_mode("search")
@@ -414,12 +404,8 @@ local search = on_rail(row {
             radius = theme.control.md / 2,
             background = theme.ACCENT_LIGHT,
             clip = "Rounded",
-            opacity = web:map(function(on)
-                return on and 1 or 0
-            end),
-            scale = web:map(function(on)
-                return on and 1 or 0.92
-            end),
+            opacity = util.choose(web, 1, 0),
+            scale = util.choose(web, 1, 0.92),
             animate = pill_motion,
             children = { row {
                 width = "Fill",
@@ -502,9 +488,7 @@ local search_layers = {
             gap = theme.launcher_mode_gap,
             layout_width = theme.launcher_width,
         },
-        progress = rail:map(function(open)
-            return open and 1 or 0
-        end),
+        progress = util.choose(rail, 1, 0),
         shadow_color = theme.LAUNCHER_SHADOW,
         shadow_blur = theme.launcher_shadow_blur,
         shadow_offset = { x = 0, y = theme.launcher_shadow_y },
@@ -571,9 +555,7 @@ return modal({
                 width = "Fill",
                 height = body_height,
                 visible = util.linger(expanded, PANEL_MS),
-                opacity = expanded:map(function(open)
-                    return open and 1 or 0
-                end),
+                opacity = util.choose(expanded, 1, 0),
                 animate = {
                     height = { duration = PANEL_MS, easing = "OutCubic" },
                     opacity = { duration = PANEL_MS, easing = "OutCubic", from = 0 },

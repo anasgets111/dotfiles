@@ -5,7 +5,6 @@
 local theme          = require("config.theme")
 local icons          = require("config.icons")
 local util           = require("lib.util")
-local ui_state       = require("lib.ui_state")
 local wallpaper      = require("lib.wallpaper")
 local cell           = require("components.cell")
 local glyph          = require("components.glyph")
@@ -40,7 +39,7 @@ local SHAKE          = {
 local LEAVE_SLACK    = 60
 mantle.lock:set_unlock_animation(theme.animation_slow_ms + LEAVE_SLACK)
 
-ui_state.auto_english_layout(mantle.lock)
+util.auto_english_layout(mantle.lock)
 
 -- The compositor has granted the lock and PAM has not answered; both edges of the card's motion are
 -- this flag. `animate.from` applies only to a node with no displayed value, and this subtree
@@ -48,6 +47,7 @@ ui_state.auto_english_layout(mantle.lock)
 local up           = mantle.lock:map(function(lock)
     return lock ~= nil and lock.active and not lock.unlocking
 end)
+local opacity      = util.choose(up, 1, 0)
 -- Where the card starts its entry.
 local CLOSED_SCALE = 0.94
 
@@ -55,15 +55,11 @@ local CLOSED_SCALE = 0.94
 -- the delay, so everything leaves inside the engine's unlock window. `scale` grows it from
 -- `CLOSED_SCALE` too; both edges need a target, since an absent property skips the entry.
 local function entering(props, order, offset, scale)
-    props.opacity = up:map(function(on)
-        return on and 1 or 0
-    end)
+    props.opacity = opacity
     props.translate = up:map(function(on)
         return { y = on and 0 or offset }
     end)
-    props.scale = scale and up:map(function(on)
-        return on and 1 or CLOSED_SCALE
-    end) or nil
+    props.scale = scale and util.choose(up, 1, CLOSED_SCALE) or nil
     props.animate = up:map(function(on)
         local delay = on and order * STAGGER or 0
         return {

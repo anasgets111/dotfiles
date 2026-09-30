@@ -8,6 +8,12 @@ local tooltip = require("components.tooltip")
 local calendar = require("modules.bar.panels.minimal_calendar")
 local weather = require("lib.weather")
 
+local icons = require("config.icons")
+local ui_state = require("lib.ui_state")
+local notifications = require("lib.notifications")
+local notification_history = require("modules.bar.panels.notification_history")
+local icon_button = require("components.icon_button")
+
 local SLOT = "clock"
 
 -- Bold: the weight separates the bar's one always-on readout from the indicators either side. The
@@ -28,7 +34,6 @@ local DATE_LINE = math.ceil(theme.font.sm * 1.2)
 local TIME_LINE = math.ceil(theme.font.xs * 1.2)
 
 local clock_tooltip = tooltip({
-    id = "clock_tooltip",
     slot = SLOT,
     width = calendar.width + theme.spacing.sm * 2,
     -- The date line carries no air of its own, and shared `xs` left it against the border.
@@ -64,4 +69,58 @@ local clock_tooltip = tooltip({
     },
 })
 
-return { clock = clock, slot = SLOT, tooltip = clock_tooltip }
+-- What the panel would list, so the count never names entries the panel does not show.
+local function waiting(payload)
+    local count = 0
+    for _, notification in ipairs((payload and payload.feed) or {}) do
+        if notifications.kept_in_history(notification) then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+-- Do-not-disturb wins over the waiting count.
+local bell = cell(mantle.notifications:map(function(payload)
+    if payload and payload.dnd then
+        return icons.bell_off
+    end
+    local count = waiting(payload)
+    return count > 0 and icons.bell_active .. " " .. count or icons.bell
+end), mantle.notifications:map(function(payload)
+    if payload and payload.dnd then
+        return theme.DIM
+    end
+    return waiting(payload) > 0 and theme.ACCENT or theme.text_contrast(theme.GLASS_CONTROL)
+end), theme.font.md, { align_v = "Center" })
+
+
+local function open(rect)
+    ui_state.toggle_panel(notification_history.kind, rect)
+end
+
+-- Bell and clock share one click target; calendar detail stays in the clock tooltip.
+local clock_pill = icon_button(nil, nil, {
+    slot = SLOT,
+    radius = theme.item_radius,
+    selected = ui_state.panel_showing(notification_history.kind),
+    on_buttons = {
+        left = open,
+        right = open,
+        middle = function()
+            local inbox = mantle.notifications:get()
+            mantle.notifications:set_dnd(not (inbox and inbox.dnd))
+        end,
+    },
+    content = row {
+        height = "Fill",
+        align_v = "Center",
+        spacing = theme.spacing.xs,
+        -- Without this inset, bell and minutes run under the pill's radius.
+        padding = { left = theme.spacing.sm, right = theme.spacing.sm },
+        children = { bell, clock },
+    },
+})
+
+
+return { indicator = clock_pill, tooltips = { clock_tooltip } }

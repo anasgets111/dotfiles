@@ -121,7 +121,6 @@ local battery_module = rect {
 }
 
 local battery_tooltip = tooltip({
-    id = "battery_tooltip",
     slot = SLOT,
     text = mantle.battery:map(function(battery)
         if battery == nil then
@@ -148,4 +147,4 @@ local battery_tooltip = tooltip({
     end),
 })
 
-return { indicator = battery_module, tooltip = battery_tooltip }
+return { indicator = battery_module, tooltips = { battery_tooltip } }

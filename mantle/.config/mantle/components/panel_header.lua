@@ -21,16 +21,11 @@ local panel_action_icon = require("components.panel_action_icon")
 ---@param opts PanelHeaderOpts
 return function(opts)
     local active = opts.active == nil or opts.active
-    local function by_active(on_value, off_value)
-        return util.lift(active, function(on)
-            return on and on_value or off_value
-        end)
-    end
     ---@type Color|Signal
-    local accent = opts.accent or by_active(theme.ACCENT, theme.DIM)
+    local accent = opts.accent or util.choose(active, theme.ACCENT, theme.DIM)
     -- An explicit accent's plate is the same colour at reduced opacity, so callers supply one, not a pair.
     ---@type Color|Signal
-    local plate = opts.accent == nil and by_active(theme.ACCENT_SUBTLE, theme.GLASS_CONTENT)
+    local plate = opts.accent == nil and util.choose(active, theme.ACCENT_SUBTLE, theme.GLASS_CONTENT)
         or util.lift(accent, function(colour)
             return theme.with_opacity(colour, theme.opacity.subtle)
         end)

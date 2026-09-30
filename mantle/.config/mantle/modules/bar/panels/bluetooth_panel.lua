@@ -1,5 +1,6 @@
 -- A connected audio device's codecs come from `mantle.audio`'s `bluetooth`, joined by MAC.
 -- Discovery runs while the panel shows (`lib/ui_state.lua`).
+local section_list = require("components.section_list")
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -14,7 +15,7 @@ local panel_action_icon = require("components.panel_action_icon")
 local info_badge = require("components.info_badge")
 local panel_empty_state = require("components.panel_empty_state")
 local spinner = require("components.spinner")
-local ui = require("lib.ui_state")
+local disclosure = require("lib.disclosure")
 
 local function device_icon(device)
     return icons.device[device.category or "generic"] or icons.device.generic
@@ -68,9 +69,7 @@ local function pair_button(device)
         radius = theme.radius.sm,
         hover = hovered,
         padding = { left = theme.spacing.sm, right = theme.spacing.sm },
-        background = hovered:map(function(is_hovered)
-            return is_hovered and theme.ACCENT_SUBTLE or nil
-        end),
+        background = util.choose(hovered, theme.ACCENT_SUBTLE, nil),
         on_click = function(_, mouse_button)
             if mouse_button == "left" then
                 mantle.bluetooth:pair(device.mac)
@@ -82,11 +81,7 @@ end
 
 -- The `mantle.audio` entry for `mac`, or `nil` when PipeWire has no codec to offer for it.
 local function codec_card(audio, mac)
-    for _, card in ipairs((audio and audio.bluetooth) or {}) do
-        if card.mac == mac and #card.codecs > 0 then
-            return card
-        end
-    end
+    return util.find((audio and audio.bluetooth), function(card) return card.mac == mac and #card.codecs > 0 end)
 end
 
 local function active_codec(card)
@@ -98,7 +93,7 @@ local function active_codec(card)
 end
 
 -- The MAC whose codec list is open, or `""`.
-local codec_for = ui.panel_state("bluetooth_codec_for", "")
+local codec_for = disclosure.state("bluetooth_codec_for", "")
 
 -- Paired and available rows share one list, empty while the radio is off. A row keeps its key
 -- across connect and disconnect, so it changes in place rather than leaving and arriving.
@@ -300,21 +295,7 @@ local body = {
             },
         },
     },
-    list {
-        width = "Fill",
-        max_height = rows:map(function(items)
-            return util.fit_height(items, theme.panel_list_height, theme.spacing.xs, function(item)
-                return item.kind == "header" and theme.section_header_height or theme.control.lg
-            end)
-        end),
-        scroll = scroll("bluetooth_devices"),
-        spacing = theme.spacing.xs,
-        source = rows,
-        itemfn = device_row,
-        key = function(item)
-            return item.key
-        end,
-    },
+    section_list(rows, "bluetooth_devices", device_row),
     panel_empty_state(
         util.label(mantle.bluetooth, function(bluetooth)
             if not bluetooth.available then

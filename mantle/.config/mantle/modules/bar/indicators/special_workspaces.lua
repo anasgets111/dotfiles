@@ -58,7 +58,6 @@ local indicator = row {
 }
 
 local special_tooltip = tooltip({
-    id = "special_workspaces_tooltip",
     slot = SLOT,
     group = hovered_name,
     group_prefix = "special-",
@@ -68,4 +67,4 @@ local special_tooltip = tooltip({
     end),
 })
 
-return { indicator = indicator, tooltip = special_tooltip }
+return { indicator = indicator, tooltips = { special_tooltip } }

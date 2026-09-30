@@ -110,14 +110,17 @@ local function first_nonempty(...)
     return ""
 end
 
+local function with_player(fn)
+    return function()
+        local player = selected:get()
+        if player then fn(player) end
+    end
+end
+
 -- `offset` seeks through `seek_relative`, since only the player knows where the track is.
 -- `seek_base` is the estimate the bar shows meanwhile.
 local function transport(slot, icon, command, offset, size, disabled)
-    return panel_action_icon(icon, function()
-        local player = selected:get()
-        if not player then
-            return
-        end
+    return panel_action_icon(icon, with_player(function(player)
         if offset then
             local length = player.length or -1
             local estimate = position_us:get() + offset
@@ -128,7 +131,7 @@ local function transport(slot, icon, command, offset, size, disabled)
         elseif command then
             mantle.mpris:control(player.id, command)
         end
-    end, { slot = slot, size = size, disabled = disabled })
+    end), { slot = slot, size = size, disabled = disabled })
 end
 
 local body = {
@@ -211,12 +214,9 @@ local body = {
                         align_h = "Center",
                         spacing = theme.spacing.xs,
                         children = {
-                            panel_action_icon(icons.shuffle, function()
-                                local player = selected:get()
-                                if player then
-                                    mantle.mpris:set_shuffle(player.id, not player.shuffle)
-                                end
-                            end, {
+                            panel_action_icon(icons.shuffle, with_player(function(player)
+                                mantle.mpris:set_shuffle(player.id, not player.shuffle)
+                            end), {
                                 slot = "media-shuffle",
                                 active = selected:map(function(player)
                                     return player ~= false and player.shuffle
@@ -244,12 +244,9 @@ local body = {
                             end)),
                             panel_action_icon(selected:map(function(player)
                                 return LOOP_ICONS[player and player.loop_status] or icons.repeat_off
-                            end), function()
-                                local player = selected:get()
-                                if player then
-                                    mantle.mpris:set_loop_status(player.id, NEXT_LOOP[player.loop_status] or "Playlist")
-                                end
-                            end, {
+                            end), with_player(function(player)
+                                mantle.mpris:set_loop_status(player.id, NEXT_LOOP[player.loop_status] or "Playlist")
+                            end), {
                                 slot = "media-loop",
                                 active = selected:map(function(player)
                                     return player ~= false and player.loop_status ~= "None"

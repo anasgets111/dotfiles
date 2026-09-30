@@ -17,7 +17,7 @@ end)
 
 local screen_recorder_module = icon_button(state_of:map(function(current)
     if current == "recording" then
-        return icons.record_stop
+        return icons.stop
     end
     return current == "paused" and icons.record_paused or icons.record_start
 end), nil, {
@@ -26,20 +26,15 @@ end), nil, {
     background = state_of:map(function(current)
         return current == "recording" and theme.RED or current == "paused" and theme.PEACH or theme.GLASS_CONTROL
     end),
-    on_button = function(rect, mouse_button)
-        if mouse_button == "right" then
-            ui_state.toggle_panel(screen_recorder_panel.kind, rect)
-        elseif mouse_button == "left" then
-            recorder.toggle()
-        elseif mouse_button == "middle" then
-            recorder.start()
-        end
-    end,
+    on_buttons = {
+        right = function(rect) ui_state.toggle_panel(screen_recorder_panel.kind, rect) end,
+        left = recorder.toggle,
+        middle = function() recorder.start() end,
+    },
 })
 
 -- Two lines, state then actions: three buttons on one `font.xs` line is 400px wide.
 local screen_recorder_tooltip = tooltip({
-    id = "screen_recorder_tooltip",
     slot = SLOT,
     text = computed({ state_of, recorder.elapsed_text }, function(current, elapsed)
         if current == "idle" then
@@ -55,4 +50,4 @@ local screen_recorder_tooltip = tooltip({
     end),
 })
 
-return { indicator = screen_recorder_module, tooltip = screen_recorder_tooltip }
+return { indicator = screen_recorder_module, tooltips = { screen_recorder_tooltip } }

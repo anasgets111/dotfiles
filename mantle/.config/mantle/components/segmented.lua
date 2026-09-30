@@ -4,6 +4,7 @@
 local theme = require("config.theme")
 local cell = require("components.cell")
 local util = require("lib.util")
+local switch = require("components.switch")
 
 ---@class SegmentedOpts
 ---@field slot string A `hover` prefix unique to this control; each segment appends its value.
@@ -19,32 +20,27 @@ local util = require("lib.util")
 return function(opts)
     local format = opts.format or tostring
     local function segment(value)
-        local hovered = hover(opts.slot .. "-" .. tostring(value))
         local chosen = opts.value:map(function(current)
             return current == value
         end)
-        local tint = util.tint(chosen, hovered)
-        return rect {
+        local node, tint = switch(chosen, opts.slot .. "-" .. tostring(value), function()
+            opts.on_select(value)
+        end, {
             width = "Fill",
             height = "Fill",
-            hover = hovered,
-            background = tint(theme.ACCENT_LIGHT, theme.ACCENT_SUBTLE, theme.GLASS_HOVER, theme.CLEAR),
-            animate = { background = theme.animation_ms },
-            on_click = function(_, mouse_button)
-                if mouse_button == "left" then
-                    opts.on_select(value)
-                end
-            end,
-            children = { cell(chosen:map(function(on)
-                return { { text = format(value), bold = on } }
-            end), tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM), theme.font.xs, {
-                width = "Fill",
-                align = "Center",
-                align_v = "Center",
-                animate = { foreground = theme.animation_ms },
-            }) },
-        }
+            border = false,
+            rest = theme.CLEAR,
+        })
+        node.children = { cell(format(value), tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM), theme.font.xs, {
+            bold = chosen,
+            width = "Fill",
+            align = "Center",
+            align_v = "Center",
+            animate = { foreground = theme.animation_ms },
+        }) }
+        return rect(node)
     end
+
     -- Hairlines between segments, none at the ends: the bar's ring closes those.
     local children = util.lift(opts.options, function(values)
         local out = {}

@@ -5,6 +5,7 @@
 -- until the snapshot carries it, because clearing on release flashes new, old, new. One `on_change`
 -- per slider name clears it, with a one-second timer for a write that another writer or a clamp
 -- never lands. `state()` fixes its type as numeric, so `-1` means nothing held.
+local util = require("lib.util")
 local theme = require("config.theme")
 
 ---@class SliderOpts
@@ -114,9 +115,7 @@ return function(opts)
         return value_of(opts.read, payload, max) or 0
     end)
 
-    local fill_opacity = opts.fill_visible and opts.fill_visible:map(function(shown)
-        return shown and 1 or 0
-    end)
+    local fill_opacity = opts.fill_visible and util.choose(opts.fill_visible, 1, 0)
     local fill_animate = fill_opacity and { opacity = { duration = theme.animation_ms, easing = "OutCubic" } }
 
     -- `%d` raises on a float in Lua 5.4; see `components/meter.lua`.

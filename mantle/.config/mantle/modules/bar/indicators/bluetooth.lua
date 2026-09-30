@@ -17,11 +17,13 @@ local function by_state(off, connected, on)
     end)
 end
 
+local function open(rect)
+    ui_state.toggle_panel(bluetooth_panel.kind, rect)
+end
+
 local bluetooth_module = icon_button(by_state(icons.bt_off, icons.bt_conn, icons.bt_on), nil, {
     slot = SLOT,
-    on_button = function(rect, _)
-        ui_state.toggle_panel(bluetooth_panel.kind, rect)
-    end,
+    on_buttons = { left = open, right = open, middle = open },
     selected = ui_state.panel_showing(bluetooth_panel.kind),
     foreground = by_state(theme.TEXT_OFF, theme.ACCENT, theme.FG),
 })
@@ -60,9 +62,8 @@ local bluetooth_text = mantle.bluetooth:map(function(bluetooth)
 end)
 
 local bluetooth_tooltip = tooltip({
-    id = "bluetooth_tooltip",
     slot = SLOT,
     lines = bluetooth_text,
 })
 
-return { indicator = bluetooth_module, tooltip = bluetooth_tooltip }
+return { indicator = bluetooth_module, tooltips = { bluetooth_tooltip } }

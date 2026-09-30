@@ -17,11 +17,7 @@ end
 if identity:get().name == "" then
     -- Field five is GECOS; its first comma-separated part is the full name.
     process.run("getent", { "passwd", USER }, function(line)
-        local fields = {}
-        for field in (line .. ":"):gmatch("([^:]*):") do
-            fields[#fields + 1] = field
-        end
-        remember("name", (fields[5] or ""):match("^[^,]*"))
+        remember("name", line:match("^[^:]*:[^:]*:[^:]*:[^:]*:([^,:]*)") or "")
     end, function() end)
 end
 
@@ -31,16 +27,17 @@ if identity:get().host == "" then
     end, function() end)
 end
 
+local full_name = identity:map(function(who)
+    return who.name ~= "" and who.name or USER
+end)
+
 return {
-    full_name = identity:map(function(who)
-        return who.name ~= "" and who.name or USER
-    end),
+    full_name = full_name,
     account = identity:map(function(who)
         return string.format("%s@%s", USER, who.host ~= "" and who.host or "localhost")
     end),
     -- First letters of the first two words: "Anas Khalifa" is "AK".
-    initials = identity:map(function(who)
-        local name = who.name ~= "" and who.name or USER
+    initials = full_name:map(function(name)
         local letters = ""
         local taken = 0
         for word in name:gmatch("%S+") do

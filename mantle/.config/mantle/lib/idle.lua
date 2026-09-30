@@ -11,6 +11,7 @@
 --
 -- ponytail: the threshold reports idle one second after the last input, which `idle_since` subtracts
 -- back out; `ext-idle-notifier-v1` has no "how long idle" call to do better.
+local util = require("lib.util")
 local store = require("lib.store")
 local icons = require("config.icons")
 
@@ -59,11 +60,7 @@ idle.STAGES = {
 --- @param key string
 --- @return table?
 function idle.stage(key)
-    for _, stage in ipairs(idle.STAGES) do
-        if stage.key == key then
-            return stage
-        end
-    end
+    return util.find(idle.STAGES, function(stage) return stage.key == key end)
 end
 
 -- Profile fallbacks; `idle.read` spells out the shared keys' own. `lib/store.lua` seeds `idle = {}`,
@@ -130,17 +127,6 @@ function idle.write(patch)
         current[key] = value
     end
     store:set("idle", current)
-end
-
---- Merge `patch` into `"ac"` or `"battery"` and write that one key.
---- @param name string
---- @param patch table
-function idle.write_profile(name, patch)
-    local merged = idle.read(store.idle:get())[name]
-    for key, value in pairs(patch) do
-        merged[key] = value
-    end
-    idle.write({ [name] = merged })
 end
 
 --- Timeout words: `"Off"`, `"45s"`, `"5m"`, `"1m 30s"`, `"2h"`.

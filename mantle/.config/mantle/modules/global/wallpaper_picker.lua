@@ -78,21 +78,12 @@ local filtered = computed({ mantle.files, trimmed }, function(files, needle)
 end)
 
 local rows = filtered:map(function(entries)
-    local chunks = {}
-    for i = 1, #entries, COLUMNS do
-        chunks[#chunks + 1] = { table.unpack(entries, i, math.min(i + COLUMNS - 1, #entries)) }
-    end
-    return chunks
+    return util.chunk(entries, COLUMNS)
 end)
 
 -- An unplugged selection reads as "all" but is kept, so a replugged screen gets it back.
 local effective_monitor = computed({ monitor, mantle.screens }, function(chosen, screens)
-    for _, screen in ipairs(screens or {}) do
-        if screen.name == chosen then
-            return chosen
-        end
-    end
-    return ALL
+    return util.find(screens, function(screen) return screen.name == chosen end) and chosen or ALL
 end)
 
 local function targets_now()
@@ -134,12 +125,8 @@ end
 -- `selected_path` if visible, else the applied file, else the first tile.
 local effective_selected = computed({ selected_path, current_path, filtered }, function(chosen, applied, entries)
     entries = entries or {}
-    for _, path in ipairs({ chosen, applied }) do
-        if index_of(entries, path) > 0 then
-            return path
-        end
-    end
-    return entries[1] and entries[1].path or ""
+    return util.find({ chosen, applied }, function(path) return index_of(entries, path) > 0 end)
+        or (entries[1] and entries[1].path) or ""
 end)
 
 local function move(delta)
@@ -188,9 +175,7 @@ local function tile(entry)
         clip = "Rounded",
         hover = hovered,
         background = theme.GLASS_CONTENT,
-        border_width = selected:map(function(on)
-            return on and theme.border_width_medium or theme.border_width
-        end),
+        border_width = util.choose(selected, theme.border_width_medium, theme.border_width),
         border_color = computed({ selected, hovered }, function(on, hot)
             if on then
                 return theme.ACCENT
@@ -217,9 +202,7 @@ local function tile(entry)
                 async = true,
                 width = "Fill",
                 height = "Fill",
-                scale = selected:map(function(on)
-                    return on and theme.selected_scale or 1
-                end),
+                scale = util.choose(selected, theme.selected_scale, 1),
                 animate = { scale = { duration = theme.animation_fast_ms, easing = "OutCubic" } },
             },
             -- Bottom name strip.
@@ -378,11 +361,7 @@ local EFFECTS_PER_ROW = 3
 local current_effect = wallpaper.effect
 
 local effect_rows = wallpaper.effects:map(function(names)
-    local bars = {}
-    for index = 1, #names, EFFECTS_PER_ROW do
-        bars[#bars + 1] = { table.unpack(names, index, math.min(index + EFFECTS_PER_ROW - 1, #names)) }
-    end
-    return bars
+    return util.chunk(names, EFFECTS_PER_ROW)
 end)
 
 local effect_grid = list {
@@ -452,8 +431,6 @@ return modal({
     card = panel_card({ search, body }, {
         width = theme.wallpaper_picker_width,
         height = theme.wallpaper_picker_height - (rows_budget - GRID_HEIGHT),
-        align_h = "Center",
-        align_v = "Center",
         spacing = theme.spacing.md,
         padding = card_padding,
         tone = "dialog",

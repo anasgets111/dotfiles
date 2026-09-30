@@ -10,7 +10,6 @@ local launcher_button = icon_button(icons.launcher, function()
 end, { slot = SLOT, selected = ui_state.modal_showing("launcher") })
 
 local launcher_tooltip = tooltip({
-    id = "launcher_tooltip",
     slot = SLOT,
     text = "Open application launcher",
     detail = mantle.applications:map(function(applications)
@@ -19,4 +18,4 @@ local launcher_tooltip = tooltip({
     end),
 })
 
-return { button = launcher_button, tooltip = launcher_tooltip }
+return { indicator = launcher_button, tooltips = { launcher_tooltip } }

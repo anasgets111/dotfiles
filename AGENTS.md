@@ -40,7 +40,7 @@ mantle/.config/mantle/
   shell.lua     Entry: font chain, requires modules, returns the surface list
   config/       Tokens: theme.lua (Catppuccin Mocha), icons.lua, dev_tools.lua
   components/   Reusable widgets with no state of their own
-  lib/          Node-free logic and state: store, ui_state, idle, wallpaper, weather, updates, compositor
+  lib/          Node-free domain logic and state; ui_state owns navigation, disclosure owns panel resets
   modules/      bar/{indicators,panels}, global/, notification/, osd/, shell/panel_host.lua
   shaders/      `.frag` sources compiled by the engine at runtime: wallpaper transitions and the launcher rail
 ```
@@ -52,8 +52,8 @@ mantle/.config/mantle/
 | Signals | Pass the signal itself to keep a property live; `:get()` is a snapshot. Derive with `:map`, `computed`, `delay`, `pulse` |
 | Hydration | Capabilities read `nil` until the first push. Every map handles `nil` |
 | Actions | `mantle.audio:set_volume(0.5)` returns nothing. Observe state for the outcome |
-| Keybinds | Named state lives in `lib/ui_state.lua`; `action(name, fn)` backs `mantle call`. A rename also updates `hypr/.config/hypr/config/keybinds.lua` and `niri/.config/niri/config.kdl` |
-| Transient UI | Bar panels share the always-shown `bar` surface, so `reset_on_close` never fires there: declare a disclosure with `ui_state.panel_state`, which resets on every panel open. A modal resets its state in `ui_state.on_modal_close` and lists its scrolls in `modal { reset_on_close }` |
+| Keybinds | Navigation state lives in `lib/ui_state.lua`; domain state stays with its owning `lib/` module; `action(name, fn)` backs `mantle call`. A rename also updates `hypr/.config/hypr/config/keybinds.lua` and `niri/.config/niri/config.kdl` |
+| Transient UI | Bar panels share the always-shown `bar` surface, so `reset_on_close` never fires there: declare a disclosure with `disclosure.state` from `lib/disclosure.lua`, which resets on every panel open. A modal resets its state in `ui_state.on_modal_close` and lists its scrolls in `modal { reset_on_close }` |
 | Persistence | One `persistent_table` in `lib/store.lua` (`~/.local/state/mantle/state.json`). Add keys to its `defaults` |
 | Processes | `process.run` dies with the generation, `process.detach` outlives the shell, `session_process` survives reloads |
 | Compositor | Per-compositor commands go in `lib/compositor.lua`; behavior reads `mantle.workspaces:get().compositor` |

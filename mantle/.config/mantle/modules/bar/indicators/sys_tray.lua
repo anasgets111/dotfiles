@@ -101,7 +101,7 @@ local items = list {
             hover = hover(SLOT .. "-" .. tostring(item.id)),
             on_hover = util.track_hover(hovered_id, item.id),
             on_click = function(rect_, mouse_button)
-                local is_right = mouse_button == "right" or mouse_button == 3
+                local is_right = mouse_button == "right"
                 if item.menu ~= nil and (is_right or item.item_is_menu) then
                     mantle.tray:menu_will_show(item.id, 0)
                     tray_menu.open(item, rect_)
@@ -111,9 +111,9 @@ local items = list {
                 local cy = math.floor(rect_.y + rect_.height)
                 if is_right then
                     mantle.tray:context_menu(item.id, cx, cy)
-                elseif mouse_button == "left" or mouse_button == 1 then
+                elseif mouse_button == "left" then
                     mantle.tray:activate(item.id, cx, cy)
-                elseif mouse_button == "middle" or mouse_button == 2 then
+                elseif mouse_button == "middle" then
                     mantle.tray:secondary_activate(item.id, cx, cy)
                 end
             end,
@@ -152,7 +152,6 @@ local indicator = row {
 }
 
 local tray_tooltip = tooltip({
-    id = "sys_tray_tooltip",
     slot = SLOT,
     group = hovered_id,
     group_prefix = SLOT .. "-",
@@ -160,4 +159,4 @@ local tray_tooltip = tooltip({
     detail = hovered:map(function(lines) return lines.said end),
 })
 
-return { indicator = indicator, tooltip = tray_tooltip }
+return { indicator = indicator, tooltips = { tray_tooltip } }

@@ -58,9 +58,7 @@ function notifications.notification_body(spans, link_color)
                 append(span, href, href)
                 at = last + 1
             end
-            if at == 1 then
-                append(span, span.text, span.href)
-            elseif at <= #text then
+            if at == 1 or at <= #text then
                 append(span, text:sub(at), span.href)
             end
         end

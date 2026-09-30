@@ -24,7 +24,6 @@ end, {
 })
 
 local rescue_tooltip = tooltip({
-    id = "rescue_tooltip",
     slot = SLOT,
     text = error_log:map(function(text)
         return util.truncate(text:match("^[^\n]*"), 90)
@@ -32,4 +31,4 @@ local rescue_tooltip = tooltip({
     detail = "Click for the full error",
 })
 
-return { indicator = indicator, tooltip = rescue_tooltip }
+return { indicator = indicator, tooltips = { rescue_tooltip } }

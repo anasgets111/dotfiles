@@ -10,6 +10,11 @@ local util = require("lib.util")
 
 ---@param opts InputOpts
 return function(opts)
+    local field = opts.field
+    field.width = field.width or "Fill"
+    field.height = field.height or "Fill"
+    field.font_size = field.font_size or theme.font.sm
+    field.foreground = field.foreground or theme.FG
     local error = opts.error
     local error_shown = error and util.shown_when(error, function(message)
         return message ~= ""
@@ -20,13 +25,14 @@ return function(opts)
             height = theme.control.md,
             background = theme.GLASS_INPUT,
             radius = theme.radius.md,
-            border_width = error_shown and error_shown:map(function(has_error)
-                return has_error and theme.border_width_medium or theme.border_width
-            end) or theme.border_width,
-            border_color = error_shown and error_shown:map(function(has_error)
-                return has_error and theme.RED or theme.ACCENT
-            end) or theme.ACCENT,
-            padding = { top = theme.spacing.xs, right = theme.spacing.sm, bottom = theme.spacing.xs, left = theme.spacing.sm },
+            border_width = util.choose(error_shown, theme.border_width_medium, theme.border_width),
+            border_color = util.choose(error_shown, theme.RED, theme.ACCENT),
+            padding = {
+                top = theme.spacing.xs,
+                right = theme.spacing.sm,
+                bottom = theme.spacing.xs,
+                left = theme.spacing.sm,
+            },
             animate = {
                 border_color = theme.animation_ms,
                 border_width = theme.animation_ms,
@@ -39,9 +45,7 @@ return function(opts)
         children[2] = row {
             width = "Fill",
             visible = util.linger(error_shown, theme.animation_ms),
-            opacity = error_shown:map(function(has_error)
-                return has_error and 1 or 0
-            end),
+            opacity = util.choose(error_shown, 1, 0),
             animate = { opacity = theme.animation_ms },
             children = { callout(icons.warning, error:map(function(message)
                 return message or ""

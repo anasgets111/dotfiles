@@ -140,9 +140,7 @@ function M.buttons(opts)
                             opts.choose(entry.id)
                         end
                     end,
-                    children = { glyph(entry.icon, selected:map(function(active)
-                        return active and theme.FG or theme.DIM
-                    end), theme.icon.lg, { align = "Center", align_v = "Center" }) },
+                    children = { glyph(entry.icon, util.choose(selected, theme.FG, theme.DIM), theme.icon.lg, { align = "Center", align_v = "Center" }) },
                 }, {
                     opacity = function(progress)
                         return reveal(index, progress)

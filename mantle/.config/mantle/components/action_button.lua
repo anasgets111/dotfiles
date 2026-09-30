@@ -1,7 +1,9 @@
 -- A labelled button, for when the word is the point: "Update", "Retry", "Close". `opts.icon` is the
 -- theme icon a sender's `action-icons` key names, beside the label or alone without one.
+local util = require("lib.util")
 local theme = require("config.theme")
 local cell = require("components.cell")
+local glyph = require("components.glyph")
 
 -- `solid` and `danger` are the only opaque grounds and pick their own ink. The other tints show panel
 -- glass through the label.
@@ -36,13 +38,7 @@ return function(label, on_activate, slot, opts)
     end
     -- A Nerd Font glyph in the same slot, a `text` node, so it takes the button's ink.
     if opts.glyph then
-        children[#children + 1] = text {
-            content = opts.glyph,
-            foreground = ground.text or theme.FG,
-            font_size = theme.icon.sm,
-            font = theme.icon_font,
-            align_v = "Center",
-        }
+        children[#children + 1] = glyph(opts.glyph, ground.text or theme.FG, theme.icon.sm, { align_v = "Center" })
     end
     if label and label ~= "" then
         local label_content = type(label) == "string" and { { text = label, bold = true } } or label
@@ -60,13 +56,9 @@ return function(label, on_activate, slot, opts)
         radius = theme.radius.md,
         visible = opts.visible,
         -- Dims and ignores clicks, keeping the button's place in the row.
-        opacity = opts.disabled and opts.disabled:map(function(off)
-            return off and theme.opacity.disabled or 1
-        end),
+        opacity = opts.disabled and util.choose(opts.disabled, theme.opacity.disabled, 1),
         hover = hovered,
-        background = hovered:map(function(is_hovered)
-            return is_hovered and ground.hover or ground.rest
-        end),
+        background = util.choose(hovered, ground.hover, ground.rest),
         border_width = theme.border_width,
         border_color = ground.border,
         padding = { left = theme.spacing.md, right = theme.spacing.md },

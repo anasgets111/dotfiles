@@ -1,249 +1,82 @@
--- Shared view state: panels, modals, the network sheet and the notification cards. `on_click` hands
--- an indicator its rect, and the panel host reads it back from here.
---
--- `popup_anchor`: only `x` is read, since `panel_host` is a layer surface that clamps the card to the
--- output rather than a popup with `anchor_rect`/`gravity`. The shape is what `on_click` supplies.
-local notifications = require("lib.notifications")
+-- Shared panel and modal navigation; domain modules own their contents.
+local M = {}
+
 local util = require("lib.util")
 local theme = require("config.theme")
-local store = require("lib.store")
-local idle = require("lib.idle")
+local disclosure = require("lib.disclosure")
+local notification_state = require("lib.notification_state")
+local network_join = require("lib.network_join")
 
-local popup_anchor = state("popup_anchor", { x = 0, y = 0, width = 70, height = 24 })
+-- The bar host uses only x to clamp its card to the output.
+M.popup_anchor = state("popup_anchor", { x = 0, y = 0, width = 70, height = 24 })
 
--- `modules/shell/panel_host.lua`'s shared-surface signals: whether it is up and its current panel.
--- One surface serves every bar panel; one slot enforces that rather than five files coordinating.
-local panel_open = state("panel_open", false)
-local panel_kind = state("panel_kind", "")
-local panel_instance = state("panel_instance", 0)
+M.panel_open = state("panel_open", false)
+M.panel_kind = state("panel_kind", "")
+M.panel_instance = state("panel_instance", 0)
 
--- The one modal on screen, or `""`. One string, so two can never be open at once and
--- `mantle toggle modal launcher` is a single keybind.
-local active_modal = state("modal", "")
+-- One string permits only one modal and makes `mantle toggle modal launcher` a single keybind.
+M.active_modal = state("modal", "")
 
--- Which notifications have had their popup turn. A view fact, since `dismiss` removes popup and
--- history together. Keyed by id plus timestamp, so `replaces_id` content pops again. Replaced
--- wholesale, which prunes gone entries.
-local popup_seen = state("notification_popup_seen", {})
-
-local function mark_popups_seen()
-    local seen = {}
-    for _, notification in ipairs((mantle.notifications:get() or {}).feed or {}) do
-        seen[notifications.notification_key(notification)] = true
-    end
-    popup_seen:set(seen)
+function M.panel_is(kind)
+    return M.panel_open:get() and M.panel_kind:get() == kind
 end
 
--- A derived signal has no `on_change`. Blanking calls `sync_notification_quiet` after it sets
--- `idle.blanked`. The store is not a capability, so `set_dnd_while_sharing` writes quiet itself.
-local function screencast(privacy, wanted)
-    -- `~= false`: the store reads nil before its first push, and the default is on.
-    return wanted ~= false and privacy ~= nil and #privacy.screencast_users > 0
-end
-
-local sharing = computed({ mantle.privacy, store.notifications_dnd_while_sharing }, screencast)
-
-local function notification_quiet(is_sharing)
-    local lock = mantle.lock:get()
-    return (is_sharing or idle.blanked:get() or (lock ~= nil and lock.active)) and true or false
-end
-
-local function sync_notification_quiet()
-    mantle.notifications:set_quiet(notification_quiet(sharing:get()))
-end
-
-mantle.privacy:on_change(sync_notification_quiet)
-mantle.lock:on_change(sync_notification_quiet)
-
-local function set_dnd_while_sharing(on)
-    store:set("notifications_dnd_while_sharing", on)
-    -- `sharing:get()` is still the previous push. `on` is the value just written.
-    mantle.notifications:set_quiet(notification_quiet(screencast(mantle.privacy:get(), on)))
-end
-
--- Table seed, so a reload keeps the layout to restore. `-1` means there is none.
-local layout_restore = state("layout_restore", { saved = -1, count = 0 })
-
-local function auto_english_layout(capability)
-    capability:on_change(function(current, previous)
-        local now = current ~= nil and current.active
-        local was = previous ~= nil and previous.active
-        local held = layout_restore:get()
-        local saved, count = held.saved, held.count
-        if now and not was then
-            if count == 0 then
-                local keyboard = mantle.keyboard:get()
-                local index = keyboard and keyboard.active_layout_index or 0
-                saved = index > 0 and index or -1
-                if index > 0 then
-                    mantle.keyboard:switch_layout(0)
-                end
-            end
-            count = count + 1
-        elseif was and not now then
-            count = math.max(0, count - 1)
-            if count == 0 and saved >= 0 then
-                mantle.keyboard:switch_layout(saved)
-                saved = -1
-            end
-        else
-            return
-        end
-        layout_restore:set({ saved = saved, count = count })
-    end)
-end
-
--- One popup's turn is over; history keeps it. A long-held critical card retires this way, where a
--- close removes it from both surfaces.
-local function hide_popup(notification)
-    popup_seen:set(util.with(popup_seen:get(), notifications.notification_key(notification), true))
-end
-
--- Joining a hidden network, which has no row to click: name, wait, password. `hidden_draft` is the
--- live field text, which a `textfield` only ever hands to `on_change`; `hidden_ssid` is it once
--- submitted. The password never passes through Lua.
-local hidden_prompt = state("network_hidden_prompt", false)
-local hidden_draft = state("network_hidden_draft", "")
-local hidden_ssid = state("network_hidden_ssid", "")
-
--- Which step of the credential sheet is on screen, `""` for none; `panel_host` reads it for keyboard
--- focus. A password prompt outranks the hidden steps, since it answers a click on a listed row. The
--- end is read, not latched: a `computed` has no side effects, so `network.ssid` reaching the typed name
--- ends the sheet. A failure counts only when `connect_error` names that network, or another join's
--- leftover would flash first.
-local credential_step = computed({ hidden_prompt, hidden_ssid, mantle.network }, function(active, name, network)
-    if network and network.password_ssid ~= nil then
-        return "password"
-    end
-    if not active then
-        return ""
-    end
-    if name == "" then
-        return "name"
-    end
-    if network and network.ssid == name then
-        return ""
-    end
-    if network and network.connect_error ~= nil and network.connect_error.ssid == name then
-        return "failed"
-    end
-    return "waiting"
-end)
-
--- A hidden join's sheet replaces the access point list; a password for a listed row leaves it up.
-local hidden_join = computed({ hidden_prompt, credential_step }, function(active, step)
-    return active and step ~= ""
-end)
-
--- Every way out of the sheet. `cancel_connect` is a no-op with nothing parked, so this is safe on
--- any closing edge.
-local function clear_network_prompts()
-    hidden_prompt:set(false)
-    hidden_draft:set("")
-    hidden_ssid:set("")
-    mantle.network:cancel_connect()
-end
-
--- Cancel also stops a join in flight; closing the panel does not, so a join survives it.
-local function cancel_network_join()
-    mantle.network:abort_connect()
-    clear_network_prompts()
-end
-
-local function open_hidden_prompt()
-    clear_network_prompts()
-    hidden_prompt:set(true)
-end
-
--- Disclosures every panel opens with collapsed, set back to their seed on each open. On open, not
--- close: the card is still retracting then, and `panel_host` is the always-shown bar, so the
--- engine's `reset_on_close` never fires for it.
-local panel_resets = {}
-
----@generic T
----@param initial T
----@return StateSignal<T>
-local function panel_state(name, initial)
-    local signal = state(name, initial)
-    panel_resets[#panel_resets + 1] = { signal, initial }
-    return signal
-end
-
--- The updates panel's log view, so a reopened panel starts on its list.
-local updates_log_open = panel_state("updates_log_open", false)
-
-local function panel_is(kind)
-    return panel_open:get() and panel_kind:get() == kind
-end
-
--- Leaving bluetooth stops discovery. Leaving history marks the open feed seen, so a switch to
--- another panel counts as reading it.
+-- Leaving history marks its feed read, including a switch to another panel.
 local function leave_panel()
-    local kind = panel_open:get() and panel_kind:get()
+    local kind = M.panel_open:get() and M.panel_kind:get()
     if kind == "bluetooth" then
         mantle.bluetooth:stop_discovery()
     elseif kind == "notifications" then
-        mark_popups_seen()
+        notification_state.mark_popups_seen()
     end
 end
 
--- The single close path, prompts included, rather than one in the click-outside catcher and one in
--- the toggle.
-local function close_panel()
+function M.close_panel()
     leave_panel()
-    panel_open:set(false)
-    clear_network_prompts()
+    M.panel_open:set(false)
+    network_join.clear_network_prompts()
 end
 
-local function open_panel(kind, rect)
-    local was_open = panel_open:get()
-    if was_open and panel_kind:get() == kind then
-        popup_anchor:set(rect)
+function M.open_panel(kind, rect)
+    local was_open = M.panel_open:get()
+    if was_open and M.panel_kind:get() == kind then
+        M.popup_anchor:set(rect)
         return
     end
     if kind == "notifications" then
-        -- Opening is the moment to prune: a day-old normal entry is noise by then.
-        local now = os.time()
-        for _, notification in ipairs((mantle.notifications:get() or {}).feed or {}) do
-            if notifications.stale(notification, now) then
-                mantle.notifications:dismiss(notification.id)
-            end
-        end
-        mark_popups_seen()
+        notification_state.open_history()
     end
     -- A pending password left standing would keep the surface `Exclusive` over a fieldless panel.
-    clear_network_prompts()
+    network_join.clear_network_prompts()
     leave_panel()
-    for _, entry in ipairs(panel_resets) do
-        entry[1]:set(entry[2])
-    end
-    -- A panel and a modal never share the screen (`toggle_panel` clears `active_modal`).
-    active_modal:set("")
-    popup_anchor:set(rect)
-    panel_kind:set(kind)
+    disclosure.reset()
+    -- A panel and a modal never share the screen.
+    M.active_modal:set("")
+    M.popup_anchor:set(rect)
+    M.panel_kind:set(kind)
     if not was_open then
-        panel_instance:set(panel_instance:get() + 1)
+        M.panel_instance:set(M.panel_instance:get() + 1)
     end
-    panel_open:set(true)
+    M.panel_open:set(true)
     if kind == "bluetooth" then
         mantle.bluetooth:start_discovery()
     end
 end
 
-local function toggle_panel(kind, rect)
-    if panel_is(kind) then
-        close_panel()
+function M.toggle_panel(kind, rect)
+    if M.panel_is(kind) then
+        M.close_panel()
         return
     end
-    open_panel(kind, rect)
+    M.open_panel(kind, rect)
 end
 
 local media_hover = state("media_hover", { trigger = false, panel = false })
 local media_close_timer
 
-local function set_media_hover(region, inside)
+function M.set_media_hover(region, inside)
     media_hover:set(util.with(media_hover:get(), region, inside == true))
-    local media_open = panel_is("media")
+    local media_open = M.panel_is("media")
     if media_close_timer and (inside or media_open) then
         media_close_timer:cancel()
         media_close_timer = nil
@@ -254,176 +87,50 @@ local function set_media_hover(region, inside)
     media_close_timer = timer(theme.animation_slow_ms, function()
         media_close_timer = nil
         local hovered = media_hover:get()
-        if not hovered.trigger and not hovered.panel and panel_is("media") then
-            close_panel()
+        if not hovered.trigger and not hovered.panel and M.panel_is("media") then
+            M.close_panel()
         end
     end)
 end
 
 -- Drives the indicator rings. Both signals: `panel_kind` survives close.
-local function panel_showing(kind)
-    return computed({ panel_open, panel_kind }, function(open, current)
+function M.panel_showing(kind)
+    return computed({ M.panel_open, M.panel_kind }, function(open, current)
         return open and current == kind
     end)
 end
 
-local function modal_showing(kind)
-    return active_modal:map(function(current)
+function M.modal_showing(kind)
+    return M.active_modal:map(function(current)
         return current == kind
     end)
 end
 
--- Opening a modal closes any panel, `mantle toggle modal` included; nothing else about the panel
--- changes, so a re-open lands where it was.
-active_modal:on_change(function(kind)
-    if kind ~= "" and panel_open:get() then
-        close_panel()
+-- Includes modal changes made through `mantle toggle`.
+M.active_modal:on_change(function(kind)
+    if kind ~= "" and M.panel_open:get() then
+        M.close_panel()
     end
 end)
 
--- Runs `fn` when `kind` stops showing, however: a click, Escape, `mantle toggle` or another modal.
-local function on_modal_close(kind, fn)
-    active_modal:on_change(function(_, before)
+-- Closing includes Escape, a click, `mantle toggle`, and replacement by another modal.
+function M.on_modal_close(kind, fn)
+    M.active_modal:on_change(function(_, before)
         if before == kind then
             fn()
         end
     end)
 end
 
--- Closes `kind` only if it is the one showing, so a modal's own close cannot dismiss a later one.
-local function close_modal(kind)
-    if active_modal:get() == kind then
-        active_modal:set("")
+-- A delayed close must not dismiss a later modal.
+function M.close_modal(kind)
+    if M.active_modal:get() == kind then
+        M.active_modal:set("")
     end
 end
 
-local function toggle_modal(kind)
-    active_modal:set(active_modal:get() == kind and "" or kind)
+function M.toggle_modal(kind)
+    M.active_modal:set(M.active_modal:get() == kind and "" or kind)
 end
 
--- Which cards are open, shared so popup and history agree. Tables rather than a signal per group:
--- keys appear as notifications arrive, and minting registry entries at resolve time would grow the
--- session.
-local expanded_groups = panel_state("notification_expanded_groups", {})
-local expanded_messages = panel_state("notification_expanded_messages", {})
-
--- Reply draft, id (`0` for none) plus text. One slot, matching the Renderer's field buffer; the id
--- keeps Send on A from sending B's draft.
-local reply_draft_id = state("notification_reply_draft_id", 0)
-local reply_draft = state("notification_reply_draft", "")
-
-local function toggle_key(signal, key)
-    signal:set(util.with(signal:get(), key, not signal:get()[key]))
-end
-
--- Drop keys whose notification left the feed, so the three maps stay as small as the feed.
-local function prune(signal, live)
-    local kept, changed = {}, false
-    for key, value in pairs(signal:get()) do
-        if live[key] then
-            kept[key] = value
-        else
-            changed = true
-        end
-    end
-    if changed then
-        signal:set(kept)
-    end
-end
-
-mantle.notifications:on_change(function(inbox)
-    local ids, keys, groups = {}, {}, {}
-    for _, notification in ipairs((inbox and inbox.feed) or {}) do
-        ids[tostring(notification.id)] = true
-        keys[notifications.notification_key(notification)] = true
-        groups[notifications.group_key(notification)] = true
-    end
-    prune(expanded_messages, ids)
-    prune(popup_seen, keys)
-    prune(expanded_groups, groups)
-end)
-
--- Store each keystroke (`textfield.on_change`), stamped with its card.
-local function set_reply_draft(id, text)
-    reply_draft_id:set(id)
-    reply_draft:set(text or "")
-end
-
--- Clear `id`'s draft; Escape's `on_cancel` and successful send both use this.
-local function clear_reply(id)
-    if reply_draft_id:get() == id then
-        reply_draft_id:set(0)
-        reply_draft:set("")
-    end
-end
-
--- Draft text belonging to a notification still in the feed. A surface binds
--- `keyboard_interactivity` to this, so the keyboard survives the pointer leaving mid-sentence.
-local reply_pending = computed({ reply_draft_id, reply_draft, mantle.notifications }, function(id, text, inbox)
-    if id == 0 or text == "" then
-        return false
-    end
-    for _, notification in ipairs((inbox and inbox.feed) or {}) do
-        if notification.id == id then
-            return true
-        end
-    end
-    return false
-end)
-
--- Empty is a no-op: `reply` removes the notification either way, losing the card and sending nothing.
-local function send_reply(id)
-    local text = reply_draft:get()
-    if reply_draft_id:get() ~= id or text == "" then
-        return
-    end
-    mantle.notifications:reply(id, text)
-    clear_reply(id)
-end
-
-return {
-    popup_anchor = popup_anchor,
-    popup_seen = popup_seen,
-    hide_popup = hide_popup,
-    sharing = sharing,
-    set_dnd_while_sharing = set_dnd_while_sharing,
-    sync_notification_quiet = sync_notification_quiet,
-    auto_english_layout = auto_english_layout,
-    expanded_groups = expanded_groups,
-    expanded_messages = expanded_messages,
-    reply_draft_id = reply_draft_id,
-    reply_draft = reply_draft,
-    reply_pending = reply_pending,
-    toggle_group = function(key)
-        toggle_key(expanded_groups, key)
-    end,
-    toggle_message = function(id)
-        toggle_key(expanded_messages, tostring(id))
-    end,
-    set_reply_draft = set_reply_draft,
-    clear_reply = clear_reply,
-    send_reply = send_reply,
-    panel_state = panel_state,
-    panel_open = panel_open,
-    panel_kind = panel_kind,
-    panel_instance = panel_instance,
-    open_panel = open_panel,
-    toggle_panel = toggle_panel,
-    close_panel = close_panel,
-    set_media_hover = set_media_hover,
-    updates_log_open = updates_log_open,
-    hidden_draft = hidden_draft,
-    hidden_ssid = hidden_ssid,
-    credential_step = credential_step,
-    hidden_join = hidden_join,
-    open_hidden_prompt = open_hidden_prompt,
-    clear_network_prompts = clear_network_prompts,
-    cancel_network_join = cancel_network_join,
-    panel_showing = panel_showing,
-    panel_is = panel_is,
-    active_modal = active_modal,
-    modal_showing = modal_showing,
-    on_modal_close = on_modal_close,
-    toggle_modal = toggle_modal,
-    close_modal = close_modal,
-}
+return M

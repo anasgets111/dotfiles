@@ -1,12 +1,9 @@
 -- A full-width "System" button that collapses to readouts and opens one details card. It lives
 -- under `indicators/` but is used from `modules/bar/panels/notification_history.lua`.
---
--- A factory, not a node: each instance owns its `expanded` flag, named by the caller, so the same
--- widget in two places does not open in both.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
-local ui_state = require("lib.ui_state")
+local disclosure = require("lib.disclosure")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 local meter = require("components.meter")
@@ -171,124 +168,122 @@ local summary = mantle.sysinfo:map(function(sysinfo)
     return runs
 end)
 
----@param id string Names this instance's `expanded` state and its hover slot.
-return function(id)
-    local expanded = ui_state.panel_state("sysinfo_expanded_" .. id, false)
-    local details = panel_card({
-        row {
-            width = "Fill",
-            spacing = theme.spacing.sm,
-            children = {
-                metric_tile(icons.cpu, "CPU", "cpu_percent", util.label(mantle.sysinfo, function(sysinfo)
-                    local celsius = math.max(0, table.unpack(sysinfo.temp_cores or {}))
-                    return celsius > 0 and string.format("%d°C", celsius) or "No temperature"
-                end)),
-                metric_tile(icons.ram, "Memory", "ram_percent", util.label(mantle.sysinfo, function(sysinfo)
-                    local swap = percent_of(sysinfo, "swap_percent")
-                    return swap > 0 and string.format("Swap %d%%", swap) or "No swap in use"
-                end)),
-            },
-        },
-        row {
-            width = "Fill",
-            spacing = theme.spacing.sm,
-            children = {
-                group({
-                    cell(util.bold("Network"), theme.FG, theme.font.sm, { width = "Fill" }),
-                    cell(readout(function(sysinfo)
-                        return "↓ " .. rate(sysinfo and sysinfo.net_rx_bytes_sec or 0)
-                    end), theme.DIM, theme.font.sm, { width = "Fill" }),
-                    cell(readout(function(sysinfo)
-                        return "↑ " .. rate(sysinfo and sysinfo.net_tx_bytes_sec or 0)
-                    end), theme.DIM, theme.font.sm, { width = "Fill" }),
-                }),
-                group({
-                    cell(util.bold("Uptime"), theme.FG, theme.font.sm, { width = "Fill" }),
-                    cell(computed({ mantle.system, boot }, function(system, info)
-                        return system and info and info.started > 0 and
-                            uptime(system.time - info.started) or "--"
-                    end), theme.DIM, theme.font.sm, { width = "Fill" }),
-                    cell(boot:map(function(info)
-                        return info.duration ~= "" and "Boot " .. info.duration or "Boot --"
-                    end), theme.DIM, theme.font.xs, { width = "Fill" }),
-                }),
-            },
-        },
-        group({
-            tile_header(icons.gpu, gpu_color, "GPU", "", gpu_color),
-            cell(util.label(mantle.sysinfo, function(sysinfo)
-                return sysinfo and sysinfo.gpu and sysinfo.gpu.name or ""
-            end), theme.DIM, theme.font.xs, { width = "Fill" }),
-            labeled_meter("Usage", gpu_usage, gpu_color, readout(function(sysinfo)
-                local usage = sysinfo and sysinfo.gpu and sysinfo.gpu.util_percent
-                return usage and string.format("%d%%", usage) or "--"
+local id = "notifications"
+local expanded = disclosure.state("sysinfo_expanded_" .. id, false)
+local details = panel_card({
+    row {
+        width = "Fill",
+        spacing = theme.spacing.sm,
+        children = {
+            metric_tile(icons.cpu, "CPU", "cpu_percent", util.label(mantle.sysinfo, function(sysinfo)
+                local celsius = math.max(0, table.unpack(sysinfo.temp_cores or {}))
+                return celsius > 0 and string.format("%d°C", celsius) or "No temperature"
             end)),
-            labeled_meter("VRAM", function(sysinfo)
-                local gpu = sysinfo and sysinfo.gpu
-                return gpu and gpu.mem_used and gpu.mem_total and gpu.mem_total > 0 and
-                    gpu.mem_used * 100 / gpu.mem_total or 0
-            end, theme.DIM, readout(function(sysinfo)
-                local gpu = sysinfo and sysinfo.gpu
-                return gpu and gpu.mem_used and gpu.mem_total and
-                    string.format("%s / %s", size(gpu.mem_used), size(gpu.mem_total)) or ""
-            end), util.shown_when(mantle.sysinfo, function(sysinfo)
-                return sysinfo.gpu and sysinfo.gpu.mem_used and sysinfo.gpu.mem_total and sysinfo.gpu.mem_total > 0
+            metric_tile(icons.ram, "Memory", "ram_percent", util.label(mantle.sysinfo, function(sysinfo)
+                local swap = percent_of(sysinfo, "swap_percent")
+                return swap > 0 and string.format("Swap %d%%", swap) or "No swap in use"
             end)),
-            cell(util.label(mantle.sysinfo, function(sysinfo)
-                local gpu = sysinfo and sysinfo.gpu
-                if not gpu then return "" end
-                return gpu.temp and string.format("%d°C", gpu.temp) or "No temperature sensor"
-            end), theme.DIM, theme.font.xs, { width = "Fill" }),
-        }, has_gpu),
-        group({
-            cell(util.bold("Disks"), theme.FG, theme.font.sm, { width = "Fill" }),
-            list {
-                width = "Fill",
-                spacing = theme.spacing.sm,
-                source = disks,
-                key = function(disk) return disk.name end,
-                itemfn = function(disk)
-                    local partitions = {
-                        tile_header(icons.disk, tint_of(disk.percent), disk.name,
-                            string.format("%d%%", disk.percent), tint_of(disk.percent)),
-                        meter(disks, function() return disk.percent end,
-                            tint_of(disk.percent), theme.spacing.xs),
-                        cell(size(disk.used_bytes) .. " / " .. size(disk.total_bytes),
-                            theme.DIM, theme.font.xs, { width = "Fill" }),
-                    }
-                    for _, partition in ipairs(disk.partitions) do
-                        partitions[#partitions + 1] = group({
-                            row {
-                                width = "Fill",
-                                spacing = theme.spacing.sm,
-                                children = {
-                                    cell(partition.mount_point == "/" and "Root" or partition.mount_point,
-                                        theme.FG, theme.font.xs, { width = "Fill" }),
-                                    cell(string.format("%s / %s · %d%%", size(partition.used_bytes),
-                                            size(partition.total_bytes), partition.percent),
-                                        theme.DIM, theme.font.xs),
-                                },
-                            },
-                            meter(disks, function() return partition.percent end,
-                                tint_of(partition.percent), theme.spacing.xs),
-                        })
-                    end
-                    return group(partitions)
-                end,
-            },
-        }, util.shown_when(disks, function(current)
-            return #current > 0
+        },
+    },
+    row {
+        width = "Fill",
+        spacing = theme.spacing.sm,
+        children = {
+            group({
+                cell(util.bold("Network"), theme.FG, theme.font.sm, { width = "Fill" }),
+                cell(readout(function(sysinfo)
+                    return "↓ " .. rate(sysinfo and sysinfo.net_rx_bytes_sec or 0)
+                end), theme.DIM, theme.font.sm, { width = "Fill" }),
+                cell(readout(function(sysinfo)
+                    return "↑ " .. rate(sysinfo and sysinfo.net_tx_bytes_sec or 0)
+                end), theme.DIM, theme.font.sm, { width = "Fill" }),
+            }),
+            group({
+                cell(util.bold("Uptime"), theme.FG, theme.font.sm, { width = "Fill" }),
+                cell(computed({ mantle.system, boot }, function(system, info)
+                    return system and info and info.started > 0 and
+                        uptime(system.time - info.started) or "--"
+                end), theme.DIM, theme.font.sm, { width = "Fill" }),
+                cell(boot:map(function(info)
+                    return info.duration ~= "" and "Boot " .. info.duration or "Boot --"
+                end), theme.DIM, theme.font.xs, { width = "Fill" }),
+            }),
+        },
+    },
+    group({
+        tile_header(icons.gpu, gpu_color, "GPU", "", gpu_color),
+        cell(util.label(mantle.sysinfo, function(sysinfo)
+            return sysinfo and sysinfo.gpu and sysinfo.gpu.name or ""
+        end), theme.DIM, theme.font.xs, { width = "Fill" }),
+        labeled_meter("Usage", gpu_usage, gpu_color, readout(function(sysinfo)
+            local usage = sysinfo and sysinfo.gpu and sysinfo.gpu.util_percent
+            return usage and string.format("%d%%", usage) or "--"
         end)),
-    }, { width = "Fill", outlined = true, padding = theme.spacing.md, spacing = theme.spacing.md })
+        labeled_meter("VRAM", function(sysinfo)
+            local gpu = sysinfo and sysinfo.gpu
+            return gpu and gpu.mem_used and gpu.mem_total and gpu.mem_total > 0 and
+                gpu.mem_used * 100 / gpu.mem_total or 0
+        end, theme.DIM, readout(function(sysinfo)
+            local gpu = sysinfo and sysinfo.gpu
+            return gpu and gpu.mem_used and gpu.mem_total and
+                string.format("%s / %s", size(gpu.mem_used), size(gpu.mem_total)) or ""
+        end), util.shown_when(mantle.sysinfo, function(sysinfo)
+            return sysinfo.gpu and sysinfo.gpu.mem_used and sysinfo.gpu.mem_total and sysinfo.gpu.mem_total > 0
+        end)),
+        cell(util.label(mantle.sysinfo, function(sysinfo)
+            local gpu = sysinfo and sysinfo.gpu
+            if not gpu then return "" end
+            return gpu.temp and string.format("%d°C", gpu.temp) or "No temperature sensor"
+        end), theme.DIM, theme.font.xs, { width = "Fill" }),
+    }, has_gpu),
+    group({
+        cell(util.bold("Disks"), theme.FG, theme.font.sm, { width = "Fill" }),
+        list {
+            width = "Fill",
+            spacing = theme.spacing.sm,
+            source = disks,
+            key = function(disk) return disk.name end,
+            itemfn = function(disk)
+                local partitions = {
+                    tile_header(icons.disk, tint_of(disk.percent), disk.name,
+                        string.format("%d%%", disk.percent), tint_of(disk.percent)),
+                    meter(disks, function() return disk.percent end,
+                        tint_of(disk.percent), theme.spacing.xs),
+                    cell(size(disk.used_bytes) .. " / " .. size(disk.total_bytes),
+                        theme.DIM, theme.font.xs, { width = "Fill" }),
+                }
+                for _, partition in ipairs(disk.partitions) do
+                    partitions[#partitions + 1] = group({
+                        row {
+                            width = "Fill",
+                            spacing = theme.spacing.sm,
+                            children = {
+                                cell(partition.mount_point == "/" and "Root" or partition.mount_point,
+                                    theme.FG, theme.font.xs, { width = "Fill" }),
+                                cell(string.format("%s / %s · %d%%", size(partition.used_bytes),
+                                        size(partition.total_bytes), partition.percent),
+                                    theme.DIM, theme.font.xs),
+                            },
+                        },
+                        meter(disks, function() return partition.percent end,
+                            tint_of(partition.percent), theme.spacing.xs),
+                    })
+                end
+                return group(partitions)
+            end,
+        },
+    }, util.shown_when(disks, function(current)
+        return #current > 0
+    end)),
+}, { width = "Fill", outlined = true, padding = theme.spacing.md, spacing = theme.spacing.md })
 
-    return panel_row {
-        slot = "sysinfo-" .. id,
-        icon = icons.cpu,
-        title = "System",
-        subtitle = summary,
-        expanded = expanded,
-        animate_details = true,
-        details_spacing = theme.spacing.sm,
-        details = details,
-    }
-end
+return panel_row {
+    slot = "sysinfo-" .. id,
+    icon = icons.cpu,
+    title = "System",
+    subtitle = summary,
+    expanded = expanded,
+    animate_details = true,
+    details_spacing = theme.spacing.sm,
+    details = details,
+}

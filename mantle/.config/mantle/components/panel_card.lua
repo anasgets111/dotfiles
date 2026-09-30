@@ -21,13 +21,13 @@ return function(children, opts)
     return column {
         width = opts.width,
         height = opts.height,
-        padding = opts.padding or theme.spacing.md,
+        padding = opts.padding or (dialog and theme.spacing.lg or theme.spacing.md),
         align_h = opts.align_h,
         align_v = opts.align_v,
         visible = opts.visible,
         opacity = opts.opacity,
         animate = animate,
-        spacing = opts.spacing or theme.spacing.xs,
+        spacing = opts.spacing or (dialog and theme.spacing.md or theme.spacing.xs),
         background = opts.background or util.lift(tone, function(name)
             return GROUND[name] or GROUND.standard
         end),

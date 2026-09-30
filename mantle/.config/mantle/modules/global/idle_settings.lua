@@ -11,6 +11,7 @@ local ui_state = require("lib.ui_state")
 local modal = require("components.modal")
 local segmented = require("components.segmented")
 local idle = require("lib.idle")
+local store = require("lib.store")
 local timeline_section = require("modules.global.idle_settings.timeline")
 local util = require("lib.util")
 
@@ -57,9 +58,7 @@ local header = panel_header {
         end
     ),
     -- The bar circle's glyph, so opener and modal read as one control.
-    icon = idle.manual:map(function(manual)
-        return manual and icons.awake or icons.idle
-    end),
+    icon = util.choose(idle.manual, icons.awake, icons.idle),
     -- A modal's masthead: one step up from a bar panel's.
     title_size = theme.font.xl,
     subtitle_size = theme.font.sm,
@@ -68,12 +67,6 @@ local header = panel_header {
         ui_state.close_modal("idle_settings")
     end,
 }
-
-local function ink(on)
-    return on:map(function(lit)
-        return lit and theme.ACCENT or theme.DIM
-    end)
-end
 
 -- Which profile the bars edit: the live one unless the picker chose another since the modal
 -- opened. A desktop has no battery, so no picker, and the bars are AC.
@@ -138,12 +131,12 @@ local function duration_bar(stage)
         end),
         format = idle.format,
         on_select = function(sec)
-            -- Off keeps the stored seconds. `write_profile` only replaces keys it is given.
-            local patch = { [on_key] = sec > 0 }
-            if sec > 0 then
-                patch[sec_key] = sec
-            end
-            idle.write_profile(shown_profile:get(), patch)
+            -- Off keeps the stored seconds.
+            local profile = shown_profile:get()
+            local held = idle.read(store.idle:get())[profile]
+            held[on_key] = sec > 0
+            if sec > 0 then held[sec_key] = sec end
+            idle.write({ [profile] = held })
         end,
         width = theme.idle_bar_width,
     }
@@ -182,7 +175,11 @@ local function stage_row(item)
         leading = row {
             align_v = "Center",
             spacing = theme.spacing.xs,
-            children = { reorder(item), glyph(stage.icon, ink(enabled), theme.icon.md, { align_v = "Center" }) },
+            children = {
+                reorder(item),
+                glyph(stage.icon, util.choose(enabled, theme.ACCENT, theme.DIM), theme.icon.md,
+                    { align_v = "Center" }),
+            },
         },
         trailing = duration_bar(stage),
     }
@@ -200,8 +197,7 @@ local stage_list = list {
                 key = key,
                 stage = idle.stage(key),
                 first = index == 1,
-                last = index == #resolved
-                    .order
+                last = index == #resolved.order
             }
         end
         return items
@@ -225,7 +221,7 @@ local behaviour_rows = {
         title_size = theme.font.md,
         subtitle_size = theme.font.sm,
         height = theme.idle_row_height,
-        icon_color = ink(capture_hold),
+        icon_color = util.choose(capture_hold, theme.ACCENT, theme.DIM),
         trailing = toggle(settings, function(resolved)
             return resolved.privacy_auto_inhibit
         end, function(on)
@@ -239,7 +235,7 @@ local behaviour_rows = {
         title_size = theme.font.md,
         subtitle_size = theme.font.sm,
         height = theme.idle_row_height,
-        icon_color = ink(idle.manual),
+        icon_color = util.choose(idle.manual, theme.ACCENT, theme.DIM),
         trailing = toggle(idle.manual, function(manual)
             return manual
         end, idle.set_manual, "idle-manual"),
@@ -249,7 +245,7 @@ local behaviour_rows = {
 -- The master switch and its timeline share a card: a composite control, like an audio slider's.
 local flow_card = panel_card(util.concat({ panel_row {
     icon = icons.play,
-    icon_color = ink(running),
+    icon_color = util.choose(running, theme.ACCENT, theme.DIM),
     title = "Automatic actions",
     subtitle = idle.active_profile:map(function(profile)
         return profile == "battery" and "On battery" or "On AC power"
@@ -264,9 +260,7 @@ local flow_card = panel_card(util.concat({ panel_row {
 } }, timeline_section(settings)), {
     width = "Fill",
     spacing = theme.spacing.sm,
-    tone = running:map(function(on)
-        return on and "active" or "standard"
-    end),
+    tone = util.choose(running, "active", "standard"),
 })
 
 return modal({
@@ -283,10 +277,6 @@ return modal({
         section_header("behaviour"),
     }, behaviour_rows), {
         width = theme.idle_modal_width,
-        align_h = "Center",
-        align_v = "Center",
-        spacing = theme.spacing.md,
-        padding = theme.spacing.lg,
         tone = "dialog",
     }),
 })

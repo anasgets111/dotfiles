@@ -4,6 +4,7 @@
 -- `opts.align` sets `text_align` inside the cell and `align_h` for a content-sized box in a stacking
 -- parent or `column`; `row` ignores `align_h`. `text_align` alone leaves the box at x=0.
 local theme = require("config.theme")
+local util = require("lib.util")
 
 -- The last typed hop before `text.content`. A `list` `itemfn` is `fun(item: any)`, so a raw span array
 -- could reach `content` and freeze the shell on its last good scene. Image spans are not text, and
@@ -11,7 +12,7 @@ local theme = require("config.theme")
 ---@param content string|TextRun[]|Bound
 ---@param color? Color|Bound
 ---@param size? integer
----@param opts? { width?: integer|"Fill", align?: "Start"|"Center"|"End", align_v?: "Start"|"Center"|"End", visible?: boolean|Bound, wrap?: "None"|"Word"|Bound, max_lines?: integer|Bound, on_link?: fun(href: string), font?: string|Bound, letter_spacing?: number|Bound, animate?: TextAnimations|Bound }
+---@param opts? { bold?: boolean|Bound, width?: integer|"Fill", align?: "Start"|"Center"|"End", align_v?: "Start"|"Center"|"End", visible?: boolean|Bound, wrap?: "None"|"Word"|Bound, max_lines?: integer|Bound, on_link?: fun(href: string), font?: string|Bound, letter_spacing?: number|Bound, animate?: TextAnimations|Bound }
 return function(content, color, size, opts)
     opts = opts or {}
     return text {
@@ -19,6 +20,7 @@ return function(content, color, size, opts)
         foreground = color or theme.FG,
         font_size = size or theme.font.md,
         font = opts.font,
+        font_weight = opts.bold ~= nil and util.choose(opts.bold, 700, 400) or nil,
         letter_spacing = opts.letter_spacing,
         width = opts.width,
         align_v = opts.align_v,

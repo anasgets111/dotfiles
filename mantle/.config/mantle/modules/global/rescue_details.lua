@@ -62,10 +62,6 @@ return modal({
         panel_card({ log }, { width = "Fill", outlined = true }),
     }, {
         width = theme.rescue_modal_width,
-        align_h = "Center",
-        align_v = "Center",
-        spacing = theme.spacing.md,
-        padding = theme.spacing.lg,
         tone = "dialog",
     }),
 })

@@ -12,10 +12,10 @@ local panel_card = require("components.panel_card")
 local panel_row = require("components.panel_row")
 local slider = require("components.slider")
 local tooltip = require("components.tooltip")
-local ui_state = require("lib.ui_state")
+local disclosure = require("lib.disclosure")
 
 local tooltips = {}
-local mixer_open = ui_state.panel_state("audio_mixer_open", false)
+local mixer_open = disclosure.state("audio_mixer_open", false)
 
 local function percent(value)
     return value and string.format("%d%%", math.floor(value * 100 + 0.5)) or "--"
@@ -24,8 +24,6 @@ end
 ---@class AudioControlOpts
 ---@field name string The slider's state name.
 ---@field title string
----@field glyph_on string
----@field glyph_off string
 ---@field volume string The `AudioState` field holding the volume.
 ---@field muted string The `AudioState` field holding the mute flag.
 ---@field devices string The `AudioState` device list, for the subtitle, leading glyph and picker.
@@ -34,12 +32,12 @@ end
 ---@field set_default string The `mantle.audio` action taking one device id.
 ---@field headroom? boolean Past 100%: a red fill and a marker at 100%.
 ---@field toggle_mute string The `mantle.audio` action taking nothing.
----@field picker StateSignal<boolean> Whether the device picker is open.
 ---@field visible? Bound
 ---@field under? Node[]
 
 ---@param opts AudioControlOpts
-local function device_picker(opts)
+---@param picker StateSignal<boolean>
+local function device_picker(opts, picker)
     local devices = mantle.audio:map(function(audio)
         return (audio and audio[opts.devices]) or {}
     end)
@@ -47,7 +45,7 @@ local function device_picker(opts)
         slot = "audio-picker-" .. opts.name,
         icon = opts.is_input and icons.mic_on or icons.speaker,
         title = "Choose device",
-        expanded = opts.picker,
+        expanded = picker,
         visible = devices:map(function(list)
             return #list > 1
         end),
@@ -65,7 +63,7 @@ local function device_picker(opts)
                     trailing = glyph(icons.check, device.active and theme.ACCENT or theme.CLEAR, theme.font.sm),
                     on_activate = function()
                         mantle.audio[opts.set_default](mantle.audio, device.id)
-                        opts.picker:set(false)
+                        picker:set(false)
                     end,
                 }
             end,
@@ -78,16 +76,13 @@ end
 
 ---@param opts AudioControlOpts
 local function audio_control(opts)
+    local picker = disclosure.state("audio_" .. opts.name .. "_picker", false)
     local is_muted = mantle.audio:map(function(audio)
         return audio ~= nil and audio[opts.muted]
     end)
-    local function when_muted(muted_value, unmuted_value)
-        return is_muted:map(function(muted)
-            return muted and muted_value or unmuted_value
-        end)
-    end
-    local mute_glyph = when_muted(opts.glyph_off, opts.glyph_on)
-    local tint = when_muted(theme.DIM, theme.FG)
+    local mute_glyph = util.choose(is_muted, opts.is_input and icons.mic_off or icons.vol_muted,
+        opts.is_input and icons.mic_on or icons.vol_high)
+    local tint = util.choose(is_muted, theme.DIM, theme.FG)
     local leading_glyph = computed({ mantle.audio, mute_glyph }, function(audio, fallback)
         return audio and not audio[opts.muted]
             and util.audio_device_glyph(util.active_device(audio[opts.devices]), opts.is_input) or fallback
@@ -97,7 +92,7 @@ local function audio_control(opts)
         id = "audio_mute_" .. opts.name .. "_tooltip",
         in_panel = true,
         slot = "audio-mute-" .. opts.name,
-        children = { cell(when_muted("Unmute", "Mute"), theme.FG, theme.font.sm) },
+        children = { cell(util.choose(is_muted, "Unmute", "Mute"), theme.FG, theme.font.sm) },
     })
 
     local children = util.concat({
@@ -140,12 +135,12 @@ local function audio_control(opts)
             max = opts.headroom and util.MAX_VOLUME or nil,
             split_at = opts.headroom and 1 or nil,
             marker = opts.headroom,
-            headroom_color = when_muted(theme.INACTIVE, theme.RED),
+            headroom_color = util.choose(is_muted, theme.INACTIVE, theme.RED),
             height = theme.audio_slider_height,
-            color = when_muted(theme.INACTIVE, theme.ACCENT),
+            color = util.choose(is_muted, theme.INACTIVE, theme.ACCENT),
         },
     }, opts.under)
-    children[#children + 1] = device_picker(opts)
+    children[#children + 1] = device_picker(opts, picker)
 
     return panel_card(children, {
         width = "Fill",
@@ -238,8 +233,6 @@ local body = {
     audio_control {
         name = "output",
         title = "Output",
-        glyph_on = icons.vol_high,
-        glyph_off = icons.vol_muted,
         volume = "volume",
         muted = "muted",
         devices = "sinks",
@@ -247,7 +240,6 @@ local body = {
         set_default = "set_default_sink",
         toggle_mute = "toggle_mute",
         headroom = true,
-        picker = ui_state.panel_state("audio_output_picker", false),
         under = {
             row {
                 width = "Fill",
@@ -281,8 +273,6 @@ local body = {
     audio_control {
         name = "input",
         title = "Microphone",
-        glyph_on = icons.mic_on,
-        glyph_off = icons.mic_off,
         volume = "source_volume",
         muted = "source_muted",
         devices = "sources",
@@ -290,7 +280,6 @@ local body = {
         set_volume = "set_source_volume",
         set_default = "set_default_source",
         toggle_mute = "toggle_source_mute",
-        picker = ui_state.panel_state("audio_input_picker", false),
         visible = util.shown_when(mantle.audio, function(audio)
             return util.active_device(audio.sources) ~= nil
         end),

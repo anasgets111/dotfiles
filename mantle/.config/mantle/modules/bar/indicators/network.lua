@@ -18,14 +18,14 @@ local band = mantle.network:map(function(network)
     return (util.band_of(util.active_access_point(network))) or ""
 end)
 
+local function open(rect)
+    ui_state.toggle_panel(network_panel.kind, rect)
+    network_panel.scan_while_open()
+end
+
 local network_module = icon_button(mantle.network:map(util.network_glyph), nil, {
     slot = SLOT,
-    on_button = function(rect, mouse_button)
-        if mouse_button == "left" or mouse_button == "right" then
-            ui_state.toggle_panel(network_panel.kind, rect)
-            network_panel.scan_while_open()
-        end
-    end,
+    on_buttons = { left = open, right = open },
     selected = ui_state.panel_showing(network_panel.kind),
     -- Lit for a link carrying the default route, which `connected` means, not a bare association.
     -- A wifi link takes its band's colour, the one fact about it worth a glance. Ethernet has none.
@@ -72,9 +72,8 @@ local network_text = mantle.network:map(function(network)
 end)
 
 local network_tooltip = tooltip({
-    id = "network_tooltip",
     slot = SLOT,
     lines = network_text,
 })
 
-return { indicator = network_module, tooltip = network_tooltip }
+return { indicator = network_module, tooltips = { network_tooltip } }

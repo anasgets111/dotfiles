@@ -7,6 +7,7 @@ local theme = require("config.theme")
 local util = require("lib.util")
 local panel_card = require("components.panel_card")
 local ui_state = require("lib.ui_state")
+local network_join = require("lib.network_join")
 local bar_mod = require("modules.bar")
 local bar = bar_mod.indicator
 local drag_ghost = bar_mod.drag_ghost
@@ -148,13 +149,13 @@ return panel {
     width = "Fill",
     -- Screen-tall: Hyprland animates a layer resize by stretching the old buffer.
     height = "100%",
-    -- The credential sheet asks for a name, then a password, and `ui_state.credential_step` covers
+    -- The credential sheet asks for a name, then a password, and `network_join.credential_step` covers
     -- both including the wait between them: `"None"` in that gap would hand the keyboard back.
     -- `"Exclusive"` because either field must be typable without a click, the engine arming the
     -- scope's sole field on compositor focus. History's reply field needs only `"OnDemand"`, since a
     -- click there takes the keyboard and other windows give it back.
     keyboard_interactivity = computed(
-        { ui_state.credential_step, ui_state.panel_showing("notifications") },
+        { network_join.credential_step, ui_state.panel_showing("notifications") },
         function(step, showing_notifications)
             -- The sheet stays `Exclusive`: this panel's click raised it and the catcher ends it.
             return step ~= "" and "Exclusive" or showing_notifications and "OnDemand" or "None"

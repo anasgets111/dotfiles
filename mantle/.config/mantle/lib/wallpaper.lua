@@ -39,10 +39,8 @@ local RANDOM_PARAMS = {
     end,
 }
 
----Effect names from one `mantle.files` push: the built-in first, then `<name>` per `wallpaper_<name>.frag`.
----@param files FilesState|nil
----@return string[]
-function wallpaper.effects_in(files)
+-- Built-in transition first, followed by discovered wallpaper shaders.
+wallpaper.effects = mantle.files:map(function(files)
     local names = { wallpaper.NO_SHADER }
     ---@type Folder?
     local folder = files and files.folders and files.folders[wallpaper.SHADER_FOLDER]
@@ -50,18 +48,11 @@ function wallpaper.effects_in(files)
         names[#names + 1] = entry.name:match("^" .. SHADER_PREFIX .. "(.+)%.frag$")
     end
     return names
-end
-
-wallpaper.effects = mantle.files:map(wallpaper.effects_in)
+end)
 
 -- The stored effect if the folder still holds it, else the built-in.
 wallpaper.effect = computed({ store.wallpaper_transition, wallpaper.effects }, function(stored, names)
-    for _, name in ipairs(names) do
-        if name == stored then
-            return name
-        end
-    end
-    return wallpaper.NO_SHADER
+    return util.find(names, function(name) return name == stored end) or wallpaper.NO_SHADER
 end)
 
 function wallpaper.set_effect(name)
@@ -86,12 +77,7 @@ function wallpaper.transition()
 end
 
 local function is_fit(value)
-    for _, fit in ipairs(wallpaper.FITS) do
-        if fit.value == value then
-            return true
-        end
-    end
-    return false
+    return util.find(wallpaper.FITS, function(fit) return fit.value == value end) ~= nil
 end
 
 -- ponytail: a deleted file draws only the ground; the VM has no `io`, so only `FOLDER` is checked.
@@ -100,12 +86,7 @@ local function missing_in(files, path)
     if not folder or not folder.ready or path:match("^(.*)/") ~= wallpaper.FOLDER then
         return false
     end
-    for _, entry in ipairs(folder.entries) do
-        if entry.path == path then
-            return false
-        end
-    end
-    return true
+    return util.find(folder.entries, function(entry) return entry.path == path end) == nil
 end
 
 ---Path for `output` from one stored `wallpapers` table. Pure for one `computed` over every screen.

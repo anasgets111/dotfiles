@@ -6,25 +6,21 @@ local util = require("lib.util")
 local cell = require("components.cell")
 local panel_card = require("components.panel_card")
 local action_button = require("components.action_button")
+local card_motion = require("components.card_motion")
 
-local function request(bluetooth)
+local request = mantle.bluetooth:map(function(bluetooth)
     return bluetooth and bluetooth.pairing_request
-end
+end)
 
 -- A signal of `predicate(request)`, false while nothing is asked.
 local function when(predicate)
-    return mantle.bluetooth:map(function(bluetooth)
-        local asked = request(bluetooth)
+    return request:map(function(asked)
         return asked ~= nil and predicate(asked)
     end)
 end
 
 -- The last request, so the card keeps its words while it fades out after the answer.
-local last_asked
-local held = mantle.bluetooth:map(function(bluetooth)
-    last_asked = request(bluetooth) or last_asked
-    return last_asked
-end)
+local held = util.hold(request, false)
 
 -- A signal of `read(request)`, empty before anything was asked.
 local function text(read)
@@ -44,7 +40,7 @@ local PROMPTS = {
 -- Answers by MAC; the Supervisor ignores a yes in a request's first moments (`ACCEPT_GRACE`).
 local function answer(accept)
     return function()
-        local asked = request(mantle.bluetooth:get())
+        local asked = request:get()
         if asked ~= nil then
             mantle.bluetooth:answer_pairing(asked.mac, accept)
         end
@@ -57,13 +53,6 @@ end)
 
 local showing = when(function()
     return true
-end)
-local motion = showing:map(function(open)
-    local easing = open and "OutCubic" or "InCubic"
-    return {
-        opacity = { duration = theme.animation_ms, easing = easing, from = 0 },
-        translate = { duration = theme.animation_ms, easing = easing, from = { y = -theme.spacing.md } },
-    }
 end)
 
 return panel {
@@ -79,14 +68,7 @@ return panel {
     exclusive = false,
     visible = util.linger(showing, theme.animation_ms),
     keyboard_interactivity = "None",
-    child = rect {
-        opacity = showing:map(function(open)
-            return open and 1 or 0
-        end),
-        translate = showing:map(function(open)
-            return { y = open and 0 or -theme.spacing.md }
-        end),
-        animate = motion,
+    child = rect((card_motion({
         children = { panel_card({
             cell(text(function(asked)
                 -- The name is the device's own choice, so the MAC stays beside it.
@@ -132,9 +114,7 @@ return panel {
             },
         }, {
             width = theme.dialog_width,
-            spacing = theme.spacing.md,
-            padding = theme.spacing.lg,
             tone = "dialog",
         }) },
-    },
+    }, showing, { scale = false }))),
 }

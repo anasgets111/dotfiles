@@ -1,16 +1,15 @@
--- Pure helpers with no nodes, kept out of `components/`.
+-- Shared helpers without UI nodes.
 local icons = require("config.icons")
 local theme = require("config.theme")
 local util = {}
 
--- `pcall(read, value)`, or `nil` for a `nil` payload, which `read` never sees.
 local function try(read, value)
     if value ~= nil then
         return pcall(read, value)
     end
 end
 
--- `nil` payload to "--" and a raising reader to "!", so each module needs one line for its readout.
+-- Unhydrated reads show "--"; failed reads show "!".
 function util.label(signal, read)
     return signal:map(function(value)
         local ok, text = try(read, value)
@@ -29,7 +28,28 @@ function util.lift(value, fn)
     return fn(value)
 end
 
---- The `TextRun` list a bold `cell` takes; `cell` has no `bold` property.
+-- `yes` must be truthy, matching Lua's `on and yes or no` idiom.
+function util.choose(value, yes, no)
+    return util.lift(value, function(on) return on and yes or no end)
+end
+
+function util.find(items, predicate)
+    for _, item in ipairs(items or {}) do
+        if predicate(item) then
+            return item
+        end
+    end
+end
+
+function util.chunk(items, size)
+    local rows = {}
+    for at = 1, #items, size do
+        rows[#rows + 1] = { table.unpack(items, at, math.min(at + size - 1, #items)) }
+    end
+    return rows
+end
+
+--- Bold text runs for content that must carry its own weight.
 ---@param label string|Bound
 ---@return TextRun[]|Bound
 function util.bold(label)
@@ -38,7 +58,6 @@ function util.bold(label)
     end)
 end
 
---- `label` bold while `on` holds, for a weight that follows a signal.
 ---@param on Signal<boolean>
 ---@param label string
 function util.bold_when(on, label)
@@ -47,8 +66,7 @@ function util.bold_when(on, label)
     end)
 end
 
---- A fresh list holding `first` then `second`. Every signal push needs a copy, and
---- `{table.unpack(t)}` is bounded by the Lua stack, which a long install log reaches.
+--- Copy both lists without the stack limit of `table.unpack`, reached by long install logs.
 ---@param first table|nil
 ---@param second table|nil
 ---@return table
@@ -57,8 +75,7 @@ function util.concat(first, second)
     return table.move(second, 1, #second, #first + 1, table.move(first, 1, #first, 1, {}))
 end
 
---- A copy of `source` with `key` set to `value`. Copy-on-write: identity drives the push, and
---- mutating a held value under an unfinished resolve loses the change.
+--- Copy-on-write triggers a push without mutating a value under an unfinished resolve.
 function util.with(source, key, value)
     local copy = {}
     for name, held in pairs(type(source) == "table" and source or {}) do
@@ -72,39 +89,31 @@ function util.battery_is_draining(state)
     return state == "Discharging" or state == "Empty"
 end
 
--- Thresholds as whole numbers; one table keeps the pill, two notifications, and automatic suspend
--- in agreement.
+-- Shared percentages for the indicator, notifications and automatic suspend.
 util.battery_thresholds = { low = 20, critical = 10, suspend = 8 }
 
--- Whether `battery` drains at or under `percent`. Every threshold uses this gate, so 14% with the charger
--- in cannot turn red.
+-- Only draining batteries cross these thresholds, so 14% on the charger cannot turn red.
 function util.battery_at_most(battery, percent)
     return battery ~= nil and battery.present and util.battery_is_draining(battery.state)
         and battery.percent <= percent
 end
 
--- Five-level glyph plus the two cable states. Takes the raw payload, so a `nil` battery draws the AC
--- glyph rather than needing a branch at the caller.
 function util.battery_glyph(battery)
     if battery == nil or not battery.present then
         return icons.battery_ac
     end
-    -- Deliberately inverted: charging is the ordinary state on a machine with a charge limit, so it
-    -- draws the plug and only a stopped charge gets the distinct bolt.
+    -- Charge-limited machines normally show the plug; a stopped charge gets the bolt.
     if battery.state == "PendingCharge" then
         return icons.battery_pending
     end
     if battery.state == "Charging" or battery.state == "FullyCharged" then
         return icons.battery_ac
     end
-    -- Five buckets over 0..100. Lua's 1-based indexing makes 100% bucket 5, not an out-of-range 6.
     local bucket = math.floor((battery.percent or 0) / 20) + 1
     return icons.battery_levels[math.max(1, math.min(5, bucket))]
 end
 
--- An `app_id`'s entry, through `mantle.applications.by_app_id`'s index into `entries`. Callers
--- spell it as a desktop file id, a toplevel `app_id` or a StatusNotifierItem `Id`, so fold the
--- caller's spelling; the map's keys are already folded.
+-- Desktop IDs, toplevel app IDs and tray IDs vary in case; the index keys are folded.
 function util.app_entry(applications, app_id)
     local by_app_id = applications and applications.by_app_id
     if by_app_id == nil or app_id == nil or app_id == "" then
@@ -114,7 +123,6 @@ function util.app_entry(applications, app_id)
     return index and applications.entries[index]
 end
 
--- The themed icon for `entry`'s `app_id`, or `""`.
 function util.app_icon(entry)
     return mantle.applications:map(function(applications)
         local app = util.app_entry(applications, entry.app_id)
@@ -131,8 +139,7 @@ util.today = mantle.system:map(function(system)
     return os.time({ year = now.year, month = now.month, day = now.day, hour = 12 })
 end)
 
--- The `active` entry of `mantle.audio.sinks` or `sources`, or `nil`.
--- A device's name without the redundant ALSA description words, for the audio panel and the OSD.
+-- Strip redundant ALSA description words.
 function util.device_name(device)
     if device == nil then
         return nil
@@ -146,11 +153,7 @@ function util.device_name(device)
 end
 
 function util.active_device(devices)
-    for _, device in ipairs(devices or {}) do
-        if device.active then
-            return device
-        end
-    end
+    return util.find(devices, function(device) return device.active end)
 end
 
 -- `util.audio_device_glyph`'s hints, strongest first: `{ field, pattern, glyph, input glyph? }`.
@@ -178,8 +181,8 @@ function util.audio_device_glyph(device, is_input)
     end
 end
 
--- Raw `mantle.audio`, not a signal, so callers choose their `nil` behavior. Nerd Font glyphs rather
--- than themed icons, which the OSD could not tint.
+-- Takes the raw audio payload, not a signal; callers choose when to read it.
+-- Font glyphs let the OSD tint the volume icon.
 function util.volume_glyph(audio)
     if audio == nil or audio.volume == nil then
         return "--"
@@ -197,7 +200,6 @@ function util.volume_glyph(audio)
     return icons.vol_high
 end
 
--- Four strength buckets over 0..100, shared by the bar indicator and the lock card's status row.
 function util.network_glyph(network)
     if network == nil then
         return icons.wifi_none
@@ -215,15 +217,12 @@ function util.network_glyph(network)
     return icons.wifi[util.signal_tier(network.strength)]
 end
 
--- Four strength buckets, 1-indexed. The bars in the bar, the bars in the list, and the list's
--- order all read it.
 function util.signal_tier(strength)
     local percent = strength or 0
     return percent >= 95 and 4 or percent >= 80 and 3 or percent >= 50 and 2 or 1
 end
 
--- Bluetooth devices by shown name, then MAC: the Supervisor builds the lists from a `HashMap`, whose
--- order changes on any rebuild. `"\0"` sorts below every name character.
+-- Stabilize the engine's HashMap order by name, then MAC. "\0" separates tied names.
 function util.sorted_devices(devices)
     local function key(device)
         return (device.name ~= "" and device.name:lower() or device.mac) .. "\0" .. device.mac
@@ -235,8 +234,6 @@ function util.sorted_devices(devices)
     return out
 end
 
--- A band's short label and colour: "6G", "5G", "2.4". `nil` with `FG` covers ethernet and a band
--- nothing reported.
 ---@param ap AccessPointInfo?
 ---@return string? # Short band label, or `nil` when there is no band to name.
 ---@return Color # The band's colour, or `FG`.
@@ -252,18 +249,16 @@ function util.band_of(ap)
     return nil, theme.FG
 end
 
--- The `available_networks` entry the link is on: `NetworkState` carries no band, so band-shaped
--- questions come back through the AP list. A wired link has no entry, so callers need no branch.
+-- Band metadata lives in the AP list; wired links have no entry.
 ---@param network NetworkState?
 ---@return AccessPointInfo? # The associated access point, or `nil`.
 function util.active_access_point(network)
     return util.active_device(network and network.available_networks)
 end
 
--- A codepoint budget, the exception to `components/cell.lua`'s pixel-box rule: centre-zone modules
--- need content-sized nodes between two `Fill` sides, and bounding them pushed short labels off
--- centre. ponytail: codepoints are a ragged pixel width. Wants a `text.max_width` that measures and
--- elides while reporting the string's own width when it fits. That is a layout change, not config.
+-- Centre-zone labels need content-sized nodes to stay centred between Fill sides.
+-- ponytail: codepoints approximate width; replace when the engine can elide at a max width
+-- while reporting a short string's own width.
 function util.truncate(value, limit)
     local text = tostring(value or "")
     local count = utf8.len(text)
@@ -273,8 +268,7 @@ function util.truncate(value, limit)
     return text:sub(1, utf8.offset(text, limit + 1) - 1) .. "…"
 end
 
--- An `on_hover` that holds `name` in `key` while the pointer is on its button, else `""`: a row of
--- buttons sharing one tooltip passes `key` as the tooltip's `group`.
+-- Shared tooltip ownership: leaving one button must not clear another button's hover.
 function util.track_hover(key, name)
     return function(is_hovered)
         if is_hovered then
@@ -297,11 +291,11 @@ function util.tint(on, hovered)
     end
 end
 
--- `signal`'s last non-empty string, so a card fading out after its key clears keeps its text and place.
-function util.hold(signal)
-    local last = ""
+-- Hold the last value across nil or empty-string pushes; default to an empty string until one arrives.
+function util.hold(signal, initial)
+    local last = initial == nil and "" or initial
     return signal:map(function(value)
-        last = value ~= "" and value or last
+        last = value ~= nil and value ~= "" and value or last
         return last
     end)
 end
@@ -313,8 +307,7 @@ function util.shown_when(signal, predicate)
     end)
 end
 
--- The height of the longest run of `items` that fits `budget` whole, `spacing` apart, so a scrolling
--- list's edge falls between rows instead of through one.
+-- Fit whole rows so the scrolling edge never cuts through one.
 function util.fit_height(items, budget, spacing, height_of)
     local total = 0
     for index, item in ipairs(items) do
@@ -327,18 +320,15 @@ function util.fit_height(items, budget, spacing, height_of)
     return total
 end
 
--- True while the source is true and for `ms` after it drops, keeping the surface mapped through an
--- exit tween.
+-- Keep the surface mapped through its exit tween.
 function util.linger(signal, ms)
     return computed({ signal, delay(signal, ms) }, function(now, was)
-        -- `== true`, not `now or was`: before the first change `delay` holds the property's identity,
-        -- `0`, which Lua calls truthy and a `visible` refuses.
+        -- Before its first change, delay can hold 0. Lua treats 0 as truthy, so compare with true.
         return now == true or was == true
     end)
 end
 
--- `read(value)` as a strict boolean for a toggle: a nil payload, a throwing `read` or a non-`true`
--- answer all read as off.
+-- Missing, failed or non-true reads leave the toggle off.
 function util.read_bool(value, read)
     local ok, result = try(read, value)
     return ok == true and result == true
@@ -349,8 +339,6 @@ function util.trim(text)
     return (tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
--- Thousands separators into an already-formatted number. Reversed, because grouping runs from the
--- right: "1234" is "1,234", not "123,4".
 function util.thousands(formatted)
     local sign, digits, rest = formatted:match("^(%-?)(%d+)(.*)$")
     if not digits then
@@ -360,16 +348,50 @@ function util.thousands(formatted)
     return sign .. grouped .. rest
 end
 
--- No log and no retry. `on_done` gets a table only on exit 0 with a decoded body.
+function util.capture(command, args, done)
+    local lines = {}
+    return process.run(command, args, function(line, stream)
+        if stream == "stdout" then lines[#lines + 1] = line end
+    end, function(code) done(table.concat(lines), code) end)
+end
+
+-- No log, no retry. Decode the complete body only after a successful exit.
 function util.fetch_json(url, on_done)
-    local body = {}
-    process.run("curl", { "-fsS", "--max-time", "5", url }, function(line, stream)
-        if stream == "stdout" then
-            body[#body + 1] = line
-        end
-    end, function(code)
-        local decoded = code == 0 and json.decode(table.concat(body)) or nil
+    util.capture("curl", { "-fsS", "--max-time", "5", url }, function(body, code)
+        local decoded = code == 0 and json.decode(body) or nil
         on_done(type(decoded) == "table" and decoded or nil, code)
+    end)
+end
+
+-- A table seed survives reloads. Nested auth prompts restore the saved layout on the last close.
+local layout_restore = state("layout_restore", { saved = -1, count = 0 })
+
+function util.auto_english_layout(capability)
+    capability:on_change(function(current, previous)
+        local now = current ~= nil and current.active
+        local was = previous ~= nil and previous.active
+        local held = layout_restore:get()
+        local saved, count = held.saved, held.count
+        if now and not was then
+            if count == 0 then
+                local keyboard = mantle.keyboard:get()
+                local index = keyboard and keyboard.active_layout_index or 0
+                saved = index > 0 and index or -1
+                if index > 0 then
+                    mantle.keyboard:switch_layout(0)
+                end
+            end
+            count = count + 1
+        elseif was and not now then
+            count = math.max(0, count - 1)
+            if count == 0 and saved >= 0 then
+                mantle.keyboard:switch_layout(saved)
+                saved = -1
+            end
+        else
+            return
+        end
+        layout_restore:set({ saved = saved, count = count })
     end)
 end
 

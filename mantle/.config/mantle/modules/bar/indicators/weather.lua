@@ -6,7 +6,7 @@ local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
 local weather = require("lib.weather")
-local ui_state = require("lib.ui_state")
+local disclosure = require("lib.disclosure")
 local cell = require("components.cell")
 local panel_row = require("components.panel_row")
 local panel_action_icon = require("components.panel_action_icon")
@@ -33,9 +33,7 @@ local CENTRED = { width = "Fill", align = "Center" }
 local function day_card(daily, index, opts)
     local code = math.floor((daily.weathercode or {})[index] or -1)
     local weekday = weather.weekday((daily.time or {})[index])
-    local heading = opts.expanded and opts.expanded:map(function(open)
-        return open and weekday or opts.label
-    end) or opts.label or weekday
+    local heading = opts.expanded and util.choose(opts.expanded, weekday, opts.label) or opts.label or weekday
     return panel_card({
         cell(util.bold(heading), opts.today and theme.FG or theme.DIM, theme.font.sm, CENTRED),
         cell(weather.info(code).icon, theme.FG, theme.font.xl, CENTRED),
@@ -49,84 +47,80 @@ local function day_card(daily, index, opts)
     })
 end
 
----@param id string Names this instance's `expanded` state and its hover slots.
-return function(id)
-    local expanded = ui_state.panel_state("weather_expanded_" .. id, false)
+local id = "notifications"
+local expanded = disclosure.state("weather_expanded_" .. id, false)
 
-    local body = weather.daily:map(function(daily)
-        if not has_data(daily) then
-            return {}
-        end
-        local preview = row {
-            width = "Fill",
-            spacing = theme.spacing.sm,
-            children = {
-                day_card(daily, YESTERDAY, { label = "Yesterday", expanded = expanded }),
-                day_card(daily, TODAY, { label = "Today", expanded = expanded, today = true }),
-                day_card(daily, TOMORROW, { label = "Tomorrow", expanded = expanded }),
-            },
-        }
-        -- Keep the three-day preview in place; the remaining eight days form two rows.
-        local rows = {}
-        local days = #daily.time
-        for first = TOMORROW + 1, days, COLUMNS do
-            local children = {}
-            for index = first, math.min(first + COLUMNS - 1, days) do
-                children[#children + 1] = day_card(daily, index,
-                    { height = theme.item_height * 3 })
-            end
-            for _ = #children + 1, COLUMNS do
-                children[#children + 1] = rect { width = "Fill", height = theme.item_height * 3 }
-            end
-            rows[#rows + 1] = row { width = "Fill", spacing = theme.spacing.sm, children = children }
-        end
-        if #rows == 0 then
-            return { preview }
-        end
-        -- Keep the rows mounted while the clipped height shrinks, including a quick reversal.
-        return { preview, rect {
-            width = "Fill",
-            height = expanded:map(function(open)
-                return open and #rows * (theme.item_height * 3 + theme.spacing.sm) or 0
-            end),
-            clip = "Box",
-            animate = { height = { duration = theme.animation_ms, easing = "OutCubic" } },
-            children = { column {
-                width = "Fill",
-                padding = { top = theme.spacing.sm },
-                spacing = theme.spacing.sm,
-                children = rows,
-            } },
-        } }
-    end)
-
-    local ready = weather.daily:map(has_data)
-
-    return column {
+local body = weather.daily:map(function(daily)
+    if not has_data(daily) then
+        return {}
+    end
+    local preview = row {
         width = "Fill",
         spacing = theme.spacing.sm,
         children = {
-            -- The section's disclosure row: the reading now and its age, opening the full forecast.
-            -- With no forecast the line says why, and the refresh icon is the retry.
-            panel_row {
-                slot = "weather-toggle-" .. id,
-                icon = weather.code:map(weather.glyph),
-                title = "Weather",
-                subtitle = computed({ ready, weather.failed, weather.temperature, weather.updated_at, mantle.system },
-                    function(has, bad, now, at, system)
-                        if not has then
-                            return bad and "Weather unavailable" or "Loading forecast…"
-                        end
-                        return string.format("%s · Updated %s", degrees(now),
-                            weather.time_ago(at, system and system.time))
-                    end),
-                expanded = expanded,
-                trailing = panel_action_icon(icons.refresh, weather.refresh, {
-                    slot = "weather-refresh-" .. id,
-                    spinning = weather.fetching,
-                }),
-            },
-            column { width = "Fill", children = body },
+            day_card(daily, YESTERDAY, { label = "Yesterday", expanded = expanded }),
+            day_card(daily, TODAY, { label = "Today", expanded = expanded, today = true }),
+            day_card(daily, TOMORROW, { label = "Tomorrow", expanded = expanded }),
         },
     }
-end
+    -- Keep the three-day preview in place; the remaining eight days form two rows.
+    local rows = {}
+    local days = #daily.time
+    for first = TOMORROW + 1, days, COLUMNS do
+        local children = {}
+        for index = first, math.min(first + COLUMNS - 1, days) do
+            children[#children + 1] = day_card(daily, index,
+                { height = theme.item_height * 3 })
+        end
+        for _ = #children + 1, COLUMNS do
+            children[#children + 1] = rect { width = "Fill", height = theme.item_height * 3 }
+        end
+        rows[#rows + 1] = row { width = "Fill", spacing = theme.spacing.sm, children = children }
+    end
+    if #rows == 0 then
+        return { preview }
+    end
+    -- Keep the rows mounted while the clipped height shrinks, including a quick reversal.
+    return { preview, rect {
+        width = "Fill",
+        height = util.choose(expanded, #rows * (theme.item_height * 3 + theme.spacing.sm), 0),
+        clip = "Box",
+        animate = { height = { duration = theme.animation_ms, easing = "OutCubic" } },
+        children = { column {
+            width = "Fill",
+            padding = { top = theme.spacing.sm },
+            spacing = theme.spacing.sm,
+            children = rows,
+        } },
+    } }
+end)
+
+local ready = weather.daily:map(has_data)
+
+return column {
+    width = "Fill",
+    spacing = theme.spacing.sm,
+    children = {
+        -- The section's disclosure row: the reading now and its age, opening the full forecast.
+        -- With no forecast the line says why, and the refresh icon is the retry.
+        panel_row {
+            slot = "weather-toggle-" .. id,
+            icon = weather.code:map(weather.glyph),
+            title = "Weather",
+            subtitle = computed({ ready, weather.failed, weather.temperature, weather.updated_at, mantle.system },
+                function(has, bad, now, at, system)
+                    if not has then
+                        return bad and "Weather unavailable" or "Loading forecast…"
+                    end
+                    return string.format("%s · Updated %s", degrees(now),
+                        weather.time_ago(at, system and system.time))
+                end),
+            expanded = expanded,
+            trailing = panel_action_icon(icons.refresh, weather.refresh, {
+                slot = "weather-refresh-" .. id,
+                spinning = weather.fetching,
+            }),
+        },
+        column { width = "Fill", children = body },
+    },
+}

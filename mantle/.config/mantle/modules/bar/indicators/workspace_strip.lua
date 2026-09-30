@@ -53,22 +53,26 @@ local hold_timer = nil
 local drag_armed = false
 local start_cx, start_cy = 0, 0
 
+local function cancel_hold()
+    if hold_timer then
+        hold_timer:cancel()
+        hold_timer = nil
+    end
+end
+
 local function arm_drag(ws, cx, cy)
     if drag_armed then return end
     drag_armed = true
     dragging_from:set(ws.id)
     drag_target:set(ws.id)
     drag_pos:set({ x = cx - theme.item_width / 2, y = cy - theme.item_height / 2 })
-    local art_sig = util.app_icon(ws)
-    drag_icon:set((art_sig and art_sig:get()) or "")
+    local app = util.app_entry(mantle.applications:get(), ws.app_id)
+    drag_icon:set((app and app.icon) or "")
     drag_glyph:set(tostring(ws.idx))
 end
 
 local function reset_drag()
-    if hold_timer then
-        hold_timer:cancel()
-        hold_timer = nil
-    end
+    cancel_hold()
     dragging_from:set(nil)
     drag_target:set(nil)
     drag_icon:set("")
@@ -112,9 +116,7 @@ local function workspace_button(workspace)
         if from == id then return 0.4 end
         return workspace.populated and 1 or theme.opacity.muted
     end)
-    local cursor = workspace.populated and is_dragging:map(function(dragging)
-        return dragging and "grabbing" or "grab"
-    end) or nil
+    local cursor = workspace.populated and util.choose(is_dragging, "grabbing", "grab") or nil
 
     local on_drag = nil
     if workspace.populated and workspace.window_id ~= nil then
@@ -124,17 +126,14 @@ local function workspace_button(workspace)
             if phase == "start" then
                 drag_armed = false
                 start_cx, start_cy = cx, cy
-                if hold_timer then hold_timer:cancel() end
+                cancel_hold()
                 hold_timer = timer(200, function()
                     hold_timer = nil
                     arm_drag(workspace, cx, cy)
                 end)
             elseif phase == "move" then
                 if not drag_armed and (math.abs(cx - start_cx) > 10 or math.abs(cy - start_cy) > 10) then
-                    if hold_timer then
-                        hold_timer:cancel()
-                        hold_timer = nil
-                    end
+                    cancel_hold()
                     arm_drag(workspace, cx, cy)
                 end
                 if drag_armed then
@@ -155,10 +154,7 @@ local function workspace_button(workspace)
                 end
             elseif phase == "end" then
                 if not drag_armed then
-                    if hold_timer then
-                        hold_timer:cancel()
-                        hold_timer = nil
-                    end
+                    cancel_hold()
                     if not is_active:get() then
                         mantle.workspaces:focus(id)
                     end

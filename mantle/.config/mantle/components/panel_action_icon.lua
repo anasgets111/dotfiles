@@ -5,7 +5,7 @@ local icon_button = require("components.icon_button")
 
 ---@param glyph string|Bound A `text` glyph, or a signal of one for a control whose icon follows state.
 ---@param on_activate fun()?
----@param opts { slot: string, tint?: Color, visible?: boolean|Bound, size?: "sm"|"md", disabled?: Signal|boolean, spinning?: Signal, active?: Signal|boolean }
+---@param opts { slot: string, tint?: Color, visible?: boolean|Bound, size?: "sm"|"md", disabled?: Signal, spinning?: Signal, active?: Signal }
 return function(glyph, on_activate, opts)
     local tint = opts.tint or theme.FG
     -- `"md"` is the media panel's one transport control that is the row's subject.
@@ -14,29 +14,22 @@ return function(glyph, on_activate, opts)
     local hovered = hover(opts.slot)
     -- `disabled` dims and ignores clicks, keeping the control's place in the row.
     local disabled = opts.disabled
-    local disabled_live = type(disabled) == "userdata"
 
     local active = opts.active
     local foreground
-    if type(active) == "userdata" then
+    if active then
         foreground = computed({ hovered, active }, function(is_hovered, is_active)
             return is_active and theme.ACCENT
                 or is_hovered and tint or theme.with_opacity(theme.FG, theme.opacity.muted)
         end)
-    elseif active then
-        foreground = theme.ACCENT
     else
-        foreground = hovered:map(function(is_hovered)
-            return is_hovered and tint or theme.with_opacity(theme.FG, theme.opacity.muted)
-        end)
+        foreground = util.choose(hovered, tint, theme.with_opacity(theme.FG, theme.opacity.muted))
     end
 
-    local opacity = disabled and util.lift(disabled, function(off)
-        return off and theme.opacity.disabled or 1
-    end) or nil
+    local opacity = disabled and util.choose(disabled, theme.opacity.disabled, 1) or nil
 
     return icon_button(glyph, on_activate and function()
-        if not disabled or (disabled_live and disabled:get() ~= true) then
+        if not disabled or disabled:get() ~= true then
             on_activate()
         end
     end, {
@@ -45,12 +38,8 @@ return function(glyph, on_activate, opts)
         icon_size = theme.icon[step],
         radius = theme.radius.sm,
         border = false,
-        background = util.lift(active, function(on)
-            return on and theme.ACCENT_SUBTLE or theme.CLEAR
-        end),
-        background_hover = util.lift(active, function(on)
-            return on and theme.ACCENT_LIGHT or theme.with_opacity(tint, theme.opacity.subtle)
-        end),
+        background = util.choose(active, theme.ACCENT_SUBTLE, theme.CLEAR),
+        background_hover = util.choose(active, theme.ACCENT_LIGHT, theme.with_opacity(tint, theme.opacity.subtle)),
         foreground = foreground,
         visible = opts.visible,
         spinning = opts.spinning,

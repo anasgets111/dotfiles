@@ -3,7 +3,8 @@
 -- expiry hold.
 local theme = require("config.theme")
 local notifications = require("lib.notifications")
-local ui = require("lib.ui_state")
+local notification_state = require("lib.notification_state")
+local navigation = require("lib.ui_state")
 local util = require("lib.util")
 local notification_card = require("components.notification_card")
 
@@ -27,7 +28,8 @@ local HOVER = hover("notification_stack_region")
 
 -- The newest unseen cards. One signal, so `visible` and the list cannot disagree.
 local visible_groups = computed(
-    { mantle.notifications, ui.popup_seen, ui.panel_open, mantle.lock, mantle.applications, ui.sharing },
+    { mantle.notifications, notification_state.popup_seen, navigation.panel_open, mantle.lock, mantle.applications,
+        notification_state.sharing },
     function(service, seen, panel_open, lock, applications, is_sharing)
         -- A panel shares this corner, and a popup over the lock screen is readable without a
         -- password. Neither marks the card seen, so it returns unless its countdown expires first.
@@ -46,13 +48,11 @@ local visible_groups = computed(
             end
         end
         local all = notifications.group_notifications(unseen, applications)
-        local shown = {}
         for index = 1, math.min(#all, MAX_CARDS) do
-            -- The card staggers entry by rank. `all` is fresh, so this is not the capability's data.
+            -- Entry delay follows rank; `all` is fresh, not capability data.
             all[index].rank = index
-            shown[index] = all[index]
         end
-        return shown
+        return all
     end
 )
 
@@ -61,11 +61,11 @@ mantle.system:on_change(function(system)
     if HOVER:get() then
         return
     end
-    local seen = ui.popup_seen:get()
+    local seen = notification_state.popup_seen:get()
     for _, notification in ipairs((mantle.notifications:get() or {}).feed or {}) do
         if notification.urgency == "critical" and not seen[notifications.notification_key(notification)]
             and system.time - notification.timestamp >= CRITICAL_POPUP_SECONDS then
-            ui.hide_popup(notification)
+            notification_state.hide_popup(notification)
         end
     end
 end)
@@ -86,7 +86,7 @@ return panel {
     -- keyboard on every notification. `OnDemand` because a small surface has no outside click to
     -- release `Exclusive`; niri focuses it on the click, so hover arms the binding first, and a
     -- pending draft holds it after the pointer leaves.
-    keyboard_interactivity = computed({ HOVER, ui.reply_pending }, function(hovered, pending)
+    keyboard_interactivity = computed({ HOVER, notification_state.reply_pending }, function(hovered, pending)
         return (hovered or pending) and "OnDemand" or "None"
     end),
     child = column {
@@ -103,8 +103,9 @@ return panel {
                 width = "Fill",
                 spacing = theme.spacing.sm,
                 source = visible_groups,
+                limit = MAX_CARDS,
                 itemfn = function(group)
-                    return notification_card(group, ui)
+                    return notification_card(group, notification_state)
                 end,
                 key = function(group)
                     return group.key

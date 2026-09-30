@@ -3,8 +3,10 @@
 -- `modules/bar/indicators/updates.lua` the bar glyph; neither runs anything.
 local util = require("lib.util")
 local store = require("lib.store")
-local ui = require("lib.ui_state")
+local disclosure = require("lib.disclosure")
 local dev_tools = require("config.dev_tools")
+
+local log_open = disclosure.state("updates_log_open", false)
 
 -- Hourly, since each check is a real `-Sy` against a mirror. Twice this is stale.
 local CHECK_INTERVAL = 3600
@@ -214,7 +216,7 @@ local function install()
     started_at:set(os.time())
     dismissed:set(false)
     dev_result:set({})
-    ui.updates_log_open:set(false)
+    log_open:set(false)
     if packages_pending then
         return mantle.updates:install()
     end
@@ -370,6 +372,7 @@ end)
 
 return {
     CHECK_INTERVAL = CHECK_INTERVAL,
+    log_open = log_open,
     dismissed = dismissed,
     started_at = started_at,
     tools_present = tools_present,

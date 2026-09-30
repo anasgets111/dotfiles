@@ -4,6 +4,7 @@
 local theme = require("config.theme")
 local util = require("lib.util")
 local glyph = require("components.glyph")
+local cell = require("components.cell")
 local meter = require("components.meter")
 local osd = require("modules.osd.service")
 
@@ -64,14 +65,9 @@ local level_row = row {
         meter(osd.entry, function(entry)
             return entry.level or 0
         end, level_color, theme.osd_track, { motion = theme.spring_tracking }),
-        text {
-            content = entry_text,
-            foreground = theme.FG,
-            font_size = theme.font.lg,
-            width = theme.osd_value_width,
-            text_align = "End",
-            align_v = "Center",
-        },
+        cell(entry_text, theme.FG, theme.font.lg, {
+            width = theme.osd_value_width, align = "End", align_v = "Center",
+        }),
     },
 }
 
@@ -92,12 +88,7 @@ local fact_row = row {
     children = {
         tile(),
         -- No `width`, so it sizes to its own words and everything above measures it.
-        text {
-            content = entry_text,
-            foreground = theme.FG,
-            font_size = theme.font.lg,
-            align_v = "Center",
-        },
+        cell(entry_text, theme.FG, theme.font.lg, { align_v = "Center" }),
     },
 }
 
@@ -121,9 +112,7 @@ return panel {
         translate = osd.visible:map(function(shown)
             return { y = shown and 0 or SLIDE }
         end),
-        opacity = osd.visible:map(function(shown)
-            return shown and 1 or 0
-        end),
+        opacity = util.choose(osd.visible, 1, 0),
         -- A signal lets entry decelerate and exit accelerate with separate curves.
         animate = osd.visible:map(function(shown)
             local duration = shown and RISE_MS or FALL_MS

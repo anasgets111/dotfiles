@@ -7,7 +7,6 @@
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
-local divider = require("components.divider")
 local ui_state = require("lib.ui_state")
 
 local KIND = "tray_menu"
@@ -93,7 +92,10 @@ local function row_for(row_entry)
         return rect {
             width = "Fill",
             height = SEPARATOR_HEIGHT,
-            children = { divider { margin = { left = pad, right = theme.spacing.sm } } },
+            children = { rect {
+                width = "Fill", height = theme.border_width, align_v = "Center",
+                margin = { left = pad, right = theme.spacing.sm }, background = theme.GLASS_BORDER,
+            } },
         }
     end
     local hovered = hover("tray-menu-" .. tostring(entry.id))
@@ -124,9 +126,7 @@ local function row_for(row_entry)
         radius = theme.radius.md,
         hover = hovered,
         -- `panel_row`'s hover, so a menu reads like the panels it opens beside.
-        background = hovered:map(function(on)
-            return on and theme.GLASS_HOVER or theme.CLEAR
-        end),
+        background = util.choose(hovered, theme.GLASS_HOVER, theme.CLEAR),
         opacity = entry.enabled and 1 or theme.opacity.disabled,
         on_click = function(_, mouse_button)
             if mouse_button == "left" then

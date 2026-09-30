@@ -44,7 +44,7 @@ return function(opts)
             return is_hovered and active_modal == "" and (opts.in_panel or not panel_open)
         end)
     return popup {
-        id = opts.id,
+        id = opts.id or opts.slot .. "_tooltip",
         parent = "bar",
         -- Before the first hover a popup still refuses a zero rect.
         anchor_rect = group and util.hold(group):map(function(name)
@@ -61,9 +61,7 @@ return function(opts)
         constraint_adjustment = { "FlipY", "SlideX" },
         offset = { x = 0, y = theme.spacing.xs },
         child = panel_card(children_for(opts), {
-            opacity = shown:map(function(is_shown)
-                return is_shown and 1 or 0
-            end),
+            opacity = util.choose(shown, 1, 0),
             animate = { opacity = theme.animation_ms },
             background = theme.GLASS_SURFACE,
             blur = true,

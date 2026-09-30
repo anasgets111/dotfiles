@@ -6,7 +6,7 @@
 local idle = require("lib.idle")
 local store = require("lib.store")
 local compositor = require("lib.compositor")
-local ui_state = require("lib.ui_state")
+local notification_state = require("lib.notification_state")
 
 -- Display power and keyboard backlight move together: a lit keyboard under a dark screen means
 -- blanking stopped halfway.
@@ -20,7 +20,7 @@ local function set_displays_powered(powered)
         return
     end
     idle.blanked:set(not powered)
-    ui_state.sync_notification_quiet()
+    notification_state.sync_notification_quiet()
     mantle.keyboard:set_backlight(powered and 100 or 0)
 end
 
@@ -79,7 +79,7 @@ mantle.system:on_change(function(system)
     local switched = idle.armed_profile:get() ~= profile
     idle.armed_profile:set(profile)
 
-    -- Rebuild rather than mutate (`lib/ui_state.lua`): `set` compares table identity, and a fresh
+    -- Rebuild rather than mutate (`lib/util.lua`): `set` compares table identity, and a fresh
     -- table cannot mutate a value under an unfinished resolve. At most one key survives.
     local stamps = (not switched and idle.armed_at:get()) or {}
     local next_stamps = {}

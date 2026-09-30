@@ -5,7 +5,7 @@ local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
 local notifications = require("lib.notifications")
-local ui = require("lib.ui_state")
+local ui = require("lib.notification_state")
 local store = require("lib.store")
 local toggle = require("components.toggle")
 local section_header = require("components.section_header")
@@ -92,8 +92,8 @@ local body = {
             return long_date(system.time)
         end),
     },
-    weather_widget("notifications"),
-    system_info("notifications"),
+    weather_widget,
+    system_info,
     -- The feed's section row, shaped like the two above it but with nothing to unfold: its controls
     -- sit beside its name. The switch is named, since "Notifications · On" would read as the panel.
     panel_row {

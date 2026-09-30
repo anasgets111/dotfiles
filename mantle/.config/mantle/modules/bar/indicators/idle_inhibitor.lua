@@ -1,6 +1,7 @@
 -- One circle shows session holds and adds a manual hold on click; right-click opens
 -- `modules/global/idle_settings.lua`. The glyph swaps on the manual hold, since the cup means "I asked
 -- for this". The accent ground means a confirmed hold; a tint marks an old compositor answer.
+local util = require("lib.util")
 local theme = require("config.theme")
 local icons = require("config.icons")
 local icon_button = require("components.icon_button")
@@ -10,26 +11,20 @@ local idle = require("lib.idle")
 
 local SLOT = "idle"
 
-local indicator = icon_button(idle.manual:map(function(manual)
-    return manual and icons.awake or icons.idle
-end), nil, {
+local indicator = icon_button(util.choose(idle.manual, icons.awake, icons.idle), nil, {
     slot = SLOT,
     selected = ui_state.modal_showing("idle_settings"),
     background = computed({ idle.inhibited, idle.unconfirmed }, function(held, uncertain)
         return uncertain and theme.ACCENT_SUBTLE or held and theme.ACCENT or theme.GLASS_CONTROL
     end),
-    on_button = function(_, mouse_button)
-        if mouse_button == "right" then
-            ui_state.toggle_modal("idle_settings")
-        elseif mouse_button == "left" then
-            idle.set_manual(not idle.manual:get())
-        end
-    end,
+    on_buttons = {
+        right = function() ui_state.toggle_modal("idle_settings") end,
+        left = function() idle.set_manual(not idle.manual:get()) end,
+    },
 })
 
 -- What holds it, then what happens next if nothing does.
 local idle_tooltip = tooltip({
-    id = "idle_tooltip",
     slot = SLOT,
     text = computed({ idle.reasons, idle.inhibited, idle.stale }, idle.held_text),
     detail = computed({ idle.schedule, idle.arming, idle.manual, idle.enabled }, function(plan, arming, manual, on)
@@ -48,4 +43,4 @@ local idle_tooltip = tooltip({
     end),
 })
 
-return { indicator = indicator, tooltip = idle_tooltip }
+return { indicator = indicator, tooltips = { idle_tooltip } }

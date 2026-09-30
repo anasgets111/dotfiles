@@ -26,7 +26,7 @@ local ACTIONS = {
         icon = icons.logout,
         run = function()
             compositor.detach("logout")
-        end
+        end,
     },
     {
         key = "reboot",
@@ -34,7 +34,7 @@ local ACTIONS = {
         icon = icons.power,
         run = function()
             process.detach("systemctl", { "reboot" })
-        end
+        end,
     },
     {
         key = "poweroff",
@@ -42,7 +42,7 @@ local ACTIONS = {
         icon = icons.shutdown,
         run = function()
             process.detach("systemctl", { "poweroff" })
-        end
+        end,
     },
 }
 
@@ -217,4 +217,4 @@ for index, action in ipairs(ACTIONS) do
     })
 end
 
-return { pill = pill, button = pill.row(slots), tooltips = power_tooltips }
+return { pill = pill, indicator = pill.row(slots), tooltips = power_tooltips }

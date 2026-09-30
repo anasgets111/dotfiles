@@ -87,9 +87,7 @@ return panel {
                 width = "Fill",
                 height = "Fill",
                 background = scrim_color,
-                opacity = any_modal:map(function(open)
-                    return open and 1 or 0
-                end),
+                opacity = util.choose(any_modal, 1, 0),
                 animate = any_modal:map(function(open)
                     return {
                         opacity = { duration = theme.animation_ms, easing = open and "OutCubic" or "InCubic", from = 0 },

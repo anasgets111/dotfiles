@@ -11,22 +11,18 @@ local pill = {}
 ---@class ExpandingPillOpts
 ---@field slot string The hover slot the whole row declares.
 ---@field collapse_ms? integer How long after the pointer leaves the pill stays open. Default `theme.animation_ms`.
----@field hold_open? Signal<boolean> Keeps the pill open while true.
+---@field hold_open Signal<boolean> Keeps the pill open while true.
 ---@field count integer|Signal<integer> How many cells it holds, for the width it heads to.
 
 ---@param opts ExpandingPillOpts
 function pill.new(opts)
     local hovered = hover(opts.slot)
     local lingering = util.linger(hovered, opts.collapse_ms or theme.animation_ms)
-    local expanded = opts.hold_open
-        and computed({ lingering, opts.hold_open }, function(open, held)
-            return open or held
-        end)
-        or lingering
-    -- Between cells; a `list` of cells takes it as its own `spacing`, with `animate`.
-    local spacing = expanded:map(function(open)
-        return open and theme.spacing.sm or 0
+    local expanded = computed({ lingering, opts.hold_open }, function(open, held)
+        return open or held
     end)
+    -- Between cells; a `list` of cells takes it as its own `spacing`, with `animate`.
+    local spacing = util.choose(expanded, theme.spacing.sm, 0)
     local function heading(open, cells)
         return open and cells * theme.item_width + math.max(0, cells - 1) * theme.spacing.sm or theme.item_width
     end

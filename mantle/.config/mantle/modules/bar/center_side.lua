@@ -1,3 +1,4 @@
+local util = require("lib.util")
 local theme = require("config.theme")
 local media = require("modules.bar.indicators.media")
 local volume = require("modules.bar.indicators.volume")
@@ -11,12 +12,8 @@ local MEDIA_SLOT = "media_indicator"
 
 local playback_available = mantle.mpris:map(function(mpris)
     local players = (mpris and mpris.players) or {}
-    for _, player in ipairs(players) do
-        if player.play_state == "Playing" then
-            return true
-        end
-    end
-    return players[1] ~= nil and players[1].play_state ~= "Stopped"
+    return util.find(players, function(player) return player.play_state == "Playing" end) ~= nil
+        or players[1] ~= nil and players[1].play_state ~= "Stopped"
 end)
 
 -- Hidden, the row measures zero, so the test uses its last shown rect.

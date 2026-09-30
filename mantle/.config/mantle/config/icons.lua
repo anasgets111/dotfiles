@@ -140,7 +140,6 @@ icons.disconnect      = "\u{F1616}"
 -- captures it can start. `record_start` is the bar's idle circle, the
 -- one that says "this button records".
 icons.record_start    = "\u{F07A1}"
-icons.record_stop     = "\u{F04DB}"
 icons.record_paused   = "\u{F03E7}"
 icons.region          = "\u{F019E}"
 

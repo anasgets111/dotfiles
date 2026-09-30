@@ -11,33 +11,29 @@ return function(glyph, on_activate, opts)
     local base = opts.background or theme.GLASS_CONTROL
     -- A custom ground lifts on hover by default, so a coloured state survives the pointer.
     local base_hover = opts.background_hover or util.lift(base, theme.hover)
-    local hovered = opts.slot and hover(opts.slot) or nil
+    local hovered = hover(opts.slot)
 
-    ---@type Color|Signal
-    local ground = base
-    if hovered then
-        -- `computed` takes only signals, so a plain colour rides on `hovered` and is read directly.
-        local base_live, hover_live = type(base) == "userdata", type(base_hover) == "userdata"
-        ---@diagnostic disable-next-line: assign-type-mismatch
-        ground = computed({ hovered, base_live and base or hovered, hover_live and base_hover or hovered },
-            function(is_hovered, plain, lit)
-                if is_hovered then
-                    return hover_live and lit or base_hover
-                end
-                return base_live and plain or base
-            end)
-    end
+    -- `computed` takes only signals, so a plain colour rides on `hovered` and is read directly.
+    local base_live, hover_live = type(base) == "userdata", type(base_hover) == "userdata"
+    ---@diagnostic disable-next-line: assign-type-mismatch
+    local ground = computed({ hovered, base_live and base or hovered, hover_live and base_hover or hovered },
+        function(is_hovered, plain, lit)
+            if is_hovered then
+                return hover_live and lit or base_hover
+            end
+            return base_live and plain or base
+        end)
 
     local foreground = opts.foreground or util.lift(ground, theme.text_contrast)
 
     -- Selection wins the ring; otherwise it follows the pointer.
     local border_color = opts.border_color or theme.GLASS_BORDER
-    if opts.border_color == nil and (opts.selected or hovered) then
-        border_color = computed({ opts.selected or hovered, hovered or opts.selected }, function(is_selected, is_hovered)
+    if opts.border_color == nil then
+        border_color = computed({ opts.selected or hovered, hovered }, function(is_selected, is_hovered)
             if opts.selected and is_selected then
                 return theme.ACCENT
             end
-            return hovered and is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
+            return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
         end)
     end
 
@@ -86,7 +82,7 @@ return function(glyph, on_activate, opts)
 
     local node = {
         -- `content` is a caller's node in place of the glyph, sized by what it holds.
-        width = opts.width or (opts.content == nil and side or nil),
+        width = opts.content == nil and side or nil,
         height = side,
         align_h = "Center",
         align_v = "Center",
@@ -95,7 +91,6 @@ return function(glyph, on_activate, opts)
         hover = hovered,
         on_hover = opts.on_hover,
         on_drag = opts.on_drag,
-        on_wheel = opts.on_wheel,
         radius = opts.radius or side / 2,
         background = ground,
         opacity = opts.opacity,
@@ -117,8 +112,13 @@ return function(glyph, on_activate, opts)
         end),
     }
 
-    if on_activate or opts.on_button then
-        node.on_click = opts.on_button or function(rect, mouse_button)
+    if on_activate or opts.on_buttons then
+        node.on_click = function(rect, mouse_button)
+            if opts.on_buttons then
+                local handler = opts.on_buttons[mouse_button]
+                if handler then handler(rect) end
+                return
+            end
             if mouse_button == "left" and not (opts.spinning and opts.spinning:get()) then
                 on_activate(rect, mouse_button)
             end

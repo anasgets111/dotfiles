@@ -1,5 +1,6 @@
 -- `layout::secure_submit` counts only reachable fields, so an `autofocus` name field arms
 -- normally; `modules/shell/panel_host.lua` asks for the keyboard for both.
+local section_list = require("components.section_list")
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -17,6 +18,7 @@ local action_button = require("components.action_button")
 local input = require("components.input")
 local callout = require("components.callout")
 local ui = require("lib.ui_state")
+local join = require("lib.network_join")
 
 local KIND = "network"
 
@@ -95,7 +97,7 @@ local function header_glyph(network)
 end
 
 -- The scanned list and the hidden-network row share one condition.
-local radio_up_and_idle = computed({ mantle.network, ui.hidden_join }, function(network, joining)
+local radio_up_and_idle = computed({ mantle.network, join.hidden_join }, function(network, joining)
     return radio_on(network) and not joining
 end)
 
@@ -209,9 +211,9 @@ end
 
 -- ## The credential sheet
 -- One sheet walks a join from a typed name through the wait to the password, retitled at each step:
--- a form per row would put a `secure_submit` field in every one. `lib/ui_state.lua`'s
+-- a form per row would put a `secure_submit` field in every one. `lib/network_join.lua`'s
 -- `credential_step` says which step is on screen, `hidden_join` whether the list stands aside.
-local step = ui.credential_step
+local step = join.credential_step
 
 local function during(name)
     return step:map(function(current)
@@ -220,7 +222,7 @@ local function during(name)
 end
 
 -- A failure keeps the sheet up here, rather than returning the error to the row it came from.
-local sheet_title = util.bold(computed({ step, ui.hidden_ssid, mantle.network }, function(current, name, network)
+local sheet_title = util.bold(computed({ step, join.hidden_ssid, mantle.network }, function(current, name, network)
     local target = (network and network.password_ssid) or name
     if current == "name" then
         return "Hidden network"
@@ -241,11 +243,11 @@ end)
 -- profile answers or `password_ssid` comes back and this sheet asks for the rest. The name is kept
 -- for the title and Retry. Submitting nothing is not an attempt to join "".
 local function submit_hidden_name()
-    local name = util.trim(ui.hidden_draft:get())
+    local name = util.trim(join.hidden_draft:get())
     if name == "" then
         return
     end
-    ui.hidden_ssid:set(name)
+    join.hidden_ssid:set(name)
     mantle.network:connect(name, true)
 end
 
@@ -342,31 +344,23 @@ local body = {
             input {
                 visible = during("name"),
                 field = textfield {
-                    width = "Fill",
-                    height = "Fill",
                     autofocus = true,
                     placeholder = "Network name",
-                    font_size = theme.font.sm,
-                    foreground = theme.FG,
                     on_change = function(typed)
-                        ui.hidden_draft:set(typed or "")
+                        join.hidden_draft:set(typed or "")
                     end,
                     on_submit = submit_hidden_name,
                     -- Escape empties the field and releases the keyboard; take the sheet down too.
-                    on_cancel = ui.clear_network_prompts,
+                    on_cancel = join.clear_network_prompts,
                 },
             },
             input {
                 visible = during("password"),
                 field = textfield {
-                    width = "Fill",
-                    height = "Fill",
                     placeholder = "Password",
                     mask_character = "•",
                     secure_submit = { capability = "network", action = "connect" },
-                    on_cancel = ui.cancel_network_join,
-                    font_size = theme.font.sm,
-                    foreground = theme.FG,
+                    on_cancel = join.cancel_network_join,
                 },
             },
             row {
@@ -388,11 +382,11 @@ local body = {
                 align_h = "End",
                 spacing = theme.spacing.sm,
                 children = {
-                    action_button("Cancel", ui.cancel_network_join, "network-sheet-cancel", { tone = "quiet" }),
+                    action_button("Cancel", join.cancel_network_join, "network-sheet-cancel", { tone = "quiet" }),
                     action_button("Next", submit_hidden_name, "network-sheet-next", {
                         tone = "accent",
                         visible = during("name"),
-                        disabled = ui.hidden_draft:map(function(draft)
+                        disabled = join.hidden_draft:map(function(draft)
                             return util.trim(draft) == ""
                         end),
                     }),
@@ -402,29 +396,14 @@ local body = {
                         { tone = "accent", submit = true, visible = during("password") }),
                     -- A failed attempt leaves no pending intent, so Retry is a fresh `connect`.
                     action_button("Retry", function()
-                        mantle.network:connect(ui.hidden_ssid:get(), true)
+                        mantle.network:connect(join.hidden_ssid:get(), true)
                     end, "network-sheet-retry", { tone = "accent", glyph = icons.warning, visible = during("failed") }),
                 },
             },
         },
     },
     -- The sheet replaces the list during a hidden join rather than stacking above it.
-    list {
-        width = "Fill",
-        max_height = rows:map(function(items)
-            return util.fit_height(items, theme.panel_list_height, theme.spacing.xs, function(item)
-                return item.kind == "header" and theme.section_header_height or theme.control.lg
-            end)
-        end),
-        scroll = scroll("network_aps"),
-        spacing = theme.spacing.xs,
-        visible = radio_up_and_idle,
-        source = rows,
-        itemfn = access_point_row,
-        key = function(entry)
-            return entry.key
-        end,
-    },
+    section_list(rows, "network_aps", access_point_row, radio_up_and_idle),
     -- A network broadcasting no SSID is dropped from `available_networks`, so this row stands in for
     -- it and asks for the name. It leaves with the list while the sheet is asking.
     panel_row {
@@ -437,7 +416,7 @@ local body = {
         title = "Hidden network…",
         visible = radio_up_and_idle,
         trailing = glyph(icons.chevron_right, theme.DIM, theme.font.sm, { align_v = "Center" }),
-        on_activate = ui.open_hidden_prompt,
+        on_activate = join.open_hidden_prompt,
     },
     panel_empty_state(
         mantle.network:map(function(network)
@@ -454,7 +433,7 @@ local body = {
             end
             return "No networks found"
         end),
-        computed({ mantle.network, ui.hidden_join }, function(network, joining)
+        computed({ mantle.network, join.hidden_join }, function(network, joining)
             return not radio_on(network) or (not joining and #access_points(network) == 0)
         end),
         {

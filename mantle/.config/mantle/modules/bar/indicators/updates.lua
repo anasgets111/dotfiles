@@ -28,17 +28,17 @@ local indicator = icon_button(status:map(function(current)
 end), nil, {
     -- Right-click always opens the panel: at idle it is otherwise unreachable, and with it the
     -- reboot badge, the last check time, and the empty state.
-    on_button = function(rect, mouse_button)
-        if mouse_button ~= "left" and mouse_button ~= "right" then
-            return
-        end
-        if mouse_button == "right" or status:get() ~= "idle" then
-            ui_state.toggle_panel(update_panel.kind, rect)
-            return
-        end
-        -- The Supervisor refuses `check` while one is running, so no guard is needed.
-        mantle.updates:check()
-    end,
+    on_buttons = {
+        right = function(rect) ui_state.toggle_panel(update_panel.kind, rect) end,
+        left = function(rect)
+            if status:get() == "idle" then
+                -- The Supervisor refuses a second check while one is running.
+                mantle.updates:check()
+            else
+                ui_state.toggle_panel(update_panel.kind, rect)
+            end
+        end,
+    },
     slot = SLOT,
     selected = ui_state.panel_showing(update_panel.kind),
     -- No supported package manager leaves `package_manager` nil; an indicator that can only report
@@ -52,7 +52,6 @@ end), nil, {
 })
 
 local update_tooltip = tooltip({
-    id = "updates_tooltip",
     slot = SLOT,
     text = computed({ mantle.updates, status }, function(updates, current)
         if updates == nil then
@@ -65,4 +64,4 @@ local update_tooltip = tooltip({
     end),
 })
 
-return { indicator = indicator, tooltip = update_tooltip }
+return { indicator = indicator, tooltips = { update_tooltip } }

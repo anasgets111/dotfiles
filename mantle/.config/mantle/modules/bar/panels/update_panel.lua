@@ -17,14 +17,15 @@ local meter = require("components.meter")
 local info_badge = require("components.info_badge")
 local store = require("lib.store")
 local ui = require("lib.ui_state")
+local disclosure = require("lib.disclosure")
 local service = require("lib.updates")
 local dev_tools = require("config.dev_tools")
 
 local KIND = "updates"
 local LOG_SCROLL = scroll("update_log")
 
-local log_open = ui.updates_log_open
-local settings_expanded = ui.panel_state("updates_settings_expanded", false)
+local log_open = service.log_open
+local settings_expanded = disclosure.state("updates_settings_expanded", false)
 local phase = service.phase
 
 -- KiB, MiB, GiB use 1024, matching pacman's package sizes.
@@ -158,15 +159,10 @@ local function last_check_line(updates, now)
 end
 
 -- Packages whose new version only runs after a reboot; tinted in the list.
-local REBOOT_PATTERNS = { "^linux", "^nvidia", "^systemd$", "^glibc$", "^amd%-ucode$", "^intel%-ucode$" }
+local REBOOT = { systemd = true, glibc = true, ["amd-ucode"] = true, ["intel-ucode"] = true }
 
 local function needs_reboot(name)
-    for _, pattern in ipairs(REBOOT_PATTERNS) do
-        if name:find(pattern) then
-            return true
-        end
-    end
-    return false
+    return REBOOT[name] == true or name:find("^linux") ~= nil or name:find("^nvidia") ~= nil
 end
 
 -- Repo packages, then AUR builds under a header, each by name; `alpm`'s installed-database order has
@@ -353,8 +349,7 @@ local body = {
                 status_line)), theme.FG,
             theme.font.md),
         cell(computed({ mantle.updates, phase, service.dev_running, service.dev_result }, detail_line),
-            theme.DIM, theme.font
-            .xs),
+            theme.DIM, theme.font.xs),
         row {
             width = "Fill",
             visible = progress:map(function(percent)
@@ -541,9 +536,7 @@ local body = {
                 }
             ),
             action_button(
-                log_open:map(function(open)
-                    return open and "Hide log" or "View log"
-                end),
+                util.choose(log_open, "Hide log", "View log"),
                 function()
                     log_open:set(not log_open:get())
                 end,

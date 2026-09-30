@@ -152,12 +152,8 @@ local function message(notification, ui, opts)
             children = {
                 -- The shell's input well: a bare field draws only text and caret.
                 input { field = textfield {
-                    width = "Fill",
-                    height = "Fill",
                     -- Use the sender's wording, such as "Reply to Alice", or ours if absent.
                     placeholder = notification.reply_placeholder or "Reply",
-                    font_size = theme.font.sm,
-                    foreground = theme.FG,
                     -- Each keystroke stores the text for Send and renews the 60-second hold.
                     on_change = function(text)
                         ui.set_reply_draft(id, text)
@@ -215,9 +211,7 @@ local function message(notification, ui, opts)
         or nil
     if not opts.standalone then
         hovered = hover("notification-message-" .. tostring(id))
-        ground = hovered:map(function(is_hovered)
-            return is_hovered and theme.GLASS_HOVER or theme.CLEAR
-        end)
+        ground = util.choose(hovered, theme.GLASS_HOVER, theme.CLEAR)
         animate.background = theme.animation_ms
         animate.exit = FADE_EXIT
     end
@@ -250,7 +244,7 @@ local function message(notification, ui, opts)
     }
 end
 
--- `group` is one entry of `notifications.group_notifications`, and `ui` is `lib/ui_state`. A popup card
+-- `group` is one entry of `notifications.group_notifications`, and `ui` is `lib/notification_state`. A popup card
 -- has heavier glass, a live age once held and edge travel. `opts.scope = "history"` has the lighter
 -- ground, "Wed 02:32 PM" and no travel.
 return function(group, ui, opts)

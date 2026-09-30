@@ -8,6 +8,7 @@
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
+local switch = require("components.switch")
 
 ---@param slot string A `hover` slot unique to this switch.
 ---@param label? string Drawn in place of "On"/"Off"; the pill then sizes to it.
@@ -15,30 +16,21 @@ return function(signal, read, on_change, slot, label)
     local on = signal:map(function(value)
         return util.read_bool(value, read)
     end)
-    local hovered = hover(slot)
-    local tint = util.tint(on, hovered)
-    return rect {
+    local node, tint = switch(on, slot, function()
+        on_change(not util.read_bool(signal:get(), read))
+    end, {
         width = label == nil and theme.control_width_lg or nil,
         height = theme.control.sm,
-        padding = label and { left = theme.spacing.md, right = theme.spacing.md } or nil,
         radius = theme.control.sm / 2,
-        hover = hovered,
-        background = tint(theme.ACCENT_LIGHT, theme.ACCENT_SUBTLE, theme.GLASS_HOVER, theme.GLASS_CONTENT),
-        border_width = theme.border_width,
-        border_color = tint(theme.ACCENT_MEDIUM, theme.ACCENT_MEDIUM, theme.GLASS_BORDER_HOVER, theme.GLASS_BORDER),
-        animate = { background = theme.animation_ms, border_color = theme.animation_ms },
-        on_click = function(_, mouse_button)
-            if mouse_button == "left" then
-                on_change(not util.read_bool(signal:get(), read))
-            end
-        end,
-        children = { cell(on:map(function(checked)
-            return { { text = label or (checked and "On" or "Off"), bold = checked } }
-        end), tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM), theme.font.xs, {
+    })
+    node.padding = label and { left = theme.spacing.md, right = theme.spacing.md } or nil
+    node.children = { cell(label or util.choose(on, "On", "Off"),
+        tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM), theme.font.xs, {
+            bold = on,
             width = "Fill",
             align = "Center",
             align_v = "Center",
             animate = { foreground = theme.animation_ms },
-        }) },
-    }
+        }) }
+    return rect(node)
 end

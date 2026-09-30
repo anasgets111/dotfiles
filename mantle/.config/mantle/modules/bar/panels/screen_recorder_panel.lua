@@ -1,5 +1,6 @@
 -- Two capture buttons, four encoder bars in one expandable row, and a folder action: the only way
 -- to reach the encoder settings without a keybind.
+local util = require("lib.util")
 local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
@@ -11,6 +12,7 @@ local action_button = require("components.action_button")
 local info_badge = require("components.info_badge")
 local store = require("lib.store")
 local ui_state = require("lib.ui_state")
+local disclosure = require("lib.disclosure")
 local recorder = require("lib.screen_recording")
 
 local KIND = "screen_recorder"
@@ -33,11 +35,7 @@ local GROUPS = {
         title = "quality",
         fallback = "high",
         options = {
-            {
-                value = "low",
-                label = "Low",
-                detail = "Smallest files, softest detail in motion"
-            },
+            { value = "low",    label = "Low",    detail = "Smallest files, softest detail in motion" },
             { value = "medium", label = "Medium", detail = "Balanced size and detail" },
             { value = "high",   label = "High",   detail = "Sharpest detail, largest files" },
         },
@@ -58,24 +56,16 @@ local GROUPS = {
         fallback = "mp4",
         options = {
             { value = "mp4", label = "MP4", detail = "Plays and uploads anywhere" },
-            {
-                value = "mkv",
-                label = "MKV",
-                detail = "Stays playable if the session crashes mid-recording"
-            },
+            { value = "mkv", label = "MKV", detail = "Stays playable if the session crashes mid-recording" },
         },
     },
 }
 
-local settings_expanded = ui_state.panel_state("recorder_settings_expanded", false)
+local settings_expanded = disclosure.state("recorder_settings_expanded", false)
 
 local function selected_option(group, settings)
     local chosen = (type(settings) == "table" and settings[group.key]) or group.fallback
-    for _, option in ipairs(group.options) do
-        if option.value == chosen then
-            return option
-        end
-    end
+    return util.find(group.options, function(option) return option.value == chosen end)
 end
 
 -- Keeps the four choices visible in the row without opening it.
@@ -184,13 +174,10 @@ local body = {
         title = "Screen recorder",
         subtitle = status_text,
         -- Red marks an active capture, not "off".
-        accent = recorder.recording:map(function(up)
-            return up and theme.RED or theme.ACCENT
-        end),
+        accent = util.choose(recorder.recording, theme.RED, theme.ACCENT),
         trailing = {
-            info_badge(recorder.elapsed_text, recorder.paused:map(function(held)
-                return held and theme.PEACH or theme.RED
-            end), { visible = recorder.recording }),
+            info_badge(recorder.elapsed_text, util.choose(recorder.paused, theme.PEACH, theme.RED),
+                { visible = recorder.recording }),
         },
     },
 
@@ -205,12 +192,9 @@ local body = {
         children = {
             wide_button("Region", capture("selection"), "recorder-region", "accent", icons.region, idle),
             wide_button("Screen", capture(), "recorder-screen", "accent", icons.display, idle),
-            wide_button("Stop", recorder.stop, "recorder-stop", "danger", icons.record_stop, recorder.recording),
-            wide_button(recorder.paused:map(function(held)
-                return held and "Resume" or "Pause"
-            end), recorder.toggle_pause, "recorder-pause", "accent", recorder.paused:map(function(held)
-                return held and icons.play or icons.pause
-            end), recorder.recording),
+            wide_button("Stop", recorder.stop, "recorder-stop", "danger", icons.stop, recorder.recording),
+            wide_button(util.choose(recorder.paused, "Resume", "Pause"), recorder.toggle_pause,
+                "recorder-pause", "accent", util.choose(recorder.paused, icons.play, icons.pause), recorder.recording),
         },
     },
 

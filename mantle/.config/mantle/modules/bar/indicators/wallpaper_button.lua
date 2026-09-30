@@ -10,17 +10,14 @@ local SLOT = "wallpaper"
 local wallpaper_button = icon_button(icons.wallpaper, nil, {
     slot = SLOT,
     selected = ui_state.modal_showing("wallpaper_picker"),
-    on_button = function(_, mouse_button)
-        if mouse_button == "left" then
-            ui_state.toggle_modal("wallpaper_picker")
-        elseif mouse_button == "right" then
-            wallpaper.randomize_all()
-        end
-    end,
+    on_buttons = {
+        left = function() ui_state.toggle_modal("wallpaper_picker") end,
+        right = wallpaper.randomize_all,
+    },
 })
 
 local wallpaper_tooltip = tooltip({
-    id = "wallpaper_tooltip", slot = SLOT, text = "Open wallpaper picker / right-click randomize",
+    slot = SLOT, text = "Open wallpaper picker / right-click randomize",
 })
 
-return { button = wallpaper_button, tooltip = wallpaper_tooltip }
+return { indicator = wallpaper_button, tooltips = { wallpaper_tooltip } }
