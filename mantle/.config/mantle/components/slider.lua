@@ -26,7 +26,7 @@ local theme = require("config.theme")
 ---@field background? Color|Bound The ground under the fill. Default `theme.SURFACE`.
 ---@field border_width? integer
 ---@field border_color? Color|Bound
----@field animate? ButtonAnimations|Bound Eases the track's own properties; the fill follows the value and is not eased.
+---@field animate? RectAnimations|Bound Eases the track's own properties; the fill follows the value and is not eased.
 ---@field hover? Signal
 ---@field geometry? Signal The track's measured rect, for a layout that makes room for it.
 ---@field pending? StateSignal<number> The held value, `-1` when none. Default `state(name)`.
