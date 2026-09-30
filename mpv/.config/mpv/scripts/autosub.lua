@@ -11,33 +11,18 @@ local subliminal = '/sbin/subliminal'
 --          { 'language name', 'ISO-639-1', 'ISO-639-2' } !
 --          (See: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)
 local languages = {
-    --          If subtitles are found for the first language,
-    --          other languages will NOT be downloaded,
-    --          so put your preferred language first:
     { 'English', 'en', 'eng' },
-    --          { 'Dutch', 'nl', 'dut' },
-    --          { 'Spanish', 'es', 'spa' },
-    --          { 'French', 'fr', 'fre' },
-    --          { 'German', 'de', 'ger' },
-    --          { 'Italian', 'it', 'ita' },
-    --          { 'Portuguese', 'pt', 'por' },
-    --          { 'Polish', 'pl', 'pol' },
-    --          { 'Russian', 'ru', 'rus' },
-    --          { 'Chinese', 'zh', 'chi' },
     { 'Arabic',  'ar', 'ara' },
 }
 --=============================================================================
 -->>    PROVIDER LOGINS:
 --=============================================================================
---          These are completely optional and not required
---          for the functioning of the script!
---          If you use any of these services, simply uncomment it
---          and replace 'USERNAME' and 'PASSWORD' with your own:
-local username = os.getenv("OPENSUBTITLES_USER") or "USERNAME"
-local password = os.getenv("OPENSUBTITLES_PASS") or "PASSWORD"
-local logins = {
-    { '--opensubtitles', username, password },
-}
+local username = os.getenv("OPENSUBTITLES_USER")
+local password = os.getenv("OPENSUBTITLES_PASS")
+local logins = {}
+if username and password and username ~= "" and password ~= "" and username ~= "USERNAME" then
+    logins[#logins + 1] = { '--opensubtitles', username, password }
+end
 
 --=============================================================================
 -->>    ADDITIONAL OPTIONS:
@@ -49,24 +34,20 @@ local bools = {
     utf8 = true,   -- Save all subtitle files as UTF-8
 }
 local excludes = {
-    -- Movies with a path containing any of these strings/paths
-    -- will be excluded from auto-downloading subtitles.
-    -- Full paths are also allowed, e.g.:
-    -- '/home/david/Videos',
     'no-subs-dl',
 }
-local includes = {
-    -- If anything is defined here, only the movies with a path
-    -- containing any of these strings/paths will auto-download subtitles.
-    -- Full paths are also allowed, e.g.:
-    -- '/home/david/Videos',
+local includes = {}
+local audio_formats = {
+    aiff = true, ape = true, flac = true, mp3 = true, ogg = true, wav = true, wv = true, tta = true,
 }
 --=============================================================================
 local utils = require 'mp.utils'
 
+local directory, filename, sub_tracks
+local log, autosub_allowed, should_download_subs_in
 
 -- Download function: download the best subtitles in most preferred language
-function download_subs(language)
+local function download_subs(language)
     language = language or languages[1]
     if #language == 0 then
         log('No Language found\n')
@@ -76,8 +57,8 @@ function download_subs(language)
     log('Searching ' .. language[1] .. ' subtitles ...', 30)
 
     -- Build the `subliminal` command, starting with the executable:
-    local table = { args = { subliminal } }
-    local a = table.args
+    local cmd = { args = { subliminal } }
+    local a = cmd.args
 
     for _, login in ipairs(logins) do
         a[#a + 1] = login[1]
@@ -104,9 +85,9 @@ function download_subs(language)
     a[#a + 1] = directory
     a[#a + 1] = filename --> Subliminal command ends with the movie filename.
 
-    local result = utils.subprocess(table)
+    local result = utils.subprocess(cmd)
 
-    if string.find(result.stdout, 'Downloaded 1 subtitle') then
+    if result.stdout and result.stdout:find('Downloaded 1 subtitle') then
         -- When multiple external files are present,
         -- always activate the most recently downloaded:
         mp.set_property('slang', language[2])
@@ -121,12 +102,12 @@ function download_subs(language)
 end
 
 -- Manually download second language subs by pressing 'n':
-function download_subs2()
+local function download_subs2()
     download_subs(languages[2])
 end
 
 -- Control function: only download if necessary
-function control_downloads()
+local function control_downloads()
     -- Make MPV accept external subtitle files with language specifier:
     mp.set_property('sub-auto', 'fuzzy')
     -- Set subtitle language preference:
@@ -174,7 +155,7 @@ function autosub_allowed()
     if not bools.auto then
         mp.msg.warn('Automatic downloading disabled!')
         return false
-    elseif duration < 900 then
+    elseif not duration or duration < 900 then
         mp.msg.warn('Video is less than 15 minutes\n' ..
             '=> NOT auto-downloading subtitles')
         return false
@@ -184,16 +165,10 @@ function autosub_allowed()
     elseif active_format:find('^cue') then
         mp.msg.warn('Automatic subtitle downloading is disabled for cue files')
         return false
+    elseif active_format and audio_formats[active_format] then
+        mp.msg.warn('Automatic subtitle downloading is disabled for audio files')
+        return false
     else
-        local not_allowed = { 'aiff', 'ape', 'flac', 'mp3', 'ogg', 'wav', 'wv', 'tta' }
-
-        for _, file_format in pairs(not_allowed) do
-            if file_format == active_format then
-                mp.msg.warn('Automatic subtitle downloading is disabled for audio files')
-                return false
-            end
-        end
-
         for _, exclude in pairs(excludes) do
             local escaped_exclude = exclude:gsub('%W', '%%%0')
             local excluded = directory:find(escaped_exclude)
@@ -250,10 +225,10 @@ function should_download_subs_in(language)
 end
 
 -- Log function: log to both terminal and MPV OSD (On-Screen Display)
-function log(string, secs)
-    secs = secs or 2.5           -- secs defaults to 2.5 when secs parameter is absent
-    mp.msg.warn(string)          -- This logs to the terminal
-    mp.osd_message(string, secs) -- This logs to MPV screen
+function log(msg, secs)
+    secs = secs or 2.5
+    mp.msg.warn(msg)
+    mp.osd_message(msg, secs)
 end
 
 mp.add_key_binding('b', 'download_subs', download_subs)
