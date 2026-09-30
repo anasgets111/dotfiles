@@ -79,8 +79,7 @@ end
 local function message(notification, ui, opts)
     local id = notification.id
     local expanded = ui.expanded_messages:get()[tostring(id)] or false
-    local body = notifications.notification_body(notification.body, theme.ACCENT)
-    local body_length = notifications.runs_length(body)
+    local body, body_length, has_links, images = notifications.notification_body(notification.body, theme.ACCENT)
     local summary = notification.summary or ""
 
     local heading = {}
@@ -98,9 +97,9 @@ local function message(notification, ui, opts)
     })
     -- History says when it arrived. A popup says nothing until a held card is a minute old.
     heading[#heading + 1] = cell(opts.age, theme.DIM, theme.font.xs, { align_v = "Center", visible = opts.age_shown })
-    -- Show a chevron only when something is hidden. A count, not a measurement: about two lines
-    -- of each face at the card's width. ponytail: an "elided" signal from `text` would be exact.
-    if expanded or utf8.len(summary) > 80 or body_length > 110 then
+    -- Links always get an expander so even a short, clipped URL stays reachable.
+    -- ponytail: character counts only estimate two lines; a text "elided" signal would be exact.
+    if expanded or utf8.len(summary) > 80 or body_length > 110 or has_links then
         heading[#heading + 1] = expander(expanded, function()
             ui.toggle_message(id)
         end, "notification-expand-" .. tostring(id))
@@ -123,8 +122,7 @@ local function message(notification, ui, opts)
             width = "Fill",
             wrap = "Word",
             max_lines = expanded and 0 or 2,
-            -- An underlined run opens without firing the message click; plain words
-            -- still do. Buttons below cover links elided before their words were drawn.
+            -- Link clicks do not fire the message action. Expand to reach clipped links.
             on_link = function(href)
                 mantle.applications:open_url(href)
             end,
@@ -133,7 +131,6 @@ local function message(notification, ui, opts)
 
     -- Inline body pictures go under the text (see `notifications.notification_body`); `notify-send`
     -- cannot send one.
-    local images = notifications.notification_images(notification.body)
     if #images > 0 then
         local pictures = {}
         for _, path in ipairs(images) do
@@ -188,25 +185,22 @@ local function message(notification, ui, opts)
     end
 
     -- `"inline-reply"` is lifted into `has_reply` by the Supervisor and drawn as the field above.
-    -- Right-aligned, as dialogs place theirs.
+    -- Stack bounded actions so arbitrary sender labels cannot crowd the card's right edge.
     local buttons = {}
     for index, action in ipairs(notification.actions or {}) do
         buttons[#buttons + 1] = action_button(action.label, function()
             if not updates.notification_action(notification, action.key) then
                 mantle.notifications:invoke_action(id, action.key)
             end
-        end, string.format("notification-action-%d-%d", id, index), { icon = action.icon_name })
-    end
-    -- One button per distinct body link, for the ones elision cut off; the words open them too.
-    for index, href in ipairs(notifications.notification_links(notification.body)) do
-        buttons[#buttons + 1] = action_button(notifications.link_label(href), function()
-            mantle.applications:open_url(href)
-        end, string.format("notification-link-%d-%d", id, index))
+        end, string.format("notification-action-%d-%d", id, index), {
+            icon = action.icon_name,
+            width = "Fill",
+            tone = "quiet",
+        })
     end
     if #buttons > 0 then
-        lines[#lines + 1] = row {
+        lines[#lines + 1] = column {
             width = "Fill",
-            align_h = "End",
             spacing = theme.spacing.sm,
             children = buttons,
         }
@@ -215,21 +209,16 @@ local function message(notification, ui, opts)
     -- A message fades in, never slides: a second slide inside a sliding card doubled the travel. The
     -- fade is what shows a message joining a card already on screen, where the card itself is not
     -- new and the newest message swaps in under the count. A group member also fades out when
-    -- dismissed, since a slide would cross the card's edge, and its subtle ground and hairline take
-    -- accent under the pointer. History's lone message has nothing to announce.
-    local hovered, ground, ring
+    -- dismissed, since a slide would cross the card's edge. History's lone message has nothing to announce.
+    local hovered, ground
     local animate = (opts.fade or not opts.standalone) and { opacity = { duration = theme.animation_ms, from = 0 } }
         or nil
     if not opts.standalone then
         hovered = hover("notification-message-" .. tostring(id))
         ground = hovered:map(function(is_hovered)
-            return is_hovered and theme.ACCENT_SUBTLE or theme.BG_SUBTLE
-        end)
-        ring = hovered:map(function(is_hovered)
-            return is_hovered and theme.ACCENT_MEDIUM or theme.BORDER_SUBTLE
+            return is_hovered and theme.GLASS_HOVER or theme.CLEAR
         end)
         animate.background = theme.animation_ms
-        animate.border_color = theme.animation_ms
         animate.exit = FADE_EXIT
     end
     return column {
@@ -238,12 +227,9 @@ local function message(notification, ui, opts)
         id = "notification-message-" .. tostring(id),
         width = "Fill",
         spacing = theme.spacing.sm,
-        padding = not opts.standalone and theme.spacing.sm or nil,
         hover = hovered,
         radius = theme.radius.sm,
         background = ground,
-        border_width = ring and theme.border_width or nil,
-        border_color = ring,
         opacity = 1,
         animate = animate,
         on_click = function(_, mouse_button)
@@ -319,18 +305,16 @@ return function(group, ui, opts)
     -- Collapsed groups show the newest and count the rest in the header. Unfolded, a popup shows the
     -- newest few and leaves the whole group to the panel, so a busy chat cannot fill the screen.
     local limit = (is_group and not expanded) and 1 or in_history and #items or POPUP_MEMBERS
-    local shown = {}
-    for index = 1, math.min(#items, limit) do
-        shown[index] = items[index]
-    end
-    for _, notification in ipairs(shown) do
+    local shown_count = math.min(#items, limit)
+    for index = 1, shown_count do
+        local notification = items[index]
         local age = in_history and notifications.absolute_time(notification.timestamp)
             or util.label(mantle.system, function(system)
                 return notifications.age(system.time, notification.timestamp)
             end)
         children[#children + 1] = message(notification, ui, {
             -- The rendered count, because a collapsed group renders one card-level message.
-            standalone = #shown == 1,
+            standalone = shown_count == 1,
             fade = not in_history,
             age = age,
             age_shown = not in_history and util.shown_when(mantle.system, function(system)

@@ -69,19 +69,19 @@ local function uptime(seconds)
         hours > 0 and string.format("%dh %dm", hours, minutes % 60) or string.format("%dm", minutes)
 end
 
--- Red from 90%, peach from 75%, else `fallback`.
-local function tint_of(percent, fallback)
-    return percent >= 90 and theme.RED or percent >= 75 and theme.PEACH or fallback
+-- Red from 90%, peach from 75%; ordinary readings stay neutral.
+local function tint_of(percent)
+    return percent >= 90 and theme.RED or percent >= 75 and theme.PEACH or theme.DIM
 end
 
 local gpu_color = mantle.sysinfo:map(function(sysinfo)
     local usage = sysinfo and sysinfo.gpu and sysinfo.gpu.util_percent
-    return usage and tint_of(usage, theme.GREEN) or theme.DIM
+    return usage and tint_of(usage) or theme.DIM
 end)
 
-local function tint(field, fallback)
+local function tint(field)
     return mantle.sysinfo:map(function(sysinfo)
-        return tint_of(percent_of(sysinfo, field), fallback)
+        return tint_of(percent_of(sysinfo, field))
     end)
 end
 
@@ -106,17 +106,17 @@ local function tile_header(codepoint, glyph_color, label, value, value_color)
     }
 end
 
-local function metric_tile(codepoint, label, field, accent, detail)
-    local color = tint(field, accent)
-    return panel_card({
-        tile_header(codepoint, accent, label, readout(function(sysinfo)
+local function metric_tile(codepoint, label, field, detail)
+    local color = tint(field)
+    return group({
+        tile_header(codepoint, color, label, readout(function(sysinfo)
             return string.format("%d%%", percent_of(sysinfo, field))
         end), color),
         meter(mantle.sysinfo, function(sysinfo)
             return percent_of(sysinfo, field)
         end, color, theme.spacing.xs),
         cell(detail, theme.DIM, theme.font.xs, { width = "Fill" }),
-    }, { width = "Fill", padding = theme.spacing.sm })
+    })
 end
 
 local function labeled_meter(label, read, color, value, visible)
@@ -134,24 +134,24 @@ local function labeled_meter(label, read, color, value, visible)
 end
 
 local SUMMARY = {
-    { "CPU", "cpu_percent", theme.ACCENT },
-    { "RAM", "ram_percent", theme.GREEN },
+    { "CPU", "cpu_percent" },
+    { "RAM", "ram_percent" },
 }
 
 local summary = mantle.sysinfo:map(function(sysinfo)
     local runs = {}
     for _, metric in ipairs(SUMMARY) do
-        local label, field, accent = table.unpack(metric)
+        local label, field = table.unpack(metric)
         local percent = percent_of(sysinfo, field)
         runs[#runs + 1] = { text = #runs > 0 and " · " or "" }
-        runs[#runs + 1] = { text = string.format("%s %d%%", label, percent), color = tint_of(percent, accent) }
+        runs[#runs + 1] = { text = string.format("%s %d%%", label, percent), color = tint_of(percent) }
     end
     if sysinfo and sysinfo.gpu then
         local usage = sysinfo.gpu.util_percent
         runs[#runs + 1] = { text = " · " }
         runs[#runs + 1] = {
             text = usage and string.format("GPU %d%%", usage) or "GPU --",
-            color = usage and tint_of(usage, theme.GREEN) or theme.DIM,
+            color = usage and tint_of(usage) or theme.DIM,
         }
     end
     local fullest_disk = 0
@@ -179,11 +179,11 @@ return function(id)
             width = "Fill",
             spacing = theme.spacing.sm,
             children = {
-                metric_tile(icons.cpu, "CPU", "cpu_percent", theme.ACCENT, util.label(mantle.sysinfo, function(sysinfo)
+                metric_tile(icons.cpu, "CPU", "cpu_percent", util.label(mantle.sysinfo, function(sysinfo)
                     local celsius = math.max(0, table.unpack(sysinfo.temp_cores or {}))
                     return celsius > 0 and string.format("%d°C", celsius) or "No temperature"
                 end)),
-                metric_tile(icons.ram, "Memory", "ram_percent", theme.GREEN, util.label(mantle.sysinfo, function(sysinfo)
+                metric_tile(icons.ram, "Memory", "ram_percent", util.label(mantle.sysinfo, function(sysinfo)
                     local swap = percent_of(sysinfo, "swap_percent")
                     return swap > 0 and string.format("Swap %d%%", swap) or "No swap in use"
                 end)),
@@ -193,25 +193,25 @@ return function(id)
             width = "Fill",
             spacing = theme.spacing.sm,
             children = {
-                panel_card({
+                group({
                     cell(util.bold("Network"), theme.FG, theme.font.sm, { width = "Fill" }),
                     cell(readout(function(sysinfo)
                         return "↓ " .. rate(sysinfo and sysinfo.net_rx_bytes_sec or 0)
-                    end), theme.ACCENT, theme.font.sm, { width = "Fill" }),
+                    end), theme.DIM, theme.font.sm, { width = "Fill" }),
                     cell(readout(function(sysinfo)
                         return "↑ " .. rate(sysinfo and sysinfo.net_tx_bytes_sec or 0)
-                    end), theme.GREEN, theme.font.sm, { width = "Fill" }),
-                }, { width = "Fill", padding = theme.spacing.sm }),
-                panel_card({
+                    end), theme.DIM, theme.font.sm, { width = "Fill" }),
+                }),
+                group({
                     cell(util.bold("Uptime"), theme.FG, theme.font.sm, { width = "Fill" }),
                     cell(computed({ mantle.system, boot }, function(system, info)
                         return system and info and info.started > 0 and
                             uptime(system.time - info.started) or "--"
-                    end), theme.ACCENT, theme.font.sm, { width = "Fill" }),
+                    end), theme.DIM, theme.font.sm, { width = "Fill" }),
                     cell(boot:map(function(info)
                         return info.duration ~= "" and "Boot " .. info.duration or "Boot --"
                     end), theme.DIM, theme.font.xs, { width = "Fill" }),
-                }, { width = "Fill", padding = theme.spacing.sm }),
+                }),
             },
         },
         group({
@@ -227,7 +227,7 @@ return function(id)
                 local gpu = sysinfo and sysinfo.gpu
                 return gpu and gpu.mem_used and gpu.mem_total and gpu.mem_total > 0 and
                     gpu.mem_used * 100 / gpu.mem_total or 0
-            end, theme.ACCENT, readout(function(sysinfo)
+            end, theme.DIM, readout(function(sysinfo)
                 local gpu = sysinfo and sysinfo.gpu
                 return gpu and gpu.mem_used and gpu.mem_total and
                     string.format("%s / %s", size(gpu.mem_used), size(gpu.mem_total)) or ""
@@ -249,10 +249,10 @@ return function(id)
                 key = function(disk) return disk.name end,
                 itemfn = function(disk)
                     local partitions = {
-                        tile_header(icons.disk, theme.PEACH, disk.name,
-                            string.format("%d%%", disk.percent), tint_of(disk.percent, theme.PEACH)),
+                        tile_header(icons.disk, tint_of(disk.percent), disk.name,
+                            string.format("%d%%", disk.percent), tint_of(disk.percent)),
                         meter(disks, function() return disk.percent end,
-                            tint_of(disk.percent, theme.PEACH), theme.spacing.xs),
+                            tint_of(disk.percent), theme.spacing.xs),
                         cell(size(disk.used_bytes) .. " / " .. size(disk.total_bytes),
                             theme.DIM, theme.font.xs, { width = "Fill" }),
                     }
@@ -270,7 +270,7 @@ return function(id)
                                 },
                             },
                             meter(disks, function() return partition.percent end,
-                                tint_of(partition.percent, theme.PEACH), theme.spacing.xs),
+                                tint_of(partition.percent), theme.spacing.xs),
                         })
                     end
                     return group(partitions)

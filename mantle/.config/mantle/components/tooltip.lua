@@ -4,19 +4,16 @@ local panel_card = require("components.panel_card")
 local util = require("lib.util")
 local ui_state = require("lib.ui_state")
 
--- Centred, because the card is a column of content-sized lines, and a short title over a longer state
--- line would otherwise pack against the left edge. `column` reads a child's `align_h` on the cross
--- axis, which `cell`'s `align` sets.
-local function text_line(content, color, font, visible)
-    return cell(content, color, font, { align = "Center", visible = visible })
-end
-
 local function children_for(opts)
     if opts.children ~= nil then
         return opts.children
     end
     for _, name in ipairs(opts.lines and { "text", "detail", "secondary" } or {}) do
         opts[name] = opts.lines:map(function(lines) return lines[name] end)
+    end
+    local align = (opts.detail ~= nil or opts.secondary ~= nil) and "Start" or "Center"
+    local function text_line(content, color, font, visible)
+        return cell(content, color, font, { align = align, visible = visible })
     end
     local children = { text_line(opts.text, theme.TOOLTIP_FG, theme.font.sm) }
     -- An empty `detail` or `secondary` hides rather than leaving a blank row.

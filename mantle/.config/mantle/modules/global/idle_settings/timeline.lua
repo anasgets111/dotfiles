@@ -11,6 +11,7 @@ local idle = require("lib.idle")
 
 ---@param settings Signal<table> `store.idle` resolved through `idle.read`
 return function(settings)
+    local held_text = computed({ idle.reasons, idle.inhibited, idle.stale }, idle.held_text)
     local counting_down = computed({ settings, idle.schedule, idle.inhibited }, function(resolved, plan, held)
         return resolved.enabled and plan.total > 0 and not held
     end)
@@ -89,14 +90,14 @@ return function(settings)
                 },
             },
         },
-        callout(icons.awake, computed({ idle.reasons, idle.inhibited, idle.stale }, idle.held_text), {
+        callout(icons.awake, held_text, {
             tone = "active",
             height = theme.idle_track_height,
             visible = computed({ idle.inhibited, idle.unconfirmed }, function(held, uncertain)
                 return held and not uncertain
             end),
         }),
-        callout(icons.idle, computed({ idle.reasons, idle.inhibited, idle.stale }, idle.held_text), {
+        callout(icons.idle, held_text, {
             tone = "neutral", height = theme.idle_track_height, visible = idle.unconfirmed,
         }),
         callout(icons.idle, settings:map(function(resolved)

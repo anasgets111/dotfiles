@@ -27,7 +27,7 @@ local level_color = osd.entry:map(function(entry)
 end)
 
 -- The glyph on a tinted tile, leading both layouts, so the card is one shape whose trailing half
--- changes. `align_*` places the box, not its child; a filling row centres the glyph inside.
+-- changes. The glyph centres directly inside the tile.
 local function tile()
     return rect {
         width = theme.osd_tile,
@@ -41,13 +41,7 @@ local function tile()
             return theme.with_opacity(color, theme.opacity.medium)
         end),
         radius = theme.radius.md,
-        children = { row {
-            width = "Fill",
-            height = "Fill",
-            align_h = "Center",
-            align_v = "Center",
-            children = { glyph(entry_glyph, level_color, theme.font.xl, { align_v = "Center" }) },
-        } },
+        children = { glyph(entry_glyph, level_color, theme.font.xl, { align = "Center", align_v = "Center" }) },
     }
 end
 

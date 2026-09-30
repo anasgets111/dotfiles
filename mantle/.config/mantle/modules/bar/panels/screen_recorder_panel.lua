@@ -106,19 +106,14 @@ local status_text = computed(
 
 -- One bar per group; the detail line explains only the chosen segment.
 local function option_group(group)
-    local labels = {}
+    local labels, values = {}, {}
     for _, option in ipairs(group.options) do
         labels[option.value] = option.label
+        values[#values + 1] = option.value
     end
     local bar = segmented {
         slot = "recorder-" .. group.key,
-        options = (function()
-            local values = {}
-            for _, option in ipairs(group.options) do
-                values[#values + 1] = option.value
-            end
-            return values
-        end)(),
+        options = values,
         value = store.screen_recorder:map(function(settings)
             local option = selected_option(group, settings)
             return option and option.value

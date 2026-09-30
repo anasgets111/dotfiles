@@ -18,8 +18,7 @@ function M.claims(input)
     if not input:match(ALLOWED) or not input:match("%d") or not input:match("[%+%-%*/%^%%]") then
         return nil
     end
-    -- `!/^\d+\.?\d*$/`: a bare number is not a calculation.
-    if input:match("^%d+%.?%d*$") or input:find("--", 1, true) or input:find("//", 1, true) then
+    if input:find("--", 1, true) or input:find("//", 1, true) then
         return nil
     end
     local expression = input

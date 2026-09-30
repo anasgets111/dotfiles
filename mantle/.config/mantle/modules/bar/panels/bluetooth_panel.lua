@@ -4,6 +4,7 @@ local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
 local cell = require("components.cell")
+local glyph = require("components.glyph")
 local toggle = require("components.toggle")
 local panel_toggle_card = require("components.panel_toggle_card")
 local section_header = require("components.section_header")
@@ -115,6 +116,7 @@ local rows = computed({ mantle.bluetooth, mantle.audio, codec_for }, function(bl
                 device = device,
                 status = status,
                 card = card,
+                codec_open = open_for == device.mac,
                 key = "device-" .. tostring(device.mac)
             }
             if card and open_for == device.mac then
@@ -158,7 +160,9 @@ local function codec_row(item)
         slot = "bluetooth-codec-" .. tostring(item.device.mac) .. "-" .. option.index,
         title = option.codec,
         subtitle = option.description,
-        selected = active,
+        leading = rect { width = theme.icon.md, height = theme.icon.md },
+        color = active and theme.ACCENT or nil,
+        trailing = active and glyph(icons.check, theme.ACCENT, theme.icon.sm) or nil,
         on_activate = not active and function()
             mantle.audio:set_bluetooth_profile(item.card.device, option.index)
             codec_for:set("")
@@ -175,11 +179,17 @@ local function device_row(item)
     end
     local device = item.device
     local slot = "bluetooth-device-" .. tostring(device.mac)
+    local leading = rect {
+        width = theme.icon.md,
+        height = theme.icon.md,
+        children = { glyph(device_icon(device), item.status == "connected" and theme.ACCENT or theme.FG,
+            theme.icon.md, { align = "Center", align_v = "Center" }) },
+    }
     if device.busy ~= nil then
         -- No click, so a second pair or connect cannot start over the first.
         return panel_row {
             slot = slot,
-            icon = device_icon(device),
+            leading = leading,
             title = display_name(device),
             subtitle = device.busy .. "…",
             trailing = spinner(SPINNING, theme.icon.md),
@@ -207,6 +217,8 @@ local function device_row(item)
             mantle.bluetooth:connect(device.mac)
         end
     elseif item.card ~= nil then
+        trailing[#trailing + 1] = glyph(item.codec_open and icons.chevron_down or icons.chevron_right,
+            theme.DIM, theme.icon.sm, { align_v = "Center" })
         on_activate = function()
             local open_for = codec_for:get()
             codec_for:set(open_for == device.mac and "" or device.mac)
@@ -214,7 +226,7 @@ local function device_row(item)
     end
     return panel_row {
         slot = slot,
-        icon = device_icon(device),
+        leading = leading,
         title = display_name(device),
         subtitle = connected and (codec and "Connected · " .. codec or "Connected")
             or device.blocked and "Blocked" or nil,

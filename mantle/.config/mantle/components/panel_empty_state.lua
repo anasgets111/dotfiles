@@ -6,7 +6,7 @@ local glyph = require("components.glyph")
 
 ---@param message string|Bound
 ---@param visible boolean|Bound
----@param opts? { icon?: string|Bound|table, subtext?: string|Bound }
+---@param opts? { icon?: string|Bound|table }
 return function(message, visible, opts)
     opts = opts or {}
     local lines = {}
@@ -17,15 +17,6 @@ return function(message, visible, opts)
         lines[#lines + 1] = glyph(mark, theme.DIM, theme.icon.xl, { align = "Center" })
     end
     lines[#lines + 1] = cell(message, theme.DIM, theme.font.sm, { align = "Center" })
-    if opts.subtext then
-        -- Says whether nothing arrived or something suppresses the list. A colour at that alpha,
-        -- since `cell` takes no node `opacity`.
-        lines[#lines + 1] = cell(opts.subtext, theme.TEXT_MUTED, theme.font.sm, {
-            align = "Center",
-            width = "Fill",
-            wrap = "Word",
-        })
-    end
     return column {
         width = "Fill",
         height = opts.icon and theme.panel_empty_height or theme.control.lg,

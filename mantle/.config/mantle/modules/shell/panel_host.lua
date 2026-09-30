@@ -79,7 +79,7 @@ end)
 -- The card drops from behind the bar and retracts the same way, `linger` keeping it for the exit.
 -- Travel is the shown section's measured height plus chrome, so a switch while closed retracts to
 -- the *next* card's height; an unmeasured section falls back to the slide distance and snaps once.
--- Switching while open morphs in place; System's disclosure temporarily follows content height.
+-- Switching while open morphs in place; animated disclosures temporarily follow content height.
 local CARD_PADDING = theme.spacing.md
 -- The card starts `radius.md` above the bar's bottom edge, which cuts its top corners square.
 local CARD_CHROME = CARD_PADDING * 2 + theme.radius.md
@@ -92,7 +92,14 @@ local card_height = computed({ ui_state.panel_kind, table.unpack(section_rects) 
     end
 end)
 -- Keep content sizing for two frames after collapse, until geometry reports the settled height.
-local system_content_height = util.linger(state("sysinfo_expanded_notifications", false), theme.animation_ms + 32)
+local notification_expanded = computed({
+    state("sysinfo_expanded_notifications", false), state("weather_expanded_notifications", false),
+}, function(system, weather)
+    return system or weather
+end)
+local notification_content_height = computed(
+    { notification_expanded, pulse(notification_expanded, theme.animation_ms + 32) },
+    function(open, changing) return open or changing end)
 local hidden_top = card_height:map(function(height)
     return height and -(height + theme.spacing.xs) or -theme.panel_slide
 end)
@@ -207,8 +214,8 @@ return panel {
                                                 panel_card(shown_section, {
                                                     width = card_width,
                                                     -- Geometry publishes after the disclosure tween settles, so
-                                                    -- content sizing carries the card while System opens or closes.
-                                                    height = computed({ ui_state.panel_kind, card_height, system_content_height }, function(
+                                                    -- content sizing carries the card while disclosures open or close.
+                                                    height = computed({ ui_state.panel_kind, card_height, notification_content_height }, function(
                                                         kind, height, content_height)
                                                         if kind == notification_history.kind and content_height then
                                                             return nil

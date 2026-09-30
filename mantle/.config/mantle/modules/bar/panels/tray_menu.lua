@@ -28,8 +28,12 @@ end
 
 -- Depth-first, so `list` gets one row shape that carries its indent.
 local function flatten(entries, depth, open, out)
+    local has_icons = false
     for _, entry in ipairs(entries or {}) do
-        out[#out + 1] = { entry = entry, depth = depth }
+        has_icons = has_icons or (entry.icon_name ~= nil and entry.icon_name ~= "")
+    end
+    for _, entry in ipairs(entries or {}) do
+        out[#out + 1] = { entry = entry, depth = depth, has_icons = has_icons }
         if #(entry.children or {}) > 0 and open[tostring(entry.id)] then
             flatten(entry.children, depth + 1, open, out)
         end
@@ -94,12 +98,16 @@ local function row_for(row_entry)
     end
     local hovered = hover("tray-menu-" .. tostring(entry.id))
     local children = {}
-    if entry.icon_name and entry.icon_name ~= "" then
-        children[#children + 1] = icon {
-            name = entry.icon_name,
-            size = theme.icon.sm,
+    if row_entry.has_icons then
+        children[#children + 1] = rect {
+            width = theme.icon.sm,
+            height = theme.icon.sm,
             align_v = "Center",
-            foreground = theme.FG,
+            children = { entry.icon_name and entry.icon_name ~= "" and icon {
+                name = entry.icon_name,
+                size = theme.icon.sm,
+                foreground = theme.FG,
+            } or nil },
         }
     end
     children[#children + 1] = cell(strip_mnemonics(entry.label), theme.FG, theme.font.sm, {

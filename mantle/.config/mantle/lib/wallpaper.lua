@@ -52,21 +52,17 @@ function wallpaper.effects_in(files)
     return names
 end
 
-function wallpaper.effects()
-    return mantle.files:map(wallpaper.effects_in)
-end
+wallpaper.effects = mantle.files:map(wallpaper.effects_in)
 
 -- The stored effect if the folder still holds it, else the built-in.
-function wallpaper.effect()
-    return computed({ store.wallpaper_transition, mantle.files }, function(stored, files)
-        for _, name in ipairs(wallpaper.effects_in(files)) do
-            if name == stored then
-                return name
-            end
+wallpaper.effect = computed({ store.wallpaper_transition, wallpaper.effects }, function(stored, names)
+    for _, name in ipairs(names) do
+        if name == stored then
+            return name
         end
-        return wallpaper.NO_SHADER
-    end)
-end
+    end
+    return wallpaper.NO_SHADER
+end)
 
 function wallpaper.set_effect(name)
     if type(name) == "string" and name ~= "" and store.wallpaper_transition:get() ~= name then
@@ -77,7 +73,7 @@ end
 ---The `transition` table for the wallpaper `image`. It depends on the stored wallpapers too, so
 ---every change draws fresh parameters; a run under way keeps the spec the engine copied.
 function wallpaper.transition()
-    return computed({ wallpaper.effect(), store.wallpapers }, function(effect)
+    return computed({ wallpaper.effect, store.wallpapers }, function(effect)
         -- Not `InOutCubic`: 99.6% done at t=0.9, so its last 150ms stalls.
         local spec = { duration = 1500, easing = "InOutSine" }
         if effect ~= wallpaper.NO_SHADER then

@@ -17,7 +17,6 @@ local panel_action_icon = require("components.panel_action_icon")
 ---@field on_close? fun() Adds a ghost close icon after `trailing`, the same weight as the other verbs there.
 ---@field title_size? integer The title's font size. Default `theme.font.lg`, a bar panel's masthead. A modal's is `theme.font.xl`.
 ---@field subtitle_size? integer The state line's font size. Default `theme.font.xs`, which suits a 16px title; a modal's `xl` title takes `sm`.
----@field plate? integer The icon plate's side. Default `theme.control.lg`, which tracks `title_size`.
 
 ---@param opts PanelHeaderOpts
 return function(opts)
@@ -36,18 +35,16 @@ return function(opts)
             return theme.with_opacity(colour, theme.opacity.subtle)
         end)
 
-    local plate_size = opts.plate or theme.control.lg
-
     local children = {}
     if opts.icon then
         children[#children + 1] = rect {
-            width = plate_size,
-            height = plate_size,
+            width = theme.control.lg,
+            height = theme.control.lg,
             radius = theme.radius.md,
             background = plate,
             animate = { background = theme.animation_ms },
             align_v = "Center",
-            children = { cell(opts.icon, accent, math.floor(plate_size * 0.55), {
+            children = { cell(opts.icon, accent, math.floor(theme.control.lg * 0.55), {
                 align = "Center",
                 align_v = "Center",
                 animate = { foreground = theme.animation_ms },

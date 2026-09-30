@@ -137,14 +137,12 @@ icons.trash           = "\u{F0A7A}"
 icons.disconnect      = "\u{F1616}"
 
 -- Screen recorder. The bar has three states, idle, recording and paused, and the panel names the two
--- captures it can start. `record` is the header's glyph. `record_start` is the bar's idle circle, the
+-- captures it can start. `record_start` is the bar's idle circle, the
 -- one that says "this button records".
-icons.record          = "\u{F044A}"
 icons.record_start    = "\u{F07A1}"
 icons.record_stop     = "\u{F04DB}"
 icons.record_paused   = "\u{F03E7}"
 icons.region          = "\u{F019E}"
-icons.folder          = "\u{F024B}"
 
 icons.warning         = "\u{F0026}"
 icons.close           = "\u{F0156}"

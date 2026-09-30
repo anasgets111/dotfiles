@@ -8,33 +8,20 @@ local service = require("lib.updates")
 
 local SLOT = "updates"
 
--- Follows `phase`. A run owns the glyph through its developer tooling, and a failed one until the
--- result is read.
-local status = service.phase:map(function(phase)
-    if phase == "running" then
-        return "installing"
-    elseif phase == "failed" then
-        return "install_failed"
-    elseif phase == "check_failed" then
-        return "error"
-    elseif phase == "checking" then
-        return "checking"
-    elseif phase == "pending" then
-        return "pending"
-    end
-    return "idle"
-end)
-
--- Glyph, colour and tooltip per state; the glyph and colour leave five states sharing two grounds,
--- so the tooltip names which. `pending`'s text carries the count, so it is built below.
+-- Glyph, colour and tooltip follow the run through developer tooling and its unread result.
+-- `pending`'s text carries the count, so it is built below.
 local LOOKS = {
-    installing = { icons.updating, theme.ACCENT, "Updating system and developer tooling…" },
-    install_failed = { icons.update_err, theme.RED, "Update failed · Click for details" },
-    error = { icons.update_err, theme.RED, "Update check failed · Click for details" },
+    running = { icons.updating, theme.ACCENT, "Updating system and developer tooling…" },
+    failed = { icons.update_err, theme.RED, "Update failed · Click for details" },
+    check_failed = { icons.update_err, theme.RED, "Update check failed · Click for details" },
     checking = { icons.checking, theme.ACCENT, "Checking for updates…" },
     pending = { icons.updates, theme.ACCENT },
     idle = { icons.up_to_date, theme.DIM, "Up to date · Click to check, right-click to open" },
 }
+
+local status = service.phase:map(function(phase)
+    return LOOKS[phase] and phase or "idle"
+end)
 
 local indicator = icon_button(status:map(function(current)
     return LOOKS[current][1]

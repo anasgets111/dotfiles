@@ -16,11 +16,7 @@ local BATTERY_PHRASES = {
     PendingDischarge = "waiting to discharge",
 }
 
-local function battery_phrase(state)
-    return BATTERY_PHRASES[state] or "state unknown"
-end
-
--- `", 2h 14m left"`, or `""`. UPower estimates one duration at a time, and neither while it learns
+-- `"2h 14m left"`, or `""`. UPower estimates one duration at a time, and neither while it learns
 -- the rate, so an empty answer is ordinary in the first minute after a plug or a boot.
 local function battery_eta(battery)
     local seconds = battery.time_to_empty or battery.time_to_full
@@ -29,12 +25,11 @@ local function battery_eta(battery)
     end
     local suffix = battery.time_to_empty and "left" or "to full"
     local hours, minutes = seconds // 3600, seconds % 3600 // 60
-    return hours > 0 and string.format(", %dh %02dm %s", hours, minutes, suffix)
-        or string.format(", %dm %s", minutes, suffix)
+    return hours > 0 and string.format("%dh %02dm %s", hours, minutes, suffix)
+        or string.format("%dm %s", minutes, suffix)
 end
 
--- Colour follows the draining check; the glyph shows cable state. Accent, not green, which would
--- add a fourth state.
+-- Colour marks low charge while draining; the glyph shows cable state.
 local function battery_color(battery)
     if battery == nil then
         return theme.DIM
@@ -43,7 +38,7 @@ local function battery_color(battery)
     elseif util.battery_at_most(battery, util.battery_thresholds.low) then
         return theme.PEACH
     end
-    return theme.ACCENT
+    return theme.DIM
 end
 
 -- Two copies of the readout, one per ground: the fill's box clips its copy, so the contrast colour
@@ -63,7 +58,7 @@ local plug_flash = computed({ pulse(plugged, theme.animation_fast_ms * 4), plugg
 end)
 
 -- `cell`, not `glyph`: `components/glyph.lua` forces the icon font and would mismatch the circles
--- beside it. Bold keeps dark ink readable over the opaque accent fill.
+-- beside it. Bold keeps dark ink readable over the opaque fill.
 local GLYPH = util.bold(mantle.battery:map(util.battery_glyph))
 local PERCENT = util.bold(util.label(mantle.battery, function(battery)
     return string.format("%d%%", battery.percent)
@@ -136,9 +131,9 @@ local battery_tooltip = tooltip({
         end
         local eta = battery_eta(battery)
         if eta ~= "" then
-            return eta:sub(3)
+            return eta
         end
-        local phrase = battery_phrase(battery.state)
+        local phrase = BATTERY_PHRASES[battery.state] or "state unknown"
         return phrase:sub(1, 1):upper() .. phrase:sub(2)
     end),
     detail = util.label(mantle.power, function(power)

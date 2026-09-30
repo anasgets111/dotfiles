@@ -1,5 +1,3 @@
--- A modal, not a bar panel: each stage shows every duration for AC and battery at once, which the
--- panel host's 340px card cannot fit.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local glyph = require("components.glyph")
@@ -13,16 +11,15 @@ local ui_state = require("lib.ui_state")
 local modal = require("components.modal")
 local segmented = require("components.segmented")
 local idle = require("lib.idle")
-local store = require("lib.store")
 local timeline_section = require("modules.global.idle_settings.timeline")
 local util = require("lib.util")
 
-local settings = store.idle:map(idle.read)
+local settings = idle.settings
 local running = computed({ settings, idle.inhibited }, function(resolved, held)
     return resolved.enabled and not held
 end)
 
--- Whether UPower reports a battery. `present` is false on desktops, so no battery column.
+-- Offer the battery profile only when UPower reports a battery.
 local has_battery = mantle.battery:map(function(battery)
     return battery ~= nil and battery.present
 end)
@@ -170,17 +167,12 @@ end
 
 local function stage_row(item)
     local stage = item.stage
-    -- Accent while either profile enables this stage; dim in both means the stage never runs.
-    local any = settings:map(function(resolved)
-        for _, profile in ipairs(PROFILES) do
-            if resolved[profile][item.key .. "_on"] and resolved[profile][item.key .. "_sec"] > 0 then
-                return true
-            end
-        end
-        return false
+    local enabled = computed({ settings, shown_profile }, function(resolved, profile)
+        local held = resolved[profile]
+        return held[item.key .. "_on"] and held[item.key .. "_sec"] > 0
     end)
     return panel_row {
-        title = util.bold_when(any, stage.title),
+        title = util.bold_when(enabled, stage.title),
         -- The stage's own description, not "after <the row above>": that row may be off in one
         -- profile.
         subtitle = stage.detail,
@@ -190,7 +182,7 @@ local function stage_row(item)
         leading = row {
             align_v = "Center",
             spacing = theme.spacing.xs,
-            children = { reorder(item), glyph(stage.icon, ink(any), theme.icon.md, { align_v = "Center" }) },
+            children = { reorder(item), glyph(stage.icon, ink(enabled), theme.icon.md, { align_v = "Center" }) },
         },
         trailing = duration_bar(stage),
     }

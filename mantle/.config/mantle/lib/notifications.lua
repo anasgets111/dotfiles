@@ -8,16 +8,35 @@ local notifications = {}
 -- sentence punctuation is stripped.
 local URL_PATTERNS = { "%f[%S]https?://[^%s<>'\"]+", "%f[%S]file://[^%s<>'\"]+" }
 
-local function with_text(span, text, href)
-    return util.with(util.with(span, "text", text), "href", href or span.href)
-end
-
-local function linkified(spans)
-    local out = {}
+-- Text runs, their character count, link presence and inline picture paths, in one pass.
+-- Split bare URLs directly into runs; already-linked spans keep the sender's target.
+function notifications.notification_body(spans, link_color)
+    local runs, length, has_links, images = {}, 0, false, {}
+    local function append(span, text, href)
+        local is_link = href ~= nil and href ~= ""
+        if is_link and href then
+            has_links = true
+        end
+        if text and text ~= "" then
+            length = length + utf8.len(text)
+            runs[#runs + 1] = {
+                text = text,
+                bold = span.bold or false,
+                italic = span.italic or false,
+                underline = span.underline or is_link,
+                color = is_link and link_color or nil,
+                href = is_link and href or nil,
+            }
+        end
+    end
     for _, span in ipairs(spans or {}) do
         local text = span.kind == "text" and (span.href == nil or span.href == "") and span.text or nil
         if not text then
-            out[#out + 1] = span
+            if span.kind == "text" then
+                append(span, span.text, span.href)
+            elseif span.kind == "image" and span.image_path then
+                images[#images + 1] = span.image_path
+            end
         else
             local at = 1
             while at <= #text do
@@ -34,82 +53,19 @@ local function linkified(spans)
                 local href = text:sub(first, last):gsub("[.,;:!?]+$", "")
                 last = first + #href - 1
                 if first > at then
-                    out[#out + 1] = with_text(span, text:sub(at, first - 1))
+                    append(span, text:sub(at, first - 1), span.href)
                 end
-                out[#out + 1] = with_text(span, href, href)
+                append(span, href, href)
                 at = last + 1
             end
             if at == 1 then
-                out[#out + 1] = span
+                append(span, span.text, span.href)
             elseif at <= #text then
-                out[#out + 1] = with_text(span, text:sub(at))
+                append(span, text:sub(at), span.href)
             end
         end
     end
-    return out
-end
-
--- Parsed markup spans to `text.content` runs. Links carry `href` for the card's `on_link`; image
--- spans go through `notification_images`, since `text` refuses runs without text.
-function notifications.notification_body(spans, link_color)
-    local runs = {}
-    for _, span in ipairs(linkified(spans)) do
-        if span.kind == "text" and span.text and span.text ~= "" then
-            local is_link = span.href ~= nil and span.href ~= ""
-            runs[#runs + 1] = {
-                text = span.text,
-                bold = span.bold or false,
-                italic = span.italic or false,
-                underline = span.underline or is_link,
-                color = is_link and link_color or nil,
-                href = is_link and span.href or nil,
-            }
-        end
-    end
-    return runs
-end
-
--- Run character count for `components/notification_card.lua`'s pre-measurement expander guess.
-function notifications.runs_length(runs)
-    local total = 0
-    for _, run in ipairs(runs or {}) do
-        total = total + utf8.len(run.text or "")
-    end
-    return total
-end
-
--- Distinct body link targets in first-seen order; repeated pages get one button.
-function notifications.notification_links(spans)
-    local links, seen = {}, {}
-    for _, span in ipairs(linkified(spans)) do
-        local href = span.kind == "text" and span.href or nil
-        if href and href ~= "" and not seen[href] then
-            seen[href] = true
-            links[#links + 1] = href
-        end
-    end
-    return links
-end
-
--- Inline body pictures (`<img src>`), which the Supervisor has checked against its trusted roots.
-function notifications.notification_images(spans)
-    local paths = {}
-    for _, span in ipairs(spans or {}) do
-        if span.kind == "image" and span.image_path then
-            paths[#paths + 1] = span.image_path
-        end
-    end
-    return paths
-end
-
--- Link label: web host, `mailto:` address, or the full URL otherwise. Full URLs do not fit a card
--- button.
-function notifications.link_label(href)
-    local rest = href:match("^[%a][%w+.-]*://(.*)$")
-    if rest then
-        return (rest:match("^[^/?#]+") or rest):gsub("^www%.", "")
-    end
-    return href:match("^mailto:(.+)$") or href
+    return runs, length, has_links, images
 end
 
 -- Content identity for popup bookkeeping. Include `timestamp`, not only id: `replaces_id` reuses an

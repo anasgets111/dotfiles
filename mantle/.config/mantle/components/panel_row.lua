@@ -2,8 +2,7 @@
 -- `width = "Fill"` keeps the trailing slot at the right edge and elides the title.
 --
 -- `selected` gets a ring, a tinted ground and an accent title; colour alone reads as a different
--- kind of row. Without `on_activate` this is a `rect`, not a no-op `button` that would take the
--- pointer and look clickable, and both shapes share the look.
+-- kind of row. Rows without `on_activate` leave clicks to their children or parent.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -114,17 +113,14 @@ return function(opts)
         },
         children = { body },
     }
-    local control
-    if opts.on_activate == nil then
-        control = rect(shell)
-    else
+    if opts.on_activate ~= nil then
         shell.on_click = function(_, mouse_button)
             if mouse_button == "left" then
                 opts.on_activate()
             end
         end
-        control = rect(shell)
     end
+    local control = rect(shell)
     if opts.details == nil then
         return control
     end

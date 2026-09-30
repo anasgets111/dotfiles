@@ -55,8 +55,9 @@ end
 -- letters.
 local ITEM_WIDTH = theme.icon.md + theme.spacing.sm
 
-local has_items = util.shown_when(mantle.tray, function(tray)
-    return #items_of(tray) > 0
+local visible_items = computed({ mantle.tray, mantle.applications }, items_of)
+local has_items = visible_items:map(function(items)
+    return #items > 0
 end)
 
 -- No `width`: the row measures its fixed-width children and stops at `max_width`. Six items fit and
@@ -71,7 +72,7 @@ local items = list {
     align_v = "Center",
     scroll = scroll("sys_tray"),
     visible = has_items,
-    source = computed({ mantle.tray, mantle.applications }, items_of),
+    source = visible_items,
     itemfn = function(item)
         local entry = util.app_entry(mantle.applications:get(), item.name or item.id)
         local art = artwork(item) or (entry and entry.icon)

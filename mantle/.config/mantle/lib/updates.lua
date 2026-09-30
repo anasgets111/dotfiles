@@ -89,9 +89,10 @@ end
 -- `name`'s place among the tools a run will start (ticked and present), and their count.
 local function tool_step(name)
     local present = tools_present:get()
+    local flags = store.updates_dev_tools:get()
     local step, total = 0, 0
     for _, tool in ipairs(dev_tools) do
-        if tool_enabled(tool.name) and present[tool.requires] then
+        if tool_enabled(tool.name, flags) and present[tool.requires] then
             total = total + 1
             if tool.name == name then
                 step = total
@@ -316,10 +317,11 @@ local function announce_check(updates, previous)
     end
     store:set("updates_notified", key)
     local fresh = 0
+    local announced_names = "\n" .. announced .. "\n"
     for _, name in ipairs(names) do
         -- Anchored on newlines: a bare `find` matches inside a neighbour, so a new `python`
         -- counted as already announced whenever `python-pip` was in the stored list.
-        if not ("\n" .. announced .. "\n"):find("\n" .. name .. "\n", 1, true) then
+        if not announced_names:find("\n" .. name .. "\n", 1, true) then
             fresh = fresh + 1
         end
     end

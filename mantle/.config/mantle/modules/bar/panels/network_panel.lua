@@ -389,12 +389,11 @@ local body = {
                 spacing = theme.spacing.sm,
                 children = {
                     action_button("Cancel", ui.cancel_network_join, "network-sheet-cancel", { tone = "quiet" }),
-                    -- Hidden rather than disabled while the name is empty: `action_button` has no
-                    -- disabled tone. Enter does the same for anyone already typing.
                     action_button("Next", submit_hidden_name, "network-sheet-next", {
                         tone = "accent",
-                        visible = computed({ step, ui.hidden_draft }, function(current, draft)
-                            return current == "name" and util.trim(draft) ~= ""
+                        visible = during("name"),
+                        disabled = ui.hidden_draft:map(function(draft)
+                            return util.trim(draft) == ""
                         end),
                     }),
                     -- No `on_activate`: its click *is* the field's Enter, the only path a password

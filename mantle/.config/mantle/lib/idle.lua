@@ -12,7 +12,6 @@
 -- ponytail: the threshold reports idle one second after the last input, which `idle_since` subtracts
 -- back out; `ext-idle-notifier-v1` has no "how long idle" call to do better.
 local store = require("lib.store")
-local util = require("lib.util")
 local icons = require("config.icons")
 
 local idle = {}
@@ -20,7 +19,7 @@ local idle = {}
 -- One registration; this threshold handles both display wake and counting.
 idle.TICK = 1
 
--- Panel order, not run order, which follows the timeouts. `options` is in seconds.
+-- Default stage order. `options` is in seconds.
 idle.STAGES = {
     {
         key = "dpms",
@@ -121,12 +120,14 @@ function idle.read(stored)
     return out
 end
 
+idle.settings = store.idle:map(idle.read)
+
 --- One `store:set`. `order` is a list; a merge would keep stale keys.
 --- @param patch table
 function idle.write(patch)
     local current = idle.read(store.idle:get())
     for key, value in pairs(patch) do
-        current = util.with(current, key, value)
+        current[key] = value
     end
     store:set("idle", current)
 end
@@ -137,7 +138,7 @@ end
 function idle.write_profile(name, patch)
     local merged = idle.read(store.idle:get())[name]
     for key, value in pairs(patch) do
-        merged = util.with(merged, key, value)
+        merged[key] = value
     end
     idle.write({ [name] = merged })
 end
@@ -243,9 +244,9 @@ idle.stale = mantle.idle:map(function(foreign)
 end)
 
 --- Everything currently named as holding the session awake, ours and foreign.
-idle.reasons = computed({ mantle.privacy, store.idle, idle.manual, mantle.idle },
-    function(privacy, stored, manual, foreign)
-        local reasons = idle.own_reasons(privacy, idle.read(stored), manual)
+idle.reasons = computed({ mantle.privacy, idle.settings, idle.manual, mantle.idle },
+    function(privacy, settings, manual, foreign)
+        local reasons = idle.own_reasons(privacy, settings, manual)
         for _, inhibitor in ipairs((foreign or {}).inhibitors or {}) do
             -- `who` is empty through xdg-desktop-portal, so `why` ("Playing video") is the only label.
             reasons[#reasons + 1] = inhibitor.who ~= "" and inhibitor.who
@@ -360,13 +361,11 @@ function idle.move(key, step)
     idle.write({ order = order })
 end
 
-idle.enabled = store.idle:map(function(stored)
-    return idle.read(stored).enabled
+idle.enabled = idle.settings:map(function(settings)
+    return settings.enabled
 end)
 
-idle.schedule = computed({ store.idle, idle.active_profile }, function(stored, profile)
-    return idle.plan(idle.read(stored), profile)
-end)
+idle.schedule = computed({ idle.settings, idle.active_profile }, idle.plan)
 
 --- Armed stage and elapsed time from the stamp `modules/global/idle.lua` writes. No stage is
 --- `{ key = "", elapsed = 0 }`.

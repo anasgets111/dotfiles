@@ -47,6 +47,7 @@ return function(label, on_activate, slot, opts)
     if label and label ~= "" then
         local label_content = type(label) == "string" and { { text = label, bold = true } } or label
         children[#children + 1] = cell(label_content, ground.text or theme.FG, theme.font.sm, {
+            width = opts.width and "Fill" or nil,
             align = "Center",
             align_v = "Center",
         })

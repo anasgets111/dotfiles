@@ -34,31 +34,32 @@ local sections = computed({ mantle.notifications, mantle.applications, util.toda
         return notifications.notification_sections(groups, today)
     end)
 
--- Transient and low never reach this list, so neither count includes them.
-local function kept(payload, urgent)
-    local count = 0
+-- One feed scan for the masthead's counts, summary, empty state and clear action.
+local history_counts = mantle.notifications:map(function(payload)
+    if payload == nil then
+        return nil
+    end
+    local count, urgent, apps, seen = 0, 0, 0, {}
     for _, notification in ipairs(feed(payload)) do
-        if notifications.kept_in_history(notification) and (not urgent or notification.urgency == "critical") then
+        if notifications.kept_in_history(notification) then
             count = count + 1
+            urgent = urgent + (notification.urgency == "critical" and 1 or 0)
+            local app = notification.app_name or ""
+            if not seen[app] then
+                seen[app] = true
+                apps = apps + 1
+            end
         end
     end
-    return count
-end
-
-local empty = util.shown_when(mantle.notifications, function(payload)
-    return kept(payload) == 0
+    return { count = count, urgent = urgent, apps = apps, dnd = payload.dnd }
 end)
 
-local function summary(payload)
-    local count, apps, seen = kept(payload), 0, {}
-    for _, notification in ipairs(feed(payload)) do
-        local app = notification.app_name or ""
-        if notifications.kept_in_history(notification) and not seen[app] then
-            seen[app] = true
-            apps = apps + 1
-        end
-    end
-    local dnd = payload and payload.dnd
+local empty = util.shown_when(history_counts, function(counts)
+    return counts.count == 0
+end)
+
+local function summary(counts)
+    local count, apps, dnd = counts.count, counts.apps, counts.dnd
     if count == 0 then
         return dnd and "Do not disturb" or "All caught up"
     end
@@ -98,17 +99,17 @@ local body = {
     panel_row {
         icon = bell_glyph,
         title = "Notifications",
-        subtitle = util.label(mantle.notifications, summary),
+        subtitle = util.label(history_counts, summary),
         trailing = row {
             spacing = theme.spacing.sm,
             align_v = "Center",
             children = {
                 -- Critical notifications bypass DND and never expire, so they get their own count.
-                info_badge(mantle.notifications:map(function(payload)
-                    return string.format("%d urgent", kept(payload, true))
+                info_badge(history_counts:map(function(counts)
+                    return string.format("%d urgent", counts and counts.urgent or 0)
                 end), theme.RED, {
-                    visible = util.shown_when(mantle.notifications, function(payload)
-                        return kept(payload, true) > 0
+                    visible = util.shown_when(history_counts, function(counts)
+                        return counts.urgent > 0
                     end),
                 }),
                 panel_action_icon(icons.clear_all, function()
@@ -118,8 +119,8 @@ local body = {
                 end, {
                     slot = "notification-clear-all",
                     tint = theme.RED,
-                    visible = util.shown_when(mantle.notifications, function(payload)
-                        return kept(payload) > 0
+                    visible = util.shown_when(history_counts, function(counts)
+                        return counts.count > 0
                     end),
                 }),
                 toggle(mantle.notifications, function(payload)

@@ -6,7 +6,6 @@ local icons = require("config.icons")
 local util = require("lib.util")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
-local icon_button = require("components.icon_button")
 local panel_action_icon = require("components.panel_action_icon")
 local panel_header = require("components.panel_header")
 local panel_card = require("components.panel_card")
@@ -88,7 +87,7 @@ local function audio_control(opts)
         end)
     end
     local mute_glyph = when_muted(opts.glyph_off, opts.glyph_on)
-    local tint = when_muted(theme.DIM, theme.ACCENT)
+    local tint = when_muted(theme.DIM, theme.FG)
     local leading_glyph = computed({ mantle.audio, mute_glyph }, function(audio, fallback)
         return audio and not audio[opts.muted]
             and util.audio_device_glyph(util.active_device(audio[opts.devices]), opts.is_input) or fallback
@@ -116,16 +115,14 @@ local function audio_control(opts)
                     cell(util.bold(computed({ mantle.audio, held }, function(audio, held_value)
                         return percent(held_value >= 0 and held_value or audio and audio[opts.volume])
                     end)), tint, theme.font.sm, { align_v = "Center" }),
-                    icon_button(mute_glyph, function()
+                    panel_action_icon(mute_glyph, function()
                         mantle.audio[opts.toggle_mute](mantle.audio)
                     end, {
                         slot = "audio-mute-" .. opts.name,
-                        size = theme.control.md,
-                        icon_size = theme.icon.sm,
-                        opacity = mantle.audio:map(function(audio)
-                            return audio ~= nil and audio[opts.volume] ~= nil and 1 or theme.opacity.disabled
+                        size = "md",
+                        disabled = mantle.audio:map(function(audio)
+                            return audio == nil or audio[opts.volume] == nil
                         end),
-                        background = when_muted(theme.GLASS_CONTROL, theme.ACCENT),
                     }),
                 },
             },
@@ -167,7 +164,7 @@ local function stream_row(app)
     local icon_name = entry and entry.icon or app.icon
     local leading = icon_name and icon { name = icon_name, size = theme.icon.md, align_v = "Center" }
         or glyph(app.recording and icons.mic_on or icons.music_note, theme.FG, theme.icon.md, { align_v = "Center" })
-    local tint = app.muted and theme.DIM or theme.ACCENT
+    local tint = app.muted and theme.DIM or theme.FG
     return column {
         width = "Fill",
         spacing = theme.spacing.xs,
@@ -203,7 +200,7 @@ local function stream_row(app)
                 on_commit = function(value)
                     mantle.audio:set_app_volume(app.id, value)
                 end,
-                color = tint,
+                color = app.muted and theme.INACTIVE or theme.ACCENT,
             },
         },
     }

@@ -1,7 +1,6 @@
--- A row's small control, tinted by what it does, with no ground until hover. Red disconnects or
--- forgets. It stays quieter than `components/icon_button.lua`, so a six-row list with two per row
--- does not read as a wall of buttons.
+-- Quiet row actions take their tint on hover. Active modes keep an accent glyph and ground.
 local theme = require("config.theme")
+local util = require("lib.util")
 local icon_button = require("components.icon_button")
 
 ---@param glyph string|Bound A `text` glyph, or a signal of one for a control whose icon follows state.
@@ -21,37 +20,23 @@ return function(glyph, on_activate, opts)
     local foreground
     if type(active) == "userdata" then
         foreground = computed({ hovered, active }, function(is_hovered, is_active)
-            local base = is_active and theme.ACCENT_MEDIUM or tint
-            local opacity = is_active and theme.opacity.light or theme.opacity.muted
-            return is_hovered and base or theme.with_opacity(base, opacity)
+            return is_active and theme.ACCENT
+                or is_hovered and tint or theme.with_opacity(theme.FG, theme.opacity.muted)
         end)
     elseif active then
-        foreground = hovered:map(function(is_hovered)
-            return is_hovered and theme.ACCENT_MEDIUM or theme.with_opacity(theme.ACCENT_MEDIUM, theme.opacity.light)
-        end)
+        foreground = theme.ACCENT
     else
         foreground = hovered:map(function(is_hovered)
-            return is_hovered and tint or theme.with_opacity(tint, theme.opacity.muted)
+            return is_hovered and tint or theme.with_opacity(theme.FG, theme.opacity.muted)
         end)
     end
 
-    local opacity
-    if disabled_live and disabled then
-        opacity = disabled:map(function(off)
-            return off and theme.opacity.disabled or 1
-        end)
-    elseif disabled then
-        opacity = theme.opacity.disabled
-    end
+    local opacity = disabled and util.lift(disabled, function(off)
+        return off and theme.opacity.disabled or 1
+    end) or nil
 
     return icon_button(glyph, on_activate and function()
-        local off = false
-        if disabled_live and disabled then
-            off = disabled:get() == true
-        elseif disabled then
-            off = true
-        end
-        if not off then
+        if not disabled or (disabled_live and disabled:get() ~= true) then
             on_activate()
         end
     end, {
@@ -60,8 +45,12 @@ return function(glyph, on_activate, opts)
         icon_size = theme.icon[step],
         radius = theme.radius.sm,
         border = false,
-        background = theme.CLEAR,
-        background_hover = theme.with_opacity(tint, theme.opacity.subtle),
+        background = util.lift(active, function(on)
+            return on and theme.ACCENT_SUBTLE or theme.CLEAR
+        end),
+        background_hover = util.lift(active, function(on)
+            return on and theme.ACCENT_LIGHT or theme.with_opacity(tint, theme.opacity.subtle)
+        end),
         foreground = foreground,
         visible = opts.visible,
         spinning = opts.spinning,

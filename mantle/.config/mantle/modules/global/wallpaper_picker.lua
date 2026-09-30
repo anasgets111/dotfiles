@@ -375,9 +375,9 @@ local fit_row = segmented {
 
 -- Three to a bar, as many bars as the effects need: six names in one 220px bar would not fit.
 local EFFECTS_PER_ROW = 3
-local current_effect = wallpaper.effect()
+local current_effect = wallpaper.effect
 
-local effect_rows = wallpaper.effects():map(function(names)
+local effect_rows = wallpaper.effects:map(function(names)
     local bars = {}
     for index = 1, #names, EFFECTS_PER_ROW do
         bars[#bars + 1] = { table.unpack(names, index, math.min(index + EFFECTS_PER_ROW - 1, #names)) }
@@ -408,29 +408,28 @@ local effect_grid = list {
 }
 
 -- Escape and a click outside close the picker, as they do the launcher, so the sidebar has no ×.
-local sidebar = panel_card({
-    cell(util.bold("Wallpaper settings"), theme.FG, theme.font.lg, { width = "Fill" }),
-    section_header("monitor"),
-    monitor_row,
-    -- Mixed fits across the targeted screens light no tile, so the label says so.
-    section_header(current_fit:map(function(fit)
-        return fit == "" and "fill mode · mixed" or "fill mode"
-    end)),
-    fit_row,
-    section_header("transition"),
-    effect_grid,
-    section_header("folder"),
-    cell(wallpaper.FOLDER, theme.DIM, theme.font.xs, { width = "Fill" }),
-    cell(filtered:map(function(entries)
-        return #entries == 1 and "1 file" or string.format("%d files", #entries)
-    end), theme.DIM, theme.font.xs, { width = "Fill" }),
-}, {
+local sidebar = column {
     width = theme.wallpaper_sidebar_width,
     align_v = "Start",
     spacing = theme.spacing.md,
-    outlined = true,
-    padding = theme.spacing.md,
-})
+    children = {
+        cell(util.bold("Wallpaper settings"), theme.FG, theme.font.lg, { width = "Fill" }),
+        section_header("monitor"),
+        monitor_row,
+        -- Mixed fits across the targeted screens light no tile, so the label says so.
+        section_header(current_fit:map(function(fit)
+            return fit == "" and "fill mode · mixed" or "fill mode"
+        end)),
+        fit_row,
+        section_header("transition"),
+        effect_grid,
+        section_header("folder"),
+        cell(wallpaper.FOLDER, theme.DIM, theme.font.xs, { width = "Fill" }),
+        cell(filtered:map(function(entries)
+            return #entries == 1 and "1 file" or string.format("%d files", #entries)
+        end), theme.DIM, theme.font.xs, { width = "Fill" }),
+    },
+}
 
 local body = row {
     width = "Fill",

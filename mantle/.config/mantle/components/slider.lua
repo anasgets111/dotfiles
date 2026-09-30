@@ -147,15 +147,14 @@ return function(opts)
         bar(fill:map(function(value)
             return percent(math.min(value, split))
         end), opts.color or theme.ACCENT),
-        row {
+        opts.marker and row {
             width = "Fill",
             height = "Fill",
             children = {
                 rect { width = percent(split) },
-                -- A zero-width box paints nothing.
-                rect { width = opts.marker and 1 or 0, height = "Fill", background = theme.with_opacity(theme.FG, theme.opacity.medium) },
+                rect { width = 1, height = "Fill", background = theme.with_opacity(theme.FG, theme.opacity.medium) },
             },
-        },
+        } or nil,
     }
     -- Under the bars, which cover it with their own copies.
     if opts.label then

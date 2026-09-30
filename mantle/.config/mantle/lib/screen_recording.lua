@@ -110,12 +110,6 @@ local function file_stem(dir, output)
     return prefix .. (highest + 1)
 end
 
-local function setting(key, fallback)
-    local value = store.screen_recorder:get()
-    -- No setting is a boolean, so `or` is safe.
-    return type(value) == "table" and value[key] or fallback
-end
-
 local function set_setting(key, value)
     store:set("screen_recorder", util.with(store.screen_recorder:get(), key, value))
 end
@@ -147,20 +141,23 @@ local elapsed_text = computed(
 
 -- Name the file after the capture's output, with the extension of the container the panel chose.
 -- The label defaults to the output.
-local function launch(capture_args, output, label)
-    local container = setting("container", "mp4")
+local function launch(target, output, label)
+    local settings = store.screen_recorder:get()
+    settings = type(settings) == "table" and settings or {}
+    local container = settings.container or "mp4"
     local dir = directory:get() ~= "" and directory:get() or FALLBACK_DIRECTORY
     local path = string.format("%s/%s.%s", dir, file_stem(dir, output), container)
 
-    local args = util.concat(util.concat(capture_args, {
+    local args = util.concat({
+        "-w", target,
         "-o", path,
-        "-q", QUALITY[setting("quality", "high")] or "very_high",
+        "-q", QUALITY[settings.quality] or "very_high",
         -- `math.floor`: a rate round-tripped through JSON comes back a float, and `-f 60.0` is refused.
-        "-f", tostring(math.floor(tonumber(setting("fps", 60)) or 60)),
+        "-f", tostring(math.floor(tonumber(settings.fps) or 60)),
         "-cursor", "yes",
         -- Otherwise it logs fps once a second; errors still reach the log.
         "-v", "no",
-    }), AUDIO[setting("audio", "desktop")] or AUDIO.desktop)
+    }, AUDIO[settings.audio] or AUDIO.desktop)
 
     capture_label:set(label or output)
     output_path:set(path)
@@ -182,7 +179,7 @@ local function start(mode)
         if output == "" then
             return
         end
-        launch({ "-w", output }, output)
+        launch(output, output)
         return
     end
 
@@ -207,12 +204,12 @@ local function start(mode)
         -- A click is exactly an output's logical box; capture that output by name.
         for _, screen in ipairs(mantle.screens:get() or {}) do
             if box == string.format("%dx%d+%d+%d", screen.width, screen.height, screen.x, screen.y) then
-                launch({ "-w", output }, output)
+                launch(output, output)
                 return
             end
         end
         -- `-w <WxH+X+Y>`: this version deprecates `-w region -region ...` and writes nothing for it.
-        launch({ "-w", box }, output, string.format("Region %s", box:match("^[^+]*")))
+        launch(box, output, string.format("Region %s", box:match("^[^+]*")))
     end)
 end
 

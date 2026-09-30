@@ -189,6 +189,14 @@ local sorted_packages = mantle.updates:map(function(updates)
     return list
 end)
 
+-- The capability retains packages during a refresh, keeping this height until results arrive.
+local package_height = sorted_packages:map(function(packages)
+    return math.max(theme.control.sm, util.fit_height(packages, theme.update_list_height, theme.spacing.xs,
+        function(package)
+            return package.header and theme.section_header_height or theme.control.sm
+        end))
+end)
+
 local log_lines = computed({ mantle.updates, service.dev_log }, function(updates, lines)
     return util.concat(updates and updates.install_log, lines)
 end)
@@ -396,7 +404,7 @@ local body = {
         end),
     }),
     panel_card({
-        -- Shown over the spinner too, so the table's frame is already there when the list lands.
+        -- Keep the column headings while a refresh is running.
         row {
             width = "Fill",
             spacing = theme.spacing.sm,
@@ -406,14 +414,14 @@ local body = {
         },
         column {
             width = "Fill",
-            height = theme.update_list_height,
+            height = package_height,
             align_v = "Center",
             visible = checking,
             children = { spinner(checking, theme.control.sm) },
         },
         list {
             width = "Fill",
-            height = theme.update_list_height,
+            height = package_height,
             visible = util.shown_when(mantle.updates, function(updates)
                 return not updates.checking
             end),
@@ -442,7 +450,6 @@ local body = {
                 return package.header or package.name or "?"
             end,
         },
-        -- One fixed-height card holds the spinner, then the list, so a check does not resize the panel.
     }, {
         width = "Fill",
         visible = phase:map(function(current)
