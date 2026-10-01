@@ -280,7 +280,8 @@ return function(group, ui, opts)
         }),
     }
     if is_group then
-        header[#header + 1] = info_badge(tostring(#items))
+        local count = tostring(#items)
+        header[#header + 1] = info_badge(count, nil, { diameter = math.max(theme.control.xs, #count * theme.font.xs) })
         header[#header + 1] = expander(expanded, function()
             ui.toggle_group(group.key)
         end, "notification-group-" .. group.key)
