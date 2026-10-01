@@ -28,11 +28,11 @@ done
 install -m 644 /dev/null /run/mantle-reboot-required
 
 if ((${#components[@]})); then
-  printf -v items ' • <code>%s</code><br/>' "${components[@]}"
-  body="<b>Restart to finish applying these updates:</b><br/>${items}<br/><i>Restart whenever convenient.</i>"
+  printf -v list '<b>%s</b>, ' "${components[@]}"
+  body="Restart to apply ${list%, }."
   console="Restart recommended after updating: ${components[*]}"
 else
-  body="System components were updated. Restart when convenient to finish applying them."
+  body="Restart when convenient."
   console="Restart recommended after system updates."
 fi
 
