@@ -186,7 +186,6 @@ local function workspace_button(workspace)
         slot = "workspace-" .. tostring(id),
         art = util.app_icon(workspace),
         icon_size = theme.font.sm,
-        font = false,
         radius = theme.item_radius,
         background = ground,
         background_hover = ground,

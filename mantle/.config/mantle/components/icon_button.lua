@@ -45,8 +45,6 @@ return function(glyph, on_activate, opts)
             local idle_glyph = text {
                 content = glyph,
                 foreground = foreground,
-                -- Plain labels keep the shell font with `font = false`.
-                font = opts.font ~= false and (opts.font or theme.icon_font) or nil,
                 font_size = icon_size,
                 visible = idle_visible,
                 animate = { foreground = theme.animation_ms },
