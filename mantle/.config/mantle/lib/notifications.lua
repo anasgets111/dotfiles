@@ -8,17 +8,13 @@ local notifications = {}
 -- sentence punctuation is stripped.
 local URL_PATTERNS = { "%f[%S]https?://[^%s<>'\"]+", "%f[%S]file://[^%s<>'\"]+" }
 
--- Text runs, their character count, link presence and inline picture paths, in one pass.
+-- Text runs and inline picture paths, in one pass.
 -- Split bare URLs directly into runs; already-linked spans keep the sender's target.
 function notifications.notification_body(spans, link_color)
-    local runs, length, has_links, images = {}, 0, false, {}
+    local runs, images = {}, {}
     local function append(span, text, href)
         local is_link = href ~= nil and href ~= ""
-        if is_link and href then
-            has_links = true
-        end
         if text and text ~= "" then
-            length = length + utf8.len(text)
             runs[#runs + 1] = {
                 text = text,
                 bold = span.bold or false,
@@ -63,7 +59,7 @@ function notifications.notification_body(spans, link_color)
             end
         end
     end
-    return runs, length, has_links, images
+    return runs, images
 end
 
 -- Content identity for popup bookkeeping. Include `timestamp`, not only id: `replaces_id` reuses an

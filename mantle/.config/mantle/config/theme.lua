@@ -41,7 +41,7 @@ function theme.rgba(hex)
 end
 
 -- Replaces rather than multiplies alpha; otherwise
--- `with_opacity(BG_SUBTLE, 0.5)` would differ from `with_opacity(BG, 0.5)`.
+-- `with_opacity(GLASS, 0.5)` would differ from `with_opacity(MANTLE, 0.5)`.
 function theme.with_opacity(hex, alpha)
     local r, g, b = channels(hex)
     return string.format("#%02x%02x%02x%02x", r, g, b, math.floor(math.max(0, math.min(1, alpha)) * 255 + 0.5))
@@ -138,13 +138,12 @@ theme.RED_HOVER                = lighten(theme.RED, 0.16)
 -- Ink for text on a glass control under the pointer, lifted the same 0.16 as the two grounds
 -- above. Panel headers rest at `FG` and reach this on hover; `ACCENT` marks the open state.
 theme.TEXT_ACTIVE              = lighten(theme.FG, 0.16)
--- The plate behind a notification card's application icon.
-theme.BG_SUBTLE                = theme.with_opacity(theme.BG, theme.opacity.subtle)
 
 -- The chrome is translucent throughout. Opaque controls turn floating pills into filled rectangles,
 -- and radius cannot fix it. Alpha reaches the compositor, so the layer composites against wallpaper.
 theme.GLASS_SURFACE            = theme.with_opacity(theme.BG, 0.5)
 theme.GLASS_CONTROL            = theme.with_opacity(theme.INACTIVE, 0.42)
+theme.GLASS_CONTROL_SUBTLE     = theme.with_opacity(theme.INACTIVE, theme.opacity.light)
 theme.TOOLTIP_FG               = theme.text_contrast(theme.GLASS_SURFACE)
 -- 0.45, not 0.68. On a glass control over wallpaper, 0.68 makes hover the bar's brightest element,
 -- and 0.45 keeps the glyph white instead of inverting it.
@@ -297,9 +296,9 @@ theme.panel_toggle_height      = s(56, 44)
 -- rather than a gap.
 theme.panel_empty_height       = s(120, 90)
 theme.notification_width       = s(380, 300)
--- An `item_height` icon square with a few pixels of plate around it.
+-- An `item_height` icon centred in a slightly larger header slot.
 theme.notification_app_icon    = s(40, 32)
--- An attached picture (album art, an avatar), larger than the plate so it reads as a picture.
+-- An attached picture (album art, an avatar), larger than the app icon.
 theme.notification_image       = s(48, 36)
 -- Fixed, because a glyph, a bar and a percentage never change length, and a card resizing under a
 -- held volume key would be the only thing moving on screen.

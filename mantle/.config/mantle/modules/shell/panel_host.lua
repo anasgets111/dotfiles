@@ -7,6 +7,7 @@ local theme = require("config.theme")
 local util = require("lib.util")
 local panel_card = require("components.panel_card")
 local ui_state = require("lib.ui_state")
+local notification_state = require("lib.notification_state")
 local network_join = require("lib.network_join")
 local bar_mod = require("modules.bar")
 local bar = bar_mod.indicator
@@ -99,8 +100,8 @@ local notification_expanded = computed({
     return system or weather
 end)
 local notification_content_height = computed(
-    { notification_expanded, pulse(notification_expanded, theme.animation_ms + 32) },
-    function(open, changing) return open or changing end)
+    { notification_expanded, pulse(notification_expanded, theme.animation_ms + 32), notification_state.groups_animating },
+    function(open, changing, groups_changing) return open or changing or groups_changing end)
 local hidden_top = card_height:map(function(height)
     return height and -(height + theme.spacing.xs) or -theme.panel_slide
 end)

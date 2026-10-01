@@ -1,4 +1,4 @@
--- The newest cards stacked in one corner, on one scrolling surface rather than one per card.
+-- The newest cards stacked in one corner, on one surface rather than one per card.
 -- `components/notification_card.lua` draws them; this file owns placement, keyboard mode and the
 -- expiry hold.
 local theme = require("config.theme")
@@ -75,9 +75,11 @@ return panel {
     -- One instance, on the output the compositor picks at each show.
     monitor = "Active",
     layer = "Overlay",
-    anchor = { top = true, right = true },
-    margin = { top = theme.bar_height + theme.spacing.md, right = theme.spacing.md },
+    anchor = { top = true, bottom = true, right = true },
+    margin = { top = theme.bar_height + theme.spacing.md, right = theme.spacing.md, bottom = theme.spacing.md },
     width = theme.notification_width,
+    -- As with the bar panels, keep the surface stable: Hyprland stretches buffers during layer resizes.
+    height = "Fill",
     -- Held past the last card, since hiding the surface would skip its exit.
     visible = util.linger(visible_groups:map(function(shown)
         return #shown > 0
@@ -91,7 +93,7 @@ return panel {
     end),
     child = column {
         width = "Fill",
-        -- No `height` anywhere: content sizes the surface with no sizing loop.
+        -- The stack sizes to content inside the fixed surface; empty space takes no input.
         -- One region for the stack: per-card regions would order enter/leave against each other and
         -- release a hold just acquired.
         hover = HOVER,

@@ -7,6 +7,7 @@ local util = require("lib.util")
 ---@field field Node The `textfield` node.
 ---@field error? Signal Error text. Empty means no error.
 ---@field visible? boolean|Bound
+---@field active? Signal<boolean> Neutral until hovered or editing; defaults to accented.
 
 ---@param opts InputOpts
 return function(opts)
@@ -26,7 +27,8 @@ return function(opts)
             background = theme.GLASS_INPUT,
             radius = theme.radius.md,
             border_width = util.choose(error_shown, theme.border_width_medium, theme.border_width),
-            border_color = util.choose(error_shown, theme.RED, theme.ACCENT),
+            border_color = util.choose(error_shown, theme.RED,
+                opts.active and util.choose(opts.active, theme.ACCENT, theme.GLASS_BORDER) or theme.ACCENT),
             padding = {
                 top = theme.spacing.xs,
                 right = theme.spacing.sm,

@@ -1,8 +1,7 @@
 -- One application's notifications as one card, shared by the popup stack and the history panel.
 -- `opts.scope` carries their different ground, edge, timestamp and motion.
 --
--- Structure is built, not bound: `children` takes an array, so a read here rebuilds the item. Appearance
--- stays bound.
+-- Structural state reads rebuild list items; bound properties update in place.
 --
 -- ponytail: the cards below a dismissed one still close its gap on one frame; the engine has no move
 -- transition (`docs/roadmap.md`).
@@ -17,12 +16,7 @@ local action_button = require("components.action_button")
 local panel_action_icon = require("components.panel_action_icon")
 local info_badge = require("components.info_badge")
 local input = require("components.input")
-
--- Only critical rings red; low and normal share the glass hairline, so accent keeps meaning "active".
--- Read from the group's newest notification.
-local function border_for(urgency)
-    return urgency == "critical" and theme.RED or theme.GLASS_BORDER
-end
+local reveal = require("components.reveal")
 
 -- A popup leaves the way it came, off the right edge, accelerating as a departure does. History
 -- records what happened, so its cards only fade; a slide there would end under the panel's padding.
@@ -57,8 +51,9 @@ local function slide_in(delay)
     }
 end
 
-local function expander(is_open, on_activate, slot)
-    return panel_action_icon(is_open and icons.chevron_up or icons.chevron_down, on_activate, { slot = slot })
+local function expander(is_open, on_activate, slot, visible)
+    return panel_action_icon(is_open and icons.chevron_up or icons.chevron_down, on_activate,
+        { slot = slot, visible = visible })
 end
 
 -- An attached picture on a rounded tile. `image_path` is always a file, never a theme name.
@@ -74,19 +69,16 @@ local function picture(path)
 end
 
 -- One notification inside its group card.
--- `standalone` is a group of one: omit its dismiss button because the card header closes it, and
--- its ground because there is nothing to distinguish.
+-- A single displayed message uses the card's dismiss button and ground. A collapsed group keeps
+-- the per-message dismiss slot so expanding it does not move the title or timestamp.
 local function message(notification, ui, opts)
     local id = notification.id
     local expanded = ui.expanded_messages:get()[tostring(id)] or false
-    local body, body_length, has_links, images = notifications.notification_body(notification.body, theme.ACCENT)
+    local body, images = notifications.notification_body(notification.body, theme.ACCENT)
     local summary = notification.summary or ""
+    local clipped = elided("notification-text-" .. opts.scope .. "-" .. tostring(id))
 
     local heading = {}
-    -- `image_path`, not `app_icon`, is the message attachment. The application mark is in the header.
-    if notification.image_path then
-        heading[#heading + 1] = picture(notification.image_path)
-    end
     -- The summary is the card's line; the application name above it is only an eyebrow.
     heading[#heading + 1] = cell(util.bold(summary), theme.FG, theme.font.md, {
         width = "Fill",
@@ -94,20 +86,26 @@ local function message(notification, ui, opts)
         wrap = "Word",
         -- `0` means "no limit", so expansion needs no second tree.
         max_lines = expanded and 0 or 2,
+        elided = clipped,
     })
     -- History says when it arrived. A popup says nothing until a held card is a minute old.
     heading[#heading + 1] = cell(opts.age, theme.DIM, theme.font.xs, { align_v = "Center", visible = opts.age_shown })
-    -- Links always get an expander so even a short, clipped URL stays reachable.
-    -- ponytail: character counts only estimate two lines; a text "elided" signal would be exact.
-    if expanded or utf8.len(summary) > 80 or body_length > 110 or has_links then
-        heading[#heading + 1] = expander(expanded, function()
+    -- Title and body share the clipping result; keep the collapse button after restoring all lines.
+    -- Reserve the slot so revealing the button cannot change the clipping result.
+    heading[#heading + 1] = rect {
+        width = theme.control.sm,
+        height = theme.control.sm,
+        align_v = "Center",
+        children = { expander(expanded, function()
             ui.toggle_message(id)
-        end, "notification-expand-" .. tostring(id))
-    end
+        end, "notification-expand-" .. tostring(id), expanded or clipped) },
+    }
     if not opts.standalone then
         heading[#heading + 1] = panel_action_icon(icons.close, function()
             mantle.notifications:dismiss(id)
         end, { slot = "notification-close-" .. tostring(id) })
+    elseif opts.grouped then
+        heading[#heading + 1] = rect { width = theme.control.sm, height = theme.control.sm, align_v = "Center" }
     end
 
     local lines = { row {
@@ -117,11 +115,12 @@ local function message(notification, ui, opts)
         children = heading,
     } }
 
-    if body_length > 0 then
+    if #body > 0 then
         lines[#lines + 1] = cell(body, theme.DIM, theme.font.sm, {
             width = "Fill",
             wrap = "Word",
             max_lines = expanded and 0 or 2,
+            elided = clipped,
             -- Link clicks do not fire the message action. Expand to reach clipped links.
             on_link = function(href)
                 mantle.applications:open_url(href)
@@ -129,8 +128,10 @@ local function message(notification, ui, opts)
         })
     end
 
-    -- Inline body pictures go under the text (see `notifications.notification_body`); `notify-send`
-    -- cannot send one.
+    -- All message images sit below the text, leaving the title its full width.
+    if notification.image_path then
+        table.insert(images, 1, notification.image_path)
+    end
     if #images > 0 then
         local pictures = {}
         for _, path in ipairs(images) do
@@ -142,16 +143,21 @@ local function message(notification, ui, opts)
     -- Always shown when supported, with no Reply button: clicking the field focuses it and gives
     -- niri's `OnDemand` layer the keyboard.
     if notification.has_reply then
+        local reply_hover = hover("notification-reply-field-" .. tostring(id))
+        local reply_ready = ui.reply_ready_id:map(function(ready_id) return ready_id == id end)
+        local reply_active = computed({ reply_hover, ui.reply_active_id }, function(hovered, active_id)
+            return hovered or active_id == id
+        end)
         lines[#lines + 1] = row {
-            -- `lines` is conditional and id-less siblings zip in order, so an arriving body would
-            -- hand this row the images row's node, and with it the focused `NodeId`.
+            -- Keep the focused field with its message when optional body/image rows change.
             id = "notification-reply-" .. tostring(id),
             width = "Fill",
             align_v = "Center",
             spacing = theme.spacing.sm,
             children = {
                 -- The shell's input well: a bare field draws only text and caret.
-                input { field = textfield {
+                input { active = reply_active, field = textfield {
+                    hover = reply_hover,
                     -- Use the sender's wording, such as "Reply to Alice", or ours if absent.
                     placeholder = notification.reply_placeholder or "Reply",
                     -- Each keystroke stores the text for Send and renews the 60-second hold.
@@ -173,7 +179,11 @@ local function message(notification, ui, opts)
                 end, {
                     size = theme.control.md,
                     icon_size = theme.icon.sm,
-                    background = theme.ACCENT_MEDIUM,
+                    background = util.choose(reply_ready, theme.ACCENT_SUBTLE, theme.GLASS_CONTROL_SUBTLE),
+                    background_hover = util.choose(reply_ready, theme.ACCENT_LIGHT, theme.GLASS_CONTROL_SUBTLE),
+                    border_color = util.choose(reply_ready, theme.ACCENT_MEDIUM, theme.BORDER_SUBTLE),
+                    foreground = theme.FG,
+                    opacity = util.choose(reply_ready, 1, theme.opacity.disabled),
                     slot = "notification-send-" .. tostring(id),
                 }),
             },
@@ -181,7 +191,7 @@ local function message(notification, ui, opts)
     end
 
     -- `"inline-reply"` is lifted into `has_reply` by the Supervisor and drawn as the field above.
-    -- Stack bounded actions so arbitrary sender labels cannot crowd the card's right edge.
+    -- Share the row evenly; labels wrap to two lines and buttons grow together.
     local buttons = {}
     for index, action in ipairs(notification.actions or {}) do
         buttons[#buttons + 1] = action_button(action.label, function()
@@ -191,23 +201,22 @@ local function message(notification, ui, opts)
         end, string.format("notification-action-%d-%d", id, index), {
             icon = action.icon_name,
             width = "Fill",
-            tone = "quiet",
+            tone = "subtle",
+            max_lines = 2,
         })
     end
     if #buttons > 0 then
-        lines[#lines + 1] = column {
+        lines[#lines + 1] = row {
             width = "Fill",
             spacing = theme.spacing.sm,
             children = buttons,
         }
     end
 
-    -- A message fades in, never slides: a second slide inside a sliding card doubled the travel. The
-    -- fade is what shows a message joining a card already on screen, where the card itself is not
-    -- new and the newest message swaps in under the count. A group member also fades out when
-    -- dismissed, since a slide would cross the card's edge. History's lone message has nothing to announce.
+    -- Inner slides would double popup travel. Messages fade; history's lone message needs no entry.
     local hovered, ground
-    local animate = (opts.fade or not opts.standalone) and { opacity = { duration = theme.animation_ms, from = 0 } }
+    local animate = (opts.scope ~= "history" or not opts.standalone) and
+        { opacity = { duration = theme.animation_ms, from = 0 } }
         or nil
     if not opts.standalone then
         hovered = hover("notification-message-" .. tostring(id))
@@ -216,8 +225,7 @@ local function message(notification, ui, opts)
         animate.exit = FADE_EXIT
     end
     return column {
-        -- Named for its notification: a collapsed group reuses the newest message's slot, and
-        -- without the id the reply field's `NodeId` and draft move under another summary.
+        -- Keep the newest message and its draft when the group unfolds.
         id = "notification-message-" .. tostring(id),
         width = "Fill",
         spacing = theme.spacing.sm,
@@ -231,7 +239,7 @@ local function message(notification, ui, opts)
                 return
             end
             -- Inert while this message has a draft; the X still works.
-            if ui.reply_draft_id:get() == id and ui.reply_draft:get() ~= "" then
+            if ui.reply_active_id:get() == id then
                 return
             end
             if notification.has_default_action then
@@ -244,24 +252,19 @@ local function message(notification, ui, opts)
     }
 end
 
--- `group` is one entry of `notifications.group_notifications`, and `ui` is `lib/notification_state`. A popup card
--- has heavier glass, a live age once held and edge travel. `opts.scope = "history"` has the lighter
--- ground, "Wed 02:32 PM" and no travel.
+-- group comes from notifications.group_notifications; ui is lib.notification_state.
 return function(group, ui, opts)
-    local in_history = opts ~= nil and opts.scope == "history"
+    local scope = opts and opts.scope or "popup"
+    local in_history = scope == "history"
     local items = group.items
     local expanded = ui.expanded_groups:get()[group.key] or false
     local is_group = #items > 1
 
     local header = {
-        -- Artwork, not a glyph. The plate keeps arbitrary-colour icons off the glass.
+        -- Keep the artwork centred in its header slot.
         rect {
             width = theme.notification_app_icon,
             height = theme.notification_app_icon,
-            radius = theme.radius.sm,
-            background = theme.BG_SUBTLE,
-            border_width = theme.border_width,
-            border_color = theme.BORDER_SUBTLE,
             align_v = "Center",
             children = { icon {
                 name = group.app_icon or "dialog-information",
@@ -298,24 +301,44 @@ return function(group, ui, opts)
 
     -- Collapsed groups show the newest and count the rest in the header. Unfolded, a popup shows the
     -- newest few and leaves the whole group to the panel, so a busy chat cannot fill the screen.
-    local limit = (is_group and not expanded) and 1 or in_history and #items or POPUP_MEMBERS
-    local shown_count = math.min(#items, limit)
-    for index = 1, shown_count do
+    local limit = math.min(#items, in_history and #items or POPUP_MEMBERS)
+    local members = {}
+    for index = 1, limit do
         local notification = items[index]
         local age = in_history and notifications.absolute_time(notification.timestamp)
-            or util.label(mantle.system, function(system)
-                return notifications.age(system.time, notification.timestamp)
+            or mantle.system:map(function(system)
+                return system and notifications.age(system.time, notification.timestamp) or ""
             end)
-        children[#children + 1] = message(notification, ui, {
-            -- The rendered count, because a collapsed group renders one card-level message.
-            standalone = shown_count == 1,
-            fade = not in_history,
+        members[#members + 1] = message(notification, ui, {
+            scope = scope,
+            standalone = not is_group or (index == 1 and not expanded),
+            grouped = is_group,
             age = age,
-            age_shown = not in_history and util.shown_when(mantle.system, function(system)
-                return notifications.age(system.time, notification.timestamp) ~= ""
-            end) or nil,
+            age_shown = not in_history and age:map(function(label) return label ~= "" end) or nil,
         })
     end
+    local stack
+    if is_group then
+        local open = ui.expanded_groups:map(function(groups) return groups[group.key] == true end)
+        stack = reveal(members[1], column {
+            width = "Fill",
+            spacing = theme.spacing.sm * 2,
+            padding = { top = theme.spacing.sm },
+            children = { table.unpack(members, 2) },
+        }, open, {
+            slot = "notification-members-" .. scope .. "-" .. group.key,
+            spacing = theme.spacing.sm,
+            moving = ui.groups_animating,
+        })
+    else
+        stack = column {
+            width = "Fill",
+            spacing = 0,
+            animate = { spacing = theme.animation_ms },
+            children = members,
+        }
+    end
+    children[#children + 1] = stack
 
     return column {
         width = "Fill",
@@ -324,17 +347,14 @@ return function(group, ui, opts)
         -- Resting pose: an exit eases from what the node holds.
         translate = { x = 0 },
         opacity = 1,
-        -- The one thing the scopes disagree on: popup travel says an event came from outside,
-        -- staggered by `rank`; history only fades.
+        -- Popup cards slide in by rank; history cards fade.
         animate = in_history and { opacity = { duration = theme.animation_ms, from = 0 }, exit = FADE_EXIT }
             or slide_in((group.rank - 1) * STAGGER_MS),
         background = in_history and theme.GLASS_CONTENT or theme.GLASS,
-        -- A popup card is its own sheet floating over wallpaper, so it takes the heavier edge.
-        -- History sits on `panel_host`'s already-blurred card, on a hairline like its other rows.
         blur = not in_history,
         radius = theme.radius.md,
         border_width = in_history and theme.border_width or theme.border_width_medium,
-        border_color = border_for(group.urgency),
+        border_color = group.urgency == "critical" and theme.RED or theme.GLASS_BORDER,
         children = children,
     }
 end

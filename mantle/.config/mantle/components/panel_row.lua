@@ -8,6 +8,7 @@ local icons = require("config.icons")
 local util = require("lib.util")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
+local reveal = require("components.reveal")
 
 -- Typed like `components/cell.lua`. Without these shapes a `list` `itemfn`'s `any` reaches
 -- `text.content` unchanged, a notification span array included.
@@ -132,22 +133,9 @@ return function(opts)
         }
     end
     assert(opts.slot, "panel_row details require a slot")
-    local detail_rect = geometry(opts.slot .. "-details")
-    opts.details.geometry = detail_rect
-    opts.details.visible = util.linger(expanded, theme.animation_ms)
-    return column {
-        width = "Fill",
-        spacing = util.choose(expanded, opts.details_spacing or theme.spacing.xs, 0),
+    return reveal(control, opts.details, expanded, {
+        slot = opts.slot,
+        spacing = opts.details_spacing,
         visible = opts.visible,
-        animate = { spacing = theme.animation_ms },
-        children = { control, rect {
-            width = "Fill",
-            height = computed({ expanded, detail_rect }, function(open, rect)
-                return open and rect.height or 0
-            end),
-            clip = "Box",
-            animate = { height = { duration = theme.animation_ms, easing = "OutCubic" } },
-            children = { opts.details },
-        } },
-    }
+    })
 end

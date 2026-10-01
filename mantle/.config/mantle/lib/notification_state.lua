@@ -6,6 +6,7 @@ local util = require("lib.util")
 local store = require("lib.store")
 local idle = require("lib.idle")
 local disclosure = require("lib.disclosure")
+local theme = require("config.theme")
 
 -- Key by id + timestamp so replaced content pops again. Dismiss also removes history.
 M.popup_seen = state("notification_popup_seen", {})
@@ -62,11 +63,19 @@ end
 
 -- Tables keep dynamic notification IDs from growing the signal registry.
 M.expanded_groups = disclosure.state("notification_expanded_groups", {})
+-- Keep members alive through collapse, even when a list rebuilds or a toggle reverses mid-tween.
+M.groups_animating = pulse(M.expanded_groups, theme.animation_ms + 32)
 M.expanded_messages = disclosure.state("notification_expanded_messages", {})
 
 -- One native field buffer; the ID keeps Send on A from sending B's draft.
-M.reply_draft_id = state("notification_reply_draft_id", 0)
-M.reply_draft = state("notification_reply_draft", "")
+local reply_draft_id = state("notification_reply_draft_id", 0)
+local reply_draft = state("notification_reply_draft", "")
+M.reply_active_id = computed({ reply_draft_id, reply_draft }, function(id, text)
+    return text ~= "" and id or 0
+end)
+M.reply_ready_id = computed({ reply_draft_id, reply_draft }, function(id, text)
+    return text:find("%S") and id or 0
+end)
 
 local function toggle_key(signal, key)
     signal:set(util.with(signal:get(), key, not signal:get()[key]))
@@ -100,32 +109,28 @@ mantle.notifications:on_change(function(inbox)
 end)
 
 function M.set_reply_draft(id, text)
-    M.reply_draft_id:set(id)
-    M.reply_draft:set(text or "")
+    reply_draft_id:set(id)
+    reply_draft:set(text or "")
 end
 
 function M.clear_reply(id)
-    if M.reply_draft_id:get() == id then
-        M.reply_draft_id:set(0)
-        M.reply_draft:set("")
+    if reply_draft_id:get() == id then
+        reply_draft_id:set(0)
+        reply_draft:set("")
     end
 end
 
 -- Keep keyboard focus while a live notification has a draft, even after the pointer leaves.
-M.reply_pending = computed({ M.reply_draft_id, M.reply_draft, mantle.notifications }, function(id, text, inbox)
-    if id == 0 or text == "" then
-        return false
-    end
-    return util.find(inbox and inbox.feed, function(notification) return notification.id == id end) ~= nil
+M.reply_pending = computed({ M.reply_active_id, mantle.notifications }, function(id, inbox)
+    return id ~= 0 and util.find(inbox and inbox.feed, function(notification) return notification.id == id end) ~= nil
 end)
 
--- Empty is a no-op: `reply` removes the notification either way, losing the card and sending nothing.
+-- Blank is a no-op: `reply` removes the notification either way.
 function M.send_reply(id)
-    local text = M.reply_draft:get()
-    if M.reply_draft_id:get() ~= id or text == "" then
+    if id == 0 or M.reply_ready_id:get() ~= id then
         return
     end
-    mantle.notifications:reply(id, text)
+    mantle.notifications:reply(id, reply_draft:get())
     M.clear_reply(id)
 end
 
