@@ -116,7 +116,7 @@ local function workspace_button(workspace)
         if from == id then return 0.4 end
         return workspace.populated and 1 or theme.opacity.muted
     end)
-    local cursor = workspace.populated and util.choose(is_dragging, "grabbing", "grab") or nil
+    local cursor = workspace.populated and util.choose(is_dragging, "grabbing", "pointer") or nil
 
     local on_drag = nil
     if workspace.populated and workspace.window_id ~= nil then
