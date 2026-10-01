@@ -13,8 +13,11 @@ local launcher_tooltip = tooltip({
     slot = SLOT,
     text = "Open application launcher",
     detail = mantle.applications:map(function(applications)
-        local entries = applications and applications.entries
-        return string.format("%d application(s)", entries and #entries or 0)
+        local count = 0
+        for _, entry in ipairs(applications and applications.entries or {}) do
+            if not entry.no_display then count = count + 1 end
+        end
+        return string.format("%d application(s)", count)
     end),
 })
 

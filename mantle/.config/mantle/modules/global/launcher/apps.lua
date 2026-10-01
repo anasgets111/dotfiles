@@ -54,7 +54,7 @@ function M.rank(applications, text, usage)
             field_score(table.concat(app.keywords or {}, " "), needle, 40),
             field_score(app.id, needle, 20)
         )
-        if value >= 0 then
+        if not app.no_display and value >= 0 then
             scored[#scored + 1] = { app = app, score = value, usage = usage_of(usage, now, app.id) }
             best = math.max(best, value)
         end
