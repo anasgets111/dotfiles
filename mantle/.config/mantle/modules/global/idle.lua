@@ -1,8 +1,8 @@
 -- Three idle stages driven by one threshold and the `mantle.system` tick. Timeouts are editable
--- numbers in `lib/idle.lua` because a registered threshold cannot be cancelled.
+-- numbers in `lib/idle.lua`.
 --
--- No inhibitor check here: an inhibitor makes the Supervisor hold threshold events and resume,
--- which zeroes `idle.since`, so only the master switch is read.
+-- No inhibitor check here: the Supervisor resumes announced idle thresholds when a hold begins
+-- and suppresses new idle callbacks until release, so `idle.since` stops the stage clock.
 local idle = require("lib.idle")
 local store = require("lib.store")
 local compositor = require("lib.compositor")
@@ -43,9 +43,11 @@ mantle.idle:register_threshold(idle.TICK, function()
     local system = mantle.system:get()
     -- Back-date by the threshold so "idle 0:42" means since the last keystroke, not the push.
     idle.since:set(((system and system.monotonic) or 0) - idle.TICK)
-end, function()
-    -- Any input wakes it. An inhibitor taken while dark must not leave the screen dark.
-    set_displays_powered(true)
+end, function(cause)
+    -- Input wakes displays. Other resumes stop the countdown without powering on.
+    if cause == "input" then
+        set_displays_powered(true)
+    end
     idle.since:set(0)
     idle.armed_at:set({})
     idle.fired_at:set({})

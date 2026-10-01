@@ -5,8 +5,9 @@
 -- "idle 0:42" readout needs the tick anyway, and a stage arms when its predecessor reports `done`
 -- rather than at a fixed second. If those pushes stop, stages stop too.
 --
--- Any hold withholds every threshold event, so stages need no guard of their own. That covers ours,
--- a player's `org.freedesktop.ScreenSaver` and `systemd-inhibit --what=idle`.
+-- A hold resumes announced idle thresholds and suppresses new idle callbacks, so stages need no
+-- guard. Input resumes still arrive to wake a dark display. This covers ours, a player's
+-- `org.freedesktop.ScreenSaver` hold and `systemd-inhibit --what=idle`.
 --
 -- ponytail: the threshold reports idle one second after the last input, which `idle_since` subtracts
 -- back out; `ext-idle-notifier-v1` has no "how long idle" call to do better.
