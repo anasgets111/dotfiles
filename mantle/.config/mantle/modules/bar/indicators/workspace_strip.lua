@@ -103,7 +103,7 @@ local function workspace_button(workspace)
     local slot_hovered = hover("workspace-" .. tostring(id))
     local ground = computed({ is_active, slot_hovered, is_drop_target }, function(active, is_hovered, drop)
         if active then
-            return drop and util.lift(theme.ACCENT, theme.hover) or theme.ACCENT
+            return drop and theme.ACCENT_HOVER or theme.ACCENT
         elseif drop or is_hovered then
             return theme.GLASS_CONTROL_HOVER
         end
@@ -186,6 +186,7 @@ local function workspace_button(workspace)
         slot = "workspace-" .. tostring(id),
         art = util.app_icon(workspace),
         icon_size = theme.font.sm,
+        font = false,
         radius = theme.item_radius,
         background = ground,
         background_hover = ground,
@@ -221,18 +222,18 @@ local drag_ghost = rect {
             size = theme.icon.lg,
             align_h = "Center",
             align_v = "Center",
-            shadow_color = "#000000aa",
-            shadow_blur = 8,
-            shadow_offset = { x = 0, y = 2 },
+            shadow_color = theme.workspace_drag_shadow,
+            shadow_blur = theme.workspace_drag_icon_blur,
+            shadow_offset = { x = 0, y = theme.workspace_drag_shadow_y },
         } or text {
             content = glyph or "",
             font_size = theme.font.md,
             foreground = theme.FG,
             align_h = "Center",
             align_v = "Center",
-            shadow_color = "#000000aa",
-            shadow_blur = 6,
-            shadow_offset = { x = 0, y = 2 },
+            shadow_color = theme.workspace_drag_shadow,
+            shadow_blur = theme.workspace_drag_text_blur,
+            shadow_offset = { x = 0, y = theme.workspace_drag_shadow_y },
         }
         return { child }
     end),

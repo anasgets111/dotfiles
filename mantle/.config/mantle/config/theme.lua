@@ -118,7 +118,6 @@ theme.ELEVATED_HOVER           = lighten(theme.BG, 0.18)
 theme.TEXT_OFF                 = theme.with_opacity(theme.DIM, theme.opacity.disabled)
 -- Tertiary text: section labels and empty-state hints, a step below `DIM`.
 theme.TEXT_MUTED               = theme.with_opacity(theme.DIM, theme.opacity.muted)
-theme.BORDER                   = theme.with_opacity(theme.SURFACE, 0.75)
 theme.BORDER_SUBTLE            = theme.with_opacity(theme.SURFACE, 0.35)
 -- The shared card ground, so a card reads as a sheet above the bar rather than the same tone.
 theme.GLASS                    = theme.with_opacity(theme.MANTLE, 0.88)
@@ -135,8 +134,7 @@ theme.ACCENT_MEDIUM            = theme.with_opacity(theme.ACCENT, theme.opacity.
 theme.ACCENT_HOVER             = lighten(theme.ACCENT, 0.16)
 -- The same lift for an opaque `RED` ground.
 theme.RED_HOVER                = lighten(theme.RED, 0.16)
--- Ink for text on a glass control under the pointer, lifted the same 0.16 as the two grounds
--- above. Panel headers rest at `FG` and reach this on hover; `ACCENT` marks the open state.
+-- Lifted detail text for active or hovered toggle cards.
 theme.TEXT_ACTIVE              = lighten(theme.FG, 0.16)
 
 -- The chrome is translucent throughout. Opaque controls turn floating pills into filled rectangles,
@@ -153,8 +151,7 @@ theme.GLASS_BORDER_HOVER       = theme.with_opacity(theme.FG, 0.34)
 
 -- 0.45, not 0.88, because the scrim lies over wallpaper, where 0.88 is a blackout.
 theme.SCRIM                    = theme.with_opacity(theme.BG, 0.45)
-theme.LAUNCHER_SCRIM           = theme.with_opacity(theme.CRUST, 0.22)
-theme.LAUNCHER_FILL            = theme.with_opacity(theme.ELEVATED, 0.84)
+theme.LAUNCHER_FILL            = theme.with_opacity(theme.ELEVATED, 0.60)
 theme.LAUNCHER_RESULTS         = theme.with_opacity(theme.SURFACE, 0.88)
 theme.LAUNCHER_SHADOW          = theme.with_opacity(theme.CRUST, 0.56)
 
@@ -214,9 +211,7 @@ theme.border_width_medium      = 2
 -- Surface geometry, shared so a module and its opener cannot disagree.
 theme.bar_height               = s(42, 28)
 
--- `control` sizes panel contents, `item` sizes bar controls. `item_radius` is half `item_height`
--- with its own `s()`, since rounding it separately keeps a circle from a round square.
---
+-- `control` sizes panel contents; `item` sizes bar controls.
 -- `title_limit` is a character budget, not a box, so the centre zone stays content-sized and its
 -- midpoint is the bar's.
 theme.title_limit              = (MAIN_WIDTH / math.max(1, MAIN_HEIGHT)) > 2.1 and 74 or 47
@@ -227,6 +222,11 @@ theme.center_zone_width        = math.floor(MAIN_WIDTH / 3)
 theme.item_height              = s(34, 20)
 theme.item_width               = s(34, 20)
 theme.item_radius              = s(18, 6)
+-- Drag-preview shadows keep their output-pixel sizes.
+theme.workspace_drag_shadow    = "#000000aa"
+theme.workspace_drag_icon_blur = 8
+theme.workspace_drag_text_blur = 6
+theme.workspace_drag_shadow_y  = 2
 -- Enough for a glyph and "100%"; the bar's non-circular item.
 theme.battery_pill_width       = s(80, 60)
 -- The hovered volume control holds "150%" plus a drag track.
@@ -270,27 +270,26 @@ theme.audio_panel_width        = s(380, 300)
 theme.tray_menu_width          = s(300, 240)
 -- A guard against runaway menus, not a list budget: an ordinary menu never scrolls its Quit away.
 theme.tray_menu_height         = s(560, 420)
--- The idle modal's action rows plus AC and battery columns, each with a timeout and switch.
+-- The idle modal's labels and duration bars.
 theme.idle_modal_width         = s(820, 640)
--- A stage's duration bar, eight segments wide enough for "120m"; and the AC/battery picker.
+-- Leave room for the masthead, card padding and an outer margin below the bar.
+theme.idle_body_height         = math.min(s(480, 360), MAIN_HEIGHT - theme.bar_height - theme.control.lg
+    - theme.spacing.lg * 4 - theme.spacing.md)
+-- Duration bars and the AC/battery picker.
 theme.idle_bar_width           = s(440, 340)
 theme.idle_picker_width        = s(220, 170)
 theme.idle_row_height          = s(60, 46)
--- Timeline track, wide as the card and tall enough for a glyph plus duration per stage, unlike the
--- 6px `components/meter.lua` percentage meter.
-theme.idle_track_height        = s(36, 28)
 theme.update_list_height       = s(360, 260)
 -- Fixed, so versions align down the table; wide enough for `6.1.0.r4.gc8f50c4-1`.
 theme.update_version_width     = s(116, 88)
-theme.update_repo_width        = s(76, 58)
--- Name plus repo plus two versions; the extra is the repo column and its gap.
-theme.update_panel_width       = s(520, 400) + theme.update_repo_width + theme.spacing.sm
+-- Package name plus installed and available versions.
+theme.update_panel_width       = s(520, 400)
 -- Keep the log shorter than the package list; its last dozen lines explain a failure.
 theme.update_log_height        = s(200, 150)
--- A traceback's paths wrap at 520px, and the rescue log scrolls rather than filling the screen.
+-- A traceback's paths wrap; its log scrolls rather than filling the screen.
 theme.rescue_modal_width       = s(720, 560)
 theme.rescue_log_height        = s(320, 240)
--- A radio tile tall enough for a glyph over a word.
+-- A toggle card tall enough for a glyph over a word.
 theme.panel_toggle_height      = s(56, 44)
 -- `components/panel_empty_state.lua`'s height with a glyph, so an empty list reads as a state
 -- rather than a gap.

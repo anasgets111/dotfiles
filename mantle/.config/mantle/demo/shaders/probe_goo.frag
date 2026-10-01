@@ -1,4 +1,4 @@
-// TEMP demo for the shader node: a pill that splits into four gooey blobs as u_progress goes 0 -> 1,
+// Shader-node demo: a pill splits into four gooey blobs as u_progress goes 0 -> 1,
 // each blob staggered, with an SDF drop shadow. All geometry derives from u_progress + params.
 uniform vec4 tint;
 uniform float softness;

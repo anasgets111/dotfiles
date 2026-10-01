@@ -18,11 +18,8 @@ local item_id = state("tray_menu_item", "")
 local expanded = state("tray_menu_expanded", {})
 
 local function menu_of(tray, id)
-    for _, item in ipairs((tray and tray.items) or {}) do
-        if item.id == id then
-            return item.menu
-        end
-    end
+    local item = util.find(tray and tray.items, function(item) return item.id == id end)
+    return item and item.menu
 end
 
 -- Depth-first, so `list` gets one row shape that carries its indent.
@@ -170,5 +167,4 @@ local function open(item, anchor)
     ui_state.open_panel(KIND, anchor)
 end
 
-local tray_menu = { kind = KIND, body = body, open = open }
-return tray_menu
+return { kind = KIND, body = body, open = open, spacing = theme.spacing.xs }

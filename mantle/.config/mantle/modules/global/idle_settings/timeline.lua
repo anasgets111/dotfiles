@@ -1,113 +1,75 @@
--- One chamber per runnable stage, filling over its own delay. Equal widths, not proportional ones:
--- a 30-second stage before a 15-minute one would be 3% of the card. Each prints its own delay; the
--- masthead keeps the running total. A hold or an empty plan replaces the timeline with a banner,
--- since a bar that can never fill says less than the reason.
+-- One next-action line above a continuous timeline, with duration-weighted boundaries.
 local theme = require("config.theme")
-local icons = require("config.icons")
 local cell = require("components.cell")
-local glyph = require("components.glyph")
-local callout = require("components.callout")
+local meter = require("components.meter")
 local idle = require("lib.idle")
 
 ---@param settings Signal<table> `store.idle` resolved through `idle.read`
 return function(settings)
-    local held_text = computed({ idle.reasons, idle.inhibited, idle.stale }, idle.held_text)
     local counting_down = computed({ settings, idle.schedule, idle.inhibited }, function(resolved, plan, held)
         return resolved.enabled and plan.total > 0 and not held
     end)
-
-    local function chamber(entry)
-        -- Stages before the armed one are full and later ones empty. The armed one fills over its delay.
-        local progress = computed({ idle.arming, idle.schedule }, function(arming, plan)
-            local position, armed_position
-            for index, item in ipairs(plan.list) do
-                if item.key == entry.key then
-                    position = index
-                end
-                if item.key == arming.key then
-                    armed_position = index
+    local progress = computed({ idle.arming, idle.schedule, idle.armed_at, idle.fired_at },
+        function(arming, plan, stamps, fired)
+            local position = 1
+            for index, entry in ipairs(plan.list) do
+                if entry.key == arming.key then
+                    position = index; break
                 end
             end
-            if position == nil or armed_position == nil or position > armed_position then
-                return 0
-            end
-            if position < armed_position then
-                return 1
-            end
-            return math.max(0, math.min(1, arming.elapsed / math.max(1, entry.delay)))
+            local entry = plan.list[position]
+            if not entry then return { title = "", time = "", completed = 0, total = 0 } end
+            local done = position == #plan.list and stamps[entry.key] ~= nil and fired[entry.key] == stamps[entry.key]
+            local running = arming.key == entry.key
+            local elapsed = running and math.max(0, math.min(entry.delay, arming.elapsed)) or 0
+            local completed = done and plan.total or entry.at - entry.delay
+            return {
+                title = done and "Actions complete" or entry.title,
+                time = done and "Done" or running and "in " .. idle.clock(entry.delay - elapsed)
+                    or "after " .. idle.format(entry.delay),
+                completed = completed / plan.total * 100,
+                total = (completed + (done and 0 or elapsed)) / plan.total * 100,
+            }
         end)
-        -- Signals resolve before `width` is parsed, as in `components/meter.lua`.
-        local fill = progress:map(function(fraction)
-            return string.format("%d%%", math.floor(fraction * 100 + 0.5))
-        end)
-        local ink = progress:map(function(fraction)
-            return fraction > 0 and theme.FG or theme.DIM
-        end)
-        return rect {
-            width = "Fill",
-            height = "Fill",
-            children = {
-                rect { width = fill, height = "Fill", background = theme.ACCENT_MEDIUM },
-                row {
-                    width = "Fill",
-                    height = "Fill",
-                    align_h = "Center",
-                    align_v = "Center",
-                    spacing = theme.spacing.xs,
-                    children = {
-                        glyph(entry.icon, ink, theme.icon.sm, { align_v = "Center" }),
-                        cell(idle.format(entry.delay), ink, theme.font.xs, { align_v = "Center" }),
-                    },
-                },
-            },
-        }
-    end
 
-    return {
-        -- `list` is `NodeBase`, not `BoxBase`: it places but does not paint, so `background`, `radius`
-        -- and `clip` go on this parent. The types do not catch the mistake; the engine does, at runtime.
-        row {
-            width = "Fill",
-            height = theme.idle_track_height,
-            radius = theme.radius.sm,
-            -- Square chambers butt together; the parent rounds the outer ends. `clip` is needed because
-            -- children do not inherit the parent's arc.
-            clip = "Rounded",
-            background = theme.GLASS_CONTENT,
-            visible = counting_down,
-            children = {
-                list {
-                    width = "Fill",
-                    height = "Fill",
-                    direction = "Horizontal",
-                    source = idle.schedule:map(function(plan)
-                        return plan.list
-                    end),
-                    key = function(entry)
-                        return entry.key
-                    end,
-                    itemfn = chamber,
+    return column {
+        width = "Fill",
+        spacing = theme.spacing.sm,
+        visible = counting_down,
+        children = {
+            row { width = "Fill", spacing = theme.spacing.sm, align_v = "Center", children = {
+                cell(progress:map(function(value) return value.title end), theme.FG, theme.font.sm, { width = "Fill" }),
+                cell(progress:map(function(value) return value.time end), theme.DIM, theme.font.sm),
+            } },
+            rect {
+                width = "Fill",
+                height = theme.meter_height,
+                radius = theme.meter_height / 2,
+                clip = "Rounded",
+                children = {
+                    meter(progress, function(value) return value.total end, theme.ACCENT, nil, {
+                        motion = progress:map(function(value)
+                            return value.total > 0 and { duration = idle.TICK * 1000, easing = "Linear" }
+                                or { duration = theme.animation_fast_ms, easing = "OutCubic" }
+                        end),
+                    }),
+                    rect { width = progress:map(function(value) return string.format("%.3f%%", value.completed) end),
+                        height = "Fill", background = theme.TEXT_MUTED },
+                    row { width = "Fill", height = "Fill", children = idle.schedule:map(function(plan)
+                        local marks = {}
+                        for index, entry in ipairs(plan.list) do
+                            marks[index] = rect {
+                                width = index == #plan.list and "Fill" or string.format("%.6f%%", entry.delay / plan.total * 100),
+                                height = "Fill",
+                                children = index < #plan.list and { rect {
+                                    width = theme.border_width_medium, height = "Fill", align_h = "End", background = theme.DIM,
+                                } } or {},
+                            }
+                        end
+                        return marks
+                    end) },
                 },
             },
         },
-        callout(icons.awake, held_text, {
-            tone = "active",
-            height = theme.idle_track_height,
-            visible = computed({ idle.inhibited, idle.unconfirmed }, function(held, uncertain)
-                return held and not uncertain
-            end),
-        }),
-        callout(icons.idle, held_text, {
-            tone = "neutral", height = theme.idle_track_height, visible = idle.unconfirmed,
-        }),
-        callout(icons.idle, settings:map(function(resolved)
-            return resolved.enabled and "Nothing is scheduled on this profile" or "Automatic actions are paused"
-        end), {
-            tone = "neutral",
-            height = theme.idle_track_height,
-            visible = computed({ counting_down, idle.inhibited }, function(counting, held)
-                return not counting and not held
-            end),
-        }),
     }
 end

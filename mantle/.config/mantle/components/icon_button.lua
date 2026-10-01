@@ -27,8 +27,8 @@ return function(glyph, on_activate, opts)
     local foreground = opts.foreground or util.lift(ground, theme.text_contrast)
 
     -- Selection wins the ring; otherwise it follows the pointer.
-    local border_color = opts.border_color or theme.GLASS_BORDER
-    if opts.border_color == nil then
+    local border_color = opts.border_color
+    if opts.border ~= false and border_color == nil then
         border_color = computed({ opts.selected or hovered, hovered }, function(is_selected, is_hovered)
             if opts.selected and is_selected then
                 return theme.ACCENT
@@ -45,6 +45,8 @@ return function(glyph, on_activate, opts)
             local idle_glyph = text {
                 content = glyph,
                 foreground = foreground,
+                -- Plain labels keep the shell font with `font = false`.
+                font = opts.font ~= false and (opts.font or theme.icon_font) or nil,
                 font_size = icon_size,
                 visible = idle_visible,
                 animate = { foreground = theme.animation_ms },

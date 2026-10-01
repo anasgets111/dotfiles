@@ -1,5 +1,5 @@
--- One modal card and its motion, for `modules/global/modal_host.lua` to stack under one scrim. By
--- default it fades, scales from 0.97 and rises by `spacing.md`, OutCubic in and InCubic out.
+-- One modal card and its motion, for `modules/global/modal_host.lua` to stack under one scrim.
+-- Fades, scales from 0.97 and drops in by `spacing.md`, OutCubic in and InCubic out.
 local theme = require("config.theme")
 local ui_state = require("lib.ui_state")
 local card_motion = require("components.card_motion")
@@ -8,13 +8,11 @@ local card_motion = require("components.card_motion")
 ---@field kind string The `modal` state value that shows this one, e.g. `"launcher"`.
 ---@field card table The card node, placed by its own aligns in the screen below the bar.
 ---@field showing? Signal<boolean> What shows it, for a card on its own surface; `modal_showing(kind)` by default.
----@field motion? ModalMotion
 ---@field reset_on_close? ScrollSignal[] Scrolls `modal_host` returns to the top once it closes.
 
 ---@class Modal
 ---@field kind string
 ---@field node table The screen-sized wrapper carrying the card and its motion.
----@field exit_ms integer How long `modal_host` keeps the card after it closes.
 ---@field reset_on_close ScrollSignal[]
 
 -- `modal_host`'s outside catcher is every card's ancestor, so a press on the card's own ground, such as
@@ -41,7 +39,7 @@ end
 ---@return Modal
 return function(opts)
     local showing = opts.showing or ui_state.modal_showing(opts.kind)
-    local card, exit_ms = card_motion(swallow_presses(opts.card), showing, opts.motion)
+    local card = card_motion(swallow_presses(opts.card), showing)
     return {
         kind = opts.kind,
         -- Screen-sized, so the card keeps its own placement. Stacking, not a column, which would
@@ -56,7 +54,6 @@ return function(opts)
             padding = { top = theme.bar_height },
             children = { card },
         },
-        exit_ms = exit_ms,
         reset_on_close = opts.reset_on_close or {},
     }
 end

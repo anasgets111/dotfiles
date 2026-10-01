@@ -35,7 +35,7 @@ for _, panel in ipairs(panels) do
     table.insert(section_rects, rect)
     sections[panel.kind] = column {
         width = "Fill",
-        spacing = panel.spacing or theme.spacing.xs,
+        spacing = panel.spacing or theme.spacing.md,
         geometry = rect,
         hover = panel_hover,
         on_hover = panel_hover and function(is_hovered)
@@ -66,7 +66,7 @@ local CORNER = math.min(theme.radius.md * 3, theme.bar_height)
 
 -- `popup_anchor` is the indicator's rect in this surface's coordinates, so centring needs no
 -- translation. The hand-written clamp matters near the clock and tray, where a centred card would
--- otherwise run off the edge. `screens[1]` guesses the head like `theme.main_screen`, and follows
+-- otherwise run off the edge. `screens[1]` guesses the head, and follows
 -- the signal so a resolution change moves the clamp; an empty list clamps only at zero.
 local card_x = computed({ ui_state.popup_anchor, mantle.screens, card_width }, function(anchor, screens, width)
     local x = ((anchor and anchor.x) or 0) + ((anchor and anchor.width) or 0) / 2 - width / 2

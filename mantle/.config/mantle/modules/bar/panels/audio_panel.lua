@@ -1,6 +1,4 @@
--- Masthead, output/microphone cards with pickers, and one slider per app stream. Device pickers and
--- the mixer expand on click, tracked by three `state()` signals. The two cards are composite controls
--- (label row, slider, picker); the mixer is a list, so it sits on the panel.
+-- Output and microphone rows open their device lists above the sliders. App streams stay flat.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -16,6 +14,7 @@ local disclosure = require("lib.disclosure")
 
 local tooltips = {}
 local mixer_open = disclosure.state("audio_mixer_open", false)
+local TRACK_INSET = theme.spacing.sm * 2 + theme.icon.md
 
 local function percent(value)
     return value and string.format("%d%%", math.floor(value * 100 + 0.5)) or "--"
@@ -36,47 +35,44 @@ end
 ---@field under? Node[]
 
 ---@param opts AudioControlOpts
----@param picker StateSignal<boolean>
-local function device_picker(opts, picker)
+local function audio_control(opts)
+    local picker = disclosure.state("audio_" .. opts.name .. "_picker", false)
     local devices = mantle.audio:map(function(audio)
         return (audio and audio[opts.devices]) or {}
     end)
-    return panel_row {
-        slot = "audio-picker-" .. opts.name,
-        icon = opts.is_input and icons.mic_on or icons.speaker,
-        title = "Choose device",
-        expanded = picker,
-        visible = devices:map(function(list)
-            return #list > 1
+    local choices = list {
+        width = "Fill",
+        spacing = theme.spacing.xs,
+        max_height = devices:map(function(items)
+            return util.fit_height(items, theme.panel_list_height, theme.spacing.xs, function()
+                return theme.control.lg
+            end)
         end),
-        details = list {
-            width = "Fill",
-            spacing = theme.spacing.xs,
-            source = devices,
-            itemfn = function(device)
-                return panel_row {
-                    slot = "audio-device-" .. opts.name .. "-" .. tostring(device.id),
-                    icon = util.audio_device_glyph(device, opts.is_input)
-                        or (opts.is_input and icons.mic_on or icons.speaker),
-                    title = util.device_name(device) or "?",
-                    selected = device.active,
-                    trailing = glyph(icons.check, device.active and theme.ACCENT or theme.CLEAR, theme.font.sm),
-                    on_activate = function()
-                        mantle.audio[opts.set_default](mantle.audio, device.id)
-                        picker:set(false)
-                    end,
-                }
-            end,
-            key = function(device)
-                return tostring(device.id)
-            end,
-        },
+        scroll = scroll("audio_devices_" .. opts.name),
+        source = devices,
+        itemfn = function(device)
+            return panel_row {
+                slot = "audio-device-" .. opts.name .. "-" .. tostring(device.id),
+                leading = rect {
+                    width = theme.icon.md,
+                    height = theme.icon.md,
+                    children = { glyph(util.audio_device_glyph(device, opts.is_input)
+                        or (opts.is_input and icons.mic_on or icons.speaker), theme.FG, theme.icon.md,
+                        { align = "Center", align_v = "Center" }) },
+                },
+                title = util.device_name(device) or "?",
+                color = device.active and theme.ACCENT or nil,
+                trailing = glyph(icons.check, theme.ACCENT, theme.icon.sm, { visible = device.active }),
+                on_activate = function()
+                    mantle.audio[opts.set_default](mantle.audio, device.id)
+                    picker:set(false)
+                end,
+            }
+        end,
+        key = function(device)
+            return tostring(device.id)
+        end,
     }
-end
-
----@param opts AudioControlOpts
-local function audio_control(opts)
-    local picker = disclosure.state("audio_" .. opts.name .. "_picker", false)
     local is_muted = mantle.audio:map(function(audio)
         return audio ~= nil and audio[opts.muted]
     end)
@@ -95,58 +91,74 @@ local function audio_control(opts)
         children = { cell(util.choose(is_muted, "Unmute", "Mute"), theme.FG, theme.font.sm) },
     })
 
-    local children = util.concat({
-        panel_row {
-            icon = leading_glyph,
-            icon_color = tint,
-            title = util.bold(opts.title),
-            subtitle = util.label(mantle.audio, function(audio)
-                return util.device_name(util.active_device(audio[opts.devices])) or "No device"
-            end),
-            trailing = row {
-                spacing = theme.spacing.sm,
-                align_v = "Center",
-                children = {
-                    cell(util.bold(computed({ mantle.audio, held }, function(audio, held_value)
-                        return percent(held_value >= 0 and held_value or audio and audio[opts.volume])
-                    end)), tint, theme.font.sm, { align_v = "Center" }),
-                    panel_action_icon(mute_glyph, function()
-                        mantle.audio[opts.toggle_mute](mantle.audio)
-                    end, {
-                        slot = "audio-mute-" .. opts.name,
-                        size = "md",
-                        disabled = mantle.audio:map(function(audio)
-                            return audio == nil or audio[opts.volume] == nil
-                        end),
-                    }),
-                },
+    local header = {
+        slot = "audio-picker-" .. opts.name,
+        leading = rect {
+            width = theme.icon.md,
+            height = theme.icon.md,
+            children = { glyph(leading_glyph, tint, theme.icon.md, { align = "Center", align_v = "Center" }) },
+        },
+        title = util.bold(opts.title),
+        subtitle = util.label(mantle.audio, function(audio)
+            return util.device_name(util.active_device(audio[opts.devices])) or "No device"
+        end),
+        trailing = row {
+            spacing = theme.spacing.sm,
+            align_v = "Center",
+            children = {
+                cell(util.bold(computed({ mantle.audio, held }, function(audio, held_value)
+                    return percent(held_value >= 0 and held_value or audio and audio[opts.volume])
+                end)), tint, theme.font.sm, { width = theme.control.lg, align = "End", align_v = "Center" }),
+                panel_action_icon(mute_glyph, function()
+                    mantle.audio[opts.toggle_mute](mantle.audio)
+                end, {
+                    slot = "audio-mute-" .. opts.name,
+                    size = "md",
+                    disabled = mantle.audio:map(function(audio)
+                        return audio == nil or audio[opts.volume] == nil
+                    end),
+                }),
             },
         },
-        slider {
-            name = "audio_pending_" .. opts.name,
-            signal = mantle.audio,
-            read = function(audio)
-                return audio[opts.volume]
-            end,
-            on_commit = function(value)
-                mantle.audio[opts.set_volume](mantle.audio, value)
-            end,
-            pending = held,
-            max = opts.headroom and util.MAX_VOLUME or nil,
-            split_at = opts.headroom and 1 or nil,
-            marker = opts.headroom,
-            headroom_color = util.choose(is_muted, theme.INACTIVE, theme.RED),
-            height = theme.audio_slider_height,
-            color = util.choose(is_muted, theme.INACTIVE, theme.ACCENT),
+    }
+    local children = {
+        column {
+            width = "Fill",
+            children = devices:map(function(items)
+                local opts_row = util.with(header, "expanded", #items > 1 and picker or nil)
+                opts_row.details = #items > 1 and choices or nil
+                return { panel_row(opts_row) }
+            end),
         },
-    }, opts.under)
-    children[#children + 1] = device_picker(opts, picker)
+        column {
+            width = "Fill",
+            spacing = theme.spacing.sm,
+            margin = { left = TRACK_INSET, right = theme.spacing.sm },
+            children = util.concat({ slider {
+                name = "audio_pending_" .. opts.name,
+                signal = mantle.audio,
+                read = function(audio)
+                    return audio[opts.volume]
+                end,
+                on_commit = function(value)
+                    mantle.audio[opts.set_volume](mantle.audio, value)
+                end,
+                pending = held,
+                max = opts.headroom and util.MAX_VOLUME or nil,
+                split_at = opts.headroom and 1 or nil,
+                marker = opts.headroom,
+                headroom_color = util.choose(is_muted, theme.INACTIVE, theme.RED),
+                height = theme.audio_slider_height,
+                color = util.choose(is_muted, theme.INACTIVE, theme.ACCENT),
+            } }, opts.under),
+        },
+    }
 
     return panel_card(children, {
         width = "Fill",
         visible = opts.visible,
         spacing = theme.spacing.sm,
-        padding = theme.spacing.md,
+        padding = theme.spacing.sm,
     })
 end
 
@@ -160,12 +172,13 @@ local function stream_row(app)
     local leading = icon_name and icon { name = icon_name, size = theme.icon.md, align_v = "Center" }
         or glyph(app.recording and icons.mic_on or icons.music_note, theme.FG, theme.icon.md, { align_v = "Center" })
     local tint = app.muted and theme.DIM or theme.FG
+    local held = state("audio_pending_app_" .. tostring(app.id), -1)
     return column {
         width = "Fill",
         spacing = theme.spacing.xs,
         children = {
             panel_row {
-                leading = leading,
+                leading = rect { width = theme.icon.md, height = theme.icon.md, children = { leading } },
                 title = name,
                 height = theme.control.md,
                 opacity = (app.muted or app.volume == nil) and theme.opacity.muted or nil,
@@ -175,27 +188,33 @@ local function stream_row(app)
                     children = {
                         glyph(icons.mic_on, theme.DIM, theme.icon.sm,
                             { align_v = "Center", visible = app.recording and icon_name ~= nil }),
-                        cell(percent(app.volume), tint, theme.font.sm, { align_v = "Center" }),
+                        cell(held:map(function(value)
+                            return percent(value >= 0 and value or app.volume)
+                        end), tint, theme.font.sm, {
+                            width = theme.control.lg, align = "End", align_v = "Center",
+                        }),
                         panel_action_icon(app.muted and icons.vol_muted or icons.vol_high, app.volume and function()
                             mantle.audio:set_app_muted(app.id, not app.muted)
                         end, { slot = "audio-stream-mute-" .. tostring(app.id), tint = tint }),
                     },
                 },
             },
-            slider {
-                name = "audio_pending_app_" .. tostring(app.id),
-                signal = mantle.audio,
-                read = function(audio)
-                    for _, stream in ipairs(audio.apps or {}) do
-                        if stream.id == app.id then
-                            return stream.volume
-                        end
-                    end
-                end,
-                on_commit = function(value)
-                    mantle.audio:set_app_volume(app.id, value)
-                end,
-                color = app.muted and theme.INACTIVE or theme.ACCENT,
+            column {
+                width = "Fill",
+                margin = { left = TRACK_INSET, right = theme.spacing.sm },
+                children = { slider {
+                    name = "audio_pending_app_" .. tostring(app.id),
+                    pending = held,
+                    signal = mantle.audio,
+                    read = function(audio)
+                        local stream = util.find(audio.apps, function(stream) return stream.id == app.id end)
+                        return stream and stream.volume
+                    end,
+                    on_commit = function(value)
+                        mantle.audio:set_app_volume(app.id, value)
+                    end,
+                    color = app.muted and theme.INACTIVE or theme.ACCENT,
+                } },
             },
         },
     }
@@ -314,4 +333,9 @@ local body = {
     },
 }
 
-return { kind = "audio", body = body, output_tooltip = tooltips.output, input_tooltip = tooltips.input }
+return {
+    kind = "audio",
+    body = body,
+    output_tooltip = tooltips.output,
+    input_tooltip = tooltips.input
+}

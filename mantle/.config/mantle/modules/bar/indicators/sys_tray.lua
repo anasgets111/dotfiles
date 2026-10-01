@@ -55,7 +55,7 @@ end
 -- letters.
 local ITEM_WIDTH = theme.icon.md + theme.spacing.sm
 
-local visible_items = computed({ mantle.tray, mantle.applications }, items_of)
+local visible_items = mantle.tray:map(items_of)
 local has_items = visible_items:map(function(items)
     return #items > 0
 end)

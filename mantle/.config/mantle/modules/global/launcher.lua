@@ -228,8 +228,7 @@ local function activate()
         mantle.applications:launch(id)
         local usage = store.app_usage:get() or {}
         local count = usage[id] and usage[id].count or 0
-        usage[id] = { count = count + 1, last = os.time() }
-        store:set("app_usage", usage)
+        store:set("app_usage", util.with(usage, id, { count = count + 1, last = os.time() }))
     end
     close()
 end
@@ -480,11 +479,15 @@ local search = on_rail(row {
 local search_layers = {
     on_rail(rect { height = "Fill", radius = SIZE / 2, blur = true }, { width = mode_rail.width }),
     shader {
-        width = "Fill",
+        -- Leave room for the last circle's spring overshoot.
+        width = theme.launcher_width + theme.spacing.md,
         height = "Fill",
         source = mantle.config_dir .. "/shaders/launcher_sheen.frag",
         params = {
             fill = theme.rgba(theme.LAUNCHER_FILL),
+            sheen = theme.rgba(theme.GLASS_BORDER_HOVER),
+            shade = theme.rgba(theme.LAUNCHER_SHADOW),
+            edge_width = theme.border_width,
             gap = theme.launcher_mode_gap,
             layout_width = theme.launcher_width,
         },
@@ -524,15 +527,6 @@ end
 return modal({
     kind = "launcher",
     reset_on_close = { SCROLL },
-    motion = {
-        enter_ms = 210,
-        exit_ms = 175,
-        enter_easing = { 0.05, 0.7, 0.1, 1 },
-        exit_easing = { 0.3, 0, 0.8, 0.15 },
-        scale = 0.96,
-        y = -theme.spacing.sm,
-        origin = { x = 0.5, y = 0 },
-    },
     card = column {
         width = theme.launcher_width,
         height = card_height,

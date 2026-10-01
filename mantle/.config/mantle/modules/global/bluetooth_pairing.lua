@@ -68,7 +68,7 @@ return panel {
     exclusive = false,
     visible = util.linger(showing, theme.animation_ms),
     keyboard_interactivity = "None",
-    child = rect((card_motion({
+    child = rect(card_motion({
         children = { panel_card({
             cell(text(function(asked)
                 -- The name is the device's own choice, so the MAC stays beside it.
@@ -116,5 +116,5 @@ return panel {
             width = theme.dialog_width,
             tone = "dialog",
         }) },
-    }, showing, { scale = false }))),
+    }, showing, { scale = false })),
 }

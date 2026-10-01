@@ -4,6 +4,7 @@ local section_list = require("components.section_list")
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
+local disclosure = require("lib.disclosure")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 local toggle = require("components.toggle")
@@ -102,7 +103,7 @@ local radio_up_and_idle = computed({ mantle.network, join.hidden_join }, functio
 end)
 
 -- `connect_error` stays until the next attempt, so the dismissal is view state.
-local error_dismissed = state("network_error_dismissed", false)
+local error_dismissed = disclosure.state("network_error_dismissed", false)
 
 mantle.network:on_change(function(network, previous)
     if previous == nil then
@@ -120,12 +121,9 @@ mantle.network:on_change(function(network, previous)
     end
 end)
 
--- Saved networks (the joined one included) first, then the rest. Within each, sort by tier, not
+-- Connected, saved, then available. Within each, sort by tier, not
 -- raw strength, so scan jitter cannot swap rows under the pointer.
 local function before(left, right)
-    if left.ap.active ~= right.ap.active then
-        return left.ap.active
-    end
     local left_tier, right_tier = util.signal_tier(left.ap.strength), util.signal_tier(right.ap.strength)
     if left_tier ~= right_tier then
         return left_tier > right_tier
@@ -135,9 +133,9 @@ end
 
 local rows = mantle.network:map(function(network)
     local connecting = network and network.connecting_ssid
-    local sections = { saved = {}, available = {} }
+    local sections = { connected = {}, saved = {}, available = {} }
     for _, ap in ipairs(access_points(network)) do
-        local group = (ap.saved or ap.active) and sections.saved or sections.available
+        local group = ap.active and sections.connected or ap.saved and sections.saved or sections.available
         group[#group + 1] = {
             kind = "ap",
             ap = ap,
@@ -147,7 +145,7 @@ local rows = mantle.network:map(function(network)
         }
     end
     local out = {}
-    for _, label in ipairs({ "saved", "available" }) do
+    for _, label in ipairs({ "connected", "saved", "available" }) do
         local group = sections[label]
         if #group > 0 then
             table.sort(group, before)
@@ -169,7 +167,8 @@ local function access_point_row(entry)
     local band, color = util.band_of(ap)
 
     local leading = {
-        glyph(icons.wifi[util.signal_tier(ap.strength)], color, theme.icon.md, { align_v = "Center" }),
+        glyph(icons.wifi[util.signal_tier(ap.strength)], ap.active and theme.ACCENT or theme.FG,
+            theme.icon.md, { align_v = "Center" }),
         band and cell(util.bold(band), color, theme.font.xs, {
             align_v = "End",
             font = theme.condensed_font,
@@ -186,9 +185,13 @@ local function access_point_row(entry)
             mantle.network:forget(ap.ssid)
         end, { slot = "network-forget-" .. tostring(ap.ssid), tint = theme.RED })
     end
-    if ap.secure then
-        trailing[#trailing + 1] = glyph(icons.lock, theme.DIM, theme.font.xs, { align_v = "Center" })
-    end
+    trailing[#trailing + 1] = rect {
+        width = theme.icon.sm,
+        height = theme.icon.sm,
+        children = { glyph(icons.lock, theme.DIM, theme.icon.sm, {
+            align = "Center", align_v = "Center", visible = ap.secure,
+        }) },
+    }
     return panel_row {
         slot = "network-ap-" .. tostring(ap.ssid),
         leading = row {
@@ -308,15 +311,17 @@ local body = {
                 -- Keyed on the association, not `ssid`. A docked laptop's joined radio still has an
                 -- address while `ssid` names the cable.
                 local ap = util.active_access_point(network)
-                return ap and detail_line(network.wifi_ip, (util.band_of(ap))) or ""
+                return ap and detail_line(network.wifi_ip, (util.band_of(ap)))
+                    or network.wifi_enabled and "Not connected" or ""
             end),
             radio_tile("ethernet", "Ethernet", icons.ethernet, function(network)
+                local detail = detail_line(network.ethernet_ip, speed_text(network.ethernet_speed))
                 return network.ethernet_enabled
-                    and detail_line(network.ethernet_ip, speed_text(network.ethernet_speed)) or ""
+                    and (detail ~= "" and detail or "Not connected") or ""
             end),
         },
     },
-    -- Closed by its button or the next attempt. It yields to the sheet, so one failure never shows twice.
+    -- Dismissed until the next open or attempt; yields to the sheet so a failure never shows twice.
     callout(icons.warning, error_message, {
         visible = computed({ mantle.network, step, error_dismissed }, function(network, current, dismissed)
             return current == "" and not dismissed
@@ -435,12 +440,7 @@ local body = {
         end),
         computed({ mantle.network, join.hidden_join }, function(network, joining)
             return not radio_on(network) or (not joining and #access_points(network) == 0)
-        end),
-        {
-            icon = mantle.network:map(function(network)
-                return radio_on(network) and icons.wifi_none or icons.wifi_off
-            end)
-        }
+        end)
     ),
 }
 

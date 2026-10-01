@@ -102,8 +102,9 @@ end)
 
 -- `identity` is the empty-string sentinel, so fallbacks test `""`, not a plain `or` chain.
 local function first_nonempty(...)
-    for _, candidate in ipairs({ ... }) do
-        if candidate ~= nil and candidate ~= "" then
+    for index = 1, select("#", ...) do
+        local candidate = select(index, ...)
+        if candidate and candidate ~= "" then
             return candidate
         end
     end
@@ -311,4 +312,4 @@ local body = {
     end), { icon = icons.media }),
 }
 
-return { kind = "media", body = body }
+return { kind = "media", body = body, spacing = theme.spacing.xs }

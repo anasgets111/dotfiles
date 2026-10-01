@@ -118,7 +118,7 @@ return function(opts)
     local fill_opacity = opts.fill_visible and util.choose(opts.fill_visible, 1, 0)
     local fill_animate = fill_opacity and { opacity = { duration = theme.animation_ms, easing = "OutCubic" } }
 
-    -- `%d` raises on a float in Lua 5.4; see `components/meter.lua`.
+    -- `%d` raises on a float in Lua 5.4.
     local function percent(value)
         return string.format("%d%%", math.floor(value / max * 100 + 0.5))
     end

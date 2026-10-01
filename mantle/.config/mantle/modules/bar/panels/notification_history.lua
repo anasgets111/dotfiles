@@ -1,6 +1,4 @@
--- The feed's list half: the popup shows the newest few, this shows the whole feed, scrolling. Rows
--- are `components/notification_card.lua`, so actions, replies and expanded bodies work here; this
--- file owns the masthead (who, when, the DND switch), the weather and system rows and the sectioned list.
+-- Identity and date, weather, system details, notification controls and the sectioned history feed.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
@@ -176,4 +174,4 @@ local body = {
     ),
 }
 
-return { kind = "notifications", body = body, spacing = theme.spacing.md }
+return { kind = "notifications", body = body }

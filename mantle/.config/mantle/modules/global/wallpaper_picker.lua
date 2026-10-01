@@ -39,7 +39,7 @@ local query = state("wallpaper_query", "")
 local selected_path = state("wallpaper_selected", "")
 local monitor = state("wallpaper_monitor", ALL)
 
--- Tile width divides the grid card's inner width across the columns, leaving no right gutter.
+-- Fit whole tiles and gaps inside the grid card's inner width.
 local card_padding = theme.spacing.lg
 local grid_padding = theme.spacing.sm
 local tile_gap = theme.spacing.xs
@@ -358,8 +358,6 @@ local fit_row = segmented {
 
 -- Three to a bar, as many bars as the effects need: six names in one 220px bar would not fit.
 local EFFECTS_PER_ROW = 3
-local current_effect = wallpaper.effect
-
 local effect_rows = wallpaper.effects:map(function(names)
     return util.chunk(names, EFFECTS_PER_ROW)
 end)
@@ -373,7 +371,7 @@ local effect_grid = list {
         return segmented {
             slot = "wallpaper-effect-" .. names[1],
             options = names,
-            value = current_effect,
+            value = wallpaper.effect,
             -- The file's name is the value; its title is what a person reads.
             format = function(name)
                 return name:sub(1, 1):upper() .. name:sub(2)
@@ -428,6 +426,7 @@ local body = row {
 
 return modal({
     kind = "wallpaper_picker",
+    reset_on_close = { SCROLL },
     card = panel_card({ search, body }, {
         width = theme.wallpaper_picker_width,
         height = theme.wallpaper_picker_height - (rows_budget - GRID_HEIGHT),

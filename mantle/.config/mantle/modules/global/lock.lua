@@ -1,7 +1,4 @@
--- The wallpaper under a scrim, the time set large on it, one glass card per output holding who is
--- locked and a password pill that says what PAM is doing, and the status readings along the bottom.
--- The scrim frosts the wallpaper (`backdrop_blur`), so the scrim and card can be lighter than a lock
--- over a sharp photograph needs.
+-- Clock, identity, secure password field and system status over a frosted wallpaper.
 local theme          = require("config.theme")
 local icons          = require("config.icons")
 local util           = require("lib.util")
@@ -9,23 +6,19 @@ local wallpaper      = require("lib.wallpaper")
 local cell           = require("components.cell")
 local glyph          = require("components.glyph")
 local panel_card     = require("components.panel_card")
-local callout        = require("components.callout")
+local icon_button    = require("components.icon_button")
 local info_badge     = require("components.info_badge")
+local scrim          = require("components.scrim")
 local identity       = require("lib.identity")
 local weather        = require("lib.weather")
 
-local PAD            = theme.spacing.xl
 local FIELD_HEIGHT   = theme.control.xl
--- Half the height, the way `theme.item_radius` is half `item_height`. `radius.xl` is the fully
--- round token, sized for the card's corner and only close to this box by coincidence.
-local FIELD_RADIUS   = math.floor(FIELD_HEIGHT / 2)
--- The disc matches the pill below it, so the card's two rows share one height.
-local AVATAR         = FIELD_HEIGHT
+local FIELD_RADIUS   = FIELD_HEIGHT / 2
+-- Centre both controls on the pill's rounded ends.
+local ICON_INSET     = (FIELD_HEIGHT - theme.icon.md) / 2
+local BUTTON_INSET   = (FIELD_HEIGHT - theme.control.lg) / 2
 local WALLPAPER_BLUR = 24
--- A second frost under the card, over the already-blurred wallpaper, so the glass reads thicker
--- than the ground around it.
 local CARD_BLUR      = 16
--- Between the clock, the card and the status row arriving, so the eye lands on the time first.
 local STAGGER        = 90
 -- A wrong password shakes the pill left and right, damping out.
 local SHAKE          = {
@@ -34,26 +27,20 @@ local SHAKE          = {
     keyframes = { { x = 0 }, { x = -10 }, { x = 10 }, { x = -6 }, { x = 6 }, { x = -2 }, { x = 0 } },
 }
 
--- The engine removes the lock after authentication, not when the tween ends, so it must be told to
--- wait out the card's exit plus slack for the state push and first frame.
+-- Keep the lock until the card's exit finishes, plus scheduling slack.
 local LEAVE_SLACK    = 60
 mantle.lock:set_unlock_animation(theme.animation_slow_ms + LEAVE_SLACK)
 
 util.auto_english_layout(mantle.lock)
 
--- The compositor has granted the lock and PAM has not answered; both edges of the card's motion are
--- this flag. `animate.from` applies only to a node with no displayed value, and this subtree
--- outlives the lock, so entry needs the value change too.
+-- The subtree survives unlock; both entry and exit need an explicit target.
 local up           = mantle.lock:map(function(lock)
     return lock ~= nil and lock.active and not lock.unlocking
 end)
 local opacity      = util.choose(up, 1, 0)
--- Where the card starts its entry.
 local CLOSED_SCALE = 0.94
 
--- `props` fading and sliding in from `offset` px, `order` steps after the lock is granted. Exit drops
--- the delay, so everything leaves inside the engine's unlock window. `scale` grows it from
--- `CLOSED_SCALE` too; both edges need a target, since an absent property skips the entry.
+-- Stagger entry; exit together inside the engine's unlock window.
 local function entering(props, order, offset, scale)
     props.opacity = opacity
     props.translate = up:map(function(on)
@@ -73,32 +60,33 @@ local function entering(props, order, offset, scale)
     return props
 end
 
-local hint         = util.label(mantle.lock, function(lock)
-    if lock.authenticating then
-        return "Authenticating…"
-    end
-    if not lock.active then
+local busy         = util.shown_when(mantle.lock, function(lock)
+    return lock.authenticating or lock.unlocking
+end)
+local ERROR_TEXT   = {
+    ["authentication failed"] = "Incorrect password. Try again.",
+    ["too many attempts"] = "Too many attempts. Try again later.",
+}
+local feedback     = mantle.lock:map(function(lock)
+    if lock == nil or not lock.active then
         return "Locking…"
     end
-    return "Press Enter to unlock"
+    if lock.unlocking then
+        return "Unlocking…"
+    end
+    if lock.authenticating then
+        return "Checking…"
+    end
+    local error = lock.error or ""
+    return ERROR_TEXT[error] or (error ~= "" and error) or "Press Enter to unlock"
 end)
 
 local failed       = util.shown_when(mantle.lock, function(lock)
-    return lock.error ~= nil and lock.error ~= ""
+    return lock.active and not lock.authenticating and not lock.unlocking and lock.error ~= nil and lock.error ~= ""
 end)
 
--- Border and hint colours change together, so failure is one state change.
-local field_border = computed({ failed, mantle.lock }, function(error_shown, lock)
-    if error_shown then
-        return theme.RED
-    end
-    return lock ~= nil and lock.authenticating and theme.ACCENT or theme.GLASS_BORDER
-end)
-
--- `attempts` is printed because state is sampled at layout time: two identical `error` strings
--- would otherwise look like one failure.
-local error_text   = util.label(mantle.lock, function(lock)
-    return string.format("%s (%d)", lock.error, lock.attempts or 0)
+local field_border = computed({ busy, failed }, function(checking, error_shown)
+    return checking and theme.ACCENT or error_shown and theme.RED or theme.GLASS_BORDER
 end)
 
 -- Each new failure replays the shake; `failed` keeps a reset count at lock start from playing it.
@@ -108,20 +96,18 @@ end), SHAKE.duration * #SHAKE.keyframes), failed }, function(fresh, error_shown)
     return fresh and error_shown
 end)
 
--- One icon-and-reading pair from the status row. Three literal children need no `list`.
 local function status_item(icon_glyph, label, visible)
     return row {
         spacing = theme.spacing.xs,
         visible = visible,
         children = {
-            glyph(icon_glyph, theme.ACCENT, theme.icon.md, { align_v = "Center" }),
+            glyph(icon_glyph, theme.DIM, theme.icon.md, { align_v = "Center" }),
             cell(label, theme.FG, theme.font.md, { align_v = "Center" }),
         },
     }
 end
 
--- Hours bold and minutes regular in one run pair. No meridiem: beside numerals this size it floated
--- off their baseline, and a lock screen is read at a glance.
+-- Bold hours and regular minutes, without a leading zero.
 local clock = mantle.system:map(function(system)
     local now = os.date("*t", system and system.time)
     local hour = now.hour % 12
@@ -131,14 +117,9 @@ local clock = mantle.system:map(function(system)
     }
 end)
 
--- Built per output because the compositor calls `child` for each lock surface. Each surface owns
--- its wallpaper and field. The field is on every output, so the compositor can focus the sole
--- `secure_submit` field on whichever screen has keyboard focus.
+-- One secure field per output, armed on compositor focus.
 local function content(output)
-    -- `secure_submit` keeps keystrokes in a native buffer on the Renderer's Wayland thread; they
-    -- leave as a `("lock", "authenticate")` envelope, never a Lua value. No `on_change`/`on_submit`:
-    -- either would reopen that path. As the surface's only such field it is armed on compositor
-    -- focus, so unlocking needs no click.
+    -- Passwords stay in the native buffer. Never attach `on_change` or `on_submit`.
     local password_field = textfield {
         width = "Fill",
         height = FIELD_HEIGHT,
@@ -150,8 +131,22 @@ local function content(output)
         align_v = "Center",
     }
 
-    -- Build the 12-hour clock from `os.date("*t")` rather than `%I`, which pads to "01:40". Build the day in two calls: `%-d` is glibc-specific, and Lua
-    -- rejected it before strftime saw it, returning `util.label`'s "!".
+    local unlock = icon_button(icons.chevron_right, nil, {
+        slot = "lock-unlock-" .. output,
+        size = theme.control.lg,
+        icon_size = theme.icon.md,
+        border = false,
+        background = theme.GLASS_CONTROL,
+        background_hover = theme.ACCENT_LIGHT,
+        foreground = theme.FG,
+        spinning = busy,
+        cursor = util.choose(busy, "default", "pointer"),
+    })
+    unlock.submit = busy:map(function(checking)
+        return not checking
+    end)
+
+    -- Lua rejects `%-d`; read the unpadded day from the date table.
     local time = column(entering({
         align_h = "Center",
         spacing = theme.spacing.xs,
@@ -168,14 +163,11 @@ local function content(output)
             width = "Fill",
             spacing = theme.spacing.md,
             children = {
-                -- One disc: two hard circles read as a button with a focus outline.
                 rect {
-                    width = AVATAR,
-                    height = AVATAR,
-                    radius = math.floor(AVATAR / 2),
-                    background = theme.ACCENT_LIGHT,
-                    border_width = theme.border_width,
-                    border_color = theme.with_opacity(theme.ACCENT, 0.45),
+                    width = FIELD_HEIGHT,
+                    height = FIELD_HEIGHT,
+                    radius = FIELD_RADIUS,
+                    background = theme.GLASS_CONTROL,
                     children = {
                         cell(util.bold(identity.initials), theme.FG, theme.font.lg, {
                             width = "Fill",
@@ -198,10 +190,8 @@ local function content(output)
         row {
             width = "Fill",
             height = FIELD_HEIGHT,
-            padding = { right = theme.spacing.md, left = theme.spacing.md },
+            padding = { right = BUTTON_INSET, left = ICON_INSET },
             spacing = theme.spacing.sm,
-            -- A well, not a raised control: `GLASS_CONTROL` made it the lightest thing here, and
-            -- `GLASS` a black bar on the frosted card.
             background = theme.GLASS_INPUT,
             radius = FIELD_RADIUS,
             border_width = theme.border_width_medium,
@@ -211,39 +201,59 @@ local function content(output)
                 return { border_color = theme.animation_ms, translate = on and SHAKE or nil }
             end),
             children = {
-                glyph(icons.lock, theme.with_opacity(theme.ACCENT, 0.8), theme.icon.md, {
+                glyph(icons.lock, theme.DIM, theme.icon.md, {
+                    width = theme.icon.md,
+                    align = "Center",
                     align_v = "Center",
                 }),
                 password_field,
-                -- Inside the pill; the bar's indicator is across the screen.
-                info_badge("Caps lock", theme.YELLOW, {
-                    visible = util.shown_when(mantle.keyboard, function(keyboard)
-                        return keyboard.caps_lock == true
-                    end),
-                }),
+                unlock,
             },
         },
-        -- Round like the pill above it; the panels' `radius.sm` read as a stray box here.
-        callout(icons.warning, error_text, { visible = failed, radius = theme.radius.xl }),
-        cell(hint, theme.TEXT_MUTED, theme.font.sm, {
+        column {
             width = "Fill",
-            align = "Center",
-            visible = failed:map(function(error_shown)
-                return not error_shown
-            end),
-        }),
+            padding = { left = ICON_INSET, right = BUTTON_INSET },
+            spacing = theme.spacing.sm,
+            children = {
+                row {
+                    width = "Fill",
+                    height = theme.control.xs,
+                    align_v = "Center",
+                    spacing = theme.spacing.sm,
+                    children = {
+                        glyph(icons.keyboard, theme.DIM, theme.icon.sm, {
+                            width = theme.icon.md, align = "Center", align_v = "Center",
+                        }),
+                        cell(util.label(mantle.keyboard, function(keyboard)
+                            return keyboard.active_layout
+                        end), theme.DIM, theme.font.md, { width = "Fill", align_v = "Center" }),
+                        info_badge("Caps lock", theme.YELLOW, {
+                            visible = util.shown_when(mantle.keyboard, function(keyboard)
+                                return keyboard.caps_lock == true
+                            end),
+                        }),
+                    },
+                },
+                -- Both lines stay reserved, so an error or Caps Lock never moves the input.
+                rect {
+                    width = "Fill",
+                    height = theme.control.lg,
+                    padding = { left = theme.icon.md + theme.spacing.sm },
+                    children = { cell(feedback, util.choose(failed, theme.RED, theme.DIM), theme.font.lg, {
+                        width = "Fill", align = "Start", align_v = "Start", wrap = "Word", max_lines = 2,
+                    }) },
+                },
+            },
+        },
     }, {
         width = theme.dialog_width,
         align_h = "Center",
-        padding = PAD,
+        padding = theme.spacing.xl,
         spacing = theme.spacing.lg,
-        -- Lighter than `theme.GLASS_CONTENT` (0.46), which is sized for a sharp photograph.
         background = theme.with_opacity(theme.ELEVATED, 0.3),
+        glass = true,
         radius = theme.radius.xl,
         backdrop_blur = CARD_BLUR,
-        -- The edge, not a shadow, separates the card from the picture.
-        border_width = theme.border_width_medium,
-        border_color = theme.GLASS_BORDER,
     })
 
     -- Context, not a control, so it sits on the wallpaper at the bottom edge.
@@ -278,15 +288,6 @@ local function content(output)
                     return network.ssid or "Offline"
                 end)
             ),
-            status_item(
-                icons.keyboard,
-                util.label(mantle.keyboard, function(keyboard)
-                    return keyboard.active_layout
-                end),
-                util.shown_when(mantle.keyboard, function(keyboard)
-                    return keyboard.active_layout ~= ""
-                end)
-            ),
         },
     }, 2, theme.spacing.md))
 
@@ -302,16 +303,11 @@ local function content(output)
                 fit = wallpaper.fit_of(output),
                 width = "Fill",
                 height = "Fill",
-                -- The desktop's own texture, so it draws on the first frame; unblurred, since a
-                -- `source_blur` would key a second copy that decodes after the lock maps.
+                -- Reuse the desktop texture; `source_blur` would decode a second copy.
                 async = true,
             },
-            -- The desktop frosts over as the lock arrives and thaws halfway as it leaves: clearing
-            -- fully under the fading card read as a glitch.
-            rect {
-                width = "Fill",
-                height = "Fill",
-                background = theme.SCRIM,
+            -- Thaw halfway on exit to avoid a sharp flash under the fading card.
+            scrim(nil, {
                 backdrop_blur = util.lift(mantle.lock, function(lock)
                     if lock == nil or not lock.active then
                         return 0
@@ -319,24 +315,17 @@ local function content(output)
                     return lock.unlocking and WALLPAPER_BLUR / 2 or WALLPAPER_BLUR
                 end),
                 animate = { backdrop_blur = { duration = theme.animation_slow_ms, easing = "OutCubic", from = 0 } },
-            },
-            -- Screen-sized and stacking, so each child keeps its own placement.
-            rect {
-                width = "Fill",
-                height = "Fill",
+            }),
+            column {
+                align_h = "Center",
+                align_v = "Center",
+                spacing = theme.spacing.xl * 2,
                 children = {
-                    column {
-                        align_h = "Center",
-                        align_v = "Center",
-                        spacing = theme.spacing.xl * 2,
-                        children = {
-                            time,
-                            column(entering({ align_h = "Center", children = { card } }, 1, -theme.spacing.md, true)),
-                        },
-                    },
-                    status,
+                    time,
+                    column(entering({ align_h = "Center", children = { card } }, 1, -theme.spacing.md, true)),
                 },
             },
+            status,
         },
     }
 end

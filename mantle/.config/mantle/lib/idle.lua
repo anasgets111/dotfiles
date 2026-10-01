@@ -1,6 +1,5 @@
--- Idle-seat policy, not execution: settings, the three stages, and what holds the session awake.
--- `modules/global/idle.lua` runs the clock, stamps each arming and fires. Side-effect-free, so bar
--- readers can require it; `modules/` requires `lib/`, never the reverse.
+-- Idle settings, stages and inhibitor state. Loading this module fires no idle actions;
+-- `modules/global/idle.lua` runs the clock, stamps each arming and fires the stages.
 --
 -- One one-second threshold counted on `mantle.system.monotonic`, not one per stage: the panel's
 -- "idle 0:42" readout needs the tick anyway, and a stage arms when its predecessor reports `done`
@@ -328,9 +327,9 @@ function idle.armed(plan)
     end
 end
 
---- Move one stage `step` places. Out-of-range is a no-op, so the modal can wire both chevrons.
+--- Move one stage `step` places, keeping the other stages in order.
 --- @param key string
---- @param step integer `-1` earlier, `1` later
+--- @param step integer Negative earlier, positive later.
 function idle.move(key, step)
     local order = idle.read(store.idle:get()).order
     local at
@@ -340,10 +339,10 @@ function idle.move(key, step)
         end
     end
     local to = at and at + step
-    if to == nil or to < 1 or to > #order then
+    if to == nil or to == at or to < 1 or to > #order then
         return
     end
-    order[at], order[to] = order[to], order[at]
+    table.insert(order, to, table.remove(order, at))
     idle.write({ order = order })
 end
 

@@ -19,12 +19,11 @@ wallpaper.SHADER_FOLDER = mantle.config_dir .. "/shaders"
 local SHADER_PREFIX = "wallpaper_"
 wallpaper.NO_SHADER = "fade"
 
--- A shader with no row here, such as anything dropped into the folder, runs with every uniform at
--- zero. A row gives it knobs.
 local function random_center()
     return { center_x = math.random(), center_y = math.random(), softness = 0.1 }
 end
 
+-- Shaders without a row run with zero-valued uniforms.
 local RANDOM_PARAMS = {
     wipe = function()
         return { direction = math.floor(math.random() * 4), softness = 0.1 }

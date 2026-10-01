@@ -1,6 +1,4 @@
-// The old picture collapsing into a point: the disc run backwards, with the old picture inside the shrinking circle instead of the new one
-// inside a growing one.
-//
+// The old picture collapses inside a shrinking circle.
 // params: center_x, center_y in 0..1; softness widens the blended ring.
 uniform float center_x;
 uniform float center_y;

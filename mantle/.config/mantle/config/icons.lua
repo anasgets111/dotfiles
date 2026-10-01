@@ -103,13 +103,13 @@ icons.disk            = "\u{F02CA}"
 
 -- One per Bluetooth `category`, so a mouse or headset does not get the generic glyph.
 icons.device          = {
-    keyboard   = "\u{F030C}",
+    keyboard   = icons.keyboard,
     mouse      = "\u{F037D}",
-    headphones = "\u{F02CB}",
-    headset    = "\u{F02CE}",
+    headphones = icons.headphones,
+    headset    = icons.headset,
     phone      = "\u{F011C}",
     computer   = "\u{F0322}",
-    generic    = "\u{F00AF}",
+    generic    = icons.bt_on,
 }
 
 -- `idle` means nothing holds the system awake, and `awake` is the coffee cup of a manual hold.

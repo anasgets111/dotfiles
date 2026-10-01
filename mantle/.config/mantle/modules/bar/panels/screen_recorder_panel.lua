@@ -35,9 +35,9 @@ local GROUPS = {
         title = "quality",
         fallback = "high",
         options = {
-            { value = "low",    label = "Low",    detail = "Smallest files, softest detail in motion" },
-            { value = "medium", label = "Medium", detail = "Balanced size and detail" },
-            { value = "high",   label = "High",   detail = "Sharpest detail, largest files" },
+            { value = "low",    label = "Low" },
+            { value = "medium", label = "Medium" },
+            { value = "high",   label = "High" },
         },
     },
     {
@@ -55,8 +55,8 @@ local GROUPS = {
         title = "format",
         fallback = "mp4",
         options = {
-            { value = "mp4", label = "MP4", detail = "Plays and uploads anywhere" },
-            { value = "mkv", label = "MKV", detail = "Stays playable if the session crashes mid-recording" },
+            { value = "mp4", label = "MP4" },
+            { value = "mkv", label = "MKV" },
         },
     },
 }
@@ -94,7 +94,7 @@ local status_text = computed(
     end
 )
 
--- One bar per group; the detail line explains only the chosen segment.
+-- Each setting has one label and one segmented control.
 local function option_group(group)
     local labels, values = {}, {}
     for _, option in ipairs(group.options) do
@@ -103,6 +103,7 @@ local function option_group(group)
     end
     local bar = segmented {
         slot = "recorder-" .. group.key,
+        tone = "subtle",
         options = values,
         value = store.screen_recorder:map(function(settings)
             local option = selected_option(group, settings)
@@ -116,24 +117,12 @@ local function option_group(group)
         end,
     }
 
-    local detail = store.screen_recorder:map(function(settings)
-        local option = selected_option(group, settings)
-        return (option and option.detail) or ""
-    end)
-
     return column {
         width = "Fill",
         spacing = theme.spacing.xs,
         children = {
             section_header(group.title),
             bar,
-            cell(detail, theme.DIM, theme.font.xs, {
-                width = "Fill",
-                wrap = "Word",
-                visible = detail:map(function(line)
-                    return line ~= ""
-                end),
-            }),
         },
     }
 end
@@ -163,7 +152,7 @@ local function wide_button(label, on_activate, slot, tone, icon, visible)
     return action_button(label, on_activate, slot, {
         tone = tone,
         width = "Fill",
-        height = theme.panel_toggle_height,
+        height = theme.control.lg,
         glyph = icon,
         visible = visible,
     })
@@ -173,19 +162,18 @@ local body = {
     panel_header {
         title = "Screen recorder",
         subtitle = status_text,
+        icon = util.choose(recorder.paused, icons.record_paused, icons.record_start),
         -- Red marks an active capture, not "off".
-        accent = util.choose(recorder.recording, theme.RED, theme.ACCENT),
+        accent = computed({ recorder.recording, recorder.paused }, function(up, held)
+            return up and (held and theme.PEACH or theme.RED) or theme.ACCENT
+        end),
         trailing = {
             info_badge(recorder.elapsed_text, util.choose(recorder.paused, theme.PEACH, theme.RED),
                 { visible = recorder.recording }),
         },
     },
 
-    -- Four buttons in two slots, not two colour-changing ones: `action_button` fixes its grounds
-    -- from a static `tone`, and an invisible node takes no size or spacing gap (`layout/scene.rs`),
-    -- so a pair per state costs the same row and each button keeps one label and one job. Tinted
-    -- glass at tile height, like the switch tiles other panels keep in this band; solid is for a
-    -- footer's conclusion, and red for the one action that ends a capture.
+    -- Static button tones; only the idle or recording pair takes space.
     row {
         width = "Fill",
         spacing = theme.spacing.sm,
@@ -200,7 +188,7 @@ local body = {
 
 
     panel_row {
-        title = "Recording settings",
+        title = "Capture settings",
         subtitle = settings_summary,
         slot = "recorder-settings",
         expanded = settings_expanded,
@@ -213,7 +201,8 @@ local body = {
     },
 
     panel_row {
-        title = "Open recordings folder",
+        title = "Open recordings",
+        icon = icons.raise,
         subtitle = recorder.directory:map(function(dir)
             local home = os.getenv("HOME") or ""
             if home ~= "" and dir:sub(1, #home) == home then

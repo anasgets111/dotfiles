@@ -1,12 +1,10 @@
 local theme = require("config.theme")
 local icons = require("config.icons")
-local glyph = require("components.glyph")
 local toggle = require("components.toggle")
 local panel_card = require("components.panel_card")
 local panel_header = require("components.panel_header")
 local panel_row = require("components.panel_row")
 local section_header = require("components.section_header")
-local panel_action_icon = require("components.panel_action_icon")
 local ui_state = require("lib.ui_state")
 local modal = require("components.modal")
 local segmented = require("components.segmented")
@@ -28,13 +26,10 @@ end)
 local header = panel_header {
     title = "Idle & power",
     subtitle = computed(
-        { settings, idle.active_profile, idle.schedule, idle.elapsed, idle.reasons, idle.stale, idle.arming },
-        function(resolved, profile, plan, elapsed, reasons, stale, arming)
-            if #reasons > 0 then
-                return "Held awake · " .. table.concat(reasons, ", ")
-            end
-            if stale then
-                return "Compositor hold last seen · checking after input stops"
+        { settings, idle.schedule, idle.elapsed, idle.reasons, idle.stale, idle.inhibited },
+        function(resolved, plan, elapsed, reasons, stale, held)
+            if held or stale then
+                return idle.held_text(reasons, held, stale)
             end
             if not resolved.enabled then
                 return "Automatic actions are paused"
@@ -42,19 +37,7 @@ local header = panel_header {
             if plan.total == 0 then
                 return "No actions enabled on this profile"
             end
-            local where = profile == "battery" and "On battery" or "On AC power"
-            if elapsed == 0 then
-                local first = plan.list[1]
-                return string.format("%s · %s after %s", where, first.title, idle.format(first.at))
-            end
-            -- The armed stage's own delay, not the running total: it answers "how long have I got".
-            for _, entry in ipairs(plan.list) do
-                if entry.key == arming.key then
-                    return string.format("Idle %s · %s in %s", idle.clock(elapsed), entry.title,
-                        idle.clock(math.max(0, entry.delay - arming.elapsed)))
-                end
-            end
-            return string.format("Idle %s · every stage has run", idle.clock(elapsed))
+            return elapsed > 0 and "Idle " .. idle.clock(elapsed) or "Waiting for inactivity"
         end
     ),
     -- The bar circle's glyph, so opener and modal read as one control.
@@ -72,8 +55,11 @@ local header = panel_header {
 -- opened. A desktop has no battery, so no picker, and the bars are AC.
 local PROFILES = { "ac", "battery" }
 local picked = state("idle_profile_picked", "")
+local dragging = state("idle_stage_drag", {})
+local stage_bounds = geometry("idle-settings-stages")
 ui_state.on_modal_close("idle_settings", function()
     picked:set("")
+    dragging:set({})
 end)
 local shown_profile = computed({ picked, idle.active_profile, has_battery }, function(chosen, active, battery)
     if not battery then
@@ -97,6 +83,8 @@ local profile_picker = segmented {
         picked:set(profile)
     end,
     width = theme.idle_picker_width,
+    font_size = theme.font.sm,
+    tone = "subtle",
     visible = has_battery,
 }
 
@@ -122,7 +110,7 @@ local function duration_bar(stage)
         table.sort(out)
         return out
     end)
-    return segmented {
+    local bar = segmented {
         slot = "idle-" .. stage.key,
         options = options,
         value = computed({ settings, shown_profile }, function(resolved, profile)
@@ -139,32 +127,21 @@ local function duration_bar(stage)
             idle.write({ [profile] = held })
         end,
         width = theme.idle_bar_width,
+        font_size = theme.font.sm,
+        tone = "subtle",
     }
-end
-
--- Chevrons move a stage through `order`. Hide them at the ends instead of showing no-op disabled
--- controls; `idle.move` already treats out-of-range moves as no-ops.
-local function reorder(item)
-    return column {
-        align_v = "Center",
-        children = {
-            panel_action_icon(icons.chevron_up, function()
-                idle.move(item.key, -1)
-            end, { slot = "idle-up-" .. item.key, visible = not item.first }),
-            panel_action_icon(icons.chevron_down, function()
-                idle.move(item.key, 1)
-            end, { slot = "idle-down-" .. item.key, visible = not item.last }),
-        },
-    }
+    -- Duration clicks stay separate from the row's drag gesture.
+    bar.on_drag = function() end
+    return bar
 end
 
 local function stage_row(item)
-    local stage = item.stage
+    local stage = assert(idle.stage(item.key))
     local enabled = computed({ settings, shown_profile }, function(resolved, profile)
         local held = resolved[profile]
         return held[item.key .. "_on"] and held[item.key .. "_sec"] > 0
     end)
-    return panel_row {
+    local node = panel_row {
         title = util.bold_when(enabled, stage.title),
         -- The stage's own description, not "after <the row above>": that row may be off in one
         -- profile.
@@ -172,33 +149,62 @@ local function stage_row(item)
         title_size = theme.font.md,
         subtitle_size = theme.font.sm,
         height = theme.idle_row_height,
-        leading = row {
-            align_v = "Center",
-            spacing = theme.spacing.xs,
-            children = {
-                reorder(item),
-                glyph(stage.icon, util.choose(enabled, theme.ACCENT, theme.DIM), theme.icon.md,
-                    { align_v = "Center" }),
-            },
-        },
+        icon = stage.icon,
+        icon_color = util.choose(enabled, theme.ACCENT, theme.DIM),
         trailing = duration_bar(stage),
     }
+    node.cursor = dragging:map(function(drag) return drag.key == item.key and "grabbing" or "grab" end)
+    node.z = dragging:map(function(drag) return drag.key == item.key and 1 or 0 end)
+    node.background = dragging:map(function(drag) return drag.key == item.key and theme.ACCENT_SUBTLE or nil end)
+    node.translate = dragging:map(function(drag)
+        if not drag.key then return { y = 0 } end
+        local y = 0
+        if drag.key == item.key then
+            y = drag.offset
+        elseif item.index > drag.index and item.index <= drag.target then
+            y = -theme.idle_row_height
+        elseif item.index < drag.index and item.index >= drag.target then
+            y = theme.idle_row_height
+        end
+        return { y = y }
+    end)
+    node.on_drag = function(rect, pointer, phase)
+        if phase == "start" then
+            dragging:set({ key = item.key, index = item.index, target = item.index, offset = 0, grab_y = pointer.y })
+            return
+        end
+        local drag = dragging:get()
+        if drag.key ~= item.key then return end
+        local bounds = stage_bounds:get()
+        local count = #settings:get().order
+        local offset = rect.y + pointer.y - drag.grab_y - bounds.y - (drag.index - 1) * theme.idle_row_height
+        offset = math.max((1 - drag.index) * theme.idle_row_height,
+            math.min((count - drag.index) * theme.idle_row_height, offset))
+        local target = drag.index + math.floor(offset / theme.idle_row_height + 0.5)
+        if phase == "end" then
+            dragging:set({})
+            local y = rect.y + pointer.y
+            if ui_state.active_modal:get() == "idle_settings" and pointer.x >= 0 and pointer.x < rect.width
+                and y >= bounds.y and y < bounds.y + bounds.height then
+                idle.move(item.key, target - drag.index)
+            end
+        else
+            dragging:set({ key = drag.key, index = drag.index, target = target, offset = offset, grab_y = drag.grab_y })
+        end
+    end
+    return node
 end
 
 -- One row per stage in stored `order`, as a `list` because declared children cannot be reordered.
 -- Descriptors rebuild only when stored settings change: a reorder rebuilds rows, a tick none.
 local stage_list = list {
     width = "Fill",
+    geometry = stage_bounds,
     source = settings:map(function(resolved)
         local items = {}
         for index, key in ipairs(resolved.order) do
             -- `idle.read` resolved `order` to known stages only.
-            items[#items + 1] = {
-                key = key,
-                stage = idle.stage(key),
-                first = index == 1,
-                last = index == #resolved.order
-            }
+            items[index] = { key = key, index = index }
         end
         return items
     end),
@@ -214,7 +220,7 @@ local capture_hold = settings:map(function(resolved)
 end)
 local behaviour_rows = {
     panel_row {
-        icon = icons.play,
+        icon = icons.camera,
         title = util.bold_when(capture_hold, "Keep awake while capturing"),
         -- Not video: a player asks for that itself and the engine honours it either way.
         subtitle = "Camera, microphone, screen capture",
@@ -242,9 +248,8 @@ local behaviour_rows = {
     },
 }
 
--- The master switch and its timeline share a card: a composite control, like an audio slider's.
-local flow_card = panel_card(util.concat({ panel_row {
-    icon = icons.play,
+local automatic = panel_row {
+    icon = icons.power,
     icon_color = util.choose(running, theme.ACCENT, theme.DIM),
     title = "Automatic actions",
     subtitle = idle.active_profile:map(function(profile)
@@ -257,25 +262,33 @@ local flow_card = panel_card(util.concat({ panel_row {
     end, function(on)
         idle.write({ enabled = on })
     end, "idle-enabled"),
-} }, timeline_section(settings)), {
+}
+
+local body_scroll = scroll("idle_settings_body")
+local body = panel_card(util.concat({
+    automatic,
+    timeline_section(settings),
+    row {
+        width = "Fill",
+        align_v = "Center",
+        children = { section_header("automation"), rect { width = "Fill" }, profile_picker },
+    },
+    stage_list,
+    section_header("behaviour"),
+}, behaviour_rows), {
     width = "Fill",
+    background = theme.CLEAR,
+    outlined = true,
+    border_color = theme.BORDER_SUBTLE,
     spacing = theme.spacing.sm,
-    tone = util.choose(running, "active", "standard"),
 })
+body.max_height = theme.idle_body_height
+body.scroll = body_scroll
 
 return modal({
     kind = "idle_settings",
-    card = panel_card(util.concat({
-        header,
-        flow_card,
-        row {
-            width = "Fill",
-            align_v = "Center",
-            children = { section_header("automation"), rect { width = "Fill" }, profile_picker },
-        },
-        stage_list,
-        section_header("behaviour"),
-    }, behaviour_rows), {
+    reset_on_close = { body_scroll },
+    card = panel_card({ header, body }, {
         width = theme.idle_modal_width,
         tone = "dialog",
     }),

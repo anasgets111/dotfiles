@@ -3,6 +3,7 @@
 local theme = require("config.theme")
 local util = require("lib.util")
 local ui_state = require("lib.ui_state")
+local scrim = require("components.scrim")
 
 local modals = {
     require("modules.global.launcher"),
@@ -14,25 +15,20 @@ local modals = {
 local any_modal = ui_state.active_modal:map(function(kind)
     return kind ~= ""
 end)
-local scrim_color = ui_state.active_modal:map(function(kind)
-    return kind == "launcher" and theme.LAUNCHER_SCRIM or theme.SCRIM
-end)
 
 -- Only cards open or fading out are children: a hidden card would be frozen, not dropped.
 local lingering = {}
-local exit_ms = 0
 -- Scrolls only: a state reset here would miss a switch between modals, so each modal resets its
 -- state with `ui_state.on_modal_close`.
 local reset = {}
 for _, modal in ipairs(modals) do
-    table.insert(lingering, util.linger(ui_state.modal_showing(modal.kind), modal.exit_ms))
-    exit_ms = math.max(exit_ms, modal.exit_ms)
+    table.insert(lingering, util.linger(ui_state.modal_showing(modal.kind), theme.animation_ms))
     reset = util.concat(reset, modal.reset_on_close)
 end
 
 -- Mapped through the last card's exit fade. `keyboard_interactivity` reads the same signal: `None`
 -- on a still-mapped host makes Hyprland refocus the last window, onto its workspace.
-local shown = util.linger(any_modal, exit_ms)
+local shown = util.linger(any_modal, theme.animation_ms)
 
 local escape_sink = textfield {
     id = "escape_sink",
@@ -83,17 +79,7 @@ return panel {
         height = "Fill",
         children = {
             -- Dims, not blurs: cards blur themselves, and a blur region cannot fade.
-            rect {
-                width = "Fill",
-                height = "Fill",
-                background = scrim_color,
-                opacity = util.choose(any_modal, 1, 0),
-                animate = any_modal:map(function(open)
-                    return {
-                        opacity = { duration = theme.animation_ms, easing = open and "OutCubic" or "InCubic", from = 0 },
-                    }
-                end),
-            },
+            scrim(any_modal),
             -- The catcher contains the cards rather than sitting under them: `hit::descend` stops at
             -- the first child containing the point.
             rect {

@@ -79,8 +79,7 @@ mantle.system:on_change(function(system)
     local switched = idle.armed_profile:get() ~= profile
     idle.armed_profile:set(profile)
 
-    -- Rebuild rather than mutate (`lib/util.lua`): `set` compares table identity, and a fresh
-    -- table cannot mutate a value under an unfinished resolve. At most one key survives.
+    -- Rebuild without mutating a value under an unfinished resolve. At most one key survives.
     local stamps = (not switched and idle.armed_at:get()) or {}
     local next_stamps = {}
     if armed then

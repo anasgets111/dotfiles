@@ -14,6 +14,8 @@ local switch = require("components.switch")
 ---@field on_select fun(value: any)
 ---@field width? Length
 ---@field height? integer Default `theme.control.md`.
+---@field font_size? integer Default `theme.font.xs`.
+---@field tone? "subtle"
 ---@field visible? boolean|Bound
 
 ---@param opts SegmentedOpts
@@ -31,13 +33,14 @@ return function(opts)
             border = false,
             rest = theme.CLEAR,
         })
-        node.children = { cell(format(value), tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM), theme.font.xs, {
-            bold = chosen,
-            width = "Fill",
-            align = "Center",
-            align_v = "Center",
-            animate = { foreground = theme.animation_ms },
-        }) }
+        node.children = { cell(format(value), tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM),
+            opts.font_size or theme.font.xs, {
+                bold = chosen,
+                width = "Fill",
+                align = "Center",
+                align_v = "Center",
+                animate = { foreground = theme.animation_ms },
+            }) }
         return rect(node)
     end
 
@@ -59,9 +62,9 @@ return function(opts)
         visible = opts.visible,
         radius = theme.radius.md,
         clip = "Rounded",
-        background = theme.GLASS_CONTENT,
+        background = opts.tone == "subtle" and theme.GLASS_CONTROL_SUBTLE or theme.GLASS_CONTENT,
         border_width = theme.border_width,
-        border_color = theme.GLASS_BORDER,
+        border_color = opts.tone == "subtle" and theme.BORDER_SUBTLE or theme.GLASS_BORDER,
         children = children,
     }
 end

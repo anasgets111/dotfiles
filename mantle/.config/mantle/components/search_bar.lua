@@ -7,7 +7,7 @@ local glyph = require("components.glyph")
 return function(field)
     field.width, field.height, field.autofocus = "Fill", "Fill", true
     field.font_size, field.foreground = theme.font.xl, theme.FG
-    return rect {
+    return row {
         width = "Fill",
         height = theme.control.xl,
         radius = theme.radius.md,
@@ -15,12 +15,7 @@ return function(field)
         border_width = theme.border_width,
         border_color = theme.ACCENT,
         padding = { left = theme.spacing.lg, right = theme.spacing.lg },
-        children = { row {
-            width = "Fill",
-            height = "Fill",
-            align_v = "Center",
-            spacing = theme.spacing.md,
-            children = { glyph(icons.search, theme.ACCENT, theme.icon.md, { align_v = "Center" }), field },
-        } },
+        spacing = theme.spacing.md,
+        children = { glyph(icons.search, theme.ACCENT, theme.icon.md, { align_v = "Center" }), field },
     }
 end

@@ -9,6 +9,7 @@ local panel_card = require("components.panel_card")
 local action_button = require("components.action_button")
 local input = require("components.input")
 local modal = require("components.modal")
+local scrim = require("components.scrim")
 
 local active = util.shown_when(mantle.polkit, function(polkit)
     return polkit.active
@@ -40,10 +41,8 @@ return panel {
     child = rect {
         width = "Fill",
         height = "Fill",
-        background = theme.SCRIM,
-        opacity = util.choose(active, 1, 0),
-        animate = { opacity = theme.animation_ms },
         children = {
+            scrim(active),
             modal({ kind = "polkit", showing = active, card = panel_card({
                 row {
                     width = "Fill",

@@ -1,6 +1,6 @@
 -- The update service around `mantle.updates`: persistence, toasts, the install run and the developer
 -- tooling that follows it. `modules/bar/panels/update_panel.lua` owns the wording on screen and
--- `modules/bar/indicators/updates.lua` the bar glyph; neither runs anything.
+-- `modules/bar/indicators/updates.lua` the bar glyph; neither runs the update pipeline.
 local util = require("lib.util")
 local store = require("lib.store")
 local disclosure = require("lib.disclosure")
