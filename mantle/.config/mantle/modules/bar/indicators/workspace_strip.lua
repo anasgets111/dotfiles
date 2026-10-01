@@ -50,6 +50,7 @@ local is_dragging = dragging_from:map(function(from)
 end)
 
 local hold_timer = nil
+local hold_ready = false
 local drag_armed = false
 local start_cx, start_cy = 0, 0
 
@@ -72,7 +73,6 @@ local function arm_drag(ws, cx, cy)
 end
 
 local function reset_drag()
-    cancel_hold()
     dragging_from:set(nil)
     drag_target:set(nil)
     drag_icon:set("")
@@ -117,6 +117,11 @@ local function workspace_button(workspace)
         return workspace.populated and 1 or theme.opacity.muted
     end)
     local cursor = workspace.populated and util.choose(is_dragging, "grabbing", "pointer") or nil
+    local function focus_workspace()
+        if not is_active:get() then
+            mantle.workspaces:focus(id)
+        end
+    end
 
     local on_drag = nil
     if workspace.populated and workspace.window_id ~= nil then
@@ -125,15 +130,15 @@ local function workspace_button(workspace)
 
             if phase == "start" then
                 drag_armed = false
+                hold_ready = false
                 start_cx, start_cy = cx, cy
                 cancel_hold()
                 hold_timer = timer(200, function()
                     hold_timer = nil
-                    arm_drag(workspace, cx, cy)
+                    hold_ready = true
                 end)
             elseif phase == "move" then
-                if not drag_armed and (math.abs(cx - start_cx) > 10 or math.abs(cy - start_cy) > 10) then
-                    cancel_hold()
+                if hold_ready and not drag_armed and (math.abs(cx - start_cx) > 10 or math.abs(cy - start_cy) > 10) then
                     arm_drag(workspace, cx, cy)
                 end
                 if drag_armed then
@@ -153,20 +158,19 @@ local function workspace_button(workspace)
                     drag_target:set(best_dist < 40 and best_id or nil)
                 end
             elseif phase == "end" then
+                local released_on_source = cx >= rect.x and cx < rect.x + rect.width
+                    and cy >= rect.y and cy < rect.y + rect.height
+                cancel_hold()
+                hold_ready = false
                 if not drag_armed then
-                    cancel_hold()
-                    if not is_active:get() then
-                        mantle.workspaces:focus(id)
-                    end
+                    if released_on_source then focus_workspace() end
                 else
                     local from, target = dragging_from:get(), drag_target:get()
                     reset_drag()
-                    if from and target then
-                        if from ~= target then
-                            mantle.windows:move_to_workspace(workspace.window_id, target)
-                        elseif not is_active:get() then
-                            mantle.workspaces:focus(id)
-                        end
+                    if from and target and from ~= target then
+                        mantle.windows:move_to_workspace(workspace.window_id, target)
+                    elseif from and (released_on_source or target == from) then
+                        focus_workspace()
                     end
                 end
             end
@@ -175,11 +179,10 @@ local function workspace_button(workspace)
 
     -- `ground` already folds the pointer in, so it is both states; the ring and the contrast ink
     -- come from `icon_button`'s defaults.
-    return pill.cell(icon_button(tostring(workspace.idx), function()
-        if not is_active:get() then
-            mantle.workspaces:focus(id)
-        end
-    end, {
+    -- Populated cells focus on drag end; adding on_click would send the same focus twice.
+    local on_activate
+    if not on_drag then on_activate = focus_workspace end
+    return pill.cell(icon_button(tostring(workspace.idx), on_activate, {
         geometry = geometry("workspace-btn-" .. tostring(id)),
         cursor = cursor,
         on_drag = on_drag,
