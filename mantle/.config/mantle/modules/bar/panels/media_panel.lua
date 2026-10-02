@@ -14,6 +14,7 @@ local slider = require("components.slider")
 local panel_header = require("components.panel_header")
 local panel_action_icon = require("components.panel_action_icon")
 local panel_empty_state = require("components.panel_empty_state")
+local store = require("lib.store")
 
 local SEEK_STEP_US = 5 * 1000 * 1000
 local NEXT_LOOP = { None = "Playlist", Playlist = "Track", Track = "None" }
@@ -144,6 +145,12 @@ local body = {
             return first_nonempty(player and player.identity, "No player open")
         end),
         trailing = {
+            -- Swaps the bar's visualizer; the glyph names the one a click switches to.
+            panel_action_icon(store.media_visualizer:map(function(kind)
+                return kind == "bars" and icons.waveform or icons.chart_bar
+            end), function()
+                store:set("media_visualizer", store.media_visualizer:get() == "bars" and "wave" or "bars")
+            end, { slot = "media-visualizer", visible = has_player }),
             panel_action_icon(icons.raise, function()
                 local player = selected:get()
                 if player and player.can_raise then

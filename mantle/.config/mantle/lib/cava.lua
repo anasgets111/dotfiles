@@ -1,9 +1,13 @@
--- Cava's spectrum while a player plays: `levels` holds BARS numbers in 0..1, zeros otherwise.
+-- Cava's spectrum while a player plays: `levels` holds BARS numbers in 0..1, zeros otherwise, and
+-- `levels.frame` counts frames so a shader can move with the music and stop with it.
 local cava = {}
 
--- `config/cava` sets the same count; `shaders/cava_bars.frag` packs it four to a `vec4`.
+-- `config/cava` sets the same count; both `shaders/cava_*.frag` pack it four to a `vec4`.
 cava.BARS = 256
 local RETRY_MS = 3000
+-- ponytail: the drift jumps once per wrap (55 min at 30 fps), so the shader's float32 phase keeps
+-- sub-milliradian steps. A phase computed in Lua modulo each line's period is the upgrade.
+local FRAME_WRAP = 100000
 
 local ZERO = {}
 for index = 1, cava.BARS do
@@ -24,6 +28,7 @@ end
 cava.playing = mantle.mpris:map(playing)
 
 local child
+local frames = 0
 
 local function sync(on)
     if not on then
@@ -47,6 +52,8 @@ local function sync(on)
             frame[count] = tonumber(digits) / 1000
         end
         if count == cava.BARS then
+            frames = frames % FRAME_WRAP + 1
+            frame.frame = frames
             cava.levels:set(frame)
         end
     end, function(code)

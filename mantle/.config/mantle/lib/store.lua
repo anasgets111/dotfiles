@@ -40,5 +40,7 @@ return persistent_table {
         notifications_dnd_while_sharing = true,
         -- Two profiles keyed by mains state, sharing `order`. `lib/idle.lua` holds every default.
         idle = {},
+        -- The bar's media visualizer: `"wave"` or `"bars"`, chosen in the media panel.
+        media_visualizer = "wave",
     },
 }

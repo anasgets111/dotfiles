@@ -106,6 +106,8 @@ theme.GREEN                    = "#a6e3a1ff"
 theme.YELLOW                   = "#f9e2afff"
 theme.PEACH                    = "#fab387ff"
 theme.RED                      = "#f38ba8ff"
+theme.BLUE                     = "#89b4faff"
+theme.TEAL                     = "#94e2d5ff"
 theme.INACTIVE                 = "#45475aff"
 theme.ON_HOVER                 = "#a28dcdff"
 theme.CLEAR                    = "#00000000"
@@ -215,6 +217,9 @@ theme.bar_height               = s(42, 28)
 -- `title_limit` is a character budget, not a box, so the centre zone stays content-sized and its
 -- midpoint is the bar's.
 theme.title_limit              = (MAIN_WIDTH / math.max(1, MAIN_HEIGHT)) > 2.1 and 74 or 47
+
+-- The wave visualizer's colours, left to right.
+theme.SPECTRUM                 = { theme.BLUE, theme.TEAL, theme.GREEN, theme.YELLOW, theme.PEACH }
 
 -- A third of the screen while media is up, so the spectrum has a span to fill.
 theme.center_zone_width        = math.floor(MAIN_WIDTH / 3)

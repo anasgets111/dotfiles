@@ -69,8 +69,8 @@ return row {
                 ui_state.open_panel(media_panel.kind, hover_rect(MEDIA_SLOT):get())
             end
         end,
+        -- The visualizer first, so it paints behind the title.
         children = {
-            window_title_module,
             row {
                 height = "Fill",
                 align_h = "Center",
@@ -78,6 +78,7 @@ return row {
                 visible = playback_available,
                 children = { media },
             },
+            window_title_module,
         },
     } },
 }
