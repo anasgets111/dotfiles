@@ -1,38 +1,23 @@
--- Flat bars: a spectrum at zero draws this same row. A live one would need 30fps levels, which a
--- `shader` node's `params` could take in one node rather than per-frame `rect` resolves.
+-- Cava's spectrum on one `shader` quad; at rest `lib/cava` holds zeros and it draws a flat row.
 local theme = require("config.theme")
-
--- Each bar is a real node, and at rest they read as one rule.
-local BARS = 48
-
-local tint = mantle.mpris:map(function(mpris)
-    for _, player in ipairs((mpris and mpris.players) or {}) do
-        if player.play_state == "Playing" then
-            return theme.ACCENT_MEDIUM
-        end
-    end
-    return theme.ACCENT_SUBTLE
-end)
-
-local children = {}
-for index = 1, BARS do
-    children[index] = rect {
-        width = "Fill",
-        height = theme.border_width_medium,
-        align_v = "End",
-        background = tint,
-    }
-end
+local cava = require("lib.cava")
 
 return rect {
     width = theme.center_zone_width,
     height = "Fill",
-    children = { row {
+    padding = theme.spacing.xs,
+    children = { shader {
         width = "Fill",
         height = "Fill",
-        align_v = "End",
-        padding = theme.spacing.xs,
-        spacing = theme.border_width,
-        children = children,
+        source = mantle.config_dir .. "/shaders/cava_bars.frag",
+        params = computed({ cava.levels, cava.playing }, function(levels, on)
+            return {
+                levels = levels,
+                count = cava.BARS,
+                gap = theme.border_width,
+                min_height = theme.border_width_medium,
+                color = theme.rgba(on and theme.ACCENT_MEDIUM or theme.ACCENT_SUBTLE),
+            }
+        end),
     } },
 }
