@@ -433,8 +433,10 @@ local search = on_rail(row {
             autofocus = true,
             font_size = theme.font.xl,
             foreground = theme.FG,
-            placeholder = mode:map(function(current)
-                return PROMPTS[current]
+            placeholder = computed({ mode, rail, hover("launcher-mode-1"), hover("launcher-mode-2"),
+                hover("launcher-mode-3"), hover("launcher-mode-4") }, function(current, open, apps, walls, calc, web)
+                return open and (apps and MODES[1].label or walls and MODES[2].label or calc and MODES[3].label
+                    or web and MODES[4].label) or PROMPTS[current]
             end),
             on_change = function(text)
                 query:set(text)
@@ -519,7 +521,6 @@ for _, node in ipairs(mode_rail.buttons({
     modes = MODES,
     choose = choose_mode,
     bind = on_rail,
-    tip = tip,
 })) do
     search_layers[#search_layers + 1] = node
 end

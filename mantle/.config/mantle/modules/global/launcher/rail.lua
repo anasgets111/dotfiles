@@ -100,7 +100,6 @@ end
 ---@field modes { id: string, label: string, icon: string }[]
 ---@field choose fun(id: string)
 ---@field bind fun(node: table, fields: table, extra?: table): table From `binder(open)`.
----@field tip fun(label: string, hovered: Signal<boolean>, x: number): table
 
 -- ponytail: the blur covers the pill and the buttons but not the necks the shader melts between
 -- them, since `blur` ignores `mask` and shaders. Shape the blur from the shader once the engine can.
@@ -149,7 +148,6 @@ function M.buttons(opts)
                         return 0.9 + 0.1 * reveal(index, progress)
                     end,
                 }, { background = theme.animation_fast_ms }),
-                opts.tip(entry.label, hovered, (SIZE - theme.launcher_tooltip_width) / 2),
             },
         }, {
             translate = function(progress)
