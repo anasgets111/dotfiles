@@ -70,14 +70,10 @@ end)
 
 local profile_picker = segmented {
     slot = "idle-profile",
-    -- A fresh list per profile change, so the segments rebuild and `format`'s "· live" moves with it.
-    options = idle.active_profile:map(function()
-        return { table.unpack(PROFILES) }
-    end),
+    options = PROFILES,
     value = shown_profile,
     format = function(profile)
-        local label = profile == "battery" and "Battery" or "AC power"
-        return idle.active_profile:get() == profile and label .. " · live" or label
+        return profile == "battery" and "Battery" or "AC power"
     end,
     on_select = function(profile)
         picked:set(profile)
@@ -271,6 +267,7 @@ local body = panel_card(util.concat({
     row {
         width = "Fill",
         align_v = "Center",
+        margin = { top = theme.spacing.sm },
         children = { section_header("automation"), rect { width = "Fill" }, profile_picker },
     },
     stage_list,
