@@ -188,6 +188,7 @@ local function access_point_row(entry)
     trailing[#trailing + 1] = rect {
         width = theme.icon.sm,
         height = theme.icon.sm,
+        align_v = "Center",
         children = { glyph(icons.lock, theme.DIM, theme.icon.sm, {
             align = "Center", align_v = "Center", visible = ap.secure,
         }) },
