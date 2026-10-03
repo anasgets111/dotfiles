@@ -3,6 +3,7 @@
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
+local ui_state = require("lib.ui_state")
 local disclosure = require("lib.disclosure")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
@@ -10,10 +11,19 @@ local meter = require("components.meter")
 local panel_card = require("components.panel_card")
 local panel_row = require("components.panel_row")
 
--- `sysinfo`'s pollers stay dormant until configured, and this is the only module reading them. CPU
--- every 2s, RAM and temperature every 5s, GPU every 2s, disks every 30s, and network every 1s.
--- `configure` has no ref-counting, so polling continues while the widget is collapsed.
-mantle.sysinfo:configure({ cpu_interval = 2, ram_interval = 5, temp_interval = 5, gpu_interval = 2, disk_interval = 30, net_interval = 1 })
+-- This is the only module reading `sysinfo`, so its pollers run only while the notifications panel
+-- shows: CPU every 2s, RAM and temperature every 5s, GPU every 2s, disks every 30s, network every 1s.
+local function sync_polling()
+    local on = ui_state.panel_is("notifications")
+    local function every(seconds) return on and seconds or 0 end
+    mantle.sysinfo:configure({
+        cpu_interval = every(2), ram_interval = every(5), temp_interval = every(5),
+        gpu_interval = every(2), disk_interval = every(30), net_interval = every(1),
+    })
+end
+ui_state.panel_open:on_change(sync_polling)
+ui_state.panel_kind:on_change(sync_polling)
+sync_polling()
 
 local disks = mantle.sysinfo:map(function(sysinfo)
     return sysinfo and sysinfo.disks or {}
