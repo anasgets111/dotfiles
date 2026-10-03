@@ -20,12 +20,32 @@ local input = require("components.input")
 local callout = require("components.callout")
 local ui = require("lib.ui_state")
 local join = require("lib.network_join")
+local segmented = require("components.segmented")
 
 local KIND = "network"
 
+-- The device the list and actions target: the pick while it exists, else the primary (first).
+-- `nil` without Wi-Fi hardware, where the flat actions report it.
+local picked = state("network_device", "")
+local device = computed({ mantle.network, picked }, function(network, id)
+    local devices = network and network.wifi_devices or {}
+    return util.find(devices, function(candidate)
+        return candidate.id == id
+    end) or devices[1]
+end)
+
 -- Payload order is connected, saved, then descending raw signal. The list re-sorts by tier.
-local function access_points(network)
-    return (network and network.available_networks) or {}
+local function access_points(network, target)
+    return (target and target.available_networks) or (network and network.available_networks) or {}
+end
+
+local function scan()
+    local target = device:get()
+    if target then
+        mantle.network:scan_device(target.id)
+    else
+        mantle.network:scan()
+    end
 end
 
 local function detail_line(first, second)
@@ -131,10 +151,10 @@ local function before(left, right)
     return tostring(left.ap.ssid):lower() < tostring(right.ap.ssid):lower()
 end
 
-local rows = mantle.network:map(function(network)
+local rows = computed({ mantle.network, device }, function(network, target)
     local connecting = network and network.connecting_ssid
     local sections = { connected = {}, saved = {}, available = {} }
-    for _, ap in ipairs(access_points(network)) do
+    for _, ap in ipairs(access_points(network, target)) do
         local group = ap.active and sections.connected or ap.saved and sections.saved or sections.available
         group[#group + 1] = {
             kind = "ap",
@@ -177,7 +197,7 @@ local function access_point_row(entry)
     }
     local trailing = {
         ap.active and panel_action_icon(icons.disconnect, function()
-            mantle.network:disconnect_wifi()
+            mantle.network:disconnect_wifi_device(device:get().id)
         end, { slot = "network-disconnect-" .. tostring(ap.ssid), tint = theme.RED }) or nil,
     }
     if ap.saved or ap.active then
@@ -208,7 +228,7 @@ local function access_point_row(entry)
         trailing = row { spacing = theme.spacing.xs, align_v = "center", children = trailing },
         on_activate = not ap.active and not entry.blocked and function()
             -- `hidden` is required; scanned `available_networks` entries are not hidden.
-            mantle.network:connect(ap.ssid, false)
+            mantle.network:connect_device(ap.ssid, false, device:get().id)
         end or nil,
     }
 end
@@ -267,7 +287,7 @@ local function scan_while_open()
         return
     end
     if radio_on(mantle.network:get()) then
-        mantle.network:scan()
+        scan()
     end
     rescan = timer(10000, scan_while_open)
 end
@@ -282,12 +302,10 @@ local body = {
         subtitle = mantle.network:map(state_line),
         trailing = {
             -- The rescan glyph spins in place while a scan is in flight.
-            panel_action_icon(icons.refresh, function()
-                mantle.network:scan()
-            end, {
+            panel_action_icon(icons.refresh, scan, {
                 slot = "network-rescan",
-                spinning = util.shown_when(mantle.network, function(network)
-                    return network.scanning
+                spinning = util.shown_when(device, function(target)
+                    return target.scanning
                 end),
                 visible = util.shown_when(mantle.network, function(network)
                     return network ~= nil and (radio_on(network) or network.scanning)
@@ -321,6 +339,26 @@ local body = {
                     and (detail ~= "" and detail or "Not connected") or ""
             end),
         },
+    },
+    -- Two or more adapters only: the list and its actions follow the chosen interface.
+    segmented {
+        slot = "network-device",
+        options = mantle.network:map(function(network)
+            local ids = {}
+            for _, candidate in ipairs(network and network.wifi_devices or {}) do
+                ids[#ids + 1] = candidate.id
+            end
+            return ids
+        end),
+        value = device:map(function(target)
+            return target and target.id
+        end),
+        on_select = function(id)
+            picked:set(id)
+        end,
+        visible = util.shown_when(mantle.network, function(network)
+            return network.networking_enabled and #network.wifi_devices > 1
+        end),
     },
     -- Dismissed until the next open or attempt; yields to the sheet so a failure never shows twice.
     callout(icons.warning, error_message, {
@@ -439,8 +477,8 @@ local body = {
             end
             return "No networks found"
         end),
-        computed({ mantle.network, join.hidden_join }, function(network, joining)
-            return not radio_on(network) or (not joining and #access_points(network) == 0)
+        computed({ mantle.network, device, join.hidden_join }, function(network, target, joining)
+            return not radio_on(network) or (not joining and #access_points(network, target) == 0)
         end)
     ),
 }
