@@ -57,8 +57,8 @@ local update_tooltip = tooltip({
         if updates == nil then
             return "--"
         elseif current == "pending" then
-            return updates.count == 1 and "One package can be upgraded"
-                or string.format("%d packages can be upgraded", updates.count)
+            return #updates.packages == 1 and "One package can be upgraded"
+                or string.format("%d packages can be upgraded", #updates.packages)
         end
         return LOOKS[current][3]
     end),

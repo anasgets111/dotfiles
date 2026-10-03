@@ -208,7 +208,7 @@ local function install()
     if updates == nil or updates.installing or dev_running:get() ~= "" then
         return
     end
-    local packages_pending = (updates.count or 0) > 0 or install_failed(updates)
+    local packages_pending = #updates.packages > 0 or install_failed(updates)
     if not packages_pending and not any_tool_runnable() then
         return
     end
@@ -300,7 +300,7 @@ local function announce_check(updates, previous)
     if updates.checking or previous == nil or previous.checking ~= true then
         return
     end
-    if (updates.count or 0) == 0 then
+    if #updates.packages == 0 then
         if not result_showing:get() then
             dismiss_notifications()
         end
@@ -330,8 +330,8 @@ local function announce_check(updates, previous)
     if fresh == 0 then
         return
     end
-    local body = fresh == 1 and string.format("One new package can be upgraded (%d)", updates.count)
-        or string.format("%d new packages can be upgraded (%d)", fresh, updates.count)
+    local body = fresh == 1 and string.format("One new package can be upgraded (%d)", #updates.packages)
+        or string.format("%d new packages can be upgraded (%d)", fresh, #updates.packages)
     toast("normal", "Updates available", body, "Run updates")
 end
 

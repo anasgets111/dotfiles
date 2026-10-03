@@ -78,7 +78,7 @@ local function status_line(updates, current, tool, dev)
     elseif current == "checking" then
         return "Checking…"
     elseif current == "pending" then
-        return service.plural(updates.count or 0, "update") .. " available"
+        return service.plural(#updates.packages, "update") .. " available"
     elseif current == "check_failed" then
         return "Check failed"
     end
@@ -96,7 +96,7 @@ local function detail_line(updates, current, tool, dev)
             return string.format("Package %d of %d", updates.install_current_step or 0, total)
         end
         -- No step line yet. Without a tty pacman downloads silently, so show what `alpm` sized.
-        return string.format("Downloading %s · %s", service.plural(updates.count, "package"),
+        return string.format("Downloading %s · %s", service.plural(#updates.packages, "package"),
             human_bytes(download_total(updates)))
     end
     if current == "done" or current == "failed" then
@@ -127,7 +127,7 @@ local function detail_line(updates, current, tool, dev)
     if updates.aur_error ~= nil then
         return "AUR not checked · " .. updates.aur_error:match("[^\n]*")
     end
-    if (updates.count or 0) > 0 then
+    if #updates.packages > 0 then
         return string.format("%s to download", human_bytes(download_total(updates)))
     end
     return "Nothing pending"
@@ -364,7 +364,7 @@ local body = {
                         return "Updating…"
                     elseif current == "failed" then
                         return "Retry update"
-                    elseif ((updates and updates.count) or 0) == 0 then
+                    elseif (updates and #updates.packages or 0) == 0 then
                         return "Update developer tools"
                     end
                     return "Update all"
@@ -383,7 +383,7 @@ local body = {
                             elseif current == "loading" or current == "done" then
                                 return false
                             end
-                            return (updates.count or 0) > 0 or service.any_tool_runnable()
+                            return #updates.packages > 0 or service.any_tool_runnable()
                         end),
                 }
             ),
